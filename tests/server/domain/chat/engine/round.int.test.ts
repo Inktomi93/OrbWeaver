@@ -2,7 +2,6 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { GroupConfig, TurnOutcome } from "@orb/contracts/chat";
 import type { PromptConfig } from "@orb/contracts/preset";
-import { messages } from "@orb/db";
 import { jsonValueSchema } from "@orb/kit/json";
 import { makePromptConfig } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
@@ -14,8 +13,8 @@ import {
   CORPUS_TEXT_MODEL,
   createChatRoot,
   createCorpusProviderExecution,
+  readRoomCanon,
 } from "@orb/testkit/node/composed";
-import { eq } from "drizzle-orm";
 
 async function room(group: Partial<GroupConfig> = {}, names = ["Aria", "Bran"], promptConfig?: PromptConfig): Promise<ChatRoot> {
   const provider = createCorpusProviderExecution({
@@ -67,7 +66,7 @@ test("runs each resolved speaker, committing a row per speaker (characterId = sp
   const outcome = await send(h);
   expect(outcome.aborted).toBe(false);
   expect(outcome.messages.filter(({ role }) => role === "assistant")).toHaveLength(3);
-  const history = await h.root.db.select().from(messages).where(eq(messages.chatId, h.chatId)).orderBy(messages.seq);
+  const history = await readRoomCanon(h.root, h.owner, h.chatId);
   expect(history.map(({ seq }) => seq)).toEqual([1, 2, 3, 4]);
   expect(history.slice(1).map(({ characterId }) => characterId)).toEqual(h.characters.map(({ id }) => id));
   expect(history.slice(1).every(({ role }) => role === "assistant")).toBe(true);
@@ -135,7 +134,7 @@ test("the per-chat lock is released after the round (a subsequent round runs)", 
   await using h = await room({}, ["Aria"]);
   expect((await send(h)).aborted).toBe(false);
   expect((await send(h)).aborted).toBe(false);
-  const rows = await h.root.db.select().from(messages).where(eq(messages.chatId, h.chatId)).orderBy(messages.seq);
+  const rows = await readRoomCanon(h.root, h.owner, h.chatId);
   expect(rows.map(({ seq }) => seq)).toEqual([1, 2, 3, 4]);
   expect(rows.map(({ role }) => role)).toEqual(["user", "assistant", "user", "assistant"]);
 });

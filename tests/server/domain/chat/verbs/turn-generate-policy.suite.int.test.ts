@@ -1,22 +1,13 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // Speakerless public generation uses the saved room policy and actual prior canon, not the roster's first seat.
 import { createCharacterSchema } from "@orb/contracts/character";
-import type { ChatBusEvent, GroupConfigInput } from "@orb/contracts/chat";
+import type { GroupConfigInput } from "@orb/contracts/chat";
 import { SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
-import { messages } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
-import type { TranscriptLine } from "@orb/testkit/node/composed";
-import { eq } from "drizzle-orm";
+import { readRoomCanon } from "@orb/testkit/node/composed";
 import { openingOf, openingText, textRoom, wireBodies } from "../scenario-physical.ts";
 import { B_CHAT_MODEL, B_UTILITY_MODEL, saveSpeakerConnection, speakerInputs, speakerRoom } from "./speaker-funding-physical.ts";
-
-// An owner line and one reply by the room's first seat, written by the native transcript import.
-function priorExchange(speakerHandle: string, reply: string): readonly TranscriptLine[] {
-  return [
-    { role: "user", content: "hello" },
-    { role: "assistant", speakerHandle, content: reply },
-  ];
-}
+import { priorExchange } from "./turn-generate-policy.fixtures.ts";
 
 test("speakerless list generation skips the actual last speaker and commits only the next eligible seat", async () => {
   await using h = await textRoom(["Bryn answers."], {
@@ -34,7 +25,7 @@ test("speakerless list generation skips the actual last speaker and commits only
   const outcome = await h.root.services.chat.generate({ principal: h.owner, chatId: h.chatId });
   expect(outcome.aborted).toBe(false);
   expect(outcome.messages).toHaveLength(1);
-  const canon = await h.root.db.select().from(messages).where(eq(messages.chatId, h.chatId)).orderBy(messages.seq);
+  const canon = await readRoomCanon(h.root, h.owner, h.chatId);
   const prior = canon[1];
   expect(outcome.messages[0]).toMatchObject({ role: "assistant", characterId: bryn.id, content: "Bryn answers.", seq: (prior?.seq ?? 0) + 1 });
   expect(outcome.messages[0]?.id).not.toBe(prior?.id);
@@ -90,7 +81,7 @@ test.for([
   const outcome = await h.root.services.chat.generate({ principal: h.owner, chatId: h.chatId });
   expect(outcome.aborted).toBe(false);
   expect(outcome.messages).toHaveLength(1);
-  const canon = await h.root.db.select().from(messages).where(eq(messages.chatId, h.chatId)).orderBy(messages.seq);
+  const canon = await readRoomCanon(h.root, h.owner, h.chatId);
   expect(outcome.messages[0]).toMatchObject({
     role: "assistant",
     characterId: selected.id,
@@ -101,30 +92,6 @@ test.for([
   const bodies = await wireBodies(h);
   expect(bodies).toHaveLength(1);
   expect(openingText(bodies[0])).toBe(openingOf("hello"));
-});
-
-test("speakerless manual generation commits nothing and closes its accepted slot without starting a turn", async () => {
-  await using h = await textRoom([], {
-    characters: [
-      createCharacterSchema.parse({ handle: "aria", name: "Aria", description: "A bold knight." }),
-      createCharacterSchema.parse({ handle: "bryn", name: "Bryn", description: "An observant mage." }),
-    ],
-    group: { output: "per-speaker", policy: "manual" },
-    transcript: priorExchange("aria", "The prior answer."),
-  });
-  const before = await h.root.db.select().from(messages).where(eq(messages.chatId, h.chatId)).orderBy(messages.seq);
-  const events: ChatBusEvent[] = [];
-  const unsubscribe = h.root.app.liveBuses.chat.subscribeAllChatEvents(({ event }) => events.push(event));
-  try {
-    const outcome = await h.root.services.chat.generate({ principal: h.owner, chatId: h.chatId });
-    expect(outcome).toEqual({ messages: [], aborted: false, abortReason: undefined });
-    expect(await h.root.db.select().from(messages).where(eq(messages.chatId, h.chatId)).orderBy(messages.seq)).toEqual(before);
-    expect(events.map(({ type }) => type)).not.toContain("turnStarted");
-    expect(events.at(-1)).toMatchObject({ type: "turnCompleted", intent: "generate", messageId: null });
-    expect(h.requests.filter((request) => new URL(request.url).pathname.endsWith("/chat/completions"))).toEqual([]);
-  } finally {
-    unsubscribe();
-  }
 });
 
 interface GenerateCase {
@@ -183,7 +150,7 @@ test.for([
   const outcome = await h.root.services.chat.generate({ principal: h.owner, chatId: h.chatId, ...(scene.explicit ? { speakerCharacterId: aria.id } : {}) });
   expect(outcome.aborted).toBe(false);
   expect(outcome.messages).toHaveLength(1);
-  const [, priorReply] = await h.root.db.select().from(messages).where(eq(messages.chatId, h.chatId)).orderBy(messages.seq);
+  const [, priorReply] = await readRoomCanon(h.root, h.owner, h.chatId);
   expect(outcome.messages[0]).toMatchObject({ role: "assistant", characterId: expected.id, content: reply, seq: (priorReply?.seq ?? 0) + 1 });
   expect(await speakerInputs(f.peer.requests, B_UTILITY_MODEL)).toHaveLength(scene.explicit ? 0 : 1);
   const chat = await speakerInputs(f.peer.requests, B_CHAT_MODEL);
@@ -192,6 +159,6 @@ test.for([
   expect(f.events.filter(({ type }) => type === "warning")).toEqual(
     scene.failure ? [{ type: "warning", chatId: h.chatId, code: "smart_arbitration_degraded" }] : [],
   );
-  const canon = await h.root.db.select().from(messages).where(eq(messages.chatId, h.chatId)).orderBy(messages.seq);
+  const canon = await readRoomCanon(h.root, h.owner, h.chatId);
   expect(canon.map(({ characterId }) => characterId)).toEqual([null, aria.id, expected.id]);
 });

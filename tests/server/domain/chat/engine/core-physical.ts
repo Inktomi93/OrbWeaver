@@ -54,6 +54,11 @@ export function coreFrame(value: JsonValue): string {
 export function coreSse(frames: readonly string[]): Response {
   return new Response(`${[...frames, "data: [DONE]"].join("\n\n")}\n\n`, { headers: { "content-type": "text/event-stream" } });
 }
+/** One finished prose reply: a single content frame and the terminal usage line. */
+export function coreProse(text: string): Response {
+  return coreSse([coreFrame({ choices: [{ delta: { content: text } }] }), terminalSseLine({ usage: { promptTokens: 4, completionTokens: 2 } })]);
+}
+
 /** Pause only external HTTP admission; actual cancellation releases and joins this physical edge. */
 export function coreHeldReply(): {
   readonly reached: Promise<AbortSignal>;

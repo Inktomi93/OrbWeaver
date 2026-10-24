@@ -2,10 +2,12 @@
 // follows may fail and is retried at the next event. The undecodable row is planted directly: no verb writes it.
 // @subject packages/server/src/domain/automation/substrate/run-now.ts
 import { automationRules, closeDb } from "@orb/db";
+import type { AutomationRuleId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, freshDb } from "@orb/testkit/node/composed";
-import { sql } from "drizzle-orm";
-import { enabledRule, storedRule } from "../runtime.fixtures.ts";
+import { eq, sql } from "drizzle-orm";
+import { enabledRule } from "../runtime.fixtures.ts";
 
 function statementText(input: unknown): string | null {
   if (typeof input === "string") {
@@ -15,6 +17,14 @@ function statementText(input: unknown): string | null {
     return input.sql;
   }
   return null;
+}
+
+async function storedRule(root: ServerTestHarness, id: AutomationRuleId): Promise<typeof automationRules.$inferSelect> {
+  const row = await root.db.select().from(automationRules).where(eq(automationRules.id, id)).get();
+  if (row === undefined) {
+    throw new Error("the production-created rule has no stored row");
+  }
+  return row;
 }
 
 test("a failed index refresh after manual auto-disable preserves the committed run and retries at the event door", async () => {

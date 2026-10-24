@@ -1,4 +1,3 @@
-import { closeDb, createDb } from "@orb/db";
 import {
   addSpanEvent,
   getTraceByRequestId,
@@ -8,10 +7,8 @@ import {
   setSpanAttrs,
   span,
   withRequestSpan,
-  wrapLibSqlClient,
 } from "@orb/server/foundation/observability";
 import { expect, test } from "@orb/testkit/node";
-import { sql } from "drizzle-orm";
 import { Hono } from "hono";
 
 const ROOT = "migration.request";
@@ -114,32 +111,4 @@ test("the ring keeps bounded scalar metadata, native arrays and event attributes
   const bounded = child?.attributes["detail"];
   expect(bounded).toBe(`${long.slice(0, 512)}…`);
   expect(child?.events).toEqual([expect.objectContaining({ name: "metadata.event", attributes: { detail: bounded, count: 2, enabled: true } })]);
-});
-
-test("the real DB wrapper records query results and failures without breaking native close", async ({ ids }) => {
-  const db = await createDb(":memory:", wrapLibSqlClient);
-  using lifetime = new DisposableStack();
-  lifetime.defer(() => closeDb(db));
-  const successId = `db-success:${ids.uuid()}`;
-  await withRequestSpan(successId, ROOT, {}, async () => {
-    expect(await db.get<{ answer: number }>(sql`SELECT 7 AS answer`)).toEqual({ answer: 7 });
-  });
-  const succeeded = getTraceByRequestId(successId);
-  expect(succeeded).toMatchObject({ status: "ok", totals: { spanCount: 2, dbSpanCount: 1 } });
-  const root = succeeded?.spans.find((entry) => entry.name === ROOT);
-  expect(succeeded?.spans.find((entry) => entry.name === "db.execute")).toMatchObject({
-    parentSpanId: root?.spanId,
-    status: "ok",
-    attributes: { "db.method": "execute", "db.rows": 1, "db.sql": "SELECT 7 AS answer" },
-  });
-  const failureId = `db-failure:${ids.uuid()}`;
-  await expect(withRequestSpan(failureId, ROOT, {}, () => db.get(sql`SELECT * FROM missing_migration_table`))).rejects.toThrow();
-  const failed = getTraceByRequestId(failureId);
-  expect(failed).toMatchObject({ status: "error", totals: { spanCount: 2, dbSpanCount: 1 } });
-  expect(failed?.spans.find((entry) => entry.name === "db.execute")).toMatchObject({
-    status: "error",
-    events: [expect.objectContaining({ name: "exception" })],
-  });
-  lifetime.dispose();
-  await expect(db.get(sql`SELECT 7 AS answer`)).rejects.toThrow();
 });

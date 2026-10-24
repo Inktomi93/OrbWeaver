@@ -1,15 +1,18 @@
+import type { EmbeddingTask } from "@orb/contracts/embeddings";
 import type { Task } from "@orb/contracts/inference";
-import { declaredCapabilitySchema, taskDef } from "@orb/contracts/inference";
+import { declaredCapabilitySchema, TASKS, taskDef } from "@orb/contracts/inference";
 import type { LibSqlWrap } from "@orb/db";
 import { closeDb } from "@orb/db";
-import type { InferenceDeps, Resolved } from "@orb/inference";
+import type { InferenceDeps, InferenceRuntime, ProviderExecutor, Resolved } from "@orb/inference";
 import type { UserCredentialId } from "@orb/kit/ids";
 import { jsonValueSchema } from "@orb/kit/json";
+import { projectJsonSchema } from "@orb/kit/json-schema";
 import type { AppCaller, Fixtures } from "@orb/testkit/node";
 import { test as baseTest } from "@orb/testkit/node";
 import { freshDb } from "@orb/testkit/node/composed";
 import type { SdkScriptSpawn } from "@orb/testkit/node/helpers";
 import { createSdkProcessSpawner, TEST_BASE_URL, TEST_PROVIDER_ID, terminalSseLine } from "@orb/testkit/node/helpers";
+import { z } from "zod";
 
 export { seedRecallRoom as fundingRoom } from "@orb/testkit/node/composed";
 
@@ -359,3 +362,38 @@ export async function fundingConnection<T extends Task>(args: {
   });
   return { ...resolved, task };
 }
+
+export type BackgroundTask = Exclude<Task, "chat" | "agent" | "generateImage">;
+export type Execute = (runtime: InferenceRuntime, connection: Resolved) => ReturnType<ProviderExecutor[keyof ProviderExecutor]>;
+
+export const INPUTS = [{ systemPrompt: "Answer briefly.", userPrompt: "A funding control." }];
+export const FORMAT = { name: "funding_answer", schema: projectJsonSchema(z.strictObject({ answer: z.string() })) };
+export const EMBEDDING_PATH = `${new URL(TEST_BASE_URL).pathname.replace(/\/$/u, "")}/embeddings`;
+export const REPOINTED_MODEL = "different-funding-model";
+
+export async function pinGeneration(
+  harness: Fixtures["harness"],
+  task: EmbeddingTask,
+  connectionId: Resolved["connectionId"],
+): Promise<NonNullable<Awaited<ReturnType<Fixtures["app"]["embeddings"]["resolveGeneration"]>>>> {
+  await harness.services.connection.setBinding({ principal: await harness.principalFor(harness.ownerId), task, connectionId });
+  await harness.settleBackground();
+  const generation = await harness.app.embeddings.resolveGeneration(harness.ownerId, task);
+  if (generation === null) {
+    throw new Error("the real bound encoder did not produce a pinned generation");
+  }
+  await harness.settleBackground();
+  return generation;
+}
+export const EXECUTE: Record<BackgroundTask, Execute> = {
+  embed: (runtime, connection) => runtime.executor.embed({ connection: { ...connection, task: "embed" }, input: "funding control" }),
+  imageEmbed: (runtime, connection) =>
+    runtime.executor.imageEmbed({ connection: { ...connection, task: "imageEmbed" }, input: { kind: "text", input: "funding control" } }),
+  rerank: (runtime, connection) =>
+    runtime.executor.rerank({ connection: { ...connection, task: "rerank" }, query: "control", documents: [{ id: "document", text: "control" }] }),
+  summarize: (runtime, connection) => runtime.executor.summarize({ connection: { ...connection, task: "summarize" }, inputs: INPUTS }),
+  structured: (runtime, connection) =>
+    runtime.executor.structured({ connection: { ...connection, task: "structured" }, inputs: INPUTS, responseFormat: FORMAT }),
+};
+
+export const BACKGROUND_TASKS = TASKS.filter((task): task is BackgroundTask => taskDef(task).spend === "background");

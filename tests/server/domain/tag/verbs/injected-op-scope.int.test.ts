@@ -2,10 +2,8 @@
 // @subject packages/server/src/domain/tag/verbs/detach-card-tag-by-name.ts
 // @subject packages/server/src/entry/compose/assets-character.ts
 import { createCharacterSchema } from "@orb/contracts/character";
-import { characterTags } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
-import { eq } from "drizzle-orm";
 
 const LABEL = "op-scope-shared-label";
 
@@ -25,7 +23,7 @@ test("a foreign caller's scope on the detach op leaves the owner's card tag atta
   expect(await attachCardTagByName({ ownerId: owner.userId, characterId: owned.id, tagName: LABEL })).toBe(true);
   expect(await attachCardTagByName({ ownerId: foreign.userId, characterId: theirs.id, tagName: LABEL })).toBe(true);
   const ownedLinks = async (): Promise<readonly unknown[]> =>
-    await root.db.select({ tagId: characterTags.tagId }).from(characterTags).where(eq(characterTags.characterId, owned.id));
+    (await root.services.character.get({ principal: owner, characterId: owned.id })).tags.map(({ id }) => ({ tagId: id }));
   const attached = await ownedLinks();
   expect(attached).toHaveLength(1);
 

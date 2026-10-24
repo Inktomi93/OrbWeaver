@@ -1,74 +1,13 @@
 // Real composed writes and transport frames prove reach authority, confirmed deletion, and failure isolation.
 import { createRegexScriptSchema } from "@orb/contracts/regex";
-import { auditLogs, chatDocuments, chatEvents, chatRegexScripts, regexScripts } from "@orb/db";
+import { chatDocuments, chatRegexScripts } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { getLog } from "@orb/server/foundation/observability";
-import type { Fixtures } from "@orb/testkit/node";
-import { test as baseTest, expect } from "@orb/testkit/node";
-import type { HeldDb } from "@orb/testkit/node/composed";
-import { freshHeldDb, withheldTable } from "@orb/testkit/node/composed";
-import { and, eq } from "drizzle-orm";
+import { expect } from "@orb/testkit/node";
+import { withheldTable } from "@orb/testkit/node/composed";
 import { onTestFinished, vi } from "vitest";
-
-const test = baseTest.extend<Pick<Fixtures, "authConfig">>({
-  authConfig: async ({}, use): Promise<void> => {
-    await use({ mode: "local" });
-  },
-});
-
-const heldDbTest = test.extend<{ heldDb: HeldDb }>({
-  heldDb: async ({}, use): Promise<void> => {
-    await use(await freshHeldDb());
-  },
-});
-
-const held = heldDbTest.extend<Pick<Fixtures, "db">>({
-  db: async ({ heldDb }, use): Promise<void> => {
-    await use(heldDb.db);
-  },
-});
-
-held(
-  "a raced single regex delete preserves its answer but fans no rooms when its owned DELETE removed nothing",
-  async ({ heldDb, db, harness, ownerCaller, app }): Promise<void> => {
-    const script = await ownerCaller.regex.createScript({
-      input: createRegexScriptSchema.parse({ name: "race", findRegex: "x", replaceString: "y", placement: [] }),
-    });
-    const { chat } = await ownerCaller.chat.startChat({ characterIds: [] });
-    await ownerCaller.regex.attachToChat({ chatId: chat.id, scriptId: script.id });
-    const frames: Parameters<Parameters<ServicesResult["liveBuses"]["chat"]["subscribeAllChatEvents"]>[0]>[0][] = [];
-    onTestFinished(
-      app.liveBuses.chat.subscribeAllChatEvents((frame) => {
-        if (frame.event.type === "roomEntityChanged") {
-          frames.push(frame);
-        }
-      }),
-    );
-    const gate = heldDb.hold(/^delete from "regex_scripts"/u);
-    const loser = ownerCaller.regex.removeScript({ scriptId: script.id });
-    try {
-      await gate.reached;
-      gate.disarm();
-      expect(await ownerCaller.regex.removeScript({ scriptId: script.id })).toEqual({ deleted: true });
-      expect(frames).toEqual([{ seq: null, event: { type: "roomEntityChanged", chatId: chat.id, entity: "regex" } }]);
-      frames.length = 0;
-      gate.release();
-      expect(await loser).toEqual({ deleted: true });
-      expect(await db.select().from(regexScripts).where(eq(regexScripts.id, script.id))).toEqual([]);
-      expect(
-        await db
-          .select()
-          .from(auditLogs)
-          .where(and(eq(auditLogs.actorUserId, harness.ownerId), eq(auditLogs.entityId, script.id), eq(auditLogs.action, "regex.removeScript"))),
-      ).toHaveLength(2);
-      expect(frames).toEqual([]);
-    } finally {
-      gate.release();
-      await loser;
-    }
-  },
-);
+import { test } from "./room-reach.fixtures.ts";
 
 test("bulk regex capture fans only confirmed owned scripts, once per room, and never a host-only library tier", async ({
   services,
@@ -103,39 +42,6 @@ test("bulk regex capture fans only confirmed owned scripts, once per room, and n
     foreign.id,
   );
   expect(frames).toEqual([{ seq: null, event: { type: "roomEntityChanged", chatId: ownedRoom.id, entity: "regex" } }]);
-});
-
-test("a foreign or missing global book never fans its captured rooms, while an owned delete fans after cascade without a durable event", async ({
-  db,
-  app,
-  ownerCaller,
-  otherCaller,
-}): Promise<void> => {
-  const room = (await otherCaller.chat.startChat({ characterIds: [] })).chat;
-  const book = await otherCaller.worldInfo.createBook({ input: { name: "private book" } });
-  const frames: Parameters<Parameters<ServicesResult["liveBuses"]["chat"]["subscribeAllChatEvents"]>[0]>[0][] = [];
-  const attached = Promise.withResolvers<void>();
-  onTestFinished(
-    app.liveBuses.chat.subscribeAllChatEvents((frame) => {
-      if (frame.event.type === "roomEntityChanged") {
-        frames.push(frame);
-        if (frame.event.entity === "world-info" && frame.event.chatId === room.id) {
-          attached.resolve();
-        }
-      }
-    }),
-  );
-  await otherCaller.worldInfo.attachGlobal({ bookId: book.id });
-  await attached.promise;
-  frames.length = 0;
-  const durableBefore = await db.select().from(chatEvents);
-  await expect(ownerCaller.worldInfo.removeBook({ bookId: book.id })).toThrowTRPCError("NOT_FOUND");
-  await expect(ownerCaller.worldInfo.removeBook({ bookId: mintTypeId(ID_PREFIX.worldBook) })).toThrowTRPCError("NOT_FOUND");
-  expect(frames).toEqual([]);
-  expect(await otherCaller.worldInfo.removeBook({ bookId: book.id })).toEqual({ deleted: true });
-  expect(frames).toEqual([{ seq: null, event: { type: "roomEntityChanged", chatId: room.id, entity: "world-info" } }]);
-  expect(await db.select().from(chatEvents)).toEqual(durableBefore);
-  await expect(otherCaller.worldInfo.getBook({ bookId: book.id })).toThrowTRPCError("NOT_FOUND");
 });
 
 test("global document reach credits a present member rather than only the host, then drops that departed member", async ({
@@ -214,11 +120,11 @@ test("a failed regex reach capture is logged and cannot fault the confirmed dele
       "room-reach: pre-write delete capture failed; the delete proceeds unannounced",
     );
     expect(frames).toEqual([]);
-    expect(await db.select().from(regexScripts).where(eq(regexScripts.id, script.id))).toEqual([]);
+    expect((await services.regex.listScripts({ principal: callerPrincipal })).filter(({ id }) => id === script.id)).toEqual([]);
   } finally {
     await withheld.lift();
   }
-  expect(await db.select().from(chatRegexScripts).where(eq(chatRegexScripts.regexScriptId, script.id))).toEqual([]);
+  expect((await services.regex.listForChat({ principal: callerPrincipal, chatId: room.id })).filter(({ id }) => id === script.id)).toEqual([]);
 });
 
 test("a failed document reach is logged without rejecting or rolling back its already-committed rename", async ({

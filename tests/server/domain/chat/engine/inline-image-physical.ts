@@ -1,9 +1,7 @@
 // A controlled image/tool endpoint speaks native Google bytes; plugin execution and asset retention stay real.
 import { spawn } from "node:child_process";
-import { parseVariantMetadata } from "@orb/contracts/chat";
 import { providerDefSchema } from "@orb/contracts/inference";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema, pluginToolWireName } from "@orb/contracts/plugin";
-import { assets, chatEvents, messageAssets, messages, messageVariants } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
@@ -21,7 +19,6 @@ import {
   seedInstalledPlugin,
   seedPluginGrant,
 } from "@orb/testkit/node/composed";
-import { and, eq } from "drizzle-orm";
 
 export const IMAGE_PROSE = "She unrolls the map.";
 export const IMAGE_SIGNATURE = "private-native-image-signature";
@@ -86,10 +83,6 @@ export async function imageRoom(
     readonly turn: () => ReturnType<Awaited<ReturnType<typeof createChatRoot>>["root"]["services"]["chat"]["generate"]>;
     readonly inputs: () => Promise<JsonValue[][]>;
     readonly canon: () => ReturnType<Awaited<ReturnType<typeof createChatRoot>>["caller"]["chat"]["listMessages"]>;
-    readonly selected: () => Promise<ReturnType<typeof parseVariantMetadata> | undefined>;
-    readonly links: () => Promise<(typeof messageAssets.$inferSelect)[]>;
-    readonly generated: () => Promise<(typeof assets.$inferSelect)[]>;
-    readonly events: () => Promise<(typeof chatEvents.$inferSelect)[]>;
   }
 > {
   await using construction = new AsyncDisposableStack();
@@ -207,29 +200,6 @@ host.tools.register({name:"draw",description:"Draw the moon.",replayHistory:true
     turn: async () =>
       await h.root.services.chat.generate({ principal: h.owner, chatId: h.chatId, intent: { replyMedia: "text+image", carryReasoning: "conversation" } }),
     canon: async () => await h.caller.chat.listMessages({ chatId: h.chatId }),
-    selected: async (): Promise<ReturnType<typeof parseVariantMetadata> | undefined> => {
-      const row = await h.root.db
-        .select({ metadata: messageVariants.metadata })
-        .from(messages)
-        .innerJoin(messageVariants, eq(messages.selectedVariantId, messageVariants.id))
-        .where(and(eq(messages.chatId, h.chatId), eq(messages.role, "assistant")))
-        .orderBy(messages.seq)
-        .get();
-      return row === undefined ? undefined : parseVariantMetadata(row.metadata);
-    },
-    links: async () =>
-      await h.root.db
-        .select({ link: messageAssets })
-        .from(messageAssets)
-        .innerJoin(messages, eq(messages.id, messageAssets.messageId))
-        .where(eq(messages.chatId, h.chatId))
-        .then((rows) => rows.map(({ link }) => link)),
-    generated: async () =>
-      await h.root.db
-        .select()
-        .from(assets)
-        .where(and(eq(assets.ownerId, h.owner.userId), eq(assets.kind, "generated"))),
-    events: async () => await h.root.db.select().from(chatEvents).where(eq(chatEvents.chatId, h.chatId)),
     [Symbol.asyncDispose]: () => lifetime.disposeAsync(),
   };
 }

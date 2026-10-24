@@ -1,10 +1,8 @@
 // @subject packages/server/src/domain/chat/verbs/start-chat.ts
 // @subject packages/server/src/transport/trpc/role-output.ts
 import { createCharacterSchema } from "@orb/contracts/character";
-import { chatEvents, messages } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
-import { createServerHarness } from "@orb/testkit/node/composed";
-import { asc, eq } from "drizzle-orm";
+import { createServerHarness, readRoomCanon } from "@orb/testkit/node/composed";
 
 test("first-message seeds the primary greeting verbatim; the caller is host and the roster references the live card", async () => {
   await using harness = await createServerHarness();
@@ -26,8 +24,8 @@ test("first-message seeds the primary greeting verbatim; the caller is host and 
     aborted: false,
     messages: [{ content: "Hello, I am {{char}}.", role: "assistant", characterId: character.id, seq: 1 }],
   });
-  const events = await harness.db.select().from(chatEvents).where(eq(chatEvents.chatId, chat.id)).orderBy(asc(chatEvents.seq));
-  expect(events.map((row) => row.type)).toEqual(["chatCreated", "messageCommitted"]);
-  expect(await harness.db.select().from(messages).where(eq(messages.chatId, chat.id))).toHaveLength(1);
+  const events = await harness.services.chat.replayChatEvents({ principal, chatId: chat.id });
+  expect(events.map(({ event }) => event.type)).toEqual(["chatCreated", "messageCommitted"]);
+  expect(await readRoomCanon(harness, principal, chat.id)).toHaveLength(1);
   expect(chat.opening).toBeNull();
 });

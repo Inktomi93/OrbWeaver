@@ -2,14 +2,12 @@
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
-import { DEFAULT_ATTACHMENT_QUALITY } from "@orb/contracts/inference";
-import { messageAssets } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import type { AssetId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { isAdmin, isOwner } from "@orb/server/domain/admin";
-import type { ImageryRoomAccessDeps, ResolveMediaRefDeps } from "@orb/server/domain/chat";
+import type { ImageryRoomAccessDeps } from "@orb/server/domain/chat";
 import {
   createImageryRoomAccess,
   createResolveMediaRef,
@@ -18,7 +16,6 @@ import {
   loadPresentHostUserId,
 } from "@orb/server/domain/chat";
 import { expect, test } from "@orb/testkit/node";
-import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
@@ -27,37 +24,12 @@ import {
   createCorpusProviderExecution,
   createServerHarness,
   makeAssetBytes,
-  seedCharacter,
   seedChat,
-  seedChatInvite,
   seedCorpusActors,
-  seedInvitedChatParticipant,
   seedMessage,
 } from "@orb/testkit/node/composed";
-import { eq } from "drizzle-orm";
 import { vi } from "vitest";
-
-const PNG = "image/png";
-
-async function actor(harness: ServerTestHarness, role: "admin" | "user" = "user"): Promise<Principal> {
-  return await harness.principalFor((await harness.actor({ role })).id);
-}
-
-// Seats a member through the host's real targeted invite, never a hand-written roster row.
-async function seatMember(
-  harness: ServerTestHarness,
-  host: Principal,
-  chatId: Parameters<typeof seedChatInvite>[1]["chatId"],
-  member: Principal,
-): Promise<void> {
-  const invite = await seedChatInvite(harness, { principal: host, chatId, input: { invitedHandle: member.handle } });
-  await seedInvitedChatParticipant(harness, { principal: member, inviteId: invite.id });
-}
-
-async function subjectOf(harness: ServerTestHarness, owner: Principal): Promise<Awaited<ReturnType<typeof seedCharacter>>["row"]> {
-  const input = createCharacterSchema.parse({ handle: "imagery-subject", name: "Imagery subject", description: "" });
-  return (await seedCharacter(harness, { principal: owner, input })).row;
-}
+import { actor, PNG, seatMember, subjectOf } from "./media-and-imagery-authority.fixtures.ts";
 
 test("composed imagery card reads carry the row-derived host role rather than a synthetic user role", async ({ harness, services }) => {
   const host = await actor(harness, "admin");
@@ -173,69 +145,6 @@ test("quiet extraction sends only the caller's visible scene through the host's 
   await expect(root.services.imagery.extractPrompt({ caller: outsider, ...params })).rejects.toMatchObject({ name: "DomainNotFoundError" });
   expect(getCard).toHaveBeenCalledTimes(1);
   expect(requests).toHaveLength(beforeRefusal);
-});
-
-test("only host or PRESENT owner assets reach byte processing; conversion remains deferred with caller quality and signal", async () => {
-  await using root = await createServerHarness();
-  // The host's chat binding funds the member's committed attachment line.
-  const { owner: host, secondUserId } = await seedCorpusActors(root);
-  const member = await root.principalFor(secondUserId);
-  const { services, db } = root;
-  const { row: room } = await seedChat(root, { principal: host, characterIds: [] });
-  await seatMember(root, host, room.id, member);
-  const bytes = new Uint8Array([9, 8, 7]);
-  const asset = await services.assets.store({ principal: member, bytes, kind: "attachment", mime: "video/webm" });
-  // The member's own attachment link places the clip in the room; this case pins presence and deferral.
-  const attachedIn = await seedMessage(root, {
-    principal: member,
-    chatId: room.id,
-    content: `![clip](asset:${asset.assetId})`,
-    attachmentAssetIds: [asset.assetId],
-  });
-  expect((await db.select().from(messageAssets).where(eq(messageAssets.messageId, attachedIn.slot.id))).map((link) => link.origin)).toEqual(["attached"]);
-  const prepareVideo = vi.fn<ResolveMediaRefDeps["mediaProcessing"]["prepareVideo"]>(() => Promise.resolve(bytes));
-  const read = vi.spyOn(services.assets, "loadAssetBytes");
-  let forbidden = false;
-  const resolve = createResolveMediaRef({
-    db: databaseHandle(db),
-    assets: services.assets,
-    mediaProcessing: { frameCount: () => Promise.resolve(1), prepareVideo },
-    forbidExternalMedia: () => forbidden,
-  });
-  const signal = new AbortController().signal;
-  const resolved = await resolve({
-    ownerId: host.userId,
-    chatId: room.id,
-    ref: { kind: "asset", assetId: asset.assetId },
-    quality: { ...DEFAULT_ATTACHMENT_QUALITY, videoMaxResolution: "original" },
-    signal,
-  });
-  expect(resolved?.media).toBe("video");
-  expect(prepareVideo).not.toHaveBeenCalled();
-  if (resolved === null || typeof resolved.url !== "function") {
-    throw new Error("expected deferred conversion");
-  }
-  expect(await resolved.url()).toBe(`data:video/webm;base64,${Buffer.from(bytes).toString("base64")}`);
-  expect(prepareVideo).toHaveBeenCalledWith(expect.any(Uint8Array), "video/webm", "original", { signal });
-  expect(Array.from(prepareVideo.mock.calls[0]?.[0] ?? [])).toEqual(Array.from(bytes));
-  await services.chat.selfLeave({ principal: member, chatId: room.id });
-  read.mockClear();
-  const refused = await resolve({ ownerId: host.userId, chatId: room.id, ref: { kind: "asset", assetId: asset.assetId } });
-  let emitted: string | null = null;
-  if (refused !== null) {
-    emitted = typeof refused.url === "function" ? await refused.url() : refused.url;
-  }
-  expect(emitted).toBeNull();
-  expect(prepareVideo).toHaveBeenCalledTimes(1);
-  expect(read).not.toHaveBeenCalled();
-  expect(await resolve({ ownerId: member.userId, chatId: room.id, ref: { kind: "asset", assetId: asset.assetId } })).not.toBeNull();
-  forbidden = true;
-  expect(await resolve({ ownerId: host.userId, chatId: room.id, ref: { kind: "external", url: "https://cdn.example/image" } })).toBeNull();
-  forbidden = false;
-  expect(await resolve({ ownerId: host.userId, chatId: room.id, ref: { kind: "external", url: "https://cdn.example/image" } })).toEqual({
-    media: "image",
-    url: "https://cdn.example/image",
-  });
 });
 
 test("a present member's picture the room never placed reads no bytes, while a placed link admits the host's", async () => {

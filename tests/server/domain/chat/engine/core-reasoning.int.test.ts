@@ -1,9 +1,8 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // Real native SDK final thinking and live deltas exercise both sides of the persisted-reasoning rule.
 import type { ChatBusEvent } from "@orb/contracts/chat";
-import { messages, messageVariants } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
-import { eq } from "drizzle-orm";
+import { readRoomCanon } from "@orb/testkit/node/composed";
 import { coreSdkRoom } from "./core-sdk-fixture.ts";
 
 const FINAL_THINKING = "The terminal assistant supplies the authoritative reasoning.";
@@ -39,10 +38,12 @@ test.for(THINKING_ROWS)("native reasoning from $label persists on the actual una
   if (committed === undefined) {
     throw new Error("the actual reasoning control committed no selected assistant");
   }
-  expect(await h.root.db.select().from(messageVariants).where(eq(messageVariants.id, committed.selectedVariantId)).get()).toMatchObject({
+  expect((await readRoomCanon(h.root, h.owner, h.chatId)).find(({ id }) => id === committed.id)).toMatchObject({
+    selectedVariantId: committed.selectedVariantId,
     reasoning: row.expected,
+    role: "assistant",
+    authorUserId: null,
   });
-  expect(await h.root.db.select().from(messages).where(eq(messages.id, committed.id)).get()).toMatchObject({ role: "assistant", authorUserId: null });
   expect(events.flatMap((event) => (event.type === "delta" && event.delta.kind === "reasoning" ? [event.delta.text] : []))).toEqual(row.live);
   const types = events.map((event) => event.type);
   expect(types).toContain("reasoningStreamDone");

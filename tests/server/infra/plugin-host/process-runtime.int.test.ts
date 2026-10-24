@@ -2,23 +2,21 @@
 import { ChildProcess } from "node:child_process";
 import { once } from "node:events";
 import { PLUGIN_CONTINUATION_WINDOW_MS } from "@orb/contracts/plugin";
-import { globalVariables } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import {
-  bridgeRequest,
+  BASE_GRANTS,
   createPluginProcessEdge,
+  FLOOD_HOST_CALLS,
+  floatCommand,
   frameField,
+  hasOperation,
   installGuest,
+  NATIVE_TIMEOUT_MS,
+  NOOP_COMMAND,
   PLUGIN_PROCESS_OPERATIONS as OP,
   responseResult,
 } from "./process-runtime.fixtures.ts";
-
-const NATIVE_TIMEOUT_MS = 30_000;
-const STOPPED = "continuation stopped:";
-const FLOOD_HOST_CALLS = 1024;
-const BASE_GRANTS = ["ui.surface", "storage.kv"] as const;
-const NOOP_COMMAND = 'h.ui.registerCommand({name:"noop",describe:"Native no-op",onRun:()=>{}});';
 
 test.for([
   { name: "RPC refusal without its error", result: { ok: false }, message: "malformed broker response" },
@@ -51,19 +49,8 @@ function firstChild(edge: ReturnType<typeof createPluginProcessEdge>): ChildProc
   return child;
 }
 
-function hasOperation(value: unknown, operation: string): boolean {
-  return frameField(value, "kind") === "bridge" && frameField(value, "operation") === operation;
-}
-
 function releasedAuthorities(edge: ReturnType<typeof createPluginProcessEdge>): number {
   return edge.delivered.filter((value) => frameField(value, "kind") === "authority-released").length;
-}
-
-function floatCommand(body: string): string {
-  return `const h=orb.host(1);${NOOP_COMMAND}
-    h.ui.registerCommand({name:"float",describe:"Continue after return",onRun:()=>{
-      void(async()=>{await h.storage.get("gate");${body}})().catch(e=>h.log.warn(${JSON.stringify(STOPPED)}+e.name+":"+e.message));
-    }});`;
 }
 
 test("holding an actual synchronous IPC message preserves its identity, result and live child ownership", { timeout: NATIVE_TIMEOUT_MS }, async () => {
@@ -281,43 +268,4 @@ test("a returned command continuation reaches the parent's call limit rather tha
   expect(reads.length).toBeGreaterThan(1);
   expect(reads.length).toBeLessThan(FLOOD_HOST_CALLS);
   await expect(guest.invoke("noop")).resolves.toEqual({ toasts: [] });
-});
-
-test("the parent rechecks a floated command's frozen grants on actual inherited-channel input", { timeout: NATIVE_TIMEOUT_MS }, async () => {
-  const edge = createPluginProcessEdge();
-  await using root = await createServerHarness({ pluginSpawn: edge.spawn });
-  const guest = await installGuest(root, "frozen-grants", floatCommand('h.log.info("allowed completion");'), BASE_GRANTS);
-  expect((await guest.enable()).status).toBe("enabled");
-  const before = await root.db.select().from(globalVariables);
-  using delivery = edge.holdNext((value) => hasOperation(value, OP.read));
-  const invoking = guest.invoke("float");
-  const settled = Promise.allSettled([invoking]);
-  const frame = await delivery.reached;
-  await expect(invoking).resolves.toEqual({ toasts: [] });
-  await settled;
-  delivery.release(bridgeRequest(frame, OP.variableWrite, ["unauthorized", "must-not-land"]));
-  await expect
-    .poll(async () => (await guest.log()).map((line) => line.message))
-    .toContain(`${STOPPED}Error:plugin broker: variables.set lacks capability global_vars`);
-  expect(await root.db.select().from(globalVariables)).toEqual(before);
-  expect((await guest.log()).some((line) => line.message === "allowed completion")).toBe(false);
-  await expect(guest.invoke("noop")).resolves.toEqual({ toasts: [] });
-});
-
-test("a real guest continuation retains its membrane grant refusal after the command returns", { timeout: NATIVE_TIMEOUT_MS }, async () => {
-  const edge = createPluginProcessEdge();
-  await using root = await createServerHarness({ pluginSpawn: edge.spawn });
-  const guest = await installGuest(root, "guest-frozen-grants", floatCommand('await h.variables.set("unauthorized","must-not-land");'), BASE_GRANTS);
-  expect((await guest.enable()).status).toBe("enabled");
-  const before = await root.db.select().from(globalVariables);
-  using delivery = edge.holdNext((value) => hasOperation(value, OP.read));
-  const invoking = guest.invoke("float");
-  const settled = Promise.allSettled([invoking]);
-  await delivery.reached;
-  await expect(invoking).resolves.toEqual({ toasts: [] });
-  await settled;
-  delivery.release();
-  await expect.poll(async () => (await guest.log()).map((line) => line.message).join("\n")).toContain(`${STOPPED}PluginCapabilityError:`);
-  expect(await root.db.select().from(globalVariables)).toEqual(before);
-  expect(edge.delivered.some((value) => hasOperation(value, OP.variableWrite))).toBe(false);
 });

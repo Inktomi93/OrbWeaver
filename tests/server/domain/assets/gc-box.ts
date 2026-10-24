@@ -9,7 +9,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
-import { assets, closeDb } from "@orb/db";
+import { closeDb } from "@orb/db";
 import { contentSpanRaw } from "@orb/kit/content";
 import type { AssetId, CharacterHandle, ChatId, MessageId, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
@@ -24,7 +24,6 @@ import {
   makeAssetBytes,
   seedCorpusConnections,
 } from "@orb/testkit/node/composed";
-import { eq } from "drizzle-orm";
 import { onTestFinished } from "vitest";
 
 export const PNG = "image/png";
@@ -84,7 +83,7 @@ export async function openBox(db?: Db, options: { readonly loopbackOwner?: boole
 
 /** An asset a production writer stored on its own, resolved to the `(id, hash)` the sweep keys on. */
 export async function storedRow(box: GcBox, assetId: AssetId): Promise<StoredRef> {
-  const row = await box.root.db.select({ hash: assets.hash }).from(assets).where(eq(assets.id, assetId)).get();
+  const row = await box.root.services.assets.assetCasRefById(assetId);
   if (row === undefined) {
     throw new Error("a production writer pointed at an asset with no index row");
   }
@@ -160,8 +159,7 @@ export async function runScheduledGc(box: GcBox): ReturnType<ServerTestHarness["
 }
 
 export async function survives(box: GcBox, ref: StoredRef): Promise<boolean> {
-  const rows = await box.root.db.select({ id: assets.id }).from(assets).where(eq(assets.id, ref.assetId));
-  return rows.length === 1 && (await box.cas.exists(box.root.ownerId, ref.hash));
+  return (await box.root.services.assets.assetCasRefById(ref.assetId)) !== undefined && (await box.cas.exists(box.root.ownerId, ref.hash));
 }
 
 export async function survival(box: GcBox, refs: Readonly<Record<string, StoredRef>>): Promise<Record<string, boolean>> {

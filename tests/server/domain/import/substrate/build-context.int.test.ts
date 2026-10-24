@@ -2,7 +2,6 @@
 // @subject packages/server/src/domain/import/verbs/import-character.ts
 // The owner binders drive the genuine services and database; foreign arguments cannot replace the authenticated authority.
 import { createCharacterSchema } from "@orb/contracts/character";
-import { characters, characterTags, tags } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { isOwner } from "@orb/server/domain/admin";
 import { createImportAvatarStore } from "@orb/server/domain/assets";
@@ -11,11 +10,9 @@ import { buildImportContext, createInstallerCharacterImport } from "@orb/server/
 import { createImportedCardTag } from "@orb/server/domain/tag";
 import { createHostPrincipalResolver } from "@orb/server/entry/auth";
 import { expect, test } from "@orb/testkit/node";
-import { eq } from "drizzle-orm";
 import { vi } from "vitest";
 
 test("owner binders retain Principal identity and ignore foreign owner arguments through real character/tag writes", async ({
-  db,
   services,
   ownerCaller,
   harness,
@@ -33,18 +30,17 @@ test("owner binders retain Principal identity and ignore foreign owner arguments
   const input = createCharacterSchema.parse({ handle: "authority-control", name: "Authority control", description: "Owned card" });
   const ref = await ctx.createCharacter({ ownerId: foreignOwner, input, importedFrom: "authority.json", importHash: "authority-hash" });
   expect(created.mock.calls[0]?.[0].principal).toBe(actor);
-  expect((await db.select().from(characters).where(eq(characters.id, ref.characterId)))[0]?.ownerId).toBe(actor.userId);
+  expect(await services.character.get({ principal: actor, characterId: ref.characterId })).toMatchObject({ id: ref.characterId });
   expect(await ctx.findByImportHash({ ownerId: foreignOwner, importHash: "authority-hash" })).toBe(ref.characterId);
   expect(await ctx.findByHandle({ ownerId: foreignOwner, handle: input.handle })).toBe(ref.characterId);
   expect(await ctx.findByName({ ownerId: foreignOwner, name: input.name })).toEqual([ref.characterId]);
   await ctx.attachCardTag({ ownerId: foreignOwner, characterId: ref.characterId, tagName: "author-tag" });
-  const attachment = (await db.select().from(characterTags).where(eq(characterTags.characterId, ref.characterId)))[0];
-  expect(attachment).toMatchObject({ status: "accepted" });
+  const [attachment] = (await services.character.get({ principal: actor, characterId: ref.characterId })).tags;
+  expect(attachment).toMatchObject({ name: "author-tag", source: "card" });
   if (attachment === undefined) {
     throw new Error("the real attach did not create its junction");
   }
-  expect((await db.select().from(tags).where(eq(tags.id, attachment.tagId)))[0]).toMatchObject({ ownerId: actor.userId, source: "card" });
-  expect(await services.tag.listAttachedEntities({ principal: actor, tagId: attachment.tagId, targetType: "character" })).toEqual({
+  expect(await services.tag.listAttachedEntities({ principal: actor, tagId: attachment.id, targetType: "character" })).toEqual({
     entities: [{ targetType: "character", targetId: ref.characterId, name: input.name }],
     hasMore: false,
   });

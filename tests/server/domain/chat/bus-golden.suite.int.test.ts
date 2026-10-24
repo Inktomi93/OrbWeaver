@@ -3,10 +3,8 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { ChatBusEvent, TurnOutcome } from "@orb/contracts/chat";
 import { SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
-import { chatEvents } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
-import { eq } from "drizzle-orm";
 import { textRoom } from "./scenario-physical.ts";
 
 async function setCachePosture(h: ChatRoot, enabled: boolean): Promise<void> {
@@ -42,8 +40,8 @@ test("send publishes user commit then accepted, started, delta, assistant commit
       { view: { role: "assistant", content: "Hi there" } },
     ]);
     expect(events.at(-1)).toMatchObject({ type: "turnCompleted", intent: "send" });
-    const durable = await h.root.db.select().from(chatEvents).where(eq(chatEvents.chatId, h.chatId)).orderBy(chatEvents.seq);
-    expect(durable.filter(({ type }) => type === "messageCommitted").map(({ payload }) => payload)).toEqual(
+    const durable = await h.root.services.chat.replayChatEvents({ principal: h.owner, chatId: h.chatId });
+    expect(durable.map(({ event }) => event).filter(({ type }) => type === "messageCommitted")).toEqual(
       events.filter(({ type }) => type === "messageCommitted"),
     );
   } finally {

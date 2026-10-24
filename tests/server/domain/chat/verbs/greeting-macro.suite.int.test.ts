@@ -3,7 +3,6 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { TurnOutcome } from "@orb/contracts/chat";
 import { createPersonaSchema } from "@orb/contracts/persona";
-import { messages, messageVariants } from "@orb/db";
 import { jsonValueSchema } from "@orb/kit/json";
 import { expect, test } from "@orb/testkit/node";
 import {
@@ -13,9 +12,9 @@ import {
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
   createServerHarness,
+  readRoomCanon,
   seedCorpusActors,
 } from "@orb/testkit/node/composed";
-import { eq } from "drizzle-orm";
 
 async function room(text: string): Promise<
   AsyncDisposable & {
@@ -60,15 +59,7 @@ async function room(text: string): Promise<
   }
   const chatId = started.chat.id;
   await caller.persona.setActivePersona({ chatId, personaId: active.id });
-  const content = async (): Promise<string | undefined> =>
-    (
-      await root.db
-        .select({ content: messageVariants.content })
-        .from(messages)
-        .innerJoin(messageVariants, eq(messages.selectedVariantId, messageVariants.id))
-        .where(eq(messages.id, greeting.id))
-        .get()
-    )?.content;
+  const content = async (): Promise<string | undefined> => (await readRoomCanon(root, owner, chatId)).find(({ id }) => id === greeting.id)?.content;
   const send = async (body: string): Promise<TurnOutcome> => await root.services.chat.send({ principal: owner, chatId, content: body });
   const lifetime = construction.move();
   return { content, send, bodies, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };

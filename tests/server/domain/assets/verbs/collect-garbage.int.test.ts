@@ -6,7 +6,6 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, PLUGIN_UI_ASSETS_DIR, pluginManifestSchema } from "@orb/contracts/plugin";
 import { themeBackgroundSchema } from "@orb/contracts/theme";
-import { documents } from "@orb/db";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { recordPluginFetchedAsset } from "@orb/server/domain/plugin";
@@ -24,7 +23,6 @@ import {
   seedInstalledPlugin,
   seedInvitedChatParticipant,
 } from "@orb/testkit/node/composed";
-import { eq } from "drizzle-orm";
 import type { GcBox, StoredRef } from "../gc-box.ts";
 import {
   ageOnly,
@@ -90,18 +88,18 @@ async function plantEveryReference(box: GcBox): Promise<Record<string, StoredRef
   refs["message_assets.asset_id"] = await store(box, "attachment");
   await attach(box, room, refs["message_assets.asset_id"]);
 
-  const document = await root.services.databank.upload({
+  await root.services.databank.upload({
     principal,
     bytes: new TextEncoder().encode("The keeper's ledger survives every sweep."),
     mime: "text/plain",
     name: "ledger.txt",
   });
-  const documentRow = await root.db.select({ sourceAssetId: documents.sourceAssetId }).from(documents).where(eq(documents.id, document.document.id)).get();
-  const sourceAssetId = documentRow?.sourceAssetId ?? null;
-  if (sourceAssetId === null) {
-    throw new Error("databank upload kept no source asset");
+  // The upload is this box's only document-kind asset, so the one the owner's library lists is its source blob.
+  const [source, ...extra] = await root.services.assets.listOwned({ principal, kind: "document", limit: 2 });
+  if (source === undefined || extra.length > 0) {
+    throw new Error("databank upload kept no single source asset");
   }
-  refs["documents.source_asset_id"] = await storedRow(box, sourceAssetId);
+  refs["documents.source_asset_id"] = { assetId: source.assetId, hash: source.hash };
 
   const installed = await seedInstalledPlugin(root, {
     caller: principal,

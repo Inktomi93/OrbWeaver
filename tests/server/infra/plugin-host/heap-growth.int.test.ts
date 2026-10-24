@@ -1,10 +1,8 @@
 // @subject packages/server/src/infra/plugin-host/module.ts
 import { createCharacterSchema } from "@orb/contracts/character";
 import { pluginCardStateKey } from "@orb/contracts/plugin";
-import { characters } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, seedCharacter } from "@orb/testkit/node/composed";
-import { and, eq } from "drizzle-orm";
 import { createPluginProcessEdge, installGuest } from "./process-runtime.fixtures.ts";
 
 const GROWTH_MEBIBYTES = 24;
@@ -48,12 +46,8 @@ test("native object and string calls survive real guest heap growth, disposal an
     expect((await guest.enable()).status).toBe("enabled");
     await expect(guest.invoke("grow")).resolves.toEqual({ toasts: [] });
     expect(await guest.read("result")).toBe(JSON.stringify(expected));
-    const stored = await root.db
-      .select({ extensions: characters.extensions })
-      .from(characters)
-      .where(and(eq(characters.id, character.view.id), eq(characters.ownerId, principal.userId)))
-      .get();
-    expect(stored?.extensions).toMatchObject({ [pluginCardStateKey(SLUG)]: CARD });
+    const stored = await root.services.character.get({ principal, characterId: character.view.id });
+    expect(stored.extensions).toMatchObject({ [pluginCardStateKey(SLUG)]: CARD });
     await guest.disable();
   }
   expect(edge.children).toHaveLength(1);

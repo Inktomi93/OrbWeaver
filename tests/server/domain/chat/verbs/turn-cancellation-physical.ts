@@ -7,7 +7,6 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import type { ChatBusEvent, TurnOutcome } from "@orb/contracts/chat";
 import { builtinProvider } from "@orb/contracts/inference";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema, pluginToolWireName } from "@orb/contracts/plugin";
-import { pluginKv } from "@orb/db";
 import { createControlledTimers, createFrozenClock } from "@orb/testkit/iso";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import {
@@ -23,9 +22,9 @@ import {
   seedPluginGrant,
 } from "@orb/testkit/node/composed";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
-import { and, eq } from "drizzle-orm";
 import type { MockInstance } from "vitest";
 import { vi } from "vitest";
+import { z } from "zod";
 
 const MODES = ["stream", "headers", "retry", "complete"] as const;
 const PLUGIN_SLUG = "cancel-witness";
@@ -113,7 +112,8 @@ interface CancellationRun {
   readonly pendingTurnTimeouts: () => readonly number[];
   readonly completed: MockInstance<ChatRoot["root"]["app"]["rpgChatOps"]["onTurnCompleted"]>;
   readonly start: () => Promise<TurnOutcome>;
-  readonly toolWrites: () => Promise<(typeof pluginKv.$inferSelect)[]>;
+  /** The witness key the tool handler writes, as the plugin's own storage reads it back. */
+  readonly toolWrites: () => Promise<readonly string[]>;
 }
 
 /** Hold only physical provider work; the callback owns every running public request until settlement. */
@@ -267,11 +267,16 @@ export async function withCancellationPeer(mode: (typeof MODES)[number], prove: 
       pendingTurnTimeouts: () => [...pendingTimeouts].filter(([identity]) => !precedingTimeouts.has(identity)).map(([, ms]) => ms),
       completed,
       start,
-      toolWrites: async () =>
-        await h.root.db
-          .select()
-          .from(pluginKv)
-          .where(and(eq(pluginKv.pluginId, installed.outcome.id), eq(pluginKv.ownerId, h.owner.userId), eq(pluginKv.key, TOOL_RAN))),
+      toolWrites: async () => {
+        const { resultJson } = await h.root.services.plugin.uiHostCall({
+          caller: h.owner,
+          pluginId: installed.outcome.id,
+          fn: "storage.get",
+          argsJson: JSON.stringify([TOOL_RAN]),
+        });
+        const value = z.string().nullable().parse(JSON.parse(resultJson));
+        return value === null ? [] : [value];
+      },
     });
   } finally {
     await h.root.services.chat.abort({ principal: h.owner, chatId: h.chatId });

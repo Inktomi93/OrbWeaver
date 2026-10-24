@@ -7,7 +7,7 @@ import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { and, eq } from "drizzle-orm";
 import { TOOL_SIGNATURE } from "../engine/inline-image-physical.ts";
-import { signedContinuation } from "../verbs/continue-physical.ts";
+import { signedContinuation } from "./continue-physical.ts";
 
 test("a newer signed tool continuation fences a stale undo without changing its private snapshot, versions or events", async () => {
   await using f = await signedContinuation();

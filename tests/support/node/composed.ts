@@ -1,8 +1,10 @@
 // The composed door: helpers that load the server graph. Integration files import it behind the setupFiles warm.
 
+export { readAccounts } from "./admin/accounts.ts";
 export type { AtlasBootOptions, CannedResponse } from "./atlas-guest.ts";
 export { bootAtlas, bootAtlasDates, lastAtlasState } from "./atlas-guest.ts";
 export { prepareBackupFolder } from "./backup-folder.ts";
+export { readRoomCanon } from "./chat/canon.ts";
 export type { ChatRoot, ChatRootOptions } from "./chat/composed.ts";
 export { createChatRoot } from "./chat/composed.ts";
 export {

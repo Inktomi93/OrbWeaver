@@ -1,7 +1,6 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 import { createCharacterSchema } from "@orb/contracts/character";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
-import { messageVariants } from "@orb/db";
 import { makePromptConfig } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import {
@@ -13,7 +12,6 @@ import {
   createServerHarness,
   seedCorpusActors,
 } from "@orb/testkit/node/composed";
-import { eq } from "drizzle-orm";
 
 const PRESET_TEMPERATURE = 0.4;
 const SEND_TOP_P = 0.9;
@@ -48,6 +46,6 @@ test("the recorded params are the preset params folded with the per-send intent,
   if (assistant === undefined) {
     throw new Error("the actual turn did not return its assistant variant");
   }
-  const [row] = await root.db.select().from(messageVariants).where(eq(messageVariants.id, assistant.selectedVariantId));
-  expect(row?.params).toMatchObject({ temperature: PRESET_TEMPERATURE, topP: SEND_TOP_P, maxOutputTokens: PRESET_MAX_OUTPUT });
+  const wire = await root.services.chat.getVariantWire({ principal: owner, chatId: room.chat.id, variantId: assistant.selectedVariantId });
+  expect(wire.params).toMatchObject({ temperature: PRESET_TEMPERATURE, topP: SEND_TOP_P, maxOutputTokens: PRESET_MAX_OUTPUT });
 });

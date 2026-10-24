@@ -2,13 +2,11 @@
 // @subject packages/server/src/entry/auth/seam.ts
 // @subject packages/server/src/infra/auth/modes/forward-header.ts
 import { authMeSchema } from "@orb/contracts/identity";
-import { users } from "@orb/db";
 import type { ExternalId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { isAdmin, isOwner } from "@orb/server/domain/admin";
 import { expect, test } from "@orb/testkit/node";
-import { createServerHarness, damageOwnerRow } from "@orb/testkit/node/composed";
-import { eq } from "drizzle-orm";
+import { createServerHarness, damageOwnerRow, readAccounts } from "@orb/testkit/node/composed";
 import { vi } from "vitest";
 
 test("the real header seam hands sessions a pre-row identity and never trusts forged userId or role headers", async () => {
@@ -41,7 +39,7 @@ test("the real header seam hands sessions a pre-row identity and never trusts fo
         { ownerClaimProven: true },
       ],
     ]);
-    const row = await root.db.select().from(users).where(eq(users.externalId, headers["x-authentik-uid"])).get();
+    const row = (await readAccounts(root)).find(({ externalId }) => externalId === headers["x-authentik-uid"]);
     expect(row).toMatchObject({ handle: headers["x-authentik-username"], role: "user" });
     expect(row?.id).not.toBe(root.ownerId);
   } finally {
@@ -62,7 +60,7 @@ test("fallback and frozen-host identities read the same live owner row instead o
   expect(typeof owner.role).toBe("object");
   expect(Object.isFrozen(owner.role)).toBe(true);
   expect(Object.keys(owner.role)).toEqual([]);
-  expect(await root.db.select({ id: users.id }).from(users).where(eq(users.handle, placeholder))).toEqual([]);
+  expect((await root.services.admin.listUsers({ principal: owner })).filter(({ handle }) => handle === placeholder)).toEqual([]);
 
   // A damaged stored role must fail closed consistently, not become a second in-memory owner verdict.
   await damageOwnerRow(root, { role: "admin" });

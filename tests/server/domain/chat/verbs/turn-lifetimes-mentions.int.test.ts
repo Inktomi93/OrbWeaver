@@ -1,7 +1,6 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
-import { characters, messages } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
-import { and, eq } from "drizzle-orm";
+import { readRoomCanon } from "@orb/testkit/node/composed";
 import { textRoom } from "../scenario-physical.ts";
 import { TAIL_ROSTER } from "./turn-lifetimes-roster.ts";
 
@@ -16,18 +15,14 @@ test.for(MENTIONS)("$title", async (scene) => {
   expect(outcome.aborted).toBe(false);
   const assistants = outcome.messages.filter(({ role }) => role === "assistant");
   expect(assistants).toHaveLength(1);
-  const group = await h.root.db
-    .select()
-    .from(characters)
-    .where(and(eq(characters.ownerId, h.owner.userId), eq(characters.synthetic, true)))
-    .get();
-  const expectedAuthor = scene.named ? h.characters[1]?.id : group?.id;
+  const group = await h.root.services.character.findSyntheticGroupCharacter({ ownerId: h.owner.userId, chatId: h.chatId });
+  const expectedAuthor = scene.named ? h.characters[1]?.id : group?.characterId;
   if (expectedAuthor === undefined) {
     throw new Error("the selected voice has no actual seated or synthetic identity");
   }
   expect(assistants[0]?.characterId).toBe(expectedAuthor);
   expect(
-    (await h.root.db.select().from(messages).where(eq(messages.chatId, h.chatId)).orderBy(messages.seq)).map(({ role, characterId }) => ({
+    (await readRoomCanon(h.root, h.owner, h.chatId)).map(({ role, characterId }) => ({
       role,
       characterId,
     })),

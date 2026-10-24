@@ -1,35 +1,10 @@
 import { authMeSchema } from "@orb/contracts/identity";
-import { users } from "@orb/db";
 
 import { brandedId } from "@orb/kit/ids";
-import type { SessionsRolePolicyConfig } from "@orb/server/domain/sessions";
 import { env } from "@orb/server/foundation/env";
 import { expect, test } from "@orb/testkit/node";
-import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness } from "@orb/testkit/node/composed";
-import { eq } from "drizzle-orm";
-
-function rootForConfig(rolePolicyConfig: SessionsRolePolicyConfig): Promise<ServerTestHarness> {
-  return createServerHarness({
-    rolePolicyConfig,
-    authConfig: { mode: "forward-header", fallback: "deny", forwardTrustedProxies: ["127.0.0.1/32"] },
-    physicalPeer: () => "127.0.0.1",
-  });
-}
-
-function rootForPolicy(policy: Partial<SessionsRolePolicyConfig> = {}): Promise<ServerTestHarness> {
-  return rootForConfig({ ...env, ...policy });
-}
-
-function headerIdentity(groups: string, handle = "policy-member", subject = "policy-member-subject"): Headers {
-  return new Headers({ "x-authentik-username": handle, "x-authentik-uid": subject, "x-authentik-groups": groups });
-}
-
-async function me(root: Pick<ServerTestHarness, "http">, headers: Headers): Promise<ReturnType<typeof authMeSchema.parse>> {
-  const response = await root.http.request("/api/auth/me", { headers });
-  expect(response.status).toBe(200);
-  return authMeSchema.parse(await response.json());
-}
+import { createServerHarness, readAccounts } from "@orb/testkit/node/composed";
+import { headerIdentity, me, rootForConfig, rootForPolicy } from "./role-policy-config.fixtures.ts";
 
 test("a composed role policy ignores subsequent source-config grants", async () => {
   const config = { ...env };
@@ -48,7 +23,9 @@ test("a composed role policy ignores subsequent source-config grants", async () 
   const after = await root.http.request("/api/auth/me", { headers });
   expect(after.status).toBe(200);
   expect(authMeSchema.parse(await after.json())).toEqual(identity);
-  expect(await root.db.select({ role: users.role }).from(users).where(eq(users.externalId, headers["x-authentik-uid"]))).toEqual([{ role: "user" }]);
+  expect((await readAccounts(root)).filter(({ externalId }) => externalId === headers["x-authentik-uid"]).map(({ role }) => ({ role }))).toEqual([
+    { role: "user" },
+  ]);
 });
 
 test("distinct composed policy snapshots do not share grants or depend on another root's lifetime", async () => {
@@ -72,7 +49,7 @@ test.each([
   expect(identity).toMatchObject({ authenticated: true, role: "user" });
   config[key] = value;
   expect(await me(root, headers)).toEqual(identity);
-  expect(await root.db.select({ handle: users.handle }).from(users).where(eq(users.id, root.ownerId))).toEqual([{ handle: "owner" }]);
+  expect((await readAccounts(root)).filter(({ id }) => id === root.ownerId).map(({ handle }) => ({ handle }))).toEqual([{ handle: "owner" }]);
 });
 
 test("an identity first seen after a late source-config admin grant is provisioned from the composed policy", async () => {
@@ -121,35 +98,27 @@ test("the legacy rederivation flag is a construction-time input, not a live sour
   await using root = await rootForConfig(config);
   const headers = headerIdentity("");
   await me(root, headers);
-  const row = await root.db
-    .select()
-    .from(users)
-    .where(eq(users.externalId, brandedId("ExternalId").parse("policy-member-subject")))
-    .get();
+  const row = (await readAccounts(root)).find(({ externalId }) => externalId === brandedId("ExternalId").parse("policy-member-subject"));
   if (row === undefined) {
     throw new Error("successful header login produced no account");
   }
   await root.services.admin.setRole({ principal: await root.principalFor(root.ownerId), userId: row.id, role: "admin" });
   config.RE_DERIVE_ROLE_ON_LOGIN = "true";
   expect(await me(root, headers)).toMatchObject({ role: "admin" });
-  expect(await root.db.select({ role: users.role }).from(users).where(eq(users.id, row.id))).toEqual([{ role: "admin" }]);
+  expect((await readAccounts(root)).filter(({ id }) => id === row.id).map(({ role }) => ({ role }))).toEqual([{ role: "admin" }]);
 });
 
 test("fixed group governance still rederives stored roles from every login's current claims", async () => {
   await using root = await rootForPolicy({ ["OIDC_ADMIN_GROUPS"]: "admins" });
   expect(await me(root, headerIdentity("admins"))).toMatchObject({ role: "admin" });
   expect(await me(root, headerIdentity("ordinary"))).toMatchObject({ role: "user" });
-  const row = await root.db
-    .select()
-    .from(users)
-    .where(eq(users.externalId, brandedId("ExternalId").parse("policy-member-subject")))
-    .get();
+  const row = (await readAccounts(root)).find(({ externalId }) => externalId === brandedId("ExternalId").parse("policy-member-subject"));
   if (row === undefined) {
     throw new Error("successful header login produced no account");
   }
   await root.services.admin.setRole({ principal: await root.principalFor(root.ownerId), userId: row.id, role: "admin" });
   expect(await me(root, headerIdentity(""))).toMatchObject({ role: "user" });
-  expect(await root.db.select({ role: users.role }).from(users).where(eq(users.id, row.id))).toEqual([{ role: "user" }]);
+  expect((await readAccounts(root)).filter(({ id }) => id === row.id).map(({ role }) => ({ role }))).toEqual([{ role: "user" }]);
 });
 
 test.each([
@@ -161,24 +130,11 @@ test.each([
   await using root = await rootForPolicy({ ["OIDC_ALLOWED_GROUPS"]: "friends", ["OIDC_ADMIN_GROUPS"]: "admins" });
   const headers = headerIdentity(groups);
   expect(await me(root, headers)).toEqual({ authenticated: role !== null, handle: role === null ? null : "policy-member", role });
-  const rows = await root.db
-    .select({ role: users.role })
-    .from(users)
-    .where(eq(users.externalId, brandedId("ExternalId").parse("policy-member-subject")));
+  const rows = (await readAccounts(root))
+    .filter(({ externalId }) => externalId === brandedId("ExternalId").parse("policy-member-subject"))
+    .map(({ role: stored }) => ({ role: stored }));
   expect(rows).toEqual(role === null ? [] : [{ role }]);
   expect((await root.http.request("/api/trpc/sessions.me", { headers })).status).toBe(role === null ? 401 : 200);
-});
-
-test("an existing owner is immutable and a second group owner becomes user, never admin", async () => {
-  await using root = await rootForPolicy({ ["OWNER_GROUP"]: "owners", ["OIDC_ADMIN_GROUPS"]: "admins", ["OIDC_ALLOWED_GROUPS"]: "friends" });
-  const owner = await root.principalFor(root.ownerId);
-  expect(await me(root, headerIdentity("owners,admins", owner.handle, "first-owner-subject"))).toMatchObject({ role: "owner" });
-  expect(await me(root, headerIdentity("", owner.handle, "first-owner-subject"))).toMatchObject({ role: "owner" });
-  expect(await me(root, headerIdentity("owners,admins", "second-owner", "second-owner-subject"))).toMatchObject({ role: "user" });
-  expect(await root.db.select({ id: users.id }).from(users).where(eq(users.role, "owner"))).toEqual([{ id: root.ownerId }]);
-  const before = await root.db.select().from(users).where(eq(users.id, root.ownerId));
-  expect(await me(root, headerIdentity("owners", owner.handle, "impostor-subject"))).toEqual({ authenticated: false, handle: null, role: null });
-  expect(await root.db.select().from(users).where(eq(users.id, root.ownerId))).toEqual(before);
 });
 
 test("an IdP rename cannot take the graph's reserved seed key or its comparison-key look-alike", async () => {
@@ -186,17 +142,15 @@ test("an IdP rename cannot take the graph's reserved seed key or its comparison-
   expect(await me(root, headerIdentity(""))).toMatchObject({ role: "user" });
   await me(root, headerIdentity("", "Box-Owner"));
   expect(
-    await root.db
-      .select({ handle: users.handle })
-      .from(users)
-      .where(eq(users.externalId, brandedId("ExternalId").parse("policy-member-subject"))),
+    (await readAccounts(root))
+      .filter(({ externalId }) => externalId === brandedId("ExternalId").parse("policy-member-subject"))
+      .map(({ handle }) => ({ handle })),
   ).toEqual([{ handle: "policy-member" }]);
   await me(root, headerIdentity("", "ordinary-renamed"));
   expect(
-    await root.db
-      .select({ handle: users.handle })
-      .from(users)
-      .where(eq(users.externalId, brandedId("ExternalId").parse("policy-member-subject"))),
+    (await readAccounts(root))
+      .filter(({ externalId }) => externalId === brandedId("ExternalId").parse("policy-member-subject"))
+      .map(({ handle }) => ({ handle })),
   ).toEqual([{ handle: "ordinary-renamed" }]);
 });
 
@@ -216,15 +170,11 @@ test.each([
 ])("legacy flag '$flag' retains its accepted rederivation semantics", async ({ flag, rederive }) => {
   await using root = await rootForPolicy({ ["OIDC_ADMIN_GROUPS"]: undefined, ["OIDC_ALLOWED_GROUPS"]: undefined, ["RE_DERIVE_ROLE_ON_LOGIN"]: flag });
   await me(root, headerIdentity(""));
-  const row = await root.db
-    .select()
-    .from(users)
-    .where(eq(users.externalId, brandedId("ExternalId").parse("policy-member-subject")))
-    .get();
+  const row = (await readAccounts(root)).find(({ externalId }) => externalId === brandedId("ExternalId").parse("policy-member-subject"));
   if (row === undefined) {
     throw new Error("successful header login produced no account");
   }
   await root.services.admin.setRole({ principal: await root.principalFor(root.ownerId), userId: row.id, role: "admin" });
   expect(await me(root, headerIdentity(""))).toMatchObject({ role: rederive ? "user" : "admin" });
-  expect(await root.db.select({ role: users.role }).from(users).where(eq(users.id, row.id))).toEqual([{ role: rederive ? "user" : "admin" }]);
+  expect((await readAccounts(root)).filter(({ id }) => id === row.id).map(({ role }) => ({ role }))).toEqual([{ role: rederive ? "user" : "admin" }]);
 });

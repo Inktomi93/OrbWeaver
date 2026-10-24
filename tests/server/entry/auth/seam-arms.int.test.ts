@@ -1,7 +1,6 @@
 // D40/D135: the seam's cookie, owner-fallback and SSO-header arms over the real HTTP graph and real credentials.
 // @subject packages/server/src/entry/auth/seam.ts
 import { CSRF_HEADER } from "@orb/contracts/identity";
-import { users } from "@orb/db";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { isOwner } from "@orb/server/domain/admin";
@@ -10,8 +9,7 @@ import { authConfigFromEnv, createAuthSeam } from "@orb/server/entry/auth";
 import { env } from "@orb/server/foundation/env";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerHarnessOptions, ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness, damageOwnerRow } from "@orb/testkit/node/composed";
-import { eq } from "drizzle-orm";
+import { createServerHarness, damageOwnerRow, readAccounts } from "@orb/testkit/node/composed";
 import { vi } from "vitest";
 import { authMe, claimedOwnerCookie, debugStatus, FORWARD_USERNAME_CLAIM, policy, signedForwardRoot, signedInMember, wireViewer } from "../_auth-roots.ts";
 
@@ -75,7 +73,7 @@ test("single-user fallback resolves the OWNER's row (role read, not stamped; via
   expect(await authMe(root)).toEqual({ authenticated: true, handle: owner.handle, role: "owner" });
   expect(await wireViewer(root)).toEqual({ userId: root.ownerId, handle: owner.handle, globalRole: "owner" });
   expect(await csrfSignature(root)).toEqual({ trpcMutation: 200, byteIngest: 403 });
-  expect(await root.db.select({ id: users.id }).from(users)).toEqual([{ id: root.ownerId }]);
+  expect((await readAccounts(root)).map(({ id }) => ({ id }))).toEqual([{ id: root.ownerId }]);
 });
 
 test("#298 f2: a NON-loopback peer is DENIED the owner fallback → null (was owner on any Host)", async () => {
@@ -98,7 +96,7 @@ test("D135: the fallback lands on the OWNER_HANDLES row and mints NO second-clas
   const ensure = vi.spyOn(root.app.sessions, "ensureUser");
   expect((await authMe(root)).handle).toBe(REAL_OWNER_HANDLE);
   expect(ensure.mock.calls).toEqual([[REAL_OWNER_HANDLE]]);
-  expect(await root.db.select({ id: users.id, handle: users.handle }).from(users)).toEqual([{ id: root.ownerId, handle: REAL_OWNER_HANDLE }]);
+  expect((await readAccounts(root)).map(({ id, handle }) => ({ id, handle }))).toEqual([{ id: root.ownerId, handle: REAL_OWNER_HANDLE }]);
 });
 
 test("D135: an owner row demoted below owner is REPORTED, not overridden (the fallback never grants)", async () => {
@@ -189,12 +187,9 @@ test("an SSO header upserts via provisionIdentity and carries the resolved role"
   });
   // The unsigned header path carries no subject, so the upserted row holds none.
   expect(provision.mock.calls.map(([identity]) => identity.externalId)).toEqual([null]);
-  expect(
-    await root.db
-      .select({ externalId: users.externalId })
-      .from(users)
-      .where(eq(users.handle, castId<Handle>("carol"))),
-  ).toEqual([{ externalId: null }]);
+  expect((await readAccounts(root)).filter(({ handle }) => handle === castId<Handle>("carol")).map(({ externalId }) => ({ externalId }))).toEqual([
+    { externalId: null },
+  ]);
 });
 
 test("B1 anti-spoof: an SSO header from an UNTRUSTED peer is rejected even with a forged trusted XFF", async () => {
@@ -202,12 +197,7 @@ test("B1 anti-spoof: an SSO header from an UNTRUSTED peer is rejected even with 
   const provision = vi.spyOn(root.app.sessions, "provisionIdentity");
   expect(await authMe(root, { [FORWARD_USER_HEADER]: "spoofed-owner", "x-forwarded-for": PROXY_PEER })).toEqual(ANONYMOUS);
   expect(provision).not.toHaveBeenCalled();
-  expect(
-    await root.db
-      .select()
-      .from(users)
-      .where(eq(users.handle, castId<Handle>("spoofed-owner"))),
-  ).toEqual([]);
+  expect((await readAccounts(root)).filter(({ handle }) => handle === castId<Handle>("spoofed-owner"))).toEqual([]);
 });
 
 // A relay cannot start in forward-header mode, so its registry is bound here exactly as the root binds it at boot.
@@ -233,11 +223,7 @@ test("the seam hands its relay registry to the header path: an SSO header on a r
 test("a disabled SSO row is gated to null (disable takes effect next request, not JWT-baked)", async () => {
   await using root = await forward(() => PROXY_PEER);
   expect((await authMe(root, { [FORWARD_USER_HEADER]: "dave" })).authenticated).toBe(true);
-  const dave = await root.db
-    .select({ id: users.id })
-    .from(users)
-    .where(eq(users.handle, castId<Handle>("dave")))
-    .get();
+  const dave = (await readAccounts(root)).find(({ handle }) => handle === castId<Handle>("dave"));
   if (dave === undefined) {
     throw new Error("the header arm provisioned no row for dave");
   }

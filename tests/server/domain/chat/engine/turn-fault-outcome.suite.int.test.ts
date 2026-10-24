@@ -1,7 +1,7 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // Read outcomes through the authenticated debug door after real native execution and physical failures.
 import type { TurnOutcome } from "@orb/contracts/chat";
-import { chatEvents, messageVariants } from "@orb/db";
+import { messageVariants } from "@orb/db";
 import { ProviderError } from "@orb/inference";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
@@ -19,7 +19,6 @@ import {
   createCorpusProviderExecution,
   refuseWrites,
 } from "@orb/testkit/node/composed";
-import { eq } from "drizzle-orm";
 import { sdkEngineRoom } from "./engine-physical.ts";
 import { ENGINE_SDK_MODEL } from "./engine-sdk-physical.mjs";
 
@@ -216,8 +215,10 @@ test("a completed native turn keeps raw warning code and operator prose while it
     expect(await outcomes(h)).toEqual([
       expect.objectContaining({ disposition: "completed", warnings: expect.arrayContaining([{ code: "sampling_knob_dropped", message: raw }]) }),
     ]);
-    const warnings = (await h.root.db.select().from(chatEvents).where(eq(chatEvents.chatId, h.chatId))).filter(({ payload }) => payload.type === "warning");
-    expect(warnings.map(({ payload }) => payload)).toContainEqual(expect.objectContaining({ code: "settings_adjusted" }));
+    const warnings = (await h.root.services.chat.replayChatEvents({ principal: h.owner, chatId: h.chatId })).flatMap(({ event }) =>
+      event.type === "warning" ? [event] : [],
+    );
+    expect(warnings).toContainEqual(expect.objectContaining({ code: "settings_adjusted" }));
     expect(JSON.stringify(warnings)).not.toContain(raw);
   });
 });

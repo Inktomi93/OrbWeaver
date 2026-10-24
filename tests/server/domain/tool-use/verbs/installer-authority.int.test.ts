@@ -3,7 +3,6 @@
 import { spawn } from "node:child_process";
 import type { Principal } from "@orb/contracts/identity";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, PLUGIN_MANIFEST_ENTRY, pluginManifestSchema, pluginToolWireName } from "@orb/contracts/plugin";
-import { chats } from "@orb/db";
 import { loadPresentRole } from "@orb/server/domain/chat";
 import { expect, test } from "@orb/testkit/node";
 import {
@@ -17,7 +16,6 @@ import {
   seedInstalledPlugin,
   seedPluginGrant,
 } from "@orb/testkit/node/composed";
-import { eq } from "drizzle-orm";
 import { strToU8, zipSync } from "fflate";
 
 const VARIABLE = "installer_authority_marker";
@@ -74,8 +72,7 @@ test("a real resident guest follows fresh installer handoff, departure and disab
   });
   expect(enabled.outcome.status).toBe("enabled");
   const name = pluginToolWireName(MANIFEST.id, "stamp");
-  const runtimeVariables = async (): Promise<(typeof chats.$inferSelect)["runtimeVariables"] | undefined> =>
-    (await root.db.select({ values: chats.runtimeVariables }).from(chats).where(eq(chats.id, chatId)).get())?.values;
+  const runtimeVariables = async (): Promise<Record<string, string>> => await root.services.chat.getRuntimeVariables({ principal: owner, chatId });
   const invokeAs = async (caller: Principal, value: string): ReturnType<typeof root.app.toolUse.executeToolCalls> => {
     const role = await loadPresentRole(root.db, chatId, caller.userId);
     return await root.app.toolUse.executeToolCalls(
@@ -86,12 +83,12 @@ test("a real resident guest follows fresh installer handoff, departure and disab
   };
   const memberAttempt = await invokeAs(owner, "must-not-land");
   expect(memberAttempt).toMatchObject([{ isError: false, result: "Error: plugin host: chat.variables.write requires host authority on this chat" }]);
-  expect((await runtimeVariables())?.[VARIABLE]).toBeUndefined();
+  expect((await runtimeVariables())[VARIABLE]).toBeUndefined();
 
   await root.services.chat.nominateHostHandoff({ principal: owner, chatId, userId: installer.userId });
   await root.services.chat.acceptHostHandoff({ principal: installer, chatId });
   expect(await invokeAs(owner, "installer-host")).toMatchObject([{ isError: false, result: "applied" }]);
-  expect((await runtimeVariables())?.[VARIABLE]).toBe("installer-host");
+  expect((await runtimeVariables())[VARIABLE]).toBe("installer-host");
 
   await root.services.chat.nominateHostHandoff({ principal: installer, chatId, userId: owner.userId });
   await root.services.chat.acceptHostHandoff({ principal: owner, chatId });
@@ -99,7 +96,7 @@ test("a real resident guest follows fresh installer handoff, departure and disab
   await root.services.chat.selfLeave({ principal: installer, chatId });
   const departedAttempt = await invokeAs(owner, "departed-must-not-land");
   expect(departedAttempt).toMatchObject([{ isError: true, result: JSON.stringify({ error: `not permitted: ${name}` }) }]);
-  expect((await runtimeVariables())?.[VARIABLE]).toBe("installer-host");
+  expect((await runtimeVariables())[VARIABLE]).toBe("installer-host");
 
   await root.services.plugin.setEnabled({ caller: installer, pluginId: installed.plugin.id, enabled: false });
   expect(root.app.toolUse.isToolDrivableBy(name, installer.userId)).toBe(false);

@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 import { createCharacterSchema } from "@orb/contracts/character";
-import { characters, messages } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import {
   CORPUS_EMBED_MODEL,
@@ -9,8 +8,8 @@ import {
   CORPUS_TEXT_MODEL,
   createChatRoot,
   createCorpusProviderExecution,
+  readRoomCanon,
 } from "@orb/testkit/node/composed";
-import { and, eq } from "drizzle-orm";
 
 test("a public narrator round mints its real group character before committing the narrator's author", async () => {
   const provider = createCorpusProviderExecution({
@@ -34,20 +33,15 @@ test("a public narrator round mints its real group character before committing t
   expect(outcome.messages.filter(({ role }) => role === "user")).toHaveLength(1);
   const narrators = outcome.messages.filter(({ role }) => role === "assistant");
   expect(narrators).toHaveLength(1);
-  const group = await h.root.db
-    .select()
-    .from(characters)
-    .where(and(eq(characters.ownerId, h.owner.userId), eq(characters.synthetic, true)))
-    .get();
-  if (group === undefined) {
+  const group = await h.root.services.character.findSyntheticGroupCharacter({ ownerId: h.owner.userId, chatId: h.chatId });
+  if (group === null) {
     throw new Error("the real narrator round did not mint its group character");
   }
-  expect(h.characters.map(({ id }) => id)).not.toContain(group.id);
-  expect(narrators.map(({ characterId }) => characterId)).toEqual([group.id]);
+  expect(h.characters.map(({ id }) => id)).not.toContain(group.characterId);
+  expect(narrators.map(({ characterId }) => characterId)).toEqual([group.characterId]);
   expect(
-    await h.root.db
-      .select({ role: messages.role, kind: messages.kind, characterId: messages.characterId })
-      .from(messages)
-      .where(and(eq(messages.chatId, h.chatId), eq(messages.role, "assistant"))),
-  ).toEqual([{ role: "assistant", kind: "narrator", characterId: group.id }]);
+    (await readRoomCanon(h.root, h.owner, h.chatId))
+      .filter(({ role }) => role === "assistant")
+      .map(({ role, kind, characterId }) => ({ role, kind, characterId })),
+  ).toEqual([{ role: "assistant", kind: "narrator", characterId: group.characterId }]);
 });

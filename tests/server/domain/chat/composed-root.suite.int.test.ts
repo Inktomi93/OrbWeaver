@@ -2,7 +2,6 @@
 // Physical FIFO replies and actual durable outcomes qualify the production root, not a replacement domain façade.
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { TurnOutcome } from "@orb/contracts/chat";
-import { chatEvents, messages, ownerStats } from "@orb/db";
 import { jsonValueSchema } from "@orb/kit/json";
 import { ChatNotFoundError } from "@orb/server/domain/chat";
 import { createControlledTimers, createFrozenClock } from "@orb/testkit/iso";
@@ -15,9 +14,9 @@ import {
   CORPUS_TEXT_MODEL,
   createChatRoot,
   createCorpusProviderExecution,
+  readRoomCanon,
 } from "@orb/testkit/node/composed";
 import { assertEventSequence } from "@orb/testkit/node/helpers";
-import { eq } from "drizzle-orm";
 
 async function room(
   replies: readonly string[],
@@ -126,12 +125,12 @@ test("commits the user row + the assistant turn; emits the lifecycle", async () 
   expect(outcome.messages).toHaveLength(2);
   expect(outcome.messages[0]).toMatchObject({ role: "user", content: "hello", authorUserId: h.owner.userId });
   expect(outcome.messages[1]).toMatchObject({ role: "assistant", content: "Hi there" });
-  const canon = await h.root.db.select().from(messages).where(eq(messages.chatId, h.chatId)).orderBy(messages.seq);
+  const canon = await readRoomCanon(h.root, h.owner, h.chatId);
   expect(canon.map(({ seq }) => seq)).toEqual([1, 2]);
   expect(canon.map(({ role }) => role)).toEqual(["user", "assistant"]);
-  const events = await h.root.db.select({ payload: chatEvents.payload }).from(chatEvents).where(eq(chatEvents.chatId, h.chatId)).orderBy(chatEvents.seq);
+  const events = await h.root.services.chat.replayChatEvents({ principal: h.owner, chatId: h.chatId });
   assertEventSequence(
-    events.map(({ payload }) => payload),
+    events.map(({ event }) => event),
     ["turnStarted", "messageCommitted", "turnCompleted"],
   );
 });
@@ -153,15 +152,13 @@ test("the static system prefix is byte-stable across turns and the token totals 
   expect(prefixes).toHaveLength(2);
   expect(prefixes[0]?.length).toBeGreaterThan(0);
   expect(prefixes[1]).toBe(prefixes[0]);
-  expect(
-    await h.root.db.select({ tokensIn: ownerStats.tokensIn, tokensOut: ownerStats.tokensOut }).from(ownerStats).where(eq(ownerStats.ownerId, h.owner.userId)),
-  ).toEqual([{ tokensIn: 8, tokensOut: 4 }]);
+  expect(await h.root.services.stats.overview(h.owner.userId)).toMatchObject({ tokensIn: 8, tokensOut: 4 });
 });
 
 test("a physical provider server refusal rejects with the typed provider failure", async () => {
   await withRefusal(500, async (h, send) => {
     await expect(send()).toThrowProviderError("server");
-    expect((await h.root.db.select().from(chatEvents).where(eq(chatEvents.chatId, h.chatId))).map(({ type }) => type)).toContain("turnAborted");
+    expect((await h.root.services.chat.replayChatEvents({ principal: h.owner, chatId: h.chatId })).map(({ event }) => event.type)).toContain("turnAborted");
   });
 });
 

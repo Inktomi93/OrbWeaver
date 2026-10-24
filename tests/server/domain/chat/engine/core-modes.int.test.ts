@@ -1,11 +1,9 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // @subject packages/server/src/domain/chat/engine/pipeline.ts
 import { CHAT_REACT_TOOL_NAME, reactToolArgsSchema } from "@orb/contracts/chat";
-import { messageVariants } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
-import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL } from "@orb/testkit/node/composed";
+import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL, readRoomCanon } from "@orb/testkit/node/composed";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
-import { eq } from "drizzle-orm";
 import { coreFrame, coreHttpRoom, coreSse } from "./core-physical.ts";
 
 test("a public continuation retains real prior calls, namespaces repeated wire ids and rebases their prose offsets", async () => {
@@ -74,7 +72,8 @@ test("a public continuation retains real prior calls, namespaces repeated wire i
     isError: false,
   });
   expect(message.toolCalls[1]?.turnId).not.toBe(prior?.turnId);
-  expect(await h.root.db.select().from(messageVariants).where(eq(messageVariants.id, message.selectedVariantId)).get()).toMatchObject({
+  expect((await readRoomCanon(h.root, h.owner, h.chatId)).find(({ id }) => id === message.id)).toMatchObject({
+    selectedVariantId: message.selectedVariantId,
     content: message.content,
     toolCalls: message.toolCalls,
   });

@@ -1,8 +1,6 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // @subject packages/server/src/domain/chat/assembly/assemble.ts
-import { messageVariants } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
-import { eq } from "drizzle-orm";
 import { textRoom } from "../scenario-physical.ts";
 import { MOOD_CONFIG } from "./turn-lifetimes-macro-data.ts";
 
@@ -20,8 +18,8 @@ test("a public SEND saves its actual random-pick draw and SWIPE replays it despi
   if (reply === undefined) {
     throw new Error("the actual macro SEND produced no assistant slot");
   }
-  const before = await h.root.db.select().from(messageVariants).where(eq(messageVariants.id, reply.selectedVariantId)).get();
-  expect(before?.macroDraws).toEqual({ mood: { tone: "grim" } });
+  const before = await h.root.services.chat.getVariantWire({ ...params, variantId: reply.selectedVariantId });
+  expect(before.macroDraws).toEqual({ mood: { tone: "grim" } });
   entropy = 0.9;
   const swiped = await h.root.services.chat.swipe({ ...params, messageId: reply.id });
   expect(swiped.aborted).toBe(false);
@@ -31,9 +29,7 @@ test("a public SEND saves its actual random-pick draw and SWIPE replays it despi
   }
   expect(selected.id).toBe(reply.id);
   expect(selected.selectedVariantId).not.toBe(reply.selectedVariantId);
-  expect((await h.root.db.select().from(messageVariants).where(eq(messageVariants.id, selected.selectedVariantId)).get())?.macroDraws).toEqual(
-    before?.macroDraws,
-  );
+  expect((await h.root.services.chat.getVariantWire({ ...params, variantId: selected.selectedVariantId })).macroDraws).toEqual(before.macroDraws);
   const inputs = await Promise.all(h.requests.filter(({ method }) => method === "POST").map(async (request) => await request.clone().text()));
   expect(inputs).toHaveLength(2);
   expect(inputs.every((body) => body.includes("Scene tone: grim."))).toBe(true);

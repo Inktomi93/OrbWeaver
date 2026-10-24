@@ -1,6 +1,6 @@
 // @subject packages/server/src/domain/databank/verbs/scrape/scrape-web.ts
 // A user-supplied URL reaches the network only through the composed egress guard, never the ambient fetch.
-import { documents } from "@orb/db";
+
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { afterEach, vi } from "vitest";
@@ -59,5 +59,5 @@ test.for([
   });
   expect(dialed).toEqual([]);
   expect(ambient).not.toHaveBeenCalled();
-  expect(await root.db.select().from(documents)).toEqual([]);
+  expect((await root.services.databank.list({ principal })).items).toEqual([]);
 });

@@ -1,13 +1,12 @@
 // @subject packages/server/src/domain/connection/verbs/local-light-policy.ts
 // @subject packages/server/src/domain/sessions/persistence/users.ts
 
-import { connectionBindings, userConnections, users } from "@orb/db";
+import { connectionBindings } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import { castId } from "@orb/kit/ids";
 import { seedLocalLightOnBoot } from "@orb/server/entry/boot";
 import { expect, test } from "@orb/testkit/node";
 import { refuseWrites } from "@orb/testkit/node/composed";
-import { eq } from "drizzle-orm";
 
 test("boot continues across a real binding refusal, and the composed post-boot account mint survives and repairs its own floor", async ({
   db,
@@ -30,18 +29,21 @@ test("boot continues across a real binding refusal, and the composed post-boot a
   };
   expect(await seedLocalLightOnBoot(deps)).toBe(0);
   for (const user of [first, second]) {
-    expect(await db.select().from(userConnections).where(eq(userConnections.ownerId, user.id))).toHaveLength(2);
+    expect(await app.services.connection.list({ principal: await harness.principalFor(user.id) })).toHaveLength(2);
   }
   expect(bound).toEqual([]);
   const minted = await app.services.sessions.ensureUser(castId("after_boot_refusal"));
-  expect(await db.select().from(users).where(eq(users.id, minted))).toHaveLength(1);
-  expect(await db.select().from(userConnections).where(eq(userConnections.ownerId, minted))).toHaveLength(2);
-  expect(await db.select().from(connectionBindings).where(eq(connectionBindings.userId, minted))).toEqual([]);
+  expect(await app.sessions.loadUserById(minted)).toMatchObject({ handle: "after_boot_refusal" });
+  const mintedPrincipal = await harness.principalFor(minted);
+  const bindingsOf = async (): Promise<NonNullable<Awaited<ReturnType<typeof app.services.connection.listBindings>>[number]["binding"]>[]> =>
+    (await app.services.connection.listBindings({ principal: mintedPrincipal })).flatMap(({ binding }) => (binding === null ? [] : [binding]));
+  expect(await app.services.connection.list({ principal: mintedPrincipal })).toHaveLength(2);
+  expect(await bindingsOf()).toEqual([]);
   await refusal.lift();
   await app.seedUserConnections(minted);
-  const repaired = await db.select().from(connectionBindings).where(eq(connectionBindings.userId, minted));
+  const repaired = await bindingsOf();
   expect(new Set(repaired.map((row) => row.task))).toEqual(new Set(["embed", "imageEmbed", "rerank"]));
-  expect(repaired.every((row) => row.userId === minted && row.actorKind === "user")).toBe(true);
+  expect(repaired.every((row) => row.actorKind === "user" && row.userId === minted)).toBe(true);
   expect(await seedLocalLightOnBoot(deps)).toBe(0);
   expect(new Set(bound)).toEqual(new Set([first.id, second.id]));
 });

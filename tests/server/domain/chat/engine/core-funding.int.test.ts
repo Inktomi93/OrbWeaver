@@ -1,9 +1,7 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // The real member author and frozen host connection remain distinct from retained canon accounting.
-import { characterStats, dailyStats, ownerStats } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
-import { eq } from "drizzle-orm";
 import { coreFrame, coreHttpRoom, coreSse } from "./core-physical.ts";
 
 test("a real member's send credits the retained host cohort and speaker, never the initiating member", async () => {
@@ -22,7 +20,7 @@ test("a real member's send credits the retained host cohort and speaker, never t
     throw new Error("the actual funding room has no saved host connection");
   }
   await h.root.services.stats.reconcile(member.userId);
-  const memberBefore = await h.root.db.select().from(ownerStats).where(eq(ownerStats.ownerId, member.userId));
+  const memberBefore = await h.root.services.stats.overview(member.userId);
   const online = new AbortController();
   using presence = new DisposableStack();
   presence.defer(() => online.abort());
@@ -33,12 +31,14 @@ test("a real member's send credits the retained host cohort and speaker, never t
   expect(outcome.messages.filter((message) => message.role === "assistant")).toMatchObject([
     { content: "The host-funded reply.", authorUserId: null, characterId: h.characters[0]?.id, connectionId: hostBinding.connectionId },
   ]);
-  expect(await h.root.db.select().from(ownerStats).where(eq(ownerStats.ownerId, h.owner.userId))).toMatchObject([
-    { userTurns: 1, assistantTurns: 1, tokensIn: 4, tokensOut: 2 },
-  ]);
-  expect(await h.root.db.select().from(characterStats)).toMatchObject([{ characterId: h.characters[0]?.id, assistantTurns: 1, tokensIn: 4, tokensOut: 2 }]);
-  expect(await h.root.db.select().from(dailyStats).where(eq(dailyStats.ownerId, h.owner.userId))).toMatchObject([
-    { userTurns: 1, assistantTurns: 1, tokensIn: 4, tokensOut: 2 },
-  ]);
-  expect(await h.root.db.select().from(ownerStats).where(eq(ownerStats.ownerId, member.userId))).toEqual(memberBefore);
+  const speaker = h.characters[0]?.id;
+  if (speaker === undefined) {
+    throw new Error("the actual funding room seated no speaker");
+  }
+  const { stats } = h.root.services;
+  expect(await stats.overview(h.owner.userId)).toMatchObject({ userTurns: 1, assistantTurns: 1, tokensIn: 4, tokensOut: 2 });
+  expect((await stats.leaderboard(h.owner.userId)).rows.map(({ characterId }) => characterId)).toEqual([speaker]);
+  expect(await stats.character(h.owner.userId, speaker)).toMatchObject({ assistantTurns: 1, tokensIn: 4, tokensOut: 2 });
+  expect(await stats.timeseries(h.owner.userId)).toMatchObject([{ userTurns: 1, assistantTurns: 1, tokensIn: 4, tokensOut: 2 }]);
+  expect(await stats.overview(member.userId)).toEqual(memberBefore);
 });

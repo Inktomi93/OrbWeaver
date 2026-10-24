@@ -1,6 +1,5 @@
 // Only vendor response bytes vary; room policy, persistence and assembly belong to the real graph.
 import { resolveProseText } from "@orb/contracts/prose";
-import { messages, messageVariants } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
@@ -12,8 +11,8 @@ import {
   CORPUS_TEXT_MODEL,
   createChatRoot,
   createCorpusProviderExecution,
+  readRoomCanon,
 } from "@orb/testkit/node/composed";
-import { asc, eq } from "drizzle-orm";
 
 /** Supply a finite physical reply plan without substituting a domain operation. */
 export async function textRoom(replies: readonly string[], options: Omit<ChatRootOptions, "providerFetch"> = {}): Promise<ChatRoot> {
@@ -89,15 +88,12 @@ export async function importTranscript(h: ChatRoot, lines: readonly TranscriptLi
   if (!outcome.ok) {
     throw new Error(`the production chat import refused the transcript: ${JSON.stringify(outcome)}`);
   }
-  const [landed] = await h.root.db
-    .select({ chatId: messages.chatId })
-    .from(messages)
-    .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
-    .where(eq(messageVariants.content, first.text));
-  if (landed === undefined) {
-    throw new Error("the production chat import landed no first line");
+  for (const room of (await h.root.services.chat.listChats({ principal: h.owner })).items) {
+    if ((await readRoomCanon(h.root, h.owner, room.id))[0]?.content === first.text) {
+      return room.id;
+    }
   }
-  return landed.chatId;
+  throw new Error("the production chat import landed no first line");
 }
 
 /** A room as imported today, and the same room as launched data holds it: numbered from seq 0. */
@@ -108,6 +104,5 @@ export const LEGACY_IMPORT_ARMS = [
 
 /** The room's canon seqs, oldest first. */
 export async function importedSeqs(h: ChatRoot, chatId: ChatId): Promise<number[]> {
-  const rows = await h.root.db.select({ seq: messages.seq }).from(messages).where(eq(messages.chatId, chatId)).orderBy(asc(messages.seq));
-  return rows.map(({ seq }) => seq);
+  return (await readRoomCanon(h.root, h.owner, chatId)).map(({ seq }) => seq);
 }

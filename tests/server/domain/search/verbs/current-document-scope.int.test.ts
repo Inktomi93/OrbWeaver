@@ -4,7 +4,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { createDb, embedGenerationTargets, embedSpaceState, preCloseHousekeeping, runMigrations } from "@orb/db";
+import { createDb, preCloseHousekeeping, runMigrations } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import {
   CORPUS_EMBED_MODEL,
@@ -94,10 +94,7 @@ test("room document consent is current at the native scan, not frozen before que
       return jobs.length === sweeps.length && jobs.every((job) => job.status === "succeeded");
     })
     .toBe(true);
-  expect(
-    await root.services.search.spaceStatus({ ownerId: owner.userId }),
-    JSON.stringify({ states: await db.select().from(embedSpaceState), targets: await db.select().from(embedGenerationTargets) }),
-  ).toMatchObject({ embed: false });
+  expect(await root.services.search.spaceStatus({ ownerId: owner.userId })).toMatchObject({ embed: false });
   const search = (): ReturnType<typeof root.services.search.documents> =>
     root.services.search.documents({ ownerId: owner.userId, scope: { chatId }, queryText: "current document consent", k: 10 });
   const positive = await search();

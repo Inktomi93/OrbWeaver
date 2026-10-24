@@ -1,9 +1,8 @@
 // @subject packages/server/src/domain/chat/engine/round.ts
 // D16 compares physical requests; narrator identity has its one deliberate framing exception.
-import type { GroupConfig } from "@orb/contracts/chat";
+import type { GroupConfig, MessageView } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, narratorPolicyOf } from "@orb/contracts/chat";
 import { resolveProseText } from "@orb/contracts/prose";
-import { messages, messageVariants } from "@orb/db";
 import type { CharacterId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
@@ -15,8 +14,8 @@ import {
   CORPUS_TEXT_MODEL,
   createChatRoot,
   createCorpusProviderExecution,
+  readRoomCanon,
 } from "@orb/testkit/node/composed";
-import { eq } from "drizzle-orm";
 
 const GROUP_OF_ONE: GroupConfig = { ...DEFAULT_GROUP_CONFIG, output: "per-speaker", speakerTags: true, cardScope: "scoped" };
 const NARRATOR_OF_ONE: GroupConfig = {
@@ -35,7 +34,7 @@ const NARRATOR_OF_ONE: GroupConfig = {
 async function posture(group: GroupConfig): Promise<{
   readonly body: string;
   readonly characterId: CharacterId;
-  readonly row: (Pick<typeof messages.$inferSelect, "role" | "characterId"> & Pick<typeof messageVariants.$inferSelect, "content">) | undefined;
+  readonly row: Pick<MessageView, "role" | "characterId" | "content"> | undefined;
 }> {
   const provider = createCorpusProviderExecution({
     modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
@@ -67,12 +66,8 @@ async function posture(group: GroupConfig): Promise<{
     throw new Error("the real posture produced no physical request or assistant row");
   }
   const body = await firstRequest.text();
-  const row = await h.root.db
-    .select({ role: messages.role, characterId: messages.characterId, content: messageVariants.content })
-    .from(messages)
-    .innerJoin(messageVariants, eq(messages.selectedVariantId, messageVariants.id))
-    .where(eq(messages.id, assistant.id))
-    .get();
+  const stored = (await readRoomCanon(h.root, h.owner, h.chatId)).find(({ id }) => id === assistant.id);
+  const row = stored === undefined ? undefined : { role: stored.role, characterId: stored.characterId, content: stored.content };
   return { body, characterId: character.id, row };
 }
 

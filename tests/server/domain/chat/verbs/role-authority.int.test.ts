@@ -2,14 +2,12 @@
 // @subject packages/server/src/domain/chat/persistence/participants-read.ts
 // @subject packages/server/src/transport/trpc/role-output.ts
 
-import { chatParticipants, chats } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
 import { can } from "@orb/server/domain/admin";
 import { createResolveViewerVisibility, loadPresentRole } from "@orb/server/domain/chat";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, seedCorpusActors, seedMessage } from "@orb/testkit/node/composed";
-import { eq } from "drizzle-orm";
 
 test("real membership, roster and wire owners keep role data separate from global privilege and fresh chat authority", async () => {
   await using root = await createServerHarness({ authConfig: { mode: "forward-header", fallback: "deny" } });
@@ -55,7 +53,7 @@ test("real membership, roster and wire owners keep role data separate from globa
   for (const userId of [host.userId, outsider.userId]) {
     await expect(root.services.chat.nominateHostHandoff({ principal: host, chatId, userId })).rejects.toThrow(DomainNotFoundError);
   }
-  expect((await root.db.select().from(chats).where(eq(chats.id, chatId)).get())?.pendingHostUserId).toBeNull();
+  expect((await root.services.chat.getChat({ principal: host, chatId })).pendingHostUserId).toBeNull();
   await expect(root.services.chat.nominateHostHandoff({ principal: member, chatId, userId: host.userId })).rejects.toMatchObject({ code: "not_host" });
   await root.services.chat.nominateHostHandoff({ principal: host, chatId, userId: member.userId });
   await root.services.chat.acceptHostHandoff({ principal: member, chatId });
@@ -68,10 +66,7 @@ test("real membership, roster and wire owners keep role data separate from globa
   await expect(root.services.chat.setToolRecurseLimit({ principal: host, chatId, limit: 2 })).rejects.toMatchObject({ code: "not_host" });
   await root.services.chat.setToolRecurseLimit({ principal: member, chatId, limit: 2 });
   expect((await memberCaller.chat.getChat({ chatId })).participants.find(({ userId }) => userId === member.userId)).toMatchObject({ role: "host" });
-  expect((await root.db.select().from(chatParticipants).where(eq(chatParticipants.chatId, chatId))).map(({ role }) => role).toSorted()).toEqual([
-    "host",
-    "member",
-  ]);
+  expect((await memberCaller.chat.getChat({ chatId })).participants.map(({ role }) => role).toSorted((a, b) => a.localeCompare(b))).toEqual(["host", "member"]);
 });
 
 test("real member reads, author checks and a sole-human fork preserve the hidden-content and history-floor boundary", async () => {

@@ -1,7 +1,7 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
-import { messages, messageVariants } from "@orb/db";
+
 import { expect, test } from "@orb/testkit/node";
-import { eq } from "drizzle-orm";
+import { readRoomCanon } from "@orb/testkit/node/composed";
 import { withCancellationPeer } from "./turn-cancellation-physical.ts";
 
 test("a draft consumer's return closes its actual native request without leaving generation or canon behind", async () => {
@@ -24,8 +24,7 @@ test("a draft consumer's return closes its actual native request without leaving
       expect(peer.writeLate()).toBe(false);
       expect(peer.requests).toHaveLength(1);
       await expect(h.root.services.chat.abort({ principal: h.owner, chatId: h.chatId })).resolves.toBeUndefined();
-      expect(await h.root.db.select().from(messages).where(eq(messages.chatId, h.chatId))).toEqual([]);
-      expect(await h.root.db.select().from(messageVariants)).toEqual([]);
+      expect(await readRoomCanon(h.root, h.owner, h.chatId)).toEqual([]);
       expect(events.filter(({ type }) => type === "messageCommitted" || type === "turnCompleted")).toEqual([]);
     } finally {
       await finish(undefined);

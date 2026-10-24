@@ -1,7 +1,7 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // Real stored digests and a genuinely unbound reranker exercise scope and per-turn degradation episodes.
 import { createCharacterSchema } from "@orb/contracts/character";
-import { chatDigests, chatEvents, closeDb } from "@orb/db";
+import { closeDb } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot, ChatRootOptions, HeldStatement } from "@orb/testkit/node/composed";
 import {
@@ -13,7 +13,6 @@ import {
   createCorpusProviderExecution,
   freshHeldDb,
 } from "@orb/testkit/node/composed";
-import { eq } from "drizzle-orm";
 
 const RECALL_INTENT = { maxContextTokens: 4096, maxOutputTokens: 64 } as const;
 const RETRIEVAL_ROWS = [
@@ -100,16 +99,15 @@ async function recallRoom(group: NonNullable<ChatRootOptions["group"]>, options:
 
 test.for(RETRIEVAL_ROWS)("$label retain their real recall scope and warn once per degraded turn, then warn again next turn", async (row) => {
   await using h = await recallRoom(row.group);
-  const digests = await h.root.db.select().from(chatDigests).where(eq(chatDigests.chatId, h.chatId));
-  expect(digests.length).toBeGreaterThan(0);
   const characterIds = h.characters.map((character) => character.id);
-  const shared = digests.find((digest) => !characterIds.includes(digest.scopedCharacterId))?.scopedCharacterId;
+  // The group memory build keys its shared bucket by the room's minted synthetic character.
+  const shared = (await h.root.services.character.findSyntheticGroupCharacter({ ownerId: h.owner.userId, chatId: h.chatId }))?.characterId;
   if (shared === undefined) {
     throw new Error("the actual memory warm-up built no shared group bucket");
   }
   for (const turn of ["First", "Second"]) {
     const beforeRecall = h.root.app.recallRecorder.recent({ chatId: h.chatId }).at(-1)?.seq ?? 0;
-    const beforeWarning = (await h.root.db.select().from(chatEvents).where(eq(chatEvents.chatId, h.chatId))).length;
+    const beforeWarning = (await h.root.services.chat.replayChatEvents({ principal: h.owner, chatId: h.chatId })).length;
     const outcome = await h.root.services.chat.send({
       principal: h.owner,
       chatId: h.chatId,
@@ -123,9 +121,9 @@ test.for(RETRIEVAL_ROWS)("$label retain their real recall scope and warn once pe
     expect(recalls).toHaveLength(row.recalls);
     expect(recalls.map((recall) => recall.scopedCharacterId)).toEqual(row.recalls === 3 ? [shared, ...characterIds] : [shared]);
     expect(recalls.every((recall) => recall.trace.poolSize > 0 && recall.trace.candidateCount > 0 && recall.trace.surfaced > 0)).toBe(true);
-    const events = (await h.root.db.select().from(chatEvents).where(eq(chatEvents.chatId, h.chatId)).orderBy(chatEvents.seq)).slice(beforeWarning);
-    expect(events.filter(({ payload }) => payload.type === "warning" && payload.code === "memory_rerank_unavailable")).toHaveLength(1);
-    expect(events.filter(({ payload }) => payload.type === "warning" && payload.code === "retrieval_index_unavailable")).toEqual([]);
+    const events = (await h.root.services.chat.replayChatEvents({ principal: h.owner, chatId: h.chatId })).slice(beforeWarning);
+    expect(events.filter(({ event }) => event.type === "warning" && event.code === "memory_rerank_unavailable")).toHaveLength(1);
+    expect(events.filter(({ event }) => event.type === "warning" && event.code === "retrieval_index_unavailable")).toEqual([]);
   }
 });
 
@@ -140,7 +138,7 @@ test("one actual turn independently warns once for a degraded shared rerank and 
     throw new Error("the real recall corpus has no owned embedding connection");
   }
   const beforeRecall = h.root.app.recallRecorder.recent({ chatId: h.chatId }).at(-1)?.seq ?? 0;
-  const beforeEvent = (await h.root.db.select().from(chatEvents).where(eq(chatEvents.chatId, h.chatId))).length;
+  const beforeEvent = (await h.root.services.chat.replayChatEvents({ principal: h.owner, chatId: h.chatId })).length;
   let boundary: HeldStatement | undefined;
   const started = Promise.withResolvers<HeldStatement>();
   ownership.defer(
@@ -176,18 +174,18 @@ test("one actual turn independently warns once for a degraded shared rerank and 
     const recalls = h.root.app.recallRecorder.recent({ chatId: h.chatId }).filter((recall) => recall.seq > beforeRecall);
     expect(recalls).toHaveLength(3);
     expect(recalls.slice(1).map((recall) => recall.trace.note)).toEqual(["vector space unavailable", "vector space unavailable"]);
-    const events = (await h.root.db.select().from(chatEvents).where(eq(chatEvents.chatId, h.chatId)).orderBy(chatEvents.seq)).slice(beforeEvent);
+    const events = (await h.root.services.chat.replayChatEvents({ principal: h.owner, chatId: h.chatId })).slice(beforeEvent);
     const retrievalWarnings = events.filter(
-      ({ payload }) => payload.type === "warning" && (payload.code === "retrieval_index_unavailable" || payload.code === "memory_rerank_unavailable"),
+      ({ event }) => event.type === "warning" && (event.code === "retrieval_index_unavailable" || event.code === "memory_rerank_unavailable"),
     );
-    expect(retrievalWarnings.map(({ payload }) => payload)).toMatchObject([
+    expect(retrievalWarnings.map(({ event }) => event)).toMatchObject([
       { type: "warning", code: "retrieval_index_unavailable" },
       { type: "warning", code: "memory_rerank_unavailable" },
     ]);
     expect(retrievalWarnings).toHaveLength(2);
-    expect(events.filter(({ payload }) => payload.type === "warning" && payload.code === "memory_build_failed")).toHaveLength(2);
-    expect(events.filter(({ payload }) => payload.type === "turnCompleted")).toHaveLength(2);
-    expect(events.filter(({ payload }) => payload.type === "turnAborted")).toEqual([]);
+    expect(events.filter(({ event }) => event.type === "warning" && event.code === "memory_build_failed")).toHaveLength(2);
+    expect(events.filter(({ event }) => event.type === "turnCompleted")).toHaveLength(2);
+    expect(events.filter(({ event }) => event.type === "turnAborted")).toEqual([]);
   } finally {
     boundary?.release();
     await settled;

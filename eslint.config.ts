@@ -996,7 +996,7 @@ export default [
     files: ["tests/**/*.{ts,tsx}", "scripts/**/*.{ts,tsx}", "playwright/**/*.{ts,tsx}"],
     ignores: ["tests/support/**", "tests/db/**", "**/persistence/**", "**/*.d.ts"],
     plugins: { orb: localPlugin },
-    rules: { "orb/no-direct-row-writes": "error" },
+    rules: { "orb/no-direct-row-writes": "error", "orb/no-direct-row-reads": "error" },
   },
   {
     files: AUTHORED_SRC.map((glob) => [glob, "**/context.ts"]),

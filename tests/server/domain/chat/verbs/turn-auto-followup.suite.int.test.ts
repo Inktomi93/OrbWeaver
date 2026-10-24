@@ -1,9 +1,8 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // Native finish reasons and saved settings distinguish in-place continuation, reroll precedence and bounded spend.
 import type { UserSettings } from "@orb/contracts/settings";
-import { messages, messageVariants } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
-import { eq } from "drizzle-orm";
+import { readRoomCanon } from "@orb/testkit/node/composed";
 import type { PhysicalReply } from "./followup-physical.ts";
 import { followupRoom } from "./followup-physical.ts";
 
@@ -260,18 +259,18 @@ test.for(CASES)("$title", async (scene) => {
   expect(outcome.aborted).toBe(false);
   await h.root.settleBackground();
   expect(h.requests.filter((request) => new URL(request.url).pathname.endsWith("/chat/completions"))).toHaveLength(scene.calls);
-  const canon = await h.root.db.select().from(messages).where(eq(messages.chatId, h.chatId)).orderBy(messages.seq);
+  const canon = await readRoomCanon(h.root, h.owner, h.chatId);
   expect(canon.map(({ role }) => role)).toEqual(["user", "assistant"]);
   const assistant = canon[1];
   if (assistant === undefined) {
     throw new Error("the actual send produced no retained assistant slot");
   }
-  const variants = await h.root.db.select().from(messageVariants).where(eq(messageVariants.messageId, assistant.id)).orderBy(messageVariants.idx);
+  const variants = await h.root.services.chat.listMessageVariants({ principal: h.owner, chatId: h.chatId, messageId: assistant.id });
   expect(variants).toHaveLength(scene.variants);
   expect(variants.map(({ idx }) => idx)).toEqual(Array.from({ length: scene.variants }, (_, index) => index));
   const selected = variants.at(-1);
-  expect(assistant.selectedVariantId).toBe(selected?.id);
-  COMPARE[scene.comparison](selected?.content, scene.fragments);
+  expect(assistant.selectedVariantId).toBe(selected?.variantId);
+  COMPARE[scene.comparison](assistant.content, scene.fragments);
   expect(outcome.messages.filter(({ role }) => role === "assistant").map(({ id }) => id)).toEqual(Array.from({ length: scene.calls }, () => assistant.id));
 });
 const COMPARISONS = ["contains", "exact"] as const;

@@ -2,39 +2,10 @@
 // @subject packages/inference/src/backends/agent-sdk/runner.ts
 // @subject packages/inference/src/backends/agent-sdk/catalog.ts
 import type { ChatDeltaEvent } from "@orb/contracts/chat";
-import { declaredCapabilitySchema } from "@orb/contracts/inference";
-import { settings } from "@orb/db";
-import type { Resolved } from "@orb/inference";
 import { ProviderError, toChatRequest } from "@orb/inference";
 import { logger, logRing, logSerializers } from "@orb/server/foundation/observability";
 import { expect, test } from "@orb/testkit/node";
-import { createServerHarness } from "@orb/testkit/node/composed";
-import { createSdkProcessSpawner } from "@orb/testkit/node/helpers";
-
-const MODEL = "sdk-wire-model";
-const SDK_TOKEN = "controlled-wire-oauth-token";
-
-async function rootFor(mode: string): Promise<Awaited<ReturnType<typeof createServerHarness>>> {
-  const execute = createSdkProcessSpawner(new URL("./sdk-wire-child.ts", import.meta.url), [mode, MODEL, SDK_TOKEN]);
-  return await createServerHarness({ logLevel: "error", secretBoxKey: Buffer.alloc(32, 1), sdkSpawn: execute });
-}
-
-async function savedConnection(root: Awaited<ReturnType<typeof createServerHarness>>): Promise<Resolved<"chat">> {
-  const principal = await root.principalFor(root.ownerId);
-  const credential = await root.services.credentials.add({ principal, provider: "claude-sub", key: SDK_TOKEN });
-  const connection = await root.services.connection.create({
-    principal,
-    providerId: "claude-sub",
-    credentialId: credential.id,
-    baseUrl: null,
-    model: MODEL,
-    allowBackground: true,
-    declared: declaredCapabilitySchema.parse({ kind: "generation", generation: { input: ["text", "image"] } }),
-  });
-  const { resolved } = await root.app.runtime.resolve({ task: "chat", connectionId: connection.id, principal, cachedFacts: true });
-  await root.settleBackground();
-  return { ...resolved, task: "chat" };
-}
+import { MODEL, rootFor, SDK_TOKEN, savedConnection } from "./sdk-wire.fixtures.ts";
 
 test("native SDK numeric accounting preserves two real model costs without coercion", async () => {
   await using root = await rootFor("valid");
@@ -84,16 +55,6 @@ test("native SDK model discovery parses the actual valid control response", asyn
   const principal = await root.principalFor(root.ownerId);
   const listing = await root.services.connection.catalogModels({ principal, connectionId: connection.connectionId });
   expect(listing).toMatchObject({ listed: true, models: [{ id: MODEL }] });
-});
-
-test("native SDK malformed model identity refuses instead of entering the catalog", async () => {
-  await using root = await rootFor("bad-models");
-  const connection = await savedConnection(root);
-  const principal = await root.principalFor(root.ownerId);
-  const before = await root.db.select().from(settings);
-  const listing = await root.services.connection.catalogModels({ principal, connectionId: connection.connectionId });
-  expect(listing.listed).toBe(false);
-  expect(await root.db.select().from(settings)).toEqual(before);
 });
 
 test.each(["valid", "bad-account"])("native SDK %s account diagnostics retain the existing best-effort policy", async (mode) => {

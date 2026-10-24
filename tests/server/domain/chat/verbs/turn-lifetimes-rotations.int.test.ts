@@ -1,8 +1,8 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // @subject packages/server/src/domain/chat/engine/auto-mode.ts
-import { messages } from "@orb/db";
+
 import { expect, test } from "@orb/testkit/node";
-import { eq } from "drizzle-orm";
+import { readRoomCanon } from "@orb/testkit/node/composed";
 import { textRoom } from "../scenario-physical.ts";
 import { TAIL_ROSTER } from "./turn-lifetimes-roster.ts";
 
@@ -24,7 +24,7 @@ test.for(ROTATIONS)("$title", async (scene) => {
   const outcome = await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "Keep the exchange moving." });
   expect(outcome.aborted).toBe(false);
   await h.root.settleBackground();
-  const canon = await h.root.db.select().from(messages).where(eq(messages.chatId, h.chatId)).orderBy(messages.seq);
+  const canon = await readRoomCanon(h.root, h.owner, h.chatId);
   expect(canon).toHaveLength(turns + 1);
   expect(canon.map(({ role }) => role)).toEqual(["user", ...Array.from({ length: turns }, () => "assistant")]);
   const roster = h.characters.map(({ id }) => id);

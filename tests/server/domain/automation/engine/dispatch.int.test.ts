@@ -1,96 +1,12 @@
 // @subject packages/server/src/domain/automation/engine/dispatch.ts
 // @subject packages/server/src/domain/automation/service.ts
-import { createCharacterSchema } from "@orb/contracts/character";
+
 import { createBookSchema } from "@orb/contracts/world-info";
-import { assets, chats, imageryGenerations, messages } from "@orb/db";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import {
-  CORPUS_EMBED_MODEL,
-  CORPUS_EMBEDDING_VECTOR,
-  CORPUS_PROVIDER_ENDPOINT,
-  CORPUS_STRUCTURED_REPLIES,
-  CORPUS_TEXT_MODEL,
-  createCorpusProviderExecution,
-  createServerHarness,
-  makeAssetBytes,
-  seedCorpusConnections,
-} from "@orb/testkit/node/composed";
-import { eq } from "drizzle-orm";
+import { createServerHarness } from "@orb/testkit/node/composed";
 import { enabledRule } from "../runtime.fixtures.ts";
-
-const PORTRAIT_MODEL = "automation-portrait-fixture";
-
-interface PortraitFixture {
-  readonly root: ServerTestHarness;
-  readonly character: Awaited<ReturnType<ServerTestHarness["services"]["character"]["create"]>>;
-  readonly physical: ReturnType<typeof createCorpusProviderExecution>;
-}
-
-const portraitTest = test.extend<{ portrait: PortraitFixture }>({
-  portrait: async ({}, use) => {
-    const physical = createCorpusProviderExecution({
-      modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL, PORTRAIT_MODEL],
-      embedding: CORPUS_EMBEDDING_VECTOR,
-      chatText: "An illustrated keeper stands beside the orbital loom.",
-      structuredReplies: CORPUS_STRUCTURED_REPLIES,
-      images: [makeAssetBytes(mintTypeId(ID_PREFIX.asset))],
-    });
-    await using root = await createServerHarness({ providerFetch: physical.execute });
-    const principal = await root.principalFor(root.ownerId);
-    await seedCorpusConnections(root, principal);
-    const connection = await root.services.connection.create({
-      principal,
-      providerId: "custom-openai",
-      credentialId: null,
-      baseUrl: CORPUS_PROVIDER_ENDPOINT,
-      model: PORTRAIT_MODEL,
-      allowBackground: true,
-      declared: {
-        kind: "generation",
-        generation: { context: { window: 32_000 }, output: { modalities: ["text", "image"] } },
-        features: { images: "images-api", detectServer: false },
-      },
-    });
-    await root.services.connection.setBinding({ principal, task: "generateImage", connectionId: connection.id });
-    const avatar = await root.app.assets.store({
-      principal,
-      kind: "card",
-      mime: "image/png",
-      bytes: makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)),
-    });
-    const character = await root.services.character.create({
-      principal,
-      input: createCharacterSchema.parse({ handle: "living-library", name: "Mira", description: "Keeper of the orbital loom.", avatarAssetId: avatar.assetId }),
-    });
-    await root.settleBackground();
-    await use({ root, character, physical });
-  },
-});
-
-portraitTest("a global rule fires on its character import with no room open and persists the author's quiet portrait", async ({ portrait }) => {
-  const { root, character, physical } = portrait;
-  const principal = await root.principalFor(root.ownerId);
-  const rule = await enabledRule(root, {
-    chatId: null,
-    name: "Living library",
-    trigger: { bus: "domain", type: "character.updated" },
-    predicateCel: "has(event.character) && event.character.contentChanged",
-    actions: [{ type: "generate_image", mode: "character_multimodal", n: 1, useAvatarReference: false, reuse: "prefer", quiet: true }],
-  });
-  await root.services.automation.handleEvent({ type: "character.updated", characterId: character.id, contentChanged: true });
-  const generations = await root.db.select().from(imageryGenerations).innerJoin(assets, eq(imageryGenerations.assetId, assets.id));
-  expect(generations).toHaveLength(1);
-  expect(generations[0]).toMatchObject({
-    ["imagery_generations"]: { chatId: null, subjectCharacterId: character.id, mode: "character_multimodal", model: PORTRAIT_MODEL },
-    assets: { ownerId: root.ownerId, kind: "generated" },
-  });
-  expect(physical.requests.filter((request) => request.startsWith("POST "))).toEqual(["POST /v1/chat/completions", "POST /v1/images/generations"]);
-  expect(await root.db.select().from(chats)).toEqual([]);
-  expect(await root.db.select().from(messages)).toEqual([]);
-  expect((await root.services.automation.listFires({ principal, ruleId: rule.id })).map((fire) => [fire.outcome, fire.chatId])).toEqual([["fired", null]]);
-});
+import { portraits, portraitTest } from "./dispatch.fixtures.ts";
 
 portraitTest("contentChanged admits a real content write but not a flag-only character event", async ({ portrait }) => {
   const { root, character, physical } = portrait;
@@ -104,11 +20,11 @@ portraitTest("contentChanged admits a real content write but not a flag-only cha
   });
   await root.services.automation.handleEvent({ type: "character.updated", characterId: character.id, contentChanged: false });
   expect(physical.requests.filter((request) => request.startsWith("POST "))).toEqual([]);
-  expect(await root.db.select().from(imageryGenerations)).toEqual([]);
+  expect(await portraits(root)).toEqual([]);
   expect(await root.services.automation.listFires({ principal, ruleId: rule.id })).toEqual([]);
   await root.services.automation.handleEvent({ type: "character.updated", characterId: character.id, contentChanged: true });
   expect(physical.requests.filter((request) => request.startsWith("POST "))).toEqual(["POST /v1/chat/completions", "POST /v1/images/generations"]);
-  expect(await root.db.select().from(imageryGenerations)).toHaveLength(1);
+  expect(await portraits(root)).toHaveLength(1);
   expect((await root.services.automation.listFires({ principal, ruleId: rule.id })).map((fire) => fire.outcome)).toEqual(["fired"]);
 });
 

@@ -1,7 +1,7 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
-import { messages, messageVariants } from "@orb/db";
+
 import { expect, test } from "@orb/testkit/node";
-import { eq } from "drizzle-orm";
+import { readRoomCanon } from "@orb/testkit/node/composed";
 import { textRoom } from "../scenario-physical.ts";
 import { withCancellationPeer } from "./turn-cancellation-physical.ts";
 
@@ -14,8 +14,7 @@ test("an empty room streams its opening user draft without creating a message or
   expect(deltas.length).toBeGreaterThan(0);
   expect(deltas.join("")).toBe("Hi there");
   expect(h.requests.filter(({ method }) => method === "POST")).toHaveLength(1);
-  expect(await h.root.db.select().from(messages).where(eq(messages.chatId, h.chatId))).toEqual([]);
-  expect(await h.root.db.select().from(messageVariants)).toEqual([]);
+  expect(await readRoomCanon(h.root, h.owner, h.chatId)).toEqual([]);
 });
 
 test("the public Stop operation reaches an active user draft and closes its actual provider stream", async () => {
@@ -39,8 +38,7 @@ test("the public Stop operation reaches an active user draft and closes its actu
       expect(peer.writeLate()).toBe(false);
       await expect(h.root.services.chat.abort(params)).resolves.toBeUndefined();
       expect(peer.requests).toHaveLength(1);
-      expect(await h.root.db.select().from(messages).where(eq(messages.chatId, h.chatId))).toEqual([]);
-      expect(await h.root.db.select().from(messageVariants)).toEqual([]);
+      expect(await readRoomCanon(h.root, h.owner, h.chatId)).toEqual([]);
       expect(events.filter(({ type }) => type === "messageCommitted" || type === "turnCompleted")).toEqual([]);
     } finally {
       await finish(undefined);

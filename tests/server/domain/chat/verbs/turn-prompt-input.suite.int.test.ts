@@ -3,10 +3,8 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
-import { messages } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
-import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL } from "@orb/testkit/node/composed";
-import { eq } from "drizzle-orm";
+import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL, readRoomCanon } from "@orb/testkit/node/composed";
 import { openingOf, openingText, textRoom, wireBodies } from "../scenario-physical.ts";
 
 test("saved custom stopping strings reach the actual native stop set on a declared stop-capable endpoint", async () => {
@@ -223,9 +221,7 @@ test.for([
   if (scene.kind === "send") {
     await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "hi" });
   } else {
-    const prior = (await h.root.db.select().from(messages).where(eq(messages.chatId, h.chatId)).orderBy(messages.seq)).findLast(
-      ({ role }) => role === "assistant",
-    );
+    const prior = (await readRoomCanon(h.root, h.owner, h.chatId)).findLast(({ role }) => role === "assistant");
     if (prior === undefined) {
       throw new Error("the trigger-gate transcript wrote no prior reply");
     }

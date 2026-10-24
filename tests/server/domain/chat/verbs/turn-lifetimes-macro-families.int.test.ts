@@ -1,10 +1,8 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // @subject packages/server/src/domain/chat/assembly/assemble.ts
-import type { MessageView, TurnOutcome } from "@orb/contracts/chat";
-import { chats, messageVariants } from "@orb/db";
+import type { MessageView, TurnOutcome, VariantWireView } from "@orb/contracts/chat";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
-import { eq } from "drizzle-orm";
 import { textRoom } from "../scenario-physical.ts";
 import { followupRoom } from "./followup-physical.ts";
 import { MOOD_CONFIG } from "./turn-lifetimes-macro-data.ts";
@@ -17,8 +15,8 @@ function assistant(outcome: TurnOutcome): MessageView {
   return reply;
 }
 
-async function draw(h: ChatRoot, reply: MessageView): Promise<(typeof messageVariants.$inferSelect)["macroDraws"] | undefined> {
-  return (await h.root.db.select().from(messageVariants).where(eq(messageVariants.id, reply.selectedVariantId)).get())?.macroDraws;
+async function draw(h: ChatRoot, reply: MessageView): Promise<VariantWireView["macroDraws"]> {
+  return (await h.root.services.chat.getVariantWire({ principal: h.owner, chatId: h.chatId, variantId: reply.selectedVariantId })).macroDraws;
 }
 
 async function wires(h: ChatRoot): Promise<string[]> {
@@ -88,7 +86,7 @@ test("the real per-chat stored input narrows a random-pick pool instead of allow
   });
   const params = { principal: h.owner, chatId: h.chatId };
   await h.root.services.chat.setUserMacroValues({ ...params, values: { mood: { tone: ["warm"] } } });
-  expect((await h.root.db.select().from(chats).where(eq(chats.id, h.chatId)).get())?.userMacroValues).toEqual({ mood: { tone: ["warm"] } });
+  expect((await h.root.services.chat.getUserMacroPicks(params)).values).toEqual({ mood: { tone: ["warm"] } });
   const outcome = await h.root.services.chat.send({ ...params, content: "Use the stored pick." });
   expect(outcome.aborted).toBe(false);
   expect(await draw(h, assistant(outcome))).toEqual({ mood: { tone: "warm" } });

@@ -81,21 +81,32 @@ export const testFactoryContractRule: OrbRule = {
 };
 
 const ROW_WRITE_METHODS = new Set(["insert", "update", "delete", "run", "execute", "batch"]);
-const ROW_WRITE_OWNERS = new Set(["BaseSQLiteDatabase", "LibSQLDatabase", "SQLiteTransaction", "LibSQLTransaction"]);
-const ROW_WRITE_PACKAGES = /\/node_modules\/drizzle-orm\//u;
+const ROW_READ_METHODS = new Set(["select", "selectDistinct", "$count", "with", "all", "get", "values"]);
+const ROW_READ_MEMBERS = new Set(["query", "$with"]);
+const DRIZZLE_DB_OWNERS = new Set(["BaseSQLiteDatabase", "LibSQLDatabase", "SQLiteTransaction", "LibSQLTransaction"]);
+const DRIZZLE_PACKAGE = /\/node_modules\/drizzle-orm\//u;
 
-function nativeRowWriteDeclaration(declaration: ts.Declaration | undefined): boolean {
-  if (declaration === undefined || !(ts.isMethodDeclaration(declaration) || ts.isMethodSignature(declaration)) || !ts.isIdentifier(declaration.name)) {
+// A member of drizzle's database or transaction class, by declaration, never by the receiver's name.
+function nativeDrizzleDbMember(declaration: ts.Declaration | undefined, names: ReadonlySet<string>): boolean {
+  if (
+    declaration === undefined ||
+    !(ts.isMethodDeclaration(declaration) || ts.isMethodSignature(declaration) || ts.isPropertyDeclaration(declaration)) ||
+    !ts.isIdentifier(declaration.name)
+  ) {
     return false;
   }
   const owner = declaration.parent;
   return (
-    ROW_WRITE_METHODS.has(declaration.name.text) &&
+    names.has(declaration.name.text) &&
     (ts.isClassDeclaration(owner) || ts.isInterfaceDeclaration(owner)) &&
     owner.name !== undefined &&
-    ROW_WRITE_OWNERS.has(owner.name.text) &&
-    ROW_WRITE_PACKAGES.test(owner.getSourceFile().fileName.replaceAll("\\", "/"))
+    DRIZZLE_DB_OWNERS.has(owner.name.text) &&
+    DRIZZLE_PACKAGE.test(owner.getSourceFile().fileName.replaceAll("\\", "/"))
   );
+}
+
+function nativeRowWriteDeclaration(declaration: ts.Declaration | undefined): boolean {
+  return nativeDrizzleDbMember(declaration, ROW_WRITE_METHODS);
 }
 
 // Spine-Testing §9: outside the persistence tier a test writes rows only through verbs. The resolved signature names the
@@ -114,6 +125,45 @@ export const directRowWriteRule: OrbRule = {
             message:
               "A direct database write outside the persistence tier: seed through a root seed from @orb/testkit/node/composed or the production verb; a test whose subject is the table moves under tests/db/ or a persistence/ directory (Spine-Testing §9).",
           });
+        }
+      },
+    };
+  },
+};
+
+function elementKey(member: ts.Node): ts.StringLiteralLike | undefined {
+  return ts.isElementAccessExpression(member) && ts.isStringLiteralLike(member.argumentExpression) ? member.argumentExpression : undefined;
+}
+
+// Spine-Testing §9: outside the persistence tier a test reads what the product shows, through a verb, never the
+// storage layout. The query builders, the raw readers and the relational `db.query` door all resolve to drizzle's
+// database or transaction declarations, however the receiver is spelled.
+export const directRowReadRule: OrbRule = {
+  meta: { type: "problem", schema: [] },
+  create(context: OrbRuleContext): RuleVisitor {
+    const native = nativeDeclarationContext(context);
+    const report = (node: TSESTree.Node): void =>
+      context.report({
+        node,
+        message:
+          "A direct database read outside the persistence tier: assert through the production read verb on the root; a case whose subject is storage moves under tests/db/ or a persistence/ directory (Spine-Testing §9).",
+      });
+    return {
+      CallExpression: (node: TSESTree.CallExpression): void => {
+        const call = native.esTreeNodeToTSNodeMap.get(node);
+        if (ts.isCallExpression(call) && nativeDrizzleDbMember(native.checker.getResolvedSignature(call)?.declaration, ROW_READ_METHODS)) {
+          report(node.callee);
+        }
+      },
+      // `db.query`, `db?.query` and `db["query"]` name the same member; each resolves through its key node.
+      MemberExpression: (node: TSESTree.MemberExpression): void => {
+        const member = native.esTreeNodeToTSNodeMap.get(node);
+        const key = ts.isPropertyAccessExpression(member) ? member.name : elementKey(member);
+        if (key !== undefined && ROW_READ_MEMBERS.has(key.text)) {
+          const declarations = native.checker.getSymbolAtLocation(key)?.declarations ?? [];
+          if (declarations.some((declaration) => nativeDrizzleDbMember(declaration, ROW_READ_MEMBERS))) {
+            report(node);
+          }
         }
       },
     };

@@ -2,11 +2,9 @@
 // @subject packages/server/src/domain/tool-use/verbs/execute-tool-calls.ts
 import { spawn } from "node:child_process";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema, pluginToolWireName } from "@orb/contracts/plugin";
-import { messageVariants } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
-import { makePluginBundle, seedInstalledPlugin, seedPluginGrant } from "@orb/testkit/node/composed";
+import { makePluginBundle, readRoomCanon, seedInstalledPlugin, seedPluginGrant } from "@orb/testkit/node/composed";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
-import { eq } from "drizzle-orm";
 import { coreFrame, coreSse } from "../engine/core-physical.ts";
 import { turnToolsRoom, turnWireBody } from "./turn-rpg-physical.ts";
 
@@ -106,9 +104,10 @@ test("a native installed guest preserves supplied display and true or false repl
     { name: pluginToolWireName(MANIFEST.id, "default_report"), result: "default_report ran", isError: false, displayName: "default report" },
   ]);
   expect(assistant.toolCalls[2]).not.toHaveProperty("replayHistory");
-  expect(
-    await h.root.db.select({ toolCalls: messageVariants.toolCalls }).from(messageVariants).where(eq(messageVariants.id, assistant.selectedVariantId)),
-  ).toEqual([{ toolCalls: assistant.toolCalls }]);
+  expect((await readRoomCanon(h.root, h.owner, h.chatId)).find(({ id }) => id === assistant.id)).toMatchObject({
+    selectedVariantId: assistant.selectedVariantId,
+    toolCalls: assistant.toolCalls,
+  });
   expect(wires).toHaveLength(2);
   for (const tool of DECLARATIONS) {
     expect(wires[1]).toContain(`${tool.name} ran`);

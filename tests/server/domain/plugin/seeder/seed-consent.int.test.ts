@@ -8,16 +8,11 @@ import { packShowcaseBundle, readShowcaseManifest, SHOWCASE_PLUGIN_SLUGS } from 
 import { expect, test } from "@orb/testkit/node";
 import { refuseWrites, requireShowcaseBundle } from "@orb/testkit/node/composed";
 import { principal } from "@orb/testkit/node/helpers";
-import { eq } from "drizzle-orm";
 import { vi } from "vitest";
 
 const SLUG = SHOWCASE_PLUGIN_SLUGS[0];
 
-test("a missing real showcase bundle remains retryable, then lands owned, disabled and ungranted with a durable consent ask", async ({
-  harness,
-  db,
-  services,
-}) => {
+test("a missing real showcase bundle remains retryable, then lands owned, disabled and ungranted with a durable consent ask", async ({ harness, services }) => {
   await requireShowcaseBundle(SLUG);
   const user = await harness.actor();
   const actor = await principal(harness, user.id);
@@ -45,7 +40,6 @@ test("a missing real showcase bundle remains retryable, then lands owned, disabl
   const rows = await services.plugin.list({ caller: actor });
   expect(rows).toHaveLength(1);
   expect(rows[0]).toMatchObject({ slug: SLUG, status: "disabled", grantedCapabilities: [], reconsentPending: true });
-  expect((await db.select().from(plugins).where(eq(plugins.ownerId, user.id)))[0]?.ownerId).toBe(user.id);
   expect(await settingsOps.isExamplePluginSeeded(actor)).toBe(true);
   const inbox = await services.notifications.list({ principal: actor });
   expect(
@@ -53,7 +47,7 @@ test("a missing real showcase bundle remains retryable, then lands owned, disabl
   ).toBe(true);
 });
 
-test("real showcase deletion survives a cold seed, while another account receives its own copy and provenance", async ({ harness, db, services }) => {
+test("real showcase deletion survives a cold seed, while another account receives its own copy and provenance", async ({ harness, services }) => {
   await requireShowcaseBundle(SLUG);
   const first = await harness.actor();
   const second = await harness.actor();
@@ -84,9 +78,7 @@ test("real showcase deletion survives a cold seed, while another account receive
   await createExamplePluginSeeder(deps).ensureSeeded(actor);
   expect(await services.plugin.list({ caller: actor })).toEqual([]);
   await seeder.ensureSeeded(neighbor);
-  const neighborRows = await db.select().from(plugins).where(eq(plugins.ownerId, second.id));
-  expect(neighborRows).toHaveLength(1);
-  expect(neighborRows[0]?.ownerId).toBe(second.id);
+  expect(await services.plugin.list({ caller: neighbor })).toMatchObject([{ slug: SLUG }]);
   expect(await settingsOps.readSeededPluginVersions(neighbor)).toEqual({ [SLUG]: held.version });
 });
 
@@ -109,7 +101,7 @@ test("a failed real distributed install never latches; retry stays recipient-sco
   await using refusal = await refuseWrites(db, { table: plugins, event: "INSERT", message: "recipient install refused" });
   await expect(applier.ensureApplied(actor)).resolves.toBeUndefined();
   expect(await settingsOps.isDistributedPluginApplied(actor)).toBe(false);
-  expect(await db.select().from(plugins).where(eq(plugins.ownerId, recipient.id))).toEqual([]);
+  expect(await services.plugin.list({ caller: actor })).toEqual([]);
   await refusal.lift();
   const pending = applier.ensureApplied(actor);
   expect(applier.ensureApplied(actor)).toBe(pending);

@@ -1,13 +1,13 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // Stop must reach physical native HTTP and prevent tool, retry, completion and chained-generation effects.
-import { messages } from "@orb/db";
+import type { MessageView } from "@orb/contracts/chat";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
-import { eq } from "drizzle-orm";
+import { readRoomCanon } from "@orb/testkit/node/composed";
 import { withCancellationPeer } from "./turn-cancellation-physical.ts";
 
-async function roles(h: ChatRoot): Promise<(typeof messages.$inferSelect)["role"][]> {
-  return (await h.root.db.select({ role: messages.role }).from(messages).where(eq(messages.chatId, h.chatId)).orderBy(messages.seq)).map(({ role }) => role);
+async function roles(h: ChatRoot): Promise<MessageView["role"][]> {
+  return (await readRoomCanon(h.root, h.owner, h.chatId)).map(({ role }) => role);
 }
 
 test("completed wire tool calls execute and launch the RPG completion hook in the same fixture", async () => {
@@ -18,7 +18,7 @@ test("completed wire tool calls execute and launch the RPG completion hook in th
     expect(f.peer.requests).toEqual([f.chatPath, f.chatPath]);
     const reply = outcome.messages.find(({ role }) => role === "assistant");
     expect(reply?.toolCalls).toEqual([expect.objectContaining({ name: f.toolName, result: "done", isError: false })]);
-    expect((await f.toolWrites()).map(({ value }) => value)).toEqual(["yes"]);
+    expect(await f.toolWrites()).toEqual(["yes"]);
     expect(f.completed).toHaveBeenCalledOnce();
     expect(await roles(f.h)).toEqual(["user", "assistant"]);
   });

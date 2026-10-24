@@ -1,56 +1,16 @@
 // @subject packages/server/src/domain/admin/verbs/create-user.ts
 // @subject packages/server/src/transport/trpc/role-output.ts
-import { auditLogs, userConnections, users } from "@orb/db";
+
 import { DomainForbiddenError } from "@orb/kit/errors";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { test as base, expect } from "@orb/testkit/node";
-import { signInWithPassword } from "@orb/testkit/node/auth";
-import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness, refuseWrites } from "@orb/testkit/node/composed";
-import { eq } from "drizzle-orm";
-
-const PASSWORD = "create-user-synthetic-password";
-const NEW_HANDLE = castId<Handle>("newbie");
-
-const test = base.extend<{ root: ServerTestHarness }>({
-  root: async ({}, use): Promise<void> => {
-    await using root = await createServerHarness({
-      authConfig: { mode: "local", fallback: "deny" },
-      rolePolicyConfig: { ["DEFAULT_USER_HANDLE"]: "owner", ["OWNER_HANDLES"]: "owner" },
-    });
-    await use(root);
-  },
-});
-
-async function delegate(root: ServerTestHarness): Promise<{
-  readonly principal: Awaited<ReturnType<ServerTestHarness["principalFor"]>>;
-  readonly caller: Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
-}> {
-  const user = await root.actor({ role: "admin" });
-  return { principal: await root.principalFor(user.id), caller: await root.internalCallerFor(user.id) };
-}
-
-async function createAudits(root: ServerTestHarness): Promise<(typeof auditLogs.$inferSelect)[]> {
-  return await root.db.select().from(auditLogs).where(eq(auditLogs.action, "admin.createUser"));
-}
-
-test("an admin mints a user; the password is hashed and absent from the wire view (audited)", async ({ root }) => {
-  const admin = await delegate(root);
-  const view = await admin.caller.admin.createUser({ handle: NEW_HANDLE, password: PASSWORD });
-  expect(view).toMatchObject({ handle: NEW_HANDLE, role: "user" });
-  expect(Object.keys(view)).not.toContain("passwordHash");
-  const row = await root.db.select().from(users).where(eq(users.id, view.id)).get();
-  expect(row?.passwordHash).toMatch(/^scrypt\$/u);
-  expect(row?.passwordHash).not.toContain(PASSWORD);
-  await expect(signInWithPassword(root, NEW_HANDLE, PASSWORD)).resolves.not.toBe("");
-  expect((await createAudits(root)).map((entry) => entry.entityId)).toEqual([view.id]);
-});
+import { expect } from "@orb/testkit/node";
+import { delegate, NEW_HANDLE, PASSWORD, test } from "./create-user.fixtures.ts";
 
 test("the minted account carries its local-light vector floor", async ({ root }) => {
   const admin = await delegate(root);
   const view = await admin.caller.admin.createUser({ handle: NEW_HANDLE, password: PASSWORD });
-  expect(await root.db.select().from(userConnections).where(eq(userConnections.ownerId, view.id))).toHaveLength(2);
+  expect(await root.services.connection.list({ principal: await root.principalFor(view.id) })).toHaveLength(2);
 });
 
 test("an empty handle is rejected (invalid_handle)", async ({ root }) => {
@@ -78,7 +38,7 @@ test("a delegated admin cannot mint an admin and writes no account", async ({ ro
   await expect(root.services.admin.createUser({ principal: admin.principal, handle: NEW_HANDLE, password: PASSWORD, role: "admin" })).rejects.toThrow(
     DomainForbiddenError,
   );
-  expect(await root.db.select().from(users).where(eq(users.handle, NEW_HANDLE))).toEqual([]);
+  expect((await root.services.admin.listUsers({ principal: await root.principalFor(root.ownerId) })).filter(({ handle }) => handle === NEW_HANDLE)).toEqual([]);
 });
 
 test("a delegated admin cannot mint an owner — authority refuses before owner validation", async ({ root }) => {
@@ -86,14 +46,6 @@ test("a delegated admin cannot mint an owner — authority refuses before owner 
   await expect(root.services.admin.createUser({ principal: admin.principal, handle: NEW_HANDLE, password: PASSWORD, role: "owner" })).rejects.toThrow(
     DomainForbiddenError,
   );
-});
-
-test("the owner mints an admin through the audited owner-only elevation path", async ({ root }) => {
-  const caller = await root.internalCallerFor(root.ownerId);
-  const view = await caller.admin.createUser({ handle: NEW_HANDLE, password: PASSWORD, role: "admin" });
-  expect(view.role).toBe("admin");
-  expect((await createAudits(root)).map((entry) => entry.entityId)).toEqual([view.id]);
-  expect(await root.db.select().from(users).where(eq(users.id, view.id)).get()).toMatchObject({ role: "admin", kind: "human" });
 });
 
 test("a duplicate handle is rejected (user_exists)", async ({ root }) => {
@@ -130,15 +82,6 @@ test("handles containing only zero-width or blank characters are rejected", asyn
   }
 });
 
-test.for(["owner", "0wner"])("the owner seed key and its look-alikes are refused: %j", async (handle, { root }) => {
-  const admin = await delegate(root);
-  const before = await root.db.select().from(users);
-  await expect(root.services.admin.createUser({ principal: admin.principal, handle: castId<Handle>(handle), password: PASSWORD })).rejects.toMatchObject({
-    code: "invalid_handle",
-  });
-  expect(await root.db.select().from(users)).toEqual(before);
-});
-
 test("a handle that only contains the seed key is minted", async ({ root }) => {
   const admin = await delegate(root);
   expect(await admin.caller.admin.createUser({ handle: castId<Handle>("owners"), password: PASSWORD })).toMatchObject({ handle: "owners" });
@@ -149,23 +92,4 @@ test("a plain user is denied", async ({ root }) => {
   await expect(root.services.admin.createUser({ principal: await root.principalFor(user.id), handle: NEW_HANDLE, password: PASSWORD })).rejects.toThrow(
     DomainForbiddenError,
   );
-});
-
-test("a failing audit write mints no account, while the restored audit permits the same mint", async ({ root }) => {
-  const admin = await delegate(root);
-  await using refusal = await refuseWrites(root.db, {
-    table: auditLogs,
-    event: "INSERT",
-    when: "NEW.action = 'admin.createUser'",
-    message: "synthetic audit refusal",
-  });
-  await expect(root.services.admin.createUser({ principal: admin.principal, handle: NEW_HANDLE, password: PASSWORD })).rejects.toThrow(
-    "synthetic audit refusal",
-  );
-  expect(await root.db.select().from(users).where(eq(users.handle, NEW_HANDLE))).toEqual([]);
-  expect(await createAudits(root)).toEqual([]);
-  await refusal.lift();
-  const view = await admin.caller.admin.createUser({ handle: NEW_HANDLE, password: PASSWORD });
-  expect(view.role).toBe("user");
-  expect((await createAudits(root)).map((entry) => entry.entityId)).toEqual([view.id]);
 });

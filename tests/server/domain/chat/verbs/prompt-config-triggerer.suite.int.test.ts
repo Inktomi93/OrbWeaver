@@ -3,10 +3,9 @@
 import { createPersonaSchema } from "@orb/contracts/persona";
 import type { PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
-import { messages } from "@orb/db";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { expect, test } from "@orb/testkit/node";
-import { and, eq } from "drizzle-orm";
+import { readRoomCanon } from "@orb/testkit/node/composed";
 import { inputSystem, personaInputs, personaRoom, seatPersona } from "../persona-cache-physical.ts";
 
 const VOICE_PROBE: PromptSection = { type: "literal", id: "voice", name: "voice", role: "system", enabled: true, content: "PRESET_USER=<{{user}}>" };
@@ -20,10 +19,7 @@ test("an explicit owned send persona stamps that human while canon stays anchore
   const override = await h.root.services.persona.create({ principal: h.owner, input: createPersonaSchema.parse({ name: "Vex", description: "VEX-DESC" }) });
   await h.root.services.chat.setChatAnchorPersona({ principal: h.owner, chatId: h.chatId, personaId: anchor.id });
   expect((await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "hi", personaId: override.id })).aborted).toBe(false);
-  const rows = await h.root.db
-    .select()
-    .from(messages)
-    .where(and(eq(messages.chatId, h.chatId), eq(messages.role, "user")));
+  const rows = (await readRoomCanon(h.root, h.owner, h.chatId)).filter(({ role }) => role === "user");
   expect(rows).toMatchObject([{ authorUserId: h.owner.userId, personaId: override.id }]);
   let draft = "";
   for await (const { delta } of h.root.services.chat.impersonateStream({ principal: h.owner, chatId: h.chatId, personaId: override.id })) {
@@ -44,10 +40,7 @@ test("an explicit null send stamp stays null and its draft voice floors without 
   const anchor = await seatPersona(h, h.owner, "Anchor", "ANCHOR-DESC");
   await h.root.services.chat.setChatAnchorPersona({ principal: h.owner, chatId: h.chatId, personaId: anchor.id });
   expect((await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "hi", personaId: null })).aborted).toBe(false);
-  const rows = await h.root.db
-    .select()
-    .from(messages)
-    .where(and(eq(messages.chatId, h.chatId), eq(messages.role, "user")));
+  const rows = (await readRoomCanon(h.root, h.owner, h.chatId)).filter(({ role }) => role === "user");
   expect(rows).toMatchObject([{ authorUserId: h.owner.userId, personaId: null }]);
   let draft = "";
   for await (const { delta } of h.root.services.chat.impersonateStream({ principal: h.owner, chatId: h.chatId, personaId: null })) {

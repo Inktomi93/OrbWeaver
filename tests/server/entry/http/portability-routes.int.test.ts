@@ -7,7 +7,6 @@ import { join } from "node:path";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { importStartedSchema } from "@orb/contracts/import";
 import { PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
-import { presets, tags, themes } from "@orb/db";
 import type { Handle, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { stagedOwnerRoot } from "@orb/server/domain/import";
@@ -15,7 +14,6 @@ import { extractZip } from "@orb/server/infra/storage/zip";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
-import { and, eq } from "drizzle-orm";
 import { describe, vi } from "vitest";
 import { signedInMember } from "../_auth-roots.ts";
 
@@ -121,20 +119,14 @@ describe("portability routes — GET /api/export/library + POST /api/import/bund
       return done.result;
     };
     expect(await runImport()).toMatchObject({ failed: 0 });
-    for (const [table, name] of [
-      [presets, "Shared Preset"],
-      [tags, "shared-tag"],
-      [themes, "Shared Theme"],
-    ] as const) {
-      expect(
-        await root.db
-          .select({ id: table.id })
-          .from(table)
-          .where(and(eq(table.ownerId, member.id), eq(table.name, name))),
-      ).toHaveLength(1);
-    }
+    const memberPrincipal = await root.principalFor(member.id);
+    const memberPresets = async (): Promise<readonly { readonly name: string }[]> =>
+      (await root.services.preset.list({ userId: member.id })).filter(({ isSystemDefault }) => !isSystemDefault);
+    expect((await memberPresets()).filter(({ name }) => name === "Shared Preset")).toHaveLength(1);
+    expect((await root.services.tag.listTags({ principal: memberPrincipal })).filter(({ name }) => name === "shared-tag")).toHaveLength(1);
+    expect((await root.services.settings.listThemes({ principal: memberPrincipal })).filter(({ name }) => name === "Shared Theme")).toHaveLength(1);
     expect(await runImport()).toMatchObject({ failed: 0 });
-    expect(await root.db.select({ id: presets.id }).from(presets).where(eq(presets.ownerId, member.id))).toHaveLength(1);
+    expect(await memberPresets()).toHaveLength(1);
   });
 
   test("bundle route: a SECOND user naming the uploader's staged handle imports nothing and destroys nothing", async () => {
@@ -154,7 +146,7 @@ describe("portability routes — GET /api/export/library + POST /api/import/bund
     const stolen = await root.services.workloads.get({ id: theft.id, caller: await root.principalFor(root.ownerId) });
     expect(stolen.status).toBe("failed");
     expect(stolen.error ?? "").toMatch(/staging root/u);
-    expect(await root.db.select({ id: presets.id }).from(presets).where(eq(presets.ownerId, root.ownerId))).toEqual([]);
+    expect((await root.services.preset.list({ userId: root.ownerId })).filter(({ isSystemDefault }) => !isSystemDefault)).toEqual([]);
     await session.run(uploaderRun);
     const done = await root.services.workloads.get({ id: uploaderRun, caller: await root.principalFor(member.id) });
     expect(done).toMatchObject({ status: "succeeded" });

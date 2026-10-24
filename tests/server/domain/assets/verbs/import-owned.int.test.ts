@@ -1,7 +1,7 @@
 // Private asset bytes are admitted by the real owner-scoped reader before the injected import effect.
 
+import { ASSET_LIST_LIMIT_MAX } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
-import { assets } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 
 import type { ExternalId, UserId } from "@orb/kit/ids";
@@ -64,7 +64,6 @@ test("foreign malformed bytes and absence share the same refusal before import; 
 
 test("avatar policy retains the original Principal and false-magic flag while a caller's byte cap refuses before storage", async ({
   harness,
-  db,
   services,
 }): Promise<void> => {
   const actor = await principal(harness, (await harness.actor({ role: "admin" })).id);
@@ -73,7 +72,7 @@ test("avatar policy retains the original Principal and false-magic flag while a 
   const capped = createImportAvatarStore(actor, (params) => services.assets.store({ ...params, maxBytes: 1 }));
   await expect(capped({ bytes, mime: "image/png" })).rejects.toThrow();
   expect(stored.mock.calls[0]?.[0]).toMatchObject({ principal: actor, enforceMagic: false, kind: "avatar", maxBytes: 1 });
-  expect(await db.select().from(assets)).toEqual([]);
+  expect(await services.assets.listOwned({ principal: actor, limit: ASSET_LIST_LIMIT_MAX })).toEqual([]);
   const store = createImportAvatarStore(actor, (params) => services.assets.store(params));
   const assetId = await store({ bytes, mime: "image/png" });
   expect(Array.from((await services.assets.readOwnedAssetBytes(actor, assetId)).bytes)).toEqual(Array.from(bytes));

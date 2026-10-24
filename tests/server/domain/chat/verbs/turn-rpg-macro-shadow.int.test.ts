@@ -1,10 +1,8 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // @subject packages/server/src/domain/rpg/chat-ops/index.ts
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
-import { messageVariants } from "@orb/db";
 import { makePromptConfig } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
-import { eq } from "drizzle-orm";
 import { GAME_MOOD } from "./turn-rpg-macro-data.ts";
 import { turnRpgReply, turnRpgRoom, turnWireBody } from "./turn-rpg-physical.ts";
 
@@ -68,9 +66,6 @@ test.for(ROWS)("public SEND macro delivery: $label", async (row) => {
   expect(wires).toHaveLength(1);
   const tone = /Scene tone: (\w+)\./u.exec(wires[0] ?? "")?.[1];
   expect(row.game ? [row.pick ?? "doomed"] : TONES).toContain(tone);
-  const [variant] = await h.root.db
-    .select({ macroDraws: messageVariants.macroDraws })
-    .from(messageVariants)
-    .where(eq(messageVariants.id, assistant.selectedVariantId));
-  expect(variant?.macroDraws).toEqual(row.game ? {} : { mood: { tone } });
+  const variant = await h.root.services.chat.getVariantWire({ principal: h.owner, chatId: h.chatId, variantId: assistant.selectedVariantId });
+  expect(variant.macroDraws).toEqual(row.game ? {} : { mood: { tone } });
 });

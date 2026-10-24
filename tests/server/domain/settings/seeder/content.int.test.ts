@@ -2,85 +2,17 @@
 // @subject packages/server/src/entry/boot/seed-user-content.ts
 // @subject packages/server/src/domain/tag/verbs/seed-tag.ts
 
-import type { Db } from "@orb/db";
-import { characterTags, tags, userSeedLedger } from "@orb/db";
+import { userSeedLedger } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
-import { SEED_MANIFEST } from "@orb/default-content";
-import { createCharacterSeedStep, DEFAULT_CHARACTER_CARDS } from "@orb/server/domain/character";
+import { createCharacterSeedStep } from "@orb/server/domain/character";
 import { createSeedPersonaWithCompletion } from "@orb/server/domain/persona";
 import type { ContentSeedStep } from "@orb/server/domain/settings";
-import { createReadSeededKeys, createSettingsComposedOps, createUserContentSeeder, recordSeededItemKeys } from "@orb/server/domain/settings";
+import { createReadSeededKeys, createSettingsComposedOps } from "@orb/server/domain/settings";
 import { expect, test } from "@orb/testkit/node";
 import { refuseWrites } from "@orb/testkit/node/composed";
 import { principal } from "@orb/testkit/node/helpers";
-import { and, eq } from "drizzle-orm";
 import { vi } from "vitest";
-
-const FIRST_CARD = SEED_MANIFEST.find((item) => item.kind === "character");
-if (FIRST_CARD?.kind !== "character") {
-  throw new Error("the canonical seed manifest has no character");
-}
-const PERSONA_ITEM = SEED_MANIFEST.find((item) => item.kind === "persona");
-if (PERSONA_ITEM === undefined) {
-  throw new Error("the canonical seed manifest has no persona");
-}
-
-/** Drive the real ledger owner with a real owner operation, not a fake ledger or a copied manifest interpreter. */
-function ledgerPolicy(
-  db: Db,
-  now: () => number,
-  settings: Parameters<typeof createSettingsComposedOps>[0],
-  steps: readonly ContentSeedStep[],
-): ReturnType<typeof createUserContentSeeder> {
-  return createUserContentSeeder({
-    enabled: () => true,
-    steps,
-    now,
-    seededKeys: createReadSeededKeys(databaseHandle(db)),
-    recordSeeded: (userId, keys, at) => recordSeededItemKeys(databaseHandle(db), userId, keys, at),
-    legacyLatches: createSettingsComposedOps(settings).legacyLatches,
-  });
-}
-
-test("a recorded deleted card stays deleted across a cold seed; its real tag rows remain card/pending suggestions", async ({
-  harness,
-  db,
-  app,
-  services,
-  clock,
-}) => {
-  const user = await harness.actor();
-  const actor = await principal(harness, user.id);
-  await app.contentSeeder.ensureSeeded(actor);
-  const card = await services.character.findByHandle({ ownerId: user.id, handle: FIRST_CARD.handle });
-  if (card === null) {
-    throw new Error("the real manifest seed did not create its first card");
-  }
-  const authored = DEFAULT_CHARACTER_CARDS.find((row) => row.input.handle === FIRST_CARD.handle);
-  const attached = await db
-    .select({ name: tags.name, source: tags.source, ownerId: tags.ownerId, status: characterTags.status })
-    .from(characterTags)
-    .innerJoin(tags, eq(tags.id, characterTags.tagId))
-    .where(eq(characterTags.characterId, card.characterId));
-  expect(attached.map((row) => row.name).toSorted()).toEqual(authored?.tags.toSorted());
-  expect(attached.length).toBeGreaterThan(0);
-  expect(attached.every((row) => row.source === "card" && row.status === "pending" && row.ownerId === user.id)).toBe(true);
-  await services.character.remove({ principal: actor, characterId: card.characterId });
-  const cold = ledgerPolicy(db, clock.now, services.settings, [
-    {
-      key: FIRST_CARD.key,
-      seed: createCharacterSeedStep((p, handle) => app.characterSeeder.seedCard(p, handle), FIRST_CARD.handle),
-    },
-  ]);
-  await cold.ensureSeeded(actor);
-  expect(await services.character.findByHandle({ ownerId: user.id, handle: FIRST_CARD.handle })).toBeNull();
-  expect(
-    await db
-      .select()
-      .from(userSeedLedger)
-      .where(and(eq(userSeedLedger.userId, user.id), eq(userSeedLedger.itemKey, FIRST_CARD.key))),
-  ).toHaveLength(1);
-});
+import { FIRST_CARD, ledgerPolicy, PERSONA_ITEM } from "./content.fixtures.ts";
 
 test("a refused real ledger write leaves the created card retryable without duplicating it", async ({ harness, db, app, services, clock }) => {
   const user = await harness.actor();

@@ -1,6 +1,6 @@
 // Shared real-root setup for native executable controls; no fixture owns engine decisions or context.
+import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { UserIntent } from "@orb/contracts/preset";
-import { chatEvents, chats, messages } from "@orb/db";
 import { createSeededIds } from "@orb/testkit/iso";
 import type { ChatRoot, ChatRootOptions, TranscriptLine } from "@orb/testkit/node/composed";
 import {
@@ -10,9 +10,9 @@ import {
   CORPUS_TEXT_MODEL,
   createChatRoot,
   createCorpusProviderExecution,
+  readRoomCanon,
 } from "@orb/testkit/node/composed";
 import { createSdkProcessSpawner } from "@orb/testkit/node/helpers";
-import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { ENGINE_SDK_MODEL, ENGINE_SDK_POLICY, ENGINE_SDK_RECEIPT } from "./engine-sdk-physical.mjs";
 
@@ -50,10 +50,10 @@ export async function sdkEngineRoom(
     readonly setPolicy: (patch: Partial<z.infer<typeof policySchema>>) => void;
     readonly release: () => void;
     readonly turn: (intent?: UserIntent) => ReturnType<ChatRoot["root"]["services"]["chat"]["generate"]>;
-    readonly marker: () => Promise<typeof chats.$inferSelect | undefined>;
+    readonly marker: () => Promise<Pick<Awaited<ReturnType<ChatRoot["root"]["services"]["chat"]["getChat"]>>, "compactSummary" | "compactedAtSeq">>;
     /** The stored seq of the room's nth canon row, counted from one; production owns the numbering. */
     readonly seqOfRow: (row: number) => Promise<number | undefined>;
-    readonly warnings: () => Promise<(typeof chatEvents.$inferSelect)[]>;
+    readonly warnings: () => Promise<Extract<ChatBusEvent, { type: "warning" }>[]>;
   }
 > {
   await using construction = new AsyncDisposableStack();
@@ -136,20 +136,10 @@ export async function sdkEngineRoom(
     },
     release,
     turn: async (intent = {}) => await h.root.services.chat.generate({ principal: h.owner, chatId: h.chatId, intent }),
-    marker: async () => await h.root.db.select().from(chats).where(eq(chats.id, h.chatId)).get(),
-    seqOfRow: async (row) =>
-      (
-        await h.root.db
-          .select({ seq: messages.seq })
-          .from(messages)
-          .where(eq(messages.chatId, h.chatId))
-          .orderBy(messages.seq)
-          .limit(1)
-          .offset(row - 1)
-          .get()
-      )?.seq,
+    marker: async () => await h.root.services.chat.getChat({ principal: h.owner, chatId: h.chatId }),
+    seqOfRow: async (row) => (await readRoomCanon(h.root, h.owner, h.chatId))[row - 1]?.seq,
     warnings: async () =>
-      (await h.root.db.select().from(chatEvents).where(eq(chatEvents.chatId, h.chatId))).filter(({ payload }) => payload.type === "warning"),
+      (await h.root.services.chat.replayChatEvents({ principal: h.owner, chatId: h.chatId })).flatMap(({ event }) => (event.type === "warning" ? [event] : [])),
     [Symbol.asyncDispose]: () => lifetime.disposeAsync(),
   };
 }

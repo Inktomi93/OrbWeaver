@@ -1,42 +1,14 @@
 // @subject packages/server/src/domain/chat/engine/smart-arbitrate.ts
 // @subject packages/server/src/domain/chat/engine/rerank-pick.ts
 // Native vendor inputs and committed canon prove the public Smart policy, not a substituted arbiter.
-import { createCharacterSchema } from "@orb/contracts/character";
-import type { TurnOutcome } from "@orb/contracts/chat";
-import { SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
+
 import { createPersonaSchema } from "@orb/contracts/persona";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
-import { characterSummaries, characters, messages } from "@orb/db";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { expect, test } from "@orb/testkit/node";
-import { seedCharacterDistillations } from "@orb/testkit/node/composed";
-import { eq } from "drizzle-orm";
-import { B_CHAT_MODEL, B_UTILITY_MODEL, saveSpeakerConnection, speakerInputs, speakerRoom } from "./speaker-funding-physical.ts";
-
-type Room = Awaited<ReturnType<typeof speakerRoom>>;
-
-async function smartRoom(plan: Parameters<typeof speakerRoom>[0], options: Parameters<typeof speakerRoom>[1] = {}): Promise<Room> {
-  return await speakerRoom(plan, options, { ...SHIPPED_PROMPT_CACHE, enabled: false });
-}
-
-async function send(room: Room, content = "who's up?"): Promise<TurnOutcome> {
-  return await room.h.root.services.chat.send({ principal: room.h.owner, chatId: room.h.chatId, content });
-}
-
-function warnings(room: Room): Room["events"] {
-  return room.events.filter((event) => event.type === "warning");
-}
-
-async function muteCara(room: Room): Promise<void> {
-  const seats = await room.h.root.services.chat.listParticipants({ principal: room.h.owner, chatId: room.h.chatId });
-  const cara = seats.find((seat) => seat.characterId === room.h.characters[2]?.id);
-  if (cara === undefined) {
-    throw new Error("the actual cara seat was not created");
-  }
-  await room.h.root.services.chat.setSeatKnobs({ principal: room.h.owner, chatId: room.h.chatId, participantId: cara.id, patch: { disabled: true } });
-}
-
-const THREE = ["aria", "bryn", "cara"].map((name) => createCharacterSchema.parse({ handle: name, name, description: `The traveller ${name}.` }));
+import { readRoomCanon } from "@orb/testkit/node/composed";
+import { muteCara, send, smartRoom, THREE, warnings } from "./smart-picker.fixtures.ts";
+import { B_CHAT_MODEL, B_UTILITY_MODEL, saveSpeakerConnection, speakerInputs } from "./speaker-funding-physical.ts";
 
 test("default Smart ranks native negative logits once and never calls Utility", async () => {
   await using room = await smartRoom(
@@ -152,50 +124,6 @@ test("native arbiter transcript uses the persisted persona and each actual chara
   );
 });
 
-test("the real owned distillation writer supplies the native candidate pitch", async () => {
-  await using room = await smartRoom(
-    { chat: ["Bryn guides the caravan."], picks: [["bryn"]], pitch: "The caravan's guide." },
-    {
-      characters: [
-        createCharacterSchema.parse({ handle: "aria", name: "aria", description: "" }),
-        createCharacterSchema.parse({ handle: "bryn", name: "bryn", description: "The caravan's guide knows every crossing." }),
-      ],
-    },
-  );
-  await saveSpeakerConnection(room.h, room.peer.baseUrl, "summarize");
-  const bryn = room.h.characters[1];
-  if (bryn === undefined) {
-    throw new Error("missing actual bryn card");
-  }
-  const distilled = await seedCharacterDistillations(room.h.root, {
-    ownerId: room.h.owner.userId,
-    funderUserId: room.h.owner.userId,
-    characterId: bryn.id,
-  });
-  expect(distilled.result).toMatchObject({ distilled: 1, failed: 0 });
-  expect(distilled.summaries).toMatchObject([{ characterId: bryn.id, elevatorPitch: "The caravan's guide." }]);
-  expect(
-    await room.h.root.db
-      .select({ characterId: characterSummaries.characterId, ownerId: characters.ownerId })
-      .from(characterSummaries)
-      .innerJoin(characters, eq(characters.id, characterSummaries.characterId))
-      .where(eq(characterSummaries.characterId, bryn.id))
-      .get(),
-  ).toEqual({ characterId: bryn.id, ownerId: room.h.owner.userId });
-  const aria = room.h.characters[0];
-  if (aria === undefined) {
-    throw new Error("missing actual aria card");
-  }
-  expect(aria.description).toBe("");
-  expect(await room.h.root.db.select().from(characterSummaries).where(eq(characterSummaries.characterId, aria.id))).toEqual([]);
-  await send(room, "how far to the crossing?");
-  const inputs = (await speakerInputs(room.peer.requests, B_UTILITY_MODEL)).filter((body) => body.response_format?.json_schema.name === "speaker_pick");
-  expect(inputs).toHaveLength(1);
-  const prompt = inputs[0]?.messages.find((m) => m.role === "user")?.content;
-  expect(prompt).toMatch(/^- bryn: The caravan's guide\. \(spoke 0 of the last 1 lines, talkativeness \d+%\)$/mu);
-  expect(prompt).toMatch(/^- aria \(spoke/mu);
-});
-
 test("several native responders commit in the model's actual order", async () => {
   await using room = await smartRoom({ chat: ["Cara first.", "Aria second."], picks: [["cara", "aria"]] }, { characters: THREE });
   await saveSpeakerConnection(room.h, room.peer.baseUrl, "summarize");
@@ -301,7 +229,7 @@ test("public Stop closes held native arbitration without fallback or foreground 
     expect(outcome.messages.filter((m) => m.role === "assistant")).toEqual([]);
     expect(await speakerInputs(room.peer.requests, B_CHAT_MODEL)).toEqual([]);
     expect(warnings(room)).toEqual([]);
-    const canon = await room.h.root.db.select().from(messages).where(eq(messages.chatId, room.h.chatId)).orderBy(messages.seq);
+    const canon = await readRoomCanon(room.h.root, room.h.owner, room.h.chatId);
     expect(canon.map((m) => m.role)).toEqual(["user"]);
     expect(canon[0]?.authorUserId).toBe(room.h.owner.userId);
     expect(room.events.filter((e) => e.type.startsWith("turn")).map((e) => e.type)).toEqual(["turnAccepted", "turnAborted"]);

@@ -2,14 +2,12 @@
 // @subject packages/server/src/domain/rpg/chat-ops/flush.ts
 import { resolveProseText } from "@orb/contracts/prose";
 import type { RPG_TOOL_ROUND_TOOL_NAMES } from "@orb/contracts/rpg";
-import { messages } from "@orb/db";
 import { jsonValueSchema } from "@orb/kit/json";
 import { initTracing, logRing, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
-import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL } from "@orb/testkit/node/composed";
+import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL, readRoomCanon } from "@orb/testkit/node/composed";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
-import { eq } from "drizzle-orm";
 import type { CoreWireReply } from "./core-physical.ts";
 import { coreFrame, coreHttpRoom, coreSse } from "./core-physical.ts";
 
@@ -133,7 +131,7 @@ test.for(EMPTY_RPG_ROWS)("a real folded game refuses $label without a recovery l
   await expect(generating).rejects.toThrow(row.detail);
   await h.root.settleBackground();
   expect(requests).toBe(row.expectedCalls);
-  expect(await h.root.db.select().from(messages).where(eq(messages.chatId, h.chatId))).toEqual([]);
+  expect(await readRoomCanon(h.root, h.owner, h.chatId)).toEqual([]);
   expect((await h.root.services.rpg.getTrackerView({ principal: h.owner, chatId: h.chatId })).ambient).toBeNull();
   const logs = logRing.recent(100).filter((line) => line.includes(h.chatId));
   expect(logs.some((line) => line.includes('"event":"chat.generation.empty"'))).toBe(true);
