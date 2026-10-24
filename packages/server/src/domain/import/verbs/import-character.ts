@@ -254,6 +254,7 @@ export function createImportCharacter(ctx: ImportContext): ImportService["import
       input: { ...baseInput, handle },
       importedFrom,
       importHash,
+      background: parsed.background,
     });
     const characterId = ref.characterId;
     const attached = await attachAllPlanes(ctx, characterId, tags, carried);

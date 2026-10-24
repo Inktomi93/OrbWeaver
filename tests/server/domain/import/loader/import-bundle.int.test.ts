@@ -17,18 +17,29 @@ import { ASSET_LIST_LIMIT_MAX } from "@orb/contracts/assets";
 import { CHARACTER_HANDLE_WIRE_KEY, characterCardV3Schema, characterHandleSchema, createCharacterSchema } from "@orb/contracts/character";
 import { parseVariantMetadata } from "@orb/contracts/chat";
 import { CSRF_HEADER } from "@orb/contracts/identity";
+import { portableImageryCallSchema } from "@orb/contracts/imagery";
 import { importStartedSchema } from "@orb/contracts/import";
 import type { PortableImportOutcome, PortableKind } from "@orb/contracts/portability";
 import { PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
+import { themeBackgroundSchema } from "@orb/contracts/theme";
 import { ASSET_SCHEME, assetIdsInContent } from "@orb/kit/content";
-import type { CharacterHandle, CharacterId, ChatId, WorkloadId } from "@orb/kit/ids";
-import { castId, ID_PREFIX } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, CharacterId, ChatId, UserId, WorkloadId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
 import { buildChatBundleFile, CHAT_BUNDLE_EXT, parseChatBundleFile } from "@orb/server/primitives/serde/chat-bundle";
 import { createSeededIds } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness, extractZip, makeAssetBytes, seedTranscript } from "@orb/testkit/node/composed";
+import {
+  CORPUS_EMBEDDING_VECTOR,
+  CORPUS_PROVIDER_ENDPOINT,
+  createCorpusProviderExecution,
+  createServerHarness,
+  extractZip,
+  makeAssetBytes,
+  seedTranscript,
+} from "@orb/testkit/node/composed";
+import { z } from "zod";
 
 const EXPORT_ROUTE = "/api/export/library";
 const BUNDLE_ROUTE = "/api/import/bundle";
@@ -45,12 +56,13 @@ const CHOSEN_HANDLE = castId<CharacterHandle>("lantern-warden");
 const CHARACTER_NAME = "Keeper";
 
 /** A local box whose loopback requests act as its owner, after that owner's first-login seed has settled. */
-async function signedInBox(ids?: ReturnType<typeof createSeededIds>): Promise<ServerTestHarness> {
+async function signedInBox(ids?: ReturnType<typeof createSeededIds>, providerFetch?: typeof fetch): Promise<ServerTestHarness> {
   const root = await createServerHarness({
     physicalPeer: () => "127.0.0.1",
     startJobs: false,
     env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" },
     ...(ids === undefined ? {} : { ids }),
+    ...(providerFetch === undefined ? {} : { providerFetch }),
   });
   expect((await root.http.request(SIGNED_IN_ROUTE)).status).toBe(200);
   await root.settleBackground();
@@ -589,6 +601,218 @@ test("a full library restore into a fresh box reports no failures and leaves no 
     outcome: { status: "succeeded", failed: 0 },
     room: { background: plate.assetHash, attachment: [plate.assetHash], signed: { matchesContent: true, imagesResolve: true } },
     gallery: sourceGallery,
+  });
+});
+
+/** Every character the owner holds, by name, sorted. */
+async function characterNames(root: ServerTestHarness): Promise<string[]> {
+  return (await (await root.internalCallerFor(root.ownerId)).character.list({})).items.map((item) => item.name).toSorted();
+}
+
+test("a seeded library restored into a fresh box keeps one copy of each starter card", async () => {
+  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
+  const sourceNames = await characterNames(source);
+  const bundle = await exportLibrary(source);
+
+  await using target = await signedInBox();
+  const outcome = await restore(target, bundle);
+
+  expect({ outcome, names: await characterNames(target) }).toEqual({ outcome: { status: "succeeded", failed: 0 }, names: sourceNames });
+});
+
+test("an imported card keeps its star, alone and through a library restore", async () => {
+  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
+  expect(await restoreCard(source, "archivist.json", new TextEncoder().encode(STARRED_CARD))).toEqual({ ok: true, created: true });
+  const bundle = await exportLibrary(source, ["character"]);
+
+  await using target = await signedInBox();
+  await restore(target, bundle);
+  const starredOn = async (root: ServerTestHarness): Promise<boolean[]> => {
+    const caller = await root.internalCallerFor(root.ownerId);
+    const found = await charactersNamed(root, ARCHIVIST);
+    return await Promise.all(found.map(async (c) => (await caller.character.get({ characterId: c.id })).starred));
+  };
+
+  expect({ source: await starredOn(source), target: await starredOn(target) }).toEqual({ source: [true], target: [true] });
+});
+
+const DOCUMENT_TEXT = "The orbital ledger keeps its own counsel.";
+const TEXT_MIME = "text/plain";
+const documentFileSchema = z.object({ sourceAssetId: typeIdSchema(ID_PREFIX.asset).nullable() }).loose();
+
+const IMAGE_MODEL = "ledger-image-v1";
+
+/** A provider that answers each image generation with the next of `pictures`, over the loopback corpus endpoint. */
+function imageProvider(pictures: Uint8Array[]): typeof fetch {
+  return createCorpusProviderExecution({
+    modelIds: [IMAGE_MODEL],
+    embedding: CORPUS_EMBEDDING_VECTOR,
+    chatText: "",
+    structuredReplies: new Map(),
+    images: pictures,
+  }).execute;
+}
+
+/** Generate one picture through the owner's own image binding, so the box holds native imagery history. */
+async function generateOnePicture(root: ServerTestHarness): Promise<AssetId> {
+  const owner = await root.principalFor(root.ownerId);
+  await root.services.settings.updateAppSettings({ principal: owner, partial: { privateEndpointAllowlist: [new URL(CORPUS_PROVIDER_ENDPOINT).hostname] } });
+  const connection = await root.services.connection.create({
+    principal: owner,
+    providerId: "custom-openai",
+    credentialId: null,
+    baseUrl: CORPUS_PROVIDER_ENDPOINT,
+    model: IMAGE_MODEL,
+    allowBackground: true,
+    declared: {
+      kind: "generation",
+      generation: { context: { window: 32_000 }, output: { modalities: ["text", "image"] } },
+      features: { images: "images-api", detectServer: false },
+    },
+  });
+  await root.services.connection.setBinding({ principal: owner, task: "generateImage", connectionId: connection.id });
+  const picture = await root.services.imagery.generatePicture({ caller: owner, mode: "free", prompt: "A keeper at the ledger.", n: 1 });
+  const [image] = picture.images;
+  if (image === undefined) {
+    throw new Error("the image generation returned no picture");
+  }
+  return image.assetId;
+}
+
+/** The bytes each of the owner's databank source blobs and imagery outputs names, read off the owner's own export. */
+async function referrerHashes(
+  root: ServerTestHarness,
+  ownerId: UserId,
+): Promise<{ readonly documents: readonly (string | null)[]; readonly imagery: readonly (string | null)[] }> {
+  const hashOf = async (assetId: string | null): Promise<string | null> =>
+    assetId === null ? null : ((await root.services.assets.assetCasRefById(castId(assetId)))?.hash ?? null);
+  const files = async (kind: PortableKind): Promise<unknown[]> => {
+    const descriptor = root.app.portability.find((entity) => entity.kind === kind);
+    if (descriptor === undefined) {
+      throw new Error(`production composition has no ${kind} portability descriptor`);
+    }
+    const out: unknown[] = [];
+    for await (const file of descriptor.exportAll(ownerId)) {
+      out.push(JSON.parse(new TextDecoder().decode(file.bytes)));
+    }
+    return out;
+  };
+  const documents = (await files("databank")).map((file) => documentFileSchema.parse(file).sourceAssetId);
+  const imagery = (await files("imagery")).flatMap((file) =>
+    portableImageryCallSchema
+      .loose()
+      .parse(file)
+      .images.map((image) => image.assetId),
+  );
+  return { documents: await Promise.all(documents.map(hashOf)), imagery: await Promise.all(imagery.map(hashOf)) };
+}
+
+/** Restore every non-asset file of `bundle` for `ownerId`, each through its own production descriptor. */
+async function restoreReferrersOnly(root: ServerTestHarness, ownerId: UserId, bundle: Uint8Array): Promise<readonly PortableImportOutcome[]> {
+  const staged = await extractZip(bundle);
+  try {
+    const outcomes: PortableImportOutcome[] = [];
+    for (const entry of staged.entries) {
+      const descriptor = root.app.portability.find((entity) => entity.kind !== "assets" && entry.path.startsWith(PORTABLE_DIRECTORIES[entity.kind]));
+      if (descriptor !== undefined) {
+        outcomes.push(await descriptor.importFile(ownerId, { filename: entry.path, bytes: await entry.read() }));
+      }
+    }
+    return outcomes;
+  } finally {
+    await staged.dispose();
+  }
+}
+
+test("databank documents and imagery history restore onto bytes the owner holds under another id, never another account's", async () => {
+  const pictures: Uint8Array[] = [];
+  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR), imageProvider(pictures));
+  pictures.push(makeAssetBytes(source.idSource.typeId(ID_PREFIX.asset)));
+  const owner = await source.principalFor(source.ownerId);
+  const documentBytes = new TextEncoder().encode(DOCUMENT_TEXT);
+  await source.services.databank.upload({ principal: owner, bytes: documentBytes, mime: TEXT_MIME, name: "Ledger" });
+  const [sourceDocument] = await source.services.assets.listOwned({ principal: owner, kind: "document", limit: 1 });
+  const generated = await generateOnePicture(source);
+  const image = await source.services.assets.assetCasRefById(generated);
+  const imageBytes = await source.services.assets.loadAssetBytes(generated);
+  if (sourceDocument === undefined || image === undefined || imageBytes === null) {
+    throw new Error("the upload kept no source blob, or the generated picture stored no bytes");
+  }
+  const bundle = await exportLibrary(source, ["assets", "databank", "imagery"]);
+
+  await using target = await signedInBox();
+  // The member holds the same bytes, so a hash lookup that crossed accounts would find them for the owner.
+  const member = await target.actor();
+  const memberPrincipal = await target.principalFor(member.id);
+  await target.services.assets.store({ principal: memberPrincipal, kind: "document", mime: TEXT_MIME, bytes: documentBytes });
+  await target.services.assets.store({ principal: memberPrincipal, kind: "generated", mime: PNG, bytes: imageBytes });
+  const unheld = await restoreReferrersOnly(target, target.ownerId, bundle);
+  const unheldReferrers = await referrerHashes(target, target.ownerId);
+
+  // Positive control: an owner who already holds the bytes under its own ids gets the full restore re-linked onto them.
+  await using held = await signedInBox();
+  const heldOwner = await held.principalFor(held.ownerId);
+  const heldDocument = await held.services.assets.store({ principal: heldOwner, kind: "document", mime: TEXT_MIME, bytes: documentBytes });
+  const heldImage = await held.services.assets.store({ principal: heldOwner, kind: "generated", mime: PNG, bytes: imageBytes });
+  const outcome = await restore(held, bundle);
+
+  expect({
+    heldUnderOwnIds: heldDocument.assetId !== sourceDocument.assetId && heldImage.assetId !== generated,
+    unheldRefused: unheld.filter((result) => !result.ok).length,
+    unheldReferrers,
+    outcome,
+    referrers: await referrerHashes(held, held.ownerId),
+  }).toEqual({
+    heldUnderOwnIds: true,
+    unheldRefused: 1,
+    unheldReferrers: { documents: [null], imagery: [] },
+    outcome: { status: "succeeded", failed: 0 },
+    referrers: { documents: [sourceDocument.hash], imagery: [image.hash] },
+  });
+});
+
+test("a card's background travels in its export and re-links by content, never onto another account's bytes", async () => {
+  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
+  const owner = await source.principalFor(source.ownerId);
+  const [plate] = (await source.services.settings.getUserSettings({ principal: owner })).config.appearance.backgroundLibrary;
+  if (plate === undefined) {
+    throw new Error("the first-login seed landed no background plate");
+  }
+  const keeper = await source.services.character.create({
+    principal: owner,
+    input: createCharacterSchema.parse({ handle: CHOSEN_HANDLE, name: CHARACTER_NAME, description: "A keeper tends the orbital ledger." }),
+  });
+  const background = themeBackgroundSchema.parse({ kind: "asset", assetId: plate.assetId, assetHash: plate.assetHash, mime: plate.mime });
+  await source.services.character.update({ principal: owner, characterId: keeper.id, input: { backgroundOverride: background } });
+  const card = await source.http.request(`/api/export/character/${keeper.id}`);
+  expect(card.status).toBe(200);
+  const cardBytes = new Uint8Array(await card.arrayBuffer());
+  const bundle = await exportLibrary(source);
+
+  await using target = await signedInBox();
+  /** The keeper's restored background on `root` for `userId`, and the bytes it names there. */
+  const keeperBackground = async (userId: UserId): Promise<{ readonly kind: string; readonly resolves: string | null } | null> => {
+    const caller = await target.internalCallerFor(userId);
+    const [restored] = (await caller.character.list({})).items.filter((item) => item.name === CHARACTER_NAME);
+    const override = restored === undefined ? null : (await caller.character.get({ characterId: restored.id })).backgroundOverride;
+    return override === null ? null : { kind: override.kind, resolves: (await target.services.assets.assetCasRefById(castId(override.assetId)))?.hash ?? null };
+  };
+  // The member never signed in, so holds no plates; the owner's seeded copy of the plate must stay out of reach.
+  const member = await target.actor();
+  const characterDescriptor = target.app.portability.find((entity) => entity.kind === "character");
+  const memberRestore = await characterDescriptor?.importFile(member.id, { filename: "Keeper.png", bytes: cardBytes });
+  const outcome = await restore(target, bundle);
+
+  expect({
+    member: { ok: memberRestore?.ok, background: await keeperBackground(member.id) },
+    outcome,
+    keepers: (await charactersNamed(target, CHARACTER_NAME)).length,
+    background: await keeperBackground(target.ownerId),
+  }).toEqual({
+    member: { ok: true, background: null },
+    outcome: { status: "succeeded", failed: 0 },
+    keepers: 1,
+    background: { kind: "asset", resolves: plate.assetHash },
   });
 });
 

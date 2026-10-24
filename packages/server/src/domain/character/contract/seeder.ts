@@ -81,6 +81,10 @@ export interface DefaultCharacterSeederDeps {
   /** Asked before a resumed seed writes lore: the import REPLACES an existing primary book, and a book already
    *  in that seat is the user's. */
   readonly hasPrimaryBook: HasPrimaryBook;
+  /** Stamp a dressed card with the import identity of its own export, so a backup of it restored onto a box
+   *  that seeded the same card dedups. Wired at the composition root over export and import; unwired leaves
+   *  the row without an identity. */
+  readonly stampOwnIdentity?: (principal: Principal, characterId: CharacterId) => Promise<void>;
   /** Points `seeds.welcomeAssistantCharacterId` at the seeded welcome card, when it is still unset. */
   readonly markWelcomeAssistant: (principal: Principal, welcomeAssistantId: CharacterId) => Promise<void>;
 }

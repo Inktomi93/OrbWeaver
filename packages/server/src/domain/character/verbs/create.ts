@@ -8,12 +8,13 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import { characterHandleSchema } from "@orb/contracts/character";
+import type { ThemeBackground } from "@orb/contracts/theme";
 import { cardContentHash } from "#primitives/serde/card";
 import { CHARACTER_HANDLE_RESERVED, CharacterNotFoundError, CharacterOperationError } from "../contract/errors.ts";
 import type { CharacterImportProvenance, CreateCharacterParams } from "../contract/params.ts";
 import type { CharacterContext, CharacterService } from "../contract/service.ts";
 import { insertCharacter } from "../persistence/card.ts";
-import { canonicalTagsOf, detailOf, ensureAssetOwned, loadOwnedCharacterWithAvatar } from "../persistence/queries.ts";
+import { canonicalTagsOf, detailOf, ensureAssetOwned, loadOwnedCharacterWithAvatar, ownedCarriedBackground } from "../persistence/queries.ts";
 import { cardTokenSize } from "../substrate/card-tokens.ts";
 import { isReservedGroupHandle } from "../substrate/group-character.ts";
 
@@ -27,6 +28,16 @@ function provenanceColumns(provenance: CharacterImportProvenance | undefined): {
     return { importedFrom: null, importHash: null };
   }
   return { importedFrom: provenance.importedFrom, importHash: provenance.importHash };
+}
+
+/** The background an imported card carried, re-pointed at the owner's own asset, or null when it names none. */
+async function carriedBackground(
+  ctx: CharacterContext,
+  ownerId: CreateCharacterParams["principal"]["userId"],
+  provenance: CharacterImportProvenance | undefined,
+): Promise<ThemeBackground | null> {
+  const background = provenance?.background;
+  return background === undefined || background === null ? null : await ownedCarriedBackground(ctx.db, ownerId, background);
 }
 
 /** D21 cross-root belt: the FK proves a supplied avatar asset exists, never that it's the caller's.
@@ -89,6 +100,7 @@ export function createCreate(ctx: CharacterContext): CharacterService["create"] 
     const at = ctx.now();
     const characterId = ctx.newCharacterId();
     const { importedFrom, importHash } = provenanceColumns(provenance);
+    const backgroundOverride = await carriedBackground(ctx, ownerId, provenance);
 
     const card = cardFromInput(input);
 
@@ -105,6 +117,8 @@ export function createCreate(ctx: CharacterContext): CharacterService["create"] 
         createdAt: at,
         updatedAt: at,
         ...card,
+        starred: input.starred === true,
+        backgroundOverride,
       },
       ctx.bumpStatsCanonVersion,
     );

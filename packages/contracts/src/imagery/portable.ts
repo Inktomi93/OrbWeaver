@@ -36,6 +36,9 @@ export const portableImageryExecutionSchema = z.strictObject({
 const portableImageryImageSchema = z.strictObject({
   sourceGenerationId: imageryImportSourceSchema.shape.sourceGenerationId,
   assetId: typeIdSchema(ID_PREFIX.asset),
+  /** The output's content hash: a restore re-links onto the owner's asset holding these bytes before the id.
+   *  Absent on a file written before the hash travelled, which restores by id alone. */
+  assetHash: z.string().min(1).optional(),
 });
 export const portableImageryCallSchema = z
   .strictObject({

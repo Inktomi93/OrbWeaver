@@ -1,6 +1,7 @@
 import type { CharacterLibraryLens, CharacterListCursor, CharacterListSort, CreateCharacterInput, UpdateCharacterInput } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import type { GreetingTransformId } from "@orb/contracts/preset";
+import type { ThemeBackground } from "@orb/contracts/theme";
 import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, ChatId, UserId } from "@orb/kit/ids";
 import type { IanaTimeZone } from "@orb/kit/time";
 
@@ -21,6 +22,9 @@ interface CharacterActorParams {
 export interface CharacterImportProvenance {
   readonly importedFrom: string | null;
   readonly importHash: string;
+  /** The background the card carried, re-linked by its content hash onto the owner's own asset (then by its
+   *  id); one the owner holds by neither is dropped. */
+  readonly background?: ThemeBackground | null;
 }
 
 export interface CreateCharacterParams extends CharacterActorParams {
@@ -182,6 +186,13 @@ export interface AttachImportedArtParams {
   readonly ownerId: UserId;
   readonly characterId: CharacterId;
   readonly avatarAssetId: AssetId;
+  readonly importHash: string;
+}
+
+/** A shipped card's own export identity (seeder-injected, internal), written only onto a row that has none. */
+export interface StampImportIdentityParams {
+  readonly ownerId: UserId;
+  readonly characterId: CharacterId;
   readonly importHash: string;
 }
 

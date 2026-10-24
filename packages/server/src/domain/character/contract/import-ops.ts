@@ -1,6 +1,13 @@
 import type { CharacterDetail, CreateCharacterInput } from "@orb/contracts/character";
 import type { CharacterId } from "@orb/kit/ids";
-import type { AttachImportedArtParams, CreateCharacterParams, FindByHandleParams, FindByImportHashParams, FindByNameParams } from "./params.ts";
+import type {
+  AttachImportedArtParams,
+  CharacterImportProvenance,
+  CreateCharacterParams,
+  FindByHandleParams,
+  FindByImportHashParams,
+  FindByNameParams,
+} from "./params.ts";
 import type { CharacterRef } from "./results.ts";
 import type { CharacterService } from "./service.ts";
 
@@ -16,6 +23,7 @@ export interface CharacterImportOps {
     readonly input: CreateCharacterInput;
     readonly importedFrom: string | null;
     readonly importHash: string;
+    readonly background?: CharacterImportProvenance["background"];
   }) => Promise<CharacterRef>;
   readonly findByImportHash: (args: Pick<FindByImportHashParams, "importHash">) => Promise<CharacterId | null>;
   readonly findByHandle: (args: Pick<FindByHandleParams, "handle">) => Promise<CharacterId | null>;

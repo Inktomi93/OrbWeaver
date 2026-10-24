@@ -5,6 +5,7 @@ import type { AttachedBookRef, CreateCharacterInput } from "@orb/contracts/chara
 import type { BulkImportChatInput, BulkImportChatsResult } from "@orb/contracts/chat";
 import type { PersonaCollisionChoices } from "@orb/contracts/import";
 import type { BulkImportPersonaInput, BulkImportPersonasResult } from "@orb/contracts/persona";
+import type { ThemeBackground } from "@orb/contracts/theme";
 import type { BulkImportLorebookInput, BulkImportLorebookResult } from "@orb/contracts/world-info";
 import type { AssetId, CharacterHandle, CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { ImportPreset } from "#domain/preset";
@@ -39,6 +40,8 @@ export type CreateImportedCharacter = (args: {
   readonly input: CreateCharacterInput;
   readonly importedFrom: string | null;
   readonly importHash: string;
+  /** The background the card carried; the create re-links it onto the owner's own asset or drops it. */
+  readonly background?: ThemeBackground | null;
 }) => Promise<ImportedCharacterRef>;
 
 /** Re-import dedup oracle: id of the caller's existing character carrying `importHash`, or null. */

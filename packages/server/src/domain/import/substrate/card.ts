@@ -9,11 +9,14 @@ import type { AttachedBookRef, CharacterCard, CreateCharacterInput } from "@orb/
 import {
   ATTACHED_BOOKS_WIRE_KEY,
   attachedBookRefSchema,
+  CHARACTER_BACKGROUND_WIRE_KEY,
   CHARACTER_HANDLE_WIRE_KEY,
   createCharacterSchema,
   repairImportedCardInput,
 } from "@orb/contracts/character";
 import { ATTACHED_REGEX_SCRIPTS_WIRE_KEY, attachedRegexScriptRefSchema } from "@orb/contracts/regex";
+import type { ThemeBackground } from "@orb/contracts/theme";
+import { themeBackgroundSchema } from "@orb/contracts/theme";
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import type { AssetId, CharacterHandle, CharacterId, RegexScriptId } from "@orb/kit/ids";
 import { readCardChunk, stripCardChunks } from "@orb/kit/png-card-chunk";
@@ -42,6 +45,9 @@ interface ParsedCard {
   readonly artHash: string | null;
   /** The handle an orbweaver export carried; null for a foreign card. Not part of the identity. */
   readonly handle: CharacterHandle | null;
+  /** The asset background an orbweaver export carried, re-linked by its hash at create; null when none. Not
+   *  part of the identity. */
+  readonly background: ThemeBackground | null;
 }
 
 const DEFAULT_BOOK_NAME = "Imported World Book";
@@ -132,6 +138,17 @@ function extractCarriedHandle(raw: unknown): CharacterHandle | null {
   return carriedHandle(data[CHARACTER_HANDLE_WIRE_KEY]);
 }
 
+// Only an asset source with its hash re-links; anything else (a foreign or malformed value) carries nothing.
+function extractCarriedBackground(raw: unknown): ThemeBackground | null {
+  const root = asRecord(raw);
+  if (root === null) {
+    return null;
+  }
+  const data = asRecord(root["data"]) ?? root;
+  const parsed = themeBackgroundSchema.safeParse(data[CHARACTER_BACKGROUND_WIRE_KEY]);
+  return parsed.success && parsed.data.kind === "asset" && parsed.data.assetHash.length > 0 ? parsed.data : null;
+}
+
 function toText(input: Uint8Array | string): string {
   const raw = typeof input === "string" ? input : new TextDecoder("utf-8").decode(input);
   return raw.charCodeAt(0) === UTF8_BOM ? raw.slice(1) : raw;
@@ -167,6 +184,7 @@ function fromText(text: string, fallbackName: string, artHash: string | null): P
       attachedRegexScripts: extractAttachedRegexScripts(parsed),
       artHash,
       handle: extractCarriedHandle(parsed),
+      background: extractCarriedBackground(parsed),
     };
   } catch {
     return null;
