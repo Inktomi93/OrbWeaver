@@ -7,7 +7,7 @@ area: client
 plan: css-system
 ---
 
-# The shell paint law and the owner ruling agree, and lint holds the answer
+# The shell paints only its own regions, and lint holds that line
 
 ## What
 
@@ -17,13 +17,13 @@ plan: css-system
 
 Two homes that disagree about who paints the frame let paint drift into whichever file a lane happens to edit.
 
+## Decision
+
+D150 already rules it (ADRs outrank the UI law): `shell.css` owns the shell's own structural surfaces — region fills, seams, elevation — from tokens only, and a component's paint never lands there. The `context-bracket.tsx:10` phrase "shell.css is geometry" is a narrower note about the bracket's ember edge; reword it to match D150. The shell files still break D150: `shell/grid.css` styles `[data-slot="message-bubble"]`, `[data-slot="composer"]` and skins `[data-slot="empty-state-root"]` (padding, radius, fill, blur).
+
 ## Done when
 
-The owner rules which home paints the frame; the law states it once; a stylelint rule scoped to the shell region files enforces it (refusing colour-bearing properties there, or allowing only token references, per the ruling); the existing declarations conform; a planted control fails.
-
-## Owner ruling
-
-Pending.
+A stylelint rule scoped to the shell region files allows colour only as a semantic token reference (or a relative/`color-mix` colour over one) and refuses any selector that targets a component (`[data-slot]` values the shell does not own, or `@orb/ui` classes); the component rules in `grid.css` move to their components' variants or the client styles home; `@scope` with a lower boundary at component roots is evaluated as the mechanism, if the browser targets support it; the lockdown §4.2 row cites D150 instead of restating it; planted controls fail.
 
 ## Evidence
 
