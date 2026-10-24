@@ -38,7 +38,7 @@ export function MemberPersonaLoreControl({ chatId }: MemberPersonaLoreControlPro
   return (
     <SettingSwitchRow
       label="Members' persona lore"
-      description="Use the lorebooks other members attached to their personas in this chat's prompt. When off, only your lorebooks, this chat's and the characters' are used."
+      description="Use the world books other members attached to their personas in this chat's prompt. When off, only your world books, this chat's and the characters' are used."
       checked={chat.memberPersonaLore}
       onChange={(next): void => {
         setEnabled.mutate({ chatId, enabled: next });

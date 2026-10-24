@@ -81,11 +81,11 @@ export function RuleAnalysisFields({
             <Row gap="field" align="center">
               <Switch
                 id={`${outputsId}-lore`}
-                aria-label="Lore"
+                aria-label="World book"
                 checked={field.state.value !== undefined}
                 onCheckedChange={(checked): void => field.handleChange(checked ? { apply: "confirm", bookId: "" } : undefined)}
               />
-              <label htmlFor={`${outputsId}-lore`}>Lore</label>
+              <label htmlFor={`${outputsId}-lore`}>World book</label>
             </Row>
           )}
         </form.AppField>
@@ -103,7 +103,7 @@ export function RuleAnalysisFields({
               )}
             </form.AppField>
             <form.AppField name={`actions[${index}].routes.lore.apply`}>
-              {(field): ReactElement => <field.SelectField label="Lore application" items={APPLY_ITEMS} />}
+              {(field): ReactElement => <field.SelectField label="World book application" items={APPLY_ITEMS} />}
             </form.AppField>
           </>
         )}

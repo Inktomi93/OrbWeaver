@@ -1,24 +1,23 @@
 // Story module for touch-floor.ct.tsx (Spine-Testing §7 — a CT mounts ONLY from a non-test module).
 // The stages exist to reproduce the defect classes of the CT kit ITSELF — an ancestor-credit clause that
-// made a box-carried control alone in a padded wrapper structurally un-failable (#662), and the same
-// clause granting credit on the mere EXISTENCE of a pseudo rather than its measured reach (#2300) — plus
+// made a box-carried control alone in a padded wrapper structurally un-failable, and the same
+// clause granting credit on the mere EXISTENCE of a pseudo rather than its measured reach — plus
 // the pseudo-carried shapes that clause legitimately serves. Imports go through the SAME `@orb/ui/*`
 // aliases the CT providers use — a relative path into packages/ui would resolve a second module instance
 // and mount blank.
 //
 // EVERY BUTTON STAGE PINS ITS `intent` EXPLICITLY. The default is `primary`, which stamps `data-cta` and
-// paints the CTA gradient ring — so a stage written without an intent was silently measuring the RINGED
-// arm while its name and comments claimed to be measuring the plain one. That is exactly the pair #1843
-// was about, and both arms are now stages of their own.
+// paints the CTA gradient ring — so a stage without an intent would silently measure the RINGED
+// arm while claiming to measure the plain one. Both arms are stages of their own.
 
 import { Button } from "@orb/ui/button";
 import type { ReactElement } from "react";
 
-/** The BOX-CARRIED regression stage (#662): a plain, undersized, non-pseudo button ALONE in a huge, STATIC
+/** The BOX-CARRIED regression stage: a plain, undersized, non-pseudo button ALONE in a huge, STATIC
  *  padded wrapper — no `after:`/`before:` classes, no min-height/min-width, so its floor is its own
- *  16x16 border box. Before the fix, `hitExtent`'s unconditional ancestor credit walked out to the
- *  wrapper at every probed step and measured 80 steps (the sweep's own ceiling) no matter how small the
- *  button's real box was. Isolated deliberately: a sibling within the reach would make the OLD code fail
+ *  16x16 border box. An unconditional ancestor credit would walk out to the
+ *  wrapper at every probed step and measure 80 steps (the sweep's own ceiling) no matter how small the
+ *  button's real box was. Isolated deliberately: a sibling within the reach would make such a credit fail
  *  too, masking the defect. Inset from the left edge because `elementFromPoint` never resolves a
  *  negative viewport coordinate, so a control flush against x=0 would fail its own left probe at every
  *  radius regardless of the fix under test. */
@@ -32,8 +31,7 @@ export function TouchFloorBoxCarriedIsolatedStory(): ReactElement {
   );
 }
 
-/** The PSEUDO-CARRIED companion: the ancestor-credit clause's MINTED purpose must still pass after both
- *  fixes. A glyph-sm Button's visible box is far under the coarse floor, and the floor is carried entirely
+/** The PSEUDO-CARRIED companion: the ancestor-credit clause's purpose must still pass. A glyph-sm Button's visible box is far under the coarse floor, and the floor is carried entirely
  *  by its overflowing `::before` (`TOUCH_TARGET_PSEUDO` — `before:size-touch-target`, `before:absolute`,
  *  centred), which has no DOM node of its own. `intent="ghost"` is the RINGLESS arm: nothing else claims a
  *  pseudo on this button, so it is the cleanest statement of "the hit area reaches the floor". Isolated
@@ -48,13 +46,11 @@ export function TouchFloorPseudoCarriedIsolatedStory(): ReactElement {
   );
 }
 
-/** The #1843 REGRESSION GUARD — the same glyph at `intent="primary"`, i.e. wearing the CTA gradient ring.
+/** The CTA-RING REGRESSION GUARD — the same glyph at `intent="primary"`, i.e. wearing the CTA gradient ring.
  *  The ring is `[data-slot="button"][data-cta]::after` (globals.css): UNLAYERED, `inset: 0`,
- *  `pointer-events: none`. Before #1843 the hit area was an `::after` too, so the ring replaced it and the
- *  button had NO tap target beyond its 25px box; now the hit area is a `::before` and the two coexist.
- *  This stage is what makes that a permanent claim rather than a one-off measurement — and it is the arm
- *  the kit could not previously state, because with existence-only credit the ringed and ringless buttons
- *  reported the identical fabricated number. */
+ *  `pointer-events: none`. The hit area is a `::before` so the two coexist; were it also an `::after`, the
+ *  ring would replace it and the button would have NO tap target beyond its 25px box.
+ *  With existence-only credit the ringed and ringless buttons would report the identical fabricated number. */
 export function TouchFloorCtaGlyphIsolatedStory(): ReactElement {
   return (
     <div style={{ padding: 120, position: "static", width: 400 }}>
@@ -65,11 +61,11 @@ export function TouchFloorCtaGlyphIsolatedStory(): ReactElement {
   );
 }
 
-/** The #2300 NEGATIVE CONTROL — the PRE-#1843 `data-cta` glyph, rebuilt from the cascade that produced it,
- *  in the same isolated 400px stage as the positive arms.
+/** The NEGATIVE CONTROL — a `data-cta` glyph whose hit area shares the `::after` with the ring, rebuilt from the
+ *  cascade that produces it, in the same isolated 400px stage as the positive arms.
  *
- *  It is a reconstruction rather than the old component because the old component no longer exists; what
- *  is reproduced is the CASCADE, which is the whole mechanism. `glyphBox` at bb8b535fb8 spelled the hit area
+ *  It is a reconstruction rather than a product component because none ships this shape; what
+ *  is reproduced is the CASCADE, which is the whole mechanism. The hit area is spelled
  *  `after:absolute after:top-1/2 after:left-1/2 after:size-touch-target after:-translate-x-1/2 after:-translate-y-1/2`, and the CTA ring claims the same `::after` from an UNLAYERED rule — so the
  *  ring wins for every property it declares (`inset`, `pointer-events`, `border`, `background`) while the
  *  utilities' `width`/`height`/`translate` SURVIVE. The two rules below are in that order for that reason.
@@ -77,7 +73,7 @@ export function TouchFloorCtaGlyphIsolatedStory(): ReactElement {
  *  The surviving size is why this control is not merely "a button with a decoration": its pseudo still
  *  resolves to a rect that reaches PAST the border box, so a geometry-only eligibility test would credit
  *  it. What disqualifies it is `pointer-events: none` — a mark no tap can land on carries no target — and
- *  this stage is the only thing that holds that clause down. Pre-fix, the kit measured 161x161 here (the
+ *  this stage is the only thing that holds that clause down. Existence-only credit measures 161x161 here (the
  *  wrapper's whole padded extent) for a control whose real target is its 25px box. */
 export function TouchFloorPreFixCtaGlyphStory(): ReactElement {
   return (
@@ -96,8 +92,7 @@ export function TouchFloorPreFixCtaGlyphStory(): ReactElement {
   );
 }
 
-/** The `inline` arm at `intent="primary"` — the OTHER arm whose hit area moved at #1843, and the one the
- *  hit-test pins never covered (#2301). Its visible box is text-height, its floor rides a full-width
+/** The `inline` arm at `intent="primary"` — the OTHER arm whose hit area shares a surface with the ring. Its visible box is text-height, its floor rides a full-width
  *  `::before` sized on `--spacing-touch-target`, and at this intent the CTA ring sits on the `::after`
  *  directly over it. Isolated in a padded wrapper on purpose: this is simultaneously the positive control
  *  for the ring-overlap case AND a stage where a fabricated wrapper credit would be indistinguishable from

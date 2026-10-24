@@ -6,7 +6,7 @@ import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "./fixtures.ts";
 import { createSdkProcessSpawner } from "./sdk-process.ts";
 import type { ServerTestHarness } from "./server.ts";
-import { createServerHarness } from "./server.ts";
+import { createServerHarness, SECRET_BOX_TEST_KEY } from "./server.ts";
 
 const INTENT = { maxContextTokens: 4096, maxOutputTokens: 64, compaction: { mode: "managed", verbatimTail: 8 } } as const;
 
@@ -62,8 +62,8 @@ test("same-ID real roots own their compaction single-flight and join the held ac
       });
       return child;
     };
-  await using first = await createServerHarness({ secretBoxKey: Buffer.alloc(32, 1), sdkSpawn: spawnFor(0) });
-  await using second = await createServerHarness({ secretBoxKey: Buffer.alloc(32, 1), sdkSpawn: spawnFor(1) });
+  await using first = await createServerHarness({ secretBoxKey: SECRET_BOX_TEST_KEY, sdkSpawn: spawnFor(0) });
+  await using second = await createServerHarness({ secretBoxKey: SECRET_BOX_TEST_KEY, sdkSpawn: spawnFor(1) });
   const firstRoom = await room(first);
   const secondRoom = await room(second);
   expect(firstRoom.id).toBe(secondRoom.id);

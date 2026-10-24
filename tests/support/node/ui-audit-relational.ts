@@ -13,15 +13,14 @@ export interface AuditRuleProof {
 export const RELATIONAL_CLI_TIMEOUT_MS = 90_000;
 vi.setConfig({ testTimeout: RELATIONAL_CLI_TIMEOUT_MS, hookTimeout: RELATIONAL_CLI_TIMEOUT_MS });
 
-/** THE ARGV every walker suite adds (#1315). The scan is `pnpm snap <route> --design-audit`; a local
+/** THE ARGV every walker suite adds. The scan is `pnpm snap <route> --design-audit`; a local
  *  fixture is `--file <path>` rather than a `file://` BASE plus a route, because snap tells the two apart
  *  on purpose — a `--base` origin is an APP origin and owes the `__orb` bridge, a `--file` document does
  *  not. The three suppressed defaults are snap's own: none of these suites asserts a pixel. */
 export const AUDIT_ARGV = ["--design-audit", "--no-shot", "--no-deadcss", "--no-failure-evidence"] as const;
 
-/** The `report <path>` line the arm prints — the ONE door onto its filed JSON. The retired CLI took
- *  `--out <path>` and wrote the report exactly there; snap's `--out` names the SHOT base, and the arm
- *  files its report inside the run slot under its own producer arm (#1342). */
+/** The `report <path>` line the arm prints — the ONE door onto its filed JSON. Snap's `--out` names the SHOT base, not the report; the arm
+ *  files its report inside the run slot under its own producer arm. */
 export function auditReport(stdout: string): string {
   const line = stdout.split(/\r?\n/u).find((entry) => entry.startsWith("report "));
   expect(line, `no report line in:\n${stdout}`).toBeTypeOf("string");
@@ -31,8 +30,8 @@ export function auditReport(stdout: string): string {
 /** Every findings-table selector for one rule. The table is `severity rule selector message (value)` with
  *  fixed-width columns. Read from the TABLE rather than by substring: the same selectors also appear in
  *  the withheld/obscured denominators above it, where their presence says nothing about the verdict.
- *  ONE home (2026-09-05, #1103): census-decor's and census-accent's suites ask the identical question of
- *  the identical output, and a second copy is the shape tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md row 4 was paid for. */
+ *  ONE home: the census suites ask the identical question of the identical output, and a second copy is
+ *  the shape tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md row 4 warns against. */
 export function findingSelectors(stdout: string, rule: string): readonly string[] {
   const rows: string[] = [];
   for (const line of stdout.split(/\r?\n/u)) {

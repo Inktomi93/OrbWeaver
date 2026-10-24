@@ -5,6 +5,7 @@
 import type { CharacterHandle, CharacterId, CharacterSnapshotId, ChatId, PluginId, TagId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { injectionDirectiveSchema } from "@orb/kit/injection";
+import { SLUG_HANDLE_PATTERN, slugifyHandle } from "@orb/kit/slug";
 import { z } from "zod";
 import { cardFaceFields } from "#card-face";
 import { regexScriptCardSchema, regexScriptCardViewSchema } from "#regex";
@@ -18,6 +19,7 @@ import { refineryAnalyzePayloadSchema, refineryAnalyzePayloadViewSchema } from "
 
 const HANDLE_MIN = 1;
 const HANDLE_MAX = 200;
+const TRAILING_HYPHENS = /-+$/u;
 // CARD-CONTENT ceiling (greetings/systemPrompt/…). The FACE fields (name/description/starred/
 // avatarAssetId) spread `cardFaceFields` (D137(E)) — their limits live in `#card-face`, not here.
 const TEXT_MAX = 100_000;
@@ -303,13 +305,36 @@ export const storedCardBlobSchema = characterCardSchema.omit({ starred: true, re
 });
 export type StoredCardBlob = z.output<typeof storedCardBlobSchema>;
 
-/** The character-handle boundary shared by authored input and internal derived-handle producers. The cap
- * is measured in JavaScript string length (UTF-16 code units), which is also Zod's `string().max` unit. */
+/** The character-handle boundary every producer and authored input validates through: the slug alphabet
+ *  ({@link SLUG_HANDLE_PATTERN}, the security property that lets a handle be an export path segment) under
+ *  a cap measured in JavaScript string length (UTF-16 code units), which is also Zod's `string().max` unit. */
 export const characterHandleSchema = z
   .string()
   .min(HANDLE_MIN)
   .max(HANDLE_MAX)
+  .regex(SLUG_HANDLE_PATTERN)
   .transform((value) => castId<CharacterHandle>(value)) satisfies z.ZodType<CharacterHandle>;
+
+/** A handle as a READ projects it: length only, never the alphabet. The synthetic `__group__*` rows sit
+ *  outside the alphabet by design, and a row stored before the alphabet was enforced must keep reading;
+ *  anything that writes such a value somewhere else derives it through {@link portableCharacterHandle}. */
+const storedCharacterHandleSchema = z
+  .string()
+  .min(HANDLE_MIN)
+  .max(HANDLE_MAX)
+  .transform((value) => castId<CharacterHandle>(value)) satisfies z.ZodType<CharacterHandle>;
+
+/** True when `value` is a handle {@link characterHandleSchema} admits. */
+export function isCharacterHandle(value: string): boolean {
+  return characterHandleSchema.safeParse(value).success;
+}
+
+/** The handle a stored row carries off this box (a card's wire key, a chat's archive directory and seat
+ *  list): the handle itself when it is inside the alphabet, else its slug, so a row stored before the
+ *  alphabet was enforced still exports as a safe path segment and every file of one export agrees on it. */
+export function portableCharacterHandle(stored: string): CharacterHandle {
+  return characterHandleSchema.parse(isCharacterHandle(stored) ? stored : slugifyHandle(stored));
+}
 
 /** Append a machine suffix while keeping the result inside {@link characterHandleSchema}.
  *
@@ -324,13 +349,15 @@ export function deriveCharacterHandle(source: CharacterHandle, suffix: string): 
   }
   let sourceUnits = 0;
   let boundedSource = "";
-  for (const point of source) {
+  for (const point of portableCharacterHandle(source)) {
     if (sourceUnits + point.length > sourceBudget) {
       break;
     }
     boundedSource += point;
     sourceUnits += point.length;
   }
+  // A cut that lands just after a separator would leave `--` against the suffix, which the alphabet refuses.
+  boundedSource = boundedSource.replace(TRAILING_HYPHENS, "");
   if (boundedSource.length < HANDLE_MIN) {
     throw new Error("a derived character handle must retain a non-empty source");
   }
@@ -870,7 +897,7 @@ export const characterCardViewSchema = characterCardSchema.strict().extend({
 const characterListCursorViewSchema = z.union(characterListCursorSchema.options.map((option) => option.strict()));
 export const characterDetailSchema = characterCardViewSchema.extend({
   id: typeIdSchema(ID_PREFIX.character),
-  handle: characterHandleSchema,
+  handle: storedCharacterHandleSchema,
   starred: z.boolean(),
   archived: z.boolean(),
   synthetic: z.boolean(),

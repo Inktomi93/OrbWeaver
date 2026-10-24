@@ -80,8 +80,8 @@ export function watchChromiumDescendants(rootPid: number, sampleMs = DEFAULT_SAM
   };
 }
 
-/** THE ARGS a simulated reparented-leak chromium must launch with (#1926). `marker === null` reproduces
- *  the shape that left 11 four-day-old orphans on the box on 2026-09-11: a detached grandchild chromium
+/** THE ARGS a simulated reparented-leak chromium must launch with. `marker === null` reproduces
+ *  the shape that leaves orphans on the box: a detached grandchild chromium
  *  with no run-marker channel is invisible to `floor/process/run-marker.ts`'s abandoned-run sweep in EITHER
  *  reader (its environ is erased by chromium's own process-title rewrite, and nothing stamped its argv),
  *  so if the fixture's own explicit `terminateChromiumIdentities` cleanup never runs — the test process is

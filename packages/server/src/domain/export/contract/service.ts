@@ -9,7 +9,7 @@ import type { ExportCardScripts } from "#domain/regex";
 import type { ExportRpgGame } from "#domain/rpg";
 import type { ImageTransformOptions } from "#infra/image";
 import type { Cas } from "#infra/storage";
-import type { ExportCharacterParams, ExportChatBundleParams, ExportChatParams, ListHostChatsParams } from "./params.ts";
+import type { ExportCharacterParams, ExportChatBundleParams, ExportChatParams, ListHostChatsParams, SeatCardIdentity } from "./params.ts";
 import type { ExportedCard, ExportedFile, ExportedText, HostChatRef } from "./results.ts";
 
 /** The DI bundle every export verb closes over, wired at the composition root. */
@@ -25,6 +25,9 @@ export interface ExportContext {
    *  `exportCardScripts` is: a game is six tables `export` does not own, and reaching into them directly
    *  would be a sideways read. Null for the overwhelmingly common gameless chat. */
   readonly exportRpgGame: ExportRpgGame;
+  /** The import identity of an exported card PNG, computed by the character restore's own parse and hashes
+   *  (injected, cross-domain), so a chat bundle's seat names the row that card will restore as. */
+  readonly cardPngIdentity: (bytes: Uint8Array) => Promise<SeatCardIdentity | null>;
 }
 
 // The chat transcript format union's declaration home is params.ts (keeps contract/ acyclic); the

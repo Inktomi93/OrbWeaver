@@ -17,7 +17,7 @@
 //
 // CROSS-REALM NOTE: `@trpc/server` is NOT a root dependency (only `packages/server` declares it), so this
 // file cannot `instanceof TRPCError`. It duck-types `e.name === "TRPCError" && typeof e.code === "string"`
-// — tRPC's OWN sanctioned cross-realm check (`getTRPCErrorFromUnknown`, trpc/trpc#4848) — and derives the
+// — tRPC's OWN sanctioned cross-realm check (`getTRPCErrorFromUnknown`) — and derives the
 // code union from `classifyDomainError`'s return type instead of `TRPC_ERROR_CODE_KEY`, so a typo'd code
 // is still a compile error.
 

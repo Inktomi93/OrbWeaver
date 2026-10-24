@@ -1,6 +1,8 @@
+import { portableCharacterHandle } from "@orb/contracts/character";
 import type { PortableEntity, PortableFile } from "@orb/contracts/portability";
-import type { UserId } from "@orb/kit/ids";
+import type { CharacterId, UserId } from "@orb/kit/ids";
 import { CHAT_BUNDLE_EXT } from "#primitives/serde/chat-bundle";
+import type { SeatCardIdentity } from "../contract/params.ts";
 import type { PortableExportDeps, PortableExports } from "../contract/portable.ts";
 
 function oneFile(produce: (ownerId: UserId) => Promise<PortableFile>): PortableEntity["exportAll"] {
@@ -55,10 +57,13 @@ export function createPortableExports(deps: PortableExportDeps): PortableExports
     },
     async *chat(ownerId): AsyncIterable<PortableFile> {
       const principal = await deps.resolveOwnerPrincipal(ownerId);
+      const seatCardCache = new Map<CharacterId, SeatCardIdentity | null>();
       for (const { chatId, handle } of await deps.exportService.listHostChats({ principal })) {
-        const bundle = await deps.exportService.exportChatBundle({ principal, chatId });
+        const bundle = await deps.exportService.exportChatBundle({ principal, chatId, seatCardCache });
         if (bundle !== null) {
-          yield { filename: `${handle}/${chatId}${CHAT_BUNDLE_EXT}`, bytes: bundle.bytes };
+          // SECURITY: the handle is an archive path segment, and a row stored before the slug alphabet was
+          // enforced can hold `..` or a separator; the portable handle is always inside the alphabet.
+          yield { filename: `${portableCharacterHandle(handle)}/${chatId}${CHAT_BUNDLE_EXT}`, bytes: bundle.bytes };
         }
       }
     },

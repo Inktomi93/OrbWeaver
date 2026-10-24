@@ -1,6 +1,5 @@
 // The publisher and native capsule qualification share one external execution recipe; production still owns every domain operation.
 import { spawn } from "node:child_process";
-import { randomBytes } from "node:crypto";
 import { lookup } from "node:dns/promises";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -25,6 +24,7 @@ import {
 import { createRpgFlightWire, RPG_RECURSION_MODEL, RPG_ROUND_MODEL } from "./corpus-rpg-flight-wire.ts";
 import { createCorpusRpgWire } from "./corpus-rpg-wire.ts";
 import { settleCorpusWorkloads } from "./corpus-workloads.ts";
+import { SECRET_BOX_TEST_KEY } from "./server.ts";
 
 export const CORPUS_OWNER_PASSWORD = "synthetic-capsule-owner-password";
 export const CORPUS_PROVIDER_KEY = "synthetic-capsule-provider-key";
@@ -127,7 +127,7 @@ export async function createCorpusRecipeExecution(baseUrl?: string): Promise<Cor
 /** Only external responses, business clock/IDs and process-local crypto vary; nothing constructs a replacement domain graph. */
 export async function createCorpusRecipe(parent: string): Promise<CorpusRecipe> {
   const { execution, swipes, lifecycleWire, rpgFlightWire } = await createCorpusRecipeExecution();
-  const key = randomBytes(32);
+  const key = SECRET_BOX_TEST_KEY;
   const clock = createFrozenClock();
   const ids = createSeededIds();
   const options = {

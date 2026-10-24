@@ -23,18 +23,18 @@
 // (playwright-core `coreBundle.js`: with `false` the evaluated value is RETURNED, never called), so a
 // string spelling can never receive the element handle. The functions are the home;
 // {@link HIT_EXTENT_WALK_SOURCE} is composed from their own `toString()` for the one consumer that must
-// ship the rule INTO a page as text. Derived, never hand-copied — the hand copy is what let the instrument
-// proof's "the two arms agree" pin agree with a predicate the kit no longer had.
+// ship the rule INTO a page as text. Derived, never hand-copied — a hand copy lets the instrument
+// proof's "the two arms agree" pin agree with a predicate the kit no longer has.
 //
-// ── THE OWNERSHIP RULE (#2300, and the defect it replaces) ────────────────────────────────────────────
-// Ancestor credit used to be granted on the EXISTENCE of an absolutely-positioned pseudo —
+// ── THE OWNERSHIP RULE ────────────────────────────────────────────────────────────────────────────────
+// Ancestor credit must not be granted on the EXISTENCE of an absolutely-positioned pseudo —
 // `content !== none && (position === absolute || fixed)` — after which ANY ancestor containing the control
-// owned every probed point. That predicate never measured the pseudo, so it could not tell a 55px hit area
-// from a decoration, and the credit it granted was UNBOUNDED: it ran to the wrapper's own edges. Replayed
-// on the shape #1843 fixed (a `data-cta` glyph button whose only pseudo was the CTA gradient ring —
-// `inset: 0`, `pointer-events: none`, a mark no tap can land on) it reported 161x161 in an isolated 400px
-// stage for a control whose real target was 26x26, and reported the SAME 161x161 after the fix, when the
-// truth was 56x56. A number that is 161 whether the answer is 26 or 56 is not a measurement.
+// owns every probed point. That predicate never measures the pseudo, so it cannot tell a 55px hit area
+// from a decoration, and the credit it grants is UNBOUNDED: it runs to the wrapper's own edges. On a
+// `data-cta` glyph button whose only pseudo is the CTA gradient ring (`inset: 0`, `pointer-events: none`,
+// a mark no tap can land on) it would report 161x161 in an isolated 400px stage for a control whose real
+// target is 26x26, and the SAME 161x161 for one whose truth is 56x56. A number that is 161 whether the
+// answer is 26 or 56 is not a measurement.
 //
 // So credit is GEOMETRY-SCOPED: a pseudo carries a hit area only where its RESOLVED RECT extends past the
 // element's border box, and the credit reaches exactly that far and no further. The same clauses are
@@ -42,17 +42,13 @@
 // (`tooling/src/ui-audit/ops/walker/hit-extent.ts`), which is a raw-JS template-literal segment ABOVE the
 // test tree in the layer cake and so can neither import this nor be imported by it.
 //
-// WHAT ACTUALLY PINS THE TWO SPELLINGS (rewritten 2026-09-13; cb-v-hit-geometry REFUTED what stood here).
-// This header used to say the two were "pinned EQUAL … the only thing keeping them from drifting apart",
-// and three probes with two planted controls showed otherwise: disabling THIS file's ancestor credit, and
-// reverting or de-fencing the walker's, each left the instrument proof 10/10 GREEN — its fixture's hit
-// pseudos self-report, so clause 2 never ran on it. The proof now carries `CREDIT_DOCUMENT`, four stages
-// where ancestor credit is the only thing that CAN answer at the probed points, and an ENVELOPE arm that
-// evaluates both homes' real sources on the same elements in the same page and requires exact equality.
-// Disabling the credit here now reds the clipped stage (60 → 30, measured); changing either home's
-// arithmetic reds the envelope arm. The published EXTENTS are deliberately NOT compared across homes — a
-// rung-quantised ring against a 1px walk, "the numbers differ by design" since #1678 — so each home's
-// numbers are pinned to its own measured values.
+// WHAT PINS THE TWO SPELLINGS. The instrument proof's fixture hit pseudos self-report, so ancestor credit
+// (clause 2) never runs on them; the proof carries `CREDIT_DOCUMENT`, four stages where ancestor credit is
+// the only thing that CAN answer at the probed points, and an ENVELOPE arm that evaluates both homes' real
+// sources on the same elements in the same page and requires exact equality. Disabling the credit here reds
+// the clipped stage; changing either home's arithmetic reds the envelope arm. The published EXTENTS are
+// deliberately NOT compared across homes — a rung-quantised ring against a 1px walk, "the numbers differ by
+// design" — so each home's numbers are pinned to its own measured values.
 
 /** The resolved-style reader — `CSSStyleDeclaration` satisfies it structurally. */
 interface HitStyle {
@@ -180,13 +176,13 @@ export const readPseudoGeometry = (el: HitElement): HitGeometry => {
  *
  * HIT-ELIGIBLE means: generated (`content`), out of flow (`position: absolute`), paintable
  * (`visibility`/`display`), and ABLE TO TAKE A POINTER (`pointer-events !== none`). That last clause is
- * not a refinement of the geometry test but an independent fact about it — the pre-#1843 `data-cta` ring
- * kept the hit area's own `width`/`height`/`translate` utilities (the unlayered rule only overrode the
- * properties it declares), so it still describes an OUTWARD rect, and geometry alone would credit a brand
- * mark that no tap can ever reach.
+ * not a refinement of the geometry test but an independent fact about it — a `data-cta` ring sharing the
+ * hit area's pseudo keeps the hit area's own `width`/`height`/`translate` utilities (the unlayered rule
+ * only overrides the properties it declares), so it still describes an OUTWARD rect, and geometry alone
+ * would credit a brand mark that no tap can ever reach.
  *
  * THE RECT NEEDS NO `width`: for an absolutely positioned box the resolved `left`/`right` are the USED
- * distances from the containing block's padding edges (measured in Chrome 2026-09-13 on the real shapes:
+ * distances from the containing block's padding edges (for example
  * a 25px `size-glyph-sm` box under a 55px `::before` answers `left: 12.5px`, `right: -42.5px`), so the
  * two insets already carry the width — which also means an `auto` inset simply makes the rect
  * unmeasurable rather than needing a fallback branch.
@@ -228,8 +224,7 @@ export const pseudoHitRect = (facts: PseudoStyleFacts, geometry: HitGeometry): H
   // rotation, a scale, a skew — makes the rect something four numbers cannot describe, and an unstatable
   // rect is REFUSED rather than approximated. DECLARED IN HERE, not at module scope, because this
   // function is also serialised INTO A PAGE that has none of this module's bindings: a hoisted constant
-  // reads perfectly, typechecks, and throws `ReferenceError` in the browser (measured 2026-09-13 — the
-  // instrument proof's eval arm caught it in one run).
+  // reads perfectly, typechecks, and throws `ReferenceError` in the browser.
   const pureTranslatePrefix = "matrix(1, 0, 0, 1, ";
   if (!pseudoIsEligible(facts, geometry)) {
     return null;
@@ -278,7 +273,7 @@ export const pseudoHitRect = (facts: PseudoStyleFacts, geometry: HitGeometry): H
 
 /** The union of a control's HIT-ELIGIBLE OUTWARD pseudo rects — the band inside which an ancestor may
  *  answer for it — or `null` when it has none, in which case an ancestor is only the wrapper's padding
- *  (the #662/#665 hole) and is never credited. */
+ *  and is never credited. */
 export const pseudoHitEnvelope = (geometry: HitGeometry): HitRect | null => {
   const before = pseudoHitRect(geometry.before, geometry);
   const after = pseudoHitRect(geometry.after, geometry);
@@ -300,14 +295,14 @@ export const pseudoHitEnvelope = (geometry: HitGeometry): HitRect | null => {
  *
  * OWNERSHIP, in the order the clauses are asked:
  *   1. the hit IS the element or something inside it — INCLUDING its own pseudos, which self-report
- *      (measured 2026-09-06 in the CT browser on a real `@orb/ui` Checkbox at both pointer arms, where a
- *      real mouse click at the same point toggles it). For every hit-eligible pseudo on this tree this is
+ *      (a real `@orb/ui` Checkbox's pseudo answers as the checkbox at both pointer arms, as a real mouse
+ *      click at the same point toggles it). For every hit-eligible pseudo on this tree this is
  *      the clause that answers, and clause 2 never runs.
  *   2. ANCESTOR CREDIT, and only INSIDE the pseudo's own measured rect. It exists for the shape with no
  *      DOM node to answer with — a touch-target pseudo whose outward edge is CLIPPED AWAY by an ancestor's
  *      overflow, where whatever paints underneath answers instead. Outside that rect an ancestor is the
- *      wrapper's padding (#662/#665: a 413x16 trigger measuring 44 by borrowing its `Stack`), and past its
- *      edge it is #2300 (161 for a 26px control).
+ *      wrapper's padding (a 413x16 trigger would measure 44 by borrowing its `Stack`), and past its
+ *      edge it is an unbounded credit (161 for a 26px control).
  *
  * The credited band is half-open — `[left, right)` — for the reason the walker's `HIT_PROBE_INSET` states:
  * a target of extent `2r` centred at `c` occupies `[c - r, c + r)`, so `c + r` is the neighbour's first
@@ -350,9 +345,9 @@ export const walkFrom = (el: HitElement, arg: { readonly axis: "x" | "y"; readon
  *  instrument proof runs it through `snap --eval` so the kit's walk and the product walker judge the same
  *  DOM in the same run. */
 /** JUST THE CREDIT ENVELOPE as ONE in-page expression, `(el) => HitRect | null`, composed the same way.
- *  The #2300 rule is the envelope, and the envelope is the ONE thing the two homes must answer IDENTICALLY
+ *  The ownership rule is the envelope, and the envelope is the ONE thing the two homes must answer IDENTICALLY
  *  — their published extents cannot be compared directly (a rung-quantised ring against a 1px walk, "the
- *  numbers differ by design" since #1678), so this is what "pinned equal" is allowed to mean. The
+ *  numbers differ by design"), so this is what "pinned equal" is allowed to mean. The
  *  instrument proof evaluates this beside the walker's own `pseudoHitEnvelope` on the same elements in the
  *  same page and requires exact equality. */
 export const PSEUDO_ENVELOPE_SOURCE: string = [

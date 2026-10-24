@@ -71,6 +71,8 @@ Files: `corpus-connection.int.test.ts`, `corpus-library-views.int.test.ts`, `cor
 
 Done: no `randomBytes` under `tests/support`. The listed test files pass. `corpus-library-clone` keeps source and clone keys distinct.
 
+- [x] Landed in `beafbb559a`. The sites differ in imports and in the one distinct-key case, so the edit was by hand, not a codemod. `SECRET_BOX_TEST_KEY` is exported from `tests/support/node/server.ts`.
+
 ### Leg 2: lifecycle signals replace delays (per-site judgment)
 
 Five sites, each with its own signal: the abort event, the `ready` promise, or the held-statement release. Do not share a helper. Show each old form red under a slowed timer, then green.
@@ -78,6 +80,8 @@ Five sites, each with its own signal: the abort event, the `ready` promise, or t
 Files: `corpus-fixture-lifetime.int.test.ts`, `corpus-execution.int.test.ts`, `corpus-workloads.int.test.ts`, `showcase-guest.ts`.
 
 Done: no `physicalDelay` or turn loop decides completion in these files. Each negative assertion keeps a positive control.
+
+Leg 2 landed in the commit that carries this line. Four sites wait on their own signal. `corpus-execution.int.test.ts:43` stays: its subject is the absence of the helper's physical 5000 ms default deadline, which `settleCorpusWorkloads` creates internally with `AbortSignal.timeout` and emits no event for. A test-only export is banned, so the 6000 ms hold is the only observation left.
 
 ### Leg 3: root builds from production owners (per-site judgment)
 
@@ -95,6 +99,8 @@ Files: `tests/support/node/db.ts`, `tests/support/node/db.int.test.ts`.
 
 Done: the control fails when a table, column or index differs. It passes on the current tree. The header cites an existing file.
 
+- [x] Landed in `bb7c76f36e`. The control compares tables, columns, foreign keys and indexes of `freshDb` with the migrated chain in `db.int.test.ts`.
+
 ### Leg 5: timer and clock seams (per-site judgment)
 
 Fold `createManualTimer` into `createControlledTimers` and move its two consumers. Point `atlas-guest.ts` at `FROZEN_AT_MS`. Add a unit test for timer order, repeat and disposal.
@@ -102,6 +108,8 @@ Fold `createManualTimer` into `createControlledTimers` and move its two consumer
 Files: `tests/support/iso/clock.ts`, `tests/support/iso/timers.ts`, `tests/support/iso/index.ts`, `tests/support/node/atlas-guest.ts`, `tests/inference/roles/side-gen.int.test.ts`.
 
 Done: one timer seam is exported. The new test fails when due-order or disposal changes.
+
+- [x] Landed in `b6db76e82b`. `createControlledTimers` gained `armed()`; `tests/support/iso/timers.test.ts` holds the control.
 
 ### Leg 6: root inputs and handle lifetimes (per-site judgment)
 
@@ -111,11 +119,29 @@ Files: `tests/support/node/server.ts`, `tests/support/node/env-seams.int.test.ts
 
 Done: the control fails on the old code with a planted shell variable. The handles close.
 
+- [x] Landed in `b43648f3af`. The suite lint gate bans writing the process environment in tests, so the control reads the developer's own `HOME` and `PATH` through the agent child env instead of planting one.
+
 ## Evidence
 
 The server harness exposes business clock, ID, random and timer seams. Existing support has selected runtime qualification; that does not establish complete replacement coverage.
 
+Legs 1, 4, 5 and 6 evidence:
+
+- `rg 'randomBytes' tests/support` finds nothing. Every suite that used the key passes, and so do the `corpus-recipe` consumers.
+- The `db.int.test.ts` parity control is red when its comparison is neutered and green on the current tree. Its database handles close through `AsyncDisposableStack`, and a control reads a closed handle as refused.
+- `timers.test.ts` is red when the due order is reversed and when disposal stops clearing pending timers.
+- `env-seams.int.test.ts` controls are red against the ambient allowlist and the process-sourced sign-in mode, and green against the fixed values.
+
 [D319](../adr/0319-native-protocol-time-in-scripted-test-edges.md) preserves native signed-protocol timestamps and verification. It does not authorize ambient business clocks.
+
+Leg 2 evidence: each old form failed under a planted slowdown and each new form passed under the same plant.
+
+| Site | Signal | Plant |
+| - | - | - |
+| `corpus-fixture-lifetime.int.test.ts:50` | the signal's `abort` event | `scripts/corpus-fixture-lifetime.ts` remaining time plus 200 ms |
+| `corpus-execution.int.test.ts:132` | the signal's `abort` event, listened to before setup | test timeout 100 ms to 400 ms |
+| `corpus-workloads.int.test.ts:49` | the settled `settleCorpusWorkloads` promise while the read stays held | `RECALL_WAIT_TIMEOUT_MS` 5000 to 7000 |
+| `showcase-guest.ts:43` | the caller's `ready` promise: the tool registration, or the guest's own startup warning | storage read delayed 40 turns |
 
 ## Selected asset and imagery cases
 

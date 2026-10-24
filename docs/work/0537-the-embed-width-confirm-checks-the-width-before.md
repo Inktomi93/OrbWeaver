@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-10-04
+updated: 2026-10-24
 priority: P3
 area: connection
 ---
@@ -19,6 +19,20 @@ A destructive warning for a change that will not happen is noise and erodes trus
 ## Done when
 
 The change preview runs the same width check the save runs (or the save is dry-run first), so an unmakeable width is refused before any confirm; a CT covers it.
+
+## Plan
+
+Not yet built. The width check exists only on the save path: `settleEmbedSpace` (`packages/server/src/domain/connection/substrate/embed-space.ts`) writes the row, `syncEmbedTargets` reaches `prove` and `probeWidth` (`packages/server/src/domain/embeddings/verbs/sync-target-generations.ts`, `packages/server/src/domain/embeddings/substrate/generation.ts`), and a refused width undoes the write and throws `EmbedWidthUnmakeableError`. The preview the client confirm reads (`connection.embedSpaceChangePreview`, `packages/server/src/domain/connection/verbs/preview-embed-space-change.ts`) counts rebuild scope only, dials nothing, and its schema has no refusal field.
+
+Shape:
+
+1. `embedSpaceChangePreviewSchema` gains `refusal: EmbedTargetRefusal | null`.
+2. A read-only probe step in the embeddings domain reuses `prove` and `probeWidth`. For `bind` and `everywhere` it resolves through the target `connectionId` (`pendingTargetMove` already takes one).
+3. For `update`, the patched row is not written, and the resolver cannot resolve through it. The probe resolves through a patched-row overlay in the resolve path. This overlay is the design decision; a write, probe and undo inside the owner write queue is rejected because concurrent chat and embed resolves would see the transient row.
+4. `useReindexConfirm.guard` (`packages/client/src/components/reindex-confirm.tsx`) shows a preview refusal through `embedRefusalText` and opens no confirm.
+5. The preview now dials the embedder, so it handles `unreachable` and `auth` before any confirm opens.
+
+The CT mounts the credentials section through `tests/support/browser/ct-data-providers.tsx` (the production authed composition) and serves the preview read through `tests/support/browser/trpc-wire.ts`.
 
 ## Evidence
 

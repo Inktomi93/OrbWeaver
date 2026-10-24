@@ -1,5 +1,6 @@
 // @subject tests/support/node/corpus-workloads.ts
 // @subject tests/support/node/server.ts
+import { once } from "node:events";
 import { setTimeout as physicalDelay, setImmediate as physicalTurn } from "node:timers/promises";
 import { closeDb } from "@orb/db";
 import { vi } from "vitest";
@@ -122,6 +123,8 @@ test("a foreign name-equal cancellation is not reclassified as the caller reason
 
 test("setup and repeated calls cannot renew an expired native caller timeout or start a new load", async () => {
   const workloadExecutionSignal = AbortSignal.timeout(100);
+  // Listen before setup: the timeout may fire while the root is still being built.
+  const expired = once(workloadExecutionSignal, "abort");
   const options = { startJobs: false, workloadExecutionSignal };
   await using database = new AsyncDisposableStack();
   const counted = await freshCountedDb();
@@ -129,7 +132,7 @@ test("setup and repeated calls cannot renew an expired native caller timeout or 
   await using root = await createServerHarness({ ...options, db: counted.db });
   const caller = await root.internalCallerFor(root.ownerId);
   const admitted = await caller.workloads.start({ input: { kind: "reconcile-stats", params: {} }, mode: "singular" });
-  await physicalDelay(150);
+  await expired;
   expect(workloadExecutionSignal.aborted).toBe(true);
   const driver = vi.spyOn(root, "runAdmittedWorkload");
   const initial = vi.spyOn(root, "settleBackground");

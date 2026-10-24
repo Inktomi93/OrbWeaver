@@ -1,7 +1,6 @@
 // @subject tests/support/node/corpus-sdk-sessions.ts
 // @subject packages/inference/src/backends/agent-sdk/session/store.ts
 // @subject packages/server/src/domain/connection/persistence/session-entries.ts
-import { randomBytes } from "node:crypto";
 import { assertReferentialIntegrity } from "@orb/db";
 import { toChatRequest } from "@orb/inference";
 import { sql } from "drizzle-orm";
@@ -11,12 +10,12 @@ import { CORPUS_SDK_HOLD, CORPUS_SDK_QUERY, CORPUS_SDK_REPLY, CORPUS_SDK_REUSE }
 import { seedCorpusSdkActor, seedCorpusSdkSessions } from "./corpus-sdk-sessions.ts";
 import { createCorpusSdkExecution } from "./corpus-sdk-wire.ts";
 import { expect, test } from "./fixtures.ts";
-import { createServerHarness } from "./server.ts";
+import { createServerHarness, SECRET_BOX_TEST_KEY } from "./server.ts";
 
 test("native resumed transcript identities replay without dropping distinct child turns", async () => {
   const replay = async (): Promise<ReturnType<typeof createCorpusSdkExecution>["receipts"]> => {
     const wire = createCorpusSdkExecution({ prompts: [CORPUS_SDK_QUERY, CORPUS_SDK_REUSE, CORPUS_SDK_REUSE] });
-    await using root = await createServerHarness({ secretBoxKey: Buffer.alloc(32, 1), sdkSpawn: wire.spawn });
+    await using root = await createServerHarness({ secretBoxKey: SECRET_BOX_TEST_KEY, sdkSpawn: wire.spawn });
     const actor = await seedCorpusSdkActor(root);
     const caller = await root.internalCallerFor(actor.principal.userId);
     const { chat } = await caller.chat.startChat({ characterIds: [], opening: "none" });
@@ -71,7 +70,7 @@ test("native resumed transcript identities replay without dropping distinct chil
 
 test("native SDK canon lineage persists, resumes, branches and returns without foreign ownership or empty-seed fabrication", async () => {
   const wire = createCorpusSdkExecution();
-  await using root = await createServerHarness({ secretBoxKey: randomBytes(32), sdkSpawn: wire.spawn });
+  await using root = await createServerHarness({ secretBoxKey: SECRET_BOX_TEST_KEY, sdkSpawn: wire.spawn });
   const result = await seedCorpusSdkSessions(root, wire);
   expect(result.empty.result.reply).toBe(CORPUS_SDK_REPLY);
   expect(result.empty.rows).toEqual([]);
@@ -119,7 +118,7 @@ test("native SDK canon lineage persists, resumes, branches and returns without f
 
 test("native SDK root disposal joins its actual held child before closing the corpus database", async () => {
   const wire = createCorpusSdkExecution({ deferHoldExit: true });
-  await using root = await createServerHarness({ secretBoxKey: randomBytes(32), sdkSpawn: wire.spawn });
+  await using root = await createServerHarness({ secretBoxKey: SECRET_BOX_TEST_KEY, sdkSpawn: wire.spawn });
   const actor = await seedCorpusSdkActor(root);
   const { resolved } = await root.app.runtime.resolve({ principal: actor.principal, connectionId: actor.connection.id, task: "chat", cachedFacts: true });
   if (resolved.task !== "chat") {

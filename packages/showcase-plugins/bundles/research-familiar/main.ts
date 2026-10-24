@@ -88,9 +88,9 @@ if (host.grants.includes("ui.surface")) {
       kind: "stack",
       gap: "field",
       children: [
-        { kind: "text", value: "Choose a lore book, then attach that book to each room where you want lookup results." },
+        { kind: "text", value: "Choose a world book, then attach that book to each room where you want lookup results." },
         ...(canConfigure
-          ? [{ kind: "button" as const, actionId: "configure", label: "Choose lore book" }]
+          ? [{ kind: "button" as const, actionId: "configure", label: "Choose world book" }]
           : [{ kind: "text" as const, value: "Allow global variables in this plugin's permissions to configure its destination." }]),
         ...(!host.grants.includes("notify")
           ? [{ kind: "text" as const, value: "Allow notifications to receive private configuration and permission notices." }]
@@ -104,7 +104,7 @@ if (host.grants.includes("ui.surface")) {
     },
   });
   if (canConfigure) {
-    host.ui.register({ id: CONFIG_SURFACE, anchor: "dialog", title: "Choose lore book", tier: "scripted" });
+    host.ui.register({ id: CONFIG_SURFACE, anchor: "dialog", title: "Choose world book", tier: "scripted" });
   }
 }
 
@@ -232,7 +232,7 @@ async function configuredBookIsAttached(chat: ChatHandle, bookId: string): Promi
   if (books.some((book) => book.id === bookId)) {
     return true;
   }
-  await notifyInstallerOnce("destination", "Research Familiar's chosen lore book is not attached to this room. Attach it before using lookup.");
+  await notifyInstallerOnce("destination", "Research Familiar's chosen world book is not attached to this room. Attach it before using lookup.");
   return false;
 }
 
@@ -291,7 +291,7 @@ async function admit(fact: PluginTriggerFact): Promise<AdmittedResearch | null> 
   }
   const bookId = await host.variables.get(BOOK_ID_VAR);
   if (bookId === null || bookId.length === 0) {
-    await notifyInstallerOnce("configuration", "Research Familiar needs a lore book. Open Settings → Plugins → Research Familiar → Choose lore book.");
+    await notifyInstallerOnce("configuration", "Research Familiar needs a world book. Open Settings → Plugins → Research Familiar → Choose world book.");
     return null;
   }
   return { verb, term, bookId };
