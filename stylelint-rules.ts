@@ -335,61 +335,31 @@ const SHELL_MESSAGES = messagesOf(SHELL, {
 const ATTRIBUTE_SELECTOR = /\[[^\]]*\]/gu;
 const SLOT_SELECTOR = /\[data-slot\s*[~|^$*]?=\s*["']?(?<slot>[^"'\]\s]+)/gu;
 const CLASS_SELECTOR = /\.(?<name>-?[_a-zA-Z][\w-]*)/gu;
-// A relative colour whose origin is a served `--color-*` token. Each channel is that colour space's own channel keyword
-// or a `calc()` over one; a literal, `none` (a missing channel is a literal zero) or another space's keyword is a new colour.
-const RELATIVE_CHANNEL = String.raw`[a-z]+|calc\((?:[^()]|\([^()]*\))*\)`;
+// A relative colour whose origin is a served `--color-*` token, passed through unchanged: its three colour channels are
+// that colour space's own keywords in order and only the alpha slot varies. Any `calc()`, literal, `none` or other
+// keyword in a colour channel writes a new colour; a tint or shade is a token or a `color-mix` over tokens.
+const COLOUR_SPACE_CHANNELS: Readonly<Record<string, string>> = {
+  rgb: "r g b",
+  rgba: "r g b",
+  hsl: "h s l",
+  hsla: "h s l",
+  hwb: "h w b",
+  lab: "l a b",
+  oklab: "l a b",
+  lch: "l c h",
+  oklch: "l c h",
+};
 const RELATIVE_COLOR = new RegExp(
-  String.raw`\b(?<space>rgb|rgba|hsl|hsla|hwb|oklch|oklab|lab|lch)\(\s*from\s+var\(--color-[a-z0-9-]+\)\s+(?<c1>${RELATIVE_CHANNEL})\s+(?<c2>${RELATIVE_CHANNEL})\s+(?<c3>${RELATIVE_CHANNEL})(?:\s*/(?:[^()]|\([^()]*\))*)?\)`,
+  String.raw`\b(?<space>${Object.keys(COLOUR_SPACE_CHANNELS).join("|")})\(\s*from\s+var\(--color-[a-z0-9-]+\)\s+(?<channels>[a-z]+\s+[a-z]+\s+[a-z]+)(?:\s*/(?:[^()]|\([^()]*\))*)?\)`,
   "giu",
 );
-const COLOUR_SPACE_CHANNELS: Readonly<Record<string, readonly string[]>> = {
-  rgb: ["r", "g", "b"],
-  rgba: ["r", "g", "b"],
-  hsl: ["h", "s", "l"],
-  hsla: ["h", "s", "l"],
-  hwb: ["h", "w", "b"],
-  lab: ["l", "a", "b"],
-  oklab: ["l", "a", "b"],
-  lch: ["l", "c", "h"],
-  oklch: ["l", "c", "h"],
-};
 
-const CHANNEL_NUMBER = String.raw`-?(?:\d+(?:\.\d+)?|\.\d+)`;
-// A scale from a quarter to double keeps the token's colour as a tint or a shade; zero, a negative or a huge factor
-// clamps a channel to black or white, which is a new colour written through the token.
-const CHANNEL_SCALE_MIN = 0.25;
-const CHANNEL_SCALE_MAX = 2;
-
-/**
- * Whether a channel is the origin's own channel in its own place: the keyword, a bounded scale of it (multiplied or
- * divided), or (the hue) a rotation by an angle. An out-of-range factor, an added literal, another channel's keyword
- * or `alpha` writes a new colour.
- */
-function isOwnChannel(channel: string, keyword: string): boolean {
-  const text = channel.trim().toLowerCase();
-  if (text === keyword) {
-    return true;
-  }
-  const scale = new RegExp(
-    String.raw`^calc\(\s*(?:${keyword}\s*(?<op>[*/])\s*(?<after>${CHANNEL_NUMBER})|(?<before>${CHANNEL_NUMBER})\s*\*\s*${keyword})\s*\)$`,
-    "u",
-  ).exec(text);
-  if (scale !== null) {
-    const { before, after, op } = scale.groups ?? {};
-    const number = Number(before ?? after);
-    const factor = op === "/" ? 1 / number : number;
-    return factor >= CHANNEL_SCALE_MIN && factor <= CHANNEL_SCALE_MAX;
-  }
-  return keyword === "h" && new RegExp(String.raw`^calc\(\s*h\s*[+-]\s*${CHANNEL_NUMBER}(?:deg|grad|rad|turn)?\s*\)$`, "u").test(text);
-}
-
-/** Blank the relative colours that only reshape the origin token's own channels; a literal one stays to be refused. */
+/** Blank the relative colours that pass the origin token through; any other stays to be refused. */
 function withoutServedRelativeColors(value: string): string {
   return value.replace(RELATIVE_COLOR, (match, ...rest) => {
     const groups = rest.at(-1) as Record<string, string>;
-    const keywords = COLOUR_SPACE_CHANNELS[(groups["space"] ?? "").toLowerCase()] ?? [];
-    const channels = [groups["c1"] ?? "", groups["c2"] ?? "", groups["c3"] ?? ""];
-    return channels.every((channel, place) => isOwnChannel(channel, keywords[place] ?? "")) ? blankText(match) : match;
+    const identity = COLOUR_SPACE_CHANNELS[(groups["space"] ?? "").toLowerCase()];
+    return (groups["channels"] ?? "").toLowerCase().split(/\s+/u).join(" ") === identity ? blankText(match) : match;
   });
 }
 const SHELL_CLASS_PREFIX = "shell-";
