@@ -1,5 +1,5 @@
 import { PLUGIN_UI_ROUTE } from "@orb/contracts/plugin";
-import { routeTrpc, trpcHold } from "@orb/testkit/ct";
+import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusReadResponder } from "@orb/testkit/iso";
 import { makePluginRow, makePluginScriptedPage } from "@orb/testkit/node/helpers";
@@ -31,9 +31,8 @@ test("a refreshed action cannot inherit another action's open destructive confir
     "sessions.me": createCorpusReadResponder("sessions.me", corpus.reads["sessions.me"]),
     "plugin.list": () => [plugin],
     "plugin.listSurfaces": () => [makePluginScriptedPage(plugin.id)],
-    "plugin.getSurfaceState": () => null,
+    "plugin.getSurfaceState": ({ pluginId }) => (pluginId === plugin.id ? null : trpcError({ code: "NOT_FOUND" })),
     "plugin.uiHostCall": refresh,
-    "plugin.reportUiCrash": () => undefined,
   });
   await page.route(`${PLUGIN_UI_ROUTE}/${plugin.id}`, (route) => route.fulfill({ contentType: "application/octet-stream", body: UI_SOURCE }));
   await mount<typeof PluginProtocolStory>("tests/client/features/plugin/_ct-stories/PluginProtocolStory", { pluginId: plugin.id });

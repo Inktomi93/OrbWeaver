@@ -1,3 +1,4 @@
+/* eslint-disable orb/ct-responder-reads-input -- the subject is the client reconciling write echoes that arrive late, out of order or changed by another author, which the server cannot be made to answer */
 import { choiceBlockSchema, presetDetailSchema, userMacroSchema } from "@orb/contracts/preset";
 import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";

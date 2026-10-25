@@ -1,7 +1,7 @@
 // Section procedures for a component spec, answered by the production server root over a corpus clone for each exact
 // request. Only the named procedures are served; routeTrpc still fails the test for any other.
 import type { TrpcErrorCode } from "./matchers.ts";
-import type { TrpcProcedurePath, TrpcRoutes } from "./route-trpc.ts";
+import type { TrpcErrorMarker, TrpcHoldMarker, TrpcInput, TrpcProcedurePath, TrpcRoutes } from "./route-trpc.ts";
 import { trpcError, trpcHold } from "./route-trpc.ts";
 
 type Procedure = (input: unknown) => Promise<unknown>;
@@ -59,15 +59,29 @@ export function holdCorpusProcedure<const TPath extends TrpcProcedurePath>(calle
 }
 
 /**
+ * A request the test answers with a failure or a held response instead of the server's answer, or `undefined` to let the
+ * server answer it. It can only fail or delay: the data a request settles with always comes from the server.
+ */
+export type ServeIntercept<TPath extends TrpcProcedurePath> = (input: TrpcInput<TPath>) => TrpcErrorMarker | TrpcHoldMarker<TPath> | undefined;
+
+/**
  * Serve each named procedure from `caller`, a composed root's `internalCallerFor(...)`, with the server's own
  * output for the request the client sent. The answer is held until the server settles, so it can never be a
- * fixture's guess at a page size or a filter.
+ * fixture's guess at a page size or a filter. An `intercept` fails or holds chosen requests before the server sees them.
  */
-export function serveCorpusProcedures<const TPath extends TrpcProcedurePath>(caller: object, paths: readonly TPath[]): TrpcRoutes<TPath> {
+export function serveCorpusProcedures<const TPath extends TrpcProcedurePath>(
+  caller: object,
+  paths: readonly TPath[],
+  intercept?: ServeIntercept<NoInfer<TPath>>,
+): TrpcRoutes<TPath> {
   const routes = Object.fromEntries(
     paths.map((path) => {
       const call = procedureAt(caller, path);
       const respond = (input: unknown): unknown => {
+        const early = intercept?.(input as TrpcInput<TPath>);
+        if (early !== undefined) {
+          return early;
+        }
         const hold = trpcHold<TPath>();
         // The release type is conditional on the generic path, so both settlements name it explicitly.
         type Release = Parameters<typeof hold.release>[0];

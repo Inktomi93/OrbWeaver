@@ -56,6 +56,9 @@ test.describe("planted defects", () => {
         '<button type="button" aria-label="Save">Save</button><form aria-label="Sign in"><input aria-label="Handle" name="handle"></form>',
     );
     expect(await nameQualityFindings(page)).toEqual([]);
+    // The probe reads this page: the same call reports a defect planted into it.
+    await page.setContent('<button type="button"></button>');
+    expect((await nameQualityFindings(page)).map((finding) => finding.rule)).toEqual(["nameless-control"]);
   });
 });
 

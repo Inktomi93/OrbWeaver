@@ -1,33 +1,33 @@
 import type { PromptCacheSettings } from "@orb/contracts/inference";
 import { builtinProvider, effectivePromptCache, foldFeatures, SUMMARIZE_CONCURRENCY_MAX } from "@orb/contracts/inference";
 import { expectCacheProse } from "@orb/testkit/browser/spec";
-import type { TrpcInput, TrpcRecorder, TrpcWireOutput } from "@orb/testkit/ct";
-import { routeTrpc } from "@orb/testkit/ct";
+import type { TrpcInput, TrpcRecorder } from "@orb/testkit/ct";
+import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import type { ConnectionPromptCacheStory } from "./_prompt-cache-stories.tsx";
 
-interface CacheRead {
-  readonly connection: TrpcWireOutput<"connection.get">;
-  readonly capability: TrpcWireOutput<"connection.capabilities">;
-  readonly list: TrpcWireOutput<"connection.list">;
-}
-
-interface CacheCapture {
-  readonly before: CacheRead;
-  readonly after: CacheRead;
-  readonly updated: TrpcWireOutput<"connection.update">;
+/** A real root holding the saved connection; it lives until the test disposes the capture. */
+interface CacheCapture extends AsyncDisposable {
+  readonly caller: object;
   readonly expectedUpdate: TrpcInput<"connection.update">;
-  readonly viewer: TrpcWireOutput<"sessions.me">;
-  readonly settings: TrpcWireOutput<"settings.getUserSettings">;
-  readonly bindings: TrpcWireOutput<"connection.listBindings">;
-  readonly credentials: TrpcWireOutput<"credentials.list">;
-  readonly providers: TrpcWireOutput<"connection.providersAvailable">;
-  readonly catalog: TrpcWireOutput<"connection.catalogModels">;
   readonly authConfig: string;
   readonly physicalRequests: readonly string[];
 }
+
+const CACHE_READS = [
+  "sessions.me",
+  "settings.getUserSettings",
+  "connection.list",
+  "connection.listBindings",
+  "credentials.list",
+  "connection.providersAvailable",
+  "connection.catalogModels",
+  "connection.get",
+  "connection.capabilities",
+  "connection.update",
+] as const;
 
 // Only vendor catalog bytes are scripted; the root owns saved connections, capability synthesis and cache policy.
 async function captureCacheRoute(providerId: string, model: string, replay = false, change?: Partial<PromptCacheSettings>): Promise<CacheCapture> {
@@ -59,20 +59,23 @@ async function captureCacheRoute(providerId: string, model: string, replay = fal
     }
     return Promise.resolve(Response.json({ data: [{ id: model }] }));
   };
-  await using root = await createServerHarness({
-    secretBoxKey: Buffer.alloc(32, 17),
-    startJobs: false,
-    providerFetch: catalogFetch,
-    networkExecution: {
-      fetch: catalogFetch,
-      resolver: (hostname) => {
-        if (hostname !== new URL(origin).hostname) {
-          throw new Error("Unexpected cache witness catalog hostname");
-        }
-        return Promise.resolve(["93.184.215.14"]);
+  await using construction = new AsyncDisposableStack();
+  const root = construction.use(
+    await createServerHarness({
+      secretBoxKey: Buffer.alloc(32, 17),
+      startJobs: false,
+      providerFetch: catalogFetch,
+      networkExecution: {
+        fetch: catalogFetch,
+        resolver: (hostname) => {
+          if (hostname !== new URL(origin).hostname) {
+            throw new Error("Unexpected cache witness catalog hostname");
+          }
+          return Promise.resolve(["93.184.215.14"]);
+        },
       },
-    },
-  });
+    }),
+  );
   const caller = await root.internalCallerFor(root.ownerId);
   const credential = await caller.credentials.add({ provider: providerId, key: "synthetic-cache-editor-key" });
   const connection = await caller.connection.create({
@@ -89,61 +92,25 @@ async function captureCacheRoute(providerId: string, model: string, replay = fal
     throw new Error("The real provider catalog did not list the cache witness");
   }
   await caller.connection.update({ connectionId, patch: { modelCheck: "listed" } });
-  const before = {
-    connection: await caller.connection.get({ connectionId }),
-    capability: await caller.connection.capabilities({ connectionId }),
-    list: await caller.connection.list(),
-  };
-  const generation = before.capability.capability.kind === "generation" ? before.capability.capability.generation : null;
+  const savedConnection = await caller.connection.get({ connectionId });
+  const capability = await caller.connection.capabilities({ connectionId });
+  const generation = capability.capability.kind === "generation" ? capability.capability.generation : null;
   if (generation === null) {
     throw new Error("The real saved cache witness did not resolve as generation");
   }
-  const defaults = effectivePromptCache(before.connection.promptCache, generation.turns?.promptCacheDefaultEnabled, generation.turns?.fixedCacheTtl);
+  const defaults = effectivePromptCache(savedConnection.promptCache, generation.turns?.promptCacheDefaultEnabled, generation.turns?.fixedCacheTtl);
   const expectedUpdate: TrpcInput<"connection.update"> = { connectionId, patch: { promptCache: { ...defaults, ...change } } };
-  const updated = change === undefined ? before.connection : await caller.connection.update(expectedUpdate);
-  const after = {
-    connection: await caller.connection.get({ connectionId }),
-    capability: await caller.connection.capabilities({ connectionId }),
-    list: await caller.connection.list(),
-  };
   const authConfig = await root.http.request("/api/auth/config");
   if (!authConfig.ok) {
     throw new Error("The real cache witness root did not serve auth configuration");
   }
-  return {
-    before,
-    after,
-    updated,
-    expectedUpdate,
-    viewer: await caller.sessions.me(),
-    settings: await caller.settings.getUserSettings(),
-    bindings: await caller.connection.listBindings(),
-    credentials: await caller.credentials.list(),
-    providers: await caller.connection.providersAvailable(),
-    catalog,
-    authConfig: await authConfig.text(),
-    physicalRequests,
-  };
+  const lifetime = construction.move();
+  return { caller, expectedUpdate, authConfig: await authConfig.text(), physicalRequests, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
 }
 
 async function installCacheRoute(page: Page, captured: CacheCapture): Promise<TrpcRecorder> {
-  let acknowledged = false;
   await page.route("**/api/auth/config", (route) => route.fulfill({ contentType: "application/json", body: captured.authConfig }));
-  return await routeTrpc(page, {
-    "sessions.me": () => captured.viewer,
-    "settings.getUserSettings": () => captured.settings,
-    "connection.list": () => (acknowledged ? captured.after.list : captured.before.list),
-    "connection.listBindings": () => captured.bindings,
-    "credentials.list": () => captured.credentials,
-    "connection.providersAvailable": () => captured.providers,
-    "connection.catalogModels": () => captured.catalog,
-    "connection.get": () => (acknowledged ? captured.after.connection : captured.before.connection),
-    "connection.capabilities": () => (acknowledged ? captured.after.capability : captured.before.capability),
-    "connection.update": () => {
-      acknowledged = true;
-      return captured.updated;
-    },
-  });
+  return await routeTrpc(page, serveCorpusProcedures(captured.caller, CACHE_READS));
 }
 
 async function openCacheTier(page: Page): Promise<Locator> {
@@ -159,7 +126,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("native implicit caching explains provider ownership without invented controls or price claims", async ({ page, mount }) => {
-  const captured = await captureCacheRoute("google", "gemini-3.8-flash");
+  await using captured = await captureCacheRoute("google", "gemini-3.8-flash");
   await installCacheRoute(page, captured);
   await mount<typeof ConnectionPromptCacheStory>("tests/client/features/credentials/components/_prompt-cache-stories/ConnectionPromptCacheStory", {
     width: 486,
@@ -188,7 +155,7 @@ test("native implicit caching explains provider ownership without invented contr
 });
 
 test("modern prefix caching retains provider minimum prose and saves the implicit-disable control", async ({ page, mount }) => {
-  const captured = await captureCacheRoute("openai", "gpt-6-sol", false, { disableImplicit: true });
+  await using captured = await captureCacheRoute("openai", "gpt-6-sol", false, { disableImplicit: true });
   const calls = await installCacheRoute(page, captured);
   await mount<typeof ConnectionPromptCacheStory>("tests/client/features/credentials/components/_prompt-cache-stories/ConnectionPromptCacheStory", {
     width: 486,
@@ -204,7 +171,7 @@ test("modern prefix caching retains provider minimum prose and saves the implici
 });
 
 test("automatic placement disables manual markers but leaves applicable retention available", async ({ page, mount }) => {
-  const captured = await captureCacheRoute("anthropic", "claude-sonnet-5", false, { requestAutomatic: true });
+  await using captured = await captureCacheRoute("anthropic", "claude-sonnet-5", false, { requestAutomatic: true });
   const calls = await installCacheRoute(page, captured);
   await mount<typeof ConnectionPromptCacheStory>("tests/client/features/credentials/components/_prompt-cache-stories/ConnectionPromptCacheStory", {
     width: 870,
@@ -222,7 +189,7 @@ test("automatic placement disables manual markers but leaves applicable retentio
 });
 
 test("earlier OpenAI retention offers only its supported provider choices", async ({ page, mount }) => {
-  const captured = await captureCacheRoute("openai", "gpt-5.5", false, { retention: "24h" });
+  await using captured = await captureCacheRoute("openai", "gpt-5.5", false, { retention: "24h" });
   const calls = await installCacheRoute(page, captured);
   await mount<typeof ConnectionPromptCacheStory>("tests/client/features/credentials/components/_prompt-cache-stories/ConnectionPromptCacheStory", {
     width: 486,
@@ -237,7 +204,7 @@ test("earlier OpenAI retention offers only its supported provider choices", asyn
 });
 
 test("header-requested complete-response replay is reported separately from prefix caching", async ({ page, mount }) => {
-  const captured = await captureCacheRoute("openrouter", "anthropic/claude-sonnet-5", true);
+  await using captured = await captureCacheRoute("openrouter", "anthropic/claude-sonnet-5", true);
   await installCacheRoute(page, captured);
   await mount<typeof ConnectionPromptCacheStory>("tests/client/features/credentials/components/_prompt-cache-stories/ConnectionPromptCacheStory", {
     width: 870,
@@ -249,7 +216,7 @@ test("header-requested complete-response replay is reported separately from pref
 
 for (const width of [870, 486]) {
   test(`cache explanations retain their own prose typography and reading cap at ${width}`, async ({ page, mount }, testInfo) => {
-    const captured = await captureCacheRoute("openrouter", "anthropic/claude-sonnet-5", true);
+    await using captured = await captureCacheRoute("openrouter", "anthropic/claude-sonnet-5", true);
     await installCacheRoute(page, captured);
     await mount<typeof ConnectionPromptCacheStory>("tests/client/features/credentials/components/_prompt-cache-stories/ConnectionPromptCacheStory", { width });
     const tier = await openCacheTier(page);

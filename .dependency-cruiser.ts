@@ -605,6 +605,23 @@ function packageTestMirrorRules([pkg, packageCake]: readonly [string, string]): 
             runtime: true,
           }),
           mirrorRule({
+            name: "tests-client-tiers-no-feature-tests",
+            comment:
+              "A suite of a client tier below the features imports no feature's test files; a helper two worlds share goes through a tests/support door.",
+            from: "^tests/client/(?!features/)[^/]+/",
+            to: "^tests/client/features/",
+            toNot: [],
+            runtime: false,
+          }),
+          mirrorRule({
+            name: "tests-client-features-own-test-helpers",
+            comment: "A feature suite imports only its own feature's test files; a helper two features share goes through a tests/support door.",
+            from: "^tests/client/features/([^/]+)/",
+            to: "^tests/client/features/",
+            toNot: ["^tests/client/features/$1/"],
+            runtime: false,
+          }),
+          mirrorRule({
             name: "tests-client-type-contracts-own-internals",
             comment: "A type contract under a feature or tier directory may name that directory's internal types; every other module enters through its door.",
             from: `^tests/client/(features/[^/]+|(?!features/)[^/]+)/.*${TEST_TYPE_CONTRACT}`,

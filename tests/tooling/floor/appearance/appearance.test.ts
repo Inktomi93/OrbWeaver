@@ -16,6 +16,7 @@ import {
   trpcProcedureIndex,
 } from "@orb/tooling/floor/appearance/appearance";
 import {
+  APPEARANCE_PRESET_FLAG,
   appearancePresetNames,
   applyAppearanceFlag,
   FULL_MOTION_PATCH,
@@ -132,10 +133,10 @@ test("unknown keys and schema-healed values refuse instead of pretending the req
   });
 
   // Planted preset-equivalent controls exercise the same validator the committed JSON passes through.
-  expect(validateAppearancePatch({ ghostAppearance: true }, '--appearance-preset "planted"')).toMatchObject({
+  expect(validateAppearancePatch({ ghostAppearance: true }, `${APPEARANCE_PRESET_FLAG} "planted"`)).toMatchObject({
     error: expect.stringContaining("unknown appearance key"),
   });
-  expect(validateAppearancePatch({ chatWidthPct: 101 }, '--appearance-preset "planted"')).toMatchObject({
+  expect(validateAppearancePatch({ chatWidthPct: 101 }, `${APPEARANCE_PRESET_FLAG} "planted"`)).toMatchObject({
     error: expect.stringContaining("invalid value"),
   });
 });
@@ -177,7 +178,7 @@ test("every committed profile states a why and carries a non-empty patch", () =>
     const entry = file.presets[name];
     expect(entry?.why, `${name} owes a why`).toBeTruthy();
     expect(Object.keys(entry?.appearance ?? {}).length, `${name} owes appearance keys`).toBeGreaterThan(0);
-    expect(validateAppearancePatch(entry?.appearance ?? {}, `--appearance-preset ${JSON.stringify(name)}`)).toEqual({
+    expect(validateAppearancePatch(entry?.appearance ?? {}, `${APPEARANCE_PRESET_FLAG} ${JSON.stringify(name)}`)).toEqual({
       patch: entry?.appearance,
     });
   }
@@ -199,7 +200,7 @@ test("applyAppearanceFlag folds a patch in and routes a refusal to the CLI's err
 test("snap's CLI: --full-motion is exactly the sugar, a preset loads, and --appearance composes over it", () => {
   expect(parseSnapArgs(["/", "--full-motion"]).appearance).toEqual(FULL_MOTION_PATCH);
 
-  const composed = parseSnapArgs(["/", "--appearance-preset", "compact", "--appearance", '{"density":"comfortable"}']);
+  const composed = parseSnapArgs(["/", APPEARANCE_PRESET_FLAG, "compact", "--appearance", '{"density":"comfortable"}']);
   expect(composed.errors).toEqual([]);
   expect(composed.appearance?.["density"]).toBe("comfortable");
   // …while the rest of the preset survives — the patch is a merge, not a replacement.
@@ -208,7 +209,7 @@ test("snap's CLI: --full-motion is exactly the sugar, a preset loads, and --appe
 
 test("snap refuses a bad appearance flag before a browser boots (misuse posture)", () => {
   expect(parseSnapArgs(["/", "--appearance", "{oops"]).errors[0]).toContain("expects a JSON object");
-  expect(parseSnapArgs(["/", "--appearance-preset", "nope"]).errors[0]).toContain("is not a profile");
+  expect(parseSnapArgs(["/", APPEARANCE_PRESET_FLAG, "nope"]).errors[0]).toContain("is not a profile");
   // A static mock makes no settings request — the shim would be a lie there.
   expect(parseSnapArgs(["--file", "x.html", "--full-motion"]).appearance).toEqual(FULL_MOTION_PATCH);
 });

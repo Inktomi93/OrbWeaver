@@ -4,7 +4,7 @@
 import type { AppearanceSettings } from "@orb/contracts/settings/appearance";
 import type { ChatId } from "@orb/kit/ids";
 import { emulateMedia, releaseEmulatedMedia, resolvedLength, seedShellState, shellTracks } from "@orb/testkit/browser/spec";
-import { createShellAmbientReads, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { createShellAmbientReads, routeTrpc, SECTION_LABELS, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusWire } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -428,7 +428,7 @@ test.describe("a section swap", () => {
     expect(await layoutShift(page)).toBeGreaterThan(swapped);
 
     await emulateMedia(page, {});
-    await page.locator(".shell-rail").getByRole("button", { name: "Chats", exact: true }).click();
+    await page.locator(".shell-rail").getByRole("button", { name: SECTION_LABELS.chats, exact: true }).click();
     await expect.poll(() => animationStarts(page)).toContain("shell-main-flip");
   });
 

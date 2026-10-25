@@ -28,11 +28,15 @@
 // the navigation to them changed (`openGroupBehaviorSection`).
 
 import { rowActionsName } from "@orb/client/lib";
+import { GROUP_OUTPUT_LABELS, GROUP_POLICY_LABELS } from "@orb/contracts/chat";
 import type { CharacterHandle, CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { HOST_BAND, openContextSections } from "@orb/testkit/ct";
 import { expect, test } from "@playwright/test";
+import { CHARACTER_FACET_TIER_LABELS } from "#client/features/character/lib/character-card-facets.ts";
+import { CHAT_CONTEXT_TAB_LABELS } from "#client/features/chat/lib/chat-context-tab-labels.ts";
 import {
+  CHAT_CONTEXT_TABLIST,
   characterChipNames,
   characterChips,
   openChatByTitle,
@@ -107,7 +111,9 @@ test("a solo room converts to a group: the character bar and Group-behavior sect
     // SOLO: one character ⇒ no character bar and the "This chat" tab carries NO Group-behavior section. The
     // Members tab is still available because hosts can manage identity and seat state in solo rooms.
     await expect(characterChips(page)).toHaveCount(0);
-    await expect(page.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Members", exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("tablist", { name: CHAT_CONTEXT_TABLIST }).getByRole("tab", { name: CHAT_CONTEXT_TAB_LABELS.members, exact: true }),
+    ).toBeVisible();
     await openContextTab(page, "This chat");
     // OPEN THE HOST BAND BEFORE CLAIMING THE SECTION IS ABSENT (#1851). The tab is an index of disclosures
     // (#830) and a closed panel is REMOVED from the DOM, so this count was 0 for a solo room and a group
@@ -122,7 +128,11 @@ test("a solo room converts to a group: the character bar and Group-behavior sect
 
     await expect.poll(async () => (await characterChipNames(page)).length, { timeout: WAIT_SURFACE_MS }).toBe(2);
     expect(await characterChipNames(page)).toEqual(expect.arrayContaining([CHARACTERS[0].name, CHARACTERS[1].name]));
-    await expect(page.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Members", exact: true })).toBeVisible({ timeout: WAIT_UI_MS });
+    await expect(
+      page.getByRole("tablist", { name: CHAT_CONTEXT_TABLIST }).getByRole("tab", { name: CHAT_CONTEXT_TAB_LABELS.members, exact: true }),
+    ).toBeVisible({
+      timeout: WAIT_UI_MS,
+    });
     // …and the group-behavior controls arrive with it, live, inside the "This chat" tab.
     await openGroupBehaviorSection(page);
 
@@ -176,11 +186,11 @@ test("group config round-trips through the Group-behavior section: output / spea
 
     // `output` is the union DISCRIMINATOR — flipping it re-derives the coupled speakerTags default
     // (narrator ⇒ true), so the speakerTags flip comes AFTER, and lands on `false`.
-    await page.getByRole("button", { name: "Narrator", exact: true }).click();
+    await page.getByRole("button", { name: GROUP_OUTPUT_LABELS.narrator, exact: true }).click();
     await page.getByRole("switch", { name: "Label each speaker" }).click();
-    await page.getByRole("button", { name: "Advanced", exact: true }).click();
+    await page.getByRole("button", { name: CHARACTER_FACET_TIER_LABELS.advanced, exact: true }).click();
     await page.getByRole("combobox", { name: "Who speaks each round" }).click();
-    await page.getByRole("option", { name: "Round-robin", exact: true }).click();
+    await page.getByRole("option", { name: GROUP_POLICY_LABELS.pooled, exact: true }).click();
     await page.getByRole("combobox", { name: "How much of each member the others see" }).click();
     await page.getByRole("option", { name: "Full card", exact: true }).click();
 
@@ -205,7 +215,7 @@ test("group config round-trips through the Group-behavior section: output / spea
     await openChatByTitle(page, title);
     await openDetailPanel(page);
     await openGroupBehaviorSection(page);
-    await expect(page.getByRole("button", { name: "Narrator", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("button", { name: GROUP_OUTPUT_LABELS.narrator, exact: true })).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByRole("switch", { name: "Label each speaker" })).toHaveAttribute("aria-checked", "false");
   } finally {
     await deleteChat(chat.id).catch(() => null);
@@ -225,7 +235,7 @@ test("per-speaker card scope persists: scoping each character to their own card 
     await openGroupBehaviorSection(page);
     // `cardScope` is per-speaker-ONLY, so its control exists only on that arm (the default) — under
     // Advanced, beside the policy select.
-    await page.getByRole("button", { name: "Advanced", exact: true }).click();
+    await page.getByRole("button", { name: CHARACTER_FACET_TIER_LABELS.advanced, exact: true }).click();
     await page.getByRole("switch", { name: "Each character sees only their own card" }).click();
 
     await expect.poll(() => cardScope(chat.id), { timeout: WAIT_ROUND_TRIP_MS }).toBe("scoped");
@@ -234,7 +244,7 @@ test("per-speaker card scope persists: scoping each character to their own card 
     await openChatByTitle(page, title);
     await openDetailPanel(page);
     await openGroupBehaviorSection(page);
-    await page.getByRole("button", { name: "Advanced", exact: true }).click();
+    await page.getByRole("button", { name: CHARACTER_FACET_TIER_LABELS.advanced, exact: true }).click();
     await expect(page.getByRole("switch", { name: "Each character sees only their own card" })).toHaveAttribute("aria-checked", "true");
   } finally {
     await deleteChat(chat.id).catch(() => null);

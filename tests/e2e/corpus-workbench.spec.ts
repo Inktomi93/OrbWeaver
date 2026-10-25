@@ -1,6 +1,7 @@
 // The Corpus workbench on the committed corpus: its three modes, focus on each mode's landing, and state restoration
 // across the Insights drill and the Labels editor push.
 import { CORPUS_MODE_LABELS, CORPUS_WHOLE_LABEL, LEADERBOARD_ROW_ATTR, pruneConfirmLabel, testId } from "@orb/client/lib";
+import { SECTION_LABELS } from "@orb/testkit/ct";
 import type { Page } from "@playwright/test";
 import { ownerActor } from "./support/actors.ts";
 import { waitForAppReady } from "./support/chat-room.ts";
@@ -15,7 +16,7 @@ async function openCorpusOnPhone(page: Page): Promise<void> {
   await page.goto("/");
   await waitForAppReady(page);
   await page.getByRole("button", { name: "You", exact: true }).click();
-  await page.getByRole("dialog").getByRole("button", { name: "Corpus", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: SECTION_LABELS.corpus, exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
 }
 
@@ -31,7 +32,7 @@ test.describe("committed corpus workbench", () => {
     }
     await page.goto("/");
     await waitForAppReady(page);
-    await page.getByRole("navigation", { name: "Primary" }).getByRole("button", { name: "Corpus", exact: true }).click();
+    await page.getByRole("navigation", { name: "Primary" }).getByRole("button", { name: SECTION_LABELS.corpus, exact: true }).click();
     const list = page.locator(CORPUS_LIST);
     await list.getByRole("radio", { name: CORPUS_MODE_LABELS.insights }).click();
     const search = list.getByRole("textbox", { name: "Search characters", exact: true });
@@ -87,7 +88,7 @@ test.describe("committed corpus workbench", () => {
     await waitForAppReady(page);
     const rail = page.getByRole("navigation", { name: "Primary" });
     await expect(rail.getByRole("button", { name: "Analytics" })).toHaveCount(0);
-    await rail.getByRole("button", { name: "Corpus", exact: true }).click();
+    await rail.getByRole("button", { name: SECTION_LABELS.corpus, exact: true }).click();
 
     const list = page.locator(CORPUS_LIST);
     const modes = list.getByRole("radiogroup", { name: "Corpus mode" });
@@ -117,7 +118,7 @@ test.describe("committed corpus workbench", () => {
     test.skip(isMobile, "The desktop mode switch beside CONTENT");
     await page.goto("/");
     await waitForAppReady(page);
-    await page.getByRole("navigation", { name: "Primary" }).getByRole("button", { name: "Corpus", exact: true }).click();
+    await page.getByRole("navigation", { name: "Primary" }).getByRole("button", { name: SECTION_LABELS.corpus, exact: true }).click();
     const insights = page.locator(CORPUS_LIST).getByRole("radio", { name: CORPUS_MODE_LABELS.insights });
     await insights.focus();
     await page.keyboard.press("Enter");
@@ -133,7 +134,7 @@ test.describe("committed corpus workbench", () => {
     const board = await ownerActor(baseURL ?? "").trpc.stats.leaderboard.query({});
     await page.goto("/");
     await waitForAppReady(page);
-    await expect(page.getByRole("navigation", { name: "Primary" }).getByRole("button", { name: "Corpus", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("navigation", { name: "Primary" }).getByRole("button", { name: SECTION_LABELS.corpus, exact: true })).toHaveCount(0);
     await openCorpusOnPhone(page);
 
     const list = page.locator(CORPUS_LIST);
@@ -176,7 +177,7 @@ test.describe("committed corpus workbench", () => {
     await expect(main.getByTestId(testId("analyticsOverviewSurface"))).toBeVisible();
     // With nothing drilled the lead control is the list door, never a Back with nothing to go back from.
     await expect(page.getByRole("button", { name: `Back to ${CORPUS_MODE_LABELS.insights}`, exact: true })).toHaveCount(0);
-    const door = page.locator(".shell-topbar").getByRole("button", { name: "Characters", exact: true });
+    const door = page.locator(".shell-topbar").getByRole("button", { name: SECTION_LABELS.characters, exact: true });
     await door.click();
     await expect(list).toHaveAttribute("data-panel-mode", "overlay");
     await list.locator(`[${LEADERBOARD_ROW_ATTR}="${ranked.characterId}"]`).getByRole("button").click();

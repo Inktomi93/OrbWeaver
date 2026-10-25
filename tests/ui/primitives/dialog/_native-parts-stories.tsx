@@ -15,7 +15,7 @@ export function DialogNativePartsStory(): ReactElement {
       <Dialog handle={handle}>
         {({ payload }): ReactElement => (
           <DialogPopup>
-            <DialogTitle>Settings</DialogTitle>
+            <DialogTitle>Remote dialog</DialogTitle>
             <DialogDescription>{payload}</DialogDescription>
             <DialogClose>Done</DialogClose>
           </DialogPopup>

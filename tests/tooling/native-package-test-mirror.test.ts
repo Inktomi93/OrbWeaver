@@ -3,6 +3,11 @@
 import { dirname, join, relative } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
+import { scaledBudget } from "./_load-budget.ts";
+
+// Each row cruises a planted tree in its own process, which a loaded box stretches past the default test timeout.
+const CRUISE_BASE_MS = 30_000;
+const CRUISE = { timeout: scaledBudget(CRUISE_BASE_MS) };
 
 const RULE = {
   kitCake: "tests-kit-mirror-cake",
@@ -23,6 +28,8 @@ const RULE = {
   clientOwnTier: "tests-client-mirror-own-tier",
   clientTypes: "tests-client-type-contracts-own-internals",
   clientTierTypes: "tests-client-type-contracts-tier-doors",
+  clientTierNoFeatureTests: "tests-client-tiers-no-feature-tests",
+  clientOwnTestHelpers: "tests-client-features-own-test-helpers",
 } as const;
 
 // Every door is a file a real package's exports map names, because the config reads those maps.
@@ -43,6 +50,10 @@ const MODULES = {
   rpgInternal: "packages/client/src/features/rpg/lib/deep.ts",
   stateDoor: "packages/client/src/state/index.ts",
   chatLeaf: "packages/client/src/features/chat/lib/continue-on-empty.ts",
+  // Test files a suite of another tier or feature may not import: only a tests/support door is shared.
+  chatTestHelper: "tests/client/features/chat/_probe-helpers.ts",
+  rpgTestHelper: "tests/client/features/rpg/_probe-helpers.ts",
+  tierTestHelper: "tests/client/state/_probe-helpers.ts",
 } as const;
 
 const SUITE = {
@@ -139,6 +150,44 @@ test.for([
     rule: RULE.clientTierTypes,
   },
   { name: "a listed client suite running its listed leaf", entry: SUITE.clientListed, target: MODULES.chatLeaf, typeOnly: false, rule: null },
+  { name: "a feature suite importing its own feature's test helper", entry: SUITE.chat, target: MODULES.chatTestHelper, typeOnly: false, rule: null },
+  { name: "a feature suite importing a client tier's test helper", entry: SUITE.chat, target: MODULES.tierTestHelper, typeOnly: false, rule: null },
+  {
+    name: "a feature suite importing another feature's test helper",
+    entry: SUITE.chat,
+    target: MODULES.rpgTestHelper,
+    typeOnly: false,
+    rule: RULE.clientOwnTestHelpers,
+  },
+  {
+    name: "a feature suite naming another feature's test helper type",
+    entry: SUITE.chat,
+    target: MODULES.rpgTestHelper,
+    typeOnly: true,
+    rule: RULE.clientOwnTestHelpers,
+  },
+  {
+    name: "a story importing another feature's test helper",
+    entry: SUITE.chatStory,
+    target: MODULES.rpgTestHelper,
+    typeOnly: false,
+    rule: RULE.clientOwnTestHelpers,
+  },
+  { name: "a client tier suite importing its own tier's test helper", entry: SUITE.tier, target: MODULES.tierTestHelper, typeOnly: false, rule: null },
+  {
+    name: "a client tier suite importing a feature's test helper",
+    entry: SUITE.tier,
+    target: MODULES.chatTestHelper,
+    typeOnly: false,
+    rule: RULE.clientTierNoFeatureTests,
+  },
+  {
+    name: "a client tier suite naming a feature's test helper type",
+    entry: SUITE.tier,
+    target: MODULES.chatTestHelper,
+    typeOnly: true,
+    rule: RULE.clientTierNoFeatureTests,
+  },
   {
     name: "a listed client suite running a leaf its line does not name",
     entry: SUITE.clientListed,
@@ -146,7 +195,7 @@ test.for([
     typeOnly: false,
     rule: RULE.clientListedDoors,
   },
-] as const)("the native package test mirror judges $name", async (row, { plantedTree, repoRoot }) => {
+] as const)("the native package test mirror judges $name", CRUISE, async (row, { plantedTree, repoRoot }) => {
   const modules = Object.fromEntries(Object.values(MODULES).map((path) => [path, "export const probe = 1;\nexport type Probe = number;\n"]));
   const reexport = row.typeOnly ? "export type { Probe as Read }" : "export { probe as read }";
   const root = await plantedTree({ ...modules, [row.entry]: `${reexport} from ${JSON.stringify(relativeSpecifier(row.entry, row.target))};\n` });

@@ -11,7 +11,7 @@ import type { ChatId } from "@orb/kit/ids";
 import type { Rgb } from "@orb/kit/theme-derivation";
 import { AA_NON_TEXT_RATIO, AA_NORMAL_RATIO, readingPlateAlpha, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { emulateMedia, pixel, releaseEmulatedMedia, resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
-import { createShellAmbientReads, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { createShellAmbientReads, routeTrpc, SECTION_LABELS, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusWire } from "@orb/testkit/iso";
 import { captureCookieAuth, createCorpusHarness } from "@orb/testkit/node/composed";
@@ -886,7 +886,7 @@ test.describe("over a wallpaper", () => {
     await expect.poll(() => fillAlpha(hero)).toBeGreaterThan(0);
     await expect.poll(() => fillAlpha(hero)).toBeLessThan(1);
     await expect.poll(() => computed(hero, "backdrop-filter")).toContain("blur(");
-    await page.locator(".shell-rail").getByRole("button", { name: "Presets", exact: true }).click();
+    await page.locator(".shell-rail").getByRole("button", { name: SECTION_LABELS.presets, exact: true }).click();
     await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", "presets");
     await expect(hero).toBeVisible();
     await expect.poll(() => fillAlpha(hero)).toBe(0);
@@ -976,7 +976,7 @@ test.describe("over a wallpaper", () => {
     await page.locator(".shell-rail").getByRole("button", { name: "Home", exact: true }).click();
     await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", "home");
     await expect(layer).toHaveCount(0);
-    await page.locator(".shell-rail").getByRole("button", { name: "Chats", exact: true }).click();
+    await page.locator(".shell-rail").getByRole("button", { name: SECTION_LABELS.chats, exact: true }).click();
     await expect(layer).toBeVisible();
   });
 });
@@ -1124,7 +1124,7 @@ test.describe("the light arm over the darkest wallpaper a viewer can save", () =
     expect(
       await landedMutedContrast(page, page.locator(LIST), "pane over black", (box) => ({ x: box.x + box.width - 6, y: box.y + box.height / 2 })),
     ).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
-    await page.locator(".shell-rail").getByRole("button", { name: "Characters", exact: true }).click();
+    await page.locator(".shell-rail").getByRole("button", { name: SECTION_LABELS.characters, exact: true }).click();
     await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", "characters");
     await expect.poll(() => fillAlpha(page.locator(".shell-main"), "::before")).toBeGreaterThanOrEqual(plateFloor);
     // The reading surface's far corner, past the landing's content.

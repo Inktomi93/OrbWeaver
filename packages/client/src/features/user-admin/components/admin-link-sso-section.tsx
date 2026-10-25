@@ -73,6 +73,7 @@ function AdminLinkSsoBody({ anchorId }: { readonly anchorId: string }): ReactEle
                     <Button
                       size="sm"
                       intent="secondary"
+                      aria-label={`Link ${user.handle}`}
                       data-testid={testId("adminLinkButton")}
                       onClick={(): void => setLinking({ userId: user.id, handle: user.handle })}
                     >

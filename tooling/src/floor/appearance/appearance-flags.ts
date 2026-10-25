@@ -83,8 +83,11 @@ export function loadAppearancePreset(name: string): AppearanceParse {
   return validateAppearancePatch(entry.appearance, `--appearance-preset ${JSON.stringify(name)}`);
 }
 
+/** The curated-profile flag, `--appearance-preset <name>`. */
+export const APPEARANCE_PRESET_FLAG = "--appearance-preset";
+
 /** The value-taking appearance flags — every probe CLI adds these to its required-value scan. */
-export const APPEARANCE_VALUE_FLAGS: readonly string[] = ["--appearance", "--appearance-preset"];
+export const APPEARANCE_VALUE_FLAGS: readonly string[] = ["--appearance", APPEARANCE_PRESET_FLAG];
 
 /** The one help block for the appearance axis, shared by all four probe CLIs so the axis warning cannot
  *  drift between them. Rendered with the house `Heading:` + two-space-indented flag list. */

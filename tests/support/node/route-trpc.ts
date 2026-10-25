@@ -258,7 +258,7 @@ function errorNumber(code: TrpcErrorCode): number {
 
 const ERROR_MARK = Symbol("routeTrpc.error");
 
-interface TrpcErrorMarker {
+export interface TrpcErrorMarker {
   readonly [ERROR_MARK]: true;
   readonly code: TrpcErrorCode;
   readonly message: string;
@@ -311,7 +311,7 @@ const HOLD_MARK = Symbol("routeTrpc.hold");
  *  procedure (`trpcHold()`, `TPath` = `never`) releases nothing, so a held response can never be a subset. */
 type TrpcHoldRelease<TPath extends TrpcProcedurePath | undefined> = TPath extends TrpcProcedurePath ? TrpcWireOutput<TPath> | TrpcErrorMarker : never;
 
-interface TrpcHoldMarker<TPath extends TrpcProcedurePath | undefined = undefined> {
+export interface TrpcHoldMarker<TPath extends TrpcProcedurePath | undefined = undefined> {
   readonly [HOLD_MARK]: {
     /** Called the moment the stub intercepts a request carrying this procedure. */
     readonly onRequest: () => void;

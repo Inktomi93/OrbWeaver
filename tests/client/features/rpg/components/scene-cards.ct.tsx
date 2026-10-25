@@ -3,7 +3,7 @@
 import type { ChatId } from "@orb/kit/ids";
 import { createTimeLib, UTC_TIME_ZONE } from "@orb/kit/time";
 import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/ct";
-import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/ct";
+import { routeTrpc, serveCorpusProcedures, trpcError, trpcHold } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusWire } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -21,7 +21,7 @@ const CARD_FENCE = `:::card title="${CARD_TITLE}"\n<p>Tide tables for the quay.<
 
 interface ArchiveRoom {
   readonly chatId: ChatId;
-  readonly detail: TrpcWireOutput<"chat.getChat">;
+  readonly caller: object;
   readonly reads: TrpcRoutes<"sessions.me" | "settings.getUserSettings" | "chat.getChat">;
   readonly messages: () => Promise<TrpcWireOutput<"chat.listMessages">>;
   readonly plantCard: () => Promise<void>;
@@ -30,20 +30,18 @@ interface ArchiveRoom {
 /** The corpus room read through the owner's real caller; `plantCard` edits its user message to carry a card. */
 async function archiveRoom(root: Awaited<ReturnType<typeof createCorpusHarness>>, chatId: TrpcWireOutput<"chat.getChat">["id"]): Promise<ArchiveRoom> {
   const caller = await root.internalCallerFor(root.ownerId);
-  const viewer = await caller.sessions.me();
-  const settings = await caller.settings.getUserSettings();
-  const detail = await caller.chat.getChat({ chatId });
+  const { id } = await caller.chat.getChat({ chatId });
   return {
-    chatId: detail.id,
-    detail,
-    reads: { "sessions.me": () => viewer, "settings.getUserSettings": () => settings, "chat.getChat": () => detail },
-    messages: () => caller.chat.listMessages({ chatId: detail.id }),
+    chatId: id,
+    caller,
+    reads: serveCorpusProcedures(caller, ["sessions.me", "settings.getUserSettings", "chat.getChat"]),
+    messages: () => caller.chat.listMessages({ chatId: id }),
     plantCard: async (): Promise<void> => {
-      const user = (await caller.chat.listMessages({ chatId: detail.id })).messages.find((row) => row.role === "user");
+      const user = (await caller.chat.listMessages({ chatId: id })).messages.find((row) => row.role === "user");
       if (user === undefined) {
         throw new Error("Committed corpus chat omitted its user message");
       }
-      await caller.chat.editMessage({ chatId: detail.id, messageId: user.id, content: CARD_FENCE, timeZone: UTC_TIME_ZONE });
+      await caller.chat.editMessage({ chatId: id, messageId: user.id, content: CARD_FENCE, timeZone: UTC_TIME_ZONE });
     },
   };
 }
@@ -60,11 +58,10 @@ test("a failed archive read renders the shared error state directly under the se
   await using root = await createCorpusHarness();
   const room = await archiveRoom(root, corpusChatId(corpus));
   await room.plantCard();
-  const settled = await room.messages();
   let failing = true;
   await routeTrpc(page, {
     ...room.reads,
-    "chat.listMessages": () => (failing ? trpcError({ code: "INTERNAL_SERVER_ERROR" }) : settled),
+    ...serveCorpusProcedures(room.caller, ["chat.listMessages"], () => (failing ? trpcError({ code: "INTERNAL_SERVER_ERROR" }) : undefined)),
   });
   await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
   const archive = page.locator(ARCHIVE);
@@ -91,13 +88,12 @@ test("Retry on a failed archive read keeps keyboard focus inside the archive and
   let failing = true;
   await routeTrpc(page, {
     ...room.reads,
-    "chat.getChat": (input) => (input.chatId === other.chatId ? other.detail : room.detail),
-    "chat.listMessages": (input) => {
+    ...serveCorpusProcedures(room.caller, ["chat.listMessages"], (input) => {
       if (input.chatId === other.chatId) {
         return otherRead;
       }
       return failing ? trpcError({ code: "INTERNAL_SERVER_ERROR" }) : retried;
-    },
+    }),
   });
   const component = await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
   const archive = page.locator(ARCHIVE);
@@ -125,11 +121,10 @@ test("Retry on a failed archive read keeps keyboard focus inside the archive and
 test("Retry that settles on an empty archive lands focus on the announced recovery", async ({ corpus, mount, page }) => {
   await using root = await createCorpusHarness();
   const room = await archiveRoom(root, corpusChatId(corpus));
-  const settled = await room.messages();
   let failing = true;
   await routeTrpc(page, {
     ...room.reads,
-    "chat.listMessages": () => (failing ? trpcError({ code: "INTERNAL_SERVER_ERROR" }) : settled),
+    ...serveCorpusProcedures(room.caller, ["chat.listMessages"], () => (failing ? trpcError({ code: "INTERNAL_SERVER_ERROR" }) : undefined)),
   });
   await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
   const archive = page.locator(ARCHIVE);
@@ -167,11 +162,10 @@ for (const hold of FOCUS_HOLDS) {
   test(`a card that lands after an empty Retry settles leaves focus where it is when focus ${hold.name}`, async ({ corpus, mount, page }) => {
     await using root = await createCorpusHarness();
     const room = await archiveRoom(root, corpusChatId(corpus));
-    let messages = await room.messages();
     let failing = true;
     await routeTrpc(page, {
       ...room.reads,
-      "chat.listMessages": () => (failing ? trpcError({ code: "INTERNAL_SERVER_ERROR" }) : messages),
+      ...serveCorpusProcedures(room.caller, ["chat.listMessages"], () => (failing ? trpcError({ code: "INTERNAL_SERVER_ERROR" }) : undefined)),
     });
     const component = await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
     const archive = page.locator(ARCHIVE);
@@ -190,7 +184,6 @@ for (const hold of FOCUS_HOLDS) {
 
     // A refetch in place, as a bus invalidation does: the card row mounts without the archive suspending.
     await room.plantCard();
-    messages = await room.messages();
     await component.update({ chatId: room.chatId, revision: 1 });
     await expect(archive.getByRole("button", { name: CARD_TITLE, exact: false })).toBeVisible();
     expect(await holder()).toBe(hold.holder);
@@ -204,7 +197,7 @@ test("a retried read's pending box is the first load's pending box", async ({ co
   const firstLoad = trpcHold<"chat.listMessages">();
   const retried = trpcHold<"chat.listMessages">();
   let pending = firstLoad;
-  await routeTrpc(page, { ...room.reads, "chat.listMessages": () => pending });
+  await routeTrpc(page, { ...room.reads, ...serveCorpusProcedures(room.caller, ["chat.listMessages"], () => pending) });
   await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
   const archive = page.locator(ARCHIVE);
   const height = async (): Promise<number> => (await archive.boundingBox())?.height ?? Number.NaN;
@@ -231,7 +224,7 @@ test("a Retry that fails again hands keyboard focus to the new Retry button", as
   let failing = true;
   await routeTrpc(page, {
     ...room.reads,
-    "chat.listMessages": () => (failing ? trpcError({ code: "INTERNAL_SERVER_ERROR" }) : retried),
+    ...serveCorpusProcedures(room.caller, ["chat.listMessages"], () => (failing ? trpcError({ code: "INTERNAL_SERVER_ERROR" }) : retried)),
   });
   await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
   const archive = page.locator(ARCHIVE);
@@ -273,7 +266,7 @@ test("a later archive read holds the box this device saw the archive settle at",
   await room.plantCard();
   const settled = await room.messages();
   let pending: ReturnType<typeof trpcHold<"chat.listMessages">> | null = null;
-  await routeTrpc(page, { ...room.reads, "chat.listMessages": () => pending ?? settled });
+  await routeTrpc(page, { ...room.reads, ...serveCorpusProcedures(room.caller, ["chat.listMessages"], () => pending ?? undefined) });
   const archive = page.locator(ARCHIVE);
   const height = async (): Promise<number> => (await archive.boundingBox())?.height ?? Number.NaN;
 
@@ -300,13 +293,11 @@ test("each chat reserves its own settled box and never another chat's", async ({
   await withCard.plantCard();
   const caller = await root.internalCallerFor(root.ownerId);
   const empty = await archiveRoom(root, (await caller.chat.startChat({ characterIds: [], opening: "none" })).chat.id);
-  const cardPage = await withCard.messages();
   const emptyPage = await empty.messages();
   let pending: ReturnType<typeof trpcHold<"chat.listMessages">> | null = null;
   await routeTrpc(page, {
     ...withCard.reads,
-    "chat.getChat": (input) => (input.chatId === empty.chatId ? empty.detail : withCard.detail),
-    "chat.listMessages": (input) => pending ?? (input.chatId === empty.chatId ? emptyPage : cardPage),
+    ...serveCorpusProcedures(withCard.caller, ["chat.listMessages"], () => pending ?? undefined),
   });
   const archive = page.locator(ARCHIVE);
   const height = async (): Promise<number> => (await archive.boundingBox())?.height ?? Number.NaN;
@@ -345,8 +336,7 @@ test("each chat reserves its own settled box and never another chat's", async ({
 test("an archive with no cards yet renders the empty doorway under its label", async ({ corpus, mount, page }) => {
   await using root = await createCorpusHarness();
   const room = await archiveRoom(root, corpusChatId(corpus));
-  const settled = await room.messages();
-  await routeTrpc(page, { ...room.reads, "chat.listMessages": () => settled });
+  await routeTrpc(page, { ...room.reads, ...serveCorpusProcedures(room.caller, ["chat.listMessages"]) });
   await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
   const archive = page.locator(ARCHIVE);
   await expect(archive.getByText("Cards", { exact: true })).toBeVisible();
@@ -372,7 +362,7 @@ test.describe("at phone width with a coarse pointer", () => {
     }
     // The page's clock reads the day after the origin, so the turn is older but in the same year.
     await page.clock.setFixedTime(origin.createdAt + MS_PER_DAY);
-    await routeTrpc(page, { ...room.reads, "chat.listMessages": () => settled });
+    await routeTrpc(page, { ...room.reads, ...serveCorpusProcedures(room.caller, ["chat.listMessages"]) });
     await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
     const archive = page.locator(ARCHIVE);
     const row = archive.locator('[data-slot="rpg-card-row"]');
@@ -412,7 +402,7 @@ test.describe("at phone width with a coarse pointer", () => {
     }
     // The page's clock reads the origin instant, so the origin message is from "today" before the chip renders.
     await page.clock.setFixedTime(origin.createdAt);
-    await routeTrpc(page, { ...room.reads, "chat.listMessages": () => settled });
+    await routeTrpc(page, { ...room.reads, ...serveCorpusProcedures(room.caller, ["chat.listMessages"]) });
     await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
     const chip = page.locator(ARCHIVE).locator('time[data-slot="rpg-turn-ref"]');
     await expect(chip).toHaveText(createTimeLib({ timeZone: UTC_TIME_ZONE }).formatTime(origin.createdAt));
@@ -429,7 +419,7 @@ test.describe("at phone width with a coarse pointer", () => {
     }
     // More than a year after the origin, so the turn cannot share the page clock's year.
     await page.clock.setFixedTime(origin.createdAt + OTHER_YEAR_DAYS * MS_PER_DAY);
-    await routeTrpc(page, { ...room.reads, "chat.listMessages": () => settled });
+    await routeTrpc(page, { ...room.reads, ...serveCorpusProcedures(room.caller, ["chat.listMessages"]) });
     await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
     const row = page.locator(ARCHIVE).locator('[data-slot="rpg-card-row"]');
     const stamp = createTimeLib({ timeZone: UTC_TIME_ZONE }).formatDateTime(origin.createdAt);

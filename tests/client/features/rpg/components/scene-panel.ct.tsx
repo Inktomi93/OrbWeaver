@@ -3,7 +3,7 @@
 // whose game is seeded through the product's verbs.
 import { rpgNpcSlug, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
-import { routeTrpc } from "@orb/testkit/ct";
+import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
@@ -37,22 +37,18 @@ async function mountSceneTab(root: Awaited<ReturnType<typeof createCorpusHarness
   expect(await caller.rpg.editSnapshot({ chatId, patch: { presentCharacters: [`npc:${rpgNpcSlug(ON_STAGE_NPC)}`], recentEvents: [BEAT] } })).toEqual({
     ok: true,
   });
-  const viewer = await caller.sessions.me();
-  const settings = await caller.settings.getUserSettings();
-  const detail = await caller.chat.getChat({ chatId });
-  const gameView = await caller.rpg.getGame({ chatId });
-  const trackerView = await caller.rpg.getTrackerView({ chatId });
-  const messages = await caller.chat.listMessages({ chatId });
-  const reveal = await caller.rpg.revealHidden({ chatId });
-  await routeTrpc(page, {
-    "sessions.me": () => viewer,
-    "settings.getUserSettings": () => settings,
-    "chat.getChat": () => detail,
-    "chat.listMessages": () => messages,
-    "rpg.getGame": () => gameView,
-    "rpg.getTrackerView": () => trackerView,
-    "rpg.revealHidden": () => reveal,
-  });
+  await routeTrpc(
+    page,
+    serveCorpusProcedures(caller, [
+      "sessions.me",
+      "settings.getUserSettings",
+      "chat.getChat",
+      "chat.listMessages",
+      "rpg.getGame",
+      "rpg.getTrackerView",
+      "rpg.revealHidden",
+    ]),
+  );
   return chatId;
 }
 

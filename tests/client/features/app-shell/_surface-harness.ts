@@ -1,5 +1,5 @@
 // The backend every registered surface may ask for when mounted alone. Corpus-captured procedures answer by exact request
-// input, so an uncaptured request fails the owning test; procedures the corpus never captured answer an empty collection or zero.
+// input, so an uncaptured request fails the owning test; every other procedure is answered by the corpus root's own server.
 
 import type { TrpcRecorder } from "@orb/testkit/ct";
 import { createShellAmbientReads, defineTrpcRoutes, routeTrpc, serveCorpusProcedures, trpcHold } from "@orb/testkit/ct";
@@ -37,7 +37,10 @@ function shellRecords(corpus: CorpusWire): NonNullable<CorpusWire["shellAmbient"
   return shell.reads;
 }
 
-/** Presets, connections and the build identity: the server answers each for the request the surface sends, so a preset the surface opens is in its list. */
+/**
+ * Every read the corpus never captured, plus presets, connections and the build identity: the server answers each for the
+ * request the surface sends, so a preset the surface opens is in its list.
+ */
 const SERVED = [
   "preset.list",
   "preset.get",
@@ -46,7 +49,32 @@ const SERVED = [
   "connection.list",
   "connection.listBindings",
   "connection.resolveChatCapability",
+  "connection.providersAvailable",
   "settings.getVersion",
+  "discovery.home",
+  "discovery.catalog",
+  "discovery.topKeywords",
+  "discovery.unusedCharacters",
+  "discovery.modelRouting",
+  "discovery.visualArchetypes",
+  "discovery.forgottenGems",
+  "discovery.browseCharacters",
+  "discovery.characterFacets",
+  "discovery.archetypes",
+  "discovery.themeDrift",
+  "databank.listGlobal",
+  "plugin.list",
+  "plugin.listDistributed",
+  "plugin.listSurfaces",
+  "regex.listScripts",
+  "worldInfo.listBooksWithUsage",
+  "refinery.listSessions",
+  "workloads.list",
+  "workloads.listSchedules",
+  "credentials.list",
+  "admin.listUsers",
+  "automation.listOwnerRules",
+  "notifications.markAllRead",
 ] as const;
 
 /** Route every read a registered surface may issue when mounted alone; `caller` is a corpus root's internal caller. */
@@ -90,43 +118,15 @@ export function routeSurfaceReads(page: Page, corpus: CorpusWire, caller: object
     "worldInfo.countBooks": createCorpusReadResponder("worldInfo.countBooks", reads["worldInfo.countBooks"]),
     "regex.countScripts": createCorpusReadResponder("regex.countScripts", reads["regex.countScripts"]),
     "automation.getOwnerBudgets": createCorpusReadResponder("automation.getOwnerBudgets", reads["automation.getOwnerBudgets"]),
-    "discovery.home": () => ({
-      coverage: { characters: 0, digests: 0, segments: 0 },
-      sceneThemes: [],
-      arcThemes: [],
-      duplicateCounts: { characters: 0, chats: 0, identicalCharacterPairs: 0 },
-    }),
-    "discovery.catalog": () => ({ genres: [], tones: [], topTags: [], tagPairs: [], totalDistilled: 0, totalCharacters: 0 }),
     "settings.getAppSettingsWithOverrides": createCorpusReadResponder("settings.getAppSettingsWithOverrides", [firstBoot.reads.appSettings]),
     "share.signInMode": createCorpusReadResponder("share.signInMode", [firstBoot.reads.signInMode]),
     "share.status": createCorpusReadResponder("share.status", [firstBoot.reads.shareStatus]),
-    "discovery.topKeywords": () => [],
-    "discovery.unusedCharacters": () => [],
-    "discovery.modelRouting": () => [],
     "search.spaceStatus": () => spaceHold,
     "databank.list": createCorpusReadResponder("databank.list", [
       ...reads["databank.list"],
       shell.recentDocuments,
       ...sameOutputFor(reads["databank.list"], [pagedWire({ limit: 30 })]),
     ]),
-    "discovery.visualArchetypes": () => [],
-    "discovery.forgottenGems": () => [],
-    "discovery.browseCharacters": () => ({ items: [], nextCursor: null, totalCount: 0 }),
-    "discovery.characterFacets": () => ({ genres: [], tones: [] }),
-    "databank.listGlobal": () => [],
-    "plugin.listDistributed": () => [],
-    "connection.providersAvailable": () => [],
-    "plugin.list": () => [],
-    "plugin.listSurfaces": () => [],
-    "regex.listScripts": () => [],
-    "worldInfo.listBooksWithUsage": () => [],
-    "refinery.listSessions": () => [],
-    "workloads.list": () => [],
-    "workloads.listSchedules": () => [],
-    "credentials.list": () => [],
-    "admin.listUsers": () => [],
-    "automation.listOwnerRules": () => [],
-    "notifications.markAllRead": () => ({ markedCount: 0 }),
   });
   return routeTrpc(page, routes);
 }

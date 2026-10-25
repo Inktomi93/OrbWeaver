@@ -11,8 +11,8 @@ test("edit drafts retain text and footprint across reader unmount, isolate rows 
   const firstRead = component.getByRole("status", { name: first, exact: true });
   const secondRead = component.getByRole("status", { name: second, exact: true });
   await expect(firstRead).toHaveText(JSON.stringify({ editing: false, text: "", inline: null, block: null }));
-  await component.getByRole("button", { name: "Edit first", exact: true }).click();
-  await component.getByRole("button", { name: "Edit second", exact: true }).click();
+  await component.getByRole("button", { name: "Begin first edit", exact: true }).click();
+  await component.getByRole("button", { name: "Begin second edit", exact: true }).click();
   await component.getByRole("button", { name: "Change first", exact: true }).click();
   const changed = JSON.stringify({ editing: true, text: "Changed", inline: 320, block: 160 });
   await expect(firstRead).toHaveText(changed);
@@ -25,10 +25,10 @@ test("edit drafts retain text and footprint across reader unmount, isolate rows 
   await component.getByRole("button", { name: "Cancel first", exact: true }).click();
   await expect(firstRead).toHaveText(JSON.stringify({ editing: false, text: "", inline: null, block: null }));
   await expect(secondRead).toHaveText(JSON.stringify({ editing: true, text: "Other", inline: null, block: null }));
-  await component.getByRole("button", { name: "Edit first", exact: true }).click();
+  await component.getByRole("button", { name: "Begin first edit", exact: true }).click();
   await expect(firstRead).toHaveText(JSON.stringify({ editing: true, text: "Original", inline: 320, block: 160 }));
   await component.getByRole("button", { name: "Change first", exact: true }).click();
-  await component.getByRole("button", { name: "Edit first", exact: true }).click();
+  await component.getByRole("button", { name: "Begin first edit", exact: true }).click();
   await expect(firstRead).toHaveText(JSON.stringify({ editing: true, text: "Original", inline: 320, block: 160 }));
 });
 

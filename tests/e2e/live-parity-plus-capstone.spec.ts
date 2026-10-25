@@ -28,6 +28,7 @@ import { castId } from "@orb/kit/ids";
 import { revealActionName } from "@orb/ui/lib";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
+import { IMMERSIVE_CARD_LABELS } from "../../packages/ui/src/content/immersive-card/control-labels.ts";
 import { openContextTab, openNewestChat } from "./support/chat-room.ts";
 import { WAIT_LIVE_TURN_MS, WAIT_ROUND_TRIP_MS, WAIT_SHORT_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
 import {
@@ -203,16 +204,16 @@ test("P4 immersive HTML: a planted :::card renders sandboxed, view-raw shows sou
     await expect(card).not.toContainText("<p>");
 
     // ── LIFECYCLE: view-raw toggles the exact stored source into a code echo (the "read the code" arm). ──
-    await card.getByRole("button", { name: "View raw source" }).click();
+    await card.getByRole("button", { name: IMMERSIVE_CARD_LABELS.rawSource }).click();
     const raw = card.locator('[data-slot="immersive-card-raw"]');
     await expect(raw).toBeVisible({ timeout: WAIT_SHORT_MS });
     await expect(raw).toContainText(CARD_MARKER);
     // Toggle back to rendered (the button label flips to "Show rendered card").
-    await card.getByRole("button", { name: "Show rendered card" }).click();
+    await card.getByRole("button", { name: IMMERSIVE_CARD_LABELS.renderedCard }).click();
     await expect(raw).toBeHidden({ timeout: WAIT_SHORT_MS });
 
     // EXPAND: the lightbox opens at full size, labelled by the card title (§4.7).
-    await card.getByRole("button", { name: "Open card fullscreen" }).click();
+    await card.getByRole("button", { name: IMMERSIVE_CARD_LABELS.fullscreen }).click();
     await expect(page.locator('[data-slot="immersive-card-lightbox-body"]')).toBeVisible({ timeout: WAIT_SHORT_MS });
     await page.keyboard.press("Escape");
 

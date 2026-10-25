@@ -1,11 +1,10 @@
 // @subject packages/client/src/features/databank/hooks/use-databank-list-header.tsx
 // @subject packages/client/src/features/databank/hooks/use-owner-sweep.tsx
 import { DATABANK_LIST_DEFAULT_LIMIT } from "@orb/contracts/databank";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { TrpcWireOutput } from "@orb/testkit/ct";
-import { routeTrpc, trpcError } from "@orb/testkit/ct";
+import { routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import { createSeededIds } from "@orb/testkit/iso";
+import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import type { DatabankListHeaderStory } from "./_list-header-stories.tsx";
 
@@ -90,11 +89,11 @@ async function openMaintenance(page: Page): Promise<void> {
 }
 
 test("each owner-wide sweep waits for its confirm before sending its mode, and Add opens the ingest slot", async ({ corpus, mount, page }) => {
-  const ids = createSeededIds();
+  await using root = await createCorpusHarness();
   const health = capturedHealth(corpus.reads["databank.bankHealth"]);
   const trpc = await routeTrpc(page, {
     "databank.bankHealth": () => health,
-    "databank.reindex": () => ({ workloadId: mintTypeId(ID_PREFIX.workload, ids.next) }),
+    ...serveCorpusProcedures(await root.internalCallerFor(root.ownerId), ["databank.reindex"]),
   });
   const component = await mount<typeof DatabankListHeaderStory>(STORY, {});
   await expect(component.getByRole("heading", { level: 2 }).getByText(String(health.total), { exact: true })).toBeVisible();

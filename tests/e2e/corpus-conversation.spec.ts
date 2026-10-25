@@ -2,6 +2,7 @@
 import { blobUrl } from "@orb/contracts/assets";
 import type { CorpusWire } from "@orb/testkit/iso";
 import type { Page } from "@playwright/test";
+import { MESSAGE_EDIT_NAME, VARIANT_GENERATE_NAME, VARIANT_NEXT_NAME, VARIANT_PREV_NAME } from "#client/features/chat/lib/message-action-names.ts";
 import { configureCustomProvider, ownerActor } from "./support/actors.ts";
 import { openChatByTitle, openChatOptions, typeAndSend, waitForAppReady } from "./support/chat-room.ts";
 import { expect, test } from "./support/corpus-test.ts";
@@ -75,22 +76,22 @@ test("a corpus character supports swipe selection, edit save/cancel, persona swi
     const assistant = page.locator('[data-slot="message-row"][data-role="assistant"]').last();
     await expect(assistant).toContainText(FIRST.prefix + FIRST.suffix);
     const id = await assistant.getAttribute("data-message-id");
-    await assistant.getByRole("button", { name: "Regenerate a variant", exact: true }).click();
+    await assistant.getByRole("button", { name: VARIANT_GENERATE_NAME, exact: true }).click();
     await expect(page.locator('[data-slot="ghost-message-row"]')).toContainText(SWIPE.prefix);
     fixture.release(1);
     await expect(assistant).toContainText(SWIPE.prefix + SWIPE.suffix);
     await expect(assistant).toHaveAttribute("data-message-id", id ?? "");
-    await assistant.getByRole("button", { name: "Previous variant", exact: true }).click();
+    await assistant.getByRole("button", { name: VARIANT_PREV_NAME, exact: true }).click();
     await expect(assistant).toContainText(FIRST.prefix + FIRST.suffix);
-    await assistant.getByRole("button", { name: "Next variant", exact: true }).click();
+    await assistant.getByRole("button", { name: VARIANT_NEXT_NAME, exact: true }).click();
     await expect(assistant).toContainText(SWIPE.prefix + SWIPE.suffix);
     await assistant.hover();
-    await assistant.getByRole("button", { name: "Edit message", exact: true }).click();
-    await assistant.getByRole("textbox", { name: "Edit message", exact: true }).fill("This cancelled edit must not land.");
+    await assistant.getByRole("button", { name: MESSAGE_EDIT_NAME, exact: true }).click();
+    await assistant.getByRole("textbox", { name: MESSAGE_EDIT_NAME, exact: true }).fill("This cancelled edit must not land.");
     await assistant.getByRole("button", { name: "Cancel edit", exact: true }).click();
     await expect(assistant).toContainText(SWIPE.prefix + SWIPE.suffix);
-    await assistant.getByRole("button", { name: "Edit message", exact: true }).click();
-    await assistant.getByRole("textbox", { name: "Edit message", exact: true }).fill(EDITED);
+    await assistant.getByRole("button", { name: MESSAGE_EDIT_NAME, exact: true }).click();
+    await assistant.getByRole("textbox", { name: MESSAGE_EDIT_NAME, exact: true }).fill(EDITED);
     await assistant.getByRole("button", { name: "Save edit", exact: true }).click();
     await expect(assistant).toContainText(EDITED);
 

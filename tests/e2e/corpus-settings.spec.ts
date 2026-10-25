@@ -12,6 +12,7 @@ import { formatVersionIdentity } from "@orb/kit/version-identity";
 import { prepareBackupFolder } from "@orb/testkit/node/composed";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Page, Response } from "@playwright/test";
+import { CHECK_FOR_UPDATES_LABEL } from "#client/features/plugin/lib/plugin-copy.ts";
 import { ownerActor } from "./support/actors.ts";
 import { openConfigGroup as openGroup } from "./support/config-flow.ts";
 import { expect, test } from "./support/corpus-test.ts";
@@ -221,7 +222,7 @@ test.describe("committed corpus settings", () => {
     });
     await openGroup(page, "about");
     await expect(page.getByText(formatVersionIdentity(version), { exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Check for updates", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: CHECK_FOR_UPDATES_LABEL, exact: true })).toBeVisible();
     expect(checks).toEqual([]);
   });
 

@@ -14,6 +14,7 @@ import type { AddressInfo } from "node:net";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@orb/testkit/tooling";
+import { APPEARANCE_PRESET_FLAG } from "@orb/tooling/floor/appearance/appearance-flags";
 import { afterAll, beforeAll, vi } from "vitest";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -145,7 +146,7 @@ test("a non-motion axis renders too — one flag generalizes to every appearance
 test("the manifest records WHICH arm was measured, so a report cannot be read against the wrong state", async ({ scratch }) => {
   const manifestShot = `${scratch}/orb-snap-appearance-manifest.png`;
   const manifestJson = `${scratch}/orb-snap-appearance-manifest.json`;
-  const shimmed = await runSnap(["--appearance-preset", "compact", "--json", "--out", manifestShot, "--eval", READ_STATE]);
+  const shimmed = await runSnap([APPEARANCE_PRESET_FLAG, "compact", "--json", "--out", manifestShot, "--eval", READ_STATE]);
   expect(shimmed.status, shimmed.stdout + shimmed.stderr).toBe(0);
 
   const manifest = JSON.parse(readFileSync(manifestJson, "utf8")) as {

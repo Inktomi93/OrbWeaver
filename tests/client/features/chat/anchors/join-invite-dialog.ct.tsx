@@ -1,7 +1,7 @@
 // Controlled invite presentation, focus and completion; membership and whole-app navigation belong to integration and E2E.
 import { DEAD_INVITE_SENTENCE, inviteRoomSentence } from "@orb/client/lib";
 import { invitePreviewSchema } from "@orb/contracts/chat";
-import type { TrpcRoutes } from "@orb/testkit/ct";
+import type { TrpcInput, TrpcRoutes } from "@orb/testkit/ct";
 import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusWire } from "@orb/testkit/iso";
@@ -10,6 +10,9 @@ import { makeChatDetail, makeChatId, makeRedeemInviteResult } from "@orb/testkit
 import type { JoinInviteDialogStory } from "./_join-invite-stories.tsx";
 
 const TOKEN = "controlled-invite-token";
+// A token the server never issued, and one it issued and spent after the preview.
+const DEAD_TOKEN = "unissued-invite-token";
+const SPENT_TOKEN = "spent-invite-token";
 const PREVIEW = invitePreviewSchema.parse({
   chatId: makeChatId(),
   roomName: "Lantern Quay",
@@ -19,6 +22,10 @@ const PREVIEW = invitePreviewSchema.parse({
 });
 const ROOM_SENTENCE = inviteRoomSentence(PREVIEW);
 const DIALOG = "Join a chat";
+
+function previewFor({ token }: TrpcInput<"invites.previewInvite">): typeof PREVIEW | ReturnType<typeof trpcError> {
+  return token === DEAD_TOKEN ? trpcError({ code: "NOT_FOUND", message: "The preview cannot be read." }) : PREVIEW;
+}
 
 function providerReads(corpus: CorpusWire): TrpcRoutes<"settings.getUserSettings" | "sessions.me"> {
   return {
@@ -46,7 +53,7 @@ test("a controlled loading preview becomes ready and focuses its newly mounted p
 });
 
 test("popup focus delivered after a ready preview still lands on Join chat", async ({ corpus, mount, page }) => {
-  await routeTrpc(page, { ...providerReads(corpus), "invites.previewInvite": () => PREVIEW });
+  await routeTrpc(page, { ...providerReads(corpus), "invites.previewInvite": previewFor });
   await mount<typeof JoinInviteDialogStory>("tests/client/features/chat/anchors/_join-invite-stories/JoinInviteDialogStory", { token: TOKEN });
   const dialog = page.getByRole("dialog", { name: DIALOG, exact: true });
   const join = dialog.getByRole("button", { name: "Join chat", exact: true });
@@ -59,9 +66,9 @@ test("popup focus delivered after a ready preview still lands on Join chat", asy
 test("an invalid preview discloses no room or host and closes through the caller callback", async ({ corpus, mount, page }) => {
   const wire = await routeTrpc(page, {
     ...providerReads(corpus),
-    "invites.previewInvite": trpcError({ code: "NOT_FOUND", message: "The preview cannot be read." }),
+    "invites.previewInvite": previewFor,
   });
-  await mount<typeof JoinInviteDialogStory>("tests/client/features/chat/anchors/_join-invite-stories/JoinInviteDialogStory", { token: TOKEN });
+  await mount<typeof JoinInviteDialogStory>("tests/client/features/chat/anchors/_join-invite-stories/JoinInviteDialogStory", { token: DEAD_TOKEN });
   const dialog = page.getByRole("dialog", { name: DIALOG, exact: true });
   await expect(dialog.getByText(DEAD_INVITE_SENTENCE, { exact: true })).toBeVisible();
   await expect(page.getByText(PREVIEW.roomName, { exact: false })).toHaveCount(0);
@@ -74,7 +81,7 @@ test("an invalid preview discloses no room or host and closes through the caller
 });
 
 test("Not now dismisses the ready component without redeeming the invite", async ({ corpus, mount, page }) => {
-  const wire = await routeTrpc(page, { ...providerReads(corpus), "invites.previewInvite": () => PREVIEW });
+  const wire = await routeTrpc(page, { ...providerReads(corpus), "invites.previewInvite": previewFor });
   await mount<typeof JoinInviteDialogStory>("tests/client/features/chat/anchors/_join-invite-stories/JoinInviteDialogStory", { token: TOKEN });
   const dialog = page.getByRole("dialog", { name: DIALOG, exact: true });
   await expect(dialog.getByText(ROOM_SENTENCE, { exact: true })).toBeVisible();
@@ -87,10 +94,11 @@ test("Not now dismisses the ready component without redeeming the invite", async
 test("a refused redemption replaces the previous preview with the same flat invalid state", async ({ corpus, mount, page }) => {
   const wire = await routeTrpc(page, {
     ...providerReads(corpus),
-    "invites.previewInvite": () => PREVIEW,
-    "invites.redeemInvite": trpcError({ code: "NOT_FOUND", message: "The invite was spent after preview." }),
+    "invites.previewInvite": previewFor,
+    "invites.redeemInvite": ({ token }) =>
+      token === SPENT_TOKEN ? trpcError({ code: "NOT_FOUND", message: "The invite was spent after preview." }) : trpcError({ code: "NOT_FOUND" }),
   });
-  await mount<typeof JoinInviteDialogStory>("tests/client/features/chat/anchors/_join-invite-stories/JoinInviteDialogStory", { token: TOKEN });
+  await mount<typeof JoinInviteDialogStory>("tests/client/features/chat/anchors/_join-invite-stories/JoinInviteDialogStory", { token: SPENT_TOKEN });
   const dialog = page.getByRole("dialog", { name: DIALOG, exact: true });
   await expect(dialog.getByText(ROOM_SENTENCE, { exact: true })).toBeVisible();
   await dialog.getByRole("button", { name: "Join chat", exact: true }).click();
@@ -98,7 +106,7 @@ test("a refused redemption replaces the previous preview with the same flat inva
   await expect(dialog).not.toContainText(PREVIEW.roomName);
   await expect(dialog).not.toContainText(PREVIEW.hostHandle);
   await expect(dialog).not.toContainText(PREVIEW.modeLabel);
-  expect(wire.requireLastInput("invites.redeemInvite")).toEqual({ token: TOKEN });
+  expect(wire.requireLastInput("invites.redeemInvite")).toEqual({ token: SPENT_TOKEN });
   await dialog.getByRole("button", { name: "Close", exact: true }).click();
   await expect(page.getByRole("status", { name: "Join dialog completion", exact: true })).toHaveText("Closed");
 });
@@ -108,8 +116,8 @@ test("successful redemption completes through the caller callback", async ({ cor
   const chat = makeChatDetail({ id: PREVIEW.chatId, title: PREVIEW.roomName, viewerIsHost: false, viewerUserId: viewer.userId });
   const wire = await routeTrpc(page, {
     ...providerReads(corpus),
-    "invites.previewInvite": () => PREVIEW,
-    "invites.redeemInvite": () => makeRedeemInviteResult({ chat }),
+    "invites.previewInvite": previewFor,
+    "invites.redeemInvite": ({ token }) => (token === TOKEN ? makeRedeemInviteResult({ chat }) : trpcError({ code: "NOT_FOUND" })),
   });
   await mount<typeof JoinInviteDialogStory>("tests/client/features/chat/anchors/_join-invite-stories/JoinInviteDialogStory", { token: TOKEN });
   const dialog = page.getByRole("dialog", { name: DIALOG, exact: true });

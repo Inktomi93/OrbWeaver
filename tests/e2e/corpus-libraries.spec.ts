@@ -8,6 +8,9 @@ import { openConfigGroup } from "./support/config-flow.ts";
 import { expect, test } from "./support/corpus-test.ts";
 import { SELECTED_CORPUS_FIXTURE } from "./support/modes.ts";
 
+// The world-info collection list carries its own accessible name.
+const WORLD_BOOKS_LIST = "World books";
+
 function corpus(): CorpusWire {
   if (SELECTED_CORPUS_FIXTURE === undefined) {
     throw new Error("Collection smoke requires the committed corpus");
@@ -73,7 +76,7 @@ test.describe("committed corpus collection settings", () => {
       throw new Error("World book window has no leading row");
     }
     await openConfigGroup(page, "worldInfo");
-    const list = page.getByRole("list", { name: "World books", exact: true });
+    const list = page.getByRole("list", { name: WORLD_BOOKS_LIST, exact: true });
     await expect(list.getByRole("button", { name: leading.name, exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: before.name, exact: true })).toHaveCount(0);
     await selectWorldBook(page, before.name);

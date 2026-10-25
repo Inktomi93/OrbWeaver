@@ -7,6 +7,7 @@ import type { LabelsListStory } from "./_labels-list-stories.tsx";
 
 const STORY = "tests/client/features/tag/surfaces/_labels-list-stories/LabelsListStory";
 const WINDOWED_TAGS = COLLECTION_LARGE_GROUP + 10;
+const TAG_LIST = "Tags";
 
 test("Retry on a windowed tag list hands keyboard focus to a row once the rows mount", async ({ mount, page }) => {
   await using root = await createCorpusHarness();
@@ -31,6 +32,6 @@ test("Retry on a windowed tag list hands keyboard focus to a row once the rows m
   failing = false;
   await retry.focus();
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("list", { name: "Tags", exact: true })).toBeVisible();
+  await expect(page.getByRole("list", { name: TAG_LIST, exact: true })).toBeVisible();
   await expect(page.locator('[data-slot="virtual-list-row"] :focus')).toBeVisible();
 });

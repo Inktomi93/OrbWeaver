@@ -1,5 +1,7 @@
 // Every roster the production section registry mounts, visited through the rail: each list pane carries the structural
 // band (a titled identity) and its search, and so does each Corpus mode's roster.
+
+import { SECTION_LABELS } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
@@ -65,7 +67,7 @@ test("every section roster and every Corpus mode roster has a titled band, one i
     }
   }
   // Corpus hosts one roster per mode; each mode is the screen its radio selects.
-  await rail.getByRole("button", { name: "Corpus", exact: true }).click();
+  await rail.getByRole("button", { name: SECTION_LABELS.corpus, exact: true }).click();
   await expect(grid).toHaveAttribute("data-section", "corpus");
   const modes = page.locator(LIST).getByRole("radiogroup").getByRole("radio");
   for (const index of Array.from({ length: await modes.count() }, (_, at) => at)) {

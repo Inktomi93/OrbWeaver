@@ -1,7 +1,8 @@
-import { routeTrpc } from "@orb/testkit/ct";
+import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusWire } from "@orb/testkit/iso";
 import { createCorpusReadResponder } from "@orb/testkit/iso";
+import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import {
   OWNER_CSS_APPEARANCE_ATTRIBUTES,
@@ -17,24 +18,28 @@ const SLOT = OWNER_CSS_SLOTS[0];
 const TOKEN = OWNER_CSS_TOKEN_VARS[0];
 const SHELL_CLASS = OWNER_CSS_SHELL_CLASSES[0];
 
+let root: Awaited<ReturnType<typeof createCorpusHarness>>;
+test.beforeAll(async () => {
+  root = await createCorpusHarness();
+});
+
+test.afterAll(async () => {
+  await root[Symbol.asyncDispose]();
+});
+
 async function openThemeCssEditor(page: Page, corpus: CorpusWire): Promise<void> {
   const { firstBoot } = corpus;
   if (firstBoot === undefined) {
     throw new Error("The corpus has no first-boot capture");
   }
   const { reads } = firstBoot;
-  const [theme] = reads.themes.output;
-  if (theme === undefined) {
-    throw new Error("The first-boot capture lists no themes");
-  }
   await routeTrpc(page, {
     "sessions.me": createCorpusReadResponder("sessions.me", [reads.viewer]),
     "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", [reads.settings]),
     "settings.listThemes": createCorpusReadResponder("settings.listThemes", [reads.themes]),
     "settings.getAppSettingsWithOverrides": createCorpusReadResponder("settings.getAppSettingsWithOverrides", [reads.appSettings]),
-    // Autosave mints a copy on the first edit; the editor under test does not depend on what comes back.
-    "settings.duplicateTheme": () => theme,
-    "settings.updateTheme": () => theme,
+    // Autosave mints a copy on the first edit; the root's own server answers both writes.
+    ...serveCorpusProcedures(await root.internalCallerFor(root.ownerId), ["settings.duplicateTheme", "settings.updateTheme"]),
   });
 }
 
@@ -79,7 +84,7 @@ test(".shell- offers shell classes", async ({ page }) => {
 
 const APPEARANCE_ATTRIBUTE = OWNER_CSS_APPEARANCE_ATTRIBUTES[0];
 
-test("[data-appearance- offers the appearance attributes, then their values", async ({ page }) => {
+test("an appearance attribute prefix offers the appearance attributes, then their values", async ({ page }) => {
   await typeIntoEditor(page, `[${APPEARANCE_ATTRIBUTE.name.slice(0, -1)}`);
   await expect(completionOption(page, APPEARANCE_ATTRIBUTE.name)).toBeVisible();
   await expect(completionOption(page, SLOT)).toHaveCount(0);

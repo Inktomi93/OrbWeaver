@@ -1,3 +1,4 @@
+/* eslint-disable orb/ct-responder-reads-input -- the subject is the responder type contract, so each route value is a compile-time witness that never runs */
 import { DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { Page } from "@playwright/test";

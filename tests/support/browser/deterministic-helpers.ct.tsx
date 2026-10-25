@@ -1,3 +1,4 @@
+/* eslint-disable orb/ct-responder-reads-input -- the subject is routeTrpc's own request recording and refusal, so its responders are declared failures with no server behind them */
 import { expect, test } from "@playwright/test";
 import type { RawTrpcObservationStory } from "../../client/compose/_mount-stories.tsx";
 import { routeOrbSocket } from "../node/route-orb-socket.ts";

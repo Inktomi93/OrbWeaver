@@ -45,6 +45,7 @@ import type { CharacterHandle, ChatId, MessageId, UserConnectionId } from "@orb/
 import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
+import { MESSAGE_ACTIONS_MENU_NAME } from "#client/features/chat/lib/message-action-names.ts";
 import { messageRow, openChatByTitle } from "./support/chat-room.ts";
 import { WAIT_UI_MS } from "./support/timeouts.ts";
 import {
@@ -296,7 +297,7 @@ test.describe("guided generations on the live local stack", () => {
       // name the unlock condition (never hidden). Open the tail row's ⋯ menu and read the undo item.
       const row = messageRow(page, tailId);
       await row.hover();
-      await row.getByRole("button", { name: "More message actions" }).click();
+      await row.getByRole("button", { name: MESSAGE_ACTIONS_MENU_NAME }).click();
       const undoItem = page.getByRole("menuitem", { name: "Undo last continuation" });
       await expect(undoItem).toBeVisible({ timeout: WAIT_UI_MS });
       await expect(undoItem).toHaveAttribute("aria-disabled", "true");
@@ -317,13 +318,13 @@ test.describe("guided generations on the live local stack", () => {
 
       // UNDO via the ⋯ menu → server truth returns to the pre-continue content.
       await row.hover();
-      await row.getByRole("button", { name: "More message actions" }).click();
+      await row.getByRole("button", { name: MESSAGE_ACTIONS_MENU_NAME }).click();
       await page.getByRole("menuitem", { name: "Undo last continuation" }).click();
       await expect.poll(async () => (await canonMessage(chat.id, tailId))?.content ?? "", { timeout: LIVE_TIMEOUT_MS }).toBe(preContinue);
 
       // REVERT via the ⋯ menu → the continued content returns (the snapshot is retained across an undo).
       await row.hover();
-      await row.getByRole("button", { name: "More message actions" }).click();
+      await row.getByRole("button", { name: MESSAGE_ACTIONS_MENU_NAME }).click();
       await page.getByRole("menuitem", { name: "Re-apply continuation" }).click();
       await expect.poll(async () => (await canonMessage(chat.id, tailId))?.content ?? "", { timeout: LIVE_TIMEOUT_MS }).toBe(continued);
     } finally {
