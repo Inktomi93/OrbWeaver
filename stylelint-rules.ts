@@ -471,9 +471,10 @@ function effectiveSelectors(rule: StyleRule): readonly string[] {
   return own.flatMap((selector) => outer.map((base) => (selector.includes("&") ? selector.replaceAll("&", base) : `${base} ${selector}`)));
 }
 
-/** A declaration reachable from the at-rule without crossing a style rule: it styles the enclosing rule's selectors. */
+/** A declaration or an `@apply` reachable from the at-rule without crossing a style rule: it styles the enclosing
+ *  rule's selectors. */
 function holdsDeclarations(atRule: AtRule): boolean {
-  return (atRule.nodes ?? []).some((node) => node.type === "decl" || (isAtRule(node) && holdsDeclarations(node)));
+  return (atRule.nodes ?? []).some((node) => node.type === "decl" || (isAtRule(node) && (node.name === "apply" || holdsDeclarations(node))));
 }
 
 /**
@@ -481,7 +482,10 @@ function holdsDeclarations(atRule: AtRule): boolean {
  * sit in it directly or through nested at-rules, the rule that encloses it, each with nesting resolved.
  */
 function guardedSelectors(atRule: AtRule, guard: string): boolean {
-  const isGuarded = (rule: StyleRule | undefined): boolean => rule !== undefined && effectiveSelectors(rule).every((selector) => selector.startsWith(guard));
+  // The guard alone, or as the only argument of `:is()` or `:where()`, leads the selector.
+  const forms = [guard, `:is(${guard})`, `:where(${guard})`];
+  const isGuarded = (rule: StyleRule | undefined): boolean =>
+    rule !== undefined && effectiveSelectors(rule).every((selector) => forms.some((form) => selector.startsWith(form)));
   let guarded = !holdsDeclarations(atRule) || isGuarded(enclosingRule(atRule));
   atRule.walk((node) => {
     if (isStyleRule(node) && !isGuarded(node)) {

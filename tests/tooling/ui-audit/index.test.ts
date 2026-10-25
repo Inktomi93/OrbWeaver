@@ -1,8 +1,8 @@
 // Fixture tests for the pure classify functions in tooling/src/ui-audit/lib — no
 // browser needed (Spine-Testing.md §7: the vitest node lanes have no DOM). Each test hand-builds a
 // DOM/CSSOM-like plain-data input (colors, sizes, booleans) exactly as the in-page walker would produce
-// it, and asserts the SAME deterministic verdict a live page would get. Mirrors
-// tests/tooling/trace-render.test.ts's approach to testing a scripts/ tool's pure core.
+// it, and asserts the SAME deterministic verdict a live page would get, as
+// tests/tooling/render-trace/index.test.ts tests a scripts/ tool's pure core.
 // The impeccable-adapted checks (origin "impeccable") each get a firing fixture AND a passing/exempt
 // control — a green that cannot fail is not a fence.
 

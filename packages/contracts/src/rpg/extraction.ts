@@ -334,7 +334,7 @@ export function constrainExtractionSchema<S extends Record<string, unknown>>(sch
  * F4 — the CACHE-STABLE projection of a per-call ref bundle: the same bundle with every field that derives from
  * LIVE SCENE STATE neutralized, so two calls one turn apart produce a BYTE-IDENTICAL tool payload.
  *
- * WHY (measured, `scripts/probes/openrouter/RESULTS.md` F4): the OpenAI-compat `tools` field sits UPSTREAM of the
+ * WHY (measured, the OpenRouter probe F4): the OpenAI-compat `tools` field sits UPSTREAM of the
  * Anthropic cached prefix — changing 360 bytes of one tool dropped `cached_tokens` 2841 → 0 and re-billed the
  * WHOLE prefix at the 1.25× write rate (~10× that turn on a 10k prefix). The FOLDED turn (D112 R1) mounts these
  * tools on the CHARACTER turn, whose prefix is otherwise stable (the rpg state block rides an `in_chat` depth-0

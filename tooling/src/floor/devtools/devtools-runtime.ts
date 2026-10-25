@@ -93,7 +93,7 @@ function validateInputs(inputs: readonly DevToolsCascadeInput[]): void {
 
 async function targetIdentity(page: Page, pin: DevToolsAssetPin, profileDir: string): Promise<{ readonly id: string; readonly port: number }> {
   const session = await page.context().newCDPSession(page);
-  // The port read is ./debugging-endpoint.ts's — the one reader of `DevToolsActivePort` (#1231).
+  // The port read is ../browser/debugging-endpoint.ts's — the one reader of `DevToolsActivePort` (#1231).
   const [target, version, port] = await Promise.all([session.send("Target.getTargetInfo"), session.send("Browser.getVersion"), readDebuggingPort(profileDir)]);
   if (
     version.revision !== `@${pin.chromiumRevision}` ||

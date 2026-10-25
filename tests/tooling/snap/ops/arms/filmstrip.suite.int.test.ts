@@ -454,7 +454,7 @@ test("filmstrip interference refuses before allocating a run slot", async ({ run
  *  corpus so no file still tells a reader to run the retired `pnpm record`, with a planted control. */
 test("the retired Record command names nothing runnable: its tool dir is absent from the corpus", ({ repoRoot }) => {
   // The DIRECTORY, not just the entry point — a surviving `ops/` beside a deleted `cli.ts` is exactly the
-  // half-migration Core-Tooling-Law.md §1 bans, and it would keep knip and the size gates busy forever.
+  // half-migration, and it would keep knip and the size gates busy forever.
   expect(existsSync(join(repoRoot, "tooling", "src", "screen-record"))).toBe(false);
   // The planted control: the same probe SEES the sibling dirs that legitimately survived the fold (the
   // detector engines kept their tool dirs and lost only their argv doors), so a bare `false` above cannot

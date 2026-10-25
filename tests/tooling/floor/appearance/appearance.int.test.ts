@@ -1,6 +1,6 @@
 // The appearance shim, proven where it actually lives: a REAL browser run of the snap CLI against a stub
 // origin that answers the batched `settings.getUserSettings` GET the app makes. The pure merge semantics are
-// pinned in probe-appearance.test.ts; what this file proves is the part no unit can see —
+// unit-pinned; what this file proves is the part no unit can see —
 //   • the interception reaches the RENDERED state (the page's own read of the response changes),
 //   • the shim writes NOTHING (the origin's stored settings are byte-identical afterwards, and it never
 //     receives a mutation — that is the whole point: probes must not edit the owner's account),

@@ -1,4 +1,4 @@
-// Dated prose-with-tools receipts for local servers (`scripts/probes/prose-with-tools`, RESULTS.md in its dated
+// Dated prose-with-tools receipts for local servers (the prose-with-tools probe's dated
 // results directory). A row here states `silencesProse: false` for one (model family × server) whose folded
 // turns co-emitted prose and tool calls in streaming and non-streaming; every other local model keeps the
 // endpoint floor's fail-closed `silencesProse: true` (`../../floor.ts`).

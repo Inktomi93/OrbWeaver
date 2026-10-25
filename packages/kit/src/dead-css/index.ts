@@ -4,7 +4,7 @@
 // TWO CONSUMERS, ONE DEFINITION (the reason this is kit and not either consumer's local const):
 //   • the client's live `[css]` flagger (`packages/client/src/lib/motion-dead-class-flagger.ts`) — calls
 //     the functions directly against the live CSSOM;
-//   • `pnpm snap --dead-css` (`tooling/src/snap/ops/dead-css.ts`) — ships its scan as a RAW STRING into
+//   • `pnpm snap --dead-css` (`tooling/src/snap/ops/arms/dead-css.ts`) — ships its scan as a RAW STRING into
 //     `page.evaluate`, so it cannot import anything at runtime; it interpolates the DATA below (the
 //     marker tables + the regex SOURCES) into that string instead.
 // Two definitions would file two bug reports about one page, which is exactly what both files' headers

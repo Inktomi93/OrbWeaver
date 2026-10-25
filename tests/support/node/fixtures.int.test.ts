@@ -110,7 +110,7 @@ const scripted = addressed.extend<Pick<Fixtures, "providerFetch">>({
 });
 
 // NOT empty — it holds one test declared through `scripted`, a
-// `test.extend` fixture alias. `tooling/src/verify/lib/test-call-shape.ts` reads a runner by ROOT NAME and
+// `test.extend` fixture alias. The retired test-call-shape reader read a runner by ROOT NAME and
 // its declared limit admits only `test`/`it`, so a fixture alias is invisible to it. The alias CANNOT be
 // renamed into that set here: `it` is refused by biome `lint/nursery/useConsistentTestIt` (this repo prefers
 // `test`), and `test` is already bound in this module by the fixtures import — rebinding it would silently

@@ -65,8 +65,8 @@ export const CONFIG_MODIFIED_MARKER = "Modified";
  *  this state IMPLIES {@link CONFIG_MODIFIED_MARKER} even though the row shows only this word. That is
  *  DELIBERATE, not an omission: a composed "Save failed · Modified" mark was considered and is the
  *  documented alternative (#1712's compose arm), refused here because the row already grows exactly ONE
- *  state slot and `config-list-surface.ct.tsx`'s row-pitch measurement is what a SECOND visible marker on
+ *  state slot, and the row pitch measures what a SECOND visible marker on
  *  this row costs (a modified row's box grows past its siblings' — see `SubcategoryRow`'s own doc). The
- *  implication is pinned, not silent: `appearance-group.ct.tsx`'s failing-save test drives a section whose
- *  value differs from its default AND fails to save, and asserts the nav marker reads exactly this word. */
+ *  implication is that a section whose
+ *  value differs from its default AND fails to save shows exactly this word as its nav marker. */
 export const SAVE_FAILED_MARKER = "Save failed";

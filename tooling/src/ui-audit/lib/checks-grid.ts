@@ -7,7 +7,7 @@
 // verbatim: "THE QUESTION IS NOT 'is this value legal' … It is 'did the RESOLVED pixel match'"). A landing
 // is the product of the live root font-size (the continuous `--appearance-font-scale` slider, docs/law/integer-line-boxes.md
 // §2.1), the element's own box, and the device pixel ratio — none of which authorship can see. The
-// AUTHORSHIP-provable half of Law 2 is a gate (`tooling/src/verify/gates/rest-transform-grid.ts`); this is
+// AUTHORSHIP-provable half of Law 2 was the retired rest-transform-grid gate; this is
 // the resolved half plus Laws 3 and 4, which have no authorship half at all.
 import type { Finding } from "../contract/findings.ts";
 import type { OffGridTextInput, OffGridTransformInput, PromotedLayerOffsetInput } from "../contract/samples-grid.ts";

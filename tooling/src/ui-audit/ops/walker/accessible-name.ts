@@ -16,7 +16,7 @@
 // `aria-labelledby` — a REAL duplicate — was missed. `accessibleNameOf` below is the single spec-ordered
 // key; `pnpm snap <route> --aria` (Playwright's `ariaSnapshot`) remains the ORACLE this was proved against,
 // because it is the only spec-correct name engine in the fleet. This is NOT the `@orb/ui` accname-engine
-// merge Core-Tooling-Law.md §2.8 refuses: the `aria-name` RULE still tests presence only (RULE-AUTHORING
+// merge, which stays refused: the `aria-name` RULE still tests presence only (RULE-AUTHORING
 // row 8), and no name is COMPUTED for a WCAG verdict — this is a comparison key two censuses already
 // computed, computed once and in the right order.
 //

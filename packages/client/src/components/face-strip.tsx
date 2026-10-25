@@ -28,7 +28,7 @@
 // the gap between portraits wobbled per name across a 320-character library.
 //   · It does NOT reverse the P2a ruling below (the caption's own box stays a MAX, not a width): a short
 //     name still takes its natural width and is NOT clipped — it is now CENTRED in a uniform cell instead of
-//     shrinking the cell around itself. Both facts are pinned in face-strip.ct.tsx.
+//     shrinking the cell around itself.
 //   · The UNCAPTIONED posture (the library's favorites strip) is untouched: with no name in the box its
 //     cells were already uniform (the avatar token inside the control floor), so a fixed width there would
 //     only add 30px of air between portraits that never wobbled.

@@ -8,7 +8,7 @@
 //
 // The fingerprint pair is the weave's user-visible read: the canvas has no DOM to assert against, so
 // "the silk rang" is proven as "the painted frame moved further than the web's own ambient motion"
-// (the web-weave.ct.tsx mouse-path precedent). Always compare a drive delta against a noise floor
+// (the web-weave mouse-path precedent). Always compare a drive delta against a noise floor
 // sampled the same way — glint, dew and the spider move the frame every tick on their own.
 
 import type { Locator } from "@playwright/test";

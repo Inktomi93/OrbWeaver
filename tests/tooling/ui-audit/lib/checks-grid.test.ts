@@ -66,7 +66,7 @@ function restTransform(over: Partial<OffGridTransformInput> = {}): OffGridTransf
   return { ...base, ...over };
 }
 
-// ── design-audit proof denominator (tests/tooling/ui-audit/contract/rules.int.test.ts) ──────────────
+// ── design-audit proof denominator ──────────────
 // The coverage test reads its rows from a TOP-LEVEL `auditRuleTest(...)` call bound to this file's own local
 // helper — the binding is structural, not a describe-nested test.
 function auditRuleTest(proofs: readonly AuditRuleProof[], title: string, fn: () => void | Promise<void>): void {

@@ -558,7 +558,7 @@
   /* The transcript's edge fade: each edge dissolves only while content lies beyond it (the MessageList primitive
    * toggles `data-fade-*`), eased in from the edge so the cut line reads as gone rather than half drawn; a zero
    * stop collapses the band so an edge that hides nothing stays opaque. `--mask-top-inset` is the bottom edge of
-   * a header pinned across the top. Pinned by sampling pixels (message-list-edge-fade.ct.tsx): computed style
+   * a header pinned across the top. Pinned by sampling pixels: computed style
    * reports an opaque card for every faded row. */
   [data-slot="message-list-scroll"] {
     --fade-top-stop: 0%;

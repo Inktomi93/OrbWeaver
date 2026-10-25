@@ -107,8 +107,8 @@ function landInJoinedRoom(chatId: ChatId): void {
  *  `authError` is the already-resolved OIDC callback error MESSAGE (or null); rendered above Continue.
  *  `joinToken` is the stashed invite token (or null); the local arm offers the signup form while it is set, and
  *  the oidc arm hands it to the login route. `pendingJoin` shows the oidc arm's pending-join card.
- * Test-anchored module surface; the auth CT stories and
- *  login-surface.ct.tsx mount it directly, and focused tests pin this production-local behavior.
+ * Test-anchored module surface; the auth CT stories
+ *  mount it directly, and focused tests pin this production-local behavior.
  */
 function LoginBody({
   config,

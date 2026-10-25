@@ -7,7 +7,7 @@
 // every turn = the dominant chat noise source. The Wave-1 "opacity-0 in-flow starves a flex sibling"
 // P0 that the dim-at-rest ruling guarded against is ABSENT here: opacity + pointer-events change NO
 // layout, so the cluster keeps its box (footprint identical at rest vs revealed), and the name row has
-// measured positive slack (message-row.ct.tsx geometry pin) — nothing gets starved. `pointer-events` is
+// measured positive slack — nothing gets starved. `pointer-events` is
 // flipped in lockstep with opacity so a hidden cluster is also non-interactive at rest (and re-enabled
 // exactly where it becomes visible); keyboard users reach every action by tab-focusing the row
 // (group-focus-within reveals) and the ⋯ menu keeps hide/copy/delete reachable without a hover.

@@ -4,7 +4,7 @@
 // installed is `orb`, whose single method `host(1)` returns the versioned surface. setTimeout / fetch /
 // process / require are already absent from a bare QuickJS-ng context (spike-verified — no timers, no I/O, no
 // ambient authority); the escape suite pins that they stay absent. What a guest CAN still enumerate is pinned
-// as an explicit ALLOW-LIST in realm.test.ts — "absent from a bare context" is not a property this file can
+// as an explicit ALLOW-LIST by a test — "absent from a bare context" is not a property this file can
 // assume, it is one a test must assert by name (that assumption is exactly how `performance` shipped live).
 //
 // SCOPE: the surface `orb.host(1)` returns is the DETERMINISM FLOOR only — clock/random/ids/log +

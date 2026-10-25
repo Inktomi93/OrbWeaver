@@ -1,7 +1,7 @@
 // `seed multi-user` speaks HTTP only — it must not pay the server env-schema parse cost that `demo`/`chat`
 // pull in transitively (@orb/server/foundation/env's module-level `envSchema.parse(process.env)`, which is
 // boot-FATAL under an incomplete env). Regression for #2407: the CLI used to dispatch through a shared
-// barrel (./index.ts) that re-exported all three verbs, so `multi-user` imported the server env schema for
+// barrel that re-exported all three verbs, so `multi-user` imported the server env schema for
 // no reason.
 import { expect, test } from "@orb/testkit/tooling";
 

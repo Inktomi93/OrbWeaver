@@ -1,6 +1,6 @@
 // E2E (@live) — TASK-24: a THIN real-stack PROOF that the four-layer capture seam works end-to-end with a
 // REAL model turn. NOT the authoritative harness — the exhaustive four-layer matrix + all the fidelity
-// assertions live in the DETERMINISTIC int test (tests/server/domain/chat/wire-capture-fidelity.suite.int.ts;
+// assertions live in the DETERMINISTIC int test (the wire-capture fidelity suite;
 // it drives the real engine + real buildBody + the compose-injected capture sink, no GPU, gates in the
 // battery). This leg only confirms that on the OPERATOR-started live stack a real turn is captured and the
 // four layers agree, driving ONE representative row (names 'completion') through the stateless (openai-compat)

@@ -24,7 +24,7 @@ export const BEFORE_HISTORY_DEPTH = Number.MAX_SAFE_INTEGER;
 type ReRoledInjection = Exclude<MessageRole, "user">;
 
 /** The frame each re-roled author role wears, or null for none. A folded system note goes bare: in user text a
- *  frame around it made sonnet-5, opus-4-8 and haiku-4-5 ignore it (OR-11, `scripts/probes/openrouter/RESULTS.md`). */
+ *  frame around it made sonnet-5, opus-4-8 and haiku-4-5 ignore it (OR-11, the OpenRouter probe). */
 const RE_ROLED_FRAME = {
   system: null,
   assistant: "chat.injection.assistantNote",

@@ -332,7 +332,7 @@ function foldMidArrayRuns(entries: readonly DeliveryEntry[], lastNonSystem: numb
 
 /** Move each folded note inside the history up to just before the first stored row of the user text above it,
  *  so it leads the user message it joins. Joined after that text, sonnet-5, opus-4-8 and haiku-4-5 mostly ignored
- *  it (OR-11, `scripts/probes/openrouter/RESULTS.md`). A row assembly made above it, such as the new-chat marker,
+ *  it (OR-11, the OpenRouter probe). A row assembly made above it, such as the new-chat marker,
  *  keeps its place. The walk skips rows the squash drops and stops at the first other role, as the squash does.
  *  A level that never joins rows keeps each user row its own message, so there the note moves only past the
  *  user row it follows. */

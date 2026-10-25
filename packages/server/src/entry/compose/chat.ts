@@ -206,7 +206,7 @@ export interface ChatComposeInput {
   readonly readPresence: PresenceReadOp;
   /** imagery's orchestrator → chat's `generatePicture` op (mapped to the chat-local structural result below). */
   readonly generatePicture: ImageryService["generatePicture"];
-  /** The injected rpg turn ops (docs/plans/rpg/design.md) — OPTIONAL; absent wires `ChatContext.rpg` to null
+  /** The injected rpg turn ops (D58) — OPTIONAL; absent wires `ChatContext.rpg` to null
    *  (byte-identical no-op). Built at the composition root over the rpg service + its standalone gather op. */
   readonly rpg?: ChatContext["rpg"] | undefined;
   /** FOREIGN S2 teaching contributions — OPTIONAL; absent wires the

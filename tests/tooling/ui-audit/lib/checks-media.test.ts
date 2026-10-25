@@ -28,7 +28,7 @@ function raster(over: Partial<BuriedRasterInput> = {}): BuriedRasterInput {
   return { ...base, ...over };
 }
 
-// ── design-audit proof denominator (tests/tooling/ui-audit/contract/rules.int.test.ts) ──────────────
+// ── design-audit proof denominator ──────────────
 // The coverage test reads its two rows from a TOP-LEVEL `auditRuleTest(...)` call, bound to this file's own
 // local helper (the same shape index.test.ts's registers) — the binding is structural,
 // not a describe-nested test.

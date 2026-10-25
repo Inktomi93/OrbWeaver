@@ -43,7 +43,7 @@
 //
 // The budget, MEASURED at the default theme in the CT browser (both pointer classes give the SAME widths
 // here — the two doors are text buttons already past the coarse touch floor, so coarse costs HEIGHT, not
-// width; the pins are `committed-members-tab.ct.tsx`). Re-measured 2026-09-02 after `77e07912eb` vendored
+// width). Re-measured 2026-09-02 after `77e07912eb` vendored
 // Geist, with the pre-Geist fallback reading beside each number:
 //   · "Characters" kicker 79.4 (was 75.7 — a 10.5px uppercase label carries a trailing letter-spacing
 //     column, so it moves with the face) · gap-field 6 · "Saved rosters…" 137.0 (138.9) · gap-tight 4 ·
@@ -219,7 +219,7 @@ function SectionHeader({
 }): ReactElement {
   return (
     // `data-slot`: the header's LINE COUNT and its doors' trailing edge are the properties the budget above
-    // is about, so they need a handle a CT can measure (committed-members-tab.ct.tsx, the matrix-end pins).
+    // is about, so they need a handle a CT can measure.
     <Row gap="field" align="center" className="flex-wrap" data-slot="members-section-header">
       <Text as="span" voice="kicker" id={labelId}>
         {kicker}

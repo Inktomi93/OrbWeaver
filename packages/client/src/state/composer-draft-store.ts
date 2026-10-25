@@ -7,7 +7,7 @@
 // `migrateComposerDraft` carried the text across the draftKey→ChatId flip at commit. BOTH ARE GONE, and the
 // §2.7 collision goes with them BY CONSTRUCTION: the draftKey was a MODULE COUNTER that reset on reload while
 // this store persisted under it, so the first fresh room of a session inherited the previous session's unsent
-// text (reproduced live, 2026-08-14 — new-chat-picker-surface.ct.tsx pins it). A ChatId cannot collide.
+// text (reproduced live). A ChatId cannot collide.
 // An unseen scope reads "".
 //
 // IT NOW SURVIVES A RELOAD (owner pick, 2026-08-09). This header used to say "Not persisted (an unsent

@@ -235,7 +235,7 @@ async function askArbiter(
  * The candidates the model may name. The ban on the last speaker holds only when the last line is that
  * speaker's own, which is what a self-response is. Once a human or another character has spoken, the last
  * speaker is often exactly who was asked, and banning them there turned right answers into degrades
- * (scripts/probes/speaker-pick/RESULTS.md). The `natural` fallback keeps its own ban unchanged.
+ * (the speaker-pick probe). The `natural` fallback keeps its own ban unchanged.
  */
 function modelChoices(params: SmartArbitrateParams, eligible: readonly Named[]): readonly Named[] {
   const last = params.lastSpeaker;

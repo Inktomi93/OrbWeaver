@@ -39,6 +39,7 @@
     .shell-grid:is([data-list-flip], [data-context-flip]) .shell-main,
     .shell-grid:is([data-list-flip], [data-context-flip]) .shell-topbar-trail,
     .shell-grid:is([data-list-flip], [data-context-flip]) :is(.orb-chat-track, .orb-composer-track),
+    .shell-grid:is([data-list-flip], [data-context-flip]) [data-slot="list-pane-action"],
     .shell-grid:is([data-list-flip], [data-context-flip]) .shell-panel[data-panel-side="list"][data-panel-mode],
     .shell-grid:is([data-list-flip], [data-context-flip]) .shell-panel[data-panel-side="context"][data-panel-mode] {
       animation: none;
@@ -47,7 +48,8 @@
     /* The reduced-motion settle is cancelled for the same reason: its hold would translate a column that never moved. */
     .shell-grid:is([data-list-settle], [data-context-settle]) .shell-main,
     .shell-grid:is([data-list-settle], [data-context-settle]) .shell-topbar-trail,
-    .shell-grid:is([data-list-settle], [data-context-settle]) :is(.orb-chat-track, .orb-composer-track) {
+    .shell-grid:is([data-list-settle], [data-context-settle]) :is(.orb-chat-track, .orb-composer-track),
+    .shell-grid:is([data-list-settle], [data-context-settle]) [data-slot="list-pane-action"] {
       translate: none;
     }
     /* The rail DOM reflows into the tab bar: the group wrappers collapse so their buttons flow into one row. */

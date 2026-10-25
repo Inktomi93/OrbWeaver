@@ -324,7 +324,7 @@ export async function gatherAssembleContext(
     /** The `injection_trigger` gate — maps the driving `TurnKind` → `GenerationType` at the verb so
      *  trigger-gated preset sections fire on the right turn kind. Absent ⇒ "normal". */
     readonly generationType?: GenerationType | undefined;
-    /** A game turn's GATHER macros (docs/plans/rpg/design.md), keyed by the RpgGatherMacros field names — fed to the
+    /** A game turn's GATHER macros (D58), keyed by the RpgGatherMacros field names — fed to the
      *  pure build as `rpgMacros`; absent ⇒ every rpg macro resolves empty (byte-identical non-game turn). */
     readonly rpgMacros?: Readonly<Record<string, string>> | undefined;
     /** A game turn's `{{expr::…}}` CEL activation (parity-plus §12) — the data-only `{ rpg: <tracker view tree> }`,

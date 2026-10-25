@@ -204,10 +204,10 @@ export type ResolveForeignInputsOp = (args: {
   readonly humanSeats: readonly HumanSeatPersona[];
   readonly trigger: TurnTrigger;
   readonly voice: TurnVoice;
-  /** A feature-supplied GM-voice preset REDIRECT (docs/plans/rpg/design.md — resolved by the caller's early
+  /** A feature-supplied GM-voice preset REDIRECT (D58 — resolved by the caller's early
    *  `rpg.resolvePresetOverride` hop): when present, the resolver assembles THIS preset (owned-or-system under
    *  the host, else the normal default — the lenient-id rule) instead of the host's `UserSettings` default.
-   *  Absent ⇒ byte-identical to today. Inert until the turn path passes it (docs/plans/rpg/design.md push 2). */
+   *  Absent ⇒ byte-identical to today. Inert until the turn path passes it (D58 push 2). */
   readonly presetOverride?: PresetId | undefined;
 }) => Promise<ForeignInputs>;
 

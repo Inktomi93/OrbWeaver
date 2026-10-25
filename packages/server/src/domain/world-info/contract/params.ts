@@ -149,7 +149,7 @@ export interface ListEntryIndexParams extends WorldInfoActorParams {
   readonly bookId: WorldBookId;
 }
 
-/** A chat's CONSTANT lorebook canon read (docs/plans/rpg/design.md). Principal-LESS: a chat's attached books are
+/** A chat's CONSTANT lorebook canon read (D58). Principal-LESS: a chat's attached books are
  *  room-public prompt content (membership is the CALLER's gate upstream — rpg gated the crew run), mirroring
  *  `listChatBooks`; wired at compose for the injected rpg `worldInfo.listConstantCanon` op. */
 export interface ListConstantCanonParams {

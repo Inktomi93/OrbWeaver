@@ -17,7 +17,7 @@
 // (walk the size axis and find where its verdict flips), so a floor edit is seen here without exporting a
 // constant for the test's convenience; the ladder is parsed out of the walker string. Every derivation is
 // floor-guarded and carries a PLANTED CONTROL, because a regex that silently stops matching returns `[]`
-// and every set comparison then passes vacuously (the census-tier.test.ts lesson).
+// and every set comparison then passes vacuously (the census-tier lesson).
 //
 // The RENDERED half — that a real `@orb/ui` Checkbox in a real list measures >= 24 while a real 22px box
 // still fails — is `tests/tooling/design-audit-walker.ct.tsx` (#1067); only a browser can prove that. This

@@ -935,7 +935,7 @@ export interface ThemeView {
   /** Derived (ownerId IS NULL) — a seed palette is un-editable/un-deletable by construction. */
   readonly isSeed: boolean;
   /** Derived (the row IS the default palette's sentinel row) — what `theme.selectedThemeId: null` resolves
-   *  to. The sentinel id stays domain-internal (`../constants.ts`); this flag is what crosses (#1671). */
+   *  to. The sentinel id stays domain-internal (`packages/server/src/domain/settings/constants.ts`); this flag is what crosses (#1671). */
   readonly isDefault: boolean;
   readonly createdAt: number;
   readonly updatedAt: number;

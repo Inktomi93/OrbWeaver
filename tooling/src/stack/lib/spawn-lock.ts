@@ -4,7 +4,7 @@
 // `process.exit(await main())`, so importing it to test anything RUNS it. The lock's fs mechanics are
 // exactly the part that needs a test with real files on disk (a decision table cannot prove that a stale
 // lock is actually UNLINKED), so they live here, importable and side-effect-free at module scope. The
-// DECISIONS stay pure in `./stack-mode.ts` (`parseLockHolder` / `decideSpawnLock`).
+// DECISIONS stay pure in `./prod-record.ts` (`parseLockHolder` / `decideSpawnLock`).
 //
 // WHAT IT PROTECTS: the adopt/refuse decision and the spawn are separate syscalls, so two `up prod` runs
 // can both read "the port is free" and both spawn. The loser dies on EADDRINUSE — but only after its

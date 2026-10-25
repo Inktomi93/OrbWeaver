@@ -146,7 +146,7 @@ export const untrustedUrlTransform: UrlTransform = (url) => {
   let parsed: URL;
   // the empty string is this gate's block verdict. Markdown passes
   // untrustedUrlTransform as Streamdown's urlTransform, which drops a url that transforms to "", and
-  // policy.test.ts pins the unparseable case. Ends if the catch returns anything but "".
+  // the unparseable case lands there. Ends if the catch returns anything but "".
   try {
     parsed = new URL(value);
   } catch {

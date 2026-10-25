@@ -1,8 +1,8 @@
 // The per-flag VALUE validators: given a flag and the raw token it was handed, say what is wrong with it.
 // Pure and ops-free by construction (nothing here reads FLAG_HANDLERS or a flag CLASS — that is the
 // scanner's job in ops/parse.ts), which is why they live in lib/: ops/parse.ts was over the tooling-size
-// cap once the session flags and the arms flags both landed on it (Core-Tooling-Law.md §4.3, "pure logic
-// to lib/"). Every function reports by PUSHING onto `errors`; none throws and none returns a verdict, so a
+// cap once the session flags and the arms flags both landed on it (pure logic
+// goes to lib/). Every function reports by PUSHING onto `errors`; none throws and none returns a verdict, so a
 // single argv pass collects every refusal instead of dying on the first.
 
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";

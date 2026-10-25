@@ -31,7 +31,7 @@
  *  retired scrim's dark value off the Hearth base to the digit (0.158 − 0.038 = 0.120); `alpha` 0.65 is
  *  the MEASURED floor (live A/B 2026-08-18: 0.65 turned the failing carried-light room's dialogue
  *  1.32→6.79 and body 1.14→14.33 while the dark-art room stayed 12.06/13.60 and visually identical),
- *  pinned by the plate-floor proof in `palette-contrast.suite.test.ts`. `alpha` is the FLOOR the
+ *  a plate floor. `alpha` is the FLOOR the
  *  polarity-aware {@link readingPlateAlpha} starts from, no longer the emitted value for every palette
  *  (#217 — read that function's contract for the algebra and for `inkReferenceRatio`).
  *
@@ -108,7 +108,7 @@ export const THEME_DERIVATION = {
   },
 } as const;
 
-/** WCAG AA for normal-size text — the floor `palette-contrast.suite.test.ts` holds every orb pairing to. */
+/** WCAG AA for normal-size text — the floor every orb pairing is held to. */
 export const AA_NORMAL_RATIO = 4.5;
 /** Orb's authored-neutral-ink target. It is deliberately above the legal floor because the browser's
  *  8-bit OKLCH resolution and alpha composition can spend contrast after the analytic solve. A host near
@@ -457,8 +457,8 @@ const PLATE_ALPHA_STEPS = Math.round((1 - THEME_DERIVATION.readingPlate.alpha) /
  * — measured 5.04–5.25 across the realistic light bases — so the derivation
  * must name a reference ABOVE it. It protects `inkReferenceRatio` (6:1 vs the base) — OWNER-RULED
  * 2026-08-18 off the table below, the knob being a legibility-vs-art trade nobody else may set: the
- * legibility of the LEAST legible ink orb SHIPS (the light palette's speaker, 6.02:1), pinned by
- * `palette-contrast.suite.test.ts` so the reference cannot rot away from the shipped palettes. The
+ * legibility of the LEAST legible ink orb SHIPS (the light palette's speaker, 6.02:1), kept beside
+ * the shipped palettes so the reference cannot rot away from the shipped palettes. The
  * alphas that buys, and their cost in art: ref 6 → α 0.921 · ref 5.5 → 0.960 · ref 5.2 → 0.985 ·
  * ref 5.0 → 1 (an opaque plate, no window at all).
  *
