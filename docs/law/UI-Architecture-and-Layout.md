@@ -45,7 +45,7 @@ updated: 2026-10-17
 | Primitive | Job | Spec |
 | - | - | - |
 | `createEntityMutation` | optimistic + rollback + sticky-error reset + invalidate + meta-toast | §13.1 |
-| `createCollectionSurface` | infinite + `maxPages` + `keepPreviousData` + virtual-list + select | §13.1 |
+| `createCollectionSurface` | infinite (no `maxPages`) + `keepPreviousData` + virtual-list + select | §13.1 |
 | `<QueryBoundary>` | reset-handshake + `useSuspenseQueries` + `startTransition` | §13.1 |
 | `useGatedQuery` | `skipToken` gating (kills `castId("")`) | §13.1 |
 | `invalidation.ts` | event→`queryFilter` seam | §11.3 |
@@ -73,7 +73,7 @@ kit ─┬─→ contracts ─┬─→ db ─→ server          (backend branc
 
 #### 1.1 The headline win — neo's lint rules become package physics
 
-neo enforced the UI boundaries with lint. orbweaver makes them **resolver physics** (boundaries are packages, not lint) — LIVE, enforced by the package.json dep sets + `.dependency-cruiser.ts` (`ui-cake` · `ui-no-node-builtins` · `ui-satellite-seals-*`):
+neo enforced the UI boundaries with lint. orbweaver makes them **resolver physics** (boundaries are packages, not lint) — LIVE, enforced by the package.json dep sets + `.dependency-cruiser.ts` (`ui-cake` · `browser-and-iso-no-node-builtins` · `ui-satellite-seals-*`):
 
 | neo lint rule | orbweaver |
 | - | - |

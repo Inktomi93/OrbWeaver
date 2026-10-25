@@ -19,7 +19,7 @@ type BaseInfiniteOptions<TPage, TPageParam, TError = DefaultError, TKey extends 
 >;
 
 export interface CollectionSurfaceConfig<TItem, TPage, TParams, TPageParam, TError = DefaultError, TKey extends QueryKey = QueryKey> {
-  /** `(t, params) => t.character.list.infiniteQueryOptions({...params}, { getNextPageParam, maxPages })`. */
+  /** `(t, params) => t.character.list.infiniteQueryOptions({...params}, { getNextPageParam })`. */
   readonly query: (trpc: Trpc, params: TParams) => BaseInfiniteOptions<TPage, TPageParam, TError, TKey>;
   /** Flatten one page into rows. */
   readonly itemsOf: (page: TPage) => readonly TItem[];

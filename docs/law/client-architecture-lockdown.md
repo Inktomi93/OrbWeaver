@@ -231,7 +231,7 @@ A `SectionDefinition` carries its rail identity, panel defaults, placeholder, co
 A list-bearing section declares its selection seam, search policy, and `useListHeader` data hook. The shell renders `ListPaneHeader` from that data.
 Pane availability derives from the list body and context kind. A section cannot declare a separate availability override.
 The shell applies `--spacing-section` as the CONTENT inline inset. A full-bleed surface declares a reason through `{ planned: "<reason>" }`.
-Every roster search uses `ListSearch`. The registry-derived roster CT census covers section lists and Corpus modes, including newly registered members.
+Every roster search uses `ListSearch`. Review enforces this; no census test walks the section lists or Corpus modes.
 A no-search declaration carries a nonempty reason. Type tests reject omitted band, inset, and search declarations.
 The shape's law is the header of `client/src/state/section-registry.ts` (§15).
 

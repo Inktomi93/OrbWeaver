@@ -1,7 +1,7 @@
 // The §4.3 categorized view — tags as collapsible category headers (Discord channel-category chevrons),
 // an "Uncategorized" bucket at the tail. C9-1d: a group's FIRST-paint expansion comes from its tag's
-// `folderType` (`groupStartsOpen`) — this component is the tags-as-folders column's live reader. Renders the CURRENTLY-LOADED rows grouped (the sliding-window
-// cache caps them at maxPages×PAGE_LIMIT, so a non-virtualized grouped render is bounded); a "Load more"
+// `folderType` (`groupStartsOpen`) — this component is the tags-as-folders column's live reader. Renders the CURRENTLY-LOADED rows grouped
+// (the query keeps every loaded page, so the grouped render grows with each "Load more"); a "Load more"
 // button drives the SAME guarded tail-fetch the flat virtual list wires to `onEndApproach`, because a
 // grouped list has no single scroll to trigger it. A character with 2+ tags appears under EACH group —
 // selection is by character id (the row's own `onSelect`), so every instance highlights together.

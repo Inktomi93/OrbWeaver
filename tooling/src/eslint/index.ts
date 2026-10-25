@@ -4,6 +4,8 @@ import { CLIENT_DATA_RESTRICTIONS, effectOnSharedSelectionRule } from "./client-
 import { assumesSingleReplicaRule, commentedCodeRule, rawIdRule, sideGenSamplingRule, wireJsonRule } from "./general.ts";
 import { DB_SCHEMA_RESTRICTIONS, SERVER_HARD_RESTRICTIONS, TYPE_SHAPE_RESTRICTIONS } from "./general-policy.ts";
 import { moduleStateRule } from "./module-state.ts";
+import type { BaseUiDoors } from "./motion.ts";
+import { baseUiStateDataAttributesRule, unruledFlipInversionRule } from "./motion.ts";
 import { baseUiPortalContainerRule, contextReturnTypeRule, directRowReadRule, directRowWriteRule, nativeTitleRule, testFactoryContractRule } from "./native.ts";
 import { PRINCIPAL_RULES } from "./principal.ts";
 import {
@@ -41,6 +43,7 @@ import {
 import { darkVariantRule, offTokenInlineStyleRule, recededInkRule, themeOverrideRule } from "./ui-styles.ts";
 
 export { authorClassIgnores } from "./css-classes.ts";
+export { baseUiDoors } from "./motion.ts";
 export { classClassifier } from "./ui-feature-classname.ts";
 
 const LOCAL_RESTRICTIONS = [
@@ -77,6 +80,7 @@ export function createOrbPlugin(options: {
   floorlessButtonSizes: ReadonlySet<string>;
   shellClasses: ReadonlySet<string>;
   classifyClass: ClassClassifier;
+  baseUiDoors: BaseUiDoors;
 }): {
   rules: Record<string, OrbRule>;
 } {
@@ -92,6 +96,8 @@ export function createOrbPlugin(options: {
       "no-raw-http-client": rawHttpClientRule,
       "sole-env-reader": soleEnvReaderRule,
       "baseui-portal-container-seam": baseUiPortalContainerRule,
+      "baseui-state-data-attributes": baseUiStateDataAttributesRule(options.baseUiDoors),
+      "no-unruled-flip-inversion": unruledFlipInversionRule,
       "no-native-title": nativeTitleRule,
       "test-factory-contract": testFactoryContractRule,
       "no-direct-row-writes": directRowWriteRule,
