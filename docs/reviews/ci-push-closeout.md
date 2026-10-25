@@ -19,4 +19,4 @@ The coupled CSS plan no longer claims a retained receded-ink rule. There is no b
 - `pnpm knip:prod` passes with non-failing unused `@internal` tag hints in untouched `packages/server/src/transport/trpc/context.ts`. Native output: `/tmp/ci-closeout-node-knip-prod.log`.
 - Documentation formatting and `git diff --check` pass.
 
-The source stays frozen during this floor. No full Node application suite or rendered checks are rerun: the changes remove unsupported static enforcement and dead exports, not product behavior. The next CI run owns the application verdict; the rendered repair has a separate owner and report.
+The source stays frozen during this floor. No full Node application suite or rendered checks are rerun for this batch: it removes unsupported static enforcement and dead exports, not product behavior. See the [first-boot repair](ci-first-boot-closeout.md) for the browser changes and parent-owned application E2E. A new CI run still owns application-wide acceptance; no push is performed.

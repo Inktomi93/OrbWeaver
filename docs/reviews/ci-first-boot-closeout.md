@@ -57,4 +57,21 @@ The final browser run and static checks use a frozen tree. Both old-source files
 
 Ignored native artifacts are under `reports/ci-first-boot/`: CI download in `artifact/`, unchanged cold failures in `cold-old-source/`, geometry controls in `geometry-old-source/`, and final JSON in `final/report.json`. Compiler, token, Knip, ESLint and dependency logs are sibling files.
 
-This selection establishes Chromium CT behavior under the application's native gallery pipeline. Full application CI, production E2E and independent review remain separate. No screenshot baseline, private data or shared application server is used.
+This selection establishes Chromium CT behavior under the application's native gallery pipeline. No screenshot baseline, private data or shared application server is used.
+
+## Parent-owned application E2E
+
+The required application suites pass at source `a29129661b9f6955c044ae1e74223f13310c1be6`.
+The parent runs the maintained corpus wrapper from the lane checkout:
+
+```sh
+E2E_CORPUS_REPORT_PREFIX=reports/ci-first-boot/e2e pnpm exec node scripts/corpus-fixture.ts e2e -- tests/e2e/smoke.spec.ts tests/e2e/corpus-home-launch.spec.ts tests/e2e/corpus-joiner.local.spec.ts --project=corpus-desktop-flat --project=corpus-phone-flat --project=corpus-local-desktop-flat --project=corpus-local-phone-flat --workers=1
+```
+
+The native result is 27 passed and one declared phone exclusion, with no unexpected failures, flaky cases, retries or runner errors.
+The excluded no-selection state belongs to the desktop content pane; the phone opens the Chats list instead.
+The JSON result is `reports/ci-first-boot/e2e-report.json`; the parent transcript is `/tmp/ci-first-boot-e2e.log`.
+The wrapper completes successfully. Its server and Vite ports are unbound afterward, with no cleanup failure reported.
+
+The corpus fixture selects its appearance preference before each tested flow. These flows do not replace the separate cold first-boot controls.
+Independent correctness review confirms the Node/Knip and browser repair commits. A new CI run still owns application-wide acceptance; no push is performed.
