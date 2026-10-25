@@ -1,5 +1,5 @@
 // The state behind the floating "jump to latest" pill. At-tail reads from the scroll node's real
-// geometry, sampled when the scroll ends (`scrollend`), never the seal's follow-intent signal — intent desyncs from
+// geometry, sampled when the scroll ends (`scrollend`, or a debounced `scroll` where the browser lacks it), never the seal's follow-intent signal — intent desyncs from
 // position the instant virtual-core writes scrollTop during a re-measure. The unread count is latched
 // to its running max while away from the tail: messagesCount and the live turn-phase flag commit in
 // separate renders, so the raw delta formula can dip through 0 mid-settle and self-hide over a
@@ -14,9 +14,11 @@
 
 import type { MessageListHandle } from "@orb/ui/message-list";
 import type { RefObject } from "react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const AT_TAIL_THRESHOLD_PX = 80;
+// Safari and iOS before 26.2 have no `scrollend`; a quiet period after the last `scroll` stands in for it.
+const SETTLE_DEBOUNCE_MS = 90;
 
 export interface UseJumpToLatestArgs {
   readonly messagesCount: number;
@@ -41,6 +43,8 @@ export function useJumpToLatest({ messagesCount, live, pinActive, listHandleRef 
   const atTail = pinActive || atTailSampled;
   const scrollNodeRef = useRef<HTMLDivElement | null>(null);
 
+  const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const sampleAtSettle = (): void => {
     const node = scrollNodeRef.current;
     if (node !== null) {
@@ -48,16 +52,34 @@ export function useJumpToLatest({ messagesCount, live, pinActive, listHandleRef 
     }
   };
 
+  const sampleAfterQuiet = (): void => {
+    if (settleTimerRef.current !== null) {
+      clearTimeout(settleTimerRef.current);
+    }
+    settleTimerRef.current = setTimeout(sampleAtSettle, SETTLE_DEBOUNCE_MS);
+  };
+
   const scrollContainerRef = (node: HTMLDivElement | null): void => {
     const previous = scrollNodeRef.current;
     if (previous !== null) {
       previous.removeEventListener("scrollend", sampleAtSettle);
+      previous.removeEventListener("scroll", sampleAfterQuiet);
     }
     scrollNodeRef.current = node;
     if (node !== null) {
-      node.addEventListener("scrollend", sampleAtSettle, { passive: true });
+      const [type, listener] = "onscrollend" in node ? (["scrollend", sampleAtSettle] as const) : (["scroll", sampleAfterQuiet] as const);
+      node.addEventListener(type, listener, { passive: true });
     }
   };
+
+  useEffect(
+    (): (() => void) => (): void => {
+      if (settleTimerRef.current !== null) {
+        clearTimeout(settleTimerRef.current);
+      }
+    },
+    [],
+  );
 
   // snapshot = the canon count last seen while at the tail, frozen while the reader is away.
   const [snapshot, setSnapshot] = useState(messagesCount);
