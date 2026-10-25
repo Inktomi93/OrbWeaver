@@ -47,7 +47,7 @@ export {
   PortalContainerContext,
   usePortalContainer,
 } from "./portal-container.ts";
-export { RECEDED, RECEDED_INK } from "./receded-ink.ts";
+export { RECEDED } from "./receded-ink.ts";
 export { prefersReducedMotionNow, scrollBehavior } from "./reduced-motion-now.ts";
 export { formatResultCount, formatSuggestionCount } from "./result-count.ts";
 export { BACKDROP_FILL, SCRIM, SCRIM_BASE } from "./scrim.ts";

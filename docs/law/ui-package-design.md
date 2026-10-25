@@ -103,9 +103,6 @@ packages/ui/
   There is deliberately **no root barrel** — importing `@orb/ui` flat would defeat tree-shaking and
   blur the seal boundaries. `styles` are exported as `"./styles/globals.css"` (the client's one CSS
   import) — the generated `@theme` rides inside it.
-- **Package layout:** `ui` is in the package list of `tests/kit/package-layout.suite.test.ts` (no loose
-  `.ts` at `src/` root except nothing — even `index.ts` doesn't exist here) and `test-layout.ts`
-  gains `/home/inktomi/inktomi-stack/development/orbweaver-legacy-tests-2026-10-21/ui`.
 
 ## 3. Dependencies — the sealed satellites (each lib seals ONE dir)
 

@@ -12,7 +12,6 @@ import {
   jsxProperties,
   STATIC_CONST_DEPTH,
   staticKeyName,
-  staticMemberName,
   staticObjectProperties,
   staticTextValue,
   staticValueOptions,
@@ -624,41 +623,6 @@ export const darkVariantRule: OrbRule = {
       }
     };
     return { "Literal[value=type(string)]": judge, ["TemplateLiteral"]: judge, "BinaryExpression[operator='+']": judge };
-  },
-};
-
-const RECEDED_INK_NAME = "RECEDED_INK";
-
-const VARIANT_PREFIX_END = /\S:$/u;
-
-function importedRecededInk(context: OrbRuleContext, expression: TSESTree.Node): boolean {
-  if (expression.type === "Identifier") {
-    return expression.name === RECEDED_INK_NAME && lexicalVariable(context, expression)?.defs[0]?.node.type === "ImportSpecifier";
-  }
-  return (
-    expression.type === "MemberExpression" &&
-    staticMemberName(expression) === RECEDED_INK_NAME &&
-    expression.object.type === "Identifier" &&
-    lexicalVariable(context, expression.object)?.defs[0]?.node.type === "ImportNamespaceSpecifier"
-  );
-}
-
-export const recededInkRule: OrbRule = {
-  meta: { type: "problem", schema: [] },
-  create(context: OrbRuleContext): RuleVisitor {
-    return {
-      "TemplateLiteral[expressions.length>0]"(template: TSESTree.TemplateLiteral): void {
-        template.expressions.forEach((expression, index) => {
-          if (importedRecededInk(context, expression) && VARIANT_PREFIX_END.test((template.quasis[index] as TSESTree.TemplateElement).value.raw)) {
-            context.report({
-              node: expression,
-              message:
-                "RECEDED_INK behind a Tailwind variant states nothing about the control's rest state, the only state the recession ruling governs. Carry it unprefixed on the composite's own control, or author the colour directly when the control recedes only in a variant state (packages/ui/src/lib/receded-ink.ts).",
-            });
-          }
-        });
-      },
-    };
   },
 };
 

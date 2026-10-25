@@ -1823,7 +1823,6 @@ export default [
     files: rootSources("@client", "@ui"),
     plugins: { orb: localPlugin },
     rules: {
-      "orb/receded-ink-integrity": "error",
       "orb/no-tailwind-dark-variant": "error",
       "orb/no-floorless-control-in-wrap": "error",
       "orb/browser-no-node-globals": "error",

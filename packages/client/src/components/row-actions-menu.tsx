@@ -78,7 +78,7 @@ export interface RowActionsMenuProps {
    *  longer disagree. A trigger that needs a fuller explanation puts it in `label` (where it becomes the name
    *  as well as the pixels), never in a divergent twin. @defaultValue false */
   readonly tooltip?: boolean;
-  /** The trigger's ink: `receded` for a demoted-actions door (see below), `inherit` for a trigger that is one
+  /** The trigger's ink: `receded` for a demoted-actions door, `inherit` for a trigger that is one
    *  tool among equals and must match its neighbours (the composer's ☰ beside the ✨). @defaultValue "receded" */
   readonly ink?: "inherit" | "receded";
   /** The bottom destructive item + its confirm dialog. Omit for a menu with no destructive action. */
@@ -86,20 +86,6 @@ export interface RowActionsMenuProps {
   /** The ⋯ trigger button, for a caller that hands focus back to it (a dialog's `finalFocus`). */
   readonly triggerRef?: Ref<HTMLButtonElement>;
 }
-
-// ── THE TRIGGER RECEDES, AND THIS COMPOSITE SAYS SO (#1244, 2026-09-02 — the #1141 fork, second instance;
-// converted to the shared `RECEDED_INK` spelling by #1249, third instance) ────────────────────────────────
-// This composite IS the demoted-actions door: every consumer puts it at the quiet end of a row whose primary
-// action sits beside it, and side-eye #621's ruling for exactly such a row is "three affordances at three
-// weights". It got the recession for free while `Button`'s `ghost` intent painted `text-muted-foreground`;
-// 60380f7d95 (#969) flipped every transparent intent to
-// `text-current` so a transparent action inherits its host's paired ink, and the two weights collapsed onto
-// one colour — the automation rule row's Test and its ⋯ measured IDENTICAL, which is the pin #621 minted to
-// stop that exact reading.
-// BOTH RULINGS SURVIVE, resolved the way #1141 was: the primitive keeps inheriting (#969's mechanism and its
-// button CT are untouched), and the component whose whole identity is "demoted" states its own ink at the
-// two trigger sites below. `RECEDED_INK`'s module header owns the full fork and the unprefixed-so-hover-
-// still-wins reasoning.
 
 /**
  * THIS COMPOSITE'S TRIGGER VOCABULARY → the `Button` size arm that carries it (#1613).

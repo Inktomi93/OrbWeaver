@@ -61,7 +61,7 @@ import {
   UI_PRIMITIVE_RESTRICTIONS,
 } from "./ui-policy.ts";
 import { noSealedInternalsRule } from "./ui-sealed-internals.ts";
-import { darkVariantRule, noStaticStylePropRule, offTokenInlineStyleRule, recededInkRule, themeOverrideRule } from "./ui-styles.ts";
+import { darkVariantRule, noStaticStylePropRule, offTokenInlineStyleRule, themeOverrideRule } from "./ui-styles.ts";
 
 export { authorClassIgnores } from "./css-classes.ts";
 export { baseUiDoors } from "./motion.ts";
@@ -178,7 +178,6 @@ export function createOrbPlugin(options: {
       "no-module-state": moduleStateRule,
       "no-hardcoded-side-gen-sampling": sideGenSamplingRule,
       "session-channel-boundary": sessionChannelBoundaryRule,
-      "receded-ink-integrity": recededInkRule,
       "detached-work-traced": detachedWorkRule,
       "commented-code": commentedCodeRule,
       "plugin-dump-guard": restrictionRule({ selectors: PLUGIN_DUMP_SELECTORS }),
