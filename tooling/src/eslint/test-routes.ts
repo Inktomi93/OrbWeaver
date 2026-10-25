@@ -1,5 +1,6 @@
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESLint, TSESTree } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES } from "@typescript-eslint/utils";
 import ts from "typescript";
 import { constantInitializer, staticKeyName, unwrapTsValue } from "./static-values.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
@@ -127,8 +128,123 @@ function returnedValues(context: OrbRuleContext, fn: Responder): readonly TSESTr
   return fn.body.type === "BlockStatement" ? visit(fn.body) : [fn.body];
 }
 
-// Follow aliases only while their value reaches an observation; discarded expressions are not request reads.
-function meaningfulRead(context: OrbRuleContext, node: TSESTree.Node, seen: Set<TSESTree.Node>): boolean {
+const VALUE_COMPOSITIONS = new Set<TSESTree.Node["type"]>([
+  AST_NODE_TYPES.MemberExpression,
+  AST_NODE_TYPES.ChainExpression,
+  AST_NODE_TYPES.TSAsExpression,
+  AST_NODE_TYPES.TSSatisfiesExpression,
+  AST_NODE_TYPES.TSNonNullExpression,
+  AST_NODE_TYPES.TSTypeAssertion,
+  AST_NODE_TYPES.TSInstantiationExpression,
+  AST_NODE_TYPES.ArrayExpression,
+  AST_NODE_TYPES.ObjectExpression,
+  AST_NODE_TYPES.Property,
+  AST_NODE_TYPES.SpreadElement,
+  AST_NODE_TYPES.ArrayPattern,
+  AST_NODE_TYPES.ObjectPattern,
+  AST_NODE_TYPES.AssignmentPattern,
+  AST_NODE_TYPES.RestElement,
+  AST_NODE_TYPES.TemplateLiteral,
+  AST_NODE_TYPES.BinaryExpression,
+  AST_NODE_TYPES.LogicalExpression,
+  AST_NODE_TYPES.ConditionalExpression,
+  AST_NODE_TYPES.AwaitExpression,
+  AST_NODE_TYPES.JSXExpressionContainer,
+  AST_NODE_TYPES.JSXSpreadAttribute,
+  AST_NODE_TYPES.JSXAttribute,
+  AST_NODE_TYPES.JSXOpeningElement,
+  AST_NODE_TYPES.JSXElement,
+  AST_NODE_TYPES.JSXFragment,
+  AST_NODE_TYPES.JSXSpreadChild,
+]);
+
+const EFFECT_EXPRESSIONS = new Set<TSESTree.Node["type"]>([
+  AST_NODE_TYPES.CallExpression,
+  AST_NODE_TYPES.NewExpression,
+  AST_NODE_TYPES.TaggedTemplateExpression,
+  AST_NODE_TYPES.ImportExpression,
+  AST_NODE_TYPES.YieldExpression,
+  AST_NODE_TYPES.AssignmentExpression,
+  AST_NODE_TYPES.UpdateExpression,
+]);
+
+function hasImmediateEffect(context: OrbRuleContext, node: TSESTree.Node): boolean {
+  if (isResponder(node) || node.type === "ClassExpression" || node.type === "ClassDeclaration") {
+    return false;
+  }
+  if (EFFECT_EXPRESSIONS.has(node.type) || (node.type === "UnaryExpression" && node.operator === "delete")) {
+    return true;
+  }
+  return childNodes(context, node).some((child) => hasImmediateEffect(context, child));
+}
+
+function controlsEffect(context: OrbRuleContext, node: TSESTree.Node, parent: TSESTree.Node): boolean {
+  if (parent.type === "LogicalExpression" && parent.left === node) {
+    return hasImmediateEffect(context, parent.right);
+  }
+  return (
+    parent.type === "ConditionalExpression" &&
+    parent.test === node &&
+    (hasImmediateEffect(context, parent.consequent) || hasImmediateEffect(context, parent.alternate))
+  );
+}
+
+function observedByParent(node: TSESTree.Node, parent: TSESTree.Node): boolean {
+  if (EFFECT_EXPRESSIONS.has(parent.type)) {
+    return true;
+  }
+  switch (parent.type) {
+    case "ReturnStatement":
+    case "ThrowStatement":
+      return true;
+    case "ArrowFunctionExpression":
+      return parent.body === node;
+    case "IfStatement":
+    case "WhileStatement":
+    case "DoWhileStatement":
+    case "ForStatement":
+    case "SwitchCase":
+      return parent.test === node;
+    case "SwitchStatement":
+      return parent.discriminant === node;
+    case "ForInStatement":
+    case "ForOfStatement":
+      return parent.right === node;
+    default:
+      return false;
+  }
+}
+
+function bindingObserved(context: OrbRuleContext, binding: TSESTree.VariableDeclarator, seen: Set<TSESTree.Node>, root: Responder): boolean {
+  return context.sourceCode
+    .getDeclaredVariables(binding)
+    .some((variable) => variable.references.some((reference) => reference.isRead() && meaningfulRead(context, reference.identifier, seen, root)));
+}
+
+function functionValueObserved(context: OrbRuleContext, fn: Responder, seen: Set<TSESTree.Node>, root: Responder): boolean {
+  if (fn.type !== "FunctionDeclaration") {
+    return meaningfulRead(context, fn, seen, root);
+  }
+  if (seen.has(fn)) {
+    return false;
+  }
+  seen.add(fn);
+  return context.sourceCode
+    .getDeclaredVariables(fn)
+    .some(
+      (variable) =>
+        variable.defs.some((definition) => definition.type === "FunctionName" && definition.node === fn) &&
+        variable.references.some((reference) => reference.isRead() && meaningfulRead(context, reference.identifier, seen, root)),
+    );
+}
+
+function withinObservedFunction(context: OrbRuleContext, node: TSESTree.Node, seen: Set<TSESTree.Node>, root: Responder): boolean {
+  const enclosing = context.sourceCode.getAncestors(node).findLast(isResponder);
+  return enclosing === root || (enclosing !== undefined && functionValueObserved(context, enclosing, seen, root));
+}
+
+// Value construction is not an observation; follow its result until it is returned, observed or discarded.
+function meaningfulRead(context: OrbRuleContext, node: TSESTree.Node, seen: Set<TSESTree.Node>, root: Responder): boolean {
   if (seen.has(node)) {
     return false;
   }
@@ -137,21 +253,23 @@ function meaningfulRead(context: OrbRuleContext, node: TSESTree.Node, seen: Set<
   if (parent === undefined) {
     return false;
   }
-  if (parent.type === "ExpressionStatement" || (parent.type === "UnaryExpression" && parent.operator === "void")) {
-    return false;
+  if (parent.type === "VariableDeclarator") {
+    return bindingObserved(context, parent, seen, root);
   }
   if (parent.type === "SequenceExpression") {
-    return parent.expressions.at(-1) === node && meaningfulRead(context, parent, seen);
+    return parent.expressions.at(-1) === node && meaningfulRead(context, parent, seen, root);
   }
-  if (parent.type === "VariableDeclarator") {
-    return context.sourceCode
-      .getDeclaredVariables(parent)
-      .some((variable) => variable.references.some((reference) => reference.isRead() && meaningfulRead(context, reference.identifier, seen)));
+  if (parent.type === "UnaryExpression") {
+    return parent.operator === "delete"
+      ? withinObservedFunction(context, node, seen, root)
+      : parent.operator !== "void" && meaningfulRead(context, parent, seen, root);
   }
-  if (parent.type === "MemberExpression" || parent.type === "TSAsExpression" || parent.type === "TSNonNullExpression") {
-    return meaningfulRead(context, parent, seen);
+  if (controlsEffect(context, node, parent)) {
+    return withinObservedFunction(context, node, seen, root);
   }
-  return true;
+  return VALUE_COMPOSITIONS.has(parent.type)
+    ? meaningfulRead(context, parent, seen, root)
+    : observedByParent(node, parent) && withinObservedFunction(context, node, seen, root);
 }
 
 function readsParameter(context: OrbRuleContext, fn: Responder): boolean {
@@ -160,7 +278,7 @@ function readsParameter(context: OrbRuleContext, fn: Responder): boolean {
     .some(
       (variable: TSESLint.Scope.Variable) =>
         variable.defs.some((def) => def.type === "Parameter") &&
-        variable.references.some((reference) => reference.isRead() && meaningfulRead(context, reference.identifier, new Set())),
+        variable.references.some((reference) => reference.isRead() && meaningfulRead(context, reference.identifier, new Set(), fn)),
     );
 }
 
