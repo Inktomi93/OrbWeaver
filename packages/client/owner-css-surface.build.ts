@@ -8,6 +8,7 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { THEME_SCOPE_EMIT_VARS } from "@orb/ui/theme-scope/emit-vars";
 import { TOKENS } from "@orb/ui/tokens";
+import { appearanceChannelAttributes, appearanceChannelVocabulary } from "./appearance-channel.build.ts";
 import type { OwnerCssHook, OwnerCssHookKind, OwnerCssRename } from "./src/owner-css/hook.ts";
 import { OWNER_CSS_RENAMES } from "./src/owner-css/renames.ts";
 
@@ -68,6 +69,11 @@ export interface SurfaceSource {
   readonly text: string;
 }
 
+export interface AppearanceAttribute {
+  readonly name: string;
+  readonly values: readonly string[];
+}
+
 export interface SurfaceInput {
   readonly sources: readonly SurfaceSource[];
   readonly shellCss: string;
@@ -75,6 +81,10 @@ export interface SurfaceInput {
   readonly tokenVars: readonly string[];
   /** Every custom property a ThemeScope writes. */
   readonly themeScopeVars: readonly string[];
+  /** The registered `--appearance-*` properties of the appearance channel. */
+  readonly appearanceProperties: readonly string[];
+  /** The `data-appearance-*` root attributes with the values each matches. */
+  readonly appearanceAttributes: readonly AppearanceAttribute[];
   readonly renames: readonly OwnerCssRename[];
 }
 
@@ -105,14 +115,26 @@ function tuple(name: string, members: Iterable<string>): string {
 }
 
 /** The names a surface publishes, by kind. A ThemeScope var is a token the scope overrides, so both rosters are tokens. */
-function liveHooks({ sources, shellCss, tokenVars, themeScopeVars }: SurfaceInput): Record<OwnerCssHookKind, ReadonlySet<string>> {
+function liveHooks({
+  sources,
+  shellCss,
+  tokenVars,
+  themeScopeVars,
+  appearanceProperties,
+  appearanceAttributes,
+}: SurfaceInput): Record<OwnerCssHookKind, ReadonlySet<string>> {
   const slots = new Set<string>(COMPUTED_SLOTS.map((slot) => slot.name));
   for (const source of sources) {
     harvest(source.text, SLOT_LITERAL_PATTERNS, slots);
   }
   const shellClasses = new Set<string>();
   harvest(shellCss, [SHELL_CLASS_PATTERN], shellClasses);
-  return { slot: slots, "shell-class": shellClasses, token: new Set([...tokenVars, ...themeScopeVars]) };
+  return {
+    slot: slots,
+    "shell-class": shellClasses,
+    token: new Set([...tokenVars, ...themeScopeVars, ...appearanceProperties]),
+    "appearance-attribute": new Set(appearanceAttributes.map((attribute) => attribute.name)),
+  };
 }
 
 function assertRenamesRecorded(
@@ -146,11 +168,18 @@ export function renderOwnerCssSurface(input: SurfaceInput, previous: readonly Ow
     "/** Every `.shell-*` class shell.css styles. */",
     tuple("OWNER_CSS_SHELL_CLASSES", live["shell-class"]),
     "",
-    "/** Every custom property theme.css serves on the document; the ramp primitives are private and unserved. */",
+    "/** Every custom property theme.css serves on the document, plus the registered appearance properties; the ramp primitives are private and unserved. */",
     tuple("OWNER_CSS_TOKEN_VARS", live.token),
     "",
     "/** Every custom property a ThemeScope writes for a carried or custom theme. */",
     tuple("OWNER_CSS_THEME_SCOPE_VARS", new Set(input.themeScopeVars)),
+    "",
+    "/** Every `data-appearance-*` root attribute and the values its variants match. */",
+    `export const OWNER_CSS_APPEARANCE_ATTRIBUTES = ${JSON.stringify(
+      [...input.appearanceAttributes].sort((a, b) => a.name.localeCompare(b.name)),
+      null,
+      2,
+    )} as const;`,
     "",
     "const hooks = (kind: OwnerCssHookKind, names: readonly string[]): OwnerCssHook[] => names.map((name) => ({ kind, name }));",
     "",
@@ -159,6 +188,7 @@ export function renderOwnerCssSurface(input: SurfaceInput, previous: readonly Ow
     '  ...hooks("slot", OWNER_CSS_SLOTS),',
     '  ...hooks("shell-class", OWNER_CSS_SHELL_CLASSES),',
     '  ...hooks("token", OWNER_CSS_TOKEN_VARS),',
+    '  ...OWNER_CSS_APPEARANCE_ATTRIBUTES.map(({ name, values }): OwnerCssHook => ({ kind: "appearance-attribute", name, values })),',
     "];",
     "",
   ].join("\n");
@@ -180,6 +210,8 @@ export function readOwnerCssSources(repoRoot = REPO_ROOT): SurfaceInput {
       .map((token) => token.cssVar)
       .filter((cssVar) => !PRIVATE_VAR_PREFIXES.some((prefix) => cssVar.startsWith(prefix))),
     themeScopeVars: THEME_SCOPE_EMIT_VARS,
+    appearanceProperties: appearanceChannelVocabulary().properties,
+    appearanceAttributes: appearanceChannelAttributes(),
     renames: OWNER_CSS_RENAMES,
     sources: paths.map((path) => ({ path: relative(repoRoot, path), text: readFileSync(path, "utf8") })),
     shellCss: [
