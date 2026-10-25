@@ -4,9 +4,15 @@ import { expect, test } from "@playwright/test";
 import type { ForcedColorsStory } from "./_forced-colors-stories.tsx";
 
 const STORY = "tests/ui/styles/_forced-colors-stories/ForcedColorsStory";
+const CLEAN_MEDIA = { media: "screen", reducedMotion: "no-preference", colorScheme: "no-preference", forcedColors: "none", contrast: "no-preference" } as const;
 
 test.beforeEach(async ({ page }) => {
-  await page.emulateMedia({ forcedColors: "active" });
+  await page.emulateMedia({ ...CLEAN_MEDIA, forcedColors: "active" });
+});
+
+test.afterEach(async ({ page }) => {
+  // The page is reused across tests in a worker, and emulation survives it: state the whole media state, never one feature.
+  await page.emulateMedia(CLEAN_MEDIA);
 });
 
 test("a keyboard-focused tab keeps a visible outline", async ({ mount, page }) => {

@@ -16,9 +16,15 @@ const PHONE_LANDSCAPE_KEYBOARD = { width: 844, height: 190 } as const;
 const TEXT_SCALE_200 = "2";
 const NOTCH_INSET = 47;
 const HOME_INDICATOR_INSET = 34;
+const CLEAN_MEDIA = { media: "screen", reducedMotion: "no-preference", colorScheme: "no-preference", forcedColors: "none", contrast: "no-preference" } as const;
 
 test.beforeEach(async ({ corpus, page }) => {
   await routeTrpc(page, createShellAmbientReads(corpus));
+});
+
+test.afterEach(async ({ page }) => {
+  // The page is reused across tests in a worker, and emulation survives it: state the whole media state, never one feature.
+  await page.emulateMedia(CLEAN_MEDIA);
 });
 
 for (const viewport of [PHONE_PORTRAIT, PHONE_LANDSCAPE]) {
@@ -132,7 +138,7 @@ for (const [viewport, short] of [
 }
 
 test("a printed page drops the chrome, stops clipping the grid and uses the light palette", async ({ mount, page }) => {
-  await page.emulateMedia({ media: "print" });
+  await page.emulateMedia({ ...CLEAN_MEDIA, media: "print" });
   await mount<typeof ShellAmbientStory>(STORY, {});
   await expect(page.getByRole("navigation", { name: "Primary", exact: true })).toBeHidden();
   const printed = await page.evaluate(() => ({

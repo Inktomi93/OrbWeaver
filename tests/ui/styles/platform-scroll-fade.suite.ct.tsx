@@ -6,6 +6,12 @@ import { expect, test } from "@playwright/test";
 import type { ScrollFadeStory } from "./_scroll-fade-stories.tsx";
 
 const STORY = "tests/ui/styles/_scroll-fade-stories/ScrollFadeStory";
+const CLEAN_MEDIA = { media: "screen", reducedMotion: "no-preference", colorScheme: "no-preference", forcedColors: "none", contrast: "no-preference" } as const;
+
+test.afterEach(async ({ page }) => {
+  // The page is reused across tests in a worker, and emulation survives it: state the whole media state, never one feature.
+  await page.emulateMedia(CLEAN_MEDIA);
+});
 
 async function band(box: Locator, property: string): Promise<number> {
   return await box.evaluate((el, name) => Number.parseFloat(getComputedStyle(el).getPropertyValue(name)), property);
@@ -56,7 +62,7 @@ test("the horizontal fade follows the same two edges", async ({ mount, page }) =
 });
 
 test("a reduced-motion preference leaves the scroll-linked fade in place", async ({ mount, page }) => {
-  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.emulateMedia({ ...CLEAN_MEDIA, reducedMotion: "reduce" });
   await mount<typeof ScrollFadeStory>(STORY, {});
   const box = page.getByRole("region", { name: "vertical", exact: true });
   await scrollTo(box, "top", 10_000);
