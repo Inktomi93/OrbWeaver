@@ -192,8 +192,8 @@ function OverflowMarks({ overflow, fill }: { readonly overflow: RailOverflow; re
           data-edge="start"
           className={`pointer-events-none absolute inset-y-0 inset-s-0 bg-linear-to-r inline-gutter ${fill} via-60% to-transparent`}
         >
-          <Stack data-slot="context-rail-more" className="text-muted-foreground">
-            <Icon icon={ChevronLeft} size="xs" />
+          <Stack data-slot="context-rail-more">
+            <Icon icon={ChevronLeft} size="xs" tone="muted" />
           </Stack>
         </Stack>
       ) : null}
@@ -206,8 +206,8 @@ function OverflowMarks({ overflow, fill }: { readonly overflow: RailOverflow; re
           data-edge="end"
           className={`pointer-events-none absolute inset-y-0 inset-e-0 bg-linear-to-l inline-gutter ${fill} via-60% to-transparent`}
         >
-          <Stack data-slot="context-rail-more" className="text-muted-foreground">
-            <Icon icon={ChevronRight} size="xs" />
+          <Stack data-slot="context-rail-more">
+            <Icon icon={ChevronRight} size="xs" tone="muted" />
           </Stack>
         </Stack>
       ) : null}
@@ -283,7 +283,7 @@ function ContextTab({ tab, isActive }: { readonly tab: ResolvedContextTab; reado
       <Text as="span" voice="label" data-slot="context-cell-caption" className="truncate" ink="inherit">
         {tab.label}
       </Text>
-      {locked ? <Icon icon={Lock} size="xs" aria-hidden={true} className="text-muted-foreground opacity-60" /> : null}
+      {locked ? <Icon icon={Lock} size="xs" aria-hidden={true} tone="muted" receded={true} /> : null}
       {locked ? null : <ContextTabBadge count={count} dot={tab.badge === true} />}
     </TabsTab>
   );
@@ -359,7 +359,7 @@ function ContextCell({
           cell's inline-end edge IS the pane's edge and a flush glyph reads as clipped.
           LOGICAL (`end-*`), never `right-*`. Spelled as a whole literal at each site (not hoisted) because
           `ui-size-via-variant` reads these class strings statically. */}
-      {locked ? <Icon icon={Lock} size="xs" aria-hidden={true} className="absolute inset-e-field inset-bs-field text-muted-foreground opacity-60" /> : null}
+      {locked ? <Icon icon={Lock} size="xs" aria-hidden={true} className="absolute inset-e-field inset-bs-field" tone="muted" receded={true} /> : null}
       {locked || isActive ? null : <ContextCellBadge count={count} dot={tab.badge === true} />}
     </TabsTab>
   );
@@ -369,11 +369,10 @@ function renderCellIcon(tab: ResolvedContextTab, isActive: boolean, locked: bool
   if (tab.icon === undefined) {
     return null;
   }
-  const className = locked ? "opacity-60" : "";
   if (tab.icon === Crown) {
-    return <Icon icon={Crown} size="sm" fill={isActive ? "solid" : "none"} className={className} />;
+    return <Icon icon={Crown} size="sm" fill={isActive ? "solid" : "none"} receded={locked} />;
   }
-  return <Icon icon={tab.icon} size="sm" className={className} />;
+  return <Icon icon={tab.icon} size="sm" receded={locked} />;
 }
 
 function ContextCellBadge({ count, dot }: { readonly count: number; readonly dot: boolean }): ReactElement | null {

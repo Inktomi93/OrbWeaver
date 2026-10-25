@@ -26,6 +26,7 @@
 // `ELEVATION_ITEMS`, the one option table; the write path is the same bound field the Select drove.
 
 import type { AppearanceSettings } from "@orb/contracts/settings";
+import { Card } from "@orb/ui/card";
 import { Row, Stack } from "@orb/ui/layout";
 import { RadioGroupPicker, RadioGroupPickerItem } from "@orb/ui/radio-group";
 import type { ReactElement } from "react";
@@ -43,11 +44,11 @@ type Elevation = AppearanceSettings["elevation"];
  *  seams KEPT. EXAGGERATED: 2px seams — a truthful hairline reads as nothing at this size. */
 function FlatDiagram(): ReactElement {
   return (
-    <Row className="overflow-hidden rounded-control border border-border bg-sidebar block-(--size-preview-strip) inline-full">
+    <Card shape="row" tone="sidebar" padding="none" className="flex items-center overflow-hidden block-(--size-preview-strip) inline-full">
       <Row className="flex-1" />
       <Row className="flex-1 border-s-2 border-sidebar-border" />
       <Row className="flex-2 border-s-2 border-sidebar-border" />
-    </Row>
+    </Card>
   );
 }
 
@@ -59,11 +60,11 @@ function FlatDiagram(): ReactElement {
  *  1.5:1 floor. The CT re-measures them from the rendered pixels rather than trusting this line. */
 function RampDiagram(): ReactElement {
   return (
-    <Row className="overflow-hidden rounded-control border border-border bg-background block-(--size-preview-strip) inline-full">
+    <Card shape="row" tone="background" padding="none" className="flex items-center overflow-hidden block-(--size-preview-strip) inline-full">
       <Row className="flex-1 bg-foreground/8" />
       <Row className="flex-1 bg-foreground/32" />
       <Row className="flex-2 bg-foreground/60" />
-    </Row>
+    </Card>
   );
 }
 
@@ -72,10 +73,12 @@ function RampDiagram(): ReactElement {
  *  shorter card make the lift read instantly; the hairline on each island keeps the LINE half true. */
 function GlowDiagram(): ReactElement {
   return (
-    <Row className="items-center gap-row overflow-hidden rounded-control border border-border bg-background p-row block-(--size-preview-strip) inline-full">
-      <Row className="flex-1 rounded-inset border border-sidebar-border bg-sidebar shadow-overlay block-3/4" />
-      <Row className="flex-2 rounded-inset border border-sidebar-border bg-card shadow-overlay block-3/4" />
-    </Row>
+    <Card shape="row" tone="background" padding="none" className="overflow-hidden block-(--size-preview-strip) inline-full">
+      <Row gap="row" className="p-row block-full inline-full">
+        <Row className="flex-1 rounded-inset border border-sidebar-border bg-sidebar shadow-overlay block-3/4" />
+        <Row className="flex-2 rounded-inset border border-sidebar-border bg-card shadow-overlay block-3/4" />
+      </Row>
+    </Card>
   );
 }
 
