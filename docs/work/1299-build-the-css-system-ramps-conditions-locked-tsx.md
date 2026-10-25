@@ -24,4 +24,6 @@ The plan's legs are built as its Shape states; every control in its Test plan fa
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The implementation, bounded correctness review and reviewed-slice visual acceptance are complete at `2df42bb1a0`, including the CodeMirror typography and enlarged new-chat footer corrections. The [CSS closeout](../reviews/css-closeout.md) and [ramp enforcement closeout](../reviews/ramp-enforcement-closeout.md) record the source populations, affected native checks, runtime cases, synthetic captures and their limits. The Import FormDialog was not reached in the capture attempts and is not claimed as visually qualified.
+
+Keep this umbrella open until its explicit current-tree whole-lint and dependency requirements are also satisfied. D317 and the orchestrator merge-train policy leave those whole-tree results to the next authorized push barrier; pre-expansion results do not qualify the changed enforcement/configuration population. The affected Stylelint result is current and passing.
