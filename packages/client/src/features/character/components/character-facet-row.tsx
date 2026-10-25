@@ -54,8 +54,8 @@ export function CharacterFacetRow({ facet, selected, filled, preview, fillSummar
   // Selection = a 2px left ember bar + a 10% primary tint (rides --color-primary so custom themes retint
   // it), matching the chats-lane list-row pattern; the constant left-border width keeps rows from shifting.
   const rowClass = selected
-    ? "rounded-control border border-border border-l-2 border-l-primary bg-primary/10"
-    : "rounded-control border border-border border-l-2 border-l-transparent";
+    ? "rounded-control border border-border border-s-2 border-s-primary bg-primary/10"
+    : "rounded-control border border-border border-s-2 border-s-transparent";
   return (
     <Button
       ref={buttonRef}

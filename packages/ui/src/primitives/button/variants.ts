@@ -41,9 +41,9 @@ function glyphBox(box: string): string[] {
 
 function inlineBox(typeStep: string): string[] {
   return [
-    "relative h-auto min-h-0 justify-start font-normal",
+    "relative block-auto min-block-0 justify-start font-normal",
     typeStep,
-    "before:absolute before:top-1/2 before:left-1/2 before:h-(--size-touch-target) before:w-full before:min-w-(--size-touch-target)",
+    "before:absolute before:inset-bs-1/2 before:inset-s-1/2 before:block-(--size-touch-target) before:inline-full before:min-inline-(--size-touch-target)",
     "before:-translate-x-1/2 before:-translate-y-1/2 before:content-['']",
   ];
 }

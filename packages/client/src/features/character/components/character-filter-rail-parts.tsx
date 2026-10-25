@@ -135,7 +135,7 @@ export function TagVocabularyPanel({
           the SCROLLER is the thing that scrolls. The name is deliberately not the toolbar's
           ("Tag filter vocabulary"): a region and the toolbar inside it announcing the same words is the
           host-duplicates-its-body defect one pane over. */}
-      <ScrollArea viewportClassName="max-h-(--height-scroll-md)" viewportProps={{ role: "region", "aria-label": "Tag vocabulary" }} wrapContent={true}>
+      <ScrollArea viewportClassName="max-block-(--height-scroll-md)" viewportProps={{ role: "region", "aria-label": "Tag vocabulary" }} wrapContent={true}>
         {/* `pe-row` is the SCROLLBAR's own width token (`scrollbar: w-row` in the primitive's variants):
             Base UI's scrollbar is positioned over the content, so without the inline-end gutter the last
             chip of every line renders underneath the thumb. */}
@@ -238,7 +238,7 @@ function TagFilterChipButton({
           aria-label={`Filter by ${tag.name}: ${presentation.announced} — ${presentation.next}`}
           // `?? ""` because `cn`'s type admits `undefined` (clsx's) while `ButtonProps.className` does not under
           // `exactOptionalPropertyTypes` — the same idiom message-row-variants.ts homes as its `cx`.
-          className={cn("min-w-0 max-w-full", presentation.restingInk) ?? ""}
+          className={cn("max-inline-full min-inline-0", presentation.restingInk) ?? ""}
           data-tag-filter-state={state}
           intent="outline"
           onClick={(): void => onCycle(tag.id)}

@@ -218,7 +218,7 @@ export function NewChatPicker(): ReactElement {
         emptyText="No characters match."
         isSelected={(id): boolean => selected.has(id)}
         label="Choose characters"
-        listClassName="max-h-(--height-scroll-lg)"
+        listClassName="max-block-(--height-scroll-lg)"
         onEscape={dismiss}
         onSelect={toggle}
         placeholder="Search characters…"

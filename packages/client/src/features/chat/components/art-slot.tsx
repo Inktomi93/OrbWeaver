@@ -148,7 +148,7 @@ export function EchoArtTile({
   const { attach, url, failed } = useSlotImage(art.image?.urlAt);
   useFailedReport(failed, onFailedChange);
   const tappable = view !== null && !failed;
-  const rounding = art.side === "left" ? "rounded-tl-card" : "rounded-tr-card";
+  const rounding = art.side === "left" ? "rounded-ss-card" : "rounded-se-card";
   const { width, ...paint } = art.style;
   const paintStyle: CSSProperties = url === undefined || failed ? paint : { ...paint, backgroundImage: `url("${url}")` };
   return (
