@@ -1,10 +1,9 @@
 ---
 kind: work
-status: doing
+status: open
 updated: 2026-10-25
 priority: P2
 area: ui
-lane: closeout/css
 plan: css-system
 ---
 
