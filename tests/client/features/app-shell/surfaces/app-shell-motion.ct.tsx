@@ -46,10 +46,6 @@ const DOOR_BOXES = {
   listAction: '[data-slot="list-pane-action"]',
 } as const;
 type DoorBox = keyof typeof DOOR_BOXES;
-// The transcript's first rendered row is not one subject across a door: the virtual list's range grows when the rows
-// reflow, so an earlier message mounts above it mid-door with its own late-starting flip. The newest row is the
-// transcript's bottom anchor, mounted for the whole door, so the census reads the last match.
-const LAST_MATCH: readonly DoorBox[] = ["row"];
 // The LIST door moves the list pane itself, so its action travels with it by design and is not held.
 const LIST_DOOR: readonly DoorBox[] = ["main", "trail", "listPanel", "row", "composer"];
 const CONTEXT_DOOR: readonly DoorBox[] = ["main", "trail", "contextPanel", "listAction", "row", "composer"];
@@ -124,9 +120,9 @@ const WIDTH_BOXES = { mainWidth: ".shell-main", listPanelWidth: '.shell-panel[da
  */
 function readBoxes(page: Page, boxes: readonly DoorBox[]): Promise<Frame> {
   return page.evaluate(
-    ({ selectors, widths, last }) => {
+    ({ selectors, widths }) => {
       const read = (name: string, selector: string): DOMRect => {
-        const element = last.includes(name) ? (Array.from(document.querySelectorAll(selector)).at(-1) ?? null) : document.querySelector(selector);
+        const element = document.querySelector(selector);
         if (element === null || element.getClientRects().length === 0) {
           throw new Error(`The ${name} box (${selector}) is ${element === null ? "absent" : "not rendered"}`);
         }
@@ -141,19 +137,19 @@ function readBoxes(page: Page, boxes: readonly DoorBox[]): Promise<Frame> {
       }
       return frame;
     },
-    { selectors: Object.fromEntries(boxes.map((box) => [box, DOOR_BOXES[box]])), widths: WIDTH_BOXES, last: LAST_MATCH },
+    { selectors: Object.fromEntries(boxes.map((box) => [box, DOOR_BOXES[box]])), widths: WIDTH_BOXES },
   );
 }
 
 /** Record the same frame on every animation frame from now on, bounded so it cannot outlive the case. */
 function startSampler(page: Page, boxes: readonly DoorBox[]): Promise<void> {
   return page.evaluate(
-    ({ selectors, widths, limit, last }) => {
+    ({ selectors, widths, limit }) => {
       const ring: Record<string, number>[] = [];
       Reflect.set(globalThis, "__shellFrames", ring);
       Reflect.set(globalThis, "__shellFramesError", null);
       const read = (name: string, selector: string): DOMRect => {
-        const element = last.includes(name) ? (Array.from(document.querySelectorAll(selector)).at(-1) ?? null) : document.querySelector(selector);
+        const element = document.querySelector(selector);
         if (element === null || element.getClientRects().length === 0) {
           throw new Error(`The ${name} box (${selector}) is ${element === null ? "absent" : "not rendered"}`);
         }
@@ -179,7 +175,7 @@ function startSampler(page: Page, boxes: readonly DoorBox[]): Promise<void> {
       };
       requestAnimationFrame(tick);
     },
-    { selectors: Object.fromEntries(boxes.map((box) => [box, DOOR_BOXES[box]])), widths: WIDTH_BOXES, limit: SAMPLE_FRAMES, last: LAST_MATCH },
+    { selectors: Object.fromEntries(boxes.map((box) => [box, DOOR_BOXES[box]])), widths: WIDTH_BOXES, limit: SAMPLE_FRAMES },
   );
 }
 
@@ -648,6 +644,61 @@ test.describe("the doors in an open room", () => {
       const verdict = doorVerdict(census, ["listPanelWidth", ...LIST_DOOR]);
       expect(verdict.cuts).toStrictEqual([]);
       expect(verdict.strays).toStrictEqual([]);
+    }
+  });
+});
+
+test.describe("a row mounted mid-door", () => {
+  test("joins the list door's flip in phase instead of starting its own from the corner", async ({ corpus, mount, page }) => {
+    await seedShellState(page, BOTH_DOCKED);
+    await routeMotion(page, corpus);
+    await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
+    await expect(page.locator(DOOR_BOXES.row).first()).toBeVisible();
+    await waitForShellIdle(page);
+    // The tracks already mounted, kept in page memory so the read below can tell a newcomer from them.
+    await page.evaluate(() => {
+      Reflect.set(globalThis, "__tracksAtRest", new Set(document.querySelectorAll(".orb-chat-track")));
+    });
+    // Press the door and scroll the transcript up as soon as its flip starts, so the virtual list mounts the rows above
+    // while the flip is in flight. The read waits for the first frame a newcomer is painted in, then compares each newcomer's centre
+    // flip with `.shell-main`'s, which was armed at the stamp; it gives up when the door's flip ends.
+    const read = await page.getByRole("button", { name: "Hide list panel", exact: true }).evaluate(async (button) => {
+      const frame = (): Promise<number> => new Promise((resolve) => requestAnimationFrame(resolve));
+      const scroller = document.querySelector('[data-slot="message-list-scroll"]');
+      if (scroller === null || !(button instanceof HTMLElement)) {
+        throw new Error("The transcript scroller or the door button is absent");
+      }
+      const atRest = Reflect.get(globalThis, "__tracksAtRest") as Set<Element>;
+      const flip = (element: Element | null, name: string): Animation | undefined =>
+        element?.getAnimations().find((candidate) => (candidate as CSSAnimation).animationName === name);
+      button.click();
+      // The stamp lands in the door's passive effect; scroll on the first frame its flip exists.
+      let reference = flip(document.querySelector(".shell-main"), "shell-main-flip");
+      while (reference === undefined) {
+        await frame();
+        reference = flip(document.querySelector(".shell-main"), "shell-main-flip");
+      }
+      scroller.scrollTop = 0;
+      let newcomers: Element[] = [];
+      while (reference.playState === "running" && newcomers.length === 0) {
+        await frame();
+        newcomers = Array.from(document.querySelectorAll(".orb-chat-track")).filter((track) => !atRest.has(track));
+      }
+      // Read in the next painted frame, over the newcomers still mounted then: the list drops rows it scrolled past.
+      await frame();
+      const mounted = Array.from(document.querySelectorAll(".orb-chat-track")).filter((track) => !atRest.has(track));
+      return {
+        reference: reference.playState === "running" ? Number(reference.currentTime) : null,
+        newcomers: mounted.map((track) => {
+          const animation = flip(track, "shell-centre-flip");
+          return animation === undefined ? null : Number(animation.currentTime);
+        }),
+      };
+    });
+    expect(read.reference, "the door's flip had already finished, so the read proves nothing").not.toBeNull();
+    expect(read.newcomers.length, "the scroll mounted no row mid-door, so the read proves nothing").toBeGreaterThan(0);
+    for (const time of read.newcomers) {
+      expect(Math.abs((time ?? Number.NaN) - (read.reference ?? Number.NaN))).toBeLessThan(1);
     }
   });
 });
