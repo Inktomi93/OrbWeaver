@@ -16,15 +16,15 @@
 //     entry is worse than the entry itself — more clicks, more chrome, less clarity.
 //   · production, unmodified or unbound → an EMPTY reserved cell. Reset is a verb with nothing to do, and
 //     the cell still holds the section's shared action track so no row's geometry moves.
-//   · coarse pointer → the cell is display-GONE (`HIDE_AT_COARSE`). Touch reaches Reset through the
+//   · coarse pointer → the cell is display-GONE (`hiddenAt="coarse"`). Touch reaches Reset through the
 //     teacher's About door; a rest-invisible control on a pointer class with no hover is unreachable
 //     chrome. The `i` is NOT in this cell and keeps its own 44px target.
 //   · dev → the menu: Reset · separator · Copy id · Copy link. The separator keeps the copy verbs from
 //     reading as siblings of a state-changing one. Unbound drops Reset and its
 //     separator, keeping the two Copies: an address is always true even where there is no value.
 //
-// WHAT IS PRESERVED, DELIBERATELY: `SETTING_ROW_REVEAL`'s opacity/focus/open-popup contract (opacity only —
-// a display or visibility swap under a hover key is a hit-test oscillator, row-reveal.ts), the reserved
+// WHAT IS PRESERVED, DELIBERATELY: the shared setting reveal's opacity/focus/open-popup contract (opacity only —
+// a display or visibility swap under a hover key is a hit-test oscillator), the reserved
 // in-flow box (zero layout shift on reveal is the owner's bar), and the exact wire of Reset and of the
 // deep-link grammar.
 //
@@ -39,12 +39,12 @@ import { Icon, Link2, RotateCcw, Tag } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { MenuItem, MenuSeparator } from "@orb/ui/menu";
 import type { ReactElement } from "react";
-import { cn, copyWithNotice, IS_DEV, rowActionsName } from "#lib";
+import { copyWithNotice, IS_DEV, rowActionsName } from "#lib";
 import { formatConfigLink } from "#state";
 import { DescribedMenuItem } from "./described-menu-item.tsx";
-import { HIDE_AT_COARSE } from "./pointer-variants.ts";
+
 import { RowActionsMenu } from "./row-actions-menu.tsx";
-import { SETTING_ROW_REVEAL } from "./row-reveal.ts";
+
 import type { ConfigLeafAddress, ConfigLeafValue } from "./use-config-leaf.ts";
 
 /** A failed copy's next step: the toast description carries the text itself, where it can be selected. */
@@ -66,8 +66,8 @@ function ActionCell({ children }: { readonly children?: ReactElement | null }): 
   return (
     // `w-full` fills the section's third grid track, which is what the RESERVATION actually is: the track
     // is sized by the widest action in the section, so an empty cell still holds the column and no row's
-    // geometry moves when a sibling's Reset appears. The reveal stays opacity-only (row-reveal.ts's law).
-    <Row className={cn(SETTING_ROW_REVEAL, HIDE_AT_COARSE, "shrink-0 justify-end inline-full") ?? ""} data-slot="setting-row-actions">
+    // geometry moves when a sibling's Reset appears. The shared reveal stays opacity-only.
+    <Row className="shrink-0 justify-end inline-full" reveal="setting" hiddenAt="coarse" data-slot="setting-row-actions">
       {children}
     </Row>
   );

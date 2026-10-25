@@ -13,7 +13,6 @@
 import { Button } from "@orb/ui/button";
 import type { LucideIcon } from "@orb/ui/icons";
 import { Icon, MoreHorizontal, Trash2 } from "@orb/ui/icons";
-import { HOVER_REVEAL, RECEDED_INK } from "@orb/ui/lib";
 import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@orb/ui/menu";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode, Ref } from "react";
@@ -128,8 +127,6 @@ const TRIGGER_BUTTON_SIZE = { glyph: "glyph-lg", icon: "icon", inline: "inline",
   "glyph-lg" | "icon" | "icon-sm" | "inline"
 >;
 
-const TRIGGER_INK = { inherit: "", receded: RECEDED_INK } as const satisfies Record<NonNullable<RowActionsMenuProps["ink"]>, string>;
-
 function actionsTrigger({
   label,
   icon,
@@ -152,7 +149,8 @@ function actionsTrigger({
   return (
     <Button
       aria-label={label}
-      className={reveal ? `${TRIGGER_INK[ink]} ${HOVER_REVEAL.hover}` : TRIGGER_INK[ink]}
+      reveal={reveal ? "hover" : undefined}
+      tone={ink === "receded" ? "muted" : "default"}
       intent="ghost"
       ref={triggerRef}
       shape={shape}

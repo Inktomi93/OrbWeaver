@@ -86,6 +86,10 @@ export const segmentedClockVariants = tv({
     hiddenIcon: "text-primary",
   },
   variants: {
+    tone: {
+      default: {},
+      destructive: { root: "text-destructive", segment: "text-destructive", completedDot: "text-destructive", hiddenIcon: "text-destructive" },
+    },
     size: {
       sm: { root: "block-(--size-control-sm) inline-(--size-control-sm)" },
       md: { root: "block-(--size-control-md) inline-(--size-control-md)" },

@@ -249,7 +249,7 @@ function NormalRowActions({
           which is the precondition for `actionsFloat` returning the name its 114px (P1-3). Same split as
           the chats row.
 
-          THE COARSE COLLAPSE (#1695, side-eye 2026-09-05 — the rule's home is `#components/row-reveal.ts`).
+          THE COARSE COLLAPSE (#1695, side-eye 2026-09-05 — the rule's home is `@orb/ui/lib`).
           `HOVER_REVEAL.hover` pins this toggle permanently ON at a coarse pointer, where it is a 44-48px touch box
           and `actionsFloat` (a `pointer-fine:` arm) is off, so it charges real in-flow width on every row of
           a phone-width library. Measured on this tree at coarse BEFORE the collapse, title width / row
@@ -262,14 +262,14 @@ function NormalRowActions({
           label={starName}
           onToggle={(): void => onToggleStar(character.id, !character.starred)}
           pressed={character.starred}
-          pressedClassName="text-warning"
+          pressedTone="warning"
           rest="never"
         />
       </Row>
       {/* THE CTA DOES NOT COLLAPSE, and that is this row's own standing ruling, preserved: the dual-purpose
           Chat action is the library's 1-click core loop (§9c) and "stays a visible target … never folded
           into the kebab" (this file's header). The collapse rule is written for a row's SECONDARY
-          affordances (`#components/row-reveal.ts`), which the star is and this is not — so #1695's symptom
+          affordances (`@orb/ui/lib`), which the star is and this is not — so #1695's symptom
           (three touch boxes charging a phone row) is answered by taking the cluster from three to TWO, not
           by reversing the CTA ruling. */}
       <Row reveal="hover">

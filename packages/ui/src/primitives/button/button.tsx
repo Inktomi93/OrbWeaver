@@ -54,6 +54,7 @@ export function Button(props: ButtonProps): ReactElement {
     cardCorners,
     selection,
     hiddenAt,
+    reveal,
     touchFloor,
     tone,
     underline,
@@ -69,7 +70,7 @@ export function Button(props: ButtonProps): ReactElement {
   // The className AND the `data-intent`/`data-size` axis stamp, from ONE selection object (#1080).
   const stamp = variantProps(
     buttonVariants,
-    { intent, size, shape, cardCorners, selection, hiddenAt, touchFloor, tone, underline, reserveEdge, confirming, quietDisabled, focusRing },
+    { intent, size, shape, cardCorners, selection, hiddenAt, reveal, touchFloor, tone, underline, reserveEdge, confirming, quietDisabled, focusRing },
     className,
   );
   return (

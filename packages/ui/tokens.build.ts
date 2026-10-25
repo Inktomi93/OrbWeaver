@@ -376,26 +376,30 @@ function pointerFineOverride(token: TransformedToken, contractToken: ContractTok
   return { path: token.path, value: renderDimension(arm, `${contractToken.pathString}/orb.pointerFine`), snapped: contractToken.outputRole === "snapped" };
 }
 
-/** A snapped-output dimension's resolved px at the 16px root (docs/law/integer-line-boxes.md §3b). */
-interface SnappedBasePx {
+/** A dimension's resolved px at the authored root, before appearance scaling. */
+interface LengthBasePx {
   readonly path: readonly string[];
   readonly px: number;
 }
 
-function snappedBasePx(token: TransformedToken, path: string): SnappedBasePx {
+function lengthBasePx(token: TransformedToken, path: string): LengthBasePx {
   const dimension = objectValue(resolvedValue(token), path);
   const amount = finiteNumber(dimension["value"], `${path}.value`);
   return { path: token.path, px: dimension["unit"] === "rem" ? amount * ROOT_REM_PX : amount };
 }
 
+function isServedDimension(token: ContractToken): boolean {
+  return token.type === "dimension" && token.outputRole !== "input" && token.path[0] !== PRIMITIVE_GROUP;
+}
+
 interface TokensTsInput {
   readonly tokens: readonly GeneratedCssValue[];
   readonly polarityArms: readonly GeneratedPolarityArms[];
-  readonly snapped: readonly SnappedBasePx[];
+  readonly lengths: readonly LengthBasePx[];
   readonly conditions: Readonly<Record<string, string>>;
 }
 
-function renderTokensTs({ tokens, polarityArms, snapped, conditions }: TokensTsInput): string {
+function renderTokensTs({ tokens, polarityArms, lengths, conditions }: TokensTsInput): string {
   const entries = tokens.map((t) => {
     const key = t.path.join(".");
     return `  "${key}": { cssVar: "${cssVarName(t.path)}", value: ${JSON.stringify(t.value)} },`;
@@ -420,9 +424,9 @@ function renderTokensTs({ tokens, polarityArms, snapped, conditions }: TokensTsI
     ...armEntries,
     "} as const;",
     "",
-    "/** Resolved px at the 16px root for every snapped-output dimension — build-time consumers (the ui-audit ramp bindings) read THIS and never parse the round() serialization (the TOKEN_POLARITY_ARMS precedent). */",
-    "export const SNAPPED_LENGTH_BASE_PX = {",
-    ...snapped.map((token) => `  ${JSON.stringify(token.path.join("."))}: ${token.px},`),
+    "/** Resolved dimension px at the authored 16px root: numeric consumers use this fallback and resolve live CSS for appearance changes. */",
+    "export const LENGTH_BASE_PX = {",
+    ...lengths.map((token) => `  ${JSON.stringify(token.path.join("."))}: ${token.px},`),
     "} as const;",
     "",
     "/** The named media conditions, keyed by their Tailwind variant name: the one spelling `matchMedia` reads, generated from the same source as the `@custom-variant` rules in theme.css. */",
@@ -575,7 +579,7 @@ export async function generateArtifacts(uiRoot = HERE): Promise<{ themeCss: stri
   const contractByPath = new Map(contract.baseTokens.map((token) => [token.pathString, token]));
   const flat: GeneratedCssValue[] = [];
   const polarityArms: GeneratedPolarityArms[] = [];
-  const snapped: SnappedBasePx[] = [];
+  const lengths: LengthBasePx[] = [];
   const fine: FineOverride[] = [];
   for (const token of dictionary.allTokens) {
     const path = token.path.join(".");
@@ -587,8 +591,8 @@ export async function generateArtifacts(uiRoot = HERE): Promise<{ themeCss: stri
     if (value !== null) {
       flat.push({ path: token.path, value, placement: "theme" });
     }
-    if (contractToken.outputRole === "snapped") {
-      snapped.push(snappedBasePx(token, path));
+    if (isServedDimension(contractToken)) {
+      lengths.push(lengthBasePx(token, path));
     }
     const override = pointerFineOverride(token, contractToken);
     if (override !== null) {
@@ -622,7 +626,7 @@ export async function generateArtifacts(uiRoot = HERE): Promise<{ themeCss: stri
       conditions,
       renderPointerFineBlock(fine, conditions[POINTER_FINE_CONDITION]) + renderSeedThemesBlock(seedThemes) + renderBasePaletteBlock(seedThemes, portableByPath),
     ),
-    tokensTs: renderTokensTs({ tokens: flat, polarityArms, snapped, conditions }),
+    tokensTs: renderTokensTs({ tokens: flat, polarityArms, lengths, conditions }),
     themesTs: renderSeedThemesTs(seedThemes),
   };
 }

@@ -194,7 +194,7 @@ function QuestCard({ quest, edit }: QuestCardProps): ReactElement {
               completed={done}
               size="sm"
               label={`${quest.name} objectives`}
-              {...(failed ? { className: "text-destructive" } : {})}
+              tone={failed ? "destructive" : "default"}
             />
           ) : null}
           <Stack gap="field" className="flex-1 min-inline-0">

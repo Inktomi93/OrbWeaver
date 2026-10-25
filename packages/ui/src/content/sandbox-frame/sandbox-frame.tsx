@@ -1,12 +1,8 @@
 import { CARD_FRAME_SANDBOX, clampCardFrameFontFamily, clampCardFrameStyleTokens, clampCardFrameThemeTokens, foldCardFrameHeight } from "@orb/kit/card-frame";
 import type { CSSProperties, ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
+import { cssVar } from "#tokens";
 import { buildSrcDoc } from "./srcdoc.ts";
-
-// The PRE-MEASUREMENT height, and the only height the srcdoc floor ever has (that arm is script-dead, so it
-// cannot report its own size). On the routed arm this is what paints until the frame's one hash-pinned
-// script answers — a floor for the first frame, not the final size.
-const DEFAULT_HEIGHT_PX = 320;
 
 // An iframe is a focusable landmark in the tab order, so its `title` IS its accessible name — an empty one
 // announces as an unnamed frame. The single production caller (`ImmersiveCard`) always passes the card's
@@ -96,7 +92,7 @@ export function SandboxFrame({
   src,
   title,
   complete = true,
-  heightPx = DEFAULT_HEIGHT_PX,
+  heightPx,
   fill = false,
   className,
   onHostMessage,
@@ -179,7 +175,7 @@ export function SandboxFrame({
 
   // `fill` = the lightbox arm, where the PARENT owns height and a self-report must not participate.
   const appliedPx = (measured?.delivery === deliveryKey ? measured.px : undefined) ?? heightPx;
-  const style: CSSProperties | undefined = fill ? undefined : { height: `${appliedPx}px` };
+  const style: CSSProperties | undefined = fill ? undefined : { height: appliedPx === undefined ? cssVar("height.chart") : `${appliedPx}px` };
 
   if (!complete) {
     return (

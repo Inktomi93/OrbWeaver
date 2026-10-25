@@ -13,12 +13,11 @@
 // Requires the row root to carry `group` (that is what `HOVER_REVEAL.hover` keys on). Two features render this
 // anatomy (the character card's star, the chats row's star), which is the R2 bar for a tier-2 composite.
 
+import type { ButtonBaseProps } from "@orb/ui/button";
 import { Button } from "@orb/ui/button";
 import type { FillableIcon, LucideIcon } from "@orb/ui/icons";
 import { Icon } from "@orb/ui/icons";
-import { HOVER_REVEAL } from "@orb/ui/lib";
 import type { ReactElement } from "react";
-import { cn } from "#lib";
 
 interface RowToggleActionBaseProps {
   readonly pressed: boolean;
@@ -26,8 +25,10 @@ interface RowToggleActionBaseProps {
   /** The accessible name, constant across states ("Star The Crimson Court"); `aria-pressed`/`aria-checked`
    *  carries on/off, so a name that also flipped would announce the state twice. */
   readonly label: string;
-  /** The pressed tone (e.g. `text-warning` for a star). Applies only while pressed. */
-  readonly pressedClassName?: string;
+  /** The pressed icon's semantic ink. */
+  readonly pressedTone?: ButtonBaseProps["tone"];
+  /** A selected surface uses the shared selection fill and its paired foreground. */
+  readonly selectedFill?: boolean;
   /** `when-on` (D11, the list default) = visible at rest only while pressed; `always` = never hidden;
    *  `never` = always reveal-gated, for a row that shows the PRESSED state elsewhere at rest (the chats
    *  row's title-line ★ marker, `ListRow.markers` + `ROW_REVEAL_SWAP_COARSE_KEEP`). D11's invariant — pressed state is
@@ -71,7 +72,7 @@ function RowToggleGlyph(props: RowToggleFillArm): ReactElement {
 /** One row state-toggle: a ghost icon button that IS the marker (`aria-pressed`/`aria-checked` carries the
  *  datum). */
 export function RowToggleAction(props: RowToggleFillArm): ReactElement {
-  const { pressed, onToggle, label, pressedClassName, semantics = "toggle", rest = "when-on" } = props;
+  const { pressed, onToggle, label, pressedTone, selectedFill = false, semantics = "toggle", rest = "when-on" } = props;
   const revealed = rest === "never" || (rest === "when-on" && !pressed);
   const radio = semantics === "radio";
   return (
@@ -79,7 +80,9 @@ export function RowToggleAction(props: RowToggleFillArm): ReactElement {
       aria-checked={radio ? pressed : undefined}
       aria-label={label}
       aria-pressed={radio ? undefined : pressed}
-      className={cn(revealed && HOVER_REVEAL.hover, pressed && pressedClassName) ?? ""}
+      reveal={revealed ? "hover" : undefined}
+      selection={pressed && selectedFill ? "on" : "none"}
+      tone={pressed && !selectedFill ? pressedTone : "default"}
       intent="ghost"
       onClick={onToggle}
       role={radio ? "radio" : undefined}

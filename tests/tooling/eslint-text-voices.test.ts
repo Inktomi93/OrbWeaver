@@ -36,6 +36,11 @@ test.for([
   'import { Text } from "@orb/ui/text"; export const T = <Text {...{ size: "body" }} />;',
   'import { Text } from "@orb/ui/text"; const axes = { weight: "bold" }; export const T = <Text {...axes} />;',
   'import { Text } from "@orb/ui/text"; const key = "transform"; export const T = <Text {...{ [key]: "caps" }} />;',
+  'import { Text } from "@orb/ui/text"; const rows = { current: { text: { weight: "semibold" } }, past: { text: { tone: "muted" } } }; const T = ({ state }) => { const row = rows[state]; return <Text voice="gloss" {...row.text} />; };',
+  'import { Heading } from "@orb/ui/text"; const rows = { title: { size: "display" } }; export const T = <Heading level={2} {...rows.title} />;',
+  'import { Text } from "@orb/ui/text"; const rows = { text: { weight: "semibold" } }; const { text: props } = rows; export const T = <Text {...props} />;',
+  'import { Text } from "@orb/ui/text"; const {text = {weight: "semibold"}} = {}; export const T = <Text {...text} />;',
+  'import { Text } from "@orb/ui/text"; const {text = {weight: "semibold"}} = {text: undefined}; export const T = <Text {...text} />;',
 ] as const)("text voice restriction rejects %s", async (source) => {
   expect(await findings(source)).toHaveLength(1);
 });
@@ -46,6 +51,10 @@ test.for([
   'import { Text } from "@orb/ui/text"; function T(Text) { return <Text size="body" />; }',
   'import { Button } from "@orb/ui/button"; export const T = <Button size="sm" />;',
   'const Own = (props) => <div />; const parts = { Text: Own }; const { Text: Copy } = parts; export const T = <Copy size="body" />;',
+  'import { Text } from "@orb/ui/text"; const rows = { internal: { weight: "semibold" }, body: { voice: "gloss" } }; export const T = <Text {...rows.body} />;',
+  'import { Text } from "@orb/ui/text"; const T = ({ tone }) => <Text voice="gloss" tone={tone} />;',
+  'import { Text } from "@orb/ui/text"; const {text = {weight: "semibold"}} = {text: {voice: "gloss"}}; export const T = <Text {...text} />;',
+  'import { Text } from "@orb/ui/text"; const {text = {weight: "semibold"}} = {text: null}; export const T = <Text {...text} />;',
 ] as const)("text voice restriction admits %s", async (source) => {
   expect(await findings(source)).toEqual([]);
 });

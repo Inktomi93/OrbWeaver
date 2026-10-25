@@ -1,6 +1,7 @@
 import { Button } from "@orb/ui/button";
-import { DIALOG_SCROLL_CLASS, Dialog, DialogClose, DialogFooter, DialogHeader, DialogPopup, DialogTitle } from "@orb/ui/dialog";
-import { Row, Stack } from "@orb/ui/layout";
+import { Dialog, DialogBody, DialogClose, DialogFooter, DialogHeader, DialogPopup, DialogTitle } from "@orb/ui/dialog";
+import type { Stack } from "@orb/ui/layout";
+import { Row } from "@orb/ui/layout";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
 
 export interface ContentDialogProps extends Omit<ComponentProps<typeof Dialog>, "children"> {
@@ -33,7 +34,7 @@ export function ContentDialog({
 }: ContentDialogProps): ReactElement {
   return (
     <Dialog {...root}>
-      <DialogPopup {...popupProps} className={`gap-block ${popupProps?.className ?? ""}`}>
+      <DialogPopup {...popupProps} spaced={true}>
         <DialogHeader>
           <Row align="center" gap="row" className="min-inline-0">
             {headerLeading}
@@ -41,10 +42,10 @@ export function ContentDialog({
           </Row>
           {headerActions}
         </DialogHeader>
-        <Stack {...bodyProps} className={`${DIALOG_SCROLL_CLASS} flex-1 ${bodyProps?.className ?? ""}`} gap="block">
+        <DialogBody {...bodyProps} grow={true} gap="block">
           {children}
           {footer === undefined ? null : <DialogFooter>{footer}</DialogFooter>}
-        </Stack>
+        </DialogBody>
       </DialogPopup>
     </Dialog>
   );

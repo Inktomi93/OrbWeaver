@@ -120,7 +120,7 @@ export function MemberRow(props: MemberRowProps): ReactElement {
 
   return (
     // The BARE `group` rides beside `group/member` because that is what the homed `HOVER_REVEAL.hover` posture keys
-    // on (packages/client/src/components/row-reveal.ts) — the named group stays for the row's own explicit
+    // on (packages/ui/src/lib/hover-reveal.ts) — the named group stays for the row's own explicit
     // `group-*/member:` arms.
     <Row gap="field" align="center" className="group group/member" data-slot="member-row">
       {hasMenu ? (
@@ -234,7 +234,7 @@ function CharacterInlineCluster({ row, actions }: { readonly row: MemberCharacte
   return (
     // PAINT-only reveal (`HOVER_REVEAL.hover`), never a display swap: the cluster stays in flow at a fine pointer so
     // the row's geometry is identical at rest and on hover. The old `hidden` → `flex` swap moved layout under
-    // a stationary pointer — the hit-test oscillator the preset list measured (row-reveal.ts; gate
+    // a stationary pointer — the hit-test oscillator the preset list measured (HOVER_REVEAL; gate
     // `no-hover-display-swap`). `pointer-coarse:hidden` keeps today's coarse behavior (the cluster is never
     // rendered there — the row tap opens the Menu) and is a DEVICE-class swap, which cannot oscillate.
     <Row gap="field" align="center" reveal="hover" hiddenAt="coarse">

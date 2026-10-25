@@ -31,8 +31,8 @@ export interface TextareaProps extends ComponentPropsWithRef<"textarea">, Pick<B
  *  padding (2 × --spacing-field = py-field) + the 1px border each side. The ONE formula both the `rows`
  *  floor and the `maxRows` ceiling are built from, so the two axes cannot drift into measuring the box
  *  differently (a ceiling one padding-unit off a floor is a field that scrolls at its own minimum). */
-function lineBoxHeight(lines: number): string {
-  return `calc(${lines} * 1lh + 2 * var(--spacing-field) + 2px)`;
+function lineBoxHeight(lines: number, bare: boolean): string {
+  return `calc(${lines} * 1lh + 2 * var(--spacing-field) + ${bare ? "0px" : "2 * var(--border-width-control)"})`;
 }
 
 export function Textarea({
@@ -58,14 +58,14 @@ export function Textarea({
   // max() with --size-control-lg keeps the comfortable single-line control floor (e.g. the composer's
   // rows={1}) from shrinking below the shared field height.
   const controlFloor = size === "compact" ? "var(--size-control-md)" : "var(--size-control-lg)";
-  const rowsFloor = rows === undefined ? undefined : { minHeight: `max(${controlFloor}, ${lineBoxHeight(rows)})` };
+  const rowsFloor = rows === undefined ? undefined : { minHeight: `max(${controlFloor}, ${lineBoxHeight(rows, chrome === "bare")})` };
   // …AND THE CEILING (`maxRows`), the half that was missing. `field-sizing: content` grows without bound,
   // so a long stored value renders the WHOLE thing as one box: a 4500-character prose override measured
   // 2333px in a 720px viewport, which pushes the field's own counter, error and save status ~900px below
   // the fold — a refusal the author cannot see is a save that silently stopped working. A max-height in
   // the same line-box unit turns the overflow into the textarea's own scroll, so the text stays fully
   // reachable and the affordances under the box stay where the author is looking.
-  const rowsCeiling = maxRows === undefined ? undefined : { maxHeight: lineBoxHeight(maxRows) };
+  const rowsCeiling = maxRows === undefined ? undefined : { maxHeight: lineBoxHeight(maxRows, chrome === "bare") };
   return (
     <BaseField.Control
       // Field.Control owns `onValueChange` natively (value + ChangeEventDetails) — ride it rather than

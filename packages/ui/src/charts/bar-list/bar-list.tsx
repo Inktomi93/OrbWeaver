@@ -32,13 +32,11 @@ export interface BarListProps {
    * it ECharts auto-scales each chart to its own maximum and +10 draws the same length as −184.
    */
   readonly valueMax?: number | undefined;
-  readonly height?: number | string;
+  readonly height?: number | "100%";
   readonly className?: string;
   readonly onChartReady?: ((instance: OrbEChartsInstance) => void) | undefined;
 }
 
-const ROW_HEIGHT_PX = 32;
-const CHROME_HEIGHT_PX = 16;
 /** Container-width step the label budgets re-derive at — see `use-measured-width.ts` for why it's coarse. */
 const WIDTH_QUANTUM_PX = 16;
 
@@ -77,7 +75,7 @@ export function BarList({
     >
       {isEmpty ? null : (
         <Chart
-          height={height ?? items.length * ROW_HEIGHT_PX + CHROME_HEIGHT_PX}
+          height={height ?? items.length * (colors.metrics.lineHeight + 2 * colors.metrics.padding) + 2 * colors.metrics.padding}
           label={label}
           onChartReady={onChartReady}
           option={buildBarListOption(items, valueFormatter, colors, { widthPx, intent, valueMax })}

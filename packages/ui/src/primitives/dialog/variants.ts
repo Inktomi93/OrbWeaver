@@ -15,7 +15,12 @@ import { MODAL_SURFACE, OVERLAY_MOTION, SCRIM, tv } from "#lib";
  * `overflow-y: auto` also clips the inline axis, and a glyph button's touch pseudo reaches past its box by up to
  * (touch target - glyph-xs) / 2. The popup's own `p-section` is wider than that, so the margin never overflows it.
  */
-export const DIALOG_SCROLL_CLASS = "relative -mx-glyph-bleed min-block-0 overflow-y-auto overscroll-contain px-glyph-bleed scroll-pbe-(--size-control-lg)";
+const DIALOG_SCROLL_CLASS = "relative -mx-glyph-bleed min-block-0 overflow-y-auto overscroll-contain px-glyph-bleed scroll-pbe-(--size-control-lg)";
+
+export const dialogBodyVariants = tv({
+  base: DIALOG_SCROLL_CLASS,
+  variants: { grow: { true: "flex-1", false: "" } },
+});
 
 export const dialogVariants = tv({
   slots: {
@@ -35,6 +40,7 @@ export const dialogVariants = tv({
     footer: "sticky inset-be-0 z-(--z-raised) flex shrink-0 flex-wrap items-center justify-end gap-field bg-popover pbs-field",
   },
   variants: {
+    spaced: { true: { popup: "gap-block" }, false: {} },
     // A header that stays in view while the body scrolls under it (a drawer's title and close), on the card fill so
     // scrolled rows do not show through.
     stickyHeader: { true: { header: "sticky inset-bs-0 z-(--z-raised) bg-card" }, false: {} },

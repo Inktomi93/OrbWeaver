@@ -10,6 +10,7 @@ import {
   FOCUS_RING_ON_SIDEBAR,
   FOCUS_RING_ON_STATE_RING,
   HIDDEN_AT,
+  HOVER_REVEAL,
   SELECTED_FILL,
   SELECTION_RAIL,
   TONE_INK,
@@ -231,11 +232,12 @@ export const buttonVariants = tv({
       rail: SELECTION_RAIL,
     },
     hiddenAt: HIDDEN_AT,
+    reveal: HOVER_REVEAL,
     // A glyph-only chip is narrower than the touch floor at a coarse pointer; its `sm` height already clears it.
     touchFloor: { inline: TOUCH_FLOOR_AT_COARSE.inline },
     // THE INK OF A FILL-LESS ACTION, by meaning, from the Text map. The `ghost`, `link`, `outline` and `secondary`
     // intents paint no fill of their own, so the tone arms below are compound on those; a filled intent owns its ink.
-    tone: { default: "", primary: "", destructive: "", muted: "", foreground: "" },
+    tone: { default: "", primary: "", destructive: "", warning: "", muted: "", foreground: "" },
     // A dotted underline marks an action that discloses more of the same view (show all tags), not one that leaves.
     underline: { none: "", dotted: "underline decoration-dotted" },
     // A text-height control that swaps with an edit field reserves the field's 1px edge, so the swap does not shift.
@@ -250,6 +252,7 @@ export const buttonVariants = tv({
   compoundVariants: [
     { intent: FILL_LESS_INTENTS, tone: "primary", class: TONE_INK.accent },
     { intent: FILL_LESS_INTENTS, tone: "destructive", class: TONE_INK.destructive },
+    { intent: FILL_LESS_INTENTS, tone: "warning", class: TONE_INK.warning },
     { intent: FILL_LESS_INTENTS, tone: "muted", class: TONE_INK.muted },
     { intent: FILL_LESS_INTENTS, tone: "foreground", class: TONE_INK.foreground },
   ],

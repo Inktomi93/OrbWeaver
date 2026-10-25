@@ -2,7 +2,7 @@
 // (virtual-list / message-list / media-grid) that each hand-rolled an identical copy. Pure functions
 // over the spacing-token map + a thrown guard — the exact shared-infra tier the seals already lean on
 // for focus-ring/motion; the old "each seal owns its own" comments predated this file.
-import { SNAPPED_LENGTH_BASE_PX } from "#tokens";
+import { LENGTH_BASE_PX } from "#tokens";
 
 // Intent-token gap between rows (maps to the --spacing-* scale — never a raw px). `tight` joined the set
 // when the chat list virtualized (2026-08-09): its rows had always sat at `gap="tight"` as a plain <Stack>,
@@ -22,7 +22,7 @@ export function gapPxFor(token: GapToken | undefined): number {
   // The virtualizer's `gap` option is a px NUMBER. Since #1640 the spacing tokens are `snapped`, so
   // `TOKENS[...].value` is the `round(up, …, 1px)` CSS string and parsing it yields NaN — the generated
   // numeric companion is the one home for build/runtime consumers (the ramp.ts precedent, §3b).
-  return SNAPPED_LENGTH_BASE_PX[`spacing.${token}`];
+  return LENGTH_BASE_PX[`spacing.${token}`];
 }
 
 // Structural scroll-element type so this file stays DOM-lib-free (lib/ compiles without the DOM lib —

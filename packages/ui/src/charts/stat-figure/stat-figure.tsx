@@ -28,18 +28,10 @@ export interface StatFigureProps {
 
 const DELTA_GLYPH = { up: ChevronUp, down: ChevronDown, flat: Minus } as const;
 const DELTA_GLYPH_LABEL = { up: "Up", down: "Down", flat: "Flat" } as const;
-const DEFAULT_SPARKLINE_HEIGHT_PX = 48;
+const SPARKLINE_LABEL_LINES = 3;
 
 /** Omit `trend` for a bare number+delta tile (no chart mounts). */
-export function StatFigure({
-  label,
-  value,
-  delta,
-  trend,
-  sparklineHeight = DEFAULT_SPARKLINE_HEIGHT_PX,
-  className,
-  onChartReady,
-}: StatFigureProps): ReactElement {
+export function StatFigure({ label, value, delta, trend, sparklineHeight, className, onChartReady }: StatFigureProps): ReactElement {
   const slots = statFigureVariants({ direction: delta?.direction });
   const DeltaGlyph = delta === undefined ? null : DELTA_GLYPH[delta.direction];
   // Called unconditionally (the sparkline only mounts with `trend`) to satisfy rules-of-hooks.
@@ -63,7 +55,12 @@ export function StatFigure({
       </div>
       {trend === undefined || trend.length === 0 ? null : (
         <div className={slots.sparkline()} data-slot="stat-figure-sparkline">
-          <Chart height={sparklineHeight} label={`${label} trend`} onChartReady={onChartReady} option={buildSparklineOption(trend, colors)} />
+          <Chart
+            height={sparklineHeight ?? SPARKLINE_LABEL_LINES * colors.metrics.lineHeight}
+            label={`${label} trend`}
+            onChartReady={onChartReady}
+            option={buildSparklineOption(trend, colors)}
+          />
         </div>
       )}
     </div>

@@ -25,9 +25,6 @@ export interface ScatterSeries {
   readonly points: readonly ScatterPoint[];
 }
 
-const SYMBOL_SIZE_PX = 10;
-const SYMBOL_OPACITY = 0.8;
-
 /** ECharts stashes the opaque id at `value[2]`; a click reads it back to resolve the picked entity. On a
  *  click event, `params.data` is the datum AS AUTHORED — here the `{ name, value: [x, y, id] }` object
  *  (below), not a bare tuple — so read the id off `.value[2]`, with a bare-array fallback for safety. */
@@ -49,7 +46,13 @@ export function pointId(data: unknown): string | null {
 // wraps (rare here; the corpus map caps genres at the ramp length upstream).
 export function buildScatterOption(series: readonly ScatterSeries[], colors: ChartColors): OrbChartOption {
   return {
-    grid: { left: 8, right: 8, top: 8, bottom: 8, ...AXIS_LABEL_OUTER_BOUNDS },
+    grid: {
+      left: colors.metrics.padding,
+      right: colors.metrics.padding,
+      top: colors.metrics.padding,
+      bottom: colors.metrics.padding,
+      ...AXIS_LABEL_OUTER_BOUNDS,
+    },
     tooltip: {
       trigger: "item",
       // params.value is `[x, y, id]`; params.name is the point label (set per-datum below).
@@ -60,8 +63,8 @@ export function buildScatterOption(series: readonly ScatterSeries[], colors: Cha
     series: series.map((cat, index) => ({
       type: "scatter",
       name: cat.name,
-      symbolSize: SYMBOL_SIZE_PX,
-      itemStyle: { color: colors.palette[index % colors.palette.length] ?? colors.series, opacity: SYMBOL_OPACITY },
+      symbolSize: colors.metrics.dot,
+      itemStyle: { color: colors.palette[index % colors.palette.length] ?? colors.series },
       data: cat.points.map((point) => ({ name: point.label, value: [point.x, point.y, point.id] })),
     })),
   };

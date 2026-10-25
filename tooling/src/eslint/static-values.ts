@@ -89,6 +89,197 @@ export function staticKeyName(context: OrbRuleContext, property: TSESTree.Proper
   return key.type === "Identifier" ? key.name : spelledName((key as TSESTree.Literal).value);
 }
 
+function destructuredValues(context: OrbRuleContext, node: TSESTree.Identifier, seen: Set<TSESTree.Node>): readonly TSESTree.Node[] {
+  const variable = variableNamed(context.sourceCode.getScope(node), node.name);
+  const definition = variable?.defs[0];
+  if (
+    definition?.type !== "Variable" ||
+    definition.node.id.type !== "ObjectPattern" ||
+    definition.node.init === null ||
+    !STABLE_DECLARATION_KINDS.has(definition.parent.kind) ||
+    variable?.references.some((reference) => reference.isWrite() && reference.init !== true) === true
+  ) {
+    return [];
+  }
+  const binding = definition.node.id.properties.find((property) => {
+    if (property.type !== "Property") {
+      return false;
+    }
+    const target = property.value.type === "AssignmentPattern" ? property.value.left : property.value;
+    return target.type === "Identifier" && target.name === node.name;
+  });
+  const key = binding?.type === "Property" ? staticKeyName(context, binding) : undefined;
+  if (key === undefined || binding?.type !== "Property") {
+    return [];
+  }
+  const selected = objectProperties(context, definition.node.init, seen)
+    .filter((property) => staticKeyName(context, property) === key)
+    .flatMap((property) => valueBranches(context, property.value, seen));
+  if (binding.value.type !== "AssignmentPattern") {
+    return selected;
+  }
+  const fallback = binding.value.right;
+  if (selected.length === 0) {
+    return valueBranches(context, fallback, seen);
+  }
+  return selected.flatMap((value) => {
+    const absent = (value.type === "Identifier" && value.name === "undefined") || (value.type === "UnaryExpression" && value.operator === "void");
+    return absent ? valueBranches(context, fallback, new Set(seen)) : [value];
+  });
+}
+
+function valueBranches(context: OrbRuleContext, node: TSESTree.Node, seen: Set<TSESTree.Node>): readonly TSESTree.Node[] {
+  const value = unwrapTsValue(node);
+  if (seen.has(value)) {
+    return [];
+  }
+  seen.add(value);
+  const next = (child: TSESTree.Node): readonly TSESTree.Node[] => valueBranches(context, child, seen);
+  switch (value.type) {
+    case "Identifier": {
+      const initializer = constantInitializer(context, value);
+      if (initializer !== undefined) {
+        return next(initializer);
+      }
+      const values = destructuredValues(context, value, seen);
+      return values.length === 0 ? [value] : values;
+    }
+    case "ChainExpression":
+      return next(value.expression);
+    case "ConditionalExpression":
+      return [...next(value.consequent), ...next(value.alternate)];
+    case "LogicalExpression":
+      return [...next(value.left), ...next(value.right)];
+    case "MemberExpression": {
+      const key = accessedName(context, value);
+      return objectProperties(context, value.object, seen)
+        .filter((property) => key === undefined || staticKeyName(context, property) === key)
+        .flatMap((property) => next(property.value));
+    }
+    default:
+      return [value];
+  }
+}
+
+function objectProperties(context: OrbRuleContext, node: TSESTree.Node, seen: Set<TSESTree.Node>): readonly TSESTree.Property[] {
+  return valueBranches(context, node, seen).flatMap((value) =>
+    value.type === "ObjectExpression"
+      ? value.properties.flatMap((property) => {
+          if (property.type === "SpreadElement") {
+            return objectProperties(context, property.argument, seen);
+          }
+          return property.kind === "init" && !property.method ? [property] : [];
+        })
+      : [],
+  );
+}
+
+/** Local static objects and selected table members only; unresolved imports/calls are not invented values. */
+export function staticObjectProperties(context: OrbRuleContext, node: TSESTree.Node): readonly TSESTree.Property[] {
+  return objectProperties(context, node, new Set());
+}
+
+/** Possible values of a local static table selection, without following imports or executing calls. */
+export function staticValueOptions(context: OrbRuleContext, node: TSESTree.Node): readonly TSESTree.Node[] {
+  return valueBranches(context, node, new Set());
+}
+
+interface JsxProperty {
+  readonly name: string;
+  readonly node: TSESTree.Node;
+  readonly value: TSESTree.Node | null;
+}
+
+/** Explicit JSX properties and the known properties of local static spreads share the same checks. */
+export function jsxProperties(context: OrbRuleContext, element: TSESTree.JSXOpeningElement): readonly JsxProperty[] {
+  return element.attributes.flatMap((attribute): JsxProperty[] => {
+    if (attribute.type === "JSXSpreadAttribute") {
+      return staticObjectProperties(context, attribute.argument).flatMap((property) => {
+        const name = staticKeyName(context, property);
+        return name === undefined ? [] : [{ name, node: property, value: property.value }];
+      });
+    }
+    if (attribute.name.type !== "JSXIdentifier") {
+      return [];
+    }
+    const expression = attribute.value?.type === "JSXExpressionContainer" ? attribute.value.expression : attribute.value;
+    return [{ name: attribute.name.name, node: attribute, value: expression?.type === "JSXEmptyExpression" ? null : expression }];
+  });
+}
+
+interface ImportedSymbol {
+  readonly source: string;
+  readonly name: string;
+}
+
+function importedSpecifierName(specifier: TSESTree.Node): string | undefined {
+  if (specifier.type === "ImportSpecifier") {
+    return specifier.imported.type === "Identifier" ? specifier.imported.name : specifier.imported.value;
+  }
+  if (specifier.type === "ImportNamespaceSpecifier") {
+    return "*";
+  }
+  return specifier.type === "ImportDefaultSpecifier" ? "default" : undefined;
+}
+
+function destructuredImport(
+  context: OrbRuleContext,
+  declaration: TSESTree.VariableDeclarator,
+  local: string,
+  seen: Set<TSESTree.Node>,
+): ImportedSymbol | undefined {
+  if (declaration.id.type !== "ObjectPattern" || declaration.init === null) {
+    return;
+  }
+  const namespace = importedSymbol(context, declaration.init, seen);
+  const property = declaration.id.properties.find(
+    (candidate) => candidate.type === "Property" && candidate.value.type === "Identifier" && candidate.value.name === local,
+  );
+  const name = property?.type === "Property" ? staticKeyName(context, property) : undefined;
+  return namespace?.name === "*" && name !== undefined ? { source: namespace.source, name } : undefined;
+}
+
+function importedIdentifier(context: OrbRuleContext, node: TSESTree.Identifier | TSESTree.JSXIdentifier, seen: Set<TSESTree.Node>): ImportedSymbol | undefined {
+  const definition = variableNamed(context.sourceCode.getScope(node), node.name)?.defs[0];
+  if (definition?.type === "ImportBinding" && definition.parent.type === "ImportDeclaration") {
+    const name = importedSpecifierName(definition.node);
+    return name === undefined ? undefined : { source: definition.parent.source.value, name };
+  }
+  if (definition?.node.type === "TSTypeAliasDeclaration" && definition.node.typeAnnotation.type === "TSTypeReference") {
+    return importedSymbol(context, definition.node.typeAnnotation.typeName, seen);
+  }
+  if (definition?.type !== "Variable") {
+    return;
+  }
+  if (definition.node.id.type === "Identifier") {
+    const initializer = constantInitializer(context, definition.node.id);
+    return initializer === undefined ? undefined : importedSymbol(context, initializer, seen);
+  }
+  return destructuredImport(context, definition.node, node.name, seen);
+}
+
+/** Resolve a named import through local aliases and namespace selections, without loading another module. */
+export function importedSymbol(context: OrbRuleContext, node: TSESTree.Node, seen = new Set<TSESTree.Node>()): ImportedSymbol | undefined {
+  const value = unwrapTsValue(node);
+  if (seen.has(value)) {
+    return;
+  }
+  seen.add(value);
+  if (value.type === "Identifier" || value.type === "JSXIdentifier") {
+    return importedIdentifier(context, value, seen);
+  }
+  if (value.type === "MemberExpression" || value.type === "JSXMemberExpression") {
+    const namespace = importedSymbol(context, value.object, seen);
+    const name = value.type === "JSXMemberExpression" ? value.property.name : accessedName(context, value);
+    return namespace?.name === "*" && name !== undefined ? { source: namespace.source, name } : undefined;
+  }
+  if (value.type === "TSQualifiedName") {
+    const namespace = importedSymbol(context, value.left, seen);
+    return namespace?.name === "*" ? { source: namespace.source, name: value.right.name } : undefined;
+  }
+  return undefined;
+}
+
 export function contextLiteral(node: TSESTree.Node | null | undefined): string | null | undefined {
   let value = node;
   while (value?.type === "TSAsExpression" || value?.type === "TSSatisfiesExpression" || value?.type === "TSNonNullExpression") {

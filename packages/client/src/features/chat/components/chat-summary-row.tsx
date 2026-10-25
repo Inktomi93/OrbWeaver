@@ -233,7 +233,7 @@ export function ChatSummaryRow({
                       label={starName}
                       onToggle={(): void => onToggleStar(!chat.starred)}
                       pressed={chat.starred}
-                      pressedClassName="text-warning"
+                      pressedTone="warning"
                       rest="never"
                     />
                   </Row>

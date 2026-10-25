@@ -32,7 +32,7 @@ export function AutosaveStatus({ state, onRetry, retryable = true }: AutosaveSta
     // = an implicit aria-live="assertive" live region; the retry stays a real focusable affordance).
     return (
       <Row gap="field" align="center" data-slot="autosave-status" role="alert">
-        <Icon icon={AlertTriangle} size="sm" className="text-destructive" />
+        <Icon tone="destructive" icon={AlertTriangle} size="sm" />
         <Text tone="destructive" voice="reading">
           {retryable ? "Save failed —" : "Save failed"}
         </Text>

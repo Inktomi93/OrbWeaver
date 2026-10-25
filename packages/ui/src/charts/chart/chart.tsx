@@ -6,6 +6,7 @@ import { cn, usePrefersReducedMotion } from "#lib";
 import { WebSpinner } from "#primitives/spinner";
 import type { ChartProps } from "./contract.ts";
 import { mergeChartOption } from "./merge-option.ts";
+import { useChartTheme } from "./use-chart-theme.ts";
 import { chartVariants } from "./variants.ts";
 
 // One boundary covers every chart consumer, including statically imported metric tiles.
@@ -13,8 +14,6 @@ const ChartRenderer = lazy(async () => {
   const mod = await import("./chart-renderer.tsx");
   return { default: mod.ChartRenderer };
 });
-
-const DEFAULT_HEIGHT = 240;
 
 /**
  * A PERCENTAGE HEIGHT IS THE WRAPPER'S JOB (side-eye corpus re-pass #3, P2-A).
@@ -37,22 +36,30 @@ function isPercentHeight(height: number | string): boolean {
 }
 
 /** Apply shared chart policy while retaining the host geometry during renderer loading. */
-export function Chart({ option, label, height = DEFAULT_HEIGHT, className, onChartReady, onEvents }: ChartProps): ReactElement {
+export function Chart({ option, label, height, className, onChartReady, onEvents }: ChartProps): ReactElement {
   const reducedMotion = usePrefersReducedMotion();
-  const fill = isPercentHeight(height);
+  const theme = useChartTheme();
+  const resolvedHeight = height ?? theme.metrics.height;
+  const fill = isPercentHeight(resolvedHeight);
   const slots = chartVariants({ fill });
-  const merged = mergeChartOption(option, { label, reducedMotion });
+  const merged = mergeChartOption(
+    {
+      textStyle: { fontFamily: theme.fontFamily, fontSize: theme.metrics.fontSize, fontWeight: theme.fontWeight },
+      ...option,
+    },
+    { label, reducedMotion },
+  );
 
   return (
     <div className={cn(slots.root(), className)} data-slot="chart">
       <Suspense
         fallback={
-          <div className={slots.loading()} data-slot="chart-loading" style={{ height: fill ? "100%" : height, width: "100%" }}>
+          <div className={slots.loading()} data-slot="chart-loading" style={{ height: fill ? "100%" : resolvedHeight, width: "100%" }}>
             <WebSpinner label={`Loading ${label}`} size="lg" />
           </div>
         }
       >
-        <ChartRenderer height={fill ? "100%" : height} onChartReady={onChartReady} onEvents={onEvents} option={merged} />
+        <ChartRenderer height={fill ? "100%" : resolvedHeight} onChartReady={onChartReady} onEvents={onEvents} option={merged} />
       </Suspense>
     </div>
   );

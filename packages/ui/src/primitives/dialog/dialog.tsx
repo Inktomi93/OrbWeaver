@@ -10,8 +10,10 @@ import type {
 import { Dialog as BaseDialog } from "@base-ui/react/dialog";
 import type { ComponentProps, ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
+import type { StackProps } from "#layout";
+import { Stack } from "#layout";
 import { usePortalContainer, variantAttrs } from "#lib";
-import { dialogVariants } from "./variants.ts";
+import { dialogBodyVariants, dialogVariants } from "./variants.ts";
 
 const slots = dialogVariants();
 
@@ -35,10 +37,10 @@ export interface DialogPopupProps extends Omit<BasePopupProps, "className">, Var
 
 /** Bundles Portal → Backdrop → Viewport → Popup so the anatomy cannot be mis-assembled. */
 export function DialogPopup(props: DialogPopupProps): ReactElement {
-  const { className, children, container, keepMounted, forceRender, size, anchor, ...rest } = props;
+  const { className, children, container, keepMounted, forceRender, size, anchor, spaced, ...rest } = props;
   const portalContainer = usePortalContainer();
   // The size and anchor variants reshape the viewport as well as the popup, so compute a per-call slot set.
-  const sized = dialogVariants({ size, anchor });
+  const sized = dialogVariants({ size, anchor, spaced });
   return (
     <BaseDialog.Portal container={container ?? portalContainer} keepMounted={keepMounted}>
       <BaseDialog.Backdrop className={sized.backdrop()} data-slot="dialog-backdrop" forceRender={forceRender} />
@@ -51,6 +53,13 @@ export function DialogPopup(props: DialogPopupProps): ReactElement {
       </BaseDialog.Viewport>
     </BaseDialog.Portal>
   );
+}
+
+export interface DialogBodyProps extends StackProps, VariantProps<typeof dialogBodyVariants> {}
+
+/** Keeps scrolling and glyph-hit-area clearance inside the dialog body, without another wrapper. */
+export function DialogBody({ className, grow, ...props }: DialogBodyProps): ReactElement {
+  return <Stack {...props} className={dialogBodyVariants({ grow, className })} />;
 }
 
 export interface DialogTitleProps extends Omit<BaseTitleProps, "className"> {

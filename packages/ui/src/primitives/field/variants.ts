@@ -16,7 +16,6 @@ export const fieldVariants = tv({
     // on the spacing scale and closes the reach to flush (8 − 8 = 0px overlap) without touching the
     // `field` intent token, which stays 6px everywhere else it is used (D3).
     labelRow: "inline-flex items-center gap-field pointer-fine:gap-row",
-    hintTrigger: "text-muted-foreground hover:text-foreground",
     // THE MEASURE RIDES THE BASE SLOT (#1653), not one compound arm. It was spelled ONLY inside the
     // `align:"track" + orientation:"horizontal"` compound below, so every DEFAULT `<Field description=…>`
     // in the app rendered `max-width: none`: measured in the CT browser with real Geist, the tag editor's

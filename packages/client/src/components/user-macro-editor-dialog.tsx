@@ -22,7 +22,7 @@ import type { MacroArgType, UserMacroInputKind } from "@orb/kit/macro";
 import { createDefaultRegistry, MACRO_ARG_TYPES, USER_MACRO_INPUT_KINDS } from "@orb/kit/macro";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
-import { DIALOG_SCROLL_CLASS, DialogClose, DialogFooter } from "@orb/ui/dialog";
+import { DialogBody, DialogClose, DialogFooter } from "@orb/ui/dialog";
 import { Icon, Plus } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
@@ -108,7 +108,7 @@ export function UserMacroEditorDialog({ form, index, onClose, suggestions }: Use
       }}
       title="Edit macro"
     >
-      <Stack gap="block" className={DIALOG_SCROLL_CLASS}>
+      <DialogBody gap="block">
         <form.AppField name={`userMacros[${index}].name`}>
           {(field): ReactElement => <field.TextField label="Name" description="Called as {{name}} in your prompt. Letters, digits, _ or - only." />}
         </form.AppField>
@@ -147,7 +147,7 @@ export function UserMacroEditorDialog({ form, index, onClose, suggestions }: Use
         <DialogFooter>
           <DialogClose render={<Button intent="primary">Done</Button>} />
         </DialogFooter>
-      </Stack>
+      </DialogBody>
     </FormDialog>
   );
 }

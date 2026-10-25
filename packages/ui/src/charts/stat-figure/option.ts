@@ -11,12 +11,9 @@
 import type { OrbChartOption } from "../chart/echarts-setup.ts";
 import type { ChartColors } from "../chart/use-chart-theme.ts";
 
-const SPARKLINE_LINE_WIDTH = 2;
-const SPARKLINE_AREA_OPACITY = 0.12;
-
 export function buildSparklineOption(trend: readonly number[], colors: ChartColors): OrbChartOption {
   return {
-    grid: { left: 0, right: 0, top: 4, bottom: 0 },
+    grid: { left: 0, right: 0, top: colors.metrics.tight, bottom: 0 },
     xAxis: { type: "category", show: false, data: trend.map((_, index) => String(index)) },
     yAxis: { type: "value", show: false, min: "dataMin", max: "dataMax" },
     tooltip: { trigger: "axis" },
@@ -25,8 +22,8 @@ export function buildSparklineOption(trend: readonly number[], colors: ChartColo
         type: "line",
         data: [...trend],
         showSymbol: false,
-        lineStyle: { color: colors.series, width: SPARKLINE_LINE_WIDTH },
-        areaStyle: { color: colors.series, opacity: SPARKLINE_AREA_OPACITY },
+        lineStyle: { color: colors.series, width: colors.metrics.accentStroke },
+        areaStyle: { color: colors.area },
       },
     ],
   };

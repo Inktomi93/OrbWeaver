@@ -3,6 +3,7 @@
 
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
+import { jsxProperties, staticValueOptions } from "./static-values.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 
 /** How a class token paints: `layout` emits only layout properties, `paint` emits anything else, `unknown` does not compile. */
@@ -148,7 +149,7 @@ export function classClassifier(candidatesToCss: CandidatesToCss): ClassClassifi
 }
 
 const CLASS_HELPERS = new Set(["cn", "clsx"]);
-const FEATURE_DIRECTORY = "/packages/client/src/features/";
+const CLIENT_DIRECTORY = "/packages/client/src/";
 
 const MESSAGES = {
   paint: (tokens: readonly string[]): string =>
@@ -160,13 +161,20 @@ const MESSAGES = {
   call: "A className built by a function hides its tokens from lint; spell the tokens or pass a primitive prop.",
 } as const;
 
-type ClassNameAttribute = TSESTree.JSXAttribute & { readonly name: TSESTree.JSXIdentifier & { readonly name: "className" } };
-
-const CLASSNAME_SELECTOR = "JSXAttribute[name.type='JSXIdentifier'][name.name='className']";
-
-function isComponentElement(attribute: TSESTree.JSXAttribute): boolean {
-  const name = attribute.parent.name;
+function isComponentElement(element: TSESTree.JSXOpeningElement): boolean {
+  const name = element.name;
   return name.type === "JSXMemberExpression" || (name.type === "JSXIdentifier" && /^[A-Z]/u.test(name.name));
+}
+
+const isClassProperty = (name: string | undefined): boolean => name === "className" || name?.endsWith("ClassName") === true;
+
+interface ClassCarrier {
+  readonly node: TSESTree.Node;
+  readonly value: MaybeNode;
+}
+
+function classCarriers(context: OrbRuleContext, element: TSESTree.JSXOpeningElement): readonly ClassCarrier[] {
+  return jsxProperties(context, element).filter((property) => isClassProperty(property.name));
 }
 
 function tokensOf(text: string): readonly string[] {
@@ -229,7 +237,8 @@ function childNodes(context: OrbRuleContext, node: TSESTree.Node): readonly Mayb
     case "ArrayExpression":
       return node.elements;
     case "Identifier":
-      return [localInitializer(context, node)];
+    case "MemberExpression":
+      return staticValueOptions(context, node);
     case "TSAsExpression":
     case "TSSatisfiesExpression":
     case "ChainExpression":
@@ -261,17 +270,19 @@ export function featureClassNameLayoutOnlyRule(classify: ClassClassifier): OrbRu
   return {
     meta: { type: "problem", schema: [] },
     create(context: OrbRuleContext): RuleVisitor {
-      if (!context.filename.includes(FEATURE_DIRECTORY)) {
+      if (!context.filename.includes(CLIENT_DIRECTORY)) {
         return {};
       }
       return {
-        [CLASSNAME_SELECTOR]: (attribute: ClassNameAttribute): void => {
-          if (!isComponentElement(attribute)) {
+        "JSXOpeningElement:exit": (element: TSESTree.JSXOpeningElement): void => {
+          if (!isComponentElement(element)) {
             return;
           }
-          const paint = [...new Set(collectTokens(context, attribute.value))].filter((token) => !isAccessibilityUtility(token) && classify(token) === "paint");
-          if (paint.length > 0) {
-            context.report({ node: attribute, message: MESSAGES.paint(paint) });
+          for (const carrier of classCarriers(context, element)) {
+            const paint = [...new Set(collectTokens(context, carrier.value))].filter((token) => !isAccessibilityUtility(token) && classify(token) === "paint");
+            if (paint.length > 0) {
+              context.report({ node: carrier.node, message: MESSAGES.paint(paint) });
+            }
           }
         },
       };
@@ -312,14 +323,16 @@ function builtReason(context: OrbRuleContext, node: MaybeNode): string | undefin
 export const noBuiltClassStringRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
-    if (!context.filename.includes(FEATURE_DIRECTORY)) {
+    if (!context.filename.includes(CLIENT_DIRECTORY)) {
       return {};
     }
     return {
-      [CLASSNAME_SELECTOR]: (attribute: ClassNameAttribute): void => {
-        const message = builtReason(context, attribute.value);
-        if (message !== undefined) {
-          context.report({ node: attribute, message });
+      "JSXOpeningElement:exit": (element: TSESTree.JSXOpeningElement): void => {
+        for (const carrier of classCarriers(context, element)) {
+          const message = builtReason(context, carrier.value);
+          if (message !== undefined) {
+            context.report({ node: carrier.node, message });
+          }
         }
       },
     };

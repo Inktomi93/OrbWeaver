@@ -155,7 +155,7 @@ export function Field({
           height does not express it — pre-#146 a custom-token height was opaque to tailwind-merge, so both
           heights survived and stylesheet order picked the winner; with the spacing scale registered the
           call site wins instead, which is silently defeating a sealed box rather than naming an arm. */}
-      <HintTrigger className={slots.hintTrigger()} hint={hint} size="inline" subject={label} {...(onHintClick === undefined ? {} : { onClick: onHintClick })} />
+      <HintTrigger hint={hint} size="inline" subject={label} {...(onHintClick === undefined ? {} : { onClick: onHintClick })} />
     </span>
   ) : (
     labelText

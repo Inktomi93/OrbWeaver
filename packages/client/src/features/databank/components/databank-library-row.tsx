@@ -118,7 +118,7 @@ export function DatabankLibraryRow({
           pressed={global}
           // ON IS A FILLED CHIP, not only a hue: the unpressed globe a hover reveals and the pressed one
           // otherwise read as the same outline.
-          pressedClassName="bg-primary/15 text-primary"
+          selectedFill={true}
           rest="when-on"
         />
       }

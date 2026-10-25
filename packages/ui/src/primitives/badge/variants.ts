@@ -13,6 +13,7 @@ import { TOUCH_FLOOR_AT_COARSE, tv } from "#lib";
 export const badgeVariants = tv({
   base: "inline-flex items-center gap-field rounded-full font-medium whitespace-nowrap select-none",
   variants: {
+    edge: { default: "", ink: "" },
     intent: {
       neutral: "bg-muted text-muted-foreground",
       primary: "bg-primary text-primary-foreground",
@@ -141,6 +142,8 @@ export const badgeVariants = tv({
     // its favour over the tone's `border`; the tone's `border-<intent>/30` is a different group and simply
     // stops being painted.
     { size: "inline", class: "border-0" },
+    // A small unfilled status dot needs its own ink at the edge, not the low-contrast surface seam.
+    { edge: "ink", class: "border-current" },
   ],
   defaultVariants: { intent: "neutral", tone: "solid", size: "sm", face: "text", sentenceCase: false },
 });

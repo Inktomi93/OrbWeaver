@@ -19,8 +19,6 @@ import { useRef } from "react";
 import { NO_CHAT_SELECTED_TITLE, START_NEW_CHAT_NAME, useFocusOnMount } from "#lib";
 import { LIST_OFF_SCREEN_HINT, useSectionListMode } from "#state";
 
-const WEAVE_SIZE = 48;
-
 /** The instruction, side-agnostic since the N-10 sweep: it names the COLLECTION, not a side. */
 const PICK_A_THREAD = "Pick a thread from your chats, or start a new one.";
 
@@ -54,7 +52,7 @@ export function ChatLandingSurface({ onNewChat }: ChatLandingSurfaceProps): Reac
               New chat
             </Button>
           }
-          decoration={<WeaveGlyph size={WEAVE_SIZE} />}
+          decoration={<WeaveGlyph size="hero" />}
           // SIDE-AGNOSTIC: the list pane is a docked column on wide, a slide-over on narrow/mobile, and
           // collapsed by hand — "on the left" is wrong in three of the four states. And in the state
           // where it is COLLAPSED, the footnote names the door back to it (#446).

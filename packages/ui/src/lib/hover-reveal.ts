@@ -3,6 +3,9 @@
 // Where the primary input cannot hover (a phone, a stylus tablet) every arm stays visible; `hover-capable` hides it at rest
 // only where hover exists, so a fine pointer that cannot hover is not left with a hidden cluster.
 export const HOVER_REVEAL = {
+  /** A named field group keeps nested groups from revealing unrelated row actions. */
+  setting:
+    "opacity-0 transition-opacity duration-(--motion-fast) ease-out-expo group-hover/setting:opacity-100 group-focus-within/setting:opacity-100 has-[[data-popup-open]]:opacity-100",
   /** Hidden at rest, shown on the row's hover or focus-within. */
   hover: "transition-opacity duration-(--motion-fast) ease-out-expo hover-capable:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100",
   /** Secondary chrome (a pin, a crown): faint on the row's hover, full on its own hover or focus, or when focus is inside it (it sits on a wrapper), always faint on touch. */

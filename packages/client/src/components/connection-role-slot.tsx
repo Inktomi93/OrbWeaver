@@ -11,14 +11,13 @@ import { Select } from "@orb/ui/select";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
-import type { ReactElement } from "react";
+import type { ComponentProps, ReactElement } from "react";
 import { useRef, useState } from "react";
 import type { Invalidation, Trpc } from "#data";
 import type { RoleConnectionFacts, RoleRequirementVerdict, RoleRow } from "#lib";
 import {
   backgroundRepairs,
   bindRefusal,
-  cn,
   connectionHost,
   connectionSummary,
   EMBED_REFUSAL_SLOTS,
@@ -68,19 +67,18 @@ function readoutForDot(readout: RoleReadout, dotIsStatus: boolean): RoleReadout 
 /** The DOT's skin per state. `unset` is a RING — `ghost` is the only tone with no fill, and the border is
  *  restated on the muted ink because the default hairline (`--color-border`, 8% alpha) is invisible at 6px. */
 const DOT_SKIN = {
-  running: { intent: "success", tone: "solid", className: "" },
-  blocked: { intent: "warning", tone: "solid", className: "" },
-  unset: { intent: "neutral", tone: "ghost", className: "border-muted-foreground" },
-} as const satisfies Record<RoleStatus, { readonly intent: "neutral" | "success" | "warning"; readonly tone: "ghost" | "solid"; readonly className: string }>;
+  running: { intent: "success", tone: "solid", edge: "default" },
+  blocked: { intent: "warning", tone: "solid", edge: "default" },
+  unset: { intent: "neutral", tone: "ghost", edge: "ink" },
+} as const satisfies Record<RoleStatus, Pick<ComponentProps<typeof Badge>, "intent" | "tone" | "edge">>;
 
-/** The readout's per-arm ink. `className` and not `tone`, because `voice` is declared AFTER `tone` in
- *  `textVariants` and therefore wins the colour merge — only the call site's own className outranks it. */
-const READOUT_INK = {
-  steady: "",
-  divergent: "text-info",
-  unset: "italic",
-  blocked: "text-warning",
-} as const satisfies Record<RoleReadout["kind"], string>;
+/** Explicit status tones override the explanatory voice without changing its typography. */
+const READOUT_TONE = {
+  steady: "default",
+  divergent: "info",
+  unset: "default",
+  blocked: "warning",
+} as const satisfies Record<RoleReadout["kind"], ComponentProps<typeof Text>["tone"]>;
 
 // THREE THINGS THIS SLOT CARRIES, AND WHY EACH IS A SEPARATE CHANNEL (§5.3a, the step-3b mocks' Board D):
 //
@@ -190,14 +188,7 @@ export function ConnectionRoleSlot({
   return (
     <Row aria-busy={shownCheck !== null} gap="field" align="start" justify="between" className="flex-wrap">
       <Row gap="field" align="start">
-        <Badge
-          aria-label={ROLE_STATUS_LABELS[dot]}
-          className={DOT_SKIN[dot].className}
-          intent={DOT_SKIN[dot].intent}
-          role="img"
-          size="dot"
-          tone={DOT_SKIN[dot].tone}
-        />
+        <Badge aria-label={ROLE_STATUS_LABELS[dot]} edge={DOT_SKIN[dot].edge} intent={DOT_SKIN[dot].intent} role="img" size="dot" tone={DOT_SKIN[dot].tone} />
         <Stack gap="tight">
           <Text voice="label">{row.heading}</Text>
           <Text prose={true} voice="gloss" className={PROSE_MEASURE}>
@@ -299,7 +290,7 @@ function EmbedderNote({
 
 function EmbedRefusalLine({ refused }: { readonly refused: SlotEmbedRefusal | null }): ReactElement | null {
   return refused === null ? null : (
-    <Text voice="gloss" role="alert" data-refusal={EMBED_REFUSAL_SLOTS[refused.refusal.kind]} className={cn(READOUT_INK.blocked, PROSE_MEASURE)}>
+    <Text voice="gloss" role="alert" data-refusal={EMBED_REFUSAL_SLOTS[refused.refusal.kind]} className={PROSE_MEASURE} tone="warning">
       {embedRefusalText(refused.refusal, refused.embedder)}
     </Text>
   );
@@ -312,12 +303,7 @@ function RebuildLine({ rebuild }: { readonly rebuild: ReturnType<typeof useEmbed
     <Row role="status" gap="field" align="center" className="flex-wrap">
       {rebuild === null ? null : (
         <>
-          <Text
-            voice="gloss"
-            as="span"
-            data-rebuild={rebuild}
-            className={cn(rebuild === "failed" ? READOUT_INK.blocked : READOUT_INK.divergent, PROSE_MEASURE)}
-          >
+          <Text voice="gloss" as="span" data-rebuild={rebuild} className={PROSE_MEASURE} tone={rebuild === "failed" ? "warning" : "info"}>
             {REBUILD_STATUS_COPY[rebuild]}
           </Text>
           <Button intent="ghost" onClick={(): void => openConfigTo("workloads", "jobs")} size="sm" type="button">
@@ -334,10 +320,10 @@ function RebuildLine({ rebuild }: { readonly rebuild: ReturnType<typeof useEmbed
  *  dot's own accessible name, which is what makes the dot decidable without colour. No arm says "a turn":
  *  an embedder or a reranker runs for search and memory, never for a turn. */
 function ReadoutLine({ readout, unsetSentence }: { readonly readout: RoleReadout; readonly unsetSentence?: string | undefined }): ReactElement {
-  const className = cn(READOUT_INK[readout.kind], PROSE_MEASURE);
+  const appearance = { tone: READOUT_TONE[readout.kind], italic: readout.kind === "unset" };
   if (readout.kind === "steady") {
     return (
-      <Text voice="gloss" className={className}>
+      <Text voice="gloss" {...appearance} className={PROSE_MEASURE}>
         {readout.connection === null
           ? `${ROLE_STATUS_LABELS.running} on the connection picked here.`
           : `${ROLE_STATUS_LABELS.running} on ${readout.connection}.`}
@@ -346,20 +332,20 @@ function ReadoutLine({ readout, unsetSentence }: { readonly readout: RoleReadout
   }
   if (readout.kind === "divergent") {
     return (
-      <Text voice="gloss" className={className}>
+      <Text voice="gloss" {...appearance} className={PROSE_MEASURE}>
         Not applied yet — still running on {readout.connection}.
       </Text>
     );
   }
   if (readout.kind === "unset") {
     return (
-      <Text voice="gloss" className={className}>
+      <Text voice="gloss" {...appearance} className={PROSE_MEASURE}>
         {unsetSentence ?? "Nothing — no connection is set."}
       </Text>
     );
   }
   return (
-    <Text voice="gloss" className={className}>
+    <Text voice="gloss" {...appearance} className={PROSE_MEASURE}>
       {ROLE_STATUS_LABELS.blocked} — {readout.cause}.
     </Text>
   );

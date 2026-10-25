@@ -46,14 +46,6 @@ export function sameFold(previous: FoldState | null, next: FoldState): boolean {
   );
 }
 
-/** THE CELL (#153): a captioned face, the overflow tile and the pending placeholder all take one fixed
- *  width, so the portrait pitch is a property of the strip and never of the faces' names — and so the
- *  widths this module folds are the strip's own rhythm rather than the faces' names. Uncaptioned cells were
- *  already uniform (portrait inside the control floor) and stay content-sized. */
-export function cellWidthClass(caption: boolean): string | undefined {
-  return caption ? "inline-(--size-avatar-hero)" : undefined;
-}
-
 /** THE OVERFLOW TILE'S ACCESSIBLE NAME — LABEL IN NAME (WCAG 2.5.3, #208). A CAPTIONED tile prints "More"
  *  under its `+N`, and its name was the bare verb, so a speech-input user saying the word on screen
  *  addressed nothing. The name LEADS with the visible words; the UNCAPTIONED arm prints only `+N`.
@@ -64,7 +56,7 @@ export function cellWidthClass(caption: boolean): string | undefined {
  *  2026-08-30, desktop and mobile). Leading with the rendered string makes both arms contain every visible
  *  token: `+8 More — Filter by another character` / `+8 — Filter by another character`.
  *
- *  It lives HERE and not in the component for the `cellWidthClass` reason one line up: the name is decided
+ *  It lives HERE because the name is decided
  *  by what the FOLD hid, it is pure, and `face-strip.tsx` sits on the client component-size cap. */
 export function tileName(caption: boolean, label: string, hidden: number): string {
   return caption ? `+${hidden} More — ${label}` : `+${hidden} — ${label}`;

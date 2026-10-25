@@ -1,0 +1,37 @@
+[
+  {
+    "file": "a.tsx",
+    "line": 1,
+    "column": 1,
+    "before": "import { DIALOG_SCROLL_CLASS } from \"@orb/ui/dialog\";",
+    "after": "import { DialogBody } from \"@orb/ui/dialog\";"
+  },
+  {
+    "file": "a.tsx",
+    "line": 2,
+    "column": 14,
+    "before": "<Stack className={DIALOG_SCROLL_CLASS}>",
+    "after": "<DialogBody>"
+  },
+  {
+    "file": "a.tsx",
+    "line": 2,
+    "column": 57,
+    "before": "</Stack>",
+    "after": "</DialogBody>"
+  },
+  {
+    "file": "a.tsx",
+    "line": 3,
+    "column": 23,
+    "before": "<Stack>",
+    "after": "<DialogBody>"
+  },
+  {
+    "file": "a.tsx",
+    "line": 3,
+    "column": 34,
+    "before": "</Stack>",
+    "after": "</DialogBody>"
+  }
+]

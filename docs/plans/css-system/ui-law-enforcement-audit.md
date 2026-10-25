@@ -67,7 +67,7 @@ Each id was searched literally in `eslint.config.ts`, `tooling/src/eslint/`, `.d
 | type tests for section, config-group, chrome registries | `tests/client/state/section-registry.dom.test-d.ts` and siblings |
 | bus golden suite | `tests/server/domain/chat/bus-golden.suite.int.test.ts` |
 | grid checks (DPR matrix) | `tests/tooling/ui-audit/lib/checks-grid.test.ts` |
-| `LEADING_FLOOR` derived from `SNAPPED_LENGTH_BASE_PX` | `tooling/src/ui-audit/lib/ramp.ts:33` |
+| `LEADING_FLOOR` derives its numeric dimension from `LENGTH_BASE_PX` | `tooling/src/ui-audit/lib/ramp.ts` |
 | reduced-motion CSS floor | `packages/ui/src/styles/globals.css:271,288` |
 | `[anim]` flagger (dev instrument, not a gate) | `packages/client/src/lib/motion-flaggers.ts` |
 | ui-audit rule `promoted-layer-offset` (instrument) | `tooling/src/ui-audit/contract/rules.ts:89` |

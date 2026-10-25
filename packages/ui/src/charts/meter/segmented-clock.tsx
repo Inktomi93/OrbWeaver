@@ -4,7 +4,8 @@
 import type { ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { variantAttrs } from "#lib";
-import { ICON_XS, Icon, Lock } from "#primitives/icons";
+import { Icon, Lock } from "#primitives/icons";
+import { LENGTH_BASE_PX } from "#tokens";
 import { segmentedClockVariants } from "./variants.ts";
 
 export interface SegmentedClockProps extends Omit<VariantProps<typeof segmentedClockVariants>, "filled" | "hidden"> {
@@ -28,6 +29,7 @@ const CLOCK_CENTER = CLOCK_SIZE / 2;
 const CLOCK_RADIUS = CLOCK_CENTER - CLOCK_STROKE / 2;
 const CENTER_DOT_RADIUS = 5;
 /** The hidden-lock glyph's top-left offset, centering an ICON_XS square on CLOCK_CENTER. */
+const ICON_XS = LENGTH_BASE_PX["size.icon-xs"];
 const HIDDEN_ICON_OFFSET = CLOCK_CENTER - ICON_XS / 2;
 const SEGMENT_GAP_DEG = 6;
 const FULL_TURN_DEG = 360;
@@ -53,18 +55,27 @@ function segmentPath(index: number, count: number): string {
 }
 
 /** Progress-clock display — `filled` of `segments` wedges. Pure count display: knows nothing of fronts. */
-export function SegmentedClock({ segments, filled, completed, hidden, label, size, className }: SegmentedClockProps): ReactElement {
+export function SegmentedClock({ segments, filled, completed, hidden, label, size, tone, className }: SegmentedClockProps): ReactElement {
   const count = Math.max(MIN_SEGMENTS, Math.trunc(segments));
   const filledCount = Math.min(count, Math.max(0, Math.trunc(filled)));
   const isComplete = completed === true;
   const isHidden = hidden === true;
-  const slots = segmentedClockVariants({ size, hidden: isHidden });
+  const slots = segmentedClockVariants({ size, tone, hidden: isHidden });
   let centerSlot: ReactElement | null = null;
   if (isHidden) {
     centerSlot = (
-      <g data-slot="hidden-icon" transform={`translate(${HIDDEN_ICON_OFFSET} ${HIDDEN_ICON_OFFSET})`}>
-        <Icon className={slots.hiddenIcon()} icon={Lock} label="Hidden from players" size="xs" />
-      </g>
+      <svg
+        role="img"
+        aria-label="Hidden from players"
+        data-slot="hidden-icon"
+        x={HIDDEN_ICON_OFFSET}
+        y={HIDDEN_ICON_OFFSET}
+        width={ICON_XS}
+        height={ICON_XS}
+        viewBox={`0 0 ${ICON_XS} ${ICON_XS}`}
+      >
+        <Icon className={slots.hiddenIcon()} icon={Lock} size="fit" />
+      </svg>
     );
   } else if (isComplete) {
     centerSlot = (

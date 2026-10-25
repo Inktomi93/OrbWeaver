@@ -30,7 +30,7 @@ interface LiveResolverRootElement {
 }
 /** A throwaway element used to make the cascade resolve a token the way a real declaration would. */
 interface LiveResolverProbeElement {
-  readonly style: { color: string; position: string };
+  readonly style: { color: string; position: string; paddingLeft: string };
   readonly remove: () => void;
 }
 interface LiveResolverComputedStyle {
@@ -52,6 +52,10 @@ interface LiveResolverGlobals {
     readonly head?: LiveResolverRootElement;
     readonly createElement?: (tagName: string) => LiveResolverProbeElement;
     readonly querySelector?: (selectors: string) => LiveResolverRootElement | null;
+    readonly fonts?: {
+      readonly addEventListener: (event: "loadingdone", listener: () => void) => void;
+      readonly removeEventListener: (event: "loadingdone", listener: () => void) => void;
+    };
   };
   readonly getComputedStyle?: (element: LiveResolverRootElement | LiveResolverProbeElement) => LiveResolverComputedStyle;
   // biome-ignore lint/style/useNamingConvention: platform global name — mirrors real `globalThis`.
@@ -132,6 +136,22 @@ export function resolveCssColor(cssVar: string, fallback: string): string {
   return resolved === "" ? fallback : resolved;
 }
 
+/** Resolve a dimension through the browser, including owner-authored calc(), rem scaling and the pixel belt. */
+export function resolveCssLength(cssVar: string, fallback: number): number {
+  const host = markedRoot() ?? liveResolverGlobals.document?.body ?? liveResolverGlobals.document?.documentElement;
+  const probe = liveResolverGlobals.document?.createElement?.("span");
+  if (host?.append === undefined || probe === undefined || liveResolverGlobals.getComputedStyle === undefined) {
+    return fallback;
+  }
+  // Computed padding retains subpixel precision; a width read exposes the layout engine's rounded used value.
+  probe.style.paddingLeft = `var(${cssVar})`;
+  probe.style.position = "fixed";
+  host.append(probe);
+  const resolved = Number.parseFloat(liveResolverGlobals.getComputedStyle(probe).getPropertyValue("padding-left"));
+  probe.remove();
+  return Number.isFinite(resolved) ? resolved : fallback;
+}
+
 /**
  * THE ROOT ATTRIBUTES WHOSE FLIP MOVES A RESOLVED TOKEN — one home for every consumer of this seam, and
  * A COUPLED SITE FOR EVERY FUTURE APPEARANCE AXIS: an axis that redeclares a custom property at
@@ -149,10 +169,12 @@ export function resolveCssColor(cssVar: string, fallback: string): string {
  *     whole `--color-*` set at root scope.
  *   • `data-appearance-enable-theme-colorization` — WATCHED. Its `true` variant redeclares `--color-border` /
  *     `--color-sidebar-border` (`client/src/styles/globals.css`).
+ *   • `data-density` — WATCHED on the root/ancestor chain. ThemeScope's density changes spacing tokens
+ *     consumed by canvas chart geometry, even when its font and palette remain unchanged.
  *   • every other `data-appearance-*` attribute — each rule keyed on one applies a paint, layout or motion
- *     property to a non-root element, or a glass fill knob; none moves a colour or font token.
- *   • the root `style` attribute — carries the registered `--appearance-*` numbers, never a colour or a
- *     font-family token.
+ *     property to a non-root element, or a glass fill knob; none moves a token consumed by this resolver.
+ *   • the root `style` attribute — carries registered appearance numbers, including the font scale that
+ *     changes every rem-derived dimension; inline ThemeScope styles carry custom fonts and palettes.
  *   • `class` — nothing writes a class onto `<html>`; the Tailwind `dark` variant is `[data-theme]`-keyed.
  *
  * THIS LIST IS NOT THE WHOLE OBSERVER, and never could be (#504): a CUSTOM theme moves no root attribute
@@ -166,7 +188,7 @@ export function resolveCssColor(cssVar: string, fallback: string): string {
  *   3. `document.head` child mutations — the injected custom-theme stylesheet appearing, changing or
  *      being removed, which is a token move that touches no element in the chain at all.
  */
-const TOKEN_MOVING_ROOT_ATTRIBUTES: readonly string[] = ["data-theme", "data-appearance-enable-theme-colorization"];
+const TOKEN_MOVING_ROOT_ATTRIBUTES: readonly string[] = ["data-theme", "data-density", "data-appearance-enable-theme-colorization"];
 
 export interface LiveTokenStore<T> {
   readonly subscribe: (onChange: () => void) => () => void;
@@ -208,10 +230,11 @@ export function createLiveTokenStore<T>(resolve: () => T, fallback: T): LiveToke
     // root existed THEN. `subscribe` runs after commit, when it is; drop the cache so React's own
     // post-subscribe re-read resolves against the real root.
     cached = null;
-    const observer = new liveResolverGlobals.MutationObserver(() => {
+    const invalidate = (): void => {
       cached = null;
       onChange();
-    });
+    };
+    const observer = new liveResolverGlobals.MutationObserver(invalidate);
     const attributeFilter = [...TOKEN_MOVING_ROOT_ATTRIBUTES, "style"];
     // Channels 1 + 2: the root and every ancestor of it, up to and including `documentElement`.
     for (let node: LiveResolverRootElement | undefined = root; node !== undefined; node = node.parentElement ?? undefined) {
@@ -222,7 +245,12 @@ export function createLiveTokenStore<T>(resolve: () => T, fallback: T): LiveToke
     if (head !== undefined) {
       observer.observe(head, { childList: true });
     }
-    return (): void => observer.disconnect();
+    const fonts = liveResolverGlobals.document?.fonts;
+    fonts?.addEventListener("loadingdone", invalidate);
+    return (): void => {
+      observer.disconnect();
+      fonts?.removeEventListener("loadingdone", invalidate);
+    };
   }
 
   return { subscribe, getSnapshot, getServerSnapshot };

@@ -99,7 +99,7 @@ export function Section({
         {headingNode}
         {/* size="icon" here (vs. Field's "inline") is a pre-existing drift, not unified in this
             consolidation — that's a rendered-height change belonging to its own reviewed pass. */}
-        <HintTrigger className={slots.hintTrigger()} hint={hint} size="icon" subject={heading} />
+        <HintTrigger hint={hint} size="icon" subject={heading} />
       </span>
     ) : (
       headingNode

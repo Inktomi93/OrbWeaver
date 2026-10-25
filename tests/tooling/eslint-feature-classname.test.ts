@@ -62,6 +62,17 @@ test.for([
   ["a drop shadow colour", element('className="drop-shadow-accent"'), "`drop-shadow-accent`"],
   ["an inset shadow colour", element('className="inset-shadow-primary"'), "`inset-shadow-primary`"],
   ["a ring colour", element('className="ring-primary"'), "`ring-primary`"],
+  ["paint in a JSX spread", element('{...{ className: "text-primary" }}'), "`text-primary`"],
+  ["paint in a conditional spread", element('{...(active ? { className: "bg-primary/10" } : {})}'), "`bg-primary/10`"],
+  ["paint in an aliased spread", `const props = { className: "text-primary" };\n${element("{...props}")}`, "`text-primary`"],
+  [
+    "paint in a selected static table",
+    `const rows = { active: { className: "text-primary" }, idle: { className: "flex" } };\n${element("{...rows[state]}")}`,
+    "`text-primary`",
+  ],
+  ["paint in an alternate class prop", element('pressedClassName="text-primary"'), "`text-primary`"],
+  ["paint in a destructured default", `const {props = {className: "text-primary"}} = {};\n${element("{...props}")}`, "`text-primary`"],
+  ["paint in a computed class key", `const key = "restClassName";\n${element('{...{ [key]: "text-primary" }}')}`, "`text-primary`"],
 ] as const)("the layout rule reports %s", async ([, source, tokens]) => {
   const messages = await findings(LAYOUT_RULE, source);
   expect(messages).toHaveLength(1);
@@ -79,6 +90,10 @@ test.for([
   ["a class the compiler does not know", element('className="shell-grid"')],
   ["containment, whose custom-property registrations are not declarations", element('className="contain-inline-size"')],
   ["a raw element, which the intrinsic rule owns", 'export const T = (<div className="text-primary" />);\n'],
+  ["layout in an alternate class prop", element('restClassName="min-inline-0"')],
+  ["layout in a spread", element('{...{ className: "flex gap-row" }}')],
+  ["the selected safe member only", `const rows = { paint: { className: "text-primary" }, layout: { className: "flex" } };\n${element("{...rows.layout}")}`],
+  ["an unrelated className data field", 'const record = { className: "Wizard" }; export const T = <Text>{record.className}</Text>;'],
 ] as const)("the layout rule passes %s", async ([, source]) => {
   expect(await findings(LAYOUT_RULE, source)).toEqual([]);
 });
@@ -91,6 +106,8 @@ test.for([
   ["an imported class string inside cn", `import { ROW } from "./row.ts";\n${element('className={cn(ROW, "flex")}')}`],
   ["a class read off an object", element("className={styles.row}")],
   ["a function that builds the string", element("className={rowClass(size)}")],
+  ["a function under an alternate class prop", element("restClassName={rowClass(size)}")],
+  ["an imported class in a spread", `import { ROW } from "./row.ts";\n${element("{...{ className: ROW }}")}`],
 ] as const)("the built-string rule reports %s", async ([, source]) => {
   expect(await findings(BUILT_RULE, source)).toHaveLength(1);
 });
@@ -104,17 +121,17 @@ test.for([
   expect(await findings(BUILT_RULE, source)).toEqual([]);
 });
 
-test("both rules are on for feature source and off elsewhere", async () => {
+test("both rules are on for client composition and off inside UI", async () => {
   const levelOf = async (rule: string, path: string): Promise<unknown> => (await eslint.calculateConfigForFile(join(ROOT, path)))?.rules?.[rule]?.[0];
   expect(await levelOf(LAYOUT_RULE, FEATURE)).toBe(2);
   expect(await levelOf(BUILT_RULE, FEATURE)).toBe(2);
-  expect(await levelOf(LAYOUT_RULE, "packages/client/src/components/control.tsx")).toBeUndefined();
+  expect(await levelOf(LAYOUT_RULE, "packages/client/src/components/control.tsx")).toBe(2);
   expect(await levelOf(BUILT_RULE, "packages/ui/src/primitives/a/control.tsx")).toBeUndefined();
 });
 
-test("both rules judge feature source only", async () => {
+test("both rules judge shared client composition too", async () => {
   const source = `import { ROW } from "./row.ts";\nexport const T = (<Stack className={cn(ROW, "text-primary")} />);\n`;
   const outside = "packages/client/src/components/control.tsx";
-  expect(await findings(LAYOUT_RULE, source, outside)).toEqual([]);
-  expect(await findings(BUILT_RULE, source, outside)).toEqual([]);
+  expect(await findings(LAYOUT_RULE, source, outside)).toHaveLength(1);
+  expect(await findings(BUILT_RULE, source, outside)).toHaveLength(1);
 });

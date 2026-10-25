@@ -10,7 +10,7 @@ import { INTERACTIVE_TEXT_FLOOR_PX, LEADING_FLOOR, RAMP_FONT_FACES, TEXT_MICRO_P
 // ── THE COUPLING THIS EXISTS FOR (docs/law/integer-line-boxes.md §3b/§6) ──────────────────────────
 // `leading.*` becomes a px-resolving DIMENSION emitted as `round(up, 1rem, 1px)`, so `TOKENS[path].value`
 // stops being a number and `Number(...)` of it is NaN. §6 routes the re-derivation
-// (`SNAPPED_LENGTH_BASE_PX["leading.label"] / (parseFloat(TOKENS["text.label"].value) * REM_PX)`
+// (`LENGTH_BASE_PX["leading.label"] / (parseFloat(TOKENS["text.label"].value) * REM_PX)`
 // = 16/13 ≈ 1.2308) — that companion map is the sanctioned surface because §3b's own rule is
 // "consumers never parse the serialization".
 //

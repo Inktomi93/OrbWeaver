@@ -285,7 +285,7 @@ function BudgetBar({
   const tokens = barTokens(section, costs);
   const off = !section.enabled;
   return (
-    <Button intent="ghost" onClick={(): void => selectPresetSection(section.id)} size="sm" {...(selected ? { className: "bg-primary/10" } : {})}>
+    <Button intent="ghost" onClick={(): void => selectPresetSection(section.id)} size="sm" selection={selected ? "on" : "none"}>
       <Text className="flex-1 truncate text-start min-inline-0" strike={off} voice="label">
         {sectionName(section)}
       </Text>

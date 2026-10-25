@@ -20,6 +20,6 @@ export interface GridProps extends ComponentProps<"div">, VariantProps<typeof gr
  * Usage: `<Grid cols="wide" gap="section">…</Grid>` — never `className="grid grid-cols-2"` in feature
  * code (structural layout goes through the layout kit; the track template lives in variants.ts).
  */
-export function Grid({ className, gap, cols, ...props }: GridProps): ReactElement {
-  return <div {...props} className={gridVariants({ gap, cols, className })} />;
+export function Grid({ className, gap, cols, highlight, ...props }: GridProps): ReactElement {
+  return <div {...props} className={gridVariants({ gap, cols, highlight, className })} />;
 }

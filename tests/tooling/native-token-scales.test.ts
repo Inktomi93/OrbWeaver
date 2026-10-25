@@ -186,6 +186,16 @@ test("generated namespace resets reject stock scales without changing supported 
   expect(baseline.candidatesToCss(stockCandidates).every((css) => css !== null)).toBe(true);
 });
 
+test("generated numeric lengths include unsnapped typography and chart dimensions without parsing CSS at consumers", async () => {
+  const { tokensTs } = await generateArtifacts();
+  const numeric = tokensTs.split("export const LENGTH_BASE_PX = {")[1]?.split("} as const;")[0];
+  expect(numeric).toBeDefined();
+  expect(numeric).toContain('"text.label": 13,');
+  expect(numeric).toContain('"height.chart": 256,');
+  expect(numeric).toContain('"size.icon-xs": 12,');
+  expect(numeric).toContain('"stroke-width.icon-regular": 1.75,');
+});
+
 test("effective UI/client native rules reject stock classes in real class carriers, not copy or unrelated attributes", async ({ repoRoot }) => {
   const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: repoRoot });
   for (const [path, entryPoint, authoredClass, pointerRefusals] of [

@@ -86,8 +86,6 @@ export interface HomeSurfaceProps {
   readonly onNewChat: () => void;
 }
 
-const WEAVE_SIZE = 64;
-
 /** The doorway group's ONE name — the fold's trigger, its region's accessible name, and the teaser a
  *  collapsed group leads with. "Planned" by owner ruling: it states what the work is without promising
  *  when it arrives. */
@@ -167,7 +165,7 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
                   New chat
                 </Button>
               }
-              decoration={<WeaveGlyph anim={true} size={WEAVE_SIZE} />}
+              decoration={<WeaveGlyph anim={true} size="display" />}
               description="Start a thread and your recents land here."
               title="Nothing on your home yet"
             />

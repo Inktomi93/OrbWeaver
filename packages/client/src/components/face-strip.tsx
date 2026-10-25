@@ -60,11 +60,14 @@ import { InlineList, Row, Stack } from "@orb/ui/layout";
 import { cn } from "@orb/ui/lib";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Skeleton } from "@orb/ui/skeleton";
+import { Swatch } from "@orb/ui/swatch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode, Ref } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
 import type { FoldState } from "./face-strip-fold.ts";
-import { cellWidthClass, foldFaces, sameFold, tileName } from "./face-strip-fold.ts";
+import { foldFaces, sameFold, tileName } from "./face-strip-fold.ts";
+
+const CAPTIONED_FACE_WIDTH = "inline-(--size-avatar-hero)";
 
 interface FaceStripItem {
   readonly id: string;
@@ -221,7 +224,11 @@ function FaceButton({ ref, item, selected, verb, caption, squeezed, selectMode, 
       // always fits where the tile fit, and only its caption pays for it (its `max-inline` clamps the captioned
       // cell width below, which is why the two can be spelled together).
       className={
-        cn("shrink-0 min-block-(--size-control-md) min-inline-(--size-control-md)", cellWidthClass(caption), squeezed && "max-inline-(--size-control-md)") ?? ""
+        cn(
+          "shrink-0 min-block-(--size-control-md) min-inline-(--size-control-md)",
+          caption ? CAPTIONED_FACE_WIDTH : undefined,
+          squeezed && "max-inline-(--size-control-md)",
+        ) ?? ""
       }
       data-face-key={faceKey(item)}
       data-face-squeezed={squeezed ? "" : undefined}
@@ -244,11 +251,10 @@ function FaceButton({ ref, item, selected, verb, caption, squeezed, selectMode, 
           // accent is a STATE you are in — the same primary this strip's "Filtered: X" chip repeats below
           // it. That is what separates a face that FILTERS from a face that LAUNCHES. The `label` VOICE
           // keeps this functional text at the readable label step under the portrait datum. The
-          // SELECTED face's accent tint is a state, not a type axis, so it stays a className on the voice.
+          // SELECTED face's accent tint is a state, so it rides the tone beside the voice.
           <Text
-            className={`${squeezed ? "max-inline-full" : "max-inline-(--size-avatar-hero)"} truncate text-center ${
-              selected ? "text-primary" : "text-muted-foreground"
-            }`}
+            className={cn(squeezed ? "max-inline-full" : "max-inline-(--size-avatar-hero)", "truncate text-center")}
+            tone={selected ? "accent" : "muted"}
             voice="label"
           >
             {item.name}
@@ -308,13 +314,13 @@ function FaceStripPlaceholder({ caption, kicker, label }: { readonly caption: bo
         // button adds nothing else) around the avatar token and its caption line.
         <Stack
           align="center"
-          className={cn("shrink-0 min-block-(--size-control-md) min-inline-(--size-control-md)", cellWidthClass(caption))}
+          className={cn("shrink-0 min-block-(--size-control-md) min-inline-(--size-control-md)", caption ? CAPTIONED_FACE_WIDTH : undefined)}
           gap="tight"
           key={slot}
         >
-          <Skeleton className="rounded-full block-(--size-avatar-md) inline-(--size-avatar-md)" />
+          <Skeleton variant="circle" className="block-(--size-avatar-md) inline-(--size-avatar-md)" />
           {caption ? (
-            <Text aria-hidden={true} className="text-transparent" voice="label">
+            <Text aria-hidden={true} voice="label">
               {CAPTION_PLACEHOLDER}
             </Text>
           ) : null}
@@ -347,6 +353,12 @@ export function FaceStrip({
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const folding = overflow !== undefined;
+  const captionWidth = caption ? CAPTIONED_FACE_WIDTH : undefined;
+  const moreCaption = caption ? (
+    <Text tone="muted" voice="label">
+      More
+    </Text>
+  ) : null;
   // `null` is the MEASURING pass: every face renders (clipped, pre-paint) so the DOM can be read once.
   const measuring = fold === null;
 
@@ -425,10 +437,10 @@ export function FaceStrip({
               render={
                 // `size="icon"` IS the control-md square this used to spell as min-h/min-w classes
                 // (#169 — the multi-segment token was invisible to `ui-size-via-variant` until its value
-                // class learned hyphens); the captioned strip's uniform pitch (#153) rides cellWidthClass.
+                // class learned hyphens); the captioned strip keeps a uniform cell pitch.
                 <Button
                   aria-label={tileName(caption, overflow.label, hiddenCount)}
-                  className={cn("shrink-0", cellWidthClass(caption)) ?? ""}
+                  className={cn("shrink-0", captionWidth) ?? ""}
                   data-face-overflow=""
                   ref={overflowRef}
                   intent="ghost"
@@ -441,18 +453,10 @@ export function FaceStrip({
                         avatar radius was the portraits' exact silhouette, so a folded strip scanned as one more
                         character named "More". The header's rhythm ruling is about the BOX, not the DRESS — a
                         dashed ring on no fill reads as a slot rather than a person at the identical pitch. */}
-                    <Row
-                      align="center"
-                      className="rounded-full border border-dashed border-border block-(--size-avatar-md) inline-(--size-avatar-md)"
-                      justify="center"
-                    >
-                      <Text className="text-muted-foreground" voice="label">{`+${hiddenCount}`}</Text>
-                    </Row>
-                    {caption ? (
-                      <Text className="text-muted-foreground" voice="label">
-                        More
-                      </Text>
-                    ) : null}
+                    <Swatch shape="pill" edge="dashed" className="flex items-center justify-center block-(--size-avatar-md) inline-(--size-avatar-md)">
+                      <Text as="span" tone="muted" voice="label">{`+${hiddenCount}`}</Text>
+                    </Swatch>
+                    {moreCaption}
                   </Stack>
                 </Button>
               }

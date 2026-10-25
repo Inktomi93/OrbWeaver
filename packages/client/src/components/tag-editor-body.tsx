@@ -85,7 +85,8 @@ export function TagEditorBody({
           container is the `<Container>` directly above, which is why the cap and the container are two
           elements. `w-full` rides with `mx-auto` because the pane is a flex column. */}
       <Stack
-        className="mx-auto outline-none inline-full max-inline-(--width-content-col) min-inline-0 @cq-64:max-inline-(--width-content-col-wide)"
+        focusTarget={true}
+        className="mx-auto inline-full max-inline-(--width-content-col) min-inline-0 @cq-64:max-inline-(--width-content-col-wide)"
         data-slot="tag-member-editor"
         gap="block"
         ref={surfaceRef}

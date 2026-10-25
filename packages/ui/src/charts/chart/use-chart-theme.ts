@@ -8,11 +8,45 @@
 // re-declares `--color-border` — this hook's `axisLine`) OR a custom-theme flip repaints the chart instead
 // of baking a stale literal.
 import { useSyncExternalStore } from "react";
-import { createLiveTokenStore, resolveCssColor, resolveCssVar } from "#lib";
-import { TOKEN_POLARITY_ARMS, TOKENS } from "#tokens";
+import { createLiveTokenStore, resolveCssColor, resolveCssLength, resolveCssVar } from "#lib";
+import { LENGTH_BASE_PX, TOKEN_POLARITY_ARMS, TOKENS } from "#tokens";
+
+const CHART_LENGTHS = {
+  fontSize: "text.label",
+  lineHeight: "leading.label",
+  barHeight: "leading.label-relaxed",
+  padding: "spacing.row",
+  tight: "spacing.tight",
+  radius: "radius.inset",
+  stroke: "border-width.control",
+  accentStroke: "border-width.accent",
+  dot: "size.dot",
+  height: "height.chart",
+} as const satisfies Record<string, keyof typeof LENGTH_BASE_PX>;
+
+type ChartMetrics = Record<keyof typeof CHART_LENGTHS, number>;
+
+function chartMetrics(resolve: (path: (typeof CHART_LENGTHS)[keyof typeof CHART_LENGTHS]) => number): ChartMetrics {
+  return {
+    fontSize: resolve(CHART_LENGTHS.fontSize),
+    lineHeight: resolve(CHART_LENGTHS.lineHeight),
+    barHeight: resolve(CHART_LENGTHS.barHeight),
+    padding: resolve(CHART_LENGTHS.padding),
+    tight: resolve(CHART_LENGTHS.tight),
+    radius: resolve(CHART_LENGTHS.radius),
+    stroke: resolve(CHART_LENGTHS.stroke),
+    accentStroke: resolve(CHART_LENGTHS.accentStroke),
+    dot: resolve(CHART_LENGTHS.dot),
+    height: resolve(CHART_LENGTHS.height),
+  };
+}
 
 // Keyed by ROLE (not token name) so an option builder asks for what it's styling, not which token backs it.
 export interface ChartColors {
+  readonly metrics: ChartMetrics;
+  readonly fontFamily: string;
+  readonly fontWeight: number;
+  readonly area: string;
   /** Series fill — bars, the sparkline line + area. */
   readonly series: string;
   /** Series fill for a series the caller reads as a GAIN, and its twin for a LOSS. The semantic-intent
@@ -43,7 +77,7 @@ const CHROME_TOKENS = {
   axisLabel: TOKENS["color.foreground"],
   axisLabelMuted: TOKENS["color.muted-foreground"],
   axisLine: TOKENS["color.border"],
-} as const satisfies Record<Exclude<keyof ChartColors, "palette">, { readonly cssVar: string; readonly value: string }>;
+} as const;
 
 function resolveRamp(resolve: (token: { readonly cssVar: string; readonly value: string }) => string): ChartColors["palette"] {
   return [resolve(RAMP_TOKENS[0]), resolve(RAMP_TOKENS[1]), resolve(RAMP_TOKENS[2]), resolve(RAMP_TOKENS[3]), resolve(RAMP_TOKENS[4])];
@@ -55,6 +89,10 @@ function resolveColor(token: { readonly cssVar: string; readonly value: string }
 
 function resolveChartColors(): ChartColors {
   return {
+    metrics: chartMetrics((path) => resolveCssLength(TOKENS[path].cssVar, LENGTH_BASE_PX[path])),
+    fontFamily: resolveCssVar(TOKENS["font.sans"].cssVar, TOKENS["font.sans"].value),
+    fontWeight: Number(resolveCssVar(TOKENS["font-weight.medium"].cssVar, TOKENS["font-weight.medium"].value)),
+    area: resolveCssColor(TOKENS["color.accent"].cssVar, TOKENS["color.accent"].value),
     // Chart tokens are polarity-aware too: Canvas needs the cascade-resolved concrete arm, never the
     // raw light-dark() token stream returned by getPropertyValue.
     series: resolveCssColor(CHROME_TOKENS.series.cssVar, CHROME_TOKENS.series.value),
@@ -70,7 +108,11 @@ function resolveChartColors(): ChartColors {
 }
 
 // Identity-stable, so useSyncExternalStore's server/no-DOM snapshot never spins a fresh object per render.
-const FALLBACK_COLORS: ChartColors = {
+const DEFAULT_CHART_THEME: ChartColors = {
+  metrics: chartMetrics((path) => LENGTH_BASE_PX[path]),
+  fontFamily: TOKENS["font.sans"].value,
+  fontWeight: Number(TOKENS["font-weight.medium"].value),
+  area: TOKENS["color.accent"].value,
   series: TOKEN_POLARITY_ARMS["color.chart-1"].dark,
   seriesPositive: TOKEN_POLARITY_ARMS["color.success"].dark,
   seriesNegative: TOKEN_POLARITY_ARMS["color.destructive"].dark,
@@ -86,7 +128,7 @@ const FALLBACK_COLORS: ChartColors = {
   ],
 };
 
-const chartThemeStore = createLiveTokenStore(resolveChartColors, FALLBACK_COLORS);
+const chartThemeStore = createLiveTokenStore(resolveChartColors, DEFAULT_CHART_THEME);
 
 /** Live, theme-reactive concrete chart-chrome colors for canvas ECharts. */
 export function useChartTheme(): ChartColors {

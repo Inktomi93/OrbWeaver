@@ -108,7 +108,7 @@ function RailBrand({
           >
             {/* The BUTTON carries the name (`aria-label`), so the glyph inside it is decoration — a nested
                 role="img" would announce a second, competing name for one control. */}
-            <WeaveGlyph decorative={true} size={BRAND_GLYPH_SIZE} />
+            <WeaveGlyph decorative={true} size="lg" />
           </Button>
         }
       />
@@ -116,8 +116,6 @@ function RailBrand({
     </Tooltip>
   );
 }
-
-const BRAND_GLYPH_SIZE = 26;
 
 /** The id of ONE sheet-hosted entry's spoken count. The You tab `aria-describedby`s every one of them: an id
  *  REFERENCE is what lets the tab say the count without the count ever leaving its per-entry hook (see
@@ -225,7 +223,7 @@ export function Rail({ activeSection, onSelectSection, onOpenModal }: RailProps)
     <nav className="shell-rail" aria-label="Primary">
       {brandEntry === undefined ? (
         <div className="shell-rail-brand" aria-hidden="true">
-          <WeaveGlyph size={BRAND_GLYPH_SIZE} />
+          <WeaveGlyph size="lg" />
         </div>
       ) : (
         <RailBrand

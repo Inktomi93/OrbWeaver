@@ -44,7 +44,7 @@ export function SkeletonRows({ count, shape = "line" }: SkeletonRowsProps): Reac
       <Stack aria-busy={true} gap="row" padding="block">
         {rows.map((i) => (
           <Row align="center" className="px-row py-field min-block-(--size-control-md)" gap="row" key={i}>
-            <Skeleton className="rounded-full block-(--size-avatar-md) inline-(--size-avatar-md)" />
+            <Skeleton variant="circle" className="block-(--size-avatar-md) inline-(--size-avatar-md)" />
             <Stack className="flex-1 min-inline-0" gap="field">
               <Skeleton className="block-(--leading-micro) inline-full" />
               <Skeleton className="block-(--leading-micro) inline-full" />

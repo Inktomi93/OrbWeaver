@@ -3,6 +3,7 @@
 // neutral ramp are derived by <ThemeScope> (never picked), so this model carries no foreground fields.
 
 import type { CreateThemeInput, Theme, ThemeDensity, ThemeFont, ThemeOverride, ThemeRadius } from "@orb/contracts/theme";
+import { TOKENS } from "@orb/ui/tokens";
 import type { ThemeColorFields } from "#lib";
 import { assignThemeColorFields } from "#lib";
 
@@ -22,16 +23,16 @@ export interface ThemeFormValues extends ThemeColorFields {
 /** From-scratch defaults — the Hearth seed values, so a new theme starts from a known-good, AA-passing palette. */
 export const DEFAULT_THEME_FORM: ThemeFormValues = {
   name: "New theme",
-  background: "oklch(0.158 0.006 60)",
-  accent: "oklch(0.72 0.175 52)",
+  background: TOKENS["color.background"].value,
+  accent: TOKENS["color.primary"].value,
   borderColor: "",
-  speaker: "oklch(0.72 0.175 52)",
-  dialogueColor: "oklch(0.955 0.004 75)",
-  narrationColor: "oklch(0.78 0.02 70)",
-  bodyColor: "oklch(0.9 0.008 72)",
-  userBubbleBg: "oklch(0.255 0.007 60)",
-  aiBubbleBg: "oklch(0.205 0.006 60)",
-  systemBubbleBg: "oklch(0.255 0.006 60)",
+  speaker: TOKENS["color.speaker"].value,
+  dialogueColor: TOKENS["color.dialogue"].value,
+  narrationColor: TOKENS["color.narration"].value,
+  bodyColor: TOKENS["color.prose-body"].value,
+  userBubbleBg: TOKENS["color.user-bubble"].value,
+  aiBubbleBg: TOKENS["color.ai-bubble"].value,
+  systemBubbleBg: TOKENS["color.system-bubble"].value,
   font: "Geist",
   radius: "card",
   density: "comfortable",

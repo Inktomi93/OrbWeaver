@@ -92,7 +92,6 @@ const PHASE_CAPTIONS: Readonly<Record<WeavePhase, string>> = {
 
 /** The boot hub sits high so the weave reads over the foot chrome (mock: 0.5/0.42). */
 const BOOT_HUB = { x: 0.5, y: 0.42 } as const;
-const WORDMARK_GLYPH_PX = 26;
 /** The minimum-display floor (owner): a mounted veil plays at least this coherent beat before it can
  *  dissolve, so a fast boot never flashes. Tunable; ~1s reads as a beat without stalling a slow boot. */
 const MIN_VISIBLE_MS = 1000;
@@ -130,7 +129,7 @@ export function BootVeil(): ReactElement | null {
         <Row align="center" justify="center" gap="row" aria-hidden={true} data-slot="brand-wordmark">
           {/* The text halo keeps the wordmark readable — the near-white
               name floats over the live weave; a bright strand behind a glyph drops worst-case contrast. */}
-          <WeaveGlyph decorative={true} size={WORDMARK_GLYPH_PX} tone="accent" />
+          <WeaveGlyph decorative={true} size="lg" tone="accent" />
           <Text as="span" voice="monogram" halo={true}>
             orbweaver
           </Text>

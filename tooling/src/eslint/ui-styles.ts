@@ -1,3 +1,4 @@
+import { dirname, resolve } from "node:path";
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
 import ts from "typescript";
@@ -5,12 +6,16 @@ import { lexicalVariable } from "./general.ts";
 import {
   accessedName,
   constantInitializer,
+  importedSymbol,
   isStyleMember,
   isValueWrapper,
+  jsxProperties,
   STATIC_CONST_DEPTH,
   staticKeyName,
   staticMemberName,
+  staticObjectProperties,
   staticTextValue,
+  staticValueOptions,
   unwrapTsValue,
 } from "./static-values.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
@@ -18,6 +23,16 @@ import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 const TOKEN_BACKED_STYLE_PROPS = new Set(
   [
     "borderRadius",
+    "border",
+    "borderWidth",
+    "borderTop",
+    "borderRight",
+    "borderBottom",
+    "borderLeft",
+    "borderInline",
+    "borderBlock",
+    "borderInlineWidth",
+    "borderBlockWidth",
     "boxShadow",
     "color",
     "background",
@@ -34,6 +49,12 @@ const TOKEN_BACKED_STYLE_PROPS = new Set(
     "paddingRight",
     "paddingBottom",
     "paddingLeft",
+    "paddingInline",
+    "paddingBlock",
+    "paddingInlineStart",
+    "paddingInlineEnd",
+    "paddingBlockStart",
+    "paddingBlockEnd",
     "margin",
     "marginTop",
     "marginRight",
@@ -41,6 +62,8 @@ const TOKEN_BACKED_STYLE_PROPS = new Set(
     "marginLeft",
     "marginInlineStart",
     "marginInlineEnd",
+    "marginBlockStart",
+    "marginBlockEnd",
     "width",
     "height",
     "minWidth",
@@ -61,67 +84,222 @@ const TOKEN_BACKED_STYLE_PROPS = new Set(
     "fontSize",
     "lineHeight",
     "letterSpacing",
+    "fontFamily",
+    "textUnderlineOffset",
+    "textDecorationThickness",
+    "strokeWidth",
+    "barWidth",
+    "barMaxWidth",
+    "symbolSize",
+    "itemWidth",
+    "itemHeight",
+    "itemGap",
     "zIndex",
   ].flatMap((name) => [name, name.replaceAll(/[A-Z]/gu, (letter) => `-${letter.toLowerCase()}`)]),
 );
 
 const RAW_STYLE_UNIT = /\d(?:\.\d+)?\s*(?:px|rem|em|%|ms|s|vh|vw|vmin|vmax|ch|cqh|cqw|fr|deg)\b/u;
 
-const RAW_STYLE_COLOR = /#[0-9a-fA-F]{3,8}\b|\b(?:rgb|rgba|hsl|hsla|oklch|oklab|lab|lch|color)\s*\(/u;
+const RAW_STYLE_COLOR = /#[0-9a-fA-F]{3,8}\b|\b(?:rgb|rgba|hsl|hsla|oklch|oklab|lab|lch|color)\s*\((?!\s*from\s+var\(--color-)/u;
 
-const RAW_STYLE_EASING = /\b(?:ease-in-out|ease-in|ease-out|ease|linear|cubic-bezier)\b/u;
+const RAW_STYLE_EASING = /\b(?:ease-in-out|ease-in|ease-out|ease|linear|cubic-bezier)(?![\w-])/u;
+const RAW_STYLE_HEX = /#[0-9a-fA-F]{3,8}\b/u;
 
 const BARE_STYLE_NUMBER = /^-?\d+(?:\.\d+)?$/u;
 
-function isRawStyleValue(value: string | number | undefined): boolean {
+const STYLE_KEYWORDS = new Set(["inherit", "initial", "unset", "revert", "revert-layer", "currentColor", "transparent", "none"]);
+const TOKEN_REFERENCE = /var\(--[\w-]+\)/gu;
+const FULL_VIEWPORT_EXTENT = /\b100(?:dvh|dvw|vh|vw)\b/gu;
+
+const styleResidue = (text: string): string => text.replaceAll(TOKEN_REFERENCE, "").replaceAll(FULL_VIEWPORT_EXTENT, "").trim();
+
+function isRawStyleValue(name: string, value: string | number | undefined): boolean {
   const text = value === undefined ? "" : String(value).trim();
-  if (text.includes("var(--")) {
+  if (text === "" || STYLE_KEYWORDS.has(text)) {
     return false;
   }
-  if (BARE_STYLE_NUMBER.test(text)) {
-    return Number(text) !== 0;
+  const remainder = styleResidue(text);
+  if (BARE_STYLE_NUMBER.test(remainder)) {
+    return Number(remainder) !== 0;
   }
-  return RAW_STYLE_UNIT.test(text) || RAW_STYLE_COLOR.test(text) || RAW_STYLE_EASING.test(text);
+  return (
+    RAW_STYLE_UNIT.test(remainder) ||
+    RAW_STYLE_COLOR.test(text) ||
+    RAW_STYLE_EASING.test(remainder) ||
+    ((name === "fontFamily" || name === "font-family") && remainder !== "") ||
+    ((name === "color" || name.endsWith("Color") || name.endsWith("-color")) && /^[a-z]+$/iu.test(remainder))
+  );
 }
 
 const OFF_TOKEN_STYLE_MESSAGE =
   "A token-backed CSS property (radius, shadow, colour, motion, spacing) is written as a raw literal inline; use a Tailwind token utility or reference a var(--…) token from tokens.json.";
 
-const styleObjectOf = (container: TSESTree.JSXExpressionContainer): TSESTree.ObjectExpression | undefined => {
-  const expression = container.expression.type === "JSXEmptyExpression" ? undefined : unwrapTsValue(container.expression);
-  return expression?.type === "ObjectExpression" ? expression : undefined;
-};
+interface StyleText {
+  readonly value: string | number;
+  readonly complete: boolean;
+}
+
+const UNRESOLVED_STYLE: readonly StyleText[] = [{ value: "__runtime__", complete: false }];
+
+function joinStyleText(left: readonly StyleText[], right: readonly StyleText[]): StyleText[] {
+  return (left.length === 0 ? UNRESOLVED_STYLE : left).flatMap((a) =>
+    (right.length === 0 ? UNRESOLVED_STYLE : right).map((b) => ({ value: `${a.value}${b.value}`, complete: a.complete && b.complete })),
+  );
+}
+
+function styleTexts(context: OrbRuleContext, node: TSESTree.Node, seen = new Set<TSESTree.Node>()): readonly StyleText[] {
+  const value = unwrapTsValue(node);
+  if (seen.has(value)) {
+    return [];
+  }
+  seen.add(value);
+  const exact = staticTextValue(context, value);
+  if (exact !== undefined) {
+    return [{ value: exact, complete: true }];
+  }
+  const next = (child: TSESTree.Node): readonly StyleText[] => styleTexts(context, child, new Set(seen));
+  if (value.type === "TemplateLiteral") {
+    let texts: readonly StyleText[] = [{ value: value.quasis[0]?.value.cooked ?? "", complete: true }];
+    value.expressions.forEach((expression, index) => {
+      texts = joinStyleText(joinStyleText(texts, next(expression)), [{ value: value.quasis[index + 1]?.value.cooked ?? "", complete: true }]);
+    });
+    return texts;
+  }
+  if (value.type === "BinaryExpression" && value.operator === "+") {
+    return joinStyleText(next(value.left), next(value.right));
+  }
+  if (value.type === "ArrayExpression") {
+    return value.elements.flatMap((element) => (element === null || element.type === "SpreadElement" ? [] : next(element)));
+  }
+  if (value.type === "Identifier") {
+    const binding = lexicalVariable(context, value)?.defs[0]?.name;
+    if (binding?.parent.type === "AssignmentPattern" && binding.parent.left === binding) {
+      return next(binding.parent.right);
+    }
+  }
+  return staticValueOptions(context, value)
+    .filter((option) => option !== value)
+    .flatMap(next);
+}
+
+function editorThemeFactory(context: OrbRuleContext, value: TSESTree.MemberExpression): boolean {
+  if (accessedName(context, value) !== "theme") {
+    return false;
+  }
+  const imported = importedSymbol(context, value.object);
+  return imported?.name === "EditorView" && (imported.source === "codemirror" || imported.source === "@codemirror/view");
+}
+
+function chartOptionType(context: OrbRuleContext, node: TSESTree.TypeNode | undefined): boolean {
+  if (node?.type !== "TSTypeReference") {
+    return false;
+  }
+  const imported = importedSymbol(context, node.typeName);
+  return (
+    imported?.name === "OrbChartOption" &&
+    imported.source.startsWith(".") &&
+    resolve(dirname(context.filename), imported.source).endsWith("/packages/ui/src/charts/chart/echarts-setup.ts")
+  );
+}
+
+function chartStyleObject(context: OrbRuleContext, node: TSESTree.ObjectExpression): boolean {
+  let returned = false;
+  for (let current: TSESTree.Node = node; current.type !== "Program"; current = current.parent) {
+    const parent = current.parent;
+    if (parent.type === "CallExpression") {
+      return false;
+    }
+    if (parent.type === "VariableDeclarator") {
+      return chartOptionType(context, parent.id.typeAnnotation?.typeAnnotation);
+    }
+    if (parent.type === "ReturnStatement") {
+      returned = true;
+    }
+    if (parent.type === "ArrowFunctionExpression" || parent.type === "FunctionExpression" || parent.type === "FunctionDeclaration") {
+      return (returned || parent.body === current) && chartOptionType(context, parent.returnType?.typeAnnotation);
+    }
+  }
+  return false;
+}
+
+function importedUiElement(context: OrbRuleContext, element: TSESTree.JSXOpeningElement): boolean {
+  const imported = importedSymbol(context, element.name);
+  return (
+    imported !== undefined &&
+    (imported.source.startsWith("@orb/ui/") ||
+      (imported.source.startsWith(".") && resolve(dirname(context.filename), imported.source).includes("/packages/ui/src/")))
+  );
+}
+
+const DIMENSION_PROPS = new Set(["width", "height", "size", "strokeWidth"]);
 
 export const offTokenInlineStyleRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
-    const flagWhenRaw = (node: TSESTree.Node, value: TSESTree.Node): void => {
-      if (isRawStyleValue(staticTextValue(context, value))) {
+    const reported = new Set<TSESTree.Node>();
+    const flagWhenRaw = (node: TSESTree.Node, value: TSESTree.Node, name: string): void => {
+      const raw = styleTexts(context, value).some((text) =>
+        text.complete ? isRawStyleValue(name, text.value) : RAW_STYLE_UNIT.test(styleResidue(String(text.value))) || RAW_STYLE_HEX.test(String(text.value)),
+      );
+      if (raw && !reported.has(node)) {
+        reported.add(node);
         context.report({ node, message: OFF_TOKEN_STYLE_MESSAGE });
       }
     };
     const tokenBacked = (name: string | number | undefined): boolean => name !== undefined && TOKEN_BACKED_STYLE_PROPS.has(name as string);
+    const judgeObject = (node: TSESTree.Node): void => {
+      for (const property of staticObjectProperties(context, node)) {
+        const name = staticKeyName(context, property);
+        if (name !== undefined && tokenBacked(name)) {
+          flagWhenRaw(property, property.value, name);
+        }
+      }
+    };
+    const themeNodes = new Set<TSESTree.Node>();
+    const judgeTheme = (node: TSESTree.Node): void => {
+      if (themeNodes.has(node)) {
+        return;
+      }
+      themeNodes.add(node);
+      judgeObject(node);
+      for (const property of staticObjectProperties(context, node)) {
+        judgeTheme(property.value);
+      }
+    };
     return {
-      "JSXAttribute[name.name='style'] > JSXExpressionContainer": (container: TSESTree.JSXExpressionContainer): void => {
-        for (const property of styleObjectOf(container)?.properties ?? []) {
-          const plain = property.type === "Property" && property.kind === "init" && !property.method;
-          if (plain && tokenBacked(staticKeyName(context, property))) {
-            flagWhenRaw(property, property.value);
+      "JSXOpeningElement:exit": (element: TSESTree.JSXOpeningElement): void => {
+        const ui = importedUiElement(context, element);
+        for (const property of jsxProperties(context, element)) {
+          if (property.value === null) {
+            continue;
           }
+          if (property.name === "style") {
+            judgeObject(property.value);
+          } else if (ui && DIMENSION_PROPS.has(property.name)) {
+            flagWhenRaw(property.node, property.value, property.name);
+          }
+        }
+      },
+      ObjectExpression: (node: TSESTree.ObjectExpression): void => {
+        if (cssPropertiesObject(context, node) || chartStyleObject(context, node)) {
+          judgeObject(node);
         }
       },
       "AssignmentExpression[operator='='][left.type='MemberExpression']": (
         assignment: TSESTree.AssignmentExpression & { left: TSESTree.MemberExpression },
       ): void => {
         if (tokenBacked(accessedName(context, assignment.left)) && isStyleMember(context, assignment.left.object)) {
-          flagWhenRaw(assignment, assignment.right);
+          flagWhenRaw(assignment, assignment.right, accessedName(context, assignment.left) ?? "");
         }
       },
       "CallExpression[callee.type='MemberExpression']": (call: TSESTree.CallExpression & { callee: TSESTree.MemberExpression }): void => {
         const [property, value] = call.arguments;
+        if (property !== undefined && editorThemeFactory(context, call.callee)) {
+          judgeTheme(property);
+        }
         const setsStyle = accessedName(context, call.callee) === "setProperty" && isStyleMember(context, call.callee.object);
         if (setsStyle && value !== undefined && tokenBacked(staticTextValue(context, property as TSESTree.Node))) {
-          flagWhenRaw(call, value);
+          flagWhenRaw(call, value, String(staticTextValue(context, property as TSESTree.Node)));
         }
       },
     };
@@ -165,8 +343,10 @@ function isStaticValue(context: OrbRuleContext, node: TSESTree.Node, depth = 0):
     }
     case "TemplateLiteral":
       return expression.expressions.every(next);
-    case "MemberExpression":
-      return next(expression.object) && (!expression.computed || next(expression.property));
+    case "MemberExpression": {
+      const options = staticValueOptions(context, expression);
+      return options.length > 0 ? options.every(next) : next(expression.object) && (!expression.computed || next(expression.property));
+    }
     case "CallExpression":
       return next(expression.callee) && expression.arguments.every((argument) => argument.type !== "SpreadElement" && next(argument));
     case "UnaryExpression":
@@ -210,6 +390,9 @@ function staticStyleEntries(context: OrbRuleContext, node: TSESTree.Node, depth:
     return [];
   }
   const expression = unwrapTsValue(node);
+  if (isAbsentValue(expression)) {
+    return [];
+  }
   switch (expression.type) {
     case "ObjectExpression":
       return staticObjectEntries(context, expression, depth);
@@ -219,7 +402,10 @@ function staticStyleEntries(context: OrbRuleContext, node: TSESTree.Node, depth:
       return staticStyleEntries(context, expression.right, depth + 1);
     case "Identifier": {
       const initializer = constantInitializer(context, expression);
-      return initializer === undefined || staticStyleEntries(context, initializer, depth + 1).length === 0 ? [] : [expression];
+      if (initializer === undefined) {
+        return moduleLevelBinding(context, expression) ? [expression] : [];
+      }
+      return staticStyleEntries(context, initializer, depth + 1).length === 0 ? [] : [expression];
     }
     case "MemberExpression":
       return isStaticValue(context, expression) ? [expression] : [];
@@ -287,12 +473,13 @@ export const noStaticStylePropRule: OrbRule = {
           }
         }
       },
-      "JSXAttribute[name.name='style'] > JSXExpressionContainer": (container: TSESTree.JSXExpressionContainer): void => {
-        if (container.expression.type === "JSXEmptyExpression") {
-          return;
-        }
-        for (const node of staticStyleEntries(context, container.expression, 0)) {
-          context.report({ node, message: STATIC_STYLE_MESSAGE });
+      "JSXOpeningElement:exit": (element: TSESTree.JSXOpeningElement): void => {
+        for (const property of jsxProperties(context, element)) {
+          if (property.name === "style" && property.value !== null) {
+            for (const node of staticStyleEntries(context, property.value, 0)) {
+              context.report({ node, message: STATIC_STYLE_MESSAGE });
+            }
+          }
         }
       },
     };
@@ -304,39 +491,23 @@ const COLOR_TOKEN_PREFIX = "--color-";
 const keyHead = (context: OrbRuleContext, property: TSESTree.Property): string | null | undefined =>
   property.computed && property.key.type === "TemplateLiteral" ? property.key.quasis[0]?.value.cooked : staticKeyName(context, property);
 
-function overridesColorToken(context: OrbRuleContext, node: TSESTree.Node, depth = 0): boolean {
-  const expression = unwrapTsValue(node);
-  const initializer = expression.type === "Identifier" && depth < STATIC_CONST_DEPTH ? constantInitializer(context, expression) : undefined;
-  if (initializer !== undefined) {
-    return overridesColorToken(context, initializer, depth + 1);
-  }
-  return (
-    expression.type === "ObjectExpression" &&
-    depth < STATIC_CONST_DEPTH &&
-    expression.properties.some((property) => overridesColorKey(context, property, depth))
-  );
-}
-
-function overridesColorKey(context: OrbRuleContext, property: TSESTree.Property | TSESTree.SpreadElement, depth: number): boolean {
-  if (property.type === "SpreadElement") {
-    return overridesColorToken(context, property.argument, depth + 1);
-  }
-  return (keyHead(context, property) ?? "").startsWith(COLOR_TOKEN_PREFIX);
+function overridesColorToken(context: OrbRuleContext, node: TSESTree.Node): boolean {
+  return staticObjectProperties(context, node).some((property) => (keyHead(context, property) ?? "").startsWith(COLOR_TOKEN_PREFIX));
 }
 
 export const themeOverrideRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
     return {
-      "JSXAttribute[name.name='style']": (attribute: TSESTree.JSXAttribute): void => {
-        const container = attribute.value;
-        const read = container?.type === "JSXExpressionContainer" && container.expression.type !== "JSXEmptyExpression";
-        if (read && overridesColorToken(context, container.expression)) {
-          context.report({
-            node: attribute,
-            message:
-              "An inline style prop overrides a --color-* design token; token overrides go through <ThemeScope>, where the value is clamped at the boundary.",
-          });
+      "JSXOpeningElement:exit": (element: TSESTree.JSXOpeningElement): void => {
+        for (const property of jsxProperties(context, element)) {
+          if (property.name === "style" && property.value !== null && overridesColorToken(context, property.value)) {
+            context.report({
+              node: property.node,
+              message:
+                "An inline style prop overrides a --color-* design token; token overrides go through <ThemeScope>, where the value is clamped at the boundary.",
+            });
+          }
         }
       },
     };

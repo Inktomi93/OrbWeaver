@@ -77,9 +77,8 @@ export const listRowVariants = tv({
     // The subtitle ⇄ reveal SWAP STACK: ONE grid cell holding both spans (`col-start-1 row-start-1`), so the
     // line's box is `max(subtitle, reveal)` and is IDENTICAL at rest and on hover. The swap itself is
     // VISIBILITY, never display — a hover-keyed `display` swap removes a box from layout under a stationary
-    // pointer and re-hit-tests the row at frame rate (the preset-list P0; packages/client/src/components/
-    // row-reveal.ts, gate `no-hover-display-swap`). Rendered only when a reveal is present, so a plain row's
-    // DOM is untouched.
+    // pointer and re-hit-tests the row. The shared reveal lives in packages/ui/src/lib/hover-reveal.ts.
+    // Rendered only when a reveal is present, so a plain row's DOM is untouched.
     subtitleStack: "grid min-inline-0",
     // The unabbreviated title, announced as a description of the row and never painted.
     fullTitle: "sr-only",

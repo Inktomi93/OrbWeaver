@@ -243,7 +243,6 @@ export const sectionVariants = tv({
     // border+radius+bg. The type itself is the `kicker` VOICE on a real <Heading> (one spelling, in
     // text/variants.ts); only the band's layout lives here.
     kickerRow: "flex items-center gap-field",
-    hintTrigger: "text-muted-foreground hover:text-foreground",
   },
   variants: {
     focal: {
@@ -291,6 +290,7 @@ export const sectionVariants = tv({
 export const gridVariants = tv({
   base: "grid",
   variants: {
+    highlight: { true: "rounded-control bg-accent", false: "" },
     gap: GAP,
     cols: {
       auto: "grid-cols-[repeat(auto-fit,minmax(min(var(--width-cell-auto),100%),1fr))]",

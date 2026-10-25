@@ -19,25 +19,16 @@ export interface HistogramProps {
    *  Pass the SAME formatter the surrounding figures use — a raw `1200000` on this axis beside "1.2M"
    *  everywhere else is two number vocabularies on one screen. */
   readonly countFormatter?: (count: number) => string;
-  readonly height?: number | string;
+  readonly height?: number | "100%";
   readonly className?: string;
   readonly onChartReady?: ((instance: OrbEChartsInstance) => void) | undefined;
 }
-
-const DEFAULT_HEIGHT_PX = 200;
 
 function defaultCountFormatter(count: number): string {
   return String(count);
 }
 
-export function Histogram({
-  buckets,
-  label,
-  countFormatter = defaultCountFormatter,
-  height = DEFAULT_HEIGHT_PX,
-  className,
-  onChartReady,
-}: HistogramProps): ReactElement {
+export function Histogram({ buckets, label, countFormatter = defaultCountFormatter, height, className, onChartReady }: HistogramProps): ReactElement {
   // Called unconditionally (before the empty-state branch) to satisfy rules-of-hooks.
   const colors = useChartTheme();
   const isEmpty = buckets.length === 0;

@@ -24,4 +24,6 @@ Planted bypass controls fail and legitimate runtime measurements pass. The all-c
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Implementation and affected native checks are complete in the CSS lane. [Ramp enforcement closeout](../reviews/ramp-enforcement-closeout.md) records the supported syntax, codemods, semantic decisions, exact checks and retained failures.
+
+Production-mounted checks qualify icon optics, chart theme/font/density changes, owner overrides, the corrected coarse small-font hit floor, fine-pointer geometry, textarea/frame sizing and affected client interactions. Synthetic committed-source captures and independent visual acceptance remain pending. Main owns final integration and closure.

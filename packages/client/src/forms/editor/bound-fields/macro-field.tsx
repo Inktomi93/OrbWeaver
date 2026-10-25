@@ -37,6 +37,7 @@ export interface MacroFieldProps {
 }
 
 export function MacroField(props: MacroFieldProps): ReactElement {
+  const { className } = props;
   const { field, fieldProps } = useBoundField<string>(props);
   return (
     <>
@@ -58,7 +59,7 @@ export function MacroField(props: MacroFieldProps): ReactElement {
           {...(props.rows === undefined ? {} : { rows: props.rows })}
           {...(props.maxRows === undefined ? {} : { maxRows: props.maxRows })}
           {...(props.maxLength === undefined ? {} : { maxLength: props.maxLength })}
-          {...(props.className === undefined ? {} : { className: props.className })}
+          {...(className === undefined ? {} : { className })}
         />
       </Field>
       {props.showTokenCount === true ? (

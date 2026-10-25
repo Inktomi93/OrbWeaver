@@ -31,9 +31,9 @@ function actNumeral(act: number): string {
 const ACT_STATES = ["past", "current", "future"] as const;
 type ActState = (typeof ACT_STATES)[number];
 // `past` takes the Card's ink (`card-foreground` resolves to the same value as `foreground`) over the gloss voice's muted ink.
-const ACT_STATE_STYLE: Readonly<Record<ActState, { readonly glyph: string; readonly text: Pick<ComponentProps<typeof Text>, "tone" | "ink" | "weight"> }>> = {
+const ACT_STATE_STYLE: Readonly<Record<ActState, { readonly glyph: string; readonly text: Pick<ComponentProps<typeof Text>, "tone" | "ink"> }>> = {
   past: { glyph: "●", text: { ink: "inherit" } },
-  current: { glyph: "◉", text: { tone: "accolade", weight: "semibold" } },
+  current: { glyph: "◉", text: { tone: "accolade" } },
   future: { glyph: "○", text: { tone: "muted" } },
 };
 
@@ -93,7 +93,7 @@ export function RpgActRail({ plot, edit }: { readonly plot: RpgPlot; readonly ed
                 className="px-field text-center"
                 numeric={true}
                 width="avatar-md"
-                restClassName="font-semibold text-accolade"
+                tone="accolade"
               />
               <Text as="span" voice="label" aria-hidden={true} tone="muted">
                 —
@@ -105,7 +105,8 @@ export function RpgActRail({ plot, edit }: { readonly plot: RpgPlot; readonly ed
                 onEdit={(next): void => edit.onEditActTitle(next.trim())}
                 className="field-sizing-content max-inline-full min-inline-0"
                 width="auto"
-                restClassName="min-inline-0 text-accolade"
+                restClassName="min-inline-0"
+                tone="accolade"
               />
               {pinned === undefined || pinned === null ? null : <RpgFieldLock field="the act" onRelease={(): void => edit.onRelease(pinned)} />}
             </Row>

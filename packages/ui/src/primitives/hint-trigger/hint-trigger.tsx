@@ -13,8 +13,8 @@ export interface HintTriggerProps {
    *  X") when it's a non-empty string, so two hinted rows on one surface don't share one name.
    *  Anything else (a ReactNode label, an empty string) falls back to the bare "More info". */
   readonly subject?: ReactNode;
-  /** Applied to the trigger button — each caller supplies its own `hintTrigger()` variant slot. */
-  readonly className: string;
+  /** Layout of the trigger beside its labelled subject. */
+  readonly className?: string;
   /** `"inline"` costs no vertical space at a fine pointer (field.tsx's original rationale — a full
    *  control-size box made a hinted label row taller than an unhinted sibling); coarse pointers promote
    *  the real button box to the touch floor. `"icon"` is a full control-size box.

@@ -10,7 +10,7 @@
 // the widest formatted label, the category column from a share of the container width, with the name
 // ellipsized inside it (the untruncated name survives in the tooltip).
 import type { OrbChartOption } from "../chart/echarts-setup.ts";
-import { CHART_LABEL_FONT_FAMILY, CHART_LABEL_FONT_SIZE_PX, widestChartLabelPx } from "../chart/label-metrics.ts";
+import { widestChartLabelPx } from "../chart/label-metrics.ts";
 import { AXIS_LABEL_OUTER_BOUNDS } from "../chart/merge-option.ts";
 import type { ChartColors } from "../chart/use-chart-theme.ts";
 
@@ -47,22 +47,10 @@ export interface BarListLayout {
   readonly valueMax: number | undefined;
 }
 
-const BAR_MAX_WIDTH_PX = 20;
-const BAR_BORDER_RADIUS_PX = 4;
-const BAR_BORDER_RADIUS = [0, BAR_BORDER_RADIUS_PX, BAR_BORDER_RADIUS_PX, 0];
-const GRID_LEFT_PX = 8;
-/** ECharts offsets a `position: "right"` label ~5px off the bar end; the rest is breathing room. */
-const VALUE_LABEL_GAP_PX = 8;
-/** Clearance between the end of the value label and the canvas edge. */
-const VALUE_LABEL_EDGE_PAD_PX = 8;
-/** Floor for the value gutter when the container width is unknown (or the labels are tiny). */
-const MIN_VALUE_GUTTER_PX = 32;
 /** Last-resort ceiling: a pathological formatter must not consume the plot. The tooltip still has the value. */
 const MAX_VALUE_GUTTER_SHARE = 0.4;
 /** The category column's share of the container — the ellipsis budget for the y-axis names. */
 const CATEGORY_LABEL_SHARE = 0.35;
-/** Floor for that budget when the container width is unknown. */
-const MIN_CATEGORY_LABEL_PX = 64;
 
 /** The ramp stop `quiet` paints in — index 1 (`color.chart-2`, muted teal). Stop 0 IS `colors.series`, so
  *  a `quiet` chart that took it would be the accent arm wearing another name. */
@@ -78,17 +66,17 @@ const SERIES_COLOR: Record<BarListIntent, (colors: ChartColors) => string> = {
 /** The right gutter the bar-end value labels actually need, measured at the font they are drawn in.
  *
  */
-function valueGutterPx(labels: readonly string[], widthPx: number): number {
-  const needed = widestChartLabelPx(labels) + VALUE_LABEL_GAP_PX + VALUE_LABEL_EDGE_PAD_PX;
+function valueGutterPx(labels: readonly string[], widthPx: number, theme: ChartColors): number {
+  const needed = widestChartLabelPx(labels, theme) + 2 * theme.metrics.padding;
   const ceiling = widthPx > 0 ? widthPx * MAX_VALUE_GUTTER_SHARE : Number.POSITIVE_INFINITY;
-  return Math.round(Math.max(MIN_VALUE_GUTTER_PX, Math.min(needed, ceiling)));
+  return Math.round(Math.max(2 * theme.metrics.padding, Math.min(needed, ceiling)));
 }
 
 /** The width a category name is ellipsized to — a share of the container, never the name's own length.
  *
  */
-function categoryLabelBudgetPx(widthPx: number): number {
-  return Math.round(Math.max(MIN_CATEGORY_LABEL_PX, widthPx * CATEGORY_LABEL_SHARE));
+function categoryLabelBudgetPx(widthPx: number, theme: ChartColors): number {
+  return Math.round(Math.max(widestChartLabelPx(["…"], theme) + 2 * theme.metrics.padding, widthPx * CATEGORY_LABEL_SHARE));
 }
 
 export function buildBarListOption(
@@ -100,10 +88,10 @@ export function buildBarListOption(
   const valueLabels = items.map((item) => valueFormatter(item.value));
   return {
     grid: {
-      left: GRID_LEFT_PX,
-      right: valueGutterPx(valueLabels, layout.widthPx),
-      top: 4,
-      bottom: 4,
+      left: colors.metrics.padding,
+      right: valueGutterPx(valueLabels, layout.widthPx, colors),
+      top: colors.metrics.tight,
+      bottom: colors.metrics.tight,
       ...AXIS_LABEL_OUTER_BOUNDS,
     },
     tooltip: {
@@ -121,9 +109,11 @@ export function buildBarListOption(
       axisTick: { show: false },
       axisLabel: {
         color: colors.axisLabel,
-        fontFamily: CHART_LABEL_FONT_FAMILY,
-        fontSize: CHART_LABEL_FONT_SIZE_PX,
-        width: categoryLabelBudgetPx(layout.widthPx),
+        fontFamily: colors.fontFamily,
+        fontSize: colors.metrics.fontSize,
+        fontWeight: colors.fontWeight,
+        lineHeight: colors.metrics.lineHeight,
+        width: categoryLabelBudgetPx(layout.widthPx, colors),
         overflow: "truncate",
         ellipsis: "…",
       },
@@ -131,17 +121,20 @@ export function buildBarListOption(
     series: [
       {
         type: "bar",
-        barMaxWidth: BAR_MAX_WIDTH_PX,
+        barMaxWidth: colors.metrics.barHeight,
         data: items.map((item) => item.value),
-        itemStyle: { color: SERIES_COLOR[layout.intent](colors), borderRadius: BAR_BORDER_RADIUS },
+        itemStyle: { color: SERIES_COLOR[layout.intent](colors), borderRadius: [0, colors.metrics.radius, colors.metrics.radius, 0] },
         label: {
           show: true,
           position: "right",
           color: colors.axisLabelMuted,
           // Pinned to the font `valueGutterPx` measured with — a gutter sized for one font and painted in
           // another is silently wrong.
-          fontFamily: CHART_LABEL_FONT_FAMILY,
-          fontSize: CHART_LABEL_FONT_SIZE_PX,
+          fontFamily: colors.fontFamily,
+          fontSize: colors.metrics.fontSize,
+          fontWeight: colors.fontWeight,
+          lineHeight: colors.metrics.lineHeight,
+          distance: colors.metrics.padding,
           formatter: (params) => valueFormatter(Number(params.value)),
         },
       },

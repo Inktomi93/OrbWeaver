@@ -36,7 +36,7 @@ export {
 export { GROUND, GROUND_FADE_BELOW, GROUND_FADE_FROM, WALLPAPER_PLATE } from "./ground.ts";
 export { HOVER_CUE, HOVER_DIM, HOVER_REVEAL, HOVER_YIELD, INERT_UNTIL_HOVER } from "./hover-reveal.ts";
 export { readKeyboardInset, subscribeKeyboardInset } from "./keyboard-inset.ts";
-export { createLiveTokenStore, LIVE_TOKEN_ROOT_ATTRIBUTE, resolveCssColor, resolveCssVar } from "./live-token-resolver.ts";
+export { createLiveTokenStore, LIVE_TOKEN_ROOT_ATTRIBUTE, resolveCssColor, resolveCssLength, resolveCssVar } from "./live-token-resolver.ts";
 export { MESSAGE_BUBBLE_BOX, MESSAGE_BUBBLE_FILL } from "./message-bubble.ts";
 export { OVERLAY_ARROW } from "./overlay-arrow.ts";
 export { OVERLAY_MOTION } from "./overlay-motion.ts";

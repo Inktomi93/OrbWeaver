@@ -70,7 +70,7 @@ import type { ButtonBaseProps } from "@orb/ui/button";
 import { Button } from "@orb/ui/button";
 import type { LucideIcon } from "@orb/ui/icons";
 import { ChevronDown, ChevronRight, Icon } from "@orb/ui/icons";
-import { SELECTION_RAIL } from "@orb/ui/lib";
+import { cn } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { CountText } from "./count-text.tsx";
@@ -111,7 +111,7 @@ export interface BandProps extends Omit<ButtonBaseProps, "children" | "intent" |
  *  `SELECTION_RAIL` rides EVERY band, current or not: its resting arm is a transparent 2px rail, so the
  *  glyph column is identical on all thirteen settings bands and all four collection bands and entering a
  *  library cannot shift its own label by 2px (the `ListRow` reservation, for the same reason). */
-const BAND_CHASSIS = `min-inline-0 inline-full justify-start gap-tight px-tight ${SELECTION_RAIL}`;
+const BAND_CHASSIS = "min-inline-0 inline-full justify-start gap-tight px-tight";
 
 const CHEVRON_GLYPH = { reserved: ChevronRight, closed: ChevronRight, open: ChevronDown } as const;
 
@@ -126,7 +126,8 @@ export function Band({ label, chevron, icon, count, censusAlign = "trailing", ma
   const current = rest["aria-current"] === "true" || rest["aria-current"] === true;
   return (
     <Button
-      className={className === undefined ? BAND_CHASSIS : `${BAND_CHASSIS} ${className}`}
+      className={cn(BAND_CHASSIS, className) ?? ""}
+      selection="rail"
       data-selected={current ? "" : undefined}
       intent="ghost"
       size="sm"

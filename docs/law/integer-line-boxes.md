@@ -142,7 +142,7 @@ stays a portable DTCG dimension; only the CSS serialization is vendor-shaped.
 
 Because `TOKENS[path].value` becomes the CSS string, `tokens/index.ts` generation adds a numeric
 companion surface for build-time consumers (the `TOKEN_POLARITY_ARMS` precedent — "consumers never
-parse the serialization"): `SNAPPED_LENGTH_BASE_PX` mapping each snapped token to its resolved px
+parse the serialization"): `LENGTH_BASE_PX` maps served dimension tokens, including snapped dimensions, to resolved px
 at the 16px root (e.g. `"leading.label": 16`).
 
 ### 3c. The re-pairing sweep (fix-at-landing; sub-pixel deltas)
@@ -202,7 +202,7 @@ ramp-bound exactly as the file's own comment demands ("ours is ramp-bound so rat
 text stays legal"):
 
 ```ts
-export const LEADING_FLOOR = SNAPPED_LENGTH_BASE_PX["leading.label"] / (Number.parseFloat(TOKENS["text.label"].value) * REM_PX);
+export const LEADING_FLOOR = LENGTH_BASE_PX["leading.label"] / (Number.parseFloat(TOKENS["text.label"].value) * REM_PX);
 ```
 
 \= 16/13 ≈ 1.2308 (the smallest ratified pairing ratio; `leading.micro` on micro is 1.2381, above

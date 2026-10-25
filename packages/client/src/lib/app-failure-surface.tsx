@@ -40,7 +40,7 @@ export interface AppFailureSurfaceProps {
  */
 export function AppFailureSurface({ kind, children }: AppFailureSurfaceProps): ReactElement {
   return (
-    <Stack align="center" justify="center" gap="block" data-app-failure={kind} className="bg-background text-foreground min-block-dvh">
+    <Stack ground="background" align="center" justify="center" gap="block" data-app-failure={kind} className="min-block-dvh">
       {children}
     </Stack>
   );

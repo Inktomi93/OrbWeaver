@@ -150,7 +150,7 @@ function PickerBody({
       {library.data.length === 0 ? <EmptyLibrary onOpenLibrary={onOpenLibrary} /> : null}
       {filterable ? (
         <Row align="center" gap="tight">
-          <Icon icon={Search} size="sm" className="text-muted-foreground" />
+          <Icon tone="muted" icon={Search} size="sm" />
           <Input aria-label="Filter regex scripts" onValueChange={setFilter} placeholder="Filter regex scripts…" value={filter} />
         </Row>
       ) : null}
@@ -268,7 +268,7 @@ function PickerRow({
           fact is now a NAMED badge (below) and the identity cluster goes visibly inert on the one
           combination where the row is claimed and still dead. Only the identity dims — the switch keeps
           full weight, because it is still live and it is the control that got you here. */}
-      <Row align="center" className={attached && !script.enabled ? "opacity-60 min-inline-0" : "min-inline-0"} gap="field">
+      <Row align="center" className="min-inline-0" receded={attached && !script.enabled} gap="field">
         {reserveGrip ? <Row aria-hidden={true} className="shrink-0 block-(--size-control-sm) inline-(--size-control-sm)" /> : null}
         <RankCell position={position} reserve={reserveRank} />
         <Stack gap="tight" className="min-inline-0">

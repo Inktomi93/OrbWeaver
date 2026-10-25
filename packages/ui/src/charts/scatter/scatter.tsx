@@ -16,8 +16,6 @@ import { scatterLegendVariants } from "./variants.ts";
 
 export type { ScatterPoint, ScatterSeries } from "./option.ts";
 
-const DEFAULT_HEIGHT_PX = 320;
-
 export interface ScatterProps {
   /** Points pre-grouped into categories — each takes a `useChartTheme().palette` stop by index. */
   readonly series: readonly ScatterSeries[];
@@ -28,7 +26,7 @@ export interface ScatterProps {
   readonly legend?: boolean;
   /** Fires with the clicked point's opaque `id` — the entire reason this is a canvas chart, not an SVG. */
   readonly onPointClick?: ((id: string) => void) | undefined;
-  readonly height?: number | string;
+  readonly height?: number | "100%";
   readonly className?: string;
   readonly onChartReady?: ((instance: OrbEChartsInstance) => void) | undefined;
 }
@@ -73,7 +71,7 @@ function ScatterLegend({
   );
 }
 
-export function Scatter({ series, label, legend = false, onPointClick, height = DEFAULT_HEIGHT_PX, className, onChartReady }: ScatterProps): ReactElement {
+export function Scatter({ series, label, legend = false, onPointClick, height, className, onChartReady }: ScatterProps): ReactElement {
   // Called unconditionally (before the empty-state branch) to satisfy rules-of-hooks.
   const colors = useChartTheme();
   const isEmpty = series.every((cat) => cat.points.length === 0);

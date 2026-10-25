@@ -1,6 +1,7 @@
 export type { DialogPopupProps } from "./dialog.tsx";
 export {
   Dialog,
+  DialogBody,
   DialogClose,
   DialogDescription,
   DialogFooter,
@@ -10,4 +11,3 @@ export {
   DialogTrigger,
 } from "./dialog.tsx";
 export { createDialogHandle } from "./handle.ts";
-export { DIALOG_SCROLL_CLASS } from "./variants.ts";

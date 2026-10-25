@@ -42,7 +42,7 @@ const TOKEN_THEME = EditorView.theme(
     ".cm-gutters": {
       backgroundColor: cssVar("color.card"),
       color: cssVar("color.muted-foreground"),
-      borderRight: `1px solid ${cssVar("color.border")}`,
+      borderRight: `${cssVar("border-width.control")} solid ${cssVar("color.border")}`,
     },
     ".cm-activeLineGutter": {
       backgroundColor: cssVar("color.muted"),
@@ -53,17 +53,17 @@ const TOKEN_THEME = EditorView.theme(
     ".cm-lintRange": {
       backgroundImage: "none",
       textDecorationLine: "underline",
-      textUnderlineOffset: "2px",
+      textUnderlineOffset: cssVar("border-width.accent"),
     },
     ".cm-lintRange-error": {
       textDecorationStyle: "wavy",
       textDecorationColor: cssVar("color.destructive"),
-      textDecorationThickness: "2px",
+      textDecorationThickness: cssVar("border-width.accent"),
     },
     ".cm-lintRange-warning": {
       textDecorationStyle: "dotted",
       textDecorationColor: cssVar("color.warning"),
-      textDecorationThickness: "2px",
+      textDecorationThickness: cssVar("border-width.accent"),
     },
     ".cm-diagnostic": {
       backgroundColor: cssVar("color.popover"),
@@ -73,7 +73,7 @@ const TOKEN_THEME = EditorView.theme(
     ".cm-diagnostic-warning": { borderLeftColor: cssVar("color.warning") },
     ".cm-tooltip-lint": {
       backgroundColor: cssVar("color.popover"),
-      border: `1px solid ${cssVar("color.border")}`,
+      border: `${cssVar("border-width.control")} solid ${cssVar("color.border")}`,
     },
     ".cm-gutter-lint": {
       backgroundColor: cssVar("color.card"),
@@ -85,16 +85,16 @@ const TOKEN_THEME = EditorView.theme(
     ".cm-lint-marker-error": {
       content: '""',
       backgroundColor: cssVar("color.destructive"),
-      borderRadius: "9999px",
-      width: "0.7em",
-      height: "0.7em",
+      borderRadius: cssVar("radius.full"),
+      width: cssVar("size.icon-xs"),
+      height: cssVar("size.icon-xs"),
     },
     ".cm-lint-marker-warning": {
       content: '""',
       backgroundColor: cssVar("color.warning"),
       clipPath: "polygon(50% 5%, 5% 95%, 95% 95%)",
-      width: "0.8em",
-      height: "0.75em",
+      width: cssVar("size.icon-xs"),
+      height: cssVar("size.icon-xs"),
     },
   },
   { dark: true },

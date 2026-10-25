@@ -148,7 +148,7 @@ export function PresetLibraryRow({
           label={activateLabel}
           onToggle={activate}
           pressed={active}
-          pressedClassName="text-primary"
+          pressedTone="primary"
           // A FILLED disc vs a hollow ring — a shape delta, not stroke color alone (side-eye F-06, WCAG
           // 1.4.1).
           pressedFill={true}

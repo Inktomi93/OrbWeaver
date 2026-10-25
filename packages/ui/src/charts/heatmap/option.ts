@@ -16,8 +16,8 @@ export interface HeatmapMatrix {
   readonly values: readonly (readonly number[])[];
 }
 
-const CELL_BORDER_WIDTH_PX = 1;
 const AXIS_LABEL_INTERVAL = 2;
+const LEGEND_PADDING_ROWS = 3;
 
 function maxValue(values: readonly (readonly number[])[]): number {
   let max = 0;
@@ -37,7 +37,13 @@ export function buildHeatmapOption(matrix: HeatmapMatrix, colors: ChartColors): 
   const data = matrix.rows.flatMap((_row, rowIndex) => matrix.cols.map((_col, colIndex) => [colIndex, rowIndex, matrix.values[rowIndex]?.[colIndex] ?? 0]));
 
   return {
-    grid: { left: 8, right: 8, top: 8, bottom: 40, ...AXIS_LABEL_OUTER_BOUNDS },
+    grid: {
+      left: colors.metrics.padding,
+      right: colors.metrics.padding,
+      top: colors.metrics.padding,
+      bottom: colors.metrics.lineHeight + LEGEND_PADDING_ROWS * colors.metrics.padding,
+      ...AXIS_LABEL_OUTER_BOUNDS,
+    },
     tooltip: { trigger: "item" },
     xAxis: {
       type: "category",
@@ -70,7 +76,7 @@ export function buildHeatmapOption(matrix: HeatmapMatrix, colors: ChartColors): 
       {
         type: "heatmap",
         data,
-        itemStyle: { borderColor: colors.axisLine, borderWidth: CELL_BORDER_WIDTH_PX },
+        itemStyle: { borderColor: colors.axisLine, borderWidth: colors.metrics.stroke },
       },
     ],
   };

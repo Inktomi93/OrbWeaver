@@ -5,7 +5,7 @@ import { DISABLED_STATE_NATIVE, FIELD_CONTROL, FOCUS_RING, FOCUS_RING_DESTRUCTIV
 export const textareaVariants = tv({
   base: [
     FIELD_CONTROL,
-    "field-sizing-content py-field",
+    "field-sizing-content border-(length:--border-width-control) py-field",
     "placeholder:text-muted-foreground",
     "outline-none",
     FOCUS_RING,

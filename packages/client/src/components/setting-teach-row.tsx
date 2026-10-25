@@ -36,7 +36,7 @@ import { Grid, Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { PointerEvent, ReactElement, ReactNode } from "react";
 import { createContext, use, useEffect, useRef } from "react";
-import { cn, settingGloss } from "#lib";
+import { settingGloss } from "#lib";
 import type { ConfigGroupId, ConfigRowAnnotation, ConfigSubcategory, SettingTeach } from "#state";
 import { ConfigRowAnnotationProvider, isTeachNone, revealContextPanel, setConfigFocus, useConfigSearchMatch } from "#state";
 import { SettingRowActions } from "./setting-row-actions.tsx";
@@ -118,7 +118,15 @@ function ModifiedMark({ modified }: { readonly modified: boolean }): ReactElemen
   }
   return (
     <>
-      <Row aria-hidden={true} className="absolute inset-y-tight -inset-s-row border-s-2 border-s-primary/60" data-slot="setting-modified-rail" />
+      <Row
+        divider="start"
+        dividerWeight="rule"
+        dividerTone="primary"
+        receded={true}
+        aria-hidden={true}
+        className="absolute inset-y-tight -inset-s-row"
+        data-slot="setting-modified-rail"
+      />
       <Text as="span" className="sr-only">
         Modified from its default.
       </Text>
@@ -143,9 +151,7 @@ function SpanRowBody({ annotation, actions, label, children }: RowBodyProps & { 
       <Stack className="min-inline-0 @cq-32:col-span-2" data-slot="setting-row-lead" gap="tight">
         <Text as="span" className="inline-flex items-center gap-field" voice="label">
           {label}
-          {annotation === null ? null : (
-            <HintTrigger className="text-muted-foreground hover:text-foreground" hint={annotation.hint} onClick={annotation.onHintClick} subject={label} />
-          )}
+          {annotation === null ? null : <HintTrigger hint={annotation.hint} onClick={annotation.onHintClick} subject={label} />}
         </Text>
       </Stack>
       {actions}
@@ -255,7 +261,8 @@ export function SettingRow({ settingId, span = false, details, children }: Setti
     // whether or not a rail exists; the owner's zero-shift bar). `col-span-full grid grid-cols-subgrid` is
     // the middle link of the section's subgrid chain.
     <Grid
-      className={cn("group/setting relative col-span-full grid-cols-subgrid items-start gap-x-block", isMatch ? "rounded-control bg-accent" : undefined) ?? ""}
+      className="group/setting relative col-span-full grid-cols-subgrid items-start gap-x-block"
+      highlight={isMatch}
       data-modified={modified ? "" : undefined}
       data-search-match={isMatch ? "" : undefined}
       data-setting={settingId}

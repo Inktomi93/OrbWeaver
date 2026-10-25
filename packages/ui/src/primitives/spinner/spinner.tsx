@@ -25,16 +25,12 @@ import { usePrefersReducedMotion } from "#lib";
 import { ORB_WEB_GLYPH, ORB_WEB_GLYPH_COMPACT, OrbWeb, OrbWebCompact } from "#primitives/icons";
 import { spinnerVariants } from "./variants.ts";
 
-/** The px-per-size table. sm/md/lg mirror ICON_SM/MD/LG so the Loader2 swap is call-shape identical. */
-const WEB_SPINNER_SIZES = { sm: 16, md: 20, lg: 24, xl: 32, hero: 48 } as const;
-/** The compact-cut ceiling: at and below this px the 16px cut renders (above it, the display mark). */
-const COMPACT_MAX_PX = 20;
 /** Dash lengths are rounded UP to a whole user unit: a dasharray a hair shorter than the path leaves a
  *  sliver of silk showing at the "empty" end of the loop. */
 const SPIRAL_LENGTH_PRECISION = 0;
 
 export interface WebSpinnerProps {
-  size?: keyof typeof WEB_SPINNER_SIZES;
+  size?: VariantProps<typeof spinnerVariants>["size"];
   /** Accessible name announced by `role="status"` — required (a spinner is a live status). */
   label: string;
   tone?: VariantProps<typeof spinnerVariants>["tone"];
@@ -45,10 +41,9 @@ export interface WebSpinnerProps {
 /** The brand loader — indeterminate waits at every scale (the sanctioned spinner; skeletons still
  *  own layout loading). Inherits `currentColor`; `tone="accent"` for brand waits. */
 export function WebSpinner({ size = "md", label, tone, className }: WebSpinnerProps): ReactElement {
-  const slots = spinnerVariants({ tone });
+  const slots = spinnerVariants({ tone, size });
   const reduced = usePrefersReducedMotion();
-  const px = WEB_SPINNER_SIZES[size];
-  const compact = px <= COMPACT_MAX_PX;
+  const compact = size === "sm" || size === "md";
   const Glyph = compact ? OrbWebCompact : OrbWeb;
   const spiralLength = (compact ? ORB_WEB_GLYPH_COMPACT : ORB_WEB_GLYPH).spiralLength;
   // The weave loop rides the actual spiral arc length (icon user units) — a CSS constant can't know
@@ -58,7 +53,7 @@ export function WebSpinner({ size = "md", label, tone, className }: WebSpinnerPr
   } as CSSProperties;
   return (
     <span data-slot="web-spinner" role="status" data-animate={reduced ? undefined : ""} className={slots.root({ className })} style={dashVars}>
-      <Glyph size={px} aria-hidden={true} />
+      <Glyph className={slots.glyph()} aria-hidden={true} />
       <span className={slots.label()}>{label}</span>
     </span>
   );

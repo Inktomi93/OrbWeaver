@@ -2,7 +2,7 @@
 // routes, so the policy the browser enforces is the policy the server emits.
 import { buildCardFrameCsp, CARD_FRAME_SAFE_FLOOR, foldCardFrameHeight } from "@orb/kit/card-frame";
 import { expect } from "@orb/testkit/ct-corpus";
-import { TOKENS } from "@orb/ui/tokens";
+import { LENGTH_BASE_PX, TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import type { FocusedBesideFrameStory, SandboxFrameStory } from "./_frame-stories.tsx";
 import type { ServedFrame } from "./_served-frame.ts";
@@ -98,6 +98,14 @@ test("an incomplete card shows a skeleton, not the frame", async ({ mount }) => 
   const root = await mount<typeof SandboxFrameStory>(STORY, { html: "<p>x</p>", title: "x", complete: false });
   await expect(root.locator('[data-slot="sandbox-frame-skeleton"]')).toBeVisible();
   await expect(root.locator(FRAME)).toHaveCount(0);
+});
+
+test("the unmeasured frame and loading reservation share the token height", async ({ mount }) => {
+  const root = await mount<typeof SandboxFrameStory>(STORY, { html: "<p>short</p>", title: "reserved card", complete: false });
+  const skeleton = root.locator('[data-slot="sandbox-frame-skeleton"]');
+  expect(await frameHeight(skeleton)).toBe(LENGTH_BASE_PX["height.chart"]);
+  await root.update({ html: "<p>short</p>", title: "reserved card", complete: true });
+  expect(await frameHeight(root.locator(FRAME))).toBe(LENGTH_BASE_PX["height.chart"]);
 });
 
 test("the frame is named in the tab order, even for a caller that passes an empty title", async ({ mount }) => {

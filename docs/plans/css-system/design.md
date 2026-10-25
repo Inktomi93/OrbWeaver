@@ -71,7 +71,7 @@ Lint. `orb/no-raw-media-condition` (stylelint) rejects any `@media` in authored 
 
 Visible changes in commit A: the Create arm swap above. Every other variable keeps its value (the variable diff: 0 changed, 25 renamed with the same value, 1 removed `--dimension-shell-breakpoint`, 45 added).
 
-Lesson: a token path rename must also sweep `TOKENS["…"]` and `SNAPPED_LENGTH_BASE_PX["…"]` keys in TS, which the class codemod does not see; typecheck catches them, a CT run alone does not.
+Lesson: a token path rename must also sweep `TOKENS["…"]` and `LENGTH_BASE_PX["…"]` keys in TS, which the class codemod does not see; typecheck catches them, a CT run alone does not.
 
 ### Leg 3: Tailwind namespace resets, built
 

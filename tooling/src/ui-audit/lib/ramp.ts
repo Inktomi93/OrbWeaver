@@ -1,6 +1,6 @@
 // Token-ramp bindings (the design-doc equivalent — live values from @orb/ui/tokens, never a prose
 // mirror) + the shared alpha floor for gradient-stop trust.
-import { SNAPPED_LENGTH_BASE_PX, TOKENS } from "@orb/ui/tokens";
+import { LENGTH_BASE_PX, TOKENS } from "@orb/ui/tokens";
 
 // ── Token-ramp bindings (the design-doc equivalent — live values, never a prose mirror) ──────
 export const REM_PX = 16;
@@ -23,14 +23,14 @@ export const INTERACTIVE_TEXT_FLOOR_PX = 11;
  *
  *  READ THE MAP, NEVER THE SERIALIZATION (docs/law/integer-line-boxes.md §3b/§6). `leading.*` are
  *  px-resolving dimensions emitted as `round(up, 1rem, 1px)`, so `TOKENS["leading.label"].value` is a CSS
- *  string; `SNAPPED_LENGTH_BASE_PX` is the numeric companion generated for exactly this consumer.
+ *  string; `LENGTH_BASE_PX` is the generated numeric companion.
  *  The previous spelling was `Number(TOKENS["leading.label"].value)` and the snapped emission turned it
  *  into NaN — MEASURED on this tree the moment the tokens were generated. Its direction is worth pinning
  *  because §6 predicted the opposite: NaN does not silence the rule, it FLOODS. `checkTightLeading`
  *  bails when `ratio >= LEADING_FLOOR - EPSILON`, every comparison against NaN is false, so the bail
  *  never fires and every qualifying paragraph is filed as `tight-leading` against a floor printed as
  *  "NaN". tests/tooling/ui-audit/lib/ramp.test.ts is the tripwire that caught it and keeps it caught. */
-export const LEADING_FLOOR = SNAPPED_LENGTH_BASE_PX["leading.label"] / (Number.parseFloat(TOKENS["text.label"].value) * REM_PX);
+export const LEADING_FLOOR = LENGTH_BASE_PX["leading.label"] / (Number.parseFloat(TOKENS["text.label"].value) * REM_PX);
 
 /** Rounding slack on the leading floor (#233). `getComputedStyle` hands back a TRUNCATED line-height
  *  string — at `--appearance-font-scale: 1.25` the body step measures 13.125px and Chrome reports "16.4062px" for
