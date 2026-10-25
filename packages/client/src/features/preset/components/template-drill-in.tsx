@@ -395,8 +395,8 @@ function TokenVocabulary({ form, row, capability }: CapabilityProps): ReactEleme
               // The warning SIGNAL rides the band + the glyph, never a `tone` prop on Text — type colour
               // belongs to the four-voice grammar (§2).
               <Card tone="warning">
-                <Row align="center" className="text-warning" gap="field">
-                  <Icon icon={AlertTriangle} size="sm" />
+                <Row align="center" gap="field">
+                  <Icon icon={AlertTriangle} size="sm" tone="warning" />
                   <Text voice="label">
                     No {GUIDED_INPUT_TOKEN} — what you type when you fire {def.label} will not land anywhere.
                   </Text>

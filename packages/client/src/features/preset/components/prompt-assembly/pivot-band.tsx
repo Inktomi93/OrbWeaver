@@ -29,8 +29,8 @@ export function PivotBand({ duplicate, onSelect, onDrill }: PivotBandProps): Rea
   if (duplicate) {
     return (
       <Card tone="warning">
-        <Row align="center" className="text-warning" gap="row">
-          <Icon icon={AlertTriangle} size="sm" />
+        <Row align="center" gap="row">
+          <Icon icon={AlertTriangle} size="sm" tone="warning" />
           <Text className="flex-1" voice="label">
             Duplicate chat history — only the first one splits the conversation. Remove this one.
           </Text>
@@ -45,7 +45,7 @@ export function PivotBand({ duplicate, onSelect, onDrill }: PivotBandProps): Rea
   return (
     <Card tone="muted" outline="dashed">
       <Stack gap="tight">
-        <Text className="text-info" voice="kicker">
+        <Text tone="info" voice="kicker">
           setup · before the conversation
         </Text>
         <Row align="center" gap="row">

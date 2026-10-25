@@ -86,8 +86,8 @@ export function CapabilityGate({ error }: CapabilityGateProps): ReactElement {
   return (
     <Section kicker="Sampling · reasoning · output">
       <Card tone="warning">
-        <Row align="start" className="text-warning" gap="field">
-          <Icon icon={AlertTriangle} size="sm" />
+        <Row align="start" gap="field">
+          <Icon icon={AlertTriangle} size="sm" tone="warning" />
           <Stack gap="tight">
             <Text prose={true} voice="label">
               {routing

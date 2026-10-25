@@ -50,15 +50,15 @@ export interface MacroTextProps {
   readonly frame?: "quoted" | "bare";
 }
 
-/** The quoted frame's chrome — a bordered, tinted mono block. Spelled once; the `bare` arm drops it. */
-const QUOTED_FRAME = "rounded-base border border-border bg-muted/40 p-row";
-/** Both arms preserve authored whitespace and break long unbroken tokens rather than overflowing. */
-const RUN_FLOW = "whitespace-pre-wrap break-words";
+/** Both arms preserve authored whitespace and break long unbroken tokens rather than overflowing. The quoted
+ *  arm adds the frame's chrome — a bordered, tinted block; the `bare` arm drops it. */
+const BARE_RUN = "whitespace-pre-wrap break-words";
+const QUOTED_RUN = "whitespace-pre-wrap break-words rounded-base border border-border bg-muted/40 p-row";
 
 /** A template rendered as a template: prose as text, `{{macro}}` references as braced inline chips. */
 export function MacroText({ tokens, frame = "quoted" }: MacroTextProps): ReactElement {
   return (
-    <Text className={frame === "quoted" ? `${RUN_FLOW} ${QUOTED_FRAME}` : RUN_FLOW} prose={true} voice="datum">
+    <Text className={frame === "quoted" ? QUOTED_RUN : BARE_RUN} prose={true} voice="code">
       {tokens.map(
         (token, i): ReactNode =>
           token.kind === "macro" ? (
