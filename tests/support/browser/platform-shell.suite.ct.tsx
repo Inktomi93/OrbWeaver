@@ -10,6 +10,8 @@ const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
 const PHONE_PORTRAIT = { width: 390, height: 844 } as const;
 const PHONE_LANDSCAPE = { width: 844, height: 390 } as const;
 const DESKTOP = { width: 1440, height: 900 } as const;
+// A landscape phone with its on-screen keyboard open: the layout viewport shrinks under resizes-content.
+const PHONE_LANDSCAPE_KEYBOARD = { width: 844, height: 190 } as const;
 // The MDN text-scale note asks a page to survive 200% to 300%; 200% is the floor claim here.
 const TEXT_SCALE_200 = "2";
 const NOTCH_INSET = 47;
@@ -82,5 +84,36 @@ for (const viewport of [PHONE_PORTRAIT, DESKTOP]) {
     // scrollWidth rounds a fractional width up, so WebKit reads one pixel over a rail that fits.
     expect(fit.railClips).toBeLessThanOrEqual(1);
     expect(fit.mainInline).toBeGreaterThan(0);
+  });
+}
+
+// The room's hooks are the public slot names; a bare probe wearing them reads the shell sheet's rule without
+// mounting a chat room.
+for (const [viewport, short] of [
+  [PHONE_LANDSCAPE_KEYBOARD, true],
+  [PHONE_LANDSCAPE, false],
+] as const) {
+  test(`shell-short ${short ? "scrolls the room and floors the transcript" : "leaves the room alone"} at ${String(viewport.width)}x${String(viewport.height)}`, async ({
+    mount,
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await mount<typeof ShellAmbientStory>(STORY, {});
+    const probed = await page.evaluate(() => {
+      const surface = document.createElement("div");
+      surface.dataset["slot"] = "chat-room-surface";
+      const anchor = document.createElement("div");
+      const row = document.createElement("div");
+      row.dataset["slot"] = "chat-room-flank-row";
+      anchor.append(row);
+      surface.append(anchor);
+      document.body.append(surface);
+      const floor = getComputedStyle(anchor).minBlockSize;
+      const scrolls = getComputedStyle(surface).overflowBlock;
+      surface.remove();
+      return { floor, scrolls };
+    });
+    const floorPx = await page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).fontSize) * 10);
+    expect(probed).toEqual(short ? { floor: `${String(floorPx)}px`, scrolls: "auto" } : { floor: "0px", scrolls: "visible" });
   });
 }

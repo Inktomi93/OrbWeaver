@@ -47,6 +47,17 @@
     flex-direction: column;
   }
 
+  /* The topbar and the composer can fill a landscape phone whose on-screen keyboard is open, which squeezes the
+   * transcript to nothing. The room scrolls instead, and the transcript keeps a floor. */
+  @variant shell-short {
+    [data-slot="chat-room-surface"] {
+      overflow-block: auto;
+    }
+    [data-slot="chat-room-surface"] > :has(> [data-slot="chat-room-flank-row"]) {
+      min-block-size: var(--height-scroll-sm);
+    }
+  }
+
   /* The scrim stays mounted and fades on the shared co-motion tokens, so it never desyncs from the panel it dims;
    * it starts below the topbar so it never intercepts the topbar's own panel toggle. */
   .shell-scrim {

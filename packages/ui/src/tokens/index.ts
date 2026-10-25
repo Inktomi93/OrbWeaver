@@ -172,6 +172,7 @@ export const TOKENS = {
   "radius.full": { cssVar: "--radius-full", value: "9999px" },
   "breakpoint.shell": { cssVar: "--breakpoint-shell", value: "48rem" },
   "breakpoint.shell-dock": { cssVar: "--breakpoint-shell-dock", value: "64rem" },
+  "breakpoint.shell-short": { cssVar: "--breakpoint-shell-short", value: "20rem" },
   "dimension.rail": { cssVar: "--dimension-rail", value: "3.5rem" },
   "dimension.chrome-row": { cssVar: "--dimension-chrome-row", value: "3rem" },
   "dimension.panel-floor": { cssVar: "--dimension-panel-floor", value: "17rem" },
@@ -231,6 +232,7 @@ export const TOKENS = {
   "container.cq-72": { cssVar: "--container-cq-72", value: "72rem" },
   "container.cq-80": { cssVar: "--container-cq-80", value: "80rem" },
   "container.cq-96": { cssVar: "--container-cq-96", value: "96rem" },
+  "width.surface-cap": { cssVar: "--width-surface-cap", value: "120rem" },
   "width.cell-fixed": { cssVar: "--width-cell-fixed", value: "8.5rem" },
   "width.cell-fixed-compact": { cssVar: "--width-cell-fixed-compact", value: "7.5rem" },
   "width.dialog-sm": { cssVar: "--width-dialog-sm", value: "25rem" },
@@ -400,6 +402,7 @@ export const MEDIA_QUERIES = {
   "shell-desktop": "(width > 48rem)",
   "shell-mobile": "(width <= 48rem)",
   "shell-narrow": "(width <= 64rem)",
+  "shell-short": "(height <= 20rem)",
 } as const;
 
 
