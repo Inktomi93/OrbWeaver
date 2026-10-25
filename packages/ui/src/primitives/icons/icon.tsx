@@ -85,7 +85,18 @@ function clampFraction(value: number): number {
 
 /** Sizing wrapper for the curated lucide set — decorative by default; constant house stroke weight;
  *  optional solid / fractional fill on the `FillableIcon` subset. */
-export function Icon({ icon: Glyph, size = "md", weight = "regular", fill = "none", partialFill, label, tone, shadow, className }: IconProps): ReactElement {
+export function Icon({
+  icon: Glyph,
+  size = "md",
+  weight = "regular",
+  fill = "none",
+  partialFill,
+  label,
+  tone,
+  shadow,
+  receded,
+  className,
+}: IconProps): ReactElement {
   const instanceId = useId().replace(ID_UNSAFE, "");
   const fraction = clampFraction(partialFill ?? (fill === "solid" ? FULL_FILL : NO_FILL));
   const gradientId = `orb-icon-fill-${instanceId}`;
@@ -97,7 +108,7 @@ export function Icon({ icon: Glyph, size = "md", weight = "regular", fill = "non
       strokeWidth={ICON_WEIGHTS[weight]}
       aria-hidden={label === undefined}
       aria-label={label}
-      {...variantProps(iconVariants, { tone, shadow }, className)}
+      {...variantProps(iconVariants, { tone, shadow, receded }, className)}
       {...(fraction === NO_FILL ? {} : { fill: isPartial ? `url(#${gradientId})` : "currentColor" })}
     >
       {isPartial ? (

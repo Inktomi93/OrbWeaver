@@ -57,6 +57,7 @@ export function Text({
   numeric,
   hiddenAt,
   srOnlyAt,
+  receded,
   ...rest
 }: TextProps): ReactElement {
   const Component = TEXT_ELEMENTS[as];
@@ -69,7 +70,7 @@ export function Text({
       data-slot="text"
       data-voice={voice}
       {...rest}
-      {...variantProps(textVariants, { size, weight, tone, transform, voice, prose, ink, lines, strike, numeric, hiddenAt, srOnlyAt }, className)}
+      {...variantProps(textVariants, { size, weight, tone, transform, voice, prose, ink, lines, strike, numeric, hiddenAt, srOnlyAt, receded }, className)}
     />
   );
 }
@@ -97,6 +98,7 @@ export function Heading({
   numeric,
   hiddenAt,
   srOnlyAt,
+  receded,
   ...rest
 }: HeadingProps): ReactElement {
   const Component = HEADING_ELEMENTS[level];
@@ -107,7 +109,7 @@ export function Heading({
       {...rest}
       {...variantProps(
         textVariants,
-        { size: size ?? HEADING_SIZE_BY_LEVEL[level], weight, tone, transform, voice, prose, ink, lines, strike, numeric, hiddenAt, srOnlyAt },
+        { size: size ?? HEADING_SIZE_BY_LEVEL[level], weight, tone, transform, voice, prose, ink, lines, strike, numeric, hiddenAt, srOnlyAt, receded },
         className,
       )}
     />

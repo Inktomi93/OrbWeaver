@@ -1,4 +1,4 @@
-import { HIDDEN_AT, SR_ONLY_AT, TONE_INK, tv } from "#lib";
+import { HIDDEN_AT, RECEDED, SR_ONLY_AT, TONE_INK, tv } from "#lib";
 
 // Shared by both <Text> and <Heading>. `weight` rides Tailwind's built-in font-weight utilities — no
 // DTCG weight token exists today. `code` rides `leading-label-relaxed` — the 13px continuous-reading box
@@ -206,6 +206,7 @@ export const textVariants = tv({
     },
     hiddenAt: HIDDEN_AT,
     srOnlyAt: SR_ONLY_AT,
+    receded: { true: RECEDED, false: "" },
     // Filled controls own their ink, even when the child supplies a voice or tone.
     ink: {
       /** Take the surrounding control's ink. The ONLY correct value for text inside a filled control. */
@@ -214,5 +215,15 @@ export const textVariants = tv({
       voice: "",
     },
   },
-  defaultVariants: { size: "body", weight: "regular", tone: "default", transform: "none", prose: false, ink: "voice", strike: false, numeric: false },
+  defaultVariants: {
+    size: "body",
+    weight: "regular",
+    tone: "default",
+    transform: "none",
+    prose: false,
+    ink: "voice",
+    strike: false,
+    numeric: false,
+    receded: false,
+  },
 });

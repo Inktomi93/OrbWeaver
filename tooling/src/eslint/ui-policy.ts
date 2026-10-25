@@ -59,7 +59,8 @@ export const CLASS_RESTRICTIONS = [
       "data-disabled:pointer-events-none data-disabled:opacity-50",
       "disabled:pointer-events-none disabled:opacity-50",
     ].map((signature) => ({
-      selector: `:matches(Literal[value=type(string)][raw=/${signature}/], TemplateElement[value.raw=/${signature}/])`,
+      // A signature is a literal class run; unescaped, the parentheses of a `(--token)` form are a regex group and never match.
+      selector: `:matches(Literal[value=type(string)][raw=/${RegExp.escape(signature)}/], TemplateElement[value.raw=/${RegExp.escape(signature)}/])`,
       message: "A string outside the canonical UI lib home hand-spells a skin fragment; compose the matching lib constant instead.",
     })),
   },
