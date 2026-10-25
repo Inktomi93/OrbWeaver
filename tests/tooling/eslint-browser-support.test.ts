@@ -19,6 +19,14 @@ const REFUSED = [
   ["a constructor through window", 'export const probe = new window.CSSKeywordValue("auto");'],
   ["a bare reference to a missing global", "export const probe = (value: unknown): boolean => value instanceof CSSKeywordValue;"],
   ["a method of a lib global at a missing version", "export const probe = (): unknown => [1].values().map((n) => n + 1);"],
+  [
+    "a Tailwind arbitrary property the floor lacks",
+    'declare function cn(...parts: string[]): string;\nexport const probe = cn("flex", "[animation-timeline:scroll()]");',
+  ],
+  [
+    "a Tailwind class in a cva variant",
+    'declare function cva(base: string, config: object): unknown;\nexport const probe = cva("flex", { variants: { a: { b: "[anchor-name:--probe]" } } });',
+  ],
   ["a guard on another name", 'export function probe(el: HTMLElement): unknown {\n  return "attributeStyleMap" in el ? el.computedStyleMap() : null;\n}'],
 ] as const;
 
@@ -39,6 +47,17 @@ const ADMITTED = [
   ["a plain read, which is undefined and never throws", "export const probe = (el: HTMLElement): unknown => el.computedStyleMap;"],
   ["a member of the same name on an unrelated type", "export const probe = (box: { computedStyleMap(): number }): number => box.computedStyleMap();"],
   ["a local binding that shadows the global", "class CSSKeywordValue {}\nexport const probe = new CSSKeywordValue();"],
+  ["a builtin the polyfill entry installs", 'export const probe = (): unknown => [RegExp.escape("a.b"), Error.isError(new Error()), Temporal.Now.instant()];'],
+  [
+    "a Tailwind class whose property is listed harmless",
+    'declare function cn(...parts: string[]): string;\nexport const probe = cn("field-sizing-content", "flex");',
+  ],
+  [
+    "a Tailwind class under @supports",
+    'declare function cn(...parts: string[]): string;\nexport const probe = cn("supports-[animation-timeline:scroll()]:[animation-timeline:scroll()]");',
+  ],
+  ["a supported Tailwind class", 'declare function cn(...parts: string[]): string;\nexport const probe = cn("overscroll-contain", "cursor-pointer");'],
+  ["the same text outside a class holder", 'export const probe = "[animation-timeline:scroll()]";'],
   ["a supported API", "export const probe = (el: HTMLElement): unknown => el.getBoundingClientRect();"],
 ] as const;
 

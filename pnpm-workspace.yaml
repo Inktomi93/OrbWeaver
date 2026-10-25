@@ -55,8 +55,10 @@ catalog:
   stylelint-config-standard: 40.0.0
   stylelint-value-no-unknown-custom-properties: 6.1.1
   stylelint-plugin-logical-css: 2.1.0
-  # Per-feature browser support at member level (`status.by_compat_key`); the compat lint rules derive their refusals from it and BROWSER_TARGETS.
-  web-features: 3.43.0
+  # Per-key browser support (`__compat.support`); the compat lint rules derive their refusals from it and BROWSER_TARGETS.
+  "@mdn/browser-compat-data": 8.1.7
+  # The Temporal polyfill the client entry installs where the browser lacks it (packages/client/src/lib/platform-polyfills.ts).
+  temporal-polyfill: 1.0.6
   postcss-value-parser: 4.2.0
   "@eslint/css-tree": 4.1.2
   # @types/node tracks the RUNTIME (Node 26).

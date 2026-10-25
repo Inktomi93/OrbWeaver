@@ -16,20 +16,23 @@ async function hits(code: string): Promise<string[]> {
 
 const layered = (rules: string): string => `@layer client { ${rules} }`;
 
-// Firefox 138 and Safari 18 lack `field-sizing`; `@scope` is Firefox 146.
+// Firefox 138 lacks `anchor-name` and `@scope`; `field-sizing` is listed harmless, `cursor` and `overscroll-behavior` run on the floor.
 test.for([
-  ["a property", ".probe { field-sizing: content; }"],
-  ["a property after a guard on another one", "@supports (display: grid) { .probe { field-sizing: content; } }"],
+  ["a property that is not listed harmless", ".probe { anchor-name: --probe; }"],
+  ["a property after a guard on another one", "@supports (display: grid) { .probe { anchor-name: --probe; } }"],
   ["a scroll-driven timeline", ".probe { animation-timeline: scroll(self block); }"],
-  ["a property under another family's @supports", "@supports (animation-timeline: scroll()) { .probe { field-sizing: content; } }"],
+  ["a property under another family's @supports", "@supports (animation-timeline: scroll()) { .probe { anchor-name: --probe; } }"],
   ["an at-rule", "@scope (.probe) { .inner { opacity: 1; } }"],
 ] as const)("refuses %s", async ([, rules]) => {
   expect(await hits(layered(rules))).toEqual([RULE]);
 });
 
 test.for([
-  ["a property under an @supports naming it", "@supports (field-sizing: content) { .probe { field-sizing: content; } }"],
-  ["a property under a nested @supports naming it", "@supports (display: grid) { @supports (field-sizing: content) { .probe { field-sizing: content; } } }"],
+  ["a property under an @supports naming it", "@supports (anchor-name: --a) { .probe { anchor-name: --probe; } }"],
+  ["a property under a nested @supports naming it", "@supports (display: grid) { @supports (anchor-name: --a) { .probe { anchor-name: --probe; } } }"],
+  ["a property listed harmless", ".probe { field-sizing: content; scrollbar-width: thin; }"],
+  ["cursor: pointer, which iOS ignores harmlessly", ".probe { cursor: pointer; }"],
+  ["overscroll-behavior, a partial implementation that still ships", ".probe { overscroll-behavior: none; }"],
   ["a timeline under its @supports", "@supports (animation-timeline: scroll()) { .probe { animation-timeline: scroll(self block); } }"],
   ["a sibling longhand under the family's @supports", "@supports (animation-timeline: scroll()) { .probe { animation-range: 0 10px; } }"],
   ["a supported property", ".probe { opacity: 1; }"],

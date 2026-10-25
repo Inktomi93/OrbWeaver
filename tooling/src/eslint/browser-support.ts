@@ -1,7 +1,10 @@
 import type { RuleVisitor } from "@eslint/core";
+import { indexCss } from "@orb/tooling/browser-support";
 import type { TSESTree } from "@typescript-eslint/utils";
 import ts from "typescript";
+import { classSupportVisitor } from "./browser-support-classes.ts";
 import type { OrbRule, OrbRuleContext, Source } from "./syntax.ts";
+import type { CandidatesToCss } from "./ui-feature-classname.ts";
 
 const NAME = /^[A-Za-z][A-Za-z0-9]*$/u;
 const API = "api.";
@@ -143,9 +146,21 @@ function ownerOfMember(context: OrbRuleContext, node: TSESTree.MemberExpression)
  * A use passes when it is optional (`el.m?.()`), or when an enclosing `if`, `?:`, `&&`, `||` or `??` tests for it, or an
  * earlier `if (...) return|throw|continue|break` in the same block does. A test counts when it contains `"m" in x`, `x.m`
  * or `x?.m` (member), the bare global name (global), or `CSS.supports(`. Polarity is not checked, so keep the guard honest.
+ * A builtin the client's polyfill entry installs is dropped from `unsupported` before it gets here (`withoutPolyfilled`).
+ *
+ * The Tailwind classes in `className`, `class` and class helpers are compiled and their declarations judged by the Stylelint
+ * rule's key check: a property in `harmless` passes, and a class whose CSS sits under `@supports` is guarded.
  */
-export const browserSupportRule = (unsupported: ReadonlyMap<string, Lacking>): OrbRule => {
+export interface BrowserSupportOptions {
+  readonly unsupported: ReadonlyMap<string, Lacking>;
+  /** Property → why a browser ignoring it changes no layout or behavior. */
+  readonly harmless: Readonly<Record<string, string>>;
+  readonly candidatesToCss: CandidatesToCss;
+}
+
+export const browserSupportRule = ({ unsupported, harmless, candidatesToCss }: BrowserSupportOptions): OrbRule => {
   const index = indexUnsupported(unsupported);
+  const cssIndex = indexCss(unsupported, harmless);
   return {
     meta: { type: "problem", schema: [] },
     create(context: OrbRuleContext): RuleVisitor {
@@ -183,6 +198,9 @@ export const browserSupportRule = (unsupported: ReadonlyMap<string, Lacking>): O
         }
       };
       return {
+        ...classSupportVisitor(cssIndex, candidatesToCss, (node, what, lacking) => {
+          refuse(node, what, lacking);
+        }),
         "Program:exit": checkLibGlobals,
         "MemberExpression[object]"(node: TSESTree.MemberExpression): void {
           const name = memberName(node);

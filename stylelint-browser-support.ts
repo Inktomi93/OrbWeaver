@@ -1,7 +1,8 @@
-// orb/browser-support-css: a property, value keyword or at-rule that some browser in BROWSER_TARGETS lacks (web-features per-key support).
-// A declaration passes inside an `@supports` whose condition names its property or a sibling longhand of its family (`animation-*`); an at-rule inside one that names `at-rule(@name)`.
+// orb/browser-support-css: a property, value keyword or at-rule that some browser in BROWSER_TARGETS lacks (MDN per-key support).
+// A declaration passes inside an `@supports` whose condition names its property or a sibling longhand of its family (`animation-*`),
+// and a property listed in the rule's `harmless` option passes bare. An at-rule passes inside `@supports at-rule(@name)`.
 // Syntax Lightning CSS lowers per BROWSER_TARGETS (nesting, colour functions, media ranges) is not a property, keyword or at-rule key, so it never reaches here.
-import valueParser from "postcss-value-parser";
+import { indexCss, refusedDeclaration } from "@orb/tooling/browser-support";
 import type { Rule } from "stylelint";
 import stylelint from "stylelint";
 
@@ -17,47 +18,12 @@ interface Ancestor {
   readonly parent?: Ancestor | undefined;
 }
 
+export interface BrowserSupportCssOptions {
+  /** Property → why a browser ignoring it changes no layout or behavior. */
+  readonly harmless: Readonly<Record<string, string>>;
+}
+
 const RULE = "orb/browser-support-css";
-const PROPERTY = "css.properties.";
-const AT_RULE = "css.at-rules.";
-const KEYWORD = /^[a-z][a-z0-9-]*$/u;
-
-interface CssSupportIndex {
-  readonly properties: Map<string, Lacking>;
-  /** property → value keyword → lacking browsers. */
-  readonly values: Map<string, Map<string, Lacking>>;
-  readonly atRules: Map<string, Lacking>;
-}
-
-/** `css.properties.x[.v]` / `css.at-rules.x` as [kind, name, value]; any other key shape (selectors, types, sub-features) is not a use here. */
-function parseKey(key: string): ["at-rule" | "property", string, string | undefined] | null {
-  const kind = key.startsWith(AT_RULE) ? "at-rule" : "property";
-  const prefix = kind === "at-rule" ? AT_RULE : PROPERTY;
-  const [name, value, ...rest] = key.slice(prefix.length).split(".");
-  const spelled = key.startsWith(prefix) && rest.length === 0 && KEYWORD.test(name ?? "") && (value === undefined || KEYWORD.test(value));
-  return spelled && name !== undefined ? [kind, name, value] : null;
-}
-
-function indexCss(unsupported: ReadonlyMap<string, Lacking>): CssSupportIndex {
-  const index: CssSupportIndex = { properties: new Map(), values: new Map(), atRules: new Map() };
-  for (const [key, lacking] of unsupported) {
-    const [kind, name, value] = parseKey(key) ?? [];
-    if (name === undefined) {
-      continue;
-    }
-    if (kind === "at-rule") {
-      // `css.at-rules.supports.selector` is a sub-feature of a supported at-rule, not the at-rule.
-      if (value === undefined) {
-        index.atRules.set(name, lacking);
-      }
-    } else if (value === undefined) {
-      index.properties.set(name, lacking);
-    } else {
-      index.values.set(name, (index.values.get(name) ?? new Map()).set(value, lacking));
-    }
-  }
-  return index;
-}
 
 /** True when an enclosing `@supports` condition matches `pattern`. */
 function underSupports(node: CssNode, pattern: RegExp): boolean {
@@ -71,17 +37,18 @@ function underSupports(node: CssNode, pattern: RegExp): boolean {
 
 /** The css plugin over the compat keys the declared floor lacks (`unsupportedAtFloor`). */
 export function browserSupportCssPlugin(unsupported: ReadonlyMap<string, Lacking>): ReturnType<typeof stylelint.createPlugin> {
-  const index = indexCss(unsupported);
-  const rule: Rule<true> = (primary) => (root, result) => {
-    if (!stylelint.utils.validateOptions(result, RULE, { actual: primary, possible: [true] })) {
+  const rule: Rule<true, BrowserSupportCssOptions> = (primary, secondary) => (root, result) => {
+    const options = { actual: secondary, possible: { harmless: [(value: unknown): boolean => typeof value === "object" && value !== null] } };
+    if (!stylelint.utils.validateOptions(result, RULE, { actual: primary, possible: [true] }, options)) {
       return;
     }
+    const index = indexCss(unsupported, secondary.harmless);
     const refuse = (node: CssNode, what: string, lacking: Lacking): void => {
       stylelint.utils.report({
         result,
         ruleName: RULE,
         node,
-        message: `${what} is missing in ${lacking.join(", ")}, which are in the declared browser floor (packages/client/browser-targets.ts); put it under an @supports that names it or drop it (${RULE})`,
+        message: `${what} is missing in ${lacking.join(", ")}, which are in the declared browser floor (packages/client/browser-targets.ts); put it under an @supports that names it, list it as harmless there, or drop it (${RULE})`,
       });
     };
     root.walkDecls((declaration) => {
@@ -91,18 +58,10 @@ export function browserSupportCssPlugin(unsupported: ReadonlyMap<string, Lacking
       if (property.startsWith("-") || underSupports(declaration, new RegExp(String.raw`(?<![\w-])(?:${property}|${family}-[a-z-]+)\s*:`, "u"))) {
         return;
       }
-      const lacking = index.properties.get(property);
-      if (lacking !== undefined) {
-        refuse(declaration, `\`${property}\``, lacking);
-        return;
+      const refused = refusedDeclaration(index, property, declaration.value);
+      if (refused !== null) {
+        refuse(declaration, refused.what, refused.lacking);
       }
-      const keywords = index.values.get(property);
-      valueParser(keywords === undefined ? "" : declaration.value).walk((token) => {
-        const missing = token.type === "word" ? keywords?.get(token.value.toLowerCase()) : undefined;
-        if (missing !== undefined) {
-          refuse(declaration, `\`${property}: ${token.value}\``, missing);
-        }
-      });
     });
     root.walkAtRules((atRule) => {
       const name = atRule.name.toLowerCase();

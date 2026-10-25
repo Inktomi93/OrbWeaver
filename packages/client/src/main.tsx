@@ -1,6 +1,8 @@
 // Boot binds document-lifetime data and external capabilities; authenticated assembly stays behind the lazy route.
 // Import authenticated factories only inside compose/authed-app.tsx, so anonymous boot never reaches the feature graph.
 
+// Install the builtins the browser floor lacks (Temporal, RegExp.escape, Error.isError) before any module that calls them.
+import "./lib/platform-polyfills.ts";
 // Configure before schema imports; the production build preserves this order across shared chunks.
 import "./lib/zod-jitless.ts";
 import { Button } from "@orb/ui/button";

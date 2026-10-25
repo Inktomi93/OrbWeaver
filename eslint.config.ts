@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
-import { unsupportedAtFloor } from "@orb/tooling/browser-support";
+import { unsupportedAtFloor, withoutPolyfilled } from "@orb/tooling/browser-support";
 import { authorClassIgnores, baseUiDoors, classClassifier, createOrbPlugin } from "@orb/tooling/eslint";
 import { BUTTON_SIZE_OVERFLOW } from "@orb/ui/button/size-hit-area";
 import { TOKENS } from "@orb/ui/tokens";
@@ -27,7 +27,7 @@ import type { FlatConfig } from "typescript-eslint";
 import tseslint from "typescript-eslint";
 import biomeConfig from "./biome.json" with { type: "json" };
 import { appearanceChannelVocabulary } from "./packages/client/appearance-channel.build.ts";
-import { BROWSER_TARGETS } from "./packages/client/browser-targets.ts";
+import { BROWSER_TARGETS, HARMLESS_WHEN_UNSUPPORTED, POLYFILLED_BUILTINS } from "./packages/client/browser-targets.ts";
 import { OWNER_CSS_SHELL_CLASSES } from "./packages/client/owner-css-surface.ts";
 
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
@@ -727,7 +727,9 @@ const localPlugin = createOrbPlugin({
   ),
   shellClasses: new Set(OWNER_CSS_SHELL_CLASSES),
   appearanceVocabulary: appearanceChannelVocabulary(),
-  browserUnsupported: unsupportedAtFloor(BROWSER_TARGETS),
+  browserUnsupported: withoutPolyfilled(unsupportedAtFloor(BROWSER_TARGETS), POLYFILLED_BUILTINS),
+  browserHarmless: HARMLESS_WHEN_UNSUPPORTED,
+  candidatesToCss: (classes) => designSystem.candidatesToCss(classes),
   classifyClass: classClassifier((classes) => designSystem.candidatesToCss(classes)),
 });
 // The only files that may spell a portal-float z token: each is a surface that portals to

@@ -5,7 +5,6 @@
    * paints a still frame over the chrome's own FLIP and slide, and a duplicate name aborts to a hard cut. The
    * `::view-transition-*` pseudos are children of the document root, so they read the motion tokens directly. */
   :root {
-    /* stylelint-disable-next-line orb/browser-support-css -- without view transitions the name does nothing */
     view-transition-name: none;
   }
 
@@ -14,7 +13,6 @@
     min-block-size: 0;
     min-inline-size: 0;
     display: flex;
-    /* stylelint-disable-next-line orb/browser-support-css -- without view transitions the name does nothing */
     view-transition-name: orb-section-content;
   }
 
@@ -70,7 +68,6 @@
     /* A dimmer: the polarity-fixed backdrop token, never the reading plate. */
     background: var(--color-backdrop);
     border: none;
-    /* stylelint-disable-next-line orb/browser-support-css -- iOS has no pointer cursor */
     cursor: pointer;
     opacity: 0;
     pointer-events: none;

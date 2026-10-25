@@ -143,7 +143,6 @@
     display: flex;
     flex-direction: column;
     overflow-y: auto;
-    /* stylelint-disable-next-line orb/browser-support-css -- only contains scroll chaining; ignored where unsupported */
     overscroll-behavior: contain;
     padding-inline: var(--spacing-row);
     padding-block: var(--spacing-row);
