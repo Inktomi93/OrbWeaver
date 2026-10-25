@@ -74,7 +74,7 @@ export function MessageTimestamp({ message, show }: { readonly message: MessageV
   }
   return (
     <>
-      <Text as="span" voice="gloss" className="font-mono" data-slot="message-metadata-timestamp">
+      <Text as="span" tone="muted" voice="code" data-slot="message-metadata-timestamp">
         {timeLib.formatTime(message.createdAt)}
       </Text>
       {/* The EDITED marker, so a rewritten reply is never indistinguishable from the one the model produced.
@@ -94,13 +94,12 @@ function tokenCount(message: MessageView): number | null {
   return message.tokensOut ?? message.tokensIn ?? null;
 }
 
-/** A quiet micro-mono-muted metadata datum (the P5 voice). The four-voice
- *  grammar name for that is `gloss` — the quiet second line — and the mono family is the P5 ruling this
- *  row keeps: these are machine facts about the row, never the reply you came to read (which is why they
- *  are NOT the `datum` voice, despite being numbers). */
+/** A quiet muted-mono metadata datum (the P5 voice). These are machine facts about the row, never the reply
+ *  you came to read, so they take the `code` voice in the muted tone (and are NOT the `datum` voice,
+ *  despite being numbers). */
 function metadatum(slot: string, text: string): ReactElement {
   return (
-    <Text as="span" voice="gloss" className="font-mono" data-slot={slot}>
+    <Text as="span" tone="muted" voice="code" data-slot={slot}>
       {text}
     </Text>
   );

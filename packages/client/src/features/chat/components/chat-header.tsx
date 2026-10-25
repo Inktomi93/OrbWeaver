@@ -23,7 +23,6 @@ import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { CHIP_TOUCH_WIDTH_FLOOR_AT_COARSE } from "#components";
 import { useTRPC } from "#data";
 import type { ChatContextTabId } from "#lib";
 import { authoredChatName, deriveChatTitle } from "#lib";
@@ -142,7 +141,8 @@ function RosterChipButton({ count, onClick }: { readonly count: number; readonly
       shape="pill"
       size="sm"
       aria-label={`Members — ${count}`}
-      className={`shell-chat-member-chip shrink-0 whitespace-nowrap ${CHIP_TOUCH_WIDTH_FLOOR_AT_COARSE}`}
+      className="shell-chat-member-chip shrink-0 whitespace-nowrap"
+      touchFloor="inline"
       onClick={onClick}
     >
       <Icon icon={Users} size="sm" />

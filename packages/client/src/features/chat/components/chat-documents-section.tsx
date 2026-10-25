@@ -303,7 +303,7 @@ function ActiveDocumentRow({ document, isHost, onSetHidden, onDetach }: ActiveDo
             ),
           }
         : {})}
-      className={visible ? "" : "opacity-60"}
+      receded={!visible}
       subtitle={formatBytes(document.byteSize)}
       // EVERY chip is followed by a literal space text node. Visual spacing is `mr-field`, but the
       // accessible-DESCRIPTION computation concatenates adjacent inline nodes with no separator (the same

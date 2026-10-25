@@ -317,7 +317,7 @@ function HiddenTierNote({ label, description }: { readonly label: string; readon
     <Stack gap="row" data-testid={testId("memberCardHiddenNote")}>
       <Separator />
       <Row gap="field" align="center">
-        <Icon icon={EyeOff} size="sm" className="text-muted-foreground" />
+        <Icon icon={EyeOff} size="sm" tone="muted" />
         <Stack gap="field" className="min-inline-0">
           <Text as="span" voice="label">
             {label} hidden
@@ -336,7 +336,7 @@ function SectionShell({ icon, title, children }: { readonly icon: typeof ScrollT
           navigates the card by heading. Visual style is UNCHANGED — the label size/weight/muted/caps
           skin is preserved via the Heading overrides; only the element rank changes. */}
       <Row gap="field" align="center">
-        <Icon icon={icon} size="sm" className="text-muted-foreground" />
+        <Icon icon={icon} size="sm" tone="muted" />
         <Heading voice="kicker" level={3}>
           {title}
         </Heading>

@@ -12,8 +12,6 @@ export interface SwipeFoot {
   readonly placement: "inside" | "below";
   /** The foot line itself: how far its chevrons reach past the container's reading inset, and any backing. */
   readonly row: string;
-  /** The chevrons' ink. */
-  readonly chevron: string;
 }
 
 // An inside foot never sets its container's width: `contain: inline-size` takes it out of a shrink-to-fit
@@ -22,7 +20,7 @@ const FOOT_INSIDE_WIDTH = "contain-inline-size";
 
 /** Every single-container style: the foot sits on the container's reading inset, the same inset the header
  *  bar's actions sit on, so the message's top and bottom edges line up glyph for glyph. */
-export const SWIPE_FOOT_INSIDE: SwipeFoot = { placement: "inside", row: FOOT_INSIDE_WIDTH, chevron: "text-muted-foreground" };
+export const SWIPE_FOOT_INSIDE: SwipeFoot = { placement: "inside", row: FOOT_INSIDE_WIDTH };
 
 /** Echo: the foot reaches across the art pane on the card's fill, as the pinned header bar does
  *  (`--row-reach-*`, row-edges.ts), down to the card's bottom edge. Its group ends at the card's corner: the inset
@@ -30,12 +28,8 @@ export const SWIPE_FOOT_INSIDE: SwipeFoot = { placement: "inside", row: FOOT_INS
 export const SWIPE_FOOT_ECHO: SwipeFoot = {
   placement: "inside",
   row: `${FOOT_INSIDE_WIDTH} -ms-(--row-reach-left) ps-(--row-foot-inset-left) -me-(--row-reach-right) pe-(--row-foot-inset-right) -mbe-row rounded-b-card bg-ai-bubble`,
-  chevron: "text-muted-foreground",
 };
 
 /** Tide's train of pills has no single container, so the foot runs under the train on the pager plate,
  *  which over a wallpaper is the only thing backing it. */
-export const SWIPE_FOOT_TRAIN: SwipeFoot = { placement: "below", row: `${BG_PHOTO_PAGER_PLATE} px-field`, chevron: "text-muted-foreground" };
-
-/** The count: a small tabular value beside the forward chevron. */
-export const SWIPE_COUNTER = "whitespace-nowrap text-muted-foreground";
+export const SWIPE_FOOT_TRAIN: SwipeFoot = { placement: "below", row: `${BG_PHOTO_PAGER_PLATE} px-field` };

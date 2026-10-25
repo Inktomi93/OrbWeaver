@@ -1,0 +1,9 @@
+{
+  "rules": [
+    { "constant": "HIDE_AT_COARSE", "props": ["hiddenAt=\"coarse\""] },
+    { "constant": "ROW_ACTION_INLINE", "props": ["hiddenAt=\"coarse\""] },
+    { "constant": "SHOW_ONLY_AT_COARSE", "props": ["hiddenAt=\"fine\""] },
+    { "constant": "ROW_REVEAL", "props": ["reveal=\"hover\""] },
+    { "constant": "MESSAGE_ACTION_ICON_CLASS", "props": ["shadow"] }
+  ]
+}

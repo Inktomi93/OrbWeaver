@@ -4,11 +4,11 @@ import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { GitFork, Icon, Pencil, SmilePlus } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
+import { cn } from "@orb/ui/lib";
 import type { ReactElement, ReactNode } from "react";
-import { ROW_ACTION_INLINE, RowActionsMenu } from "#components";
+import { RowActionsMenu } from "#components";
 import { useReactionsEnabled } from "../hooks/use-message-reactions.ts";
 import { MESSAGE_ACTIONS_MENU_NAME, MESSAGE_EDIT_NAME, MESSAGE_FORK_NAME, MESSAGE_REACTION_ADD_NAME } from "../lib/message-action-names.ts";
-import { MESSAGE_ACTION_ICON_CLASS } from "../lib/message-actions-reveal.ts";
 import { GenerationCreditGlyph } from "./generation-credit.tsx";
 
 // The footprint is inert and hidden; its handlers never run.
@@ -50,18 +50,10 @@ export function MessageActionsCluster({
       {editable ? (
         <>
           <Button intent="ghost" size="glyph-lg" shape="pill" aria-label={MESSAGE_EDIT_NAME} onClick={onEdit}>
-            <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={Pencil} size="sm" />
+            <Icon shadow={true} icon={Pencil} size="sm" />
           </Button>
-          <Button
-            intent="ghost"
-            size="glyph-lg"
-            shape="pill"
-            className={ROW_ACTION_INLINE}
-            loading={forkPending}
-            aria-label={MESSAGE_FORK_NAME}
-            onClick={onFork}
-          >
-            <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={GitFork} size="sm" />
+          <Button intent="ghost" size="glyph-lg" shape="pill" hiddenAt="coarse" loading={forkPending} aria-label={MESSAGE_FORK_NAME} onClick={onFork}>
+            <Icon shadow={true} icon={GitFork} size="sm" />
           </Button>
         </>
       ) : null}
@@ -72,8 +64,8 @@ export function MessageActionsCluster({
           being rendered at all. Ordered AFTER the Edit/Fork primary actions (#786, owner ruling): a row's
           roving Tab stop must reach "Edit message" before "Add a reaction". */}
       {reactionsEnabled ? (
-        <Button aria-label={MESSAGE_REACTION_ADD_NAME} className={ROW_ACTION_INLINE} intent="ghost" onClick={onReact} shape="pill" size="glyph-lg">
-          <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={SmilePlus} size="sm" />
+        <Button aria-label={MESSAGE_REACTION_ADD_NAME} hiddenAt="coarse" intent="ghost" onClick={onReact} shape="pill" size="glyph-lg">
+          <Icon shadow={true} icon={SmilePlus} size="sm" />
         </Button>
       ) : null}
       <RowActionsMenu
@@ -104,7 +96,7 @@ export function GhostActionsFootprint({
 }): ReactElement {
   const reactionsEnabled = useReactionsEnabled(chatId);
   return (
-    <Row aria-hidden="true" align="center" className={`invisible ${surface}`} data-slot="message-actions-footprint" gap="glyph" inert={true} justify="end">
+    <Row aria-hidden="true" align="center" className={cn("invisible", surface)} data-slot="message-actions-footprint" gap="glyph" inert={true} justify="end">
       <MessageActionsCluster
         credit={generationCredit ? <GenerationCreditGlyph slot="message-actions-footprint-credit" /> : null}
         editable={true}

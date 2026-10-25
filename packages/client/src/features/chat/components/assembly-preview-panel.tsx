@@ -235,7 +235,7 @@ function SourceBody({ slice }: { readonly slice: AssemblyBudgetSlice }): ReactEl
     );
   }
   return (
-    <Text voice="datum" className="block pbe-row whitespace-pre-wrap">
+    <Text voice="code" className="block pbe-row whitespace-pre-wrap">
       {slice.text}
     </Text>
   );
@@ -251,7 +251,7 @@ function ContributorRow({ part }: { readonly part: AssemblyBudgetPart }): ReactE
         <SeriesRow label={part.label} value={groupThousands(part.tokens)} />
       </CollapsibleTrigger>
       <CollapsiblePanel>
-        <Text voice="datum" className="block pbe-row whitespace-pre-wrap">
+        <Text voice="code" className="block pbe-row whitespace-pre-wrap">
           {part.text}
         </Text>
       </CollapsiblePanel>
@@ -264,7 +264,7 @@ function ContributorRow({ part }: { readonly part: AssemblyBudgetPart }): ReactE
 function GameStateExcerpt({ text }: { readonly text: string }): ReactElement {
   return (
     <Card>
-      <Text voice="datum" className="relative block overflow-y-auto overscroll-contain whitespace-pre-wrap max-block-(--height-scroll-sm)">
+      <Text voice="code" className="relative block overflow-y-auto overscroll-contain whitespace-pre-wrap max-block-(--height-scroll-sm)">
         {text}
       </Text>
     </Card>

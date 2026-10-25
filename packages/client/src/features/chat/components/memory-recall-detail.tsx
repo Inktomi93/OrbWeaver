@@ -73,7 +73,7 @@ export function MemoryRecallDetail({ recall }: { readonly recall: MemoryRecallSl
         {recall.queryText === null ? null : (
           <Stack gap="row">
             <Text voice="label">{recall.queryEmbedded ? "Query (embedded)" : "Query"}</Text>
-            <Text className="whitespace-pre-wrap" voice="datum">
+            <Text className="whitespace-pre-wrap" voice="code">
               {recall.queryText}
             </Text>
           </Stack>
@@ -99,7 +99,7 @@ function RecallCandidateLine({ candidate }: { readonly candidate: MemoryRecallCa
   const label = RECALL_VERDICT_LABEL[candidate.verdict];
   return (
     <Row align="baseline" data-slot="memory-recall-candidate" gap="block" justify="between" role="listitem">
-      <Text voice="datum">{`${rank}tier ${candidate.tier} · block ${candidate.blockIdx}`}</Text>
+      <Text voice="code">{`${rank}tier ${candidate.tier} · block ${candidate.blockIdx}`}</Text>
       <Row align="baseline" className="shrink-0" gap="field">
         {candidate.verdict === "admitted" ? (
           <Badge intent="info" size="sm">
