@@ -20,7 +20,7 @@ function computeCellEstimatePx(containerWidthPx: number, columns: number, gapPx:
   return Math.max(1, (containerWidthPx - gapPx * (columns - 1)) / columns);
 }
 
-// Pointer-follow spotlight reveal (globals.css paints it via --x/--y). A delegated pointermove on
+// Pointer-follow spotlight reveal (globals.css paints it via --orb-media-x/--orb-media-y). A delegated pointermove on
 // the scroll root writes the vars directly (style.setProperty, no React state, zero re-render).
 function attachSpotlight(root: HTMLElement | null): (() => void) | undefined {
   if (root === null) {
@@ -40,8 +40,8 @@ function attachSpotlight(root: HTMLElement | null): (() => void) | undefined {
       return;
     }
     const rect = cell.getBoundingClientRect();
-    cell.style.setProperty("--x", `${event.clientX - rect.left}px`);
-    cell.style.setProperty("--y", `${event.clientY - rect.top}px`);
+    cell.style.setProperty("--orb-media-x", `${event.clientX - rect.left}px`);
+    cell.style.setProperty("--orb-media-y", `${event.clientY - rect.top}px`);
   };
   root.addEventListener("pointermove", onMove);
   return (): void => root.removeEventListener("pointermove", onMove);

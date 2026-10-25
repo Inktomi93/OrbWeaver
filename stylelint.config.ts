@@ -16,7 +16,7 @@ import {
   LETTER_SPACING_VALUES,
   Z_INDEX_VALUES,
 } from "./stylelint-rules.ts";
-import { RUNTIME_CUSTOM_PROPERTIES } from "./tooling/src/css-names/custom-properties.ts";
+import { RUNTIME_CUSTOM_PROPERTIES } from "./tooling/src/css-names/index.ts";
 
 const leadings = Object.keys(tokens.leading)
   .filter((name) => !name.startsWith("$"))
