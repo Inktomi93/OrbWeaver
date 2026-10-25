@@ -355,10 +355,15 @@ const COLOUR_SPACE_CHANNELS: Readonly<Record<string, readonly string[]>> = {
 };
 
 const CHANNEL_NUMBER = String.raw`-?(?:\d+(?:\.\d+)?|\.\d+)`;
+// A scale from a quarter to double keeps the token's colour as a tint or a shade; zero, a negative or a huge factor
+// clamps a channel to black or white, which is a new colour written through the token.
+const CHANNEL_SCALE_MIN = 0.25;
+const CHANNEL_SCALE_MAX = 2;
 
 /**
- * Whether a channel is the origin's own channel in its own place: the keyword, a nonzero scale of it, or (the hue)
- * a rotation by an angle. A zero factor, an added literal, another channel's keyword or `alpha` writes a new colour.
+ * Whether a channel is the origin's own channel in its own place: the keyword, a bounded scale of it (multiplied or
+ * divided), or (the hue) a rotation by an angle. An out-of-range factor, an added literal, another channel's keyword
+ * or `alpha` writes a new colour.
  */
 function isOwnChannel(channel: string, keyword: string): boolean {
   const text = channel.trim().toLowerCase();
@@ -366,11 +371,14 @@ function isOwnChannel(channel: string, keyword: string): boolean {
     return true;
   }
   const scale = new RegExp(
-    String.raw`^calc\(\s*(?:${keyword}\s*[*/]\s*(?<after>${CHANNEL_NUMBER})|(?<before>${CHANNEL_NUMBER})\s*\*\s*${keyword})\s*\)$`,
+    String.raw`^calc\(\s*(?:${keyword}\s*(?<op>[*/])\s*(?<after>${CHANNEL_NUMBER})|(?<before>${CHANNEL_NUMBER})\s*\*\s*${keyword})\s*\)$`,
     "u",
   ).exec(text);
   if (scale !== null) {
-    return Number(scale.groups?.["after"] ?? scale.groups?.["before"]) !== 0;
+    const { before, after, op } = scale.groups ?? {};
+    const number = Number(before ?? after);
+    const factor = op === "/" ? 1 / number : number;
+    return factor >= CHANNEL_SCALE_MIN && factor <= CHANNEL_SCALE_MAX;
   }
   return keyword === "h" && new RegExp(String.raw`^calc\(\s*h\s*[+-]\s*${CHANNEL_NUMBER}(?:deg|grad|rad|turn)?\s*\)$`, "u").test(text);
 }

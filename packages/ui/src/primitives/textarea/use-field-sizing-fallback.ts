@@ -104,17 +104,26 @@ export function useFieldSizingFallback(forwardedRef?: Ref<HTMLTextAreaElement>):
     field.addEventListener("input", resize);
     let width = field.offsetWidth;
     const observer = new ResizeObserver(() => {
-      // A width change rewraps the lines. Any other size change is the box's own, or an inline height the caller
-      // set or removed without a commit of this component; the hook's own sizing leaves it fresh and so settles.
-      if (field.offsetWidth !== width || isStale(field)) {
+      // A width change rewraps the lines.
+      if (field.offsetWidth !== width) {
         width = field.offsetWidth;
         resize();
       }
     });
     observer.observe(field);
+    // The caller's inline height or class set or removed without a commit of this component moves no edge when it
+    // equals the height the box already has, so only the attribute change reveals it. The hook's own sizing leaves
+    // the box fresh, so its own writes settle here.
+    const attributes = new MutationObserver(() => {
+      if (isStale(field)) {
+        resize();
+      }
+    });
+    attributes.observe(field, { attributes: true, attributeFilter: ["style", "class"] });
     return () => {
       field.removeEventListener("input", resize);
       observer.disconnect();
+      attributes.disconnect();
       node.current = null;
       if (typeof forwarded === "function") {
         forwarded();

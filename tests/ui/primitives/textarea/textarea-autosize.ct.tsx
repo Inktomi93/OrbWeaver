@@ -83,6 +83,21 @@ test.describe("without field-sizing support", () => {
     expect(await ownHeight(field)).toBeGreaterThan(40);
   });
 
+  test("a removed inline height that equals the box's rows height still lets it size to its text", async ({ mount }) => {
+    const component = await mount<typeof FixedInlineHeightStory>(`${STORIES}/FixedInlineHeightStory`);
+    const field = component.getByRole("textbox", { name: "Fixed inline", exact: true });
+    // Pin the inline height to the height the box has with no height set, so removing it moves no edge and no observer fires.
+    const rowsHeight = await field.evaluate((element) => {
+      element.style.height = "auto";
+      const height = element.getBoundingClientRect().height;
+      element.style.height = `${String(height)}px`;
+      return height;
+    });
+    await field.evaluate((element) => element.style.removeProperty("height"));
+    await expect.poll(() => ownHeight(field)).toBeGreaterThan(rowsHeight + SLACK);
+    expect(Math.abs((await ownHeight(field)) - (await nativeHeight(field)))).toBeLessThanOrEqual(SLACK);
+  });
+
   test("a height class added after mount wins over the script's height, and one removed lets it size again", async ({ mount }) => {
     const component = await mount<typeof ClassFixedLaterStory>(`${STORIES}/ClassFixedLaterStory`);
     const field = component.getByRole("textbox", { name: "Fixed later", exact: true });
