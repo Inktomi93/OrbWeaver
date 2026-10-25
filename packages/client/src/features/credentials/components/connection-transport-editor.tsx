@@ -204,7 +204,7 @@ function PreviewResolution({
           <Row align="center" className="flex-wrap" data-resolved-path={key} gap="field" key={key}>
             <Text voice="label">{RESPONSE_MAP_FIELDS[key]}</Text>
             <Text voice="gloss">→</Text>
-            <Text voice="datum">{resolved === undefined ? "nothing at that path" : JSON.stringify(resolved)}</Text>
+            <Text voice="code">{resolved === undefined ? "nothing at that path" : JSON.stringify(resolved)}</Text>
             {key === "finishReasonPath" ? <FinishReasonReading value={resolved} /> : null}
           </Row>
         );

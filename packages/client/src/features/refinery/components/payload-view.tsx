@@ -128,11 +128,12 @@ export function PayloadView({ plan, payload, pending = false, arrived = false }:
       aria-busy={pending}
       // The re-run arm: the settled payload recedes rather than vanishing. Compositor-only (`opacity`)
       // and reduced-motion-safe by construction — the globals.css duration floor neutralizes the
-      // transition, and a static 60% dim is a legitimate resting state, not a frozen animation frame.
-      className={pending ? "opacity-60 transition-opacity duration-(--motion-base) ease-out-expo" : "transition-opacity duration-(--motion-base) ease-out-expo"}
+      // transition, and a static dim is a legitimate resting state, not a frozen animation frame.
+      className="transition-opacity duration-(--motion-base) ease-out-expo"
       data-pending={pending}
       data-testid={testId("refineryPayloadView")}
       gap="block"
+      receded={pending}
     >
       {banners.map((field) => (
         <VerdictBanner field={field} key={field.key} payload={payload} siblings={plan.fields} />
@@ -308,7 +309,7 @@ function ScalarRow({ field, value }: { field: PlanField; value: unknown }): Reac
   return (
     <Row align="center" data-field={field.key} data-testid={testId("refineryField")} gap="row">
       <Text voice="label">{field.label}</Text>
-      <Text voice="datum">{scalarText(value)}</Text>
+      <Text voice="code">{scalarText(value)}</Text>
     </Row>
   );
 }
