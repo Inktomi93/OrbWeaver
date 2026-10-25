@@ -26,6 +26,14 @@ test("each custom rule refuses its planted control", async () => {
   expect(await rulesHit(declaration("padding: var(--primitive-space-8);"))).toEqual(["orb/no-raw-media-condition"]);
 });
 
+test("a forced compositor layer is refused", async () => {
+  expect(await rulesHit(declaration("will-change: transform;"))).toEqual(["property-disallowed-list"]);
+  expect(await rulesHit(declaration("backface-visibility: hidden;"))).toEqual(["property-disallowed-list"]);
+  expect(await rulesHit(declaration("transform: translateZ(0);"))).toEqual(["declaration-property-value-disallowed-list"]);
+  expect(await rulesHit(declaration("transform: translate3d(0, 0, 0);"))).toEqual(["declaration-property-value-disallowed-list"]);
+  expect(await rulesHit(declaration("opacity: 0.5;"))).toEqual([]);
+});
+
 test("every style rule sits in a declared layer; Tailwind's own at-rules place themselves", async () => {
   expect(await rulesHit(".probe { opacity: 1; }")).toEqual(["orb/rule-in-layer"]);
   expect(await rulesHit("@layer client { @variant shell-mobile { .probe { opacity: 1; } } }")).toEqual([]);

@@ -29,6 +29,26 @@
   contain-intrinsic-size: auto var(--size-control-sm);
 }
 
+/* Element defaults the browser's own rendering honours. Tailwind's base layer sits under every utility, so a class
+ * such as `touch-none` still wins. Native controls (a markdown task list, a range) take the primary colour. */
+@layer base {
+  :root {
+    accent-color: var(--color-primary);
+  }
+  /* A short heading breaks into even lines, and an unbroken token wraps instead of widening its column. */
+  :where(h1, h2, h3, h4, h5, h6) {
+    text-wrap: balance;
+    overflow-wrap: break-word;
+  }
+  /* Double-tap zoom on a control is a mis-tap, not a request to zoom; pinch zoom stays. */
+  :where(a, button, input, select, textarea, summary, [role="button"]) {
+    touch-action: manipulation;
+  }
+  :where(a, .underline) {
+    text-underline-offset: 0.18em;
+  }
+}
+
 @layer ui {
   /* The client writes `--font-scale` onto the root; every rem-derived size follows. The font rendering set
    * (ui-package-design.md §4): grayscale antialiasing keeps macOS text thin on the dark themes, and no synthesised

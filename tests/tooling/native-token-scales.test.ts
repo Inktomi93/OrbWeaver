@@ -104,7 +104,19 @@ const SUPPORTED = [
 /** The important modifier, in both spellings and under a variant, is refused on an otherwise supported class. */
 const IMPORTANT = ["!p-0", "p-0!", "hover:!p-0", "hover:p-0!"];
 /** One control per class gate that moved from an `orb/` rule onto a restricted pattern. */
-const RETIRED_GATE_CONTROLS = ["pt-[13px]", "@min-[100rem]:flex", "p-(--primitive-space-8)", "bg-black", "text-red-500", "bg-[#fff]", "max-w-prose"];
+const RETIRED_GATE_CONTROLS = [
+  "pt-[13px]",
+  "@min-[100rem]:flex",
+  "p-(--primitive-space-8)",
+  "bg-black",
+  "text-red-500",
+  "bg-[#fff]",
+  "max-w-prose",
+  "will-change-transform",
+  "transform-gpu",
+  "backface-hidden",
+  "translate-z-4",
+];
 /** Class strings in UPPER_CASE constants and their object values: one hit per retired gate, plus the pointer variant in features. */
 const PLANTED_CONSTANTS = [
   'export const PLANT_COLOR = "bg-red-500 text-white";',
