@@ -42,7 +42,7 @@ type AppearancePropertyUnit = (typeof APPEARANCE_PROPERTY_UNITS)[number];
  * (`appearance-channel.build.ts`); `none` keeps the value on another plane: a prop, the theme scope, the grid
  * or the background layer.
  */
-export type AppearanceChannel =
+type AppearanceChannel =
   | { readonly kind: "property"; readonly unit: AppearancePropertyUnit }
   | { readonly kind: "attribute"; readonly preference?: AppearancePreferenceCondition }
   | { readonly kind: "none" };
