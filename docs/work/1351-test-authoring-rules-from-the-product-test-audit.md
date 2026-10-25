@@ -22,6 +22,12 @@ An audit found tests passing over fabricated states and copied production values
 
 The branch passes review with every touched e2e spec run, all rules on at zero, and each of the four file-header exceptions judged against Spine-Testing section 9.
 
+## State
+
+- Branch `wt/agent-af01e0d3719ce9957`, merge `671f42d651` over `f52fdd5202`; verifier running.
+- e2e: group-chat, multi-tab-room-sync, guided-generations and live-parity-plus-capstone pass (7). Corpus specs pass 176 across 7 of 9 mode cells; `corpus-shell.spec.ts:330` timed out in the whisper cell under load 22-43, and the runner crashed before the last two cells. Rerun those at low load before landing.
+- The verifier judges the four file-header `orb/ct-responder-reads-input` exceptions, notably `tests/client/features/preset/components/list-lifetimes.ct.tsx`.
+
 ## Evidence
 
 Filled at landing: what ran and where its output is.
