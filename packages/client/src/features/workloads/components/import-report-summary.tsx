@@ -45,10 +45,12 @@ export function ImportReportSummary({ summary }: ImportReportSummaryProps): Reac
                 <Icon
                   icon={outcome.ok ? Check : AlertTriangle}
                   size="sm"
-                  className={outcome.ok ? "text-success" : "text-destructive"}
+                  tone={outcome.ok ? "success" : "destructive"}
                   label={outcome.ok ? "Imported" : "Not imported"}
                 />
-                <Text className="flex-1 truncate font-mono min-inline-0">{outcome.path}</Text>
+                <Text voice="code" className="flex-1 truncate min-inline-0">
+                  {outcome.path}
+                </Text>
                 <Text voice="gloss" className="whitespace-nowrap">
                   {outcome.detail}
                 </Text>

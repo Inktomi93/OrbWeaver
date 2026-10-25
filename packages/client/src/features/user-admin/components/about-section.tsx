@@ -65,9 +65,9 @@ function AboutBody({ anchorId }: { readonly anchorId: string }): ReactElement {
         {/* A failed copy replaces the version line with the full report (the line plus the full sha), so the
             text shows once and the field gets the row's whole width. */}
         <CopyButton copiedHint="Paste it into the bug report." intent="ghost" text={reportLine(version)} what="version for a bug report">
-          {/* `datum` — this IS a value, and its mono/tabular setting is what makes a sha readable and
-              transcribable by eye when someone is reading it off a screen into an issue. */}
-          <Text voice="datum" data-testid={testId("aboutVersionLine")}>
+          {/* `code` — the version line carries a sha; mono is what makes it readable and transcribable by eye
+              when someone is reading it off a screen into an issue. */}
+          <Text voice="code" data-testid={testId("aboutVersionLine")}>
             {formatVersionIdentity(version)}
           </Text>
         </CopyButton>
