@@ -27,6 +27,11 @@ test("the rewrite skips strings, honours a string holding /* and never stops ear
   expect(rewriteRenamedHooks(css, RENAMES)).toBe(css.replace('\n[data-slot="bubble"] {}', '\n[data-slot="message-bubble"] {}'));
 });
 
+test("the rewrite carries on past an unquoted url() holding /*", () => {
+  const css = 'a { background: url(x/*y.png); } [data-slot="bubble"] {}';
+  expect(rewriteRenamedHooks(css, RENAMES)).toBe('a { background: url(x/*y.png); } [data-slot="message-bubble"] {}');
+});
+
 test("the rewrite leaves comments, retired hooks, current names and look-alike prefixes alone", () => {
   const css =
     '/* [data-slot="bubble"] */ [data-slot="old-chip"], [data-slot="bubble-extra"], [data-slot^="bubble"], .shell-sidebar-wide, [data-slot="composer"] {}';

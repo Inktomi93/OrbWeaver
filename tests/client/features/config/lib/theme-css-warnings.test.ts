@@ -61,6 +61,16 @@ test("hooks inside strings and comments raise nothing, and a string holding /* d
   expect(warnings.map((warning) => css.slice(warning.from, warning.to))).toEqual(["gonez"]);
 });
 
+test("an unquoted url() body is one token: /* in it hides nothing, and a hook-shaped file name raises nothing", () => {
+  const css = [
+    "a { background: url(img/*.png); }",
+    '[data-slot="gonez"] { color: var(--color-gonez); }',
+    "b { background: URL( img/x.shell-gone.png ); }",
+  ].join("\n");
+  const warnings = themeCssHookWarnings(css, SURFACE, RENAMES);
+  expect(warnings.map((warning) => css.slice(warning.from, warning.to))).toEqual(["gonez", "--color-gonez"]);
+});
+
 test("a stale hook before an unterminated comment still warns, and the comment hides only its own text", () => {
   const css = '[data-slot="gonez"] {} /* never closed [data-slot="goney"]';
   expect(themeCssHookWarnings(css, SURFACE, RENAMES).map((warning) => css.slice(warning.from, warning.to))).toEqual(["gonez"]);

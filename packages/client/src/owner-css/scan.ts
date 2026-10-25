@@ -14,13 +14,15 @@ export interface HookReference {
 }
 
 const BLANK = " ";
+// Enough characters after `url(` to see whether a quote or the url body follows the whitespace.
+const URL_LOOKAHEAD = 64;
 
 function blankRange(text: string, from: number, to: number): string {
   return text.slice(0, from) + text.slice(from, to).replace(/[^\n]/gu, BLANK) + text.slice(to);
 }
 
 interface Span {
-  readonly kind: "comment" | "string";
+  readonly kind: "comment" | "string" | "url";
   readonly from: number;
   readonly to: number;
 }
@@ -40,17 +42,44 @@ function commentEnd(css: string, open: number): number {
   return close === -1 ? css.length : close + 2;
 }
 
-// One left-to-right pass with quote state: a `/*` inside a string opens nothing, a quote inside a comment opens
-// nothing. An unterminated comment runs to the end of the input.
+const UNQUOTED_URL_OPEN = /^url\(\s*(?!["'\s])/iu;
+
+// An unquoted `url(` body is one url token: `/*` and quotes inside it are ordinary characters. It ends at the first
+// unescaped `)`, or at the end of the input.
+function urlEnd(css: string, open: number): number {
+  let end = open + "url(".length;
+  while (end < css.length && css[end] !== ")") {
+    end += css[end] === "\\" ? 2 : 1;
+  }
+  return Math.min(end + 1, css.length);
+}
+
+function isUnquotedUrl(css: string, at: number): boolean {
+  return !/[\w-]/u.test(css[at - 1] ?? "") && UNQUOTED_URL_OPEN.test(css.slice(at, at + URL_LOOKAHEAD));
+}
+
+function spanKind(css: string, at: number): Span["kind"] | null {
+  if (css[at] === "/" && css[at + 1] === "*") {
+    return "comment";
+  }
+  if (css[at] === '"' || css[at] === "'") {
+    return "string";
+  }
+  return isUnquotedUrl(css, at) ? "url" : null;
+}
+
+const SPAN_END = { comment: commentEnd, string: stringEnd, url: urlEnd } as const;
+
+// One left-to-right pass with quote state: a `/*` inside a string or url opens nothing, a quote inside a comment
+// opens nothing. An unterminated comment runs to the end of the input.
 function inertSpans(css: string): Span[] {
   const spans: Span[] = [];
   let i = 0;
   while (i < css.length) {
-    const isComment = css[i] === "/" && css[i + 1] === "*";
-    const isString = css[i] === '"' || css[i] === "'";
-    if (isComment || isString) {
-      const to = isComment ? commentEnd(css, i) : stringEnd(css, i);
-      spans.push({ kind: isComment ? "comment" : "string", from: i, to });
+    const kind = spanKind(css, i);
+    if (kind !== null) {
+      const to = SPAN_END[kind](css, i);
+      spans.push({ kind, from: i, to });
       i = to;
     } else {
       i += 1;
