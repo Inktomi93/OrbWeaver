@@ -1,3 +1,4 @@
+import type { CustomPropertyUses } from "../css-names/index.ts";
 import { browserNoNodeGlobalsRule, rawEgressRule, rawHttpClientRule, sessionChannelBoundaryRule, soleEnvReaderRule } from "./ambient.ts";
 import { detachedWorkRule } from "./async.ts";
 import { CLIENT_DATA_RESTRICTIONS, effectOnSharedSelectionRule } from "./client-data-policy.ts";
@@ -83,7 +84,7 @@ export function createOrbPlugin(options: {
   floorlessButtonSizes: ReadonlySet<string>;
   shellClasses: ReadonlySet<string>;
   appearanceVocabulary: AppearanceVocabulary;
-  declaredCustomProperties: ReadonlySet<string>;
+  customProperties: CustomPropertyUses;
   classifyClass: ClassClassifier;
   baseUiDoors: BaseUiDoors;
 }): {
@@ -94,7 +95,7 @@ export function createOrbPlugin(options: {
       ...Object.fromEntries(LOCAL_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)] as const)),
       "no-raw-intrinsic-paint": rawIntrinsicPaintRule(options.shellClasses),
       "appearance-name-in-manifest": appearanceNameRule(options.appearanceVocabulary),
-      "custom-property-declared": customPropertyDeclaredRule(options.declaredCustomProperties),
+      "custom-property-declared": customPropertyDeclaredRule(options.customProperties),
       "feature-classname-layout-only": featureClassNameLayoutOnlyRule(options.classifyClass),
       "no-built-class-string": noBuiltClassStringRule,
       ...Object.fromEntries(PRINCIPAL_RULES.map(({ id, rule }) => [id, rule] as const)),
