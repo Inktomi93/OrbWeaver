@@ -122,7 +122,7 @@ export function TrackerChip({ label, value, subject, guide = false, onEditValue 
           onEdit={onEditValue}
           className="field-sizing-content max-inline-full min-inline-0"
           width="auto"
-          restClassName="min-w-0 max-w-full"
+          restClassName="min-inline-0 max-inline-full"
         />
       )}
     </Badge>

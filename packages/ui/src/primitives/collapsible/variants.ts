@@ -1,4 +1,4 @@
-import { DISABLED_STATE, FOCUS_RING, tv } from "#lib";
+import { DISABLED_STATE, FOCUS_RING, TOUCH_FLOOR_AT_COARSE, tv } from "#lib";
 
 /**
  * Slot classes for the collapsible (ui-package-design §5). The panel animates its own height off
@@ -40,6 +40,12 @@ export const collapsibleVariants = tv({
     size: {
       text: {},
       control: { trigger: "min-block-(--size-control-sm)" },
+    },
+    // A full-bleed `text` trigger in a dense footer keeps its text height at a fine pointer and takes the touch
+    // floor on its own box at a coarse one: it has width to spare and wants only height, and an overflowing hit
+    // pseudo there would collide with the rows above and below.
+    touchFloor: {
+      block: { trigger: TOUCH_FLOOR_AT_COARSE.block },
     },
     // Base UI completes a panel with no animations immediately.
     instant: {

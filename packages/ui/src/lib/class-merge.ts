@@ -272,12 +272,18 @@ const LOGICAL_TWINS: readonly (readonly [physical: DefaultClassGroupIds, logical
 ];
 
 // Axis utilities that tailwind-merge already resolves over the physical sides, extended to the logical twins.
+// Tailwind emits every logical corner and side before the physical sides, so a logical class written after a physical
+// side it overlaps (`rounded-t-card` then `rounded-ss-none`) can win its corners only by evicting that side.
 const LOGICAL_AXIS_CONFLICTS: Partial<Record<DefaultClassGroupIds, readonly DefaultClassGroupIds[]>> = {
   size: ["inline-size", "block-size"],
   "rounded-t": ["rounded-ss", "rounded-se"],
   "rounded-b": ["rounded-es", "rounded-ee"],
-  "rounded-s": ["rounded-tl", "rounded-bl"],
-  "rounded-e": ["rounded-tr", "rounded-br"],
+  "rounded-s": ["rounded-tl", "rounded-bl", "rounded-t", "rounded-b"],
+  "rounded-e": ["rounded-tr", "rounded-br", "rounded-t", "rounded-b"],
+  "rounded-ss": ["rounded-t", "rounded-l"],
+  "rounded-se": ["rounded-t", "rounded-r"],
+  "rounded-es": ["rounded-b", "rounded-l"],
+  "rounded-ee": ["rounded-b", "rounded-r"],
 };
 
 function logicalConflicts(): Partial<Record<DefaultClassGroupIds, readonly DefaultClassGroupIds[]>> {

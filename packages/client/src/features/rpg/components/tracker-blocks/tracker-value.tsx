@@ -49,6 +49,8 @@ interface TrackerValueProps {
    *  no length contract, and a truncated datum hides the datum (the text IS the value). Numerics and
    *  host-named values keep the default single-line truncate (their width is layout-owned). @defaultValue false */
   readonly wrap?: boolean;
+  /** Tabular figures in every state (read-only, rest and edit), so a ticking count keeps its column. @defaultValue false */
+  readonly numeric?: boolean;
 }
 
 /** The REST state of an editable value — a real button CARRYING the datum text (see the header). Split out
@@ -63,6 +65,7 @@ function TrackerValueRest({
   size,
   tone,
   wrap,
+  numeric,
 }: {
   readonly ariaLabel: string;
   readonly className: string;
@@ -73,6 +76,7 @@ function TrackerValueRest({
   readonly size: ComponentProps<typeof Text>["size"];
   readonly tone: ComponentProps<typeof Text>["tone"];
   readonly wrap: boolean;
+  readonly numeric: boolean;
 }): ReactElement {
   const empty = display === "";
   const restText = empty ? (placeholder ?? UNSET_DATUM) : display;
@@ -91,7 +95,13 @@ function TrackerValueRest({
         // pixel-stable — no layout jump (the owner no-shift bar).
         className={`gap-0 border border-transparent px-field text-start ${className}`}
       >
-        <Text as="span" size={size} tone={empty ? "muted" : tone} className={wrap ? "wrap-break-word whitespace-normal min-inline-0" : "truncate"}>
+        <Text
+          as="span"
+          size={size}
+          tone={empty ? "muted" : tone}
+          numeric={numeric}
+          className={wrap ? "wrap-break-word whitespace-normal min-inline-0" : "truncate"}
+        >
           {restText}
         </Text>
       </Button>
@@ -115,6 +125,7 @@ export function TrackerValue({
   restClassName,
   editTitle = "Click to edit",
   wrap = false,
+  numeric = false,
 }: TrackerValueProps): ReactElement {
   const source = editValue ?? display;
   // ONE state, because the three fields are only ever meaningful together: the draft is seeded when the
@@ -126,7 +137,7 @@ export function TrackerValue({
 
   if (onEdit === undefined) {
     return (
-      <Text as="span" size={size} tone={tone} className={className}>
+      <Text as="span" size={size} tone={tone} numeric={numeric} className={className}>
         {display}
       </Text>
     );
@@ -146,6 +157,7 @@ export function TrackerValue({
         size={size}
         tone={tone}
         wrap={wrap}
+        numeric={numeric}
       />
     );
   }
@@ -176,6 +188,7 @@ export function TrackerValue({
         // only, never a height.
         layout="inline"
         width={width}
+        numeric={numeric}
         className={className ?? ""}
         data-slot="tracker-value-edit"
         // The CONFLICT surface. `data-conflict` carries the value that arrived (an automatable fact, and the

@@ -10,9 +10,22 @@ import { FOCUS_RING, tv } from "#lib";
 export const cardVariants = tv({
   base: "rounded-base border border-border bg-card p-block text-card-foreground in-data-[elevation=glow]:shadow-overlay",
   variants: {
+    // THE BOX SHAPE: a bordered, rounded, filled Row or Stack is a Card. `island` is grouped
+    // content inside a surface. `row` is one operable or listed row drawn as its own box (a pack item, a mini
+    // preview row): the control radius, because you operate it. `well` is a recess inside a box: no border, a muted
+    // fill, the control radius, so it reads as part of its host and not a second box (CD2). Declared before `tone`
+    // so a tone's fill wins over the well's. The radius is re-declared in tiers.css, where the tier rule outranks it.
+    shape: {
+      island: "",
+      row: "rounded-control",
+      well: "rounded-control border-0 bg-muted",
+    },
     tone: {
       neutral: "",
+      // Border only: a box that groups without lifting off its ground.
+      clear: "bg-transparent",
       background: "bg-background",
+      accent: "bg-accent text-accent-foreground",
       bubble: "border-0 bg-ai-bubble text-ai-bubble-foreground",
       muted: "bg-muted",
       warning: "border-warning bg-warning/10 text-warning",
@@ -66,5 +79,5 @@ export const cardVariants = tv({
       false: "",
     },
   },
-  defaultVariants: { elevated: false, interactive: false, nested: false, padding: "tier", tone: "neutral", outline: "solid", glow: "none" },
+  defaultVariants: { shape: "island", elevated: false, interactive: false, nested: false, padding: "tier", tone: "neutral", outline: "solid", glow: "none" },
 });

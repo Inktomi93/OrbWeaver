@@ -67,7 +67,7 @@ function ActionCell({ children }: { readonly children?: ReactElement | null }): 
     // `w-full` fills the section's third grid track, which is what the RESERVATION actually is: the track
     // is sized by the widest action in the section, so an empty cell still holds the column and no row's
     // geometry moves when a sibling's Reset appears. The reveal stays opacity-only (row-reveal.ts's law).
-    <Row className={cn(SETTING_ROW_REVEAL, HIDE_AT_COARSE, "w-full shrink-0 justify-end") ?? ""} data-slot="setting-row-actions">
+    <Row className={cn(SETTING_ROW_REVEAL, HIDE_AT_COARSE, "shrink-0 justify-end inline-full") ?? ""} data-slot="setting-row-actions">
       {children}
     </Row>
   );

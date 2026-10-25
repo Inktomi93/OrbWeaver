@@ -64,7 +64,7 @@ export function renderRowAvatar(args: {
   // exactOptionalPropertyTypes idiom: OMIT the prop rather than pass `undefined` (the `avatarSrcProp`
   // precedent one file over).
   const railClass = GUTTER_RAIL_CLASS[args.gutterRail];
-  const chipClass = cn(args.alignToInsideHeader ? "mt-row" : "", railClass) ?? "";
+  const chipClass = cn(args.alignToInsideHeader ? "mbs-row" : "", railClass) ?? "";
   // A bare skin (stock document) shows no identity art at all.
   if (args.avatarTreatment === "none") {
     return null;
@@ -139,7 +139,7 @@ function portraitSource(hash: string | null, owned: boolean): ((cssWidth: number
 
 // Ripple's portrait sticks to the top of its card as the row scrolls; wrapped, the button is the sticky flex item.
 function stickyPortrait(args: Parameters<typeof renderRowAvatar>[0], target: ViewTarget | null): ReactElement {
-  const weldRounding = args.mirrored ? "rounded-l-none rounded-r-card" : "rounded-l-card rounded-r-none";
+  const weldRounding = args.mirrored ? "rounded-s-none rounded-e-card" : "rounded-s-card rounded-e-none";
   const portrait = (
     <PortraitAvatar
       size={args.avatarSize}
@@ -150,8 +150,8 @@ function stickyPortrait(args: Parameters<typeof renderRowAvatar>[0], target: Vie
       hueSeed={args.attribution.hueSeed}
       className={
         cn(
-          target === null && "sticky top-0",
-          "h-auto w-(--immersive-ripple-portrait-width) @max-cq-28:w-(--immersive-ripple-portrait-width-phone)",
+          target === null && "sticky inset-bs-0",
+          "block-auto inline-(--immersive-ripple-portrait-width) @max-cq-28:inline-(--immersive-ripple-portrait-width-phone)",
           weldRounding,
         ) ?? ""
       }
@@ -161,5 +161,5 @@ function stickyPortrait(args: Parameters<typeof renderRowAvatar>[0], target: Vie
       <FallbackLetter className="absolute inset-0" initials={initialsFor(args.attribution.name ?? "")} />
     </PortraitAvatar>
   );
-  return viewable(target, cn("sticky top-0 shrink-0", weldRounding) ?? "", portrait);
+  return viewable(target, cn("sticky inset-bs-0 shrink-0", weldRounding) ?? "", portrait);
 }

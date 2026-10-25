@@ -214,9 +214,11 @@ function FaceButton({ item, selected, verb, caption, squeezed, selectMode, onSel
       {...(selectMode === "toggle" ? { "aria-pressed": selected } : { "aria-current": selected ? ("true" as const) : undefined })}
       aria-label={`${verb} ${item.name}`}
       // The squeezed face takes the tile's slot, which is the control-token box by construction — so it
-      // always fits where the tile fit, and only its caption pays for it (its `max-w` clamps the captioned
+      // always fits where the tile fit, and only its caption pays for it (its `max-inline` clamps the captioned
       // cell width below, which is why the two can be spelled together).
-      className={cn("min-h-(--size-control-md) min-w-(--size-control-md) shrink-0", cellWidthClass(caption), squeezed && "max-w-(--size-control-md)") ?? ""}
+      className={
+        cn("shrink-0 min-block-(--size-control-md) min-inline-(--size-control-md)", cellWidthClass(caption), squeezed && "max-inline-(--size-control-md)") ?? ""
+      }
       data-face-key={faceKey(item)}
       data-face-squeezed={squeezed ? "" : undefined}
       intent="ghost"
