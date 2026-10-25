@@ -155,7 +155,9 @@ export function SectionRow({ form, section, index, zone, selected, onSelect, onD
           <Text
             aria-hidden={true}
             as="span"
-            className={`shrink-0 text-end font-mono tabular-nums inline-(--width-number-inline) ${section.enabled ? "" : "line-through"}`}
+            className="shrink-0 text-end font-mono inline-(--width-number-inline)"
+            numeric={true}
+            strike={!section.enabled}
             voice="gloss"
           >
             {tokens}
@@ -177,7 +179,6 @@ export function SectionRow({ form, section, index, zone, selected, onSelect, onD
           </Button>
         </Row>
       }
-      className={section.enabled ? "" : "opacity-60"}
       clickable={true}
       // A LITERAL ROW HAS NO DISC (side-eye 2026-08-22 P3-6). F-17's fix below made the glyph PER-MARKER so
       // the column would carry information — and it does, for markers. A literal has no marker, so it fell
@@ -207,6 +208,7 @@ export function SectionRow({ form, section, index, zone, selected, onSelect, onD
           })}
       markers={<SectionCues section={section} />}
       onClick={(): void => onSelect(section.id)}
+      receded={!section.enabled}
       selected={selected}
       // THE EXPLAINER RIDES THE HOVER, NOT THE LINE (crunch-list O-7★, owner ruling: the inline "your core
       // system instruction" descriptions are lame — this OVERRIDES the mock's inline-desc drawing). It

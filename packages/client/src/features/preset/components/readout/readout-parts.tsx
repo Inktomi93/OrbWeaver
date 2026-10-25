@@ -176,8 +176,8 @@ function EffectiveProfileFailure({ error, onRetry }: { readonly error: unknown; 
   const message = resolveFailureMessage(error);
   return (
     <Card tone="warning">
-      <Row align="start" className="text-warning" gap="field" role="alert">
-        <Icon icon={AlertTriangle} size="sm" />
+      <Row align="start" gap="field" role="alert">
+        <Icon icon={AlertTriangle} size="sm" tone="warning" />
         <Stack gap="tight">
           <Text prose={true} voice="label">
             {copy.headline}

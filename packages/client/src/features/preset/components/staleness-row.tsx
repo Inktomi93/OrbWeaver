@@ -83,8 +83,8 @@ export function StalenessRow({ form, stale, spelling }: StalenessRowProps): Reac
     // step is D6-reserved) and the warning signal carried by the band + the glyph rather than by a `tone`
     // prop on Text (the four-voice grammar owns type color, §2).
     <Card tone="warning">
-      <Row align="center" className="text-warning" gap="field">
-        <Icon icon={AlertTriangle} size="sm" />
+      <Row align="center" gap="field">
+        <Icon icon={AlertTriangle} size="sm" tone="warning" />
         <Text voice="label">
           Set but not honored by this model: {stale.map((entry) => `${staleWireName(entry.knob, spelling)} ${String(entry.value)}`).join(" · ")}
         </Text>

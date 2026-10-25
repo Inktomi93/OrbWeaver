@@ -75,14 +75,14 @@ function stageStatus(stage: RegexPipelineStage): string {
   return stage.matchCount === ONE_MATCH ? "1 match" : `${String(stage.matchCount)} matches`;
 }
 
-/** The status line's ink — a failed compile is destructive, a skip is a warning, and a stage that simply ran
+/** The status line's tone — a failed compile is destructive, a skip is a warning, and a stage that simply ran
  *  keeps the gloss. Colour is load-bearing here: both non-default arms CONTRADICT the run, and a grey
  *  "Skipped" reads as a caption. */
-function statusInk(stage: RegexPipelineStage): string | undefined {
+function statusTone(stage: RegexPipelineStage): "destructive" | "warning" | "default" {
   if (stage.error !== null) {
-    return "text-destructive";
+    return "destructive";
   }
-  return stage.skipped === null ? undefined : "text-warning";
+  return stage.skipped === null ? "default" : "warning";
 }
 
 export interface RegexPipelinePanelProps {
@@ -182,7 +182,7 @@ function PipelineStageRow({ stage, index }: { readonly stage: RegexPipelineStage
       }
     >
       <Stack gap="tight">
-        <Text className={statusInk(stage)} voice="gloss">
+        <Text tone={statusTone(stage)} voice="gloss">
           {stageStatus(stage)}
         </Text>
         {changed ? (
