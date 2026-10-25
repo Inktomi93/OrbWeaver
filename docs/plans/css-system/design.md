@@ -397,6 +397,7 @@ Preflight already sets `-webkit-text-size-adjust: 100%`, the border and box-sizi
 | `contrast-color()` | note, defer | the theme engine derives contrast; revisit when a theme needs a computed ink | Baseline low (Chrome 147, Firefox 146, Safari 26) |
 | anchor positioning | reject | Base UI and floating-ui own positioning | not Baseline |
 | Custom Highlight API | reject | no transcript search-highlight surface exists | Safari supports it (webkit.org/blog/17818) |
+| `@scope` with a lower boundary | reject | would stop shell rules at component roots, but Firefox ships it in 146 against the Firefox 138 floor; `orb/shell-paint-law` binds the shell selectors by lint instead | Baseline low (Chrome 118, Firefox 146, Safari 26.4 for the at-rule; web-features `scope`) |
 
 ### Compositor rules
 
@@ -465,7 +466,7 @@ Each adopted property either has a Safari 18 fallback or degrades harmlessly (su
 | `overflow-block`, `overflow-inline` | not supported (26) | the sheets spell the axes `overflow-y` and `overflow-x` (the shell-short rule, the panel body, the code block), and stylelint ignores those two properties in the logical-property rule |
 | `forced-color-adjust` | not in the dataset | an unsupported declaration only drops the tab indicator's Highlight fill under forced colors |
 
-Existing sites the floor puts at risk, not changed by this leg: `field-sizing: content` on the `Textarea` primitive (the composer's autosize, Safari 26.2) and on the topbar rename field, so on Safari 18 the composer textarea keeps its `rows` height and scrolls (a `@orb/ui` primitive, the primitives lane's); `scrollbar-color` and `content-visibility` degrade to default scrollbars and no off-screen skipping.
+`field-sizing: content` (Safari 26.2, Firefox 152): the `Textarea` primitive measures and sizes the box in script where `CSS.supports("field-sizing", "content")` is false (`use-field-sizing-fallback.ts`), within the same min and max rows. The topbar rename field declares the property, but its inline size is `100%`, so the property never sized it and it needs no fallback. Existing sites the floor puts at risk, not changed by this leg: `scrollbar-color` and `content-visibility` degrade to default scrollbars and no off-screen skipping.
 
 ## Ramps
 

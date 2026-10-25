@@ -23,4 +23,7 @@ The Textarea primitive keeps `field-sizing: content` where `CSS.supports("field-
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+- `packages/ui/src/primitives/textarea/use-field-sizing-fallback.ts` holds the script arm; `textarea.tsx` puts its ref on the field. Where `CSS.supports("field-sizing", "content")` is true the hook does nothing. Otherwise it sizes the box at mount (in the commit, before paint), on input, on each commit and on a width change. The size is set as `height`, so `min-height` and `max-height` (the `rows` and `maxRows` styles) clamp it; a caller that fixes the height keeps it. Callers do not change.
+- `tests/ui/primitives/textarea/textarea-autosize.ct.tsx` forces the unsupported arm (`CSS.supports` answers false and the native property is switched off) and compares the box with a clone sized by the native property, at mount and for empty, four-line and twelve-line text. With the script arm disabled it fails 23px short at mount; with it, it passes.
+- The topbar rename field is not changed. Measured on the real shell (`app-shell-topbar.ct.tsx` room rename): `field-sizing` computes to `content`, but the input's authored inline size is `100%`, so the property never sized it (173px, the group's width). Its behaviour on Safari 18 already equals the supported one. `chrome.css` still carries the no-op declaration; removing it is a separate cleanup.
+- Ran: `textarea-autosize`, `platform-room.suite`, `app-shell-notices` and `app-shell-responsive` CTs (24 pass); eslint and biome on the touched files; typecheck of `packages/ui`, `tsconfig.tests-dom.json` and `tsconfig.json` (only the 17 errors already present in `app-shell-ct.ts`); `knip:prod` and `depcruise` clean.

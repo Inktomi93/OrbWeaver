@@ -40,7 +40,7 @@
 // All are static (no transition) ⇒ reduced-motion-safe.
 
 // Reading backing (side-eye live P1, 2026-07-09): flat/hush/document carry NO bubble fill, AND the shell
-// strips their float halo (they stamp `data-slot="message-bubble"`, which shell.css targets to kill the
+// strips their float halo (they stamp `data-slot="message-bubble"`, which the client globals target to kill the
 // text-shadow "bubbles carry their own fill" — but these three don't), so their body text landed DIRECTLY
 // on the photo → 2.0–2.4:1 on bright (sky) patches, the house §0 reading-surface #1 defect. Back the text
 // with the derived `--color-reading-plate` + `backdrop-blur-sm` (blur collapses the bright peaks a flat
