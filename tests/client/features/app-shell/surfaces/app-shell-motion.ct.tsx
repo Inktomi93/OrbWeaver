@@ -97,31 +97,15 @@ const FLANK_ROUTES = {
 /** Serve the shell, its sections and a room, with the corpus viewer's settings under `appearance`, and with
  *  `flank` the fixture plugin's flank panel. */
 async function routeMotion(page: Page, corpus: CorpusWire, appearance: Partial<AppearanceSettings> = {}, flank = false): Promise<void> {
-  const [captured] = corpus.reads["settings.getUserSettings"];
-  if (captured === undefined) {
-    throw new Error("The corpus has no settings capture");
-  }
-  let settings = {
-    ...captured.output,
-    config: { ...captured.output.config, appearance: { ...captured.output.config.appearance, ...MOTION_BASE, ...appearance } },
-  };
-  const served = [...SECTION_PROCEDURES, ...ROOM_PROCEDURES].filter((path) => path !== "settings.getUserSettings");
+  const caller = await root.internalCallerFor(root.ownerId);
+  // The settings verbs run on the shared root, so each case writes its own appearance, and the flank column starts
+  // open whatever an earlier case's door left.
+  await caller.settings.updateUserSettingsSection({ section: "appearance", patch: { ...MOTION_BASE, ...appearance } });
+  await caller.settings.updateUserSettingsSection({ section: "profile", patch: { flankCollapsed: false } });
   await routeTrpc(page, {
     ...createShellAmbientReads(corpus),
-    ...serveCorpusProcedures(await root.internalCallerFor(root.ownerId), served),
-    "settings.getUserSettings": () => settings,
-    ...(flank
-      ? {
-          ...FLANK_ROUTES,
-          // The flank door writes its collapse to the profile; the read after it answers with the write.
-          "settings.updateUserSettingsSection": (input) => {
-            if (input.section === "profile") {
-              settings = { ...settings, config: { ...settings.config, profile: { ...settings.config.profile, ...input.patch } } };
-            }
-            return settings;
-          },
-        }
-      : {}),
+    ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...ROOM_PROCEDURES, "settings.updateUserSettingsSection"]),
+    ...(flank ? FLANK_ROUTES : {}),
   });
 }
 
@@ -879,6 +863,26 @@ test.describe("on a phone", () => {
     const xs = (await readSamples(page)).map((frame) => frame["listPanel"] ?? Number.NaN);
     expect(xs.length).toBeGreaterThan(2);
     expect(xs.filter((x) => !(x >= -width - HOLD_SLACK && x <= HOLD_SLACK))).toStrictEqual([]);
+    // The stamp is gone before any style reads it, so each arm is stamped here and read on the list band's action, the
+    // one box a desktop door moves inside the list pane: on a phone no arm may move it.
+    const arms = await page.locator(DOOR_BOXES.listAction).evaluate((action) => {
+      const grid = document.querySelector(".shell-grid");
+      if (grid === null) {
+        throw new Error("The shell grid is absent");
+      }
+      return [
+        ["data-list-flip", "in"],
+        ["data-context-flip", "in"],
+        ["data-list-settle", "in"],
+      ].map(([name = "", value = ""]) => {
+        grid.setAttribute(name, value);
+        const style = getComputedStyle(action);
+        const read = `${name}: ${style.animationName} / ${style.translate}`;
+        grid.removeAttribute(name);
+        return read;
+      });
+    });
+    expect(arms).toStrictEqual(["data-list-flip: none / none", "data-context-flip: none / none", "data-list-settle: none / none"]);
   });
 });
 

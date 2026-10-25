@@ -392,7 +392,7 @@ export type RpgCopyPresetToUser = (args: { readonly fromOwnerId: UserId; readonl
  *  table: this is chat's own resolution (the picks pane reads the SAME op), wired at compose. */
 type RpgResolvePresetUserMacros = (chatId: ChatId) => Promise<readonly UserMacroSpec[]>;
 
-/** The honest-arms capability verdict (§4.6 — the delivery-model amendment; extended by the D112 fold guard).
+/** The honest-arms capability verdict (extended by the D112 fold guard).
  *  ONE resolve of the host connection, TWO verdicts — the connection resolve is the expensive part (credential +
  *  routing + catalog), so a per-turn caller that needs both must never pay for it twice. Its VALUE is
  *  INTEGRATION-supplied (W1c wires the real connection resolve); a fake returns fixed booleans in tests. */
@@ -427,7 +427,7 @@ interface RpgStateDeliveryVerdict {
   readonly structuredUnavailable: boolean;
 }
 
-/** The STRUCTURED-OUTPUT extraction op (§4.6 / the delivery-model amendment). It reads the committed beat + the
+/** The STRUCTURED-OUTPUT extraction op. It reads the committed beat + the
  *  resolved base state and emits the whole state delta in ONE object. It is no longer a delivery MODE of its own
  *  (the `reliable` knob was deleted — owner ruling): it survives as the vehicle two capability-keyed
  *  paths still need — the agent-sdk degrade INSIDE `runToolRound` (that wire carries no `tools[]`) and the host

@@ -7,7 +7,7 @@
 // vehicle, scrubs it for the endpoint and hands back a reply already normalized (a null the reshape introduced is
 // dropped; this contract has no nullable field, so every null the parse sees is a model error).
 //
-// THE SHARED-PLANE PROOF (the amendment's "the 7 plane shapes authored ONCE, exposed two ways"): this schema
+// THE SHARED-PLANE PROOF (the 7 plane shapes authored ONCE, exposed two ways): this schema
 // is DERIVED from the SAME per-tool arg schemas the cheap-mode D48 tools use (`./tools`) — it does NOT re-spell
 // the plane shapes. Each field is an ARRAY of the corresponding tool's args (a structured extraction emits many
 // actor/quest/journal writes in one object where cheap-mode fires one tool call each). It is therefore
