@@ -1,6 +1,6 @@
-// The client's polyfill entry: main.tsx imports it first, and the build gives it a chunk of its own (vite.config.ts).
-// The sync shims install before the first await, so no other module has run when they land. Temporal loads asynchronously and only where
-// missing, which is why `orb/browser-support` refuses a module-top-level use of any `POLYFILLED_BUILTINS` member: siblings do not wait for it.
+// The client's polyfill entry: src/entry.ts imports it, awaits it, and only then loads the app graph (main.tsx), so no app module
+// evaluates before these installs finish and `orb/browser-support` trusts `POLYFILLED_BUILTINS` everywhere. Keep this module's own
+// imports to the shims. Temporal loads asynchronously and only where missing; the sync shims land in this module's first turn.
 import { POLYFILLED_BUILTINS } from "../../browser-targets.ts";
 import { isError, regExpEscape } from "./platform-shims.ts";
 
@@ -28,6 +28,6 @@ const POLYFILLS = {
   },
 } satisfies Record<Polyfilled, { present: () => boolean; install: () => Promise<void> }>;
 
-// Every install starts before any await, and the shims define their builtin as `Promise.resolve` evaluates it, so they land in this module's first turn.
+// Every install starts before any await, and each shim defines its builtin as `Promise.resolve` evaluates it.
 const pending = POLYFILLED_BUILTINS.filter((name) => !POLYFILLS[name].present()).map((name) => POLYFILLS[name].install());
 await Promise.all(pending);

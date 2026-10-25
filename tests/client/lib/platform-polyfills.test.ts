@@ -26,6 +26,18 @@ test("isError agrees with the builtin on real errors, foreign-realm errors and l
     Object.create(Error.prototype),
     spoof,
     Object.assign(new Error("x"), { [Symbol.toStringTag]: "Renamed" }),
+    Object.assign(new Error("x"), { cause: () => 1, [Symbol.toStringTag]: "Renamed" }),
+    Object.assign(new Error("x"), { cause: Symbol("why"), [Symbol.toStringTag]: "Renamed" }),
+    Object.defineProperty(new Error("x"), "message", {
+      get: (): string => {
+        throw new Error("boom");
+      },
+    }),
+    Object.defineProperty(Object.assign(new Error("x"), { [Symbol.toStringTag]: "Renamed" }), "message", {
+      get: (): string => {
+        throw new Error("boom");
+      },
+    }),
     Object.assign(Object.create(null) as object, { [Symbol.toStringTag]: "DOMException" }),
     structuredClone(new DOMException("x")),
     { message: "x" },

@@ -47,12 +47,17 @@ export function regExpEscape(value: string): string {
 const ERROR_TAGS = new Set(["[object Error]", "[object DOMException]"]);
 const tagOf = (value: unknown): string => Object.prototype.toString.call(value);
 
+// The clone throws for what it cannot carry (a function or symbol `cause`, a `message` getter that throws), on a real error as well.
+// Only then is the engine's `stack` the remaining sign of the slot, so a look-alike that also fakes `stack` and cannot be cloned reads as an error.
+// Reading `stack` would run a throwing `message` getter, so only its presence counts.
+const carriesStack = (value: object): boolean => "stack" in value;
+
 // A structured clone of a value with an [[ErrorData]] slot is a fresh error with no own tag; a look-alike clones to a plain object.
 function clonesToError(value: object): boolean {
   try {
     return ERROR_TAGS.has(tagOf(structuredClone(value)));
   } catch {
-    return false;
+    return carriesStack(value);
   }
 }
 

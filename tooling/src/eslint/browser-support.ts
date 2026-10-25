@@ -11,7 +11,6 @@ const NAME = /^[A-Za-z][A-Za-z0-9]*$/u;
 const API = "api.";
 const JS_BUILTINS = "javascript.builtins.";
 const GLOBAL_ROOTS = new Set(["window", "globalThis", "self"]);
-const FUNCTIONS = new Set<string>(["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"]);
 // lib.d.ts spells a static side `XConstructor` and a few instance sides under another name than the compat data does.
 const LIB_ALIASES: Readonly<Record<string, string>> = { IteratorObject: "Iterator", ReadonlyArray: "Array", ReadonlyMap: "Map", ReadonlySet: "Set" };
 const EXITS = new Set<string>(["ReturnStatement", "ThrowStatement", "ContinueStatement", "BreakStatement"]);
@@ -122,19 +121,6 @@ function isGuarded(sourceCode: Source, site: TSESTree.Node, pattern: RegExp): bo
   return false;
 }
 
-/** True when `node` runs as its module evaluates: not inside a function (an immediately invoked one still runs) or an instance field initializer. */
-function evaluatesAtLoad(node: TSESTree.Node): boolean {
-  let child: TSESTree.Node = node;
-  for (let parent = node.parent; parent; child = parent, parent = parent.parent) {
-    const invokedNow = parent.type === "CallExpression" && parent.callee === child;
-    const deferred = FUNCTIONS.has(child.type) ? !invokedNow : parent.type === "PropertyDefinition" && !parent.static && parent.value === child;
-    if (deferred) {
-      return false;
-    }
-  }
-  return true;
-}
-
 const regexpSource = (text: string): string => RegExp.escape(text);
 
 /** The text of a `const` string initializer (`as const`, parentheses, `satisfies` and template pieces looked through), or `undefined`. */
@@ -198,9 +184,10 @@ function ownerOfMember(context: OrbRuleContext, node: TSESTree.MemberExpression)
  * `el.m` or `el?.m` for the SAME receiver text (member), or the bare global name (global). `CSS.supports` guards nothing here:
  * it tests a style, not a script API. Polarity is not checked, so keep the guard honest.
  *
- * A builtin in `polyfilled` (the client's polyfill entry installs it) is judged by when it runs. Inside a function it passes,
- * because main.tsx awaits the entry before it renders. At module top level it is refused: siblings evaluate before the
- * entry's async install finishes, and the sync shims only land once the entry's own chunk has run.
+ * A builtin the client's polyfill entry installs (`POLYFILLED_BUILTINS`, dropped from `unsupported` by `withoutPolyfilled`) is
+ * trusted everywhere, at module top level and inside callbacks alike. The page's one script, src/entry.ts, awaits those installs and
+ * only then dynamically imports the app graph, so no app module can evaluate before them; the e2e `polyfill-floor.spec.ts` runs
+ * the built bundle with the builtins deleted and is the proof, not this rule.
  *
  * The Tailwind classes in `className`, `class` and class helpers are compiled and their declarations judged by the Stylelint
  * rule's key check: a property in `harmless` passes, and a class whose CSS sits under `@supports` is guarded.
@@ -210,12 +197,9 @@ export interface BrowserSupportOptions {
   /** Property → why a browser ignoring it changes no layout or behavior. */
   readonly harmless: Readonly<Record<string, string>>;
   readonly candidatesToCss: CandidatesToCss;
-  /** Builtins the polyfill entry installs (`POLYFILLED_BUILTINS`): `Temporal`, `RegExp.escape`. */
-  readonly polyfilled: readonly string[];
 }
 
-export const browserSupportRule = ({ unsupported, harmless, candidatesToCss, polyfilled }: BrowserSupportOptions): OrbRule => {
-  const installed = new Set(polyfilled);
+export const browserSupportRule = ({ unsupported, harmless, candidatesToCss }: BrowserSupportOptions): OrbRule => {
   const index = indexUnsupported(unsupported);
   const cssIndex = indexCss(unsupported, harmless);
   return {
@@ -228,22 +212,10 @@ export const browserSupportRule = ({ unsupported, harmless, candidatesToCss, pol
           message: `${what} is missing in ${lacking.join(", ")}, which are in the declared browser floor (packages/client/browser-targets.ts); guard it ("x" in el, typeof X) or drop it.`,
         });
       };
-      // A polyfilled builtin is safe inside a function and refused where the module evaluates it.
-      const refuseEager = (node: TSESTree.Node, what: string): void => {
-        context.report({
-          node,
-          message: `${what} runs at module evaluation, before the polyfill entry has installed it (packages/client/src/lib/platform-polyfills.ts); call it inside a function.`,
-        });
-      };
-      // One verdict for a missing thing: a guard passes it; a polyfilled one is refused only where the module evaluates it.
+      // One verdict for a missing thing: a guard on it passes.
       const judge = (site: TSESTree.Node, key: string, lacking: Lacking, guard: RegExp): void => {
-        if (isGuarded(sourceCode, site, guard)) {
-          return;
-        }
-        if (!installed.has(key)) {
+        if (!isGuarded(sourceCode, site, guard)) {
           refuse(site, `\`${key}\``, lacking);
-        } else if (evaluatesAtLoad(site)) {
-          refuseEager(site, `\`${key}\``);
         }
       };
       const checkGlobal = (name: string, use: Use, site: TSESTree.Node): void => {

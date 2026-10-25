@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
-import { unsupportedAtFloor } from "@orb/tooling/browser-support";
+import { unsupportedAtFloor, withoutPolyfilled } from "@orb/tooling/browser-support";
 import { authorClassIgnores, baseUiDoors, classClassifier, createOrbPlugin } from "@orb/tooling/eslint";
 import { BUTTON_SIZE_OVERFLOW } from "@orb/ui/button/size-hit-area";
 import { TOKENS } from "@orb/ui/tokens";
@@ -748,8 +748,7 @@ const localPlugin = createOrbPlugin({
   ),
   shellClasses: new Set(OWNER_CSS_SHELL_CLASSES),
   appearanceVocabulary: appearanceChannelVocabulary(),
-  browserUnsupported: unsupportedAtFloor(BROWSER_TARGETS),
-  browserPolyfilled: POLYFILLED_BUILTINS,
+  browserUnsupported: withoutPolyfilled(unsupportedAtFloor(BROWSER_TARGETS), POLYFILLED_BUILTINS),
   browserHarmless: HARMLESS_WHEN_UNSUPPORTED,
   candidatesToCss: (classes) => designSystem.candidatesToCss(classes),
   customProperties: customPropertyUses(ROOT),

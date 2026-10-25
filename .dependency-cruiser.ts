@@ -875,8 +875,9 @@ const CLIENT_BOUNDARIES = [
   },
   {
     name: "client-nothing-imports-main",
+    comment: "Only the page's entry script (entry.ts, which loads main.tsx after the polyfills) imports the composition root.",
     severity: "error",
-    from: { path: CLIENT, pathNot: `${CLIENT}main\\.tsx$` },
+    from: { path: CLIENT, pathNot: `${CLIENT}(main\\.tsx|entry\\.ts)$` },
     to: { path: `${CLIENT}main\\.tsx$` },
   },
   {

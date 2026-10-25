@@ -4,7 +4,7 @@
 // Raise a floor here only.
 export const BROWSER_TARGETS = ["chrome136", "edge136", "firefox138", "safari18", "ios18"] as const;
 
-// Builtins `src/lib/platform-polyfills.ts` installs before any other client module runs, so the compat lint
+// Builtins `src/lib/platform-polyfills.ts` installs before `src/entry.ts` loads the app graph, so the compat lint
 // treats them as supported. A name here without an installer there fails to typecheck.
 export const POLYFILLED_BUILTINS = ["Temporal", "RegExp.escape", "Error.isError"] as const;
 

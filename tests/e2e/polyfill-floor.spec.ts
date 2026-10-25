@@ -6,7 +6,7 @@ import { openOrCreateChat, waitForAppReady } from "./support/chat-room.ts";
 import { WAIT_SETTLE_MS } from "./support/timeouts.ts";
 
 // WebKit reports the `interactive-widget` viewport key as a console error; it is the engine's, not a script failure.
-const ENGINE_NOTICE = "Viewport argument key ";
+const ENGINE_NOTICE = 'Viewport argument key "interactive-widget"';
 // Runs before any page script, like a browser that never shipped them.
 const STRIP = POLYFILLED_BUILTINS.map((name) => `delete globalThis.${name};`).join(" ");
 

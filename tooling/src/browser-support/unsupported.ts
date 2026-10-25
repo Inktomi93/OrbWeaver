@@ -74,3 +74,9 @@ export function unsupportedAtFloor(targets: readonly string[]): ReadonlyMap<stri
   }
   return unsupported;
 }
+
+/** `unsupported` without the builtins a polyfill installs (`Temporal`, `RegExp.escape`) and everything beneath them. */
+export function withoutPolyfilled(unsupported: ReadonlyMap<string, readonly string[]>, polyfilled: readonly string[]): ReadonlyMap<string, readonly string[]> {
+  const installed = polyfilled.map((name) => `javascript.builtins.${name}`);
+  return new Map([...unsupported].filter(([key]) => !installed.some((prefix) => key === prefix || key.startsWith(`${prefix}.`))));
+}
