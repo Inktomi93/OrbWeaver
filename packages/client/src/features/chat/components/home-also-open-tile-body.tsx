@@ -54,7 +54,7 @@ export function HomeAlsoOpenTileBody(): ReactElement {
         // the rule is what makes each one a thing you can land on. It rides the row WRAPPER rather than a
         // `<Separator>` between rows, so a row's own hover tint paints inside its cell instead of the
         // separator floating in the gap — and the first row keeps the band's rule above it as its edge.
-        <Row className={index === 0 ? "" : "border-bs border-border pbs-tight"} key={chat.id} role="listitem">
+        <Row className={index === 0 ? undefined : "pbs-tight"} divider={index === 0 ? undefined : "top"} key={chat.id} role="listitem">
           <ChatSummaryRow
             chat={chat}
             onSelect={openRecent}

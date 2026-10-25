@@ -49,6 +49,7 @@ test.for([
     "`text-primary`, `text-muted-foreground`",
   ],
   ["paint under a variant", element('className="hover:bg-accent"'), "`hover:bg-accent`"],
+  ["paint declared after the custom property it composes through", element('className="outline-none"'), "`outline-none`"],
   ["a pseudo-element paint trick", element(`className="relative before:absolute before:content-['']"`), "`before:content-['']`"],
   ["paint spelled in a local constant", `const ROW = "flex border-border";\n${element("className={ROW}")}`, "`border-border`"],
   ["a type token on a member element", 'export const T = (<Dialog.Title className="tracking-micro" />);\n', "`tracking-micro`"],
@@ -62,10 +63,12 @@ test.for([
   ["layout tokens", element('className="flex min-inline-0 shrink-0 gap-row"')],
   ["truncation and line clamping", element('className="truncate line-clamp-2"')],
   ["the screen-reader utility", element('className="sr-only"')],
+  ["the screen-reader utility under a variant (a skip link)", element('className="not-focus-visible:sr-only focus-visible:absolute"')],
   ["a viewport variant on a layout token", element('className="hidden md:flex"')],
   ["a conditional layout token inside cn", element('className={cn("flex", open && "hidden")}')],
   ["a layout token in a local constant", `const ROW = "flex gap-row";\n${element("className={ROW}")}`],
   ["a class the compiler does not know", element('className="shell-grid"')],
+  ["containment, whose custom-property registrations are not declarations", element('className="contain-inline-size"')],
   ["a raw element, which the intrinsic rule owns", 'export const T = (<div className="text-primary" />);\n'],
 ] as const)("the layout rule passes %s", async ([, source]) => {
   expect(await findings(LAYOUT_RULE, source)).toEqual([]);

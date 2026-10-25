@@ -40,7 +40,7 @@ function ReferenceEntry({ entry }: { readonly entry: ReferenceCount }): ReactEle
   return (
     <Stack gap="tight">
       <Row align="baseline" gap="row" justify="between">
-        <Text voice="datum">{`{{${entry.name}}}`}</Text>
+        <Text voice="code">{`{{${entry.name}}}`}</Text>
         {count === 0 ? (
           <Badge intent="warning" size="sm">
             0 refs

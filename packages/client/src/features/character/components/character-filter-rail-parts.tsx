@@ -9,14 +9,13 @@ import type { LucideIcon } from "@orb/ui/icons";
 import { Check, Icon, Minus } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row } from "@orb/ui/layout";
-import { RECEDED_INK } from "@orb/ui/lib";
 import { ScrollArea } from "@orb/ui/scroll-area";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
-import { EditableTagChip, SHOW_ONLY_AT_COARSE } from "#components";
+import { EditableTagChip } from "#components";
 import type { TagFilterEntry, TagFilterState } from "#lib";
-import { cn, tagFilterStateOf } from "#lib";
+import { tagFilterStateOf } from "#lib";
 import { useRovingChipFocus } from "../hooks/use-roving-chip-focus.ts";
 
 import type { LibraryChipTag } from "../lib/character-library-lens.ts";
@@ -57,13 +56,13 @@ interface TagChipPresentation {
    *  the receding ink for the vocabulary it holds. Only the `off` arm carries it: an ON/NEGATED chip is
    *  wearing the selection layer's own fill-and-ink pairing, and a call-site ink would
    *  win the merge and erase exactly the muted-vs-selected reading {@link TagFilterChip} depends on. */
-  readonly restingInk: string | undefined;
+  readonly restingTone: "muted" | "default";
 }
 
 const TAG_CHIP_PRESENTATION: Record<TagFilterState, TagChipPresentation> = {
-  off: { announced: "off", next: "activate to include", selection: "none", icon: null, restingInk: RECEDED_INK },
-  include: { announced: "included", next: "activate to exclude", selection: "on", icon: Check, restingInk: undefined },
-  exclude: { announced: "excluded", next: "activate to clear", selection: "negated", icon: Minus, restingInk: undefined },
+  off: { announced: "off", next: "activate to include", selection: "none", icon: null, restingTone: "muted" },
+  include: { announced: "included", next: "activate to exclude", selection: "on", icon: Check, restingTone: "default" },
+  exclude: { announced: "excluded", next: "activate to clear", selection: "negated", icon: Minus, restingTone: "default" },
 };
 
 /** THE BOUNDED EXPANSION. Four properties, each answering one symptom:
@@ -199,7 +198,7 @@ export function TagFilterChip({
     // Fine pointers keep right-click and F2 and the rail's resting width.
     <Row className="max-inline-full min-inline-0" gap="tight">
       <TagFilterChipButton onCycle={onCycle} presentation={presentation} state={state} tabIndex={tabIndex} tag={tag} />
-      <Text as="span" className={SHOW_ONLY_AT_COARSE}>
+      <Text as="span" hiddenAt="fine">
         <EditableTagChip iconOnly={true} tag={tag} />
       </Text>
     </Row>
@@ -236,15 +235,14 @@ function TagFilterChipButton({
             edit();
           }}
           aria-label={`Filter by ${tag.name}: ${presentation.announced} — ${presentation.next}`}
-          // `?? ""` because `cn`'s type admits `undefined` (clsx's) while `ButtonProps.className` does not under
-          // `exactOptionalPropertyTypes` — the same idiom message-row-variants.ts homes as its `cx`.
-          className={cn("max-inline-full min-inline-0", presentation.restingInk) ?? ""}
+          className="max-inline-full min-inline-0"
           data-tag-filter-state={state}
           intent="outline"
           onClick={(): void => onCycle(tag.id)}
           selection={presentation.selection}
           shape="pill"
           size="chip"
+          tone={presentation.restingTone}
           {...(tabIndex === undefined ? {} : { tabIndex })}
           type="button"
         >
@@ -305,12 +303,13 @@ export function RailAction({
       aria-controls={controls}
       aria-expanded={expanded}
       aria-label={accessibleName}
-      // The receding ink is the RAIL's to state, not `ghost`'s — see {@link TagChipPresentation.restingInk}
+      // The receding ink is the RAIL's to state, not `ghost`'s — see {@link TagChipPresentation.restingTone}
       // for the two rulings this reconciles. This affordance has no selected arm, so it carries it flat.
-      className={`${RECEDED_INK} underline decoration-dotted`}
       intent="ghost"
+      underline="dotted"
       onClick={onClick}
       size="chip"
+      tone="muted"
       type="button"
     >
       {label}

@@ -45,10 +45,8 @@ export function DisclosureSection({ sectionId, kicker, defaultOpen, keepMounted 
           </CollapsibleTrigger>
         }
       >
-        {/* `text-foreground` restores what the pane's body inherited before this wrapper existed — the
-            primitive's panel is spelled for a disclosure holding running PROSE (`text-muted-foreground`),
-            and a section body is controls. */}
-        <CollapsiblePanel className="text-foreground" keepMounted={keepMounted}>
+        {/* A section body is controls, not the running prose a panel paints muted by default. */}
+        <CollapsiblePanel holds="controls" keepMounted={keepMounted}>
           {children}
         </CollapsiblePanel>
       </Section>

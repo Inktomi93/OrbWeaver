@@ -5,6 +5,7 @@
 
 import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
+import { Card } from "@orb/ui/card";
 import { FieldLayout } from "@orb/ui/field";
 import { ChevronLeft, Icon } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
@@ -43,10 +44,6 @@ export interface CharacterFacetEditorProps {
   /** The read-only provenance tail (import/refinery) — rendered under the Provenance facet's form fields. */
   readonly readOnly: CharacterProvenanceSectionProps;
   readonly onBack: () => void;
-}
-
-function spoilerClass(blur: boolean): string | undefined {
-  return blur ? "select-none blur-md" : undefined;
 }
 
 export function CharacterFacetEditor({ form, characterId, facetId, trusted, allowExternalMedia, readOnly, onBack }: CharacterFacetEditorProps): ReactElement {
@@ -204,7 +201,7 @@ function SpoilerMacroField({
   readonly suggestions: readonly MacroSuggestion[];
 }): ReactElement {
   return (
-    <Stack gap="field" data-slot="character-spoiler-field" className={spoilerClass(spoilerBlur)}>
+    <Stack gap="field" data-slot="character-spoiler-field" spoiler={spoilerBlur}>
       <form.AppField name={name}>{(field): ReactElement => <field.MacroField label={label} hint={hint} suggestions={suggestions} rows={rows} />}</form.AppField>
     </Stack>
   );
@@ -278,7 +275,7 @@ function ExampleMessagesField({
   const [editing, setEditing] = useState(false);
   return (
     <Stack gap="field">
-      <Stack gap="field" data-slot="character-spoiler-field" className={editing ? undefined : spoilerClass(spoilerBlur)}>
+      <Stack gap="field" data-slot="character-spoiler-field" spoiler={!editing && spoilerBlur}>
         {editing ? (
           <form.AppField name="exampleMessages">
             {(field): ReactElement => (
@@ -322,17 +319,17 @@ function ExampleTranscript({
   return (
     <Stack key={value} gap="block">
       {blocks.map((block, index) => (
-        <Stack
+        <Card
           // biome-ignore lint/suspicious/noArrayIndexKey: positions belong to the keyed immutable transcript snapshot; replacement remounts native Markdown state.
           key={index}
-          gap="row"
-          padding="field"
-          className="rounded-base border border-border"
+          padding="none"
+          tone="clear"
+          className="p-field"
         >
           <Markdown trust={trusted ? "trusted" : "untrusted"} mode="static" colorQuotes={colorQuotes} allowExternalMedia={allowExternalMedia}>
             {block}
           </Markdown>
-        </Stack>
+        </Card>
       ))}
     </Stack>
   );

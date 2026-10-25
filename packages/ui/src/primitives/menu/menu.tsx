@@ -19,7 +19,7 @@ import type {
 import { Menu as BaseMenu } from "@base-ui/react/menu";
 import type { ComponentProps, ReactElement } from "react";
 import type { PortalContainer } from "#lib";
-import { ANCHOR_GAP_TRIGGER, usePortalContainer } from "#lib";
+import { ANCHOR_GAP_TRIGGER, HIDDEN_AT, usePortalContainer } from "#lib";
 import { Check, ChevronRight, Icon } from "#primitives/icons";
 import { menuVariants } from "./variants.ts";
 
@@ -99,12 +99,20 @@ export function MenuArrow(props: MenuArrowProps): ReactElement {
 
 export interface MenuItemProps extends Omit<BaseItemProps, "className"> {
   className?: string;
+  /** The item exists at one pointer class only: the overflow twin of a row control that stands down there. */
+  hiddenAt?: keyof typeof HIDDEN_AT;
 }
 
 /** A selectable menu command (closes the menu on click by default). */
 export function MenuItem(props: MenuItemProps): ReactElement {
-  const { className, ...rest } = props;
-  return <BaseMenu.Item className={slots.item({ className })} data-slot="menu-item" {...rest} />;
+  const { className, hiddenAt, ...rest } = props;
+  return (
+    <BaseMenu.Item
+      className={slots.item({ className: hiddenAt === undefined ? className : `${HIDDEN_AT[hiddenAt]} ${className ?? ""}` })}
+      data-slot="menu-item"
+      {...rest}
+    />
+  );
 }
 
 export interface MenuSeparatorProps extends Omit<ComponentProps<typeof BaseMenu.Separator>, "className"> {

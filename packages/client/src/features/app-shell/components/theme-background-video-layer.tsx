@@ -22,15 +22,6 @@ export interface ThemeBackgroundVideoLayerProps {
   readonly dim: number;
 }
 
-// The `object-fit` utility each fit maps to: `cover`/`contain` verbatim; `stretch` fills both axes
-// (`object-fill`); `center` paints at natural size (`object-none`, centered by the default object-position).
-const OBJECT_FIT_CLASS_BY_FIT: Record<AppearanceBackgroundFit, string> = {
-  cover: "object-cover",
-  contain: "object-contain",
-  stretch: "object-fill",
-  center: "object-none",
-};
-
 /** Renders nothing when `url === null` — the app's normal `--color-background` paints through. */
 export function ThemeBackgroundVideoLayer({ url, fit, dim }: ThemeBackgroundVideoLayerProps): ReactElement | null {
   if (url === null) {
@@ -39,7 +30,7 @@ export function ThemeBackgroundVideoLayer({ url, fit, dim }: ThemeBackgroundVide
   return (
     <>
       <BackgroundLayer slot="theme-background-video-layer">
-        <BackgroundVideo src={url} className={OBJECT_FIT_CLASS_BY_FIT[fit]} />
+        <BackgroundVideo src={url} fit={fit} />
       </BackgroundLayer>
       <BackgroundLayer slot="theme-background-scrim" scrim={{ dim }} />
     </>

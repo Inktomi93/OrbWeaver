@@ -24,6 +24,7 @@
 
 import type { PersonaCollision, PersonaCollisionChoice, PersonaCollisionChoices } from "@orb/contracts/import";
 import { Button } from "@orb/ui/button";
+import { Card } from "@orb/ui/card";
 import { FileDropzone, FolderPicker } from "@orb/ui/file-dropzone";
 import { Row, Stack } from "@orb/ui/layout";
 import { Progress } from "@orb/ui/progress";
@@ -86,32 +87,34 @@ function ImportPreflight({
   const title = stagedTitle(files, plan);
   return (
     // A named GROUP, not an alert: nothing has happened yet and nothing is being interrupted.
-    <Stack aria-label={title} className="rounded-control border border-input p-field" data-slot="import-preflight" gap="field" role="group">
-      <Text voice="label">{title}</Text>
-      <PersonaCollisionReview collisions={collisions} choices={choices} onChoose={onChoose} onChooseAll={onChooseAll} />
-      <Stack gap="tight">
-        {[...IMPORT_CONSEQUENCE, ...(collisions.length > 0 ? [PERSONA_QUESTION_NOTE] : [])].map((line) => (
-          <Text key={line} voice="reading">
-            {line}
-          </Text>
-        ))}
-        {plan === null
-          ? null
-          : planNotes(plan).map((line) => (
-              <Text key={line} voice="gloss">
-                {line}
-              </Text>
-            ))}
+    <Card aria-label={title} data-slot="import-preflight" padding="none" role="group" shape="row" tone="input">
+      <Stack gap="field" padding="field">
+        <Text voice="label">{title}</Text>
+        <PersonaCollisionReview collisions={collisions} choices={choices} onChoose={onChoose} onChooseAll={onChooseAll} />
+        <Stack gap="tight">
+          {[...IMPORT_CONSEQUENCE, ...(collisions.length > 0 ? [PERSONA_QUESTION_NOTE] : [])].map((line) => (
+            <Text key={line} voice="reading">
+              {line}
+            </Text>
+          ))}
+          {plan === null
+            ? null
+            : planNotes(plan).map((line) => (
+                <Text key={line} voice="gloss">
+                  {line}
+                </Text>
+              ))}
+        </Stack>
+        <Row justify="start" align="center" gap="field">
+          <Button intent="primary" onClick={onConfirm} disabled={plan !== null && plan.batches.length === 0 && plan.skipped.length > 0}>
+            Import
+          </Button>
+          <Button intent="secondary" onClick={onCancel}>
+            Cancel
+          </Button>
+        </Row>
       </Stack>
-      <Row justify="start" align="center" gap="field">
-        <Button intent="primary" onClick={onConfirm} disabled={plan !== null && plan.batches.length === 0 && plan.skipped.length > 0}>
-          Import
-        </Button>
-        <Button intent="secondary" onClick={onCancel}>
-          Cancel
-        </Button>
-      </Row>
-    </Stack>
+    </Card>
   );
 }
 

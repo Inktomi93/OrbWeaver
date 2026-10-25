@@ -1,4 +1,4 @@
-import { DISABLED_STATE, FOCUS_RING, FOCUS_RING_INSET, tv } from "#lib";
+import { DISABLED_STATE, FOCUS_RING, FOCUS_RING_INSET, GROUND, tv } from "#lib";
 
 // The tabs skin (D62 UIP-307) — an UNDERLINE strip, not a segmented pill: the list is a plain row
 // with a hairline `--color-border` track along its bottom edge; the active marker is a 2px `--primary`
@@ -91,6 +91,30 @@ export const tabsVariants = tv({
       // base, so each arm composes exactly one homed `lib/focus-ring.ts` fragment and neither has to
       // neutralise the other's offset.
       stacked: { tab: `flex-col gap-0 p-field block-auto min-block-(--size-control-sm) min-inline-(--size-touch-target) ${FOCUS_RING_INSET}` },
+      // A cell in a rail of view switches (the context pane's state rail): `stacked`, plus the selected cell's tint
+      // and a bar on its bottom edge, the seam with the view it selects. The bar stands down where the rail folds
+      // into rows (a fine pointer under the `@cq-20` step, `fold`), because there a first-row cell's bottom edge is
+      // the seam above row two. At a coarse pointer the cell takes the large control floor.
+      cell: {
+        tab: [
+          `flex-col gap-0 p-field block-auto min-block-(--size-control-sm) min-inline-(--size-touch-target) ${FOCUS_RING_INSET}`,
+          "border-be-2 border-transparent data-active:border-primary data-active:bg-primary/15 data-active:text-foreground",
+          "pointer-coarse:min-block-(--size-control-lg) pointer-fine:@max-cq-20:data-active:border-transparent",
+        ],
+      },
+    },
+    // A cell in a rail that does not hold the current view steps its ink quieter; the active rail keeps the base.
+    quiet: { true: { tab: "text-muted-foreground/90" }, false: {} },
+    // The list's own bottom hairline, or none when the list sits in a band that already draws the edge.
+    listRule: { bottom: {}, none: { list: "border-be-0" } },
+    // A rail of exactly six cells folds into rows of three under the `@cq-20` step at a fine pointer, so no caption
+    // clips; a phone keeps one row and scrolls.
+    fold: { true: { list: "pointer-fine:@max-cq-20:grid-flow-row pointer-fine:@max-cq-20:grid-cols-3" }, false: {} },
+    // A tab column topped by the accent rule: the context pane's bracket, which says the pane belongs to the view.
+    topRule: { none: {}, primary: { root: "border-bs-2 border-primary/55" } },
+    panelGround: {
+      none: {},
+      sidebar: { panel: GROUND.sidebar },
     },
   },
   defaultVariants: { layout: "inline" },

@@ -1,0 +1,3 @@
+{
+  "rules": [{ "element": "Stack", "attribute": "className", "token": "outline-none", "prop": "focusTarget", "value": "{true}" }]
+}

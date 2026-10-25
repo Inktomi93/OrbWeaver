@@ -30,7 +30,7 @@ import { AttachmentUrlProvider } from "../hooks/attachment-url-provider.tsx";
 import { useEnterMotion } from "../hooks/use-enter-motion.ts";
 import { resolveRowAttribution, speakerThemesByName } from "../lib/attribution.ts";
 import { avatarTreatmentFor } from "../lib/avatar-treatment.ts";
-import { ROW_BODY_AT_PHONE_WIDTH } from "../lib/chat-track.ts";
+import { ROW_BODY_AT_PHONE_WIDTH } from "../lib/chat-track.tsx";
 import type { GreetingBinding } from "../lib/greeting-window.ts";
 import { resolveMessageRenderContext } from "../lib/message-render-context.ts";
 import { BG_PHOTO_CHROME_PLATE } from "../lib/message-row-backing.ts";
@@ -431,7 +431,7 @@ export function MessageRow({
                 scrim that left an invisible empty box; with it, every ordinary reply grew a full-width
                 chrome bar under the bubble. No CT saw it — a rendered drive did. */}
             {footerContributions.length === 0 ? null : (
-              <Stack gap="field" data-slot="message-footer" className={cn("empty:hidden", BG_PHOTO_CHROME_PLATE)}>
+              <Stack gap="field" data-slot="message-footer" className="empty:hidden" plate="chrome">
                 {footerContributions.map((c) => (
                   <Fragment key={c.id}>{c.body({ message })}</Fragment>
                 ))}

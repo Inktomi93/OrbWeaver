@@ -14,7 +14,7 @@ import { Card } from "@orb/ui/card";
 import { Row, Stack } from "@orb/ui/layout";
 import { Separator } from "@orb/ui/separator";
 import { Text } from "@orb/ui/text";
-import type { ReactElement } from "react";
+import type { ComponentProps, ReactElement } from "react";
 import type { PlotEdit } from "../lib/plot-edit.ts";
 import { RpgFieldLock } from "./rpg-field-lock.tsx";
 import { TrackerValue } from "./tracker-blocks/index.ts";
@@ -30,10 +30,11 @@ function actNumeral(act: number): string {
 // The rail's per-state glyph + tone (a Record over the closed 3-state axis — never a nested ternary).
 const ACT_STATES = ["past", "current", "future"] as const;
 type ActState = (typeof ACT_STATES)[number];
-const ACT_STATE_STYLE: Readonly<Record<ActState, { readonly glyph: string; readonly className: string }>> = {
-  past: { glyph: "●", className: "text-foreground" },
-  current: { glyph: "◉", className: "text-accolade font-semibold" },
-  future: { glyph: "○", className: "text-muted-foreground" },
+// `past` takes the Card's ink (`card-foreground` resolves to the same value as `foreground`) over the gloss voice's muted ink.
+const ACT_STATE_STYLE: Readonly<Record<ActState, { readonly glyph: string; readonly text: Pick<ComponentProps<typeof Text>, "tone" | "ink" | "weight"> }>> = {
+  past: { glyph: "●", text: { ink: "inherit" } },
+  current: { glyph: "◉", text: { tone: "accolade", weight: "semibold" } },
+  future: { glyph: "○", text: { tone: "muted" } },
 };
 
 function actState(act: number, current: number): ActState {
@@ -49,8 +50,8 @@ function ActStop({ act, current }: { readonly act: number; readonly current: num
   return (
     <Row gap="field" align="center" className={act === 1 ? undefined : "flex-1"}>
       {act === 1 ? null : <Separator className="flex-1" />}
-      {/* gloss: the dot row is quiet decoration (aria-hidden) — the state className re-colours it. */}
-      <Text as="span" voice="gloss" className={style.className}>
+      {/* gloss: the dot row is quiet decoration (aria-hidden) — the state tone re-colours it. */}
+      <Text as="span" voice="gloss" {...style.text}>
         {style.glyph} {actNumeral(act)}
       </Text>
     </Row>
@@ -69,12 +70,12 @@ export function RpgActRail({ plot, edit }: { readonly plot: RpgPlot; readonly ed
       <Stack gap="field" data-slot="rpg-act-rail">
         <Row gap="block" align="center" justify="between">
           {edit === undefined ? (
-            <Text voice="kicker" className="text-accolade">
+            <Text voice="kicker" tone="accolade">
               {heading}
             </Text>
           ) : (
             <Row gap="field" align="center" className="min-inline-0">
-              <Text as="span" voice="kicker" className="text-accolade">
+              <Text as="span" voice="kicker" tone="accolade">
                 Act
               </Text>
               {/* Rest shows the mock's ROMAN numeral; the click-reveals input edits the arabic number. */}
@@ -89,7 +90,8 @@ export function RpgActRail({ plot, edit }: { readonly plot: RpgPlot; readonly ed
                     edit.onEditAct(Math.max(1, n));
                   }
                 }}
-                className="px-field text-center tabular-nums"
+                className="px-field text-center"
+                numeric={true}
                 width="avatar-md"
                 restClassName="font-semibold text-accolade"
               />

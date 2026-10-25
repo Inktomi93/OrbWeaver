@@ -31,7 +31,7 @@
 // `worldInfo.listForCharacter` + `persona.listConnectedToCharacter` pair left with the Links group.
 //
 // Voice: the four-voice grammar (§2.3) the rpg tabs set — a caps-micro KICKER with a hairline names each
-// group, a muted LABEL names each datum, the value is a mono/tabular DATUM, and the quiet second line is a
+// group, a muted LABEL names each datum, the value is a tabular DATUM, and the quiet second line is a
 // GLOSS.
 
 import type { CharacterProvenance } from "@orb/contracts/character";
@@ -249,7 +249,7 @@ function OverviewRow({
       <Row gap="block" align="baseline" justify="between">
         {/* The grammar's name/value pair (#573): the row's own MUTED name rides className, because `tone`
             is declared before `voice` and loses the merge — the ratified spelling for an intentional tone.
-            The value is a `datum` when it is mono/tabular and a `label` otherwise; both were spelled
+            The value is a `datum` when it is a tabular figure and a `label` otherwise; both were spelled
             `size="label"` before, which is the A3-red internal axis. */}
         <Text voice="label" className="truncate min-inline-0" tone="muted" id={labelId}>
           {label}

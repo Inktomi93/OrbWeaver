@@ -6,6 +6,7 @@ import type { AvatarProps } from "@orb/ui/avatar";
 import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
+import { Text } from "@orb/ui/text";
 import type { CSSProperties, ReactElement } from "react";
 import { useEffect, useLayoutEffect, useState } from "react";
 import { cn } from "#lib";
@@ -56,15 +57,15 @@ function useSlotImage(urlAt: ((cssWidth: number) => string) | undefined): {
   return { attach: setElement, url, failed: url !== undefined && failedUrl === url };
 }
 
-// Fills the art it sits in, so the whole tile is the control. The ghost-fill hover is dropped: a tint over the
+// Fills the art it sits in, so the whole tile is the control. It is the bare intent: a tint over the
 // art itself would read as a smudge, and the press scale already answers a tap. It is not a tab stop: the
 // speaker's chip beside it opens the same image, so keyboard readers get one stop per row.
 function ArtViewButton({ view, rounding = "" }: { readonly view: ArtView; readonly rounding?: string }): ReactElement {
   return (
     <Button
       aria-label={view.label}
-      className={cn("absolute inset-0 cursor-pointer hover:bg-transparent active:bg-transparent", rounding) ?? ""}
-      intent="ghost"
+      className={cn("absolute inset-0", rounding) ?? ""}
+      intent="bare"
       tabIndex={-1}
       onClick={(event): void => view.open(event.currentTarget)}
       size="media"
@@ -86,9 +87,9 @@ export function FallbackLetter({
   const letter: CSSProperties = { fontSize: size, lineHeight: 1 };
   return (
     <Stack align="center" aria-hidden="true" className={className} container="size" justify="center">
-      <Stack className="font-medium text-primary-foreground uppercase" style={letter}>
+      <Text as="div" style={letter} tone="onPrimary" voice="monogram">
         {initials}
-      </Stack>
+      </Text>
     </Stack>
   );
 }

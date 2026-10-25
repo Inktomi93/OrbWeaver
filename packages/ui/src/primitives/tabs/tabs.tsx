@@ -12,15 +12,23 @@ import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
 import { tabsVariants } from "./variants.ts";
 
+type TabsAxes = VariantProps<typeof tabsVariants>;
+
 export interface TabsProps extends BaseTabsRootProps {
   className?: string;
+  /** The accent rule across the top of the tab column. */
+  topRule?: TabsAxes["topRule"];
 }
 
 export interface TabsListProps extends BaseTabsListProps {
   className?: string;
+  /** `none` drops the list's own bottom hairline, for a list inside a band that already draws the edge. */
+  rule?: TabsAxes["listRule"];
+  /** A six-cell rail folds into rows of three under the `@cq-20` step at a fine pointer. */
+  fold?: boolean;
 }
 
-export interface TabsTabProps extends BaseTabsTabProps, VariantProps<typeof tabsVariants> {
+export interface TabsTabProps extends BaseTabsTabProps, Pick<TabsAxes, "layout" | "quiet"> {
   className?: string;
 }
 
@@ -30,21 +38,23 @@ export interface TabsIndicatorProps extends BaseTabsIndicatorProps {
 
 export interface TabsPanelProps extends BaseTabsPanelProps {
   className?: string;
+  /** A panel that must hide the art behind it paints the sidebar fill. */
+  ground?: TabsAxes["panelGround"];
 }
 
-export function Tabs({ className, ...rest }: TabsProps): ReactElement {
-  return <BaseTabs.Root className={cn(tabsVariants().root(), className)} data-slot="tabs-root" {...rest} />;
+export function Tabs({ className, topRule, ...rest }: TabsProps): ReactElement {
+  return <BaseTabs.Root className={cn(tabsVariants({ topRule }).root(), className)} data-slot="tabs-root" {...rest} />;
 }
 
 // Seal default: arrow keys ACTIVATE as they move (Base UI defaults activateOnFocus to false).
-export function TabsList({ className, ...rest }: TabsListProps): ReactElement {
-  return <BaseTabs.List activateOnFocus={true} className={cn(tabsVariants().list(), className)} data-slot="tabs-list" {...rest} />;
+export function TabsList({ className, rule, fold, ...rest }: TabsListProps): ReactElement {
+  return <BaseTabs.List activateOnFocus={true} className={cn(tabsVariants({ listRule: rule, fold }).list(), className)} data-slot="tabs-list" {...rest} />;
 }
 
 // `layout="stacked"` is the glyph-over-caption cell (the rpg HUD's rails): the ONE home for a tab whose
 // height must follow its content — a caller cannot get there with `className` (see variants.ts).
-export function TabsTab({ className, layout, ...rest }: TabsTabProps): ReactElement {
-  return <BaseTabs.Tab className={cn(tabsVariants({ layout }).tab(), className)} data-slot="tabs-tab" {...rest} />;
+export function TabsTab({ className, layout, quiet, ...rest }: TabsTabProps): ReactElement {
+  return <BaseTabs.Tab className={cn(tabsVariants({ layout, quiet }).tab(), className)} data-slot="tabs-tab" {...rest} />;
 }
 
 /** The indicator's resting box, as Base UI writes it onto the node's own inline style. */
@@ -187,7 +197,7 @@ const TABBABLE_DESCENDANT =
  * control unmounts — a filter emptying a list, a form collapsing to a sentence — becomes the read-only case
  * the stop exists FOR, and a one-way correction would have quietly taken it away.
  */
-export function TabsPanel({ className, ...rest }: TabsPanelProps): ReactElement {
+export function TabsPanel({ className, ground, ...rest }: TabsPanelProps): ReactElement {
   const panelRef = useRef<HTMLDivElement | null>(null);
   useLayoutEffect((): void => {
     const node = panelRef.current;
@@ -198,7 +208,7 @@ export function TabsPanel({ className, ...rest }: TabsPanelProps): ReactElement 
   });
   return (
     <BaseTabs.Panel
-      className={cn(tabsVariants().panel(), className)}
+      className={cn(tabsVariants({ panelGround: ground }).panel(), className)}
       data-slot="tabs-panel"
       {...rest}
       // The seal OWNS the panel node's ref — the correction above is its only reader, and no call site

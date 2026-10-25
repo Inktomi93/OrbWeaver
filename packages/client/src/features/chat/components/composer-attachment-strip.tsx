@@ -9,9 +9,9 @@ import { CrossfadeImage } from "@orb/ui/crossfade-image";
 import { Icon, X } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import type { ReactElement } from "react";
-import { cn, removeActionName } from "#lib";
+import { removeActionName } from "#lib";
 import type { PendingAttachment } from "../hooks/use-composer-attachments.ts";
-import { COMPOSER_TRACK } from "../lib/chat-track.ts";
+import { Track } from "../lib/chat-track.tsx";
 
 const VIDEO_MIME_PREFIX = "video/";
 
@@ -23,14 +23,15 @@ function AttachmentPreview({ attachment, onRemove }: { readonly attachment: Pend
         // A muted first-frame/loop thumb (#317) — BackgroundVideo bakes the policy (muted, no controls,
         // aria-hidden, reduced-motion stills to the first frame); the remove button carries the file name
         // for the accessibility tree, mirroring the image arm's alt.
-        <BackgroundVideo src={attachment.url} className="rounded-base block-(--size-avatar-hero) inline-(--size-avatar-hero)" />
+        <BackgroundVideo src={attachment.url} rounded="base" className="block-(--size-avatar-hero) inline-(--size-avatar-hero)" />
       ) : (
         <CrossfadeImage
           src={attachment.url}
           alt={`Attachment preview: ${attachment.file.name}`}
           aspectRatio={1}
           fit="cover"
-          className="rounded-base block-(--size-avatar-hero) inline-(--size-avatar-hero)"
+          rounded="base"
+          className="block-(--size-avatar-hero) inline-(--size-avatar-hero)"
         />
       )}
       <Button type="button" intent="ghost" size="icon" aria-label={removeActionName(attachment.file.name)} onClick={onRemove} shape="pill">
@@ -52,10 +53,10 @@ export function ComposerAttachmentStrip({
     return null;
   }
   return (
-    <Row gap="field" align="center" data-slot="composer-attachments" className={cn(COMPOSER_TRACK, "flex-wrap")}>
+    <Track of={Row} track="composer" gap="field" align="center" data-slot="composer-attachments" className="flex-wrap">
       {attachments.map((attachment, index) => (
         <AttachmentPreview key={attachment.url} attachment={attachment} onRemove={(): void => onRemove(index)} />
       ))}
-    </Row>
+    </Track>
   );
 }

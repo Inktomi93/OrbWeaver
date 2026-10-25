@@ -90,7 +90,7 @@ export function TalkativenessPopover({
             <Text as="span" voice="label">
               {talkativenessReadout(weight)}
             </Text>
-            <Stack ref={initialFocusRef} tabIndex={-1} className="flex-1 outline-none">
+            <Stack ref={initialFocusRef} tabIndex={-1} className="flex-1" focusTarget={true}>
               <Slider
                 value={weight}
                 min={0}

@@ -66,10 +66,10 @@
     animation: shell-trail-flip var(--shell-motion) var(--shell-ease);
   }
 
-  /* A centred child (every `CHAT_TRACK` carrier, chat-track.ts) moves half its parent's width change while the
+  /* A centred child (every chat-track or composer-track carrier, chat-track.tsx) moves half its parent's width change while the
    * reading cap is not binding, so the counter rides the marker, one rule for every carrier, with the capped
    * distance grid.css derives. */
-  .shell-grid:is([data-list-flip], [data-context-flip]) .orb-chat-track {
+  .shell-grid:is([data-list-flip], [data-context-flip]) :is(.orb-chat-track, .orb-composer-track) {
     animation: shell-centre-flip var(--shell-motion) var(--shell-ease);
   }
 
@@ -101,7 +101,7 @@
   .shell-grid:is([data-list-settle], [data-context-settle]) .shell-topbar-trail {
     translate: var(--shell-track-shrink) 0;
   }
-  .shell-grid:is([data-list-settle], [data-context-settle]) .orb-chat-track {
+  .shell-grid:is([data-list-settle], [data-context-settle]) :is(.orb-chat-track, .orb-composer-track) {
     translate: var(--shell-centre-flip-from) 0;
   }
   .shell-grid:is([data-list-settle], [data-context-settle]) [data-slot="list-pane-action"] {
@@ -136,10 +136,10 @@
       translate: var(--flank-centre-flip-from) 0;
     }
   }
-  .shell-main [data-slot="chat-room-flank-row"][data-flank-flip] .orb-chat-track {
+  .shell-main [data-slot="chat-room-flank-row"][data-flank-flip] :is(.orb-chat-track, .orb-composer-track) {
     animation: room-flank-centre-flip var(--shell-motion) var(--shell-ease);
   }
-  .shell-main [data-slot="chat-room-flank-row"][data-flank-settle] .orb-chat-track {
+  .shell-main [data-slot="chat-room-flank-row"][data-flank-settle] :is(.orb-chat-track, .orb-composer-track) {
     translate: var(--flank-centre-flip-from) 0;
   }
 }

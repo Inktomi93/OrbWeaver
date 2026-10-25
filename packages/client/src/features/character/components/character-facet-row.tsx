@@ -51,11 +51,6 @@ export function CharacterFacetRow({ facet, selected, filled, preview, fillSummar
       buttonRef.current?.focus();
     }
   }, [focusOnMount]);
-  // Selection = a 2px left ember bar + a 10% primary tint (rides --color-primary so custom themes retint
-  // it), matching the chats-lane list-row pattern; the constant left-border width keeps rows from shifting.
-  const rowClass = selected
-    ? "rounded-control border border-border border-s-2 border-s-primary bg-primary/10"
-    : "rounded-control border border-border border-s-2 border-s-transparent";
   return (
     <Button
       ref={buttonRef}
@@ -63,9 +58,12 @@ export function CharacterFacetRow({ facet, selected, filled, preview, fillSummar
       aria-label={facet.label}
       data-filled={filled ? "" : undefined}
       data-selected={selected ? "" : undefined}
-      intent="ghost"
+      // The outline box with the selection rail: a 2px start bar and a primary tint on the selected row, over a
+      // reserved rail so selecting never shifts a row.
+      intent="outline"
+      selection="rail"
       size="sm"
-      className={`justify-start gap-row text-start inline-full min-inline-0 ${rowClass}`}
+      className="justify-start gap-row text-start inline-full min-inline-0"
       onClick={(): void => onSelect(facet.id)}
     >
       {/* THE NAME IS THE LABEL, THE BODY IS A DESCRIPTION (side-eye 2026-08-18 P1-2). Both spans used to be

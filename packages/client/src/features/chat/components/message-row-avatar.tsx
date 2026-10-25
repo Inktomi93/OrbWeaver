@@ -122,8 +122,8 @@ function viewable(target: ViewTarget | null, className: string, avatar: ReactEle
   return (
     <Button
       aria-label={viewImageActionName(target.name)}
-      className={cn(className, "cursor-pointer hover:bg-transparent hover:opacity-80 active:bg-transparent") ?? ""}
-      intent="ghost"
+      className={className}
+      intent="bare"
       onClick={(event): void => target.open({ hash: target.hash, name: target.name }, event.currentTarget)}
       size="media"
     >

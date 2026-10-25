@@ -113,7 +113,7 @@ export function RegexTierRow({ chatId, row, alsoAt, scope, isHost, notYours, qua
           }
         : {})}
       leading={
-        <Text as="span" className="tabular-nums" voice="quiet">
+        <Text as="span" numeric={true} voice="quiet">
           {rankLabel(row.runsAt, isHost)}
         </Text>
       }

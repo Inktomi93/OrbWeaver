@@ -24,7 +24,6 @@ import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/colla
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { DISCLOSURE_TOUCH_FLOOR_AT_COARSE } from "#components";
 import { useTurnToolCallsForVariant } from "../hooks/use-turn-tool-calls.ts";
 
 /** The badge intent per verdict — a mapped Record, so a widened verdict axis fails `tsc` here (§5.5) rather
@@ -79,16 +78,16 @@ export function TurnToolCallsDisclosure({ message }: TurnToolCallsDisclosureProp
       {/* THE COARSE TOUCH FLOOR IS THE TRIGGER'S OWN (side-eye 2026-08-16 #93). `CollapsibleTrigger` is a
           text-height `inline-flex` line, not a control box, so it carries none of `Button`'s hit-area
           `::after` arms — MEASURED at 430×740 DPR3 `pointer:coarse` this row was 406×16 and its centre did
-          not resolve to itself under `elementFromPoint`. The floor is a shared `#components` fragment
-          because axis-3 device capability is banned from a feature className. */}
+          not resolve to itself under `elementFromPoint`. The floor is the trigger's `touchFloor`
+          prop because axis-3 device capability is banned from a feature className. */}
       {/* THE SAME RULING, RENDERED. The home of `orb/sub-floor-disclosure` is a SOURCE fact and the
           design-audit walker measures the DOM, so every cold audit of /chats re-filed this row as a P1
           tap-target at fine pointer. `data-target-floor="sub-floor-ok"` is that ruling
           as a fact the walker can read: it EXCLUDES the candidate at fine pointer with a named reason and
           counts it in the population row (never a silent skip), and it changes nothing at coarse, where
-          the fragment above takes the real 44px floor and a genuine regression must still fire. */}
-      {/* Sub-floor by recorded ruling (this file is a reasoned home of `orb/sub-floor-disclosure` in eslint.config.js; pointer-variants.ts DISCLOSURE_TOUCH_FLOOR_AT_COARSE): coarse takes the 44px floor via the fragment; FINE stays a 16px line in a dense transcript footer, and a control box here is the density cost that ruling priced and declined */}
-      <CollapsibleTrigger className={`inline-full ${DISCLOSURE_TOUCH_FLOOR_AT_COARSE}`} size="text" data-target-floor="sub-floor-ok">
+          the touch floor above takes the real 44px floor and a genuine regression must still fire. */}
+      {/* Sub-floor by recorded ruling (this file is a reasoned home of `orb/sub-floor-disclosure` in eslint.config.js; the trigger's `touchFloor`): coarse takes the 44px floor via `touchFloor="block"`; FINE stays a 16px line in a dense transcript footer, and a control box here is the density cost that ruling priced and declined */}
+      <CollapsibleTrigger className="inline-full" touchFloor="block" size="text" data-target-floor="sub-floor-ok">
         {/* The count is the volatile half and stays SUFFIXED (N3). A failed round has no count to give — its
             suffix is the same word a dropped call's badge uses, so one turn's outcome reads the same whether
             the loss was one call's or the whole round's. */}
@@ -135,7 +134,7 @@ function CallLine({ call }: { readonly call: RpgToolCallDisclosure }): ReactElem
   return (
     <Stack data-slot="turn-tool-call" gap="row">
       <Row align="center" gap="field" justify="between">
-        <Text voice="datum">{call.name}</Text>
+        <Text voice="code">{call.name}</Text>
         <Badge intent={VERDICT_INTENT[call.verdict]}>{VERDICT_LABEL[call.verdict]}</Badge>
       </Row>
       {call.issues.length === 0 ? null : (

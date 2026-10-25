@@ -156,7 +156,7 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
         ) : (
           <Text voice="gloss">
             Refinery score:{" "}
-            <Text as="span" className="font-mono">
+            <Text as="span" voice="datumMono">
               {dossier.refineryScore.toFixed(SCORE_PRECISION)}
             </Text>{" "}
             / {SCORE_MAX}
@@ -332,7 +332,7 @@ function SimilarArtBody({ characterId }: { readonly characterId: CharacterId }):
  */
 function Relevance({ rank, value }: { readonly rank: number; readonly value: number }): ReactElement {
   return (
-    <Text className="shrink-0 font-mono" voice="gloss">
+    <Text className="shrink-0" voice="datumMono">
       {rank} · {percent(value)}
     </Text>
   );

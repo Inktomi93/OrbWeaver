@@ -60,7 +60,7 @@ export function ItemName({ item, edit }: { readonly item: RpgInventoryItem; read
 export function ItemQuantity({ item, edit }: { readonly item: RpgInventoryItem; readonly edit?: PackEdit }): ReactElement | null {
   if (edit === undefined) {
     return item.quantity > 1 ? (
-      <Text as="span" voice="gloss" className="shrink-0 tabular-nums">
+      <Text as="span" tone="muted" voice="datum" className="shrink-0">
         ×{item.quantity}
       </Text>
     ) : null;
@@ -82,9 +82,10 @@ export function ItemQuantity({ item, edit }: { readonly item: RpgInventoryItem; 
             edit.onPatchItem(item.id, { quantity: Math.max(1, n) });
           }
         }}
-        className="px-field text-end tabular-nums"
+        className="px-field text-end"
+        numeric={true}
         width="avatar-md"
-        restClassName="tabular-nums"
+        restClassName=""
       />
     </Row>
   );

@@ -5,11 +5,10 @@
 
 import { Button } from "@orb/ui/button";
 import { Icon, Pin } from "@orb/ui/icons";
+import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
-import { HIDE_AT_COARSE, PIN_REVEAL } from "#components";
-import { cn } from "#lib";
 
 export interface PersonaCardPinProps {
   readonly isPinned: boolean;
@@ -40,24 +39,26 @@ export function PersonaCardPin({ isPinned, isHost, name, subject, onPin, onUnpin
     ) : null;
   }
   return (
-    <Tooltip describesTrigger={false}>
-      <TooltipTrigger
-        render={
-          <Button
-            aria-label={isPinned ? `Card is pinned to ${subject} — press to unpin` : `Pin the card to ${subject}`}
-            aria-pressed={isPinned}
-            className={cn("relative shrink-0", isPinned ? "text-primary" : cn(PIN_REVEAL, HIDE_AT_COARSE)) ?? ""}
-            data-slot="persona-card-pin"
-            intent="ghost"
-            onClick={isPinned ? onUnpin : onPin}
-            size={isPinned ? "inline" : "icon"}
-            {...(tabIndex === undefined ? {} : { tabIndex })}
-          >
-            <Icon icon={Pin} size="sm" />
-          </Button>
-        }
-      />
-      <TooltipPopup side="top">{hint}</TooltipPopup>
-    </Tooltip>
+    <Row className="relative shrink-0" hiddenAt={isPinned ? undefined : "coarse"} reveal={isPinned ? undefined : "faint"}>
+      <Tooltip describesTrigger={false}>
+        <TooltipTrigger
+          render={
+            <Button
+              aria-label={isPinned ? `Card is pinned to ${subject} — press to unpin` : `Pin the card to ${subject}`}
+              aria-pressed={isPinned}
+              data-slot="persona-card-pin"
+              intent="ghost"
+              onClick={isPinned ? onUnpin : onPin}
+              size={isPinned ? "inline" : "icon"}
+              tone={isPinned ? "primary" : "default"}
+              {...(tabIndex === undefined ? {} : { tabIndex })}
+            >
+              <Icon icon={Pin} size="sm" />
+            </Button>
+          }
+        />
+        <TooltipPopup side="top">{hint}</TooltipPopup>
+      </Tooltip>
+    </Row>
   );
 }

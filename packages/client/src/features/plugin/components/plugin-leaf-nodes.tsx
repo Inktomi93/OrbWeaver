@@ -24,6 +24,7 @@ import type {
 } from "@orb/contracts/plugin";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
+import { Card } from "@orb/ui/card";
 import { Field } from "@orb/ui/field";
 import { Icon } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
@@ -260,9 +261,9 @@ function SurfaceImage({ node, url }: { readonly node: PluginImageNode; readonly 
   if (url === undefined) {
     // Owner-scope miss: the installer does not own this asset (or it is gone). NEVER another user's blob.
     return (
-      <Stack align="center" className="rounded-base border border-dashed border-border p-block" justify="center">
+      <Card className="flex flex-col items-center justify-center" outline="dashed" tone="clear">
         <Text voice="gloss">{node.alt ?? "Image unavailable"}</Text>
-      </Stack>
+      </Card>
     );
   }
   // Through the sealed house media primitive (asset-vs-external dispatch + broken-media fallback, D44) — the

@@ -6,9 +6,11 @@ import {
   DISABLED_STATE,
   DISABLED_STATE_NATIVE,
   FOCUS_RING,
+  FOCUS_RING_ON_SIDEBAR,
   FOCUS_RING_ON_STATE_RING,
   HIDDEN_AT,
   SELECTED_FILL,
+  SELECTION_RAIL,
   TONE_INK,
   TOUCH_FLOOR_AT_COARSE,
   TOUCH_TARGET_PSEUDO,
@@ -42,6 +44,9 @@ import type { BUTTON_SIZE_OVERFLOW } from "./size-hit-area.ts";
 function glyphBox(box: string): string[] {
   return [box, "relative shrink-0 p-0", TOUCH_TARGET_PSEUDO];
 }
+
+// The intents that paint no fill, so a `tone` inks them; `bare` stays out because it takes its picture's ink.
+const FILL_LESS_INTENTS: ("ghost" | "link" | "outline" | "secondary")[] = ["ghost", "link", "outline", "secondary"];
 
 function inlineBox(typeStep: string): string[] {
   return ["relative block-auto min-block-0 justify-start font-normal", typeStep, TOUCH_TARGET_PSEUDO_STRETCH];
@@ -86,6 +91,12 @@ export const buttonVariants = tv({
       // does something in place. Navigation is an anchor, not this. No fill at any state, because a link-shaped
       // control that grows a box on hover is a button pretending; the hover is the ink, the press the scale.
       link: "bg-transparent text-primary underline hover:text-primary/80 active:text-primary/70",
+      // The primary fill without the CTA lift (no `shadow-cta`, no `data-cta` ring): a glyph disc that turns on
+      // when its action is ready, such as Send with a draft waiting. The region's one CTA stays `primary`.
+      solid: "bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80",
+      // A button that wraps a picture (a portrait, a band of art) and draws nothing of its own: no fill at any
+      // state, so the art stays the affordance; it dims a step on hover instead of gaining an accent box.
+      bare: "cursor-pointer bg-transparent text-current hover:opacity-80",
     },
     size: {
       ...CONTROL_SIZE,
@@ -211,18 +222,43 @@ export const buttonVariants = tv({
        *  strike because the state must never rest on colour alone (a red ring and an ember ring are one
        *  ring to a red-blind reader); the strike says "not this one" on its own. */
       negated: `border-transparent ${SELECTED_FILL} line-through inset-ring-2 inset-ring-destructive ${FOCUS_RING_ON_STATE_RING}`,
+      /** A row in a list of rows (a facet in an editor's index): the start rail and tint mark the one keyed on
+       *  `data-selected`, and the rail box is reserved at rest so selecting never shifts the row. */
+      rail: SELECTION_RAIL,
     },
     hiddenAt: HIDDEN_AT,
     // A glyph-only chip is narrower than the touch floor at a coarse pointer; its `sm` height already clears it.
     touchFloor: { inline: TOUCH_FLOOR_AT_COARSE.inline },
-    // THE INK OF A FILL-LESS ACTION, by meaning, from the Text map. Only the `ghost` and `link` intents paint no fill
-    // of their own, so the tone arms below are compound on those two; a filled intent owns its paired ink.
-    tone: { default: "", primary: "", destructive: "", muted: "" },
+    // THE INK OF A FILL-LESS ACTION, by meaning, from the Text map. The `ghost`, `link`, `outline` and `secondary`
+    // intents paint no fill of their own, so the tone arms below are compound on those; a filled intent owns its ink.
+    tone: { default: "", primary: "", destructive: "", muted: "", foreground: "" },
+    // A dotted underline marks an action that discloses more of the same view (show all tags), not one that leaves.
+    underline: { none: "", dotted: "underline decoration-dotted" },
+    // A text-height control that swaps with an edit field reserves the field's 1px edge, so the swap does not shift.
+    reserveEdge: { true: "border border-transparent", false: "" },
+    // The accent ring for the moment a change this control made has landed (a portrait just replaced).
+    confirming: { true: "ring-2 ring-accent", false: "" },
+    // A disabled control that teaches by its label stays at full strength; its state reads from the copy beside it.
+    quietDisabled: { true: "disabled:opacity-100 data-disabled:opacity-100", false: "" },
+    // The focus ring's offset moat in the sidebar fill, for a control that sits on the rail.
+    focusRing: { surface: "", sidebar: FOCUS_RING_ON_SIDEBAR },
   },
   compoundVariants: [
-    { intent: ["ghost", "link"], tone: "primary", class: TONE_INK.accent },
-    { intent: ["ghost", "link"], tone: "destructive", class: TONE_INK.destructive },
-    { intent: ["ghost", "link"], tone: "muted", class: TONE_INK.muted },
+    { intent: FILL_LESS_INTENTS, tone: "primary", class: TONE_INK.accent },
+    { intent: FILL_LESS_INTENTS, tone: "destructive", class: TONE_INK.destructive },
+    { intent: FILL_LESS_INTENTS, tone: "muted", class: TONE_INK.muted },
+    { intent: FILL_LESS_INTENTS, tone: "foreground", class: TONE_INK.foreground },
   ],
-  defaultVariants: { intent: "primary", size: "md", shape: "control", selection: "none", tone: "default" },
+  defaultVariants: {
+    intent: "primary",
+    size: "md",
+    shape: "control",
+    selection: "none",
+    tone: "default",
+    underline: "none",
+    reserveEdge: false,
+    confirming: false,
+    quietDisabled: false,
+    focusRing: "surface",
+  },
 });

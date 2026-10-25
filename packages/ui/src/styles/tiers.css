@@ -108,6 +108,11 @@
     line-height: var(--orb-tier-field-leading);
   }
 
+  [data-surface-tier] [data-slot="input-root"][data-type-step="title"] {
+    font-size: var(--text-title);
+    line-height: var(--leading-title);
+  }
+
   /* The elevated opt-in outranks the tier (UI-Density-Law.md §2.1); a `rounded-card` utility would lose to the
    * tier rule above. */
   [data-surface-tier] [data-slot="card-root"][data-elevated] {
@@ -122,6 +127,29 @@
   /* The `row` and `well` shapes take the control radius in every tier: you operate a row, and a well belongs to its host. */
   [data-surface-tier] [data-slot="card-root"][data-shape] {
     border-radius: var(--radius-control);
+  }
+
+  /* A floating island keeps its own radius and inset at every tier: it is composer-class, not grouped content. */
+  [data-surface-tier] [data-slot="card-root"][data-shape="float"] {
+    padding: var(--spacing-field);
+    border-radius: var(--radius-card);
+  }
+
+  [data-surface-tier] [data-slot="card-root"][data-shape="inset"] {
+    border-radius: var(--radius-inset);
+  }
+
+  [data-surface-tier] [data-slot="card-root"][data-shape="plate"] {
+    border-radius: var(--orb-tier-island-radius);
+  }
+
+  [data-surface-tier] [data-slot="card-root"][data-shape="pill"] {
+    border-radius: var(--radius-full);
+  }
+
+  [data-surface-tier] [data-slot="card-root"][data-shape="bubble"] {
+    padding: var(--spacing-row) var(--spacing-block);
+    border-radius: var(--radius-card);
   }
 
   /* `padding="none"`: the island delegates its inset to its own content; the `p-0` utility alone would lose to the

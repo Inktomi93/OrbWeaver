@@ -28,7 +28,7 @@ export function LabelsListSurface(): ReactElement {
   // The rows say nothing over an empty library (a filter miss is theirs to say), so the finder does.
   const empty = useTagCensus() === 0;
   return (
-    <Stack className="outline-none block-full min-block-0" data-slot={LABELS_FINDER_SLOT} gap="block" ref={surfaceRef} tabIndex={-1}>
+    <Stack className="block-full min-block-0" focusTarget={true} data-slot={LABELS_FINDER_SLOT} gap="block" ref={surfaceRef} tabIndex={-1}>
       <Row align="center" data-slot="labels-control-row" gap="field">
         <Row align="center" className="flex-1 min-inline-0">
           <ListSearch>

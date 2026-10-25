@@ -20,6 +20,9 @@ export const badgeVariants = tv({
       warning: "bg-warning text-warning-foreground",
       danger: "bg-destructive text-destructive-foreground",
       info: "bg-info text-info-foreground",
+      // The palette's own state tint for session chrome (a status, not a verdict, so it never borrows a semantic hue).
+      // Solid only: the accent is already a quiet fill, so it has no soft or ghost step.
+      accent: "bg-accent text-accent-foreground",
     },
     tone: {
       solid: "",
@@ -98,6 +101,10 @@ export const badgeVariants = tv({
     // A chip carrying a glyph control whose overflowing hit area a wrap gap would clip takes the touch floor on
     // its own block size at a coarse pointer, so the hit area fits inside the chip.
     touchFloor: { block: TOUCH_FLOOR_AT_COARSE.block },
+    // Machine text on the chip (a macro token, a key): the mono face.
+    face: { text: "", code: "font-mono" },
+    // A chip inside a caps kicker reads as a sentence: it stands down the inherited transform and tracking together.
+    sentenceCase: { true: "tracking-normal normal-case", false: "" },
   },
   compoundVariants: [
     // THE SOFT TINT IS 8% FOR THE WHOLE FAMILY (2026-09-01; was 15%, with destructive alone at 8%).
@@ -135,5 +142,5 @@ export const badgeVariants = tv({
     // stops being painted.
     { size: "inline", class: "border-0" },
   ],
-  defaultVariants: { intent: "neutral", tone: "solid", size: "sm" },
+  defaultVariants: { intent: "neutral", tone: "solid", size: "sm", face: "text", sentenceCase: false },
 });

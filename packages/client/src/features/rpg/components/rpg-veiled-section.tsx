@@ -63,7 +63,7 @@ function VeiledLedger({ chatId }: { readonly chatId: ChatId }): ReactElement | n
             {lie.reason === "" ? null : <Text voice="label">{lie.reason}</Text>}
             {/* The TRUTH — crown-gold, host-only, and unmounted until the host reveals it. */}
             <RevealGate subject={subject}>
-              <Text voice="gloss" className="text-accolade">
+              <Text voice="gloss" tone="accolade">
                 truth: {lie.truth}
               </Text>
             </RevealGate>

@@ -21,7 +21,7 @@ import { OptionStrip } from "@orb/ui/option-strip";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { SlashCommandContribution } from "#lib";
-import { COMPOSER_TRACK } from "../lib/chat-track.ts";
+import { Track } from "../lib/chat-track.tsx";
 import { SLASH_LISTBOX_ID, slashOptionId } from "../lib/slash-command.ts";
 
 export interface ComposerSlashStripProps {
@@ -67,7 +67,7 @@ export function ComposerSlashStrip({ matches, notice, unavailableFor, highlightI
     }
   };
   return (
-    <Stack gap="field" data-slot="composer-slash-strip" className={COMPOSER_TRACK}>
+    <Track of={Stack} track="composer" gap="field" data-slot="composer-slash-strip">
       {/* A refusal names one thing that just failed — the `label` voice; destructive is the SKIN the
           notice needs on top of it (no voice carries a colour role, by design). */}
       {notice === null ? null : (
@@ -76,6 +76,6 @@ export function ComposerSlashStrip({ matches, notice, unavailableFor, highlightI
         </Text>
       )}
       {items.length === 0 ? null : <OptionStrip aria-label="Slash commands" id={SLASH_LISTBOX_ID} items={items} onSelect={pick} />}
-    </Stack>
+    </Track>
   );
 }

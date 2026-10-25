@@ -15,7 +15,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
-import { cn, testId } from "#lib";
+import { testId } from "#lib";
 import { useRefinerySchemaPlan, useTestRefinerySchema } from "../hooks/use-refinery-schemas.ts";
 import type { buildRenderPlan } from "../lib/render-plan.ts";
 import { CharacterDoor } from "./character-door.tsx";
@@ -45,10 +45,11 @@ export function PreflightNote({ schema, stage }: { schema: Record<string, unknow
       <Stack role="status">
         {plan === null ? null : (
           <Text
-            className={cn(PLAN_LINE_MEASURE, REFINERY_SCHEMA_PLAN_FAILING.has(plan.outcome) && "text-warning")}
+            className={PLAN_LINE_MEASURE}
             data-plan={plan.outcome}
             data-testid={testId("refinerySchemaPlan")}
             prose={true}
+            tone={REFINERY_SCHEMA_PLAN_FAILING.has(plan.outcome) ? "warning" : "default"}
             voice="gloss"
           >
             {refinerySchemaPlanLine(plan)}

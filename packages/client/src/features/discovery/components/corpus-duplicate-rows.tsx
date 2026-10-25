@@ -233,7 +233,7 @@ function PairFace({
             {badge}
           </Badge>
         )}
-        <Text as="span" className="font-mono" voice="gloss">
+        <Text as="span" voice="datumMono">
           {percent(score)}
         </Text>
       </Row>

@@ -59,10 +59,13 @@ export interface CollapsiblePanelProps extends Omit<BasePanelProps, "className">
    *  reduced-motion floor). Set on an AUTO open/close where the content BELOW the panel must land at its
    *  final position in one commit (the reasoning disclosure's answer-token collapse). Default `false`. */
   instant?: boolean;
+  /** What the panel holds. `prose` (the default) is running text in the muted ink; `controls` keeps the
+   *  foreground ink, so `text-current` buttons inside do not all recede to muted. */
+  holds?: "prose" | "controls";
 }
 
 // Removed from the DOM while closed by default. `keepMounted` keeps it mounted but hidden;
 // `hiddenUntilFound` renders `hidden="until-found"` so find-in-page can locate + auto-expand it.
-export function CollapsiblePanel({ className, instant = false, ...rest }: CollapsiblePanelProps): ReactElement {
-  return <BaseCollapsible.Panel className={collapsibleVariants({ instant }).panel({ className })} data-slot="collapsible-panel" {...rest} />;
+export function CollapsiblePanel({ className, instant = false, holds, ...rest }: CollapsiblePanelProps): ReactElement {
+  return <BaseCollapsible.Panel className={collapsibleVariants({ instant, holds }).panel({ className })} data-slot="collapsible-panel" {...rest} />;
 }

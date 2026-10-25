@@ -89,9 +89,12 @@ export function DialogFooter(props: DialogFooterProps): ReactElement {
   return <div className={slots.footer({ className })} data-slot="dialog-footer" {...rest} />;
 }
 
-export interface DialogHeaderProps extends ComponentProps<"header"> {}
+export interface DialogHeaderProps extends ComponentProps<"header"> {
+  /** The header stays in view while the body scrolls under it. */
+  sticky?: boolean;
+}
 
 /** Keeps the modal heading separate from the scrolling body. */
-export function DialogHeader({ className, ...rest }: DialogHeaderProps): ReactElement {
-  return <header className={slots.header({ className })} data-slot="dialog-header" {...rest} />;
+export function DialogHeader({ className, sticky, ...rest }: DialogHeaderProps): ReactElement {
+  return <header className={dialogVariants({ stickyHeader: sticky }).header({ className })} data-slot="dialog-header" {...rest} />;
 }

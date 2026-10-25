@@ -16,13 +16,13 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 
 export interface TrailingArrowProps {
-  /** Extra classes for the arrow itself — a hover nudge (`group-hover:translate-x-tight`), nothing else. */
-  readonly className?: string;
+  /** The arrow nudges toward where its control goes while the control's `group` is hovered. */
+  readonly nudge?: boolean;
 }
 
-export function TrailingArrow({ className }: TrailingArrowProps): ReactElement {
+export function TrailingArrow({ nudge = false }: TrailingArrowProps): ReactElement {
   return (
-    <Text aria-hidden={true} as="span" className={className} ink="inherit" voice="label">
+    <Text aria-hidden={true} as="span" hoverCue={nudge ? "nudge" : undefined} ink="inherit" voice="label">
       →
     </Text>
   );

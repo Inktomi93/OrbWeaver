@@ -37,7 +37,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { CHIP_TOUCH_FLOOR_AT_COARSE, Tip, VALUE_ROW_TOUCH_FLOOR_AT_COARSE } from "#components";
+import { Tip } from "#components";
 import { resolveConditionGlyph } from "../lib/glyphs.ts";
 import { resolveTrackerColor, trackColorProps } from "../lib/track-color.ts";
 import { UNSET_DATUM } from "../lib/unset-datum.ts";
@@ -262,7 +262,7 @@ export function StatusLine({ status, subject, edit }: { readonly status: string;
     // THE ROW CARRIES THE COARSE TOUCH FLOOR, not the value (the fragment's own header states why): a
     // text-height value's touch pseudo overflows into whatever is stacked near it, such as the `+ condition`
     // control one row down. Floored, each row's pseudo fits inside its own band.
-    <Row gap="field" align="center" className={`min-inline-0 ${VALUE_ROW_TOUCH_FLOOR_AT_COARSE}`}>
+    <Row gap="field" align="center" touchFloor="block" className="min-inline-0">
       <TrackerValue
         ariaLabel={trackerFieldName("Status line", subject)}
         display={status}
@@ -305,8 +305,8 @@ export function ConditionChips({
   return (
     // The coarse floor again: with no chips yet this row is a bare text-height `+ condition`, whose touch
     // pseudo would swallow the status line ABOVE it. With chips it changes nothing — a chip already
-    // carries `CHIP_TOUCH_FLOOR_AT_COARSE`, so the row is already ≥44 there.
-    <Row gap="field" className={`flex-wrap ${VALUE_ROW_TOUCH_FLOOR_AT_COARSE}`} data-slot="rpg-conditions">
+    // carries `touchFloor="block"`, so the row is already ≥44 there.
+    <Row gap="field" touchFloor="block" className="flex-wrap" data-slot="rpg-conditions">
       {edit === undefined || !edit.isLocked(".conditions") ? null : (
         <RpgFieldLock
           field={subject === undefined ? "the conditions" : trackerFieldName("conditions", subject)}
@@ -321,7 +321,7 @@ export function ConditionChips({
           and the live destructive zone are the same shape. FINE is untouched (a compact chip in a dense
           tracker row). */}
       {conditions.map((cond) => (
-        <Badge key={cond.name} tone="soft" size="sm" intent="danger" className={CHIP_TOUCH_FLOOR_AT_COARSE}>
+        <Badge key={cond.name} tone="soft" size="sm" intent="danger" touchFloor="block">
           <Icon icon={resolveConditionGlyph(cond.name)} size="xs" />
           {cond.name}
           {onRemove === undefined ? null : (
@@ -329,7 +329,7 @@ export function ConditionChips({
               <Button
                 aria-label={trackerActionName(`Remove ${cond.name}`, "from", subject)}
                 intent="ghost"
-                // eslint-disable-next-line orb/no-floorless-control-in-wrap -- The chip carries CHIP_TOUCH_FLOOR_AT_COARSE, so its remove target fits within the chip; ends when this geometry or floorless size changes.
+                // eslint-disable-next-line orb/no-floorless-control-in-wrap -- The chip carries touchFloor="block", so its remove target fits within the chip; ends when this geometry or floorless size changes.
                 size="glyph-xs"
                 onClick={(): void => onRemove(cond.name)}
               >

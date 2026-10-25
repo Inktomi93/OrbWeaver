@@ -6,7 +6,7 @@ import type { AppearanceSettings } from "@orb/contracts/settings";
 import type { MessageId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { gutterCentredTracks } from "@orb/ui/layout";
-import { PILL_PHONE_CAP } from "./chat-track.ts";
+import { PILL_PHONE_CAP } from "./chat-track.tsx";
 import type { ActionsReveal } from "./message-actions-reveal.ts";
 import type { RowSkin } from "./message-row-variants.ts";
 

@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/codemod/codemod/refs/heads/main/schemas/workflow.json
+version: "1"
+params:
+  schema:
+    map:
+      name: "Map file"
+      description: "Path, relative to the target directory, of the JSON object with the `rules` list (constant, props)"
+      type: string
+      default: "codemod-class-constant-map.json"
+nodes:
+  - id: class-constant-to-prop
+    name: Replace class constants with props by map
+    type: automatic
+    steps:
+      - name: TSX files
+        js-ast-grep:
+          js_file: scripts/codemod.ts
+          base_path: "."
+          language: "tsx"
+          include: ["**/*.tsx"]
+          exclude: ["**/node_modules/**", "**/codemods/*/tests*/**"]

@@ -152,12 +152,7 @@ export function SectionRow({ form, section, index, zone, selected, onSelect, onD
               "tilde em dash" and `~30` as "tilde three zero" — the compression that makes the column
               scannable makes it unspeakable. The visible cell is `aria-hidden`; the sr-only line beside it
               says the same fact in words, including the carrier arm's whole reason. */}
-          <Text
-            aria-hidden={true}
-            as="span"
-            className={`shrink-0 text-end font-mono tabular-nums inline-(--width-number-inline) ${section.enabled ? "" : "line-through"}`}
-            voice="gloss"
-          >
+          <Text aria-hidden={true} as="span" className="shrink-0 text-end inline-(--width-number-inline)" strike={!section.enabled} tone="muted" voice="datum">
             {tokens}
           </Text>
           <Text as="span" className="sr-only">
@@ -177,7 +172,6 @@ export function SectionRow({ form, section, index, zone, selected, onSelect, onD
           </Button>
         </Row>
       }
-      className={section.enabled ? "" : "opacity-60"}
       clickable={true}
       // A LITERAL ROW HAS NO DISC (side-eye 2026-08-22 P3-6). F-17's fix below made the glyph PER-MARKER so
       // the column would carry information — and it does, for markers. A literal has no marker, so it fell
@@ -207,6 +201,7 @@ export function SectionRow({ form, section, index, zone, selected, onSelect, onD
           })}
       markers={<SectionCues section={section} />}
       onClick={(): void => onSelect(section.id)}
+      receded={!section.enabled}
       selected={selected}
       // THE EXPLAINER RIDES THE HOVER, NOT THE LINE (crunch-list O-7★, owner ruling: the inline "your core
       // system instruction" descriptions are lame — this OVERRIDES the mock's inline-desc drawing). It

@@ -33,7 +33,7 @@ function lineBoxHeight(lines: number): string {
   return `calc(${lines} * 1lh + 2 * var(--spacing-field) + 2px)`;
 }
 
-export function Textarea({ className, rows, maxRows, size, style, onValueChange, onChange, id, name, ...rest }: TextareaProps): ReactElement {
+export function Textarea({ className, rows, maxRows, size, chrome, face, style, onValueChange, onChange, id, name, ...rest }: TextareaProps): ReactElement {
   const identity = useFieldIdentity(id, name);
   // `field-sizing: content` makes the browser IGNORE `rows` for sizing (it collapses to the content
   // height), so a `rows={3}` field renders as a single line. Re-floor the height off `rows` as a
@@ -62,7 +62,11 @@ export function Textarea({ className, rows, maxRows, size, style, onValueChange,
           // The scroll is explicit rather than left to the UA default: `overflow: auto` is a textarea's
           // native behavior, but the skin is composed from utilities and a future `overflow-hidden` in the
           // shared FIELD_CONTROL would silently turn the cap into a CLIP — text gone with no scrollbar.
-          {...variantProps(textareaVariants, { size }, cn(maxRows === undefined ? undefined : "relative overflow-y-auto overscroll-contain", className))}
+          {...variantProps(
+            textareaVariants,
+            { size, chrome, face },
+            cn(maxRows === undefined ? undefined : "relative overflow-y-auto overscroll-contain", className),
+          )}
           data-slot="textarea-root"
           rows={rows}
           style={{ ...rowsFloor, ...rowsCeiling, ...style }}

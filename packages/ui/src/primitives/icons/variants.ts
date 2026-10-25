@@ -1,4 +1,4 @@
-import { RECEDED, TONE_INK, tv } from "#lib";
+import { HOVER_YIELD, OPEN_TURN, PULSE, RECEDED, TONE_INK, tv } from "#lib";
 
 // The glyph paints `currentColor`, so `tone` is the icon's ink by meaning, from the one map Text shares.
 export const iconVariants = tv({
@@ -10,6 +10,11 @@ export const iconVariants = tv({
       false: "",
     },
     receded: { true: RECEDED, false: "" },
+    pulse: { true: PULSE, false: "" },
+    // A disclosure chevron a consumer places itself: it turns with the trigger's open panel.
+    openTurn: { true: OPEN_TURN, false: "" },
+    // A rest-visible marker that steps aside while its ListRow's revealed cluster shows the same fact.
+    yieldOnHover: { true: HOVER_YIELD, false: "" },
   },
-  defaultVariants: { tone: "default", shadow: false, receded: false },
+  defaultVariants: { tone: "default", shadow: false, receded: false, pulse: false, openTurn: false, yieldOnHover: false },
 });

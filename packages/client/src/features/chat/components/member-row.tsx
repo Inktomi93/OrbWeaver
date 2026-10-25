@@ -7,7 +7,7 @@
 // tabindex owns the rest), and the inline cluster DUPLICATES two Menu items with identical
 // labels/icons, revealed on hover/`:focus-within` at a FINE pointer only (`pointer-coarse:hidden` — at
 // coarse it never renders; the ≥44px-floor touch path is row-tap → Menu). The reveal is PAINT-only
-// (`ROW_REVEAL`): the cluster holds its box at rest, so hovering the row never moves layout.
+// (the `Row` `reveal` prop): the cluster holds its box at rest, so hovering the row never moves layout.
 //
 // Accessible name = identity + state (lib/member-rows.ts `rowAccessibleName`); the character row's "responding…"
 // mark is `aria-hidden` visually (a quiet pulse, never `aria-live` — no per-turn SR chatter) and rides
@@ -33,11 +33,12 @@ import { Button } from "@orb/ui/button";
 import { Crown, Icon, MoreHorizontal, Volume2, VolumeX, Zap } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Menu, MenuPopup, MenuTrigger } from "@orb/ui/menu";
+import { Swatch } from "@orb/ui/swatch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId, useRef, useState } from "react";
-import { ConfirmDialog, HIDE_AT_COARSE, ROW_REVEAL, SettingCheckboxRow } from "#components";
-import { cn, rowActionsName } from "#lib";
+import { ConfirmDialog, SettingCheckboxRow } from "#components";
+import { rowActionsName } from "#lib";
 import type { MEMBER_ROW_CONFIRMS, MemberCharacterRow, MemberPersonRow, MemberRowActions, MemberRowFocusProps } from "../lib/member-rows.ts";
 import { rowAccessibleName } from "../lib/member-rows.ts";
 import { buildMenuItems } from "./member-row-menu.tsx";
@@ -96,11 +97,7 @@ export function MemberRow(props: MemberRowProps): ReactElement {
         {initialsFor(row.displayName)}
       </Avatar>
       {row.kind === "person" ? <PresenceDot online={row.online} /> : null}
-      <Text
-        as="span"
-        voice="label"
-        className={row.kind === "character" && row.disabled ? "truncate text-muted-foreground min-inline-0" : "truncate min-inline-0"}
-      >
+      <Text as="span" voice="label" tone={row.kind === "character" && row.disabled ? "muted" : "default"} className="truncate min-inline-0">
         {/* Identity ONLY. The ` · ${handle}` suffix that used to sit here rendered the raw login handle —
             an EMAIL under AUTH_MODE=oidc — beside every human's name (#162); `MemberPersonRow` no longer
             carries a handle at all, so the suffix has nothing to come back from. */}
@@ -110,7 +107,7 @@ export function MemberRow(props: MemberRowProps): ReactElement {
       {responding ? (
         <>
           {/* Visual mark aria-hidden; the state rides the accessible DESCRIPTION (no aria-live). */}
-          <Text as="span" voice="gloss" aria-hidden={true} className="animate-pulse">
+          <Text as="span" voice="gloss" aria-hidden={true} pulse={true}>
             responding…
           </Text>
           <Text as="span" id={descriptionId} className="sr-only">
@@ -173,19 +170,16 @@ function PresenceDot({ online }: { readonly online: boolean | null }): ReactElem
     return null;
   }
   return (
-    <Text
-      as="span"
-      aria-hidden={true}
-      data-slot="member-presence"
+    <Swatch
+      className="shrink-0 block-(--size-dot) inline-(--size-dot)"
       data-online={online}
-      // The SHAPE channel: `bg-success` fills the online dot, and the offline one is an unfilled ring of the
-      // same box — two states distinguishable with the colour removed, per the never-colour-alone rule the
-      // sibling `role-status-dot.tsx` states.
-      className={
-        online
-          ? "shrink-0 rounded-full bg-success block-(--size-dot) inline-(--size-dot)"
-          : "shrink-0 rounded-full border border-muted-foreground block-(--size-dot) inline-(--size-dot)"
-      }
+      data-slot="member-presence"
+      // The SHAPE channel: the online dot is filled, and the offline one is an unfilled ring of the same box —
+      // two states distinguishable with the colour removed, per the never-colour-alone rule the sibling
+      // `role-status-dot.tsx` states.
+      edge={online ? "none" : "ring"}
+      fill={online ? "success" : "none"}
+      shape="pill"
     />
   );
 }
@@ -241,7 +235,7 @@ function CharacterInlineCluster({ row, actions }: { readonly row: MemberCharacte
     // a stationary pointer — the hit-test oscillator the preset list measured (row-reveal.ts; gate
     // `no-hover-display-swap`). `pointer-coarse:hidden` keeps today's coarse behavior (the cluster is never
     // rendered there — the row tap opens the Menu) and is a DEVICE-class swap, which cannot oscillate.
-    <Row gap="field" align="center" className={cn(ROW_REVEAL, HIDE_AT_COARSE) ?? ""}>
+    <Row gap="field" align="center" reveal="hover" hiddenAt="coarse">
       <Button
         type="button"
         intent="ghost"

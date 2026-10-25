@@ -34,9 +34,9 @@ export function RpgSubjectSelect({ actors, value, onChange, ariaLabel }: RpgSubj
       }}
       // The identity-line voice: a text-height, chrome-free trigger — the NAME with the dropdown chevron,
       // not a form control box (display-at-rest; the popup is the affordance). That geometry is the
-      // primitive's `inline` layout arm; only the weight is this site's own.
+      // primitive's `inline` layout arm, with the name's semibold weight.
       layout="inline"
-      className="font-semibold"
+      strong={true}
     />
   );
 }

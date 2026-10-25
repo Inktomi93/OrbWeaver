@@ -11,7 +11,7 @@ import type { ReactElement } from "react";
 export function AddConnectionFailure({ id, sentence }: { readonly id: string; readonly sentence: string }): ReactElement {
   return (
     <Row align="start" data-slot="add-connection-failure" gap="field" id={id} role="alert" tabIndex={-1}>
-      <Icon className="shrink-0 text-destructive" icon={AlertTriangle} size="sm" />
+      <Icon className="shrink-0" icon={AlertTriangle} size="sm" tone="destructive" />
       <Text tone="destructive" className="max-inline-(--reading-measure-prose)" prose={true} voice="gloss">
         {sentence}
       </Text>

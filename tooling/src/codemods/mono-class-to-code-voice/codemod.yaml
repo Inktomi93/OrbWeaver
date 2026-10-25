@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "mono-class-to-code-voice"
+version: "0.1.0"
+description: "Replace the font-mono class token on a Text with voice=\"code\", whether the Text carries voice=\"label\" or no voice."
+author: "Orbweaver"
+license: "MIT"
+targets:
+  languages: ["tsx"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml
