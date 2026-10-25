@@ -110,6 +110,7 @@ function isLive(tile: HomeTileContribution): boolean {
 }
 
 export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElement {
+  const gridRef = useRef<HTMLDivElement>(null);
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
   // THE BELOW-FOLD CUE (side-eye rail-home P2-1). Home is the app's one CONTENT-SCROLLING landing surface,
@@ -173,11 +174,11 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
           ) : (
             <Stack gap="section">
               {masthead.map((tile) => (
-                <HomeTile column="masthead" key={tile.id} tile={tile} />
+                <HomeTile gridRef={gridRef} column="masthead" key={tile.id} tile={tile} />
               ))}
               {/* `items-start` (mock `.room{align-items:start}`): grid's default `stretch` would make the
                   shelf column as tall as the hearth and hang its last block in dead space. */}
-              <Grid className="items-start" cols="pairWide" data-home-grid={true} gap="gutter">
+              <Grid className="items-start" cols="pairWide" ref={gridRef} data-home-grid={true} gap="gutter">
                 {/* `min-w-0` IS THE SPLIT (side-eye 2026-08-16 P1-1). A grid TRACK CHILD is `min-width:auto`,
                     so each track is floored at its content's min-content width — and the hero's own
                     min-content (a 64px face strip + a headline + a character/age line) is ~743px, which silently
@@ -187,12 +188,12 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
                     are allowed to shrink below their content. */}
                 <Stack className="min-inline-0" gap="section" ref={hearthRef}>
                   {hearth.map((tile) => (
-                    <HomeTile column="hearth" key={tile.id} tile={tile} />
+                    <HomeTile gridRef={gridRef} column="hearth" key={tile.id} tile={tile} />
                   ))}
                 </Stack>
                 <Stack className="group/shelf min-inline-0 has-data-home-held:invisible" data-home-shelf={true} gap="section" ref={shelfRef}>
                   {shelfLead.map((tile) => (
-                    <HomeTile column="shelf" key={tile.id} tile={tile} />
+                    <HomeTile gridRef={gridRef} column="shelf" key={tile.id} tile={tile} />
                   ))}
                   {/* THE RAIL'S SECOND BREATH (side-eye 2026-08-16 F3). The `lead` split widens the rail at
                       >=100rem, and that was only half the promise: at a 2000px pane the hearth column
@@ -208,7 +209,7 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
                   <Grid className="grid-flow-row-dense items-start" cols="pairWide" data-home-shelf-foot={true} gap="gutter" ref={footRef}>
                     {shelfFootSide.map((tile) => (
                       <Stack className="col-span-full min-inline-0 group-data-[foot=paired]/shelf:col-auto" key={tile.id}>
-                        <HomeTile column="shelf" tile={tile} />
+                        <HomeTile gridRef={gridRef} column="shelf" tile={tile} />
                       </Stack>
                     ))}
                     {shelfFoot.map((tile) => (
@@ -220,7 +221,7 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
                         }
                         key={tile.id}
                       >
-                        <HomeTile column="shelf" tile={tile} />
+                        <HomeTile gridRef={gridRef} column="shelf" tile={tile} />
                       </Stack>
                     ))}
                     {doorways.length === 0 ? null : (

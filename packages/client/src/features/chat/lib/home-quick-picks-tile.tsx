@@ -26,5 +26,5 @@ export const chatQuickPicksTile: HomeTileContribution = {
   useRegion: useStarterRegion,
   skeletonBlock: QUICK_PICKS_SKELETON_BLOCK_PX,
   skeletonRows: QUICK_PICKS_SKELETON_ROWS,
-  body: () => <HomeQuickPicksTileBody />,
+  body: ({ gridRef }) => <HomeQuickPicksTileBody gridRef={gridRef} />,
 };

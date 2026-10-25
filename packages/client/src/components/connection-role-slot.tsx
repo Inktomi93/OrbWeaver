@@ -143,9 +143,9 @@ export function ConnectionRoleSlot({
   const update = useUpdateConnection(deps);
   const pickerLabel = `${row.label} connection`;
   // The confirm opens from the picker's own popup, which is gone by the time it closes; focus returns to the picker.
-  const slotRef = useRef<HTMLDivElement>(null);
+  const pickerRef = useRef<HTMLButtonElement>(null);
   const reindex = useReindexConfirm(trpc, (): boolean => {
-    slotRef.current?.querySelector<HTMLElement>(`[aria-label="${CSS.escape(pickerLabel)}"]`)?.focus();
+    pickerRef.current?.focus();
     return false;
   });
   const isVectorRole = actor === undefined && VECTOR_ROLES.includes(row.task);
@@ -188,7 +188,7 @@ export function ConnectionRoleSlot({
   const current = draft === undefined ? persisted : (draft ?? UNSET_VALUE);
 
   return (
-    <Row aria-busy={shownCheck !== null} gap="field" align="start" justify="between" className="flex-wrap" ref={slotRef}>
+    <Row aria-busy={shownCheck !== null} gap="field" align="start" justify="between" className="flex-wrap">
       <Row gap="field" align="start">
         <Badge
           aria-label={ROLE_STATUS_LABELS[dot]}
@@ -218,6 +218,7 @@ export function ConnectionRoleSlot({
         </Stack>
       </Row>
       <Select
+        triggerRef={pickerRef}
         aria-label={pickerLabel}
         id={controlId}
         items={items}

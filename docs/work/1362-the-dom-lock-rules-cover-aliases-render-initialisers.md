@@ -23,4 +23,10 @@ Each gap has a planted red case in the rule tests; homes exempt named call sites
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Implemented alias-aware lookup and class-write rules in `tooling/src/eslint/ui-dom.ts`. `DOM_LOOKUP_HOMES` binds a function path, receiver, method and selector; it no longer excludes files. The rule covers every client source tier and rejects duplicate, stale and additional operations. Dynamic selector normalization preserves meaningful CSS whitespace.
+
+Static styles include module members, memo initializer returns, prop defaults and authored React CSSProperties objects. Render layout reads include memo, state and reducer initializers. Sealed-selector controls distinguish prose and class-name lookups. Browser event checks use native DOM receiver types and BCD event records; settings guards scrollend and retains its existing timer fallback.
+
+The gallery popup, message column, Home grid, settings content pane, connection picker and FaceStrip use explicit refs. The settings arrival effect waits for the selected band's ref; the retained-content predicate runs after commit. No timer or retry was added.
+
+Old-source controls failed for the reported gaps. Current DOM controls pass 82 cases; browser support passes 45. Native CTs cover Select focus and cleanup, FaceStrip rename/removal, row-edit footprint, gallery viewport fit, Home coarse-pointer columns, settings arrival and jumps. Final affected compiler and scoped ESLint checks pass. The CSS lane owns the exposed artwork-style migrations; main owns the integrated whole-client verdict. Full commands, failures, corrections and limits are in `docs/reviews/dom-closeout.md`.

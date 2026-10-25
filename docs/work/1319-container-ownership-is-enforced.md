@@ -29,3 +29,5 @@ An ESLint rule refuses the raw Tailwind `@container` utility and `containerType`
 - `character-gallery-anchor.tsx` is the dialog case: it mounts `CharacterGalleryDialog`, which renders the dialog box.
 - Sites moved: 21 `Section` classes by codemod `section-container-prop`; the rest by hand. Surfaces with a redundant `<Container>` dropped it to the region or content host container; surfaces whose container sat inside a padded box moved it to an anchor.
 - CTs run: config, tag, preset, chat, plugin, refinery, discovery, databank, shell and dialog suites, all green.
+
+Closeout: existing container controls pass 47 cases. Name and import identity recognition remains bounded; work item 1367 owns that semantic extension. No arbitrary rendered-containment certification is claimed.

@@ -482,6 +482,8 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/chat/lib/gen-duration.ts": "durationLabel and genDurationLabel: the feature-private duration formatting",
   },
   "tests/client/features/chat/components/chat-style-skins.ct.tsx": {
+    "packages/client/src/lib/row-qualifiers.ts": "viewImageActionName: the portrait viewer opener accessible name",
+    "packages/client/src/features/chat/lib/message-action-names.ts": "MESSAGE_EDIT_NAME: the row edit action and editor accessible name",
     "packages/client/src/features/chat/lib/message-row-variants.ts": "MESSAGE_ROW_SKINS: the skin rows each chat style's measured paint is held to",
   },
   "tests/client/features/discovery/lib/corpus-duplicate-groups.test.ts": {

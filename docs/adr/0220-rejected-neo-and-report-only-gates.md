@@ -32,32 +32,27 @@ scratch.
 
 **Built, measured, then dropped — the property is refuted or already held elsewhere:**
 
-- `optimistic-chat` (client optimistic-update call-site invariants) — dropped when architecture-B (the
-  `ChatHandle` union + `startChat` carry-params) made the premise moot: a draft is a `{kind:"draft"}`
-  handle, not an optimistic cache seed, so there are zero `isOptimistic` call sites to gate.
+- `optimistic-chat` (client optimistic-update call-site invariants) — rejected because chat creation and
+  initial canon follow the production `chat.startChat` response through `useStartChat`. The response seeds
+  initial cache entries before navigation. D333 requires no separate optimistic-call-site gate.
 - `shell-no-chrome-props` (a prop-name allowlist banning a feature-chrome `ReactNode` slot on the shell) —
   dropped because the seam it would guard is already type-deleted (`AppShellProps` no longer exists;
   `AppShell()` takes zero props). The remaining shell `ReactNode` props mix frame-grammar slots with
   legitimate content composition, so a prop-name allowlist or denylist cannot tell rot from a legitimate
-  prop without guarding nothing. `chrome-registry-completeness` already forces
-  new chrome through the registry.
-- `abandoned-comments` (report-only: comments that lost their code anchor) — dropped because every
-  resolvable anchor is already held (`dangling-doc-cite` for an absent `docs/` markdown cite,
-  `dangling-refs` for a dead repo-path or strict UPPER-SNAKE token, `commented-code` for parked `//`
-  statements), and the residue — a comment whose prose describes code that changed, with no machine
-  anchor — is ruled prose-enforced by the constitution's register-boundary paragraph. A report-only metric
-  over that residue would report a number with no remedy attached.
+  prop without guarding nothing. `assembleChrome` derives chrome from the production registries.
+  D73 names the retained compiler and native test checks, including their declaration-recognition limits.
+- `abandoned-comments` (report-only: comments that lost their code anchor) — rejected because prose that
+  describes changed code still needs review. `tests/tooling/doc/comment-path-citations.repo.int.test.ts`
+  checks retained repository-path citations, and `orb/commented-code` refuses recognized parked statements.
+  Neither proves that an unanchored prose claim remains correct. D333 requires no separate report metric.
 - `comment-density` (report-only: comment-line share, capped or floored) — dropped because a single
   repo-wide cap or floor is refuted by the house style: the gate corpus and the product packages carry very different comment
   shares, and the per-file spread runs from near-zero to near-total. Documentation law makes the
   machine-first file header a heavy load, so a cap would penalize the files carrying the most law, while
   a floor is satisfiable by noise.
-- `arch-metrics` (ArchUnitTS class-quality metrics, report-only) — dropped because the dependency is not on
-  the tree (verified against every package manifest), and its subject — module/class quality and layering
-  — is already held at a stronger tier: resolve-time by the package cake, lint-time by `pnpm depcruise`,
-  and structurally by `package-layout`, `server-layout`, `client-structure`, `feature-structure` and
-  `ui-primitive-structure`. A report-only score beside a red boundary is a second, weaker opinion on a
-  settled question.
+- `arch-metrics` (ArchUnitTS class-quality metrics, report-only) — rejected because package manifests and
+  native dependency-cruiser own import direction. D333 removes custom architectural census and checker
+  qualification. A report-only score does not strengthen these retained boundaries.
 - The tuple-vs-tuple case of `no-inline-union-redecl` (a second `as const` tuple duplicating a first tuple's
   members) — decided against. Two axes whose members coincide get two tuples, and neither derives from the
   other, because the coincidence is exactly what breaks when one axis grows. A census of every tracked
@@ -65,14 +60,12 @@ scratch.
   and every one is sanctioned: most are distinct axes that happen to share a spelling, and the rest are
   contracts-to-ui pairs
   that the package cake forces apart (`@orb/ui` declares only `@orb/kit` as a workspace dependency, so it
-  cannot import the `@orb/contracts` half at resolve time). The live gate's other case (an inline union or a
-  `z.enum([…])` literal re-spelling a canonical tuple) still stands.
+  cannot import the `@orb/contracts` half at resolve time). D333 removes the custom union-redeclaration
+  gate; type-home and exhaustive-union product rules remain review and native compiler obligations.
 
 ## Consequences
 
-No gate exists for any of the above. A later reader proposing one of these again should read this record
-first; if the underlying fact changes (a dependency gets added, a coincidence starts drifting), the
-rejection can be revisited, but the burden is on showing what changed.
+No separate checker is required for these rejected proposals. Retained native checks and targeted product tests remain in force under D333. Revisit a rejection only when its underlying constraint changes.
 
 ## Alternatives rejected
 

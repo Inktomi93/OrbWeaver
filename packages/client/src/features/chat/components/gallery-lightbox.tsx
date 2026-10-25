@@ -60,11 +60,10 @@ function useImageSize(hash: string | null): { readonly aspect: number; readonly 
 
 // The height the dialog spends outside the frame, measured: the popup's height minus the frame's, plus the
 // viewport gutters above and below it. The frame takes whatever the viewport leaves after that.
-function useChromeHeight(content: HTMLDivElement | null, frame: RefObject<HTMLDivElement | null>): number {
+function useChromeHeight(popup: HTMLDivElement | null, frame: RefObject<HTMLDivElement | null>): number {
   const [chrome, setChrome] = useState(FALLBACK_CHROME_PX);
   useLayoutEffect(() => {
-    const popup = content?.closest('[data-slot="dialog-popup"]');
-    if (popup === null || popup === undefined) {
+    if (popup === null) {
       return;
     }
     const measure = (): void => {
@@ -78,7 +77,7 @@ function useChromeHeight(content: HTMLDivElement | null, frame: RefObject<HTMLDi
     const observer = new ResizeObserver(measure);
     observer.observe(popup);
     return (): void => observer.disconnect();
-  }, [content, frame]);
+  }, [popup, frame]);
   return chrome;
 }
 
@@ -87,15 +86,15 @@ export function GalleryLightbox({ image, removal, onClose, finalFocus, onSettled
   const closeRef = useRef<HTMLButtonElement>(null);
   const { aspect, naturalWidth } = useImageSize(image === null ? null : image.hash);
   // State, not a ref: the popup mounts after the lightbox opens, and the measure must run once it exists.
-  const [content, setContent] = useState<HTMLDivElement | null>(null);
+  const [popup, setPopup] = useState<HTMLDivElement | null>(null);
   const frameRef = useRef<HTMLDivElement | null>(null);
-  const chrome = useChromeHeight(content, frameRef);
+  const chrome = useChromeHeight(popup, frameRef);
   // The largest box of the image's aspect that fits the height left after the chrome, and never past the image's own size.
   const frameWidth = `min(${naturalWidth === null ? "100vw" : `${String(naturalWidth)}px`}, calc((100dvh - ${String(chrome)}px) * ${String(aspect)}))`;
   return (
     <ViewerDialog
       title={image === null ? "Image" : image.name}
-      popupProps={{ size: "xlFit", initialFocus: closeRef, finalFocus }}
+      popupProps={{ size: "xlFit", initialFocus: closeRef, finalFocus, ref: setPopup }}
       headerActions={
         <DialogClose
           render={
@@ -114,7 +113,7 @@ export function GalleryLightbox({ image, removal, onClose, finalFocus, onSettled
       onOpenChangeComplete={onSettled}
     >
       {image === null ? null : (
-        <Stack gap="block" className="min-block-0" ref={setContent}>
+        <Stack gap="block" className="min-block-0">
           {/* The dialog hugs the frame: sized by height when height limits it (no grey bars), by the dialog's own
                 width otherwise, and never upscaled past the image. */}
           <Stack align="center" className="relative">
