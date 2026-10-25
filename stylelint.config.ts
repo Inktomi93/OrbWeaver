@@ -94,10 +94,15 @@ const config: Config = {
     "orb/appearance-name-in-manifest": [true, appearance],
     "orb/browser-support-css": [true, { harmless: HARMLESS_WHEN_UNSUPPORTED }],
     "orb/no-undeclared-var-fallback": true,
+    "orb/no-lifecycle-keyframes": true,
     // Compositor hacks: a permanent layer hint or a backface flip promotes a layer the browser would not, and costs memory on
     // the small devices this app runs on. Animate transform, translate, scale, rotate, opacity and filter.
     "property-disallowed-list": ["/^--leading-[a-z-]+$/", "will-change", "backface-visibility", "-webkit-overflow-scrolling"],
-    "declaration-property-value-disallowed-list": { "/^(?:-webkit-)?transform$/": ["/translate(?:3d|Z)\\(/i"] },
+    "declaration-property-value-disallowed-list": {
+      "/^(?:-webkit-)?transform$/": ["/translate(?:3d|Z)\\(/i"],
+      // `all` fades a focus ring and animates the layout vars Base UI recomputes live; a transition names its properties.
+      "/^transition(?:-property)?$/": ["/(?:^|[\\s,])all(?:$|[\\s,])/i"],
+    },
     "declaration-property-value-allowed-list": {
       "line-height": [...leadings, "/^var\\(--orb-tier-[a-z-]+-leading\\)$/"],
       "/^--orb-tier-[a-z-]+-leading$/": leadings,

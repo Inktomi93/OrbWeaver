@@ -121,8 +121,9 @@ moving at speed sees a desaturated half-ring at every stop — and these popups 
 element and moves focus into it on open; measured on dialog and popover). `all` also animates the
 layout vars Base UI recomputes live (`--available-height`, `--anchor-width`), so a repositioned
 popup lags its anchor, and it animates inherited properties the element never opted into (such as
-`scrollbarColor`). No site in this app uses `transition-all`; every transition names its
-properties: `transition-[opacity,scale]` (dialog, popover) — pinned by `transitionProperty` reads
+`scrollbarColor`). `transition-all` is refused: `better-tailwindcss/no-restricted-classes` for class
+strings and Stylelint `declaration-property-value-disallowed-list` for `transition` and
+`transition-property` in sheets. Every transition names its properties: `transition-[opacity,scale]` (dialog, popover) — pinned by `transitionProperty` reads
 in `tests/ui/primitives/dialog/native-parts.ct.tsx` and `tests/ui/primitives/popover/native-parts.ct.tsx`;
 `transition-[opacity,transform,translate]` (toast, pinned the same way in
 `tests/ui/primitives/toast/transition.ct.tsx`); `transition-[height]` (accordion panel, collapsible
@@ -543,14 +544,10 @@ effects, the indeterminate hairline, the stream caret), multi-step sequences (sh
 word-reveal fade (§4.2 item 10 — anchored animation-delay, a technique transitions cannot express).
 Those are the §1.2-documented exceptions: effects a transition literally cannot express.
 
-**Enforcer:** `rest-transform-grid`'s transform-declaration check classifies `@keyframes` blocks as
-ANIMATING (not rest), so a `@keyframes`-only animation passes that gate more easily than a
-transition — a perverse incentive. The enforcement gap is that no gate currently REDs a lifecycle `@keyframes`
-on a Base UI popup part when a transition could express the same effect. The structural fix is a
-ui-audit rule or gate that flags `animation`/`animation-name` declarations on elements carrying
-`data-open`/`data-closed` when the animated properties (`opacity`, `transform`, `scale`) are
-transition-expressible. Until that gate ships, this rule is REVIEW-ENFORCED — a `@keyframes`
-lifecycle animation on a Base UI part in a PR review is a finding.
+**Enforcer:** two checks, one per spelling.
+
+- Stylesheets: Stylelint `orb/no-lifecycle-keyframes` refuses an `animation` or `animation-name` declaration on a selector keyed on `data-open`, `data-closed`, `data-starting-style` or `data-ending-style`, unless the animation loops, its `@keyframes` has more than two stops, or it is on the allowlist below. It resolves keyframes defined in the same sheet; a name defined in another sheet is unresolved and refused.
+- Class strings: `better-tailwindcss/no-restricted-classes` in `eslint.config.ts` refuses a `data-open:`, `data-closed:`, `data-starting-style:` or `data-ending-style:` variant on an `animate-*` utility, also behind `group-`, `peer-` or `in-` and stacked variants. `animate-none` and the stock loops `animate-spin`, `animate-ping`, `animate-pulse` and `animate-bounce` pass.
 
 **Allowlist (the `@keyframes` that stay):** any continuous/looping animation (`animation-iteration-count:
 infinite`); any multi-step sequence (>2 stops); the `orb-word-reveal` anchored fade (§4.2 item 10); the
@@ -566,11 +563,7 @@ CHILD means `getAnimations()` returns an empty array on the part, Base UI conclu
 already done, and it unmounts instantly — eating the exit animation. The user sees a hard cut instead of
 a fade-out.
 
-**Enforcer:** statically detectable — `data-ending-style` styles targeting a descendant selector with no
-`data-ending-style` on the part itself is the defect pattern. Until a dedicated gate ships, this is
-REVIEW-ENFORCED. The structural detection shape: a Tailwind `data-ending-style:` variant on a child
-element inside a Base UI popup, with no `data-ending-style:` variant on the popup's own root. The
-`orb/baseui-state-data-attributes` ESLint rule owns the adjacent parallel-state styling concern, not exit-target completeness.
+**Enforcer:** review. The defect shape is a `data-ending-style:` variant on a child slot with none on the popup's own root. A lexical check cannot see it: the popup root takes its exit variants from shared fragments (`OVERLAY_MOTION`) that a variants file imports, so a recipe that spells no `data-ending-style:` on its root can still carry one. Put the variant on the popup, panel, backdrop or root slot of the recipe. The `orb/baseui-state-data-attributes` ESLint rule owns the adjacent parallel-state styling concern, not exit-target completeness.
 
 **Practical consequence:** always put at least `opacity: 0` on `[data-ending-style]` of the popup root
 itself, even if most of the exit visual is on a child. `OVERLAY_MOTION.anchoredPopup` and

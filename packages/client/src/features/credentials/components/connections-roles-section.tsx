@@ -5,12 +5,11 @@
 import { Button } from "@orb/ui/button";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { ConnectionRoleSlot, QueryBoundary, useFirstBootBox } from "#components";
 import type { Trpc } from "#data";
-import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { CONNECTIONS_LIST_ADDRESS, ROLE_ROWS_ORDERED } from "#lib";
 import { configSettingControlId, openConfigTo, requestConnectionEditor } from "#state";
 import { CONNECTIONS_ROLES_SUBCATEGORY, ROLE_SETTING_IDS } from "../lib/connections-nav.ts";

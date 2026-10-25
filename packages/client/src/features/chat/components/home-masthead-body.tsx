@@ -38,9 +38,8 @@ import { HOME_RECENT_CHATS_LIMIT } from "@orb/contracts/chat";
 import { Stack } from "@orb/ui/layout";
 import { Skeleton } from "@orb/ui/skeleton";
 import { Heading, Text } from "@orb/ui/text";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useTRPC } from "#data";
+import { useSuspenseQuery, useTRPC } from "#data";
 import { timeLib } from "#lib";
 import { isFirstRun } from "../lib/home-hearth.ts";
 

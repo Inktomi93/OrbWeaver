@@ -34,10 +34,12 @@ import { Field } from "@orb/ui/field";
 import type { FileDropzoneResult } from "@orb/ui/file-dropzone";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import { Input } from "@orb/ui/input";
-import { Row, Stack } from "@orb/ui/layout";
+import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import { useToastManager } from "@orb/ui/toast";
+import { Toggle } from "@orb/ui/toggle";
+import { ToggleGroup } from "@orb/ui/toggle-group";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { CharacterPicker } from "#components";
@@ -127,20 +129,22 @@ export function AddDocumentBody(): ReactElement {
       <Stack gap="block">
         <Stack gap="field">
           <Text voice="label">Use this document in</Text>
-          <Row className="flex-wrap" gap="field">
+          <ToggleGroup
+            aria-label="Use this document in"
+            onValueChange={(next): void => {
+              const picked = DOCUMENT_SCOPE_SOURCES.find((kind) => kind === next[0]);
+              if (picked !== undefined) {
+                setScope(picked);
+              }
+            }}
+            value={[scope]}
+          >
             {DOCUMENT_SCOPE_SOURCES.map((kind) => (
-              <Button
-                aria-pressed={scope === kind}
-                intent={scope === kind ? "primary" : "ghost"}
-                key={kind}
-                onClick={(): void => setScope(kind)}
-                size="sm"
-                type="button"
-              >
+              <Toggle intent="outline" key={kind} size="sm" value={kind}>
                 {({ global: "Every chat", character: "This character", chat: "This chat" } satisfies Record<DocumentScopeSource, string>)[kind]}
-              </Button>
+              </Toggle>
             ))}
-          </Row>
+          </ToggleGroup>
           {scope === "character" ? (
             <CharacterPicker
               emptyText="No characters match."
@@ -154,13 +158,22 @@ export function AddDocumentBody(): ReactElement {
         </Stack>
         {/* Three pressable modes, not a tablist: each swaps the body in place with no panel to own or
             label, and `aria-pressed` is the honest name for "this is the one you are on". */}
-        <Row className="flex-wrap" gap="field">
+        <ToggleGroup
+          aria-label="How to add the document"
+          onValueChange={(next): void => {
+            const picked = ADD_MODES.find((id) => id === next[0]);
+            if (picked !== undefined) {
+              setMode(picked);
+            }
+          }}
+          value={[mode]}
+        >
           {ADD_MODES.map((id) => (
-            <Button aria-pressed={mode === id} intent={mode === id ? "primary" : "ghost"} key={id} onClick={(): void => setMode(id)} size="sm" type="button">
+            <Toggle intent="outline" key={id} size="sm" value={id}>
               {MODE_LABELS[id]}
-            </Button>
+            </Toggle>
           ))}
-        </Row>
+        </ToggleGroup>
         {/* THE MODE STRIP HOLDS ONE Y (side-eye 2026-08-19 P2). The three arms are 405 / 543.75 / 375.75px
             tall and the shell's Dialog is vertically CENTRED, so switching mode moved the whole dialog
             70-84px — under the pointer, with the strip the user is aiming at as the thing that moved. The

@@ -17,11 +17,10 @@ import { Icon, Plus } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect, useRef } from "react";
 import type { Trpc } from "#data";
-import { createEntityMutation, useInvalidation, useTRPC } from "#data";
+import { createEntityMutation, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { START_TEMP_CHAT_NAME } from "#lib";
 import { openNewChatPicker } from "#state";
 

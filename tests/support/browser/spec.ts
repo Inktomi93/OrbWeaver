@@ -2,6 +2,7 @@
 
 export { formatFindings, nameQualityFindings, productNameFindings, unnamedLandmarkElementFindings } from "./accessible-names.ts";
 export { expectCacheProse } from "./cache-prose.ts";
+export { densityFindings, formatDensityFindings } from "./density-census.ts";
 export { formatFormIdentityFindings, formIdentityFindings } from "./form-identity.ts";
 export { emulateMedia, releaseEmulatedMedia } from "./media-emulation.ts";
 export { pixelContrast, pixelSurface } from "./pixel-contrast.ts";

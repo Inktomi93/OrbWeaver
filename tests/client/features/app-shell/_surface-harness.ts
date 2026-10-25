@@ -49,8 +49,11 @@ const SERVED = [
   "settings.getVersion",
 ] as const;
 
+/** Reads a seeded surface needs beyond the shared set; each replaces the shared answer for that procedure. */
+export type SurfaceRouteOverrides = Parameters<typeof defineTrpcRoutes>[0];
+
 /** Route every read a registered surface may issue when mounted alone; `caller` is a corpus root's internal caller. */
-export function routeSurfaceReads(page: Page, corpus: CorpusWire, caller: object): Promise<TrpcRecorder> {
+export function routeSurfaceReads(page: Page, corpus: CorpusWire, caller: object, overrides: SurfaceRouteOverrides = {}): Promise<TrpcRecorder> {
   const { reads } = corpus;
   const shell = shellRecords(corpus);
   const firstBoot = requiredFirstBoot(corpus);
@@ -127,6 +130,7 @@ export function routeSurfaceReads(page: Page, corpus: CorpusWire, caller: object
     "admin.listUsers": () => [],
     "automation.listOwnerRules": () => [],
     "notifications.markAllRead": () => ({ markedCount: 0 }),
+    ...overrides,
   });
   return routeTrpc(page, routes);
 }
