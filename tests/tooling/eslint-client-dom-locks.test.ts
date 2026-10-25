@@ -53,7 +53,7 @@ const jsx = (body: string, preamble = ""): string =>
   `${preamble}export function P(props: { readonly n: number; readonly flag: boolean }) {\n  return ${body};\n}\n`;
 
 /** A template placeholder spelled without a literal `$` + `{` in this file's own strings. */
-const interp = (expression: string): string => "${" + expression + "}";
+const interp = (expression: string): string => `$${"{"}${expression}}`;
 
 // [rule, label, source, path, expected finding count]
 const CASES = [
@@ -61,7 +61,7 @@ const CASES = [
   [STYLE, "a literal property", jsx('<Stack style={{ maxWidth: "100%" }} />'), FEATURE_TSX, 1],
   [STYLE, "a token calc() literal", jsx('<Row style={{ width: "calc(var(--a) + var(--b))" }} />'), FEATURE_TSX, 1],
   [STYLE, "a named module constant", jsx("<Menu style={BOUND} />", 'const BOUND = { maxHeight: "calc(var(--a) - var(--b))" };\n'), FEATURE_TSX, 1],
-  [STYLE, "a template of constants", jsx("<Stack style={{ minBlockSize: `" + interp("PX") + "px` }} />", "const PX = 12;\n"), FEATURE_TSX, 1],
+  [STYLE, "a template of constants", jsx(`<Stack style={{ minBlockSize: \`${interp("PX")}px\` }} />`, "const PX = 12;\n"), FEATURE_TSX, 1],
   [STYLE, "an imported constant", jsx("<Stack style={{ minBlockSize: RECENTS }} />", 'import { RECENTS } from "./x.ts";\n'), FEATURE_TSX, 1],
   [
     STYLE,
@@ -74,7 +74,7 @@ const CASES = [
   [STYLE, "a static property beside a measured one", jsx('<Stack style={{ aspectRatio: props.n, maxWidth: "100%" }} />'), FEATURE_TSX, 1],
   [STYLE, "a static style in the components tier", jsx('<Stack style={{ overflow: "clip" }} />'), COMPONENT, 1],
   [STYLE, "a value measured at runtime", jsx("<Stack style={{ width: props.n }} />"), FEATURE_TSX, 0],
-  [STYLE, "a value derived from data", jsx("<Stack style={{ blockSize: `" + interp("Math.round(props.n)") + "px` }} />"), FEATURE_TSX, 0],
+  [STYLE, "a value derived from data", jsx(`<Stack style={{ blockSize: \`${interp("Math.round(props.n)")}px\` }} />`), FEATURE_TSX, 0],
   [
     STYLE,
     "a local derived from a parameter",
@@ -82,7 +82,7 @@ const CASES = [
     FEATURE_TSX,
     0,
   ],
-  [STYLE, "a runtime arm beside an absent one", jsx("<Stack style={props.flag ? undefined : { height: `" + interp("props.n") + "px` }} />"), FEATURE_TSX, 0],
+  [STYLE, "a runtime arm beside an absent one", jsx(`<Stack style={props.flag ? undefined : { height: \`${interp("props.n")}px\` }} />`), FEATURE_TSX, 0],
   [STYLE, "a member of a parameter", jsx("<Stack style={props.n} />"), FEATURE_TSX, 0],
   [STYLE, "a computed custom property from data", jsx("<Stack style={{ [`--hue`]: props.n }} />"), FEATURE_TSX, 0],
   [STYLE, "a style prop in @orb/ui, which is not judged", jsx('<div style={{ maxWidth: "100%" }} />'), UI, 0],
@@ -101,7 +101,8 @@ const CASES = [
   [LOOKUP, "getElementsByClassName", "export const f = (n: HTMLElement) => n.getElementsByClassName('a');\n", FEATURE_TS, 1],
   [LOOKUP, "a lookup in the components tier", "export const f = () => document.querySelector('.a');\n", COMPONENT, 0],
   [LOOKUP, "a lookup in @orb/ui", "export const f = () => document.querySelector('.a');\n", UI, 0],
-  [LOOKUP, "closest, which names no id or selector lookup", "export const f = (n: HTMLElement) => n.closest('[inert]');\n", FEATURE_TS, 0],
+  [LOOKUP, "closest on the inert marker", "export const f = (n: HTMLElement) => n.closest('[inert]');\n", FEATURE_TS, 0],
+  [LOOKUP, "closest by a selector", "export const f = (n: HTMLElement) => n.closest('[data-slot=\"x\"]');\n", FEATURE_TS, 1],
   [LOOKUP, "a ref focus", "export const f = (r: { current: HTMLElement | null }) => r.current?.focus();\n", FEATURE_TS, 0],
   // --- a class toggled by hand
   [CLASS_LIST, "classList.add", "export const f = (el: HTMLElement) => el.classList.add('a');\n", FEATURE_TS, 1],
@@ -116,7 +117,7 @@ const CASES = [
   // --- a sealed library's internals
   [SEALED, "an attribute selector on cmdk", "export const s = 'input[cmdk-input]';\n", FEATURE_TS, 1],
   [SEALED, "a bare cmdk item selector", "export const s = '[cmdk-item]';\n", FEATURE_TS, 1],
-  [SEALED, "a cmdk attribute in a template", "export const s = (id: string) => `#" + interp("id") + " [cmdk-list]`;\n", FEATURE_TS, 1],
+  [SEALED, "a cmdk attribute in a template", `export const s = (id: string) => \`#${interp("id")} [cmdk-list]\`;\n`, FEATURE_TS, 1],
   [SEALED, "a Base UI hook attribute", "export const s = '[data-base-ui-inert]';\n", FEATURE_TS, 1],
   [SEALED, "a CodeMirror class", "export const s = '.cm-content';\n", FEATURE_TS, 1],
   [SEALED, "the seal's own data-slot", "export const s = '[data-slot=\"command-input\"]';\n", FEATURE_TS, 0],

@@ -24,13 +24,12 @@ Every listed site is fixed or justified with a runtime reason; feature static st
 
 ## State
 
-- Branch `wt/agent-affa9278d3374082f` at `d3c80ac1ab`; needs a verifier.
-- Merge after item 1346. Then the lane merges main and moves the two static style props its new `orb/no-static-style-prop` flags in `packages/client/src/features/chat/components/art-slot.tsx` (`:90` `lineHeight: 1`, `:127` `backgroundSize`/`backgroundRepeat`) to classes; until then main is red by 2.
-- Left open by the lane (each needs a test or a lock before this item lands):
-  - no CT for model-picker focus and centering end to end, add-connection failure focus, greeting remove focus, plugin hide focus, tag apply focus, connection fact-row focus, refinery landing search;
+- Branch `wt/agent-affa9278d3374082f` carries main (item 1346) merged; `orb/no-static-style-prop` and the other new rules pass at zero on the merged tree.
+- Closed: model-picker focus and centering, add-connection failure focus and the create flow where the empty-state opener unmounts (`tests/client/features/credentials/components/add-connection-dialog.ct.tsx`); `.closest(...)` by selector is refused outside named homes, with a planted control.
+- Open, each needs a CT on the real feature before this item is fully proven:
+  - greeting remove focus, plugin hide focus, tag apply focus, connection fact-row focus, refinery landing search;
   - no measurement of the `InlineFlankFitProbe` sentinel width;
-  - `connections-list-focus.ct.tsx` passes with the default focus return; the create flow where the opener unmounts is the discriminating case;
-  - about twelve `.closest(...)` lookups in features are not locked; `gallery-lightbox.tsx` reaches the `@orb/ui` dialog popup by selector.
+  - `gallery-lightbox.tsx` reaches the `@orb/ui` dialog popup by selector and sits in `DOM_LOOKUP_HOMES`.
 - `app-shell-command.ct.tsx` "rapid chords" and "an open New chat dialog owns the overlay" flake on main too (3 in 32).
 
 ## Evidence

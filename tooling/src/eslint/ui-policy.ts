@@ -115,6 +115,12 @@ export const CLIENT_DOM_RESTRICTIONS = [
         message:
           "A feature reaches DOM it does not own by id or selector. Hold the node with a ref, pass a ref or handle to the part that renders it, or use a @orb/ui prop (initialFocus, finalFocus, a part ref). A file whose job is DOM addressing is a named home in eslint.config.ts.",
       },
+      {
+        // `closest("[inert]")` asks whether a node can take focus, which names no component's DOM.
+        selector: `CallExpression${memberNamed("closest", "callee.")}:not([arguments.0.value="[inert]"])`,
+        message:
+          "A feature walks up to an ancestor by selector. Pass the ancestor's node down by ref or context. A file whose job is DOM addressing is a named home in eslint.config.ts.",
+      },
     ],
   },
   {

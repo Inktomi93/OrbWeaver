@@ -1323,6 +1323,12 @@ const DOM_LOOKUP_HOMES = {
     "the settings host addresses contribution anchors by the registry-minted id prefix (client-architecture-lockdown.md §8)",
   "packages/client/src/features/config/surfaces/config-content-surface.tsx":
     "the settings host addresses a setting control by the registry-minted control id (client-architecture-lockdown.md §8)",
+  "packages/client/src/features/chat/components/gallery-lightbox.tsx": "measures the chrome around its own content from the dialog popup that wraps it",
+  "packages/client/src/features/chat/components/home-quick-picks-tile-body.tsx": "reads Home's grid track count from the shelf's own ancestor",
+  "packages/client/src/features/chat/components/message-actions-row.tsx":
+    "measures the content column its cluster sits in; the coarse door is a portalled menu item with no ancestor of its own",
+  "packages/client/src/features/config/surfaces/config-list-surface.tsx":
+    "decides once at arrival whether focus already landed inside the settings content pane",
   "packages/client/src/features/home/lib/use-balanced-foot.ts":
     "the balancer measures the two columns it does not render and asks whether a placeholder is left in them",
   "packages/client/src/features/persona/components/persona-switch-list.tsx": "a roving group discovers its items under its own container",
