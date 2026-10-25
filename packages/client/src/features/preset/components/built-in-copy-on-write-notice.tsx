@@ -34,7 +34,7 @@ export function BuiltInCopyOnWriteNotice({ active }: { readonly active: boolean 
     // 80-character ceiling, on the same Params arm as #1770's row-voids. `--reading-measure-prose` is the
     // TEACHING/BODY measure (#1145) and resolves in this element's own font, which is why it sits here and
     // not on a wrapper.
-    <Text className="max-w-(--reading-measure-prose)" data-slot="preset-built-in-notice" prose={true} role="note" voice="gloss">
+    <Text className="max-inline-(--reading-measure-prose)" data-slot="preset-built-in-notice" prose={true} role="note" voice="gloss">
       This is the built-in default, and editing it never changes it. Your first edit saves your own copy of it
       {active ? ", and that copy becomes your active preset." : ", and the editor follows you to the copy."}
     </Text>

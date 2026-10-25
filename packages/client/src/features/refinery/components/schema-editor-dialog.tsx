@@ -198,9 +198,9 @@ function GenerateRow({
     <>
       {/* VISIBLY LABELLED (P2: "arm picker unlabeled visibly"). `aria-label` alone told a screen reader
           what this control is and told a sighted user nothing — three sentence-shaped options with no
-          question above them. The Field label IS the question. `max-w-sm` caps the P1-3 squeeze at the
+          question above them. The Field label IS the question. `max-w-cq-24` caps the P1-3 squeeze at the
           source: an unbounded Select sized itself to its longest option label. */}
-      <Field className="min-w-0 max-w-sm flex-1" label={FORGE_ARM_QUESTION}>
+      <Field className="flex-1 max-inline-cq-24 min-inline-0" label={FORGE_ARM_QUESTION}>
         <Select
           // The `aria-label` is the SAME STRING as the visible label, from one constant. It is kept
           // because `Field` associates through Base UI context at runtime, which the static a11y lint
@@ -258,7 +258,7 @@ function RefineRow({
 }): ReactElement {
   return (
     <>
-      <Field className="min-w-0 flex-1" label="Refine the draft">
+      <Field className="flex-1 min-inline-0" label="Refine the draft">
         <Textarea defaultValue="" placeholder='e.g. "add a per-issue severity enum"' ref={instructionRef} rows={1} />
       </Field>
       <Button
@@ -367,8 +367,7 @@ export function SchemaEditorDialog({ open, onOpenChange, stage, editing, onSaved
         <Field label="Schema (JSON — the full vocabulary)">
           <Textarea onChange={(e): void => setSchemaText(e.target.value)} ref={schemaTextRef} rows={8} value={schemaText} />
         </Field>
-        {/* THE RENDER-HINT ROLE PICKER (#73) — split out (`render-hint-picker.tsx`, component-size +
-            form-factory-for-multifield gates): a typed source for the `x-orb-ui` role string, so an
+        {/* THE RENDER-HINT ROLE PICKER (#73) — split out (`render-hint-picker.tsx`, component size): a typed source for the `x-orb-ui` role string, so an
             author elevates a node by PICKING a vocabulary member instead of hand-typing one of 8 magic
             strings (a typo silently heals to "no hint applied" — render-plan.ts's own header). Insert
             drops the hint object at the JSON pane's cursor; the author positions inside the node they

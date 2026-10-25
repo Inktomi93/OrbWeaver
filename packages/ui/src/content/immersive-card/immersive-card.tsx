@@ -66,7 +66,7 @@ function CardBody({
   if (showRaw) {
     return (
       <pre
-        className={cn(slots.pre(), fill ? "min-h-0 flex-1" : undefined)}
+        className={cn(slots.pre(), fill ? "flex-1 min-block-0" : undefined)}
         style={fill ? undefined : { height: `${heightPx}px` }}
         data-slot="immersive-card-raw"
       >
@@ -85,7 +85,7 @@ function CardBody({
       allowExternalMedia={allowExternalMedia}
       {...(frameSrc === undefined ? {} : { src: frameSrc })}
       {...(fill ? { fill: true } : { heightPx })}
-      className={fill ? "min-h-0 w-full flex-1 rounded-card border border-border bg-card" : "w-full rounded-none border-0 bg-card"}
+      className={fill ? "flex-1 rounded-card border border-border bg-card inline-full min-block-0" : "rounded-none border-0 bg-card inline-full"}
     />
   );
 }

@@ -8,13 +8,13 @@ import { DISABLED_STATE } from "./disabled-state.ts";
 // (select uses `min-w-(--anchor-width)` so a long option can grow the popup; autocomplete/combobox
 // lock to `w-(--anchor-width)`), so it is NOT baked here — the consumer adds it.
 export const POPUP_SURFACE =
-  "relative z-(--z-popover) max-h-(--available-height) overflow-y-auto overscroll-contain rounded-card border border-border bg-popover p-field text-popover-foreground";
+  "relative z-(--z-popover) max-block-(--available-height) overflow-y-auto overscroll-contain rounded-card border border-border bg-popover p-field text-popover-foreground";
 
 // The centered modal popup surface shared by dialog + alert-dialog. The sizing (dialog's
-// `flex max-h-full flex-col` + per-size max-width vs alert-dialog's fixed `max-w-cq-sm`) is per-seal.
-export const MODAL_SURFACE = "w-full rounded-card border border-border bg-popover p-section text-popover-foreground shadow-overlay";
+// `flex max-h-full flex-col` + per-size max-width vs alert-dialog's fixed `max-w-cq-24`) is per-seal.
+export const MODAL_SURFACE = "inline-full rounded-card border border-border bg-popover p-section text-popover-foreground shadow-overlay";
 
 // The anchored-popup ITEM row — byte-identical between autocomplete and combobox; select layers
 // `justify-between gap-row` on top. (Menu's row is a genuinely different recipe — cursor-default,
-// px-row, min-h-control-sm — and stays its own `itemBase`.)
-export const ITEM_ROW = `flex min-h-touch-target cursor-pointer select-none items-center rounded-control px-block py-field text-body leading-body text-foreground outline-none data-highlighted:bg-accent data-highlighted:text-accent-foreground ${DISABLED_STATE}`;
+// px-row, min-h-(--size-control-sm) — and stays its own `itemBase`.)
+export const ITEM_ROW = `flex min-block-(--size-touch-target) cursor-pointer select-none items-center rounded-control px-block py-field text-body leading-body text-foreground outline-none data-highlighted:bg-accent data-highlighted:text-accent-foreground ${DISABLED_STATE}`;

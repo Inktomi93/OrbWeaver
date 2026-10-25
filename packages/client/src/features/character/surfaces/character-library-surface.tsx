@@ -253,7 +253,7 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library" }: Cha
       <Stack
         ref={surfaceRef}
         tabIndex={-1}
-        className="h-full min-h-0 outline-none"
+        className="outline-none block-full min-block-0"
         gap="row"
         // Escape leaves select mode from anywhere in the pane. A portaled dialog's Escape bubbles through the
         // React tree, so only keys whose DOM target sits inside this pane count.
@@ -311,7 +311,7 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library" }: Cha
           private avatar-in-Button copy it used to carry is retired, not duplicated. Portraits only: the
           names are already the rows' titles right below. */}
         <FaceStrip items={favorites} label="Favorite characters" onSelect={openEditor} selectedId={selectedId} verb="Open" />
-        <Stack className="min-h-0 flex-1">
+        <Stack className="flex-1 min-block-0">
           <CharacterLibraryBody
             ariaLabel={ariaLabel}
             categorized={viewMode === "categorized"}

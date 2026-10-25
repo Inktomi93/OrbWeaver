@@ -10,11 +10,14 @@ import { FOCUS_RING, tv } from "#lib";
 export const scrollAreaVariants = tv({
   slots: {
     root: "relative overflow-hidden",
-    viewport: `h-full w-full overscroll-contain outline-none ${FOCUS_RING}`,
+    viewport: `overscroll-contain outline-none block-full inline-full ${FOCUS_RING}`,
     // The sized content wrapper — min-w-max lets horizontal overflow measure past the viewport.
-    content: "min-w-max",
-    scrollbar:
-      "flex touch-none select-none bg-transparent data-[orientation=vertical]:w-row data-[orientation=horizontal]:h-row data-[orientation=horizontal]:flex-col",
+    content: "min-inline-max",
+    scrollbar: `
+      flex touch-none bg-transparent select-none
+      data-[orientation=horizontal]:flex-col data-[orientation=horizontal]:block-row
+      data-[orientation=vertical]:inline-row
+    `,
     thumb: "flex-1 rounded-full bg-muted-foreground/40 transition-colors duration-(--motion-fast) ease-out-expo hover:bg-muted-foreground/60",
     // The square where the two scrollbars meet — Base UI shows it only on both-axis overflow.
     corner: "bg-transparent",

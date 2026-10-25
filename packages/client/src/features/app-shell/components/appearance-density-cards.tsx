@@ -29,9 +29,9 @@ type Density = AppearanceSettings["density"];
  *  what this box stamps). */
 function DensityDiagram({ tier }: { readonly tier: Density }): ReactElement {
   return (
-    <Stack className="h-full w-full justify-center p-tight" data-density={tier} data-slot="density-preview" gap="row">
+    <Stack className="justify-center p-tight block-full inline-full" data-density={tier} data-slot="density-preview" gap="row">
       {["The first row", "A second row", "And a third"].map((line) => (
-        <Row key={line} align="center" className="min-w-0 rounded-control bg-accent p-field" gap="field">
+        <Row key={line} align="center" className="rounded-control bg-accent p-field min-inline-0" gap="field">
           <Text as="span" className="truncate" voice="gloss">
             {line}
           </Text>

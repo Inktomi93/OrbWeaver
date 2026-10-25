@@ -66,7 +66,7 @@ export function ComposerNextTurnLine({ chatId, availability, id }: ComposerNextT
       <Text
         as="p"
         voice="quiet"
-        className={cn("min-w-0 max-w-(--reading-measure-prose) break-words px-field", STATE_INK[refusal.state])}
+        className={cn("px-field wrap-break-word max-inline-(--reading-measure-prose) min-inline-0", STATE_INK[refusal.state])}
         data-slot="composer-next-turn"
         data-unset={refusal.state === "unset" ? "" : undefined}
         data-failed={refusal.state === "failed" ? "" : undefined}

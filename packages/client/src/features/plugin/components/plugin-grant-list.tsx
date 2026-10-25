@@ -10,7 +10,7 @@
 // dead editable arm on a security surface is an affordance a later revision can re-enable by accident —
 // which is exactly the shape #650 P1-3 was filed about, one level up.
 // A ROW THEREFORE HAS TWO STATES, not three: GRANTED (a checked, non-interactive checkbox — "you already
-// have this" is a true state) and NOT GRANTED (a `w-checkbox` spacer plus a word-mark, see the last
+// have this" is a true state) and NOT GRANTED (a `w-(--size-checkbox)` spacer plus a word-mark, see the last
 // paragraph of this header). Nothing here is clickable.
 //
 // THE CONTRACT THIS COMPONENT OWES, from #24: a person must be able to see exactly what they are agreeing
@@ -96,7 +96,7 @@
 // keeps the checkbox — showing what you already have is a true state, not a false affordance — only an
 // UNCHECKED read-only row swaps to a statement, because that is specifically the shape that looks tickable
 // and isn't. With the leading-control layout the word-mark moves ONTO the label row (beside the name it
-// refuses, where the eye already is) and the lead column keeps a `w-checkbox` spacer, so mixed
+// refuses, where the eye already is) and the lead column keeps a `w-(--size-checkbox)` spacer, so mixed
 // granted/ungranted rows still share one left rail.
 
 import type { PluginCapability } from "@orb/contracts/plugin";
@@ -211,7 +211,7 @@ function GrantRow({ capability, checked, isNew, roleUnset }: GrantRowProps): Rea
         {/* An UNGRANTED row's state, as a word beside the name it refuses — adjacent, where the far-docked
             control column used to strand it (file header). */}
         {checked ? null : (
-          <Text className="text-muted-foreground" voice="label">
+          <Text tone="muted" voice="label">
             Not granted
           </Text>
         )}
@@ -237,16 +237,16 @@ function GrantRow({ capability, checked, isNew, roleUnset }: GrantRowProps): Rea
         ) : null}
       </Row>
       {/* The measure caps the consequence line (side-eye 2026-08-29 residual P2): inside the re-consent
-          callout these ran edge-to-edge near ~90ch. THE TOKEN, NOT `max-w-prose` (#1175): Tailwind's utility
+          callout these ran edge-to-edge near ~90ch. THE TOKEN, NOT `max-w-(--reading-measure-min)` (#1175): Tailwind's utility
           is 65 CSS `ch`, and a CSS `ch` is the ZERO-GLYPH advance — 1.43-1.56 typographic characters in Geist
           — so 65ch reads 93-101 law characters and never satisfied the 65-75 band this comment used to claim
           it did. `--reading-measure-prose` (47ch) is the derived teaching/body measure (#1145), and it rides
           the PARAGRAPH because a `ch` resolves in the element's own font. */}
-      <Text className="max-w-(--reading-measure-prose)" id={consequenceId} prose={true} voice="gloss">
+      <Text className="max-inline-(--reading-measure-prose)" id={consequenceId} prose={true} voice="gloss">
         {copy.consequence}
       </Text>
       {roleUnset ? (
-        <Text className="max-w-(--reading-measure-prose)" prose={true} voice="gloss">
+        <Text className="max-inline-(--reading-measure-prose)" prose={true} voice="gloss">
           {NO_IMAGE_MODEL_NOTE}
         </Text>
       ) : null}
@@ -261,9 +261,9 @@ function GrantRow({ capability, checked, isNew, roleUnset }: GrantRowProps): Rea
       {checked ? (
         <Checkbox aria-describedby={consequenceId} aria-labelledby={nameIds} checked={true} disabled={true} />
       ) : (
-        <Stack aria-hidden={true} className="w-checkbox shrink-0" />
+        <Stack aria-hidden={true} className="shrink-0 inline-(--size-checkbox)" />
       )}
-      <Stack className="min-w-0 flex-1">{labelBlock}</Stack>
+      <Stack className="flex-1 min-inline-0">{labelBlock}</Stack>
     </Row>
   );
 }

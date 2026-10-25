@@ -248,8 +248,8 @@ function LocalInviteArm({
   if (preview.isPending) {
     return (
       <Stack gap="row" aria-label="Loading your invite">
-        <Skeleton className="h-control-md w-full" />
-        <Skeleton className="h-control-md w-full" />
+        <Skeleton className="block-(--size-control-md) inline-full" />
+        <Skeleton className="block-(--size-control-md) inline-full" />
       </Stack>
     );
   }
@@ -297,7 +297,7 @@ function LoginRedirecting({ providerName }: { readonly providerName: string }): 
       <Heading level={1}>Signing in…</Heading>
       <Row align="center" gap="row">
         <WebSpinner size="xl" label="Redirecting" className="text-primary" />
-        <Text voice="label" className="text-muted-foreground">
+        <Text voice="label" tone="muted">
           Redirecting you to {providerName}.
         </Text>
       </Row>
@@ -308,8 +308,8 @@ function LoginRedirecting({ providerName }: { readonly providerName: string }): 
 function LoginLoading(): ReactElement {
   return (
     <Stack gap="row" aria-label="Loading sign-in options">
-      <Skeleton className="h-control-md w-full" />
-      <Skeleton className="h-control-md w-full" />
+      <Skeleton className="block-(--size-control-md) inline-full" />
+      <Skeleton className="block-(--size-control-md) inline-full" />
     </Stack>
   );
 }

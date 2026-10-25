@@ -65,7 +65,7 @@ export function CharacterFacetRow({ facet, selected, filled, preview, fillSummar
       data-selected={selected ? "" : undefined}
       intent="ghost"
       size="sm"
-      className={`w-full min-w-0 justify-start gap-row text-left ${rowClass}`}
+      className={`justify-start gap-row text-start inline-full min-inline-0 ${rowClass}`}
       onClick={(): void => onSelect(facet.id)}
     >
       {/* THE NAME IS THE LABEL, THE BODY IS A DESCRIPTION (side-eye 2026-08-18 P1-2). Both spans used to be

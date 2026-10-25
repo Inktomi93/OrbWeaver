@@ -139,7 +139,7 @@ Check the rendered value with `getComputedStyle(...)` against the document-resol
 | `ListRow` | no per-row border; selection is a bg tint + `rounded-control` | CD1 for the LIST class |
 | `Button` | `intent="outline"` · `size="chip"` · the `selection: none \| on \| negated` state layer | `ghost`'s ink with `secondary`'s edge is what a filter chip needs and neither could spell it; a TRI-STATE facet cannot be a `Toggle` (`aria-pressed` has two values) |
 | `Toggle` | `intent="outline"` + `intent="command"` · `size="chip"` · `shape` (`control`/`pill`) | a scope filter and a tag filter share one rail and must share one box; a view COMMAND that redraws the pane is not one of the words beside it |
-| `lib/control-size.ts` | `CHIP_BOX` beside `CONTROL_SIZE` | the rail cell in ONE home for both pressable primitives. Its height is `--spacing-touch-target`, not a control step: pointer-conditional, so the box IS the tap floor |
+| `lib/control-size.ts` | `CHIP_BOX` beside `CONTROL_SIZE` | the rail cell in ONE home for both pressable primitives. Its height is `--size-touch-target`, not a control step: pointer-conditional, so the box IS the tap floor |
 
 Features keep composing `<Stack gap>` / `<Row gap>` explicitly — the gap union is already token-only. What is NOT a feature-level choice is ISLAND padding and radius.
 

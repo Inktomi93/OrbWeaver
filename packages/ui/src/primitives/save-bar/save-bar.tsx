@@ -10,7 +10,7 @@ export interface SaveBarProps extends Omit<ComponentProps<"div">, "title">, Vari
   /**
    * A DIAGNOSTIC about the entity (a token census, a byte size) — the datum that is useful when the bar has
    * room and must never be the reason the entity's NAME truncates. It rides its own slot, which sits inline
-   * at the bar's end at `@md` and above and drops to a full-width line UNDER the identity below that, so a
+   * at the bar's end at `@cq-28` and above and drops to a full-width line UNDER the identity below that, so a
    * phone renders the name whole and the census whole (side-eye 2026-08-18 P1-4 — the shipped bar clipped
    * "Sabine Veyra" to "Sabin…" so `1257 total · 1017 permanent` could print in full).
    *

@@ -139,10 +139,10 @@ export function PluginComposerActions({ chatId }: { readonly chatId: ChatId }): 
   const direct = placed.slice(0, directCount);
   const groups = groupPlacedCommands(placed.slice(directCount));
   return (
-    <Row aria-label="Plugin composer actions" className="relative min-w-control-md flex-1" gap="field" ref={rowRef} role="group">
+    <Row aria-label="Plugin composer actions" className="relative flex-1 min-inline-(--size-control-md)" gap="field" ref={rowRef} role="group">
       {/* The inert measurement copy keeps full attribution in the fit calculation without adding tab stops or scroll overflow. */}
       <Row aria-hidden={true} className="pointer-events-none invisible absolute inset-0 overflow-hidden" inert={true}>
-        <Row className="w-max shrink-0" gap="field" ref={measureRef}>
+        <Row className="shrink-0 inline-max" gap="field" ref={measureRef}>
           {placed.slice(0, DIRECT_ACTION_LIMIT).map((item) => (
             <PlacedActionButton isPending={false} item={item} key={`${item.command.pluginId}:${item.command.name}`} />
           ))}
@@ -168,7 +168,7 @@ export function PluginComposerActions({ chatId }: { readonly chatId: ChatId }): 
               </Button>
             }
           />
-          <MenuPopup className="max-w-(--available-width)">
+          <MenuPopup className="max-inline-(--available-width)">
             {groups.map((group) => (
               <MenuGroup key={group.id}>
                 <MenuGroupLabel>{group.label}</MenuGroupLabel>

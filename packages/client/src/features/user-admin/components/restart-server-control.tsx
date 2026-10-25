@@ -116,7 +116,12 @@ export function RestartServerControl(): ReactElement {
           </Button>
         }
       />
-      <Text className="max-w-(--reading-measure-prose)" id={hintId} voice={phase === "idle" ? "gloss" : "quiet"} role={phase === "idle" ? undefined : "status"}>
+      <Text
+        className="max-inline-(--reading-measure-prose)"
+        id={hintId}
+        voice={phase === "idle" ? "gloss" : "quiet"}
+        role={phase === "idle" ? undefined : "status"}
+      >
         {statusCopy}
       </Text>
     </Stack>

@@ -105,9 +105,9 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
   // `min-w-0` beside `min-h-0`: inside the flank ROW the thread is a horizontal flex child, and without it
   // a long unbreakable line in the transcript would push the column past its share instead of scrolling.
   // With the plugin column out of the row, its edge control sits over the transcript's top corner: the thread keeps
-  // that corner clear (`pe-control-lg` is the control plus a gap; shell.css's flank distance reads the same token).
+  // that corner clear (`pe-(--size-control-lg)` is the control plus a gap; shell.css's flank distance reads the same token).
   const thread = (
-    <Stack className={cn("min-h-0 min-w-0 flex-1", !flank.occupiesRow && "pe-control-lg")} data-slot="chat-room-thread">
+    <Stack className={cn("flex-1 min-block-0 min-inline-0", !flank.occupiesRow && "pe-(--size-control-lg)")} data-slot="chat-room-thread">
       <MessageThreadAnchor>
         {/* P5 CYOA (§5.3): the thread's choice buttons send through the room's own send capability —
             a separate useSendMessage instance from the composer's, so a pick never clears the draft. */}
@@ -136,8 +136,8 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
           // A phone keeps the transcript and composer near the screen edge (owner ruling, as Moonlit Echoes pads its
           // chat 8px): the room steps its side inset down to `tight`, the transcript adds the ring clearance.
           className={cn(
-            "h-full px-block pb-block outline-none @max-md:px-tight",
-            roomTheme?.background !== undefined && "not-in-data-[has-bg-image]:bg-background",
+            "px-block pbe-block outline-none block-full @max-cq-28:px-tight",
+            roomTheme?.background !== undefined && "not-in-data-has-bg-image:bg-background",
           )}
           gap="block"
           ref={surfaceRef}
@@ -153,7 +153,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
                *  A `flankContributions.length === 0 ? thread : <wrapper>` fork made the room's HEIGHT CHAIN a
                *  function of whether any contributor happened to be REGISTERED, and the wrapper arm severed it:
                *  ONE ROOT CAUSE, TWO DEFECTS — `Row` BAKES `items-center` (@orb/ui layout variants) and
-               *  `@max-lg:flex-col` flips DIRECTION but not ALIGNMENT, so the baked cross-axis rule meant a
+               *  `@max-cq-32:flex-col` flips DIRECTION but not ALIGNMENT, so the baked cross-axis rule meant a
                *  different thing on each arm (the axis-disagreement family):
                *    · BESIDE (row): the transcript is a content-height child ⇒ `MessageList`'s bounded-height
                *      tripwire throws (`@orb/ui/lib/virtual-gap.ts` — thrown, not warned) ⇒ the room renders
@@ -174,7 +174,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
                *  The `RoomFlankAnchor` + `@max-lg` is a CONTAINER query on this pane's own inline size, never the
                *  viewport (the shell's docked panels can narrow it on a wide screen): below 32rem/512px the
                *  flank stacks BELOW the thread instead of crushing its reading column (the
-               *  settings-shell-surface.tsx / role-slot-row.tsx `@max-md`/`@2xl` precedent, at the `lg` step
+               *  settings-shell-surface.tsx / role-slot-row.tsx `@max-cq-28`/`@cq-40` precedent, at the `lg` step
                *  since a thread+flank split needs more room than a nav+content split before beside is comfy). */}
               <RoomFlankAnchor>
                 <InlineFlankFitProbe />
@@ -183,7 +183,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
                 <Row
                   gap="block"
                   align="stretch"
-                  className="relative h-full min-h-0 overflow-x-clip @max-lg:flex-col"
+                  className="relative overflow-x-clip block-full min-block-0 @max-cq-32:flex-col"
                   data-slot="chat-room-flank-row"
                   ref={flankRowRef}
                 >
@@ -205,7 +205,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
                   retry), reachable by any wordy contributor. The bound is the house's narrow side-column
                   token, the same one the settings nav and the role-slot rows stand in, so a flank widget
                   reads as the room's side column rather than as a second content column; wide content
-                  wraps inside it instead of eating the reading column. `@max-lg:max-w-none` RELEASES it on
+                  wraps inside it instead of eating the reading column. `@max-cq-32:max-w-none` RELEASES it on
                   the stacked arm, where the flank is a full-width block under the thread and a 220px
                   island would be the clamp leaking into the arm it was never for. A contributor bounding
                   only ITSELF was the rejected arm: it leaves the house's own future widgets unprotected
@@ -261,7 +261,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
 
 function RoomTranscriptSkeleton(): ReactElement {
   return (
-    <Stack className="min-h-0 flex-1" data-slot="chat-room-mounting">
+    <Stack className="flex-1 min-block-0" data-slot="chat-room-mounting">
       <Stack className={`${CHAT_TRACK} ${BG_PHOTO_LOADING_PLATE}`}>
         <SkeletonRows count={3} />
       </Stack>

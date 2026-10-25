@@ -22,7 +22,7 @@ Split off [client-architecture-lockdown.md](client-architecture-lockdown.md) for
   require version, partialize and migrate at compile time; this proves field presence, not that migration cannot throw.
   `orb/no-raw-zustand-persist` keeps raw persist calls inside the factory implementations. Other guards:
   `orb/state-files`, both selector-stability guards, the ESLint static-`setState` ban, and
-  `persistence-boundary` (device-local vs synced).
+  `orb/persistence-boundary` (raw browser storage outside the store doors).
 - **`shell-store` is one drawer for cross-cutting shell state** (activeSection, panelOverrides, openModal,
   contextTab, openOverlayPanel) — features read via narrow hooks, write via intent-named module actions;
   the handle never escapes the file. `openConfigTo` (§8) is the one settings navigation verb.
@@ -35,7 +35,7 @@ Split off [client-architecture-lockdown.md](client-architecture-lockdown.md) for
 
 ## 10. The data/ tier — the whole surface, not just the factories
 
-- **`trpc.ts`** — the typed client + `useTRPC`; queryKeys are 100% proxy-derived (the `queryKey` selector of `no-restricted-syntax` in `eslint.config.ts`).
+- **`trpc.ts`** — the typed client + `useTRPC`; tRPC queryKeys are 100% proxy-derived (the `queryKey` selector of `no-restricted-syntax` in `eslint.config.ts` flags a hand-built array; the pre-auth HTTP reads in `auth-bootstrap.ts` and `auth-config.ts` keep named constant keys).
 - **`query-client.ts`** — the §6.1 QueryClient pins have ONE home here (verified header): `staleTime: Infinity` (the bus drives freshness — never `'static'`), `refetchOnReconnect: true` (SSE-gap catch-up), `refetchOnWindowFocus: false`, mutations `retry: 0`, global error toasts via `QueryCache`/`MutationCache` `onError` reading `meta.errorToast`. Do not re-tune these per-surface.
 - **The HTTP-route fetch-fn pattern:** endpoints that are Hono routes, not tRPC (multipart/binary), get ONE `data/` fetch fn each — `upload-asset.ts` (the one client seam for persisting a picked file), `import-tree.ts` (folder import → `202 {workloadId}`), `import-bundle.ts`, `import-characters.ts`, sharing `http-error.ts` (`throwHttpError`) + the `CSRF_HEADER`. Rule: tRPC for everything except multipart/binary/streaming-HTTP; an HTTP route consumed anywhere gets a `data/` fetch fn — a feature never hand-writes `fetch()` (R5).
 - **One canonical "who am I" composer** owns identity: it composes the already-cached `sessions.me` + settings + persona-list reads so every caller dedupes on the shared cache. A scattered `trpc.sessions.me` read for identity is the wrong move (the settings host's plain role read is the sanctioned exception class: a non-suspense probe that must never block its shell).
@@ -58,19 +58,28 @@ Every piece of client state is exactly one of three classes — the blunt "cross
      keeps the existing hard-reload boundary; a merely STALE session recovers in place instead
      (`data/stale-session.ts`).
   2. **Referential integrity for any server row id a persisted field carries** — two pure-render rules
-     (no effects; `no-effect-on-shared-selection` stays intact): an id unknown to its authority read is
+     (no effects; `orb/no-effect-on-shared-selection` stays intact): an id unknown to its authority read is
      EXCLUDED from filtering (a dead reference can never veto rows), and an ACTIVE entry always renders
      its chip (named when resolvable, else an explicit "deleted" chip, clearable either way) — no
      auto-prune, no write-on-render.
   3. **Total migrate** (pre-existing law) stays; identity/referential validity are 1 and 2's job, not a
      smarter migrate.
 
-Enforcer: `persistence-boundary` (raw-storage-outside-the-doors guard, §9), the native required-key
+Enforcer: `orb/persistence-boundary` (raw browser storage outside the store doors, §9; the sanctioned homes are listed below), the native required-key
 contracts on `createPersistedStore` and `createEntityDraftStore`, and `orb/no-raw-zustand-persist`.
 The required-key types prove the options fields exist; total, crash-proof migration remains a factory
 behavior contract. Design of record + the as-built deltas (why store rebind reads a
 boot pointer rather than minting fresh, why legacy adoption goes through each store's own persist
 storage): D138.
+
+Raw browser storage has four sanctioned homes. `RAW_STORAGE_HOMES` in `eslint.config.ts` lists them and cites this section.
+
+- `state/durable-local.ts` holds the active-user pointer and the adoption hints. The store doors mint against them.
+- `data/session-resume.ts` keeps the chat to reopen and an invite token in `sessionStorage` across the sign-in redirect. The data is tab-scoped and written while no verified user exists, so no per-user namespace applies.
+- `main.tsx` keeps one `sessionStorage` flag that stops a reload loop after a stale chunk hash. It runs before any store exists and holds no user data.
+- `lib/probe-mode.ts` reads one `localStorage` flag that `pnpm snap --probe` seeds before navigation. The app never writes it.
+
+A new home needs a line here with its reason first.
 
 ## 11. The error-handling battery + the three-states law
 
@@ -80,7 +89,7 @@ The stack, outermost-in:
 2. **`reportClientError`** (`lib/client-error-report.ts`) — fire-and-forget telemetry via `trpcClient.clientError.mutate`; a failed report must never itself throw.
 3. **`QueryBoundary`** (`components/query-boundary.tsx`) — the per-surface suspense + error battery. It bakes the `QueryErrorResetBoundary` → error-boundary `onReset` handshake: without it, "Try again" re-renders while the query is still errored and throws again; `retry` resets both so the refetch is real. Every suspending read mounts inside one.
 4. **`QueryErrorState`** (`data/query-error-state.tsx`) — the one read-error block (muted label + Retry wired to the handshake's `retry`).
-5. **Toasts** — mutation failures surface via `meta.errorToast` → the global `MutationCache.onError` → `notify`. One error slot per mutation (`no-multiplexed-mutation-error`).
+5. **Toasts** — mutation failures surface via `meta.errorToast` → the global `MutationCache.onError` → `notify`. One error slot per mutation: `useMutation` lives only in `createEntityMutation` (`orb/mutation-only-in-factory`), which returns the one sticky `error`.
 
 **The three-states law:** every surface ships all three designed states — empty teaches (an `EmptyState`
 with an action — a required prop), loading is a shape-matched skeleton (never a centered
@@ -159,9 +168,9 @@ notifications is a compile error. Keep the shared bus channel primitive as the t
 
 - **Rows.** An entity-in-a-list row is `@orb/ui/list-row` or the tier-2 `LibraryRow`. In list-region surface files, a `.map()` callback returning interactive JSX not rooted in one of these or an allowlisted composite is not the chosen product pattern. Filename `*-row.tsx` is not the predicate — message anatomy, facet rows, and `setting-row`/`Field` rows are different species; residual anatomy judgment is R1.
 - **Destructive confirms.** `ConfirmDialog` is the only feature-tier confirm. `features/**` importing `@orb/ui/alert-dialog` is RED.
-- **Mutations.** A named `useMutation` import from `@tanstack/react-query` belongs only in `data/create-entity-mutation.ts`.
+- **Mutations.** A named `useMutation` import from `@tanstack/react-query` belongs only in `data/create-entity-mutation.ts` (`orb/mutation-only-in-factory`).
 - **Browse.** `createCollectionSurface` owns unbounded/paginated browse; `useInfiniteQuery` appears only inside the factory. A small bounded owner list fetched whole in one `useSuspenseQuery` legally uses `LibrarySurfaceShell` + `LibraryListLayout` (tier 2) instead — the boundary is the query shape, paginated implies the factory.
-- **Forms / virtualization / charts / markdown** — `form-factory-for-multifield`, `no-direct-useform`, `no-form-reset-in-autosave`, resolver physics, `ui-satellite-seals-*`.
+- **Forms / virtualization / charts / markdown** — `orb/no-direct-useform`, dependency-cruiser `client-tanstack-form-only-in-forms-editor` and `client-forms-editor-front-door`, resolver physics, `ui-satellite-seals-*`. The autosave form type omits `reset` (`tests/client/forms/editor/autosave-reset-strip.dom.test-d.ts`).
 
 ## 15. Doc↔code precedence
 

@@ -75,7 +75,7 @@ export function MemberDrillHeader({ back, title, meta, actions }: MemberDrillHea
     // entry impossible on a phone, so they keep the position they have rather than being invented a new
     // home. Their slot is NOT the drill row's: at this regime there is no drill row to name.
     return (
-      <Row align="center" className="min-w-0 flex-wrap" data-slot="config-member-verbs" gap="field" justify="between">
+      <Row align="center" className="flex-wrap min-inline-0" data-slot="config-member-verbs" gap="field" justify="between">
         {title === undefined ? null : (
           <Heading className="sr-only" level={2}>
             {title}
@@ -98,8 +98,8 @@ export function MemberDrillHeader({ back, title, meta, actions }: MemberDrillHea
     // The phone no longer reaches this arm, but the narrowest DESKTOP pane is 397px (a 752px window with
     // the LIST docked at 307), which is inside the same failure band. The row is still one row at every
     // width the boards are drawn at.
-    <Row align="center" className="min-w-0 flex-wrap" data-slot="config-drill-header" gap="field" justify="between">
-      <Row align="center" className="min-w-0" gap="field">
+    <Row align="center" className="flex-wrap min-inline-0" data-slot="config-drill-header" gap="field" justify="between">
+      <Row align="center" className="min-inline-0" gap="field">
         <Button className="shrink-0" intent="ghost" onClick={back.onClick} size="sm" type="button">
           <Icon icon={ArrowLeft} size="sm" />
           {back.label}

@@ -1,0 +1,56 @@
+/* @orb/ui region: the WebWeave and WebSpinner glow and keyframes. Imported by globals.css inside its layer. */
+@layer ui {
+  /* The web's ambient accent glow, centred on the hub the component positions through the two custom properties. */
+  .orb-weave-glow {
+    background: radial-gradient(
+      circle at var(--orb-weave-hub-x, 50%) var(--orb-weave-hub-y, 42%),
+      color-mix(in oklab, var(--color-primary) 13%, transparent),
+      transparent 62%
+    );
+  }
+
+  /* The web spinner weaves: the spiral draws out from the hub, holds, then pays out while the spokes breathe and
+   * the glyph turns. `data-animate` is removed under reduced motion, so the resting glyph is fully drawn. The
+   * `orb-web-pulse` and `orb-web-spokes` classes are stamped by the icon seal's orb-web.ts; the spiral length is
+   * the custom property spinner.tsx writes. The loop ends at +L so the silk pays out off the rim; -L rewinds it. */
+  @keyframes orb-web-spin {
+    to {
+      rotate: 360deg;
+    }
+  }
+  @keyframes orb-web-weave {
+    0% {
+      stroke-dashoffset: var(--orb-web-spiral-length);
+    }
+    52% {
+      stroke-dashoffset: 0;
+    }
+    68% {
+      stroke-dashoffset: 0;
+    }
+    100% {
+      stroke-dashoffset: var(--orb-web-spiral-length);
+    }
+  }
+  @keyframes orb-web-breathe {
+    0%,
+    100% {
+      opacity: 0.65;
+    }
+    55% {
+      opacity: 0.95;
+    }
+  }
+  [data-slot="web-spinner"][data-animate] > svg {
+    animation: orb-web-spin var(--motion-ambient) linear infinite;
+  }
+  [data-slot="web-spinner"][data-animate] .orb-web-pulse {
+    stroke-dasharray: var(--orb-web-spiral-length);
+    stroke-dashoffset: var(--orb-web-spiral-length);
+    animation: orb-web-weave var(--motion-shimmer) var(--ease-spinner) infinite;
+  }
+  /* The spokes hold the frame and breathe under the weave (they are the web that is already there). */
+  [data-slot="web-spinner"][data-animate] .orb-web-spokes {
+    animation: orb-web-breathe var(--motion-shimmer) ease-in-out infinite;
+  }
+}

@@ -125,7 +125,9 @@ export function WhisperBand({
       ref={attach}
       style={style}
     >
-      {band.image === undefined || failed ? <FallbackLetter className="absolute inset-x-0 top-0 h-3/5" initials={band.fallback} size="70cqmin" /> : null}
+      {band.image === undefined || failed ? (
+        <FallbackLetter className="absolute inset-x-0 inset-bs-0 block-3/5" initials={band.fallback} size="70cqmin" />
+      ) : null}
       {tappable ? <ArtViewButton view={view} /> : null}
     </Stack>
   );
@@ -153,16 +155,16 @@ export function EchoArtTile({
     <Stack
       aria-hidden={tappable ? undefined : "true"}
       className={cn(
-        "absolute top-0 aspect-(--aspect-portrait) max-h-full @max-md:aspect-auto @max-md:h-(--immersive-echo-art-height-phone)",
+        "absolute inset-bs-0 aspect-(--aspect-portrait) max-block-full @max-cq-28:aspect-auto @max-cq-28:block-(--immersive-echo-art-height-phone)",
         tappable ? "group/art" : "pointer-events-none",
-        art.side === "left" ? "left-0" : "right-0",
+        art.side === "left" ? "inset-s-0" : "inset-e-0",
       )}
       ref={attach}
       style={{ width }}
     >
       <Stack
         data-slot="message-echo-art"
-        className={cn("absolute inset-0 bg-center bg-cover bg-no-repeat", tappable && "group-hover/art:opacity-80", rounding)}
+        className={cn("absolute inset-0 bg-cover bg-center bg-no-repeat", tappable && "group-hover/art:opacity-80", rounding)}
         style={paintStyle}
       >
         {art.image === undefined || failed ? <FallbackLetter className="absolute inset-0" initials={art.fallback} /> : null}

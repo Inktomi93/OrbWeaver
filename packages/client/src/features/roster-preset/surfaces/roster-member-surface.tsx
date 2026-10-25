@@ -150,11 +150,11 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionMemberV
     // `--width-content-col` — the EDITOR content-column cap, not a reading measure (#1175). See the tag
     // member editor's twin: this block holds controls, so the prose token is forbidden here by its own
     // contract, and `max-w-prose` was a third un-derived width. The token's stated consumption is
-    // THREE classes (#1664 — centered, capped, breathing to `--width-content-col-wide` past `@5xl`);
-    // the tag editor's twin carries the argument and the measured pane widths. The `@5xl` query measures
+    // THREE classes (#1664 — centered, capped, breathing to `--width-content-col-wide` past `@cq-64`);
+    // the tag editor's twin carries the argument and the measured pane widths. The `@cq-64` query measures
     // the config member anchor's box, not one this surface owns.
     <Stack
-      className="mx-auto w-full max-w-(--width-content-col) @5xl:max-w-(--width-content-col-wide) outline-none"
+      className="mx-auto outline-none inline-full max-inline-(--width-content-col) @cq-64:max-inline-(--width-content-col-wide)"
       data-slot="roster-member-editor"
       gap="section"
       ref={surfaceRef}
@@ -211,7 +211,7 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionMemberV
       <Section kicker="Characters">
         {roster.members.map((member) => (
           <Row align="center" gap="field" key={member.characterId}>
-            <Text voice="label" className="min-w-0 flex-1 truncate">
+            <Text voice="label" className="flex-1 truncate min-inline-0">
               {member.name}
             </Text>
             {member.disabled ? (
@@ -228,7 +228,7 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionMemberV
             )}
           </Row>
         ))}
-        <Text voice="gloss" className="max-w-(--reading-measure-prose)">
+        <Text voice="gloss" className="max-inline-(--reading-measure-prose)">
           To re-compose the roster, arrange a room you host and save it as a new roster — the saved-rosters door in Members.
         </Text>
       </Section>
@@ -237,7 +237,7 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionMemberV
           {roster.rules.map((rule) => (
             <RosterRuleBlock knobs={rule.knobs} key={rule.rulePresetId} preset={presetOf(rule.rulePresetId)} rulePresetId={rule.rulePresetId} />
           ))}
-          <Text voice="gloss" className="max-w-(--reading-measure-prose)">
+          <Text voice="gloss" className="max-inline-(--reading-measure-prose)">
             Applied with the roster — re-minted into the room and switched on. To change them, configure a room and save a new roster.
           </Text>
         </Section>

@@ -8,14 +8,16 @@ import { tv } from "#lib";
  */
 export const immersiveCardVariants = tv({
   slots: {
-    root: "flex w-full flex-col overflow-hidden rounded-card border border-border bg-card text-card-foreground",
-    header: "flex items-center gap-row border-b border-border ps-block pe-row py-row",
-    title: "min-w-0 flex-1 truncate text-label leading-label font-medium text-muted-foreground",
+    root: "flex flex-col overflow-hidden rounded-card border border-border bg-card text-card-foreground inline-full",
+    header: "flex items-center gap-row border-be border-border py-row ps-block pe-row",
+    title: "flex-1 truncate text-label leading-label font-medium text-muted-foreground min-inline-0",
     origin: "text-label leading-label text-muted-foreground",
-    pre: "relative m-0 w-full overflow-auto overscroll-contain whitespace-pre-wrap bg-muted p-block font-mono text-code leading-label-relaxed text-foreground",
+    pre: `
+      relative m-0 overflow-auto overscroll-contain bg-muted p-block font-mono text-code leading-label-relaxed whitespace-pre-wrap text-foreground inline-full
+    `,
     lightboxHeader: "flex items-center gap-row",
-    lightboxTitle: "min-w-0 flex-1 truncate",
-    lightboxBody: "flex min-h-0 flex-1 flex-col",
+    lightboxTitle: "flex-1 truncate min-inline-0",
+    lightboxBody: "flex flex-1 flex-col min-block-0",
   },
 });
 
@@ -31,10 +33,10 @@ export const immersiveCardVariants = tv({
  */
 export const inertCardVariants = tv({
   slots: {
-    root: "flex w-full flex-col overflow-hidden rounded-card border border-border border-dashed bg-card text-card-foreground",
-    header: "flex items-center gap-row border-b border-border border-dashed ps-block pe-row py-row",
-    title: "min-w-0 flex-1 truncate text-label leading-label font-medium text-muted-foreground",
+    root: "flex flex-col overflow-hidden rounded-card border border-dashed border-border bg-card text-card-foreground inline-full",
+    header: "flex items-center gap-row border-be border-dashed border-border py-row ps-block pe-row",
+    title: "flex-1 truncate text-label leading-label font-medium text-muted-foreground min-inline-0",
     body: "p-block",
-    hint: "border-t border-border border-dashed px-block py-row text-label leading-label text-muted-foreground",
+    hint: "border-bs border-dashed border-border px-block py-row text-label leading-label text-muted-foreground",
   },
 });

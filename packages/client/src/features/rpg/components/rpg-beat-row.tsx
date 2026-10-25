@@ -80,7 +80,7 @@ export function BeatRow({ beat, edit }: BeatRowProps): ReactElement {
             ariaLabel={`${beat.title} title`}
             display={beat.title}
             wrap={true}
-            className="min-w-0 max-w-full"
+            className="max-inline-full min-inline-0"
             onEdit={(next): void => edit.onEditTitle(beat.key, next)}
           />
         </>
@@ -182,8 +182,8 @@ function BeatBodyEditor({
               // Sub-floor disclosure by ruling (a reasoned home of `orb/sub-floor-disclosure` in eslint.config.js): the box is the rendered Button's own (`render` merges the trigger class onto it): an inline Button carries its ::after touch floor, and a control min-h here would inflate the beat row's compact rest state.
               size="text"
               render={
-                <Button intent="ghost" size="inline" className="min-w-0 max-w-full whitespace-normal px-field text-left">
-                  <Text as="span" voice="label" className="min-w-0 break-words">
+                <Button intent="ghost" size="inline" className="px-field text-start whitespace-normal max-inline-full min-inline-0">
+                  <Text as="span" voice="label" className="wrap-break-word min-inline-0">
                     {restText}
                   </Text>
                 </Button>

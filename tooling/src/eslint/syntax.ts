@@ -20,9 +20,6 @@ export const SESSION_CHANNEL_MESSAGE =
 
 export const FIREHOSE_SYMBOL = "subscribeAllChatEvents";
 
-export const DIRECT_CLASS_LITERAL_TEMPLATE =
-  "JSXAttribute[name.name=/^class(Name)?$/] > JSXExpressionContainer > TemplateLiteral[expressions.length=1][expressions.0.type='Literal'][expressions.0.value=type(string)]";
-
 export function restrictionRule({
   selectors = [],
   globals = [],

@@ -64,12 +64,12 @@ function QualityFields({
           <SettingRow settingId="attachment-quality" span={true}>
             <FieldLayout align="track" orientation="horizontal">
               <Grid cols="settingTrack" className="gap-x-block gap-y-field">
-                <Grid className="col-span-full grid-cols-subgrid gap-x-block min-w-0">
+                <Grid className="col-span-full grid-cols-subgrid gap-x-block min-inline-0">
                   <form.AppField name="imageDetail">
                     {(field): ReactElement => <field.SelectField label={ATTACHMENT_QUALITY_LABELS.imageDetail} items={IMAGE_DETAIL_ITEMS} />}
                   </form.AppField>
                 </Grid>
-                <Grid className="col-span-full grid-cols-subgrid gap-x-block min-w-0">
+                <Grid className="col-span-full grid-cols-subgrid gap-x-block min-inline-0">
                   <form.AppField name="videoMaxResolution">
                     {(field): ReactElement => <field.SelectField label={ATTACHMENT_QUALITY_LABELS.videoMaxResolution} items={VIDEO_RESOLUTION_ITEMS} />}
                   </form.AppField>

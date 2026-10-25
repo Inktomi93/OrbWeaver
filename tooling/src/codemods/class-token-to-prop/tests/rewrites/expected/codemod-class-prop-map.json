@@ -1,0 +1,7 @@
+{
+  "rules": [
+    { "element": "Card", "attribute": "className", "token": "!p-0", "prop": "padding", "value": "none" },
+    { "element": "TrackerValue", "attribute": "className", "token": "!w-auto", "prop": "width", "value": "auto" },
+    { "element": "TrackerValue", "attribute": "className", "token": "!w-(--size-avatar-md)", "prop": "width", "value": "avatar-md" }
+  ]
+}

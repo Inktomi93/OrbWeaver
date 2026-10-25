@@ -10,12 +10,8 @@
 // cleanly — and a `View` is assignable to the descriptor, so `key`/`label`/`help` stay readable off the
 // view alongside.
 //
-// ONE CONTROL PER COMPONENT, deliberately. The editors were arms of a single switch inside `KnobField` —
-// mutually exclusive returns, so exactly one control ever renders — but `form-factory-for-multifield`
-// counts controlled inputs PER ENCLOSING COMPONENT with no notion of exclusive arms, so the dispatcher read
-// as a hand-rolled multi-field form. Splitting is the honest fix rather than a suppression: the count
-// becomes structurally true (one field each), and each arm gets its own NARROWED descriptor type instead of
-// the widened local the switch needed.
+// ONE CONTROL PER COMPONENT, deliberately: each arm gets its own NARROWED descriptor type instead of a
+// widened local shared across a switch.
 //
 // THE `entityRef` ARM IS THE ONE THAT READS THE CHAT (#630). Every other editor is pure over its
 // descriptor; this one asks the server what THIS ROOM has, because the whole point is that a host never

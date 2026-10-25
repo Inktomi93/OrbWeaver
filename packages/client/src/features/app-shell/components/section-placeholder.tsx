@@ -6,8 +6,8 @@
 
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Sparkles } from "@orb/ui/icons";
+import { WeaveGlyph } from "@orb/ui/web-weave";
 import type { ReactElement, ReactNode } from "react";
-import { WeaveGlyph } from "#components";
 
 export interface SectionPlaceholderProps {
   readonly title: string;

@@ -1,6 +1,6 @@
 // The shared field-chrome box worn by input, textarea, and the select trigger — the `bg-input`
 // bordered control at full width with the body-type token and horizontal padding. Each consumer
-// layers its own height (`h-control-sm` / `min-h-control-lg`), the interaction state machine, and
+// layers its own height (`h-(--size-control-sm)` / `min-h-(--size-control-lg)`), the interaction state machine, and
 // (input/textarea only) the placeholder + invalid treatment on top.
 //
 // _BOX is the same chrome MINUS the control-scale bits (padding + type). It exists because the scale is
@@ -12,7 +12,7 @@
 // THE EDGE IS `border-input-border`, NOT `border-border` (D159): a form control's boundary is what
 // IDENTIFIES it as operable, so WCAG 1.4.11's 3:1 governs it, while the shared `--color-border`
 // hairline is a decorative divider at 1.19-1.28:1 and stays that way for its other 70-odd consumers.
-export const FIELD_CONTROL_BOX = "w-full min-w-0 rounded-control border border-input-border bg-field-fill text-foreground";
+export const FIELD_CONTROL_BOX = "inline-full min-inline-0 rounded-control border border-input-border bg-field-fill text-foreground";
 
 // THE TYPE STEP IS `text-field`, A POINTER-CONDITIONAL TOKEN, AND THAT IS WHY THERE IS NO MEDIA QUERY
 // AND NO VARIANT ANYWHERE NEAR THIS LINE (#1868, §4b axis 3).
@@ -34,7 +34,7 @@ export const FIELD_CONTROL_BOX = "w-full min-w-0 rounded-control border border-i
 //      every field inside a `<Surface>`, i.e. most of them.
 //   2. a raw `@media (any-pointer: coarse)` block in ui globals.css plus a second arm in tiers.css. Legal,
 //      and it worked, but §4b axis 3 says a capability is baked into a TOKEN so the call site carries NO
-//      variant — `spacing.touch-target` is the worked precedent, 44px coarse / 28px fine. Two CSS homes
+//      variant — `size.touch-target` is the worked precedent, 44px coarse / 28px fine. Two CSS homes
 //      re-deriving one platform fact is the thing the token layer exists to delete.
 // `text.field` carries the arm instead (tokens.json `$extensions["orb.pointerFine"]`), so the value is
 // 16px on a finger and 15px on a mouse and NOTHING here has to know which.

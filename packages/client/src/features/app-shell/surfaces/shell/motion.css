@@ -1,0 +1,145 @@
+/* shell.css region: the track FLIP: direction signs, keyframes, the three counters, the reduced-motion settle and the flank row. The index imports the regions in cascade order; a rule's winner across regions is
+ * decided there, so a rule moves between regions only with its source position. */
+@layer shell {
+  /* The panel push is a FLIP, not a track animation (motion guide §3.7): transitioning `grid-template-columns`
+   * re-runs layout every frame and records the move as layout instability, so the track resizes in one frame and
+   * a counter-translate cancels that frame's move, then animates to 0. Keyframes, not transitions: a FLIP's `from`
+   * is a position no resting state holds. `use-shell-track-flip.ts` stamps the attributes on the commit that
+   * changes the track and never on first paint, so a page load plays no entrance. */
+
+  /* Each track's direction as a sign, shared by the FLIP and the reduced-motion settle; `in` opened the track. */
+  .shell-grid:is([data-list-flip="in"], [data-list-settle="in"]) {
+    --list-flip-dir: 1;
+  }
+  /* For the one commit in which the list pane leaves, the collapsed pane also wears the width it had. */
+  .shell-grid:is([data-list-flip="out"], [data-list-settle="out"]) {
+    --list-flip-dir: -1;
+    --list-panel-collapsed-w: var(--list-collapsed-w-was);
+  }
+  .shell-grid:is([data-context-flip="in"], [data-context-settle="in"]) {
+    --context-flip-dir: 1;
+  }
+  .shell-grid:is([data-context-flip="out"], [data-context-settle="out"]) {
+    --context-flip-dir: -1;
+  }
+
+  /* One keyframe per moving element, both tracks summed into its distance: `animation` does not compose across
+   * rules, so a rule per direction would let the second win outright. One name also means a second toggle
+   * mid-animation does not restart by itself; `use-shell-track-flip.ts` restarts it. */
+  @keyframes shell-main-flip {
+    from {
+      translate: var(--shell-main-flip-from) 0;
+    }
+  }
+  @keyframes shell-trail-flip {
+    from {
+      translate: var(--shell-track-shrink) 0;
+    }
+  }
+  @keyframes shell-centre-flip {
+    from {
+      translate: var(--shell-centre-flip-from) 0;
+    }
+  }
+  @keyframes shell-list-band-flip {
+    from {
+      translate: var(--shell-list-band-flip-from) 0;
+    }
+  }
+  @keyframes shell-list-panel-flip {
+    from {
+      translate: var(--list-panel-flip-from) 0;
+    }
+  }
+  @keyframes shell-context-panel-flip {
+    from {
+      translate: var(--context-panel-flip-from) 0;
+    }
+  }
+  .shell-grid:is([data-list-flip], [data-context-flip]) .shell-main {
+    animation: shell-main-flip var(--shell-motion) var(--shell-ease);
+  }
+
+  /* The topbar trail is pinned to `.shell-main`'s end edge, so its own delta is the width change, not the start
+   * edge's travel; a second animation in lockstep, not an exemption, or the trail shears against the chrome. */
+  .shell-grid:is([data-list-flip], [data-context-flip]) .shell-topbar-trail {
+    animation: shell-trail-flip var(--shell-motion) var(--shell-ease);
+  }
+
+  /* A centred child (every `CHAT_TRACK` carrier, chat-track.ts) moves half its parent's width change while the
+   * reading cap is not binding, so the counter rides the marker, one rule for every carrier, with the capped
+   * distance grid.css derives. */
+  .shell-grid:is([data-list-flip], [data-context-flip]) .orb-chat-track {
+    animation: shell-centre-flip var(--shell-motion) var(--shell-ease);
+  }
+
+  /* The list band's trailing action is pinned to a pane whose width the squeeze changes, a reflow no transform
+   * cancels, so the counter rides the box that reflowed. A marker, not `:last-child`, which would also catch a
+   * start-aligned identity cluster; on the list door the distance resolves to 0. */
+  .shell-grid:is([data-list-flip], [data-context-flip]) [data-slot="list-pane-action"] {
+    animation: shell-list-band-flip var(--shell-motion) var(--shell-ease);
+  }
+
+  /* A docking pane slides in from outside the frame on the same curve as everything else the door moves, and
+   * leaves on its collapsed transform transition. */
+  .shell-grid:is([data-list-flip], [data-context-flip]) .shell-panel[data-panel-side="list"][data-panel-mode="docked"] {
+    animation: shell-list-panel-flip var(--shell-motion) var(--shell-ease);
+  }
+  /* Mode-blind for the context pane: its width is its start edge's offset from the frame, so its exit needs the
+   * corner too. `translate` and `transform` add: the transition carries the slide and the animation cancels the
+   * width-regime step. */
+  .shell-grid:is([data-list-flip], [data-context-flip]) .shell-panel[data-panel-side="context"][data-panel-mode] {
+    animation: shell-context-panel-flip var(--shell-motion) var(--shell-ease);
+  }
+
+  /* The reduced-motion settle: the FLIP's `from` corners held as static values for the one painted frame before
+   * `use-shell-track-flip.ts` drops the attributes, so the track change records no layout shift. A duration or a
+   * transition here would put motion back in front of the user who switched it off. */
+  .shell-grid:is([data-list-settle], [data-context-settle]) .shell-main {
+    translate: var(--shell-main-flip-from) 0;
+  }
+  .shell-grid:is([data-list-settle], [data-context-settle]) .shell-topbar-trail {
+    translate: var(--shell-track-shrink) 0;
+  }
+  .shell-grid:is([data-list-settle], [data-context-settle]) .orb-chat-track {
+    translate: var(--shell-centre-flip-from) 0;
+  }
+  .shell-grid:is([data-list-settle], [data-context-settle]) [data-slot="list-pane-action"] {
+    translate: var(--shell-list-band-flip-from) 0;
+  }
+
+  /* The room's flank track: the same FLIP for the plugin column joining or leaving its row
+   * (`use-flank-track-flip.ts`). The thread resizes by the column, the row gap, less the corner reserved for the
+   * column's edge control; the centred rows take the same capped half, with `100cqi` as the thread's width. */
+  .shell-main [data-slot="chat-room-flank-row"] {
+    --flank-flip-dir: 0;
+    --flank-track-delta: calc(var(--width-sidebar-sm) + var(--spacing-block) - var(--size-control-lg));
+    /* With A the thread after the toggle and B before it: ((A - min(A, W)) - (B - min(B, W))) / 2, A - B = dir * delta. */
+    --flank-centre-flip-from: calc(
+      (
+        var(--flank-flip-dir) *
+        var(--flank-track-delta) +
+        min(100cqi, var(--width-shell-content)) -
+        min(100cqi + var(--flank-flip-dir) * var(--flank-track-delta), var(--width-shell-content))
+      ) /
+      2
+    );
+  }
+  .shell-main [data-slot="chat-room-flank-row"]:is([data-flank-flip="in"], [data-flank-settle="in"]) {
+    --flank-flip-dir: 1;
+  }
+  .shell-main [data-slot="chat-room-flank-row"]:is([data-flank-flip="out"], [data-flank-settle="out"]) {
+    --flank-flip-dir: -1;
+  }
+  @keyframes room-flank-centre-flip {
+    from {
+      translate: var(--flank-centre-flip-from) 0;
+    }
+  }
+  .shell-main [data-slot="chat-room-flank-row"][data-flank-flip] .orb-chat-track {
+    animation: room-flank-centre-flip var(--shell-motion) var(--shell-ease);
+  }
+  .shell-main [data-slot="chat-room-flank-row"][data-flank-settle] .orb-chat-track {
+    translate: var(--flank-centre-flip-from) 0;
+  }
+}

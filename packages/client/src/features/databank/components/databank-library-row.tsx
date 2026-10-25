@@ -143,7 +143,7 @@ export function DatabankLibraryRow({
               // `Empty` and `Queued`/`Indexing` are the same amber by ruling, so the act-now arm carries a
               // mark the wait arms do not. `aria-hidden` is Icon's own default — the chip's LABEL is what
               // the row announces, and a glyph that spoke would say the state twice.
-              <Badge className="mr-field" intent={badge.intent} size="inline" tone="soft">
+              <Badge className="me-field" intent={badge.intent} size="inline" tone="soft">
                 {badge.glyph === null ? null : <Icon icon={badge.glyph} size="xs" />}
                 {badge.label}
               </Badge>

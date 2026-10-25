@@ -27,7 +27,7 @@ test("a registered delayed body still receives its canonical anchor and lands vi
   hold.release(settings(undefined));
   const anchor = page.locator(`[id="${target}"]`);
   await expect(anchor).toBeVisible();
-  await expect(anchor).toHaveClass(/settings-flash-anchor--lit/u);
+  await expect(anchor).toHaveClass(/settings-flash-anchor-lit/u);
   await expect(anchor).toBeInViewport();
 });
 
@@ -53,7 +53,7 @@ test("a superseded delayed anchor cannot flash or scroll after its read arrives"
     throw new Error("The real Looks contribution has no resolved anchor");
   }
   await looks.click();
-  await expect(page.locator(`[id="${looksId}"]`)).toHaveClass(/settings-flash-anchor--lit/u);
+  await expect(page.locator(`[id="${looksId}"]`)).toHaveClass(/settings-flash-anchor-lit/u);
   const pane = page.locator('[data-slot="config-content"]');
   const settledTop = await pane.evaluate((element) => element.scrollTop);
   hold.release(settings(undefined));
@@ -61,7 +61,7 @@ test("a superseded delayed anchor cannot flash or scroll after its read arrives"
   await expect(anchor).toBeAttached();
   await anchor.evaluate((element) =>
     new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))).then(() => {
-      if (element.classList.contains("settings-flash-anchor--lit")) {
+      if (element.classList.contains("settings-flash-anchor-lit")) {
         throw new Error("Superseded target flashed after its owner cancelled");
       }
     }),
@@ -110,7 +110,7 @@ test("unmount disconnects a pending anchor observer from its retired browser ele
     late.id = id;
     container.append(late);
     await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
-    return late.classList.contains("settings-flash-anchor--lit");
+    return late.classList.contains("settings-flash-anchor-lit");
   }, target);
   expect(flashed).toBe(false);
 });

@@ -12,8 +12,8 @@ export const saveBarVariants = tv({
     // drops to a line of its own below the identity instead of eating it (see the `meta` slot).
     root: "@container/save-bar sticky z-(--z-raised) flex flex-wrap items-center justify-between gap-row border-border bg-card px-block py-row",
     // `flex-1`: the identity CLAIMS the free width rather than merely being allowed to shrink into it.
-    label: "flex min-w-0 flex-1 items-baseline gap-field",
-    title: "truncate font-medium text-body leading-body text-foreground",
+    label: "flex flex-1 items-baseline gap-field min-inline-0",
+    title: "truncate text-body leading-body font-medium text-foreground",
     kind: "shrink-0 text-label leading-label text-muted-foreground",
     // THE DIAGNOSTIC SLOT, AND WHY IT IS NOT `actions` (side-eye 2026-08-18 P1-4). At 430px the character
     // editor's bar rendered `Sabin…  Character  1257 total · 1017 permanent  Saved`: the NAME — the only
@@ -23,17 +23,17 @@ export const saveBarVariants = tv({
     // unreadable datum for another.
     //
     // So the census gets its OWN slot with a width-keyed arm: inline at the end of the bar once there is
-    // room (`@md`), and BELOW the identity on its own full-width line when there is not. `order-last` +
+    // room (`@cq-28`), and BELOW the identity on its own full-width line when there is not. `order-last` +
     // `basis-full` is the whole mechanism — a full-width flex item on a wrapping row takes a line of its
     // own — so nothing is hidden, abbreviated or put behind a tap: the full census stays on screen and
     // readable, it simply stops competing with the name for the same 430px.
-    meta: "order-last basis-full text-start @md/save-bar:order-none @md/save-bar:basis-auto @md/save-bar:text-end",
+    meta: "order-last basis-full text-start @cq-28/save-bar:order-0 @cq-28/save-bar:basis-auto @cq-28/save-bar:text-end",
     actions: "flex shrink-0 items-center gap-row",
   },
   variants: {
     sticky: {
-      footer: { root: "bottom-0 border-t" },
-      header: { root: "top-0 border-b" },
+      footer: { root: "inset-be-0 border-bs" },
+      header: { root: "inset-bs-0 border-be" },
     },
   },
   defaultVariants: {

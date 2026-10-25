@@ -5,7 +5,8 @@ import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
 import { inputVariants } from "./variants.ts";
 
-export interface InputProps extends Omit<BaseInputProps, "type">, VariantProps<typeof inputVariants> {
+// The native `width` attribute (an image input's pixel width) gives way to the `width` variant.
+export interface InputProps extends Omit<BaseInputProps, "type" | "width">, VariantProps<typeof inputVariants> {
   className?: string;
   /**
    * The native input mode — TEXT-SHAPED values only.
@@ -60,7 +61,7 @@ const UA_RENDERED_INTERIOR: Record<NonNullable<InputProps["type"]>, boolean> = {
  *
  * Usage: `<Input placeholder="Search…" value={query} onValueChange={setQuery} />`
  */
-export function Input({ className, layout, ...rest }: InputProps): ReactElement {
+export function Input({ className, layout, width, ...rest }: InputProps): ReactElement {
   const uaInteriorUnset = rest.type !== undefined && UA_RENDERED_INTERIOR[rest.type] && rest.value === "";
   return <BaseInput className={cn(inputVariants({ layout }), className)} data-slot="input-root" {...(uaInteriorUnset ? { "data-empty": "" } : {})} {...rest} />;
 }

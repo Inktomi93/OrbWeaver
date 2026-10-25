@@ -2,7 +2,7 @@
 // owner-ruled 2026-09-05).
 //
 // WHY IT EXISTS. The two secondary filters each folded behind a disclosure of their own: the month bound
-// (#1350) and the faces strip (#1361 item 3). A `CollapsibleTrigger` is a `--spacing-control-sm` row, which
+// (#1350) and the faces strip (#1361 item 3). A `CollapsibleTrigger` is a `--size-control-sm` row, which
 // is 44px at a coarse pointer, so the pane was spending 88px of trigger to carry two facts — measured, the
 // second fold bought only 25px of the ~69px band it hid. One row, one trigger, both facts.
 //

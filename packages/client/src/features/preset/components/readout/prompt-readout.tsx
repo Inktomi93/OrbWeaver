@@ -286,7 +286,7 @@ function BudgetBar({
   const off = !section.enabled;
   return (
     <Button intent="ghost" onClick={(): void => selectPresetSection(section.id)} size="sm" {...(selected ? { className: "bg-primary/10" } : {})}>
-      <Text className={off ? "min-w-0 flex-1 truncate text-left line-through" : "min-w-0 flex-1 truncate text-left"} voice="label">
+      <Text className={off ? "flex-1 truncate text-start line-through min-inline-0" : "flex-1 truncate text-start min-inline-0"} voice="label">
         {sectionName(section)}
       </Text>
       {/* ZONE-HUED, never the categorical ramp's step 1 (side-eye, the mock-vs-rendered table): the ramp's
@@ -299,7 +299,11 @@ function BudgetBar({
           column (the numbers still read down one edge) and states its state in the two places that carry
           meaning here: the struck name and the struck, zeroed cost. F-26's ruling holds — the off row stays
           IN the budget list; what it loses is a meter that was saying nothing about it. */}
-      {off ? <Row className="min-w-0 flex-1" /> : <TrackBar accent={accent} className="min-w-0 flex-1" max={max} value={drawnTokens(tokens ?? 0, max)} />}
+      {off ? (
+        <Row className="flex-1 min-inline-0" />
+      ) : (
+        <TrackBar accent={accent} className="flex-1 min-inline-0" max={max} value={drawnTokens(tokens ?? 0, max)} />
+      )}
       {/* The GLYPH is decoration for the eye and the SENTENCE is the datum (side-eye F-27): `~—`
           announces as "tilde em dash", which is not a cost. */}
       <Text aria-hidden={true} className={off ? "line-through" : ""} voice="datum">

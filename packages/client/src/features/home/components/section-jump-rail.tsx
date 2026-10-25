@@ -1,6 +1,6 @@
 // The "Elsewhere in the house" row — DERIVED from the section registry. Each
 // pill borrows that section's own rail icon and rail label. A hardcoded `["chats","characters",…]` here
-// would be `no-parallel-section-map` (G2) RED — and rightly: derived rows mean a NEW section appears on
+// would be a parallel section map — and rightly: derived rows mean a NEW section appears on
 // home automatically, with zero home edits.
 //
 // IT IS A PILL RAIL, NOT A COLUMN OF ROWS. Each section's teaching gloss as a row would make the NAVIGATION

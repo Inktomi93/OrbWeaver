@@ -58,7 +58,7 @@ export function PurposeNotes({ notes }: { readonly notes: readonly string[] }): 
   return (
     <Stack data-slot="connection-purpose-notes" gap="tight">
       {notes.map((note) => (
-        <Text tone="warning" className="max-w-(--reading-measure-prose)" key={note} prose={true} voice="gloss">
+        <Text tone="warning" className="max-inline-(--reading-measure-prose)" key={note} prose={true} voice="gloss">
           {note}
         </Text>
       ))}
@@ -77,7 +77,7 @@ export function CapabilityRail({ badges }: { readonly badges: readonly Capabilit
       <Row className="flex-wrap" gap="field">
         {badges.map((badge) => (
           <Badge
-            className={badge.ok ? undefined : "@max-lg:hidden"}
+            className={badge.ok ? undefined : "@max-cq-32:hidden"}
             intent={badge.ok ? "success" : "neutral"}
             key={badge.task}
             size="sm"
@@ -89,7 +89,7 @@ export function CapabilityRail({ badges }: { readonly badges: readonly Capabilit
         ))}
       </Row>
       {cannot.length === 0 ? null : (
-        <Text className="@lg:hidden" voice="gloss">
+        <Text className="@cq-32:hidden" voice="gloss">
           …and {String(cannot.length)} more it can't serve.
         </Text>
       )}

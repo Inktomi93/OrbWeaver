@@ -185,7 +185,12 @@ export function SandboxFrame({
     return (
       // The frame and its skeleton are GROUPED CONTENT inside the message bubble (the elevated island):
       // `rounded-base`, never the floating `card` step (UI-Density-Law.md §2.1 D6).
-      <div className="w-full animate-pulse rounded-base border border-border bg-muted" style={style} data-slot="sandbox-frame-skeleton" aria-hidden={true} />
+      <div
+        className="animate-pulse rounded-base border border-border bg-muted inline-full"
+        style={style}
+        data-slot="sandbox-frame-skeleton"
+        aria-hidden={true}
+      />
     );
   }
 
@@ -217,7 +222,7 @@ export function SandboxFrame({
       title={title === "" ? UNNAMED_FRAME_TITLE : title}
       loading="lazy"
       referrerPolicy="no-referrer"
-      className={className ?? "w-full rounded-base border border-border bg-card"}
+      className={className ?? "rounded-base border border-border bg-card inline-full"}
       style={style}
       data-slot="sandbox-frame"
       // Which delivery won — the ONLY externally observable tell that a card got its own policy instead of

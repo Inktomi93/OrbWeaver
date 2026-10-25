@@ -19,7 +19,7 @@
 // to the fork when the built-in was what was active (`defaultPresetId === null` is the built-in, or an
 // explicit pointer at the row we just forked). Leaving the built-in active is what made the edits invisible.
 // The swap costs one `preset.get` fetch on the new id (a brief editor fallback) — priming that cache from the
-// mutation response is imperative cache surgery, which `client-cache-surgery-only-in-data` correctly bans.
+// mutation response is imperative cache surgery, which `orb/client-cache-surgery-only-in-data` correctly bans.
 //
 // …AND IT ANNOUNCES (side-eye 2026-08-30 P2-A, #856). "Silent" was true of the FEEDBACK too: a whole preset
 // appeared, the editor retargeted, the pick moved, and the one status on screen said "Saved" — so the user

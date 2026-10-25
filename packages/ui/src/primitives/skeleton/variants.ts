@@ -16,7 +16,7 @@ export const skeletonVariants = tv({
   variants: {
     variant: {
       rect: "rounded-control",
-      text: "w-2/3 rounded-control",
+      text: "rounded-control inline-2/3",
       circle: "aspect-square rounded-full",
     },
   },

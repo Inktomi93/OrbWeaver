@@ -15,6 +15,7 @@
 //
 // Enforcers (a prose-only boundary is a wish — constitution §2): dep-cruiser seals both tailwind-merge and
 // runtime tailwind-variants imports to this file. Type-only VariantProps imports remain legal.
+import type { DefaultClassGroupIds } from "tailwind-merge";
 import { extendTailwindMerge } from "tailwind-merge";
 import type { CnOptions, CnReturn, TV } from "tailwind-variants";
 import { createTV, cx } from "tailwind-variants";
@@ -30,11 +31,14 @@ export const CSS_MERGE_FAMILY_NAMES = [
   "blur",
   "border-width",
   "font",
+  "font-weight",
   "text",
   "leading",
   "tracking",
   "container",
   "width",
+  "size",
+  "height",
   "ease",
 ] as const;
 
@@ -92,17 +96,25 @@ const SPACING_SCALE = scaleOf("spacing");
 const RADIUS_SCALE = scaleOf("radius");
 // `--container-*` feeds `w`/`min-w`/`max-w`/`basis` (the `max-w-cq-*` container-query steps).
 const CONTAINER_SCALE = scaleOf("container");
-// `--width-*` is the odd one out and is NOT a theme registration: tailwind-merge 3.6 has no `width` key
-// in `DefaultThemeGroupIds` (a `theme.width` entry would be an inert no-op), and the v4.3 engine emits
-// `w-<name>` for this namespace but NOT `max-w-<name>`/`min-w-<name>` — probed, not assumed. So the one
-// group it can conflict in is `w`, and it registers as a classGroup extension (which CONCATS onto the
-// built-in `w` group, `mergeArrayProperties`), still derived from the token map.
+// `--width-*`, `--size-*` and `--height-*` are not tailwind-merge theme keys; the engine compiles their bare
+// forms on some axes only (`w-<name>`, `size-<name>`, `h-<name>`), so lint refuses the bare forms and code spells
+// the `(--namespace-name)` variable on every axis. The compiler still accepts the bare forms, so each registers
+// as a classGroup extension (which concats onto the built-in group), derived from the token map.
 const WIDTH_SCALE = scaleOf("width");
+const SIZE_SCALE = scaleOf("size");
+const HEIGHT_SCALE = scaleOf("height");
 const ASPECT_SCALE = scaleOf("aspect");
 const BLUR_SCALE = scaleOf("blur");
 const EASE_SCALE = scaleOf("ease");
 
-const CLASS_GROUPS = { ...CUSTOM_CLASS_GROUPS, w: [{ w: WIDTH_SCALE }] };
+const CLASS_GROUPS = {
+  ...CUSTOM_CLASS_GROUPS,
+  w: [{ w: WIDTH_SCALE }],
+  size: [{ size: SIZE_SCALE }],
+  h: [{ h: HEIGHT_SCALE }],
+  "min-h": [{ "min-h": HEIGHT_SCALE }],
+  "max-h": [{ "max-h": HEIGHT_SCALE }],
+};
 const THEME = {
   spacing: SPACING_SCALE,
   radius: RADIUS_SCALE,
@@ -138,7 +150,7 @@ function conflictAxis(loser: string, winner: string): string {
 //
 // THE DISCRIMINATOR IS COLOR-NESS UNDER A SHARED UTILITY PREFIX, not "one side carries a scale token".
 // The broader reading is unusable: a custom token overriding a CORE keyword on the same axis (`gap-block`
-// over `gap-0`, `h-control-sm` over `h-auto`, `rounded-control` over `rounded-none`, `leading-body` over
+// over `gap-0`, `h-(--size-control-sm)` over `h-auto`, `rounded-control` over `rounded-none`, `leading-body` over
 // `leading-tight`) also has a token on exactly one side, and every one of those is a LEGITIMATE override
 // this repo's suite pins by name. What cannot be legitimate is an eviction between a color utility and a
 // non-color one: Tailwind's color groups (text-color, bg-color, border-color, …) conflict only with
@@ -211,9 +223,78 @@ export function setCssMergeObserver(observer: CssMergeObserver): void {
   cssMergeObserver = observer;
 }
 
+// A logical utility and its physical twin set the same declaration in the horizontal-tb left-to-right writing
+// mode this app renders in, but tailwind-merge keeps them in separate class groups, so `cn("border-l-2",
+// "border-s-0")` kept both and the stylesheet order chose the width. Each pair is one axis here, both ways, for
+// every sided family: sizing, padding, margin, inset, border width and colour, corner radius, scroll margin and
+// padding. The physical axis groups (`px`, `rounded-t`, …) also evict the logical sides they cover.
+const LOGICAL_TWINS: readonly (readonly [physical: DefaultClassGroupIds, logical: DefaultClassGroupIds])[] = [
+  ["w", "inline-size"],
+  ["min-w", "min-inline-size"],
+  ["max-w", "max-inline-size"],
+  ["h", "block-size"],
+  ["min-h", "min-block-size"],
+  ["max-h", "max-block-size"],
+  ["pl", "ps"],
+  ["pr", "pe"],
+  ["pt", "pbs"],
+  ["pb", "pbe"],
+  ["ml", "ms"],
+  ["mr", "me"],
+  ["mt", "mbs"],
+  ["mb", "mbe"],
+  ["left", "start"],
+  ["right", "end"],
+  ["top", "inset-bs"],
+  ["bottom", "inset-be"],
+  ["border-w-l", "border-w-s"],
+  ["border-w-r", "border-w-e"],
+  ["border-w-t", "border-w-bs"],
+  ["border-w-b", "border-w-be"],
+  ["border-color-l", "border-color-s"],
+  ["border-color-r", "border-color-e"],
+  ["border-color-t", "border-color-bs"],
+  ["border-color-b", "border-color-be"],
+  ["rounded-l", "rounded-s"],
+  ["rounded-r", "rounded-e"],
+  ["rounded-tl", "rounded-ss"],
+  ["rounded-tr", "rounded-se"],
+  ["rounded-br", "rounded-ee"],
+  ["rounded-bl", "rounded-es"],
+  ["scroll-ml", "scroll-ms"],
+  ["scroll-mr", "scroll-me"],
+  ["scroll-mt", "scroll-mbs"],
+  ["scroll-mb", "scroll-mbe"],
+  ["scroll-pl", "scroll-ps"],
+  ["scroll-pr", "scroll-pe"],
+  ["scroll-pt", "scroll-pbs"],
+  ["scroll-pb", "scroll-pbe"],
+];
+
+// Axis utilities that tailwind-merge already resolves over the physical sides, extended to the logical twins.
+const LOGICAL_AXIS_CONFLICTS: Partial<Record<DefaultClassGroupIds, readonly DefaultClassGroupIds[]>> = {
+  size: ["inline-size", "block-size"],
+  "rounded-t": ["rounded-ss", "rounded-se"],
+  "rounded-b": ["rounded-es", "rounded-ee"],
+  "rounded-s": ["rounded-tl", "rounded-bl"],
+  "rounded-e": ["rounded-tr", "rounded-br"],
+};
+
+function logicalConflicts(): Partial<Record<DefaultClassGroupIds, readonly DefaultClassGroupIds[]>> {
+  const conflicts: Partial<Record<DefaultClassGroupIds, DefaultClassGroupIds[]>> = {};
+  for (const [physical, logical] of LOGICAL_TWINS) {
+    conflicts[physical] = [logical];
+    conflicts[logical] = [physical];
+  }
+  for (const [group, evicted] of Object.entries(LOGICAL_AXIS_CONFLICTS) as [DefaultClassGroupIds, readonly DefaultClassGroupIds[]][]) {
+    conflicts[group] = [...(conflicts[group] ?? []), ...evicted];
+  }
+  return conflicts;
+}
+
 /** The configured tailwind-merge instance — built once, at module scope, from the customizations above. */
 const mergeClasses = extendTailwindMerge({
-  extend: { classGroups: CLASS_GROUPS, theme: THEME },
+  extend: { classGroups: CLASS_GROUPS, theme: THEME, conflictingClassGroups: logicalConflicts() },
 });
 
 /**

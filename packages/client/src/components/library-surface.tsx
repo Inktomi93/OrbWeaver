@@ -82,7 +82,7 @@ export function LibrarySurfaceShell({ loadingLabel, errorLabel, reserveKey, chil
 }
 
 /** The one class string the pane's scroll box wears, whichever of the two elements owns it. */
-const LIBRARY_SCROLL_BOX = "relative min-h-0 flex-1 overflow-y-auto overscroll-contain";
+const LIBRARY_SCROLL_BOX = "relative min-block-0 flex-1 overflow-y-auto overscroll-contain";
 
 export interface LibraryListFrameProps {
   readonly searchValue: string;
@@ -116,7 +116,7 @@ export function LibraryListFrame({
     // lists, not forms. Declared once here, so both consuming surfaces get identical density by
     // construction instead of each picking steps by taste.
     <Surface tier="instrument">
-      <Stack className="h-full" gap="row">
+      <Stack className="block-full" gap="row">
         <ListSearch>
           <Input aria-label={searchLabel} onValueChange={onSearchChange} placeholder={searchPlaceholder} value={searchValue} />
         </ListSearch>

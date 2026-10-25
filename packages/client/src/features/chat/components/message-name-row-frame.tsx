@@ -54,7 +54,7 @@ type HeaderPlacement = RowSkin["headerPlacement"];
  *  prose scrolling under it.
  *
  *  THE ACTION CLUSTER CONTRIBUTES NO HEIGHT (#204 — the owner's "phantom empty scrim bands" and "the
- *  name is separated from the messages", both one mechanism). The hover-reveal cluster is a 34px row of
+ *  name is separated from the messages", both one mechanism). The hover-reveal cluster is a `--size-control-md` row of
  *  icon buttons that is `opacity: 0` at rest but stayed IN FLOW at full height — so the painted chip
  *  measured 50px around a 16px name (50 = 34 + 2×py-row): the empty top/bottom thirds were the phantom
  *  bands, and the ~17px of painted-then-empty space below the name was the detachment. The cluster rides
@@ -96,11 +96,11 @@ export function NameRowFrame(args: NameRowFrameProps): ReactElement {
         pinned && args.pinnedPaint,
         // An actions-only bar is a chip at the trailing edge, and off the last row it overlays the row's top
         // trailing corner at its full glyph height while costing the row no height at all.
-        !args.shape.identity && "ms-auto w-fit",
+        !args.shape.identity && "ms-auto inline-fit",
         // An outside header (tide's) sits on the same inset as the pager under its train, so the last action
         // ends where the forward chevron does and its touch area stays inside the scrollport.
         args.placement === "outside" && "px-field",
-        !args.shape.ownLine && "box-content h-glyph-lg -mb-glyph-lg",
+        !args.shape.ownLine && "-mbe-(--size-glyph-lg) box-content block-(--size-glyph-lg)",
         // THE ACTION RAIL'S ONLY RESERVATION. The rail is centred on this row, so a content height of
         // `glyph-lg - 2 * row` makes it span exactly the container's top inset, this row and the
         // `gap-row` below it: contained in the bubble, clear of the prose, and no empty band between
@@ -108,17 +108,17 @@ export function NameRowFrame(args: NameRowFrameProps): ReactElement {
         // verdict is computed from the measured row height: any box the verdict changed would re-enter
         // its own input and oscillate. `box-content` keeps the sticky band's `pt-row` additive, so its
         // `-mt-row` cancellation stays exact.
-        args.placement === "inside" && args.shape.ownLine && "box-content min-h-[calc(var(--spacing-glyph-lg)_-_2_*_var(--spacing-row))]",
+        args.placement === "inside" && args.shape.ownLine && "box-content min-block-(--size-name-row-min)",
         // At rest an inside header paints on the role bubble, so every datum must inherit that bubble's
         // paired foreground. Speaker/gloss inks derive from the scope's BASE and are invalid on an
         // independently-picked bubble fill. A pinned row paints its own reading band and keeps that
         // band's base-derived ink instead.
-        args.placement === "inside" && !pinned && "[&_[data-slot=message-attribution]_*]:text-inherit [&_[data-slot=message-metadata-timestamp]]:text-inherit",
+        args.placement === "inside" && !pinned && "**:data-[slot=message-metadata-timestamp]:text-inherit [&_[data-slot=message-attribution]_*]:text-inherit",
       )}
     >
       {args.identity}
       {args.actions === null ? null : (
-        <Row align="center" className="h-0" data-slot="message-actions-slot">
+        <Row align="center" className="block-0" data-slot="message-actions-slot">
           {args.actions}
         </Row>
       )}

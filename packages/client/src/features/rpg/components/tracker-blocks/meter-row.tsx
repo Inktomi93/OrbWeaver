@@ -94,7 +94,8 @@ function MaxCell({
             onEditMax(n);
           }
         }}
-        className="!w-avatar-lg px-field text-right tabular-nums"
+        className="px-field text-end tabular-nums"
+        width="avatar-lg"
         restClassName="tabular-nums"
       />
     </Row>
@@ -102,7 +103,7 @@ function MaxCell({
 }
 
 /** The EDITABLE reading + its `/max` half (the read-only arm is one `<Text>` in MeterRow). Its own component
- *  for the complexity cap, the MaxCell precedent. The value field sizes to ITSELF (a fixed `w-avatar-lg`, not
+ *  for the complexity cap, the MaxCell precedent. The value field sizes to ITSELF (a fixed `w-(--size-avatar-lg)`, not
  *  `w-full` inside a fixed box — that collapsed the flex input to ~14px and clipped a 2-digit value's LEADING
  *  digit); `px-field` (over FIELD_CONTROL's wider `px-block`) + `text-right` hug the `/max` suffix without
  *  clipping; `shrink-0` on the cluster keeps the label from stealing its width (the W3c input-clip fix). */
@@ -125,7 +126,7 @@ function ValueCell({
 }): ReactElement {
   return (
     // The inline buttons' token-sized hit pseudos extend beyond their text boxes; reserve that edge inside the row.
-    <Row gap="field" align="center" className="shrink-0 pr-block">
+    <Row gap="field" align="center" className="shrink-0 pe-block">
       <TrackerValue
         ariaLabel={`${name} value`}
         // Unset ⇒ an EMPTY field wearing the em-dash placeholder, never a `0` the host has to notice is fake.
@@ -139,7 +140,8 @@ function ValueCell({
             onEditValue(n);
           }
         }}
-        className={warning ? "!w-avatar-lg px-field text-right tabular-nums text-warning" : "!w-avatar-lg px-field text-right tabular-nums"}
+        className={warning ? "px-field text-end text-warning tabular-nums" : "px-field text-end tabular-nums"}
+        width="avatar-lg"
         // At rest the value hugs its text like the read-only "24/30" (no fixed input width).
         restClassName={warning ? "tabular-nums text-warning" : "tabular-nums"}
       />
@@ -163,7 +165,7 @@ function MeterLabel({
   readonly nameCarried: boolean;
 }): ReactElement {
   return (
-    <Row gap="field" align="center" className="min-w-0">
+    <Row gap="field" align="center" className="min-inline-0">
       {leading}
       {/* THE LABEL IS PROGRAMMATICALLY ASSOCIATED, OR IT IS LOOSE TEXT. In the EDITABLE arm both fields carry
           this label verbatim inside their accessible names (`<subject> HP value` / `<subject> HP max`), so the

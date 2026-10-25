@@ -1,6 +1,9 @@
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
-import { authorClassIgnores, baseUiDoors, createOrbPlugin } from "@orb/tooling/eslint";
+import { authorClassIgnores, baseUiDoors, classClassifier, createOrbPlugin } from "@orb/tooling/eslint";
 import { BUTTON_SIZE_OVERFLOW } from "@orb/ui/button/size-hit-area";
+import { TOKENS } from "@orb/ui/tokens";
 import pluginQuery from "@tanstack/eslint-plugin-query";
 import pluginRouter from "@tanstack/eslint-plugin-router";
 import vitest from "@vitest/eslint-plugin";
@@ -15,16 +18,114 @@ import reactX from "eslint-plugin-react-x";
 import reactNoEffect from "eslint-plugin-react-you-might-not-need-an-effect";
 import regexp from "eslint-plugin-regexp";
 import tsdoc from "eslint-plugin-tsdoc";
+import { __unstable__loadDesignSystem } from "tailwindcss";
 import type { FlatConfig } from "typescript-eslint";
 import tseslint from "typescript-eslint";
 import biomeConfig from "./biome.json" with { type: "json" };
+import { OWNER_CSS_SHELL_CLASSES } from "./packages/client/owner-css-surface.ts";
 
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
 const UI_STYLESHEET = fileURLToPath(new URL("./packages/ui/src/styles/globals.css", import.meta.url));
 const CLIENT_STYLESHEET = fileURLToPath(new URL("./packages/client/src/styles/globals.css", import.meta.url));
 const SHELL_STYLESHEET = fileURLToPath(new URL("./packages/client/src/features/app-shell/surfaces/shell.css", import.meta.url));
+const THEME_STYLESHEET = fileURLToPath(new URL("./packages/ui/src/styles/theme.css", import.meta.url));
+// The design system `feature-classname-layout-only` compiles tokens through: the stock theme plus the generated theme.
+const designSystem = await __unstable__loadDesignSystem(
+  `${readFileSync(createRequire(import.meta.url).resolve("tailwindcss/theme.css"), "utf8")}\n${readFileSync(THEME_STYLESHEET, "utf8")}`,
+);
 
 const SOURCE = ["packages/*/src/**/*.{ts,tsx}", "tooling/src/**/*.{ts,tsx}"];
+
+// Tailwind utilities the namespace resets cannot remove (the compiler still accepts them), refused here instead.
+// `size`, `height` and `width` tokens compile as bare `size-<name>`/`h-<name>`/`w-<name>` on some axes only, so the
+// `(--namespace-name)` form is the one spelling for every axis and the bare forms are refused.
+const BARE_NAMESPACE_UTILITIES = Object.keys(TOKENS).flatMap((path) => {
+  const [group, name] = [path.slice(0, path.indexOf(".")), path.slice(path.indexOf(".") + 1)];
+  const roots =
+    {
+      size: ["size"],
+      height: ["h", "min-h", "max-h", "block", "min-block", "max-block"],
+      width: ["w", "min-w", "max-w", "inline", "min-inline", "max-inline"],
+    }[group] ?? [];
+  return roots.map((root) => `${root}-${name}`);
+});
+// Class strings also live in exported constants (`SELECTION_RAIL`, `CHIP_BOX`) and their object values; the plugin's
+// default selectors read only `className`-named variables, so the retired gates' reach over lib constants is kept
+// by naming every UPPER_CASE binding. Only the pattern and the logical-properties rules take it: the order and
+// unknown-class rules would read a prose constant's words as classes.
+const CLASS_VARIABLE_SELECTORS = [
+  ["^[A-Z][A-Z0-9_]*$", [{ match: "strings" }, { match: "objectValues" }]],
+  ["^classNames?$", [{ match: "strings" }]],
+  ["^classes$", [{ match: "strings" }]],
+  ["^styles?$", [{ match: "strings" }]],
+] as const;
+const RESTRICTED_CLASSES = [
+  {
+    // An arbitrary class value that carries a design number: a length, a decimal, or a track share other than 1fr.
+    // A keyword, `0`, `1fr`, `100%` or a `var(--token)` inside the brackets is structure and stays legal.
+    pattern: String.raw`^(?:[^\s\[]*:)?[a-z-]+-\[[^\]]*(?:\d+(?:\.\d+)?(?:px|rem|em|ch|cq[whib]|v[wh]|dvh|svh|lvh|ms|s|deg)|\d\.\d+|(?:[2-9]|\d{2,})fr)[^\]]*\]`,
+    message: "An arbitrary value with a design number bypasses the token scale; use a token utility or add one in tokens.json.",
+  },
+  {
+    pattern: String.raw`^(?:[^\s]*:)?!?leading-(?:tight|snug|normal|relaxed|loose|\d+)!?$`,
+    message: "A stock line-height; every line box is a leading token (docs/law/integer-line-boxes.md).",
+  },
+  {
+    pattern: `^(?:[^\\s]*:)?!?-?(?:${BARE_NAMESPACE_UTILITIES.join("|")})!?$`,
+    message: "Spell a size, height or width token as <utility>-(--<namespace>-<name>), the one form that works on every axis.",
+  },
+  {
+    // The important modifier escapes the cascade a variant should own; a site that must beat an inline style names its reason.
+    pattern: String.raw`^(?:[^\s]*:)?!.|.!$`,
+    message: "The `!` modifier escapes the cascade; add a variant in @orb/ui, or name the inline style it beats beside a disable.",
+  },
+  {
+    // An arbitrary layout, size or type value; a custom property, a formula and `inherit` are structure and stay legal.
+    pattern: String.raw`^(?:[^\s]*:)?-?(?:[whz]|min-w|min-h|max-w|max-h|inline|block|min-inline|min-block|max-inline|max-block|size|p[xytrbles]?|m[xytrbles]?|gap(?:-x|-y)?|space-[xy]|inset(?:-x|-y|-s|-e)?|top|left|right|bottom|start|end|translate(?:-x|-y|-z)?|text|leading|tracking|rounded)-\[(?!(?:--|var\(|calc\(|inherit\]))[^\s:]+\]$`,
+    message: "Arbitrary Tailwind layout/size/type value bypasses the token scale; use a token utility or extend tokens.json.",
+  },
+  {
+    pattern: String.raw`^(?:[^\s]*:)?@?(?:min|max)-\[[^\s\]]+\]:`,
+    message: "An arbitrary breakpoint variant bypasses the named conditions; use a breakpoint or container token (tokens.json) or add one.",
+  },
+  {
+    pattern: String.raw`\(--primitive-[a-z0-9-]+\)`,
+    message: "A primitive ramp step is referenced directly; use the semantic token that aliases it, or add one in tokens.json.",
+  },
+  {
+    pattern: String.raw`^(?:[^\s]*:)?(?:bg|text|border|ring|fill|stroke)-(?:black|white)(?:\/\d+)?$`,
+    message: "A named non-token color bypasses the theme; use a semantic token, or bg-backdrop for a scrim.",
+  },
+  {
+    pattern: String.raw`^(?:[^\s]*:)?(?:bg|text|border|ring|fill|stroke|from|via|to|outline|decoration|accent|caret|divide|placeholder|shadow|ring-offset)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3}(?:\/\d+)?$`,
+    message: "A palette-scale color bypasses the theme; use a semantic token such as text-destructive or bg-primary.",
+  },
+  {
+    pattern: String.raw`-\[#[0-9a-fA-F]{3,8}\]`,
+    message: "An arbitrary hex color bypasses the theme; use a semantic color token from theme.css.",
+  },
+  {
+    pattern: String.raw`^(?:[^\s]*:)?max-(?:w|inline)-prose$`,
+    message:
+      "Tailwind's max-w-prose matches no house reading measure. Body/teaching prose takes max-w-(--reading-measure-prose) on the paragraph; editor content takes max-w-(--width-content-col).",
+  },
+];
+
+/** Viewport breakpoints are the shell's; a feature adapts to its pane with a container query. */
+const VIEWPORT_CLASSES = {
+  pattern: String.raw`^(?:[^\s]*:)?(?:(?:max-|min-)?(?:sm|md|lg|xl|2xl)|(?:min|max)-\[[^\s\]]+\]):`,
+  message: "Viewport breakpoints belong to app-shell; adapt to the pane with a container query or Container size.",
+};
+/** Pointer and hover capability variants are the tokens' or the shell's, never a feature's. */
+const POINTER_CLASSES = {
+  pattern: String.raw`^(?:[^\s]*:)?(?:(?:any-)?pointer-(?:coarse|fine)|\[@media\([^\s)]*(?:any-pointer|pointer|hover):[^\s)]*\)\]):`,
+  message: "Device capability adaptation belongs to shared tokens or app-shell, not feature-local pointer/hover capability variants.",
+};
+/** A raw content width; the container scale and the Container primitive own widths. */
+const WIDTH_CLASSES = {
+  pattern: String.raw`^(?:[^\s]*:)?(?:(?:max-|min-)?(?:w|inline)-\[[^\s\]]+\]|(?:max-)?(?:w|inline)-(?:[1-9]\d*|\d+\.\d+))$`,
+  message: "Raw content widths bypass the container scale; use Container size or a max-w-cq-* token utility.",
+};
 
 const REACT_SOURCE = ["packages/client/src/**/*.{ts,tsx}", "packages/ui/src/**/*.{ts,tsx}"];
 
@@ -472,21 +573,65 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
       "@tanstack/router/create-route-property-order": "error",
     },
   },
-  ...[
-    { name: "ui", entryPoint: UI_STYLESHEET, stylesheets: [UI_STYLESHEET] },
-    { name: "client", entryPoint: CLIENT_STYLESHEET, stylesheets: [UI_STYLESHEET, CLIENT_STYLESHEET, SHELL_STYLESHEET] },
-  ].map(
-    ({ name, entryPoint, stylesheets }): FlatConfig.Config => ({
-      files: [`packages/${name}/src/**/*.{ts,tsx}`],
+  ...(
+    [
+      // The ui package: viewport variants and raw widths are refused; the layout and markdown primitives own widths.
+      {
+        name: "ui",
+        files: ["packages/ui/src/**/*.{ts,tsx}"],
+        ignores: ["packages/ui/src/layout/**", "packages/ui/src/markdown/**"],
+        restrict: [VIEWPORT_CLASSES, WIDTH_CLASSES],
+      },
+      { name: "ui", files: ["packages/ui/src/layout/**/*.{ts,tsx}", "packages/ui/src/markdown/**/*.{ts,tsx}"], ignores: [], restrict: [VIEWPORT_CLASSES] },
+      // The app shell is the one home of viewport and pointer variants.
+      { name: "client", files: ["packages/client/src/features/app-shell/**/*.{ts,tsx}"], ignores: [], restrict: [WIDTH_CLASSES] },
+      {
+        name: "client",
+        files: ["packages/client/src/features/**/*.{ts,tsx}"],
+        ignores: ["packages/client/src/features/app-shell/**"],
+        restrict: [VIEWPORT_CLASSES, POINTER_CLASSES, WIDTH_CLASSES],
+      },
+      {
+        name: "client",
+        files: ["packages/client/src/**/*.{ts,tsx}"],
+        ignores: ["packages/client/src/features/**"],
+        restrict: [VIEWPORT_CLASSES, WIDTH_CLASSES],
+      },
+    ] as const
+  ).map(({ name, files, ignores, restrict }): FlatConfig.Config => {
+    const entryPoint = name === "ui" ? UI_STYLESHEET : CLIENT_STYLESHEET;
+    const stylesheets = name === "ui" ? [UI_STYLESHEET] : [UI_STYLESHEET, CLIENT_STYLESHEET, SHELL_STYLESHEET];
+    return {
+      files: [...files],
+      ignores: [...ignores],
       plugins: { "better-tailwindcss": betterTailwindcss },
       settings: { "better-tailwindcss": { entryPoint } },
       rules: {
         "better-tailwindcss/enforce-consistent-variable-syntax": ["error", { syntax: "shorthand" }],
         "better-tailwindcss/no-deprecated-classes": "error",
         "better-tailwindcss/no-unknown-classes": ["error", { ignore: authorClassIgnores(stylesheets) }],
+        "better-tailwindcss/no-conflicting-classes": "error",
+        "better-tailwindcss/no-duplicate-classes": "error",
+        "better-tailwindcss/no-concatenated-classes": "error",
+        // The namespace resets remove the stock scales; the patterns close the spellings a reset cannot see, per scope.
+        "better-tailwindcss/no-restricted-classes": ["error", { restrict: [...RESTRICTED_CLASSES, ...restrict], variables: [...CLASS_VARIABLE_SELECTORS] }],
+        // Tailwind's own order, so a class list reads the same everywhere; component and unknown classes keep their place.
+        "better-tailwindcss/enforce-consistent-class-order": ["error", { order: "official" }],
+        "better-tailwindcss/enforce-consistent-variant-order": "error",
+        // Canonical spellings only: `collapse` is off because it folds two house tokens with one value into the wrong name
+        // (`text-label leading-label` into `text-code/label`), and the `(--token)` forms are ignored because the bare forms
+        // it would prefer are the ones `no-restricted-classes` refuses; `logical` is enforce-logical-properties' axis.
+        "better-tailwindcss/enforce-canonical-classes": ["error", { collapse: false, logical: false, ignore: [String.raw`\(--`] }],
+        "better-tailwindcss/enforce-shorthand-classes": "error",
+        "better-tailwindcss/enforce-logical-properties": ["error", { variables: [...CLASS_VARIABLE_SELECTORS] }],
+        // The trailing form is Tailwind v4's; the modifier itself is refused above, so this governs only a named exception.
+        "better-tailwindcss/enforce-consistent-important-position": ["error", { position: "recommended" }],
+        // Biome's lineWidth is 160; the same width here means the two never fight over a class string.
+        "better-tailwindcss/enforce-consistent-line-wrapping": ["error", { printWidth: 160, group: "newLine", preferSingleLine: true, indent: 2 }],
+        "better-tailwindcss/no-unnecessary-whitespace": ["error", { allowMultiline: true }],
       },
-    }),
-  ),
+    };
+  }),
   {
     files: ["packages/server/src/**/*.ts", "packages/db/src/**/*.ts"],
     plugins: { drizzle },
@@ -557,6 +702,8 @@ const localPlugin = createOrbPlugin({
       .filter(([, overflows]) => overflows)
       .map(([size]) => size),
   ),
+  shellClasses: new Set(OWNER_CSS_SHELL_CLASSES),
+  classifyClass: classClassifier((classes) => designSystem.candidatesToCss(classes)),
 });
 // The only files that may spell a portal-float z token: each is a surface that portals to
 // [data-slot="portal-root"] or mounts at the document root. A new consumer is a finding, not an entry here.
@@ -585,6 +732,13 @@ const FLIP_INVERSION_HOMES = {
   "packages/client/src/features/refinery/hooks/use-count-up.ts":
     "the hero gauge counts a printed figure that must equal the Meter's value; the figure is text content, not a style",
 } as const;
+// The only client files that touch browser storage directly. client-architecture-state-and-gates.md §10a sanctions each one and states why.
+const RAW_STORAGE_HOMES = [
+  "packages/client/src/state/durable-local.ts",
+  "packages/client/src/data/session-resume.ts",
+  "packages/client/src/lib/probe-mode.ts",
+  "packages/client/src/main.tsx",
+];
 const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
   [
     { files: ["tests/**/*.{ts,tsx}"], rules: { "orb/no-test-fabrication": "error" } },
@@ -602,13 +756,16 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
       files: ["packages/client/src/**/*.{ts,tsx}", "packages/ui/src/**/*.{ts,tsx}"],
       rules: {
         "orb/baseui-state-data-attributes": "error",
-        "orb/class-token-splice": "error",
-        "orb/no-arbitrary-tw-values": "error",
-        "orb/no-color-literals": "error",
         "orb/no-off-token-inline-style": "error",
         "orb/theme-override-only-via-scope": "error",
-        "orb/no-banned-tw-utility": "error",
       },
+    },
+    { files: ["packages/client/src/**/*.tsx"], rules: { "orb/no-raw-intrinsic-paint": "error" } },
+    // On by owner ruling before the tree is at zero: the sites drain through items 1334 to 1336 and 1338
+    // (docs/plans/css-system/feature-classname-sites.md), and the pre-push lint stays red until the last one goes.
+    {
+      files: ["packages/client/src/features/**/*.tsx"],
+      rules: { "orb/feature-classname-layout-only": "error", "orb/no-built-class-string": "error" },
     },
     {
       files: ["packages/client/src/**/*.{ts,tsx}"],
@@ -648,13 +805,9 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
     },
     {
       files: ["packages/client/src/**/*.{ts,tsx}", "packages/ui/src/**/*.{ts,tsx}"],
-      ignores: [
-        "packages/ui/src/lib/coarse-pointer-now.ts",
-        "packages/ui/src/lib/reduced-motion-now.ts",
-        "packages/client/src/features/app-shell/hooks/use-is-mobile-viewport.ts",
-        "packages/ui/src/lib/use-prefers-light-color-scheme.ts",
-        "packages/ui/src/lib/use-prefers-reduced-motion.ts",
-      ],
+      // Polarity is light-dark()'s job, not a named condition (client-architecture-lockdown.md §4.6), so the
+      // colour-scheme read keeps its own query.
+      ignores: ["packages/ui/src/lib/use-prefers-light-color-scheme.ts"],
       rules: { "orb/no-raw-matchmedia": "error" },
     },
     { files: ["packages/client/src/features/**/*.{ts,tsx}"], rules: { "orb/fetch-fn-in-features": "error" } },
@@ -666,6 +819,34 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
         "orb/registry-context-via-mint": "error",
         "orb/no-fake-disabled-id": "error",
       },
+    },
+    { files: ["packages/client/src/**/*.{ts,tsx}"], ignores: RAW_STORAGE_HOMES, rules: { "orb/persistence-boundary": "error" } },
+    {
+      files: ["packages/client/src/**/*.{ts,tsx}"],
+      ignores: ["packages/client/src/data/**"],
+      rules: { "orb/client-cache-surgery-only-in-data": "error" },
+    },
+    {
+      files: ["packages/client/src/**/*.{ts,tsx}"],
+      ignores: ["packages/client/src/data/invalidation.ts"],
+      rules: { "orb/no-inline-invalidate-outside-seam": "error" },
+    },
+    {
+      files: ["packages/client/src/**/*.{ts,tsx}"],
+      ignores: ["packages/client/src/data/create-entity-mutation.ts"],
+      rules: { "orb/mutation-only-in-factory": "error" },
+    },
+    {
+      files: ["packages/client/src/**/*.{ts,tsx}"],
+      ignores: ["packages/client/src/features/*/lib/**"],
+      rules: { "orb/modal-definition-home": "error", "orb/config-group-definition-home": "error" },
+    },
+    { files: ["packages/client/src/**/*.{ts,tsx}"], rules: { "orb/modal-definition-literal": "error" } },
+    {
+      files: ["packages/client/src/features/**/*.{ts,tsx}"],
+      // The shell tier owns the layout and appearance root effects (ui-architecture-state-and-stack.md §5.1).
+      ignores: ["packages/client/src/features/app-shell/**"],
+      rules: { "orb/no-effect-on-shared-selection": "error" },
     },
     { files: ["packages/client/src/features/**/*.tsx"], rules: { "orb/dialog-via-composite": "error" } },
     {
@@ -778,19 +959,9 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
     },
     { files: ["packages/ui/src/**/*.{ts,tsx}"], ignores: ["packages/ui/src/lib/**"], rules: { "orb/ui-skin-fragment-purity": "error" } },
     {
-      files: ["packages/client/src/**/*.{ts,tsx}", "packages/ui/src/**/*.{ts,tsx}"],
-      ignores: ["packages/client/src/features/app-shell/**"],
-      rules: { "orb/no-media-queries-in-features": "error" },
-    },
-    {
       files: ["packages/client/src/features/**/*.{ts,tsx}"],
       ignores: ["packages/client/src/features/app-shell/**"],
-      rules: { "orb/no-pointer-variants-in-features": "error", "orb/context-shell-chrome": "error" },
-    },
-    {
-      files: ["packages/client/src/**/*.{ts,tsx}", "packages/ui/src/**/*.{ts,tsx}"],
-      ignores: ["packages/ui/src/layout/**", "packages/ui/src/markdown/**"],
-      rules: { "orb/no-raw-container-widths": "error" },
+      rules: { "orb/context-shell-chrome": "error" },
     },
     {
       files: ["packages/client/src/**/*.tsx", "packages/ui/src/**/*.tsx"],
@@ -930,7 +1101,7 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
     },
     { files: ["packages/db/src/schema/**/*.ts"], rules: { "orb/db-enum-from-tuple": "error" } },
     { files: ["packages/ui/src/**/index.ts"], rules: { "orb/ui-variants-barrel-private": "error" } },
-    { files: ["packages/ui/src/**/*.tsx"], ignores: ["packages/ui/src/**/charts/**"], rules: { "orb/ui-no-inline-svg": "error" } },
+    { files: ["packages/ui/src/**/*.tsx"], ignores: ["packages/ui/src/**/charts/**", "packages/ui/src/art/**"], rules: { "orb/ui-no-inline-svg": "error" } },
     { files: ["tests/ui/**/*.ct.tsx", "tests/ui/**/*.fixtures.tsx"], rules: { "orb/ui-ct-no-inline-provider": "error" } },
     {
       files: [
@@ -1038,6 +1209,20 @@ export default [
   },
   { files: rootSources("@server", "@inference"), rules: { "no-restricted-syntax": ["error", INVISIBLE_CONTROL_SYNTAX, ...SERVER_SYNTAX] } },
   { files: rootSources("@db"), rules: { "no-restricted-syntax": ["error", INVISIBLE_CONTROL_SYNTAX, ...MODULE_LOADER_SYNTAX] } },
+  {
+    files: [CLIENT_SRC],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        INVISIBLE_CONTROL_SYNTAX,
+        {
+          selector: "Property[computed=false][key.name='queryKey'][value.type='ArrayExpression']",
+          message:
+            "A hand-built queryKey array: tRPC reads take their key from the proxy (`trpc.<path>.queryKey(input)`), so the reader and every invalidation share one key (client-architecture-state-and-gates.md §10).",
+        },
+      ],
+    },
+  },
   {
     files: ["packages/server/src/domain/settings/seed-themes.ts", "packages/server/src/domain/preset/seed.ts"],
     rules: {

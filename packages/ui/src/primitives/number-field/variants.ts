@@ -1,29 +1,35 @@
 import { DISABLED_STATE, DISABLED_STATE_NATIVE, FOCUS_RING_INSET, tv } from "#lib";
 
-// Steppers are full size-touch-target squares; rings go inset because the group clips overflow for
+// Steppers are full size-(--size-touch-target) squares; rings go inset because the group clips overflow for
 // the rounded border.
 export const numberFieldVariants = tv({
   slots: {
     root: `flex flex-col gap-field ${DISABLED_STATE}`,
-    scrubArea: "flex w-fit cursor-ew-resize select-none items-center gap-row text-label font-medium leading-label text-muted-foreground",
+    scrubArea: "flex cursor-ew-resize items-center gap-row text-label leading-label font-medium text-muted-foreground select-none inline-fit",
     scrubCursor: "flex text-foreground",
-    group: ["flex w-full items-stretch overflow-hidden rounded-control border border-input-border bg-field-fill", "data-invalid:border-destructive"],
+    group: ["flex items-stretch overflow-hidden rounded-control border border-input-border bg-field-fill inline-full", "data-invalid:border-destructive"],
     decrement: [
-      "group flex size-touch-target shrink-0 cursor-pointer select-none items-center justify-center border-r border-input-border text-foreground",
+      `
+        group flex shrink-0 cursor-pointer items-center justify-center border-e border-input-border text-foreground select-none block-(--size-touch-target)
+        inline-(--size-touch-target)
+      `,
       "transition-colors duration-(--motion-fast) ease-out-expo hover:bg-accent active:bg-accent/80",
       `outline-none ${FOCUS_RING_INSET}`,
       `${DISABLED_STATE_NATIVE} ${DISABLED_STATE}`,
       "data-readonly:cursor-default",
     ],
     input: [
-      "w-full min-w-0 bg-transparent text-foreground tabular-nums",
+      "bg-transparent text-foreground tabular-nums inline-full min-inline-0",
       "placeholder:text-muted-foreground",
       `outline-none ${FOCUS_RING_INSET}`,
       DISABLED_STATE,
       "data-invalid:text-destructive",
     ],
     increment: [
-      "group flex size-touch-target shrink-0 cursor-pointer select-none items-center justify-center border-l border-input-border text-foreground",
+      `
+        group flex shrink-0 cursor-pointer items-center justify-center border-s border-input-border text-foreground select-none block-(--size-touch-target)
+        inline-(--size-touch-target)
+      `,
       "transition-colors duration-(--motion-fast) ease-out-expo hover:bg-accent active:bg-accent/80",
       `outline-none ${FOCUS_RING_INSET}`,
       `${DISABLED_STATE_NATIVE} ${DISABLED_STATE}`,
@@ -32,8 +38,8 @@ export const numberFieldVariants = tv({
     // The bounds sentence is SR-only: it replaces the aria-valuemin/max a textbox can't carry, and the
     // visible range affordance is the field's own `<Field description>` copy, not a second line here.
     boundsDescription: "sr-only",
-    stepIcon: "group-data-[readonly]:hidden",
-    stepReadOnlyIcon: "hidden group-data-[readonly]:block",
+    stepIcon: "group-data-readonly:hidden",
+    stepReadOnlyIcon: "hidden group-data-readonly:block",
   },
   // The SIZE axis owns the whole box — the field's width and the input's height/type step — because a
   // control height must not be settable from outside (the Button `size="wrap"` / TabsTab `layout="stacked"`
@@ -46,12 +52,12 @@ export const numberFieldVariants = tv({
   // input with centered body type). `inline` is the knob-row twin: a
   // stepper-less mono cell in `--width-number-inline`, right-aligned so a column of knob values reads down
   // one number edge, at the `code` type step because a slider's number twin is a datum, not prose. Its
-  // input keeps `h-control-sm` — the per-pointer control height (32px fine / 44px coarse), so an
+  // input keeps `h-(--size-control-sm)` — the per-pointer control height (32px fine / 44px coarse), so an
   // instrument-density knob row still meets the coarse tap floor.
   variants: {
     size: {
-      md: { root: "w-full", input: "h-touch-target text-center text-field leading-field" },
-      inline: { root: "w-number-inline", input: "h-control-sm px-field text-right font-mono text-code-field leading-code-field" },
+      md: { root: "inline-full", input: "text-center text-field leading-field block-(--size-touch-target)" },
+      inline: { root: "inline-(--width-number-inline)", input: "px-field text-end font-mono text-code-field leading-code-field block-(--size-control-sm)" },
     },
   },
   defaultVariants: { size: "md" },

@@ -32,7 +32,7 @@ export function TouchFloorBoxCarriedIsolatedStory(): ReactElement {
 }
 
 /** The PSEUDO-CARRIED companion: the ancestor-credit clause's purpose must still pass. A glyph-sm Button's visible box is far under the coarse floor, and the floor is carried entirely
- *  by its overflowing `::before` (`TOUCH_TARGET_PSEUDO` — `before:size-touch-target`, `before:absolute`,
+ *  by its overflowing `::before` (`TOUCH_TARGET_PSEUDO` — `before:size-(--size-touch-target)`, `before:absolute`,
  *  centred), which has no DOM node of its own. `intent="ghost"` is the RINGLESS arm: nothing else claims a
  *  pseudo on this button, so it is the cleanest statement of "the hit area reaches the floor". Isolated
  *  and inset from x=0 for the same reasons as the box-carried stage above. */
@@ -66,7 +66,7 @@ export function TouchFloorCtaGlyphIsolatedStory(): ReactElement {
  *
  *  It is a reconstruction rather than a product component because none ships this shape; what
  *  is reproduced is the CASCADE, which is the whole mechanism. The hit area is spelled
- *  `after:absolute after:top-1/2 after:left-1/2 after:size-touch-target after:-translate-x-1/2 after:-translate-y-1/2`, and the CTA ring claims the same `::after` from an UNLAYERED rule — so the
+ *  `after:absolute after:top-1/2 after:left-1/2 after:size-(--size-touch-target) after:-translate-x-1/2 after:-translate-y-1/2`, and the CTA ring claims the same `::after` from an UNLAYERED rule — so the
  *  ring wins for every property it declares (`inset`, `pointer-events`, `border`, `background`) while the
  *  utilities' `width`/`height`/`translate` SURVIVE. The two rules below are in that order for that reason.
  *
@@ -80,8 +80,8 @@ export function TouchFloorPreFixCtaGlyphStory(): ReactElement {
     <div style={{ padding: 120, position: "static", width: 400 }}>
       {/* Inline styles cannot express a pseudo-element, and the whole shape under test IS the pseudo. */}
       <style>
-        {".cbxh-prefix{position:relative;display:inline-flex;width:var(--spacing-glyph-sm);height:var(--spacing-glyph-sm);padding:0;border:0;background:var(--color-primary)}" +
-          ".cbxh-prefix::after{content:'';position:absolute;top:50%;left:50%;width:var(--spacing-touch-target);height:var(--spacing-touch-target);translate:-50% -50%}" +
+        {".cbxh-prefix{position:relative;display:inline-flex;width:var(--size-glyph-sm);height:var(--size-glyph-sm);padding:0;border:0;background:var(--color-primary)}" +
+          ".cbxh-prefix::after{content:'';position:absolute;top:50%;left:50%;width:var(--size-touch-target);height:var(--size-touch-target);translate:-50% -50%}" +
           ".cbxh-prefix::after{content:'';position:absolute;inset:0;z-index:1;pointer-events:none;border:1px solid transparent;border-radius:inherit;" +
           "background:linear-gradient(transparent,transparent) padding-box,linear-gradient(180deg,oklch(from var(--color-primary) l c h / 0.55),oklch(from var(--color-sheen) l c h / 0.04)) border-box}"}
       </style>
@@ -93,7 +93,7 @@ export function TouchFloorPreFixCtaGlyphStory(): ReactElement {
 }
 
 /** The `inline` arm at `intent="primary"` — the OTHER arm whose hit area shares a surface with the ring. Its visible box is text-height, its floor rides a full-width
- *  `::before` sized on `--spacing-touch-target`, and at this intent the CTA ring sits on the `::after`
+ *  `::before` sized on `--size-touch-target`, and at this intent the CTA ring sits on the `::after`
  *  directly over it. Isolated in a padded wrapper on purpose: this is simultaneously the positive control
  *  for the ring-overlap case AND a stage where a fabricated wrapper credit would be indistinguishable from
  *  a real hit area unless the credit is measured. */

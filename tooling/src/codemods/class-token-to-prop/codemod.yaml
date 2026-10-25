@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "class-token-to-prop"
+version: "0.1.0"
+description: "Move a class token off a JSX attribute's string literals and onto a named prop, by a map read from the target directory."
+author: "Orbweaver"
+license: "MIT"
+targets:
+  languages: ["tsx"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

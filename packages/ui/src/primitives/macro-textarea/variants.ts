@@ -24,16 +24,22 @@ export const macroTextareaVariants = tv({
     // 47 — well BELOW the band the row asked for. 75ch reads 75 here, minus the field's own padding, which
     // lands inside the band at both ends. The row's SYMPTOM (65-75 per line) is satisfied; its TOKEN
     // prescription was derived for a different font class. Flagged to the orchestrator, not decided here.
-    textarea: "min-h-0 max-w-(--reading-measure) flex-1 resize-y font-mono text-code-field leading-code-field",
+    textarea: "flex-1 resize-y font-mono text-code-field leading-code-field max-inline-(--reading-measure) min-block-0",
     listbox: [
-      "absolute top-full right-0 left-0 z-(--z-overlay) mt-field max-h-64 overflow-y-auto overscroll-contain rounded-card border border-border bg-popover py-field shadow-overlay",
+      `
+        absolute inset-s-0 inset-e-0 inset-bs-full z-(--z-overlay) mbs-field overflow-y-auto overscroll-contain rounded-card border border-border bg-popover
+        py-field shadow-overlay max-block-(--height-scroll-md)
+      `,
     ],
-    groupLabel: "px-block py-field text-label leading-label font-semibold text-muted-foreground uppercase tracking-wide",
+    groupLabel: "px-block py-field text-label leading-label font-semibold tracking-caps text-muted-foreground uppercase",
     item: [
-      "flex w-full min-h-touch-target cursor-pointer select-none items-start justify-between gap-block px-block py-field text-left text-body leading-body text-foreground outline-none",
+      `
+        flex cursor-pointer items-start justify-between gap-block px-block py-field text-start text-body leading-body text-foreground outline-none select-none
+        inline-full min-block-(--size-touch-target)
+      `,
       "hover:bg-muted data-highlighted:bg-accent data-highlighted:text-accent-foreground",
     ],
-    itemMain: "flex min-w-0 flex-col gap-field",
+    itemMain: "flex flex-col gap-field min-inline-0",
     itemName: "font-mono text-code leading-label-relaxed text-foreground",
     itemDescription: "truncate text-label leading-label text-muted-foreground",
     helper: "text-label leading-label text-muted-foreground",

@@ -6,7 +6,7 @@
 //
 // WHAT REPLACED THE GRID OF EQUAL ISLANDS, and why (measured on the live app 2026-08-16, before):
 //   - `main` was 1224px and the tile grid 768px — 62.7%, centred, 228px of dead void down each side. The
-//     cause was one line, `<Container size="lg">`, capping the grid at `--container-cq-lg` (48rem).
+//     cause was one line, `<Container size="lg">`, capping the grid at `--container-cq-48` (48rem).
 //   - The type ramp rendered 16/15/13/10.5 — a 1.5:1 spread. `--text-display` and `--text-headline`
 //     existed in tokens.json and appeared nowhere on the surface.
 //   - The six live rooms sat in the same island, in the same auto-fit grid, at the same weight as an
@@ -40,7 +40,7 @@
 // the door brings it back, with the band's trailing COUNT derived from the doorways it holds.
 //
 // NO PERSISTENCE, deliberately (the brief's fork, taken): the house device-local disclosure precedent
-// (`config-group-open-store`) is a whole persisted store + a `persistence-boundary` registration, and
+// (`config-group-open-store`) is a whole persisted store, and
 // what it would remember here is a glance at a list of things that do not exist yet — not a working
 // posture like "tags open, regex closed" on a roster you return to. Collapsed every boot IS the ruled
 // default, and re-opening costs one keypress.
@@ -70,9 +70,9 @@ import { SCROLL_FADE_Y_CLASS } from "@orb/ui/lib";
 import { useScrollFadeY } from "@orb/ui/scroll-area";
 import { Separator } from "@orb/ui/separator";
 import { Heading, Text } from "@orb/ui/text";
+import { WeaveGlyph } from "@orb/ui/web-weave";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { WeaveGlyph } from "#components";
 import type { ContributorRegistry } from "#lib";
 import { useFocusOnMount } from "#lib";
 import type { DormantDoorway, HomeTileContribution } from "#state";
@@ -148,7 +148,7 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
     <Surface tier="form">
       {/* The full-width scroller owns the section inset so swipe shelves can extend to the screen edge. */}
       <Stack
-        className={`${SCROLL_FADE_Y_CLASS} relative h-full min-h-0 overflow-y-auto overscroll-contain px-section pt-section pb-gutter outline-none`}
+        className={`${SCROLL_FADE_Y_CLASS} relative overflow-y-auto overscroll-contain px-section pbs-section pbe-gutter outline-none block-full min-block-0`}
         gap="section"
         ref={surfaceRef}
         tabIndex={-1}
@@ -184,12 +184,12 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
                     measured). The shelf paid for it: its face grid dropped from three fixed cells to two and
                     the page grew 1374px against 1177px. The declared ratio only means anything on tracks that
                     are allowed to shrink below their content. */}
-                <Stack className="min-w-0" gap="section" ref={hearthRef}>
+                <Stack className="min-inline-0" gap="section" ref={hearthRef}>
                   {hearth.map((tile) => (
                     <HomeTile column="hearth" key={tile.id} tile={tile} />
                   ))}
                 </Stack>
-                <Stack className="group/shelf min-w-0 has-[[data-home-held]]:invisible" data-home-shelf={true} gap="section" ref={shelfRef}>
+                <Stack className="group/shelf min-inline-0 has-data-home-held:invisible" data-home-shelf={true} gap="section" ref={shelfRef}>
                   {shelfLead.map((tile) => (
                     <HomeTile column="shelf" key={tile.id} tile={tile} />
                   ))}
@@ -206,14 +206,16 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
                       last tile pairs beside the tile before it instead, and stacked, both span the foot. */}
                   <Grid className="grid-flow-row-dense items-start" cols="pairWide" data-home-shelf-foot={true} gap="gutter" ref={footRef}>
                     {shelfFootSide.map((tile) => (
-                      <Stack className="col-span-full min-w-0 group-data-[foot=paired]/shelf:col-auto" key={tile.id}>
+                      <Stack className="col-span-full min-inline-0 group-data-[foot=paired]/shelf:col-auto" key={tile.id}>
                         <HomeTile column="shelf" tile={tile} />
                       </Stack>
                     ))}
                     {shelfFoot.map((tile) => (
                       <Stack
                         className={
-                          hasFold ? "min-w-0 group-data-[foot=paired]/shelf:row-span-2" : "col-span-full min-w-0 group-data-[foot=paired]/shelf:col-auto"
+                          hasFold
+                            ? "min-inline-0 group-data-[foot=paired]/shelf:row-span-2"
+                            : "col-span-full min-inline-0 group-data-[foot=paired]/shelf:col-auto"
                         }
                         key={tile.id}
                       >

@@ -120,7 +120,7 @@ export function HostConsoleScalars({
                             </Toggle>
                           ))}
                         </ToggleGroup>
-                        <Text voice="gloss" className="min-w-0 flex-1">
+                        <Text voice="gloss" className="flex-1 min-inline-0">
                           {CHOICE_BEHAVIOR_CONSEQUENCE[field.state.value]}
                         </Text>
                       </Row>
@@ -151,7 +151,7 @@ export function HostConsoleScalars({
                       </Toggle>
                     ))}
                   </ToggleGroup>
-                  <Text voice="gloss" className="min-w-0 flex-1">
+                  <Text voice="gloss" className="flex-1 min-inline-0">
                     {DATE_MODE_CONSEQUENCE[field.state.value]}
                   </Text>
                 </Row>
@@ -387,7 +387,7 @@ export function HostConsoleScalars({
                                     </Toggle>
                                   ))}
                                 </ToggleGroup>
-                                <Text voice="gloss" className="min-w-0 flex-1">
+                                <Text voice="gloss" className="flex-1 min-inline-0">
                                   {EXTRACTION_CONTEXT_CONSEQUENCE[field.state.value]}
                                 </Text>
                               </Row>

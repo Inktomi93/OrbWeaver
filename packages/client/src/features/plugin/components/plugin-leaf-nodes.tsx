@@ -147,13 +147,13 @@ function BoundText({
   const text = resolveString(value, state);
   if (voice === "gloss" || voice === "label") {
     return (
-      <Text className="max-w-(--reading-measure-prose)" prose={true} voice={voice}>
+      <Text className="max-inline-(--reading-measure-prose)" prose={true} voice={voice}>
         {text}
       </Text>
     );
   }
   return (
-    <Text className="max-w-(--reading-measure-prose)" prose={true}>
+    <Text className="max-inline-(--reading-measure-prose)" prose={true}>
       {text}
     </Text>
   );
@@ -178,7 +178,7 @@ function DisplayLeaf({
   if (node.kind === "badge") {
     return (
       // Plugin text has no length bound the pill was drawn for: wrap inside the surface rather than clip.
-      <Badge className="max-w-full whitespace-normal" intent={node.intent ?? "neutral"} size="sm" tone="soft">
+      <Badge className="whitespace-normal max-inline-full" intent={node.intent ?? "neutral"} size="sm" tone="soft">
         {resolveString(node.text, state)}
       </Badge>
     );
@@ -260,7 +260,7 @@ function SurfaceImage({ node, url }: { readonly node: PluginImageNode; readonly 
   if (url === undefined) {
     // Owner-scope miss: the installer does not own this asset (or it is gone). NEVER another user's blob.
     return (
-      <Stack align="center" className="rounded-base border border-border border-dashed p-block" justify="center">
+      <Stack align="center" className="rounded-base border border-dashed border-border p-block" justify="center">
         <Text voice="gloss">{node.alt ?? "Image unavailable"}</Text>
       </Stack>
     );

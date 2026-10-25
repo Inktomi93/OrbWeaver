@@ -120,9 +120,9 @@ function MutationRetry({ copy, onRetry }: { readonly copy: string; readonly onRe
 
 function CharacterDoor({ id, name }: { readonly id: CharacterId; readonly name: string }): ReactElement {
   return (
-    <Button className="min-w-0 flex-1 justify-start" intent="ghost" onClick={(): void => openCharacter(id)} size="sm" type="button">
+    <Button className="flex-1 justify-start min-inline-0" intent="ghost" onClick={(): void => openCharacter(id)} size="sm" type="button">
       <Icon icon={Users} size="xs" />
-      <Text as="span" className="min-w-0 truncate" voice="label">
+      <Text as="span" className="truncate min-inline-0" voice="label">
         {name}
       </Text>
     </Button>

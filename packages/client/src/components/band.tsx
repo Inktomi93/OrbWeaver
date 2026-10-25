@@ -8,9 +8,9 @@
 // copies of it — the settings band and the collection band in `features/config`, and `TemplateCluster` in
 // `features/preset`, whose own header CALLED ITSELF a borrow of the config band anatomy and then did not
 // follow it. The config side landed #978 F1 at both of its bands (`flex-1`'s `flex-basis: 0%` lands on the
-// BLOCK axis inside a vertical `Stack` and defeats the sealed `h-control-sm`, so the control falls back to
+// BLOCK axis inside a vertical `Stack` and defeats the sealed `h-(--size-control-sm)`, so the control falls back to
 // min-content); the preset copy kept `flex-1` and shipped the identical defect — measured 2026-09-05 at
-// **16px against a resolved 32px fine / 44px coarse `--spacing-control-sm`, on all six cluster bands**,
+// **16px against a resolved 32px fine / 44px coarse `--size-control-sm`, on all six cluster bands**,
 // i.e. a tap target under every floor the config pin exists to hold. It was invisible to that pin because
 // the pin sweeps `[data-slot="config-band"]` inside the LIST pane. A prose "this is a borrow" is a wish;
 // this module is the enforcer, and the two consumers' CTs measure the same box against the same token.
@@ -111,7 +111,7 @@ export interface BandProps extends Omit<ButtonBaseProps, "children" | "intent" |
  *  `SELECTION_RAIL` rides EVERY band, current or not: its resting arm is a transparent 2px rail, so the
  *  glyph column is identical on all thirteen settings bands and all four collection bands and entering a
  *  library cannot shift its own label by 2px (the `ListRow` reservation, for the same reason). */
-const BAND_CHASSIS = `min-w-0 w-full justify-start gap-tight px-tight ${SELECTION_RAIL}`;
+const BAND_CHASSIS = `min-inline-0 inline-full justify-start gap-tight px-tight ${SELECTION_RAIL}`;
 
 const CHEVRON_GLYPH = { reserved: ChevronRight, closed: ChevronRight, open: ChevronDown } as const;
 

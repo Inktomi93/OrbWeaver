@@ -12,11 +12,11 @@ import { tv } from "#lib";
 // promise an affordance that does not exist. Ornament that answers a cursor is still ornament.
 export const webWeaveVariants = tv({
   slots: {
-    root: "relative size-full overflow-hidden",
+    root: "relative overflow-hidden block-full inline-full",
     // The ambient accent glow centered on the hub — the gradient itself lives in globals.css
     // (`.orb-weave-glow`) because a radial-gradient over color-mix'd tokens has no utility spelling.
     glow: "orb-weave-glow absolute inset-0",
-    canvas: "absolute inset-0 size-full",
+    canvas: "absolute inset-0 block-full inline-full",
   },
   variants: {
     interactive: {
@@ -44,6 +44,6 @@ export const weaveVeilVariants = tv({
       "transition-[opacity,filter] duration-(--motion-layout) ease-out-expo",
       "data-entered:opacity-100 data-entered:blur-none",
     ],
-    content: "relative size-full",
+    content: "relative block-full inline-full",
   },
 });

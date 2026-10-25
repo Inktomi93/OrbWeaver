@@ -1,7 +1,7 @@
 // The no-refetch CARRIER half of the chat invalidation seam — the third sibling of the split
 // (`invalidation.ts` = which event stales what · `invalidation-reads.ts` = which reads those are · here =
 // what an event WRITES on its way through). Lives in `data/` because that is the one place imperative cache
-// calls are legal (`client-cache-surgery-only-in-data`), and beside its dispatch because the two are one
+// calls are legal (`orb/client-cache-surgery-only-in-data`), and beside its dispatch because the two are one
 // decision: the refetch and the patch are made on the same event, in that order.
 //
 // Every canon event that moves ONE row carries the fresh `MessageView` the server just committed — the

@@ -15,7 +15,7 @@ import { useSetUtilityPreset } from "../hooks/use-connections-mutations.ts";
 const TASK_DEFAULTS_VALUE = "task-defaults";
 const SAME_AS_CHAT_VALUE = ROLE_PRESET_CHOICE_KINDS.sameAsChat;
 
-const PROSE_MEASURE = "max-w-(--reading-measure-prose)";
+const PROSE_MEASURE = "max-inline-(--reading-measure-prose)";
 
 function selectedValueOf(choice: RolePresetChoice | null, presetIds: readonly string[]): string {
   if (choice === null) {

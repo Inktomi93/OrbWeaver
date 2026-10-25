@@ -35,8 +35,8 @@ export const mediaGridVariants = tv({
     // the ratio the cell already imposes makes the reservation legible to a reader and to the flagger.
     // GEOMETRY-PRESERVING: `h-full`/`w-full` are both definite inside the square cell, so the ratio
     // never participates in sizing — it is the authored statement of a box the layout already had.
-    image: "aspect-square h-full w-full object-cover",
-    placeholder: "h-full w-full bg-muted",
-    selectedBadge: "absolute top-field right-field flex items-center justify-center rounded-full bg-primary p-field text-primary-foreground",
+    image: "aspect-square object-cover block-full inline-full",
+    placeholder: "bg-muted block-full inline-full",
+    selectedBadge: "absolute inset-e-field inset-bs-field flex items-center justify-center rounded-full bg-primary p-field text-primary-foreground",
   },
 });

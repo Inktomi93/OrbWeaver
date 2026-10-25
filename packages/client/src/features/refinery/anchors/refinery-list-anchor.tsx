@@ -6,7 +6,7 @@ import type { ReactElement, ReactNode } from "react";
 
 export function RefineryListAnchor({ children }: { readonly children: ReactNode }): ReactElement {
   return (
-    <Container className="h-full" name="refinery-list">
+    <Container className="block-full" name="refinery-list">
       {children}
     </Container>
   );

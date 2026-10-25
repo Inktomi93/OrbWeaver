@@ -121,7 +121,7 @@ export function AddDocumentBody(): ReactElement {
           empty, 15px in CONTENT) at the moment it matters most. `reading` is the voice minted for exactly
           this ("THE CONTENT ITSELF", text/variants.ts), and it is paired with the reading measure the
           voice's own doc requires, so the line does not run the width of the dialog. */}
-      <Text className="max-w-(--reading-measure-prose)" voice="reading">
+      <Text className="max-inline-(--reading-measure-prose)" voice="reading">
         {DATABANK_INGEST_GLOSS}
       </Text>
       <Stack gap="block">
@@ -174,7 +174,7 @@ export function AddDocumentBody(): ReactElement {
             Each arm FILLS the reserved region (`flex-1`) and hangs its footer off the bottom (`mt-auto`),
             so the height is constant, the strip still holds one y, and the footer sits on the floor
             instead of floating above it. */}
-        <Stack className="min-h-96" gap="block">
+        <Stack className="min-block-(--height-scroll-lg)" gap="block">
           {bodies[mode]}
         </Stack>
       </Stack>
@@ -250,7 +250,7 @@ function UploadBody({ onLanded, destination }: { readonly onLanded: OnLanded; re
           shipped with no footer at all: the dialog had ZERO buttons besides the three mode toggles, so its
           only exit was Esc or the backdrop, while both sibling arms offered a labelled way out. A dismiss is
           not part of the submit; it is owed by every arm. */}
-      <DialogFooter className="mt-auto">
+      <DialogFooter className="mbs-auto">
         <DialogClose render={<Button intent="ghost">Cancel</Button>} />
       </DialogFooter>
     </Stack>
@@ -295,7 +295,7 @@ function PasteBody({ onLanded, destination }: { readonly onLanded: OnLanded; rea
       <Field label="Text">
         <Textarea onChange={(event): void => setText(event.target.value)} placeholder="Paste or write the content to index…" rows={8} value={text} />
       </Field>
-      <DialogFooter className="mt-auto">
+      <DialogFooter className="mbs-auto">
         <DialogClose render={<Button intent="ghost">Cancel</Button>} />
         <Button disabled={!canCreate} intent="primary" loading={create.isPending} onClick={onSubmit} type="button">
           Add
@@ -306,7 +306,7 @@ function PasteBody({ onLanded, destination }: { readonly onLanded: OnLanded; rea
 }
 
 /** Three fields (source · link · the revealed caption language), so it rides the editor FACTORY rather than
- *  three hand-rolled `useState`s (D54 §13.4 / the `form-factory-for-multifield` gate): seed, key-remount,
+ *  three hand-rolled `useState`s (D54 §13.4): seed, key-remount,
  *  post-submit reset and the reseed guard are the factory's, not this dialog's to re-derive. */
 function LinkBody({ onLanded, destination }: { readonly onLanded: OnLanded; readonly destination: DocumentDestination | null }): ReactElement {
   const trpc = useTRPC();
@@ -386,7 +386,7 @@ function LinkBody({ onLanded, destination }: { readonly onLanded: OnLanded; read
           ) : null
         }
       </form.Subscribe>
-      <DialogFooter className="mt-auto">
+      <DialogFooter className="mbs-auto">
         <DialogClose render={<Button intent="ghost">Cancel</Button>} />
         <form.Subscribe selector={(state): boolean => state.values.url.trim() === ""}>
           {(urlEmpty): ReactElement => (

@@ -86,7 +86,7 @@ function SchedulesBody({ anchorId }: { readonly anchorId: string }): ReactElemen
     <Section container={true} divider={true} heading={WORKLOADS_SCHEDULES_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="block" data-testid={testId("workloadsSchedulesSection")}>
         <Row align="center" justify="between" gap="row">
-          <Text voice="label" className="text-muted-foreground">
+          <Text voice="label" tone="muted">
             Run a job automatically on a recurring cadence.
           </Text>
           {schedules.length === 0 ? null : (

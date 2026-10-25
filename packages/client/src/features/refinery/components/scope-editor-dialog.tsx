@@ -116,7 +116,7 @@ function ScopeCheckRow({
   onToggle: () => void;
 }): ReactElement {
   return (
-    <Field className="w-full" label={name} orientation="horizontal">
+    <Field className="inline-full" label={name} orientation="horizontal">
       <Row align="center" gap="row">
         <Checkbox checked={checked} disabled={disabled} indeterminate={indeterminate} onCheckedChange={onToggle} />
         <Text voice="gloss">{gloss}</Text>

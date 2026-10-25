@@ -48,13 +48,13 @@ export function ImportReportSummary({ summary }: ImportReportSummaryProps): Reac
                   className={outcome.ok ? "text-success" : "text-destructive"}
                   label={outcome.ok ? "Imported" : "Not imported"}
                 />
-                <Text className="min-w-0 flex-1 truncate font-mono">{outcome.path}</Text>
+                <Text className="flex-1 truncate font-mono min-inline-0">{outcome.path}</Text>
                 <Text voice="gloss" className="whitespace-nowrap">
                   {outcome.detail}
                 </Text>
               </Row>
               {(outcome.notes ?? []).map((note) => (
-                <Text key={note} voice="gloss" className="pl-row">
+                <Text key={note} voice="gloss" className="ps-row">
                   {note}
                 </Text>
               ))}

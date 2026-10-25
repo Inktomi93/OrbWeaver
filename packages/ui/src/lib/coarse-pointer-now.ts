@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { MEDIA_QUERIES } from "#tokens";
 
 // The ONE sanctioned `(pointer: coarse)` media query on the tree (#1182), in both spellings: the point-in-time
 // `coarsePointerNow()` (SSR/absent-safe, no subscription — an imperative "is this a touch device right now"
@@ -25,7 +26,7 @@ interface CoarsePointerQuery {
  *  read fresh at call time. `false` when `matchMedia` doesn't exist (SSR / non-browser test runners). */
 export function coarsePointerNow(): boolean {
   const globals = globalThis as { matchMedia?: (query: string) => CoarsePointerQuery };
-  return typeof globals.matchMedia === "function" && globals.matchMedia("(pointer: coarse)").matches;
+  return typeof globals.matchMedia === "function" && globals.matchMedia(MEDIA_QUERIES["pointer-coarse"]).matches;
 }
 
 /** `true` when the primary pointer is fine (mouse, trackpad) per `(pointer: fine)`, read fresh at call time.
@@ -33,12 +34,12 @@ export function coarsePointerNow(): boolean {
  *  `matchMedia` doesn't exist. */
 export function finePointerNow(): boolean {
   const globals = globalThis as { matchMedia?: (query: string) => CoarsePointerQuery };
-  return typeof globals.matchMedia === "function" && globals.matchMedia("(pointer: fine)").matches;
+  return typeof globals.matchMedia === "function" && globals.matchMedia(MEDIA_QUERIES["pointer-fine"]).matches;
 }
 
 const coarsePointerQuery: CoarsePointerQuery | null = ((): CoarsePointerQuery | null => {
   const globals = globalThis as { matchMedia?: (query: string) => CoarsePointerQuery };
-  return typeof globals.matchMedia === "function" ? globals.matchMedia("(pointer: coarse)") : null;
+  return typeof globals.matchMedia === "function" ? globals.matchMedia(MEDIA_QUERIES["pointer-coarse"]) : null;
 })();
 
 function subscribeCoarsePointer(onChange: () => void): () => void {

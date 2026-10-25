@@ -12,9 +12,9 @@ import { Card } from "@orb/ui/card";
 import { Container, Layer, Row, Stack } from "@orb/ui/layout";
 import { usePrefersLightColorScheme } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
+import { WeaveGlyph } from "@orb/ui/web-weave";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect } from "react";
-import { WeaveGlyph } from "#components";
 import { testId } from "#lib";
 import { DATA_THEME_ATTR } from "#state";
 import { LoginWeaveBackdrop } from "../components/login-weave-backdrop.tsx";
@@ -46,7 +46,7 @@ function useLoginColorScheme(): void {
   }, [prefersLight]);
 }
 
-/** The stable login card box: full-viewport web backdrop + wordmark + one `max-w-sm` card.
+/** The stable login card box: full-viewport web backdrop + wordmark + one `max-w-cq-24` card.
  *  @remarks The document never scrolls (`overflow: clip` on html/body), so this box is the scroll owner for a
  *  card taller than the window. The web shares one grid cell with the content and sticks to the top of it:
  *  it holds still while the card scrolls, and a wheel or thumb over it still chains to this scroller. A
@@ -54,13 +54,13 @@ function useLoginColorScheme(): void {
 export function LoginShellAnchor({ children }: LoginShellAnchorProps): ReactElement {
   useLoginColorScheme();
   return (
-    <Stack className="relative h-dvh overflow-y-auto bg-background text-foreground" data-testid={testId("loginPage")}>
-      <Layer className="min-h-full shrink-0">
+    <Stack className="relative overflow-y-auto bg-background text-foreground block-dvh" data-testid={testId("loginPage")}>
+      <Layer className="shrink-0 min-block-full">
         <LoginWeaveBackdrop />
         <Stack align="center" justify="start" padding="section">
           {/* relative: the content column paints above the positioned web canvas. */}
           {/* The page's one landmark: the sign-in and join card is the content a screen reader jumps to. */}
-          <Container name="login" role="main" className="relative w-full max-w-sm">
+          <Container name="login" role="main" className="relative inline-full max-inline-cq-24">
             <Stack gap="block">
               <Row align="center" justify="center" gap="row" aria-hidden={true} data-slot="brand-wordmark">
                 {/* Decorative pair: the mark + name — the surface's <h1> carries the page's real name. The

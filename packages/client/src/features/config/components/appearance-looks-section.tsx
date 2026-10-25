@@ -221,16 +221,16 @@ function LooksBody(): ReactElement {
                   {themes.map((theme) => (
                     // The ⋯ is a SIBLING of the radio root (never nested interaction), positioned over the
                     // cell's own top-leading corner \u2014 the check indicator owns the trailing one.
-                    <Row className="relative min-w-0" key={theme.id}>
+                    <Row className="relative min-inline-0" key={theme.id}>
                       <RadioGroupPickerItem
                         art={<ThemeMiniSurface theme={theme} />}
-                        className="w-full"
+                        className="inline-full"
                         idPrefix={`${ids}-${theme.id}`}
                         label={theme.name}
                         {...(isActive(theme) ? { meta: "current" } : {})}
                         value={theme.id}
                       />
-                      <Row className="absolute top-tight left-tight rounded-control bg-card/80">
+                      <Row className="absolute inset-s-tight inset-bs-tight rounded-control bg-card/80">
                         <ThemeRowMenu
                           onApply={(): void => apply(theme)}
                           onDelete={(): void => removeTheme.mutate({ id: theme.id })}

@@ -72,7 +72,8 @@ function SheetLevel({ level, onEditLevel }: { readonly level: number | null; rea
             const n = Number.parseInt(trimmed, 10);
             onEditLevel(trimmed === "" || Number.isNaN(n) ? null : Math.max(0, n));
           }}
-          className="!w-avatar-md px-field text-right tabular-nums"
+          className="px-field text-end tabular-nums"
+          width="avatar-md"
           restClassName="tabular-nums"
         />
       </Row>
@@ -90,13 +91,13 @@ function SheetFlavor({ actor, onEditFlavor }: { readonly actor: RpgActorView; re
       return null;
     }
     return (
-      <Text as="span" voice="label" className="min-w-0 break-words px-field">
+      <Text as="span" voice="label" className="px-field wrap-break-word min-inline-0">
         {actor.sheet.flavor}
       </Text>
     );
   }
   return (
-    <Row className={`min-w-0 ${VALUE_ROW_TOUCH_FLOOR_AT_COARSE}`}>
+    <Row className={`min-inline-0 ${VALUE_ROW_TOUCH_FLOOR_AT_COARSE}`}>
       <TrackerValue
         ariaLabel={`${actor.name} flavor`}
         display={actor.sheet.flavor}
@@ -104,7 +105,8 @@ function SheetFlavor({ actor, onEditFlavor }: { readonly actor: RpgActorView; re
         tone="muted"
         onEdit={onEditFlavor}
         wrap={true}
-        className="!w-auto min-w-0 max-w-full field-sizing-content"
+        className="field-sizing-content max-inline-full min-inline-0"
+        width="auto"
       />
     </Row>
   );
@@ -144,7 +146,8 @@ function WalletChip({
                 onEditAmount(n);
               }
             }}
-            className="!w-avatar-md px-field text-right tabular-nums"
+            className="px-field text-end tabular-nums"
+            width="avatar-md"
             restClassName="tabular-nums"
           />
           <Text as="span" voice="gloss">
@@ -225,8 +228,8 @@ function IdentityBlock({
       <Avatar size="lg" alt={actor.name} hueSeed={actor.name} {...(actor.avatar === undefined ? {} : { src: blobUrl(actor.avatar) })}>
         {actor.name.slice(0, 1).toUpperCase()}
       </Avatar>
-      <Stack gap="field" className="min-w-0 flex-1">
-        <Heading level={3} voice="label" className="min-w-0 break-words px-field">
+      <Stack gap="field" className="flex-1 min-inline-0">
+        <Heading level={3} voice="label" className="px-field wrap-break-word min-inline-0">
           {actor.name}
         </Heading>
         <SheetTitle actor={actor} {...(onEditTitle === undefined ? {} : { onEditTitle })} />
@@ -415,20 +418,21 @@ function SheetTitle({ actor, onEditTitle }: { readonly actor: RpgActorView; read
       return null;
     }
     return (
-      <Text as="span" voice="gloss" className="min-w-0 break-words px-field">
+      <Text as="span" voice="gloss" className="px-field wrap-break-word min-inline-0">
         {actor.sheet.className}
       </Text>
     );
   }
   return (
-    <Row gap="field" align="center" className={`min-w-0 ${VALUE_ROW_TOUCH_FLOOR_AT_COARSE}`}>
+    <Row gap="field" align="center" className={`min-inline-0 ${VALUE_ROW_TOUCH_FLOOR_AT_COARSE}`}>
       <TrackerValue
         ariaLabel={`${actor.name} title`}
         display={actor.sheet.className}
         placeholder="title…"
         onEdit={onEditTitle}
         wrap={true}
-        className="!w-auto min-w-0 max-w-full field-sizing-content"
+        className="field-sizing-content max-inline-full min-inline-0"
+        width="auto"
       />
     </Row>
   );

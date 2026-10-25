@@ -113,7 +113,7 @@ export function HomeQuickPicksTileBody(): ReactElement {
     // The swipe row bleeds through Home's page inset (`px-section`) to the screen edge, so a face runs off the screen
     // rather than being cut mid-page, and its scroll padding keeps a revealed face clear of that edge.
     <Grid
-      className={swipe ? "-mx-section px-section scroll-px-section" : undefined}
+      className={swipe ? "-mx-section scroll-px-section px-section" : undefined}
       cols={swipe ? "cellSwipe" : "cellFixed"}
       gap="row"
       onFocus={swipe ? revealFocused : undefined}
@@ -155,7 +155,7 @@ export function HomeQuickPicksTileBody(): ReactElement {
                 // and unusable by anyone. The name is the FULL name (the visible line clamps; the NAME never
                 // does), and the pitch rides `aria-describedby`, which is what a description is for.
                 aria-label={character.name}
-                className="flex-col items-stretch gap-tight text-left"
+                className="flex-col items-stretch gap-tight text-start"
                 intent="ghost"
                 onClick={(): void => {
                   if (character.lastChatId !== null) {

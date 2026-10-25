@@ -160,7 +160,7 @@ function ConnectionsBody({ anchorId }: { readonly anchorId: string }): ReactElem
   return (
     <Section divider={true} heading={CONNECTIONS_LIST_SUBCATEGORY.label} id={anchorId}>
       <Row gap="field" align="center" justify="between" className="flex-wrap">
-        <Text voice="quiet" className="max-w-(--reading-measure-prose)">
+        <Text voice="quiet" className="max-inline-(--reading-measure-prose)">
           One provider and one model per connection. Your roles use these connections in rooms you host and for your work outside rooms. Shared-room turns use
           the room host's connections.
         </Text>

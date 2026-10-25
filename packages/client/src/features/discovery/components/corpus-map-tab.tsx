@@ -68,16 +68,16 @@ function MapBody(): ReactElement {
     // and the key leave. A FIT fix, not a count gate: the square was never a requirement of the projection,
     // which is a PCA into an arbitrary 2D frame and reads the same at any aspect. The min-height keeps it a
     // chart rather than a strip if a host ever hands it no height at all.
-    <Stack gap="block" className="h-full min-h-0 flex-1">
+    <Stack gap="block" className="flex-1 block-full min-block-0">
       <Text voice="gloss">{points.length} cards, projected by semantic similarity, colored by genre. Click a card to open its dossier.</Text>
-      <Stack className="min-h-96 w-full flex-1">
+      <Stack className="flex-1 inline-full min-block-(--height-scroll-lg)">
         {/* THE KEY IS THE HALF THAT COULD BE READ (side-eye corpus re-pass B5). The tab said "colored by
             genre" and named no genre anywhere — eight-pixel dots in five hues with no decoder, over ~350px
             of empty panel. The meaning was carried by colour ALONE, which is both the accessibility failure
             and the reason the plot answered nothing. `legend` is @orb/ui's, not this file's: ui owns the
             palette (so the swatch matches the plot by construction) and ui is the only painter. */}
         <Scatter
-          className="h-full w-full"
+          className="block-full inline-full"
           // The plot's own box, not the primitive's 320px default (P3-9): the frame is a flex column at the
           // wrapper's height, so a percentage height lets the canvas take everything the key does not.
           height="100%"
