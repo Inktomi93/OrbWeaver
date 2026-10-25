@@ -4,7 +4,6 @@ import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { GitFork, Icon, Pencil, SmilePlus } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
-import { cn } from "@orb/ui/lib";
 import type { ReactElement, ReactNode } from "react";
 import { RowActionsMenu } from "#components";
 import { useReactionsEnabled } from "../hooks/use-message-reactions.ts";
@@ -85,18 +84,10 @@ export function MessageActionsCluster({
 /** The streaming row's stand-in for the action cluster: the same cluster, hidden and inert. A settled card is as
  *  wide as its header, actions included, so the streaming card reserves that footprint and a short reply does not
  *  reflow when it commits. A parity CT holds the two rows to the same boxes. */
-export function GhostActionsFootprint({
-  chatId,
-  surface,
-  generationCredit,
-}: {
-  readonly chatId: ChatId;
-  readonly surface: string;
-  readonly generationCredit: boolean;
-}): ReactElement {
+export function GhostActionsFootprint({ chatId, generationCredit }: { readonly chatId: ChatId; readonly generationCredit: boolean }): ReactElement {
   const reactionsEnabled = useReactionsEnabled(chatId);
   return (
-    <Row aria-hidden="true" align="center" className={cn("invisible", surface)} data-slot="message-actions-footprint" gap="glyph" inert={true} justify="end">
+    <Row aria-hidden="true" align="center" className="invisible" data-slot="message-actions-footprint" gap="glyph" inert={true} justify="end">
       <MessageActionsCluster
         credit={generationCredit ? <GenerationCreditGlyph slot="message-actions-footprint-credit" /> : null}
         editable={true}

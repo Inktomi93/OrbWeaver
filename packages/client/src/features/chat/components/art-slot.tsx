@@ -7,7 +7,7 @@ import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import type { CSSProperties, ReactElement } from "react";
+import type { ComponentProps, CSSProperties, ReactElement } from "react";
 import { useEffect, useLayoutEffect, useState } from "react";
 import { cn } from "#lib";
 import type { BubbleDecoration } from "../lib/art-decorations.ts";
@@ -57,20 +57,16 @@ function useSlotImage(urlAt: ((cssWidth: number) => string) | undefined): {
   return { attach: setElement, url, failed: url !== undefined && failedUrl === url };
 }
 
-// Fills the art it sits in, so the whole tile is the control. It is the bare intent: a tint over the
-// art itself would read as a smudge, and the press scale already answers a tap. It is not a tab stop: the
-// speaker's chip beside it opens the same image, so keyboard readers get one stop per row.
-function ArtViewButton({ view, rounding = "" }: { readonly view: ArtView; readonly rounding?: string }): ReactElement {
-  return (
-    <Button
-      aria-label={view.label}
-      className={cn("absolute inset-0", rounding) ?? ""}
-      intent="bare"
-      tabIndex={-1}
-      onClick={(event): void => view.open(event.currentTarget)}
-      size="media"
-    />
-  );
+/** A speaker's art as the control that opens it full size. The bare intent: a tint over the art would read as a smudge,
+ *  and the press scale already answers a tap. `media` sizes the button from its child, so wrapped art keeps its box. */
+export function ArtButton({ view, ...button }: Omit<ComponentProps<typeof Button>, "aria-label" | "onClick"> & { readonly view: ArtView }): ReactElement {
+  return <Button {...button} aria-label={view.label} intent="bare" onClick={(event): void => view.open(event.currentTarget)} size="media" />;
+}
+
+// Fills the art it sits in, so the whole tile is the control. It is not a tab stop: the speaker's chip beside it
+// opens the same image, so keyboard readers get one stop per row.
+function ArtViewButton({ view, corner }: { readonly view: ArtView; readonly corner?: "topStart" | "topEnd" | undefined }): ReactElement {
+  return <ArtButton view={view} className="absolute inset-0" cardCorners={corner} tabIndex={-1} />;
 }
 
 // The initial in the avatar fallback's own ink, sized by its slot (a size container, so the letter scales with the
@@ -84,10 +80,10 @@ export function FallbackLetter({
   readonly className: string;
   readonly size?: string;
 }): ReactElement {
-  const letter: CSSProperties = { fontSize: size, lineHeight: 1 };
+  const letter: CSSProperties = { fontSize: size };
   return (
     <Stack align="center" aria-hidden="true" className={className} container="size" justify="center">
-      <Text as="div" style={letter} tone="onPrimary" voice="monogram">
+      <Text as="div" style={letter} tone="onPrimary" voice="monogram" solidLine={true}>
         {initials}
       </Text>
     </Stack>
@@ -109,20 +105,17 @@ export function WhisperBand({
   useFailedReport(failed, onFailedChange);
   const showsImage = url !== undefined && !failed;
   const tappable = view !== null && !failed;
-  const style: CSSProperties = showsImage
-    ? {
-        ...band.style,
-        backgroundImage: `${band.feather}, url("${url}")`,
-        backgroundSize: "100% 100%, cover",
-        backgroundPosition: "0 0, top center",
-        backgroundRepeat: "no-repeat, no-repeat",
-      }
-    : { ...band.style, backgroundImage: band.plainFeather, backgroundSize: "100% 100%", backgroundRepeat: "no-repeat" };
+  // Only the images are inline, because the URL is runtime data; how they fill the band is `imageFit`.
+  const style: CSSProperties = { ...band.style, backgroundImage: showsImage ? `${band.feather}, url("${url}")` : band.plainFeather };
   return (
     <Stack
       aria-hidden={tappable ? undefined : "true"}
       data-slot="message-band"
-      className={cn("relative rounded-t-card", tappable && "hover:opacity-80", band.className)}
+      cardCorners="top"
+      hoverDim={tappable ? "self" : undefined}
+      imageFit="underFeather"
+      // Moonlit Echoes' Glimmer preset: the banner is half the card, centred; a phone widens it to 55%.
+      className="relative mx-auto inline-1/2 @max-cq-28:inline-11/20"
       ref={attach}
       style={style}
     >
@@ -149,7 +142,7 @@ export function EchoArtTile({
   const { attach, url, failed } = useSlotImage(art.image?.urlAt);
   useFailedReport(failed, onFailedChange);
   const tappable = view !== null && !failed;
-  const rounding = art.side === "left" ? "rounded-ss-card" : "rounded-se-card";
+  const corner = art.side === "left" ? "topStart" : "topEnd";
   const { width, ...paint } = art.style;
   const paintStyle: CSSProperties = url === undefined || failed ? paint : { ...paint, backgroundImage: `url("${url}")` };
   return (
@@ -157,20 +150,24 @@ export function EchoArtTile({
       aria-hidden={tappable ? undefined : "true"}
       className={cn(
         "absolute inset-bs-0 aspect-(--aspect-portrait) max-block-full @max-cq-28:aspect-auto @max-cq-28:block-(--immersive-echo-art-height-phone)",
-        tappable ? "group/art" : "pointer-events-none",
+        tappable ? undefined : "pointer-events-none",
         art.side === "left" ? "inset-s-0" : "inset-e-0",
       )}
       ref={attach}
       style={{ width }}
     >
+      {/* The tile dims with its pane's hover: the button over it takes the pointer, so the tile is never hovered itself. */}
       <Stack
         data-slot="message-echo-art"
-        className={cn("absolute inset-0 bg-cover bg-center bg-no-repeat", tappable && "group-hover/art:opacity-80", rounding)}
+        cardCorners={corner}
+        hoverDim={tappable ? "parent" : undefined}
+        imageFit="cover"
+        className="absolute inset-0"
         style={paintStyle}
       >
         {art.image === undefined || failed ? <FallbackLetter className="absolute inset-0" initials={art.fallback} /> : null}
       </Stack>
-      {tappable ? <ArtViewButton view={view} rounding={rounding} /> : null}
+      {tappable ? <ArtViewButton view={view} corner={corner} /> : null}
     </Stack>
   );
 }

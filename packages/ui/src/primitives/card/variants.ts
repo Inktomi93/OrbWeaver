@@ -1,4 +1,4 @@
-import { FOCUS_RING, MESSAGE_BUBBLE_BOX, MESSAGE_BUBBLE_FILL, SPOILER, tv } from "#lib";
+import { FOCUS_RING, MESSAGE_BUBBLE_BOX, MESSAGE_BUBBLE_FILL, RECEDED, SPOILER, tv } from "#lib";
 
 // Card is a generic SURFACE, not a domain card — features (character cards, config panels)
 // compose it (ui-package-design §6.1).
@@ -46,6 +46,7 @@ export const cardVariants = tv({
       input: "border-input bg-transparent",
       bubble: MESSAGE_BUBBLE_FILL.assistant,
       userBubble: MESSAGE_BUBBLE_FILL.user,
+      systemBubble: MESSAGE_BUBBLE_FILL.system,
       muted: "bg-muted",
       warning: "border-warning bg-warning/10 text-warning",
       info: "border-info bg-info/10 text-info",
@@ -88,6 +89,8 @@ export const cardVariants = tv({
       hidden: "pointer-events-none translate-y-row opacity-0 transition-[opacity,translate] duration-(--motion-base) ease-out-expo",
     },
     spoiler: { true: SPOILER, false: "" },
+    // The whole box at the receded step, fill and ink together: a box that stays readable but stands behind its siblings.
+    receded: { true: RECEDED, false: "" },
     // A region that takes programmatic focus (a `tabIndex={-1}` editor a list hands focus to) draws the focus ring.
     focusable: { true: `outline-none ${FOCUS_RING}`, false: "" },
     // A card that takes dropped files announces the armed state (`data-drag-over`) louder than focus.
@@ -157,6 +160,7 @@ export const cardVariants = tv({
     dropTarget: false,
     presence: "always",
     spoiler: false,
+    receded: false,
     focusable: false,
   },
 });

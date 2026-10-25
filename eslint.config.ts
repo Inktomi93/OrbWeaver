@@ -363,9 +363,9 @@ const CLIENT_FORM_NAME_SYNTAX = {
   selector: "JSXOpeningElement[name.type='JSXIdentifier'][name.name='form']:not(:has(> JSXAttribute[name.name=/^aria-label(?:ledby)?$/]))",
   message: "A <form> needs an accessible name: add aria-label, or aria-labelledby pointing at its visible heading.",
 };
-// The `orb-*-track` utilities are client-globals classes. Each is spelled in the one file below that owns it, and every
+// The `orb-*-track` utilities are client-globals classes. They are spelled in the one file below that owns them, and every
 // carrier renders through the chat feature's `Track` component, so a copy cannot drift from the CSS that names it.
-const ORB_TRACK_CLASS_HOMES = ["packages/client/src/features/chat/lib/chat-track.tsx", "packages/client/src/features/chat/lib/message-row-variants.ts"];
+const ORB_TRACK_CLASS_HOMES = ["packages/client/src/features/chat/lib/chat-track.tsx"];
 const ORB_TRACK_CLASS_PATTERN = String.raw`/\borb-[a-z]+-track\b/`;
 const ORB_TRACK_CLASS_SYNTAX = {
   selector: `:matches(Literal[value=${ORB_TRACK_CLASS_PATTERN}], TemplateElement[value.raw=${ORB_TRACK_CLASS_PATTERN}])`,

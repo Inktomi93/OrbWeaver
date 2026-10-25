@@ -269,7 +269,7 @@ export const APPEARANCE_HISTORICAL_ROWS = [
       mechanism: "merge-not-applicable",
       reason: "direct-carrier",
       selector: ACTIONS_ROW,
-      owner: "packages/client/src/features/chat/lib/message-actions-reveal.ts#messageActionsRevealClass",
+      owner: "packages/client/src/features/chat/lib/message-actions-reveal.ts#ACTIONS_REVEAL_POSTURE",
     },
     requiredChecks: ["rest-reveal-polarity", "footprint-stable", "coarse-door", "touch-floor", "hit-owner", "cls-zero"],
     optionalSubjectIds: [],

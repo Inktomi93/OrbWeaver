@@ -30,6 +30,9 @@ export function Row({
   scrollFade,
   ground,
   plate,
+  cardCorners,
+  fadeBelow,
+  tracks,
   ...props
 }: RowProps): ReactElement {
   return (
@@ -55,6 +58,9 @@ export function Row({
         scrollFade,
         ground,
         plate,
+        cardCorners,
+        fadeBelow,
+        tracks,
         className,
       })}
     />

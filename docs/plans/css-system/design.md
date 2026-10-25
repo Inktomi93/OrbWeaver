@@ -1,7 +1,7 @@
 ---
 kind: plan
 status: active
-updated: 2026-10-24
+updated: 2026-10-25
 ---
 
 # One CSS system: ramps, aliases and a pinned owner-CSS surface
@@ -336,9 +336,8 @@ Lane `cb-leg8`, branch `wt/agent-ac152596808c45238`; each commit below is one su
 
 ### Remaining work
 
-Item 1316's remainder. Both rules are on as errors in `eslint.config.ts` by owner ruling, with no baseline and no exemption list, so the pre-push lint is red until the last site goes. The drain through items 1334 to 1336 and 1338 has moved every site but the chat row skin table onto primitive props (`docs/law/UI-Density-Law.md` §4.3), and the `datum` voice carries its ruled spelling (D5). What is left is listed in `feature-classname-sites.md` beside this plan:
+Item 1316's remainder. Both rules are on as errors in `eslint.config.ts` by owner ruling, with no baseline and no exemption list. The drain through items 1334 to 1336, 1338 and 1346 has moved every site onto primitive props (`docs/law/UI-Density-Law.md` §4.3), the chat row skin table included (`feature-classname-sites.md` beside this plan), and the `datum` voice carries its ruled spelling (D5). What is left:
 
-- The chat row skin table (`features/chat/lib/message-row-variants.ts` and the modules it composes): its `RowSkin` fields are class strings and class builders keyed by chat style. They move in one change across all eight chat styles, once each field is a primitive prop, under a CT and a snap of every style with and without a wallpaper.
 - The other-plugin audit (react-x, jsx-a11y, @tanstack rules left off): the installed config leaves one jsx-a11y rule off and enables the rest; record the residue.
 - The RTL follow-up for the panels' `translateX` (Open forks).
 
@@ -449,7 +448,7 @@ Audit results, on the real-database isolated stage:
 
 - Phone landscape: at 844x390 and 932x430 the shell is the desktop shell (the width is above 48rem): a 56px rail, no tab bar, a 48px topbar. In a room the transcript keeps 172px at 390 high and the composer 48px, which is usable. With the on-screen keyboard open the layout viewport shrinks to 844x190 and the topbar plus the composer leave the transcript no box. `shell-short` is added for that case with one consumer: under it the room scrolls and the transcript keeps the `height.scroll-sm` floor (160px at 190 high; the room then scrolls 188px). `platform-shell.suite.ct.tsx` pins the rule through a probe that wears the public slot names.
 - Ultrawide at 3440x1440: characters, config, refinery, databank, presets and plugin pages already cap their content. Home and Explore spread across the whole pane (two columns near 1650px each), so `width.surface-cap` (120rem) centres them; a 1920-wide window's pane is narrower than the cap, so nothing at or below that width moves. The chat transcript is capped by the reading measure (750px), but the composer and the above-composer band followed the `chatWidthPct` track (1720px at 3440). Owner ruling: they never exceed the content column. `orb-composer-track` (client globals) takes the dial's width capped by the column's own `calc(var(--reading-measure) * var(--appearance-reading-body-scale))`, on the prose font, because a `ch` resolves in the element's own font and rounds to whole pixels (15px gives 10px, 16px gives 11px, so no ratio reproduces the column's width from the room's 16px font). `COMPOSER_TRACK` in `chat-track.tsx` carries it for the composer, its strips, the next-turn line and the above-composer band. `platform-room.suite.ct.tsx` asserts at 3440 that the composer is no wider than the column (1720px against 750px on the old track) and that a dial narrower than the measure still narrows it. The dial's channel is leg 9's and is unchanged.
-- Hover: Tailwind's own `hover` and `group-hover` variants are already wrapped in `@media (hover: hover)`. The gap was the reveals keyed on pointer size: `ROW_REVEAL`, `PIN_REVEAL`, the message-actions reveal and the inert-until-hover cluster used `pointer-coarse` (shown) and `pointer-fine` (inert), so a fine pointer without hover (a stylus tablet) kept them hidden for good. They are keyed on `hover-capable` now (`HIDDEN_UNTIL_HOVER`, `INERT_UNTIL_HOVER` in `pointer-variants.ts`); `hover-capable:` is refused in features by the pointer gate. Layout swaps that trade touch-target budget stay on `pointer-coarse`. The `float` arm of `listRowVariants` in `@orb/ui` keeps its `pointer-fine` twin (the primitives lane); `hover-reveal.ct.tsx` proves the client fragments through the compiled media conditions, because Chromium cannot emulate a fine pointer that cannot hover.
+- Hover: Tailwind's own `hover` and `group-hover` variants are already wrapped in `@media (hover: hover)`. The gap was the reveals keyed on pointer size: `ROW_REVEAL`, `PIN_REVEAL`, the message-actions reveal and the inert-until-hover cluster used `pointer-coarse` (shown) and `pointer-fine` (inert), so a fine pointer without hover (a stylus tablet) kept them hidden for good. They are keyed on `hover-capable` now (`HOVER_REVEAL` and `INERT_UNTIL_HOVER` in `packages/ui/src/lib/hover-reveal.ts`); `hover-capable:` is refused in features by the pointer gate. Layout swaps that trade touch-target budget stay on `pointer-coarse`. The `float` arm of `listRowVariants` in `@orb/ui` keeps its `pointer-fine` twin (the primitives lane); `hover-reveal.ct.tsx` proves the client fragments through the compiled media conditions, because Chromium cannot emulate a fine pointer that cannot hover.
 
 ### Safari 18 floor
 

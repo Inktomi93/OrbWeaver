@@ -11,10 +11,3 @@
  *  DEVICE-class swap (never hover-keyed), so it cannot oscillate the way a hover `display` swap does. A feature
  *  takes the same swap through a primitive's `hiddenAt` prop. Live: the config setting row's action cluster. */
 export const HIDE_AT_COARSE = "pointer-coarse:hidden";
-
-/** Hide an opacity/pointer-events reveal cluster at rest ONLY where the primary input can hover. Where it cannot
- *  (a phone, or a stylus-driven tablet with a fine pointer) the cluster simply stays revealed, since no hover
- *  exists to reveal it. Keyed on hover capability, not on pointer size: a fine pointer without hover would
- *  otherwise leave it hidden forever. Composed with the `group-hover`/`group-focus-within` reveals, which win by
- *  specificity. Live: the message-actions reveal resolver. */
-export const HIDDEN_UNTIL_HOVER = "hover-capable:opacity-0 hover-capable:pointer-events-none";

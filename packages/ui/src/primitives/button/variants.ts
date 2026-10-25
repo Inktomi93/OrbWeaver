@@ -1,6 +1,7 @@
 import type { ClassValue } from "tailwind-variants";
 import {
   ACCENT_HOVER,
+  CARD_CORNERS,
   CHIP_BOX,
   CONTROL_SIZE,
   DISABLED_STATE,
@@ -199,6 +200,9 @@ export const buttonVariants = tv({
        *  is one of many small things to skim" rather than "this is a control to operate". */
       pill: "rounded-full",
     },
+    // A button that covers a part flush in a card's corners (art, a welded portrait) traces those corners, so its
+    // focus ring follows the card. Declared after `shape`, whose control radius it refines corner by corner.
+    cardCorners: CARD_CORNERS,
     // THE SELECTION STATE LAYER (added 2026-08-17, program #102 variant B). Toggle already owns this
     // reading on `data-pressed` — but a TRI-STATE filter (off → include → exclude → off) cannot be a
     // Toggle: `aria-pressed` has two values and a third state announced through it would be a lie. So the

@@ -11,7 +11,7 @@ const CHAT = "packages/client/src/features/chat/";
 const CARRIER = `${CHAT}components/composer-strip.tsx`;
 const OTHER_FEATURE = "packages/client/src/features/config/components/probe.tsx";
 const CHAT_TRACK_HOME = `${CHAT}lib/chat-track.tsx`;
-const ROW_VARIANTS_HOME = `${CHAT}lib/message-row-variants.ts`;
+const ROW_VARIANTS = `${CHAT}lib/message-row-variants.ts`;
 const RULE = "no-restricted-syntax";
 
 // The first config calculation loads the whole repo config; it must not bill to a test's timeout.
@@ -42,7 +42,8 @@ test.for([
   ["a track string in a template", "export const A = `x orb-composer-track`;", CARRIER, 1],
   ["a track string outside the chat feature", 'export const A = "orb-chat-track";', OTHER_FEATURE, 1],
   ["the chat-track home", 'export const CHAT_TRACK = "orb-chat-track inline-full";', CHAT_TRACK_HOME, 0],
-  ["the echo track home", 'const ECHO_TRACK = "mx-auto orb-echo-track";', ROW_VARIANTS_HOME, 0],
+  ["the echo track home", 'const ECHO_TRACK = "mx-auto orb-echo-track";', CHAT_TRACK_HOME, 0],
+  ["a track string in the skin table", 'const ECHO_TRACK = "mx-auto orb-echo-track";', ROW_VARIANTS, 1],
   ["a name that only starts like a track", 'export const A = "orb-native";', CARRIER, 0],
   ["a comment that names the track", "// the orb-chat-track carrier\nexport const A = 1;", CARRIER, 0],
   ["a hand-built queryKey in a home file", 'export const A = { queryKey: ["x"] };', CHAT_TRACK_HOME, 1],

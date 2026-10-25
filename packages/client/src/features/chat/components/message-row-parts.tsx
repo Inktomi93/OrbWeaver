@@ -11,7 +11,7 @@ import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { CSSProperties, ReactElement, ReactNode } from "react";
 import type { ChatMessageSurfaceState, ChatSurfaceContribution, ContributorRegistry, MessageRenderContext, RowRenderPolicy, ToolRenderer } from "#lib";
-import { cn, renderMessageForDisplay } from "#lib";
+import { renderMessageForDisplay } from "#lib";
 import type { BubbleDecoration } from "../lib/art-decorations.ts";
 import type { GreetingBinding } from "../lib/greeting-window.ts";
 import { MESSAGE_REASONING_NAME } from "../lib/message-action-names.ts";
@@ -20,9 +20,11 @@ import type { SwipeFoot } from "../lib/pager-chrome.ts";
 import { splitIntoTrainParagraphs } from "../lib/split-paragraphs.ts";
 import type { ArtView } from "./art-slot.tsx";
 import { GreetingSwipeStrip } from "./greeting-swipe-strip.tsx";
+import { MessageBox } from "./message-box.tsx";
 import { MessageContent } from "./message-content.tsx";
 import { MessageEditTextarea } from "./message-edit-textarea.tsx";
 import type { MessageMetadataVisibility } from "./message-metadata-row.tsx";
+import type { MessageBoxFacts } from "./message-row-bubble.tsx";
 import { renderSingleBubble } from "./message-row-bubble.tsx";
 import { MessageToolCalls } from "./message-tool-calls.tsx";
 import { ReasoningBlock } from "./reasoning-block.tsx";
@@ -152,7 +154,7 @@ export function renderRowBubble(args: {
   readonly header: ReactNode;
   /** The swipe foot when this skin seats it INSIDE its container (`SwipeFoot.placement`), else null. */
   readonly footer: ReactNode;
-  /** The transcript's last row, which takes `RowSkin.lastRowInner`. */
+  /** The transcript's last row, which takes `RowSkin.lastRowFloor`. */
   readonly lastRow: boolean;
   readonly trainParagraphs: readonly string[] | null;
   readonly skin: RowSkin;
@@ -172,14 +174,17 @@ export function renderRowBubble(args: {
   readonly artView: ArtView | null;
   readonly onArtFailed?: (failed: boolean) => void;
 }): ReactElement {
-  // Hide-from-AI dims the row (still user-visible — the toggle holds it out of assembly only).
-  const bubbleClassName =
-    cn(args.skin.inner(args.role), args.lastRow && args.skin.lastRowInner, args.editing && "inline-full", args.message.excludedFromPrompt && "opacity-50") ??
-    "";
+  const facts: MessageBoxFacts = {
+    box: args.skin.box,
+    role: args.role,
+    phoneCap: args.skin.phoneCap,
+    lastRowFloor: args.lastRow && args.skin.lastRowFloor,
+    editing: args.editing,
+    receded: args.message.excludedFromPrompt,
+  };
   const body =
     args.trainParagraphs === null ? (
       renderSingleBubble({
-        role: args.role,
         header: args.header,
         footer: args.footer,
         content:
@@ -191,7 +196,7 @@ export function renderRowBubble(args: {
               {args.content}
             </>
           ),
-        bubbleClassName,
+        facts,
         decoration: args.decoration,
         weldedAvatar: args.weldedAvatar,
         mirrored: args.mirrored,
@@ -207,12 +212,12 @@ export function renderRowBubble(args: {
         {args.header}
         {args.reasoning}
         {args.trainParagraphs.map((paragraph, index) => (
-          <Stack
+          <MessageBox
             // biome-ignore lint/suspicious/noArrayIndexKey: ordinal paragraphs belong to the keyed immutable message snapshot; replacement expires descendant state.
             key={index}
-            gap="row"
-            data-slot="message-bubble"
-            className={bubbleClassName}
+            {...facts}
+            shape="stack"
+            positioned={false}
             style={args.decoration?.style}
           >
             <MessageContent
@@ -225,7 +230,7 @@ export function renderRowBubble(args: {
               narratorVoiced={args.narratorVoiced}
               cardOrigin={{ chatId: args.message.chatId, characterId: args.message.characterId }}
             />
-          </Stack>
+          </MessageBox>
         ))}
       </Stack>
     );

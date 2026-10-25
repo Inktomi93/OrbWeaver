@@ -347,7 +347,7 @@
       transform: translateX(100%);
     }
   }
-  /* The sweep's two stops are named so a host on an unusual surface can re-point them (message-row-backing.ts).
+  /* The sweep's two stops are named so a host on an unusual surface can re-point them (`WALLPAPER_PLATE.loading`, lib/ground.ts).
    * The defaults are `var()` fallbacks, not declarations: a property declared here would beat the host's
    * inherited override. */
   .orb-skeleton-shimmer::after {

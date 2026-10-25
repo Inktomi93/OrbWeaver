@@ -1,9 +1,14 @@
 // Layout recipes define spacing intent; features consume the variants. Line-local exceptions license custom tracks.
 import {
+  ARRIVAL,
+  CARD_CORNERS,
   DISABLED_STATE_NATIVE,
   FOCUS_RING,
   GROUND,
+  GROUND_FADE_BELOW,
+  GROUND_FADE_FROM,
   HIDDEN_AT,
+  HOVER_DIM,
   HOVER_REVEAL,
   INERT_UNTIL_HOVER,
   RECEDED,
@@ -99,6 +104,15 @@ const FOCUS_TARGET = { true: "outline-none", false: "" } as const;
 // mark which edges are hiding content, and the fade shows only there.
 const SCROLL_FADE = { x: SCROLL_FADE_X_CLASS, y: SCROLL_FADE_Y_CLASS } as const;
 
+// The `gutterCentred` tracks, shared by `Grid cols` and `Row tracks` (the annotation gutter beside a centred measure,
+// explained at the `Grid` member).
+const GUTTER_CENTRED_TRACKS = "grid-cols-[auto_minmax(0,1fr)] @cq-56:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]";
+
+// A ground's fade below takes that ground's fill as its starting colour.
+const FADE_BELOW_FROM = (Object.keys(GROUND_FADE_FROM) as (keyof typeof GROUND_FADE_FROM)[]).map(
+  (ground) => ({ fadeBelow: true, ground, class: GROUND_FADE_FROM[ground] }) as const,
+);
+
 export const stackVariants = tv({
   base: "flex flex-col",
   variants: {
@@ -137,7 +151,15 @@ export const stackVariants = tv({
       parked: "pointer-events-none invisible translate-x-full transition-[translate,visibility] duration-(--shell-motion) ease-(--shell-ease)",
     },
     // The ink drawn art inside the box inherits through `currentColor` (a diagram in a picker cell whose host recedes).
-    ink: { inherit: "", foreground: "text-foreground" },
+    // `prose` is the reading ink; `muted` keeps the muted ink over a wallpaper plate's own ink too (a notice row).
+    ink: { inherit: "", foreground: "text-foreground", prose: "text-prose-body", muted: "text-muted-foreground in-data-has-bg-image:text-muted-foreground" },
+    cardCorners: CARD_CORNERS,
+    hoverDim: HOVER_DIM,
+    // How an image painted as the box's background fills it: `cover` crops it about its centre; `underFeather` lays a
+    // gradient over a cover image anchored at the top, the gradient filling the box.
+    imageFit: { cover: "bg-cover bg-center bg-no-repeat", underFeather: "bg-size-[auto,cover] bg-position-[left_top,center_top] bg-no-repeat" },
+    // A list item that genuinely arrives eases in from `from` to `settle`; a remounted item takes neither.
+    arrival: ARRIVAL,
     focusTarget: FOCUS_TARGET,
     scrollFade: SCROLL_FADE,
     // A box whose opacity follows its state (it recedes while a re-run is pending) eases the change on the base motion
@@ -179,8 +201,13 @@ export const rowVariants = tv({
     },
     ground: GROUND,
     plate: WALLPAPER_PLATE,
+    cardCorners: CARD_CORNERS,
+    // A pinned band's fill fades below its edge; the colour comes from its `ground`.
+    fadeBelow: { true: GROUND_FADE_BELOW, false: "" },
+    // A row that must keep its element across a width step takes a grid's tracks; `display: grid` wins over the flex base.
+    tracks: { gutterCentred: `grid ${GUTTER_CENTRED_TRACKS}` },
   },
-  compoundVariants: [...DIVIDER_RULE],
+  compoundVariants: [...DIVIDER_RULE, ...FADE_BELOW_FROM],
 });
 
 // One-cell overlay stack (see layer.tsx). A single explicit `1fr`-free track that every child is placed
@@ -409,8 +436,8 @@ export const gridVariants = tv({
       // row that centres the pair moves its prose sideways by half the chip the moment the chip appears,
       // which is a reader-visible slide on a toggle rather than a layout choice.
       //
-      // ONE CONSUMER TODAY: the chat message row's CENTRED skins (`flat`/`hush` via `flatOuter`, and
-      // `document`) — features/chat/lib/message-row-variants.ts. `bubble` and its family are NOT consumers:
+      // ONE CONSUMER TODAY: the chat message row's CENTRED skins (`flat`, `hush` and `document`), through
+      // `Row tracks` because the row body must keep its element. `bubble` and its family are NOT consumers:
       // their rows are deliberately leading/trailing-anchored, so their identity gutter is part of the
       // shape rather than an annotation beside a centred measure.
       //
@@ -436,7 +463,7 @@ export const gridVariants = tv({
       // NO ROLE MIRROR: the centred skins seat every role's chip LEADING (owner ruling, as Moonlit Echoes
       // leaves flat, hush and document unmirrored), so one template serves both roles and auto-placement
       // seats the chip then the column with no explicit column-start below the step.
-      gutterCentred: "grid-cols-[auto_minmax(0,1fr)] @cq-56:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]",
+      gutterCentred: GUTTER_CENTRED_TRACKS,
       // AN INSTRUMENT ROW'S THREE CELLS — name · flexing rail · the value cluster (added 2026-08-19,
       // side-eye P1-1 on the preset params deck). `readout`'s sibling, and the same ruling one axis wider:
       // the first track is CONTENT-sized so a name can never be clipped by a box, and the middle track
@@ -554,15 +581,3 @@ export const toolbarInputVariants = tv({
     ${FOCUS_RING}
   `,
 });
-
-/** THE `gutterCentred` TRACKS AS A CLASS, for a caller that must not swap its ELEMENT (#1728 arm B).
- *  `react-hooks/static-components` bans binding a component to a render-scoped variable — the identity
- *  changes when the arm changes and React remounts the subtree, which for a chat row would drop edit state
- *  and re-run enter motion on a width change. A caller that needs the three rails CONDITIONALLY therefore
- *  composes this onto whatever element it already renders (`Row`'s `flex` loses to the `grid` here under
- *  tailwind-merge, both being `display` utilities) instead of choosing between `Row` and `Grid`.
- *  The tracks themselves stay single-homed in `variants.ts` — this is a spelling of that member, never a
- *  second copy of it. */
-export function gutterCentredTracks(): string {
-  return gridVariants({ cols: "gutterCentred" });
-}
