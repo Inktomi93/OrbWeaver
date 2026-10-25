@@ -3,22 +3,22 @@
 // never renders a passive glyph beside a separate control that sets it.
 //
 // Rest posture (owner ruling D11 — unified across every list): PRESSED is always visible (it carries state
-// the eye scans for); UNPRESSED rides `ROW_REVEAL` (rest hidden, revealed on the row's hover/`focus-within`,
+// the eye scans for); UNPRESSED rides `HOVER_REVEAL.hover` (rest hidden, revealed on the row's hover/`focus-within`,
 // always-on for coarse pointers, where hover does not exist). `rest="always"` keeps a toggle visible in both
 // states for a surface that is not a hover-revealing row.
 //
 // The control box is `size="icon"` = `size-(--size-control-md)` — 36px fine / 48px coarse BY TOKEN CONSTRUCTION
 // (D62 P1), so the per-pointer touch floor needs no hand math here.
 //
-// Requires the row root to carry `group` (that is what `ROW_REVEAL` keys on). Two features render this
+// Requires the row root to carry `group` (that is what `HOVER_REVEAL.hover` keys on). Two features render this
 // anatomy (the character card's star, the chats row's star), which is the R2 bar for a tier-2 composite.
 
 import { Button } from "@orb/ui/button";
 import type { FillableIcon, LucideIcon } from "@orb/ui/icons";
 import { Icon } from "@orb/ui/icons";
+import { HOVER_REVEAL } from "@orb/ui/lib";
 import type { ReactElement } from "react";
 import { cn } from "#lib";
-import { ROW_REVEAL } from "./row-reveal.ts";
 
 interface RowToggleActionBaseProps {
   readonly pressed: boolean;
@@ -79,7 +79,7 @@ export function RowToggleAction(props: RowToggleFillArm): ReactElement {
       aria-checked={radio ? pressed : undefined}
       aria-label={label}
       aria-pressed={radio ? undefined : pressed}
-      className={cn(revealed && ROW_REVEAL, pressed && pressedClassName) ?? ""}
+      className={cn(revealed && HOVER_REVEAL.hover, pressed && pressedClassName) ?? ""}
       intent="ghost"
       onClick={onToggle}
       role={radio ? "radio" : undefined}

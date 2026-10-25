@@ -5,9 +5,9 @@
 export const HOVER_REVEAL = {
   /** Hidden at rest, shown on the row's hover or focus-within. */
   hover: "transition-opacity duration-(--motion-fast) ease-out-expo hover-capable:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100",
-  /** Secondary chrome (a pin, a crown): faint on the row's hover, full on its own hover or focus, always faint on touch. */
+  /** Secondary chrome (a pin, a crown): faint on the row's hover, full on its own hover or focus, or when focus is inside it (it sits on a wrapper), always faint on touch. */
   faint:
-    "opacity-40 transition-opacity duration-(--motion-fast) ease-out-expo hover-capable:opacity-0 group-hover:opacity-60 group-has-focus-visible:opacity-60 hover:opacity-100 focus-visible:opacity-100",
+    "opacity-40 transition-opacity duration-(--motion-fast) ease-out-expo hover-capable:opacity-0 group-hover:opacity-60 group-has-focus-visible:opacity-60 hover:opacity-100 focus-visible:opacity-100 has-focus-visible:opacity-100",
 } as const;
 
 /** A rest-visible marker whose fact the revealed cluster also carries (a starred row's ★): it yields while the

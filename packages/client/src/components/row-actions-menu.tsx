@@ -13,14 +13,13 @@
 import { Button } from "@orb/ui/button";
 import type { LucideIcon } from "@orb/ui/icons";
 import { Icon, MoreHorizontal, Trash2 } from "@orb/ui/icons";
-import { RECEDED_INK } from "@orb/ui/lib";
+import { HOVER_REVEAL, RECEDED_INK } from "@orb/ui/lib";
 import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@orb/ui/menu";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import type { ConfirmDialogProps } from "./confirm-dialog.tsx";
 import { ConfirmDialog } from "./confirm-dialog.tsx";
-import { ROW_REVEAL } from "./row-reveal.ts";
 
 // The optional destructive menu item + its ConfirmDialog (state owned by RowActionsMenu).
 interface RowDestructiveAction {
@@ -149,7 +148,7 @@ function actionsTrigger({
   return (
     <Button
       aria-label={label}
-      className={reveal ? `${TRIGGER_INK[ink]} ${ROW_REVEAL}` : TRIGGER_INK[ink]}
+      className={reveal ? `${TRIGGER_INK[ink]} ${HOVER_REVEAL.hover}` : TRIGGER_INK[ink]}
       intent="ghost"
       shape={shape}
       size={TRIGGER_BUTTON_SIZE[size]}

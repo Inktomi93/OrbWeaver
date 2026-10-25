@@ -104,7 +104,7 @@ export function ChatListRow({ actions, chat, selected, onSelect, onDeletedChat, 
         onToggleStar={chat.viewerRole === "host" ? (next): void => actions.star({ chatId: chat.id, starred: next }) : undefined}
         portraits={portraits}
         // `group` roots the row so the kebab's + the star's hover/focus-within reveal fires on row hover
-        // (the character-card precedent); the reveal lives on RowActionsMenu's `reveal` / ROW_REVEAL.
+        // (the character-card precedent); the reveal lives on RowActionsMenu's `reveal` / HOVER_REVEAL.hover.
         className="group"
         // The DERIVED display title (participant names when unauthored) names the kebab menu ("Chat actions
         // for <title>") so the per-row menus are distinguishable, not N identical "Chat actions" (finding #4).

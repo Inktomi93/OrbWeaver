@@ -22,7 +22,7 @@ export const listRowVariants = tv({
     // name (`group-hover/row:`). That is what lets a rest-visible marker yield to the revealed control that
     // carries the same datum (the client's `ROW_REVEAL_SWAP_COARSE_KEEP`) instead of both painting at once.
     // BOTH group spellings are load-bearing: `group/row` drives the named marker swaps below, while the
-    // client-shared ROW_REVEAL posture and this variant's floated-action hit-test arm use the unnamed
+    // client-shared HOVER_REVEAL.hover posture and this variant's floated-action hit-test arm use the unnamed
     // `group-hover` / `group-focus-within` selectors. Dropping the unnamed group leaves the action painted
     // but pointer-inert over the clickable body (the body intercepts every attempted press).
     root: "group group/row @container/list-row relative flex items-center gap-row inline-full min-inline-0",
@@ -142,14 +142,14 @@ export const listRowVariants = tv({
     // the reveal costs no reflow — the meta stamp and the truncation point do not jump mid-read (the width-
     // transition alternative moves both by the cluster's width on every hover).
     //   · FINE pointers only: at coarse there is no hover, the cluster is permanently visible
-    //     (`ROW_REVEAL`), so it stays IN FLOW and honestly spends its width instead of covering text.
+    //     (`HOVER_REVEAL.hover`), so it stays IN FLOW and honestly spends its width instead of covering text.
     //   · the backdrop paints only while revealed, so at rest nothing shows over the text; the whole
     //     cluster is INERT at rest — the wrapper AND its controls (`*:pointer-events-none`; a child that
     //     re-declares `auto` stays hit-testable through a `pointer-events-none` parent, so the wrapper
     //     alone is not enough), both restored on the row's hover/:focus-within. This is where side-eye
     //     P3's "an invisible control must not be hit-testable" is enforced, because THIS is the arm where
     //     the hidden cluster sits over real text; an in-flow cluster overlays nothing and keeps a live hit
-    //     target at rest (see `ROW_REVEAL`).
+    //     target at rest (see `HOVER_REVEAL.hover`).
     // The trailing cluster hidden at rest and revealed on the row's hover or focus-within;
     // a coarse pointer keeps it visible. The root's unnamed `group` is the key.
     revealActions: {

@@ -11,7 +11,7 @@
 // width at rest instead of yielding 114px of a 290px row to a cluster that paints nothing.
 //
 // …AND THAT SPLIT IS A FINE-POINTER GUARANTEE, which is why the row still needed the COARSE COLLAPSE
-// (#1695). `actionsFloat` is a `pointer-fine:` arm and `ROW_REVEAL` pins the cluster permanently ON at
+// (#1695). `actionsFloat` is a `pointer-fine:` arm and `HOVER_REVEAL.hover` pins the cluster permanently ON at
 // coarse, so on a phone all three controls sat in flow at the 44-48px touch floor. The star toggle — the
 // row's one SECONDARY affordance — now stands down into the kebab there (`ROW_ACTION_INLINE` +
 // `hiddenAt="fine"`), the ★ marker keeps its box (`yieldOnHover`, the coupled site),
@@ -250,7 +250,7 @@ function NormalRowActions({
           the chats row.
 
           THE COARSE COLLAPSE (#1695, side-eye 2026-09-05 — the rule's home is `#components/row-reveal.ts`).
-          `ROW_REVEAL` pins this toggle permanently ON at a coarse pointer, where it is a 44-48px touch box
+          `HOVER_REVEAL.hover` pins this toggle permanently ON at a coarse pointer, where it is a 44-48px touch box
           and `actionsFloat` (a `pointer-fine:` arm) is off, so it charges real in-flow width on every row of
           a phone-width library. Measured on this tree at coarse BEFORE the collapse, title width / row
           width: 0.31 @320 · 0.43 @390 · 0.48 @430, with `Calamity, Doomblade of the Ninth Epoch` clipped at

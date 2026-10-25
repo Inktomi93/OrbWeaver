@@ -220,7 +220,7 @@ export function ChatSummaryRow({
                     control. It is always reveal-gated (`rest="never"`) because the title-line ★ marker is
                     what carries the pressed state at rest, and the two must never paint together. */}
                 {onToggleStar === undefined ? null : (
-                  // THE COARSE COLLAPSE (side-eye 2026-08-07 finding 6). `ROW_REVEAL` pins this toggle ON at a
+                  // THE COARSE COLLAPSE (side-eye 2026-08-07 finding 6). `HOVER_REVEAL.hover` pins this toggle ON at a
                   // coarse pointer, where it is a 44-48px touch box — so every row of the 320px roster spent
                   // 96px on an EMPTY star plus the kebab and left "Example — The Ashen Spire" 62px of 296px.
                   // The kebab already carries Star for both pointers (the mirror-parity ruling in
