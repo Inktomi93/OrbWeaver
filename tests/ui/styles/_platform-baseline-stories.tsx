@@ -1,5 +1,17 @@
 import { CtIsolation } from "@orb/testkit/browser";
+import { Input } from "@orb/ui/input";
+import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement } from "react";
+
+/** The text fields a thumb focuses: iOS zooms the page into any field set below 16px. */
+export function FieldFloorStory(): ReactElement {
+  return (
+    <CtIsolation subject="Field floor" isolates="The shipped text fields at a coarse pointer">
+      <Input aria-label="single line" />
+      <Textarea aria-label="multi line" />
+    </CtIsolation>
+  );
+}
 
 /** Raw elements with no utility classes: only the base layer answers for them. */
 export function PlatformBaselineStory(): ReactElement {

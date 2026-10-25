@@ -40,6 +40,19 @@ for (const viewport of [PHONE_PORTRAIT, PHONE_LANDSCAPE]) {
     expect(Object.values(reported).every((side) => /^\d+(\.\d+)?px$/u.test(side))).toBe(true);
   });
 
+  test(`the grid fills the dynamic viewport and the document neither scrolls nor chains at ${label}`, async ({ mount, page }) => {
+    await page.setViewportSize(viewport);
+    await mount<typeof ShellAmbientStory>(STORY, {});
+    await expect(page.getByRole("navigation", { name: "Primary", exact: true })).toBeVisible();
+    const frame = await page.evaluate(() => ({
+      grid: (document.querySelector(".shell-grid") as Element).getBoundingClientRect().height,
+      viewport: innerHeight,
+      overscroll: getComputedStyle(document.documentElement).overscrollBehaviorY,
+      overflow: getComputedStyle(document.documentElement).overflowY,
+    }));
+    expect(frame).toEqual({ grid: frame.viewport, viewport: viewport.height, overscroll: "none", overflow: "clip" });
+  });
+
   test(`the grid pays the top and side insets at ${label}`, async ({ browserName, mount, page }) => {
     test.skip(browserName !== "chromium", "only Chromium can be given safe-area insets");
     await page.setViewportSize(viewport);

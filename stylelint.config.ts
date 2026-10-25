@@ -64,7 +64,7 @@ const config: Config = {
     "orb/shadow-from-ingredients": true,
     // Compositor hacks: a permanent layer hint or a backface flip promotes a layer the browser would not, and costs memory on
     // the small devices this app runs on. Animate transform, translate, scale, rotate, opacity and filter.
-    "property-disallowed-list": ["/^--leading-[a-z-]+$/", "will-change", "backface-visibility"],
+    "property-disallowed-list": ["/^--leading-[a-z-]+$/", "will-change", "backface-visibility", "-webkit-overflow-scrolling"],
     "declaration-property-value-disallowed-list": { "/^(?:-webkit-)?transform$/": ["/translate(?:3d|Z)\\(/i"] },
     "declaration-property-value-allowed-list": {
       "line-height": [...leadings, "/^var\\(--orb-tier-[a-z-]+-leading\\)$/"],
