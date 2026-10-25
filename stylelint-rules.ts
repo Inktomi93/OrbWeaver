@@ -1,4 +1,5 @@
 // Stylesheet-only token checks run directly on Stylelint's PostCSS nodes, plus the value allow-lists the config composes.
+import { isPlainObject } from "@orb/kit/guards";
 import { blankText } from "@orb/kit/strings";
 import valueParser from "postcss-value-parser";
 import type { PostcssResult, Rule } from "stylelint";
@@ -328,6 +329,7 @@ layerRule.messages = LAYER_MESSAGES;
 const APPEARANCE = "orb/appearance-name-in-manifest";
 const APPEARANCE_MESSAGES = messagesOf(APPEARANCE, {
   rejected: "is not an appearance channel name; the manifest (appearance-carrier-manifest.ts) declares every one",
+  osOnly: "an OS-only variant ignores the app's on and off; use the resolved appearance variant",
 });
 const APPEARANCE_PROPERTY = /--appearance-[a-z0-9-]+/gu;
 const APPEARANCE_ATTRIBUTE = /data-appearance-[a-z0-9-]+/gu;
@@ -338,11 +340,13 @@ export interface AppearanceVocabulary {
   readonly properties: readonly string[];
   readonly attributes: readonly string[];
   readonly variants: readonly string[];
+  /** An OS-only preference variant → the resolved variant that honours the app's `on` and `off` over it. */
+  readonly osVariants?: Readonly<Record<string, string>>;
 }
 
 const appearanceRule: Rule<true, AppearanceVocabulary> = (primary, secondary) => (root, result) => {
   const strings = [(value: unknown): boolean => typeof value === "string"];
-  const options = { actual: secondary, possible: { properties: strings, attributes: strings, variants: strings } };
+  const options = { actual: secondary, possible: { properties: strings, attributes: strings, variants: strings, osVariants: [isPlainObject] } };
   if (!stylelint.utils.validateOptions(result, APPEARANCE, { actual: primary, possible: [true] }, options)) {
     return;
   }
@@ -364,7 +368,12 @@ const appearanceRule: Rule<true, AppearanceVocabulary> = (primary, secondary) =>
   root.walkAtRules((atRule) => {
     check(atRule, atRule.params, APPEARANCE_ATTRIBUTE);
     if (atRule.name === "variant" || atRule.name === "custom-variant") {
-      check(atRule, atRule.params.split(/\s/u)[0] ?? "", APPEARANCE_VARIANT);
+      const name = atRule.params.split(/\s/u)[0] ?? "";
+      check(atRule, name, APPEARANCE_VARIANT);
+      const resolved = atRule.name === "variant" ? secondary.osVariants?.[name] : undefined;
+      if (resolved !== undefined) {
+        stylelint.utils.report({ result, ruleName: APPEARANCE, node: atRule, message: `"${name}" → "${resolved}": ${APPEARANCE_MESSAGES.osOnly}`, word: name });
+      }
     }
   });
 };

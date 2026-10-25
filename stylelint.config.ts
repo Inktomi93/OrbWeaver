@@ -141,6 +141,18 @@ const config: Config = {
       },
     },
     {
+      // The ui entry compiles without the client's generated variants, so its sheets spell a preference's OS arm with
+      // the OS variant beside the root attribute (motion-floor.css).
+      files: ["packages/ui/src/styles/**/*.css"],
+      rules: { "orb/appearance-name-in-manifest": [true, { ...appearance, osVariants: {} }] },
+    },
+    {
+      // Generated from the appearance manifest: a preference variant's body is Tailwind's `&` + `@slot` form, and its
+      // query is read from `MEDIA_QUERIES`, the conditions' one home.
+      files: ["packages/client/src/styles/appearance-channel.gen.css"],
+      rules: { "nesting-selector-no-missing-scoping-root": null, "orb/no-raw-media-condition": null },
+    },
+    {
       // The reduced-motion floor exists to beat inline styles; every declaration in it is `!important` by design.
       files: ["packages/ui/src/styles/motion-floor.css"],
       rules: { "declaration-no-important": null },

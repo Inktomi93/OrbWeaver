@@ -60,6 +60,10 @@ test("an appearance name a sheet spells is one the manifest's channel writes", a
   expect(await rulesHit(declaration("opacity: var(--appearance-line-hight);"))).toEqual([rule, "csstools/value-no-unknown-custom-properties"].toSorted());
   expect(await rulesHit(layered(':root[data-appearance-shadow="true"] .probe { opacity: 1; }'))).toEqual([rule]);
   expect(await rulesHit(layered("@variant appearance-shadow-effects-on { .probe { opacity: 1; } }"))).toEqual([rule]);
+  // A client sheet keys a preference on its resolved variant; the OS-only one ignores the app's off.
+  expect(await rulesHit(layered("@variant motion-reduce { .probe { opacity: 1; } }"))).toEqual([rule]);
+  expect(await rulesHit(layered("@variant appearance-reduced-motion { .probe { opacity: 1; } }"))).toEqual([]);
+  expect(await rulesHit(layered("@variant motion-reduce { .probe { opacity: 1; } }"), FLOOR_FILE)).toEqual([]);
 });
 
 test("physical properties, qualifying types, ids, deep selectors and important declarations are refused", async () => {

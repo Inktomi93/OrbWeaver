@@ -712,7 +712,7 @@ const localPlugin = createOrbPlugin({
       .map(([size]) => size),
   ),
   shellClasses: new Set(OWNER_CSS_SHELL_CLASSES),
-  appearanceNames: new Set(Object.values(appearanceChannelVocabulary()).flat()),
+  appearanceVocabulary: appearanceChannelVocabulary(),
   classifyClass: classClassifier((classes) => designSystem.candidatesToCss(classes)),
 });
 // The only files that may spell a portal-float z token: each is a surface that portals to

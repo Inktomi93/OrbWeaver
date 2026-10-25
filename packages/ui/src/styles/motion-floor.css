@@ -1,28 +1,28 @@
-/* @orb/ui region: the reduced-motion floor, the last layer: it removes transitions and animations under either arm of the motion-reduce variant. Imported by globals.css inside its layer. */
+/* @orb/ui region: the reduced-motion floor, the last layer: it removes transitions and animations when reduced motion resolves on. Imported by globals.css inside its layer. */
 @layer motion {
   /* The reduced-motion floor: `!important` so it beats an inline style. Transitions are removed, not shortened
    * (motion guide §3.9): a duration floor with `transition-property` left at `all` makes every inserted node fire a
    * transition for the inherited `scrollbar-color`. `transitionend` therefore never fires under reduced motion;
    * Base UI waits on `getAnimations()`, which resolves at once, and `WeaveVeil` takes its instant path. */
+  /* Reduced motion resolves from the app's `system | on | off` attribute (the client appearance channel) over the OS
+   * query: `on` always, the OS query unless `off`, and with no attribute the OS query. The ui entry also compiles
+   * without the client, so it spells the attribute rather than the client's generated `appearance-reduced-motion`. */
+  :root[data-appearance-reduced-motion="on"] *,
+  :root[data-appearance-reduced-motion="on"] *::before,
+  :root[data-appearance-reduced-motion="on"] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-property: none !important;
+    scroll-behavior: auto !important;
+  }
   @variant motion-reduce {
-    *,
-    *::before,
-    *::after {
+    :root:not([data-appearance-reduced-motion="off"]) *,
+    :root:not([data-appearance-reduced-motion="off"]) *::before,
+    :root:not([data-appearance-reduced-motion="off"]) *::after {
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
       transition-property: none !important;
       scroll-behavior: auto !important;
     }
-  }
-
-  /* The app's own preference: the client's appearance channel writes it on the root. The ui entry also compiles
-   * without the client, so it spells the attribute rather than the client's generated variant. */
-  :root[data-appearance-reduced-motion="true"] *,
-  :root[data-appearance-reduced-motion="true"] *::before,
-  :root[data-appearance-reduced-motion="true"] *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-property: none !important;
-    scroll-behavior: auto !important;
   }
 }

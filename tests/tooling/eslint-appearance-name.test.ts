@@ -35,6 +35,8 @@ test.for([
   ["a registered property", 'export const A = "var(--appearance-font-scale)";'],
   ["a root attribute", 'export const A = "[data-appearance-shadow-effects]";'],
   ["a class variant", 'export const A = "appearance-shadow-effects-true:opacity-50";'],
+  ["a resolved preference variant", 'export const A = "appearance-reduced-motion:animate-none";'],
+  ["a media condition key", 'export const A = { "motion-reduce": 1 };'],
   // biome-ignore lint/suspicious/noTemplateCurlyInString: the case is template source the rule reads.
   ["a name inside a template", "export const A = (k: string): string => `[data-appearance-surface-texture=${k}]`;"],
 ] as const)("%s the channel writes passes", async ([, source]) => {
@@ -45,6 +47,9 @@ test.for([
   ["a misspelled property", 'export const A = "--appearance-font-scal";', "--appearance-font-scal"],
   ["the retired attribute spelling in the new prefix", 'export const A = "[data-appearance-shadow]";', "data-appearance-shadow"],
   ["a variant for a value the schema lacks", 'export const A = "appearance-shadow-effects-on:opacity-50";', "appearance-shadow-effects-on"],
+  ["an OS-only motion variant", 'export const A = "motion-reduce:animate-none";', "motion-reduce:"],
+  ["the OS-only motion-safe variant", 'export const A = "motion-safe:animate-pulse";', "motion-safe:"],
+  ["an OS-only contrast variant", 'export const A = "contrast-more:border-2";', "contrast-more:"],
   // biome-ignore lint/suspicious/noTemplateCurlyInString: the case is template source the rule reads.
   ["a name in a template chunk", "export const A = (k: string): string => `[data-appearance-texture=${k}]`;", "data-appearance-texture"],
 ] as const)("%s is refused", async ([, source, name]) => {

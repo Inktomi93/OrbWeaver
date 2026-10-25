@@ -11,8 +11,8 @@ import {
 } from "#client/lib/appearance-carrier-manifest.ts";
 
 const MANIFEST_ROWS = Object.entries(APPEARANCE_CARRIER_MANIFEST);
-// The two axes the first frame replays before React mounts; density is seeded into React's first commit instead.
-const PREPAINT_KEYS = ["fontScale", "reducedMotion"];
+// The axes the first frame replays before React mounts; density is seeded into React's first commit instead.
+const PREPAINT_KEYS = ["fontScale", "increasedContrast", "reducedMotion", "reducedTransparency"];
 
 test("the manifest, the editor owners and the settings schema name the same keys, each owned once", () => {
   // The declared shape, not a parsed default: an optional leaf with no default is absent from a parse of `{}`.
@@ -53,7 +53,7 @@ test("every carrier plane carries at least one appearance key", () => {
   }
 });
 
-test("only fontScale and reducedMotion are prepaint; density is hydrated from the prepaint hint", () => {
+test("font scale and the three OS preferences are prepaint; density is hydrated from the prepaint hint", () => {
   const prepaint = MANIFEST_ROWS.filter(([, row]) => row.lifecycle === "prepaint-and-hydrated").map(([key]) => key);
   expect(prepaint.toSorted()).toEqual(PREPAINT_KEYS);
   expect(APPEARANCE_CARRIER_MANIFEST.density.lifecycle).toBe("hydrated-from-prepaint-hint");

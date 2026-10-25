@@ -255,7 +255,7 @@ export function AppShell(): ReactElement {
     <TooltipProvider>
       {/* Mounted before .shell-grid in DOM order so it paints underneath; renders nothing when no image is set. */}
       {bgIsVideo ? (
-        <ThemeBackgroundVideoLayer url={bgUrl} fit={appearance.backgroundFit} dim={appearance.backgroundDim} appReducedMotion={appearance.reducedMotion} />
+        <ThemeBackgroundVideoLayer url={bgUrl} fit={appearance.backgroundFit} dim={appearance.backgroundDim} />
       ) : (
         <ThemeBackgroundLayer url={bgUrl} fit={appearance.backgroundFit} dim={appearance.backgroundDim} blur={appearance.backgroundBlur} />
       )}

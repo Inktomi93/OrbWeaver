@@ -24,6 +24,7 @@ import type { OrbRule } from "./syntax.ts";
 import { restrictionRule } from "./syntax.ts";
 import { CT_SPEC_RESTRICTIONS, TEST_FABRICATION_RESTRICTIONS } from "./test-policy.ts";
 import { ctPollIntervalsSharedRule, evaluateNoScopeCaptureRule, typedTestIdRule, uiCtColorRule } from "./tests.ts";
+import type { AppearanceVocabulary } from "./ui-appearance.ts";
 import { appearanceNameRule } from "./ui-appearance.ts";
 import { floorlessControlRule, registerApiRule, registryContextRule, stateFilesRule, storeDerivedRule } from "./ui-composition.ts";
 import type { ClassClassifier } from "./ui-feature-classname.ts";
@@ -80,7 +81,7 @@ export function createOrbPlugin(options: {
   browserNodeGlobals: ReadonlySet<string>;
   floorlessButtonSizes: ReadonlySet<string>;
   shellClasses: ReadonlySet<string>;
-  appearanceNames: ReadonlySet<string>;
+  appearanceVocabulary: AppearanceVocabulary;
   classifyClass: ClassClassifier;
   baseUiDoors: BaseUiDoors;
 }): {
@@ -90,7 +91,7 @@ export function createOrbPlugin(options: {
     rules: {
       ...Object.fromEntries(LOCAL_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)] as const)),
       "no-raw-intrinsic-paint": rawIntrinsicPaintRule(options.shellClasses),
-      "appearance-name-in-manifest": appearanceNameRule(options.appearanceNames),
+      "appearance-name-in-manifest": appearanceNameRule(options.appearanceVocabulary),
       "feature-classname-layout-only": featureClassNameLayoutOnlyRule(options.classifyClass),
       "no-built-class-string": noBuiltClassStringRule,
       ...Object.fromEntries(PRINCIPAL_RULES.map(({ id, rule }) => [id, rule] as const)),

@@ -4,7 +4,9 @@ import { writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import type { OsPreferenceMode } from "@orb/contracts/settings/appearance";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
+import { MEDIA_QUERIES } from "@orb/ui/tokens";
 import type { AppearanceChannelRow } from "./src/lib/appearance-carrier-manifest.ts";
 import { APPEARANCE_CHANNEL_ROWS } from "./src/lib/appearance-carrier-manifest.ts";
 
@@ -107,12 +109,49 @@ function renderProperty(row: AppearanceChannelRow, shape: LeafShape & { readonly
   ].join("\n");
 }
 
+const PREFERENCE_ON: OsPreferenceMode = "on";
+const PREFERENCE_OFF: OsPreferenceMode = "off";
+
+/** The variant a name's attribute carries: `appearance-<key>` for a resolved preference, `-<value>` for one value. */
+function variantName(row: AppearanceChannelRow, value?: string): string {
+  const base = row.name.replace(/^data-/u, "");
+  return value === undefined ? base : `${base}-${value}`;
+}
+
+/**
+ * A three-way preference resolves in CSS, with no listener: `on` matches always, and the OS condition matches
+ * unless the attribute says `off`. A missing attribute (before the boot replay, or a sheet rendered without the
+ * client) follows the OS, which is what `system` means.
+ */
+function renderPreferenceVariant(row: AppearanceChannelRow): string {
+  if (row.preference === null) {
+    return "";
+  }
+  const on = `[${row.name}="${PREFERENCE_ON}"]`;
+  const notOff = `:not([${row.name}="${PREFERENCE_OFF}"])`;
+  return [
+    `@custom-variant ${variantName(row)} {`,
+    `  &:where(:root${on}, :root${on} *) {`,
+    "    @slot;",
+    "  }",
+    `  @media ${MEDIA_QUERIES[row.preference]} {`,
+    `    &:where(:root${notOff}, :root${notOff} *) {`,
+    "      @slot;",
+    "    }",
+    "  }",
+    "}",
+    "",
+    "",
+  ].join("\n");
+}
+
 function renderVariants(row: AppearanceChannelRow, shape: LeafShape): string {
   if (shape.kind === "number") {
     throw new Error(`appearance.${row.key}: a number reaches CSS as a property, not an attribute`);
   }
   const operator = shape.kind === "members" ? "~=" : "=";
-  return shape.values.map((value) => variantRule(`${row.name.replace(/^data-/u, "")}-${value}`, `[${row.name}${operator}"${value}"]`)).join("\n");
+  const values = shape.values.map((value) => variantRule(variantName(row, value), `[${row.name}${operator}"${value}"]`));
+  return renderPreferenceVariant(row) + values.join("\n");
 }
 
 /** Every `appearance-*` name the generated CSS declares, for the lint that refuses any other. */
@@ -120,6 +159,8 @@ export interface AppearanceChannelVocabulary {
   readonly properties: readonly string[];
   readonly attributes: readonly string[];
   readonly variants: readonly string[];
+  /** Each OS-only preference variant → the resolved variant that honours the app's `on` and `off` over it. */
+  readonly osVariants: Readonly<Record<string, string>>;
 }
 
 export function appearanceChannelVocabulary(): AppearanceChannelVocabulary {
@@ -128,12 +169,14 @@ export function appearanceChannelVocabulary(): AppearanceChannelVocabulary {
       return [];
     }
     const shape = shapeOf(row);
-    return shape.kind === "number" ? [] : shape.values.map((value) => `${row.name.replace(/^data-/u, "")}-${value}`);
+    const values = shape.kind === "number" ? [] : shape.values.map((value) => variantName(row, value));
+    return row.preference === null ? values : [variantName(row), ...values];
   });
   return {
     properties: APPEARANCE_CHANNEL_ROWS.filter((row) => row.kind === "property").map((row) => row.name),
     attributes: APPEARANCE_CHANNEL_ROWS.filter((row) => row.kind === "attribute").map((row) => row.name),
     variants,
+    osVariants: Object.fromEntries(APPEARANCE_CHANNEL_ROWS.flatMap((row) => (row.preference === null ? [] : [[row.preference, variantName(row)]]))),
   };
 }
 

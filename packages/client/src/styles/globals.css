@@ -77,12 +77,7 @@
     background-color: var(--color-primary);
     animation: orb-indeterminate-hairline var(--motion-shimmer) linear infinite;
   }
-  @variant motion-reduce {
-    .orb-indeterminate-hairline::after {
-      content: none;
-    }
-  }
-  @variant appearance-reduced-motion-true {
+  @variant appearance-reduced-motion {
     .orb-indeterminate-hairline::after {
       content: none;
     }
@@ -254,14 +249,15 @@
 }
 
 @layer preference {
-  /* `prefers-contrast: more` (the value is `more`, never the WebKit-era `high`): stronger edges and a denser fill,
-   * never less legible (app-shell.ct.tsx). The edge half names each surface's own authored side, never the
-   * `border-width` shorthand, which would un-zero the sides preflight leaves at zero in `currentColor`; the colour
-   * is raised with the width, mixed from the pair the surface owns, or a hairline token at 2px stays invisible
-   * against the 3:1 floor. The edge half is not blur-gated: a contrast user who turned the glass off still gets
-   * it. The fill half rides the glass's own knob and, with both preferences set, the reduce arm below wins the
-   * alpha by condition (`not-transparency-reduce` is its exact negation), never by source order. */
-  @variant contrast-more {
+  /* The three OS preferences resolve through their generated variants (`appearance-channel.gen.css`): the app's
+   * `on` and `off` override the OS query either way, and `system` follows it. */
+
+  /* Increased contrast (`prefers-contrast: more`, never the WebKit-era `high`): stronger edges and a denser fill,
+   * never less legible. The edge half names each surface's own authored side, never the `border-width` shorthand,
+   * which would un-zero the sides preflight leaves at zero in `currentColor`; the colour is raised with the width,
+   * mixed from the pair the surface owns, or a hairline token at 2px stays invisible against the 3:1 floor. The edge
+   * half is not blur-gated: a contrast user who turned the glass off still gets it. */
+  @variant appearance-increased-contrast {
     /* A noise overlay works against a stated contrast preference. */
     @variant appearance-surface-texture-grain {
       .shell-grid::after,
@@ -271,13 +267,8 @@
     }
   }
 
-  @variant contrast-more {
+  @variant appearance-increased-contrast {
     @variant shell-desktop {
-      :root {
-        /* One dial for every edge: how far each border is pulled toward its surface's own text colour; both
-         * palettes clear the 3:1 non-text floor on the framebuffer at this value (app-shell.ct.tsx). */
-        --contrast-edge-mix: 65%;
-      }
       .shell-panel[data-panel-side="list"] {
         border-inline-end-width: var(--border-width-accent);
         border-inline-end-color: color-mix(in oklab, var(--color-sidebar-foreground) var(--contrast-edge-mix), var(--color-sidebar));
@@ -298,25 +289,29 @@
     }
   }
 
-  /* The alpha half, in its own query so the reduce arm below keeps the alpha when both are set. */
-  @variant contrast-more {
-    @variant not-transparency-reduce {
-      :root {
-        --blur-fill-chrome: 92%;
-        --blur-fill-dense: 92%;
+  /* The root's dials. Contrast densifies the glass fill and reduced transparency makes it solid; the two have one
+   * specificity, so with both preferences resolved on, the later one, the solid fill, wins. */
+  :root {
+    @variant appearance-increased-contrast {
+      @variant shell-desktop {
+        /* One dial for every edge: how far each border is pulled toward its surface's own text colour; both
+         * palettes clear the 3:1 non-text floor on the framebuffer at this value. */
+        --contrast-edge-mix: 65%;
       }
+      --blur-fill-chrome: 92%;
+      --blur-fill-dense: 92%;
     }
-  }
-
-  /* `prefers-reduced-transparency: reduce`: solid, through the glass's own fill knob, so every surface stays tinted
-   * as itself (`revert` would roll past the author origin to transparent). The blur is dropped per surface too:
-   * an opaque fill hides it but the compositor still pays for it. */
-  @variant transparency-reduce {
-    :root {
+    @variant appearance-reduced-transparency {
       --blur-fill-chrome: 100%;
       --blur-fill-dense: 100%;
     }
-    /* Each selector names the box its glass counterpart paints, so this layer's declaration lands on it. */
+  }
+
+  /* Reduced transparency (`prefers-reduced-transparency: reduce`): solid, through the glass's own fill knob above,
+   * so every surface stays tinted as itself (`revert` would roll past the author origin to transparent). The blur
+   * is dropped per surface too: an opaque fill hides it but the compositor still pays for it. Each selector names
+   * the box its glass counterpart paints, so this layer's declaration lands on it. */
+  @variant appearance-reduced-transparency {
     @variant appearance-blur-surfaces-panels {
       .shell-panel::before,
       .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"]) .shell-main::before {

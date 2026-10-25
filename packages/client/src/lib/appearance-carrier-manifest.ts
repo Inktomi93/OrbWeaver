@@ -4,6 +4,7 @@
 // skins stay prop-driven. This manifest describes those boundaries; it is not permission to collapse them.
 
 import type { AppearanceSettings } from "@orb/contracts/settings";
+import type { MEDIA_QUERIES } from "@orb/ui/tokens";
 import { APPEARANCE_HISTORICAL_ROWS } from "./appearance-invariant-manifest.ts";
 
 export const APPEARANCE_EDITOR_OWNERS = ["sizing", "effects", "background", "reading", "avatars", "message-style", "message-details"] as const;
@@ -43,8 +44,11 @@ type AppearancePropertyUnit = (typeof APPEARANCE_PROPERTY_UNITS)[number];
  */
 export type AppearanceChannel =
   | { readonly kind: "property"; readonly unit: AppearancePropertyUnit }
-  | { readonly kind: "attribute" }
+  | { readonly kind: "attribute"; readonly preference?: AppearancePreferenceCondition }
   | { readonly kind: "none" };
+
+/** The OS media condition a `system | on | off` preference follows; its generated variant resolves the three in CSS. */
+type AppearancePreferenceCondition = Extract<keyof typeof MEDIA_QUERIES, "motion-reduce" | "transparency-reduce" | "contrast-more">;
 
 /** A number reaches CSS as a property; every other value as an attribute. */
 type ChannelFor<V> = Extract<AppearanceChannel, { readonly kind: "none" | (V extends number ? "property" : "attribute") }>;
@@ -92,7 +96,7 @@ const MESSAGE_APPEARANCE = { file: "packages/client/src/features/chat/hooks/use-
 const CHAT_STYLE = { file: "packages/client/src/features/chat/hooks/use-chat-style.ts", symbol: "useChatStyle" } as const;
 
 export const APPEARANCE_OWNER_KEYS = {
-  sizing: ["chatWidthPct", "fontScale", "density", "elevation", "reducedMotion"],
+  sizing: ["chatWidthPct", "fontScale", "density", "elevation", "reducedMotion", "reducedTransparency", "increasedContrast"],
   effects: ["blurSurfaces", "blurStrength", "shadowEffects", "surfaceTexture", "enableThemeColorization"],
   background: [
     "backgroundImageKind",
@@ -125,6 +129,8 @@ const NUMBER = { kind: "property", unit: "" } as const;
 const ROOT = { carriers: ["root-html"], lifecycle: "hydrated", portal: "must-reach-portals", consumer: APP_SHELL } as const;
 const ROOT_ATTRIBUTE = { ...ROOT, channel: ATTRIBUTE } as const;
 const ROOT_NUMBER = { ...ROOT, channel: NUMBER } as const;
+// The boot replay writes the three OS preferences before React mounts, so the boot veil and the first shell frame honour them.
+const PREFERENCE = { lifecycle: "prepaint-and-hydrated", requiredDistinctArms: ["system", "on"] } as const;
 const GRID = { carriers: ["shell-grid"], lifecycle: "hydrated", portal: "grid-only", consumer: APP_SHELL, channel: NONE } as const;
 const BACKGROUND = { carriers: ["background-layer"], lifecycle: "hydrated", portal: "outside-theme-scope", consumer: APP_SHELL, channel: NONE } as const;
 const MESSAGE = { carriers: ["message-props"], lifecycle: "hydrated", portal: "prop-threaded", consumer: MESSAGE_APPEARANCE, channel: NONE } as const;
@@ -157,7 +163,7 @@ const READING_PARAGRAPH_SPACING_ARMS = [READING_PARAGRAPH_SPACING_NONE, READING_
 const READING_SCALE_ARMS = [READING_SCALE_SMALL, READING_SCALE_LARGE] as const;
 
 /**
- * The 41-key contract. `satisfies AppearanceCarrierManifest` makes a missing/stale schema key, a row whose
+ * The per-key contract. `satisfies AppearanceCarrierManifest` makes a missing/stale schema key, a row whose
  * owner does not list its key, an empty carrier list, and a carrier/portal mismatch type errors;
  * `tests/client/lib/appearance-carrier-manifest.test.ts` reconciles the same map with the Zod leaves,
  * editor tuples, and named live consumer declarations so a cast cannot hide drift.
@@ -175,7 +181,9 @@ export const APPEARANCE_CARRIER_MANIFEST = {
     requiredDistinctArms: ["comfortable", "compact"],
   },
   elevation: { owner: "sizing", ...GRID, requiredDistinctArms: ["flat", "ramp"] },
-  reducedMotion: { owner: "sizing", ...ROOT_ATTRIBUTE, lifecycle: "prepaint-and-hydrated", requiredDistinctArms: [false, true] },
+  reducedMotion: { owner: "sizing", ...ROOT, channel: { kind: "attribute", preference: "motion-reduce" }, ...PREFERENCE },
+  reducedTransparency: { owner: "sizing", ...ROOT, channel: { kind: "attribute", preference: "transparency-reduce" }, ...PREFERENCE },
+  increasedContrast: { owner: "sizing", ...ROOT, channel: { kind: "attribute", preference: "contrast-more" }, ...PREFERENCE },
 
   blurSurfaces: { owner: "effects", ...ROOT_ATTRIBUTE, requiredDistinctArms: [[], ["panels"]] },
   blurStrength: {
@@ -245,6 +253,8 @@ export interface AppearanceChannelRow {
   readonly kind: "property" | "attribute";
   readonly name: string;
   readonly unit: AppearancePropertyUnit;
+  /** The OS condition a three-way preference follows, or null for a plain value. */
+  readonly preference: AppearancePreferenceCondition | null;
 }
 
 const APPEARANCE_PROPERTY_PREFIX = "--appearance-";
@@ -261,8 +271,8 @@ export const APPEARANCE_CHANNEL_ROWS: readonly AppearanceChannelRow[] = (Object.
       return [];
     }
     return channel.kind === "property"
-      ? [{ key, kind: "property", name: `${APPEARANCE_PROPERTY_PREFIX}${kebab(key)}`, unit: channel.unit }]
-      : [{ key, kind: "attribute", name: `${APPEARANCE_ATTRIBUTE_PREFIX}${kebab(key)}`, unit: "" }];
+      ? [{ key, kind: "property", name: `${APPEARANCE_PROPERTY_PREFIX}${kebab(key)}`, unit: channel.unit, preference: null }]
+      : [{ key, kind: "attribute", name: `${APPEARANCE_ATTRIBUTE_PREFIX}${kebab(key)}`, unit: "", preference: channel.preference ?? null }];
   },
 );
 
@@ -346,6 +356,8 @@ export const APPEARANCE_CARRIER_OBSERVABLES = {
   density: { kind: "attribute", selector: '[data-slot="theme-scope"]:has(.shell-grid)', signal: "data-density" },
   elevation: { kind: "attribute", selector: ".shell-grid", signal: "data-elevation" },
   reducedMotion: rootObservable("reducedMotion"),
+  reducedTransparency: rootObservable("reducedTransparency"),
+  increasedContrast: rootObservable("increasedContrast"),
   blurSurfaces: rootObservable("blurSurfaces"),
   blurStrength: rootObservable("blurStrength"),
   shadowEffects: rootObservable("shadowEffects"),
@@ -391,7 +403,7 @@ interface ThemeCarrierObservable {
   readonly lifecycle: AppearanceLifecycle;
 }
 
-/** Theme selection is adjacent to Appearance but is not one of its 41 schema leaves. These rendered
+/** Theme selection is adjacent to Appearance but is not one of its schema leaves. These rendered
  * observables are what #953 must read after applying a theme request: an intercepted settings envelope
  * proves neither the palette that painted nor the polarity/custom-CSS planes that won. Nested scopes stay
  * independently observable because room/card overrides intentionally do not flatten into the app scope. */

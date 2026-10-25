@@ -11,13 +11,13 @@ import { DATA_THEME_ATTR, readAppearanceBootHint } from "../state/appearance-boo
  * A device that was never told anything replays the schema defaults, which match the generated initial values.
  */
 export function stampAppearanceBootHint(): void {
-  const { reducedMotion, fontScale, dataTheme } = readAppearanceBootHint();
+  const { dataTheme, ...axes } = readAppearanceBootHint();
   const root = document.documentElement;
-  writeAppearanceChannel(root, { reducedMotion, fontScale });
+  writeAppearanceChannel(root, axes);
   if (dataTheme !== null) {
     root.setAttribute(DATA_THEME_ATTR, dataTheme);
   }
-  // `density` is not stamped here: it is rendered as `[data-density]` on the shell's `ThemeScope`, which does
+  // `density` has no root channel, so the write skips it: it is rendered as `[data-density]` on the shell's `ThemeScope`, which does
   // not exist until React commits. Its hint exists for the pending block (useAppearance), so the first shell
   // and portal carrier React paints already has the right density.
 }

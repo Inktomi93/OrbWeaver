@@ -27,6 +27,7 @@ export {
 export { setAnalyticsSearchQuery, useAnalyticsSearchQuery } from "./analytics-search-store.ts";
 export { clearAnalyticsSelection, selectAnalyticsCharacterFromList, useSelectedAnalyticsCharacterId } from "./analytics-selection-store.ts";
 export {
+  APPEARANCE_BOOT_AXES,
   DATA_THEME_ATTR,
   rememberAppearanceBootHint,
   rememberDataThemeHint,

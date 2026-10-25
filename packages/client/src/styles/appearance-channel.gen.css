@@ -15,8 +15,50 @@
   initial-value: 1;
 }
 
-@custom-variant appearance-reduced-motion-false (&:where(:root[data-appearance-reduced-motion="false"], :root[data-appearance-reduced-motion="false"] *));
-@custom-variant appearance-reduced-motion-true (&:where(:root[data-appearance-reduced-motion="true"], :root[data-appearance-reduced-motion="true"] *));
+@custom-variant appearance-reduced-motion {
+  &:where(:root[data-appearance-reduced-motion="on"], :root[data-appearance-reduced-motion="on"] *) {
+    @slot;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    &:where(:root:not([data-appearance-reduced-motion="off"]), :root:not([data-appearance-reduced-motion="off"]) *) {
+      @slot;
+    }
+  }
+}
+
+@custom-variant appearance-reduced-motion-system (&:where(:root[data-appearance-reduced-motion="system"], :root[data-appearance-reduced-motion="system"] *));
+@custom-variant appearance-reduced-motion-on (&:where(:root[data-appearance-reduced-motion="on"], :root[data-appearance-reduced-motion="on"] *));
+@custom-variant appearance-reduced-motion-off (&:where(:root[data-appearance-reduced-motion="off"], :root[data-appearance-reduced-motion="off"] *));
+
+@custom-variant appearance-reduced-transparency {
+  &:where(:root[data-appearance-reduced-transparency="on"], :root[data-appearance-reduced-transparency="on"] *) {
+    @slot;
+  }
+  @media (prefers-reduced-transparency: reduce) {
+    &:where(:root:not([data-appearance-reduced-transparency="off"]), :root:not([data-appearance-reduced-transparency="off"]) *) {
+      @slot;
+    }
+  }
+}
+
+@custom-variant appearance-reduced-transparency-system (&:where(:root[data-appearance-reduced-transparency="system"], :root[data-appearance-reduced-transparency="system"] *));
+@custom-variant appearance-reduced-transparency-on (&:where(:root[data-appearance-reduced-transparency="on"], :root[data-appearance-reduced-transparency="on"] *));
+@custom-variant appearance-reduced-transparency-off (&:where(:root[data-appearance-reduced-transparency="off"], :root[data-appearance-reduced-transparency="off"] *));
+
+@custom-variant appearance-increased-contrast {
+  &:where(:root[data-appearance-increased-contrast="on"], :root[data-appearance-increased-contrast="on"] *) {
+    @slot;
+  }
+  @media (prefers-contrast: more) {
+    &:where(:root:not([data-appearance-increased-contrast="off"]), :root:not([data-appearance-increased-contrast="off"]) *) {
+      @slot;
+    }
+  }
+}
+
+@custom-variant appearance-increased-contrast-system (&:where(:root[data-appearance-increased-contrast="system"], :root[data-appearance-increased-contrast="system"] *));
+@custom-variant appearance-increased-contrast-on (&:where(:root[data-appearance-increased-contrast="on"], :root[data-appearance-increased-contrast="on"] *));
+@custom-variant appearance-increased-contrast-off (&:where(:root[data-appearance-increased-contrast="off"], :root[data-appearance-increased-contrast="off"] *));
 
 @custom-variant appearance-blur-surfaces-panels (&:where(:root[data-appearance-blur-surfaces~="panels"], :root[data-appearance-blur-surfaces~="panels"] *));
 @custom-variant appearance-blur-surfaces-composer (&:where(:root[data-appearance-blur-surfaces~="composer"], :root[data-appearance-blur-surfaces~="composer"] *));

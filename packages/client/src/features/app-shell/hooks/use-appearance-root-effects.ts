@@ -8,8 +8,12 @@ import { APPEARANCE_CHANNEL_ROWS, clearAppearanceChannel, writeAppearanceChannel
 import type { SeedThemeName } from "#state";
 import { DATA_THEME_ATTR } from "#state";
 
-// The motion preference stays on the root after the shell unmounts, so the route splash that replaces it honours it.
-const KEPT_AFTER_UNMOUNT: ReadonlySet<keyof AppearanceSettings> = new Set<keyof AppearanceSettings>(["reducedMotion"]);
+// The OS preferences stay on the root after the shell unmounts, so the route splash that replaces it honours them.
+const KEPT_AFTER_UNMOUNT: ReadonlySet<keyof AppearanceSettings> = new Set<keyof AppearanceSettings>([
+  "reducedMotion",
+  "reducedTransparency",
+  "increasedContrast",
+]);
 const CLEARED_ON_UNMOUNT = APPEARANCE_CHANNEL_ROWS.map((row) => row.key).filter((key) => !KEPT_AFTER_UNMOUNT.has(key));
 
 export function useAppearanceRootEffects(appearance: AppearanceSettings, dataTheme: SeedThemeName | null): void {

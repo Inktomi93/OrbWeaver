@@ -9,7 +9,7 @@
 //
 // FOURTEEN KEYS, EACH WITH AN EXACT ORB SEAT — nothing is invented. A `power_user` key with no orb field is
 // NOT patched.
-// Two are INVERTED (ST states the negative), two are enum
+// Two are INVERTED (ST states the negative), three are enum
 // re-spellings, and one ST value (RECTANGULAR avatars) needs two orb fields because orb splits avatar SHAPE
 // from avatar ASPECT.
 //
@@ -38,7 +38,6 @@ const BOOLEAN_SEATS: ReadonlyArray<readonly [stKey: string, orbKey: string]> = [
   ["message_token_count_enabled", "showTokenCount"],
   ["mesIDDisplay_enabled", "showMessageId"],
   ["timestamp_model_icon", "showModelIcon"],
-  ["reduced_motion", "reducedMotion"],
   ["auto_fix_generated_markdown", "autoFixMarkdown"],
 ];
 
@@ -126,6 +125,15 @@ function putMessageActions(pu: Record<string, unknown>, patch: Record<string, un
   }
 }
 
+/** ST `reduced_motion` → orb `appearance.reducedMotion`. ST's `true` forces reduced motion; its `false` defers to
+ *  the device, which orb calls `system`. */
+function putReducedMotion(pu: Record<string, unknown>, patch: Record<string, unknown>): void {
+  const value = pu["reduced_motion"];
+  if (typeof value === "boolean") {
+    patch["reducedMotion"] = value ? "on" : "system";
+  }
+}
+
 /**
  * The orb `appearance` patch an ST profile's `power_user` section carries. `{}` when the section is absent or
  * is not an object — a profile with no ST preferences patches nothing rather than stamping orb's defaults over
@@ -145,5 +153,6 @@ export function stAppearancePatch(settingsRaw: unknown): Record<string, unknown>
   putAvatarStyle(pu, patch);
   putChatStyle(pu, patch);
   putMessageActions(pu, patch);
+  putReducedMotion(pu, patch);
   return patch;
 }
