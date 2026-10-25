@@ -50,6 +50,39 @@ test("current hooks, the sheet's own custom properties, partial slot matches and
   expect(themeCssHookWarnings(css, SURFACE, RENAMES)).toEqual([]);
 });
 
+test("hooks inside strings and comments raise nothing, and a string holding /* does not hide a later stale hook", () => {
+  const css = [
+    "a::before { content: '[data-slot=\"gone\"]'; }",
+    'b::before { content: "var(--color-gone) .shell-gone"; }',
+    'c::before { content: "/*"; }',
+    '[data-slot="gonez"] {}',
+  ].join("\n");
+  const warnings = themeCssHookWarnings(css, SURFACE, RENAMES);
+  expect(warnings.map((warning) => css.slice(warning.from, warning.to))).toEqual(["gonez"]);
+});
+
+test("a stale hook before an unterminated comment still warns, and the comment hides only its own text", () => {
+  const css = '[data-slot="gonez"] {} /* never closed [data-slot="goney"]';
+  expect(themeCssHookWarnings(css, SURFACE, RENAMES).map((warning) => css.slice(warning.from, warning.to))).toEqual(["gonez"]);
+});
+
+test("var() with a fallback is the author's own knob, but a nested var() is still checked", () => {
+  expect(themeCssHookWarnings("a { color: var(--author-knob, red); }", SURFACE, RENAMES)).toEqual([]);
+  const nested = "a { color: var(--mine, var(--color-gone)); }";
+  expect(themeCssHookWarnings(nested, SURFACE, RENAMES).map((warning) => nested.slice(warning.from, warning.to))).toEqual(["--color-gone"]);
+  expect(themeCssHookWarnings("a { color: var(--mine, var(--color-primary)); }", SURFACE, RENAMES)).toEqual([]);
+  expect(themeCssHookWarnings("a { color: var(--author-knob); }", SURFACE, RENAMES)).toHaveLength(1);
+});
+
+test("an @supports condition is a feature query, but the rules inside its block are scanned", () => {
+  const css = [
+    "@supports (color: var(--color-gone)) { a{} }",
+    '@supports selector([data-slot="gone"]) { [data-slot="gonez"] {} }',
+    "@supports (--css-var: 1) { a{} }",
+  ].join("\n");
+  expect(themeCssHookWarnings(css, SURFACE, RENAMES).map((warning) => css.slice(warning.from, warning.to))).toEqual(["gonez"]);
+});
+
 test("a var() of an undeclared name outside the surface warns, with the closest token", () => {
   const css = "a { color: var(--color-primry); }";
   const [warning] = themeCssHookWarnings(css, SURFACE, RENAMES);

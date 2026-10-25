@@ -11,7 +11,6 @@ import {
   OWNER_CSS_THEME_SCOPE_VARS,
   OWNER_CSS_TOKEN_VARS,
 } from "../../packages/client/owner-css-surface.ts";
-import { OWNER_CSS_HOOK_KINDS } from "../../packages/client/src/owner-css/hook.ts";
 import { OWNER_CSS_RENAMES } from "../../packages/client/src/owner-css/renames.ts";
 
 const REPO_ROOT = fileURLToPath(new URL("../..", import.meta.url));
@@ -72,7 +71,7 @@ test("every rename row names a hook that left the surface and points at one that
 });
 
 test("the surface lists every kind, each name once, and no private name", () => {
-  expect(new Set(OWNER_CSS_SURFACE.map((hook) => hook.kind))).toEqual(new Set(OWNER_CSS_HOOK_KINDS));
+  expect(OWNER_CSS_SURFACE).toHaveLength(OWNER_CSS_SLOTS.length + OWNER_CSS_SHELL_CLASSES.length + OWNER_CSS_TOKEN_VARS.length);
   const keys = OWNER_CSS_SURFACE.map((hook) => `${hook.kind} ${hook.name}`);
   expect(new Set(keys).size).toBe(keys.length);
   expect(OWNER_CSS_SURFACE.filter((hook) => hook.name.startsWith(PRIMITIVE_PREFIX) || hook.name.startsWith("--orb-"))).toEqual([]);

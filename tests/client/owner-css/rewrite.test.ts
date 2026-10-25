@@ -17,6 +17,16 @@ test("a recorded old name is rewritten to its successor wherever the sheet spell
   );
 });
 
+test("the rewrite skips strings, honours a string holding /* and never stops early on an unterminated comment", () => {
+  const css = [
+    "a::before { content: '[data-slot=\"bubble\"]'; }",
+    'b::before { content: "/*"; }',
+    '[data-slot="bubble"] {}',
+    '/* open [data-slot="bubble"]',
+  ].join("\n");
+  expect(rewriteRenamedHooks(css, RENAMES)).toBe(css.replace('\n[data-slot="bubble"] {}', '\n[data-slot="message-bubble"] {}'));
+});
+
 test("the rewrite leaves comments, retired hooks, current names and look-alike prefixes alone", () => {
   const css =
     '/* [data-slot="bubble"] */ [data-slot="old-chip"], [data-slot="bubble-extra"], [data-slot^="bubble"], .shell-sidebar-wide, [data-slot="composer"] {}';

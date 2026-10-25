@@ -49,7 +49,8 @@ export function themeCssHookWarnings(css: string, surface: readonly OwnerCssHook
     names[hook.kind].push(hook.name);
   }
   return refs.flatMap((ref) => {
-    if (names[ref.kind].includes(ref.name) || (ref.kind === "token" && !ref.declaration && declared.has(ref.name))) {
+    // `var(--x, fallback)` hands the author's own default to an unset property: the knob is theirs.
+    if (ref.fallback || names[ref.kind].includes(ref.name) || (ref.kind === "token" && !ref.declaration && declared.has(ref.name))) {
       return [];
     }
     const spelled = SPELLING[ref.kind](ref.name);

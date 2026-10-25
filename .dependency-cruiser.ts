@@ -475,7 +475,6 @@ const PACKAGE_TEST_REACHES = {
       "rewriteRenamedHooks: the rename rewrite over a planted table; the production table is empty until a hook is renamed",
   },
   "tests/client/owner-css-surface.repo.int.test.ts": {
-    "packages/client/src/owner-css/hook.ts": "OWNER_CSS_HOOK_KINDS: the kinds the generated surface must cover",
     "packages/client/src/owner-css/renames.ts": "OWNER_CSS_RENAMES: the production table the surface test reconciles against the generated surface",
   },
   "tests/client/lib/appearance-carrier-manifest.test.ts": {
