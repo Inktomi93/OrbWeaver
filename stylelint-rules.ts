@@ -335,12 +335,38 @@ const SHELL_MESSAGES = messagesOf(SHELL, {
 const ATTRIBUTE_SELECTOR = /\[[^\]]*\]/gu;
 const SLOT_SELECTOR = /\[data-slot\s*[~|^$*]?=\s*["']?(?<slot>[^"'\]\s]+)/gu;
 const CLASS_SELECTOR = /\.(?<name>-?[_a-zA-Z][\w-]*)/gu;
-// A relative colour whose origin is a served `--color-*` token and whose channels are keywords or formulas, never literals.
-const RELATIVE_CHANNEL = String.raw`(?:[a-z]+|calc\((?:[^()]|\([^()]*\))*\))`;
-const RELATIVE_SERVED_COLOR = new RegExp(
-  String.raw`\b(?:rgb|rgba|hsl|hsla|hwb|oklch|oklab|lab|lch)\(\s*from\s+var\(--color-[a-z0-9-]+\)\s+${RELATIVE_CHANNEL}\s+${RELATIVE_CHANNEL}\s+${RELATIVE_CHANNEL}(?:\s*/(?:[^()]|\([^()]*\))*)?\)`,
+// A relative colour whose origin is a served `--color-*` token. Each channel is that colour space's own channel keyword
+// or a `calc()` over one; a literal, `none` (a missing channel is a literal zero) or another space's keyword is a new colour.
+const RELATIVE_CHANNEL = String.raw`[a-z]+|calc\((?:[^()]|\([^()]*\))*\)`;
+const RELATIVE_COLOR = new RegExp(
+  String.raw`\b(?<space>rgb|rgba|hsl|hsla|hwb|oklch|oklab|lab|lch)\(\s*from\s+var\(--color-[a-z0-9-]+\)\s+(?<c1>${RELATIVE_CHANNEL})\s+(?<c2>${RELATIVE_CHANNEL})\s+(?<c3>${RELATIVE_CHANNEL})(?:\s*/(?:[^()]|\([^()]*\))*)?\)`,
   "giu",
 );
+const COLOUR_SPACE_CHANNELS: Readonly<Record<string, readonly string[]>> = {
+  rgb: ["r", "g", "b"],
+  rgba: ["r", "g", "b"],
+  hsl: ["h", "s", "l"],
+  hsla: ["h", "s", "l"],
+  hwb: ["h", "w", "b"],
+  lab: ["l", "a", "b"],
+  oklab: ["l", "a", "b"],
+  lch: ["l", "c", "h"],
+  oklch: ["l", "c", "h"],
+};
+
+function usesChannel(channel: string, keywords: readonly string[]): boolean {
+  return [...channel.matchAll(/(?<![\w.-])[a-z]+(?![\w-])/gu)].some((word) => keywords.includes(word[0]));
+}
+
+/** Blank the relative colours that only reshape the origin token's own channels; a literal one stays to be refused. */
+function withoutServedRelativeColors(value: string): string {
+  return value.replace(RELATIVE_COLOR, (match, ...rest) => {
+    const groups = rest.at(-1) as Record<string, string>;
+    const keywords = [...(COLOUR_SPACE_CHANNELS[(groups["space"] ?? "").toLowerCase()] ?? []), "alpha"];
+    const channels = [groups["c1"] ?? "", groups["c2"] ?? "", groups["c3"] ?? ""];
+    return channels.every((channel) => usesChannel(channel, keywords)) ? blankText(match) : match;
+  });
+}
 const SHELL_CLASS_PREFIX = "shell-";
 
 type ShellOptions = { readonly slots?: readonly string[]; readonly classes?: readonly string[] } | undefined;
@@ -356,7 +382,7 @@ function foreignSelectorParts(selector: string, slots: ReadonlySet<string>, clas
 }
 
 function spellsLiteralColour(value: string): boolean {
-  const scanned = withoutColorStrings(withoutValueComments(value)).replace(RELATIVE_SERVED_COLOR, blankText);
+  const scanned = withoutServedRelativeColors(withoutColorStrings(withoutValueComments(value)));
   return HEX.test(scanned) || COLOR_FUNCTION.test(scanned);
 }
 
