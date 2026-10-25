@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
+import { relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { staticImportGraph, unsupportedAtFloor, withoutPolyfilled } from "@orb/tooling/browser-support";
 import { authorClassIgnores, baseUiDoors, classClassifier, createOrbPlugin } from "@orb/tooling/eslint";
 import { BUTTON_SIZE_OVERFLOW } from "@orb/ui/button/size-hit-area";
 import { TOKENS } from "@orb/ui/tokens";
@@ -26,6 +28,7 @@ import type { FlatConfig } from "typescript-eslint";
 import tseslint from "typescript-eslint";
 import biomeConfig from "./biome.json" with { type: "json" };
 import { appearanceChannelVocabulary } from "./packages/client/appearance-channel.build.ts";
+import { BROWSER_TARGETS, HARMLESS_WHEN_UNSUPPORTED, POLYFILLED_BUILTINS } from "./packages/client/browser-targets.ts";
 import { OWNER_CSS_SHELL_CLASSES } from "./packages/client/owner-css-surface.ts";
 import { customPropertyUses } from "./tooling/src/css-names/index.ts";
 
@@ -736,6 +739,9 @@ const browserGlobalsOverride = biomeConfig.overrides.find(
 if (browserGlobalsOverride?.linter?.rules.style?.noRestrictedGlobals === undefined) {
   throw new Error("The browser Node-global policy must be configured in Biome");
 }
+const UNSUPPORTED_AT_FLOOR = unsupportedAtFloor(BROWSER_TARGETS);
+// The page script and what it imports statically run before the polyfills are installed (packages/client/src/entry.ts), so nothing there is trusted.
+const PRE_POLYFILL_SOURCE = staticImportGraph(fileURLToPath(new URL("./packages/client/src/entry.ts", import.meta.url))).map((file) => relative(ROOT, file));
 const localPlugin = createOrbPlugin({
   baseUiDoors: baseUiDoors(fileURLToPath(new URL("./packages/ui", import.meta.url))),
   browserNodeGlobals: new Set([...Object.keys(browserGlobalsOverride.linter.rules.style.noRestrictedGlobals.options.deniedGlobals), "process"]),
@@ -746,6 +752,10 @@ const localPlugin = createOrbPlugin({
   ),
   shellClasses: new Set(OWNER_CSS_SHELL_CLASSES),
   appearanceVocabulary: appearanceChannelVocabulary(),
+  browserUnsupported: withoutPolyfilled(UNSUPPORTED_AT_FLOOR, POLYFILLED_BUILTINS),
+  browserUnsupportedBeforePolyfills: UNSUPPORTED_AT_FLOOR,
+  browserHarmless: HARMLESS_WHEN_UNSUPPORTED,
+  candidatesToCss: (classes) => designSystem.candidatesToCss(classes),
   customProperties: customPropertyUses(ROOT),
   classifyClass: classClassifier((classes) => designSystem.candidatesToCss(classes)),
 });
@@ -1330,6 +1340,17 @@ export default [
       "orb/no-floorless-control-in-wrap": "error",
       "orb/browser-no-node-globals": "error",
     },
+  },
+  {
+    // The packages the client bundle ships; plugin bundles run in the WASM sandbox, not the browser's main realm.
+    files: rootSources("@client", "@ui", "@kit", "@contracts"),
+    plugins: { orb: localPlugin },
+    rules: { "orb/browser-support": "error" },
+  },
+  {
+    files: PRE_POLYFILL_SOURCE,
+    plugins: { orb: localPlugin },
+    rules: { "orb/browser-support": "off", "orb/browser-support-entry": "error" },
   },
   {
     files: BROWSER_MOUNT_SOURCE,

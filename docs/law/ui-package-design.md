@@ -412,6 +412,7 @@ components with no part list.
 | `Combobox.createItems` | n/a | Maps objects to primitive IDs; the seal uses string chips. Revisit when it accepts object-backed collections. |
 | `Meter.Track` / `Meter.Indicator` | sealed-away | THE §10 hybrid: `MeterIndicator` hardcodes `width:%` (linear only), so the arc/bipolar geometry is hand-drawn SVG riding as `Meter.Root`'s children. Using the native pair would forbid two of the three kinds. |
 | `Progress.Status` | n/a | A TYPE alias (`'indeterminate' \| 'progressing' \| 'complete'`), not a part; it surfaces as Base UI's own `data-*` on the root. |
+| `Menu.FilterProvider` / `Menu.Input` / `Menu.useFilter` | sealed-away | Base UI ships menu filtering as a preview API. A picker with a search box is `@orb/ui/command` (R4); revisit when the API leaves preview and a menu surface needs inline filtering. |
 | `Toast.Positioner` / `Toast.Arrow` | sealed-away | Every toast shares ONE bottom-right stack (`Toaster` bundles Portal → Viewport); Positioner/Arrow are for per-toast ANCHORED placement, which that single-stack decision cuts. |
 | `Field.Control` | exposed (indirectly) | Not rendered by the `Field` seal itself — the CONTROLS render through it (`Textarea`, `Select`, `ColorField`, `FileDropzone`), which is what makes native registration work. |
 | `Field.Item` / `Field.ValidityData` | sealed-away / n/a | `Item` is the multi-control-per-field grouping we have no surface for; `ValidityData` is a type. |
