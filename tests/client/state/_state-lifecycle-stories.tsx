@@ -44,8 +44,8 @@ function DraftActions({ first, second }: { readonly first: MessageId; readonly s
     <Stack>
       {visible ? <DraftRead id={first} /> : null}
       <DraftRead id={second} />
-      <Button onClick={(): void => startEditingMessage(first, "Original", 320, 160)}>Edit first</Button>
-      <Button onClick={(): void => startEditingMessage(second, "Other")}>Edit second</Button>
+      <Button onClick={(): void => startEditingMessage(first, "Original", 320, 160)}>Begin first edit</Button>
+      <Button onClick={(): void => startEditingMessage(second, "Other")}>Begin second edit</Button>
       <Button onClick={(): void => setMessageEditDraft(first, "Changed")}>Change first</Button>
       <Button onClick={(): void => setMessageEditDraft(first, "")}>Empty first</Button>
       <Button onClick={(): void => cancelEditingMessage(first)}>Cancel first</Button>

@@ -4,7 +4,7 @@
 import { censusTitle } from "@orb/client/lib";
 import type { ChatId } from "@orb/kit/ids";
 import { pixel, resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
-import { createShellAmbientReads, holdCorpusProcedure, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { createShellAmbientReads, holdCorpusProcedure, routeTrpc, SECTION_LABELS, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusWire } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -79,7 +79,7 @@ test.describe("on a phone", () => {
     await routeTrpc(page, { ...createShellAmbientReads(corpus), ...serveCorpusProcedures(caller, SECTION_PROCEDURES), ...held.routes });
     await seedShellState(page, { activeSection: "characters" });
     await mount<typeof AppShellStory>(STORY, {});
-    const label = (await page.locator(".shell-rail").getByRole("button", { name: "Characters", exact: true }).getAttribute("aria-label")) ?? "";
+    const label = (await page.locator(".shell-rail").getByRole("button", { name: SECTION_LABELS.characters, exact: true }).getAttribute("aria-label")) ?? "";
     const title = page.locator(NARROW_TITLE);
     // The roster arm first, so the census is proven present before the open is asked to remove it.
     await expect(title).toHaveText(censusTitle(label, census) ?? label);

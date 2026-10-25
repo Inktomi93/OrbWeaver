@@ -258,7 +258,7 @@ function errorNumber(code: TrpcErrorCode): number {
 
 const ERROR_MARK = Symbol("routeTrpc.error");
 
-interface TrpcErrorMarker {
+export interface TrpcErrorMarker {
   readonly [ERROR_MARK]: true;
   readonly code: TrpcErrorCode;
   readonly message: string;

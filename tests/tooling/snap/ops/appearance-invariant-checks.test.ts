@@ -1,5 +1,6 @@
 import { expect, test } from "@orb/testkit/tooling";
 import { describe } from "vitest";
+import { appearanceChannelName } from "#client/lib/appearance-carrier-manifest.ts";
 import type { RuntimeAppearanceHistoricalRow } from "../../../../tooling/src/floor/appearance/appearance-matrix.ts";
 import type { BrowserEnvironmentEvidence } from "../../../../tooling/src/floor/browser/browser-environment.ts";
 import type { AppearanceCheckContext } from "../../../../tooling/src/snap/contract/appearance-check-context.ts";
@@ -126,7 +127,7 @@ function facts(over: Partial<AppearanceElementFacts> = {}): AppearanceElementFac
 function subject(id: string, elementFacts: AppearanceElementFacts | null, withheld: AppearanceElementFacts | null = null): AppearanceDomSubject {
   return {
     id,
-    selector: `[data-appearance-fixture="${id}"]`,
+    selector: `[data-fixture-id="${id}"]`,
     matchIndex: 0,
     accounting: { declared: 1, candidates: 1, reached: 1, sampled: 1, skipped: [], occluded: 0, offViewport: 0 },
     facts: elementFacts,
@@ -181,7 +182,7 @@ function result(checks: ReturnType<typeof buildAppearanceInvariantChecks>, id: s
 describe("#953 literal appearance semantic checks", () => {
   test("R4 consumes the live MessageRow registry and the content region rather than count-only DOM stand-ins", () => {
     const clean = snapshot([
-      subject("html", facts({ style: { ...BASE_STYLE, "--appearance-font-scale": "1.25" } })),
+      subject("html", facts({ style: { ...BASE_STYLE, [appearanceChannelName("fontScale")]: "1.25" } })),
       subject("common-scope", facts({ attributes: { "data-density": "compact" } })),
       subject("grid", facts({ rect: { left: 0, top: 0, right: 430, bottom: 932, width: 430, height: 932 } })),
       subject("main", facts({ rect: { left: 0, top: 0, right: 430, bottom: 932, width: 430, height: 932 } })),

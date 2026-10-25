@@ -3,6 +3,7 @@ import { COLLECTION_LARGE_GROUP } from "@orb/client/lib";
 import { routeTrpc, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { TAG_LIST_NAME } from "#client/features/tag/lib/tag-list-name.ts";
 import type { LabelsListStory } from "./_labels-list-stories.tsx";
 
 const STORY = "tests/client/features/tag/surfaces/_labels-list-stories/LabelsListStory";
@@ -31,6 +32,6 @@ test("Retry on a windowed tag list hands keyboard focus to a row once the rows m
   failing = false;
   await retry.focus();
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("list", { name: "Tags", exact: true })).toBeVisible();
+  await expect(page.getByRole("list", { name: TAG_LIST_NAME, exact: true })).toBeVisible();
   await expect(page.locator('[data-slot="virtual-list-row"] :focus')).toBeVisible();
 });

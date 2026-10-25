@@ -34,7 +34,7 @@ import { CommittedSettingsTab } from "../components/settings-context-tab.tsx";
 import { useChatContextState } from "../hooks/use-chat-context-state.ts";
 import { useChatListHeader } from "../hooks/use-chat-list-header.tsx";
 import { ChatListSurface } from "../surfaces/chat-list-surface.tsx";
-import { CHAT_CONTEXT_TAB_LABELS } from "./chat-context-tab-labels.ts";
+import { CHAT_CONTEXT_TAB_LABELS, CHAT_CONTEXT_TABLIST_NAME } from "./chat-context-tab-labels.ts";
 import { CHATS_SECTION_LABEL } from "./chats-section-label.ts";
 import { useChatsSelectionTitle } from "./chats-selection-title.ts";
 import { membersTabJustified, resolveIsGroupChat } from "./roster.ts";
@@ -155,7 +155,7 @@ export function makeChatsSection({ contextTabs, contextRegions, surfaces, toolRe
       header: () => null,
       // The header tablist's accessible name — the artifact noun. "Chat", not "Game": the crown host console is
       // a TAB named "Game" in this strip.
-      railLabel: "Chat",
+      railLabel: CHAT_CONTEXT_TABLIST_NAME,
       // No header actions today: the add-member door lives in the character bar + the Members tab, both of
       // which the room already renders. (It used to hold the DRAFT add-member popover — a rowless room's
       // only way to add characters; the seat verb (`domain/chat/verbs/participants.ts`) serves that now.)

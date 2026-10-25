@@ -113,7 +113,7 @@ export function TouchFloorStory(): ReactElement {
       </Badge>
       <Collapsible>
         <CollapsibleTrigger size="text" touchFloor="block">
-          Tool calls
+          Tool chip
         </CollapsibleTrigger>
       </Collapsible>
       <span data-probe="touch" style={{ blockSize: "var(--size-touch-target)", display: "block" }} />

@@ -1,7 +1,7 @@
 // Section procedures for a component spec, answered by the production server root over a corpus clone for each exact
 // request. Only the named procedures are served; routeTrpc still fails the test for any other.
 import type { TrpcErrorCode } from "./matchers.ts";
-import type { TrpcProcedurePath, TrpcRoutes } from "./route-trpc.ts";
+import type { TrpcErrorMarker, TrpcInput, TrpcProcedurePath, TrpcRoutes } from "./route-trpc.ts";
 import { trpcError, trpcHold } from "./route-trpc.ts";
 
 type Procedure = (input: unknown) => Promise<unknown>;
@@ -58,23 +58,75 @@ export function holdCorpusProcedure<const TPath extends TrpcProcedurePath>(calle
   };
 }
 
+/** A request held until the test lets the server answer it, or fails it. It carries no data of its own. */
+export interface ServedHold {
+  /** Resolves once a request has reached the hold. */
+  readonly requested: Promise<void>;
+  /** Let the held request through: the server answers it now, from the state it holds now. */
+  readonly release: () => void;
+  /** Answer the held request with a failure instead of the server's answer. */
+  readonly fail: () => void;
+}
+
+interface HoldGate {
+  readonly arrived: () => void;
+  readonly verdict: Promise<"serve" | "fail">;
+}
+
+const holdGates = new WeakMap<ServedHold, HoldGate>();
+
+/** A hold for {@link ServeIntercept} to return: `release()` runs the real caller, so a held request can never settle with a test's data. */
+export function holdServed(): ServedHold {
+  const arrived = Promise.withResolvers<void>();
+  const verdict = Promise.withResolvers<"serve" | "fail">();
+  const hold: ServedHold = { requested: arrived.promise, release: (): void => verdict.resolve("serve"), fail: (): void => verdict.resolve("fail") };
+  holdGates.set(hold, { arrived: arrived.resolve, verdict: verdict.promise });
+  return hold;
+}
+
+/**
+ * A request the test fails or holds instead of answering at once, or `undefined` to let the server answer it. It can
+ * only fail or delay: the data a request settles with always comes from the server.
+ */
+export type ServeIntercept<TPath extends TrpcProcedurePath> = (input: TrpcInput<TPath>) => TrpcErrorMarker | ServedHold | undefined;
+
 /**
  * Serve each named procedure from `caller`, a composed root's `internalCallerFor(...)`, with the server's own
  * output for the request the client sent. The answer is held until the server settles, so it can never be a
- * fixture's guess at a page size or a filter.
+ * fixture's guess at a page size or a filter. An `intercept` fails or holds chosen requests before the server sees them.
  */
-export function serveCorpusProcedures<const TPath extends TrpcProcedurePath>(caller: object, paths: readonly TPath[]): TrpcRoutes<TPath> {
+export function serveCorpusProcedures<const TPath extends TrpcProcedurePath>(
+  caller: object,
+  paths: readonly TPath[],
+  intercept?: ServeIntercept<NoInfer<TPath>>,
+): TrpcRoutes<TPath> {
   const routes = Object.fromEntries(
     paths.map((path) => {
       const call = procedureAt(caller, path);
       const respond = (input: unknown): unknown => {
+        const early = intercept?.(input as TrpcInput<TPath>);
         const hold = trpcHold<TPath>();
         // The release type is conditional on the generic path, so both settlements name it explicitly.
         type Release = Parameters<typeof hold.release>[0];
-        call(input).then(
-          (output) => hold.release(JSON.parse(JSON.stringify(output ?? null)) as Release),
-          (error: unknown) => hold.release(trpcError({ code: failureCode(error), message: String(error) }) as Release),
-        );
+        const settle = (): void => {
+          call(input).then(
+            (output) => hold.release(JSON.parse(JSON.stringify(output ?? null)) as Release),
+            (error: unknown) => hold.release(trpcError({ code: failureCode(error), message: String(error) }) as Release),
+          );
+        };
+        const gate = early === undefined || !("release" in early) ? undefined : holdGates.get(early);
+        if (early !== undefined && gate === undefined) {
+          return early;
+        }
+        if (gate === undefined) {
+          settle();
+        } else {
+          gate.arrived();
+          gate.verdict.then(
+            (verdict) => (verdict === "serve" ? settle() : hold.release(trpcError() as Release)),
+            () => hold.release(trpcError() as Release),
+          );
+        }
         return hold;
       };
       return [path, respond];

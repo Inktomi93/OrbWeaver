@@ -93,24 +93,32 @@ function SeededShell({ seed }: { readonly seed: () => void }): ReactElement {
     seed();
     return true;
   });
-  return (
-    <CtClientProviders>
-      <AppShell />
-    </CtClientProviders>
-  );
+  return <AppShell />;
 }
 
 /** The `imagine` modal opened with a slash-command seed, the way the composer opens it. */
 export function ImagineModalStory({ seed }: { readonly seed: ImagineSeed }): ReactElement {
-  return <SeededShell seed={(): void => openImagine(seed)} />;
+  return (
+    <CtClientProviders>
+      <SeededShell seed={(): void => openImagine(seed)} />
+    </CtClientProviders>
+  );
 }
 
 /** The image `imageDetail` or `imageEdit` modal opened on one subject, the way a room image opens it. */
 export function ImageSubjectModalStory({ modal, subject }: { readonly modal: "imageDetail" | "imageEdit"; readonly subject: ImageSubject }): ReactElement {
-  return <SeededShell seed={(): void => (modal === "imageDetail" ? openImageDetail(subject) : openImageEdit(subject))} />;
+  return (
+    <CtClientProviders>
+      <SeededShell seed={(): void => (modal === "imageDetail" ? openImageDetail(subject) : openImageEdit(subject))} />
+    </CtClientProviders>
+  );
 }
 
 /** The `pluginDialog` modal opened on one registered dialog surface. */
 export function PluginDialogModalStory({ subject }: { readonly subject: Parameters<typeof openPluginDialog>[0] }): ReactElement {
-  return <SeededShell seed={(): void => openPluginDialog(subject)} />;
+  return (
+    <CtClientProviders>
+      <SeededShell seed={(): void => openPluginDialog(subject)} />
+    </CtClientProviders>
+  );
 }

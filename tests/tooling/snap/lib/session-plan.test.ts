@@ -6,6 +6,7 @@
 // tests/tooling/snap/ops/session-daemon.int.test.ts.
 
 import { expect, test } from "@orb/testkit/tooling";
+import { APPEARANCE_PRESET_FLAG } from "@orb/tooling/floor/appearance/appearance-flags";
 import type { SessionRow } from "../../../../tooling/src/snap/contract/session.ts";
 import { SESSION_PROTOCOL_VERSION } from "../../../../tooling/src/snap/contract/session.ts";
 import {
@@ -136,7 +137,7 @@ test("a later call carrying a browser-lifetime flag is named, page suffix and al
     "--network",
     "--pages",
     "--local-storage",
-    "--appearance-preset",
+    APPEARANCE_PRESET_FLAG,
     "--theme",
   ]) {
     expect(SESSION_ONLY_FLAGS.has(flag), flag).toBe(true);

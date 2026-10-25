@@ -64,6 +64,9 @@ test.describe("planted defects", () => {
   test("a labelled field with an id and a name reports nothing", async ({ page }) => {
     await page.setContent('<label for="handle">Handle</label><input id="handle" name="handle">');
     expect(await formIdentityFindings(page)).toEqual([]);
+    // The probe reads this page: the same call reports a defect planted into it.
+    await page.setContent('<input id="bare" name="bare">');
+    expect((await formIdentityFindings(page)).map((finding) => finding.rule)).toEqual(["no-label"]);
   });
 });
 

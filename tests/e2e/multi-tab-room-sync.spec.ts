@@ -17,6 +17,7 @@
 // Self-seeded: spec-owned characters (unique handles + display names) and a uniquely-titled chat, torn
 // down in a finally — never `listChats()[0]` on the shared DB.
 
+import { GROUP_OUTPUT_LABELS } from "@orb/contracts/chat";
 import type { CharacterHandle, CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
@@ -142,14 +143,16 @@ test("a group-config change in tab A reaches tab B's open Group-behavior section
       await openDetailPanel(tab);
       await openGroupBehaviorSection(tab);
     }
-    await expect(tabB.getByRole("button", { name: "Per-speaker", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(tabB.getByRole("button", { name: GROUP_OUTPUT_LABELS["per-speaker"], exact: true })).toHaveAttribute("aria-pressed", "true");
 
-    await tabA.getByRole("button", { name: "Narrator", exact: true }).click();
+    await tabA.getByRole("button", { name: GROUP_OUTPUT_LABELS.narrator, exact: true }).click();
     // The write really landed (so a red below is a SYNC failure, never a lost write).
     await expect.poll(async () => (await getGroupConfig(room.chatId)).output, { timeout: WAIT_ROUND_TRIP_MS }).toBe("narrator");
 
     // THE load-bearing assertion: tab B's open Group-behavior section re-reads the room's behavior off the bus.
-    await expect(tabB.getByRole("button", { name: "Narrator", exact: true })).toHaveAttribute("aria-pressed", "true", { timeout: WAIT_SURFACE_MS });
+    await expect(tabB.getByRole("button", { name: GROUP_OUTPUT_LABELS.narrator, exact: true })).toHaveAttribute("aria-pressed", "true", {
+      timeout: WAIT_SURFACE_MS,
+    });
   } finally {
     await ctx.close();
     await teardown(room);

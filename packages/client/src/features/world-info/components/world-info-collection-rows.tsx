@@ -39,6 +39,7 @@ import type { CollectionListView } from "#lib";
 import { COLLECTION_LARGE_GROUP, downloadTextFile, notify } from "#lib";
 import { clearCollectionSelection } from "#state";
 import { useDuplicateWorldBook, useRemoveWorldBook } from "../hooks/use-world-info-mutations.ts";
+import { WORLD_BOOKS_LIST_NAME } from "../lib/world-books-list-name.ts";
 import { bookScent } from "../lib/world-info-model.ts";
 
 /** One compact row's height guess for the windowed arm (name + scent subtitle). */
@@ -121,7 +122,7 @@ export function WorldInfoCollectionRows({ view }: { readonly view: CollectionLis
     if (books.length > COLLECTION_LARGE_GROUP) {
       return (
         <VirtualList
-          aria-label="World books"
+          aria-label={WORLD_BOOKS_LIST_NAME}
           // THE PANE IS THE WINDOW (#1725, the mock design §5.4). This was the shared `max-h-(--height-scroll-lg)` cap — a flat 384px
           // that existed to stop one library pushing its sibling BANDS below the fold in the LIST's shared
           // scroll column. That column is gone, so the bound is the CONTENT pane's own `overflow-y-auto overscroll-contain` box,
@@ -144,7 +145,7 @@ export function WorldInfoCollectionRows({ view }: { readonly view: CollectionLis
     // Both small and windowed collections expose the same list/listitem grammar. A small-list CT is needed
     // because a long library exercises only the VirtualList arm.
     return (
-      <Stack aria-label="World books" gap="tight" role="list">
+      <Stack aria-label={WORLD_BOOKS_LIST_NAME} gap="tight" role="list">
         {filtered.map((book, index) => (
           <Stack aria-posinset={index + 1} aria-setsize={filtered.length} key={book.id} role="listitem">
             {renderRow(book)}

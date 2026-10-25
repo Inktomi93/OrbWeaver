@@ -93,7 +93,7 @@ Follow the [native gallery contract](../../docs/law/Spine-Testing.md#7-client--b
 3. Import the story with `import type` in the spec.
 4. Call native `mount<typeof Story>(exactStoryId, dataProps)`. Keep callbacks and state inside the browser story.
 5. Register network handlers and initialization scripts before mounting. Use configured `baseURL` before the first navigation.
-   A shell mount takes its Home reads from `createShellAmbientReads(corpus)`. Pass any other procedure the subject sends to `serveCorpusProcedures`, which runs the exact request on a corpus root's internal caller.
+   A shell mount takes its Home reads from `createShellAmbientReads(corpus)`. Pass any other procedure the subject sends to `serveCorpusProcedures`, which runs the exact request on a corpus root's internal caller. Its optional third argument fails a chosen request, or holds it with `holdServed()` until `release()` lets the server answer; no hold carries data of its own.
 6. Assert the rendered outcome using accessible locators and retrying web assertions.
 7. Use `update()` for state-preserving prop changes. Await `unmount()` when proving disposal.
 
@@ -140,6 +140,13 @@ Two publishes from one tree are byte-identical: every producer draws ids from th
 | Inline callback props stay out of Node mount calls | The same ESLint restrictions; aliases and arbitrary dataflow remain review responsibilities |
 | Recognized internal-module mocks and replacement service constructors are refused | Existing ESLint syntax and import restrictions |
 | A test never calls `vi.mock` or `vi.doMock`; an external edge is scripted through an injected seam on the production options | `EXTERNAL_MODULE_MOCK_RESTRICTION` in [eslint.config.ts](../../eslint.config.ts); `tests/tooling` is outside it because that project isolates modules |
+| A route map answers the request it receives, whether written in the call, bound to a variable, spread in or typed as `TrpcRoutes`: no fixed value for a procedure that takes input, and no `trpcError` on every path; a header directive with a reason admits a suite whose subject is the route helper | The `orb/ct-responder-reads-input` rule, which reads the route types in [route-trpc.ts](node/route-trpc.ts), in [eslint.config.ts](../../eslint.config.ts) |
+| A test reads an appearance channel name from the manifest, never spells `data-appearance-*` or `--appearance-*` | The `orb/no-hand-typed-appearance-channel` rule; the message points at `APPEARANCE_CHANNEL_ROWS` and `APP_REDUCED_MOTION_ATTRIBUTE` |
+| An exported story mounts `CtIsolation` or `CtClientProviders` at its root | The `orb/ct-story-root-composition` rule on `tests/ui` and `tests/client` stories |
+| A story outside the app shell's own tests builds no `shell-*` class and no shell-owned `data-slot` | The `orb/no-hand-built-shell-dom` rule; the slot list derives from the app shell's own sources |
+| A tier suite below the features and a feature suite import no other feature's test files; a shared helper goes through a `tests/support` door | The `tests-client-tiers-no-feature-tests` and `tests-client-features-own-test-helpers` rules in [dependency-cruiser](../../.dependency-cruiser.ts) |
+| A CT or e2e `getByRole` name, `getByLabel` or `getByText` literal is not a label a production `.ts` module exports; the finding names the module | The `orb/no-hand-copied-label` rule, indexed from the label-named exports of `packages/*/src/**/*.ts`; a constant outranks a table field, and a string several same-rank exports hold is not judged |
+| A CT or e2e case with an absence assertion also holds a positive control: an `expect` that is not an absence, or a call to a helper named `expect*` or `assert*` | The `orb/ct-negative-only-case` rule; an absence is `.not` on a locator matcher, `toBeHidden`, `toBeEmpty`, `toBeNull`, `toBeUndefined`, or a `0` or `[]` target for `toHaveCount`, `toHaveLength`, `toEqual` and `toStrictEqual`; an assertion in a function the case never references does not count |
 | Unknown stories and render failures do not become successful empty mounts | [Gallery runtime regressions](browser/gallery.ct.tsx) |
 | Cold failures remain failures | Native runner configuration and first-navigation regression checks; no automatic warm-up navigation or test retries |
 

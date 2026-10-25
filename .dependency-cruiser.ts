@@ -304,6 +304,8 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/data/import-tree-served.ts": "planServedTreeImport: the served-tree import planner",
   "packages/client/src/features/config/lib/config-copy.ts": "CONFIG_SECTION_LABEL: the settings section labels",
   "packages/client/src/features/rpg/lib/unset-datum.ts": "UNSET_DATUM: the unset reading's text",
+  "packages/client/src/features/plugin/lib/extensions-copy.ts": "EXTENSIONS_GONE_TITLE: the vanished page's title",
+  "packages/client/src/features/tag/lib/tag-list-name.ts": "TAG_LIST_NAME: the Labels finder's tag list name",
   "packages/client/src/state/create-persisted-store.ts": "createPersistedStore: the persisted-store factory a type contract reads",
   "packages/client/src/compose/contributors.ts": "chromeWidgets: the shipped chrome widget registry",
   "packages/client/src/compose/home-tiles.ts": "homeTiles: the shipped home tile registry",
@@ -610,6 +612,23 @@ function packageTestMirrorRules([pkg, packageCake]: readonly [string, string]): 
             to: `${CLIENT}features/`,
             toNot: [],
             runtime: true,
+          }),
+          mirrorRule({
+            name: "tests-client-tiers-no-feature-tests",
+            comment:
+              "A suite of a client tier below the features imports no feature's test files; a helper two worlds share goes through a tests/support door.",
+            from: "^tests/client/(?!features/)[^/]+/",
+            to: "^tests/client/features/",
+            toNot: [],
+            runtime: false,
+          }),
+          mirrorRule({
+            name: "tests-client-features-own-test-helpers",
+            comment: "A feature suite imports only its own feature's test files; a helper two features share goes through a tests/support door.",
+            from: "^tests/client/features/([^/]+)/",
+            to: "^tests/client/features/",
+            toNot: ["^tests/client/features/$1/"],
+            runtime: false,
           }),
           mirrorRule({
             name: "tests-client-type-contracts-own-internals",

@@ -1,12 +1,25 @@
 import { blobUrl } from "@orb/contracts/assets";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import type { TrpcWireOutput } from "@orb/testkit/ct";
-import { routeTrpc, trpcError } from "@orb/testkit/ct";
+import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { TideMediaLifetimeStory } from "./_media-lifetime-stories.tsx";
 
 test.use({ trace: "on" });
+
+const ROOM_READS = [
+  "sessions.me",
+  "settings.getUserSettings",
+  "chat.getChat",
+  "chat.listReactions",
+  "chat.listMessages",
+  "chat.previewContextFit",
+  "plugin.list",
+  "plugin.listDisplayTransforms",
+  "plugin.listSurfaces",
+  "regex.listScripts",
+  "regex.listRoomDisplayScripts",
+] as const;
 
 test("Tide retains zoom for identical snapshots and closes obsolete media on message replacement", async ({
   corpus,
@@ -39,31 +52,8 @@ test("Tide retains zoom for identical snapshots and closes obsolete media on mes
     throw new Error("Committed chat omitted its user message");
   }
   await caller.chat.editMessage({ chatId, messageId: message.id, content: `Lead paragraph\n\n![First witness](${firstUrl})`, timeZone: UTC_TIME_ZONE });
-  const initial = await caller.chat.listMessages({ chatId });
   await page.route("**/api/auth/config", (route) => route.fulfill({ json: corpus.auth.signedInConfig }));
-  const viewer = await caller.sessions.me();
-  const settings = await caller.settings.getUserSettings();
-  const detail = await caller.chat.getChat({ chatId });
-  const scripts = await caller.regex.listScripts();
-  const roomScripts = await caller.regex.listRoomDisplayScripts({ chatId });
-  const reactions = await caller.chat.listReactions({ chatId });
-  const plugins = await caller.plugin.list();
-  const transforms = await caller.plugin.listDisplayTransforms();
-  const surfaces: TrpcWireOutput<"plugin.listSurfaces"> = await caller.plugin.listSurfaces();
-  let messages = initial;
-  await routeTrpc(page, {
-    "sessions.me": () => viewer,
-    "settings.getUserSettings": () => settings,
-    "chat.getChat": () => detail,
-    "chat.listReactions": () => reactions,
-    "plugin.list": () => plugins,
-    "plugin.listDisplayTransforms": () => transforms,
-    "plugin.listSurfaces": () => surfaces,
-    "chat.listMessages": () => messages,
-    "chat.previewContextFit": () => trpcError({ code: "BAD_REQUEST" }),
-    "regex.listScripts": () => scripts,
-    "regex.listRoomDisplayScripts": () => roomScripts,
-  });
+  await routeTrpc(page, serveCorpusProcedures(caller, ROOM_READS));
   await corpusMedia();
   const component = await mount<typeof TideMediaLifetimeStory>("tests/client/features/chat/components/_media-lifetime-stories/TideMediaLifetimeStory", {
     chatId,
@@ -100,7 +90,6 @@ test("Tide retains zoom for identical snapshots and closes obsolete media on mes
   await page.screenshot({ path: before });
   await testInfo.attach("unchanged-media-zoom", { path: before });
   await caller.chat.editMessage({ chatId, messageId: message.id, content: `Lead paragraph\n\n![Replacement witness](${secondUrl})`, timeZone: UTC_TIME_ZONE });
-  messages = await caller.chat.listMessages({ chatId });
   await component.update({ chatId, revision: 2 });
   await expect(page.locator('output[aria-label="Read revision"]')).toHaveText("2");
   await expect(zoom).toHaveCount(0);

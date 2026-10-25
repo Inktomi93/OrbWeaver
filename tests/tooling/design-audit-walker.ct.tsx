@@ -252,6 +252,9 @@ test("a list-row wrapper around its one control is not a nested card, while a re
   expect(nested, "a genuinely decorative inner panel must remain the defect control").toContain("[data-testid=real-nested-card]");
 });
 
+/** The selectors the walker sampled in one family: a clean verdict on a subject it never reached proves nothing. */
+const sampledSelectors = (rows: readonly { readonly selector: string }[]): readonly string[] => rows.map((row) => row.selector);
+
 /** The walker's whole raw sample set for the mounted stage. */
 async function samplesOf(page: Page): Promise<RawSamples> {
   return (await page.evaluate(COLLECT_SAMPLES_JS)) as RawSamples;
@@ -340,7 +343,11 @@ test("the SAME color at full opacity still passes — the composite is the defec
 // glyph.
 test("text over a 10%-alpha tint is measured against the COMPOSITE, not the tint's own color", async ({ mount, page }) => {
   await mount<typeof WalkerTranslucentTintStory>("tests/tooling/_ct-stories/WalkerTranslucentTintStory", {});
-  const findings = collectFindings(await samplesOf(page));
+  const samples = await samplesOf(page);
+  const findings = collectFindings(samples);
+  expect(sampledSelectors(samples.texts), "the walker must reach the subject for its clean verdict to mean anything").toContain(
+    "[data-testid=tinted-row-subtitle]",
+  );
 
   const onLine = findings.filter((f) => f.selector === "[data-testid=tinted-row-subtitle]");
   expect(onLine, `light text over a near-black base reads ~11:1 — every color finding here is fiction: ${JSON.stringify(onLine)}`).toEqual([]);
@@ -386,7 +393,14 @@ function accentRulesOn(findings: readonly Finding[], testId: string): string[] {
 
 test("the selected ListRow's left ember bar is exempt on BOTH of the primitive's carriers", async ({ mount, page }) => {
   await mount<typeof WalkerListRowSelectionStory>("tests/tooling/_ct-stories/WalkerListRowSelectionStory", {});
-  const findings = collectFindings(await samplesOf(page));
+  const samples = await samplesOf(page);
+  const findings = collectFindings(samples);
+  expect(sampledSelectors(samples.accentBorders), "the walker must reach the subject for its clean verdict to mean anything").toContain(
+    "[data-testid=ratified-selected-body]",
+  );
+  expect(sampledSelectors(samples.accentBorders), "the walker must reach the subject for its clean verdict to mean anything").toContain(
+    "[data-testid=ratified-selected-root]",
+  );
 
   const seen = JSON.stringify(findings.map((f) => `${f.rule} ${f.selector}`));
   expect(accentRulesOn(findings, "ratified-selected-body"), `the default rowTint arm is the ratified idiom — got ${seen}`).toEqual([]);
@@ -512,7 +526,9 @@ test("the a11y lens keeps seeing what the paint lens drops — a nameless sr-onl
 // (design-audit.ts) settles an unresolved backdrop from real pixels, or says NO VERDICT out loud.
 test("text over a translucent plate with a fixed art layer behind it gets NO css-resolved contrast verdict", async ({ mount, page }) => {
   await mount<typeof WalkerPaintLayerStory>("tests/tooling/_ct-stories/WalkerPaintLayerStory", {});
-  const findings = collectFindings(await samplesOf(page));
+  const samples = await samplesOf(page);
+  const findings = collectFindings(samples);
+  expect(sampledSelectors(samples.texts), "the walker must reach the subject for its clean verdict to mean anything").toContain("[data-testid=plate-line]");
 
   const onLine = findings.filter((f) => f.selector === "[data-testid=plate-line]");
   expect(onLine, `the DOM walk cannot know what the wallpaper paints — every verdict here is fabricated: ${JSON.stringify(onLine)}`).toEqual([]);
@@ -536,7 +552,11 @@ test("an opaque card with nothing painting over it is still judged — the refus
 // border/contrast family that 7e747bccdf fixed with the canvas normalizer.
 test("a legible oklch gradient backdrop mints nothing — its stops are known, so there is no art to bleed over", async ({ mount, page }) => {
   await mount<typeof WalkerGradientBackdropStory>("tests/tooling/_ct-stories/WalkerGradientBackdropStory", {});
-  const findings = collectFindings(await samplesOf(page));
+  const samples = await samplesOf(page);
+  const findings = collectFindings(samples);
+  expect(sampledSelectors(samples.texts), "the walker must reach the subject for its clean verdict to mean anything").toContain(
+    "[data-testid=oklch-gradient-line]",
+  );
 
   const onLine = findings.filter((f) => f.selector === "[data-testid=oklch-gradient-line]" && (f.rule === "text-over-art" || f.rule === "contrast"));
   expect(onLine, `near-white copy over a dark oklch ramp reads >13:1 against both stops — every finding here is fiction: ${JSON.stringify(onLine)}`).toEqual(
@@ -557,7 +577,11 @@ test("an illegible oklch gradient fails as a WORST-STOP ratio, not as an indeter
 
 test("the rgb-authored twin stays clean — the normalizer widened the parse, it did not change the math", async ({ mount, page }) => {
   await mount<typeof WalkerGradientBackdropStory>("tests/tooling/_ct-stories/WalkerGradientBackdropStory", {});
-  const findings = collectFindings(await samplesOf(page));
+  const samples = await samplesOf(page);
+  const findings = collectFindings(samples);
+  expect(sampledSelectors(samples.texts), "the walker must reach the subject for its clean verdict to mean anything").toContain(
+    "[data-testid=rgb-gradient-line]",
+  );
 
   const onLine = findings.filter((f) => f.selector === "[data-testid=rgb-gradient-line]" && (f.rule === "text-over-art" || f.rule === "contrast"));
   expect(onLine, `the rgb ramp was never blind and its contrast is the same ~14:1 — got ${JSON.stringify(onLine)}`).toEqual([]);
@@ -587,8 +611,12 @@ test("the visual families judge aria-hidden text — pixels do not consult the a
 test("the name/target census still skips aria-hidden — the split is per rule FAMILY, not global", async ({ mount, page }) => {
   await mount<typeof WalkerAriaHiddenVisualStory>("tests/tooling/_ct-stories/WalkerAriaHiddenVisualStory", {});
   const targets = await tapTargets(page);
-  const findings = collectFindings(await samplesOf(page));
+  const samples = await samplesOf(page);
+  const findings = collectFindings(samples);
 
+  expect(sampledSelectors(samples.texts), "the walker must reach the announced line for its clean verdict to mean anything").toContain(
+    "[data-testid=shown-legible-line]",
+  );
   expect(
     targets.map((t) => t.selector).filter((s) => s.includes("hidden-small-control")),
     "an aria-hidden button is not an offered target: the tap-target census is an ACCESSIBILITY question and must keep its skip",
@@ -1013,6 +1041,10 @@ test("the healthy twin produces no clipped-overflow finding — scroll panes, sr
   await mount<typeof WalkerClippedInflowControlStory>("tests/tooling/_ct-stories/WalkerClippedInflowControlStory", {});
   const samples = await samplesOf(page);
 
+  expect(
+    samples.clippedOverflows.some((entry) => !(entry.selector.includes("healthy") || entry.childSelector.includes("healthy"))),
+    "the census reaches the defective sibling in the same story, so a clean healthy twin is judged by a working walk",
+  ).toBe(true);
   expect(
     samples.clippedOverflows.filter((entry) => entry.selector.includes("healthy") || entry.childSelector.includes("healthy")),
     `a wrapping footer cuts nothing, a scroller SANCTIONS content outside its box (including the control scrolled out of view), an sr-only stub paints no pixels, and a badge in the padding is inside the clip — census: ${JSON.stringify(samples.clippedOverflows)}`,

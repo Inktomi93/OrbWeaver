@@ -44,6 +44,7 @@ test("the healthy twin sweeps clean — a scroll pane, an sr-only stub and a pad
   await mount<typeof WalkerClippedInflowControlStory>("tests/tooling/_ct-stories/WalkerClippedInflowControlStory", {});
   const probe = await sweep(page, "[data-testid=healthy-dialog]");
 
+  expect(probe.judged.length, "the sweep judged at least one side of the healthy box, so its empty escapes are a verdict").toBeGreaterThan(0);
   expect(
     probe.escapes,
     "a scroller SANCTIONS content outside its box (including the control scrolled out of view), an sr-only stub paints nothing, and a badge in the container's padding is inside the clip",

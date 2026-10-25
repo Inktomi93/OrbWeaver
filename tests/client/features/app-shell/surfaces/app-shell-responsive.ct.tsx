@@ -1,6 +1,7 @@
 // The shell at phone widths on the production registry: the You sheet and its handoffs, the one-shell screens and
 // their landmarks, the phone drawers and sheets, and the reading order of the tab bar.
 import { dispatchCommandKey, seedShellState } from "@orb/testkit/browser/spec";
+import { SECTION_LABELS } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { SNAPPED_LENGTH_BASE_PX, TOKENS } from "@orb/ui/tokens";
@@ -96,7 +97,7 @@ test.describe("the You sheet", () => {
     const drawer = sheet(page);
     await expect(drawer.locator('[data-slot="persona-who-head"]')).toContainText(current.name);
     await expect(drawer.locator("[data-switch-row-button]")).toHaveCount(0);
-    await expect(drawer.getByRole("button", { name: "Settings", exact: true })).toBeVisible();
+    await expect(drawer.getByRole("button", { name: SECTION_LABELS.settings, exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Switch theme" })).toHaveCount(0);
     const report = drawer.getByRole("button", { name: "Report a bug", exact: true });
     await expect(report).toHaveAttribute("aria-expanded", "false");
@@ -290,7 +291,7 @@ test.describe("one shell at the narrowest phone", () => {
     const tabBar = page.locator(".shell-rail");
     await tabBar.getByRole("button", { name: "Home", exact: true }).click();
     await expect(name).toBeHidden();
-    const characters = tabBar.getByRole("button", { name: "Characters", exact: true });
+    const characters = tabBar.getByRole("button", { name: SECTION_LABELS.characters, exact: true });
     await characters.click();
     await expect(name).toBeVisible();
     await expect(characters).toBeFocused();

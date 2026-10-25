@@ -1,3 +1,4 @@
+import { SECTION_LABELS } from "@orb/testkit/ct";
 import { expect, test } from "@playwright/test";
 import type { RegistryDoorStory, RuntimeLifetimeStory, RuntimeTeardownStory } from "./_mount-stories.tsx";
 
@@ -20,7 +21,7 @@ test("unmount releases the warmed cache held by the retired data owner", async (
 
 test("the real registry door supplies the authenticated command, palette and message-tool providers", async ({ mount, page }) => {
   await mount<typeof RegistryDoorStory>("tests/client/compose/_mount-stories/RegistryDoorStory", {});
-  await expect(page.getByText("Chats", { exact: true })).toBeVisible();
+  await expect(page.getByText(SECTION_LABELS.chats, { exact: true })).toBeVisible();
   await expect(page.getByText("Command door mounted", { exact: true })).toBeVisible();
   await expect(page.getByText("Palette door mounted", { exact: true })).toBeVisible();
   await expect(page.getByText("Message tools door mounted", { exact: true })).toBeVisible();

@@ -1,9 +1,10 @@
 import { blobIconUrl, blobUrl } from "@orb/contracts/assets";
 import { refineryScorePayloadSchema } from "@orb/contracts/refinery";
 import { projectJsonSchema } from "@orb/kit/json-schema";
-import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/ct";
+import { routeTrpc, serveCorpusProcedures, trpcError, trpcHold } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusWire } from "@orb/testkit/iso";
+import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { ConsoleMessage } from "@playwright/test";
 import type { SchemaPreviewStory } from "./_payload-stories.tsx";
 
@@ -29,11 +30,9 @@ test("schema preview retains settled expansion through rerenders and failures, t
   page,
 }, testInfo) => {
   const library = corpus.reads["character.list"][0]?.output;
-  const settings = corpus.reads["settings.getUserSettings"][0]?.output;
-  const viewer = corpus.reads["sessions.me"][0]?.output;
   const character = library?.items.find((item) => item.avatarHash === null);
-  if (library === undefined || settings === undefined || viewer === undefined || character === undefined) {
-    throw new Error("The committed corpus omitted the schema preview's owner and character library");
+  if (library === undefined || character === undefined) {
+    throw new Error("The committed corpus omitted the schema preview's character library");
   }
   const pictured = library.items.flatMap((item) => (item.avatarHash === null ? [] : [{ name: item.name, path: blobUrl(item.avatarHash) }]));
   expect(pictured.length).toBeGreaterThan(0);
@@ -57,12 +56,14 @@ test("schema preview retains settled expansion through rerenders and failures, t
   const failed = trpcHold<"refinery.testSchema">();
   const replaced = trpcHold<"refinery.testSchema">();
   let attempt = 0;
+  await using root = await createCorpusHarness();
   await routeTrpc(page, {
-    "settings.getUserSettings": () => settings,
-    "sessions.me": () => viewer,
-    "character.list": () => library,
-    "refinery.schemaPlan": () => null,
-    "refinery.testSchema": () => {
+    ...serveCorpusProcedures(await root.internalCallerFor(root.ownerId), ["settings.getUserSettings", "sessions.me", "character.list", "refinery.schemaPlan"]),
+    // The model's verdicts are scripted; the card they are asked about is the one the test picked.
+    "refinery.testSchema": ({ characterId }) => {
+      if (characterId !== character.id) {
+        return trpcError({ code: "NOT_FOUND" });
+      }
       attempt += 1;
       if (attempt === 1) {
         return first;

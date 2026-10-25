@@ -3,6 +3,7 @@ import { join } from "node:path";
 import type { CliResult } from "@orb/testkit/tooling";
 import { expect, test } from "@orb/testkit/tooling";
 import type { MeterData, StepReport } from "@orb/tooling/cpu-profile";
+import { APPEARANCE_PRESET_FLAG } from "@orb/tooling/floor/appearance/appearance-flags";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { BOX_LOAD_ENV } from "@orb/tooling/floor/host/load-budget";
 import type { AuditData } from "@orb/tooling/motion-audit";
@@ -220,7 +221,7 @@ test("malformed unified tape values and matrix-owned manual axes refuse at parse
   }
 
   const matrixAxes = [
-    ["--appearance-preset", "compact"],
+    [APPEARANCE_PRESET_FLAG, "compact"],
     ["--appearance", '{"density":"compact"}'],
     ["--theme", "none"],
     ["--mobile"],

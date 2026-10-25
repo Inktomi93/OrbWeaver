@@ -104,7 +104,7 @@ async function routeGroup(page: Page, group: FirstBootGroup, answered: CorpusRea
         "settings.getUserSettings": () => settings,
         // Only the Jobs list is held; the per-kind rebuild reads keep their own captures.
         "workloads.list": (input) => (input?.kind === undefined ? list : answered["workloads.list"](input)),
-        "workloads.listSchedules": () => schedules,
+        "workloads.listSchedules": schedules,
       });
       return {
         requested: Promise.all([settings.requested, list.requested, schedules.requested]),
@@ -123,7 +123,7 @@ async function routeGroup(page: Page, group: FirstBootGroup, answered: CorpusRea
       await routeTrpc(page, {
         ...answered,
         "connection.list": () => list,
-        "connection.listBindings": () => bindings,
+        "connection.listBindings": bindings,
         "connection.providersAvailable": () => providers,
         "credentials.list": () => credentials,
       });

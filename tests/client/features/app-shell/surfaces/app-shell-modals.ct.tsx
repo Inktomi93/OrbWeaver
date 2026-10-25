@@ -2,6 +2,7 @@
 // overflow inside the popup, Escape, and the theme, colorization and density the portal inherits from the shell.
 import type { ModalSlotId } from "@orb/client/state";
 import { MODAL_SLOT_IDS } from "@orb/client/state";
+import { SECTION_LABELS } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
@@ -93,7 +94,7 @@ test.describe("on the corpus owner's own settings", () => {
 
   test("closing New chat returns focus to the Chats list's New button that opened it", async ({ mount, page }) => {
     await mount<typeof AppShellStory>(STORY, {});
-    await page.locator(".shell-rail").getByRole("button", { name: "Chats", exact: true }).click();
+    await page.locator(".shell-rail").getByRole("button", { name: SECTION_LABELS.chats, exact: true }).click();
     const opener = page.locator('.shell-panel[data-panel-side="list"]').getByRole("button", { name: "New", exact: true });
     await opener.focus();
     await opener.press("Enter");

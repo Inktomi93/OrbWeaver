@@ -19,12 +19,14 @@
 //   • stream-open is observed on the wire (`stream-tap.ts`: the room's `chatOpened` frame); orb has no
 //     `chat-stream-state` testid.
 
-import { rowActionsName } from "@orb/client/lib";
+import { GAME_STRIP_LABEL, rowActionsName } from "@orb/client/lib";
+import { GROUP_OUTPUT_LABELS } from "@orb/contracts/chat";
 import type { ChatId, MessageId } from "@orb/kit/ids";
-import { HOST_BAND, openContextSections } from "@orb/testkit/ct";
+import { HOST_BAND, openContextSections, SECTION_LABELS } from "@orb/testkit/ct";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
+import { CHAT_CONTEXT_TABLIST_NAME } from "#client/features/chat/lib/chat-context-tab-labels.ts";
 import { streamTapOf, waitForRoomOpened } from "./stream-tap.ts";
 import { WAIT_SETTLE_MS, WAIT_SHORT_MS, WAIT_STREAM_MS, WAIT_SURFACE_MS } from "./timeouts.ts";
 
@@ -94,7 +96,7 @@ export async function waitForStreamOpen(page: Page, chatId: ChatId, since: numbe
  *  role+name lookup is a strict-mode violation on any DB whose landing shows the tiles — it went red the day
  *  the e2e stack stopped inheriting the dev DB's data. `exact` also keeps "Collapse Characters panel" out. */
 export function charactersRailButton(page: Page): Locator {
-  return page.getByRole("navigation", { name: "Primary" }).getByRole("button", { name: "Characters", exact: true });
+  return page.getByRole("navigation", { name: "Primary" }).getByRole("button", { name: SECTION_LABELS.characters, exact: true });
 }
 
 /** The RAIL's "Chats" nav button, scoped to the Primary navigation. Scoping is load-bearing the same way
@@ -102,7 +104,7 @@ export function charactersRailButton(page: Page): Locator {
  *  with the same accessible name, so an unscoped role+name lookup is a strict-mode violation on the home
  *  surface. `exact` keeps "Collapse Chats panel" and the like out. */
 function chatsRailButton(page: Page): Locator {
-  return page.getByRole("navigation", { name: "Primary" }).getByRole("button", { name: "Chats", exact: true });
+  return page.getByRole("navigation", { name: "Primary" }).getByRole("button", { name: SECTION_LABELS.chats, exact: true });
 }
 
 /** Land on the Chats SECTION and wait for its list to settle. The `aria-label="Chats list"` list surface
@@ -292,7 +294,7 @@ export async function openDetailPanel(page: Page): Promise<void> {
   // The panel is the context BRACKET in every room: the "Chat" header TABLIST of real tabs (the pane's one tab
   // strip), plus the "Game state" toolbar under it on a game chat. The "Chat" tablist is what means "the panel
   // is open" for a plain chat and a game chat alike.
-  const strip = page.getByRole("tablist", { name: "Chat" });
+  const strip = page.getByRole("tablist", { name: CHAT_CONTEXT_TABLIST_NAME });
   await expect(strip.first()).toBeVisible({ timeout: WAIT_SURFACE_MS });
 }
 
@@ -308,9 +310,9 @@ export async function openDetailPanel(page: Page): Promise<void> {
  */
 export async function openContextTab(page: Page, label: string): Promise<void> {
   const tab = page
-    .getByRole("tablist", { name: "Chat" })
+    .getByRole("tablist", { name: CHAT_CONTEXT_TABLIST_NAME })
     .getByRole("tab", { name: label, exact: true })
-    .or(page.getByRole("toolbar", { name: "Game state" }).getByRole("button", { name: label, exact: true }));
+    .or(page.getByRole("toolbar", { name: GAME_STRIP_LABEL }).getByRole("button", { name: label, exact: true }));
   await expect(tab).toBeVisible({ timeout: WAIT_SURFACE_MS });
   await tab.click();
 }
@@ -333,7 +335,7 @@ export async function openGroupBehaviorSection(page: Page): Promise<void> {
   // The section body suspends on `chat.getGroupConfig` behind a skeleton, so the HEADING lands before any
   // control exists. Gate on the reply-mode toggle — the first control of the resolved form — or a caller
   // acting immediately races the skeleton.
-  await expect(page.getByRole("button", { name: "Per-speaker", exact: true })).toBeVisible({ timeout: WAIT_SURFACE_MS });
+  await expect(page.getByRole("button", { name: GROUP_OUTPUT_LABELS["per-speaker"], exact: true })).toBeVisible({ timeout: WAIT_SURFACE_MS });
 }
 
 /** The character bar's chip locator (chat-character-bar.tsx) — one chip per PRESENT character, and the whole bar is

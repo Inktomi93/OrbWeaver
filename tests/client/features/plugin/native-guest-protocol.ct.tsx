@@ -9,7 +9,13 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusReadResponder, createCorpusViewerReadResponder } from "@orb/testkit/iso";
 import { makePluginRow, makePluginScriptedPage } from "@orb/testkit/node/helpers";
 import type { Page } from "@playwright/test";
+import { EXTENSIONS_GONE_TITLE } from "#client/features/plugin/lib/extensions-copy.ts";
 import type { PluginProtocolStory } from "./_ct-stories.tsx";
+
+/** The server refuses a plugin the owner does not have, so a request for any other id is a defect, not an answer. */
+function knownPlugin<const T>(pluginId: string, answer: T): (input: { readonly pluginId: string }) => T | ReturnType<typeof trpcError> {
+  return (input) => (input.pluginId === pluginId ? answer : trpcError({ code: "NOT_FOUND" }));
+}
 
 const OBSERVATIONS = "orb-native-plugin-protocol";
 const LOG_OBSERVATIONS = `${OBSERVATIONS}:logs`;
@@ -96,8 +102,7 @@ for (const mode of ["lines", "chars"] as const) {
       "sessions.me": createCorpusReadResponder("sessions.me", corpus.reads["sessions.me"]),
       "plugin.list": () => [plugin],
       "plugin.listSurfaces": () => [makePluginScriptedPage(plugin.id)],
-      "plugin.getSurfaceState": () => null,
-      "plugin.reportUiCrash": () => undefined,
+      "plugin.getSurfaceState": knownPlugin(plugin.id, null),
     });
     const expected: Extract<UiGuestOutbound, { kind: "log" }>[] =
       mode === "lines"
@@ -142,10 +147,10 @@ test("the native Worker exchanges boot, render, event, host-call/result and sett
     "sessions.me": createCorpusReadResponder("sessions.me", corpus.reads["sessions.me"]),
     "plugin.list": () => [plugin],
     "plugin.listSurfaces": () => surfaces,
-    "plugin.getSurfaceState": () => null,
+    "plugin.getSurfaceState": knownPlugin(plugin.id, null),
     "plugin.uiHostCall": (input) =>
       input.argsJson === '["refuse"]' ? trpcError({ message: RELAY_FAILURE_MESSAGE, code: "FORBIDDEN" }) : { resultJson: '"Native ledger"' },
-    "plugin.reportUiCrash": () => undefined,
+    "plugin.reportUiCrash": knownPlugin(plugin.id, undefined),
   });
   await page.route(`${PLUGIN_UI_ROUTE}/${plugin.id}`, (route) => route.fulfill({ contentType: "application/octet-stream", body: UI_SOURCE }));
   const retired: Promise<void>[] = [];
@@ -233,8 +238,8 @@ test("a native guest boot failure publishes ready:false and reports the original
     "sessions.me": createCorpusReadResponder("sessions.me", corpus.reads["sessions.me"]),
     "plugin.list": () => [plugin],
     "plugin.listSurfaces": () => [makePluginScriptedPage(plugin.id)],
-    "plugin.getSurfaceState": () => null,
-    "plugin.reportUiCrash": () => undefined,
+    "plugin.getSurfaceState": knownPlugin(plugin.id, null),
+    "plugin.reportUiCrash": knownPlugin(plugin.id, undefined),
   });
   let source = `throw new TypeError(${JSON.stringify(BOOT_FAILURE_MESSAGE)});`;
   await page.route(`${PLUGIN_UI_ROUTE}/${plugin.id}`, (route) => route.fulfill({ contentType: "application/octet-stream", body: source }));
@@ -317,7 +322,7 @@ test("the default shared corpus renders its native Ledger publication and captur
   expect(trpc.lastInput("plugin.getSurfaceState")).toEqual(active.reads.state.input);
   stage = library.ownerDisabled;
   await component.update({ runtimeEpoch: 1, pluginId: active.ids.pluginId, surfaceId: surface.id });
-  await expect(page.getByText("That page is no longer available", { exact: true })).toBeVisible();
+  await expect(page.getByText(EXTENSIONS_GONE_TITLE, { exact: true })).toBeVisible();
   await expect(attribution).toHaveCount(0);
   expect(errors).toEqual([]);
 });
@@ -351,9 +356,8 @@ memoryTest("native engine memory reservation refusal retires the real Worker wit
     "sessions.me": createCorpusReadResponder("sessions.me", corpus.reads["sessions.me"]),
     "plugin.list": () => [plugin],
     "plugin.listSurfaces": () => [makePluginScriptedPage(plugin.id)],
-    "plugin.getSurfaceState": () => null,
-    "plugin.uiHostCall": () => ({ resultJson: '"Native ledger"' }),
-    "plugin.reportUiCrash": () => undefined,
+    "plugin.getSurfaceState": knownPlugin(plugin.id, null),
+    "plugin.uiHostCall": knownPlugin(plugin.id, { resultJson: '"Native ledger"' }),
   });
   await page.route(`${PLUGIN_UI_ROUTE}/${plugin.id}`, (route) => route.fulfill({ contentType: "application/octet-stream", body: UI_SOURCE }));
   const pageErrors: string[] = [];

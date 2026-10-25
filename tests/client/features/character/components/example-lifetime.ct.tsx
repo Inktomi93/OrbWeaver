@@ -1,7 +1,6 @@
 import { blobUrl } from "@orb/contracts/assets";
 import { characterDetailSchema } from "@orb/contracts/character";
-import type { TrpcWireOutput } from "@orb/testkit/ct";
-import { routeTrpc } from "@orb/testkit/ct";
+import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { CharacterExampleLifetimeStory } from "./_example-lifetime-stories.tsx";
@@ -24,27 +23,20 @@ test("example preview retains native link consent for identical reads and drops 
   const caller = await root.internalCallerFor(root.ownerId);
   const characterId = characterDetailSchema.shape.id.parse(character.id);
   const firstText = `<START>\n![Example witness](${blobUrl(hashes[0])})\n[Read image](${blobUrl(hashes[0])})`;
-  let detail: TrpcWireOutput<"character.get"> = await caller.character.update({ characterId, input: { exampleMessages: firstText } });
+  await caller.character.update({ characterId, input: { exampleMessages: firstText } });
   await page.route("**/api/auth/config", (route) => route.fulfill({ json: corpus.auth.signedInConfig }));
-  const viewer = await caller.sessions.me();
-  const settings = await caller.settings.getUserSettings();
-  const activePresetId = settings.config.seeds.defaultPresetId;
-  if (activePresetId === null) {
-    throw new Error("Committed owner has no active preset");
-  }
-  const preset = await caller.preset.get({ id: activePresetId });
-  const chats = await caller.chat.listChats({ characterId, limit: 1 });
-  const scripts = await caller.regex.listForCharacter({ characterId });
-  const pendingTags = await caller.tag.listPendingSuggestions({ characterId });
-  await routeTrpc(page, {
-    "sessions.me": () => viewer,
-    "settings.getUserSettings": () => settings,
-    "character.get": () => detail,
-    "preset.get": () => preset,
-    "chat.listChats": () => chats,
-    "regex.listForCharacter": () => scripts,
-    "tag.listPendingSuggestions": () => pendingTags,
-  });
+  await routeTrpc(
+    page,
+    serveCorpusProcedures(caller, [
+      "sessions.me",
+      "settings.getUserSettings",
+      "character.get",
+      "preset.get",
+      "chat.listChats",
+      "regex.listForCharacter",
+      "tag.listPendingSuggestions",
+    ]),
+  );
   await corpusMedia();
   const component = await mount<typeof CharacterExampleLifetimeStory>(
     "tests/client/features/character/components/_example-lifetime-stories/CharacterExampleLifetimeStory",
@@ -68,7 +60,7 @@ test("example preview retains native link consent for identical reads and drops 
   const before = testInfo.outputPath("unchanged-example-consent.png");
   await page.screenshot({ path: before });
   await testInfo.attach("unchanged-example-consent", { path: before });
-  detail = await caller.character.update({
+  await caller.character.update({
     characterId,
     input: { exampleMessages: `<START>\n![Replacement witness](${blobUrl(hashes[1])})\n[Read replacement](${blobUrl(hashes[1])})` },
   });

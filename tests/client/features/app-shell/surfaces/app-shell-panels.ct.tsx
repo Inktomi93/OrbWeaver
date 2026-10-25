@@ -3,6 +3,7 @@
 // skip, focus around the panes, and the both-docked squeeze, all read off the rendered grid.
 import { readFileSync } from "node:fs";
 import { persistedOverrides, resolvedLength, seedShellState, shellTracks } from "@orb/testkit/browser/spec";
+import { SECTION_LABELS } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
@@ -231,7 +232,7 @@ test.describe("on a wide desktop", () => {
   test("the rail's Settings door routes the section and opens no dialog; no theme switch is left on the rail", async ({ mount, page }) => {
     await mount<typeof AppShellStory>(STORY, {});
     await expect(page.getByRole("button", { name: "Switch theme" })).toHaveCount(0);
-    const settings = rail(page).getByRole("button", { name: "Settings", exact: true });
+    const settings = rail(page).getByRole("button", { name: SECTION_LABELS.settings, exact: true });
     await settings.click();
     await expect(settings).toHaveAttribute("aria-current", "page");
     await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", "config");
@@ -298,7 +299,7 @@ test.describe("on a wide desktop", () => {
   test("keyboard rail navigation never pulls focus into the main column; it lands in the arriving section's list", async ({ mount, page }) => {
     await seedShellState(page, { activeSection: "home" });
     await mount<typeof AppShellStory>(STORY, {});
-    const chats = rail(page).getByRole("button", { name: "Chats", exact: true });
+    const chats = rail(page).getByRole("button", { name: SECTION_LABELS.chats, exact: true });
     await chats.focus();
     await chats.press("Enter");
     await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", "chats");
@@ -315,7 +316,7 @@ test.describe("on a wide desktop", () => {
     // A programmatic swap with nothing focused is the genuine focus-loss shape the rescue exists for.
     await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
     await rail(page)
-      .getByRole("button", { name: "Presets", exact: true })
+      .getByRole("button", { name: SECTION_LABELS.presets, exact: true })
       .evaluate((node) => node.dispatchEvent(new MouseEvent("click", { bubbles: true })));
     await expect(page.getByRole("main")).toBeFocused();
   });

@@ -24,7 +24,17 @@ import {
 } from "./security-policy.ts";
 import type { OrbRule } from "./syntax.ts";
 import { restrictionRule } from "./syntax.ts";
-import { CT_SPEC_RESTRICTIONS, TEST_FABRICATION_RESTRICTIONS } from "./test-policy.ts";
+import { ctNegativeOnlyCaseRule } from "./test-absence.ts";
+import type { ExportedLabel } from "./test-labels.ts";
+import { handCopiedLabelRule } from "./test-labels.ts";
+import {
+  CT_SPEC_RESTRICTIONS,
+  CT_STORY_ROOT_RESTRICTIONS,
+  shellDomSelectors,
+  TEST_APPEARANCE_RESTRICTIONS,
+  TEST_FABRICATION_RESTRICTIONS,
+} from "./test-policy.ts";
+import { ctResponderReadsInputRule } from "./test-routes.ts";
 import { ctPollIntervalsSharedRule, evaluateNoScopeCaptureRule, typedTestIdRule, uiCtColorRule } from "./tests.ts";
 import type { AppearanceVocabulary } from "./ui-appearance.ts";
 import { appearanceNameRule } from "./ui-appearance.ts";
@@ -52,6 +62,8 @@ import { darkVariantRule, noStaticStylePropRule, offTokenInlineStyleRule, recede
 
 export { authorClassIgnores } from "./css-classes.ts";
 export { baseUiDoors } from "./motion.ts";
+export { shellOwnedSlots } from "./shell-slots.ts";
+export { exportedLabels } from "./test-labels.ts";
 export { classClassifier } from "./ui-feature-classname.ts";
 
 const LOCAL_RESTRICTIONS = [
@@ -75,6 +87,8 @@ const LOCAL_RESTRICTIONS = [
   CLIENT_SEAL_RESTRICTIONS,
   PORTAL_FLOAT_RESTRICTIONS,
   CT_SPEC_RESTRICTIONS,
+  TEST_APPEARANCE_RESTRICTIONS,
+  CT_STORY_ROOT_RESTRICTIONS,
   SERVER_HARD_RESTRICTIONS,
   DB_SCHEMA_RESTRICTIONS,
   UI_PRIMITIVE_RESTRICTIONS,
@@ -88,6 +102,8 @@ export function createOrbPlugin(options: {
   browserNodeGlobals: ReadonlySet<string>;
   floorlessButtonSizes: ReadonlySet<string>;
   shellClasses: ReadonlySet<string>;
+  shellSlots: ReadonlySet<string>;
+  exportedLabels: ReadonlyMap<string, ExportedLabel>;
   appearanceVocabulary: AppearanceVocabulary;
   /** Compat keys some browser floor lacks (`unsupportedAtFloor`). */
   browserUnsupported: ReadonlyMap<string, readonly string[]>;
@@ -107,6 +123,7 @@ export function createOrbPlugin(options: {
     rules: {
       ...Object.fromEntries(LOCAL_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)] as const)),
       "no-raw-intrinsic-paint": rawIntrinsicPaintRule(options.shellClasses),
+      "no-hand-built-shell-dom": restrictionRule({ selectors: shellDomSelectors(options.shellSlots) }),
       "appearance-name-in-manifest": appearanceNameRule(options.appearanceVocabulary),
       "custom-property-declared": customPropertyDeclaredRule(options.customProperties),
       "feature-classname-layout-only": featureClassNameLayoutOnlyRule(options.classifyClass),
@@ -144,6 +161,9 @@ export function createOrbPlugin(options: {
         'Freeform data-testid string in a CT story; use storyTestId("key") for a story-only id or testId("key") for a production id.',
       ),
       "ct-poll-intervals-shared": ctPollIntervalsSharedRule,
+      "ct-responder-reads-input": ctResponderReadsInputRule,
+      "ct-negative-only-case": ctNegativeOnlyCaseRule,
+      "no-hand-copied-label": handCopiedLabelRule(options.exportedLabels),
       "no-floorless-control-in-wrap": floorlessControlRule(options.floorlessButtonSizes),
       "evaluate-no-scope-capture": evaluateNoScopeCaptureRule,
       "assumes-single-replica": assumesSingleReplicaRule,

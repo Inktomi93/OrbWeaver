@@ -88,7 +88,9 @@ test("control: under the served app policy a same-origin self-navigation still l
 
 test("a card link navigating the frame off-origin is blocked by the served app policy", async ({ room, page }) => {
   const hits = await openProbe(page, await room.serve(`<a href="${EXTERNAL_URL}">go</a>`, null), await room.appPolicy());
-  await page.frameLocator("#card").getByRole("link", { name: "go" }).click();
+  const link = page.frameLocator("#card").getByRole("link", { name: "go" });
+  await expect(link).toBeVisible();
+  await link.click();
   await settleNavigation(page);
   expect(hits).toEqual([]);
 });
@@ -106,7 +108,9 @@ test("a card form submission is blocked even when the embedder's frame-src is op
   // Under the widened embedder policy the frame may go anywhere, so the card's sandbox (no allow-forms) and its own
   // form-action are what stand in the way; the first control shows the widened policy lets a link through.
   const hits = await openProbe(page, served, await widenedFramePolicy(room));
-  await page.frameLocator("#card").getByRole("button", { name: "send" }).click();
+  const send = page.frameLocator("#card").getByRole("button", { name: "send" });
+  await expect(send).toBeVisible();
+  await send.click();
   await settleNavigation(page);
   expect(hits).toEqual([]);
 });
@@ -114,6 +118,7 @@ test("a card form submission is blocked even when the embedder's frame-src is op
 test("a card meta refresh off-origin is blocked, with no script involved", async ({ room, page }) => {
   const served = await room.serve(`<meta http-equiv="refresh" content="0;url=${EXTERNAL_URL}"><p>refreshing</p>`, null);
   const hits = await openProbe(page, served, await room.appPolicy());
+  await expect(page.locator("#card")).toBeVisible();
   await settleNavigation(page);
   expect(hits).toEqual([]);
 });
@@ -142,6 +147,7 @@ test("an interactive card runs its script and still reaches no top or popup navi
 test("an interactive card's script-driven self navigation off-origin is refused like the link", async ({ room, page }) => {
   const served = await room.serve(`<p>lab</p><script>location.href=${JSON.stringify(`${EXTERNAL_URL}?via=self`)};</script>`);
   const hits = await openProbe(page, served, await room.appPolicy());
+  await expect(page.locator("#card")).toBeVisible();
   await settleNavigation(page);
   expect(hits).toEqual([]);
   // Chromium leaves a CSP-refused frame navigation at an empty about:blank rather than at the card.
@@ -152,6 +158,7 @@ test("an interactive card's meta refresh is refused exactly as under the static 
   const served = await room.serve(`<meta http-equiv="refresh" content="0;url=${EXTERNAL_URL}"><p>refreshing</p>`);
   expect(served.granted.interactive).toBe(true);
   const hits = await openProbe(page, served, await room.appPolicy());
+  await expect(page.locator("#card")).toBeVisible();
   await settleNavigation(page);
   expect(hits).toEqual([]);
 });

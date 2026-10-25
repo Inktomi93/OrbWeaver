@@ -1,5 +1,6 @@
 import { ListPaneHeaderHost } from "@orb/client/components";
 import type { ListPaneHeaderView } from "@orb/client/lib";
+import { CtIsolation } from "@orb/testkit/browser";
 import { Button } from "@orb/ui/button";
 import { Row } from "@orb/ui/layout";
 import type { ReactElement } from "react";
@@ -31,8 +32,10 @@ export function ListPaneHeaderStory({ title, accent, count, withBack = false, wi
     overlay: backs === 0 && actions === 0 ? null : <output>{`Back activated ${String(backs)}; action activated ${String(actions)}`}</output>,
   };
   return (
-    <Row align="center" justify="between" style={{ width }}>
-      <ListPaneHeaderHost useView={(): ListPaneHeaderView => view} />
-    </Row>
+    <CtIsolation subject="ListPaneHeaderHost" isolates="The host renders the view it is given and reads no application data.">
+      <Row align="center" justify="between" style={{ width }}>
+        <ListPaneHeaderHost useView={(): ListPaneHeaderView => view} />
+      </Row>
+    </CtIsolation>
   );
 }

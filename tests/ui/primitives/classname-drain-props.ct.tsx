@@ -104,7 +104,7 @@ for (const pointer of [
       expect(await floored(component.locator('[data-case="stack-block"]'), "min-block-size")).toBe(coarse);
       expect(await floored(component.getByRole("button", { name: "glyph chip", exact: true }), "min-inline-size")).toBe(coarse);
       expect(await floored(component.locator('[data-slot="badge"]'), "min-block-size")).toBe(coarse);
-      expect(await floored(component.getByRole("button", { name: "Tool calls", exact: true }), "min-block-size")).toBe(coarse);
+      expect(await floored(component.getByRole("button", { name: "Tool chip", exact: true }), "min-block-size")).toBe(coarse);
       const blockGap = await style(component.locator('[data-probe="block-gap"]'), "inline-size");
       expect((await style(component.locator('[data-case="row-gap"]'), "column-gap")) === blockGap).toBe(coarse);
     });

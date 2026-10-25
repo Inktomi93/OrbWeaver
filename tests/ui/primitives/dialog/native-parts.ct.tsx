@@ -4,7 +4,7 @@ import type { DialogNativePartsStory } from "./_native-parts-stories.tsx";
 test("the dialog transition names opacity and scale", async ({ mount, page }) => {
   await mount<typeof DialogNativePartsStory>("tests/ui/primitives/dialog/_native-parts-stories/DialogNativePartsStory");
   await page.getByRole("button", { name: "Open remotely", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "Settings", exact: true });
+  const dialog = page.getByRole("dialog", { name: "Remote dialog", exact: true });
   await expect(dialog).toBeVisible();
   // An unpolled read: a retrying matcher would wait out the fade and pass.
   expect(await dialog.evaluate((node) => getComputedStyle(node).transitionProperty)).toBe("opacity, scale");
@@ -12,7 +12,7 @@ test("the dialog transition names opacity and scale", async ({ mount, page }) =>
 
 test("imperative and detached dialog sources deliver their own accessible description", async ({ mount, page }) => {
   await mount<typeof DialogNativePartsStory>("tests/ui/primitives/dialog/_native-parts-stories/DialogNativePartsStory");
-  const dialog = page.getByRole("dialog", { name: "Settings", exact: true });
+  const dialog = page.getByRole("dialog", { name: "Remote dialog", exact: true });
   await expect(dialog).toBeHidden();
   await page.getByRole("button", { name: "Open remotely", exact: true }).click();
   await expect(dialog).toBeVisible();

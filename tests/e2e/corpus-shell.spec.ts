@@ -4,6 +4,7 @@ import { CORPUS_MODE_LABELS } from "@orb/client/lib";
 import { HOME_QUICK_PICKS_LIMIT } from "@orb/contracts/character";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { SECTION_LABELS } from "@orb/testkit/ct";
 import type { Locator, Page } from "@playwright/test";
 import type { ActorClient } from "./support/actors.ts";
 import { ownerActor } from "./support/actors.ts";
@@ -356,7 +357,7 @@ test.describe("committed corpus shell", () => {
   test("a desktop Settings roster stays docked beside CONTENT with no Back row", { tag: "@smoke" }, async ({ page, isMobile }) => {
     test.skip(isMobile, "The control arm of the phone's push: the desktop regime");
     await openHome(page);
-    await rail(page).getByRole("button", { name: "Settings", exact: true }).click();
+    await rail(page).getByRole("button", { name: SECTION_LABELS.settings, exact: true }).click();
     const list = listPanel(page);
     await expect(list).toHaveAttribute("data-panel-mode", "docked");
     const box = await list.boundingBox();
@@ -382,12 +383,12 @@ test.describe("committed corpus shell on a phone", () => {
     for (const name of PHONE_BAR) {
       await expect(bar.getByRole("button", { name, exact: true })).toBeVisible();
     }
-    await expect(bar.getByRole("button", { name: "Corpus", exact: true })).toHaveCount(0);
+    await expect(bar.getByRole("button", { name: SECTION_LABELS.corpus, exact: true })).toHaveCount(0);
     await expect(bar.getByRole("button", { name: "Refinery", exact: true })).toHaveCount(0);
     await expect(bar.getByRole("button")).toHaveCount(PHONE_BAR.length);
 
-    await bar.getByRole("button", { name: "Characters", exact: true }).click();
-    await expect(bar.getByRole("button", { name: "Characters", exact: true })).toHaveAttribute("aria-current", "page");
+    await bar.getByRole("button", { name: SECTION_LABELS.characters, exact: true }).click();
+    await expect(bar.getByRole("button", { name: SECTION_LABELS.characters, exact: true })).toHaveAttribute("aria-current", "page");
     await expect(page.getByRole("textbox", { name: "Search characters", exact: true })).toBeVisible();
     await expect(page.getByRole("main", { name: "Home content" })).toBeHidden();
   });
@@ -398,19 +399,19 @@ test.describe("committed corpus shell on a phone", () => {
     await rail(page).getByRole("button", { name: "You", exact: true }).click();
     const sheet = page.getByRole("dialog");
     await expect(sheet).toBeVisible();
-    await expect(sheet.getByRole("button", { name: "Settings", exact: true })).toBeVisible();
+    await expect(sheet.getByRole("button", { name: SECTION_LABELS.settings, exact: true })).toBeVisible();
     await expect(sheet.getByRole("button", { name: "Refinery", exact: true })).toBeVisible();
 
-    await sheet.getByRole("button", { name: "Presets", exact: true }).click();
+    await sheet.getByRole("button", { name: SECTION_LABELS.presets, exact: true }).click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await expect(page.locator(GRID)).toHaveAttribute("data-section", "presets");
 
     await rail(page).getByRole("button", { name: "You", exact: true }).click();
-    await page.getByRole("dialog").getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByRole("dialog").getByRole("button", { name: SECTION_LABELS.settings, exact: true }).click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
     // On a phone the roster is the screen, so the Settings roster carries the one main landmark.
-    await expect(page.getByRole("main", { name: "Settings", exact: true }).getByRole("region", { name: "Settings groups" })).toBeVisible();
-    await expect(rail(page).getByRole("button", { name: "Settings", exact: true })).toHaveAttribute("aria-current", "page");
+    await expect(page.getByRole("main", { name: SECTION_LABELS.settings, exact: true }).getByRole("region", { name: "Settings groups" })).toBeVisible();
+    await expect(rail(page).getByRole("button", { name: SECTION_LABELS.settings, exact: true })).toHaveAttribute("aria-current", "page");
   });
 
   test("a roster is the screen, a real row pushes its member with one Back, and Back pops it", { tag: "@smoke" }, async ({ page, baseURL, isMobile }) => {
@@ -563,7 +564,7 @@ test.describe("committed corpus shell on a phone", () => {
 
       await rail(page).getByRole("button", { name: "Home", exact: true }).click();
       await expect(name).toBeHidden();
-      await rail(page).getByRole("button", { name: "Characters", exact: true }).click();
+      await rail(page).getByRole("button", { name: SECTION_LABELS.characters, exact: true }).click();
       await expect(name).toHaveValue(PROBE_DRAFT);
       await expect.poll(() => scroller.evaluate((node) => node.scrollTop)).toBe(offset);
       await update.release();

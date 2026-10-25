@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { staticImportGraph, unsupportedAtFloor, withoutPolyfilled } from "@orb/tooling/browser-support";
-import { authorClassIgnores, baseUiDoors, classClassifier, createOrbPlugin } from "@orb/tooling/eslint";
+import { authorClassIgnores, baseUiDoors, classClassifier, createOrbPlugin, exportedLabels, shellOwnedSlots } from "@orb/tooling/eslint";
 import { BUTTON_SIZE_OVERFLOW } from "@orb/ui/button/size-hit-area";
 import { TOKENS } from "@orb/ui/tokens";
 import pluginQuery from "@tanstack/eslint-plugin-query";
@@ -764,6 +764,8 @@ const localPlugin = createOrbPlugin({
       .map(([size]) => size),
   ),
   shellClasses: new Set(OWNER_CSS_SHELL_CLASSES),
+  shellSlots: shellOwnedSlots(ROOT),
+  exportedLabels: exportedLabels(ROOT),
   appearanceVocabulary: appearanceChannelVocabulary(),
   browserUnsupported: withoutPolyfilled(UNSUPPORTED_AT_FLOOR, POLYFILLED_BUILTINS),
   browserUnsupportedBeforePolyfills: UNSUPPORTED_AT_FLOOR,
@@ -772,6 +774,12 @@ const localPlugin = createOrbPlugin({
   customProperties: customPropertyUses(ROOT),
   classifyClass: classClassifier((classes) => designSystem.candidatesToCss(classes)),
 });
+const APPEARANCE_LITERAL_FIXTURES = [
+  "tests/tooling/eslint-appearance-name.test.ts",
+  "tests/tooling/eslint-custom-property-declared.test.ts",
+  "tests/tooling/eslint-test-authoring.test.ts",
+  "tests/tooling/stylelint-rules.test.ts",
+];
 // The only files that may spell a portal-float z token: each is a surface that portals to
 // [data-slot="portal-root"] or mounts at the document root. A new consumer is a finding, not an entry here.
 const PORTAL_FLOAT_HOMES = {
@@ -1476,6 +1484,23 @@ export default [
     rules: { "orb/session-channel-boundary": "error" },
   },
   { files: ["tests/**/*.{ts,tsx}"], plugins: { orb: localPlugin }, rules: { "orb/ct-poll-intervals-shared": "error" } },
+  { files: ["tests/**/*.{ts,tsx}"], plugins: { orb: localPlugin }, rules: { "orb/ct-responder-reads-input": "error" } },
+  {
+    // The planted channel names of these files are the lint fixtures their rules are proven against.
+    files: ["tests/**/*.{ts,tsx}"],
+    ignores: APPEARANCE_LITERAL_FIXTURES,
+    plugins: { orb: localPlugin },
+    rules: { "orb/no-hand-typed-appearance-channel": "error" },
+  },
+  { files: ["tests/**/*.ct.tsx", "tests/e2e/**/*.spec.ts"], plugins: { orb: localPlugin }, rules: { "orb/ct-negative-only-case": "error" } },
+  { files: ["tests/**/*.ct.tsx", "tests/e2e/**/*.ts"], plugins: { orb: localPlugin }, rules: { "orb/no-hand-copied-label": "error" } },
+  { files: ["tests/ui/**/*-stories.tsx", "tests/client/**/*-stories.tsx"], plugins: { orb: localPlugin }, rules: { "orb/ct-story-root-composition": "error" } },
+  {
+    files: ["tests/**/*-stories.tsx", "tests/**/*.stories.tsx"],
+    ignores: ["tests/client/features/app-shell/**"],
+    plugins: { orb: localPlugin },
+    rules: { "orb/no-hand-built-shell-dom": "error" },
+  },
   { files: ["tests/ui/**/*.ct.tsx"], plugins: { orb: localPlugin }, rules: { "orb/ui-ct-no-color-literal": "error" } },
   { files: [PLUGIN_MEMBRANE], plugins: { orb: localPlugin }, rules: { "orb/plugin-dump-guard": "error" } },
   { files: ["packages/contracts/src/plugin/**/*.ts"], plugins: { orb: localPlugin }, rules: { "orb/sandbox-wire-id": "error" } },

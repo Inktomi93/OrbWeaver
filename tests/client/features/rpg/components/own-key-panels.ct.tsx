@@ -7,7 +7,7 @@ import type { RpgStatProfile } from "@orb/contracts/rpg";
 import { RPG_PROFILE_D20, rpgAttributeModifier, rpgNpcSlug, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/ct";
-import { routeTrpc } from "@orb/testkit/ct";
+import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
 import { UNSET_DATUM } from "#client/features/rpg/lib/unset-datum.ts";
@@ -54,7 +54,6 @@ async function gameRoom(root: Awaited<ReturnType<typeof createCorpusHarness>>): 
   const profile = { ...born, attributes: [...born.attributes, { key: INHERITED_KEY, label: LABEL, hint: "" }] };
   const tracker = rpgTrackerDefSchema.parse({ key: INHERITED_KEY, label: LABEL, shape: "meter", write: "delta", subject: "actor", max: TRACKER_MAX });
   await caller.rpg.updateConfig({ chatId, patch: { statProfile: profile, trackers: [...config.trackers, tracker] } });
-  const viewer = await caller.sessions.me();
   const owner = { kind: "user", userId: root.ownerId } as const;
   const other = RPG_PROFILE_D20.attributes[0];
   if (other === undefined) {
@@ -72,26 +71,18 @@ async function gameRoom(root: Awaited<ReturnType<typeof createCorpusHarness>>): 
   return {
     chatId,
     profile,
-    reads: async (): Promise<Reads> => {
-      const settings = await caller.settings.getUserSettings();
-      const detail = await caller.chat.getChat({ chatId });
-      const gameView = await caller.rpg.getGame({ chatId });
-      const trackerView = await caller.rpg.getTrackerView({ chatId });
-      const messages = await caller.chat.listMessages({ chatId });
-      const reveal = await caller.rpg.revealHidden({ chatId });
-      return {
-        tracker: trackerView,
-        routes: {
-          "sessions.me": () => viewer,
-          "settings.getUserSettings": () => settings,
-          "chat.getChat": () => detail,
-          "chat.listMessages": () => messages,
-          "rpg.getGame": () => gameView,
-          "rpg.getTrackerView": () => trackerView,
-          "rpg.revealHidden": () => reveal,
-        },
-      };
-    },
+    reads: async (): Promise<Reads> => ({
+      tracker: await caller.rpg.getTrackerView({ chatId }),
+      routes: serveCorpusProcedures(caller, [
+        "sessions.me",
+        "settings.getUserSettings",
+        "chat.getChat",
+        "chat.listMessages",
+        "rpg.getGame",
+        "rpg.getTrackerView",
+        "rpg.revealHidden",
+      ]),
+    }),
     setInheritedValues: async (): Promise<void> => {
       await caller.rpg.patchSheet({ chatId, actorRef: owner, patch: { attributes: { [INHERITED_KEY]: SCORE } } });
       for (const actor of (await caller.rpg.getTrackerView({ chatId })).actors) {
