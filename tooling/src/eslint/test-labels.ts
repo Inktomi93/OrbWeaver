@@ -3,6 +3,7 @@ import { join } from "node:path";
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
 import ts from "typescript";
+import { staticTextValue } from "./static-values.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 
 // Production modules whose exported strings are names a user can read: a spec locates a control by the exported value.
@@ -89,13 +90,6 @@ export function exportedLabels(root: string): ReadonlyMap<string, ExportedLabel>
   );
 }
 
-function stringValue(node: TSESTree.Node | undefined): string | undefined {
-  if (node?.type === "Literal" && typeof node.value === "string") {
-    return node.value;
-  }
-  return node?.type === "TemplateLiteral" && node.expressions.length === 0 ? (node.quasis[0]?.value.cooked ?? undefined) : undefined;
-}
-
 function nameOption(options: TSESTree.CallExpressionArgument | undefined): TSESTree.Node | undefined {
   if (options?.type !== "ObjectExpression") {
     return undefined;
@@ -114,7 +108,7 @@ function locatedName(call: TSESTree.CallExpression): TSESTree.Node | undefined {
   if (callee.type !== "MemberExpression" || callee.computed || callee.property.type !== "Identifier") {
     return undefined;
   }
-  if (callee.property.name === "getByLabel" || callee.property.name === "getByText") {
+  if (callee.property.name === "getByLabel" || callee.property.name === "getByText" || callee.property.name === "toHaveAccessibleName") {
     return call.arguments[0];
   }
   return callee.property.name === "getByRole" ? nameOption(call.arguments[1]) : undefined;
@@ -127,8 +121,8 @@ export function handCopiedLabelRule(labels: ReadonlyMap<string, ExportedLabel>):
       return {
         "CallExpression[callee.type='MemberExpression']"(call: TSESTree.CallExpression): void {
           const name = locatedName(call);
-          const value = stringValue(name);
-          const owner = value === undefined ? undefined : labels.get(value);
+          const value = name === undefined ? undefined : staticTextValue(context, name);
+          const owner = typeof value === "string" ? labels.get(value) : undefined;
           if (name !== undefined && owner !== undefined) {
             context.report({
               node: name,

@@ -92,6 +92,9 @@ test.for([
 });
 
 test.for([
+  ["a hoisted label", `const label = "View raw source"; await page.getByText(label).click();`, SPEC, 1, "control-labels.ts"],
+  ["an accessible-name assertion", `await expect(control).toHaveAccessibleName("View raw source");`, SPEC, 1, "control-labels.ts"],
+  ["an imported accessible name", "await expect(control).toHaveAccessibleName(IMMERSIVE_CARD_LABELS.rawSource);", SPEC, 0, ""],
   ["a role name typed by hand", `await page.getByRole("button", { name: "View raw source" }).click();`, SPEC, 1, "control-labels.ts"],
   ["a label typed by hand", `await page.getByLabel("Open card fullscreen").click();`, SPEC, 1, "IMMERSIVE_CARD_LABELS.fullscreen"],
   ["a name in a plain template", "await page.getByRole('button', { name: `Collapse card` }).click();", SPEC, 1, "IMMERSIVE_CARD_LABELS.collapse"],
@@ -109,6 +112,9 @@ test.for([
 const caseOf = (body: string): string => `test("probe", async ({ page }) => {\n${body}\n});`;
 
 test.for([
+  ["a null equality only", caseOf("expect(await lookup(page)).toBe(null);"), 1],
+  ["a falsy only", caseOf("expect(await lookup(page)).toBeFalsy();"), 1],
+  ["a negated falsy control", caseOf("expect(await lookup(page)).not.toBeFalsy(); await expect(a).toHaveCount(0);"), 0],
   ["a null only", caseOf("expect(await lookup(page)).toBeNull();"), 1],
   ["an undefined only", caseOf("expect(await lookup(page)).toBeUndefined();"), 1],
   [

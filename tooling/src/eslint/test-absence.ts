@@ -46,7 +46,7 @@ const LOCATOR_MATCHERS = new Set([
   "toHaveAccessibleDescription",
 ]);
 // Matchers that assert emptiness; negated, they assert presence.
-const EMPTY_MATCHERS = new Set(["toBeHidden", "toBeEmpty", "toBeNull", "toBeUndefined"]);
+const EMPTY_MATCHERS = new Set(["toBeHidden", "toBeEmpty", "toBeNull", "toBeUndefined", "toBeFalsy"]);
 const COUNT_MATCHERS = new Set(["toHaveCount", "toHaveLength"]);
 const EQUAL_MATCHERS = new Set(["toEqual", "toStrictEqual"]);
 
@@ -97,6 +97,9 @@ function provesAbsence({ matcher, negated, argument }: Assertion): boolean {
     return LOCATOR_MATCHERS.has(matcher);
   }
   if (EMPTY_MATCHERS.has(matcher)) {
+    return true;
+  }
+  if (matcher === "toBe" && argument?.type === "Literal" && argument.value === null) {
     return true;
   }
   if (COUNT_MATCHERS.has(matcher)) {

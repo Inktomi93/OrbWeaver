@@ -24,4 +24,4 @@ Each form has a planted red case in eslint-ct-responder.test.ts or eslint-test-a
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The [acceptance map](../reviews/test-enforcement-closeout.md) records implementation, controls, commands and limits. Main owns whole-tree acceptance.

@@ -86,6 +86,16 @@ async function findings(body: string, header = ""): Promise<readonly Linter.Lint
 }
 
 test.for([
+  [
+    "a fixed responder factory",
+    `const always = (rows: readonly string[]) => (_input: { id: string }) => rows; await routeTrpc(page, { "a.list": always(["x"]) });`,
+    1,
+  ],
+  ["a named function ignoring input", `function answer(_input: { id: string }) { return ["x"]; } await routeTrpc(page, { "a.list": answer });`, 1],
+  ["a discarded comma operand", `await routeTrpc(page, { "a.list": input => (input, ["x"]) });`, 1],
+  ["a dead alias", `await routeTrpc(page, { "a.list": input => { const unused = input; return ["x"]; } });`, 1],
+  ["a computed typed key", `const key = "a.list"; const reads: TrpcRoutes<"a.list"> = { [key]: ["x"] }; void reads;`, 1],
+  ["a typed wrapper receiving an untyped map", `function wrap(reads: TrpcRoutes) { return reads; } const reads = { "a.list": ["x"] }; wrap(reads);`, 1],
   ["a fixed array for a procedure that takes a request", `await routeTrpc(page, { "a.list": ["x"] });`, 1],
   ["a responder that ignores the request", `await routeTrpc(page, { "a.list": () => ["x"] });`, 1],
   ["a responder whose parameter is never read", `await routeTrpc(page, { "a.list": (_request) => ["x"] });`, 1],
@@ -113,6 +123,15 @@ test.for([
 });
 
 test.for([
+  ["a comma expression retaining the input", `await routeTrpc(page, { "a.list": input => (0, [input.id]) });`],
+  ["a computed typed key reading input", `const key = "a.list"; const reads: TrpcRoutes<"a.list"> = { [key]: input => [input.id] }; void reads;`],
+  [
+    "a typed wrapper receiving a request-aware map",
+    `function wrap(reads: TrpcRoutes) { return reads; } const reads = { "a.list": (input: { id: string }) => [input.id] }; wrap(reads);`,
+  ],
+  ["a named function reading input", `function answer(input: { id: string }) { return [input.id]; } await routeTrpc(page, { "a.list": answer });`],
+  ["a live alias", `await routeTrpc(page, { "a.list": input => { const alias = input; return [alias.id]; } });`],
+  ["a request-aware factory", `const select = () => (input: { id: string }) => [input.id]; await routeTrpc(page, { "a.list": select() });`],
   ["a responder that reads the request", `await routeTrpc(page, { "a.list": ({ id }) => [id] });`],
   ["a procedure that takes no request", `await routeTrpc(page, { "a.ping": () => "pong" });`],
   ["a failure that depends on the request", `await routeTrpc(page, { "a.list": ({ id }) => (id === "dead" ? trpcError() : ["y"]) });`],

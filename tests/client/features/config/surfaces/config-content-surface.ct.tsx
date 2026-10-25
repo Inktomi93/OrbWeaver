@@ -1,19 +1,19 @@
-import { routeTrpc, trpcHold } from "@orb/testkit/ct";
+import { holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import { createCorpusReadResponder } from "@orb/testkit/iso";
+import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { ConfigAnchorStory } from "./_anchor-stories.tsx";
 
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
 });
 
-test("a registered delayed body still receives its canonical anchor and lands visibly", async ({ corpus, mount, page }) => {
-  const settings = createCorpusReadResponder("settings.getUserSettings", corpus.reads["settings.getUserSettings"]);
-  const hold = trpcHold<"settings.getUserSettings">();
+test("a registered delayed body still receives its canonical anchor and lands visibly", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const hold = holdServed();
   await routeTrpc(page, {
-    "sessions.me": createCorpusReadResponder("sessions.me", corpus.reads["sessions.me"]),
-    "settings.getUserSettings": () => hold,
-    "settings.listThemes": createCorpusReadResponder("settings.listThemes", corpus.reads["settings.listThemes"]),
+    ...serveCorpusProcedures(caller, ["sessions.me", "settings.listThemes"]),
+    ...serveCorpusProcedures(caller, ["settings.getUserSettings"], () => hold),
   });
   await mount<typeof ConfigAnchorStory>("tests/client/features/config/surfaces/_anchor-stories/ConfigAnchorStory", {});
   await hold.requested;
@@ -24,20 +24,20 @@ test("a registered delayed body still receives its canonical anchor and lands vi
   }
   await jump.click();
   await expect(page.locator(`[id="${target}"]`)).toHaveCount(0);
-  hold.release(settings(undefined));
+  hold.release();
   const anchor = page.locator(`[id="${target}"]`);
   await expect(anchor).toBeVisible();
   await expect(anchor).toHaveCSS("box-shadow", /inset/u);
   await expect(anchor).toBeInViewport();
 });
 
-test("a superseded delayed anchor cannot flash or scroll after its read arrives", async ({ corpus, mount, page }) => {
-  const settings = createCorpusReadResponder("settings.getUserSettings", corpus.reads["settings.getUserSettings"]);
-  const hold = trpcHold<"settings.getUserSettings">();
+test("a superseded delayed anchor cannot flash or scroll after its read arrives", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const hold = holdServed();
   await routeTrpc(page, {
-    "sessions.me": createCorpusReadResponder("sessions.me", corpus.reads["sessions.me"]),
-    "settings.getUserSettings": () => hold,
-    "settings.listThemes": createCorpusReadResponder("settings.listThemes", corpus.reads["settings.listThemes"]),
+    ...serveCorpusProcedures(caller, ["sessions.me", "settings.listThemes"]),
+    ...serveCorpusProcedures(caller, ["settings.getUserSettings"], () => hold),
   });
   await mount<typeof ConfigAnchorStory>("tests/client/features/config/surfaces/_anchor-stories/ConfigAnchorStory", {});
   await hold.requested;
@@ -56,7 +56,7 @@ test("a superseded delayed anchor cannot flash or scroll after its read arrives"
   await expect(page.locator(`[id="${looksId}"]`)).toHaveCSS("box-shadow", /inset/u);
   const pane = page.locator('[data-slot="config-content"]');
   const settledTop = await pane.evaluate((element) => element.scrollTop);
-  hold.release(settings(undefined));
+  hold.release();
   const anchor = page.locator(`[id="${target}"]`);
   await expect(anchor).toBeAttached();
   await anchor.evaluate((element) =>
@@ -70,12 +70,9 @@ test("a superseded delayed anchor cannot flash or scroll after its read arrives"
   await expect(looks).toBeFocused();
 });
 
-test("the group's Advanced fold keeps its open state when the content leaves and returns", async ({ corpus, mount, page }) => {
-  await routeTrpc(page, {
-    "sessions.me": createCorpusReadResponder("sessions.me", corpus.reads["sessions.me"]),
-    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpus.reads["settings.getUserSettings"]),
-    "settings.listThemes": createCorpusReadResponder("settings.listThemes", corpus.reads["settings.listThemes"]),
-  });
+test("the group's Advanced fold keeps its open state when the content leaves and returns", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  await routeTrpc(page, serveCorpusProcedures(await root.internalCallerFor(root.ownerId), ["sessions.me", "settings.getUserSettings", "settings.listThemes"]));
   await mount<typeof ConfigAnchorStory>("tests/client/features/config/surfaces/_anchor-stories/ConfigAnchorStory", {});
   const fold = page.getByRole("button", { name: /Customize this look/u });
   await expect(fold).toHaveAttribute("aria-expanded", "false");
@@ -87,12 +84,13 @@ test("the group's Advanced fold keeps its open state when the content leaves and
   await expect(fold).toHaveAttribute("aria-expanded", "true");
 });
 
-test("unmount disconnects a pending anchor observer from its retired browser element", async ({ corpus, mount, page }) => {
-  const hold = trpcHold<"settings.getUserSettings">();
+test("unmount disconnects a pending anchor observer from its retired browser element", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const hold = holdServed();
   await routeTrpc(page, {
-    "sessions.me": createCorpusReadResponder("sessions.me", corpus.reads["sessions.me"]),
-    "settings.getUserSettings": () => hold,
-    "settings.listThemes": createCorpusReadResponder("settings.listThemes", corpus.reads["settings.listThemes"]),
+    ...serveCorpusProcedures(caller, ["sessions.me", "settings.listThemes"]),
+    ...serveCorpusProcedures(caller, ["settings.getUserSettings"], () => hold),
   });
   await mount<typeof ConfigAnchorStory>("tests/client/features/config/surfaces/_anchor-stories/ConfigAnchorStory", {});
   await hold.requested;
