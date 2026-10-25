@@ -37,6 +37,7 @@ export const SECTION_PROCEDURES = [
   "plugin.list",
   "plugin.listSurfaces",
   "databank.listGlobal",
+  "databank.list",
   "worldInfo.listBooks",
   "preset.list",
   "preset.get",
@@ -49,6 +50,17 @@ export const SECTION_PROCEDURES = [
   "regex.countScripts",
   "regex.listScripts",
   "worldInfo.countBooks",
+  "stats.freshness",
+  "stats.byModel",
+  "stats.leaderboard",
+  "stats.wrapped",
+  "stats.latency",
+  "stats.timeseries",
+  "stats.overview",
+  "stats.momentum",
+  "stats.personaUsage",
+  "stats.character",
+  "tag.listTagsWithUsage",
 ] as const satisfies readonly ServedPath[];
 
 /** Home's captured reads, plus every listed procedure answered by `caller`, a corpus root's internal caller. */

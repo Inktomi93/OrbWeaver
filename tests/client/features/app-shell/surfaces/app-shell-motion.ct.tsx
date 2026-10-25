@@ -243,13 +243,27 @@ function rootFontPx(page: Page): Promise<number> {
   return page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).fontSize));
 }
 
-/** The first keyframe's leading translate of the one animation on `selector`, in px, or NaN. */
-function firstKeyframeX(page: Page, selector: string): Promise<number> {
-  return page.evaluate((target) => {
-    const effect = document.querySelector(target)?.getAnimations()[0]?.effect;
-    const translate = effect instanceof KeyframeEffect ? effect.getKeyframes()[0]?.["translate"] : undefined;
-    return typeof translate === "string" ? Number.parseFloat(translate) : Number.NaN;
-  }, selector);
+/**
+ * Record each FLIP's first keyframe translate, in px, by animation name, as the animation starts: a read after the
+ * click can land after a short FLIP has already finished on a loaded machine.
+ */
+function recordFlipKeyframes(page: Page): Promise<void> {
+  return page.evaluate(() => {
+    const seen: Record<string, number> = {};
+    Reflect.set(globalThis, "__flipKeyframes", seen);
+    document.addEventListener("animationstart", (event) => {
+      const animation =
+        event.target instanceof Element
+          ? event.target.getAnimations().find((candidate) => (candidate as CSSAnimation).animationName === event.animationName)
+          : undefined;
+      const translate = animation?.effect instanceof KeyframeEffect ? animation.effect.getKeyframes()[0]?.["translate"] : undefined;
+      seen[event.animationName] = typeof translate === "string" ? Number.parseFloat(translate) : Number.NaN;
+    });
+  });
+}
+
+function flipKeyframes(page: Page): Promise<Record<string, number>> {
+  return page.evaluate(() => ({ ...(Reflect.get(globalThis, "__flipKeyframes") as Record<string, number>) }));
 }
 
 test.describe("the list door on Chats", () => {
@@ -463,12 +477,12 @@ test.describe("the doors in an open room", () => {
     await expect(page.locator(DOOR_BOXES.composer)).toBeVisible();
     await waitForShellIdle(page);
     for (const leg of ["Hide list panel", "Show list panel"]) {
+      await recordFlipKeyframes(page);
       await page.getByRole("button", { name: leg, exact: true }).click();
-      await page.waitForFunction(() => (document.querySelector('[data-slot="composer"]')?.getAnimations().length ?? 0) > 0);
-      const main = await firstKeyframeX(page, DOOR_BOXES.main);
-      const composer = await firstKeyframeX(page, DOOR_BOXES.composer);
+      await expect.poll(async () => Object.keys(await flipKeyframes(page))).toEqual(expect.arrayContaining(["shell-main-flip", "shell-centre-flip"]));
+      const { "shell-main-flip": main = Number.NaN, "shell-centre-flip": centre = Number.NaN } = await flipKeyframes(page);
       expect(Math.abs(main)).toBeGreaterThan(REAL_TRACK);
-      expect(Math.abs(composer * -2 - main)).toBeLessThan(1);
+      expect(Math.abs(centre * -2 - main)).toBeLessThan(1);
       await waitForShellIdle(page);
     }
   });
