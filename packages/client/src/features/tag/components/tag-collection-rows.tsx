@@ -16,7 +16,7 @@ import type { Invalidation, Trpc } from "#data";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { COLLECTION_LARGE_GROUP, pruneConfirmLabel, sortTagsBy, tagUsageLabel, unusedTagsLabel, usageBreakdown } from "#lib";
 import { labelDeleted, setLabelFilter, setTagPruneConfirmOpen, useTagPruneConfirmOpen, useTagSortMode } from "#state";
-import { finderRoot, libraryOrFinder } from "../lib/labels-focus-targets.ts";
+import { finderRoot, focusFinderSearch, labelRowOpener, libraryOrFinder } from "../lib/labels-focus-targets.ts";
 
 const ESTIMATED_ROW_PX = 52;
 
@@ -63,7 +63,7 @@ export function TagCollectionRows({ view }: { readonly view: TagRowsView }): Rea
             size="sm"
             onClick={(): void => {
               setLabelFilter("");
-              finderRoot()?.querySelector<HTMLInputElement>("input")?.focus();
+              focusFinderSearch();
             }}
           >
             Clear filter
@@ -201,7 +201,7 @@ function useLabelDelete(
     readonly completed: boolean;
   } | null>(null);
   const requestDelete = (tag: TagWithUsage): void => {
-    const opener = document.querySelector<HTMLElement>(`[data-label-row="${tag.id}"] [data-slot="list-row-actions"] button`);
+    const opener = labelRowOpener(tag.id);
     setDecision((current) => ({ revision: (current?.revision ?? 0) + 1, tag, wasOpen: selectedId === tag.id, opener, open: true, completed: false }));
   };
   const onDelete = async (): Promise<void> => {

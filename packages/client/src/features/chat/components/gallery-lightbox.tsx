@@ -118,7 +118,7 @@ export function GalleryLightbox({ image, removal, onClose, finalFocus, onSettled
           {/* The dialog hugs the frame: sized by height when height limits it (no grey bars), by the dialog's own
                 width otherwise, and never upscaled past the image. */}
           <Stack align="center" className="relative">
-            <Stack ref={frameRef} style={{ aspectRatio: aspect, width: frameWidth, maxWidth: "100%" }}>
+            <Stack className="max-inline-full" ref={frameRef} style={{ aspectRatio: aspect, width: frameWidth }}>
               <CrossfadeImage src={blobUrl(image.hash)} alt={image.name} aspectRatio={aspect} fit="contain" className="block-full inline-full" />
             </Stack>
           </Stack>

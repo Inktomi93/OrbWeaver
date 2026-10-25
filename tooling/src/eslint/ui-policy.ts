@@ -102,6 +102,44 @@ export const CLIENT_CONTEXT_RESTRICTIONS = [
 
 export const CLIENT_STYLE_RESTRICTIONS = [{ id: "no-off-token-inline-style" }, { id: "theme-override-only-via-scope" }];
 
+const DOM_LOOKUP_METHODS = ["getElementById", "querySelector", "querySelectorAll", "getElementsByClassName", "getElementsByTagName", "getElementsByName"];
+
+const CLASS_LIST_WRITES = ["add", "remove", "toggle", "replace"];
+
+export const CLIENT_DOM_RESTRICTIONS = [
+  {
+    id: "no-dom-lookup-in-features",
+    selectors: [
+      {
+        selector: `CallExpression:matches(${DOM_LOOKUP_METHODS.map((name) => memberNamed(name, "callee.")).join(", ")})`,
+        message:
+          "A feature reaches DOM it does not own by id or selector. Hold the node with a ref, pass a ref or handle to the part that renders it, or use a @orb/ui prop (initialFocus, finalFocus, a part ref). A file whose job is DOM addressing is a named home in eslint.config.ts.",
+      },
+      {
+        // `closest("[inert]")` asks whether a node can take focus, which names no component's DOM.
+        selector: `CallExpression${memberNamed("closest", "callee.")}:not([arguments.0.value="[inert]"])`,
+        message:
+          "A feature walks up to an ancestor by selector. Pass the ancestor's node down by ref or context. A file whose job is DOM addressing is a named home in eslint.config.ts.",
+      },
+    ],
+  },
+  {
+    id: "no-class-list-write",
+    selectors: [
+      {
+        selector: `CallExpression:matches(${CLASS_LIST_WRITES.map((name) => memberNamed(name, "callee.")).join(", ")})[callee.object.type='MemberExpression']${memberNamed("classList", "callee.object.")}`,
+        message:
+          "A class toggled on a node by hand. State styling rides a data attribute the stylesheet keys off, or a @orb/ui prop (motion-and-animation-guide.md §5.3).",
+      },
+      {
+        selector: `AssignmentExpression[left.type='MemberExpression']${memberNamed("className", "left.")}`,
+        message:
+          "A className written on a node by hand. State styling rides a data attribute the stylesheet keys off, or a @orb/ui prop (motion-and-animation-guide.md §5.3).",
+      },
+    ],
+  },
+];
+
 const CAST_ID_CALL = `CallExpression:matches([callee.name='castId'], [callee.computed=false][callee.property.name='castId'], [callee.computed=true][callee.property.value='castId'])`;
 
 const EMPTY_ID_ARGUMENT =

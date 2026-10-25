@@ -36,7 +36,12 @@ export interface FactRowListProps {
   readonly onReset: (row: FactRow) => void;
   /** What the server said about the last change to one row, drawn under that row, where focus returns after it. */
   readonly note?: FactRowNote | undefined;
+  /** Registers each row's node by path, so the editor can hand focus back to the row a change closed over. */
+  readonly rowRef?: FactRowRef | undefined;
 }
+
+/** Called with a row's path and its node on mount, and with `null` on unmount. */
+type FactRowRef = (path: string, node: HTMLElement | null) => void;
 
 /** A line under one fact row, keyed by the row's `path`. */
 export interface FactRowNote {
@@ -44,17 +49,25 @@ export interface FactRowNote {
   readonly content: ReactNode;
 }
 
-export function FactRowList({ rows, busy, onOverride, onReset, note }: FactRowListProps): ReactElement {
+export function FactRowList({ rows, busy, onOverride, onReset, note, rowRef }: FactRowListProps): ReactElement {
   return (
     <Stack gap="row">
       {rows.map((row) => (
-        <FactRowView key={row.path} row={row} busy={busy} onOverride={onOverride} onReset={onReset} note={note?.path === row.path ? note : undefined} />
+        <FactRowView
+          key={row.path}
+          row={row}
+          busy={busy}
+          onOverride={onOverride}
+          onReset={onReset}
+          note={note?.path === row.path ? note : undefined}
+          rowRef={rowRef}
+        />
       ))}
     </Stack>
   );
 }
 
-function FactRowView({ row, busy, onOverride, onReset, note }: { readonly row: FactRow } & Omit<FactRowListProps, "rows">): ReactElement {
+function FactRowView({ row, busy, onOverride, onReset, note, rowRef }: { readonly row: FactRow } & Omit<FactRowListProps, "rows">): ReactElement {
   const [editing, setEditing] = useState(false);
 
   return (
@@ -63,7 +76,14 @@ function FactRowView({ row, busy, onOverride, onReset, note }: { readonly row: F
     // a 172px key basis + a mono value + a control-height button cannot share a 462px content line without
     // the source wrapping to three.
     // Focusable by script only: a confirm that closes over this row returns focus to the row, not to its first button.
-    <Stack data-slot="connection-fact-row" data-fact={row.path} data-overridden={row.overridden} gap="tight" tabIndex={-1}>
+    <Stack
+      data-slot="connection-fact-row"
+      data-fact={row.path}
+      data-overridden={row.overridden}
+      gap="tight"
+      ref={(node): void => rowRef?.(row.path, node)}
+      tabIndex={-1}
+    >
       <Row align="start" className="@max-cq-32:flex-col @max-cq-32:items-stretch" gap="field" justify="between">
         <Text className="shrink-0" voice="code">
           {row.name}
@@ -225,8 +245,10 @@ export function QuirksBlock({
   onOverride,
   onReset,
   note,
+  rowRef,
 }: {
   readonly note?: FactRowNote | undefined;
+  readonly rowRef?: FactRowRef | undefined;
   readonly providerFeatures: Parameters<typeof quirkFactRows>[0];
   readonly declared: DeclaredCapability | null;
   readonly providerLabel: string;
@@ -246,7 +268,7 @@ export function QuirksBlock({
       <Text voice="gloss">
         How this kind of server behaves, and where each answer came from. Read-only — override a line only when this box differs from the others of its kind.
       </Text>
-      <FactRowList busy={busy} note={note} onOverride={onOverride} onReset={onReset} rows={rows} />
+      <FactRowList busy={busy} note={note} onOverride={onOverride} onReset={onReset} rowRef={rowRef} rows={rows} />
     </Stack>
   );
 }

@@ -29,12 +29,12 @@ export function InlineFlankFitProbe(): ReactElement {
     };
   }, []);
   return (
-    <Row
-      aria-hidden={true}
-      className="pointer-events-none invisible absolute block-0"
-      ref={sentinel}
-      style={{ width: "calc(var(--dimension-content-reading-floor) + var(--width-sidebar-sm) + var(--spacing-block))" }}
-    />
+    // The sentinel's width is its three token-sized children laid end to end, so the sum is resolved at this element.
+    <Row aria-hidden={true} className="pointer-events-none invisible absolute block-0" ref={sentinel}>
+      <Row className="shrink-0 inline-(--dimension-content-reading-floor)" />
+      <Row className="shrink-0 inline-(--width-sidebar-sm)" />
+      <Row className="shrink-0 inline-(--spacing-block)" />
+    </Row>
   );
 }
 

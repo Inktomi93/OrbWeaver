@@ -33,6 +33,7 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { publishFlankHost } from "#lib";
+import { requestShellContentFocus } from "#state";
 import { takeRestoredPanel, usePluginChatVisibility, usePluginFlankCollapsed } from "../hooks/use-plugin-chat-visibility.ts";
 import { useVisibleAnchoredSurfaces } from "../hooks/use-visible-anchored-surfaces.ts";
 import { CHAT_PANEL_HIDE_LABEL } from "../lib/plugin-copy.ts";
@@ -79,6 +80,7 @@ export function PluginAnchoredSurfaces({ anchor, chatId, inSheet = false }: Plug
   // After a hide, focus lands on the next panel's Hide (or, with none left, the room itself), never on the document;
   // after an Undo, on the restored panel's Hide once it is back on screen.
   const focusAfterHide = useRef<string | null | undefined>(undefined);
+  const hideButtons = useRef(new Map<string, HTMLButtonElement>());
   useEffect(() => {
     const restored = anchor === "chat-flank" ? takeRestoredPanel(visible.map((surface) => surface.pluginId)) : null;
     const target = restored ?? focusAfterHide.current;
@@ -86,8 +88,12 @@ export function PluginAnchoredSurfaces({ anchor, chatId, inSheet = false }: Plug
       return;
     }
     focusAfterHide.current = undefined;
-    const next = target === null ? null : document.querySelector<HTMLElement>(`[data-hide-for="${target}"]`);
-    (next ?? document.querySelector<HTMLElement>('[data-slot="chat-room-surface"]'))?.focus();
+    const next = target === null ? undefined : hideButtons.current.get(target);
+    if (next === undefined) {
+      requestShellContentFocus("chats");
+    } else {
+      next.focus();
+    }
   });
 
   if (!hasPanels) {
@@ -104,11 +110,17 @@ export function PluginAnchoredSurfaces({ anchor, chatId, inSheet = false }: Plug
               render={
                 <Button
                   aria-label={hideLabel}
-                  data-hide-for={surface.pluginId}
                   intent="ghost"
                   onClick={(): void => {
                     focusAfterHide.current = visible.find((other) => other.pluginId !== surface.pluginId)?.pluginId ?? null;
                     hide({ id: surface.pluginId, name: surface.pluginName });
+                  }}
+                  ref={(node): void => {
+                    if (node === null) {
+                      hideButtons.current.delete(surface.pluginId);
+                    } else {
+                      hideButtons.current.set(surface.pluginId, node);
+                    }
                   }}
                   size="icon-sm"
                   type="button"

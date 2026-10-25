@@ -7,7 +7,7 @@ import { assumesSingleReplicaRule, commentedCodeRule, rawIdRule, sideGenSampling
 import { DB_SCHEMA_RESTRICTIONS, SERVER_HARD_RESTRICTIONS, TYPE_SHAPE_RESTRICTIONS } from "./general-policy.ts";
 import { moduleStateRule } from "./module-state.ts";
 import type { BaseUiDoors } from "./motion.ts";
-import { baseUiStateDataAttributesRule, unruledFlipInversionRule } from "./motion.ts";
+import { baseUiStateDataAttributesRule, noRenderLayoutReadRule, unruledFlipInversionRule } from "./motion.ts";
 import { baseUiPortalContainerRule, contextReturnTypeRule, directRowReadRule, directRowWriteRule, nativeTitleRule, testFactoryContractRule } from "./native.ts";
 import { PRINCIPAL_RULES } from "./principal.ts";
 import {
@@ -39,6 +39,7 @@ import {
   CLASS_RESTRICTIONS,
   CLIENT_CONFIG_HOST_RESTRICTIONS,
   CLIENT_CONTEXT_RESTRICTIONS,
+  CLIENT_DOM_RESTRICTIONS,
   CLIENT_SEAL_RESTRICTIONS,
   CLIENT_STYLE_RESTRICTIONS,
   ID_BRAND_RESTRICTIONS,
@@ -46,7 +47,8 @@ import {
   UI_HARD_RESTRICTIONS,
   UI_PRIMITIVE_RESTRICTIONS,
 } from "./ui-policy.ts";
-import { darkVariantRule, offTokenInlineStyleRule, recededInkRule, themeOverrideRule } from "./ui-styles.ts";
+import { noSealedInternalsRule } from "./ui-sealed-internals.ts";
+import { darkVariantRule, noStaticStylePropRule, offTokenInlineStyleRule, recededInkRule, themeOverrideRule } from "./ui-styles.ts";
 
 export { authorClassIgnores } from "./css-classes.ts";
 export { baseUiDoors } from "./motion.ts";
@@ -68,6 +70,7 @@ const LOCAL_RESTRICTIONS = [
   AMBIENT_GLOBAL_RESTRICTIONS,
   CLIENT_CONTEXT_RESTRICTIONS,
   CLIENT_STYLE_RESTRICTIONS,
+  CLIENT_DOM_RESTRICTIONS,
   CLIENT_CONFIG_HOST_RESTRICTIONS,
   CLIENT_SEAL_RESTRICTIONS,
   PORTAL_FLOAT_RESTRICTIONS,
@@ -116,6 +119,9 @@ export function createOrbPlugin(options: {
       "baseui-portal-container-seam": baseUiPortalContainerRule,
       "baseui-state-data-attributes": baseUiStateDataAttributesRule(options.baseUiDoors),
       "no-unruled-flip-inversion": unruledFlipInversionRule,
+      "no-render-layout-read": noRenderLayoutReadRule,
+      "no-sealed-library-internals": noSealedInternalsRule,
+      "no-static-style-prop": noStaticStylePropRule,
       "no-native-title": nativeTitleRule,
       "no-manual-memo": noManualMemoRule,
       "no-use-promise": noUsePromiseRule,

@@ -95,7 +95,7 @@ function ConnectionsBody({ anchorId }: { readonly anchorId: string }): ReactElem
   const [editingId, setEditingId] = useState<ConnectionListItem["id"] | null>(null);
   const addConnectionFocus = useRef<HTMLButtonElement>(null);
   const listFocusIntent = useRef<ListFocusIntent | null>(null);
-  const rowRoots = useRef(new Map<ConnectionListItem["id"], HTMLDivElement>());
+  const rowBodies = useRef(new Map<ConnectionListItem["id"], HTMLButtonElement>());
   // A door elsewhere asks for one row's editor; the request is taken once, then cleared from the store. Each taken
   // request remounts the editor, so a door to the row already open still lands its tiers as asked.
   const requestedEditor = useRequestedConnectionEditor();
@@ -124,7 +124,7 @@ function ConnectionsBody({ anchorId }: { readonly anchorId: string }): ReactElem
     }
     const targetId = intent.kind === "row" ? intent.connectionId : connections[intent.index]?.id;
     listFocusIntent.current = null;
-    const target = targetId === undefined ? null : rowRoots.current.get(targetId)?.querySelector<HTMLElement>('[data-slot="list-row-body"]');
+    const target = targetId === undefined ? undefined : rowBodies.current.get(targetId);
     (target ?? addConnectionFocus.current)?.focus();
   }, [connections, editingId]);
 
@@ -193,11 +193,11 @@ function ConnectionsBody({ anchorId }: { readonly anchorId: string }): ReactElem
               bindings={bindings}
               credentials={credentials}
               provider={available.find((row) => row.provider.id === connection.providerId)?.provider ?? null}
-              rowRef={(node): void => {
+              bodyRef={(node): void => {
                 if (node === null) {
-                  rowRoots.current.delete(connection.id);
+                  rowBodies.current.delete(connection.id);
                 } else {
-                  rowRoots.current.set(connection.id, node);
+                  rowBodies.current.set(connection.id, node);
                 }
               }}
               trpc={trpc}
@@ -208,7 +208,7 @@ function ConnectionsBody({ anchorId }: { readonly anchorId: string }): ReactElem
         </Stack>
       )}
 
-      <AddConnectionDialog open={addOpen} onOpenChange={setAddOpen} trpc={trpc} invalidation={invalidation} />
+      <AddConnectionDialog open={addOpen} onOpenChange={setAddOpen} trpc={trpc} invalidation={invalidation} returnFocus={addConnectionFocus} />
     </Section>
   );
 }
@@ -237,7 +237,7 @@ function ConnectionRow({
   bindings,
   credentials,
   provider,
-  rowRef,
+  bodyRef,
   trpc,
   invalidation,
   onEdit,
@@ -247,7 +247,8 @@ function ConnectionRow({
   readonly credentials: readonly CredentialListItem[];
   /** The row's registry entry; `null` when the registry no longer lists its provider. */
   readonly provider: ProviderDef | null;
-  readonly rowRef: (node: HTMLDivElement | null) => void;
+  /** The row's clickable body, registered so the list can hand focus back to it. */
+  readonly bodyRef: (node: HTMLButtonElement | null) => void;
   readonly trpc: Trpc;
   readonly invalidation: Invalidation;
   readonly onEdit: (connectionId: ConnectionListItem["id"]) => void;
@@ -278,7 +279,7 @@ function ConnectionRow({
   const switchName = providerUnavailable ? `${switchLabel} unavailable on ${name} because its provider is unavailable` : `${switchLabel} on ${name}`;
 
   return (
-    <Stack gap="tight" ref={rowRef}>
+    <Stack gap="tight">
       {/* THE ROW IS THE EDITOR'S DOOR. `clickable` makes the identity block (leading + title + subtitle) ONE
           native `<button>` with the actions cluster kept a SIBLING — which is also what keeps this from being
           the stretched link the mock review caught as a P1 `obscured-target` (an `inset: 0` overlay covers
@@ -289,6 +290,7 @@ function ConnectionRow({
           The badge rail is already OUT of the body (the file header's own decision, `ConnectionBadges`
           below), which is exactly the landing this door needed. */}
       <ListRow
+        bodyRef={bodyRef}
         clickable={true}
         onClick={(): void => onEdit(connection.id)}
         title={name}

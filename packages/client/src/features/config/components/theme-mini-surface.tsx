@@ -22,10 +22,9 @@
 // same way selecting it would paint the app, and there is exactly ONE derivation for that (`#lib`'s
 // `dataThemeOf` + `resolveThemeScopeTokens`, shared with the shell):
 //   · Hearth — the base `@theme` itself: NO `data-theme` (it owns no block) and NO ThemeScope, with the
-//     base palette REPLAYED inline. Stamping nothing is what the SHELL ROOT does and it is right there;
-//     nested inside a Light or Mocha root it means "inherit the ambient", and the rendered receipt caught
-//     exactly that — the Hearth card came back cream under `--theme Light`. `BASE_PALETTE_VARS` replays
-//     the generated base values (see its header: key set from a seed block, values from `TOKENS`);
+//     base palette RESTATED by its generated `[data-palette="base"]` block. Stamping nothing is what the SHELL
+//     ROOT does and it is right there; nested inside a Light or Mocha root it means "inherit the ambient", and
+//     the rendered receipt caught exactly that — the Hearth card came back cream under `--theme Light`;
 //   · Mocha / Light — their generated `[data-theme]` block, stamped on this box: NO override scope. Feeding
 //     a seed's stored `override` (which is only the duplicate-to-customize template) back through
 //     ThemeScope lets the clamp RE-DERIVE and shadow the hand-tuned block;
@@ -55,7 +54,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Swatch } from "@orb/ui/swatch";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
-import { BASE_PALETTE_COLOR_SCHEME, BASE_PALETTE_VARS, dataThemeOf, resolveThemeScopeTokens } from "#lib";
+import { dataThemeOf, resolveThemeScopeTokens } from "#lib";
 
 /** The thumbnail's own comfortable tier — a card is a picture of a PALETTE, not of the viewer's density. */
 const PREVIEW_DENSITY = "comfortable";
@@ -89,14 +88,13 @@ export interface ThemeMiniSurfaceProps {
 export function ThemeMiniSurface({ theme }: ThemeMiniSurfaceProps): ReactElement {
   const dataTheme = dataThemeOf(theme);
   if (theme.isSeed) {
-    // A seed paints from its generated block ONLY — the block by attribute for a named palette, and the
-    // BASE values replayed inline for Hearth, which has no block to name.
+    // A seed paints from its generated block ONLY — the `[data-theme]` block for a named palette, and the
+    // base-palette block for Hearth, which has no theme block to name.
     return (
       <Stack
         className="block-full inline-full"
         data-slot="theme-mini-surface"
-        {...(dataTheme === null ? {} : { "data-theme": dataTheme })}
-        style={dataTheme === null ? { ...BASE_PALETTE_VARS, colorScheme: BASE_PALETTE_COLOR_SCHEME } : undefined}
+        {...(dataTheme === null ? { "data-palette": "base" } : { "data-theme": dataTheme })}
       >
         <MiniRoom />
       </Stack>

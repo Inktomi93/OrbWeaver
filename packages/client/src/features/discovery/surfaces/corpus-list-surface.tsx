@@ -15,7 +15,6 @@
 // the store's own header says why a reload should NOT re-ask yesterday's question.
 
 import { Autocomplete } from "@orb/ui/autocomplete";
-import { Button } from "@orb/ui/button";
 import { Icon, Search } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { Select } from "@orb/ui/select";
@@ -23,7 +22,7 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, RefObject } from "react";
 import { useDeferredValue, useRef } from "react";
-import { ListSearch, QueryBoundary } from "#components";
+import { ListSearch, QueryBoundary, SkipToFirstRow } from "#components";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId, useFocusOnMount } from "#lib";
 import { setCorpusSearchQuery, setCorpusSearchTarget, useCorpusSearchQuery, useCorpusSearchTargetId } from "#state";
@@ -55,7 +54,7 @@ export function CorpusListSurface(): ReactElement {
   // behaviour is unchanged, and only a real rail navigation moves focus here.
   const omniboxRef = useRef<HTMLInputElement>(null);
   useFocusOnMount(omniboxRef);
-  /** The pane box the skip link searches for its first row — see the control's own note. */
+  /** The pane box its skip link searches for the first row. */
   const surfaceRef = useRef<HTMLDivElement>(null);
   const query = useCorpusSearchQuery();
   // The axis owns its own default: an unset/stale stored id resolves to the first target.
@@ -65,26 +64,8 @@ export function CorpusListSurface(): ReactElement {
 
   return (
     <Stack className="block-full min-block-0" data-testid={testId("corpusListSurface")} gap="block" ref={surfaceRef}>
-      {/* SKIP THE CHROME (#537, the #491 pane-scoped twin). The app-shell's own `Skip to content` moves
-          focus to `<main>` — i.e. PAST this pane — so a keyboard user who came for the RESULTS had no
-          shortcut at all: five target toggles, the omnibox and up to four typeahead rows stand in front of
-          the first hit. This lands directly ON the first row, which is what the search exists to produce.
-          Same posture and same contract as the characters pane's (`character-library-surface.tsx`):
-          `not-focus-visible:sr-only` (never `sr-only focus-visible:not-sr-only` — `not-sr-only` is a RESET
-          whose `padding:0; height:auto` beats the Button's own box and renders the revealed control under
-          the WCAG 2.5.8 floor), and FIRST IN DOM ORDER inside the surface, because a skip control that is
-          not the first focusable is a second tab stop rather than a skip.
-          It is not in the way of `useFocusOnMount` below: that hook declines on the initial page load, and
-          on a rail switch it moves focus INTO the omnibox, past this control by design. */}
-      <Button
-        className="not-focus-visible:sr-only focus-visible:self-start"
-        intent="secondary"
-        onClick={(): void => surfaceRef.current?.querySelector<HTMLElement>('[data-slot="list-row-body"]')?.focus()}
-        size="sm"
-        type="button"
-      >
-        Skip to results
-      </Button>
+      {/* The pane's skip link lands on the first hit, past the target select, the omnibox and the typeahead rows. */}
+      <SkipToFirstRow containerRef={surfaceRef}>Skip to results</SkipToFirstRow>
       {/* ONE CONTROL ON ONE ROW. Five labels never fit a 272-360px pane side by side without truncating the
           names that ARE the vocabulary, and a segmented control that wraps leaves a ragged second row, so
           the target is a select: the same five choices, one row at every width. */}

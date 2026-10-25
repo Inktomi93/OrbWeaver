@@ -38,13 +38,12 @@ import type { CharacterListSort } from "@orb/contracts/character";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { Button } from "@orb/ui/button";
 import { Stack, Surface } from "@orb/ui/layout";
 import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useRef } from "react";
-import { FaceStrip } from "#components";
+import { FaceStrip, SkipToFirstRow } from "#components";
 import type { Trpc } from "#data";
 import { createCollectionSurface, useInvalidation, useStartChat, useTRPC } from "#data";
 import { useDebouncedValue, useFocusOnMount } from "#lib";
@@ -265,26 +264,8 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library" }: Cha
           }
         }}
       >
-        {/* SKIP THE CHROME (#491, side-eye 2026-08-22 rail-characters P1-1). The app-shell's own
-            `Skip to content` moves focus to `<main>` — it skips PAST this pane, so a keyboard user who came
-            for the LIST had no shortcut at all: the search, the sort, the two view commands, up to 24
-            favourite faces and the filter rail all stand in front of the first row. This lands directly ON
-            the first character, which is the thing the section exists to offer.
-            Same posture as the shell's: `not-focus-visible:sr-only`, never `sr-only focus-visible:not-sr-only`
-            — `not-sr-only` is a RESET whose `padding:0; height:auto` lands in the same layer as the Button's
-            own box and wins, which renders the revealed control under the WCAG 2.5.8 floor. It costs the
-            keyboard user one press and the pointer user nothing.
-            It is FIRST IN DOM ORDER inside the surface, which is the whole contract: a skip control that is
-            not the first focusable is a second tab stop, not a skip. */}
-        <Button
-          className="not-focus-visible:sr-only focus-visible:self-start"
-          intent="secondary"
-          onClick={(): void => surfaceRef.current?.querySelector<HTMLElement>('[data-slot="list-row-body"]')?.focus()}
-          size="sm"
-          type="button"
-        >
-          Skip to characters
-        </Button>
+        {/* The pane's skip link lands on the first character, past the search, sort, favourites and filter chrome. */}
+        <SkipToFirstRow containerRef={surfaceRef}>Skip to characters</SkipToFirstRow>
         <CharacterLibraryToolbar onQueryChange={setCharacterSearch} query={query} />
         {/* THE RESULT COUNT, SPOKEN (side-eye 2026-08-03 P2), AND NOW HOUSED (side-eye 2026-08-17 taste a).
             It is a `role="status"` line that is ALWAYS mounted and always states the count (a region that

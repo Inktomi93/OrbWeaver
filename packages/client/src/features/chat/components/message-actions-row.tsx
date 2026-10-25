@@ -190,6 +190,7 @@ export function MessageActionsRow({
   const reattributeTarget = useReattributeTarget(message);
   const [reattributeOpen, setReattributeOpen] = useState(false);
   const clusterRef = useRef<HTMLDivElement | null>(null);
+  const menuTriggerRef = useRef<HTMLButtonElement | null>(null);
 
   const { chatId, id: messageId, role, content, excludedFromPrompt, hasContinuation } = message;
   const editable = isEditableRole(role);
@@ -286,6 +287,7 @@ export function MessageActionsRow({
         onFork={(): void => void onFork().catch(globalThis.reportError)}
         onReact={(): void => setPickerOpen(true)}
         onDelete={onDelete}
+        menuTriggerRef={menuTriggerRef}
         menuItems={
           <>
             {/* The collapsed pair's one door. Present at BOTH pointers by the mirror-parity ruling
@@ -358,11 +360,7 @@ export function MessageActionsRow({
           own read is `enabled: open`, so this is belt-and-braces on the same gate). */}
       {wireOpen ? <VariantWireViewer chatId={chatId} variantId={message.selectedVariantId} open={wireOpen} onOpenChange={setWireOpen} /> : null}
       {savedRepliesOpen ? (
-        <SavedRepliesPicker
-          message={message}
-          onOpenChange={setSavedRepliesOpen}
-          finalFocus={(): HTMLElement | null => clusterRef.current?.querySelector<HTMLElement>('[aria-haspopup="menu"]') ?? null}
-        />
+        <SavedRepliesPicker message={message} onOpenChange={setSavedRepliesOpen} finalFocus={(): HTMLElement | null => menuTriggerRef.current} />
       ) : null}
       <ReattributeFromHereConfirm message={message} onOpenChange={setReattributeOpen} open={reattributeOpen} target={reattributeTarget} />
       {/* Same mount discipline as the wire viewer: an unopened row builds no picker subtree (the picker

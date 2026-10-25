@@ -28,7 +28,7 @@ import type { ReactElement } from "react";
 import { useEffect, useRef } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { LEADERBOARD_ROW_ATTR, testId, timeLib, useFocusOnMount } from "#lib";
+import { testId, timeLib, useFocusOnMount } from "#lib";
 import { setActiveSection, useSectionListMode } from "#state";
 import { AccountingCoverageNotice } from "../components/accounting-coverage-notice.tsx";
 import { RhythmFigures } from "../components/rhythm-figures.tsx";
@@ -52,13 +52,8 @@ import {
   throughputProvenance,
   UNRECORDED_NOTE,
 } from "../lib/analytics-view-model.ts";
+import { openerRow } from "../lib/leaderboard-row-focus.ts";
 import { localMomentum, localTimeline, rhythmOf } from "../lib/local-calendar-folds.ts";
-
-/** The leaderboard row the drill with this character was opened from, when it is on screen and operable. */
-function openerRow(characterId: CharacterId): HTMLElement | null {
-  const row = document.querySelector<HTMLElement>(`[${LEADERBOARD_ROW_ATTR}="${characterId}"] [data-slot="list-row-body"]`);
-  return row === null || row.closest("[inert]") !== null ? null : row;
-}
 
 /** `returnFocusTo` is the character whose drill this dashboard replaced: Back hands focus to that row, or to
  *  the dashboard when the finder is off screen, because the Back control itself just left the tree. */

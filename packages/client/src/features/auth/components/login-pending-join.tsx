@@ -12,6 +12,7 @@ import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement, SyntheticEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import { confirmPendingJoin, usePendingJoinPreview } from "#data";
+import { focusFirstInvalidFieldIn } from "#forms/editor";
 import { DEAD_INVITE_SENTENCE, inviteRoomSentence, testId } from "#lib";
 import { joinerPersonaOf } from "../lib/joiner-persona.ts";
 import { InviteUnavailable } from "./invite-unavailable.tsx";
@@ -65,7 +66,7 @@ export function LoginPendingJoin({ providerName, onJoined, onDismiss }: LoginPen
 
   useEffect(() => {
     if (attempts > 0) {
-      formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+      focusFirstInvalidFieldIn(formRef.current);
     }
   }, [attempts]);
 

@@ -45,7 +45,6 @@ export const menuVariants = tv({
     // the scroller. Overscroll is contained so wheeling past the last item does not scroll the page.
     popup: `
       relative overflow-y-auto overscroll-contain rounded-card border border-border bg-popover p-field text-popover-foreground shadow-overlay
-      max-block-(--available-height)
       ${OVERLAY_MOTION.anchoredPopup}
     `,
     item: `${itemBase} ${LEADING_GUTTER}`,
@@ -68,4 +67,13 @@ export const menuVariants = tv({
     group: "",
     groupLabel: "px-row py-field text-label leading-label font-medium text-muted-foreground",
   },
+  variants: {
+    // How far the viewport clamp reaches. `viewport` runs to the viewport's edge; `belowChrome` stops one chrome row
+    // short of it, for a menu that opens upward from a control near the bottom and would otherwise cover the topbar.
+    clamp: {
+      viewport: { popup: "max-block-(--available-height)" },
+      belowChrome: { popup: "max-block-[calc(var(--available-height)-var(--dimension-chrome-row))]" },
+    },
+  },
+  defaultVariants: { clamp: "viewport" },
 });

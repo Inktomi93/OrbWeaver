@@ -1304,11 +1304,59 @@ const MODULE_STATE_OWN_PROCESS = [
 ];
 const PRINCIPAL_SCOPE = rootSources("@server", "@inference");
 
+// The only client features files that look DOM up by id or selector. Each is a surface whose job is DOM addressing;
+// tests/tooling/eslint-client-dom-locks.test.ts fails a home the rule no longer matches. A new site is a finding.
+const DOM_LOOKUP_HOMES = {
+  "packages/client/src/features/app-shell/components/context-bracket.tsx":
+    "the shell's tab rail scrolls its own active cell into view; the Tabs part publishes no active-cell handle",
+  "packages/client/src/features/app-shell/components/modal-host.tsx":
+    "the focus return finds the rendered rail or topbar trigger that opened the modal, which the shell chrome draws",
+  "packages/client/src/features/app-shell/lib/bug-report-capture.ts": "dev bug-report capture reads the live page the reporter was looking at",
+  "packages/client/src/features/app-shell/surfaces/app-shell.tsx": "a closed panel hands focus to its toggle, which the shell frame stamps with a marker",
+  "packages/client/src/features/character/hooks/use-roving-chip-focus.ts": "a roving group discovers its items under its own container",
+  "packages/client/src/features/chat/components/members-panel.tsx": "a roving row discovers its own controls, which depend on the row kind and the pointer",
+  "packages/client/src/features/config/hooks/use-config-scroll-spy.ts":
+    "the settings host addresses contribution anchors by the registry-minted id prefix (client-architecture-lockdown.md §8)",
+  "packages/client/src/features/config/lib/config-jump.ts":
+    "the settings host addresses contribution anchors by the registry-minted id prefix (client-architecture-lockdown.md §8)",
+  "packages/client/src/features/config/lib/config-scroll-spy.ts":
+    "the settings host addresses contribution anchors by the registry-minted id prefix (client-architecture-lockdown.md §8)",
+  "packages/client/src/features/config/surfaces/config-content-surface.tsx":
+    "the settings host addresses a setting control by the registry-minted control id (client-architecture-lockdown.md §8)",
+  "packages/client/src/features/chat/components/gallery-lightbox.tsx": "measures the chrome around its own content from the dialog popup that wraps it",
+  "packages/client/src/features/chat/components/home-quick-picks-tile-body.tsx": "reads Home's grid track count from the shelf's own ancestor",
+  "packages/client/src/features/chat/components/message-actions-row.tsx":
+    "measures the content column its cluster sits in; the coarse door is a portalled menu item with no ancestor of its own",
+  "packages/client/src/features/config/surfaces/config-list-surface.tsx":
+    "decides once at arrival whether focus already landed inside the settings content pane",
+  "packages/client/src/features/home/lib/use-balanced-foot.ts":
+    "the balancer measures the two columns it does not render and asks whether a placeholder is left in them",
+  "packages/client/src/features/persona/components/persona-switch-list.tsx": "a roving group discovers its items under its own container",
+  "packages/client/src/features/stats/lib/leaderboard-row-focus.ts":
+    "Back returns focus to a virtualized finder row in a sibling pane, addressed by the character attribute the row publishes",
+  "packages/client/src/features/stats/lib/use-leaderboard-roving.ts": "a roving group discovers its items under its own container",
+  "packages/client/src/features/tag/lib/labels-focus-targets.ts":
+    "the finder and the library are sibling panes with no shared ancestor; each is addressed by its stamped data-slot",
+} as const;
+
+// Hand-rolled DOM and style work in the client (docs/law/client-architecture-lockdown.md §0 and §4, motion-and-animation-guide.md §5.3).
+const CLIENT_DOM_LOCK_BLOCKS: FlatConfig.Config[] = [
+  { files: ["packages/client/src/**/*.tsx"], rules: { "orb/no-static-style-prop": "error" } },
+  {
+    files: ["packages/client/src/features/**/*.{ts,tsx}"],
+    ignores: Object.keys(DOM_LOOKUP_HOMES),
+    rules: { "orb/no-dom-lookup-in-features": "error" },
+  },
+  { files: ["packages/client/src/**/*.{ts,tsx}"], rules: { "orb/no-class-list-write": "error", "orb/no-sealed-library-internals": "error" } },
+  { files: ["packages/client/src/**/*.{ts,tsx}", "packages/ui/src/**/*.{ts,tsx}"], rules: { "orb/no-render-layout-read": "error" } },
+];
+
 export default [
   ...NATIVE_CONFIG.map((block) =>
     block.files === undefined || block.rules === undefined ? block : { ...block, ignores: [...(block.ignores ?? []), "**/*.gen.{ts,tsx}"] },
   ),
   ...LOCAL_RULE_BLOCKS,
+  ...CLIENT_DOM_LOCK_BLOCKS,
   ...UI_LAW_BLOCKS,
   {
     files: ["packages/server/src/**/*.{ts,tsx}"],

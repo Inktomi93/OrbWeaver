@@ -4,13 +4,13 @@ import type { ProviderDef } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import { WebSpinner } from "@orb/ui/spinner";
 import type { inferOutput } from "@trpc/tanstack-react-query";
-import type { ReactElement } from "react";
+import type { ReactElement, RefObject } from "react";
 import { useState } from "react";
 import { FormDialog, QueryBoundary, useSetBinding } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { useSuspenseQuery } from "#data";
-import { ADD_CONNECTION_DOOR, CHAT_ROLE_DOOR } from "#lib";
-import { configSettingControlId, openConfigTo } from "#state";
+import { CHAT_ROLE_DOOR } from "#lib";
+import { openConfigTo } from "#state";
 import { ADD_DIALOG_COPY } from "../lib/add-connection-form-model.ts";
 import { providerPickerItems } from "../lib/connections-model.ts";
 import type { AddConnectionFormBodyProps } from "./add-connection-form-body.tsx";
@@ -22,6 +22,8 @@ export interface AddConnectionDialogProps {
   readonly onOpenChange: (open: boolean) => void;
   readonly trpc: Trpc;
   readonly invalidation: Invalidation;
+  /** The control that opened the dialog; a plain close hands focus back to it. */
+  readonly returnFocus: RefObject<HTMLElement | null>;
 }
 
 type ConnectionView = inferOutput<Trpc["connection"]["create"]>;
@@ -34,7 +36,7 @@ type AddStep =
 
 const ADD_STEP: AddStep = { kind: "add" };
 
-export function AddConnectionDialog({ open, onOpenChange, trpc, invalidation }: AddConnectionDialogProps): ReactElement {
+export function AddConnectionDialog({ open, onOpenChange, trpc, invalidation, returnFocus }: AddConnectionDialogProps): ReactElement {
   const [step, setStep] = useState<AddStep>(ADD_STEP);
   const [closeTarget, setCloseTarget] = useState({ open, chat: false });
   if (closeTarget.open !== open) {
@@ -67,9 +69,7 @@ export function AddConnectionDialog({ open, onOpenChange, trpc, invalidation }: 
   return (
     <FormDialog
       anchor="top"
-      finalFocus={(): HTMLElement | false | null =>
-        closeTarget.chat ? false : document.getElementById(configSettingControlId(ADD_CONNECTION_DOOR.group, ADD_CONNECTION_DOOR.setting))
-      }
+      finalFocus={(): HTMLElement | false | null => (closeTarget.chat ? false : returnFocus.current)}
       onOpenChangeComplete={(next): void => {
         if (!next && closeTarget.chat) {
           openConfigTo(CHAT_ROLE_DOOR.group, CHAT_ROLE_DOOR.sub, CHAT_ROLE_DOOR.setting);

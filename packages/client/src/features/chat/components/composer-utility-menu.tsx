@@ -29,7 +29,7 @@ import { Stack } from "@orb/ui/layout";
 import { Menu, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuSeparator, MenuSubmenuRoot, MenuSubmenuTrigger, MenuTrigger } from "@orb/ui/menu";
 import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
-import type { CSSProperties, ReactElement, ReactNode } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { useId } from "react";
 import { DescribedMenuItem } from "#components";
 import { OFFER_CHOICES_ONE_SHOT, REGENERATE_PLAIN_HELPER, SWIPE_NEEDS_REPLY, testId } from "#lib";
@@ -83,11 +83,6 @@ interface ComposerGuidedUtilityMenuProps {
   readonly roomContributions: readonly ReactNode[];
   readonly mediaContributions: readonly ReactNode[];
 }
-
-// The menu opens upward from the composer, and Base UI's available height runs to the viewport's top edge,
-// so a tall menu covered the room's topbar. Reserving the chrome row keeps it under the topbar, the
-// toast viewport's precedent; the menu scrolls inside the smaller box.
-const MENU_BOUND: CSSProperties = { maxHeight: "calc(var(--available-height) - var(--dimension-chrome-row))" };
 
 /** Adapts the guided cluster's resolved action bundles to the utility menu without making the cluster own
  *  the menu's phase-specific wiring. */
@@ -186,7 +181,9 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
             `title`, and the "Message tools" string every CT and the e2e room helper address. */}
         <TooltipPopup side="bottom">Message tools</TooltipPopup>
       </Tooltip>
-      <MenuPopup side="top" style={MENU_BOUND}>
+      {/* The menu opens upward from the composer, and Base UI's available height runs to the viewport's top edge, so a
+          tall menu covered the room's topbar. `belowChrome` keeps it under the topbar; the menu scrolls inside. */}
+      <MenuPopup clamp="belowChrome" side="top">
         {/* THE ROOM'S OWN GROUPS LEAD. Each contribution closes its group with a separator. */}
         {roomContributions}
         {/* STORY — game-only (owner: "game steers go in the magic wand"). The six plot steers nest under one

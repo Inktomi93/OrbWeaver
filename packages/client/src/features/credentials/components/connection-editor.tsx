@@ -113,9 +113,16 @@ function AvailableConnectionEditorBody({
   const update = useUpdateConnection({ trpc, invalidation });
   // The width editor closes as the confirm opens, so focus returns to the vector-width row itself, not the page and
   // not the row's first button (after a save that is Reset, one key press from undoing what was just saved).
-  const factsRef = useRef<HTMLDivElement>(null);
+  const factNodes = useRef(new Map<string, HTMLElement>());
+  const registerFact = (path: string, node: HTMLElement | null): void => {
+    if (node === null) {
+      factNodes.current.delete(path);
+    } else {
+      factNodes.current.set(path, node);
+    }
+  };
   const reindex = useReindexConfirm(trpc, (): boolean => {
-    const widthRow = factsRef.current?.querySelector<HTMLElement>(`[data-fact="${VECTOR_WIDTH_FACT_PATH}"]`) ?? null;
+    const widthRow = factNodes.current.get(VECTOR_WIDTH_FACT_PATH) ?? null;
     widthRow?.focus();
     return widthRow === null;
   });
@@ -159,7 +166,7 @@ function AvailableConnectionEditorBody({
         )
         .finally((): void => {
           setChecking(null);
-          focusFact(factsRef.current, factPath);
+          focusFact(factNodes.current, factPath);
         });
     };
     if (EMBED_SPACE_FIELDS.some((field) => part[field] !== undefined)) {
@@ -294,7 +301,7 @@ function AvailableConnectionEditorBody({
           kicker="What this server accepts · Endpoint quirks"
           title="Advanced"
         >
-          <Stack gap="block" ref={factsRef}>
+          <Stack gap="block">
             <Stack gap="tight">
               <Text voice="label">What this server accepts</Text>
               <Text voice="gloss">
@@ -306,6 +313,7 @@ function AvailableConnectionEditorBody({
                 note={factNote}
                 onOverride={(row, value): void => patch({ declared: withDeclaredOverride(declared, row, value) }, row.path)}
                 onReset={(row): void => patch({ declared: withoutDeclaredOverride(declared, row) }, row.path)}
+                rowRef={registerFact}
                 rows={capabilityFactRows(capabilityView.capability, declared, capabilityView.baseline)}
               />
             </Stack>
@@ -318,6 +326,7 @@ function AvailableConnectionEditorBody({
               ownServer={provider.auth === "endpoint"}
               providerFeatures={quirkFeatures}
               providerLabel={quirkLabel}
+              rowRef={registerFact}
             />
           </Stack>
         </EditorTier>

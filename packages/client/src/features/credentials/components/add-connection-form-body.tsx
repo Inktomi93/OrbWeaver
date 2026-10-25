@@ -11,7 +11,7 @@ import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Invalidation, Trpc } from "#data";
 import { trpcErrorReason } from "#lib";
 import { pushRecentModel } from "#state";
@@ -105,13 +105,13 @@ export function AddConnectionFormBody({
   // `AddConnectionFailure` while the draft is unchanged.
   const [submitFailure, setSubmitFailure] = useState<{ readonly error: unknown; readonly values: AddConnectionFormValues } | null>(null);
   const [refusedAuthority, setRefusedAuthority] = useState<string | null>(null);
-  const failureId = useId();
+  const failureRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (submitFailure !== null) {
-      document.getElementById(failureId)?.focus();
+      failureRef.current?.focus();
     }
-  }, [submitFailure, failureId]);
+  }, [submitFailure]);
 
   /** The model picker's source for the current draft: the list read FOR this draft, otherwise the typed arm
    *  with the provider's reason. */
@@ -301,7 +301,7 @@ export function AddConnectionFormBody({
             {(values): ReactElement | null =>
               submitFailure === null || !sameFormValues(values, submitFailure.values) ? null : (
                 <AddConnectionFailure
-                  id={failureId}
+                  ref={failureRef}
                   sentence={submitFailureSentence({ heldKeyLabel: held === null ? undefined : held.name, reason: errorMessage(submitFailure.error) })}
                 />
               )

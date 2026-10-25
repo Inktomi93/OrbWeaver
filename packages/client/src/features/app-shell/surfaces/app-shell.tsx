@@ -13,7 +13,16 @@ import { preload } from "react-dom";
 import { ListPaneHeaderHost } from "#components";
 import { resolveThemeScopeTokens } from "#lib";
 import type { PanelMode, SectionId } from "#state";
-import { closeModal, openModal, setActiveSection, useActiveChatId, useChromeRegistry, useSectionRegistry } from "#state";
+import {
+  clearShellContentFocus,
+  closeModal,
+  openModal,
+  setActiveSection,
+  useActiveChatId,
+  useChromeRegistry,
+  usePendingShellContentFocus,
+  useSectionRegistry,
+} from "#state";
 import { RegionAnchor } from "../anchors/region-anchor.tsx";
 import { CONTEXT_TOGGLE_MARKER } from "../components/context-toggle.tsx";
 import { CustomThemeStyle } from "../components/custom-theme-style.tsx";
@@ -232,6 +241,19 @@ export function AppShell(): ReactElement {
     });
     return (): void => clearTimeout(timer);
   }, [activeSection]);
+
+  // A feature asks for its section's content landmark (`requestShellContentFocus`); the shell holds the node, so it
+  // takes the request once, and drops one for a section that is no longer the screen.
+  const pendingContentFocus = usePendingShellContentFocus();
+  useEffect(() => {
+    if (pendingContentFocus === null) {
+      return;
+    }
+    if (pendingContentFocus === activeSection) {
+      mainRef.current?.focus();
+    }
+    clearShellContentFocus();
+  }, [pendingContentFocus, activeSection]);
 
   // Escape dismisses an open narrow/mobile auto-overlay slide-over (the scrim's keyboard equivalent) —
   // but ONLY when no modal is open. An open Dialog/Drawer owns Escape itself (Base UI); stealing it here

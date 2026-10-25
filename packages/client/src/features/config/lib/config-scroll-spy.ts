@@ -5,11 +5,10 @@
 
 import { scrollBehavior } from "@orb/ui/lib";
 
-// The flash ring is an inset box-shadow (not outline) so it clips to the section's border-box; applied
-// via the class contract in client styles/globals.css (not inline style) so tokens remain the value source.
+// The flash ring is an inset box-shadow (not outline) so it clips to the section's border-box; the section carries
+// this data attribute while it flashes and client styles/globals.css paints it, so tokens remain the value source.
 const FLASH_MS = 1200;
-const FLASH_BASE_CLASS = "settings-flash-anchor";
-const FLASH_LIT_CLASS = "settings-flash-anchor-lit";
+const FLASH_ATTRIBUTE = "data-settings-flash";
 /** How far down the pane the spy line sits — the section crossing it is the one you are reading. */
 const SPY_LINE_RATIO = 0.3;
 /** Sub-pixel slack when comparing scroll extents (a fractional scrollHeight is not a scroll). */
@@ -99,12 +98,12 @@ function createAnchorFlasher(scheduleTimeout: (run: () => void, ms: number) => (
   const pendingFlashes = new WeakMap<HTMLElement, () => void>();
   return (el): void => {
     pendingFlashes.get(el)?.();
-    el.classList.add(FLASH_BASE_CLASS, FLASH_LIT_CLASS);
+    el.toggleAttribute(FLASH_ATTRIBUTE, true);
     el.scrollIntoView({ block: "start", behavior: scrollBehavior() });
     pendingFlashes.set(
       el,
       scheduleTimeout(() => {
-        el.classList.remove(FLASH_BASE_CLASS, FLASH_LIT_CLASS);
+        el.toggleAttribute(FLASH_ATTRIBUTE, false);
         pendingFlashes.delete(el);
       }, FLASH_MS),
     );

@@ -4,7 +4,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { GitFork, Icon, Pencil, SmilePlus } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement, ReactNode, Ref } from "react";
 import { RowActionsMenu } from "#components";
 import { useReactionsEnabled } from "../hooks/use-message-reactions.ts";
 import { MESSAGE_ACTIONS_MENU_NAME, MESSAGE_EDIT_NAME, MESSAGE_FORK_NAME, MESSAGE_REACTION_ADD_NAME } from "../lib/message-action-names.ts";
@@ -24,6 +24,8 @@ export interface MessageActionsClusterProps {
   readonly onReact: () => void;
   readonly onDelete?: () => void;
   readonly menuItems?: ReactNode;
+  /** The ⋯ trigger, for a dialog the menu opens to hand focus back to. */
+  readonly menuTriggerRef?: Ref<HTMLButtonElement>;
 }
 
 /** The inline cluster both rows draw: the settled row wires it to real handlers, the streaming row's footprint to
@@ -39,6 +41,7 @@ export function MessageActionsCluster({
   onReact,
   onDelete,
   menuItems,
+  menuTriggerRef,
 }: MessageActionsClusterProps): ReactElement {
   return (
     <>
@@ -71,6 +74,7 @@ export function MessageActionsCluster({
         label={MESSAGE_ACTIONS_MENU_NAME}
         triggerSize="glyph"
         shape="pill"
+        {...(menuTriggerRef === undefined ? {} : { triggerRef: menuTriggerRef })}
         {...(onDelete === undefined
           ? {}
           : { destructive: { title: "Delete this message?", description: "This can't be undone.", confirmLabel: "Delete", onConfirm: onDelete } })}

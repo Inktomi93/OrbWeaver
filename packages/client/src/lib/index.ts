@@ -213,14 +213,7 @@ export { CONFIG_TEACHER_TAB_IDS, defineContextRegion, defineContextTabs, GAME_ST
 export { RenderProfiler } from "./render-profiler.tsx";
 export type { RowRenderPolicy } from "./render-trust.ts";
 export { DEPLOYMENT_FLOOR, resolveRowRenderPolicy } from "./render-trust.ts";
-export {
-  BASE_PALETTE_COLOR_SCHEME,
-  BASE_PALETTE_VARS,
-  dataThemeOf,
-  isSeedThemeName,
-  resolveThemeScopeTokens,
-  type SeedThemeName,
-} from "./resolve-theme-scope-tokens.ts";
+export { dataThemeOf, isSeedThemeName, resolveThemeScopeTokens, type SeedThemeName } from "./resolve-theme-scope-tokens.ts";
 export {
   chatWithActionName,
   duplicateActionName,

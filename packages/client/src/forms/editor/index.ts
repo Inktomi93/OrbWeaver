@@ -10,5 +10,6 @@ export {} from "./contexts.ts";
 
 export { createAutosaveEntityForm } from "./create-autosave-entity-form.tsx";
 export { createSavedEntityForm } from "./create-saved-entity-form.ts";
+export { focusFirstInvalidFieldIn } from "./focus-invalid-field.ts";
 export { SectionSaveStatus } from "./section-save-status.tsx";
 export type { AppFormInstance } from "./use-app-form.ts";
