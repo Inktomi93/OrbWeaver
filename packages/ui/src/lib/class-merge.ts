@@ -40,6 +40,7 @@ export const CSS_MERGE_FAMILY_NAMES = [
   "size",
   "height",
   "ease",
+  "opacity",
 ] as const;
 
 // The DTCG type-scale utilities are custom `--text-*`/`--leading-*`/`--tracking-*` namespaces, so
@@ -106,6 +107,8 @@ const HEIGHT_SCALE = scaleOf("height");
 const ASPECT_SCALE = scaleOf("aspect");
 const BLUR_SCALE = scaleOf("blur");
 const EASE_SCALE = scaleOf("ease");
+// `--opacity-*` (`opacity-receded`) sits beside the stock numeric steps; unregistered, a stock step beside it survives.
+const OPACITY_SCALE = scaleOf("opacity");
 
 const CLASS_GROUPS = {
   ...CUSTOM_CLASS_GROUPS,
@@ -114,6 +117,7 @@ const CLASS_GROUPS = {
   h: [{ h: HEIGHT_SCALE }],
   "min-h": [{ "min-h": HEIGHT_SCALE }],
   "max-h": [{ "max-h": HEIGHT_SCALE }],
+  opacity: [{ opacity: OPACITY_SCALE }],
 };
 const THEME = {
   spacing: SPACING_SCALE,

@@ -11,4 +11,9 @@ import { FOCUS_RING, FOCUS_RING_DESTRUCTIVE } from "./focus-ring.ts";
 export const TOUCH_TARGET_PSEUDO =
   "before:absolute before:inset-bs-1/2 before:inset-s-1/2 before:block-(--size-touch-target) before:inline-(--size-touch-target) before:-translate-x-1/2 before:-translate-y-1/2 before:content-['']";
 
+/** {@link TOUCH_TARGET_PSEUDO}'s stretched twin for a text-height control: the touch-target height, and the control's
+ *  own width floored at the touch target, so a wide run of text keeps its whole width as the hit area. */
+export const TOUCH_TARGET_PSEUDO_STRETCH =
+  "before:absolute before:inset-bs-1/2 before:inset-s-1/2 before:block-(--size-touch-target) before:inline-full before:min-inline-(--size-touch-target) before:-translate-x-1/2 before:-translate-y-1/2 before:content-['']";
+
 export const SELECTION_CONTROL = `relative inline-flex block-(--size-checkbox) inline-(--size-checkbox) shrink-0 cursor-pointer items-center justify-center border border-input-border bg-input transition-colors duration-(--motion-fast) ease-out-expo outline-none ${FOCUS_RING} ${DISABLED_STATE} data-readonly:cursor-default data-invalid:border-destructive ${FOCUS_RING_DESTRUCTIVE} ${TOUCH_TARGET_PSEUDO}`;

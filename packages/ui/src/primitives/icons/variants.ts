@@ -1,4 +1,4 @@
-import { TONE_INK, tv } from "#lib";
+import { RECEDED, TONE_INK, tv } from "#lib";
 
 // The glyph paints `currentColor`, so `tone` is the icon's ink by meaning, from the one map Text shares.
 export const iconVariants = tv({
@@ -9,6 +9,7 @@ export const iconVariants = tv({
       true: "drop-shadow-sm",
       false: "",
     },
+    receded: { true: RECEDED, false: "" },
   },
-  defaultVariants: { tone: "default", shadow: false },
+  defaultVariants: { tone: "default", shadow: false, receded: false },
 });
