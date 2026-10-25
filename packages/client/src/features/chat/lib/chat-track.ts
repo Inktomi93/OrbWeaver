@@ -31,6 +31,11 @@
 // `round()` and a percentage-bearing `calc()` that no utility can spell and a feature may not inline.
 export const CHAT_TRACK = "orb-chat-track inline-full max-inline-(--width-shell-content)";
 
+/** The composer, its strips and the above-composer band: the same track, capped at the transcript's reading measure so
+ *  they never run wider than the content column above them. The chat-width dial still narrows them (`orb-composer-track`
+ *  in client globals.css). */
+export const COMPOSER_TRACK = "orb-composer-track inline-full";
+
 /** A transcript ROW BODY at a phone width: below the row's `md` container step the gap tightens. The chip
  *  keeps the reader's own size and is never hidden (owner ruling, as Moonlit Echoes keeps its 40px avatar on
  *  a phone). The settled row and the streaming ghost share it, or a live turn reflows as it settles. */

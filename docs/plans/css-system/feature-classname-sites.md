@@ -371,7 +371,7 @@ By kind: template 46, imported constant 46, member read 19, function builder 16,
 | `packages/client/src/features/chat/components/message-row.tsx` | 380 | function builder | `<Row align="start" className={cn(rowBodyClassFor(skin), ROW_BODY_AT_PHONE_WIDTH)} gap="…` |
 | `packages/client/src/features/chat/components/message-row.tsx` | 392 | function builder | `className={columnClass}` |
 | `packages/client/src/features/chat/components/message-row.tsx` | 434 | imported constant | `<Stack gap="field" data-slot="message-footer" className={cn("empty:hidden", BG_PHOTO_CH…` |
-| `packages/client/src/features/chat/components/message-tool-calls.tsx` | 53 | imported constant | `<Row gap="field" className={FINE_INERT_UNTIL_HOVER}>` |
+| `packages/client/src/features/chat/components/message-tool-calls.tsx` | 53 | imported constant | `<Row gap="field" className={INERT_UNTIL_HOVER}>` |
 | `packages/client/src/features/chat/components/room-flank.tsx` | 58 | member read | `className={cn(` |
 | `packages/client/src/features/chat/components/swipe-strip.tsx` | 68 | member read | `<Row align="center" justify="end" gap="tight" data-slot={props.slot} className={props.f…` |
 | `packages/client/src/features/chat/components/swipe-strip.tsx` | 140 | member read | `className={foot.chevron}` |

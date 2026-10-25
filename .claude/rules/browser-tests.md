@@ -21,6 +21,8 @@ The test layers and the rebuild plan are in `.claude/rules/node-tests.md`.
 Run `pnpm test:ct <paths>`. Use separate worktrees and distinct `CT_PORT` values for concurrent CT runs.
 Run only the named component suites for the changed behavior.
 
+Run `pnpm test:ct:webkit <paths>` for the platform suites (`platform-*.suite.ct.tsx`) on Playwright's WebKit with the iPhone descriptor. It is WebKitGTK, not Safari: safe-area insets read 0, there is no soft keyboard and no Dynamic Type. WebKit needs the `libavif16` system package (`apt-get install libavif16`).
+
 ## Assertions
 
 - Apply [D308](../../docs/adr/0308-hardware-scoped-timing-budgets.md) through the shared test-kind capability policy for measurement budgets.

@@ -142,7 +142,7 @@
     /* A flex column, or the region's `flex: 1 1 auto` is inert and a section's VirtualList measures its full content. */
     display: flex;
     flex-direction: column;
-    overflow-block: auto;
+    overflow-y: auto;
     overscroll-behavior: contain;
     padding-inline: var(--spacing-row);
     padding-block: var(--spacing-row);

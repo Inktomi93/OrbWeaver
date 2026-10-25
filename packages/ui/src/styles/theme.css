@@ -185,6 +185,7 @@
   --radius-full: 9999px;
   --breakpoint-shell: 48rem;
   --breakpoint-shell-dock: 64rem;
+  --breakpoint-shell-short: 20rem;
   --dimension-rail: 3.5rem;
   --dimension-chrome-row: 3rem;
   --dimension-panel-floor: 17rem;
@@ -245,6 +246,7 @@
   --container-cq-72: 72rem;
   --container-cq-80: 80rem;
   --container-cq-96: 96rem;
+  --width-surface-cap: 120rem;
   --width-cell-fixed: 8.5rem;
   --width-cell-fixed-compact: 7.5rem;
   --width-dialog-sm: 25rem;
@@ -325,12 +327,15 @@
 
 @custom-variant pointer-coarse (@media (pointer: coarse));
 @custom-variant pointer-fine (@media (pointer: fine));
+@custom-variant hover-capable (@media (hover: hover));
 @custom-variant motion-reduce (@media (prefers-reduced-motion: reduce));
 @custom-variant transparency-reduce (@media (prefers-reduced-transparency: reduce));
 @custom-variant contrast-more (@media (prefers-contrast: more));
+@custom-variant forced-colors (@media (forced-colors: active));
 @custom-variant shell-desktop (@media (width > 48rem));
 @custom-variant shell-mobile (@media (width <= 48rem));
 @custom-variant shell-narrow (@media (width <= 64rem));
+@custom-variant shell-short (@media (height <= 20rem));
 
 @layer theme {
   :root {

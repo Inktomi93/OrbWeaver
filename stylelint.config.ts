@@ -33,6 +33,7 @@ const SHEETS = [
   "packages/ui/src/styles/waystone.css",
   "packages/ui/src/styles/weave.css",
   "packages/client/src/styles/globals.css",
+  "packages/client/src/styles/platform.css",
   "packages/client/src/features/app-shell/surfaces/shell/grid.css",
   "packages/client/src/features/app-shell/surfaces/shell/motion.css",
   "packages/client/src/features/app-shell/surfaces/shell/panels.css",
@@ -61,7 +62,10 @@ const config: Config = {
     "orb/rest-transform-grid": [true, { reportDisables: true }],
     "orb/no-raw-media-condition": [true, { containerSteps }],
     "orb/shadow-from-ingredients": true,
-    "property-disallowed-list": ["/^--leading-[a-z-]+$/"],
+    // Compositor hacks: a permanent layer hint or a backface flip promotes a layer the browser would not, and costs memory on
+    // the small devices this app runs on. Animate transform, translate, scale, rotate, opacity and filter.
+    "property-disallowed-list": ["/^--leading-[a-z-]+$/", "will-change", "backface-visibility", "-webkit-overflow-scrolling"],
+    "declaration-property-value-disallowed-list": { "/^(?:-webkit-)?transform$/": ["/translate(?:3d|Z)\\(/i"] },
     "declaration-property-value-allowed-list": {
       "line-height": [...leadings, "/^var\\(--orb-tier-[a-z-]+-leading\\)$/"],
       "/^--orb-tier-[a-z-]+-leading$/": leadings,
@@ -111,7 +115,8 @@ const config: Config = {
       true,
       { importFrom: [...SHEETS, { customProperties: Object.fromEntries(Object.keys(RUNTIME_CUSTOM_PROPERTIES).map((name) => [name, "initial"])) }] },
     ],
-    "logical-css/require-logical-properties": true,
+    // `overflow-block` and `overflow-inline` are Safari 26, and the floor is Safari 18, so the two axes stay spelled `overflow-y` and `overflow-x`.
+    "logical-css/require-logical-properties": [true, { ignore: ["overflow-x", "overflow-y"] }],
     "logical-css/require-logical-keywords": true,
     // The viewport units stay physical: `dvh` and `dvw` are the iPhone platform rules the owner keeps.
     "logical-css/require-logical-units": null,

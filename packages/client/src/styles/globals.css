@@ -14,6 +14,16 @@
   margin-inline: round(down, calc((100% - min(100%, var(--width-shell-content))) / 2), 1px) auto;
 }
 
+/* The composer's track: the dial's width, capped by the very expression the content column carries. A `ch` resolves in
+ * the element's own font and rounds to whole pixels, so the track takes the prose font for its own box; the composer's
+ * voices and controls set their own sizes. Centred on the same pixel grid as the transcript's track. */
+@utility orb-composer-track {
+  font-size: calc(var(--text-body) * var(--reading-body-scale, 1));
+  --composer-track: min(var(--width-shell-content), calc(var(--reading-measure) * var(--reading-body-scale, 1)));
+  max-inline-size: var(--composer-track);
+  margin-inline: round(down, calc((100% - min(100%, var(--composer-track))) / 2), 1px) auto;
+}
+
 @layer client {
   :root {
     background-color: var(--color-background);
@@ -352,7 +362,7 @@
   [data-slot="message-bubble"] pre {
     contain: inline-size;
     max-inline-size: 100%;
-    overflow-inline: auto;
+    overflow-x: auto;
   }
   /* A message holding code takes its whole track, or a shrink-to-fit bubble gives the code no width at all. */
   [data-slot="message-content-column"]:has(pre),

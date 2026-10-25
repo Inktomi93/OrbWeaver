@@ -13,7 +13,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { cn } from "#lib";
 import type { ComposerMediaDrop } from "../hooks/use-composer-media-drop.ts";
-import { CHAT_TRACK } from "../lib/chat-track.ts";
+import { COMPOSER_TRACK } from "../lib/chat-track.ts";
 
 /** The affordance copy — the empty state of a gesture, so it names BOTH accepted classes (#376). */
 const DROP_AFFORDANCE = "Drop images or video to attach";
@@ -37,7 +37,7 @@ export function ComposerDropTarget({ dragActive, dropTargetProps, children }: Co
       // interaction LIFT survives on the opaque `bg-muted` step. Focus is a 1px border in the ring colour, held
       // back in alpha: quiet enough to rest on for a whole session, and still a visible step past hover.
       className={cn(
-        CHAT_TRACK,
+        COMPOSER_TRACK,
         "relative isolate rounded-card border border-border bg-card p-field focus-within:border-ring/60 focus-within:bg-muted hover:border-input hover:bg-muted",
         // The DRAG-OVER paint is louder than focus on purpose: an armed drop target has to announce itself
         // for the moment a file hovers over it.

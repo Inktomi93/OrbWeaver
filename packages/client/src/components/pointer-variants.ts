@@ -40,17 +40,19 @@ export const SHOW_ONLY_AT_COARSE = "pointer-fine:hidden";
  *  whole set of names. */
 export const LABEL_TO_SR_ONLY_AT_COARSE = "pointer-coarse:sr-only";
 
-/** Reveal an opacity/pointer-events reveal cluster PERMANENTLY at a coarse pointer (there is no hover to
- *  reveal it there). Composed onto a hover/`:focus-within` reveal base so the cluster is always interactive on
- *  touch. Live: the message-actions reveal resolver. */
-export const REVEAL_AT_COARSE = "pointer-coarse:opacity-100 pointer-coarse:pointer-events-auto";
+/** Hide an opacity/pointer-events reveal cluster at rest ONLY where the primary input can hover. Where it cannot
+ *  (a phone, or a stylus-driven tablet with a fine pointer) the cluster simply stays revealed, since no hover
+ *  exists to reveal it. Keyed on hover capability, not on pointer size: a fine pointer without hover would
+ *  otherwise leave it hidden forever. Composed with the `group-hover`/`group-focus-within` reveals, which win by
+ *  specificity. Live: the message-actions reveal resolver. */
+export const HIDDEN_UNTIL_HOVER = "hover-capable:opacity-0 hover-capable:pointer-events-none";
 
 /** A trailing cluster that OVERLAYS content and so must be inert at rest, live on hover/`:focus-within` —
- *  FINE pointers only (at coarse there is no hover and the cluster is permanently visible via `ROW_REVEAL`, so
- *  it must stay live). The wrapper carries it; `pointer-events` inherits to its children. `listRowVariants`'
+ *  only where the primary input can hover (without hover the cluster is permanently visible via `ROW_REVEAL`,
+ *  so it must stay live). The wrapper carries it; `pointer-events` inherits to its children. `listRowVariants`'
  *  `float` arm is the ui-layer twin. Live: the persona panel-row action cluster. */
-export const FINE_INERT_UNTIL_HOVER =
-  "pointer-fine:pointer-events-none pointer-fine:group-hover:pointer-events-auto pointer-fine:group-focus-within:pointer-events-auto";
+export const INERT_UNTIL_HOVER =
+  "hover-capable:pointer-events-none hover-capable:group-hover:pointer-events-auto hover-capable:group-focus-within:pointer-events-auto";
 
 /** The rpg tracker chip's coarse touch floor: its FLOORLESS glyph ✕ rides an overflowing `::after` that a
  *  flex-wrap gap clips, so the CHIP takes the ≥44px min-height at coarse and the pseudo fits inside its own
@@ -137,11 +139,11 @@ export const CONTEXT_RAIL_WRAPPED_EDGE_BAR_OFF = "pointer-fine:@max-cq-20:data-a
 export const CONTEXT_CELL_FLOOR_AT_COARSE = "pointer-coarse:min-block-(--size-control-lg)";
 
 /** The faint reveal of a row toggle that is secondary chrome (the persona crown, card pin and favorite
- *  heart, the switcher's Edit door): rest-invisible at a fine pointer and revealed FAINT on the
- *  row's hover/focus-visible; at coarse (no hover exists) it is ALWAYS faint — an invisible control would
+ *  heart, the switcher's Edit door): rest-invisible where the primary input can hover and revealed FAINT on the
+ *  row's hover/focus-visible; without hover it is ALWAYS faint — an invisible control would
  *  be an unreachable one, and the row budgets its touch box for it. Opacity only (the `ROW_REVEAL` law —
  *  display/visibility swaps under a hover key are hit-test oscillators), keyed on the row's `group` like
  *  the action cluster; direct hover/focus restore full strength so nobody aims at a 40%-opacity target.
  *  Pointer-keyed, so it is homed here and not in the feature (`no-pointer-variants-in-features`). */
 export const PIN_REVEAL =
-  "opacity-0 transition-opacity duration-(--motion-fast) ease-out-expo group-hover:opacity-60 group-has-focus-visible:opacity-60 hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-40";
+  "opacity-40 transition-opacity duration-(--motion-fast) ease-out-expo hover-capable:opacity-0 group-hover:opacity-60 group-has-focus-visible:opacity-60 hover:opacity-100 focus-visible:opacity-100";

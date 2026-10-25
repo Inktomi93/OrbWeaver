@@ -93,6 +93,12 @@ const RESTRICTED_CLASSES = [
     message: "Arbitrary Tailwind layout/size/type value bypasses the token scale; use a token utility or extend tokens.json.",
   },
   {
+    // A permanent layer promotion: the browser promotes what it animates, and a standing hint costs memory on small devices.
+    pattern: String.raw`^(?:[^\s]*:)?(?:will-change-[a-z-]+|transform-gpu|backface-(?:hidden|visible)|translate-z-[^\s]+)$`,
+    message:
+      "A forced compositor layer (will-change, transform-gpu, backface, translate-z); animate transform, translate, scale, rotate, opacity or filter and let the browser promote.",
+  },
+  {
     pattern: String.raw`^(?:[^\s]*:)?@?(?:min|max)-\[[^\s\]]+\]:`,
     message: "An arbitrary breakpoint variant bypasses the named conditions; use a breakpoint or container token (tokens.json) or add one.",
   },
@@ -126,7 +132,7 @@ const VIEWPORT_CLASSES = {
 };
 /** Pointer and hover capability variants are the tokens' or the shell's, never a feature's. */
 const POINTER_CLASSES = {
-  pattern: String.raw`^(?:[^\s]*:)?(?:(?:any-)?pointer-(?:coarse|fine)|\[@media\([^\s)]*(?:any-pointer|pointer|hover):[^\s)]*\)\]):`,
+  pattern: String.raw`^(?:[^\s]*:)?(?:(?:any-)?pointer-(?:coarse|fine)|hover-capable|\[@media\([^\s)]*(?:any-pointer|pointer|hover):[^\s)]*\)\]):`,
   message: "Device capability adaptation belongs to shared tokens or app-shell, not feature-local pointer/hover capability variants.",
 };
 /** A raw content width; the container scale and the Container primitive own widths. */

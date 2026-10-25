@@ -1,0 +1,5 @@
+/* The lazily loaded KaTeX sheet enters the vendor layer, so every house layer outranks it and no vendor rule needs
+ * `!important` to lose. The order statement is imported first because a bundle may place this sheet before the ui
+ * entry, and a layer ranks by its first appearance. */
+@import "../styles/layers.css";
+@import "katex/dist/katex.min.css" layer(vendor);

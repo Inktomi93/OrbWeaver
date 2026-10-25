@@ -73,6 +73,7 @@ const CONDITION_VARIANTS = [
   "shell-desktop:flex",
   "shell-narrow:flex",
   "pointer-coarse:flex",
+  "hover-capable:flex",
   "transparency-reduce:hidden",
   "@cq-28:flex",
   "@max-cq-32:hidden",
@@ -103,7 +104,19 @@ const SUPPORTED = [
 /** The important modifier, in both spellings and under a variant, is refused on an otherwise supported class. */
 const IMPORTANT = ["!p-0", "p-0!", "hover:!p-0", "hover:p-0!"];
 /** One control per class gate that moved from an `orb/` rule onto a restricted pattern. */
-const RETIRED_GATE_CONTROLS = ["pt-[13px]", "@min-[100rem]:flex", "p-(--primitive-space-8)", "bg-black", "text-red-500", "bg-[#fff]", "max-w-prose"];
+const RETIRED_GATE_CONTROLS = [
+  "pt-[13px]",
+  "@min-[100rem]:flex",
+  "p-(--primitive-space-8)",
+  "bg-black",
+  "text-red-500",
+  "bg-[#fff]",
+  "max-w-prose",
+  "will-change-transform",
+  "transform-gpu",
+  "backface-hidden",
+  "translate-z-4",
+];
 /** Class strings in UPPER_CASE constants and their object values: one hit per retired gate, plus the pointer variant in features. */
 const PLANTED_CONSTANTS = [
   'export const PLANT_COLOR = "bg-red-500 text-white";',
@@ -111,6 +124,7 @@ const PLANTED_CONSTANTS = [
   'export const PLANT_VIEWPORT = "md:flex";',
   'export const PLANT_PROSE = "max-w-prose";',
   'export const PLANT_POINTER = "pointer-coarse:flex";',
+  'export const PLANT_HOVER = "hover-capable:flex";',
   'export const RAIL = { root: "bg-[#ff0000]" };',
 ].join("\n");
 const PLANTED_CONSTANT_HITS = 7;
@@ -129,7 +143,7 @@ const PLANTED_BINDING_PHYSICAL = ["rounded-l-none", "w-[300px]", "border-l-2", "
 const PLANTED_CALL_IN_LOGICAL = 'export const shown = cn("h-auto", flag ? "mt-row" : "") ?? "";\nexport const gated = flag && cn("pl-row");';
 const PLANTED_CALL_IN_LOGICAL_PHYSICAL = ["h-auto", "mt-row", "pl-row"];
 /** A viewport variant, a pointer variant, a raw width step and an arbitrary width. */
-const SCOPED_CONTROLS = ["md:flex", "pointer-coarse:flex", "w-64", "w-[20rem]"];
+const SCOPED_CONTROLS = ["md:flex", "pointer-coarse:flex", "hover-capable:flex", "w-64", "w-[20rem]"];
 // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
 const SPLICED_CLASS = "cn(`text-${size}`);";
 const CARRIERS = [
@@ -216,7 +230,7 @@ test("effective UI/client native rules reject stock classes in real class carrie
     expect(IMPORTANT.map((candidate) => lintWith(RESTRICTED_RULE, `cn("${candidate}");`).length)).toEqual(IMPORTANT.map(() => 1));
     expect(RETIRED_GATE_CONTROLS.map((candidate) => lintWith(RESTRICTED_RULE, `cn("${candidate}");`).length)).toEqual(RETIRED_GATE_CONTROLS.map(() => 1));
     // The retired gates read every string literal; the patterns reach exported constants and their object values too.
-    expect(lintWith(RESTRICTED_RULE, PLANTED_CONSTANTS), path).toHaveLength(PLANTED_CONSTANT_HITS + pointerRefusals);
+    expect(lintWith(RESTRICTED_RULE, PLANTED_CONSTANTS), path).toHaveLength(PLANTED_CONSTANT_HITS + 2 * pointerRefusals);
     expect(lintWith(RESTRICTED_RULE, PLANTED_BINDINGS), path).toHaveLength(PLANTED_BINDING_RESTRICTED + pointerRefusals);
     expect(physicalIn(lintWith(LOGICAL_RULE, PLANTED_BINDINGS)), path).toEqual(PLANTED_BINDING_PHYSICAL);
     expect(physicalIn(lintWith(LOGICAL_RULE, PLANTED_CALL_IN_LOGICAL)), path).toEqual(PLANTED_CALL_IN_LOGICAL_PHYSICAL);
@@ -224,7 +238,7 @@ test("effective UI/client native rules reject stock classes in real class carrie
     expect(
       SCOPED_CONTROLS.map((candidate) => lintWith(RESTRICTED_RULE, `cn("${candidate}");`).length),
       path,
-    ).toEqual([1, pointerRefusals, 1, 1]);
+    ).toEqual([1, pointerRefusals, pointerRefusals, 1, 1]);
     expect(lintWith("better-tailwindcss/no-concatenated-classes", SPLICED_CLASS), path).toHaveLength(1);
     for (const carrier of CARRIERS) {
       if (path.endsWith(".ts") && carrier.startsWith("<")) {

@@ -1,7 +1,6 @@
-/* @orb/ui's one CSS entry: the cascade-layer order, Tailwind, the generated theme, then the ui regions in their layers
- * (client-architecture-lockdown.md §4.5). Every house layer follows Tailwind's utilities, so a house rule beats a
- * utility by layer order and never by specificity; the reduced-motion floor is the last layer. */
-@layer theme, base, components, utilities, ui, shell, client, appearance, preference, motion;
+/* @orb/ui's one CSS entry: the cascade-layer order (layers.css), Tailwind, the generated theme, then the ui regions in
+ * their layers (client-architecture-lockdown.md §4.5). */
+@import "./layers.css";
 @import "tailwindcss";
 @import "./theme.css";
 @import "./tiers.css";
