@@ -11,6 +11,9 @@ import { narratorPolicyOf } from "@orb/contracts/chat";
 
 type GroupOutput = GroupConfig["output"];
 
+/** The label of the Group tab's disclosure for the knobs most rooms never change. */
+export const GROUP_ADVANCED_LABEL = "Advanced";
+
 /** Group config is one blob per room, so the chat id (committed) / draft key keys the form's remount. */
 export const GROUP_CONFIG_ENTITY_PREFIX = "group-config:";
 

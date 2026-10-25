@@ -10,9 +10,8 @@ import { makeChatDetail, makeChatId, makeRedeemInviteResult } from "@orb/testkit
 import type { JoinInviteDialogStory } from "./_join-invite-stories.tsx";
 
 const TOKEN = "controlled-invite-token";
-// A token the server never issued, and one it issued and spent after the preview.
+// A token the server never issued.
 const DEAD_TOKEN = "unissued-invite-token";
-const SPENT_TOKEN = "spent-invite-token";
 const PREVIEW = invitePreviewSchema.parse({
   chatId: makeChatId(),
   roomName: "Lantern Quay",
@@ -92,21 +91,26 @@ test("Not now dismisses the ready component without redeeming the invite", async
 });
 
 test("a refused redemption replaces the previous preview with the same flat invalid state", async ({ corpus, mount, page }) => {
+  const viewer = createCorpusReadResponder("sessions.me", corpus.reads["sessions.me"])(undefined);
+  const chat = makeChatDetail({ id: PREVIEW.chatId, title: PREVIEW.roomName, viewerIsHost: false, viewerUserId: viewer.userId });
+  // The invite is spent by someone else after the preview settled; the redemption for the same token is then refused.
+  let spent = false;
   const wire = await routeTrpc(page, {
     ...providerReads(corpus),
     "invites.previewInvite": previewFor,
     "invites.redeemInvite": ({ token }) =>
-      token === SPENT_TOKEN ? trpcError({ code: "NOT_FOUND", message: "The invite was spent after preview." }) : trpcError({ code: "NOT_FOUND" }),
+      spent && token === TOKEN ? trpcError({ code: "NOT_FOUND", message: "The invite was spent after preview." }) : makeRedeemInviteResult({ chat }),
   });
-  await mount<typeof JoinInviteDialogStory>("tests/client/features/chat/anchors/_join-invite-stories/JoinInviteDialogStory", { token: SPENT_TOKEN });
+  await mount<typeof JoinInviteDialogStory>("tests/client/features/chat/anchors/_join-invite-stories/JoinInviteDialogStory", { token: TOKEN });
   const dialog = page.getByRole("dialog", { name: DIALOG, exact: true });
   await expect(dialog.getByText(ROOM_SENTENCE, { exact: true })).toBeVisible();
+  spent = true;
   await dialog.getByRole("button", { name: "Join chat", exact: true }).click();
   await expect(dialog.getByText(DEAD_INVITE_SENTENCE, { exact: true })).toBeVisible();
   await expect(dialog).not.toContainText(PREVIEW.roomName);
   await expect(dialog).not.toContainText(PREVIEW.hostHandle);
   await expect(dialog).not.toContainText(PREVIEW.modeLabel);
-  expect(wire.requireLastInput("invites.redeemInvite")).toEqual({ token: SPENT_TOKEN });
+  expect(wire.requireLastInput("invites.redeemInvite")).toEqual({ token: TOKEN });
   await dialog.getByRole("button", { name: "Close", exact: true }).click();
   await expect(page.getByRole("status", { name: "Join dialog completion", exact: true })).toHaveText("Closed");
 });

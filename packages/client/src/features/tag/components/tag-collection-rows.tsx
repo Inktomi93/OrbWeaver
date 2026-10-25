@@ -17,6 +17,7 @@ import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { COLLECTION_LARGE_GROUP, pruneConfirmLabel, sortTagsBy, tagUsageLabel, unusedTagsLabel, usageBreakdown } from "#lib";
 import { labelDeleted, setLabelFilter, setTagPruneConfirmOpen, useTagPruneConfirmOpen, useTagSortMode } from "#state";
 import { finderRoot, libraryOrFinder } from "../lib/labels-focus-targets.ts";
+import { TAG_LIST_NAME } from "../lib/tag-list-name.ts";
 
 const ESTIMATED_ROW_PX = 52;
 
@@ -72,7 +73,7 @@ export function TagCollectionRows({ view }: { readonly view: TagRowsView }): Rea
       ) : null}
       {empty || !windowed ? null : (
         <VirtualList
-          aria-label="Tags"
+          aria-label={TAG_LIST_NAME}
           className="flex-1 min-block-0"
           estimateSize={(): number => ESTIMATED_ROW_PX}
           fadeEdge={true}
@@ -84,7 +85,7 @@ export function TagCollectionRows({ view }: { readonly view: TagRowsView }): Rea
       )}
       {empty || !draggable ? null : (
         <SortableList
-          aria-label="Tags"
+          aria-label={TAG_LIST_NAME}
           getItemKey={(tag: TagWithUsage): string => tag.id}
           handle={true}
           itemLabel={(tag: TagWithUsage): string => tag.name}
@@ -95,7 +96,7 @@ export function TagCollectionRows({ view }: { readonly view: TagRowsView }): Rea
       )}
 
       {empty || windowed || draggable ? null : (
-        <Stack aria-label="Tags" gap="field" role="list">
+        <Stack aria-label={TAG_LIST_NAME} gap="field" role="list">
           {filtered.map((tag, index) => (
             <Stack aria-posinset={index + 1} aria-setsize={filtered.length} key={tag.id} role="listitem">
               {renderRow(tag)}

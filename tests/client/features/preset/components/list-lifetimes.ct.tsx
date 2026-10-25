@@ -1,10 +1,32 @@
-/* eslint-disable orb/ct-responder-reads-input -- the subject is the client reconciling write echoes that arrive late, out of order or changed by another author, which the server cannot be made to answer */
 import { choiceBlockSchema, presetDetailSchema, userMacroSchema } from "@orb/contracts/preset";
-import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/ct";
+import { holdServed, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { PresetListLifetimeStory } from "./_list-lifetime-stories.tsx";
 
 test.use({ trace: "on" });
+
+const PRESET_READS = [
+  "settings.getUserSettings",
+  "sessions.me",
+  "preset.get",
+  "preset.list",
+  "preset.resolveEffective",
+  "connection.resolveChatCapability",
+  "connection.providersAvailable",
+  "connection.list",
+  "preset.resetToDefault",
+] as const;
+
+type Caller = Awaited<ReturnType<Awaited<ReturnType<typeof createCorpusHarness>>["internalCallerFor"]>>;
+type PresetId = Parameters<Caller["preset"]["get"]>[0]["id"];
+type PresetConfig = Awaited<ReturnType<Caller["preset"]["get"]>>["config"];
+
+/** Another author's edit, written by the real verb the way a second tab would write it. */
+async function editElsewhere(caller: Caller, id: PresetId, edit: (config: PresetConfig) => PresetConfig): Promise<void> {
+  const { config } = await caller.preset.get({ id });
+  await caller.preset.update({ id, config: edit(config) });
+}
 
 test("native nested lists preserve typing and successor bindings, retain own echoes, and close replaced draft editors", async ({
   corpus,
@@ -12,11 +34,11 @@ test("native nested lists preserve typing and successor bindings, retain own ech
   page,
 }, testInfo) => {
   const library = corpus.libraryRelations;
-  const settings = corpus.reads["settings.getUserSettings"][0]?.output;
-  const viewer = corpus.reads["sessions.me"][0]?.output;
-  if (library === undefined || settings === undefined || viewer === undefined) {
-    throw new Error("The committed corpus omitted the preset owner/library");
+  if (library === undefined) {
+    throw new Error("The committed corpus omitted the preset library");
   }
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
   const macro = userMacroSchema.parse({
     name: "cohort_macro",
     body: "{{second}}",
@@ -37,10 +59,12 @@ test("native nested lists preserve typing and successor bindings, retain own ech
       { kind: "multi-select", name: "second_input", label: "Second question", options: [{ label: "Gamma", value: "g" }] },
     ],
   });
-  let preset = presetDetailSchema.parse({
-    ...library.reads.presetDetail.output,
+  const base = presetDetailSchema.parse(library.reads.presetDetail.output);
+  const presetId = base.id;
+  await caller.preset.update({
+    id: presetId,
     config: {
-      ...library.reads.presetDetail.output.config,
+      ...base.config,
       userMacros: [macro],
       variables: [
         choiceBlockSchema.parse({
@@ -54,24 +78,10 @@ test("native nested lists preserve typing and successor bindings, retain own ech
       ],
     },
   });
-  const presetId = preset.id;
   let failSaves = false;
   const trpc = await routeTrpc(page, {
-    "settings.getUserSettings": () => settings,
-    "sessions.me": () => viewer,
-    "preset.get": () => preset,
-    "preset.list": () => library.reads.presetList.output,
-    "preset.resolveEffective": () => library.reads.presetEffective.output,
-    "connection.resolveChatCapability": () => trpcError({ code: "BAD_REQUEST" }),
-    "connection.providersAvailable": () => [],
-    "connection.list": () => [],
-    "preset.update": (input) => {
-      if (failSaves) {
-        return trpcError();
-      }
-      preset = presetDetailSchema.parse({ ...preset, config: input.config ?? preset.config });
-      return preset;
-    },
+    ...serveCorpusProcedures(caller, PRESET_READS),
+    ...serveCorpusProcedures(caller, ["preset.update"], () => (failSaves ? trpcError() : undefined)),
   });
   const component = await mount<typeof PresetListLifetimeStory>("tests/client/features/preset/components/_list-lifetime-stories/PresetListLifetimeStory", {
     presetId,
@@ -132,13 +142,13 @@ test("native nested lists preserve typing and successor bindings, retain own ech
   await page.screenshot({ path: macroScreenshot });
   await testInfo.attach("macro-after-removal-and-echo", { path: macroScreenshot });
 
-  preset = presetDetailSchema.parse({ ...preset, config: { ...preset.config, params: { ...preset.config.params, temperature: 0.63 } } });
+  await editElsewhere(caller, presetId, (config) => ({ ...config, params: { ...config.params, temperature: 0.63 } }));
   await component.update({ presetId, revision: 2 });
   await expect(page.getByLabel("Read revision", { exact: true })).toHaveText("2");
   await expect(dialog).toBeVisible();
   await expect(dialog.locator('input[name="userMacros[0].args[0].name"]')).toHaveValue("second_edited");
 
-  preset = presetDetailSchema.parse({ ...preset, config: { ...preset.config, userMacros: [userMacroSchema.parse({ ...macro, name: "remote_macro" })] } });
+  await editElsewhere(caller, presetId, (config) => ({ ...config, userMacros: [userMacroSchema.parse({ ...macro, name: "remote_macro" })] }));
   await component.update({ presetId, revision: 3 });
   await expect(page.getByLabel("Read revision", { exact: true })).toHaveText("3");
   await expect(dialog).toHaveCount(0);
@@ -186,13 +196,10 @@ test("native nested lists preserve typing and successor bindings, retain own ech
   await remaining.fill("Obsolete draft");
   await expect(page.getByText("Save failed —", { exact: true })).toBeVisible();
   await component.update({ presetId, mounted: false });
-  preset = presetDetailSchema.parse({
-    ...preset,
-    config: {
-      ...preset.config,
-      variables: [choiceBlockSchema.parse({ name: "cohort_variable", question: "Remote question", options: [{ label: "Remote option", value: "remote" }] })],
-    },
-  });
+  await editElsewhere(caller, presetId, (config) => ({
+    ...config,
+    variables: [choiceBlockSchema.parse({ name: "cohort_variable", question: "Remote question", options: [{ label: "Remote option", value: "remote" }] })],
+  }));
   await component.update({ presetId, runtimeEpoch: 1 });
   await page.getByRole("tab", { name: "Data", exact: true }).click();
   await page.getByRole("button", { name: "cohort_variable", exact: true }).click();
@@ -204,51 +211,33 @@ test("native nested lists preserve typing and successor bindings, retain own ech
 
 test("pending writes cannot replace newer edits, and explicit reset admits a new usable list owner", async ({ corpus, mount, page }) => {
   const library = corpus.libraryRelations;
-  const settings = corpus.reads["settings.getUserSettings"][0]?.output;
-  const viewer = corpus.reads["sessions.me"][0]?.output;
-  if (library === undefined || settings === undefined || viewer === undefined) {
-    throw new Error("The committed corpus omitted the preset owner/library");
+  if (library === undefined) {
+    throw new Error("The committed corpus omitted the preset library");
   }
-  const original = presetDetailSchema.parse(library.reads.presetDetail.output);
-  let preset = presetDetailSchema.parse({
-    ...original,
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const base = presetDetailSchema.parse(library.reads.presetDetail.output);
+  const presetId = base.id;
+  await caller.preset.update({
+    id: presetId,
     config: {
-      ...original.config,
+      ...base.config,
       variables: [choiceBlockSchema.parse({ name: "queued_variable", question: "Choose", options: [{ label: "Original", value: "original" }] })],
     },
   });
-  const presetId = preset.id;
-  const first = trpcHold<"preset.update">();
-  const second = trpcHold<"preset.update">();
-  let firstAnswer = preset;
-  let secondAnswer = preset;
+  const first = holdServed();
+  const second = holdServed();
   let writes = 0;
   const trpc = await routeTrpc(page, {
-    "settings.getUserSettings": () => settings,
-    "sessions.me": () => viewer,
-    "preset.get": () => preset,
-    "preset.list": () => library.reads.presetList.output,
-    "preset.resolveEffective": () => library.reads.presetEffective.output,
-    "connection.resolveChatCapability": () => trpcError({ code: "BAD_REQUEST" }),
-    "connection.providersAvailable": () => [],
-    "connection.list": () => [],
-    "preset.update": (input) => {
-      preset = presetDetailSchema.parse({ ...preset, config: input.config ?? preset.config });
+    ...serveCorpusProcedures(caller, PRESET_READS),
+    // The first two writes wait until the test lets the server apply them, in the order the test chooses.
+    ...serveCorpusProcedures(caller, ["preset.update"], () => {
       writes += 1;
       if (writes === 1) {
-        firstAnswer = preset;
         return first;
       }
-      if (writes === 2) {
-        secondAnswer = preset;
-        return second;
-      }
-      return preset;
-    },
-    "preset.resetToDefault": () => {
-      preset = original;
-      return preset;
-    },
+      return writes === 2 ? second : undefined;
+    }),
   });
   const component = await mount<typeof PresetListLifetimeStory>("tests/client/features/preset/components/_list-lifetime-stories/PresetListLifetimeStory", {
     presetId,
@@ -260,24 +249,19 @@ test("pending writes cannot replace newer edits, and explicit reset admits a new
   await label.fill("Submitted");
   await first.requested;
   await label.fill("Newer");
-  preset = presetDetailSchema.parse({
-    ...preset,
-    config: {
-      ...preset.config,
-      variables: [
-        choiceBlockSchema.parse({ name: "queued_variable", question: "External question", options: [{ label: "External echo", value: "external" }] }),
-      ],
-    },
-  });
+  await editElsewhere(caller, presetId, (config) => ({
+    ...config,
+    variables: [choiceBlockSchema.parse({ name: "queued_variable", question: "External question", options: [{ label: "External echo", value: "external" }] })],
+  }));
   await component.update({ presetId, revision: 1 });
   await expect(page.getByLabel("Read revision", { exact: true })).toHaveText("1");
   await expect(label).toHaveValue("Newer");
   await expect(label).toBeFocused();
-  first.release(firstAnswer);
+  first.release();
   await second.requested;
   await expect(label).toHaveValue("Newer");
   await expect(page.getByText("Saved", { exact: true })).toHaveCount(0);
-  second.release(secondAnswer);
+  second.release();
   await expect(page.getByText("Saved", { exact: true })).toBeVisible();
   await component.update({ presetId, revision: 2 });
   await expect(page.getByLabel("Read revision", { exact: true })).toHaveText("2");

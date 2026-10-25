@@ -30,7 +30,7 @@ import { createAutosaveEntityForm } from "#forms/editor";
 import { SMART_POLICY_COST_SENTENCE } from "#lib";
 import { useSetGroupConfig } from "../hooks/use-context-panel-mutations.ts";
 import type { GroupConfigFormValues } from "../lib/group-config-model.ts";
-import { defaultSpeakerTags, fromGroupConfigForm, GROUP_CONFIG_ENTITY_PREFIX, toGroupConfigForm } from "../lib/group-config-model.ts";
+import { defaultSpeakerTags, fromGroupConfigForm, GROUP_ADVANCED_LABEL, GROUP_CONFIG_ENTITY_PREFIX, toGroupConfigForm } from "../lib/group-config-model.ts";
 
 type GroupOutput = GroupConfig["output"];
 
@@ -262,7 +262,7 @@ function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps): Reac
 
           <Accordion>
             <AccordionItem value="advanced">
-              <AccordionTrigger>Advanced</AccordionTrigger>
+              <AccordionTrigger>{GROUP_ADVANCED_LABEL}</AccordionTrigger>
               <AccordionPanel>
                 <Stack gap="section" className="pbs-block">
                   <PolicyField>

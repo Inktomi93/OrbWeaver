@@ -52,7 +52,7 @@ export const TEST_FABRICATION_RESTRICTIONS = [
   },
 ];
 
-const APPEARANCE_CHANNEL_NAME = String.raw`/(?:data-appearance-|--appearance-)/`;
+const APPEARANCE_CHANNEL_NAME = "/(?:data-appearance-|--appearance-)/";
 
 export const TEST_APPEARANCE_RESTRICTIONS = [
   {

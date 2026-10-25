@@ -1,6 +1,6 @@
 import { QueryBoundary } from "@orb/client/components";
 import { requireQueryBoundary, useSuspenseQuery } from "@orb/client/data";
-import { CtAppDataProviders } from "@orb/testkit/browser";
+import { CtAppDataProviders, CtIsolation } from "@orb/testkit/browser";
 import type { ReactElement } from "react";
 import { Component } from "react";
 
@@ -25,21 +25,25 @@ class Catch extends Component<{ readonly children: ReactElement }, { readonly me
 /** The read under the production QueryBoundary. */
 export function ReadInsideBoundaryStory(): ReactElement {
   return (
-    <CtAppDataProviders>
-      <QueryBoundary fallback={<p>loading</p>}>
-        <Reader />
-      </QueryBoundary>
-    </CtAppDataProviders>
+    <CtIsolation subject="QueryBoundary" isolates="The boundary needs the app data providers, not the section registries.">
+      <CtAppDataProviders>
+        <QueryBoundary fallback={<p>loading</p>}>
+          <Reader />
+        </QueryBoundary>
+      </CtAppDataProviders>
+    </CtIsolation>
   );
 }
 
 /** The same read with only a plain Suspense above it, as a region skeleton would be. */
 export function ReadOutsideBoundaryStory(): ReactElement {
   return (
-    <CtAppDataProviders>
-      <Catch>
-        <Reader />
-      </Catch>
-    </CtAppDataProviders>
+    <CtIsolation subject="Suspense" isolates="A plain Suspense above a read is the case under test; no boundary or registry mounts.">
+      <CtAppDataProviders>
+        <Catch>
+          <Reader />
+        </Catch>
+      </CtAppDataProviders>
+    </CtIsolation>
   );
 }

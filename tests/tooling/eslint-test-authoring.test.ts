@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
+import { exportedLabels } from "../../tooling/src/eslint/test-labels.ts";
 
 const CONFIG_LOAD_TIMEOUT = { timeout: 120_000 };
 
@@ -98,7 +99,7 @@ test.for([
   ["a name imported from its module", `await page.getByRole("button", { name: IMMERSIVE_CARD_LABELS.rawSource }).click();`, SPEC, 0, ""],
   ["a name no module exports", `await page.getByRole("button", { name: "A sentence only this spec spells" }).click();`, SPEC, 0, ""],
   ["a pattern name", `await page.getByRole("button", { name: /View raw source/u }).click();`, SPEC, 0, ""],
-  ["a text locator", `await page.getByText("View raw source").click();`, SPEC, 0, ""],
+  ["a text locator", `await page.getByText("View raw source", { exact: true }).click();`, SPEC, 1, "control-labels.ts"],
 ] as const)("test authoring wall, hand-copied label: %s", CONFIG_LOAD_TIMEOUT, async ([, source, path, count, owner], { repoRoot }) => {
   const found = await findings(repoRoot, LABEL, source, path);
   expect(found).toHaveLength(count);
@@ -108,6 +109,13 @@ test.for([
 const caseOf = (body: string): string => `test("probe", async ({ page }) => {\n${body}\n});`;
 
 test.for([
+  ["a null only", caseOf("expect(await lookup(page)).toBeNull();"), 1],
+  ["an undefined only", caseOf("expect(await lookup(page)).toBeUndefined();"), 1],
+  [
+    "a positive inside a closure the case never runs",
+    caseOf("const check = async () => {\n  await expect(a).toBeVisible();\n};\nawait expect(b).toHaveCount(0);"),
+    1,
+  ],
   ["a hidden dialog only", caseOf(`await expect(page.getByRole("dialog")).not.toBeVisible();`), 1],
   ["a zero count only", caseOf(`await expect(page.getByRole("dialog")).toHaveCount(0);`), 1],
   ["a missing attribute only", caseOf(`await expect(page.getByRole("dialog")).not.toHaveAttribute("open", "");`), 1],
@@ -118,6 +126,17 @@ test.for([
   ["an absence inside a loop", caseOf("for (const row of rows) {\n  await expect(row).toHaveCount(0);\n}"), 1],
   ["a soft absence only", caseOf("await expect.soft(a).toHaveCount(0);"), 1],
   ["the test.for form", `test.for([1])("probe", async () => {\n  await expect(a).toHaveCount(0);\n});`, 1],
+  ["a double negative that asserts presence", caseOf("await expect(a).not.toBeHidden();\nawait expect(b).toHaveCount(0);"), 0],
+  [
+    "a positive inside a closure the case calls",
+    caseOf("const check = async () => {\n  await expect(a).toBeVisible();\n};\nawait check();\nawait expect(b).toHaveCount(0);"),
+    0,
+  ],
+  [
+    "a positive inside a callback handed to a call",
+    caseOf("await poll(async () => {\n  await expect(a).toBeVisible();\n});\nawait expect(b).toHaveCount(0);"),
+    0,
+  ],
   ["a positive control beside the absence", caseOf("await expect(a).toBeVisible();\nawait expect(b).toHaveCount(0);"), 0],
   ["a value assertion beside the absence", caseOf("expect(await count()).toBe(2);\nawait expect(b).not.toBeVisible();"), 0],
   ["a helper that asserts, beside the absence", caseOf("await expectNamed(page);\nawait expect(b).toHaveCount(0);"), 0],
@@ -127,4 +146,17 @@ test.for([
   ["a describe block is not a case", `test.describe("probe", () => {\n  test.beforeEach(async () => {\n    await expect(a).toHaveCount(0);\n  });\n});`, 0],
 ] as const)("test authoring wall, absence only: %s", CONFIG_LOAD_TIMEOUT, async ([, source, count], { repoRoot }) => {
   expect(await findings(repoRoot, ABSENCE, source, SPEC)).toHaveLength(count);
+});
+
+test("a constant outranks a table field, and a string two same-rank exports hold has no owner", async ({ plantedTree }) => {
+  const root = await plantedTree({
+    "packages/a/src/one.ts": 'export const ALPHA_LABEL = "Alphabet";\nexport const TABLE_LABELS = { a: "Alphabet", b: "Tablet" } as const;\n',
+    "packages/a/src/two.ts": 'export const BETA_NAME = "Shared";\n',
+    "packages/b/src/three.ts": 'export const GAMMA_NAME = "Shared";\nexport const OTHER_TITLES = { x: "Tablet", y: "Tabloid" } as const;\n',
+  });
+  const labels = exportedLabels(root);
+  expect(labels.get("Alphabet")).toEqual({ module: "packages/a/src/one.ts", exportName: "ALPHA_LABEL" });
+  expect(labels.has("Shared")).toBe(false);
+  expect(labels.has("Tablet")).toBe(false);
+  expect(labels.get("Tabloid")).toEqual({ module: "packages/b/src/three.ts", exportName: "OTHER_TITLES.y" });
 });

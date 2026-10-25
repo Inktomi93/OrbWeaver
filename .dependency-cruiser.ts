@@ -304,6 +304,8 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/data/import-tree-served.ts": "planServedTreeImport: the served-tree import planner",
   "packages/client/src/features/config/lib/config-copy.ts": "CONFIG_SECTION_LABEL: the settings section labels",
   "packages/client/src/features/rpg/lib/unset-datum.ts": "UNSET_DATUM: the unset reading's text",
+  "packages/client/src/features/plugin/lib/extensions-copy.ts": "EXTENSIONS_GONE_TITLE: the vanished page's title",
+  "packages/client/src/features/tag/lib/tag-list-name.ts": "TAG_LIST_NAME: the Labels finder's tag list name",
   "packages/client/src/state/create-persisted-store.ts": "createPersistedStore: the persisted-store factory a type contract reads",
   "packages/client/src/compose/contributors.ts": "chromeWidgets: the shipped chrome widget registry",
   "packages/client/src/compose/home-tiles.ts": "homeTiles: the shipped home tile registry",

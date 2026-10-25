@@ -2,8 +2,8 @@
 // the shared recoverable error state directly under the section root. Reads come from a real corpus root.
 import type { ChatId } from "@orb/kit/ids";
 import { createTimeLib, UTC_TIME_ZONE } from "@orb/kit/time";
-import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/ct";
-import { routeTrpc, serveCorpusProcedures, trpcError, trpcHold } from "@orb/testkit/ct";
+import type { ServedHold, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/ct";
+import { holdServed, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusWire } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -80,11 +80,10 @@ test("Retry on a failed archive read keeps keyboard focus inside the archive and
   await using root = await createCorpusHarness();
   const room = await archiveRoom(root, corpusChatId(corpus));
   await room.plantCard();
-  const settled = await room.messages();
   const caller = await root.internalCallerFor(root.ownerId);
   const other = await archiveRoom(root, (await caller.chat.startChat({ characterIds: [], opening: "none" })).chat.id);
-  const retried = trpcHold<"chat.listMessages">();
-  const otherRead = trpcHold<"chat.listMessages">();
+  const retried = holdServed();
+  const otherRead = holdServed();
   let failing = true;
   await routeTrpc(page, {
     ...room.reads,
@@ -107,7 +106,7 @@ test("Retry on a failed archive read keeps keyboard focus inside the archive and
   await expect(archive.locator('[aria-busy="true"]')).toBeVisible();
   await expect(archive.getByRole("status")).toHaveText(/\S/);
 
-  retried.release(settled);
+  retried.release();
   await expect(archive.getByRole("button", { name: CARD_TITLE, exact: false })).toBeVisible();
   await expect(archive.locator('[data-slot="rpg-card-row"]')).toBeFocused();
 
@@ -194,8 +193,8 @@ test("a retried read's pending box is the first load's pending box", async ({ co
   await using root = await createCorpusHarness();
   const room = await archiveRoom(root, corpusChatId(corpus));
   await room.plantCard();
-  const firstLoad = trpcHold<"chat.listMessages">();
-  const retried = trpcHold<"chat.listMessages">();
+  const firstLoad = holdServed();
+  const retried = holdServed();
   let pending = firstLoad;
   await routeTrpc(page, { ...room.reads, ...serveCorpusProcedures(room.caller, ["chat.listMessages"], () => pending) });
   await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
@@ -205,7 +204,7 @@ test("a retried read's pending box is the first load's pending box", async ({ co
   await expect(archive.locator('[aria-busy="true"]')).toBeVisible();
   const firstPending = await height();
 
-  firstLoad.release(trpcError({ code: "INTERNAL_SERVER_ERROR" }));
+  firstLoad.fail();
   const retry = archive.getByRole("button", { name: "Retry", exact: true });
   await expect(retry).toBeVisible();
   pending = retried;
@@ -213,14 +212,14 @@ test("a retried read's pending box is the first load's pending box", async ({ co
   await retried.requested;
   await expect(archive.locator('[aria-busy="true"]')).toBeVisible();
   expect(await height()).toBeCloseTo(firstPending, 0);
-  retried.release(await room.messages());
+  retried.release();
   await expect(archive.getByRole("button", { name: CARD_TITLE, exact: false })).toBeVisible();
 });
 
 test("a Retry that fails again hands keyboard focus to the new Retry button", async ({ corpus, mount, page }) => {
   await using root = await createCorpusHarness();
   const room = await archiveRoom(root, corpusChatId(corpus));
-  const retried = trpcHold<"chat.listMessages">();
+  const retried = holdServed();
   let failing = true;
   await routeTrpc(page, {
     ...room.reads,
@@ -237,7 +236,7 @@ test("a Retry that fails again hands keyboard focus to the new Retry button", as
   await retried.requested;
   await expect(archive.locator('[aria-busy="true"]')).toBeVisible();
 
-  retried.release(trpcError({ code: "INTERNAL_SERVER_ERROR" }));
+  retried.fail();
   await expect(archive.locator('[aria-busy="true"]')).toHaveCount(0);
   await expect(retry).toBeFocused();
 });
@@ -246,15 +245,15 @@ test("a pending archive read shows the labelled skeleton, then the settled card 
   await using root = await createCorpusHarness();
   const room = await archiveRoom(root, corpusChatId(corpus));
   await room.plantCard();
-  const messages = trpcHold<"chat.listMessages">();
-  await routeTrpc(page, { ...room.reads, "chat.listMessages": messages });
+  const messages = holdServed();
+  await routeTrpc(page, { ...room.reads, ...serveCorpusProcedures(room.caller, ["chat.listMessages"], () => messages) });
   await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
   await messages.requested;
   const archive = page.locator(ARCHIVE);
   await expect(archive.getByText("Cards", { exact: true })).toBeVisible();
   await expect(archive.locator('[aria-busy="true"]')).toBeVisible();
 
-  messages.release(await room.messages());
+  messages.release();
   await expect(archive.getByText("1 total", { exact: true })).toBeVisible();
   await expect(archive.getByRole("button", { name: CARD_TITLE, exact: false })).toBeVisible();
   await expect(archive.locator('[aria-busy="true"]')).toHaveCount(0);
@@ -264,8 +263,7 @@ test("a later archive read holds the box this device saw the archive settle at",
   await using root = await createCorpusHarness();
   const room = await archiveRoom(root, corpusChatId(corpus));
   await room.plantCard();
-  const settled = await room.messages();
-  let pending: ReturnType<typeof trpcHold<"chat.listMessages">> | null = null;
+  let pending: ServedHold | null = null;
   await routeTrpc(page, { ...room.reads, ...serveCorpusProcedures(room.caller, ["chat.listMessages"], () => pending ?? undefined) });
   const archive = page.locator(ARCHIVE);
   const height = async (): Promise<number> => (await archive.boundingBox())?.height ?? Number.NaN;
@@ -275,14 +273,14 @@ test("a later archive read holds the box this device saw the archive settle at",
   const settledHeight = await height();
   await first.unmount();
 
-  const later = trpcHold<"chat.listMessages">();
+  const later = holdServed();
   pending = later;
   await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
   await later.requested;
   await expect(archive.locator('[aria-busy="true"]')).toBeVisible();
   expect(await height()).toBeCloseTo(settledHeight, 0);
 
-  later.release(settled);
+  later.release();
   await expect(archive.getByText("1 total", { exact: true })).toBeVisible();
   expect(await height()).toBeCloseTo(settledHeight, 0);
 });
@@ -293,8 +291,7 @@ test("each chat reserves its own settled box and never another chat's", async ({
   await withCard.plantCard();
   const caller = await root.internalCallerFor(root.ownerId);
   const empty = await archiveRoom(root, (await caller.chat.startChat({ characterIds: [], opening: "none" })).chat.id);
-  const emptyPage = await empty.messages();
-  let pending: ReturnType<typeof trpcHold<"chat.listMessages">> | null = null;
+  let pending: ServedHold | null = null;
   await routeTrpc(page, {
     ...withCard.reads,
     ...serveCorpusProcedures(withCard.caller, ["chat.listMessages"], () => pending ?? undefined),
@@ -309,7 +306,7 @@ test("each chat reserves its own settled box and never another chat's", async ({
   const cardHeight = await height();
   await cardMount.unmount();
 
-  const firstVisit = trpcHold<"chat.listMessages">();
+  const firstVisit = holdServed();
   pending = firstVisit;
   const emptyMount = await mount<typeof RpgSceneCardsStory>(STORY, { chatId: empty.chatId });
   await firstVisit.requested;
@@ -317,19 +314,19 @@ test("each chat reserves its own settled box and never another chat's", async ({
   await expect(reserved).toHaveCount(0);
   expect(await height()).not.toBeCloseTo(cardHeight, 0);
   pending = null;
-  firstVisit.release(emptyPage);
+  firstVisit.release();
   await expect(archive.getByText("No cards yet", { exact: false })).toBeVisible();
   const emptyHeight = await height();
   expect(emptyHeight).not.toBeCloseTo(cardHeight, 0);
   await emptyMount.unmount();
 
-  const revisit = trpcHold<"chat.listMessages">();
+  const revisit = holdServed();
   pending = revisit;
   await mount<typeof RpgSceneCardsStory>(STORY, { chatId: empty.chatId });
   await revisit.requested;
   await expect(reserved).toHaveCount(1);
   expect(await height()).toBeCloseTo(emptyHeight, 0);
-  revisit.release(emptyPage);
+  revisit.release();
   await expect(archive.getByText("No cards yet", { exact: false })).toBeVisible();
 });
 

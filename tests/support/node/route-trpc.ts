@@ -311,7 +311,7 @@ const HOLD_MARK = Symbol("routeTrpc.hold");
  *  procedure (`trpcHold()`, `TPath` = `never`) releases nothing, so a held response can never be a subset. */
 type TrpcHoldRelease<TPath extends TrpcProcedurePath | undefined> = TPath extends TrpcProcedurePath ? TrpcWireOutput<TPath> | TrpcErrorMarker : never;
 
-export interface TrpcHoldMarker<TPath extends TrpcProcedurePath | undefined = undefined> {
+interface TrpcHoldMarker<TPath extends TrpcProcedurePath | undefined = undefined> {
   readonly [HOLD_MARK]: {
     /** Called the moment the stub intercepts a request carrying this procedure. */
     readonly onRequest: () => void;

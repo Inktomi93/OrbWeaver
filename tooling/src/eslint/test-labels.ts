@@ -54,21 +54,39 @@ function exportedStrings(source: ts.SourceFile): [string, string][] {
   return strings;
 }
 
-/** Every string a production `.ts` module exports by value, keyed by the string; the first module in path order owns a shared value. */
+/** The one owner of a label, or none when several exports hold it: a constant that is the label outranks a table field that repeats the word. */
+function soleOwner(held: ReadonlyMap<string, ExportedLabel>): ExportedLabel | undefined {
+  const owners = [...held.values()];
+  const standalone = owners.filter((owner) => !owner.exportName.includes("."));
+  const candidates = standalone.length > 0 ? standalone : owners;
+  return candidates.length === 1 ? candidates[0] : undefined;
+}
+
+/**
+ * Every string a production `.ts` module exports by value, keyed by the string. A string that two exports of the
+ * same rank hold names no single control, so it is left out.
+ */
 export function exportedLabels(root: string): ReadonlyMap<string, ExportedLabel> {
-  const labels = new Map<string, ExportedLabel>();
+  const owners = new Map<string, Map<string, ExportedLabel>>();
   for (const module of globSync(PRODUCTION_MODULES, { cwd: root }).sort()) {
     const text = readFileSync(join(root, module), "utf8");
     if (NOT_PRODUCTION.test(module) || !text.includes("export const")) {
       continue;
     }
     for (const [value, exportName] of exportedStrings(ts.createSourceFile(module, text, ts.ScriptTarget.Latest, false))) {
-      if (value.length >= MIN_LABEL_LENGTH && !labels.has(value)) {
-        labels.set(value, { module, exportName });
+      if (value.length >= MIN_LABEL_LENGTH) {
+        const held = owners.get(value) ?? new Map<string, ExportedLabel>();
+        const key = `${module}\n${exportName.split(".")[0]}`;
+        held.set(key, held.get(key) ?? { module, exportName });
+        owners.set(value, held);
       }
     }
   }
-  return labels;
+  return new Map(
+    [...owners]
+      .flatMap(([value, held]) => [[value, soleOwner(held)] as const])
+      .filter((entry): entry is readonly [string, ExportedLabel] => entry[1] !== undefined),
+  );
 }
 
 function stringValue(node: TSESTree.Node | undefined): string | undefined {
@@ -90,13 +108,13 @@ function nameOption(options: TSESTree.CallExpressionArgument | undefined): TSEST
   return undefined;
 }
 
-// The text a locator call matches: `getByLabel("x")` and `getByRole(role, { name: "x" })`.
+// The text a locator call matches: `getByLabel("x")`, `getByText("x")` and `getByRole(role, { name: "x" })`.
 function locatedName(call: TSESTree.CallExpression): TSESTree.Node | undefined {
   const { callee } = call;
   if (callee.type !== "MemberExpression" || callee.computed || callee.property.type !== "Identifier") {
     return undefined;
   }
-  if (callee.property.name === "getByLabel") {
+  if (callee.property.name === "getByLabel" || callee.property.name === "getByText") {
     return call.arguments[0];
   }
   return callee.property.name === "getByRole" ? nameOption(call.arguments[1]) : undefined;

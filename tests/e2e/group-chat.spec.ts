@@ -33,10 +33,9 @@ import type { CharacterHandle, CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { HOST_BAND, openContextSections } from "@orb/testkit/ct";
 import { expect, test } from "@playwright/test";
-import { CHARACTER_FACET_TIER_LABELS } from "#client/features/character/lib/character-card-facets.ts";
-import { CHAT_CONTEXT_TAB_LABELS } from "#client/features/chat/lib/chat-context-tab-labels.ts";
+import { CHAT_CONTEXT_TAB_LABELS, CHAT_CONTEXT_TABLIST_NAME } from "#client/features/chat/lib/chat-context-tab-labels.ts";
+import { GROUP_ADVANCED_LABEL } from "#client/features/chat/lib/group-config-model.ts";
 import {
-  CHAT_CONTEXT_TABLIST,
   characterChipNames,
   characterChips,
   openChatByTitle,
@@ -112,7 +111,7 @@ test("a solo room converts to a group: the character bar and Group-behavior sect
     // Members tab is still available because hosts can manage identity and seat state in solo rooms.
     await expect(characterChips(page)).toHaveCount(0);
     await expect(
-      page.getByRole("tablist", { name: CHAT_CONTEXT_TABLIST }).getByRole("tab", { name: CHAT_CONTEXT_TAB_LABELS.members, exact: true }),
+      page.getByRole("tablist", { name: CHAT_CONTEXT_TABLIST_NAME }).getByRole("tab", { name: CHAT_CONTEXT_TAB_LABELS.members, exact: true }),
     ).toBeVisible();
     await openContextTab(page, "This chat");
     // OPEN THE HOST BAND BEFORE CLAIMING THE SECTION IS ABSENT (#1851). The tab is an index of disclosures
@@ -129,7 +128,7 @@ test("a solo room converts to a group: the character bar and Group-behavior sect
     await expect.poll(async () => (await characterChipNames(page)).length, { timeout: WAIT_SURFACE_MS }).toBe(2);
     expect(await characterChipNames(page)).toEqual(expect.arrayContaining([CHARACTERS[0].name, CHARACTERS[1].name]));
     await expect(
-      page.getByRole("tablist", { name: CHAT_CONTEXT_TABLIST }).getByRole("tab", { name: CHAT_CONTEXT_TAB_LABELS.members, exact: true }),
+      page.getByRole("tablist", { name: CHAT_CONTEXT_TABLIST_NAME }).getByRole("tab", { name: CHAT_CONTEXT_TAB_LABELS.members, exact: true }),
     ).toBeVisible({
       timeout: WAIT_UI_MS,
     });
@@ -188,7 +187,7 @@ test("group config round-trips through the Group-behavior section: output / spea
     // (narrator ⇒ true), so the speakerTags flip comes AFTER, and lands on `false`.
     await page.getByRole("button", { name: GROUP_OUTPUT_LABELS.narrator, exact: true }).click();
     await page.getByRole("switch", { name: "Label each speaker" }).click();
-    await page.getByRole("button", { name: CHARACTER_FACET_TIER_LABELS.advanced, exact: true }).click();
+    await page.getByRole("button", { name: GROUP_ADVANCED_LABEL, exact: true }).click();
     await page.getByRole("combobox", { name: "Who speaks each round" }).click();
     await page.getByRole("option", { name: GROUP_POLICY_LABELS.pooled, exact: true }).click();
     await page.getByRole("combobox", { name: "How much of each member the others see" }).click();
@@ -235,7 +234,7 @@ test("per-speaker card scope persists: scoping each character to their own card 
     await openGroupBehaviorSection(page);
     // `cardScope` is per-speaker-ONLY, so its control exists only on that arm (the default) — under
     // Advanced, beside the policy select.
-    await page.getByRole("button", { name: CHARACTER_FACET_TIER_LABELS.advanced, exact: true }).click();
+    await page.getByRole("button", { name: GROUP_ADVANCED_LABEL, exact: true }).click();
     await page.getByRole("switch", { name: "Each character sees only their own card" }).click();
 
     await expect.poll(() => cardScope(chat.id), { timeout: WAIT_ROUND_TRIP_MS }).toBe("scoped");
@@ -244,7 +243,7 @@ test("per-speaker card scope persists: scoping each character to their own card 
     await openChatByTitle(page, title);
     await openDetailPanel(page);
     await openGroupBehaviorSection(page);
-    await page.getByRole("button", { name: CHARACTER_FACET_TIER_LABELS.advanced, exact: true }).click();
+    await page.getByRole("button", { name: GROUP_ADVANCED_LABEL, exact: true }).click();
     await expect(page.getByRole("switch", { name: "Each character sees only their own card" })).toHaveAttribute("aria-checked", "true");
   } finally {
     await deleteChat(chat.id).catch(() => null);

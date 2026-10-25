@@ -1,7 +1,7 @@
 // The backend every registered surface may ask for when mounted alone. Corpus-captured procedures answer by exact request
 // input, so an uncaptured request fails the owning test; every other procedure is answered by the corpus root's own server.
 
-import type { TrpcRecorder } from "@orb/testkit/ct";
+import type { TrpcRecorder, TrpcRoutes } from "@orb/testkit/ct";
 import { createShellAmbientReads, defineTrpcRoutes, routeTrpc, serveCorpusProcedures, trpcHold } from "@orb/testkit/ct";
 import type { CorpusWire } from "@orb/testkit/iso";
 import { createCorpusReadResponder } from "@orb/testkit/iso";
@@ -78,7 +78,7 @@ const SERVED = [
 ] as const;
 
 /** Reads a seeded surface needs beyond the shared set; each replaces the shared answer for that procedure. */
-export type SurfaceRouteOverrides = Parameters<typeof defineTrpcRoutes>[0];
+export type SurfaceRouteOverrides = TrpcRoutes;
 
 /** Route every read a registered surface may issue when mounted alone; `caller` is a corpus root's internal caller. */
 export function routeSurfaceReads(page: Page, corpus: CorpusWire, caller: object, overrides: SurfaceRouteOverrides = {}): Promise<TrpcRecorder> {

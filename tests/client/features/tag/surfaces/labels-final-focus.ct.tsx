@@ -3,11 +3,11 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
+import { TAG_LIST_NAME } from "#client/features/tag/lib/tag-list-name.ts";
 import type { LabelsListStory } from "./_labels-list-stories.tsx";
 
 const STORY = "tests/client/features/tag/surfaces/_labels-list-stories/LabelsListStory";
 const UNUSED = "Unattached label";
-const TAG_LIST = "Tags";
 
 test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
 
@@ -36,7 +36,7 @@ for (const pointer of POINTERS) {
     await routeTrpc(page, serveCorpusProcedures(caller, LABEL_READS));
     await mount<typeof LabelsListStory>(STORY, {});
     const overflow = page.getByRole("button", { name: "More tag actions", exact: true });
-    await expect(page.getByRole("list", { name: TAG_LIST, exact: true })).toBeVisible();
+    await expect(page.getByRole("list", { name: TAG_LIST_NAME, exact: true })).toBeVisible();
 
     await press(overflow, pointer);
     await press(page.getByRole("menuitem", { name: "Prune unused tags" }), pointer);

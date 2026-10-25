@@ -26,11 +26,9 @@ import { HOST_BAND, openContextSections, SECTION_LABELS } from "@orb/testkit/ct"
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
+import { CHAT_CONTEXT_TABLIST_NAME } from "#client/features/chat/lib/chat-context-tab-labels.ts";
 import { streamTapOf, waitForRoomOpened } from "./stream-tap.ts";
 import { WAIT_SETTLE_MS, WAIT_SHORT_MS, WAIT_STREAM_MS, WAIT_SURFACE_MS } from "./timeouts.ts";
-
-/** The accessible name of the open chat's context tablist: the artifact noun the panel is about. */
-export const CHAT_CONTEXT_TABLIST = "Chat";
 
 // The character row's chat affordance (character-card.tsx `NormalRowActions`): the dual-purpose resume-or-new
 // Chat CTA. Each row exposes a `aria-label="Chat with <name>"` button — visually hover-revealed on fine
@@ -296,7 +294,7 @@ export async function openDetailPanel(page: Page): Promise<void> {
   // The panel is the context BRACKET in every room: the "Chat" header TABLIST of real tabs (the pane's one tab
   // strip), plus the "Game state" toolbar under it on a game chat. The "Chat" tablist is what means "the panel
   // is open" for a plain chat and a game chat alike.
-  const strip = page.getByRole("tablist", { name: CHAT_CONTEXT_TABLIST });
+  const strip = page.getByRole("tablist", { name: CHAT_CONTEXT_TABLIST_NAME });
   await expect(strip.first()).toBeVisible({ timeout: WAIT_SURFACE_MS });
 }
 
@@ -312,7 +310,7 @@ export async function openDetailPanel(page: Page): Promise<void> {
  */
 export async function openContextTab(page: Page, label: string): Promise<void> {
   const tab = page
-    .getByRole("tablist", { name: CHAT_CONTEXT_TABLIST })
+    .getByRole("tablist", { name: CHAT_CONTEXT_TABLIST_NAME })
     .getByRole("tab", { name: label, exact: true })
     .or(page.getByRole("toolbar", { name: GAME_STRIP_LABEL }).getByRole("button", { name: label, exact: true }));
   await expect(tab).toBeVisible({ timeout: WAIT_SURFACE_MS });

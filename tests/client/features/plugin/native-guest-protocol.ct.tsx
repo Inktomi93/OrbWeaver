@@ -9,6 +9,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusReadResponder, createCorpusViewerReadResponder } from "@orb/testkit/iso";
 import { makePluginRow, makePluginScriptedPage } from "@orb/testkit/node/helpers";
 import type { Page } from "@playwright/test";
+import { EXTENSIONS_GONE_TITLE } from "#client/features/plugin/lib/extensions-copy.ts";
 import type { PluginProtocolStory } from "./_ct-stories.tsx";
 
 /** The server refuses a plugin the owner does not have, so a request for any other id is a defect, not an answer. */
@@ -321,7 +322,7 @@ test("the default shared corpus renders its native Ledger publication and captur
   expect(trpc.lastInput("plugin.getSurfaceState")).toEqual(active.reads.state.input);
   stage = library.ownerDisabled;
   await component.update({ runtimeEpoch: 1, pluginId: active.ids.pluginId, surfaceId: surface.id });
-  await expect(page.getByText("That page is no longer available", { exact: true })).toBeVisible();
+  await expect(page.getByText(EXTENSIONS_GONE_TITLE, { exact: true })).toBeVisible();
   await expect(attribution).toHaveCount(0);
   expect(errors).toEqual([]);
 });

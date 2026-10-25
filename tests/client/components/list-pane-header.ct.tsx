@@ -7,7 +7,7 @@ import type { ListPaneHeaderStory } from "./_list-pane-header-stories.tsx";
 test("the title and census keep their readable hierarchy, hiding only bare zero counts", async ({ mount }) => {
   const component = await mount<typeof ListPaneHeaderStory>("tests/client/components/_list-pane-header-stories/ListPaneHeaderStory", {
     count: 12,
-    title: "Characters",
+    title: "Roster",
   });
   const heading = component.getByRole("heading", { level: 2 });
   const count = component.getByText("12", { exact: true });
@@ -30,14 +30,14 @@ test("the title and census keep their readable hierarchy, hiding only bare zero 
     )
     .toBeGreaterThan(0);
 
-  await component.update({ count: 0, title: "Characters" });
-  await expect(heading).toHaveText("Characters");
-  await component.update({ count: "0", title: "Characters" });
-  await expect(heading).toHaveText("Characters");
-  await component.update({ count: "0 of 11", title: "Characters" });
+  await component.update({ count: 0, title: "Roster" });
+  await expect(heading).toHaveText("Roster");
+  await component.update({ count: "0", title: "Roster" });
+  await expect(heading).toHaveText("Roster");
+  await component.update({ count: "0 of 11", title: "Roster" });
   await expect(heading.getByText("0 of 11", { exact: true })).toBeVisible();
-  await component.update({ title: "Characters" });
-  await expect(heading).toHaveText("Characters");
+  await component.update({ title: "Roster" });
+  await expect(heading).toHaveText("Roster");
 });
 
 test("a scoped header names its entity at the title's step with a quieter tone", async ({ mount }) => {
@@ -83,10 +83,10 @@ test("back is keyboard operable and the host renders one optional action and its
 test("in a constrained host the unscoped title keeps its width instead of yielding to the census", async ({ mount }) => {
   const component = await mount<typeof ListPaneHeaderStory>("tests/client/components/_list-pane-header-stories/ListPaneHeaderStory", {
     count: "0 of 11",
-    title: "Characters",
+    title: "Roster",
     width: "11rem",
   });
-  const title = component.getByText("Characters", { exact: true });
+  const title = component.getByText("Roster", { exact: true });
   await expect(title).toBeVisible();
   await expect(component.getByText("0 of 11", { exact: true })).toBeVisible();
   await expect.poll(() => title.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);

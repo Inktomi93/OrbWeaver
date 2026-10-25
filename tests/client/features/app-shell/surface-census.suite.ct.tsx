@@ -9,6 +9,7 @@ import { presetIdInputSchema } from "@orb/contracts/preset";
 import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId, typeIdSchema } from "@orb/kit/ids";
 import { densityFindings, formatDensityFindings, settleSurface } from "@orb/testkit/browser/spec";
+import { serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusWire } from "@orb/testkit/iso";
 import { createCorpusReadResponder, createSeededIds } from "@orb/testkit/iso";
@@ -85,6 +86,11 @@ test.describe("planted defects", () => {
         `<div data-slot="card-root" style="${box}">outer<div data-slot="card-root" style="background:#ddd;border-radius:6px">well</div></div>`,
     );
     expect(await densityFindings(page)).toEqual([]);
+    // The census reads this page: the same call reports a defect planted into it.
+    await page.setContent(
+      '<aside class="shell-panel"><button data-slot="button" data-cta>Save</button><button data-slot="button" data-cta>Send</button></aside>',
+    );
+    expect((await densityFindings(page)).map((finding) => finding.rule)).toEqual(["second-primary"]);
   });
 });
 
@@ -132,6 +138,11 @@ async function routeSeeded(page: Page, corpus: CorpusWire, overrides: SurfaceRou
   await routeSurfaceReads(page, corpus, await root.internalCallerFor(root.ownerId), overrides);
 }
 
+/** The listed procedures, answered by the corpus root's own server. */
+async function served(paths: Parameters<typeof serveCorpusProcedures>[1]): Promise<SurfaceRouteOverrides> {
+  return serveCorpusProcedures(await root.internalCallerFor(root.ownerId), paths);
+}
+
 // The control that shows the real form rendered, not the "nothing selected" arm.
 const IMAGE_FORM = { imageDetail: ["button", "Edit image"], imageEdit: ["textbox", "Edit instruction"] } as const;
 
@@ -162,7 +173,7 @@ test("the imagine modal reads clean on a seeded prompt", async ({ corpus, mount,
 
 for (const modal of ["imageDetail", "imageEdit"] as const) {
   test(`the ${modal} modal reads clean on an image`, async ({ corpus, mount, page }) => {
-    await routeSeeded(page, corpus, { "imagery.readProvenance": () => null });
+    await routeSeeded(page, corpus, await served(["imagery.readProvenance"]));
     const boundary = watchMissingBoundary(page);
     await mount<typeof ImageSubjectModalStory>(`${STORIES}/ImageSubjectModalStory`, { modal, subject: imageSubject(corpusChatId(corpus)) });
     const [role, name] = IMAGE_FORM[modal];
@@ -180,8 +191,7 @@ test("the pluginDialog modal reads clean on the plugin's dialog surface", async 
   await routeSeeded(page, corpus, {
     "plugin.list": createCorpusReadResponder("plugin.list", [stage.reads.plugins]),
     "plugin.listSurfaces": createCorpusReadResponder("plugin.listSurfaces", [stage.reads.surfaces]),
-    // The corpus captured the state of the stage's own surface; the dialog surface starts from the same stored state.
-    "plugin.getSurfaceState": () => stage.reads.state.output,
+    ...(await served(["plugin.getSurfaceState"])),
     "plugin.listBundleAssets": createCorpusReadResponder("plugin.listBundleAssets", [stage.reads.assets]),
   });
   const boundary = watchMissingBoundary(page);

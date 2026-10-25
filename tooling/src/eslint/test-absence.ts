@@ -45,8 +45,8 @@ const LOCATOR_MATCHERS = new Set([
   "toHaveAccessibleName",
   "toHaveAccessibleDescription",
 ]);
-// Matchers that assert emptiness whatever their polarity.
-const EMPTY_MATCHERS = new Set(["toBeHidden", "toBeEmpty"]);
+// Matchers that assert emptiness; negated, they assert presence.
+const EMPTY_MATCHERS = new Set(["toBeHidden", "toBeEmpty", "toBeNull", "toBeUndefined"]);
 const COUNT_MATCHERS = new Set(["toHaveCount", "toHaveLength"]);
 const EQUAL_MATCHERS = new Set(["toEqual", "toStrictEqual"]);
 
@@ -93,11 +93,11 @@ function isEmptyValue(argument: TSESTree.CallExpressionArgument | undefined): bo
 }
 
 function provesAbsence({ matcher, negated, argument }: Assertion): boolean {
-  if (EMPTY_MATCHERS.has(matcher)) {
-    return true;
-  }
   if (negated) {
     return LOCATOR_MATCHERS.has(matcher);
+  }
+  if (EMPTY_MATCHERS.has(matcher)) {
+    return true;
   }
   if (COUNT_MATCHERS.has(matcher)) {
     return isEmptyValue(argument);
@@ -136,6 +136,39 @@ function calledName(call: TSESTree.CallExpression): string | undefined {
   return callee.type === "MemberExpression" && !callee.computed && callee.property.type === "Identifier" ? callee.property.name : undefined;
 }
 
+// A function the case declares and never references does not run: an assertion in it proves nothing. A function passed
+// to a call is taken to run (a poll, a step, an evaluate, an event handler).
+function isUnrunClosure(context: OrbRuleContext, fn: TSESTree.Node): boolean {
+  const owner = fn.type === "FunctionDeclaration" || fn.parent?.type !== "VariableDeclarator" ? fn : fn.parent;
+  const named = owner.type === "FunctionDeclaration" || owner.type === "VariableDeclarator";
+  const variable = named ? context.sourceCode.getDeclaredVariables(owner)[0] : undefined;
+  return variable?.references.every((reference) => reference.init === true) === true;
+}
+
+function runsInCase(context: OrbRuleContext, call: TSESTree.CallExpression, body: TSESTree.BlockStatement): boolean {
+  const ancestors = context.sourceCode.getAncestors(call);
+  return !ancestors
+    .slice(ancestors.indexOf(body) + 1)
+    .some(
+      (node) =>
+        (node.type === "ArrowFunctionExpression" || node.type === "FunctionExpression" || node.type === "FunctionDeclaration") && isUnrunClosure(context, node),
+    );
+}
+
+// What one call inside a case proves: an absence, an observation (an assertion of presence or of a value, or a helper
+// that asserts), or nothing. A call in a closure the case never runs proves nothing.
+function evidenceOf(context: OrbRuleContext, call: TSESTree.CallExpression, body: TSESTree.BlockStatement): "absence" | "observation" | undefined {
+  const assertion = assertionOf(call);
+  const asserts = assertion !== undefined || ASSERTION_PREFIX.test(calledName(call) ?? "");
+  if (!(asserts && runsInCase(context, call, body))) {
+    return undefined;
+  }
+  if (assertion === undefined) {
+    return "observation";
+  }
+  return provesAbsence(assertion) ? "absence" : "observation";
+}
+
 export const ctNegativeOnlyCaseRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
@@ -151,14 +184,10 @@ export const ctNegativeOnlyCaseRule: OrbRule = {
         if (current === undefined) {
           return;
         }
-        const assertion = assertionOf(call);
-        if (assertion !== undefined) {
-          if (provesAbsence(assertion)) {
-            current.absences += 1;
-          } else {
-            current.observations += 1;
-          }
-        } else if (ASSERTION_PREFIX.test(calledName(call) ?? "")) {
+        const evidence = evidenceOf(context, call, current.body);
+        if (evidence === "absence") {
+          current.absences += 1;
+        } else if (evidence === "observation") {
           current.observations += 1;
         }
       },

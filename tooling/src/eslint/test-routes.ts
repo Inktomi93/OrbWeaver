@@ -1,16 +1,19 @@
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESLint, TSESTree } from "@typescript-eslint/utils";
 import ts from "typescript";
+import { constantInitializer, unwrapTsValue } from "./static-values.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 
-// Route-map factories whose object argument is judged: the call name and the argument index of the map.
+// Route-map factories whose map argument is judged: the call name and the argument index of the map.
 const ROUTE_MAP_ARGUMENT = new Map([
   ["routeTrpc", 1],
   ["defineTrpcRoutes", 0],
 ]);
 
 // The marker types a route value may be: a held, failed, forward-wire or ended response is scripted by the kit, not a data guess.
-const MARKER_TYPES = new Set(["TrpcHoldMarker", "TrpcErrorMarker", "TrpcWireEscapeMarker", "TrpcSubscriptionEndMarker"]);
+const MARKER_TYPES = new Set(["TrpcHoldMarker", "TrpcErrorMarker", "TrpcWireEscapeMarker", "TrpcSubscriptionEndMarker", "ServedHold"]);
+const ROUTER_RECORD_ALIAS = "AppRouterRecord";
+const BINDING_HOPS = 4;
 
 const FIXED_MESSAGE =
   "A fixed responder never reads this procedure's input: answer from `serveCorpusProcedures`, `createShellAmbientReads(corpus)` or `createCorpusReadResponder`, or read the input in a responder function.";
@@ -18,62 +21,41 @@ const ERROR_MESSAGE =
   "An unconditional trpcError fabricates a refusal the server never sent: drive the real refusal through `serveCorpusProcedures`, or make the failure depend on the request.";
 
 type Responder = TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression;
+/** What a route value answers with: a refusal on every path, a request-aware answer, or a fixed guess. */
+const VERDICT = { error: "error", answers: "answers", fixed: "fixed" } as const;
+type Verdict = (typeof VERDICT)[keyof typeof VERDICT];
 
 const isResponder = (node: TSESTree.Node): node is Responder => node.type === "ArrowFunctionExpression" || node.type === "FunctionExpression";
 
-const calleeName = (call: TSESTree.CallExpression): string | undefined => (call.callee.type === "Identifier" ? call.callee.name : undefined);
+const isTrpcErrorCall = (node: TSESTree.Node): boolean =>
+  node.type === "CallExpression" && node.callee.type === "Identifier" && node.callee.name === "trpcError";
 
-function unwrap(node: TSESTree.Node): TSESTree.Node {
-  let current = node;
-  while (
-    current.type === "TSAsExpression" ||
-    current.type === "TSSatisfiesExpression" ||
-    current.type === "TSNonNullExpression" ||
-    current.type === "TSTypeAssertion"
-  ) {
-    current = current.expression;
-  }
-  return current;
-}
-
-function isTrpcErrorCall(node: TSESTree.Node): boolean {
-  const value = unwrap(node);
-  return value.type === "CallExpression" && calleeName(value) === "trpcError";
-}
-
-// The value a responder always returns, when it has exactly one return and no branching.
-function soleReturned(fn: Responder): TSESTree.Node | undefined {
-  if (fn.body.type !== "BlockStatement") {
-    return fn.body;
-  }
-  const [only, ...rest] = fn.body.body;
-  return rest.length === 0 && only?.type === "ReturnStatement" && only.argument !== null ? only.argument : undefined;
-}
-
-function readsParameter(context: OrbRuleContext, fn: Responder): boolean {
-  return (
-    fn.params.length > 0 &&
-    context.sourceCode
-      .getDeclaredVariables(fn)
-      .some(
-        (variable: TSESLint.Scope.Variable) =>
-          variable.defs.some((def) => def.type === "Parameter") && variable.references.some((reference) => reference.isRead()),
-      )
-  );
-}
-
-interface Checker {
+interface Native {
   readonly checker: ts.TypeChecker;
+  readonly program: ts.Program;
   readonly toTs: (node: TSESTree.Node) => ts.Node;
+  readonly toEs: (node: ts.Node) => TSESTree.Node | undefined;
 }
 
-function checkerOf(context: OrbRuleContext): Checker {
+// A file outside every type-aware program (a declaration file) has no route map to judge.
+function nativeOf(context: OrbRuleContext): Native | undefined {
   const services = context.sourceCode.parserServices;
-  if (services?.program === undefined || services.program === null || services.esTreeNodeToTSNodeMap === undefined) {
-    throw new Error("ct-responder-reads-input needs the parser's TypeScript Program");
+  if (
+    services?.program === undefined ||
+    services.program === null ||
+    services.esTreeNodeToTSNodeMap === undefined ||
+    services.tsNodeToESTreeNodeMap === undefined
+  ) {
+    return undefined;
   }
-  const nodeMap = services.esTreeNodeToTSNodeMap;
-  return { checker: services.program.getTypeChecker(), toTs: (node) => nodeMap.get(node) as ts.Node };
+  const toTsMap = services.esTreeNodeToTSNodeMap;
+  const toEsMap = services.tsNodeToESTreeNodeMap;
+  return {
+    checker: services.program.getTypeChecker(),
+    program: services.program,
+    toTs: (node) => toTsMap.get(node) as ts.Node,
+    toEs: (node) => toEsMap.get(node as never) as TSESTree.Node | undefined,
+  };
 }
 
 const constituents = (type: ts.Type): readonly ts.Type[] => (type.isUnion() ? type.types : [type]);
@@ -83,79 +65,191 @@ function isVoidLike(type: ts.Type): boolean {
   return (type.flags & (ts.TypeFlags.Undefined | ts.TypeFlags.Void | ts.TypeFlags.Never)) !== 0;
 }
 
-// A procedure with no input types its responder parameter as undefined or void; any other input is a wire request to read.
-function inputIsVoid(context: OrbRuleContext, property: TSESTree.Property): boolean {
-  const { checker, toTs } = checkerOf(context);
-  const contextual = checker.getContextualType(toTs(property.value) as ts.Expression);
-  if (contextual === undefined) {
+const routerRecords = new WeakMap<ts.Program, { readonly type: ts.Type; readonly at: ts.Node } | null>();
+
+// The router's record type, declared as `AppRouterRecord` beside the route helper, found once per program.
+function routerRecord(native: Native, current: ts.SourceFile): { readonly type: ts.Type; readonly at: ts.Node } | null {
+  const known = routerRecords.get(native.program);
+  if (known !== undefined) {
+    return known;
+  }
+  const files = [current, ...native.program.getSourceFiles().filter((file) => /route-trpc\.ts$/u.test(file.fileName))];
+  for (const file of files) {
+    for (const statement of file.statements) {
+      if (ts.isTypeAliasDeclaration(statement) && statement.name.text === ROUTER_RECORD_ALIAS) {
+        const found = { type: native.checker.getTypeAtLocation(statement.name), at: statement.name };
+        routerRecords.set(native.program, found);
+        return found;
+      }
+    }
+  }
+  routerRecords.set(native.program, null);
+  return null;
+}
+
+// A procedure with no input types its input as undefined or void; any other input is a wire request to read.
+function inputIsVoid(native: Native, current: ts.SourceFile, path: string): boolean {
+  const record = routerRecord(native, current);
+  if (record === null) {
     return false;
   }
-  const first = constituents(contextual)
-    .flatMap((member) => member.getCallSignatures())
-    .flatMap((signature) => signature.getParameters())
-    .at(0);
-  if (first === undefined) {
-    return true;
+  let type: ts.Type | undefined = record.type;
+  for (const segment of [...path.split("."), "_def", "$types", "input"]) {
+    const symbol: ts.Symbol | undefined = type === undefined ? undefined : native.checker.getPropertyOfType(type, segment);
+    type = symbol === undefined ? undefined : native.checker.getTypeOfSymbolAtLocation(symbol, record.at);
   }
-  const type = checker.getTypeOfSymbolAtLocation(first, first.valueDeclaration ?? toTs(property));
-  return constituents(type).every(isVoidLike);
+  return type !== undefined && constituents(type).every(isVoidLike);
 }
 
 // A route value that is not a literal responder is a typed value: a kit marker, or a function taking the request.
-function valueAnswersRequests(context: OrbRuleContext, value: TSESTree.Node): boolean {
-  const { checker, toTs } = checkerOf(context);
-  return constituents(checker.getTypeAtLocation(toTs(value))).every(
+function typeAnswersRequests(native: Native, value: TSESTree.Node): boolean {
+  return constituents(native.checker.getTypeAtLocation(native.toTs(value))).every(
     (type) => MARKER_TYPES.has(type.getSymbol()?.name ?? "") || type.getCallSignatures().some((signature) => signature.getParameters().length > 0),
   );
 }
 
-function propertyPath(property: TSESTree.Property): string | undefined {
-  if (property.computed) {
-    return undefined;
+const isNode = (value: unknown): value is TSESTree.Node => typeof value === "object" && value !== null && "type" in value;
+
+function childNodes(context: OrbRuleContext, node: TSESTree.Node): readonly TSESTree.Node[] {
+  const record = node as unknown as Record<string, unknown>;
+  return (context.sourceCode.visitorKeys?.[node.type] ?? []).flatMap((key) => [record[key]].flat().filter(isNode));
+}
+
+// The expressions a responder function returns on any path, not entering nested functions.
+function returnedValues(context: OrbRuleContext, fn: Responder): readonly TSESTree.Node[] {
+  const visit = (node: TSESTree.Node): readonly TSESTree.Node[] => {
+    if (node.type === "ReturnStatement") {
+      return node.argument === null ? [] : [node.argument];
+    }
+    return isResponder(node) || node.type === "FunctionDeclaration" ? [] : childNodes(context, node).flatMap(visit);
+  };
+  return fn.body.type === "BlockStatement" ? visit(fn.body) : [fn.body];
+}
+
+// `void input` and a bare `input;` statement name the parameter without using it.
+const onlyNamed = (reference: TSESLint.Scope.Reference): boolean => {
+  const { parent } = reference.identifier;
+  return (parent.type === "UnaryExpression" && parent.operator === "void") || parent.type === "ExpressionStatement";
+};
+
+function readsParameter(context: OrbRuleContext, fn: Responder): boolean {
+  return (
+    fn.params.length > 0 &&
+    context.sourceCode
+      .getDeclaredVariables(fn)
+      .some(
+        (variable: TSESLint.Scope.Variable) =>
+          variable.defs.some((def) => def.type === "Parameter") && variable.references.some((reference) => reference.isRead() && !onlyNamed(reference)),
+      )
+  );
+}
+
+interface Env {
+  readonly context: OrbRuleContext;
+  readonly native: Native;
+  readonly sourceFile: ts.SourceFile;
+}
+
+// A refusal beside an answer is a script (fail then serve); two refusals are one refusal.
+function combine(verdicts: readonly Verdict[]): Verdict {
+  if (verdicts.every((verdict) => verdict === VERDICT.error)) {
+    return VERDICT.error;
   }
-  if (property.key.type === "Literal" && typeof property.key.value === "string") {
-    return property.key.value;
+  return verdicts.every((verdict) => verdict !== VERDICT.fixed) ? VERDICT.answers : VERDICT.fixed;
+}
+
+function responderVerdict(env: Env, fn: Responder, depth: number): Verdict {
+  const returned = combine(returnedValues(env.context, fn).map((value) => verdictOf(env, value, depth + 1)));
+  if (returned === VERDICT.error) {
+    return VERDICT.error;
   }
-  return property.key.type === "Identifier" ? property.key.name : undefined;
+  return readsParameter(env.context, fn) ? VERDICT.answers : returned;
+}
+
+function verdictOf(env: Env, node: TSESTree.Node, depth = 0): Verdict {
+  const value = unwrapTsValue(node);
+  if (value.type === "Identifier" && depth < BINDING_HOPS) {
+    const bound = constantInitializer(env.context, value);
+    if (bound !== undefined) {
+      return verdictOf(env, bound, depth + 1);
+    }
+  }
+  if (isTrpcErrorCall(value)) {
+    return VERDICT.error;
+  }
+  if (value.type === "ConditionalExpression") {
+    return combine([verdictOf(env, value.consequent, depth + 1), verdictOf(env, value.alternate, depth + 1)]);
+  }
+  if (isResponder(value)) {
+    return responderVerdict(env, value, depth);
+  }
+  return typeAnswersRequests(env.native, value) ? VERDICT.answers : VERDICT.fixed;
+}
+
+// A literal is a route map when its contextual type holds a responder (one that can be a kit marker) for a dotted key it writes.
+function isTypedRouteMap(native: Native, object: TSESTree.ObjectExpression): boolean {
+  const contextual = native.checker.getContextualType(native.toTs(object) as ts.Expression);
+  if (contextual === undefined) {
+    return false;
+  }
+  return object.properties.some((property) => {
+    if (property.type !== "Property" || property.key.type !== "Literal" || !String(property.key.value).includes(".")) {
+      return false;
+    }
+    const symbol = native.checker.getPropertyOfType(contextual, String(property.key.value));
+    const slot = symbol === undefined ? undefined : native.checker.getTypeOfSymbolAtLocation(symbol, native.toTs(object));
+    return slot !== undefined && constituents(slot).some((type) => MARKER_TYPES.has(type.getSymbol()?.name ?? ""));
+  });
 }
 
 export const ctResponderReadsInputRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
-    const reportFixed = (node: TSESTree.Node): void => context.report({ node, message: FIXED_MESSAGE });
-    const judgeFunction = (property: TSESTree.Property, fn: Responder): void => {
-      const returned = soleReturned(fn);
-      if (returned !== undefined && isTrpcErrorCall(returned)) {
-        context.report({ node: returned, message: ERROR_MESSAGE });
-      } else if (!(readsParameter(context, fn) || inputIsVoid(context, property))) {
-        reportFixed(property.value);
-      }
-    };
-    const judge = (property: TSESTree.Property): void => {
-      if (propertyPath(property) === undefined) {
+    const native = nativeOf(context);
+    if (native === undefined) {
+      return {};
+    }
+    const env: Env = { context, native, sourceFile: native.toTs(context.sourceCode.ast).getSourceFile() };
+    const judged = new Set<TSESTree.Node>();
+
+    const judge = (path: string, property: TSESTree.Property): void => {
+      if (judged.has(property)) {
         return;
       }
-      const value = unwrap(property.value);
-      if (isTrpcErrorCall(value)) {
+      judged.add(property);
+      const verdict = verdictOf(env, property.value);
+      if (verdict === VERDICT.error) {
         context.report({ node: property.value, message: ERROR_MESSAGE });
-      } else if (isResponder(value)) {
-        judgeFunction(property, value);
-      } else if (!(inputIsVoid(context, property) || valueAnswersRequests(context, value))) {
-        reportFixed(property.value);
+      } else if (verdict === VERDICT.fixed && !inputIsVoid(native, env.sourceFile, path)) {
+        context.report({ node: property.value, message: FIXED_MESSAGE });
       }
     };
+
+    // Every property the map's type holds that this file declares, whether written in the literal, spread in from a
+    // binding of this file, or typed on a variable: each is a `PropertyAssignment` the checker names.
+    const judgeMap = (map: TSESTree.Node): void => {
+      const type = native.checker.getTypeAtLocation(native.toTs(map));
+      for (const symbol of native.checker.getPropertiesOfType(type)) {
+        const declaration = symbol.valueDeclaration;
+        const property = declaration !== undefined && ts.isPropertyAssignment(declaration) ? native.toEs(declaration) : undefined;
+        if (property?.type === "Property") {
+          judge(symbol.getName(), property);
+        }
+      }
+    };
+
     return {
       "CallExpression[callee.type='Identifier']"(call: TSESTree.CallExpression): void {
-        const index = ROUTE_MAP_ARGUMENT.get(calleeName(call) ?? "");
+        const index = ROUTE_MAP_ARGUMENT.get(call.callee.type === "Identifier" ? call.callee.name : "");
         const map = index === undefined ? undefined : call.arguments[index];
-        const routes = map === undefined ? undefined : unwrap(map);
-        if (routes?.type !== "ObjectExpression") {
-          return;
+        if (map !== undefined) {
+          judgeMap(map);
         }
-        for (const property of routes.properties) {
-          if (property.type === "Property") {
-            judge(property);
-          }
+      },
+      // A literal typed as a route map where it is written (a return type, a variable, a `satisfies`) is judged without a call.
+      "ObjectExpression[properties.length>0]"(object: TSESTree.ObjectExpression): void {
+        if (isTypedRouteMap(native, object)) {
+          judgeMap(object);
         }
       },
     };
