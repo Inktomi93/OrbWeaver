@@ -41,3 +41,5 @@ Rule tests: `tests/tooling/eslint-client-data-gates.test.ts` (planted positive a
 | `no-parallel-section-map` | Dropped. Keying data by a section or modal id is legitimate (`PanelOverrides`, `contentBySection`, `MODAL_CONTENT_LIFETIME`), so a type-key selector would need three exemptions and prove nothing. The wall is the total registries (type tests) and `assembleChrome` deriving from `sections.list()`. |
 
 Comments that cited a dropped gate were rewritten; comments that cited a built gate now carry the `orb/` id. `DEVICE_LOCAL_REGISTRY` (`state/device-local-registry.ts`) exists and types the store door names, so the law keeps that sentence.
+
+Closeout: client-data controls pass 56 cases and native form-boundary controls pass 13. Existing checks remain in place. D73 now states declaration-recognition limits; work item 1366 owns broader production-registration proof.

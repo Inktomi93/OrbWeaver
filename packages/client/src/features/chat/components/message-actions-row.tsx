@@ -34,7 +34,7 @@ import type { ChatId, MessageId } from "@orb/kit/ids";
 import { Code, Copy, Eye, EyeOff, GitFork, Icon, Pencil, Redo2, SmilePlus, Undo2 } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { MenuItem } from "@orb/ui/menu";
-import type { ComponentProps, ReactElement } from "react";
+import type { ComponentProps, ReactElement, RefObject } from "react";
 import { useRef, useState } from "react";
 import { DescribedMenuItem } from "#components";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
@@ -128,6 +128,7 @@ function renderGenerationCredit(show: boolean, message: MessageView): ReactEleme
 }
 
 export interface MessageActionsRowProps {
+  readonly columnRef: RefObject<HTMLDivElement | null>;
   readonly message: MessageView;
   /** The existing card-opening binding suppresses ordinary saved-variant navigation. */
   readonly greetingBound?: boolean | undefined;
@@ -157,6 +158,7 @@ function ActionsFrame({ chip, ...row }: ComponentProps<typeof Row> & { readonly 
 
 export function MessageActionsRow({
   message,
+  columnRef,
   messageActions = "hover",
   greetingBound = false,
   viewerIsHost = false,
@@ -189,7 +191,6 @@ export function MessageActionsRow({
   // the wire viewer's is, so its open state lives here too.
   const reattributeTarget = useReattributeTarget(message);
   const [reattributeOpen, setReattributeOpen] = useState(false);
-  const clusterRef = useRef<HTMLDivElement | null>(null);
   const menuTriggerRef = useRef<HTMLButtonElement | null>(null);
 
   const { chatId, id: messageId, role, content, excludedFromPrompt, hasContinuation } = message;
@@ -206,20 +207,9 @@ export function MessageActionsRow({
   // "what did this send?" about. Not a disabled-with-reason item: this is APPLICABILITY, not a phase gate.
   const showWireTrace = showWireTraceFor(viewerIsHost, role);
 
-  // MEASURE THE ROW'S FOOTPRINT HERE, in the click handler, because this is the last moment it
-  // exists: React has already committed the read→edit swap by the time any effect runs, and a render-time
-  // ref read is illegal (react-hooks/refs). THIS click is the one frame where the read-mode box is still on
-  // screen.
-  //
-  // The measured box is the CONTENT COLUMN, not the bubble. Everything edit mode removes or replaces lives
-  // inside it — the action cluster (suppressed by this very row), the metadata row, the tool records, the
-  // swipe pager, and the prose the editor stands in for — and the column is content-sized, so losing any of
-  // them shrinks it — and on the flat skin also slides it sideways.
-  // Measured off the CLUSTER's own node, not the clicked control: the coarse arm's door is a `MenuItem`
-  // inside a PORTALLED popup, which has no ancestor column to walk up to. This element is inside the
-  // column at every pointer, so both doors reserve the same box.
+  // Capture the owning column before the edit swap; a portalled menu item cannot find it through DOM ancestry.
   const onEdit = (): void => {
-    const column = clusterRef.current?.closest('[data-slot="message-content-column"]') ?? null;
+    const column = columnRef.current;
     const box = column?.getBoundingClientRect();
     startEditingMessage(messageId, content, box !== undefined && box.width > 0 ? box.width : null, box !== undefined && box.height > 0 ? box.height : null);
   };
@@ -269,15 +259,7 @@ export function MessageActionsRow({
   };
 
   return (
-    <ActionsFrame
-      ref={clusterRef}
-      chip={chip}
-      gap="glyph"
-      align="center"
-      justify="end"
-      data-slot="message-actions-row"
-      reveal={ACTIONS_REVEAL_POSTURE[messageActions]}
-    >
+    <ActionsFrame chip={chip} gap="glyph" align="center" justify="end" data-slot="message-actions-row" reveal={ACTIONS_REVEAL_POSTURE[messageActions]}>
       <MessageActionsCluster
         credit={renderGenerationCredit(generationCredit, message)}
         editable={editable}

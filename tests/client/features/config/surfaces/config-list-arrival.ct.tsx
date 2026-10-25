@@ -2,7 +2,7 @@ import { routeTrpc, serveCorpusProcedures, trpcHold } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusReadResponder } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import type { ConfigListStory } from "./_list-stories.tsx";
+import type { ConfigListStory, ConfigPanesStory } from "./_list-stories.tsx";
 
 let root: Awaited<ReturnType<typeof createCorpusHarness>>;
 test.beforeAll(async () => {
@@ -57,4 +57,36 @@ test("a group the reader opened stays open after they move on", async ({ page })
   await second.click();
   await expect(second).toHaveAttribute("aria-expanded", "true");
   await expect(first).toHaveAttribute("aria-expanded", "true");
+});
+
+test("a late settings list preserves focus already owned by the content pane", async ({ mount, page }) => {
+  const mounted = await mount<typeof ConfigPanesStory>("tests/client/features/config/surfaces/_list-stories/ConfigPanesStory", { showList: false });
+  const content = page.locator('[data-slot="config-content"]');
+  await expect(content).toBeVisible();
+  await content.focus();
+  await expect(content).toBeFocused();
+  await mounted.update({ showList: true });
+  await expect(page.locator(BANDS).first()).toBeVisible();
+  await expect(content).toBeFocused();
+});
+
+test("a late settings list still takes arrival focus from navigation", async ({ mount, page }) => {
+  const mounted = await mount<typeof ConfigPanesStory>("tests/client/features/config/surfaces/_list-stories/ConfigPanesStory", { showList: false });
+  await page.getByRole("button", { name: "Navigation origin", exact: true }).focus();
+  await mounted.update({ showList: true });
+  await expect(page.locator(BANDS).first()).toBeFocused();
+});
+
+test("a late settings list preserves the actual control selected by a content deep link", async ({ mount, page }) => {
+  const mounted = await mount<typeof ConfigPanesStory>("tests/client/features/config/surfaces/_list-stories/ConfigPanesStory", {
+    showList: false,
+    initialGroup: "appearance",
+  });
+  const control = page.locator('[data-slot="config-content"]').getByRole("button").first();
+  await expect(control).toBeVisible();
+  await control.focus();
+  await expect(control).toBeFocused();
+  await mounted.update({ showList: true, initialGroup: "appearance" });
+  await expect(page.locator(BANDS).first()).toBeVisible();
+  await expect(control).toBeFocused();
 });

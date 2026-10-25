@@ -34,10 +34,10 @@ const browserDocument = (globalThis as { document?: MinimalDocument }).document;
  *  explicit INTENT decision (the character screen's LIST projection: a selection made from the list picker
  *  focuses the pane the user just transformed, so the CONTENT editor mounting beside it must not take it
  *  back). Defaults to `true`, so every other caller is unchanged. */
-export function useFocusOnMount(ref: RefObject<FocusTarget | null>, enabled = true, repeatOnReveal = true): void {
+export function useFocusOnMount(ref: RefObject<FocusTarget | null>, enabled = true, repeatOnReveal = true, preserveFocus?: () => boolean): void {
   const handled = useRef(false);
   useEffect(() => {
-    if (!enabled || (!repeatOnReveal && handled.current)) {
+    if (!enabled || preserveFocus?.() === true || (!repeatOnReveal && handled.current)) {
       return;
     }
     handled.current = true;
@@ -50,7 +50,7 @@ export function useFocusOnMount(ref: RefObject<FocusTarget | null>, enabled = tr
       return;
     }
     ref.current?.focus();
-  }, [ref, enabled, repeatOnReveal]);
+  }, [ref, enabled, repeatOnReveal, preserveFocus]);
 }
 
 /** Focus a freshly-mounted surface UNCONDITIONALLY — for an IN-PLACE swap, where the control the user just

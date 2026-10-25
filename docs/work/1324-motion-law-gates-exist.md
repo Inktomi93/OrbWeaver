@@ -42,4 +42,6 @@ Every other rAF site in `@ui`/`@client` (focus, scroll, state flips, `use-enter-
 
 CTs pinning `transitionProperty` (unpolled reads): `tests/ui/primitives/dialog/native-parts.ct.tsx` and `tests/ui/primitives/popover/native-parts.ct.tsx` (`opacity, scale`), `tests/ui/primitives/toast/transition.ct.tsx` (`opacity, transform, translate`), `tests/ui/primitives/tabs/indicator.ct.tsx` (`transform` at rest, the launched transition set, and the settled landing). The motion guide §1.2 and §4.2 now name those files. Run: `CT_PORT=5871 pnpm test:ct` on the four files, 7 passed.
 
-Not done: the CT pins assert behaviour that was already correct, so they have no red run on old code.
+Production defect controls are complete. With dialog/popover, toast and tabs transition classes changed to transition-all, their native CT assertions fail on computed `all`. A separate Select ref control fails on missing focus. The run reports 5 intended failures and 1 pass; exact source restoration returns the motion and Select cases to passing behavior. Correct production motion required no replacement implementation.
+
+The installed react-x, jsx-a11y and TanStack optional-rule audit is in `docs/reviews/dom-closeout.md`. Each omitted rule has a disposition. The mapped aria-hidden gap has a bounded native-rule follow-up; no optional rule was enabled merely to reduce an omission count.

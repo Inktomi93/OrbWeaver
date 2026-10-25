@@ -1,5 +1,6 @@
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
+import ts from "typescript";
 import { lexicalVariable } from "./general.ts";
 import {
   accessedName,
@@ -154,6 +155,11 @@ function isStaticValue(context: OrbRuleContext, node: TSESTree.Node, depth = 0):
       if (moduleLevelBinding(context, expression)) {
         return true;
       }
+      const variable = lexicalVariable(context, expression);
+      const binding = variable?.defs[0]?.name;
+      if (binding?.parent.type === "AssignmentPattern" && binding.parent.left === binding) {
+        return next(binding.parent.right);
+      }
       const initializer = constantInitializer(context, expression);
       return initializer !== undefined && next(initializer);
     }
@@ -215,20 +221,72 @@ function staticStyleEntries(context: OrbRuleContext, node: TSESTree.Node, depth:
       const initializer = constantInitializer(context, expression);
       return initializer === undefined || staticStyleEntries(context, initializer, depth + 1).length === 0 ? [] : [expression];
     }
+    case "MemberExpression":
+      return isStaticValue(context, expression) ? [expression] : [];
+    case "CallExpression":
+      return memoStyleEntries(context, expression, depth);
     default:
       return [];
   }
 }
 
-/**
- * A feature's `style` prop carries only what is computed at runtime from measurement or data. A static property of a
- * style object (a literal, a module constant, a token-only calc()) is a finding. The check is syntactic: an object
- * reached through an import or a call is not followed, so it judges what the file itself spells.
- */
+function memoStyleEntries(context: OrbRuleContext, call: TSESTree.CallExpression, depth: number): readonly TSESTree.Node[] {
+  const callee = call.callee;
+  const member = callee.type === "MemberExpression" ? accessedName(context, callee) : undefined;
+  const hook = callee.type === "Identifier" ? callee.name : member;
+  const callback = call.arguments[0];
+  if (hook !== "useMemo" || (callback?.type !== "ArrowFunctionExpression" && callback?.type !== "FunctionExpression")) {
+    return [];
+  }
+  const results =
+    callback.body.type === "BlockStatement"
+      ? callback.body.body.flatMap((statement) => (statement.type === "ReturnStatement" && statement.argument !== null ? [statement.argument] : []))
+      : [callback.body];
+  return results.flatMap((result) => staticStyleEntries(context, result, depth + 1));
+}
+
+function cssPropertiesObject(context: OrbRuleContext, node: TSESTree.ObjectExpression): boolean {
+  const parent = node.parent;
+  const wrapped = parent.type === "TSAsExpression" || parent.type === "TSSatisfiesExpression" ? parent.typeAnnotation : undefined;
+  const annotation = parent.type === "VariableDeclarator" ? parent.id.typeAnnotation?.typeAnnotation : wrapped;
+  if (annotation?.type === "TSTypeReference" && annotation.typeName.type === "Identifier") {
+    const definition = lexicalVariable(context, annotation.typeName)?.defs[0];
+    if (
+      definition?.type === "ImportBinding" &&
+      definition.node.type === "ImportSpecifier" &&
+      definition.node.imported.type === "Identifier" &&
+      definition.node.imported.name === "CSSProperties" &&
+      definition.parent.type === "ImportDeclaration" &&
+      definition.parent.source.value === "react"
+    ) {
+      return true;
+    }
+  }
+  const services = context.sourceCode.parserServices;
+  if (!services?.program || services.esTreeNodeToTSNodeMap === undefined) {
+    return false;
+  }
+  const expression = services.esTreeNodeToTSNodeMap.get(node);
+  if (!ts.isObjectLiteralExpression(expression)) {
+    return false;
+  }
+  const type = services.program.getTypeChecker().getContextualType(expression);
+  const symbol = type?.getSymbol();
+  return symbol?.name === "CSSProperties" && (symbol.declarations ?? []).some((declaration) => declaration.getSourceFile().fileName.includes("/@types/react/"));
+}
+
+/** Static style properties belong to primitive variants; React CSSProperties objects are judged at their authored home. */
 export const noStaticStylePropRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
     return {
+      ObjectExpression: (node: TSESTree.ObjectExpression): void => {
+        if (cssPropertiesObject(context, node)) {
+          for (const entry of staticObjectEntries(context, node, 0)) {
+            context.report({ node: entry, message: STATIC_STYLE_MESSAGE });
+          }
+        }
+      },
       "JSXAttribute[name.name='style'] > JSXExpressionContainer": (container: TSESTree.JSXExpressionContainer): void => {
         if (container.expression.type === "JSXEmptyExpression") {
           return;

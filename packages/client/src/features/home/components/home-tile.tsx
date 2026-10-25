@@ -62,7 +62,7 @@ import { Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Separator } from "@orb/ui/separator";
 import { Heading, Text } from "@orb/ui/text";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement, ReactNode, RefObject } from "react";
 import { useId } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows } from "#data";
@@ -178,7 +178,15 @@ export function HomeDoorway({ tile, doorway }: { readonly tile: HomeTileContribu
  *  `surface-box-store`. `skeletonRows` stays the tile's own first-boot claim (#92): it sizes the
  *  skeleton when nothing is reserved and is the fill fallback when the pitch cannot be inverted. A tile
  *  whose height is wrapping copy supplies its own `skeleton` instead, sized by the same wrap. */
-function TileContent({ tile, title }: { readonly tile: HomeTileContribution; readonly title: string }): ReactElement {
+function TileContent({
+  tile,
+  title,
+  gridRef,
+}: {
+  readonly tile: HomeTileContribution;
+  readonly title: string;
+  readonly gridRef: RefObject<HTMLDivElement | null>;
+}): ReactElement {
   return (
     <QueryBoundary
       fallback={tile.skeleton?.() ?? <SkeletonRows count={tile.skeletonRows ?? TILE_SKELETON_ROWS} />}
@@ -186,14 +194,22 @@ function TileContent({ tile, title }: { readonly tile: HomeTileContribution; rea
       reserveBlock={tile.skeletonBlock}
       reserveKey={tile.id}
     >
-      {typeof tile.body === "function" ? tile.body() : null}
+      {typeof tile.body === "function" ? tile.body({ gridRef }) : null}
     </QueryBoundary>
   );
 }
 
 /** `column` is the region this mount stands in. A tile with a live `useRegion` is mounted in every column it
  *  can reach and renders only in the one its hook names, so the hook stays a top-level call. */
-export function HomeTile({ tile, column }: { readonly tile: HomeTileContribution; readonly column: HomeTileRegion }): ReactNode {
+export function HomeTile({
+  tile,
+  column,
+  gridRef,
+}: {
+  readonly tile: HomeTileContribution;
+  readonly column: HomeTileRegion;
+  readonly gridRef: RefObject<HTMLDivElement | null>;
+}): ReactNode {
   const visible = tile.useVisible?.() ?? true;
   const title = tile.useTitle?.() ?? tile.title;
   // A live region of `null` holds the tile out of every column; only an absent hook falls back to the static one.
@@ -222,14 +238,14 @@ export function HomeTile({ tile, column }: { readonly tile: HomeTileContribution
   if (region === "masthead") {
     return (
       <Stack data-home-tile={tile.id} gap="row">
-        <TileContent tile={tile} title={title} />
+        <TileContent gridRef={gridRef} tile={tile} title={title} />
       </Stack>
     );
   }
   return (
     <Stack aria-labelledby={headingId} className="group/tile" data-home-tile={tile.id} gap="row" role="region">
       <TileBand headingId={headingId} title={title} trailing={tile.action} />
-      <TileContent tile={tile} title={title} />
+      <TileContent gridRef={gridRef} tile={tile} title={title} />
     </Stack>
   );
 }

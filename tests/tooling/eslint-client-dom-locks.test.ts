@@ -6,6 +6,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
+import { domLookupRule } from "@orb/tooling/eslint";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
 import { beforeAll } from "vitest";
@@ -57,6 +58,74 @@ const interp = (expression: string): string => `$${"{"}${expression}}`;
 
 // [rule, label, source, path, expected finding count]
 const CASES = [
+  [
+    STYLE,
+    "a block memo initializer",
+    "export function P() { const skin = useMemo(function () { return { opacity: 1 }; }, []); return <Stack style={skin} />; }",
+    FEATURE_TSX,
+    1,
+  ],
+
+  [
+    RENDER_READ,
+    "reducer initializer layout",
+    "export function P({ el }) { const [w] = useReducer(reduce, el, n => n.getBoundingClientRect().width); return <div>{w}</div>; }",
+    FEATURE_TSX,
+    1,
+  ],
+
+  [LOOKUP, "apply lookup", "document.querySelector.apply(document, ['.x']);", FEATURE_TS, 1],
+  [LOOKUP, "call inert marker", "export const f = (el: HTMLElement) => el.closest.call(el, '[inert]');", FEATURE_TS, 0],
+  [CLASS_LIST, "called class attribute writer", "export const f = (el: HTMLElement) => el.setAttribute.call(el, 'class', 'x');", FEATURE_TS, 1],
+  [
+    CLASS_LIST,
+    "bound class attribute name",
+    "export const f = (el: HTMLElement) => { const write = el.setAttribute.bind(el, 'class'); write('x'); };",
+    FEATURE_TS,
+    1,
+  ],
+
+  [LOOKUP, "destructured lookup", "const { querySelector: select } = document; select('.x');", FEATURE_TS, 1],
+  [CLASS_LIST, "destructured classList", "export const f = (el: HTMLElement) => { const { classList: classes } = el; classes.add('x'); };", FEATURE_TS, 1],
+  [CLASS_LIST, "destructured class writer", "export const f = (el: HTMLElement) => { const { add } = el.classList; add('x'); };", FEATURE_TS, 1],
+
+  [SEALED, "descendant selector", "document.querySelector('main .cm-line');", FEATURE_TS, 1],
+  [SEALED, "held class-name lookup", "const NAME = 'cm-line'; document.getElementsByClassName(NAME);", FEATURE_TS, 1],
+
+  [
+    STYLE,
+    "a skin table CSSProperties declaration",
+    "import type { CSSProperties } from 'react'; export const SKIN: CSSProperties = { borderLeftStyle: 'solid' };",
+    FEATURE_TS,
+    1,
+  ],
+  [
+    STYLE,
+    "a measured CSSProperties declaration",
+    "import type { CSSProperties } from 'react'; export function size(n: number) { const skin: CSSProperties = { width: n }; return skin; }",
+    FEATURE_TS,
+    0,
+  ],
+
+  [LOOKUP, "bound lookup", "const select = document.querySelector.bind(document); export const f = () => select('.x');", FEATURE_TS, 1],
+  [LOOKUP, "call lookup", "document.querySelector.call(document, '.x');", FEATURE_TS, 1],
+  [LOOKUP, "constant inert marker", "const INERT = '[inert]'; export const f = (n: HTMLElement) => n.closest(INERT);", FEATURE_TS, 0],
+  [CLASS_LIST, "aliased classList", "export const f = (el: HTMLElement) => { const classes = el.classList; classes.add('x'); };", FEATURE_TS, 1],
+  [CLASS_LIST, "classList value", "export const f = (el: HTMLElement) => { el.classList.value = 'x'; };", FEATURE_TS, 1],
+  [CLASS_LIST, "class attribute", "export const f = (el: HTMLElement) => el.setAttribute('class', 'x');", FEATURE_TS, 1],
+  [STYLE, "module member", jsx("<Stack style={SKIN.base} />", "const SKIN = { base: { opacity: 1 } };"), FEATURE_TSX, 1],
+  [STYLE, "memo initializer", "export function P() { const skin = useMemo(() => ({ opacity: 1 }), []); return <Stack style={skin} />; }", FEATURE_TSX, 1],
+  [STYLE, "prop default", "export function P({ opacity = 1 }) { return <Stack style={{ opacity }} />; }", FEATURE_TSX, 1],
+  [RENDER_READ, "memo layout", "export function P({ el }) { const w = useMemo(() => el.offsetWidth, []); return <div>{w}</div>; }", FEATURE_TSX, 1],
+  [
+    RENDER_READ,
+    "state initializer layout",
+    "export function P({ el }) { const [w] = useState(() => el.getBoundingClientRect().width); return <div>{w}</div>; }",
+    FEATURE_TSX,
+    1,
+  ],
+  [SEALED, "class-name lookup", "export const f = (el: HTMLElement) => el.getElementsByClassName('cm-line');", FEATURE_TS, 1],
+  [SEALED, "prose names vendor hooks", "export const text = 'The cmdk-input attribute and .cm-line are private';", FEATURE_TS, 0],
   // --- a static value on a style prop
   [STYLE, "a literal property", jsx('<Stack style={{ maxWidth: "100%" }} />'), FEATURE_TSX, 1],
   [STYLE, "a token calc() literal", jsx('<Row style={{ width: "calc(var(--a) + var(--b))" }} />'), FEATURE_TSX, 1],
@@ -99,7 +168,7 @@ const CASES = [
   [LOOKUP, "an optional-call querySelector", "export const f = (n: HTMLElement | null) => n?.querySelector('c');\n", FEATURE_TS, 1],
   [LOOKUP, "a computed-name lookup", "export const f = () => document['getElementById']('x');\n", FEATURE_TS, 1],
   [LOOKUP, "getElementsByClassName", "export const f = (n: HTMLElement) => n.getElementsByClassName('a');\n", FEATURE_TS, 1],
-  [LOOKUP, "a lookup in the components tier", "export const f = () => document.querySelector('.a');\n", COMPONENT, 0],
+  [LOOKUP, "a lookup in the components tier", "export const f = () => document.querySelector('.a');\n", COMPONENT, 1],
   [LOOKUP, "a lookup in @orb/ui", "export const f = () => document.querySelector('.a');\n", UI, 0],
   [LOOKUP, "closest on the inert marker", "export const f = (n: HTMLElement) => n.closest('[inert]');\n", FEATURE_TS, 0],
   [LOOKUP, "closest by a selector", "export const f = (n: HTMLElement) => n.closest('[data-slot=\"x\"]');\n", FEATURE_TS, 1],
@@ -184,7 +253,7 @@ test("the locks judge the client only, and the render read lock also judges @orb
   for (const rule of [STYLE, LOOKUP, CLASS_LIST, SEALED]) {
     expect(await severity(rule, UI), rule).toBeUndefined();
   }
-  expect(await severity(LOOKUP, COMPONENT)).toBeUndefined();
+  expect(await severity(LOOKUP, COMPONENT)).toBe(2);
   expect(await severity(LOOKUP, FEATURE_TS)).toBe(2);
   expect(await severity(STYLE, FEATURE_TSX)).toBe(2);
   expect(await severity(CLASS_LIST, CLIENT_LIB)).toBe(2);
@@ -192,12 +261,48 @@ test("the locks judge the client only, and the render read lock also judges @orb
   expect(await severity(RENDER_READ, UI)).toBe(2);
 });
 
-// A home the rule no longer matches is a stale exemption: it would hide the next real finding in that file.
-test("every DOM lookup home still holds a lookup", { timeout: 120_000 }, async () => {
-  const { default: config } = await import("../../eslint.config.ts");
-  const homes = config.flatMap((block) => (block.rules !== undefined && LOOKUP in block.rules ? (block.ignores ?? []) : []));
-  expect(homes.length).toBeGreaterThan(0);
-  for (const home of homes) {
-    expect(await findings(LOOKUP, readFileSync(join(ROOT, home), "utf8"), home, true), home).not.toHaveLength(0);
+test("an approved boundary call does not permit another lookup in its file", { timeout: 120_000 }, async () => {
+  const path = "packages/client/src/components/skip-to-first-row.tsx";
+  const source = readFileSync(join(ROOT, path), "utf8");
+  expect(await findings(LOOKUP, source, path)).toHaveLength(0);
+  expect(await findings(LOOKUP, `${source}\nexport const planted = () => document.querySelector('.unowned');`, path)).toHaveLength(1);
+});
+
+test("a boundary permission belongs to its function and operation", { timeout: 120_000 }, async () => {
+  const path = "packages/client/src/components/skip-to-first-row.tsx";
+  const source = readFileSync(join(ROOT, path), "utf8");
+  const call = "containerRef.current?.querySelector<HTMLElement>(FIRST_ROW)";
+  expect(await findings(LOOKUP, `${source}\nexport function Other(containerRef) { return ${call}; }`, path)).toHaveLength(1);
+  expect(await findings(LOOKUP, source.replace("  return (", `  document.querySelector('.unowned');\n  return (`), path)).toHaveLength(1);
+  expect(await findings(LOOKUP, source.replace("  return (", `  ${call};\n  return (`), path)).toHaveLength(1);
+  expect(await findings(LOOKUP, "export {};", path)).toHaveLength(1);
+});
+
+test("duplicate DOM boundary permissions refuse instead of hiding an added call", () => {
+  const home = { file: FEATURE_TS, function: "f", receiver: "document", method: "querySelector", selector: ".x", reason: "A named boundary operation." };
+  expect(() =>
+    new Linter({ cwd: ROOT }).verify(
+      "export const f = () => document.querySelector('.x');",
+      {
+        files: ["**/*.ts"],
+        languageOptions: { parser: tseslint.parser },
+        plugins: { probe: { rules: { lookup: domLookupRule([home, home]) } } },
+        rules: { "probe/lookup": "error" },
+      },
+      { filename: join(ROOT, FEATURE_TS) },
+    ),
+  ).toThrow("Duplicate DOM home");
+});
+
+test("configured DOM homes stay live and preserve selector semantics", { timeout: 120_000 }, async () => {
+  const { DOM_LOOKUP_HOMES } = await import("../../eslint.config.ts");
+  const paths = [...new Set(DOM_LOOKUP_HOMES.map(({ file }) => file))];
+  expect(paths.length).toBeGreaterThan(0);
+  for (const path of paths) {
+    expect(await findings(LOOKUP, readFileSync(join(ROOT, path), "utf8"), path), path).toHaveLength(0);
   }
+  const path = "packages/client/src/features/tag/lib/labels-focus-targets.ts";
+  const source = readFileSync(join(ROOT, path), "utf8");
+  expect(await findings(LOOKUP, source.replace('"] [data-slot=', '"][data-slot='), path)).toHaveLength(2);
+  expect(await findings(LOOKUP, source.replace(interp("tagId"), interp(" tagId ")), path)).toHaveLength(0);
 });

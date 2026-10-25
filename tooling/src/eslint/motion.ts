@@ -194,14 +194,22 @@ const RENDER_LAYOUT_MESSAGE =
 
 /**
  * A forced layout read whose nearest enclosing function is a component or hook (named `Component` or `useThing`)
- * runs on every render. A read inside an effect, an event handler or an observer callback sits in a nested function
- * and is not matched. Limit: a read inside a helper called from the render body is not followed.
+ * runs during render, including useMemo, useState and useReducer initializer callbacks. Effects, event handlers
+ * and observer callbacks run later. A separate helper called from render is not followed.
  */
 export const noRenderLayoutReadRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
     const judge = (node: TSESTree.Node): void => {
-      const fn = enclosingFunction(node);
+      let fn = enclosingFunction(node);
+      while (
+        fn !== undefined &&
+        fn.parent.type === "CallExpression" &&
+        ((fn.parent.arguments[0] === fn && ["useMemo", "useState", "useReducer"].includes(calleeName(context, fn.parent.callee) ?? "")) ||
+          (fn.parent.arguments[2] === fn && calleeName(context, fn.parent.callee) === "useReducer"))
+      ) {
+        fn = enclosingFunction(fn);
+      }
       const name = fn === undefined ? undefined : functionName(fn);
       if (name !== undefined && RENDER_BODY_NAME.test(name) && isForcedLayoutRead(context, node)) {
         context.report({ node, message: RENDER_LAYOUT_MESSAGE });

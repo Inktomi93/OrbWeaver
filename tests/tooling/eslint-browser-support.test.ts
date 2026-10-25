@@ -16,6 +16,15 @@ const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: RO
 
 // Firefox 138 lacks Element.computedStyleMap and CSSKeywordValue; Safari 18 lacks the Iterator helpers.
 const REFUSED = [
+  ["unsupported window event", "export const probe = () => window.addEventListener('scrollend', () => {});"],
+  ["unsupported document event", "export const probe = () => document.addEventListener('scrollend', () => {});"],
+  [
+    "event guard on another receiver",
+    "export const probe = (el: HTMLElement, other: HTMLElement) => { if ('onscrollend' in other) el.addEventListener('scrollend', () => {}); };",
+  ],
+
+  ["unsupported event", "export const probe = (el: HTMLElement) => el.addEventListener('scrollend', () => {});"],
+
   ["a method call", "export function probe(el: HTMLElement): unknown {\n  return el.computedStyleMap();\n}"],
   ["a member chain through the method", "export function probe(el: HTMLElement): unknown {\n  return el.computedStyleMap().size;\n}"],
   ["a constructor of a missing global", 'export const probe = new CSSKeywordValue("auto");'],
@@ -46,6 +55,13 @@ const REFUSED = [
 ] as const;
 
 const ADMITTED = [
+  ["supported event", "export const probe = (el: HTMLElement) => el.addEventListener('scroll', () => {});"],
+  ["guarded event", "export const probe = (el: HTMLElement) => { if ('onscrollend' in el) el.addEventListener('scrollend', () => {}); };"],
+  [
+    "unrelated event emitter",
+    "export const probe = (el: { addEventListener(name: string, cb: () => void): void }) => el.addEventListener('scrollend', () => {});",
+  ],
+
   ["an in check on the member", 'export function probe(el: HTMLElement): unknown {\n  return "computedStyleMap" in el ? el.computedStyleMap() : null;\n}'],
   [
     "a truthiness check on the member",

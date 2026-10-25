@@ -29,7 +29,7 @@ import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/colla
 import { Row, Stack } from "@orb/ui/layout";
 import { scrollBehavior } from "@orb/ui/lib";
 import { Heading, Text } from "@orb/ui/text";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement, ReactNode, RefObject } from "react";
 import { Fragment, useEffect, useId, useState } from "react";
 import { MemberDrillHeader, QueryBoundary } from "#components";
 import { QueryErrorState, useSettingsViewerView } from "#data";
@@ -71,10 +71,11 @@ function isShellRescueTarget(element: Element): boolean {
 }
 
 export interface ConfigContentSurfaceProps {
+  readonly hostContentRef?: RefObject<HTMLDivElement | null>;
   readonly groups: ConfigGroupRegistry;
 }
 
-export function ConfigContentSurface({ groups }: ConfigContentSurfaceProps): ReactElement {
+export function ConfigContentSurface({ groups, hostContentRef }: ConfigContentSurfaceProps): ReactElement {
   const selection = useCollectionSelection();
   const activeGroup = useActiveConfigGroup();
   // THE SPY AND ITS TWO REFS (`hooks/use-config-scroll-spy.ts`): the pane's scroller, and the
@@ -216,7 +217,12 @@ export function ConfigContentSurface({ groups }: ConfigContentSurfaceProps): Rea
         className="relative -mx-row flex-1 overflow-y-auto overscroll-contain px-row py-section block-full min-block-0"
         focusTarget={true}
         data-slot="config-content"
-        ref={contentRef}
+        ref={(node): void => {
+          contentRef.current = node;
+          if (hostContentRef !== undefined) {
+            hostContentRef.current = node;
+          }
+        }}
         role="region"
         tabIndex={-1}
       >

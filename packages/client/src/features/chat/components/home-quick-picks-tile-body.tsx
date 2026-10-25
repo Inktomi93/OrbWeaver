@@ -17,7 +17,7 @@ import { Icon, Users } from "@orb/ui/icons";
 import { Grid, Stack } from "@orb/ui/layout";
 import { coarsePointerNow } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
-import type { FocusEvent, ReactElement } from "react";
+import type { FocusEvent, ReactElement, RefObject } from "react";
 import { useId, useLayoutEffect, useRef, useState } from "react";
 import { useStartChat, useSuspenseQuery, useTRPC } from "#data";
 import { resumeChat, setActiveSection } from "#state";
@@ -32,7 +32,7 @@ function revealFocused(event: FocusEvent<HTMLDivElement>): void {
   }
 }
 
-export function HomeQuickPicksTileBody(): ReactElement {
+export function HomeQuickPicksTileBody({ gridRef }: { readonly gridRef?: RefObject<HTMLDivElement | null> }): ReactElement {
   const trpc = useTRPC();
   /** The per-render id SCOPE for the cells' caption elements (each cell suffixes its own character id) —
    *  one hook at the top of the component, never one per row inside the map. */
@@ -68,7 +68,7 @@ export function HomeQuickPicksTileBody(): ReactElement {
     const count = (el: Element): number => getComputedStyle(el).gridTemplateColumns.trim().split(TRACK_SEPARATOR).length;
     // Owner ruling on 0254: a touch pointer below Home's two-column step gets a swipe row of every face instead.
     const read = (): void => {
-      const home = shelf.closest("[data-home-grid]");
+      const home = gridRef?.current ?? null;
       setLayout({ tracks: count(shelf), swipe: coarsePointerNow() && (home === null || count(home) === 1) });
     };
     read();
@@ -79,7 +79,7 @@ export function HomeQuickPicksTileBody(): ReactElement {
       observer.observe(shelf.lastElementChild);
     }
     return (): void => observer.disconnect();
-  }, [hasFaces]);
+  }, [hasFaces, gridRef]);
   // Before the track count is read, one face and the door: one row at any width, so no pass is ever two rows tall.
   const swipe = layout?.swipe === true;
   const shown = swipe ? quickPicks : quickPicks.slice(0, layout === null ? 1 : Math.max(layout.tracks - 1, 1));

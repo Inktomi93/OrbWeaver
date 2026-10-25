@@ -19,10 +19,8 @@ import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement, ReactNode } from "react";
 import type { RowAttribution } from "../lib/attribution.ts";
-import type { ActionsReveal } from "../lib/message-actions-reveal.ts";
 import type { RowSkin } from "../lib/message-row-variants.ts";
 import type { HeaderShape } from "../lib/row-placement.ts";
-import { MessageActionsRow } from "./message-actions-row.tsx";
 import { MessageTimestamp } from "./message-metadata-row.tsx";
 import { NameRowFrame } from "./message-name-row-frame.tsx";
 
@@ -195,37 +193,6 @@ export function renderGhostNameRow(args: {
       pinnedHeader={args.pinnedHeader}
       messageRole="assistant"
       shape={GHOST_SHAPE}
-    />
-  );
-}
-
-export function renderRowActions(args: {
-  readonly editing: boolean;
-  readonly selecting: boolean;
-  readonly message: MessageView;
-  readonly messageActions: ActionsReveal;
-  readonly greetingBound?: boolean | undefined;
-  /** WIREBTN — gates the kebab's host-only "View wire trace…" item (see `MessageActionsRow`). */
-  readonly viewerIsHost: boolean | undefined;
-  /** Show the generation credit, already gated by the `showModelIcon` appearance toggle upstream. */
-  readonly generationCredit: boolean;
-  /** B7 — the room's present characters names (the picker's segment-target parse; see `MessageActionsRowProps`). */
-  readonly characterNames?: readonly string[] | undefined;
-  /** `RowSkin.actionsRow.chip`: the cluster paints the reading band under its own reveal. */
-  readonly chip: boolean;
-}): ReactNode {
-  if (args.editing || args.selecting) {
-    return null;
-  }
-  return (
-    <MessageActionsRow
-      message={args.message}
-      messageActions={args.messageActions}
-      greetingBound={args.greetingBound}
-      viewerIsHost={args.viewerIsHost}
-      generationCredit={args.generationCredit}
-      characterNames={args.characterNames}
-      chip={args.chip}
     />
   );
 }
