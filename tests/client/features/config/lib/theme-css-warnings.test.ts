@@ -111,6 +111,69 @@ test("a data-appearance attribute the surface lacks warns with the closest curre
   expect(warning?.message).toContain(real);
 });
 
+test("a value outside the attribute's list, or the presence-only form, warns and names the allowed values", () => {
+  const [attribute] = OWNER_CSS_APPEARANCE_ATTRIBUTES;
+  const [allowed] = attribute.values;
+  const badValue = `[${attribute.name}="${allowed}z"] {}`;
+  const [wrong] = themeCssHookWarnings(badValue, OWNER_CSS_SURFACE, []);
+  expect(badValue.slice(wrong?.from, wrong?.to)).toBe(`${allowed}z`);
+  for (const value of attribute.values) {
+    expect(wrong?.message).toContain(value);
+  }
+  const presence = `[${attribute.name}] {}`;
+  const [bare] = themeCssHookWarnings(presence, OWNER_CSS_SURFACE, []);
+  expect(presence.slice(bare?.from, bare?.to)).toBe(attribute.name);
+  for (const value of attribute.values) {
+    expect(bare?.message).toContain(value);
+  }
+  for (const value of attribute.values) {
+    expect(themeCssHookWarnings(`[${attribute.name}="${value}"], [${attribute.name}~='${value}'] {}`, OWNER_CSS_SURFACE, [])).toEqual([]);
+  }
+  expect(themeCssHookWarnings(`[${attribute.name}^="${allowed}z"] {}`, OWNER_CSS_SURFACE, [])).toEqual([]);
+});
+
+const single = OWNER_CSS_APPEARANCE_ATTRIBUTES.find((attribute) => !attribute.members);
+const list = OWNER_CSS_APPEARANCE_ATTRIBUTES.find((attribute) => attribute.members);
+const escapedFirst = (value: string): string => `\\${(value.codePointAt(0) ?? 0).toString(16)} ${value.slice(1)}`;
+
+test("the i flag compares a value case-insensitively and the s flag, or none, does not", () => {
+  const name = single?.name ?? "";
+  const value = single?.values[0] ?? "";
+  expect(themeCssHookWarnings(`[${name}="${value.toUpperCase()}" i] {}`, OWNER_CSS_SURFACE, [])).toEqual([]);
+  expect(themeCssHookWarnings(`[${name}=${value.toUpperCase()} I] {}`, OWNER_CSS_SURFACE, [])).toEqual([]);
+  expect(themeCssHookWarnings(`[${name}="${value.toUpperCase()}"] {}`, OWNER_CSS_SURFACE, [])).toHaveLength(1);
+  expect(themeCssHookWarnings(`[${name}="${value.toUpperCase()}" s] {}`, OWNER_CSS_SURFACE, [])).toHaveLength(1);
+});
+
+test("CSS escapes in a value are decoded before it is compared, quoted or not", () => {
+  const name = single?.name ?? "";
+  const value = single?.values[0] ?? "";
+  expect(themeCssHookWarnings(`[${name}=${escapedFirst(value)}] {}`, OWNER_CSS_SURFACE, [])).toEqual([]);
+  expect(themeCssHookWarnings(`[${name}="${escapedFirst(value)}"] {}`, OWNER_CSS_SURFACE, [])).toEqual([]);
+  const [stale] = themeCssHookWarnings(`[${name}=${escapedFirst(`${value}z`)}] {}`, OWNER_CSS_SURFACE, []);
+  expect(stale?.from).toBeGreaterThan(name.length);
+});
+
+test("selectors that can never match their attribute warn", () => {
+  const singleName = single?.name ?? "";
+  const listName = list?.name ?? "";
+  const [first, second] = single?.values ?? [];
+  expect(themeCssHookWarnings(`[${singleName}=""] {}`, OWNER_CSS_SURFACE, [])).toHaveLength(1);
+  expect(themeCssHookWarnings(`[${singleName}="${first} ${second}"] {}`, OWNER_CSS_SURFACE, [])).toHaveLength(1);
+  expect(themeCssHookWarnings(`[${listName}=""] {}`, OWNER_CSS_SURFACE, [])).toEqual([]);
+  expect(themeCssHookWarnings(`[${listName}~="${list?.values.join(" ")}"] {}`, OWNER_CSS_SURFACE, [])).toHaveLength(1);
+  expect(themeCssHookWarnings(`[${listName}~=""] {}`, OWNER_CSS_SURFACE, [])).toHaveLength(1);
+});
+
+test("attribute names are matched case-insensitively, as HTML matches them", () => {
+  const [attribute] = OWNER_CSS_APPEARANCE_ATTRIBUTES;
+  const css = `[${attribute.name.toUpperCase()}="nope"] {}`;
+  expect(themeCssHookWarnings(css, OWNER_CSS_SURFACE, [])).toHaveLength(1);
+  const retired = "[DATA-SHADOW] {}";
+  expect(themeCssHookWarnings(retired, OWNER_CSS_SURFACE, OWNER_CSS_RENAMES)).toHaveLength(1);
+  expect(themeCssHookWarnings(`[${attribute.name.toUpperCase()}="${attribute.values[0]}"] {}`, OWNER_CSS_SURFACE, [])).toEqual([]);
+});
+
 test("a var() of an undeclared name outside the surface warns, with the closest token", () => {
   const css = "a { color: var(--color-primry); }";
   const [warning] = themeCssHookWarnings(css, SURFACE, RENAMES);
