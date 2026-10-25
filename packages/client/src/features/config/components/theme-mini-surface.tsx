@@ -50,6 +50,7 @@
 // moves nowhere; only a CHARACTER-side one would re-open the tier question.
 
 import type { Theme } from "@orb/contracts/theme";
+import { Card } from "@orb/ui/card";
 import { Row, Stack } from "@orb/ui/layout";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
@@ -65,9 +66,11 @@ function MiniRoom(): ReactElement {
       {/* CARD + SHAPE + INK: the theme's own card tone, radius and hairline, with a foreground sample on
           it — the pair a theme exists to keep readable, and the one pair that clears 3:1 on both
           polarities without asking two ramp neighbours to do something they cannot. */}
-      <Row align="center" className="gap-tight rounded-control border border-border bg-card p-tight min-inline-0">
-        <Row className="flex-1 rounded-full bg-foreground block-(--size-preview-line) min-inline-0" />
-      </Row>
+      <Card className="min-inline-0" padding="none" shape="row">
+        <Row align="center" className="p-tight min-inline-0" gap="tight">
+          <Row className="flex-1 rounded-full bg-foreground block-(--size-preview-line) min-inline-0" />
+        </Row>
+      </Card>
       {/* The quiet ink + the ACCENT — the one picked token no base derives (`accent-is-inherited-not-derived`). */}
       <Row align="center" className="gap-tight min-inline-0">
         <Row className="flex-1 rounded-full bg-muted-foreground block-(--size-preview-line) min-inline-0" />

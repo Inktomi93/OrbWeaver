@@ -33,7 +33,6 @@
 import { Button } from "@orb/ui/button";
 import { Check, Circle, Icon } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
-import { RECEDED_INK } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId } from "react";
@@ -99,12 +98,12 @@ export function CorpusReadinessRail({ stages, showRerun, queue }: CorpusReadines
             role="listitem"
           >
             <Row className="min-inline-0" gap="field">
-              <Icon className={stage.done ? "text-primary" : "text-muted-foreground"} icon={stage.done ? Check : Circle} size="xs" />
+              <Icon tone={stage.done ? "accent" : "muted"} icon={stage.done ? Check : Circle} size="xs" />
               <Text as="span" className="min-inline-0" voice="label">
                 {stage.label}
               </Text>
             </Row>
-            <Text as="span" className={stage.done ? "shrink-0" : "shrink-0 text-muted-foreground"} voice="datum">
+            <Text as="span" className="shrink-0" tone={stage.done ? "default" : "muted"} voice="datum">
               {stage.datum}
             </Text>
           </Row>
@@ -206,7 +205,7 @@ function CorpusReadinessRerun(): ReactElement {
           control per this file's own "ONE primary" ruling above — and #969 flipped `ghost` to
           `text-current`, so it now paints at the same weight as that primary. The primitive keeps
           inheriting; this composite states its own ink. */}
-      <Button className={RECEDED_INK} data-slot="readiness-jobs-door" intent="ghost" onClick={(): void => openConfigTo("workloads", "jobs")} size="sm">
+      <Button data-slot="readiness-jobs-door" intent="ghost" onClick={(): void => openConfigTo("workloads", "jobs")} size="sm" tone="muted">
         All jobs in Settings → Jobs
       </Button>
     </Stack>

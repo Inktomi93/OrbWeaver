@@ -176,7 +176,7 @@ function OverviewBody(): ReactElement {
               title={wrapped.topCharacter.name}
               subtitle={topCharacterSubtitle}
               actions={
-                <Text voice="gloss" className="font-mono whitespace-nowrap">
+                <Text voice="datumMono" className="whitespace-nowrap">
                   {formatCompactNoun(wrapped.topCharacter.assistantTurns, "reply", "replies")}
                 </Text>
               }

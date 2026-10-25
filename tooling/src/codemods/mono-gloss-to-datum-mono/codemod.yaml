@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "mono-gloss-to-datum-mono"
+version: "0.1.0"
+description: "Rewrite a Text with voice=\"gloss\" and a font-mono className token to voice=\"datumMono\", dropping the token."
+author: "Orbweaver"
+license: "MIT"
+targets:
+  languages: ["tsx"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

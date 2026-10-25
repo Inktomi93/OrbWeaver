@@ -204,9 +204,11 @@ function ThemeableVarsReference(): ReactElement {
       <Text voice="kicker">Themeable variables</Text>
       <Row gap="field" className="flex-wrap">
         {THEME_SCOPE_EMIT_VARS.map((name) => (
-          <Text key={name} as="span" voice="datum" className="rounded-control bg-muted px-field" tone="muted">
-            {name}
-          </Text>
+          <Card key={name} padding="none" shape="well">
+            <Text as="span" voice="code" className="px-field" tone="muted">
+              {name}
+            </Text>
+          </Card>
         ))}
       </Row>
     </Stack>
@@ -223,14 +225,14 @@ function ThemePreview({ values }: { readonly values: ThemeFormValues }): ReactEl
       <ThemeScope tokens={themeOverrideFromForm(values)}>
         <Card tone="background">
           <Stack gap="row">
-            <Text voice="label" className="text-speaker">
+            <Text voice="label" tone="speaker">
               Aria
             </Text>
             <Stack gap="field" className={messageBubbleClass("assistant")}>
-              <Text as="span" className="text-dialogue">
+              <Text as="span" tone="dialogue">
                 “Welcome to the archive,” she said.
               </Text>{" "}
-              <Text as="span" className="text-narration">
+              <Text as="span" tone="narration">
                 The lamplight flickered against the shelves.
               </Text>
               <Text as="span" className="text-prose-body">
@@ -276,7 +278,7 @@ function ContrastBadge({ label, color, against }: { readonly label: string; read
   return (
     <Row gap="field" align="center">
       <Text voice="kicker">{label}</Text>
-      <Text voice="gloss" className={passes ? undefined : "text-warning"}>
+      <Text voice="gloss" tone={passes ? "default" : "warning"}>
         {passes ? `${rounded}:1` : `${rounded}:1 — hard to read`}
       </Text>
     </Row>

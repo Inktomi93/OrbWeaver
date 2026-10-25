@@ -105,7 +105,7 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
                     2 or 4 columns, where "reading order" stops being obvious.
                     INSIDE the button, so it rides the tile's accessible NAME: the rank is part of what
                     this control is, not decoration beside it. */}
-                <Text as="span" className="shrink-0 font-mono" tone="muted" voice="datum">
+                <Text as="span" className="shrink-0" tone="muted" voice="datum">
                   {index + 1}
                 </Text>
                 <CharacterAvatar hash={gem.avatarHash} id={gem.characterId} name={gem.name} size="lg" />
@@ -113,7 +113,7 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
                   {/* `block truncate`, not `line-clamp-1`: the Button base is `whitespace-nowrap`, and a
                       nowrap line inside a `-webkit-box` clamp overflows its cell with NO ellipsis at all
                       (measured on the quick-picks shelf — a long character name ran over its neighbour). */}
-                  <Text as="span" className="block truncate text-foreground" voice="label">
+                  <Text as="span" className="block truncate" voice="label">
                     {gem.name}
                   </Text>
                   {/* TWO LINES, AND BOTH READABLE (side-eye corpus re-pass 2026-08-19, B1). All three
