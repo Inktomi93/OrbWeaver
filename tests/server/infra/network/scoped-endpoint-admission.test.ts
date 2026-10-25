@@ -70,13 +70,22 @@ test("configured and arbitrary URL execution still reject DNS failure before the
   expect(rawCalls).toBe(0);
 });
 
-// The GC=true case has no observable to stop on, so it pays all 12 heap walks: measured 7.8 s on a loaded 24-core box, ~0.6 s per walk.
 const FORCED_GC_BASE_MS = 20_000;
+const GC_ATTEMPT_LIMIT = 12;
+
+async function expectRequestCollected(reference: WeakRef<Request>): Promise<void> {
+  // A dereference keeps its target alive for this job; yield before the full-heap collection.
+  for (let turn = 0; turn < GC_ATTEMPT_LIMIT && reference.deref() !== undefined; turn += 1) {
+    await setImmediate();
+    queryObjects(Request, { format: "count" });
+  }
+  expect(reference.deref()).toBeUndefined();
+}
 
 test.each([false, true])(
-  "caller abort after Request GC=%s cancels the locked physical response and closes its unfinished socket",
+  "caller abort after forced GC=%s cancels the locked physical response and closes its unfinished socket",
   { timeout: budget(FORCED_GC_BASE_MS) },
-  async (collectRequest) => {
+  async (forceGc) => {
     await using lifetime = new AsyncDisposableStack();
     let responseClosed = false;
     let socketClosed = false;
@@ -101,31 +110,42 @@ test.each([false, true])(
     if (address === null || typeof address === "string") {
       throw new Error("native egress control requires a physical loopback listener");
     }
-    // The physical loopback control: the real request and DNS against a real listener.
+    let normalized: WeakRef<Request> | undefined;
+    // Observe identity without retaining it; execution still uses the real request and DNS against the listener.
     await using egress = createScopedEgress({
       traces: null,
       log: createTestLogger(),
       env: createTestEnv(),
       timers: quietTimers(),
       buildConnector: systemConnector,
-      fetch: systemFetch,
+      fetch: (input, init) => {
+        if (!(input instanceof Request)) {
+          throw new Error("configured egress did not normalize its native Request");
+        }
+        normalized = new WeakRef(input);
+        return systemFetch(input, init);
+      },
       resolver: systemResolver,
     });
     egress.publishPrivateEndpointAllowlist([`127.0.0.1:${address.port}`]);
     const stop = new AbortController();
-    const response = await egress.configuredEndpointFetch(`http://127.0.0.1:${address.port}/held`, { signal: stop.signal });
+    const url = `http://127.0.0.1:${address.port}/held`;
+    const response = await egress.configuredEndpointFetch(url, { signal: stop.signal });
+    const normalizedRequest = normalized;
+    if (normalizedRequest === undefined) {
+      throw new Error("native egress control did not observe its normalized Request");
+    }
     const reader = response.body?.getReader();
     if (reader === undefined) {
       throw new Error("native egress control requires a response body");
     }
     try {
       expect(new TextDecoder().decode((await reader.read()).value)).toBe("held physical bytes");
-      if (collectRequest) {
-        for (let turn = 0; turn < 12; turn += 1) {
-          await setImmediate();
-          queryObjects(Request, { format: "count" });
-        }
+      if (forceGc) {
+        // Collection of an unowned control proves GC ran while egress must retain the live request's dependent signal.
+        await expectRequestCollected(new WeakRef(new Request(url)));
       }
+      expect(normalizedRequest.deref()).toBeDefined();
       let rejected = false;
       const reading = reader.read().catch((error: unknown) => {
         rejected = true;
@@ -135,6 +155,9 @@ test.each([false, true])(
       await expect.poll(() => ({ responseClosed, socketClosed, rejected })).toEqual({ responseClosed: true, socketClosed: true, rejected: true });
       expect(responseFinished).toBe(false);
       expect(await reading).toBe(stop.signal.reason);
+      if (forceGc) {
+        await expectRequestCollected(normalizedRequest);
+      }
     } finally {
       stop.abort();
       try {
@@ -222,12 +245,10 @@ test.each(["EOF", "error", "cancel"] as const)(
       );
       expect(ended).toBe(terminal !== "error");
       await expect.poll(() => physicallyClosed).toBe(true);
-      // Each queryObjects walks the whole heap; stop at the first turn that collects the Request.
-      for (let turn = 0; turn < 12 && normalized?.deref() !== undefined; turn += 1) {
-        await setImmediate();
-        queryObjects(Request, { format: "count" });
+      if (normalized === undefined) {
+        throw new Error("native Request ownership control did not observe its normalized Request");
       }
-      expect(normalized?.deref()).toBeUndefined();
+      await expectRequestCollected(normalized);
       expect(await (await egress.configuredEndpointFetch(`http://127.0.0.1:${address.port}/still-live`)).text()).toBe("fresh physical bytes");
     } finally {
       try {
