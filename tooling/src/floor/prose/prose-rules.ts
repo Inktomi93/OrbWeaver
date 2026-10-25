@@ -1,7 +1,7 @@
 // The writing-charter text rules as pure functions (string in, findings out), so every checker that
 // applies `.claude/rules/writing.md` is unit-testable without a tree. Two importers share them — the
 // instruction-layer walk in `agent-sync/ops/instructions.ts` and the docs walk in `doc/ops/check.ts` —
-// which is what homes them on this floor (Core-Tooling-Law.md §2.4: a module joins by importer census).
+// which is what homes them on this floor: a module joins the floor by its importers.
 //
 // WHAT IS NOT PROSE: a frontmatter block, a fenced code block, an inline code span, a markdown link TARGET
 // and an owner-voice section. Frontmatter is data (its `updated:` is the one sanctioned date), code and

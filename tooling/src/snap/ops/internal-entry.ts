@@ -1,4 +1,4 @@
-// The internal-flag dispatch cli.ts carves out to stay under its own cap (Core-Tooling-Law.md §4.3):
+// The internal-flag dispatch cli.ts carves out to stay under its own cap:
 // `--session-daemon` and `--stage-keeper` are snap's OWN re-exec of itself as a detached child (the
 // per-session daemon; the band idle timer, #1163 arm b) — neither opens a run slot, neither touches the
 // help/misuse/argv-error legs, and both must resolve BEFORE the ordinary stage/slot machinery so a

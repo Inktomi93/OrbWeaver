@@ -447,8 +447,8 @@ function isStyleRule(node: unknown): node is StyleRule {
   return typeof node === "object" && node !== null && (node as { type?: unknown }).type === "rule";
 }
 
-/** The nearest style rule a node sits inside, or undefined at the top of the sheet or a layer. */
-function enclosingRule(node: AtRule): StyleRule | undefined {
+/** The nearest style rule a node sits inside, through any at-rules, or undefined at the top of the sheet or a layer. */
+function enclosingRule(node: { readonly parent?: unknown }): StyleRule | undefined {
   for (let parent: unknown = node.parent; typeof parent === "object" && parent !== null; parent = (parent as { parent?: unknown }).parent) {
     if (isStyleRule(parent)) {
       return parent;
@@ -458,20 +458,37 @@ function enclosingRule(node: AtRule): StyleRule | undefined {
 }
 
 /**
- * Whether everything a variant styles sits under the root guard. A rule inside the variant carries the guard on each
- * selector, or nests with `&` under an enclosing rule that does; a declaration directly inside the variant styles the
- * enclosing rule's selectors, so those carry it.
+ * The selectors a rule matches once nesting is resolved through every ancestor rule: `&` stands for the parent's
+ * selector, and a selector without `&` is the parent's descendant.
+ */
+function effectiveSelectors(rule: StyleRule): readonly string[] {
+  const parent = enclosingRule(rule);
+  const own = rule.selectors.map((selector) => selector.trim());
+  if (parent === undefined) {
+    return own;
+  }
+  const outer = effectiveSelectors(parent);
+  return own.flatMap((selector) => outer.map((base) => (selector.includes("&") ? selector.replaceAll("&", base) : `${base} ${selector}`)));
+}
+
+/** A declaration or an `@apply` reachable from the at-rule without crossing a style rule: it styles the enclosing
+ *  rule's selectors. */
+function holdsDeclarations(atRule: AtRule): boolean {
+  return (atRule.nodes ?? []).some((node) => node.type === "decl" || (isAtRule(node) && (node.name === "apply" || holdsDeclarations(node))));
+}
+
+/**
+ * Whether everything a variant styles sits under the root guard: every style rule inside it, and, when declarations
+ * sit in it directly or through nested at-rules, the rule that encloses it, each with nesting resolved.
  */
 function guardedSelectors(atRule: AtRule, guard: string): boolean {
-  const owner = enclosingRule(atRule);
-  const ownerGuarded = owner?.selectors.every((selector) => selector.trim().startsWith(guard)) === true;
-  const startsGuarded = (selector: string): boolean => {
-    const trimmed = selector.trim();
-    return trimmed.startsWith(guard) || (trimmed.startsWith("&") && ownerGuarded);
-  };
-  let guarded = atRule.nodes?.some((node) => node.type === "decl") !== true || ownerGuarded;
+  // The guard alone, or as the only argument of `:is()` or `:where()`, leads the selector.
+  const forms = [guard, `:is(${guard})`, `:where(${guard})`];
+  const isGuarded = (rule: StyleRule | undefined): boolean =>
+    rule !== undefined && effectiveSelectors(rule).every((selector) => forms.some((form) => selector.startsWith(form)));
+  let guarded = !holdsDeclarations(atRule) || isGuarded(enclosingRule(atRule));
   atRule.walk((node) => {
-    if (isStyleRule(node) && !node.selectors.every(startsGuarded)) {
+    if (isStyleRule(node) && !isGuarded(node)) {
       guarded = false;
     }
   });

@@ -14,14 +14,14 @@
 //   sanctioned = the tier's own `--orb-tier-island-pad`, resolved to a used value (`tierSanctioned`)
 //   painted    = getComputedStyle(el).padding
 // A disagreement between them is the finding. The EPSILON-vs-THRESHOLD decision, and the census's own
-// candidates/judged/withheld/excluded accounting, both live in ../lib/checks-quality.ts
+// candidates/judged/withheld/excluded accounting, both live in ../../lib/checks-quality.ts
 // (checkTierDrift) — this segment gathers raw sanctioned/painted pairs only, never decides pass/fail,
 // matching every other family in this walker (severity/threshold verdicts stay unit-testable without a
 // browser — ops/walker.ts header).
 //
 // THE MAPPED PAIRS ARE ENFORCED, NOT ASSERTED (#1003). Which (slot, property, --orb-tier-* var) triples
 // this segment censuses is still written by hand below — a walker string cannot import the stylesheet —
-// but the copy is no longer trusted: tests/tooling/ui-audit/ops/walker/census-tier.test.ts DERIVES the
+// but the copy is not trusted: a census-tier test DERIVES the
 // triples from both sides (this string's judgeTier* calls under their querySelectorAll blocks; tiers.css's
 // own consuming rules) and reds on either direction — a tiers.css pair nothing here censuses (an
 // invisible rule the self-oracle cannot see, which still reads as a clean tier surface) and a pair here

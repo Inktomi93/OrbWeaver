@@ -194,7 +194,7 @@ interface AccentEmission {
  *
  * IT ONLY RUNS WHERE A BACKGROUND IS CARRIED (`base === null` ⇒ pass-through): with no carried base there
  * is no derived card to judge against, and the accent lands on the app theme's own chrome, whose
- * coherence `palette-contrast.suite.test.ts` already floors.
+ * coherence the palette contrast floor already covers.
  *
  * The re-derived fill is spelled OPAQUE for the same reason `proseInkOn` is: relative-colour syntax
  * inherits the ORIGIN's alpha, and re-judging a translucent output is a fixed point that never passes.

@@ -260,7 +260,7 @@ async function inspectionOf(observed: Observed, secrets: ProviderScrubSet, failu
   if (reply === undefined) {
     return { ok: false, request, response: null };
   }
-  // a preview read failure degrades to an explicit empty preview while status and headers remain inspectable. Precedent: the gate mustPass fixture tooling/src/probe/unproven-outcome.ts proves the same degraded inspection result. Ends if preview bytes become authoritative.
+  // a preview read failure degrades to an explicit empty preview while status and headers remain inspectable. Precedent: the retired probe's mustPass fixture proved the same degraded inspection result. Ends if preview bytes become authoritative.
   const text = await readBodyPreview(reply, secretScrubOverhang(secrets)).catch((): string => "");
   return {
     ok: failure === undefined && reply.ok,

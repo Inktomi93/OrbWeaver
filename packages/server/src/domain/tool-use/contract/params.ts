@@ -36,7 +36,7 @@ export interface ToolExecutionContext {
   /** `null` on non-chat consumers. */
   readonly chatId: ChatId | null;
   /** The turn's ephemeral identity (chat GATHER→loop), threaded so a turn-scoped registrant (rpg's staging
-   *  accumulator, docs/plans/rpg/design.md) correlates a turn's tool writes to its commit/abort flush. `null` on a
+   *  accumulator, D58) correlates a turn's tool writes to its commit/abort flush. `null` on a
    *  non-chat consumer (buddy). Inert until the rpg tool registrants land (R4 #2/#3). */
   readonly turnId: ChatTurnId | null;
   /** The caller's loaded membership, fed to can() for `scope:"chat"` ceilings. `null` when `chatId` is

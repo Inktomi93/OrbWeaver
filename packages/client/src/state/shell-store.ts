@@ -185,7 +185,7 @@ const useShellStore = createPersistedStore<ShellState, PersistedShellState>("she
  * DECIDED SYNCHRONOUSLY, APPLIED IN THE CALLBACK — not the same moment. `withViewTransition` defers (and
  * coalesces) its callback into a later task, so a float opened BETWEEN the raise and the callback belongs
  * to the NEW content and must survive: navigate-then-open-a-modal-for-the-destination is an ordinary
- * intent (app-shell.ct.tsx's per-slot stories are exactly that pair). So the slot is read NOW and the
+ * intent. So the slot is read NOW and the
  * write re-checks it is still the open one; applying it inside the callback keeps the removal and the new
  * content in ONE commit. A content-scoped def's `onClose` does not fire here, by the rule that already
  * governs the host swapping one modal body for another (`openImageEdit`) — every such opener seeds its

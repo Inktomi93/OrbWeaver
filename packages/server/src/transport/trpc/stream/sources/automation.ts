@@ -8,7 +8,7 @@
 // durable half at all (the chips are transient, `automation-bus.ts` is the WHOLE
 // story), so this room is `resumable: false`: no cursor, no replay, no reconnect barrier, and its queue
 // overflow policy is `collapse` (`frame-queue.ts`) rather than the `lag` a durable room can afford. The
-// `resumable` ⟺ `lag` correspondence is pinned at runtime in `room-sources.test.ts` — this room is on the
+// `resumable` ⟺ `lag` correspondence holds at runtime — this room is on the
 // live-only side of it with `user`/`rpg`.
 //
 // AUTHZ — REFUSE AT ATTACH, which is the deliberate asymmetry against chat/rpg. `resolveStreamAuthority` is

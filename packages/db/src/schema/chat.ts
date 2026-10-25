@@ -636,7 +636,7 @@ export const messageAssets = sqliteTable(
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // chat_participants — the unified roster (D16). The per-kind SHAPE CHECK + the (chatId,userId) UNIQUE + the
 // lifecycle columns are all born at table creation. `kind` derives PARTICIPANT_KINDS (`human`/`character` live
-// post-rollback). The D60 kind-shape CHECK (docs/plans/agent-principals/design.md) was built so an `agent` (userId-backed
+// post-rollback). The D60 kind-shape CHECK was built so an `agent` (userId-backed
 // AND AI-driven — the thing a 2-way actor XOR could not represent) is expressible: its `agent`/`observer` SQL
 // arms are DORMANT rebuild doorways kept in the DDL for the agent-principal program's return (docs/work/0048), not
 // live kinds today. `characterId` keys on identity (D28).
@@ -708,12 +708,12 @@ export const chatParticipants = sqliteTable(
     // LEFTMOST column is the one constrained (FK-index test).
     index("chat_participants_user_idx").on(t.userId),
     index("chat_participants_active_persona_idx").on(t.activePersonaId),
-    // The per-kind SHAPE CHECK (D60; docs/plans/agent-principals/design.md) — born at creation to REPLACE the 2-way
+    // The per-kind SHAPE CHECK (D60) — born at creation to REPLACE the 2-way
     // actor XOR once `agent` returns (userId-backed AND AI-driven — the bit a plain XOR can't carry). Only the
     // `human`/`character` arms are LIVE post-rollback (2026-07-25 purge); the `agent`/`observer` arms are
     // DORMANT rebuild doorways — no code path writes `kind='agent'`/`'observer'` today, and the DB does not
     // (and per the design would not) cross-verify `kind='agent' ⇒ users.kind='agent'` (SQLite has no
-    // cross-table CHECK) — that's the future agent-seat chokepoint's job (docs/plans/agent-principals/design.md,
+    // cross-table CHECK) — that's the future agent-seat chokepoint's job (D60,
     // AP3, docs/work/0048). Kept as DDL now so the rebuild doesn't need a second migration for a known shape.
     check(
       "chat_participants_kind_shape",

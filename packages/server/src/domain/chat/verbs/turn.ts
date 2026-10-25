@@ -397,14 +397,14 @@ interface BuiltTurnContext {
   /** The host's resolved turn-behavior arm — the custom stops the prep threads onto the request
    *  + the auto-continue/auto-swipe knobs the send post-round hook gates on. Defaulted to all-off. */
   readonly chatBehavior: ChatBehaviorInputs;
-  /** The tool names a game turn's GATHER contributed (docs/plans/rpg/design.md) — threaded onto the round base →
+  /** The tool names a game turn's GATHER contributed (D58) — threaded onto the round base →
    *  `TurnPrep.attachedToolNames` (the pipeline resolves them against the tool-use registry). Empty for a
    *  non-game turn (byte-identical); empty until the rpg tool registry lands (R4 #2/#3) even for a game. */
   readonly attachedToolNames: readonly string[];
   /** The TERMINAL wire tools a game turn's GATHER contributed (R1 — the folded state extraction), threaded
    *  onto the PERSISTING lifecycle's prep only. `undefined` for a non-game / non-folded turn (byte-identical). */
   readonly terminalTools: readonly WireTool[] | undefined;
-  /** docs/plans/rpg/design.md slot-adjacency (threaded onto `TurnPrep` → the engine marks the turn dice-eligible after
+  /** D58 slot-adjacency (threaded onto `TurnPrep` → the engine marks the turn dice-eligible after
    *  minting `turnId`). False for a non-game / ineligible turn (byte-identical). */
   readonly respondsToLatestUserTurn: boolean;
   /** The per-turn user-macro registry (WAVE MU) — closures, threaded onto every `TurnPrep.macroRegistry`
@@ -667,7 +667,7 @@ async function buildTurnContext(
      *  human states `{kind:"none"}`. */
     readonly trigger: TurnTrigger;
     readonly pendingUserText?: string | undefined;
-    /** docs/plans/rpg/design.md slot-adjacency: is this turn (re)generating the assistant slot that DIRECTLY responds
+    /** D58 slot-adjacency: is this turn (re)generating the assistant slot that DIRECTLY responds
      *  to the latest user message (send / deferred-drain / swipe-of-that-slot)? Drives the rpg dice feed-forward
      *  flag + eligibility so a later GM/auto round never re-feeds a stale die. Absent ⇒ false (ineligible). */
     readonly respondsToLatestUserTurn?: boolean | undefined;
@@ -698,7 +698,7 @@ async function buildTurnContext(
   /** SEND sink — when present and host-tier scripts resolve, writes the post-regex user text for the verb to persist. */
   out?: SendRegexSink,
 ): Promise<BuiltTurnContext> {
-  // The GM-voice preset REDIRECT early hop (docs/plans/rpg/design.md) — resolved BEFORE the foreign preset read so
+  // The GM-voice preset REDIRECT early hop (D58) — resolved BEFORE the foreign preset read so
   // a game turn assembles the game's gmPresetId instead of the host default. Null op / non-game ⇒ null ⇒ absent
   // ⇒ the host default (byte-identical). It rides the FOREIGN-inputs args (the established turn-knob seam).
   const presetOverride = ctx.rpg !== null ? await ctx.rpg.resolvePresetOverride(args.chatId) : null;
@@ -713,7 +713,7 @@ async function buildTurnContext(
     voice: VOICE_FOR_KIND[args.kind],
     ...(presetOverride !== null ? { presetOverride } : {}),
   });
-  // A game turn's GATHER (docs/plans/rpg/design.md): the 8 rpg macros + the depth-0 reminder injection + the tool
+  // A game turn's GATHER (D58): the 8 rpg macros + the depth-0 reminder injection + the tool
   // names to attach. Null op / non-game ⇒ null ⇒ a byte-identical non-game turn (no macros, no injection, no tools).
   // The host `steeringNote`'s identity-macro binding, both computed CHAT-SIDE (chat owns identity resolution):
   //   `{{user}}` = `foreign.personas.active?.name` — the turn's voice persona (NOT the pinned anchor; a
@@ -1573,7 +1573,7 @@ function rpgUserCommitRequestId(messageId: MessageId): string {
   return `rpg-user-commit:${messageId}`;
 }
 
-/** Fire-and-forget the rpg SEND-path COMMIT (docs/plans/rpg/design.md): after the user row lands, lock in the prior
+/** Fire-and-forget the rpg SEND-path COMMIT (D58): after the user row lands, lock in the prior
  *  assistant turn's snapshot the user was replying to (+ consume queued dice). Null op = non-rpg chat
  *  (byte-identical no-op); fire-and-forget so a background snapshot-commit never blocks or fails the send.
  *  Wrapped in its own DETACHED root (`withRequestSpan`) for the same reason the engine's rpg round is: it
@@ -1658,7 +1658,7 @@ async function commitUserTurn(
       anchorPersonaId: membership.chat.anchorPersonaId,
       trigger: humanTrigger(principal.userId, personaId !== undefined ? personaId : membership.activePersonaId),
       pendingUserText: content,
-      // A send's AI response directly responds to the just-committed user message (docs/plans/rpg/design.md): the
+      // A send's AI response directly responds to the just-committed user message (D58): the
       // player's queued d20 feeds its first skill check. Always true for a send.
       respondsToLatestUserTurn: true,
       guided,
@@ -1919,7 +1919,7 @@ interface TurnBase {
   /** The host's resolved turn-behavior arm — the custom stops each auxiliary prep threads onto
    *  the request. Defaulted to all-off. */
   readonly chatBehavior: ChatBehaviorInputs;
-  /** A game turn's gather-contributed tool names (docs/plans/rpg/design.md) — threaded onto each auxiliary prep's
+  /** A game turn's gather-contributed tool names (D58) — threaded onto each auxiliary prep's
    *  `attachedToolNames`. Empty for a non-game turn / until the rpg registry lands (byte-identical). */
   readonly attachedToolNames: readonly string[];
   /** A game turn's gather-contributed TERMINAL tools (R1) — threaded onto each PERSISTING auxiliary prep
@@ -1928,7 +1928,7 @@ interface TurnBase {
   /** The M2 card wire knob (parity-plus §3.5) — threaded onto each auxiliary prep. `undefined` for a non-game
    *  turn (no window — every stored card rides whole); a game contributes a number, `0` = every card stubs. */
   readonly cardKeepLastX: number | undefined;
-  /** docs/plans/rpg/design.md slot-adjacency: does this auxiliary turn's slot directly respond to the latest user
+  /** D58 slot-adjacency: does this auxiliary turn's slot directly respond to the latest user
    *  message (only `swipe` of the die-response can — the rest are false)? Threaded onto the prep. */
   readonly respondsToLatestUserTurn: boolean;
   /** The per-turn user-macro registry (WAVE MU) — threaded onto the aux prep's `macroRegistry`; `null` ⇒ no
@@ -1960,7 +1960,7 @@ async function resolveTurnBase(
      *  a turn with no live triggering human states `{kind:"none"}` (the retired absent arm bound
      *  `personaIds[0]`, a presence-order-arbitrary bystander). */
     readonly trigger: TurnTrigger;
-    /** docs/plans/rpg/design.md slot-adjacency verdict (only `swipe` of the die-response passes true). Default false. */
+    /** D58 slot-adjacency verdict (only `swipe` of the die-response passes true). Default false. */
     readonly respondsToLatestUserTurn?: boolean | undefined;
     /** The slot this turn REGENERATES (swipe only — `continue` extends the slot and reads through it). VER-1b. */
     readonly regenSlotMessageId?: MessageId | undefined;
@@ -2169,7 +2169,7 @@ function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
     if (target === undefined || target.role !== "assistant") {
       throw new ChatNotFoundError(chatId);
     }
-    // docs/plans/rpg/design.md: a swipe re-feeds the SAME queued d20 ONLY when it regenerates the slot that directly
+    // D58: a swipe re-feeds the SAME queued d20 ONLY when it regenerates the slot that directly
     // responds to the die-bearing latest user message (no swipe-fishing for a better roll; a swipe of an older
     // slot, or after a later reply landed, is ineligible).
     const respondsToLatestUserTurn = await loadIsReplyToLatestUserMessage(ctx.db, chatId, messageId);
@@ -2731,7 +2731,7 @@ async function runDeferredRound(
     anchorPersonaId: chat.anchorPersonaId,
     // No live triggering human at drain — {{user}} binds to the chat anchor, not a presence-order human.
     trigger: { kind: "none" },
-    // A deferred drain is the FIRST AI response to the offline-host's committed user send (docs/plans/rpg/design.md) —
+    // A deferred drain is the FIRST AI response to the offline-host's committed user send (D58) —
     // it directly responds to that user message, so its queued d20 still feeds (the die wasn't lost to the defer).
     respondsToLatestUserTurn: true,
     // The Ruling-B host `{{char}}` (joined candidate names / solo single) for the rpg steeringNote render (chat owns it).

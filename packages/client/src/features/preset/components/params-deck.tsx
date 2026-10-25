@@ -116,7 +116,7 @@ export function ParamsDeck({ form, capability, effective, capabilityError, sampl
           INSTRUMENT whose only flexing cell is a control track holds the cap and does NOT breathe, which is
           the 2026-08-19 ruling above. Measured again when the audit landed, by planting the briefed change
           here: the knob row went 720px → 896px, i.e. straight back into the over-grown rail that ruling
-          exists to prevent — and it reds the `params-deck.ct.tsx` pin that asserts the row IS the cap. The
+          exists to prevent. The
           deck is centered (`mx-auto w-full`) precisely so it sits symmetrically inside the column that DOES
           breathe around it. */}
       <Stack className="mx-auto inline-full max-inline-(--width-content-col)" gap="section">

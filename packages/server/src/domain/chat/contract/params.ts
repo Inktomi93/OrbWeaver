@@ -536,7 +536,7 @@ export interface AddCharacterToChatParams extends ChatScopedParams {
 
 /** `removeCharacterFromChat` — leftSeq-stamps a character seat out of the roster (host-only). The symmetric
  *  drop for {@link AddCharacterToChatParams}; the only server consumer today is rpg's scene-cast prune
- *  (docs/plans/rpg/design.md, injected). */
+ *  (D58, injected). */
 export interface RemoveCharacterFromChatParams extends ChatScopedParams {
   readonly characterId: CharacterId;
 }

@@ -59,8 +59,7 @@ export const VARIANT_NEXT_NAME = "Next variant";
  * The forward chevron at the newest variant — it generates rather than steps.
  *
  * #570 (owner, 2026-08-23) ruled the chevron and the ✨ menu's Regenerate row both stay, on condition that
- * their names stay honest; borrowing the pager's `Next variant` here is the exact drift that ruling forbids,
- * and `swipe-strip.ct.tsx` pins the stale name ABSENT as the regression control.
+ * their names stay honest; borrowing the pager's `Next variant` here is the exact drift that ruling forbids.
  */
 export const VARIANT_GENERATE_NAME = "Regenerate a variant";
 

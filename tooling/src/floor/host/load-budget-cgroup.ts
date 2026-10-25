@@ -44,7 +44,7 @@ function cpuMaxCores(body: string | undefined): number | undefined {
  *  `computeLoadFactor` divided a box-wide loadavg by cores this process tree is FORBIDDEN to use, and
  *  returned a flat factor 1 for every realistic multi-lane load: the quota itself holds loadavg well under
  *  24, which is the number the factor had to exceed before it moved at all. The measured consequence is the row this closes —
- *  `enforcement-registry-parity.int.test.ts` carries `scaledBudget(60_000)`, timed out under concurrent
+ *  a suite carrying `scaledBudget(60_000)`, timed out under concurrent
  *  lanes and passed under lighter load inside one session on one commit, with the scaling never once
  *  engaging. The budget WAS scaled; the scaling was reading the wrong box.
  *

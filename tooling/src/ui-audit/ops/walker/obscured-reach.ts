@@ -11,7 +11,7 @@
 // `tests/tooling/ui-audit/ops/walker/obscured-reach.int.test.ts` against a module of this name that did
 // not exist, which is the `test-layout` mirror miss #2491 carried: the spec named the subject correctly
 // and the tree did not have it. Homing the subject here makes the mirror TRUE rather than merely
-// resolving — the distinction `tooling/src/verify/gates/test-layout.ts`'s own DECLARED CAPABILITY LIMIT
+// resolving — the distinction the retired test-layout gate's own DECLARED CAPABILITY LIMIT
 // (#2264) exists to name, since that gate proves a test's name resolves and never that the file is its
 // subject.
 //

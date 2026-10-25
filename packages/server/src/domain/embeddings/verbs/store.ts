@@ -5,8 +5,8 @@
 //
 // THE STAMPED TAG IS THE PROVIDER'S, NOT THE CALLER'S, and that is a recorded ruling (issue 724,
 // `088209c8be`): a request-time snapshot can go stale between parameter construction and the live role call,
-// so `EmbedResult.model` is the honest answer for which geometry the vector is actually in. The pin is
-// `store.int.test.ts` "stamps the model that actually produced the vector when the live role changed".
+// so `EmbedResult.model` is the honest answer for which geometry the vector is actually in. The case to pin:
+// "stamps the model that actually produced the vector when the live role changed".
 //
 // WHAT THAT RULING ASSUMES, and what §10-2 had to repair: the caller's `p.model` and the provider's answer
 // are the SAME derivation. They were not — the read side spelled the bare model id while every backend

@@ -22,7 +22,7 @@
 // character half of `phoneFiltersLabel`: the trigger states only what has no other visible carrier (the
 // month bound), and the chip keeps sole ownership of the character axis's name AND its only ✕.
 // `phoneFiltersLabel` itself is UNCHANGED — its four-state grammar is a general "compose these clauses"
-// contract, still exercised by `chat-list-scope.test.ts`; this is a call-site decision about which facts
+// contract; this is a call-site decision about which facts
 // this ONE caller feeds it, not a rewrite of the function's own rule.
 //
 // NO NEW GRAMMAR INSIDE. The panel holds the SAME two components the desktop column holds, in the order the

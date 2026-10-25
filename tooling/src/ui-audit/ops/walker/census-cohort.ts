@@ -6,7 +6,7 @@
 // two anatomies: shipped themes are 829x66 cards, your themes are 60x20 chips", "one surface, four row
 // anatomies". No per-element threshold can express any of those: 16px is not wrong, it is wrong BESIDE
 // a 32px twin. So this census groups siblings that claim to be the same KIND of thing and records the
-// spread of their rendered anatomy; the verdict lives in ../lib/checks-structure.ts.
+// spread of their rendered anatomy; the verdict lives in ../../lib/checks-structure.ts.
 //
 // THE COHORT KEY IS THE AUTHOR'S OWN CLAIM, never a guess. Two siblings are the same kind when they
 // share tag + data-slot + explicit role. `data-slot` is this repo's component-identity attribute (the

@@ -337,7 +337,7 @@ export interface GenerationProvenance {
   readonly costUsd: number | null;
   readonly usage: GenerationUsageDetails;
   readonly subjectCharacterId: CharacterId | null;
-  /** The reuse hash stored on this generation (docs/plans/rpg/design.md): the portrait-mode subject hash, an external
+  /** The reuse hash stored on this generation (D58): the portrait-mode subject hash, an external
    *  free-mode consumer's precomputed hash, or `null`. Exposed so a non-character consumer's own reuse gate can
    *  read it back + compare (rpg's NPC-portrait short-circuit) — the internal imagery gate matches by query, not
    *  through this read. */
@@ -439,7 +439,7 @@ interface GeneratePictureFields {
   readonly useAvatarReference?: boolean | undefined;
 
   /** An EXTERNALLY-computed reuse hash a non-character consumer stores on this generation's provenance so its
-   *  OWN reuse gate can short-circuit later (docs/plans/rpg/design.md — NPC portraits are content-addressed by the
+   *  OWN reuse gate can short-circuit later (D58 — NPC portraits are content-addressed by the
    *  npc identity tuple; rpg computes it via imagery's `identityHashFor`, never a second hash derivation).
    *  Honored ONLY in `mode:"free"` (the subject-character portrait modes own the internal reuse gate, which
    *  supersedes this). Absent ⇒ the provenance `identityHash` stays null (the additive-only guarantee — the

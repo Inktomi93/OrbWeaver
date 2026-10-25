@@ -66,7 +66,7 @@ function hangWithDescendant(outFile: string): string {
 }
 
 /** The child gets a resolvable PATH and NOTHING else — the CAPTURE_OPTS spelling from
- *  `tests/tooling/verify/ops/run.int.test.ts`, with `fromEntries` so the SCREAMING key is not a literal. */
+ *  the retired verify run test, with `fromEntries` so the SCREAMING key is not a literal. */
 // biome-ignore lint/style/noProcessEnv: the child needs a resolvable PATH and nothing else — reading the parent's PATH here IS the point, not app config.
 const CAPTURE_ENV = Object.fromEntries([["PATH", process.env["PATH"] ?? ""]]);
 

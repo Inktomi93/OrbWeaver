@@ -110,8 +110,8 @@ export function SwipeStrip({ message, foot }: SwipeStripProps): ReactElement {
   // THE ASYMMETRY IS DELIBERATE AND MUST SURVIVE A LATER TIDY-UP: at `X / X` the › is the GENERATE verb,
   // not a step, so wrapping it would silently replace "make a new variant" with "jump to variant 1" — the
   // one act on this strip that costs a model call, swapped for the cheapest one. Cyclic navigation is the
-  // ordinary idiom for a bounded pager; a generate button is not part of that cycle. Paired pins in
-  // `swipe-strip.ct.tsx` hold both halves, the forward one specifically so "fix the other end for
+  // ordinary idiom for a bounded pager; a generate button is not part of that cycle. A test that pins
+  // both halves keeps the forward one specifically so "fix the other end for
   // consistency" fails loudly.
   const prevIdx = current > 1 ? idx - 1 : total - 1;
   const prevVariantId = total > 1 ? history.get(prevIdx) : undefined;

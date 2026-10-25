@@ -4,7 +4,7 @@
 //
 // WHAT "DEAD" MEANS IS NOT DECIDED HERE — the tokenizer and the marker-namespace tables are
 // `@orb/kit/dead-css`, the one home this flagger shares with `pnpm snap --dead-css`'s in-page scan
-// (`tooling/src/snap/ops/dead-css.ts`). Only the DOM half — which sheets to walk, which elements to
+// (`tooling/src/snap/ops/arms/dead-css.ts`). Only the DOM half — which sheets to walk, which elements to
 // visit, and on what clock — is local, because that is the half the two consumers genuinely differ on.
 
 import { classTokensInSelector, isDeadCssMarkerClass } from "@orb/kit/dead-css";

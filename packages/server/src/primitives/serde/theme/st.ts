@@ -189,7 +189,7 @@ export function stThemeFromJson(raw: unknown, stem: string): StThemeParse {
   const aiBubbleBg = flatten(colorAt(raw, ST_AI_BUBBLE), stack.chatSurface);
   // Then the AUTHORED text colours — the one place ST can hand orb an unsafe pair the derivation cannot fix,
   // because BOTH sides are authored. They are measured against the surface they will actually render on: the
-  // AI bubble when one survived, else the base surface (the pairs `palette-contrast.suite.test.ts` asserts
+  // AI bubble when one survived, else the base surface (the pairs the palette contrast floor holds
   // for orb's own palettes: `prose-body`/`dialogue`/`narration` on `ai-bubble`).
   const textBackdrop = aiBubbleBg ?? background;
   const bodyColor = safeText(flatten(colorAt(raw, ST_BODY), stack.chatSurface), textBackdrop, ST_BODY, unmapped);

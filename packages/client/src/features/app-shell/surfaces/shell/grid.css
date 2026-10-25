@@ -27,7 +27,7 @@
     position: relative;
     /* One isolated stacking scope: every z-index in this sheet orders only the grid's own children, on the
      * `--z-base`, `--z-raised` and `--z-overlay` steps. Dialogs, menus, tooltips and toasts escape by portaling to
-     * the grid's box-less `display: contents` sibling, never by a higher number (app-shell.ct.tsx). */
+     * the grid's box-less `display: contents` sibling, never by a higher number. */
     isolation: isolate;
     /* `clip`, not `hidden`: a transformed collapsed panel still adds scrollable overflow under `hidden`, and a
      * focus scroll then slides the whole shell. */
@@ -91,7 +91,7 @@
     --shell-track-shrink: calc(var(--list-track) + var(--context-track) - var(--list-track-was) - var(--context-track-was));
     /* The content track's width as arithmetic: the centred counter needs the parent width, and a percentage in
      * `translate` resolves against the element's own box. The premise is that the grid's box is the viewport's
-     * width (app-shell.ct.tsx reads the first painted frame of every door). */
+     * width (app-shell-motion.ct.tsx reads the first painted frame of every door). */
     --shell-content-track: calc(100dvw - env(safe-area-inset-left) - env(safe-area-inset-right) - var(--rail-w) - var(--list-track) - var(--context-track));
     /* The room surface pads its content box on both inline sides (`chat-room-surface`, `px-block`), and the centred
      * carriers sit in that box: its width, not the content track's, is what their auto margins split. motion.css

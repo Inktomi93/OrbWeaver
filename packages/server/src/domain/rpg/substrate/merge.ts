@@ -1,4 +1,4 @@
-// domain/rpg/substrate/merge — the swipe-volatile plane's PURE merge + lock engine (docs/plans/rpg/design.md).
+// domain/rpg/substrate/merge — the swipe-volatile plane's PURE merge + lock engine (D58).
 // Zero I/O. Two jobs, one pass:
 //
 //   1. The [merge-clear] CONTRACT — the OPPOSITE of settings' `deepMergePlain` (do NOT copy that helper):

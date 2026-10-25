@@ -1,10 +1,10 @@
-// domain/rpg/substrate/readonly-axis — the honest-arms `trackersReadOnly` derivation (docs/plans/rpg/design.md + the
-// delivery-model amendment). PURE (zero I/O): given the resolved delivery MODE and the host connection's model
+// domain/rpg/substrate/readonly-axis — the honest-arms `trackersReadOnly` derivation (D58).
+// PURE (zero I/O): given the resolved delivery MODE and the host connection's model
 // capability, decide whether the model has a WRITE PATH for this game's state. The connection RESOLVE + the game
 // config read are the composition root's (W1c wires them into the `RpgResolveTrackersReadOnly` injected op); THIS
 // is the mode-keyed decision that op delegates to, homed in rpg because the mode→axis mapping is rpg's law.
 //
-// The axis differs by RESOLVED mode (the amendment §4.6 — NO silent mode-downgrade; the knob is the host's
+// The axis differs by RESOLVED mode (NO silent mode-downgrade; the knob is the host's
 // deliberate lever, never secretly re-routed):
 //   • cheap    — needs `capability.tools` (a dedicated TOOL round: parallel state-tool calls, post-commit).
 //   • folded   — needs `capability.tools` too (the R1 fold mounts the SAME tools on the character turn; a

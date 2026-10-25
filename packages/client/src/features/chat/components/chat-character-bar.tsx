@@ -15,7 +15,7 @@
 // named once on screen. The human chips below keep their names: the header does not carry them.
 //
 // #511 — ON A PHONE IT IS AN AVATAR STACK: THE NAMES GO `sr-only` AT A COARSE POINTER. Measured on the
-// real room pane at a coarse pointer (chat-character-bar.ct.tsx carries the full matrix): a crowded-but-ordinary
+// real room pane at a coarse pointer: a crowded-but-ordinary
 // roster — two humans still named by their EMAIL plus four card-realistic character names — wrapped this
 // strip to 3 rows / 100px at 430px, 4 rows / 130px at 390px and 5 rows / 160px at 320px. The tax GREW as
 // the screen shrank, because the strip's answer to "no room" is to wrap and every wrapped row is taken from

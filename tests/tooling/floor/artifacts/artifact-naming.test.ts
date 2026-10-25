@@ -1,7 +1,7 @@
 // The probe-kit artifact NAMING contract (tooling/src/floor/artifacts/artifact-naming.ts). Home per Spine-Testing §2:
 // a test of a scripts/ tool lives in tests/tooling/, mirroring its subject's path.
 //
-// RENAMED FROM `artifacts.test.ts` (#2260). The naming contract moved to its own module when
+// The naming contract moved to its own module when
 // `floor/artifacts/artifacts.ts` crossed the line cap (#2242), and the header here kept naming the OLD subject while
 // every import already pointed at the new one — so the file claimed to mirror a module it no longer tests.
 // Six of the seven cases below are `artifact-naming`'s; the seventh is snap's `variantOut`, kept here

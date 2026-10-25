@@ -93,7 +93,7 @@ function isInstructionFile(path: string): boolean {
 
 /**
  * CLASS 2 of the widening (#2144): the SKILLS a role loads on demand, and the `tooling/` guides the
- * constitution cites as law (`tooling/src/verify/gates/GATE-AUTHORING.md`, `tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md`, `tooling/src/verify/gates/TS-MORPH-CAPABILITIES.md`).
+ * constitution cites as law (`tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md`).
  * Recursive, unlike class 1 — both trees nest `reference/` material that is read exactly like its parent.
  *
  * TWO EXCLUSIONS, AND NEITHER IS LAZINESS: bytes this repo does not AUTHOR are not this formatter's to
@@ -116,7 +116,7 @@ const CLASS_2_TREES = [".claude/skills/", "tooling/"] as const;
  * summaries now carry CODE SPANS (`snap/ops/flags-metadata.ts`), inside which `_` and `[` are literal, so
  * the emitted markdown is canonical with no escaping at all and every grep hit survives.
  *
- * The property outlives this note: `tests/tooling/verify/ops/gen/snap-flags-index.test.ts` asserts the
+ * The property outlives this note: a test of the generated flag index asserts the
  * derived index still CONTAINS those literals, so the refused arm cannot arrive later by accident.
  */
 /** True for a tracked path this formatter owns under class 2. */

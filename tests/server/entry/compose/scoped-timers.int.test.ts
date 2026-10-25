@@ -1,7 +1,7 @@
 // @subject packages/server/src/entry/compose/services.ts
 // A guest that never answers is unblocked only by its deadline. Each phase stalls on ONE deadline and first lets
 // real time pass it, so the work proceeds only when the harness scheduler the root scoped is ticked. The
-// turn-lock heartbeat has its own proof (`tests/server/domain/chat/engine/core-concurrency.int.test.ts`).
+// turn-lock heartbeat has its own proof.
 
 import { spawn } from "node:child_process";
 import { setTimeout as realDelay } from "node:timers/promises";

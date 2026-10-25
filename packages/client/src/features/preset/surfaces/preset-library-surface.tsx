@@ -90,7 +90,7 @@ function PresetList({ onSelectPreset }: { readonly onSelectPreset: (id: PresetId
   // 1x NEITHER arm drops a frame at all): HEAD flagged 2 drops / 60+84ms and 1 / 114ms, this tree flags
   // 1 / 58ms and 1 / 51ms. Fewer and smaller, and still 1-8ms over the 50ms budget — so the waterfall was A
   // contributor to that frame, not the whole of it, and the residue is the section-entry commit itself. The
-  // deterministic proof of the WAVE is the CT, not those numbers: `preset-library-surface.ct.tsx`'s "#859 …
+  // deterministic proof of the WAVE is the CT, not those numbers: a "#859 …
   // one wave" pin asserts at the network boundary that no response lands before the last request goes out
   // (red on the unfixed source with `out,in,out,in`).
   const [{ data: presets }, { data: settings }] = useSuspenseQueries({

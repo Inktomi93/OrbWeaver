@@ -78,7 +78,7 @@
   }
 
   /* A `focal` empty-state title holds the display step at every width: in the `ui` layer it beats the slot's own
-   * container step-down, and a focal statement that shrinks with its column is not one (empty-state.ct.tsx). */
+   * container step-down, and a focal statement that shrinks with its column is not one. */
   [data-slot="empty-state-title"][data-title-step="focal"] {
     font-size: var(--text-display);
     line-height: var(--leading-display);

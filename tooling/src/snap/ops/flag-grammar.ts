@@ -1,7 +1,7 @@
 // Executable Snap argv grammar projected into operator-facing descriptors. This is the one completeness
 // seam: every public FLAG_HANDLERS key becomes exactly one row; the daemon-only entry is deliberately
 // hidden from the printed grammar block (still indexed — see below). Help, the generated flag index
-// (`.claude/skills/snap-driving/reference/flags.md`, `tooling/src/verify/ops/gen/snap-flags-index.ts`) and
+// (`.claude/skills/snap-driving/reference/flags.md`) and
 // tests all consume these descriptors rather than searching unrelated prose for tokens — one flag, one
 // summary, one group, read from the SAME registry (#1329).
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";

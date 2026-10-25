@@ -85,6 +85,7 @@ test("a fallback does not excuse a custom property nothing declares", async () =
 
 test("an appearance name a sheet spells is one the manifest's channel writes", async () => {
   const rule = "orb/appearance-name-in-manifest";
+  const guarded = `:root:not([data-appearance-reduced-motion="off"])`;
   expect(await rulesHit(declaration("opacity: var(--appearance-reading-line-height);"))).toEqual([]);
   expect(await rulesHit(layered("@variant appearance-shadow-effects-true { .probe { opacity: 1; } }"))).toEqual([]);
   expect(await rulesHit(declaration("opacity: var(--appearance-line-hight);"))).toEqual([rule, "csstools/value-no-unknown-custom-properties"].toSorted());
@@ -111,6 +112,22 @@ test("an appearance name a sheet spells is one the manifest's channel writes", a
   expect(
     await rulesHit(layered(':root:not([data-appearance-reduced-motion="off"]) .probe { @variant motion-reduce { &::after { opacity: 1; } } }'), FLOOR_FILE),
   ).toEqual([]);
+  // A declaration reached through nested at-rules still styles the enclosing rule.
+  expect(await rulesHit(layered(".a { @variant motion-reduce { @variant hover { opacity: 1; } } }"), FLOOR_FILE)).toEqual([rule]);
+  expect(await rulesHit(layered(".a { @variant motion-reduce { @supports (display: grid) { opacity: 1; } } }"), FLOOR_FILE)).toEqual([rule]);
+  expect(await rulesHit(layered(`${guarded} .a { @variant motion-reduce { @variant hover { opacity: 1; } } }`), FLOOR_FILE)).toEqual([]);
+  // The guard resolves through the whole ancestor chain and through `&` in the variant's own rules.
+  expect(await rulesHit(layered(`${guarded} .a { .b { @variant motion-reduce { opacity: 1; } } }`), FLOOR_FILE)).toEqual([]);
+  expect(await rulesHit(layered(`${guarded} .a { & .b { @variant motion-reduce { opacity: 1; } } }`), FLOOR_FILE)).toEqual([]);
+  expect(await rulesHit(layered(`@variant motion-reduce { ${guarded} .p { &::after { opacity: 1; } } }`), FLOOR_FILE)).toEqual([]);
+  expect(await rulesHit(layered("@variant motion-reduce { .p { &::after { opacity: 1; } } }"), FLOOR_FILE)).toEqual([rule]);
+  // An `@apply` inside the variant styles the enclosing rule as a declaration does.
+  expect(await rulesHit(layered(".a { @variant motion-reduce { @apply opacity-50; } }"), FLOOR_FILE)).toEqual([rule]);
+  expect(await rulesHit(layered(`${guarded} .a { @variant motion-reduce { @apply opacity-50; } }`), FLOOR_FILE)).toEqual([]);
+  // The guard may be wrapped in `:is()` or `:where()`; a wrapper that lists another selector beside it is not a guard.
+  expect(await rulesHit(layered(`@variant motion-reduce { :is(${guarded}) .p { opacity: 1; } }`), FLOOR_FILE)).toEqual([]);
+  expect(await rulesHit(layered(`@variant motion-reduce { :where(${guarded}) .p { opacity: 1; } }`), FLOOR_FILE)).toEqual([]);
+  expect(await rulesHit(layered(`@variant motion-reduce { :is(${guarded}, .other) .p { opacity: 1; } }`), FLOOR_FILE)).toEqual([rule]);
   // A variant prefix in `@apply` is read too; a sheet cannot guard it.
   expect(await rulesHit(layered(".probe { @apply motion-reduce:opacity-50; }"))).toEqual([rule]);
   expect(await rulesHit(layered(".probe { @apply hover:not-contrast-more:opacity-50; }"))).toEqual([rule]);

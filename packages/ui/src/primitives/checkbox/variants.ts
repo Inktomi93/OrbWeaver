@@ -29,8 +29,8 @@ import { SELECTION_CONTROL, tv } from "#lib";
 // (`alpha-token-needs-composited-contrast-probe`), and the `-foreground` suffix makes the inversion a
 // pair the census can SEE (lib/seed-theme-ink.ts `inkTokensIn`) instead of one it must be told about.
 //
-// The pair is BOUNDED FROM BOTH SIDES and both bounds are machine-checked — tokens.json carries the
-// derivation, palette-contrast.suite.test.ts pins the pair per seed, and checkbox.ct.tsx pins it from the
+// The pair is BOUNDED FROM BOTH SIDES — tokens.json carries the
+// derivation, and the pair is measured per seed from the
 // FRAMEBUFFER (computed style can see neither the composite nor the oklch). Over `bg-card`:
 //                quiet box vs pane   check glyph vs box   the accent it must undercut
 //   Hearth            5.759                6.145                    6.836

@@ -8,6 +8,7 @@ import { createShellAmbientReads, routeTrpc, serveCorpusProcedures } from "@orb/
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusWire } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { makePluginRow } from "@orb/testkit/node/helpers";
 import type { Page } from "@playwright/test";
 import type { AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import { namedGroupRoom, PHONE, ROOM_PROCEDURES, SECTION_PROCEDURES, SHELL_STORIES } from "./app-shell-ct.ts";
@@ -82,21 +83,29 @@ test.afterAll(async () => {
 // The motion cases follow the OS query at the default text size, whatever the corpus viewer chose.
 const MOTION_BASE: Partial<AppearanceSettings> = { reducedMotion: "system", fontScale: 1 };
 
-/** Serve the shell, its sections and a room, with the corpus viewer's settings under `appearance`. */
-async function routeMotion(page: Page, corpus: CorpusWire, appearance: Partial<AppearanceSettings> = {}): Promise<void> {
-  const [captured] = corpus.reads["settings.getUserSettings"];
-  if (captured === undefined) {
-    throw new Error("The corpus has no settings capture");
-  }
-  const settings = captured.output;
-  const served = [...SECTION_PROCEDURES, ...ROOM_PROCEDURES].filter((path) => path !== "settings.getUserSettings");
+// One enabled plugin with a static panel at the room's flank anchor, so the room hosts the flank column and its door.
+const FLANK_PLUGIN = makePluginRow({ name: "Flank fixture" });
+const FLANK_PANEL = "Flank fixture panel";
+const FLANK_ROUTES = {
+  "plugin.list": () => [FLANK_PLUGIN],
+  "plugin.listSurfaces": () => [
+    { pluginId: FLANK_PLUGIN.id, id: "flank", anchor: "chat-flank", title: "Flank", tier: "static", spec: { kind: "text", value: FLANK_PANEL } } as const,
+  ],
+  "plugin.getSurfaceState": () => null,
+} as const;
+
+/** Serve the shell, its sections and a room, with the corpus viewer's settings under `appearance`, and with
+ *  `flank` the fixture plugin's flank panel. */
+async function routeMotion(page: Page, corpus: CorpusWire, appearance: Partial<AppearanceSettings> = {}, flank = false): Promise<void> {
+  const caller = await root.internalCallerFor(root.ownerId);
+  // The settings verbs run on the shared root, so each case writes its own appearance, and the flank column starts
+  // open whatever an earlier case's door left.
+  await caller.settings.updateUserSettingsSection({ section: "appearance", patch: { ...MOTION_BASE, ...appearance } });
+  await caller.settings.updateUserSettingsSection({ section: "profile", patch: { flankCollapsed: false } });
   await routeTrpc(page, {
     ...createShellAmbientReads(corpus),
-    ...serveCorpusProcedures(await root.internalCallerFor(root.ownerId), served),
-    "settings.getUserSettings": () => ({
-      ...settings,
-      config: { ...settings.config, appearance: { ...settings.config.appearance, ...MOTION_BASE, ...appearance } },
-    }),
+    ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...ROOM_PROCEDURES, "settings.updateUserSettingsSection"]),
+    ...(flank ? FLANK_ROUTES : {}),
   });
 }
 
@@ -638,6 +647,141 @@ test.describe("the doors in an open room", () => {
   });
 });
 
+test.describe("a row mounted mid-door", () => {
+  test("joins the list door's flip in phase instead of starting its own from the corner", async ({ corpus, mount, page }) => {
+    await seedShellState(page, BOTH_DOCKED);
+    await routeMotion(page, corpus);
+    await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
+    await expect(page.locator(DOOR_BOXES.row).first()).toBeVisible();
+    await waitForShellIdle(page);
+    // The tracks already mounted, kept in page memory so the read below can tell a newcomer from them.
+    await page.evaluate(() => {
+      Reflect.set(globalThis, "__tracksAtRest", new Set(document.querySelectorAll(".orb-chat-track")));
+    });
+    // Press the door and scroll the transcript up as soon as its flip starts, so the virtual list mounts the rows above
+    // while the flip is in flight. The read waits for the first frame a newcomer is painted in, then compares each newcomer's centre
+    // flip with `.shell-main`'s, which was armed at the stamp; it gives up when the door's flip ends.
+    const read = await page.getByRole("button", { name: "Hide list panel", exact: true }).evaluate(async (button) => {
+      const frame = (): Promise<number> => new Promise((resolve) => requestAnimationFrame(resolve));
+      const scroller = document.querySelector('[data-slot="message-list-scroll"]');
+      if (scroller === null || !(button instanceof HTMLElement)) {
+        throw new Error("The transcript scroller or the door button is absent");
+      }
+      const atRest = Reflect.get(globalThis, "__tracksAtRest") as Set<Element>;
+      const flip = (element: Element | null, name: string): Animation | undefined =>
+        element?.getAnimations().find((candidate) => (candidate as CSSAnimation).animationName === name);
+      button.click();
+      // The stamp lands in the door's passive effect; scroll on the first frame its flip exists.
+      let reference = flip(document.querySelector(".shell-main"), "shell-main-flip");
+      while (reference === undefined) {
+        await frame();
+        reference = flip(document.querySelector(".shell-main"), "shell-main-flip");
+      }
+      scroller.scrollTop = 0;
+      let newcomers: Element[] = [];
+      while (reference.playState === "running" && newcomers.length === 0) {
+        await frame();
+        newcomers = Array.from(document.querySelectorAll(".orb-chat-track")).filter((track) => !atRest.has(track));
+      }
+      // Read in the next painted frame, over the newcomers still mounted then: the list drops rows it scrolled past.
+      await frame();
+      const mounted = Array.from(document.querySelectorAll(".orb-chat-track")).filter((track) => !atRest.has(track));
+      return {
+        reference: reference.playState === "running" ? Number(reference.currentTime) : null,
+        newcomers: mounted.map((track) => {
+          const animation = flip(track, "shell-centre-flip");
+          return animation === undefined ? null : Number(animation.currentTime);
+        }),
+      };
+    });
+    expect(read.reference, "the door's flip had already finished, so the read proves nothing").not.toBeNull();
+    expect(read.newcomers.length, "the scroll mounted no row mid-door, so the read proves nothing").toBeGreaterThan(0);
+    for (const time of read.newcomers) {
+      expect(Math.abs((time ?? Number.NaN) - (read.reference ?? Number.NaN))).toBeLessThan(1);
+    }
+  });
+});
+
+test.describe("a row mounted mid flank door", () => {
+  test("joins the flank door's flip in phase instead of starting its own from the corner", async ({ corpus, mount, page }) => {
+    await seedShellState(page, { activeSection: "chats" });
+    await routeMotion(page, corpus, {}, true);
+    await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
+    await expect(page.locator(DOOR_BOXES.row).first()).toBeVisible();
+    await expect(page.getByText(FLANK_PANEL, { exact: true })).toBeVisible();
+    await waitForShellIdle(page);
+    // The list door's read, on the flank door: press it, and on the first frame its flip runs, keep the rows it armed
+    // and scroll the transcript up. Then compare each row mounted after that with an armed row still mounted.
+    const read = await page.getByRole("button", { name: "Hide plugin panels", exact: true }).evaluate(async (button) => {
+      const frame = (): Promise<number> => new Promise((resolve) => requestAnimationFrame(resolve));
+      const scroller = document.querySelector('[data-slot="message-list-scroll"]');
+      if (scroller === null || !(button instanceof HTMLElement)) {
+        throw new Error("The transcript scroller or the door button is absent");
+      }
+      // Read the row fresh each time: the room may re-render it across the door.
+      const row = (): Element | null => document.querySelector('[data-slot="chat-room-flank-row"]');
+      const flip = (element: Element): Animation | undefined =>
+        element.getAnimations().find((candidate) => (candidate as CSSAnimation).animationName === "room-flank-centre-flip");
+      const tracks = (): Element[] => Array.from(row()?.querySelectorAll(".orb-chat-track") ?? []);
+      button.click();
+      while (row()?.hasAttribute("data-flank-flip") !== true) {
+        await frame();
+      }
+      const armed = new Set(tracks().filter((track) => flip(track) !== undefined));
+      const reference = (): Animation | undefined =>
+        Array.from(armed)
+          .filter((track) => track.isConnected)
+          .map(flip)
+          .find((animation) => animation?.playState === "running");
+      scroller.scrollTop = 0;
+      const newcomers = (): Element[] => tracks().filter((track) => !armed.has(track));
+      while (reference() !== undefined && newcomers().length === 0) {
+        await frame();
+      }
+      await frame();
+      const at = reference();
+      return {
+        reference: at === undefined ? null : Number(at.currentTime),
+        newcomers: newcomers().map((track) => {
+          const animation = flip(track);
+          return animation === undefined ? null : Number(animation.currentTime);
+        }),
+      };
+    });
+    expect(read.reference, "the door's flip had already finished, so the read proves nothing").not.toBeNull();
+    expect(read.newcomers.length, "the scroll mounted no row mid-door, so the read proves nothing").toBeGreaterThan(0);
+    for (const time of read.newcomers) {
+      expect(Math.abs((time ?? Number.NaN) - (read.reference ?? Number.NaN))).toBeLessThan(1);
+    }
+  });
+});
+
+test.describe("a door cut short", () => {
+  test("a resize to a phone mid-door cancels the flip and releases its stamp", async ({ corpus, mount, page }) => {
+    await seedShellState(page, BOTH_DOCKED);
+    await routeMotion(page, corpus);
+    await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
+    await expect(page.locator(DOOR_BOXES.row).first()).toBeVisible();
+    await waitForShellIdle(page);
+    // The page's animation clock stands still for the door, so its flip cannot end before the resize lands; the
+    // release can then only come from the cancel.
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send("Animation.enable");
+    await cdp.send("Animation.setPlaybackRate", { playbackRate: 0 });
+    try {
+      // Dispatched on the button: a stopped clock never lets the page's own transitions settle, which a pointer click's
+      // actionability wait and hit test need.
+      await page.getByRole("button", { name: "Hide list panel", exact: true }).dispatchEvent("click");
+      await expect(page.locator(".shell-grid")).toHaveAttribute("data-list-flip", /.*/u);
+      await page.setViewportSize(PHONE);
+      await expect(page.locator(".shell-grid")).not.toHaveAttribute("data-list-flip", /.*/u);
+    } finally {
+      await cdp.send("Animation.setPlaybackRate", { playbackRate: 1 });
+      await cdp.detach();
+    }
+  });
+});
+
 test.describe("the doors at rem 20", () => {
   test("docking the list at 1280, where the reading cap binds while docked, holds the shell's boxes", async ({ corpus, mount, page }) => {
     await page.setViewportSize(WIDE);
@@ -696,8 +840,21 @@ test.describe("on a phone", () => {
     const width = Math.round((await page.locator(LIST).boundingBox())?.width ?? 0);
     expect(width).toBeGreaterThan(REAL_TRACK);
     await startSampler(page, ["listPanel"]);
+    // Each mutation-observer delivery is one task's writes, so the stamp's records, kept by delivery, show whether the
+    // stamp was dropped in the task that wrote it or waited for an animation to end.
+    await page.evaluate(() => {
+      const deliveries: (string | null)[][] = [];
+      Reflect.set(globalThis, "__flipStamps", deliveries);
+      new MutationObserver((records) => deliveries.push(records.map((record) => record.oldValue))).observe(document.querySelector(".shell-grid") as Element, {
+        attributeFilter: ["data-list-flip"],
+        attributeOldValue: true,
+      });
+    });
     await page.getByRole("button", { name: "Back to Chats", exact: true }).click();
     await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "docked");
+    // The phone arms no FLIP, so nothing would ever end one: the stamp is released in the commit that wrote it.
+    await expect(page.locator(".shell-grid")).not.toHaveAttribute("data-list-flip", /.*/u);
+    expect(await page.evaluate(() => Reflect.get(globalThis, "__flipStamps") as (string | null)[][])).toStrictEqual([[null, "in"]]);
     const names = await page
       .locator(`${DOOR_BOXES.main}, ${DOOR_BOXES.trail}, ${LIST}, ${CONTEXT}`)
       .evaluateAll((elements) => elements.map((element) => getComputedStyle(element).animationName));
@@ -706,6 +863,26 @@ test.describe("on a phone", () => {
     const xs = (await readSamples(page)).map((frame) => frame["listPanel"] ?? Number.NaN);
     expect(xs.length).toBeGreaterThan(2);
     expect(xs.filter((x) => !(x >= -width - HOLD_SLACK && x <= HOLD_SLACK))).toStrictEqual([]);
+    // The stamp is gone before any style reads it, so each arm is stamped here and read on the list band's action, the
+    // one box a desktop door moves inside the list pane: on a phone no arm may move it.
+    const arms = await page.locator(DOOR_BOXES.listAction).evaluate((action) => {
+      const grid = document.querySelector(".shell-grid");
+      if (grid === null) {
+        throw new Error("The shell grid is absent");
+      }
+      return [
+        ["data-list-flip", "in"],
+        ["data-context-flip", "in"],
+        ["data-list-settle", "in"],
+      ].map(([name = "", value = ""]) => {
+        grid.setAttribute(name, value);
+        const style = getComputedStyle(action);
+        const read = `${name}: ${style.animationName} / ${style.translate}`;
+        grid.removeAttribute(name);
+        return read;
+      });
+    });
+    expect(arms).toStrictEqual(["data-list-flip: none / none", "data-context-flip: none / none", "data-list-settle: none / none"]);
   });
 });
 

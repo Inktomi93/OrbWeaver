@@ -2,7 +2,7 @@
 // (tooling/src/floor/instrument/argv.ts): the `@<idx>` --pages tab-suffix split and the `--goto` target decode.
 // The browser-driving orchestration (nav bridge eval, watch series, multi-page capture) is live-proven
 // against the running stack, not here — this file's home is tests/tooling/ per docs/law/Spine-Testing.md §2
-// (a test of a scripts/ tool), same as snap-stage.test.ts.
+// (a test of a scripts/ tool).
 import { readFileSync } from "node:fs";
 import { expect, test } from "@orb/testkit/tooling";
 import { parseGotoTarget, parseViewport, splitPageSuffix } from "@orb/tooling/floor/instrument/argv";
