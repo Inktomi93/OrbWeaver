@@ -27,6 +27,7 @@ const CACHE_READS = [
   "connection.get",
   "connection.capabilities",
   "connection.update",
+  "connection.embedSpaceChangePreview",
 ] as const;
 
 // Only vendor catalog bytes are scripted; the root owns saved connections, capability synthesis and cache policy.
@@ -151,6 +152,12 @@ test("native implicit caching explains provider ownership without invented contr
   await limit.fill(String(SUMMARIZE_CONCURRENCY_MAX));
   await expect(concurrency.getByRole("alert")).toHaveCount(0);
   await expect(concurrency.getByRole("button", { name: "Save your utility calls at once", exact: true })).toBeEnabled();
+  await concurrency.getByRole("button", { name: "Save your utility calls at once", exact: true }).click();
+  await expect(concurrency).toBeFocused();
+  await expect(concurrency.getByRole("button", { name: "Reset utility calls at once", exact: true })).toBeVisible();
+  await concurrency.getByRole("button", { name: "Reset utility calls at once", exact: true }).click();
+  await expect(concurrency).toBeFocused();
+  await expect(concurrency.getByRole("button", { name: "Override utility calls at once", exact: true })).toBeVisible();
   expect(captured.physicalRequests.length).toBeGreaterThan(0);
 });
 

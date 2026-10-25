@@ -1,13 +1,14 @@
 // Form identity (UI-Primitives-and-Reuse §13.10): every native form field of every registered section, modal and settings
 // group carries an `id` or `name` and an associated label. The rosters are the production tuples, never a list here.
 import { CONFIG_GROUP_IDS, MODAL_SLOT_IDS, SECTION_IDS } from "@orb/client/state";
+import { presetIdInputSchema } from "@orb/contracts/preset";
 import { formatFormIdentityFindings, formIdentityFindings, settleSurface } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import type { BareFieldPrimitivesStory, FieldWrappedPrimitivesStory, FormKeysStory } from "./_field-identity-stories.tsx";
 import { routeSurfaceReads } from "./_surface-harness.ts";
-import type { ConfigGroupStory, ModalShellStory, SectionShellStory } from "./_surface-stories.tsx";
+import type { ConfigGroupStory, ModalShellStory, PresetDetailShellStory, SectionShellStory } from "./_surface-stories.tsx";
 
 const STORIES = "tests/client/features/app-shell/_surface-stories";
 
@@ -34,6 +35,20 @@ test("every @orb/ui field primitive inside a Field emits an id and a name", asyn
   await mount<typeof FieldWrappedPrimitivesStory>("tests/client/features/app-shell/_field-identity-stories/FieldWrappedPrimitivesStory", {});
   await settleSurface(page);
   expect(formatFormIdentityFindings(await formIdentityFindings(page, { both: true }))).toBe("");
+});
+
+test("the loaded preset detail identifies and labels every form field", async ({ corpus, mount, page }) => {
+  const captured = corpus.libraryRelations?.reads.presetDetail.input;
+  if (captured === undefined) {
+    throw new Error("The corpus has no captured preset detail");
+  }
+  const { id: presetId } = presetIdInputSchema.parse(captured);
+  const caller = await root.internalCallerFor(root.ownerId);
+  const preset = await caller.preset.get({ id: presetId });
+  await mount<typeof PresetDetailShellStory>(`${STORIES}/PresetDetailShellStory`, { presetId });
+  await expect(page.getByRole("heading", { name: preset.name, exact: true })).toBeVisible();
+  await settleSurface(page);
+  expect(formatFormIdentityFindings(await formIdentityFindings(page))).toBe("");
 });
 
 test.describe("submitted form keys", () => {
