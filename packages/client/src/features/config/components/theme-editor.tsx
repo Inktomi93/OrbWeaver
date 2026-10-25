@@ -27,7 +27,7 @@ import { THEME_SCOPE_EMIT_VARS, ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
 // biome's resolver mis-enumerates react's conditional-CJS export map and misses lazy/Suspense
 // specifically (main.tsx precedent); tsc resolves them and the client typechecks clean.
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import type { AppFormInstance, AutosaveSession } from "#forms/editor";
 import { AutosaveStatus, createAutosaveEntityForm } from "#forms/editor";
 // The THEME-shaped appearance table. It used to ride the settings feature's own
@@ -38,7 +38,12 @@ import { useThemeAutosave } from "../hooks/use-theme-autosave.ts";
 import { contrastRatio } from "../lib/theme-contrast.ts";
 import type { ThemeFormValues } from "../lib/theme-editor-model.ts";
 import { DEFAULT_THEME_FORM, themeFormFromEntity, themeOverrideFromForm } from "../lib/theme-editor-model.ts";
-import { ThemeCssField } from "./theme-css-field.tsx";
+
+// Lazy so CodeMirror and the owner-css surface never land in the entry chunk for a modal-only editor.
+const ThemeCssField = lazy(async () => {
+  const mod = await import("./theme-css-field.tsx");
+  return { default: mod.ThemeCssField };
+});
 
 // `labelStyle` — the "seen, not read" slot (#866 §7.8): each font option renders in its OWN typeface,
 // derived from the value itself (never a second table).
@@ -154,7 +159,11 @@ function ThemeEditorBody({ theme, session, mintedName, isUnmintedDraft }: ThemeE
         <>
           <Section heading="Custom CSS">
             <boundForm.AppField name="css">
-              {(field): ReactElement => <ThemeCssField value={field.state.value} onChange={(next): void => field.handleChange(next)} />}
+              {(field): ReactElement => (
+                <Suspense fallback={null}>
+                  <ThemeCssField value={field.state.value} onChange={(next): void => field.handleChange(next)} />
+                </Suspense>
+              )}
             </boundForm.AppField>
             <ThemeableVarsReference />
           </Section>

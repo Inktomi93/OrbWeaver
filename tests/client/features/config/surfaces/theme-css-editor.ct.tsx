@@ -72,6 +72,21 @@ test(".shell- offers shell classes", async ({ page }) => {
   await expect(completionOption(page, SLOT)).toHaveCount(0);
 });
 
+// The live region the editor announces its diagnostics through.
+const diagnosticsRegion = (page: Page): Locator => page.locator('[aria-live="polite"]').filter({ hasText: /Warning|Error/u });
+
+test("a planted stale slot warns in the editor and names the closest current slot", async ({ page }) => {
+  await typeIntoEditor(page, `[data-slot="${SLOT}z"] { color: red; }`);
+  await expect(page.locator(".cm-lint-marker-warning")).toHaveCount(1);
+  await expect(diagnosticsRegion(page)).toContainText(`[data-slot="${SLOT}"]`);
+});
+
+test("a current slot raises no warning", async ({ page }) => {
+  await typeIntoEditor(page, `[data-slot="${SLOT}"] { color: red; }`);
+  await expect(page.getByRole("textbox", { name: "Custom theme CSS" })).toContainText(`[data-slot="${SLOT}"]`);
+  await expect(page.locator(".cm-lint-marker-warning")).toHaveCount(0);
+});
+
 test("accepting a slot completion writes the name into the selector", async ({ page }) => {
   await typeIntoEditor(page, `[data-slot="${SLOT.slice(0, -1)}`);
   await completionOption(page, SLOT).click();
