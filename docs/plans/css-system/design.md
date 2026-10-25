@@ -457,7 +457,7 @@ Each adopted property either has a Safari 18 fallback or degrades harmlessly (su
 | `overflow-block`, `overflow-inline` | not supported (26) | the sheets spell the axes `overflow-y` and `overflow-x` (the shell-short rule, the panel body, the code block), and stylelint ignores those two properties in the logical-property rule |
 | `forced-color-adjust` | not in the dataset | an unsupported declaration only drops the tab indicator's Highlight fill under forced colors |
 
-Existing sites the floor puts at risk, not changed by this leg: `field-sizing: content` on the `Textarea` primitive (the composer's autosize, Safari 26.2) and on the topbar rename field, so on Safari 18 the composer textarea keeps its `rows` height and scrolls (a `@orb/ui` primitive, the primitives lane's); `scrollbar-color` and `content-visibility` degrade to default scrollbars and no off-screen skipping.
+`field-sizing: content` (Safari 26.2, Firefox 152): the `Textarea` primitive measures and sizes the box in script where `CSS.supports("field-sizing", "content")` is false (`use-field-sizing-fallback.ts`), within the same min and max rows. The topbar rename field declares the property, but its inline size is `100%`, so the property never sized it and it needs no fallback. Existing sites the floor puts at risk, not changed by this leg: `scrollbar-color` and `content-visibility` degrade to default scrollbars and no off-screen skipping.
 
 ## Ramps
 
