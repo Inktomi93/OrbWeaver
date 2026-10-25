@@ -90,6 +90,30 @@ test.for([
     "a shorthand title in a DOM-props-typed object",
     'import type { HTMLAttributes } from "react";\nexport function Probe({ title }: { readonly title: string }): ReactElement {\n  const props: HTMLAttributes<HTMLSpanElement> = { title };\n  return <span {...props}>x</span>;\n}',
   ],
+  [
+    "a computed title key in a DOM-props-typed object",
+    'import type { HTMLAttributes } from "react";\nexport function Probe({ reason }: { readonly reason: string }): ReactElement {\n  const props: HTMLAttributes<HTMLSpanElement> = { ["title"]: reason };\n  return <span {...props}>x</span>;\n}',
+  ],
+  [
+    "a quoted title key in a DOM-props-typed object",
+    'import type { HTMLAttributes } from "react";\nexport function Probe({ reason }: { readonly reason: string }): ReactElement {\n  const props: HTMLAttributes<HTMLSpanElement> = { "title": reason };\n  return <span {...props}>x</span>;\n}',
+  ],
+  [
+    "a title cast to DOM props inside a spread",
+    'import type { HTMLAttributes } from "react";\nexport const Probe = ({ reason }: { readonly reason: string }): ReactElement => <span {...({ title: reason } as HTMLAttributes<HTMLSpanElement>)}>x</span>;',
+  ],
+  [
+    "a title assigned onto DOM props",
+    'import type { HTMLAttributes } from "react";\nexport function Probe(props: HTMLAttributes<HTMLSpanElement>): ReactElement {\n  props.title = "hover only";\n  return <span {...props}>x</span>;\n}',
+  ],
+  [
+    "a title passed to createElement",
+    'import { createElement } from "react";\nexport const Probe = ({ reason }: { readonly reason: string }): ReactElement => createElement("span", { title: reason }, "x");',
+  ],
+  [
+    "a satisfies DOM props object spread once",
+    'import type { HTMLAttributes } from "react";\nexport function Probe({ reason }: { readonly reason: string }): ReactElement {\n  const props = { title: reason } satisfies HTMLAttributes<HTMLSpanElement>;\n  return <span {...props}>x</span>;\n}',
+  ],
 ] as const)("flags %s", async ([, body]) => {
   expect(await findings(body)).toHaveLength(1);
 });
@@ -107,6 +131,14 @@ test.for([
   [
     "a rest of DOM props forwarded on",
     'import type { ComponentProps } from "react";\nimport { Button } from "@orb/ui/button";\nexport const Probe = (props: ComponentProps<typeof Button>): ReactElement => <Button {...props} />;',
+  ],
+  [
+    "a read of title off DOM props",
+    'import type { HTMLAttributes } from "react";\nexport const Probe = (props: HTMLAttributes<HTMLSpanElement>): ReactElement => <span>{props.title}</span>;',
+  ],
+  [
+    "a title assigned onto a record of our own",
+    'export function Probe(): ReactElement {\n  const card = { title: "" };\n  card.title = "Heading";\n  return <h3>{card.title}</h3>;\n}',
   ],
   [
     "a spread with no title",

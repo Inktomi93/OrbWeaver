@@ -55,7 +55,7 @@ export const CLASS_RESTRICTIONS = [
           "A containerType or containerName style prop in a feature: containment is written by @orb/ui. Use <Container name>, or the `container` prop of Section and Stack.",
       },
       {
-        selector: `:matches(JSXAttribute[name.name='style'] ${CONTAINER_SHORTHAND}, ${CONTAINER_SHORTHAND}[value.type='Literal'][value.value=type(string)])`,
+        selector: `:matches(JSXAttribute[name.name='style'] ${CONTAINER_SHORTHAND}, ${CONTAINER_SHORTHAND}:matches([value.type='TemplateLiteral'], [value.type='Literal'][value.value=type(string)]))`,
         message:
           "A `container` shorthand style in a feature: containment is written by @orb/ui. Use <Container name>, or the `container` prop of Section and Stack.",
       },

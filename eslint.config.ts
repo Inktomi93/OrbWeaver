@@ -322,6 +322,12 @@ const INVISIBLE_CONTROL_SYNTAX = {
   selector: `:matches(Literal[raw=/${INVISIBLE_CONTROL_CLASS}/], TemplateElement[value.raw=/${INVISIBLE_CONTROL_CLASS}/], JSXText[raw=/${INVISIBLE_CONTROL_CLASS}/])`,
   message: INVISIBLE_CONTROL_MESSAGE,
 };
+// An empty or whitespace-only name, or `undefined`, names nothing. Client and @orb/ui blocks spread this entry.
+const EMPTY_ARIA_NAME_SYNTAX = {
+  selector:
+    "JSXAttribute[name.name=/^aria-label(?:ledby)?$/]:matches([value.type='Literal'][value.value=/^\\s*$/], [value.expression.type='Identifier'][value.expression.name='undefined'], [value.expression.type='Literal'][value.expression.value=/^\\s*$/])",
+  message: "An empty aria-label or aria-labelledby names nothing: give it text, or omit the attribute.",
+};
 // no-warning-comments matches each term as a plain substring when it holds no word character.
 const INVISIBLE_CONTROL_TERMS = INVISIBLE_CONTROL_RANGES.flatMap(([firstHex, lastHex]) => {
   const first = Number.parseInt(firstHex, HEX);
@@ -1246,9 +1252,11 @@ export default [
           selector: "JSXOpeningElement[name.type='JSXIdentifier'][name.name='form']:not(:has(> JSXAttribute[name.name=/^aria-label(?:ledby)?$/]))",
           message: "A <form> needs an accessible name: add aria-label, or aria-labelledby pointing at its visible heading.",
         },
+        EMPTY_ARIA_NAME_SYNTAX,
       ],
     },
   },
+  { files: ["packages/ui/src/**/*.{ts,tsx}"], rules: { "no-restricted-syntax": ["error", INVISIBLE_CONTROL_SYNTAX, EMPTY_ARIA_NAME_SYNTAX] } },
   {
     files: ["packages/server/src/domain/settings/seed-themes.ts", "packages/server/src/domain/preset/seed.ts"],
     rules: {

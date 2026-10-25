@@ -54,6 +54,8 @@ test.for([
   ["a dialog body prop", 'export const A = () => <PickerDialog bodyProps={{ className: "@container" }} />;'],
   ["a container shorthand in a style prop", 'export const A = () => <Stack style={{ container: "x / inline-size" }} />;'],
   ["a container shorthand string", 'export const style = { container: "x / inline-size" };'],
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: the planted source is itself a template literal.
+  ["a container shorthand template", "export const style = { container: `${name} / inline-size` };"],
   ["a container class on an inner class prop", 'export const A = () => <PickerDialog bodyClassName="@container" />;'],
 ] as const)("%s in a feature file is a finding", async ([, source]) => {
   expect(await findings(RAW, source, COMPONENT)).toHaveLength(1);
@@ -83,8 +85,15 @@ test.for([
   ["a Section container", 'export const S = () => <Section container heading="x"><Rows /></Section>;', SURFACE_FILE],
   ["a Stack container", "export const S = () => <Stack container><Rows /></Stack>;", SURFACE_FILE],
   ["a dialog body container", "export const S = () => <PickerDialog bodyProps={{ container: true }} />;", SURFACE_FILE],
+  ["a dialog body props identifier", "export const S = ({ bp }) => <PickerDialog bodyProps={bp} />;", SURFACE_FILE],
+  ["a dialog body props spread", "export const S = ({ bp }) => <PickerDialog bodyProps={{ ...bp }} />;", SURFACE_FILE],
+  ["a quoted dialog body container", 'export const S = () => <PickerDialog bodyProps={{ "container": true }} />;', SURFACE_FILE],
 ] as const)("%s in a surface is a finding", async ([, source, path]) => {
   expect(await findings(SURFACE, source, path)).toHaveLength(1);
+});
+
+test("a surface whose bodyProps is a plain literal passes", async () => {
+  expect(await findings(SURFACE, 'export const S = () => <PickerDialog bodyProps={{ className: "p-block" }} />;', SURFACE_FILE)).toEqual([]);
 });
 
 test("a surface that turns containment off passes", async () => {

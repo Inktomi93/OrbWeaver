@@ -23,7 +23,7 @@ export interface ListRowProps {
    */
   title: string;
   /**
-   * The UNABBREVIATED title, announced as the row's description and never painted — pass it when `title`
+   * The UNABBREVIATED title, shown in a tooltip on the title and announced as the row's description — pass it when `title`
    * is a deliberate short form (a nav row whose full section name does not fit its column). It never
    * touches the accessible name, which stays the VISIBLE `title` (WCAG 2.5.3 label-in-name: a spoken name
    * that doesn't contain the read label breaks voice control).
