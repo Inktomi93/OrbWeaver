@@ -34,7 +34,7 @@ import { holdTornSpeaker } from "@orb/kit/fix-markdown";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { speakerTagsToPlain, stripLeadingSpeakerName } from "@orb/kit/speaker-label";
 import { Card } from "@orb/ui/card";
-import { Row, Stack } from "@orb/ui/layout";
+import { Stack } from "@orb/ui/layout";
 import { Markdown } from "@orb/ui/markdown";
 import { Skeleton } from "@orb/ui/skeleton";
 import { TypingDots, useSmoothText } from "@orb/ui/stream";
@@ -42,20 +42,20 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import type { MessageRenderContext } from "#lib";
-import { cn, renderMessageForDisplay } from "#lib";
+import { renderMessageForDisplay } from "#lib";
 import { useArtViewer } from "../hooks/art-viewer-context.tsx";
 import { useEnterMotion } from "../hooks/use-enter-motion.ts";
 import { useGhostReasoning, useGhostText, useGhostThinking } from "../hooks/use-ghost-stream.ts";
 import type { RowAttribution } from "../lib/attribution.ts";
 import { avatarTreatmentFor } from "../lib/avatar-treatment.ts";
-import { ROW_BODY_AT_PHONE_WIDTH } from "../lib/chat-track.tsx";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
-import { columnClassFor, gutterRailFor, rowBodyClassFor } from "../lib/row-placement.ts";
+import { gutterRailFor } from "../lib/row-placement.ts";
 import { CardBlock } from "./card-block.tsx";
 import { GhostActionsFootprint } from "./message-actions-cluster.tsx";
 import { artViewFor, renderRowAvatar } from "./message-row-avatar.tsx";
 import { renderSingleBubble } from "./message-row-bubble.tsx";
 import { placeRowHeader, renderGhostNameRow } from "./message-row-header.tsx";
+import { MessageContentColumn, MessageRowBody, MessageRowRoot } from "./message-row-layout.tsx";
 import { themedColumnContent } from "./message-row-parts.tsx";
 import { ReasoningBlock } from "./reasoning-block.tsx";
 
@@ -254,7 +254,7 @@ export function GhostMessageRow({
   stickyAttribution = false,
   generationCredit = false,
 }: GhostMessageRowProps): ReactElement {
-  const enterClasses = useEnterMotion(enterMotion);
+  const arrival = useEnterMotion(enterMotion);
   const viewArt = useArtViewer();
   const rawText = useGhostText(chatId);
   const rawReasoning = useGhostReasoning(chatId);
@@ -308,10 +308,6 @@ export function GhostMessageRow({
         });
   // Ripple welds its portrait into the bubble, as the settled row does, so the streaming card is the card it settles as.
   const { weldedAvatar, leadingAvatar } = placeAvatar(avatarTreatment, avatarNode);
-  // #1728 arm B — THE GHOST TAKES THE SETTLED ROW'S PLACEMENT, for the reason this file already states
-  // about the header two blocks down: a live turn laid out one way that relaid out at commit is a visible
-  // one-frame reflow on every reply. Same two helpers the settled row reads, so they cannot drift.
-  const columnClass = columnClassFor(skin);
 
   // #116/#288 — the SPEAKER, for the whole generation, in the SAME home the settled row will put it in.
   // The placement is read off the skin here rather than hardcoded because a live turn whose header sat
@@ -321,9 +317,9 @@ export function GhostMessageRow({
       attribution,
       stickyAttribution,
       placement: skin.headerPlacement,
-      pinnedPaint: skin.pinnedHeader.paint("assistant"),
+      pinnedHeader: skin.pinnedHeader,
       named: skin.actionsRow.identity,
-      actionsFootprint: <GhostActionsFootprint chatId={chatId} generationCredit={generationCredit} surface={skin.actionsRow.surface} />,
+      actionsFootprint: <GhostActionsFootprint chatId={chatId} generationCredit={generationCredit} />,
     }),
     skin.headerPlacement,
   );
@@ -331,7 +327,6 @@ export function GhostMessageRow({
   // settle in. `w-full` so the shimmer/streaming-markdown children have a sized parent (the assistant skin is
   // otherwise shrink-to-fit).
   const bubble = renderSingleBubble({
-    role: "assistant",
     header: header.inside,
     content: (
       <GhostBubbleContent
@@ -348,7 +343,7 @@ export function GhostMessageRow({
       />
     ),
     footer: null,
-    bubbleClassName: skin.inner("assistant"),
+    facts: { box: skin.box, role: "assistant", phoneCap: skin.phoneCap, lastRowFloor: false, editing: false, receded: false },
     decoration,
     weldedAvatar,
     mirrored: false,
@@ -372,27 +367,26 @@ export function GhostMessageRow({
   );
 
   return (
-    <Stack
-      container={true}
-      gap="row"
+    <MessageRowRoot
+      skin={skin}
+      messageRole="assistant"
+      hoverGroup={false}
+      arrival={arrival}
       data-slot="ghost-message-row"
       data-role="assistant"
       data-kind={attribution?.kind ?? undefined}
-      className={cn(skin.outer("assistant"), enterClasses)}
     >
-      {/* The container above and this element's two arms are the settled row's, verbatim — the ghost is
-          the one row that MUST be laid out identically to what it becomes (#1728 arm B). THE `@max-cq-28`
-          AVATAR STEP IS PART OF THAT PARITY: the row body takes the settled row's own
-          `ROW_BODY_AT_PHONE_WIDTH`, or a live turn at a phone width would reflow its gutter the
-          instant it settled. */}
-      <Row align="start" gap="row" data-slot="message-row-body" className={cn(rowBodyClassFor(skin), "inline-full", ROW_BODY_AT_PHONE_WIDTH)}>
+      {/* The root, body and column are the settled row's own (`message-row-layout.tsx`) — the ghost is the one row
+          that MUST be laid out identically to what it becomes (#1728 arm B), phone-width gutter step included. The
+          live turn is always the assistant side, which never mirrors. */}
+      <MessageRowBody skin={skin}>
         {leadingAvatar}
         {/* The skin's own column width rides the ghost too — a live turn that reflows at commit is a
             visible jump (the reading-measure suite pins the two columns equal). */}
-        <Stack gap="row" data-slot="message-content-column" className={columnClass} style={skin.columnStyle}>
+        <MessageContentColumn skin={skin} mirrored={false} style={skin.columnStyle}>
           {themedColumn}
-        </Stack>
-      </Row>
-    </Stack>
+        </MessageContentColumn>
+      </MessageRowBody>
+    </MessageRowRoot>
   );
 }

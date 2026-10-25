@@ -1,7 +1,7 @@
 ---
 kind: plan
 status: active
-updated: 2026-10-24
+updated: 2026-10-25
 ---
 
 # One CSS system: ramps, aliases and a pinned owner-CSS surface
@@ -336,9 +336,8 @@ Lane `cb-leg8`, branch `wt/agent-ac152596808c45238`; each commit below is one su
 
 ### Remaining work
 
-Item 1316's remainder. Both rules are on as errors in `eslint.config.ts` by owner ruling, with no baseline and no exemption list, so the pre-push lint is red until the last site goes. The drain through items 1334 to 1336 and 1338 has moved every site but the chat row skin table onto primitive props (`docs/law/UI-Density-Law.md` §4.3), and the `datum` voice carries its ruled spelling (D5). What is left is listed in `feature-classname-sites.md` beside this plan:
+Item 1316's remainder. Both rules are on as errors in `eslint.config.ts` by owner ruling, with no baseline and no exemption list. The drain through items 1334 to 1336, 1338 and 1346 has moved every site onto primitive props (`docs/law/UI-Density-Law.md` §4.3), the chat row skin table included (`feature-classname-sites.md` beside this plan), and the `datum` voice carries its ruled spelling (D5). What is left:
 
-- The chat row skin table (`features/chat/lib/message-row-variants.ts` and the modules it composes): its `RowSkin` fields are class strings and class builders keyed by chat style. They move in one change across all eight chat styles, once each field is a primitive prop, under a CT and a snap of every style with and without a wallpaper.
 - The other-plugin audit (react-x, jsx-a11y, @tanstack rules left off): the installed config leaves one jsx-a11y rule off and enables the rest; record the residue.
 - The RTL follow-up for the panels' `translateX` (Open forks).
 

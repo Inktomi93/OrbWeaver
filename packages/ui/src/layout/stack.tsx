@@ -38,6 +38,9 @@ export function Stack({
   opacityMotion,
   focusTarget,
   scrollFade,
+  cardCorners,
+  hoverDim,
+  arrival,
   ...props
 }: StackProps): ReactElement {
   return (
@@ -70,6 +73,9 @@ export function Stack({
         opacityMotion,
         focusTarget,
         scrollFade,
+        cardCorners,
+        hoverDim,
+        arrival,
         className,
       })}
     />

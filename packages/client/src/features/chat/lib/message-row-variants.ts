@@ -1,30 +1,19 @@
-// The chatStyle variant map — one MessageRow surface, one `Record<ThemeChatStyle, RowSkin>` dispatch table;
-// adding a chatStyle member fails tsc HERE until this table says how it paints. Immersive modes
-// (echo/whisper/hush/ripple/tide) extend RowSkin with data fields the row reads — never a switch(chatStyle)
-// in message-row.tsx. Echo/Whisper's feather is a layered background-image gradient, not literal
-// `mask-image` (that would also fade the text painted on top).
+// The chatStyle variant map — one MessageRow surface, one `Record<ThemeChatStyle, RowSkin>` dispatch table; adding a
+// chatStyle member fails tsc HERE until this table says how it paints. Every field is data the row components turn into
+// `@orb/ui` primitive props, never a class string, and never a switch(chatStyle) in message-row.tsx.
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { CSSProperties } from "react";
-import { cn, messageBubbleClass } from "#lib";
 import type { BubbleDecoration, BubbleDecorationArgs } from "./art-decorations.ts";
 import { ECHO_MAX_WIDTH_STYLE, echoDecoration, whisperDecoration } from "./art-decorations.ts";
 import type { RowAttribution } from "./attribution.ts";
-import { BUBBLE_PHONE_CAP, CHAT_TRACK } from "./chat-track.tsx";
-import { BG_PHOTO_READING_PLATE } from "./message-row-backing.ts";
+import type { TrackName } from "./chat-track.tsx";
 import type { SwipeFoot } from "./pager-chrome.ts";
 import { SWIPE_FOOT_ECHO, SWIPE_FOOT_INSIDE, SWIPE_FOOT_TRAIN } from "./pager-chrome.ts";
 import type { ActionsRow, PinnedHeader } from "./row-edges.ts";
 import { ACTIONS_ONLY, ACTIONS_WITH_IDENTITY, PINNED_BAND, PINNED_CARD, PINNED_CHIP, PINNED_PILL } from "./row-edges.ts";
-
-function alignFor(role: MessageRole): string {
-  return role === "user" ? "items-end" : "items-start";
-}
-
-// `cn` is typed `string | undefined` (never undefined at runtime); coalesce so each skin returns `string`.
-const cx = (...args: Parameters<typeof cn>): string => cn(...args) ?? "";
 
 /** How a row renders its identity art. `sticky-portrait` (Ripple) replaces the sibling avatar chip;
  *  `icon-left` keeps it, even for modes whose bubbleDecoration paints separate art. */
@@ -86,14 +75,28 @@ const COLUMN_PLACEMENTS = ["anchored", "gutterCentred"] as const;
  *  says how its column is seated. */
 type ColumnPlacement = (typeof COLUMN_PLACEMENTS)[number];
 
+const MESSAGE_BOXES = ["bubble", "plate", "page"] as const;
+/** The box the prose renders in. `bubble` is the role's filled card. `plate` (flat, hush) has no fill at rest and takes
+ *  the reading plate over a wallpaper, inset a section from its gutter. `page` (stock document) is a full-track page with
+ *  the gutter inset, the reading ink and the same plate. */
+type MessageBox = (typeof MESSAGE_BOXES)[number];
+
+const ROW_ALIGNS = ["role", "start", "center"] as const;
+/** How the row seats its body in the track: `role` puts a user row at the trailing edge, `center` centres the unit. */
+type RowAlign = (typeof ROW_ALIGNS)[number];
+
 export interface RowSkin {
-  readonly outer: (role: MessageRole) => string;
+  /** The track the row rides (`Track`, chat-track.tsx): the room's own, or echo's, which adds its art pane. */
+  readonly track: Extract<TrackName, "chat" | "echo">;
+  readonly rowAlign: RowAlign;
   /** {@link ColumnPlacement} — how this skin seats the reading column against the identity gutter (#1728). */
   readonly columnPlacement: ColumnPlacement;
-  readonly inner: (role: MessageRole) => string;
+  readonly box: MessageBox;
+  /** On a phone a bubble takes at most four fifths of its column, so the other side reads as the other speaker's. */
+  readonly phoneCap: boolean;
   readonly avatarTreatment: (kind: RowAttribution["kind"]) => AvatarTreatment;
-  /** The last row's extra inner class (stock document keeps a minimum block size there). */
-  readonly lastRowInner?: string;
+  /** The transcript's last row keeps a minimum block size (stock document). */
+  readonly lastRowFloor: boolean;
   readonly bubbleDecoration?: (args: BubbleDecorationArgs) => BubbleDecoration | null;
   readonly bubbleLayout: BubbleLayout;
   /** {@link HeaderPlacement} — where this skin's speaker/timestamp/actions row lives (#288). */
@@ -113,39 +116,12 @@ export interface RowSkin {
   readonly columnStyle?: CSSProperties;
 }
 
-function bubbleOuter(role: MessageRole): string {
-  return cx(CHAT_TRACK, alignFor(role));
-}
-// Filled skins share the role-bubble recipe; centered unboxed skins own their reading treatment.
-const bubbleInner = messageBubbleClass;
-// The full-width skins take the SAME centred track as the bubble family (#213), and CENTRE their capped
-// column inside it. They used to carry a bare `w-full items-stretch`: the track was the whole pane (a
-// 686px reading column pinned to the left edge of a 1404px pane, 718px of dead wallpaper on its right)
-// while the composer under it centred — and `items-stretch` then re-pinned the column to the track's left
-// edge, leaving whatever the reading measure did not spend as dead space on ONE side. `items-center` is
-// what `document` has always done, and it is why the parity pass called document "the only skin that
-// centres its capped column". The row's anatomy is untouched: the body still holds the avatar gutter and
-// the column, it is simply placed as a unit.
-function flatOuter(): string {
-  return cx(CHAT_TRACK, "items-center");
-}
-function flatInner(role: MessageRole): string {
-  // The plate constant carries the paired reading ink (#204 derive law); a system row keeps its muted
-  // tone in BOTH arms — the second spelling out-cascades the plate's `in-data-…:text-prose-body` (same
-  // variant, later in the merge), the first covers the plain-background arm.
-  // On a phone the text sits a stock 10px from the avatar (SillyTavern flat), not a desktop section away.
-  return cx(
-    "px-section py-row inline-full @max-cq-28:px-row",
-    BG_PHOTO_READING_PLATE,
-    role === "system" && "text-muted-foreground in-data-has-bg-image:text-muted-foreground",
-  );
-}
 const iconLeftTreatment = (): AvatarTreatment => "icon-left";
 
 // RIPPLE WELDS BOTH ROLES (#212-4). It used to weld the portrait for `character` rows only, so a user row
 // fell back to an ordinary right-aligned bubble with a 32px chip — i.e. ripple's user rows were `bubble`,
 // and half the transcript was not in the skin the reader chose. The reference gives both roles the same
-// card + big portrait, and the weld already has a mirrored user arm (`renderRowAvatar`'s `weldRounding`),
+// card + big portrait, and the weld already has a mirrored user arm (`renderRowAvatar`'s `cardCorners`),
 // so this is the treatment finally reaching the role it was written for. `null` (a system/unattributed row)
 // has no identity to weld and keeps the chip path, which renders nothing for it anyway.
 function rippleAvatarTreatment(kind: RowAttribution["kind"]): AvatarTreatment {
@@ -162,24 +138,15 @@ function hushDecoration(): BubbleDecoration {
   return { style: STRIPE_LEFT };
 }
 
-// ECHO'S TRACK IS THE SHARED TRACK PLUS ITS ART PANE. A max-width only ALLOWS width — the column is a flex
-// child, so what it can actually occupy is what the track hands the row. Inside the plain track the art
-// went straight back to eating the line (measured: 436px of prose, 51ch). The art is ADDITIVE by
-// declaration: the reader's `chatWidthPct` dial still sets how wide the READING runs, and this skin says
-// its portrait pane costs extra room on top of it. Still `mx-auto`, so the row centres on the same axis as
-// the composer (#213 asserts the axis, never equal widths), and still `w-full`, so a pane narrower than
-// the ask degrades to the pane instead of overflowing it.
-const ECHO_TRACK = "mx-auto inline-full orb-echo-track";
-
-function echoOuter(role: MessageRole): string {
-  return cx(ECHO_TRACK, alignFor(role));
-}
 /** The exhaustive chatStyle → skin table; a new chatStyle fails to compile without a row here. */
 export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
   bubble: {
-    outer: bubbleOuter,
+    track: "chat",
+    rowAlign: "role",
     columnPlacement: "anchored",
-    inner: (role) => cx(bubbleInner(role), BUBBLE_PHONE_CAP),
+    box: "bubble",
+    phoneCap: true,
+    lastRowFloor: false,
     avatarTreatment: iconLeftTreatment,
     bubbleLayout: "single",
     headerPlacement: "inside",
@@ -189,9 +156,12 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     mirrorUser: true,
   },
   flat: {
-    outer: flatOuter,
+    track: "chat",
+    rowAlign: "center",
     columnPlacement: "gutterCentred",
-    inner: flatInner,
+    box: "plate",
+    phoneCap: false,
+    lastRowFloor: false,
     avatarTreatment: iconLeftTreatment,
     bubbleLayout: "single",
     // No box at rest: inside, the header shares the body's plate over art and the body's own inset.
@@ -202,13 +172,15 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     mirrorUser: false,
   },
   document: {
-    outer: () => cx(CHAT_TRACK, "items-center"),
+    track: "chat",
+    rowAlign: "center",
     columnPlacement: "gutterCentred",
     // Stock SillyTavern's document: a full-track page with no reading cap, no avatar, name or timestamp, user
     // and character rows identical, the text inset as stock insets it.
-    inner: () => cx("px-gutter pbs-row text-prose-body inline-full", BG_PHOTO_READING_PLATE),
+    box: "page",
+    phoneCap: false,
     avatarTreatment: () => "none",
-    lastRowInner: "min-block-(--immersive-document-last-row-min-height)",
+    lastRowFloor: true,
     bubbleLayout: "single",
     headerPlacement: "inside",
     swipeFoot: SWIPE_FOOT_INSIDE,
@@ -217,9 +189,12 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     mirrorUser: false,
   },
   echo: {
-    outer: echoOuter,
+    track: "echo",
+    rowAlign: "role",
     columnPlacement: "anchored",
-    inner: bubbleInner,
+    box: "bubble",
+    phoneCap: false,
+    lastRowFloor: false,
     avatarTreatment: iconLeftTreatment,
     bubbleDecoration: echoDecoration,
     bubbleLayout: "single",
@@ -233,9 +208,12 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     mirrorUser: true,
   },
   whisper: {
-    outer: () => bubbleOuter("assistant"),
+    track: "chat",
+    rowAlign: "start",
     columnPlacement: "anchored",
-    inner: bubbleInner,
+    box: "bubble",
+    phoneCap: false,
+    lastRowFloor: false,
     avatarTreatment: iconLeftTreatment,
     bubbleDecoration: whisperDecoration,
     bubbleLayout: "single",
@@ -248,9 +226,12 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     mirrorUser: false,
   },
   hush: {
-    outer: flatOuter,
+    track: "chat",
+    rowAlign: "center",
     columnPlacement: "gutterCentred",
-    inner: flatInner,
+    box: "plate",
+    phoneCap: false,
+    lastRowFloor: false,
     avatarTreatment: iconLeftTreatment,
     bubbleDecoration: hushDecoration,
     bubbleLayout: "single",
@@ -262,9 +243,12 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     mirrorUser: false,
   },
   ripple: {
-    outer: () => bubbleOuter("assistant"),
+    track: "chat",
+    rowAlign: "start",
     columnPlacement: "anchored",
-    inner: bubbleInner,
+    box: "bubble",
+    phoneCap: false,
+    lastRowFloor: false,
     avatarTreatment: rippleAvatarTreatment,
     bubbleLayout: "single",
     // The welded portrait sits inside the bubble, so the header lands in the card beside it, a titled panel.
@@ -275,9 +259,12 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     mirrorUser: false,
   },
   tide: {
-    outer: bubbleOuter,
+    track: "chat",
+    rowAlign: "role",
     columnPlacement: "anchored",
-    inner: bubbleInner,
+    box: "bubble",
+    phoneCap: false,
+    lastRowFloor: false,
     avatarTreatment: iconLeftTreatment,
     bubbleLayout: "trains",
     // THE ONE `outside`, and not a concession: a train is N per-paragraph pills with no single container
@@ -290,6 +277,9 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     mirrorUser: true,
   },
 };
+
+/** A role's bubble fill by the name `@orb/ui` gives it: a bubble `Card`'s `tone`, and the `ground` of a band inside one. */
+export const ROLE_FILL = { user: "userBubble", assistant: "bubble", system: "systemBubble" } as const satisfies Record<MessageRole, string>;
 
 // The avatar-chip src props live beside the other per-skin asset-URL shaping (Echo portrait, Whisper
 // banner) — one home for "which blob variant does this rendering slot request".

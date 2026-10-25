@@ -61,11 +61,29 @@ export function Card(props: CardProps): ReactElement {
     dropTarget,
     presence,
     spoiler,
+    receded,
     focusable,
     ownSlot,
   } = props;
   const skin = cn(
-    cardVariants({ shape, elevated, interactive, nested, padding, tone, outline, glow, rail, shadow, holdsField, dropTarget, presence, spoiler, focusable }),
+    cardVariants({
+      shape,
+      elevated,
+      interactive,
+      nested,
+      padding,
+      tone,
+      outline,
+      glow,
+      rail,
+      shadow,
+      holdsField,
+      dropTarget,
+      presence,
+      spoiler,
+      receded,
+      focusable,
+    }),
     className,
   );
   const slot = ownSlot ?? "card-root";
@@ -96,6 +114,7 @@ export function Card(props: CardProps): ReactElement {
       dropTarget: _dropTarget,
       presence: _presence,
       spoiler: _spoiler,
+      receded: _receded,
       focusable: _focusable,
       ownSlot: _ownSlot,
       ...rest
@@ -127,6 +146,7 @@ export function Card(props: CardProps): ReactElement {
     dropTarget: _dropTarget,
     presence: _presence,
     spoiler: _spoiler,
+    receded: _receded,
     focusable: _focusable,
     ownSlot: _ownSlot,
     ...rest

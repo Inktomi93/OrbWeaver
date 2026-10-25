@@ -9,7 +9,7 @@ import { tv } from "#lib";
 // the REDUCED-MOTION fill and the gradient's two stops are what everyone else sees. A host whose surface
 // the muted/accent pair cannot separate from re-points both through the `--orb-skeleton-sweep-*` custom
 // properties AND overrides this base (#690 — the transcript's over-art reading plate is the one such host;
-// `message-row-backing.ts` states the measurement). Unset here on purpose: the stops default through a
+// `WALLPAPER_PLATE.loading` in lib/ground.ts re-points it). Unset here on purpose: the stops default through a
 // var() FALLBACK in globals.css, because a declaration on this element would outrank a host's inherited one.
 export const skeletonVariants = tv({
   base: "orb-skeleton-shimmer relative block overflow-hidden bg-muted",

@@ -24,8 +24,23 @@ export interface AvatarProps extends Omit<BaseRootProps, "className">, VariantPr
 
 /** Seals Base UI Avatar (image with automatic fallback-on-error). */
 export function Avatar(props: AvatarProps): ReactElement {
-  const { className, src, alt = "", children, size, shape, aspect, ring, hueSeed, fallbackDelay, onLoadingStatusChange, keepMounted, ...rest } = props;
-  const slots = avatarVariants({ size, shape, aspect, ring });
+  const {
+    className,
+    src,
+    alt = "",
+    children,
+    size,
+    shape,
+    aspect,
+    ring,
+    cardCorners,
+    hueSeed,
+    fallbackDelay,
+    onLoadingStatusChange,
+    keepMounted,
+    ...rest
+  } = props;
+  const slots = avatarVariants({ size, shape, aspect, ring, cardCorners });
   const seed = hueSeed ?? alt;
   return (
     // STAMP SITE (#1097): the ROOT. `size` is the only stamped axis this recipe declares and the root is

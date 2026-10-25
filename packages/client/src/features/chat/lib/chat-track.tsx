@@ -39,16 +39,14 @@ export const CHAT_TRACK = "orb-chat-track inline-full max-inline-(--width-shell-
  *  in client globals.css). */
 const COMPOSER_TRACK = "orb-composer-track inline-full";
 
-/** A transcript ROW BODY at a phone width: below the row's `md` container step the gap tightens. The chip
- *  keeps the reader's own size and is never hidden (owner ruling, as Moonlit Echoes keeps its 40px avatar on
- *  a phone). The settled row and the streaming ghost share it, or a live turn reflows as it settles. */
-export const ROW_BODY_AT_PHONE_WIDTH = "@max-cq-28:gap-field";
+// Echo's track is the shared track plus its art pane: the reader's `chatWidthPct` dial still sets how wide the reading
+// runs, and the portrait pane costs extra room on top of it (`orb-echo-track` in client globals.css). It centres on the
+// composer's axis, and a pane narrower than the ask degrades to the pane instead of overflowing it.
+const ECHO_TRACK = "mx-auto inline-full orb-echo-track";
 
-/** Phone caps on a message box, below the row's `md` container step (owner ruling, after Moonlit Echoes'
- *  phone layout): a bubble takes at most 80% of its column, so the other side reads as the other speaker's,
- *  and a tide pill 90%. */
-export const BUBBLE_PHONE_CAP = "@max-cq-28:max-inline-4/5";
-export const PILL_PHONE_CAP = "@max-cq-28:max-inline-9/10";
+const TRACKS = ["chat", "composer", "echo"] as const;
+/** The tracks a room's column can ride. */
+export type TrackName = (typeof TRACKS)[number];
 
 interface Carrier {
   readonly className?: string | undefined;
@@ -57,12 +55,22 @@ interface Carrier {
 export type TrackProps<Props extends Carrier> = Props & {
   /** The primitive that carries the track; a prop other than `as`, which a polymorphic primitive already takes. */
   readonly of: ComponentType<Props>;
-  readonly track: "chat" | "composer";
+  readonly track: TrackName;
 };
 
 /** Renders `of` on the room's chat track or the composer's track. A feature className may not import or build a class
  *  string, so every carrier goes through this component and the strings above stay in this file. */
 export function Track<Props extends Carrier>({ of: Primitive, track, className, ...props }: TrackProps<Props>): ReactElement {
   // TypeScript cannot narrow the rest of a generic intersection back to `Props` once `of` and `track` leave it.
-  return <Primitive {...(props as unknown as Props)} className={cn(track === "chat" ? CHAT_TRACK : COMPOSER_TRACK, className)} />;
+  return (
+    <Primitive
+      {...(props as unknown as Props)}
+      className={cn(
+        track === "chat" ? CHAT_TRACK : undefined,
+        track === "composer" ? COMPOSER_TRACK : undefined,
+        track === "echo" ? ECHO_TRACK : undefined,
+        className,
+      )}
+    />
+  );
 }

@@ -1,4 +1,4 @@
-import { tv } from "#lib";
+import { CARD_CORNERS, tv } from "#lib";
 
 // Avatar sizes ride display tokens, decoupled from control-height/touch-target tokens — an avatar that
 // IS a button composes inside `Button` and inherits its own hit area.
@@ -52,6 +52,8 @@ export const avatarVariants = tv({
       // and `aspect-portrait` computes the narrower width from it.
       portrait: { root: "aspect-portrait inline-auto" },
     },
+    // A portrait welded to a card's side takes the card's corners on its outer edge (`CARD_CORNERS`).
+    cardCorners: { start: { root: CARD_CORNERS.start }, end: { root: CARD_CORNERS.end } },
     ring: {
       none: {},
       accent: {

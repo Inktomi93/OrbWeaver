@@ -23,4 +23,6 @@ The table stays in the chat feature and each skin field is a set of `@orb/ui` pr
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+- `pnpm lint:eslint packages tooling tests` exits 0.
+- `tests/client/features/chat/components/chat-style-skins.ct.tsx` mounts the production `AppShell` on a corpus room once per chat style, with and without a wallpaper, and holds the row's track, alignment, body tracks, message box, art corners, swipe foot, action reveal and pinned header to the style's skin row and the resolved tokens.
+- The same measurements taken on main's sources and on this change matched in every case.

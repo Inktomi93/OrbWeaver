@@ -89,7 +89,7 @@ export interface ClampedTheme {
    * THE SCOPE'S INHERITED INK (#2424). A carried palette that paints its own surface must also RESTATE
    * `color`, or every element inside it that takes its ink by INHERITANCE keeps whatever the document
    * resolved above the scope. `.shell-grid` resolves `color: var(--color-foreground)` ABOVE every scope
-   * (message-row-backing.ts's #204 note states the same fact from the prose side), so under a LIGHT app
+   * (the over-art reading plates pair their own ink for the same reason), so under a LIGHT app
    * theme a card-themed room's composer painted the ROOT's light ink on the SCOPE's dark surface:
    * measured `(34.9,30.2,26.6)` on `(22,17,19)` = **1.13:1**, invisible the moment a reader typed.
    *
