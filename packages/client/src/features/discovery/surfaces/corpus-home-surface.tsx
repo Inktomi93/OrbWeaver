@@ -213,8 +213,8 @@ function CorpusHomeBody(): ReactElement {
             `flex-wrap` never fires for a `min-w-0` child, because it has no minimum to overflow with. So at
             430px the h1 was squeezed into a ~130px column and wrapped to SIX one-word lines while the
             figures held half the row. The container query is the fix the pane can actually answer to
-            (`corpus-understanding-invitation.tsx`'s own spelling): one column until the surface's
-            `@container` is genuinely wide enough for two, `items-end` only in the two-column arm — a
+            (`corpus-understanding-invitation.tsx`'s own spelling): one column until the content
+            region's `@container` is genuinely wide enough for two, `items-end` only in the two-column arm — a
             right-aligned figure block under a stacked headline would read as a stray. */}
       <Row align="start" className="flex-col @cq-40:flex-row @cq-40:items-end" gap="section" justify="between">
         <Stack className="flex-1 min-inline-0" gap="tight">
