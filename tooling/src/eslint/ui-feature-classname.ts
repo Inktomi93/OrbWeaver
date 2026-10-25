@@ -7,7 +7,7 @@ import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 
 /** How a class token paints: `layout` emits only layout properties, `paint` emits anything else, `unknown` does not compile. */
 const CLASS_KINDS = ["layout", "paint", "unknown"] as const;
-export type ClassKind = (typeof CLASS_KINDS)[number];
+type ClassKind = (typeof CLASS_KINDS)[number];
 export type ClassClassifier = (token: string) => ClassKind;
 /** Tailwind's `DesignSystem.candidatesToCss`: one CSS string per candidate, `null` when it does not compile. */
 export type CandidatesToCss = (classes: string[]) => (string | null)[];
