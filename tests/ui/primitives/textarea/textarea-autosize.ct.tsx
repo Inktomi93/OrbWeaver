@@ -2,9 +2,10 @@
 // to the same height the native arm gives it, inside the same min and max rows.
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import type { AutosizeTextareaStory } from "./textarea-autosize-stories.tsx";
+import type { AutosizeTextareaStory, FixedClassHeightStory, FixedInlineHeightStory } from "./textarea-autosize-stories.tsx";
 
-const STORY = "tests/ui/primitives/textarea/textarea-autosize-stories/AutosizeTextareaStory";
+const STORIES = "tests/ui/primitives/textarea/textarea-autosize-stories";
+const STORY = `${STORIES}/AutosizeTextareaStory`;
 const FOUR_LINES = "a\nb\nc\nd";
 const TWELVE_LINES = Array.from({ length: 12 }, (_, line) => `line ${String(line)}`).join("\n");
 // Sub-pixel line boxes round differently in the two arms.
@@ -31,6 +32,8 @@ function ownHeight(field: Locator): Promise<number> {
 test.describe("without field-sizing support", () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
+      // Firefox 138 to 151 has neither the property nor the typed style map, so the script arm may use only getComputedStyle.
+      Reflect.deleteProperty(Element.prototype, "computedStyleMap");
       const supports = CSS.supports.bind(CSS);
       CSS.supports = (...args: [string, string?]): boolean => (args[0] === "field-sizing" ? false : supports(...(args as [string])));
       // The skin's class still asks for the property and this browser has it, so it is switched off to leave the script alone.
@@ -57,5 +60,17 @@ test.describe("without field-sizing support", () => {
     expect(twelve).toBeGreaterThan(four);
     // Past its rows the box stops growing and scrolls, as the native arm does.
     expect(await field.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
+  });
+
+  test("a height the caller fixes, inline or by class, is kept", async ({ mount }) => {
+    const inline = await mount<typeof FixedInlineHeightStory>(`${STORIES}/FixedInlineHeightStory`);
+    const inlineField = inline.getByRole("textbox", { name: "Fixed inline", exact: true });
+    await expect(inlineField).toHaveCSS("height", "40px");
+    await inlineField.fill("a\nb\nc\nd\ne\nf\ng");
+    await expect(inlineField).toHaveCSS("height", "40px");
+    const byClass = await mount<typeof FixedClassHeightStory>(`${STORIES}/FixedClassHeightStory`);
+    const classField = byClass.getByRole("textbox", { name: "Fixed class", exact: true });
+    expect(await classField.evaluate((element) => element.style.height)).toBe("");
+    expect(await classField.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
   });
 });

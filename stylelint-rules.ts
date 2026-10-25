@@ -24,7 +24,7 @@ const RAW_EASE = /(?<!-)\b(?:ease-in-out|ease-in|ease-out|ease)\b(?!-)|cubic-bez
 // A continuous decorative loop has no partner to drift from, so its easing is its own; its duration still rides a token.
 const DECORATIVE_LOOP = /\binfinite\b/u;
 const HEX = /#[0-9a-fA-F]{3,8}\b/u;
-const COLOR_FUNCTION = /\b(?:rgb|rgba|hsl|hsla|oklch|oklab|lab|lch)\s*\(/u;
+const COLOR_FUNCTION = /\b(?:rgb|rgba|hsl|hsla|hwb|oklch|oklab|lab|lch)\s*\(|(?<![\w-])color\s*\(/u;
 const TRANSFORM_PROPERTIES = new Set(["transform", "translate", "scale"]);
 const ANIMATING_AT_RULE = /^(?:keyframes|starting-style)\b/u;
 const STATE_SELECTOR = /\[[^=\]]*=[^\]]*\]|:hover|:focus|:active|:checked|:disabled|:target|:open|:popover-open/u;
@@ -335,7 +335,12 @@ const SHELL_MESSAGES = messagesOf(SHELL, {
 const ATTRIBUTE_SELECTOR = /\[[^\]]*\]/gu;
 const SLOT_SELECTOR = /\[data-slot\s*[~|^$*]?=\s*["']?(?<slot>[^"'\]\s]+)/gu;
 const CLASS_SELECTOR = /\.(?<name>-?[_a-zA-Z][\w-]*)/gu;
-const RELATIVE_SERVED_COLOR = /\b(?:rgb|rgba|hsl|hsla|oklch|oklab|lab|lch)\(\s*from\s+var\(--color-[a-z0-9-]+\)/giu;
+// A relative colour whose origin is a served `--color-*` token and whose channels are keywords or formulas, never literals.
+const RELATIVE_CHANNEL = String.raw`(?:[a-z]+|calc\((?:[^()]|\([^()]*\))*\))`;
+const RELATIVE_SERVED_COLOR = new RegExp(
+  String.raw`\b(?:rgb|rgba|hsl|hsla|hwb|oklch|oklab|lab|lch)\(\s*from\s+var\(--color-[a-z0-9-]+\)\s+${RELATIVE_CHANNEL}\s+${RELATIVE_CHANNEL}\s+${RELATIVE_CHANNEL}(?:\s*/(?:[^()]|\([^()]*\))*)?\)`,
+  "giu",
+);
 const SHELL_CLASS_PREFIX = "shell-";
 
 type ShellOptions = { readonly slots?: readonly string[]; readonly classes?: readonly string[] } | undefined;

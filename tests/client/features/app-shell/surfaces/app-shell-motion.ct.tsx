@@ -470,6 +470,7 @@ test.describe("the doors in an open room", () => {
     await routeMotion(page, corpus);
     await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
     await expect(page.locator(DOOR_BOXES.composer)).toBeVisible();
+    await expect(page.locator(DOOR_BOXES.row).first()).toBeVisible();
     await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "docked");
     // The composer's track is capped at the reading measure and the row's at the dial, so the two share a centre, not an edge.
     const [rowCentre = Number.NaN, composerCentre = Number.NaN] = await page.evaluate(
@@ -498,6 +499,7 @@ test.describe("the doors in an open room", () => {
     await routeMotion(page, corpus);
     await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
     await expect(page.locator(DOOR_BOXES.composer)).toBeVisible();
+    await expect(page.locator(DOOR_BOXES.row).first()).toBeVisible();
     await expect(page.locator(CONTEXT)).toHaveAttribute("data-panel-mode", "collapsed");
     for (const leg of ["Show details", "Hide details"]) {
       const census = await driveDoor(page, leg);
@@ -514,6 +516,7 @@ test.describe("the doors in an open room", () => {
     await routeMotion(page, corpus);
     await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
     await expect(page.locator(DOOR_BOXES.composer)).toBeVisible();
+    await expect(page.locator(DOOR_BOXES.row).first()).toBeVisible();
     await waitForShellIdle(page);
     for (const leg of ["Hide list panel", "Show list panel"]) {
       await recordFlipKeyframes(page);
@@ -535,6 +538,7 @@ test.describe("the doors in an open room", () => {
     await routeMotion(page, corpus);
     await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
     await expect(page.locator(DOOR_BOXES.composer)).toBeVisible();
+    await expect(page.locator(DOOR_BOXES.row).first()).toBeVisible();
     await waitForShellIdle(page);
     await recordAnimationStarts(page);
     const grid = page.locator(".shell-grid");
@@ -577,6 +581,7 @@ test.describe("the doors at rem 20", () => {
     await routeMotion(page, corpus, { fontScale: REM20 });
     await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
     await expect(page.locator(DOOR_BOXES.composer)).toBeVisible();
+    await expect(page.locator(DOOR_BOXES.row).first()).toBeVisible();
     await expect.poll(() => rootFontPx(page)).toBeCloseTo(UA_ROOT_PX * REM20, 0);
     const dockedWidth = await page.locator(DOOR_BOXES.composer).evaluate((element) => Math.round(element.getBoundingClientRect().width));
     await driveDoor(page, "Hide list panel");
@@ -596,6 +601,7 @@ test.describe("the doors at rem 20", () => {
     await routeMotion(page, corpus, { fontScale: REM20 });
     await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
     await expect(page.locator(DOOR_BOXES.composer)).toBeVisible();
+    await expect(page.locator(DOOR_BOXES.row).first()).toBeVisible();
     await expect.poll(() => rootFontPx(page)).toBeCloseTo(UA_ROOT_PX * REM20, 0);
     for (const leg of ["Show details", "Hide details", "Show details"]) {
       const verdict = doorVerdict(await driveDoor(page, leg), CONTEXT_DOOR);
@@ -620,6 +626,7 @@ test.describe("on a phone", () => {
     await routeMotion(page, corpus);
     await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
     await expect(page.locator(DOOR_BOXES.composer)).toBeVisible();
+    await expect(page.locator(DOOR_BOXES.row).first()).toBeVisible();
     await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "collapsed");
     await waitForShellIdle(page);
     const width = Math.round((await page.locator(LIST).boundingBox())?.width ?? 0);

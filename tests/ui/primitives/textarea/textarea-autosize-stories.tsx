@@ -10,3 +10,13 @@ export function AutosizeTextareaStory(): ReactElement {
     </div>
   );
 }
+
+const SIX_LINES = "a\nb\nc\nd\ne\nf";
+
+export function FixedInlineHeightStory(): ReactElement {
+  return <Textarea aria-label="Fixed inline" defaultValue={SIX_LINES} style={{ height: "40px" }} />;
+}
+
+export function FixedClassHeightStory(): ReactElement {
+  return <Textarea aria-label="Fixed class" className="block-(--size-control-lg)" defaultValue={SIX_LINES} />;
+}
