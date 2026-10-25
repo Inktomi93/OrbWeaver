@@ -30,6 +30,11 @@
          else's dialogue. Off. This is a detection opt-out, not a linkification policy: real links in
          markdown are rendered by the seal and unaffected. -->
     <meta name="format-detection" content="telephone=no" />
+    <!-- Opts the root font size into the OS and browser text scale (Chromium 146+; Safari and Firefox ignore
+         it). Every dimension is rem-based, so the shell scales with the user's setting; the app's own
+         `fontScale` multiplies on top of it. The opt-in also turns off mobile text auto-sizing, so the shell
+         has to hold at the platform maximum (tests/ui/layout/text-scale.ct.tsx). -->
+    <meta name="text-scale" content="scale" />
     <title>orbweaver</title>
     <!-- The document's own one-line description (#194 — Lighthouse SEO scored 0/1 on its absence). It is
          NOT a marketing line: this origin is a self-hosted single-tenant app behind auth (see

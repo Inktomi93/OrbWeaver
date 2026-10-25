@@ -57,6 +57,7 @@
     "lint:eslint": "eslint --flag unstable_native_nodejs_ts_config --max-warnings 0",
     "lint:css": "stylelint \"packages/**/*.css\"",
     "test:ct": "playwright test --config=playwright-ct.config.ts --project=chromium",
+    "test:ct:webkit": "playwright test --config=playwright-ct.config.ts --project=webkit-iphone",
     "test:tools": "vitest run --config=vitest.config.ts --exclude=\"tests/!(tooling)/**\""
   },
   "devDependencies": {
