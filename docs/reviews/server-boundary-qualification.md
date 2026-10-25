@@ -1,12 +1,12 @@
 # Server and root boundary qualification
 
-The assigned implementations qualify within their stated scope at `e81e308737dd3806a58080ed5d7718bc17e9c61e`. No confirmed defect requires a source change. Main owns board closure and the final root-program typecheck.
+The assigned implementations qualify within their stated scope at `e81e308737dd3806a58080ed5d7718bc17e9c61e`. No confirmed defect requires a source change. Main owns board closure.
 
 ## Outcomes
 
 | Item | Implemented | Qualified | Unresolved |
 | - | - | - | - |
-| 1287 | The owner-conversion door exports neither mint. Domain adapters forward the supplied handle. | The runtime facade check, inert-handle checks, forged-grant checks and production accounting pass. Knip reports no unused facade export. | Root-program type assertions await main's final check. |
+| 1287 | The owner-conversion door exports neither mint. Domain adapters forward the supplied handle. | The runtime facade check, inert-handle checks, forged-grant checks and production accounting pass. Knip and root-program type assertions pass. | No item-specific failure. |
 | 1315 | Native ESLint refuses computed dynamic imports in server, db and inference source. | Planted joined, concatenated and template specifiers fail. Literal controls pass. The kernel waiver applies only to its line. | No item-specific failure. |
 | 1322 | Native rules confine host loaders. Duplicate refuses synthetic cards. Fork drops synthetic seats. | Planted loader cases fail. The production duplicate/fork and coupled handle suite pass. | Deliberate hostile source remains outside D335's threat model. |
 | 1305 | Each root owns its instance id, log/request/trace rings and audit failure window. | Main's matching production-root test passes. Writers and debug readers receive the same root-owned state. | This does not remove every process-global object. |
@@ -79,7 +79,9 @@ The real transport forwards its resolved Principal at `packages/server/src/trans
 | Main's `pnpm test tests/server/foundation/observability/root-isolation.int.test.ts` | Reused matching completed run; exit 0, 3 tests pass. | `/tmp/ui-closeout-root-isolation.log` |
 | Main's `pnpm lint:eslint` | Reused matching completed run; exit 0, including source import restrictions and module-state lint. | `/tmp/ui-closeout-main-eslint-final.log` |
 | Main's `pnpm depcruise` | Reused matching completed run; no violations across 6979 modules. | `/tmp/ui-closeout-main-depcruise.log` |
-| Main's `pnpm knip` | Exit 1 solely for unrelated `CorpusRead` forwarding in `tests/support/iso/index.ts`; no unused facade export. Main owns that correction. | `/tmp/ui-closeout-main-knip.log` |
+| Main's `pnpm knip` | Exit 0 after removing the unused `CorpusRead` public forwarding. Its internal owning type remains. | `/tmp/ui-closeout-main-knip-final.log` |
+| Main's `pnpm knip:prod` | Exit 0; retained tag hints are informational. | `/tmp/ui-closeout-main-knip-prod.log` |
+| Main's `pnpm typecheck tsconfig.json` | Exit 0, including the root-program type assertions and server router dependency. | `/tmp/ui-closeout-main-root-typecheck.log` |
 | `pnpm doc format --write docs/reviews/server-boundary-qualification.md` and `pnpm doc format --check docs/reviews/server-boundary-qualification.md` | Exit 0. | Native command output. |
 
 `git log`, `git show` and current-source comparisons confirm the implementation commits `ca21fa92a7`, `ce8b8a3e78`, `0a2bc73cd2` and `f2e7e386c8`. Their work items record red-first controls; those descriptions are historical evidence, not fresh runs. The synthetic implementation and its coupled test remain unchanged from `0a2bc73cd2`.
@@ -92,4 +94,4 @@ The review covers the assigned work items, D335, D321, D333, identity/ownership 
 
 No new read surface, authentication flow or cryptographic primitive is introduced. Existing request Principal resolution and owner/membership gates remain assumptions of the focused behavior cases. The native import controls enforce accidental-author discipline under D335, not isolation from deliberately hostile repository code.
 
-No additional human security review is required for this report. Main must complete its final root-program typecheck before claiming the root `.test-d.ts` assertions. Whole-application CI remains outside this lane. No board file, index or production source changes belong to this report.
+No additional human security review is required for this report. Whole-application CI remains outside this lane. No board file, index or production source changes belong to this report.
