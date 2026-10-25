@@ -354,17 +354,34 @@ const COLOUR_SPACE_CHANNELS: Readonly<Record<string, readonly string[]>> = {
   oklch: ["l", "c", "h"],
 };
 
-function usesChannel(channel: string, keywords: readonly string[]): boolean {
-  return [...channel.matchAll(/(?<![\w.-])[a-z]+(?![\w-])/gu)].some((word) => keywords.includes(word[0]));
+const CHANNEL_NUMBER = String.raw`-?(?:\d+(?:\.\d+)?|\.\d+)`;
+
+/**
+ * Whether a channel is the origin's own channel in its own place: the keyword, a nonzero scale of it, or (the hue)
+ * a rotation by an angle. A zero factor, an added literal, another channel's keyword or `alpha` writes a new colour.
+ */
+function isOwnChannel(channel: string, keyword: string): boolean {
+  const text = channel.trim().toLowerCase();
+  if (text === keyword) {
+    return true;
+  }
+  const scale = new RegExp(
+    String.raw`^calc\(\s*(?:${keyword}\s*[*/]\s*(?<after>${CHANNEL_NUMBER})|(?<before>${CHANNEL_NUMBER})\s*\*\s*${keyword})\s*\)$`,
+    "u",
+  ).exec(text);
+  if (scale !== null) {
+    return Number(scale.groups?.["after"] ?? scale.groups?.["before"]) !== 0;
+  }
+  return keyword === "h" && new RegExp(String.raw`^calc\(\s*h\s*[+-]\s*${CHANNEL_NUMBER}(?:deg|grad|rad|turn)?\s*\)$`, "u").test(text);
 }
 
 /** Blank the relative colours that only reshape the origin token's own channels; a literal one stays to be refused. */
 function withoutServedRelativeColors(value: string): string {
   return value.replace(RELATIVE_COLOR, (match, ...rest) => {
     const groups = rest.at(-1) as Record<string, string>;
-    const keywords = [...(COLOUR_SPACE_CHANNELS[(groups["space"] ?? "").toLowerCase()] ?? []), "alpha"];
+    const keywords = COLOUR_SPACE_CHANNELS[(groups["space"] ?? "").toLowerCase()] ?? [];
     const channels = [groups["c1"] ?? "", groups["c2"] ?? "", groups["c3"] ?? ""];
-    return channels.every((channel) => usesChannel(channel, keywords)) ? blankText(match) : match;
+    return channels.every((channel, place) => isOwnChannel(channel, keywords[place] ?? "")) ? blankText(match) : match;
   });
 }
 const SHELL_CLASS_PREFIX = "shell-";

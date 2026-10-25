@@ -74,6 +74,15 @@ test.describe("without field-sizing support", () => {
     expect(await classField.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
   });
 
+  test("an inline height the caller removes after mount lets the box size to its text with no further input", async ({ mount }) => {
+    const component = await mount<typeof FixedInlineHeightStory>(`${STORIES}/FixedInlineHeightStory`);
+    const field = component.getByRole("textbox", { name: "Fixed inline", exact: true });
+    await expect(field).toHaveCSS("height", "40px");
+    await field.evaluate((element) => element.style.removeProperty("height"));
+    await expect.poll(async () => Math.abs((await ownHeight(field)) - (await nativeHeight(field)))).toBeLessThanOrEqual(SLACK);
+    expect(await ownHeight(field)).toBeGreaterThan(40);
+  });
+
   test("a height class added after mount wins over the script's height, and one removed lets it size again", async ({ mount }) => {
     const component = await mount<typeof ClassFixedLaterStory>(`${STORIES}/ClassFixedLaterStory`);
     const field = component.getByRole("textbox", { name: "Fixed later", exact: true });
