@@ -1,0 +1,6 @@
+/* The cascade-layer order, the only home of the statement (client-architecture-lockdown.md §4.5). A layer ranks by its
+ * first appearance, so every sheet that can load before the ui entry imports this file and opens no layer of its own
+ * first. Tailwind's four come first; every house layer follows `utilities`, so a house rule beats a utility by layer
+ * order and never by specificity; the reduced-motion floor is the last layer. `vendor` holds third-party sheets (the
+ * KaTeX stylesheet): above preflight, below every house layer. */
+@layer theme, base, components, utilities, vendor, ui, shell, client, appearance, preference, motion;
