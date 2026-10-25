@@ -58,7 +58,7 @@ interface ValueRule {
 }
 
 // A selector that no value the attribute can carry satisfies. `~=` takes one whitespace-free word; `=` on a list
-// takes members of it (the empty list too), and on a single-valued attribute takes exactly one value.
+// takes members of it joined by single spaces (the empty list too), and on a single-valued attribute exactly one value.
 function neverMatches(found: AttributeMatch, rule: ValueRule): boolean {
   const fold = (value: string): string => (found.caseInsensitive ? value.toLowerCase() : value);
   const allowed = rule.values.map(fold);
@@ -67,10 +67,13 @@ function neverMatches(found: AttributeMatch, rule: ValueRule): boolean {
     return text === "" || /\s/u.test(text) || !allowed.includes(fold(text));
   }
   if (rule.members) {
-    return !fold(text)
-      .split(/\s+/u)
-      .filter((member) => member !== "")
-      .every((member) => allowed.includes(member));
+    // The writer joins the stored members with one space, so only that exact shape (or nothing) can ever be present.
+    return (
+      text !== "" &&
+      !fold(text)
+        .split(" ")
+        .every((member) => allowed.includes(member))
+    );
   }
   return !allowed.includes(fold(text));
 }

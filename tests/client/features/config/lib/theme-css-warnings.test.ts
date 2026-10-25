@@ -165,6 +165,17 @@ test("selectors that can never match their attribute warn", () => {
   expect(themeCssHookWarnings(`[${listName}~=""] {}`, OWNER_CSS_SURFACE, [])).toHaveLength(1);
 });
 
+test("a list attribute's = value must be the writer's own join: single spaces, no edge spaces, listed members", () => {
+  const listName = list?.name ?? "";
+  const [first, second] = list?.values ?? [];
+  for (const never of [`"  "`, `" ${first}"`, `"${first} "`, `"${first}  ${second}"`, `"${first},${second}"`]) {
+    expect(themeCssHookWarnings(`[${listName}=${never}] {}`, OWNER_CSS_SURFACE, []), never).toHaveLength(1);
+  }
+  for (const writable of [`""`, `"${first}"`, `"${first} ${second}"`, `"${second} ${first}"`]) {
+    expect(themeCssHookWarnings(`[${listName}=${writable}] {}`, OWNER_CSS_SURFACE, []), writable).toEqual([]);
+  }
+});
+
 test("attribute names are matched case-insensitively, as HTML matches them", () => {
   const [attribute] = OWNER_CSS_APPEARANCE_ATTRIBUTES;
   const css = `[${attribute.name.toUpperCase()}="nope"] {}`;
