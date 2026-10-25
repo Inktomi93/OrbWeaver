@@ -11,7 +11,9 @@ interface Sized {
   value: string;
   /** The inline height this hook wrote, so a different inline height is known to be the caller's. */
   height: string;
-  /** Whether a class fixes the height, so `field-sizing` would never have sized the box. Read once, at mount. */
+  /** The classes the cascade check was made for; the check is made again when they change. */
+  className: string;
+  /** Whether a class fixes the height, so `field-sizing` would never have sized the box. */
   fixedByCascade: boolean;
 }
 const sized = new WeakMap<HTMLTextAreaElement, Sized>();
@@ -37,9 +39,9 @@ function sizeToContent(field: HTMLTextAreaElement): void {
   if (field.style.height !== "" && field.style.height !== own?.height) {
     return;
   }
-  const fixed = own?.fixedByCascade ?? fixedByCascade(field);
+  const fixed = own?.className === field.className ? own.fixedByCascade : fixedByCascade(field);
   if (fixed) {
-    sized.set(field, { value: field.value, height: "", fixedByCascade: true });
+    sized.set(field, { value: field.value, height: "", className: field.className, fixedByCascade: true });
     return;
   }
   const scrolled = field.scrollTop;
@@ -49,7 +51,7 @@ function sizeToContent(field: HTMLTextAreaElement): void {
   const height = `${field.scrollHeight + chrome}px`;
   field.style.height = height;
   field.scrollTop = scrolled;
-  sized.set(field, { value: field.value, height, fixedByCascade: false });
+  sized.set(field, { value: field.value, height, className: field.className, fixedByCascade: false });
 }
 
 function assign<T>(ref: Ref<T> | undefined, node: T | null): ReturnType<RefCallback<T>> {
@@ -70,10 +72,10 @@ function assign<T>(ref: Ref<T> | undefined, node: T | null): ReturnType<RefCallb
  */
 export function useFieldSizingFallback(forwardedRef?: Ref<HTMLTextAreaElement>): RefCallback<HTMLTextAreaElement> {
   const node = useRef<HTMLTextAreaElement | null>(null);
-  // Every commit asks, but only a changed value measures: reading `value` forces no layout, and a controlled value changes with no input event.
+  // Every commit asks, but only a changed value or class measures: reading them forces no layout, and a controlled value changes with no input event.
   useLayoutEffect(() => {
     const field = node.current;
-    if (field !== null && !nativeFieldSizing() && sized.get(field)?.value !== field.value) {
+    if (field !== null && !nativeFieldSizing() && (sized.get(field)?.value !== field.value || sized.get(field)?.className !== field.className)) {
       sizeToContent(field);
     }
   });

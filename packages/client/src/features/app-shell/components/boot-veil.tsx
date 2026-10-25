@@ -44,7 +44,7 @@
 // …AND THE VEIL DOES CARRY ONE REAL PAINT TAX — MEASURED, AND KEPT (#454, 2026-08-22). The clause above
 // used to read "no oversized filter", and that was wrong about this component even though it was right
 // about the frame it adjudicates: `weaveVeilVariants.root` transitions `filter` between
-// `blur(--blur-strength)` (14px, resolved live) and `none` over `--motion-layout` (360ms), on a
+// `blur(--blur-veil)` (14px) and `none` over `--motion-layout` (360ms), on a
 // `fixed inset-0` layer, twice per boot — the enter beat and the dissolve — with the rAF-driven
 // `<WebWeave>` repainting underneath it the whole time. A blur is PAINT: it cannot be a compositor-only
 // animation and stay a blur, so the review's "make the veil entry compositor-only" has no arm that

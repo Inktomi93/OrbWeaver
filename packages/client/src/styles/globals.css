@@ -20,8 +20,8 @@
  * the element's own font and rounds to whole pixels, so the track takes the prose font for its own box; the composer's
  * voices and controls set their own sizes. Centred on the same pixel grid as the transcript's track. */
 @utility orb-composer-track {
-  font-size: calc(var(--text-body) * var(--reading-body-scale, 1));
-  --composer-track: min(var(--width-shell-content), calc(var(--reading-measure) * var(--reading-body-scale, 1)));
+  font-size: calc(var(--text-body) * var(--appearance-reading-body-scale));
+  --composer-track: min(var(--width-shell-content), calc(var(--reading-measure) * var(--appearance-reading-body-scale)));
   max-inline-size: var(--composer-track);
   margin-inline: round(down, calc((100% - min(100%, var(--composer-track))) / 2), 1px) auto;
 }

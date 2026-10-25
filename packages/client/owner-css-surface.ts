@@ -1231,14 +1231,16 @@ export const OWNER_CSS_APPEARANCE_ATTRIBUTES = [
       "composer",
       "messages",
       "modals"
-    ]
+    ],
+    "members": true
   },
   {
     "name": "data-appearance-enable-theme-colorization",
     "values": [
       "false",
       "true"
-    ]
+    ],
+    "members": false
   },
   {
     "name": "data-appearance-increased-contrast",
@@ -1246,14 +1248,16 @@ export const OWNER_CSS_APPEARANCE_ATTRIBUTES = [
       "system",
       "on",
       "off"
-    ]
+    ],
+    "members": false
   },
   {
     "name": "data-appearance-justify-body-text",
     "values": [
       "false",
       "true"
-    ]
+    ],
+    "members": false
   },
   {
     "name": "data-appearance-reduced-motion",
@@ -1261,7 +1265,8 @@ export const OWNER_CSS_APPEARANCE_ATTRIBUTES = [
       "system",
       "on",
       "off"
-    ]
+    ],
+    "members": false
   },
   {
     "name": "data-appearance-reduced-transparency",
@@ -1269,21 +1274,24 @@ export const OWNER_CSS_APPEARANCE_ATTRIBUTES = [
       "system",
       "on",
       "off"
-    ]
+    ],
+    "members": false
   },
   {
     "name": "data-appearance-shadow-effects",
     "values": [
       "false",
       "true"
-    ]
+    ],
+    "members": false
   },
   {
     "name": "data-appearance-surface-texture",
     "values": [
       "none",
       "grain"
-    ]
+    ],
+    "members": false
   }
 ] as const;
 
@@ -1294,5 +1302,5 @@ export const OWNER_CSS_SURFACE: readonly OwnerCssHook[] = [
   ...hooks("slot", OWNER_CSS_SLOTS),
   ...hooks("shell-class", OWNER_CSS_SHELL_CLASSES),
   ...hooks("token", OWNER_CSS_TOKEN_VARS),
-  ...OWNER_CSS_APPEARANCE_ATTRIBUTES.map(({ name, values }): OwnerCssHook => ({ kind: "appearance-attribute", name, values })),
+  ...OWNER_CSS_APPEARANCE_ATTRIBUTES.map(({ name, values, members }): OwnerCssHook => ({ kind: "appearance-attribute", name, values, members })),
 ];

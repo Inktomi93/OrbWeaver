@@ -14,6 +14,7 @@
     "knip.ts",
     ".dependency-cruiser.ts",
     "stylelint-rules.ts",
+    "stylelint-custom-properties.ts",
     "packages/*/*",
     "scripts/**/*.ts",
     "scripts/**/*.mts",

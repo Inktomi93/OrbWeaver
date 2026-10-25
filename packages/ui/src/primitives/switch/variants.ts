@@ -51,7 +51,7 @@ import { DISABLED_STATE, FOCUS_RING, FOCUS_RING_DESTRUCTIVE, TOUCH_TARGET_PSEUDO
 // DECLARED RESIDUAL. `--spacing-switch-thumb` was a fourth belted token, so the knob, the track height and
 // the border were three INDEPENDENTLY rounded integers and `items-center` halved whatever
 // `(track-height − 2×border − thumb)` happened to be. Even at scale 1 by authorship; ODD wherever the belt
-// rounds them apart. At `--font-scale` 1.25 — the `reading` appearance preset, i.e. a shipping user state —
+// rounds them apart. At `--appearance-font-scale` 1.25 — the `reading` appearance preset, i.e. a shipping user state —
 // the fine arm resolved track-height 40, thumb round(up, 1.125rem × 1.25 = 22.5) = 23, border 1, so the
 // content box was 38 and the knob RESTED at 1 + (38−23)/2 = 8.5px: half a device pixel at DPR 1, which is
 // what design-audit's `off-grid-transform` filed as #1684 against `span[data-slot=switch-thumb]` on

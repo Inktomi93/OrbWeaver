@@ -48,17 +48,16 @@ const DEVICE_LOCAL_REGISTRY = {
   },
   "appearance-boot": {
     why:
-      "the BOOT HINT for the four synced appearance axes a first paint needs — `appearance.reducedMotion` " +
-      "(#188 N-1), `appearance.fontScale`, `appearance.density` and the selected theme's `[data-theme]` value " +
-      "(#231). A CACHE over the confirmed server rows, the `character-card`/`preset-config` precedent, never " +
-      "their home: the prefs stay in the user_settings blob and the server value always wins. It exists only " +
-      "because none of them can be stamped until `getUserSettings` (and, for the theme, the CHAINED " +
-      "`getTheme`) resolves, while the boot veil animates (two over-budget frames) and the shell takes its " +
-      "first layout ~1.2s earlier — measured: the veil drops frames the motion pref would have silenced, " +
-      "`--appearance-font-scale` re-flows every rem-derived shell dimension for a boot CLS of 0.20-0.34 at scale 1.25, " +
-      "and a Light user cold-loads the dark palette then swaps. Read synchronously before React mounts, " +
-      "written back only from the authoritative read, and an axis this device has never been told stamps " +
-      "NOTHING (a fresh device boots exactly as it does today)",
+      "the BOOT HINT for the synced appearance axes a first paint needs (`APPEARANCE_BOOT_AXES`: the three OS " +
+      "preferences, `fontScale` and `density`) and the selected theme's `[data-theme]` value. A cache over the " +
+      "confirmed server rows, the `character-card`/`preset-config` precedent, never their home: the prefs stay in " +
+      "the user_settings blob and the server value always wins. It exists because none of them can be written " +
+      "until `getUserSettings` (and, for the theme, the chained `getTheme`) resolves, while the boot veil animates " +
+      "and the shell takes its first layout earlier: the veil would ignore the motion preference, " +
+      "`--appearance-font-scale` would re-flow every rem-derived shell dimension, and a Light user would load " +
+      "the dark palette then swap. Read synchronously before React mounts and written back only from the " +
+      "authoritative read; a device never told anything replays the schema defaults, which equal the generated " +
+      "initial values, so its first paint matches a default account",
   },
   "deployment-boot": {
     why:

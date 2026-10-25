@@ -6,7 +6,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import type { AppShellListDockStory, AppShellStory } from "./_app-shell-stories.tsx";
-import { persistedOverrides, resolvedLength, routeShell, SECTION_PROCEDURES, SHELL_STORIES, seedShellState, shellTracks } from "./app-shell-ct.ts";
+import { persistedOverrides, resolvedLength, routeShell, SECTION_PROCEDURES, SHELL_STORIES, seedShellState, shellTracks } from "./app-shell-ct.tsx";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;
 const LIST = '.shell-panel[data-panel-side="list"]';

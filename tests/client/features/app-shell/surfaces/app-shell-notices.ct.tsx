@@ -4,7 +4,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import type { AppShellModalStory, AppShellNoticeStory, AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
-import { dropOn, namedGroupRoom, routeRoom, SHELL_STORIES, seedShellState, settledBox } from "./app-shell-ct.ts";
+import { dropOn, namedGroupRoom, routeRoom, SHELL_STORIES, seedShellState, settledBox } from "./app-shell-ct.tsx";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;
 // The Add document dialog's own reads, past Home's captures.

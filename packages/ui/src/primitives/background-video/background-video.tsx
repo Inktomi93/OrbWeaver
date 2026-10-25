@@ -18,8 +18,8 @@ const getDocumentHiddenServer = (): boolean => false;
 export interface BackgroundVideoProps {
   /** The video source URL (an owned same-origin blob for the background use). */
   readonly src: string;
-  /** Force the STILL frame regardless of the OS motion preference — a consumer's app-level "reduce
-   *  motion" toggle. OS `prefers-reduced-motion: reduce` ALWAYS stills, independent of this flag. */
+  /** Force the STILL frame whatever the motion state. Resolved reduced motion (`usePrefersReducedMotion`: the app's
+   *  `system | on | off` setting over the OS query) stills it without this flag. */
   readonly paused?: boolean;
   /** How the frame fills its box. @defaultValue "cover" */
   readonly fit?: VariantProps<typeof backgroundVideoVariants>["fit"];
@@ -35,7 +35,7 @@ export interface BackgroundVideoProps {
  * when the tab is hidden (`document.hidden`, Page Visibility API) to stop wasted decode + avoid holding the
  * screen awake in a background tab.
  *
- * MOTION POLICY: OS `prefers-reduced-motion: reduce` OR the `paused` prop → the STILL frame. The video is
+ * MOTION POLICY: resolved reduced motion (the app's setting over the OS query) OR the `paused` prop → the STILL frame. The video is
  * loaded (`preload="auto"`) but never played, so it holds its first decoded frame — FIRST-FRAME is the
  * still (no separate poster asset is threaded). `data-motion` (`"playing"`|`"still"`) reflects the
  * resolved motion state for styling consumers and tests.

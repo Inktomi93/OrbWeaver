@@ -67,7 +67,20 @@ test("a custom property the sheets read is declared somewhere, or named as runti
   expect(await rulesHit(declaration("color: var(--color-nope);"))).toEqual(["csstools/value-no-unknown-custom-properties"]);
   expect(await rulesHit(declaration("color: var(--color-primary);"))).toEqual([]);
   expect(await rulesHit(declaration("max-inline-size: var(--width-shell-content);"))).toEqual([]);
+});
+
+test("a fallback does not excuse a custom property nothing declares", async () => {
+  const rule = "orb/no-undeclared-var-fallback";
+  expect(await rulesHit(declaration("font-size: calc(var(--text-body) * var(--reading-body-scale, 1));"))).toEqual([rule]);
+  expect(await rulesHit(declaration("color: var(--probe-gone, var(--color-primary));"))).toEqual([rule]);
+  // Declared in a sheet, registered by the generated channel, written at runtime, or written by a vendor.
+  expect(await rulesHit(declaration("color: var(--color-primary, red);"))).toEqual([]);
+  expect(await rulesHit(declaration("opacity: var(--appearance-font-scale, 1);"))).toEqual([]);
   expect(await rulesHit(declaration("inset-inline-start: var(--x, 50%);"))).toEqual([]);
+  expect(await rulesHit(declaration("color: var(--shiki-dark, currentcolor);"))).toEqual([]);
+  expect(await rulesHit(declaration("inline-size: var(--anchor-width, 0);"))).toEqual([]);
+  // The probe's own declaration counts.
+  expect(await rulesHit(layered(".probe {\n --probe-local: 1;\n opacity: var(--probe-local, 0.5);\n }"))).toEqual([]);
 });
 
 test("an appearance name a sheet spells is one the manifest's channel writes", async () => {
@@ -80,7 +93,28 @@ test("an appearance name a sheet spells is one the manifest's channel writes", a
   // A client sheet keys a preference on its resolved variant; the OS-only one ignores the app's off.
   expect(await rulesHit(layered("@variant motion-reduce { .probe { opacity: 1; } }"))).toEqual([rule]);
   expect(await rulesHit(layered("@variant appearance-reduced-motion { .probe { opacity: 1; } }"))).toEqual([]);
-  expect(await rulesHit(layered("@variant motion-reduce { .probe { opacity: 1; } }"), FLOOR_FILE)).toEqual([]);
+  // A ui sheet has no resolved variant, so its OS arm must carry the root guard, or the app's off cannot beat the OS.
+  expect(await rulesHit(layered("@variant motion-reduce { .probe { opacity: 1; } }"), FLOOR_FILE)).toEqual([rule]);
+  expect(await rulesHit(layered("@variant contrast-more { .probe, .other { opacity: 1; } }"), FLOOR_FILE)).toEqual([rule]);
+  expect(
+    await rulesHit(layered('@variant contrast-more { :root:not([data-appearance-increased-contrast="off"]) .probe, .other { opacity: 1; } }'), FLOOR_FILE),
+  ).toEqual([rule]);
+  expect(await rulesHit(layered('@variant motion-reduce { :root:not([data-appearance-reduced-motion="off"]) .probe { opacity: 1; } }'), FLOOR_FILE)).toEqual(
+    [],
+  );
+  // A variant nested in a rule guards through that rule's selectors, for its own declarations and for an `&` rule.
+  expect(await rulesHit(layered(".probe { @variant motion-reduce { opacity: 1; } }"), FLOOR_FILE)).toEqual([rule]);
+  expect(await rulesHit(layered(".probe { @variant motion-reduce { &::after { opacity: 1; } } }"), FLOOR_FILE)).toEqual([rule]);
+  expect(await rulesHit(layered(':root:not([data-appearance-reduced-motion="off"]) .probe { @variant motion-reduce { opacity: 1; } }'), FLOOR_FILE)).toEqual(
+    [],
+  );
+  expect(
+    await rulesHit(layered(':root:not([data-appearance-reduced-motion="off"]) .probe { @variant motion-reduce { &::after { opacity: 1; } } }'), FLOOR_FILE),
+  ).toEqual([]);
+  // A variant prefix in `@apply` is read too; a sheet cannot guard it.
+  expect(await rulesHit(layered(".probe { @apply motion-reduce:opacity-50; }"))).toEqual([rule]);
+  expect(await rulesHit(layered(".probe { @apply hover:not-contrast-more:opacity-50; }"))).toEqual([rule]);
+  expect(await rulesHit(layered(".probe { @apply appearance-reduced-motion:opacity-50; }"))).toEqual([]);
 });
 
 test("physical properties, qualifying types, ids, deep selectors and important declarations are refused", async () => {
@@ -212,6 +246,10 @@ test("a shell region paints from tokens and names no component", async () => {
     [".shell-grid { color: rgb(from var(--glass-tint) r g b); }", "orb/shell-paint-law"],
     [".shell-grid { color: rgb(from var(--color-card) 255 0 0); }", "orb/shell-paint-law"],
     [".shell-grid { color: rgb(from var(--color-card) r g 0); }", "orb/shell-paint-law"],
+    [".shell-grid { color: rgb(from var(--color-card) calc(255) calc(0) calc(0)); }", "orb/shell-paint-law"],
+    [".shell-grid { color: rgb(from var(--color-card) none none none); }", "orb/shell-paint-law"],
+    [".shell-grid { color: rgb(from var(--color-card) red g b); }", "orb/shell-paint-law"],
+    [".shell-grid { color: hsl(from var(--color-card) r g b); }", "orb/shell-paint-law"],
     [".shell-grid [data-slot='message-bubble'] { opacity: 1; }", "orb/shell-paint-law"],
     [".shell-grid [data-slot='empty-state-root'] { opacity: 1; }", "orb/shell-paint-law"],
     [".shell-grid .orb-gradient-ring { opacity: 1; }", "orb/shell-paint-law"],

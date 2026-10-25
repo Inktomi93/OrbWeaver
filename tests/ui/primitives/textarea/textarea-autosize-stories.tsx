@@ -1,5 +1,6 @@
 import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement } from "react";
+import { useState } from "react";
 
 const OPENING = "one\ntwo\nthree";
 
@@ -19,4 +20,16 @@ export function FixedInlineHeightStory(): ReactElement {
 
 export function FixedClassHeightStory(): ReactElement {
   return <Textarea aria-label="Fixed class" className="block-(--size-control-lg)" defaultValue={SIX_LINES} />;
+}
+
+export function ClassFixedLaterStory(): ReactElement {
+  const [fixed, setFixed] = useState(false);
+  return (
+    <div>
+      <button onClick={(): void => setFixed(!fixed)} type="button">
+        Toggle fixed height
+      </button>
+      <Textarea aria-label="Fixed later" className={fixed ? "block-(--size-control-lg)" : ""} defaultValue={SIX_LINES} />
+    </div>
+  );
 }
