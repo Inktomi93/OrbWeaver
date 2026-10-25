@@ -73,9 +73,9 @@ export function CorpusUnderstandingInvitation(): ReactElement {
   return (
     <Card aria-labelledby={titleId} glow="accent" data-corpus-focal="invitation" role="group">
       {/* THE ISLAND IS ITS OWN QUERY CONTEXT. `@lg` below has to mean "this island is 32rem wide", and an
-          element cannot query itself — without a `Container` here the nearest `@container` is the SURFACE,
-          so the moment the surface split into two tracks (#244 P1-2) the island shrank to 508px while its
-          own query still read the 868px pane and kept the two columns. Measured: the prose column fell to
+          element cannot query itself — without a `Container` here the nearest `@container` is the CONTENT
+          region's (`corpus-content.tsx`), so when the surface split into two tracks the island shrank to 508px
+          while its own query still read the 868px pane and kept the two columns. Measured: the prose column fell to
           ~230px, four words a line, beside a `shrink-0` action column — exactly the failure the comment
           below describes, arriving from the other direction. */}
       <Container className="inline-full">

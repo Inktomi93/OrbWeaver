@@ -327,6 +327,9 @@ function fromReactTypes(declarations: readonly ts.Declaration[] | undefined): bo
 // A spread is checked too: `{...{ title }}`, `{...(x ? {} : { title })}` and `{...props}` all set the attribute. A
 // spread whose own `title` is React's declaration (a rest of DOM props forwarded on) sets nothing new and passes;
 // the site that authored the value is checked where it was written.
+//
+// That site can be an object typed as React's DOM props (`const p: HTMLAttributes<HTMLSpanElement> = { title }`):
+// the property is flagged where it is authored. An object inside a JSX spread is left to the spread check.
 export const nativeTitleRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
@@ -339,10 +342,42 @@ export const nativeTitleRule: OrbRule = {
       const attributes = (native.esTreeNodeToTSNodeMap.get(opening) as ts.JsxOpeningLikeElement).attributes;
       return fromReactTypes(native.checker.getContextualType(attributes)?.getProperty("title")?.declarations);
     };
+    // An object literal whose contextual type is React's DOM props authors the attribute where the property is written.
+    // `createElement("span", { title })` types its props through a generic, so a string tag in an element factory counts as DOM props.
+    const intrinsicFactoryProps = (object: TSESTree.Node): boolean => {
+      const call = object.parent;
+      return (
+        call?.type === "CallExpression" &&
+        call.arguments[1] === object &&
+        call.arguments[0]?.type === "Literal" &&
+        typeof call.arguments[0].value === "string" &&
+        /^(?:createElement|cloneElement|jsxs?|jsxDEV)$/u.test(context.sourceCode.getText(call.callee).split(".").pop() ?? "")
+      );
+    };
+    const objectIsDomProps = (object: TSESTree.Node): boolean =>
+      intrinsicFactoryProps(object) ||
+      fromReactTypes(
+        native.checker.getContextualType(native.esTreeNodeToTSNodeMap.get(object) as ts.ObjectLiteralExpression)?.getProperty("title")?.declarations,
+      );
     return {
       "JSXAttribute[name.name='title']": (node: TSESTree.JSXAttribute): void => {
         if (targetIsNative(node.parent as TSESTree.JSXOpeningElement)) {
           context.report({ node: node.name, message: NATIVE_TITLE_MESSAGE });
+        }
+      },
+      "ObjectExpression > :matches(Property[computed=false][key.name='title'], Property[key.type='Literal'][key.value='title'], Property[computed=true][key.value='title'])":
+        (node: TSESTree.Property): void => {
+          if (objectIsDomProps(node.parent)) {
+            context.report({ node: node.key, message: NATIVE_TITLE_MESSAGE });
+          }
+        },
+      "AssignmentExpression > MemberExpression.left": (left: TSESTree.MemberExpression): void => {
+        const named = left.computed
+          ? left.property.type === "Literal" && left.property.value === "title"
+          : left.property.type === "Identifier" && left.property.name === "title";
+        const type = native.checker.getTypeAtLocation(native.esTreeNodeToTSNodeMap.get(left.object));
+        if (named && fromReactTypes(type.getProperty("title")?.declarations)) {
+          context.report({ node: left.property, message: NATIVE_TITLE_MESSAGE });
         }
       },
       JSXSpreadAttribute: (node: TSESTree.JSXSpreadAttribute): void => {
@@ -351,7 +386,13 @@ export const nativeTitleRule: OrbRule = {
         // A conditional spread is a union; any member that carries an authored `title` sets one.
         const authored = (type.isUnion() ? type.types : [type]).some((member) => {
           const title = member.getProperty("title");
-          return title !== undefined && !fromReactTypes(title.declarations);
+          // A property already flagged at its object literal is not reported again at the spread.
+          const flaggedAtLiteral = (title?.declarations ?? []).some(
+            (declaration) =>
+              (ts.isPropertyAssignment(declaration) || ts.isShorthandPropertyAssignment(declaration)) &&
+              fromReactTypes(native.checker.getContextualType(declaration.parent)?.getProperty("title")?.declarations),
+          );
+          return title !== undefined && !fromReactTypes(title.declarations) && !flaggedAtLiteral;
         });
         if (authored && targetIsNative(node.parent as TSESTree.JSXOpeningElement)) {
           context.report({ node, message: NATIVE_TITLE_MESSAGE });

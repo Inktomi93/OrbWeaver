@@ -12,6 +12,7 @@ export const immersiveCardVariants = tv({
     header: "flex items-center gap-row border-be border-border py-row ps-block pe-row",
     title: "flex-1 truncate text-label leading-label font-medium text-muted-foreground min-inline-0",
     origin: "text-label leading-label text-muted-foreground",
+    originNote: "sr-only",
     pre: `
       relative m-0 overflow-auto overscroll-contain bg-muted p-block font-mono text-code leading-label-relaxed whitespace-pre-wrap text-foreground inline-full
     `,

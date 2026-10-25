@@ -125,7 +125,7 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
       body: gameTab("Journal", (state) => <RpgJournalTab state={state} />),
     },
     {
-      // The ONE PHASE-locked tab ("Map"): when shown it wears a lock glyph with its reason on `title` and OPENS
+      // The ONE PHASE-locked tab ("Map"): when shown it carries its reason as `disabledReason` and OPENS
       // onto the planned-feature body, so the bracket's cell does NOT mark it `aria-disabled` — announcing
       // "unavailable" over a tab that Enter and a click both open is two stories.
       id: "rpg.map",

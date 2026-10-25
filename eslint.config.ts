@@ -322,6 +322,12 @@ const INVISIBLE_CONTROL_SYNTAX = {
   selector: `:matches(Literal[raw=/${INVISIBLE_CONTROL_CLASS}/], TemplateElement[value.raw=/${INVISIBLE_CONTROL_CLASS}/], JSXText[raw=/${INVISIBLE_CONTROL_CLASS}/])`,
   message: INVISIBLE_CONTROL_MESSAGE,
 };
+// An empty or whitespace-only name, or `undefined`, names nothing. Client and @orb/ui blocks spread this entry.
+const EMPTY_ARIA_NAME_SYNTAX = {
+  selector:
+    "JSXAttribute[name.name=/^aria-label(?:ledby)?$/]:matches([value.type='Literal'][value.value=/^\\s*$/], [value.expression.type='Identifier'][value.expression.name='undefined'], [value.expression.type='Literal'][value.expression.value=/^\\s*$/], [value.expression.type='UnaryExpression'][value.expression.operator='void'], [value.expression.type='TemplateLiteral'][value.expression.expressions.length=0][value.expression.quasis.0.value.cooked=/^\\s*$/])",
+  message: "An empty aria-label or aria-labelledby names nothing: give it text, or omit the attribute.",
+};
 // no-warning-comments matches each term as a plain substring when it holds no word character.
 const INVISIBLE_CONTROL_TERMS = INVISIBLE_CONTROL_RANGES.flatMap(([firstHex, lastHex]) => {
   const first = Number.parseInt(firstHex, HEX);
@@ -335,6 +341,11 @@ const CLIENT_QUERY_KEY_SYNTAX = {
   message:
     "A hand-built queryKey array: tRPC reads take their key from the proxy (`trpc.<path>.queryKey(input)`), so the reader and every invalidation share one key (client-architecture-state-and-gates.md §10).",
 };
+const CLIENT_FORM_NAME_SYNTAX = {
+  // The accessibility registries mount only registered surfaces, so auth and dialog forms rely on this guard.
+  selector: "JSXOpeningElement[name.type='JSXIdentifier'][name.name='form']:not(:has(> JSXAttribute[name.name=/^aria-label(?:ledby)?$/]))",
+  message: "A <form> needs an accessible name: add aria-label, or aria-labelledby pointing at its visible heading.",
+};
 // The `orb-*-track` utilities are client-globals classes. Each is spelled in the one file below that owns it, and every
 // carrier renders through the chat feature's `Track` component, so a copy cannot drift from the CSS that names it.
 const ORB_TRACK_CLASS_HOMES = ["packages/client/src/features/chat/lib/chat-track.tsx", "packages/client/src/features/chat/lib/message-row-variants.ts"];
@@ -343,6 +354,7 @@ const ORB_TRACK_CLASS_SYNTAX = {
   selector: `:matches(Literal[value=${ORB_TRACK_CLASS_PATTERN}], TemplateElement[value.raw=${ORB_TRACK_CLASS_PATTERN}])`,
   message: "An orb-*-track class string belongs to its home file; render the carrier through the chat feature's `Track` component.",
 };
+const CLIENT_SYNTAX = [INVISIBLE_CONTROL_SYNTAX, CLIENT_QUERY_KEY_SYNTAX, CLIENT_FORM_NAME_SYNTAX, EMPTY_ARIA_NAME_SYNTAX];
 
 function rootSources(...refs: string[]): string[] {
   return refs.map((ref) => {
@@ -1247,12 +1259,13 @@ export default [
   {
     files: [CLIENT_SRC],
     ignores: ORB_TRACK_CLASS_HOMES,
-    rules: { "no-restricted-syntax": ["error", INVISIBLE_CONTROL_SYNTAX, CLIENT_QUERY_KEY_SYNTAX, ORB_TRACK_CLASS_SYNTAX] },
+    rules: { "no-restricted-syntax": ["error", ...CLIENT_SYNTAX, ORB_TRACK_CLASS_SYNTAX] },
   },
   {
     files: ORB_TRACK_CLASS_HOMES,
-    rules: { "no-restricted-syntax": ["error", INVISIBLE_CONTROL_SYNTAX, CLIENT_QUERY_KEY_SYNTAX] },
+    rules: { "no-restricted-syntax": ["error", ...CLIENT_SYNTAX] },
   },
+  { files: ["packages/ui/src/**/*.{ts,tsx}"], rules: { "no-restricted-syntax": ["error", INVISIBLE_CONTROL_SYNTAX, EMPTY_ARIA_NAME_SYNTAX] } },
   {
     files: ["packages/server/src/domain/settings/seed-themes.ts", "packages/server/src/domain/preset/seed.ts"],
     rules: {
@@ -1321,7 +1334,12 @@ export default [
   {
     files: [CLIENT_SRC],
     plugins: { orb: localPlugin },
-    rules: { "orb/zustand-selector-derived": "error", "orb/testid-typed-only": "error", "orb/no-native-title": "error" },
+    rules: { "orb/zustand-selector-derived": "error", "orb/testid-typed-only": "error" },
+  },
+  {
+    files: [CLIENT_SRC, "packages/ui/src/**/*.{ts,tsx}"],
+    plugins: { orb: localPlugin },
+    rules: { "orb/no-native-title": "error" },
   },
   {
     files: [CLIENT_SRC],

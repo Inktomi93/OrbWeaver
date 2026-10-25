@@ -4,6 +4,7 @@ import type { ComponentPropsWithRef, ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { cn, variantProps } from "#lib";
 import { useFieldIdentity } from "#primitives/field";
+import { useFieldSizingFallback } from "./use-field-sizing-fallback.ts";
 import { textareaVariants } from "./variants.ts";
 
 // `onValueChange` is PICKED from Field.Control's own props, never re-spelled: hand-writing
@@ -20,7 +21,8 @@ export interface TextareaProps extends ComponentPropsWithRef<"textarea">, Pick<B
   maxRows?: number;
 }
 
-// Autosizes to its content via native CSS field-sizing: content. Rendered through Base UI
+// Autosizes to its content via native CSS field-sizing: content, or in script where the browser lacks it
+// (use-field-sizing-fallback.ts). Rendered through Base UI
 // Field.Control so inside a <Field> it registers with the field context (label/aria/validity);
 // works standalone too — outside a Field.Root, Field.Control degrades to a plain control.
 // `onValueChange` is Field.Control's native change arm (value + eventDetails); the DOM `onChange`
@@ -33,8 +35,23 @@ function lineBoxHeight(lines: number): string {
   return `calc(${lines} * 1lh + 2 * var(--spacing-field) + 2px)`;
 }
 
-export function Textarea({ className, rows, maxRows, size, chrome, face, style, onValueChange, onChange, id, name, ...rest }: TextareaProps): ReactElement {
+export function Textarea({
+  className,
+  rows,
+  maxRows,
+  size,
+  chrome,
+  face,
+  style,
+  onValueChange,
+  onChange,
+  id,
+  name,
+  ref,
+  ...rest
+}: TextareaProps): ReactElement {
   const identity = useFieldIdentity(id, name);
+  const sizingRef = useFieldSizingFallback(ref);
   // `field-sizing: content` makes the browser IGNORE `rows` for sizing (it collapses to the content
   // height), so a `rows={3}` field renders as a single line. Re-floor the height off `rows` as a
   // min-height so `rows` again means "at least n lines" while the field keeps auto-growing past it.
@@ -59,6 +76,7 @@ export function Textarea({ className, rows, maxRows, size, chrome, face, style, 
           {...(onChange === undefined ? {} : { onChange })}
           {...identity}
           {...rest}
+          ref={sizingRef}
           // The scroll is explicit rather than left to the UA default: `overflow: auto` is a textarea's
           // native behavior, but the skin is composed from utilities and a future `overflow-hidden` in the
           // shared FIELD_CONTROL would silently turn the cap into a CLIP — text gone with no scrollbar.

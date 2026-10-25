@@ -7,7 +7,7 @@
 // The owner moved the tab strip from the foot to the header: there is no foot rail and no kicker.
 //
 // The bracket paints a 2px ember edge on the root (the content-to-context binding, from the theme's own
-// primary token; colour is a theme token, shell.css is geometry), and the header row is that much shorter than
+// primary token; the shell region paints it from a theme token), and the header row is that much shorter than
 // the chrome row so its bottom divider lands on the same line as the topbar and list band.
 //
 // WHAT IT DOES NOT DO: no panel mechanics (width/mode/close/scrim stay `PanelChrome`'s, D62), no second

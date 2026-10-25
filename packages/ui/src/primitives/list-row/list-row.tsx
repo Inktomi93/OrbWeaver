@@ -19,12 +19,12 @@ export interface ListRowProps {
   leading?: ReactNode;
   /**
    * The row's primary label. Typed as a plain string (not `ReactNode`) because it backs the
-   * native `title=` attribute and — when `clickable` — the row's accessible name.
+   * row's accessible name when `clickable`.
    */
   title: string;
   /**
-   * The UNABBREVIATED title, for the native `title=` tooltip only — pass it when `title` is a deliberate
-   * short form (a nav row whose full section name does not fit its column). Defaults to `title`. It never
+   * The UNABBREVIATED title, shown in a tooltip on the title and announced as the row's description — pass it when `title`
+   * is a deliberate short form (a nav row whose full section name does not fit its column). It never
    * touches the accessible name, which stays the VISIBLE `title` (WCAG 2.5.3 label-in-name: a spoken name
    * that doesn't contain the read label breaks voice control).
    */
@@ -305,7 +305,8 @@ export function ListRow({
   const subtitleId = subtitle === undefined || subtitleDecorative ? undefined : `${baseId}-subtitle`;
   const metaId = meta === undefined ? undefined : `${baseId}-meta`;
   const markersId = markers === undefined ? undefined : `${baseId}-markers`;
-  const describedBy = [subtitleId, metaId, markersId].filter((id) => id !== undefined).join(" ") || undefined;
+  const fullTitleId = fullTitle === undefined ? undefined : `${baseId}-full-title`;
+  const describedBy = [subtitleId, metaId, markersId, fullTitleId].filter((id) => id !== undefined).join(" ") || undefined;
   return (
     // `data-selected` rides the ROOT as well as the body: the `rowTint="row"` arm paints the selected skin
     // here, and an attribute the default arm simply doesn't style costs nothing.
@@ -324,7 +325,7 @@ export function ListRow({
         <ListRowContent
           clickable={clickable}
           fullTitle={fullTitle}
-          ids={{ subtitleId, metaId, markersId }}
+          ids={{ subtitleId, metaId, markersId, fullTitleId }}
           leading={leading}
           markers={markers}
           meta={meta}

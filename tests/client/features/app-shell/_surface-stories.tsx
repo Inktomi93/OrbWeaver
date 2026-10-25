@@ -1,6 +1,7 @@
 import { AppShell } from "@orb/client/features/app-shell";
 import type { ConfigGroupId, ModalSlotId, SectionId } from "@orb/client/state";
-import { openConfigTo, openModal, setActiveSection, useSectionRegistry } from "@orb/client/state";
+import { openConfigTo, openModal, selectPreset, setActiveSection, useSectionRegistry } from "@orb/client/state";
+import type { PresetId } from "@orb/kit/ids";
 import { CtClientProviders } from "@orb/testkit/browser";
 import { Container } from "@orb/ui/layout";
 import type { ReactElement } from "react";
@@ -10,6 +11,20 @@ import { useState } from "react";
 export function SectionShellStory({ section }: { readonly section: SectionId }): ReactElement {
   useState(() => {
     setActiveSection(section);
+    return true;
+  });
+  return (
+    <CtClientProviders>
+      <AppShell />
+    </CtClientProviders>
+  );
+}
+
+/** The production shell on the presets section with one preset open, so the editor and readout mount its loaded detail. */
+export function PresetDetailShellStory({ presetId }: { readonly presetId: PresetId }): ReactElement {
+  useState(() => {
+    setActiveSection("presets");
+    selectPreset(presetId);
     return true;
   });
   return (

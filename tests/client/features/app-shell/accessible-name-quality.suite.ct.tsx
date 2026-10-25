@@ -1,10 +1,12 @@
 // Namecraft (UI-Primitives-and-Reuse §13.10): every registered section, modal and settings group is mounted through the
 // production door and judged by the name-quality probes. The rosters are the production tuples, never a list here.
+
 import { CONFIG_GROUP_IDS, MODAL_SLOT_IDS, SECTION_IDS } from "@orb/client/state";
+import { presetIdInputSchema } from "@orb/contracts/preset";
 import { formatFindings, nameQualityFindings, productNameFindings, settleSurface } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { routeSurfaceReads } from "./_surface-harness.ts";
-import type { ConfigGroupStory, ModalShellStory, SectionShellStory } from "./_surface-stories.tsx";
+import type { ConfigGroupStory, ModalShellStory, PresetDetailShellStory, SectionShellStory } from "./_surface-stories.tsx";
 
 const STORIES = "tests/client/features/app-shell/_surface-stories";
 
@@ -54,6 +56,17 @@ for (const section of SECTION_IDS) {
     expect(formatFindings(await productNameFindings(page))).toBe("");
   });
 }
+
+test("the loaded preset detail has no name-quality findings", async ({ corpus, mount, page }) => {
+  const captured = corpus.libraryRelations?.reads.presetDetail.input;
+  if (captured === undefined) {
+    throw new Error("The corpus has no captured preset detail");
+  }
+  const { id: presetId } = presetIdInputSchema.parse(captured);
+  await mount<typeof PresetDetailShellStory>(`${STORIES}/PresetDetailShellStory`, { presetId });
+  await settleSurface(page);
+  expect(formatFindings(await productNameFindings(page))).toBe("");
+});
 
 for (const modal of MODAL_SLOT_IDS) {
   test(`modal ${modal} has no name-quality findings`, async ({ mount, page }) => {

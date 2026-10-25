@@ -371,6 +371,26 @@
       0 1px 2px var(--color-backdrop);
   }
 
+  /* Over a wallpaper the shell gives `.shell-main` a legibility halo; a bubble and the composer carry their own fill. */
+  .shell-grid[data-has-bg-image] :is([data-slot="composer"], [data-slot="message-bubble"]) {
+    text-shadow: none;
+  }
+  /* The chats landing's empty state sits straight on the wallpaper, so it takes a plate. */
+  .shell-grid[data-has-bg-image][data-section="chats"] .shell-content [data-slot="empty-state-root"] {
+    inline-size: max-content;
+    max-inline-size: 100%;
+    margin-inline: auto;
+    padding: var(--spacing-section);
+    border-radius: var(--radius-card);
+    background-color: color-mix(in oklab, var(--color-background) 72%, transparent);
+    text-shadow: none;
+  }
+  @supports (backdrop-filter: blur(1px)) {
+    .shell-grid[data-has-bg-image][data-section="chats"] .shell-content [data-slot="empty-state-root"] {
+      backdrop-filter: blur(calc((var(--appearance-blur-strength) * 1px) / 2)) saturate(var(--blur-saturate));
+    }
+  }
+
   /* The reading measure caps the content column, never the transcript region, which the user's width dial owns.
    * It is homed here because the message row and the ghost row both stamp the slot and their measures must not
    * drift. The column's own font size is the prose size so the token's `ch` means what it says, and the

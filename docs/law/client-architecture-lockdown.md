@@ -105,7 +105,7 @@ when its declarations use tokens.
 | `packages/ui/src/styles/globals.css` | ui's universal CSS mechanism tier: imports, UA/vendor normalization, reduced-motion and reset floors, shared keyframes, masks/formulas, and primitive-wide treatments — never product/shell styling | yes, only when CSS itself is the mechanism |
 | `packages/ui/src/styles/tiers.css` | density-tier slot map: semantic slot names repoint to DTCG token steps | yes (token references only) |
 | `packages/client/src/styles/globals.css` | client-wide CSS mechanisms: document appearance/defers, capability-query treatments, reading rules, and bounded recipes shared above features — never a component skin or shell-frame rule | yes, only when token/`tv()` composition cannot express it honestly |
-| `packages/client/src/features/app-shell/surfaces/shell.css`, the index that imports its `shell/` region files in cascade order | the app frame: shell geometry, region paint, responsive regime, and coordinated compositor motion — never component skins | yes — the ONE feature-tier stylesheet |
+| `packages/client/src/features/app-shell/surfaces/shell.css`, the index that imports its `shell/` region files in cascade order | the app frame: shell geometry, region paint from semantic tokens, responsive regime, and coordinated compositor motion — never component skins; `orb/shell-paint-law` holds it | yes — the ONE feature-tier stylesheet |
 
 `packages/ui/src/**/variants.ts` is not a CSS home. It is the component-skin mechanism: `tv()` composes token utilities and may not mint values or stylesheets.
 
