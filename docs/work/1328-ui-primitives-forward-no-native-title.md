@@ -24,4 +24,4 @@ A native title is invisible on touch and is not the accessible name.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+`orb/no-native-title` now runs on `packages/ui/src` (`eslint.config.ts`) and flags a `title` property authored into an object the checker types as React's DOM props (`tooling/src/eslint/native.ts`). `tests/tooling/eslint-native-title.test.ts`: the two object-literal controls failed before the rule change (2 failed, 13 passed) and pass after (15 pass), with a ui-population control and a non-DOM-props object control. ListRow `fullTitle` is now a visually hidden description wired into `aria-describedby`; the ListRow title, subtitle and reveal, the SeriesRow label and detail, the ImmersiveCard icon buttons and the OptionStrip item `title` lost their native titles; the ImmersiveCard `auto` badge carries hidden text. `pnpm lint:eslint packages/ui/src packages/client/src` reports the same 402 errors as before, none from this rule. Rule cost under `TIMING=all`: `orb/no-native-title` 68 ms, 0.1% of the run. CT: `list-row/rail-carrier`, `classname-drain-props` and `accessible-name-quality.suite` pass (55).

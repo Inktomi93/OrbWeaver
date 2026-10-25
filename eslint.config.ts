@@ -1305,7 +1305,12 @@ export default [
   {
     files: [CLIENT_SRC],
     plugins: { orb: localPlugin },
-    rules: { "orb/zustand-selector-derived": "error", "orb/testid-typed-only": "error", "orb/no-native-title": "error" },
+    rules: { "orb/zustand-selector-derived": "error", "orb/testid-typed-only": "error" },
+  },
+  {
+    files: [CLIENT_SRC, "packages/ui/src/**/*.{ts,tsx}"],
+    plugins: { orb: localPlugin },
+    rules: { "orb/no-native-title": "error" },
   },
   {
     files: [CLIENT_SRC],

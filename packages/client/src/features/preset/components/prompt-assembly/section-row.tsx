@@ -210,7 +210,7 @@ export function SectionRow({ form, section, index, zone, selected, onSelect, onD
       selected={selected}
       // THE EXPLAINER RIDES THE HOVER, NOT THE LINE (crunch-list O-7★, owner ruling: the inline "your core
       // system instruction" descriptions are lame — this OVERRIDES the mock's inline-desc drawing). It
-      // lands on `fullTitle`, whose one job is the name's native `title=` tooltip and which explicitly
+      // lands on `fullTitle`, whose one job is the row's announced description and which explicitly
       // never touches the accessible name (so the row still announces as "Main"). The row keeps ONE datum
       // on its line — the name — and the scent is a hover away, the §4.1 hint rule applied to a list row.
       fullTitle={`${name} — ${subtitle}`}

@@ -327,6 +327,9 @@ function fromReactTypes(declarations: readonly ts.Declaration[] | undefined): bo
 // A spread is checked too: `{...{ title }}`, `{...(x ? {} : { title })}` and `{...props}` all set the attribute. A
 // spread whose own `title` is React's declaration (a rest of DOM props forwarded on) sets nothing new and passes;
 // the site that authored the value is checked where it was written.
+//
+// That site can be an object typed as React's DOM props (`const p: HTMLAttributes<HTMLSpanElement> = { title }`):
+// the property is flagged where it is authored. An object inside a JSX spread is left to the spread check.
 export const nativeTitleRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
@@ -343,6 +346,13 @@ export const nativeTitleRule: OrbRule = {
       "JSXAttribute[name.name='title']": (node: TSESTree.JSXAttribute): void => {
         if (targetIsNative(node.parent as TSESTree.JSXOpeningElement)) {
           context.report({ node: node.name, message: NATIVE_TITLE_MESSAGE });
+        }
+      },
+      "ObjectExpression > Property[key.name='title']": (node: TSESTree.Property): void => {
+        const insideSpread = context.sourceCode.getAncestors(node).some(({ type }) => type === "JSXSpreadAttribute");
+        const object = native.esTreeNodeToTSNodeMap.get(node.parent);
+        if (!insideSpread && fromReactTypes(native.checker.getContextualType(object as ts.ObjectLiteralExpression)?.getProperty("title")?.declarations)) {
+          context.report({ node: node.key, message: NATIVE_TITLE_MESSAGE });
         }
       },
       JSXSpreadAttribute: (node: TSESTree.JSXSpreadAttribute): void => {

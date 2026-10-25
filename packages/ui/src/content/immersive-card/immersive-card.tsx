@@ -127,7 +127,6 @@ export function ImmersiveCard({
       size="icon"
       aria-pressed={showRaw}
       aria-label={showRaw ? "Show rendered card" : "View raw source"}
-      title={showRaw ? "Show rendered card" : "View raw source"}
       onClick={(): void => setShowRaw((v: boolean): boolean => !v)}
     >
       <Icon icon={Code} size="sm" />
@@ -141,8 +140,9 @@ export function ImmersiveCard({
           ✦ {label}
         </span>
         {origin === "lenient" ? (
-          <span className={slots.origin()} title="Auto-rendered from raw HTML in the message" data-slot="immersive-card-origin">
+          <span className={slots.origin()} data-slot="immersive-card-origin">
             auto
+            <span className={slots.originNote()}> — rendered from raw HTML in the message</span>
           </span>
         ) : null}
         {/* View-raw acts on the inline BODY, so it is inapplicable while the card is collapsed to its title
@@ -153,14 +153,14 @@ export function ImmersiveCard({
             As a pair the two old names read as one expand/collapse toggle, so a reader navigating by name
             had no way to know one of them leaves the page's flow entirely. The name now states the
             DESTINATION, which is also what §13.10 N4 asks of a verb name. */}
-        <Button intent="ghost" size="icon" aria-label="Open card fullscreen" title="Open card fullscreen" onClick={(): void => setExpanded(true)}>
+        <Button intent="ghost" size="icon" aria-label="Open card fullscreen" onClick={(): void => setExpanded(true)}>
           <Icon icon={Expand} size="sm" />
         </Button>
         {/* The disclosure — Base UI owns `aria-expanded`/`aria-controls` + the keyboard; the chrome stays the
             header's uniform ghost icon button (`chevron={false}` — this IS the chevron). */}
         <CollapsibleTrigger
           chevron={false}
-          render={<Button intent="ghost" size="icon" aria-label={open ? "Collapse card" : "Show card"} title={open ? "Collapse card" : "Show card"} />}
+          render={<Button intent="ghost" size="icon" aria-label={open ? "Collapse card" : "Show card"} />}
           data-slot="immersive-card-collapse"
         >
           <Icon icon={open ? ChevronUp : ChevronDown} size="sm" />

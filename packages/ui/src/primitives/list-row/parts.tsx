@@ -12,12 +12,13 @@ function subtitleStepAttribute(step: "default" | "label"): "label" | undefined {
   return step === "label" ? "label" : undefined;
 }
 
-/** The DOM ids of the row's describing spans (subtitle · meta · markers), for the body's
+/** The DOM ids of the row's describing spans (subtitle · meta · markers · full title), for the body's
  *  `aria-describedby`. Undefined-when-absent so callers space-join only the present ones (empty ⇒ no attr). */
 export interface ListRowDescriptors {
   subtitleId: string | undefined;
   metaId: string | undefined;
   markersId: string | undefined;
+  fullTitleId: string | undefined;
 }
 
 /** THE TITLE LINE — the name, its `titleQualifier`, the `inline` subtitle arm, the rest-visible markers and
@@ -31,7 +32,6 @@ function ListRowTitleLine({
   slots,
   clickable,
   title,
-  fullTitle,
   titleStep,
   titleQualifier,
   inlineSubtitle,
@@ -42,7 +42,6 @@ function ListRowTitleLine({
   slots: Slots;
   clickable: boolean;
   title: string;
-  fullTitle: string | undefined;
   titleStep: "default" | "promoted";
   titleQualifier: string | undefined;
   inlineSubtitle: ReactNode;
@@ -57,7 +56,6 @@ function ListRowTitleLine({
         className={slots.title()}
         data-slot="list-row-title"
         data-title-step={titleStep === "promoted" ? "promoted" : undefined}
-        title={fullTitle ?? title}
       >
         {title}
       </span>
@@ -145,7 +143,6 @@ export function ListRowContent({
         data-slot="list-row-subtitle"
         data-subtitle-step={subtitleStepAttribute(subtitleStep)}
         id={ids.subtitleId}
-        title={subtitle}
       >
         {subtitleLead}
         {/* A literal space between the chip and the scent: the accessible-description computation
@@ -169,9 +166,13 @@ export function ListRowContent({
         </span>
       )}
       <span className={slots.content()} data-slot="list-row-content">
+        {fullTitle === undefined ? null : (
+          <span className={slots.fullTitle()} data-slot="list-row-full-title" id={ids.fullTitleId}>
+            {fullTitle}
+          </span>
+        )}
         <ListRowTitleLine
           clickable={clickable}
-          fullTitle={fullTitle}
           ids={ids}
           inlineSubtitle={inlineSubtitle}
           markers={markers}
@@ -187,7 +188,7 @@ export function ListRowContent({
           // ONE grid cell, TWO stacked spans — the reveal swaps in by visibility without moving the line.
           <span className={slots.subtitleStack()} data-slot="list-row-subtitle-stack">
             {blockSubtitle}
-            <span aria-hidden={true} className={slots.subtitleReveal()} data-slot="list-row-subtitle-reveal" title={subtitleReveal}>
+            <span aria-hidden={true} className={slots.subtitleReveal()} data-slot="list-row-subtitle-reveal">
               {subtitleReveal}
             </span>
           </span>

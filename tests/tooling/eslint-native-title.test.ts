@@ -1,5 +1,6 @@
-// orb/no-native-title refuses a JSX `title` the checker binds to React's DOM attribute in the client; a prop a
-// component declares for itself (a dialog heading) and an iframe's accessible name pass.
+// orb/no-native-title refuses a `title` the checker binds to React's DOM attribute in the client and @orb/ui, whether
+// written as a JSX attribute, a spread or a property of an object typed as DOM props; a prop a component declares
+// for itself (a dialog heading) and an iframe's accessible name pass.
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
@@ -81,6 +82,14 @@ test.for([
     "a spread identifier",
     'import { Button } from "@orb/ui/button";\nexport function Probe({ reason }: { readonly reason: string }): ReactElement {\n  const extra = { title: reason };\n  return <Button aria-label="Go" {...extra} />;\n}',
   ],
+  [
+    "a title authored into an object typed as React's DOM props",
+    'import type { HTMLAttributes } from "react";\nexport function Probe({ reason }: { readonly reason: string }): ReactElement {\n  const props: HTMLAttributes<HTMLSpanElement> = { title: reason };\n  return <span {...props}>x</span>;\n}',
+  ],
+  [
+    "a shorthand title in a DOM-props-typed object",
+    'import type { HTMLAttributes } from "react";\nexport function Probe({ title }: { readonly title: string }): ReactElement {\n  const props: HTMLAttributes<HTMLSpanElement> = { title };\n  return <span {...props}>x</span>;\n}',
+  ],
 ] as const)("flags %s", async ([, body]) => {
   expect(await findings(body)).toHaveLength(1);
 });
@@ -107,7 +116,12 @@ test.for([
   expect(await findings(body)).toEqual([]);
 });
 
-test("the population is the client; @orb/ui primitives own their native titles", async () => {
+test("an object literal not typed as DOM props may carry a title of its own", async () => {
+  const body = 'export const Probe = (): ReactElement => <h3>{({ title: "Heading" } satisfies { readonly title: string }).title}</h3>;';
+  expect(await findings(body)).toEqual([]);
+});
+
+test("the population includes @orb/ui primitives", async () => {
   const body = 'export const Probe = (): ReactElement => <span title="hover only">x</span>;';
-  expect(await findings(body, "packages/ui/src/primitives/probe/native-title-probe.tsx")).toEqual([]);
+  expect(await findings(body, "packages/ui/src/primitives/probe/native-title-probe.tsx")).toHaveLength(1);
 });

@@ -6,7 +6,7 @@ import { optionStripVariants } from "./variants.ts";
  * One offer in the strip. Domain-agnostic — the container knows nothing of what a row MEANS; a caller maps
  * its own model onto these slots and owns the id space (the same ids it points a driving control's
  * `aria-activedescendant` at). `disabled` uses aria-disabled (not the native attr) so the row stays
- * hoverable and its `title` reason surfaces — activation is refused, never hidden.
+ * hoverable and its visible `description` explains it — activation is refused, never hidden.
  */
 export interface OptionStripItem {
   /** DOM id — unique within the strip, and what an external control names via `aria-activedescendant`. */
@@ -19,10 +19,8 @@ export interface OptionStripItem {
   readonly description?: string | undefined;
   /** Optional leading slot (an icon), rendered before the label. Decorative (aria-hidden). */
   readonly leading?: ReactNode | undefined;
-  /** Marks the row aria-disabled + refuses activation; still shown + hoverable (its `title` surfaces). */
+  /** Marks the row aria-disabled + refuses activation; still shown + hoverable. Put the reason in `description`. */
   readonly disabled?: boolean | undefined;
-  /** The hover/disabled reason, surfaced as the native `title` (a disabled row must explain itself). */
-  readonly title?: string | undefined;
   /** The keyboard-driven highlight (aria-selected + the accent skin). At most one row is highlighted. */
   readonly highlighted?: boolean | undefined;
 }
@@ -63,10 +61,9 @@ export function OptionStrip({ "aria-label": ariaLabel, id, items, onSelect, clas
             intent="ghost"
             role="option"
             aria-selected={item.highlighted ?? false}
-            // aria-disabled (not native `disabled`) so the row stays hoverable and its reason surfaces.
+            // aria-disabled (not native `disabled`) so the row stays hoverable.
             disabled={item.disabled ?? false}
             focusableWhenDisabled={true}
-            title={item.title}
             // The rows are NOT a tab stop — the driving control is the one tab stop; highlight moves via that
             // control's arrows and rides `aria-activedescendant`. Pointer activation is unaffected.
             tabIndex={-1}
