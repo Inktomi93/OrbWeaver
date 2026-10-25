@@ -46,6 +46,10 @@ const DOOR_BOXES = {
   listAction: '[data-slot="list-pane-action"]',
 } as const;
 type DoorBox = keyof typeof DOOR_BOXES;
+// The transcript's first rendered row is not one subject across a door: the virtual list's range grows when the rows
+// reflow, so an earlier message mounts above it mid-door with its own late-starting flip. The newest row is the
+// transcript's bottom anchor, mounted for the whole door, so the census reads the last match.
+const LAST_MATCH: readonly DoorBox[] = ["row"];
 // The LIST door moves the list pane itself, so its action travels with it by design and is not held.
 const LIST_DOOR: readonly DoorBox[] = ["main", "trail", "listPanel", "row", "composer"];
 const CONTEXT_DOOR: readonly DoorBox[] = ["main", "trail", "contextPanel", "listAction", "row", "composer"];
@@ -120,9 +124,9 @@ const WIDTH_BOXES = { mainWidth: ".shell-main", listPanelWidth: '.shell-panel[da
  */
 function readBoxes(page: Page, boxes: readonly DoorBox[]): Promise<Frame> {
   return page.evaluate(
-    ({ selectors, widths }) => {
+    ({ selectors, widths, last }) => {
       const read = (name: string, selector: string): DOMRect => {
-        const element = document.querySelector(selector);
+        const element = last.includes(name) ? (Array.from(document.querySelectorAll(selector)).at(-1) ?? null) : document.querySelector(selector);
         if (element === null || element.getClientRects().length === 0) {
           throw new Error(`The ${name} box (${selector}) is ${element === null ? "absent" : "not rendered"}`);
         }
@@ -137,19 +141,19 @@ function readBoxes(page: Page, boxes: readonly DoorBox[]): Promise<Frame> {
       }
       return frame;
     },
-    { selectors: Object.fromEntries(boxes.map((box) => [box, DOOR_BOXES[box]])), widths: WIDTH_BOXES },
+    { selectors: Object.fromEntries(boxes.map((box) => [box, DOOR_BOXES[box]])), widths: WIDTH_BOXES, last: LAST_MATCH },
   );
 }
 
 /** Record the same frame on every animation frame from now on, bounded so it cannot outlive the case. */
 function startSampler(page: Page, boxes: readonly DoorBox[]): Promise<void> {
   return page.evaluate(
-    ({ selectors, widths, limit }) => {
+    ({ selectors, widths, limit, last }) => {
       const ring: Record<string, number>[] = [];
       Reflect.set(globalThis, "__shellFrames", ring);
       Reflect.set(globalThis, "__shellFramesError", null);
       const read = (name: string, selector: string): DOMRect => {
-        const element = document.querySelector(selector);
+        const element = last.includes(name) ? (Array.from(document.querySelectorAll(selector)).at(-1) ?? null) : document.querySelector(selector);
         if (element === null || element.getClientRects().length === 0) {
           throw new Error(`The ${name} box (${selector}) is ${element === null ? "absent" : "not rendered"}`);
         }
@@ -175,7 +179,7 @@ function startSampler(page: Page, boxes: readonly DoorBox[]): Promise<void> {
       };
       requestAnimationFrame(tick);
     },
-    { selectors: Object.fromEntries(boxes.map((box) => [box, DOOR_BOXES[box]])), widths: WIDTH_BOXES, limit: SAMPLE_FRAMES },
+    { selectors: Object.fromEntries(boxes.map((box) => [box, DOOR_BOXES[box]])), widths: WIDTH_BOXES, limit: SAMPLE_FRAMES, last: LAST_MATCH },
   );
 }
 
