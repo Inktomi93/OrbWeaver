@@ -1,6 +1,7 @@
 // orb/browser-support refuses a browser or JS API some browser in BROWSER_TARGETS lacks, at the use that throws, and admits it behind a feature check.
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
+import { staticImportGraph } from "@orb/tooling/browser-support";
 import { ESLint, Linter } from "eslint";
 import ts from "typescript";
 import tseslint from "typescript-eslint";
@@ -8,6 +9,8 @@ import { beforeAll } from "vitest";
 
 const ROOT = join(import.meta.dirname, "../..");
 const RULE = "orb/browser-support";
+const ENTRY_RULE = "orb/browser-support-entry";
+const ENTRY = join(ROOT, "packages/client/src/entry.ts");
 const PROBE_DIR = "packages/client/src/features/probe";
 const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: ROOT });
 
@@ -82,9 +85,15 @@ const ADMITTED = [
   ["a supported API", "export const probe = (el: HTMLElement): unknown => el.getBoundingClientRect();"],
 ] as const;
 
-const sources = new Map<string, string>(
-  [...REFUSED, ...ADMITTED].map(([name, body]) => [join(ROOT, PROBE_DIR, `browser-support-${name.replaceAll(/\W+/gu, "-")}.ts`), `${body}\n`]),
-);
+// The files the page's script runs before the polyfills are in, found from the entry's static imports.
+const ENTRY_GRAPH = staticImportGraph(ENTRY);
+const ENTRY_USE = 'export const probe = [Temporal.Now.instant(), RegExp.escape("a")];\n';
+
+const sources = new Map<string, string>([
+  ...[...REFUSED, ...ADMITTED].map(([name, body]) => [join(ROOT, PROBE_DIR, `browser-support-${name.replaceAll(/\W+/gu, "-")}.ts`), `${body}\n`] as const),
+  ...ENTRY_GRAPH.map((file) => [file, ENTRY_USE] as const),
+  [join(ROOT, "packages/client/src/main.tsx"), ENTRY_USE],
+]);
 
 // The client's own compiler options over the probe files, so lib.dom resolves to the real DOM types.
 function programOf(files: ReadonlyMap<string, string>): ts.Program {
@@ -144,4 +153,42 @@ test.for(ADMITTED)("admits %s", async ([name]) => {
 test("the population is the client bundle; a tooling file is not judged", async () => {
   const config = await eslint.calculateConfigForFile(join(ROOT, "tooling/src/eslint/index.ts"));
   expect(config?.rules?.[RULE] ?? "off").toBe("off");
+});
+
+test("the entry graph is the entry and its static imports, not the app it loads afterwards", () => {
+  const graph = ENTRY_GRAPH.map((file) => file.slice(ROOT.length + 1)).toSorted();
+  expect(graph).toContain("packages/client/src/entry.ts");
+  expect(graph).toContain("packages/client/src/lib/platform-polyfills.ts");
+  expect(graph).toContain("packages/client/src/lib/platform-shims.ts");
+  expect(graph).toContain("packages/client/browser-targets.ts");
+  expect(graph).not.toContain("packages/client/src/main.tsx");
+});
+
+// Judged at the real path so the config's file blocks apply; the text is a probe that uses the polyfilled builtins.
+async function useFindings(file: string): Promise<readonly Linter.LintMessage[]> {
+  const config = await eslint.calculateConfigForFile(file);
+  const found = new Linter({ cwd: ROOT }).verify(
+    sources.get(file) ?? "",
+    {
+      files: ["**/*.ts", "**/*.tsx"],
+      plugins: config?.plugins ?? {},
+      languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false, programs: [program] } },
+      rules: { [RULE]: config?.rules?.[RULE] ?? "off", [ENTRY_RULE]: config?.rules?.[ENTRY_RULE] ?? "off" },
+    },
+    { filename: file },
+  );
+  expect(found.filter(({ fatal }) => fatal === true)).toEqual([]);
+  return found.filter(({ ruleId }) => ruleId === RULE || ruleId === ENTRY_RULE);
+}
+
+test.for(ENTRY_GRAPH.map((file) => [file.slice(ROOT.length + 1), file] as const))(
+  "refuses a polyfilled builtin in %s, which runs before the install",
+  async ([, file]) => {
+    const found = await useFindings(file);
+    expect(found.map(({ ruleId }) => ruleId)).toEqual([ENTRY_RULE, ENTRY_RULE]);
+  },
+);
+
+test("admits the same builtins in the app graph, which loads after the install", async () => {
+  expect(await useFindings(join(ROOT, "packages/client/src/main.tsx"))).toEqual([]);
 });

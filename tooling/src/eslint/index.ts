@@ -87,6 +87,8 @@ export function createOrbPlugin(options: {
   appearanceVocabulary: AppearanceVocabulary;
   /** Compat keys some browser floor lacks (`unsupportedAtFloor`). */
   browserUnsupported: ReadonlyMap<string, readonly string[]>;
+  /** The same table without the polyfill allowance, for the files that run before the polyfills are installed. */
+  browserUnsupportedBeforePolyfills: ReadonlyMap<string, readonly string[]>;
   /** Properties a browser may ignore with no layout or behavior change (`HARMLESS_WHEN_UNSUPPORTED`). */
   browserHarmless: Readonly<Record<string, string>>;
   /** Tailwind's `DesignSystem.candidatesToCss`. */
@@ -146,6 +148,11 @@ export function createOrbPlugin(options: {
       "browser-no-node-globals": browserNoNodeGlobalsRule(options.browserNodeGlobals),
       "browser-support": browserSupportRule({
         unsupported: options.browserUnsupported,
+        harmless: options.browserHarmless,
+        candidatesToCss: options.candidatesToCss,
+      }),
+      "browser-support-entry": browserSupportRule({
+        unsupported: options.browserUnsupportedBeforePolyfills,
         harmless: options.browserHarmless,
         candidatesToCss: options.candidatesToCss,
       }),

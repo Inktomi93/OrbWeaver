@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
+import { relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import { unsupportedAtFloor, withoutPolyfilled } from "@orb/tooling/browser-support";
+import { staticImportGraph, unsupportedAtFloor, withoutPolyfilled } from "@orb/tooling/browser-support";
 import { authorClassIgnores, baseUiDoors, classClassifier, createOrbPlugin } from "@orb/tooling/eslint";
 import { BUTTON_SIZE_OVERFLOW } from "@orb/ui/button/size-hit-area";
 import { TOKENS } from "@orb/ui/tokens";
@@ -738,6 +739,9 @@ const browserGlobalsOverride = biomeConfig.overrides.find(
 if (browserGlobalsOverride?.linter?.rules.style?.noRestrictedGlobals === undefined) {
   throw new Error("The browser Node-global policy must be configured in Biome");
 }
+const UNSUPPORTED_AT_FLOOR = unsupportedAtFloor(BROWSER_TARGETS);
+// The page script and what it imports statically run before the polyfills are installed (packages/client/src/entry.ts), so nothing there is trusted.
+const PRE_POLYFILL_SOURCE = staticImportGraph(fileURLToPath(new URL("./packages/client/src/entry.ts", import.meta.url))).map((file) => relative(ROOT, file));
 const localPlugin = createOrbPlugin({
   baseUiDoors: baseUiDoors(fileURLToPath(new URL("./packages/ui", import.meta.url))),
   browserNodeGlobals: new Set([...Object.keys(browserGlobalsOverride.linter.rules.style.noRestrictedGlobals.options.deniedGlobals), "process"]),
@@ -748,7 +752,8 @@ const localPlugin = createOrbPlugin({
   ),
   shellClasses: new Set(OWNER_CSS_SHELL_CLASSES),
   appearanceVocabulary: appearanceChannelVocabulary(),
-  browserUnsupported: withoutPolyfilled(unsupportedAtFloor(BROWSER_TARGETS), POLYFILLED_BUILTINS),
+  browserUnsupported: withoutPolyfilled(UNSUPPORTED_AT_FLOOR, POLYFILLED_BUILTINS),
+  browserUnsupportedBeforePolyfills: UNSUPPORTED_AT_FLOOR,
   browserHarmless: HARMLESS_WHEN_UNSUPPORTED,
   candidatesToCss: (classes) => designSystem.candidatesToCss(classes),
   customProperties: customPropertyUses(ROOT),
@@ -1341,6 +1346,11 @@ export default [
     files: rootSources("@client", "@ui", "@kit", "@contracts"),
     plugins: { orb: localPlugin },
     rules: { "orb/browser-support": "error" },
+  },
+  {
+    files: PRE_POLYFILL_SOURCE,
+    plugins: { orb: localPlugin },
+    rules: { "orb/browser-support": "off", "orb/browser-support-entry": "error" },
   },
   {
     files: BROWSER_MOUNT_SOURCE,
