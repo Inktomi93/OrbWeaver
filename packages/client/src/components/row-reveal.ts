@@ -1,5 +1,5 @@
 // ROW_REVEAL — the ONE hover-reveal posture for a row's trailing action cluster (rest hidden, revealed on
-// the row's `group` hover/:focus-within, always-on for coarse pointers). Homed client-shared beside
+// the row's `group` hover/:focus-within, always-on where the primary input cannot hover). Homed client-shared beside
 // RowActionsMenu (its primary consumer) so the character-card CTA and the ⋯ trigger can't drift
 // (derive-modernization §W5 item 8 — a candidate client-side G25 skin-fragment signature later). Requires
 // the row root to carry `group` (the reveal keys on `group-hover`/`group-focus-within`).
@@ -14,7 +14,7 @@
 // programmatic click) resolves to the wrapper and the control becomes unreachable. Proven by the
 // library→chat CTA, which a real pointer clicks fine but `locator.click()` could never reach.
 export const ROW_REVEAL =
-  "opacity-0 transition-opacity duration-(--motion-fast) ease-out-expo group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100";
+  "transition-opacity duration-(--motion-fast) ease-out-expo hover-capable:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100";
 
 /** ROW_REVEAL's other half — for the rest-visible MARKER whose datum the revealed control also carries (a
  *  starred row's title-line ★ and the star toggle in the floated cluster are one concept). The marker shows

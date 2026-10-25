@@ -11,16 +11,16 @@
 // flipped in lockstep with opacity so a hidden cluster is also non-interactive at rest (and re-enabled
 // exactly where it becomes visible); keyboard users reach every action by tab-focusing the row
 // (group-focus-within reveals) and the ⋯ menu keeps hide/copy/delete reachable without a hover.
-// The coarse-reveal fragment (`REVEAL_AT_COARSE`) is a pointer VARIANT, so it lives at the shell/shared layer
+// The rest-hidden fragment (`HIDDEN_UNTIL_HOVER`) is a hover-capability VARIANT, so it lives at the shell/shared layer
 // (`#components/pointer-variants.ts`, gate `no-pointer-variants-in-features`) and is composed in here.
-import { REVEAL_AT_COARSE } from "#components";
+import { HIDDEN_UNTIL_HOVER } from "#components";
 
 const FOCUS_REVEAL =
   "opacity-0 pointer-events-none transition-opacity duration-(--motion-fast) ease-out-expo group-focus-within:opacity-100 group-focus-within:pointer-events-auto group-hover:opacity-100 group-hover:pointer-events-auto";
-const HOVER_REVEAL = `${FOCUS_REVEAL} ${REVEAL_AT_COARSE}`;
+const HOVER_REVEAL = `transition-opacity duration-(--motion-fast) ease-out-expo ${HIDDEN_UNTIL_HOVER} group-focus-within:opacity-100 group-focus-within:pointer-events-auto group-hover:opacity-100 group-hover:pointer-events-auto`;
 const ALWAYS_REVEALED = "opacity-100";
 
-/** `expanded` always shows; `hover` reveals on hover and focus and is always on at a touch pointer; `focus`
+/** `expanded` always shows; `hover` reveals on hover and focus and is always on where the primary input cannot hover; `focus`
  *  reveals on hover and keyboard focus only, so at a touch pointer it stays hidden: stock SillyTavern shows
  *  an earlier row's buttons nowhere on a phone, and a tap focuses the row item, not the reveal group. */
 const ACTIONS_REVEALS = ["expanded", "focus", "hover"] as const;

@@ -396,6 +396,7 @@ export const SNAPPED_LENGTH_BASE_PX = {
 export const MEDIA_QUERIES = {
   "pointer-coarse": "(pointer: coarse)",
   "pointer-fine": "(pointer: fine)",
+  "hover-capable": "(hover: hover)",
   "motion-reduce": "(prefers-reduced-motion: reduce)",
   "transparency-reduce": "(prefers-reduced-transparency: reduce)",
   "contrast-more": "(prefers-contrast: more)",

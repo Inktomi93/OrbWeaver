@@ -118,7 +118,7 @@ const VIEWPORT_CLASSES = {
 };
 /** Pointer and hover capability variants are the tokens' or the shell's, never a feature's. */
 const POINTER_CLASSES = {
-  pattern: String.raw`^(?:[^\s]*:)?(?:(?:any-)?pointer-(?:coarse|fine)|\[@media\([^\s)]*(?:any-pointer|pointer|hover):[^\s)]*\)\]):`,
+  pattern: String.raw`^(?:[^\s]*:)?(?:(?:any-)?pointer-(?:coarse|fine)|hover-capable|\[@media\([^\s)]*(?:any-pointer|pointer|hover):[^\s)]*\)\]):`,
   message: "Device capability adaptation belongs to shared tokens or app-shell, not feature-local pointer/hover capability variants.",
 };
 /** A raw content width; the container scale and the Container primitive own widths. */

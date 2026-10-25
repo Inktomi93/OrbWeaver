@@ -68,6 +68,7 @@ const CONDITION_VARIANTS = [
   "shell-desktop:flex",
   "shell-narrow:flex",
   "pointer-coarse:flex",
+  "hover-capable:flex",
   "transparency-reduce:hidden",
   "@cq-28:flex",
   "@max-cq-32:hidden",
@@ -106,11 +107,12 @@ const PLANTED_CONSTANTS = [
   'export const PLANT_VIEWPORT = "md:flex";',
   'export const PLANT_PROSE = "max-w-prose";',
   'export const PLANT_POINTER = "pointer-coarse:flex";',
+  'export const PLANT_HOVER = "hover-capable:flex";',
   'export const RAIL = { root: "bg-[#ff0000]" };',
 ].join("\n");
 const PLANTED_CONSTANT_HITS = 7;
 /** A viewport variant, a pointer variant, a raw width step and an arbitrary width. */
-const SCOPED_CONTROLS = ["md:flex", "pointer-coarse:flex", "w-64", "w-[20rem]"];
+const SCOPED_CONTROLS = ["md:flex", "pointer-coarse:flex", "hover-capable:flex", "w-64", "w-[20rem]"];
 // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
 const SPLICED_CLASS = "cn(`text-${size}`);";
 const CARRIERS = [
@@ -197,12 +199,12 @@ test("effective UI/client native rules reject stock classes in real class carrie
     expect(IMPORTANT.map((candidate) => lintWith(RESTRICTED_RULE, `cn("${candidate}");`).length)).toEqual(IMPORTANT.map(() => 1));
     expect(RETIRED_GATE_CONTROLS.map((candidate) => lintWith(RESTRICTED_RULE, `cn("${candidate}");`).length)).toEqual(RETIRED_GATE_CONTROLS.map(() => 1));
     // The retired gates read every string literal; the patterns reach exported constants and their object values too.
-    expect(lintWith(RESTRICTED_RULE, PLANTED_CONSTANTS), path).toHaveLength(PLANTED_CONSTANT_HITS + pointerRefusals);
+    expect(lintWith(RESTRICTED_RULE, PLANTED_CONSTANTS), path).toHaveLength(PLANTED_CONSTANT_HITS + 2 * pointerRefusals);
     // The scoped patterns: viewport variants and raw widths everywhere outside the shell, pointer variants in features only.
     expect(
       SCOPED_CONTROLS.map((candidate) => lintWith(RESTRICTED_RULE, `cn("${candidate}");`).length),
       path,
-    ).toEqual([1, pointerRefusals, 1, 1]);
+    ).toEqual([1, pointerRefusals, pointerRefusals, 1, 1]);
     expect(lintWith("better-tailwindcss/no-concatenated-classes", SPLICED_CLASS), path).toHaveLength(1);
     for (const carrier of CARRIERS) {
       if (path.endsWith(".ts") && carrier.startsWith("<")) {

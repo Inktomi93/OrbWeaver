@@ -326,6 +326,7 @@
 
 @custom-variant pointer-coarse (@media (pointer: coarse));
 @custom-variant pointer-fine (@media (pointer: fine));
+@custom-variant hover-capable (@media (hover: hover));
 @custom-variant motion-reduce (@media (prefers-reduced-motion: reduce));
 @custom-variant transparency-reduce (@media (prefers-reduced-transparency: reduce));
 @custom-variant contrast-more (@media (prefers-contrast: more));
