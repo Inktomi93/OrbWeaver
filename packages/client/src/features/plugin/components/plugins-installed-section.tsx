@@ -11,10 +11,9 @@
 
 import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
-import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { PLUGINS_INSTALLED_SUBCATEGORY } from "../lib/plugins-nav.ts";
 import { PluginRow } from "./plugin-row.tsx";
 

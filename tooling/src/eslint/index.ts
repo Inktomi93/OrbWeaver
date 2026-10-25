@@ -34,6 +34,7 @@ import type { CandidatesToCss, ClassClassifier } from "./ui-feature-classname.ts
 import { featureClassNameLayoutOnlyRule, noBuiltClassStringRule } from "./ui-feature-classname.ts";
 import { UI_FEATURE_RESTRICTIONS } from "./ui-feature-policy.ts";
 import { rawIntrinsicPaintRule } from "./ui-intrinsics.ts";
+import { noManualMemoRule, noUsePromiseRule } from "./ui-law-policy.ts";
 import {
   CLASS_RESTRICTIONS,
   CLIENT_CONFIG_HOST_RESTRICTIONS,
@@ -116,6 +117,8 @@ export function createOrbPlugin(options: {
       "baseui-state-data-attributes": baseUiStateDataAttributesRule(options.baseUiDoors),
       "no-unruled-flip-inversion": unruledFlipInversionRule,
       "no-native-title": nativeTitleRule,
+      "no-manual-memo": noManualMemoRule,
+      "no-use-promise": noUsePromiseRule,
       "test-factory-contract": testFactoryContractRule,
       "no-direct-row-writes": directRowWriteRule,
       "no-direct-row-reads": directRowReadRule,

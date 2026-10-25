@@ -26,12 +26,11 @@ import type { UserConnectionId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryBoundary } from "#components";
 import type { Invalidation, Trpc } from "#data";
-import { SkeletonRows } from "#data";
+import { SkeletonRows, useSuspenseQuery } from "#data";
 import { useAdmitPrivateEndpoint, useProbeConnection } from "../hooks/use-connections-mutations.ts";
 import { endpointAuthorityOf, endpointHostOf, endpointNamedInAllowlist } from "../lib/connection-editor-model.ts";
 

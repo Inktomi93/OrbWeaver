@@ -14,11 +14,10 @@ import { clampMemoryDefault, DEFAULT_MEMORY_DEFAULTS, MEMORY_DEFAULTS_BOUNDS } f
 import { Section, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryBoundary, useFirstBootBox } from "#components";
-import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
 import { anyFieldOverridden, isOverridden, saveStateOf } from "../lib/app-override-model.ts";

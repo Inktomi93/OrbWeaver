@@ -584,6 +584,85 @@ const appearanceRule: Rule<true, AppearanceVocabulary> = (primary, secondary) =>
 appearanceRule.ruleName = APPEARANCE;
 appearanceRule.messages = APPEARANCE_MESSAGES;
 
+// Lifecycle motion on a Base UI part is a transition keyed off data-starting-style / data-ending-style: a transition
+// retargets mid-flight, a keyframe animation restarts or snaps (motion-and-animation-guide.md §5.1). A keyframe stays
+// when it is a loop, a sequence of more than two stops, the word-reveal fade or a shell FLIP.
+const LIFECYCLE_KEYFRAMES = "orb/no-lifecycle-keyframes";
+const LIFECYCLE_KEYFRAMES_MESSAGES = messagesOf(LIFECYCLE_KEYFRAMES, {
+  rejected: "A keyframe animation keyed on a Base UI lifecycle attribute; use a transition off data-starting-style / data-ending-style",
+});
+const LIFECYCLE_SELECTOR = /\[data-(?:open|closed|starting-style|ending-style)\b/u;
+const LIFECYCLE_KEYFRAMES_EXEMPT = /^(?:orb-word-reveal|(?:shell-[a-z-]+|room-flank-centre)-flip)$/u;
+const MAX_TRANSITION_STOPS = 2;
+const CSS_WIDE_AND_KEYWORDS = new Set(["none", "initial", "inherit", "unset", "revert"]);
+
+function keyframeStops(root: CssRoot): ReadonlyMap<string, number> {
+  const stops = new Map<string, number>();
+  root.walkAtRules(/^(?:-\w+-)?keyframes$/u, (atRule) => {
+    stops.set(atRule.params.trim(), (atRule.nodes ?? []).length);
+  });
+  return stops;
+}
+
+// The words of an `animation` shorthand that are not its name: time, easing, count, direction, fill and play state.
+const ANIMATION_NON_NAME =
+  /^(?:(?:\d+(?:\.\d+)?|\.\d+)(?:ms|s)?|ease|ease-in|ease-out|ease-in-out|linear|step-start|step-end|infinite|normal|reverse|alternate|alternate-reverse|forwards|backwards|both|running|paused)$/u;
+
+interface AnimationEntry {
+  /** The keyframes name, or `none`. */
+  readonly name: string;
+  readonly loops: boolean;
+}
+
+/** The comma-separated entries of an `animation` shorthand: the one word that is not a time, easing or keyword is the name. */
+function shorthandEntries(value: string): AnimationEntry[] {
+  const entries: { words: string[] }[] = [{ words: [] }];
+  for (const node of valueParser(value).nodes) {
+    if (node.type === "div" && node.value === ",") {
+      entries.push({ words: [] });
+    } else if (node.type === "word") {
+      entries.at(-1)?.words.push(node.value);
+    }
+  }
+  return entries.map(({ words }) => ({
+    name: words.find((word) => !ANIMATION_NON_NAME.test(word)) ?? "none",
+    loops: words.includes("infinite"),
+  }));
+}
+
+/** The `animation-name` list paired with the rule's own `animation-iteration-count` list, which cycles over the names. */
+function longhandEntries(declaration: Declaration, owner: StyleRule): AnimationEntry[] {
+  const counts = owner.nodes
+    .filter((node): node is Declaration => node.type === "decl" && node.prop === "animation-iteration-count")
+    .flatMap((node) => node.value.split(",").map((count) => count.trim()));
+  return declaration.value.split(",").map((name, index) => ({
+    name: name.trim(),
+    loops: counts.length > 0 && counts[index % counts.length] === "infinite",
+  }));
+}
+
+const lifecycleKeyframesRule: Rule<true> = (primary) => (root, result) => {
+  if (!stylelint.utils.validateOptions(result, LIFECYCLE_KEYFRAMES, { actual: primary, possible: [true] })) {
+    return;
+  }
+  const stops = keyframeStops(root);
+  const refused = ({ name, loops }: AnimationEntry): boolean =>
+    !(loops || CSS_WIDE_AND_KEYWORDS.has(name) || LIFECYCLE_KEYFRAMES_EXEMPT.test(name)) && (stops.get(name) ?? 0) <= MAX_TRANSITION_STOPS;
+  root.walkDecls(/^animation(?:-name)?$/u, (declaration) => {
+    const owner = enclosingRule(declaration);
+    if (owner === undefined || !effectiveSelectors(owner).some((selector) => LIFECYCLE_SELECTOR.test(selector))) {
+      return;
+    }
+    // A name defined in another sheet resolves to no stops, so it is refused: it cannot prove a sequence.
+    const entries = declaration.prop === "animation" ? shorthandEntries(declaration.value) : longhandEntries(declaration, owner);
+    if (entries.some(refused)) {
+      stylelint.utils.report({ result, ruleName: LIFECYCLE_KEYFRAMES, node: declaration, message: LIFECYCLE_KEYFRAMES_MESSAGES.rejected });
+    }
+  });
+};
+lifecycleKeyframesRule.ruleName = LIFECYCLE_KEYFRAMES;
+lifecycleKeyframesRule.messages = LIFECYCLE_KEYFRAMES_MESSAGES;
+
 /** Stylesheet-only rules consumed by the native Stylelint configuration. */
 export const CSS_RULES = [
   stylelint.createPlugin(SHELL, shellRule),
@@ -594,4 +673,5 @@ export const CSS_RULES = [
   stylelint.createPlugin(CONDITION, conditionRule),
   stylelint.createPlugin(SHADOW, shadowRule),
   stylelint.createPlugin(APPEARANCE, appearanceRule),
+  stylelint.createPlugin(LIFECYCLE_KEYFRAMES, lifecycleKeyframesRule),
 ];

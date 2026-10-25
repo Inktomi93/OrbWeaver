@@ -12,11 +12,10 @@
 import { Field } from "@orb/ui/field";
 import { Section } from "@orb/ui/layout";
 import { NumberField } from "@orb/ui/number-field";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 
 import { QueryBoundary, SettingRowGroup } from "#components";
-import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
+import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import type { SaveLifecycleState } from "#state";
 import { LIBRARY_SETTINGS_SUBCATEGORY } from "../lib/library-settings-nav.ts";

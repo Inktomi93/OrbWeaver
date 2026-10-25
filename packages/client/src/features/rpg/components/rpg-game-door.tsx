@@ -18,10 +18,9 @@ import { Button } from "@orb/ui/button";
 import { Crown, Icon, Play, Swords } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { useInvalidation, useTRPC } from "#data";
+import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { GAME_MODE_KEPT_LINE, GAME_MODE_OFF_KICKER, GAME_MODE_ON_LABEL, GAME_MODE_RESUME_LABEL, onGameModeStarted } from "#state";
 import { useCreateGame, useUpdateConfig } from "../hooks/use-rpg-mutations.ts";
 

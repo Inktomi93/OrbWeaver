@@ -4,10 +4,9 @@ import { EmptyState } from "@orb/ui/empty-state";
 import { Hash, Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { MemberDrillHeader, TagEditorBody } from "#components";
-import { useTRPC } from "#data";
+import { useSuspenseQuery, useTRPC } from "#data";
 import { CORPUS_MODE_LABELS } from "#lib";
 import { clearLabelSelection, useLabelNameFocus } from "#state";
 

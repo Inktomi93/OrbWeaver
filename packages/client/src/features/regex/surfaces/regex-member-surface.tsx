@@ -16,12 +16,11 @@ import type { CreateRegexScriptInput, RegexScriptRow } from "@orb/contracts/rege
 import { EmptyState } from "@orb/ui/empty-state";
 import { Code, Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 import type { MemberDrillBack } from "#components";
 import { MemberDrillHeader } from "#components";
-import { useInvalidation, useTRPC } from "#data";
+import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { AutosaveStatus } from "#forms/editor";
 import type { CollectionMemberView } from "#lib";

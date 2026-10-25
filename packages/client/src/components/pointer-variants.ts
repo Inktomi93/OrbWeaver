@@ -1,6 +1,6 @@
 // Axis-3 pointer/hover CAPABILITY class fragments (UI-Architecture §4b) — the SHELL/SHARED-layer home for
 // `pointer-coarse:`/`pointer-fine:` utility variants. Those variants are BANNED in features/** by
-// `no-pointer-variants-in-features`, exactly as viewport width variants are by `no-media-queries-in-features`:
+// the `POINTER_CLASSES` pattern in `eslint.config.ts`, exactly as viewport width variants are by `VIEWPORT_CLASSES`:
 // pointer/hover are a device CAPABILITY a container query cannot see, so a feature COMPOSES a named fragment
 // from here (or a pointer-conditional TOKEN like `min-w-(--size-touch-target)`) instead of spelling the media variant
 // inline. Behaviour is homed here so a coarse touch-floor or a fine-only reveal is retunable in ONE place.

@@ -28,12 +28,11 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Check, Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useSuspenseInfiniteQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode, UIEvent } from "react";
 import { useDeferredValue, useEffect, useRef, useState } from "react";
 import type { Trpc } from "#data";
-import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useSuspenseInfiniteQuery, useTRPC } from "#data";
 import { useDebouncedValue, useFocusOnSwap } from "#lib";
 import { QueryBoundary } from "./query-boundary.tsx";
 

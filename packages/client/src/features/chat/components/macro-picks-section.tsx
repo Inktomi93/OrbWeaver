@@ -33,11 +33,10 @@ import { Fieldset, FieldsetLegend } from "@orb/ui/fieldset";
 import { Row, Stack } from "@orb/ui/layout";
 import { Select } from "@orb/ui/select";
 import { Heading, Text } from "@orb/ui/text";
-import { useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { SettingCheckboxRow } from "#components";
-import { useInvalidation, useTRPC } from "#data";
+import { useInvalidation, useSuspenseQueries, useTRPC } from "#data";
 import { isUnknownMacroPick, unknownMacroPickCopy, useSetUserMacroValues, useSetVariables } from "../hooks/use-context-panel-mutations.ts";
 
 /** ONE stored pick, DERIVED from the wire bag (never re-spelled): string | boolean | string[]. Kit's
