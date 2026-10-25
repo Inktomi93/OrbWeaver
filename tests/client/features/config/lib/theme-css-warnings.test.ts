@@ -111,6 +111,36 @@ test("a data-appearance attribute the surface lacks warns with the closest curre
   expect(warning?.message).toContain(real);
 });
 
+test("a value outside the attribute's list, or the presence-only form, warns and names the allowed values", () => {
+  const [attribute] = OWNER_CSS_APPEARANCE_ATTRIBUTES;
+  const [allowed] = attribute.values;
+  const badValue = `[${attribute.name}="${allowed}z"] {}`;
+  const [wrong] = themeCssHookWarnings(badValue, OWNER_CSS_SURFACE, []);
+  expect(badValue.slice(wrong?.from, wrong?.to)).toBe(`${allowed}z`);
+  for (const value of attribute.values) {
+    expect(wrong?.message).toContain(value);
+  }
+  const presence = `[${attribute.name}] {}`;
+  const [bare] = themeCssHookWarnings(presence, OWNER_CSS_SURFACE, []);
+  expect(presence.slice(bare?.from, bare?.to)).toBe(attribute.name);
+  for (const value of attribute.values) {
+    expect(bare?.message).toContain(value);
+  }
+  for (const value of attribute.values) {
+    expect(themeCssHookWarnings(`[${attribute.name}="${value}"], [${attribute.name}~='${value}'] {}`, OWNER_CSS_SURFACE, [])).toEqual([]);
+  }
+  expect(themeCssHookWarnings(`[${attribute.name}^="${allowed}z"] {}`, OWNER_CSS_SURFACE, [])).toEqual([]);
+});
+
+test("attribute names are matched case-insensitively, as HTML matches them", () => {
+  const [attribute] = OWNER_CSS_APPEARANCE_ATTRIBUTES;
+  const css = `[${attribute.name.toUpperCase()}="nope"] {}`;
+  expect(themeCssHookWarnings(css, OWNER_CSS_SURFACE, [])).toHaveLength(1);
+  const retired = "[DATA-SHADOW] {}";
+  expect(themeCssHookWarnings(retired, OWNER_CSS_SURFACE, OWNER_CSS_RENAMES)).toHaveLength(1);
+  expect(themeCssHookWarnings(`[${attribute.name.toUpperCase()}="${attribute.values[0]}"] {}`, OWNER_CSS_SURFACE, [])).toEqual([]);
+});
+
 test("a var() of an undeclared name outside the surface warns, with the closest token", () => {
   const css = "a { color: var(--color-primry); }";
   const [warning] = themeCssHookWarnings(css, SURFACE, RENAMES);

@@ -8,7 +8,7 @@ import { scanHooks } from "./scan.ts";
 export function rewriteRenamedHooks(css: string, renames: readonly OwnerCssRename[]): string {
   let out = css;
   for (const ref of scanHooks(css).toReversed()) {
-    const successor = renames.find((rename) => rename.kind === ref.kind && rename.name === ref.name)?.to;
+    const successor = renames.find((rename) => rename.kind === ref.kind && rename.name === ref.name && rename.value === undefined)?.to;
     if (successor !== undefined && successor !== null) {
       out = out.slice(0, ref.from) + successor + out.slice(ref.to);
     }

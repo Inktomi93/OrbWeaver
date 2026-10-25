@@ -70,6 +70,18 @@ test("a hook that leaves the surface without a rename row stops the regen and is
   expect(() => renderOwnerCssSurface({ ...lostToken, renames: [{ kind: "token", name: token, to: null }] }, OWNER_CSS_SURFACE)).not.toThrow();
 });
 
+test("an attribute value that leaves the surface without a rename row stops the regen and is named", () => {
+  const [attribute] = live.appearanceAttributes;
+  const [lost, ...kept] = attribute?.values ?? [];
+  const without = {
+    ...live,
+    appearanceAttributes: live.appearanceAttributes.map((candidate) => (candidate === attribute ? { ...candidate, values: kept } : candidate)),
+  };
+  expect(() => renderOwnerCssSurface(without, OWNER_CSS_SURFACE)).toThrow(`${attribute?.name}="${lost}"`);
+  const recorded = { ...without, renames: [{ kind: "appearance-attribute" as const, name: attribute?.name ?? "", value: lost ?? "", to: null }] };
+  expect(() => renderOwnerCssSurface(recorded, OWNER_CSS_SURFACE)).not.toThrow();
+});
+
 test("every rename row names a hook that left the surface and points at one that is on it", () => {
   const onSurface = (kind: string, name: string): boolean => OWNER_CSS_SURFACE.some((hook) => hook.kind === kind && hook.name === name);
   const violations = OWNER_CSS_RENAMES.filter(

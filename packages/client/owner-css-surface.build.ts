@@ -137,17 +137,31 @@ function liveHooks({
   };
 }
 
+// A name recorded without a `value` is gone whole; a row with a `value` records one value of a name that stays.
+const isNameRow = (rename: OwnerCssRename, hook: OwnerCssHook): boolean => rename.kind === hook.kind && rename.name === hook.name && rename.value === undefined;
+
+function lostValues(hook: OwnerCssHook, live: SurfaceInput["appearanceAttributes"], renames: readonly OwnerCssRename[]): string[] {
+  const current = live.find((attribute) => attribute.name === hook.name)?.values;
+  return (hook.values ?? [])
+    .filter((value) => current !== undefined && !current.includes(value))
+    .filter((value) => !renames.some((rename) => rename.kind === hook.kind && rename.name === hook.name && rename.value === value))
+    .map((value) => `${hook.name}="${value}"`);
+}
+
 function assertRenamesRecorded(
   live: Record<OwnerCssHookKind, ReadonlySet<string>>,
+  attributes: SurfaceInput["appearanceAttributes"],
   previous: readonly OwnerCssHook[],
   renames: readonly OwnerCssRename[],
 ): void {
-  const unrecorded = previous.filter(
-    (hook) => !(live[hook.kind].has(hook.name) || renames.some((rename) => rename.kind === hook.kind && rename.name === hook.name)),
-  );
+  const unrecorded = [
+    ...previous
+      .filter((hook) => !(live[hook.kind].has(hook.name) || renames.some((rename) => isNameRow(rename, hook))))
+      .map((hook) => `${hook.kind} ${hook.name}`),
+    ...previous.flatMap((hook) => lostValues(hook, attributes, renames)),
+  ];
   if (unrecorded.length > 0) {
-    const names = unrecorded.map((hook) => `${hook.kind} ${hook.name}`).join(", ");
-    throw new Error(`Owner-CSS hooks left the surface without a row in src/owner-css/renames.ts: ${names}`);
+    throw new Error(`Owner-CSS hooks left the surface without a row in src/owner-css/renames.ts: ${unrecorded.join(", ")}`);
   }
 }
 
@@ -157,7 +171,7 @@ function assertRenamesRecorded(
  */
 export function renderOwnerCssSurface(input: SurfaceInput, previous: readonly OwnerCssHook[]): string {
   const live = liveHooks(input);
-  assertRenamesRecorded(live, previous, input.renames);
+  assertRenamesRecorded(live, input.appearanceAttributes, previous, input.renames);
   return [
     HEADER,
     'import type { OwnerCssHook, OwnerCssHookKind } from "./src/owner-css/hook.ts";',
