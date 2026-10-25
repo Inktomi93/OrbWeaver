@@ -1241,6 +1241,11 @@ export default [
           message:
             "A hand-built queryKey array: tRPC reads take their key from the proxy (`trpc.<path>.queryKey(input)`), so the reader and every invalidation share one key (client-architecture-state-and-gates.md §10).",
         },
+        {
+          // The accessibility registries mount only registered surfaces, so auth and dialog forms rely on this guard.
+          selector: "JSXOpeningElement[name.type='JSXIdentifier'][name.name='form']:not(:has(> JSXAttribute[name.name=/^aria-label(?:ledby)?$/]))",
+          message: "A <form> needs an accessible name: add aria-label, or aria-labelledby pointing at its visible heading.",
+        },
       ],
     },
   },
