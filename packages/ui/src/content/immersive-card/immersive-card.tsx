@@ -6,6 +6,7 @@ import { Button } from "#primitives/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "#primitives/collapsible";
 import { Dialog, DialogPopup, DialogTitle } from "#primitives/dialog";
 import { ChevronDown, ChevronUp, Code, Expand, Icon } from "#primitives/icons";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "#primitives/tooltip";
 import { SandboxFrame, useSandboxTheme } from "../sandbox-frame/index.ts";
 import { immersiveCardVariants } from "./variants.ts";
 
@@ -121,17 +122,20 @@ export function ImmersiveCard({
   const { themeTokens, styleTokens, fontFamily } = useSandboxTheme();
   const bodyProps = { showRaw, html, css, themeTokens, styleTokens, fontFamily, label, heightPx, allowExternalMedia, frameSrc };
 
+  const rawLabel = showRaw ? "Show rendered card" : "View raw source";
+  // Each icon-only control keeps its pointer hint as a Tooltip; the text repeats the aria-label, so the seal does not
+  // announce it a second time.
   const rawToggle = (
-    <Button
-      intent="ghost"
-      size="icon"
-      aria-pressed={showRaw}
-      aria-label={showRaw ? "Show rendered card" : "View raw source"}
-      title={showRaw ? "Show rendered card" : "View raw source"}
-      onClick={(): void => setShowRaw((v: boolean): boolean => !v)}
-    >
-      <Icon icon={Code} size="sm" />
-    </Button>
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button intent="ghost" size="icon" aria-pressed={showRaw} aria-label={rawLabel} onClick={(): void => setShowRaw((v: boolean): boolean => !v)} />
+        }
+      >
+        <Icon icon={Code} size="sm" />
+      </TooltipTrigger>
+      <TooltipPopup>{rawLabel}</TooltipPopup>
+    </Tooltip>
   );
 
   return (
@@ -141,8 +145,9 @@ export function ImmersiveCard({
           ✦ {label}
         </span>
         {origin === "lenient" ? (
-          <span className={slots.origin()} title="Auto-rendered from raw HTML in the message" data-slot="immersive-card-origin">
+          <span className={slots.origin()} data-slot="immersive-card-origin">
             auto
+            <span className={slots.originNote()}> — rendered from raw HTML in the message</span>
           </span>
         ) : null}
         {/* View-raw acts on the inline BODY, so it is inapplicable while the card is collapsed to its title
@@ -153,18 +158,28 @@ export function ImmersiveCard({
             As a pair the two old names read as one expand/collapse toggle, so a reader navigating by name
             had no way to know one of them leaves the page's flow entirely. The name now states the
             DESTINATION, which is also what §13.10 N4 asks of a verb name. */}
-        <Button intent="ghost" size="icon" aria-label="Open card fullscreen" title="Open card fullscreen" onClick={(): void => setExpanded(true)}>
-          <Icon icon={Expand} size="sm" />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger render={<Button intent="ghost" size="icon" aria-label="Open card fullscreen" onClick={(): void => setExpanded(true)} />}>
+            <Icon icon={Expand} size="sm" />
+          </TooltipTrigger>
+          <TooltipPopup>Open card fullscreen</TooltipPopup>
+        </Tooltip>
         {/* The disclosure — Base UI owns `aria-expanded`/`aria-controls` + the keyboard; the chrome stays the
             header's uniform ghost icon button (`chevron={false}` — this IS the chevron). */}
-        <CollapsibleTrigger
-          chevron={false}
-          render={<Button intent="ghost" size="icon" aria-label={open ? "Collapse card" : "Show card"} title={open ? "Collapse card" : "Show card"} />}
-          data-slot="immersive-card-collapse"
-        >
-          <Icon icon={open ? ChevronUp : ChevronDown} size="sm" />
-        </CollapsibleTrigger>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <CollapsibleTrigger
+                chevron={false}
+                render={<Button intent="ghost" size="icon" aria-label={open ? "Collapse card" : "Show card"} />}
+                data-slot="immersive-card-collapse"
+              />
+            }
+          >
+            <Icon icon={open ? ChevronUp : ChevronDown} size="sm" />
+          </TooltipTrigger>
+          <TooltipPopup>{open ? "Collapse card" : "Show card"}</TooltipPopup>
+        </Tooltip>
       </div>
       <CollapsiblePanel data-slot="immersive-card-panel">
         <CardBody fill={false} {...bodyProps} />

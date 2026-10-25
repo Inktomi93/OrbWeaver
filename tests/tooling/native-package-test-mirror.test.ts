@@ -18,7 +18,7 @@ const RULE = {
   inferenceDoors: "tests-inference-front-doors-only",
   clientCake: "tests-client-mirror-cake",
   clientDoors: "tests-client-front-doors-only",
-  clientListedDoors: "tests-client-front-doors-only-listed-features-plugin-native-guest-protocol",
+  clientListedDoors: "tests-client-front-doors-only-listed-features-chat-lib-empty-send-and-duration",
   clientOwnFeature: "tests-client-mirror-own-feature",
   clientOwnTier: "tests-client-mirror-own-tier",
   clientTypes: "tests-client-type-contracts-own-internals",
@@ -42,8 +42,7 @@ const MODULES = {
   rpgDoor: "packages/client/src/features/rpg/index.ts",
   rpgInternal: "packages/client/src/features/rpg/lib/deep.ts",
   stateDoor: "packages/client/src/state/index.ts",
-  guestLeaf: "packages/client/src/lib/plugin-ui-guest-protocol.ts",
-  libInternal: "packages/client/src/lib/deep.ts",
+  chatLeaf: "packages/client/src/features/chat/lib/continue-on-empty.ts",
 } as const;
 
 const SUITE = {
@@ -62,7 +61,7 @@ const SUITE = {
   tier: "tests/client/state/probe.dom.test.ts",
   tierContract: "tests/client/features/probe.dom.test-d.ts",
   // On the closed reach list, which may run exactly the leaf its line names.
-  clientListed: "tests/client/features/plugin/native-guest-protocol.ct.tsx",
+  clientListed: "tests/client/features/chat/lib/empty-send-and-duration.test.ts",
 } as const;
 
 // A sibling path needs its `./`, or the resolver reads it as a package name.
@@ -139,11 +138,11 @@ test.for([
     typeOnly: true,
     rule: RULE.clientTierTypes,
   },
-  { name: "a listed client suite running its listed leaf", entry: SUITE.clientListed, target: MODULES.guestLeaf, typeOnly: false, rule: null },
+  { name: "a listed client suite running its listed leaf", entry: SUITE.clientListed, target: MODULES.chatLeaf, typeOnly: false, rule: null },
   {
     name: "a listed client suite running a leaf its line does not name",
     entry: SUITE.clientListed,
-    target: MODULES.libInternal,
+    target: MODULES.chatInternal,
     typeOnly: false,
     rule: RULE.clientListedDoors,
   },

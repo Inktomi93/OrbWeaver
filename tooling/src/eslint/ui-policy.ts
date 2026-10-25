@@ -33,12 +33,19 @@ const CONTAINER_UTILITY = String.raw`(?:[^\s]*:)?(?:@container(?:[-\/][^\s]*)?|\
 
 const CONTAINER_STYLE_KEYS = String.raw`^container(?:Type|Name|-type|-name)$`;
 
+// The `container: name / type` shorthand. A `container` property is also a legitimate option (a portal target, a
+// dialog body flag), so the shorthand is recognised by where it sits (a `style` prop) or by its string value.
+const CONTAINER_SHORTHAND = `Property:matches([key.type='Identifier'][key.name='container'], [key.type='Literal'][key.value='container'])`;
+
+// Prose attributes (`aria-label`, `placeholder`) may mention the utility; only a class-carrying attribute is scanned.
+const NOT_PROSE_ATTRIBUTE = ":not(JSXAttribute[name.name!=/[Cc]lass/] > Literal):not(JSXAttribute[name.name!=/[Cc]lass/] > JSXExpressionContainer > Literal)";
+
 export const CLASS_RESTRICTIONS = [
   {
     id: "no-raw-container-in-features",
     selectors: [
       {
-        selector: `:matches(Literal[value=type(string)][raw=/${CLASS_LITERAL_START}${CONTAINER_UTILITY}${CLASS_LITERAL_END}/], TemplateElement[value.raw=/${CLASS_SPAN_START}${CONTAINER_UTILITY}${CLASS_SPAN_END}/])`,
+        selector: `:matches(Literal[value=type(string)][raw=/${CLASS_LITERAL_START}${CONTAINER_UTILITY}${CLASS_LITERAL_END}/]${NOT_PROSE_ATTRIBUTE}, TemplateElement[value.raw=/${CLASS_SPAN_START}${CONTAINER_UTILITY}${CLASS_SPAN_END}/])`,
         message:
           "A raw container utility in a feature: containment is written by @orb/ui. Use <Container>, or the `container` prop of Section and Stack (UI-Architecture-and-Layout.md §4).",
       },
@@ -46,6 +53,11 @@ export const CLASS_RESTRICTIONS = [
         selector: `Property:matches([key.type='Identifier'][key.name=/${CONTAINER_STYLE_KEYS}/], [key.type='Literal'][key.value=/${CONTAINER_STYLE_KEYS}/])`,
         message:
           "A containerType or containerName style prop in a feature: containment is written by @orb/ui. Use <Container name>, or the `container` prop of Section and Stack.",
+      },
+      {
+        selector: `:matches(JSXAttribute[name.name='style'] ${CONTAINER_SHORTHAND}, ${CONTAINER_SHORTHAND}:matches([value.type='TemplateLiteral'], [value.type='Literal'][value.value=type(string)]))`,
+        message:
+          "A `container` shorthand style in a feature: containment is written by @orb/ui. Use <Container name>, or the `container` prop of Section and Stack.",
       },
     ],
   },
