@@ -76,7 +76,7 @@ test("a fallback does not excuse a custom property nothing declares", async () =
   // Declared in a sheet, registered by the generated channel, written at runtime, or written by a vendor.
   expect(await rulesHit(declaration("color: var(--color-primary, red);"))).toEqual([]);
   expect(await rulesHit(declaration("opacity: var(--appearance-font-scale, 1);"))).toEqual([]);
-  expect(await rulesHit(declaration("inset-inline-start: var(--x, 50%);"))).toEqual([]);
+  expect(await rulesHit(declaration("inset-inline-start: var(--orb-media-x, 50%);"))).toEqual([]);
   expect(await rulesHit(declaration("color: var(--shiki-dark, currentcolor);"))).toEqual([]);
   expect(await rulesHit(declaration("inline-size: var(--anchor-width, 0);"))).toEqual([]);
   // The probe's own declaration counts.
@@ -238,7 +238,8 @@ test("a shell region paints from tokens and names no component", async () => {
     ".shell-grid { background: var(--color-background); }",
     ".shell-grid { background: color-mix(in oklab, var(--color-background) 72%, transparent); }",
     ".shell-main { background: oklch(from var(--color-card) l c h / 0.5); }",
-    ".shell-main { background: oklch(from var(--color-card) calc(l * 0.9) c h / calc(alpha * 0.5)); }",
+    ".shell-main { background: oklch(from var(--color-card) l c h / calc(alpha * 0.5)); }",
+    ".shell-main { background: rgb(from var(--color-card) r g b / 0.4); }",
     ".shell-grid { text-shadow: none; }",
     ".shell-panel-header > [data-slot='panel-overlay-close'] { opacity: 1; }",
     ".shell-main [data-slot='chat-room-flank-row'] .orb-chat-track { opacity: 1; }",
@@ -256,6 +257,27 @@ test("a shell region paints from tokens and names no component", async () => {
     [".shell-grid { color: rgb(from var(--glass-tint) r g b); }", "orb/shell-paint-law"],
     [".shell-grid { color: rgb(from var(--color-card) 255 0 0); }", "orb/shell-paint-law"],
     [".shell-grid { color: rgb(from var(--color-card) r g 0); }", "orb/shell-paint-law"],
+    [".shell-grid { color: rgb(from var(--color-card) calc(r + 255) g b); }", "orb/shell-paint-law"],
+    [".shell-grid { color: oklch(from var(--color-card) calc(l * 0.9) c h); }", "orb/shell-paint-law"],
+    [".shell-grid { color: rgb(from var(--color-card) calc(0.5 * r) g b); }", "orb/shell-paint-law"],
+    [".shell-grid { color: hsl(from var(--color-card) calc(h + 30deg) s l); }", "orb/shell-paint-law"],
+    [".shell-grid { color: hsl(from var(--color-card) calc(h * 2) s l); }", "orb/shell-paint-law"],
+    [".shell-grid { color: rgb(from var(--color-card) calc(r * 2) calc(g / 2) calc(b * 0.25)); }", "orb/shell-paint-law"],
+    [".shell-grid { color: oklch(from var(--color-card) l c calc(h - 20)); }", "orb/shell-paint-law"],
+    [".shell-grid { color: rgb(from var(--color-card) calc(r) g b); }", "orb/shell-paint-law"],
+    [".shell-grid { color: rgb(from var(--color-card) calc(r * -1) g b); }", "orb/shell-paint-law"],
+    [".shell-grid { color: rgb(from var(--color-card) calc(r * 100000) g b); }", "orb/shell-paint-law"],
+    [".shell-grid { color: rgb(from var(--color-card) calc(r * 0.000001) g b); }", "orb/shell-paint-law"],
+    [".shell-grid { color: rgb(from var(--color-card) calc(r / 0.01) g b); }", "orb/shell-paint-law"],
+    [".shell-grid { color: rgb(from var(--color-card) calc(r / 1000) g b); }", "orb/shell-paint-law"],
+    [".shell-grid { color: hsl(from var(--color-card) h s calc(l * -1)); }", "orb/shell-paint-law"],
+    [".shell-grid { color: oklch(from var(--color-card) calc(l * 1000) c h); }", "orb/shell-paint-law"],
+    [".shell-grid { color: rgb(from var(--color-card) calc(r * 0) g b); }", "orb/shell-paint-law"],
+    [".shell-grid { color: rgb(from var(--color-card) calc(r * 0 + 255) g b); }", "orb/shell-paint-law"],
+    [".shell-grid { color: rgb(from var(--color-card) alpha alpha alpha); }", "orb/shell-paint-law"],
+    [".shell-grid { color: rgb(from var(--color-card) g r b); }", "orb/shell-paint-law"],
+    [".shell-grid { color: oklch(from var(--color-card) calc(l + 0.1) c h); }", "orb/shell-paint-law"],
+    [".shell-grid { color: rgb(from var(--color-card) calc(r + 30deg) g b); }", "orb/shell-paint-law"],
     [".shell-grid { color: rgb(from var(--color-card) calc(255) calc(0) calc(0)); }", "orb/shell-paint-law"],
     [".shell-grid { color: rgb(from var(--color-card) none none none); }", "orb/shell-paint-law"],
     [".shell-grid { color: rgb(from var(--color-card) red g b); }", "orb/shell-paint-law"],

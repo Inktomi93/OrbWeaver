@@ -3,7 +3,7 @@
 import valueParser from "postcss-value-parser";
 import type { Rule } from "stylelint";
 import stylelint from "stylelint";
-import { declaredCustomProperties, declaredInCss } from "./tooling/src/css-names/custom-properties.ts";
+import { declaredCustomProperties, declaredInCss } from "./tooling/src/css-names/index.ts";
 
 const NAME = "orb/no-undeclared-var-fallback";
 const MESSAGE = "reads a custom property no sheet, generated file, runtime writer or vendor declares, so it is always its fallback";
