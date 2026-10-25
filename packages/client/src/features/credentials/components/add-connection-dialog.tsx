@@ -3,12 +3,12 @@
 import type { ProviderDef } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import { WebSpinner } from "@orb/ui/spinner";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, RefObject } from "react";
 import { useState } from "react";
 import { FormDialog, QueryBoundary, useSetBinding } from "#components";
 import type { Invalidation, Trpc } from "#data";
+import { useSuspenseQuery } from "#data";
 import { CHAT_ROLE_DOOR } from "#lib";
 import { openConfigTo } from "#state";
 import { ADD_DIALOG_COPY } from "../lib/add-connection-form-model.ts";

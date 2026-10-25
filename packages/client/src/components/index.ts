@@ -27,7 +27,6 @@ export type { ModelRunConfirmDialogProps } from "./model-run-confirm-dialog.tsx"
 export { ModelRunConfirmDialog } from "./model-run-confirm-dialog.tsx";
 export { PanelEdgeControl } from "./panel-edge-control.tsx";
 export { PickerDialog } from "./picker-dialog.tsx";
-export { HIDDEN_UNTIL_HOVER } from "./pointer-variants.ts";
 export { QueryBoundary } from "./query-boundary.tsx";
 export { RegexScopeOrder } from "./regex-scope-order.tsx";
 export { RegexScriptPicker } from "./regex-script-picker.tsx";

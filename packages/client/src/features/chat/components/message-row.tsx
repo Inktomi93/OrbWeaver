@@ -11,11 +11,11 @@ import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { Checkbox } from "@orb/ui/checkbox";
-import { Row, Stack } from "@orb/ui/layout";
+import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { Fragment, useEffect, useState } from "react";
 import type { ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
-import { cn, resolveRowRenderPolicy } from "#lib";
+import { resolveRowRenderPolicy } from "#lib";
 import { appearanceMessageRegistryEnabled, registerAppearanceMessageSnapshot } from "#src/lib/appearance-message-registry.ts";
 import {
   toggleMessageSelected,
@@ -30,18 +30,17 @@ import { AttachmentUrlProvider } from "../hooks/attachment-url-provider.tsx";
 import { useEnterMotion } from "../hooks/use-enter-motion.ts";
 import { resolveRowAttribution, speakerThemesByName } from "../lib/attribution.ts";
 import { avatarTreatmentFor } from "../lib/avatar-treatment.ts";
-import { ROW_BODY_AT_PHONE_WIDTH } from "../lib/chat-track.tsx";
 import type { GreetingBinding } from "../lib/greeting-window.ts";
 import { resolveMessageRenderContext } from "../lib/message-render-context.ts";
-import { BG_PHOTO_CHROME_PLATE } from "../lib/message-row-backing.ts";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
-import { actionsRevealFor, columnClassFor, gutterRailFor, headerShape, rowBodyClassFor, rowMirrored } from "../lib/row-placement.ts";
+import { actionsRevealFor, gutterRailFor, headerShape, rowMirrored } from "../lib/row-placement.ts";
 import { toolBoundaryDisplayMessage } from "../lib/tool-prose.ts";
 import type { MessageMetadataVisibility } from "./message-metadata-row.tsx";
 import { MessageMetadataRow } from "./message-metadata-row.tsx";
 import { artViewFor, renderRowAvatar } from "./message-row-avatar.tsx";
 import { renderContextBoundaryDivider } from "./message-row-divider.tsx";
 import { placeRowHeader, renderRowActions, renderRowNameRow } from "./message-row-header.tsx";
+import { MessageContentColumn, MessageRowBody, MessageRowRoot } from "./message-row-layout.tsx";
 import {
   renderRowBubble,
   renderRowReasoning,
@@ -181,7 +180,7 @@ export function MessageRow({
   surfaceContributors,
   toolRenderers,
 }: MessageRowProps): ReactElement {
-  const enterClasses = useEnterMotion(enterMotion);
+  const arrival = useEnterMotion(enterMotion);
   const viewArt = useArtViewer();
   useEffect(() => {
     if (!appearanceMessageRegistryEnabled()) {
@@ -288,12 +287,9 @@ export function MessageRow({
     }) ?? null;
   const [artFailed, setArtFailed] = useState(false);
   const avatarTreatment = avatarTreatmentFor(skin, attribution.kind, decoration, artFailed);
-  // #1728 arm B. `Grid` and `Row` are both `div`s taking `className`/`gap`/`data-*` and each ignores the
-  // other's variant prop, so ONE element spelling serves both arms and the body's markup is not written
-  // twice; the two placement facts are single-homed beside the skin table that decides them.
+  // #1728 arm B: the two placement facts are single-homed beside the skin table that decides them.
   const gutterRail = gutterRailFor(skin, role);
   const mirrored = rowMirrored(skin, role);
-  const columnClass = columnClassFor(skin, mirrored);
   const avatarNode = renderRowAvatar({
     attribution,
     avatarTreatment,
@@ -311,9 +307,6 @@ export function MessageRow({
   const weldedAvatar = avatarTreatment === "sticky-portrait" ? avatarNode : null;
   const leadingAvatar = weldedAvatar !== null || mirrored ? null : avatarNode;
   const trailingAvatar = weldedAvatar !== null || !mirrored ? null : avatarNode;
-  // AT A PHONE WIDTH (`ROW_BODY_AT_PHONE_WIDTH`) this row's own `@container` tightens the gap; the chip keeps
-  // its size and is never hidden.
-
   // §6c/M8 message-footer: absent for a pre-commit draft-greeting row (no `surfaceContributors` passed).
   const footerContributions = resolveMessageFooter(surfaceContributors, message);
   const generationCredit = resolveGenerationCredit(metadataVisibility);
@@ -334,7 +327,7 @@ export function MessageRow({
       showTimestamp: metadataVisibility.showTimestamps,
       stickyAttribution,
       placement: skin.headerPlacement,
-      pinnedPaint: skin.pinnedHeader.paint(role),
+      pinnedHeader: skin.pinnedHeader,
       mirrored,
       shape: headerShape(skin, lastRow),
       // B7 — the picker's segment-target parse keys the SAME character-name set the span renderer uses
@@ -348,7 +341,7 @@ export function MessageRow({
         viewerIsHost,
         generationCredit,
         characterNames: [...speakerThemes.keys()],
-        surface: skin.actionsRow.surface,
+        chip: skin.actionsRow.chip,
       }),
     }),
     skin.headerPlacement,
@@ -358,16 +351,17 @@ export function MessageRow({
     // The boundary divider is a sibling before the article, never nested inside role="article".
     <AttachmentUrlProvider chatId={message.chatId} content={message.content}>
       {renderContextBoundaryDivider(contextBoundary, contextBoundaryLabel, contextBoundaryCompactSummary)}
-      <Stack
+      <MessageRowRoot
+        skin={skin}
+        messageRole={role}
+        hoverGroup={true}
+        arrival={arrival}
         role="article"
         aria-label={attribution.name ?? undefined}
-        container={true}
         data-message-id={message.id}
-        gap="row"
         data-slot="message-row"
         data-role={role}
         data-kind={attribution.kind}
-        className={cn("group", skin.outer(role), enterClasses)}
       >
         {selecting ? <Checkbox aria-label="Select message" checked={selected} onCheckedChange={(): void => toggleMessageSelected(message.id)} /> : null}
         {/* #1728 arm B — flex for `anchored`, a three-rail GRID for `gutterCentred`, whose rails centre the
@@ -377,7 +371,7 @@ export function MessageRow({
             the same in-flow two-track gutter: arm B applies where a margin exists, and where the track IS
             the viewport it cannot, which is a fact of the ruling's input rather than a deviation from it.
             The avatar stays a SIBLING of the column in both arms — §B.1 intact, placement only. */}
-        <Row align="start" className={cn(rowBodyClassFor(skin), ROW_BODY_AT_PHONE_WIDTH)} gap="row" data-slot="message-row-body">
+        <MessageRowBody skin={skin}>
           {leadingAvatar}
           {/* #245 — THE ROW HOLDS ITS OWN BOX OPEN WHILE IT IS EDITED. The column is content-sized (the
               row body shrink-wraps inside the track), and its max-content is usually the NAME ROW — whose
@@ -386,12 +380,7 @@ export function MessageRow({
               the instant the reader clicked Edit, and in `flat` it slid 42px sideways as well. The
               suppression is kept; what it vacates is reserved. `minInlineSize` (not a fixed size) so a
               longer draft can still grow the box out to the column's own cap. */}
-          <Stack
-            gap="row"
-            data-slot="message-content-column"
-            className={columnClass}
-            style={resolveColumnStyle(skin.columnStyle, reservedInlineSize, reservedBlockSize)}
-          >
+          <MessageContentColumn skin={skin} mirrored={mirrored} style={resolveColumnStyle(skin.columnStyle, reservedInlineSize, reservedBlockSize)}>
             {themedColumnContent(
               attribution.tokens,
               <>
@@ -423,7 +412,7 @@ export function MessageRow({
             {/* #106 — the two chrome bands BELOW the bubble. Unlike the name row they are outside any
                 bubble fill in EVERY mode, so their scrim is mode-independent (the skin's `chromeBacking`
                 is not consulted here). Both self-gate on `data-has-bg-image`: no wallpaper, no chip. */}
-            {editing ? null : <MessageMetadataRow message={message} visibility={metadataVisibility} backingClass={BG_PHOTO_CHROME_PLATE} />}
+            {editing ? null : <MessageMetadataRow message={message} visibility={metadataVisibility} />}
             {swipeBelow}
             {/* `empty:hidden` on the footer is LOAD-BEARING, caught on a live drive: a contribution can be
                 REGISTERED and still render nothing (TurnToolCallsDisclosure returns null for a turn with no
@@ -437,10 +426,10 @@ export function MessageRow({
                 ))}
               </Stack>
             )}
-          </Stack>
+          </MessageContentColumn>
           {trailingAvatar}
-        </Row>
-      </Stack>
+        </MessageRowBody>
+      </MessageRowRoot>
     </AttachmentUrlProvider>
   );
 }

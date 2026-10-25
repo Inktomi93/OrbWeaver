@@ -270,7 +270,7 @@ test("T16 — a kill is told from an ordinary red, in BOTH node kill shapes", ()
 
 // ── #1985: the DENOMINATOR is the cores this process tree may USE, not the cores the box has ─────────
 //
-// THE DEFECT THIS PINS. `enforcement-registry-parity.int.test.ts` carries `scaledBudget(60_000)`, timed out
+// THE DEFECT THIS PINS. A suite carrying `scaledBudget(60_000)`, timed out
 // under concurrent lanes and passed under lighter load inside ONE session on ONE commit — and the scaling
 // had never engaged, because `readBoxLoad` divided a box-wide loadavg by `cpus().length` (24) while
 // a cgroup CPU quota had capped the whole session tree at CPUQuota 800% = EIGHT cores. The factor could

@@ -1,5 +1,5 @@
 // snap's programmatic front door — what tests and sibling tools import; the cli fronts this surface.
-// One tool, one API (docs/law/Core-Tooling-Law.md §2.5).
+// One tool, one API.
 export type { FixtureStatus, FixtureTarget, FixtureTargetOverride } from "./contract/fixture.ts";
 export type {
   HeapBrowserContextId,
@@ -138,7 +138,7 @@ export { SNAP_FLAG_GROUP_ORDER, snapFlagDescriptors } from "./ops/flag-grammar.t
 export { OPTIONAL_SELECTOR_FLAGS, OPTIONAL_VALUE_FLAGS } from "./ops/flags-classes.ts";
 export { configureStage, refuseFileMode } from "./ops/guards.ts";
 // cli.ts's carved-out internal-flag dispatch (`--session-daemon` / `--stage-keeper`) — cli.ts consumes
-// this through the front door like every other command it dispatches (Core-Tooling-Law.md §4.2/§4.3/§9.8).
+// this through the front door like every other command it dispatches.
 export { runInternalEntry } from "./ops/internal-entry.ts";
 export { materializeDevToolsAssets } from "./ops/materialize-devtools.ts";
 export { snapMatrix } from "./ops/matrix.ts";

@@ -2,8 +2,7 @@
 // band-access verdicts (#108 — a foreign live stage is a refusal, never a teardown), the staleness rule,
 // the `--base` band claim (#1186) and the DB-bound inherited-env allowlist. The imperative half is
 // ops/stage.ts; the TABLE's own derivations — allocation, the TTL/strand rule, the three-probe health
-// verdict, the limits — are lib/stage-bands.ts (split when this file approached the tooling line cap,
-// docs/law/Core-Tooling-Law.md §4.3).
+// verdict, the limits — are lib/stage-bands.ts (split when this file approached the tooling line cap).
 import { createHash } from "node:crypto";
 import { basename, dirname, join } from "node:path";
 import { parseEnv } from "node:util";
@@ -39,8 +38,8 @@ export function stageKeeperLogPath(home: string, band: number): string {
  *  no row, so without this "band 3 is free" and "band 3 was reaped 40 s ago" read identically. */
 export const REAPS_REL = join(STAGE_ROOT_REL, "reaps.json");
 /** The pre-#1276 single marker. Read ONCE as a legacy row and DELETED (ops/stage-marker.ts
- *  `migrateLegacyMarker`) — there is no compat shim, because half a migration is the named rot
- *  (`Core-Tooling-Law.md` §1). This constant exists only so the migration and the status line can name
+ *  `migrateLegacyMarker`) — there is no compat shim, because half a migration is the named rot.
+ *  This constant exists only so the migration and the status line can name
  *  the file they retired. */
 export const LEGACY_ACTIVE_REL = join(STAGE_ROOT_REL, "active.json");
 

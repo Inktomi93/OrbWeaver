@@ -13,8 +13,8 @@
 //   · a holder BEATS: its slot file is rewritten with a fresh `beatMs` while the lease is held, so a pid the
 //     OS recycled (which never refreshes a file it does not know) is stolen, and a beating holder never is.
 // No real runner is started: the mechanism is a directory of files plus `kill(pid, 0)`, and every input
-// (clock, pid, process table, sleep, the beat timer) is injected — the same posture ct-runner-lock.test.ts
-// takes. One test drives the real `kill(pid, 0)` against a reaped child, so the default liveness probe is
+// (clock, pid, process table, sleep, the beat timer) is injected.
+// One test drives the real `kill(pid, 0)` against a reaped child, so the default liveness probe is
 // proven too, and one drives the real beat timer.
 import { spawn, spawnSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";

@@ -13,10 +13,9 @@ import { Field } from "@orb/ui/field";
 import { Select } from "@orb/ui/select";
 import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
-import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { selectOptions, tabOptions } from "../lib/plugin-surface-bindings.ts";
 
 /** Submit `actionId` with the current draft plus the fresh pick — the leaf module's own `SubmitAction`,

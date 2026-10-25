@@ -1,6 +1,6 @@
-// domain/rpg/verbs/game/update-config — updateConfig (docs/plans/rpg/design.md). The ONE config write door: the
-// profile mutability matrix (§2.3), the `steeringNote`, and the `gmPresetId` + `extractionMode` KNOBS (§4.11 #1
-// + the delivery-model amendment). Host-gated.
+// domain/rpg/verbs/game/update-config — updateConfig (D58). The ONE config write door: the
+// profile mutability matrix, the `steeringNote`, and the `gmPresetId` + `extractionMode` KNOBS.
+// Host-gated.
 //
 // It is also the RULESET door (#862): the setting the Game tab's segmented control writes. The apply is
 // ADDITIVE by owner ruling (2026-08-30) and the law lives in contracts (`applyRulesetVocabulary`) — the verb

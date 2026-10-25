@@ -82,7 +82,7 @@ export function effectiveProviderRouting<T extends OpenRouterRouting>(
 //     recursion depth of N parallel calls adds N+1 array rows but only TWO role groups — so an array-offset
 //     placer slides forward by a number nobody upstream can predict, landing the breakpoint on bytes
 //     GENERATED THIS TURN. Measured: still a cache READ (Anthropic's lookback finds the older entry) but a
-//     wasted cache WRITE per depth, sized by the tool exchange (scripts/probes/openrouter/RESULTS.md, OR-5).
+//     wasted cache WRITE per depth, sized by the tool exchange (the OpenRouter probe, OR-5).
 //
 // So a within-turn tool exchange is TRANSPARENT to depth: it did not exist when the depth was computed, and
 // counting it is the whole defect. This is a DELIBERATE deviation from SillyTavern's

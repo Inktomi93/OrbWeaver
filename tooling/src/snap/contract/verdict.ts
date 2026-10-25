@@ -32,6 +32,6 @@ export interface SnapFailureSummary {
   /** `--lighthouse` audits that FAILED. A finding is a verdict member here for the same reason dead CSS
    *  and contrast are: the arm is opt-in, so a green exit over the a11y failures the caller asked
    *  Lighthouse to find would be a false ship receipt. A REFUSED audit is not counted here at all — it
-   *  exits 2 through the evidence-gap door instead (tooling/src/snap/ops/lighthouse.ts). */
+   *  exits 2 through the evidence-gap door instead (tooling/src/snap/ops/arms/lighthouse.ts). */
   readonly lighthouse: number;
 }

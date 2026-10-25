@@ -5,8 +5,8 @@
 // The `kind` + `status` + `mode` + `lane` enum columns DERIVE the canonical tuples from `@orb/contracts/workloads`
 // (D34 — the axes were promoted out of `domain/workloads/contract` so `@orb/db` can import them; db deps are
 // kit + contracts + drizzle only). Each column carries both the drizzle `{ enum }` (type-side) AND a
-// CHECK built from the same tuple (SQL-side) — never a re-spelled union. A `.int` test-mirror pins the
-// column enum === the contracts tuple (workloads.int.test.ts).
+// CHECK built from the same tuple (SQL-side) — never a re-spelled union. A test pins the
+// column enum === the contracts tuple.
 //
 // The load-bearing concurrency guard is THREE PARTIAL UNIQUE INDEXes, partitioned by run `mode` and the
 // singular row's IMMUTABLE admission-origin arm:

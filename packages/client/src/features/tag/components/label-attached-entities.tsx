@@ -6,10 +6,9 @@ import { Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
-import { QueryErrorState, useTRPC } from "#data";
+import { QueryErrorState, useSuspenseQuery, useTRPC } from "#data";
 import { tagTargetTitle } from "#lib";
 import { openConfigTo, openPersonaEditor, selectCharacter, selectChat, selectCollectionMember, selectPreset, setActiveSection } from "#state";
 

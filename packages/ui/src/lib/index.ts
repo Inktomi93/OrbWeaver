@@ -6,6 +6,7 @@ export { isRenderableColor, isSafeColor } from "@orb/kit/safe-color";
 export { ACCENT_HOVER } from "./accent-hover.ts";
 export { copyActionName, hideActionName, removeActionName, revealActionName, selectActionName } from "./action-names.ts";
 export { ANCHOR_GAP_INPUT, ANCHOR_GAP_TRIGGER } from "./anchor-gap.ts";
+export { CARD_CORNERS } from "./card-corners.ts";
 // `cn` + `tv` are ONE module because they must share ONE tailwind-merge config — see class-merge.ts
 // for the import-order race that shape kills.
 export { cn, tv } from "./class-merge.ts";
@@ -32,8 +33,8 @@ export {
   FOCUS_RING_WITHIN,
   FOCUS_RING_WITHIN_INSET,
 } from "./focus-ring.ts";
-export { GROUND, WALLPAPER_PLATE } from "./ground.ts";
-export { HOVER_CUE, HOVER_REVEAL, HOVER_YIELD, INERT_UNTIL_HOVER } from "./hover-reveal.ts";
+export { GROUND, GROUND_FADE_BELOW, GROUND_FADE_FROM, WALLPAPER_PLATE } from "./ground.ts";
+export { HOVER_CUE, HOVER_DIM, HOVER_REVEAL, HOVER_YIELD, INERT_UNTIL_HOVER } from "./hover-reveal.ts";
 export { readKeyboardInset, subscribeKeyboardInset } from "./keyboard-inset.ts";
 export { createLiveTokenStore, LIVE_TOKEN_ROOT_ATTRIBUTE, resolveCssColor, resolveCssVar } from "./live-token-resolver.ts";
 export { MESSAGE_BUBBLE_BOX, MESSAGE_BUBBLE_FILL } from "./message-bubble.ts";
@@ -56,7 +57,7 @@ export { SELECTION_CONTROL, TOUCH_TARGET_PSEUDO, TOUCH_TARGET_PSEUDO_STRETCH } f
 export { SELECTION_RAIL } from "./selection-rail.ts";
 export { SELECTION_RING_CHECKED, SELECTION_RING_SELECTED } from "./selection-ring.ts";
 export { sinHash } from "./sin-hash.ts";
-export { OPEN_TURN, PULSE, SPOILER } from "./state-motion.ts";
+export { ARRIVAL, OPEN_TURN, PULSE, SPOILER } from "./state-motion.ts";
 export { TONE_INK } from "./tone-ink.ts";
 export { TOUCH_FLOOR_AT_COARSE } from "./touch-floor.ts";
 export { usePrefersLightColorScheme } from "./use-prefers-light-color-scheme.ts";

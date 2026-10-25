@@ -600,7 +600,7 @@ function previewRender(registry: MacroRegistry | null): MacroRenderEnv {
   return { registry: registry ?? globalMacroRegistry, random: PREVIEW_RANDOM };
 }
 
-/** The PREVIEW's gather half — the rpg macro/CEL feed (docs/plans/rpg/design.md) plus the S2 teaching collection
+/** The PREVIEW's gather half — the rpg macro/CEL feed (D58) plus the S2 teaching collection
  *  (whose contributor #0 carries a game's depth-0 state-block reminder), staged exactly as the turn path
  *  stages them so the host's honesty instrument shows what the model actually reads (without this the whole
  *  state block is INVISIBLE there, and a later teaching contributor would be invisible the same way).

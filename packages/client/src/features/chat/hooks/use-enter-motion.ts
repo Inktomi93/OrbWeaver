@@ -15,19 +15,14 @@
 // appearance.reducedMotion toggle rides the globals.css `[data-appearance-reduced-motion]` transition-duration
 // floor, same as every other transition in the app.)
 //
-// Compositor-only (only `transform`/`opacity` — never trigger layout/paint): `opacity` + the
-// Tailwind v4 standalone `translate` property — the
-// transition must NAME `translate` (the button primitive's `scale` precedent; `transform` would not
-// animate it). `--motion-base` + `ease-out-expo`, the house programmatic-motion pair — no bounce.
+// The two states are the `Stack arrival` prop (`ARRIVAL` in `@orb/ui`): compositor properties only, on the house
+// programmatic-motion pair.
 
 import { usePrefersReducedMotion } from "@orb/ui/lib";
 import { useEffect, useState } from "react";
 
-const ENTER_TRANSITION = "transition-[opacity,translate] duration-(--motion-base) ease-out-expo";
-const ENTER_FROM = `${ENTER_TRANSITION} opacity-0 translate-y-tight`;
-
-/** Class fragment for a row's enter transition — `""` unless this mount is a genuine arrival. */
-export function useEnterMotion(enter: boolean): string {
+/** The row's `arrival` state — absent unless this mount is a genuine arrival. */
+export function useEnterMotion(enter: boolean): "from" | "settle" | undefined {
   const reducedMotion = usePrefersReducedMotion();
   // Mount-latched: only the FIRST render's verdict counts (see the header note).
   const [animate] = useState(enter && !reducedMotion);
@@ -41,7 +36,7 @@ export function useEnterMotion(enter: boolean): string {
     return (): void => cancelAnimationFrame(frame);
   }, [animate]);
   if (!animate) {
-    return "";
+    return;
   }
-  return entered ? ENTER_TRANSITION : ENTER_FROM;
+  return entered ? "settle" : "from";
 }

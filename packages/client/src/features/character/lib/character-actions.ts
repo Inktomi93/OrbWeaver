@@ -48,7 +48,7 @@ type CharacterActionScope = (typeof CHARACTER_ACTION_SCOPES)[number];
  * `bulkAddCardTag` verb. A `Tag` item in the kebab would mint the exact second-home-for-one-verb this
  * registry exists to kill.
  *
- * DESTRUCTIVE LAST is a property of these tuples, pinned by `character-actions.test.ts` rather than by a
+ * DESTRUCTIVE LAST is a property of these tuples, kept by hand rather than by a
  * sort — the order a menu renders in should be readable here, not computed.
  */
 export const CHARACTER_ACTION_SCOPE_IDS = {

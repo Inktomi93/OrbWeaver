@@ -5,7 +5,6 @@ import { blobPortraitUrl } from "@orb/contracts/assets";
 import { initialsFor } from "@orb/kit/initials";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Avatar } from "@orb/ui/avatar";
-import { Button } from "@orb/ui/button";
 import type { ReactElement } from "react";
 import { cn, viewImageActionName } from "#lib";
 import type { ArtViewer } from "../hooks/art-viewer-context.tsx";
@@ -15,15 +14,16 @@ import type { RowAttribution } from "../lib/attribution.ts";
 import type { RowSkin } from "../lib/message-row-variants.ts";
 import { avatarSrcProp } from "../lib/message-row-variants.ts";
 import type { ArtView } from "./art-slot.tsx";
-import { FallbackLetter, PortraitAvatar } from "./art-slot.tsx";
+import { ArtButton, FallbackLetter, PortraitAvatar } from "./art-slot.tsx";
 
-/** #1728 arm B — a chip in a `1fr` RAIL must hug the centred column's edge or it drifts to the far side of
- *  the margin. Mapped rather than branched, so a new rail member fails tsc here (the house dispatch rule). */
-const GUTTER_RAIL_CLASS: Readonly<Record<"none" | "leading" | "trailing", string>> = {
-  none: "",
-  leading: "@cq-56:justify-self-end",
-  trailing: "@cq-56:justify-self-start",
-};
+// #1728 arm B — a chip in a `1fr` RAIL must hug the centred column's edge or it drifts to the far side of the margin.
+const RAIL_LEADING = "@cq-56:justify-self-end";
+const RAIL_TRAILING = "@cq-56:justify-self-start";
+
+// Ripple's portrait column: its width token, and its phone width below the row's `md` step.
+const PORTRAIT_WIDTH = "block-auto inline-(--immersive-ripple-portrait-width) @max-cq-28:inline-(--immersive-ripple-portrait-width-phone)";
+// Ripple's portrait sticks to the top of its card; the portrait itself is the sticky item only when unwrapped.
+const STICKY_TOP = "sticky inset-bs-0";
 
 // "sticky-portrait" (Ripple) swaps the chip for a smart-cropped 2:3 portrait pinned via
 // position:sticky, forcing shape="square" regardless of the avatarShape pref. Its weld rounds only the
@@ -60,11 +60,6 @@ export function renderRowAvatar(args: {
   if (args.attribution.name === null || !args.showInChatAvatars) {
     return null;
   }
-  // The welded portrait spans the card and has no line to align to — offset only the gutter chip.
-  // exactOptionalPropertyTypes idiom: OMIT the prop rather than pass `undefined` (the `avatarSrcProp`
-  // precedent one file over).
-  const railClass = GUTTER_RAIL_CLASS[args.gutterRail];
-  const chipClass = cn(args.alignToInsideHeader ? "mbs-row" : "", railClass) ?? "";
   // A bare skin (stock document) shows no identity art at all.
   if (args.avatarTreatment === "none") {
     return null;
@@ -74,21 +69,37 @@ export function renderRowAvatar(args: {
   if (args.avatarTreatment === "sticky-portrait") {
     return stickyPortrait(args, target);
   }
-  const chip = (
-    <Avatar
-      size={args.avatarSize}
-      shape={args.avatarShape}
-      aspect={args.avatarAspect}
-      ring={args.avatarRing}
-      fallbackDelay={0}
-      hueSeed={args.attribution.hueSeed}
-      {...(target === null && chipClass !== "" ? { className: chipClass } : {})}
-      {...(args.imageUrlFor === undefined ? avatarSrcProp(args.attribution.avatarHash) : { src: args.imageUrlFor("icon") })}
-    >
-      {initialsFor(args.attribution.name)}
-    </Avatar>
+  // The welded portrait spans the card and has no line to align to — offset only the gutter chip, on whichever
+  // element is outermost: the chip, or the button that opens it.
+  const chipLayout =
+    cn(
+      args.alignToInsideHeader ? "mbs-row" : undefined,
+      args.gutterRail === "leading" ? RAIL_LEADING : undefined,
+      args.gutterRail === "trailing" ? RAIL_TRAILING : undefined,
+    ) ?? "";
+  const avatar = {
+    size: args.avatarSize,
+    shape: args.avatarShape,
+    aspect: args.avatarAspect,
+    ring: args.avatarRing,
+    fallbackDelay: 0,
+    hueSeed: args.attribution.hueSeed,
+    // exactOptionalPropertyTypes idiom: OMIT the prop rather than pass `undefined` (`avatarSrcProp`).
+    ...(args.imageUrlFor === undefined ? avatarSrcProp(args.attribution.avatarHash) : { src: args.imageUrlFor("icon") }),
+  } as const;
+  const initials = initialsFor(args.attribution.name);
+  if (target === null) {
+    return (
+      <Avatar {...avatar} className={chipLayout}>
+        {initials}
+      </Avatar>
+    );
+  }
+  return (
+    <ArtButton view={artViewOf(target)} className={chipLayout}>
+      <Avatar {...avatar}>{initials}</Avatar>
+    </ArtButton>
   );
-  return viewable(target, chipClass, chip);
 }
 
 /** The tap target for echo's tile or whisper's band: the speaker's own art, opened in the transcript's viewer. */
@@ -100,7 +111,7 @@ export function artViewFor(viewArt: ArtViewer | null, attribution: RowAttributio
   if (target === null) {
     return null;
   }
-  return { label: viewImageActionName(target.name), open: (opener) => target.open({ hash: target.hash, name: target.name }, opener) };
+  return artViewOf(target);
 }
 
 /** What a tap on a speaker's art opens: the blob and the name it is titled with. Null leaves the art plain paint. */
@@ -114,22 +125,8 @@ function viewTargetFor(viewArt: ArtViewer | null, hash: string | null, name: str
   return viewArt === null || hash === null ? null : { open: viewArt.open, hash, name };
 }
 
-// `media` sizes the button from its child, so the avatar keeps its own box and the button adds only the press.
-function viewable(target: ViewTarget | null, className: string, avatar: ReactElement): ReactElement {
-  if (target === null) {
-    return avatar;
-  }
-  return (
-    <Button
-      aria-label={viewImageActionName(target.name)}
-      className={className}
-      intent="bare"
-      onClick={(event): void => target.open({ hash: target.hash, name: target.name }, event.currentTarget)}
-      size="media"
-    >
-      {avatar}
-    </Button>
-  );
+function artViewOf(target: ViewTarget): ArtView {
+  return { label: viewImageActionName(target.name), open: (opener) => target.open({ hash: target.hash, name: target.name }, opener) };
 }
 
 /** The portrait URL at the width its slot renders at (times the pixel ratio); undefined with no hash or static art. */
@@ -139,27 +136,30 @@ function portraitSource(hash: string | null, owned: boolean): ((cssWidth: number
 
 // Ripple's portrait sticks to the top of its card as the row scrolls; wrapped, the button is the sticky flex item.
 function stickyPortrait(args: Parameters<typeof renderRowAvatar>[0], target: ViewTarget | null): ReactElement {
-  const weldRounding = args.mirrored ? "rounded-s-none rounded-e-card" : "rounded-s-card rounded-e-none";
+  const weld = args.mirrored ? "end" : "start";
   const portrait = (
     <PortraitAvatar
       size={args.avatarSize}
       shape="square"
       aspect="portrait"
       ring={args.avatarRing}
+      cardCorners={weld}
       fallbackDelay={0}
       hueSeed={args.attribution.hueSeed}
-      className={
-        cn(
-          target === null && "sticky inset-bs-0",
-          "block-auto inline-(--immersive-ripple-portrait-width) @max-cq-28:inline-(--immersive-ripple-portrait-width-phone)",
-          weldRounding,
-        ) ?? ""
-      }
+      // Unwrapped, the portrait is the sticky flex item; wrapped, the button is.
+      className={cn(target === null ? STICKY_TOP : undefined, PORTRAIT_WIDTH) ?? ""}
       urlAt={portraitSource(args.attribution.avatarHash, args.imageUrlFor === undefined)}
       {...(args.imageUrlFor === undefined ? {} : { src: args.imageUrlFor("portrait") })}
     >
       <FallbackLetter className="absolute inset-0" initials={initialsFor(args.attribution.name ?? "")} />
     </PortraitAvatar>
   );
-  return viewable(target, cn("sticky inset-bs-0 shrink-0", weldRounding) ?? "", portrait);
+  if (target === null) {
+    return portrait;
+  }
+  return (
+    <ArtButton view={artViewOf(target)} cardCorners={weld} className={cn(STICKY_TOP, "shrink-0") ?? ""}>
+      {portrait}
+    </ArtButton>
+  );
 }

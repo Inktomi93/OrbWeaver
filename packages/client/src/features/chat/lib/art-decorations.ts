@@ -34,7 +34,7 @@ export interface BubbleDecorationArgs {
   readonly showInChatAvatars: boolean;
 }
 
-/** Extra inline paint for the bubble box, layered over the existing `skin.inner(role)` skin. */
+/** Extra inline paint for the bubble box, layered over the skin's own box (`RowSkin.box`). */
 export interface BubbleDecoration {
   readonly style?: CSSProperties;
   /** Whisper's header-art band, rendered as a real block-level child above the bubble text (never a
@@ -42,7 +42,6 @@ export interface BubbleDecoration {
   readonly headerBand?:
     | {
         readonly style: CSSProperties;
-        readonly className: string;
         /** The gradient layer that dissolves the band into the bubble beneath it. */
         readonly feather: string;
         /** The feather over a band with no image to show (none, or one that failed to load): the solid top holds the initial. */
@@ -139,9 +138,6 @@ export function echoDecoration(args: BubbleDecorationArgs): BubbleDecoration | n
   };
 }
 
-// Moonlit Echoes' Glimmer preset: the banner is half the card, centred; a phone widens it to 55%.
-const WHISPER_BAND_WIDTH = "mx-auto inline-1/2 @max-cq-28:inline-11/20";
-
 const BUBBLE_FILL_VAR: Readonly<Record<MessageRole, string>> = {
   user: "--color-user-bubble",
   assistant: "--color-ai-bubble",
@@ -176,7 +172,6 @@ export function whisperDecoration(args: BubbleDecorationArgs): BubbleDecoration 
   return {
     style: WHISPER_STRIPE,
     headerBand: {
-      className: WHISPER_BAND_WIDTH,
       style: { aspectRatio: "var(--aspect-banner)", backgroundColor: avatarFallbackHueColor(args.hueSeed) },
       feather: whisperFeather(args.role, true),
       plainFeather: whisperFeather(args.role, false),

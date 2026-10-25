@@ -474,7 +474,7 @@ export async function speakerSequence(chatId: ChatId): Promise<readonly (string 
 // canon, read through these — the DOM is only ever the second witness (behavior + data-flow, never layout).
 // `previewAssembly` is the honest pre-turn instrument for "the steer shaped the assembly": it routes a
 // `guided` steer through the SAME gather→build a real turn gets and returns the assembled prompt + trace,
-// so the steer text is assertable BEFORE (and without) any generation (read.int.test.ts:598 is the domain
+// so the steer text is assertable BEFORE (and without) any generation (the read verb's integration test is the domain
 // twin of this). ──
 
 /** Build the assembled prompt for a hypothetical turn, optionally with a guided steer routed through the

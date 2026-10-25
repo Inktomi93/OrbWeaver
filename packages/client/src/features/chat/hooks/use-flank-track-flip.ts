@@ -3,18 +3,14 @@
 // literals here because `css-selector-has-a-writer` reads the writer's literal names.
 
 import type { RefObject } from "react";
-import { useLayoutEffect, useRef } from "react";
-import { motionIsReduced } from "#lib";
+import { useEffect, useLayoutEffect, useRef } from "react";
+import { holdFlipInPhase, motionIsReduced } from "#lib";
 
 const FLANK_DIRECTIONS = ["in", "out"] as const;
 type FlankDirection = (typeof FLANK_DIRECTIONS)[number];
 
-/** The keyframe shell.css arms on the transcript rows; the release listens for its end only. */
-const FLANK_FLIP_ANIMATION = "room-flank-centre-flip";
-
-function isFlankFlip(animation: Animation): boolean {
-  return animation instanceof CSSAnimation && animation.animationName === FLANK_FLIP_ANIMATION;
-}
+/** The keyframe shell.css arms on the transcript rows; the release listens for its end or its cancel only. */
+const FLANK_FLIP_ANIMATIONS: ReadonlySet<string> = new Set(["room-flank-centre-flip"]);
 
 /** The reduced-motion settle: hold the counter-translate for one painted frame, then drop it (two rAFs, for the
  *  reason `use-shell-track-flip.ts`'s `settleWithoutMotion` gives). */
@@ -34,18 +30,13 @@ function settle(row: HTMLElement, direction: FlankDirection): () => void {
 
 function flip(row: HTMLElement, direction: FlankDirection): () => void {
   row.setAttribute("data-flank-flip", direction);
-  const release = (): void => {
-    row.removeEventListener("animationend", onEnd);
+  const hold = holdFlipInPhase(row, FLANK_FLIP_ANIMATIONS, release);
+  function release(): void {
+    hold?.();
     row.removeAttribute("data-flank-flip");
-  };
-  function onEnd(event: AnimationEvent): void {
-    if (event.animationName === FLANK_FLIP_ANIMATION) {
-      release();
-    }
   }
-  row.addEventListener("animationend", onEnd);
   // A room with no rows animates nothing, so no end would ever fire.
-  if (!row.getAnimations({ subtree: true }).some(isFlankFlip)) {
+  if (hold === null) {
     release();
   }
   return release;
@@ -71,4 +62,11 @@ export function useFlankTrackFlip(rowRef: RefObject<HTMLElement | null>, occupie
     const direction: FlankDirection = occupiesRow ? "in" : "out";
     live.current = motionIsReduced() ? settle(row, direction) : flip(row, direction);
   }, [rowRef, occupiesRow]);
+  // A room unmounted mid-FLIP releases it, so no observer or listener outlives the row.
+  useEffect(
+    () => (): void => {
+      live.current?.();
+    },
+    [],
+  );
 }

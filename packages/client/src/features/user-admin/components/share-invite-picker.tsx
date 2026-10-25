@@ -3,10 +3,9 @@
 
 import { Button } from "@orb/ui/button";
 import { Menu, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
-import { QueryErrorState, useTRPC } from "#data";
+import { QueryErrorState, useSuspenseQuery, useTRPC } from "#data";
 import { deriveChatTitle } from "#lib";
 import { openRoomInvite } from "#state";
 

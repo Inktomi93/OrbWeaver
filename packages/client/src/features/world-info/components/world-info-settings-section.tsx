@@ -13,10 +13,9 @@
 import type { UserSettings } from "@orb/contracts/settings";
 import { FieldLayout } from "@orb/ui/field";
 import { Container, Row, Section, Stack } from "@orb/ui/layout";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
-import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
+import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { SectionSaveStatus } from "#forms/editor";
 import { WORLD_INFO_SETTINGS_ENTITY_ID, WorldInfoSettingsAutosaveForm } from "../hooks/use-world-info-settings-form.ts";

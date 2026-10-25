@@ -1,5 +1,5 @@
 // E2E (FORWARD-HEADER mode) — the auth-harness smoke for the SSO trusted-proxy path: a signed JWT (minted
-// in-test with jose, NO external IdP — the jwks.test.ts precedent) attached as the trusted-proxy header
+// in-test with jose, NO external IdP — the jwks.int.test.ts precedent) attached as the trusted-proxy header
 // resolves a real principal, and role derivation + gating BITE at the wire. Deterministic (model-free), NOT
 // `@live`.
 //

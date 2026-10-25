@@ -89,7 +89,7 @@ export interface ClampedTheme {
    * THE SCOPE'S INHERITED INK (#2424). A carried palette that paints its own surface must also RESTATE
    * `color`, or every element inside it that takes its ink by INHERITANCE keeps whatever the document
    * resolved above the scope. `.shell-grid` resolves `color: var(--color-foreground)` ABOVE every scope
-   * (message-row-backing.ts's #204 note states the same fact from the prose side), so under a LIGHT app
+   * (the over-art reading plates pair their own ink for the same reason), so under a LIGHT app
    * theme a card-themed room's composer painted the ROOT's light ink on the SCOPE's dark surface:
    * measured `(34.9,30.2,26.6)` on `(22,17,19)` = **1.13:1**, invisible the moment a reader typed.
    *
@@ -194,7 +194,7 @@ interface AccentEmission {
  *
  * IT ONLY RUNS WHERE A BACKGROUND IS CARRIED (`base === null` ⇒ pass-through): with no carried base there
  * is no derived card to judge against, and the accent lands on the app theme's own chrome, whose
- * coherence `palette-contrast.suite.test.ts` already floors.
+ * coherence the palette contrast floor already covers.
  *
  * The re-derived fill is spelled OPAQUE for the same reason `proseInkOn` is: relative-colour syntax
  * inherits the ORIGIN's alpha, and re-judging a translucent output is a fixed point that never passes.

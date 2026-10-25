@@ -20,4 +20,3 @@ export { Stack } from "./stack.tsx";
 export { Surface } from "./surface.tsx";
 
 export { Toolbar, ToolbarButton, ToolbarGroup, ToolbarInput, ToolbarLink, ToolbarSeparator } from "./toolbar.tsx";
-export { gutterCentredTracks } from "./variants.ts";

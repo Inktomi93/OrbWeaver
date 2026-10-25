@@ -1,4 +1,4 @@
-// domain/rpg/flush-barrier — the per-chat in-flight FLUSH BARRIER (the delivery-model amendment's
+// domain/rpg/flush-barrier — the per-chat in-flight FLUSH BARRIER (the
 // "one-beat-behind but GUARANTEED" semantics, made real). A STATEFUL feature-root collaborator (a per-chat
 // promise Map), NOT a pure `substrate/` helper — the `staging.ts` precedent (a feature-root singleton the
 // server layout test allowlist pre-documents).

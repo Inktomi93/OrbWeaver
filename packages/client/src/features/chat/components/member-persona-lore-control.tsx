@@ -3,10 +3,10 @@
 
 import type { ChatId } from "@orb/kit/ids";
 import { Text } from "@orb/ui/text";
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { SettingSwitchRow } from "#components";
-import { useInvalidation, useTRPC } from "#data";
+import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { useSetMemberPersonaLore } from "../hooks/use-context-panel-mutations.ts";
 
 export interface MemberPersonaLoreControlProps {

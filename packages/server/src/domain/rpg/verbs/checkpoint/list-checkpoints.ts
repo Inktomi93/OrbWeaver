@@ -1,4 +1,4 @@
-// domain/rpg/verbs/checkpoint/list-checkpoints — listCheckpoints (docs/plans/rpg/design.md). The game's labeled
+// domain/rpg/verbs/checkpoint/list-checkpoints — listCheckpoints (D58). The game's labeled
 // bookmarks. Member-gated.
 //
 // `label` is FREE TEXT (host-authored, or auto-composed from the scene at a trigger), so it carries the same

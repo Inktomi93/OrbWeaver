@@ -115,7 +115,7 @@ export { createChatBoundBackfillOps } from "./verbs/bound-backfill.ts";
 export { createCapturePersonaSeatsForDelete } from "./verbs/capture-persona-seats-for-delete.ts";
 export { createGeneratePictureOp } from "./verbs/create-generate-picture.ts";
 export { buildChatToolOps } from "./verbs/create-tool-ops.ts";
-// The rpg-facing generic chat surface (docs/plans/rpg/design.md) — wired into `RpgContext.chat` at the composition
+// The rpg-facing generic chat surface (D58) — wired into `RpgContext.chat` at the composition
 // root; each is principal-free (rpg gates game authority) and teaches chat nothing rpg-shaped.
 // The `chatsChanged` member fan wired onto `ChatContext.emitChatChanged`; compose injects the user bus.
 export { createEmitChatChanged } from "./verbs/emit-chat-changed.ts";
@@ -141,7 +141,7 @@ export { createReadInheritedChatBooks } from "./verbs/read-inherited-chat-books.
 // human see this chat's CONTENT" (today: the automation plugin fan-out + the plugin membrane's chat read).
 // Exported for the same reason `isBelowHistoryFloor` is: the verdict must be chat's everywhere it is applied,
 // and a sibling domain re-deriving it is the defect class this op exists to make impossible.
-// The rpg roster-resolution op (docs/plans/rpg/design.md) — resolves present participants into rpg actor refs +
+// The rpg roster-resolution op (D58) — resolves present participants into rpg actor refs +
 // name/avatar; wired into `RpgContext.resolveParticipants` at the composition root (W1c-b). Standalone + principal-free.
 export { createResolveCanonWindow } from "./verbs/resolve-canon-window.ts";
 export { createResolveMediaRef } from "./verbs/resolve-media-ref.ts";
@@ -162,7 +162,7 @@ export { createResolveViewerVisibility } from "./verbs/resolve-viewer-visibility
 export { createResolveVisibleRooms } from "./verbs/resolve-visible-rooms.ts";
 export { createEmitRoomEntityChanged, createRoomEntityRefresh } from "./verbs/room-refresh.ts";
 export { createChatInferenceOps } from "./verbs/runtime-inference.ts";
-// The opaque rpg-pointer WRITE op (docs/plans/rpg/design.md) — merges `metadata.rpg`; wired into `RpgContext.setPointer`
+// The opaque rpg-pointer WRITE op (D58) — merges `metadata.rpg`; wired into `RpgContext.setPointer`
 // at the composition root (W1c). Standalone + principal-free (createGame gated host; the getMembership precedent).
 export { createSetRpgPointer } from "./verbs/set-rpg-pointer.ts";
 export { createChatWorkloadContributions } from "./workload-contributions.ts";

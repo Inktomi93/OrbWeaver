@@ -47,7 +47,7 @@ export async function captureRawHeap(page: Page, path: string): Promise<Captured
   // The three cleanup catches in the finally block bind DISTINCT names on purpose: a waiver binds by
   // carrier containment and then by exact token, and this outer try's carrier holds every catch nested
   // inside it, so a second `error` in there would make the marker below over-broad and suppress nothing
-  // (tooling/src/verify/lib/caught-failure.ts, "The anchor is the position").
+  // (the anchor is the position).
   // the primary capture failure is kept in primary and combineCaptureFailures throws it after cleanup, alone or inside the AggregateError with the cleanup failures. Ends if combineCaptureFailures stops throwing the retained primary.
   try {
     cdp = await page.context().newCDPSession(page);

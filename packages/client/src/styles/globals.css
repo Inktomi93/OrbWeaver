@@ -490,6 +490,13 @@
     color: var(--color-foreground);
   }
 
+  /* A name row on a role bubble's fill (`NameRowFrame`) gives its name and timestamp that fill's paired ink: the speaker
+   * and gloss inks derive from the scope's base and are not judged against a bubble. The `:where` keeps it below the
+   * wallpaper metadata rule above, so an outside row's timestamp over art keeps the full foreground. */
+  :where([data-slot="message-name-row"][data-bubble-ink]) :is([data-slot="message-metadata-timestamp"], [data-slot="message-attribution"] *) {
+    color: inherit;
+  }
+
   /* An inside name row paints on the bubble, not the plate, so its metadata keeps the bubble's paired foreground. */
   [data-has-bg-image] [data-slot="message-name-row"][data-placement="inside"] [data-slot^="message-metadata-"] {
     color: inherit;
@@ -556,7 +563,7 @@
   /* The transcript's edge fade: each edge dissolves only while content lies beyond it (the MessageList primitive
    * toggles `data-fade-*`), eased in from the edge so the cut line reads as gone rather than half drawn; a zero
    * stop collapses the band so an edge that hides nothing stays opaque. `--mask-top-inset` is the bottom edge of
-   * a header pinned across the top. Pinned by sampling pixels (message-list-edge-fade.ct.tsx): computed style
+   * a header pinned across the top. Pinned by sampling pixels: computed style
    * reports an opaque card for every faded row. */
   [data-slot="message-list-scroll"] {
     --fade-top-stop: 0%;

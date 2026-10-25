@@ -1,6 +1,6 @@
 // The swipe foot: ‹ `n / m` › grouped at the message's trailing corner, on the
 // last assistant message only. Where it sits and how its chevrons meet the edge is the chat style's
-// (`RowSkin.swipeFoot`, lib/pager-chrome.ts). Right chevron: at the tip fires swipe (a fresh generation);
+// (`RowSkin.swipeFoot`, lib/pager-chrome.ts), drawn by `FootRow`. Right chevron: at the tip fires swipe (a fresh generation);
 // stepped back, it fires selectVariant (a pointer move, no new generation), same as the left chevron. Both
 // resolve their target variant id through useVariantHistory, since MessageView carries only the selected
 // variant per slot.
@@ -21,7 +21,7 @@ import { Button } from "@orb/ui/button";
 import { ChevronLeft, ChevronRight, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import type { ReactElement, ReactNode } from "react";
+import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { useId } from "react";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { turnMutationToast, viewerTimeZone } from "#lib";
@@ -52,6 +52,24 @@ export interface SwipeStripProps {
   readonly foot: SwipeFoot;
 }
 
+// An inside foot never sets its container's width: `contain: inline-size` takes it out of a shrink-to-fit bubble's
+// intrinsic width, so a "Hi." bubble stays as narrow as its header and the foot stretches to fit.
+const FOOT_INSIDE = "contain-inline-size";
+// Echo's foot reaches across the art pane to the card's bottom edge (`--row-reach-*`), and its group ends at the card's
+// corner: the inset it keeps on each side is `--row-foot-inset-*`, the card inset in client globals.css.
+const FOOT_CARD = "contain-inline-size -ms-(--row-reach-left) ps-(--row-foot-inset-left) -me-(--row-reach-right) pe-(--row-foot-inset-right) -mbe-row";
+
+/** The foot line's own box for the chat style's edge: its reach past the reading inset, and any fill or plate. */
+function FootRow({ edge, ...props }: ComponentProps<typeof Row> & { readonly edge: SwipeFoot["edge"] }): ReactElement {
+  if (edge === "card") {
+    return <Row {...props} ground="bubble" cardCorners="bottom" className={FOOT_CARD} />;
+  }
+  if (edge === "plate") {
+    return <Row {...props} plate="card" className="px-field" />;
+  }
+  return <Row {...props} className={FOOT_INSIDE} />;
+}
+
 /** The foot line both swipe strips share: ‹ n / m › grouped at the trailing corner of the message. The strips
  *  own their verbs; this owns only the arrangement. */
 export function SwipeFootRow(props: {
@@ -64,11 +82,11 @@ export function SwipeFootRow(props: {
   readonly next: ReactNode;
 }): ReactElement {
   return (
-    <Row align="center" justify="end" gap="tight" data-slot={props.slot} className={props.foot.row} role="group" aria-label={props.label}>
+    <FootRow edge={props.foot.edge} align="center" justify="end" gap="tight" data-slot={props.slot} role="group" aria-label={props.label}>
       {props.prev}
       {props.count}
       {props.next}
-    </Row>
+    </FootRow>
   );
 }
 
@@ -92,8 +110,8 @@ export function SwipeStrip({ message, foot }: SwipeStripProps): ReactElement {
   // THE ASYMMETRY IS DELIBERATE AND MUST SURVIVE A LATER TIDY-UP: at `X / X` the › is the GENERATE verb,
   // not a step, so wrapping it would silently replace "make a new variant" with "jump to variant 1" — the
   // one act on this strip that costs a model call, swapped for the cheapest one. Cyclic navigation is the
-  // ordinary idiom for a bounded pager; a generate button is not part of that cycle. Paired pins in
-  // `swipe-strip.ct.tsx` hold both halves, the forward one specifically so "fix the other end for
+  // ordinary idiom for a bounded pager; a generate button is not part of that cycle. A test that pins
+  // both halves keeps the forward one specifically so "fix the other end for
   // consistency" fails loudly.
   const prevIdx = current > 1 ? idx - 1 : total - 1;
   const prevVariantId = total > 1 ? history.get(prevIdx) : undefined;
@@ -182,13 +200,13 @@ export function SwipeStrip({ message, foot }: SwipeStripProps): ReactElement {
  *  reader reads as "n slash m", so it is hidden from the tree and named in words beside it. */
 export function SwipeCount({ current, total, foot }: { readonly current: number | null; readonly total: number; readonly foot: SwipeFoot }): ReactElement {
   return (
-    <Row align="center" justify="end" data-slot="swipe-count" className={foot.row}>
+    <FootRow edge={foot.edge} align="center" justify="end" data-slot="swipe-count">
       <Text as="span" voice="datum" aria-hidden="true" data-slot="swipe-strip-counter" className="whitespace-nowrap" tone="muted">
         {current ?? "—"} / {total}
       </Text>
       <Text as="span" className="sr-only">
         {variantCountName(current, total)}
       </Text>
-    </Row>
+    </FootRow>
   );
 }

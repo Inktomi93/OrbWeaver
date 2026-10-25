@@ -6,7 +6,7 @@ import { z } from "zod";
 
 /** The user TTL vocabulary; a route may fix retention through its capability. Anthropic accepts both, spelled `{"type":"ephemeral","ttl":…}` with no `anthropic-beta`
  *  header on either route. An unknown ttl is not an upstream error on OpenRouter: it answers 200 and silently
- *  drops the whole block (`scripts/probes/openrouter/RESULTS.md`). */
+ *  drops the whole block (the OpenRouter probe). */
 export const PROMPT_CACHE_TTLS = ["5m", "1h"] as const;
 export type PromptCacheTtl = (typeof PROMPT_CACHE_TTLS)[number];
 

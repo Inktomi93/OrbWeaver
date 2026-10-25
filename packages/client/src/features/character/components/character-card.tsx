@@ -299,7 +299,7 @@ function NormalRowActions({
             three at BOTH pointer classes — doubling the fine row's inline toggle, and minting a second home
             for a state the CONTEXT pane already carries its own way. This item is not a new row VERB; it is
             the coarse arm of a control the row already has, which is why the registry's item census
-            (`character-card.ct.tsx`) is unchanged at a fine pointer. Its label is the bare verb because the
+            is unchanged at a fine pointer. Its label is the bare verb because the
             menu's own name already carries the subject (#463) — the persona row's twin, same shape. */}
         <MenuItem hiddenAt="fine" onClick={(): void => onToggleStar(character.id, !character.starred)}>
           <Icon icon={Star} size="sm" />

@@ -7,6 +7,7 @@
     "node": ">=26.3.0"
   },
   "exports": {
+    "./browser-support": "./src/browser-support/index.ts",
     "./bug-reports": "./src/bug-reports/index.ts",
     "./cache-check": "./src/cache-check/index.ts",
     "./cpu-profile": "./src/cpu-profile/index.ts",
@@ -112,6 +113,7 @@
   },
   "dependencies": {
     "@eslint/css-tree": "catalog:",
+    "@mdn/browser-compat-data": "catalog:",
     "@orb/contracts": "workspace:*",
     "@orb/default-content": "workspace:*",
     "@orb/inference": "workspace:*",

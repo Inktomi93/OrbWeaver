@@ -9,8 +9,7 @@
 // ship without its row" guarantee `ArmDef.help` gives arms. That test is
 // `tests/tooling/snap/ops/cli-truth.suite.int.test.ts` ("descriptor-owned help grammar covers every public
 // accepted spelling exactly once"): it calls `snapFlagDescriptors()`, which this module's completeness
-// throw runs inside. Corrected 2026-09-12 — this line cited `tests/tooling/snap/ops/flag-grammar.test.ts`,
-// a path that has never existed on the tree, so the "it is pinned" claim pointed at nothing.
+// throw runs inside.
 //
 // `group` names match the section headings in `.claude/skills/snap-driving/reference/flags.md` (the ONE
 // vocabulary a flag's group is drawn from); `summary` is one line, ≤160 chars, no trailing period.

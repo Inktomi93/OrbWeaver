@@ -1,5 +1,6 @@
 // Boot binds document-lifetime data and external capabilities; authenticated assembly stays behind the lazy route.
 // Import authenticated factories only inside compose/authed-app.tsx, so anonymous boot never reaches the feature graph.
+// entry.ts loads this module once the polyfills (lib/platform-polyfills.ts) are installed, so nothing below guards for them.
 
 // Configure before schema imports; the production build preserves this order across shared chunks.
 import "./lib/zod-jitless.ts";
@@ -31,6 +32,7 @@ import { AppDataProviders } from "./compose/app-data-providers.tsx";
 import { appRuntime, queryClient, trpcClient, trpcProxy } from "./compose/app-singletons.ts";
 import { browserSessionDocumentHost } from "./compose/client-runtime.ts";
 import { stampAppearanceBootHint } from "./compose/stamp-appearance-boot-hint.ts";
+import { requireQueryBoundary } from "./data/suspense-reads.ts";
 import { installAppReadySignal } from "./lib/app-ready-signal.ts";
 import { bindRouteCrashReporter, routeResolution, router } from "./routes/router.tsx";
 import "./styles/index.ts";
@@ -70,6 +72,8 @@ bindSessionDocumentHost(browserSessionDocumentHost());
 // the thunk is read fresh on every `openConfig` call, not captured once).
 let configSectionsForNav: ConfigSectionRegistry | null = null;
 if (import.meta.env.DEV) {
+  // A suspending read with no QueryBoundary above it throws in dev, at its first render.
+  requireQueryBoundary();
   import("./lib/long-task-tracer.ts")
     .then(({ installLongTaskTracer }) => {
       installLongTaskTracer();

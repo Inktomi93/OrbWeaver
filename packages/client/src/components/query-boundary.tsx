@@ -41,6 +41,7 @@ import { QueryErrorState } from "../data/query-error-state.tsx";
 import { skeletonRowCountFor } from "../data/skeleton-row-metrics.ts";
 import type { SkeletonRowsProps } from "../data/skeleton-rows.tsx";
 import { SkeletonRows } from "../data/skeleton-rows.tsx";
+import { QueryBoundaryScope } from "../data/suspense-reads.ts";
 import { useOnlineStatus } from "../data/use-online-status.ts";
 
 export interface QueryBoundaryProps {
@@ -371,7 +372,7 @@ export function QueryBoundary({
         <QueryErrorCatch landing={landing} onReset={reset} renderError={renderError}>
           {(phase): ReactElement => (
             <Suspense fallback={<PendingFallback onPending={phase.onPending}>{reservedFallback}</PendingFallback>}>
-              {settledChildren(phase, measuredChildren)}
+              <QueryBoundaryScope value={true}>{settledChildren(phase, measuredChildren)}</QueryBoundaryScope>
             </Suspense>
           )}
         </QueryErrorCatch>

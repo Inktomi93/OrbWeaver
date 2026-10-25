@@ -2,66 +2,51 @@
 // place its backing is decided. A component rather than a render helper because the sticky arm observes
 // whether it is pinned.
 
+import type { MessageRole } from "@orb/kit/message-role";
 import { Row } from "@orb/ui/layout";
 import type { ReactElement, ReactNode } from "react";
 import { cn } from "#lib";
 import { usePinnedHeader } from "../hooks/use-pinned-header.ts";
-import {
-  BG_PHOTO_CHROME_PLATE,
-  STICKY_ATTRIBUTION_CHROME,
-  STICKY_ATTRIBUTION_CHROME_INSIDE,
-  STICKY_ATTRIBUTION_REST_PAINT,
-} from "../lib/message-row-backing.ts";
 import type { RowSkin } from "../lib/message-row-variants.ts";
+import { ROLE_FILL } from "../lib/message-row-variants.ts";
 import type { HeaderShape } from "../lib/row-placement.ts";
 
 type HeaderPlacement = RowSkin["headerPlacement"];
 
+// THE STICKY PIN, for a row the virtualizer measured as taller than the scrollport: the header pins to the scrollport's
+// top as the row's one raised layer (`--z-raised`, scoped to the row's stacking context, never over the shell). It is
+// layout-neutral by construction, because the verdict is computed from the measured row height and any box it changed
+// would re-enter its own input. Outside a container the band's `py-row` is cancelled by `-my-row`, but only with no
+// wallpaper: over art the chrome plate's `py-row` is the padding, and cancelling it shrank the row as it went sticky.
+// Inside a container the cancellation is top-only (`-mt-row pt-row`), and the name lands on the pixel it held at rest.
+// `-top-px` rather than `top-0` because the pin observer reads the pin as a one-pixel top clip.
+const STICKY_OUTSIDE = "not-in-data-[has-bg-image]:-my-row sticky -inset-bs-px z-(--z-raised) py-row";
+const STICKY_INSIDE = "-mbs-row sticky -inset-bs-px z-(--z-raised) pbs-row";
+
+// While pinned, a card's bar reaches the card's side edges: the bubble's own inset on each side, which client
+// globals.css defaults to `--spacing-block` and echo widens to its art pane. A band reaches across the column's inset.
+const REACH_CARD = "-ms-(--row-reach-left) ps-(--row-reach-left) -me-(--row-reach-right) pe-(--row-reach-right)";
+const REACH_COLUMN = "-mx-section px-section @max-cq-28:-mx-row @max-cq-28:px-row";
+
 /** The header's FRAME — the ONE home for the chrome row's anatomy, shared by the settled row
- *  (`renderRowNameRow`) and the streaming ghost (`renderGhostNameRow`, #116). Both must carry
- *  the same `data-slot`, the same backings and the same sticky mechanics, because #113's pin is keyed off
- *  exactly this element: a ghost with its own hand-spelled name row would be a second home that silently
- *  stops inheriting the next fix to this one.
+ *  (`renderRowNameRow`) and the streaming ghost (`renderGhostNameRow`). Both carry the same `data-slot`, the same
+ *  backings and the same sticky mechanics, because the pin is keyed off exactly this element.
  *
- *  PLACEMENT IS THE FIRST QUESTION (#288). `inside` makes this row the CONTAINER's own header row — the
- *  first child of `message-bubble`, taking NO backing of its own because the box the prose rides is what
- *  backs it. `outside` is the pre-#288 anatomy and survives only for `tide`. Read the `HeaderPlacement`
- *  note in message-row-variants.ts for the two-plate mechanism the move closes.
+ *  PLACEMENT IS THE FIRST QUESTION. `inside` makes this row the container's own header row, the first child of
+ *  `message-bubble`, taking no backing of its own because the box the prose rides backs it. `outside` (tide) is a
+ *  sibling above a train of pills, and over a wallpaper takes the chrome plate, because nothing else backs it.
  *
- *  Two backings can land on it, and they are ALTERNATIVES, not layers (#168):
- *   · `BG_PHOTO_CHROME_PLATE` — the wallpaper-gated legibility chip (plate + paired ink, #204 derive
- *     law). Applied ONLY to an `outside` header now (#288): it exists to mint a surface for a row that
- *     has none, and an `inside` header has the container's. #167's ruling — the speaker name and its
- *     timestamp are a GUARANTEE over any art in any skin, never a per-skin opt-in — is what survives, and
- *     it is now honoured by the container instead of by a second plate beside it. Self-gated on the
- *     shell's `data-has-bg-image`: no wallpaper, no chip.
- *   · `STICKY_ATTRIBUTION_CHROME` / `…_INSIDE` (#113) — pin + OPAQUE band, any mode, only for a row the
- *     virtualizer measured as taller than the scrollport. It is the row's one RAISED layer (z-order:
- *     message-row-backing.ts). The two spellings differ in which padding they cancel, in chip rounding,
- *     and in HOW the band's breathing below the name is paid — real `pb-row` outside a container, an
- *     out-of-flow `::after` inside one (#2425, because a bottom padding there would re-enter
- *     `exceedsViewport`'s own input). What is identical is what the reader sees — one --spacing-row of
- *     opaque fill under the name in all eight skins — and the layout-neutrality invariant, which the
- *     `::after` keeps by construction. Rounding is the one REMAINING appearance difference, ruled at #288.
- *     The band PAINTS only while the header is pinned (`usePinnedHeader`); its box applies for the whole
- *     sticky verdict, so pinning toggles paint and never layout.
+ *  Two backings can land on it, and they are ALTERNATIVES, not layers: the wallpaper chrome plate (outside only), and
+ *  the pinned band (any skin, only while pinned). The pinned band supersedes the plate because an opaque fill is a
+ *  strict superset of a translucent one, and the plate's wallpaper-gated fill would outrank the band over art.
  *
- *  The pinned band SUPERSEDES the wallpaper chip because an opaque fill is a strict superset of a
- *  translucent plate, and both spell the same property: applied together,
- *  `in-data-[has-bg-image]:bg-reading-plate` outranks a plain `bg-reading-band` on specificity (the two
- *  are the same COLOUR since #241 — but not the same ALPHA, which is the whole ruling), so over ART —
- *  the exact mount #168's live receipt came from — the band would stay translucent and keep showing the
- *  prose scrolling under it.
+ *  While an inside header sits on the role bubble at rest, or pins on the role's own fill, its name and timestamp
+ *  take that fill's paired ink (`data-bubble-ink`, client globals.css): the speaker and gloss inks derive from the
+ *  scope's base and are not judged against a bubble fill. A band keeps its base-derived ink.
  *
- *  THE ACTION CLUSTER CONTRIBUTES NO HEIGHT (#204 — the owner's "phantom empty scrim bands" and "the
- *  name is separated from the messages", both one mechanism). The hover-reveal cluster is a `--size-control-md` row of
- *  icon buttons that is `opacity: 0` at rest but stayed IN FLOW at full height — so the painted chip
- *  measured 50px around a 16px name (50 = 34 + 2×py-row): the empty top/bottom thirds were the phantom
- *  bands, and the ~17px of painted-then-empty space below the name was the detachment. The cluster rides
- *  a ZERO-HEIGHT flex wrapper (`h-0` + centered items): it keeps its full WIDTH in flow (the A3 geometry
- *  pin — a name can never be starved sideways), its buttons keep painting/hit-testing at full size, and
- *  reveal stays opacity-only. The inside arm's only reservation is the row's own minimum height (see the
- *  class list): just enough that the centred rail fits between the container's top edge and the body. */
+ *  THE ACTION CLUSTER CONTRIBUTES NO HEIGHT. It rides a zero-height flex wrapper: it keeps its full width in flow, its
+ *  buttons keep painting and hit-testing at full size, and the inside arm's only reservation is the row's own minimum
+ *  height, just enough that the centred rail fits between the container's top edge and the body. */
 export interface NameRowFrameProps {
   readonly identity: ReactNode;
   readonly actions: ReactNode;
@@ -69,72 +54,146 @@ export interface NameRowFrameProps {
   readonly placement: HeaderPlacement;
   /** User identity sits at the trailing edge; its action cluster takes the opposite edge. */
   readonly mirrored: boolean;
-  /** `RowSkin.pinnedHeader`'s paint for this row: the row's own surface, applied only while pinned. */
-  readonly pinnedPaint: string;
+  /** `RowSkin.pinnedHeader`: the row's own surface, applied only while pinned. */
+  readonly pinnedHeader: RowSkin["pinnedHeader"];
+  readonly messageRole: MessageRole;
   /** Whether the bar names the speaker and takes a line of its own (`headerShape`). */
   readonly shape: HeaderShape;
 }
 
-export function NameRowFrame(args: NameRowFrameProps): ReactElement {
+export function NameRowFrame({ identity, actions, stickyAttribution, placement, mirrored, pinnedHeader, messageRole, shape }: NameRowFrameProps): ReactElement {
   // An actions-only overlay never pins: its actions are hidden off the last row, and a pinned box hung over
   // the page would either paint an empty plate on the words or overrun the row's end.
-  const sticky = args.stickyAttribution && args.shape.ownLine;
+  const sticky = stickyAttribution && shape.ownLine;
   const { ref, pinned } = usePinnedHeader(sticky);
+  const outside = placement === "outside";
+  const reach = pinned ? pinnedHeader.reach : "none";
+  return (
+    <FrameRow
+      rowRef={ref}
+      placement={placement}
+      sticky={sticky}
+      pinned={pinned}
+      bubbleInk={pinned ? pinnedHeader.fill === "role" : !outside}
+      plate={outside && !pinned ? outsidePlate(sticky) : undefined}
+      paint={pinned ? pinnedPaint(pinnedHeader, messageRole) : NO_PAINT}
+      flip={mirrored}
+      stickyOutside={sticky && outside}
+      stickyInside={sticky && !outside}
+      reachCard={reach === "card"}
+      reachColumn={reach === "column"}
+      chip={!shape.identity}
+      outside={outside}
+      overlay={!shape.ownLine}
+      reserve={!outside && shape.ownLine}
+    >
+      {identity}
+      {actions === null ? null : (
+        <Row align="center" className="block-0" data-slot="message-actions-slot">
+          {actions}
+        </Row>
+      )}
+    </FrameRow>
+  );
+}
+
+/** An outside header's wallpaper plate at rest: the chrome island, or its bare island once the sticky box carries the inset. */
+function outsidePlate(sticky: boolean): "island" | "chrome" {
+  return sticky ? "island" : "chrome";
+}
+
+interface FramePaint {
+  readonly ground: (typeof ROLE_FILL)[MessageRole] | "readingBand" | undefined;
+  readonly fadeBelow: boolean;
+  readonly cardCorners: RowSkin["pinnedHeader"]["corners"];
+}
+
+const NO_PAINT: FramePaint = { ground: undefined, fadeBelow: false, cardCorners: undefined };
+
+/** The pinned bar's fill, its fade below and the card corners it follows. */
+function pinnedPaint(pinned: RowSkin["pinnedHeader"], role: MessageRole): FramePaint {
+  if (pinned.fill === "none") {
+    return NO_PAINT;
+  }
+  return { ground: pinned.fill === "role" ? ROLE_FILL[role] : "readingBand", fadeBelow: true, cardCorners: pinned.corners };
+}
+
+interface FrameRowProps {
+  readonly rowRef: ReturnType<typeof usePinnedHeader>["ref"];
+  readonly placement: HeaderPlacement;
+  readonly sticky: boolean;
+  readonly pinned: boolean;
+  readonly bubbleInk: boolean;
+  readonly plate: "island" | "chrome" | undefined;
+  readonly paint: FramePaint;
+  readonly flip: boolean;
+  readonly stickyOutside: boolean;
+  readonly stickyInside: boolean;
+  readonly reachCard: boolean;
+  readonly reachColumn: boolean;
+  readonly chip: boolean;
+  readonly outside: boolean;
+  readonly overlay: boolean;
+  readonly reserve: boolean;
+  readonly children: ReactNode;
+}
+
+/** The frame's element: every layout choice arrives as a flag, every paint as a primitive prop. */
+function FrameRow({
+  rowRef,
+  placement,
+  sticky,
+  pinned,
+  bubbleInk,
+  plate,
+  paint,
+  flip,
+  stickyOutside,
+  stickyInside,
+  reachCard,
+  reachColumn,
+  chip,
+  outside,
+  overlay,
+  reserve,
+  children,
+}: FrameRowProps): ReactElement {
   return (
     <Row
-      ref={ref}
+      ref={rowRef}
       justify="between"
       align="center"
       gap="field"
       data-slot="message-name-row"
-      data-placement={args.placement}
+      data-placement={placement}
       data-sticky={sticky ? "" : undefined}
       data-pinned={pinned ? "" : undefined}
+      data-bubble-ink={bubbleInk ? "" : undefined}
+      plate={plate}
+      ground={paint.ground}
+      fadeBelow={paint.fadeBelow}
+      cardCorners={paint.cardCorners}
       className={cn(
-        args.mirrored && "flex-row-reverse",
-        headerBacking(args.placement, sticky, pinned),
-        pinned && args.pinnedPaint,
+        flip && "flex-row-reverse",
+        stickyOutside && STICKY_OUTSIDE,
+        stickyInside && STICKY_INSIDE,
+        reachCard && REACH_CARD,
+        reachColumn && REACH_COLUMN,
         // An actions-only bar is a chip at the trailing edge, and off the last row it overlays the row's top
         // trailing corner at its full glyph height while costing the row no height at all.
-        !args.shape.identity && "ms-auto inline-fit",
+        chip && "ms-auto inline-fit",
         // An outside header (tide's) sits on the same inset as the pager under its train, so the last action
         // ends where the forward chevron does and its touch area stays inside the scrollport.
-        args.placement === "outside" && "px-field",
-        !args.shape.ownLine && "-mbe-(--size-glyph-lg) box-content block-(--size-glyph-lg)",
+        outside && "px-field",
+        overlay && "-mbe-(--size-glyph-lg) box-content block-(--size-glyph-lg)",
         // THE ACTION RAIL'S ONLY RESERVATION. The rail is centred on this row, so a content height of
-        // `glyph-lg - 2 * row` makes it span exactly the container's top inset, this row and the
-        // `gap-row` below it: contained in the bubble, clear of the prose, and no empty band between
-        // name and body. It is unconditional (ghost, editing and sticky arms alike) because the sticky
-        // verdict is computed from the measured row height: any box the verdict changed would re-enter
-        // its own input and oscillate. `box-content` keeps the sticky band's `pt-row` additive, so its
-        // `-mt-row` cancellation stays exact.
-        args.placement === "inside" && args.shape.ownLine && "box-content min-block-(--size-name-row-min)",
-        // At rest an inside header paints on the role bubble, so every datum must inherit that bubble's
-        // paired foreground. Speaker/gloss inks derive from the scope's BASE and are invalid on an
-        // independently-picked bubble fill. A pinned row paints its own reading band and keeps that
-        // band's base-derived ink instead.
-        args.placement === "inside" && !pinned && "**:data-[slot=message-metadata-timestamp]:text-inherit [&_[data-slot=message-attribution]_*]:text-inherit",
+        // `glyph-lg - 2 * row` makes it span exactly the container's top inset, this row and the `gap-row` below it.
+        // It is unconditional (ghost, editing and sticky arms alike) because the sticky verdict is computed from the
+        // measured row height. `box-content` keeps the sticky band's `pt-row` additive, so its cancellation stays exact.
+        reserve && "box-content min-block-(--size-name-row-min)",
       )}
     >
-      {args.identity}
-      {args.actions === null ? null : (
-        <Row align="center" className="block-0" data-slot="message-actions-slot">
-          {args.actions}
-        </Row>
-      )}
+      {children}
     </Row>
   );
-}
-
-/** The one backing decision, as a total function of the two axes (#288). `inside` at rest takes NOTHING:
- *  the container's fill/plate is the surface, and adding a second one is the defect. The pinned paint is
- *  the skin's (`RowSkin.pinnedHeader`), layered by the frame itself. */
-function headerBacking(placement: HeaderPlacement, stickyAttribution: boolean, pinned: boolean): string {
-  if (placement === "outside") {
-    if (!stickyAttribution) {
-      return BG_PHOTO_CHROME_PLATE;
-    }
-    return cn(STICKY_ATTRIBUTION_CHROME, !pinned && STICKY_ATTRIBUTION_REST_PAINT) ?? "";
-  }
-  return stickyAttribution ? STICKY_ATTRIBUTION_CHROME_INSIDE : "";
 }

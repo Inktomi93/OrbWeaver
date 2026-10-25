@@ -16,8 +16,8 @@
 import type { RpgGameView, RpgTrackerView } from "@orb/contracts/rpg";
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { ChatId, UserId } from "@orb/kit/ids";
-import { useQuery, useSuspenseQueries } from "@tanstack/react-query";
-import { useTRPC } from "#data";
+import { useQuery } from "@tanstack/react-query";
+import { useSuspenseQueries, useTRPC } from "#data";
 import { useRpgRoundPending } from "#state";
 
 /** The resolved takeover panel state the game tabs + header render. `null` (from the hook) ⇒ this chat is

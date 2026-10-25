@@ -1,6 +1,6 @@
 // The shared flag-FAMILY tables a public rendered tool's own `ops/parse.ts` consumes.
-// `Core-Tooling-Law.md` §4.9 refuses a generic
-// `parseArgv(spec)` — a tool keeps its own byte-stable parser and scanner — so this file holds only
+// A generic
+// `parseArgv(spec)` is refused — a tool keeps its own byte-stable parser and scanner — so this file holds only
 // the DATA a family shares (the flag's name, its required-value shape), never a parser.
 //
 // THERE IS ONE PARSER LEFT (#1315). The family tables were the accepted-vocabulary source for Snap AND
@@ -19,7 +19,7 @@ export const HELP_FLAGS: ReadonlySet<string> = new Set(["--help", "-h"]);
  *  of the generic "unknown flag" — measured asks (§1 P5): `--full-page` (snap has `--full`),
  *  `--watch-every` (it is `--every`), `--name` (it is `--out`), `--screenshot` (it is `--shot-of`).
  *  THIS IS A REFUSAL TABLE, NOT AN ALIAS TABLE. The old flag stops working outright; it is never quietly
- *  accepted as a second spelling for the same thing (Core-Tooling-Law.md §1's half-migration ban).
+ *  accepted as a second spelling for the same thing: that would be half a migration.
  *  A consuming tool passes ITS OWN known-flag set to `aliasRefusal` so the suggestion never names a flag
  *  that tool does not actually have (`--full`/`--every`/`--shot-of` are snap-only; `--out` is shared).
  *

@@ -19,10 +19,9 @@
 
 import { resolveOfferChoices } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { SettingSwitchRow } from "#components";
-import { useInvalidation, useTRPC } from "#data";
+import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { useChatBehaviorPrefs } from "../hooks/use-chat-behavior-prefs.ts";
 import { useSetOfferChoices } from "../hooks/use-context-panel-mutations.ts";
 

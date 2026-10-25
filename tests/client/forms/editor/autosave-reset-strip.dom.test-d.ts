@@ -1,4 +1,4 @@
-// `reset` re-baselines a live autosave draft mirror into the isDirty loop (D54 §13.1, UI-Gates-and-Lessons.md §7 row 2).
+// `reset` re-baselines a live autosave draft mirror into the isDirty loop (D54 §13.1).
 // The session's form type strips it, so a call or a returned `reset` property is a compile error.
 import { expectTypeOf, test } from "vitest";
 import type { AppFormInstance, AutosaveSession } from "#client/forms/editor/index.ts";

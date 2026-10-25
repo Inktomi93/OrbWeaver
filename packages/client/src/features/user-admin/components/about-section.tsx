@@ -22,10 +22,10 @@ import { Button } from "@orb/ui/button";
 import { CopyButton } from "@orb/ui/copy-button";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
-import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
 import { ABOUT_SUBCATEGORY, ABOUT_UPDATES_SUBCATEGORY } from "../lib/about-nav.ts";
 

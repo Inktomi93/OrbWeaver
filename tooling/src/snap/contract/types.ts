@@ -1,4 +1,4 @@
-// snap's typed surface — the queue/args/outcome shapes every op speaks (docs/law/Core-Tooling-Law.md §2.5).
+// snap's typed surface — the queue/args/outcome shapes every op speaks.
 import type { AppearancePatch } from "../../floor/appearance/appearance.ts";
 import type { ThemeRequest } from "../../floor/appearance/theme.ts";
 import type { BrowserAccelerationEvidence } from "../../floor/browser/browser-acceleration.ts";

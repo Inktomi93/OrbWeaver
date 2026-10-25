@@ -2,7 +2,7 @@
 //
 // ./artifacts.ts owns the WRITE side: a run writes into `reports/runs/<instrument>/<runId>/` and, at
 // completion only, publishes the well-known paths the constitution names as relative symlinks into that
-// slot (UNIFIED-VERIFICATION-DESIGN.md §3.3b). That publish-at-completion policy is CORRECT and this module
+// slot. That publish-at-completion policy is CORRECT and this module
 // does not touch it: it is what lets two concurrent runs each keep a coherent verdict, and `reports/…` is
 // therefore always a COMPLETE run — just not necessarily the run the reader meant.
 //

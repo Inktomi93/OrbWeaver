@@ -14,11 +14,11 @@
 import type { SimilarityGraphEdge, SimilarityGraphNode } from "@orb/contracts/discovery";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryBoundary } from "#components";
-import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { ParamSelect } from "./corpus-controls.tsx";
 import { CharacterPairRow, CorpusDuplicateArt, CorpusDuplicateCharacters, CorpusDuplicateChats, Muted } from "./corpus-duplicate-rows.tsx";
 

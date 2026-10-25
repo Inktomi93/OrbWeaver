@@ -108,8 +108,8 @@ export function renderRowNameRow(args: {
   readonly stickyAttribution: boolean;
   readonly actions: ReactNode;
   readonly placement: HeaderPlacement;
-  /** `RowSkin.pinnedHeader`'s paint for this row's role. */
-  readonly pinnedPaint: string;
+  /** `RowSkin.pinnedHeader`: the bar's paint while pinned. */
+  readonly pinnedHeader: RowSkin["pinnedHeader"];
   readonly role: MessageRole;
   /** The row sits mirrored at the trailing edge (`rowMirrored`): its header packs to that edge too. */
   readonly mirrored: boolean;
@@ -125,7 +125,8 @@ export function renderRowNameRow(args: {
       stickyAttribution={args.stickyAttribution}
       placement={args.placement}
       mirrored={mirrored}
-      pinnedPaint={args.pinnedPaint}
+      pinnedHeader={args.pinnedHeader}
+      messageRole={args.role}
       shape={args.shape}
     />
   );
@@ -154,7 +155,7 @@ export function renderGhostNameRow(args: {
   /** #288 — the SAME placement the settled row will use for this chatStyle. A live turn whose header sat
    *  above the bubble and jumped inside it at commit would be a visible one-frame reflow on every reply. */
   readonly placement: HeaderPlacement;
-  readonly pinnedPaint: string;
+  readonly pinnedHeader: RowSkin["pinnedHeader"];
   /** `RowSkin.actionsRow.identity`. A style that names nobody still reserves the empty bar line its
    *  settled last row will carry, so the commit does not shift the reply down a line. */
   readonly named: boolean;
@@ -170,7 +171,8 @@ export function renderGhostNameRow(args: {
         stickyAttribution={false}
         placement={args.placement}
         mirrored={false}
-        pinnedPaint={args.pinnedPaint}
+        pinnedHeader={args.pinnedHeader}
+        messageRole="assistant"
         shape={GHOST_UNNAMED_SHAPE}
       />
     );
@@ -190,7 +192,8 @@ export function renderGhostNameRow(args: {
       placement={args.placement}
       // The ghost is always the assistant side; there is no own-message mirror to take.
       mirrored={false}
-      pinnedPaint={args.pinnedPaint}
+      pinnedHeader={args.pinnedHeader}
+      messageRole="assistant"
       shape={GHOST_SHAPE}
     />
   );
@@ -208,8 +211,8 @@ export function renderRowActions(args: {
   readonly generationCredit: boolean;
   /** B7 — the room's present characters names (the picker's segment-target parse; see `MessageActionsRowProps`). */
   readonly characterNames?: readonly string[] | undefined;
-  /** `RowSkin.actionsRow.surface`: the plate the cluster paints under its own reveal. */
-  readonly surface: string;
+  /** `RowSkin.actionsRow.chip`: the cluster paints the reading band under its own reveal. */
+  readonly chip: boolean;
 }): ReactNode {
   if (args.editing || args.selecting) {
     return null;
@@ -222,7 +225,7 @@ export function renderRowActions(args: {
       viewerIsHost={args.viewerIsHost}
       generationCredit={args.generationCredit}
       characterNames={args.characterNames}
-      surface={args.surface}
+      chip={args.chip}
     />
   );
 }

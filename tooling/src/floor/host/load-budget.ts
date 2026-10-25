@@ -68,8 +68,7 @@ export const LOAD_SUSPECT_MARKER = "ORB-LOAD-SUSPECT";
 export const LOAD_SUSPECT_META_KEY = "orbLoadSuspect";
 
 /** The Playwright annotation TYPE a load-suspect CT stamps — `test.info().annotations` is the
- *  reporter-visible channel, the CT twin of `task.meta`. Counted by
- *  tooling/src/verify/ops/ct-flaky-reporter.ts. */
+ *  reporter-visible channel, the CT twin of `task.meta`. */
 export const LOAD_SUSPECT_ANNOTATION = "orb-load-suspect";
 
 /** The factor ceiling. A runaway loadavg must not inflate a 30s budget into hours — a wedged run should
@@ -355,7 +354,7 @@ export interface AnnotatableTest {
  *  stamp `orb-load-suspect` where the REPORTER can see it (`test.info().annotations` is the CT's only
  *  per-test reporter-visible channel — the twin of vitest's `task.meta`). It never skipped and it still
  *  does not; since #1616 the CALLER must not skip either — it measures, annotates, and does not assert its
- *  threshold. Counted by tooling/src/verify/ops/ct-flaky-reporter.ts beside the flake tally, so a
+ *  threshold, so a
  *  load-suspect CT is never a silent green. */
 export function annotateRateLoad(info: AnnotatableTest, what: string, read: BoxLoadReader = readBoxLoad): MeasurementVerdict {
   const verdict = judgeRateLoad(what, read);

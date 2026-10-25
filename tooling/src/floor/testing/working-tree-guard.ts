@@ -6,7 +6,7 @@
 // changed or removed. Gitignored output (coverage/, reports/, a build cache) never appears in `git
 // status` at all, so it needs no separate exclusion here.
 //
-// THE ONE EXCEPTION. `tests/tooling/check-gates.repo.int.test.ts` is the sanctioned real-tree planter — it
+// THE ONE EXCEPTION. The retired check-gates repo test was the sanctioned real-tree planter — it
 // materializes `__g_`/`__dc_` sentinel fixtures inside the real package tree (its gates anchor on
 // realistic paths) and reaps them itself before its own run ends. `planted-fixtures.ts` already tells a
 // STRUCTURE run it cannot speak for the tree while that planter's window is open; this guard exempts the

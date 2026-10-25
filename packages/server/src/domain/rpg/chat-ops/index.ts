@@ -1,4 +1,4 @@
-// domain/rpg/chat-ops — the `ChatRpgOps` runtime (docs/plans/rpg/design.md). This is the ops object rpg EXPOSES for
+// domain/rpg/chat-ops — the `ChatRpgOps` runtime (D58). This is the ops object rpg EXPOSES for
 // chat: chat's `ChatContext.rpg` slot (a null-op when rpg isn't wired). W1b-integration BUILDS it over the rpg
 // `RpgContext`; the composition root (W1c) hands it to `buildChatService({ rpg: … })` — this wave does NOT wire
 // it into chat (compose = W1c). The ops are PRINCIPAL-FREE (chat gated the turn's caller); each resolves
@@ -27,7 +27,7 @@ import { forkGame } from "./fork-game.ts";
 import { gatherTurnContext } from "./gather.ts";
 import { handoffHealStatements, handoffRekeyActors, handoffWouldCopyGmPreset } from "./handoff-heal.ts";
 
-/** Build the `ChatRpgOps` runtime over the rpg ctx (docs/plans/rpg/design.md). Handed to chat's compose (W1c); NOT
+/** Build the `ChatRpgOps` runtime over the rpg ctx (D58). Handed to chat's compose (W1c); NOT
  *  wired here. The gather + flush hold the extractionMode branch; the rest are thin ctx reads/writes. */
 export function createRpgChatOps(input: RpgAssemblyContext): ChatRpgOps {
   const ctx = createRpgContext(input);

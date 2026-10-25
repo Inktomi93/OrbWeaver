@@ -116,6 +116,7 @@ export {
 } from "./embedder-rebuild.ts";
 export { AppErrorBoundary } from "./error-boundary.tsx";
 export { publishFlankHost, publishInlineFlankFit, setFlankSheetOpen, useFlankHost, useFlankSheetOpen, useInlineFlankFits } from "./flank-placement.ts";
+export { holdFlipInPhase } from "./flip-phase.ts";
 export type { SendRefusalKey } from "./injection-copy.ts";
 export {
   ADD_CONNECTION_PATH,
@@ -155,7 +156,6 @@ export { LEADERBOARD_ROW_ATTR } from "./leaderboard-row-attr.ts";
 export type { ListPaneHeaderProps, ListPaneHeaderView, ListSearchPolicy } from "./list-pane-header-view.ts";
 export { LIST_PANE_TITLE_ID } from "./list-pane-title-id.ts";
 export {} from "./log-clock.ts";
-export { messageBubbleClass } from "./message-bubble-class.ts";
 export type { MessageRenderContext } from "./message-render.ts";
 export { renderMessageForDisplay } from "./message-render.ts";
 export { MESSAGE_ROLE_ITEMS, MESSAGE_ROLE_LABELS } from "./message-role-labels.ts";

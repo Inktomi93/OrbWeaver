@@ -78,7 +78,7 @@
   }
 
   /* A `focal` empty-state title holds the display step at every width: in the `ui` layer it beats the slot's own
-   * container step-down, and a focal statement that shrinks with its column is not one (empty-state.ct.tsx). */
+   * container step-down, and a focal statement that shrinks with its column is not one. */
   [data-slot="empty-state-title"][data-title-step="focal"] {
     font-size: var(--text-display);
     line-height: var(--leading-display);
@@ -347,7 +347,7 @@
       transform: translateX(100%);
     }
   }
-  /* The sweep's two stops are named so a host on an unusual surface can re-point them (message-row-backing.ts).
+  /* The sweep's two stops are named so a host on an unusual surface can re-point them (`WALLPAPER_PLATE.loading`, lib/ground.ts).
    * The defaults are `var()` fallbacks, not declarations: a property declared here would beat the host's
    * inherited override. */
   .orb-skeleton-shimmer::after {

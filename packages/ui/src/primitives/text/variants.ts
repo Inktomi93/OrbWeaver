@@ -210,6 +210,9 @@ export const textVariants = tv({
       true: "tabular-nums",
       false: "",
     },
+    // A mark sized by its container (an initial filling an art slot) takes its own em as the line box, so it centres in
+    // the box instead of riding the voice's line height.
+    solidLine: { true: "leading-none", false: "" },
     // The slanted face for words that are not spoken: a character's inner thought, a guide line.
     italic: { true: "italic", false: "" },
     // Machine text a reader copies whole (a source URL, a key fingerprint): one click selects the run.
@@ -236,6 +239,7 @@ export const textVariants = tv({
     ink: "voice",
     strike: false,
     numeric: false,
+    solidLine: false,
     italic: false,
     selectAll: false,
     pulse: false,

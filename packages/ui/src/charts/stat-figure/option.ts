@@ -1,7 +1,7 @@
 // The pure ECharts option builder behind <StatFigure>'s sparkline — split out (no React/
 // echarts-for-react import) so it's cheaply unit-testable: a mounted ECharts instance does not
 // survive the Playwright component-test RPC boundary with its methods intact, so the
-// color wiring is proven on this plain function instead (option.test.ts).
+// color wiring is proven on this plain function instead.
 //
 // The sparkline IS a live canvas chart when `trend` is present — the line + area color arrives as a
 // CONCRETE resolved value (`ChartColors.series`), NOT a `var()`/`TOKENS[...].value` literal, because

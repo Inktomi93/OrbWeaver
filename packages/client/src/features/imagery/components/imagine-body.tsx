@@ -32,6 +32,8 @@ import { Row, Stack } from "@orb/ui/layout";
 import { WebSpinner } from "@orb/ui/spinner";
 import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
+import { Toggle } from "@orb/ui/toggle";
+import { ToggleGroup } from "@orb/ui/toggle-group";
 import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
@@ -150,21 +152,23 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
             A `group` with the label as its name, so the tree reads one named cluster instead of five loose
             buttons. DISABLED mid-spend: the in-flight request already carries the old mode, so letting the
             strip move under it would show a selection the pending image does not have. */}
-        <Row aria-labelledby={modeLabelId} className="flex-wrap" gap="field" role="group">
+        <ToggleGroup
+          aria-labelledby={modeLabelId}
+          disabled={busy}
+          onValueChange={(next): void => {
+            const picked = IMAGINE_MODES.find((id) => id === next[0]);
+            if (picked !== undefined) {
+              setMode(picked);
+            }
+          }}
+          value={[mode]}
+        >
           {IMAGINE_MODES.map((id) => (
-            <Button
-              aria-pressed={mode === id}
-              disabled={busy}
-              intent={mode === id ? "primary" : "ghost"}
-              key={id}
-              onClick={(): void => setMode(id)}
-              size="sm"
-              type="button"
-            >
+            <Toggle intent="outline" key={id} size="sm" value={id}>
               {MODE_LABELS[id]}
-            </Button>
+            </Toggle>
           ))}
-        </Row>
+        </ToggleGroup>
       </Stack>
       <Stack gap="field">
         <Text as="span" voice="label">

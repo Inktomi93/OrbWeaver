@@ -47,8 +47,8 @@ import { resolveControlAvailability } from "../lib/chat-control-availability.ts"
 const CARD_DISPLAY_CAP = 1;
 const CHIP_INLINE_CAP = 4;
 
-// The transcript's reading-port floor this band's coarse strip protects is asserted from rendered geometry
-// by `chat-controls-band.ct.tsx`; the numeric budget belongs to that test because production never reads it.
+// The transcript's reading-port floor this band's coarse strip protects is a rendered-geometry
+// budget that belongs to a test, because production never reads it.
 
 /** THE BAND'S READING SURFACE (a member of the over-art contrast family, answered HERE rather than on the
  *  chips). Without a surface, every ancestor from `[data-slot=chat-control-chips]` up is transparent, so an
@@ -65,7 +65,7 @@ const CHIP_INLINE_CAP = 4;
  *
  *  WHY OPAQUE AND NOT THE TRANSLUCENT `--color-reading-plate` (the transcript's member of this family).
  *  The plate carries a PROVEN alpha floor, but the thing it is proven for is the transcript's ink set —
- *  `palette-contrast.suite.test.ts` floors the derived `foreground` and the four prose inks over the plate
+ *  the palette contrast floor covers the derived `foreground` and the four prose inks over the plate
  *  over worst-case art, and D144(d) records a STATED dark-arm hole for inks outside that set. A chip's
  *  ink is `text-muted-foreground`, which is not in it. That token's AA floor IS proven against
  *  `color.card` — on the seeds (the `bodyPairs` table) and on every realistic derived base (the

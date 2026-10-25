@@ -5,8 +5,7 @@
 // Raw JS in a template literal (no backticks / dollar-brace — see
 // floor/browser/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
 //
-// IT IS A SIBLING OF state-paint.ts, NOT AN ARM OF IT (#2494, docs/law/Core-Tooling-Law.md
-// §4.3). It lived inside
+// IT IS A SIBLING OF state-paint.ts, NOT AN ARM OF IT (#2494). It lived inside
 // that segment until state-paint.ts reached exactly 450 lines, where `tooling-size` reds on the next field
 // and the cheapest legal edit becomes deleting a paragraph to buy a line. The cap is a DECOMPOSITION
 // trigger, so the block moved VERBATIM to the file it had always been a distinct vocabulary in — its own

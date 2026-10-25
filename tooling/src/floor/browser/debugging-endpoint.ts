@@ -3,7 +3,7 @@
 // `--remote-debugging-port=0`, whose OS-assigned port Chrome publishes in `<profile>/DevToolsActivePort`
 // only after it binds. The launch itself stays in ./browser.ts (policy `tooling-browser-door`) and
 // the attach stays there too (the same policy); this module owns the profile-dir lifecycle and the port READ.
-// ./devtools-runtime.ts carried a private copy of the reader until #1231 promoted it here.
+// ../devtools/devtools-runtime.ts carried a private copy of the reader until #1231 promoted it here.
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

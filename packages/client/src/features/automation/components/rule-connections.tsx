@@ -5,10 +5,9 @@
 import type { RoutableTask } from "@orb/contracts/inference";
 import type { AutomationRuleId } from "@orb/kit/ids";
 import { Stack } from "@orb/ui/layout";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { ConnectionRoleSlot, QueryBoundary } from "#components";
-import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { ROLE_ROWS_ORDERED } from "#lib";
 
 export interface RuleConnectionsProps {

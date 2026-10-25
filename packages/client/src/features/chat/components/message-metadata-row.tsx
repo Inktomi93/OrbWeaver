@@ -46,7 +46,7 @@ import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { Fragment } from "react";
-import { cn, timeLib } from "#lib";
+import { timeLib } from "#lib";
 import { durationLabel, genDurationLabel } from "../lib/gen-duration.ts";
 import { cacheTokensLabel, canRevealGenerationCost } from "../lib/message-readout.ts";
 import { MessageCostReadout } from "./message-cost-readout.tsx";
@@ -59,10 +59,6 @@ export type MessageMetadataVisibility = Pick<
 export interface MessageMetadataRowProps {
   readonly message: MessageView;
   readonly visibility: MessageMetadataVisibility;
-  /** The wallpaper legibility backing the ROW owns (`BG_PHOTO_CHROME_PLATE`), threaded rather
-   *  than imported here so the one home for the row's backings stays `message-row-backing.ts` and this
-   *  component keeps knowing nothing about the shell's wallpaper flag. */
-  readonly backingClass?: string | undefined;
 }
 
 /** The message timestamp as quiet inline micro-mono text (D66 P5) — rendered beside the speaker name in
@@ -108,7 +104,7 @@ function metadatum(slot: string, text: string): ReactElement {
 /** The opt-in per-message metadata row. Renders nothing when every gated datum is absent (a draft
  *  greeting row, or every toggle off) — never an empty `<Row>` shell. Timestamps are handled by
  *  `MessageTimestamp` in the name row, not here. */
-export function MessageMetadataRow({ message, visibility, backingClass }: MessageMetadataRowProps): ReactElement | null {
+export function MessageMetadataRow({ message, visibility }: MessageMetadataRowProps): ReactElement | null {
   const tokens = tokenCount(message);
   const items: ReactElement[] = [];
 
@@ -163,7 +159,8 @@ export function MessageMetadataRow({ message, visibility, backingClass }: Messag
     return null;
   }
   return (
-    <Row gap="field" align="center" data-slot="message-metadata-row" className={cn("flex-wrap", backingClass)}>
+    // Below the bubble in every skin, outside any fill, so over a wallpaper it takes the chrome plate.
+    <Row gap="field" align="center" data-slot="message-metadata-row" plate="chrome" className="flex-wrap">
       {items.map((item, index) => (
         <Fragment key={item.key}>
           {index > 0 ? (

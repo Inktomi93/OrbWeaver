@@ -11,7 +11,7 @@
     color: var(--color-sidebar-foreground);
     /* The query container for the pane's band, which sits outside the body's region container. Its layout
      * containment also makes the pane the containing block for the glass carrier (`.shell-panel::before`, client
-     * globals); without it the fill escapes the pane (app-shell.ct.tsx). */
+     * globals); without it the fill escapes the pane. */
     container-type: inline-size;
   }
   /* The panes and `<main>` take focus only programmatically; the ring belongs on the controls inside them. */

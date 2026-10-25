@@ -17,7 +17,7 @@
 //
 // IT MUST NOT READ INK FROM `getComputedStyle().color` ALONE. The backdrop is read through the SAME
 // dimming group, so an `opacity:.6` caption would measure at its UNDIMMED ratio — axe's own blind spot. The
-// planted control is the locked-cell arm of `context-bracket.ct.tsx`, which goes red if the composite is lost.
+// planted control is a locked cell, which goes red if the composite is lost.
 
 import { wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { ringBackdrop } from "@orb/tooling/floor/instrument/pixel-backdrop";

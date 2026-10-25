@@ -174,7 +174,7 @@ SURFACE  — containment CONSUMER. Pure content; queries `@container` variants. 
 CARD/ROW — sub-container where it must adapt independently inside a grid/list.
 ```
 
-- **`@media` is allowed ONLY in `app-shell`**. `orb/no-media-queries-in-features` in `eslint.config.ts` also restricts viewport breakpoint class spellings outside `app-shell`.
+- **`@media` is allowed ONLY in `app-shell`**. The `VIEWPORT_CLASSES` pattern in `eslint.config.ts` (`better-tailwindcss/no-restricted-classes`) also refuses viewport breakpoint class spellings outside `app-shell`.
 - **`@orb/ui/layout` owns `container-type`** (BUILT) — feature code never writes raw `container-type`/`-name` or the `@container` utility (`orb/no-raw-container-in-features`); it uses `<Container name size>`, or the `container` prop of `Section` and `Stack` (`container="size"` also contains the block axis). Default `container-type: inline-size`.
 - **A surface declares no container; an anchor always provides one.** `orb/surface-consumes-container` refuses `<Container>` and the `container` prop in `surfaces/`. `orb/anchor-provides-container` requires each `anchors/` file to render `<Container>`, or the dialog box it anchors (a `*Dialog` or `*Drawer` element).
 - **An anchor sits inside its surface when the surface owns an outer box the container must measure inside.** The home grid, the persona popover, the extensions page and the room's thread-and-flank row each have a scroller inset, popup or page element of their own. Their anchor renders inside it, so the query reads the width left after that inset. The `anchors/` file still provides the container; the surface still declares none.
@@ -327,7 +327,7 @@ These are product rules. D333 ends custom static UI enforcement; native tests an
 
 1. **No dead ends.** Every reachable state renders ≥1 enabled next-step affordance (empty teaches, error retries, draft offers a character).
 2. **Character-first entry.** Every "new chat" affordance goes through choosing/confirming a character; a characterless draft is an explicit "Blank chat" pick, never the default.
-3. **One primary action per view.** Exactly one `intent="primary"` control visible per region at rest (composer Send counts for CONTENT).
+3. **One primary action per view.** Exactly one `intent="primary"` control visible per region at rest (composer Send counts for CONTENT). A one-of-N choice such as a mode or scope strip is a `ToggleGroup` of `Toggle` cells, never a row of buttons with the selected one set to `primary`. The surface census (`tests/client/features/app-shell/surface-census.suite.ct.tsx`) refuses a second visible primary control in a dialog, side panel or the content pane.
 4. **Progressive disclosure.** Rest state shows the reading surface; management chrome appears on hover AND `:focus-within` (keyboard parity), always-visible at `pointer: coarse`, or lives one click away (CONTEXT tab, options menu).
 5. **LIST finds; CONTENT does.** Every LIST panel composes header row → search → `ListRow`s.
 6. **Keyboard first.** ⌘K reaches every section/recent/create; Esc closes the top layer; focus is visible everywhere and lands correctly on open.
@@ -344,7 +344,7 @@ The client targets **React 19 + the React Compiler** (the compiler runs full-com
 
 **USE:**
 
-- **The React Compiler is ON — stop hand-writing `useMemo`/`useCallback`/`React.memo`.** The ONE blind spot is `useVirtualizer` (interior mutability) → sealed in `@orb/ui/virtual-list` with **`directDomUpdates: true` + `containerRef`** (TanStack Virtual 3.14+, **NOT `"use no memo"`**); features never wire it by hand.
+- **The React Compiler is ON — stop hand-writing `useMemo`/`useCallback`/`React.memo`.** `orb/no-manual-memo` refuses them in `packages/client/src` and `packages/ui/src`, except in a file that imports `@tanstack/react-virtual`, which the compiler skips. The ONE blind spot is `useVirtualizer` (interior mutability) → sealed in `@orb/ui/virtual-list` with **`directDomUpdates: true` + `containerRef`** (TanStack Virtual 3.14+, **NOT `"use no memo"`**); features never wire it by hand.
 - **`<Activity>` for the single-route panes.** Keep a pane mounted-but-hidden on flip-away (chat ⇄ library) so returning is instant with scroll + form state intact (§5.1), replacing unmount/remount. Two companion rules: (1) on `hidden→visible` restore focus to the pane's stable anchor (its header) — a WCAG obligation, since focus dies silently on hide; (2) hide-coupled DOM work (scroll-position capture, media pause) runs in `useLayoutEffect`, not a passive `useEffect` cleanup, which runs too late.
 - **`useEffectEvent` is THE fix for the effect footguns** — separates an effect's non-reactive part from its deps. Prefer it over ref-juggling.
 - **`useDeferredValue` for every search/filter-over-collection surface** (library grid · corpus search · tag/world-info filters): the input stays responsive while the filtered list lags a frame behind. Pass `initialValue`. `startTransition` wraps pane *switches*; `useDeferredValue` absorbs derived-*list* churn; neither is a debounce hack. (§13.2 row.)
@@ -361,7 +361,7 @@ The client targets **React 19 + the React Compiler** (the compiler runs full-com
 - **A FEATURE-OWNED FLOAT CLOSES ITSELF.** A popover/menu is not a modal slot, so `withContentSwap` does not reach it, and Base UI's outside-press close does not fire when the navigation was raised by a control INSIDE the float. It closes in the same handler that navigates. A hidden `<Activity>` pane stays MOUNTED, so a float anchored in it keeps painting from the portal root while its anchor is `display:none`.
 - The external legacy source contains rendered dialog checks for rail and room changes. It is reference-only.
 
-**SKIP (redundant with TanStack — do NOT bolt on):**
+**SKIP (redundant with TanStack — do NOT bolt on).** `orb/no-legacy-react-api` refuses the form-state hooks, `<form action>` and a `document.title` write; `orb/no-use-promise` refuses `use()` on a thenable by its type.
 
 - **React 19 form Actions / `useActionState` / `useFormStatus`** — TanStack Form owns form state (§6.1).
 - **`useOptimistic`** — TanStack Query's optimistic flow owns it (§13.1). No second path.
@@ -383,11 +383,11 @@ The client targets **React 19 + the React Compiler** (the compiler runs full-com
 
 **Axis 1 (the core).** A surface adapts to *its container* — the same `<CharacterGrid>` is 4-up in a wide pane, 1-up in a drawer, automatically. No mobile variant, no `compact`/`inDrawer`/`inModal`/`isMobile`/`narrow` prop (`orb/no-layout-context-props` refuses them on JSX in `packages/client/src` and `packages/ui/src`). Fluid type/spacing inside a component use `cqi`+`clamp()`, not viewport units.
 
-**Axis 2.** The one genuinely viewport-dependent reflow, in the SHELL: 3-pane ⇄ stack, drawer ⇄ sheet. Tiny (neo: one `clamp()` width var + the overlay model, §11.2). `orb/no-media-queries-in-features` in `eslint.config.ts` also keeps viewport breakpoint class spellings out of features except `app-shell`.
+**Axis 2.** The one genuinely viewport-dependent reflow, in the SHELL: 3-pane ⇄ stack, drawer ⇄ sheet. Tiny (neo: one `clamp()` width var + the overlay model, §11.2). The `VIEWPORT_CLASSES` pattern in `eslint.config.ts` keeps viewport breakpoint class spellings out of features except `app-shell`.
 
 **Axis 3 — capability, NOT size.** hover/pointer are media-query-only (container queries can't see them). **Pointer-conditional floor:** interactive primitives meet the ≥44px touch floor at `@media (pointer: coarse)` via token control-heights; fine pointers get the desktop scale — `control-sm` 32px · `control-md` 36px · `control-lg` 40px · icon 36px — emitted as a token-layer `pointer: fine` override (THIS layer, never features). An interactive element with a sub-44px visual box on coarse pointers wraps in a ≥44px hit area. `data-density="compact"` remains the separate spacing axis (ship COMFORTABLE; never build a parallel compact path). Hover is only ever an *enhancement* (`@media (hover:hover)`); **every hover action has a tap-equivalent** (and a `:focus-within` keyboard equivalent, §4.3 rule 4). Base UI suppresses tooltips on touch for free. The external legacy source contains per-pointer rendered checks; it is reference-only.
 
-The same rule binds Tailwind capability variants: `pointer-coarse:`/`pointer-fine:`/`hover-capable:`, their `any-pointer-*` twins, and raw `[@media(pointer|hover:…)]:` variants belong at the **token/shell layer**, never in a feature class string. A feature composes a pointer-conditional token or a shared component-layer constant from `#components` (`packages/client/src/components/pointer-variants.ts`: `HIDE_AT_COARSE`, `HIDDEN_UNTIL_HOVER`, `INERT_UNTIL_HOVER`). The `:hover` pseudo-class (`hover:bg-accent`) is an interaction state and stays legal in features. `orb/no-pointer-variants-in-features` in `eslint.config.ts` enforces this on raw literals and static template chunks outside `app-shell`; a reasoned line exception follows D321#3.
+The same rule binds Tailwind capability variants: `pointer-coarse:`/`pointer-fine:`/`hover-capable:`, their `any-pointer-*` twins, and raw `[@media(pointer|hover:…)]:` variants belong at the **token/shell layer**, never in a feature class string. A feature composes a pointer-conditional token or a shared component-layer constant from `#components` (`packages/client/src/components/pointer-variants.ts`: `HIDE_AT_COARSE`) or a primitive's reveal prop (`Row reveal`, `inertUntilHover`, from `packages/ui/src/lib/hover-reveal.ts`). The `:hover` pseudo-class (`hover:bg-accent`) is an interaction state and stays legal in features. The `POINTER_CLASSES` pattern in `eslint.config.ts` (`better-tailwindcss/no-restricted-classes`) enforces this on class strings in features outside `app-shell`; a reasoned line exception follows D321#3.
 
 **Axis 4 — mobile platform CSS, baked into 3 primitives:**
 

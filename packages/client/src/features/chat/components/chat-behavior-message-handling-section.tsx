@@ -13,10 +13,9 @@
 
 import { DEFAULT_CHAT_SETTINGS } from "@orb/contracts/settings";
 import { Row, Section } from "@orb/ui/layout";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#components";
-import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
+import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
 import type { ChatMessageHandlingForm } from "../lib/chat-behavior-message-handling-model.ts";

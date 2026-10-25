@@ -21,13 +21,12 @@ import { Command, CommandAuxiliaryButton, CommandEmpty, CommandGroup, CommandInp
 import { Icon, MessagesSquare } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { use, useId, useRef } from "react";
 import { QueryBoundary } from "#components";
 import type { Trpc } from "#data";
-import { QueryErrorState, useTRPC } from "#data";
+import { QueryErrorState, useSuspenseQuery, useTRPC } from "#data";
 import type { CommandPaletteSource, SlashCommandContext, SlashCommandContribution, SlashCommandGroup } from "#lib";
 import { SLASH_COMMAND_GROUP_LABELS, SLASH_COMMAND_GROUPS, useFocusOnMount, useFocusOnSwap } from "#lib";
 import type { SectionId } from "#state";

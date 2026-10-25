@@ -3,7 +3,7 @@
 // row reserves its width with `GhostActionsFootprint`, drawn from the same `MessageActionsCluster`). Edit/Hide/Fork apply only to user/assistant rows — a system row
 // is a room notice, not authored prose. This row does not re-derive author-or-host authority client-side; a
 // caller without permission gets the verb's own NOT_FOUND. Edit doesn't mutate here — it only flips the
-// external edit-draft store's mode. The whole cluster's rest/reveal posture is `messageActionsRevealClass`
+// external edit-draft store's mode. The whole cluster's rest/reveal posture is `ACTIONS_REVEAL_POSTURE`
 // (one home); the ⋯ arm is the sanctioned `RowActionsMenu` composite, which owns Delete's ConfirmDialog.
 //
 // "View wire trace…" LIVES HERE, not on the metadata row (an owner ruling): a lone quiet button under every
@@ -34,7 +34,7 @@ import type { ChatId, MessageId } from "@orb/kit/ids";
 import { Code, Copy, Eye, EyeOff, GitFork, Icon, Pencil, Redo2, SmilePlus, Undo2 } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { MenuItem } from "@orb/ui/menu";
-import type { ReactElement } from "react";
+import type { ComponentProps, ReactElement } from "react";
 import { useRef, useState } from "react";
 import { DescribedMenuItem } from "#components";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
@@ -43,7 +43,7 @@ import { selectChat, startEditingMessage } from "#state";
 import { useReactionsEnabled, useReactionsForVariant, useViewerSeatId } from "../hooks/use-message-reactions.ts";
 import { useReattributeTarget } from "../hooks/use-reattribute-target.ts";
 import type { ActionsReveal } from "../lib/message-actions-reveal.ts";
-import { messageActionsRevealClass } from "../lib/message-actions-reveal.ts";
+import { ACTIONS_REVEAL_POSTURE } from "../lib/message-actions-reveal.ts";
 import { GenerationCredit } from "./generation-credit.tsx";
 import { MessageActionsCluster } from "./message-actions-cluster.tsx";
 import { ReattributeFromHereConfirm, ReattributeFromHereItem } from "./reattribute-from-here.tsx";
@@ -145,18 +145,24 @@ export interface MessageActionsRowProps {
   /** Show the generation credit (`GenerationCredit`). The row gates it on the `showModelIcon` appearance
    *  toggle; absent ⇒ no credit. */
   readonly generationCredit?: boolean | undefined;
-  /** A plate under the cluster, shown and hidden with it (the document chip). */
-  readonly surface?: string | undefined;
+  /** The cluster paints the reading band under itself, shown and hidden with it (the document chip). */
+  readonly chip?: boolean | undefined;
+}
+
+// The document chip paints the reading band under the cluster at the card radius, positioned and raised so it paints
+// over the line it sits on, not under its words.
+function ActionsFrame({ chip, ...row }: ComponentProps<typeof Row> & { readonly chip: boolean }): ReactElement {
+  return chip ? <Row {...row} ground="readingBand" cardCorners="all" className="relative z-(--z-raised)" /> : <Row {...row} />;
 }
 
 export function MessageActionsRow({
   message,
-  messageActions,
+  messageActions = "hover",
   greetingBound = false,
   viewerIsHost = false,
   generationCredit = false,
   characterNames = [],
-  surface = "",
+  chip = false,
 }: MessageActionsRowProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
@@ -263,13 +269,14 @@ export function MessageActionsRow({
   };
 
   return (
-    <Row
+    <ActionsFrame
       ref={clusterRef}
+      chip={chip}
       gap="glyph"
       align="center"
       justify="end"
       data-slot="message-actions-row"
-      className={`${messageActionsRevealClass(messageActions)} ${surface}`}
+      reveal={ACTIONS_REVEAL_POSTURE[messageActions]}
     >
       <MessageActionsCluster
         credit={renderGenerationCredit(generationCredit, message)}
@@ -361,6 +368,6 @@ export function MessageActionsRow({
       {pickerOpen ? (
         <RowReactionPicker characterNames={characterNames} groups={reactionGroups} message={message} onOpenChange={setPickerOpen} viewerSeatId={viewerSeatId} />
       ) : null}
-    </Row>
+    </ActionsFrame>
   );
 }

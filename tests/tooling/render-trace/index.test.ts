@@ -1,5 +1,5 @@
 // renderTrace is the pure trace→string waterfall printer shared by trace-tail.ts / probe-fire.ts —
-// ported from neo-tavern's tests/scripts/probes/trace-render.test.ts (this file's home is
+// ported from neo-tavern's trace-render probe test (this file's home is
 // tests/tooling/ per docs/law/Spine-Testing.md §2: a test of a scripts/ tool, not a packages/<pkg>/src
 // mirror). vitest's test process is never a TTY, so trace-render's ANSI helpers are identity —
 // asserting the plain strings below over `output` ALSO proves the non-TTY identity path (no `\x1b[`

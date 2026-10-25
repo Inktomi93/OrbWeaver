@@ -2,6 +2,9 @@ import { alternation, MATCH_MEDIA, TANSTACK_FORM_MINTS } from "./syntax.ts";
 
 // Attributes that tell a component where it is placed. The container answers that question (UI-Architecture-and-Layout.md §4b axis 1).
 // No @orb/ui variant is keyed by these names: `compact` appears only as a value of `size`/`density`/`listSize`.
+// React 19 form-state APIs the stack skips: TanStack Form owns the form, TanStack Query owns the optimistic write.
+const FORM_STATE_APIS = ["useActionState", "useFormState", "useFormStatus", "useOptimistic"];
+
 const LAYOUT_CONTEXT_PROPS = ["compact", "inDrawer", "inModal", "isMobile", "narrow"];
 
 // `container={false}` turns containment off, so it neither declares nor provides one.
@@ -185,8 +188,28 @@ export const UI_FEATURE_RESTRICTIONS = [
         message: "A legacy React API (cloneElement, createRef, Children, PureComponent) — use the React 19 function-component equivalent.",
       },
       {
-        selector: `ImportDeclaration[source.value='react-dom'] > ImportSpecifier[imported.name=${alternation(["useFormState", "flushSync"])}]`,
-        message: "An unsupported react-dom API (useFormState, flushSync) — use `useActionState`, and let React schedule the flush.",
+        selector: `ImportDeclaration[source.value=/^react(?:-dom)?$/] > ImportSpecifier[imported.name=${alternation(FORM_STATE_APIS)}]`,
+        message:
+          "A React form-state API (useActionState, useFormState, useFormStatus, useOptimistic): TanStack Form owns form state and TanStack Query owns optimistic writes (UI-Architecture-and-Layout.md §4a).",
+      },
+      {
+        selector: `CallExpression[callee.object.name='React'][callee.property.name=${alternation(FORM_STATE_APIS)}]`,
+        message:
+          "A React form-state API (useActionState, useFormState, useFormStatus, useOptimistic): TanStack Form owns form state and TanStack Query owns optimistic writes (UI-Architecture-and-Layout.md §4a).",
+      },
+      {
+        selector: "JSXOpeningElement[name.type='JSXIdentifier'][name.name='form']:has(> JSXAttribute[name.name='action'])",
+        message: "A <form action>: orbweaver submits through TanStack Form and tRPC, never a React form Action (UI-Architecture-and-Layout.md §4a).",
+      },
+      {
+        selector: `ImportDeclaration[source.value='react-dom'] > ImportSpecifier[imported.name='flushSync']`,
+        message: "An unsupported react-dom API (flushSync) — let React schedule the flush.",
+      },
+      {
+        selector:
+          "AssignmentExpression[left.type='MemberExpression'][left.property.name='title']:matches([left.object.name='document'], [left.object.property.name='document'])",
+        message:
+          "A `document.title` write: render React 19's `<title>` from the active pane; metadata hoists to the head (ui-architecture-state-and-stack.md §5.1).",
       },
     ],
   },

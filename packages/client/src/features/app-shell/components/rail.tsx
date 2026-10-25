@@ -238,7 +238,7 @@ export function Rail({ activeSection, onSelectSection, onOpenModal }: RailProps)
       {/* The brand cell is `display:none` below 48rem, so the brand section rides the mobile bar as its
           FIRST tab instead — the `mobileOnly` mechanism the You tab already uses.
           Exactly one of the two is ever displayed, so there is no duplicate affordance in the a11y tree
-          (pinned: rail.ct.tsx "exactly one Home affordance at each width", #1790).
+          (#1790).
 
           RECORDED EXCEPTION, NOT AN OVERSIGHT (#1790): every other rail entry reflows ONE `RailButton`
           node across the `@media` (icon+label always in the DOM, CSS moves/hides the label); brand is
@@ -256,7 +256,7 @@ export function Rail({ activeSection, onSelectSection, onOpenModal }: RailProps)
           reasoned about together forever) paid for zero behavior change: the reflow already produces
           exactly what a fold would produce, one visible Home affordance at every width. That is a decision,
           not neglect — it is not a `matchMedia` read, not a third component, and it does not touch the
-          CT-pinned desktop paint at rail.ct.tsx:34-80. */}
+          desktop paint. */}
       {brandEntry?.behavior.kind !== "section" ? null : (
         <RailButton
           active={brandEntry.behavior.sectionId === activeSection}

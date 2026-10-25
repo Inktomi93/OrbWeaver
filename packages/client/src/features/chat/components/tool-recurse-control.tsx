@@ -13,10 +13,9 @@
 import type { ChatId } from "@orb/kit/ids";
 import { Field } from "@orb/ui/field";
 import { NumberField } from "@orb/ui/number-field";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 
-import { useInvalidation, useTRPC } from "#data";
+import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { useSetToolRecurseLimit } from "../hooks/use-context-panel-mutations.ts";
 
 // Mirror the server `toolRecurseLimitSchema` bounds (domain-internal, not client-importable) — the verb

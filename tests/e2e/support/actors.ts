@@ -140,7 +140,7 @@ interface KeyMaterial {
 }
 
 // Minted once per process (jose CryptoKeys). The public JWKS rides EVERY request as the
-// `x-authentik-meta-jwks` literal; the server verifies the signed JWT against it (the jwks.test.ts crypto
+// `x-authentik-meta-jwks` literal; the server verifies the signed JWT against it (the jwks.int.test.ts crypto
 // path — real jose, no external IdP). The `kid` lets jose pick the key.
 let keyMaterialPromise: Promise<KeyMaterial> | null = null;
 
@@ -163,7 +163,7 @@ function keyMaterial(): Promise<KeyMaterial> {
  *  resolver reads). No login, no cookie; the request IS the identity. The server needs
  *  `AUTH_MODE=forward-header` + a non-empty `FORWARD_AUTH_JWKS_ALLOWLIST` (the signed path refuses an empty
  *  allowlist) — the forward-header Playwright project sets both. The JWKS travels as a LITERAL, so the
- *  allowlist gates only remote-URL egress (never the literal), exactly as jwks.test.ts proves. `baseUrl` is
+ *  allowlist gates only remote-URL egress (never the literal), exactly as jwks.int.test.ts proves. `baseUrl` is
  *  the forward-header project's vite origin. */
 export async function actorViaHeader(baseUrl: string, claims: ForwardClaims): Promise<ActorClient> {
   const { privateKey, jwks } = await keyMaterial();
