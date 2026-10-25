@@ -50,7 +50,7 @@
 }
 
 @layer ui {
-  /* The client writes `--font-scale` onto the root; every rem-derived size follows. The font rendering set
+  /* The client writes `--appearance-font-scale` onto the root; every rem-derived size follows. The font rendering set
    * (ui-package-design.md §4): grayscale antialiasing keeps macOS text thin on the dark themes, and no synthesised
    * bold or italic stands in for a face Geist does not ship. */
   :root {

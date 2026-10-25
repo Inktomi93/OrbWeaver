@@ -135,7 +135,7 @@ export interface ContractToken {
   readonly value: unknown;
   readonly outputRole: OutputRole | null;
   /** `$extensions["orb.rootFloor"]` — the emitted value never resolves BELOW its authored 16px-root size
-   *  (`--font-scale` may enlarge it, never shrink it). See `rootFloorFlag` for the whole ruling. */
+   *  (`--appearance-font-scale` may enlarge it, never shrink it). See `rootFloorFlag` for the whole ruling. */
   readonly rootFloor: boolean;
 }
 
@@ -257,12 +257,12 @@ function outputRole(node: JsonObject, path: string, diagnostics: TokenContractDi
 }
 
 /**
- * `$extensions["orb.rootFloor"]` — THE ROOT FLOOR (#1872). The emitted value is `max(<authored>, <authored at the 16px root>px)`, so `--font-scale` can only ever ENLARGE it.
+ * `$extensions["orb.rootFloor"]` — THE ROOT FLOOR (#1872). The emitted value is `max(<authored>, <authored at the 16px root>px)`, so `--appearance-font-scale` can only ever ENLARGE it.
  *
  * WHY IT IS A FLAG AND NOT AN OPERAND: the floor is the token's OWN authored value, never a second number.
  * A hand-written floor could differ from the authored size, and a face/leading PAIR floored to two
  * unrelated numbers changes the resolved ratio — which is exactly what #1872 forbids. Deriving it makes
- * the floored region ratio-identical to the authored design by construction: below `--font-scale` 1 every
+ * the floored region ratio-identical to the authored design by construction: below `--appearance-font-scale` 1 every
  * floored token in a pair pins at its own 16px-root px, so face:leading is the authored ratio exactly.
  *
  * WHY IT DOES NOT REACH THE `@media (pointer: fine)` ARM (unlike the snapping belt, #1640): the floor

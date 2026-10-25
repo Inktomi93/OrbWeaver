@@ -339,7 +339,7 @@ export const gridVariants = tv({
       // step at or above that minimum, so the consuming feature can spell its matching placement classes
       // without an arbitrary variant. The 830-896px band therefore keeps the in-flow gutter: conservative by
       // one step, never clipping. Container steps are `rem`-denominated, so the whole thing moves with
-      // `--font-scale` exactly like the measure it is derived from.
+      // `--appearance-font-scale` exactly like the measure it is derived from.
       //
       // NO ROLE MIRROR: the centred skins seat every role's chip LEADING (owner ruling, as Moonlit Echoes
       // leaves flat, hush and document unmirrored), so one template serves both roles and auto-placement
@@ -361,7 +361,7 @@ export const gridVariants = tv({
       // left the rail 0-28px — a thumb on no track at all. Below `@cq-32` the rail takes the whole width;
       // `@cq-32` and not `@cq-28` because the fold has to happen while there is still a rail worth keeping
       // (measured: the three-track arm needs ~468px of pane before the middle track clears an aimable
-      // floor). The step is in `rem`, so it moves with `--font-scale` — the reading arm folds later, which
+      // floor). The step is in `rem`, so it moves with `--appearance-font-scale` — the reading arm folds later, which
       // is exactly right for bigger type.
       //
       // THE FOLDED ARM IS TWO TRACKS, NOT ONE (side-eye 2026-08-30 P2-C). A single column stacked all four

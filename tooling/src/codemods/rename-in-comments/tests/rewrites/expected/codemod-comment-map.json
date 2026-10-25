@@ -1,0 +1,6 @@
+{
+  "names": {
+    "--font-scale": "--appearance-font-scale",
+    "data-reduced-motion": "data-appearance-reduced-motion"
+  }
+}

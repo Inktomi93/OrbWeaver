@@ -12,7 +12,7 @@
 //
 // Reduced motion is REMOVE, not shorten: under `prefers-reduced-motion` the latch never
 // arms, so the row renders resting from its first frame — no hidden frame, no fast fade. (The manual
-// appearance.reducedMotion toggle rides the globals.css `[data-reduced-motion]` transition-duration
+// appearance.reducedMotion toggle rides the globals.css `[data-appearance-reduced-motion]` transition-duration
 // floor, same as every other transition in the app.)
 //
 // Compositor-only (only `transform`/`opacity` — never trigger layout/paint): `opacity` + the

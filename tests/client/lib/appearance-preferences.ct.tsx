@@ -4,6 +4,7 @@
 import type { OsPreferenceMode } from "@orb/contracts/settings/appearance";
 import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
+import { emulateMedia, releaseEmulatedMedia } from "../features/app-shell/surfaces/app-shell-ct.tsx";
 import type { AppearanceChannelStory } from "./_appearance-channel-stories.tsx";
 
 const STORY = "tests/client/lib/_appearance-channel-stories/AppearanceChannelStory";
@@ -15,16 +16,9 @@ interface OsState {
   readonly contrast: boolean;
 }
 
-/** Playwright's `emulateMedia` has no reduced-transparency feature, so both OS preferences go through CDP at once. */
-async function emulateOs(page: Page, os: OsState): Promise<void> {
-  const session = await page.context().newCDPSession(page);
-  await session.send("Emulation.setEmulatedMedia", {
-    features: [
-      { name: "prefers-reduced-transparency", value: os.transparency ? "reduce" : "no-preference" },
-      { name: "prefers-contrast", value: os.contrast ? "more" : "no-preference" },
-      { name: "prefers-reduced-motion", value: "no-preference" },
-    ],
-  });
+/** Playwright's `emulateMedia` has no reduced-transparency feature, so the shell specs' CDP helper states both. */
+function emulateOs(page: Page, os: OsState): Promise<void> {
+  return emulateMedia(page, { transparency: os.transparency ? "reduce" : "no-preference", contrast: os.contrast ? "more" : "no-preference" });
 }
 
 function rootValue(page: Page, property: string): Promise<string> {
@@ -37,10 +31,9 @@ function pseudo(locator: Locator, property: string): Promise<string> {
 
 const NEUTRAL = { transparency: false, contrast: false };
 
-// The gallery keeps one page per worker, and CDP media emulation outlives the test that set it.
+// The gallery keeps one page per worker, and the media session's overrides outlive the test until it detaches.
 test.afterEach(async ({ page }) => {
-  const session = await page.context().newCDPSession(page);
-  await session.send("Emulation.setEmulatedMedia", { features: [] });
+  await releaseEmulatedMedia(page);
 });
 
 const TRANSPARENCY_CASES = [

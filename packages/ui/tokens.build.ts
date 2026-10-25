@@ -24,7 +24,7 @@ const THEMES_TS = join(HERE, TOKEN_ARTIFACT_PATHS.themesTs);
 // must keep it — that is why it is fixed here and not only in the emitted file.
 const THEMES_MODULE = `./${posix.relative(posix.dirname(TOKEN_ARTIFACT_PATHS.tokensTs), TOKEN_ARTIFACT_PATHS.themesTs)}`;
 const OKLCH_COMPONENT_COUNT = 3;
-/** The rem base every snapped dimension resolves against (the app's root before --font-scale). */
+/** The rem base every snapped dimension resolves against (the app's root before --appearance-font-scale). */
 const ROOT_REM_PX = 16;
 const CUBIC_BEZIER_COORDINATE_COUNT = 4;
 const DTCG_ALIAS_RE = /^\{([^{}]+)\}$/u;
@@ -167,11 +167,11 @@ function snappedSerialization(length: string): string {
 
 /**
  * The ROOT FLOOR's ONE serialization (#1872, `orb.rootFloor` — the ruling is on `rootFloorFlag` in
- * token-contract.ts). `1.5rem` → `max(1.5rem, 24px)`: the token keeps scaling UP with `--font-scale` and
+ * token-contract.ts). `1.5rem` → `max(1.5rem, 24px)`: the token keeps scaling UP with `--appearance-font-scale` and
  * can no longer scale DOWN past the size it was authored at.
  *
  * THE FLOOR IS DERIVED FROM THE AUTHORED VALUE, never a second literal, and that is what keeps a floored
- * face/leading PAIR on its authored ratio: below `--font-scale` 1 both members pin at their own 16px-root
+ * face/leading PAIR on its authored ratio: below `--appearance-font-scale` 1 both members pin at their own 16px-root
  * px, so `--leading-field / --text-field` is 24/16 = the authored 1.5 at EVERY stop of the slider, the same
  * number it resolves to at 1.0. Flooring a face alone would have driven that ratio to 1.0 at scale 0.8,
  * which is the shape #1872 explicitly refuses.
@@ -202,14 +202,14 @@ function renderPortableToken(token: TransformedToken, contractToken: ContractTok
       return `${finiteNumber(resolvedValue(token), path)}%`;
     case "snapped":
       // The device-pixel belt (docs/law/integer-line-boxes.md §3b): a snapped dimension is authored
-      // integer at the 16px root and emitted through round() so every --font-scale value — the slider is
+      // integer at the 16px root and emitted through round() so every --appearance-font-scale value — the slider is
       // continuous — resolves the box back onto the device-pixel grid. Identity at the default scale.
       //
       // THE STRATEGY IS `up`, NOT THE DEFAULT `nearest` (#1160, measured 2026-09-05). Snapping to the
       // NEAREST integer may round a box DOWN by up to half a pixel while the paired font size scales
       // continuously, which drops the resolved RATIO below the ratified leading floor
       // (`LEADING_FLOOR` = leading.label / text.label = 16/13 ≈ 1.2308) — a defect no authored value can
-      // see. Measured on `settings:appearance --appearance-preset reading` (--font-scale 1.25, root
+      // see. Measured on `settings:appearance --appearance-preset reading` (--appearance-font-scale 1.25, root
       // 20px): text.micro resolves 13.125px and `round(0.8125rem, 1px)` resolved 16px, ratio 1.219 —
       // four `tight-leading` findings on the setting-row gloss. `up` never shrinks the box, so the
       // resolved ratio is always ≥ the AUTHORED ratio and the floor holds at every stop of the slider;

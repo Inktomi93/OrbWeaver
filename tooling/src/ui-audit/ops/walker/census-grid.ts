@@ -5,7 +5,7 @@
 // no-raw-spacing-in-features, no-arbitrary-tw-values, css-length-tokens, orb/no-off-token-inline-style) already
 // prove the AUTHORED values are tokens. It is "did the RESOLVED raster land on the device-pixel grid". That
 // gap is runtime-only by construction: a landing is the product of the live root font-size (the continuous
-// `--font-scale` slider), the element's own box, and `devicePixelRatio` — none of which authorship can see.
+// `--appearance-font-scale` slider), the element's own box, and `devicePixelRatio` — none of which authorship can see.
 // Law 1 closed the line-box arithmetic and STILL left seven horizontal residuals on the config list panel;
 // this census is the backstop that sees them on any surface at any scale.
 //
