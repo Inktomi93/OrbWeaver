@@ -898,19 +898,28 @@ export const OWNER_CSS_SHELL_CLASSES = [
   "shell-topbar-trail",
 ] as const;
 
-/** Every custom property theme.css serves on the document; the ramp primitives are private and unserved. */
+/** Every custom property theme.css serves on the document, plus the registered appearance properties; the ramp primitives are private and unserved. */
 export const OWNER_CSS_TOKEN_VARS = [
+  "--appearance-blur-strength",
+  "--appearance-chat-width-pct",
+  "--appearance-font-scale",
+  "--appearance-reading-body-scale",
+  "--appearance-reading-letter-spacing",
+  "--appearance-reading-line-height",
+  "--appearance-reading-name-scale",
+  "--appearance-reading-paragraph-spacing",
   "--aspect-banner",
   "--aspect-portrait",
   "--blur-fill-chrome",
   "--blur-fill-dense",
   "--blur-saturate",
-  "--blur-strength",
+  "--blur-veil",
   "--border-width-accent",
   "--border-width-control",
   "--border-width-hairline",
   "--breakpoint-shell",
   "--breakpoint-shell-dock",
+  "--breakpoint-shell-short",
   "--color-accent",
   "--color-accent-foreground",
   "--color-accolade",
@@ -1066,12 +1075,9 @@ export const OWNER_CSS_TOKEN_VARS = [
   "--radius-full",
   "--radius-inset",
   "--reading-bubble-cap",
-  "--reading-letter-spacing",
-  "--reading-line-height",
   "--reading-measure",
   "--reading-measure-min",
   "--reading-measure-prose",
-  "--reading-paragraph-spacing",
   "--shadow-cta",
   "--shadow-cta-glow",
   "--shadow-glow",
@@ -1151,6 +1157,7 @@ export const OWNER_CSS_TOKEN_VARS = [
   "--width-popup-floor",
   "--width-popup-narrow",
   "--width-sidebar-sm",
+  "--width-surface-cap",
   "--width-title-floor",
   "--z-base",
   "--z-modal",
@@ -1213,6 +1220,71 @@ export const OWNER_CSS_THEME_SCOPE_VARS = [
   "--radius-card",
 ] as const;
 
+/** Every `data-appearance-*` root attribute and the values its variants match. */
+export const OWNER_CSS_APPEARANCE_ATTRIBUTES = [
+  {
+    "name": "data-appearance-blur-surfaces",
+    "values": [
+      "panels",
+      "composer",
+      "messages",
+      "modals"
+    ]
+  },
+  {
+    "name": "data-appearance-enable-theme-colorization",
+    "values": [
+      "false",
+      "true"
+    ]
+  },
+  {
+    "name": "data-appearance-increased-contrast",
+    "values": [
+      "system",
+      "on",
+      "off"
+    ]
+  },
+  {
+    "name": "data-appearance-justify-body-text",
+    "values": [
+      "false",
+      "true"
+    ]
+  },
+  {
+    "name": "data-appearance-reduced-motion",
+    "values": [
+      "system",
+      "on",
+      "off"
+    ]
+  },
+  {
+    "name": "data-appearance-reduced-transparency",
+    "values": [
+      "system",
+      "on",
+      "off"
+    ]
+  },
+  {
+    "name": "data-appearance-shadow-effects",
+    "values": [
+      "false",
+      "true"
+    ]
+  },
+  {
+    "name": "data-appearance-surface-texture",
+    "values": [
+      "none",
+      "grain"
+    ]
+  }
+] as const;
+
 const hooks = (kind: OwnerCssHookKind, names: readonly string[]): OwnerCssHook[] => names.map((name) => ({ kind, name }));
 
 /** The one public theme contract: every hook the editor offers and the validator checks, tagged by kind. */
@@ -1220,4 +1292,5 @@ export const OWNER_CSS_SURFACE: readonly OwnerCssHook[] = [
   ...hooks("slot", OWNER_CSS_SLOTS),
   ...hooks("shell-class", OWNER_CSS_SHELL_CLASSES),
   ...hooks("token", OWNER_CSS_TOKEN_VARS),
+  ...OWNER_CSS_APPEARANCE_ATTRIBUTES.map(({ name, values }): OwnerCssHook => ({ kind: "appearance-attribute", name, values })),
 ];

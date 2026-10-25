@@ -27,4 +27,8 @@ A stylelint rule scoped to the shell region files allows colour only as a semant
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+- `orb/shell-paint-law` in `stylelint-rules.ts`, enabled for `shell/*.css` in `stylelint.config.ts` with `color-named`. The old `grid.css` (git `HEAD`) fails it with four slot findings; the new one passes `pnpm lint:css`.
+- Planted controls in `tests/tooling/stylelint-rules.test.ts` ("a shell region paints from tokens and names no component"): hex, `oklch()` literal, `color-mix` over a hex, a named colour, a foreign `data-slot`, an `@orb/ui` class. `pnpm test:tools tests/tooling/stylelint-rules.test.ts` passes.
+- The `text-shadow` reset on the bubble and composer and the chats empty-state plate moved to `packages/client/src/styles/globals.css`, same selectors and a later layer than before, so no winner changes.
+- `@scope` is rejected: Firefox ships it in 146 and the floor is Firefox 138 (`web-features` 3.43.0, `docs/plans/css-system/design.md` candidates table).
+- D150 (`docs/adr/0150-*`) is the context bracket ADR and is superseded by D313; it states no shell paint rule. The lockdown §4.2 row carries the rule and names the lint; it cites no ADR.

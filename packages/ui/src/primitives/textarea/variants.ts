@@ -1,7 +1,7 @@
 import { DISABLED_STATE_NATIVE, FIELD_CONTROL, FOCUS_RING, FOCUS_RING_DESTRUCTIVE, tv } from "#lib";
 
 // The textarea skin — the shared FIELD_CONTROL box, multi-line: a min-height on the control-lg scale
-// and native `field-sizing: content` autosize (the 2026 CSS way — D54; no JS measuring).
+// and native `field-sizing: content` autosize (the 2026 CSS way — D54), measured in script only where the browser lacks it.
 export const textareaVariants = tv({
   base: [
     FIELD_CONTROL,

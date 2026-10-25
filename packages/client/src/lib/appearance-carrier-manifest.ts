@@ -258,7 +258,7 @@ export interface AppearanceChannelRow {
 }
 
 const APPEARANCE_PROPERTY_PREFIX = "--appearance-";
-const APPEARANCE_ATTRIBUTE_PREFIX = "data-appearance-";
+export const APPEARANCE_ATTRIBUTE_PREFIX = "data-appearance-";
 
 function kebab(key: string): string {
   return key.replaceAll(/[A-Z]/gu, (letter) => `-${letter.toLowerCase()}`);

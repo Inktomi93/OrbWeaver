@@ -18,4 +18,4 @@ The two rows use a suite the reach list does list (or a planted fixture of their
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+`tests/tooling/native-package-test-mirror.test.ts` now plants the listed chat suite `tests/client/features/chat/lib/empty-send-and-duration.test.ts` and its listed leaf `continue-on-empty.ts`. Before: 2 failed, 31 passed. After: `pnpm test:tools tests/tooling/native-package-test-mirror.test.ts` passes 33 of 33 on a quiet run.

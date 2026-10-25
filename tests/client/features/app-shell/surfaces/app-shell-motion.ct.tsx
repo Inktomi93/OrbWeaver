@@ -47,10 +47,11 @@ const DOOR_BOXES = {
 type DoorBox = keyof typeof DOOR_BOXES;
 // The LIST door moves the list pane itself, so its action travels with it by design and is not held.
 const LIST_DOOR: readonly DoorBox[] = ["main", "trail", "listPanel", "row", "composer"];
-const CONTEXT_DOOR: readonly DoorBox[] = ["main", "trail", "contextPanel", "listAction"];
-// The centred carriers are held on the plain LIST door only. On the CONTEXT door, the both-docked LIST door and the
-// rem-20 dock they jump 12 to 16px on the first painted frame on this tree (the 0963 leg C evidence records it).
+const CONTEXT_DOOR: readonly DoorBox[] = ["main", "trail", "contextPanel", "listAction", "row", "composer"];
 const CARRIERS: readonly DoorBox[] = ["row", "composer"];
+// What an open room offers a door to read, and what a section without a room offers.
+const ROOM_BOXES = Object.keys(DOOR_BOXES) as DoorBox[];
+const SECTION_BOXES: readonly DoorBox[] = ["main", "trail", "listPanel"];
 // A rounded pixel either side: the panel tracks and the centring margin each round to the device pixel.
 const HOLD_SLACK = 2;
 // Any real track is wider than this; a smaller travel means the door moved nothing.
@@ -100,70 +101,113 @@ async function routeMotion(page: Page, corpus: CorpusWire, appearance: Partial<A
   });
 }
 
-/** Every box's x, `.shell-main`'s width and the list pane's width, in one read so no two are a frame apart. */
-function readBoxes(page: Page): Promise<Frame> {
-  return page.evaluate((selectors) => {
-    const frame: Record<string, number> = {};
-    for (const [name, selector] of Object.entries(selectors)) {
-      const box = document.querySelector(selector)?.getBoundingClientRect();
-      frame[name] = box === undefined ? Number.NaN : Math.round(box.x * 10) / 10;
-    }
-    frame["mainWidth"] = Math.round(document.querySelector(".shell-main")?.getBoundingClientRect().width ?? Number.NaN);
-    frame["listPanelWidth"] = Math.round(document.querySelector('.shell-panel[data-panel-side="list"]')?.getBoundingClientRect().width ?? Number.NaN);
-    return frame;
-  }, DOOR_BOXES);
+/** The boxes every read names besides the caller's: the corridor test needs `.shell-main`'s and the list pane's width. */
+const WIDTH_BOXES = { mainWidth: ".shell-main", listPanelWidth: '.shell-panel[data-panel-side="list"]' } as const;
+
+/**
+ * Every named box's x, `.shell-main`'s width and the list pane's width, in one read so no two are a frame apart. A box
+ * that is absent or has no box throws with its name: a missing box reads as NaN, and a NaN corridor passes or fails for
+ * the wrong reason.
+ */
+function readBoxes(page: Page, boxes: readonly DoorBox[]): Promise<Frame> {
+  return page.evaluate(
+    ({ selectors, widths }) => {
+      const read = (name: string, selector: string): DOMRect => {
+        const element = document.querySelector(selector);
+        if (element === null || element.getClientRects().length === 0) {
+          throw new Error(`The ${name} box (${selector}) is ${element === null ? "absent" : "not rendered"}`);
+        }
+        return element.getBoundingClientRect();
+      };
+      const frame: Record<string, number> = {};
+      for (const [name, selector] of Object.entries(selectors)) {
+        frame[name] = Math.round(read(name, selector).x * 10) / 10;
+      }
+      for (const [name, selector] of Object.entries(widths)) {
+        frame[name] = Math.round(read(name, selector).width);
+      }
+      return frame;
+    },
+    { selectors: Object.fromEntries(boxes.map((box) => [box, DOOR_BOXES[box]])), widths: WIDTH_BOXES },
+  );
 }
 
 /** Record the same frame on every animation frame from now on, bounded so it cannot outlive the case. */
-function startSampler(page: Page): Promise<void> {
+function startSampler(page: Page, boxes: readonly DoorBox[]): Promise<void> {
   return page.evaluate(
-    ({ selectors, limit }) => {
+    ({ selectors, widths, limit }) => {
       const ring: Record<string, number>[] = [];
       Reflect.set(globalThis, "__shellFrames", ring);
+      Reflect.set(globalThis, "__shellFramesError", null);
+      const read = (name: string, selector: string): DOMRect => {
+        const element = document.querySelector(selector);
+        if (element === null || element.getClientRects().length === 0) {
+          throw new Error(`The ${name} box (${selector}) is ${element === null ? "absent" : "not rendered"}`);
+        }
+        return element.getBoundingClientRect();
+      };
       const tick = (): void => {
         if (ring.length > limit) {
           return;
         }
-        const frame: Record<string, number> = {};
-        for (const [name, selector] of Object.entries(selectors)) {
-          const box = document.querySelector(selector)?.getBoundingClientRect();
-          frame[name] = box === undefined ? Number.NaN : Math.round(box.x * 10) / 10;
+        try {
+          const frame: Record<string, number> = {};
+          for (const [name, selector] of Object.entries(selectors)) {
+            frame[name] = Math.round(read(name, selector).x * 10) / 10;
+          }
+          for (const [name, selector] of Object.entries(widths)) {
+            frame[name] = Math.round(read(name, selector).width);
+          }
+          ring.push(frame);
+          requestAnimationFrame(tick);
+        } catch (error) {
+          Reflect.set(globalThis, "__shellFramesError", (error as Error).message);
         }
-        frame["mainWidth"] = Math.round(document.querySelector(".shell-main")?.getBoundingClientRect().width ?? Number.NaN);
-        frame["listPanelWidth"] = Math.round(document.querySelector('.shell-panel[data-panel-side="list"]')?.getBoundingClientRect().width ?? Number.NaN);
-        ring.push(frame);
-        requestAnimationFrame(tick);
       };
       requestAnimationFrame(tick);
     },
-    { selectors: DOOR_BOXES, limit: SAMPLE_FRAMES },
+    { selectors: Object.fromEntries(boxes.map((box) => [box, DOOR_BOXES[box]])), widths: WIDTH_BOXES, limit: SAMPLE_FRAMES },
   );
 }
 
-function readSamples(page: Page): Promise<Frame[]> {
-  return page.evaluate(() => Reflect.get(globalThis, "__shellFrames") as Record<string, number>[]);
+async function readSamples(page: Page): Promise<Frame[]> {
+  const { frames, error } = await page.evaluate(() => ({
+    frames: Reflect.get(globalThis, "__shellFrames") as Record<string, number>[],
+    error: Reflect.get(globalThis, "__shellFramesError") as string | null,
+  }));
+  if (error !== null) {
+    throw new Error(error);
+  }
+  return frames;
 }
 
-/** Nothing in the grid is animating: an endpoint read now is a resting position, not a frame of the glide. */
+/**
+ * Nothing in the grid is gliding: an endpoint read now is a resting position, not a frame of the glide. A scroll-driven
+ * animation (the scroll fades on a scrolling pane) is "running" for as long as its pane exists and moves no box, so only
+ * the document-timeline animations count.
+ */
 function waitForShellIdle(page: Page): Promise<unknown> {
   return page.waitForFunction(() => {
     const grid = document.querySelector(".shell-grid");
-    return grid !== null && !grid.getAnimations({ subtree: true }).some((animation) => animation.playState === "running");
+    return (
+      grid !== null &&
+      !grid.getAnimations({ subtree: true }).some((animation) => animation.playState === "running" && animation.timeline instanceof DocumentTimeline)
+    );
   });
 }
 
 /** Drive one door and return the resting frame before, the per-frame ring across, and the resting frame after. */
-async function driveDoor(page: Page, button: string): Promise<Census> {
+async function driveDoor(page: Page, button: string, boxes: readonly DoorBox[]): Promise<Census> {
   await waitForShellIdle(page);
-  const rest = await readBoxes(page);
-  await startSampler(page);
+  const rest = await readBoxes(page, boxes);
+  await startSampler(page, boxes);
   await page.getByRole("button", { name: button, exact: true }).click();
   await page.waitForFunction(
     (width) => Math.abs(Math.round(document.querySelector(".shell-main")?.getBoundingClientRect().width ?? width) - width) > 2,
     rest["mainWidth"] ?? 0,
   );
   await waitForShellIdle(page);
-  return { rest, samples: await readSamples(page), end: await readBoxes(page) };
+  return { rest, samples: await readSamples(page), end: await readBoxes(page, boxes) };
 }
 
 /** The frame the track resized in: every countered box must still be where it rested in that frame. */
@@ -206,8 +250,10 @@ function recordAnimationStarts(page: Page): Promise<void> {
   });
 }
 
-function animationStarts(page: Page): Promise<string[]> {
-  return page.evaluate(() => Reflect.get(globalThis, "__animationStarts") as string[]);
+/** The FLIPs among them: a pane's own scroll fade starts an animation too, and it is no door's motion. */
+async function animationStarts(page: Page): Promise<string[]> {
+  const names = await page.evaluate(() => Reflect.get(globalThis, "__animationStarts") as string[]);
+  return names.filter((name) => name.endsWith("-flip"));
 }
 
 /** Sum every layout shift the browser scores from now on. A click drives each case, so recent input is not filtered. */
@@ -327,8 +373,8 @@ test.describe("the list door on Chats", () => {
     await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "docked");
     await waitForShellIdle(page);
     await recordLayoutShift(page);
-    await driveDoor(page, "Hide list panel");
-    await driveDoor(page, "Show list panel");
+    await driveDoor(page, "Hide list panel", SECTION_BOXES);
+    await driveDoor(page, "Show list panel", SECTION_BOXES);
     const toggled = await layoutShift(page);
     expect(toggled).toBeLessThan(CLS_BUDGET);
     await plantShift(page);
@@ -368,7 +414,7 @@ test.describe("a section swap", () => {
     await recordAnimationStarts(page);
     await recordLayoutShift(page);
     const startX = await mainX(page);
-    await startSampler(page);
+    await startSampler(page, ["main"]);
     await page.locator(".shell-rail").getByRole("button", { name: "Home", exact: true }).click();
     await expect.poll(() => mainX(page)).not.toBe(startX);
     await waitForShellIdle(page);
@@ -385,6 +431,23 @@ test.describe("a section swap", () => {
     await emulateMedia(page, {});
     await page.locator(".shell-rail").getByRole("button", { name: "Chats", exact: true }).click();
     await expect.poll(() => animationStarts(page)).toContain("shell-main-flip");
+  });
+
+  test("a read of a box the page does not have throws with the box's name, instead of measuring a NaN corridor", async ({ mount, page }) => {
+    await mount<typeof AppShellStory>(STORY, {});
+    await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "docked");
+    // The section has no room, so the transcript row is absent: both readers must say so.
+    await expect(readBoxes(page, ["row"])).rejects.toThrow(`The row box (${DOOR_BOXES.row}) is absent`);
+    await startSampler(page, ["row"]);
+    await expect
+      .poll(() =>
+        readSamples(page).then(
+          () => "read",
+          (error: Error) => error.message,
+        ),
+      )
+      .toBe(`The row box (${DOOR_BOXES.row}) is absent`);
+    await expect(readBoxes(page, SECTION_BOXES)).resolves.toMatchObject({ main: expect.any(Number) });
   });
 
   test("under full motion the swap captures the content pane only, crossfaded at a fixed scale", async ({ mount, page }) => {
@@ -472,11 +535,20 @@ test.describe("the doors in an open room", () => {
     await routeMotion(page, corpus);
     await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
     await expect(page.locator(DOOR_BOXES.composer)).toBeVisible();
+    await expect(page.locator(DOOR_BOXES.row).first()).toBeVisible();
     await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "docked");
-    const rest = await readBoxes(page);
-    expect(rest["row"]).toBe(rest["composer"]);
+    // The composer's track is capped at the reading measure and the row's at the dial, so the two share a centre, not an edge.
+    const [rowCentre = Number.NaN, composerCentre = Number.NaN] = await page.evaluate(
+      (selectors) =>
+        selectors.map((selector) => {
+          const box = document.querySelector(selector)?.getBoundingClientRect();
+          return box === undefined ? Number.NaN : box.x + box.width / 2;
+        }),
+      [DOOR_BOXES.row, DOOR_BOXES.composer],
+    );
+    expect(Math.abs(rowCentre - composerCentre)).toBeLessThanOrEqual(1);
     for (const leg of ["Hide list panel", "Show list panel"]) {
-      const census = await driveDoor(page, leg);
+      const census = await driveDoor(page, leg, ROOM_BOXES);
       expect(flipFrame(census)).toBeGreaterThan(-1);
       const verdict = doorVerdict(census, LIST_DOOR);
       expect(verdict.travelled).toBeGreaterThan(0);
@@ -492,9 +564,10 @@ test.describe("the doors in an open room", () => {
     await routeMotion(page, corpus);
     await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
     await expect(page.locator(DOOR_BOXES.composer)).toBeVisible();
+    await expect(page.locator(DOOR_BOXES.row).first()).toBeVisible();
     await expect(page.locator(CONTEXT)).toHaveAttribute("data-panel-mode", "collapsed");
     for (const leg of ["Show details", "Hide details"]) {
-      const census = await driveDoor(page, leg);
+      const census = await driveDoor(page, leg, ROOM_BOXES);
       expect(flipFrame(census)).toBeGreaterThan(-1);
       const verdict = doorVerdict(census, CONTEXT_DOOR);
       expect(verdict.travelled).toBeGreaterThan(0);
@@ -508,6 +581,7 @@ test.describe("the doors in an open room", () => {
     await routeMotion(page, corpus);
     await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
     await expect(page.locator(DOOR_BOXES.composer)).toBeVisible();
+    await expect(page.locator(DOOR_BOXES.row).first()).toBeVisible();
     await waitForShellIdle(page);
     for (const leg of ["Hide list panel", "Show list panel"]) {
       await recordFlipKeyframes(page);
@@ -529,6 +603,7 @@ test.describe("the doors in an open room", () => {
     await routeMotion(page, corpus);
     await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
     await expect(page.locator(DOOR_BOXES.composer)).toBeVisible();
+    await expect(page.locator(DOOR_BOXES.row).first()).toBeVisible();
     await waitForShellIdle(page);
     await recordAnimationStarts(page);
     const grid = page.locator(".shell-grid");
@@ -536,7 +611,7 @@ test.describe("the doors in an open room", () => {
       ["Hide list panel", LIST_DOOR],
       ["Show details", CONTEXT_DOOR],
     ] as const) {
-      const census = await driveDoor(page, leg);
+      const census = await driveDoor(page, leg, ROOM_BOXES);
       const verdict = doorVerdict(
         census,
         boxes.filter((box) => box !== "listPanel" && box !== "contextPanel"),
@@ -554,10 +629,10 @@ test.describe("the doors in an open room", () => {
     await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
     await expect(page.locator(CONTEXT)).toHaveAttribute("data-panel-mode", "docked");
     await waitForShellIdle(page);
-    expect((await readBoxes(page))["listPanelWidth"]).toBeLessThan((await resolvedLength(page, "var(--panel-w)")) - HOLD_SLACK);
+    expect((await readBoxes(page, SECTION_BOXES))["listPanelWidth"]).toBeLessThan((await resolvedLength(page, "var(--panel-w)")) - HOLD_SLACK);
     for (const leg of ["Hide list panel", "Show list panel"]) {
-      const census = await driveDoor(page, leg);
-      const verdict = doorVerdict(census, ["listPanelWidth", ...LIST_DOOR.filter((box) => !CARRIERS.includes(box))]);
+      const census = await driveDoor(page, leg, ROOM_BOXES);
+      const verdict = doorVerdict(census, ["listPanelWidth", ...LIST_DOOR]);
       expect(verdict.cuts).toStrictEqual([]);
       expect(verdict.strays).toStrictEqual([]);
     }
@@ -571,14 +646,15 @@ test.describe("the doors at rem 20", () => {
     await routeMotion(page, corpus, { fontScale: REM20 });
     await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
     await expect(page.locator(DOOR_BOXES.composer)).toBeVisible();
+    await expect(page.locator(DOOR_BOXES.row).first()).toBeVisible();
     await expect.poll(() => rootFontPx(page)).toBeCloseTo(UA_ROOT_PX * REM20, 0);
     const dockedWidth = await page.locator(DOOR_BOXES.composer).evaluate((element) => Math.round(element.getBoundingClientRect().width));
-    await driveDoor(page, "Hide list panel");
+    await driveDoor(page, "Hide list panel", ROOM_BOXES);
     // The cap binds while docked, so the carrier grows once the track goes: the clamped regime this case is for.
     expect(await page.locator(DOOR_BOXES.composer).evaluate((element) => Math.round(element.getBoundingClientRect().width))).toBeGreaterThan(
       dockedWidth + HOLD_SLACK,
     );
-    const verdict = doorVerdict(await driveDoor(page, "Show list panel"), ["main", "trail", "listPanel"]);
+    const verdict = doorVerdict(await driveDoor(page, "Show list panel", ROOM_BOXES), ["main", "trail", "listPanel", ...CARRIERS]);
     expect(verdict.travelled).toBeGreaterThan(0);
     expect(verdict.cuts).toStrictEqual([]);
     expect(verdict.strays).toStrictEqual([]);
@@ -590,16 +666,17 @@ test.describe("the doors at rem 20", () => {
     await routeMotion(page, corpus, { fontScale: REM20 });
     await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
     await expect(page.locator(DOOR_BOXES.composer)).toBeVisible();
+    await expect(page.locator(DOOR_BOXES.row).first()).toBeVisible();
     await expect.poll(() => rootFontPx(page)).toBeCloseTo(UA_ROOT_PX * REM20, 0);
     for (const leg of ["Show details", "Hide details", "Show details"]) {
-      const verdict = doorVerdict(await driveDoor(page, leg), CONTEXT_DOOR);
+      const verdict = doorVerdict(await driveDoor(page, leg, ROOM_BOXES), CONTEXT_DOOR);
       expect(verdict.cuts).toStrictEqual([]);
       expect(verdict.strays).toStrictEqual([]);
     }
     await expect(page.locator(CONTEXT)).toHaveAttribute("data-panel-mode", "docked");
-    expect((await readBoxes(page))["listPanelWidth"]).toBeLessThan((await resolvedLength(page, "var(--panel-w)")) - HOLD_SLACK);
+    expect((await readBoxes(page, SECTION_BOXES))["listPanelWidth"]).toBeLessThan((await resolvedLength(page, "var(--panel-w)")) - HOLD_SLACK);
     for (const leg of ["Hide list panel", "Show list panel"]) {
-      const verdict = doorVerdict(await driveDoor(page, leg), ["listPanelWidth"]);
+      const verdict = doorVerdict(await driveDoor(page, leg, ROOM_BOXES), ["listPanelWidth"]);
       expect(verdict.cuts).toStrictEqual([]);
       expect(verdict.strays).toStrictEqual([]);
     }
@@ -614,11 +691,12 @@ test.describe("on a phone", () => {
     await routeMotion(page, corpus);
     await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
     await expect(page.locator(DOOR_BOXES.composer)).toBeVisible();
+    await expect(page.locator(DOOR_BOXES.row).first()).toBeVisible();
     await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "collapsed");
     await waitForShellIdle(page);
     const width = Math.round((await page.locator(LIST).boundingBox())?.width ?? 0);
     expect(width).toBeGreaterThan(REAL_TRACK);
-    await startSampler(page);
+    await startSampler(page, ["listPanel"]);
     await page.getByRole("button", { name: "Back to Chats", exact: true }).click();
     await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "docked");
     const names = await page

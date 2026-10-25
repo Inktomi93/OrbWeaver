@@ -1,8 +1,10 @@
 // The backend every registered surface may ask for when mounted alone. Corpus-captured procedures answer by exact request
 // input, so an uncaptured request fails the owning test; procedures the corpus never captured answer an empty collection or zero.
 
+import type { VersionIdentity } from "@orb/kit/version-identity";
+import { versionIdentitySchema } from "@orb/kit/version-identity";
 import type { TrpcRecorder } from "@orb/testkit/ct";
-import { createShellAmbientReads, defineTrpcRoutes, routeTrpc, trpcHold } from "@orb/testkit/ct";
+import { createShellAmbientReads, defineTrpcRoutes, routeTrpc, trpcError, trpcHold } from "@orb/testkit/ct";
 import type { CorpusWire } from "@orb/testkit/iso";
 import { createCorpusReadResponder } from "@orb/testkit/iso";
 import type { Page } from "@playwright/test";
@@ -21,6 +23,25 @@ function pagedWire<T extends object>(input: T): T {
   return { ...input, direction: "forward" } as T;
 }
 
+const SURFACE_VERSION = {
+  version: "0.1.0",
+  commit: "f4cdde34be59f4cdde34be59f4cdde34be59f4cd",
+  short: "f4cdde34be59",
+  source: "checkout",
+  channel: "main",
+} satisfies VersionIdentity;
+
+function requiredSections(corpus: CorpusWire): {
+  readonly firstBoot: NonNullable<CorpusWire["firstBoot"]>;
+  readonly libraryRelations: NonNullable<CorpusWire["libraryRelations"]>;
+} {
+  const { firstBoot, libraryRelations } = corpus;
+  if (firstBoot === undefined || libraryRelations === undefined) {
+    throw new Error("The corpus has no first-boot or library-relations capture");
+  }
+  return { firstBoot, libraryRelations };
+}
+
 function shellRecords(corpus: CorpusWire): NonNullable<CorpusWire["shellAmbient"]>["reads"] {
   const shell = corpus.shellAmbient;
   if (shell === undefined) {
@@ -33,8 +54,7 @@ function shellRecords(corpus: CorpusWire): NonNullable<CorpusWire["shellAmbient"
 export function routeSurfaceReads(page: Page, corpus: CorpusWire): Promise<TrpcRecorder> {
   const { reads } = corpus;
   const shell = shellRecords(corpus);
-  const overridesHold = trpcHold<"settings.getAppSettingsWithOverrides">();
-  const versionHold = trpcHold<"settings.getVersion">();
+  const { firstBoot, libraryRelations: relations } = requiredSections(corpus);
   const presetHold = trpcHold<"preset.get">();
   const spaceHold = trpcHold<"search.spaceStatus">();
   const routes = defineTrpcRoutes({
@@ -78,10 +98,18 @@ export function routeSurfaceReads(page: Page, corpus: CorpusWire): Promise<TrpcR
       duplicateCounts: { characters: 0, chats: 0, identicalCharacterPairs: 0 },
     }),
     "discovery.catalog": () => ({ genres: [], tones: [], topTags: [], tagPairs: [], totalDistilled: 0, totalCharacters: 0 }),
-    // The admin overrides and the selected preset's detail are cold: a pending read is the honest state without minting a full config object.
-    "settings.getAppSettingsWithOverrides": () => overridesHold,
-    "settings.getVersion": () => versionHold,
-    "preset.get": () => presetHold,
+    "settings.getAppSettingsWithOverrides": createCorpusReadResponder("settings.getAppSettingsWithOverrides", [firstBoot.reads.appSettings]),
+    // The build identity depends on the commit under test, so the corpus cannot capture it; the production schema parses a fixed one.
+    "settings.getVersion": () => versionIdentitySchema.parse(SURFACE_VERSION),
+    "share.signInMode": createCorpusReadResponder("share.signInMode", [firstBoot.reads.signInMode]),
+    "share.status": createCorpusReadResponder("share.status", [firstBoot.reads.shareStatus]),
+    // Only the captured preset has a detail in the corpus; the active default another surface asks for stays pending.
+    "preset.listUsage": createCorpusReadResponder("preset.listUsage", [relations.reads.presetInactive]),
+    // The readout asks for the chat role's target, not the connection the corpus captured; the effective preset is the same.
+    "preset.resolveEffective": () => relations.reads.presetEffective.output,
+    // The corpus holds no connection capability read, so the readout shows its unresolved arm.
+    "connection.resolveChatCapability": () => trpcError({ code: "BAD_REQUEST" }),
+    "preset.get": (input) => (input.id === relations.reads.presetDetail.input.id ? relations.reads.presetDetail.output : presetHold),
     "discovery.topKeywords": () => [],
     "discovery.unusedCharacters": () => [],
     "discovery.modelRouting": () => [],

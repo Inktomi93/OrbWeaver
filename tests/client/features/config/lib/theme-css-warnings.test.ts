@@ -1,5 +1,7 @@
 import { expect, test } from "@orb/testkit/node";
 import { themeCssHookWarnings } from "#client/features/config/lib/theme-css-warnings.ts";
+import { OWNER_CSS_RENAMES } from "#client/owner-css/renames.ts";
+import { OWNER_CSS_APPEARANCE_ATTRIBUTES, OWNER_CSS_SURFACE } from "../../../../../packages/client/owner-css-surface.ts";
 
 type Surface = Parameters<typeof themeCssHookWarnings>[1];
 type Renames = Parameters<typeof themeCssHookWarnings>[2];
@@ -91,6 +93,22 @@ test("an @supports condition is a feature query, but the rules inside its block 
     "@supports (--css-var: 1) { a{} }",
   ].join("\n");
   expect(themeCssHookWarnings(css, SURFACE, RENAMES).map((warning) => css.slice(warning.from, warning.to))).toEqual(["gonez"]);
+});
+
+test("a retired appearance attribute warns and points at its replacement; an author's own data attribute does not", () => {
+  const css = "[data-shadow] { color: red; } [data-mine] { color: red; }";
+  const warnings = themeCssHookWarnings(css, SURFACE, OWNER_CSS_RENAMES);
+  expect(warnings.map((warning) => css.slice(warning.from, warning.to))).toEqual(["data-shadow"]);
+  expect(warnings[0]?.message).toContain("data-appearance-shadow-effects");
+});
+
+test("a data-appearance attribute the surface lacks warns with the closest current one", () => {
+  const real = OWNER_CSS_APPEARANCE_ATTRIBUTES[0].name;
+  const stale = `${real}z`;
+  const css = `[${stale}="true"] {}`;
+  const [warning] = themeCssHookWarnings(css, OWNER_CSS_SURFACE, []);
+  expect(css.slice(warning?.from, warning?.to)).toBe(stale);
+  expect(warning?.message).toContain(real);
 });
 
 test("a var() of an undeclared name outside the surface warns, with the closest token", () => {

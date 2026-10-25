@@ -480,12 +480,14 @@ const PACKAGE_TEST_REACHES = {
   "tests/client/features/config/lib/theme-css-warnings.test.ts": {
     "packages/client/src/features/config/lib/theme-css-warnings.ts":
       "themeCssHookWarnings: the feature-private stale-hook check over a planted surface and rename table",
+    "packages/client/src/owner-css/renames.ts": "OWNER_CSS_RENAMES: the production rows the retired-attribute warning reads",
   },
   "tests/client/owner-css/rewrite.test.ts": {
-    "packages/client/src/owner-css/rewrite.ts":
-      "rewriteRenamedHooks: the rename rewrite over a planted table; the production table is empty until a hook is renamed",
+    "packages/client/src/owner-css/rewrite.ts": "rewriteRenamedHooks: the rename rewrite over a planted table and the production one",
+    "packages/client/src/owner-css/renames.ts": "OWNER_CSS_RENAMES: the production rows the retired-property rewrite reads",
   },
   "tests/client/owner-css-surface.repo.int.test.ts": {
+    "packages/client/src/lib/appearance-carrier-manifest.ts": "APPEARANCE_CHANNEL_ROWS: the channel roster the generated surface must cover",
     "packages/client/src/owner-css/renames.ts": "OWNER_CSS_RENAMES: the production table the surface test reconciles against the generated surface",
   },
   "tests/client/lib/appearance-carrier-manifest.test.ts": {
