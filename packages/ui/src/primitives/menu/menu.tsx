@@ -19,7 +19,7 @@ import type {
 import { Menu as BaseMenu } from "@base-ui/react/menu";
 import type { ComponentProps, ReactElement } from "react";
 import type { PortalContainer } from "#lib";
-import { ANCHOR_GAP_TRIGGER, HIDDEN_AT, usePortalContainer } from "#lib";
+import { ANCHOR_GAP_TRIGGER, cn, HIDDEN_AT, usePortalContainer } from "#lib";
 import { Check, ChevronRight, Icon } from "#primitives/icons";
 import { menuVariants } from "./variants.ts";
 
@@ -108,7 +108,7 @@ export function MenuItem(props: MenuItemProps): ReactElement {
   const { className, hiddenAt, ...rest } = props;
   return (
     <BaseMenu.Item
-      className={slots.item({ className: hiddenAt === undefined ? className : `${HIDDEN_AT[hiddenAt]} ${className ?? ""}` })}
+      className={slots.item({ className: cn(hiddenAt === undefined ? undefined : HIDDEN_AT[hiddenAt], className) })}
       data-slot="menu-item"
       {...rest}
     />

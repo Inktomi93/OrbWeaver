@@ -114,8 +114,15 @@ const DECLARATION = /^\s*([a-zA-Z-][\w-]*)\s*:[^{\n]*;\s*$/gmu;
 // four `--tw-contain-*` parts) as `@property` rules, whose `syntax`/`inherits` descriptors are not declarations.
 const PROPERTY_REGISTRATION = /@property[^{]*\{[^}]*\}/gu;
 
+// A utility that only sets a colour (`shadow-accent`, `ring-primary`, `from-primary`) emits nothing but a `--tw-*` custom
+// property that a shadow, ring or gradient utility reads, so it is judged by the name: shadow, ring and gradient parts paint.
+const PAINT_CUSTOM_PROPERTY = /^--tw-(?:(?:inset-|text-|drop-)?shadow|(?:inset-)?ring|gradient)/u;
+
 function isLayoutProperty(property: string): boolean {
-  return property.startsWith("--") || LAYOUT_PROPERTIES.has(property) || LAYOUT_PREFIXES.some((prefix) => property.startsWith(prefix));
+  if (property.startsWith("--")) {
+    return !PAINT_CUSTOM_PROPERTY.test(property);
+  }
+  return LAYOUT_PROPERTIES.has(property) || LAYOUT_PREFIXES.some((prefix) => property.startsWith(prefix));
 }
 
 function kindOf(css: string | null | undefined): ClassKind {

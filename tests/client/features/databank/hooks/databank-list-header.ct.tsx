@@ -33,32 +33,58 @@ function capturedHealth(reads: readonly { readonly output: BankHealth }[]): Bank
   return capture.output;
 }
 
+/** What the menu group reads as in one pass: its name from one snapshot, its label count, and the text of the label its aria-labelledby names. */
+async function readGroup(
+  page: Page,
+): Promise<{ readonly name: string | undefined; readonly labels: number; readonly labelTexts: readonly string[]; readonly snapshot: string }> {
+  const group = page.getByRole("menu").getByRole("group");
+  const snapshot = await group.ariaSnapshot();
+  const labelId = await group.getAttribute("aria-labelledby");
+  return {
+    name: /^- group "(.*)"/u.exec(snapshot)?.[1],
+    labels: await group.locator('[data-slot="menu-group-label"]').count(),
+    labelTexts: labelId === null ? [] : await page.locator(`[id="${labelId}"]`).allTextContents(),
+    snapshot,
+  };
+}
+
 /** The menu group's accessible name as the browser computes it; the reason copy stays production's. */
 async function groupName(page: Page): Promise<string> {
-  const group = page.getByRole("menu").getByRole("group");
-  // The group names itself through a label that registers after the menu opens.
-  await expect(group).toHaveAccessibleName(/\S/u);
-  const snapshot = await group.ariaSnapshot();
-  const name = /^- group "(.*)"/u.exec(snapshot)?.[1];
-  if (name === undefined) {
-    throw new Error(`The menu group carries no accessible name:\n${snapshot}`);
-  }
+  // The group names itself through a label that registers after the menu opens, and a census change registers it
+  // again, so the name is read from one snapshot and retried until that snapshot carries it.
+  let name = "";
+  await expect
+    .poll(
+      async () => {
+        const read = (await readGroup(page)).name;
+        name = read ?? "";
+        return read !== undefined;
+      },
+      { message: "The menu group carries no accessible name" },
+    )
+    .toBe(true);
   return name;
 }
 
 /** The group is named by exactly one label, and the browser's computed name is that label's visible text. */
 async function expectNamedByItsOneLabel(page: Page): Promise<void> {
-  const group = page.getByRole("menu").getByRole("group");
-  const name = await groupName(page);
-  await expect(group.locator('[data-slot="menu-group-label"]')).toHaveCount(1);
-  const labelId = await group.getAttribute("aria-labelledby");
-  expect(labelId).not.toBeNull();
-  const label = page.locator(`[id="${labelId ?? ""}"]`);
-  await expect(label).toHaveCount(1);
-  await expect(label).toHaveText(name);
+  // The label's id and text change together when the census does, so the claim is read in one pass until it holds at once.
+  await expect
+    .poll(async () => {
+      const { name, labels, labelTexts, snapshot } = await readGroup(page);
+      return name !== undefined && labels === 1 && labelTexts.length === 1 && labelTexts[0] === name ? "named by its one label" : snapshot;
+    })
+    .toBe("named by its one label");
+}
+
+async function closeMenu(page: Page): Promise<void> {
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("menu")).toHaveCount(0);
 }
 
 async function openMaintenance(page: Page): Promise<void> {
+  // A menu still closing from the last item click or Escape swallows the trigger click or leaves its inert layer over the page.
+  await expect(page.getByRole("menu")).toHaveCount(0);
   await page.getByRole("button", { name: MAINTENANCE, exact: true }).click();
   await expect(page.getByRole("menu")).toBeVisible();
 }
@@ -182,7 +208,7 @@ test("the maintenance group is named after every census transition", async ({ mo
   await openMaintenance(page);
   await expect(checkAgain).toHaveCount(0);
   await expectNamedByItsOneLabel(page);
-  await page.keyboard.press("Escape");
+  await closeMenu(page);
 
   // empty -> stocked
   answer = "stocked";
@@ -190,7 +216,7 @@ test("the maintenance group is named after every census transition", async ({ mo
   await expect(component.getByRole("heading", { level: 2 }).getByText(String(stocked.total), { exact: true })).toBeVisible();
   await openMaintenance(page);
   await expect(page.getByRole("menu").getByRole("group")).toHaveAccessibleName("");
-  await page.keyboard.press("Escape");
+  await closeMenu(page);
 
   // stocked -> failed: the re-read fails while the last census is still held, so the failed reason must still show
   answer = "failed";
@@ -204,14 +230,14 @@ test("the maintenance group is named after every census transition", async ({ mo
   await openMaintenance(page);
   await expect(checkAgain).toHaveCount(0);
   await expect(page.getByRole("menu").getByRole("group")).toHaveAccessibleName("");
-  await page.keyboard.press("Escape");
+  await closeMenu(page);
 
   // stocked -> empty
   answer = "empty";
   await component.getByRole("button", { name: "Re-read census", exact: true }).click();
   await openMaintenance(page);
   await expectNamedByItsOneLabel(page);
-  await page.keyboard.press("Escape");
+  await closeMenu(page);
 
   // empty -> failed -> empty: the failed read keeps the last census (0), so BOTH reasons hold at once;
   // when the read recovers the group must still be named by the empty-bank reason.
