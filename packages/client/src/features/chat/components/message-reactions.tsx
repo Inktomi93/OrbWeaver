@@ -13,7 +13,7 @@
 // reader whether the press would add or remove. `Toggle size="chip"` carries the ≥44px hit floor by
 // construction (`--size-touch-target` is the POINTER-CONDITIONAL token: 44px coarse, 28px fine), so the
 // pill stays small in a dense desktop transcript and is thumb-sized on a phone with no feature-side
-// pointer variant (`no-pointer-variants-in-features`).
+// pointer variant (`POINTER_CLASSES`).
 //
 // ONE LINE WITH A "+N" TAIL (the §3-S1 law-5 attention budget, applied one plane over). A brigaded message
 // must not be able to wrap the transcript: the row shows the first {@link VISIBLE_CHIP_CAP} chips in their

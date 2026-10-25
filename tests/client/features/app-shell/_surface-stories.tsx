@@ -1,7 +1,17 @@
 import { requireQueryBoundary } from "@orb/client/data";
 import { AppShell } from "@orb/client/features/app-shell";
-import type { ConfigGroupId, ModalSlotId, SectionId } from "@orb/client/state";
-import { openConfigTo, openModal, selectPreset, setActiveSection, useSectionRegistry } from "@orb/client/state";
+import type { ConfigGroupId, ImageSubject, ImagineSeed, ModalSlotId, SectionId } from "@orb/client/state";
+import {
+  openConfigTo,
+  openImageDetail,
+  openImageEdit,
+  openImagine,
+  openModal,
+  openPluginDialog,
+  selectPreset,
+  setActiveSection,
+  useSectionRegistry,
+} from "@orb/client/state";
 import type { PresetId } from "@orb/kit/ids";
 import { CtClientProviders } from "@orb/testkit/browser";
 import { Container } from "@orb/ui/layout";
@@ -75,4 +85,32 @@ export function ConfigGroupStory({ group }: { readonly group: ConfigGroupId }): 
       </div>
     </CtClientProviders>
   );
+}
+
+function SeededShell({ seed }: { readonly seed: () => void }): ReactElement {
+  useState(() => {
+    setActiveSection("home");
+    seed();
+    return true;
+  });
+  return (
+    <CtClientProviders>
+      <AppShell />
+    </CtClientProviders>
+  );
+}
+
+/** The `imagine` modal opened with a slash-command seed, the way the composer opens it. */
+export function ImagineModalStory({ seed }: { readonly seed: ImagineSeed }): ReactElement {
+  return <SeededShell seed={(): void => openImagine(seed)} />;
+}
+
+/** The image `imageDetail` or `imageEdit` modal opened on one subject, the way a room image opens it. */
+export function ImageSubjectModalStory({ modal, subject }: { readonly modal: "imageDetail" | "imageEdit"; readonly subject: ImageSubject }): ReactElement {
+  return <SeededShell seed={(): void => (modal === "imageDetail" ? openImageDetail(subject) : openImageEdit(subject))} />;
+}
+
+/** The `pluginDialog` modal opened on one registered dialog surface. */
+export function PluginDialogModalStory({ subject }: { readonly subject: Parameters<typeof openPluginDialog>[0] }): ReactElement {
+  return <SeededShell seed={(): void => openPluginDialog(subject)} />;
 }

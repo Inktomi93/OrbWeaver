@@ -3,14 +3,28 @@
 // §3 and §3.2) and for a suspending read outside a QueryBoundary (client-architecture-state-and-gates.md §11).
 // The rosters are the production tuples, never a list here.
 
+import type { ImageSubject } from "@orb/client/state";
 import { CONFIG_GROUP_IDS, MODAL_SLOT_IDS, SECTION_IDS } from "@orb/client/state";
 import { presetIdInputSchema } from "@orb/contracts/preset";
+import type { ChatId } from "@orb/kit/ids";
+import { ID_PREFIX, mintTypeId, typeIdSchema } from "@orb/kit/ids";
 import { densityFindings, formatDensityFindings, settleSurface } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import type { CorpusWire } from "@orb/testkit/iso";
+import { createCorpusReadResponder, createSeededIds } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
+import type { SurfaceRouteOverrides } from "./_surface-harness.ts";
 import { routeSurfaceReads } from "./_surface-harness.ts";
-import type { ConfigGroupStory, ModalShellStory, PresetDetailShellStory, SectionShellStory } from "./_surface-stories.tsx";
+import type {
+  ConfigGroupStory,
+  ImageSubjectModalStory,
+  ImagineModalStory,
+  ModalShellStory,
+  PluginDialogModalStory,
+  PresetDetailShellStory,
+  SectionShellStory,
+} from "./_surface-stories.tsx";
 
 const STORIES = "tests/client/features/app-shell/_surface-stories";
 /** The message `requireQueryBoundary` makes a read outside a QueryBoundary throw. */
@@ -108,3 +122,72 @@ for (const group of CONFIG_GROUP_IDS) {
     expect(await censusReport(page, boundary)).toBe("");
   });
 }
+
+// A modal that opens on a subject renders its "nothing selected" arm unseeded, so each is opened on the data the
+// corpus holds: a room, and the plugin's own dialog surface.
+const SEEDED_MODALS = ["imagine", "imageDetail", "imageEdit", "pluginDialog"] as const;
+
+/** The shared reads plus the ones a seeded surface needs; the later registration is the one that answers. */
+async function routeSeeded(page: Page, corpus: CorpusWire, overrides: SurfaceRouteOverrides): Promise<void> {
+  await routeSurfaceReads(page, corpus, await root.internalCallerFor(root.ownerId), overrides);
+}
+
+// The control that shows the real form rendered, not the "nothing selected" arm.
+const IMAGE_FORM = { imageDetail: ["button", "Edit image"], imageEdit: ["textbox", "Edit instruction"] } as const;
+
+function corpusChatId(corpus: CorpusWire): ChatId {
+  const chatId = corpus.reads["chat.listChats"][0]?.output.items[0]?.id;
+  if (chatId === undefined) {
+    throw new Error("The corpus has no room to open an image modal in");
+  }
+  return typeIdSchema(ID_PREFIX.chat).parse(chatId);
+}
+
+function imageSubject(chatId: ChatId): ImageSubject {
+  return { assetId: mintTypeId(ID_PREFIX.asset, createSeededIds().next), chatId, url: "/census-image.png", alt: "Census image", dims: { w: 64, h: 64 } };
+}
+
+test("the seeded modal list names modals the registry holds", () => {
+  expect(SEEDED_MODALS.every((modal) => MODAL_SLOT_IDS.includes(modal))).toBe(true);
+});
+
+test("the imagine modal reads clean on a seeded prompt", async ({ corpus, mount, page }) => {
+  const boundary = watchMissingBoundary(page);
+  await mount<typeof ImagineModalStory>(`${STORIES}/ImagineModalStory`, {
+    seed: { chatId: corpusChatId(corpus), mode: "free", prompt: "A lantern over a harbour" },
+  });
+  await expect(page.getByRole("dialog")).not.toContainText("Nothing to imagine");
+  expect(await censusReport(page, boundary)).toBe("");
+});
+
+for (const modal of ["imageDetail", "imageEdit"] as const) {
+  test(`the ${modal} modal reads clean on an image`, async ({ corpus, mount, page }) => {
+    await routeSeeded(page, corpus, { "imagery.readProvenance": () => null });
+    const boundary = watchMissingBoundary(page);
+    await mount<typeof ImageSubjectModalStory>(`${STORIES}/ImageSubjectModalStory`, { modal, subject: imageSubject(corpusChatId(corpus)) });
+    const [role, name] = IMAGE_FORM[modal];
+    await expect(page.getByRole("dialog").getByRole(role, { name })).toBeVisible();
+    expect(await censusReport(page, boundary)).toBe("");
+  });
+}
+
+test("the pluginDialog modal reads clean on the plugin's dialog surface", async ({ corpus, mount, page }) => {
+  const stage = corpus.pluginLibrary?.ownerActive;
+  const surface = stage?.reads.surfaces.output.find((candidate) => candidate.anchor === "dialog");
+  if (stage === undefined || surface === undefined) {
+    throw new Error("The corpus has no active plugin with a dialog surface");
+  }
+  await routeSeeded(page, corpus, {
+    "plugin.list": createCorpusReadResponder("plugin.list", [stage.reads.plugins]),
+    "plugin.listSurfaces": createCorpusReadResponder("plugin.listSurfaces", [stage.reads.surfaces]),
+    // The corpus captured the state of the stage's own surface; the dialog surface starts from the same stored state.
+    "plugin.getSurfaceState": () => stage.reads.state.output,
+    "plugin.listBundleAssets": createCorpusReadResponder("plugin.listBundleAssets", [stage.reads.assets]),
+  });
+  const boundary = watchMissingBoundary(page);
+  await mount<typeof PluginDialogModalStory>(`${STORIES}/PluginDialogModalStory`, {
+    subject: { pluginId: typeIdSchema(ID_PREFIX.plugin).parse(surface.pluginId), surfaceId: surface.id },
+  });
+  await expect(page.getByRole("dialog")).not.toContainText("no longer available");
+  expect(await censusReport(page, boundary)).toBe("");
+});

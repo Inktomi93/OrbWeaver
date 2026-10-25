@@ -327,7 +327,7 @@ These are product rules. D333 ends custom static UI enforcement; native tests an
 
 1. **No dead ends.** Every reachable state renders ≥1 enabled next-step affordance (empty teaches, error retries, draft offers a character).
 2. **Character-first entry.** Every "new chat" affordance goes through choosing/confirming a character; a characterless draft is an explicit "Blank chat" pick, never the default.
-3. **One primary action per view.** Exactly one `intent="primary"` control visible per region at rest (composer Send counts for CONTENT). A selected state on a toggle or option strip uses `intent="solid"`, never `primary`. The surface census (`tests/client/features/app-shell/surface-census.suite.ct.tsx`) refuses a second visible primary control in a dialog, side panel or the content pane.
+3. **One primary action per view.** Exactly one `intent="primary"` control visible per region at rest (composer Send counts for CONTENT). A one-of-N choice such as a mode or scope strip is a `ToggleGroup` of `Toggle` cells, never a row of buttons with the selected one set to `primary`. The surface census (`tests/client/features/app-shell/surface-census.suite.ct.tsx`) refuses a second visible primary control in a dialog, side panel or the content pane.
 4. **Progressive disclosure.** Rest state shows the reading surface; management chrome appears on hover AND `:focus-within` (keyboard parity), always-visible at `pointer: coarse`, or lives one click away (CONTEXT tab, options menu).
 5. **LIST finds; CONTENT does.** Every LIST panel composes header row → search → `ListRow`s.
 6. **Keyboard first.** ⌘K reaches every section/recent/create; Esc closes the top layer; focus is visible everywhere and lands correctly on open.

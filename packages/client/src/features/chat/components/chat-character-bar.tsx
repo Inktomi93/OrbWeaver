@@ -29,7 +29,7 @@
 // the chat LIST rows already run on.
 //
 // The variant itself is NOT spelled here — axis-3 device capability is a shell/shared-layer concern
-// (`no-pointer-variants-in-features`, UI-Architecture §4b), so this passes `srOnlyAt="coarse"` to `Text`. It is
+// (`POINTER_CLASSES`, UI-Architecture §4b), so this passes `srOnlyAt="coarse"` to `Text`. It is
 // deliberately NOT `hiddenAt="coarse"`: that one is `display:none`, which would drop the names out of the
 // accessibility tree as well as out of the row.
 //

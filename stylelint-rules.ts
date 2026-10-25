@@ -600,18 +600,41 @@ function keyframeStops(root: CssRoot): ReadonlyMap<string, number> {
   return stops;
 }
 
-/** The animation names a declaration sets: the `animation-name` list, or the identifier tokens of the shorthand. */
-function animationNames(declaration: Declaration, known: ReadonlyMap<string, number>): string[] {
-  if (declaration.prop === "animation-name") {
-    return declaration.value.split(",").map((name) => name.trim());
-  }
-  const names: string[] = [];
-  valueParser(declaration.value).walk((node) => {
-    if (node.type === "word" && (known.has(node.value) || LIFECYCLE_KEYFRAMES_EXEMPT.test(node.value))) {
-      names.push(node.value);
+// The words of an `animation` shorthand that are not its name: time, easing, count, direction, fill and play state.
+const ANIMATION_NON_NAME =
+  /^(?:(?:\d+(?:\.\d+)?|\.\d+)(?:ms|s)?|ease|ease-in|ease-out|ease-in-out|linear|step-start|step-end|infinite|normal|reverse|alternate|alternate-reverse|forwards|backwards|both|running|paused)$/u;
+
+interface AnimationEntry {
+  /** The keyframes name, or `none`. */
+  readonly name: string;
+  readonly loops: boolean;
+}
+
+/** The comma-separated entries of an `animation` shorthand: the one word that is not a time, easing or keyword is the name. */
+function shorthandEntries(value: string): AnimationEntry[] {
+  const entries: { words: string[] }[] = [{ words: [] }];
+  for (const node of valueParser(value).nodes) {
+    if (node.type === "div" && node.value === ",") {
+      entries.push({ words: [] });
+    } else if (node.type === "word") {
+      entries.at(-1)?.words.push(node.value);
     }
-  });
-  return names;
+  }
+  return entries.map(({ words }) => ({
+    name: words.find((word) => !ANIMATION_NON_NAME.test(word)) ?? "none",
+    loops: words.includes("infinite"),
+  }));
+}
+
+/** The `animation-name` list paired with the rule's own `animation-iteration-count` list, which cycles over the names. */
+function longhandEntries(declaration: Declaration, owner: StyleRule): AnimationEntry[] {
+  const counts = owner.nodes
+    .filter((node): node is Declaration => node.type === "decl" && node.prop === "animation-iteration-count")
+    .flatMap((node) => node.value.split(",").map((count) => count.trim()));
+  return declaration.value.split(",").map((name, index) => ({
+    name: name.trim(),
+    loops: counts.length > 0 && counts[index % counts.length] === "infinite",
+  }));
 }
 
 const lifecycleKeyframesRule: Rule<true> = (primary) => (root, result) => {
@@ -619,22 +642,16 @@ const lifecycleKeyframesRule: Rule<true> = (primary) => (root, result) => {
     return;
   }
   const stops = keyframeStops(root);
+  const refused = ({ name, loops }: AnimationEntry): boolean =>
+    !(loops || CSS_WIDE_AND_KEYWORDS.has(name) || LIFECYCLE_KEYFRAMES_EXEMPT.test(name)) && (stops.get(name) ?? 0) <= MAX_TRANSITION_STOPS;
   root.walkDecls(/^animation(?:-name)?$/u, (declaration) => {
     const owner = enclosingRule(declaration);
     if (owner === undefined || !effectiveSelectors(owner).some((selector) => LIFECYCLE_SELECTOR.test(selector))) {
       return;
     }
-    if (DECORATIVE_LOOP.test(declaration.value) || CSS_WIDE_AND_KEYWORDS.has(declaration.value.trim())) {
-      return;
-    }
-    const expressible = animationNames(declaration, stops).some(
-      (name) => !LIFECYCLE_KEYFRAMES_EXEMPT.test(name) && (stops.get(name) ?? 0) <= MAX_TRANSITION_STOPS,
-    );
-    // A `animation-name` that names no keyframes of this sheet cannot prove a sequence, so it is refused too.
-    const unresolved =
-      declaration.prop === "animation-name" &&
-      animationNames(declaration, stops).some((name) => !(stops.has(name) || LIFECYCLE_KEYFRAMES_EXEMPT.test(name) || CSS_WIDE_AND_KEYWORDS.has(name)));
-    if (expressible || unresolved) {
+    // A name defined in another sheet resolves to no stops, so it is refused: it cannot prove a sequence.
+    const entries = declaration.prop === "animation" ? shorthandEntries(declaration.value) : longhandEntries(declaration, owner);
+    if (entries.some(refused)) {
       stylelint.utils.report({ result, ruleName: LIFECYCLE_KEYFRAMES, node: declaration, message: LIFECYCLE_KEYFRAMES_MESSAGES.rejected });
     }
   });

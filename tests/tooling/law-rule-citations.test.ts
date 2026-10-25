@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint } from "eslint";
 import dependencyCruiser from "../../.dependency-cruiser.ts";
+import eslintConfig from "../../eslint.config.ts";
 import stylelintConfig from "../../stylelint.config.ts";
 
 const ROOT = join(import.meta.dirname, "../..");
@@ -70,23 +71,39 @@ function missing(citations: readonly Citation[], rules: readonly string[]): stri
   return citations.filter(({ name }) => !exists(name, rules)).map(({ file, line, name }) => `${file}:${line} ${name}`);
 }
 
-test("every orb/ rule a law or rule file cites is an ESLint or Stylelint rule that runs", { timeout: 120_000 }, async () => {
+/** A rule setting that is not `off`: a severity alone or `[severity, ...options]`. */
+function isOn(setting: unknown): boolean {
+  const level = Array.isArray(setting) ? setting[0] : setting;
+  return level !== "off" && level !== 0 && level !== null && level !== false && level !== undefined;
+}
+
+const enabledEslintRules = (): Set<string> =>
+  new Set(eslintConfig.flatMap((block) => Object.entries(block.rules ?? {}).flatMap(([id, setting]) => (isOn(setting) ? [id] : []))));
+
+const enabledStylelintRules = (): Set<string> => {
+  const blocks = [stylelintConfig, ...(stylelintConfig.overrides ?? [])];
+  return new Set(blocks.flatMap((block) => Object.entries(block.rules ?? {}).flatMap(([id, setting]) => (isOn(setting) ? [id] : []))));
+};
+
+test("every orb/ rule a law or rule file cites is registered and enabled in a config block", { timeout: 120_000 }, async () => {
   const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: ROOT });
   const config = await eslint.calculateConfigForFile(join(ROOT, CLIENT_PROBE));
-  const eslintRules = Object.keys(config?.plugins?.["orb"]?.rules ?? {}).map((id) => `orb/${id}`);
+  const registered = Object.keys(config?.plugins?.["orb"]?.rules ?? {}).map((id) => `orb/${id}`);
   const plugins: readonly unknown[] = [stylelintConfig.plugins].flat();
-  const stylelintRules = plugins.flatMap((plugin) =>
+  const stylelintRegistered = plugins.flatMap((plugin) =>
     typeof plugin === "object" && plugin !== null && "ruleName" in plugin && typeof plugin.ruleName === "string" ? [plugin.ruleName] : [],
   );
-  const rules = [...eslintRules, ...stylelintRules];
   // A plugin that loads no rules would pass every citation as missing; fail on that first.
-  expect(eslintRules.length).toBeGreaterThan(0);
-  expect(stylelintRules.length).toBeGreaterThan(0);
-  expect(missing(orbCitations(), rules)).toEqual([]);
+  expect(registered.length).toBeGreaterThan(0);
+  expect(stylelintRegistered.length).toBeGreaterThan(0);
+  // A rule that is registered but set in no block checks nothing.
+  const enabled = [...enabledEslintRules(), ...enabledStylelintRules()];
+  const live = [...registered, ...stylelintRegistered].filter((rule) => enabled.includes(rule));
+  expect(missing(orbCitations(), live)).toEqual([]);
 });
 
 test("every dependency-cruiser rule a law or rule file cites is a forbidden rule in .dependency-cruiser.ts", () => {
-  const rules = dependencyCruiser.forbidden.flatMap(({ name }) => (name === undefined ? [] : [name]));
+  const rules = dependencyCruiser.forbidden.flatMap(({ name, severity }) => (name === undefined || severity === "ignore" ? [] : [name]));
   expect(rules.length).toBeGreaterThan(0);
   expect(missing(cruiserCitations(), rules)).toEqual([]);
 });

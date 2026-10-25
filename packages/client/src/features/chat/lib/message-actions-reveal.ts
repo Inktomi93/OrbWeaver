@@ -12,7 +12,7 @@
 // exactly where it becomes visible); keyboard users reach every action by tab-focusing the row
 // (group-focus-within reveals) and the ⋯ menu keeps hide/copy/delete reachable without a hover.
 // The rest-hidden fragment (`HIDDEN_UNTIL_HOVER`) is a hover-capability VARIANT, so it lives at the shell/shared layer
-// (`#components/pointer-variants.ts`, gate `no-pointer-variants-in-features`) and is composed in here.
+// (`#components/pointer-variants.ts`, `POINTER_CLASSES` in `eslint.config.ts`) and is composed in here.
 import { HIDDEN_UNTIL_HOVER } from "#components";
 
 const FOCUS_REVEAL =

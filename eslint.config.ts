@@ -126,13 +126,13 @@ const RESTRICTED_CLASSES = [
   {
     // `all` fades a focus ring, animates the layout vars Base UI recomputes live and inherits properties the part never
     // opted into; every transition names its properties (motion-and-animation-guide.md §1.2).
-    pattern: String.raw`^(?:[^\s]*:)?transition-(?:all|\[all\])$`,
+    pattern: String.raw`^(?:[^\s]*:)?!?transition-(?:all|\[(?:[^\]]*,)?all(?:,[^\]]*)?\])!?$`,
     message: "`transition-all` animates every property; name them, for example transition-[opacity,scale] (motion-and-animation-guide.md §1.2).",
   },
   {
     // Lifecycle motion is a transition keyed off data-starting-style / data-ending-style, which a mid-flight close can
     // retarget; a keyframe animation cannot. The stock infinite loops and the word-reveal fade are not lifecycle motion.
-    pattern: String.raw`^(?:[^\s]*:)?(?:group-|peer-|in-)?data-(?:open|closed|starting-style|ending-style):(?:[^\s:]+:)*animate-(?!(?:none|spin|ping|pulse|bounce)$|\[orb-word-reveal[_\]])`,
+    pattern: String.raw`^(?:[^\s]*:)?(?:(?:group|peer|has|in)-)*data-(?:open|closed|starting-style|ending-style|\[(?:open|closed|starting-style|ending-style)\])(?:\/[a-z0-9-]+)?:(?:[^\s:]+:)*!?animate-(?!(?:none|spin|ping|pulse|bounce)!?$|\[orb-word-reveal[_\]])`,
     message:
       "A keyframe animation keyed on a Base UI lifecycle attribute; use a transition off data-starting-style / data-ending-style (motion-and-animation-guide.md §5.1).",
   },
@@ -1236,16 +1236,30 @@ const SUSPENSE_READ_IMPORT = {
   importNames: ["useSuspenseQuery", "useSuspenseQueries", "useSuspenseInfiniteQuery"],
   message: "Import the suspending reads from #data: they check that a QueryBoundary sits above the read (client-architecture-state-and-gates.md §11).",
 };
+// The only client files that page a suspending read; each says why the collection factory cannot carry it.
+const SUSPENSE_INFINITE_HOMES = {
+  "packages/client/src/components/character-picker.tsx":
+    "a cmdk Command body whose search suspends behind a deferred value and whose tail-fetch error shows beside the retained rows; the factory is a virtual-list machine that neither suspends nor exposes the tail error",
+  "packages/client/src/features/chat/components/transcript-window.tsx":
+    "a bidirectional message window with before and after cursors; the factory pages one direction",
+} as const;
+const SUSPENSE_INFINITE_IMPORT = {
+  name: "#data",
+  importNames: ["useSuspenseInfiniteQuery"],
+  message: "A paged suspending read belongs to createCollectionSurface; the files in SUSPENSE_INFINITE_HOMES (eslint.config.ts) name why they cannot use it.",
+};
+const refuseImports = (...paths: readonly object[]): Linter.RulesRecord => ({ "no-restricted-imports": ["error", { paths }] });
 const UI_LAW_BLOCKS: FlatConfig.Config[] = [
   { files: REACT_SOURCE, plugins: { orb: localPlugin }, rules: { "orb/no-manual-memo": "error", "orb/no-use-promise": "error" } },
   // Flat config replaces a rule's options per block, so each file gets the one block naming every path it must refuse.
   {
     files: [CLIENT_SRC],
-    ignores: [INFINITE_QUERY_HOME, SUSPENSE_READS_HOME],
-    rules: { "no-restricted-imports": ["error", { paths: [INFINITE_QUERY_IMPORT, SUSPENSE_READ_IMPORT] }] },
+    ignores: [INFINITE_QUERY_HOME, SUSPENSE_READS_HOME, ...Object.keys(SUSPENSE_INFINITE_HOMES)],
+    rules: refuseImports(INFINITE_QUERY_IMPORT, SUSPENSE_READ_IMPORT, SUSPENSE_INFINITE_IMPORT),
   },
-  { files: [INFINITE_QUERY_HOME], rules: { "no-restricted-imports": ["error", { paths: [SUSPENSE_READ_IMPORT] }] } },
-  { files: [SUSPENSE_READS_HOME], rules: { "no-restricted-imports": ["error", { paths: [INFINITE_QUERY_IMPORT] }] } },
+  { files: Object.keys(SUSPENSE_INFINITE_HOMES), rules: refuseImports(INFINITE_QUERY_IMPORT, SUSPENSE_READ_IMPORT) },
+  { files: [INFINITE_QUERY_HOME], rules: refuseImports(SUSPENSE_READ_IMPORT, SUSPENSE_INFINITE_IMPORT) },
+  { files: [SUSPENSE_READS_HOME], rules: refuseImports(INFINITE_QUERY_IMPORT) },
 ];
 
 const PRINCIPAL_RULES: { id: string; notUnder?: string[] }[] = [

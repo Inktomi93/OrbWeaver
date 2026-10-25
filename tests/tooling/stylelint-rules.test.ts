@@ -44,6 +44,11 @@ test("a keyframe animation on a Base UI lifecycle attribute is refused unless a 
     ),
   ).toEqual([]);
   expect(await rulesHit(`${FADE} ${layered(".probe[data-open] { animation: none; }")}`)).toEqual([]);
+  // A name defined in another sheet proves no sequence, so the shorthand is refused like the longhand.
+  expect(await rulesHit(layered(".probe[data-open] { animation: zoom-in var(--motion-base) var(--ease-out-expo) both; }"))).toEqual(hit);
+  expect(await rulesHit(layered(".probe[data-open] { animation: var(--motion-base) zoom-in var(--ease-out-expo), fade var(--motion-base); }"))).toEqual(hit);
+  expect(await rulesHit(`${FADE} ${layered(".probe[data-open] { animation-name: fade;\n animation-iteration-count: infinite; }")}`)).toEqual([]);
+  expect(await rulesHit(`${FADE} ${layered(".probe[data-open] { animation-name: fade;\n animation-iteration-count: 2; }")}`)).toEqual(hit);
   expect(await rulesHit(`${FADE} ${layered(`.probe { ${ANIMATE} }`)}`)).toEqual([]);
 });
 
