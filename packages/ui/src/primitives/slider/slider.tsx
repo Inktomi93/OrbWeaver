@@ -3,6 +3,7 @@ import { Slider as BaseSlider } from "@base-ui/react/slider";
 import type { ReactElement, ReactNode } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { cn, variantAttrs } from "#lib";
+import { useFieldIdentity } from "#primitives/field";
 import { sliderVariants } from "./variants.ts";
 
 // A range slider carries an array value → one thumb per entry; a single slider carries a scalar.
@@ -66,6 +67,7 @@ export interface SliderProps<Value extends number | readonly number[] = number>
 export function Slider<Value extends number | readonly number[] = number>(props: SliderProps<Value>): ReactElement {
   const { className, label, thumbLabels, thumbDescribedBy, thumbValueText, showValue = false, formatValue, tone, ...rootProps } = props;
   const slots = sliderVariants({ tone });
+  const { name } = useFieldIdentity(undefined, rootProps.name);
   const count = thumbCount(rootProps.value ?? rootProps.defaultValue);
   const isRange = count > 1;
   const hasLabel = label !== undefined && label !== null;
@@ -75,7 +77,7 @@ export function Slider<Value extends number | readonly number[] = number>(props:
   const thumbAriaLabels = isRange || !hasLabel ? thumbLabels : undefined;
 
   return (
-    <BaseSlider.Root className={cn(slots.root(), className)} data-slot="slider-root" {...rootProps}>
+    <BaseSlider.Root className={cn(slots.root(), className)} data-slot="slider-root" {...rootProps} {...(name === undefined ? {} : { name })}>
       {hasLabel || showValue ? (
         <div className={slots.header()} data-slot="slider-header">
           {hasLabel ? (

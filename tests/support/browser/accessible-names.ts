@@ -32,14 +32,194 @@ import type { Locator, Page } from "@playwright/test";
 export interface NameFinding {
   readonly rule: "nameless-control" | "ambiguous-duplicate" | "unnamed-landmark" | "duplicate-landmark" | "label-not-in-name";
   readonly detail: string;
+  /** The control name a duplicate finding is about. */
+  readonly subject?: string;
+  /** The ARIA role of the duplicated controls. */
+  readonly role?: string;
+  /** How many controls share that name, for a duplicate finding. */
+  readonly count?: number;
+}
+
+/** One node of the parsed ARIA tree. `scope` is the ancestor chain that disambiguates a repeated name. */
+interface AriaNode {
+  readonly role: string;
+  /** The computed accessible name, or `null` when the tree exposes the node without one. */
+  readonly name: string | null;
+  /** Ancestor `role "name"` chain, outermost first — only the SCOPING roles (see `SCOPE_ROLES`). */
+  readonly scope: readonly string[];
+  readonly line: string;
+}
+
+/** Roles an agent ACTS on: each must be findable by name. Containers and presentational roles are governed by the landmark rules. */
+const INTERACTIVE_ROLES: ReadonlySet<string> = new Set([
+  "button",
+  "link",
+  "checkbox",
+  "radio",
+  "switch",
+  "tab",
+  "textbox",
+  "combobox",
+  "listbox",
+  "slider",
+  "spinbutton",
+  "searchbox",
+  "menuitem",
+  "menuitemcheckbox",
+  "menuitemradio",
+  "treeitem",
+]);
+
+/** ARIA landmark roles. `region` is included: a `region` reaches the tree only when it has a name. */
+const LANDMARK_ROLES: ReadonlySet<string> = new Set(["banner", "complementary", "contentinfo", "form", "main", "navigation", "region", "search"]);
+
+/** Roles that SCOPE a name: two "Edit" buttons are unambiguous in differently-named rows, not under the same scope chain. */
+const SCOPE_ROLES: ReadonlySet<string> = new Set([
+  ...LANDMARK_ROLES,
+  "article",
+  "dialog",
+  "alertdialog",
+  "group",
+  "list",
+  "listitem",
+  "menu",
+  "row",
+  "table",
+  "tabpanel",
+  "toolbar",
+  "tree",
+]);
+
+const INDENT_WIDTH = 2;
+/** `- role "name":` / `- role:` / `- 'role "na:me"':` — the name is optional, the trailing colon is too. */
+const NODE_LINE = /^-\s+(?:'(?<qrole>[a-z]+)\s+"(?<qname>.*)"'|(?<role>[a-z]+)(?:\s+"(?<name>.*?)")?)(?::.*)?$/;
+
+/** Parses one `ariaSnapshot()` YAML into flat nodes carrying their scope chain. */
+function parseAriaSnapshot(snapshot: string): readonly AriaNode[] {
+  const nodes: AriaNode[] = [];
+  // Index = depth; value = the `role "name"` label contributed at that depth (absent for non-scoping roles).
+  const openScopes: (string | undefined)[] = [];
+  for (const raw of snapshot.split(/\r?\n/u)) {
+    const trimmed = raw.trimStart();
+    if (!trimmed.startsWith("- ")) {
+      continue;
+    }
+    const depth = Math.floor((raw.length - trimmed.length) / INDENT_WIDTH);
+    const match = NODE_LINE.exec(trimmed);
+    if (match?.groups === undefined) {
+      continue;
+    }
+    const role = match.groups["qrole"] ?? match.groups["role"] ?? "";
+    const name = match.groups["qname"] ?? match.groups["name"] ?? null;
+    openScopes.length = depth;
+    nodes.push({ role, name, scope: openScopes.filter((s): s is string => s !== undefined), line: trimmed });
+    openScopes[depth] = SCOPE_ROLES.has(role) ? `${role} "${name ?? ""}"` : undefined;
+  }
+  return nodes;
+}
+
+/** `banner`/`contentinfo`/`main` are singletons by spec: a lone one needs no distinguishing name. */
+const SINGLETON_LANDMARKS: ReadonlySet<string> = new Set(["banner", "contentinfo", "main"]);
+
+function isNameless(node: AriaNode): boolean {
+  return node.name === null || node.name.trim() === "";
+}
+
+function bucketBy(nodes: readonly AriaNode[], key: (node: AriaNode) => string): ReadonlyMap<string, readonly AriaNode[]> {
+  const out = new Map<string, AriaNode[]>();
+  for (const node of nodes) {
+    const bucket = out.get(key(node));
+    if (bucket === undefined) {
+      out.set(key(node), [node]);
+    } else {
+      bucket.push(node);
+    }
+  }
+  return out;
+}
+
+/** Predicate 1 (N1): every interactive role carries a non-empty accessible name. */
+function namelessControlFindings(nodes: readonly AriaNode[]): readonly NameFinding[] {
+  return nodes
+    .filter((node) => INTERACTIVE_ROLES.has(node.role) && isNameless(node))
+    .map((node) => ({ rule: "nameless-control" as const, detail: `${node.line} (scope: ${node.scope.join(" › ") || "<root>"})` }));
+}
+
+/** Predicate 2 (N5): no two same-role controls share a name under the same scope chain. */
+function ambiguousDuplicateFindings(nodes: readonly AriaNode[]): readonly NameFinding[] {
+  const candidates = nodes.filter((node) => INTERACTIVE_ROLES.has(node.role) && !isNameless(node));
+  const findings: NameFinding[] = [];
+  for (const bucket of bucketBy(candidates, (node) => `${node.scope.join(" › ")} ${node.role} ${node.name ?? ""}`).values()) {
+    const first = bucket[0];
+    if (bucket.length > 1 && first !== undefined) {
+      const scope = first.scope.join(" › ");
+      findings.push({
+        rule: "ambiguous-duplicate",
+        subject: first.name ?? "",
+        role: first.role,
+        count: bucket.length,
+        detail: `${String(bucket.length)}× ${first.role} "${first.name ?? ""}" under the same scope (${scope === "" ? "<root>" : scope}) — getByRole cannot resolve one`,
+      });
+    }
+  }
+  return findings;
+}
+
+/** Predicate 3 (N6): every landmark the tree exposes is named (unless a lone singleton) and distinguishable from its role-twins. */
+function landmarkFindings(nodes: readonly AriaNode[]): readonly NameFinding[] {
+  const findings: NameFinding[] = [];
+  const landmarks = nodes.filter((node) => LANDMARK_ROLES.has(node.role));
+  for (const [role, bucket] of bucketBy(landmarks, (node) => node.role)) {
+    const needsName = bucket.length > 1 || !SINGLETON_LANDMARKS.has(role);
+    for (const node of bucket) {
+      if (needsName && isNameless(node)) {
+        findings.push({ rule: "unnamed-landmark", detail: `${node.line} — a ${role} landmark needs an accessible name` });
+      }
+    }
+    const names = bucket.map((node) => node.name ?? "");
+    for (const dupe of new Set(names.filter((name, at) => names.indexOf(name) !== at))) {
+      findings.push({ rule: "duplicate-landmark", detail: `two or more ${role} landmarks are both named "${dupe}"` });
+    }
+  }
+  return findings;
+}
+
+/** The tree-level predicates over one `ariaSnapshot()`: nameless control · ambiguous duplicate · landmark naming. */
+function ariaTreeFindings(snapshot: string): readonly NameFinding[] {
+  const nodes = parseAriaSnapshot(snapshot);
+  return [...namelessControlFindings(nodes), ...ambiguousDuplicateFindings(nodes), ...landmarkFindings(nodes)];
 }
 
 /**
- * Roles an agent ACTS on — every one of these must be findable by name. Deliberately excludes the
- * container/presentational roles (`group`, `list`, `paragraph`, `text`, `status`, `img`) whose names are
- * governed by the landmark/scoping rules instead, and excludes `option`, whose name is always its own
- * content and which therefore cannot be nameless without being empty.
+ * The tree never lists a landmark element that has no name: Chromium exposes an unnamed `<form>` or `<section>`
+ * as a generic node, so `ariaTreeFindings` cannot see the defect. This DOM probe finds the element itself —
+ * a visible `<form>`, `<search>`, or an element with an explicit landmark role, and no `aria-label`/`aria-labelledby`.
  */
+export async function unnamedLandmarkElementFindings(root: Locator | Page): Promise<readonly NameFinding[]> {
+  const scope = "locator" in root ? root.locator("body") : root;
+  const raw = await scope.evaluate((el: Element) => {
+    const named = (node: Element): boolean => {
+      if ((node.getAttribute("aria-label") ?? "").trim() !== "") {
+        return true;
+      }
+      const ids = (node.getAttribute("aria-labelledby") ?? "").split(/\s+/).filter((id) => id !== "");
+      return ids.some((id) => (node.ownerDocument.getElementById(id)?.textContent ?? "").trim() !== "");
+    };
+    const out: string[] = [];
+    for (const node of el.querySelectorAll("form, search, [role='form'], [role='search'], [role='region'], [role='navigation'], [role='complementary']")) {
+      if (!(node instanceof HTMLElement) || node.offsetParent === null || node.closest("[aria-hidden='true'],[inert]") !== null || named(node)) {
+        continue;
+      }
+      const id = node.id === "" ? "" : `#${node.id}`;
+      out.push(
+        `<${node.tagName.toLowerCase()}${id}${node.hasAttribute("role") ? ` role="${node.getAttribute("role")}"` : ""}> ${node.outerHTML.slice(0, 120).replace(/\s+/g, " ")}`,
+      );
+    }
+    return out;
+  });
+  return raw.map((detail) => ({ rule: "unnamed-landmark" as const, detail: `${detail} — a landmark element needs an accessible name` }));
+}
+
 /**
  * The roles WCAG 2.5.3 governs: a control whose own text content IS its visible label. Everything else is
  * excluded for a reason, and both exclusions were measured as false-fires on the first run of this suite:
@@ -65,28 +245,6 @@ const LABEL_IN_NAME_ROLES: ReadonlySet<string> = new Set([
   "treeitem",
 ]);
 
-/** ARIA landmark roles. `region` is included: a `region` reaches the tree ONLY when it has a name. */
-/**
- * Roles that SCOPE a name. Two "Edit" buttons are unambiguous when they sit in differently-named rows —
- * an agent scopes into the row first. Two "Edit" buttons under the SAME scope chain are not.
- */
-/** `- role "name":` / `- role:` / `- 'role "na:me"':` — the name is optional, the trailing colon is too. */
-/** Parses one `ariaSnapshot()` YAML into flat nodes carrying their scope chain. */
-/** `banner`/`contentinfo`/`main` are singletons by spec — a lone one needs no distinguishing name. */
-/** A node the tree exposes without a usable name. */
-/** Buckets nodes by an arbitrary key, preserving insertion order. */
-/** Predicate 1 — every interactive role carries a non-empty accessible name. */
-/**
- * Predicate 2 — no two same-role controls share a name under the same scope chain. Scope-aware by
- * construction: an "Edit" in `listitem "Aria"` and one in `listitem "Bolt"` land in different buckets.
- */
-/** Predicate 3 — every landmark is named (unless a lone singleton) and distinguishable from its twins. */
-/**
- * The three tree-level predicates: every interactive control has a name · no two same-role controls share
- * a name under the same scope chain · every landmark is named and distinguishable from its role-twins.
- * Split into one function per predicate so each stays readable and independently testable — the
- * monolithic version tripped biome's cognitive-complexity ceiling, which was fair.
- */
 /**
  * WCAG 2.5.3 Label in Name, as a mechanical probe: every alphabetic word of a control's VISIBLE text must
  * appear in its accessible name. Scoped to elements with an explicit `aria-label` (the only way the two
@@ -177,8 +335,45 @@ export async function labelInNameFindings(root: Locator | Page): Promise<readonl
   }));
 }
 
-/** Runs BOTH engines over the page and returns every finding, newest lens last.
- *
- * NO HARNESS CARVE-OUT. `ct-providers.tsx` mounts no global toast outlet, so a duplicate
- * `duplicate-landmark "Alerts"` is a real finding, never a harness fact to filter. */
+/** Runs the tree lens and both DOM lenses over the page and returns every finding. */
+export async function nameQualityFindings(page: Page): Promise<readonly NameFinding[]> {
+  const snapshot = await page.locator("body").ariaSnapshot();
+  return [...ariaTreeFindings(snapshot), ...(await unnamedLandmarkElementFindings(page)), ...(await labelInNameFindings(page))];
+}
+
 /** Formats findings for an `expect(...)` message that points straight at the fix site. */
+export function formatFindings(findings: readonly NameFinding[]): string {
+  return findings.map((f) => `  [${f.rule}] ${f.detail}`).join("\n");
+}
+
+/** A repeating row is a list item, table row, or a slot named for a row. */
+const ROW_SELECTOR = "li, tr, [role='listitem'], [role='row'], [data-slot$='row']";
+
+/**
+ * A duplicate is the data's, not the product's, when every duplicated control sits in a row and the whole row sentence is the
+ * same in each: only the records are alike, so no name could tell them apart. Controls outside any row are the product's to name.
+ */
+async function isIdenticalDataDuplicate(page: Page, finding: NameFinding): Promise<boolean> {
+  if (finding.role === undefined || finding.subject === undefined) {
+    return false;
+  }
+  const controls = page.getByRole(finding.role as Parameters<Page["getByRole"]>[0], { name: finding.subject, exact: true });
+  const rows = await controls.evaluateAll(
+    (elements: Element[], selector: string) => elements.map((element) => (element.closest(selector)?.textContent ?? "").replace(/\s+/g, " ").trim()),
+    ROW_SELECTOR,
+  );
+  const [first] = rows;
+  // A row that is only the control's own name carries no data to tell the records apart, so it is the product's to name.
+  return rows.length > 1 && first !== undefined && first !== "" && first !== finding.subject && rows.every((row) => row === first);
+}
+
+/** The name findings that bind the product: {@link nameQualityFindings} minus duplicates only the data can tell apart. */
+export async function productNameFindings(page: Page): Promise<readonly NameFinding[]> {
+  const kept: NameFinding[] = [];
+  for (const finding of await nameQualityFindings(page)) {
+    if (finding.rule !== "ambiguous-duplicate" || !(await isIdenticalDataDuplicate(page, finding))) {
+      kept.push(finding);
+    }
+  }
+  return kept;
+}

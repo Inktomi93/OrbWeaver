@@ -110,6 +110,7 @@ function AddModelOnKeyBody({
   return (
     <form.AppForm>
       <form
+        aria-label="Add a model"
         onSubmit={(event): void => {
           event.preventDefault();
           event.stopPropagation();

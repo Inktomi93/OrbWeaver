@@ -1,0 +1,5 @@
+{
+  "features/auth/sign-in.tsx": "Sign in",
+  "features/auth/titled.tsx": "{title}",
+  "features/auth/named.tsx": "Never applied"
+}

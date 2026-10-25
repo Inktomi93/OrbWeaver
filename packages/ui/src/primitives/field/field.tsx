@@ -7,6 +7,7 @@ import { HintTrigger } from "#primitives/hint-trigger";
 // `<Field>` is this context's ONE provider — the consumer half (`useFieldLabelled`) and the reason it has
 // to exist at all are in that module's header.
 import { FieldControlDockContext } from "./field-control-dock.ts";
+import { FieldNameContext } from "./field-identity.ts";
 import { FieldLabelledContext } from "./field-labelled.ts";
 import { fieldVariants } from "./variants.ts";
 
@@ -182,27 +183,29 @@ export function Field({
       {...rest}
     >
       <FieldLabelledContext value={true}>
-        <FieldControlDockContext value={resolved === "horizontal"}>
-          {resolved === "horizontal" ? (
-            <>
-              <div className={slots.labelBlock()} data-slot="field-label-block">
+        <FieldNameContext value={name}>
+          <FieldControlDockContext value={resolved === "horizontal"}>
+            {resolved === "horizontal" ? (
+              <>
+                <div className={slots.labelBlock()} data-slot="field-label-block">
+                  {labelNode}
+                  {descriptionNode}
+                </div>
+                <div className={slots.controlCol()} data-slot="field-control-col">
+                  {children}
+                  {errorNode}
+                </div>
+              </>
+            ) : (
+              <>
                 {labelNode}
-                {descriptionNode}
-              </div>
-              <div className={slots.controlCol()} data-slot="field-control-col">
                 {children}
+                {descriptionNode}
                 {errorNode}
-              </div>
-            </>
-          ) : (
-            <>
-              {labelNode}
-              {children}
-              {descriptionNode}
-              {errorNode}
-            </>
-          )}
-        </FieldControlDockContext>
+              </>
+            )}
+          </FieldControlDockContext>
+        </FieldNameContext>
       </FieldLabelledContext>
     </BaseField.Root>
   );
