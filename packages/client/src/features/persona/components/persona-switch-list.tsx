@@ -20,9 +20,9 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { KeyboardEvent, ReactElement } from "react";
 import { useState } from "react";
-import { HIDE_AT_COARSE, PIN_REVEAL, ROW_ACTION_OVERFLOW, RowActionsMenu } from "#components";
+import { RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
-import { cn, rowActionSubject, rowQualifiers, timeLib } from "#lib";
+import { rowActionSubject, rowQualifiers, timeLib } from "#lib";
 import type { ChromePresentation } from "#state";
 import { closeModal, openPersonaEditor } from "#state";
 import { PersonaCardPin } from "./persona-card-pin.tsx";
@@ -165,7 +165,7 @@ function SwitchRow({
       {room === null ? null : <RoomGlyphs persona={persona} room={room} subject={subject} tabIndex={tabIndex} />}
       <PersonaCrown isDefault={isDefault} onClear={onClearDefault} onSet={onSetDefault} subject={subject} {...tabProps} />
       <EditDoor personaId={persona.id} presentation={presentation} subject={subject} tabIndex={tabIndex} />
-      <Row align="center" className={cn("relative shrink-0", ROW_ACTION_OVERFLOW) ?? ""}>
+      <Row align="center" className="relative shrink-0" hiddenAt="fine">
         <RowActionsMenu label={`Actions for ${subject}`} {...(tabIndex === undefined ? {} : { triggerTabIndex: tabIndex })}>
           {presentation === "bar" ? (
             <PopoverClose render={<MenuItem onClick={(): void => openPersonaEditor(persona.id)}>Edit</MenuItem>} />
@@ -200,7 +200,7 @@ function SwitchButton({
     <Button
       aria-current={isPlaying ? "true" : undefined}
       aria-label={isPlaying ? `${subject} — current persona` : `Switch to ${subject}`}
-      className="absolute inset-0 rounded-control"
+      className="absolute inset-0"
       data-switch-row-button=""
       intent="ghost"
       onClick={onSwitch}
@@ -271,7 +271,6 @@ function EditDoor({
   const door = (
     <Button
       aria-label={label}
-      className={cn(PIN_REVEAL, HIDE_AT_COARSE, "relative shrink-0") ?? ""}
       intent="ghost"
       onClick={(): void => openEditor(personaId, presentation)}
       size="icon"
@@ -281,9 +280,11 @@ function EditDoor({
     </Button>
   );
   return (
-    <Tooltip>
-      <TooltipTrigger render={presentation === "bar" ? <PopoverClose render={door} /> : door} />
-      <TooltipPopup side="top">{label}</TooltipPopup>
-    </Tooltip>
+    <Row className="relative shrink-0" hiddenAt="coarse" reveal="faint">
+      <Tooltip>
+        <TooltipTrigger render={presentation === "bar" ? <PopoverClose render={door} /> : door} />
+        <TooltipPopup side="top">{label}</TooltipPopup>
+      </Tooltip>
+    </Row>
   );
 }

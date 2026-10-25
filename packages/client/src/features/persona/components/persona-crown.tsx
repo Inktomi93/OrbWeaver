@@ -6,11 +6,10 @@
 
 import { Button } from "@orb/ui/button";
 import { Crown, Icon } from "@orb/ui/icons";
+import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
-import { HIDE_AT_COARSE, PIN_REVEAL, ROW_ACTION_OVERFLOW } from "#components";
-import { cn } from "#lib";
 
 const CROWN_HINT = "Your default persona for new chats.";
 const DEFAULT_MARKER_LABEL = "Your default persona";
@@ -29,30 +28,32 @@ export interface PersonaCrownProps {
 export function PersonaCrown({ isDefault, subject, onSet, onClear, tabIndex }: PersonaCrownProps): ReactElement {
   return (
     <>
-      <Tooltip describesTrigger={false}>
-        <TooltipTrigger
-          render={
-            <Button
-              aria-label={isDefault ? `${subject} is your default — press to clear` : `Make ${subject} your default`}
-              aria-pressed={isDefault}
-              className={cn("relative shrink-0", isDefault ? "text-primary" : PIN_REVEAL, HIDE_AT_COARSE) ?? ""}
-              data-slot="persona-crown"
-              intent="ghost"
-              onClick={isDefault ? onClear : onSet}
-              size={isDefault ? "inline" : "icon"}
-              {...(tabIndex === undefined ? {} : { tabIndex })}
-            >
-              <Icon icon={Crown} size="sm" />
-            </Button>
-          }
-        />
-        <TooltipPopup side="top">{CROWN_HINT}</TooltipPopup>
-      </Tooltip>
+      <Row className="relative shrink-0" hiddenAt="coarse" reveal={isDefault ? undefined : "faint"}>
+        <Tooltip describesTrigger={false}>
+          <TooltipTrigger
+            render={
+              <Button
+                aria-label={isDefault ? `${subject} is your default — press to clear` : `Make ${subject} your default`}
+                aria-pressed={isDefault}
+                data-slot="persona-crown"
+                intent="ghost"
+                onClick={isDefault ? onClear : onSet}
+                size={isDefault ? "inline" : "icon"}
+                tone={isDefault ? "primary" : "default"}
+                {...(tabIndex === undefined ? {} : { tabIndex })}
+              >
+                <Icon icon={Crown} size="sm" />
+              </Button>
+            }
+          />
+          <TooltipPopup side="top">{CROWN_HINT}</TooltipPopup>
+        </Tooltip>
+      </Row>
       {isDefault ? (
         <Tooltip>
           <TooltipTrigger
             render={
-              <Text as="span" aria-label={DEFAULT_MARKER_LABEL} className={cn("relative shrink-0 text-primary", ROW_ACTION_OVERFLOW) ?? ""} role="img">
+              <Text as="span" aria-label={DEFAULT_MARKER_LABEL} className="relative shrink-0" hiddenAt="fine" role="img" tone="accent">
                 <Icon icon={Crown} size="sm" />
               </Text>
             }
