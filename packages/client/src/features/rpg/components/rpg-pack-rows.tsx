@@ -24,8 +24,7 @@ import { Grid, Row, Stack } from "@orb/ui/layout";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { ConfirmDialog, PICKER_GAP_AT_COARSE, Tip } from "#components";
-import { cn } from "#lib";
+import { ConfirmDialog, Tip } from "#components";
 import { ITEM_ICON_CHOICES, resolveItemIcon } from "../lib/glyphs.ts";
 import type { PackEdit } from "./rpg-pack-fields.tsx";
 import { ItemLockPin, ItemName, ItemProseLine, ItemQuantity } from "./rpg-pack-fields.tsx";
@@ -42,13 +41,13 @@ const QUEST_TYPE_RE = /quest/i;
  *  one fewer column and a taller popover at coarse. */
 function ItemIconPicker({ itemName, onPick }: { readonly itemName: string; readonly onPick: (icon: string) => void }): ReactElement {
   return (
-    <Row gap="field" className={cn("flex-wrap max-inline-(--width-control-col)", PICKER_GAP_AT_COARSE) ?? ""}>
+    <Row gap="field" touchFloor="gap" className="flex-wrap max-inline-(--width-control-col)">
       {Object.entries(ITEM_ICON_CHOICES).map(([name, glyph]) => (
         <Tip key={name} text={`${itemName}: use the ${name} icon`}>
           <Button
             aria-label={`${itemName}: use the ${name} icon`}
             intent="ghost"
-            // eslint-disable-next-line orb/no-floorless-control-in-wrap -- PICKER_GAP_AT_COARSE supplies the measured touch-target pitch without changing the fine picker; ends when this geometry or floorless size changes.
+            // eslint-disable-next-line orb/no-floorless-control-in-wrap -- touchFloor="gap" supplies the measured touch-target pitch without changing the fine picker; ends when this geometry or floorless size changes.
             size="glyph-lg"
             onClick={(): void => onPick(name)}
           >
@@ -63,7 +62,7 @@ function ItemIconPicker({ itemName, onPick }: { readonly itemName: string; reado
 /** The item GLYPH — a plain decoration for a viewer; for the HOST a popover trigger opening the #37c
  *  icon picker (the NAME text stays the datum either way). */
 function ItemGlyph({ item, onPickIcon }: { readonly item: RpgInventoryItem; readonly onPickIcon?: (icon: string) => void }): ReactElement {
-  const glyph = <Icon icon={resolveItemIcon(item.icon, item.name, item.type)} size="md" className="text-muted-foreground" />;
+  const glyph = <Icon icon={resolveItemIcon(item.icon, item.name, item.type)} size="md" tone="muted" />;
   if (onPickIcon === undefined) {
     return glyph;
   }
@@ -109,7 +108,7 @@ function PackCellInk({ item, pinned = false }: { readonly item: RpgInventoryItem
           ●
         </Text>
       ) : null}
-      <Icon icon={resolveItemIcon(item.icon, item.name, item.type)} size="sm" className="shrink-0 text-muted-foreground" />
+      <Icon icon={resolveItemIcon(item.icon, item.name, item.type)} size="sm" tone="muted" className="shrink-0" />
       <Stack gap="field" className="flex-1 min-inline-0">
         <Row gap="field" align="baseline" className="min-inline-0">
           {/* The NAME is the datum and a model writes it: it WRAPS inside the tile rather than
@@ -121,7 +120,7 @@ function PackCellInk({ item, pinned = false }: { readonly item: RpgInventoryItem
           </Text>
           {/* The ×N read, the list row's exact grammar — a stack of one renders nothing (no "×1" noise). */}
           {item.quantity > 1 ? (
-            <Text as="span" voice="gloss" className="shrink-0 tabular-nums">
+            <Text as="span" voice="gloss" numeric={true} className="shrink-0">
               ×{item.quantity}
             </Text>
           ) : null}

@@ -76,7 +76,7 @@ function QuestDescription({ quest, dim, edit }: { readonly quest: RpgQuestView; 
     return null;
   }
   return (
-    <Text voice="gloss" className={dim ? "line-through" : undefined}>
+    <Text voice="gloss" strike={dim}>
       {quest.description}
     </Text>
   );
@@ -100,7 +100,7 @@ function QuestObjectives({ quest, dim, edit }: { readonly quest: RpgQuestView; r
               aria-label={`${o.text} — completed`}
             />
           ) : null}
-          <Text as="span" voice="label" className={o.completed ? "flex-1 text-muted-foreground line-through min-inline-0" : "flex-1 min-inline-0"}>
+          <Text as="span" voice="label" tone={o.completed ? "muted" : "default"} strike={o.completed} className="flex-1 min-inline-0">
             {o.text}
           </Text>
           {editable ? (
@@ -166,7 +166,7 @@ function QuestCardMeta({
   return (
     <Row gap="field" align="center" className="shrink-0">
       {total > 0 ? (
-        <Text as="span" voice="gloss" className="tabular-nums">
+        <Text as="span" voice="gloss" numeric={true}>
           {filled}/{total}
         </Text>
       ) : null}
@@ -200,7 +200,7 @@ function QuestCard({ quest, edit }: QuestCardProps): ReactElement {
           <Stack gap="field" className="flex-1 min-inline-0">
             <Row gap="block" align="baseline" justify="between">
               {edit === undefined || dim ? (
-                <Text as="span" voice="label" className={dim ? "text-muted-foreground line-through" : undefined}>
+                <Text as="span" voice="label" tone={dim ? "muted" : "default"} strike={dim}>
                   {quest.name}
                 </Text>
               ) : (

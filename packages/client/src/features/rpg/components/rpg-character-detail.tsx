@@ -26,7 +26,6 @@ import { ChevronLeft, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { VALUE_ROW_TOUCH_FLOOR_AT_COARSE } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useEditSnapshot, usePatchActor, usePatchSheet } from "../hooks/use-rpg-mutations.ts";
@@ -51,7 +50,7 @@ function SheetLevel({ level, onEditLevel }: { readonly level: number | null; rea
   if (onEditLevel === undefined) {
     return (
       <Badge tone="soft" size="sm" data-slot="sheet-level">
-        <Text as="span" voice="gloss" className="tabular-nums">
+        <Text as="span" voice="gloss" numeric={true}>
           Level {level}
         </Text>
       </Badge>
@@ -72,9 +71,10 @@ function SheetLevel({ level, onEditLevel }: { readonly level: number | null; rea
             const n = Number.parseInt(trimmed, 10);
             onEditLevel(trimmed === "" || Number.isNaN(n) ? null : Math.max(0, n));
           }}
-          className="px-field text-end tabular-nums"
+          className="px-field text-end"
+          numeric={true}
           width="avatar-md"
-          restClassName="tabular-nums"
+          restClassName=""
         />
       </Row>
     </Badge>
@@ -97,7 +97,7 @@ function SheetFlavor({ actor, onEditFlavor }: { readonly actor: RpgActorView; re
     );
   }
   return (
-    <Row className={`min-inline-0 ${VALUE_ROW_TOUCH_FLOOR_AT_COARSE}`}>
+    <Row touchFloor="block" className="min-inline-0">
       <TrackerValue
         ariaLabel={`${actor.name} flavor`}
         display={actor.sheet.flavor}
@@ -130,7 +130,7 @@ function WalletChip({
   return (
     <Badge tone="soft" size="sm" data-slot="sheet-wallet-chip">
       {onEditAmount === undefined ? (
-        <Text as="span" voice="gloss" className="tabular-nums">
+        <Text as="span" voice="gloss" numeric={true}>
           {coin.amount} {coin.name}
         </Text>
       ) : (
@@ -146,9 +146,10 @@ function WalletChip({
                 onEditAmount(n);
               }
             }}
-            className="px-field text-end tabular-nums"
+            className="px-field text-end"
+            numeric={true}
             width="avatar-md"
-            restClassName="tabular-nums"
+            restClassName=""
           />
           <Text as="span" voice="gloss">
             {coin.name}
@@ -424,7 +425,7 @@ function SheetTitle({ actor, onEditTitle }: { readonly actor: RpgActorView; read
     );
   }
   return (
-    <Row gap="field" align="center" className={`min-inline-0 ${VALUE_ROW_TOUCH_FLOOR_AT_COARSE}`}>
+    <Row gap="field" align="center" touchFloor="block" className="min-inline-0">
       <TrackerValue
         ariaLabel={`${actor.name} title`}
         display={actor.sheet.className}

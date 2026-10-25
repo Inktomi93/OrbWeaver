@@ -105,9 +105,10 @@ function RangeRow({ profile, onCommit }: { readonly profile: RpgStatProfile; rea
             onCommit({ ...profile, range: { min: n, max: Math.max(n + 1, profile.range.max) } });
           }
         }}
-        className="px-field text-end tabular-nums"
+        className="px-field text-end"
+        numeric={true}
         width="avatar-lg"
-        restClassName="tabular-nums"
+        restClassName=""
       />
       <Text as="span" voice="gloss" aria-hidden={true}>
         –
@@ -123,9 +124,10 @@ function RangeRow({ profile, onCommit }: { readonly profile: RpgStatProfile; rea
             onCommit({ ...profile, range: { min: profile.range.min, max: Math.max(profile.range.min + 1, n) } });
           }
         }}
-        className="px-field text-end tabular-nums"
+        className="px-field text-end"
+        numeric={true}
         width="avatar-lg"
-        restClassName="tabular-nums"
+        restClassName=""
       />
       <Text as="span" voice="gloss">
         on every sheet

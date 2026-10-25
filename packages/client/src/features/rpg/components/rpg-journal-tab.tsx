@@ -247,7 +247,7 @@ function JournalMarks({ state }: { readonly state: RpgPanelState }): ReactElemen
           {sorted.map((mark) => (
             <Card tone="neutral" key={mark.id}>
               <Row key={mark.id} gap="block" align="center" data-slot="rpg-mark-row">
-                <Icon icon={Pin} size="xs" className="text-muted-foreground" />
+                <Icon icon={Pin} size="xs" tone="muted" />
                 <Stack gap="field" className="flex-1 min-inline-0">
                   <Text as="span" voice="label" className="truncate">
                     {mark.label}

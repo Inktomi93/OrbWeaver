@@ -144,22 +144,24 @@ function AmbientVocabPicker({
           like the chips under a wrapped `indoors` would still read to the EYE as a tenth one. A hairline
           above it closes the set visually, and the ✕ makes it read as a verb before the words are read. */}
       {value === "" ? null : (
-        <Button
-          type="button"
-          intent="ghost"
-          size="sm"
-          className="mbs-field basis-full justify-start border-bs border-border pbs-field"
-          aria-label={`Clear ${fieldLabel.toLowerCase()}`}
-          onClick={(): void => {
-            onPick(null);
-            setOpen(false);
-          }}
-        >
-          <Icon icon={X} size="xs" />
-          <Text as="span" size="micro" tone="muted">
-            {`Clear ${fieldLabel.toLowerCase()}`}
-          </Text>
-        </Button>
+        <Row divider="top" className="mbs-field basis-full pbs-field">
+          <Button
+            type="button"
+            intent="ghost"
+            size="sm"
+            className="justify-start inline-full"
+            aria-label={`Clear ${fieldLabel.toLowerCase()}`}
+            onClick={(): void => {
+              onPick(null);
+              setOpen(false);
+            }}
+          >
+            <Icon icon={X} size="xs" />
+            <Text as="span" size="micro" tone="muted">
+              {`Clear ${fieldLabel.toLowerCase()}`}
+            </Text>
+          </Button>
+        </Row>
       )}
     </Row>
   );
@@ -179,7 +181,7 @@ function AmbientFieldControl({
 }): ReactElement {
   if (onEditField === undefined) {
     return (
-      <Text as="span" size="label" className="truncate tabular-nums">
+      <Text as="span" size="label" numeric={true} className="truncate">
         {value}
       </Text>
     );
