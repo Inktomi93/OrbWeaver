@@ -22,4 +22,8 @@ The row and composer hold within 2px on the first painted frame of all three doo
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+- Cause: the counter used the content track's width, but the carriers centre in the room surface, which pads both inline sides by `--spacing-block`; and `.orb-composer-track` carried no counter at all. The two widths disagree where the track crosses the carrier's cap, which is the 12.5px, 12px and 15.8px jumps.
+- Fix: `shell/grid.css` derives `--shell-room-track`; `shell/motion.css` computes each carrier's counter from its own cap (`--width-shell-content` for `.orb-chat-track`, `--composer-track` for `.orb-composer-track`) and plays it on both markers, in the settle too; `shell/mobile.css` cancels both.
+- Red first: with the carriers added to the CONTEXT door, the both-docked LIST door and the 20rem dock, `app-shell-motion.ct.tsx` failed on the old CSS with the item's numbers (row 449.5 against rest 437, row 328 against 340, row 223.8 against 208, and the composer uncountered). Green after the fix: 13 of 14 pass.
+- The 14th case, "with motion off the swap to Home arms no FLIP…", times out in `waitForShellIdle` with and without this change and with and without the 1321 commit; it is not a carrier case.
+- A room with a mounted flank column narrows the row's parent by the column; that case is not covered here.

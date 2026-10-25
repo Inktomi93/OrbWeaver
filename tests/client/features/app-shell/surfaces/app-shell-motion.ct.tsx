@@ -47,9 +47,7 @@ const DOOR_BOXES = {
 type DoorBox = keyof typeof DOOR_BOXES;
 // The LIST door moves the list pane itself, so its action travels with it by design and is not held.
 const LIST_DOOR: readonly DoorBox[] = ["main", "trail", "listPanel", "row", "composer"];
-const CONTEXT_DOOR: readonly DoorBox[] = ["main", "trail", "contextPanel", "listAction"];
-// The centred carriers are held on the plain LIST door only. On the CONTEXT door, the both-docked LIST door and the
-// rem-20 dock they jump 12 to 16px on the first painted frame on this tree (the 0963 leg C evidence records it).
+const CONTEXT_DOOR: readonly DoorBox[] = ["main", "trail", "contextPanel", "listAction", "row", "composer"];
 const CARRIERS: readonly DoorBox[] = ["row", "composer"];
 // A rounded pixel either side: the panel tracks and the centring margin each round to the device pixel.
 const HOLD_SLACK = 2;
@@ -473,8 +471,16 @@ test.describe("the doors in an open room", () => {
     await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
     await expect(page.locator(DOOR_BOXES.composer)).toBeVisible();
     await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "docked");
-    const rest = await readBoxes(page);
-    expect(rest["row"]).toBe(rest["composer"]);
+    // The composer's track is capped at the reading measure and the row's at the dial, so the two share a centre, not an edge.
+    const [rowCentre = Number.NaN, composerCentre = Number.NaN] = await page.evaluate(
+      (selectors) =>
+        selectors.map((selector) => {
+          const box = document.querySelector(selector)?.getBoundingClientRect();
+          return box === undefined ? Number.NaN : box.x + box.width / 2;
+        }),
+      [DOOR_BOXES.row, DOOR_BOXES.composer],
+    );
+    expect(Math.abs(rowCentre - composerCentre)).toBeLessThanOrEqual(1);
     for (const leg of ["Hide list panel", "Show list panel"]) {
       const census = await driveDoor(page, leg);
       expect(flipFrame(census)).toBeGreaterThan(-1);
@@ -557,7 +563,7 @@ test.describe("the doors in an open room", () => {
     expect((await readBoxes(page))["listPanelWidth"]).toBeLessThan((await resolvedLength(page, "var(--panel-w)")) - HOLD_SLACK);
     for (const leg of ["Hide list panel", "Show list panel"]) {
       const census = await driveDoor(page, leg);
-      const verdict = doorVerdict(census, ["listPanelWidth", ...LIST_DOOR.filter((box) => !CARRIERS.includes(box))]);
+      const verdict = doorVerdict(census, ["listPanelWidth", ...LIST_DOOR]);
       expect(verdict.cuts).toStrictEqual([]);
       expect(verdict.strays).toStrictEqual([]);
     }
@@ -578,7 +584,7 @@ test.describe("the doors at rem 20", () => {
     expect(await page.locator(DOOR_BOXES.composer).evaluate((element) => Math.round(element.getBoundingClientRect().width))).toBeGreaterThan(
       dockedWidth + HOLD_SLACK,
     );
-    const verdict = doorVerdict(await driveDoor(page, "Show list panel"), ["main", "trail", "listPanel"]);
+    const verdict = doorVerdict(await driveDoor(page, "Show list panel"), ["main", "trail", "listPanel", ...CARRIERS]);
     expect(verdict.travelled).toBeGreaterThan(0);
     expect(verdict.cuts).toStrictEqual([]);
     expect(verdict.strays).toStrictEqual([]);

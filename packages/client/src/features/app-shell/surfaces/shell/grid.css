@@ -93,15 +93,11 @@
      * `translate` resolves against the element's own box. The premise is that the grid's box is the viewport's
      * width (app-shell.ct.tsx reads the first painted frame of every door). */
     --shell-content-track: calc(100dvw - env(safe-area-inset-left) - env(safe-area-inset-right) - var(--rail-w) - var(--list-track) - var(--context-track));
-    /* A box centred by auto margins sits `max(0, P - W) / 2` from its parent's start edge, so its delta across a
-     * commit is the difference of that for the two parent widths, halved; the sign lives in `--shell-track-shrink`. */
-    --shell-centre-flip-from: calc(
-      (
-        max(0px, var(--shell-content-track) + var(--shell-track-shrink) - var(--width-shell-content)) -
-        max(0px, var(--shell-content-track) - var(--width-shell-content))
-      ) /
-      2
-    );
+    /* The room surface pads its content box on both inline sides (`chat-room-surface`, `px-block`), and the centred
+     * carriers sit in that box: its width, not the content track's, is what their auto margins split. motion.css
+     * applies each carrier's own cap; app-shell-motion.ct.tsx holds the padding and this inset together. */
+    --shell-room-inset: var(--spacing-block);
+    --shell-room-track: calc(var(--shell-content-track) - 2 * var(--shell-room-inset));
     /* A child pinned to the list pane's end edge moves by the pane's own width change (the list track's), only
      * when the list track itself is not toggling: `1 - |dir|` is the gate, and `max(d, -d)` is `abs(d)` over -1/0/1. */
     --shell-list-band-flip-from: calc((1 - max(var(--list-flip-dir), -1 * var(--list-flip-dir))) * (var(--list-track-was) - var(--list-track)));

@@ -63,7 +63,7 @@ const SHELL_SLOTS = [
   "chat-room-surface",
   "chat-room-flank-row",
 ];
-const SHELL_CLASSES = ["orb-chat-track"];
+const SHELL_CLASSES = ["orb-chat-track", "orb-composer-track"];
 
 const config: Config = {
   extends: ["stylelint-config-standard"],
