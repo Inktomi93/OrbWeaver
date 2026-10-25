@@ -32,7 +32,3 @@ const REVEAL_CLASS: Record<ActionsReveal, string> = { expanded: ALWAYS_REVEALED,
 export function messageActionsRevealClass(mode: ActionsReveal = "hover"): string {
   return REVEAL_CLASS[mode];
 }
-
-// A drop-shadow (not text-shadow, these are lucide svg glyphs) so the action icons stay legible over
-// glass / a background photo.
-export const MESSAGE_ACTION_ICON_CLASS = "drop-shadow-sm";

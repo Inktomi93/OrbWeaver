@@ -56,7 +56,7 @@ function renderAttributionName(attribution: RowAttribution): ReactElement | null
   }
   return (
     <ThemeScope tokens={attribution.tokens} className="contents">
-      <Text as="span" voice="label" className="text-speaker">
+      <Text as="span" voice="label" tone="speaker">
         {attribution.name}
       </Text>
     </ThemeScope>

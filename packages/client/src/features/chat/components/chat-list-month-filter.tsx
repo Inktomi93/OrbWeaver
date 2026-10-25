@@ -59,7 +59,7 @@ import { Row } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { setChatListMonth, useChatListMonth, useMobileViewport } from "#state";
 import { formatMonthLabel } from "../lib/chat-list-scope.ts";
-import { CLEAR_INSET_RESERVE, ClearFilterGlyph } from "./chat-list-filter-field.tsx";
+import { ClearFilterGlyph } from "./chat-list-filter-field.tsx";
 
 /** The bound's own words — an ON-OR-BEFORE ceiling that INCLUDES the selected month (#1348), and the
  *  field's accessible name through `<Field>`'s label. ONE spelling since #1718 retired the phone arm that
@@ -72,7 +72,7 @@ function MonthField({ month }: { readonly month: string }): ReactElement {
   return (
     <Field label={MONTH_LABEL}>
       <Row align="center" className="relative">
-        <Input className={`flex-1 min-inline-0 ${CLEAR_INSET_RESERVE}`} onValueChange={setChatListMonth} type="month" value={month} />
+        <Input className="flex-1 pe-(--size-control-sm) min-inline-0" onValueChange={setChatListMonth} type="month" value={month} />
         {month === "" ? null : <ClearFilterGlyph label={CLEAR_MONTH_LABEL} onClick={(): void => setChatListMonth("")} />}
       </Row>
     </Field>

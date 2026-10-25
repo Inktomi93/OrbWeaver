@@ -10,11 +10,9 @@ import { Text } from "@orb/ui/text";
 import { skipToken, useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
-import { cn } from "#lib";
 import { openConfigTo } from "#state";
 import { useCreditConnections } from "../hooks/use-credit-connections.ts";
 import type { SendGate } from "../hooks/use-send-availability.ts";
-import { CHAT_TRACK } from "../lib/chat-track.ts";
 import { lineRefusal, nextTurnLine, nextTurnReadsChatRole } from "../lib/next-turn-line.ts";
 
 export interface ComposerNextTurnLineProps {
@@ -25,11 +23,11 @@ export interface ComposerNextTurnLineProps {
   readonly id: string;
 }
 
-// Each refusal's ink: an unset connection warns, a failed read is an error.
-const STATE_INK: Record<"unset" | "failed", string> = {
-  unset: "text-warning",
-  failed: "text-destructive",
-};
+// Each refusal's tone: an unset connection warns, a failed read is an error.
+const STATE_TONE = {
+  unset: "warning",
+  failed: "destructive",
+} as const;
 
 export function ComposerNextTurnLine({ chatId, availability, id }: ComposerNextTurnLineProps): ReactElement | null {
   const trpc = useTRPC();
@@ -62,11 +60,12 @@ export function ComposerNextTurnLine({ chatId, availability, id }: ComposerNextT
     // stated dark-arm hole for a custom pivot palette (D144(d)), so the line takes an opaque fill: `bg-card`'s
     // AA floor is proven for every ink it paints (`palette-contrast.suite.test.ts`). No `rounded-card`: a text
     // backdrop is not a second elevated surface (UI-Density-Law.md §3/§5.1).
-    <Container className={cn(CHAT_TRACK, "bg-card py-tight")}>
+    <Container className="orb-chat-track bg-card py-tight inline-full max-inline-(--width-shell-content)">
       <Text
         as="p"
         voice="quiet"
-        className={cn("px-field wrap-break-word max-inline-(--reading-measure-prose) min-inline-0", STATE_INK[refusal.state])}
+        tone={STATE_TONE[refusal.state]}
+        className="px-field wrap-break-word max-inline-(--reading-measure-prose) min-inline-0"
         data-slot="composer-next-turn"
         data-unset={refusal.state === "unset" ? "" : undefined}
         data-failed={refusal.state === "failed" ? "" : undefined}
@@ -76,13 +75,7 @@ export function ComposerNextTurnLine({ chatId, availability, id }: ComposerNextT
         {door === undefined ? null : (
           <>
             {` ${door.lead} `}
-            <Button
-              className="underline"
-              intent="ghost"
-              onClick={(): void => openConfigTo("connections", door.sub, door.setting)}
-              size="inline-body"
-              type="button"
-            >
+            <Button intent="link" onClick={(): void => openConfigTo("connections", door.sub, door.setting)} size="inline-body" type="button">
               {door.label}
             </Button>
           </>

@@ -21,7 +21,6 @@ import { OptionStrip } from "@orb/ui/option-strip";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { SlashCommandContribution } from "#lib";
-import { CHAT_TRACK } from "../lib/chat-track.ts";
 import { SLASH_LISTBOX_ID, slashOptionId } from "../lib/slash-command.ts";
 
 export interface ComposerSlashStripProps {
@@ -67,7 +66,7 @@ export function ComposerSlashStrip({ matches, notice, unavailableFor, highlightI
     }
   };
   return (
-    <Stack gap="field" data-slot="composer-slash-strip" className={CHAT_TRACK}>
+    <Stack gap="field" data-slot="composer-slash-strip" className="orb-chat-track inline-full max-inline-(--width-shell-content)">
       {/* A refusal names one thing that just failed — the `label` voice; destructive is the SKIN the
           notice needs on top of it (no voice carries a colour role, by design). */}
       {notice === null ? null : (

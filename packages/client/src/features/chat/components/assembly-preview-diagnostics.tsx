@@ -45,7 +45,7 @@ export function AssemblyPreviewDiagnostics({
               <Stack gap="row">
                 {injections.map((injection, index) => (
                   <Text
-                    voice="datum"
+                    voice="code"
                     // biome-ignore lint/suspicious/noArrayIndexKey: injection rows render controlled text only, with no row-local state or interactive descendants.
                     key={index}
                     className="whitespace-pre-wrap"
@@ -88,7 +88,7 @@ function OverrideSources({ sources }: { readonly sources: AssembleTrace["overrid
         {present.map((row) => (
           <Row key={row.label} gap="block" justify="between" align="center">
             <Text voice="label">{row.label}</Text>
-            <Text voice="datum">{row.source}</Text>
+            <Text voice="code">{row.source}</Text>
           </Row>
         ))}
       </Stack>

@@ -192,7 +192,7 @@ export function HomeQuickPicksTileBody(): ReactElement {
                   IN THE SAME ROW (measured `descTop` 359 vs 380 at 1920) and the shelf read as six loose
                   objects instead of one rank. Reserving is the fix the shape allows — the cells are a
                   fixed-track grid, so there is no subgrid row to share. */}
-                <Text as="span" className="text-foreground" lines={2} voice="promoted">
+                <Text as="span" lines={2} voice="promoted">
                   {character.name}
                 </Text>
                 {/* `prose`, NOT the bare gloss (side-eye 2026-08-16 F15). Six of the seven interactive text
@@ -236,7 +236,7 @@ export function HomeQuickPicksTileBody(): ReactElement {
         size="media"
       >
         <Icon icon={Users} size="lg" />
-        <Text as="span" className="text-foreground" voice="promoted">
+        <Text as="span" voice="promoted">
           All characters
         </Text>
       </Button>

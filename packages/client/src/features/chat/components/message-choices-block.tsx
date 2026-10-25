@@ -57,7 +57,7 @@ export function MessageChoicesBlock({ options }: MessageChoicesBlockProps): Reac
     // that the border was carrying moves into the FILL, where it does the same job without a second edge.
     <Card className="bg-info/10" nested={true}>
       <Stack gap="field" data-slot="message-choices">
-        <Text voice="kicker" className="text-info">
+        <Text voice="kicker" tone="info">
           Your move
         </Text>
         {/* A disabled choice's reason is visible copy, one line for the whole set. */}

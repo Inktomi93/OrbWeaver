@@ -9,9 +9,8 @@ import { CrossfadeImage } from "@orb/ui/crossfade-image";
 import { Icon, X } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import type { ReactElement } from "react";
-import { cn, removeActionName } from "#lib";
+import { removeActionName } from "#lib";
 import type { PendingAttachment } from "../hooks/use-composer-attachments.ts";
-import { CHAT_TRACK } from "../lib/chat-track.ts";
 
 const VIDEO_MIME_PREFIX = "video/";
 
@@ -52,7 +51,7 @@ export function ComposerAttachmentStrip({
     return null;
   }
   return (
-    <Row gap="field" align="center" data-slot="composer-attachments" className={cn(CHAT_TRACK, "flex-wrap")}>
+    <Row gap="field" align="center" data-slot="composer-attachments" className="orb-chat-track flex-wrap inline-full max-inline-(--width-shell-content)">
       {attachments.map((attachment, index) => (
         <AttachmentPreview key={attachment.url} attachment={attachment} onRemove={(): void => onRemove(index)} />
       ))}
