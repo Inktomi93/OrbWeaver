@@ -178,6 +178,87 @@
     --fade-bottom-stop: var(--scroll-fade-depth);
   }
 
+  /* Where an animation can follow a scroll position, the band grows over the first (and last) depth of scroll instead
+   * of snapping when the consumer flips the attribute, and nothing waits on script. The attribute rules above stay as
+   * the fallback for engines without scroll timelines, which keep the drivers in `@orb/ui/scroll-area` alive. The
+   * band's own properties are private: the message list's fade shares the stop names above in another unit. A box that
+   * does not overflow has an inactive timeline, so its properties keep their zero and it paints opaque. */
+  @property --scroll-fade-top {
+    syntax: "<length>";
+    inherits: false;
+    initial-value: 0;
+  }
+  @property --scroll-fade-bottom {
+    syntax: "<length>";
+    inherits: false;
+    initial-value: 0;
+  }
+  @property --scroll-fade-start {
+    syntax: "<percentage>";
+    inherits: false;
+    initial-value: 0%;
+  }
+  @property --scroll-fade-end {
+    syntax: "<percentage>";
+    inherits: false;
+    initial-value: 0%;
+  }
+  @keyframes scroll-fade-top {
+    to {
+      --scroll-fade-top: var(--scroll-fade-depth);
+    }
+  }
+  @keyframes scroll-fade-bottom {
+    from {
+      --scroll-fade-bottom: var(--scroll-fade-depth);
+    }
+  }
+  @keyframes scroll-fade-start {
+    to {
+      --scroll-fade-start: var(--fade-edge-stop);
+    }
+  }
+  @keyframes scroll-fade-end {
+    from {
+      --scroll-fade-end: var(--fade-edge-stop);
+    }
+  }
+  @supports (animation-timeline: scroll()) {
+    .scroll-fade-y {
+      mask-image: linear-gradient(
+        to bottom,
+        rgb(0 0 0 / var(--scroll-fade-floor)),
+        black var(--scroll-fade-top),
+        black calc(100% - var(--scroll-fade-bottom)),
+        rgb(0 0 0 / var(--scroll-fade-floor))
+      );
+      animation:
+        scroll-fade-top linear both,
+        scroll-fade-bottom linear both;
+      animation-timeline: scroll(self block), scroll(self block);
+      animation-range:
+        0 var(--scroll-fade-depth),
+        calc(100% - var(--scroll-fade-depth)) 100%;
+    }
+    .scroll-fade-x {
+      --scroll-fade-depth: var(--spacing-section);
+      mask-image: linear-gradient(
+        to right,
+        rgb(0 0 0 / var(--scroll-fade-floor)),
+        black var(--scroll-fade-start),
+        black calc(100% - var(--scroll-fade-end)),
+        rgb(0 0 0 / var(--scroll-fade-floor))
+      );
+      animation:
+        scroll-fade-start linear both,
+        scroll-fade-end linear both;
+      animation-timeline: scroll(self inline), scroll(self inline);
+      animation-range:
+        0 var(--scroll-fade-depth),
+        calc(100% - var(--scroll-fade-depth)) 100%;
+    }
+  }
+
   /* A clamped menu's tail cue, as background not mask (a mask would clip the popup's own shadow): two `local`
    * cover gradients ride the content over two `scroll` shadow gradients pinned to the box, so a shadow shows only
    * while content is scrolled past that edge, with no listener and no state. The covers stay opaque across the
