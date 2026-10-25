@@ -3,7 +3,12 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusWire } from "@orb/testkit/iso";
 import { createCorpusReadResponder } from "@orb/testkit/iso";
 import type { Locator, Page } from "@playwright/test";
-import { OWNER_CSS_SHELL_CLASSES, OWNER_CSS_SLOTS, OWNER_CSS_TOKEN_VARS } from "../../../../../packages/client/owner-css-surface.ts";
+import {
+  OWNER_CSS_APPEARANCE_ATTRIBUTES,
+  OWNER_CSS_SHELL_CLASSES,
+  OWNER_CSS_SLOTS,
+  OWNER_CSS_TOKEN_VARS,
+} from "../../../../../packages/client/owner-css-surface.ts";
 import type { FirstBootStory } from "./_first-boot-stories.tsx";
 
 // The custom-CSS editor, reached the way an author reaches it: Settings → Appearance → a new theme → advanced tools.
@@ -70,6 +75,18 @@ test(".shell- offers shell classes", async ({ page }) => {
   await typeIntoEditor(page, `.${SHELL_CLASS.slice(0, -1)}`);
   await expect(completionOption(page, SHELL_CLASS)).toBeVisible();
   await expect(completionOption(page, SLOT)).toHaveCount(0);
+});
+
+const APPEARANCE_ATTRIBUTE = OWNER_CSS_APPEARANCE_ATTRIBUTES[0];
+
+test("[data-appearance- offers the appearance attributes, then their values", async ({ page }) => {
+  await typeIntoEditor(page, `[${APPEARANCE_ATTRIBUTE.name.slice(0, -1)}`);
+  await expect(completionOption(page, APPEARANCE_ATTRIBUTE.name)).toBeVisible();
+  await expect(completionOption(page, SLOT)).toHaveCount(0);
+  await page.keyboard.type(`${APPEARANCE_ATTRIBUTE.name.slice(-1)}="`);
+  for (const value of APPEARANCE_ATTRIBUTE.values) {
+    await expect(completionOption(page, value)).toBeVisible();
+  }
 });
 
 // The live region the editor announces its diagnostics through.

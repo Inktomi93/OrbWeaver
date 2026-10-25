@@ -49,3 +49,6 @@ pre-push:
     knip-prod:
       priority: 6
       run: pnpm knip:prod
+    typecheck:
+      priority: 7
+      run: pnpm typecheck
