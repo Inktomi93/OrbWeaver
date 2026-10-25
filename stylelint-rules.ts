@@ -426,11 +426,31 @@ function isStyleRule(node: unknown): node is StyleRule {
   return typeof node === "object" && node !== null && (node as { type?: unknown }).type === "rule";
 }
 
-/** Every style rule nested anywhere under an at-rule, with its own selector list split on top-level commas. */
+/** The nearest style rule a node sits inside, or undefined at the top of the sheet or a layer. */
+function enclosingRule(node: AtRule): StyleRule | undefined {
+  for (let parent: unknown = node.parent; typeof parent === "object" && parent !== null; parent = (parent as { parent?: unknown }).parent) {
+    if (isStyleRule(parent)) {
+      return parent;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Whether everything a variant styles sits under the root guard. A rule inside the variant carries the guard on each
+ * selector, or nests with `&` under an enclosing rule that does; a declaration directly inside the variant styles the
+ * enclosing rule's selectors, so those carry it.
+ */
 function guardedSelectors(atRule: AtRule, guard: string): boolean {
-  let guarded = true;
+  const owner = enclosingRule(atRule);
+  const ownerGuarded = owner?.selectors.every((selector) => selector.trim().startsWith(guard)) === true;
+  const startsGuarded = (selector: string): boolean => {
+    const trimmed = selector.trim();
+    return trimmed.startsWith(guard) || (trimmed.startsWith("&") && ownerGuarded);
+  };
+  let guarded = atRule.nodes?.some((node) => node.type === "decl") !== true || ownerGuarded;
   atRule.walk((node) => {
-    if (isStyleRule(node) && !node.selectors.every((selector) => selector.trim().startsWith(guard))) {
+    if (isStyleRule(node) && !node.selectors.every(startsGuarded)) {
       guarded = false;
     }
   });

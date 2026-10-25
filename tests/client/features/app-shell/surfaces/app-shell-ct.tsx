@@ -261,7 +261,7 @@ const mediaSessions = new WeakMap<Page, CDPSession>();
 /**
  * State the whole emulated media list in one CDP call. Playwright models no reduced-transparency, and its own
  * `emulateMedia` replaces the CDP feature list, so a spec using this emulates media only here. The session stays
- * attached: its overrides end when it detaches.
+ * attached until {@link releaseEmulatedMedia}: its overrides end when it detaches.
  */
 export async function emulateMedia(page: Page, media: MediaState): Promise<void> {
   const session = mediaSessions.get(page) ?? (await page.context().newCDPSession(page));
@@ -277,4 +277,14 @@ export async function emulateMedia(page: Page, media: MediaState): Promise<void>
   if (missed.length > 0) {
     throw new Error(`Chromium did not take the emulated media ${JSON.stringify(missed)}`);
   }
+}
+
+/**
+ * Detach the media session, ending its overrides. The gallery keeps one page per worker, so a session left attached
+ * outlives its test and overrides a later spec's own `page.emulateMedia` (a print case stays on screen media).
+ */
+export async function releaseEmulatedMedia(page: Page): Promise<void> {
+  const session = mediaSessions.get(page);
+  mediaSessions.delete(page);
+  await session?.detach();
 }

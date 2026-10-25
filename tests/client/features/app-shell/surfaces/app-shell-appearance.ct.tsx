@@ -19,7 +19,17 @@ import { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import type { AppShellModalStory, AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import type { ShellToPendingStory } from "./_shell-handover-stories.tsx";
-import { emulateMedia, PHONE, pixel, ROOM_PROCEDURES, resolvedLength, SECTION_PROCEDURES, SHELL_STORIES, seedShellState } from "./app-shell-ct.tsx";
+import {
+  emulateMedia,
+  PHONE,
+  pixel,
+  ROOM_PROCEDURES,
+  releaseEmulatedMedia,
+  resolvedLength,
+  SECTION_PROCEDURES,
+  SHELL_STORIES,
+  seedShellState,
+} from "./app-shell-ct.tsx";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;
 const MODAL_STORY = `${SHELL_STORIES}/AppShellModalStory`;
@@ -79,6 +89,11 @@ test.beforeAll(async () => {
 
 test.beforeEach(async ({ page }) => {
   await emulateMedia(page, { contrast: "no-preference", transparency: "no-preference" });
+});
+
+// The media session is per page and the page outlives the test; detach it so no later spec inherits the overrides.
+test.afterEach(async ({ page }) => {
+  await releaseEmulatedMedia(page);
 });
 
 test.afterAll(async () => {

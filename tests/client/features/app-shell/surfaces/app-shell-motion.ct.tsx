@@ -14,6 +14,7 @@ import {
   namedGroupRoom,
   PHONE,
   ROOM_PROCEDURES,
+  releaseEmulatedMedia,
   resolvedLength,
   SECTION_PROCEDURES,
   SHELL_STORIES,
@@ -77,6 +78,11 @@ test.beforeAll(async () => {
 
 test.beforeEach(async ({ page }) => {
   await emulateMedia(page, {});
+});
+
+// The media session is per page and the page outlives the test; detach it so no later spec inherits the overrides.
+test.afterEach(async ({ page }) => {
+  await releaseEmulatedMedia(page);
 });
 
 test.afterAll(async () => {

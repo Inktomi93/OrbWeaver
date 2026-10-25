@@ -360,6 +360,7 @@ export const OWNER_CSS_SLOTS = [
   "list-row-actions",
   "list-row-body",
   "list-row-content",
+  "list-row-full-title",
   "list-row-leading",
   "list-row-markers",
   "list-row-meta",

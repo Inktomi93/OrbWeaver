@@ -89,6 +89,15 @@ test("an appearance name a sheet spells is one the manifest's channel writes", a
   expect(await rulesHit(layered('@variant motion-reduce { :root:not([data-appearance-reduced-motion="off"]) .probe { opacity: 1; } }'), FLOOR_FILE)).toEqual(
     [],
   );
+  // A variant nested in a rule guards through that rule's selectors, for its own declarations and for an `&` rule.
+  expect(await rulesHit(layered(".probe { @variant motion-reduce { opacity: 1; } }"), FLOOR_FILE)).toEqual([rule]);
+  expect(await rulesHit(layered(".probe { @variant motion-reduce { &::after { opacity: 1; } } }"), FLOOR_FILE)).toEqual([rule]);
+  expect(await rulesHit(layered(':root:not([data-appearance-reduced-motion="off"]) .probe { @variant motion-reduce { opacity: 1; } }'), FLOOR_FILE)).toEqual(
+    [],
+  );
+  expect(
+    await rulesHit(layered(':root:not([data-appearance-reduced-motion="off"]) .probe { @variant motion-reduce { &::after { opacity: 1; } } }'), FLOOR_FILE),
+  ).toEqual([]);
   // A variant prefix in `@apply` is read too; a sheet cannot guard it.
   expect(await rulesHit(layered(".probe { @apply motion-reduce:opacity-50; }"))).toEqual([rule]);
   expect(await rulesHit(layered(".probe { @apply hover:not-contrast-more:opacity-50; }"))).toEqual([rule]);
