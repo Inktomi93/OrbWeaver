@@ -13,10 +13,9 @@ import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, KeyRound } from "@orb/ui/icons";
 import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary, useFirstBootBox } from "#components";
-import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { CONNECTIONS_KEYS_SUBCATEGORY } from "../lib/connections-nav.ts";
 import { CredentialKeyRow } from "./credential-key-row.tsx";
 

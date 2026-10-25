@@ -1,5 +1,5 @@
 // THE SHARED, REPO-KEYED BAND TABLE — <main-checkout>/.cache/snap-stage/bands.json. Split out of
-// ops/stage.ts when that file crossed the tooling line cap (docs/law/Core-Tooling-Law.md §4.3); it is
+// ops/stage.ts when that file crossed the tooling line cap; it is
 // one command family, and the one every other stage module reads.
 //
 // Every function here takes the TABLE ROOT (`markerRoot(repoRoot())`), never a checkout root: that is the
@@ -11,7 +11,7 @@
 // THE TABLE REPLACED A SINGLE MARKER (#1276, design §3.6). `active.json` held ONE stage because there was
 // ONE band; `bands.json` holds one row per band in `floor/host/ports.ts` `STAGE_BANDS`. The old file is read
 // ONCE by `readBands` as a legacy row and then DELETED — there is no compat shim and nothing ever writes it
-// again (`Core-Tooling-Law.md` §1: half a migration is the named rot).
+// again: half a migration is the named rot.
 //
 // ALLOCATION IS LOCKED, AND IT HAS TO BE. Two lanes reading "band 0 is free" in the same millisecond would
 // both boot onto band 0 and the second would kill the first — which is the exact contention this table

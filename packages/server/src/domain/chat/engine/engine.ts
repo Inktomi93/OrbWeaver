@@ -759,7 +759,7 @@ function trackSettledWork(ctx: EngineContext, chatId: ChatId, work: Promise<void
   ctx.trackBackground?.(work, chatId);
 }
 
-/** Fire-and-forget the rpg post-turn FLUSH (docs/plans/rpg/design.md): after the variant commits, flush the turn's
+/** Fire-and-forget the rpg post-turn FLUSH (D58): after the variant commits, flush the turn's
  *  staged tool writes onto the committed variant, keyed by `turnId`. Null op = rpg not wired (byte-identical
  *  no-op). Fire-and-forget with `.catch` — a background staging flush must NEVER turn a committed reply into an
  *  abort; the reply already landed. Inert until the rpg tool registrants stage anything (R4 #2/#3).
@@ -812,7 +812,7 @@ function rpgAbortRequestId(turnId: ChatTurnId): string {
   return `rpg-turn-abort:${turnId}`;
 }
 
-/** Fire-and-forget the rpg turn-abort CLEAR (docs/plans/rpg/design.md hardening a): drop the turn's staged tool
+/** Fire-and-forget the rpg turn-abort CLEAR (D58 hardening a): drop the turn's staged tool
  *  writes so a dead turn never flushes into the next turn on this chat. Null op = rpg not wired. Fire-and-
  *  forget — clearing staging must never mask the abort the caller is already surfacing. Wrapped in its own
  *  DETACHED root for the same reason `fireRpgTurnCompleted` is: it outlives the request.
@@ -1188,7 +1188,7 @@ function fireManagedCompaction(
   );
 }
 
-/** Mark the turn eligible to feed the player's queued d20 into its first skill check (docs/plans/rpg/design.md) — only
+/** Mark the turn eligible to feed the player's queued d20 into its first skill check (D58) — only
  *  when its reply directly responds to the die-bearing latest user message (chat's slot-adjacency verdict). Sync
  *  in-memory flag keyed by `turnId`; null op / non-game ⇒ no-op. A later GM/auto round is never marked, so a
  *  stale die can't re-feed. */
@@ -1683,7 +1683,7 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
   // automation/plugin-initiated turn carries its parent+1. Rides `turnAborted` (below) so the automation
   // fact-resolver can gate the cascade without a reply slot to read `getTurnOrigin` off (there is none on abort).
   const abortDepth = turnCascadeDepth(prep);
-  // The turn's ephemeral identity (docs/plans/rpg/design.md) — minted once, threaded to the tool-exec frame + the rpg
+  // The turn's ephemeral identity (D58) — minted once, threaded to the tool-exec frame + the rpg
   // turn-end hooks so a turn-scoped registrant correlates the turn's tool writes to its commit/abort flush.
   const turnId = ctx.newChatTurnId();
   const observations = createGenerationObservationSession(ctx, observationParentOf(prep.chatId, turnId, target));
@@ -1965,7 +1965,7 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
     // ≥ 1, so the cascade guard suppresses non-opted `turnAborted` rules (closes the retry-on-failure self-loop).
     await deps.emit({ type: "turnAborted", chatId: prep.chatId, intent, reason, automationDepth: abortDepth });
     // CLEAR the turn's staged tool writes on every abort path (user/stale/error) so a dead turn never flushes
-    // into the next turn on this chat (docs/plans/rpg/design.md hardening a).
+    // into the next turn on this chat (D58 hardening a).
     fireRpgTurnAborted(ctx, prep.chatId, turnId, reason);
     if (reason === "error") {
       throw err;

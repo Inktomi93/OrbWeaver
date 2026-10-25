@@ -1,7 +1,7 @@
 // The THEME arm of the settings shim, proven where it actually lives: a REAL browser run of the snap CLI
 // against a stub origin that answers BOTH tRPC reads the app makes — the batched `settings.getUserSettings`
 // GET and the `settings.listThemes` GET the shim itself asks to turn a NAME into the account's real id. The
-// pure matching rules are pinned in probe-theme.test.ts; what this file proves is the part no unit can see:
+// pure matching rules are unit-pinned; what this file proves is the part no unit can see:
 //   • `--theme Light` reaches the RENDERED state (the page's own read of the selection changes),
 //   • the shim writes NOTHING (no mutation ever reaches the origin, and the stored selection is unmoved),
 //   • an UNKNOWN theme WARNS loudly on stderr and renders the account's OWN theme rather than silently

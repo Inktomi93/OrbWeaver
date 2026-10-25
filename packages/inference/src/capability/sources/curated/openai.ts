@@ -4,7 +4,7 @@
 
 import type { CapabilityOverrideInput } from "@orb/contracts/inference";
 
-// The OpenAI ids the hosted family sweep (scripts/probes/hosted-families/RESULTS.md) measured, per route: exact ids, no
+// The OpenAI ids the hosted family sweep measured, per route: exact ids, no
 // dated snapshots. o1 was reached on the direct API only.
 const SWEPT_IDS =
   "gpt-4\\.1(-mini|-nano)?|gpt-4o(-mini)?|gpt-5(-mini|-nano)?|gpt-5\\.[125]|gpt-5\\.4(-mini|-nano)?|gpt-5\\.6-(luna|sol|terra)|gpt-6-(astra|luna|sol)|gpt-6\\.1-sol|o3(-mini)?|o4-mini";

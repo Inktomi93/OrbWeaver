@@ -70,6 +70,7 @@ export { clearJoinStash, peekJoinStash } from "./session-resume.ts";
 export { skeletonRowCountFor } from "./skeleton-row-metrics.ts";
 export { SkeletonRows } from "./skeleton-rows.tsx";
 export { completeReauth } from "./stale-session.ts";
+export { requireQueryBoundary, useSuspenseInfiniteQuery, useSuspenseQueries, useSuspenseQuery } from "./suspense-reads.ts";
 export type { Trpc, TrpcClient, TrpcReadError } from "./trpc.ts";
 export { createTrpcClient, createTrpcProxy, TRPCProvider, useTRPC, useTRPCClient } from "./trpc.ts";
 export { UploadRefusedError } from "./upload-asset.ts";

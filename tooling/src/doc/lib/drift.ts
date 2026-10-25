@@ -4,7 +4,7 @@
 import type { Blocker, DriftFacts, PlanState, WorkItem } from "../contract/types.ts";
 import { parseBlocker } from "./items.ts";
 
-/** A lane is its EXACT branch name (`.claude/rules/docs.md`): live when a worktree is on that branch
+/** A lane is its EXACT branch name: live when a worktree is on that branch
  *  or the branch is not yet merged. A substring match read every `codex/*` corpse as a live lane. */
 function laneIsLive(item: WorkItem, facts: DriftFacts): boolean {
   const lane = item.lane;

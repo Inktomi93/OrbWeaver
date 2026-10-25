@@ -20,11 +20,10 @@ import { Button } from "@orb/ui/button";
 import { Check, Icon, Sparkles, X } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { EditableTagChip, useAcceptSuggestion, useRejectSuggestion } from "#components";
 import type { Trpc } from "#data";
-import { useInvalidation } from "#data";
+import { useInvalidation, useSuspenseQuery } from "#data";
 import { useSuggestCharacterTags } from "../hooks/use-tag-suggestion-mutations.ts";
 
 export interface CharacterTagSuggestionsProps {

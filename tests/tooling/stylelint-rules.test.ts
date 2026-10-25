@@ -27,6 +27,40 @@ test("each custom rule refuses its planted control", async () => {
   expect(await rulesHit(declaration("padding: var(--primitive-space-8);"))).toEqual(["orb/no-raw-media-condition"]);
 });
 
+const FADE = "@keyframes fade { from { opacity: 0; } to { opacity: 1; } }";
+const SEQUENCE = "@keyframes sequence { 0% { opacity: 0; } 50% { opacity: 0.5; } 100% { opacity: 1; } }";
+const ANIMATE = "animation: fade var(--motion-base) var(--ease-out-expo);";
+
+test("a keyframe animation on a Base UI lifecycle attribute is refused unless a transition cannot express it", async () => {
+  const hit = ["orb/no-lifecycle-keyframes"];
+  expect(await rulesHit(`${FADE} ${layered(`.probe[data-open] { ${ANIMATE} }`)}`)).toEqual(hit);
+  expect(await rulesHit(`${FADE} ${layered(".probe[data-closed] { animation-name: fade; }")}`)).toEqual(hit);
+  expect(await rulesHit(`${FADE} ${layered(`.probe { &[data-ending-style] { ${ANIMATE} } }`)}`)).toEqual(hit);
+  expect(await rulesHit(`${SEQUENCE} ${layered(".probe[data-open] { animation: sequence var(--motion-base) var(--ease-out-expo); }")}`)).toEqual([]);
+  expect(await rulesHit(`${FADE} ${layered(".probe[data-open] { animation: fade var(--motion-shimmer) linear infinite; }")}`)).toEqual([]);
+  expect(
+    await rulesHit(
+      `${FADE.replace("fade", "orb-word-reveal")} ${layered(".probe[data-open] { animation: orb-word-reveal var(--motion-base) var(--ease-out-expo); }")}`,
+    ),
+  ).toEqual([]);
+  expect(await rulesHit(`${FADE} ${layered(".probe[data-open] { animation: none; }")}`)).toEqual([]);
+  // A name defined in another sheet proves no sequence, so the shorthand is refused like the longhand.
+  expect(await rulesHit(layered(".probe[data-open] { animation: zoom-in var(--motion-base) var(--ease-out-expo) both; }"))).toEqual(hit);
+  expect(await rulesHit(layered(".probe[data-open] { animation: var(--motion-base) zoom-in var(--ease-out-expo), fade var(--motion-base); }"))).toEqual(hit);
+  expect(await rulesHit(`${FADE} ${layered(".probe[data-open] { animation-name: fade;\n animation-iteration-count: infinite; }")}`)).toEqual([]);
+  expect(await rulesHit(`${FADE} ${layered(".probe[data-open] { animation-name: fade;\n animation-iteration-count: 2; }")}`)).toEqual(hit);
+  expect(await rulesHit(`${FADE} ${layered(`.probe { ${ANIMATE} }`)}`)).toEqual([]);
+});
+
+test("a transition names its properties; `all` is refused in either spelling", async () => {
+  const hit = ["declaration-property-value-disallowed-list"];
+  expect(await rulesHit(declaration("transition: all var(--motion-base) var(--ease-out-expo);"))).toEqual(hit);
+  expect(await rulesHit(declaration("transition-property: all;"))).toEqual(hit);
+  expect(await rulesHit(declaration("transition: opacity var(--motion-base) var(--ease-out-expo), all var(--motion-base);"))).toEqual(hit);
+  expect(await rulesHit(declaration("transition: opacity var(--motion-base) var(--ease-out-expo);"))).toEqual([]);
+  expect(await rulesHit(declaration("transition-property: opacity, scale;"))).toEqual([]);
+});
+
 test("logical properties are required, except the overflow axes the Safari 18 floor cannot spell logically", async () => {
   expect(await rulesHit(declaration("overflow-y: auto;"))).toEqual([]);
   expect(await rulesHit(declaration("overflow-x: auto;"))).toEqual([]);
@@ -121,6 +155,13 @@ test("an appearance name a sheet spells is one the manifest's channel writes", a
   expect(await rulesHit(layered(`${guarded} .a { & .b { @variant motion-reduce { opacity: 1; } } }`), FLOOR_FILE)).toEqual([]);
   expect(await rulesHit(layered(`@variant motion-reduce { ${guarded} .p { &::after { opacity: 1; } } }`), FLOOR_FILE)).toEqual([]);
   expect(await rulesHit(layered("@variant motion-reduce { .p { &::after { opacity: 1; } } }"), FLOOR_FILE)).toEqual([rule]);
+  // An `@apply` inside the variant styles the enclosing rule as a declaration does.
+  expect(await rulesHit(layered(".a { @variant motion-reduce { @apply opacity-50; } }"), FLOOR_FILE)).toEqual([rule]);
+  expect(await rulesHit(layered(`${guarded} .a { @variant motion-reduce { @apply opacity-50; } }`), FLOOR_FILE)).toEqual([]);
+  // The guard may be wrapped in `:is()` or `:where()`; a wrapper that lists another selector beside it is not a guard.
+  expect(await rulesHit(layered(`@variant motion-reduce { :is(${guarded}) .p { opacity: 1; } }`), FLOOR_FILE)).toEqual([]);
+  expect(await rulesHit(layered(`@variant motion-reduce { :where(${guarded}) .p { opacity: 1; } }`), FLOOR_FILE)).toEqual([]);
+  expect(await rulesHit(layered(`@variant motion-reduce { :is(${guarded}, .other) .p { opacity: 1; } }`), FLOOR_FILE)).toEqual([rule]);
   // A variant prefix in `@apply` is read too; a sheet cannot guard it.
   expect(await rulesHit(layered(".probe { @apply motion-reduce:opacity-50; }"))).toEqual([rule]);
   expect(await rulesHit(layered(".probe { @apply hover:not-contrast-more:opacity-50; }"))).toEqual([rule]);

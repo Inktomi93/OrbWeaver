@@ -1,7 +1,7 @@
 // ZERO HYGIENE (#409) — the fleet's one home for "absent evidence is never a verdict".
 //
 // The rule the ast scan ledger already speaks for a zero-scan run ("a zero-scan run is a TOOL ERROR,
-// never a clean no-results", tooling/src/ast/lib/ledger.ts) said for every measuring instrument here:
+// never a clean no-results") said for every measuring instrument here:
 // a probe whose APPARATUS was absent (no `__orb` bridge, no in-page meter, no observability middleware)
 // or whose EVIDENCE POPULATION was empty (no composited frame, no censused node, no span) has measured
 // NOTHING — and `0%` / `no findings — clean` / `PASS` over nothing is a claim about the app that

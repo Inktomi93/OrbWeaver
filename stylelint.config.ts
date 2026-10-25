@@ -2,9 +2,12 @@
 // directives declared, the house value allow-lists, and the orb/ rules (client-architecture-lockdown.md §4.4).
 // Biome formats CSS and lints nothing in it, so every CSS check has one owner here.
 import { join } from "node:path";
+import { unsupportedAtFloor } from "@orb/tooling/browser-support";
 import type { Config } from "stylelint";
 import { appearanceChannelVocabulary } from "./packages/client/appearance-channel.build.ts";
+import { BROWSER_TARGETS, HARMLESS_WHEN_UNSUPPORTED } from "./packages/client/browser-targets.ts";
 import tokens from "./packages/ui/src/tokens/tokens.json" with { type: "json" };
+import { browserSupportCssPlugin } from "./stylelint-browser-support.ts";
 import { CUSTOM_PROPERTY_RULES } from "./stylelint-custom-properties.ts";
 import {
   APPEARANCE_UNIT_CONVERSION,
@@ -70,7 +73,13 @@ const config: Config = {
   extends: ["stylelint-config-standard"],
   // Codemod fixtures are data: an input spells the old form on purpose.
   ignoreFiles: ["**/dist/**", "**/node_modules/**", "**/codemods/*/tests*/**"],
-  plugins: [...CSS_RULES, ...CUSTOM_PROPERTY_RULES, "stylelint-value-no-unknown-custom-properties", "stylelint-plugin-logical-css"],
+  plugins: [
+    ...CSS_RULES,
+    ...CUSTOM_PROPERTY_RULES,
+    browserSupportCssPlugin(unsupportedAtFloor(BROWSER_TARGETS)),
+    "stylelint-value-no-unknown-custom-properties",
+    "stylelint-plugin-logical-css",
+  ],
   reportNeedlessDisables: true,
   reportDescriptionlessDisables: true,
   reportUnscopedDisables: true,
@@ -83,11 +92,17 @@ const config: Config = {
     "orb/no-raw-media-condition": [true, { containerSteps }],
     "orb/shadow-from-ingredients": true,
     "orb/appearance-name-in-manifest": [true, appearance],
+    "orb/browser-support-css": [true, { harmless: HARMLESS_WHEN_UNSUPPORTED }],
     "orb/no-undeclared-var-fallback": true,
+    "orb/no-lifecycle-keyframes": true,
     // Compositor hacks: a permanent layer hint or a backface flip promotes a layer the browser would not, and costs memory on
     // the small devices this app runs on. Animate transform, translate, scale, rotate, opacity and filter.
     "property-disallowed-list": ["/^--leading-[a-z-]+$/", "will-change", "backface-visibility", "-webkit-overflow-scrolling"],
-    "declaration-property-value-disallowed-list": { "/^(?:-webkit-)?transform$/": ["/translate(?:3d|Z)\\(/i"] },
+    "declaration-property-value-disallowed-list": {
+      "/^(?:-webkit-)?transform$/": ["/translate(?:3d|Z)\\(/i"],
+      // `all` fades a focus ring and animates the layout vars Base UI recomputes live; a transition names its properties.
+      "/^transition(?:-property)?$/": ["/(?:^|[\\s,])all(?:$|[\\s,])/i"],
+    },
     "declaration-property-value-allowed-list": {
       "line-height": [...leadings, "/^var\\(--orb-tier-[a-z-]+-leading\\)$/"],
       "/^--orb-tier-[a-z-]+-leading$/": leadings,

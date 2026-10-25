@@ -53,7 +53,7 @@ const RAIL_TRACK_CLASSES = "auto-cols-[minmax(max-content,1fr)] overflow-x-auto"
  *  CACHES elementwise: a ResizeObserver fires on every layout pass that touches the track — the pane
  *  resizing, a scrollbar appearing, a modal opening over the shell — and a fresh object each time
  *  re-renders the whole rail for a value that did not change (MEASURED: that churn raced the command
- *  palette's focus restore and flaked `app-shell.ct.tsx`). `cellCount` keys the subscribe so a new tab
+ *  palette's focus restore). `cellCount` keys the subscribe so a new tab
  *  set re-subscribes and re-measures; every other input arrives through the observer, which is why
  *  nothing else is enumerated. */
 function useTrackOverflow(trackRef: RefObject<HTMLDivElement | null>, cellCount: number): RailOverflow {

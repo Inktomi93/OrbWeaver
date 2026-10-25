@@ -25,10 +25,9 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ChangeEvent, ReactElement } from "react";
 import { useState } from "react";
-import { useTRPC } from "#data";
+import { useSuspenseQuery, useTRPC } from "#data";
 import { REGEX_PLACEMENT_LABELS, regexScriptTitle } from "#lib";
 // `REGEX_SKIP_REASONS` is imported as a TYPE: the tuple is only ever read in a `typeof` position here (the
 // mapped `SKIP_COPY` Record), so a value import would pull it into the bundle for nothing.

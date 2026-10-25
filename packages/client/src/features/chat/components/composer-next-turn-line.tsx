@@ -59,7 +59,7 @@ export function ComposerNextTurnLine({ chatId, availability, id }: ComposerNextT
     // container's, or the fill's left edge stops matching the composer's. This line sits below the
     // composer's opaque card, directly on the room's art. The transcript's translucent reading plate has a
     // stated dark-arm hole for a custom pivot palette (D144(d)), so the line takes an opaque fill: `bg-card`'s
-    // AA floor is proven for every ink it paints (`palette-contrast.suite.test.ts`). No `rounded-card`: a text
+    // AA floor holds for every ink it paints. No `rounded-card`: a text
     // backdrop is not a second elevated surface (UI-Density-Law.md §3/§5.1).
     <Track of={Container} track="composer" className="py-tight" ground="card">
       <Text

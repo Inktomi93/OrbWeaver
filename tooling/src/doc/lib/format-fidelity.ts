@@ -100,7 +100,7 @@ function tablesOf(tree: MarkdownNode): readonly MarkdownNode[] {
  * corpus: 0 overflowing rows, and 0 rows in the harmless narrow direction either. This is a FORWARD
  * guard — the three live instances were repaired in #2104, and every older one was already NORMALIZED by
  * a past format run that widened its header, which is why a width check cannot see them (the roster
- * `Core-Enforcement-Active-Gates.md:74` is uniformly 7 wide, header and all 300 rows). The detector for
+ * of the retired active-gates roster was uniformly 7 wide, header and all). The detector for
  * that residue is a TRAILING UNNAMED HEADER COLUMN, a separate arm with a 19-table blast radius that is
  * not this policy's to ship. So this arm's proof is a PLANTED control in its family test, never a corpus
  * count — a zero here means "nothing has gone wrong yet", never "I could not measure".

@@ -71,7 +71,7 @@ export const CORPUS_SUGGEST_LIMIT = 8;
 
 /** How many suggestions the typeahead RENDERS — what the shared `Autocomplete` `inline` list can show
  *  without scrolling (its box is a fixed ~4-row scroller so it can never grow this pane). Measured against
- *  the rendered box in `corpus-list-surface.ct.tsx`, not guessed. */
+ *  the rendered box, not guessed. */
 export const CORPUS_SUGGEST_SHOWN = 4;
 
 /** A suggestion worth offering: it reads as a phrase. Letters/digits/marks plus the punctuation names carry

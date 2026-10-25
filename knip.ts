@@ -39,6 +39,7 @@ export const config = {
         // The CT gallery discovers story modules by glob (playwright/index.tsx), which knip cannot follow.
         "tests/**/*-stories.tsx!",
         // The Stylelint config imports its rule table from this sibling, which holds the postcss-value-parser import.
+        "stylelint-browser-support.ts",
         "stylelint-rules.ts",
         "playwright/**/*.{ts,tsx}",
         // The CT Vite transform reads this stylesheet as text rather than through an ESM import.

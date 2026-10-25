@@ -77,7 +77,7 @@ const jsonOnlyFetch: NonNullable<Parameters<typeof httpBatchLink>[0]["fetch"]> =
  *      `info.accept === "application/jsonl"` branch). Our
  *      `entry/app.ts` mounts `responseMeta: ({ errors }) => rateLimitResponseMeta(errors)`, so
  *      `Retry-After` + `X-RateLimit-Remaining` would stop being sent on EVERY rate-limited response —
- *      and no test would go red for it: `app.test.ts` calls `rateLimitResponseMeta` directly with a
+ *      and a unit that calls `rateLimitResponseMeta` directly with a
  *      populated array, so the unit stays green while the wire header disappears.
  *   2. It breaks the whole CT data layer. The link sends `trpc-accept: application/jsonl` and feeds
  *      `res.body` to `jsonlStreamConsumer` with NO plain-JSON fallback on a 2xx; the CT network stub
@@ -123,7 +123,7 @@ export function createTrpcClient(url: string = TRPC_URL): TrpcClient {
 /**
  * The non-hook options proxy — production always gets its `Trpc` via `useTRPC()` inside
  * `TRPCProvider`'s context (e.g. `useInvalidation`); this is the headless equivalent for node-lane
- * tests that build a `Trpc` outside a React render (`invalidation.test.ts`). Same return shape as
+ * tests that build a `Trpc` outside a React render. Same return shape as
  * `useTRPC()`.
  */
 export function createTrpcProxy(client: TrpcClient, queryClient: QueryClient): Trpc {

@@ -15,9 +15,8 @@ import type { ChatId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useTRPC } from "#data";
+import { useSuspenseQuery, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
 import { fireDetailLine, fireOutcomeView, triggerLabel } from "../lib/rule-copy.ts";
 

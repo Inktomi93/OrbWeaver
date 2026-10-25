@@ -8,8 +8,7 @@
 // on it. A room has a chat row from the creation click, so the projection is the committed one and `null`
 // means exactly "nothing is open".
 
-import { useSuspenseQueries } from "@tanstack/react-query";
-import { useMultiHumanCapable, useTRPC } from "#data";
+import { useMultiHumanCapable, useSuspenseQueries, useTRPC } from "#data";
 import type { ChatContextState } from "#lib";
 import { useActiveChatId } from "#state";
 

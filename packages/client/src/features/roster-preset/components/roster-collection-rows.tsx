@@ -11,10 +11,9 @@
 
 import type { RosterPresetSummary } from "@orb/contracts/roster-preset";
 import { Stack } from "@orb/ui/layout";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { LibraryRow } from "#components";
-import { useInvalidation, useTRPC } from "#data";
+import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { CollectionListView } from "#lib";
 import { clearCollectionSelection } from "#state";
 import { useRemoveRosterPreset } from "../hooks/use-roster-preset-mutations.ts";

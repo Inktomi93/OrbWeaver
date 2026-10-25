@@ -17,10 +17,9 @@ import { Icon, Users } from "@orb/ui/icons";
 import { Grid, Stack } from "@orb/ui/layout";
 import { coarsePointerNow } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import type { FocusEvent, ReactElement } from "react";
 import { useId, useLayoutEffect, useRef, useState } from "react";
-import { useStartChat, useTRPC } from "#data";
+import { useStartChat, useSuspenseQuery, useTRPC } from "#data";
 import { resumeChat, setActiveSection } from "#state";
 
 const TRACK_SEPARATOR = /\s+/u;

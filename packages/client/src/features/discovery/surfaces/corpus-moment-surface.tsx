@@ -6,10 +6,9 @@ import { Button } from "@orb/ui/button";
 import { Section, Stack } from "@orb/ui/layout";
 import { Markdown } from "@orb/ui/markdown";
 import { Text } from "@orb/ui/text";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
-import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import type { CorpusDestination } from "#lib";
 import { openChatMoment, resumeChat } from "#state";
 import { CorpusArtifactFrame } from "../components/corpus-artifact-frame.tsx";
@@ -25,7 +24,7 @@ const SOURCE_OUTCOME_TEXT: Readonly<Record<CorpusSourceOutcome, string>> = {
   unavailable: "This source has no available transcript anchor.",
 };
 
-// Arrival focus lives in another pane (a reasoned home of `orb/surface-a11y-focus` in eslint.config.js): CorpusArtifactFrame owns Back to Explore focus; corpus-moment-surface.ct.tsx asserts that arrival target.
+// Arrival focus lives in another pane (a reasoned home of `orb/surface-a11y-focus` in eslint.config.js): CorpusArtifactFrame owns Back to Explore focus; the corpus moment CT asserts that arrival target.
 export function CorpusMomentSurface({ destination }: { readonly destination: Moment }): ReactElement {
   const source = destination.hit.source;
   const title = chatSubtitle(destination.hit.chatTitle, destination.kind === "digest" ? destination.hit.scopedCharacterName : destination.characterName);

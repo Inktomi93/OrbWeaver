@@ -121,8 +121,8 @@ const EGRESS_CAPABILITIES = ["net.fetch", "net.fetch_asset"] as const satisfies 
 // THE MINT'S BYTE BUDGET (#1803, the #1391 fork). `pluginToolWireName` (`registrations.ts`) mints
 //  `plugin_<slug'>_<name>` where `slug'` doubles every hyphen, and the ONE registry grammar `TOOL_NAME_RE`
 //  (`packages/server/src/domain/tool-use/contract/params.ts`) refuses a name over 64 bytes. Contracts
-//  cannot import server (the cake), so the 64 here is PINNED to that regex by a cross-package test
-//  (`tests/contracts/plugin/registrations.contract.test.ts`), never a second guess at the number.
+//  cannot import server (the cake), so the 64 here must match that regex,
+//  never a second guess at the number.
 //
 //  BEFORE THIS BUDGET EXISTED a plugin whose slug+name flattened past 64 bytes registered nothing useful:
 //  the mint ran unconditionally, activation proceeded, and only `registerPluginTool`'s downstream

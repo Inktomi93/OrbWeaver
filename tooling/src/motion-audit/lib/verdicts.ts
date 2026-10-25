@@ -39,7 +39,7 @@ export function framePopulationBasis(total: number): "uncomputable" | "collapsed
 const RELATED_REACT_SCRIPT_PATH = /\/node_modules\/(?:\.vite(?:-\d+)?\/deps\/)?react(?:-dom)?(?:[./_-]|$)/u;
 
 /** The three CLS numbers a report must show. Split from `report` so the verdict rule is unit-testable
- *  (tests/tooling/motion-audit.test.ts) without a browser: a synthetic virtualized shift must move `raw`
+ *  (tests/tooling/motion-audit/index.test.ts) without a browser: a synthetic virtualized shift must move `raw`
  *  and leave `budgeted` alone. A snapshot from a bridge that predates the split (`undefined` fields) is
  *  read as "nothing classified virtualized", i.e. the pre-#109 behavior — never as a free pass. */
 export function clsTotals(motion: MotionSnapshot | null): { raw: number; virtualized: number; budgeted: number } {

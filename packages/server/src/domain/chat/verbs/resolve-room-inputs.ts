@@ -138,7 +138,7 @@ export function createChatRoomInputs(deps: ChatRoomInputDeps): ChatRoomInputs {
     }): ReturnType<ChatRoomInputs["resolveForeignInputs"]> => {
       const us = await deps.loadUserSettings(runAsUserId);
 
-      // A feature-supplied GM-voice preset REDIRECT (docs/plans/rpg/design.md) wins over the host's default when it
+      // A feature-supplied GM-voice preset REDIRECT (D58) wins over the host's default when it
       // resolves owned-or-system under the host; a stale/unowned override degrades to the host's normal default
       // (the lenient-id rule — never a broken turn). Absent ⇒ the host default (byte-identical to today).
       const { config: promptConfig, presetId, presetName } = await resolvePromptConfigWithOverride(runAsUserId, presetOverride, us.seeds.defaultPresetId);

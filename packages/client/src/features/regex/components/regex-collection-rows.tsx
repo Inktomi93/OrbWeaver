@@ -45,10 +45,9 @@ import { Stack } from "@orb/ui/layout";
 import { MenuItem } from "@orb/ui/menu";
 import { Text } from "@orb/ui/text";
 import { VirtualList } from "@orb/ui/virtual-list";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { LibraryRow } from "#components";
-import { useInvalidation, useTRPC, useTRPCClient } from "#data";
+import { useInvalidation, useSuspenseQuery, useTRPC, useTRPCClient } from "#data";
 import type { CollectionListView } from "#lib";
 import {
   COLLECTION_LARGE_GROUP,

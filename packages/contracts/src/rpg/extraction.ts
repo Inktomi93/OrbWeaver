@@ -7,7 +7,7 @@
 // vehicle, scrubs it for the endpoint and hands back a reply already normalized (a null the reshape introduced is
 // dropped; this contract has no nullable field, so every null the parse sees is a model error).
 //
-// THE SHARED-PLANE PROOF (the amendment's "the 7 plane shapes authored ONCE, exposed two ways"): this schema
+// THE SHARED-PLANE PROOF (the 7 plane shapes authored ONCE, exposed two ways): this schema
 // is DERIVED from the SAME per-tool arg schemas the cheap-mode D48 tools use (`./tools`) — it does NOT re-spell
 // the plane shapes. Each field is an ARRAY of the corresponding tool's args (a structured extraction emits many
 // actor/quest/journal writes in one object where cheap-mode fires one tool call each). It is therefore
@@ -334,7 +334,7 @@ export function constrainExtractionSchema<S extends Record<string, unknown>>(sch
  * F4 — the CACHE-STABLE projection of a per-call ref bundle: the same bundle with every field that derives from
  * LIVE SCENE STATE neutralized, so two calls one turn apart produce a BYTE-IDENTICAL tool payload.
  *
- * WHY (measured, `scripts/probes/openrouter/RESULTS.md` F4): the OpenAI-compat `tools` field sits UPSTREAM of the
+ * WHY (measured, the OpenRouter probe F4): the OpenAI-compat `tools` field sits UPSTREAM of the
  * Anthropic cached prefix — changing 360 bytes of one tool dropped `cached_tokens` 2841 → 0 and re-billed the
  * WHOLE prefix at the 1.25× write rate (~10× that turn on a 10k prefix). The FOLDED turn (D112 R1) mounts these
  * tools on the CHARACTER turn, whose prefix is otherwise stable (the rpg state block rides an `in_chat` depth-0

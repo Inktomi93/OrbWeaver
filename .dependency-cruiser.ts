@@ -452,6 +452,10 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/character/lib/character-card-facets.ts": "facetFillState and CHARACTER_CARD_FACET_IDS: the feature-private facet model",
     "packages/client/src/features/character/lib/character-card-form-model.ts": "DEFAULT_CHARACTER_CARD_FORM: the empty form the facet model reads",
   },
+  "tests/client/lib/platform-polyfills.test.ts": {
+    "packages/client/src/lib/platform-polyfills.ts": "the polyfill entry main.tsx imports for its side effect; it exports nothing for a door to forward",
+    "packages/client/src/lib/platform-shims.ts": "regExpEscape and isError: the shims the entry installs, compared with the builtins",
+  },
   "tests/client/features/app-shell/lib/command-shortcut-label.test.ts": {
     "packages/client/src/features/app-shell/lib/command-shortcut-label.ts": "commandShortcutLabel: the feature-private platform key hint",
   },
@@ -888,8 +892,9 @@ const CLIENT_BOUNDARIES = [
   },
   {
     name: "client-nothing-imports-main",
+    comment: "Only the page's entry script (entry.ts, which loads main.tsx after the polyfills) imports the composition root.",
     severity: "error",
-    from: { path: CLIENT, pathNot: `${CLIENT}main\\.tsx$` },
+    from: { path: CLIENT, pathNot: `${CLIENT}(main\\.tsx|entry\\.ts)$` },
     to: { path: `${CLIENT}main\\.tsx$` },
   },
   {

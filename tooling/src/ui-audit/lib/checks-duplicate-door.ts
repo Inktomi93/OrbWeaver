@@ -1,6 +1,6 @@
 // The duplicate-action-door family (the runtime half of issue #252) — split out of checks-quality.ts
 // (#1720) once the allowance mechanism pushed that file over the tooling-size cap; a monolith is exactly
-// the drawer @orb/tooling exists to end (docs/law/Core-Tooling-Law.md §4.3). Pure.
+// the drawer @orb/tooling exists to end. Pure.
 // Provenance: lib/collect.ts header; walker: ops/walker/census-interactive.ts.
 import type { Finding, RulePopulationAccounting } from "../contract/findings.ts";
 import type { ActionDoorInput } from "../contract/samples.ts";
@@ -87,7 +87,7 @@ function isViewSwitchCell(door: ActionDoorInput): boolean {
 }
 
 /** A RULED duplicate-action door (#1720) — the RUNTIME family's counterpart to the static gate's
- *  `EXEMPT_PROCEDURES` (`tooling/src/verify/gates/duplicate-action-doors.ts`), which censuses tRPC
+ *  `EXEMPT_PROCEDURES` (the retired duplicate-action-doors gate), which censused tRPC
  *  mutation call sites per rail section and cannot see a ruling this `${role}|${name}` grouping catches
  *  instead. Before this table, the finding's own message ("if a second door is ruled UX, the ruling is
  *  what makes it one") pointed at a mechanism that did not exist. Keyed on the grouping key itself so a

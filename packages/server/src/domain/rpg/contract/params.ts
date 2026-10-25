@@ -1,5 +1,5 @@
 // domain/rpg/contract/params — the internal param shapes the persistence + substrate slots + VERBS take
-// (docs/plans/rpg/design.md). These are DOMAIN-INTERNAL types (a verb-to-persistence contract), homed in
+// (D58). These are DOMAIN-INTERNAL types (a verb-to-persistence contract), homed in
 // the domain's own `contract/` (never `@orb/contracts/rpg`, which is the cross-boundary wire surface). The
 // verb params (below the persistence params) carry the caller's `Principal` — the authority the verb resolves
 // through the injected `getMembership` op (§4.4); wire types the verb RETURNS live in `@orb/contracts/rpg`.
@@ -46,7 +46,7 @@ interface SnapshotWriteBase {
 }
 
 /** The TURN-arm write target (D124): the committed assistant slot + variant a turn FLUSH is keyed to
- *  (docs/plans/rpg/design.md). A snapshot is variant-keyed IFF it was produced by that variant's own turn flush —
+ *  (D58). A snapshot is variant-keyed IFF it was produced by that variant's own turn flush —
  *  this target is the only shape that can express it. */
 export interface TurnSnapshotTarget extends SnapshotWriteBase {
   readonly messageId: MessageId;
@@ -148,7 +148,7 @@ export interface ExtractionMints {
 }
 
 /** A journal entry a tool staged mid-turn — flushed at commit stamped with the COMMITTED variant's id
- *  (docs/plans/rpg/design.md). The `variantId`/`sourceMessageId` are supplied by the flush, not the tool; `id` and
+ *  (D58). The `variantId`/`sourceMessageId` are supplied by the flush, not the tool; `id` and
  *  `createdAt` do not exist until persistence mints them. */
 export interface StagedJournalEntry {
   readonly type: string;

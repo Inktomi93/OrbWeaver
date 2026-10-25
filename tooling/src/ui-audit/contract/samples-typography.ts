@@ -2,7 +2,7 @@
 // own face + size census (`FontFaceInput`/`FontCensusInput`), judged by lib/checks-typography.ts and
 // lib/checks-font-census.ts. Split out of contract/samples.ts at #2487: that file was at the 450-line
 // `tooling-size` cap with ZERO headroom, which had already cost `RawSamples.documentFrame` its own doc
-// comment — the trade Core-Tooling-Law.md §4.3 now names as the one the cap never accepts. These three
+// comment, a trade the cap never accepts. These three
 // are the largest single FAMILY the composition hub still spelled inline, and they move as a unit
 // because `FontCensusInput` is a list of `FontFaceInput`.
 // Re-exported from contract/samples.ts, which composes them into `RawSamples`. Provenance: samples.ts.

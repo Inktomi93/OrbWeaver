@@ -20,10 +20,9 @@ import { Card } from "@orb/ui/card";
 import { Row, Stack } from "@orb/ui/layout";
 import { RevealGate } from "@orb/ui/reveal-gate";
 import { Text } from "@orb/ui/text";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
-import { QueryErrorState, useTRPC } from "#data";
+import { QueryErrorState, useSuspenseQuery, useTRPC } from "#data";
 import { Kicker } from "./rpg-kicker.tsx";
 import { RpgTurnRef } from "./rpg-turn-ref.tsx";
 

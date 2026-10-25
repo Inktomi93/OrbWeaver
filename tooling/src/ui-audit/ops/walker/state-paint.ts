@@ -25,8 +25,8 @@
 //
 // THE GLOW-LAYER VOCABULARY IS A SIBLING, state-glow.ts (#2494). It was an arm of this segment until
 // this file hit the 450 cap, where `tooling-size` reds on the next field — so the next addition here
-// lands as a sibling module too, never as an arm and never by deleting a comment to buy its line
-// (docs/law/Core-Tooling-Law.md §4.3). Both compositions carry the pair in order.
+// lands as a sibling module too, never as an arm and never by deleting a comment to buy its line.
+// Both compositions carry the pair in order.
 import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");

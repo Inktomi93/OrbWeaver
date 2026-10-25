@@ -365,7 +365,7 @@ interface BuildAssembleContextInput {
   /** The `{{databank}}` slot value (DB6) — reading-order-restored, budget-fitted document chunks. Absent ⇒
    *  the slot resolves empty (byte-identical to a non-databank turn). */
   readonly databank?: string | null | undefined;
-  /** The 8 rpg* data-fed macro values (docs/plans/rpg/design.md), keyed by the RpgGatherMacros field names — a game
+  /** The 8 rpg* data-fed macro values (D58), keyed by the RpgGatherMacros field names — a game
    *  turn's GATHER stages this. Absent ⇒ every rpg macro resolves empty (byte-identical non-game turn). */
   readonly rpgMacros?: Readonly<Record<string, string>> | undefined;
   // A game turn's `{{expr::…}}` CEL activation (§12) — the data-only `rpg` binding (the tracker view as a CelValue

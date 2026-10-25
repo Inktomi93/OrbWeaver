@@ -34,6 +34,7 @@ paths:
 
 ## Layout and CSS
 
+- `orb/browser-support` (ESLint) and `orb/browser-support-css` (Stylelint) refuse an API, property, value keyword or at-rule that a browser in `packages/client/browser-targets.ts` lacks. Guard a script use with `"x" in el` or `typeof X` on the same receiver, and a style with an `@supports` that names it. A polyfilled builtin (`POLYFILLED_BUILTINS`) needs no guard: `src/entry.ts` awaits its install before it loads the app graph. The guard forms are in each rule's header.
 - A layout or balance fix measures both width ends, any crossover, and every appearance variant.
 - A child carrying `flex:*` under a non-flex parent means the parent needs `display:flex`.
 - In a row of truncating text plus a must-not-shrink cluster, floor the cluster with `min-content`/`shrink-0` and give the text `min-width:0` plus truncate. Never do the reverse.
@@ -52,6 +53,7 @@ paths:
 ## React state and effects
 
 - The client and `@orb/ui` are React-Compiler compiled. Manual `memo`/`useMemo`/`useCallback` are banned outside the gate-exempted files. Diagnose re-render cost as a subscription or virtualization cost, not a missing memo.
+- Import `useSuspenseQuery`, `useSuspenseQueries` and `useSuspenseInfiniteQuery` from `#data`; each checks for a `QueryBoundary` above it. `useInfiniteQuery` belongs only to `createCollectionSurface`.
 - Never read or write `ref.current` during render, including passing a ref into a render-called function. Use setState-during-render with a prev check, or `useState`.
 - A controlled Base UI popover closed by your own `setOpen(false)` does not fire `onOpenChange`. Route every close path through one setter.
 - `.then(fn, fn)` with a void-returning handler resolves instead of propagating a rejection. Use `.finally()` for cleanup.

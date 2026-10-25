@@ -36,8 +36,8 @@
 // animation (re)starts only when its selector transitions from not-matching to matching, so `restart`
 // below removes every flip attribute, forces ONE style read, and re-stamps. The forced read happens ONLY
 // on that path: on the ordinary first toggle nothing is live and nothing is flushed, which is what keeps
-// the #151 corridor intact (forcing a layout in this effect unconditionally was a measured WRONG fix —
-// app-shell.ct.tsx says so beside its corridor arm).
+// the #151 corridor intact (forcing a layout in this effect unconditionally was a measured WRONG fix; the
+// corridor census in app-shell-motion.ct.tsx catches the jolt it causes).
 //
 // WHY AN ATTRIBUTE AND NOT THE MODE ITSELF: keying the keyframes off `data-list-mode` would replay the
 // entrance on FIRST PAINT, because the rule matches from the very first style resolution — motion the
@@ -54,8 +54,8 @@
 // app-shell is the shell tier and is exempt for exactly this class of layout/appearance root effect.
 
 import type { RefObject } from "react";
-import { useLayoutEffect, useRef } from "react";
-import { motionIsReduced } from "#lib";
+import { useEffect, useLayoutEffect, useRef } from "react";
+import { holdFlipInPhase, motionIsReduced } from "#lib";
 import type { PanelMode, PanelName } from "#state";
 
 /** The two attribute names each track owns. A mapped `Record` over `PanelName`, so the day a third shell
@@ -77,16 +77,13 @@ function eachTrack(visit: (track: PanelName) => void): void {
   visit("context");
 }
 
-/** The flip every door arms, on `.shell-main`: the timeline a carrier mounted mid-door joins. */
-const MAIN_FLIP = "shell-main-flip";
-
 /** The keyframe names shell.css arms on a track flip. The release below listens for the END of one of
  *  THESE — an `animationend` bubbling up from anything else inside the shell (a shimmer, a toast) must
  *  never drop a live FLIP. This is the JS half of a JS↔CSS name coupling and this Set is its one home;
- *  `app-shell.ct.tsx` pins that the attribute is actually released after a real toggle, so a renamed
+ *  app-shell-motion.ct.tsx pins that the attribute is actually released after a real toggle, so a renamed
  *  keyframe reds a test instead of silently pinning the attribute forever. */
-const SHELL_FLIP_ANIMATIONS = new Set([
-  MAIN_FLIP,
+const SHELL_FLIP_ANIMATIONS: ReadonlySet<string> = new Set([
+  "shell-main-flip",
   "shell-trail-flip",
   "shell-centre-flip",
   "shell-list-band-flip",
@@ -98,12 +95,6 @@ const SHELL_FLIP_ANIMATIONS = new Set([
  *  between those two moves no content and must not animate. */
 function occupiesTrack(mode: PanelMode): boolean {
   return mode === "docked";
-}
-
-/** Is `animation` one of the shell's own track FLIPs? `CSSAnimation` is the only `Animation` subclass
- *  that carries an `animationName`, which is what makes this question answerable at all. */
-function isShellFlip(animation: Animation): animation is CSSAnimation {
-  return animation instanceof CSSAnimation && SHELL_FLIP_ANIMATIONS.has(animation.animationName);
 }
 
 /** THE REDUCED-MOTION SETTLE (#262): hold the counter-translate for exactly ONE painted frame, then drop
@@ -137,17 +128,16 @@ function settleWithoutMotion(grid: HTMLDivElement, direction: Partial<Record<Pan
 }
 
 /** Arm the animated FLIP for the tracks that moved, and hand back the release that drops the attributes.
- *  The release fires on the first `animationend` of one of the shell's own FLIP keyframes — every element
- *  this arms starts in the SAME style resolution and shares `--shell-motion`, so they finish together and
- *  one end is the end of all of them (that co-motion invariant is shell.css's own, asserted by the
- *  "co-motion parity" CT).
+ *  The release fires when {@link holdFlipInPhase} says the FLIP stopped: on the first `animationend` of one
+ *  of the shell's own FLIP keyframes — every element this arms starts in the SAME style resolution and
+ *  shares `--shell-motion`, so they finish together and one end is the end of all of them — or when a
+ *  viewport change cancels every one.
  *
  *  THE NO-ANIMATION ARM IS SYNCHRONOUS, not a frame hop and not a timeout: the phone block cancels every
  *  FLIP rule (`animation: none`), so on a phone nothing starts, no `animationend` ever fires, and the
  *  attribute would otherwise sit on the grid until the next toggle — which is the exact state #2456
  *  exists to abolish. `getAnimations()` flushes pending STYLE (never layout — the #151 wrong fix forced
- *  layout here and made `.shell-main` jolt for two frames; app-shell.ct.tsx's corridor arm still watches
- *  for it), which is the same recalculation the animation's own creation needs, so asking immediately is
+ *  layout here and made `.shell-main` jolt for two frames), which is the same recalculation the animation's own creation needs, so asking immediately is
  *  both cheap and conclusive. It also costs no `requestAnimationFrame`: the shell's rAF budget is
  *  observed elsewhere (`use-command-shortcut.ts`'s own pending-frame CT counts every request in the
  *  document), so a frame hop here would be a shell-wide side effect for a phone-only tidy-up. */
@@ -158,67 +148,15 @@ function flipWithMotion(grid: HTMLDivElement, direction: Partial<Record<PanelNam
       grid.setAttribute(TRACK_ATTRS[track].flip, value);
     }
   });
-  // `.shell-main` animates on every door and stays mounted through it; a row or a closing pane's flip can be cancelled
-  // mid-door and would take the timeline with it.
-  const reference = grid.getAnimations({ subtree: true }).find((animation) => isShellFlip(animation) && animation.animationName === MAIN_FLIP);
-  const joiner = joinInPhase(grid, reference);
-  const release = (): void => {
-    joiner.disconnect();
-    grid.removeEventListener("animationend", onEnd);
+  const hold = holdFlipInPhase(grid, SHELL_FLIP_ANIMATIONS, release);
+  function release(): void {
+    hold?.();
     eachTrack((track) => grid.removeAttribute(TRACK_ATTRS[track].flip));
-  };
-  function onEnd(event: AnimationEvent): void {
-    if (SHELL_FLIP_ANIMATIONS.has(event.animationName)) {
-      release();
-    }
   }
-  grid.addEventListener("animationend", onEnd);
-  if (reference === undefined) {
+  if (hold === null) {
     release();
   }
   return release;
-}
-
-/**
- * A carrier mounted while the flip is in flight (a message row the virtual list adds when the rows reflow) matches
- * the flip rule on insertion and would start its own FLIP from the `from` corner, out of phase with every box armed at
- * the stamp, and stray from its corridor. The observer runs after the commit that inserted it and before that frame's
- * style and paint; `getAnimations()` creates the new element's animation there, and it joins the reference's timeline.
- */
-function joinInPhase(grid: HTMLDivElement, reference: Animation | undefined): MutationObserver {
-  const observer = new MutationObserver((records) => {
-    if (reference !== undefined) {
-      for (const node of records.flatMap((record) => Array.from(record.addedNodes))) {
-        joinFlip(node, reference);
-      }
-    }
-  });
-  if (reference !== undefined) {
-    observer.observe(grid, { childList: true, subtree: true });
-  }
-  return observer;
-}
-
-/** Put every shell flip under an inserted node on the reference's timeline: the same start time, so the two advance as
- *  one. Setting only the current time would leave a pending newcomer a frame behind once it becomes ready. */
-function joinFlip(node: Node, reference: Animation): void {
-  if (!(node instanceof Element)) {
-    return;
-  }
-  // A newcomer inserted before the reference's first frame can stay pending past it, so it joins once the reference
-  // has a start time. A cancelled reference (a restart) rejects `ready`, and its own restart re-arms everything.
-  if (reference.startTime === null) {
-    reference.ready.then(
-      () => joinFlip(node, reference),
-      () => undefined,
-    );
-    return;
-  }
-  for (const animation of node.getAnimations({ subtree: true })) {
-    if (isShellFlip(animation)) {
-      animation.startTime = reference.startTime;
-    }
-  }
 }
 
 /** Stamp the flip direction on the shell grid whenever EITHER track's width changes. No-op on the first
@@ -295,4 +233,11 @@ export function useShellTrackFlip(gridRef: RefObject<HTMLDivElement | null>, lis
     // The mechanism (one painted frame, two rAFs, why) is `settleWithoutMotion`'s own docblock.
     live.current = motionIsReduced() ? settleWithoutMotion(grid, direction) : flipWithMotion(grid, direction);
   }, [gridRef, listMode, contextMode]);
+  // A shell unmounted mid-FLIP releases it, so no observer or listener outlives the grid.
+  useEffect(
+    () => (): void => {
+      live.current?.();
+    },
+    [],
+  );
 }

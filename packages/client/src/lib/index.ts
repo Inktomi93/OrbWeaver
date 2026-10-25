@@ -116,6 +116,7 @@ export {
 } from "./embedder-rebuild.ts";
 export { AppErrorBoundary } from "./error-boundary.tsx";
 export { publishFlankHost, publishInlineFlankFit, setFlankSheetOpen, useFlankHost, useFlankSheetOpen, useInlineFlankFits } from "./flank-placement.ts";
+export { holdFlipInPhase } from "./flip-phase.ts";
 export type { SendRefusalKey } from "./injection-copy.ts";
 export {
   ADD_CONNECTION_PATH,

@@ -37,11 +37,10 @@ import type { LucideIcon } from "@orb/ui/icons";
 import { Code, Icon, MessagesSquare, SlidersHorizontal, Users } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 import { RegexScopeOrder, SettingSwitchRow } from "#components";
-import { useInvalidation, useTRPC } from "#data";
+import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { deriveChatTitle, regexScriptTitle, rowQualifiers, timeLib } from "#lib";
 import { useAttachRegexGlobal, useDetachRegexGlobal } from "../hooks/use-regex-library.ts";
 

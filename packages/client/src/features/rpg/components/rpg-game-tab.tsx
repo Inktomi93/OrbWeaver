@@ -25,11 +25,10 @@ import { Crown, Eye, EyeOff, Icon, Lock, LockOpen, Plus, RotateCcw, Trash2 } fro
 import { Row, Stack } from "@orb/ui/layout";
 import { TrackBar } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useId, useState } from "react";
 import { QueryBoundary, SettingCheckboxRow, Tip } from "#components";
-import { QueryErrorState, SkeletonRows, useInvalidation, useReattributePersona, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useInvalidation, useReattributePersona, useSuspenseQuery, useTRPC } from "#data";
 import { notify } from "#lib";
 import { setContextTab } from "#state";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";

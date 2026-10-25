@@ -71,7 +71,7 @@ test("contradictory stage sources and locations refuse by name with exit 3, whil
  *  `--os-reduced-motion` or `--cpuprofile` and there is no one left to refuse BY NAME — the spellings
  *  were grep-fixed at their call sites instead. What this pins is that they are GONE, not merely
  *  undocumented: still exit 3, still a named token in the message, and the parser must not have quietly
- *  re-acquired one as a second spelling for a live flag (Core-Tooling-Law.md §1's half-migration ban).
+ *  re-acquired one as a second spelling for a live flag: that would be half a migration.
  *  `--profile → --react-profile` stays a NAMED refusal beside them as the control: it is a measured ASK
  *  from agents who never used a retired spelling at all, which is the different thing that table is for. */
 test("the retired sibling spellings are gone outright, while a measured ask still refuses by name", () => {

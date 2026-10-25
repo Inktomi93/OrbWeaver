@@ -9,10 +9,9 @@ import { BookOpen, Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Select } from "@orb/ui/select";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
-import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { useAttachBookToPersona, useDetachBookFromPersona } from "../hooks/use-persona-lorebooks.ts";
 
 const NONE_VALUE = "none";

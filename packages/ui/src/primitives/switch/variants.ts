@@ -77,8 +77,8 @@ import { DISABLED_STATE, FOCUS_RING, FOCUS_RING_DESTRUCTIVE, TOUCH_TARGET_PSEUDO
 // samples, so `snap --contrast '[data-slot=switch-thumb]'` on settings:chat-behavior resolved the ON knob
 // (`--color-primary-foreground`, 31,16,7) against a band that was 72% PAGE (`--color-background`, 15,12,10)
 // and printed FILL 1.05:1 FAIL for a knob measuring ~7:1 against the ember track it actually sits on. The
-// instrument was right and the geometry was the defect; the surround clause is pinned from the framebuffer
-// in switch.ct.tsx, in both states and all three seeds.
+// instrument was right and the geometry was the defect; the surround clause is measured from the framebuffer
+// in both states and all three seeds.
 //
 // THE QUIET STATE IS THE QUIET ONE — the OFF THUMB's ink, not its geometry (#1090; side-eye F10/E3
 // 2026-08-30, re-measured 2026-09-02 and machine-detected by `design-audit`'s `quiet-state` P2 in every

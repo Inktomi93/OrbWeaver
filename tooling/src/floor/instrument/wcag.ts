@@ -115,7 +115,7 @@ export type InactiveKind = (typeof INACTIVE_KINDS)[number];
  *  THE NATIVE ARM READS THE VENDOR SPELLING TOO (`[data-disabled]`), and that is not a widening — it is
  *  the mechanism-match this codebase's own laws already state. A Base UI COMPOSITE root is a `<div>`: it
  *  structurally cannot match `:disabled`, so the pseudo alone is blind to every disabled Slider, Select,
- *  Toggle and Switch in the app (`tooling/src/ui-audit/RULE-AUTHORING.md` row 3 is this exact class —
+ *  Toggle and Switch in the app (`tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md` row 3 is this exact class —
  *  "Base UI never sets the CSS pseudo for its own state, it sets a JS-driven `data-*`"), while
  *  `ops/walker/state-paint.ts`'s classified vocabulary already declares the conclusion in writing:
  *  `data-disabled` is OUT of the interaction-paint set precisely because it is "WCAG 1.4.3

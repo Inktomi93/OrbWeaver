@@ -6,8 +6,7 @@
 // product. The census below is the denominator that verdict rests on.
 //
 // AT THE CAP (449/450): the next addition lands as a SIBLING module — evidence-viewport-frame.ts is the
-// precedent — never as an arm here, and never by deleting a comment to buy its line
-// (docs/law/Core-Tooling-Law.md §4.3).
+// precedent — never as an arm here, and never by deleting a comment to buy its line.
 
 import type { SettingsShimEvidence, ThemeResolutionEvidence } from "@orb/tooling/floor/appearance/appearance";
 import type { ThemeRequest } from "@orb/tooling/floor/appearance/theme";

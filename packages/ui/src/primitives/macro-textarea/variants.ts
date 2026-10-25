@@ -15,7 +15,7 @@ export const macroTextareaVariants = tv({
     // textarea skin's `field-sizing: content`) but a caller can still pull it taller by hand
     // (persona-panel redesign — a long description wants more room on demand).
     // THE LINE-LENGTH CAP (#2465). Uncapped, the prose editor painted 100.25 characters per line at its
-    // real 828px mount (measured, macro-textarea.ct.tsx) — a third again past the design law's 65-75 band.
+    // real 828px mount (measured) — a third again past the design law's 65-75 band.
     //
     // WHY `--reading-measure` AND NOT `--reading-measure-prose`, WHICH THE ROW NAMED. This field is
     // MONOSPACE, so one CSS `ch` IS one typographic character here. The prose measure's 47ch carries the

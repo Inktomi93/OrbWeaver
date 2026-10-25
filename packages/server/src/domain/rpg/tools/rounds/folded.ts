@@ -32,7 +32,7 @@ import { logExtractionOutcome, logToolCallLosses } from "./round-log.ts";
  *  decides at request-build time whether the turn's connection can actually carry them (and hands back a `null`
  *  channel when it can't, which the flush reads as "fall back to the post-commit round").
  *
- *  F4 — CACHE-STABLE REFS ON THIS VEHICLE ONLY (`scripts/probes/openrouter/RESULTS.md` F4, option b). These
+ *  F4 — CACHE-STABLE REFS ON THIS VEHICLE ONLY (the OpenRouter probe F4, option b). These
  *  tools ride the CHARACTER turn, so they are the FIRST bytes of its cached prefix: a live-state ref enum here
  *  re-bills the entire story prefix (~10× that turn) every time an NPC walks on or a condition is gained. The
  *  rest of that prefix is stable by construction — the volatile state block is an `in_chat` depth-0 injection,

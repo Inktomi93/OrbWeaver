@@ -23,9 +23,8 @@
 import { HOME_RECENT_CHATS_LIMIT } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { Row, Stack } from "@orb/ui/layout";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useTRPC } from "#data";
+import { useSuspenseQuery, useTRPC } from "#data";
 import { resumeChat } from "#state";
 import { splitHearth } from "../lib/home-hearth.ts";
 import { ChatSummaryRow } from "./chat-summary-row.tsx";

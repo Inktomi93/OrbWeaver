@@ -128,7 +128,7 @@ function SequenceChips({ form, name, legend, hint, noun, unsetWhenEmpty }: Seque
                 );
               })}
               {/* Outside a `Field` there is no context-injected `aria-labelledby` to outrank it, so this is the
-                  box's actual accessible name (pinned in params-deck.ct.tsx by role+name). */}
+                  box's actual accessible name. */}
               <Input aria-label={`Add ${noun}`} onKeyDown={add} placeholder="add…" />
             </Row>
           </Fieldset>

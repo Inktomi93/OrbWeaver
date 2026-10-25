@@ -15,7 +15,7 @@ export const emptyStateVariants = tv({
     // `@container` (contain: inline-size — its inline size ignores its own contents), so a flex parent with
     // `align-items: center` gives it `align-self: center` and it collapses toward 0, dropping the description
     // to one word per line (the automation-settings 63px ribbon). Filling the slot defeats that in EVERY
-    // consumer at once — no re-parent can silently narrow it. Measured by empty-state.ct.tsx.
+    // consumer at once — no re-parent can silently narrow it.
     root: "@container flex flex-col items-center gap-block py-section text-center inline-full @max-cq-24:gap-row @max-cq-24:py-block",
     decoration: "",
     icon: "text-muted-foreground",

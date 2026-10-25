@@ -4,8 +4,8 @@
 // THIS FILE IS THE COMPOSITION HUB FOR A FAMILY OF `samples-*.ts` SIBLINGS, and that is the shape to keep:
 // a new sample family lands as a sibling re-exported from here, NEVER as another inline block. It sat at
 // the 450-line `tooling-size` cap with zero headroom until #2487, where the cap had already been paid in
-// the wrong currency — `documentFrame` lost its doc comment to fit. Core-Tooling-Law.md §4.3 owns that
-// rule now; the typography family moved out to contract/samples-typography.ts to make the room.
+// the wrong currency — `documentFrame` lost its doc comment to fit, a trade the
+// cap never accepts; the typography family moved out to contract/samples-typography.ts to make the room.
 import type { InactiveKind, Rgb } from "@orb/tooling/floor/instrument/wcag";
 // `Backdrop` MOVED to contract/backdrop.ts (see its header). Imported locally because the shapes below
 // USE it, and re-exported below so its consumers keep one import.
@@ -352,6 +352,6 @@ export interface RawSamples extends RelationalSamples {
    *  exists to end. The full ruling (why the HEIGHT pair is carried and never judged, and why `worst` is
    *  a bounded list beside a complete `total`) is on `DocumentFrameInput` in contract/samples-evidence.ts.
    *  RESTORED at #2487: this comment was deleted to buy the one line the field cost when this file sat at
-   *  the 450-line cap — see Core-Tooling-Law.md §4.3 for why that trade is now named and refused. */
+   *  the 450-line cap, a trade the cap never accepts. */
   readonly documentFrame: DocumentFrameInput;
 }

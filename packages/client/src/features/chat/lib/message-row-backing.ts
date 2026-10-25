@@ -46,7 +46,7 @@ import { WALLPAPER_PLATE } from "@orb/ui/lib";
 // text-shadow "bubbles carry their own fill" — but these three don't), so their body text landed DIRECTLY
 // on the photo → 2.0–2.4:1 on bright (sky) patches, the house §0 reading-surface #1 defect. Back the text
 // with the derived `--color-reading-plate` + `backdrop-blur-sm` (blur collapses the bright peaks a flat
-// plate alone can't; the alpha floor is proven in palette-contrast.suite.test.ts) — AND ink the plate
+// plate alone can't; the plate carries a proven alpha floor) — AND ink the plate
 // from the same palette: `text-prose-body`, the theme's reading ink, clamped for legibility against the
 // base by the §7a prose-ink clamp (clamp.ts). Without the ink half, flat/hush painted a carried theme's
 // plate under the VIEWER's inherited foreground — the #204 defect. Applied to `skin.inner` (the bubble)
@@ -148,7 +148,7 @@ export const BG_PHOTO_PAGER_PLATE =
 // at `READING_BAND_ALPHA`, emitted beside the plate by the same clamp, so a carried
 // palette moves both together or neither. Its ink is the PAIRED `text-foreground` (#204), the base's own
 // derived neutral — the same ink the wallpaper chip pairs with its plate, and the pairing
-// `palette-contrast.suite.test.ts` floors this surface against. It is no longer a ramp member, so
+// the palette contrast floor holds this surface to. It is no longer a ramp member, so
 // `text-card-foreground` would now be naming a different palette root than its fill (on orb's own themes
 // the two resolve identically — card-foreground IS foreground — so this is byte-identical there and
 // load-bearing only under a carried palette, exactly like the plate's own pairing).
@@ -163,7 +163,7 @@ export const BG_PHOTO_PAGER_PLATE =
 // four scroll depths on a settled row carrying prose + a code block + a table + a blockquote in a real
 // 240px scrollport, `document.elementFromPoint` returned the BAND at every sampled point of its own box —
 // nothing in the row's content out-paints it. The paint order stated below is correct and intact; what
-// failed was opacity, not z-order. The hit-test survives as a fence in message-row.ct.tsx.
+// failed was opacity, not z-order.
 //
 // Applied only to rows the virtualizer MEASURED as exceeding the scrollport (`MessageListRowMeta`), so a
 // normal-length message is byte-identical to before — no chip, no sticky, no new stacking context.

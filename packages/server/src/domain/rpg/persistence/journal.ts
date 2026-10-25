@@ -1,4 +1,4 @@
-// domain/rpg/persistence/journal — the VARIANT-AWARE archive store (docs/plans/rpg/design.md, ratification #1).
+// domain/rpg/persistence/journal — the VARIANT-AWARE archive store (D58, ratification #1).
 // Model entries stamp their producing `variantId` (CASCADE — a dead swipe's entries vanish); hand entries
 // stamp NULL (every-lineage room truth). The READ projects the ACTIVE lineage: an entry renders iff
 // `variantId IS NULL` OR its variant is the SELECTED variant of its message — a derive-don't-stamp join
@@ -33,7 +33,7 @@ const NO_FLOOR = 0;
 // Unresolved visibility withholds anchored canon without hiding anchorless hand entries.
 const FAIL_CLOSED_FLOOR = Number.MAX_SAFE_INTEGER;
 
-/** The active-lineage projection (docs/plans/rpg/design.md): entries visible under the current swipe selection —
+/** The active-lineage projection (D58): entries visible under the current swipe selection —
  *  `variantId IS NULL` (hand/room, every lineage) OR the entry's variant is the SELECTED variant of its
  *  message. Newest-first, paged (limit/offset). The join to `messages` via `message_variants.messageId`
  *  keys the selected-variant check off the live pointer, so a swipe re-projects with no journal writes.

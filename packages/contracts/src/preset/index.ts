@@ -67,10 +67,10 @@ const MAX_SEPARATOR_LENGTH = 64;
 
 // The deploy's OWN `CLAUDE_CODE_*` pins — the isolation set the subprocess builder writes
 // (`infra/providers/backends/agent-sdk/env.ts` `ISOLATION_PINS`, which is typed BY this tuple, so the two
-// cannot drift) plus the ./CLAUDE.md suppression each builder sets. THE NAMES LIVE HERE, IN CONTRACTS,
+// cannot drift) plus the project-memory suppression each builder sets. THE NAMES LIVE HERE, IN CONTRACTS,
 // BECAUSE THE WRITE SCHEMA MUST REFUSE THEM (#1536): they sit inside the `CLAUDE_*` namespace the hatch
 // admits, so an allowlist that stopped at the namespace let a preset re-enable auto-memory, background
-// tasks, cron, the full system prompt, ./CLAUDE.md injection or the cache-churning attribution header inside
+// tasks, cron, the full system prompt, project-memory injection or the cache-churning attribution header inside
 // the RP subprocess — or UNSET any of them with `null`. Their VALUES stay in the server: what the pin is
 // set to is a deploy decision, only WHICH NAMES are host-owned is shared vocabulary.
 const CLAUDE_ISOLATION_PIN_KEYS = [
@@ -90,7 +90,7 @@ const CLAUDE_ISOLATION_PIN_KEYS = [
 ] as const;
 /** The pin names the server's `ISOLATION_PINS` record is keyed by — a missing or extra pin is a tsc error. */
 export type ClaudeIsolationPinKey = (typeof CLAUDE_ISOLATION_PIN_KEYS)[number];
-/** Every `CLAUDE_*` name a preset may neither set nor unset: the isolation pins plus the ./CLAUDE.md
+/** Every `CLAUDE_*` name a preset may neither set nor unset: the isolation pins plus the project-memory
  *  suppression (set per-builder rather than through the pin record, hence the append). */
 export const HOST_OWNED_CLAUDE_ENV_KEYS = [...CLAUDE_ISOLATION_PIN_KEYS, "CLAUDE_CODE_DISABLE_CLAUDE_MDS"] as const;
 const HOST_OWNED_CLAUDE_ENV_KEY_SET: ReadonlySet<string> = new Set<string>(HOST_OWNED_CLAUDE_ENV_KEYS);
@@ -2834,7 +2834,7 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
       enabled: true,
     },
     // Attached documents feed out of the box: seated immediately after `memory` ("exactly parallel to
-    // {{memory}}"; the rpg GM preset's `continuity` region, docs/plans/rpg/design.md).
+    // {{memory}}"; the rpg GM preset's `continuity` region, D58).
     {
       type: "marker",
       id: "databank",
@@ -3637,7 +3637,7 @@ export interface PresetSummary {
    * (`#primitives/stored-config`), so before this field the user saw a defaults-looking editor, typed into it, and
    * got a generic save failure — the refusal was correct and completely invisible until it was too late.
    * It is projected from the SAME `promptConfigConfig.parseOutcome(row.config, row.schemaVersion)` call the
-   * guard makes (`../substrate/views.ts`), so the state the editor renders cannot disagree with the refusal
+   * guard makes (`packages/server/src/domain/preset/substrate/views.ts`), so the state the editor renders cannot disagree with the refusal
    * the write would produce.
    *
    * The KIND crosses, not just a boolean, because the two failures have OPPOSITE repairs: a

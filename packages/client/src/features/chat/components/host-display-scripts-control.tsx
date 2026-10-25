@@ -14,10 +14,9 @@
 // display leg runs on the way to the DOM and nowhere else.
 
 import type { ChatId } from "@orb/kit/ids";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { SettingSwitchRow } from "#components";
-import { useInvalidation, useTRPC } from "#data";
+import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { useSetHostDisplayScripts } from "../hooks/use-context-panel-mutations.ts";
 
 export interface HostDisplayScriptsControlProps {

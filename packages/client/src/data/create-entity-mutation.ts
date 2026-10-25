@@ -131,7 +131,9 @@ interface OptimisticOwner {
 const optimisticOwners = new WeakMap<QueryClient, Map<string, symbol>>();
 
 function claimOptimisticOwner(queryClient: QueryClient, readKey: QueryKey): OptimisticOwner {
-  const owners = optimisticOwners.getOrInsertComputed(queryClient, () => new Map());
+  // `getOrInsertComputed` is not in the browser floor (Chrome 145, Firefox 144, Safari 26.2).
+  const owners = optimisticOwners.get(queryClient) ?? new Map<string, symbol>();
+  optimisticOwners.set(queryClient, owners);
   const owner = { queryHash: hashKey(readKey), token: Symbol("optimistic-mutation") };
   owners.set(owner.queryHash, owner.token);
   return owner;

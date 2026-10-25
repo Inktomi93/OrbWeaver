@@ -40,9 +40,8 @@
 
 import type { PromptConfig } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import { useRef, useState } from "react";
-import { useInvalidation, useTRPC } from "#data";
+import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { getSelectedPresetId, retargetPresetSectionDrill, selectPreset } from "#state";
 import { notifyBuiltInFork } from "../lib/active-preset-notice.ts";
 import { mergeOnSubmit } from "../lib/preset-editor-model.ts";

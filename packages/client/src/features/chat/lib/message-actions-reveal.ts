@@ -7,12 +7,12 @@
 // every turn = the dominant chat noise source. The Wave-1 "opacity-0 in-flow starves a flex sibling"
 // P0 that the dim-at-rest ruling guarded against is ABSENT here: opacity + pointer-events change NO
 // layout, so the cluster keeps its box (footprint identical at rest vs revealed), and the name row has
-// measured positive slack (message-row.ct.tsx geometry pin) — nothing gets starved. `pointer-events` is
+// measured positive slack — nothing gets starved. `pointer-events` is
 // flipped in lockstep with opacity so a hidden cluster is also non-interactive at rest (and re-enabled
 // exactly where it becomes visible); keyboard users reach every action by tab-focusing the row
 // (group-focus-within reveals) and the ⋯ menu keeps hide/copy/delete reachable without a hover.
 // The rest-hidden fragment (`HIDDEN_UNTIL_HOVER`) is a hover-capability VARIANT, so it lives at the shell/shared layer
-// (`#components/pointer-variants.ts`, gate `no-pointer-variants-in-features`) and is composed in here.
+// (`#components/pointer-variants.ts`, `POINTER_CLASSES` in `eslint.config.ts`) and is composed in here.
 import { HIDDEN_UNTIL_HOVER } from "#components";
 
 const FOCUS_REVEAL =

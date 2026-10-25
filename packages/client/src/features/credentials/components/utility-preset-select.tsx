@@ -6,9 +6,8 @@ import { ROLE_PRESET_CHOICE_KINDS } from "@orb/contracts/settings";
 import { Row, Stack } from "@orb/ui/layout";
 import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
-import { useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useInvalidation, useTRPC } from "#data";
+import { useInvalidation, useSuspenseQueries, useTRPC } from "#data";
 import { useSetUtilityPreset } from "../hooks/use-connections-mutations.ts";
 
 // A preset id is a prefixed TypeID, so neither option value can collide with one.
