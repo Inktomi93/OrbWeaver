@@ -5,9 +5,9 @@ import type { CodeEditorDiagnostic } from "@orb/ui/code-editor";
 import { CodeEditor } from "@orb/ui/code-editor";
 import type { ReactElement } from "react";
 import { OWNER_CSS_RENAMES } from "#owner-css";
-import { OWNER_CSS_COMPLETIONS } from "#src/owner-css/completions.ts";
-import { themeCssHookWarnings } from "#src/owner-css/warnings.ts";
 import { OWNER_CSS_SURFACE } from "../../../../owner-css-surface.ts";
+import { OWNER_CSS_COMPLETIONS } from "../lib/theme-css-completions.ts";
+import { themeCssHookWarnings } from "../lib/theme-css-warnings.ts";
 
 export function ThemeCssField({ value, onChange }: { readonly value: string; readonly onChange: (next: string) => void }): ReactElement {
   const { errors, warnings } = validateThemeCss(value);

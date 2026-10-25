@@ -1,8 +1,8 @@
 // The theme editor's autocomplete, read straight off the generated surface: each context offers only the hooks
 // of the kind that fits it.
 import type { CodeEditorCompletionOption, CodeEditorCompletionRule } from "@orb/ui/code-editor";
-import { OWNER_CSS_SURFACE } from "../../owner-css-surface.ts";
-import type { OwnerCssHookKind } from "./hook.ts";
+import type { OwnerCssHookKind } from "#owner-css";
+import { OWNER_CSS_SURFACE } from "../../../../owner-css-surface.ts";
 
 const optionsOf = (kind: OwnerCssHookKind, detail: string): readonly CodeEditorCompletionOption[] =>
   OWNER_CSS_SURFACE.filter((hook) => hook.kind === kind).map((hook) => ({ label: hook.name, detail }));

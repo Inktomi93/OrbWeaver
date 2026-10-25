@@ -1,6 +1,6 @@
 import type { CodeEditorDiagnostic } from "@orb/ui/code-editor";
-import type { OwnerCssHook, OwnerCssHookKind, OwnerCssRename } from "./hook.ts";
-import { scanHooks } from "./scan.ts";
+import type { OwnerCssHook, OwnerCssHookKind, OwnerCssRename } from "#owner-css";
+import { scanHooks } from "#owner-css";
 
 const SPELLING: Record<OwnerCssHookKind, (name: string) => string> = {
   slot: (name) => `[data-slot="${name}"]`,

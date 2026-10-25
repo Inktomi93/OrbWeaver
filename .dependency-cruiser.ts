@@ -466,6 +466,18 @@ const PACKAGE_TEST_REACHES = {
   "tests/client/features/workloads/lib/import-notes.dom.test.ts": {
     "packages/client/src/features/workloads/lib/portability-model.ts": "summarizeCardImport: the feature-private import summary",
   },
+  "tests/client/features/config/lib/theme-css-warnings.test.ts": {
+    "packages/client/src/features/config/lib/theme-css-warnings.ts":
+      "themeCssHookWarnings: the feature-private stale-hook check over a planted surface and rename table",
+  },
+  "tests/client/owner-css/rewrite.test.ts": {
+    "packages/client/src/owner-css/rewrite.ts":
+      "rewriteRenamedHooks: the rename rewrite over a planted table; the production table is empty until a hook is renamed",
+  },
+  "tests/client/owner-css-surface.repo.int.test.ts": {
+    "packages/client/src/owner-css/hook.ts": "OWNER_CSS_HOOK_KINDS: the kinds the generated surface must cover",
+    "packages/client/src/owner-css/renames.ts": "OWNER_CSS_RENAMES: the production table the surface test reconciles against the generated surface",
+  },
   "tests/client/lib/appearance-carrier-manifest.test.ts": {
     "packages/client/src/lib/appearance-carrier-manifest.ts":
       "the carrier manifest tables the suite reconciles; the lib door forwards only the owner keys production reads",
