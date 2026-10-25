@@ -638,6 +638,61 @@ test.describe("the doors in an open room", () => {
   });
 });
 
+test.describe("a row mounted mid-door", () => {
+  test("joins the list door's flip in phase instead of starting its own from the corner", async ({ corpus, mount, page }) => {
+    await seedShellState(page, BOTH_DOCKED);
+    await routeMotion(page, corpus);
+    await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
+    await expect(page.locator(DOOR_BOXES.row).first()).toBeVisible();
+    await waitForShellIdle(page);
+    // The tracks already mounted, kept in page memory so the read below can tell a newcomer from them.
+    await page.evaluate(() => {
+      Reflect.set(globalThis, "__tracksAtRest", new Set(document.querySelectorAll(".orb-chat-track")));
+    });
+    // Press the door and scroll the transcript up as soon as its flip starts, so the virtual list mounts the rows above
+    // while the flip is in flight. The read waits for the first frame a newcomer is painted in, then compares each newcomer's centre
+    // flip with `.shell-main`'s, which was armed at the stamp; it gives up when the door's flip ends.
+    const read = await page.getByRole("button", { name: "Hide list panel", exact: true }).evaluate(async (button) => {
+      const frame = (): Promise<number> => new Promise((resolve) => requestAnimationFrame(resolve));
+      const scroller = document.querySelector('[data-slot="message-list-scroll"]');
+      if (scroller === null || !(button instanceof HTMLElement)) {
+        throw new Error("The transcript scroller or the door button is absent");
+      }
+      const atRest = Reflect.get(globalThis, "__tracksAtRest") as Set<Element>;
+      const flip = (element: Element | null, name: string): Animation | undefined =>
+        element?.getAnimations().find((candidate) => (candidate as CSSAnimation).animationName === name);
+      button.click();
+      // The stamp lands in the door's passive effect; scroll on the first frame its flip exists.
+      let reference = flip(document.querySelector(".shell-main"), "shell-main-flip");
+      while (reference === undefined) {
+        await frame();
+        reference = flip(document.querySelector(".shell-main"), "shell-main-flip");
+      }
+      scroller.scrollTop = 0;
+      let newcomers: Element[] = [];
+      while (reference.playState === "running" && newcomers.length === 0) {
+        await frame();
+        newcomers = Array.from(document.querySelectorAll(".orb-chat-track")).filter((track) => !atRest.has(track));
+      }
+      // Read in the next painted frame, over the newcomers still mounted then: the list drops rows it scrolled past.
+      await frame();
+      const mounted = Array.from(document.querySelectorAll(".orb-chat-track")).filter((track) => !atRest.has(track));
+      return {
+        reference: reference.playState === "running" ? Number(reference.currentTime) : null,
+        newcomers: mounted.map((track) => {
+          const animation = flip(track, "shell-centre-flip");
+          return animation === undefined ? null : Number(animation.currentTime);
+        }),
+      };
+    });
+    expect(read.reference, "the door's flip had already finished, so the read proves nothing").not.toBeNull();
+    expect(read.newcomers.length, "the scroll mounted no row mid-door, so the read proves nothing").toBeGreaterThan(0);
+    for (const time of read.newcomers) {
+      expect(Math.abs((time ?? Number.NaN) - (read.reference ?? Number.NaN))).toBeLessThan(1);
+    }
+  });
+});
+
 test.describe("the doors at rem 20", () => {
   test("docking the list at 1280, where the reading cap binds while docked, holds the shell's boxes", async ({ corpus, mount, page }) => {
     await page.setViewportSize(WIDE);
