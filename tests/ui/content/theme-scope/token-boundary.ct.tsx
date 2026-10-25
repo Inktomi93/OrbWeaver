@@ -52,7 +52,7 @@ test("hostile color values drop per field and nested scopes inherit the valid ou
     "expression(alert(1))",
     "red; background: url(//theme-boundary.invalid/image)",
     "javascript:alert(1)",
-    "var(--x)",
+    "var(--color-primary)",
     "linear-gradient(red, blue)",
     `#${"a".repeat(200)}`,
   ]) {

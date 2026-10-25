@@ -76,7 +76,7 @@ test("a fallback does not excuse a custom property nothing declares", async () =
   // Declared in a sheet, registered by the generated channel, written at runtime, or written by a vendor.
   expect(await rulesHit(declaration("color: var(--color-primary, red);"))).toEqual([]);
   expect(await rulesHit(declaration("opacity: var(--appearance-font-scale, 1);"))).toEqual([]);
-  expect(await rulesHit(declaration("inset-inline-start: var(--x, 50%);"))).toEqual([]);
+  expect(await rulesHit(declaration("inset-inline-start: var(--orb-media-x, 50%);"))).toEqual([]);
   expect(await rulesHit(declaration("color: var(--shiki-dark, currentcolor);"))).toEqual([]);
   expect(await rulesHit(declaration("inline-size: var(--anchor-width, 0);"))).toEqual([]);
   // The probe's own declaration counts.
