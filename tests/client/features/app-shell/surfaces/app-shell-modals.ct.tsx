@@ -8,7 +8,7 @@ import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { channelName } from "../../../lib/appearance-channel-names.ts";
 import type { AppShellModalStory, AppShellStory } from "./_app-shell-stories.tsx";
-import { routeShell, SHELL_STORIES } from "./app-shell-ct.tsx";
+import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;
 const MODAL_STORY = `${SHELL_STORIES}/AppShellModalStory`;

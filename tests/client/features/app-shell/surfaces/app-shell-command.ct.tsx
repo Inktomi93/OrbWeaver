@@ -1,10 +1,11 @@
 // The command palette through the production shell: its click and chord doors, the shortcut's own filter and
 // lifetime, focus return, and the result viewport's geometry while filtering.
+import { dispatchCommandKey } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { AppShellModalStory, AppShellStory } from "./_app-shell-stories.tsx";
-import { dispatchCommandKey, JUMP_CHIP, PHONE, SHELL_STORIES } from "./app-shell-ct.tsx";
+import { JUMP_CHIP, PHONE, SHELL_STORIES } from "./app-shell-ct.ts";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;
 const MODAL_STORY = `${SHELL_STORIES}/AppShellModalStory`;
