@@ -134,6 +134,11 @@ export interface ListRowProps {
    */
   actionsFloat?: boolean;
   /**
+   * Hides the `actions` cluster at rest and reveals it on the row's hover or focus-within, opacity only, so the
+   * cluster keeps its box and nothing reflows. A coarse pointer has no hover, so the cluster stays visible there.
+   */
+  revealActions?: boolean;
+  /**
    * WHICH box wears the hover/selected tint. Default `body`. Pass `row` when the `actions` cluster is IN
    * FLOW and reveal-gated: the cluster is a sibling of the body, so a body-painted tint stops before it and
    * the controls sit on the pane background instead of on the row. `row` paints the ROOT, so the glyphs ride
@@ -264,6 +269,7 @@ export function ListRow({
   markers,
   actions,
   actionsFloat = false,
+  revealActions = false,
   stackActions = false,
   stackActionsAt = "cq-32",
   rowTint = "body",
@@ -281,6 +287,7 @@ export function ListRow({
     density,
     clickable,
     float: actionsFloat,
+    revealActions,
     stackActions,
     stackActionsAt,
     subtitleWrap,

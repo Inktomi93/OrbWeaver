@@ -61,7 +61,14 @@ const UA_RENDERED_INTERIOR: Record<NonNullable<InputProps["type"]>, boolean> = {
  *
  * Usage: `<Input placeholder="Search…" value={query} onValueChange={setQuery} />`
  */
-export function Input({ className, layout, width, ...rest }: InputProps): ReactElement {
+export function Input({ className, layout, width, numeric, ...rest }: InputProps): ReactElement {
   const uaInteriorUnset = rest.type !== undefined && UA_RENDERED_INTERIOR[rest.type] && rest.value === "";
-  return <BaseInput className={cn(inputVariants({ layout }), className)} data-slot="input-root" {...(uaInteriorUnset ? { "data-empty": "" } : {})} {...rest} />;
+  return (
+    <BaseInput
+      className={cn(inputVariants({ layout, width, numeric }), className)}
+      data-slot="input-root"
+      {...(uaInteriorUnset ? { "data-empty": "" } : {})}
+      {...rest}
+    />
+  );
 }

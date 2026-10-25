@@ -49,6 +49,11 @@ export const inputVariants = tv({
       "avatar-md": "inline-(--size-avatar-md)",
       "avatar-lg": "inline-(--size-avatar-lg)",
     },
+    // Tabular figures, for the edit twin of a numeric datum, so the typed digits keep the rest state's columns.
+    numeric: {
+      true: "tabular-nums",
+      false: "",
+    },
   },
-  defaultVariants: { layout: "field", width: "full" },
+  defaultVariants: { layout: "field", width: "full", numeric: false },
 });

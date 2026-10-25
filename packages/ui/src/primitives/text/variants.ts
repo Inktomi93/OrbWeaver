@@ -1,4 +1,4 @@
-import { tv } from "#lib";
+import { HIDDEN_AT, SR_ONLY_AT, TONE_INK, tv } from "#lib";
 
 // Shared by both <Text> and <Heading>. `weight` rides Tailwind's built-in font-weight utilities — no
 // DTCG weight token exists today. `code` rides `leading-label-relaxed` — the 13px continuous-reading box
@@ -141,6 +141,10 @@ export const textVariants = tv({
       // (a hash is not a column of numbers). Resolves the same step the `size="code" tone="muted"` pair
       // produced; call sites that carried `className="tabular-nums"` beside the old pair keep it.
       datumMono: "font-mono text-code leading-label-relaxed font-normal tracking-normal text-muted-foreground",
+      // MACHINE TEXT YOU READ OR COPY: an id, a hash, a key, an address. Geist Mono at the
+      // code step in the foreground ink. Its nearest neighbour is `datumMono`, the same face and step receded to the
+      // muted ink for a readout that stands behind its label; `code` is the value itself, so it keeps the foreground.
+      code: "font-mono text-code leading-label-relaxed font-normal tracking-normal text-foreground",
       // The DECORATIVE DISPLAY GLYPH (added S6): a single-letter mark an immersive chat row skin paints on
       // its own band/tile fill — aria-hidden ornament, not prose. None of the four CONTENT voices fits it
       // (each would shrink a glyph whose entire job is to BE large), and the alternative at the call site
@@ -186,15 +190,22 @@ export const textVariants = tv({
     lines: {
       2: "line-clamp-2 whitespace-normal orb-lines-2",
     },
-    tone: {
-      // The base supplies default ink; leaving this empty preserves each voice colour.
-      default: "",
-      muted: "text-muted-foreground",
-      accent: "text-primary",
-      destructive: "text-destructive",
-      success: "text-success",
-      warning: "text-warning",
+    // Colour by meaning: a feature picks the meaning, never a colour class. `default`
+    // keeps each voice's own ink.
+    tone: TONE_INK,
+    // A struck-through line: a cancelled quest, a disabled prompt section. Not colour, so it pairs with any tone.
+    strike: {
+      true: "line-through",
+      false: "",
     },
+    // TABULAR FIGURES for a composite that sets its own step and still shows ticking numbers (TrackerValue's
+    // `numeric`). A feature readout takes a voice; this is the figures half of one, for a primitive's internals.
+    numeric: {
+      true: "tabular-nums",
+      false: "",
+    },
+    hiddenAt: HIDDEN_AT,
+    srOnlyAt: SR_ONLY_AT,
     // Filled controls own their ink, even when the child supplies a voice or tone.
     ink: {
       /** Take the surrounding control's ink. The ONLY correct value for text inside a filled control. */
@@ -203,5 +214,5 @@ export const textVariants = tv({
       voice: "",
     },
   },
-  defaultVariants: { size: "body", weight: "regular", tone: "default", transform: "none", prose: false, ink: "voice" },
+  defaultVariants: { size: "body", weight: "regular", tone: "default", transform: "none", prose: false, ink: "voice", strike: false, numeric: false },
 });

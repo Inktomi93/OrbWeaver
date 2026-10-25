@@ -7,7 +7,9 @@ import {
   DISABLED_STATE_NATIVE,
   FOCUS_RING,
   FOCUS_RING_ON_STATE_RING,
+  HIDDEN_AT,
   SELECTED_FILL,
+  TOUCH_FLOOR_AT_COARSE,
   TOUCH_TARGET_PSEUDO,
   tv,
 } from "#lib";
@@ -83,6 +85,10 @@ export const buttonVariants = tv({
       // characters-mockups rationale §1). A radius differentiates nothing unless
       // something paints it, so the shape axis only starts working once the pill is drawn.
       outline: `border border-border bg-transparent text-current ${ACCENT_HOVER} active:bg-accent/80`,
+      // An ACTION SPELLED AS A LINK: an underlined run inside prose or a gloss line that
+      // does something in place. Navigation is an anchor, not this. No fill at any state, because a link-shaped
+      // control that grows a box on hover is a button pretending; the hover is the ink, the press the scale.
+      link: "bg-transparent text-primary underline hover:text-primary/80 active:text-primary/70",
     },
     size: {
       ...CONTROL_SIZE,
@@ -209,6 +215,9 @@ export const buttonVariants = tv({
        *  ring to a red-blind reader); the strike says "not this one" on its own. */
       negated: `border-transparent ${SELECTED_FILL} line-through inset-ring-2 inset-ring-destructive ${FOCUS_RING_ON_STATE_RING}`,
     },
+    hiddenAt: HIDDEN_AT,
+    // A glyph-only chip is narrower than the touch floor at a coarse pointer; its `sm` height already clears it.
+    touchFloor: { inline: TOUCH_FLOOR_AT_COARSE.inline },
   },
   defaultVariants: { intent: "primary", size: "md", shape: "control", selection: "none" },
 });

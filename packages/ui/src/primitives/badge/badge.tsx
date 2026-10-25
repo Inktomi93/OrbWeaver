@@ -22,7 +22,7 @@ export interface BadgeProps extends ComponentProps<"span">, VariantProps<typeof 
  * in it (#1798). Render it with no children and `aria-hidden`; the fact it marks belongs in the host
  * control's accessible name, and its POSITION belongs to the call site. See the variant's own note.
  */
-export function Badge({ className, intent, tone, size, ...props }: BadgeProps): ReactElement {
+export function Badge({ className, intent, tone, size, touchFloor, ...props }: BadgeProps): ReactElement {
   // The className AND the `data-intent`/`data-tone`/`data-size` axis stamp, from ONE selection object (#1080).
-  return <span data-slot="badge" {...props} {...variantProps(badgeVariants, { intent, tone, size }, className)} />;
+  return <span data-slot="badge" {...props} {...variantProps(badgeVariants, { intent, tone, size, touchFloor }, className)} />;
 }
