@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "@orb/testkit/tooling";
 import { generateArtifacts } from "@orb/ui/tokens-build";
 import { OWNER_CSS_SURFACE_PATHS, readOwnerCssSources, renderOwnerCssSurface } from "../../packages/client/owner-css-surface.build.ts";
+import { OWNER_CSS_SURFACE } from "../../packages/client/owner-css-surface.ts";
 
 const REPO_ROOT = fileURLToPath(new URL("../..", import.meta.url));
 const UI_ROOT = join(REPO_ROOT, "packages/ui");
@@ -18,5 +19,5 @@ test("theme.css, tokens/index.ts and themes.gen.ts are what tokens:build generat
 });
 
 test("owner-css-surface.ts is what surface:build generates", () => {
-  expect(committed(OWNER_CSS_SURFACE_PATHS.manifest)).toBe(renderOwnerCssSurface(readOwnerCssSources(REPO_ROOT)));
+  expect(committed(OWNER_CSS_SURFACE_PATHS.manifest)).toBe(renderOwnerCssSurface(readOwnerCssSources(REPO_ROOT), OWNER_CSS_SURFACE));
 });
