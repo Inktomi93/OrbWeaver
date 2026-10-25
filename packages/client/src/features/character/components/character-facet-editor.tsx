@@ -46,10 +46,6 @@ export interface CharacterFacetEditorProps {
   readonly onBack: () => void;
 }
 
-function spoilerClass(blur: boolean): string | undefined {
-  return blur ? "select-none blur-md" : undefined;
-}
-
 export function CharacterFacetEditor({ form, characterId, facetId, trusted, allowExternalMedia, readOnly, onBack }: CharacterFacetEditorProps): ReactElement {
   const facet = facetById(facetId);
   // Move focus to Back on mount — else it drops to `<body>` when the facet row unmounts.
@@ -205,7 +201,7 @@ function SpoilerMacroField({
   readonly suggestions: readonly MacroSuggestion[];
 }): ReactElement {
   return (
-    <Stack gap="field" data-slot="character-spoiler-field" className={spoilerClass(spoilerBlur)}>
+    <Stack gap="field" data-slot="character-spoiler-field" spoiler={spoilerBlur}>
       <form.AppField name={name}>{(field): ReactElement => <field.MacroField label={label} hint={hint} suggestions={suggestions} rows={rows} />}</form.AppField>
     </Stack>
   );
@@ -279,7 +275,7 @@ function ExampleMessagesField({
   const [editing, setEditing] = useState(false);
   return (
     <Stack gap="field">
-      <Stack gap="field" data-slot="character-spoiler-field" className={editing ? undefined : spoilerClass(spoilerBlur)}>
+      <Stack gap="field" data-slot="character-spoiler-field" spoiler={!editing && spoilerBlur}>
         {editing ? (
           <form.AppField name="exampleMessages">
             {(field): ReactElement => (

@@ -14,6 +14,8 @@ export interface CrossfadeImageProps {
   readonly fit?: "cover" | "contain";
   /** Crossfade duration override, in ms. Unset uses the `--motion-base` token. */
   readonly durationMs?: number;
+  /** A thumbnail inside a surface (a composer attachment) takes the grouped-content radius. */
+  readonly rounded?: "none" | "base";
   readonly className?: string;
 }
 
@@ -45,7 +47,7 @@ function initialLayers(src: string | null): Layers {
  * the component. Reduced motion therefore mounts the new layer already revealed with no under-layer at
  * all. A failing `src` swaps to a styled broken-image fallback instead of the browser's native glyph.
  */
-export function CrossfadeImage({ src, alt, aspectRatio, fit, durationMs, className }: CrossfadeImageProps): ReactElement {
+export function CrossfadeImage({ src, alt, aspectRatio, fit, durationMs, rounded, className }: CrossfadeImageProps): ReactElement {
   const reduced = usePrefersReducedMotion();
   // Mirrors `src` so a prop change is detected and reacted to DURING render, not a setState-in-effect cascade.
   const [propSrc, setPropSrc] = useState(src);
@@ -76,7 +78,7 @@ export function CrossfadeImage({ src, alt, aspectRatio, fit, durationMs, classNa
     return (): void => cancelAnimationFrame(frame);
   }, [layers.top]);
 
-  const slots = crossfadeImageVariants({ fit });
+  const slots = crossfadeImageVariants({ fit, rounded });
   const overrideStyle = durationMs === undefined ? undefined : { transitionDuration: `${durationMs}ms` };
 
   const topIsBroken = layers.top !== null && layers.top.key === brokenKey;

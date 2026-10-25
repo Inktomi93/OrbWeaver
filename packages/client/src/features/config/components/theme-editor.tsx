@@ -35,7 +35,7 @@ import { AutosaveStatus, createAutosaveEntityForm } from "#forms/editor";
 // The THEME-shaped appearance table. It used to ride the settings feature's own
 // `appearance-select-items.ts`; SET-SEAMS stage 1 split that file into its chat- and app-shell-owned halves,
 // so the table three features render homes at the `#lib` shared-vocabulary floor.
-import { DENSITY_ITEMS, messageBubbleClass } from "#lib";
+import { DENSITY_ITEMS } from "#lib";
 import { useThemeAutosave } from "../hooks/use-theme-autosave.ts";
 import { contrastRatio } from "../lib/theme-contrast.ts";
 import type { ThemeFormValues } from "../lib/theme-editor-model.ts";
@@ -216,7 +216,7 @@ function ThemeableVarsReference(): ReactElement {
 }
 
 /** A scoped live preview — a sample exchange under the in-progress theme, contained to this box only. The
- *  two bubbles paint from `messageBubbleClass`, the SAME builder the transcript's bubble skins use, so what
+ *  two bubbles are `Card shape="bubble"`, the SAME recipe the transcript's bubble skins use, so what
  *  an author judges here is the box the app actually paints (side-eye P2: the preview had drifted to
  *  `rounded-base p-block` against the real `rounded-card px-block py-row`). */
 function ThemePreview({ values }: { readonly values: ThemeFormValues }): ReactElement {
@@ -228,20 +228,24 @@ function ThemePreview({ values }: { readonly values: ThemeFormValues }): ReactEl
             <Text voice="label" tone="speaker">
               Aria
             </Text>
-            <Stack gap="field" className={messageBubbleClass("assistant")}>
-              <Text as="span" tone="dialogue">
-                “Welcome to the archive,” she said.
-              </Text>{" "}
-              <Text as="span" tone="narration">
-                The lamplight flickered against the shelves.
-              </Text>
-              <Text as="span" className="text-prose-body">
-                Everything here has a story.
-              </Text>
-            </Stack>
-            <Stack gap="field" className={`self-end ${messageBubbleClass("user")}`}>
-              <Text as="span">Show me the oldest one.</Text>
-            </Stack>
+            <Card shadow="none" shape="bubble" tone="bubble">
+              <Stack gap="field">
+                <Text as="span" tone="dialogue">
+                  “Welcome to the archive,” she said.
+                </Text>{" "}
+                <Text as="span" tone="narration">
+                  The lamplight flickered against the shelves.
+                </Text>
+                <Text as="span" tone="prose">
+                  Everything here has a story.
+                </Text>
+              </Stack>
+            </Card>
+            <Card className="self-end" shadow="none" shape="bubble" tone="userBubble">
+              <Stack gap="field">
+                <Text as="span">Show me the oldest one.</Text>
+              </Stack>
+            </Card>
           </Stack>
         </Card>
       </ThemeScope>

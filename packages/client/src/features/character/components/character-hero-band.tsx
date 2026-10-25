@@ -21,6 +21,7 @@ import { FileTrigger } from "@orb/ui/file-trigger";
 import { ChevronRight, Eye, EyeOff, Icon, MessagesSquare } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
+import { Swatch } from "@orb/ui/swatch";
 import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
@@ -191,7 +192,6 @@ function HeroPortrait({ detail, trpc }: { readonly detail: CharacterHeroDetail; 
   // NO call-site radius. `size="media"` is `size-auto p-0`, so this button's border box IS the Avatar's: its
   // confirm ring and hover fill trace the Avatar's own corner. The avatar is a circle (UI-Density-Law 2.1),
   // so the button takes `shape="pill"`, the same full radius, and no second radius class is written here.
-  const triggerClass = confirming ? "relative shrink-0 ring-2 ring-accent" : "relative shrink-0";
   return (
     <FileTrigger
       accept="image/*"
@@ -202,7 +202,7 @@ function HeroPortrait({ detail, trpc }: { readonly detail: CharacterHeroDetail; 
       }}
     >
       {({ open }): ReactElement => (
-        <Button aria-label="Replace portrait" intent="ghost" shape="pill" size="media" className={triggerClass} onClick={open}>
+        <Button aria-label="Replace portrait" className="relative shrink-0" confirming={confirming} intent="ghost" onClick={open} shape="pill" size="media">
           <Avatar hueSeed={detail.id} size="hero" {...avatarSrc}>
             {initialsFor(detail.name)}
           </Avatar>
@@ -257,11 +257,8 @@ export function OwnLookMark({ themeOverride }: { readonly themeOverride: ThemeOv
                 // chat-recall-indicator.tsx carries it.) A `ghost`+`size="inline"` chip would draw nothing at
                 // rest and leave the unpressable datum chips as the row's only shaped items.
                 <Button intent="secondary" shape="pill" size="sm" type="button">
-                  <ThemeScope
-                    className="shrink-0 rounded-full bg-primary ring-1 ring-border block-(--size-glyph-xs) inline-(--size-glyph-xs)"
-                    tokens={cardTheme}
-                  >
-                    {null}
+                  <ThemeScope className="shrink-0 block-(--size-glyph-xs) inline-(--size-glyph-xs)" tokens={cardTheme}>
+                    <Swatch className="block-full inline-full" edge="outline" fill="primary" shape="pill" />
                   </ThemeScope>
                   {/* The kicker register at its own weight. `interactiveKicker`, not `kicker`: this text is the
                       VISIBLE LABEL OF A BUTTON, and `kicker` is the micro step — under the readable floor the

@@ -22,8 +22,8 @@
 
 import type { RefineryStage } from "@orb/contracts/refinery";
 import { Button } from "@orb/ui/button";
-import { Container, Row, Stack } from "@orb/ui/layout";
-import { RECEDED_INK } from "@orb/ui/lib";
+import { Row, Stack } from "@orb/ui/layout";
+import { Swatch } from "@orb/ui/swatch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { testId } from "#lib";
@@ -80,8 +80,8 @@ function FitLine({ stagePre, contextTokens }: { stagePre: StagePreflightView; co
     // unconditionally — the fluid rewrite lane has room for both on one line. `nowrap` makes the readout's
     // MIN-CONTENT its whole string, so the flex row keeps it whole either way: inline with the verb where
     // it fits, wrapped onto its own line where it does not. Same guarantee, paid for only where it is owed.
-    // `voice="gloss"`, not `datum`: a budget advisory is the quiet line under the lane's NAME, and at
-    // `datum` (13px mono foreground) it outranked the 10.5px kicker naming the lane it belongs to.
+    // `voice="gloss"`, not `datum`: a budget advisory is the quiet line under the lane's NAME, in the muted ink,
+    // never a foreground value that outranks the kicker naming the lane it belongs to.
     <Text className="whitespace-nowrap" data-testid={testId("refineryFitLine")} voice="gloss">
       in ≈ {stagePre.inputEstimate}
       {contextTokens === null ? "" : ` / ${contextTokens}`} · out ≈ {stagePre.outputEstimate}
@@ -131,12 +131,7 @@ export function SessionPreflightWarn({
 /** The lane's running ornament — see the header for the reduced-motion contract it carries. */
 function RunningHairline(): ReactElement {
   return (
-    <Container
-      aria-hidden={true}
-      className="orb-indeterminate-hairline pointer-events-none rounded-full bg-primary/30 block-px"
-      data-testid={testId("refineryLaneHairline")}
-      name="refinery-lane-hairline"
-    />
+    <Swatch className="orb-indeterminate-hairline pointer-events-none block-px" data-testid={testId("refineryLaneHairline")} fill="primaryFaint" shape="pill" />
   );
 }
 
@@ -168,14 +163,14 @@ export function LaneRunControl({
               60380f7d95 (#969) flipped `secondary` to `text-current`, so a non-focal lane's Run button now
               paints at the SAME ink as the one filled `primary` lane beside it on the canvas — the header's
               own "Every other lane's stays `secondary`" ruling lost its rest ink. The primitive keeps
-              inheriting; this composite states its own, through {@link RECEDED_INK}. */}
+              inheriting; this composite states its own, through the muted `tone`. */}
           <Button
             aria-busy={running}
             disabled={busy || blocked !== null}
             intent={focal ? "primary" : "secondary"}
             onClick={onRun}
             size="sm"
-            {...(focal ? {} : { className: RECEDED_INK })}
+            tone={focal ? "default" : "muted"}
           >
             {hasRun ? `Re-run ${stage}` : `Run ${stage}`}
           </Button>

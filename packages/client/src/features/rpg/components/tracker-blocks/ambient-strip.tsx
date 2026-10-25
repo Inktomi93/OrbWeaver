@@ -76,7 +76,8 @@ function AmbientVocabPicker({
         data-slot="tracker-value-rest"
         aria-label={`${fieldLabel} value`}
         onClick={(): void => setOpen(true)}
-        className="gap-0 border border-transparent px-field text-start"
+        reserveEdge={true}
+        className="gap-0 px-field text-start"
       >
         <Text as="span" size="label" tone={empty ? "muted" : "default"}>
           {restText}

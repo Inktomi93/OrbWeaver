@@ -29,6 +29,7 @@ import type { AppearanceSettings } from "@orb/contracts/settings";
 import { Card } from "@orb/ui/card";
 import { Row, Stack } from "@orb/ui/layout";
 import { RadioGroupPicker, RadioGroupPickerItem } from "@orb/ui/radio-group";
+import { Swatch } from "@orb/ui/swatch";
 import type { ReactElement } from "react";
 import { useId } from "react";
 import { ELEVATION_ITEMS } from "../lib/appearance-select-items.ts";
@@ -44,10 +45,10 @@ type Elevation = AppearanceSettings["elevation"];
  *  seams KEPT. EXAGGERATED: 2px seams — a truthful hairline reads as nothing at this size. */
 function FlatDiagram(): ReactElement {
   return (
-    <Card shape="row" tone="sidebar" padding="none" className="flex items-center overflow-hidden block-(--size-preview-strip) inline-full">
+    <Card shape="row" tone="sidebar" padding="none" shadow="none" className="flex items-center overflow-hidden block-(--size-preview-strip) inline-full">
       <Row className="flex-1" />
-      <Row className="flex-1 border-s-2 border-sidebar-border" />
-      <Row className="flex-2 border-s-2 border-sidebar-border" />
+      <Row className="flex-1" divider="start" dividerTone="sidebar" dividerWeight="rule" />
+      <Row className="flex-2" divider="start" dividerTone="sidebar" dividerWeight="rule" />
     </Card>
   );
 }
@@ -60,10 +61,10 @@ function FlatDiagram(): ReactElement {
  *  1.5:1 floor. The CT re-measures them from the rendered pixels rather than trusting this line. */
 function RampDiagram(): ReactElement {
   return (
-    <Card shape="row" tone="background" padding="none" className="flex items-center overflow-hidden block-(--size-preview-strip) inline-full">
-      <Row className="flex-1 bg-foreground/8" />
-      <Row className="flex-1 bg-foreground/32" />
-      <Row className="flex-2 bg-foreground/60" />
+    <Card shape="row" tone="background" padding="none" shadow="none" className="flex items-center overflow-hidden block-(--size-preview-strip) inline-full">
+      <Swatch className="flex-1" fill="step1" />
+      <Swatch className="flex-1" fill="step2" />
+      <Swatch className="flex-2" fill="step3" />
     </Card>
   );
 }
@@ -73,10 +74,10 @@ function RampDiagram(): ReactElement {
  *  shorter card make the lift read instantly; the hairline on each island keeps the LINE half true. */
 function GlowDiagram(): ReactElement {
   return (
-    <Card shape="row" tone="background" padding="none" className="overflow-hidden block-(--size-preview-strip) inline-full">
+    <Card shape="row" tone="background" padding="none" shadow="none" className="overflow-hidden block-(--size-preview-strip) inline-full">
       <Row gap="row" className="p-row block-full inline-full">
-        <Row className="flex-1 rounded-inset border border-sidebar-border bg-sidebar shadow-overlay block-3/4" />
-        <Row className="flex-2 rounded-inset border border-sidebar-border bg-card shadow-overlay block-3/4" />
+        <Card className="flex-1 block-3/4" padding="none" shadow="overlay" shape="inset" tone="sidebar" />
+        <Card className="flex-2 block-3/4" padding="none" shadow="overlay" shape="inset" tone="sidebarEdge" />
       </Row>
     </Card>
   );

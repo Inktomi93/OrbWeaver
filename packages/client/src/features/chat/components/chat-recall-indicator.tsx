@@ -126,7 +126,7 @@ function RecallIndicatorBody({ chatId, viewerIsHost, memory }: ChatRecallIndicat
                 never a spin (owner ruling). Under prefers-reduced-motion it is a static labeled icon. */}
             {/* Accent + a quiet pulse while recalling (motion-safe only — never a spin); muted when idle (present
                 but inactive, never implying a recall); full weight once memories are retrieved. */}
-            <Icon icon={BrainCircuit} size="sm" receded={recall === null} className={recall?.phase === "recalling" ? "motion-safe:animate-pulse" : ""} />
+            <Icon icon={BrainCircuit} size="sm" receded={recall === null} pulse={recall?.phase === "recalling"} />
             {count === null ? null : (
               // The count is the visible label step, the same type as the roster chip's digit (never a mono value).
               <Text as="span" voice="label" className="shell-chat-chip-count" ink="inherit" aria-hidden={true}>

@@ -152,14 +152,7 @@ export function SectionRow({ form, section, index, zone, selected, onSelect, onD
               "tilde em dash" and `~30` as "tilde three zero" — the compression that makes the column
               scannable makes it unspeakable. The visible cell is `aria-hidden`; the sr-only line beside it
               says the same fact in words, including the carrier arm's whole reason. */}
-          <Text
-            aria-hidden={true}
-            as="span"
-            className="shrink-0 text-end font-mono inline-(--width-number-inline)"
-            numeric={true}
-            strike={!section.enabled}
-            voice="gloss"
-          >
+          <Text aria-hidden={true} as="span" className="shrink-0 text-end inline-(--width-number-inline)" strike={!section.enabled} tone="muted" voice="datum">
             {tokens}
           </Text>
           <Text as="span" className="sr-only">

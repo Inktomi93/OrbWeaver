@@ -63,7 +63,7 @@ function FamilyPlate({ family, name }: { readonly family: VisualFamily; readonly
     // the boundary, and with it the count, so a reader steps family by family and reads the census inside
     // the one they stopped on. Deliberately NO `aria-label` here: a named container is announced INSTEAD of
     // its content by several readers, which would delete the very meta line this is about.
-    <Card className="bg-surface-raised" nested={true} role="listitem">
+    <Card nested={true} role="listitem" tone="raised">
       <Row align="center" gap="row">
         <AvatarStack
           aria-hidden={true}

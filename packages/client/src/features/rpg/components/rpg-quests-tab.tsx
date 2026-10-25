@@ -166,7 +166,7 @@ function QuestCardMeta({
   return (
     <Row gap="field" align="center" className="shrink-0">
       {total > 0 ? (
-        <Text as="span" voice="gloss" numeric={true}>
+        <Text as="span" tone="muted" voice="datum">
           {filled}/{total}
         </Text>
       ) : null}

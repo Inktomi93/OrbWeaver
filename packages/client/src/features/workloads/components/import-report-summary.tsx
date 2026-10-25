@@ -27,7 +27,7 @@ export interface ImportReportSummaryProps {
 export function ImportReportSummary({ summary }: ImportReportSummaryProps): ReactElement {
   return (
     <Stack gap="block" data-testid={testId("importReport")}>
-      <Text className="font-semibold">{summaryCaption(summary)}</Text>
+      <Text voice="lead">{summaryCaption(summary)}</Text>
       {summary.notes.length === 0 ? null : (
         <Stack aria-label="Import notes" gap="field" role="list">
           {summary.notes.map((note) => (

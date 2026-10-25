@@ -55,7 +55,7 @@ export function MessageChoicesBlock({ options }: MessageChoicesBlockProps): Reac
     // see that those are pressable — the case CD2's "maximum" clause permits), so the separation demotes to
     // ONE axis: `nested` drops the border and steps the radius one below the bubble's, and the info tint
     // that the border was carrying moves into the FILL, where it does the same job without a second edge.
-    <Card className="bg-info/10" nested={true}>
+    <Card nested={true} tone="infoTint">
       <Stack gap="field" data-slot="message-choices">
         <Text voice="kicker" tone="info">
           Your move

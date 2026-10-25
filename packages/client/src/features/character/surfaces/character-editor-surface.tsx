@@ -252,7 +252,7 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
 
   return (
     // The focus target only — the scroll box + its containing block moved up to the surface (see there).
-    <Stack ref={surfaceRef} tabIndex={-1} className="outline-none">
+    <Stack ref={surfaceRef} tabIndex={-1} focusTarget={true}>
       <form
         aria-label="Edit character"
         onSubmit={(event): void => {

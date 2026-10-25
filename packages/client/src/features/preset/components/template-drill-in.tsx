@@ -383,7 +383,7 @@ function TokenVocabulary({ form, row, capability }: CapabilityProps): ReactEleme
           sentence), which is a real difference and the only one left between them. */}
       <Row align="center" gap="field" role="list">
         {tokens.map((token) => (
-          <Badge className="font-mono" intent="info" key={token} role="listitem" size="sm" tone="ghost">
+          <Badge face="code" intent="info" key={token} role="listitem" size="sm" tone="ghost">
             {token}
           </Badge>
         ))}

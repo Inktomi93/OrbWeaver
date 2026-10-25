@@ -32,7 +32,7 @@ function DensityDiagram({ tier }: { readonly tier: Density }): ReactElement {
   return (
     <Stack className="justify-center p-tight block-full inline-full" data-density={tier} data-slot="density-preview" gap="row">
       {["The first row", "A second row", "And a third"].map((line) => (
-        <Card key={line} shape="row" tone="accent" padding="none" className="min-inline-0">
+        <Card key={line} shape="row" tone="accent" padding="none" shadow="none" className="min-inline-0">
           <Row align="center" className="p-field min-inline-0" gap="field">
             <Text as="span" className="truncate" voice="gloss">
               {line}

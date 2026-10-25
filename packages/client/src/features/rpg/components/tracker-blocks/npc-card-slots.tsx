@@ -90,12 +90,8 @@ function NpcRelationship({ name, relationship, onEditRelationshipKind, relations
   return <RelationshipBadge relationship={relationship} />;
 }
 
-/** The italic voice for `thoughts` — inner state the reader is overhearing, not a line anyone says. The
- *  other two guides are plain muted prose (they describe what IS on stage). */
 const GUIDE_LINE = "wrap-break-word min-inline-0";
-const GUIDE_LINE_ITALIC = "wrap-break-word italic min-inline-0";
 const GUIDE_FIELD = "field-sizing-content wrap-break-word max-inline-full min-inline-0";
-const GUIDE_FIELD_ITALIC = "field-sizing-content wrap-break-word italic max-inline-full min-inline-0";
 
 interface NpcGuidesProps {
   readonly name: string;
@@ -118,6 +114,7 @@ function NpcGuides({ name, appearance, outfit, thoughts, onEditGuide }: NpcGuide
   if (shown.length === 0) {
     return null;
   }
+  // `thoughts` is inner state the reader overhears, not a line anyone says, so it is set italic.
   return (
     <Stack gap="field" data-slot="npc-guides">
       {shown.map(({ field, text }) => (
@@ -126,7 +123,7 @@ function NpcGuides({ name, appearance, outfit, thoughts, onEditGuide }: NpcGuide
             {field}
           </Text>
           {onEditGuide === undefined ? (
-            <Text as="span" size="label" tone="muted" className={field === "thoughts" ? GUIDE_LINE_ITALIC : GUIDE_LINE}>
+            <Text as="span" size="label" tone="muted" italic={field === "thoughts"} className={GUIDE_LINE}>
               {text}
             </Text>
           ) : (
@@ -137,9 +134,10 @@ function NpcGuides({ name, appearance, outfit, thoughts, onEditGuide }: NpcGuide
               tone="muted"
               onEdit={(next): void => onEditGuide(field, next)}
               wrap={true}
-              className={field === "thoughts" ? GUIDE_FIELD_ITALIC : GUIDE_FIELD}
+              className={GUIDE_FIELD}
               width="auto"
-              restClassName={field === "thoughts" ? GUIDE_LINE_ITALIC : GUIDE_LINE}
+              restClassName={GUIDE_LINE}
+              italic={field === "thoughts"}
             />
           )}
         </Row>

@@ -14,7 +14,7 @@
 // (#1695). `actionsFloat` is a `pointer-fine:` arm and `ROW_REVEAL` pins the cluster permanently ON at
 // coarse, so on a phone all three controls sat in flow at the 44-48px touch floor. The star toggle — the
 // row's one SECONDARY affordance — now stands down into the kebab there (`ROW_ACTION_INLINE` +
-// `ROW_ACTION_OVERFLOW`), the ★ marker keeps its box (`ROW_REVEAL_SWAP_COARSE_KEEP`, the coupled site),
+// `hiddenAt="fine"`), the ★ marker keeps its box (`yieldOnHover`, the coupled site),
 // and the Chat CTA stays: it is the 1-click core loop, not a secondary, and its ruling below is preserved.
 //
 // THE KEBAB'S ITEM LIST IS THE `row` SLICE OF ONE VOCABULARY (`../lib/character-actions.ts`, #838) — labels,
@@ -36,7 +36,7 @@ import { Row } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { MenuItem, MenuLinkItem, MenuPopup, MenuSubmenuRoot, MenuSubmenuTrigger } from "@orb/ui/menu";
 import type { ReactElement, ReactNode } from "react";
-import { ROW_ACTION_OVERFLOW, ROW_REVEAL_SWAP_COARSE_KEEP, RowActionsMenu, RowToggleAction } from "#components";
+import { RowActionsMenu, RowToggleAction } from "#components";
 import { chatWithActionName, rowActionSubject, rowActionsName, selectActionName } from "#lib";
 import type { CHARACTER_ACTION_SCOPE_IDS } from "../lib/character-actions.ts";
 import { CHARACTER_ACTIONS, characterActionItemsForScope, characterActionLabel, EXPORT_CHARACTER_PATH } from "../lib/character-actions.ts";
@@ -181,7 +181,7 @@ export function CharacterCardTile({
  *  COARSE KEEPS THE MARKER (#1695, the coupled half of the collapse below). Hiding the marker at a coarse
  *  pointer would rest on one premise: that the toggle carrying the same datum is permanently visible there.
  *  `ROW_ACTION_INLINE` on that toggle DELETES the premise — it stands down and its datum moves into a CLOSED
- *  menu — so the swap is hover-only (`ROW_REVEAL_SWAP_COARSE_KEEP`) and coarse keeps the ★ permanently.
+ *  menu — so the swap is hover-only (`yieldOnHover`) and coarse keeps the ★ permanently.
  *  Without this the measured result is a starred row with no star anywhere on it (proven on the chats
  *  roster). */
 function rowMarkers(character: Pick<CharacterCardItem, "archived" | "starred">): ReactNode {
@@ -190,7 +190,7 @@ function rowMarkers(character: Pick<CharacterCardItem, "archived" | "starred">):
   }
   return (
     <>
-      {character.starred ? <Icon className={ROW_REVEAL_SWAP_COARSE_KEEP} icon={Star} label="Starred" size="sm" tone="warning" /> : null}
+      {character.starred ? <Icon icon={Star} label="Starred" size="sm" tone="warning" yieldOnHover={true} /> : null}
       {character.archived ? (
         <Badge intent="warning" size="sm">
           Archived
@@ -254,7 +254,7 @@ function NormalRowActions({
           and `actionsFloat` (a `pointer-fine:` arm) is off, so it charges real in-flow width on every row of
           a phone-width library. Measured on this tree at coarse BEFORE the collapse, title width / row
           width: 0.31 @320 · 0.43 @390 · 0.48 @430, with `Calamity, Doomblade of the Ninth Epoch` clipped at
-          all three. It stands down here and rides the kebab instead (its `ROW_ACTION_OVERFLOW` twin below),
+          all three. It stands down here and rides the kebab instead (its `hiddenAt="fine"` twin below),
           so the coarse cluster is the Chat CTA plus one overflow door. */}
       <Row align="center" hiddenAt="coarse">
         <RowToggleAction
@@ -301,7 +301,7 @@ function NormalRowActions({
             the coarse arm of a control the row already has, which is why the registry's item census
             (`character-card.ct.tsx`) is unchanged at a fine pointer. Its label is the bare verb because the
             menu's own name already carries the subject (#463) — the persona row's twin, same shape. */}
-        <MenuItem className={ROW_ACTION_OVERFLOW} onClick={(): void => onToggleStar(character.id, !character.starred)}>
+        <MenuItem hiddenAt="fine" onClick={(): void => onToggleStar(character.id, !character.starred)}>
           <Icon icon={Star} size="sm" />
           {character.starred ? "Unstar" : "Star"}
         </MenuItem>

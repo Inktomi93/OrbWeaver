@@ -253,7 +253,8 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library" }: Cha
       <Stack
         ref={surfaceRef}
         tabIndex={-1}
-        className="outline-none block-full min-block-0"
+        className="block-full min-block-0"
+        focusTarget={true}
         gap="row"
         // Escape leaves select mode from anywhere in the pane. A portaled dialog's Escape bubbles through the
         // React tree, so only keys whose DOM target sits inside this pane count.

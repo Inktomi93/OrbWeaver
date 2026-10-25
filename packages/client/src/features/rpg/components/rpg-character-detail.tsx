@@ -50,7 +50,7 @@ function SheetLevel({ level, onEditLevel }: { readonly level: number | null; rea
   if (onEditLevel === undefined) {
     return (
       <Badge tone="soft" size="sm" data-slot="sheet-level">
-        <Text as="span" voice="gloss" numeric={true}>
+        <Text as="span" tone="muted" voice="datum">
           Level {level}
         </Text>
       </Badge>
@@ -130,7 +130,7 @@ function WalletChip({
   return (
     <Badge tone="soft" size="sm" data-slot="sheet-wallet-chip">
       {onEditAmount === undefined ? (
-        <Text as="span" voice="gloss" numeric={true}>
+        <Text as="span" tone="muted" voice="datum">
           {coin.amount} {coin.name}
         </Text>
       ) : (

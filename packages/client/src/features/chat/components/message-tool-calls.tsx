@@ -15,7 +15,7 @@ import { ToolCallBlock } from "@orb/ui/tool-call-block";
 import type { inferInput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode } from "react";
 import { use } from "react";
-import { ConfirmDialog, FINE_INERT_UNTIL_HOVER } from "#components";
+import { ConfirmDialog } from "#components";
 import type { Trpc } from "#data";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import type { ContributorRegistry, ToolRenderer } from "#lib";
@@ -50,7 +50,7 @@ function ToolCallControls({ message, record }: { readonly message: MessageView; 
   };
   const hidden = record.hidden === true;
   return (
-    <Row gap="field" className={FINE_INERT_UNTIL_HOVER}>
+    <Row gap="field" inertUntilHover={true}>
       <Button intent="ghost" size="sm" loading={edit.isPending} onClick={(): void => edit.mutate({ ...variables, action: hidden ? "show" : "hide" })}>
         {hidden ? "Show to AI" : "Hide from AI"}
       </Button>

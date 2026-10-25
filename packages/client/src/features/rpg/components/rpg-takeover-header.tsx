@@ -128,12 +128,12 @@ function BandWhen({ when }: { readonly when: ReturnType<typeof whenParts> }): Re
   return (
     <Stack gap="field" className="min-inline-0" data-slot="rpg-band-when">
       {when.context === "" ? null : (
-        <Text as="span" voice="gloss" numeric={true} className="line-clamp-2 wrap-break-word max-inline-full" data-slot="rpg-band-when-context">
+        <Text as="span" tone="muted" voice="datum" className="line-clamp-2 wrap-break-word max-inline-full" data-slot="rpg-band-when-context">
           {when.context}
         </Text>
       )}
       {when.state === "" ? null : (
-        <Text as="span" voice="gloss" numeric={true} className="line-clamp-2 wrap-break-word max-inline-full" data-slot="rpg-band-when-state">
+        <Text as="span" tone="muted" voice="datum" className="line-clamp-2 wrap-break-word max-inline-full" data-slot="rpg-band-when-state">
           {when.state}
         </Text>
       )}

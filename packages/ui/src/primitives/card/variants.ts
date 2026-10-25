@@ -1,4 +1,4 @@
-import { FOCUS_RING, tv } from "#lib";
+import { FOCUS_RING, MESSAGE_BUBBLE_BOX, MESSAGE_BUBBLE_FILL, SPOILER, tv } from "#lib";
 
 // Card is a generic SURFACE, not a domain card — features (character cards, config panels)
 // compose it (ui-package-design §6.1).
@@ -8,7 +8,7 @@ import { FOCUS_RING, tv } from "#lib";
 // feature never picks island padding or radius. `rounded-base` (grouped content), never `rounded-card` —
 // D6 demoted `--radius-card` to ELEVATED/floating islands only, which is what `elevated` opts into.
 export const cardVariants = tv({
-  base: "rounded-base border border-border bg-card p-block text-card-foreground in-data-[elevation=glow]:shadow-overlay",
+  base: "rounded-base border border-border bg-card p-block text-card-foreground",
   variants: {
     // THE BOX SHAPE: a bordered, rounded, filled Row or Stack is a Card. `island` is grouped
     // content inside a surface. `row` is one operable or listed row drawn as its own box (a pack item, a mini
@@ -19,6 +19,17 @@ export const cardVariants = tv({
       island: "",
       row: "rounded-control",
       well: "rounded-control border-0 bg-muted",
+      // An island that floats in a room's reading column (the composer, the band of controls above it): the card
+      // radius and the field inset, with no shadow, because the room's art behind it is the lift.
+      float: "rounded-card p-field",
+      // A sub-control mark drawn as a box: a pane in a small preview of the shell.
+      inset: "rounded-inset",
+      // A plate under a line that crosses art (a transcript boundary's label): the fill alone, with no edge.
+      plate: "border-0",
+      // A floating chip (jump to latest): the pill radius.
+      pill: "rounded-full",
+      // A message bubble outside the transcript (a theme preview): the transcript's own bubble box. Pair it with a bubble tone.
+      bubble: MESSAGE_BUBBLE_BOX,
     },
     tone: {
       neutral: "",
@@ -33,11 +44,57 @@ export const cardVariants = tv({
       backdrop: "bg-background/80",
       // The edge a text field draws, for a box that groups field-like controls; no fill of its own.
       input: "border-input bg-transparent",
-      bubble: "border-0 bg-ai-bubble text-ai-bubble-foreground",
+      bubble: MESSAGE_BUBBLE_FILL.assistant,
+      userBubble: MESSAGE_BUBBLE_FILL.user,
+      systemBubble: MESSAGE_BUBBLE_FILL.system,
       muted: "bg-muted",
       warning: "border-warning bg-warning/10 text-warning",
       info: "border-info bg-info/10 text-info",
       highlight: "border-highlight",
+      // The status tints without the status ink: a verdict banner or a choices island whose own text and controls
+      // keep their inks. The edge is held back so the tint carries the meaning.
+      successTint: "border-success/40 bg-success/10",
+      warningTint: "border-warning/40 bg-warning/10",
+      destructiveTint: "border-destructive/40 bg-destructive/10",
+      infoTint: "border-info/40 bg-info/10",
+      // A card's one claim on attention spent as its edge, never a fill: the room's composer stays the one primary.
+      primaryEdge: "border-primary/40",
+      // A drop zone's outline in the primary ink, with no fill, so it reads as a place and not a second card.
+      primaryOutline: "border-primary bg-transparent",
+      // The muted fill held back: a block that quotes wire text inside a panel, so it reads as an artifact.
+      mutedWash: "bg-muted/40",
+      // The raised step, for a nested card that must lift off a card fill.
+      raised: "bg-surface-raised",
+      // The card fill with the rail's edge: a pane in a preview of the shell.
+      sidebarEdge: "border-sidebar-border",
+      // The popover fill and its ink, for a chip that floats over the transcript.
+      popover: "bg-popover text-popover-foreground",
+    },
+    // A set state marked on the card's leading edge (an override that differs from the default).
+    rail: { none: "", primary: "border-s-2 border-s-primary" },
+    // The shadow. `follow` takes the user's elevation (the glow arm lifts every card); `none` refuses it, for a
+    // diagram that draws one elevation whatever the user chose; `overlay` always lifts, for the diagram's islands.
+    shadow: { follow: "in-data-[elevation=glow]:shadow-overlay", none: "", overlay: "shadow-overlay" },
+    // A card that holds a text field takes its interaction: a hover and focus lift on the opaque muted step, and a
+    // focus edge in the ring colour held back in alpha.
+    holdsField: {
+      true: "focus-within:border-ring/60 focus-within:bg-muted hover:border-input hover:bg-muted",
+      false: "",
+    },
+    // A floating chip that comes and goes with its state: shown, it rises into place; hidden, it sinks a row step,
+    // fades out and takes no pointer, so it is never a phantom target.
+    presence: {
+      always: "",
+      shown: "pointer-events-auto translate-y-0 opacity-100 transition-[opacity,translate] duration-(--motion-base) ease-out-expo",
+      hidden: "pointer-events-none translate-y-row opacity-0 transition-[opacity,translate] duration-(--motion-base) ease-out-expo",
+    },
+    spoiler: { true: SPOILER, false: "" },
+    // A region that takes programmatic focus (a `tabIndex={-1}` editor a list hands focus to) draws the focus ring.
+    focusable: { true: `outline-none ${FOCUS_RING}`, false: "" },
+    // A card that takes dropped files announces the armed state (`data-drag-over`) louder than focus.
+    dropTarget: {
+      true: "data-drag-over:border-primary data-drag-over:bg-muted data-drag-over:ring-2 data-drag-over:ring-ring",
+      false: "",
     },
     outline: { solid: "", dashed: "border-dashed" },
     glow: {
@@ -86,5 +143,21 @@ export const cardVariants = tv({
       false: "",
     },
   },
-  defaultVariants: { shape: "island", elevated: false, interactive: false, nested: false, padding: "tier", tone: "neutral", outline: "solid", glow: "none" },
+  defaultVariants: {
+    shape: "island",
+    elevated: false,
+    interactive: false,
+    nested: false,
+    padding: "tier",
+    tone: "neutral",
+    outline: "solid",
+    glow: "none",
+    rail: "none",
+    shadow: "follow",
+    holdsField: false,
+    dropTarget: false,
+    presence: "always",
+    spoiler: false,
+    focusable: false,
+  },
 });

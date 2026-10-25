@@ -33,6 +33,7 @@ import { Button } from "@orb/ui/button";
 import { Crown, Icon, MoreHorizontal, Volume2, VolumeX, Zap } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Menu, MenuPopup, MenuTrigger } from "@orb/ui/menu";
+import { Swatch } from "@orb/ui/swatch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId, useRef, useState } from "react";
@@ -106,7 +107,7 @@ export function MemberRow(props: MemberRowProps): ReactElement {
       {responding ? (
         <>
           {/* Visual mark aria-hidden; the state rides the accessible DESCRIPTION (no aria-live). */}
-          <Text as="span" voice="gloss" aria-hidden={true} className="animate-pulse">
+          <Text as="span" voice="gloss" aria-hidden={true} pulse={true}>
             responding…
           </Text>
           <Text as="span" id={descriptionId} className="sr-only">
@@ -169,19 +170,16 @@ function PresenceDot({ online }: { readonly online: boolean | null }): ReactElem
     return null;
   }
   return (
-    <Text
-      as="span"
-      aria-hidden={true}
-      data-slot="member-presence"
+    <Swatch
+      className="shrink-0 block-(--size-dot) inline-(--size-dot)"
       data-online={online}
-      // The SHAPE channel: `bg-success` fills the online dot, and the offline one is an unfilled ring of the
-      // same box — two states distinguishable with the colour removed, per the never-colour-alone rule the
-      // sibling `role-status-dot.tsx` states.
-      className={
-        online
-          ? "shrink-0 rounded-full bg-success block-(--size-dot) inline-(--size-dot)"
-          : "shrink-0 rounded-full border border-muted-foreground block-(--size-dot) inline-(--size-dot)"
-      }
+      data-slot="member-presence"
+      // The SHAPE channel: the online dot is filled, and the offline one is an unfilled ring of the same box —
+      // two states distinguishable with the colour removed, per the never-colour-alone rule the sibling
+      // `role-status-dot.tsx` states.
+      edge={online ? "none" : "ring"}
+      fill={online ? "success" : "none"}
+      shape="pill"
     />
   );
 }

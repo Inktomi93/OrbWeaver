@@ -18,6 +18,8 @@ export const skeletonVariants = tv({
       rect: "rounded-control",
       text: "rounded-control inline-2/3",
       circle: "aspect-square rounded-full",
+      // The box an Avatar or a portrait draws: the base radius, so the placeholder matches what replaces it.
+      portrait: "rounded-base",
     },
   },
   defaultVariants: { variant: "rect" },

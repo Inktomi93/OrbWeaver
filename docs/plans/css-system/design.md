@@ -288,13 +288,9 @@ Lane `cb-css`, worktree `.claude/worktrees/agent-a93838f44c69f2f8c`, branch `wt/
 
 ### Remaining work
 
-Item 1316's remainder. Both rules are on as errors in `eslint.config.ts` by owner ruling, with no baseline and no exemption list, so the pre-push lint is red until the last site goes; every site is listed by file and kind in `feature-classname-sites.md` beside this plan, and the sites drain through items 1334 to 1336 and 1338:
+Item 1316's remainder. Both rules are on as errors in `eslint.config.ts` by owner ruling, with no baseline and no exemption list, so the pre-push lint is red until the last site goes. The drain through items 1334 to 1336 and 1338 has moved every site but the chat row skin table onto primitive props (`docs/law/UI-Density-Law.md` §4.3), and the `datum` voice carries its ruled spelling (D5). What is left is listed in `feature-classname-sites.md` beside this plan:
 
-- `Icon` paint (31 sites, `text-muted-foreground`, `text-warning`, `text-accolade`, `opacity-60`): map the tokens onto `Icon` `tone` and `receded` with the codemod.
-- `Text` datum tokens (`font-mono` 28, `tabular-nums` 19, `text-accolade` 11, `line-through` 7, `text-foreground` 11, `text-info` 4): `tone` (`info`, `accolade`), `strike` and the `code` voice exist; the ruled `datum` spelling lands after the machine-text `datum` sites move to `code` (the order in `feature-classname-sites.md`); `text-foreground` has no prop.
-- `Row`/`Stack`/`Card` surface paint (`border`, `border-border`, `rounded-*`, `bg-card`, `shadow-overlay`, about 70 sites): a bordered layout box is a `Card` (`shape` `row` or `well`, its tones); a hairline edge is the Row or Stack `divider`; `receded` replaces their opacity steps.
-- `Button` paint (`text-primary`, `border`, `hover:bg-transparent`, `underline`, 25 sites): `intent="link"` and the `ghost`/`link` `tone` exist.
-- Built class strings (131 sites: 46 templates, 46 imported constants, 19 member reads, 16 function builders, 4 concatenations). The imported constants (`HIDE_AT_COARSE`, `SHOW_ONLY_AT_COARSE`, `ROW_ACTION_OVERFLOW`, `ROW_ACTION_INLINE`, `RECEDED_INK`, `CHAT_TRACK`, `PIN_REVEAL`, `SWIPE_COUNTER`, `MESSAGE_ACTION_ICON_CLASS`, `DEF_ROW_CLASS`, the `*_AT_COARSE` floors) map to the props item 1340 built (`hiddenAt`, `srOnlyAt`, `reveal`, `revealActions`, `touchFloor`, Icon `shadow`); the templates and builders are hand sites.
+- The chat row skin table (`features/chat/lib/message-row-variants.ts` and the modules it composes): its `RowSkin` fields are class strings and class builders keyed by chat style. They move in one change across all eight chat styles, once each field is a primitive prop, under a CT and a snap of every style with and without a wallpaper.
 - The other-plugin audit (react-x, jsx-a11y, @tanstack rules left off): the installed config leaves one jsx-a11y rule off and enables the rest; record the residue.
 - The RTL follow-up for the panels' `translateX` (Open forks).
 

@@ -75,7 +75,7 @@ function OverrideCollapseCard({ label, isSet, snippet, open, onOpenChange, onCle
   return (
     // `padding="none"`: the block padding lives on the trigger, so the whole row is one tap target (WCAG 2.5.8);
     // the snippet and panel carry their own inset. The card's top edge must hit the trigger (this component's CT).
-    <Card className={isSet ? "border-s-2 border-s-primary" : undefined} padding="none">
+    <Card padding="none" rail={isSet ? "primary" : "none"}>
       <Collapsible open={open} onOpenChange={onOpenChange}>
         {/* `size="control"` pins the pointer-conditional `--size-control-sm` floor (44px coarse / 32px
             fine). MEASURED at 411×40 under a coarse pointer with `::after` resolving `inset: auto` — no

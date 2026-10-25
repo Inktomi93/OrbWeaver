@@ -69,11 +69,8 @@ export function PersonaPanelRow({
     <Stack gap="field">
       <Row
         align="center"
-        className="
-          group relative rounded-control transition-colors duration-(--motion-fast) ease-out-expo min-block-(--size-control-md)
-          hover:bg-accent
-          data-expanded:bg-accent
-        "
+        className="group relative min-block-(--size-control-md)"
+        stateFill="expanded"
         data-expanded={expanded ? "" : undefined}
         gap="row"
         padding="field"

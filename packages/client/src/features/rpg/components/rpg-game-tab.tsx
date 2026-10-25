@@ -44,7 +44,7 @@ import { RpgHintMapEditor } from "./rpg-hint-map-editor.tsx";
 import { HostConsoleScalars } from "./rpg-host-scalars.tsx";
 import { Kicker } from "./rpg-kicker.tsx";
 import { RpgRulesetControl } from "./rpg-ruleset-control.tsx";
-import { DEF_ROW_CLASS, RpgStatProfileEditor } from "./rpg-stat-profile-editor.tsx";
+import { DefRow, RpgStatProfileEditor } from "./rpg-stat-profile-editor.tsx";
 import { AddRow, HintEditor, TrackerValue } from "./tracker-blocks/index.ts";
 
 /** The carrier-class label a def's `appliesTo` reads as. An explicit ref LIST reads as "chosen" and is not
@@ -97,11 +97,7 @@ function TrackerRow({
   const lockLabel = def.locked ? `Let the story write ${def.label} again` : `Lock ${def.label} — the story can no longer write it`;
   const removeLabel = `Remove ${def.label}`;
   return (
-    // rows="control": floors this card's own three rows (label · badges/write · hint) at the
-    // pointer-conditional control-sm height, giving the `size="inline"` buttons' touch-target ::after room
-    // inside its own row rather than overflowing onto a neighbour row's text — the same recipe as
-    // RpgStatProfileEditor's `AttributeRow`.
-    <Stack gap="field" rows="control" className={DEF_ROW_CLASS} data-slot="rpg-tracker-row">
+    <DefRow slot="rpg-tracker-row">
       <Row gap="field" align="center">
         {def.shape === "meter" ? <TrackBar value={1} max={1} {...trackColorProps(resolveTrackerColor(def.color, index))} width="swatch" /> : null}
         <TrackerValue
@@ -185,7 +181,7 @@ function TrackerRow({
         )}
       </Row>
       <HintEditor ariaLabel={`${def.label} hint`} hint={def.hint} max={RPG_HINT_MAX} onEdit={(next): void => patch({ hint: next })} />
-    </Stack>
+    </DefRow>
   );
 }
 

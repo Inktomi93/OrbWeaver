@@ -58,13 +58,11 @@ import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
 import { Crown, Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
-import { cn } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { testId } from "#lib";
-import { BG_PHOTO_BAND_PLATE } from "../lib/message-row-backing.ts";
 import { filterCharacters, resolveHumanParticipants } from "../lib/roster.ts";
 
 export interface ChatCharacterBarProps {
@@ -99,12 +97,13 @@ function CharacterBarStrip({
     // OVER ART THE STRIP TAKES THE DERIVED BAND PLATE (#229/#237). It sits in `.shell-main`, which a
     // wallpaper makes transparent (shell.css), so its chips and names floated on the raw photo with only
     // the halo text-shadow behind them — the same over-art chrome class #106/#221 closed for the message
-    // row's own bands, and the one rule #237 extends across the shell's chrome. `BG_PHOTO_BAND_PLATE`
+    // row's own bands, and the one rule #237 extends across the shell's chrome. The `band` plate
     // pairs the polarity-derived plate with its matching ink and is inert without a wallpaper.
     <Row
       gap="field"
       align="center"
-      className={cn("flex-wrap px-block py-row", BG_PHOTO_BAND_PLATE)}
+      className="flex-wrap px-block py-row"
+      plate="band"
       data-testid={testId("chatCharacterBar")}
       aria-label="Characters"
       role="group"

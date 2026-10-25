@@ -40,7 +40,7 @@ export function HintEditor({ ariaLabel, hint, max, onEdit, placeholder = "what t
         className="flex-1 min-inline-0"
       />
       {hint.length < max * COUNTER_AT ? null : (
-        <Text as="span" size="micro" tone="muted" numeric={true} className="shrink-0">
+        <Text as="span" className="shrink-0" tone="muted" voice="datum">
           {hint.length}/{max}
         </Text>
       )}

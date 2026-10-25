@@ -95,6 +95,9 @@ export function Icon({
   tone,
   shadow,
   receded,
+  pulse,
+  openTurn,
+  yieldOnHover,
   className,
 }: IconProps): ReactElement {
   const instanceId = useId().replace(ID_UNSAFE, "");
@@ -108,7 +111,7 @@ export function Icon({
       strokeWidth={ICON_WEIGHTS[weight]}
       aria-hidden={label === undefined}
       aria-label={label}
-      {...variantProps(iconVariants, { tone, shadow, receded }, className)}
+      {...variantProps(iconVariants, { tone, shadow, receded, pulse, openTurn, yieldOnHover }, className)}
       {...(fraction === NO_FILL ? {} : { fill: isPartial ? `url(#${gradientId})` : "currentColor" })}
     >
       {isPartial ? (

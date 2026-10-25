@@ -12,11 +12,12 @@ import { RPG_HINT_MAX, RPG_PROFILE_MAX_ATTRIBUTES } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
+import { Card } from "@orb/ui/card";
 import { HintTrigger } from "@orb/ui/hint-trigger";
 import { Icon, Plus, Trash2 } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { Tip } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { useUpdateConfig } from "../hooks/use-rpg-mutations.ts";
@@ -26,8 +27,20 @@ import { Kicker } from "./rpg-kicker.tsx";
 import { AddRow, HintEditor, TrackerValue } from "./tracker-blocks/index.ts";
 
 /** The def-row surface — one bordered instrument row per definition, shared with the tracker rows so the
- *  console reads as ONE list grammar. */
-export const DEF_ROW_CLASS = "rounded-base border border-border bg-card px-block py-row";
+ *  console reads as ONE list grammar. `slot` is the row's owner-CSS hook, so the card keeps it.
+ *
+ *  `rows="control"` floors the card's OWN rows at the pointer-conditional control-sm height, so a
+ *  `size="inline"` button's touch target sits inside its own row instead of overflowing onto the next row's
+ *  text; a list-level `rows="control"` only floors the card. */
+export function DefRow({ slot, children }: { readonly slot: string; readonly children: ReactNode }): ReactElement {
+  return (
+    <Card ownSlot={slot} padding="none">
+      <Stack className="px-block py-row" gap="field" rows="control">
+        {children}
+      </Stack>
+    </Card>
+  );
+}
 
 /** One attribute's row: rename · its minted key · remove, over the steering hint. */
 function AttributeRow({
@@ -42,11 +55,7 @@ function AttributeRow({
   readonly onRemove: () => void;
 }): ReactElement {
   return (
-    // rows="control": floors this card's OWN two rows (label · hint) at the pointer-conditional control-sm
-    // height so their `size="inline"` buttons' touch-target ::after has room to sit inside its own row instead
-    // of overflowing onto the neighbour row's text — the outer list-level `rows="control"`
-    // (RpgStatProfileEditor below) only floors the CARD.
-    <Stack gap="field" rows="control" className={DEF_ROW_CLASS} data-slot="rpg-attribute-row">
+    <DefRow slot="rpg-attribute-row">
       <Row gap="field" align="center">
         <TrackerValue
           ariaLabel={`Attribute ${index + 1} label`}
@@ -81,7 +90,7 @@ function AttributeRow({
         placeholder="what this attribute means — the story reads this…"
         onEdit={(next): void => onCommit({ ...attr, hint: next })}
       />
-    </Stack>
+    </DefRow>
   );
 }
 

@@ -57,6 +57,8 @@ export const selectVariants = tv({
       field: { trigger: [FIELD_CONTROL, "block-(--size-control-sm)"] },
       inline: { trigger: [FIELD_CONTROL_BOX, "border-transparent bg-transparent px-field py-0 text-label leading-label block-auto inline-auto min-block-0"] },
     },
+    // A trigger whose value is the name of the thing the line is about (an rpg subject): the name's semibold weight.
+    strong: { true: { trigger: "font-semibold" }, false: {} },
   },
   defaultVariants: { layout: "field" },
 });

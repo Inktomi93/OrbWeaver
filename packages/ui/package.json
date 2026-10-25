@@ -87,6 +87,7 @@
     "./stat-figure": "./src/charts/stat-figure/index.ts",
     "./stream": "./src/stream/index.ts",
     "./styles/globals.css": "./src/styles/globals.css",
+    "./swatch": "./src/primitives/swatch/index.ts",
     "./switch": "./src/primitives/switch/index.ts",
     "./table": "./src/primitives/table/index.ts",
     "./tabs": "./src/primitives/tabs/index.ts",

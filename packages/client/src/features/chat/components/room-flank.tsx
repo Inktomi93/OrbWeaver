@@ -38,6 +38,14 @@ export function InlineFlankFitProbe(): ReactElement {
   );
 }
 
+// A panel-mode column slides; an inline column never moves.
+function slideOf(flank: FlankPresentation): "shown" | "parked" | undefined {
+  if (flank.panelMode) {
+    return flank.expanded ? "shown" : "parked";
+  }
+  return undefined;
+}
+
 /** One column at its design width that never changes width (a frame inside is never squeezed) and never leaves the
  *  tree (a frame inside stays minted). Out of the row it is positioned against the row, whose `overflow-x-clip`
  *  hides it while parked, and it turns `invisible` once its slide out ends, so nothing of it paints at rest. */
@@ -52,6 +60,8 @@ export function FlankColumn({
   readonly columnRef: RefObject<HTMLDivElement | null>;
   readonly children: ReactNode;
 }): ReactElement {
+  const overlaid = flank.panelMode && flank.expanded && !flank.inline;
+  const slide = slideOf(flank);
   return (
     <Stack
       gap="block"
@@ -59,16 +69,16 @@ export function FlankColumn({
         "empty:hidden",
         flank.panelMode
           ? cn(
-              `
-                relative overflow-y-auto pbs-(--size-control-sm) transition-[translate,visibility] duration-(--shell-motion) ease-(--shell-ease)
-                inline-(--width-sidebar-sm) min-block-0
-              `,
+              "relative overflow-y-auto pbs-(--size-control-sm) inline-(--width-sidebar-sm) min-block-0",
               !flank.occupiesRow && "absolute inset-e-0 inset-bs-0 inset-be-0",
-              flank.expanded ? "visible translate-x-0" : "pointer-events-none invisible translate-x-full",
-              flank.expanded && !flank.inline && "z-(--z-raised) bg-card shadow-overlay",
+              overlaid ? "z-(--z-raised)" : undefined,
             )
           : "relative pbs-block max-inline-(--width-sidebar-sm) @max-cq-32:overflow-y-auto @max-cq-32:pbs-0 @max-cq-32:max-block-1/2 @max-cq-32:max-inline-none",
       )}
+      // An open panel that overlays the transcript (not set inline beside it) paints the card ground and lifts.
+      ground={overlaid ? "card" : undefined}
+      lifted={overlaid}
+      slide={slide}
       data-collapsed={flank.panelMode && !flank.expanded ? "true" : undefined}
       data-slot="chat-thread-flank"
       id={id}

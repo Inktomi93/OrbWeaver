@@ -27,22 +27,7 @@ export type { ModelRunConfirmDialogProps } from "./model-run-confirm-dialog.tsx"
 export { ModelRunConfirmDialog } from "./model-run-confirm-dialog.tsx";
 export { PanelEdgeControl } from "./panel-edge-control.tsx";
 export { PickerDialog } from "./picker-dialog.tsx";
-export {
-  CHIP_TOUCH_FLOOR_AT_COARSE,
-  CHIP_TOUCH_WIDTH_FLOOR_AT_COARSE,
-  CONTEXT_CELL_FLOOR_AT_COARSE,
-  CONTEXT_RAIL_WRAP,
-  CONTEXT_RAIL_WRAPPED_EDGE_BAR_OFF,
-  DISCLOSURE_TOUCH_FLOOR_AT_COARSE,
-  FINE_INERT_UNTIL_HOVER,
-  HIDE_AT_COARSE,
-  LABEL_TO_SR_ONLY_AT_COARSE,
-  PICKER_GAP_AT_COARSE,
-  PIN_REVEAL,
-  REVEAL_AT_COARSE,
-  SHOW_ONLY_AT_COARSE,
-  VALUE_ROW_TOUCH_FLOOR_AT_COARSE,
-} from "./pointer-variants.ts";
+export { REVEAL_AT_COARSE } from "./pointer-variants.ts";
 export { QueryBoundary } from "./query-boundary.tsx";
 export { RegexScopeOrder } from "./regex-scope-order.tsx";
 export { RegexScriptPicker } from "./regex-script-picker.tsx";
@@ -50,7 +35,6 @@ export { useReindexConfirm } from "./reindex-confirm.tsx";
 export type { RelationManagerItem } from "./relation-manager-section.tsx";
 export { RelationManagerSection } from "./relation-manager-section.tsx";
 export { RowActionsMenu } from "./row-actions-menu.tsx";
-export { ROW_ACTION_INLINE, ROW_ACTION_OVERFLOW, ROW_REVEAL, ROW_REVEAL_SWAP_COARSE_KEEP } from "./row-reveal.ts";
 export { RowToggleAction } from "./row-toggle-action.tsx";
 export {} from "./setting-row-actions.tsx";
 export { SettingRowGroup } from "./setting-row-group.tsx";

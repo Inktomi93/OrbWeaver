@@ -90,7 +90,8 @@ export function CorpusReadinessRail({ stages, showRerun, queue }: CorpusReadines
           // what varies is how many lines the row spends, which is the honest thing to trade.
           <Row
             align="center"
-            className="flex-wrap border-be border-border py-field last:border-be-0"
+            className="flex-wrap py-field"
+            divider="between"
             data-slot="readiness-stage"
             gap="row"
             justify="between"

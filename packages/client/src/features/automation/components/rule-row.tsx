@@ -287,11 +287,9 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
             readOnly={unreadable}
           />
         </Row>
-        {/* `text-foreground`, the `chat-context-disclosure-section.tsx:51` arm: the panel primitive paints
-            `text-muted-foreground` for running prose, and both `Button` intents this row uses are
-            `text-current`. Without it Test and the ghost overflow trigger BOTH resolve to the receded ink and
-            compute the identical colour, which erases the three-weights reading of the row. */}
-        <CollapsiblePanel className="text-foreground">
+        {/* Both `Button` intents this row uses are `text-current`; in a prose panel Test and the ghost overflow
+            trigger would both resolve to the muted ink and erase the three-weights reading of the row. */}
+        <CollapsiblePanel holds="controls">
           <Stack className="px-block pbe-block" gap="field">
             <Row align="center" gap="field">
               {/* Test stays visually distinct from editing and the spending actions in the overflow menu. */}

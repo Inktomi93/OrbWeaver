@@ -82,17 +82,13 @@ function ItemGlyph({ item, onPickIcon }: { readonly item: RpgInventoryItem; read
   );
 }
 
-// The tile's own skin, shared by the read-only arm and the host's Button arm so the two lenses are
-// pixel-identical at rest (PERMISSION differs in what a CLICK does, never in what the pack looks like).
-// A left-aligned card: the grid track (layout/variants `cols="cell"`) gives it
-// the width the item's own words need, and the card is only as tall as those words.
-//
-// DELIBERATE COMPOSED SKIN, not an intent (the TEACHING_ACTION_BUTTON precedent,
-// `chat/surfaces/new-chat-picker-surface.tsx`): `border border-border bg-card` is a CARD tile, not a button
-// reading as "outline" or "ghost" — no intent arm owns "a bordered filled card that happens to be
-// clickable", and the member arm (`edit === undefined`) below is not even a `Button` (a plain `Row`), so the
-// skin cannot be an intent by construction. Composed here, at the one call site both lenses share.
-const TILE_CLASS = "relative inline-full min-inline-0 items-center gap-field rounded-control border border-border bg-card px-row py-field text-start";
+// The tile is a row-shaped Card in both lenses, so the two are pixel-identical at rest (PERMISSION differs in
+// what a CLICK does, never in what the pack looks like). A left-aligned card: the grid track (`cols="cell"`)
+// gives it the width the item's own words need, and the card is only as tall as those words. It keeps the
+// `rpg-pack-cell` owner-CSS hook as its own slot.
+const TILE_SLOT = "rpg-pack-cell";
+const TILE_BOX = "relative inline-full min-inline-0";
+const TILE_INSET = "px-row py-field";
 
 /** The tile's INK — the glyph · the name (wrapped) · ×N · the PINNED tell · where it's kept. Shared by both
  *  arms. `pinned` is the per-item pin's grid half: the tile is itself a Button (the editor's trigger), so it
@@ -120,7 +116,7 @@ function PackCellInk({ item, pinned = false }: { readonly item: RpgInventoryItem
           </Text>
           {/* The ×N read, the list row's exact grammar — a stack of one renders nothing (no "×1" noise). */}
           {item.quantity > 1 ? (
-            <Text as="span" voice="gloss" numeric={true} className="shrink-0">
+            <Text as="span" tone="muted" voice="datum" className="shrink-0">
               ×{item.quantity}
             </Text>
           ) : null}
@@ -161,9 +157,11 @@ function PackCellInk({ item, pinned = false }: { readonly item: RpgInventoryItem
 function PackCell({ item, edit }: { readonly item: RpgInventoryItem; readonly edit?: PackEdit }): ReactElement {
   if (edit === undefined) {
     return (
-      <Row gap="field" className={TILE_CLASS} data-slot="rpg-pack-cell">
-        <PackCellInk item={item} />
-      </Row>
+      <Card className={TILE_BOX} ownSlot={TILE_SLOT} padding="none" shape="row">
+        <Row align="center" className={TILE_INSET} gap="field">
+          <PackCellInk item={item} />
+        </Row>
+      </Card>
     );
   }
   const pinned = edit.itemLocks(item.id).length > 0;
@@ -174,18 +172,11 @@ function PackCell({ item, edit }: { readonly item: RpgInventoryItem; readonly ed
       unfenced. */}
       <PopoverTrigger
         render={
-          <Button
-            intent="ghost"
-            // The Button skin is a control (fixed height, nowrap, centered) — the tile is a card, so it takes
-            // the `inline` arm (no control height, start-aligned, regular weight) and lets the item's words
-            // wrap inside the tile's own padding.
-            size="inline"
-            className={`whitespace-normal ${TILE_CLASS}`}
-            aria-label={`Edit ${item.name}`}
-            data-slot="rpg-pack-cell"
-          >
-            <PackCellInk item={item} pinned={pinned} />
-          </Button>
+          <Card aria-label={`Edit ${item.name}`} as="button" className={TILE_BOX} interactive={true} ownSlot={TILE_SLOT} padding="none" shape="row">
+            <Row align="center" className={TILE_INSET} gap="field">
+              <PackCellInk item={item} pinned={pinned} />
+            </Row>
+          </Card>
         }
       />
       <PopoverPopup>

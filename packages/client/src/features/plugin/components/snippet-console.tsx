@@ -78,14 +78,7 @@ export function SnippetConsole({ chatId }: SnippetConsoleProps): ReactElement {
         Nothing is installed and nothing sticks around.
       </Text>
 
-      <Textarea
-        aria-label="Snippet code"
-        className="font-mono"
-        onChange={(event): void => setCode(event.target.value)}
-        rows={8}
-        spellCheck={false}
-        value={code}
-      />
+      <Textarea aria-label="Snippet code" face="code" onChange={(event): void => setCode(event.target.value)} rows={8} spellCheck={false} value={code} />
 
       {overCap ? (
         <Text tone="destructive" role="alert">

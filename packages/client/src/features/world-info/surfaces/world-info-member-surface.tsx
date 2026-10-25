@@ -106,7 +106,7 @@ function BookEditor({ bookId, back }: { readonly bookId: WorldBookId; readonly b
   // A selected entry drills in — the editor replaces the list until "Back to entries" clears it.
   if (selectedEntry !== null) {
     return (
-      <Stack className="outline-none min-block-0" data-slot="world-info-member-editor" gap="block" ref={surfaceRef} tabIndex={-1}>
+      <Stack className="min-block-0" focusTarget={true} data-slot="world-info-member-editor" gap="block" ref={surfaceRef} tabIndex={-1}>
         {/* THE ENTRY RUNG'S OWN DRILL ROW (#1747) — the same composite the book level above draws, so the
               two rungs of this one surface cannot speak two grammars. Its Back pops the ENTRY, never the
               book (the `makeSelectionSeam` stack's deepest rung), and it states the entry's name, which
@@ -118,7 +118,7 @@ function BookEditor({ bookId, back }: { readonly bookId: WorldBookId; readonly b
   }
 
   return (
-    <Stack className="outline-none min-block-0" data-slot="world-info-member-editor" gap="block" ref={surfaceRef} tabIndex={-1}>
+    <Stack className="min-block-0" focusTarget={true} data-slot="world-info-member-editor" gap="block" ref={surfaceRef} tabIndex={-1}>
       {/* THE DRILL ROW (#1747, the mock design §3.4, board 06): `← Back to <library>` · the book's name · this
             book's OWN verbs — Edit details · Backfill · New entry, exactly the trio the board draws, moved
             up out of the two rows that used to carry them (the name+pencil row and the census row). No

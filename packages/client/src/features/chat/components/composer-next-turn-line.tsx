@@ -60,7 +60,7 @@ export function ComposerNextTurnLine({ chatId, availability, id }: ComposerNextT
     // stated dark-arm hole for a custom pivot palette (D144(d)), so the line takes an opaque fill: `bg-card`'s
     // AA floor is proven for every ink it paints (`palette-contrast.suite.test.ts`). No `rounded-card`: a text
     // backdrop is not a second elevated surface (UI-Density-Law.md §3/§5.1).
-    <Container className="orb-chat-track bg-card py-tight inline-full max-inline-(--width-shell-content)">
+    <Container className="orb-chat-track py-tight inline-full max-inline-(--width-shell-content)" ground="card">
       <Text
         as="p"
         voice="quiet"

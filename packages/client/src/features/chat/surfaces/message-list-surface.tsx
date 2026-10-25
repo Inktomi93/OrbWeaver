@@ -45,12 +45,10 @@ import { useMessageAppearance } from "../hooks/use-message-appearance.ts";
 import type { ChatRowProjection } from "../hooks/use-message-items.ts";
 import { lastUserRowIndex, messageItemKey, useMessageItems, useNewArrivalKeys } from "../hooks/use-message-items.ts";
 import { resolveRowAttribution } from "../lib/attribution.ts";
-import { CHAT_TRACK } from "../lib/chat-track.ts";
 import { resolveContextBoundaryMessageId } from "../lib/context-boundary.ts";
 import { contextFitLabel } from "../lib/context-room.ts";
 import { isGreetingWindowOpen, resolveGreetingBinding } from "../lib/greeting-window.ts";
 import { liveCardRowIds } from "../lib/live-card-rows.ts";
-import { BG_PHOTO_ERROR_PLATE, BG_PHOTO_LOADING_PLATE } from "../lib/message-row-backing.ts";
 import type { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import { buildParticipantsById } from "../lib/roster.ts";
 import { settledLastRowId } from "../lib/row-placement.ts";
@@ -106,17 +104,17 @@ export function MessageListSurface({ chatId, busDeps, surfaceContributors, toolR
   const chatStyle = useChatStyle();
 
   return (
-    <Stack ref={surfaceRef} tabIndex={-1} className="outline-none block-full inline-full min-block-0">
+    <Stack ref={surfaceRef} tabIndex={-1} className="block-full inline-full min-block-0" focusTarget={true}>
       <QueryBoundary
         // THE LOADING STATE IS PART OF THE COLUMN, NOT A BARE FALLBACK (#468). It takes the transcript's
-        // own TRACK (`CHAT_TRACK` — the room's one answer to "where is the middle", #213) so the three
+        // own TRACK (`orb-chat-track` — the room's one answer to "where is the middle", #213) so the three
         // placeholder rows stand exactly where the rows they stand in for will, and it takes the
         // wallpaper-gated reading plate so it is still an OBJECT over a room's art instead of three faint
         // bands on a photo. The timing was never the defect: #454's rAF sampler proves the skeleton paints
         // on the first room frame of a Resume; it was invisible, so Resume — the most-pressed action in the
         // app — read as an empty room for ~400ms. Both classes are inert on a plain background.
         fallback={
-          <Stack className={`${CHAT_TRACK} ${BG_PHOTO_LOADING_PLATE}`} data-slot="transcript-loading">
+          <Stack className="orb-chat-track inline-full max-inline-(--width-shell-content)" data-slot="transcript-loading" plate="loading">
             <SkeletonRows count={3} />
           </Stack>
         }
@@ -125,12 +123,12 @@ export function MessageListSurface({ chatId, busDeps, surfaceContributors, toolR
         // surface of its own; over art it had neither, so the muted "Couldn't load…" line and its Retry
         // drew onto the wallpaper at 1.50:1 / 1.57:1. The backing is the OPAQUE `card` member rather than
         // the loading sibling's translucent plate because this state carries real MUTED-tone text and a
-        // control, and `muted-foreground` is floored against `card` (BG_PHOTO_ERROR_PLATE states the ink
+        // control, and `muted-foreground` is floored against `card` (the `error` plate states the ink
         // routing in full). Both classes are inert on a plain background.
         // It hands the battery its SURFACE rather than wrapping it: an error state renders `QueryErrorState`
-        // directly, never a wrapper, so the plate rides the component's own `className`.
+        // directly, never a wrapper, so the plate rides the component's own `plate`.
         renderError={(_error, retry): ReactElement => (
-          <QueryErrorState className={`${CHAT_TRACK} ${BG_PHOTO_ERROR_PLATE}`} label="this conversation" onRetry={retry} />
+          <QueryErrorState className="orb-chat-track inline-full max-inline-(--width-shell-content)" label="this conversation" onRetry={retry} plate="error" />
         )}
       >
         {/* The parent content region owns the console warning; this nested profiler only attributes its cost. */}
@@ -406,7 +404,7 @@ function ChatThread({
             const highlighted =
               item.kind === "message" && window !== null && window.endSeq !== null && item.view.seq >= window.anchorSeq && item.view.seq <= window.endSeq;
             return (
-              <Stack data-corpus-anchor={highlighted ? "" : undefined} className={highlighted ? "bg-muted ring-1 ring-ring" : undefined}>
+              <Stack data-corpus-anchor={highlighted ? "" : undefined} highlight={highlighted}>
                 {renderItem(item, index, meta)}
               </Stack>
             );

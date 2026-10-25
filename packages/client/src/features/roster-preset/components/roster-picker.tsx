@@ -79,7 +79,7 @@ function RosterRow(props: {
   const memberNames = roster.members.map((m) => m.name).join(", ");
   const counts = rosterCountsSuffix(roster);
   return (
-    <Stack container={true} gap="tight" padding="block" className="border-be border-border last:border-be-0" data-slot="roster-row">
+    <Stack container={true} divider="between" gap="tight" padding="block" data-slot="roster-row">
       <Row align="center" gap="field" className="@max-cq-28:flex-col @max-cq-28:items-stretch">
         <Stack gap="tight" className="flex-1 min-inline-0">
           <Row align="center" gap="field">

@@ -176,7 +176,7 @@ export function RefineryListSurface(): ReactElement {
   );
 
   return (
-    <Stack className="outline-none block-full" gap="block" ref={surfaceRef} tabIndex={-1}>
+    <Stack className="block-full" focusTarget={true} gap="block" ref={surfaceRef} tabIndex={-1}>
       <LibraryListLayout
         empty={
           <EmptyState

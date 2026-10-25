@@ -55,7 +55,7 @@ export function AnalyticsListSurface(): ReactElement {
   const search = useAnalyticsSearchQuery();
 
   return (
-    <Stack ref={surfaceRef} tabIndex={-1} className="outline-none block-full min-block-0" data-testid={testId("analyticsListSurface")} gap="block">
+    <Stack ref={surfaceRef} tabIndex={-1} className="block-full min-block-0" focusTarget={true} data-testid={testId("analyticsListSurface")} gap="block">
       {/* §14 LIST anatomy: search → sort → rows. The search is the reach past the page cap; the sort orders
           the page that comes back. */}
       <ListSearch>

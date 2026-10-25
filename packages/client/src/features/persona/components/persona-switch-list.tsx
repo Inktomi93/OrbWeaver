@@ -149,7 +149,9 @@ function SwitchRow({
     <Row
       align="center"
       onFocus={onFocusRow}
-      className={room === null ? STATIC_ROW : SWITCH_ROW}
+      className={ROW_BOX}
+      // In a room the row switches the seat, so it takes the hover and selected fill; on the panel it is a static row.
+      stateFill={room === null ? undefined : "selected"}
       data-selected={isPlaying ? "" : undefined}
       gap="row"
       padding="field"
@@ -180,8 +182,7 @@ function SwitchRow({
   );
 }
 
-const STATIC_ROW = "group relative min-block-(--size-control-md) rounded-control";
-const SWITCH_ROW = `${STATIC_ROW} transition-colors duration-(--motion-fast) ease-out-expo hover:not-data-selected:bg-accent/50 data-selected:bg-accent`;
+const ROW_BOX = "group relative min-block-(--size-control-md)";
 
 /** The row body in a room: one stretched button that switches. The playing row's name says so instead of
  *  offering a no-op verb (§13.10 N3/N4). */

@@ -11,10 +11,10 @@ import { PERSONA_DESCRIPTION_POSITIONS } from "@orb/kit/persona";
 import { Avatar } from "@orb/ui/avatar";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
+import { Card } from "@orb/ui/card";
 import { FileTrigger } from "@orb/ui/file-trigger";
 import { Copy, Download, Icon, Trash2 } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
-import { FOCUS_RING } from "@orb/ui/lib";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -87,16 +87,9 @@ export function PersonaEditorRegion({ persona, subject, onRequestDelete }: Perso
     }
   }, [request, persona.id]);
   return (
-    <Stack
-      aria-label={`Edit ${subject}`}
-      className={`rounded-base border border-border p-block outline-none ${FOCUS_RING}`}
-      gap="section"
-      ref={regionRef}
-      role="group"
-      tabIndex={-1}
-    >
+    <Card aria-label={`Edit ${subject}`} focusable={true} ref={regionRef} role="group" tabIndex={-1} tone="clear">
       <PersonaEditor persona={persona} onRequestDelete={onRequestDelete} />
-    </Stack>
+    </Card>
   );
 }
 

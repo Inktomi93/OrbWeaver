@@ -110,7 +110,7 @@ function TileBand({ title, trailing, headingId }: { readonly title: string; read
  *  mockup's `.doorway` treatment — the "not built yet" signal at a fraction of a dashed card's weight. */
 export function HomeDoorway({ tile, doorway }: { readonly tile: HomeTileContribution; readonly doorway: DormantDoorway }): ReactElement {
   return (
-    <Row align="start" className="border-dashed ps-row" data-home-tile={tile.id} divider="start" gap="row">
+    <Row align="start" className="ps-row" data-home-tile={tile.id} divider="start" dividerStyle="dashed" gap="row">
       <Icon className="mbs-tight shrink-0" icon={tile.icon} size="sm" tone="muted" />
       <Stack className="min-inline-0" gap="tight">
         {/* A REAL HEADING (side-eye rail-home, ARIA rec 2 — 2026-08-22). This was a `<p>`, so `Buddy` and

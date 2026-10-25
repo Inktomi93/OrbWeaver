@@ -96,7 +96,8 @@ function RegexMemberEditorBody({
     // the tag editor's twin carries the argument and the measured pane widths. The `@cq-64` query measures
     // the config member anchor's box, not one this surface owns.
     <Stack
-      className="mx-auto outline-none inline-full max-inline-(--width-content-col) @cq-64:max-inline-(--width-content-col-wide)"
+      className="mx-auto inline-full max-inline-(--width-content-col) @cq-64:max-inline-(--width-content-col-wide)"
+      focusTarget={true}
       data-slot="regex-member-editor"
       gap="block"
       ref={surfaceRef}

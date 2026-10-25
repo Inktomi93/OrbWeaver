@@ -138,7 +138,7 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
     // islands resolve the dense steps. `<Surface>` is display:contents — it declares the tier for the
     // subtree without adding a box to the height chain.
     <Surface tier="instrument">
-      <Stack className="outline-none block-full min-block-0" gap="row" ref={surfaceRef} tabIndex={-1}>
+      <Stack className="block-full min-block-0" focusTarget={true} gap="row" ref={surfaceRef} tabIndex={-1}>
         {/* SKIP THE PANE CHROME (#500 item 4, side-eye 2026-08-22 rail-chats P3). The app-shell's own
             "Skip to content" lands in `<main>` — it skips PAST this pane, and on the Chats surface the work
             starts in the LIST. Measured Tab order from the top of the boot: 13 stops (the rail's eight
@@ -189,8 +189,8 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
             difference is the glyph itself, and the reason it moved is that a ✕ hanging in the COLUMN GUTTER
             read as a sibling control while the month field's native picker glyph sat INSIDE its box, so two
             mechanically identical filters had two silhouettes. The glyph is now one `ClearFilterGlyph`,
-            inset at the field's own inline end, over a constant inline-end reserve (the same reserve
-            as `CLEAR_INSET_RESERVE`) so the value never reflows when it appears. */}
+            inset at the field's own inline end, over a constant inline-end reserve (the glyph's own
+            `--size-control-sm` box, held on both filter fields) so the value never reflows when it appears. */}
         <Row align="center" className="relative">
           <ListSearch>
             <Input
