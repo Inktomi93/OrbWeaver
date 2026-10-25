@@ -160,8 +160,8 @@ export function Markdown({
   // duration-0 re-render machinery snaps every fade at this app's commit cadence). UNTRUSTED-streaming
   // only: passing a custom `rehypePlugins` array would defeat the identity-gated `allowedTags` schema
   // merge the TRUSTED tier depends on (policy.ts documents the gate), and no trusted surface streams
-  // today. Reduced-motion (OS query) injects nothing at all — REMOVE, guide §3.9; the app-level
-  // `[data-reduced-motion="true"]` floor additionally collapses the fade to instant in CSS.
+  // today. Resolved reduced motion (the app's setting over the OS query, `usePrefersReducedMotion`) injects nothing
+  // at all — REMOVE, guide §3.9; the CSS floor also collapses the fade to instant.
   // One plugin instance per mount (its reveal-time log is the fade's memory), minted in a lazy
   // useState initializer: identity-stable for the component's whole life — Streamdown's Block memo
   // reference-compares `rehypePlugins`, so a fresh array per render would re-parse every settled
@@ -199,7 +199,7 @@ export function Markdown({
   // Streamdown's root div HARDCODES its own spacing utilities (a 1rem block gap + whitespace-normal +
   // first/last-child margin trims) and twMerges our className over them. Its dist is deliberately NOT a
   // Tailwind source (its raw spacing would fight the reading-typography tokens —
-  // `--reading-paragraph-spacing` owns prose spacing via the higher-specificity
+  // `--appearance-reading-paragraph-spacing` owns prose spacing via the higher-specificity
   // `[data-slot="message-bubble"] p + p` rule), so those defaults were DEADCSS in the DOM. The base
   // className below neutralizes them with COMPILED equivalents: `space-y-0` replaces the 1rem gap via
   // the twMerge conflict group; the other three dedupe to the identical literal, which this scanned
@@ -220,7 +220,7 @@ export function Markdown({
   // that replaced the vendor's 1rem block gap) out-specifies any sibling margin a descendant could set,
   // and padding also runs the rule the full height of the quote instead of leaving it floating.
   // Adding `@source "…/streamdown/dist"` would have resurrected the vendor's whole spacing scale app-wide,
-  // the thing `--reading-paragraph-spacing` exists to own.
+  // the thing `--appearance-reading-paragraph-spacing` exists to own.
   //
   // #490 — #238's INLINE-CODE HALF WAS ONLY HALF PAID. The paragraph above names inline code beside the
   // blockquote, but only the horizontal padding was ever compensated (`px-tight`). The vendor also spells

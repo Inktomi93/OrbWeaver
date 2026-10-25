@@ -169,10 +169,10 @@ const config: Config = {
       },
     },
     {
-      // The ui entry compiles without the client's generated variants, so its sheets spell a preference's OS arm with
-      // the OS variant beside the root attribute (motion-floor.css).
+      // The ui entry compiles without the client's generated variants, so its sheets spell a preference's OS arm as the
+      // OS variant over the root guard, beside the root attribute's on arm (motion-floor.css).
       files: ["packages/ui/src/styles/**/*.css"],
-      rules: { "orb/appearance-name-in-manifest": [true, { ...appearance, osVariants: {} }] },
+      rules: { "orb/appearance-name-in-manifest": [true, { ...appearance, osGuard: true }] },
     },
     {
       // Generated from the appearance manifest: a preference variant's body is Tailwind's `&` + `@slot` form, and its

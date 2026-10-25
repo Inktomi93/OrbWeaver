@@ -7,7 +7,7 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import type { AppShellModalStory, AppShellStory } from "./_app-shell-stories.tsx";
-import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
+import { routeShell, SHELL_STORIES } from "./app-shell-ct.tsx";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;
 const MODAL_STORY = `${SHELL_STORIES}/AppShellModalStory`;
@@ -296,12 +296,12 @@ for (const modalId of ["command", "you"] as const satisfies readonly ModalSlotId
       Promise.all([cssValue(grid, "--color-border"), cssValue(portal, "--color-border"), cssValue(popup, "--color-border")]);
 
     // The root effect's own stamp, driven directly so the same popup node is observed in both arms.
-    await page.evaluate(() => document.documentElement.removeAttribute("data-theme-colorization"));
+    await page.evaluate(() => document.documentElement.setAttribute("data-appearance-enable-theme-colorization", "false"));
     const off = await borders();
     expect(new Set(off).size).toBe(1);
     const offHeaderOutline = await header.evaluate((element) => getComputedStyle(element).outlineColor);
 
-    await page.evaluate(() => document.documentElement.setAttribute("data-theme-colorization", ""));
+    await page.evaluate(() => document.documentElement.setAttribute("data-appearance-enable-theme-colorization", "true"));
     await expect.poll(() => cssValue(grid, "--color-border")).not.toBe(off[0]);
     const on = await borders();
     expect(on[1]).toBe(on[0]);
@@ -310,7 +310,7 @@ for (const modalId of ["command", "you"] as const satisfies readonly ModalSlotId
     // The selected theme's own CSS consumes the inherited token, so it follows too.
     await expect.poll(() => header.evaluate((element) => getComputedStyle(element).outlineColor)).not.toBe(offHeaderOutline);
 
-    await page.evaluate(() => document.documentElement.removeAttribute("data-theme-colorization"));
+    await page.evaluate(() => document.documentElement.setAttribute("data-appearance-enable-theme-colorization", "false"));
     await expect.poll(() => cssValue(popup, "--color-border")).toBe(off[0]);
   });
 }
@@ -322,10 +322,10 @@ test("a seed theme keeps one border token across the root, the shell and the por
   await expect(page.locator('[data-slot="dialog-popup"]')).toBeVisible();
   const surfaces = [page.locator("html"), page.locator(".shell-grid"), page.locator('[data-slot="portal-root"]'), page.locator('[data-slot="dialog-popup"]')];
   const borders = (): Promise<string[]> => Promise.all(surfaces.map((surface) => cssValue(surface, "--color-border")));
-  await page.evaluate(() => document.documentElement.removeAttribute("data-theme-colorization"));
+  await page.evaluate(() => document.documentElement.setAttribute("data-appearance-enable-theme-colorization", "false"));
   const off = await borders();
   expect(new Set(off).size).toBe(1);
-  await page.evaluate(() => document.documentElement.setAttribute("data-theme-colorization", ""));
+  await page.evaluate(() => document.documentElement.setAttribute("data-appearance-enable-theme-colorization", "true"));
   await expect.poll(borders).not.toEqual(off);
   expect(new Set(await borders()).size).toBe(1);
 });

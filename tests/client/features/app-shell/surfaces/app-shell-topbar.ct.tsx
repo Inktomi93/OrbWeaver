@@ -11,7 +11,7 @@ import type { Locator, Page } from "@playwright/test";
 import { commandShortcutLabel } from "#client/features/app-shell/lib/command-shortcut-label.ts";
 import type { AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import type { AppShellTrailProjectionStory } from "./_trail-projection-stories.tsx";
-import { JUMP_CHIP, namedGroupRoom, pixel, resolvedLength, routeRoom, routeShell, SECTION_PROCEDURES, SHELL_STORIES, seedShellState } from "./app-shell-ct.ts";
+import { JUMP_CHIP, namedGroupRoom, pixel, resolvedLength, routeRoom, routeShell, SECTION_PROCEDURES, SHELL_STORIES, seedShellState } from "./app-shell-ct.tsx";
 import { STORY_TRAIL_WIDGET } from "./trail-projection.ts";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;

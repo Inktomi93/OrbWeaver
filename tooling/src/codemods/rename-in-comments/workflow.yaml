@@ -1,0 +1,35 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/codemod/codemod/refs/heads/main/schemas/workflow.json
+version: "1"
+params:
+  schema:
+    map:
+      name: "Map file"
+      description: "Path, relative to the target directory, of the JSON object with a `names` map of old to new"
+      type: string
+      default: "codemod-comment-map.json"
+nodes:
+  - id: rename-in-comments
+    name: Rename names inside comments by map
+    type: automatic
+    steps:
+      - name: TypeScript files
+        js-ast-grep:
+          js_file: scripts/codemod.ts
+          base_path: "."
+          language: "typescript"
+          include: ["**/*.ts"]
+          exclude: ["**/node_modules/**", "**/codemods/*/tests*/**", "**/*.gen.ts", "packages/ui/src/tokens/index.ts"]
+      - name: TSX files
+        js-ast-grep:
+          js_file: scripts/codemod.ts
+          base_path: "."
+          language: "tsx"
+          include: ["**/*.tsx"]
+          exclude: ["**/node_modules/**", "**/codemods/*/tests*/**"]
+      - name: CSS files
+        js-ast-grep:
+          js_file: scripts/codemod.ts
+          base_path: "."
+          language: "css"
+          include: ["**/*.css"]
+          exclude: ["**/node_modules/**", "**/codemods/*/tests*/**", "**/*.gen.css", "packages/ui/src/styles/theme.css"]

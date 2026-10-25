@@ -1,6 +1,6 @@
 // The seal's OWNED list elements (#1085). Streamdown renders `ul`/`ol`/`li` with its own Tailwind
 // utilities, and its dist is deliberately NOT a Tailwind source (markdown.tsx states the ruling: the
-// vendor's raw spacing would fight `--reading-paragraph-spacing`), so those utilities generated
+// vendor's raw spacing would fight `--appearance-reading-paragraph-spacing`), so those utilities generated
 // NOTHING — and Tailwind's preflight zeroes list-style, margin and padding on `ul`/`ol`. Every rendered
 // markdown list therefore painted as flat, unmarked, unindented text: a chat reply's bullets and its
 // prose were the same rendering, on a surface whose whole voice system is typographic.

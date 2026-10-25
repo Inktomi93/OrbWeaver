@@ -122,6 +122,7 @@ test("a value row in the real table path is admitted for a dropped value and ref
   expect(() => renderOwnerCssSurface(without, OWNER_CSS_SURFACE)).not.toThrow();
   expect(tableViolations(table, OWNER_CSS_SURFACE)).toEqual([dropped]);
   expect(tableViolations([{ ...dropped, name: `${name}z` }], regenerated)).toHaveLength(1);
+  expect(tableViolations([{ ...dropped, to: name }], regenerated)).toHaveLength(1);
 });
 
 test("the surface lists every kind, each name once, and no private name", () => {
