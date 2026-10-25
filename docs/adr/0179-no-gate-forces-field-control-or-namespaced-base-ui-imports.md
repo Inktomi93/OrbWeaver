@@ -16,7 +16,7 @@ Neither gate exists. Base UI input components register with `Field` on their own
 
 ## Consequences
 
-A `Field` that wraps a Base UI control needs no `Field.Control`. A seal may import a flat alias. Before you propose either gate again, re-read the `FieldControl` doc-comment and the type tables for the installed Base UI version. The `baseui-surface-manifest` gate tracks the installed surface.
+A `Field` that wraps a Base UI control needs no `Field.Control`. A seal may import a flat alias. Before you propose either gate again, re-read the `FieldControl` doc-comment and the type tables for the installed Base UI version.
 
 ## Alternatives rejected
 
