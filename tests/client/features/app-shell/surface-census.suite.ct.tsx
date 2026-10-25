@@ -3,6 +3,7 @@
 // §3 and §3.2) and for a suspending read outside a QueryBoundary (client-architecture-state-and-gates.md §11).
 // The rosters are the production tuples, never a list here.
 
+import { BLANK_CHAT_NAME } from "@orb/client/lib";
 import type { ImageSubject } from "@orb/client/state";
 import { CONFIG_GROUP_IDS, MODAL_SLOT_IDS, SECTION_IDS } from "@orb/client/state";
 import { presetIdInputSchema } from "@orb/contracts/preset";
@@ -15,6 +16,7 @@ import type { CorpusWire } from "@orb/testkit/iso";
 import { createCorpusReadResponder, createSeededIds } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
+import { channelName } from "../../lib/appearance-channel-names.ts";
 import type { SurfaceRouteOverrides } from "./_surface-harness.ts";
 import { routeSurfaceReads } from "./_surface-harness.ts";
 import type {
@@ -120,6 +122,62 @@ for (const modal of MODAL_SLOT_IDS) {
     expect(await censusReport(page, boundary)).toBe("");
   });
 }
+
+test.describe("scaled new-chat footer", () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
+
+  test("each action owns its painted label at narrow and wider container widths", async ({ mount, page }, testInfo) => {
+    await mount<typeof ModalShellStory>(`${STORIES}/ModalShellStory`, { modal: "newChat" });
+    const dialog = page.getByRole("dialog");
+    const blank = dialog.getByRole("button", { name: BLANK_CHAT_NAME, exact: true });
+    await expect(blank).toBeVisible();
+    await page.evaluate((property) => document.documentElement.style.setProperty(property, "1.25"), channelName("fontScale"));
+    for (const width of [390, 900]) {
+      await page.setViewportSize({ width, height: 844 });
+      await settleSurface(page);
+      const geometry = await blank.evaluate((button) => {
+        const footer = button.parentElement;
+        if (footer === null) {
+          throw new Error("New-chat action footer missing");
+        }
+        const frame = footer.getBoundingClientRect();
+        const style = getComputedStyle(footer);
+        return [...footer.querySelectorAll("button")].map((action) => {
+          const box = action.getBoundingClientRect();
+          const walker = document.createTreeWalker(action, NodeFilter.SHOW_TEXT);
+          const ink: DOMRect[] = [];
+          for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
+            if (node.textContent?.trim() === "" || node.parentElement?.checkVisibility() !== true) {
+              continue;
+            }
+            const range = document.createRange();
+            range.selectNodeContents(node);
+            ink.push(range.getBoundingClientRect());
+          }
+          return {
+            text: action.textContent,
+            left: box.left,
+            right: box.right,
+            height: box.height,
+            inkLeft: Math.min(...ink.map((rect) => rect.left)),
+            inkRight: Math.max(...ink.map((rect) => rect.right)),
+            floorLeft: frame.left + Number.parseFloat(style.paddingLeft),
+            floorRight: frame.right - Number.parseFloat(style.paddingRight),
+          };
+        });
+      });
+      await testInfo.attach(`footer-${width}`, { body: JSON.stringify(geometry), contentType: "application/json" });
+      expect(geometry).toHaveLength(2);
+      for (const action of geometry) {
+        expect.soft(action.inkLeft, action.text).toBeGreaterThanOrEqual(action.left - 1);
+        expect.soft(action.inkRight, action.text).toBeLessThanOrEqual(action.right + 1);
+        expect.soft(action.left).toBeGreaterThanOrEqual(action.floorLeft - 1);
+        expect.soft(action.right).toBeLessThanOrEqual(action.floorRight + 1);
+        expect.soft(action.height).toBeGreaterThanOrEqual(44);
+      }
+    }
+  });
+});
 
 for (const group of CONFIG_GROUP_IDS) {
   test(`settings group ${group} reads clean`, async ({ mount, page }) => {

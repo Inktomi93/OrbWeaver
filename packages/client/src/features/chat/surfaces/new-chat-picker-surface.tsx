@@ -42,8 +42,8 @@
 // the two buttons at desktop label widths are wider than the footer's content box, and a `justify-end`
 // overflow goes LEFT — so "Blank chat" painted OUTSIDE the dialog and was clipped by the popup, worse as
 // the Start label grew with the selection count (measured 27px at 1 pick, 35px at 3). Below the `@cq-28`
-// container step the two buttons SHARE the row (`flex-1 min-w-0`) and Start wears a count-abbreviated
-// label; at or above it they return to their natural widths and the full sentence. The step is a CONTAINER
+// container step the buttons share the row when their intrinsic labels fit and wrap otherwise; Start wears a
+// count-abbreviated label. At or above it they return to their natural widths and the full sentence. The step is a CONTAINER
 // query, never a media query (the §0 container rule): this surface is a modal body whose width is the
 // dialog's, not the viewport's. `@cq-28` = 28rem = 448px, chosen with margin over the ~390px where the full
 // labels stop fitting.
@@ -70,9 +70,8 @@ import { clearNewChatIntent, closeModal, openModal, useNewChatIntent } from "#st
 
 const SKELETON_ROW_COUNT = 6;
 
-/** The action buttons SHARE the footer row below the `@cq-28` container step and take their natural widths at
- *  or above it (#439). Whole literals, never spliced — the Tailwind scanner never assembles a class name. */
-const ACTION_BUTTON = "min-inline-0 flex-1 @cq-28:flex-none";
+/** Intrinsic label, icon and padding widths determine whether the footer can share a row at the active font scale. */
+const ACTION_BUTTON = "flex-1 min-inline-max @cq-28:flex-none";
 
 /** The Start button's full label — also its accessible name at `@cq-28` and up. */
 function startLabelFor(count: number, pending: boolean): string {
@@ -199,7 +198,7 @@ export function NewChatPicker(): ReactElement {
       {/* PERSISTENT ACTION FOOTER (#334). Below the picker's own scrolling list, so a pick made deep in the
           list still has the Start action in view. `sticky bottom-0` keeps it pinned when the modal body
           scrolls; `bg-popover` matches the modal surface so scrolled rows don't bleed through. */}
-      <Row align="center" className="sticky inset-be-0" divider="top" gap="field" ground="popover" justify="end" padding="block">
+      <Row align="center" className="sticky inset-be-0 flex-wrap" divider="top" gap="field" ground="popover" justify="end" padding="block">
         <Text as="span" className="sr-only" role="status">
           {selectionStatusFor(selectedCount)}
         </Text>

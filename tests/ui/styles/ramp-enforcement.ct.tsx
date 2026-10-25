@@ -70,8 +70,21 @@ test("public icon ink and optical weights follow tokens and scaling without chan
   await expect(compact.locator(".orb-web-spokes")).not.toHaveAttribute("d", (await hero.locator(".orb-web-spokes").getAttribute("d")) ?? "missing");
 });
 
-test("owner size and border overrides reach icon ink, editor diagnostics and the textarea row box", async ({ mount, page }) => {
+test("owner size and border overrides reach icon ink, editor diagnostics and the textarea row box", async ({ mount, page }, testInfo) => {
   const component = await mount<typeof RampControlsStory>(CONTROLS);
+  const editor = component.locator(".cm-editor");
+  const typography = await editor.evaluate((element) => {
+    const content = element.querySelector(".cm-content");
+    if (content === null) {
+      throw new Error("CodeMirror content missing");
+    }
+    const root = getComputedStyle(element);
+    const editable = getComputedStyle(content);
+    return { rootFont: root.fontFamily, contentFont: editable.fontFamily, rootLeading: root.lineHeight, contentLeading: editable.lineHeight };
+  });
+  await testInfo.attach("editor-typography", { body: JSON.stringify(typography), contentType: "application/json" });
+  expect.soft(typography.contentFont).toBe(typography.rootFont);
+  expect.soft(typography.contentLeading).toBe(typography.rootLeading);
   await page.evaluate(() => {
     document.documentElement.style.setProperty("--size-icon-md", "29px");
     document.documentElement.style.setProperty("--border-width-control", "3px");
@@ -93,6 +106,9 @@ test("owner size and border overrides reach icon ink, editor diagnostics and the
   expect(box.height).toBeCloseTo(box.expected, 1);
   await expect(component.locator(".cm-gutters")).toHaveCSS("border-right-width", "3px");
   await expect(component.locator(".cm-lint-marker-error")).toHaveCSS("width", `${LENGTH_BASE_PX["size.icon-xs"]}px`);
+  await page.evaluate(() => document.documentElement.style.setProperty("--font-mono", "Georgia, serif"));
+  await expect(editor).toHaveCSS("font-family", "Georgia, serif");
+  await expect(editor.locator(".cm-content")).toHaveCSS("font-family", "Georgia, serif");
 });
 
 test("real charts remeasure label typography and density while retaining the shared default reservation", async ({ mount, page }) => {

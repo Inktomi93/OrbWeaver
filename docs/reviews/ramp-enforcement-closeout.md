@@ -65,6 +65,26 @@ Production-mounted controls now meet the project touch floor. Switch aspect, equ
 A density-only chart update retained 8px padding when the live token resolved to 10px. Adding the actual `data-density` carrier to the existing observer fixes it.
 A width probe rounded a 10.4px font to 10.3906px. Reading computed padding preserves the exact length. The retained test compares the actual chart option to rendered label typography, including owner-authored `calc()` values.
 
+## Rendered corrections
+
+Committed-source synthetic captures identified two remaining defects before visual acceptance.
+CodeMirror's scroller overrode the tokenized root: editable text used generic monospace and an 18.2px line height while the root used Geist Mono and 20px.
+The vendor theme now inherits both values from the root. The public control verifies the default values and a live owner-font override.
+
+At 390px and fontScale 1.25, the compact NewChat label occupied x182–328 inside a button at x198–304.
+The footer now wraps, and each action retains its max-content minimum. Both narrow actions occupy x86–304 with their text inside; the wider 900px layout retains natural widths.
+The control measures rendered text ranges, button bounds, footer content bounds and the touch-height floor through the production modal registry.
+
+The correction touches the existing CodeMirror theme and NewChat footer, plus their retained controls.
+Scoped ESLint and UI/client/browser-test compilers pass. The two affected CT cases pass with retries disabled.
+Artifacts: `ramp-editor-typography-red.log`, `ramp-footer-red.log`, `ramp-visual-fix-eslint-final.log`, `ramp-visual-fix-typecheck.log`, and `ramp-visual-fix-ct-report.json` under `reports/css-closeout/`.
+
+The editor captures retain a separate instrument false positive. The dead-CSS scanner reports `cm-editor`, `ͼ1`, `ͼ3`, `ͼ4` and `ͼo`.
+The actual CSSOM contains selectors for every reported Unicode class. Installed CodeMirror assigns `cm-editor` as its identity marker and mounts the generated style classes.
+The scanner's shared class-token pattern admits ASCII names only (`packages/kit/src/dead-css/index.ts`). No scanner exemption, suppression or repair is included here.
+The native capture aggregates remain exit 1; the rendered editor evidence is not relabelled as a passing scan.
+The proof is `reports/runs/snap/closeout-css-872255-2026-10-25T20-10-46-330Z/evidence/regex-editor-evals.json`.
+
 ## Completed checks
 
 All paths below are local artifacts in this worktree. Failed aggregates remain retained; their passing cases are reused only where behavior and inputs match.

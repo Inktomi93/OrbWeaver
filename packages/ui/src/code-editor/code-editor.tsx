@@ -23,6 +23,8 @@ const TOKEN_THEME = EditorView.theme(
       fontFamily: cssVar("font.mono"),
       fontSize: cssVar("text.code-field"),
     },
+    // CodeMirror sets independent typography here; inherit the seal's token-backed font and line box.
+    ".cm-scroller": { fontFamily: "inherit", lineHeight: "inherit" },
     // The editable surface wears an INPUT's inset, not CodeMirror's default 4px/0. Without it the text
     // starts hard against the frame's left hairline while every sibling `<Input>` on the same form insets
     // its value — the tell that read as "this box is not a field" (side-eye 2026-08-03 P2).
