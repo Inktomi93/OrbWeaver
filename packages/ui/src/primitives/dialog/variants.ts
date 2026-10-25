@@ -7,21 +7,6 @@ import { MODAL_SURFACE, OVERLAY_MOTION, SCRIM, tv } from "#lib";
 // correctly on the popup. The popup pairs that clamp with
 // `overflow-y-auto overscroll-contain` (matching drawer-content) so tall content — a FormDialog whose
 // body outgrows the viewport — actually scrolls to its submit button instead of overflowing off-screen.
-/**
- * The class for a region that scrolls a dialog body above a DialogFooter. `scroll-pb-(--size-control-lg)` is the
- * footer's height, so a focused field scrolls clear of the sticky footer instead of under it.
- *
- * The inline bleed (negative margin, matching padding) keeps a control flush with the body's edge whole:
- * `overflow-y: auto` also clips the inline axis, and a glyph button's touch pseudo reaches past its box by up to
- * (touch target - glyph-xs) / 2. The popup's own `p-section` is wider than that, so the margin never overflows it.
- */
-const DIALOG_SCROLL_CLASS = "relative -mx-glyph-bleed min-block-0 overflow-y-auto overscroll-contain px-glyph-bleed scroll-pbe-(--size-control-lg)";
-
-export const dialogBodyVariants = tv({
-  base: DIALOG_SCROLL_CLASS,
-  variants: { grow: { true: "flex-1", false: "" } },
-});
-
 export const dialogVariants = tv({
   slots: {
     // The modal scrim + the dialog-only `backdrop-blur-sm` on top (alert-dialog shares the scrim, not the blur).
@@ -35,7 +20,7 @@ export const dialogVariants = tv({
     header: "flex shrink-0 items-center justify-between gap-row border-be border-border pbe-field",
     title: "text-title leading-title font-semibold",
     description: "mbs-field text-body leading-body text-muted-foreground",
-    // The action row: the LAST child of a DIALOG_SCROLL_CLASS region, never of the popup itself. The popup's padding
+    // The action row: the LAST child of a DialogBody, never of the popup itself. The popup's padding
     // surrounds that region, so `sticky bottom-0` lands the buttons exactly one popup inset above the popup edge.
     footer: "sticky inset-be-0 z-(--z-raised) flex shrink-0 flex-wrap items-center justify-end gap-field bg-popover pbs-field",
   },

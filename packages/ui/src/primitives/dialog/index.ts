@@ -1,7 +1,6 @@
 export type { DialogPopupProps } from "./dialog.tsx";
 export {
   Dialog,
-  DialogBody,
   DialogClose,
   DialogDescription,
   DialogFooter,

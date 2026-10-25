@@ -1,6 +1,7 @@
 import { FlowDialog, PickerDialog, ViewerDialog } from "@orb/client/components";
 import { CtIsolation } from "@orb/testkit/browser";
 import type { ReactElement } from "react";
+import { useRef } from "react";
 
 export function ViewerDialogStory(): ReactElement {
   return (
@@ -13,9 +14,19 @@ export function ViewerDialogStory(): ReactElement {
 }
 
 export function FlowDialogStory(): ReactElement {
+  const bodyRef = useRef<HTMLDivElement>(null);
   return (
     <CtIsolation subject="FlowDialog" isolates="isolates dialog stage geometry from authenticated feature data">
-      <FlowDialog defaultOpen={true} title="Join a room" footer={<button type="button">Continue</button>}>
+      <FlowDialog
+        defaultOpen={true}
+        title="Join a room"
+        bodyProps={{ container: true, ref: bodyRef, tabIndex: -1, role: "region", "aria-label": "Dialog stage" }}
+        footer={
+          <button onClick={(): void => bodyRef.current?.focus()} type="button">
+            Continue
+          </button>
+        }
+      >
         <div style={{ height: 1600, flexShrink: 0 }}>Preview</div>
       </FlowDialog>
     </CtIsolation>

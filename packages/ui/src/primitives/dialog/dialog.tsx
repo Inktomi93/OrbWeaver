@@ -10,10 +10,8 @@ import type {
 import { Dialog as BaseDialog } from "@base-ui/react/dialog";
 import type { ComponentProps, ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
-import type { StackProps } from "#layout";
-import { Stack } from "#layout";
 import { usePortalContainer, variantAttrs } from "#lib";
-import { dialogBodyVariants, dialogVariants } from "./variants.ts";
+import { dialogVariants } from "./variants.ts";
 
 const slots = dialogVariants();
 
@@ -55,13 +53,6 @@ export function DialogPopup(props: DialogPopupProps): ReactElement {
   );
 }
 
-export interface DialogBodyProps extends StackProps, VariantProps<typeof dialogBodyVariants> {}
-
-/** Keeps scrolling and glyph-hit-area clearance inside the dialog body, without another wrapper. */
-export function DialogBody({ className, grow, ...props }: DialogBodyProps): ReactElement {
-  return <Stack {...props} className={dialogBodyVariants({ grow, className })} />;
-}
-
 export interface DialogTitleProps extends Omit<BaseTitleProps, "className"> {
   className?: string;
 }
@@ -90,7 +81,7 @@ export interface DialogFooterProps extends Omit<ComponentProps<"div">, "classNam
 
 /**
  * The dialog's action row: stays in view at the bottom of the popup while the body scrolls. Render it as the
- * LAST child of a `DIALOG_SCROLL_CLASS` region (never of the popup itself, which must not scroll); every
+ * LAST child of a `DialogBody` (never of the popup itself, which must not scroll); every
  * dialog's Cancel/Confirm/Done row composes this rather than a Row.
  */
 export function DialogFooter(props: DialogFooterProps): ReactElement {

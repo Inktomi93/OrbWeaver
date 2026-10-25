@@ -183,6 +183,14 @@ export const stackVariants = tv({
   compoundVariants: [...DIVIDER_RULE],
 });
 
+// Inline bleed preserves glyph hit areas inside the scroller; scroll padding clears its sticky action footer.
+const DIALOG_SCROLL_CLASS = "relative -mx-glyph-bleed min-block-0 overflow-y-auto overscroll-contain px-glyph-bleed scroll-pbe-(--size-control-lg)";
+
+export const dialogBodyVariants = tv({
+  base: DIALOG_SCROLL_CLASS,
+  variants: { grow: { true: "flex-1", false: "" } },
+});
+
 export const rowVariants = tv({
   base: "flex flex-row items-center",
   variants: {

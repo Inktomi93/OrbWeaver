@@ -4,7 +4,7 @@
     "line": 1,
     "column": 1,
     "before": "import { DIALOG_SCROLL_CLASS } from \"@orb/ui/dialog\";",
-    "after": "import { DialogBody } from \"@orb/ui/dialog\";"
+    "after": "import { DialogBody } from \"@orb/ui/layout\";"
   },
   {
     "file": "a.tsx",

@@ -7,8 +7,8 @@
 // client-shared (a generic relation manager — the RowActionsMenu precedent; NOT @orb/ui, ui stays parts-only).
 
 import { Button } from "@orb/ui/button";
-import { Dialog, DialogBody, DialogClose, DialogFooter, DialogPopup, DialogTitle, DialogTrigger } from "@orb/ui/dialog";
-import { Section, Stack } from "@orb/ui/layout";
+import { Dialog, DialogClose, DialogFooter, DialogPopup, DialogTitle, DialogTrigger } from "@orb/ui/dialog";
+import { DialogBody, Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";

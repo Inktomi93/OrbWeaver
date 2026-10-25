@@ -45,7 +45,7 @@ Previews were compared with independent literal searches before application. The
 Hand edits are semantic exceptions: primitive variant/API ownership; ConnectionRoleSlot status mapping; FaceStrip overflow anatomy and transparent layout forwarding; chart policy and live metrics; CodeMirror diagnostics; Textarea chrome arithmetic; theme defaults; SandboxFrame reservation; token/generator/rule implementation; and deletion of the five obsolete glyph-size declarations after the codemod.
 The transformations are retained with fixtures. They are not hand-written repetitive file migrations.
 
-- Client paint moves to typed primitive tone, numeric, shape, edge, selection, reveal and dialog-body choices. DialogBody adds no wrapper DOM.
+- Client paint moves to typed UI tone, numeric, shape, edge, selection, reveal and dialog-body choices. DialogBody is a layout-tier Stack composite and adds no wrapper DOM.
 - The named setting-group reveal is owned by the shared UI recipe. Hover, keyboard focus, popup-open persistence and coarse visibility retain their existing mechanisms.
 - Icon ink preserves 12/16/20/24px through aliases to existing primitive steps. Spinner and display marks reuse 32/48/64px steps. Optical strokes preserve 1/1.75/2.5px with per-shape non-scaling stroke.
 - Wordmark and rail marks move from standalone 26px to the approved 24px step. Internal SVG drawing coordinates remain art geometry. The nested clock icon keeps a fixed drawing-coordinate viewport.
@@ -147,3 +147,29 @@ Runtime measurement, content geometry, registered appearance channels and valida
 The census includes generated outputs; their generators own those bytes. Vendor internals, external plugin documents and art simulation algorithms are not recast as token consumers.
 The prior fine-pointer TrackerValue no-shift proof remains fine-pointer-only. Coarse inline editors intentionally retain the 16px focus-zoom floor; real iOS behavior is not certified here.
 The bounded visual review is complete with the explicit FormDialog and fine-pointer reveal screenshot gaps above. Whole-tree push-barrier acceptance remains pending under the program umbrella.
+
+## Dependency-tier correction
+
+The owner-reported `pnpm depcruise` failure exposed two regressions in the migration: DialogBody imported layout upward from the primitive tier, and the unused pointer fragment remained orphaned.
+The reproduced command at base `3067b9e60f` reports one `ui-primitives-below-groups` error and one `no-orphans` warning over 6983 modules and 41993 dependencies.
+The complete failed output is retained in `reports/css-closeout/dialog-tier-depcruise-red.log`.
+
+DialogBody now lives in `packages/ui/src/layout/dialog-body.tsx`, exported only through the existing `@orb/ui/layout` door.
+Its StackProps contract, renderer and private scroll recipe are unchanged; the recipe belongs to `layout/variants.ts`.
+The primitive dialog module no longer imports layout or re-exports the composite.
+The four client consumers use the layout door. The pinned `move-import-names` transform handles their split imports; its reviewed preview exactly matches the independent four-file search.
+The existing JSX-anatomy fixture and its input/expected configuration now emit the layout import.
+The unused `pointer-variants.ts` helper is deleted. The standing law points at the actual primitive `hiddenAt` and reveal mechanisms instead.
+No dependency rule, exclusion or orphan exemption changes.
+
+| Check | Completed result |
+| - | - |
+| Native full `pnpm depcruise` | No violations or warnings; 6983 modules, 41998 dependencies. `dialog-tier-depcruise-final.log` |
+| `pnpm typecheck packages/ui/tsconfig.json packages/client/tsconfig.json tsconfig.tests-dom.json` | Pass; `dialog-tier-typecheck.log` |
+| Scoped ESLint and Biome | Pass; `dialog-tier-eslint.log`, `dialog-tier-biome.log` |
+| Named-import and coupled JSX-anatomy fixtures | 6/6 each; `dialog-tier-codemod-fixtures.log`, `dialog-tier-anatomy-fixtures-tsx.log` |
+| Existing FlowDialog, PickerDialog, ViewerDialog and native dialog CTs | 5/5 pass; `dialog-tier-ct.log` |
+
+All short artifact names above are under `reports/css-closeout/`. The initial JSX fixture invocation used the wrong TypeScript grammar; its unchanged-output failures are retained separately, not treated as a source verdict.
+The existing FlowDialog story now exercises `bodyProps.ref`, `container: true` and the scrolling body directly; its native test verifies programmatic body focus, containment and scrolling beside the pinned heading/action.
+No new test framework or pixel round is added. The renderer and class recipe match exactly, so the prior bounded visual acceptance remains applicable.

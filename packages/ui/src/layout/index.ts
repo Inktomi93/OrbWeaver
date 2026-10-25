@@ -5,6 +5,7 @@
  */
 
 export { Container } from "./container.tsx";
+export { DialogBody } from "./dialog-body.tsx";
 
 export { Grid } from "./grid.tsx";
 

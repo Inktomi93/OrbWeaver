@@ -1,7 +1,7 @@
 import { Button } from "@orb/ui/button";
-import { Dialog, DialogBody, DialogClose, DialogFooter, DialogHeader, DialogPopup, DialogTitle } from "@orb/ui/dialog";
+import { Dialog, DialogClose, DialogFooter, DialogHeader, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import type { Stack } from "@orb/ui/layout";
-import { Row } from "@orb/ui/layout";
+import { DialogBody, Row } from "@orb/ui/layout";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
 
 export interface ContentDialogProps extends Omit<ComponentProps<typeof Dialog>, "children"> {
