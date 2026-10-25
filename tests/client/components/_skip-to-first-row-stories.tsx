@@ -1,4 +1,5 @@
 import { SkipToFirstRow } from "@orb/client/components";
+import { CtIsolation } from "@orb/testkit/browser";
 import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
@@ -9,11 +10,13 @@ import { useRef } from "react";
 export function SkipToFirstRowStory(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   return (
-    <Stack ref={surfaceRef}>
-      <SkipToFirstRow containerRef={surfaceRef}>Skip to rows</SkipToFirstRow>
-      <Button>Search chrome</Button>
-      <ListRow clickable={true} onClick={(): void => undefined} title="First row" />
-      <ListRow clickable={true} onClick={(): void => undefined} title="Second row" />
-    </Stack>
+    <CtIsolation subject="SkipToFirstRow" isolates="The skip link finds list-row bodies in the box it is given and reads no application data.">
+      <Stack ref={surfaceRef}>
+        <SkipToFirstRow containerRef={surfaceRef}>Skip to rows</SkipToFirstRow>
+        <Button>Search chrome</Button>
+        <ListRow clickable={true} onClick={(): void => undefined} title="First row" />
+        <ListRow clickable={true} onClick={(): void => undefined} title="Second row" />
+      </Stack>
+    </CtIsolation>
   );
 }

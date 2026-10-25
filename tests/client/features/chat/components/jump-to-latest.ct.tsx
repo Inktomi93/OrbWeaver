@@ -2,7 +2,7 @@
 // below, and a jump to the tail clears it.
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { TrpcWireOutput } from "@orb/testkit/ct";
-import { routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
+import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createSeededIds } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -56,28 +56,26 @@ for (const [title, nativeScrollend] of [
     const rows = (count: number, from: number): MessagesWire["messages"] =>
       Array.from({ length: count }, (_, index) => ({ ...source, id: mintTypeId(ID_PREFIX.message, ids.next), seq: from + index }));
     let messages: MessagesWire = { ...real, messages: rows(ROWS, source.seq + 1) };
-    const viewer = await caller.sessions.me();
-    const settings = await caller.settings.getUserSettings();
-    const detail = await caller.chat.getChat({ chatId });
-    const reactions = await caller.chat.listReactions({ chatId });
-    const scripts = await caller.regex.listScripts();
-    const roomScripts = await caller.regex.listRoomDisplayScripts({ chatId });
-    const plugins = await caller.plugin.list();
-    const transforms = await caller.plugin.listDisplayTransforms();
-    const surfaces: TrpcWireOutput<"plugin.listSurfaces"> = await caller.plugin.listSurfaces();
     await routeTrpc(page, {
-      ...serveCorpusProcedures(caller, ["character.get"]),
-      "sessions.me": () => viewer,
-      "settings.getUserSettings": () => settings,
-      "chat.getChat": () => detail,
-      "chat.listReactions": () => reactions,
-      "plugin.list": () => plugins,
-      "plugin.listDisplayTransforms": () => transforms,
-      "plugin.listSurfaces": () => surfaces,
-      "chat.listMessages": () => messages,
-      "chat.previewContextFit": () => trpcError({ code: "BAD_REQUEST" }),
-      "regex.listScripts": () => scripts,
-      "regex.listRoomDisplayScripts": () => roomScripts,
+      ...serveCorpusProcedures(caller, [
+        "character.get",
+        "sessions.me",
+        "settings.getUserSettings",
+        "chat.getChat",
+        "chat.listReactions",
+        "plugin.list",
+        "plugin.listDisplayTransforms",
+        "plugin.listSurfaces",
+        "chat.previewContextFit",
+        "regex.listScripts",
+        "regex.listRoomDisplayScripts",
+      ]),
+      "chat.listMessages": (input) => {
+        if (input.chatId !== chatId) {
+          throw new Error(`The transcript was asked for ${input.chatId}, not the room under test`);
+        }
+        return messages;
+      },
     });
     await page.setViewportSize({ width: 900, height: 420 });
     const component = await mount<typeof JumpToLatestStory>(STORY, { chatId });

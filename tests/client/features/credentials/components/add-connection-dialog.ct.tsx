@@ -3,7 +3,7 @@
 // hands focus to the Add connection button that replaces the one the empty state drew.
 import { modelListingSchema, providerDisplayLabel } from "@orb/contracts/inference";
 import type { trpcHold } from "@orb/testkit/ct";
-import { createShellAmbientReads, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
+import { createShellAmbientReads, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
@@ -44,6 +44,7 @@ const catalog = modelListingSchema.parse({
 async function scenario(): Promise<{
   readonly caller: Awaited<ReturnType<typeof root.internalCallerFor>>;
   readonly label: string;
+  readonly providerId: string;
   readonly providers: Awaited<ReturnType<Awaited<ReturnType<typeof root.internalCallerFor>>["connection"]["providersAvailable"]>>;
 }> {
   const caller = await root.internalCallerFor(root.ownerId);
@@ -53,7 +54,7 @@ async function scenario(): Promise<{
     throw new Error("The corpus root offers no provider with a built-in catalog");
   }
   const providers = available.map((entry) => (entry.provider.id === device.provider.id ? { ...entry, available: true } : entry));
-  return { caller, label: providerDisplayLabel(device.provider), providers };
+  return { caller, label: providerDisplayLabel(device.provider), providerId: device.provider.id, providers };
 }
 
 async function pickDeviceProvider(page: Page, label: string): Promise<Locator> {
@@ -65,12 +66,17 @@ async function pickDeviceProvider(page: Page, label: string): Promise<Locator> {
 }
 
 test("the model list takes the caret when it lands, and a keyboard pick is centred in the list", async ({ corpus, mount, page }) => {
-  const { caller, label, providers } = await scenario();
+  const { caller, label, providerId, providers } = await scenario();
   await routeTrpc(page, {
     ...createShellAmbientReads(corpus),
     ...serveCorpusProcedures(caller, SERVED),
     "connection.providersAvailable": () => providers,
-    "connection.draftCatalogModels": () => catalog,
+    "connection.draftCatalogModels": (input) => {
+      if (input.providerId !== providerId) {
+        throw new Error(`The model list was asked for ${input.providerId}, not the provider under test`);
+      }
+      return catalog;
+    },
   });
   await mount<typeof ConnectionsListStory>(STORY, {});
   const dialog = await pickDeviceProvider(page, label);
@@ -91,13 +97,17 @@ test("the model list takes the caret when it lands, and a keyboard pick is centr
 });
 
 test("a refused save puts focus on the inline failure", async ({ corpus, mount, page }) => {
-  const { caller, label, providers } = await scenario();
+  const { caller, label, providerId, providers } = await scenario();
   await routeTrpc(page, {
     ...createShellAmbientReads(corpus),
-    ...serveCorpusProcedures(caller, SERVED),
+    ...serveCorpusProcedures(caller, [...SERVED, "connection.create"]),
     "connection.providersAvailable": () => providers,
-    "connection.draftCatalogModels": () => catalog,
-    "connection.create": () => trpcError({ code: "BAD_REQUEST", message: "That server refused the connection." }),
+    "connection.draftCatalogModels": (input) => {
+      if (input.providerId !== providerId) {
+        throw new Error(`The model list was asked for ${input.providerId}, not the provider under test`);
+      }
+      return catalog;
+    },
   });
   await mount<typeof ConnectionsListStory>(STORY, {});
   const dialog = await pickDeviceProvider(page, label);

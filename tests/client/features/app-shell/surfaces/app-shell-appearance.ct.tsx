@@ -11,7 +11,7 @@ import type { ChatId } from "@orb/kit/ids";
 import type { Rgb } from "@orb/kit/theme-derivation";
 import { AA_NON_TEXT_RATIO, AA_NORMAL_RATIO, readingPlateAlpha, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { emulateMedia, pixel, releaseEmulatedMedia, resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
-import { createShellAmbientReads, routeTrpc, SECTION_LABELS, serveCorpusProcedures } from "@orb/testkit/ct";
+import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusWire } from "@orb/testkit/iso";
 import { captureCookieAuth, createCorpusHarness } from "@orb/testkit/node/composed";
@@ -20,7 +20,7 @@ import type { Locator, Page } from "@playwright/test";
 import { channelName } from "../../../lib/appearance-channel-names.ts";
 import type { AppShellModalStory, AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import type { ShellToPendingStory } from "./_shell-handover-stories.tsx";
-import { PHONE, ROOM_PROCEDURES, SECTION_PROCEDURES, SHELL_STORIES } from "./app-shell-ct.ts";
+import { PHONE, SHELL_STORIES } from "./app-shell-ct.ts";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;
 const MODAL_STORY = `${SHELL_STORIES}/AppShellModalStory`;

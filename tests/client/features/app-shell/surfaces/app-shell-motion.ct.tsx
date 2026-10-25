@@ -4,14 +4,14 @@
 import type { AppearanceSettings } from "@orb/contracts/settings/appearance";
 import type { ChatId } from "@orb/kit/ids";
 import { emulateMedia, releaseEmulatedMedia, resolvedLength, seedShellState, shellTracks } from "@orb/testkit/browser/spec";
-import { createShellAmbientReads, routeTrpc, SECTION_LABELS, serveCorpusProcedures } from "@orb/testkit/ct";
+import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusWire } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { makePluginRow } from "@orb/testkit/node/helpers";
 import type { Page } from "@playwright/test";
 import type { AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
-import { namedGroupRoom, PHONE, ROOM_PROCEDURES, SECTION_PROCEDURES, SHELL_STORIES } from "./app-shell-ct.ts";
+import { namedGroupRoom, PHONE, SHELL_STORIES } from "./app-shell-ct.ts";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;
 const ROOM_STORY = `${SHELL_STORIES}/AppShellRoomStory`;

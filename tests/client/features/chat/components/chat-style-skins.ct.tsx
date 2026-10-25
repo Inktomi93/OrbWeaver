@@ -8,7 +8,7 @@ import type { ChatId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
-import { createShellAmbientReads, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusWire } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -16,10 +16,9 @@ import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import type { RowSkin } from "#client/features/chat/lib/message-row-variants.ts";
 import { MESSAGE_ROW_SKINS } from "#client/features/chat/lib/message-row-variants.ts";
-import type { AppShellRoomStory } from "../../app-shell/surfaces/_app-shell-stories.tsx";
-import { ROOM_PROCEDURES, SECTION_PROCEDURES, SHELL_STORIES } from "../../app-shell/surfaces/app-shell-ct.ts";
+import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
-const ROOM_STORY = `${SHELL_STORIES}/AppShellRoomStory`;
+const ROOM_STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
 const VIEWPORT = { width: 1440, height: 900 } as const;
 // Enough of a room's last messages that an earlier row of each role is on screen.
 const TAIL_MESSAGES = 6;
@@ -375,7 +374,7 @@ for (const chatStyle of THEME_CHAT_STYLES) {
   for (const art of [false, true]) {
     test(`${chatStyle} ${art ? "over a wallpaper" : "on a plain room"} paints its skin row`, async ({ corpus, mount, page }) => {
       await openRoom(page, corpus, chatStyle, art);
-      await mount<typeof AppShellRoomStory>(ROOM_STORY, roomStoryProps());
+      await mount<typeof ChatRoomShellStory>(ROOM_STORY, roomStoryProps());
       await expect.poll(() => page.locator(".shell-grid").getAttribute("data-has-bg-image")).toBe(art ? "true" : null);
       const facts = await skinFacts(page, MESSAGE_ROW_SKINS[chatStyle], art);
       expect(facts.measured).toEqual(facts.expected);
@@ -417,7 +416,7 @@ for (const [chatStyle, hook] of Object.entries(OWNER_FIT_HOOKS) as [ThemeChatSty
     let painted: Record<string, string> = {};
     await withOwnerCss(`Owner CSS on ${hook}`, ownerFitCss(hook), async () => {
       await openRoom(page, corpus, chatStyle, false);
-      await mount<typeof AppShellRoomStory>(ROOM_STORY, roomStoryProps());
+      await mount<typeof ChatRoomShellStory>(ROOM_STORY, roomStoryProps());
       painted = await paintedFit(page, hook);
     });
     expect(painted).toEqual(OWNER_FIT);
@@ -443,7 +442,7 @@ test("a message hidden from the model recedes to the receded step", async ({ cor
   let opacity = Number.NaN;
   await withHiddenReply(async (messageId) => {
     await openRoom(page, corpus, "bubble", false);
-    await mount<typeof AppShellRoomStory>(ROOM_STORY, roomStoryProps());
+    await mount<typeof ChatRoomShellStory>(ROOM_STORY, roomStoryProps());
     const box = page.locator(`${ROW}[data-message-id="${messageId}"] ${BUBBLE}`).first();
     await expect(box).toBeVisible();
     opacity = Number(await computed(box, "opacity"));

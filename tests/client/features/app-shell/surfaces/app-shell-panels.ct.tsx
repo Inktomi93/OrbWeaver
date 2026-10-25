@@ -3,12 +3,12 @@
 // skip, focus around the panes, and the both-docked squeeze, all read off the rendered grid.
 import { readFileSync } from "node:fs";
 import { persistedOverrides, resolvedLength, seedShellState, shellTracks } from "@orb/testkit/browser/spec";
-import { SECTION_LABELS } from "@orb/testkit/ct";
+import { SECTION_LABELS, SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import type { AppShellListDockStory, AppShellStory } from "./_app-shell-stories.tsx";
-import { routeShell, SECTION_PROCEDURES, SHELL_STORIES } from "./app-shell-ct.ts";
+import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;
 const LIST = '.shell-panel[data-panel-side="list"]';

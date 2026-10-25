@@ -1,85 +1,16 @@
 // Node-side helpers the app-shell component specs share: story ids, accessible names and routed procedures.
 // In-page probes live in `@orb/testkit/browser/spec`, where their browser callbacks typecheck.
 import type { TrpcRecorder } from "@orb/testkit/ct";
-import { createShellAmbientReads, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import type { CorpusWire } from "@orb/testkit/iso";
 import type { Page } from "@playwright/test";
 
 type ServedPath = Parameters<typeof serveCorpusProcedures>[1][number];
 
-/** Every procedure a section, its context pane, the palette or the You sheet sends past Home's captures. */
-export const SECTION_PROCEDURES = [
-  "sessions.me",
-  "notifications.markAllRead",
-  "chat.listChats",
-  "chat.countChats",
-  "character.list",
-  "character.count",
-  "character.get",
-  "tag.listPendingSuggestions",
-  "regex.listForCharacter",
-  "rosterPreset.list",
-  "discovery.home",
-  "discovery.characterFacets",
-  "discovery.browseCharacters",
-  "discovery.visualArchetypes",
-  "discovery.forgottenGems",
-  "discovery.archetypes",
-  "discovery.catalog",
-  "discovery.unusedCharacters",
-  "discovery.themeDrift",
-  "discovery.topKeywords",
-  "discovery.modelRouting",
-  "workloads.list",
-  "connection.list",
-  "connection.listBindings",
-  "connection.resolveChatCapability",
-  "plugin.list",
-  "plugin.listSurfaces",
-  "databank.listGlobal",
-  "databank.list",
-  "worldInfo.listBooks",
-  "preset.list",
-  "preset.get",
-  "preset.resolveEffective",
-  "refinery.listSessions",
-  "settings.getUserSettings",
-  "settings.getAppSettingsWithOverrides",
-  "settings.listThemes",
-  "settings.getTheme",
-  "regex.countScripts",
-  "regex.listScripts",
-  "worldInfo.countBooks",
-  "stats.freshness",
-  "stats.byModel",
-  "stats.leaderboard",
-  "stats.wrapped",
-  "stats.latency",
-  "stats.timeseries",
-  "stats.overview",
-  "stats.momentum",
-  "stats.personaUsage",
-  "stats.character",
-  "tag.listTagsWithUsage",
-] as const satisfies readonly ServedPath[];
-
 /** Home's captured reads, plus every listed procedure answered by `caller`, a corpus root's internal caller. */
 export function routeShell(page: Page, corpus: CorpusWire, caller: object, served: readonly ServedPath[]): Promise<TrpcRecorder> {
   return routeTrpc(page, { ...createShellAmbientReads(corpus), ...serveCorpusProcedures(caller, served) });
 }
-
-/** Every procedure an open room sends past the section set, its own row included so a room the test changed reads live. */
-export const ROOM_PROCEDURES = [
-  "chat.getChat",
-  "chat.getRuntimeVariables",
-  "chat.checkSendAvailability",
-  "chat.listMessages",
-  "chat.listReactions",
-  "chat.previewContextFit",
-  "persona.listConnectedToCharacter",
-  "regex.listRoomDisplayScripts",
-  "plugin.listDisplayTransforms",
-] as const satisfies readonly ServedPath[];
 
 /** Home's captured reads plus the section set and an open room's reads, each answered by `caller`. */
 export function routeRoom(page: Page, corpus: CorpusWire, caller: object): Promise<TrpcRecorder> {
