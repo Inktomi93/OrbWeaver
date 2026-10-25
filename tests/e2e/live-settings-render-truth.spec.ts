@@ -18,13 +18,13 @@
 
 import { appearanceGroup } from "@orb/client/features/config";
 import { CONFIG_SECTION_LABEL } from "#client/features/config/lib/config-copy.ts";
+import { THEME_MOCHA_NAME } from "#server/domain/settings/constants.ts";
 import { waitForAppReady } from "./support/chat-room.ts";
 import { expect, test } from "./support/corpus-test.ts";
 import { WAIT_INSTANT_MS, WAIT_SURFACE_MS, WAIT_UI_MS } from "./support/timeouts.ts";
 import { getAppearanceTheme, listThemes, updateSettingsSection } from "./support/trpc.ts";
 
 const SETTINGS_SAVE = "/api/trpc/settings.updateUserSettingsSection";
-const SEED_THEME_NAME = "Mocha"; // a seed theme → `html[data-theme="mocha"]` once APPLIED (see APPLIED_THEME)
 // A REAL bundled scene plate, which since 2026-09-18 is an ordinary entry of the account's OWN
 // `appearance.backgroundLibrary` — seeded per user from `@orb/default-content` (`SEED_BACKGROUND_PLATES`),
 // not a static catalog slug. The label IS the library entry's name, which is what the grid cell is named by.
@@ -101,7 +101,7 @@ test.describe("settings render-truth (no-clear-needed) — #16", () => {
     // resolved UNIQUELY — to the kebab — so this line opened a modal `ThemeRowMenu` instead of applying the
     // theme, and Base UI's `InternalBackdrop` (fixed, inset-0, cut out only over the 32px trigger) then ate
     // every later click in the pane, which is how the background gridcell below timed out for 17s.
-    await page.getByRole("radio", { name: SEED_THEME_NAME, exact: true }).click();
+    await page.getByRole("radio", { name: THEME_MOCHA_NAME, exact: true }).click();
     // The active theme applies globally — `use-appearance-root-effects.ts` stamps `data-theme` on the
     // DOCUMENT ELEMENT (server truth flows through the getUserSettings query invalidation the mutation
     // drives). Asserted on `html` only: see APPLIED_THEME.
@@ -156,7 +156,7 @@ test.describe("settings render-truth (no-clear-needed) — #16", () => {
     const stored = await getAppearanceTheme();
     expect(stored.config.appearance.backgroundImageKind).toBe("asset"); // a library plate, since kind:"seeded" retired (D160)
     const themes = await listThemes();
-    const mocha = themes.find((t) => t.isSeed && t.name === SEED_THEME_NAME);
+    const mocha = themes.find((t) => t.isSeed && t.name === THEME_MOCHA_NAME);
     expect(mocha).toBeDefined();
     expect(stored.config.theme.selectedThemeId).toBe(mocha?.id);
 

@@ -84,6 +84,12 @@ Local reference tracking has a cycle guard. It does not establish that an import
 
 Product and CT behavior are unchanged, so their completed rendered results remain applicable.
 
+## Seed-theme label import
+
+[Settings render truth](../../tests/e2e/live-settings-render-truth.spec.ts) reads `THEME_MOCHA_NAME` from its production owner instead of declaring the label. This Node-side Playwright spec uses an existing constant home; no production export or dependency exception is added. The selected label value and browser assertions are unchanged.
+
+Scoped Biome, scoped ESLint, the named dependency check and native import smoke pass. Output is retained in `/tmp/test-closeout-theme-label-biome.log`, `/tmp/test-closeout-theme-label-eslint.log`, `/tmp/test-closeout-theme-label-depcruise.log` and `/tmp/test-closeout-theme-label-native.log`. No compiler or E2E run is required for this unchanged-value import correction.
+
 ## Limits
 
 Whole-tree ESLint, integration checks and independent review belong to main. This report does not claim their completion. Static recognition follows bounded local bindings and native signatures, not arbitrary cross-module dataflow.
