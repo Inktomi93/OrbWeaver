@@ -137,7 +137,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
           // chat 8px): the room steps its side inset down to `tight`, the transcript adds the ring clearance.
           className={cn(
             "px-block pbe-block outline-none block-full @max-cq-28:px-tight",
-            roomTheme?.background !== undefined && "not-in-data-has-bg-image:bg-background",
+            roomTheme?.background === undefined ? undefined : "not-in-data-has-bg-image:bg-background",
           )}
           gap="block"
           ref={surfaceRef}
@@ -237,7 +237,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
                 // composer. `:empty` takes it out of layout entirely, so "mounted but silent" and "not mounted"
                 // read identically. It cannot hide a live contribution: any rendered node makes the wrapper
                 // non-empty.
-                <Stack gap="row" className={cn(CHAT_TRACK, "empty:hidden")} data-slot="chat-above-composer">
+                <Stack gap="row" className="orb-chat-track inline-full max-inline-(--width-shell-content) empty:hidden" data-slot="chat-above-composer">
                   {aboveComposerContributions.map((c) => (
                     <Fragment key={c.id}>{c.node}</Fragment>
                   ))}

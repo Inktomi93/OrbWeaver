@@ -72,7 +72,7 @@ import {
 } from "#state";
 import { ChatListFacesStrip, ChatListFilterChip } from "../components/chat-list-character-filter.tsx";
 import { FilterExits } from "../components/chat-list-filter-exits.tsx";
-import { CLEAR_INSET_RESERVE, ClearFilterGlyph } from "../components/chat-list-filter-field.tsx";
+import { ClearFilterGlyph } from "../components/chat-list-filter-field.tsx";
 import { ChatListMonthFilter } from "../components/chat-list-month-filter.tsx";
 import { ChatListPhoneFilters } from "../components/chat-list-phone-filters.tsx";
 import { ChatListRow } from "../components/chat-list-row.tsx";
@@ -189,13 +189,13 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
             difference is the glyph itself, and the reason it moved is that a ✕ hanging in the COLUMN GUTTER
             read as a sibling control while the month field's native picker glyph sat INSIDE its box, so two
             mechanically identical filters had two silhouettes. The glyph is now one `ClearFilterGlyph`,
-            inset at the field's own inline end, over a constant `CLEAR_INSET_RESERVE` so the value never
-            reflows when it appears. */}
+            inset at the field's own inline end, over a constant inline-end reserve (the same reserve
+            as `CLEAR_INSET_RESERVE`) so the value never reflows when it appears. */}
         <Row align="center" className="relative">
           <ListSearch>
             <Input
               aria-label={SEARCH_LABEL}
-              className={`flex-1 min-inline-0 ${CLEAR_INSET_RESERVE}`}
+              className="flex-1 pe-(--size-control-sm) min-inline-0"
               onValueChange={setChatListSearch}
               placeholder="Search chats…"
               value={query}
