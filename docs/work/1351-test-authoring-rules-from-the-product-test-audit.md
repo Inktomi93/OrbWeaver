@@ -24,9 +24,13 @@ The branch passes review with every touched e2e spec run, all rules on at zero, 
 
 ## State
 
-- Branch `wt/agent-af01e0d3719ce9957`, merge `671f42d651` over `f52fdd5202`; verifier running.
-- e2e: group-chat, multi-tab-room-sync, guided-generations and live-parity-plus-capstone pass (7). Corpus specs pass 176 across 7 of 9 mode cells; `corpus-shell.spec.ts:330` timed out in the whisper cell under load 22-43, and the runner crashed before the last two cells. Rerun those at low load before landing.
-- The verifier judges the four file-header `orb/ct-responder-reads-input` exceptions, notably `tests/client/features/preset/components/list-lifetimes.ct.tsx`.
+- Branch `wt/agent-af01e0d3719ce9957` at merge `671f42d651`, refuted once; merging main conflicts in `eslint.config.ts` imports (keep both) and `_surface-harness.ts` (keep the SERVED list and main's `overrides` spread). The lane is fixing:
+  - the responder rule misses route maps passed by variable or spread (live: `own-key-panels.ct.tsx:84-91`; main's census overrides at `surface-census.suite.ct.tsx:165,184`), a `trpcError` held in a const, a both-branch error ternary, and `void input` responders;
+  - `ServeIntercept` lets a hold release fabricated data (`ct-corpus-procedures.ts:65`), and route-map holds do too (`confirmation-identity.ct.tsx:44`);
+  - the `list-lifetimes.ct.tsx` exception hides 7 fixed responders and a copied server merge; rebuild on the corpus;
+  - the label rule's first-module ownership mis-owns common words (group "Advanced" imported from the character facet tiers) and hoisted test literals still copy labels; extend to `getByText`;
+  - the absence rule misreads `toBeNull()` and `.not.toBeHidden()`.
+- e2e: all desktop corpus cells pass at low load except `corpus-shell.spec.ts:309`, which fails on main too (item 1359).
 
 ## Evidence
 
