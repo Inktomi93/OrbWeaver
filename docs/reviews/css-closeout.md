@@ -3,7 +3,7 @@
 ## Outcome
 
 Stylesheet ownership and repeated recipes are corrected. The layout-only className drain already exists. The missing text-axis enforcement and remaining typography sites are corrected here.
-The scoped browser selection passes after the recorded runtime corrections. The same-cohort numeric comparison and synthetic captures pass. The headed scrollbar investigation confirms or refutes each named boundary. Main owns independent visual acceptance and whole-tree checks.
+The scoped browser selection passes after the recorded runtime corrections. The same-cohort numeric comparison and synthetic captures pass. The headed scrollbar investigation confirms or refutes each named boundary. Independent visual review reports SHIP for the supplied slice. Main owns whole-tree checks.
 
 ## Reading coverage
 
@@ -175,6 +175,9 @@ These are deterministic visual checks, not motion or performance evidence. Heade
 Exact capture commands use `pnpm exec node scripts/corpus-fixture.ts snap -- --ref 8ada4e87db` with scenario files under `reports/css-closeout/`.
 Desktop adds `--viewport 1440x900 --vnc` under `xvfb-run -a`; phone adds `--mobile --viewport 390x844`; the maximal run also adds `--appearance-preset maximal`.
 All add `--probe --scenario <file> --scenario-summary --json --out <name>`. Native outputs are `synthetic-desktop.log`, `synthetic-phone.log` and `synthetic-maximal-phone.log`.
+
+The independent review is `reports/side-eye/2026-10-25-css-closeout.md` in the `closeout/css` worktree. It reads all fourteen synthetic PNGs and reports SHIP for this supplied CSS slice.
+It does not certify the scrollbar probes, every-label contrast, a full keyboard walk or real devices. The separate Home long-title clipping observation is tracked as 1371; regression attribution remains unresolved and main excludes it from this acceptance.
 
 ## Classic-scrollbar boundaries
 
