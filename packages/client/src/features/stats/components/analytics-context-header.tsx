@@ -25,7 +25,7 @@ export function AnalyticsContextHeader(): ReactElement {
   if (characterId === null) {
     // The dimension tabs are owner-wide, so the band says so in Explore's own band voice (D271).
     return (
-      <Row align="center" className="min-w-0" gap="field">
+      <Row align="center" className="min-inline-0" gap="field">
         <Icon icon={Library} size="sm" />
         <Text className="truncate" voice="promoted">
           {CORPUS_WHOLE_LABEL}
@@ -43,7 +43,7 @@ function DrilledCharacterIdentity({ characterId }: { readonly characterId: Chara
   const title = name.length > 0 ? name : "Character";
   const avatarHash = character?.avatarHash ?? null;
   return (
-    <Row gap="row" align="center" className="min-w-0">
+    <Row gap="row" align="center" className="min-inline-0">
       <Avatar size="sm" fallbackDelay={0} hueSeed={characterId} {...(avatarHash === null ? {} : { src: blobUrl(avatarHash) })}>
         {initialsFor(title)}
       </Avatar>

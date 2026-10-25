@@ -53,7 +53,7 @@ function AdminApprovalsBody({ anchorId }: { readonly anchorId: string }): ReactE
   return (
     <Section container={true} divider={true} heading={ADMIN_APPROVALS_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="row" data-testid={testId("adminApprovalsSection")}>
-        <Text voice="label" className="text-muted-foreground">
+        <Text voice="label" tone="muted">
           Accounts awaiting approval can't sign in until you enable them. New sign-ins through your identity provider land here when approval is required.
         </Text>
 

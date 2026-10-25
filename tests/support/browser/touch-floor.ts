@@ -64,10 +64,10 @@ function resolveSpacingPx(page: Page, cssVar: string): Promise<number> {
 /** {@link resolveSpacingPx} inside a LOCATOR's inherited scope — `--spacing-field/row/block/section` are
  *  rebound per density tier (`packages/ui/src/styles/tiers.css`), so a root-scoped read answers for the
  *  wrong tier inside a `data-density` subtree. */
-/** The live `--spacing-touch-target`, in px. Pointer-CONDITIONAL (44 coarse / 28 fine) — read it only after
+/** The live `--size-touch-target`, in px. Pointer-CONDITIONAL (44 coarse / 28 fine) — read it only after
  *  asserting the coarse emulation landed, or it answers for the wrong pointer class. */
 export function touchFloorPx(page: Page): Promise<number> {
-  return resolveSpacingPx(page, "--spacing-touch-target");
+  return resolveSpacingPx(page, "--size-touch-target");
 }
 
 /** A control's reachable extent on one axis — walked out from its centre with `elementFromPoint` until the
@@ -87,6 +87,49 @@ export function touchFloorPx(page: Page): Promise<number> {
 export async function hitExtent(cell: Locator, axis: "x" | "y"): Promise<number> {
   const geometry = await cell.evaluate(readPseudoGeometry);
   return await cell.evaluate(walkFrom, { axis, envelope: pseudoHitEnvelope(geometry) });
+}
+
+/** The interactive elements a finger must be able to hit; a control mirrored out of the tree (`aria-hidden`) is not one. */
+const TOUCH_TARGET_SELECTOR = [
+  "button",
+  "a[href]",
+  "[role='checkbox']",
+  "[role='switch']",
+  "[role='radio']",
+  "[role='tab']",
+  "[role='slider']",
+  "[role='combobox']",
+  "input:not([type='hidden'])",
+  "select",
+  "textarea",
+]
+  .map((selector) => `${selector}:not([aria-hidden='true'])`)
+  .join(", ");
+
+/**
+ * Every visible interactive control whose effective hit extent is below the live touch floor on either axis, described
+ * for a failure message. Run it under real coarse-pointer emulation (`hasTouch`): the floor is pointer-conditional.
+ */
+export async function touchTargetFindings(page: Page): Promise<readonly string[]> {
+  const floor = await touchFloorPx(page);
+  const controls = page.locator(TOUCH_TARGET_SELECTOR);
+  const findings: string[] = [];
+  for (const control of await controls.all()) {
+    if (!(await control.isVisible())) {
+      continue;
+    }
+    // `elementFromPoint` answers null off-screen, so a pseudo reaching past the viewport edge would read short: centre the control.
+    await control.evaluate((el) => el.scrollIntoView({ block: "center" }));
+    // A control the page keeps clipped to a point (a slider's range input) is hit through the thumb that wraps it.
+    const clipped = await control.evaluate((el) => getComputedStyle(el).clipPath !== "none");
+    const target = clipped ? control.locator("xpath=..") : control;
+    const [width, height] = [await hitExtent(target, "x"), await hitExtent(target, "y")];
+    if (width < floor || height < floor) {
+      const html = await control.evaluate((el) => el.outerHTML.slice(0, 120).replace(/\s+/g, " "));
+      findings.push(`${String(Math.round(width))}x${String(Math.round(height))} under the ${String(floor)}px floor: ${html}`);
+    }
+  }
+  return findings;
 }
 
 /** Every control's effective hit box, in DOM order. */

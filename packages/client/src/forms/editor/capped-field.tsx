@@ -32,7 +32,7 @@ export function CappedFieldCounter({ length, max, counterAt = DEFAULT_COUNTER_AT
   }
   const over = length > max;
   return (
-    <Text className={over ? "tabular-nums text-destructive" : "tabular-nums"} voice="gloss">
+    <Text className={over ? "text-destructive tabular-nums" : "tabular-nums"} voice="gloss">
       {length}/{max}
     </Text>
   );

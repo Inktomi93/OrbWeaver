@@ -13,6 +13,7 @@
     "*.config.ts",
     "knip.ts",
     ".dependency-cruiser.ts",
+    "stylelint-rules.ts",
     "packages/*/*",
     "scripts/**/*.ts",
     "scripts/**/*.mts",

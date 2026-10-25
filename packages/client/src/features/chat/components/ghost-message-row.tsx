@@ -76,8 +76,8 @@ function FormingCardChip({ title }: { readonly title: string | null }): ReactEle
     <Card aria-busy={true}>
       <Stack gap="row" data-slot="forming-card-chip">
         <Text voice="gloss">✦ {title !== null && title !== "" ? title : "Immersive card"} — forming…</Text>
-        <Skeleton className="h-control-md w-full" />
-        <Skeleton variant="text" className="h-control-sm" />
+        <Skeleton className="block-(--size-control-md) inline-full" />
+        <Skeleton variant="text" className="block-(--size-control-sm)" />
       </Stack>
     </Card>
   );
@@ -381,11 +381,11 @@ export function GhostMessageRow({
       className={cn(skin.outer("assistant"), enterClasses)}
     >
       {/* The container above and this element's two arms are the settled row's, verbatim — the ghost is
-          the one row that MUST be laid out identically to what it becomes (#1728 arm B). THE `@max-md`
+          the one row that MUST be laid out identically to what it becomes (#1728 arm B). THE `@max-cq-28`
           AVATAR STEP IS PART OF THAT PARITY: the row body takes the settled row's own
           `ROW_BODY_AT_PHONE_WIDTH`, or a live turn at a phone width would reflow its gutter the
           instant it settled. */}
-      <Row align="start" gap="row" data-slot="message-row-body" className={cn(rowBodyClassFor(skin), "w-full", ROW_BODY_AT_PHONE_WIDTH)}>
+      <Row align="start" gap="row" data-slot="message-row-body" className={cn(rowBodyClassFor(skin), "inline-full", ROW_BODY_AT_PHONE_WIDTH)}>
         {leadingAvatar}
         {/* The skin's own column width rides the ghost too — a live turn that reflows at commit is a
             visible jump (the reading-measure suite pins the two columns equal). */}

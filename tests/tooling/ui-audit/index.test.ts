@@ -458,7 +458,7 @@ auditRuleTest(
   },
 );
 
-// Fine pointer (mouse) only owes WCAG AA's 24px floor — the desktop control scale (32/34/40px) is
+// Fine pointer (mouse) only owes WCAG AA's 24px floor — the desktop control scale (32/36/40px) is
 // deliberate density (D62 P1), NOT a defect. This is the regression the pointer-aware floor fixes.
 test("fine pointer: the 32px desktop control scale is clean (no false positive)", () => {
   const finding = checkTapTarget({ selector: "select.sm", width: 220, height: 32 }, false);

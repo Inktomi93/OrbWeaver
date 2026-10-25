@@ -43,7 +43,6 @@ function NpcRelationship({ name, relationship, onEditRelationshipKind, relations
               intent="ghost"
               size="inline"
               aria-label={`${name} relationship: ${kind}`}
-              title="Click to edit"
               // The PILL shape + zero padding when a badge shows: the trigger's hover highlight must hug the
               // pill EXACTLY — padding around it reads as a mismatched halo (owner reports ×2, 08-01). The
               // seed state ("+ relationship") keeps its own padding for a clickable text target.
@@ -95,14 +94,14 @@ function NpcRelationship({ name, relationship, onEditRelationshipKind, relations
  *  other two guides are plain muted prose (they describe what IS on stage). One map, so the distinction is a
  *  lookup rather than a conditional sprinkled through the render. */
 const GUIDE_CLASS: Readonly<Record<RpgNpcGuideField, string>> = {
-  appearance: "min-w-0 break-words",
-  outfit: "min-w-0 break-words",
-  thoughts: "min-w-0 break-words italic",
+  appearance: "min-inline-0 break-words",
+  outfit: "min-inline-0 break-words",
+  thoughts: "min-inline-0 break-words italic",
 };
 
 interface NpcGuidesProps {
   readonly name: string;
-  /** The standing per-character guides (RV-11) — the story writes them; an unwritten one is simply ABSENT
+  /** The standing per-character guides — the story writes them; an unwritten one is simply ABSENT
    *  (an omitted line, never a "none" placeholder: a missing guide is not a missing feature). */
   readonly appearance?: string;
   readonly outfit?: string;
@@ -124,7 +123,7 @@ function NpcGuides({ name, appearance, outfit, thoughts, onEditGuide }: NpcGuide
   return (
     <Stack gap="field" data-slot="npc-guides">
       {shown.map(({ field, text }) => (
-        <Row key={field} gap="field" align="baseline" className="min-w-0">
+        <Row key={field} gap="field" align="baseline" className="min-inline-0">
           <Text as="span" size="micro" tone="muted" className="shrink-0">
             {field}
           </Text>
@@ -140,7 +139,8 @@ function NpcGuides({ name, appearance, outfit, thoughts, onEditGuide }: NpcGuide
               tone="muted"
               onEdit={(next): void => onEditGuide(field, next)}
               wrap={true}
-              className={`!w-auto max-w-full field-sizing-content ${GUIDE_CLASS[field]}`}
+              className={`field-sizing-content max-inline-full ${GUIDE_CLASS[field]}`}
+              width="auto"
               restClassName={GUIDE_CLASS[field]}
             />
           )}
@@ -166,7 +166,7 @@ function NpcMood({ name, mood, onEditMood }: NpcMoodProps): ReactElement | null 
     // name+badge half under shrink pressure, collapsing the pill under the mood label (owner scene-jank
     // screenshot, 08-01). justify-end keeps the slot hugging the card's right edge like the mock.
     return (
-      <Row gap="field" align="baseline" className="min-w-0 flex-1 justify-end">
+      <Row gap="field" align="baseline" className="flex-1 justify-end min-inline-0">
         <Text as="span" size="micro" tone="muted" className="shrink-0">
           mood
         </Text>
@@ -177,7 +177,8 @@ function NpcMood({ name, mood, onEditMood }: NpcMoodProps): ReactElement | null 
           placeholder={UNSET_DATUM}
           onEdit={onEditMood}
           wrap={true}
-          className="!w-auto min-w-0 max-w-full field-sizing-content"
+          className="field-sizing-content max-inline-full min-inline-0"
+          width="auto"
         />
       </Row>
     );
@@ -186,7 +187,7 @@ function NpcMood({ name, mood, onEditMood }: NpcMoodProps): ReactElement | null 
     return null;
   }
   return (
-    <Text as="span" size="label" tone="muted" className="min-w-0 break-words">
+    <Text as="span" size="label" tone="muted" className="wrap-break-word min-inline-0">
       mood — {mood}
     </Text>
   );
@@ -210,7 +211,7 @@ interface NpcCardProps {
    *  relationship/tracker-shape glyph rule). Empty ⇒ nothing renders. */
   readonly emoji?: string;
   readonly mood?: string;
-  /** The standing per-character GUIDES (RV-11) — prose the story keeps current between beats. Quiet
+  /** The standing per-character GUIDES — prose the story keeps current between beats. Quiet
    *  secondary lines under the header, NOT tracker chips: they are sentences, not readings. Empty ⇒ omitted. */
   readonly appearance?: string;
   readonly outfit?: string;
@@ -258,7 +259,7 @@ export function NpcCard({
     <Card tone="neutral">
       <Stack gap="block" data-slot="npc-card">
         <Row justify="between" align="baseline" gap="block">
-          <Row gap="field" align="center" className="min-w-0">
+          <Row gap="field" align="center" className="min-inline-0">
             {emoji === undefined || emoji === "" ? null : (
               <Text as="span" size="label" aria-hidden={true} className="shrink-0">
                 {emoji}

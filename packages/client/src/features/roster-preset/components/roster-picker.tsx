@@ -56,7 +56,7 @@ type SavedRosterSummary = RosterPresetSummary;
  *  (natural 57) and the rules badge overlapped Start by 48px, so `elementFromPoint` at the badge's own
  *  centre returned Start — a tap on "2 rules" minted a room. The cause is a `shrink-0` action cluster that
  *  is sized by the COARSE touch floor (an unbudgeted width tax) against a name that was free to shrink to
- *  nothing. Both halves are fixed here: under `@md` the row stacks (name+badge line, actions line — each
+ *  nothing. Both halves are fixed here: under `@cq-28` the row stacks (name+badge line, actions line — each
  *  owns the full width, so nothing competes), and the name itself is `min-w-0 flex-1 truncate` inside its
  *  own line so it degrades to an ellipsis rather than to zero. `@container` sits on the row WRAPPER
  *  because an element cannot query itself. The crossover sits between the two measured points: 316px was
@@ -79,11 +79,11 @@ function RosterRow(props: {
   const memberNames = roster.members.map((m) => m.name).join(", ");
   const counts = rosterCountsSuffix(roster);
   return (
-    <Stack container={true} gap="tight" padding="block" className="border-border border-b last:border-b-0" data-slot="roster-row">
-      <Row align="center" gap="field" className="@max-md:flex-col @max-md:items-stretch">
-        <Stack gap="tight" className="min-w-0 flex-1">
+    <Stack container={true} gap="tight" padding="block" className="border-be border-border last:border-be-0" data-slot="roster-row">
+      <Row align="center" gap="field" className="@max-cq-28:flex-col @max-cq-28:items-stretch">
+        <Stack gap="tight" className="flex-1 min-inline-0">
           <Row align="center" gap="field">
-            <Text voice="label" className="min-w-0 flex-1 truncate">
+            <Text voice="label" className="flex-1 truncate min-inline-0">
               {roster.name}
             </Text>
             {roster.rules.length > 0 ? (
@@ -207,16 +207,16 @@ function SaveCurrentRoster(props: {
   const { capture, game, presetOf } = props;
   return (
     <Stack gap="tight">
-      {/* Its own container: below `@md` the name and the Save button stack, so the input keeps its width. */}
+      {/* Its own container: below `@cq-28` the name and the Save button stack, so the input keeps its width. */}
       <Stack container={true}>
-        <Row align="center" gap="field" className="@max-md:flex-col @max-md:items-stretch">
+        <Row align="center" gap="field" className="@max-cq-28:flex-col @max-cq-28:items-stretch">
           <Input
             aria-label="New roster name"
             placeholder="Name this roster…"
             value={name}
             onChange={(e): void => setName(e.target.value)}
             // Stacked, a zero-basis `flex-1` would collapse the input's height on the column axis.
-            className="min-w-0 flex-1 @max-md:flex-none"
+            className="flex-1 min-inline-0 @max-cq-28:flex-none"
           />
           <Button
             aria-describedby={INCLUDE_LINE_ID}

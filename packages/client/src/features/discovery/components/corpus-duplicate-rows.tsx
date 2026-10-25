@@ -158,7 +158,7 @@ export function CharacterPairRow({
 }): ReactElement {
   return (
     <Button
-      className="w-full justify-between"
+      className="justify-between inline-full"
       intent="ghost"
       onClick={(): void => {
         // The NAMES travel with the ids (#563): the Compare tab's pickers can only name a selection they
@@ -195,7 +195,7 @@ function ChatPairRow({
       // content-derived name and keeps everything that name carried — both titles and the score — plus the
       // one fact the row could not otherwise state.
       aria-label={`${left} ↔ ${right}, ${percent(score)} similar — compare rooms`}
-      className="w-full justify-between"
+      className="justify-between inline-full"
       intent="ghost"
       onClick={(): void => {
         selectCorpusArtifact({
@@ -223,8 +223,8 @@ function PairFace({
   readonly badge: string | undefined;
 }): ReactElement {
   return (
-    <Row align="center" className="w-full min-w-0" gap="field" justify="between">
-      <Text as="span" className="min-w-0 truncate text-left">
+    <Row align="center" className="inline-full min-inline-0" gap="field" justify="between">
+      <Text as="span" className="truncate text-start min-inline-0">
         {left} ↔ {right}
       </Text>
       <Row align="center" className="shrink-0" gap="field">
@@ -243,7 +243,7 @@ function PairFace({
 
 export function Muted({ children }: { readonly children: string }): ReactElement {
   return (
-    <Text className="max-w-(--reading-measure-prose)" voice="gloss">
+    <Text className="max-inline-(--reading-measure-prose)" voice="gloss">
       {children}
     </Text>
   );

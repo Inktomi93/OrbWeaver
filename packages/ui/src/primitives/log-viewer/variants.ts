@@ -9,18 +9,18 @@ import { FOCUS_RING_INSET, tv } from "#lib";
 export const logViewerVariants = tv({
   slots: {
     root: "flex flex-col overflow-hidden rounded-control border border-border bg-card font-mono text-code leading-label-relaxed",
-    toolbar: "flex shrink-0 items-center justify-end gap-field border-b border-border p-field",
+    toolbar: "flex shrink-0 items-center justify-end gap-field border-be border-border p-field",
     // The manual-copy field fills the body's place and never outgrows the root's own height.
     // `w-auto` over the field box's `w-full`, so the margin stays inside the root instead of adding to it.
-    fallback: "m-field w-auto min-h-0 max-w-none basis-0 flex-1",
+    fallback: "m-field flex-1 basis-0 inline-auto max-inline-none min-block-0",
     // tabIndex=0 (WCAG 2.1.1 keyboard-scrollable) needs a visible focus ring; `ring-inset` keeps it
     // inside the root's own `overflow-hidden` boundary instead of getting clipped.
     scroll: `relative flex-1 overflow-y-auto overscroll-contain p-block outline-none ${FOCUS_RING_INSET}`,
-    line: "flex items-start gap-field whitespace-pre-wrap break-words text-foreground",
+    line: "flex items-start gap-field wrap-break-word whitespace-pre-wrap text-foreground",
     glyph: "shrink-0",
     // `min-w-0` lets the flex item shrink below its longest word so `break-words` can split an over-long token
     // while ordinary words wrap whole.
-    text: "min-w-0",
+    text: "min-inline-0",
   },
   variants: {
     level: {

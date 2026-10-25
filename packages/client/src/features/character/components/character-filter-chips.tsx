@@ -162,7 +162,7 @@ export function CharacterFilterChips({
       {/* The panel element exists in BOTH states so the collapsed trigger's `aria-controls` resolves to a
           real node; only its contents are conditional. `hidden` (the Tailwind utility, i.e. `display:none`)
           rather than the HTML attribute: the attribute's UA rule loses to the `flex` this Stack sets. */}
-      <Stack className={panelOpen ? "w-full" : "hidden"} gap="tight" id={panelId}>
+      <Stack className={panelOpen ? "inline-full" : "hidden"} gap="tight" id={panelId}>
         {panelOpen ? (
           <TagVocabularyPanel onCollapse={(): void => setExpanded(false)} onCycle={onCycleTag} panelId={panelId} tagFilter={tagFilter} tags={availableTags} />
         ) : null}
@@ -187,7 +187,7 @@ export function CharacterFilterChips({
           (measured: leading spelling 310.5px of chrome, trailing 262.5px).
           The count is CAPTIONED, never a bare digit: an unlabelled "2" beside the word "Filters" announced
           as the paragraph "2" and read, to anyone, as a debug counter (side-eye ARIA (a) + taste (b)). */}
-      <Row className="w-full" gap="field" justify="between">
+      <Row className="inline-full" gap="field" justify="between">
         <Text as="span" className="sr-only" role="status">
           {resultLabel}
         </Text>
@@ -283,9 +283,9 @@ function VocabularyDisclosure({
  *  say nothing quietly. */
 function VocabularyReserve(): ReactElement {
   return (
-    <Stack aria-hidden={true} className="w-full" gap="tight">
+    <Stack aria-hidden={true} className="inline-full" gap="tight">
       {RESERVED_CHIP_LINES.map((line) => (
-        <Skeleton className="h-touch-target w-full rounded-full" key={line} />
+        <Skeleton className="block-(--size-touch-target) inline-full" variant="circle" key={line} />
       ))}
     </Stack>
   );

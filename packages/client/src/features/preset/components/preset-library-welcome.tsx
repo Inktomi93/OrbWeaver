@@ -87,7 +87,7 @@ export function PresetLibraryWelcome(): ReactElement {
   const filteredToNothing = needle !== "" && filterPresetsByName(presets ?? [], needle).length === 0;
   const teaching = filteredToNothing ? NO_MATCHES : TEACHING;
   return (
-    <Stack align="center" className="h-full min-h-0 justify-center">
+    <Stack align="center" className="justify-center block-full min-block-0">
       {/* action={null}: the Presets CONTENT teaching state — a "pick a preset on the left, or create one" nudge shown alongside the library list, which itself carries the create CTA. The next step lives in the sibling list, so this state legitimately has no action of its own. Ends if the preset library list stops carrying its create CTA. */}
       <EmptyState
         action={null}

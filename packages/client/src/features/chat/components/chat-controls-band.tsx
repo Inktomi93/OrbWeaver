@@ -8,12 +8,11 @@
 // `busy` from the shared turn phase; a compose click seeding this room's composer draft + focus. Per-mode
 // operability is `lib/chat-control-availability.ts` — the one home for "is this control disabled, and why".
 //
-// A CHIP ALSO SHOWS ITS MODE (side-eye 2026-08-24): the mode field exists to stop send/compose confusion, but
-// the chips were rendering byte-identical, so a click that POSTS looked exactly like one that only DRAFTS. So
-// a chip carries a per-mode leading glyph (`MODE_GLYPH`) AND the mode WORD (`CONTROL_MODE_WORD`), rendered as
-// its kicker and reused as the accessible name's prefix — a SHAPE channel and a TEXT channel, because the
-// glyph pair alone was still the "distinguished by one 16px silhouette" defect (#684 P1) — and every disabled
-// control names its unlock through `aria-describedby` (keyboard/SR-reachable), not `title` alone.
+// A CHIP ALSO SHOWS ITS MODE: the mode field exists to stop send/compose confusion, so a click that POSTS must
+// not look like one that only DRAFTS. A chip carries a per-mode leading glyph (`MODE_GLYPH`) AND the mode WORD
+// (`CONTROL_MODE_WORD`), rendered as its kicker and reused as the accessible name's prefix — a SHAPE channel
+// and a TEXT channel, because a glyph pair alone is distinguished by one small silhouette — and every disabled
+// control names its unlock in visible copy wired through `aria-describedby`.
 //
 // THE STACKING LAW (§3-S1 + authoring law 5, the attention budget). `CHAT_CONTROL_KINDS` declares the
 // stack order (cards above chips) and the renderer map below is exhaustive over it, so a new kind fails
@@ -22,10 +21,9 @@
 // Card buttons are neutral/outline and each card
 // carries an explicit dismiss; the composer's Send stays CONTENT's one `primary` (UI §4.3 rule 3).
 //
-// THE BAND OWNS THE READING SURFACE, not the controls on it (#674 — `BAND_READING_SURFACE` below states the
-// measurement and why it is the composer's opaque recipe rather than the transcript's translucent plate).
+// THE BAND OWNS THE READING SURFACE, not the controls on it (`BAND_READING_SURFACE` below states why it is the composer's opaque recipe rather than the transcript's translucent plate).
 // One treatment at the anchor covers chips, cards, and every future S1 control; per-control backings would
-// be the tenth bespoke answer to the same over-art question.
+// be one more bespoke answer to the same over-art question.
 
 import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
@@ -36,6 +34,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { Fragment, useId, useState } from "react";
+import { Tip } from "#components";
 import type { ChatControl, ChatControlAction, ChatControlKind, ChatControlMode, ChatControlSource, ContributorRegistry } from "#lib";
 import { CHAT_CONTROL_KINDS, CONTROL_CHIPS_COLLAPSE, CONTROL_MODE_CONSEQUENCE, CONTROL_MODE_WORD, controlOverflowNotice, controlStripNotice } from "#lib";
 import { requestComposerFocus, setComposerDraft, useTurnPhase } from "#state";
@@ -51,16 +50,13 @@ const CHIP_INLINE_CAP = 4;
 // The transcript's reading-port floor this band's coarse strip protects is asserted from rendered geometry
 // by `chat-controls-band.ct.tsx`; the numeric budget belongs to that test because production never reads it.
 
-/** THE BAND'S READING SURFACE (#674 — the over-art contrast family's TENTH instance, and the reason it is
- *  answered HERE rather than on the chips). Measured live 2026-08-24 in a carried-art room
- *  (`data-has-bg-image`, `snap --contrast --contrast-pixel`, settled): the chip row read **1.01–1.63:1**.
- *  The cause was not the chip's ink — it was that the band had NO SURFACE. Every ancestor from
- *  `[data-slot=chat-control-chips]` up resolved `rgba(0,0,0,0)` with no `backdrop-filter`, so an
- *  `intent="outline"` chip (`bg-transparent`, `text-muted-foreground`) drew its border and its label
- *  straight onto the room's photograph. Its two neighbours in the same column both own a surface — the
- *  transcript's bubble/plate, the composer's opaque card — and the band between them owned none.
+/** THE BAND'S READING SURFACE (a member of the over-art contrast family, answered HERE rather than on the
+ *  chips). Without a surface, every ancestor from `[data-slot=chat-control-chips]` up is transparent, so an
+ *  `intent="outline"` chip (`bg-transparent`, `text-muted-foreground`) draws its border and its label straight
+ *  onto the room's photograph and fails contrast in a carried-art room. Its two neighbours in the same column
+ *  both own a surface — the transcript's bubble/plate, the composer's opaque card.
  *
- *  IT IS THE COMPOSER'S OWN RECIPE, NOT AN ELEVENTH BESPOKE `bg-*`. `composer-drop-target.tsx` states the
+ *  IT IS THE COMPOSER'S OWN RECIPE, NOT ANOTHER BESPOKE `bg-*`. `composer-drop-target.tsx` states the
  *  rule this takes: "Reading-surface rule (D44 §12.1): the composer carries its OWN opaque backing
  *  (`bg-card`), never leaning on the background scrim for legibility" — minted when a TRANSLUCENT tint left
  *  typed text unreadable over a bright picture at scrim 0. The S1 band is the composer's own footer
@@ -70,7 +66,7 @@ const CHIP_INLINE_CAP = 4;
  *  WHY OPAQUE AND NOT THE TRANSLUCENT `--color-reading-plate` (the transcript's member of this family).
  *  The plate carries a PROVEN alpha floor, but the thing it is proven for is the transcript's ink set —
  *  `palette-contrast.suite.test.ts` floors the derived `foreground` and the four prose inks over the plate
- *  over worst-case art, and D144(d)/#217 record a STATED dark-arm hole for inks outside that set. A chip's
+ *  over worst-case art, and D144(d) records a STATED dark-arm hole for inks outside that set. A chip's
  *  ink is `text-muted-foreground`, which is not in it. That token's AA floor IS proven against
  *  `color.card` — on the seeds (the `bodyPairs` table) and on every realistic derived base (the
  *  clamp-derived sweep) — so `bg-card` is the surface whose contrast guarantee already covers what this
@@ -85,14 +81,12 @@ const CHIP_INLINE_CAP = 4;
  *  family remedy at the ANCHOR. It cannot paint an empty strip: the band renders NO `chat-controls` element
  *  at all when nothing is live (see `ChatControlsBand` below), so a silent room is byte-identical.
  *
- *  AND IT DECLARES THE INK THAT PAIRS WITH THE SURFACE (#684 P3 — the latent half of the same family). A
- *  surface without an ink is only half a reading surface: text inside it INHERITS colour from wherever the
- *  band happens to be mounted, and this band is mounted inside the room's `ThemeScope`, so a carried palette
- *  can hand it an ink derived against a background this box does not paint (a probe span measured 1.1:1
- *  across that boundary). Every band text sets its own ink TODAY, which is exactly why this is a defence and
- *  not a bug fix: `ChatControl.detail` is an arbitrary `ReactNode` a SOURCE supplies, so the one text node
+ *  AND IT DECLARES THE INK THAT PAIRS WITH THE SURFACE. A surface without an ink is only half a reading
+ *  surface: text inside it INHERITS colour from wherever the band happens to be mounted, and this band is
+ *  mounted inside the room's `ThemeScope`, so a carried palette can hand it an ink derived against a
+ *  background this box does not paint. Every band text sets its own ink, so this is a defence: `ChatControl.detail` is an arbitrary `ReactNode` a SOURCE supplies, so the one text node
  *  the band cannot style is the one a feature outside chat wrote. `text-card-foreground` is the ink the
- *  `bg-card` guarantee is stated for (the `@orb/ui` Card's own base pairs the two), so the box now carries
+ *  `bg-card` guarantee is stated for (the `@orb/ui` Card's own base pairs the two), so the box carries
  *  both halves of one contract and an unstyled child lands on the proven pair. */
 const BAND_READING_SURFACE = "rounded-card border border-border bg-card px-field py-field text-card-foreground";
 
@@ -146,9 +140,8 @@ interface ControlActionButtonProps {
 }
 
 /** The leading GLYPH per consumption mode — one half of a chip's visible tell that `send` POSTS as your turn,
- *  `compose` only DRAFTS, and `execute` RUNS a verb (side-eye 2026-08-24 P1: send/compose/execute chips were
- *  byte-identical, so a "Draw your blade" send chip that fires instantly looked exactly like a "Time skip"
- *  compose chip that only drafts). Decorative — the mode is ALSO carried in the accessible name below, so the
+ *  `compose` only DRAFTS, and `execute` RUNS a verb, so a "Draw your blade" send chip that fires instantly never
+ *  looks like a "Time skip" compose chip that only drafts. Decorative — the mode is ALSO carried in the accessible name below, so the
  *  icon is `aria-hidden`. Exhaustive over the mode axis: a new `CHAT_CONTROL_MODES` member fails `tsc` here. */
 const MODE_GLYPH: Record<ChatControlMode, LucideIcon> = {
   send: Send,
@@ -161,31 +154,30 @@ const MODE_GLYPH: Record<ChatControlMode, LucideIcon> = {
  *
  *  A CHIP carries the per-mode glyph AND the per-mode WORD (a chip's bare label cannot tell send from
  *  compose); a CARD's action reads in the context of its title and its label is deliberate copy ("Run now"
- *  must not become "Run Run now"), so it stays plain. The disabled REASON is bound by `aria-describedby` to
- *  a visually-hidden sibling in BOTH dresses — `title` alone is hover-only, unreachable by keyboard/SR
- *  (side-eye 2026-08-24 P2). The span is a SIBLING, never a child: inside the button it would append to the
- *  accessible name.
+ *  must not become "Run Run now"), so it stays plain. The disabled REASON is visible copy beside the
+ *  control in BOTH dresses, bound by `aria-describedby`, so it reaches a touch user, a keyboard and a screen
+ *  reader alike. The reason is a SIBLING, never a child: inside the button it would append to the accessible
+ *  name.
  *
- *  `title` IS ALWAYS SET (#674 P3). It used to appear only on a DISABLED control, so an operable chip named
- *  its consequence nowhere on the pointer path — and `send` posts a turn the instant it is clicked, with no
- *  confirm step. The disabled REASON still wins the slot (a blocked affordance owes its unlock first); an
- *  enabled one falls through to `CONTROL_MODE_CONSEQUENCE`, the mode's one-line cost, homed in the copy file
- *  beside every other enabled-row helper. Deliberately BOTH dresses: a card's action is the same three modes,
- *  and `title` is a hover helper rather than the accessible name — so unlike the chip-only name prefix it
- *  cannot turn a card's deliberate label into "Run Run now".
+ *  AN ENABLED CONTROL NAMES ITS CONSEQUENCE in a Tooltip — `send` posts a turn the instant it is clicked, with
+ *  no confirm step. `CONTROL_MODE_CONSEQUENCE` is the mode's one-line cost, homed in the copy file beside every
+ *  other enabled-row helper. Deliberately BOTH dresses: a card's action is the same three modes, and the
+ *  tooltip is a description rather than the accessible name — so unlike the chip-only name prefix it cannot
+ *  turn a card's deliberate label into "Run Run now". A disabled control takes no tooltip; its reason owes the
+ *  unlock first.
  *
- *  THE MODE IS A WORD, NOT ONLY A SILHOUETTE (#684 P1). The glyph pair shipped by #674 is a SHAPE channel,
+ *  THE MODE IS A WORD, NOT ONLY A SILHOUETTE. The glyph pair is a SHAPE channel,
  *  and "never by colour alone" generalises to it: 16px of Send-arrow vs Pencil is a smaller distinction than
  *  the colour rule already forbids, and the consequence it gates is irreversible (a send chip posts a turn
  *  with no confirm). So the chip renders `CONTROL_MODE_WORD` as its own leading kicker — a text channel that
  *  survives greyscale, low vision, an icon font that fails to load, and a reader who has never met the glyph.
  *  The alternative arm — distinct chip INTENTS (a coloured send pill) — was refused twice over: it is the
  *  colour-alone channel wearing a new hat, and a filled send pill next to the composer would be a second
- *  `primary` (UI §4.3 rule 3, the law the #670-era no-box-colour call rests on). The accessible name is the
+ *  `primary` (UI §4.3 rule 3). The accessible name is the
  *  SAME word + the label, with NO separator punctuation, so the whole visible string is a substring of the
  *  name (WCAG 2.5.3 label-in-name — a "Send: …" name beside a "Send …" visible label would not be).
  *
- *  THE CHIP GLYPH IS SIZED AT THE CALL SITE (#674 P2). A bare lucide component renders at its intrinsic 24px;
+ *  THE CHIP GLYPH IS SIZED AT THE CALL SITE. A bare lucide component renders at its intrinsic 24px;
  *  the house body-adjacent step is 16px (`ICON_SM`, `Icon size="sm"`). The fix belongs here and NOT on
  *  `@orb/ui` Button's base — a `[&_svg]:size-*` rule there would resize every bare glyph in the app. */
 function ControlActionButton({ action, consumer, as, onInvoked }: ControlActionButtonProps): ReactElement {
@@ -193,42 +185,45 @@ function ControlActionButton({ action, consumer, as, onInvoked }: ControlActionB
   const chip = as === "chip";
   const reasonId = useId();
   const Glyph = MODE_GLYPH[action.mode];
-  return (
-    <>
-      <Button
-        aria-describedby={availability.reason === null ? undefined : reasonId}
-        aria-label={chip ? `${CONTROL_MODE_WORD[action.mode]} ${action.label}` : undefined}
-        data-mode={action.mode}
-        disabled={availability.disabled}
-        focusableWhenDisabled={true}
-        intent={chip ? "outline" : "secondary"}
-        onClick={(): void => {
-          runControlAction(action, consumer);
-          onInvoked?.();
-        }}
-        shape={chip ? "pill" : "control"}
-        size={chip ? "chip" : "sm"}
-        title={availability.reason ?? CONTROL_MODE_CONSEQUENCE[action.mode]}
-      >
-        {chip ? (
-          <>
-            <Icon icon={Glyph} size="sm" />
-            {/* `interactiveKicker` is the voice for "a kicker that IS the visible label of a control" — the
+  const button = (
+    <Button
+      aria-describedby={availability.reason === null ? undefined : reasonId}
+      aria-label={chip ? `${CONTROL_MODE_WORD[action.mode]} ${action.label}` : undefined}
+      data-mode={action.mode}
+      disabled={availability.disabled}
+      focusableWhenDisabled={true}
+      intent={chip ? "outline" : "secondary"}
+      onClick={(): void => {
+        runControlAction(action, consumer);
+        onInvoked?.();
+      }}
+      shape={chip ? "pill" : "control"}
+      size={chip ? "chip" : "sm"}
+    >
+      {chip ? (
+        <>
+          <Icon icon={Glyph} size="sm" />
+          {/* `interactiveKicker` is the voice for "a kicker that IS the visible label of a control" — the
                 mode reads as the chip's register mark, not as a second label competing with the copy. No
                 `data-slot` override (Text owns `data-slot=text`, which tiers.css reads): the word is
                 addressable as the chip's own rendered text, which is the channel under test anyway. */}
-            <Text as="span" voice="interactiveKicker" ink="inherit">
-              {CONTROL_MODE_WORD[action.mode]}
-            </Text>
-          </>
-        ) : null}
-        {action.label}
-      </Button>
-      {availability.reason === null ? null : (
-        <Text as="span" className="sr-only" id={reasonId}>
-          {availability.reason}
-        </Text>
-      )}
+          <Text as="span" voice="interactiveKicker" ink="inherit">
+            {CONTROL_MODE_WORD[action.mode]}
+          </Text>
+        </>
+      ) : null}
+      {action.label}
+    </Button>
+  );
+  if (availability.reason === null) {
+    return <Tip text={CONTROL_MODE_CONSEQUENCE[action.mode]}>{button}</Tip>;
+  }
+  return (
+    <>
+      {button}
+      <Text as="span" id={reasonId} voice="gloss">
+        {availability.reason}
+      </Text>
     </>
   );
 }
@@ -239,7 +234,7 @@ function OverflowCount({ hidden, noun, slot }: { readonly hidden: number; readon
     return null;
   }
   return (
-    <Text className="text-muted-foreground" data-slot={slot} voice="datum">
+    <Text tone="muted" data-slot={slot} voice="datum">
       {controlOverflowNotice(hidden, noun)}
     </Text>
   );
@@ -260,11 +255,13 @@ function ControlCards({ controls, consumer }: { readonly controls: readonly Chat
         <Stack gap="field">
           <Row align="center" gap="row" justify="between">
             <Text voice="label">{newest.title}</Text>
-            <Button aria-label={`Dismiss ${newest.title}`} intent="ghost" onClick={newest.dismiss} size="glyph-sm" title={`Dismiss ${newest.title}`}>
-              {/* `glyph-sm` is a 20px box that holds a 12px `xs` Icon (the token's own description) — a bare
-                  lucide glyph renders at 24px and overflowed it. Same call-site sizing rule as the chip's. */}
-              <Icon icon={X} size="xs" />
-            </Button>
+            <Tip text={`Dismiss ${newest.title}`}>
+              <Button aria-label={`Dismiss ${newest.title}`} intent="ghost" onClick={newest.dismiss} size="glyph-sm">
+                {/* `glyph-sm` is a 20px box that holds a 12px `xs` Icon (the token's own description) — a bare
+                    lucide glyph renders at 24px and overflows it. Same call-site sizing rule as the chip's. */}
+                <Icon icon={X} size="xs" />
+              </Button>
+            </Tip>
           </Row>
           {newest.detail}
           <Row gap="field">
@@ -378,8 +375,8 @@ const KIND_STACK: Record<ChatControlKind, (controls: readonly ChatControl[], con
   chip: (controls, consumer) => <ControlChips consumer={consumer} controls={controls} />,
 };
 
-/** The band. It PAINTS a reading surface (`BAND_READING_SURFACE`, #674) — and that is exactly why the
- *  emptiness rule below is load-bearing rather than a micro-optimisation: a surface on an always-rendered
+/** The band. It PAINTS a reading surface (`BAND_READING_SURFACE`) — and that is exactly why the emptiness
+ *  rule below is required rather than a micro-optimisation: a surface on an always-rendered
  *  wrapper would paint an empty strip above every room's composer.
  *
  *  Zero live controls ⇒ NO `chat-controls` element at all: the source mounts render null, so the

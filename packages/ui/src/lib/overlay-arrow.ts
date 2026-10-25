@@ -2,4 +2,4 @@
 // continuing to a point. Base UI positions it against the anchor and sets `data-side`; the skin is
 // byte-identical across every anchored seal (select/autocomplete/combobox/menu/popover/tooltip), so
 // naming it once makes a per-seal re-spelling (and a drift in the border/bg token pair) impossible.
-export const OVERLAY_ARROW = "size-row rotate-45 border border-border bg-popover";
+export const OVERLAY_ARROW = "block-row inline-row rotate-45 border border-border bg-popover";

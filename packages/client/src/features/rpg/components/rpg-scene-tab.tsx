@@ -17,6 +17,7 @@ import { Button } from "@orb/ui/button";
 import { Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import type { ReactElement, ReactNode } from "react";
+import { Tip } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { revealContextPanel } from "#state";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
@@ -57,11 +58,10 @@ const AMBIENT_CLEAR: Readonly<Record<Exclude<AmbientField, "timeOfDay">, Partial
 /** THE DAY-PRESERVING TIME CLEAR. `clock` fuses two facts a story moves independently — a CALENDAR counter
  *  (`day`) and a TIME OF DAY (`hour`/`minute`) — so "clear the time" must clear the time and nothing else.
  *
- *  It used to write `{clock: null}`, which destroyed the day counter: `day 4` vanished from the band, from
- *  the steering reminder's structured line and from `{{expr::rpg.scene.day}}`, and the next time-pick
- *  resurrected the clock at a FABRICATED `day 1` (the rebuild's `?? 1`). Nothing in the panel could put the
- *  day back — the Date field writes `calendarDate`, and `update_scene.day` is the MODEL's door, not the
- *  host's. `hour`/`minute` are separately nullable for exactly this (`@orb/contracts/rpg` `ambient.ts`), so
+ *  `{clock: null}` would destroy the day counter: `day 4` would vanish from the band, from the steering
+ *  reminder's structured line and from `{{expr::rpg.scene.day}}`, and the next time-pick would resurrect the
+ *  clock at a FABRICATED `day 1` (the rebuild's `?? 1`). Nothing in the panel can put the day back — the Date
+ *  field writes `calendarDate`, and `update_scene.day` is the MODEL's door, not the host's. `hour`/`minute` are separately nullable for exactly this (`@orb/contracts/rpg` `ambient.ts`), so
  *  the clear keeps the day it is standing on and nulls only the time. */
 function clearTimePatch(currentDay: number): Partial<RpgSnapshotState> {
   return { clock: { day: currentDay, hour: null, minute: null } };
@@ -110,7 +110,7 @@ const AMBIENT_LOCK_PATH: Readonly<Record<AmbientField, keyof typeof LOCK_PATH_NA
 
 /** The Scene tab's edit callbacks, gated once on `canEditShared` (host on a game — hand edits are NOT
  *  gated by `trackersReadOnly`, D108). Splitting them out keeps the tab body under the complexity gate.
- *  NOTE (#39 dual-homing): goals are NOT edited here — the Quests tab is the quest plane's ONE edit home;
+ *  Goals are NOT edited here (dual-homing) — the Quests tab is the quest plane's ONE edit home;
  *  a Scene goal row NAVIGATES there (`revealContextPanel("rpg.quests")`), never a second editor. */
 interface SceneEditCallbacks {
   readonly onEditAmbient?: (field: AmbientField, next: string | null) => void;
@@ -139,9 +139,8 @@ function useSceneEdits(state: RpgPanelState): SceneEditCallbacks {
         editSnapshot.mutate({ chatId, patch: patch as Record<string, unknown> });
       }
     },
-    // EVERY cast edit is an OP on the actor's own row (R2) — identity and volatile alike. It used to be a
-    // whole-`presentCharacters` IMAGE rebuilt from the live npcs on every keystroke, which pinned the entire
-    // plane on one NPC's mood edit and could only ever author the members this client could see.
+    // EVERY cast edit is an OP on the actor's own row — identity and volatile alike — never a whole-plane image
+    // rebuilt from the live npcs, which would pin the entire plane on one NPC's mood edit.
     npcEdit: {
       onEditIdentityText: (targetRef, field, text): void => write(targetRef, { op: "setIdentityText", field, text }),
       onEditRelationship: (targetRef, relationship): void => write(targetRef, { op: "setRelationship", relationship }),
@@ -168,7 +167,7 @@ function useSceneEdits(state: RpgPanelState): SceneEditCallbacks {
       onPromote: (targetRef): void => promoteActor.mutate({ chatId, targetRef }),
     },
     // GAME-subject tracker values ride editSnapshot's `trackerValues` record, keyed by tracker KEY (never a
-    // label — the old widget plane keyed by label, so a rename orphaned the value). The written value is TOTAL
+    // label, so a rename never orphans the value). The written value is TOTAL
     // (`{value,max,items}` whole) because the snapshot merge recurses into it.
     onEditGameTracker: (entry, next): void =>
       editSnapshot.mutate({
@@ -246,7 +245,7 @@ export function RpgSceneTab({ state }: RpgSceneTabProps): ReactElement {
       <SceneNpcs npcs={onStage} {...(npcEdit === undefined ? {} : { edit: npcEdit })} lockPin={sectionLockPin(locked, "presentCharacters", onReleaseLock)} />
       <SceneKnownCharacters offstage={offstage} {...(npcEdit === undefined ? {} : { edit: npcEdit })} />
       {/* The Goals section is a filtered ECHO of the quest plane: ACTIVE only, compact rows —
-          the Quests tab is the plane's ONE edit home (#39 dual-homing). A goal row NAVIGATES there. */}
+          the Quests tab is the plane's ONE edit home. A goal row NAVIGATES there. */}
       <SceneGoals quests={tracker.quests.filter((q) => q.status === "active")} />
       <RpgChoiceEcho state={state} />
       <SceneGameTrackers
@@ -282,10 +281,10 @@ function SceneResyncDoorway({ state }: { readonly state: RpgPanelState }): React
   );
 }
 
-/** The Goals echo (#39 dual-homing): read-only rows that NAVIGATE to the quest plane's ONE edit home
+/** The Goals echo: read-only rows that NAVIGATE to the quest plane's ONE edit home
  *  (the Quests tab) on click — never a second editor, never a dead echo. The row is a real button
  *  (keyboard-reachable, named by its GoalLine text). The Quests tab opens with nothing highlighted, so the
- *  name never promises a specific quest; `title` says where the row goes. */
+ *  name never promises a specific quest; its tooltip says where the row goes. */
 function SceneGoals({ quests }: { readonly quests: RpgTrackerView["quests"] }): ReactElement | null {
   if (quests.length === 0) {
     return null;
@@ -297,17 +296,17 @@ function SceneGoals({ quests }: { readonly quests: RpgTrackerView["quests"] }): 
         const total = quest.objectives.length;
         const filled = quest.objectives.filter((o) => o.completed).length;
         return (
-          <Button
-            key={quest.id}
-            type="button"
-            intent="ghost"
-            size="inline"
-            title="Open in Quests"
-            onClick={(): void => revealContextPanel("rpg.quests")}
-            className="w-full border border-transparent px-field text-left"
-          >
-            <GoalLine text={quest.name} done={quest.status === "completed"} {...(total > 0 ? { clock: { filled, total } } : {})} />
-          </Button>
+          <Tip key={quest.id} text="Open in Quests">
+            <Button
+              type="button"
+              intent="ghost"
+              size="inline"
+              onClick={(): void => revealContextPanel("rpg.quests")}
+              className="border border-transparent px-field text-start inline-full"
+            >
+              <GoalLine text={quest.name} done={quest.status === "completed"} {...(total > 0 ? { clock: { filled, total } } : {})} />
+            </Button>
+          </Tip>
         );
       })}
     </Stack>

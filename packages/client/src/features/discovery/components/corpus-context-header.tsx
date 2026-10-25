@@ -55,7 +55,7 @@ export function CorpusContextHeader(): ReactElement {
   }
 
   return (
-    <Row align="center" gap="field" className="min-w-0">
+    <Row align="center" gap="field" className="min-inline-0">
       <Icon icon={Library} size="sm" />
       {/* D271: owner-wide context must never read as a description of the selected artifact. */}
       <Text className="truncate" voice="promoted">

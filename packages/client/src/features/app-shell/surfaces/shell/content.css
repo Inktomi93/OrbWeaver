@@ -1,0 +1,69 @@
+/* shell.css region: the content pane: the view transition, region fill and scrim. The index imports the regions in cascade order; a rule's winner across regions is
+ * decided there, so a rule moves between regions only with its source position. */
+@layer shell {
+  /* The view transition (`withViewTransition`, lib/view-transition.ts) captures only the content pane: a root capture
+   * paints a still frame over the chrome's own FLIP and slide, and a duplicate name aborts to a hard cut. The
+   * `::view-transition-*` pseudos are children of the document root, so they read the motion tokens directly. */
+  :root {
+    view-transition-name: none;
+  }
+
+  .shell-content {
+    flex: 1 1 auto;
+    min-block-size: 0;
+    min-inline-size: 0;
+    display: flex;
+    view-transition-name: orb-section-content;
+  }
+
+  ::view-transition-old(orb-section-content) {
+    animation-duration: var(--motion-fast);
+    animation-timing-function: ease-out;
+  }
+  ::view-transition-new(orb-section-content) {
+    animation-duration: var(--motion-base);
+    animation-timing-function: var(--ease-out-expo);
+  }
+  /* A crossfade at a fixed scale: the group snaps to the destination box and each snapshot paints 1:1 from the
+   * pane's start corner, so two panes of different widths fade instead of stretching into each other. */
+  ::view-transition-group(orb-section-content) {
+    /* The name only: the shorthand would reset the fill mode the snapshots inherit. */
+    animation-name: none;
+  }
+  ::view-transition-old(orb-section-content),
+  ::view-transition-new(orb-section-content) {
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: none;
+    object-position: 0 0;
+    /* Held at the end value: the old snapshot's shorter fade must stay faded until the new one finishes. */
+    animation-fill-mode: both;
+  }
+  .shell-region-fill {
+    flex: 1 1 auto;
+    min-block-size: 0;
+    min-inline-size: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* The scrim stays mounted and fades on the shared co-motion tokens, so it never desyncs from the panel it dims;
+   * it starts below the topbar so it never intercepts the topbar's own panel toggle. */
+  .shell-scrim {
+    position: absolute;
+    inset: 0;
+    inset-block-start: var(--dimension-chrome-row);
+    z-index: calc(var(--z-overlay) - 1);
+    /* A dimmer: the polarity-fixed backdrop token, never the reading plate. */
+    background: var(--color-backdrop);
+    border: none;
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--shell-motion) var(--shell-ease);
+  }
+  .shell-scrim[data-visible="true"] {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}

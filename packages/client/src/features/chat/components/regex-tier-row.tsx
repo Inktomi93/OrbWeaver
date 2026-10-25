@@ -18,14 +18,12 @@
 //     flag alone would stay silent for the widest-reaching flip on the panel.
 //   • OFF ROWS KEEP FULL CONTRAST (§3 (c)) — the state is a MARK (`OFF`), never a dim. Stacking opacity on a
 //     row whose tier may also be off produced two indistinguishable greys for two different facts.
-//   • A ROW THE HOST DOES NOT OWN (#1739 — a previous host's chat-tier attachment) draws the mark, no
+//   • A ROW THE HOST DOES NOT OWN (a previous host's chat-tier attachment) draws the mark, no
 //     switch, and a menu that offers exactly ONE action: `Detach from this chat`. The client learns the
 //     row is foreign by SUBTRACTION: `regex.listScripts` is the viewer's whole library, so a chat-tier row
 //     that is not in it belongs to someone else. The SPLIT is the point — `detachFromChat` gates on the
 //     ROOM (D18) and never re-checks the script's owner, so the sitting host can always evict it; `enabled`
 //     is the LIBRARY row's and stays owner-gated, so the switch would be an affordance lie and is omitted.
-//     (The verb dropped its ownership re-check with the handoff fix; a menu that still refused the detach
-//     would be stating a rule the server no longer has.)
 
 import type { RegexTierKey, RegexTierRowView } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
@@ -43,7 +41,7 @@ import { notify, REGEX_PLACEMENT_GLYPHS, REGEX_PLACEMENT_LABELS, regexPlacementS
 import { openConfigTo, selectCollectionMember } from "#state";
 import { useDetachScriptFromChat, useSetRegexScriptEnabled } from "../hooks/use-chat-regex-mutations.ts";
 
-/** The config group the script library lives in — the `⋯ → Open in library` destination (#1725). */
+/** The config group the script library lives in — the `⋯ → Open in library` destination. */
 const REGEX_COLLECTION = "regex";
 
 /** What an unranked row draws where the numeral goes. An EM DASH, never a blank: the column stays a column,
@@ -59,11 +57,11 @@ export interface RegexTierRowProps {
   readonly scope: RegexTierKey;
   /** A member renders the identical row with every control OMITTED (§8.1 permission-OMIT at row level). */
   readonly isHost: boolean;
-  /** #1739 — a chat-tier row the viewer's library does not hold. */
+  /** A chat-tier row the viewer's library does not hold. */
   readonly notYours: boolean;
   /** The disambiguator this row's action names carry when two rows share a name + stamp (`rowQualifiers`). */
   readonly qualifier: string | undefined;
-  /** #1755 — how many rows run in this room at all (`listEffectiveRegex`'s `effective.length`), the `m` of
+  /** How many rows run in this room at all (`listEffectiveRegex`'s `effective.length`), the `m` of
    *  the spoken `Runs <n> of <m>`. NULL for a viewer whose read carries no run order (a member), which is
    *  the same condition that makes every `runsAt` null. */
   readonly effectiveCount: number | null;
@@ -142,9 +140,9 @@ function rankLabel(runsAt: number | null, isHost: boolean): string {
  *  the not-yours mark. All three ride `markers` — the title line — so they never steal the subtitle's width
  *  from the pattern, which is the datum that tells two similarly-named scripts apart.
  *
- *  AND THE RANK, IN WORDS (#1755). The visible numeral sits in `ListRow`'s `leading` slot, which the
- *  primitive marks `aria-hidden` by contract (`primitives/list-row/parts.tsx` — the slot backs no name), so
- *  the rank reached a screen reader as nothing at all. `markers` is the nearest lane that is NOT hidden, and
+ *  AND THE RANK, IN WORDS. The visible numeral sits in `ListRow`'s `leading` slot, which the primitive marks
+ *  `aria-hidden` by contract (`primitives/list-row/parts.tsx` — the slot backs no name), so without this line
+ *  the rank reaches a screen reader as nothing at all. `markers` is the nearest lane that is NOT hidden, and
  *  an `sr-only` line there is the shipped shape for "the compressed glyph is for the eye, the sentence is
  *  the datum" (`preset/components/prompt-assembly/section-row.tsx:162`). Spoken on EVERY arm — including the
  *  room's own tier, whose `<li>` comes from the sortable seal and counts the REORDERABLE tier rather than
@@ -170,9 +168,15 @@ function RowMarkers({
         </Text>
       )}
       {alsoAt.length === 0 ? null : (
-        <Badge intent="neutral" size="inline" title={`also attached: ${alsoAt.join(" · ")}`} tone="soft">
-          +{alsoAt.length}
-        </Badge>
+        // The count is for the eye: each other tier draws this row under its own heading on the same panel.
+        <>
+          <Badge aria-hidden={true} intent="neutral" size="inline" tone="soft">
+            +{alsoAt.length}
+          </Badge>
+          <Text as="span" className="sr-only">
+            {`also attached: ${alsoAt.join(" · ")}`}
+          </Text>
+        </>
       )}
       {enabled ? null : (
         <Badge intent="neutral" size="inline" tone="soft">
@@ -219,7 +223,7 @@ function RowActions({
   readonly scriptId: RegexTierRowView["script"]["id"];
 }): ReactElement {
   if (notYours) {
-    // DETACH IS OFFERED HERE, and only detach (#1739): `detachFromChat` gates on the ROOM, never on the
+    // DETACH IS OFFERED HERE, and only detach: `detachFromChat` gates on the ROOM, never on the
     // script's owner, so the sitting host can always take a departed host's row out of their room. The
     // SWITCH stays absent because `enabled` is the LIBRARY's and remains owner-gated — that is the one
     // thing this row genuinely cannot do, and the menu says which. `Open in library` is absent too: the
@@ -243,7 +247,7 @@ function RowActions({
       <MenuItem
         onClick={(): void => {
           // The library is a CONFIG collection; landing on the group and then selecting the member is the
-          // shipped drill-in order (`openConfigTo` clears any stale selection first, #866/#1725).
+          // shipped drill-in order (`openConfigTo` clears any stale selection first).
           openConfigTo(REGEX_COLLECTION);
           selectCollectionMember(REGEX_COLLECTION, scriptId);
         }}
@@ -265,9 +269,8 @@ function RowActions({
   );
 }
 
-/** The row's SCENT — the find pattern, whole. The edit stamp that used to close this line is dropped (§3,
- *  the row): it caused the one measured truncation in the pane's width, and the pattern is the datum that
- *  tells two rows apart. The empty arm is spelled the same way the library's own projections spell it. */
+/** The row's SCENT — the find pattern, whole, with no edit stamp (§3, the row): the stamp would truncate the
+ *  pattern at the pane's width, and the pattern is the datum that tells two rows apart. The empty arm is spelled the same way the library's own projections spell it. */
 function patternOf(findRegex: string): string {
   const pattern = findRegex.trim();
   return pattern === "" ? "no pattern yet" : pattern;

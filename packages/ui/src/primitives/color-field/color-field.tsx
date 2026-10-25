@@ -1,7 +1,7 @@
 import { Field as BaseField } from "@base-ui/react/field";
 import type { PopoverRootProps as BasePopoverRootProps } from "@base-ui/react/popover";
 import type { ChangeEvent, ComponentProps, ReactElement } from "react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { cn, isRenderableColor } from "#lib";
 import { Button } from "#primitives/button";
 import { Field } from "#primitives/field";
@@ -141,6 +141,7 @@ export function ColorField({
   "aria-describedby": ariaDescribedby,
 }: ColorFieldProps): ReactElement {
   const slots = colorFieldVariants();
+  const nativeInputId = useId();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(value);
   const isDraftValid = isRenderableColor(draft);
@@ -210,6 +211,8 @@ export function ColorField({
             aria-label="Pick color"
             className={slots.nativeColorInput()}
             data-slot="color-field-native-input"
+            id={nativeInputId}
+            name={nativeInputId}
             onChange={(event: ChangeEvent<HTMLInputElement>): void => commit(event.target.value)}
             type="color"
             value={nativeHex}

@@ -52,11 +52,11 @@ export function PivotBand({ duplicate, onSelect, onDrill }: PivotBandProps): Rea
           <Icon className="shrink-0" icon={MessagesSquare} size="sm" />
           {/* `min-w-0` on BOTH the button and its gloss: at ~530px the name collided with the chevron
             because nothing in the row could shrink (F-18). The NAME keeps its width, the gloss truncates. */}
-          <Button className="min-w-0 flex-1 justify-start text-left" intent="ghost" onClick={onSelect} size="sm" type="button">
+          <Button className="flex-1 justify-start text-start min-inline-0" intent="ghost" onClick={onSelect} size="sm" type="button">
             <Text as="span" className="shrink-0" voice="label">
               Chat history
             </Text>
-            <Text as="span" className="min-w-0 truncate" voice="gloss">
+            <Text as="span" className="truncate min-inline-0" voice="gloss">
               your conversation splices in here — always on, always placed
             </Text>
           </Button>

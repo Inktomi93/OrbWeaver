@@ -78,17 +78,17 @@ export function CorpusUnderstandingInvitation(): ReactElement {
           own query still read the 868px pane and kept the two columns. Measured: the prose column fell to
           ~230px, four words a line, beside a `shrink-0` action column — exactly the failure the comment
           below describes, arriving from the other direction. */}
-      <Container className="w-full">
+      <Container className="inline-full">
         {/* The action column drops UNDER the prose at a narrow pane rather than squeezing the reading line:
             a paragraph capped at its measure beside a button that never shrinks is how a 360px pane ends up
             rendering four words a line. */}
-        <Row align="start" className="flex-col @lg:flex-row" gap="block" justify="between">
-          <Stack className="min-w-0" gap="row">
+        <Row align="start" className="flex-col @cq-32:flex-row" gap="block" justify="between">
+          <Stack className="min-inline-0" gap="row">
             <Heading id={titleId} level={2} voice="focal">
               {pass.running ? "Reading your library back to you." : "Read your library back to you."}
             </Heading>
             {/* Capped on the PARAGRAPH, never on the page (the `reading` voice's own contract). */}
-            <Text className="max-w-(--reading-measure-prose)" voice="reading">
+            <Text className="max-inline-(--reading-measure-prose)" voice="reading">
               {passProse(pass)}
             </Text>
             {pass.running ? null : <UnderstandingPassUtilityNote id={utilityNoteId} utility={utility} />}

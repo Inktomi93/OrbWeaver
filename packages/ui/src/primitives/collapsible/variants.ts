@@ -1,4 +1,4 @@
-import { DISABLED_STATE, FOCUS_RING, tv } from "#lib";
+import { DISABLED_STATE, FOCUS_RING, TOUCH_FLOOR_AT_COARSE, tv } from "#lib";
 
 /**
  * Slot classes for the collapsible (ui-package-design §5). The panel animates its own height off
@@ -11,14 +11,19 @@ export const collapsibleVariants = tv({
     // `group` so the baked chevron can rotate off Base UI's `data-panel-open` on the trigger (the accordion
     // precedent). A consumer that renders its OWN chevron/icon in the trigger opts out via `chevron={false}`.
     root: "flex flex-col",
-    trigger: `group inline-flex cursor-pointer items-center gap-field text-label leading-label font-medium text-foreground outline-none ${DISABLED_STATE} ${FOCUS_RING}`,
-    chevron: "shrink-0 text-muted-foreground transition-transform duration-(--motion-base) ease-out-expo group-data-[panel-open]:rotate-180",
+    trigger: `group inline-flex cursor-pointer items-center gap-field text-label leading-label font-medium text-foreground outline-none ${DISABLED_STATE} ${FOCUS_RING}
+    `,
+    chevron: "shrink-0 text-muted-foreground transition-transform duration-(--motion-base) ease-out-expo group-data-panel-open:rotate-180",
     // `transition-all` was catching inherited non-compositor properties too (`scrollbarColor` —
     // the app's `[anim]` flagger convicted this panel OVER BUDGET on every fold). The panel only
     // ever animates `height` (the ratified #953/#1069 lifecycle allowance, guide §4.2 item 3) —
     // naming it keeps the sanctioned motion and drops everything `all` swept in by accident.
-    panel:
-      "h-(--collapsible-panel-height) overflow-hidden text-body leading-body text-muted-foreground transition-[height] duration-(--motion-layout) ease-out-expo data-starting-style:h-0 data-ending-style:h-0",
+    panel: `
+      overflow-hidden text-body leading-body text-muted-foreground transition-[height] duration-(--motion-layout) ease-out-expo
+      block-(--collapsible-panel-height)
+      data-ending-style:block-0
+      data-starting-style:block-0
+    `,
   },
   variants: {
     // THE TRIGGER'S BOX — DEFAULT INVERTED at #884 C2 (owner program, handoff 2026-08-30 §2; born as
@@ -26,7 +31,7 @@ export const collapsibleVariants = tv({
     // whole section, and the recurring defect was the opt-IN floor arm not taken (the this-chat 411×40
     // collapsible; the params deck's `Advanced` at 544×16 — below WCAG 2.5.8's 24×24 on ANY pointer, with
     // no hit expansion because `::after` resolves `content: none` here). It pins the pointer-conditional
-    // `--spacing-control-sm` floor (44px coarse / 32px fine), the same token every other tap-floor control
+    // `--size-control-sm` floor (44px coarse / 32px fine), the same token every other tap-floor control
     // rides. `text` (the renamed `inline` arm) is the OPT-OUT for a disclosure sitting in running content,
     // where a control box would shear it off the copy it belongs to — and every `size="text"` mount owes a
     // reasoned home on the `orb/sub-floor-disclosure` row of eslint.config.js. It is a
@@ -34,7 +39,13 @@ export const collapsibleVariants = tv({
     // so an override would win or lose by stylesheet order (gate `ui-size-via-variant`).
     size: {
       text: {},
-      control: { trigger: "min-h-control-sm" },
+      control: { trigger: "min-block-(--size-control-sm)" },
+    },
+    // A full-bleed `text` trigger in a dense footer keeps its text height at a fine pointer and takes the touch
+    // floor on its own box at a coarse one: it has width to spare and wants only height, and an overflowing hit
+    // pseudo there would collide with the rows above and below.
+    touchFloor: {
+      block: { trigger: TOUCH_FLOOR_AT_COARSE.block },
     },
     // Base UI completes a panel with no animations immediately.
     instant: {

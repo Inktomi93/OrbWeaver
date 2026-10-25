@@ -48,7 +48,7 @@ function ResumeSessions(): ReactElement | null {
     return null;
   }
   return (
-    <Card className="w-full max-w-(--reading-measure)">
+    <Card className="inline-full max-inline-(--reading-measure)">
       <Stack gap="row" padding="block">
         <Text voice="kicker">Continue a session</Text>
         <Stack gap="tight">
@@ -60,7 +60,7 @@ function ResumeSessions(): ReactElement | null {
               onClick={(): void => selectRefinerySession(castId<RefinerySessionId>(session.id))}
               size="sm"
             >
-              <Text as="span" className="min-w-0 truncate" ink="inherit" voice="label">
+              <Text as="span" className="truncate min-inline-0" ink="inherit" voice="label">
                 {session.name ?? session.characterName}
               </Text>
               <Text as="span" ink="inherit" voice="gloss">

@@ -139,7 +139,7 @@ export function HomeDocumentsTileBody(): ReactElement {
             accident rather than a measure. A cap makes it a property of the prose — and since #1145 that
             cap is `--reading-measure-prose`, the TEACHING measure, because the house one is 75 CSS `ch`
             and a CSS `ch` is ~1.5 of the characters the design law counts. */}
-        <Text className="line-clamp-3 max-w-(--reading-measure-prose)" voice="gloss" prose={true}>
+        <Text className="line-clamp-3 max-inline-(--reading-measure-prose)" voice="gloss" prose={true}>
           {DATABANK_INGEST_GLOSS}
         </Text>
       </Stack>
@@ -173,9 +173,9 @@ export function HomeDocumentsTileBody(): ReactElement {
               // will happen — the chip's own text is a count, which is a fine LABEL and a terrible verb.
               <Button
                 aria-label={`Show the ${chip.label} documents in your databank`}
-                // The tap floor is `size="sm"`'s own `h-control-sm`, which is ≥ `--spacing-touch-target`
+                // The tap floor is `size="sm"`'s own `h-(--size-control-sm)`, which is ≥ `--size-touch-target`
                 // at BOTH pointer classes by construction (44/44 coarse, 32/28 fine — theme.css's
-                // `@media (pointer: fine)` block). The `min-h-touch-target` that used to sit here could
+                // `@media (pointer: fine)` block). The `min-h-(--size-touch-target)` that used to sit here could
                 // therefore never bind; it read as the thing holding the floor up while the sealed height
                 // already did (#169 — invisible to `ui-size-via-variant` until its value class learned
                 // about hyphens). `p-0` stays: the Badge inside is the whole visible chip.
@@ -223,7 +223,7 @@ export function HomeDocumentsTileBody(): ReactElement {
                       // (2026-08-19) reaches all three surfaces, not two; safe since the badge inline
                       // arm learned to keep a block svg on the line.
                       subtitleLead: (
-                        <Badge className="mr-field" intent={badge.intent} size="inline" tone="soft">
+                        <Badge className="me-field" intent={badge.intent} size="inline" tone="soft">
                           {badge.glyph === null ? null : <Icon icon={badge.glyph} size="xs" />}
                           {badge.label}
                         </Badge>

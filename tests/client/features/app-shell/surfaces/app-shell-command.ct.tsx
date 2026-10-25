@@ -200,10 +200,10 @@ test("filtering keeps the dialog, its search and its result viewport where they 
   const search = palette.getByRole("combobox");
   const results = palette.getByRole("listbox");
   await expect(search).toBeFocused();
-  // The compact result viewport is the `h-48` spacing step the palette declares, resolved by the page's own sheet.
+  // The compact result viewport is the `--height-scroll-sm` step the palette declares, resolved by the page's own sheet.
   const compactPx = await page.evaluate(() => {
     const probe = document.createElement("div");
-    probe.className = "h-48";
+    probe.style.blockSize = "var(--height-scroll-sm)";
     document.body.append(probe);
     const height = probe.getBoundingClientRect().height;
     probe.remove();

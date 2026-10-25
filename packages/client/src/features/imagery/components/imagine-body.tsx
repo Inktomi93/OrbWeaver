@@ -138,7 +138,7 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
 
   return (
     <Stack gap="block" padding="block">
-      <Text className="max-w-(--reading-measure-prose)" voice="reading">
+      <Text className="max-inline-(--reading-measure-prose)" voice="reading">
         Generate an image into this chat. Every image is a real charge — and the modes that read the conversation spend a second, smaller call to build the
         prompt first.
       </Text>
@@ -181,7 +181,7 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
         {isExtraction ? (
           <Stack gap="tight">
             {blindDoubleSpend ? (
-              <Text className="max-w-(--reading-measure-prose)" data-slot="imagine-double-spend" voice="reading">
+              <Text className="max-inline-(--reading-measure-prose)" data-slot="imagine-double-spend" voice="reading">
                 Generate now and this mode charges TWICE: one call to read the chat into a prompt, then the image itself.
               </Text>
             ) : null}
@@ -192,7 +192,7 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
               {extract.isPending ? (
                 <PendingLine label="Reading the chat" verb="Reading the chat…" />
               ) : (
-                <Text as="span" className="max-w-(--reading-measure-prose)" data-slot="imagine-read-cost" voice="reading">
+                <Text as="span" className="max-inline-(--reading-measure-prose)" data-slot="imagine-read-cost" voice="reading">
                   {readCostLine(receipt)}
                 </Text>
               )}
@@ -220,7 +220,7 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
       {generate.isPending ? (
         <Stack data-slot="imagine-generating" gap="tight">
           <PendingLine label="Generating the image" verb="Generating the image…" />
-          <Text className="max-w-(--reading-measure-prose)" voice="reading">
+          <Text className="max-inline-(--reading-measure-prose)" voice="reading">
             Usually 5-60 seconds. You can close this — the image posts into the chat when it's ready.
           </Text>
         </Stack>

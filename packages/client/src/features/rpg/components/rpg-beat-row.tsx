@@ -4,9 +4,9 @@
 // A beat renders as a BULLET LINE (bordered cards are reserved for ARTIFACTS): the type word, the title,
 // then the body in the same muted voice. A member reads static text (PERMISSION-omit, never a disabled
 // control). For a HOST the title is click-to-edit in place and the BODY expands in place into a
-// real multi-line editor — owner dogfood 2026-07-31 ("clicking on a journal entry should expand an editor
-// like injections does and overrides, right now it just does a single line and its very hard to see"): a
-// journal body is a paragraph the model wrote, and a one-line input showed it through a letterbox. The
+// real multi-line editor (the owner: "clicking on a journal entry should expand an editor like injections
+// does and overrides"): a journal body is a paragraph the model wrote, and a one-line input would show it
+// through a letterbox. The
 // anatomy is the room-overrides collapse card (`chat/components/room-overrides-form.tsx`) — compact row at
 // rest, click expands the editor in the row's own place — and so is its save grammar: the panel AUTOSAVES
 // (D66 A4 — there are no Save/Discard buttons in this product), so the editor commits on blur and Escape
@@ -19,7 +19,7 @@ import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useId, useRef, useState } from "react";
-import { ConfirmDialog } from "#components";
+import { ConfirmDialog, Tip } from "#components";
 import type { EditSession } from "#lib";
 import { resolveCommit } from "#lib";
 import { journalRowLabel } from "../lib/journal-labels.ts";
@@ -80,7 +80,7 @@ export function BeatRow({ beat, edit }: BeatRowProps): ReactElement {
             ariaLabel={`${beat.title} title`}
             display={beat.title}
             wrap={true}
-            className="min-w-0 max-w-full"
+            className="max-inline-full min-inline-0"
             onEdit={(next): void => edit.onEditTitle(beat.key, next)}
           />
         </>
@@ -92,7 +92,7 @@ export function BeatRow({ beat, edit }: BeatRowProps): ReactElement {
           confirmLabel="Delete"
           onConfirm={(): void => edit.onDelete(beat.key)}
           trigger={
-            <Button aria-label={`Delete entry: ${beat.title}`} intent="ghost" size="glyph-sm" title={`Delete entry: ${beat.title}`}>
+            <Button aria-label={`Delete entry: ${beat.title}`} intent="ghost" size="glyph-sm">
               <Icon icon={Trash2} size="xs" />
             </Button>
           }
@@ -125,24 +125,23 @@ function BeatBodyEditor({
    * THE OPEN EDIT — draft, what it opened with, and what arrived underneath it (`lib/edit-session.ts`).
    *
    * The draft is seeded ONCE, when the editor opens: a passive re-render must not clobber what the host is
-   * typing, and that ruling is preserved by changing the commit's CONDITION rather than the seeding
-   * (#1502). Judging against `openedFrom` is what stopped an untouched editor writing its opened-with text
+   * typing, and the commit's CONDITION changes, never the seeding. Judging against `openedFrom` is what stops an
+   * untouched editor writing its opened-with text
    * back over a body that changed underneath it.
    *
-   * AND THE COLLISION IS NOW SURFACED RATHER THAN RESOLVED FOR THE HOST (#1559). When the host HAS typed
-   * and the body ALSO moved — the normal case during play, because beats are model-writable — this row
-   * used to take the host's text silently, where `TrackerValue` holds and asks. Both editors now go
-   * through the ONE resolver: nothing typed ⇒ nothing sent; typed over a still body ⇒ an ordinary commit;
+   * AND THE COLLISION IS SURFACED RATHER THAN RESOLVED FOR THE HOST. When the host HAS typed and the body
+   * ALSO moved — the normal case during play, because beats are model-writable — the row holds and asks,
+   * exactly as `TrackerValue` does. Both editors go through the ONE resolver: nothing typed ⇒ nothing sent; typed over a still body ⇒ an ordinary commit;
    * both moved ⇒ held open with what arrived stated, where committing again overwrites deliberately and
    * Escape keeps what arrived. Reseeding the draft stays the refused arm.
    */
   const [session, setSession] = useState<EditSession>({ draft: content, openedFrom: content, conflict: null });
   /**
-   * IS THIS CLOSE A CANCELLATION? (#1502.) The commit runs on BLUR and collapsing the panel is what
+   * IS THIS CLOSE A CANCELLATION? The commit runs on BLUR and collapsing the panel is what
    * produces that blur, so the two things Escape must do (drop the draft, collapse) reach `onBlur` as one
    * already-decided fact it cannot infer: a `setSession` does not take effect before the unmount-driven
-   * blur runs, and that handler is closed over the PREVIOUS render's session, so Escape used to commit the
-   * very text it had just been asked to throw away. A ref, not state, precisely because it must be
+   * blur runs, and that handler is closed over the PREVIOUS render's session, so without this Escape would commit
+   * the very text it had just been asked to throw away. A ref, not state, precisely because it must be
    * readable inside that already-scheduled handler.
    */
   const cancelled = useRef(false);
@@ -157,7 +156,7 @@ function BeatBodyEditor({
     }
   }, [open]);
   const bodyLabel = `${title} entry`;
-  // An unwritten body still says something (empty states are load-bearing): the rest line is the invitation.
+  // An unwritten body still says something (an empty state is required): the rest line is the invitation.
   const restText = content === "" ? "write the beat…" : content;
   return (
     <Collapsible
@@ -177,20 +176,21 @@ function BeatBodyEditor({
             the editor is OPEN the rest line is gone: the editor takes the body's place (expand IN PLACE),
             never sits under a copy of itself. */}
         {open ? null : (
-          <CollapsibleTrigger
-            chevron={false}
-            // Sub-floor disclosure by ruling (a reasoned home of `orb/sub-floor-disclosure` in eslint.config.js): the box is the rendered Button's own (`render` merges the trigger class onto it): an inline Button carries its ::after touch floor, and a control min-h here would inflate the beat row's compact rest state.
-            size="text"
-            render={
-              <Button intent="ghost" size="inline" className="min-w-0 max-w-full whitespace-normal px-field text-left">
-                <Text as="span" voice="label" className="min-w-0 break-words">
-                  {restText}
-                </Text>
-              </Button>
-            }
-            aria-label={bodyLabel}
-            title="Click to edit the beat"
-          />
+          <Tip text="Click to edit the beat">
+            <CollapsibleTrigger
+              chevron={false}
+              // Sub-floor disclosure by ruling (a reasoned home of `orb/sub-floor-disclosure` in eslint.config.js): the box is the rendered Button's own (`render` merges the trigger class onto it): an inline Button carries its ::after touch floor, and a control min-h here would inflate the beat row's compact rest state.
+              size="text"
+              render={
+                <Button intent="ghost" size="inline" className="px-field text-start whitespace-normal max-inline-full min-inline-0">
+                  <Text as="span" voice="label" className="wrap-break-word min-inline-0">
+                    {restText}
+                  </Text>
+                </Button>
+              }
+              aria-label={bodyLabel}
+            />
+          </Tip>
         )}
         {trailing}
       </BeatLine>

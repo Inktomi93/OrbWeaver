@@ -44,6 +44,7 @@ import type { LucideIcon } from "@orb/ui/icons";
 import { ChartColumn, ChevronRight, Gauge, Icon, Pencil } from "@orb/ui/icons";
 import { Grid, Row, Stack } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
+import { snappedLengthPx, TOKENS } from "@orb/ui/tokens";
 import type { ReactElement, ReactNode } from "react";
 import { CharacterPicker } from "#components";
 import { skeletonRowCountFor } from "#data";
@@ -68,10 +69,10 @@ interface TeachingStep {
   readonly detail: string;
 }
 
-/** The reserved list box, in px — the SAME length as the `h-80` utility beside it (20rem at the 16px root).
- *  Two spellings of one number because the box is set in CSS and the skeleton's row count is arithmetic;
- *  they are adjacent and stated so they move together. */
-const PICKER_LIST_HEIGHT_PX = 320;
+/** The reserved list box in px at the 16px root: the same `height.scroll-lg` token the `h-(--height-scroll-lg)` list
+ *  class beside it spends, decoded once so the skeleton row count and the box cannot drift apart. */
+const ROOT_FONT_PX = 16;
+const PICKER_LIST_HEIGHT_PX = snappedLengthPx(TOKENS["height.scroll-lg"].value, ROOT_FONT_PX) ?? 0;
 /** `CharacterPicker`'s own fallback count, used when the tokens cannot be resolved (no document). */
 const DEFAULT_PICKER_SKELETON_ROWS = 5;
 
@@ -92,7 +93,7 @@ export function TeachingState({ onStart, starting, resume }: TeachingStateProps)
   const focusRef = useLandingPickerFocusOnRequest();
   return (
     <Stack align="center" data-testid={testId("refineryTeaching")} gap="section" className="py-section" ref={focusRef}>
-      <Stack align="center" className="max-w-(--reading-measure)" gap="tight">
+      <Stack align="center" className="max-inline-(--reading-measure)" gap="tight">
         {/* `text-center` on BOTH lines, not just the gloss: the Stack centres each child as a BLOCK, so a
             two-line heading at the reading measure sat left-aligned above a centred sentence — two
             different axes in one four-line block (measured in the CT shot at 1280px). */}
@@ -109,28 +110,28 @@ export function TeachingState({ onStart, starting, resume }: TeachingStateProps)
             ~117 of the characters the design law counts, so the wide measure could never satisfy it. The
             Stack, Card and steps Grid around this paragraph keep `--reading-measure` — they bound a
             picker and three step cards, which are layout, not a line of prose. */}
-        <Text className="max-w-(--reading-measure-prose) text-center" voice="reading">
+        <Text className="text-center max-inline-(--reading-measure-prose)" voice="reading">
           Pick a character to start. Nothing is written to the card until you accept a rewrite field by field.
         </Text>
       </Stack>
       {resume}
       {/* THE LANDING'S JOB (header). Mounted open, first, and full-library — `CharacterPicker` walks the
           whole keyset now, so this is the same browse the characters section offers, not its first page. */}
-      <Card className="w-full max-w-(--reading-measure)">
+      <Card className="inline-full max-inline-(--reading-measure)">
         <Stack gap="row" padding="block">
           <Text voice="kicker">{starting ? "Opening the session…" : "Start from a character"}</Text>
           {/* THE LIST BOX IS RESERVED, NOT FLUID (side-eye 2026-08-19 P3: "+98px post-paint jump"). The
               picker suspends into `SkeletonRows`, and the settled list is taller than the fallback — so
               everything under it, the whole teaching row included, was shoved down one paint after the
               landing appeared. The config-welcome precedent is the same class and the same answer: paint
-              the box you will settle into. `h-80` fixes the scroller at the height its own `max-h-80`
+              the box you will settle into. `h-(--height-scroll-lg)` fixes the scroller at the height its own `max-h-(--height-scroll-lg)`
               default was already capping it to, and the skeleton fills that SAME box — `skeletonRowCountFor`
               inverts the fallback's own pitch from token values, so the count follows a coarse-pointer
               row height instead of a guess. */}
           <CharacterPicker
             emptyText="No characters match."
             label="Start a refinery session"
-            listClassName="h-80"
+            listClassName="block-(--height-scroll-lg)"
             onSelect={(id): void => {
               if (!starting) {
                 onStart(id);
@@ -153,7 +154,7 @@ export function TeachingState({ onStart, starting, resume }: TeachingStateProps)
           own step's unit (see below), which is what kept it from orphaning. What changed is the ARM — the
           reflow is a track count now, so there is no wrap point for a chevron to strand at in the first
           place. */}
-      <Grid className="w-full max-w-(--reading-measure)" cols="triple" data-testid={testId("refineryTeachingSteps")} gap="tight">
+      <Grid className="inline-full max-inline-(--reading-measure)" cols="triple" data-testid={testId("refineryTeachingSteps")} gap="tight">
         {STEPS.map((step, index) => (
           // EACH CHEVRON+CARD IS ONE UNIT (side-eye 2026-08-09 P2, preserved). The chevron is a child of
           // its OWN step, never a free child of the steps row — that is what stopped it stranding at the
@@ -166,8 +167,8 @@ export function TeachingState({ onStart, starting, resume }: TeachingStateProps)
                 same decoration to face the way the eye actually travels; above the step it is horizontal
                 again. It is decoration either way (`Icon` with no `label` is `aria-hidden`), so nothing
                 about the announced order changes — that is DOM order, which is the real sequence. */}
-            {index === 0 ? null : <Icon className="rotate-90 @md:rotate-0" icon={ChevronRight} size="sm" />}
-            <Card className="h-full flex-1">
+            {index === 0 ? null : <Icon className="rotate-90 @cq-28:rotate-0" icon={ChevronRight} size="sm" />}
+            <Card className="flex-1 block-full">
               <Stack gap="tight" padding="block">
                 <Row align="center" gap="tight">
                   <Icon icon={step.glyph} size="sm" />

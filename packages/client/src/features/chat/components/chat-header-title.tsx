@@ -23,10 +23,10 @@ export interface ChatHeaderTitleProps {
   readonly canRename: boolean;
 }
 
-/** The participants, leading. Its full value is the tooltip (the ellipsis is the layout's floor). */
+/** The participants, leading (the ellipsis is the layout's floor). */
 function ParticipantsText({ label }: { readonly label: string }): ReactElement {
   return (
-    <Text voice="promoted" className="shell-topbar-title min-w-0 truncate" title={label}>
+    <Text voice="promoted" className="shell-topbar-title truncate min-inline-0">
       {label}
     </Text>
   );
@@ -46,7 +46,7 @@ function TitleText({ label, roomName, createdAt }: Pick<ChatHeaderTitleProps, "l
     <>
       <ParticipantsText label={label} />
       {roomName === null ? null : (
-        <Text as="span" voice="quiet" className="shell-topbar-subtitle min-w-0 truncate" title={roomName}>
+        <Text as="span" voice="quiet" className="shell-topbar-subtitle truncate min-inline-0">
           {roomName}
         </Text>
       )}
@@ -59,7 +59,7 @@ function TitleText({ label, roomName, createdAt }: Pick<ChatHeaderTitleProps, "l
  *  chips beside it (the floor lives on the box, never on the text inside it). */
 function TitleGroup({ children, width }: { readonly children: ReactNode; readonly width?: number }): ReactElement {
   return (
-    <Row gap="row" align="baseline" className="shell-topbar-title-group min-w-0" {...(width === undefined ? {} : { style: { width } })}>
+    <Row gap="row" align="baseline" className="shell-topbar-title-group min-inline-0" {...(width === undefined ? {} : { style: { width } })}>
       {children}
     </Row>
   );
@@ -97,7 +97,7 @@ export function ChatHeaderTitle({ chatId, label, roomName, createdAt, canRename 
         intent="ghost"
         size="sm"
         aria-label={`Rename chat — ${label}${roomName === null ? "" : `, ${roomName}`}`}
-        className="shell-topbar-title-group min-w-0 shrink justify-start"
+        className="shell-topbar-title-group shrink justify-start min-inline-0"
         ref={(node: HTMLButtonElement | null): void => {
           if (node !== null && restoreFocus.current) {
             restoreFocus.current = false;
@@ -144,7 +144,7 @@ export function ChatHeaderTitle({ chatId, label, roomName, createdAt, canRename 
       <Input
         aria-label="Chat name"
         placeholder="Name this chat"
-        className="shell-topbar-rename min-w-0"
+        className="shell-topbar-rename min-inline-0"
         value={draft}
         readOnly={updateTitle.isPending}
         onValueChange={setDraft}

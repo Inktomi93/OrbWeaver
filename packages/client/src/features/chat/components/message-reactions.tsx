@@ -11,7 +11,7 @@
 // has a two-state model ("I have reacted" / "I have not"), which is exactly what `aria-pressed` says. That
 // state is answered from the viewer's own SEAT, not from a count — a reactor total cannot tell a screen
 // reader whether the press would add or remove. `Toggle size="chip"` carries the ≥44px hit floor by
-// construction (`--spacing-touch-target` is the POINTER-CONDITIONAL token: 44px coarse, 28px fine), so the
+// construction (`--size-touch-target` is the POINTER-CONDITIONAL token: 44px coarse, 28px fine), so the
 // pill stays small in a dense desktop transcript and is thumb-sized on a phone with no feature-side
 // pointer variant (`no-pointer-variants-in-features`).
 //
@@ -26,6 +26,7 @@ import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { Toggle } from "@orb/ui/toggle";
 import type { ReactElement } from "react";
+import { Tip } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { useReactionsForVariant, useViewerSeatId } from "../hooks/use-message-reactions.ts";
 import { useToggleReactionMutation } from "../lib/reaction-mutations.ts";
@@ -38,7 +39,7 @@ interface ReactionPillProps {
   readonly group: MessageReactionGroup;
   readonly viewerReacted: boolean;
   /** Pressing a chip toggles THAT chip's exact target — a segment chip re-keys the same anchor, a
-   *  whole-message chip keys none (the two are independent toggles, MA-2 §4). */
+   *  whole-message chip keys none (the two are independent toggles). */
   readonly onToggle: (group: MessageReactionGroup) => void;
 }
 
@@ -58,39 +59,40 @@ function segmentQualifier(group: MessageReactionGroup): string | null {
  *  sentence because an emoji's own text is not one (§13.10 N3: stable identity first, volatile count after,
  *  so a `getByRole("button", {name: /React with/})` query survives the count changing).
  *
- *  A SEGMENT-anchored chip (B7) prints its target as a gloss (`→ Bob`) and carries the captured snippet on
- *  `title` — the stored qualifier is DATA display; staleness against an edited body is re-judged where it
+ *  A SEGMENT-anchored chip prints its target as a gloss (`→ Bob`) and carries the captured snippet in its
+ *  tooltip — the stored qualifier is DATA display; staleness against an edited body is re-judged where it
  *  changes behavior (the write validation + the prompt attribution), never re-parsed per painted chip. */
 function ReactionPill({ group, viewerReacted, onToggle }: ReactionPillProps): ReactElement {
   const count = group.reactorParticipantIds.length;
   const qualifier = segmentQualifier(group);
   return (
-    <Toggle
-      aria-label={
-        qualifier === null
-          ? `React with ${group.emoji} — ${String(count)} so far`
-          : `React with ${group.emoji} to ${qualifier}'s line — ${String(count)} so far`
-      }
-      data-slot="message-reaction-pill"
-      intent="outline"
-      onPressedChange={(): void => onToggle(group)}
-      pressed={viewerReacted}
-      shape="pill"
-      size="chip"
-      {...(group.segmentSnippet !== null ? { title: group.segmentSnippet } : {})}
-    >
-      {/* The glyph is decoration for AT — the accessible name above already says which emoji it is, and a
+    <Tip text={group.segmentSnippet ?? undefined}>
+      <Toggle
+        aria-label={
+          qualifier === null
+            ? `React with ${group.emoji} — ${String(count)} so far`
+            : `React with ${group.emoji} to ${qualifier}'s line — ${String(count)} so far`
+        }
+        data-slot="message-reaction-pill"
+        intent="outline"
+        onPressedChange={(): void => onToggle(group)}
+        pressed={viewerReacted}
+        shape="pill"
+        size="chip"
+      >
+        {/* The glyph is decoration for AT — the accessible name above already says which emoji it is, and a
           screen reader announcing the raw codepoint's own name a second time is noise. */}
-      <span aria-hidden={true}>{group.emoji}</span>
-      <Text as="span" voice="gloss">
-        {count}
-      </Text>
-      {qualifier !== null ? (
+        <span aria-hidden={true}>{group.emoji}</span>
         <Text as="span" voice="gloss">
-          → {qualifier}
+          {count}
         </Text>
-      ) : null}
-    </Toggle>
+        {qualifier !== null ? (
+          <Text as="span" voice="gloss">
+            → {qualifier}
+          </Text>
+        ) : null}
+      </Toggle>
+    </Tip>
   );
 }
 
@@ -138,8 +140,14 @@ export function MessageReactions({ message }: MessageReactionsProps): ReactEleme
         />
       ))}
       {hidden.length > 0 ? (
-        <Text as="span" title={hidden.map((g) => g.emoji).join(" ")} voice="gloss">
-          +{hidden.length}
+        // The count is for the eye; the hidden reactions are spoken in full. The picker shows every one.
+        <Text as="span" voice="gloss">
+          <Text aria-hidden={true} as="span">
+            +{hidden.length}
+          </Text>
+          <Text as="span" className="sr-only">
+            {`${hidden.length} more: ${hidden.map((g) => g.emoji).join(" ")}`}
+          </Text>
         </Text>
       ) : null}
     </Row>

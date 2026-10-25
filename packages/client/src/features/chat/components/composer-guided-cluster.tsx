@@ -151,13 +151,13 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
   };
 
   return (
-    <Container className="w-full min-w-0">
+    <Container className="inline-full min-inline-0">
       {/* The refusal line below is a SECOND row under the rail, so the two are spaced by a Stack's gap rather
           than a margin (`Container` is a plain block — the house rule is "space via Stack/Grid gap",
           variants.ts). With no refusal the Stack has one child and spends nothing. */}
       <Stack gap="glyph" data-slot="composer-guided-cluster">
-        <Row align="center" justify="between" gap="glyph" className="min-w-0 flex-wrap" data-slot="composer-utilities">
-          <Row align="center" gap="glyph" className="min-w-0 flex-1 flex-wrap">
+        <Row align="center" justify="between" gap="glyph" className="flex-wrap min-inline-0" data-slot="composer-utilities">
+          <Row align="center" gap="glyph" className="flex-1 flex-wrap min-inline-0">
             <Row aria-label="Your message" className="shrink-0" data-slot="composer-you-actions" gap="glyph" role="group">
               <ImpersonateGuidedButton
                 disabled={!idle}
@@ -170,7 +170,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
             </Row>
             {actionContributions}
           </Row>
-          <Row aria-label="Their reply" className="min-w-0 shrink-0" data-slot="composer-them-actions" gap="glyph" role="group">
+          <Row aria-label="Their reply" className="shrink-0 min-inline-0" data-slot="composer-them-actions" gap="glyph" role="group">
             <GuidedIconButton
               icon={{ glyph: RotateCcw, fills: false }}
               label={hasText ? "Try another reply with this direction" : "Try another reply"}
@@ -203,7 +203,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
             />
           </Row>
         </Row>
-        <Row align="center" gap="field" className="min-w-0" data-slot="composer-input">
+        <Row align="center" gap="field" className="min-inline-0" data-slot="composer-input">
           {/* SillyTavern's input row: the menu doors stacked in one narrow column, so the draft takes the width.
               The `glyph` gaps here, inside both action groups and between the two rows keep the glyph buttons'
               touch-floor hit areas from overlapping: a glyph-lg box plus `glyph` is exactly the coarse target, at any density. */}

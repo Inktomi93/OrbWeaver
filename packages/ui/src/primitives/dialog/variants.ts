@@ -8,15 +8,14 @@ import { MODAL_SURFACE, OVERLAY_MOTION, SCRIM, tv } from "#lib";
 // `overflow-y-auto overscroll-contain` (matching drawer-content) so tall content — a FormDialog whose
 // body outgrows the viewport — actually scrolls to its submit button instead of overflowing off-screen.
 /**
- * The class for a region that scrolls a dialog body above a DialogFooter. `scroll-pb-control-lg` is the
+ * The class for a region that scrolls a dialog body above a DialogFooter. `scroll-pb-(--size-control-lg)` is the
  * footer's height, so a focused field scrolls clear of the sticky footer instead of under it.
  *
  * The inline bleed (negative margin, matching padding) keeps a control flush with the body's edge whole:
  * `overflow-y: auto` also clips the inline axis, and a glyph button's touch pseudo reaches past its box by up to
  * (touch target - glyph-xs) / 2. The popup's own `p-section` is wider than that, so the margin never overflows it.
  */
-export const DIALOG_SCROLL_CLASS =
-  "relative -mx-[calc((var(--spacing-touch-target)_-_var(--spacing-glyph-xs))_/_2)] min-h-0 overflow-y-auto overscroll-contain px-[calc((var(--spacing-touch-target)_-_var(--spacing-glyph-xs))_/_2)] scroll-pb-control-lg";
+export const DIALOG_SCROLL_CLASS = "relative -mx-glyph-bleed min-block-0 overflow-y-auto overscroll-contain px-glyph-bleed scroll-pbe-(--size-control-lg)";
 
 export const dialogVariants = tv({
   slots: {
@@ -27,24 +26,24 @@ export const dialogVariants = tv({
     // registered they DO dedupe last-wins, and per-size stays because a size arm STATING its own gutter is
     // legible where an arm neutralising an inherited one is not.
     viewport: "fixed inset-0 z-(--z-modal) flex justify-center",
-    popup: `relative flex max-h-full flex-col overflow-y-auto overscroll-contain ${MODAL_SURFACE} ${OVERLAY_MOTION.modalPopup}`,
-    header: "flex shrink-0 items-center justify-between gap-row border-b border-border pb-field",
+    popup: `relative flex flex-col overflow-y-auto overscroll-contain max-block-full ${MODAL_SURFACE} ${OVERLAY_MOTION.modalPopup}`,
+    header: "flex shrink-0 items-center justify-between gap-row border-be border-border pbe-field",
     title: "text-title leading-title font-semibold",
-    description: "mt-field text-body leading-body text-muted-foreground",
+    description: "mbs-field text-body leading-body text-muted-foreground",
     // The action row: the LAST child of a DIALOG_SCROLL_CLASS region, never of the popup itself. The popup's padding
     // surrounds that region, so `sticky bottom-0` lands the buttons exactly one popup inset above the popup edge.
-    footer: "sticky bottom-0 z-(--z-raised) flex shrink-0 flex-wrap items-center justify-end gap-field bg-popover pt-field",
+    footer: "sticky inset-be-0 z-(--z-raised) flex shrink-0 flex-wrap items-center justify-end gap-field bg-popover pbs-field",
   },
   variants: {
     size: {
-      sm: { viewport: "p-gutter", popup: "max-w-(--width-dialog-sm)" },
-      md: { viewport: "p-gutter", popup: "max-w-(--width-dialog-md)" },
-      lg: { viewport: "p-gutter", popup: "max-w-(--width-dialog-lg)" },
+      sm: { viewport: "p-gutter", popup: "max-inline-(--width-dialog-sm)" },
+      md: { viewport: "p-gutter", popup: "max-inline-(--width-dialog-md)" },
+      lg: { viewport: "p-gutter", popup: "max-inline-(--width-dialog-lg)" },
       // The large shell modal: fills most of the screen but stays a centered card, capped at xl width.
-      xl: { viewport: "p-gutter", popup: "h-full max-w-(--width-dialog-xl)" },
+      xl: { viewport: "p-gutter", popup: "block-full max-inline-(--width-dialog-xl)" },
       // Hugs its content on both axes, up to the xl width (a lightbox sized by the image it holds).
-      xlFit: { viewport: "p-gutter", popup: "w-fit max-w-(--width-dialog-xl)" },
-      full: { viewport: "p-0", popup: "h-full w-full max-w-none rounded-none border-0" },
+      xlFit: { viewport: "p-gutter", popup: "inline-fit max-inline-(--width-dialog-xl)" },
+      full: { viewport: "p-0", popup: "rounded-none border-0 block-full inline-full max-inline-none" },
     },
     // Where the popup sits on the block axis. `top` pins its top edge at the viewport gutter, so a dialog whose
     // body changes height (a filter that empties a grid) keeps its heading and controls under the pointer;

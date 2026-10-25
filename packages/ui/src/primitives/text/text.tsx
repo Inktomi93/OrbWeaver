@@ -33,15 +33,32 @@ export interface TextProps extends ComponentProps<"p">, VariantProps<typeof text
  * for THE number, `monogram` for a decorative display glyph, `reading` for the CONTENT prose itself,
  * `credit` for the character/age line under a focal item, the two RECEDED voices `quiet` (a muted body line —
  * an empty state, a "Loading…") and `datumMono` (a mono readout at the code step — an id, a hash, a raw
- * payload), and
+ * payload), `code` (its foreground twin for machine text you read or copy: an id, a key, an address), and
  * the three PROMOTION voices `masthead` (a surface's one opening sentence, display step, sans — `hero`'s
  * prose twin), `focal` (the one item promoted above its siblings, headline step) and `promoted` (the name
  * of ONE item in a shelf of them, title step — `ListRow`'s `titleStep="promoted"` as a voice)): the voice grammar
  * is what makes a surface's hierarchy
- * legible instead of uniformly loud. `size`/`weight`/`tone`/`transform` are the ui-package-internal axes a
- * voice is BUILT from; the `density-tier` gate (arm A3) ratchets their remaining feature call sites down.
+ * legible instead of uniformly loud. `size`/`weight`/`transform` are the ui-package-internal axes a voice is
+ * BUILT from. `tone` is colour by meaning and `strike` a line-through, both feature axes beside the voice;
+ * `hiddenAt`/`srOnlyAt` swap the text out per pointer class.
  */
-export function Text({ className, as = "p", size, weight, tone, transform, voice, prose, ink, lines, ...rest }: TextProps): ReactElement {
+export function Text({
+  className,
+  as = "p",
+  size,
+  weight,
+  tone,
+  transform,
+  voice,
+  prose,
+  ink,
+  lines,
+  strike,
+  numeric,
+  hiddenAt,
+  srOnlyAt,
+  ...rest
+}: TextProps): ReactElement {
   const Component = TEXT_ELEMENTS[as];
   // The className AND the `data-size`/`data-tone` axis stamp, from ONE selection object (#1080). Spread
   // LAST, after `{...rest}`, deliberately: the seam is the ONE writer of those two attributes, so a call
@@ -52,7 +69,7 @@ export function Text({ className, as = "p", size, weight, tone, transform, voice
       data-slot="text"
       data-voice={voice}
       {...rest}
-      {...variantProps(textVariants, { size, weight, tone, transform, voice, prose, ink, lines }, className)}
+      {...variantProps(textVariants, { size, weight, tone, transform, voice, prose, ink, lines, strike, numeric, hiddenAt, srOnlyAt }, className)}
     />
   );
 }
@@ -65,14 +82,34 @@ export interface HeadingProps extends ComponentProps<"h1">, VariantProps<typeof 
 /** Renders a real h1-h6 with the type-scale skin; `size` defaults from `level`, override for the rare hero.
  *  `voice="kicker"` is the section-NAME heading (the mocks' band label) — it keeps the document outline
  *  while dropping to the micro-caps skin, which a styled div would not. */
-export function Heading({ className, level, size, weight = "semibold", tone, transform, voice, prose, ink, lines, ...rest }: HeadingProps): ReactElement {
+export function Heading({
+  className,
+  level,
+  size,
+  weight = "semibold",
+  tone,
+  transform,
+  voice,
+  prose,
+  ink,
+  lines,
+  strike,
+  numeric,
+  hiddenAt,
+  srOnlyAt,
+  ...rest
+}: HeadingProps): ReactElement {
   const Component = HEADING_ELEMENTS[level];
   return (
     <Component
       data-slot="heading"
       data-voice={voice}
       {...rest}
-      {...variantProps(textVariants, { size: size ?? HEADING_SIZE_BY_LEVEL[level], weight, tone, transform, voice, prose, ink, lines }, className)}
+      {...variantProps(
+        textVariants,
+        { size: size ?? HEADING_SIZE_BY_LEVEL[level], weight, tone, transform, voice, prose, ink, lines, strike, numeric, hiddenAt, srOnlyAt },
+        className,
+      )}
     />
   );
 }

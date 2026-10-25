@@ -10,8 +10,9 @@ import { MenuGroup, MenuGroupLabel, MenuItem } from "@orb/ui/menu";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
+import { DescribedMenuItem } from "#components";
 import { IMAGE_GEN_SPENDS_NOW, IMAGINE_DOOR_HELPER, ROOM_PICTURES_NOTE, testId } from "#lib";
-// The picker's file-type filter is DERIVED from the shared attach vocabulary (#376) — the drop and paste
+// The picker's file-type filter is DERIVED from the shared attach vocabulary — the drop and paste
 // gestures gate on the same tuple, so the dialog filter and the runtime gate cannot drift.
 import { ATTACH_MEDIA_ACCEPT } from "../lib/attach-media.ts";
 
@@ -28,7 +29,7 @@ export interface ComposerImageControls {
   readonly onGenerate: () => void;
   /** True in a shared room: both image doors post the picture into the room, so the Media group says so. */
   readonly sharedRoom: boolean;
-  /** Opens the `/imagine` modal seeded with whatever is typed (#623 P1-IA) — the SECOND, safer image door.
+  /** Opens the `/imagine` modal seeded with whatever is typed — the SECOND, safer image door.
    *
    *  ALWAYS actionable, and that asymmetry is the point: generate-from-text needs a prompt because the typed
    *  text IS the prompt, while an extraction mode reads the conversation instead — so on the empty composer
@@ -44,28 +45,29 @@ export function ComposerMediaGroup({ image }: { readonly image: ComposerImageCon
     <MenuGroup>
       <MediaGroupLabel sharedRoom={image.sharedRoom} />
       <AttachMediaItem maxAttachmentBytes={image.maxAttachmentBytes} disabled={image.uploadDisabled} onAddFiles={image.onAddFiles} />
-      {/* TWO IMAGE DOORS, BOTH FINDABLE (#623 P1-IA). The split itself is a RULING, not an accident —
-          `features/imagery/index.ts`'s scope fence keeps this fast composer-owned door in chat and calls
-          /imagine "the richer surface (mode + preview) BESIDE it, not a replacement". What was defective
-          was that only the blind-spend door was discoverable: /imagine was reachable only by knowing to
-          type `/`, so a first-timer's default path spends with no mode, no preview and no stated price.
-          So the ruling stands and its symptom is closed by putting the beside-door literally beside it.
-          This row names its spend (an enabled `title` is the Regenerate/`helper` idiom, not a disabled
-          reason); the row under it is the one that lets you look first. */}
-      <MenuItem
+      {/* TWO IMAGE DOORS, BOTH FINDABLE. The split itself is a RULING, not an accident —
+          `features/imagery/index.ts`'s scope boundary keeps this fast composer-owned door in chat and calls
+          /imagine "the richer surface (mode + preview) BESIDE it, not a replacement". So the beside-door sits
+          literally beside it: a door reachable only by typing `/` would leave a first-timer's default path
+          spending with no mode, no preview and no stated price.
+          This row names its spend in its detail line (an enabled helper, the Regenerate idiom, or the
+          disabled reason); the row under it is the one that lets you look first. */}
+      <DescribedMenuItem
         closeOnClick={false}
-        disabled={!image.canGenerate}
-        title={image.canGenerate ? IMAGE_GEN_SPENDS_NOW : image.generateReason}
         data-testid={testId("composerGenerateImage")}
+        detail={image.canGenerate ? IMAGE_GEN_SPENDS_NOW : image.generateReason}
+        disabled={!image.canGenerate}
+        icon={Sparkles}
+        label={image.generating ? "Generating image…" : "Generate image from text"}
         onClick={image.canGenerate ? image.onGenerate : undefined}
-      >
-        <Icon icon={Sparkles} size="sm" />
-        {image.generating ? "Generating image…" : "Generate image from text"}
-      </MenuItem>
-      <MenuItem data-testid={testId("composerOpenImagine")} onClick={image.onOpenImagine} title={IMAGINE_DOOR_HELPER}>
-        <Icon icon={Images} size="sm" />
-        Imagine — modes & preview…
-      </MenuItem>
+      />
+      <DescribedMenuItem
+        data-testid={testId("composerOpenImagine")}
+        detail={IMAGINE_DOOR_HELPER}
+        icon={Images}
+        label="Imagine — modes & preview…"
+        onClick={image.onOpenImagine}
+      />
     </MenuGroup>
   );
 }

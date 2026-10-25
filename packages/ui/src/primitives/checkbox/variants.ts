@@ -47,12 +47,12 @@ export const checkboxVariants = tv({
   slots: {
     root: [SELECTION_CONTROL, "rounded-control text-primary-foreground"],
     indicator: "group flex items-center justify-center",
-    check: "hidden text-current group-data-[checked]:block group-data-[readonly]:hidden",
-    dash: "hidden text-current group-data-[indeterminate]:block group-data-[readonly]:hidden",
+    check: "hidden text-current group-data-checked:block group-data-readonly:hidden",
+    dash: "hidden text-current group-data-indeterminate:block group-data-readonly:hidden",
     // The read-only signal: hidden by default, shown only when Base UI sets data-readonly on
     // the indicator — takes precedence over check/dash so read-only reads as ONE consistent mark
     // regardless of checked state (mirrors Switch's thumb-Lock treatment).
-    readOnlyIcon: "hidden text-current group-data-[readonly]:block",
+    readOnlyIcon: "hidden text-current group-data-readonly:block",
   },
   variants: {
     tone: {

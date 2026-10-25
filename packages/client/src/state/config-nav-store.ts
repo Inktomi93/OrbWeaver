@@ -64,7 +64,6 @@ let nonce = 0;
 
 function land(group: ConfigGroupId, sub: string | null, setting: string | null, action: string): void {
   nonce += 1;
-  openConfigGroup(group);
   // A navigation resets the TEACHER's focus (keep-last has a group horizon:
   // a lesson about a row that just left the screen would be a lie). The landed target re-focuses when it
   // names a setting.
@@ -78,6 +77,7 @@ function land(group: ConfigGroupId, sub: string | null, setting: string | null, 
  *  target, and switches the rail — all through the SAME store actions the real UI calls. */
 export function openConfigTo(group: ConfigGroupId, sub?: string, setting?: string): void {
   clearCollectionSelection();
+  openConfigGroup(group);
   land(group, sub ?? null, setting ?? null, "configNav/openConfigTo");
   setActiveSection("config");
 }
@@ -86,8 +86,22 @@ export function openConfigTo(group: ConfigGroupId, sub?: string, setting?: strin
  *  section — the caller names it so the row lights immediately instead of waiting for the suppressed spy
  *  to re-arm (#549). */
 export function selectConfigGroup(group: ConfigGroupId, firstSub: string | null): void {
+  landOnGroup(group, firstSub, true);
+}
+
+/** The arrival default's band click: the same selection, but the group's disclosure is not written to the
+ *  reader's per-device memory. An active group renders open without it, and once the reader moves on the
+ *  group folds with no undo, because nobody asked for it to stay open. */
+export function arriveAtConfigGroup(group: ConfigGroupId, firstSub: string | null): void {
+  landOnGroup(group, firstSub, false);
+}
+
+function landOnGroup(group: ConfigGroupId, firstSub: string | null, remember: boolean): void {
   clearCollectionSelection();
-  land(group, null, null, "configNav/selectGroup");
+  if (remember) {
+    openConfigGroup(group);
+  }
+  land(group, null, null, remember ? "configNav/selectGroup" : "configNav/arriveAtGroup");
   if (firstSub !== null) {
     useConfigNavStore.setState({ activeSub: firstSub }, false, "configNav/selectGroup/firstSub");
   }
@@ -96,6 +110,7 @@ export function selectConfigGroup(group: ConfigGroupId, firstSub: string | null)
 /** A LIST subcategory-row click: the group becomes active and CONTENT jumps to that section's anchor. */
 export function selectConfigSub(group: ConfigGroupId, sub: string): void {
   clearCollectionSelection();
+  openConfigGroup(group);
   land(group, sub, null, "configNav/selectSub");
 }
 

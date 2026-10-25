@@ -39,7 +39,7 @@ scratch.
   dropped because the seam it would guard is already type-deleted (`AppShellProps` no longer exists;
   `AppShell()` takes zero props). The remaining shell `ReactNode` props mix frame-grammar slots with
   legitimate content composition, so a prop-name allowlist or denylist cannot tell rot from a legitimate
-  prop without guarding nothing. `no-parallel-section-map` and `chrome-registry-completeness` already force
+  prop without guarding nothing. `chrome-registry-completeness` already forces
   new chrome through the registry.
 - `abandoned-comments` (report-only: comments that lost their code anchor) — dropped because every
   resolvable anchor is already held (`dangling-doc-cite` for an absent `docs/` markdown cite,

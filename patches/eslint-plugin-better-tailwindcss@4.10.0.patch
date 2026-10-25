@@ -1,0 +1,91 @@
+diff --git a/lib/parsers/es.js b/lib/parsers/es.js
+index da7adb6459804a2d8f7869b33ea604f13463eaf4..6e96e3482b95bb32e02d2c4dad15334c3ee66394 100644
+--- a/lib/parsers/es.js
++++ b/lib/parsers/es.js
+@@ -34,6 +34,42 @@ export function getLiteralsByESVariableDeclarator(ctx, node, selectors) {
+     }, []);
+     return literals.filter(deduplicateLiterals);
+ }
++// A named function declaration is linted like a variable bound to an anonymous function: a variable selector
++// whose name matches the function's name applies its anonymousFunctionReturn matchers to the function's own returns.
++export function getLiteralsByESFunctionDeclaration(ctx, node, selectors) {
++    if (!node.id) {
++        return [];
++    }
++    const literals = selectors.reduce((literals, selector) => {
++        if (!matchesName(selector.name, node.id.name)) {
++            return literals;
++        }
++        const returnMatchers = (selector.match ?? []).flatMap(matcher => matcher.type === MatcherType.AnonymousFunctionReturn ? matcher.match : []);
++        if (returnMatchers.length === 0) {
++            return literals;
++        }
++        for (const argument of getOwnReturnArguments(node.body)) {
++            literals.push(...getLiteralsByESMatchers(ctx, argument, returnMatchers));
++        }
++        return literals;
++    }, []);
++    return literals.filter(deduplicateLiterals);
++}
++function getOwnReturnArguments(node) {
++    if (!node || typeof node !== "object") {
++        return [];
++    }
++    if (Array.isArray(node)) {
++        return node.flatMap(getOwnReturnArguments);
++    }
++    if (isESArrowFunctionExpression(node) || isESFunctionExpression(node) || isESFunctionDeclaration(node)) {
++        return [];
++    }
++    if (isESReturnStatement(node)) {
++        return node.argument ? [node.argument] : [];
++    }
++    return Object.entries(node).flatMap(([key, value]) => key === "parent" || !value || typeof value !== "object" ? [] : getOwnReturnArguments(value));
++}
+ export function getLiteralsByESExportDefaultDeclaration(ctx, node, selectors) {
+     const literals = selectors.reduce((literals, selector) => {
+         if (!matchesName(selector.name, "default")) {
+diff --git a/lib/utils/matchers.js b/lib/utils/matchers.js
+index 0afac9b389d58a3bc97e5e9850dd0267c0271278..d9a2d49549e34a238ba8ee65c1224c85d77cb2ca 100644
+--- a/lib/utils/matchers.js
++++ b/lib/utils/matchers.js
+@@ -127,7 +127,12 @@ export function isInsideLogicalExpressionLeft(node) {
+     if (!hasESNodeParentExtension(node)) {
+         return false;
+     }
+-    if (node.parent.type === "LogicalExpression" && node.parent.left === node) {
++    // A call's arguments are values of that call, never the test of a logical expression around it.
++    if (node.parent.type === "CallExpression" && node.parent.callee !== node) {
++        return false;
++    }
++    // Only `&&` tests its left side; the left of `||` and `??` is a value.
++    if (node.parent.type === "LogicalExpression" && node.parent.left === node && node.parent.operator === "&&") {
+         return true;
+     }
+     return isInsideLogicalExpressionLeft(node.parent);
+diff --git a/lib/utils/rule.js b/lib/utils/rule.js
+index 08abc03c46b296e471ef57fab10d4cbaa5975fe8..d2b3524ed4664cdddf746dcfa2018ffd51f1ef59 100644
+--- a/lib/utils/rule.js
++++ b/lib/utils/rule.js
+@@ -6,7 +6,7 @@ import { COMMON_OPTIONS } from "../options/descriptions.js";
+ import { migrateLegacySelectorsToFlatSelectors } from "../options/migrate.js";
+ import { getAttributesByAngularElement, getLiteralsByAngularAttribute } from "../parsers/angular.js";
+ import { getLiteralsByCSSAtRule } from "../parsers/css.js";
+-import { getLiteralsByESBareTemplateLiteral, getLiteralsByESCallExpression, getLiteralsByESExportDefaultDeclaration, getLiteralsByESVariableDeclarator, getLiteralsByTaggedTemplateExpression } from "../parsers/es.js";
++import { getLiteralsByESBareTemplateLiteral, getLiteralsByESCallExpression, getLiteralsByESExportDefaultDeclaration, getLiteralsByESFunctionDeclaration, getLiteralsByESVariableDeclarator, getLiteralsByTaggedTemplateExpression } from "../parsers/es.js";
+ import { getAttributesByHTMLTag, getLiteralsByHTMLAttribute } from "../parsers/html.js";
+ import { getAttributesByJSXElement, getLiteralsByJSXAttribute } from "../parsers/jsx.js";
+ import { getAttributesBySvelteTag, getDirectivesBySvelteTag, getLiteralsBySvelteAttribute, getLiteralsBySvelteDirective } from "../parsers/svelte.js";
+@@ -203,6 +203,12 @@ export function createRuleListener(ctx, context, lintLiterals) {
+             if (literals.length > 0) {
+                 lintLiterals(context, literals);
+             }
++        },
++        FunctionDeclaration(node) {
++            const literals = getLiteralsByESFunctionDeclaration(ctx, node, variables);
++            if (literals.length > 0) {
++                lintLiterals(context, literals);
++            }
+         }
+     };
+     const exportDefaultDeclarations = {

@@ -9,14 +9,14 @@ export const optionStripVariants = tv({
   slots: {
     listbox: "flex flex-col gap-field",
     item: [
-      "flex w-full items-center gap-field rounded-control px-block py-field text-left outline-none",
+      "flex items-center gap-field rounded-control px-block py-field text-start outline-none inline-full",
       "transition-colors duration-(--motion-fast) ease-out-expo",
       ACCENT_HOVER,
       FOCUS_RING,
       DISABLED_STATE,
     ],
     leading: "flex shrink-0 items-center justify-center text-muted-foreground",
-    body: "flex min-w-0 flex-1 items-center gap-field",
+    body: "flex flex-1 items-center gap-field min-inline-0",
     label: "font-mono text-code leading-label-relaxed text-foreground",
     description: "truncate text-label leading-label text-muted-foreground",
   },

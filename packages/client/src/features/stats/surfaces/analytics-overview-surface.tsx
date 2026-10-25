@@ -5,10 +5,9 @@
 // active months). The top-character callout drills into that character's stats; momentum renders as ranked
 // delta bars. With no data the surface teaches a next step (start a chat) instead of showing a wall of zeros.
 //
-// THE INSET LIVES ON THE SCROLLER, ONCE (#1200 — the Corpus precedent, `corpus-content.tsx`). Analytics
-// shipped with padding nowhere in its component tree: a 5-level DOM walk from `analytics-content.tsx`
-// down read `padding: 0px` at every level. Corpus's own fix moved the inset to its CONTENT-level owner
-// because its surfaces carry no scroll of their own — Analytics' two surfaces are the opposite: each owns
+// THE INSET LIVES ON THE SCROLLER, ONCE. Corpus puts its inset on its CONTENT-level owner
+// (`corpus-content.tsx`) because its surfaces carry no scroll of their own — Analytics' two surfaces are the
+// opposite: each owns
 // ITS OWN scroll axis independently (`h-full min-h-0 overflow-y-auto overscroll-contain`), pinned by the
 // containing-block CT below and mounted standalone in CT stories with no `analytics-content.tsx` wrapper
 // at all — so the inset goes on the same element that already owns the scroll here, not one level up.
@@ -19,6 +18,7 @@ import { BarList } from "@orb/ui/bar-list";
 import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { EmptyState } from "@orb/ui/empty-state";
+import { HintTrigger } from "@orb/ui/hint-trigger";
 import { ChartColumn, Crown, Icon } from "@orb/ui/icons";
 import { Grid, Row, Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
@@ -72,13 +72,13 @@ export function AnalyticsOverviewSurface({ returnFocusTo = null }: { readonly re
     }
   }, [returnFocusTo]);
   return (
-    <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 outline-none" data-testid={testId("analyticsOverviewSurface")}>
-      {/* THE SCROLL BOX IS THE SURFACE'S, NOT THE BODY'S (#1727, the #1133 hoist — `character-editor-surface`
-          paid for the class first). `reserveKey`'s measuring Stack is auto-height, so a scroller under the
+    <Stack ref={surfaceRef} tabIndex={-1} className="outline-none block-full min-block-0" data-testid={testId("analyticsOverviewSurface")}>
+      {/* THE SCROLL BOX IS THE SURFACE'S, NOT THE BODY'S (the `character-editor-surface` hoist).
+          `reserveKey`'s measuring Stack is auto-height, so a scroller under the
           boundary resolves `h-full` to `auto` and the surface stops scrolling; hoisted, the measuring wrapper
           sits INSIDE the scroller and the scroller survives the read. The inset and the `analytics-content`
-          slot ride the scroller, which is where #1200 put them. */}
-      <Stack className="relative h-full min-h-0 overflow-y-auto overscroll-contain py-section" data-slot="analytics-content">
+          slot ride the scroller. */}
+      <Stack className="relative overflow-y-auto overscroll-contain py-section block-full min-block-0" data-slot="analytics-content">
         <QueryBoundary
           fallback={<SkeletonRows count={3} shape="datum" />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="your insights" onRetry={retry} />}
@@ -98,7 +98,7 @@ function OverviewBody(): ReactElement {
   const { data: timeline } = useSuspenseQuery(trpc.stats.timeseries.queryOptions());
   const { data: overview } = useSuspenseQuery(trpc.stats.overview.queryOptions());
   const { data: momentumBuckets } = useSuspenseQuery(trpc.stats.momentum.queryOptions());
-  // #451: the list defaults COLLAPSED here, so "open the list" is right by default — but wrong once a
+  // The list defaults COLLAPSED here, so "open the list" is right by default — but wrong once a
   // reader docks it, and even collapsed the affordance's verbatim name is "Show list panel" (the topbar
   // toggle, `shell-topbar.tsx`), not "open the list" (WCAG 2.5.3, label-in-name).
   const listMode = useSectionListMode("corpus");
@@ -106,8 +106,7 @@ function OverviewBody(): ReactElement {
   // `hasData` is the runtime gate; overview/wrapped are still typed `| null` (an absent rollup), so
   // guard all three together — no data ⇒ the teaching state instead of a wall of zeros.
   if (!freshness.hasData || overview === null || wrapped === null) {
-    // TOP-ALIGNED, NOT PANE-CENTRED, SINCE THE #1727 HOIST — and that is a real appearance delta, recorded
-    // rather than hidden. Vertical centring needs free space, which needs a definite height; inside the
+    // TOP-ALIGNED, NOT PANE-CENTRED, because the scroll box is hoisted. Vertical centring needs free space, which needs a definite height; inside the
     // reservation's auto-height measuring wrapper there is none (`h-full` would resolve to `auto` and
     // `place-content-center` to a no-op), so the honest shape is the one the twin CONTENT surface already
     // ships: the teaching state at the top of the padded pane (`analytics-character-surface`'s own empty arm).
@@ -118,9 +117,8 @@ function OverviewBody(): ReactElement {
   const momentum = localMomentum(momentumBuckets, timeLib.calendarPosition);
   const rising = momentumBarItems(momentum.rising);
   const falling = momentumBarItems(momentum.falling);
-  // ONE SCALE ACROSS BOTH COLUMNS (side-eye ANALYTICS 2026-08-19, P1d). Rising and Falling are two
-  // <BarList>s presented as a comparison; auto-scaled independently they drew +10 and −184 as
-  // near-identical full-width bars, with the sign living only in a bar-end label narrow panes clip. The
+  // ONE SCALE ACROSS BOTH COLUMNS. Rising and Falling are two <BarList>s presented as a comparison;
+  // auto-scaled independently they would draw +10 and −184 as near-identical full-width bars, with the sign living only in a bar-end label narrow panes clip. The
   // shared maximum is the comparison; the semantic colour below is the redundant channel, not the fix.
   const momentumMax = Math.max(0, ...rising.map((row) => row.value), ...falling.map((row) => row.value));
   const momentumScale = momentumMax > 0 ? momentumMax : undefined;
@@ -137,17 +135,17 @@ function OverviewBody(): ReactElement {
       </Text>
       <AccountingCoverageNotice />
       <Row align="center" justify="between" gap="row">
-        {/* ONE time vocabulary in this column: relative in the text, the exact stamp in `title=` (P2e). */}
-        <Text voice="gloss" title={timeLib.formatDateTime(freshness.computedAt)}>
-          {`Updated ${timeLib.formatRelative(freshness.computedAt)}`}
-        </Text>
+        {/* ONE time vocabulary in this column: relative, with the exact stamp a press away. */}
+        <Row align="center" gap="field">
+          <Text voice="gloss">{`Updated ${timeLib.formatRelative(freshness.computedAt)}`}</Text>
+          <HintTrigger className="" hint={timeLib.formatDateTime(freshness.computedAt)} subject="the update time" />
+        </Row>
         <RecomputeButton />
       </Row>
 
       <Section heading="All-time totals">
         <Stack gap="block">
-          {/* A real grid, not flex-wrap (side-eye rail-analytics 2026-08-19 Taste): intrinsic-width figures
-              in a `flex-wrap` left uneven voids and arbitrary wraps. `cols="cell"` tiles even 1fr tracks at a
+          {/* A real grid, not flex-wrap: intrinsic-width figures in a `flex-wrap` leave uneven voids and arbitrary wraps. `cols="cell"` tiles even 1fr tracks at a
               fixed column-min, so the column-gap is uniform at every width. */}
           <Grid cols="cell" gap="block">
             <StatFigure label="Characters" value={formatCompact(wrapped.characters)} />
@@ -164,9 +162,9 @@ function OverviewBody(): ReactElement {
             <StatFigure label="Swiped replies" value={formatPercent(wrapped.replies === 0 ? null : wrapped.swipeRate)} />
             <StatFigure label="Swipes to kept reply" value={overview.variantMessages === 0 ? "—" : formatDecimal(wrapped.avgSwipeDepth)} />
           </Grid>
-          {/* THE DEFINITIONS, STATED (P2d/P3d). "Words" is your turns PLUS the replies — one definition,
-              here and on the drill, where it used to silently mean assistant-only. The swipe words sit
-              beside "Swipes" and are NOT in it, which is the exact pair that read as a contradiction. */}
+          {/* THE DEFINITIONS, STATED. "Words" is your turns PLUS the replies — one definition, here and on
+              the drill. The swipe words sit beside "Swipes" and are NOT in it, so the pair does not read as a
+              contradiction. */}
           <Text voice="gloss">
             Words counts your turns and the replies you kept; the {formatCompact(overview.swipeWords)} words in swipes you didn't keep are not included. Swiped
             replies is the share of replies you swiped at least once; swipes to kept reply is how far past the first take your kept reply sat, on average, among
@@ -178,7 +176,7 @@ function OverviewBody(): ReactElement {
               title={wrapped.topCharacter.name}
               subtitle={topCharacterSubtitle}
               actions={
-                <Text voice="gloss" className="whitespace-nowrap font-mono">
+                <Text voice="gloss" className="font-mono whitespace-nowrap">
                   {formatCompactNoun(wrapped.topCharacter.assistantTurns, "reply", "replies")}
                 </Text>
               }
@@ -200,15 +198,13 @@ function OverviewBody(): ReactElement {
               label={formatAccountingLabel("Tokens out", overview.tokensOut, overview.tokensOutProvenance)}
               value={formatCount(overview.tokensOut, overview.tokensOutProvenance)}
             />
-            {/* THE DENOMINATOR IS IN THE LABEL (P1a/P3d). "Cache hits" alone read 100% on every backend
-                that reports cache READS but not cache WRITES — the old ratio's denominator was the two
-                cache columns, so it could only ever be 1 or 0. Against input tokens it answers the
+            {/* THE DENOMINATOR IS IN THE LABEL. A ratio over the two cache columns alone reads 100% on every
+                backend that reports cache READS but not cache WRITES. Against input tokens it answers the
                 question the tile asks, and it says which question that is. */}
             <StatFigure label="Cache hits (of input)" value={formatPercent(overview.cacheHitRate, overview.tokensInProvenance)} />
             <StatFigure label={REASONING_LABEL} value={formatPercent(overview.assistantTurns + overview.swipes === 0 ? null : overview.reasoningRate)} />
-            {/* The reasoning WINDOW beside the reasoning RATE (#184): the rollups have carried `reasoningMs`
-                on three tables and three views with no reader at all, so the number a user's thinking models
-                produce had nowhere to land. Same duration voice as "Time generating" above. */}
+            {/* The reasoning WINDOW beside the reasoning RATE: the rollups' `reasoningMs`, so the number a
+                user's thinking models produce has somewhere to land. Same duration voice as "Time generating" above. */}
             <StatFigure label="Time reasoning" value={formatDurationMs(overview.reasoningMs)} />
           </Grid>
           <Text voice="gloss">
@@ -217,7 +213,7 @@ function OverviewBody(): ReactElement {
           </Text>
           <Collapsible>
             <CollapsibleTrigger>Details</CollapsibleTrigger>
-            <CollapsiblePanel className="pt-row">
+            <CollapsiblePanel className="pbs-row">
               <Stack gap="block">
                 <Grid cols="cell" gap="block">
                   <StatFigure label={LATENCY_LABELS.avgGen} value={formatMs(overview.avgGenMs)} />
@@ -295,14 +291,14 @@ function MomentumColumn({
 }): ReactElement {
   if (rows.length === 0) {
     return (
-      <Stack gap="field" className="min-w-48 flex-1">
+      <Stack gap="field" className="flex-1 min-inline-(--width-popup-narrow)">
         <Text voice="kicker">{label}</Text>
         <Text voice="gloss">None this month.</Text>
       </Stack>
     );
   }
   return (
-    <Stack className="min-w-48 flex-1">
+    <Stack className="flex-1 min-inline-(--width-popup-narrow)">
       <BarList
         intent={sign > 0 ? "positive" : "negative"}
         items={rows}

@@ -56,7 +56,7 @@ export function TypedModelField({
             Model
           </Text>
           <Text
-            className={view.warns ? "max-w-(--reading-measure-prose) text-warning" : "max-w-(--reading-measure-prose)"}
+            className={view.warns ? "text-warning max-inline-(--reading-measure-prose)" : "max-inline-(--reading-measure-prose)"}
             data-slot="model-picker-notice"
             prose={true}
             voice="gloss"

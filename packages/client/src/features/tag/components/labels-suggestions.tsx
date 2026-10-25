@@ -20,7 +20,7 @@ export function LabelsSuggestions(): ReactElement {
   return (
     <Section heading="Suggested tags">
       <QueryBoundary
-        fallback={<Skeleton className="h-16 w-full" />}
+        fallback={<Skeleton className="block-(--height-row-placeholder) inline-full" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="suggested tags" onRetry={retry} />}
       >
         <SuggestionsBody />
@@ -148,7 +148,7 @@ function SuggestionGroupBlock({
       {/* `w-fit`: the table is as wide as its two columns, so a name's verbs sit beside it instead of a pane-width away. */}
       <Table
         aria-label={`Characters suggested ${group.name}`}
-        className="w-fit max-w-full"
+        className="inline-fit max-inline-full"
         columns={columns}
         data={group.rows}
         defaultPagination={{ pageIndex: 0, pageSize: group.rows.length }}
@@ -163,7 +163,7 @@ function SuggestionCharacter({ suggestion, groupName }: { readonly suggestion: T
     <Row align="center" className="flex-wrap" gap="field">
       {/* `wrap`: a long character name wraps inside its cell instead of pushing the verbs off the pane. */}
       <Button
-        className="min-w-0 text-start"
+        className="text-start min-inline-0"
         intent="ghost"
         size="wrap"
         type="button"

@@ -110,7 +110,16 @@ function GalleryGridBody(props: GalleryGridBodyProps): ReactElement {
       />
     );
   }
-  return <MediaGrid items={gridItems} ariaLabel={galleryLabel} gapToken="row" onActivate={onActivate} className="max-h-64 @md:max-h-96" ref={gridRef} />;
+  return (
+    <MediaGrid
+      items={gridItems}
+      ariaLabel={galleryLabel}
+      gapToken="row"
+      onActivate={onActivate}
+      className="max-block-(--height-scroll-md) @cq-28:max-block-(--height-scroll-lg)"
+      ref={gridRef}
+    />
+  );
 }
 
 export interface CharacterGalleryDialogProps {
@@ -187,7 +196,7 @@ export function CharacterGalleryDialog({ open, onOpenChange, characterId, charac
         open={open}
         onOpenChange={onOpenChange}
         popupProps={{ anchor: "top", initialFocus: popupRef, ref: popupRef, size: "lg" }}
-        titleProps={{ className: "min-w-0", ref: headingRef, tabIndex: -1 }}
+        titleProps={{ className: "min-inline-0", ref: headingRef, tabIndex: -1 }}
         bodyProps={{ container: true }}
         headerActions={
           <Row align="center" className="shrink-0" gap="row">

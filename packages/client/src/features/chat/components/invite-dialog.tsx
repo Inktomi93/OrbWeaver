@@ -139,6 +139,7 @@ function InviteMintForm({ chatId, onOpenSharing }: { readonly chatId: ChatId; re
   return (
     <form.AppForm>
       <form
+        aria-label="Create an invite"
         onSubmit={(event): void => {
           event.preventDefault();
           event.stopPropagation();
@@ -311,7 +312,7 @@ function LoopbackLinkWarning({ onOpenSharing }: { readonly onOpenSharing: () => 
       <Row gap="field" align="center">
         <Badge intent="warning">Only this computer</Badge>
       </Row>
-      <Text voice="gloss" prose={true} className="max-w-(--reading-measure-prose)">
+      <Text voice="gloss" prose={true} className="max-inline-(--reading-measure-prose)">
         {isAdmin
           ? "This page is open at a local address, so a link made here opens only on this computer. To invite a friend, start sharing, or open this app at an address they can reach."
           : "This page is open at a local address, so a link made here opens only on this computer. To invite a friend, open this app at an address they can reach, or ask the owner to start sharing."}
@@ -382,10 +383,10 @@ function InviteRow({ invite, onRevoke }: { readonly invite: InviteView; readonly
   return (
     // ListRow floors the label's width, and in a narrow dialog Revoke takes its own line, so the limits
     // never run under it and the label never squeezes to nothing. Revoke is one compact control, so the
-    // row stacks below `cq-sm`: the `cq-md` default would stack it in the desktop dialog too.
+    // row stacks below `cq-24`: the `cq-32` default would stack it in the desktop dialog too.
     <ListRow
       stackActions={true}
-      stackActionsAt="cq-sm"
+      stackActionsAt="cq-24"
       actions={
         invite.status === "pending" ? (
           <Button type="button" intent="ghost" size="sm" onClick={(): void => onRevoke(invite.id)} aria-label={`Revoke this ${kind.toLowerCase()}`}>

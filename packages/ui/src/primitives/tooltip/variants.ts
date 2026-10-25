@@ -12,7 +12,11 @@ export const tooltipVariants = tv({
     description: "sr-only",
     // `max-w` is the prose measure: a tooltip sentence wraps at a readable line instead of spanning the
     // viewport over the rows beside its trigger.
-    popup: `max-w-(--reading-measure-prose) rounded-control border border-border bg-popover px-row py-field text-label leading-label text-pretty text-popover-foreground shadow-overlay ${OVERLAY_MOTION.anchoredPopup}`,
+    popup: `
+      rounded-control border border-border bg-popover px-row py-field text-label leading-label text-pretty text-popover-foreground shadow-overlay
+      max-inline-(--reading-measure-prose)
+      ${OVERLAY_MOTION.anchoredPopup}
+    `,
     arrow: OVERLAY_ARROW,
   },
 });

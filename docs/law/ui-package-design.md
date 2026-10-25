@@ -27,7 +27,7 @@ kit ─┬─→ contracts ─┬─→ db ─→ server           (backend arm)
   1. **resolver** — those packages are not in `packages/ui/package.json` (an import cannot resolve);
   2. **lint** — biome `noUndeclaredDependencies` (an undeclared import is an error);
   3. **dep-cruiser** — the `ui-cake` rule (backstop for deep `../../` escapes), plus
-     `ui-no-node-builtins` (ui is browser code; `node:*` is banned, same as kit).
+     `browser-and-iso-no-node-builtins` (ui is browser code; `node:*` is banned, same as kit).
 - **`react` + `react-dom` are PEERS** (both — `@base-ui/react` declares `react-dom` a required peer,
   amending D54's "peer react ONLY" in intent-preserving form: the client stays the renderer/provider,
   ui never bundles React).
@@ -156,13 +156,13 @@ Node token-authoring homes and type-only reexports follow [Spine-TypeScript §7.
   - **spacing** — the 4px scale + the intent tokens (`gap-field/row/block/section/gutter`,
     `p-row/block/section/gutter`) the token gates point at.
   - **control heights** — `--control-sm/md/lg`, **POINTER-CONDITIONAL per D62 P1**: 44/48/56px at
-    coarse (meets the touch floor), narrowing to 32/34/40px at `@media(pointer:fine)` via the token's
+    coarse (meets the touch floor), narrowing to 32/36/40px at `@media(pointer:fine)` via the token's
     `orb.pointerFine` extension. FLAG\[registry]: D62 P1 is the authority on the
-    per-pointer floor (the fine floor was raised 28→32 after side-eye/design-audit passes; the
-    per-pointer tap-target CHECK lives in the design-audit probe, not the native application checks — see §8
-    `touch-target-floor`). `data-density="compact"` tightens orthogonally to pointer. Avatar/switch
+    per-pointer floor; the per-pointer tap-target CHECK lives in the design-audit probe
+    (`tooling/src/ui-audit/lib/checks-a11y.ts`), not the native application checks. `data-density="compact"` tightens orthogonally to pointer. Avatar/switch
     display sizes are pointer-INDEPENDENT (never narrow — §13.9 D62 delta).
-  - **container breakpoints** — `--cq-sm/md/lg` (§3 — container queries use named tokens).
+  - **container breakpoints** — `--container-cq-<rem>`, one step per container width in use (§3 — container queries use named tokens).
+  - **font rendering** — one rule on `:root` in `packages/ui/src/styles/globals.css`: `-webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; font-synthesis: none;` (owner ruling). Grayscale antialiasing keeps macOS text thin on the dark themes; no synthesised bold or italic stands in for a face Geist does not ship. Chromium on Linux renders no smoothing difference, so the visible effect is macOS-only.
   - **type** — the Geist scale (display/headline/title/body/label/mono per the seed table);
     **radius** (`base/control/card/full`); **z** scale; **motion** (`--motion-fast/base/layout` +
     `--ease-out-expo`, reduced-motion floor unlayered in globals.css per D43 §11.4e).
@@ -186,7 +186,7 @@ Node token-authoring homes and type-only reexports follow [Spine-TypeScript §7.
 - Every styled primitive has a `variants.ts` exporting a `tv()` config; multi-part primitives use
   **`slots`** (D54). Component props extend `VariantProps<typeof x>` — **a bad variant is a `tsc`
   error**; ad-hoc `className` styling on a primitive is lint-flagged (§8).
-- Class values reference THEME tokens only (`bg-primary`, `text-foreground`, `h-control-md`,
+- Class values reference THEME tokens only (`bg-primary`, `text-foreground`, `h-(--size-control-md)`,
   `gap-row`, `rounded-control`, `z-overlay`) — raw values (`bg-[#…]`, `gap-[13px]`, `z-50`,
   `bg-black/50`) are not custom-statically enforced in ui after D333 exactly as in features (D43: **no `components/ui/` exemption**).
 - `cn` = tailwind-variants' merge, re-exported from `@orb/ui/lib` — the one class-merge home.
@@ -232,14 +232,14 @@ factories are inventoried here because this package is their substrate and their
 
 | Factory | Home | Why client-side | Signature + the baked obligations (canonical spec cite) |
 | - | - | - | - |
-| `createSavedEntityForm` | `client/forms` | TanStack Form + Query + Zustand types | `({ formOptions, seedQuery, saveMutation, draftStore? }) → { useEditorForm, bound chrome }`. Bakes the SIX editor obligations (§13.4): seed-on-load · `key`-remount on id change · post-submit `reset(saved)` **in a post-submit effect keyed on `isSubmitSuccessful`, never inside `onSubmit`** · the `seededRef + persistent-isDirty` reseed guard (uses `isDirty`, NOT `!isDefaultValue`) · the Zustand-persist draft mirror · `dontUpdateMeta` on non-user writes (version-locked + guard-tested — the flag is typed-but-undocumented). DirtyPill drives off **`!isDefaultValue`** (lib deep-compare; the hand-rolled `fieldValuesEqual` is DELETED — D54). `revalidateLogic() + onDynamic(zodSchema)` is the validation default. ONE `createFormHook` instance repo-wide (gate `tanstack-form-only-in-shared`). |
-| `createAutosaveEntityForm` | `client/forms` | same | listener-debounced (`listeners.onChange + onChangeDebounceMs`, the documented autosave backbone) + `onFieldUnmount` flush; **`reset` REMOVED from its returned type** (calling it is the autosave infinite loop — gate `no-form-reset-in-autosave`). |
+| `createSavedEntityForm` | `client/forms` | TanStack Form + Query + Zustand types | `({ formOptions, seedQuery, saveMutation, draftStore? }) → { useEditorForm, bound chrome }`. Bakes the SIX editor obligations (§13.4): seed-on-load · `key`-remount on id change · post-submit `reset(saved)` **in a post-submit effect keyed on `isSubmitSuccessful`, never inside `onSubmit`** · the `seededRef + persistent-isDirty` reseed guard (uses `isDirty`, NOT `!isDefaultValue`) · the Zustand-persist draft mirror · `dontUpdateMeta` on non-user writes (version-locked + guard-tested — the flag is typed-but-undocumented). DirtyPill drives off **`!isDefaultValue`** (lib deep-compare; the hand-rolled `fieldValuesEqual` is DELETED — D54). `revalidateLogic() + onDynamic(zodSchema)` is the validation default. ONE `createFormHook` instance repo-wide (dependency-cruiser `client-tanstack-form-only-in-forms-editor`). |
+| `createAutosaveEntityForm` | `client/forms` | same | listener-debounced (`listeners.onChange + onChangeDebounceMs`, the documented autosave backbone) + `onFieldUnmount` flush; **`reset` REMOVED from its returned type** (calling it is the autosave infinite loop; the type is the guard). |
 | `useAppForm` (the one `createFormHook`) | `client/forms` | Form context | single instance + bound field set (controlled `value=`, never `defaultValue=`; `useSelector`, not the deprecated `useStore`; error rendering standardized on `{message}` objects). |
-| `createEntityMutation` | `client/data` | Query/tRPC types | the canonical 4-phase optimistic flow (`onMutate`: cancel → snapshot → `setQueryData` → return rollback; `onError` restore; `onSettled` → `invalidate(event)` through the seam); the **`context.client`** arg (provider-clean); a variables-render lightweight mode; **v5 sticky-error reset on next `mutate`**; ONE error slot per mutation (gate `no-multiplexed-mutation-error`); callback order `onMutate → onError → onSettled` (lint `mutation-property-order`). |
-| `createCollectionSurface` | `client/data` | Query + the virtual-list seal | `useInfiniteQuery` + `maxPages` + `placeholderData: keepPreviousData` gated on `isPlaceholderData`; tail-fetch off the VIRTUALIZER's range (no `react-intersection-observer`); selection store; empty/loading/error. |
+| `createEntityMutation` | `client/data` | Query/tRPC types | the canonical 4-phase optimistic flow (`onMutate`: cancel → snapshot → `setQueryData` → return rollback; `onError` restore; `onSettled` → `invalidate(event)` through the seam); the **`context.client`** arg (provider-clean); a variables-render lightweight mode; **v5 sticky-error reset on next `mutate`**; ONE error slot per mutation (`useMutation` only here: `orb/mutation-only-in-factory`); callback order `onMutate → onError → onSettled` (lint `mutation-property-order`). |
+| `createCollectionSurface` | `client/data` | Query + the virtual-list seal | `useInfiniteQuery` (never `maxPages`: a page window evicts the head of a list being scrolled) + `placeholderData: keepPreviousData` gated on `isPlaceholderData`; tail-fetch off the VIRTUALIZER's range (no `react-intersection-observer`); selection store; empty/loading/error. |
 | `useGatedQuery` | `client/data` | Query types | null id → `skipToken` (kills `castId("")` — ESLint `orb/no-fake-disabled-id`); documents the `refetch()`-with-skipToken caveat. |
 | `<QueryBoundary>` | `client/components` | Query + Suspense | the `QueryErrorResetBoundary` → `ErrorBoundary onReset={reset}` handshake (retry that actually refetches); `useSuspenseQueries` for parallel; `startTransition` around pane switches (pairs `<Activity>`). |
-| `invalidation.ts` (the seam) | `client/data` | tRPC queryFilters | ONE domain-event → `queryFilter()` map; mutations' `onSettled` + bus handlers call `invalidate(event)` (gate `no-inline-invalidate-outside-seam`); keys are always `trpc.*.queryKey(args)` — the same key the reader uses. |
+| `invalidation.ts` (the seam) | `client/data` | tRPC queryFilters | ONE domain-event → `queryFilter()` map; mutations' `onSettled` + bus handlers call `invalidate(event)` (gate `orb/no-inline-invalidate-outside-seam`); keys are always `trpc.*.queryKey(args)` — the same key the reader uses. |
 | bus reducer (`applyChatBusEvent`) | `client/data/bus` | contracts DU + QueryClient | pure exhaustive switch over the server-authoritative event union; slot lifecycle owned by terminal turn events; `onData` = buffer-local + invalidate, NEVER a second store (gates `orb/bus-on-data-no-store-write`, `orb/chat-stream-writes-in-bus-only` (plan-time `no-inline-cache-surgery-in-stream`) — scoped to subscription bodies so `onMutate` doesn't trip). |
 | `createEntityDraftStore` | `client/state` | Zustand persist | frozen `EMPTY` stable default (the v5 `?? CONSTANT` pattern) + `useShallow` for multi-field selectors (different jobs — keep both); `persist` requires `partialize: (s)=>({drafts:s.drafts})`, `version` and a total, crash-proof `migrate`; native types enforce key presence, not runtime totality; DU lifecycle transitions via `set(next, true)` replace. |
 | the panel-store shape | `client/state` | Zustand | one `create` per file · ≤10 authored fields · no exported `set`/`getState` · persisted device-local ONLY for device state (dock/collapse) — synced prefs go in the server `UserSettings` blob (D44 §12.1). |
@@ -379,10 +379,9 @@ passthrough) — say so inline where it is not obvious.
 **Standing law from the Base UI 1.7 alignment pass.** Base UI is the foundation of every
 interactive surface, so `@orb/ui` carries ZERO accidental narrowness: every part Base UI ships is
 either reachable through the seal or sealed away here WITH A REASON. Rows are keyed on the verbatim
-`<Namespace>.<Part>` string from the component's own `index.parts.d.ts` export alias — the same key
-the machine half (the `baseui-anatomy` surface manifest + gate) joins on, so the two halves cannot
-drift. **A new part on a version bump is a ROW, not a shrug:** add it with a disposition, or the gate
-reds.
+`<Namespace>.<Part>` string from the component's own `index.parts.d.ts` export alias.
+**A new part on a version bump is a ROW, not a shrug:** add it with a disposition. Review enforces
+this; no gate reads the table.
 
 Dispositions: **exposed** = reachable from a consumer (rendered by the seal, or exported as its own
 part) · **sealed-away** = deliberately not reachable, reason stated · **n/a** = not anatomy (a type

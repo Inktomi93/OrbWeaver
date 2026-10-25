@@ -7,6 +7,7 @@ import { HintTrigger } from "#primitives/hint-trigger";
 // `<Field>` is this context's ONE provider — the consumer half (`useFieldLabelled`) and the reason it has
 // to exist at all are in that module's header.
 import { FieldControlDockContext } from "./field-control-dock.ts";
+import { FieldNameContext } from "./field-identity.ts";
 import { FieldLabelledContext } from "./field-labelled.ts";
 import { fieldVariants } from "./variants.ts";
 
@@ -146,7 +147,7 @@ export function Field({
     <span className={slots.labelRow()}>
       {labelText}
       {/* THE HINT COSTS NO VERTICAL SPACE — this prop's own contract, and `size="icon"` broke it: a full
-          `--spacing-control-md` box (34px fine / 44px coarse) made a hinted label row stand 16px taller
+          `--size-control-md` box (36px fine / 48px coarse) made a hinted label row stand 16px taller
           than a plain one, so every side-by-side pair of a hinted and an unhinted field sheared — its
           labels off one baseline, its controls off another (the preset drill-ins' DELIVERY row, crunch
           item 10, owner-reported live). `size="inline"` is the arm for exactly this: no control box,
@@ -182,27 +183,29 @@ export function Field({
       {...rest}
     >
       <FieldLabelledContext value={true}>
-        <FieldControlDockContext value={resolved === "horizontal"}>
-          {resolved === "horizontal" ? (
-            <>
-              <div className={slots.labelBlock()} data-slot="field-label-block">
+        <FieldNameContext value={name}>
+          <FieldControlDockContext value={resolved === "horizontal"}>
+            {resolved === "horizontal" ? (
+              <>
+                <div className={slots.labelBlock()} data-slot="field-label-block">
+                  {labelNode}
+                  {descriptionNode}
+                </div>
+                <div className={slots.controlCol()} data-slot="field-control-col">
+                  {children}
+                  {errorNode}
+                </div>
+              </>
+            ) : (
+              <>
                 {labelNode}
-                {descriptionNode}
-              </div>
-              <div className={slots.controlCol()} data-slot="field-control-col">
                 {children}
+                {descriptionNode}
                 {errorNode}
-              </div>
-            </>
-          ) : (
-            <>
-              {labelNode}
-              {children}
-              {descriptionNode}
-              {errorNode}
-            </>
-          )}
-        </FieldControlDockContext>
+              </>
+            )}
+          </FieldControlDockContext>
+        </FieldNameContext>
       </FieldLabelledContext>
     </BaseField.Root>
   );

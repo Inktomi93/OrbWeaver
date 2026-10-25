@@ -57,7 +57,7 @@ export function PresetLibrarySurface({ onSelectPreset }: PresetLibrarySurfacePro
     // when the section opens, and it was an unnamed, role-less `div` — a screen reader announced "group" or
     // nothing at all, so entering the section told the user where they were only if they then Tab'd. It is a
     // region-shaped landmark for exactly this reason; the name is the pane's own noun.
-    <Stack aria-label="Presets list" ref={surfaceRef} className="h-full outline-none" gap="block" role="region" tabIndex={-1}>
+    <Stack aria-label="Presets list" ref={surfaceRef} className="outline-none block-full" gap="block" role="region" tabIndex={-1}>
       {/* THE PANE CHROME AND ITS SCROLL BOX SIT ABOVE THE BOUNDARY (#1748): the reservation's measuring Stack
           is auto-height, so a scroller under the boundary stops scrolling and strands the rows past the fold.
           The search input rides up with the frame, so it is also on screen while the read is in flight. The

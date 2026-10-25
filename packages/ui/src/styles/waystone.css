@@ -1,0 +1,262 @@
+/* @orb/ui region: the Waystone meter's sky, weather and dial recipes. Imported by globals.css inside its layer. */
+@layer ui {
+  /* The dial band ramp's polarity knobs: the hue is derived per band in TS (`arcStroke`); these two scalars retune
+   * the whole ramp for the bezel it sits on, so a light theme never needs a per-band override. */
+  [data-slot="waystone"] {
+    --orb-ws-band-l: 0;
+    --orb-ws-band-c: 1;
+  }
+  [data-theme="light"] [data-slot="waystone"] {
+    --orb-ws-band-l: -0.13;
+    --orb-ws-band-c: 1;
+  }
+
+  @keyframes orb-ws-fall {
+    to {
+      translate: 0 var(--orb-ws-pitch);
+    }
+  }
+  @keyframes orb-ws-driftx {
+    from {
+      translate: -2.5px 0;
+    }
+    to {
+      translate: 2.5px 0;
+    }
+  }
+  @keyframes orb-ws-sway {
+    from {
+      translate: -5px 0;
+    }
+    to {
+      translate: 5px 0;
+    }
+  }
+  @keyframes orb-ws-gust {
+    0% {
+      translate: -14px 0;
+      opacity: 0;
+    }
+    35%,
+    65% {
+      opacity: 0.8;
+    }
+    100% {
+      translate: 16px 0;
+      opacity: 0;
+    }
+  }
+  @keyframes orb-ws-breathe {
+    from {
+      opacity: 0.5;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes orb-ws-twinkle {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.25;
+    }
+  }
+  /* The storm's occasional strike: dark for most of the cycle, a double-tap flash, then dark again. */
+  @keyframes orb-ws-strike {
+    0%,
+    86%,
+    100% {
+      opacity: 0;
+    }
+    88% {
+      opacity: 0.75;
+    }
+    90% {
+      opacity: 0.05;
+    }
+    92% {
+      opacity: 0.5;
+    }
+    95% {
+      opacity: 0;
+    }
+  }
+  /* The celestial glow breathes around the altitude-derived floor the component sets in `--orb-ws-glow`. */
+  @keyframes orb-ws-glow {
+    0%,
+    100% {
+      opacity: var(--orb-ws-glow, 0.16);
+    }
+    50% {
+      opacity: calc(var(--orb-ws-glow, 0.16) * 2);
+    }
+  }
+  @keyframes orb-ws-marker {
+    0% {
+      opacity: 0.35;
+      scale: 1;
+    }
+    70%,
+    100% {
+      opacity: 0;
+      scale: 1.55;
+    }
+  }
+  @keyframes orb-ws-enter {
+    from {
+      opacity: 0;
+    }
+  }
+
+  /* The falling lattices: one keyframe, three speeds; the pitch is data, so a cycle is one lattice step and the
+   * loop is seamless. */
+  .orb-ws-fall-fast {
+    animation: orb-ws-fall var(--motion-precip) linear infinite;
+  }
+  .orb-ws-fall-mid {
+    animation: orb-ws-fall calc(var(--motion-precip) * 2.5) linear infinite;
+  }
+  .orb-ws-fall-slow {
+    animation: orb-ws-fall calc(var(--motion-precip) * 5) linear infinite;
+  }
+  /* The lateral drift rides an inner group, so fall and drift compose without a bespoke keyframe. */
+  .orb-ws-driftx {
+    animation: orb-ws-driftx calc(var(--motion-precip) * 3) ease-in-out infinite alternate;
+  }
+
+  /* The cloud deck: the same sway at three speeds by weather. */
+  .orb-ws-cloud-slow {
+    animation: orb-ws-sway var(--motion-ambient) ease-in-out infinite alternate;
+  }
+  .orb-ws-cloud-mid {
+    animation: orb-ws-sway calc(var(--motion-ambient) * 0.6) ease-in-out infinite alternate;
+  }
+  .orb-ws-cloud-fast {
+    animation: orb-ws-sway calc(var(--motion-ambient) * 0.3) ease-in-out infinite alternate;
+  }
+
+  /* The enveloping bands: fog drifts and breathes; wind sweeps across and out. */
+  .orb-ws-sway-slow {
+    animation: orb-ws-sway calc(var(--motion-ambient) * 1.6) ease-in-out infinite alternate;
+  }
+  .orb-ws-breathe {
+    animation: orb-ws-breathe calc(var(--motion-ambient) / 2) ease-in-out infinite alternate;
+  }
+  .orb-ws-gust {
+    animation: orb-ws-gust calc(var(--motion-precip) * 3) ease-in-out infinite;
+  }
+  /* The second gust runs half a cycle behind the first, so wind is never fully absent from a still frame. */
+  .orb-ws-gust-b {
+    animation-delay: calc(var(--motion-precip) * -1.5);
+  }
+
+  /* The stars twinkle independently: the bucket count is coprime with the star count, or the field pulses in
+   * synchronised pairs. */
+  .orb-ws-star {
+    animation: orb-ws-twinkle var(--motion-breathe) ease-in-out infinite;
+  }
+  .orb-ws-star:nth-child(7n + 2) {
+    animation-delay: calc(var(--motion-breathe) / 7);
+    animation-duration: calc(var(--motion-breathe) * 1.31);
+  }
+  .orb-ws-star:nth-child(7n + 3) {
+    animation-delay: calc(var(--motion-breathe) * 2 / 7);
+    animation-duration: calc(var(--motion-breathe) * 0.79);
+  }
+  .orb-ws-star:nth-child(7n + 4) {
+    animation-delay: calc(var(--motion-breathe) * 3 / 7);
+    animation-duration: calc(var(--motion-breathe) * 1.63);
+  }
+  .orb-ws-star:nth-child(7n + 5) {
+    animation-delay: calc(var(--motion-breathe) * 4 / 7);
+    animation-duration: calc(var(--motion-breathe) * 1.11);
+  }
+  .orb-ws-star:nth-child(7n + 6) {
+    animation-delay: calc(var(--motion-breathe) * 5 / 7);
+    animation-duration: calc(var(--motion-breathe) * 0.93);
+  }
+  .orb-ws-star:nth-child(7n + 7) {
+    animation-delay: calc(var(--motion-breathe) * 6 / 7);
+    animation-duration: calc(var(--motion-breathe) * 1.47);
+  }
+
+  /* The sun's glow breath, the storm's strike and the hour marker's halo pulse. */
+  .orb-ws-glow {
+    animation: orb-ws-glow var(--motion-breathe) ease-in-out infinite;
+  }
+  .orb-ws-strike {
+    animation: orb-ws-strike calc(var(--motion-precip) * 6) linear infinite;
+  }
+  .orb-ws-marker {
+    transform-box: view-box;
+    transform-origin: 50% 6.25%;
+    animation: orb-ws-marker var(--motion-breathe) ease-out infinite;
+  }
+
+  /* The state-change transitions: fades, the celestial slide, the hand's swing. */
+  .orb-ws-transit {
+    transition:
+      opacity var(--motion-transit) var(--ease-out-expo),
+      fill var(--motion-transit) var(--ease-out-expo),
+      stroke var(--motion-transit) var(--ease-out-expo);
+  }
+  /* The sky is one gradient whose stop colours melt from hour to hour. */
+  .orb-ws-sky-stop {
+    transition: stop-color var(--motion-transit) var(--ease-out-expo);
+  }
+  .orb-ws-transit-move {
+    transition:
+      translate var(--motion-transit) var(--ease-out-expo),
+      opacity var(--motion-transit) var(--ease-out-expo);
+  }
+  .orb-ws-hand {
+    transform-box: view-box;
+    transform-origin: 50% 50%;
+    transition: rotate var(--motion-transit) var(--ease-out-expo);
+  }
+  .orb-ws-enter {
+    animation: orb-ws-enter var(--motion-transit) var(--ease-out-expo) both;
+  }
+
+  /* At the stone's smallest container step the finest layers become noise, so they drop and the stars thicken;
+   * the threshold is the step `variants.ts` maps, so the layers go exactly when the stone cannot carry them. */
+  @container (max-width: 20rem) {
+    [data-slot="waystone-cardinal-noon"] line,
+    [data-slot="waystone-gable-window"] {
+      display: none;
+    }
+    [data-slot="waystone-stars"] circle {
+      r: 1.05px;
+    }
+  }
+
+  /* The unset stone is one step smaller at every container step, so its gate is one step wider. */
+  @container (max-width: 24rem) {
+    [data-slot="waystone"][data-phase="unset"] [data-slot="waystone-cardinal-noon"] line {
+      display: none;
+    }
+  }
+
+  @variant motion-reduce {
+    [data-slot="waystone"] * {
+      animation: none;
+    }
+    /* The bolt's resting frame is invisible, so with the strike removed it is drawn instead of deleted. */
+    [data-slot="waystone"] [data-slot="waystone-bolt"] {
+      opacity: 0.9;
+    }
+  }
+  [data-reduced-motion="true"] [data-slot="waystone"] * {
+    animation: none;
+  }
+  [data-reduced-motion="true"] [data-slot="waystone"] [data-slot="waystone-bolt"] {
+    opacity: 0.9;
+  }
+
+  /* A hidden tab composites nothing. */
+  [data-slot="waystone"][data-paused="true"] * {
+    animation-play-state: paused;
+  }
+}

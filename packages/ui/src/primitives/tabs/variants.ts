@@ -5,21 +5,24 @@ import { DISABLED_STATE, FOCUS_RING, FOCUS_RING_INSET, tv } from "#lib";
 // bar that slides along that edge. Tabs sit above the indicator via z-(--z-raised).
 // `orientation="vertical"` (Base UI mirrors `data-orientation`
 // onto every part) is the one CSS branch: root/list flip from a stack to a side-by-side row, and the
-// list stacks its tabs in a column. Tabs ride h-control-sm (the ≥44px touch floor, §4b axis 3) in the
+// list stacks its tabs in a column. Tabs ride h-(--size-control-sm) (the ≥44px touch floor, §4b axis 3) in the
 // default `inline` layout; the `stacked` arm trades the fixed height for content height + a min-height
 // floor (see the variant's own note). The --active-tab-* vars the indicator reads are recomputed by
 // Base UI for the vertical axis; the underline reads `left`/`width` (recomputed there too), so it
-// needs no orientation branch. `border`/`h-0.5` are Tailwind's untokenized hairline scale (the
+// needs no orientation branch. `border`/`h-(--border-width-accent)` are Tailwind's untokenized hairline scale (the
 // `border border-border` precedent) — a 1px track + a 2px bar aren't worth a token each.
 export const tabsVariants = tv({
   slots: {
-    root: "flex w-full flex-col gap-block data-[orientation=vertical]:flex-row",
+    root: "flex flex-col gap-block inline-full data-[orientation=vertical]:flex-row",
     list: [
-      "relative inline-flex w-fit items-center gap-block border-b border-border",
+      "relative inline-flex items-center gap-block border-be border-border inline-fit",
       "data-[orientation=vertical]:flex-col data-[orientation=vertical]:items-stretch",
     ],
     tab: [
-      "relative z-(--z-raised) inline-flex cursor-pointer select-none items-center justify-center gap-field whitespace-nowrap text-label font-medium leading-label text-muted-foreground",
+      `
+        relative z-(--z-raised) inline-flex cursor-pointer items-center justify-center gap-field text-label leading-label font-medium whitespace-nowrap
+        text-muted-foreground select-none
+      `,
       "transition-colors duration-(--motion-fast) ease-out-expo hover:text-foreground",
       // The focus ring is per-LAYOUT (see the `layout` variant): a strip tab takes the offset ring every
       // control wears; a rail cell takes the INSET one, because its list can become a scroll box.
@@ -38,7 +41,10 @@ export const tabsVariants = tv({
     // switch that the app's own `[anim]` flagger correctly convicted under guide §3.7. `origin-left`
     // pins the FLIP's scale to the bar's leading edge, which is where the left var measures from.
     indicator: [
-      "absolute bottom-0 left-(--active-tab-left) z-(--z-raised) h-0.5 w-(--active-tab-width) origin-left rounded-full bg-primary",
+      `
+        absolute inset-s-(--active-tab-left) inset-be-0 z-(--z-raised) origin-left rounded-full bg-primary block-(--border-width-accent)
+        inline-(--active-tab-width)
+      `,
       "transition-[transform] duration-(--motion-base) ease-out-expo",
     ],
     // The panel is FOCUSABLE (Base UI gives it tabindex=0 so a keyboard user can reach its content by
@@ -47,15 +53,15 @@ export const tabsVariants = tv({
     // not the offset FOCUS_RING every control wears: a panel fills its container edge-to-edge (context
     // panels, the rpg HUD), so an outward `ring-offset-2` halo paints into — and is clipped by — the
     // scroll parent, i.e. the ring would be invisible exactly where the panel is used. Inset always paints.
-    panel: ["w-full text-body leading-body text-foreground", "outline-none", FOCUS_RING_INSET],
+    panel: ["text-body leading-body text-foreground inline-full", "outline-none", FOCUS_RING_INSET],
   },
   variants: {
     // THE TAB CELL'S ARRANGEMENT — and, with it, its height rule. `inline` is the strip tab: one row, the
-    // fixed `h-control-sm` chrome height. `stacked` is the HUD/rail cell: glyph OVER caption, so the height
-    // must FOLLOW the content (`h-auto`) with `min-h-control-sm` keeping the ≥44px coarse tap floor.
+    // fixed `h-(--size-control-sm)` chrome height. `stacked` is the HUD/rail cell: glyph OVER caption, so the height
+    // must FOLLOW the content (`h-auto`) with `min-h-(--size-control-sm)` keeping the ≥44px coarse tap floor.
     //
     // This is a VARIANT and not a call-site `className` for a measured reason (the 2026-08-01 side-eye P0):
-    // `h-auto` appended by a caller did NOT beat `h-control-sm` — the custom spacing scale was unregistered
+    // `h-auto` appended by a caller did NOT beat `h-(--size-control-sm)` — the custom spacing scale was unregistered
     // in tailwind-merge, both classes survived, and STYLESHEET ORDER decided (h-auto loses; `.h-auto` is
     // emitted before `.h-control-sm`). The rail's captions rendered as a 5px sliver. #146 registered the
     // scale, so the mechanism INVERTED: a call-site height now wins the merge outright. That does not undo
@@ -63,8 +69,8 @@ export const tabsVariants = tv({
     // is the variant plus the `ui-size-via-variant` gate, never a merge accident. A sealed size can only be
     // overridden HERE, the button `size="media"` precedent (F2).
     layout: {
-      inline: { tab: `h-control-sm px-block ${FOCUS_RING}` },
-      // `min-w-touch-target` is the WIDTH half of the same floor the height already carries, and it is
+      inline: { tab: `px-block block-(--size-control-sm) ${FOCUS_RING}` },
+      // `min-w-(--size-touch-target)` is the WIDTH half of the same floor the height already carries, and it is
       // sealed here for the same reason (side-eye 2026-08-07 §① P2). The rpg rail put the cells on
       // `grid-auto-columns: max-content` at a coarse pointer and three of six came out 34-43px wide — a
       // 49px-tall cell you cannot reliably hit, with no `::after` hit pseudo to make up the difference the
@@ -84,7 +90,7 @@ export const tabsVariants = tv({
       // was rebuilt for, and it is CT-pinned. The fork lives HERE rather than as an override appended to the
       // base, so each arm composes exactly one homed `lib/focus-ring.ts` fragment and neither has to
       // neutralise the other's offset.
-      stacked: { tab: `h-auto min-h-control-sm min-w-touch-target flex-col gap-0 px-field py-field ${FOCUS_RING_INSET}` },
+      stacked: { tab: `flex-col gap-0 p-field block-auto min-block-(--size-control-sm) min-inline-(--size-touch-target) ${FOCUS_RING_INSET}` },
     },
   },
   defaultVariants: { layout: "inline" },

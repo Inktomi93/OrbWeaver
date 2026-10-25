@@ -39,7 +39,7 @@ export const config = {
         // The CT gallery discovers story modules by glob (playwright/index.tsx), which knip cannot follow.
         "tests/**/*-stories.tsx!",
         // The Stylelint config imports its rule table from this sibling, which holds the postcss-value-parser import.
-        "stylelint-rules.js",
+        "stylelint-rules.ts",
         "playwright/**/*.{ts,tsx}",
         // The CT Vite transform reads this stylesheet as text rather than through an ESM import.
         "playwright/index.css",
@@ -145,7 +145,9 @@ export const config = {
       includeEntryExports: true,
       // main.tsx is auto-detected as an entry from index.html's <script type="module"> tag.
       entry: ["index.html"],
-      project: ["src/**/*.{ts,tsx,css}!"],
+      // The bare `*.ts` row is the package-root devtime pair (`owner-css-surface.build.ts`, auto-detected through the
+      // `surface:build` script, and the manifest it writes): node-only, so default view only, as in @orb/ui.
+      project: ["src/**/*.{ts,tsx,css}!", "*.ts"],
       // Tailwind v4: the vite plugin (@tailwindcss/vite) requires the bare `tailwindcss` package
       // resolvable at build; nothing imports it directly.
       ignoreDependencies: ["tailwindcss"],

@@ -121,10 +121,10 @@ export interface ListRowProps {
   stackActions?: boolean;
   /**
    * The container-breakpoint token below which a `stackActions` row stacks: at least twice the cluster's width.
-   * `cq-md` (32rem) fits a multi-control cluster; `cq-sm` (24rem) fits one compact control.
-   * @defaultValue "cq-md"
+   * `cq-32` (32rem) fits a multi-control cluster; `cq-24` (24rem) fits one compact control.
+   * @defaultValue "cq-32"
    */
-  stackActionsAt?: "cq-md" | "cq-sm";
+  stackActionsAt?: "cq-32" | "cq-24";
   /**
    * Lifts the `actions` cluster OUT OF FLOW at the row's inline end (fine pointers only), so a cluster
    * that is HIDDEN at rest stops reserving width the title/subtitle need. Pass it for a row whose
@@ -133,6 +133,11 @@ export interface ListRowProps {
    * this slot's backdrop both key on it).
    */
   actionsFloat?: boolean;
+  /**
+   * Hides the `actions` cluster at rest and reveals it on the row's hover or focus-within, opacity only, so the
+   * cluster keeps its box and nothing reflows. A coarse pointer has no hover, so the cluster stays visible there.
+   */
+  revealActions?: boolean;
   /**
    * WHICH box wears the hover/selected tint. Default `body`. Pass `row` when the `actions` cluster is IN
    * FLOW and reveal-gated: the cluster is a sibling of the body, so a body-painted tint stops before it and
@@ -264,8 +269,9 @@ export function ListRow({
   markers,
   actions,
   actionsFloat = false,
+  revealActions = false,
   stackActions = false,
-  stackActionsAt = "cq-md",
+  stackActionsAt = "cq-32",
   rowTint = "body",
   clickable = false,
   selected = false,
@@ -281,6 +287,7 @@ export function ListRow({
     density,
     clickable,
     float: actionsFloat,
+    revealActions,
     stackActions,
     stackActionsAt,
     subtitleWrap,

@@ -43,8 +43,8 @@ export function CharacterChatsProjectionShell({ characterId, chatsProjection }: 
   const startChatWith = useStartChatWithCharacter();
 
   return (
-    <Stack className="h-full min-h-0" data-slot={CHARACTER_CHATS_PROJECTION_SLOT} gap="row">
-      <Stack className="min-h-0 flex-1">{chatsProjection({ characterId, characterName: name, onNewChat: (): void => startChatWith(characterId) })}</Stack>
+    <Stack className="block-full min-block-0" data-slot={CHARACTER_CHATS_PROJECTION_SLOT} gap="row">
+      <Stack className="flex-1 min-block-0">{chatsProjection({ characterId, characterName: name, onNewChat: (): void => startChatWith(characterId) })}</Stack>
     </Stack>
   );
 }

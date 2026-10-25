@@ -162,7 +162,7 @@ function QueueRow({
   return (
     <Row
       align="center"
-      className="border-border border-t py-field first:border-t-0"
+      className="border-bs border-border py-field first:border-bs-0"
       data-queue-state={state}
       data-testid={testId("refineryQueueRow")}
       gap="field"
@@ -170,12 +170,12 @@ function QueueRow({
       {state === "open" ? (
         // `px-block` matches the ghost button every OTHER row's name is (CONTROL_SIZE `sm`), so the field
         // names line up in one column instead of the open row sitting 12px left of its siblings.
-        <Text className="min-w-0 flex-1 truncate px-block" voice="label">
+        <Text className="flex-1 truncate px-block min-inline-0" voice="label">
           {label}
         </Text>
       ) : (
-        <Button className="min-w-0 flex-1 justify-start" intent="ghost" onClick={onOpen} size="sm">
-          <Text as="span" className="min-w-0 truncate" ink="inherit" voice="label">
+        <Button className="flex-1 justify-start min-inline-0" intent="ghost" onClick={onOpen} size="sm">
+          <Text as="span" className="truncate min-inline-0" ink="inherit" voice="label">
             {label}
           </Text>
           <Text as="span" className="sr-only">

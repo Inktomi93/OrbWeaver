@@ -1,9 +1,7 @@
-// THE STAT PROFILE editor (RV-4/RV-12) — the attribute vocabulary every character sheet keys off, authored on
-// the Game tab with the same RV-8 primitives the trackers use: add (a name is required, the key is minted
-// once and kept through renames), rename, the steering HINT, remove, and the value RANGE. It was a read-only
-// badge row: the vocabulary existed in the schema and could not be touched from the product, which is why a
-// game shipped with either the six packaged d20 attributes or none at all, and why a "freeform" game had no
-// path to structure. The HINT is the same R4b lever the trackers carry — the label-as-mini-prompt IS what the
+// THE STAT PROFILE editor — the attribute vocabulary every character sheet keys off, authored on the Game tab
+// with the same primitives the trackers use: add (a name is required, the key is minted once and kept through
+// renames), rename, the steering HINT, remove, and the value RANGE, so a game is never stuck with the packaged
+// d20 attributes or none at all. The HINT is the same lever the trackers carry — the label-as-mini-prompt IS what the
 // model reads, so an unauthorable hint is a dead steering lever.
 //
 // The write is the whole `statProfile` through `updateConfig` (the profile is one blob — the verb replaces it),
@@ -14,10 +12,12 @@ import { RPG_HINT_MAX, RPG_PROFILE_MAX_ATTRIBUTES } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
+import { HintTrigger } from "@orb/ui/hint-trigger";
 import { Icon, Plus, Trash2 } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { Tip } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { useUpdateConfig } from "../hooks/use-rpg-mutations.ts";
 import { mintDefKey } from "../lib/mint-key.ts";
@@ -42,11 +42,10 @@ function AttributeRow({
   readonly onRemove: () => void;
 }): ReactElement {
   return (
-    // rows="control" (#884 C3, #850 fix-forward): floors this card's OWN two rows (label · hint) at the
-    // pointer-conditional control-sm height so their `size="inline"` buttons' touch-target ::after has
-    // room to sit inside its own row instead of overflowing onto the neighbour row's text — the outer
-    // list-level `rows="control"` (RpgStatProfileEditor below) only floors the CARD, which was already
-    // taller than the floor and left this inner collision unaddressed.
+    // rows="control": floors this card's OWN two rows (label · hint) at the pointer-conditional control-sm
+    // height so their `size="inline"` buttons' touch-target ::after has room to sit inside its own row instead
+    // of overflowing onto the neighbour row's text — the outer list-level `rows="control"`
+    // (RpgStatProfileEditor below) only floors the CARD.
     <Stack gap="field" rows="control" className={DEF_ROW_CLASS} data-slot="rpg-attribute-row">
       <Row gap="field" align="center">
         <TrackerValue
@@ -59,20 +58,21 @@ function AttributeRow({
               onCommit({ ...attr, label: trimmed });
             }
           }}
-          className="min-w-0 flex-1"
+          className="flex-1 min-inline-0"
         />
-        <Badge tone="soft" size="sm" title="the machine name the sheet stores this value under — minted once, kept through renames">
+        <Badge tone="soft" size="sm">
           {attr.key}
         </Badge>
-        <Button
-          aria-label={`Remove ${attr.label} from the vocabulary`}
-          intent="ghost"
-          size="glyph-md"
-          onClick={onRemove}
-          title={`Remove ${attr.label} from the vocabulary`}
-        >
-          <Icon icon={Trash2} size="xs" />
-        </Button>
+        <HintTrigger
+          className=""
+          hint="the machine name the sheet stores this value under — minted once, kept through renames"
+          subject={`${attr.label}'s key`}
+        />
+        <Tip text={`Remove ${attr.label} from the vocabulary`}>
+          <Button aria-label={`Remove ${attr.label} from the vocabulary`} intent="ghost" size="glyph-md" onClick={onRemove}>
+            <Icon icon={Trash2} size="xs" />
+          </Button>
+        </Tip>
       </Row>
       <HintEditor
         ariaLabel={`${attr.label} hint`}
@@ -105,7 +105,8 @@ function RangeRow({ profile, onCommit }: { readonly profile: RpgStatProfile; rea
             onCommit({ ...profile, range: { min: n, max: Math.max(n + 1, profile.range.max) } });
           }
         }}
-        className="!w-avatar-lg px-field text-right tabular-nums"
+        className="px-field text-end tabular-nums"
+        width="avatar-lg"
         restClassName="tabular-nums"
       />
       <Text as="span" voice="gloss" aria-hidden={true}>
@@ -122,7 +123,8 @@ function RangeRow({ profile, onCommit }: { readonly profile: RpgStatProfile; rea
             onCommit({ ...profile, range: { min: profile.range.min, max: Math.max(profile.range.min + 1, n) } });
           }
         }}
-        className="!w-avatar-lg px-field text-right tabular-nums"
+        className="px-field text-end tabular-nums"
+        width="avatar-lg"
         restClassName="tabular-nums"
       />
       <Text as="span" voice="gloss">
@@ -149,9 +151,8 @@ export function RpgStatProfileEditor({ chatId, config }: { readonly chatId: Chat
       {attrs.length === 0 ? (
         <RpgDoorwayLine>No attributes yet — this game steers on prose. Name one below and every character sheet grows it.</RpgDoorwayLine>
       ) : null}
-      {/* The ROW band takes its own Stack so `rows="control"` floors the attribute/add/range rows
-          (#884 C3 — the #850 pitch class: "Strength hint" measured 312×18 against the 24px fine floor)
-          without inflating the kicker above them. */}
+      {/* The ROW band takes its own Stack so `rows="control"` floors the attribute/add/range rows without
+          inflating the kicker above them. */}
       <Stack gap="field" rows="control">
         {attrs.map((attr, i) => (
           <AttributeRow

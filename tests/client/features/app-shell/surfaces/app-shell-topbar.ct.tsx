@@ -52,7 +52,7 @@ async function routeSections(page: Page, corpus: CorpusWire): Promise<void> {
 function touchTarget(page: Page): Promise<number> {
   return page.evaluate(() => {
     const probe = document.createElement("div");
-    probe.style.width = "var(--spacing-touch-target)";
+    probe.style.width = "var(--size-touch-target)";
     document.body.append(probe);
     const width = probe.getBoundingClientRect().width;
     probe.remove();
@@ -116,8 +116,9 @@ test("on a desktop the Characters band keeps its own doors and the trail carries
   await mount<typeof AppShellStory>(STORY, {});
   const band = page.locator(`${LIST} .shell-panel-header`);
   await expect(band).toBeVisible();
-  await expect(band.getByRole("button", { name: "New", exact: true })).toBeVisible();
-  await expect(page.locator(".shell-topbar-trail").getByRole("button", { name: "New", exact: true })).toHaveCount(0);
+  // The band's New is a word or a glyph by its own container width; either way it stays on the band.
+  await expect(band.getByRole("button", { name: /^New(?: character)?$/u })).toBeVisible();
+  await expect(page.locator(".shell-topbar-trail").getByRole("button", { name: /^New(?: character)?$/u })).toHaveCount(0);
 });
 
 test("the ⌘K chip paints no text, and its name and description carry Jump and this platform's shortcut", async ({ corpus, mount, page }) => {

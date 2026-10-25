@@ -11,15 +11,18 @@ import { tv } from "#lib";
  */
 export const progressVariants = tv({
   slots: {
-    root: "relative flex w-full flex-col gap-field",
-    header: "flex w-full items-baseline justify-between gap-row",
-    label: "text-label font-medium leading-label text-foreground",
+    root: "relative flex flex-col gap-field inline-full",
+    header: "flex items-baseline justify-between gap-row inline-full",
+    label: "text-label leading-label font-medium text-foreground",
     value: "text-label leading-label text-muted-foreground tabular-nums",
-    track: "relative h-field w-full overflow-hidden rounded-full bg-muted",
+    track: "relative overflow-hidden rounded-full bg-muted block-field inline-full",
     // `transition-all` was catching inherited non-compositor properties, never just what this
     // indicator actually moves: Base UI sizes it via an inline `width`, and `data-complete`
     // swaps the fill token. Naming both keeps the same visible motion and drops the rest.
-    indicator:
-      "h-full rounded-full bg-primary transition-[width,background-color] duration-(--motion-base) ease-out-expo data-indeterminate:w-full data-indeterminate:animate-pulse data-complete:bg-success",
+    indicator: `
+      rounded-full bg-primary transition-[width,background-color] duration-(--motion-base) ease-out-expo block-full
+      data-complete:bg-success
+      data-indeterminate:animate-pulse data-indeterminate:inline-full
+    `,
   },
 });

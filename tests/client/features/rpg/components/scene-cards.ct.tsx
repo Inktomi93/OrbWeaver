@@ -385,14 +385,13 @@ test.describe("at phone width with a coarse pointer", () => {
     const chip = row.locator('time[data-slot="rpg-turn-ref"]');
     await expect(chip).toHaveText(stamp);
     await expect(chip).toHaveAttribute("datetime", new Date(origin.createdAt).toISOString());
-    await expect(chip).toHaveAttribute("title", `Told ${kit.formatDateTime(origin.createdAt)}`);
     // The row's name carries the stamp, so two cards from one earlier day differ to a screen reader too.
     await expect(row).toHaveAccessibleName(`Open card: ${CARD_TITLE}, ${stamp}`);
 
     expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
     const touchTarget = await page.evaluate(() => {
       const probe = document.createElement("div");
-      probe.style.blockSize = "var(--spacing-touch-target)";
+      probe.style.blockSize = "var(--size-touch-target)";
       document.body.append(probe);
       const height = probe.getBoundingClientRect().height;
       probe.remove();

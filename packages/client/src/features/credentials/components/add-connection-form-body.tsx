@@ -233,6 +233,7 @@ export function AddConnectionFormBody({
   return (
     <form.AppForm>
       <form
+        aria-label="Add a connection"
         onSubmit={(event): void => {
           event.preventDefault();
           event.stopPropagation();

@@ -25,22 +25,24 @@ export interface CollapsibleTriggerProps extends Omit<BaseTriggerProps, "classNa
    *  `false` when the consumer renders its OWN chevron/icon inside the trigger, to avoid a double chevron. */
   chevron?: boolean;
   /** The trigger's BOX. `control` (the default since #884 C2 — the inversion) pins the pointer-conditional
-   *  `--spacing-control-sm` row floor: a disclosure is the thing you press to reach a whole section, and
+   *  `--size-control-sm` row floor: a disclosure is the thing you press to reach a whole section, and
    *  the recurring defect was this arm not taken. `text` is text-height, for a disclosure sitting in
    *  running content where a control box would shear it off its copy — every `size="text"` mount owes a
    *  reasoned home on the `orb/sub-floor-disclosure` row of eslint.config.js (variants.ts carries the
    *  measurements). */
   size?: "text" | "control";
+  /** `block` floors a `text` trigger's own height at the touch target on a coarse pointer; fine stays text-height. */
+  touchFloor?: "block";
 }
 
 /** Bakes the trailing `ChevronDown` that rotates on `data-panel-open` (the accordion precedent) unless the
  *  consumer opts out with `chevron={false}` (it renders its own). */
-export function CollapsibleTrigger({ className, chevron = true, size = "control", children, ...rest }: CollapsibleTriggerProps): ReactElement {
+export function CollapsibleTrigger({ className, chevron = true, size = "control", touchFloor, children, ...rest }: CollapsibleTriggerProps): ReactElement {
   return (
     // STAMP SITE (#1097): the TRIGGER, not the root. `size` IS the trigger's tap box (`text` vs the
     // `control` floor), and the tap-target census reads the axis off the interactive element itself.
     <BaseCollapsible.Trigger
-      className={collapsibleVariants({ instant: false, size }).trigger({ className })}
+      className={collapsibleVariants({ instant: false, size, touchFloor }).trigger({ className })}
       data-slot="collapsible-trigger"
       {...variantAttrs(collapsibleVariants, { size })}
       {...rest}

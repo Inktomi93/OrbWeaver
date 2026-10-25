@@ -61,6 +61,7 @@ export function FileTrigger({ accept, multiple = false, disabled = false, onFile
         disabled={disabled}
         id={inputId}
         multiple={multiple}
+        name={inputId}
         onChange={handleChange}
         tabIndex={-1}
         type="file"

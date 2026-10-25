@@ -28,7 +28,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { SegmentedClock } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { ConfirmDialog } from "#components";
+import { ConfirmDialog, Tip } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useDeleteQuest, useEditQuestObjective, useEditSnapshot, useUpsertQuest } from "../hooks/use-rpg-mutations.ts";
@@ -68,7 +68,7 @@ function QuestDescription({ quest, dim, edit }: { readonly quest: RpgQuestView; 
         tone="muted"
         size="micro"
         onEdit={(next): void => edit.onEditDescription(quest, next)}
-        className="w-full"
+        className="inline-full"
       />
     );
   }
@@ -100,19 +100,15 @@ function QuestObjectives({ quest, dim, edit }: { readonly quest: RpgQuestView; r
               aria-label={`${o.text} — completed`}
             />
           ) : null}
-          <Text as="span" voice="label" className={o.completed ? "min-w-0 flex-1 text-muted-foreground line-through" : "min-w-0 flex-1"}>
+          <Text as="span" voice="label" className={o.completed ? "flex-1 text-muted-foreground line-through min-inline-0" : "flex-1 min-inline-0"}>
             {o.text}
           </Text>
           {editable ? (
-            <Button
-              aria-label={`Remove objective: ${o.text}`}
-              intent="ghost"
-              size="glyph-sm"
-              onClick={(): void => edit.onRemoveObjective(quest, o.id)}
-              title={`Remove objective: ${o.text}`}
-            >
-              <Icon icon={X} size="xs" />
-            </Button>
+            <Tip text={`Remove objective: ${o.text}`}>
+              <Button aria-label={`Remove objective: ${o.text}`} intent="ghost" size="glyph-sm" onClick={(): void => edit.onRemoveObjective(quest, o.id)}>
+                <Icon icon={X} size="xs" />
+              </Button>
+            </Tip>
           ) : null}
         </Row>
       ))}
@@ -127,7 +123,7 @@ function QuestObjectives({ quest, dim, edit }: { readonly quest: RpgQuestView; r
               edit.onAddObjective(quest, trimmed);
             }
           }}
-          className="w-(--width-control-col)"
+          className="inline-(--width-control-col)"
         />
       ) : null}
     </Stack>
@@ -144,7 +140,7 @@ function DeleteQuestAction({ quest, onDelete }: { readonly quest: RpgQuestView; 
       confirmLabel="Delete"
       onConfirm={(): void => onDelete(quest)}
       trigger={
-        <Button aria-label={`Delete quest: ${quest.name}`} intent="ghost" size="glyph-sm" title={`Delete quest: ${quest.name}`}>
+        <Button aria-label={`Delete quest: ${quest.name}`} intent="ghost" size="glyph-sm">
           <Icon icon={Trash2} size="xs" />
         </Button>
       }
@@ -201,14 +197,14 @@ function QuestCard({ quest, edit }: QuestCardProps): ReactElement {
               {...(failed ? { className: "text-destructive" } : {})}
             />
           ) : null}
-          <Stack gap="field" className="min-w-0 flex-1">
+          <Stack gap="field" className="flex-1 min-inline-0">
             <Row gap="block" align="baseline" justify="between">
               {edit === undefined || dim ? (
                 <Text as="span" voice="label" className={dim ? "text-muted-foreground line-through" : undefined}>
                   {quest.name}
                 </Text>
               ) : (
-                <TrackerValue ariaLabel="Quest name" display={quest.name} onEdit={(next): void => edit.onEditName(quest, next)} className="w-full" />
+                <TrackerValue ariaLabel="Quest name" display={quest.name} onEdit={(next): void => edit.onEditName(quest, next)} className="inline-full" />
               )}
               <QuestCardMeta quest={quest} filled={filled} total={total} {...(edit === undefined ? {} : { edit })} />
             </Row>
@@ -233,7 +229,7 @@ export interface RpgQuestsTabProps {
   readonly state: RpgPanelState;
 }
 
-/** The host "New quest" affordance (no dead ends): the shared `AddRow` (RV-8) firing
+/** The host "New quest" affordance (no dead ends): the shared `AddRow` firing
  *  `upsertQuest` with NO `questId` (⇒ create). Tier-2 refusal + Enter-to-commit come with the primitive. */
 function NewQuest({ onCreate }: { readonly onCreate: (name: string) => void }): ReactElement {
   return <AddRow ariaLabel="New quest name" placeholder="Start a quest…" actions={[{ key: "quest", label: "New quest", icon: Plus, onAdd: onCreate }]} />;

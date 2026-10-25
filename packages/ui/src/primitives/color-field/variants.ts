@@ -13,7 +13,7 @@ export const colorFieldVariants = tv({
       "shrink-0 rounded-control border border-input-border bg-field-fill data-unset:border-dashed data-unset:border-muted-foreground data-unset:bg-transparent",
     hexText: "text-label leading-label text-muted-foreground",
     swatchTrigger: [
-      "inline-flex size-control-sm shrink-0 items-center justify-center rounded-control border border-border p-0",
+      "inline-flex shrink-0 items-center justify-center rounded-control border border-border p-0 block-(--size-control-sm) inline-(--size-control-sm)",
       "transition-colors duration-(--motion-fast) ease-out-expo",
       "outline-none",
       FOCUS_RING,
@@ -21,7 +21,7 @@ export const colorFieldVariants = tv({
       // The 8-state contract's loading/success arms (ui-package-design §5) — disabled/error/hover/
       // focus-visible/active ride pseudo-classes or Base UI's own data-invalid elsewhere; these two
       // need explicit skin since nothing native drives them.
-      "data-loading:cursor-wait data-loading:pointer-events-none",
+      "data-loading:pointer-events-none data-loading:cursor-wait",
       "data-success:ring-2 data-success:ring-success data-success:ring-offset-2 data-success:ring-offset-background",
     ],
     popupBody: "flex flex-col gap-field",
@@ -33,8 +33,9 @@ export const colorFieldVariants = tv({
     // `ring-offset-background` would paint a page-toned band around the swatch on a popover-toned surface.
     // The ring (a box-shadow) is safe here rather than FOCUS_RING_OUTLINE: this slot paints no shadow of its
     // own, so nothing else owns the composite. MEASURED under a real Tab in the color-field CT.
-    nativeColorInput: `h-control-md w-full cursor-pointer rounded-control border border-border p-0 outline-none disabled:cursor-not-allowed ${FOCUS_RING_ON_POPOVER}`,
-    hexField: "w-full",
+    nativeColorInput: `cursor-pointer rounded-control border border-border p-0 outline-none block-(--size-control-md) inline-full disabled:cursor-not-allowed ${FOCUS_RING_ON_POPOVER}
+    `,
+    hexField: "inline-full",
     // The per-field clear affordance. Left-aligned under the hex field so it
     // reads as a secondary action, not a full-width primary — it emits the empty "" clear sentinel.
     resetButton: "self-start",
@@ -42,8 +43,8 @@ export const colorFieldVariants = tv({
   variants: {
     // The display swatch's footprint. The editable trigger always uses `md`, the control size.
     swatchSize: {
-      md: { swatch: "size-control-sm" },
-      sm: { swatch: "size-3" },
+      md: { swatch: "block-(--size-control-sm) inline-(--size-control-sm)" },
+      sm: { swatch: "block-(--size-dot-lg) inline-(--size-dot-lg)" },
     },
   },
   defaultVariants: { swatchSize: "md" },

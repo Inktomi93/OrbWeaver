@@ -35,7 +35,7 @@ type ListProps<T extends "ul" | "ol" | "li"> = ComponentPropsWithoutRef<T> & { r
 // The vertical separation is PADDING, not a margin: the seal root's own spacing trim out-specifies any
 // sibling margin a descendant could set (the #238 mechanism). A list NESTED inside an item drops that
 // separation — the parent item's own rhythm already spaces it, and paying twice reads as a gap.
-const LIST_BOX = "list-outside py-row pl-section [li_&]:py-0";
+const LIST_BOX = "list-outside py-row ps-section [li_&]:py-0";
 
 function UnorderedList({ node: _node, className, ...rest }: ListProps<"ul">): ReactElement {
   return <ul className={cn(LIST_BOX, "list-disc", className)} data-streamdown="unordered-list" {...rest} />;

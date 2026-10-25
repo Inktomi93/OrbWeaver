@@ -1,25 +1,20 @@
 // The regex collection's CONTEXT arm — "Where it’s attached" for the selected script.
 //
-// IT IS ABOUT SCOPES, AND THE BAND NOW SAYS SO (side-eye 2026-08-19). The band read "Where it runs", which
-// is one preposition away from the EDITOR's `Runs on` field — and those two decide orthogonal things: the
-// field picks which TEXT STREAMS a script rewrites, this pane which SCOPES it is attached from. The band
-// was re-headed to the vocabulary this pane's own copy already uses ("Runs in every chat", "Attached by
-// presets · 2"); `regex-collection.tsx` records the fork.
+// IT IS ABOUT SCOPES, AND THE BAND SAYS SO. "Where it runs" would be one preposition away from the EDITOR's
+// `Runs on` field — and those two decide orthogonal things: the field picks which TEXT STREAMS a script
+// rewrites, this pane which SCOPES it is attached from. The band speaks the vocabulary this pane's own copy
+// uses ("Runs in every chat", "Attached by presets · 2"); `regex-collection.tsx` records the fork.
 //
 // THE FOUR SCOPES, EACH IN ITS OWN VOICE (workspace.html's context column). The GLOBAL scope is a SWITCH:
 // it is a property of the script (`global_regex_scripts` PKs on the script id) and this library owns it, so
-// this pane decides it — and since 2026-08-19 it is the ONLY pane that does. The list row carried a
-// second, live copy of this same switch (side-eye P2: two controls for one fact, ~990px apart on one
-// screen, no confirm, no undo — a reviewer flipped one by accident driving the pane), and the orchestrator
-// ruled that this pane keeps it. `regex-collection-rows.tsx`'s header records the row's side of that fork,
-// including why the "a row reserves what its list declares" ruling recorded there SURVIVES the change.
-// Do not restore a row-level attach control without re-opening that fork.
+// this pane decides it — and it is the ONLY pane that does: a second, live copy on the list row would be two
+// controls for one fact on one screen, with no confirm and no undo. `regex-collection-rows.tsx`'s header
+// records the row's side of that ruled fork. Do not restore a row-level attach control without re-opening it.
 //
 // The other three are LISTS: a preset, a character and a room each attach from the
 // thing they belong to, so this pane can only REPORT them — "Attached by presets · 2" over the two names.
-// The read behind them is `regex.listScriptUsage` (REGROSTER), the reverse of the forward `listFor*` lists;
-// until it existed the pane shipped an honest sentence pointing at the three carriers instead, because
-// faking the answer would have meant an N-query fan-out over every preset and character the owner has.
+// The read behind them is `regex.listScriptUsage`, the reverse of the forward `listFor*` lists — one read, not
+// an N-query fan-out over every preset and character the owner has.
 //
 // A LIST ROW IS A NAME, NOT A LINK. There is no door from here to a preset/character/room member — the
 // existing `openConfigTo` intent only opens a config COLLECTION, and none of these three is one. A row
@@ -27,10 +22,10 @@
 // this script already runs. An EMPTY list still renders (with its `· 0` and the line saying where to
 // attach one) — omitting it would read as "not built", not as "none yet".
 //
-// AND THE GLOBAL SCOPE'S RUN ORDER (REGORDER). Global is an ORDERED tier, not a set: the resolver hands
+// AND THE GLOBAL SCOPE'S RUN ORDER. Global is an ORDERED tier, not a set: the resolver hands
 // `executeRegexScripts` the global attachments in junction-`position` order and the executor applies them
-// in order, so "which of my always-on scripts bites first" is data — and `regex.applyScopeOrder` shipped
-// with no client caller at all. This is the pane where the global membership is decided, so it is the pane
+// in order, so "which of my always-on scripts bites first" is data, written through `regex.applyScopeOrder`.
+// This is the pane where the global membership is decided, so it is the pane
 // where its order is decided. The other three scopes author theirs in the shared picker, beside their own
 // attach switches.
 
@@ -105,19 +100,15 @@ function RegexScopePanel({
 
   return (
     // `padding="block"` — the same inset its sibling arm (`BookAttachments`) uses, so one context slot has
-    // one edge (side-eye 2026-08-03 P3, the two-grammars finding).
+    // one edge.
     <Stack data-slot="regex-context-body" gap="block" padding="block">
-      {/* THE HOUSE SWITCH ROW, NOT A FOURTH HAND-ROLL (#980 F22). This was a bare
-          `<Row justify="between">` + a sibling gloss paragraph — the same orientation `SettingSwitchRow`
-          ships (label left, control right) drawn a different way, which is mechanism drift rather than
-          visual drift and is exactly how two rows end up disagreeing later. Routing it through the shared
-          row buys three things it did not have: the label is a real `Field.Label`, so clicking the words
+      {/* THE HOUSE SWITCH ROW, NOT A HAND-ROLL: a hand-rolled row in the same orientation is mechanism
+          drift, which is how two rows end up disagreeing later. The shared row gives three things: the label is a real `Field.Label`, so clicking the words
           toggles the switch; the gloss becomes the `description`, which is `aria-describedby`-wired and
           reading-measure capped instead of running the pane's full width; and the row answers to the same
           `FieldLayout` an Appearance settings row does.
-          The accessible name loses the script's own title (it was "<script> runs in every chat"): a
-          `Field` label IS the control's name, this pane is that script's context arm, and the head band
-          above it states the subject — a name that repeats it is the name-and-mark weld #1214-1 records. */}
+          The accessible name omits the script's own title: a `Field` label IS the control's name, this pane
+          is that script's context arm, and the head band above it states the subject. */}
       <SettingSwitchRow
         checked={isGlobal}
         description="The one scope this library owns — the other three attach this script from the thing it belongs to."
@@ -125,7 +116,7 @@ function RegexScopePanel({
         label="Runs in every chat"
         onChange={onGlobalChange}
       />
-      {/* THE SCOPE IS MOOT WHEN THE SCRIPT RUNS ON NOTHING (side-eye 2026-08-03 P2). This pane's entire job
+      {/* THE SCOPE IS MOOT WHEN THE SCRIPT RUNS ON NOTHING. This pane's entire job
           is "where does this script run", and with `placement: []` the honest answer is nowhere — no amount
           of attaching changes that. Said here as well as on the row and in the editor, because this is the
           pane a reader opens to ask the question. */}
@@ -194,9 +185,9 @@ function AttachmentList({
           {rows.map((row) => (
             // `min-w-0` + `truncate`: this pane is the config rail's 320px context column, and a long
             // preset name must clip inside it rather than push the list past its own edge.
-            <Row align="center" className="min-w-0" gap="field" key={row.id}>
+            <Row align="center" className="min-inline-0" gap="field" key={row.id}>
               <Icon icon={glyph} size="xs" />
-              <Text as="span" className="truncate" title={row.name}>
+              <Text as="span" className="truncate">
                 {row.name}
               </Text>
             </Row>
@@ -210,11 +201,10 @@ function AttachmentList({
 /**
  * THE ROOM LIST — the same list, one rung richer, because a chat is not named the way a preset is.
  *
- * A preset and a character each HAVE a name. A room's title is a fallback CHAIN, and this list used to
- * implement only two of its three rungs server-side: every room nobody had renamed read "Untitled chat",
- * which named nobody and, at three unnamed rooms, produced three identical rows. The chats list two panes
- * over calls the same rooms by their characters. `deriveChatTitle` is that chain's ONE home (it moved into `#lib`
- * for this), so the list now runs it instead of receiving someone else's answer.
+ * A preset and a character each HAVE a name. A room's title is a fallback CHAIN; without its last step every
+ * room nobody renamed reads "Untitled chat", which names nobody. The chats list two panes over calls the same
+ * rooms by their characters. `deriveChatTitle` is that chain's ONE home (`#lib`), so the list runs it instead
+ * of receiving someone else's answer.
  *
  * AND THE STAMP, for the reason titling by character names CREATES: "Alex, Niko" is a perfectly good title for three
  * different rooms. `rowQualifiers` is the house answer to exactly that collision on exactly this data (it
@@ -241,9 +231,9 @@ function RoomList({ rooms }: { readonly rooms: readonly VisibleRoomRef[] }): Rea
             return (
               // The stamp is `shrink-0` and the title takes the squeeze — this pane is the config rail's
               // 320px context column, so the datum that must never wrap is the short one.
-              <Row align="center" className="min-w-0" gap="field" key={room.id}>
+              <Row align="center" className="min-inline-0" gap="field" key={room.id}>
                 <Icon icon={MessagesSquare} size="xs" />
-                <Text as="span" className="truncate" title={title}>
+                <Text as="span" className="truncate">
                   {title}
                 </Text>
                 <Text as="span" className="shrink-0" voice="datum">
@@ -276,7 +266,7 @@ function GlobalOrderRow({
 }): ReactElement {
   return (
     <Row align="center" gap="field" justify="between">
-      <Row align="center" className="min-w-0" gap="field">
+      <Row align="center" className="min-inline-0" gap="field">
         <Text as="span" voice="datum">
           {position}
         </Text>

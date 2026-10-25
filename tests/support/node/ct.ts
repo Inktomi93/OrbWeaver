@@ -5,4 +5,4 @@ export { createShellAmbientReads } from "./ct-shell-reads.ts";
 export { HOST_BAND, openContextSections } from "./open-context-sections.ts";
 export { routeOrbSocket } from "./route-orb-socket.ts";
 export type { TrpcInput, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "./route-trpc.ts";
-export { routeTrpc, trpcError, trpcHold } from "./route-trpc.ts";
+export { defineTrpcRoutes, routeTrpc, trpcError, trpcHold } from "./route-trpc.ts";

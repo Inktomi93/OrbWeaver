@@ -300,7 +300,7 @@ test.describe("guided generations on the live local stack", () => {
       const undoItem = page.getByRole("menuitem", { name: "Undo last continuation" });
       await expect(undoItem).toBeVisible({ timeout: WAIT_UI_MS });
       await expect(undoItem).toHaveAttribute("aria-disabled", "true");
-      await expect(undoItem).toHaveAttribute("title", CONTINUE_UNLOCK_REASON);
+      await expect(undoItem).toHaveAccessibleDescription(CONTINUE_UNLOCK_REASON);
       await page.keyboard.press("Escape");
 
       const preContinue = (await canonMessage(chat.id, tailId))?.content ?? "";

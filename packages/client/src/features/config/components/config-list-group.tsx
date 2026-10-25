@@ -15,7 +15,7 @@
 // member rows as well as bands.
 //
 // The #1099 band-height ruling protects no growth when modified state changes, not a preference for text
-// over a box. size=sm fixes the band height at h-control-sm for both pointer classes; an internal Badge
+// over a box. size=sm fixes the band height at h-(--size-control-sm) for both pointer classes; an internal Badge
 // cannot move it. The band-height CT retains that contract.
 
 import { Badge } from "@orb/ui/badge";

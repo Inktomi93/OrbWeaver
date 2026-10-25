@@ -8,11 +8,24 @@ import { FOCUS_RING, tv } from "#lib";
 // feature never picks island padding or radius. `rounded-base` (grouped content), never `rounded-card` —
 // D6 demoted `--radius-card` to ELEVATED/floating islands only, which is what `elevated` opts into.
 export const cardVariants = tv({
-  base: "rounded-base border border-border bg-card text-card-foreground p-block in-data-[elevation=glow]:shadow-overlay",
+  base: "rounded-base border border-border bg-card p-block text-card-foreground in-data-[elevation=glow]:shadow-overlay",
   variants: {
+    // THE BOX SHAPE: a bordered, rounded, filled Row or Stack is a Card. `island` is grouped
+    // content inside a surface. `row` is one operable or listed row drawn as its own box (a pack item, a mini
+    // preview row): the control radius, because you operate it. `well` is a recess inside a box: no border, a muted
+    // fill, the control radius, so it reads as part of its host and not a second box (CD2). Declared before `tone`
+    // so a tone's fill wins over the well's. The radius is re-declared in tiers.css, where the tier rule outranks it.
+    shape: {
+      island: "",
+      row: "rounded-control",
+      well: "rounded-control border-0 bg-muted",
+    },
     tone: {
       neutral: "",
+      // Border only: a box that groups without lifting off its ground.
+      clear: "bg-transparent",
       background: "bg-background",
+      accent: "bg-accent text-accent-foreground",
       bubble: "border-0 bg-ai-bubble text-ai-bubble-foreground",
       muted: "bg-muted",
       warning: "border-warning bg-warning/10 text-warning",
@@ -22,12 +35,17 @@ export const cardVariants = tv({
     outline: { solid: "", dashed: "border-dashed" },
     glow: {
       none: "",
-      accent:
-        // eslint-disable-next-line orb/no-arbitrary-tw-values -- Pseudo glow inherits the computed host radius across surface tiers; ends when the glow recipe no longer inherits its host.
-        "relative isolate before:pointer-events-none before:absolute before:-inset-px before:-z-(--z-raised) before:rounded-[inherit] before:shadow-glow before:content-['']",
-      focal:
-        // eslint-disable-next-line orb/no-arbitrary-tw-values -- Pseudo glow inherits elevated and nested host radii; ends when the glow recipe no longer inherits its host.
-        "relative isolate before:pointer-events-none before:absolute before:-inset-px before:-z-(--z-raised) before:rounded-[inherit] before:opacity-60 before:shadow-glow before:transition-opacity before:duration-(--motion-base) before:ease-out-expo before:content-[''] hover:before:opacity-100 data-returned:before:opacity-100",
+      accent: `
+        relative isolate
+        before:pointer-events-none before:absolute before:-inset-px before:-z-(--z-raised) before:rounded-[inherit] before:shadow-glow before:content-['']
+      `,
+      focal: `
+        relative isolate
+        before:pointer-events-none before:absolute before:-inset-px before:-z-(--z-raised) before:rounded-[inherit] before:opacity-60 before:shadow-glow
+        before:transition-opacity before:duration-(--motion-base) before:ease-out-expo before:content-['']
+        hover:before:opacity-100
+        data-returned:before:opacity-100
+      `,
     },
     // The explicit floating-island opt-in (UI-Density-Law.md §2.1/§4.3): a modal/popover/composer-class
     // card that genuinely floats above the page. Its radius is re-declared unlayered in tiers.css so it
@@ -49,10 +67,17 @@ export const cardVariants = tv({
       true: "rounded-inset border-0",
       false: "",
     },
+    // The one padding arm: the island delegates its inset to its own content (a collapse row's trigger, so the
+    // whole closed row is one tap target). `tier` is the resolved tier step; a feature never picks a value.
+    // The `p-0` utility loses to the tier rule inside a Surface, so `data-padding` re-declares it in tiers.css.
+    padding: {
+      tier: "",
+      none: "p-0",
+    },
     interactive: {
-      true: `cursor-pointer transition-colors duration-(--motion-fast) ease-out-expo hover:bg-accent active:bg-accent/80 focus-visible:outline-none ${FOCUS_RING}`,
+      true: `cursor-pointer transition-colors duration-(--motion-fast) ease-out-expo hover:bg-accent focus-visible:outline-none active:bg-accent/80 ${FOCUS_RING}`,
       false: "",
     },
   },
-  defaultVariants: { elevated: false, interactive: false, nested: false, tone: "neutral", outline: "solid", glow: "none" },
+  defaultVariants: { shape: "island", elevated: false, interactive: false, nested: false, padding: "tier", tone: "neutral", outline: "solid", glow: "none" },
 });

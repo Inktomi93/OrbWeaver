@@ -12,7 +12,7 @@ import { CLAUDE_SETUP_TOKEN_COMMAND, CLAUDE_SETUP_TOKEN_COPY_SUBJECT } from "../
 export function SetupTokenCommand(): ReactElement {
   return (
     <Stack data-slot="setup-token-command" gap="tight">
-      <Text className="max-w-(--reading-measure-prose)" prose={true} voice="gloss">
+      <Text className="max-inline-(--reading-measure-prose)" prose={true} voice="gloss">
         Run this on the machine you use Claude Code on, then paste what it prints.
       </Text>
       <CopyButton copiedHint="Paste it into a terminal on that machine." text={CLAUDE_SETUP_TOKEN_COMMAND} what={CLAUDE_SETUP_TOKEN_COPY_SUBJECT}>

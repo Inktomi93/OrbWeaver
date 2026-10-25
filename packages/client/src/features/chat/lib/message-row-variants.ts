@@ -135,9 +135,9 @@ function flatInner(role: MessageRole): string {
   // variant, later in the merge), the first covers the plain-background arm.
   // On a phone the text sits a stock 10px from the avatar (SillyTavern flat), not a desktop section away.
   return cx(
-    "w-full px-section py-row @max-md:px-row",
+    "px-section py-row inline-full @max-cq-28:px-row",
     BG_PHOTO_READING_PLATE,
-    role === "system" && "text-muted-foreground in-data-[has-bg-image]:text-muted-foreground",
+    role === "system" && "text-muted-foreground in-data-has-bg-image:text-muted-foreground",
   );
 }
 const iconLeftTreatment = (): AvatarTreatment => "icon-left";
@@ -169,7 +169,7 @@ function hushDecoration(): BubbleDecoration {
 // its portrait pane costs extra room on top of it. Still `mx-auto`, so the row centres on the same axis as
 // the composer (#213 asserts the axis, never equal widths), and still `w-full`, so a pane narrower than
 // the ask degrades to the pane instead of overflowing it.
-const ECHO_TRACK = "mx-auto w-full orb-echo-track";
+const ECHO_TRACK = "mx-auto inline-full orb-echo-track";
 
 function echoOuter(role: MessageRole): string {
   return cx(ECHO_TRACK, alignFor(role));
@@ -206,9 +206,9 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     columnPlacement: "gutterCentred",
     // Stock SillyTavern's document: a full-track page with no reading cap, no avatar, name or timestamp, user
     // and character rows identical, the text inset as stock insets it.
-    inner: () => cx("w-full pt-row pl-gutter pr-gutter text-prose-body", BG_PHOTO_READING_PLATE),
+    inner: () => cx("px-gutter pbs-row text-prose-body inline-full", BG_PHOTO_READING_PLATE),
     avatarTreatment: () => "none",
-    lastRowInner: "min-h-(--immersive-document-last-row-min-height)",
+    lastRowInner: "min-block-(--immersive-document-last-row-min-height)",
     bubbleLayout: "single",
     headerPlacement: "inside",
     swipeFoot: SWIPE_FOOT_INSIDE,

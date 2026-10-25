@@ -37,7 +37,7 @@ export function HintEditor({ ariaLabel, hint, max, onEdit, placeholder = "what t
         placeholder={placeholder}
         tone="muted"
         {...(onEdit === undefined ? {} : { onEdit: (next: string): void => onEdit(next.slice(0, max)) })}
-        className="min-w-0 flex-1"
+        className="flex-1 min-inline-0"
       />
       {hint.length < max * COUNTER_AT ? null : (
         <Text as="span" size="micro" tone="muted" className="shrink-0 tabular-nums">

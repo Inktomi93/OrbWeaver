@@ -17,6 +17,7 @@
       "!packages/ui/src/tokens/index.ts",
       "!packages/ui/src/tokens/themes.gen.ts",
       "!packages/ui/src/styles/theme.css",
+      "!packages/client/owner-css-surface.ts",
       "!tooling/src/snap/lib/devtools-frontend",
       "!tooling/src/codemods/*/tests*",
       "!**/node_modules",
@@ -545,6 +546,15 @@
   },
   "overrides": [
     {
+      "includes": ["**/*.css"],
+      "linter": {
+        "enabled": false,
+        "rules": {
+          "recommended": false
+        }
+      }
+    },
+    {
       "includes": ["tooling/src/codemods/*/scripts/*.ts"],
       "linter": { "rules": { "style": { "noDefaultExport": "off", "useNodejsImportProtocol": "off" } } }
     },
@@ -563,16 +573,6 @@
       "json": {
         "formatter": {
           "expand": "always"
-        }
-      }
-    },
-    {
-      "includes": ["packages/client/src/features/app-shell/surfaces/shell.css", "packages/client/src/styles/globals.css"],
-      "linter": {
-        "rules": {
-          "style": {
-            "noDescendingSpecificity": "off"
-          }
         }
       }
     },
@@ -2153,7 +2153,7 @@
       }
     },
     {
-      "includes": ["packages/client/vite.config.ts", "packages/client/native-typecheck.config.ts"],
+      "includes": ["packages/client/vite.config.ts", "packages/client/native-typecheck.config.ts", "packages/client/owner-css-surface.build.ts"],
       "linter": {
         "rules": {
           "correctness": {
@@ -2816,6 +2816,9 @@
   "css": {
     "parser": {
       "tailwindDirectives": true
+    },
+    "linter": {
+      "enabled": false
     }
   }
 }

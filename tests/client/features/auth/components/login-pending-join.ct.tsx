@@ -1,4 +1,5 @@
 import { CSRF_HEADER } from "@orb/contracts/identity";
+import { unnamedLandmarkElementFindings } from "@orb/testkit/browser/spec";
 import type { Page, Request, Route } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import type { PendingJoinStory } from "./_pending-join-stories.tsx";
@@ -37,6 +38,13 @@ test.beforeEach(async ({ page }) => {
       globalThis.history.replaceState(null, "", "/login?pendingJoin=1");
     }
   });
+});
+
+test("the invite confirmation form is a named landmark", async ({ mount, page }) => {
+  await previewRoom(page);
+  await mount<typeof PendingJoinStory>("tests/client/features/auth/components/_pending-join-stories/PendingJoinStory", {});
+  await expect(page.getByRole("heading", { name: "You're invited", exact: true })).toBeVisible();
+  expect(await unnamedLandmarkElementFindings(page)).toEqual([]);
 });
 
 test("a held preview offers no Join until the room is available", async ({ mount, page }) => {

@@ -45,16 +45,16 @@ export function columnClassFor(skin: RowSkin, mirrored = false): string {
 // The centred skins' column is ONE width for every row: the reading measure, less the two identity rails
 // where the row is too narrow for it. A content-sized column made short rows narrow centred plates and
 // slid the chip beside them from row to row.
-const CENTRED_COLUMN = "col-start-2 min-w-0 flex-1 @4xl:w-(--centred-column-width)";
+const CENTRED_COLUMN = "col-start-2 min-inline-0 flex-1 @cq-56:inline-(--centred-column-width)";
 
 // A train's column hugs its widest pill, so the speaker row above it and the pager under it share the
 // train's edges; the phone cap moves from each pill to the column for the same reason.
 // A mirrored train still packs to the trailing edge, beside its own chip.
 function anchoredColumnClass(skin: RowSkin, mirrored: boolean): string {
   if (skin.bubbleLayout !== "trains") {
-    return "min-w-0 flex-1";
+    return "min-inline-0 flex-1";
   }
-  return mirrored ? `min-w-0 max-w-full ms-auto ${PILL_PHONE_CAP}` : `min-w-0 max-w-full ${PILL_PHONE_CAP}`;
+  return mirrored ? `min-inline-0 max-inline-full ms-auto ${PILL_PHONE_CAP}` : `min-inline-0 max-inline-full ${PILL_PHONE_CAP}`;
 }
 
 /** The row body's own placement classes (#1728 arm B): nothing for `anchored`, which stays the flex line it
@@ -64,10 +64,10 @@ function anchoredColumnClass(skin: RowSkin, mirrored: boolean): string {
  *  Homing it here is what keeps `MessageRow` and `GhostMessageRow` under the complexity ceiling reading the
  *  SAME decision. */
 export function rowBodyClassFor(skin: RowSkin): string {
-  // `min-w-0 max-w-full` at every placement: a wide child (a code line) may not widen the row past its track.
-  // The body spans the track (`w-full`) at every placement: a body that hugged its content made a bubble's
+  // `min-inline-0 max-inline-full` at every placement: a wide child (a code line) may not widen the row past its track.
+  // The body spans the track (`inline-full`) at every placement: a body that hugged its content made a bubble's
   // phone cap a share of the bubble itself, and sat a centred skin's short rows in narrow, sliding columns.
-  const body = "w-full min-w-0 max-w-full";
+  const body = "inline-full min-inline-0 max-inline-full";
   return skin.columnPlacement === "anchored" ? body : `${body} ${gutterCentredTracks()}`;
 }
 

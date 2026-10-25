@@ -186,8 +186,7 @@ export function Markdown({
   if (children.length > MAX_RENDER_LENGTH) {
     return (
       <pre
-        // eslint-disable-next-line orb/no-arbitrary-tw-values -- Oversized prose needs a container-relative overflow cap; ends when a cqh cap token exists.
-        className={cn("relative max-h-[60cqh] overflow-auto overscroll-contain whitespace-pre-wrap text-body leading-body", className)}
+        className={cn("relative overflow-auto overscroll-contain text-body leading-body whitespace-pre-wrap max-block-(--height-prose-cap)", className)}
         data-slot="markdown-oversized"
       >
         {children}
@@ -278,8 +277,8 @@ export function Markdown({
         components={sealComponents(inlineDice, colorQuotes)}
         className={
           cn(
-            "space-y-0 whitespace-normal break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_em]:text-narration",
-            "[&_blockquote]:border-l-4 [&_blockquote]:border-muted-foreground/50 [&_blockquote]:py-row [&_blockquote]:pl-block",
+            "space-y-0 wrap-break-word whitespace-normal [&_em]:text-narration [&>*:first-child]:mbs-0 [&>*:last-child]:mbe-0",
+            "[&_blockquote]:border-s-4 [&_blockquote]:border-muted-foreground/50 [&_blockquote]:py-row [&_blockquote]:ps-block",
             // The thematic break's SEPARATION (H19). The element itself is ours now (`rule-component.tsx`
             // owns its ink), but the gap is spelled HERE, as a descendant variant, for the same reason the
             // blockquote's is: the root's own `space-y-0` trim governs a direct child's block margins, and
@@ -288,7 +287,7 @@ export function Markdown({
             // vendor's `my-6`.
             "[&_hr]:my-row",
             // inline code INSIDE prose — the line's box is the surrounding paragraph's strut (a smaller inline box never grows an integer line), so pairing a leading here would be inert. Ends if this selector stops targeting inline (non-pre) code.
-            "[&_:not(pre)>code]:px-tight [&_:not(pre)>code]:py-tight [&_:not(pre)>code]:text-code",
+            "[&_:not(pre)>code]:p-tight [&_:not(pre)>code]:text-code",
             className,
           ) ?? ""
         }

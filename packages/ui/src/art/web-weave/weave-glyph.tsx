@@ -1,8 +1,8 @@
 // App-level brand display shared across features (D62); the UI package owns its reusable geometry.
 // This component owns the named-image versus decorative-control accessibility contract.
 
-import { WEB_GLYPH_DISPLAY } from "@orb/ui/web-weave";
 import type { ReactElement } from "react";
+import { WEB_GLYPH_DISPLAY } from "./web-glyph.ts";
 
 // Mark-A stroke tuning (the 32-space display cut of D173's mark).
 const SPOKE_W = 1.3;

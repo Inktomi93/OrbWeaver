@@ -1,7 +1,7 @@
 // The §4.3 categorized view — tags as collapsible category headers (Discord channel-category chevrons),
 // an "Uncategorized" bucket at the tail. C9-1d: a group's FIRST-paint expansion comes from its tag's
-// `folderType` (`groupStartsOpen`) — this component is the tags-as-folders column's live reader. Renders the CURRENTLY-LOADED rows grouped (the sliding-window
-// cache caps them at maxPages×PAGE_LIMIT, so a non-virtualized grouped render is bounded); a "Load more"
+// `folderType` (`groupStartsOpen`) — this component is the tags-as-folders column's live reader. Renders the CURRENTLY-LOADED rows grouped
+// (the query keeps every loaded page, so the grouped render grows with each "Load more"); a "Load more"
 // button drives the SAME guarded tail-fetch the flat virtual list wires to `onEndApproach`, because a
 // grouped list has no single scroll to trigger it. A character with 2+ tags appears under EACH group —
 // selection is by character id (the row's own `onSelect`), so every instance highlights together.
@@ -64,7 +64,7 @@ export function CharacterCategorizedList<T extends { readonly id: string }>({
   onLoadMore,
 }: CharacterCategorizedListProps<T>): ReactElement {
   return (
-    <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" gap="block">
+    <Stack className="relative flex-1 overflow-y-auto overscroll-contain min-block-0" gap="block">
       {/* C9-1d: the tag's `folderType` decides each group's FIRST paint (OPEN ⇒ expanded, plain/CLOSED ⇒
           collapsed behind its name + count) — `defaultOpen`, so the user's own toggle wins from then on and
           the section never fights them back. */}
@@ -73,13 +73,13 @@ export function CharacterCategorizedList<T extends { readonly id: string }>({
           <CollapsibleTrigger
             chevron={false}
             render={
-              <Button className="w-full justify-start" intent="ghost" size="sm">
+              <Button className="justify-start inline-full" intent="ghost" size="sm">
                 {/* The chevron must SAY which way the section is (C9-1d): once `folderType` decides the
                     first paint, a collapsed group is an everyday state, and a chevron frozen pointing down
                     over a hidden panel is a lie. `CollapsibleTrigger` puts its `group` class + Base UI's
                     `data-panel-open` on this Button, so the leading icon rotates on open exactly like the
                     primitive's own baked (trailing) chevron does. */}
-                <Icon className="transition-transform duration-(--motion-base) ease-out-expo group-data-[panel-open]:rotate-180" icon={ChevronDown} size="sm" />
+                <Icon className="transition-transform duration-(--motion-base) ease-out-expo group-data-panel-open:rotate-180" icon={ChevronDown} size="sm" />
                 {/* The group header is a section NAME + its count: a kicker voice, and the count in the
                     `datum` voice (tabular mono) — density-pass §2.3. `interactiveKicker`, NOT `kicker`
                     (#1216 class, #1632 item 3): the name is the visible label of this CollapsibleTrigger, and

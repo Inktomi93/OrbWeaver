@@ -182,7 +182,7 @@ export function InboxRow({ item, onAccepted, onRequestHandoff, acceptedHandoff, 
             (#1798's `size="dot"` arm), so "there is a dot" means one thing in this feature rather than two —
             you open the bell because of a dot and find the dot that put it there. `aria-hidden`: the row's
             own actions are what say it is decidable; the mark is the sighted shorthand. */}
-        {item.actionable ? <Badge intent="primary" size="dot" aria-hidden={true} className="mt-field" /> : null}
+        {item.actionable ? <Badge intent="primary" size="dot" aria-hidden={true} className="mbs-field" /> : null}
         <Text as="span" size="label" weight={item.readAt === null || item.actionable ? "medium" : undefined}>
           {rowCopy(item.payload, disabledPluginName)}
         </Text>
@@ -251,7 +251,14 @@ export function InboxRow({ item, onAccepted, onRequestHandoff, acceptedHandoff, 
             left for the one row that actually asks something. Decline DID move up — it is Accept's peer, a
             real second answer — but Dismiss is the escape hatch, never the row's point. */}
         {isInvite && !acted ? null : (
-          <Button type="button" disabled={isPending} intent="ghost" size="sm" onClick={dismissRow}>
+          <Button
+            aria-label={`Dismiss: ${rowCopy(item.payload, disabledPluginName)}`}
+            type="button"
+            disabled={isPending}
+            intent="ghost"
+            size="sm"
+            onClick={dismissRow}
+          >
             Dismiss
           </Button>
         )}

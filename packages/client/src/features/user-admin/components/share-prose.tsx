@@ -7,7 +7,7 @@ import type { TextProps } from "@orb/ui/text";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 
-const PROSE_MEASURE = "max-w-(--reading-measure-prose) wrap-anywhere";
+const PROSE_MEASURE = "max-inline-(--reading-measure-prose) wrap-anywhere";
 
 /** One explanatory sentence or short paragraph on the card. */
 export function ShareProse(props: Pick<TextProps, "children" | "id" | "role">): ReactElement {

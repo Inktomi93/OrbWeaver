@@ -112,7 +112,7 @@ export function ExtensionsSwitcherSurface(): ReactElement {
     // assistive technology; the Presets list uses the same named-region convention for the same hook.
     <Stack
       aria-label={EXTENSIONS_SECTION_LABEL}
-      className="h-full min-h-0 outline-none"
+      className="outline-none block-full min-block-0"
       data-testid={testId("extensionsSwitcher")}
       ref={surfaceRef}
       role="region"

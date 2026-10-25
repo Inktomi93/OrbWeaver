@@ -14,14 +14,17 @@ import { cardLabel } from "../lib/archived-cards.ts";
 import { turnStamp } from "../lib/turn-stamp.ts";
 import { RpgTurnRef } from "./rpg-turn-ref.tsx";
 
+const LENIENT_NOTE = "auto-rendered from raw HTML in the message";
+
 export interface RpgCardRowProps {
   readonly card: ArchivedCard;
   /** Opens the card in the archive lightbox (`RpgCardLightbox`) — addressed by `card.key`. */
   readonly onOpen: (key: string) => void;
 }
 
-/** One archived card as a row: the ✦ chrome voice + title, the `auto` provenance marker for a lenient
- *  wrap, the origin turn ref, and the expand glyph that names the row's one action. */
+/** One archived card as a row: the ✦ chrome voice + title, the visible `auto-rendered` provenance marker for a
+ *  lenient wrap (also in the name, because the name replaces the row's text), the origin turn ref, and the
+ *  expand glyph that names the row's one action. */
 export function RpgCardRow({ card, onOpen }: RpgCardRowProps): ReactElement {
   const label = cardLabel(card.title);
   return (
@@ -29,18 +32,17 @@ export function RpgCardRow({ card, onOpen }: RpgCardRowProps): ReactElement {
       type="button"
       intent="outline"
       size="sm"
-      aria-label={`Open card: ${label}, ${turnStamp(card.createdAt)}`}
-      title="Open card"
+      aria-label={`Open card: ${label}, ${turnStamp(card.createdAt)}${card.origin === "lenient" ? `, ${LENIENT_NOTE}` : ""}`}
       onClick={(): void => onOpen(card.key)}
-      className="w-full px-field text-left"
+      className="px-field text-start inline-full"
       data-slot="rpg-card-row"
     >
-      <Text as="span" voice="label" className="min-w-0 flex-1 truncate">
+      <Text as="span" voice="label" className="flex-1 truncate min-inline-0">
         ✦ {label}
       </Text>
       {card.origin === "lenient" ? (
-        <Text as="span" voice="gloss" className="shrink-0" title="Auto-rendered from raw HTML in the message">
-          auto
+        <Text as="span" voice="gloss" className="shrink-0">
+          auto-rendered
         </Text>
       ) : null}
       <RpgTurnRef messageId={card.messageId} createdAt={card.createdAt} />

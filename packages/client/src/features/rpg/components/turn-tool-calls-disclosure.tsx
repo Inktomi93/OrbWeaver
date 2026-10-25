@@ -88,7 +88,7 @@ export function TurnToolCallsDisclosure({ message }: TurnToolCallsDisclosureProp
           counts it in the population row (never a silent skip), and it changes nothing at coarse, where
           the fragment above takes the real 44px floor and a genuine regression must still fire. */}
       {/* Sub-floor by recorded ruling (this file is a reasoned home of `orb/sub-floor-disclosure` in eslint.config.js; pointer-variants.ts DISCLOSURE_TOUCH_FLOOR_AT_COARSE): coarse takes the 44px floor via the fragment; FINE stays a 16px line in a dense transcript footer, and a control box here is the density cost that ruling priced and declined */}
-      <CollapsibleTrigger className={`w-full ${DISCLOSURE_TOUCH_FLOOR_AT_COARSE}`} size="text" data-target-floor="sub-floor-ok">
+      <CollapsibleTrigger className={`inline-full ${DISCLOSURE_TOUCH_FLOOR_AT_COARSE}`} size="text" data-target-floor="sub-floor-ok">
         {/* The count is the volatile half and stays SUFFIXED (N3). A failed round has no count to give — its
             suffix is the same word a dropped call's badge uses, so one turn's outcome reads the same whether
             the loss was one call's or the whole round's. */}

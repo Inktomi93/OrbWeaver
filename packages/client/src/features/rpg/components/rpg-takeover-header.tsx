@@ -8,27 +8,26 @@
 // and the band text says the story hasn't set the scene yet. Weather needs no resolution step: `weather.type`
 // is already the stone's CLOSED vocabulary (`@orb/kit/weather` — one axis, model-bound at the wire), while the
 // band text shows the model's free `weather.label` when it wrote one.
-// SATELLITE ELIGIBILITY — the rule, stated (side-eye 08-01: it was unstated, and the band drew a poolless
-// tracker as a FULL ring). It is SHAPE FOLLOWS THE DATUM, not "which plane the number came from": the server
+// SATELLITE ELIGIBILITY — the rule, stated. It is SHAPE FOLLOWS THE DATUM, not "which plane the number came from": the server
 // hands the band exactly the trackers the HOST PINNED (`trackerOrbs`, envelope-capped there — the one
 // derivation home), and this composition picks each one's FIGURE from whether it has a ceiling. A ceilinged
 // pool is an ARC (`RingGauge` — the arc means value/max); a max-less quantity is a DISC (`CoinFigure`), the
 // same grammar the wallet already wears, because "a max-less quantity wearing an arc would be a lie of
-// shape" — and `max ?? value` was drawing exactly that lie, a permanently-full ring for a
-// tracker that has no full. That one rule answers both halves of the finding: a poolless tracker (Grit) is a
-// disc, not a missing orb; the wallet (Gold) is a disc for the same reason, not an exception.
+// shape" (`max ?? value` would draw a permanently-full ring for a tracker that has no full). A poolless
+// tracker (Grit) is a disc, not a missing orb; the wallet (Gold) is a disc for the same reason, not an exception.
 // The band stays the GLANCE and the character list/sheet stay the READING: the same numbers appear in both because
 // the band is persistent chrome across all seven tabs while a character row is one tab's body (the OSRS orb
 // idiom the design set is built on). The design pins the orb's own text ("label + `value/max` text beneath —
 // text is the datum"), so the band does not drop its readout to de-duplicate against a body it cannot see.
 // Orb color rides the ONE `resolveTrackerColor` derivation (`def.color ?? trackColor(ordinal)` — the owner
 // free-hex ruling): the orb label joins back to the defining actor's `poolDefs` row for its picked color.
-// The cues row = freshness (the EFFECTIVE delivery, honest — EFF-3) + the host-only `veiledCue` slot (the band's
+// The cues row = freshness (the EFFECTIVE delivery, honest) + the host-only `veiledCue` slot (the band's
 // crown-gold "N veiled" count, supplied by the band host off `rpg.revealHidden`) + the read-only pill.
 
 import type { RpgClockTime, RpgDateMode, RpgEffectiveDelivery, RpgTrackerOrb, RpgTrackerView } from "@orb/contracts/rpg";
 import { clockTimeOfDay, rpgWeatherText } from "@orb/contracts/rpg";
 import { Badge } from "@orb/ui/badge";
+import { HintTrigger } from "@orb/ui/hint-trigger";
 import { Icon, Lock } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Waystone } from "@orb/ui/meter";
@@ -103,14 +102,14 @@ function stoneClockOf(clock: RpgClockTime | null): { readonly hour: number; read
 }
 
 export interface RpgTakeoverHeaderProps {
-  /** Does the game tab's BODY hold the satellite row right now (#878 F7)? Then the band does not. */
+  /** Does the game tab's BODY hold the satellite row right now? Then the band does not. */
   readonly satellitesInBody: boolean;
   readonly ambient: RpgTrackerView["ambient"];
   readonly actors: RpgTrackerView["actors"];
   readonly trackerOrbs: readonly RpgTrackerOrb[];
   readonly viewerUserId: string;
   readonly trackersReadOnly: boolean;
-  /** The room's EFFECTIVE state delivery (EFF-3) — drives the freshness indicator's honest posture (the
+  /** The room's EFFECTIVE state delivery — drives the freshness indicator's honest posture (the
    *  ruling). NOT the raw `extractionMode` knob: a folded game that cannot fold must not read "Live". */
   readonly delivery: RpgEffectiveDelivery;
   /** The #9 ambient-date mode — `narrated` leads with the date string (no day counter); `structured` keeps it. */
@@ -127,14 +126,14 @@ function BandWhen({ when }: { readonly when: ReturnType<typeof whenParts> }): Re
     return null;
   }
   return (
-    <Stack gap="field" className="min-w-0 tabular-nums" data-slot="rpg-band-when">
+    <Stack gap="field" className="tabular-nums min-inline-0" data-slot="rpg-band-when">
       {when.context === "" ? null : (
-        <Text as="span" voice="gloss" className="line-clamp-2 max-w-full break-words" data-slot="rpg-band-when-context">
+        <Text as="span" voice="gloss" className="line-clamp-2 wrap-break-word max-inline-full" data-slot="rpg-band-when-context">
           {when.context}
         </Text>
       )}
       {when.state === "" ? null : (
-        <Text as="span" voice="gloss" className="line-clamp-2 max-w-full break-words" data-slot="rpg-band-when-state">
+        <Text as="span" voice="gloss" className="line-clamp-2 wrap-break-word max-inline-full" data-slot="rpg-band-when-state">
           {when.state}
         </Text>
       )}
@@ -186,18 +185,20 @@ export function RpgTakeoverHeader({
       <RpgFreshnessIndicator delivery={delivery} pending={freshnessPending} />
       {veiledCue}
       {trackersReadOnly ? (
-        <Badge tone="soft" size="sm" title="This model can't update trackers — they still steer the story; edit them by hand.">
-          <Icon icon={Lock} size="xs" />
-          <Text as="span" voice="gloss" className="text-inherit">
-            Read-only
-          </Text>
-        </Badge>
+        <>
+          <Badge tone="soft" size="sm">
+            <Icon icon={Lock} size="xs" />
+            <Text as="span" voice="gloss" ink="inherit">
+              Read-only
+            </Text>
+          </Badge>
+          <HintTrigger className="" hint="This model can't update trackers — they still steer the story; edit them by hand." subject="Read-only trackers" />
+        </>
       ) : null}
     </>
   );
 
-  // THE SATELLITE ROW HAS TWO POSSIBLE HOMES, AND THE BAND IS ONLY ONE OF THEM (#878 F7, owner-ruled
-  // 2026-08-30). At a large type scale the row leaves this band for the game tab's own scroll region
+  // THE SATELLITE ROW HAS TWO POSSIBLE HOMES, AND THE BAND IS ONLY ONE OF THEM (an owner ruling). At a large type scale the row leaves this band for the game tab's own scroll region
   // (`rpg-game-tab-body.tsx`); `satellitesInBody` is the ONE derivation of which home it is in
   // (`use-rpg-context-state.ts`), so the two mounts can never both render it or both drop it. The row
   // itself, its coarse drop and its no-wrap ruling all live in `rpg-satellite-row.tsx`.
@@ -219,7 +220,7 @@ export function RpgTakeoverHeader({
     return (
       <Row gap="block" align="center" data-slot="rpg-takeover-header">
         {stone}
-        <Stack gap="field" className="min-w-0 flex-1">
+        <Stack gap="field" className="flex-1 min-inline-0">
           {/* The absence, in the GLOSS voice — it explains, it is not a datum, and the compressed row is
               exactly where a 13px "No" was buying nothing (the four-voice grammar). */}
           <Text as="span" voice="gloss" className="truncate">
@@ -240,7 +241,7 @@ export function RpgTakeoverHeader({
     <Stack gap="block" data-slot="rpg-takeover-header">
       <Row gap="block" align="center">
         {stone}
-        <Stack gap="field" className="min-w-0 flex-1">
+        <Stack gap="field" className="flex-1 min-inline-0">
           {/* A clock or a date WITHOUT a place: honest about which half is missing. "No ambient set" is the
               COMPRESSED arm's copy and would be a lie here — the when-line right below it is ambient. The room's
               NAME lives in the center header, never in this band; this line is the scene's place, in the

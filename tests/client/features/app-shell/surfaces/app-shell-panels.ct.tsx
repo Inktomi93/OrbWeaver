@@ -285,10 +285,10 @@ test.describe("on a wide desktop", () => {
     await expect.poll(() => skip.evaluate((element) => getComputedStyle(element).clipPath)).toBe("none");
     const revealed = await skip.boundingBox();
     expect(revealed?.width ?? 0).toBeGreaterThan(rest?.width ?? 0);
-    // WCAG 2.5.8's own minimum on both axes, and the box comes from the Button's padding, not a height patch.
-    const floor = await resolvedLength(page, "var(--spacing-touch-target-min, 24px)");
-    expect(revealed?.height ?? 0).toBeGreaterThanOrEqual(Math.min(floor, 24));
-    expect(revealed?.width ?? 0).toBeGreaterThanOrEqual(Math.min(floor, 24));
+    // The pointer's touch floor on both axes, and the box comes from the Button's padding, not a height patch.
+    const floor = await resolvedLength(page, "var(--size-touch-target)");
+    expect(revealed?.height ?? 0).toBeGreaterThanOrEqual(floor);
+    expect(revealed?.width ?? 0).toBeGreaterThanOrEqual(floor);
     await expect.poll(() => skip.evaluate((element) => Number.parseFloat(getComputedStyle(element).paddingInlineStart))).toBeGreaterThan(0);
     await page.keyboard.press("Enter");
     await expect(page.getByRole("main")).toBeFocused();
@@ -327,7 +327,7 @@ test.describe("on a wide desktop", () => {
     await seedShellState(page, { activeSection: "characters", panelOverrides: { characters: { list: "docked", context: "docked" } } });
     await mount<typeof AppShellStory>(STORY, {});
     const band = page.locator(`${LIST} .shell-panel-header`);
-    const floor = await resolvedLength(page, "var(--spacing-control-sm)");
+    const floor = await resolvedLength(page, "var(--size-control-sm)");
     const read = (): Promise<{ readonly width: number; readonly clipped: boolean; readonly doors: number[] }> =>
       band.evaluate((header) => {
         const title = header.querySelector('[data-slot="list-pane-title"]');

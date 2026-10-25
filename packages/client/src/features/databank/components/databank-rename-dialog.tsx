@@ -39,6 +39,7 @@ export function DatabankRenameDialog({ open, onOpenChange, currentName, onRename
       title="Rename document"
     >
       <form
+        aria-label="Rename document"
         onSubmit={(event): void => {
           event.preventDefault();
           if (canSave) {

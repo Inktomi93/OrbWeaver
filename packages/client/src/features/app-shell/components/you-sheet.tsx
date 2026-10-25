@@ -15,6 +15,7 @@
 // Add a chrome entry once at the door → desktop rail, mobile bar, AND this sheet all pick it up. The sheet
 // stays a REAL modal (the `you` Drawer slot — portal/focus-trap/scrim); CSS cannot fake that (§C).
 
+import { DrawerTapGuard } from "@orb/ui/drawer";
 import { Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
@@ -145,7 +146,7 @@ export function YouSheet(): ReactElement {
           The band is exactly the bar's own height (`--dimension-rail`, which IS "the mobile bottom-tab-bar
           height" per the token's description), so it clears the tap point by construction rather than by a
           number somebody picked. `aria-hidden` + empty: it is a keep-out zone, not content. */}
-      <div aria-hidden={true} className="h-(--dimension-rail) shrink-0" data-slot="you-sheet-tap-guard" />
+      <DrawerTapGuard />
     </Stack>
   );
 }

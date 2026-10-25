@@ -154,7 +154,7 @@ function RulePresetList({ presets, onPick }: RulePresetListProps): ReactElement 
           // A call-site `h-auto` would defeat the sealed box (`ui-size-via-variant`); the
           // `message-choices-block` chip is the same shape and spells it the same way.
           size="wrap"
-          className="justify-start text-left"
+          className="justify-start text-start"
           onClick={(): void => onPick(preset)}
         >
           <Stack gap="tight">
@@ -245,7 +245,7 @@ export function RulePresetPicker({ chatId }: RulePresetPickerProps): ReactElemen
       />
       {/* THE RULING SURVIVED A CHALLENGE (#655), THEN GOT ITS FIX (#663). The picker was reported to
           TELEPORT between its two steps ({x:513 y:36 w:384} → {x:929 y:476 w:319}), and both call-site
-          levers were tried and MEASURED WRONG. `min-w-cq-sm` forces 24rem even where the positioner has
+          levers were tried and MEASURED WRONG. `min-w-cq-24` forces 24rem even where the positioner has
           less room — the 384px docked pane rendered a 384px popup inside 376.09px of available width.
           `side="top" align="end"` did not pin the anchor either (bottom/right went 311/1019 → 428/1024 at
           a 1024px mount): the positioner is re-solving a genuinely different box, not mis-aligning the

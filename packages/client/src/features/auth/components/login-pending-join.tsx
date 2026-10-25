@@ -72,8 +72,8 @@ export function LoginPendingJoin({ providerName, onJoined, onDismiss }: LoginPen
   if (preview.isPending) {
     return (
       <Stack gap="row" aria-label="Loading your invite">
-        <Skeleton className="h-control-md w-full" />
-        <Skeleton className="h-control-md w-full" />
+        <Skeleton className="block-(--size-control-md) inline-full" />
+        <Skeleton className="block-(--size-control-md) inline-full" />
       </Stack>
     );
   }
@@ -120,7 +120,7 @@ export function LoginPendingJoin({ providerName, onJoined, onDismiss }: LoginPen
   };
 
   return (
-    <form ref={formRef} onSubmit={confirm} noValidate={true}>
+    <form aria-label="Join the room" ref={formRef} onSubmit={confirm} noValidate={true}>
       <Stack gap="block" data-testid={testId("pendingJoin")}>
         <Heading level={1}>You're invited</Heading>
         <Text voice="quiet">{`${inviteRoomSentence(room)} ${room.modeLabel} Joining creates your account here.`}</Text>

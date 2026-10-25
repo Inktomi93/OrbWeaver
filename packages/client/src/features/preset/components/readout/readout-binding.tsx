@@ -12,6 +12,7 @@ import { Icon, X } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { Tip } from "#components";
 import type { ReadoutBinding } from "#src/features/preset/hooks/use-readout-binding.ts";
 
 /** The binding chip — the readout's own header row, above the per-view panel (the mock draws it exactly
@@ -36,7 +37,7 @@ export function ReadoutBindingChip({ binding }: { readonly binding: ReadoutBindi
   return (
     <Card tone="info">
       <Row align="center" gap="field" justify="between">
-        <Row align="baseline" className="min-w-0" gap="field">
+        <Row align="baseline" className="min-inline-0" gap="field">
           <Text voice="gloss">inspecting against:</Text>
           <Text className="truncate" voice="label">
             {binding.chatTitle}
@@ -44,16 +45,11 @@ export function ReadoutBindingChip({ binding }: { readonly binding: ReadoutBindi
         </Row>
         {/* The ✕ is a LABELLED control, not a decoration: its whole job is reversing a binding the user never
           asked for, so it says what it does (and why) to a reader who cannot see the glyph. */}
-        <Button
-          aria-label={`Dismiss the binding to ${binding.chatTitle}`}
-          intent="ghost"
-          onClick={binding.dismiss}
-          size="icon"
-          title="Dismiss — fall back to the chat-free token view"
-          type="button"
-        >
-          <Icon icon={X} size="xs" />
-        </Button>
+        <Tip text="Dismiss — fall back to the chat-free token view">
+          <Button aria-label={`Dismiss the binding to ${binding.chatTitle}`} intent="ghost" onClick={binding.dismiss} size="icon" type="button">
+            <Icon icon={X} size="xs" />
+          </Button>
+        </Tip>
       </Row>
     </Card>
   );

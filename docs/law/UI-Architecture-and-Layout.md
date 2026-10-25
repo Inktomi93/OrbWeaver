@@ -45,7 +45,7 @@ updated: 2026-10-17
 | Primitive | Job | Spec |
 | - | - | - |
 | `createEntityMutation` | optimistic + rollback + sticky-error reset + invalidate + meta-toast | §13.1 |
-| `createCollectionSurface` | infinite + `maxPages` + `keepPreviousData` + virtual-list + select | §13.1 |
+| `createCollectionSurface` | infinite (no `maxPages`) + `keepPreviousData` + virtual-list + select | §13.1 |
 | `<QueryBoundary>` | reset-handshake + `useSuspenseQueries` + `startTransition` | §13.1 |
 | `useGatedQuery` | `skipToken` gating (kills `castId("")`) | §13.1 |
 | `invalidation.ts` | event→`queryFilter` seam | §11.3 |
@@ -73,7 +73,7 @@ kit ─┬─→ contracts ─┬─→ db ─→ server          (backend branc
 
 #### 1.1 The headline win — neo's lint rules become package physics
 
-neo enforced the UI boundaries with lint. orbweaver makes them **resolver physics** (boundaries are packages, not lint) — LIVE, enforced by the package.json dep sets + `.dependency-cruiser.ts` (`ui-cake` · `ui-no-node-builtins` · `ui-satellite-seals-*`):
+neo enforced the UI boundaries with lint. orbweaver makes them **resolver physics** (boundaries are packages, not lint) — LIVE, enforced by the package.json dep sets + `.dependency-cruiser.ts` (`ui-cake` · `browser-and-iso-no-node-builtins` · `ui-satellite-seals-*`):
 
 | neo lint rule | orbweaver |
 | - | - |
@@ -155,7 +155,7 @@ BUILT. The highest-leverage enforcement move, engine-agnostic:
 - Design values live ONCE in **W3C DTCG `packages/ui/src/tokens/tokens.json`** (`$value`/`$type`).
 - **Style Dictionary v5** codegen (`packages/ui/tokens.build.ts`) emits BOTH the Tailwind v4 `@theme` block (`src/styles/theme.css`) AND the typed TS map (`src/tokens/index.ts`) — committed, generated, DO-NOT-EDIT artifacts.
 - The Tailwind theme is therefore **DERIVED, never hand-authored**; "add a token" has one home. D333 ends custom token-freshness certification. The external legacy source contains the former token test as reference-only; checked-in output has no custom freshness guarantee.
-- The scale includes a **container-breakpoint scale** (`--cq-sm/md/lg`, §4), the **`--scrim`** token (§11.4), **control heights** with the ≥44px touch floor (§4b axis 3), and the D44 prose/bubble semantics (§12.1 ThemeScope targets) — the full set is `tokens.json` itself.
+- The scale includes a **container-breakpoint scale** (`--container-cq-<rem>`, §4), the **`--scrim`** token (§11.4), **control heights** with the ≥44px touch floor (§4b axis 3), and the D44 prose/bubble semantics (§12.1 ThemeScope targets) — the full set is `tokens.json` itself.
 - **STACKING ORDER lives in the `z` block of `tokens.json` and NOWHERE ELSE.** No other doc defines an ordering; the values are the law — `base 0 < raised 10 < overlay 40 < modal 50 < popover 65 < toast 68 < tooltip 70` — with each non-obvious rank carrying its reason in that token's own `$description` (see `z.toast`). Re-ranking a tier is a `tokens.json` edit + `pnpm --filter @orb/ui tokens:build`, never a per-component z override.
 - **STACKING SCOPE — where a tier may be used — is the second fact.** Order and scope are different questions. `base`/`raised` are `in-context` tiers, `overlay` is the `app-frame` tier, and `modal`/`popover`/`toast`/`tooltip` are `portal-float` — legal ONLY at a surface that leaves its subtree by mount position. A `portal-float` token named inside an isolated scope claims a reach that scope cannot grant. D333 ends custom static z-index and portal-mount certification. These placement constraints remain product architecture law.
 
@@ -212,7 +212,7 @@ DESKTOP (wide):   [ RAIL | LIST | CONTENT | CONTEXT ]
             `section-registry.ts`): `rail.nav` = section entries derived from each `SectionDefinition.rail`,
             `rail.end` (`rail.zone: "rail.end"`) = the SETTINGS SECTION (`config`, label "Settings") + the persona Identity widget
             (`personaChrome`) — one flat DOM list, CSS-reflowed to the mobile bar (§C), never a hand
-            map (gate `no-parallel-section-map`; typed `ChromeEntry`). Modal triggers derive
+            map (typed `ChromeEntry`). Modal triggers derive
             by placement (`ModalTriggerPlacement` in `modal-registry.ts`); every modal is `surface`,
             `topbar.trail` (⌘K) or `mobile-tab` (the You sheet); none is `rail.end`.
   LIST    — the active section's collection: header row (micro-caps title + create "+") → search →
@@ -376,7 +376,7 @@ The client targets **React 19 + the React Compiler** (the compiler runs full-com
 | Axis | What varies | Tool | Where it's written |
 | - | - | - | - |
 | **1 — component layout** | a surface in a wide pane vs a narrow drawer | container utilities and variants (`@container` at the `@orb/ui` primitive boundary) + container-query units (`cqi`) + `clamp()` | **`@orb/ui` primitives**; features compose their variants and never author CSS ([paint law §4](client-architecture-lockdown.md#4-the-paint-law--who-may-write-css-and-why)) |
-| **2 — macro structure** | rail+list+content+context desktop ⇄ single-column mobile; panels dock⇄overlay (the §11.1 clamp) | **`@media`** (viewport) | **the shell tier + the styles tier's exact complement** — `shell.css`'s `@media (max-width: 48rem)` and `client/styles/globals.css`'s `@media (width > 48rem)` glass block are one ruling in two order-proof halves, kept as a product stylesheet rule; never a feature ([paint law §4](client-architecture-lockdown.md#4-the-paint-law--who-may-write-css-and-why)) |
+| **2 — macro structure** | rail+list+content+context desktop ⇄ single-column mobile; panels dock⇄overlay (the §11.1 clamp) | **`@media`** (viewport) | **the shell tier + the styles tier's exact complement** — `shell.css`'s `@variant shell-mobile` and `client/styles/globals.css`'s `@variant shell-desktop` glass block (both generated from `breakpoint.shell`) are one ruling in two order-proof halves, kept as a product stylesheet rule; never a feature ([paint law §4](client-architecture-lockdown.md#4-the-paint-law--who-may-write-css-and-why)) |
 | **3 — device capability** | touch targets; hover affordances | **`@media (pointer/hover)`** + token sizing | **token/shell layer** (never features) |
 | **4 — mobile platform** | keyboard, safe-area, overscroll, viewport height | **CSS primitives** (`dvh`/`svh`, `env()`, viewport meta) | **shell + composer/scroll primitives** (once) |
 
@@ -384,7 +384,7 @@ The client targets **React 19 + the React Compiler** (the compiler runs full-com
 
 **Axis 2.** The one genuinely viewport-dependent reflow, in the SHELL: 3-pane ⇄ stack, drawer ⇄ sheet. Tiny (neo: one `clamp()` width var + the overlay model, §11.2). `orb/no-media-queries-in-features` in `eslint.config.ts` also keeps viewport breakpoint class spellings out of features except `app-shell`.
 
-**Axis 3 — capability, NOT size.** hover/pointer are media-query-only (container queries can't see them). **Pointer-conditional floor:** interactive primitives meet the ≥44px touch floor at `@media (pointer: coarse)` via token control-heights; fine pointers get the desktop scale — `control-sm` 32px · `control-md` 34px · `control-lg` 40px · icon 34px — emitted as a token-layer `pointer: fine` override (THIS layer, never features). An interactive element with a sub-44px visual box on coarse pointers wraps in a ≥44px hit area. `data-density="compact"` remains the separate spacing axis (ship COMFORTABLE; never build a parallel compact path). Hover is only ever an *enhancement* (`@media (hover:hover)`); **every hover action has a tap-equivalent** (and a `:focus-within` keyboard equivalent, §4.3 rule 4). Base UI suppresses tooltips on touch for free. The external legacy source contains per-pointer rendered checks; it is reference-only.
+**Axis 3 — capability, NOT size.** hover/pointer are media-query-only (container queries can't see them). **Pointer-conditional floor:** interactive primitives meet the ≥44px touch floor at `@media (pointer: coarse)` via token control-heights; fine pointers get the desktop scale — `control-sm` 32px · `control-md` 36px · `control-lg` 40px · icon 36px — emitted as a token-layer `pointer: fine` override (THIS layer, never features). An interactive element with a sub-44px visual box on coarse pointers wraps in a ≥44px hit area. `data-density="compact"` remains the separate spacing axis (ship COMFORTABLE; never build a parallel compact path). Hover is only ever an *enhancement* (`@media (hover:hover)`); **every hover action has a tap-equivalent** (and a `:focus-within` keyboard equivalent, §4.3 rule 4). Base UI suppresses tooltips on touch for free. The external legacy source contains per-pointer rendered checks; it is reference-only.
 
 The same rule binds Tailwind capability variants: `pointer-coarse:`/`pointer-fine:`, their `any-pointer-*` twins, and raw `[@media(pointer|hover:…)]:` variants belong at the **token/shell layer**, never in a feature class string. A feature composes a pointer-conditional token or a shared component-layer constant from `#components` (`packages/client/src/components/pointer-variants.ts`: `HIDE_AT_COARSE`, `REVEAL_AT_COARSE`, `FINE_INERT_UNTIL_HOVER`). The `:hover` pseudo-class (`hover:bg-accent`) is an interaction state and stays legal in features. `orb/no-pointer-variants-in-features` in `eslint.config.ts` enforces this on raw literals and static template chunks outside `app-shell`; a reasoned line exception follows D321#3.
 

@@ -222,7 +222,7 @@ export function ChatDocumentsSection({ chatId, isHost }: ChatDocumentsSectionPro
         // siblings (Field overrides, Macro picks, the host band) cannot. Without a cap of its own a
         // twenty-document room pushed every later section below the fold of the tab's scroller.
         // `overscroll-contain` keeps a flick inside the rack from chaining into the tab behind it.
-        <Stack className="relative max-h-96 overflow-y-auto overscroll-contain" gap="tight">
+        <Stack className="relative overflow-y-auto overscroll-contain max-block-(--height-scroll-lg)" gap="tight">
           {rows.map((row) => (
             <ActiveDocumentRow
               document={row}
@@ -297,7 +297,7 @@ function ActiveDocumentRow({ document, isHost, onSetHidden, onDetach }: ActiveDo
                   // rule, applied to a raw ListRow): only SOME rows are detachable, so without it the eye —
                   // the column a host scans this rack down — lands at two different x's row to row. Empty
                   // and aria-hidden: this is layout, never a disabled affordance.
-                  <Row aria-hidden={true} className="size-control-md shrink-0" />
+                  <Row aria-hidden={true} className="shrink-0 block-(--size-control-md) inline-(--size-control-md)" />
                 )}
               </>
             ),
@@ -315,14 +315,14 @@ function ActiveDocumentRow({ document, isHost, onSetHidden, onDetach }: ActiveDo
               is switched off should not have to read an icon's pressed state to find it. */}
           {visible ? null : (
             <>
-              <Badge className="mr-field" intent="warning" size="inline" tone="soft">
+              <Badge className="me-field" intent="warning" size="inline" tone="soft">
                 Hidden
               </Badge>{" "}
             </>
           )}
           {chips.map((chip) => (
             <Fragment key={chip}>
-              <Badge className="mr-field" intent="neutral" size="inline" tone="soft">
+              <Badge className="me-field" intent="neutral" size="inline" tone="soft">
                 {chip}
               </Badge>{" "}
             </Fragment>

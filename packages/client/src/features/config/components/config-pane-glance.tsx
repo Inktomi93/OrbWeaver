@@ -59,7 +59,7 @@ export function ConfigPaneGlance({ group, level, blurb }: ConfigPaneGlanceProps)
           library is for, read by someone who has not built it — so it is not set at the gloss voice's
           footnote step. `prose` lifts the step and relaxes the leading and changes nothing else. */}
       {blurb ? (
-        <Text className="max-w-(--reading-measure-prose)" prose={true} voice="gloss">
+        <Text className="max-inline-(--reading-measure-prose)" prose={true} voice="gloss">
           {group.description}
         </Text>
       ) : null}

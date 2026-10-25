@@ -14,6 +14,7 @@ import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { DiffView } from "@orb/ui/diff";
 import { EmptyState } from "@orb/ui/empty-state";
+import { HintTrigger } from "@orb/ui/hint-trigger";
 import { Row, Stack } from "@orb/ui/layout";
 import { RECEDED_INK } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
@@ -61,7 +62,7 @@ function economicsOf(run: RunView): string {
 }
 
 /** The full model identifier, when the readable derivation changed it — `null` when a hosted id derives
- *  to itself, so the row's `title` never repeats what's already on screen (#115's stutter rule). */
+ *  to itself, so the hint never repeats what's already on screen. */
 function economicsModelTitle(run: RunView): string | null {
   if (run.model === null || modelDisplayName(run.model) === run.model) {
     return null;
@@ -104,9 +105,10 @@ function RunRow({
           {run.payloadConfig.kind === "custom" ? <RefineryChip tone="info">custom schema</RefineryChip> : null}
           {armed ? <RefineryChip tone="good">in force for apply</RefineryChip> : null}
         </Row>
-        <Text voice="gloss" {...(modelTitle === null ? {} : { title: modelTitle })}>
-          {economicsOf(run)}
-        </Text>
+        <Row align="center" gap="field">
+          <Text voice="gloss">{economicsOf(run)}</Text>
+          {modelTitle === null ? null : <HintTrigger className="" hint={modelTitle} subject="the model" />}
+        </Row>
         {run.strippedKeys.length > 0 ? (
           <Text data-testid={testId("refineryStrippedWarn")} voice="gloss">
             {run.strippedKeys.length} invented key{run.strippedKeys.length === 1 ? "" : "s"} dropped from this payload — {run.strippedKeys.join(", ")}. The
@@ -133,15 +135,14 @@ export function RunsTab({ runs, viewedRunId, onView, armedRewriteId, onArmRewrit
     return (
       <EmptyState
         action={
-          // GHOST, and deliberately the quiet twin (side-eye 2026-08-19 P1-4). This ledger's empty state and
-          // the SCORE lane's own run control offered the same act on one screen, and the filled-accent one
-          // was HERE — in the pane that records what happened — while the work pane's verb sat secondary.
-          // §14 is bolder in the work pane, quieter in the ledger; the canvas's one filled run control is the
+          // GHOST, and deliberately the quiet twin. This ledger's empty state and the SCORE lane's own run
+          // control offer the same act on one screen, and the filled accent belongs to the work pane, not the
+          // pane that records what happened. §14 is bolder in the work pane, quieter in the ledger; the canvas's one filled run control is the
           // FOCAL lane's (`workbench-lanes.ts` decides which lane that is). This stays a real door, because
           // the Runs tab can be open with the workbench scrolled past its lanes.
-          // (#1256, 2026-09-02 — the #1141/#1244/#1249 fork, fifth instance): this comment block's own
-          // words ("GHOST, and deliberately the quiet twin") are the recession ruling; the primitive keeps
-          // inheriting since #969, so the composite states its own ink through the shared spelling.
+          // This comment block's own words ("GHOST, and deliberately the quiet twin") are the recession
+          // ruling; the primitive inherits its host's ink, so the composite states its own through the shared
+          // spelling.
           <Button className={RECEDED_INK} intent="ghost" onClick={onRunScore} size="sm">
             Run score
           </Button>
@@ -177,36 +178,32 @@ export interface SetupTabProps {
   readonly onViewOriginal: () => void;
   /** Opens the SCHEMA EDITOR for a specific STAGE (score / analyze) — see the door note on `SetupTab`. The
    *  BODY resolves whether that stage is currently on a custom schema and hands the editor the existing row
-   *  to EDIT, or `null` to author a new one; both verbs were UI-unreachable before this took a stage
-   *  (live custom-schema drive, 2026-08-14 — only score authoring had a door). */
+   *  to EDIT, or `null` to author a new one, so both stages' schemas have a door. */
   readonly onEditSchema: (stage: RefinerySchemaStage) => void;
-  /** Opens the WORKBENCH control that owns a concept this pane only reads (#171) — never an editor of this
+  /** Opens the WORKBENCH control that owns a concept this pane only reads — never an editor of this
    *  pane's own (see the door note on `SetupTab`). */
   readonly onOpenDoor: (door: RefineryWorkbenchDoor) => void;
 }
 
 /** One Setup row: the value in force, and the control that acts on it.
  *
- *  THE `note` PROP IS GONE (#171, owner: "a fucking cop out"). It printed a sentence saying where a value
- *  was edited instead — the shape P1-8's second arm asked for when the alternative was a bare row that
- *  read as unfinished. Three of six rows ended in one, and a row whose only trailing content is "go
- *  somewhere else" carries no leverage: it is the deferral rendered AS content. What replaced it is a real
- *  door (`onAction` opening the owning control on the workbench — see `SetupTab`), which satisfies both
- *  rulings: the row still does not EDIT (one home, #158), and it no longer reads as a dead readout. A row
+ *  NO "EDITED ELSEWHERE" SENTENCE (the owner: "a fucking cop out"). A row whose only trailing content is "go
+ *  somewhere else" carries no leverage: it is the deferral rendered AS content. The row carries a real door
+ *  (`onAction` opening the owning control on the workbench — see `SetupTab`), so it still does not EDIT
+ *  (one home) and it never reads as a dead readout. A row
  *  with no action at all survives only where the value has no editor anywhere in the app. */
 function SetupRow({ k, v, action, onAction }: { k: string; v: string; action?: string; onAction?: () => void }): ReactElement {
   return (
     <Card>
       <Row align="center" gap="row" padding="row">
-        <Stack className="min-w-0 flex-1" gap="tight">
+        <Stack className="flex-1 min-inline-0" gap="tight">
           <Text voice="kicker">{k}</Text>
           <Text voice="label">{v}</Text>
         </Stack>
         {action !== undefined && onAction !== undefined ? (
-          // THE ACCESSIBLE NAME CARRIES THE ROW (side-eye #81 P2). Three of these rows say "Change" and one
-          // says "View", so a screen-reader user tabbing the Setup tab — or anyone reading a list of this
-          // pane's controls out of visual context — met three identically-named buttons that open three
-          // different editors. The name is DERIVED from the two strings the row already has, so a new row
+          // THE ACCESSIBLE NAME CARRIES THE ROW. Several of these rows say "Change", so without the row a
+          // screen-reader user tabbing the Setup tab — or anyone reading a list of this pane's controls out of
+          // visual context — would meet identically-named buttons that open different editors. The name is DERIVED from the two strings the row already has, so a new row
           // cannot ship an ambiguous one, and it CONTAINS the visible label (WCAG 2.5.3 label-in-name: the
           // accessible name must start with what the control visibly says, or voice control cannot hit it).
           <Button aria-label={`${action} ${k}`} intent="ghost" onClick={onAction} size="sm">
@@ -219,52 +216,38 @@ function SetupRow({ k, v, action, onAction }: { k: string; v: string; action?: s
 }
 
 /**
- * The Setup readout (CONTEXT). EVERY ACTION HERE OPENS WHAT ITS LABEL SAYS — which was not true before
- * (side-eye 2026-08-09 P1-7 + P1-8): one prop opened the schema editor and the other opened the scope
- * dialog, and the four rows were wired across them almost at random. "Guidance → Edit" opened SCOPE;
- * "Stage modes → Change" opened the SCHEMA EDITOR, which cannot change a stage mode at all. The props
- * are now named for the surface they open (`onEditSchema`) so the next wiring mistake is visible at the
- * call site rather than only on screen.
+ * The Setup readout (CONTEXT). EVERY ACTION HERE OPENS WHAT ITS LABEL SAYS. The props are named for the
+ * surface they open (`onEditSchema`) so a wiring mistake is visible at the call site rather than only on
+ * screen.
  *
- * ── THE WORKBENCH/SETUP SPLIT, STATED (#158 items 1-3, owner-ruled 2026-08-17) ───────────────────────
- * One screen was rendering two independently-editable homes for the same concepts, inches apart. The
- * ruling: ONE home per concept. The line drawn here, and its side:
+ * ── THE WORKBENCH/SETUP SPLIT, STATED (an owner ruling) ─────────────────────────────────────────────────
+ * ONE home per concept, never two independently-editable homes on one screen. The line drawn here, and its
+ * side:
  *  - **SCOPE is edited in the WORKBENCH** (the masthead's strip + its Edit scope door), and this row is
- *    the READOUT. Not the other way round, which is what #158's parenthetical suggested, because the
- *    tree's evidence points the other way: the masthead's own header records the prior ruling that its
- *    strip is "the only place the session's selection is legible, and the Edit-scope door beside it is
+ *    the READOUT, because the masthead's own header records the ruling that its strip is "the only place the session's selection is legible, and the Edit-scope door beside it is
  *    the §8 preflight warn's own remedy"; that remedy ("Narrow the selection") lives in CONTENT's lane
- *    run control and would become a cross-panel jump the shell has no verb for; and THIS pane mounted
- *    the editor with `score={null}` while CONTENT passes the real score payload — Setup's copy was the
- *    DEGRADED one. Keeping the degraded arm and deleting the rich one is the wrong direction.
- *  - **PROMPT FIT is read in the LANE**, per stage, beside the verb whose budget it is. The row that used
- *    to print `≈ N/M tok` here is gone rather than echoed: it stated the SCORE stage's input estimate
- *    only — one of six numbers `LaneRunControl` prints — so it was not a copy of the fact, it was a
- *    third of it. (It also carried a `fitWarn` half added to stop the two homes disagreeing, side-eye
- *    P2 "CONTEXT drops the ⚠"; deleting the second home closes that more completely than syncing it.)
+ *    run control and would become a cross-panel jump the shell has no verb for; and CONTENT passes the
+ *    real score payload to the editor, which this pane cannot.
+ *  - **PROMPT FIT is read in the LANE**, per stage, beside the verb whose budget it is. A `≈ N/M tok` row
+ *    here would state one of the numbers `LaneRunControl` prints, a fraction of the fact, and a second home
+ *    that has to be kept from disagreeing.
  *  - **AUDITED AND NOT DOUBLED:** the schema rows and Stage modes. What CONTENT shows adjacent to these
  *    is a RUN's provenance — the rewrite band's `2 · Rewrite · balanced`, the Runs ledger's "custom
  *    schema" chip — i.e. what a produced payload was made with, which is a fact about history, not the
  *    config in force. Two facts that happen to share a vocabulary are not two homes.
  *
- * ── A DOOR, NOT A SENTENCE (#171, owner screenshot post-#158: "a fucking cop out") ────────────────────
- * The one-home ruling left Scope, Guidance and Stage modes as rows whose trailing content was a sentence
- * naming somewhere else ("Changed on the workbench…", "Edited in the run bar…", "Set per stage when a run
- * is configured"). Each of those rows DOES state real in-force state — that half was never the problem —
- * but the deferral was rendered as content, which is the cop-out re-derived one layer down. The rows keep
- * their readout and take the affordance the sentence was standing in for:
+ * ── A DOOR, NOT A SENTENCE (the owner: "a fucking cop out") ───────────────────────────────────────────
+ * Scope, Guidance and Stage modes each state real in-force state, and a trailing sentence naming somewhere
+ * else ("Changed on the workbench…") would render the deferral as content. The rows keep their readout and
+ * take the affordance such a sentence would stand in for:
  *  - **Scope → "Edit"** raises the `scope` workbench door: the masthead's OWN `ScopeEditorDialog` opens
- *    (the rich one, with the score-informed hints — this pane's deleted copy passed `score={null}`). No
- *    second editor is minted here, so #158's ruling is untouched; the row is a remote control for the one
- *    home, which is exactly what the sentence was describing in prose.
+ *    (the rich one, with the score-informed hints). No second editor is minted here, so the one-home ruling
+ *    holds; the row is a remote control for the one home.
  *  - **Guidance → "Edit"** raises the `guidance` door: the run bar's live textarea takes focus and scrolls
- *    into view. Same shape, same reason. Its VALUE is now "in force" / "none", not the sentence itself
- *    (side-eye 2026-08-19): quoting the text here put an authored value in two places on one screen, one
- *    of them read-only, which is precisely what the section's anti-echo law forbids. The row still states
- *    real in-force state — that half was never the problem — and the door is what makes it actionable.
- *  - **Stage modes** keeps NO action, because it has no editor anywhere in the app — and its old note was
- *    the emptiest of the three (it named no reachable place at all). It states the modes in force, which
- *    is this tab's whole charter. Building the missing control is a feature, not a polish fix, and is NOT
+ *    into view. Same shape, same reason. Its VALUE is "in force" / "none", not the text itself: quoting the text here would put an authored value
+ *    in two places on one screen, one of them read-only, which the section's anti-echo law forbids.
+ *  - **Stage modes** keeps NO action, because it has no editor anywhere in the app. It states the modes in
+ *    force, which is this tab's whole charter. Building the missing control is a feature, not a polish fix, and is NOT
  *    smuggled in here.
  */
 export function SetupTab({
@@ -282,10 +265,9 @@ export function SetupTab({
     <Stack data-testid={testId("refinerySetupTab")} gap="tight">
       <SetupRow action="View" k="Original card" onAction={onViewOriginal} v={anchorLine} />
       <SetupRow action="Edit" k="Scope" onAction={(): void => onOpenDoor("scope")} v={scopeLine} />
-      {/* ONE ROW PER STAGE (live custom-schema drive, 2026-08-14): the single "Payload schema" row wired
-          ONLY the score stage's editor, so custom-ANALYZE authoring and editing a saved analyze schema had
-          no door at all. Each stage now carries its own "Change" → the editor at that stage; the body
-          resolves edit-vs-author. */}
+      {/* ONE ROW PER STAGE, so custom-ANALYZE authoring and editing a saved analyze schema have a door as score
+          does. Each stage carries its own "Change" → the editor at that stage; the body resolves
+          edit-vs-author. */}
       <SetupRow action="Change" k="Score schema" onAction={(): void => onEditSchema("score")} v={scoreSchemaLine} />
       <SetupRow action="Change" k="Analyze schema" onAction={(): void => onEditSchema("analyze")} v={analyzeSchemaLine} />
       <SetupRow k="Stage modes" v={stageModesLine} />
@@ -340,9 +322,9 @@ export function VersionsTab({ state, liveDescription }: { state: RefineryContext
   // fetch-content-per-pair posture — the `getSnapshot` read).
   const comparing = useGatedQuery(compareId, (snapshotId) => trpc.character.getSnapshot.queryOptions({ characterId: state.characterId, snapshotId }));
   const snapshotNow = useSnapshotCharacterNow({ trpc, invalidation });
-  // "NO VERSIONS YET" IS A CLAIM ABOUT THE SNAPSHOT LOG (#1500). `snapshots.data ?? []` collapsed three
-  // states into that one sentence — and its empty state offers to MINT the first snapshot, so a reader whose
-  // list merely failed to load was being invited to write a version of a card that already has a dozen.
+  // "NO VERSIONS YET" IS A CLAIM ABOUT THE SNAPSHOT LOG. `snapshots.data ?? []` would collapse three states
+  // into that one sentence — and its empty state offers to MINT the first snapshot, so a reader whose list
+  // merely failed to load would be invited to write a version of a card that already has a dozen.
   if (snapshots.isError) {
     return <QueryErrorState label="this card's versions" onRetry={(): void => void snapshots.refetch().catch(globalThis.reportError)} />;
   }
@@ -365,8 +347,7 @@ export function VersionsTab({ state, liveDescription }: { state: RefineryContext
   }
   return (
     <Stack data-testid={testId("refineryVersionsTab")} gap="tight">
-      {/* NOT "the LIVE card" (side-eye 2026-08-19 P3; the #104 precedent, verbatim: caps mid-sentence is
-          "the one place the app raises its voice at the reader"). The contrast is real and survives in
+      {/* NOT "the LIVE card" (caps mid-sentence is "the one place the app raises its voice at the reader"). The contrast is real and survives in
           words — the live card against the session's pinned original — and the sentence carries it. */}
       <Text voice="gloss">Restoring changes the live card only. The session still compares against its own pinned original.</Text>
       {rows.map((snapshot) => {
@@ -376,7 +357,7 @@ export function VersionsTab({ state, liveDescription }: { state: RefineryContext
             <Stack gap="tight" padding="row">
               <Row align="center" gap="field">
                 <RefineryChip tone={klass.tone}>{klass.word}</RefineryChip>
-                <Text className="min-w-0 flex-1 truncate" voice="gloss">
+                <Text className="flex-1 truncate min-inline-0" voice="gloss">
                   {snapshot.label ?? "unlabeled"}
                 </Text>
               </Row>

@@ -3,6 +3,7 @@ import { Slider as BaseSlider } from "@base-ui/react/slider";
 import type { ReactElement, ReactNode } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { cn, variantAttrs } from "#lib";
+import { useFieldIdentity } from "#primitives/field";
 import { sliderVariants } from "./variants.ts";
 
 // A range slider carries an array value → one thumb per entry; a single slider carries a scalar.
@@ -66,6 +67,7 @@ export interface SliderProps<Value extends number | readonly number[] = number>
 export function Slider<Value extends number | readonly number[] = number>(props: SliderProps<Value>): ReactElement {
   const { className, label, thumbLabels, thumbDescribedBy, thumbValueText, showValue = false, formatValue, tone, ...rootProps } = props;
   const slots = sliderVariants({ tone });
+  const { name } = useFieldIdentity(undefined, rootProps.name);
   const count = thumbCount(rootProps.value ?? rootProps.defaultValue);
   const isRange = count > 1;
   const hasLabel = label !== undefined && label !== null;
@@ -75,7 +77,7 @@ export function Slider<Value extends number | readonly number[] = number>(props:
   const thumbAriaLabels = isRange || !hasLabel ? thumbLabels : undefined;
 
   return (
-    <BaseSlider.Root className={cn(slots.root(), className)} data-slot="slider-root" {...rootProps}>
+    <BaseSlider.Root className={cn(slots.root(), className)} data-slot="slider-root" {...rootProps} {...(name === undefined ? {} : { name })}>
       {hasLabel || showValue ? (
         <div className={slots.header()} data-slot="slider-header">
           {hasLabel ? (
@@ -95,7 +97,7 @@ export function Slider<Value extends number | readonly number[] = number>(props:
           <BaseSlider.Indicator className={slots.indicator()} data-slot="slider-indicator" />
         </BaseSlider.Track>
         {/* THUMBS ARE SIBLINGS OF THE TRACK, never children of it. The track clips (`overflow-hidden`, so
-            the rail's rounded caps trim the Indicator's square fill); a `size-slider-thumb` (24px) knob
+            the rail's rounded caps trim the Indicator's square fill); a `size-(--size-slider-thumb)` (24px) knob
             nested inside that 6px rail was clipped to a 6px sliver — a flat rectangle where the knob should
             be, and a hit area 6px tall while its border box still measured a full 24×24 (design-audit
             `clipped-overflow` ×8 on the appearance pane, #86 lead 2; the box is why a rect-based census

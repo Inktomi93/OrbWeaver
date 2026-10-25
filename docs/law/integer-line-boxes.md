@@ -41,11 +41,11 @@ Every multiplier that touches a line box, re-derived from the tree:
    change.
 5. The 16px rem root. Browser zoom and DPR are Law 4's territory (§11).
 
-**Every `--spacing-*` token carries `orb.output: snapped`**, so each emits `round(up, <rem>, 1px)`
-and resolves to a whole CSS pixel at every stop of the slider. Every one is authored integer at the
-16px root (2 · 4 · 6 · 8 · 12 · 16 · 24 · 32 · 44 · 44 · 48 · 56 · 24 · 32 · 40 · 64 · 64 · 44 · 9 ·
-18 · 24 · 12 · 16 · 20 · 24 · 32 px, plus the seven `orb.pointerFine` overrides 28 · 32 · 34 · 40 ·
-48 · 32 · 6), so `up` is the identity at scale 1 and the guard moves no shipped pixel. **The fine
+**Every `--spacing-*` and `--size-*` token carries `orb.output: snapped`**, so each emits `round(up, <rem>, 1px)`
+and resolves to a whole CSS pixel at every stop of the slider. Every one aliases a `primitive.space` or
+`primitive.size` step, and every step is named by its integer px at the 16px root
+(`packages/ui/src/tokens/tokens.json`; `token-contract.ts` refuses a non-integer step), so `up` is the
+identity at scale 1 and the guard moves no shipped pixel. **The fine
 override is guarded too** — a `@media (pointer: fine)` override replaces the `@theme` value, so
 guarding only the base value would leave the guard off on the pointer most sessions use.
 
@@ -58,9 +58,8 @@ resampled at DPR 1 and DPR 3.
 design quantity the token system owns, make it a FUNCTION of the container's guarded lengths instead
 of a fourth guarded length. The switch knob is `track-height − 2×border − 2×inset` at the site
 (`packages/ui/src/primitives/switch/variants.ts`), so the halved difference is `2×inset` — even by
-construction — and the rest landing is exactly `border + inset`, whole at every scale. The removed
-token is `--spacing-switch-thumb` (`packages/ui/src/tokens/removed.json` carries the row). Measured
-at a fine pointer with `--border-width-control` 1px:
+construction — and the rest landing is exactly `border + inset`, whole at every scale. There is no
+knob-size token. Measured at a fine pointer with `--border-width-control` 1px:
 
 | `--font-scale` | root | inset | knob = track−2b−2i | track | content box | rest offset = b + i | lands |
 | - | - | - | - | - | - | - | - |
@@ -77,12 +76,13 @@ narrowed to where the repair does not reach: a centred child whose size is NOT o
 difference it happens to produce, and that stays Law 2/3/4 territory — the runtime
 `off-grid-transform` / `promoted-layer-offset` rules, not a token this system can retune. An
 element's absolute landing depends on its ancestors' offsets too, and that is also Law 2/3/4
-runtime territory; only the offset a primitive itself owns is its to fix. The pins are
-the tokens index case (every snapped spacing token guarded on both the base value and the
+runtime territory; only the offset a primitive itself owns is its to fix. Two pins are
+not built yet: the tokens index case (every snapped spacing token guarded on both the base value and the
 fine override, and integer at the 16px root) and
 the switch CT (the four rows above, measured from the rendered boxes,
 plus the rest landing in whole DEVICE px at both pointer classes and both rest positions).
-Both are [restoration register](../plans/restoration-register/design.md) entries.
+Both are unreviewed [restoration register](../plans/restoration-register/design.md) entries
+(`ui/tokens/index.test.ts`, `ui/primitives/switch/switch.ct.tsx`).
 
 ## 3. The chosen architecture
 

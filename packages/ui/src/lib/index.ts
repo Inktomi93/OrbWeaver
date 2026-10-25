@@ -31,10 +31,12 @@ export {
   FOCUS_RING_WITHIN,
   FOCUS_RING_WITHIN_INSET,
 } from "./focus-ring.ts";
+export { HOVER_REVEAL } from "./hover-reveal.ts";
 export { readKeyboardInset, subscribeKeyboardInset } from "./keyboard-inset.ts";
 export { createLiveTokenStore, LIVE_TOKEN_ROOT_ATTRIBUTE, resolveCssColor, resolveCssVar } from "./live-token-resolver.ts";
 export { OVERLAY_ARROW } from "./overlay-arrow.ts";
 export { OVERLAY_MOTION } from "./overlay-motion.ts";
+export { HIDDEN_AT, SR_ONLY_AT } from "./pointer-visibility.ts";
 export { ITEM_ROW, MODAL_SURFACE, POPUP_SURFACE } from "./popup-surface.ts";
 export {
   type PortalContainer,
@@ -44,13 +46,15 @@ export {
 export { RECEDED_INK } from "./receded-ink.ts";
 export { prefersReducedMotionNow, scrollBehavior } from "./reduced-motion-now.ts";
 export { formatResultCount, formatSuggestionCount } from "./result-count.ts";
-export { SCRIM, SCRIM_BASE } from "./scrim.ts";
+export { BACKDROP_FILL, SCRIM, SCRIM_BASE } from "./scrim.ts";
 export { SCROLL_FADE_X_CLASS, SCROLL_FADE_Y_CLASS } from "./scroll-fade.ts";
 export { SELECTED_FILL, SELECTED_FILL_PRESSED } from "./selected-fill.ts";
 export { SELECTION_CONTROL, TOUCH_TARGET_PSEUDO } from "./selection-control.ts";
 export { SELECTION_RAIL } from "./selection-rail.ts";
 export { SELECTION_RING_CHECKED, SELECTION_RING_SELECTED } from "./selection-ring.ts";
 export { sinHash } from "./sin-hash.ts";
+export { TONE_INK } from "./tone-ink.ts";
+export { TOUCH_FLOOR_AT_COARSE } from "./touch-floor.ts";
 export { usePrefersLightColorScheme } from "./use-prefers-light-color-scheme.ts";
 export { usePrefersReducedMotion } from "./use-prefers-reduced-motion.ts";
 export {

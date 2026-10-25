@@ -106,7 +106,7 @@ export function MessageListSurface({ chatId, busDeps, surfaceContributors, toolR
   const chatStyle = useChatStyle();
 
   return (
-    <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 w-full outline-none">
+    <Stack ref={surfaceRef} tabIndex={-1} className="outline-none block-full inline-full min-block-0">
       <QueryBoundary
         // THE LOADING STATE IS PART OF THE COLUMN, NOT A BARE FALLBACK (#468). It takes the transcript's
         // own TRACK (`CHAT_TRACK` — the room's one answer to "where is the middle", #213) so the three
@@ -385,7 +385,7 @@ function ChatThread({
     );
   if (items.length === 0) {
     return (
-      <Stack className="relative h-full min-h-0">
+      <Stack className="relative block-full min-block-0">
         {sourceStatus}
         <EmptyThread />
       </Stack>
@@ -393,7 +393,7 @@ function ChatThread({
   }
   return (
     <ArtViewerProvider>
-      <Stack className="relative h-full min-h-0">
+      <Stack className="relative block-full min-block-0">
         {sourceStatus}
         <MessageList
           ref={listHandleRef}
@@ -423,7 +423,7 @@ function ChatThread({
           blockPaddingToken="block"
           // Narrow tracks keep exactly the row focus ring's clearance (2px outline + 2px offset) and no more:
           // the phone's transcript margin is the room's own inset (owner ruling, about 24px of text margin).
-          className="h-full @max-md:px-tight"
+          className="block-full @max-cq-28:px-tight"
         />
         <JumpToLatestPill count={jump.count} visible={jump.visible} onJump={jump.onJump} />
       </Stack>
@@ -434,7 +434,7 @@ function ChatThread({
 /** The empty-transcript state — a room whose opening policy seeded nothing, before its first turn. */
 function EmptyThread(): ReactElement {
   return (
-    <Stack align="center" justify="center" padding="section" className="h-full">
+    <Stack align="center" justify="center" padding="section" className="block-full">
       {/* An empty state stays READABLE PROSE — the prose default, not a muted gloss (density S3 ruling):
           the one line standing in for a whole transcript is the last thing that should recede. */}
       <Text>No messages yet.</Text>

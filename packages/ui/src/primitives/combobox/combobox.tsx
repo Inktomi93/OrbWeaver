@@ -4,6 +4,7 @@ import type { KeyboardEvent, ReactElement, ReactNode } from "react";
 import { useRef, useState } from "react";
 import type { PortalContainer } from "#lib";
 import { ANCHOR_GAP_INPUT, cn, formatResultCount, removeActionName, usePortalContainer } from "#lib";
+import { useFieldIdentity } from "#primitives/field";
 import { Icon, X } from "#primitives/icons";
 import { comboboxVariants } from "./variants.ts";
 
@@ -17,7 +18,7 @@ const slots = comboboxVariants();
 const COMMIT_KEYS = new Set(["Enter", ","]);
 
 // Forwarded straight to Base UI Root, mirrors the autocomplete seal.
-type ComboboxPassthrough = Pick<BaseRootProps<string, true>, "filter" | "autoHighlight" | "limit">;
+type ComboboxPassthrough = Pick<BaseRootProps<string, true>, "filter" | "autoHighlight" | "limit" | "name">;
 
 /** Base UI's change eventDetails (reason/cancel/allowPropagation), derived from the Root prop so the
  *  seal can never drift from it. Optional at our seam: free-text commits synthesize a change with no
@@ -124,8 +125,10 @@ export function Combobox({
   align,
   sideOffset = POPUP_SIDE_OFFSET,
   container,
+  name,
   ...rest
 }: ComboboxProps): ReactElement {
+  const identity = useFieldIdentity(id, name);
   const portalContainer = usePortalContainer();
   const isControlled = valueProp !== undefined;
   const [internalValue, setInternalValue] = useState<string[]>(() => [...(defaultValue ?? [])]);
@@ -227,6 +230,7 @@ export function Combobox({
       onValueChange={handleRootValueChange}
       openOnInputClick={suggestionsEnabled}
       value={[...value]}
+      {...(identity.name === undefined ? {} : { name: identity.name })}
       {...rest}
     >
       <BaseCombobox.InputGroup className={slots.inputGroup()} data-slot="combobox-input-group">
@@ -247,7 +251,8 @@ export function Combobox({
                   aria-label={ariaLabel}
                   className={cn(slots.input(), className)}
                   data-slot="combobox-input"
-                  id={id}
+                  id={identity.id}
+                  {...(identity.name === undefined ? {} : { name: identity.name })}
                   onKeyDown={handleInputKeyDown}
                   placeholder={selected.length === 0 ? placeholder : ""}
                 />

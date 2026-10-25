@@ -15,7 +15,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { ConfirmDialog, LibraryRow, usePruneUnusedTags, useRemoveTag, useSetTagOrder } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
-import { COLLECTION_LARGE_GROUP, pruneConfirmLabel, sortTagsBy, tagColorLabel, tagUsageLabel, unusedTagsLabel, usageBreakdown } from "#lib";
+import { COLLECTION_LARGE_GROUP, pruneConfirmLabel, sortTagsBy, tagUsageLabel, unusedTagsLabel, usageBreakdown } from "#lib";
 import { labelDeleted, setLabelFilter, setTagPruneConfirmOpen, useTagPruneConfirmOpen, useTagSortMode } from "#state";
 import { finderRoot, libraryOrFinder } from "../lib/labels-focus-targets.ts";
 
@@ -53,7 +53,7 @@ export function TagCollectionRows({ view }: { readonly view: TagRowsView }): Rea
   const empty = filtered.length === 0;
   const filterMiss = empty && needle !== "";
   return (
-    <Stack className="min-h-0 flex-1" gap="tight">
+    <Stack className="flex-1 min-block-0" gap="tight">
       {filterMiss ? (
         <Stack align="start" gap="field">
           <Text role="status" voice="gloss">
@@ -74,7 +74,7 @@ export function TagCollectionRows({ view }: { readonly view: TagRowsView }): Rea
       {empty || !windowed ? null : (
         <VirtualList
           aria-label="Tags"
-          className="min-h-0 flex-1"
+          className="flex-1 min-block-0"
           estimateSize={(): number => ESTIMATED_ROW_PX}
           fadeEdge={true}
           gapToken="field"
@@ -161,7 +161,7 @@ function LabelsPruneConfirm({
         hasUnused ? (
           <VirtualList
             aria-label="Tags to delete"
-            className="h-64"
+            className="block-(--height-scroll-md)"
             estimateSize={(): number => ESTIMATED_ROW_PX}
             getItemKey={(tag): string => tag.id}
             items={unused}
@@ -278,7 +278,7 @@ function TagCollectionRow({
       }}
       // Decorative in the row's spoken form (the census is its description); the colour is stated in words in
       // the editor the row opens. `null` paints the swatch's own unset state, never a colour.
-      leading={<ColorSwatch aria-hidden={true} size="sm" title={tagColorLabel("Background", tag.color)} value={tag.color} />}
+      leading={<ColorSwatch aria-hidden={true} size="sm" value={tag.color} />}
       onSelect={onSelect}
       selected={selected}
       subtitle={tagUsageLabel(tag)}

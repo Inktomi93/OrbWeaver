@@ -1,6 +1,5 @@
-// The Settings SEARCH (#866 S2) — ONE index over every group, with
-// VS Code's typed `@` filters. It rides the TOP of the LIST scroller as a `role="search"` block (fork F-11
-// — the corpus-omnibox precedent; the 48px LIST band keeps the title), and while a query is live its
+// The Settings SEARCH — ONE index over every group, with VS Code's typed `@` filters. It rides the TOP of
+// the LIST scroller as a `role="search"` block (the corpus-omnibox precedent; the LIST band keeps the title), and while a query is live its
 // results render as a capped listbox UNDER the input: the static index's hits (groups · sections · leaves,
 // fuzzy over `@orb/ui/fuzzy-search`, label boosted ×4) plus each contributing group's DYNAMIC rows (a
 // collection's members, the persona names — `useSearchRows`, one component per group so every hook runs in
@@ -10,8 +9,7 @@
 // clears it.
 //
 // Typing `@` (or the funnel button) opens the TOKEN MENU in the same listbox — selecting a token completes
-// it in place (`applyConfigToken`). `aria-expanded` tracks the LIST'S EXISTENCE (the side-eye 2026-08-16
-// ARIA rider, carried from the retired shell): cmdk hardcodes `expanded` because it assumes its listbox is
+// it in place (`applyConfigToken`). `aria-expanded` tracks the LIST'S EXISTENCE: cmdk hardcodes `expanded` because it assumes its listbox is
 // always mounted; this caller mounts it only while there is a query or a partial token.
 
 import { Command, CommandAuxiliaryButton, CommandEmpty, CommandInput, CommandList } from "@orb/ui/command";
@@ -22,7 +20,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
-import { ListSearch } from "#components";
+import { ListSearch, Tip } from "#components";
 import { useSettingsViewerView, useTRPC } from "#data";
 import type { ConfigQueryToken, ParsedConfigQuery } from "#lib";
 import { applyConfigToken, CONFIG_QUERY_TOKENS, findHighlightRanges, parseConfigQuery, partialConfigToken, partialValueToken } from "#lib";
@@ -214,8 +212,8 @@ export function ConfigSearchInput({ groups }: ConfigSearchInputProps): ReactElem
     <Stack aria-label="Settings search" role="search">
       <Command label="Search settings" shouldFilter={false}>
         <Row align="center" gap="tight">
-          <Stack className="min-w-0 flex-1">
-            {/* NO CALLER REF HERE (#1218's rejected arm, stated so nobody re-tries it): `CommandInput` keeps
+          <Stack className="flex-1 min-inline-0">
+            {/* NO CALLER REF HERE (stated so nobody re-tries it): `CommandInput` keeps
                 its own internal ref to correct cmdk's `aria-expanded`, and a `ref` passed through its props
                 replaces that one — the correction then reads `null` and the box claims an expanded listbox
                 that does not exist. The arrival focus lands on the active group's BAND instead. */}
@@ -230,17 +228,14 @@ export function ConfigSearchInput({ groups }: ConfigSearchInputProps): ReactElem
             </ListSearch>
           </Stack>
           {/* The FUNNEL — inserts `@` and the token menu opens, so the grammar teaches itself (§3.3). */}
-          <CommandAuxiliaryButton
-            aria-label="Add a search filter"
-            onClick={(): void => setConfigSearchQuery(applyConfigToken(query, "@"))}
-            size="icon-sm"
-            title="Add a search filter"
-          >
-            <Icon icon={SlidersHorizontal} size="sm" />
-          </CommandAuxiliaryButton>
+          <Tip text="Add a search filter">
+            <CommandAuxiliaryButton aria-label="Add a search filter" onClick={(): void => setConfigSearchQuery(applyConfigToken(query, "@"))} size="icon-sm">
+              <Icon icon={SlidersHorizontal} size="sm" />
+            </CommandAuxiliaryButton>
+          </Tip>
         </Row>
         {expanded ? (
-          <CommandList className="max-h-(--container-cq-sm)">
+          <CommandList className="max-block-(--container-cq-24)">
             {tokens !== null && partial !== null ? (
               <TokenMenu partial={partial} query={query} tokens={tokens} />
             ) : (
@@ -251,9 +246,8 @@ export function ConfigSearchInput({ groups }: ConfigSearchInputProps): ReactElem
                 <CommandEmpty>
                   <Text role="status" voice="gloss">{`No settings match “${query.trim()}”.`}</Text>
                 </CommandEmpty>
-                {/* EVERY MODIFIED HIT SAYS SO, in every query — not only under `@modified` (#1099 F16: the
-                    filter returned five rows and not one of them carried a mark, so the reader hunting the
-                    setting they changed had nothing to steer by). The mark is the SAME verdict the filter
+                {/* EVERY MODIFIED HIT SAYS SO, in every query — not only under `@modified`, so the reader
+                    hunting the setting they changed has something to steer by. The mark is the SAME verdict the filter
                     applies, read at the row's own grain. */}
                 {hits.map((entry) => (
                   <CommandRow

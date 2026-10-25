@@ -95,7 +95,7 @@ function DeliveryTab({ form, capability }: { readonly form: AppForm; readonly ca
             Transforms rendering VERTICAL — label over a full-width control — while COLLAPSING directly under
             them (and every other settings row in the app) docks its control in the `--width-control-col`
             track. Two grammars, one view, three inches apart. `FieldLayout` is the ambient seam that says it
-            once, and the horizontal arm carries its own narrow fold (`@max-md` stacks back), so this costs
+            once, and the horizontal arm carries its own narrow fold (`@max-cq-28` stacks back), so this costs
             nothing at 568 — the control column is a fixed track that becomes full width when the pane cannot
             seat it, which is also why no value clips there. */}
         <FieldLayout orientation="horizontal">

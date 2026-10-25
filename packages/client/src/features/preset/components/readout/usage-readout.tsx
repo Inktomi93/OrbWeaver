@@ -91,9 +91,9 @@ function GmRooms({ rooms }: { readonly rooms: readonly VisibleRoomRef[] }): Reac
     <Stack gap="tight">
       <Text voice="label">{rooms.length === 1 ? "GM voice in 1 game" : `GM voice in ${String(rooms.length)} games`}</Text>
       {rooms.map((room, index) => (
-        <Button className="w-full justify-start" intent="ghost" key={room.id} onClick={(): void => openChat(room.id)} size="sm" type="button">
+        <Button className="justify-start inline-full" intent="ghost" key={room.id} onClick={(): void => openChat(room.id)} size="sm" type="button">
           <Icon icon={MessagesSquare} size="xs" />
-          <Text as="span" className="min-w-0 truncate" voice="label">
+          <Text as="span" className="truncate min-inline-0" voice="label">
             {deriveChatTitle(room.title, room.participantNames)}
           </Text>
           <Text as="span" className="shrink-0" voice="datum">

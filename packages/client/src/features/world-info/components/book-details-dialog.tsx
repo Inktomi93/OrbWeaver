@@ -51,6 +51,7 @@ export function BookDetailsDialog({ open, onOpenChange, currentName, currentDesc
       title="Book details"
     >
       <form
+        aria-label="Book details"
         onSubmit={(event): void => {
           event.preventDefault();
           if (canSave) {

@@ -1,8 +1,7 @@
 // The command-palette body. THREE kinds of row, and the distinction is the whole design:
 //   • Threads — ENTITY navigation, derived from `chat.listChats` (data-driven: a row per thread is not a
-//     declarable command, it is a query result). CAPPED at the most-recent `RECENT_THREADS` (2026-08-09):
-//     it used to render a `CommandItem` per thread over the caller's ENTIRE membership list, so opening the
-//     palette on an 880-chat library mounted 880 scored items.
+//     declarable command, it is a query result). CAPPED at the most-recent `RECENT_THREADS`, so
+//     opening the palette on a large library never mounts a scored item per thread.
 //     THE CAP IS THE DESIGN, not a shortcut around virtualization: cmdk OWNS filtering and scoring, and it
 //     can only score items it has MOUNTED — a `<VirtualList>` inside a `CommandGroup` would windowed-render
 //     the rows and silently make the palette's own search blind to everything off-screen, which is worse
@@ -12,8 +11,8 @@
 //     down by `command-modal.tsx`).
 //   • Commands — the SLASH-COMMAND registry (client-architecture-lockdown.md §6c): the same registry the
 //     chat composer dispatches `/<id>` against, so a command is DECLARED ONCE and is automatically both
-//     typeable and discoverable. "New chat"/"New character" used to be hardcoded rows here; they are now
-//     ordinary contributions owned by their features, which is what makes this list extensible at all.
+//     typeable and discoverable. "New chat"/"New character" are ordinary contributions owned by their
+//     features, which is what makes this list extensible at all.
 // Lives in features/chat because the palette is chat-led (recent threads are its primary group). cmdk owns
 // search, sorting and keyboard nav; the palette supplies only its ranking (`declaredTermFirstFilter`).
 
@@ -25,7 +24,7 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { use, useEffect, useRef } from "react";
+import { use, useEffect, useId, useRef } from "react";
 import { QueryBoundary } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, useTRPC } from "#data";
@@ -101,13 +100,13 @@ export function CommandPaletteSurface({ goToSections }: CommandPaletteSurfacePro
   };
 
   return (
-    <Stack ref={surfaceRef} tabIndex={-1} className="outline-none h-full">
+    <Stack ref={surfaceRef} tabIndex={-1} className="outline-none block-full">
       {/* The registered commands' invisible runner mounts — the palette is a slash-command host too. */}
       {slash.mounts}
       {/* One ranking across every group: a row whose label or keyword equals or starts with the query outranks
           any fuzzy hit, whichever source declared it. */}
       <Command
-        className="rounded-card border shadow-overlay h-full flex flex-col"
+        className="flex flex-col rounded-card border shadow-overlay block-full"
         filter={declaredTermFirstFilter}
         label="Command palette"
         onEscape={closeModal}
@@ -181,23 +180,44 @@ function CommandsGroup({ commands, group, onRun, unavailableFor }: CommandsGroup
   }
   return (
     <CommandGroup heading={SLASH_COMMAND_GROUP_LABELS[group]}>
-      {commands.map((command) => {
-        const reason = unavailableFor(command);
-        return (
-          <CommandItem
-            disabled={reason !== null}
-            key={command.id}
-            keywords={[command.label, command.describe, `/${command.id}`, ...(command.keywords ?? [])]}
-            onSelect={(): void => onRun(command.id)}
-            title={reason ?? undefined}
-            value={`command:${command.id}`}
-          >
-            {command.icon === undefined ? null : <Icon icon={command.icon} size="sm" />}
-            {command.label}
-          </CommandItem>
-        );
-      })}
+      {commands.map((command) => (
+        <SlashCommandItem command={command} key={command.id} onRun={onRun} reason={unavailableFor(command)} />
+      ))}
     </CommandGroup>
+  );
+}
+
+/** One slash command. An unavailable command stays listed, disabled, with its reason as visible copy. */
+function SlashCommandItem({
+  command,
+  reason,
+  onRun,
+}: {
+  readonly command: SlashCommandContribution;
+  readonly reason: string | null;
+  readonly onRun: (id: string) => void;
+}): ReactElement {
+  const reasonId = useId();
+  return (
+    <CommandItem
+      aria-describedby={reason === null ? undefined : reasonId}
+      disabled={reason !== null}
+      keywords={[command.label, command.describe, `/${command.id}`, ...(command.keywords ?? [])]}
+      onSelect={(): void => onRun(command.id)}
+      value={`command:${command.id}`}
+    >
+      {command.icon === undefined ? null : <Icon icon={command.icon} size="sm" />}
+      {reason === null ? (
+        command.label
+      ) : (
+        <Stack gap="tight">
+          {command.label}
+          <Text id={reasonId} voice="gloss">
+            {reason}
+          </Text>
+        </Stack>
+      )}
+    </CommandItem>
   );
 }
 
@@ -236,7 +256,7 @@ function PaletteSourceGroup({ source, context, onRun }: PaletteSourceGroupProps)
               <Text as="span" className="sr-only">
                 {BADGE_SEPARATOR}
               </Text>
-              <Text as="span" className="ml-auto" voice="gloss">
+              <Text as="span" className="ms-auto" voice="gloss">
                 {row.badge}
               </Text>
             </>

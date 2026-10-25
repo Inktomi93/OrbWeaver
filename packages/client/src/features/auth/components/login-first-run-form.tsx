@@ -48,9 +48,9 @@ export function LoginFirstRunForm({ ownerHandle, onDone }: LoginFirstRunFormProp
   };
 
   return (
-    <form onSubmit={onSubmit} data-testid={testId("firstRunSetupForm")}>
+    <form aria-label="Set the owner password" onSubmit={onSubmit} data-testid={testId("firstRunSetupForm")}>
       <Stack gap="block">
-        <Text voice="label" className="text-muted-foreground">
+        <Text voice="label" tone="muted">
           {ownerHandle === null
             ? "Set the owner password to finish setting up this server."
             : `Set the password for the owner account “${ownerHandle}” to finish setting up this server.`}

@@ -4,11 +4,11 @@
 // is no manual `key` to place wrong (D78 L2). The hero name is a draft
 // field; the hero portrait/star/archive + the tags row are immediate identity commits outside the form.
 // Autosave everywhere (D66 A4 / north-star §7): no Save/Discard — the header carries the token split +
-// the shared AutosaveStatus (Saved / Saving… / Save failed — Retry) where Save used to be.
+// the shared AutosaveStatus (Saved / Saving… / Save failed — Retry) in the save bar's action slot.
 //
 // Hero chat affordances: "New chat" always starts a fresh thread with this character; "N chats ›" reveals
-// the CONTEXT **Chats** tab, which is where her history lives now that the LIST pane stays the library
-// (#501, D8). Both ride the ONE home for those intents (`lib/character-chat-intents.ts`).
+// the CONTEXT **Chats** tab, which is where her history lives because the LIST pane stays the library
+// (D8). Both ride the ONE home for those intents (`lib/character-chat-intents.ts`).
 
 import { rendersTrustedHtml } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
@@ -48,14 +48,13 @@ import { clearCharacterForm, publishCharacterForm } from "../lib/character-edito
 // have stable identities; the boundary owns the entity key, so a character switch remounts the form
 // (and the body's local drill-in/greeting state) — no consumer `key` to place wrong.
 //
-// DRAFT MIRROR WIRED (#73, owner-ruled 2026-08-15, CRITICAL tier — 8 free-text prose fields + a
-// greetings array). This AMENDS the obligation-5 doctrine's premise for this surface specifically
-// (`UI-Primitives-and-Reuse.md` §13.4: "on an AUTOSAVE form the server row IS the crash mirror… a
-// confirmed save lands within the debounce window"): the factory's own teardown-flush comment
-// (`create-autosave-entity-form.tsx` §"NOT covered here, deliberately") states the premise does NOT
-// hold for a page reload/tab close — the debounce window dies with the document, unflushed, and long
-// authored prose is exactly the content the tooling-drive dossier (family 2, 2026-08-18) flags as the
-// highest crash-loss editor in the app. The obligation-5 OMISSION stands as written
+// DRAFT MIRROR WIRED (an owner ruling, CRITICAL tier — free-text prose fields + a greetings array). This
+// AMENDS the obligation-5 doctrine's premise for this surface specifically (`UI-Primitives-and-Reuse.md`
+// §13.4: "on an AUTOSAVE form the server row IS the crash mirror… a confirmed save lands within the
+// debounce window"): the factory's own teardown-flush comment (`create-autosave-entity-form.tsx` §"NOT
+// covered here, deliberately") states the premise does NOT hold for a page reload/tab close — the debounce
+// window dies with the document, unflushed, and long authored prose is the highest crash-loss content in
+// the app. The obligation-5 OMISSION stands as written
 // law for the general autosave case (`persona`/`appearance`, still short-field/low-loss); this is the
 // owner's named exception, not a reversal of the doctrine.
 /** The hero wants her CENSUS, not her rows — the smallest page the server serves still carries it. */
@@ -98,11 +97,8 @@ const EDITOR_SKELETON_ROWS = 8;
 /**
  * The Characters CONTENT when a row is selected.
  *
- * IT RESERVES ITS BOX AND PAINTS A SHAPE (#1133, side-eye 2026-09-02 F3). Opening a character dropped
- * **14 of 55 frames (25.45%)** with an observed non-virtualized CLS of 0.0233, and the `record` strip showed
- * why: for ~240ms the CONTENT pane was EMPTY except for the words "Loading character…" at the top-left, then
- * the whole editor arrived at once. A bare sentence reserves nothing, so everything below it moved. This is
- * the #885 class and takes the #885 seam: `reserveKey` wraps the fallback in the box this device saw the
+ * IT RESERVES ITS BOX AND PAINTS A SHAPE. A bare "Loading character…" sentence reserves nothing, so the
+ * whole editor arriving at once would move everything below it. `reserveKey` wraps the fallback in the box this device saw the
  * editor settle at last time (synchronous, off `surface-box-store`, so the very first commit already carries
  * it) and re-measures the settled child on every commit; the `SkeletonRows` count is re-filled to that box,
  * so the placeholder is honest about content as well as height.
@@ -129,17 +125,16 @@ export function CharacterEditorSurface({ characterId, detailContributors, onReve
     };
   }, [characterId]);
   return (
-    // THE SCROLL CONTAINER IS THE SURFACE'S, NOT THE BODY'S, AND THAT IS LOAD-BEARING (#1133). `reserveKey`
+    // THE SCROLL CONTAINER IS THE SURFACE'S, NOT THE BODY'S, AND THAT IS REQUIRED. `reserveKey`
     // makes the boundary wrap its settled child in a measuring element, so a scroll box UNDER the boundary
     // inherits `h-full` from an auto-height wrapper — which computes to `auto`, the pane stops scrolling, and
-    // everything past the fold becomes unreachable (caught by the editor CT's facet drill-in: "element is
-    // outside of the viewport", 56 scroll retries). Hoisting it here puts the measured wrapper INSIDE the
+    // everything past the fold becomes unreachable (the editor CT's facet drill-in covers it). Hoisting it here puts the measured wrapper INSIDE the
     // scroller, where an auto-height child is exactly what a scroller wants. `relative` rides along: a scroll
     // box with no containing block dumps every `position:absolute` descendant into an ancestor's scrollable
     // area (character-library-welcome.tsx carries the same note).
     <Stack
       ref={scrollRef}
-      className="relative h-full overflow-y-auto overscroll-contain"
+      className="relative overflow-y-auto overscroll-contain block-full"
       onScroll={(event): void => {
         const node = event.currentTarget;
         // A hidden Activity reports zero layout, not a new reader position.
@@ -200,8 +195,8 @@ interface CharacterEditorFormProps {
  *  form handle it publishes to the CONTEXT inspector is always the current character's. */
 function CharacterEditorForm({ data, trpc, session, detailContributors, onRevealField }: CharacterEditorFormProps): ReactElement {
   // The session hands a widened AppForm surface with `reset` type-removed; the editor threads `form` into
-  // ~6 children typed against the full AppFormInstance, so widen once here (reset MISUSE is caught by the
-  // no-form-reset-in-autosave gate, not the type — the feature has zero `.reset(` call sites).
+  // ~6 children typed against the full AppFormInstance, so widen once here (the autosave type is what
+  // bans `reset`; the feature has zero `.reset(` call sites).
   const form = session.form as AppFormInstance<CharacterCardFormValues>;
 
   const surfaceRef = useRef<HTMLDivElement>(null);
@@ -221,7 +216,7 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
   const previewPolicy = usePreviewRenderPolicy(data);
 
   // The bus-driven chat CENSUS for this character — the hero's "N chats ›" derives from it in render, never
-  // an effect. The SERVER counts (2026-08-09): the projection is a `characterId` argument to the one
+  // an effect. The SERVER counts: the projection is a `characterId` argument to the one
   // first-class chats read, so the hero can never disagree with the pane it points at, and it costs a
   // page-of-one instead of the caller's entire membership list filtered on the client.
   const chatsQuery = useQuery(trpc.chat.listChats.queryOptions({ characterId: data.id, limit: COUNT_ONLY_PAGE }));
@@ -232,7 +227,7 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
   const startChatWith = useStartChatWithCharacter();
   const onNewChat = (): void => startChatWith(data.id);
   // "N chats ›" does not LEAVE for the Chats section (D8) — it reveals the CONTEXT **Chats** tab, which is
-  // where her history lives since the LIST pane stopped swapping (#501).
+  // where her history lives because the LIST pane does not swap.
   const onViewChats = (): void => revealCharacterChats();
 
   // Publish the live handle so the CONTEXT Field inspector (a sibling shell region, no shared React
@@ -259,62 +254,53 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
     // The focus target only — the scroll box + its containing block moved up to the surface (see there).
     <Stack ref={surfaceRef} tabIndex={-1} className="outline-none">
       <form
+        aria-label="Edit character"
         onSubmit={(event): void => {
           event.preventDefault();
           event.stopPropagation();
           form.handleSubmit().catch(() => notify.error("Couldn't save the character."));
         }}
       >
-        <Stack gap="section" className="mx-auto w-full max-w-(--container-cq-lg) py-section">
-          {/* THE CENSUS IS `meta`, NOT AN ACTION (side-eye 2026-08-18 P1-4). It sat in the bar's `children`
-              with every sibling `shrink-0`, so at 430px the token line took 231px and the character's NAME
-              — the one thing a phone's save bar is telling you — was clipped to "Sabin…" at 54px. The
-              `meta` slot keeps the census inline where there is room and drops it to its own full-width
+        <Stack gap="section" className="mx-auto py-section inline-full max-inline-(--container-cq-lg)">
+          {/* THE CENSUS IS `meta`, NOT AN ACTION. In the bar's `children`, beside `shrink-0` siblings, the
+              token line would clip the character's NAME — the one thing a phone's save bar is telling you.
+              The `meta` slot keeps the census inline where there is room and drops it to its own full-width
               line under the identity where there is not: both read whole, neither hidden. */}
           <SaveBar
             title={data.name}
             kind="Character"
             sticky="header"
             meta={
-              /* IT CARRIES ITS OWN GLOSS NOW (#493, side-eye 2026-08-22 rail-characters P2-4). `1017
-                 permanent` is the editor's most jargon-dense datum and it shipped with NO explanation on
-                 this surface — no `title`, no `aria-label`, no tooltip (all three verified null) — while the
-                 ONE place that says what it means ("sent every turn") is the CONTEXT pane, 300px away and
-                 closed by default. The visible line is unchanged: the `aria-label` is what a screen reader
-                 hears and the `title` what a pointer gets, and the mono line stays the glanceable one. */
+              /* IT CARRIES ITS OWN GLOSS. The visible line says what both numbers count ("N tokens · M
+                 always sent"), and the `aria-label` speaks the same pair ungrouped. */
               <form.Subscribe selector={(s): CharacterCardFormValues => s.values}>
                 {(values): ReactElement => (
                   <Text
                     aria-label={`${totalTokenCount(values, activeGreetingIndex)} tokens total, ${permanentTokenCount(values)} always sent`}
                     // Yields while the CONTEXT band is open: its `N tokens` chip is the same number.
                     className={`font-mono tabular-nums ${HERO_ECHO_CLASS}`}
-                    title={`${permanentTokenCount(values)} tokens are always sent; the rest depend on the greeting in use.`}
                     voice="gloss"
                   >
-                    {/* HOUSE NUMERIC-DATUM TREATMENT (side-eye #844 P3, 2026-09-05) — this is a DATUM, not a
+                    {/* HOUSE NUMERIC-DATUM TREATMENT — this is a DATUM, not a
                         label, and `size="micro"` bakes in `tracking-micro` (0.08em), the section-NAME
                         tracking. `voice="gloss"` resolves the identical text-micro/muted step without the
                         label tracking, plus `tabular-nums` so the live count doesn't jitter columns as it
                         ticks — the same recipe `analytics-list-surface.tsx`'s leaderboard datum already
                         uses (`voice="gloss" className="font-mono tabular-nums"`), not a new one. */}
-                    {/* GROUPED (#878 F13) — the same `@orb/kit/strings` grouper the context band's token
+                    {/* GROUPED — the same `@orb/kit/strings` grouper the context band's token
                         chip prints through, so the editor and the pane cannot spell one number two ways.
                         The `aria-label` above stays UNGROUPED on purpose: a screen reader groups the digits
                         itself, and separators inside a spoken string are read out. */}
-                    {/* IT SAYS WHAT IT COUNTS (side-eye 2026-09-02 F11). The line read `1,257 total · 1,017
-                        permanent` — the same datum the CONTEXT band prints as `1,257 tokens`, one home
-                        naming its unit and one not, which is two vocabularies for one number. `tokens` is
-                        the band's word and now this one's; `permanent` keeps its gloss on the `title` +
-                        `aria-label` above (a pointer and a screen reader both reach it), because the meta
-                        slot is the one that gets clipped at 430px and a second focusable trigger in it is
-                        what the P1-4 fix removed. */}
+                    {/* IT SAYS WHAT IT COUNTS, in the CONTEXT band's own word (`tokens`), so one number has
+                        one vocabulary. No second focusable trigger rides here: the meta slot is the one a
+                        phone clips. */}
                     {groupThousands(totalTokenCount(values, activeGreetingIndex))} tokens · {groupThousands(permanentTokenCount(values))} always sent
                   </Text>
                 )}
               </form.Subscribe>
             }
           >
-            {/* Autosave everywhere (§7): the live status stands where Save/Discard used to. */}
+            {/* Autosave everywhere (§7): the live status takes the action slot, with no Save/Discard. */}
             <AutosaveStatus state={session.saveState} onRetry={session.retrySave} />
           </SaveBar>
 
@@ -359,7 +345,7 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
       {/* Contributed review sections (§6c) — outside the autosave `<form>` (they carry their own
           mutations), in the SAME centered column so a live section can't crush the editor width. */}
       {detailSections.length === 0 ? null : (
-        <Stack gap="section" className="mx-auto w-full max-w-(--container-cq-lg) py-section" data-slot="character-editor-sections">
+        <Stack gap="section" className="mx-auto py-section inline-full max-inline-(--container-cq-48)" data-slot="character-editor-sections">
           {detailSections.map((section) => (
             <Fragment key={section.id}>{section.node}</Fragment>
           ))}

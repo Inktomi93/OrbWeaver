@@ -37,12 +37,12 @@ function activateOnKey(event: KeyboardEvent<HTMLDivElement>): void {
 // from three props any caller override can quietly break. The div arm stays: `interactive` is also used on
 // islands that carry their own `role` (a listbox option, a grid cell), where a `<button>` would be wrong.
 //
-// There is NO `padding` prop (retired, D7): island padding is resolved from the surface's tier by
-// tiers.css, so a feature cannot pick it. `data-elevated` is the attribute the unlayered elevated-radius
-// rule keys on — the variant's `rounded-card` utility alone would lose to the tier rule inside a Surface.
+// Island padding is resolved from the surface's tier by tiers.css (D7), so `padding` has one arm, `none`: the
+// island delegates its inset to its own content. `data-elevated`, `data-nested` and `data-padding` are the
+// attributes the tiers.css rules key on; the variant's utility alone would lose to the tier rule inside a Surface.
 export function Card(props: CardProps): ReactElement {
-  const { className, elevated, interactive, nested, tone, outline, glow } = props;
-  const skin = cn(cardVariants({ elevated, interactive, nested, tone, outline, glow }), className);
+  const { className, shape, elevated, interactive, nested, padding, tone, outline, glow } = props;
+  const skin = cn(cardVariants({ shape, elevated, interactive, nested, padding, tone, outline, glow }), className);
   // The attributes the unlayered elevated-/nested-radius rules key on: inside a Surface the tier rule
   // outranks any `rounded-*` utility the variant emits.
   //
@@ -54,14 +54,18 @@ export function Card(props: CardProps): ReactElement {
   const marks = {
     "data-elevated": elevated === true ? "" : undefined,
     "data-nested": nested === true ? "" : undefined,
+    "data-padding": padding === "none" ? "none" : undefined,
+    "data-shape": shape === undefined || shape === "island" ? undefined : shape,
   } as const;
   if (props.as === "button") {
     const {
       as: _as,
       className: _className,
+      shape: _shape,
       elevated: _elevated,
       interactive: _interactive,
       nested: _nested,
+      padding: _padding,
       tone: _tone,
       outline: _outline,
       glow: _glow,
@@ -80,9 +84,11 @@ export function Card(props: CardProps): ReactElement {
   const {
     as: _as,
     className: _className,
+    shape: _shape,
     elevated: _elevated,
     interactive: _interactive,
     nested: _nested,
+    padding: _padding,
     tone: _tone,
     outline: _outline,
     glow: _glow,

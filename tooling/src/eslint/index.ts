@@ -1,9 +1,12 @@
 import { browserNoNodeGlobalsRule, rawEgressRule, rawHttpClientRule, sessionChannelBoundaryRule, soleEnvReaderRule } from "./ambient.ts";
 import { detachedWorkRule } from "./async.ts";
+import { CLIENT_DATA_RESTRICTIONS, effectOnSharedSelectionRule } from "./client-data-policy.ts";
 import { assumesSingleReplicaRule, commentedCodeRule, rawIdRule, sideGenSamplingRule, wireJsonRule } from "./general.ts";
 import { DB_SCHEMA_RESTRICTIONS, SERVER_HARD_RESTRICTIONS, TYPE_SHAPE_RESTRICTIONS } from "./general-policy.ts";
 import { moduleStateRule } from "./module-state.ts";
-import { baseUiPortalContainerRule, contextReturnTypeRule, directRowReadRule, directRowWriteRule, testFactoryContractRule } from "./native.ts";
+import type { BaseUiDoors } from "./motion.ts";
+import { baseUiStateDataAttributesRule, unruledFlipInversionRule } from "./motion.ts";
+import { baseUiPortalContainerRule, contextReturnTypeRule, directRowReadRule, directRowWriteRule, nativeTitleRule, testFactoryContractRule } from "./native.ts";
 import { PRINCIPAL_RULES } from "./principal.ts";
 import {
   AMBIENT_GLOBAL_RESTRICTIONS,
@@ -22,10 +25,12 @@ import { restrictionRule } from "./syntax.ts";
 import { CT_SPEC_RESTRICTIONS, TEST_FABRICATION_RESTRICTIONS } from "./test-policy.ts";
 import { ctPollIntervalsSharedRule, evaluateNoScopeCaptureRule, typedTestIdRule, uiCtColorRule } from "./tests.ts";
 import { floorlessControlRule, registerApiRule, registryContextRule, stateFilesRule, storeDerivedRule } from "./ui-composition.ts";
+import type { ClassClassifier } from "./ui-feature-classname.ts";
+import { featureClassNameLayoutOnlyRule, noBuiltClassStringRule } from "./ui-feature-classname.ts";
 import { UI_FEATURE_RESTRICTIONS } from "./ui-feature-policy.ts";
+import { rawIntrinsicPaintRule } from "./ui-intrinsics.ts";
 import {
   CLASS_RESTRICTIONS,
-  CLASS_TOKEN_RESTRICTIONS,
   CLIENT_CONFIG_HOST_RESTRICTIONS,
   CLIENT_CONTEXT_RESTRICTIONS,
   CLIENT_SEAL_RESTRICTIONS,
@@ -38,10 +43,13 @@ import {
 import { darkVariantRule, offTokenInlineStyleRule, recededInkRule, themeOverrideRule } from "./ui-styles.ts";
 
 export { authorClassIgnores } from "./css-classes.ts";
+export { baseUiDoors } from "./motion.ts";
+export { classClassifier } from "./ui-feature-classname.ts";
 
 const LOCAL_RESTRICTIONS = [
   TEST_FABRICATION_RESTRICTIONS,
   UI_FEATURE_RESTRICTIONS,
+  CLIENT_DATA_RESTRICTIONS,
   SERVER_EVENT_RESTRICTIONS,
   INFRA_AUTH_RESTRICTIONS,
   TABLE_IMPORT_RESTRICTIONS,
@@ -56,7 +64,6 @@ const LOCAL_RESTRICTIONS = [
   CLIENT_STYLE_RESTRICTIONS,
   CLIENT_CONFIG_HOST_RESTRICTIONS,
   CLIENT_SEAL_RESTRICTIONS,
-  CLASS_TOKEN_RESTRICTIONS,
   PORTAL_FLOAT_RESTRICTIONS,
   CT_SPEC_RESTRICTIONS,
   SERVER_HARD_RESTRICTIONS,
@@ -68,18 +75,30 @@ const LOCAL_RESTRICTIONS = [
 ].flat();
 
 /** Keep UI and Biome policy inputs in the root config without importing their runtime graphs. */
-export function createOrbPlugin(options: { browserNodeGlobals: ReadonlySet<string>; floorlessButtonSizes: ReadonlySet<string> }): {
+export function createOrbPlugin(options: {
+  browserNodeGlobals: ReadonlySet<string>;
+  floorlessButtonSizes: ReadonlySet<string>;
+  shellClasses: ReadonlySet<string>;
+  classifyClass: ClassClassifier;
+  baseUiDoors: BaseUiDoors;
+}): {
   rules: Record<string, OrbRule>;
 } {
   return {
     rules: {
       ...Object.fromEntries(LOCAL_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)] as const)),
+      "no-raw-intrinsic-paint": rawIntrinsicPaintRule(options.shellClasses),
+      "feature-classname-layout-only": featureClassNameLayoutOnlyRule(options.classifyClass),
+      "no-built-class-string": noBuiltClassStringRule,
       ...Object.fromEntries(PRINCIPAL_RULES.map(({ id, rule }) => [id, rule] as const)),
       "ui-ct-no-color-literal": uiCtColorRule,
       "no-raw-egress": rawEgressRule,
       "no-raw-http-client": rawHttpClientRule,
       "sole-env-reader": soleEnvReaderRule,
       "baseui-portal-container-seam": baseUiPortalContainerRule,
+      "baseui-state-data-attributes": baseUiStateDataAttributesRule(options.baseUiDoors),
+      "no-unruled-flip-inversion": unruledFlipInversionRule,
+      "no-native-title": nativeTitleRule,
       "test-factory-contract": testFactoryContractRule,
       "no-direct-row-writes": directRowWriteRule,
       "no-direct-row-reads": directRowReadRule,
@@ -92,6 +111,7 @@ export function createOrbPlugin(options: { browserNodeGlobals: ReadonlySet<strin
       "zustand-selector-derived": storeDerivedRule,
       "no-mutating-register-api": registerApiRule,
       "state-files": stateFilesRule,
+      "no-effect-on-shared-selection": effectOnSharedSelectionRule,
       "registry-context-via-mint": registryContextRule,
       "testid-typed-only": typedTestIdRule('Freeform data-testid string; use the typed registry via testId("key").'),
       "testid-typed-only-stories": typedTestIdRule(

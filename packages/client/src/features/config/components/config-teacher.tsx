@@ -30,7 +30,7 @@ export interface TeacherProps {
 export function TeacherBand({ state }: TeacherProps): ReactElement {
   const title = state.member === null ? state.teach.title : state.member.title;
   return (
-    <Stack gap="tight" className="min-w-0">
+    <Stack gap="tight" className="min-inline-0">
       <Text as="span" voice="kicker" className="truncate">
         {title}
       </Text>
@@ -80,7 +80,7 @@ function TeacherValueBlock({ value }: { readonly value: ConfigTeachValue }): Rea
   }
   return (
     <Stack gap="tight" data-slot="teacher-value">
-      <Stack gap="tight" className="min-w-0">
+      <Stack gap="tight" className="min-inline-0">
         <Text as="span" voice="label">
           Current {value.current}
         </Text>
@@ -111,21 +111,21 @@ function TeacherRoster({ roster }: { readonly roster: readonly ConfigRosterEntry
     <Stack gap="block" data-slot="teacher-roster">
       {roster.map((entry) => (
         <Stack key={entry.id} data-modified={entry.modified ? "" : undefined} data-setting={entry.id} data-slot="teacher-roster-entry" gap="tight">
-          <Row align="baseline" gap="field" className="min-w-0">
-            <Text as="span" voice="label" className="min-w-0 truncate">
+          <Row align="baseline" gap="field" className="min-inline-0">
+            <Text as="span" voice="label" className="truncate min-inline-0">
               {entry.label}
             </Text>
             {/* The VALUE rides the entry's own line, in the control's display words — a roster of names
                 with no values would answer "what is in here?" and not "what is it set to?", and the
                 second question is the one a settings surface you touch twice a year is opened for. */}
             {entry.value === null ? null : (
-              <Text as="span" voice="gloss" className="min-w-0" data-slot="teacher-roster-value">
+              <Text as="span" voice="gloss" className="min-inline-0" data-slot="teacher-roster-value">
                 {entry.value}
               </Text>
             )}
           </Row>
           {entry.gloss === null ? null : (
-            <Text voice="gloss" className="max-w-(--reading-measure)">
+            <Text voice="gloss" className="max-inline-(--reading-measure)">
               {entry.gloss}
             </Text>
           )}

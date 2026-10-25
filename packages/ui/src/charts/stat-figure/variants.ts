@@ -10,9 +10,9 @@ export const statFigureVariants = tv({
     root: "flex flex-col gap-field",
     label: "text-label leading-label text-muted-foreground",
     valueRow: "flex items-baseline gap-row",
-    value: "font-medium text-display leading-display text-foreground tabular-nums",
+    value: "text-display leading-display font-medium text-foreground tabular-nums",
     delta: "flex items-center gap-field text-label leading-label",
-    sparkline: "mt-field",
+    sparkline: "mbs-field",
   },
   variants: {
     direction: {

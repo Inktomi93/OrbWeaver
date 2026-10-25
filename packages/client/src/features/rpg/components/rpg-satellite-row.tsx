@@ -81,7 +81,7 @@ export function RpgSatelliteRow({ trackerOrbs, actors, viewerUserId }: RpgSatell
     return null;
   }
   return (
-    <Row gap="block" align="start" className={cn("min-w-0 overflow-x-auto", HIDE_AT_COARSE) ?? ""} data-slot="rpg-band-satellites">
+    <Row gap="block" align="start" className={cn("overflow-x-auto min-inline-0", HIDE_AT_COARSE) ?? ""} data-slot="rpg-band-satellites">
       {trackerOrbs.map((orb, i) => (
         <Satellite key={orb.key} orb={orb} ordinal={i} />
       ))}

@@ -32,7 +32,7 @@ export function ListPaneHeader({ title, accent, count, back, action }: ListPaneH
       {/* `data-slot="list-pane-identity"` names this cluster for the shell: on a phone the ONE-SHELL rule
           sheds the unscoped title (below), and the shell then needs to know whether ANYTHING is left in the
           band before it keeps spending a 48px chrome row on it. See shell.css's mobile arm. */}
-      <Row align="center" className="min-w-0" data-slot="list-pane-identity" gap="field">
+      <Row align="center" className="min-inline-0" data-slot="list-pane-identity" gap="field">
         {back === undefined ? null : (
           <Button aria-label={back.label} data-slot="list-pane-back" intent="ghost" onClick={back.onClick} size="icon" type="button">
             <Icon icon={ChevronLeft} size="sm" />
@@ -70,7 +70,7 @@ export function ListPaneHeader({ title, accent, count, back, action }: ListPaneH
           // `gap-row`, not `gap-field` (#525): 6px of air between the NAME and a figure is below the
           // step the eye needs to read them as two things, and the census is the one child here that is not
           // part of the title's phrase.
-          className="flex min-w-0 items-baseline gap-row"
+          className="flex items-baseline gap-row min-inline-0"
           data-scoped={accent === undefined ? undefined : "true"}
           data-slot="list-pane-title"
           id={LIST_PANE_TITLE_ID}
@@ -112,7 +112,7 @@ export function ListPaneHeader({ title, accent, count, back, action }: ListPaneH
             // now that nothing in this cluster uppercases.
             // THE COUNT WEARS THE TITLE'S FAMILY: an unlabelled mono figure beside a sans name reads as a stray
             // datum, not the census of the list. Tabular figures keep it from jittering as it changes.
-            <CountText className="min-w-0 truncate">{count}</CountText>
+            <CountText className="truncate min-inline-0">{count}</CountText>
           )}
         </Heading>
       </Row>

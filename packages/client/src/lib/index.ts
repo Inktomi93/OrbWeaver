@@ -241,7 +241,6 @@ export {
   LABELS_EMPTY,
   NEW_LABEL_NAME,
   pruneConfirmLabel,
-  tagColorLabel,
   tagSortItems,
   tagTargetTitle,
   tagUsageLabel,

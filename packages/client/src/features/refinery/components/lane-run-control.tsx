@@ -133,7 +133,7 @@ function RunningHairline(): ReactElement {
   return (
     <Container
       aria-hidden={true}
-      className="orb-indeterminate-hairline pointer-events-none h-px rounded-full bg-primary/30"
+      className="orb-indeterminate-hairline pointer-events-none rounded-full bg-primary/30 block-px"
       data-testid={testId("refineryLaneHairline")}
       name="refinery-lane-hairline"
     />

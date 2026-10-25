@@ -52,6 +52,9 @@ catalog:
   dependency-cruiser: ^18.7.0
   # D321: CSS policy uses Stylelint's native AST and its maintained value parser, never a private CSS reader.
   stylelint: 17.16.0
+  stylelint-config-standard: 40.0.0
+  stylelint-value-no-unknown-custom-properties: 6.1.1
+  stylelint-plugin-logical-css: 2.1.0
   postcss-value-parser: 4.2.0
   "@eslint/css-tree": 4.1.2
   # @types/node tracks the RUNTIME (Node 26).
@@ -437,5 +440,10 @@ patchedDependencies:
   '@vitest/eslint-plugin@1.6.27': patches/@vitest__eslint-plugin@1.6.27.patch
   # The optional DOM resolver must not import browser globals into Node programs.
   colorjs.io@0.7.1: patches/colorjs.io@0.7.1.patch
+  # The class rules skipped every literal inside a call on the left of `??` or `||` (`cn("h-auto") ?? ""`), and no
+  # selector reached a function declaration's returns. The patch treats only an `&&` left as a test, stops that test at a
+  # call boundary, and lints a named function's own returns with a matching variable selector's
+  # anonymousFunctionReturn matchers. A bump must port it.
+  eslint-plugin-better-tailwindcss@4.10.0: patches/eslint-plugin-better-tailwindcss@4.10.0.patch
 
 nodeOptions: "--max-old-space-size=16384"

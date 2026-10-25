@@ -60,11 +60,11 @@ export function PluginSurfaceShell({ pluginName, title, scale = "panel", childre
   // scrolling body. Checked first — a `page` surface is never also `inline`.
   if (scale === "page") {
     return (
-      <Stack className="h-full min-h-0" data-plugin-surface-scale="page">
+      <Stack className="block-full min-block-0" data-plugin-surface-scale="page">
         {/* THE PINNED BAND (§9). `shrink-0` + the scrolling body below it means it survives every scroll
             position — a band that scrolled away would leave the page unlabelled exactly when a person has
             forgotten what they are looking at. */}
-        <Row align="center" className="shrink-0 border-border border-b bg-card/40 px-block py-field" data-testid={testId("pluginPageAttribution")} gap="field">
+        <Row align="center" className="shrink-0 border-be border-border bg-card/40 px-block py-field" data-testid={testId("pluginPageAttribution")} gap="field">
           <Icon icon={Blocks} size="sm" />
           <Text voice="label">{pluginName}</Text>
           {showTitle ? (
@@ -85,7 +85,7 @@ export function PluginSurfaceShell({ pluginName, title, scale = "panel", childre
             its own, so every `position:absolute` descendant a plugin's rendered tree carries — starting with
             the `sr-only` text house primitives ship — would escape to the nearest positioned ancestor and
             scroll away from the thing it names. */}
-        <Stack aria-label={regionName} className="relative min-h-0 grow overflow-y-auto overscroll-contain p-block" gap="block" role="group">
+        <Stack aria-label={regionName} className="relative grow overflow-y-auto overscroll-contain p-block min-block-0" gap="block" role="group">
           {children}
         </Stack>
       </Stack>

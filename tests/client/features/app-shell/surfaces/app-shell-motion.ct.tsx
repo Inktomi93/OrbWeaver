@@ -368,6 +368,12 @@ test.describe("a section swap", () => {
       const start = document.startViewTransition.bind(document);
       document.startViewTransition = (update?: StartViewTransitionOptions | ViewTransitionUpdateCallback): ViewTransition => {
         const transition = start(update);
+        // Sampled only until THIS transition finishes, so the next swap's fresh old snapshot is never read as a return.
+        let finished = false;
+        const stop = (): void => {
+          finished = true;
+        };
+        transition.finished.then(stop, stop);
         transition.ready
           .then(() => {
             const pseudos = document
@@ -387,7 +393,7 @@ test.describe("a section swap", () => {
             const old = getComputedStyle(document.documentElement, "::view-transition-old(orb-section-content)");
             let faded = false;
             const tick = (): void => {
-              if (!document.documentElement.matches(":active-view-transition")) {
+              if (finished || !document.documentElement.matches(":active-view-transition")) {
                 return;
               }
               const opacity = Number.parseFloat(old.opacity);
@@ -410,6 +416,7 @@ test.describe("a section swap", () => {
     ] as const) {
       await page.locator(".shell-rail").getByRole("button", { name: label, exact: true }).click();
       await expect(grid).toHaveAttribute("data-section", id);
+      await page.waitForFunction(() => !document.documentElement.matches(":active-view-transition"));
     }
     const seen = await page.evaluate(
       () => Reflect.get(globalThis, "__viewTransitions") as { pseudos: string[]; groupMorphs: boolean; fit: string; anchor: string; oldReturns: boolean }[],

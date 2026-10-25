@@ -112,7 +112,7 @@ test.describe("the You sheet", () => {
     await expect(row).toBeVisible();
     await expect
       .poll(() => row.evaluate((element) => element.getBoundingClientRect().height))
-      .toBeGreaterThanOrEqual(SNAPPED_LENGTH_BASE_PX["spacing.control-md"]);
+      .toBeGreaterThanOrEqual(SNAPPED_LENGTH_BASE_PX["size.control-md"]);
     await row.click();
     await expect(sheet(page)).toHaveCount(0);
     await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", "refinery");

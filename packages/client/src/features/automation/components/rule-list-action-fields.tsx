@@ -146,7 +146,7 @@ function ReplyList({ form, index, action, ids }: ReplyFieldsProps & { readonly i
             {choice > 0 ? <Separator /> : null}
             <Row gap="field" align="center">
               {grip}
-              <Text className="min-w-0 flex-1">Reply {choice + 1}</Text>
+              <Text className="flex-1 min-inline-0">Reply {choice + 1}</Text>
               <Button
                 ref={(button): void => {
                   if (button === null) {

@@ -51,7 +51,7 @@ export function EditableTagChip({
       />
     );
   } else if (library.data === undefined) {
-    body = <Skeleton className="h-16 w-full" />;
+    body = <Skeleton className="block-(--height-row-placeholder) inline-full" />;
   } else if (row === undefined) {
     body = <Text voice="gloss">This tag was deleted.</Text>;
   } else {
@@ -73,11 +73,11 @@ export function EditableTagChip({
         ref={triggerRef}
         render={
           trigger === undefined ? (
-            <Button className="min-w-0 max-w-full" aria-label={editTitle} intent="ghost" size={iconOnly ? "icon-sm" : "chip"} type="button">
+            <Button className="max-inline-full min-inline-0" aria-label={editTitle} intent="ghost" size={iconOnly ? "icon-sm" : "chip"} type="button">
               {iconOnly ? (
                 <Icon icon={Pencil} size="xs" />
               ) : (
-                <Text as="span" className="min-w-0 truncate" voice="label">
+                <Text as="span" className="truncate min-inline-0" voice="label">
                   {name}
                 </Text>
               )}
@@ -89,10 +89,8 @@ export function EditableTagChip({
       />
       <PopoverPopup aria-label={editTitle} finalFocus={navigating ? false : triggerRef} width="stable">
         <Stack gap="block">
-          <Row className="min-w-0" align="center" justify="between" gap="field">
-            <PopoverTitle className="min-w-0 truncate" title={editTitle}>
-              {editTitle}
-            </PopoverTitle>
+          <Row className="min-inline-0" align="center" justify="between" gap="field">
+            <PopoverTitle className="truncate min-inline-0">{editTitle}</PopoverTitle>
             <PopoverClose
               render={
                 <Button className="shrink-0" aria-label="Close tag editor" intent="ghost" size="icon-sm" onClick={(): void => changeOpen(false)} type="button">

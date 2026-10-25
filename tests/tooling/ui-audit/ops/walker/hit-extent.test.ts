@@ -9,7 +9,7 @@
 //   ladder [11, 16, 22] → answers 22 / 32 / 44 · floors 24 (fine, AA 2.5.8) / 32 / 44 (coarse)
 //
 // 24 was not on that list. So every control owning 24-31px — which is the WHOLE @orb/ui selection family at
-// `pointer: fine`, an 18px box under a 28px `::before size-touch-target` — could only be published as 22 and
+// `pointer: fine`, an 18px box under a 28px `::before size-(--size-touch-target)` — could only be published as 22 and
 // failed a floor it already cleared. Measured on the character library's bulk mode: `10 affected of 10
 // judged; short side 22px`, on rows whose compositor ring answers `self` out to +/-13px.
 //

@@ -9,6 +9,7 @@ import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
+import { Tip } from "#components";
 import type { Trpc } from "#data";
 import { testId } from "#lib";
 import { selectCorpusArtifact, selectCorpusCharacter, useSelectedCorpusDestination } from "#state";
@@ -70,28 +71,28 @@ export function DiscoverHitRow({ hit, rank }: { readonly hit: DiscoverHit; reado
         subtitleWrap={true}
         meta={rank.toString()}
       />
-      <Stack className="pl-gutter" gap="row" data-testid={testId("corpusDiscoverEvidence")}>
+      <Stack className="ps-gutter" gap="row" data-testid={testId("corpusDiscoverEvidence")}>
         {[...passages].map(([snippet, occurrences]) => (
           <Stack key={snippet} gap="tight">
             <Text voice="gloss">“{snippet}”</Text>
             <Row className="flex-wrap" gap="field">
               {occurrences.map((segment, index) => (
-                <Button
-                  key={segment.source.rowId}
-                  className={`max-w-full justify-start ${RECEDED_INK}`}
-                  intent="ghost"
-                  size="sm"
-                  title={roomNumberingHint(chatSubtitle(segment.chatTitle, hit.name))}
-                  onClick={(): void => selectCorpusArtifact({ kind: "scene", hit: segment, characterName: hit.name, rank })}
-                >
-                  <Text as="span" className="min-w-0 truncate text-muted-foreground" voice="label">
-                    {chatSubtitle(segment.chatTitle, hit.name)}
-                    {occurrences.filter((candidate) => candidate.chatId === segment.chatId).length > 1 ? ` · occurrence ${index + 1}` : ""}
-                  </Text>
-                  <Text aria-hidden={true} as="span" className="shrink-0 text-muted-foreground" voice="label">
-                    →
-                  </Text>
-                </Button>
+                <Tip key={segment.source.rowId} text={roomNumberingHint(chatSubtitle(segment.chatTitle, hit.name))}>
+                  <Button
+                    className={`justify-start max-inline-full ${RECEDED_INK}`}
+                    intent="ghost"
+                    size="sm"
+                    onClick={(): void => selectCorpusArtifact({ kind: "scene", hit: segment, characterName: hit.name, rank })}
+                  >
+                    <Text as="span" className="truncate min-inline-0" tone="muted" voice="label">
+                      {chatSubtitle(segment.chatTitle, hit.name)}
+                      {occurrences.filter((candidate) => candidate.chatId === segment.chatId).length > 1 ? ` · occurrence ${index + 1}` : ""}
+                    </Text>
+                    <Text aria-hidden={true} as="span" className="shrink-0" tone="muted" voice="label">
+                      →
+                    </Text>
+                  </Button>
+                </Tip>
               ))}
             </Row>
           </Stack>
