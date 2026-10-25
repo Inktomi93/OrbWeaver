@@ -72,6 +72,8 @@ export interface SurfaceSource {
 export interface AppearanceAttribute {
   readonly name: string;
   readonly values: readonly string[];
+  /** The attribute carries a space-separated list of its values, so it may also be empty. */
+  readonly members: boolean;
 }
 
 export interface SurfaceInput {
@@ -202,7 +204,7 @@ export function renderOwnerCssSurface(input: SurfaceInput, previous: readonly Ow
     '  ...hooks("slot", OWNER_CSS_SLOTS),',
     '  ...hooks("shell-class", OWNER_CSS_SHELL_CLASSES),',
     '  ...hooks("token", OWNER_CSS_TOKEN_VARS),',
-    '  ...OWNER_CSS_APPEARANCE_ATTRIBUTES.map(({ name, values }): OwnerCssHook => ({ kind: "appearance-attribute", name, values })),',
+    '  ...OWNER_CSS_APPEARANCE_ATTRIBUTES.map(({ name, values, members }): OwnerCssHook => ({ kind: "appearance-attribute", name, values, members })),',
     "];",
     "",
   ].join("\n");

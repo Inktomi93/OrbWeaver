@@ -18,10 +18,13 @@ export interface HookReference {
 export interface AttributeMatch {
   /** `=`, `~=` and the partial operators; `null` for the presence-only form `[name]`. */
   readonly operator: string | null;
+  /** The value with its CSS escapes decoded. */
   readonly text: string | null;
-  /** The span of the value text, quotes excluded. */
+  /** The span of the value text as written, quotes excluded. */
   readonly from: number;
   readonly to: number;
+  /** The `i` flag: the value compares without regard to case. */
+  readonly caseInsensitive: boolean;
 }
 
 const BLANK = " ";
@@ -132,7 +135,8 @@ const PATTERNS: readonly Pattern[] = [
   {
     kind: "appearance-attribute",
     declaration: false,
-    pattern: /\[\s*(data-[\w-]+)(?:\s*(?<op>[~|^$*]?=)\s*(?:"(?<dq>[^"]*)"|'(?<sq>[^']*)'|(?<id>[\w-]+)))?/dgiu,
+    pattern:
+      /\[\s*(data-[\w-]+)(?:\s*(?<op>[~|^$*]?=)\s*(?:"(?<dq>(?:[^"\\]|\\.)*)"|'(?<sq>(?:[^'\\]|\\.)*)'|(?<id>(?:[\w-]|\\[0-9a-f]{1,6}\s?|\\[^0-9a-f\n])+))(?:\s*(?<flag>[is])(?![\w-]))?)?/dgiu,
     readsStrings: true,
   },
   { kind: "token", declaration: false, pattern: /var\(\s*(--[\w-]+)/gu },
@@ -140,15 +144,30 @@ const PATTERNS: readonly Pattern[] = [
 ];
 
 const VALUE_GROUPS = ["dq", "sq", "id"] as const;
+const CSS_ESCAPE = /\\(?:([0-9a-f]{1,6})\s?|([^0-9a-f\n]))/giu;
+const MAX_CODE_POINT = 0x10_ff_ff;
+const HEX = 16;
+const REPLACEMENT = "\uFFFD";
+
+function unescapeCss(text: string): string {
+  return text.replace(CSS_ESCAPE, (_escape, hex: string | undefined, literal: string | undefined) => {
+    if (hex === undefined) {
+      return literal ?? "";
+    }
+    const code = Number.parseInt(hex, HEX);
+    return code === 0 || code > MAX_CODE_POINT ? REPLACEMENT : String.fromCodePoint(code);
+  });
+}
 
 function attributeMatch(match: RegExpExecArray): AttributeMatch {
   const group = VALUE_GROUPS.find((candidate) => match.groups?.[candidate] !== undefined);
   const span = group === undefined ? undefined : match.indices?.groups?.[group];
   return {
     operator: match.groups?.["op"] ?? null,
-    text: group === undefined ? null : (match.groups?.[group] ?? null),
+    text: group === undefined ? null : unescapeCss(match.groups?.[group] ?? ""),
     from: span?.[0] ?? 0,
     to: span?.[1] ?? 0,
+    caseInsensitive: match.groups?.["flag"]?.toLowerCase() === "i",
   };
 }
 

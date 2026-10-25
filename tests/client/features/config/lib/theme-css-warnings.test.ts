@@ -132,6 +132,39 @@ test("a value outside the attribute's list, or the presence-only form, warns and
   expect(themeCssHookWarnings(`[${attribute.name}^="${allowed}z"] {}`, OWNER_CSS_SURFACE, [])).toEqual([]);
 });
 
+const single = OWNER_CSS_APPEARANCE_ATTRIBUTES.find((attribute) => !attribute.members);
+const list = OWNER_CSS_APPEARANCE_ATTRIBUTES.find((attribute) => attribute.members);
+const escapedFirst = (value: string): string => `\\${(value.codePointAt(0) ?? 0).toString(16)} ${value.slice(1)}`;
+
+test("the i flag compares a value case-insensitively and the s flag, or none, does not", () => {
+  const name = single?.name ?? "";
+  const value = single?.values[0] ?? "";
+  expect(themeCssHookWarnings(`[${name}="${value.toUpperCase()}" i] {}`, OWNER_CSS_SURFACE, [])).toEqual([]);
+  expect(themeCssHookWarnings(`[${name}=${value.toUpperCase()} I] {}`, OWNER_CSS_SURFACE, [])).toEqual([]);
+  expect(themeCssHookWarnings(`[${name}="${value.toUpperCase()}"] {}`, OWNER_CSS_SURFACE, [])).toHaveLength(1);
+  expect(themeCssHookWarnings(`[${name}="${value.toUpperCase()}" s] {}`, OWNER_CSS_SURFACE, [])).toHaveLength(1);
+});
+
+test("CSS escapes in a value are decoded before it is compared, quoted or not", () => {
+  const name = single?.name ?? "";
+  const value = single?.values[0] ?? "";
+  expect(themeCssHookWarnings(`[${name}=${escapedFirst(value)}] {}`, OWNER_CSS_SURFACE, [])).toEqual([]);
+  expect(themeCssHookWarnings(`[${name}="${escapedFirst(value)}"] {}`, OWNER_CSS_SURFACE, [])).toEqual([]);
+  const [stale] = themeCssHookWarnings(`[${name}=${escapedFirst(`${value}z`)}] {}`, OWNER_CSS_SURFACE, []);
+  expect(stale?.from).toBeGreaterThan(name.length);
+});
+
+test("selectors that can never match their attribute warn", () => {
+  const singleName = single?.name ?? "";
+  const listName = list?.name ?? "";
+  const [first, second] = single?.values ?? [];
+  expect(themeCssHookWarnings(`[${singleName}=""] {}`, OWNER_CSS_SURFACE, [])).toHaveLength(1);
+  expect(themeCssHookWarnings(`[${singleName}="${first} ${second}"] {}`, OWNER_CSS_SURFACE, [])).toHaveLength(1);
+  expect(themeCssHookWarnings(`[${listName}=""] {}`, OWNER_CSS_SURFACE, [])).toEqual([]);
+  expect(themeCssHookWarnings(`[${listName}~="${list?.values.join(" ")}"] {}`, OWNER_CSS_SURFACE, [])).toHaveLength(1);
+  expect(themeCssHookWarnings(`[${listName}~=""] {}`, OWNER_CSS_SURFACE, [])).toHaveLength(1);
+});
+
 test("attribute names are matched case-insensitively, as HTML matches them", () => {
   const [attribute] = OWNER_CSS_APPEARANCE_ATTRIBUTES;
   const css = `[${attribute.name.toUpperCase()}="nope"] {}`;

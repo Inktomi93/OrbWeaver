@@ -15,6 +15,8 @@ export interface OwnerCssHook {
   readonly name: string;
   /** The values an attribute hook matches, for autocomplete. */
   readonly values?: readonly string[];
+  /** The attribute carries a space-separated list of those values, so it may also be empty. */
+  readonly members?: boolean;
 }
 
 /**

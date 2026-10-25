@@ -82,15 +82,46 @@ test("an attribute value that leaves the surface without a rename row stops the 
   expect(() => renderOwnerCssSurface(recorded, OWNER_CSS_SURFACE)).not.toThrow();
 });
 
+type Surface = typeof OWNER_CSS_SURFACE;
+type Table = typeof OWNER_CSS_RENAMES;
+
+// A whole-name row names a hook that left the surface and points at ones that are on it. A value row names a live
+// attribute whose list no longer holds the value, and has no successor.
+function tableViolations(table: Table, surface: Surface): Table {
+  const hookOf = (kind: string, name: string): Surface[number] | undefined => surface.find((hook) => hook.kind === kind && hook.name === name);
+  return table.filter((rename) => {
+    if (rename.value !== undefined) {
+      const values = hookOf(rename.kind, rename.name)?.values;
+      return rename.to !== null || values === undefined || values.includes(rename.value);
+    }
+    return (
+      hookOf(rename.kind, rename.name) !== undefined ||
+      (rename.to !== null && hookOf(rename.kind, rename.to) === undefined) ||
+      (rename.see !== undefined && hookOf(rename.kind, rename.see) === undefined)
+    );
+  });
+}
+
 test("every rename row names a hook that left the surface and points at one that is on it", () => {
-  const onSurface = (kind: string, name: string): boolean => OWNER_CSS_SURFACE.some((hook) => hook.kind === kind && hook.name === name);
-  const violations = OWNER_CSS_RENAMES.filter(
-    (rename) =>
-      onSurface(rename.kind, rename.name) ||
-      (rename.to !== null && !onSurface(rename.kind, rename.to)) ||
-      (rename.see !== undefined && !onSurface(rename.kind, rename.see)),
-  );
-  expect(violations).toEqual([]);
+  expect(tableViolations(OWNER_CSS_RENAMES, OWNER_CSS_SURFACE)).toEqual([]);
+});
+
+test("a value row in the real table path is admitted for a dropped value and refused for a live one", () => {
+  const [attribute] = live.appearanceAttributes;
+  const name = attribute?.name ?? "";
+  const [lost, ...kept] = attribute?.values ?? [];
+  const regenerated: Surface = OWNER_CSS_SURFACE.map((hook) => (hook.kind === "appearance-attribute" && hook.name === name ? { ...hook, values: kept } : hook));
+  const dropped = { kind: "appearance-attribute" as const, name, value: lost ?? "", to: null };
+  const table = [...OWNER_CSS_RENAMES, dropped];
+  expect(tableViolations(table, regenerated)).toEqual([]);
+  const without = {
+    ...live,
+    renames: table,
+    appearanceAttributes: live.appearanceAttributes.map((candidate) => (candidate === attribute ? { ...candidate, values: kept } : candidate)),
+  };
+  expect(() => renderOwnerCssSurface(without, OWNER_CSS_SURFACE)).not.toThrow();
+  expect(tableViolations(table, OWNER_CSS_SURFACE)).toEqual([dropped]);
+  expect(tableViolations([{ ...dropped, name: `${name}z` }], regenerated)).toHaveLength(1);
 });
 
 test("the surface lists every kind, each name once, and no private name", () => {
