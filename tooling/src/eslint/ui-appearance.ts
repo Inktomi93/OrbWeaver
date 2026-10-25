@@ -20,10 +20,19 @@ const APPEARANCE_NAME = /--appearance-[a-z0-9-]+|data-appearance-[a-z0-9-]+|(?<!
 const OS_ONLY_VARIANT = /(?<![\w-])(?:not-)?(motion-safe|motion-reduce|transparency-reduce|contrast-more)(?=:)/gu;
 const MOTION_SAFE = "motion-safe";
 
-function osOnlyMessage(name: string, osVariants: AppearanceVocabulary["osVariants"]): string {
+// @orb/ui compiles without the client's resolved variants, so a ui file is pointed at the guarded sheet form instead.
+const UI_SOURCE = "/packages/ui/src/";
+
+function osOnlyMessage(name: string, osVariants: AppearanceVocabulary["osVariants"], inUi: boolean): string {
   const resolved = osVariants[name];
-  const remedy = resolved === undefined ? "let the reduced-motion floor remove the motion" : `use "${resolved}"`;
-  return `"${name}:" follows the OS only and ignores the app's on and off; ${remedy}.`;
+  const lead = `"${name}:" follows the OS only and ignores the app's on and off;`;
+  if (resolved === undefined) {
+    return `${lead} let the reduced-motion floor remove the motion.`;
+  }
+  if (inUi) {
+    return `${lead} key it in a ui sheet on ":root[data-${resolved}="on"]" and on "@variant ${name}" over ":root:not([data-${resolved}="off"])", as motion-floor.css does.`;
+  }
+  return `${lead} use "${resolved}".`;
 }
 
 /** Build the rule over the generated channel's vocabulary, read from the manifest, never a hand list. */
@@ -32,6 +41,7 @@ export function appearanceNameRule(vocabulary: AppearanceVocabulary): OrbRule {
   return {
     meta: { type: "problem", schema: [] },
     create(context: OrbRuleContext): RuleVisitor {
+      const inUi = context.filename.includes(UI_SOURCE);
       const check = (node: TSESTree.Node, text: string): void => {
         for (const match of text.matchAll(APPEARANCE_NAME)) {
           if (!known.has(match[0])) {
@@ -43,7 +53,7 @@ export function appearanceNameRule(vocabulary: AppearanceVocabulary): OrbRule {
         }
         for (const match of text.matchAll(OS_ONLY_VARIANT)) {
           const name = match[1] ?? MOTION_SAFE;
-          context.report({ node, message: osOnlyMessage(name, vocabulary.osVariants) });
+          context.report({ node, message: osOnlyMessage(name, vocabulary.osVariants, inUi) });
         }
       };
       return {

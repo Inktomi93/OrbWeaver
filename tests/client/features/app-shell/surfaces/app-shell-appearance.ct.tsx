@@ -2,7 +2,7 @@
 // panes, the dials it stamps on the root, the remembered boot hint, and what survives a handover to the pending mark.
 
 import { crc32, deflateSync } from "node:zlib";
-import { REDUCED_MOTION_ATTR } from "@orb/client/state";
+import { APPEARANCE_CHANNEL_ROWS } from "@orb/client/lib";
 import type { StoredAsset } from "@orb/contracts/assets";
 import { BLOB_ROUTE } from "@orb/contracts/assets";
 import { CSRF_HEADER } from "@orb/contracts/identity";
@@ -19,7 +19,17 @@ import { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import type { AppShellModalStory, AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import type { ShellToPendingStory } from "./_shell-handover-stories.tsx";
-import { emulateMedia, PHONE, pixel, ROOM_PROCEDURES, resolvedLength, SECTION_PROCEDURES, SHELL_STORIES, seedShellState } from "./app-shell-ct.ts";
+import {
+  emulateMedia,
+  PHONE,
+  pixel,
+  ROOM_PROCEDURES,
+  releaseEmulatedMedia,
+  resolvedLength,
+  SECTION_PROCEDURES,
+  SHELL_STORIES,
+  seedShellState,
+} from "./app-shell-ct.tsx";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;
 const MODAL_STORY = `${SHELL_STORIES}/AppShellModalStory`;
@@ -41,9 +51,11 @@ const BASE_APPEARANCE: Partial<AppearanceSettings> = {
   chatStyle: "bubble",
   blurSurfaces: ["panels", "composer", "modals"],
   elevation: "flat",
-  reducedMotion: false,
+  reducedMotion: "system",
   surfaceTexture: "none",
 };
+// The root attribute the appearance channel writes for the reduced-motion setting, read from the manifest.
+const REDUCED_MOTION_ATTR = APPEARANCE_CHANNEL_ROWS.find((row) => row.key === "reducedMotion")?.name ?? "";
 const SERVED = [...SECTION_PROCEDURES, ...ROOM_PROCEDURES].filter((path) => path !== "settings.getUserSettings");
 // The reduced-motion floor writes `animation-duration: 0.01ms`, a literal with no token; anything under a
 // millisecond is floored, and the unfloored glyph runs at the resolved `--motion-breathe`.
@@ -77,6 +89,11 @@ test.beforeAll(async () => {
 
 test.beforeEach(async ({ page }) => {
   await emulateMedia(page, { contrast: "no-preference", transparency: "no-preference" });
+});
+
+// The media session is per page and the page outlives the test; detach it so no later spec inherits the overrides.
+test.afterEach(async ({ page }) => {
+  await releaseEmulatedMedia(page);
 });
 
 test.afterAll(async () => {
@@ -391,9 +408,9 @@ function breatheTokenMs(page: Page): Promise<number> {
     .then(animationMs);
 }
 
-/** Once the shell has stamped the flag, replace it with the router's pending mark. */
-async function handOver(page: Page, reducedMotion: boolean): Promise<Locator> {
-  await expect(page.locator("html")).toHaveAttribute(REDUCED_MOTION_ATTR, String(reducedMotion));
+/** Once the shell has stamped the setting, replace it with the router's pending mark. */
+async function handOver(page: Page, reducedMotion: AppearanceSettings["reducedMotion"]): Promise<Locator> {
+  await expect(page.locator("html")).toHaveAttribute(REDUCED_MOTION_ATTR, reducedMotion);
   await page.getByRole("button", { name: "Hand over", exact: true }).click();
   const splash = page.getByRole("status", { name: "Loading", exact: true });
   await expect(splash).toBeVisible();
@@ -541,7 +558,7 @@ test.describe("reduced transparency", () => {
     await seedShellState(page, { activeSection: "chats" });
     await routeAppearance(page, corpus, { blurSurfaces: ["panels"] });
     await mount<typeof AppShellStory>(STORY, {});
-    await expect(page.locator("html")).toHaveAttribute("data-blur-panels", "");
+    await expect(page.locator("html")).toHaveAttribute("data-appearance-blur-surfaces", "panels");
     await expect.poll(() => fillAlpha(page.locator(LIST))).toBe(1);
     await expect.poll(() => fillAlpha(page.locator(".shell-main"))).toBe(1);
   });
@@ -607,7 +624,7 @@ test.describe("contrast more", () => {
     await routeAppearance(page, corpus, { blurSurfaces: [] });
     await mount<typeof AppShellStory>(STORY, {});
     await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "docked");
-    await expect(page.locator("html")).not.toHaveAttribute("data-blur-panels", /.*/u);
+    await expect(page.locator("html")).toHaveAttribute("data-appearance-blur-surfaces", "");
     await expect.poll(() => borderWidths(page.locator(LIST))).toBe("0px 2px 0px 0px");
     await expect.poll(() => seamRatio(page)).toBeGreaterThanOrEqual(AA_NON_TEXT_RATIO);
   });
@@ -620,7 +637,7 @@ test.describe("contrast more", () => {
     const pane = page.locator(LIST);
     const dialog = page.locator(DIALOG);
     await expect(dialog).toBeVisible();
-    await expect(page.locator("html")).toHaveAttribute("data-blur-panels", "");
+    await expect(page.locator("html")).toHaveAttribute("data-appearance-blur-surfaces", "panels modals");
     await expect.poll(() => fillAlpha(pane, "::before")).toBe(1);
     await expect.poll(() => carrierBlur(pane)).toBe("none");
     await expect.poll(() => fillAlpha(dialog)).toBe(1);
@@ -692,7 +709,7 @@ test.describe("grain", () => {
     await routeAppearance(page, corpus, { surfaceTexture: "grain" });
     await mount<typeof AppShellStory>(STORY, {});
     const grid = page.locator(".shell-grid");
-    await expect(page.locator("html")).toHaveAttribute("data-texture", "grain");
+    await expect(page.locator("html")).toHaveAttribute("data-appearance-surface-texture", "grain");
     await expect.poll(() => computed(grid, "content", "::after")).not.toBe("none");
     await expect.poll(() => computed(grid, "display", "::after")).not.toBe("none");
     await emulateMedia(page, { contrast: "more" });
@@ -715,7 +732,7 @@ test.describe("grain", () => {
       height: 8,
     }));
     const filmed = await Promise.all(patches.map((patch) => noiseSpread(page, patch)));
-    await page.locator("html").evaluate((element) => element.removeAttribute("data-texture"));
+    await page.locator("html").evaluate((element) => element.setAttribute("data-appearance-surface-texture", "none"));
     const bare = await Promise.all(patches.map((patch) => noiseSpread(page, patch)));
     const flattest = bare.indexOf(Math.min(...bare));
     expect(bare[flattest]).toBeLessThan(filmed[flattest] ?? 0);
@@ -725,7 +742,7 @@ test.describe("grain", () => {
     await routeAppearance(page, corpus, { surfaceTexture: "none" });
     await mount<typeof AppShellStory>(STORY, {});
     await expect(page.locator('.shell-grid [data-slot="card-root"]').first()).toBeVisible();
-    await expect(page.locator("html")).not.toHaveAttribute("data-texture", /.*/u);
+    await expect(page.locator("html")).toHaveAttribute("data-appearance-surface-texture", "none");
     await expect.poll(() => computed(page.locator(".shell-grid"), "content", "::after")).toBe("none");
     await expect.poll(() => computed(page.locator('.shell-grid [data-slot="card-root"]').first(), "content", "::after")).toBe("none");
   });
@@ -1078,28 +1095,28 @@ test.describe("root dials", () => {
   });
 
   test("the app's reduced-motion setting floors an animation outside the shell grid as well as inside it", async ({ corpus, mount, page }) => {
-    await routeAppearance(page, corpus, { reducedMotion: true });
+    await routeAppearance(page, corpus, { reducedMotion: "on" });
     await mount<typeof AppShellStory>(STORY, {});
     await expect.poll(() => shimmerMs(page, ".shell-grid")).toBeLessThan(FLOORED_MS);
     await expect.poll(() => shimmerMs(page, "body")).toBeLessThan(FLOORED_MS);
-    await expect(page.locator("html")).toHaveAttribute(REDUCED_MOTION_ATTR, "true");
+    await expect(page.locator("html")).toHaveAttribute(REDUCED_MOTION_ATTR, "on");
   });
 });
 
 test.describe("handover to the pending mark", () => {
   test("the pending mark that replaces the shell keeps the app's reduced-motion flag, and its shimmer stops", async ({ corpus, mount, page }) => {
-    await routeAppearance(page, corpus, { reducedMotion: true });
+    await routeAppearance(page, corpus, { reducedMotion: "on" });
     await mount<typeof ShellToPendingStory>(HANDOVER, {});
-    const splash = await handOver(page, true);
-    await expect(page.locator("html")).toHaveAttribute(REDUCED_MOTION_ATTR, "true");
+    const splash = await handOver(page, "on");
+    await expect(page.locator("html")).toHaveAttribute(REDUCED_MOTION_ATTR, "on");
     await expect.poll(() => glyphDurationMs(splash)).toBeLessThan(FLOORED_MS);
   });
 
-  test("with the app's reduced motion off the pending mark leaves no stale flag, and its shimmer runs", async ({ corpus, mount, page }) => {
-    await routeAppearance(page, corpus, { reducedMotion: false });
+  test("with the app's reduced motion off the pending mark keeps the off setting, and its shimmer runs", async ({ corpus, mount, page }) => {
+    await routeAppearance(page, corpus, { reducedMotion: "off" });
     await mount<typeof ShellToPendingStory>(HANDOVER, {});
-    const splash = await handOver(page, false);
-    await expect(page.locator("html")).not.toHaveAttribute(REDUCED_MOTION_ATTR, /.*/u);
+    const splash = await handOver(page, "off");
+    await expect(page.locator("html")).toHaveAttribute(REDUCED_MOTION_ATTR, "off");
     await expect.poll(() => glyphDurationMs(splash)).toBe(await breatheTokenMs(page));
   });
 });

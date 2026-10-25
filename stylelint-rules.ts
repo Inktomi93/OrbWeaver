@@ -424,6 +424,7 @@ const APPEARANCE = "orb/appearance-name-in-manifest";
 const APPEARANCE_MESSAGES = messagesOf(APPEARANCE, {
   rejected: "is not an appearance channel name; the manifest (appearance-carrier-manifest.ts) declares every one",
   osOnly: "an OS-only variant ignores the app's on and off; use the resolved appearance variant",
+  unguarded: "under an OS-only variant every selector starts with the root guard, so the app's off beats the OS",
 });
 const APPEARANCE_PROPERTY = /--appearance-[a-z0-9-]+/gu;
 const APPEARANCE_ATTRIBUTE = /data-appearance-[a-z0-9-]+/gu;
@@ -436,38 +437,135 @@ export interface AppearanceVocabulary {
   readonly variants: readonly string[];
   /** An OS-only preference variant → the resolved variant that honours the app's `on` and `off` over it. */
   readonly osVariants?: Readonly<Record<string, string>>;
+  /**
+   * Admit an OS-only variant when every selector under it starts with the root guard
+   * (`:root:not([data-appearance-<key>="off"])`). The ui sheets compile without the client's resolved variants, so
+   * they spell the OS arm this way beside the `on` arm.
+   */
+  readonly osGuard?: boolean;
+}
+
+// `motion-safe` negates `motion-reduce`, which no resolved variant can express.
+const MOTION_SAFE = "motion-safe";
+
+function isStyleRule(node: unknown): node is StyleRule {
+  return typeof node === "object" && node !== null && (node as { type?: unknown }).type === "rule";
+}
+
+/** The nearest style rule a node sits inside, or undefined at the top of the sheet or a layer. */
+function enclosingRule(node: AtRule): StyleRule | undefined {
+  for (let parent: unknown = node.parent; typeof parent === "object" && parent !== null; parent = (parent as { parent?: unknown }).parent) {
+    if (isStyleRule(parent)) {
+      return parent;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Whether everything a variant styles sits under the root guard. A rule inside the variant carries the guard on each
+ * selector, or nests with `&` under an enclosing rule that does; a declaration directly inside the variant styles the
+ * enclosing rule's selectors, so those carry it.
+ */
+function guardedSelectors(atRule: AtRule, guard: string): boolean {
+  const owner = enclosingRule(atRule);
+  const ownerGuarded = owner?.selectors.every((selector) => selector.trim().startsWith(guard)) === true;
+  const startsGuarded = (selector: string): boolean => {
+    const trimmed = selector.trim();
+    return trimmed.startsWith(guard) || (trimmed.startsWith("&") && ownerGuarded);
+  };
+  let guarded = atRule.nodes?.some((node) => node.type === "decl") !== true || ownerGuarded;
+  atRule.walk((node) => {
+    if (isStyleRule(node) && !node.selectors.every(startsGuarded)) {
+      guarded = false;
+    }
+  });
+  return guarded;
+}
+
+type ReportNode = Parameters<typeof stylelint.utils.report>[0]["node"];
+
+/** The rule's reporters over one vocabulary and one result. */
+interface AppearanceChecks {
+  /** Report each match of `pattern` in `text` that the vocabulary does not declare. */
+  readonly names: (node: ReportNode, text: string, pattern: RegExp) => void;
+  /** Report an OS-only preference variant, naming its resolved replacement when one exists. */
+  readonly osOnly: (node: AtRule, name: string) => void;
+}
+
+function appearanceChecks(vocabulary: AppearanceVocabulary, result: PostcssResult): AppearanceChecks {
+  const known = new Set([...vocabulary.properties, ...vocabulary.attributes, ...vocabulary.variants]);
+  return {
+    names: (node, text, pattern): void => {
+      for (const match of text.matchAll(pattern)) {
+        if (!known.has(match[0])) {
+          stylelint.utils.report({ result, ruleName: APPEARANCE, node, message: `"${match[0]}" ${APPEARANCE_MESSAGES.rejected}`, word: match[0] });
+        }
+      }
+    },
+    osOnly: (node, name): void => {
+      const resolved = vocabulary.osVariants?.[name];
+      const remedy = resolved === undefined ? "" : ` → "${resolved}"`;
+      stylelint.utils.report({ result, ruleName: APPEARANCE, node, message: `"${name}"${remedy}: ${APPEARANCE_MESSAGES.osOnly}`, word: name });
+    },
+  };
+}
+
+// A utility's variant prefix is a variant too, and a sheet cannot guard it, so an OS-only one is refused here.
+function checkApply(atRule: AtRule, vocabulary: AppearanceVocabulary, checks: AppearanceChecks): void {
+  for (const segment of atRule.params.split(/\s+/u).flatMap((candidate) => candidate.split(":").slice(0, -1))) {
+    const variant = segment.replace(/^not-/u, "");
+    checks.names(atRule, variant, APPEARANCE_VARIANT);
+    if (variant === MOTION_SAFE || vocabulary.osVariants?.[variant] !== undefined) {
+      checks.osOnly(atRule, variant);
+    }
+  }
+}
+
+function checkVariant(atRule: AtRule, vocabulary: AppearanceVocabulary, checks: AppearanceChecks, result: PostcssResult): void {
+  const name = atRule.params.split(/\s/u)[0] ?? "";
+  checks.names(atRule, name, APPEARANCE_VARIANT);
+  const resolved = atRule.name === "variant" ? vocabulary.osVariants?.[name] : undefined;
+  if (resolved === undefined) {
+    return;
+  }
+  const guard = `:root:not([data-${resolved}="off"])`;
+  if (vocabulary.osGuard !== true) {
+    checks.osOnly(atRule, name);
+  } else if (!guardedSelectors(atRule, guard)) {
+    stylelint.utils.report({ result, ruleName: APPEARANCE, node: atRule, message: `"${name}": ${APPEARANCE_MESSAGES.unguarded} (${guard})`, word: name });
+  }
 }
 
 const appearanceRule: Rule<true, AppearanceVocabulary> = (primary, secondary) => (root, result) => {
   const strings = [(value: unknown): boolean => typeof value === "string"];
-  const options = { actual: secondary, possible: { properties: strings, attributes: strings, variants: strings, osVariants: [isPlainObject] } };
+  const options = {
+    actual: secondary,
+    possible: {
+      properties: strings,
+      attributes: strings,
+      variants: strings,
+      osVariants: [isPlainObject],
+      osGuard: [(value: unknown): boolean => typeof value === "boolean"],
+    },
+  };
   if (!stylelint.utils.validateOptions(result, APPEARANCE, { actual: primary, possible: [true] }, options)) {
     return;
   }
-  const known = new Set([...secondary.properties, ...secondary.attributes, ...secondary.variants]);
-  const check = (node: Parameters<typeof stylelint.utils.report>[0]["node"], text: string, pattern: RegExp): void => {
-    for (const match of text.matchAll(pattern)) {
-      if (!known.has(match[0])) {
-        stylelint.utils.report({ result, ruleName: APPEARANCE, node, message: `"${match[0]}" ${APPEARANCE_MESSAGES.rejected}`, word: match[0] });
-      }
-    }
-  };
+  const checks = appearanceChecks(secondary, result);
   root.walkDecls((declaration) => {
-    check(declaration, declaration.prop, APPEARANCE_PROPERTY);
-    check(declaration, withoutValueComments(authoredValue(declaration)), APPEARANCE_PROPERTY);
+    checks.names(declaration, declaration.prop, APPEARANCE_PROPERTY);
+    checks.names(declaration, withoutValueComments(authoredValue(declaration)), APPEARANCE_PROPERTY);
   });
   root.walkRules((rule) => {
-    check(rule, rule.selector, APPEARANCE_ATTRIBUTE);
+    checks.names(rule, rule.selector, APPEARANCE_ATTRIBUTE);
   });
   root.walkAtRules((atRule) => {
-    check(atRule, atRule.params, APPEARANCE_ATTRIBUTE);
-    if (atRule.name === "variant" || atRule.name === "custom-variant") {
-      const name = atRule.params.split(/\s/u)[0] ?? "";
-      check(atRule, name, APPEARANCE_VARIANT);
-      const resolved = atRule.name === "variant" ? secondary.osVariants?.[name] : undefined;
-      if (resolved !== undefined) {
-        stylelint.utils.report({ result, ruleName: APPEARANCE, node: atRule, message: `"${name}" → "${resolved}": ${APPEARANCE_MESSAGES.osOnly}`, word: name });
-      }
+    checks.names(atRule, atRule.params, APPEARANCE_ATTRIBUTE);
+    if (atRule.name === "apply") {
+      checkApply(atRule, secondary, checks);
+    } else if (atRule.name === "variant" || atRule.name === "custom-variant") {
+      checkVariant(atRule, secondary, checks, result);
     }
   });
 };

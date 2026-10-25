@@ -11,6 +11,20 @@ export interface HookReference {
   readonly declaration: boolean;
   /** A `var(--x, fallback)`: the author supplied a value for when the property is unset, so it is theirs to own. */
   readonly fallback: boolean;
+  /** An attribute selector's operator and value, when the reference is one. */
+  readonly attribute?: AttributeMatch;
+}
+
+export interface AttributeMatch {
+  /** `=`, `~=` and the partial operators; `null` for the presence-only form `[name]`. */
+  readonly operator: string | null;
+  /** The value with its CSS escapes decoded. */
+  readonly text: string | null;
+  /** The span of the value text as written, quotes excluded. */
+  readonly from: number;
+  readonly to: number;
+  /** The `i` flag: the value compares without regard to case. */
+  readonly caseInsensitive: boolean;
 }
 
 const BLANK = " ";
@@ -114,13 +128,48 @@ interface Pattern {
 // Only the exact-match attribute forms name a whole slot; `^=`, `*=` and `|=` match a prefix or fragment, which no
 // surface entry can stand for.
 const PATTERNS: readonly Pattern[] = [
-  { kind: "slot", declaration: false, pattern: /\[data-slot~?=["']?([\w-]+)/gu, readsStrings: true },
+  { kind: "slot", declaration: false, pattern: /\[data-slot~?=["']?([\w-]+)/giu, readsStrings: true },
   { kind: "shell-class", declaration: false, pattern: /\.(shell-[\w-]+)/gu },
   // Every `data-*` attribute selector; the readers keep the ones the surface or the rename table speak for.
-  { kind: "appearance-attribute", declaration: false, pattern: /\[\s*(data-[\w-]+)/gu },
+  // HTML matches attribute names case-insensitively; the value, if any, is read with its quotes.
+  {
+    kind: "appearance-attribute",
+    declaration: false,
+    pattern:
+      /\[\s*(data-[\w-]+)(?:\s*(?<op>[~|^$*]?=)\s*(?:"(?<dq>(?:[^"\\]|\\.)*)"|'(?<sq>(?:[^'\\]|\\.)*)'|(?<id>(?:[\w-]|\\[0-9a-f]{1,6}\s?|\\[^0-9a-f\n])+))(?:\s*(?<flag>[is])(?![\w-]))?)?/dgiu,
+    readsStrings: true,
+  },
   { kind: "token", declaration: false, pattern: /var\(\s*(--[\w-]+)/gu },
   { kind: "token", declaration: true, pattern: /(?<![\w-])(--[\w-]+)\s*:/gu },
 ];
+
+const VALUE_GROUPS = ["dq", "sq", "id"] as const;
+const CSS_ESCAPE = /\\(?:([0-9a-f]{1,6})\s?|([^0-9a-f\n]))/giu;
+const MAX_CODE_POINT = 0x10_ff_ff;
+const HEX = 16;
+const REPLACEMENT = "\uFFFD";
+
+function unescapeCss(text: string): string {
+  return text.replace(CSS_ESCAPE, (_escape, hex: string | undefined, literal: string | undefined) => {
+    if (hex === undefined) {
+      return literal ?? "";
+    }
+    const code = Number.parseInt(hex, HEX);
+    return code === 0 || code > MAX_CODE_POINT ? REPLACEMENT : String.fromCodePoint(code);
+  });
+}
+
+function attributeMatch(match: RegExpExecArray): AttributeMatch {
+  const group = VALUE_GROUPS.find((candidate) => match.groups?.[candidate] !== undefined);
+  const span = group === undefined ? undefined : match.indices?.groups?.[group];
+  return {
+    operator: match.groups?.["op"] ?? null,
+    text: group === undefined ? null : unescapeCss(match.groups?.[group] ?? ""),
+    from: span?.[0] ?? 0,
+    to: span?.[1] ?? 0,
+    caseInsensitive: match.groups?.["flag"]?.toLowerCase() === "i",
+  };
+}
 
 /** Every hook reference in live code (not in a comment, a string or an `@supports` condition), in document order. */
 export function scanHooks(css: string): readonly HookReference[] {
@@ -132,7 +181,7 @@ export function scanHooks(css: string): readonly HookReference[] {
     withStrings = blankRange(withStrings, prelude.index, to);
   }
   return PATTERNS.flatMap(({ kind, declaration, pattern, readsStrings }) =>
-    [...(readsStrings === true ? withStrings : code).matchAll(pattern)].flatMap((match) => {
+    [...(readsStrings === true ? withStrings : code).matchAll(pattern)].flatMap((match): HookReference[] => {
       const name = match[1];
       // A slot match whose `[` was blanked sits inside a string or a prelude.
       if (name === undefined || code[match.index] === BLANK) {
@@ -141,7 +190,10 @@ export function scanHooks(css: string): readonly HookReference[] {
       const from = match.index + match[0].indexOf(name);
       const to = from + name.length;
       const fallback = kind === "token" && !declaration && /^\s*,/u.test(code.slice(to));
-      return [{ kind, name, from, to, declaration, fallback }];
+      if (kind !== "appearance-attribute") {
+        return [{ kind, name, from, to, declaration, fallback }];
+      }
+      return [{ kind, name: name.toLowerCase(), from, to, declaration, fallback, attribute: attributeMatch(match) }];
     }),
   ).sort((a, b) => a.from - b.from);
 }

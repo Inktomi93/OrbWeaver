@@ -9,14 +9,15 @@ import { beforeAll } from "vitest";
 const ROOT = join(import.meta.dirname, "../..");
 const RULE = "orb/appearance-name-in-manifest";
 const CLIENT = "packages/client/src/features/a/reader.ts";
+const UI = "packages/ui/src/primitives/a/variants.ts";
 const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: ROOT });
 
 beforeAll(async () => {
   await eslint.calculateConfigForFile(join(ROOT, CLIENT));
 }, 120_000);
 
-async function findings(source: string): Promise<readonly string[]> {
-  const config = await eslint.calculateConfigForFile(join(ROOT, CLIENT));
+async function findings(source: string, path = CLIENT): Promise<readonly string[]> {
+  const config = await eslint.calculateConfigForFile(join(ROOT, path));
   const found = new Linter({ cwd: ROOT }).verify(
     source,
     {
@@ -25,7 +26,7 @@ async function findings(source: string): Promise<readonly string[]> {
       languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false, programs: null } },
       rules: { [RULE]: config?.rules?.[RULE] ?? "off" },
     },
-    { filename: join(ROOT, CLIENT) },
+    { filename: join(ROOT, path) },
   );
   expect(found.filter(({ fatal }) => fatal === true)).toEqual([]);
   return found.filter(({ ruleId }) => ruleId === RULE).map(({ message }) => message);
@@ -54,4 +55,12 @@ test.for([
   ["a name in a template chunk", "export const A = (k: string): string => `[data-appearance-texture=${k}]`;", "data-appearance-texture"],
 ] as const)("%s is refused", async ([, source, name]) => {
   expect(await findings(source)).toEqual([expect.stringContaining(`"${name}"`)]);
+});
+
+test("an OS-only variant in a ui file is pointed at the guarded sheet form, which ui can use", async () => {
+  const [message] = await findings('export const A = "contrast-more:border-2";', UI);
+  expect(message).toContain(':root:not([data-appearance-increased-contrast="off"])');
+  expect(message).not.toContain('use "appearance-increased-contrast"');
+  const [clientMessage] = await findings('export const A = "contrast-more:border-2";');
+  expect(clientMessage).toContain('use "appearance-increased-contrast"');
 });

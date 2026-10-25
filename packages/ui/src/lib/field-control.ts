@@ -41,6 +41,6 @@ export const FIELD_CONTROL_BOX = "inline-full min-inline-0 rounded-control borde
 //
 // IT IS A SEPARATE TOKEN FROM `text.body`, NOT AN ARM ON IT: `[data-slot="message-bubble"]` reads
 // `--text-body` for transcript prose, so a coarse arm there would enlarge all reading prose on touch and
-// collide with the reader's own `--reading-body-scale` dial. The scale genuinely lacked a form-control
+// collide with the reader's own `--appearance-reading-body-scale` dial. The scale genuinely lacked a form-control
 // step; this mints one rather than overloading the body step.
 export const FIELD_CONTROL = `${FIELD_CONTROL_BOX} px-block text-field leading-field`;

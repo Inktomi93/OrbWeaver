@@ -14,12 +14,13 @@ import {
   namedGroupRoom,
   PHONE,
   ROOM_PROCEDURES,
+  releaseEmulatedMedia,
   resolvedLength,
   SECTION_PROCEDURES,
   SHELL_STORIES,
   seedShellState,
   shellTracks,
-} from "./app-shell-ct.ts";
+} from "./app-shell-ct.tsx";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;
 const ROOM_STORY = `${SHELL_STORIES}/AppShellRoomStory`;
@@ -79,9 +80,17 @@ test.beforeEach(async ({ page }) => {
   await emulateMedia(page, {});
 });
 
+// The media session is per page and the page outlives the test; detach it so no later spec inherits the overrides.
+test.afterEach(async ({ page }) => {
+  await releaseEmulatedMedia(page);
+});
+
 test.afterAll(async () => {
   await root[Symbol.asyncDispose]();
 });
+
+// The motion cases follow the OS query at the default text size, whatever the corpus viewer chose.
+const MOTION_BASE: Partial<AppearanceSettings> = { reducedMotion: "system", fontScale: 1 };
 
 /** Serve the shell, its sections and a room, with the corpus viewer's settings under `appearance`. */
 async function routeMotion(page: Page, corpus: CorpusWire, appearance: Partial<AppearanceSettings> = {}): Promise<void> {
@@ -96,7 +105,7 @@ async function routeMotion(page: Page, corpus: CorpusWire, appearance: Partial<A
     ...serveCorpusProcedures(await root.internalCallerFor(root.ownerId), served),
     "settings.getUserSettings": () => ({
       ...settings,
-      config: { ...settings.config, appearance: { ...settings.config.appearance, reducedMotion: false, fontScale: 1, ...appearance } },
+      config: { ...settings.config, appearance: { ...settings.config.appearance, ...MOTION_BASE, ...appearance } },
     }),
   });
 }

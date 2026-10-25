@@ -15,14 +15,18 @@ export interface OwnerCssHook {
   readonly name: string;
   /** The values an attribute hook matches, for autocomplete. */
   readonly values?: readonly string[];
+  /** The attribute carries a space-separated list of those values, so it may also be empty. */
+  readonly members?: boolean;
 }
 
 /**
  * A hook that left the public surface. `to` is the successor the injection path rewrites it to, or `null` when no
  * rewrite is safe. `see` names the replacement for a hook whose old value has no one-to-one new form, so the
- * warning can point at it.
+ * warning can point at it. A row with `value` records one value an attribute hook no longer matches (its `to` is
+ * `null`); the attribute itself stays on the surface.
  */
 export interface OwnerCssRename extends Pick<OwnerCssHook, "kind" | "name"> {
   readonly to: string | null;
   readonly see?: string;
+  readonly value?: string;
 }

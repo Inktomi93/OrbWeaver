@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "rename-in-comments"
+version: "0.1.0"
+description: "Rename exact names inside comments by a map read from the target directory; code and strings are untouched."
+author: "Orbweaver"
+license: "MIT"
+targets:
+  languages: ["typescript", "tsx", "css"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

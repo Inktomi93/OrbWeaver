@@ -22,7 +22,7 @@
 //
 // TWO DIFFERENT MOTION GATES — do not confuse them (they diverge, which is exactly why this file exists):
 //   • `--reduced-motion` (snap) → `emulateMedia({reducedMotion:"reduce"})` — the OS MEDIA QUERY.
-//   • `--full-motion` / `--appearance` → this shim — the APP SETTING (`[data-reduced-motion]` on <html>,
+//   • `--full-motion` / `--appearance` → this shim — the APP SETTING (`[data-appearance-reduced-motion]` on <html>,
 //     written by useAppearanceRootEffects from this very query).
 // motion-audit/perf-meter already pass `reducedMotion:false` (the media query) and STILL measured a frozen
 // app, because the app setting said reduce. They compose; neither implies the other.
