@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
-updated: 2026-10-24
+status: doing
+updated: 2026-10-25
 priority: P3
 area: client
+lane: closeout/dom
 plan: css-system
 ---
 

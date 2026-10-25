@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-25
 priority: P2
 area: client
+lane: closeout/rendered
 ---
 
 # Plugin settings page shows one primary Approve per pending plugin

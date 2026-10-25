@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
-updated: 2026-10-24
+status: doing
+updated: 2026-10-25
 priority: P3
 area: client
+lane: closeout/css
 ---
 
 # Container rule gaps and stale notes from the 1319 review

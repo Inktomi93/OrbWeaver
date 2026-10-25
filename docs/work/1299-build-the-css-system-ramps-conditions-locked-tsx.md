@@ -1,10 +1,10 @@
 ---
 kind: work
 status: doing
-updated: 2026-10-24
+updated: 2026-10-25
 priority: P2
 area: ui
-lane: wt/agent-a93838f44c69f2f8c
+lane: closeout/css
 plan: css-system
 ---
 

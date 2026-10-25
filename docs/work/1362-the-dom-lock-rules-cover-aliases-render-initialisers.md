@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-10-25
 priority: P2
 area: tooling
+lane: closeout/dom
 ---
 
 # The DOM-lock rules cover aliases, render initialisers and per-site homes
