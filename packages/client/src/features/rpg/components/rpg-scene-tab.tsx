@@ -339,7 +339,7 @@ function SceneGameTrackers({
           max={trackerCeiling(entry.def, entry.value ?? undefined)}
           // The tracker SHAPE glyph leads the row (the closed-vocab Record — aria-hidden decoration;
           // the label stays the datum).
-          leading={<Icon icon={TRACKER_SHAPE_GLYPHS[entry.def.shape]} size="xs" className="shrink-0 text-muted-foreground" />}
+          leading={<Icon icon={TRACKER_SHAPE_GLYPHS[entry.def.shape]} size="xs" tone="muted" className="shrink-0" />}
           // The def's host-picked color, warded by the strict hex/OKLCH grammar; else the ordinal ramp.
           {...trackColorProps(resolveTrackerColor(entry.def.color, i))}
           {...(entry.def.hint === "" ? {} : { note: entry.def.hint })}

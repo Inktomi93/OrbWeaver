@@ -46,7 +46,7 @@ export function RpgCardRow({ card, onOpen }: RpgCardRowProps): ReactElement {
         </Text>
       ) : null}
       <RpgTurnRef messageId={card.messageId} createdAt={card.createdAt} />
-      <Icon icon={Expand} size="xs" className="shrink-0 text-muted-foreground" />
+      <Icon icon={Expand} size="xs" tone="muted" className="shrink-0" />
     </Button>
   );
 }

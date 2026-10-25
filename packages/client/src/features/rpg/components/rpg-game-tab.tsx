@@ -131,9 +131,10 @@ function TrackerRow({
                 const n = Number.parseInt(next, 10);
                 patch({ max: Number.isNaN(n) ? null : Math.max(1, n) });
               }}
-              className="px-field text-end tabular-nums"
+              className="px-field text-end"
+              numeric={true}
               width="avatar-lg"
-              restClassName="tabular-nums"
+              restClassName=""
             />
           </Row>
         ) : null}
@@ -394,8 +395,8 @@ function HostConsole({ state }: { readonly state: RpgPanelState }): ReactElement
   return (
     <Stack gap="section" data-slot="rpg-game-tab">
       <Row gap="field" align="center">
-        <Icon icon={Crown} size="sm" className="text-accolade" />
-        <Text voice="kicker" className="tracking-micro text-accolade">
+        <Icon icon={Crown} size="sm" tone="accolade" />
+        <Text voice="kicker" tone="accolade">
           Host console — host only
         </Text>
       </Row>

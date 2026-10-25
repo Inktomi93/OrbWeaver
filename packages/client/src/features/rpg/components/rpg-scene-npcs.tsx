@@ -100,7 +100,7 @@ function SceneNpcCard({ actor, edit }: { readonly actor: RpgActorView; readonly 
       relationship={identity.relationship}
       fields={texts}
       // The relationship KIND glyph (the closed-vocab Record) leads the edit-mode picker.
-      relationshipGlyph={<Icon icon={RELATIONSHIP_GLYPHS[identity.relationship.kind]} size="xs" className="shrink-0 text-muted-foreground" />}
+      relationshipGlyph={<Icon icon={RELATIONSHIP_GLYPHS[identity.relationship.kind]} size="xs" tone="muted" className="shrink-0" />}
       {...editProps}
       {...(meters.length === 0
         ? {}

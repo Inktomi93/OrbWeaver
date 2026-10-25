@@ -9,7 +9,7 @@ import type { ComponentProps, ReactElement } from "react";
 import { useId, useState } from "react";
 import { Tip } from "#components";
 import type { EditSession } from "#lib";
-import { resolveCommit } from "#lib";
+import { cn, resolveCommit } from "#lib";
 import { UNSET_DATUM } from "../../lib/unset-datum.ts";
 
 interface TrackerValueProps {
@@ -93,7 +93,7 @@ function TrackerValueRest({
         // width/alignment classes still apply so the rest state lines up with the read-only arm. The
         // TRANSPARENT border reserves the edit input's 1px border box, so the click-to-reveal swap is
         // pixel-stable — no layout jump (the owner no-shift bar).
-        className={`gap-0 border border-transparent px-field text-start ${className}`}
+        className={cn("gap-0 border border-transparent px-field text-start", className) ?? ""}
       >
         <Text
           as="span"

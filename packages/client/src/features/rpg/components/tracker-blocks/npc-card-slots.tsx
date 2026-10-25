@@ -91,13 +91,11 @@ function NpcRelationship({ name, relationship, onEditRelationshipKind, relations
 }
 
 /** The italic voice for `thoughts` — inner state the reader is overhearing, not a line anyone says. The
- *  other two guides are plain muted prose (they describe what IS on stage). One map, so the distinction is a
- *  lookup rather than a conditional sprinkled through the render. */
-const GUIDE_CLASS: Readonly<Record<RpgNpcGuideField, string>> = {
-  appearance: "min-inline-0 break-words",
-  outfit: "min-inline-0 break-words",
-  thoughts: "min-inline-0 break-words italic",
-};
+ *  other two guides are plain muted prose (they describe what IS on stage). */
+const GUIDE_LINE = "wrap-break-word min-inline-0";
+const GUIDE_LINE_ITALIC = "wrap-break-word italic min-inline-0";
+const GUIDE_FIELD = "field-sizing-content wrap-break-word max-inline-full min-inline-0";
+const GUIDE_FIELD_ITALIC = "field-sizing-content wrap-break-word italic max-inline-full min-inline-0";
 
 interface NpcGuidesProps {
   readonly name: string;
@@ -113,7 +111,7 @@ interface NpcGuidesProps {
 }
 
 /** The guide lines under the npc header — `appearance`/`outfit`/`thoughts` as quiet secondary prose. They
- *  are MODEL-authored free text with no length contract, so every line wraps (`min-w-0 break-words`) instead
+ *  are MODEL-authored free text with no length contract, so every line wraps (`min-w-0 wrap-break-word`) instead
  *  of widening the card (the 08-01 mood/beat overflow class). Empty ⇒ the line is omitted entirely. */
 function NpcGuides({ name, appearance, outfit, thoughts, onEditGuide }: NpcGuidesProps): ReactElement | null {
   const shown = RPG_NPC_GUIDE_FIELDS.map((field) => ({ field, text: { appearance, outfit, thoughts }[field]?.trim() ?? "" })).filter((g) => g.text !== "");
@@ -128,7 +126,7 @@ function NpcGuides({ name, appearance, outfit, thoughts, onEditGuide }: NpcGuide
             {field}
           </Text>
           {onEditGuide === undefined ? (
-            <Text as="span" size="label" tone="muted" className={GUIDE_CLASS[field]}>
+            <Text as="span" size="label" tone="muted" className={field === "thoughts" ? GUIDE_LINE_ITALIC : GUIDE_LINE}>
               {text}
             </Text>
           ) : (
@@ -139,9 +137,9 @@ function NpcGuides({ name, appearance, outfit, thoughts, onEditGuide }: NpcGuide
               tone="muted"
               onEdit={(next): void => onEditGuide(field, next)}
               wrap={true}
-              className={`field-sizing-content max-inline-full ${GUIDE_CLASS[field]}`}
+              className={field === "thoughts" ? GUIDE_FIELD_ITALIC : GUIDE_FIELD}
               width="auto"
-              restClassName={GUIDE_CLASS[field]}
+              restClassName={field === "thoughts" ? GUIDE_LINE_ITALIC : GUIDE_LINE}
             />
           )}
         </Row>
