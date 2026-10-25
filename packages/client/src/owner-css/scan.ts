@@ -116,6 +116,8 @@ interface Pattern {
 const PATTERNS: readonly Pattern[] = [
   { kind: "slot", declaration: false, pattern: /\[data-slot~?=["']?([\w-]+)/gu, readsStrings: true },
   { kind: "shell-class", declaration: false, pattern: /\.(shell-[\w-]+)/gu },
+  // Every `data-*` attribute selector; the readers keep the ones the surface or the rename table speak for.
+  { kind: "appearance-attribute", declaration: false, pattern: /\[\s*(data-[\w-]+)/gu },
   { kind: "token", declaration: false, pattern: /var\(\s*(--[\w-]+)/gu },
   { kind: "token", declaration: true, pattern: /(?<![\w-])(--[\w-]+)\s*:/gu },
 ];
