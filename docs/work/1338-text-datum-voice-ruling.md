@@ -28,4 +28,6 @@ The density law records the ruling; both voices and the tone exist in `@orb/ui`;
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The density law and Text variants carry the ruled datum and code voices; info is a semantic tone in the shared map. Numeric control internals retain their numeric modifier. Current rendered qualification uses the className-drain CTs.
+
+See [CSS closeout](../reviews/css-closeout.md) for exact check selections, artifacts and remaining limits.

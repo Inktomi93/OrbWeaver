@@ -24,4 +24,6 @@ A codemod rewrites the 82 strings; a rule or test refuses physical sizing in ui 
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The expanded CLASS_SELECTORS and pinned better-tailwindcss patch reach variable bindings, recipe arrays and named-function returns. Existing native-token controls cover those carriers and pass; the full UI/client lint census is clean. This closeout does not repeat the already-applied logical-sizing migration.
+
+See [CSS closeout](../reviews/css-closeout.md) for exact check selections, artifacts and remaining limits.

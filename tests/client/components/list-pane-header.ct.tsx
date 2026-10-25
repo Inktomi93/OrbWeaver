@@ -90,4 +90,6 @@ test("in a constrained host the unscoped title keeps its width instead of yieldi
   await expect(title).toBeVisible();
   await expect(component.getByText("0 of 11", { exact: true })).toBeVisible();
   await expect.poll(() => title.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  const count = component.getByText("0 of 11", { exact: true });
+  expect(await count.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
 });

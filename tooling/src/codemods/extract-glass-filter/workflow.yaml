@@ -1,0 +1,13 @@
+version: "1"
+nodes:
+  - id: extract-glass-filter
+    name: Extract glass filter
+    type: automatic
+    steps:
+      - name: Authored stylesheets
+        js-ast-grep:
+          js_file: scripts/codemod.ts
+          base_path: "."
+          language: "css"
+          include: ["**/*.css"]
+          exclude: ["**/node_modules/**", "**/codemods/*/tests*/**", "**/*.gen.css", "**/theme.css"]

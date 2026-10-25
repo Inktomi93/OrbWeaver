@@ -268,10 +268,10 @@ export function StatusLine({ status, subject, edit }: { readonly status: string;
         display={status}
         placeholder="Add status"
         tone="muted"
-        size="label"
         onEdit={edit.onEditStatus}
         className="field-sizing-content max-inline-full min-inline-0"
         width="auto"
+        voice="label"
       />
       {edit.isLocked(".status") ? (
         <RpgFieldLock

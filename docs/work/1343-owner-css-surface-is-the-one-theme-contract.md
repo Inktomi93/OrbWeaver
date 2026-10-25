@@ -45,4 +45,4 @@ Checks:
 - `pnpm test:ct tests/client/features/config/surfaces/theme-css-editor.ct.tsx` drives each completion context, a planted stale slot and a current slot.
 - `pnpm typecheck tsconfig.json packages/client/tsconfig.json packages/ui/tsconfig.json tsconfig.tests-dom.json`, `pnpm knip:prod`, `pnpm depcruise`.
 
-Open: the `data-appearance-*` attributes, their values and the appearance custom properties join the surface as one more source once the appearance manifest is on main.
+The appearance attributes, their values and registered properties are included in the generated surface. Current surface, rename, rewrite and warning tests pass. Regeneration also includes the existing home-recents height token. See [CSS closeout](../reviews/css-closeout.md) for current rendered qualification and limits.

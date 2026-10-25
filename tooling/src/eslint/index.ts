@@ -36,6 +36,7 @@ import {
 } from "./test-policy.ts";
 import { ctResponderReadsInputRule } from "./test-routes.ts";
 import { ctPollIntervalsSharedRule, evaluateNoScopeCaptureRule, typedTestIdRule, uiCtColorRule } from "./tests.ts";
+import { textVoiceOnlyRule } from "./text-voices.ts";
 import type { AppearanceVocabulary } from "./ui-appearance.ts";
 import { appearanceNameRule } from "./ui-appearance.ts";
 import { floorlessControlRule, registerApiRule, registryContextRule, stateFilesRule, storeDerivedRule } from "./ui-composition.ts";
@@ -128,6 +129,7 @@ export function createOrbPlugin(options: {
       "custom-property-declared": customPropertyDeclaredRule(options.customProperties),
       "feature-classname-layout-only": featureClassNameLayoutOnlyRule(options.classifyClass),
       "no-built-class-string": noBuiltClassStringRule,
+      "text-voice-only": textVoiceOnlyRule,
       ...Object.fromEntries(PRINCIPAL_RULES.map(({ id, rule }) => [id, rule] as const)),
       "ui-ct-no-color-literal": uiCtColorRule,
       "no-raw-egress": rawEgressRule,

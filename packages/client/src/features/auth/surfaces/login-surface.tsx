@@ -170,7 +170,7 @@ function LoginBody({
         <Stack gap="block">
           <Heading level={1}>Sign in</Heading>
           <LoginTransportNotice transport={config.transport} clientScope={config.clientScope} />
-          <Text size="label" tone="muted">
+          <Text tone="muted" voice="gloss" prose={true}>
             You'll be redirected to {config.oidcProviderName}, then back here.
           </Text>
           {authError === null ? null : (
@@ -197,7 +197,7 @@ function LoginBody({
       return (
         <Stack gap="block">
           <Heading level={1}>Authentication happens at your proxy</Heading>
-          <Text size="label" tone="muted">
+          <Text tone="muted" voice="gloss" prose={true}>
             This deployment uses forward-auth — the reverse proxy should authenticate you and inject identity headers before a request reaches the app. Seeing
             this page means it didn't: check the proxy configuration (authentik/Authelia/oauth2-proxy) and the FORWARD_AUTH_TRUSTED_PROXIES allowlist.
           </Text>
@@ -207,7 +207,7 @@ function LoginBody({
       return (
         <Stack gap="block">
           <Heading level={1}>Single-user mode</Heading>
-          <Text size="label" tone="muted">
+          <Text tone="muted" voice="gloss" prose={true}>
             No login needed — you're already in.
           </Text>
           <Button intent="primary" onClick={onDone}>
@@ -264,7 +264,7 @@ function LocalInviteArm({
         {`${inviteRoomSentence(room)} ${room.modeLabel}`}
       </Text>
       <LoginTransportNotice transport={config.transport} clientScope={config.clientScope} />
-      <Text size="label" tone="muted">
+      <Text tone="muted" voice="gloss" prose={true}>
         Pick a handle and a password to create your account and join the room.
       </Text>
       <LoginSignupForm
@@ -318,7 +318,7 @@ function LoginUnreachable({ onRetry }: { readonly onRetry: () => void }): ReactE
   return (
     <Stack gap="block">
       <Heading level={1}>Can't reach the server</Heading>
-      <Text size="label" tone="muted">
+      <Text tone="muted" voice="gloss" prose={true}>
         The app couldn't load its sign-in configuration. Check the server is running, then retry.
       </Text>
       <Button intent="ghost" onClick={onRetry}>

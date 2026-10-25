@@ -102,7 +102,7 @@ export function GreetingStudio({ characterId, baseGreeting, onAccept, trusted = 
   if (preview !== null) {
     return (
       <Stack gap="row" data-slot="greeting-studio-preview">
-        <Text size="label" tone="muted">
+        <Text tone="muted" voice="label">
           Preview
         </Text>
         <Card tone="bubble">
@@ -137,7 +137,7 @@ export function GreetingStudio({ characterId, baseGreeting, onAccept, trusted = 
     <Stack gap="block" data-slot="greeting-studio">
       {GREETING_TRANSFORM_AXES.map((axis) => (
         <Stack key={axis} gap="field">
-          <Text size="micro" tone="muted" id={`${labelIdBase}-${axis}`}>
+          <Text tone="muted" id={`${labelIdBase}-${axis}`} voice="gloss">
             {AXIS_LABEL[axis]}
           </Text>
           <ToggleGroup

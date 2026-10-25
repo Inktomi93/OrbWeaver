@@ -102,7 +102,7 @@ export const assumesSingleReplicaRule: OrbRule = {
   },
 };
 
-export function lexicalVariable(context: OrbRuleContext, identifier: TSESTree.Identifier): TSESLint.Scope.Variable | undefined {
+export function lexicalVariable(context: OrbRuleContext, identifier: TSESTree.Identifier | TSESTree.JSXIdentifier): TSESLint.Scope.Variable | undefined {
   let variable: TSESLint.Scope.Variable | undefined;
   for (let scope: TSESLint.Scope.Scope | null = context.sourceCode.getScope(identifier); scope !== null; scope = scope.upper) {
     variable = scope.set.get(identifier.name);

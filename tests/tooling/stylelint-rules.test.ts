@@ -87,6 +87,16 @@ test("every style rule sits in a declared layer; Tailwind's own at-rules place t
   expect(await rulesHit(":root { --probe-step: 1rem; }", THEME_FILE)).toEqual(["orb/rule-in-layer"]);
 });
 
+test("a named layer has one block per sheet, including conditional and nested spellings", async () => {
+  const hit = ["orb/no-duplicate-layer-block"];
+  expect(await rulesHit("@layer client { .a { opacity: 1; } } @layer client { .b { opacity: 0; } }")).toEqual(hit);
+  expect(await rulesHit("@layer client { .a { opacity: 1; } } @supports (display: grid) { @layer client { .b { opacity: 0; } } }")).toEqual(hit);
+  expect(await rulesHit("@layer client { @layer detail { .a { opacity: 1; } } } @layer client.detail { .b { opacity: 0; } }")).toEqual(hit);
+  expect(await rulesHit("@layer client, appearance; @layer client { .a { opacity: 1; } } @layer appearance { .b { opacity: 0; } }")).toEqual([]);
+  expect(await rulesHit("@layer { .a { opacity: 1; } } @layer { .b { opacity: 0; } }")).toEqual([]);
+  expect(await rulesHit("@layer client { @layer detail { .a { opacity: 1; } } } @layer appearance { @layer detail { .b { opacity: 0; } } }")).toEqual([]);
+});
+
 test("Tailwind's directives and functions are known; anything else unknown is refused", async () => {
   expect(await rulesHit('@reference "@orb/ui/styles/globals.css";')).toEqual([]);
   expect(await rulesHit("@custom-variant probe (&:is([data-probe]));")).toEqual([]);

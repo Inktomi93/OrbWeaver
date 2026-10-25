@@ -4,8 +4,9 @@
 
 import type { MessageRole } from "@orb/kit/message-role";
 import { Card } from "@orb/ui/card";
+import type { StackProps } from "@orb/ui/layout";
 import { Stack } from "@orb/ui/layout";
-import type { CSSProperties, ReactElement, ReactNode } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { cn } from "#lib";
 import type { RowSkin } from "../lib/message-row-variants.ts";
 import { ROLE_FILL } from "../lib/message-row-variants.ts";
@@ -38,7 +39,7 @@ export interface MessageBoxProps {
   readonly receded: boolean;
   /** Echo's art tile is positioned against the box. */
   readonly positioned: boolean;
-  readonly style: CSSProperties | undefined;
+  readonly artDecoration?: StackProps["artDecoration"];
   readonly children: ReactNode;
 }
 
@@ -47,7 +48,7 @@ export function MessageBox(props: MessageBoxProps): ReactElement {
 }
 
 // The filled skins: the role's bubble card, which floats without a shadow at every elevation.
-function BubbleCard({ role, shape, phoneCap, editing, receded, positioned, style, children }: MessageBoxProps): ReactElement {
+function BubbleCard({ role, shape, phoneCap, editing, receded, positioned, artDecoration, children }: MessageBoxProps): ReactElement {
   const weld = shape === "weld";
   const inset = shape === "stack";
   return (
@@ -59,7 +60,7 @@ function BubbleCard({ role, shape, phoneCap, editing, receded, positioned, style
       shadow="none"
       padding={inset ? undefined : "none"}
       receded={receded}
-      style={style}
+      artDecoration={artDecoration}
       className={cn(
         "flex",
         weld ? "flex-row items-start" : "flex-col",
@@ -83,7 +84,7 @@ function readingInk(box: RowSkin["box"], role: MessageRole): "prose" | "muted" |
 }
 
 // The skins with no fill at rest: a full-width column that takes the reading plate over a wallpaper.
-function ReadingBox({ box, role, shape, lastRowFloor, receded, positioned, style, children }: MessageBoxProps): ReactElement {
+function ReadingBox({ box, role, shape, lastRowFloor, receded, positioned, artDecoration, children }: MessageBoxProps): ReactElement {
   const page = box === "page";
   const inset = shape === "stack";
   const plateInset = inset && !page;
@@ -97,7 +98,7 @@ function ReadingBox({ box, role, shape, lastRowFloor, receded, positioned, style
       plate="reading"
       ink={readingInk(box, role)}
       receded={receded}
-      style={style}
+      artDecoration={artDecoration}
       className={cn(
         "inline-full",
         weld ? "flex-row items-start" : undefined,

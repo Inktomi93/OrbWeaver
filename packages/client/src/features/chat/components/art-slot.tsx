@@ -74,16 +74,15 @@ function ArtViewButton({ view, corner }: { readonly view: ArtView; readonly corn
 export function FallbackLetter({
   initials,
   className,
-  size = "50cqmin",
+  scale = "portrait",
 }: {
   readonly initials: string;
   readonly className: string;
-  readonly size?: string;
+  readonly scale?: ComponentProps<typeof Text>["artScale"];
 }): ReactElement {
-  const letter: CSSProperties = { fontSize: size };
   return (
     <Stack align="center" aria-hidden="true" className={className} container="size" justify="center">
-      <Text as="div" style={letter} tone="onPrimary" voice="monogram" solidLine={true}>
+      <Text as="div" artScale={scale} tone="onPrimary" voice="monogram" solidLine={true}>
         {initials}
       </Text>
     </Stack>
@@ -105,8 +104,7 @@ export function WhisperBand({
   useFailedReport(failed, onFailedChange);
   const showsImage = url !== undefined && !failed;
   const tappable = view !== null && !failed;
-  // Only the images are inline, because the URL is runtime data; how they fill the band is `imageFit`.
-  const style: CSSProperties = { ...band.style, backgroundImage: showsImage ? `${band.feather}, url("${url}")` : band.plainFeather };
+  const style: CSSProperties = { backgroundColor: band.color };
   return (
     <Stack
       aria-hidden={tappable ? undefined : "true"}
@@ -114,13 +112,15 @@ export function WhisperBand({
       cardCorners="top"
       hoverDim={tappable ? "self" : undefined}
       imageFit="underFeather"
+      feather={band.feather}
+      featherSrc={showsImage ? url : undefined}
       // Moonlit Echoes' Glimmer preset: the banner is half the card, centred; a phone widens it to 55%.
       className="relative mx-auto inline-1/2 @max-cq-28:inline-11/20"
       ref={attach}
       style={style}
     >
       {band.image === undefined || failed ? (
-        <FallbackLetter className="absolute inset-x-0 inset-bs-0 block-3/5" initials={band.fallback} size="70cqmin" />
+        <FallbackLetter className="absolute inset-x-0 inset-bs-0 block-3/5" initials={band.fallback} scale="banner" />
       ) : null}
       {tappable ? <ArtViewButton view={view} /> : null}
     </Stack>
@@ -143,18 +143,17 @@ export function EchoArtTile({
   useFailedReport(failed, onFailedChange);
   const tappable = view !== null && !failed;
   const corner = art.side === "left" ? "topStart" : "topEnd";
-  const { width, ...paint } = art.style;
-  const paintStyle: CSSProperties = url === undefined || failed ? paint : { ...paint, backgroundImage: `url("${url}")` };
+  const paintStyle: CSSProperties = { backgroundColor: art.color, backgroundImage: url === undefined || failed ? undefined : `url("${url}")` };
   return (
     <Stack
       aria-hidden={tappable ? undefined : "true"}
+      artPane="portrait"
       className={cn(
         "absolute inset-bs-0 aspect-(--aspect-portrait) max-block-full @max-cq-28:aspect-auto @max-cq-28:block-(--immersive-echo-art-height-phone)",
         tappable ? undefined : "pointer-events-none",
         art.side === "left" ? "inset-s-0" : "inset-e-0",
       )}
       ref={attach}
-      style={{ width }}
     >
       {/* The tile dims with its pane's hover: the button over it takes the pointer, so the tile is never hovered itself. */}
       <Stack
@@ -162,6 +161,7 @@ export function EchoArtTile({
         cardCorners={corner}
         hoverDim={tappable ? "parent" : undefined}
         imageFit="cover"
+        artMask={art.side === "left" ? "start" : "end"}
         className="absolute inset-0"
         style={paintStyle}
       >

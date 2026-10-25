@@ -48,7 +48,7 @@ export interface BeatRowProps {
  *  BeatLine's own. Host ⇒ inline title + the expanding body editor + a confirmed delete. */
 export function BeatRow({ beat, edit }: BeatRowProps): ReactElement {
   const typeLabel = (
-    <Text as="span" voice="gloss" transform="caps" className="shrink-0">
+    <Text as="span" voice="gloss" className="shrink-0">
       {journalRowLabel(beat.type, beat.label)}
     </Text>
   );

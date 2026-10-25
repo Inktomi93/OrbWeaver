@@ -383,7 +383,7 @@ export function GhostMessageRow({
         {leadingAvatar}
         {/* The skin's own column width rides the ghost too — a live turn that reflows at commit is a
             visible jump (the reading-measure suite pins the two columns equal). */}
-        <MessageContentColumn skin={skin} mirrored={false} style={skin.columnStyle}>
+        <MessageContentColumn skin={skin} mirrored={false}>
           {themedColumn}
         </MessageContentColumn>
       </MessageRowBody>

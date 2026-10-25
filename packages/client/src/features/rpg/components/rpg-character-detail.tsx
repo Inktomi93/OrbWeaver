@@ -139,7 +139,6 @@ function WalletChip({
             ariaLabel={`${coin.name} amount`}
             display={String(coin.amount)}
             kind="numeric"
-            size="label"
             onEdit={(next): void => {
               const n = Number.parseInt(next, 10);
               if (!Number.isNaN(n)) {
@@ -150,6 +149,7 @@ function WalletChip({
             numeric={true}
             width="avatar-md"
             restClassName=""
+            voice="label"
           />
           <Text as="span" voice="gloss">
             {coin.name}

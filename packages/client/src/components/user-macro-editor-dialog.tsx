@@ -115,7 +115,7 @@ export function UserMacroEditorDialog({ form, index, onClose, suggestions }: Use
         <form.Subscribe selector={(state): string => state.values.userMacros[index]?.name ?? ""}>
           {(name): ReactElement | null =>
             BUILTIN_REGISTRY.get(name) !== undefined ? (
-              <Text size="micro" tone="warning">
+              <Text tone="warning" voice="gloss">
                 “{name}” is a built-in macro — user macros never shadow one, so this definition will be refused.
               </Text>
             ) : null
@@ -163,7 +163,7 @@ function ArgList({ form, index }: { readonly form: UserMacroEditorForm; readonly
   const addButton = useRef<HTMLButtonElement>(null);
   return (
     <Section heading="Arguments">
-      <Text size="micro" tone="muted">
+      <Text tone="muted" voice="gloss">
         Positional args a call passes ({"{{name::a::b}}"}) — each binds by name inside the template. Optional args must come last.
       </Text>
       <form.Subscribe selector={(state): UserMacrosFormValues => state.values}>
@@ -234,7 +234,7 @@ function InputList({ form, index }: { readonly form: UserMacroEditorForm; readon
   const addButton = useRef<HTMLButtonElement>(null);
   return (
     <Section heading="Inputs">
-      <Text size="micro" tone="muted">
+      <Text tone="muted" voice="gloss">
         Typed controls each user answers per turn — the pick binds by name inside the template. Random pick draws one from the selected pool every generation
         (swipes replay the same draw).
       </Text>

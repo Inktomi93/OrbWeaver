@@ -66,9 +66,9 @@ function QuestDescription({ quest, dim, edit }: { readonly quest: RpgQuestView; 
         display={quest.description}
         placeholder="description…"
         tone="muted"
-        size="micro"
         onEdit={(next): void => edit.onEditDescription(quest, next)}
         className="inline-full"
+        voice="label"
       />
     );
   }

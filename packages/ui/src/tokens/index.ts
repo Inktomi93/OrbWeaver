@@ -302,6 +302,7 @@ export const TOKENS = {
   "dimension.shell-notice-cap": { cssVar: "--dimension-shell-notice-cap", value: "min(14rem, 30dvh)" },
   "shadow.shell-over-art": { cssVar: "--shadow-shell-over-art", value: "0 1px 3px var(--color-backdrop)" },
   "shadow.prose": { cssVar: "--shadow-prose", value: "0 1px 2px oklch(from var(--color-backdrop) l c h / 0.45), 0 0 6px oklch(from var(--color-backdrop) l c h / 0.25)" },
+  "shadow.wordmark": { cssVar: "--shadow-wordmark", value: "0 0 2px var(--color-backdrop), 0 0 4px var(--color-backdrop), 0 1px 2px var(--color-backdrop)" },
   "shadow.glow": { cssVar: "--shadow-glow", value: "0 0 0 1px oklch(from var(--color-primary) l c h / 0.4), 0 0 18px oklch(from var(--color-primary) l c h / 0.18)" },
   "shadow.layer-ambient-far": { cssVar: "--shadow-layer-ambient-far", value: "0 12px 32px var(--color-shadow-ambient-far)" },
   "shadow.overlay": { cssVar: "--shadow-overlay", value: "0 0 0 1px var(--color-shadow-hairline), inset 0 1px 0 0 var(--color-shadow-highlight), 0 2px 4px var(--color-shadow-ambient-near), var(--shadow-layer-ambient-far)" },
@@ -321,6 +322,8 @@ export const TOKENS = {
   "grid.lead": { cssVar: "--grid-lead", value: "1.55fr 1fr" },
   "grid.lead-wide": { cssVar: "--grid-lead-wide", value: "1.5fr 1.05fr" },
   "reading.bubble-cap": { cssVar: "--reading-bubble-cap", value: "65ch" },
+  "text.art-initial": { cssVar: "--text-art-initial", value: "50cqmin" },
+  "text.band-initial": { cssVar: "--text-band-initial", value: "70cqmin" },
 } as const;
 
 export type TokenPath = keyof typeof TOKENS;

@@ -836,6 +836,7 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
       },
     },
     { files: ["packages/client/src/**/*.tsx"], rules: { "orb/no-raw-intrinsic-paint": "error" } },
+    { files: ["packages/client/src/**/*.tsx"], rules: { "orb/text-voice-only": "error" } },
     // Tooling is outside: its CLI flags share the `--appearance-` prefix (`--appearance-preset`).
     {
       files: ["packages/client/src/**/*.{ts,tsx}", "packages/ui/src/**/*.{ts,tsx}", "tests/client/**/*.{ts,tsx}", "tests/ui/**/*.{ts,tsx}"],

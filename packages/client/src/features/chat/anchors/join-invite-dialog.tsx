@@ -122,7 +122,7 @@ export function JoinInviteDialog({ token, onDone }: JoinInviteDialogProps): Reac
         <>
           <DialogDescription>{inviteRoomSentence(state.preview)}</DialogDescription>
           <Stack gap="field">
-            <Text size="label" tone="muted">
+            <Text tone="muted" voice="label">
               {state.preview.modeLabel}
             </Text>
           </Stack>

@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "consolidate-css-layers"
+version: "0.1.0"
+description: "Consolidate top-level named layer blocks without changing order within each layer."
+author: "Orbweaver"
+license: "MIT"
+targets:
+  languages: ["css"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

@@ -64,10 +64,10 @@ export function LoginShellAnchor({ children }: LoginShellAnchorProps): ReactElem
             <Stack gap="block">
               <Row align="center" justify="center" gap="row" aria-hidden={true} data-slot="brand-wordmark">
                 {/* Decorative pair: the mark + name — the surface's <h1> carries the page's real name. The
-                    data-slot carries the readability halo (client globals.css) for the near-white wordmark
+                    Text halo carries the readability treatment for the near-white wordmark
                     over the live weave, where a bright strand behind a glyph drops worst-case contrast. */}
                 <WeaveGlyph decorative={true} size={WORDMARK_GLYPH_PX} tone="accent" />
-                <Text as="span" voice="monogram">
+                <Text as="span" voice="monogram" halo={true}>
                   orbweaver
                 </Text>
               </Row>

@@ -49,7 +49,7 @@ export function MacroBrowser({ userMacros, presetId }: MacroBrowserProps): React
   return (
     <Stack gap="block">
       {rejected.map((r) => (
-        <Text key={r.name} size="micro" tone="warning">
+        <Text key={r.name} tone="warning" voice="gloss">
           “{r.name}” was refused: {r.reason}
         </Text>
       ))}

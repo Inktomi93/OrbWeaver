@@ -218,7 +218,7 @@ export function renderRowBubble(args: {
             {...facts}
             shape="stack"
             positioned={false}
-            style={args.decoration?.style}
+            artDecoration={args.decoration?.treatment}
           >
             <MessageContent
               content={paragraph}
@@ -324,15 +324,9 @@ export function resolveGenerationCredit(visibility: MessageMetadataVisibility): 
   return visibility.showModelIcon;
 }
 
-/** #245 — the content column's style: the skin's own width override (echo's art pane) plus, while this row
- *  is being EDITED, the read-mode footprint the Edit action measured. A bare helper, not inlined, so the row
- *  body stays under the cognitive-complexity ceiling. */
-export function resolveColumnStyle(
-  skinStyle: CSSProperties | undefined,
-  reservedInlineSize: number | null,
-  reservedBlockSize: number | null,
-): CSSProperties | undefined {
+/** Preserve the measured read-mode footprint while the row is edited. */
+export function resolveColumnStyle(reservedInlineSize: number | null, reservedBlockSize: number | null): CSSProperties | undefined {
   return reservedInlineSize === null && reservedBlockSize === null
-    ? skinStyle
-    : { ...skinStyle, minInlineSize: reservedInlineSize ?? undefined, minBlockSize: reservedBlockSize ?? undefined };
+    ? undefined
+    : { minInlineSize: reservedInlineSize ?? undefined, minBlockSize: reservedBlockSize ?? undefined };
 }

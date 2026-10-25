@@ -29,6 +29,7 @@
 @layer client {
   :root {
     background-color: var(--color-background);
+    --glass-blur-scale: 1;
   }
 
   body {
@@ -129,246 +130,6 @@
     margin: calc(var(--spacing-row) * -1);
     box-shadow: inset 0 0 0 var(--border-width-accent) var(--color-ring);
   }
-}
-
-@layer appearance {
-  /* Glass (`appearance.blurSurfaces`, the `BLUR_SURFACES` list): the surface variants key on the root, so they
-   * reach portalled content; messages take the denser fill, chrome the lighter. The glass does not run at or
-   * below the shell breakpoint, since backdrop-filter is too costly on small devices, and that is stated here as
-   * the glass's own applicability: an override in the shell's mobile arm would lose to this layer. */
-  @variant shell-desktop {
-    @supports (backdrop-filter: blur(1px)) {
-      /* The colour every glass tint mixes over: nothing, or under a wallpaper the derived reading plate on the
-       * light arm (the over-art plate law, UI-Theming-and-Content.md §12.1; the dark arm stays plateless).
-       * Declared on each consumer, since a `var()` inside a custom property resolves where it is declared and a
-       * bubble inside a carried theme scope must read that scope's plate; a pseudo carrier inherits it. */
-      .shell-grid {
-        --glass-under: transparent;
-      }
-      .shell-grid[data-has-bg-image] :is(.shell-panel, .shell-main, [data-slot="composer"], [data-slot="message-bubble"]) {
-        --glass-under: light-dark(var(--color-reading-plate), transparent);
-      }
-      /* The pane's glass paints on a `::before` carrier, not the pane: a backdrop-filter on the pane makes it one
-       * composited layer and turns off baseline snapping for every text node inside (integer-line-boxes.md Laws 3
-       * and 4). The pane's own fill goes to none so the composite is one tint over one filtered backdrop;
-       * `box-shadow: inherit` repaints the elevation's inset highlight above the blur. The pane's container type
-       * is what contains the carrier. */
-      @variant appearance-blur-surfaces-panels {
-        .shell-panel {
-          background: none;
-        }
-      }
-      @variant appearance-blur-surfaces-panels {
-        .shell-panel::before {
-          content: "";
-          position: absolute;
-          inset: 0;
-          z-index: -1;
-          pointer-events: none;
-          backdrop-filter: blur(calc(var(--appearance-blur-strength) * 1px)) saturate(var(--blur-saturate));
-          background-color: color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), var(--glass-under));
-          box-shadow: inherit;
-        }
-      }
-      /* An off-screen pane keeps no backdrop-filter, the most expensive paint primitive, blurring nothing. */
-      @variant appearance-blur-surfaces-panels {
-        .shell-panel[data-panel-mode="collapsed"]::before {
-          backdrop-filter: none;
-        }
-      }
-      @variant appearance-blur-surfaces-composer {
-        [data-slot="composer"] {
-          backdrop-filter: blur(calc(var(--appearance-blur-strength) * 1px)) saturate(var(--blur-saturate));
-          background-color: color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), var(--glass-under));
-        }
-      }
-      /* The reading surface takes glass in step with the panes, on a carrier pseudo for the same reason; no
-       * `box-shadow: inherit`, since `.shell-main` authors no elevation and clips nothing. */
-      @variant appearance-blur-surfaces-panels {
-        .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"]) .shell-main {
-          background: none;
-        }
-      }
-      @variant appearance-blur-surfaces-panels {
-        .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"]) .shell-main::before {
-          content: "";
-          position: absolute;
-          inset: 0;
-          z-index: -1;
-          pointer-events: none;
-          backdrop-filter: blur(calc(var(--appearance-blur-strength) * 1px)) saturate(var(--blur-saturate));
-          background-color: color-mix(in oklab, var(--color-card) var(--blur-fill-chrome), var(--glass-under));
-        }
-      }
-      /* A portaled modal composites over the scrim and whatever the transcript shows (images, dark bubbles),
-       * never over the shell's opaque base, so its light arm takes the reading plate with or without a
-       * wallpaper (D144(b), scoped in UI-Theming-and-Content.md §12.1); over `transparent`, 30% of a dark room
-       * lands inside the popup and muted text falls below AA. */
-      @variant appearance-blur-surfaces-modals {
-        [data-slot="dialog-popup"],
-        [data-slot="alert-dialog-popup"] {
-          --glass-under: light-dark(var(--color-reading-plate), transparent);
-          /* The blur sits on `::before`: on the popup itself it would make a backdrop root the sticky footer's
-         * nested blur cannot see through. `relative` bounds that layer to the popup. */
-          position: relative;
-          isolation: isolate;
-          background-color: color-mix(in oklab, var(--color-popover) var(--blur-fill-chrome), var(--glass-under));
-        }
-      }
-      @variant appearance-blur-surfaces-modals {
-        [data-slot="dialog-popup"]::before,
-        [data-slot="alert-dialog-popup"]::before {
-          content: "";
-          position: absolute;
-          inset: 0;
-          z-index: -1;
-          border-radius: inherit;
-          pointer-events: none;
-          backdrop-filter: blur(calc(var(--appearance-blur-strength) * 1px)) saturate(var(--blur-saturate));
-        }
-      }
-      /* The footer only blurs: the popup paints the fill, and a second one reads as a slab. */
-      @variant appearance-blur-surfaces-modals {
-        [data-slot="dialog-footer"] {
-          backdrop-filter: blur(calc(var(--appearance-blur-strength) * 1px)) saturate(var(--blur-saturate));
-          background-color: transparent;
-        }
-      }
-      /* The bubble glass tints as its role. The tint is declared on the bubble, inside a carried theme scope
-       * (`themedColumnContent`, message-row-parts.tsx), so a carried palette's bubble token and plate are the ones
-       * read; `data-role` sits on the row root outside that scope. */
-      [data-role="user"] [data-slot="message-bubble"] {
-        --glass-tint: var(--color-user-bubble);
-      }
-      [data-role="assistant"] [data-slot="message-bubble"] {
-        --glass-tint: var(--color-ai-bubble);
-      }
-      [data-role="system"] [data-slot="message-bubble"] {
-        --glass-tint: var(--color-system-bubble);
-      }
-      @variant appearance-blur-surfaces-messages {
-        [data-role] [data-slot="message-bubble"] {
-          backdrop-filter: blur(calc(var(--appearance-blur-strength) * 1px)) saturate(var(--blur-saturate));
-          background-color: color-mix(in oklab, var(--glass-tint) var(--blur-fill-dense), var(--glass-under));
-        }
-      }
-    }
-  }
-}
-
-@layer preference {
-  /* The three OS preferences resolve through their generated variants (`appearance-channel.gen.css`): the app's
-   * `on` and `off` override the OS query either way, and `system` follows it. */
-
-  /* Increased contrast (`prefers-contrast: more`, never the WebKit-era `high`): stronger edges and a denser fill,
-   * never less legible. The edge half names each surface's own authored side, never the `border-width` shorthand,
-   * which would un-zero the sides preflight leaves at zero in `currentColor`; the colour is raised with the width,
-   * mixed from the pair the surface owns, or a hairline token at 2px stays invisible against the 3:1 floor. The edge
-   * half is not blur-gated: a contrast user who turned the glass off still gets it. */
-  @variant appearance-increased-contrast {
-    /* A noise overlay works against a stated contrast preference. */
-    @variant appearance-surface-texture-grain {
-      .shell-grid::after,
-      [data-slot="card-root"]::after {
-        display: none;
-      }
-    }
-  }
-
-  @variant appearance-increased-contrast {
-    @variant shell-desktop {
-      .shell-panel[data-panel-side="list"] {
-        border-inline-end-width: var(--border-width-accent);
-        border-inline-end-color: color-mix(in oklab, var(--color-sidebar-foreground) var(--contrast-edge-mix), var(--color-sidebar));
-      }
-      .shell-panel[data-panel-side="context"] {
-        border-inline-start-width: var(--border-width-accent);
-        border-inline-start-color: color-mix(in oklab, var(--color-sidebar-foreground) var(--contrast-edge-mix), var(--color-sidebar));
-      }
-      [data-slot="composer"] {
-        border-width: var(--border-width-accent);
-        border-color: color-mix(in oklab, var(--color-foreground) var(--contrast-edge-mix), var(--color-card));
-      }
-      [data-slot="dialog-popup"],
-      [data-slot="alert-dialog-popup"] {
-        border-width: var(--border-width-accent);
-        border-color: color-mix(in oklab, var(--color-popover-foreground) var(--contrast-edge-mix), var(--color-popover));
-      }
-    }
-  }
-
-  /* The root's dials. Contrast densifies the glass fill and reduced transparency makes it solid; the two have one
-   * specificity, so with both preferences resolved on, the later one, the solid fill, wins. */
-  :root {
-    @variant appearance-increased-contrast {
-      @variant shell-desktop {
-        /* One dial for every edge: how far each border is pulled toward its surface's own text colour; both
-         * palettes clear the 3:1 non-text floor on the framebuffer at this value. */
-        --contrast-edge-mix: 65%;
-      }
-      --blur-fill-chrome: var(--blur-fill-contrast);
-      --blur-fill-dense: var(--blur-fill-contrast);
-    }
-    @variant appearance-reduced-transparency {
-      --blur-fill-chrome: var(--blur-fill-solid);
-      --blur-fill-dense: var(--blur-fill-solid);
-    }
-  }
-
-  /* Reduced transparency (`prefers-reduced-transparency: reduce`): solid, through the glass's own fill knob above,
-   * so every surface stays tinted as itself (`revert` would roll past the author origin to transparent). The blur
-   * is dropped per surface too: an opaque fill hides it but the compositor still pays for it. Each selector names
-   * the box its glass counterpart paints, so this layer's declaration lands on it. */
-  @variant appearance-reduced-transparency {
-    @variant appearance-blur-surfaces-panels {
-      .shell-panel::before,
-      .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"]) .shell-main::before {
-        backdrop-filter: none;
-      }
-    }
-    @variant appearance-blur-surfaces-composer {
-      [data-slot="composer"] {
-        backdrop-filter: none;
-      }
-    }
-    @variant appearance-blur-surfaces-modals {
-      [data-slot="dialog-popup"]::before,
-      [data-slot="alert-dialog-popup"]::before,
-      [data-slot="dialog-footer"] {
-        backdrop-filter: none;
-      }
-    }
-    @variant appearance-blur-surfaces-messages {
-      [data-role] [data-slot="message-bubble"] {
-        backdrop-filter: none;
-      }
-    }
-  }
-}
-
-@layer appearance {
-  /* The reader's chat-width dial (`appearance.chatWidthPct`), clamped between the token floor and the viewport. */
-  .shell-grid {
-    --width-shell-content: clamp(var(--dimension-shell-content-floor), calc(var(--appearance-chat-width-pct) * 1dvw), 100dvw);
-  }
-
-  /* The prose halo (`appearance.shadowEffects`); `text-shadow` inherits, so one declaration reaches the bubble's text. */
-  @variant appearance-shadow-effects-true {
-    [data-slot="message-bubble"] {
-      text-shadow: var(--shadow-prose);
-    }
-  }
-}
-
-@layer client {
-  /* The wordmark floats over the live weave, so a dark halo beds the glyphs against a bright strand crossing behind. */
-  [data-slot="brand-wordmark"] {
-    text-shadow:
-      0 0 2px var(--color-backdrop),
-      0 0 4px var(--color-backdrop),
-      0 1px 2px var(--color-backdrop);
-  }
-
   /* Over a wallpaper the shell gives `.shell-main` a legibility halo; a bubble and the composer carry their own fill. */
   .shell-grid[data-has-bg-image] :is([data-slot="composer"], [data-slot="message-bubble"]) {
     text-shadow: none;
@@ -385,7 +146,8 @@
   }
   @supports (backdrop-filter: blur(1px)) {
     .shell-grid[data-has-bg-image][data-section="chats"] .shell-content [data-slot="empty-state-root"] {
-      backdrop-filter: blur(calc((var(--appearance-blur-strength) * 1px) / 2)) saturate(var(--blur-saturate));
+      --glass-blur-scale: 0.5;
+      backdrop-filter: var(--glass-filter);
     }
   }
 
@@ -396,7 +158,7 @@
    * against the row body and would spill the column out of its pane; the shell grid's squeeze owns that floor. */
   [data-slot="message-content-column"] {
     font-size: calc(var(--text-body) * var(--appearance-reading-body-scale));
-    max-inline-size: calc(var(--reading-measure) * var(--appearance-reading-body-scale));
+    max-inline-size: var(--column-measure, calc(var(--reading-measure) * var(--appearance-reading-body-scale)));
     /* The centred skins' column width (row-placement.ts): the measure, or the row less its two identity rails. */
     --centred-column-width: min(
       calc(var(--reading-measure) * var(--appearance-reading-body-scale)),
@@ -411,8 +173,8 @@
     line-height: var(--appearance-reading-line-height);
     letter-spacing: calc(var(--appearance-reading-letter-spacing) * 1em);
     /* How far a pinned header bar and the swipe foot reach to the card's edges; echo widens the art side inline. */
-    --row-reach-left: var(--spacing-block);
-    --row-reach-right: var(--spacing-block);
+    --row-reach-left: var(--art-reach-left, var(--spacing-block));
+    --row-reach-right: var(--art-reach-right, var(--spacing-block));
     /* The swipe foot keeps the card inset on both sides, even across echo's art pane. */
     --row-foot-inset-left: var(--spacing-block);
     --row-foot-inset-right: var(--spacing-block);
@@ -431,36 +193,6 @@
   [data-slot="message-content-column"]:has(pre),
   [data-slot="message-bubble"]:has(pre) {
     inline-size: 100%;
-  }
-  /* Code tokens follow the app theme, not the device: Streamdown switches its Shiki colours on the OS
-   * `prefers-color-scheme`, while the app's polarity is the `color-scheme` its theme scope sets. */
-  [data-streamdown="code-block"] [style*="--sdm-c"] {
-    color: light-dark(var(--sdm-c, currentcolor), var(--shiki-dark, var(--sdm-c, currentcolor)));
-  }
-  [data-streamdown="code-block"] [style*="--sdm-tbg"] {
-    background-color: light-dark(var(--sdm-tbg, transparent), var(--shiki-dark-bg, var(--sdm-tbg, transparent)));
-  }
-  [data-streamdown="code-block"] [style*="--sdm-bg"] {
-    background-color: light-dark(var(--sdm-bg, transparent), var(--shiki-dark-bg, var(--sdm-bg, transparent)));
-  }
-  /* Streamdown's copy and download glyphs take the pointer-conditional touch floor through a centred hit area. */
-  [data-streamdown="code-block-copy-button"],
-  [data-streamdown="code-block-download-button"] {
-    position: relative;
-  }
-  /* The pair is spaced so the hit areas never overlap. */
-  [data-streamdown="code-block-actions"] {
-    column-gap: calc(var(--size-touch-target) - var(--size-glyph-md));
-  }
-  [data-streamdown="code-block-copy-button"]::before,
-  [data-streamdown="code-block-download-button"]::before {
-    content: "";
-    position: absolute;
-    inset-block-start: 50%;
-    inset-inline-start: 50%;
-    inline-size: var(--size-touch-target);
-    block-size: var(--size-touch-target);
-    translate: -50% -50%;
   }
   /* With the soft keyboard up (`data-keyboard-up`, use-keyboard-inset-var.ts) the plugin flank folds away unless
    * the keyboard is its own, and the composer's refusal keeps to one line. */
@@ -501,20 +233,152 @@
   [data-has-bg-image] [data-slot="message-name-row"][data-placement="inside"] [data-slot^="message-metadata-"] {
     color: inherit;
   }
+  /* Over a wallpaper the band is one section step deep: a mask dissolves the prose onto the photo, below the
+   * contrast floor, so only the cut line goes. */
+  [data-has-bg-image] [data-slot="message-list-scroll"][data-fade-top] {
+    --fade-top-stop: var(--spacing-section);
+  }
+  [data-has-bg-image] [data-slot="message-list-scroll"][data-fade-bottom] {
+    --fade-bottom-stop: var(--spacing-section);
+  }
+
+  /* Echo's track is the content track plus its art width; the skin's own caps live in message-row-variants. */
+  .orb-echo-track {
+    max-inline-size: calc(var(--width-shell-content) + var(--immersive-echo-art-width));
+  }
 }
 
 @layer appearance {
+  /* Resolve the recipe at each paint host, so carried scopes and owner CSS keep their own ingredients. */
+  .shell-panel::before,
+  .shell-main::before,
+  [data-slot="composer"],
+  [data-slot="dialog-popup"]::before,
+  [data-slot="alert-dialog-popup"]::before,
+  [data-slot="dialog-footer"],
+  [data-slot="message-bubble"],
+  [data-slot="empty-state-root"] {
+    --glass-blur-radius: calc(var(--appearance-blur-strength) * 1px);
+    --glass-filter: blur(calc(var(--glass-blur-radius) * var(--glass-blur-scale))) saturate(var(--blur-saturate));
+  }
+  /* Glass (`appearance.blurSurfaces`, the `BLUR_SURFACES` list): the surface variants key on the root, so they
+   * reach portalled content; messages take the denser fill, chrome the lighter. The glass does not run at or
+   * below the shell breakpoint, since backdrop-filter is too costly on small devices, and that is stated here as
+   * the glass's own applicability: an override in the shell's mobile arm would lose to this layer. */
+  @variant shell-desktop {
+    @supports (backdrop-filter: blur(1px)) {
+      /* The colour every glass tint mixes over: nothing, or under a wallpaper the derived reading plate on the
+       * light arm (the over-art plate law, UI-Theming-and-Content.md §12.1; the dark arm stays plateless).
+       * Declared on each consumer, since a `var()` inside a custom property resolves where it is declared and a
+       * bubble inside a carried theme scope must read that scope's plate; a pseudo carrier inherits it. */
+      .shell-grid {
+        --glass-under: transparent;
+      }
+      .shell-grid[data-has-bg-image] :is(.shell-panel, .shell-main, [data-slot="composer"], [data-slot="message-bubble"]) {
+        --glass-under: light-dark(var(--color-reading-plate), transparent);
+      }
+      /* The pane's glass paints on a `::before` carrier, not the pane: a backdrop-filter on the pane makes it one
+       * composited layer and turns off baseline snapping for every text node inside (integer-line-boxes.md Laws 3
+       * and 4). The pane's own fill goes to none so the composite is one tint over one filtered backdrop;
+       * `box-shadow: inherit` repaints the elevation's inset highlight above the blur. The pane's container type
+       * is what contains the carrier. */
+      @variant appearance-blur-surfaces-panels {
+        .shell-panel {
+          background: none;
+        }
+        .shell-panel::before {
+          @apply orb-paint-carrier;
+          z-index: -1;
+          backdrop-filter: var(--glass-filter);
+          background-color: color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), var(--glass-under));
+          box-shadow: inherit;
+        }
+        /* An off-screen pane keeps no filter blurring nothing. */
+        .shell-panel[data-panel-mode="collapsed"]::before {
+          backdrop-filter: none;
+        }
+        /* The reading surface shares the panel treatment but owns no elevation to inherit. */
+        .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"]) .shell-main {
+          background: none;
+        }
+        .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"]) .shell-main::before {
+          @apply orb-paint-carrier;
+          z-index: -1;
+          backdrop-filter: var(--glass-filter);
+          background-color: color-mix(in oklab, var(--color-card) var(--blur-fill-chrome), var(--glass-under));
+        }
+      }
+      @variant appearance-blur-surfaces-composer {
+        [data-slot="composer"] {
+          backdrop-filter: var(--glass-filter);
+          background-color: color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), var(--glass-under));
+        }
+      }
+      /* A portaled modal composites over the scrim and whatever the transcript shows (images, dark bubbles),
+       * never over the shell's opaque base, so its light arm takes the reading plate with or without a
+       * wallpaper (D144(b), scoped in UI-Theming-and-Content.md §12.1); over `transparent`, 30% of a dark room
+       * lands inside the popup and muted text falls below AA. */
+      @variant appearance-blur-surfaces-modals {
+        [data-slot="dialog-popup"],
+        [data-slot="alert-dialog-popup"] {
+          --glass-under: light-dark(var(--color-reading-plate), transparent);
+          /* The blur sits on `::before`: on the popup itself it would make a backdrop root the sticky footer's
+         * nested blur cannot see through. `relative` bounds that layer to the popup. */
+          position: relative;
+          isolation: isolate;
+          background-color: color-mix(in oklab, var(--color-popover) var(--blur-fill-chrome), var(--glass-under));
+        }
+        [data-slot="dialog-popup"]::before,
+        [data-slot="alert-dialog-popup"]::before {
+          @apply orb-paint-carrier;
+          z-index: -1;
+          border-radius: inherit;
+          backdrop-filter: var(--glass-filter);
+        }
+        /* The footer only blurs: the popup paints the fill, and a second one reads as a slab. */
+        [data-slot="dialog-footer"] {
+          backdrop-filter: var(--glass-filter);
+          background-color: transparent;
+        }
+      }
+      /* The bubble glass tints as its role. The tint is declared on the bubble, inside a carried theme scope
+       * (`themedColumnContent`, message-row-parts.tsx), so a carried palette's bubble token and plate are the ones
+       * read; `data-role` sits on the row root outside that scope. */
+      [data-role="user"] [data-slot="message-bubble"] {
+        --glass-tint: var(--color-user-bubble);
+      }
+      [data-role="assistant"] [data-slot="message-bubble"] {
+        --glass-tint: var(--color-ai-bubble);
+      }
+      [data-role="system"] [data-slot="message-bubble"] {
+        --glass-tint: var(--color-system-bubble);
+      }
+      @variant appearance-blur-surfaces-messages {
+        [data-role] [data-slot="message-bubble"] {
+          backdrop-filter: var(--glass-filter);
+          background-color: color-mix(in oklab, var(--glass-tint) var(--blur-fill-dense), var(--glass-under));
+        }
+      }
+    }
+  }
+  /* The reader's chat-width dial (`appearance.chatWidthPct`), clamped between the token floor and the viewport. */
+  .shell-grid {
+    --width-shell-content: clamp(var(--dimension-shell-content-floor), calc(var(--appearance-chat-width-pct) * 1dvw), 100dvw);
+  }
+
+  /* The prose halo (`appearance.shadowEffects`); `text-shadow` inherits, so one declaration reaches the bubble's text. */
+  @variant appearance-shadow-effects-true {
+    [data-slot="message-bubble"] {
+      text-shadow: var(--shadow-prose);
+    }
+  }
   /* `appearance.enableThemeColorization` retints the hairline tokens from the accent, mixed against the
    * foreground (a self-reference is a cycle). The descendant arm re-declares them below ThemeScope's inline
    * palette for the shell and the portal root alike; the `html` arm serves a provider-less document. */
-  :root {
+  :root,
+  .shell-grid,
+  [data-slot="portal-root"] {
     @variant appearance-enable-theme-colorization-true {
-      --color-border: color-mix(in oklab, var(--color-primary) 22%, var(--color-foreground) 6%);
-      --color-sidebar-border: color-mix(in oklab, var(--color-primary) 22%, var(--color-sidebar-foreground) 6%);
-    }
-  }
-  @variant appearance-enable-theme-colorization-true {
-    :is(.shell-grid, [data-slot="portal-root"]) {
       --color-border: color-mix(in oklab, var(--color-primary) 22%, var(--color-foreground) 6%);
       --color-sidebar-border: color-mix(in oklab, var(--color-primary) 22%, var(--color-sidebar-foreground) 6%);
     }
@@ -525,26 +389,18 @@
   @variant appearance-surface-texture-grain {
     .shell-grid::after,
     [data-slot="card-root"]::after {
-      content: "";
-      position: absolute;
-      inset: 0;
+      @apply orb-paint-carrier;
       z-index: 1;
-      pointer-events: none;
       opacity: 0.04;
       mix-blend-mode: soft-light;
       /* A `public/` path, never an inline `data:` URL: the CSP blocks `data:` images (D44); do not widen `img-src`. */
       background-image: url("/grain.svg");
     }
-  }
-  /* The card's positioning context for its grain carrier. */
-  @variant appearance-surface-texture-grain {
+    /* The card's positioning context for its grain carrier. */
     [data-slot="card-root"] {
       position: relative;
     }
-  }
-  /* One grain layer per pixel: inside the grid the shell's carrier already covers every card, so the card's own
-   * arm serves only a portalled card. */
-  @variant appearance-surface-texture-grain {
+    /* The shell already paints the grain over its cards; a portalled card owns its own carrier. */
     .shell-grid [data-slot="card-root"]::after {
       content: none;
     }
@@ -559,48 +415,84 @@
   }
 }
 
-@layer client {
-  /* The transcript's edge fade: each edge dissolves only while content lies beyond it (the MessageList primitive
-   * toggles `data-fade-*`), eased in from the edge so the cut line reads as gone rather than half drawn; a zero
-   * stop collapses the band so an edge that hides nothing stays opaque. `--mask-top-inset` is the bottom edge of
-   * a header pinned across the top. Pinned by sampling pixels: computed style
-   * reports an opaque card for every faded row. */
-  [data-slot="message-list-scroll"] {
-    --fade-top-stop: 0%;
-    --fade-bottom-stop: 0%;
-    --mask-top-inset: 0px;
-    mask-image: linear-gradient(
-      to bottom,
-      black var(--mask-top-inset),
-      transparent var(--mask-top-inset),
-      rgb(0 0 0 / 0.04) calc(var(--mask-top-inset) + var(--fade-top-stop) * 0.25),
-      rgb(0 0 0 / 0.2) calc(var(--mask-top-inset) + var(--fade-top-stop) * 0.5),
-      rgb(0 0 0 / 0.55) calc(var(--mask-top-inset) + var(--fade-top-stop) * 0.75),
-      black calc(var(--mask-top-inset) + var(--fade-top-stop)),
-      black calc(100% - var(--fade-bottom-stop)),
-      rgb(0 0 0 / 0.55) calc(100% - var(--fade-bottom-stop) * 0.75),
-      rgb(0 0 0 / 0.2) calc(100% - var(--fade-bottom-stop) * 0.5),
-      rgb(0 0 0 / 0.04) calc(100% - var(--fade-bottom-stop) * 0.25),
-      transparent
-    );
-  }
-  [data-slot="message-list-scroll"][data-fade-top] {
-    --fade-top-stop: var(--fade-edge-stop);
-  }
-  [data-slot="message-list-scroll"][data-fade-bottom] {
-    --fade-bottom-stop: var(--fade-edge-stop);
-  }
-  /* Over a wallpaper the band is one section step deep: a mask dissolves the prose onto the photo, below the
-   * contrast floor, so only the cut line goes. */
-  [data-has-bg-image] [data-slot="message-list-scroll"][data-fade-top] {
-    --fade-top-stop: var(--spacing-section);
-  }
-  [data-has-bg-image] [data-slot="message-list-scroll"][data-fade-bottom] {
-    --fade-bottom-stop: var(--spacing-section);
+@layer preference {
+  /* The three OS preferences resolve through their generated variants (`appearance-channel.gen.css`): the app's
+   * `on` and `off` override the OS query either way, and `system` follows it. */
+
+  /* Increased contrast (`prefers-contrast: more`, never the WebKit-era `high`): stronger edges and a denser fill,
+   * never less legible. The edge half names each surface's own authored side, never the `border-width` shorthand,
+   * which would un-zero the sides preflight leaves at zero in `currentColor`; the colour is raised with the width,
+   * mixed from the pair the surface owns, or a hairline token at 2px stays invisible against the 3:1 floor. The edge
+   * half is not blur-gated: a contrast user who turned the glass off still gets it. */
+  @variant appearance-increased-contrast {
+    /* A noise overlay works against a stated contrast preference. */
+    @variant appearance-surface-texture-grain {
+      .shell-grid::after,
+      [data-slot="card-root"]::after {
+        display: none;
+      }
+    }
+    @variant shell-desktop {
+      /* Every edge uses the same mix toward the ink paired with its surface. */
+      :root {
+        --contrast-edge-mix: 65%;
+      }
+      .shell-panel[data-panel-side="list"] {
+        border-inline-end-width: var(--border-width-accent);
+        border-inline-end-color: color-mix(in oklab, var(--color-sidebar-foreground) var(--contrast-edge-mix), var(--color-sidebar));
+      }
+      .shell-panel[data-panel-side="context"] {
+        border-inline-start-width: var(--border-width-accent);
+        border-inline-start-color: color-mix(in oklab, var(--color-sidebar-foreground) var(--contrast-edge-mix), var(--color-sidebar));
+      }
+      [data-slot="composer"] {
+        border-width: var(--border-width-accent);
+        border-color: color-mix(in oklab, var(--color-foreground) var(--contrast-edge-mix), var(--color-card));
+      }
+      [data-slot="dialog-popup"],
+      [data-slot="alert-dialog-popup"] {
+        border-width: var(--border-width-accent);
+        border-color: color-mix(in oklab, var(--color-popover-foreground) var(--contrast-edge-mix), var(--color-popover));
+      }
+    }
+    :root {
+      --blur-fill-chrome: var(--blur-fill-contrast);
+      --blur-fill-dense: var(--blur-fill-contrast);
+    }
   }
 
-  /* Echo's track is the content track plus its art width; the skin's own caps live in message-row-variants. */
-  .orb-echo-track {
-    max-inline-size: calc(var(--width-shell-content) + var(--immersive-echo-art-width));
+  /* Reduced transparency (`prefers-reduced-transparency: reduce`): solid, through the glass's own fill knob above,
+   * so every surface stays tinted as itself (`revert` would roll past the author origin to transparent). The blur
+   * is dropped per surface too: an opaque fill hides it but the compositor still pays for it. Each selector names
+   * the box its glass counterpart paints, so this layer's declaration lands on it. */
+  @variant appearance-reduced-transparency {
+    /* With both preferences enabled, this later root rule wins and keeps the fill solid. */
+    :root {
+      --blur-fill-chrome: var(--blur-fill-solid);
+      --blur-fill-dense: var(--blur-fill-solid);
+    }
+    @variant appearance-blur-surfaces-panels {
+      .shell-panel::before,
+      .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"]) .shell-main::before {
+        backdrop-filter: none;
+      }
+    }
+    @variant appearance-blur-surfaces-composer {
+      [data-slot="composer"] {
+        backdrop-filter: none;
+      }
+    }
+    @variant appearance-blur-surfaces-modals {
+      [data-slot="dialog-popup"]::before,
+      [data-slot="alert-dialog-popup"]::before,
+      [data-slot="dialog-footer"] {
+        backdrop-filter: none;
+      }
+    }
+    @variant appearance-blur-surfaces-messages {
+      [data-role] [data-slot="message-bubble"] {
+        backdrop-filter: none;
+      }
+    }
   }
 }

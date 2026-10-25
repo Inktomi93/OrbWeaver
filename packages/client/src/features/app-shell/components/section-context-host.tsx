@@ -35,7 +35,7 @@ function contextEmpty(context: SectionDefinition["context"]): ReactNode {
 // The neutral BAND label when a `single` context supplies no header identity. Matches the pre-N4 static
 // "Details" the band showed.
 const CONTEXT_HEADER_DEFAULT = (
-  <Text size="label" weight="medium" tone="muted">
+  <Text tone="muted" voice="label">
     Details
   </Text>
 );

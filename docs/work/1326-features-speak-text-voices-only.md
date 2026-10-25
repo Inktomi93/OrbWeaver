@@ -24,4 +24,6 @@ An ESLint `no-restricted-syntax` entry refuses `size`, `weight`, `tone` and `tra
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The current law permits semantic tone. `orb/text-voice-only` rejects size, weight and transform on imported Text and Heading, including named/namespace aliases, local aliases and static spread objects. The old-config refusal controls fail; updated controls pass. The reviewed codemod and semantic wrapper edits drain the current client census to zero. Intentional typography changes and pending rendered qualification are recorded in the closeout report.
+
+See [CSS closeout](../reviews/css-closeout.md) for exact check selections, artifacts and remaining limits.

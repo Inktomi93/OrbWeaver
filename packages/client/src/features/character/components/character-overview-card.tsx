@@ -97,12 +97,9 @@ export function CharacterOverviewCard({ characterId }: CharacterOverviewCardProp
           in this pane (the rule below survives: a kicker names a SECTION, never a datum, §2.3), which is why
           it stays a gloss run with the name as inline emphasis rather than becoming a heading. */}
       <Text voice="gloss">
-        Pick a field on{" "}
-        {/* RATIFIED raw axes (#573): this is INLINE EMPHASIS inside another voice's run, not a voice of its
-            own — every voice re-spells size and color, so one here would break the sentence it sits in. It
-            carries `gloss`'s own micro step plus the weight and foreground ink that make the name stand out. */}
-        <Text as="span" size="micro" weight="semibold">
-          {data.name}
+        Pick a field on {/* Inline emphasis keeps the surrounding voice; its semantic weight belongs to strong, not another voice. */}
+        <Text as="span" voice="gloss" tone="foreground">
+          <strong>{data.name}</strong>
         </Text>{" "}
         to inspect it here.
       </Text>

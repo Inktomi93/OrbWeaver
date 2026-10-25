@@ -7,7 +7,7 @@ import { blobBannerUrl, blobPortraitUrl } from "@orb/contracts/assets";
 import { initialsFor } from "@orb/kit/initials";
 import type { MessageRole } from "@orb/kit/message-role";
 import { avatarFallbackHueColor } from "@orb/ui/avatar";
-import type { CSSProperties } from "react";
+import type { StackProps } from "@orb/ui/layout";
 import type { RowAttribution } from "./attribution.ts";
 
 /** Input to a mode's `bubbleDecoration`. The avatar HASH, not a prebuilt URL — each decorator requests
@@ -34,18 +34,15 @@ export interface BubbleDecorationArgs {
   readonly showInChatAvatars: boolean;
 }
 
-/** Extra inline paint for the bubble box, layered over the skin's own box (`RowSkin.box`). */
+/** The primitive treatment and runtime identity data for the skin's artwork. */
 export interface BubbleDecoration {
-  readonly style?: CSSProperties;
+  readonly treatment?: StackProps["artDecoration"];
   /** Whisper's header-art band, rendered as a real block-level child above the bubble text (never a
    *  background layer, which would let text sit on bright art). */
   readonly headerBand?:
     | {
-        readonly style: CSSProperties;
-        /** The gradient layer that dissolves the band into the bubble beneath it. */
-        readonly feather: string;
-        /** The feather over a band with no image to show (none, or one that failed to load): the solid top holds the initial. */
-        readonly plainFeather: string;
+        readonly color: string;
+        readonly feather: NonNullable<StackProps["feather"]>;
         /** The speaker's initial, shown when there is no image or it fails to load. */
         readonly fallback: string;
         /** The banner image, asked at the width the band renders; absent when the speaker has none. */
@@ -57,7 +54,7 @@ export interface BubbleDecoration {
    *  mobile height while it stays cropped to its pane. */
   readonly art?:
     | {
-        readonly style: CSSProperties;
+        readonly color: string;
         readonly side: "left" | "right";
         /** The speaker's initial, shown when there is no image or it fails to load. */
         readonly fallback: string;
@@ -90,14 +87,6 @@ function imageSource(args: BubbleDecorationArgs, variant: "portrait" | "banner")
   return (cssWidth) => (variant === "portrait" ? blobPortraitUrl(hash, artRequestWidth(cssWidth)) : blobBannerUrl(hash, artRequestWidth(cssWidth)));
 }
 
-// The full art reservation is additive to the prose measure when the row has room.
-// On narrow rows the art shares that row's budget, leaving room for header and pager targets.
-export const ECHO_MAX_WIDTH_STYLE: CSSProperties = {
-  maxWidth: "min(100%, calc(var(--reading-measure-min) + var(--immersive-echo-art-width) + var(--spacing-block)))",
-};
-
-const ECHO_ART_WIDTH = "min(var(--immersive-echo-art-width), 25cqi)";
-
 /** The art side: a character speaks from the row's leading edge, the viewer's persona from its trailing
  *  one, exactly as the reference mirrors the two roles. */
 function echoArtSide(kind: RowAttribution["kind"]): "left" | "right" {
@@ -114,67 +103,33 @@ export function echoDecoration(args: BubbleDecorationArgs): BubbleDecoration | n
   // letter is not shown twice (`avatarTreatmentFor`). A portrait that fails to load shows the same fallback.
   const urlAt = imageSource(args, "portrait");
   const side = echoArtSide(args.kind);
-  // The art side's inset is the pane, and the header bar and swipe foot reach across it (`--row-reach-*`).
-  const inset: CSSProperties = side === "left" ? { paddingLeft: ECHO_ART_WIDTH } : { paddingRight: ECHO_ART_WIDTH };
-  const toward = side === "left" ? "right" : "left";
   return {
-    style: {
-      ...ECHO_MAX_WIDTH_STYLE,
-      ...inset,
-      [`--row-reach-${side}`]: ECHO_ART_WIDTH,
-    } as CSSProperties,
+    treatment: side === "left" ? "portraitStart" : "portraitEnd",
     art: {
       side,
-      style: {
-        width: ECHO_ART_WIDTH,
-        backgroundColor: avatarFallbackHueColor(args.hueSeed),
-        // Moonlit's feather: the art dissolves into the card toward the text and at its foot.
-        maskImage: `linear-gradient(to ${toward}, black 70%, transparent), linear-gradient(to bottom, black 60%, transparent)`,
-        maskComposite: "intersect",
-      },
+      color: avatarFallbackHueColor(args.hueSeed),
       fallback: initialsFor(args.name ?? ""),
       ...(urlAt === undefined ? {} : { image: { urlAt } }),
     },
   };
 }
 
-const BUBBLE_FILL_VAR: Readonly<Record<MessageRole, string>> = {
-  user: "--color-user-bubble",
-  assistant: "--color-ai-bubble",
-  system: "--color-system-bubble",
-};
-
-// The band dissolves into the row's own bubble. A band with no image keeps its solid top, where the initial sits.
-function whisperFeather(role: MessageRole, hasImage: boolean): string {
-  const fill = BUBBLE_FILL_VAR[role];
-  return hasImage
-    ? `linear-gradient(to bottom, transparent, var(${fill}) var(--immersive-whisper-feather))`
-    : `linear-gradient(to bottom, transparent 55%, var(${fill}))`;
-}
-
-const WHISPER_STRIPE: CSSProperties = {
-  borderTopWidth: "var(--immersive-stripe-width)",
-  borderTopStyle: "solid",
-  borderTopColor: "var(--color-speaker)",
-};
-
 // The band is a real block-level child (not a background layer) so background-size:cover has a stable
 // box to crop against and text can never sit on the art. aspect-ratio derives its height from the
 // bubble's fluid width so the box always matches the server's 3:1 crop.
-export function whisperDecoration(args: BubbleDecorationArgs): BubbleDecoration {
+export function whisperDecoration(args: BubbleDecorationArgs, feather: NonNullable<StackProps["feather"]>): BubbleDecoration {
   // The speaker STRIPE is chrome (a colour tick, not a portrait), so it survives an avatars-off reader;
   // the BAND is identity art and does not (#212-6). Both roles get it: a persona's banner is its image here
   // as a character's is (owner ruling, as Moonlit Echoes paints both), with the same hue-tile fallback.
   if (args.kind === null || !args.showInChatAvatars) {
-    return { style: WHISPER_STRIPE };
+    return { treatment: "stripeTop" };
   }
   const urlAt = imageSource(args, "banner");
   return {
-    style: WHISPER_STRIPE,
+    treatment: "stripeTop",
     headerBand: {
-      style: { aspectRatio: "var(--aspect-banner)", backgroundColor: avatarFallbackHueColor(args.hueSeed) },
-      feather: whisperFeather(args.role, true),
-      plainFeather: whisperFeather(args.role, false),
+      color: avatarFallbackHueColor(args.hueSeed),
+      feather,
       fallback: initialsFor(args.name ?? ""),
       ...(urlAt === undefined ? {} : { image: { urlAt } }),
     },

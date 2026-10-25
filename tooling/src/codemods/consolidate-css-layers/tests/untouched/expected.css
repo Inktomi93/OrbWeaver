@@ -1,0 +1,5 @@
+@layer client, appearance;
+@layer client { @layer detail { .a { opacity: 1; } } }
+@supports (display: grid) { @layer client { .b { opacity: 0; } } }
+@layer { .c { opacity: 0; } }
+@layer { .d { opacity: 0; } }

@@ -88,13 +88,13 @@ export function EntryListEditor<TItem>({
     // CD1 "a grouping is not a box" case the kicker arm exists for, and every consumer of it (the preset
     // Data/Transforms tabs, the owner-global Regex pane, the rpg macro deck) is an instrument deck.
     <Section kicker={heading}>
-      <Text size="micro" tone="muted">
+      <Text tone="muted" voice="gloss">
         {helperText}
       </Text>
 
       <Stack gap="field">
         {items.length === 0 ? (
-          <Text size="micro" tone="muted">
+          <Text tone="muted" voice="gloss">
             {emptyText}
           </Text>
         ) : (

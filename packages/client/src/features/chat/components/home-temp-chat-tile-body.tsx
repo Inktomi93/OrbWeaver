@@ -141,12 +141,13 @@ function TempChatContent({ ttlHours, placeholder }: { readonly ttlHours: number;
           `--reading-measure-prose` (47ch = 73.3 law-characters here, the densest copy in the app). */}
       <Text
         className={placeholder ? "invisible max-inline-(--reading-measure-prose)" : "max-inline-(--reading-measure-prose)"}
-        size="label"
         tone="muted"
         {...(placeholder ? { "aria-hidden": true } : {})}
+        voice="gloss"
+        prose={true}
       >
         Temporary chats stay out of your list and are deleted after{" "}
-        <Text as="span" size="code">
+        <Text as="span" voice="datum">
           {`${ttlHours} ${ttlHours === 1 ? "hour" : "hours"}`}
         </Text>
         . You can't change the room later.

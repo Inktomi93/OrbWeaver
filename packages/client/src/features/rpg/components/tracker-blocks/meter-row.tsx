@@ -67,7 +67,7 @@ function MaxCell({
   if (onEditMax === undefined) {
     // No ceiling ⇒ no `/max` half at all. `/0` was the old fabrication.
     return max === null ? null : (
-      <Text as="span" size="label" tone="muted" numeric={true}>
+      <Text as="span" tone="muted" numeric={true} voice="label">
         /{max}
       </Text>
     );
@@ -77,7 +77,7 @@ function MaxCell({
       {/* PUNCTUATION, not a datum: in the editable arm the slash is its own text node between two NAMED
           fields, so an aria walk of a roster would read "17", "/", "20" as three peer readings. The
           read-only arm has no such node — its `/max` is part of the one datum string. */}
-      <Text as="span" size="label" tone="muted" aria-hidden="true">
+      <Text as="span" tone="muted" aria-hidden="true" voice="label">
         /
       </Text>
       <TrackerValue
@@ -176,7 +176,7 @@ function MeterLabel({
           The READ-ONLY arm keeps it: there the datum is plain text with no name of its own to carry it,
           so hiding the label would orphan the number. `leading` (the lock pin, a real button) is outside
           the hidden node on purpose. */}
-      <Text as="span" size="label" tone="muted" className="truncate" {...(nameCarried ? { "aria-hidden": true } : {})}>
+      <Text as="span" tone="muted" className="truncate" {...(nameCarried ? { "aria-hidden": true } : {})} voice="label">
         {label}
       </Text>
       {labelHint === undefined ? null : <HintTrigger className="" hint={labelHint} subject={label} />}
@@ -253,7 +253,7 @@ export function MeterRow({
       <Row justify="between" align="center" gap="block">
         <MeterLabel label={label} leading={leading} labelHint={labelHint} nameCarried={onEditValue !== undefined} />
         {onEditValue === undefined ? (
-          <Text as="span" size="label" tone={valueWarning === true ? "warning" : undefined} numeric={true}>
+          <Text as="span" tone={valueWarning === true ? "warning" : undefined} numeric={true} voice="label">
             {meterDatum(value, max)}
           </Text>
         ) : (
@@ -276,7 +276,7 @@ export function MeterRow({
         {...(dangerBelow === undefined ? {} : { dangerBelow })}
       />
       {note === undefined || note === null ? null : (
-        <Text size="micro" tone="muted">
+        <Text tone="muted" voice="gloss">
           {note}
         </Text>
       )}

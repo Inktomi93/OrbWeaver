@@ -5,9 +5,9 @@
 import { blobUrl } from "@orb/contracts/assets";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
 import type { MessageRole } from "@orb/kit/message-role";
-import type { CSSProperties } from "react";
+import type { StackProps } from "@orb/ui/layout";
 import type { BubbleDecoration, BubbleDecorationArgs } from "./art-decorations.ts";
-import { ECHO_MAX_WIDTH_STYLE, echoDecoration, whisperDecoration } from "./art-decorations.ts";
+import { echoDecoration, whisperDecoration } from "./art-decorations.ts";
 import type { RowAttribution } from "./attribution.ts";
 import type { TrackName } from "./chat-track.tsx";
 import type { SwipeFoot } from "./pager-chrome.ts";
@@ -108,12 +108,8 @@ export interface RowSkin {
   readonly pinnedHeader: PinnedHeader;
   /** What the header bar carries: the speaker and the actions, or the actions alone. */
   readonly actionsRow: ActionsRow;
-  /** A SKIN-OWNED override of the content column's width, as an inline style (#212-2). The styles tier caps
-   *  that column at the reading measure — a rule about a column that holds PROSE. Echo's column holds prose
-   *  AND an art pane, so capping the two together is what squeezed its line to 28 characters: the cap has to
-   *  grow by exactly the art it also has to carry. Inline because the cap lives in an unlayered sheet rule
-   *  that a utility class cannot outrank. Absent for every skin whose column is prose and nothing else. */
-  readonly columnStyle?: CSSProperties;
+  /** Illustrated columns reserve the prose measure plus their art pane. */
+  readonly columnMeasure?: StackProps["columnMeasure"];
 }
 
 const iconLeftTreatment = (): AvatarTreatment => "icon-left";
@@ -128,14 +124,8 @@ function rippleAvatarTreatment(kind: RowAttribution["kind"]): AvatarTreatment {
   return kind === null ? "icon-left" : "sticky-portrait";
 }
 
-/** Hush's speaker-color left stripe — chrome, not portrait art, so it paints for every kind. */
-const STRIPE_LEFT: CSSProperties = {
-  borderLeftWidth: "var(--immersive-stripe-width)",
-  borderLeftStyle: "solid",
-  borderLeftColor: "var(--color-speaker)",
-};
 function hushDecoration(): BubbleDecoration {
-  return { style: STRIPE_LEFT };
+  return { treatment: "stripeStart" };
 }
 
 /** The exhaustive chatStyle → skin table; a new chatStyle fails to compile without a row here. */
@@ -198,7 +188,7 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     avatarTreatment: iconLeftTreatment,
     bubbleDecoration: echoDecoration,
     bubbleLayout: "single",
-    columnStyle: ECHO_MAX_WIDTH_STYLE,
+    columnMeasure: "illustrated",
     // Inside, not above the card as the reference has it: a filled container with its header outside
     // reads as two objects, which the attachment ruling outranks.
     headerPlacement: "inside",
@@ -215,7 +205,7 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     phoneCap: false,
     lastRowFloor: false,
     avatarTreatment: iconLeftTreatment,
-    bubbleDecoration: whisperDecoration,
+    bubbleDecoration: (args) => whisperDecoration(args, ROLE_FILL[args.role]),
     bubbleLayout: "single",
     // Below the band rather than over the art as the reference has it: the band is a real block child so
     // text never sits on art, and below it the card still reads as one container.

@@ -1,0 +1,2 @@
+.a { backdrop-filter: blur(calc(var(--appearance-blur-strength) * 1px)) saturate(var(--blur-saturate)); }
+.b { backdrop-filter: blur(calc((var(--appearance-blur-strength) * 1px) / 2)) saturate(var(--blur-saturate)); }

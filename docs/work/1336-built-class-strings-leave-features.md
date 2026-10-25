@@ -24,4 +24,6 @@ The imported constants become primitive props or variants; templates and builder
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The enabled no-built-class-string and feature-classname-layout-only rules pass their controls and the full UI/client lint census. Imported fragments and skin-table strings are represented by primitive props.
+
+See [CSS closeout](../reviews/css-closeout.md) for exact check selections, artifacts and remaining limits.

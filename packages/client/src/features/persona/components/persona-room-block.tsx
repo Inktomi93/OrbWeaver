@@ -92,7 +92,7 @@ function ChatAnchorRow({ chat, personas, onCardPin }: PersonaRoomBlockProps): Re
     <Row gap="row" align="center" className="justify-between" data-slot="persona-anchor-line" data-anchor-state={chat.anchorState}>
       <Row gap="field" align="center" className="min-inline-0">
         <Icon icon={IdCard} size="xs" />
-        <Text size="label" tone="muted">
+        <Text tone="muted" voice="gloss" prose={true}>
           {anchorLine(chat, personas)}
         </Text>
       </Row>

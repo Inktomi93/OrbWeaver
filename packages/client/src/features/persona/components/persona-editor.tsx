@@ -193,7 +193,7 @@ function PersonaEditorBody({ session, persona, onRequestDelete }: PersonaEditorB
             prefill ? (
               // RATIFIED raw axes (#582, the #573 precedent): the SEMANTIC warning tone is the message —
               // no voice carries a semantic color.
-              <Text size="micro" tone="warning">
+              <Text tone="warning" voice="gloss">
                 {ASSISTANT_PREFILL_WARNING}
               </Text>
             ) : null

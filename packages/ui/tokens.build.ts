@@ -321,10 +321,7 @@ function renderConditionVariants(conditions: Readonly<Record<string, string>>): 
 }
 
 function renderRootCss(tokens: readonly GeneratedCssValue[]): string {
-  if (tokens.length === 0) {
-    return "";
-  }
-  const lines = tokens.map((token) => `  ${cssVarName(token.path)}: ${token.value};`);
+  const lines = ["  color-scheme: dark;", ...tokens.map((token) => `  ${cssVarName(token.path)}: ${token.value};`)];
   return `\n:root {\n${lines.join("\n")}\n}\n`;
 }
 
@@ -334,20 +331,19 @@ function themeLayer(css: string): string {
   return body === "" ? "" : `\n@layer theme {\n${body.replace(/^(?=.)/gmu, "  ")}\n}\n`;
 }
 
-export function renderGeneratedCss(tokens: readonly GeneratedCssValue[], conditions: Readonly<Record<string, string>>): string {
+export function renderGeneratedCss(tokens: readonly GeneratedCssValue[], conditions: Readonly<Record<string, string>>, themeCss: string): string {
   return (
     renderThemeCss(tokens.filter((token) => token.placement === "theme")) +
     renderConditionVariants(conditions) +
-    themeLayer(renderRootCss(tokens.filter((token) => token.placement === "root")))
+    themeLayer(renderRootCss(tokens.filter((token) => token.placement === "root")) + themeCss)
   );
 }
 
 /**
  * The pointer-conditional override block (D62 P1, UI-Arch §4b axis 3). The `@theme` block above
  * carries the COARSE-first control heights (the ≥44px touch floor holds by default); fine pointers
- * narrow them here. Emitted UNLAYERED on purpose: an unlayered `:root` custom-property override
- * beats the `@layer theme` value regardless of source order (verified against the Tailwind v4
- * compiler), so the fine values win wherever a `height: var(--spacing-control-*)` utility resolves.
+ * narrow them here. The block follows the base values within the theme layer, so the fine values
+ * win wherever a control utility resolves them.
  * The narrowed values live in `tokens.json` (`$extensions["orb.pointerFine"]`) — this script carries
  * no design literals.
  *
@@ -504,12 +500,11 @@ function loadSeedThemes(contract: TokenContractResult): SeedTheme[] {
 }
 
 /**
- * The seed-theme block, emitted AFTER the pointer-fine block. The base `:root { color-scheme: dark }`
- * is emitted FIRST here (moved out of globals.css) so the light seed's `color-scheme: light` flip wins
- * by source order within this one generated file. Each `[data-theme]` block is unlayered + self-complete.
+ * Seed palettes follow the default root and pointer values in the theme layer, so Light's
+ * color-scheme wins by source order. Each seed declares its complete palette.
  */
 function renderSeedThemesBlock(themes: readonly SeedTheme[]): string {
-  const parts = ["\n:root {\n  color-scheme: dark;\n}\n"];
+  const parts: string[] = [];
   for (const theme of themes) {
     const lines = theme.vars.map(([name, value]) => `  ${name}: ${value};`);
     parts.push(`\n[data-theme="${theme.name}"] {\n  color-scheme: ${theme.colorScheme};\n${lines.join("\n")}\n}\n`);
@@ -622,13 +617,11 @@ export async function generateArtifacts(uiRoot = HERE): Promise<{ themeCss: stri
   const conditions = resolveConditions(contract.conditions, portableByPath);
   const seedThemes = loadSeedThemes(contract);
   return {
-    themeCss:
-      renderGeneratedCss(flat, conditions) +
-      themeLayer(
-        renderPointerFineBlock(fine, conditions[POINTER_FINE_CONDITION]) +
-          renderSeedThemesBlock(seedThemes) +
-          renderBasePaletteBlock(seedThemes, portableByPath),
-      ),
+    themeCss: renderGeneratedCss(
+      flat,
+      conditions,
+      renderPointerFineBlock(fine, conditions[POINTER_FINE_CONDITION]) + renderSeedThemesBlock(seedThemes) + renderBasePaletteBlock(seedThemes, portableByPath),
+    ),
     tokensTs: renderTokensTs({ tokens: flat, polarityArms, snapped, conditions }),
     themesTs: renderSeedThemesTs(seedThemes),
   };
