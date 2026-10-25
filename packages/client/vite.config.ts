@@ -549,6 +549,49 @@ function precompressedAssets(): Plugin {
   };
 }
 
+/**
+ * The app graph (src/main.tsx) loads through a dynamic import in src/entry.ts, and Vite hints only an entry's static imports. Hint the
+ * graph's chunks and styles from the HTML so the browser fetches them beside the entry, with no extra round trip.
+ */
+function appGraphPreload(): Plugin {
+  return {
+    name: "orb:app-graph-preload",
+    apply: "build",
+    transformIndexHtml: {
+      order: "post",
+      handler(html, context): HtmlTagDescriptor[] {
+        const bundle = context.bundle;
+        const app = Object.values(bundle ?? {}).find((output) => output.type === "chunk" && output.facadeModuleId?.endsWith("/src/main.tsx") === true);
+        if (bundle === undefined || app === undefined) {
+          return [];
+        }
+        const scripts = new Set<string>();
+        const styles = new Set<string>();
+        const visit = (fileName: string): void => {
+          const chunk = bundle[fileName];
+          if (chunk?.type !== "chunk" || scripts.has(fileName)) {
+            return;
+          }
+          scripts.add(fileName);
+          for (const style of chunk.viteMetadata?.importedCss ?? []) {
+            styles.add(style);
+          }
+          for (const dependency of chunk.imports) {
+            visit(dependency);
+          }
+        };
+        visit(app.fileName);
+        const hint = (rel: string, file: string): HtmlTagDescriptor => ({ tag: "link", attrs: { rel, crossorigin: true, href: `/${file}` }, injectTo: "head" });
+        const missing = (file: string): boolean => !html.includes(`/${file}`);
+        return [
+          ...[...scripts].filter(missing).map((file) => hint("modulepreload", file)),
+          ...[...styles].filter(missing).map((file) => hint("stylesheet", file)),
+        ];
+      },
+    },
+  };
+}
+
 const GALLERY_HTML = join(WORKSPACE_ROOT, "playwright", "index.html");
 // The gallery is built once per run and served static by `vite preview` (playwright-ct.config.ts), so no
 // worker pays a cold module transform inside a test timeout. One directory per port: concurrent CT runs
@@ -592,7 +635,7 @@ export default defineConfig(({ mode }) => {
       dedupe: ["react", "react-dom"],
     },
     plugins: [
-      ...(gallery ? [] : [precompressedAssets()]),
+      ...(gallery ? [] : [appGraphPreload(), precompressedAssets()]),
       // React Compiler (stable 1.0, FULL-compile per D54) runs as a @rolldown/plugin-babel preset —
       // plugin-react v6 dropped internal Babel, so the compiler needs its own Babel pass. Order matches
       // the canonical react.dev / plugin-react snippet (`react()` then `babel()`) and is COSMETIC here:
@@ -742,7 +785,7 @@ export default defineConfig(({ mode }) => {
       proxy: SERVER_PROXY,
       // Pre-transform the shell entry + the route tree on server boot so the first paint isn't cold.
       warmup: {
-        clientFiles: ["./src/main.tsx", "./src/routes/router.tsx"],
+        clientFiles: ["./src/entry.ts", "./src/main.tsx", "./src/routes/router.tsx"],
       },
       // Monorepo file access — let Vite serve @orb/* source from outside packages/client (the workspace
       // root, discovered by walking up from this config). This root scope is REQUIRED (the workspace

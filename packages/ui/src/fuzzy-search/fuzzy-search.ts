@@ -55,7 +55,9 @@ interface IndexArgs<T> {
 
 function getOrBuildIndex<T extends { id: string }>(args: IndexArgs<T>): MiniSearch<T> {
   const { items, fieldsKey, storeFieldsKey, fields, storeFields } = args;
-  const byConfig = indexCache.getOrInsertComputed(items, () => new Map());
+  // `getOrInsertComputed` is not in the browser floor (Chrome 145, Firefox 144, Safari 26.2).
+  const byConfig = indexCache.get(items) ?? new Map<string, MiniSearch<never>>();
+  indexCache.set(items, byConfig);
   const configKey = `${fieldsKey} ${storeFieldsKey}`;
   const hit = byConfig.get(configKey);
   if (hit !== undefined) {

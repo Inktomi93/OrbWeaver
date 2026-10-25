@@ -64,6 +64,7 @@
     "quickjs-emscripten-core": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
+    "temporal-polyfill": "catalog:",
     "yaml": "catalog:",
     "zod": "catalog:",
     "zustand": "catalog:"

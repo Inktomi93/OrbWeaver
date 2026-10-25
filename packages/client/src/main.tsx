@@ -1,5 +1,6 @@
 // Boot binds document-lifetime data and external capabilities; authenticated assembly stays behind the lazy route.
 // Import authenticated factories only inside compose/authed-app.tsx, so anonymous boot never reaches the feature graph.
+// entry.ts loads this module once the polyfills (lib/platform-polyfills.ts) are installed, so nothing below guards for them.
 
 // Configure before schema imports; the production build preserves this order across shared chunks.
 import "./lib/zod-jitless.ts";
