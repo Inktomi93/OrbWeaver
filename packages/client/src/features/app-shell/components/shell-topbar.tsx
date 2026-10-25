@@ -10,6 +10,7 @@ import { ChevronLeft, Icon, PanelLeftClose, PanelLeftOpen } from "@orb/ui/icons"
 import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode } from "react";
+import { cn } from "#lib";
 import type { PanelMode } from "#state";
 
 /** The list overlay's durable focus-return target after its contents become hidden. */
@@ -76,7 +77,7 @@ export function TopbarIconButton({ label, icon, pressed, expanded, onClick, mark
           <Button
             intent="ghost"
             size="icon"
-            className={marker === undefined ? "shell-topbar-icon-btn" : `shell-topbar-icon-btn ${marker}`}
+            className={cn("shell-topbar-icon-btn", marker) ?? ""}
             aria-label={label}
             aria-pressed={pressed}
             aria-expanded={expanded}
