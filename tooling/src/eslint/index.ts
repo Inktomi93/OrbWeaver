@@ -1,6 +1,7 @@
 import type { CustomPropertyUses } from "../css-names/index.ts";
 import { browserNoNodeGlobalsRule, rawEgressRule, rawHttpClientRule, sessionChannelBoundaryRule, soleEnvReaderRule } from "./ambient.ts";
 import { detachedWorkRule } from "./async.ts";
+import { browserSupportRule } from "./browser-support.ts";
 import { CLIENT_DATA_RESTRICTIONS, effectOnSharedSelectionRule } from "./client-data-policy.ts";
 import { assumesSingleReplicaRule, commentedCodeRule, rawIdRule, sideGenSamplingRule, wireJsonRule } from "./general.ts";
 import { DB_SCHEMA_RESTRICTIONS, SERVER_HARD_RESTRICTIONS, TYPE_SHAPE_RESTRICTIONS } from "./general-policy.ts";
@@ -29,7 +30,7 @@ import type { AppearanceVocabulary } from "./ui-appearance.ts";
 import { appearanceNameRule } from "./ui-appearance.ts";
 import { floorlessControlRule, registerApiRule, registryContextRule, stateFilesRule, storeDerivedRule } from "./ui-composition.ts";
 import { customPropertyDeclaredRule } from "./ui-custom-properties.ts";
-import type { ClassClassifier } from "./ui-feature-classname.ts";
+import type { CandidatesToCss, ClassClassifier } from "./ui-feature-classname.ts";
 import { featureClassNameLayoutOnlyRule, noBuiltClassStringRule } from "./ui-feature-classname.ts";
 import { UI_FEATURE_RESTRICTIONS } from "./ui-feature-policy.ts";
 import { rawIntrinsicPaintRule } from "./ui-intrinsics.ts";
@@ -84,6 +85,14 @@ export function createOrbPlugin(options: {
   floorlessButtonSizes: ReadonlySet<string>;
   shellClasses: ReadonlySet<string>;
   appearanceVocabulary: AppearanceVocabulary;
+  /** Compat keys some browser floor lacks (`unsupportedAtFloor`). */
+  browserUnsupported: ReadonlyMap<string, readonly string[]>;
+  /** The same table without the polyfill allowance, for the files that run before the polyfills are installed. */
+  browserUnsupportedBeforePolyfills: ReadonlyMap<string, readonly string[]>;
+  /** Properties a browser may ignore with no layout or behavior change (`HARMLESS_WHEN_UNSUPPORTED`). */
+  browserHarmless: Readonly<Record<string, string>>;
+  /** Tailwind's `DesignSystem.candidatesToCss`. */
+  candidatesToCss: CandidatesToCss;
   customProperties: CustomPropertyUses;
   classifyClass: ClassClassifier;
   baseUiDoors: BaseUiDoors;
@@ -137,6 +146,16 @@ export function createOrbPlugin(options: {
       "commented-code": commentedCodeRule,
       "plugin-dump-guard": restrictionRule({ selectors: PLUGIN_DUMP_SELECTORS }),
       "browser-no-node-globals": browserNoNodeGlobalsRule(options.browserNodeGlobals),
+      "browser-support": browserSupportRule({
+        unsupported: options.browserUnsupported,
+        harmless: options.browserHarmless,
+        candidatesToCss: options.candidatesToCss,
+      }),
+      "browser-support-entry": browserSupportRule({
+        unsupported: options.browserUnsupportedBeforePolyfills,
+        harmless: options.browserHarmless,
+        candidatesToCss: options.candidatesToCss,
+      }),
     },
   };
 }
