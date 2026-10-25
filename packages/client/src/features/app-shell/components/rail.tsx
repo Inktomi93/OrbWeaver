@@ -17,7 +17,6 @@
 
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
-import { FOCUS_RING_ON_SIDEBAR } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import { WeaveGlyph } from "@orb/ui/web-weave";
@@ -101,7 +100,8 @@ function RailBrand({
           <Button
             aria-current={active ? "page" : undefined}
             aria-label={entry.label}
-            className={`shell-rail-brand shell-rail-brand-button ${FOCUS_RING_ON_SIDEBAR}`}
+            className="shell-rail-brand shell-rail-brand-button"
+            focusRing="sidebar"
             data-active={active ? "" : undefined}
             intent="ghost"
             onClick={(): void => onSelectSection(sectionId)}

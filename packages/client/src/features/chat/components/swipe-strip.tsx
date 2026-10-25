@@ -30,7 +30,6 @@ import { useSwipeKeyboardNav } from "../hooks/use-swipe-keyboard-nav.ts";
 import { useVariantHistory } from "../hooks/use-variant-history.ts";
 import { VARIANT_GENERATE_NAME, VARIANT_NEXT_NAME, VARIANT_PREV_NAME, variantCountName } from "../lib/message-action-names.ts";
 import type { SwipeFoot } from "../lib/pager-chrome.ts";
-import { SWIPE_COUNTER } from "../lib/pager-chrome.ts";
 
 interface SwipeVars {
   readonly chatId: ChatId;
@@ -137,7 +136,7 @@ export function SwipeStrip({ message, foot }: SwipeStripProps): ReactElement {
             intent="ghost"
             size="glyph-lg"
             shape="pill"
-            className={foot.chevron}
+            tone="muted"
             disabled={!canStepBack}
             loading={busy && canStepBack}
             aria-label={VARIANT_PREV_NAME}
@@ -149,7 +148,7 @@ export function SwipeStrip({ message, foot }: SwipeStripProps): ReactElement {
         count={
           // A VALUE you read — the `datum` voice, whose tabular figures stop the count nudging the chevron as
           // it ticks (UI-Density-Law.md §2.3). The position and nothing else: owner ruling, a label is noise.
-          <Text as="span" voice="datum" aria-hidden="true" data-slot="swipe-strip-counter" className={SWIPE_COUNTER}>
+          <Text as="span" voice="datum" aria-hidden="true" data-slot="swipe-strip-counter" className="whitespace-nowrap" tone="muted">
             {current} / {total}
           </Text>
         }
@@ -158,7 +157,7 @@ export function SwipeStrip({ message, foot }: SwipeStripProps): ReactElement {
             intent="ghost"
             size="glyph-lg"
             shape="pill"
-            className={foot.chevron}
+            tone="muted"
             disabled={waitingForNext}
             loading={busy || waitingForNext}
             aria-label={nextChevronLabel}
@@ -184,7 +183,7 @@ export function SwipeStrip({ message, foot }: SwipeStripProps): ReactElement {
 export function SwipeCount({ current, total, foot }: { readonly current: number | null; readonly total: number; readonly foot: SwipeFoot }): ReactElement {
   return (
     <Row align="center" justify="end" data-slot="swipe-count" className={foot.row}>
-      <Text as="span" voice="datum" aria-hidden="true" data-slot="swipe-strip-counter" className={SWIPE_COUNTER}>
+      <Text as="span" voice="datum" aria-hidden="true" data-slot="swipe-strip-counter" className="whitespace-nowrap" tone="muted">
         {current ?? "—"} / {total}
       </Text>
       <Text as="span" className="sr-only">

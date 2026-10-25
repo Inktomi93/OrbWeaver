@@ -32,6 +32,14 @@ test("the committed manifest is the one the live sources render", () => {
   expect(readFileSync(join(REPO_ROOT, OWNER_CSS_SURFACE_PATHS.manifest), "utf8")).toBe(renderOwnerCssSurface(live, OWNER_CSS_SURFACE));
 });
 
+test("a slot a primitive prop names reaches the surface like a data-slot attribute", () => {
+  const planted = renderOwnerCssSurface(
+    { ...live, sources: [...live.sources, { path: "planted.tsx", text: '<Card ownSlot="planted-owned-slot" />' }] },
+    OWNER_CSS_SURFACE,
+  );
+  expect(planted).toContain('"planted-owned-slot",');
+});
+
 test("a recorded slot rename and a recorded shell-class rename each change the manifest", () => {
   const slot = OWNER_CSS_SLOTS[0];
   const shellClass = OWNER_CSS_SHELL_CLASSES[0];

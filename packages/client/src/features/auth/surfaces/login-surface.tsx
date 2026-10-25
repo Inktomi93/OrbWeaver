@@ -91,7 +91,7 @@ export function LoginSurface(): ReactElement {
   })();
 
   return (
-    <Stack ref={surfaceRef} tabIndex={-1} gap="block" className="outline-none">
+    <Stack ref={surfaceRef} tabIndex={-1} gap="block" focusTarget={true}>
       {body}
     </Stack>
   );
@@ -296,7 +296,7 @@ function LoginRedirecting({ providerName }: { readonly providerName: string }): 
     <Stack gap="block">
       <Heading level={1}>Signing in…</Heading>
       <Row align="center" gap="row">
-        <WebSpinner size="xl" label="Redirecting" className="text-primary" />
+        <WebSpinner size="xl" label="Redirecting" tone="accent" />
         <Text voice="label" tone="muted">
           Redirecting you to {providerName}.
         </Text>

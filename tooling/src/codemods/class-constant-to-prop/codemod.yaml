@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "class-constant-to-prop"
+version: "0.1.0"
+description: "Replace an imported class constant on a JSX className with the primitive props that own its paint, by a map read from the target directory."
+author: "Orbweaver"
+license: "MIT"
+targets:
+  languages: ["tsx"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

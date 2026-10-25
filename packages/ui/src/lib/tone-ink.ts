@@ -2,6 +2,8 @@
 // `default` keeps the ink the primitive or its voice already paints.
 export const TONE_INK = {
   default: "",
+  /** The full surface ink, for a quiet voice (a gloss) that names the thing itself, or a control that must not inherit muted ink. */
+  foreground: "text-foreground",
   muted: "text-muted-foreground",
   accent: "text-primary",
   destructive: "text-destructive",
@@ -14,4 +16,8 @@ export const TONE_INK = {
   speaker: "text-speaker",
   dialogue: "text-dialogue",
   narration: "text-narration",
+  /** The theme's reading ink for running prose (`--color-prose-body`). */
+  prose: "text-prose-body",
+  /** The ink paired with the primary fill, for a mark drawn on that fill. */
+  onPrimary: "text-primary-foreground",
 } as const;

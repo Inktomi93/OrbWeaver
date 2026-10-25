@@ -726,6 +726,7 @@ export const OWNER_CSS_SLOTS = [
   "stored-config-unreadable",
   "stream-shimmer",
   "surface-root",
+  "swatch",
   "swipe-count",
   "swipe-strip",
   "swipe-strip-counter",

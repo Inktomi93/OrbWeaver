@@ -9,7 +9,7 @@ import type { ComponentProps, ReactElement } from "react";
 import { useId, useState } from "react";
 import { Tip } from "#components";
 import type { EditSession } from "#lib";
-import { resolveCommit } from "#lib";
+import { cn, resolveCommit } from "#lib";
 import { UNSET_DATUM } from "../../lib/unset-datum.ts";
 
 interface TrackerValueProps {
@@ -51,6 +51,8 @@ interface TrackerValueProps {
   readonly wrap?: boolean;
   /** Tabular figures in every state (read-only, rest and edit), so a ticking count keeps its column. @defaultValue false */
   readonly numeric?: boolean;
+  /** The slanted face in every state, for words that are not spoken (a character's thought). @defaultValue false */
+  readonly italic?: boolean;
 }
 
 /** The REST state of an editable value — a real button CARRYING the datum text (see the header). Split out
@@ -66,6 +68,7 @@ function TrackerValueRest({
   tone,
   wrap,
   numeric,
+  italic,
 }: {
   readonly ariaLabel: string;
   readonly className: string;
@@ -77,6 +80,7 @@ function TrackerValueRest({
   readonly tone: ComponentProps<typeof Text>["tone"];
   readonly wrap: boolean;
   readonly numeric: boolean;
+  readonly italic: boolean;
 }): ReactElement {
   const empty = display === "";
   const restText = empty ? (placeholder ?? UNSET_DATUM) : display;
@@ -90,16 +94,17 @@ function TrackerValueRest({
         aria-label={ariaLabel}
         onClick={onOpen}
         // Text-height at rest (the display-at-rest posture): the button hugs its datum text; a caller's
-        // width/alignment classes still apply so the rest state lines up with the read-only arm. The
-        // TRANSPARENT border reserves the edit input's 1px border box, so the click-to-reveal swap is
-        // pixel-stable — no layout jump (the owner no-shift bar).
-        className={`gap-0 border border-transparent px-field text-start ${className}`}
+        // width/alignment classes still apply so the rest state lines up with the read-only arm. The reserved
+        // edge holds the edit input's 1px border box, so the click-to-reveal swap does not shift.
+        reserveEdge={true}
+        className={cn("gap-0 px-field text-start", className) ?? ""}
       >
         <Text
           as="span"
           size={size}
           tone={empty ? "muted" : tone}
           numeric={numeric}
+          italic={italic}
           className={wrap ? "wrap-break-word whitespace-normal min-inline-0" : "truncate"}
         >
           {restText}
@@ -126,6 +131,7 @@ export function TrackerValue({
   editTitle = "Click to edit",
   wrap = false,
   numeric = false,
+  italic = false,
 }: TrackerValueProps): ReactElement {
   const source = editValue ?? display;
   // ONE state, because the three fields are only ever meaningful together: the draft is seeded when the
@@ -137,7 +143,7 @@ export function TrackerValue({
 
   if (onEdit === undefined) {
     return (
-      <Text as="span" size={size} tone={tone} numeric={numeric} className={className}>
+      <Text as="span" size={size} tone={tone} numeric={numeric} italic={italic} className={className}>
         {display}
       </Text>
     );
@@ -158,6 +164,7 @@ export function TrackerValue({
         tone={tone}
         wrap={wrap}
         numeric={numeric}
+        italic={italic}
       />
     );
   }
@@ -189,6 +196,8 @@ export function TrackerValue({
         layout="inline"
         width={width}
         numeric={numeric}
+        italic={italic}
+        typeStep={size === "title" ? "title" : "field"}
         className={className ?? ""}
         data-slot="tracker-value-edit"
         // The CONFLICT surface. `data-conflict` carries the value that arrived (an automatable fact, and the

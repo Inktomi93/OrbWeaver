@@ -28,7 +28,6 @@ import type { ReactElement } from "react";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { variantCountName } from "../lib/message-action-names.ts";
 import type { SwipeFoot } from "../lib/pager-chrome.ts";
-import { SWIPE_COUNTER } from "../lib/pager-chrome.ts";
 import { SwipeFootRow } from "./swipe-strip.tsx";
 
 interface SetSeededGreetingVars {
@@ -88,7 +87,7 @@ export function GreetingSwipeStrip({ chatId, messageId, variants, current, foot 
         <Button
           intent="ghost"
           size="glyph-lg"
-          className={foot.chevron}
+          tone="muted"
           disabled={!canPrev || step.isPending}
           loading={step.isPending}
           aria-label="Previous greeting"
@@ -98,7 +97,7 @@ export function GreetingSwipeStrip({ chatId, messageId, variants, current, foot 
         </Button>
       }
       count={
-        <Text as="span" voice="datum" aria-hidden="true" data-slot="greeting-swipe-strip-counter" className={SWIPE_COUNTER}>
+        <Text as="span" voice="datum" aria-hidden="true" data-slot="greeting-swipe-strip-counter" className="whitespace-nowrap" tone="muted">
           {atCustom ? "—" : currentIdx + 1} / {total}
         </Text>
       }
@@ -106,7 +105,7 @@ export function GreetingSwipeStrip({ chatId, messageId, variants, current, foot 
         <Button
           intent="ghost"
           size="glyph-lg"
-          className={foot.chevron}
+          tone="muted"
           disabled={!canNext || step.isPending}
           loading={step.isPending}
           aria-label="Next greeting"

@@ -1,5 +1,6 @@
 import type { ReactElement } from "react";
 import { useEffect, useRef, useSyncExternalStore } from "react";
+import type { VariantProps } from "tailwind-variants";
 import { cn, usePrefersReducedMotion } from "#lib";
 import { backgroundVideoVariants } from "./variants.ts";
 
@@ -20,7 +21,10 @@ export interface BackgroundVideoProps {
   /** Force the STILL frame whatever the motion state. Resolved reduced motion (`usePrefersReducedMotion`: the app's
    *  `system | on | off` setting over the OS query) stills it without this flag. */
   readonly paused?: boolean;
-  /** Passthrough skin — e.g. an `object-contain` utility overriding the baked `object-cover`. */
+  /** How the frame fills its box. @defaultValue "cover" */
+  readonly fit?: VariantProps<typeof backgroundVideoVariants>["fit"];
+  readonly rounded?: VariantProps<typeof backgroundVideoVariants>["rounded"];
+  /** Layout only: the box's size and placement. */
   readonly className?: string;
 }
 
@@ -38,10 +42,10 @@ export interface BackgroundVideoProps {
  *
  * The native `<video>` attribute surface is DELIBERATELY NOT exposed: every background-loop attribute is a
  * policy invariant, so a passthrough prop would be an escape hatch around the policy — hence the narrow
- * `{ src, paused, className }` shape, not `extends ComponentProps<"video">`. ui deps kit only;
+ * `{ src, paused, fit, rounded, className }` shape, not `extends ComponentProps<"video">`. ui deps kit only;
  * positioning/scrim/z-index live in the app-shell composite (ThemeBackgroundVideoLayer).
  */
-export function BackgroundVideo({ src, paused = false, className }: BackgroundVideoProps): ReactElement {
+export function BackgroundVideo({ src, paused = false, fit, rounded, className }: BackgroundVideoProps): ReactElement {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const osReducedMotion = usePrefersReducedMotion();
   const hidden = useSyncExternalStore(subscribeVisibility, getDocumentHidden, getDocumentHiddenServer);
@@ -75,7 +79,7 @@ export function BackgroundVideo({ src, paused = false, className }: BackgroundVi
       tabIndex={-1}
       data-slot="background-video"
       data-motion={animating ? "playing" : "still"}
-      className={cn(backgroundVideoVariants(), className)}
+      className={cn(backgroundVideoVariants({ fit, rounded }), className)}
       src={src}
       muted={true}
       loop={true}

@@ -1,4 +1,4 @@
-import { DISABLED_STATE, FOCUS_RING, TOUCH_FLOOR_AT_COARSE, tv } from "#lib";
+import { DISABLED_STATE, FOCUS_RING, OPEN_TURN, TOUCH_FLOOR_AT_COARSE, tv } from "#lib";
 
 /**
  * Slot classes for the collapsible (ui-package-design §5). The panel animates its own height off
@@ -13,7 +13,7 @@ export const collapsibleVariants = tv({
     root: "flex flex-col",
     trigger: `group inline-flex cursor-pointer items-center gap-field text-label leading-label font-medium text-foreground outline-none ${DISABLED_STATE} ${FOCUS_RING}
     `,
-    chevron: "shrink-0 text-muted-foreground transition-transform duration-(--motion-base) ease-out-expo group-data-panel-open:rotate-180",
+    chevron: `shrink-0 text-muted-foreground ${OPEN_TURN}`,
     // `transition-all` was catching inherited non-compositor properties too (`scrollbarColor` —
     // the app's `[anim]` flagger convicted this panel OVER BUDGET on every fold). The panel only
     // ever animates `height` (the ratified #953/#1069 lifecycle allowance, guide §4.2 item 3) —
@@ -50,6 +50,10 @@ export const collapsibleVariants = tv({
     // Base UI completes a panel with no animations immediately.
     instant: {
       true: { panel: "transition-none" },
+    },
+    holds: {
+      prose: {},
+      controls: { panel: "text-foreground" },
     },
   },
   defaultVariants: {

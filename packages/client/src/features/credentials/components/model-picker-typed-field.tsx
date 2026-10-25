@@ -41,7 +41,7 @@ export function TypedModelField({
       {view.typingOffered ? (
         <Field
           description={
-            <Text as="span" className={view.warns ? "text-warning" : undefined} data-slot="model-picker-notice" prose={true} voice="gloss">
+            <Text as="span" tone={view.warns ? "warning" : "default"} data-slot="model-picker-notice" prose={true} voice="gloss">
               {notice}
             </Text>
           }
@@ -56,7 +56,8 @@ export function TypedModelField({
             Model
           </Text>
           <Text
-            className={view.warns ? "text-warning max-inline-(--reading-measure-prose)" : "max-inline-(--reading-measure-prose)"}
+            className="max-inline-(--reading-measure-prose)"
+            tone={view.warns ? "warning" : "default"}
             data-slot="model-picker-notice"
             prose={true}
             voice="gloss"

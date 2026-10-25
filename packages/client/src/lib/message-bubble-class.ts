@@ -1,18 +1,11 @@
-// The transcript and theme preview share this value; cross-feature runtime imports are forbidden.
+// The bubble box and per-role fill as one class string, for the transcript's row skins, which compose class
+// strings. The recipe's home is `@orb/ui` (`MESSAGE_BUBBLE_BOX`, `MESSAGE_BUBBLE_FILL`), which is also what a
+// `Card shape="bubble"` paints, so a preview bubble and a transcript bubble cannot drift.
 import type { MessageRole } from "@orb/kit/message-role";
-import { cn } from "@orb/ui/lib";
+import { cn, MESSAGE_BUBBLE_BOX, MESSAGE_BUBBLE_FILL } from "@orb/ui/lib";
 
-/** The per-role fill + ink. Themeable: every token here is a ThemeScope-overridable custom property. */
-const BUBBLE_TOKENS: Record<MessageRole, string> = {
-  user: "bg-user-bubble text-user-bubble-foreground",
-  assistant: "bg-ai-bubble text-ai-bubble-foreground",
-  system: "bg-system-bubble text-system-bubble-foreground",
-};
-
-/** The bubble box for a role. `w-fit` (D66 N3) so a short reply hugs its text instead of stretching the whole
- *  reading column; `--reading-bubble-cap` caps the long-form line. It is its own token because the reading
- *  floor is a min-width and the transcript measure belongs to the column, not the bubble. */
+/** The bubble box for a role. */
 export function messageBubbleClass(role: MessageRole): string {
   // `cn` is typed `string | undefined` (never undefined at runtime) — coalesce so callers get a `string`.
-  return cn("rounded-card px-block py-row inline-fit max-inline-(--reading-bubble-cap) min-inline-0", BUBBLE_TOKENS[role]) ?? "";
+  return cn(MESSAGE_BUBBLE_BOX, MESSAGE_BUBBLE_FILL[role]) ?? "";
 }

@@ -1,9 +1,18 @@
 import { tv } from "#lib";
 
-// The decorative background-video skin (BG-V). Fills its positioned parent and COVERS by default —
-// `object-cover` is the baked policy default (the recommended background fit). A consumer honoring a
-// different fit passes an `object-contain`/`object-fill`/`object-none` utility via `className`, which
-// tailwind-merge dedupes against this base. `block` kills the inline-video baseline descender gap.
 export const backgroundVideoVariants = tv({
-  base: "block object-cover block-full inline-full",
+  base: "block block-full inline-full",
+  variants: {
+    // How the frame fills its box: `cover` and `contain` verbatim, `stretch` fills both axes, `center` paints the
+    // natural size centred.
+    fit: {
+      cover: "object-cover",
+      contain: "object-contain",
+      stretch: "object-fill",
+      center: "object-none",
+    },
+    // A thumbnail inside a surface (a composer attachment) takes the grouped-content radius.
+    rounded: { none: "", base: "rounded-base" },
+  },
+  defaultVariants: { fit: "cover", rounded: "none" },
 });

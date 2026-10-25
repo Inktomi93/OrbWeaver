@@ -25,8 +25,13 @@ export const crossfadeImageVariants = tv({
       cover: { image: "object-cover" },
       contain: { image: "object-contain" },
     },
+    rounded: {
+      none: {},
+      base: { root: "rounded-base" },
+    },
   },
   defaultVariants: {
     fit: "cover",
+    rounded: "none",
   },
 });

@@ -9,7 +9,7 @@
 /* Streamdown's own markup carries Tailwind classes, and a package in node_modules is never scanned on its own. */
 @source "../../../ui/node_modules/streamdown/dist";
 
-/* The room's track (features/chat/lib/chat-track.ts) centres on the device-pixel grid (integer-line-boxes.md Law 3):
+/* The room's track (features/chat/lib/chat-track.tsx) centres on the device-pixel grid (integer-line-boxes.md Law 3):
  * `mx-auto` halves an odd remainder and lands every backdrop-filter layer inside the track on a half pixel, so the
  * start margin is floored and the end margin absorbs the odd pixel. */
 @utility orb-chat-track {

@@ -66,7 +66,7 @@ export function ConnectionEditorUnavailable({ connection, onDone, onRemoved, fin
           <Text prose={true}>{reason}</Text>
           <Stack gap="tight">
             <Text voice="gloss">Saved provider</Text>
-            <Text voice="datum">{connection.providerId}</Text>
+            <Text voice="code">{connection.providerId}</Text>
           </Stack>
           <Row className="flex-wrap" gap="field">
             {isPluginProviderId(connection.providerId) ? (

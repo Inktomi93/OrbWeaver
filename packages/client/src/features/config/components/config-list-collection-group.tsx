@@ -42,7 +42,7 @@
 //    (the mock design §3.2) — one home each, in the pane the reader is looking at. The C-2 no-aggregate-primary
 //    ruling is untouched; only the address changed.
 //  · The VOICE BUDGET is the pane's, not per-species (#1714) — `interactiveKicker` names this band because a
-//    band is a control that names a region, `datum` is its mono count. Its ONE home is
+//    band is a control that names a region, `datum` is its tabular count. Its ONE home is
 //    `config-list-group.tsx`'s header and it governs this file.
 //
 // `aria-current` IS `"true"`, NOT the mock design §3.1's `"location"` — a deliberate, stated deviation. The

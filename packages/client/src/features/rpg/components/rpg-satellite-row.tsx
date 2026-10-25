@@ -17,8 +17,6 @@ import type { RpgTrackerOrb, RpgTrackerView } from "@orb/contracts/rpg";
 import { Row } from "@orb/ui/layout";
 import { CoinFigure, RingGauge } from "@orb/ui/meter";
 import type { ReactElement } from "react";
-import { HIDE_AT_COARSE } from "#components";
-import { cn } from "#lib";
 import { resolveTrackerColor, trackColorProps } from "../lib/track-color.ts";
 
 /** The 3-char uppercase tag the orb caption shows ("VIT"), the OSRS glanceable-vitals idiom. */
@@ -81,7 +79,7 @@ export function RpgSatelliteRow({ trackerOrbs, actors, viewerUserId }: RpgSatell
     return null;
   }
   return (
-    <Row gap="block" align="start" className={cn("overflow-x-auto min-inline-0", HIDE_AT_COARSE) ?? ""} data-slot="rpg-band-satellites">
+    <Row gap="block" align="start" hiddenAt="coarse" className="overflow-x-auto min-inline-0" data-slot="rpg-band-satellites">
       {trackerOrbs.map((orb, i) => (
         <Satellite key={orb.key} orb={orb} ordinal={i} />
       ))}

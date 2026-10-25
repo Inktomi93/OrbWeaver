@@ -35,6 +35,7 @@
 
 import type { MacroRun } from "@orb/kit/macro";
 import { Badge } from "@orb/ui/badge";
+import { Card } from "@orb/ui/card";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 
@@ -50,15 +51,14 @@ export interface MacroTextProps {
   readonly frame?: "quoted" | "bare";
 }
 
-/** The quoted frame's chrome — a bordered, tinted mono block. Spelled once; the `bare` arm drops it. */
-const QUOTED_FRAME = "rounded-base border border-border bg-muted/40 p-row";
-/** Both arms preserve authored whitespace and break long unbroken tokens rather than overflowing. */
-const RUN_FLOW = "whitespace-pre-wrap break-words";
+/** Both arms preserve authored whitespace and break long unbroken tokens rather than overflowing. The quoted
+ *  arm sets the run in a bordered, tinted card; the `bare` arm drops it. */
+const RUN = "wrap-break-word whitespace-pre-wrap";
 
 /** A template rendered as a template: prose as text, `{{macro}}` references as braced inline chips. */
 export function MacroText({ tokens, frame = "quoted" }: MacroTextProps): ReactElement {
-  return (
-    <Text className={frame === "quoted" ? `${RUN_FLOW} ${QUOTED_FRAME}` : RUN_FLOW} prose={true} voice="datum">
+  const run = (
+    <Text className={frame === "quoted" ? "p-row wrap-break-word whitespace-pre-wrap" : RUN} prose={true} voice="code">
       {tokens.map(
         (token, i): ReactNode =>
           token.kind === "macro" ? (
@@ -72,5 +72,12 @@ export function MacroText({ tokens, frame = "quoted" }: MacroTextProps): ReactEl
           ),
       )}
     </Text>
+  );
+  return frame === "quoted" ? (
+    <Card padding="none" shadow="none" tone="mutedWash">
+      {run}
+    </Card>
+  ) : (
+    run
   );
 }

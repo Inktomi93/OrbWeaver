@@ -20,7 +20,6 @@ import { Button } from "@orb/ui/button";
 // `Download` is GONE with the header Export door (O-16★ — one home, the list-row kebab); `Container` is lane B's shared content-column ruling.
 import { Icon, Pencil, RotateCcw, Zap } from "@orb/ui/icons";
 import { Container, Row, Stack } from "@orb/ui/layout";
-import { SCROLL_FADE_X_CLASS } from "@orb/ui/lib";
 import { useScrollFadeX } from "@orb/ui/scroll-area";
 import { TabsIndicator, TabsList, TabsTab } from "@orb/ui/tabs";
 import { Heading } from "@orb/ui/text";
@@ -86,7 +85,7 @@ export function PresetEditorHeader({
           The Params deck carries a THIRD, deeper column — its own instrument cap (`params-deck.tsx`) — so an
           offset between this header and the deck shows on Params and on no other tab. A CT pins the header
           to the panel column; the deck's cap is argued at its own site. */}
-      <Stack gap="block" className="sticky inset-bs-0 z-(--z-raised) bg-card py-block">
+      <Stack gap="block" className="sticky inset-bs-0 z-(--z-raised) py-block" ground="card">
         <Container className="inline-full">
           <Stack className="mx-auto inline-full max-inline-(--width-content-col) @cq-64:max-inline-(--width-content-col-wide)" gap="block">
             <Row align="center" justify="between" gap="field">
@@ -202,7 +201,7 @@ export function PresetEditorHeader({
                 that halo needs, paid once, here. `.scroll-fade-x` is `@orb/ui`'s own edge-fade recipe
                 (globals.css), driven by the hook per its stated consumer contract: an edge dissolves only
                 while it is actually hiding something. */}
-            <Row className={`${SCROLL_FADE_X_CLASS} overflow-x-auto py-tight min-inline-0`} ref={stripRef}>
+            <Row className="overflow-x-auto py-tight min-inline-0" ref={stripRef} scrollFade="x">
               {/* THE STRIP NAMES ITSELF. Without this the tablist's accessible name computes from its own
                   contents — `ParamsPromptActionsDataTransforms` — and no semantic selector can address it. */}
               <TabsList aria-label="Preset sections">

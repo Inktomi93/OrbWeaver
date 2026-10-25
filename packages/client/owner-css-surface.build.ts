@@ -90,12 +90,12 @@ export interface SurfaceInput {
   readonly renames: readonly OwnerCssRename[];
 }
 
-// Every spelling that puts a literal slot name on an element: the attribute, the props-object key, the `slot`/`dataSlot`
-// prop a wrapper forwards, and a `*_SLOT` constant a wrapper reads.
+// Every spelling that puts a literal slot name on an element: the attribute, the props-object key, the `slot`/`dataSlot`/
+// `ownSlot` prop a primitive forwards, and a `*_SLOT` constant a wrapper reads.
 const SLOT_LITERAL_PATTERNS = [
   /\bdata-slot="([a-z0-9-]+)"/gu,
   /"data-slot": "([a-z0-9-]+)"/gu,
-  /\b(?:slot|dataSlot)="([a-z0-9-]+)"/gu,
+  /\b(?:slot|dataSlot|ownSlot)="([a-z0-9-]+)"/gu,
   /\b[A-Z][A-Z_]*_SLOT = "([a-z0-9-]+)"/gu,
 ];
 const SHELL_CLASS_PATTERN = /\.(shell-[a-z0-9-]+)/gu;

@@ -16,7 +16,6 @@ import { DiffView } from "@orb/ui/diff";
 import { EmptyState } from "@orb/ui/empty-state";
 import { HintTrigger } from "@orb/ui/hint-trigger";
 import { Row, Stack } from "@orb/ui/layout";
-import { RECEDED_INK } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -143,7 +142,7 @@ export function RunsTab({ runs, viewedRunId, onView, armedRewriteId, onArmRewrit
           // This comment block's own words ("GHOST, and deliberately the quiet twin") are the recession
           // ruling; the primitive inherits its host's ink, so the composite states its own through the shared
           // spelling.
-          <Button className={RECEDED_INK} intent="ghost" onClick={onRunScore} size="sm">
+          <Button intent="ghost" onClick={onRunScore} size="sm" tone="muted">
             Run score
           </Button>
         }

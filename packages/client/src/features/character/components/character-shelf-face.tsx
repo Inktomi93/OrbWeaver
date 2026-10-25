@@ -111,11 +111,11 @@ export function CharacterShelfFace({ id, name, avatarHash, starred, stamp, capti
             <Row align="start" className="relative" justify="end" padding="field">
               {/* Decorative — the fact is in the button's accessible name above, so a `label` here would
                   announce it twice (and be swallowed by the `aria-label` anyway). */}
-              <Icon className="text-warning" fill="solid" icon={Star} size="sm" />
+              <Icon tone="warning" fill="solid" icon={Star} size="sm" />
             </Row>
           ) : null}
         </Layer>
-        <Text as="span" className="text-foreground" lines={2} voice="promoted">
+        <Text as="span" lines={2} voice="promoted">
           {name}
         </Text>
         {stamp === null ? null : (

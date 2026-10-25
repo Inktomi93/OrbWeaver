@@ -22,10 +22,56 @@ export function Stack({
   srOnlyAt,
   touchFloor,
   divider,
+  dividerWeight,
+  dividerTone,
+  dividerStyle,
   receded,
+  ground,
+  plate,
+  highlight,
+  spoiler,
+  slide,
+  lifted,
+  fade,
+  fadeFrom,
+  ink,
+  opacityMotion,
+  focusTarget,
+  scrollFade,
   ...props
 }: StackProps): ReactElement {
   return (
-    <div {...props} className={stackVariants({ gap, align, justify, padding, rows, container, hiddenAt, srOnlyAt, touchFloor, divider, receded, className })} />
+    <div
+      {...props}
+      className={stackVariants({
+        gap,
+        align,
+        justify,
+        padding,
+        rows,
+        container,
+        hiddenAt,
+        srOnlyAt,
+        touchFloor,
+        divider,
+        dividerWeight,
+        dividerTone,
+        dividerStyle,
+        receded,
+        ground,
+        plate,
+        highlight,
+        spoiler,
+        slide,
+        lifted,
+        fade,
+        fadeFrom,
+        ink,
+        opacityMotion,
+        focusTarget,
+        scrollFade,
+        className,
+      })}
+    />
   );
 }

@@ -9,14 +9,14 @@ import { testId } from "#lib";
 
 // A loopback client's password crosses no network, so it gets no notice. The notice speaks to the person signing in:
 // what is at risk for them and what they can do, never a server setting only the operator can change.
-const NOTICE: Record<ClientScope, { readonly tone: string; readonly copy: string } | null> = {
+const NOTICE: Record<ClientScope, { readonly tone: "warning" | "destructive"; readonly copy: string } | null> = {
   loopback: null,
   private: {
-    tone: "text-warning",
+    tone: "warning",
     copy: "This page isn't encrypted: others on this network could read your password as it is sent. Sign in only on a network you trust.",
   },
   public: {
-    tone: "text-destructive",
+    tone: "destructive",
     copy: "This page isn't encrypted: anyone between you and this server could read your password as it is sent. Don't sign in here; ask whoever runs this server for a secure link.",
   },
 };
@@ -32,7 +32,7 @@ export function LoginTransportNotice({ transport, clientScope }: LoginTransportN
     return null;
   }
   return (
-    <Text voice="label" className={notice.tone} data-client-scope={clientScope} data-testid={testId("loginTransportNotice")}>
+    <Text voice="label" tone={notice.tone} data-client-scope={clientScope} data-testid={testId("loginTransportNotice")}>
       {notice.copy}
     </Text>
   );

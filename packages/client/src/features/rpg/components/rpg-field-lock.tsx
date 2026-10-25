@@ -29,7 +29,7 @@ export interface RpgFieldLockProps {
 export function RpgFieldLock({ field, onRelease }: RpgFieldLockProps): ReactElement {
   return (
     <Tip text={`${field} is pinned by hand — the story won't change it. Click to release it back to the model.`}>
-      <Button type="button" intent="ghost" size="glyph-sm" className="text-muted-foreground" aria-label={`Release ${field} to the model`} onClick={onRelease}>
+      <Button type="button" intent="ghost" size="glyph-sm" tone="muted" aria-label={`Release ${field} to the model`} onClick={onRelease}>
         <Icon icon={Pin} size="xs" />
       </Button>
     </Tip>

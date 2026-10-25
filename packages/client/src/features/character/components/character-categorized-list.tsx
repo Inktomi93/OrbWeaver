@@ -79,9 +79,9 @@ export function CharacterCategorizedList<T extends { readonly id: string }>({
                     over a hidden panel is a lie. `CollapsibleTrigger` puts its `group` class + Base UI's
                     `data-panel-open` on this Button, so the leading icon rotates on open exactly like the
                     primitive's own baked (trailing) chevron does. */}
-                <Icon className="transition-transform duration-(--motion-base) ease-out-expo group-data-panel-open:rotate-180" icon={ChevronDown} size="sm" />
+                <Icon icon={ChevronDown} openTurn={true} size="sm" />
                 {/* The group header is a section NAME + its count: a kicker voice, and the count in the
-                    `datum` voice (tabular mono) — density-pass §2.3. `interactiveKicker`, NOT `kicker`
+                    `datum` voice (tabular figures) — density-pass §2.3. `interactiveKicker`, NOT `kicker`
                     (#1216 class, #1632 item 3): the name is the visible label of this CollapsibleTrigger, and
                     `kicker` rides `--text-micro` (10.5px), under the 11px functional floor for interactive
                     copy. Same tracked instrument register, readable 13px label step. */}

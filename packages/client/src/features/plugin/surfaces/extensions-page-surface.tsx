@@ -74,7 +74,8 @@ function InsetPane({
 }): ReactElement {
   return (
     <Stack
-      className={cn("relative overflow-y-auto px-section outline-none block-full min-block-0", className)}
+      className={cn("relative overflow-y-auto px-section block-full min-block-0", className)}
+      focusTarget={true}
       data-testid={testId("extensionsContent")}
       ref={surfaceRef}
       tabIndex={-1}
@@ -246,7 +247,7 @@ export function ExtensionsPageSurface(): ReactElement {
     // NOT a `<Container>`: a page owns its whole CONTENT region and the page-scale shell paints the region's own
     // edges (a pinned band + a scrolling body). A container's reading-width clamp here would inset a full-page
     // surface inside a gutter it did not ask for — the shell IS the containment for this arm.
-    <Stack className="outline-none block-full min-block-0" data-testid={testId("extensionsContent")} ref={surfaceRef} tabIndex={-1}>
+    <Stack className="block-full min-block-0" focusTarget={true} data-testid={testId("extensionsContent")} ref={surfaceRef} tabIndex={-1}>
       {content}
     </Stack>
   );

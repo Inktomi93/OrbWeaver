@@ -2,6 +2,7 @@
 // This component owns the named-image versus decorative-control accessibility contract.
 
 import type { ReactElement } from "react";
+import { cn, TONE_INK } from "#lib";
 import { WEB_GLYPH_DISPLAY } from "./web-glyph.ts";
 
 // Mark-A stroke tuning (the 32-space display cut of D173's mark).
@@ -27,10 +28,13 @@ export interface WeaveGlyphProps {
    * button announced its own name plus a nested "Orbweaver" image.
    */
   readonly decorative?: boolean;
+  /** The mark's ink by meaning (`accent` is the brand's own primary), from the Text map. */
+  readonly tone?: keyof typeof TONE_INK;
 }
 
 /** The open-orb brand mark: eight spokes, one open spiral, the hub, a single dew drop. */
-export function WeaveGlyph({ size = 24, className, anim = false, decorative = false }: WeaveGlyphProps): ReactElement {
+export function WeaveGlyph({ size = 24, className, anim = false, decorative = false, tone = "default" }: WeaveGlyphProps): ReactElement {
+  const inked = cn(TONE_INK[tone], className);
   return (
     <svg
       width={size}
@@ -39,7 +43,7 @@ export function WeaveGlyph({ size = 24, className, anim = false, decorative = fa
       fill="none"
       stroke="currentColor"
       strokeLinecap="round"
-      className={anim === true ? `orb-weave-shimmer ${className ?? ""}`.trim() : className}
+      className={anim === true ? `orb-weave-shimmer ${inked ?? ""}`.trim() : inked}
       // The two arms are mutually exclusive: a NAMED image, or a decoration inside an already-named
       // control. Written as literal attributes (not a spread) so the a11y lint can see the aria-hidden.
       aria-hidden={decorative ? true : undefined}

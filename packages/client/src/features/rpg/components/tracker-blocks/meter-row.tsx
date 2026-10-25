@@ -7,7 +7,6 @@ import type { TrackColor } from "@orb/ui/meter";
 import { TrackBar } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { VALUE_ROW_TOUCH_FLOOR_AT_COARSE } from "#components";
 import { trackerFieldName } from "../../lib/tracker-names.ts";
 import { UNSET_DATUM } from "../../lib/unset-datum.ts";
 import { TrackerValue } from "./tracker-value.tsx";
@@ -68,7 +67,7 @@ function MaxCell({
   if (onEditMax === undefined) {
     // No ceiling ⇒ no `/max` half at all. `/0` was the old fabrication.
     return max === null ? null : (
-      <Text as="span" size="label" tone="muted" className="tabular-nums">
+      <Text as="span" size="label" tone="muted" numeric={true}>
         /{max}
       </Text>
     );
@@ -94,9 +93,10 @@ function MaxCell({
             onEditMax(n);
           }
         }}
-        className="px-field text-end tabular-nums"
+        className="px-field text-end"
+        numeric={true}
         width="avatar-lg"
-        restClassName="tabular-nums"
+        restClassName=""
       />
     </Row>
   );
@@ -140,10 +140,12 @@ function ValueCell({
             onEditValue(n);
           }
         }}
-        className={warning ? "px-field text-end text-warning tabular-nums" : "px-field text-end tabular-nums"}
+        tone={warning ? "warning" : "default"}
+        className="px-field text-end"
+        numeric={true}
         width="avatar-lg"
         // At rest the value hugs its text like the read-only "24/30" (no fixed input width).
-        restClassName={warning ? "tabular-nums text-warning" : "tabular-nums"}
+        restClassName=""
       />
       <MaxCell label={name} max={max} {...(onEditMax === undefined ? {} : { onEditMax })} {...(maxEditTitle === undefined ? {} : { maxEditTitle })} />
     </Row>
@@ -244,14 +246,14 @@ export function MeterRow({
     // the touch target, so each cell's hit `::after` would reach into the row BELOW, which is painted later and
     // takes the rest. Flooring the BLOCK (never the value — `tracker-value.tsx` states the
     // no-shift rule the rest→edit swap depends on) makes the pitch ≥44 so each cell's pseudo fits its own band.
-    <Stack gap="field" className={VALUE_ROW_TOUCH_FLOOR_AT_COARSE} data-slot="meter-row" data-unset={value === null}>
+    <Stack gap="field" touchFloor="block" data-slot="meter-row" data-unset={value === null}>
       {/* `center` (not `baseline`): the click-to-edit input's border-box baseline sits lower than the
           label's text baseline, so baseline alignment GROWS the row ~4px on reveal — center keeps the
           rest→edit swap pixel-stable (the no-layout-shift bar). */}
       <Row justify="between" align="center" gap="block">
         <MeterLabel label={label} leading={leading} labelHint={labelHint} nameCarried={onEditValue !== undefined} />
         {onEditValue === undefined ? (
-          <Text as="span" size="label" tone={valueWarning === true ? "warning" : undefined} className="tabular-nums">
+          <Text as="span" size="label" tone={valueWarning === true ? "warning" : undefined} numeric={true}>
             {meterDatum(value, max)}
           </Text>
         ) : (

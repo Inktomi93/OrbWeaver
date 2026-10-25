@@ -22,15 +22,13 @@ import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
 import { useId } from "react";
-import { cn, testId } from "#lib";
+import { testId } from "#lib";
 import type { SendRefusal } from "../hooks/use-send-availability.ts";
 
-// A draft waiting to send: a compact accent disc at the glyph box (32px; the 44px hit area stays invisible),
-// the messenger convention. With nothing to send the glyph rests muted on no fill.
-const SEND_READY = "bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80";
-
-function sendClass(ready: boolean): string {
-  return cn(ready ? SEND_READY : "text-muted-foreground", "data-disabled:pointer-events-auto") ?? "";
+// A draft waiting to send: a compact solid disc at the glyph box (32px; the 44px hit area stays invisible), the
+// messenger convention. With nothing to send the glyph rests muted on no fill.
+function sendLook(ready: boolean): { readonly intent: "solid" | "ghost"; readonly tone: "default" | "muted" } {
+  return ready ? { intent: "solid", tone: "default" } : { intent: "ghost", tone: "muted" };
 }
 
 export interface ComposerSendControlProps {
@@ -85,7 +83,7 @@ export function ComposerSendControl(props: ComposerSendControlProps): ReactEleme
         render={
           <Button
             type="button"
-            intent="ghost"
+            {...sendLook(props.hasDraft && !props.sendDisabled)}
             size="glyph-lg"
             data-testid={testId("composerSend")}
             disabled={props.sendDisabled}
@@ -94,7 +92,7 @@ export function ComposerSendControl(props: ComposerSendControlProps): ReactEleme
             aria-label="Send message"
             onClick={props.onSend}
             shape="pill"
-            className={sendClass(props.hasDraft && !props.sendDisabled)}
+            className="data-disabled:pointer-events-auto"
           >
             <Icon icon={Send} size="sm" />
           </Button>

@@ -66,7 +66,7 @@
     animation: shell-trail-flip var(--shell-motion) var(--shell-ease);
   }
 
-  /* A centred child (every `CHAT_TRACK` and `COMPOSER_TRACK` carrier, chat-track.ts) moves half its parent's width
+  /* A centred child (every `CHAT_TRACK` and `COMPOSER_TRACK` carrier, chat-track.tsx) moves half its parent's width
    * change while its cap is not binding. A box centred by auto margins sits `max(0, P - cap) / 2` from its parent's
    * start edge, so its delta across a commit is the difference of that for the two parent widths, halved; the sign
    * lives in `--shell-track-shrink`. The cap is the carrier's own: the dial for the transcript's track, the dial

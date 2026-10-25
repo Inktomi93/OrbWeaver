@@ -20,8 +20,8 @@ import { Tabs, TabsIndicator, TabsList, TabsTab } from "@orb/ui/tabs";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, RefObject } from "react";
 import { useRef, useSyncExternalStore } from "react";
-import { CONTEXT_CELL_FLOOR_AT_COARSE, CONTEXT_RAIL_WRAP, CONTEXT_RAIL_WRAPPED_EDGE_BAR_OFF } from "#components";
 import type { ResolvedContextTab } from "#lib";
+import { cn } from "#lib";
 import { cellDomId } from "../lib/context-cell-id.ts";
 import type { RailOverflow } from "../lib/context-rail-overflow.ts";
 import { NO_OVERFLOW, trackOverflow } from "../lib/context-rail-overflow.ts";
@@ -31,28 +31,8 @@ import { NO_OVERFLOW, trackOverflow } from "../lib/context-rail-overflow.ts";
  *  `<button>`, so a `role` of `undefined` leaves the native button role. */
 const CELL_ARIA_STRIP = { role: undefined, "aria-selected": undefined } as const;
 
-/** The active bar sits on the state-rail cell's BOTTOM edge, the seam with the viewport it selects.
- *
- *  "ONE ROW" IS A CLAIM, so the bar stands down in the state where it stops holding:
- *  `CONTEXT_RAIL_WRAPPED_EDGE_BAR_OFF` (its own note carries the 272px measurement and the mechanism).
- *  In the wrapped arm a first-row cell's bottom edge is the seam above row TWO. */
-const CELL_EDGE_CLASSES = `border-be-2 border-transparent data-active:border-primary ${CONTEXT_RAIL_WRAPPED_EDGE_BAR_OFF}`;
-
-/** The state rail holding the selection wears the raised fill; the receded rail wears nothing (the pane's own
- *  surface). The step is small by the palette's own values — the fill and the ember active cell carry it. */
-const RAIL_OWNERSHIP_CLASSES: Readonly<Record<"owning" | "receded", string>> = {
-  owning: "bg-surface-raised",
-  receded: "",
-};
-/** A resting cell is the muted step and only the ACTIVE cell lifts to the foreground; the receded rail's cells
- *  step quieter. The step is floored by WCAG 1.4.3 (4.5:1 in both polarities), not by taste: these captions
- *  are live navigation with no disabled exemption. */
-const CELL_OWNERSHIP_CLASSES: Readonly<Record<"owning" | "receded", string>> = {
-  owning: "",
-  receded: "text-muted-foreground/90",
-};
 /** The narrow-panel WRAP: below the `xs` container step a rail of exactly six cells lays out as ROWS of three, because
- *  six cells on one `auto-cols-fr` row clipped four captions to ~3 characters (`CONTEXT_RAIL_WRAP`; a FINE-pointer
+ *  six cells on one `auto-cols-fr` row clipped four captions to ~3 characters (the list's `fold`; a FINE-pointer
  *  answer, a phone stays one row and scrolls). ONLY a rail that folds EVENLY takes it: a five-cell rail would fold 3+2
  *  and leave a ragged void beside the orphan pair. Every other rail SCROLLS instead — `RAIL_TRACK_CLASSES` below keeps
  *  each cell at its whole caption and lets the row overflow. */
@@ -66,21 +46,6 @@ const RAIL_WRAP_CELLS = 6;
  *  at the narrowest pane even four equal cells clip a caption like "Members". The FOLD stays count-gated
  *  because it answers a different question. */
 const RAIL_TRACK_CLASSES = "auto-cols-[minmax(max-content,1fr)] overflow-x-auto";
-
-/** THE SCROLL HAS TO SAY IT IS A SCROLL. `RAIL_TRACK_CLASSES` degrades an over-long rail to a scroll rather
- *  than an ellipsis, and `RAIL_WRAP_CELLS` folds only a rail that folds EVENLY — so a rail that neither fits
- *  nor folds would paint a caption cut at the pane's edge with no ellipsis, no scrollbar and no fade. The
- *  FOLD is count-gated, so something has to measure the FIT.
- *
- *  So the fit is measured, in the only place it can be — the live box — and the overflowing edge wears a
- *  fade. Not a permanent fade (it would veil the last caption of every rail that fits) and not an
- *  always-on scrollbar (it would spend a row of height on every pane at every width): a `ResizeObserver` +
- *  a passive scroll listener write `data-overflow-start`/`data-overflow-end` on the rail, and the fades key
- *  off those. The attributes are the CT's handle as well as the paint's. */
-const RAIL_FADE_CLASSES: Readonly<Record<"owning" | "receded", string>> = {
-  owning: "from-surface-raised",
-  receded: "from-sidebar",
-};
 
 /** The track's measured overflow, as an external-store subscription (ResizeObserver + scroll are the
  *  store; layout is the state's real owner, so `useSyncExternalStore` is the honest shape — the eslint
@@ -145,7 +110,10 @@ export function ContextRail({ ariaLabel, tabs, activeTab, owns, onSelect }: Cont
       data-owns={owns}
       data-overflow-start={overflow.start}
       data-overflow-end={overflow.end}
-      className={`shrink-0 border-be border-border min-inline-0 ${RAIL_OWNERSHIP_CLASSES[ownership]}`}
+      className="shrink-0 min-inline-0"
+      divider="bottom"
+      // The state rail holding the selection wears the raised fill; the receded rail wears the pane's own surface.
+      ground={ownership === "owning" ? "raised" : undefined}
     >
       <Row align="center" gap="row" className="relative px-row pbs-field pbe-row min-inline-0">
         {/* Its own root, so the header strip's tab map and indicator never see a state cell. */}
@@ -164,23 +132,24 @@ export function ContextRail({ ariaLabel, tabs, activeTab, owns, onSelect }: Cont
             role="toolbar"
             activateOnFocus={false}
             aria-label={ariaLabel}
-            className={`grid inline-full min-inline-0 ${RAIL_TRACK_CLASSES} grid-flow-col gap-tight ${tabs.length === RAIL_WRAP_CELLS ? CONTEXT_RAIL_WRAP : ""}
-              border-y-0
-            `}
+            className={cn("grid grid-flow-col gap-tight inline-full min-inline-0", RAIL_TRACK_CLASSES) ?? ""}
+            fold={tabs.length === RAIL_WRAP_CELLS}
+            rule="none"
           >
             {tabs.map((tab) => (
               <ContextCell key={tab.id} tab={tab} isActive={tab.id === activeTab} ownership={ownership} />
             ))}
           </TabsList>
         </Tabs>
-        <OverflowMarks overflow={overflow} fill={RAIL_FADE_CLASSES[ownership]} />
+        <OverflowMarks overflow={overflow} fill={ownership === "owning" ? "raised" : "sidebar"} />
       </Row>
     </Stack>
   );
 }
 
 /** The overflow marks: a fade plus a chevron on the edge where cells are hidden. Presentational. */
-function OverflowMarks({ overflow, fill }: { readonly overflow: RailOverflow; readonly fill: string }): ReactElement {
+// The fade dissolves into the rail's own fill: the raised step on the owning rail, the sidebar on the receded one.
+function OverflowMarks({ overflow, fill }: { readonly overflow: RailOverflow; readonly fill: "raised" | "sidebar" }): ReactElement {
   return (
     <>
       {overflow.start ? (
@@ -190,10 +159,12 @@ function OverflowMarks({ overflow, fill }: { readonly overflow: RailOverflow; re
           aria-hidden={true}
           data-slot="context-rail-fade"
           data-edge="start"
-          className={`pointer-events-none absolute inset-y-0 inset-s-0 bg-linear-to-r inline-gutter ${fill} via-60% to-transparent`}
+          className="pointer-events-none absolute inset-y-0 inset-s-0 inline-gutter"
+          fade="start"
+          fadeFrom={fill}
         >
-          <Stack data-slot="context-rail-more" className="text-muted-foreground">
-            <Icon icon={ChevronLeft} size="xs" />
+          <Stack data-slot="context-rail-more">
+            <Icon icon={ChevronLeft} size="xs" tone="muted" />
           </Stack>
         </Stack>
       ) : null}
@@ -204,10 +175,12 @@ function OverflowMarks({ overflow, fill }: { readonly overflow: RailOverflow; re
           aria-hidden={true}
           data-slot="context-rail-fade"
           data-edge="end"
-          className={`pointer-events-none absolute inset-y-0 inset-e-0 bg-linear-to-l inline-gutter ${fill} via-60% to-transparent`}
+          className="pointer-events-none absolute inset-y-0 inset-e-0 inline-gutter"
+          fade="end"
+          fadeFrom={fill}
         >
-          <Stack data-slot="context-rail-more" className="text-muted-foreground">
-            <Icon icon={ChevronRight} size="xs" />
+          <Stack data-slot="context-rail-more">
+            <Icon icon={ChevronRight} size="xs" tone="muted" />
           </Stack>
         </Stack>
       ) : null}
@@ -254,14 +227,15 @@ export function ContextHeaderTabs({
         ref={trackRef}
         activateOnFocus={false}
         aria-label={ariaLabel}
-        className="shell-context-tab-strip flex-nowrap overflow-x-auto border-be-0 px-row block-full inline-full min-inline-0"
+        className="shell-context-tab-strip flex-nowrap overflow-x-auto px-row block-full inline-full min-inline-0"
+        rule="none"
       >
         {tabs.map((tab) => (
           <ContextTab key={tab.id} tab={tab} isActive={tab.id === activeTab} />
         ))}
         <TabsIndicator />
       </TabsList>
-      <OverflowMarks overflow={overflow} fill="from-sidebar" />
+      <OverflowMarks overflow={overflow} fill="sidebar" />
     </Row>
   );
 }
@@ -283,7 +257,7 @@ function ContextTab({ tab, isActive }: { readonly tab: ResolvedContextTab; reado
       <Text as="span" voice="label" data-slot="context-cell-caption" className="truncate" ink="inherit">
         {tab.label}
       </Text>
-      {locked ? <Icon icon={Lock} size="xs" aria-hidden={true} className="text-muted-foreground opacity-60" /> : null}
+      {locked ? <Icon icon={Lock} size="xs" aria-hidden={true} tone="muted" receded={true} /> : null}
       {locked ? null : <ContextTabBadge count={count} dot={tab.badge === true} />}
     </TabsTab>
   );
@@ -328,7 +302,10 @@ function ContextCell({
   const count = typeof tab.badge === "number" ? tab.badge : 0;
   return (
     <TabsTab
-      layout="stacked"
+      // The rail cell owns the selected tint, the bar on its bottom edge and the coarse floor (the large control
+      // step, the first at or above the mock's 52px cells).
+      layout="cell"
+      quiet={ownership === "receded"}
       value={tab.id}
       id={cellDomId(tab.id)}
       // THE CELL IS A BUTTON, NOT A TAB (the ARIA-model note in the header). The strip deletes
@@ -342,10 +319,8 @@ function ContextCell({
       aria-label={locked ? `${tab.label} — locked` : tab.label}
       data-crown={tab.crown}
       // NO `min-w-0` HERE, EVER: with the spacing scale registered in tailwind-merge a call-site `min-w-0` wins
-      // outright and deletes the touch floor the primitive's `min-w-touch-target` carries. The coarse HEIGHT floor is the bracket's own:
-      // `CONTEXT_CELL_FLOOR_AT_COARSE` (56px — the first token step at or above the mock's 52px cells).
-      className={`relative data-active:bg-primary/15 data-active:text-foreground ${CELL_EDGE_CLASSES} ${CELL_OWNERSHIP_CLASSES[ownership]} ${CONTEXT_CELL_FLOOR_AT_COARSE}
-      `}
+      // outright and deletes the touch floor the primitive's `min-w-touch-target` carries.
+      className="relative"
     >
       {renderCellIcon(tab, isActive, locked)}
       {/* voice=LABEL, not `gloss`: this caption is the pane's PRIMARY NAVIGATION, and `gloss` is
@@ -359,7 +334,7 @@ function ContextCell({
           cell's inline-end edge IS the pane's edge and a flush glyph reads as clipped.
           LOGICAL (`end-*`), never `right-*`. Spelled as a whole literal at each site (not hoisted) because
           `ui-size-via-variant` reads these class strings statically. */}
-      {locked ? <Icon icon={Lock} size="xs" aria-hidden={true} className="absolute inset-e-field inset-bs-field text-muted-foreground opacity-60" /> : null}
+      {locked ? <Icon icon={Lock} size="xs" aria-hidden={true} className="absolute inset-e-field inset-bs-field" tone="muted" receded={true} /> : null}
       {locked || isActive ? null : <ContextCellBadge count={count} dot={tab.badge === true} />}
     </TabsTab>
   );
@@ -369,11 +344,10 @@ function renderCellIcon(tab: ResolvedContextTab, isActive: boolean, locked: bool
   if (tab.icon === undefined) {
     return null;
   }
-  const className = locked ? "opacity-60" : "";
   if (tab.icon === Crown) {
-    return <Icon icon={Crown} size="sm" fill={isActive ? "solid" : "none"} className={className} />;
+    return <Icon icon={Crown} size="sm" fill={isActive ? "solid" : "none"} receded={locked} />;
   }
-  return <Icon icon={tab.icon} size="sm" className={className} />;
+  return <Icon icon={tab.icon} size="sm" receded={locked} />;
 }
 
 function ContextCellBadge({ count, dot }: { readonly count: number; readonly dot: boolean }): ReactElement | null {

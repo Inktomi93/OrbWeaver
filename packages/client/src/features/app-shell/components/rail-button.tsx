@@ -5,13 +5,12 @@
 // it contributes nothing to the name, and it never conflicts with the visible mobile label (same string).
 // Visual states live in shell.css keyed off `.shell-rail-button` + `data-active`/`data-mobile`, not inline
 // utilities — except the focus-ring OFFSET COLOR, which must match the sidebar tone under the rail
-// (Button's FOCUS_RING offsets to `background`); composing FOCUS_RING_ON_SIDEBAR tailwind-merges the
-// offset to `--color-sidebar` (north-star PP3).
+// (Button's FOCUS_RING offsets to `background`); Button's `focusRing="sidebar"` offsets it to `--color-sidebar`
+// instead (north-star PP3).
 
 import { Button } from "@orb/ui/button";
 import type { LucideIcon } from "@orb/ui/icons";
 import { Icon } from "@orb/ui/icons";
-import { FOCUS_RING_ON_SIDEBAR } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode } from "react";
@@ -67,7 +66,8 @@ export function RailButton({
             data-mobile={mobile}
             data-modal-trigger={modalId}
             data-rail-mobile-only={mobileOnly ? "" : undefined}
-            className={`shell-rail-button ${FOCUS_RING_ON_SIDEBAR}`}
+            className="shell-rail-button"
+            focusRing="sidebar"
             onClick={onClick}
           >
             <Icon icon={icon} size="sm" />

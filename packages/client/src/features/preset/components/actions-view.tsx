@@ -137,7 +137,7 @@ export function ActionsView({ form, onSelectSection }: ActionsViewProps): ReactE
         {/* The FILTER (IA §2.2) — the config group-body's grammar, lifted to the tab because the box spans
             every group. The chrome is the host's; the matching is the row model's (`templateRowMatches`). */}
         <Row align="center" gap="tight">
-          <Icon className="text-muted-foreground" icon={Search} size="sm" />
+          <Icon icon={Search} size="sm" tone="muted" />
           <Input aria-label="Filter templates" onValueChange={setFilter} placeholder="Filter templates…" value={filter} />
         </Row>
 

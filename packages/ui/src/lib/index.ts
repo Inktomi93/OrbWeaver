@@ -24,6 +24,7 @@ export {
   FOCUS_RING_DESTRUCTIVE,
   FOCUS_RING_HAS,
   FOCUS_RING_INSET,
+  FOCUS_RING_NONE,
   FOCUS_RING_ON_POPOVER,
   FOCUS_RING_ON_SIDEBAR,
   FOCUS_RING_ON_STATE_RING,
@@ -31,9 +32,11 @@ export {
   FOCUS_RING_WITHIN,
   FOCUS_RING_WITHIN_INSET,
 } from "./focus-ring.ts";
-export { HOVER_REVEAL } from "./hover-reveal.ts";
+export { GROUND, WALLPAPER_PLATE } from "./ground.ts";
+export { HOVER_CUE, HOVER_REVEAL, HOVER_YIELD, INERT_UNTIL_HOVER } from "./hover-reveal.ts";
 export { readKeyboardInset, subscribeKeyboardInset } from "./keyboard-inset.ts";
 export { createLiveTokenStore, LIVE_TOKEN_ROOT_ATTRIBUTE, resolveCssColor, resolveCssVar } from "./live-token-resolver.ts";
+export { MESSAGE_BUBBLE_BOX, MESSAGE_BUBBLE_FILL } from "./message-bubble.ts";
 export { OVERLAY_ARROW } from "./overlay-arrow.ts";
 export { OVERLAY_MOTION } from "./overlay-motion.ts";
 export { HIDDEN_AT, SR_ONLY_AT } from "./pointer-visibility.ts";
@@ -53,6 +56,7 @@ export { SELECTION_CONTROL, TOUCH_TARGET_PSEUDO, TOUCH_TARGET_PSEUDO_STRETCH } f
 export { SELECTION_RAIL } from "./selection-rail.ts";
 export { SELECTION_RING_CHECKED, SELECTION_RING_SELECTED } from "./selection-ring.ts";
 export { sinHash } from "./sin-hash.ts";
+export { OPEN_TURN, PULSE, SPOILER } from "./state-motion.ts";
 export { TONE_INK } from "./tone-ink.ts";
 export { TOUCH_FLOOR_AT_COARSE } from "./touch-floor.ts";
 export { usePrefersLightColorScheme } from "./use-prefers-light-color-scheme.ts";

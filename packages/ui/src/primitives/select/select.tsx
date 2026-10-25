@@ -134,6 +134,8 @@ export interface SelectProps<Value = string, Multiple extends boolean = false> e
    * text-height, content-width, chrome-free (the name IS the affordance). @defaultValue "field"
    */
   layout?: VariantProps<typeof selectVariants>["layout"];
+  /** The trigger's value is a name set in its semibold weight (an identity line's subject). */
+  strong?: boolean;
   /**
    * A visible accessible label rendered above the trigger. Omit when the Select composes inside a
    * `<Field>` or when `aria-label` suffices. Base UI's `Select.Label` doesn't reach the Trigger's
@@ -184,6 +186,7 @@ export function Select<Value = string, Multiple extends boolean = false>(props: 
     placeholder,
     className,
     layout,
+    strong,
     label,
     renderValue,
     scrollArrows = false,
@@ -263,7 +266,7 @@ export function Select<Value = string, Multiple extends boolean = false>(props: 
             {...(ariaDescribedby !== undefined ? { "aria-describedby": ariaDescribedby } : {})}
             {...(ariaLabel !== undefined ? { "aria-label": ariaLabel } : {})}
             {...((ariaLabelledby ?? labelId) !== undefined ? { "aria-labelledby": ariaLabelledby ?? labelId } : {})}
-            className={cn(slots.trigger({ layout }), className)}
+            className={cn(slots.trigger({ layout, strong }), className)}
             data-slot="select-trigger"
             id={triggerId}
           >

@@ -43,7 +43,7 @@ export function StatCell({ label, value, hint, onEditValue }: StatCellProps): Re
       <Stack gap="field" align="center" data-slot="stat-cell">
         {hint === undefined ? null : <HintTrigger className="" hint={hint} subject={label} />}
         {onEditValue === undefined ? (
-          <Text as="span" size="title" tone={value === null ? "muted" : "default"} className="tabular-nums">
+          <Text as="span" size="title" tone={value === null ? "muted" : "default"} numeric={true}>
             {/* `??`, never `||` — a real reading of ZERO is a reading, and must not fall through to the em-dash. */}
             {value ?? UNSET_DATUM}
           </Text>
@@ -70,14 +70,16 @@ export function StatCell({ label, value, hint, onEditValue }: StatCellProps): Re
                 onEditValue(n);
               }
             }}
-            // `text-title` keeps the revealed input at the SAME type size as the big rest value — no
-            // font-size jump inside the fixed cell (the no-layout-shift bar). The REST state hugs its
-            // number (no fixed width — `w-(--size-avatar-md)` inside the padded button ellipsized a 2-digit value).
-            className="text-center text-title leading-title tabular-nums inline-(--size-avatar-md)"
-            restClassName="text-center text-title leading-title tabular-nums"
+            // The title step reaches the revealed input too, so it types at the big rest value's size with no
+            // jump inside the fixed cell. The REST state hugs its number (no fixed width: the avatar step inside the
+            // padded button ellipsized a 2-digit value).
+            width="avatar-md"
+            numeric={true}
+            className="text-center"
+            restClassName="text-center"
           />
         )}
-        <Text as="span" size="micro" tone="muted" transform="caps" className="tracking-micro">
+        <Text as="span" size="micro" tone="muted" transform="caps">
           {label}
         </Text>
       </Stack>
@@ -148,7 +150,7 @@ interface BeatLineProps {
 export function BeatLine({ children }: BeatLineProps): ReactElement {
   return (
     <Text size="label" tone="muted" data-slot="beat-line" className="flex gap-field">
-      <Text as="span" size="label" aria-hidden={true} className="shrink-0 opacity-50">
+      <Text as="span" size="label" aria-hidden={true} receded={true} className="shrink-0">
         —
       </Text>
       {/* min-w-0: the content is model-authored free text (journal beats, recent events) with no length
@@ -183,14 +185,14 @@ export function GoalLine({ text, done = false, clock, onEditText }: GoalLineProp
   return (
     <Row justify="between" align="baseline" gap="block" className="flex-1 min-inline-0" data-slot="goal-line">
       {onEditText === undefined ? (
-        <Text as="span" size="label" className={done ? "truncate text-muted-foreground line-through min-inline-0" : "truncate min-inline-0"}>
+        <Text as="span" size="label" tone={done ? "muted" : "default"} strike={done} className="truncate min-inline-0">
           {text}
         </Text>
       ) : (
         <TrackerValue ariaLabel="Goal" display={text} onEdit={onEditText} className="inline-full" />
       )}
       {clock === undefined ? null : (
-        <Text as="span" size="label" tone="muted" className="tabular-nums">
+        <Text as="span" size="label" tone="muted" numeric={true}>
           {clock.filled}/{clock.total}
         </Text>
       )}

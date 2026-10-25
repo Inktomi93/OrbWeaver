@@ -1,4 +1,4 @@
-import { HIDDEN_AT, RECEDED, SR_ONLY_AT, TONE_INK, tv } from "#lib";
+import { HIDDEN_AT, HOVER_CUE, PULSE, RECEDED, SR_ONLY_AT, TONE_INK, tv } from "#lib";
 
 // Shared by both <Text> and <Heading>. `weight` rides Tailwind's built-in font-weight utilities — no
 // DTCG weight token exists today. `code` rides `leading-label-relaxed` — the 13px continuous-reading box
@@ -56,9 +56,11 @@ export const textVariants = tv({
       interactiveKicker: "-me-(--tracking-micro) font-sans text-label leading-label font-semibold tracking-micro text-muted-foreground uppercase",
       // The name of ONE datum (the mocks' `.meter .mline` label half).
       label: "font-sans text-label leading-label font-medium tracking-normal text-foreground",
-      // The VALUE — the thing you came to read. mono + tabular so columns of numbers align and digits stop
-      // jittering as they tick; rides `text-label` rather than a new 11px step (D5).
-      datum: "font-mono text-label leading-label font-normal tracking-normal text-foreground tabular-nums",
+      // The VALUE — a numeric readout, a count, a timer. Tabular figures in the body face at the gloss step (D5), so
+      // columns of numbers align and digits stop jittering as they tick. Its nearest neighbour is `gloss`: the same face
+      // and step, but a datum is the value itself, so it keeps the foreground ink and the fixed-width figures.
+      // Machine text (an id, a payload, a tool name) is `code`, never this voice.
+      datum: "font-sans text-micro leading-micro font-normal tracking-normal text-foreground tabular-nums",
       // The quiet explanatory second line (the mocks' `.truth`/`.beat`/`.orb .vals`).
       gloss: "font-sans text-micro leading-micro font-normal tracking-normal text-muted-foreground",
       // THE ONE NUMBER A SURFACE EXISTS TO PRODUCE (added 2026-08-09, side-eye P1-13). `datum` is the
@@ -130,6 +132,10 @@ export const textVariants = tv({
       // It resolves the SAME step the `tone="muted"` default pair produced (byte-identical but for the
       // no-op `tracking-normal` every voice spells) — this is a VOCABULARY fix, not a visual change.
       quiet: "font-sans text-body leading-body font-normal tracking-normal text-muted-foreground",
+      // THE OUTCOME LINE ABOVE ITS DETAILS: a report's one-sentence tally ("3 imported, 1 skipped") over the list it
+      // summarises. Its nearest neighbour is `reading`, the same body step; `lead` is semibold in the foreground ink,
+      // because it states the result the rows below explain, where `reading` is prose in the reading ink.
+      lead: "font-sans text-body leading-body font-semibold tracking-normal text-foreground",
       // THE MONO READOUT AT THE CODE STEP (added 2026-08-23, owner ruling on #573). An id, a hash, a byte
       // count, a raw payload — machine text a human reads but does not compare in a column. `datum` is the
       // voice for a value you DO compare (label step, tabular, foreground); this is its receded twin at the
@@ -204,6 +210,12 @@ export const textVariants = tv({
       true: "tabular-nums",
       false: "",
     },
+    // The slanted face for words that are not spoken: a character's inner thought, a guide line.
+    italic: { true: "italic", false: "" },
+    // Machine text a reader copies whole (a source URL, a key fingerprint): one click selects the run.
+    selectAll: { true: "select-all", false: "" },
+    pulse: { true: PULSE, false: "" },
+    hoverCue: HOVER_CUE,
     hiddenAt: HIDDEN_AT,
     srOnlyAt: SR_ONLY_AT,
     receded: { true: RECEDED, false: "" },
@@ -224,6 +236,9 @@ export const textVariants = tv({
     ink: "voice",
     strike: false,
     numeric: false,
+    italic: false,
+    selectAll: false,
+    pulse: false,
     receded: false,
   },
 });

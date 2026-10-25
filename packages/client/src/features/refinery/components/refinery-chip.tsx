@@ -1,37 +1,29 @@
 // RefineryChip — the word-primary state/tone chip the refinery surfaces share (verdict lists, enum
 // values, block states). The WORD is the signal; the tone tint is secondary (the colourblind law), and
-// the tone vocabulary is the render-hint contract's (`good/warn/bad/info/neutral`) mapped to intent
-// tokens — never inferred from spellings. A feature-tier composition over `Text` (not an @orb/ui mint:
-// refinery-only today; StatusChip is the async-status species, a different anatomy — R1 of the row law).
+// the tone vocabulary is the render-hint contract's (`good/warn/bad/info/neutral`) mapped to Badge intents
+// — never inferred from spellings.
 
 import type { RenderHintTone } from "@orb/contracts/refinery";
+import { Badge } from "@orb/ui/badge";
 import { Text } from "@orb/ui/text";
-import type { ReactElement, ReactNode } from "react";
+import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { testId } from "#lib";
 
 /** The chip's tones: the render-hint vocabulary plus `accent`, the palette's own state tint for session chrome
  *  (a status, not a payload verdict — so it never borrows a semantic hue such as `info`). */
 type RefineryChipTone = RenderHintTone | "accent";
 
-const TONE_CLASSES: Record<RefineryChipTone, string> = {
-  good: "bg-success text-success-foreground",
-  warn: "bg-warning text-warning-foreground",
-  bad: "bg-destructive text-destructive-foreground",
-  info: "bg-info text-info-foreground",
-  neutral: "bg-muted text-muted-foreground",
-  accent: "bg-accent text-accent-foreground",
+const TONE_INTENT: Record<RefineryChipTone, NonNullable<ComponentProps<typeof Badge>["intent"]>> = {
+  good: "success",
+  warn: "warning",
+  bad: "danger",
+  info: "info",
+  neutral: "neutral",
+  accent: "accent",
 };
 
-// THE RENDER-HINT TONE HAS ITS OWN ATTRIBUTE NAME (#1097). This chip used to write `data-tone={tone}` —
-// a FEATURE word (`good`/`warn`/…) in the attribute `@orb/ui` now owns: `<Text>` stamps its resolved
-// recipe `tone` arm there through the variant-axis seam (packages/ui/src/lib/variant-attrs.ts), which is
-// the ONE writer of `data-tone`, and the ui-audit walker reads that attribute as an AUTHORED RECIPE ARM
-// (tooling/src/ui-audit/ops/walker/target-identity.ts). Two disjoint vocabularies under one name made the
-// two unreadable apart. Handing the recipe arm instead (`good` → `tone="success"`) is not available: the
-// `density-tier` gate's A3 arm reds a FEATURE spelling any of the four @orb/ui-internal type axes
-// (size/weight/tone/transform) — a voice is the only feature-legal spelling, and `voice="kicker"` is
-// already the one this chip wants. So the render-hint word keeps its DOM channel under a name @orb/ui
-// does not own.
+// The word carries its render-hint on `data-hint-tone`, never `data-tone`: `@orb/ui` is the one writer of `data-tone`
+// (the recipe arm it resolved), and the ui-audit walker reads that attribute as an authored recipe arm.
 
 export interface RefineryChipProps {
   readonly tone?: RefineryChipTone;
@@ -39,17 +31,12 @@ export interface RefineryChipProps {
 }
 
 export function RefineryChip({ tone = "neutral", children }: RefineryChipProps): ReactElement {
-  // voice="kicker" carries the micro-caps grammar (§2.3 — never the raw type axes); the tone classes
-  // override its muted color pair (cn merges caller-last).
+  // The kicker voice carries the micro-caps grammar; `ink="inherit"` takes the intent's paired ink.
   return (
-    <Text
-      as="span"
-      className={`inline-flex items-center rounded-full px-field ${TONE_CLASSES[tone]}`}
-      data-hint-tone={tone}
-      data-testid={testId("refineryChip")}
-      voice="kicker"
-    >
-      {children}
-    </Text>
+    <Badge data-testid={testId("refineryChip")} intent={TONE_INTENT[tone]} size="compact">
+      <Text as="span" data-hint-tone={tone} ink="inherit" voice="kicker">
+        {children}
+      </Text>
+    </Badge>
   );
 }

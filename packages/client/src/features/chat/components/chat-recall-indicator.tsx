@@ -23,7 +23,6 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { CHIP_TOUCH_WIDTH_FLOOR_AT_COARSE } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { viewerTimeZone } from "#lib";
 import type { RecallState } from "#state";
@@ -50,15 +49,6 @@ function recallLabel(recall: RecallState | null): string {
     return "Memory — recalling";
   }
   return `Memory — ${recall.count} recalled`;
-}
-
-/** The glyph tint per state: accent + a quiet pulse while recalling (the motion floor stills it), full
- *  weight once memories are retrieved, and muted when idle (present but inactive, never implying a recall). */
-function iconClass(recall: RecallState | null): string {
-  if (recall?.phase === "recalling") {
-    return "text-accent-fg animate-pulse";
-  }
-  return recall === null ? "opacity-60" : "";
 }
 
 /** Whether Memory is off for the host's account, and how to open the turn-on confirm. A member's chip carries none. */
@@ -128,12 +118,14 @@ function RecallIndicatorBody({ chatId, viewerIsHost, memory }: ChatRecallIndicat
             // The coarse INLINE touch floor (#875 F6): at rest this chip is glyph-only, so its `sm` height
             // floor left it 40px wide against the 44px short side — the fragment's note carries the
             // measurement.
-            className={`shrink-0 whitespace-nowrap ${CHIP_TOUCH_WIDTH_FLOOR_AT_COARSE}`}
+            className="shrink-0 whitespace-nowrap"
+            touchFloor="inline"
             data-recall-phase={phase}
           >
-            {/* The pulse is the ONLY motion, and only when recalling AND motion is allowed — a quiet breath,
-                never a spin (owner ruling). Under prefers-reduced-motion it is a static labeled icon. */}
-            <Icon icon={BrainCircuit} size="sm" className={iconClass(recall)} />
+            {/* The pulse is the ONLY motion, a quiet breath while recalling, never a spin (owner ruling). When reduced
+                motion resolves on, the motion floor stills it to a static labeled icon. Muted when idle (present but
+                inactive, never implying a recall); full weight once memories are retrieved. */}
+            <Icon icon={BrainCircuit} size="sm" receded={recall === null} pulse={recall?.phase === "recalling"} />
             {count === null ? null : (
               // The count is the visible label step, the same type as the roster chip's digit (never a mono value).
               <Text as="span" voice="label" className="shell-chat-chip-count" ink="inherit" aria-hidden={true}>

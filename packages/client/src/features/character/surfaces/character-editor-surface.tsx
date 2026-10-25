@@ -28,7 +28,7 @@ import { notify, useFocusOnMount } from "#lib";
 import { clearCharacterFacet, selectCharacterFacet, useSelectedCharacterFacetId } from "#state";
 import { CharacterFacetEditor } from "../components/character-facet-editor.tsx";
 import { CharacterFacetList } from "../components/character-facet-list.tsx";
-import { CharacterHeroBand, HERO_ECHO_CLASS } from "../components/character-hero-band.tsx";
+import { CharacterHeroBand } from "../components/character-hero-band.tsx";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
 import { usePreviewRenderPolicy } from "../hooks/use-preview-render-policy.ts";
 import type { CharacterCardFacet } from "../lib/character-card-facets.ts";
@@ -252,7 +252,7 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
 
   return (
     // The focus target only — the scroll box + its containing block moved up to the surface (see there).
-    <Stack ref={surfaceRef} tabIndex={-1} className="outline-none">
+    <Stack ref={surfaceRef} tabIndex={-1} focusTarget={true}>
       <form
         aria-label="Edit character"
         onSubmit={(event): void => {
@@ -277,16 +277,14 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
                 {(values): ReactElement => (
                   <Text
                     aria-label={`${totalTokenCount(values, activeGreetingIndex)} tokens total, ${permanentTokenCount(values)} always sent`}
-                    // Yields while the CONTEXT band is open: its `N tokens` chip is the same number.
-                    className={`font-mono tabular-nums ${HERO_ECHO_CLASS}`}
-                    voice="gloss"
+                    // Yields while the CONTEXT band is open: its `N tokens` chip is the same number. The class is
+                    // the shell hook `HERO_ECHO_CLASS` names in character-hero-band.tsx.
+                    className="shell-character-hero-echo"
+                    numeric={true}
+                    voice="datumMono"
                   >
-                    {/* HOUSE NUMERIC-DATUM TREATMENT — this is a DATUM, not a
-                        label, and `size="micro"` bakes in `tracking-micro` (0.08em), the section-NAME
-                        tracking. `voice="gloss"` resolves the identical text-micro/muted step without the
-                        label tracking, plus `tabular-nums` so the live count doesn't jitter columns as it
-                        ticks — the same recipe `analytics-list-surface.tsx`'s leaderboard datum already
-                        uses (`voice="gloss" className="font-mono tabular-nums"`), not a new one. */}
+                    {/* A DATUM, not a label: `datumMono` is the muted mono readout without the section-NAME tracking, and
+                        `numeric` keeps the live count from jittering columns as it ticks. */}
                     {/* GROUPED — the same `@orb/kit/strings` grouper the context band's token
                         chip prints through, so the editor and the pane cannot spell one number two ways.
                         The `aria-label` above stays UNGROUPED on purpose: a screen reader groups the digits

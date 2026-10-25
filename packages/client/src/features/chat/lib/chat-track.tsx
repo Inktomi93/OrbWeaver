@@ -1,3 +1,6 @@
+import type { ComponentType, ReactElement } from "react";
+import { cn } from "#lib";
+
 // THE ROOM'S ONE TRACK (#213). Every element in a chat room's vertical stack — the transcript rows, the
 // composer and its attachment/slash strips, and the above-composer band — resolves its horizontal box
 // through THIS string, so the room has exactly one answer to "where is the middle".
@@ -34,7 +37,7 @@ export const CHAT_TRACK = "orb-chat-track inline-full max-inline-(--width-shell-
 /** The composer, its strips and the above-composer band: the same track, capped at the transcript's reading measure so
  *  they never run wider than the content column above them. The chat-width dial still narrows them (`orb-composer-track`
  *  in client globals.css). */
-export const COMPOSER_TRACK = "orb-composer-track inline-full";
+const COMPOSER_TRACK = "orb-composer-track inline-full";
 
 /** A transcript ROW BODY at a phone width: below the row's `md` container step the gap tightens. The chip
  *  keeps the reader's own size and is never hidden (owner ruling, as Moonlit Echoes keeps its 40px avatar on
@@ -46,3 +49,20 @@ export const ROW_BODY_AT_PHONE_WIDTH = "@max-cq-28:gap-field";
  *  and a tide pill 90%. */
 export const BUBBLE_PHONE_CAP = "@max-cq-28:max-inline-4/5";
 export const PILL_PHONE_CAP = "@max-cq-28:max-inline-9/10";
+
+interface Carrier {
+  readonly className?: string | undefined;
+}
+
+export type TrackProps<Props extends Carrier> = Props & {
+  /** The primitive that carries the track; a prop other than `as`, which a polymorphic primitive already takes. */
+  readonly of: ComponentType<Props>;
+  readonly track: "chat" | "composer";
+};
+
+/** Renders `of` on the room's chat track or the composer's track. A feature className may not import or build a class
+ *  string, so every carrier goes through this component and the strings above stay in this file. */
+export function Track<Props extends Carrier>({ of: Primitive, track, className, ...props }: TrackProps<Props>): ReactElement {
+  // TypeScript cannot narrow the rest of a generic intersection back to `Props` once `of` and `track` leave it.
+  return <Primitive {...(props as unknown as Props)} className={cn(track === "chat" ? CHAT_TRACK : COMPOSER_TRACK, className)} />;
+}

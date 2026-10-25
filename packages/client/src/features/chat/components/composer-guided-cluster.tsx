@@ -44,7 +44,6 @@ import { Container, Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
-import { SHOW_ONLY_AT_COARSE } from "#components";
 import { useGatedQuery, useTRPC } from "#data";
 import { IMPERSONATE_IN_FLIGHT, IMPERSONATE_WAIT_FOR_TURN, STEER_CUE_CONTINUE, STEER_CUE_SWIPE, SWIPE_NEEDS_REPLY } from "#lib";
 import { useComposerUtilities } from "../hooks/use-composer-utilities.ts";
@@ -253,7 +252,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
             and the Stop that ends it is already rendered beside the icons as visible chrome. A refusal another
             element already states (`refusalStatedBy`, the next-turn line) is not shown here either: one statement. */}
         {bandRefusal === undefined ? null : (
-          <Text as="span" className={SHOW_ONLY_AT_COARSE} data-slot="composer-guided-refusal" voice="quiet">
+          <Text as="span" hiddenAt="fine" data-slot="composer-guided-refusal" voice="quiet">
             {bandRefusal}
           </Text>
         )}

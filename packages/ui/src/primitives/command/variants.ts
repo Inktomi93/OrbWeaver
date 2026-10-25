@@ -61,6 +61,8 @@ export const commandVariants = tv({
     status: "sr-only",
   },
   variants: {
+    // A palette that floats on its own (not inside a dialog that already lifts it) casts the overlay shadow.
+    elevated: { true: { root: "shadow-overlay" }, false: {} },
     listSize: {
       content: { list: "" },
       // A stable compact viewport keeps filtering from moving its containing dialog without reserving

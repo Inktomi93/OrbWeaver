@@ -40,7 +40,8 @@ export function ChatLandingSurface({ onNewChat }: ChatLandingSurfaceProps): Reac
   return (
     <Stack
       align="center"
-      className="relative justify-center overflow-y-auto overscroll-contain outline-none block-full min-block-0"
+      className="relative justify-center overflow-y-auto overscroll-contain block-full min-block-0"
+      focusTarget={true}
       padding="section"
       ref={surfaceRef}
       tabIndex={-1}

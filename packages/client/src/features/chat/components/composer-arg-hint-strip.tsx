@@ -13,7 +13,7 @@ import type { OptionStripItem } from "@orb/ui/option-strip";
 import { OptionStrip } from "@orb/ui/option-strip";
 import type { ReactElement } from "react";
 import type { SlashArgOffer } from "#lib";
-import { COMPOSER_TRACK } from "../lib/chat-track.ts";
+import { Track } from "../lib/chat-track.tsx";
 
 /** The listbox id the arg strip carries — distinct from the token strip's, so the two never collide. Module
  *  local: only this strip reads it (as its OptionStrip `id`). A future combobox wiring — the composer input's
@@ -42,5 +42,5 @@ export function ComposerArgHintStrip({ offers, onPick }: ComposerArgHintStripPro
       onPick(offer);
     }
   };
-  return <OptionStrip aria-label="Command arguments" className={COMPOSER_TRACK} id={SLASH_ARG_LISTBOX_ID} items={items} onSelect={pick} />;
+  return <Track of={OptionStrip} track="composer" aria-label="Command arguments" id={SLASH_ARG_LISTBOX_ID} items={items} onSelect={pick} />;
 }

@@ -8,10 +8,7 @@ import { Cpu, Icon } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
-import { HIDE_AT_COARSE } from "#components";
-import { cn } from "#lib";
 import { useCreditConnections } from "../hooks/use-credit-connections.ts";
-import { MESSAGE_ACTION_ICON_CLASS } from "../lib/message-actions-reveal.ts";
 import { generationCreditSentence } from "../lib/swipe-attribution.ts";
 
 export interface GenerationCreditProps {
@@ -24,8 +21,8 @@ const CREDIT_SLOT = "message-metadata-model";
  *  width the settled credit takes without a second `message-metadata-model` on the page. */
 export function GenerationCreditGlyph({ sentence, slot = CREDIT_SLOT }: { readonly sentence?: string; readonly slot?: string }): ReactElement {
   const glyph = (
-    <Text as="span" voice="gloss" className={cn("inline-flex items-center", HIDE_AT_COARSE)} data-slot={slot}>
-      <Icon aria-hidden={true} className={MESSAGE_ACTION_ICON_CLASS} icon={Cpu} size="sm" />
+    <Text as="span" voice="gloss" className="inline-flex items-center" hiddenAt="coarse" data-slot={slot}>
+      <Icon aria-hidden={true} shadow={true} icon={Cpu} size="sm" />
       <Text as="span" className="sr-only">
         {sentence}
       </Text>

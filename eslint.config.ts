@@ -337,6 +337,26 @@ const INVISIBLE_CONTROL_TERMS = INVISIBLE_CONTROL_RANGES.flatMap(([firstHex, las
 
 const CLIENT_SRC = "packages/client/src/**/*.{ts,tsx}";
 
+const CLIENT_QUERY_KEY_SYNTAX = {
+  selector: "Property[computed=false][key.name='queryKey'][value.type='ArrayExpression']",
+  message:
+    "A hand-built queryKey array: tRPC reads take their key from the proxy (`trpc.<path>.queryKey(input)`), so the reader and every invalidation share one key (client-architecture-state-and-gates.md §10).",
+};
+const CLIENT_FORM_NAME_SYNTAX = {
+  // The accessibility registries mount only registered surfaces, so auth and dialog forms rely on this guard.
+  selector: "JSXOpeningElement[name.type='JSXIdentifier'][name.name='form']:not(:has(> JSXAttribute[name.name=/^aria-label(?:ledby)?$/]))",
+  message: "A <form> needs an accessible name: add aria-label, or aria-labelledby pointing at its visible heading.",
+};
+// The `orb-*-track` utilities are client-globals classes. Each is spelled in the one file below that owns it, and every
+// carrier renders through the chat feature's `Track` component, so a copy cannot drift from the CSS that names it.
+const ORB_TRACK_CLASS_HOMES = ["packages/client/src/features/chat/lib/chat-track.tsx", "packages/client/src/features/chat/lib/message-row-variants.ts"];
+const ORB_TRACK_CLASS_PATTERN = String.raw`/\borb-[a-z]+-track\b/`;
+const ORB_TRACK_CLASS_SYNTAX = {
+  selector: `:matches(Literal[value=${ORB_TRACK_CLASS_PATTERN}], TemplateElement[value.raw=${ORB_TRACK_CLASS_PATTERN}])`,
+  message: "An orb-*-track class string belongs to its home file; render the carrier through the chat feature's `Track` component.",
+};
+const CLIENT_SYNTAX = [INVISIBLE_CONTROL_SYNTAX, CLIENT_QUERY_KEY_SYNTAX, CLIENT_FORM_NAME_SYNTAX, EMPTY_ARIA_NAME_SYNTAX];
+
 function rootSources(...refs: string[]): string[] {
   return refs.map((ref) => {
     const root =
@@ -1244,23 +1264,12 @@ export default [
   { files: rootSources("@db"), rules: { "no-restricted-syntax": ["error", INVISIBLE_CONTROL_SYNTAX, ...MODULE_LOADER_SYNTAX] } },
   {
     files: [CLIENT_SRC],
-    rules: {
-      "no-restricted-syntax": [
-        "error",
-        INVISIBLE_CONTROL_SYNTAX,
-        {
-          selector: "Property[computed=false][key.name='queryKey'][value.type='ArrayExpression']",
-          message:
-            "A hand-built queryKey array: tRPC reads take their key from the proxy (`trpc.<path>.queryKey(input)`), so the reader and every invalidation share one key (client-architecture-state-and-gates.md §10).",
-        },
-        {
-          // The accessibility registries mount only registered surfaces, so auth and dialog forms rely on this guard.
-          selector: "JSXOpeningElement[name.type='JSXIdentifier'][name.name='form']:not(:has(> JSXAttribute[name.name=/^aria-label(?:ledby)?$/]))",
-          message: "A <form> needs an accessible name: add aria-label, or aria-labelledby pointing at its visible heading.",
-        },
-        EMPTY_ARIA_NAME_SYNTAX,
-      ],
-    },
+    ignores: ORB_TRACK_CLASS_HOMES,
+    rules: { "no-restricted-syntax": ["error", ...CLIENT_SYNTAX, ORB_TRACK_CLASS_SYNTAX] },
+  },
+  {
+    files: ORB_TRACK_CLASS_HOMES,
+    rules: { "no-restricted-syntax": ["error", ...CLIENT_SYNTAX] },
   },
   { files: ["packages/ui/src/**/*.{ts,tsx}"], rules: { "no-restricted-syntax": ["error", INVISIBLE_CONTROL_SYNTAX, EMPTY_ARIA_NAME_SYNTAX] } },
   {

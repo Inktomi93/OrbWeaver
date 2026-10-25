@@ -35,6 +35,9 @@ export const dialogVariants = tv({
     footer: "sticky inset-be-0 z-(--z-raised) flex shrink-0 flex-wrap items-center justify-end gap-field bg-popover pbs-field",
   },
   variants: {
+    // A header that stays in view while the body scrolls under it (a drawer's title and close), on the card fill so
+    // scrolled rows do not show through.
+    stickyHeader: { true: { header: "sticky inset-bs-0 z-(--z-raised) bg-card" }, false: {} },
     size: {
       sm: { viewport: "p-gutter", popup: "max-inline-(--width-dialog-sm)" },
       md: { viewport: "p-gutter", popup: "max-inline-(--width-dialog-md)" },

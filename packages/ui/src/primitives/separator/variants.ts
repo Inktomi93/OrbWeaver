@@ -11,6 +11,8 @@ export const separatorVariants = tv({
       horizontal: "block-px inline-full",
       vertical: "block-full inline-px",
     },
+    // The rule in the primary ink at low strength: a boundary in a transcript that names a region (the context line).
+    tone: { border: "", primary: "bg-primary/35" },
   },
-  defaultVariants: { orientation: "horizontal" },
+  defaultVariants: { orientation: "horizontal", tone: "border" },
 });

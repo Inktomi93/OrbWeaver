@@ -117,7 +117,7 @@ function PickerBody({
   return (
     <Stack gap="field">
       <Row align="center" gap="tight">
-        <Icon className="text-muted-foreground" icon={Search} size="sm" />
+        <Icon tone="muted" icon={Search} size="sm" />
         <Input aria-label="Filter your scripts" onValueChange={setFilter} placeholder="Filter your scripts…" value={filter} />
       </Row>
       {matches.length === 0 ? (
