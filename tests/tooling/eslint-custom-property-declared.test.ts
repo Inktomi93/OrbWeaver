@@ -6,7 +6,12 @@ import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
 import { beforeAll } from "vitest";
-import { baseUiCustomProperties, declaredCustomProperties, VENDOR_CUSTOM_PROPERTIES } from "../../tooling/src/css-names/custom-properties.ts";
+import {
+  baseUiCustomProperties,
+  declaredCustomProperties,
+  RUNTIME_CUSTOM_PROPERTIES,
+  VENDOR_CUSTOM_PROPERTIES,
+} from "../../tooling/src/css-names/custom-properties.ts";
 
 const ROOT = join(import.meta.dirname, "../..");
 const RULE = "orb/custom-property-declared";
@@ -40,6 +45,11 @@ test.for([
   ["the generated channel's property", 'export const A = "text-[length:calc(1rem*var(--appearance-font-scale,1))]";'],
   ["a Base UI property", 'export const A = "w-(--anchor-width) max-block-(--available-height)";'],
   ["a streamdown property", 'export const A = "dark:text-[var(--shiki-dark,inherit)]";'],
+  ["prose that spells a flag in parentheses", 'export const A = "use (--force) to overwrite";'],
+  ["a class-string write that a sheet reads", 'export const A = "in-data-[has-bg-image]:[--orb-skeleton-sweep-base:red]";'],
+  ["a read of a class-string write", 'export const A = "p-[var(--orb-skeleton-sweep-crest,0px)]";'],
+  ["a spaced read of a declared property", 'export const A = "w-[var( --spacing-section , 1px)]";'],
+  ["a type-hinted read of a declared property", 'export const A = "text-(length:--appearance-font-scale)";'],
   ["a runtime-written property", 'export const A = "pb-[var(--orb-keyboard-inset,0px)]";'],
   // biome-ignore lint/suspicious/noTemplateCurlyInString: the case is template source the rule reads.
   ["a dynamic name the rule cannot read", "export const A = (k: string): string => `duration-(--motion-${k})`;"],
@@ -52,12 +62,19 @@ test.for([
   ["the parenthesis form of an undeclared property", 'export const A = "max-inline-(--container-cq-lg)";', "--container-cq-lg"],
   // biome-ignore lint/suspicious/noTemplateCurlyInString: the case is template source the rule reads.
   ["an undeclared property in a template chunk", "export const A = (k: string): string => `p-(--probe-gone) ${k}`;", "--probe-gone"],
+  ["a spaced fallback", 'export const A = "w-[var( --probe-gone , 1)]";', "--probe-gone"],
+  ["a space before the comma", 'export const A = "w-[var(--probe-gone , 1)]";', "--probe-gone"],
+  ["a type-hinted read", 'export const A = "text-(length:--probe-gone)";', "--probe-gone"],
+  ["an uppercase name", 'export const A = "w-[var(--Probe-Gone,1)]";', "--Probe-Gone"],
+  ["an underscore name", 'export const A = "w-[var(--probe_gone,1)]";', "--probe_gone"],
+  ["a class-string write nothing reads", 'export const A = "[--probe-dead:2]";', "--probe-dead"],
 ] as const)("%s is refused", async ([, source, name]) => {
   expect(await findings(source)).toEqual([expect.stringContaining(`"${name}"`)]);
 });
 
 test.for([
   ["a setProperty of a deleted property", 'document.documentElement.style.setProperty("--font-scale", "2");', "--font-scale"],
+  ["a template-literal setProperty", "document.documentElement.style.setProperty(`--font-scale`, '2');", "--font-scale"],
   ["a getPropertyValue of a deleted property", 'export const A = getComputedStyle(document.body).getPropertyValue("--probe-gone");', "--probe-gone"],
   ["a stylesheet injected with a deleted property", 'export const A = ":root { --font-scale: 2 !important; }";', "--font-scale"],
 ] as const)("%s is refused in a CT", async ([, source, name]) => {
@@ -82,4 +99,8 @@ test("Base UI's names are read from its installed modules", () => {
   const names = baseUiCustomProperties(ROOT);
   expect(names).toContain("--anchor-width");
   expect(declaredCustomProperties(ROOT)).toContain("--available-height");
+});
+
+test("every runtime-written name carries the app's prefix", () => {
+  expect(Object.keys(RUNTIME_CUSTOM_PROPERTIES).filter((name) => !name.startsWith("--orb-"))).toEqual([]);
 });
