@@ -80,10 +80,10 @@ export function FallbackLetter({
   readonly className: string;
   readonly size?: string;
 }): ReactElement {
-  const letter: CSSProperties = { fontSize: size, lineHeight: 1 };
+  const letter: CSSProperties = { fontSize: size };
   return (
     <Stack align="center" aria-hidden="true" className={className} container="size" justify="center">
-      <Text as="div" style={letter} tone="onPrimary" voice="monogram">
+      <Text as="div" style={letter} tone="onPrimary" voice="monogram" solidLine={true}>
         {initials}
       </Text>
     </Stack>
@@ -105,21 +105,15 @@ export function WhisperBand({
   useFailedReport(failed, onFailedChange);
   const showsImage = url !== undefined && !failed;
   const tappable = view !== null && !failed;
-  const style: CSSProperties = showsImage
-    ? {
-        ...band.style,
-        backgroundImage: `${band.feather}, url("${url}")`,
-        backgroundSize: "100% 100%, cover",
-        backgroundPosition: "0 0, top center",
-        backgroundRepeat: "no-repeat, no-repeat",
-      }
-    : { ...band.style, backgroundImage: band.plainFeather, backgroundSize: "100% 100%", backgroundRepeat: "no-repeat" };
+  // Only the images are inline, because the URL is runtime data; how they fill the band is `imageFit`.
+  const style: CSSProperties = { ...band.style, backgroundImage: showsImage ? `${band.feather}, url("${url}")` : band.plainFeather };
   return (
     <Stack
       aria-hidden={tappable ? undefined : "true"}
       data-slot="message-band"
       cardCorners="top"
       hoverDim={tappable ? "self" : undefined}
+      imageFit="underFeather"
       // Moonlit Echoes' Glimmer preset: the banner is half the card, centred; a phone widens it to 55%.
       className="relative mx-auto inline-1/2 @max-cq-28:inline-11/20"
       ref={attach}
@@ -163,7 +157,14 @@ export function EchoArtTile({
       style={{ width }}
     >
       {/* The tile dims with its pane's hover: the button over it takes the pointer, so the tile is never hovered itself. */}
-      <Stack data-slot="message-echo-art" cardCorners={corner} hoverDim={tappable ? "parent" : undefined} className="absolute inset-0" style={paintStyle}>
+      <Stack
+        data-slot="message-echo-art"
+        cardCorners={corner}
+        hoverDim={tappable ? "parent" : undefined}
+        imageFit="cover"
+        className="absolute inset-0"
+        style={paintStyle}
+      >
         {art.image === undefined || failed ? <FallbackLetter className="absolute inset-0" initials={art.fallback} /> : null}
       </Stack>
       {tappable ? <ArtViewButton view={view} corner={corner} /> : null}

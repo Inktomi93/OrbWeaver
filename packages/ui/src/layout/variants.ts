@@ -155,6 +155,9 @@ export const stackVariants = tv({
     ink: { inherit: "", foreground: "text-foreground", prose: "text-prose-body", muted: "text-muted-foreground in-data-has-bg-image:text-muted-foreground" },
     cardCorners: CARD_CORNERS,
     hoverDim: HOVER_DIM,
+    // How an image painted as the box's background fills it: `cover` crops it about its centre; `underFeather` lays a
+    // gradient over a cover image anchored at the top, the gradient filling the box.
+    imageFit: { cover: "bg-cover bg-center bg-no-repeat", underFeather: "bg-size-[auto,cover] bg-position-[left_top,center_top] bg-no-repeat" },
     // A list item that genuinely arrives eases in from `from` to `settle`; a remounted item takes neither.
     arrival: ARRIVAL,
     focusTarget: FOCUS_TARGET,

@@ -22,7 +22,8 @@ const RAIL_TRAILING = "@cq-56:justify-self-start";
 
 // Ripple's portrait column: its width token, and its phone width below the row's `md` step.
 const PORTRAIT_WIDTH = "block-auto inline-(--immersive-ripple-portrait-width) @max-cq-28:inline-(--immersive-ripple-portrait-width-phone)";
-const STICKY_PORTRAIT = "sticky inset-bs-0 block-auto inline-(--immersive-ripple-portrait-width) @max-cq-28:inline-(--immersive-ripple-portrait-width-phone)";
+// Ripple's portrait sticks to the top of its card; the portrait itself is the sticky item only when unwrapped.
+const STICKY_TOP = "sticky inset-bs-0";
 
 // "sticky-portrait" (Ripple) swaps the chip for a smart-cropped 2:3 portrait pinned via
 // position:sticky, forcing shape="square" regardless of the avatarShape pref. Its weld rounds only the
@@ -146,7 +147,7 @@ function stickyPortrait(args: Parameters<typeof renderRowAvatar>[0], target: Vie
       fallbackDelay={0}
       hueSeed={args.attribution.hueSeed}
       // Unwrapped, the portrait is the sticky flex item; wrapped, the button is.
-      className={target === null ? STICKY_PORTRAIT : PORTRAIT_WIDTH}
+      className={cn(target === null ? STICKY_TOP : undefined, PORTRAIT_WIDTH) ?? ""}
       urlAt={portraitSource(args.attribution.avatarHash, args.imageUrlFor === undefined)}
       {...(args.imageUrlFor === undefined ? {} : { src: args.imageUrlFor("portrait") })}
     >
@@ -157,7 +158,7 @@ function stickyPortrait(args: Parameters<typeof renderRowAvatar>[0], target: Vie
     return portrait;
   }
   return (
-    <ArtButton view={artViewOf(target)} cardCorners={weld} className="sticky inset-bs-0 shrink-0">
+    <ArtButton view={artViewOf(target)} cardCorners={weld} className={cn(STICKY_TOP, "shrink-0") ?? ""}>
       {portrait}
     </ArtButton>
   );

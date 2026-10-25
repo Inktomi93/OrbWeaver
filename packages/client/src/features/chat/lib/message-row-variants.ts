@@ -29,16 +29,16 @@ const HEADER_PLACEMENTS = ["inside", "outside"] as const;
  *
  *  `inside` — name · timestamp · actions are the CONTAINER's own header row, the first child inside the
  *  box the prose renders in. `outside` — the pre-#288 anatomy: a sibling row above the container, backed
- *  by its own `BG_PHOTO_CHROME_PLATE` chip over art.
+ *  by its own chrome plate (`WALLPAPER_PLATE.chrome`) over art.
  *
  *  THE DEFECT THIS AXIS EXISTS FOR is one mechanism with two arms, and naming it here is why the axis is
  *  per-skin rather than global. A row reads as TWO objects whenever the body carries a backing and the
  *  header carries a DIFFERENT one:
- *    · the filled skins (bubble/echo/whisper/ripple — `inner: bubbleInner`) paint `--color-ai-bubble` /
+ *    · the filled skins (bubble/echo/whisper/ripple — `box: "bubble"`) paint `--color-ai-bubble` /
  *      `--color-user-bubble` in EVERY room, so their header always sat on bare background above a filled
  *      box (the owner's two "Orb bubble" captures, 50% and 100% chat width);
  *    · the no-fill skins (flat/hush/document) have no box at rest — genuinely attached, by proximity —
- *      but over a wallpaper the body takes `BG_PHOTO_READING_PLATE` and the header takes the CHIP, which
+ *      but over a wallpaper the body takes the reading plate and the header takes the CHIP, which
  *      is the same two-plate split arriving through the art arm. That is why the fix is not "the bubble
  *      family": the owner's "the split thing in chat wasn't just bubbles" is mechanically right.
  *  The polarity report (#288 round 1: "dark reads fine, light reads separated") is this seen from one

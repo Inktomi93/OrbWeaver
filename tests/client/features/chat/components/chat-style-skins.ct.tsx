@@ -12,6 +12,7 @@ import { createShellAmbientReads, routeTrpc, serveCorpusProcedures } from "@orb/
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusWire } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import type { RowSkin } from "#client/features/chat/lib/message-row-variants.ts";
 import { MESSAGE_ROW_SKINS } from "#client/features/chat/lib/message-row-variants.ts";
@@ -381,3 +382,71 @@ for (const chatStyle of THEME_CHAT_STYLES) {
     });
   }
 }
+
+// Owner CSS that restyles how an art hook's image fills its box: none of these is the art slot's own value.
+const OWNER_FIT = { "background-size": "10px 10px", "background-position": "0% 0%", "background-repeat": "repeat" } as const;
+const OWNER_FIT_HOOKS = { echo: "message-echo-art", whisper: "message-band" } as const satisfies Partial<Record<ThemeChatStyle, string>>;
+
+/** Select a custom theme named `name` carrying `css` for the owner, run `body`, then restore the owner's own selection. */
+async function withOwnerCss(name: string, css: string, body: () => Promise<void>): Promise<void> {
+  const caller = await root.internalCallerFor(root.ownerId);
+  const before = (await caller.settings.getUserSettings()).config.theme.selectedThemeId;
+  const theme = await caller.settings.createTheme({ name, override: {}, css });
+  await caller.settings.updateUserSettingsSection({ section: "theme", patch: { selectedThemeId: theme.id } });
+  try {
+    await body();
+  } finally {
+    await caller.settings.updateUserSettingsSection({ section: "theme", patch: { selectedThemeId: before } });
+  }
+}
+
+/** The fill properties owner CSS sets, as `hook`'s first element computes them. */
+async function paintedFit(page: Page, hook: string): Promise<Record<string, string>> {
+  const art = page.locator(`[data-slot="${hook}"]`).first();
+  await expect(art).toBeAttached();
+  return Object.fromEntries(await Promise.all(Object.keys(OWNER_FIT).map(async (property) => [property, await computed(art, property)] as const)));
+}
+
+function ownerFitCss(hook: string): string {
+  const declarations = Object.entries(OWNER_FIT).map(([property, value]) => `${property}: ${value};`);
+  return `[data-slot="${hook}"] { ${declarations.join(" ")} }`;
+}
+
+for (const [chatStyle, hook] of Object.entries(OWNER_FIT_HOOKS) as [ThemeChatStyle, string][]) {
+  test(`owner CSS on the ${hook} hook decides how the ${chatStyle} art fills its box`, async ({ corpus, mount, page }) => {
+    let painted: Record<string, string> = {};
+    await withOwnerCss(`Owner CSS on ${hook}`, ownerFitCss(hook), async () => {
+      await openRoom(page, corpus, chatStyle, false);
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, roomStoryProps());
+      painted = await paintedFit(page, hook);
+    });
+    expect(painted).toEqual(OWNER_FIT);
+  });
+}
+
+/** Hide the room's first tail reply from the model, run `body` on its id, then show it again. */
+async function withHiddenReply(body: (messageId: string) => Promise<void>): Promise<void> {
+  const caller = await root.internalCallerFor(root.ownerId);
+  const reply = (await caller.chat.listMessages({ chatId: roomId, limit: TAIL_MESSAGES })).messages.find((message) => message.role === "assistant");
+  if (reply === undefined) {
+    throw new Error("The room's tail holds no reply");
+  }
+  await caller.chat.setMessageHidden({ chatId: roomId, messageId: reply.id, hidden: true });
+  try {
+    await body(reply.id);
+  } finally {
+    await caller.chat.setMessageHidden({ chatId: roomId, messageId: reply.id, hidden: false });
+  }
+}
+
+test("a message hidden from the model recedes to the receded step", async ({ corpus, mount, page }) => {
+  let opacity = Number.NaN;
+  await withHiddenReply(async (messageId) => {
+    await openRoom(page, corpus, "bubble", false);
+    await mount<typeof AppShellRoomStory>(ROOM_STORY, roomStoryProps());
+    const box = page.locator(`${ROW}[data-message-id="${messageId}"] ${BUBBLE}`).first();
+    await expect(box).toBeVisible();
+    opacity = Number(await computed(box, "opacity"));
+  });
+  expect(opacity).toBe(Number.parseFloat(TOKENS["opacity.receded"].value) / 100);
+});

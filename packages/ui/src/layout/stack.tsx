@@ -40,6 +40,7 @@ export function Stack({
   scrollFade,
   cardCorners,
   hoverDim,
+  imageFit,
   arrival,
   ...props
 }: StackProps): ReactElement {
@@ -75,6 +76,7 @@ export function Stack({
         scrollFade,
         cardCorners,
         hoverDim,
+        imageFit,
         arrival,
         className,
       })}

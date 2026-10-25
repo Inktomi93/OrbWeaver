@@ -89,7 +89,7 @@ export const cardVariants = tv({
       hidden: "pointer-events-none translate-y-row opacity-0 transition-[opacity,translate] duration-(--motion-base) ease-out-expo",
     },
     spoiler: { true: SPOILER, false: "" },
-    // The whole box at the receded step (a message held out of the model's context), fill and ink together.
+    // The whole box at the receded step, fill and ink together: a box that stays readable but stands behind its siblings.
     receded: { true: RECEDED, false: "" },
     // A region that takes programmatic focus (a `tabIndex={-1}` editor a list hands focus to) draws the focus ring.
     focusable: { true: `outline-none ${FOCUS_RING}`, false: "" },

@@ -128,10 +128,6 @@ export function echoDecoration(args: BubbleDecorationArgs): BubbleDecoration | n
       style: {
         width: ECHO_ART_WIDTH,
         backgroundColor: avatarFallbackHueColor(args.hueSeed),
-        // The portrait covers its pane, cropped about its centre.
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundRepeat: "no-repeat",
         // Moonlit's feather: the art dissolves into the card toward the text and at its foot.
         maskImage: `linear-gradient(to ${toward}, black 70%, transparent), linear-gradient(to bottom, black 60%, transparent)`,
         maskComposite: "intersect",

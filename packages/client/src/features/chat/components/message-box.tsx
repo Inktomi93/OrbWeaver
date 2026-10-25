@@ -1,5 +1,5 @@
 // The skin's message box as `@orb/ui` props, the one home for every bubble shape: the settled row, its train pills and
-// the streaming ghost. `data-slot="message-bubble"` is the owner-CSS hook, which also takes a bubble card out of the
+// the streaming ghost. `MESSAGE_BUBBLE_SLOT` is the owner-CSS hook, which also takes a bubble card out of the
 // density tier map.
 
 import type { MessageRole } from "@orb/kit/message-role";
@@ -9,6 +9,8 @@ import type { CSSProperties, ReactElement, ReactNode } from "react";
 import { cn } from "#lib";
 import type { RowSkin } from "../lib/message-row-variants.ts";
 import { ROLE_FILL } from "../lib/message-row-variants.ts";
+
+const MESSAGE_BUBBLE_SLOT = "message-bubble";
 
 // A bubble at a phone width takes at most four fifths of its column (owner ruling, after Moonlit Echoes' phone layout).
 const BUBBLE_PHONE_CAP = "@max-cq-28:max-inline-4/5";
@@ -50,8 +52,8 @@ function BubbleCard({ role, shape, phoneCap, editing, receded, positioned, style
   const inset = shape === "stack";
   return (
     <Card
-      data-slot="message-bubble"
-      ownSlot="message-bubble"
+      data-slot={MESSAGE_BUBBLE_SLOT}
+      ownSlot={MESSAGE_BUBBLE_SLOT}
       shape="bubble"
       tone={ROLE_FILL[role]}
       shadow="none"
@@ -90,7 +92,7 @@ function ReadingBox({ box, role, shape, lastRowFloor, receded, positioned, style
   const weld = shape === "weld";
   return (
     <Stack
-      data-slot="message-bubble"
+      data-slot={MESSAGE_BUBBLE_SLOT}
       gap={inset ? "row" : undefined}
       plate="reading"
       ink={readingInk(box, role)}

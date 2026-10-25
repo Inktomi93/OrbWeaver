@@ -32,7 +32,7 @@ import { cn } from "#lib";
 // the landing integer at every width. `orb-chat-track` is the marker the ONE client-globals rule keys on
 // (packages/client/src/styles/globals.css); the class is here rather than the rule, because the rule needs
 // `round()` and a percentage-bearing `calc()` that no utility can spell and a feature may not inline.
-export const CHAT_TRACK = "orb-chat-track inline-full max-inline-(--width-shell-content)";
+const CHAT_TRACK = "orb-chat-track inline-full max-inline-(--width-shell-content)";
 
 /** The composer, its strips and the above-composer band: the same track, capped at the transcript's reading measure so
  *  they never run wider than the content column above them. The chat-width dial still narrows them (`orb-composer-track`
