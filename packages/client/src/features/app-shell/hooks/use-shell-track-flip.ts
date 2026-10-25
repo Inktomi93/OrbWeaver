@@ -77,13 +77,16 @@ function eachTrack(visit: (track: PanelName) => void): void {
   visit("context");
 }
 
+/** The flip every door arms, on `.shell-main`: the timeline a carrier mounted mid-door joins. */
+const MAIN_FLIP = "shell-main-flip";
+
 /** The keyframe names shell.css arms on a track flip. The release below listens for the END of one of
  *  THESE — an `animationend` bubbling up from anything else inside the shell (a shimmer, a toast) must
  *  never drop a live FLIP. This is the JS half of a JS↔CSS name coupling and this Set is its one home;
  *  `app-shell.ct.tsx` pins that the attribute is actually released after a real toggle, so a renamed
  *  keyframe reds a test instead of silently pinning the attribute forever. */
 const SHELL_FLIP_ANIMATIONS = new Set([
-  "shell-main-flip",
+  MAIN_FLIP,
   "shell-trail-flip",
   "shell-centre-flip",
   "shell-list-band-flip",
@@ -99,7 +102,7 @@ function occupiesTrack(mode: PanelMode): boolean {
 
 /** Is `animation` one of the shell's own track FLIPs? `CSSAnimation` is the only `Animation` subclass
  *  that carries an `animationName`, which is what makes this question answerable at all. */
-function isShellFlip(animation: Animation): boolean {
+function isShellFlip(animation: Animation): animation is CSSAnimation {
   return animation instanceof CSSAnimation && SHELL_FLIP_ANIMATIONS.has(animation.animationName);
 }
 
@@ -155,7 +158,12 @@ function flipWithMotion(grid: HTMLDivElement, direction: Partial<Record<PanelNam
       grid.setAttribute(TRACK_ATTRS[track].flip, value);
     }
   });
+  // `.shell-main` animates on every door and stays mounted through it; a row or a closing pane's flip can be cancelled
+  // mid-door and would take the timeline with it.
+  const reference = grid.getAnimations({ subtree: true }).find((animation) => isShellFlip(animation) && animation.animationName === MAIN_FLIP);
+  const joiner = joinInPhase(grid, reference);
   const release = (): void => {
+    joiner.disconnect();
     grid.removeEventListener("animationend", onEnd);
     eachTrack((track) => grid.removeAttribute(TRACK_ATTRS[track].flip));
   };
@@ -165,10 +173,52 @@ function flipWithMotion(grid: HTMLDivElement, direction: Partial<Record<PanelNam
     }
   }
   grid.addEventListener("animationend", onEnd);
-  if (!grid.getAnimations({ subtree: true }).some(isShellFlip)) {
+  if (reference === undefined) {
     release();
   }
   return release;
+}
+
+/**
+ * A carrier mounted while the flip is in flight (a message row the virtual list adds when the rows reflow) matches
+ * the flip rule on insertion and would start its own FLIP from the `from` corner, out of phase with every box armed at
+ * the stamp, and stray from its corridor. The observer runs after the commit that inserted it and before that frame's
+ * style and paint; `getAnimations()` creates the new element's animation there, and it joins the reference's timeline.
+ */
+function joinInPhase(grid: HTMLDivElement, reference: Animation | undefined): MutationObserver {
+  const observer = new MutationObserver((records) => {
+    if (reference !== undefined) {
+      for (const node of records.flatMap((record) => Array.from(record.addedNodes))) {
+        joinFlip(node, reference);
+      }
+    }
+  });
+  if (reference !== undefined) {
+    observer.observe(grid, { childList: true, subtree: true });
+  }
+  return observer;
+}
+
+/** Put every shell flip under an inserted node on the reference's timeline: the same start time, so the two advance as
+ *  one. Setting only the current time would leave a pending newcomer a frame behind once it becomes ready. */
+function joinFlip(node: Node, reference: Animation): void {
+  if (!(node instanceof Element)) {
+    return;
+  }
+  // A newcomer inserted before the reference's first frame can stay pending past it, so it joins once the reference
+  // has a start time. A cancelled reference (a restart) rejects `ready`, and its own restart re-arms everything.
+  if (reference.startTime === null) {
+    reference.ready.then(
+      () => joinFlip(node, reference),
+      () => undefined,
+    );
+    return;
+  }
+  for (const animation of node.getAnimations({ subtree: true })) {
+    if (isShellFlip(animation)) {
+      animation.startTime = reference.startTime;
+    }
+  }
 }
 
 /** Stamp the flip direction on the shell grid whenever EITHER track's width changes. No-op on the first
