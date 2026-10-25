@@ -11,6 +11,7 @@
       outline-offset: var(--border-width-accent);
     }
     [data-slot="tabs-indicator"] {
+      /* stylelint-disable-next-line orb/browser-support-css -- forced-colors only; ignored where unsupported */
       forced-color-adjust: none;
       background-color: Highlight;
     }

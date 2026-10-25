@@ -25,6 +25,7 @@
  * accessibility tree and find-in-page, which cmdk's keyboard model needs; the intrinsic size is the first-paint estimate
  * and the browser remembers each row's real height. */
 @utility orb-skip-offscreen {
+  /* stylelint-disable-next-line orb/browser-support-css -- a paint optimisation; rows render normally where unsupported */
   content-visibility: auto;
   contain-intrinsic-size: auto var(--size-control-sm);
 }
@@ -33,6 +34,7 @@
  * such as `touch-none` still wins. Native controls (a markdown task list, a range) take the primary colour. */
 @layer base {
   :root {
+    /* stylelint-disable-next-line orb/browser-support-css -- tints native controls; the UA colour shows where unsupported */
     accent-color: var(--color-primary);
   }
   /* A short heading breaks into even lines, and an unbroken token wraps instead of widening its column. */
@@ -59,6 +61,7 @@
     -moz-osx-font-smoothing: grayscale;
     font-synthesis: none;
     /* Thin themed scrollbars: `scrollbar-color` inherits from here; `scrollbar-width` does not, so it is set on `*`. */
+    /* stylelint-disable-next-line orb/browser-support-css -- themed scrollbars; the native bar shows where unsupported */
     scrollbar-color: color-mix(in oklab, var(--color-foreground) 22%, transparent) transparent;
   }
 
@@ -334,6 +337,7 @@
   }
 
   * {
+    /* stylelint-disable-next-line orb/browser-support-css -- thin scrollbars; the native bar shows where unsupported */
     scrollbar-width: thin;
   }
 

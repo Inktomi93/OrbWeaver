@@ -55,6 +55,8 @@ catalog:
   stylelint-config-standard: 40.0.0
   stylelint-value-no-unknown-custom-properties: 6.1.1
   stylelint-plugin-logical-css: 2.1.0
+  # Per-feature browser support at member level (`status.by_compat_key`); the compat lint rules derive their refusals from it and BROWSER_TARGETS.
+  web-features: 3.43.0
   postcss-value-parser: 4.2.0
   "@eslint/css-tree": 4.1.2
   # @types/node tracks the RUNTIME (Node 26).

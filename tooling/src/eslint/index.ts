@@ -1,5 +1,6 @@
 import { browserNoNodeGlobalsRule, rawEgressRule, rawHttpClientRule, sessionChannelBoundaryRule, soleEnvReaderRule } from "./ambient.ts";
 import { detachedWorkRule } from "./async.ts";
+import { browserSupportRule } from "./browser-support.ts";
 import { CLIENT_DATA_RESTRICTIONS, effectOnSharedSelectionRule } from "./client-data-policy.ts";
 import { assumesSingleReplicaRule, commentedCodeRule, rawIdRule, sideGenSamplingRule, wireJsonRule } from "./general.ts";
 import { DB_SCHEMA_RESTRICTIONS, SERVER_HARD_RESTRICTIONS, TYPE_SHAPE_RESTRICTIONS } from "./general-policy.ts";
@@ -82,6 +83,8 @@ export function createOrbPlugin(options: {
   floorlessButtonSizes: ReadonlySet<string>;
   shellClasses: ReadonlySet<string>;
   appearanceVocabulary: AppearanceVocabulary;
+  /** Compat keys some browser floor lacks (`unsupportedAtFloor`). */
+  browserUnsupported: ReadonlyMap<string, readonly string[]>;
   classifyClass: ClassClassifier;
   baseUiDoors: BaseUiDoors;
 }): {
@@ -133,6 +136,7 @@ export function createOrbPlugin(options: {
       "commented-code": commentedCodeRule,
       "plugin-dump-guard": restrictionRule({ selectors: PLUGIN_DUMP_SELECTORS }),
       "browser-no-node-globals": browserNoNodeGlobalsRule(options.browserNodeGlobals),
+      "browser-support": browserSupportRule(options.browserUnsupported),
     },
   };
 }

@@ -42,6 +42,7 @@
   html,
   body {
     overflow: clip;
+    /* stylelint-disable-next-line orb/browser-support-css -- only stops rubber-banding; ignored where unsupported */
     overscroll-behavior: none;
   }
 

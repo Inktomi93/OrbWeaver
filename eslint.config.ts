@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
+import { unsupportedAtFloor } from "@orb/tooling/browser-support";
 import { authorClassIgnores, baseUiDoors, classClassifier, createOrbPlugin } from "@orb/tooling/eslint";
 import { BUTTON_SIZE_OVERFLOW } from "@orb/ui/button/size-hit-area";
 import { TOKENS } from "@orb/ui/tokens";
@@ -26,6 +27,7 @@ import type { FlatConfig } from "typescript-eslint";
 import tseslint from "typescript-eslint";
 import biomeConfig from "./biome.json" with { type: "json" };
 import { appearanceChannelVocabulary } from "./packages/client/appearance-channel.build.ts";
+import { BROWSER_TARGETS } from "./packages/client/browser-targets.ts";
 import { OWNER_CSS_SHELL_CLASSES } from "./packages/client/owner-css-surface.ts";
 
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
@@ -719,6 +721,7 @@ const localPlugin = createOrbPlugin({
   ),
   shellClasses: new Set(OWNER_CSS_SHELL_CLASSES),
   appearanceVocabulary: appearanceChannelVocabulary(),
+  browserUnsupported: unsupportedAtFloor(BROWSER_TARGETS),
   classifyClass: classClassifier((classes) => designSystem.candidatesToCss(classes)),
 });
 // The only files that may spell a portal-float z token: each is a surface that portals to
@@ -1302,6 +1305,12 @@ export default [
       "orb/no-floorless-control-in-wrap": "error",
       "orb/browser-no-node-globals": "error",
     },
+  },
+  {
+    // The packages the client bundle ships; plugin bundles run in the WASM sandbox, not the browser's main realm.
+    files: rootSources("@client", "@ui", "@kit", "@contracts"),
+    plugins: { orb: localPlugin },
+    rules: { "orb/browser-support": "error" },
   },
   {
     files: BROWSER_MOUNT_SOURCE,

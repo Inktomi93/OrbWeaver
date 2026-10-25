@@ -7,6 +7,7 @@
     "node": ">=26.3.0"
   },
   "exports": {
+    "./browser-support": "./src/browser-support/unsupported.ts",
     "./bug-reports": "./src/bug-reports/index.ts",
     "./cache-check": "./src/cache-check/index.ts",
     "./cpu-profile": "./src/cpu-profile/index.ts",
@@ -124,6 +125,7 @@
     "cross-spawn": "catalog:",
     "pino-pretty": "catalog:",
     "vitest": "catalog:",
+    "web-features": "catalog:",
     "yaml": "catalog:",
     "zod": "catalog:",
     "typescript": "catalog:"

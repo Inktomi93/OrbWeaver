@@ -101,6 +101,7 @@
   .shell-topbar-rename {
     flex: 1 0 auto;
     min-inline-size: calc(var(--dimension-shell-title-floor) * 2);
+    /* stylelint-disable-next-line orb/browser-support-css -- the rename field keeps its floor width where unsupported */
     field-sizing: content;
   }
   @container shell-main (max-width: 72rem) {
@@ -123,6 +124,7 @@
   }
   /* The tab strip scrolls inside its row; the fade and chevron say there is more, so no native scrollbar. */
   .shell-context-tab-strip {
+    /* stylelint-disable-next-line orb/browser-support-css -- the fade and chevron still mark overflow; a native bar shows where unsupported */
     scrollbar-width: none;
     /* A focused tab scrolls into view clear of the one-gutter fade, so the end chevron never covers it. */
     scroll-padding-inline: var(--spacing-gutter);
