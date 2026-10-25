@@ -12,7 +12,7 @@ import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
 import { SkeletonRows } from "#data";
 import type { ContextTabDef, RefineryContextState } from "#lib";
-import { defineContextTabs } from "#lib";
+import { censusTitle, defineContextTabs } from "#lib";
 import type { SectionDefinition } from "#state";
 import { refinerySectionSelection, useSelectedRefinerySessionId } from "#state";
 import { RefineryListAnchor } from "../anchors/refinery-list-anchor.tsx";
@@ -77,15 +77,9 @@ function useRefinerySelectionTitle(): string | null {
     const row = sessions.data?.find((s) => s.id === sessionId);
     return row === undefined ? null : (row.name ?? row.characterName);
   }
-  // A ZERO CENSUS IS SUPPRESSED, in the band's own spelling (`ListPaneHeader`: "a zero census is noise, not
-  // information") — with no sessions the bar says `Refinery` and the landing teaches. `undefined` is the
-  // unread roster, likewise not a size claim.
-  if (census === undefined || census === 0) {
-    return null;
-  }
   // The SECTION's name, not the band's: this row replaces the shell's section-label fallback, and the band
   // one panel over is naming the pane's CONTENTS ("Sessions") rather than the screen.
-  return `${REFINERY_SECTION_LABEL} · ${String(census)}`;
+  return censusTitle(REFINERY_SECTION_LABEL, census);
 }
 
 const REFINERY_LIST_SKELETON_ROWS = 6;

@@ -10,6 +10,7 @@
 // `0 of 5` arm reads identically in both regimes.
 
 import { useGatedQuery, useTRPC } from "#data";
+import { censusTitle } from "#lib";
 import { useSelectedPresetId } from "#state";
 import { usePresetCensus } from "../hooks/use-preset-census.ts";
 import { PRESETS_SECTION_LABEL } from "./presets-section-label.ts";
@@ -28,10 +29,5 @@ export function usePresetSelectionTitle(): string | null {
   if (presetId !== null) {
     return name.length === 0 ? null : name;
   }
-  // A ZERO CENSUS IS STILL SUPPRESSED, in the band's own spelling (`ListPaneHeader`: "a zero census is noise,
-  // not information") — an empty library says `Presets` and lets its empty state do the teaching.
-  if (census === undefined || census === 0 || census === "0") {
-    return null;
-  }
-  return `${PRESETS_SECTION_LABEL} · ${String(census)}`;
+  return censusTitle(PRESETS_SECTION_LABEL, census);
 }

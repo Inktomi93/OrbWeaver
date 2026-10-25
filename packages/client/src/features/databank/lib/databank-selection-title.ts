@@ -9,6 +9,7 @@
 // goes back with the noun that survives, off the SAME bank-health read the band prints from.
 
 import { useGatedQuery, useTRPC } from "#data";
+import { censusTitle } from "#lib";
 import { useSelectedDocumentId } from "#state";
 import { useDatabankCensus } from "../hooks/use-databank-census.ts";
 import { DATABANK_SECTION_LABEL } from "./databank-section-label.ts";
@@ -27,11 +28,5 @@ export function useDatabankSelectionTitle(): string | null {
   if (documentId !== null) {
     return title.length === 0 ? null : title;
   }
-  // A ZERO CENSUS IS STILL SUPPRESSED, in the band's own spelling (`ListPaneHeader`: "a zero census is noise,
-  // not information") — an empty bank says `Databank` and lets its teaching state do the teaching. `undefined`
-  // is the unread OR FAILED read (#1500), which is likewise not a size claim.
-  if (census === undefined || census === 0) {
-    return null;
-  }
-  return `${DATABANK_SECTION_LABEL} · ${String(census)}`;
+  return censusTitle(DATABANK_SECTION_LABEL, census);
 }

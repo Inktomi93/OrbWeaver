@@ -14,6 +14,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "#data";
+import { censusTitle } from "#lib";
 import { usePluginPageKey } from "#state";
 import { useExtensionsCensus } from "../hooks/use-extensions-census.ts";
 import { pluginReviewKey, usePluginPages } from "../hooks/use-plugin-pages.ts";
@@ -32,11 +33,5 @@ export function useExtensionsSelectionTitle(): string | null {
     const reviewed = plugins?.find((plugin) => pluginReviewKey(plugin.id) === key);
     return reviewed?.name ?? pages.find((page) => page.key === key)?.title ?? null;
   }
-  // A ZERO CENSUS IS SUPPRESSED, in the band's own spelling (`ListPaneHeader`: "a zero census is noise, not
-  // information") — with no pages registered the bar says `Extensions` and the pane's teaching empty explains
-  // why there are none. Zero is also what an unsettled read looks like here, and neither is a size claim.
-  if (census === 0) {
-    return null;
-  }
-  return `${EXTENSIONS_SECTION_LABEL} · ${String(census)}`;
+  return censusTitle(EXTENSIONS_SECTION_LABEL, census);
 }

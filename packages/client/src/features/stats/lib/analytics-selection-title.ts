@@ -10,7 +10,7 @@
 // `N of TOTAL` relationship is stated once and identically in both regimes.
 
 import { useGatedQuery, useTRPC } from "#data";
-import { CORPUS_MODE_LABELS } from "#lib";
+import { CORPUS_MODE_LABELS, censusTitle } from "#lib";
 import { useSelectedAnalyticsCharacterId } from "#state";
 import { useAnalyticsCensus } from "../hooks/use-analytics-census.ts";
 
@@ -31,10 +31,6 @@ export function useAnalyticsSelectionTitle(active: boolean): string | null {
   if (characterId !== null) {
     return name.length === 0 ? null : name;
   }
-  // A ZERO CENSUS IS STILL SUPPRESSED, in the band's own spelling (`ListPaneHeader`: "a zero census is noise,
-  // not information") — an unpopulated or settling leaderboard says `Insights`, never the bare section name.
-  if (census === undefined || census === 0 || census === "0") {
-    return CORPUS_MODE_LABELS.insights;
-  }
-  return `${CORPUS_MODE_LABELS.insights} · ${String(census)}`;
+  // A mode with no census still names itself, never the bare section.
+  return censusTitle(CORPUS_MODE_LABELS.insights, census) ?? CORPUS_MODE_LABELS.insights;
 }
