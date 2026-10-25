@@ -69,7 +69,7 @@ export function CharacterContextBand({ characterId }: CharacterContextBandProps)
         <Heading level={2} data-slot="character-context-band-name" className="line-clamp-2 text-balance">
           {detail.name}
         </Heading>
-        <Text voice="gloss" className="truncate font-mono" data-slot="character-context-band-handle">
+        <Text voice="datumMono" className="truncate" data-slot="character-context-band-handle">
           @{detail.handle}
         </Text>
         {/* THE CHIP ROW DOES NOT WRAP — IT SCROLLS. A narrow pane would wrap the chips 2+1 and leave a
