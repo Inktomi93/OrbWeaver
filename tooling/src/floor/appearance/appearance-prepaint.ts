@@ -30,8 +30,8 @@ export async function installAppearancePrepaintRecorder(context: BrowserContext)
       return {
         phase,
         dataTheme: root?.getAttribute("data-theme") ?? null,
-        fontScale: root?.style.getPropertyValue("--font-scale") ?? "",
-        reducedMotion: root?.getAttribute("data-reduced-motion") ?? null,
+        fontScale: root?.style.getPropertyValue("--appearance-font-scale") ?? "",
+        reducedMotion: root?.getAttribute("data-appearance-reduced-motion") ?? null,
         appReady: root?.getAttribute("data-app-ready") ?? null,
       };
     };
@@ -44,7 +44,7 @@ export async function installAppearancePrepaintRecorder(context: BrowserContext)
     const styleFontScale = (value) => {
       const probe = document.createElement("span");
       if (value !== null) probe.setAttribute("style", value);
-      return probe.style.getPropertyValue("--font-scale");
+      return probe.style.getPropertyValue("--appearance-font-scale");
     };
     const valueAfter = (records, index, record) => {
       for (let next = index + 1; next < records.length; next += 1) {
@@ -64,7 +64,7 @@ export async function installAppearancePrepaintRecorder(context: BrowserContext)
         const value = valueAfter(records, index, record);
         if (record.attributeName === "data-theme") current = { ...current, phase: "mutation", dataTheme: value };
         if (record.attributeName === "style") current = { ...current, phase: "mutation", fontScale: styleFontScale(value) };
-        if (record.attributeName === "data-reduced-motion") current = { ...current, phase: "mutation", reducedMotion: value };
+        if (record.attributeName === "data-appearance-reduced-motion") current = { ...current, phase: "mutation", reducedMotion: value };
         if (record.attributeName === "data-app-ready") current = { ...current, phase: "mutation", appReady: value };
         retain(current);
         changed = true;
@@ -75,7 +75,7 @@ export async function installAppearancePrepaintRecorder(context: BrowserContext)
       attributeOldValue: true,
       childList: true,
       subtree: true,
-      attributeFilter: ["data-theme", "data-reduced-motion", "data-app-ready", "style"],
+      attributeFilter: ["data-theme", "data-appearance-reduced-motion", "data-app-ready", "style"],
     });
     Object.defineProperty(globalThis, key, { value: state, configurable: false, enumerable: false, writable: false });
   })()`);

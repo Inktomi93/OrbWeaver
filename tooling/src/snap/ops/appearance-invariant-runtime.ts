@@ -224,8 +224,8 @@ async function prepaintEvidence(page: Page, snapshot: AppearanceDomSnapshot): Pr
       ? null
       : {
           dataTheme: hydrated.attributes["data-theme"] ?? null,
-          fontScale: hydrated.style["--font-scale"] ?? "",
-          reducedMotion: hydrated.attributes["data-reduced-motion"] ?? null,
+          fontScale: hydrated.style["--appearance-font-scale"] ?? "",
+          reducedMotion: hydrated.attributes["data-appearance-reduced-motion"] ?? null,
         },
   );
 }

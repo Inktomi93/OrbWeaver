@@ -11,7 +11,7 @@ export {} from "./components/you-sheet.tsx";
 export {} from "./hooks/use-shell-layout.ts";
 
 // The four app-shell-owned appearance SECTIONS (SET-SEAMS stage 1): app-shell reads these knobs (the shell
-// scope tokens, the content-width clamp, `data-elevation`/`data-reduced-motion`, the reading scope, the
+// scope tokens, the content-width clamp, `data-elevation`, the root appearance channel, the reading scope, the
 // glass/texture effects, the painted background), and §6's rule is that a section is owned by its reader.
 export { appearanceBackgroundSection } from "./lib/appearance-background-section.tsx";
 export { appearanceEffectsSection } from "./lib/appearance-effects-section.tsx";
@@ -20,6 +20,5 @@ export { appearanceSizingSection } from "./lib/appearance-sizing-section.tsx";
 // "Report a bug" — a `topbar.trail` widget in every build; its developer capture is dev-gated inside the form.
 export { bugReportChrome } from "./lib/bug-report-chrome.tsx";
 export { contextToggleChrome } from "./lib/context-toggle-chrome.tsx";
-export {} from "./lib/shell-content-width.ts";
 export { youModal } from "./lib/you-modal.tsx";
 export { AppShell } from "./surfaces/app-shell.tsx";

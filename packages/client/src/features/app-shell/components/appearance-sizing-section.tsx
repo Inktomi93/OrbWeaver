@@ -1,9 +1,8 @@
-// The "Sizing & motion" appearance SECTION (SET-SEAMS stage 1) — chatWidthPct / fontScale / density /
-// elevation / reducedMotion. A settings-SECTION CONTRIBUTION at the `appearance` anchor owned by
-// features/app-shell, the feature that READS all five (`surfaces/app-shell.tsx`: the shell scope tokens, the
-// `--width-shell-content` clamp, `data-elevation`, and `data-reduced-motion` via `useAppearanceRootEffects`
-// onto <html>). §6's rule is reader-owns, and
-// app-shell is already a definition owner (chrome + the You modal), so this is not a new privilege.
+// The "Sizing & motion" appearance SECTION (SET-SEAMS stage 1): chat width, text size, density, elevation and
+// the three OS preferences. A settings-section contribution at the `appearance` anchor owned by features/app-shell,
+// the feature that reads them (`surfaces/app-shell.tsx`: the shell scope tokens, `data-elevation` and the root
+// appearance channel). §6's rule is reader-owns, and app-shell is already a definition owner (chrome + the You
+// modal), so this is not a new privilege.
 //
 // S1 — PATCH MINIMALITY: `OWNS` is spelled once and drives the projection, the seeded defaults, the form
 // type and the contribution's `owns` claim, so this section's debounced save can never carry a sibling
@@ -23,6 +22,7 @@ import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
 import { useIsBelowShellContentFloor } from "../hooks/use-is-mobile-viewport.ts";
 import { CHAT_WIDTH_MAX, CHAT_WIDTH_MIN, FONT_SCALE_MAX, FONT_SCALE_MIN, FONT_SCALE_STEP } from "../lib/appearance-bounds.ts";
+import { OS_PREFERENCE_ITEMS } from "../lib/appearance-select-items.ts";
 import { APPEARANCE_SIZING_KEYS, APPEARANCE_SIZING_SUBCATEGORY } from "../lib/appearance-sizing-model.ts";
 import { DensityCards } from "./appearance-density-cards.tsx";
 import { ElevationCards } from "./appearance-elevation-cards.tsx";
@@ -134,7 +134,19 @@ function SizingBody({
             <form.AppField name="elevation">{(field): ReactElement => <ElevationCards onPick={field.handleChange} value={field.state.value} />}</form.AppField>
           </SettingRow>
           <SettingRow settingId="reduced-motion">
-            <form.AppField name="reducedMotion">{(field): ReactElement => <field.SwitchField label="Reduce motion" />}</form.AppField>
+            <form.AppField name="reducedMotion">
+              {(field): ReactElement => <field.SegmentField label="Reduce motion" items={OS_PREFERENCE_ITEMS} />}
+            </form.AppField>
+          </SettingRow>
+          <SettingRow settingId="reduced-transparency">
+            <form.AppField name="reducedTransparency">
+              {(field): ReactElement => <field.SegmentField label="Reduce transparency" items={OS_PREFERENCE_ITEMS} />}
+            </form.AppField>
+          </SettingRow>
+          <SettingRow settingId="increased-contrast">
+            <form.AppField name="increasedContrast">
+              {(field): ReactElement => <field.SegmentField label="Increase contrast" items={OS_PREFERENCE_ITEMS} />}
+            </form.AppField>
           </SettingRow>
         </SettingRowGroup>
       </ConfigTeachScope>

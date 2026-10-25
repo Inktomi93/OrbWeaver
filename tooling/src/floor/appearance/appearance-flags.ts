@@ -13,7 +13,7 @@ import { mergeAppearancePatches } from "./appearance.ts";
 export type AppearanceParse = { readonly patch: AppearancePatch } | { readonly error: string };
 
 /** `--full-motion` is exactly this patch — the flag a motion sweep actually types. */
-export const FULL_MOTION_PATCH: AppearancePatch = { reducedMotion: false };
+export const FULL_MOTION_PATCH: AppearancePatch = { reducedMotion: "system" };
 
 /** THE curated appearance points (`--appearance-preset <name>`), committed beside the probes so a sweep
  *  names a profile instead of pasting JSON. One home: new coverage is a new PROFILE there, never a new flag.

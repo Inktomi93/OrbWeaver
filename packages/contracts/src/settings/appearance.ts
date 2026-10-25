@@ -84,7 +84,21 @@ const DEFAULT_BLUR_SURFACES: readonly BlurSurface[] = ["panels", "composer", "mo
 // twin — BG-C); consumers import it from `@orb/contracts/theme` directly.
 
 const SURFACE_TEXTURES = ["none", "grain"] as const;
-export type SurfaceTexture = (typeof SURFACE_TEXTURES)[number];
+
+/** An OS preference the app can follow (`system`, the matching `prefers-*` query) or override either way. */
+export const OS_PREFERENCE_MODES = ["system", "on", "off"] as const;
+export type OsPreferenceMode = (typeof OS_PREFERENCE_MODES)[number];
+const OS_PREFERENCE_DEFAULT: OsPreferenceMode = "system";
+const osPreference = (): z.ZodType<OsPreferenceMode> => z.enum(OS_PREFERENCE_MODES).catch(OS_PREFERENCE_DEFAULT);
+
+// A stored reducedMotion boolean (`true` forces reduced motion, `false` follows the OS) reads forward here, so no
+// migration rewrites rows and a blob carrying one still parses intact for the write guard.
+function liftReducedMotion(stored: unknown): unknown {
+  if (stored === true) {
+    return "on";
+  }
+  return stored === false ? OS_PREFERENCE_DEFAULT : stored;
+}
 export const APPEARANCE_BACKGROUND_FITS = ["cover", "contain", "stretch", "center"] as const;
 export type AppearanceBackgroundFit = (typeof APPEARANCE_BACKGROUND_FITS)[number];
 
@@ -172,7 +186,9 @@ export const appearanceSettingsSchema = z
       .default([...DEFAULT_BLUR_SURFACES]),
     shadowEffects: z.boolean().catch(false).default(false),
     surfaceTexture: z.enum(SURFACE_TEXTURES).catch("none").default("none"),
-    reducedMotion: z.boolean().catch(false).default(false),
+    reducedMotion: z.preprocess(liftReducedMotion, osPreference()).default(OS_PREFERENCE_DEFAULT),
+    reducedTransparency: osPreference().default(OS_PREFERENCE_DEFAULT),
+    increasedContrast: osPreference().default(OS_PREFERENCE_DEFAULT),
     backgroundImageKind: z.enum(BACKGROUND_IMAGE_KINDS).catch("none").default("none"),
     // NOTE: there was a flat `backgroundSeededId` (the `kind:"seeded"` catalog slug) — RETIRED 2026-09-18
     // with the kind itself; the WHY is on `BACKGROUND_IMAGE_KINDS` in `#theme`. A stored blob's leftover

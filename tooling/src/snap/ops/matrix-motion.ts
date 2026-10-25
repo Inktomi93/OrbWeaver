@@ -1,6 +1,7 @@
 // Motion matrix execution stays on Snap's ordinary run/session path. The matrix owns only appearance
 // planning, selector substitution, STATIC-EXPECTED reconciliation, and its aggregate receipt.
 import { writeFile } from "node:fs/promises";
+import { APP_REDUCED_MOTION_ON, APP_REDUCED_MOTION_SYSTEM } from "../../floor/appearance/appearance-matrix.ts";
 import { artifactFile } from "../../floor/artifacts/artifact-out.ts";
 import { aggregateScope } from "../../floor/artifacts/artifact-scope.ts";
 import { print } from "../../floor/artifacts/artifacts.ts";
@@ -88,7 +89,7 @@ export async function runMotionMatrix(opts: Args, baseName: string, discovery: M
       matrix: false,
       out: variantOut(baseName, variant.id),
       actions: motionActions(opts.actions, variant.selector),
-      appearance: { reducedMotion: variant.appReducedMotion },
+      appearance: { reducedMotion: variant.appReducedMotion ? APP_REDUCED_MOTION_ON : APP_REDUCED_MOTION_SYSTEM },
       reducedMotion: variant.osReducedMotion,
       device: variant.device,
       colorScheme: null,

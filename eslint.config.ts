@@ -25,6 +25,7 @@ import { __unstable__loadDesignSystem } from "tailwindcss";
 import type { FlatConfig } from "typescript-eslint";
 import tseslint from "typescript-eslint";
 import biomeConfig from "./biome.json" with { type: "json" };
+import { appearanceChannelVocabulary } from "./packages/client/appearance-channel.build.ts";
 import { OWNER_CSS_SHELL_CLASSES } from "./packages/client/owner-css-surface.ts";
 
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
@@ -717,6 +718,7 @@ const localPlugin = createOrbPlugin({
       .map(([size]) => size),
   ),
   shellClasses: new Set(OWNER_CSS_SHELL_CLASSES),
+  appearanceVocabulary: appearanceChannelVocabulary(),
   classifyClass: classClassifier((classes) => designSystem.candidatesToCss(classes)),
 });
 // The only files that may spell a portal-float z token: each is a surface that portals to
@@ -775,6 +777,11 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
       },
     },
     { files: ["packages/client/src/**/*.tsx"], rules: { "orb/no-raw-intrinsic-paint": "error" } },
+    // Tooling is outside: its CLI flags share the `--appearance-` prefix (`--appearance-preset`).
+    {
+      files: ["packages/client/src/**/*.{ts,tsx}", "packages/ui/src/**/*.{ts,tsx}", "tests/client/**/*.{ts,tsx}", "tests/ui/**/*.{ts,tsx}"],
+      rules: { "orb/appearance-name-in-manifest": "error" },
+    },
     // On by owner ruling before the tree is at zero: the sites drain through items 1334 to 1336 and 1338
     // (docs/plans/css-system/feature-classname-sites.md), and the pre-push lint stays red until the last one goes.
     {

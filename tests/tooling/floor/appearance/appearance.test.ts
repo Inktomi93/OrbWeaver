@@ -120,7 +120,7 @@ test("a response that is not the settings envelope is passed through, reported a
 test("unparseable JSON and a non-object are CLI misuse, never a silent no-op", () => {
   expect(parseAppearancePatch("not json")).toMatchObject({ error: expect.stringContaining("expects a JSON object") });
   expect(parseAppearancePatch('["reducedMotion"]')).toMatchObject({ error: expect.stringContaining("expects a JSON object") });
-  expect(parseAppearancePatch('{"reducedMotion":false}')).toEqual({ patch: { reducedMotion: false } });
+  expect(parseAppearancePatch('{"reducedMotion":"system"}')).toEqual({ patch: { reducedMotion: "system" } });
 });
 
 test("unknown keys and schema-healed values refuse instead of pretending the requested arm rendered", () => {

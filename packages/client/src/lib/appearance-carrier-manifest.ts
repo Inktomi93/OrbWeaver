@@ -4,6 +4,7 @@
 // skins stay prop-driven. This manifest describes those boundaries; it is not permission to collapse them.
 
 import type { AppearanceSettings } from "@orb/contracts/settings";
+import type { MEDIA_QUERIES } from "@orb/ui/tokens";
 import { APPEARANCE_HISTORICAL_ROWS } from "./appearance-invariant-manifest.ts";
 
 export const APPEARANCE_EDITOR_OWNERS = ["sizing", "effects", "background", "reading", "avatars", "message-style", "message-details"] as const;
@@ -30,6 +31,28 @@ interface AppearanceConsumerBinding {
   readonly symbol: string;
 }
 
+/** The unit a consumer multiplies a numeric setting by; the property itself is a registered `<number>`, since a
+ *  registered `em` length would resolve at the root instead of at the element that reads it. */
+const APPEARANCE_PROPERTY_UNITS = ["", "px", "em", "rem"] as const;
+type AppearancePropertyUnit = (typeof APPEARANCE_PROPERTY_UNITS)[number];
+
+/**
+ * How a setting reaches CSS on the root. `property` is a registered `--appearance-<key>` custom property and
+ * `attribute` an always-present `data-appearance-<key>` attribute with one generated variant per value
+ * (`appearance-channel.build.ts`); `none` keeps the value on another plane: a prop, the theme scope, the grid
+ * or the background layer.
+ */
+export type AppearanceChannel =
+  | { readonly kind: "property"; readonly unit: AppearancePropertyUnit }
+  | { readonly kind: "attribute"; readonly preference?: AppearancePreferenceCondition }
+  | { readonly kind: "none" };
+
+/** The OS media condition a `system | on | off` preference follows; its generated variant resolves the three in CSS. */
+type AppearancePreferenceCondition = Extract<keyof typeof MEDIA_QUERIES, "motion-reduce" | "transparency-reduce" | "contrast-more">;
+
+/** A number reaches CSS as a property; every other value as an attribute. */
+type ChannelFor<V> = Extract<AppearanceChannel, { readonly kind: "none" | (V extends number ? "property" : "attribute") }>;
+
 /** The portal obligation each carrier plane owes. A row's `portal` is the one its FIRST carrier implies. */
 const PORTAL_BY_CARRIER = {
   "root-html": "must-reach-portals",
@@ -55,6 +78,7 @@ type OwnerOf<K extends keyof AppearanceSettings> = {
 
 type AppearanceCarrierRow<K extends keyof AppearanceSettings> = CarrierPortalPairing & {
   readonly owner: OwnerOf<K>;
+  readonly channel: ChannelFor<AppearanceSettings[K]>;
   readonly consumer: AppearanceConsumerBinding;
   readonly lifecycle: AppearanceLifecycle;
   readonly requiredDistinctArms?: readonly [AppearanceSettings[K], AppearanceSettings[K]];
@@ -72,7 +96,7 @@ const MESSAGE_APPEARANCE = { file: "packages/client/src/features/chat/hooks/use-
 const CHAT_STYLE = { file: "packages/client/src/features/chat/hooks/use-chat-style.ts", symbol: "useChatStyle" } as const;
 
 export const APPEARANCE_OWNER_KEYS = {
-  sizing: ["chatWidthPct", "fontScale", "density", "elevation", "reducedMotion"],
+  sizing: ["chatWidthPct", "fontScale", "density", "elevation", "reducedMotion", "reducedTransparency", "increasedContrast"],
   effects: ["blurSurfaces", "blurStrength", "shadowEffects", "surfaceTexture", "enableThemeColorization"],
   background: [
     "backgroundImageKind",
@@ -99,10 +123,17 @@ export const APPEARANCE_OWNER_KEYS = {
   ],
 } as const satisfies Record<AppearanceEditorOwner, readonly (keyof AppearanceSettings)[]>;
 
+const NONE = { kind: "none" } as const;
+const ATTRIBUTE = { kind: "attribute" } as const;
+const NUMBER = { kind: "property", unit: "" } as const;
 const ROOT = { carriers: ["root-html"], lifecycle: "hydrated", portal: "must-reach-portals", consumer: APP_SHELL } as const;
-const GRID = { carriers: ["shell-grid"], lifecycle: "hydrated", portal: "grid-only", consumer: APP_SHELL } as const;
-const BACKGROUND = { carriers: ["background-layer"], lifecycle: "hydrated", portal: "outside-theme-scope", consumer: APP_SHELL } as const;
-const MESSAGE = { carriers: ["message-props"], lifecycle: "hydrated", portal: "prop-threaded", consumer: MESSAGE_APPEARANCE } as const;
+const ROOT_ATTRIBUTE = { ...ROOT, channel: ATTRIBUTE } as const;
+const ROOT_NUMBER = { ...ROOT, channel: NUMBER } as const;
+// The boot replay writes the three OS preferences before React mounts, so the boot veil and the first shell frame honour them.
+const PREFERENCE = { lifecycle: "prepaint-and-hydrated", requiredDistinctArms: ["system", "on"] } as const;
+const GRID = { carriers: ["shell-grid"], lifecycle: "hydrated", portal: "grid-only", consumer: APP_SHELL, channel: NONE } as const;
+const BACKGROUND = { carriers: ["background-layer"], lifecycle: "hydrated", portal: "outside-theme-scope", consumer: APP_SHELL, channel: NONE } as const;
+const MESSAGE = { carriers: ["message-props"], lifecycle: "hydrated", portal: "prop-threaded", consumer: MESSAGE_APPEARANCE, channel: NONE } as const;
 const CHAT_WIDTH_NARROW = 60;
 const CHAT_WIDTH_WIDE = 90;
 const FONT_SCALE_DEFAULT = 1;
@@ -132,30 +163,39 @@ const READING_PARAGRAPH_SPACING_ARMS = [READING_PARAGRAPH_SPACING_NONE, READING_
 const READING_SCALE_ARMS = [READING_SCALE_SMALL, READING_SCALE_LARGE] as const;
 
 /**
- * The 41-key contract. `satisfies AppearanceCarrierManifest` makes a missing/stale schema key, a row whose
+ * The per-key contract. `satisfies AppearanceCarrierManifest` makes a missing/stale schema key, a row whose
  * owner does not list its key, an empty carrier list, and a carrier/portal mismatch type errors;
  * `tests/client/lib/appearance-carrier-manifest.test.ts` reconciles the same map with the Zod leaves,
  * editor tuples, and named live consumer declarations so a cast cannot hide drift.
  */
 export const APPEARANCE_CARRIER_MANIFEST = {
-  chatWidthPct: { owner: "sizing", ...GRID, requiredDistinctArms: CHAT_WIDTH_ARMS },
-  fontScale: { owner: "sizing", ...ROOT, lifecycle: "prepaint-and-hydrated", requiredDistinctArms: FONT_SCALE_ARMS },
+  chatWidthPct: { owner: "sizing", ...ROOT_NUMBER, requiredDistinctArms: CHAT_WIDTH_ARMS },
+  fontScale: { owner: "sizing", ...ROOT_NUMBER, lifecycle: "prepaint-and-hydrated", requiredDistinctArms: FONT_SCALE_ARMS },
   density: {
     owner: "sizing",
     carriers: ["theme-scope"],
+    channel: NONE,
     consumer: APP_SHELL,
     lifecycle: "hydrated-from-prepaint-hint",
     portal: "shared-theme-scope-sibling",
     requiredDistinctArms: ["comfortable", "compact"],
   },
   elevation: { owner: "sizing", ...GRID, requiredDistinctArms: ["flat", "ramp"] },
-  reducedMotion: { owner: "sizing", ...ROOT, lifecycle: "prepaint-and-hydrated", requiredDistinctArms: [false, true] },
+  reducedMotion: { owner: "sizing", ...ROOT, channel: { kind: "attribute", preference: "motion-reduce" }, ...PREFERENCE },
+  reducedTransparency: { owner: "sizing", ...ROOT, channel: { kind: "attribute", preference: "transparency-reduce" }, ...PREFERENCE },
+  increasedContrast: { owner: "sizing", ...ROOT, channel: { kind: "attribute", preference: "contrast-more" }, ...PREFERENCE },
 
-  blurSurfaces: { owner: "effects", ...ROOT, requiredDistinctArms: [[], ["panels"]] },
-  blurStrength: { owner: "effects", ...ROOT, requiredDistinctArms: BLUR_STRENGTH_ARMS, dependsOn: ["blurSurfaces"] },
-  shadowEffects: { owner: "effects", ...ROOT, requiredDistinctArms: [false, true] },
-  surfaceTexture: { owner: "effects", ...ROOT, requiredDistinctArms: ["none", "grain"] },
-  enableThemeColorization: { owner: "effects", ...ROOT, requiredDistinctArms: [false, true] },
+  blurSurfaces: { owner: "effects", ...ROOT_ATTRIBUTE, requiredDistinctArms: [[], ["panels"]] },
+  blurStrength: {
+    owner: "effects",
+    ...ROOT,
+    channel: { kind: "property", unit: "px" },
+    requiredDistinctArms: BLUR_STRENGTH_ARMS,
+    dependsOn: ["blurSurfaces"],
+  },
+  shadowEffects: { owner: "effects", ...ROOT_ATTRIBUTE, requiredDistinctArms: [false, true] },
+  surfaceTexture: { owner: "effects", ...ROOT_ATTRIBUTE, requiredDistinctArms: ["none", "grain"] },
+  enableThemeColorization: { owner: "effects", ...ROOT_ATTRIBUTE, requiredDistinctArms: [false, true] },
 
   // The painted arm is `asset` since `seeded` retired (2026-09-18). `seeded` was the only NON-none kind a
   // tool could complete from a static source, so the matrix's second arm now needs a LIVE background —
@@ -168,6 +208,7 @@ export const APPEARANCE_CARRIER_MANIFEST = {
   backgroundLibrary: {
     owner: "background",
     carriers: ["source-catalog"],
+    channel: NONE,
     consumer: BACKGROUND_EDITOR,
     lifecycle: "hydrated",
     portal: "none",
@@ -177,12 +218,12 @@ export const APPEARANCE_CARRIER_MANIFEST = {
   backgroundDim: { owner: "background", ...BACKGROUND, requiredDistinctArms: BACKGROUND_DIM_ARMS, dependsOn: ["backgroundImageKind"] },
   backgroundBlur: { owner: "background", ...BACKGROUND, requiredDistinctArms: BACKGROUND_BLUR_ARMS, dependsOn: ["backgroundImageKind"] },
 
-  readingLineHeight: { owner: "reading", ...ROOT, requiredDistinctArms: READING_LINE_HEIGHT_ARMS },
-  readingLetterSpacing: { owner: "reading", ...ROOT, requiredDistinctArms: READING_LETTER_SPACING_ARMS },
-  readingParagraphSpacing: { owner: "reading", ...ROOT, requiredDistinctArms: READING_PARAGRAPH_SPACING_ARMS },
-  readingNameScale: { owner: "reading", ...ROOT, requiredDistinctArms: READING_SCALE_ARMS },
-  readingBodyScale: { owner: "reading", ...ROOT, requiredDistinctArms: READING_SCALE_ARMS },
-  justifyBodyText: { owner: "reading", ...ROOT, requiredDistinctArms: [false, true] },
+  readingLineHeight: { owner: "reading", ...ROOT_NUMBER, requiredDistinctArms: READING_LINE_HEIGHT_ARMS },
+  readingLetterSpacing: { owner: "reading", ...ROOT, channel: { kind: "property", unit: "em" }, requiredDistinctArms: READING_LETTER_SPACING_ARMS },
+  readingParagraphSpacing: { owner: "reading", ...ROOT, channel: { kind: "property", unit: "rem" }, requiredDistinctArms: READING_PARAGRAPH_SPACING_ARMS },
+  readingNameScale: { owner: "reading", ...ROOT_NUMBER, requiredDistinctArms: READING_SCALE_ARMS },
+  readingBodyScale: { owner: "reading", ...ROOT_NUMBER, requiredDistinctArms: READING_SCALE_ARMS },
+  justifyBodyText: { owner: "reading", ...ROOT_ATTRIBUTE, requiredDistinctArms: [false, true] },
 
   showInChatAvatars: { owner: "avatars", ...MESSAGE, requiredDistinctArms: [false, true] },
   avatarSize: { owner: "avatars", ...MESSAGE, requiredDistinctArms: ["sm", "lg"] },
@@ -206,6 +247,93 @@ export const APPEARANCE_CARRIER_MANIFEST = {
 
 type AppearanceCarrierKey = keyof typeof APPEARANCE_CARRIER_MANIFEST;
 
+/** The settings that reach CSS on the root, each with the one name the writer, the boot replay, the generated CSS and the lint use. */
+export interface AppearanceChannelRow {
+  readonly key: AppearanceCarrierKey;
+  readonly kind: "property" | "attribute";
+  readonly name: string;
+  readonly unit: AppearancePropertyUnit;
+  /** The OS condition a three-way preference follows, or null for a plain value. */
+  readonly preference: AppearancePreferenceCondition | null;
+}
+
+const APPEARANCE_PROPERTY_PREFIX = "--appearance-";
+const APPEARANCE_ATTRIBUTE_PREFIX = "data-appearance-";
+
+function kebab(key: string): string {
+  return key.replaceAll(/[A-Z]/gu, (letter) => `-${letter.toLowerCase()}`);
+}
+
+export const APPEARANCE_CHANNEL_ROWS: readonly AppearanceChannelRow[] = (Object.keys(APPEARANCE_CARRIER_MANIFEST) as AppearanceCarrierKey[]).flatMap(
+  (key): AppearanceChannelRow[] => {
+    const channel: AppearanceChannel = APPEARANCE_CARRIER_MANIFEST[key].channel;
+    if (channel.kind === "none") {
+      return [];
+    }
+    return channel.kind === "property"
+      ? [{ key, kind: "property", name: `${APPEARANCE_PROPERTY_PREFIX}${kebab(key)}`, unit: channel.unit, preference: null }]
+      : [{ key, kind: "attribute", name: `${APPEARANCE_ATTRIBUTE_PREFIX}${kebab(key)}`, unit: "", preference: channel.preference ?? null }];
+  },
+);
+
+const CHANNEL_BY_KEY: ReadonlyMap<AppearanceCarrierKey, AppearanceChannelRow> = new Map(APPEARANCE_CHANNEL_ROWS.map((row) => [row.key, row]));
+
+/** The channel name a root-carried key writes; the call site names a key whose row declares a channel. */
+export function appearanceChannelName(key: AppearanceCarrierKey): string {
+  const row = CHANNEL_BY_KEY.get(key);
+  if (row === undefined) {
+    throw new Error(`appearance.${key} declares no CSS channel`);
+  }
+  return row.name;
+}
+
+/** An attribute carries a list as its space-separated members, so CSS matches one member with `~=`. */
+function channelValue(value: AppearanceSettings[AppearanceCarrierKey]): string {
+  return Array.isArray(value) ? value.map((member) => (typeof member === "string" ? member : "")).join(" ") : String(value);
+}
+
+/** The DOM surface the channel writes through; both writers pass `document.documentElement`. Structural, because
+ *  the lint and the generator load this module without the DOM lib. */
+interface AppearanceChannelRoot {
+  readonly style: { readonly setProperty: (name: string, value: string) => void; readonly removeProperty: (name: string) => string };
+  readonly setAttribute: (name: string, value: string) => void;
+  readonly removeAttribute: (name: string) => void;
+}
+
+/** Write every given root-carried setting onto its channel. The shell writes the whole block; the boot replay writes the axes it remembers. */
+export function writeAppearanceChannel(root: AppearanceChannelRoot, values: Partial<AppearanceSettings>): void {
+  for (const row of APPEARANCE_CHANNEL_ROWS) {
+    const value = values[row.key];
+    if (value === undefined) {
+      continue;
+    }
+    if (row.kind === "property") {
+      root.style.setProperty(row.name, channelValue(value));
+    } else {
+      root.setAttribute(row.name, channelValue(value));
+    }
+  }
+}
+
+/** Remove the given keys' channel names, so an unmounted shell leaves no stale value on the root. */
+export function clearAppearanceChannel(root: AppearanceChannelRoot, keys: readonly AppearanceCarrierKey[]): void {
+  for (const key of keys) {
+    const row = CHANNEL_BY_KEY.get(key);
+    if (row?.kind === "property") {
+      root.style.removeProperty(row.name);
+    } else if (row?.kind === "attribute") {
+      root.removeAttribute(row.name);
+    }
+  }
+}
+
+function rootObservable(key: AppearanceCarrierKey): AppearanceCarrierObservable {
+  const name = appearanceChannelName(key);
+  return CHANNEL_BY_KEY.get(key)?.kind === "property"
+    ? { kind: "inline-style", selector: "html", signal: name }
+    : { kind: "attribute", selector: "html", signal: name };
+}
+
 export type AppearanceCarrierObservable =
   | { readonly kind: "attribute"; readonly selector: string; readonly signal: string }
   | { readonly kind: "inline-style"; readonly selector: string; readonly signal: string }
@@ -223,26 +351,28 @@ type AppearanceCarrierObservableManifest = {
  * values through the real AppShell/message hooks and reads these signals; keeping the reader vocabulary
  * here makes an armed row without an executable observation a type error and a structural-gate red. */
 export const APPEARANCE_CARRIER_OBSERVABLES = {
-  chatWidthPct: { kind: "inline-style", selector: ".shell-grid", signal: "--width-shell-content" },
-  fontScale: { kind: "inline-style", selector: "html", signal: "--font-scale" },
+  chatWidthPct: rootObservable("chatWidthPct"),
+  fontScale: rootObservable("fontScale"),
   density: { kind: "attribute", selector: '[data-slot="theme-scope"]:has(.shell-grid)', signal: "data-density" },
   elevation: { kind: "attribute", selector: ".shell-grid", signal: "data-elevation" },
-  reducedMotion: { kind: "attribute", selector: "html", signal: "data-reduced-motion" },
-  blurSurfaces: { kind: "attribute", selector: "html", signal: "data-blur-panels" },
-  blurStrength: { kind: "inline-style", selector: "html", signal: "--blur-strength" },
-  shadowEffects: { kind: "attribute", selector: "html", signal: "data-shadow" },
-  surfaceTexture: { kind: "attribute", selector: "html", signal: "data-texture" },
-  enableThemeColorization: { kind: "attribute", selector: "html", signal: "data-theme-colorization" },
+  reducedMotion: rootObservable("reducedMotion"),
+  reducedTransparency: rootObservable("reducedTransparency"),
+  increasedContrast: rootObservable("increasedContrast"),
+  blurSurfaces: rootObservable("blurSurfaces"),
+  blurStrength: rootObservable("blurStrength"),
+  shadowEffects: rootObservable("shadowEffects"),
+  surfaceTexture: rootObservable("surfaceTexture"),
+  enableThemeColorization: rootObservable("enableThemeColorization"),
   backgroundImageKind: { kind: "attribute", selector: ".shell-grid", signal: "data-has-bg-image" },
   backgroundFit: { kind: "inline-style", selector: '[data-slot="theme-background-layer"]', signal: "background-size" },
   backgroundDim: { kind: "inline-style", selector: '[data-slot="theme-background-scrim"]', signal: "opacity" },
   backgroundBlur: { kind: "inline-style", selector: '[data-slot="theme-background-layer"]', signal: "filter" },
-  readingLineHeight: { kind: "inline-style", selector: "html", signal: "--reading-line-height" },
-  readingLetterSpacing: { kind: "inline-style", selector: "html", signal: "--reading-letter-spacing" },
-  readingParagraphSpacing: { kind: "inline-style", selector: "html", signal: "--reading-paragraph-spacing" },
-  readingNameScale: { kind: "inline-style", selector: "html", signal: "--reading-name-scale" },
-  readingBodyScale: { kind: "inline-style", selector: "html", signal: "--reading-body-scale" },
-  justifyBodyText: { kind: "attribute", selector: "html", signal: "data-justify-body-text" },
+  readingLineHeight: rootObservable("readingLineHeight"),
+  readingLetterSpacing: rootObservable("readingLetterSpacing"),
+  readingParagraphSpacing: rootObservable("readingParagraphSpacing"),
+  readingNameScale: rootObservable("readingNameScale"),
+  readingBodyScale: rootObservable("readingBodyScale"),
+  justifyBodyText: rootObservable("justifyBodyText"),
   showInChatAvatars: { kind: "message-prop", selector: LIVE_MESSAGE_ROW_SELECTOR, signal: "showInChatAvatars" },
   avatarSize: { kind: "message-prop", selector: LIVE_MESSAGE_ROW_SELECTOR, signal: "avatarSize" },
   avatarShape: { kind: "message-prop", selector: LIVE_MESSAGE_ROW_SELECTOR, signal: "avatarShape" },
@@ -273,7 +403,7 @@ interface ThemeCarrierObservable {
   readonly lifecycle: AppearanceLifecycle;
 }
 
-/** Theme selection is adjacent to Appearance but is not one of its 41 schema leaves. These rendered
+/** Theme selection is adjacent to Appearance but is not one of its schema leaves. These rendered
  * observables are what #953 must read after applying a theme request: an intercepted settings envelope
  * proves neither the palette that painted nor the polarity/custom-CSS planes that won. Nested scopes stay
  * independently observable because room/card overrides intentionally do not flatten into the app scope. */

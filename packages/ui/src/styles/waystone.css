@@ -239,24 +239,25 @@
     }
   }
 
-  @variant motion-reduce {
-    [data-slot="waystone"] * {
-      animation: none;
-    }
-    /* The bolt's resting frame is invisible, so with the strike removed it is drawn instead of deleted. */
-    [data-slot="waystone"] [data-slot="waystone-bolt"] {
-      opacity: 0.9;
-    }
-  }
-  [data-reduced-motion="true"] [data-slot="waystone"] * {
-    animation: none;
-  }
-  [data-reduced-motion="true"] [data-slot="waystone"] [data-slot="waystone-bolt"] {
-    opacity: 0.9;
-  }
-
   /* A hidden tab composites nothing. */
   [data-slot="waystone"][data-paused="true"] * {
     animation-play-state: paused;
+  }
+
+  /* Reduced motion, resolved as in motion-floor.css. The bolt's resting frame is invisible, so with the strike
+   * removed it is drawn instead of deleted. */
+  :root[data-appearance-reduced-motion="on"] [data-slot="waystone"] * {
+    animation: none;
+  }
+  :root[data-appearance-reduced-motion="on"] [data-slot="waystone"] [data-slot="waystone-bolt"] {
+    opacity: 0.9;
+  }
+  @variant motion-reduce {
+    :root:not([data-appearance-reduced-motion="off"]) [data-slot="waystone"] * {
+      animation: none;
+    }
+    :root:not([data-appearance-reduced-motion="off"]) [data-slot="waystone"] [data-slot="waystone-bolt"] {
+      opacity: 0.9;
+    }
   }
 }

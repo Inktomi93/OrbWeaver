@@ -7,7 +7,7 @@
 // grammar homes at the lowest package that spells it and rides this barrel for client callers + tests.
 export { cn, removeActionName, selectActionName } from "@orb/ui/lib";
 export { AppFailureSurface } from "./app-failure-surface.tsx";
-export { APPEARANCE_OWNER_KEYS } from "./appearance-carrier-manifest.ts";
+export { APPEARANCE_CHANNEL_ROWS, APPEARANCE_OWNER_KEYS, clearAppearanceChannel, writeAppearanceChannel } from "./appearance-carrier-manifest.ts";
 export { setBootReadPending } from "./boot-reads.ts";
 export type { BugReportServerFacts, PublicBrowserFacts, PublicBugReport } from "./bug-report-public.ts";
 export { buildPublicBugReport, publicBugReportIssueUrl } from "./bug-report-public.ts";

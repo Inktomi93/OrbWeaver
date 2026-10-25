@@ -8,8 +8,8 @@
 // message actions) lives at `features/chat/lib/appearance-select-items.ts`. The two THEME-shaped tables a
 // third feature also renders (chatStyle/density) home at `#lib` instead.
 
-import type { AppearanceSettings } from "@orb/contracts/settings";
-import { APPEARANCE_BACKGROUND_FITS, BLUR_SURFACES } from "@orb/contracts/settings";
+import type { AppearanceSettings, OsPreferenceMode } from "@orb/contracts/settings";
+import { APPEARANCE_BACKGROUND_FITS, BLUR_SURFACES, OS_PREFERENCE_MODES } from "@orb/contracts/settings";
 import type { SelectOption } from "@orb/ui/select/items";
 
 // FLAT rows typed to the UNION (#866 §7.8) — the illustrated elevation cards key their total diagram
@@ -19,6 +19,15 @@ export const ELEVATION_ITEMS: readonly SelectOption<AppearanceSettings["elevatio
   { value: "ramp", label: "Layered" },
   { value: "glow", label: "Lifted (glow)" },
 ] satisfies readonly { value: AppearanceSettings["elevation"]; label: string }[];
+
+// The three OS preferences (reduced motion, reduced transparency, increased contrast): follow the device, or
+// override it either way. One table, since the three share the `system | on | off` vocabulary.
+const OS_PREFERENCE_LABELS: Record<OsPreferenceMode, string> = {
+  system: "System",
+  on: "On",
+  off: "Off",
+};
+export const OS_PREFERENCE_ITEMS: readonly SelectOption<string>[] = OS_PREFERENCE_MODES.map((value) => ({ value, label: OS_PREFERENCE_LABELS[value] }));
 
 // surfaceTexture — the opt-in film-grain overlay. It hosts on the WHOLE SHELL (`.shell-grid::after`,
 // client globals.css), reading column included — ratified by the owner 2026-08-22 (#435) after this line

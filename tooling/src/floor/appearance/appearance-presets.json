@@ -26,7 +26,7 @@
         "blurSurfaces": ["panels", "composer", "modals"],
         "shadowEffects": false,
         "surfaceTexture": "none",
-        "reducedMotion": false,
+        "reducedMotion": "system",
         "backgroundImageKind": "none",
         "backgroundFit": "cover",
         "backgroundDim": 0.45,
@@ -43,7 +43,7 @@
       }
     },
     "maximal": {
-      "why": "ALL THE NICE STUFF ON — glow elevation, glass on every surface at a strong radius, grain texture, theme colorization, avatar accent rings, in-chat avatars, and motion actually running. This is the arm a motion/visual audit owes: with the owner's row (reducedMotion true, flat elevation, no texture) every ornament the app ships is invisible to the probe.",
+      "why": "ALL THE NICE STUFF ON — glow elevation, glass on every surface at a strong radius, grain texture, theme colorization, avatar accent rings, in-chat avatars, and motion actually running. This is the arm a motion/visual audit owes: with the owner's row (reducedMotion on, flat elevation, no texture) every ornament the app ships is invisible to the probe.",
       "appearance": {
         "density": "comfortable",
         "elevation": "glow",
@@ -52,7 +52,7 @@
         "blurStrength": 22,
         "surfaceTexture": "grain",
         "enableThemeColorization": true,
-        "reducedMotion": false,
+        "reducedMotion": "system",
         "avatarRing": "accent",
         "avatarSize": "lg",
         "showInChatAvatars": true,

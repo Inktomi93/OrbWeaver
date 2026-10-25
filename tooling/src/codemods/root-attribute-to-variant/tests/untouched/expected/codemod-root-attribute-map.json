@@ -1,0 +1,10 @@
+{
+  "attributes": {
+    "[data-blur-panels]": "appearance-blur-surfaces-panels",
+    "[data-blur-composer]": "appearance-blur-surfaces-composer",
+    "[data-blur-modals]": "appearance-blur-surfaces-modals",
+    "[data-shadow]": "appearance-shadow-effects-true",
+    "[data-theme-colorization]": "appearance-enable-theme-colorization-true",
+    "[data-texture=\"grain\"]": "appearance-surface-texture-grain"
+  }
+}

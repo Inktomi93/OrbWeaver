@@ -68,15 +68,12 @@ test("keeps the exact minted custom themes when an older capable stage row sorts
 test("derives the rated Snap matrix from the live carrier contract and theme catalog", () => {
   const planned = planSnapAppearanceMatrix(appearanceMatrixContract(), THEMES);
 
-  // 16 → 14 with the `kind:"seeded"` retirement (2026-09-18). The COUNT is derived, never a target:
-  // what it actually asserts is that the planner is deterministic, and the coverage claim below
-  // (`uncoveredPairs === []`) is what says the smaller plan still reaches every pair. The background
-  // arm moved `none|seeded` → `none|asset`, and the risk row that pins it moved with it, so the same
-  // required rows pack into two fewer cells.
-  expect(planned.plan.cells).toHaveLength(14);
+  // The count pins the planner's determinism, never a coverage target: the coverage claim is
+  // `uncoveredPairs === []` below. Adding an axis can add cells.
+  expect(planned.plan.cells).toHaveLength(16);
   expect(new Set(planned.plan.receipt.cellIds).size).toBe(planned.plan.cells.length);
   expect(planned.plan.receipt.uncoveredPairs).toEqual([]);
-  expect(planned.appearanceAxes).toHaveLength(36);
+  expect(planned.appearanceAxes).toHaveLength(appearanceMatrixContract().executable);
   // 5 → 4: `backgroundSeededId` left `AppearanceSettings` with the retired kind, and it was a
   // DEPENDENCY row (no arms), so the executable-axis count above is unchanged.
   expect(planned.dependencies).toHaveLength(4);
@@ -175,7 +172,7 @@ test("projects a planned cell onto the existing Snap settings and full browser d
   // The `asset` arm completes THREE dependent carriers from the live background capability; every other
   // arm completes none, so the executable-axis count is the floor and the asset cell carries three more.
   const assetDependencies = ["backgroundAssetId", "backgroundAssetHash", "backgroundAssetMime"];
-  expect(Object.keys(variant.appearance).filter((key) => !assetDependencies.includes(key))).toHaveLength(36);
+  expect(Object.keys(variant.appearance).filter((key) => !assetDependencies.includes(key))).toHaveLength(appearanceMatrixContract().executable);
   for (const key of assetDependencies) {
     expect(typeof variant.appearance[key]).toBe(variant.appearance["backgroundImageKind"] === "asset" ? "string" : "undefined");
   }

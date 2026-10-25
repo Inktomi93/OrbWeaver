@@ -3,6 +3,7 @@
 
 import type { BackgroundCapability } from "../../floor/appearance/appearance-matrix.ts";
 import {
+  APP_REDUCED_MOTION_SYSTEM,
   appearanceArmValueId,
   appearancePatchForAssignment,
   deriveAppearanceContract,
@@ -120,7 +121,7 @@ function riskRows(axes: readonly VariantAxis[]): readonly VariantRequiredRow[] {
         [ENVIRONMENT_AXIS.theme]: "custom-dark",
         [ENVIRONMENT_AXIS.colorScheme]: "light",
         "appearance.fontScale": appearanceArmValueId(axes, "fontScale", RISK_LARGE_FONT_SCALE),
-        "appearance.reducedMotion": appearanceArmValueId(axes, "reducedMotion", false),
+        "appearance.reducedMotion": appearanceArmValueId(axes, "reducedMotion", APP_REDUCED_MOTION_SYSTEM),
       },
     },
     {
@@ -129,7 +130,7 @@ function riskRows(axes: readonly VariantAxis[]): readonly VariantRequiredRow[] {
         [ENVIRONMENT_AXIS.theme]: "custom-light",
         [ENVIRONMENT_AXIS.colorScheme]: "dark",
         "appearance.fontScale": appearanceArmValueId(axes, "fontScale", RISK_LARGE_FONT_SCALE),
-        "appearance.reducedMotion": appearanceArmValueId(axes, "reducedMotion", false),
+        "appearance.reducedMotion": appearanceArmValueId(axes, "reducedMotion", APP_REDUCED_MOTION_SYSTEM),
       },
     },
   ];

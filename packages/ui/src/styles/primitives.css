@@ -54,7 +54,7 @@
    * (ui-package-design.md §4): grayscale antialiasing keeps macOS text thin on the dark themes, and no synthesised
    * bold or italic stands in for a face Geist does not ship. */
   :root {
-    font-size: calc(100% * var(--font-scale, 1));
+    font-size: calc(100% * var(--appearance-font-scale));
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-synthesis: none;
@@ -315,9 +315,14 @@
     [data-slot="media-grid-cell"]:hover::before {
       opacity: 1;
     }
+    /* Reduced motion, resolved as in motion-floor.css. */
+    :root[data-appearance-reduced-motion="on"] [data-slot="media-grid-cell"]::before,
+    :root[data-appearance-reduced-motion="on"] [data-slot="media-grid-cell"]:hover::before {
+      display: none;
+    }
     @variant motion-reduce {
-      [data-slot="media-grid-cell"]::before,
-      [data-slot="media-grid-cell"]:hover::before {
+      :root:not([data-appearance-reduced-motion="off"]) [data-slot="media-grid-cell"]::before,
+      :root:not([data-appearance-reduced-motion="off"]) [data-slot="media-grid-cell"]:hover::before {
         display: none;
       }
     }
@@ -360,13 +365,14 @@
     );
     animation: orb-skeleton-shimmer var(--motion-shimmer) linear infinite;
   }
+  /* Reduced motion, resolved as in motion-floor.css. */
+  :root[data-appearance-reduced-motion="on"] .orb-skeleton-shimmer::after {
+    display: none;
+  }
   @variant motion-reduce {
-    .orb-skeleton-shimmer::after {
+    :root:not([data-appearance-reduced-motion="off"]) .orb-skeleton-shimmer::after {
       display: none;
     }
-  }
-  [data-reduced-motion="true"] .orb-skeleton-shimmer::after {
-    display: none;
   }
 
   /* The typing dots pulse in turn; the reduced-motion floor freezes each at its resting, nonzero opacity. */
