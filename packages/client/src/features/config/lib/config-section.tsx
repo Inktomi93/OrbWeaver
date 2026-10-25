@@ -21,6 +21,7 @@
 // separately; standing here on a phone borrows a bar slot like every other overflow section (#484).
 
 import { Settings } from "@orb/ui/icons";
+import type { RefObject } from "react";
 import type { ConfigGroupRegistry, SectionDefinition, SectionSelection } from "#state";
 import { clearActiveConfigGroup, collectionMemberSelection, getActiveConfigGroup, subscribeConfigNav, worldEntrySelectionSeam } from "#state";
 import { ConfigContentSurface } from "../surfaces/config-content-surface.tsx";
@@ -81,6 +82,8 @@ function makeSelectionSeam(): SectionSelection {
 }
 
 export function makeConfigSection(groups: ConfigGroupRegistry): SectionDefinition {
+  const contentRef: RefObject<HTMLDivElement | null> = { current: null };
+  const preserveContentFocus = (): boolean => contentRef.current?.contains(document.activeElement) ?? false;
   return {
     id: "config",
     rail: { label: CONFIG_SECTION_LABEL, icon: Settings, group: "authoring", mobile: "sheet", zone: "rail.end" },
@@ -90,7 +93,7 @@ export function makeConfigSection(groups: ConfigGroupRegistry): SectionDefinitio
       title: CONFIG_SECTION_LABEL,
       description: "Everything you configure — your personas, appearance and chat behavior, the app's connections, and the libraries every chat is built from.",
     },
-    list: () => <ConfigListSurface groups={groups} />,
+    list: () => <ConfigListSurface groups={groups} preserveContentFocus={preserveContentFocus} />,
     // The band carries NO aggregate primary (C-2): create lives at the COLLECTION the reader is looking at,
     // whose accessible name is that collection's own `create.label`. A band-level "New ▾" would make the
     // user pick a KIND from a menu before reaching the library they already opened. The search rides the
@@ -104,7 +107,7 @@ export function makeConfigSection(groups: ConfigGroupRegistry): SectionDefinitio
     useListHeader: () => ({ title: CONFIG_SECTION_LABEL }),
     selection: makeSelectionSeam(),
     useSelectionTitle: (): string | null => useConfigSelectionTitle(groups),
-    content: () => <ConfigContentSurface groups={groups} />,
+    content: () => <ConfigContentSurface groups={groups} hostContentRef={contentRef} />,
     // The TEACHER (S3): the pane rides the #860 bracket as tabs over `ConfigContextState` — About ·
     // Applies · Learn, fed by the focused-setting seam. The band names what the pane answers (never the
     // neutral "Details"); the member arm carries each collection's own context contract forward.

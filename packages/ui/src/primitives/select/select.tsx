@@ -1,7 +1,7 @@
 import { Field as BaseField } from "@base-ui/react/field";
 import type { SelectPositionerProps, SelectRootProps } from "@base-ui/react/select";
 import { Select as BaseSelect } from "@base-ui/react/select";
-import type { CSSProperties, ReactElement, ReactNode } from "react";
+import type { CSSProperties, ReactElement, ReactNode, RefObject } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import type { VariantProps } from "tailwind-variants";
 import type { PortalContainer } from "#lib";
@@ -127,6 +127,8 @@ export interface SelectProps<Value = string, Multiple extends boolean = false> e
   // SelectItems<Value> is the renderer-owned flat/group option model; Base UI accepts broader record/collection inputs that this renderer does not implement. Ends when the seal stops rendering its own items.
   items: SelectItems<Value>;
   placeholder?: ReactNode;
+  /** The in-flow trigger, for focus return after a caller-owned dialog closes. */
+  triggerRef?: RefObject<HTMLButtonElement | null>;
   /** Applied to the trigger (the in-flow element). */
   className?: string;
   /**
@@ -184,6 +186,7 @@ export function Select<Value = string, Multiple extends boolean = false>(props: 
   const {
     items,
     placeholder,
+    triggerRef: externalTriggerRef,
     className,
     layout,
     strong,
@@ -258,7 +261,12 @@ export function Select<Value = string, Multiple extends boolean = false>(props: 
           // Aria props spread conditionally: mergeProps is rightmost-wins, so an explicit undefined
           // would beat the context-injected aria-labelledby from Field.Control.
           <BaseSelect.Trigger
-            ref={triggerRef}
+            ref={(node): void => {
+              triggerRef.current = node;
+              if (externalTriggerRef !== undefined) {
+                externalTriggerRef.current = node;
+              }
+            }}
             onPointerDownCapture={(event): void => opening.pointer(event.currentTarget, event.nativeEvent, uncontrolled)}
             onMouseDownCapture={(event): void => opening.mouse(event.currentTarget, event.nativeEvent, uncontrolled)}
             onKeyDownCapture={(event): void => opening.key(event.currentTarget, event.nativeEvent, uncontrolled)}

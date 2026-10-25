@@ -92,25 +92,6 @@ export interface MembersPanelProps extends MemberRowActions {
 
 const TYPEAHEAD_RESET_MS = 700;
 
-// The kick's confirm dialog tears down after the bus echo removes the row and tries to restore focus
-// to the now-unmounted trigger, dropping focus to <body>. A fixed-interval sweep covers the whole
-// teardown window, re-focusing only if focus actually fell to body/nowhere.
-const FOCUS_REASSERT_INTERVAL_MS = 200;
-const FOCUS_REASSERT_PASSES = 7;
-
-function focusWithReassert(el: HTMLElement): void {
-  el.focus();
-  const reassert = (): void => {
-    const active = globalThis.document.activeElement;
-    if ((active === null || active === globalThis.document.body) && el.isConnected) {
-      el.focus();
-    }
-  };
-  for (let pass = 1; pass <= FOCUS_REASSERT_PASSES; pass += 1) {
-    globalThis.setTimeout(reassert, pass * FOCUS_REASSERT_INTERVAL_MS);
-  }
-}
-
 type MembersRow = MemberPersonRow | MemberCharacterRow;
 
 /** The horizontal step, or 0 for any other key. (A `Record` keyed by the DOM key names would be the §5.5
@@ -248,6 +229,8 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
   };
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const pendingFocusRef = useRef<{ key: string; index: number; wasPerson: boolean } | null>(null);
+  const removalTargetRef = useRef<HTMLElement | null>(null);
+  const removalKeyRef = useRef<string | null>(null);
   const typeaheadRef = useRef<{ buffer: string; at: number }>({ buffer: "", at: 0 });
   // Each section's GROUP name is its own on-screen kicker (#208) — one string, so the announced name and
   // the printed word cannot drift.
@@ -307,21 +290,21 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
     }
     pendingFocusRef.current = null;
     if (pending.wasPerson && people.length === 0 && inviteRef.current !== null) {
-      focusWithReassert(inviteRef.current);
+      removalTargetRef.current = inviteRef.current;
+      inviteRef.current.focus();
       return;
     }
     const row = currentRows[Math.min(pending.index, currentRows.length - 1)];
     const el = row === undefined ? inviteRef.current : (rowRefs.current.get(row.key) ?? null);
-    if (row !== undefined) {
-      // eslint-disable-next-line react-you-might-not-need-an-effect/no-derived-state -- not derivable in render: this runs only once the removed row is CONFIRMED gone from the roster props (the bus echo), moving the roving-tabindex key to whatever took its place alongside the imperative focus restore.
-      setActiveKey(row.key);
-    }
     if (el !== null) {
-      focusWithReassert(el);
+      removalTargetRef.current = el;
+      el.focus();
     }
   }, [people, characters]);
 
   const onRequestRemovalFocus = (key: string): void => {
+    removalKeyRef.current = key;
+    removalTargetRef.current = rowRefs.current.get(key) ?? null;
     pendingFocusRef.current = {
       key,
       index: rows.findIndex((r) => r.key === key),
@@ -336,6 +319,11 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
       tabIndex={row.key === effectiveActiveKey ? 0 : -1}
       registerRef={registerRef}
       onRowFocus={setActiveKey}
+      removalFinalFocus={(): boolean => {
+        const target = removalKeyRef.current === row.key ? removalTargetRef.current : rowRefs.current.get(row.key);
+        target?.focus();
+        return false;
+      }}
       onRequestRemovalFocus={onRequestRemovalFocus}
       onKick={props.onKick}
       onNominateHost={props.onNominateHost}

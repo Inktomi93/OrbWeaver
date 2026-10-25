@@ -41,6 +41,8 @@ import type { AppearanceVocabulary } from "./ui-appearance.ts";
 import { appearanceNameRule } from "./ui-appearance.ts";
 import { floorlessControlRule, registerApiRule, registryContextRule, stateFilesRule, storeDerivedRule } from "./ui-composition.ts";
 import { customPropertyDeclaredRule } from "./ui-custom-properties.ts";
+import type { DomLookupHome } from "./ui-dom.ts";
+import { classListWriteRule, domLookupRule } from "./ui-dom.ts";
 import type { CandidatesToCss, ClassClassifier } from "./ui-feature-classname.ts";
 import { featureClassNameLayoutOnlyRule, noBuiltClassStringRule } from "./ui-feature-classname.ts";
 import { UI_FEATURE_RESTRICTIONS } from "./ui-feature-policy.ts";
@@ -65,6 +67,7 @@ export { authorClassIgnores } from "./css-classes.ts";
 export { baseUiDoors } from "./motion.ts";
 export { shellOwnedSlots } from "./shell-slots.ts";
 export { exportedLabels } from "./test-labels.ts";
+export { domLookupRule } from "./ui-dom.ts";
 export { classClassifier } from "./ui-feature-classname.ts";
 
 const LOCAL_RESTRICTIONS = [
@@ -117,6 +120,7 @@ export function createOrbPlugin(options: {
   customProperties: CustomPropertyUses;
   classifyClass: ClassClassifier;
   baseUiDoors: BaseUiDoors;
+  domLookupHomes: readonly DomLookupHome[];
 }): {
   rules: Record<string, OrbRule>;
 } {
@@ -138,6 +142,8 @@ export function createOrbPlugin(options: {
       "baseui-portal-container-seam": baseUiPortalContainerRule,
       "baseui-state-data-attributes": baseUiStateDataAttributesRule(options.baseUiDoors),
       "no-unruled-flip-inversion": unruledFlipInversionRule,
+      "no-dom-lookup-in-features": domLookupRule(options.domLookupHomes),
+      "no-class-list-write": classListWriteRule,
       "no-render-layout-read": noRenderLayoutReadRule,
       "no-sealed-library-internals": noSealedInternalsRule,
       "no-static-style-prop": noStaticStylePropRule,

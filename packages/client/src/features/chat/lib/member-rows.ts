@@ -59,6 +59,7 @@ export interface MemberRowFocusProps {
   readonly tabIndex: 0 | -1;
   readonly registerRef: (key: string, el: HTMLButtonElement | null) => void;
   readonly onRowFocus: (key: string) => void;
+  readonly removalFinalFocus: () => boolean;
 }
 
 /** Which of a person row's dialogs is open. A TUPLE (not an inline union) because the row shell and the

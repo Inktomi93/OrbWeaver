@@ -15,7 +15,7 @@
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { useSettingsViewerView } from "#data";
 import { useFocusOnMount } from "#lib";
 import type { ConfigGroupDefinition, ConfigGroupId, ConfigGroupRegistry } from "#state";
@@ -46,9 +46,10 @@ const NO_MODIFIED_SUBS: ReadonlySet<string> = new Set<string>();
 
 export interface ConfigListSurfaceProps {
   readonly groups: ConfigGroupRegistry;
+  readonly preserveContentFocus?: () => boolean;
 }
 
-export function ConfigListSurface({ groups }: ConfigListSurfaceProps): ReactElement {
+export function ConfigListSurface({ groups, preserveContentFocus }: ConfigListSurfaceProps): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   const bandRef = useRef<HTMLButtonElement>(null);
   // ARRIVAL FOCUS LANDS ON A CONTROL THE READER CAN SEE (#1218). This pane used to take the landing focus on
@@ -62,13 +63,13 @@ export function ConfigListSurface({ groups }: ConfigListSurfaceProps): ReactElem
   // A deep link that already put focus inside the CONTENT pane owns the landing (the persona Edit door focuses
   // its editor there, and a lazily-loaded LIST can mount after it): decided once at arrival, so the band
   // stands down instead of taking focus back.
-  const [focusLandedInContent] = useState(() => (globalThis.document.activeElement?.closest('[data-slot="config-content"]') ?? null) !== null);
-  useFocusOnMount(bandRef, !focusLandedInContent);
   // The ONE `when` projection (non-suspense — gating must never block a pane from painting), shared by the
   // group filter, the section filter and (S2) the search index.
   const viewer = useSettingsViewerView();
   const subcategoriesFor = useConfigSubcategoryParts();
   const activeGroup = useActiveConfigGroup();
+  // The arrival default attaches the band ref only after selecting its group.
+  useFocusOnMount(bandRef, activeGroup !== null, true, preserveContentFocus);
   const activeSub = useActiveConfigSub();
   // The failing sections' rows (§3): the aggregate footer is read-only, so the LOCATION of a failure is
   // carried by a marker on the section's own row (and its own inline retry at its anchor).

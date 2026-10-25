@@ -14,8 +14,10 @@ import type { CorpusWire } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
+import { MESSAGE_EDIT_NAME } from "#client/features/chat/lib/message-action-names.ts";
 import type { RowSkin } from "#client/features/chat/lib/message-row-variants.ts";
 import { MESSAGE_ROW_SKINS } from "#client/features/chat/lib/message-row-variants.ts";
+import { viewImageActionName } from "#client/lib/row-qualifiers.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const ROOM_STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
@@ -448,4 +450,63 @@ test("a message hidden from the model recedes to the receded step", async ({ cor
     opacity = Number(await computed(box, "opacity"));
   });
   expect(opacity).toBe(Number.parseFloat(TOKENS["opacity.receded"].value) / 100);
+});
+
+test("editing a row retains the owning content column footprint", async ({ corpus, mount, page }) => {
+  await openRoom(page, corpus, "flat", false);
+  await mount<typeof ChatRoomShellStory>(ROOM_STORY, roomStoryProps());
+  const row = page.locator(`${ROW}[data-role="assistant"]`).last();
+  const column = row.locator('[data-slot="message-content-column"]');
+  await row.locator(BUBBLE).first().hover();
+  const before = await column.boundingBox();
+  if (before === null) {
+    throw new Error("The rendered row has no content column");
+  }
+  await row.getByRole("button", { name: MESSAGE_EDIT_NAME, exact: true }).click();
+  const editor = row.getByRole("textbox", { name: MESSAGE_EDIT_NAME, exact: true });
+  await expect(editor).toBeFocused();
+  expect(Number.parseFloat(await computed(column, "min-inline-size"))).toBeCloseTo(before.width, 1);
+  expect(Number.parseFloat(await computed(column, "min-block-size"))).toBeCloseTo(before.height, 1);
+  await editor.press("Escape");
+  await expect(editor).toHaveCount(0);
+  await expect(row.locator(BUBBLE).first()).toBeVisible();
+});
+
+test("the gallery popup ref keeps a real portrait visible when the viewport shrinks", async ({ corpus, corpusMedia, mount, page }) => {
+  const capture = corpus.reads["chat.getChat"].find(({ output }) =>
+    output.participants.some((participant) => participant.kind === "character" && participant.avatarHash !== null),
+  );
+  if (capture === undefined) {
+    throw new Error("The corpus has no room with a pictured participant");
+  }
+  const caller = await root.internalCallerFor(root.ownerId);
+  const galleryRoom = await caller.chat.getChat({ chatId: capture.output.id });
+  const pictured = galleryRoom.participants.find((participant) => participant.kind === "character" && participant.avatarHash !== null);
+  if (pictured === undefined) {
+    throw new Error("The production room has no pictured participant");
+  }
+  await openRoom(page, corpus, "bubble", false);
+  await corpusMedia();
+  await mount<typeof ChatRoomShellStory>(ROOM_STORY, { chatId: galleryRoom.id });
+  const opener = page
+    .locator(ROW)
+    .getByRole("button", { name: viewImageActionName(pictured.displayName), exact: true })
+    .first();
+  await opener.click();
+  const dialog = page.getByRole("dialog");
+  const image = dialog.getByRole("img");
+  await expect(dialog.getByRole("button", { name: "Close", exact: true })).toBeFocused();
+  await expect(image).toBeVisible();
+  await expect.poll(() => image.evaluate((node: HTMLImageElement) => node.complete && node.naturalWidth > 0)).toBe(true);
+  const smallViewport = { ...VIEWPORT, height: 480 };
+  await page.setViewportSize(smallViewport);
+  await expect
+    .poll(async () => {
+      const box = await image.boundingBox();
+      return box !== null && box.y >= 0 && box.y + box.height <= smallViewport.height;
+    })
+    .toBe(true);
+  await dialog.getByRole("button", { name: "Close", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(opener).toBeFocused();
 });

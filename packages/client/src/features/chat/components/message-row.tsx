@@ -13,7 +13,7 @@ import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { Checkbox } from "@orb/ui/checkbox";
 import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import type { ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
 import { resolveRowRenderPolicy } from "#lib";
 import { appearanceMessageRegistryEnabled, registerAppearanceMessageSnapshot } from "#src/lib/appearance-message-registry.ts";
@@ -35,11 +35,12 @@ import { resolveMessageRenderContext } from "../lib/message-render-context.ts";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import { actionsRevealFor, gutterRailFor, headerShape, rowMirrored } from "../lib/row-placement.ts";
 import { toolBoundaryDisplayMessage } from "../lib/tool-prose.ts";
+import { MessageActionsRow } from "./message-actions-row.tsx";
 import type { MessageMetadataVisibility } from "./message-metadata-row.tsx";
 import { MessageMetadataRow } from "./message-metadata-row.tsx";
 import { artViewFor, renderRowAvatar } from "./message-row-avatar.tsx";
 import { renderContextBoundaryDivider } from "./message-row-divider.tsx";
-import { placeRowHeader, renderRowActions, renderRowNameRow } from "./message-row-header.tsx";
+import { placeRowHeader, renderRowNameRow } from "./message-row-header.tsx";
 import { MessageContentColumn, MessageRowBody, MessageRowRoot } from "./message-row-layout.tsx";
 import {
   renderRowBubble,
@@ -180,6 +181,7 @@ export function MessageRow({
   surfaceContributors,
   toolRenderers,
 }: MessageRowProps): ReactElement {
+  const columnRef = useRef<HTMLDivElement>(null);
   const arrival = useEnterMotion(enterMotion);
   const viewArt = useArtViewer();
   useEffect(() => {
@@ -332,17 +334,19 @@ export function MessageRow({
       shape: headerShape(skin, lastRow),
       // B7 — the picker's segment-target parse keys the SAME character-name set the span renderer uses
       // (`speakerThemesByName`'s keys); the actions row narrator-gates it against `message.kind` itself.
-      actions: renderRowActions({
-        editing,
-        selecting,
-        message,
-        messageActions: actionsRevealFor(skin, lastRow, messageActions),
-        greetingBound: greeting !== undefined,
-        viewerIsHost,
-        generationCredit,
-        characterNames: [...speakerThemes.keys()],
-        chip: skin.actionsRow.chip,
-      }),
+      actions:
+        editing || selecting ? null : (
+          <MessageActionsRow
+            columnRef={columnRef}
+            message={message}
+            messageActions={actionsRevealFor(skin, lastRow, messageActions)}
+            greetingBound={greeting !== undefined}
+            viewerIsHost={viewerIsHost}
+            generationCredit={generationCredit}
+            characterNames={[...speakerThemes.keys()]}
+            chip={skin.actionsRow.chip}
+          />
+        ),
     }),
     skin.headerPlacement,
   );
@@ -380,7 +384,7 @@ export function MessageRow({
               the instant the reader clicked Edit, and in `flat` it slid 42px sideways as well. The
               suppression is kept; what it vacates is reserved. `minInlineSize` (not a fixed size) so a
               longer draft can still grow the box out to the column's own cap. */}
-          <MessageContentColumn skin={skin} mirrored={mirrored} style={resolveColumnStyle(reservedInlineSize, reservedBlockSize)}>
+          <MessageContentColumn ref={columnRef} skin={skin} mirrored={mirrored} style={resolveColumnStyle(reservedInlineSize, reservedBlockSize)}>
             {themedColumnContent(
               attribution.tokens,
               <>

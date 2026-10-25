@@ -10,7 +10,7 @@
 // unchanged — `#lib` became `#state`.
 
 import type { LucideIcon } from "@orb/ui/icons";
-import type { ReactNode } from "react";
+import type { ReactNode, RefObject } from "react";
 import type { SectionId } from "./section-ids.ts";
 
 /** WHERE on home a tile lands — a CLOSED axis (§5.5: one importable union), so an unlisted region is
@@ -125,4 +125,7 @@ interface HomeTileContributionBase {
 
 /** A dormant doorway has no controls; building its body replaces that arm in the same edit. */
 export type HomeTileContribution = HomeTileContributionBase &
-  ({ readonly body: () => ReactNode; readonly action?: ReactNode } | { readonly body: { readonly dormant: DormantDoorway }; readonly action?: never });
+  (
+    | { readonly body: (props: { readonly gridRef: RefObject<HTMLDivElement | null> }) => ReactNode; readonly action?: ReactNode }
+    | { readonly body: { readonly dormant: DormantDoorway }; readonly action?: never }
+  );

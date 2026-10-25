@@ -71,6 +71,10 @@ const THEME_SIGNAL_READERS: Record<ThemeObservableRead, (element: HTMLElement, s
   "text-content": (element) => clipCapturedText(element.textContent),
 };
 
+function readObservableElement(selector: string): HTMLElement | null {
+  return document.querySelector<HTMLElement>(selector);
+}
+
 /** Every DOM-observable appearance and theme carrier, read off the live document. DERIVED from the carrier
  *  manifest rather than hand-listed: a new axis appears in a bug report the moment it is declared, which is
  *  the whole reason that manifest is the one home. `message-prop` carriers are skipped — they are per-message
@@ -83,7 +87,7 @@ function readAppearanceCarriers(): Pick<BugReportEnvironment, "appearance" | "ap
     if (observable.kind === "message-prop") {
       continue;
     }
-    const element = document.querySelector<HTMLElement>(observable.selector);
+    const element = readObservableElement(observable.selector);
     if (element === null) {
       absent.push(key);
       continue;
@@ -91,7 +95,7 @@ function readAppearanceCarriers(): Pick<BugReportEnvironment, "appearance" | "ap
     appearance[key] = observable.kind === "attribute" ? element.getAttribute(observable.signal) : element.style.getPropertyValue(observable.signal);
   }
   for (const [key, observable] of Object.entries(THEME_CARRIER_OBSERVABLES)) {
-    const element = document.querySelector<HTMLElement>(observable.selector);
+    const element = readObservableElement(observable.selector);
     if (element === null) {
       absent.push(key);
       continue;

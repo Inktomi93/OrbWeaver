@@ -291,7 +291,7 @@ export function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing 
       <Row gap="field" justify="start">
         {/* THE ACTION NAMES ITS PLUGIN: several of these notices can share a screen, and an unnamed
             "Approve all" is how one plugin's permissions were granted to another. */}
-        <Button intent="primary" loading={allowing} onClick={(): void => onAllow(plugin.declaredCapabilities)} size="sm">
+        <Button intent="secondary" loading={allowing} onClick={(): void => onAllow(plugin.declaredCapabilities)} size="sm">
           {approveLabel(plugin.name, plugin.declaredCapabilities.length)}
         </Button>
         <ConfirmDialog
@@ -300,8 +300,8 @@ export function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing 
           onConfirm={onRemove}
           title={`Remove "${plugin.name}"?`}
           trigger={
-            // Outlined, not filled: Remove is the escape beside the one decision, so it must weigh less than Approve.
-            <Button intent="secondary" loading={removing} size="sm">
+            // Removal stays quieter than approval without adding another page-level primary.
+            <Button intent="ghost" loading={removing} size="sm">
               Remove {plugin.name}
             </Button>
           }

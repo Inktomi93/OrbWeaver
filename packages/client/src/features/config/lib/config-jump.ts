@@ -49,7 +49,9 @@ function beginProgrammaticScroll(contentRef: RefObject<HTMLDivElement | null>, s
     }
   };
   container?.addEventListener("scroll", onScroll, { passive: true });
-  container?.addEventListener("scrollend", onScrollEnd);
+  if (container !== null && "onscrollend" in container) {
+    container.addEventListener("scrollend", onScrollEnd);
+  }
   refreshFallback();
   return rearm;
 }

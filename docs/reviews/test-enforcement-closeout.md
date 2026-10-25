@@ -7,7 +7,7 @@
 | Fixed responder factory | `eslint-ct-responder.test.ts`: fixed factory refusal and request-aware factory admission | Native rule inspects locally declared factory returns. |
 | Named function | Same suite: unused parameter refusal and input-reading function admission | Native rule inspects the declaration. |
 | Comma expression | Same suite: discarded input refusal and retained input admission | Discarded operands do not count as reads. |
-| Dead alias | Same suite: unused alias refusal and returned alias admission | Alias references must reach an observation. |
+| Dead alias and composed initializer | Same suite: unused direct, array, unary, nested-object and binary initializer refusal; returned and helper-observed composition admission | Immediate value composition follows its binding to an observation. |
 | Computed route key | Same suite: computed typed key refusal and input-reading admission | Shared static-key resolution identifies the procedure. |
 | Typed wrapper | Same suite: untyped map refusal and request-aware map admission | Native call signatures identify route-map parameters. |
 | Hoisted label | `eslint-test-authoring.test.ts`: local constant refusal and production import admission | Shared static-value resolution follows local bindings. |
@@ -52,6 +52,37 @@ The native reports are `/tmp/test-closeout-final-ct-report.json` and `/tmp/test-
 `pnpm typecheck tsconfig.tests-dom.json` passes after the final caller, native spawn and structured-binding corrections. Scoped ESLint passes on those corrected specs.
 
 The tooling suite passes its refusal and admission controls. The unchanged-source red run exposes every enumerated syntax gap; no baseline is added.
+
+## Local value-use controls
+
+The [native classification](../../tooling/src/eslint/test-routes.ts) owns the supported syntax. The responder suite qualifies each container with discarded-expression, unused-binding, returned-binding and helper-observed controls. Type assertion, generic instantiation and JSX cases qualify parser handling, not wire-valid product outputs.
+
+| Syntax role | Disposition |
+| - | - |
+| Members, computed and optional access, TypeScript value wrappers, collections, properties, spreads, templates, binary expressions, await and JSX value containers | Follow the constructed value to its binding or outer observation. |
+| Logical expressions and conditional result branches | Follow the result. A predicate also observes an immediate effect in its dependent branch. |
+| Branch effect search | Inspect explicit calls, construction, import, yield and mutation. Exclude nested function and class bodies. |
+| Sequence | Follow only the final value; earlier pure operands are discarded. |
+| Unary value operation, `void`, `delete` | Follow value operations; discard `void` values; observe deletion. |
+| Local destructuring and default values | Follow the declared variables through their existing references. |
+| Return, throw, control tests, switch discriminants and iteration inputs | Observe the value within an observed function. |
+| `for` initializer and update | Discard pure values; retain explicit effects or live declarations. Only the test is a control observation. |
+| Local closure | The root responder is observed. A nested function must reach a supported local binding, name reference or observation. |
+| Call, construction, tagged template, dynamic import, yield and mutation | Treat the value as syntactically observed; do not inspect arbitrary helper implementations. |
+| Unsupported parent | Do not infer observation. The route receives the existing fixed-responder finding when no supported read exists. |
+
+Native evidence:
+
+- `/tmp/test-closeout-dead-read-red.log`: unused array, unary, nested-object and binary initializer controls fail the unchanged rule.
+- `/tmp/test-closeout-value-surface-red.log`: the immediate-surface table exposes omitted logical, conditional, await, instantiation, JSX and loop-role cases.
+- `/tmp/test-closeout-deferred-red.log`: unused arrow, function-expression, function-declaration and effectful-closure controls fail before root-aware propagation. Its positive controls pass.
+- `/tmp/test-closeout-value-surface-green.log`: `pnpm test:tools tests/tooling/eslint-ct-responder.test.ts` passes the complete focused table and retained controls.
+- `/tmp/test-closeout-value-surface-biome.log` and `/tmp/test-closeout-value-surface-eslint.log`: scoped native checks pass.
+- `/tmp/test-closeout-value-surface-typecheck.log`: `pnpm typecheck tooling/tsconfig.json` passes for the final source.
+
+Local reference tracking has a cycle guard. It does not establish that an imported helper executes a callback, that a call uses its arguments, or that every admitted read changes the response. Class execution and arbitrary higher-order or cross-module dataflow remain outside this syntactic rule.
+
+Product and CT behavior are unchanged, so their completed rendered results remain applicable.
 
 ## Limits
 

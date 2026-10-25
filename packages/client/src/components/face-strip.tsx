@@ -61,7 +61,7 @@ import { cn } from "@orb/ui/lib";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement, ReactNode, Ref } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
 import type { FoldState } from "./face-strip-fold.ts";
 import { cellWidthClass, foldFaces, sameFold, tileName } from "./face-strip-fold.ts";
@@ -139,7 +139,6 @@ export interface FaceStripProps {
 }
 
 const FACE_KEY_ATTR = "data-face-key";
-const OVERFLOW_ATTR = "data-face-overflow";
 /** A squeezed face is rendered NARROWER than it wants to be — measuring it would poison the cache with the
  *  width the fold itself imposed, and the next fold would then "discover" that it fits unaided. */
 const SQUEEZED_ATTR = "data-face-squeezed";
@@ -156,8 +155,11 @@ function hoistSelected(items: readonly FaceStripItem[], selectedId: string | nul
 }
 
 /** Cache the width of every face the row is currently rendering (a squeezed one lies — see `SQUEEZED_ATTR`). */
-function readFaceWidths(row: HTMLElement, cache: Map<string, number>): void {
-  for (const face of row.querySelectorAll<HTMLElement>(`[${FACE_KEY_ATTR}]:not([${SQUEEZED_ATTR}])`)) {
+function readFaceWidths(faces: ReadonlyMap<string, HTMLButtonElement>, cache: Map<string, number>): void {
+  for (const face of faces.values()) {
+    if (face.hasAttribute(SQUEEZED_ATTR)) {
+      continue;
+    }
     const key = face.getAttribute(FACE_KEY_ATTR);
     if (key !== null) {
       cache.set(key, face.getBoundingClientRect().width);
@@ -196,6 +198,7 @@ function computeFold({ row, items, selectedId, cache, tileWidth }: FoldMeasureme
 }
 
 interface FaceButtonProps {
+  readonly ref: Ref<HTMLButtonElement>;
   readonly item: FaceStripItem;
   readonly selected: boolean;
   readonly verb: string;
@@ -206,9 +209,10 @@ interface FaceButtonProps {
   readonly onSelect: (id: string) => void;
 }
 
-function FaceButton({ item, selected, verb, caption, squeezed, selectMode, onSelect }: FaceButtonProps): ReactElement {
+function FaceButton({ ref, item, selected, verb, caption, squeezed, selectMode, onSelect }: FaceButtonProps): ReactElement {
   return (
     <Button
+      ref={ref}
       // ONE state attribute, chosen by what the tap DOES (see `selectMode`) — never both: a control that is
       // simultaneously `aria-current` and `aria-pressed` states its one fact twice, in two vocabularies.
       {...(selectMode === "toggle" ? { "aria-pressed": selected } : { "aria-current": selected ? ("true" as const) : undefined })}
@@ -335,6 +339,8 @@ export function FaceStrip({
   pending = false,
 }: FaceStripProps): ReactElement | null {
   const rowRef = useRef<HTMLUListElement>(null);
+  const facesRef = useRef(new Map<string, HTMLButtonElement>());
+  const overflowRef = useRef<HTMLButtonElement>(null);
   const widthsRef = useRef<Map<string, number>>(new Map());
   const tileWidthRef = useRef<number | null>(null);
   const [fold, setFold] = useState<FoldState | null>(null);
@@ -350,8 +356,8 @@ export function FaceStrip({
       return;
     }
     const apply = (): void => {
-      readFaceWidths(row, widthsRef.current);
-      const tile = row.querySelector<HTMLElement>(`[${OVERFLOW_ATTR}]`);
+      readFaceWidths(facesRef.current, widthsRef.current);
+      const tile = overflowRef.current;
       if (tile !== null) {
         tileWidthRef.current = tile.getBoundingClientRect().width;
       }
@@ -394,6 +400,14 @@ export function FaceStrip({
       {shown.map((item) => (
         <li key={item.id}>
           <FaceButton
+            ref={(node): void => {
+              const key = faceKey(item);
+              if (node === null) {
+                facesRef.current.delete(key);
+              } else {
+                facesRef.current.set(key, node);
+              }
+            }}
             caption={caption}
             item={item}
             onSelect={onSelect}
@@ -416,6 +430,7 @@ export function FaceStrip({
                   aria-label={tileName(caption, overflow.label, hiddenCount)}
                   className={cn("shrink-0", cellWidthClass(caption)) ?? ""}
                   data-face-overflow=""
+                  ref={overflowRef}
                   intent="ghost"
                   size="icon"
                 >

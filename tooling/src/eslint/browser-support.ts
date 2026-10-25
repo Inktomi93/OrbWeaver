@@ -4,6 +4,7 @@ import type { TSESTree } from "@typescript-eslint/utils";
 import ts from "typescript";
 import type { ConstantText } from "./browser-support-classes.ts";
 import { classSupportVisitor } from "./browser-support-classes.ts";
+import { accessedName, staticTextValue } from "./static-values.ts";
 import type { OrbRule, OrbRuleContext, Source } from "./syntax.ts";
 import type { CandidatesToCss } from "./ui-feature-classname.ts";
 
@@ -25,6 +26,7 @@ interface SupportIndex {
   readonly constructors: Map<string, Lacking>;
   /** member name → declaring interface → lacking browsers. */
   readonly members: Map<string, Map<string, Lacking>>;
+  readonly events: Map<string, Map<string, Lacking>>;
 }
 
 /** `api.Owner[.member]` and `javascript.builtins.Owner[.member]` as owner/member names; anything else (parameters, events) is not a use. */
@@ -32,11 +34,13 @@ function ownerAndMember(key: string): [string, string | undefined] | null {
   const prefix = [API, JS_BUILTINS].find((candidate) => key.startsWith(candidate)) ?? key;
   const parts = key.slice(prefix.length).split(".");
   const [owner, member] = parts;
-  return owner !== undefined && parts.length <= 2 && parts.every((part) => NAME.test(part)) ? [owner, member] : null;
+  return owner !== undefined && parts.length <= 2 && parts.every((part) => NAME.test(part) || /^[A-Za-z][A-Za-z0-9]*_event$/u.test(part))
+    ? [owner, member]
+    : null;
 }
 
 function indexUnsupported(unsupported: ReadonlyMap<string, Lacking>): SupportIndex {
-  const index: SupportIndex = { globals: new Map(), constructors: new Map(), members: new Map() };
+  const index: SupportIndex = { globals: new Map(), constructors: new Map(), members: new Map(), events: new Map() };
   const memberKeys: [string, string, Lacking][] = [];
   for (const [key, lacking] of unsupported) {
     const [owner, member] = ownerAndMember(key) ?? [];
@@ -47,18 +51,59 @@ function indexUnsupported(unsupported: ReadonlyMap<string, Lacking>): SupportInd
       index.globals.set(owner, lacking);
     } else if (member === owner) {
       index.constructors.set(owner, lacking);
+    } else if (member.endsWith("_event")) {
+      const event = member.slice(0, -"_event".length);
+      index.events.set(event, (index.events.get(event) ?? new Map()).set(owner, lacking));
     } else {
       memberKeys.push([owner, member, lacking]);
     }
   }
-  for (const [owner, member, lacking] of memberKeys) {
-    // An instance of an owner the browser lacks outright can only come from a path this rule already refuses (or an app-made stand-in).
+  indexMembers(index, memberKeys);
+  return index;
+}
+
+function indexMembers(index: SupportIndex, keys: readonly [string, string, Lacking][]): void {
+  for (const [owner, member, lacking] of keys) {
     const ownerGap = index.globals.get(owner);
     if (ownerGap === undefined || !lacking.every((browser) => ownerGap.includes(browser))) {
       index.members.set(member, (index.members.get(member) ?? new Map()).set(owner, lacking));
     }
   }
-  return index;
+}
+
+function hasOwner(candidate: ts.Type, owner: string): boolean {
+  if (candidate.getSymbol()?.name === owner) {
+    return true;
+  }
+  if (candidate.isUnionOrIntersection()) {
+    return candidate.types.some((type) => hasOwner(type, owner));
+  }
+  return candidate.isClassOrInterface() && (candidate.getBaseTypes() ?? []).some((base) => hasOwner(base, owner));
+}
+
+function hasEventOwner(type: ts.Type, owner: string, event: string): boolean {
+  if (hasOwner(type, owner)) {
+    return true;
+  }
+  // Shared DOM event handlers also expose Document/Element events on Window and their other native targets.
+  return (owner === "Document" || owner === "Element") && hasOwner(type, "EventTarget") && type.getProperty(`on${event}`) !== undefined;
+}
+
+function listenedEvent(context: OrbRuleContext, call: TSESTree.CallExpression): { readonly receiver: TSESTree.Expression; readonly event: string } | undefined {
+  if (call.callee.type !== "MemberExpression" || accessedName(context, call.callee) !== "addEventListener") {
+    return undefined;
+  }
+  const argument = call.arguments[0];
+  const event = argument === undefined ? undefined : staticTextValue(context, argument);
+  return typeof event === "string" ? { receiver: call.callee.object, event } : undefined;
+}
+
+function receiverType(context: OrbRuleContext, receiver: TSESTree.Node): ts.Type | undefined {
+  const services = context.sourceCode.parserServices;
+  if (!services?.program || services.esTreeNodeToTSNodeMap === undefined) {
+    return undefined;
+  }
+  return services.program.getTypeChecker().getTypeAtLocation(services.esTreeNodeToTSNodeMap.get(receiver));
 }
 
 function declaringInterface(symbol: ts.Symbol): string | undefined {
@@ -246,7 +291,30 @@ export const browserSupportRule = ({ unsupported, harmless, candidatesToCss }: B
           judge(node, `${owner}.${name}`, lacking, new RegExp(String.raw`["']${name}["']\s+in\s+${receiver}\b|${receiver}\??\.${name}\b`, "u"));
         }
       };
+      const checkEvent = (call: TSESTree.CallExpression): void => {
+        const listened = listenedEvent(context, call);
+        if (listened === undefined) {
+          return;
+        }
+        const { event, receiver } = listened;
+        const owners = index.events.get(event);
+        if (owners === undefined) {
+          return;
+        }
+        const type = receiverType(context, receiver);
+        if (type === undefined) {
+          return;
+        }
+        const missing = [...owners].find(([candidateOwner]) => hasEventOwner(type, candidateOwner, event));
+        if (missing === undefined) {
+          return;
+        }
+        const [owner, lacking] = missing;
+        const text = regexpSource(sourceCode.getText(receiver));
+        judge(call, `${owner}.${event}_event`, lacking, new RegExp(String.raw`["']on${event}["']\s+in\s+${text}\b|${text}\??\.on${event}\b`, "u"));
+      };
       return {
+        CallExpression: checkEvent,
         ...classSupportVisitor(cssIndex, candidatesToCss, constantTextOf(context), (node, what, lacking) => {
           refuse(node, what, lacking);
         }),

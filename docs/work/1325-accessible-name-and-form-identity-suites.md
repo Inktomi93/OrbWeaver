@@ -33,8 +33,10 @@ Suites, all under `tests/client/features/app-shell/` and run with `pnpm test:ct 
 
 Fixes the suites forced: one `useFieldIdentity` hook in `packages/ui/src/primitives/field` supplies `id` and `name` to every field primitive, and a control inside a `Field` mints a name only when neither the Field nor the control has one, and a name the caller gave is never replaced (the form suite reads the submitted `FormData` keys); the slider thumb carries the touch-target pseudo; the shelf face, notification Dismiss and prompt-form names follow N2 and N5; every other unnamed form takes its name from the `form-aria-label` codemod and the prompt form from its dialog title.
 
-Open:
+Loaded-state acceptance:
 
-- Forms in dialogs and auth states outside the registries are not mounted by the name suite. The pending-join form is checked in `tests/client/features/auth/components/login-pending-join.ct.tsx`; a native lint rule for an unnamed `<form>` would cover the rest.
-- `settings.getAppSettingsWithOverrides`, `settings.getVersion` and `preset.get` stay pending in the surface harness, so the loaded admin, About and preset-detail states are not audited.
-- The corpus has no `serveCorpusProcedures`; the harness routes `createShellAmbientReads` plus exact-input corpus responders, declaring every extra request input a surface issues, so an undeclared request fails (`tests/client/features/app-shell/_surface-harness.ts`).
+- The name suite waits for the loaded Admin field, the actual server build identity and the opened preset's heading before auditing. The form suite also audits loaded preset detail.
+- [The surface harness](../../tests/client/features/app-shell/_surface-harness.ts) combines exact-input captured reads with `serveCorpusProcedures`. Version and preset reads come from the actual corpus root; Admin settings use the captured first-boot production answer. An undeclared procedure still fails.
+- Native ESLint guards unnamed forms and empty ARIA names. [The follow-up](1339-a11y-suite-gaps-after-1325.md) names their static controls.
+
+Scope remains bounded: signed-out authentication, payload-dependent dialogs and loaded corpus-indexing states outside these mounts are not covered by the registry roster alone. [Rendered closeout](../reviews/rendered-closeout.md) records current commands, artifacts and verification status.
