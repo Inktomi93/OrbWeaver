@@ -1,0 +1,14 @@
+@layer appearance {
+  .a {
+    backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
+  }
+  .b {
+    backdrop-filter: blur(calc(var(--blur-strength) / 2));
+  }
+  .c {
+    font-size: calc(var(--text-body) * var(--reading-body-scale, 1));
+    line-height: var(--reading-line-height);
+    letter-spacing: var(--reading-letter-spacing);
+    margin-block-start: min(var(--reading-paragraph-spacing), 2rem);
+  }
+}

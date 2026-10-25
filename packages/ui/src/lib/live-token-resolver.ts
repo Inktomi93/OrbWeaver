@@ -143,21 +143,16 @@ export function resolveCssColor(cssVar: string, fallback: string): string {
  * The list is deliberately NOT a per-consumer parameter. "Which attributes move a token" is a property of
  * the CASCADE, not of who is reading it, so a consumer that watched a narrower set would simply be wrong.
  *
- * THE AUDIT, against every root attribute the shell writes
- * (`client/features/app-shell/hooks/use-appearance-root-effects.ts` + the pre-mount replay in
- * `state/appearance-boot-hint.ts`) — the unwatched ones are unwatched because they provably cannot move a
- * token, not because nobody checked:
+ * THE AUDIT, against every root attribute the shell writes (the client appearance channel,
+ * `client/src/lib/appearance-carrier-manifest.ts`, written by its root effects and the pre-mount replay):
  *   • `data-theme` — WATCHED. The generated `[data-theme="…"]` blocks (`styles/theme.css`) redeclare the
  *     whole `--color-*` set at root scope.
- *   • `data-theme-colorization` — WATCHED (#503). `html[data-theme-colorization]` redeclares
- *     `--color-border` / `--color-sidebar-border` (`client/src/styles/globals.css`).
- *   • `data-blur-{panels,composer,messages,modals}` · `data-shadow` · `data-texture` ·
- *     `data-justify-body-text` · `data-reduced-motion` — every rule keyed on these is a DESCENDANT
- *     selector applying a paint/layout/motion property (`backdrop-filter`, `box-shadow`,
- *     `background-image`, `text-align`, `animation-duration`) to a non-root element. None declares a
- *     custom property, so no resolved token moves.
- *   • the root `style` attribute — carries `--font-scale`, `--blur-strength` and the `--reading-*` vars:
- *     numbers and lengths, never a colour or a font-family token.
+ *   • `data-appearance-enable-theme-colorization` — WATCHED. Its `true` variant redeclares `--color-border` /
+ *     `--color-sidebar-border` (`client/src/styles/globals.css`).
+ *   • every other `data-appearance-*` attribute — each rule keyed on one applies a paint, layout or motion
+ *     property to a non-root element, or a glass fill knob; none moves a colour or font token.
+ *   • the root `style` attribute — carries the registered `--appearance-*` numbers, never a colour or a
+ *     font-family token.
  *   • `class` — nothing writes a class onto `<html>`; the Tailwind `dark` variant is `[data-theme]`-keyed.
  *
  * THIS LIST IS NOT THE WHOLE OBSERVER, and never could be (#504): a CUSTOM theme moves no root attribute
@@ -171,7 +166,7 @@ export function resolveCssColor(cssVar: string, fallback: string): string {
  *   3. `document.head` child mutations — the injected custom-theme stylesheet appearing, changing or
  *      being removed, which is a token move that touches no element in the chain at all.
  */
-const TOKEN_MOVING_ROOT_ATTRIBUTES: readonly string[] = ["data-theme", "data-theme-colorization"];
+const TOKEN_MOVING_ROOT_ATTRIBUTES: readonly string[] = ["data-theme", "data-appearance-enable-theme-colorization"];
 
 export interface LiveTokenStore<T> {
   readonly subscribe: (onChange: () => void) => () => void;

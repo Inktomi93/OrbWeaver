@@ -181,7 +181,7 @@ function result(checks: ReturnType<typeof buildAppearanceInvariantChecks>, id: s
 describe("#953 literal appearance semantic checks", () => {
   test("R4 consumes the live MessageRow registry and the content region rather than count-only DOM stand-ins", () => {
     const clean = snapshot([
-      subject("html", facts({ style: { ...BASE_STYLE, "--font-scale": "1.25" } })),
+      subject("html", facts({ style: { ...BASE_STYLE, "--appearance-font-scale": "1.25" } })),
       subject("common-scope", facts({ attributes: { "data-density": "compact" } })),
       subject("grid", facts({ rect: { left: 0, top: 0, right: 430, bottom: 932, width: 430, height: 932 } })),
       subject("main", facts({ rect: { left: 0, top: 0, right: 430, bottom: 932, width: 430, height: 932 } })),

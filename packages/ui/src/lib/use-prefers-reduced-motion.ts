@@ -1,5 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { MEDIA_QUERIES } from "#tokens";
+import type { ReducedMotionRoot } from "./reduced-motion-now.ts";
+import { APP_REDUCED_MOTION_ATTRIBUTE, resolveReducedMotion } from "./reduced-motion-now.ts";
 
 // The ONE matchMedia + useSyncExternalStore reduced-motion hook for non-CSS motion paths (ECharts
 // canvas timers, the smooth-text rAF pacer, Streamdown's per-block fade) that the globals.css
@@ -12,11 +14,10 @@ interface ReducedMotionQuery {
   readonly removeEventListener: (type: "change", listener: () => void) => void;
 }
 interface ReducedMotionDocument {
-  readonly documentElement?: unknown;
-  readonly querySelector: (selector: string) => unknown;
+  readonly documentElement?: ReducedMotionRoot;
 }
 interface ReducedMotionObserver {
-  readonly observe: (target: unknown, options: { readonly attributes: true; readonly subtree: true; readonly attributeFilter: readonly string[] }) => void;
+  readonly observe: (target: unknown, options: { readonly attributes: true; readonly attributeFilter: readonly string[] }) => void;
   readonly disconnect: () => void;
 }
 interface ReducedMotionObserverConstructor {
@@ -34,7 +35,7 @@ function subscribeReducedMotion(onChange: () => void): () => void {
   reducedMotionQuery?.addEventListener("change", onChange);
   const root = reducedMotionDocument?.documentElement;
   const observer = root !== undefined && ReducedMotionObserver !== undefined ? new ReducedMotionObserver(onChange) : null;
-  observer?.observe(root, { attributes: true, subtree: true, attributeFilter: ["data-reduced-motion"] });
+  observer?.observe(root, { attributes: true, attributeFilter: [APP_REDUCED_MOTION_ATTRIBUTE] });
   return (): void => {
     reducedMotionQuery?.removeEventListener("change", onChange);
     observer?.disconnect();
@@ -42,11 +43,10 @@ function subscribeReducedMotion(onChange: () => void): () => void {
 }
 
 function getReducedMotionSnapshot(): boolean {
-  const appPreference = reducedMotionDocument?.querySelector('[data-reduced-motion="true"]');
-  return (reducedMotionQuery === null ? false : reducedMotionQuery.matches) || (appPreference !== null && appPreference !== undefined);
+  return resolveReducedMotion(reducedMotionDocument?.documentElement, reducedMotionQuery?.matches ?? false);
 }
 
-/** Live OS OR app reduced-motion state, kept in sync via `useSyncExternalStore`. */
+/** The live resolved reduced-motion state (the app's setting over the OS query), kept in sync via `useSyncExternalStore`. */
 export function usePrefersReducedMotion(): boolean {
   return useSyncExternalStore(subscribeReducedMotion, getReducedMotionSnapshot);
 }

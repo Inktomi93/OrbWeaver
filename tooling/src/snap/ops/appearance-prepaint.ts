@@ -23,9 +23,8 @@ export function evaluateAppearancePrepaint(evidence: AppearancePrepaintEvidence,
   const beforeReady = evidence.samples.slice(0, readyIndex === -1 ? evidence.samples.length : readyIndex);
   const prepaintSample = beforeReady.filter((entry) => entry.phase === "mutation").at(-1);
   const hydratedTheme = hydrated?.dataTheme ?? null;
-  // The boot replay stamps only the non-default reduced arm. Absence before React is therefore the
-  // authoritative full-motion value, while hydration spells the same value `false` for CSS selectors.
-  const prepaintReducedMotion = prepaintSample?.reducedMotion ?? "false";
+  // The boot replay writes the reduced-motion attribute on every boot, so the pre-React sample must equal hydration.
+  const prepaintReducedMotion = prepaintSample?.reducedMotion ?? null;
   const contradictoryThemeSample = evidence.samples.some((entry) => entry.dataTheme !== null && entry.dataTheme !== hydratedTheme);
   const lateThemeSwap = readyIndex !== -1 && evidence.samples.slice(readyIndex).some((entry) => entry.dataTheme !== hydratedTheme);
   const continuous =

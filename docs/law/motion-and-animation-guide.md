@@ -347,9 +347,10 @@ in order.
 
 9. **`prefers-reduced-motion` is REMOVE, not shorten.** Parallax, auto-playing motion, and
    large-scale transforms are removed outright, not sped up. The CSS floor does this
-   (`animation-duration: 0.01ms !important` + `transition-property: none !important`, OS `@media` +
-   shell-stamped `[data-reduced-motion="true"]`, both unlayered — `ui/src/styles/globals.css`);
-   the JS hook `usePrefersReducedMotion` degrades `useSmoothText` to full passthrough. New
+   (`animation-duration: 0.01ms !important` + `transition-property: none !important`, in the last cascade
+   layer, `ui/src/styles/motion-floor.css`). It keys on the resolved state of the app's `system | on | off`
+   setting (`data-appearance-reduced-motion` on the root): `on` always, the OS query unless `off`. The JS hook `usePrefersReducedMotion` resolves the same way and
+   degrades `useSmoothText` to full passthrough. New
    motion replicates this — no "reduced but still animated" middle ground. **Transitions are
    REMOVED, so `transitionend` never fires under reduced motion** — any component that unmounts
    or cleans up on that event owes an explicit reduced-motion case (`CrossfadeImage`, `WeaveVeil`,

@@ -18,6 +18,7 @@
       "!packages/ui/src/tokens/themes.gen.ts",
       "!packages/ui/src/styles/theme.css",
       "!packages/client/owner-css-surface.ts",
+      "!packages/client/src/styles/appearance-channel.gen.css",
       "!tooling/src/snap/lib/devtools-frontend",
       "!tooling/src/codemods/*/tests*",
       "!**/node_modules",
@@ -2153,7 +2154,12 @@
       }
     },
     {
-      "includes": ["packages/client/vite.config.ts", "packages/client/native-typecheck.config.ts", "packages/client/owner-css-surface.build.ts"],
+      "includes": [
+        "packages/client/vite.config.ts",
+        "packages/client/native-typecheck.config.ts",
+        "packages/client/owner-css-surface.build.ts",
+        "packages/client/appearance-channel.build.ts"
+      ],
       "linter": {
         "rules": {
           "correctness": {

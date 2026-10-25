@@ -92,7 +92,8 @@ async function applicationMotionEvidence(session: ProbeSession, opts: Args): Pro
     const row = contract.rows.find((candidate) => candidate.key === "reducedMotion");
     const requested = opts.appearance !== null && Object.hasOwn(opts.appearance, "reducedMotion") ? opts.appearance["reducedMotion"] : null;
     return {
-      requested: typeof requested === "boolean" ? requested : null,
+      // A boolean is the two-way setting's spelling, which the schema still reads forward (`true` is `on`).
+      requested: requested === null ? null : requested === true || requested === "on",
       applied: session.contexts[0]?.settingsEvidence.appearanceApplied ?? null,
       reached: row?.reached ?? 0,
       samples: row?.samples ?? [],

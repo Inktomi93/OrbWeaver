@@ -1,0 +1,25 @@
+@layer appearance {
+  @variant shell-desktop {
+    @variant appearance-blur-surfaces-panels {
+.shell-panel::before {
+      backdrop-filter: blur(1px);
+    }
+}
+    @variant appearance-blur-surfaces-modals {
+[data-slot="dialog-popup"],
+[data-slot="alert-dialog-popup"] {
+      position: relative;
+    }
+}
+  }
+  :root {
+@variant appearance-enable-theme-colorization-true {
+    --color-border: red;
+  }
+}
+  @variant appearance-surface-texture-grain {
+.shell-grid [data-slot="card-root"]::after {
+    content: none;
+  }
+}
+}

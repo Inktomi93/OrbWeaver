@@ -1,0 +1,17 @@
+@layer appearance {
+  @variant shell-desktop {
+    :root[data-blur-panels] .shell-panel::before {
+      backdrop-filter: blur(1px);
+    }
+    :root[data-blur-modals] [data-slot="dialog-popup"],
+    :root[data-blur-modals] [data-slot="alert-dialog-popup"] {
+      position: relative;
+    }
+  }
+  :root[data-theme-colorization] {
+    --color-border: red;
+  }
+  :root[data-texture="grain"] .shell-grid [data-slot="card-root"]::after {
+    content: none;
+  }
+}

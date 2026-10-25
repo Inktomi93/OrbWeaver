@@ -193,7 +193,7 @@
   --dimension-panel-context-step: 24rem;
   --dimension-content-reading-floor: 40.5rem;
   --dimension-shell-content-floor: 46.625rem;
-  --blur-strength: 14px;
+  --blur-veil: 14px;
   --blur-fill-chrome: 70%;
   --blur-fill-dense: 88%;
   --blur-saturate: 1.4;
@@ -204,9 +204,6 @@
   --immersive-ripple-portrait-width: 11.25rem;
   --immersive-document-last-row-min-height: 4.375rem;
   --immersive-ripple-portrait-width-phone: 6.25rem;
-  --reading-line-height: 1.55;
-  --reading-letter-spacing: 0rem;
-  --reading-paragraph-spacing: 0.75rem;
   --fade-edge-stop: 10%;
   --opacity-receded: 60%;
   --border-width-hairline: 1.25px;

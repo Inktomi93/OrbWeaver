@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "rename-css-custom-properties"
+version: "0.1.0"
+description: "Rename var() reads of custom properties in CSS by an exact map read from the target directory, converting a registered number to its unit."
+author: "Orbweaver"
+license: "MIT"
+targets:
+  languages: ["css"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

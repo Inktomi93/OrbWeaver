@@ -5,7 +5,7 @@
 //
 // #2434: the `settings.getUserSettings` fixture below used to carry no `appearance.backgroundLibrary` at
 // all, which was fine while the matrix's `asset` background arm could fall back to the static `kind:"seeded"`
-// catalog. That catalog retired 2026-09-18 (the same commit this file's own `variants=14` comment already
+// catalog. That catalog retired 2026-09-18 (the same commit this file's cell-count comment already
 // cites), so `planSnapAppearanceMatrix` (`ops/matrix.ts`) now REQUIRES a real
 // `discovery.settings.backgroundLibraryFirst` (`floor/appearance/appearance.ts` `readBackgroundCapability`) before it
 // will build ANY matrix cells — scenario-checkpoints mode included, since cell planning is appearance-shared
@@ -166,23 +166,20 @@ test("F10 — a session matrix inherits the daemon base, isolates every cell con
     expect(maxBrowserChildren).toBe(1);
     await expect(matrix).toExitWith(EXIT.clean);
     expect(matrix.stdout).toContain("RESULT snap-matrix");
-    // 16 → 14 with the `kind:"seeded"` retirement (2026-09-18): the background arm moved
-    // `none|seeded` → `none|asset` and its risk row moved with it, so the same required rows pack into two
-    // fewer cells. The count is DERIVED — `tests/tooling/snap/ops/matrix-contract.test.ts` owns the claim
-    // that the smaller plan still covers every pair (`uncoveredPairs === []`). #2434: the per-cell occurrence
-    // counts below were left at the STALE 16 by that same edit (this run never reached them before — the
-    // fixture's missing background asset above made discovery refuse first) and are now derived from the
-    // same 14, one per matrix cell's single checkpoint.
-    expect(matrix.stdout).toContain("variants=14");
-    expect(occurrenceCount(matrix.stdout, String.raw`\"origin\":\"${fixture.base}`)).toBe(14);
-    expect(occurrenceCount(matrix.stdout, String.raw`\"owner\":null`)).toBe(14);
-    expect(occurrenceCount(matrix.stdout, String.raw`\"cell\":null`)).toBe(14);
+    // The cell count comes from the plan the run prints; `tests/tooling/snap/ops/matrix-contract.test.ts` owns the
+    // claim that the plan covers every pair. Each cell runs the scenario's one checkpoint.
+    const cells = Number(/MATRIX PLAN .*\bcells=(\d+)/u.exec(matrix.stdout)?.[1]);
+    expect(cells).toBeGreaterThan(0);
+    expect(matrix.stdout).toContain(`variants=${cells}`);
+    expect(occurrenceCount(matrix.stdout, String.raw`\"origin\":\"${fixture.base}`)).toBe(cells);
+    expect(occurrenceCount(matrix.stdout, String.raw`\"owner\":null`)).toBe(cells);
+    expect(occurrenceCount(matrix.stdout, String.raw`\"cell\":null`)).toBe(cells);
     expect(matrix.stdout).not.toContain(":5173");
     const receiptPath = /RESULT snap-matrix .*\bjson=(\S+)/u.exec(matrix.stdout)?.[1];
     expect(receiptPath).toBeTypeOf("string");
     const receipt = JSON.parse(readFileSync(String(receiptPath), "utf8")) as { readonly mode: string; readonly cells: readonly unknown[] };
     expect(receipt).toMatchObject({ mode: "scenario-checkpoints" });
-    expect(receipt.cells).toHaveLength(14);
+    expect(receipt.cells).toHaveLength(cells);
     const indexPath = /\bindex=(\/\S+\/run\.json)\b/u.exec(matrix.stdout)?.[1];
     expect(indexPath).toBeTypeOf("string");
     const index = JSON.parse(readFileSync(String(indexPath), "utf8")) as {
@@ -210,10 +207,8 @@ test("F10 — a session matrix inherits the daemon base, isolates every cell con
     expect(after.stdout).toContain(fixture.base);
     expect(after.stdout).toContain("owner-alive");
     expect(after.stdout).toContain(String.raw`\"cell\":null`);
-    // #2434: 14 matrix cells (one page load each) + the boot page + the after-eval page = 16 non-tRPC
-    // requests at minimum, one lower than the stale 16-cell bound this line carried before the same
-    // 16 → 14 retirement above.
-    expect(fixture.requests.filter((url) => !url.includes("/api/trpc/")).length).toBeGreaterThan(14);
+    // One page load per matrix cell, plus the boot page and the after-eval page.
+    expect(fixture.requests.filter((url) => !url.includes("/api/trpc/")).length).toBeGreaterThanOrEqual(cells + 2);
   } finally {
     await snap(["--session-close", session]);
     await snap(["--session-sweep"]);

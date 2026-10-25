@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "root-attribute-to-variant"
+version: "0.1.0"
+description: "Move CSS rules keyed on a root attribute under the Tailwind variant that owns it, by an exact map read from the target directory."
+author: "Orbweaver"
+license: "MIT"
+targets:
+  languages: ["css"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

@@ -6,19 +6,17 @@
 import type { AppearanceSettings } from "@orb/contracts/settings/appearance";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { isPlainObject } from "@orb/kit/guards";
+import { pickKeys } from "@orb/kit/objects";
 import type { SeedThemeName } from "#lib";
 import { isSeedThemeName } from "#lib";
 import { createPersistedStore } from "./create-persisted-store.ts";
 
-/** The root flag the `[data-reduced-motion="true"] *` floor in the ui package's globals.css selects on. */
-export const REDUCED_MOTION_ATTR = "data-reduced-motion";
 /** The root attribute the generated `[data-theme="…"]` palette blocks in the ui package's theme.css select on. */
 export const DATA_THEME_ATTR = "data-theme";
-/** The root custom property `:root { font-size: calc(100% * var(--font-scale, 1)) }` reads. */
-export const FONT_SCALE_VAR = "--font-scale";
 
 /** The appearance axes a boot needs before the shell can render one — the hint's whole surface. */
-export type AppearanceBootAxes = Pick<AppearanceSettings, "reducedMotion" | "fontScale" | "density">;
+export const APPEARANCE_BOOT_AXES = ["reducedMotion", "reducedTransparency", "increasedContrast", "fontScale", "density"] as const;
+export type AppearanceBootAxes = Pick<AppearanceSettings, (typeof APPEARANCE_BOOT_AXES)[number]>;
 
 /** The generated seed palettes that own a `[data-theme]` block — re-exported from its ONE home beside the
  *  theme-scope resolver (`#lib`), which owns both halves of "what does this theme paint from". */
@@ -32,7 +30,6 @@ export interface AppearanceBootHintState extends AppearanceBootAxes {
 
 /** The schema's own defaults — what a device that has never been told anything replays (i.e. nothing). */
 const DEFAULT_AXES: AppearanceBootAxes = appearanceSettingsSchema.parse({});
-export const DEFAULT_APPEARANCE_FONT_SCALE = DEFAULT_AXES.fontScale;
 
 const DEFAULT_STATE: AppearanceBootHintState = { ...DEFAULT_AXES, dataTheme: null };
 
@@ -46,18 +43,13 @@ function migrate(persisted: unknown): AppearanceBootHintState {
   // The contract owns the bounds (min/max/enum) AND the fallbacks — every key catches, so this cannot throw.
   const axes = appearanceSettingsSchema.parse(persisted);
   const dataTheme = (persisted as { dataTheme?: unknown }).dataTheme;
-  return {
-    reducedMotion: axes.reducedMotion,
-    fontScale: axes.fontScale,
-    density: axes.density,
-    dataTheme: typeof dataTheme === "string" && isSeedThemeName(dataTheme) ? dataTheme : null,
-  };
+  return { ...pickKeys(axes, APPEARANCE_BOOT_AXES), dataTheme: typeof dataTheme === "string" && isSeedThemeName(dataTheme) ? dataTheme : null };
 }
 
 const useAppearanceBootHintStore = createPersistedStore<AppearanceBootHintState>("appearance-boot", (): AppearanceBootHintState => DEFAULT_STATE, {
   version: PERSIST_VERSION,
   migrate,
-  partialize: (s): AppearanceBootHintState => ({ reducedMotion: s.reducedMotion, fontScale: s.fontScale, density: s.density, dataTheme: s.dataTheme }),
+  partialize: (s): AppearanceBootHintState => ({ ...pickKeys(s, APPEARANCE_BOOT_AXES), dataTheme: s.dataTheme }),
 });
 
 /** The whole remembered answer, as a subscribed read — the pending arm of `useAppearance`/`useSelectedTheme`.
@@ -70,7 +62,7 @@ export function useAppearanceBootHint(): AppearanceBootHintState {
 /** Record what the SERVER said about the appearance axes. Only ever called with authoritative values. */
 export function rememberAppearanceBootHint(axes: AppearanceBootAxes): void {
   const current = useAppearanceBootHintStore.getState();
-  if (current.reducedMotion === axes.reducedMotion && current.fontScale === axes.fontScale && current.density === axes.density) {
+  if (APPEARANCE_BOOT_AXES.every((axis) => current[axis] === axes[axis])) {
     return;
   }
   useAppearanceBootHintStore.setState({ ...axes }, false, "appearanceBootHint/rememberAxes");

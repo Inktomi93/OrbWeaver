@@ -31,11 +31,12 @@ import { appearanceSettingsSchema } from "./appearance.ts";
 // whole `UserSettings` tree and its prose tables (#448). Ownership is unchanged — the section is settings',
 // and shared appearance shapes and operations are re-exported here for `@orb/contracts/settings` consumers.
 // The deep door is the exact `@orb/contracts/settings/appearance` exports entry.
-export type { AppearanceBackgroundFit, AppearanceSettings, BackgroundLibraryEntry, BlurSurface, SurfaceTexture } from "./appearance.ts";
+export type { AppearanceBackgroundFit, AppearanceSettings, BackgroundLibraryEntry, BlurSurface, OsPreferenceMode } from "./appearance.ts";
 export {
   APPEARANCE_BACKGROUND_FITS,
   BLUR_SURFACES,
   backgroundLibraryEntrySchema,
+  OS_PREFERENCE_MODES,
 } from "./appearance.ts";
 export type { SettingsKvPort, SettingsTenantPrefix } from "./kv.ts";
 export { CATALOG_SETTINGS_PREFIX, SETTINGS_TENANT_PREFIXES } from "./kv.ts";

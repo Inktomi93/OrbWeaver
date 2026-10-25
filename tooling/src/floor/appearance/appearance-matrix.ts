@@ -7,13 +7,14 @@ import type { VariantAssignment, VariantAxis } from "../variant-matrix/variant-m
 import type { ThemeEntry } from "./theme.ts";
 import { themeCatalogCapabilities } from "./theme.ts";
 
-// All three dropped by one on 2026-09-18: `backgroundSeededId` left `AppearanceSettings` with the retired
-// `kind:"seeded"` background source, and it was a DEPENDENCY row (no arms), so declared and dependencies
-// move together while executable is unchanged.
-const EXPECTED_DECLARED_APPEARANCE = 40;
-const EXPECTED_EXECUTABLE_APPEARANCE = 36;
+// The live bridge must report the manifest's shape exactly; a drift here is a stale bundle, not a new axis.
+const EXPECTED_DECLARED_APPEARANCE = 42;
+const EXPECTED_EXECUTABLE_APPEARANCE = 38;
 const EXPECTED_DEPENDENCIES = 4;
 const EXPECTED_HISTORICAL_ROWS = 7;
+/** The app's reduced-motion setting is `system | on | off`; the matrices exercise `on` against `system`, the manifest's two arms. */
+export const APP_REDUCED_MOTION_ON = "on";
+export const APP_REDUCED_MOTION_SYSTEM = "system";
 const READ_APPEARANCE_MATRIX_CONTRACT = `(() => {
   const read = globalThis.__orb?.appearanceMatrixContract;
   if (typeof read !== "function") throw new Error("__orb.appearanceMatrixContract is unavailable");

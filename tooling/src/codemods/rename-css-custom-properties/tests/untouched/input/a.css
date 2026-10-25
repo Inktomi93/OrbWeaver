@@ -1,0 +1,8 @@
+@layer client {
+  /* --blur-strength in a comment stays */
+  .a {
+    max-inline-size: calc(var(--reading-measure) * 2);
+    --blur-saturate: 1.4;
+    inset-inline-start: var(--reading-measure-min);
+  }
+}
