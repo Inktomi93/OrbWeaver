@@ -45,7 +45,8 @@ function destructuredMember(context: OrbRuleContext, identifier: TSESTree.Identi
   return { object: definition.node.init, name: typeof name === "string" ? name : undefined };
 }
 
-function calledMember(context: OrbRuleContext, node: TSESTree.Node, depth = 0): MemberCapability | undefined {
+/** Resolve a stable local method capability, including bind, call and apply. */
+export function calledMember(context: OrbRuleContext, node: TSESTree.Node, depth = 0): MemberCapability | undefined {
   if (depth > STATIC_CONST_DEPTH) {
     return undefined;
   }
@@ -63,16 +64,30 @@ function calledMember(context: OrbRuleContext, node: TSESTree.Node, depth = 0): 
   return undefined;
 }
 
-function effectiveArguments(context: OrbRuleContext, call: TSESTree.CallExpression, depth = 0): readonly TSESTree.Node[] {
+function staticArrayElements(context: OrbRuleContext, array: TSESTree.ArrayExpression, depth = 0): readonly (TSESTree.Node | null)[] {
+  return array.elements.flatMap((element): readonly (TSESTree.Node | null)[] => {
+    if (element?.type === "SpreadElement" && depth < STATIC_CONST_DEPTH) {
+      const spread = resolved(context, element.argument);
+      if (spread.type === "ArrayExpression") {
+        return staticArrayElements(context, spread, depth + 1);
+      }
+    }
+    return [element];
+  });
+}
+
+/** Resolve static argument arrays without shifting holes or unresolved spreads into known argument positions. */
+export function effectiveArguments(context: OrbRuleContext, call: TSESTree.CallExpression, depth = 0): readonly (TSESTree.Node | null)[] {
   const callee = resolved(context, call.callee);
   if (callee.type === "MemberExpression") {
     const method = accessedName(context, callee);
     if (method === "call") {
       return call.arguments.slice(1);
     }
-    const applied = call.arguments[1];
+    const argument = call.arguments[1];
+    const applied = argument === undefined ? undefined : resolved(context, argument);
     if (method === "apply" && applied?.type === "ArrayExpression") {
-      return applied.elements.filter((element): element is Exclude<typeof element, null> => element !== null);
+      return staticArrayElements(context, applied);
     }
   }
   if (
@@ -81,6 +96,9 @@ function effectiveArguments(context: OrbRuleContext, call: TSESTree.CallExpressi
     callee.callee.type === "MemberExpression" &&
     accessedName(context, callee.callee) === "bind"
   ) {
+    if (callee.arguments[0]?.type === "SpreadElement") {
+      return callee.arguments;
+    }
     return [...effectiveArguments(context, callee, depth + 1).slice(1), ...call.arguments];
   }
   return call.arguments;
@@ -146,7 +164,7 @@ function lookupSite(context: OrbRuleContext, call: TSESTree.CallExpression): Loo
   if (method === undefined || !LOOKUPS.has(method)) {
     return undefined;
   }
-  const argument = effectiveArguments(context, call)[0];
+  const argument = effectiveArguments(context, call)[0] ?? undefined;
   const value = argument === undefined ? undefined : staticTextValue(context, argument);
   if (method === "closest" && value === "[inert]") {
     return undefined;
@@ -205,7 +223,7 @@ export const classListWriteRule: OrbRule = {
           return;
         }
         const name = member.name;
-        const attribute = effectiveArguments(context, call)[0];
+        const attribute = effectiveArguments(context, call)[0] ?? undefined;
         if (
           (CLASS_WRITES.has(name ?? "") && classList(context, member.object)) ||
           (name === "setAttribute" && attribute !== undefined && staticTextValue(context, attribute) === "class")
