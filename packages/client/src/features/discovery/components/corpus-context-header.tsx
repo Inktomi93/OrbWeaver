@@ -47,11 +47,7 @@ export function CorpusContextHeader(): ReactElement {
       </Button>
     );
   } else if (distilled > 0) {
-    census = (
-      <Text voice="gloss" className="font-mono">
-        {count}
-      </Text>
-    );
+    census = <Text voice="datumMono">{count}</Text>;
   }
 
   return (

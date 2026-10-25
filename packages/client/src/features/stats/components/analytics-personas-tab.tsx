@@ -67,7 +67,7 @@ function PersonasBody(): ReactElement {
                   title={persona.name}
                   subtitle={`${formatCompactNoun(persona.chatCount, "chat", "chats")} · ${formatCompactNoun(persona.messageCount, "message", "messages")}${persona.lastUsedAt === null ? "" : ` · last used ${timeLib.formatRelative(persona.lastUsedAt)}`}`}
                   actions={
-                    <Text voice="gloss" className="font-mono whitespace-nowrap">
+                    <Text voice="datumMono" className="whitespace-nowrap">
                       {formatTokens(persona.tokensOut, persona.tokensOutProvenance)}
                     </Text>
                   }
