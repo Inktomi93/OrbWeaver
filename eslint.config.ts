@@ -325,7 +325,7 @@ const INVISIBLE_CONTROL_SYNTAX = {
 // An empty or whitespace-only name, or `undefined`, names nothing. Client and @orb/ui blocks spread this entry.
 const EMPTY_ARIA_NAME_SYNTAX = {
   selector:
-    "JSXAttribute[name.name=/^aria-label(?:ledby)?$/]:matches([value.type='Literal'][value.value=/^\\s*$/], [value.expression.type='Identifier'][value.expression.name='undefined'], [value.expression.type='Literal'][value.expression.value=/^\\s*$/])",
+    "JSXAttribute[name.name=/^aria-label(?:ledby)?$/]:matches([value.type='Literal'][value.value=/^\\s*$/], [value.expression.type='Identifier'][value.expression.name='undefined'], [value.expression.type='Literal'][value.expression.value=/^\\s*$/], [value.expression.type='UnaryExpression'][value.expression.operator='void'], [value.expression.type='TemplateLiteral'][value.expression.expressions.length=0][value.expression.quasis.0.value.cooked=/^\\s*$/])",
   message: "An empty aria-label or aria-labelledby names nothing: give it text, or omit the attribute.",
 };
 // no-warning-comments matches each term as a plain substring when it holds no word character.

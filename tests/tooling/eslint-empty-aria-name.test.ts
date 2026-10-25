@@ -39,6 +39,9 @@ const PLANTED = [
   ["a whitespace aria-label", 'export const A = () => <Button aria-label="  " />;'],
   ["an undefined aria-label", "export const A = () => <Button aria-label={undefined} />;"],
   ["an empty expression aria-label", 'export const A = () => <Button aria-label={""} />;'],
+  ["an empty template aria-label", "export const A = () => <Button aria-label={``} />;"],
+  ["a whitespace template aria-label", "export const A = () => <Button aria-label={`  `} />;"],
+  ["a void 0 aria-label", "export const A = () => <Button aria-label={void 0} />;"],
   ["an empty aria-labelledby", 'export const A = () => <section aria-labelledby="" />;'],
   ["an empty form aria-label", 'export const A = () => <form aria-label="" />;'],
 ] as const;
@@ -55,6 +58,8 @@ test.for([
   ["a computed name", "export const A = ({ name }) => <Button aria-label={name} />;"],
   ["a member name", "export const A = ({ labels, dot }) => <Button aria-label={labels[dot]} />;"],
   ["a call name", "export const A = ({ item }) => <Button aria-label={nameOf(item)} />;"],
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: the planted source is itself a template literal.
+  ["a template with an expression", "export const A = ({ name }) => <Button aria-label={`Open ${name}`} />;"],
   ["an id reference", 'export const A = () => <section aria-labelledby="heading" />;'],
   ["an empty value on another attribute", 'export const A = () => <Button title="" />;'],
 ] as const)("%s passes", async ([, source]) => {
