@@ -4,8 +4,17 @@ import { alternation, MATCH_MEDIA, TANSTACK_FORM_MINTS } from "./syntax.ts";
 // No @orb/ui variant is keyed by these names: `compact` appears only as a value of `size`/`density`/`listSize`.
 const LAYOUT_CONTEXT_PROPS = ["compact", "inDrawer", "inModal", "isMobile", "narrow"];
 
-const CONTAINMENT_OWNER =
-  ":matches(JSXOpeningElement[name.name='Container'], JSXOpeningElement[name.name=/^(Section|Stack)$/]:has(> JSXAttribute[name.name='container']))";
+// `container={false}` turns containment off, so it neither declares nor provides one.
+const CONTAINER_ON = "JSXAttribute[name.name='container']:not([value.expression.value=false])";
+
+const CONTAINMENT_OWNER = `:matches(JSXOpeningElement[name.name='Container'], JSXOpeningElement[name.name=/^(Section|Stack)$/]:has(> ${CONTAINER_ON}))`;
+
+// A dialog's `bodyProps` forwards its props to the body box, so `container` there declares one from the surface.
+const BODY_PROPS_CONTAINER =
+  "JSXAttribute[name.name='bodyProps'] > JSXExpressionContainer > ObjectExpression > Property:matches([key.name='container'], [key.value='container']):not([value.value=false])";
+
+const BODY_PROPS_OPAQUE =
+  "JSXAttribute[name.name='bodyProps'] > JSXExpressionContainer > :matches(:not(ObjectExpression), ObjectExpression:has(> SpreadElement))";
 
 // A dialog or drawer anchor provides its containment as the dialog box itself.
 const DIALOG_BOX = "JSXOpeningElement[name.name=/(?:Dialog|Drawer)$/]";
@@ -18,6 +27,15 @@ export const UI_FEATURE_RESTRICTIONS = [
       {
         selector: CONTAINMENT_OWNER,
         message: "A surface never declares its own container. Move the <Container> (or `container` prop) to the anchor that mounts it.",
+      },
+      {
+        selector: BODY_PROPS_OPAQUE,
+        message:
+          "A surface passes `bodyProps` as a plain object literal, so its `container` stays visible here; move any spread or shared object to the anchor.",
+      },
+      {
+        selector: BODY_PROPS_CONTAINER,
+        message: "A surface never declares its own container, including through `bodyProps`. Move it to the anchor that mounts the surface.",
       },
     ],
   },

@@ -4,6 +4,7 @@
 // that lays out ONE row's text column lives here. Internal to the primitive — `index.ts` exports neither.
 
 import type { ReactElement, ReactNode } from "react";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "#primitives/tooltip";
 import type { listRowVariants } from "./variants.ts";
 
 export type Slots = ReturnType<typeof listRowVariants>;
@@ -12,12 +13,13 @@ function subtitleStepAttribute(step: "default" | "label"): "label" | undefined {
   return step === "label" ? "label" : undefined;
 }
 
-/** The DOM ids of the row's describing spans (subtitle · meta · markers), for the body's
+/** The DOM ids of the row's describing spans (subtitle · meta · markers · full title), for the body's
  *  `aria-describedby`. Undefined-when-absent so callers space-join only the present ones (empty ⇒ no attr). */
 export interface ListRowDescriptors {
   subtitleId: string | undefined;
   metaId: string | undefined;
   markersId: string | undefined;
+  fullTitleId: string | undefined;
 }
 
 /** THE TITLE LINE — the name, its `titleQualifier`, the `inline` subtitle arm, the rest-visible markers and
@@ -50,17 +52,29 @@ function ListRowTitleLine({
   meta: string | undefined;
   ids: ListRowDescriptors;
 }): ReactElement {
+  const titleSpan = (
+    <span
+      aria-hidden={clickable ? true : undefined}
+      className={slots.title()}
+      data-slot="list-row-title"
+      data-title-step={titleStep === "promoted" ? "promoted" : undefined}
+    >
+      {title}
+    </span>
+  );
   return (
     <span className={slots.titleRow()} data-slot="list-row-title-row">
-      <span
-        aria-hidden={clickable ? true : undefined}
-        className={slots.title()}
-        data-slot="list-row-title"
-        data-title-step={titleStep === "promoted" ? "promoted" : undefined}
-        title={fullTitle ?? title}
-      >
-        {title}
-      </span>
+      {/* The full title rides the pointer as a tooltip (a painted, aria-hidden duplicate). The row's own
+          `aria-describedby` points at the hidden copy in the content column, so the tooltip does not describe
+          the title span too: that span is hidden from assistive tech on a clickable row. */}
+      {fullTitle === undefined ? (
+        titleSpan
+      ) : (
+        <Tooltip describesTrigger={false}>
+          <TooltipTrigger render={titleSpan} />
+          <TooltipPopup>{fullTitle}</TooltipPopup>
+        </Tooltip>
+      )}
       {/* THE DISAMBIGUATOR, RENDERED (#517). `aria-hidden` on a clickable row exactly like the title beside
           it: both are the body's `aria-label`, and repeating either as content would double the name. The
           separator AND its leading space live inside this span so the line's text is `"<title> ·
@@ -145,7 +159,6 @@ export function ListRowContent({
         data-slot="list-row-subtitle"
         data-subtitle-step={subtitleStepAttribute(subtitleStep)}
         id={ids.subtitleId}
-        title={subtitle}
       >
         {subtitleLead}
         {/* A literal space between the chip and the scent: the accessible-description computation
@@ -169,6 +182,11 @@ export function ListRowContent({
         </span>
       )}
       <span className={slots.content()} data-slot="list-row-content">
+        {fullTitle === undefined ? null : (
+          <span className={slots.fullTitle()} data-slot="list-row-full-title" id={ids.fullTitleId}>
+            {fullTitle}
+          </span>
+        )}
         <ListRowTitleLine
           clickable={clickable}
           fullTitle={fullTitle}
@@ -187,7 +205,7 @@ export function ListRowContent({
           // ONE grid cell, TWO stacked spans — the reveal swaps in by visibility without moving the line.
           <span className={slots.subtitleStack()} data-slot="list-row-subtitle-stack">
             {blockSubtitle}
-            <span aria-hidden={true} className={slots.subtitleReveal()} data-slot="list-row-subtitle-reveal" title={subtitleReveal}>
+            <span aria-hidden={true} className={slots.subtitleReveal()} data-slot="list-row-subtitle-reveal">
               {subtitleReveal}
             </span>
           </span>

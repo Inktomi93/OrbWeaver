@@ -81,6 +81,8 @@ export const listRowVariants = tv({
     // row-reveal.ts, gate `no-hover-display-swap`). Rendered only when a reveal is present, so a plain row's
     // DOM is untouched.
     subtitleStack: "grid min-inline-0",
+    // The unabbreviated title, announced as a description of the row and never painted.
+    fullTitle: "sr-only",
     // Hover/focus-within swap of the subtitle in the SAME line, so a wide metadata span never contends with
     // the trailing `actions` buttons for width.
     subtitleReveal: `
