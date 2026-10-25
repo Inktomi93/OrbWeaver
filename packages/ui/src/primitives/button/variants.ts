@@ -11,6 +11,7 @@ import {
   SELECTED_FILL,
   TOUCH_FLOOR_AT_COARSE,
   TOUCH_TARGET_PSEUDO,
+  TOUCH_TARGET_PSEUDO_STRETCH,
   tv,
 } from "#lib";
 import type { BUTTON_SIZE_OVERFLOW } from "./size-hit-area.ts";
@@ -42,12 +43,7 @@ function glyphBox(box: string): string[] {
 }
 
 function inlineBox(typeStep: string): string[] {
-  return [
-    "relative block-auto min-block-0 justify-start font-normal",
-    typeStep,
-    "before:absolute before:inset-bs-1/2 before:inset-s-1/2 before:block-(--size-touch-target) before:inline-full before:min-inline-(--size-touch-target)",
-    "before:-translate-x-1/2 before:-translate-y-1/2 before:content-['']",
-  ];
+  return ["relative block-auto min-block-0 justify-start font-normal", typeStep, TOUCH_TARGET_PSEUDO_STRETCH];
 }
 
 export const buttonVariants = tv({
