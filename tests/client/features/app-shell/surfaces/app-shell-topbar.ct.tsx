@@ -20,6 +20,14 @@ const LIST = '.shell-panel[data-panel-side="list"]';
 const NARROW_TITLE = '.shell-topbar-identity[data-identity="narrow"] .shell-topbar-title';
 const NARROWEST = { width: 320, height: 800 } as const;
 const PHONE_WIDTHS = [320, 390] as const;
+// The screen title's least share of a phone row beside the room's two chips: a regression floor for the name, not a
+// geometry token (no token sizes the title; it takes what the chips and the back control leave).
+const TITLE_SHARE_NARROWEST = 0.25;
+const TITLE_SHARE_PHONE = 0.38;
+
+function narrowTitleShare(width: number): number {
+  return width * (width <= NARROWEST.width ? TITLE_SHARE_NARROWEST : TITLE_SHARE_PHONE);
+}
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
 
@@ -417,7 +425,11 @@ test.describe("an open named group room on a phone, coarse pointer", () => {
   test.use({ hasTouch: true });
 
   for (const width of [320, 390, 430]) {
-    test(`at ${String(width)} the members and memory chips stay on the row as glyphs at the touch floor, after the title`, async ({ corpus, mount, page }) => {
+    test(`at ${String(width)} the members and memory chips stay on the row as glyphs at the touch floor, after a title that keeps its share of the row`, async ({
+      corpus,
+      mount,
+      page,
+    }) => {
       await page.setViewportSize({ width, height: 800 });
       await seedShellState(page, { activeSection: "chats" });
       const room = await openNamedRoom(page, corpus, await ownerCaller());
@@ -431,7 +443,7 @@ test.describe("an open named group room on a phone, coarse pointer", () => {
       await expect(members.locator(".shell-chat-chip-count")).toBeHidden();
       const floor = await touchTarget(page);
       const [membersBox, memoryBox, titleBox] = await Promise.all([members.boundingBox(), memory.boundingBox(), title.boundingBox()]);
-      expect((titleBox?.width ?? 0) > 0).toBe(true);
+      expect(titleBox?.width ?? 0).toBeGreaterThanOrEqual(narrowTitleShare(width));
       expect((titleBox?.x ?? 0) + (titleBox?.width ?? 0)).toBeLessThanOrEqual((membersBox?.x ?? 0) + 1);
       expect((membersBox?.x ?? 0) + (membersBox?.width ?? 0)).toBeLessThanOrEqual((memoryBox?.x ?? 0) + 1);
       expect((memoryBox?.x ?? 0) + (memoryBox?.width ?? 0)).toBeLessThanOrEqual(width);

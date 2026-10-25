@@ -1,15 +1,21 @@
 // The shell's appearance effects as the browser renders them: the glass, elevation and contrast cascade on the production
 // panes, the dials it stamps on the root, the remembered boot hint, and what survives a handover to the pending mark.
 
+import { crc32, deflateSync } from "node:zlib";
 import { REDUCED_MOTION_ATTR } from "@orb/client/state";
+import type { StoredAsset } from "@orb/contracts/assets";
+import { BLOB_ROUTE } from "@orb/contracts/assets";
+import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { AppearanceSettings } from "@orb/contracts/settings/appearance";
+import { BACKGROUND_DIM_MIN, BLUR_SURFACES } from "@orb/contracts/settings/appearance";
 import type { ChatId } from "@orb/kit/ids";
 import type { Rgb } from "@orb/kit/theme-derivation";
-import { AA_NON_TEXT_RATIO, AA_NORMAL_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
-import { createShellAmbientReads, routeOrbSocket, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { AA_NON_TEXT_RATIO, AA_NORMAL_RATIO, readingPlateAlpha, wcagContrastRatio } from "@orb/kit/theme-derivation";
+import { createShellAmbientReads, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusWire } from "@orb/testkit/iso";
-import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { captureCookieAuth, createCorpusHarness } from "@orb/testkit/node/composed";
+import { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import type { AppShellModalStory, AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import type { ShellToPendingStory } from "./_shell-handover-stories.tsx";
@@ -49,6 +55,10 @@ const CONTRAST_FILL_ALPHA = 0.92;
 const UA_ROOT_PX = 16;
 const TRACK_WIDTHS = [1280, 1440, 1920] as const;
 const DIAL_PCT = 50;
+const BLACK_ART_PASSWORD = "synthetic-corpus-ct-black-art-password";
+// Large enough that a cover fit paints it as a field, not a tile.
+const BLACK_ART_SIDE = 64;
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const SHIMMER_CLASS = "orb-weave-shimmer";
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
@@ -106,10 +116,7 @@ async function routeLiveAppearance(
       const { appearance, selectedThemeId } = read();
       return appearanceSettings(corpus, appearance, selectedThemeId);
     },
-    "stream.attach": null,
-    "stream.detach": null,
   });
-  await routeOrbSocket(page, { closeStream: false });
 }
 
 /** A corpus room whose last messages hold both roles, so a bubble of each is on screen. */
@@ -188,13 +195,96 @@ function tokenInk(host: Locator, token: string): Promise<Rgb> {
   }, token);
 }
 
+interface Box {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+function centre(box: Box): { x: number; y: number } {
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+}
+
+/** A pure-black PNG: the worst art a light glass surface can sit over, built byte for byte so no image library is needed. */
+function blackPng(side: number): Buffer {
+  const chunk = (type: string, data: Buffer): Buffer => {
+    const length = Buffer.alloc(4);
+    length.writeUInt32BE(data.length);
+    const body = Buffer.concat([Buffer.from(type, "latin1"), data]);
+    const crc = Buffer.alloc(4);
+    crc.writeUInt32BE(crc32(body));
+    return Buffer.concat([length, body, crc]);
+  };
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(side, 0);
+  header.writeUInt32BE(side, 4);
+  // Bit depth 8, colour type 2 (truecolour); compression, filter and interlace stay 0.
+  header.writeUInt8(8, 8);
+  header.writeUInt8(2, 9);
+  // Each row is a filter byte followed by its RGB triples, all zero.
+  const rows = Buffer.alloc((side * 3 + 1) * side);
+  return Buffer.concat([PNG_SIGNATURE, chunk("IHDR", header), chunk("IDAT", deflateSync(rows)), chunk("IEND", Buffer.alloc(0))]);
+}
+
+/**
+ * A fresh corpus root whose owner uploaded a pure-black wallpaper through the production upload route and chose it at
+ * the least dim the settings allow, in the seeded Light theme with every glass surface on. Its blob is served to the
+ * page from the same root under the owner's own cookie.
+ */
+async function blackArtRoot(page: Page): Promise<Root> {
+  const art = await createCorpusHarness();
+  const owner = await art.principalFor(art.ownerId);
+  const { cookie } = await captureCookieAuth(art, owner, BLACK_ART_PASSWORD);
+  const form = new FormData();
+  form.set("kind", "background");
+  form.set("file", new Blob([new Uint8Array(blackPng(BLACK_ART_SIDE))], { type: "image/png" }), "black.png");
+  const uploaded = await art.http.request("/api/assets/upload", { method: "POST", headers: { cookie, [CSRF_HEADER]: "1", forwarded: "" }, body: form });
+  if (!uploaded.ok) {
+    throw new Error(`the black wallpaper upload failed (${String(uploaded.status)})`);
+  }
+  const stored = (await uploaded.json()) as StoredAsset;
+  const caller = await art.internalCallerFor(art.ownerId);
+  await caller.settings.updateUserSettingsSection({
+    section: "appearance",
+    patch: {
+      ...BASE_APPEARANCE,
+      blurSurfaces: [...BLUR_SURFACES],
+      backgroundImageKind: "asset",
+      backgroundAssetId: stored.assetId,
+      backgroundAssetHash: stored.hash,
+      backgroundAssetMime: "image/png",
+      backgroundDim: BACKGROUND_DIM_MIN,
+    },
+  });
+  await caller.settings.updateUserSettingsSection({ section: "theme", patch: { selectedThemeId: lightThemeId } });
+  await page.route(`**${BLOB_ROUTE}/**`, async (route) => {
+    const url = new URL(route.request().url());
+    const response = await art.http.request(`${url.pathname}${url.search}`, { headers: { cookie, forwarded: "" } });
+    const headers = Object.fromEntries([...response.headers].filter(([name]) => name !== "set-cookie"));
+    await route.fulfill({ status: response.status, headers, body: Buffer.from(await response.arrayBuffer()) });
+  });
+  return art;
+}
+
+/** The reading plate's alpha as the theme derivation sets it for the seeded Light palette's own background. */
+function lightPlateFloor(): number {
+  const [l = Number.NaN, c = Number.NaN, h = Number.NaN] = (
+    /oklch\(([\d.]+) ([\d.]+) ([\d.]+)\)/u.exec(SEED_THEME_VALUE_SETS.light.vars["--color-background"]) ?? []
+  )
+    .slice(1)
+    .map(Number);
+  return readingPlateAlpha({ l, c, h });
+}
+
 /** The surface's weakest ink, `--color-muted-foreground`, against the pixel that lands at its centre over the wallpaper. */
-async function landedMutedContrast(page: Page, surface: Locator, label: string): Promise<number> {
+async function landedMutedContrast(page: Page, surface: Locator, label: string, at: (box: Box) => { x: number; y: number } = centre): Promise<number> {
   const box = await surface.boundingBox();
   if (box === null) {
     throw new Error(`${label} is not laid out`);
   }
-  const landed = await pixel(page, Math.floor(box.x + box.width / 2), Math.floor(box.y + box.height / 2));
+  const point = at(box);
+  const landed = await pixel(page, Math.floor(point.x), Math.floor(point.y));
   const ratio = wcagContrastRatio(await tokenInk(surface, "--color-muted-foreground"), landed);
   test.info().annotations.push({ type: "over-art-contrast", description: `${label} ${ratio.toFixed(2)}:1 over ${JSON.stringify(landed)}` });
   return ratio;
@@ -761,10 +851,7 @@ test.describe("over a wallpaper", () => {
       ...createShellAmbientReads(corpus),
       ...serveCorpusProcedures(caller, SERVED),
       "settings.getUserSettings": () => appearanceSettings(corpus, {}),
-      "stream.attach": null,
-      "stream.detach": null,
     });
-    await routeOrbSocket(page, { closeStream: false });
     await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: soloId });
     const layer = page.locator('[data-slot="theme-background-layer"]');
     await expect(page.locator(COMPOSER)).toBeVisible();
@@ -797,8 +884,7 @@ test.describe("the light arm's plate over a wallpaper", () => {
     const light = await mount<typeof AppShellStory>(STORY, {});
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
     await expect(page.locator(".shell-grid")).toHaveAttribute("data-has-bg-image", "true");
-    const plate = await computed(pane, "--color-reading-plate");
-    await expect.poll(async () => fillAlpha(pane, "::before")).toBeGreaterThanOrEqual(alphaOf(plate.trim()));
+    await expect.poll(async () => fillAlpha(pane, "::before")).toBeGreaterThanOrEqual(lightPlateFloor());
     expect(await landedMutedContrast(page, pane, "light pane")).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
     await light.unmount();
 
@@ -822,8 +908,7 @@ test.describe("the light arm's plate over a wallpaper", () => {
     await mount<typeof AppShellStory>(STORY, {});
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
     await expect(page.locator(".shell-grid")).toHaveAttribute("data-has-bg-image", "true");
-    const plate = (await computed(page.locator(".shell-main"), "--color-reading-plate")).trim();
-    await expect.poll(() => fillAlpha(page.locator(".shell-main"), "::before")).toBeGreaterThanOrEqual(alphaOf(plate));
+    await expect.poll(() => fillAlpha(page.locator(".shell-main"), "::before")).toBeGreaterThanOrEqual(lightPlateFloor());
     expect(await landedMutedContrast(page, page.locator(".shell-main"), "light reading surface")).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
   });
 
@@ -852,14 +937,13 @@ test.describe("the light arm's plate over a wallpaper", () => {
       await expect.poll(() => page.locator("html").getAttribute("data-theme")).toBe(arm.selectedThemeId === undefined ? null : "light");
       await expect.poll(() => fillAlpha(dialog)).toBeGreaterThan(0);
       reads[arm.name] = await computed(dialog, "background-color");
-      reads[`${arm.name}Plate`] = (await computed(dialog, "--color-reading-plate")).trim();
       reads[`${arm.name}Contrast`] = String(arm.name === "lightArt" ? await landedMutedContrast(page, dialog, "light dialog") : 0);
       await mounted.unmount();
     }
     test.info().annotations.push({ type: "dialog-fills", description: JSON.stringify(reads) });
     expect(Number(reads["lightArtContrast"])).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
     expect(reads["lightPlain"]).toBe(reads["lightArt"]);
-    expect(alphaOf(reads["lightPlain"] ?? "")).toBeGreaterThanOrEqual(alphaOf(reads["lightPlainPlate"] ?? ""));
+    expect(alphaOf(reads["lightPlain"] ?? "")).toBeGreaterThanOrEqual(lightPlateFloor());
     expect(reads["darkArt"]).toBe(reads["darkPlain"]);
     expect(alphaOf(reads["darkPlain"] ?? "")).toBeLessThan(1);
   });
@@ -894,6 +978,73 @@ test.describe("the light arm's plate over a wallpaper", () => {
       await mounted.unmount();
     }
     expect(fills["darkArt"]).toStrictEqual(fills["darkPlain"]);
+    // The light arm's glass mixes over the derived plate, so no light surface is thinner than the plate itself.
+    expect((fills["light"] ?? []).map(alphaOf).filter((alpha) => alpha < lightPlateFloor())).toStrictEqual([]);
+  });
+});
+
+test.describe("the light arm over the darkest wallpaper a viewer can save", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize(WIDE);
+  });
+
+  test("the pane and another section's reading surface clear AA on their weakest ink over pure black at the least dim", async ({ corpus, mount, page }) => {
+    await using art = await blackArtRoot(page);
+    await seedShellState(page, { activeSection: "chats" });
+    await routeTrpc(page, {
+      ...createShellAmbientReads(corpus),
+      ...serveCorpusProcedures(await art.internalCallerFor(art.ownerId), [...SECTION_PROCEDURES, ...ROOM_PROCEDURES]),
+    });
+    await mount<typeof AppShellStory>(STORY, {});
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    await expect(page.locator(".shell-grid")).toHaveAttribute("data-has-bg-image", "true");
+    await expect(page.locator('[data-slot="theme-background-layer"]')).toBeVisible();
+    const plateFloor = lightPlateFloor();
+    // The rendered plate is the derived one, and the pane's glass sits over it rather than over the art.
+    expect(alphaOf((await computed(page.locator(LIST), "--color-reading-plate")).trim())).toBeGreaterThanOrEqual(plateFloor);
+    await expect.poll(() => fillAlpha(page.locator(LIST), "::before")).toBeGreaterThanOrEqual(plateFloor);
+    // The pane's right gutter, beside its rows, where only the glass lands.
+    expect(
+      await landedMutedContrast(page, page.locator(LIST), "pane over black", (box) => ({ x: box.x + box.width - 6, y: box.y + box.height / 2 })),
+    ).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+    await page.locator(".shell-rail").getByRole("button", { name: "Characters", exact: true }).click();
+    await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", "characters");
+    await expect.poll(() => fillAlpha(page.locator(".shell-main"), "::before")).toBeGreaterThanOrEqual(plateFloor);
+    // The reading surface's far corner, past the landing's content.
+    expect(
+      await landedMutedContrast(page, page.locator(".shell-main"), "reading surface over black", (box) => ({
+        x: box.x + box.width - 10,
+        y: box.y + box.height - 10,
+      })),
+    ).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+  });
+
+  test("in a room the composer and each role's bubble clear AA on their weakest ink over pure black at the least dim", async ({ corpus, mount, page }) => {
+    await using art = await blackArtRoot(page);
+    await seedShellState(page, { activeSection: "chats" });
+    await routeTrpc(page, {
+      ...createShellAmbientReads(corpus),
+      ...serveCorpusProcedures(await art.internalCallerFor(art.ownerId), [...SECTION_PROCEDURES, ...ROOM_PROCEDURES]),
+    });
+    await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: await groupRoomId() });
+    await roomReady(page);
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    await expect(page.locator('[data-slot="theme-background-layer"]')).toBeVisible();
+    const plateFloor = lightPlateFloor();
+    expect(alphaOf((await computed(page.locator(COMPOSER), "--color-reading-plate")).trim())).toBeGreaterThanOrEqual(plateFloor);
+    for (const surface of [page.locator(COMPOSER), ...ROOM_ROLES.map((role) => bubble(page, role))]) {
+      await expect.poll(() => fillAlpha(surface)).toBeGreaterThanOrEqual(plateFloor);
+    }
+    // Each surface's own padding, clear of its text and controls.
+    const ratios = [
+      await landedMutedContrast(page, page.locator(COMPOSER), "composer over black", (box) => ({ x: box.x + box.width / 2, y: box.y + 3 })),
+      ...(await Promise.all(
+        ROOM_ROLES.map((role) =>
+          landedMutedContrast(page, bubble(page, role), `${role} bubble over black`, (box) => ({ x: box.x + 4, y: box.y + box.height / 2 })),
+        ),
+      )),
+    ];
+    expect(ratios.filter((ratio) => ratio < AA_NORMAL_RATIO)).toStrictEqual([]);
   });
 });
 

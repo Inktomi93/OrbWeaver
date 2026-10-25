@@ -1,7 +1,7 @@
 // Node-side helpers the app-shell component specs share: story ids, accessible names and in-page probes.
 import type { Rgb } from "@orb/kit/theme-derivation";
 import type { TrpcRecorder } from "@orb/testkit/ct";
-import { createShellAmbientReads, routeOrbSocket, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { createShellAmbientReads, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import type { CorpusWire } from "@orb/testkit/iso";
 import type { CDPSession, Locator, Page } from "@playwright/test";
 
@@ -81,19 +81,9 @@ export const ROOM_PROCEDURES = [
   "plugin.listDisplayTransforms",
 ] as const satisfies readonly ServedPath[];
 
-/**
- * Home's captured reads, the section set and an open room's reads answered by `caller`, and a quiet room socket: it
- * connects and stays open with no frames, and the room's attach and detach land as the void the server returns.
- */
-export async function routeRoom(page: Page, corpus: CorpusWire, caller: object): Promise<TrpcRecorder> {
-  const recorder = await routeTrpc(page, {
-    ...createShellAmbientReads(corpus),
-    ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...ROOM_PROCEDURES]),
-    "stream.attach": null,
-    "stream.detach": null,
-  });
-  await routeOrbSocket(page, { closeStream: false });
-  return recorder;
+/** Home's captured reads plus the section set and an open room's reads, each answered by `caller`. */
+export function routeRoom(page: Page, corpus: CorpusWire, caller: object): Promise<TrpcRecorder> {
+  return routeTrpc(page, { ...createShellAmbientReads(corpus), ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...ROOM_PROCEDURES]) });
 }
 
 /** The first room of a `chat.listChats` page the user named, with more than one character seated. */

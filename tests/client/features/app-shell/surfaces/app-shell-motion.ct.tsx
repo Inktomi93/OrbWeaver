@@ -3,7 +3,7 @@
 // view transition. Every sampler records per animation frame, because the defects it judges are one frame wide.
 import type { AppearanceSettings } from "@orb/contracts/settings/appearance";
 import type { ChatId } from "@orb/kit/ids";
-import { createShellAmbientReads, routeOrbSocket, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { createShellAmbientReads, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusWire } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -97,10 +97,7 @@ async function routeMotion(page: Page, corpus: CorpusWire, appearance: Partial<A
       ...settings,
       config: { ...settings.config, appearance: { ...settings.config.appearance, reducedMotion: false, fontScale: 1, ...appearance } },
     }),
-    "stream.attach": null,
-    "stream.detach": null,
   });
-  await routeOrbSocket(page, { closeStream: false });
 }
 
 /** Every box's x, `.shell-main`'s width and the list pane's width, in one read so no two are a frame apart. */
@@ -216,23 +213,46 @@ function animationStarts(page: Page): Promise<string[]> {
 /** Sum every layout shift the browser scores from now on. A click drives each case, so recent input is not filtered. */
 function recordLayoutShift(page: Page): Promise<void> {
   return page.evaluate(() => {
-    Reflect.set(globalThis, "__shift", 0);
-    new PerformanceObserver((list) => {
+    const total = { value: 0 };
+    const observer = new PerformanceObserver((list) => {
       for (const entry of list.getEntries()) {
-        Reflect.set(globalThis, "__shift", (Reflect.get(globalThis, "__shift") as number) + (entry as PerformanceEntry & { value: number }).value);
+        total.value += (entry as PerformanceEntry & { value: number }).value;
       }
-    }).observe({ type: "layout-shift" });
+    });
+    observer.observe({ type: "layout-shift" });
+    Reflect.set(globalThis, "__shift", { observer, total });
   });
 }
 
-/** The scored total, read after two painted frames and a delivery hop so the entry for the last frame has landed. */
+/** The scored total after two painted frames, with the observer's queued entries taken rather than waited for. */
 function layoutShift(page: Page): Promise<number> {
   return page.evaluate(
     () =>
       new Promise<number>((resolve) => {
-        requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => resolve(Reflect.get(globalThis, "__shift") as number), 100)));
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => {
+            const { observer, total } = Reflect.get(globalThis, "__shift") as { observer: PerformanceObserver; total: { value: number } };
+            for (const entry of observer.takeRecords()) {
+              total.value += (entry as PerformanceEntry & { value: number }).value;
+            }
+            resolve(total.value);
+          }),
+        );
       }),
   );
+}
+
+/** The instrument's positive control: push the content region's children down by one chrome row, a shift the browser must score. */
+async function plantShift(page: Page): Promise<void> {
+  await page
+    .locator("main.shell-content .shell-region-fill")
+    .first()
+    .evaluate((region) => {
+      const spacer = region.ownerDocument.createElement("div");
+      spacer.style.blockSize = "var(--dimension-chrome-row)";
+      spacer.style.flex = "none";
+      region.prepend(spacer);
+    });
 }
 
 function mainX(page: Page): Promise<number> {
@@ -309,7 +329,10 @@ test.describe("the list door on Chats", () => {
     await recordLayoutShift(page);
     await driveDoor(page, "Hide list panel");
     await driveDoor(page, "Show list panel");
-    expect(await layoutShift(page)).toBeLessThan(CLS_BUDGET);
+    const toggled = await layoutShift(page);
+    expect(toggled).toBeLessThan(CLS_BUDGET);
+    await plantShift(page);
+    expect(await layoutShift(page)).toBeGreaterThan(toggled);
   });
 
   test("the FLIP distance is the squeezed track and holds still while the list leaves", async ({ mount, page }) => {
@@ -354,7 +377,10 @@ test.describe("a section swap", () => {
     expect(Math.abs(endX - startX)).toBeGreaterThan(REAL_TRACK);
     expect(samples.filter((x) => !(x >= Math.min(startX, endX) - 1 && x <= Math.max(startX, endX) + 1))).toStrictEqual([]);
     expect(await animationStarts(page)).toStrictEqual([]);
-    expect(await layoutShift(page)).toBeLessThan(CLS_BUDGET);
+    const swapped = await layoutShift(page);
+    expect(swapped).toBeLessThan(CLS_BUDGET);
+    await plantShift(page);
+    expect(await layoutShift(page)).toBeGreaterThan(swapped);
 
     await emulateMedia(page, {});
     await page.locator(".shell-rail").getByRole("button", { name: "Chats", exact: true }).click();

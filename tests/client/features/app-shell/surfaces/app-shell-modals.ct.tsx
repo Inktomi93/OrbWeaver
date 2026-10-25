@@ -137,11 +137,12 @@ test.describe("on the corpus owner's own settings", () => {
     const gaps = arms.map((arm) => arm.footerGap);
     expect(Math.max(...gaps) - Math.min(...gaps)).toBeLessThanOrEqual(1);
     expect(arms.map((arm) => ({ floorKept: arm.regionShort <= 1, cancels: arm.cancels }))).toStrictEqual(arms.map(() => ({ floorKept: true, cancels: 1 })));
-    const sizes = await dialog.evaluate((element) => ({
-      teaching: Number.parseFloat(getComputedStyle(element.querySelector('[data-slot="text"][data-voice="reading"]') ?? element).fontSize),
-      label: Number.parseFloat(getComputedStyle(element.querySelector('[data-slot="field-label"]') ?? element).fontSize),
-    }));
-    expect(sizes.teaching).toBeGreaterThanOrEqual(sizes.label);
+    const teaching = dialog.locator('[data-slot="text"][data-voice="reading"]');
+    const label = dialog.locator('[data-slot="field-label"]').first();
+    await expect(teaching).toHaveCount(1);
+    await expect(label).toBeVisible();
+    const fontPx = (locator: Locator): Promise<number> => locator.evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
+    expect(await fontPx(teaching)).toBeGreaterThanOrEqual(await fontPx(label));
     await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
     await expect(dialog).toHaveCount(0);
   });
