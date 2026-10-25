@@ -2,11 +2,12 @@
 
 ## State
 
-The approved styling-bypass migration is implemented and passes its affected native floor. Synthetic application captures and independent visual acceptance remain pending at the source checkpoint.
-The checkpoint precedes captures because Snap must serve a committed source revision. A later evidence-only commit records those captures; no second implementation phase is planned.
+The approved styling-bypass migration is implemented and passes its affected native floor. Independent correctness review confirms the source, and the bounded visual review is SHIP at `2df42bb1a08f6b3100a181786dae0b49254ed3eb`.
+Source checkpoints bind Snap to committed revisions. The rendered correction and this evidence-only record are necessary follow-ups to those captures, not separate cleanup phases.
 
 The [audit](ramp-bypass-audit.md) records the initial population, source findings and standards assessment. The [CSS closeout](css-closeout.md) records the prior full stylesheet and DTCG reading census.
-Main owns integration, whole-tree checks and work-item closure. This report does not claim CI, whole-application standards certification or a real iPhone result.
+Main owns integration and work-item closure. The program umbrella remains open for the next authorized push barrier; no push or whole-tree barrier is claimed here.
+This report does not claim CI, whole-application standards certification or a real iPhone result.
 
 ## Population and enforcement
 
@@ -108,10 +109,41 @@ All paths below are local artifacts in this worktree. Failed aggregates remain r
 The first runtime run had one passing case and three failures. The public small-button floor was a real defect; the compact-viewBox and diagnostic-output overflow assumptions were test errors.
 The bounded diagnostic run preserved the complete coarse measurements and reproduced density staleness. The next run passed the pointer cases and exposed the font precision defect. No unchanged warm retry is reported as a fix.
 
+## Committed-source visual evidence
+
+The initial synthetic captures serve `7efda46140b1fb29f4b28f82d4a3c4bb475b0d6a`. Corrected editor and footer captures serve `2df42bb1a08f6b3100a181786dae0b49254ed3eb`.
+Every run uses the maintained `scripts/corpus-fixture.ts snap` wrapper. It owns the canonical synthetic clone, provider and isolated stage; every stage reports successful teardown.
+No owner-data images were inspected or added to this assignment.
+
+The independent report is `reports/side-eye/2026-10-25-ramp-enforcement.md`: SHIP for the reviewed surface slice, reusing unaffected acceptance and reviewing only the corrected targets afterward.
+It views seventeen initial images and three corrected target images. This is not a passing whole-app screenshot or instrument aggregate.
+
+All run identifiers below are under `reports/runs/snap/`; each directory contains its immutable `run.json`, screenshots and named evidence files.
+
+| Run | Input and actual outcome |
+| - | - |
+| `closeout-css-821867-2026-10-25T19-55-03-564Z` | Unshimmed desktop 1440×900 Home/rail; exit 0. |
+| `closeout-css-828953-2026-10-25T19-57-03-875Z` | Same desktop; Corpus, Regex library, Looks, Characters and New chat; 5/5 checkpoints, exit 0. |
+| `closeout-css-845312-2026-10-25T20-02-07-273Z` | Desktop Insights, actual chart crop, Regex editor, inline theme builder and recent-shelf focus; 4/5 checkpoints, exit 1 with five vendor dead-CSS flags. |
+| `closeout-css-872255-2026-10-25T20-10-46-330Z` | Coarse 390×844, maximal appearance plus explicit fontScale 1.25; finder, attempted Import, chart, Regex, inline theme and New chat. Exit 1 retains the failed Import step and vendor flags. Visual review identifies the editor and footer defects despite other native checkpoint passes. |
+| `closeout-css-934649-2026-10-25T20-30-25-580Z` | Corrected source, same scaled phone. Regex and New chat pixels show the fixes. Raw exit 1 also retains an Import step failure, a failed visible-dialog assertion, and ten dead-CSS entries: the same five vendor tokens on two checkpoints. This is not a passing aggregate. |
+| `closeout-css-947728-2026-10-25T20-34-29-036Z` | Corrected unshimmed desktop Regex. Root and editable content both use Geist Mono at 13px/20px. Exit 1 retains five vendor flags; the actual editor checkpoint has no navigation, action, assertion, console or page errors. |
+
+The corrected phone editor reads Geist Mono at 20px/30px on both root and editable content. The footer buttons are separate 218×60 boxes inside the dialog: y630–690 and y698–758, with dialog bottom 804.
+The actual chart labels and endpoints fit the viewed desktop and scaled-phone crops. Other chart families remain qualified only by their declared native controls, not these pictures.
+
+Import FormDialog was **not reached after two attempts and is not visually qualified**. The open list intercepted the first tap; collapsing it removed the targeted control.
+The earlier driver-only explanation is withdrawn. These attempts establish neither a product defect nor a valid dialog drive. No further navigation or repair is inferred.
+New chat qualifies the changed ContentDialog through ModalHost → FlowDialog → ContentDialog. The new-theme view is an inline builder, not FormDialog.
+The actual phone finder focus/coarse controls are visible. The desktop focus image is a recent-shelf Resume card, not fine-pointer finder reveal-transition proof.
+
+The native indexes retain stream-connect abort projections and software-rendering timing withholds. They are not promoted into performance, motion, contrast or whole-app correctness claims.
+No dead-CSS suppression, retry-to-green claim or violation baseline removes those native outcomes.
+
 ## Boundaries
 
 The retained analysis is bounded local-static resolution, not arbitrary execution or whole-program interpretation of imported dynamic functions.
 Runtime measurement, content geometry, registered appearance channels and validated owner CSS remain distinct from authored design choices.
 The census includes generated outputs; their generators own those bytes. Vendor internals, external plugin documents and art simulation algorithms are not recast as token consumers.
 The prior fine-pointer TrackerValue no-shift proof remains fine-pointer-only. Coarse inline editors intentionally retain the 16px focus-zoom floor; real iOS behavior is not certified here.
-Synthetic application captures and visual review are pending at this source checkpoint. No owner-data pixels are part of this assignment's new artifacts.
+The bounded visual review is complete with the explicit FormDialog and fine-pointer reveal screenshot gaps above. Whole-tree push-barrier acceptance remains pending under the program umbrella.

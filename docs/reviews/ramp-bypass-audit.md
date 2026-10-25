@@ -96,7 +96,7 @@ WCAG 2.2 AA target size is 24×24 CSS pixels or an applicable spacing/other exce
 
 Production-mounted coarse-pointer checks confirmed 36px Button, Switch and Select boxes at fontScale .8. The existing `orb.rootFloor` mechanism now protects their coarse dimensions and coupled Switch geometry. Fine-pointer dimensions remain unchanged. This corrects the project's 44px promise; it is not an automatic WCAG-AA failure claim.
 The editable field tokens already emit `max(1rem, 16px)` on coarse pointers. Their source therefore retains the 16px floor at .8; actual iOS focus-zoom behavior remains a device check.
-Zoom, user text-spacing overrides, chart label fit after token resolution and the icon/mark size migration require affected rendered qualification before claiming complete consistency.
+The closeout qualifies its declared chart, icon and editor cases with native controls and bounded visual review. Universal zoom, user text-spacing and device behavior remain outside that verdict.
 
 ## Approved implementation scope
 
