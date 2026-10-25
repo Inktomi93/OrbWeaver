@@ -31,4 +31,17 @@ A theme author cannot discover the hooks, nothing warns when a theme targets a h
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Built:
+
+- `packages/client/owner-css-surface.build.ts` writes `OWNER_CSS_SURFACE` (kind-tagged slots, shell classes, tokens) and writes every roster as literals. A regen that drops a published hook without a row in `packages/client/src/owner-css/renames.ts` throws.
+- `CodeEditor` takes `CodeEditorCompletionRule[]`; `features/config/lib/theme-css-completions.ts` builds the rules from the surface.
+- `features/config/lib/theme-css-warnings.ts` raises stale-hook warnings; `CustomThemeStyle` rewrites recorded old names before injecting.
+
+Checks:
+
+- `pnpm test tests/client/owner-css-surface.repo.int.test.ts tests/client/owner-css/rewrite.test.ts tests/client/features/config/lib/theme-css-warnings.test.ts`
+- `pnpm test:tools tests/tooling/generated-css-drift.repo.int.test.ts`
+- `pnpm test:ct tests/client/features/config/surfaces/theme-css-editor.ct.tsx` drives each completion context, a planted stale slot and a current slot.
+- `pnpm typecheck tsconfig.json packages/client/tsconfig.json packages/ui/tsconfig.json tsconfig.tests-dom.json`, `pnpm knip:prod`, `pnpm depcruise`.
+
+Open: the `data-appearance-*` attributes, their values and the appearance custom properties join the surface as one more source once the appearance manifest is on main.

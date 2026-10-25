@@ -1,4 +1,5 @@
-import { autocompletion, completeFromList } from "@codemirror/autocomplete";
+import type { CompletionSource } from "@codemirror/autocomplete";
+import { autocompletion } from "@codemirror/autocomplete";
 import { css } from "@codemirror/lang-css";
 import type { Diagnostic } from "@codemirror/lint";
 import { linter, lintGutter, setDiagnostics } from "@codemirror/lint";
@@ -124,6 +125,47 @@ function toLintDiagnostics(diagnostics: readonly CodeEditorDiagnostic[], docLeng
   });
 }
 
+/** One completion candidate. `detail` is a short note shown beside the label. */
+export interface CodeEditorCompletionOption {
+  readonly label: string;
+  readonly detail?: string;
+}
+
+/**
+ * A completion offered only where the text before the cursor matches `trigger`. The editor stays
+ * domain-agnostic: the caller owns the vocabulary and the contexts it applies in.
+ */
+export interface CodeEditorCompletionRule {
+  /** Tested against the current line up to the cursor, so end it with `$`. The LAST capture group is the typed prefix a pick replaces. */
+  readonly trigger: RegExp;
+  /** A fixed list, or one computed from the match (earlier capture groups select the vocabulary). */
+  readonly options: readonly CodeEditorCompletionOption[] | ((match: RegExpExecArray) => readonly CodeEditorCompletionOption[]);
+}
+
+const COMPLETION_PREFIX = /^[\w-]*$/u;
+
+// The first rule whose trigger matches wins; no match returns null so the popup stays closed.
+function completionSourceFromRules(rules: readonly CodeEditorCompletionRule[]): CompletionSource {
+  return (context) => {
+    const line = context.state.doc.lineAt(context.pos);
+    const before = context.state.sliceDoc(line.from, context.pos);
+    for (const rule of rules) {
+      const match = rule.trigger.exec(before);
+      if (match === null) {
+        continue;
+      }
+      const typed = match.at(-1) ?? "";
+      const options = typeof rule.options === "function" ? rule.options(match) : rule.options;
+      return {
+        from: context.pos - typed.length,
+        options: options.map(({ label, detail }) => ({ label, ...(detail === undefined ? {} : { detail }) })),
+        validFor: COMPLETION_PREFIX,
+      };
+    }
+    return null;
+  };
+}
+
 export interface CodeEditorProps {
   /** Language mode. Only `"css"` is wired today. */
   readonly lang?: "css";
@@ -155,11 +197,11 @@ export interface CodeEditorProps {
    */
   readonly diagnostics?: readonly CodeEditorDiagnostic[];
   /**
-   * A fixed completion vocabulary wired into inline autocomplete via `completeFromList`. While set
-   * it replaces `basicSetup`'s default completions with just this vocabulary. Omit for the plain
-   * editor (basicSetup's defaults still apply).
+   * Context-aware autocomplete: each rule offers its options only where its trigger matches the text before
+   * the cursor. While set it replaces `basicSetup`'s default completions. Pass a stable reference: a change
+   * rebuilds the view. Omit for the plain editor (basicSetup's defaults still apply).
    */
-  readonly completions?: readonly string[];
+  readonly completions?: readonly CodeEditorCompletionRule[];
   readonly className?: string;
 }
 
@@ -223,7 +265,7 @@ export function CodeEditor({
         // linter(null): no auto-computed source — diagnostics are pushed via setDiagnostics below.
         ...(hasDiagnostics ? [linter(null), lintGutter()] : []),
         // `completions` is expected to be a stable reference — a genuine change rebuilds the view.
-        ...(completions === undefined ? [] : [autocompletion({ override: [completeFromList([...completions])] })]),
+        ...(completions === undefined ? [] : [autocompletion({ override: [completionSourceFromRules(completions)] })]),
       ],
     });
     viewRef.current = view;

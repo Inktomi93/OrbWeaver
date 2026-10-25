@@ -6,10 +6,12 @@
 // after every app stylesheet, so it wins over @layer utilities AND shell.css by source order. Raw DOM
 // (not JSX <style>) so React never hoists/reorders it. No app-root scope wrapper — that would break a
 // `:root{--token:…}` redefine (the root becomes the wrapper's unmatchable ancestor); this is the owner's
-// own trusted CSS, so raw global injection is correct. Passes `validateThemeCss` first regardless.
+// own trusted CSS, so raw global injection is correct. Passes `validateThemeCss` first regardless, then
+// rewrites hook names the owner-css rename table records, so a theme written against an old name keeps working.
 
 import { validateThemeCss } from "@orb/kit/css-validate";
 import { useLayoutEffect } from "react";
+import { OWNER_CSS_RENAMES, rewriteRenamedHooks } from "#owner-css";
 
 const STYLE_MARKER = "data-orb-theme-css";
 
@@ -29,7 +31,7 @@ export function CustomThemeStyle({ css }: CustomThemeStyleProps): null {
     }
     const el = document.createElement("style");
     el.setAttribute(STYLE_MARKER, "");
-    el.textContent = trimmed;
+    el.textContent = rewriteRenamedHooks(trimmed, OWNER_CSS_RENAMES);
     document.head.appendChild(el);
     return (): void => {
       el.remove();
