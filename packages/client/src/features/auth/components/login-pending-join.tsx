@@ -120,7 +120,7 @@ export function LoginPendingJoin({ providerName, onJoined, onDismiss }: LoginPen
   };
 
   return (
-    <form ref={formRef} onSubmit={confirm} noValidate={true}>
+    <form aria-label="Join the room" ref={formRef} onSubmit={confirm} noValidate={true}>
       <Stack gap="block" data-testid={testId("pendingJoin")}>
         <Heading level={1}>You're invited</Heading>
         <Text voice="quiet">{`${inviteRoomSentence(room)} ${room.modeLabel} Joining creates your account here.`}</Text>

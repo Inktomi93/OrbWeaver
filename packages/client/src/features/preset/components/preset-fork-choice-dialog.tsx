@@ -67,6 +67,7 @@ export function PresetForkChoiceDialog({ open, sourceName, forkName, suggestedNa
     >
       {naming ? (
         <form
+          aria-label="Name the new fork"
           onSubmit={(event): void => {
             event.preventDefault();
             if (trimmed !== "") {

@@ -72,9 +72,11 @@ export interface ShelfFaceResume {
  *  closes): two buttons both named "Sola" were two doors AT accessed identically; "Resume the chat with
  *  Sola" and "Sola" are two different offers, which is what they actually are. `starred` still rides the
  *  tail rather than the head, so the verb leads in both arms. */
-function faceActionName(name: string, starred: boolean, resume: ShelfFaceResume | null): string {
+function faceActionName(name: string, stamp: string | null, starred: boolean, resume: ShelfFaceResume | null): string {
   const offer = resume === null ? name : `Resume the chat with ${name}`;
-  return starred ? `${offer}, starred` : offer;
+  // The visible stamp ("chatted 3h ago · 4 chats") is part of the button's label, so the name carries every word of it (WCAG 2.5.3).
+  const stamped = stamp === null ? offer : `${offer}, ${stamp}`;
+  return starred ? `${stamped}, starred` : stamped;
 }
 
 export function CharacterShelfFace({ id, name, avatarHash, starred, stamp, caption, captionId, resume, onOpen }: CharacterShelfFaceProps): ReactElement {
@@ -87,7 +89,7 @@ export function CharacterShelfFace({ id, name, avatarHash, starred, stamp, capti
         // mark is the only thing on the cell that says it, and on Recently chatted — where the shelf's own
         // eyebrow does not — a sighted reader gets a fact a screen-reader user would not. The VERB leads it
         // now (#1662) — see {@link faceActionName}.
-        aria-label={faceActionName(name, starred, resume)}
+        aria-label={faceActionName(name, stamp, starred, resume)}
         className="flex-col items-stretch gap-tight text-start"
         intent="ghost"
         onClick={(): void => (resume === null ? onOpen(id) : resume.onResume(resume.chatId))}

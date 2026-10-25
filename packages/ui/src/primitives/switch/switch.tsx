@@ -3,6 +3,7 @@ import { Switch as BaseSwitch } from "@base-ui/react/switch";
 import type { ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { cn, variantAttrs } from "#lib";
+import { useFieldIdentity } from "#primitives/field";
 import { Icon, Lock } from "#primitives/icons";
 import { switchVariants } from "./variants.ts";
 
@@ -14,13 +15,14 @@ export interface SwitchProps extends SwitchRootProps, VariantProps<typeof switch
 // Lock glyph fades in on the thumb as the non-color "you can't touch this" signal. `tone` rations the
 // checked-track accent (default `accent` = ember; `quiet` = the derived neutral ramp for switch racks
 // where a per-row accent would blow the surface accent budget — variants.ts header).
-export function Switch({ className, tone, ...rest }: SwitchProps): ReactElement {
+export function Switch({ className, tone, id, name, ...rest }: SwitchProps): ReactElement {
   const slots = switchVariants({ tone });
+  const identity = useFieldIdentity(id, name);
   return (
     // STAMP SITE (#1097): the ROOT. The root IS the switch (role=switch, the tap target); `tone` paints
     // both root and thumb, and the AUTHORED `data-tone` sits beside Base UI's RUNTIME `data-checked`
     // without shadowing it — the stamped vocabulary is closed to four names Base UI never emits.
-    <BaseSwitch.Root className={cn(slots.root(), className)} data-slot="switch-root" {...variantAttrs(switchVariants, { tone })} {...rest}>
+    <BaseSwitch.Root className={cn(slots.root(), className)} data-slot="switch-root" {...variantAttrs(switchVariants, { tone })} {...identity} {...rest}>
       <BaseSwitch.Thumb className={slots.thumb()} data-slot="switch-thumb">
         <Icon className={slots.readOnlyIcon()} icon={Lock} size="xs" />
       </BaseSwitch.Thumb>

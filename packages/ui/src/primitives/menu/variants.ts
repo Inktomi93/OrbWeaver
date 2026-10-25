@@ -19,7 +19,7 @@ const HIGHLIGHT_INDICATOR = "data-highlighted:inset-ring-2 data-highlighted:inse
 
 // Shared item skin — every clickable menu row wears it, so highlight/disabled/touch-floor behave
 // identically. `data-highlighted` is Base UI's own hover/rove state.
-const itemBase = `flex min-h-(--size-control-sm) cursor-default items-center gap-row rounded-control px-row text-body leading-body outline-none select-none transition-colors duration-(--motion-fast) ease-out-expo data-disabled:opacity-50 data-highlighted:bg-accent data-highlighted:text-accent-foreground ${HIGHLIGHT_INDICATOR}`;
+const itemBase = `flex min-block-(--size-control-sm) cursor-default items-center gap-row rounded-control px-row text-body leading-body outline-none select-none transition-colors duration-(--motion-fast) ease-out-expo data-disabled:opacity-50 data-highlighted:bg-accent data-highlighted:text-accent-foreground ${HIGHLIGHT_INDICATOR}`;
 
 // EVERY COMMAND ROW RESERVES THE LEADING GLYPH GUTTER (side-eye 2026-08-06 P2). One menu mixes iconed rows
 // (`<Icon>` as the first child) with bare-text rows, and the bare ones started their label a whole glyph +

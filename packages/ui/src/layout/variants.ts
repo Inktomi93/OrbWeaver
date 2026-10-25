@@ -1,5 +1,5 @@
 // Layout recipes define spacing intent; features consume the variants. Line-local exceptions license custom tracks.
-import { DISABLED_STATE_NATIVE, FOCUS_RING, tv } from "#lib";
+import { DISABLED_STATE_NATIVE, FOCUS_RING, HIDDEN_AT, HOVER_REVEAL, SR_ONLY_AT, TOUCH_FLOOR_AT_COARSE, tv } from "#lib";
 
 const GAP = {
   // The small-end step (UI-Density-Law.md §2.2/D2): ATOM gaps inside an island — label↔bar,
@@ -35,6 +35,10 @@ const JUSTIFY = {
   between: "justify-between",
 } as const;
 
+// The coarse floors a layout box owns: its own block size (a row of text-height values whose hit areas must fit
+// inside it), or the pitch between tiled control cells. Declared after `gap` in each recipe so the coarse gap wins.
+const TOUCH_FLOOR = { block: TOUCH_FLOOR_AT_COARSE.block, gap: TOUCH_FLOOR_AT_COARSE.gap } as const;
+
 export const stackVariants = tv({
   base: "flex flex-col",
   variants: {
@@ -53,12 +57,25 @@ export const stackVariants = tv({
     // The stack is itself the container its descendants query (an element never queries itself). `size` also
     // contains the block axis, for `cqb` and `cqmin` units.
     container: { true: "@container", size: "@container-size" },
+    hiddenAt: HIDDEN_AT,
+    srOnlyAt: SR_ONLY_AT,
+    touchFloor: TOUCH_FLOOR,
   },
 });
 
 export const rowVariants = tv({
   base: "flex flex-row items-center",
-  variants: { gap: GAP, align: ALIGN, justify: JUSTIFY, padding: PADDING },
+  variants: {
+    gap: GAP,
+    align: ALIGN,
+    justify: JUSTIFY,
+    padding: PADDING,
+    hiddenAt: HIDDEN_AT,
+    srOnlyAt: SR_ONLY_AT,
+    touchFloor: TOUCH_FLOOR,
+    // A row of trailing actions that reveals on the nearest `group` ancestor's hover.
+    reveal: HOVER_REVEAL,
+  },
 });
 
 // One-cell overlay stack (see layer.tsx). A single explicit `1fr`-free track that every child is placed

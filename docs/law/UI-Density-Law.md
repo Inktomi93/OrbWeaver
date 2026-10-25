@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-13
+updated: 2026-10-24
 ---
 
 # UI density law — the assignment law for the token scales
@@ -53,7 +53,7 @@ This law follows the 8pt grid with a 4pt sub-grid (4pt inside a component, 8pt b
 
 The seven type sizes are correct and are NOT re-derived (D4 — no measured defect, and a re-derivation churns every surface).
 
-The defect was the KNOB SPACE: `size` (7) × `weight` (4) × `tone` (6) × `transform` (2) = 336 legal combinations, chosen per call site by taste — the mechanism by which nothing recedes. **The law is one CLOSED `voice` axis.** `size`/`weight`/`tone`/`transform` are `@orb/ui`-INTERNAL; a feature passes `voice` and nothing else.
+The defect was the KNOB SPACE: `size` (7) × `weight` (4) × `tone` (6) × `transform` (2) = 336 legal combinations, chosen per call site by taste — the mechanism by which nothing recedes. **The law is one CLOSED `voice` axis.** `size`/`weight`/`transform` are `@orb/ui`-INTERNAL; a feature passes `voice`, plus the meaning axes listed below.
 
 The founding grammar — a surface's copy is one of four things:
 
@@ -69,6 +69,14 @@ The founding grammar — a surface's copy is one of four things:
 **Adding a voice is a RULING, not a convenience.** A new entry enters only with a stated discriminator against its NEAREST existing neighbour — which axis differs (step · face · tabularity · ink · weight · tracking) and why the neighbour's entry is wrong for the case. A voice that resolves to an existing entry's class set is a rename, not a voice. The failure this prevents is real and recurring: a feature one axis short of an existing voice spells `size`/`weight` through `className` instead, which bypasses the semantic voice contract.
 
 `datum` rides `text-label` rather than a new 11px step (D5): 11px is a 4.8% ratio move off `micro` — too fine to be a real scale step, and mono + tabular already separates it visually.
+
+Beside the voice, a feature passes three more Text axes, by owner ruling:
+
+- `tone` is colour by meaning: `muted`, `accent`, `destructive`, `success`, `warning`, `info`, `accolade`, and the transcript inks `speaker`, `dialogue` and `narration`. `text-info` is a tone, never a voice. The map is `TONE_INK` in `packages/ui/src/lib/tone-ink.ts`, shared with `Icon`.
+- `strike` draws a line-through (a cancelled quest, a disabled section).
+- `hiddenAt` (`coarse` or `fine`) and `srOnlyAt` (`coarse`) swap the text per pointer class (§4.3).
+
+The `code` voice is Geist Mono at the code step in the foreground ink, for machine text you read or copy: ids, hashes, keys, addresses. `numeric` (tabular figures) is a modifier for a composite that sets its own step, such as `TrackerValue`; a feature readout takes a voice.
 
 ## 3. The tier map
 
@@ -133,7 +141,14 @@ Check the rendered value with `getComputedStyle(...)` against the document-resol
 | - | - | - |
 | `Surface` | `tier` (required) | the one tier writer |
 | `Card` | NO `padding` variant; `elevated?: boolean` | padding is tier-resolved; `elevated` is the explicit opt-in to `rounded-card` + shadow. **`Card` has no `padding` prop; that absence IS the enforcement** (D7) — a surviving prop is a surviving escape hatch |
-| `Text` / `Heading` | `voice` (§2.3); `size`/`weight`/`tone`/`transform` are `@orb/ui`-internal | collapses 336 taste combinations to named intents |
+| `Text` / `Heading` | `voice` (§2.3); `tone`, `strike`, `hiddenAt`, `srOnlyAt`; `size`/`weight`/`transform` are `@orb/ui`-internal | collapses 336 taste combinations to named intents; meaning colour and pointer-class swaps are props, never classes |
+| `Card` | `shape`: `island` (default) · `row` (one operable or listed row as its own box, `--radius-control`) · `well` (a recess inside a box: no border, `bg-muted`, `--radius-control`); `tone` gains `clear` (border only) and `accent` | a bordered, rounded, filled `Row` or `Stack` is a `Card`, not a layout box with paint (owner ruling); `tiers.css` re-declares the shape radius inside a tier |
+| `Icon` | `tone` (the Text map) · `shadow` (`drop-shadow-sm`, for a glyph over art or a bubble) | an icon's ink is a meaning, like text's |
+| `Button` | `intent="link"`: an underlined action in the primary ink, no fill; `hiddenAt`; `touchFloor="inline"` | a link-styled action is a Button intent; navigation is an anchor |
+| `Row` / `Stack` | `hiddenAt` · `srOnlyAt` · `touchFloor` (`block`: the box's own block size; `gap`: `gap-block` between tiled control cells) at a coarse pointer; `Row` `reveal` (`hover`, `faint`) | pointer capability is a primitive prop, never a feature's pointer variant; the strings live in `lib/pointer-visibility.ts`, `lib/touch-floor.ts` and `lib/hover-reveal.ts` |
+| `ListRow` | `revealActions` | the trailing cluster hides at rest and shows on the row's hover or focus-within, opacity only; a coarse pointer keeps it shown |
+| `Badge` / `CollapsibleTrigger` | `touchFloor="block"` | a chip or a text-height disclosure takes the touch floor on its own box at a coarse pointer |
+| `Input` | `numeric` (tabular figures); `width` reaches the element | the edit twin of a numeric datum keeps its columns |
 | `Section` | `kicker` (caps micro label + hairline rule) + `kickerLayout: "stacked" \| "inline"` | the CD1 replacement for a box. The INLINE spelling makes the rule the section's own `border-top` and lets the kicker LEAD the control line — naming two groups costs +2px inline against +22px stacked |
 | `Stack` / `Row` / `Grid` | `gap` carries `tight` | the small-end step |
 | `ListRow` | no per-row border; selection is a bg tint + `rounded-control` | CD1 for the LIST class |

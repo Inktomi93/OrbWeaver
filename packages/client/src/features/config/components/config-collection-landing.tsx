@@ -218,6 +218,7 @@ function CollectionCreate({ collection, inBand = false }: { readonly collection:
     // container is narrow, so asking for a name never squeezes the filter out.
     <Stack className={inBand ? "order-last basis-full @cq-40:order-0 @cq-40:basis-auto" : undefined}>
       <form
+        aria-label={label}
         noValidate={true}
         onSubmit={(event): void => {
           event.preventDefault();
@@ -337,7 +338,14 @@ function CollectionInsightList({ insights }: { readonly insights: readonly Colle
           </Text>
           <CountText>{insight.value}</CountText>
           {insight.open === undefined ? null : (
-            <Button className="ms-auto" intent="ghost" onClick={insight.open.run} size="sm" type="button">
+            <Button
+              aria-label={`${insight.open.label}: ${insight.label}`}
+              className="ms-auto"
+              intent="ghost"
+              onClick={insight.open.run}
+              size="sm"
+              type="button"
+            >
               {insight.open.label}
             </Button>
           )}

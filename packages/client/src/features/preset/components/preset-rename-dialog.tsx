@@ -43,6 +43,7 @@ export function PresetRenameDialog({ open, onOpenChange, currentName, onRename }
       title="Rename preset"
     >
       <form
+        aria-label="Rename preset"
         onSubmit={(event): void => {
           event.preventDefault();
           if (canSave) {

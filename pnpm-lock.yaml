@@ -578,6 +578,7 @@ patchedDependencies:
   chrome-devtools-mcp@1.11.0: f3f1f09662e22c856422d3be627d1ad300eff7badc4a4f90ad03f62849a8bc97
   cmdk@1.1.1: a6e7187df52e9d4f1cd63362a275f1138eb85222f332c5ef99f6b1d44fa35420
   colorjs.io@0.7.1: 12d81310907897d570f7f59553b3ce0243e2b40a802c22971beb75c2a3182220
+  eslint-plugin-better-tailwindcss@4.10.0: aef47ec322be76a31a4914a3f75673c40cab9527f35bccfce3c350100978c034
   isomorphic-git@1.44.3: b6d3daca10aea27090550cbe67f10d2a422ad36ff50cb2f1e7fbc6c3f46e7b5f
   libsql@0.6.0-pre.43: 7b48aa0bd500a46194e7b41b77327ba74b34e5a0d6717f366ea745b4e7978031
   node-av@6.1.1: 36551009254ba2f04a7116d9f5c2e58bd9a276f4f026daac918fc75c72088039
@@ -690,7 +691,7 @@ importers:
         version: 10.13.0(jiti@2.7.0)(supports-color@7.2.0)
       eslint-plugin-better-tailwindcss:
         specifier: 'catalog:'
-        version: 4.10.0(@typescript/typescript6@6.0.2)(eslint@10.13.0(jiti@2.7.0)(supports-color@7.2.0))(tailwindcss@4.3.3)
+        version: 4.10.0(patch_hash=aef47ec322be76a31a4914a3f75673c40cab9527f35bccfce3c350100978c034)(@typescript/typescript6@6.0.2)(eslint@10.13.0(jiti@2.7.0)(supports-color@7.2.0))(tailwindcss@4.3.3)
       eslint-plugin-drizzle:
         specifier: 'catalog:'
         version: 0.2.3(eslint@10.13.0(jiti@2.7.0)(supports-color@7.2.0))
@@ -11604,7 +11605,7 @@ snapshots:
 
   escape-string-regexp@5.0.0: {}
 
-  eslint-plugin-better-tailwindcss@4.10.0(@typescript/typescript6@6.0.2)(eslint@10.13.0(jiti@2.7.0)(supports-color@7.2.0))(tailwindcss@4.3.3):
+  eslint-plugin-better-tailwindcss@4.10.0(patch_hash=aef47ec322be76a31a4914a3f75673c40cab9527f35bccfce3c350100978c034)(@typescript/typescript6@6.0.2)(eslint@10.13.0(jiti@2.7.0)(supports-color@7.2.0))(tailwindcss@4.3.3):
     dependencies:
       '@eslint/css-tree': 4.1.2
       '@valibot/to-json-schema': 1.8.0(valibot@1.5.0(@typescript/typescript6@6.0.2))

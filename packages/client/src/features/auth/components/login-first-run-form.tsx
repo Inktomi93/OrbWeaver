@@ -48,7 +48,7 @@ export function LoginFirstRunForm({ ownerHandle, onDone }: LoginFirstRunFormProp
   };
 
   return (
-    <form onSubmit={onSubmit} data-testid={testId("firstRunSetupForm")}>
+    <form aria-label="Set the owner password" onSubmit={onSubmit} data-testid={testId("firstRunSetupForm")}>
       <Stack gap="block">
         <Text voice="label" tone="muted">
           {ownerHandle === null

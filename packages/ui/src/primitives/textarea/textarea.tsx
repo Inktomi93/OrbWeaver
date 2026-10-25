@@ -3,6 +3,7 @@ import { Field as BaseField } from "@base-ui/react/field";
 import type { ComponentPropsWithRef, ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { cn, variantProps } from "#lib";
+import { useFieldIdentity } from "#primitives/field";
 import { textareaVariants } from "./variants.ts";
 
 // `onValueChange` is PICKED from Field.Control's own props, never re-spelled: hand-writing
@@ -32,7 +33,8 @@ function lineBoxHeight(lines: number): string {
   return `calc(${lines} * 1lh + 2 * var(--spacing-field) + 2px)`;
 }
 
-export function Textarea({ className, rows, maxRows, size, style, onValueChange, onChange, ...rest }: TextareaProps): ReactElement {
+export function Textarea({ className, rows, maxRows, size, style, onValueChange, onChange, id, name, ...rest }: TextareaProps): ReactElement {
+  const identity = useFieldIdentity(id, name);
   // `field-sizing: content` makes the browser IGNORE `rows` for sizing (it collapses to the content
   // height), so a `rows={3}` field renders as a single line. Re-floor the height off `rows` as a
   // min-height so `rows` again means "at least n lines" while the field keeps auto-growing past it.
@@ -55,6 +57,7 @@ export function Textarea({ className, rows, maxRows, size, style, onValueChange,
       render={
         <textarea
           {...(onChange === undefined ? {} : { onChange })}
+          {...identity}
           {...rest}
           // The scroll is explicit rather than left to the UA default: `overflow: auto` is a textarea's
           // native behavior, but the skin is composed from utilities and a future `overflow-hidden` in the
