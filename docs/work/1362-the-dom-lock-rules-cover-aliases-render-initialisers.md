@@ -30,3 +30,7 @@ Static styles include module members, memo initializer returns, prop defaults an
 The gallery popup, message column, Home grid, settings content pane, connection picker and FaceStrip use explicit refs. The settings arrival effect waits for the selected band's ref; the retained-content predicate runs after commit. No timer or retry was added.
 
 Old-source controls failed for the reported gaps. Current DOM controls pass 82 cases; browser support passes 45. Native CTs cover Select focus and cleanup, FaceStrip rename/removal, row-edit footprint, gallery viewport fit, Home coarse-pointer columns, settings arrival and jumps. Final affected compiler and scoped ESLint checks pass. The CSS lane owns the exposed artwork-style migrations; main owns the integrated whole-client verdict. Full commands, failures, corrections and limits are in `docs/reviews/dom-closeout.md`.
+
+Independent review correction: locally held apply arrays and untagged class-name templates now use the shared static method/argument reader. Red controls report 6 failed and 86 passed before implementation; the corrected DOM suite passes 100. Sibling controls cover aliases, TypeScript wrappers, known array spreads, holes, opaque leading spreads, call/apply/bind templates, public names and the inert marker. No product behavior changed.
+
+The independent review correction passes scoped ESLint, Biome with --error-on-warnings and the tooling compiler. The reviewer confirms both original probes and the bounded correction diff.
