@@ -10,12 +10,8 @@ import type { SeedThemeName } from "#lib";
 import { isSeedThemeName } from "#lib";
 import { createPersistedStore } from "./create-persisted-store.ts";
 
-/** The root flag the `[data-reduced-motion="true"] *` floor in the ui package's globals.css selects on. */
-export const REDUCED_MOTION_ATTR = "data-reduced-motion";
 /** The root attribute the generated `[data-theme="…"]` palette blocks in the ui package's theme.css select on. */
 export const DATA_THEME_ATTR = "data-theme";
-/** The root custom property `:root { font-size: calc(100% * var(--font-scale, 1)) }` reads. */
-export const FONT_SCALE_VAR = "--font-scale";
 
 /** The appearance axes a boot needs before the shell can render one — the hint's whole surface. */
 export type AppearanceBootAxes = Pick<AppearanceSettings, "reducedMotion" | "fontScale" | "density">;
@@ -32,7 +28,6 @@ export interface AppearanceBootHintState extends AppearanceBootAxes {
 
 /** The schema's own defaults — what a device that has never been told anything replays (i.e. nothing). */
 const DEFAULT_AXES: AppearanceBootAxes = appearanceSettingsSchema.parse({});
-export const DEFAULT_APPEARANCE_FONT_SCALE = DEFAULT_AXES.fontScale;
 
 const DEFAULT_STATE: AppearanceBootHintState = { ...DEFAULT_AXES, dataTheme: null };
 

@@ -84,7 +84,6 @@ const DEFAULT_BLUR_SURFACES: readonly BlurSurface[] = ["panels", "composer", "mo
 // twin — BG-C); consumers import it from `@orb/contracts/theme` directly.
 
 const SURFACE_TEXTURES = ["none", "grain"] as const;
-export type SurfaceTexture = (typeof SURFACE_TEXTURES)[number];
 export const APPEARANCE_BACKGROUND_FITS = ["cover", "contain", "stretch", "center"] as const;
 export type AppearanceBackgroundFit = (typeof APPEARANCE_BACKGROUND_FITS)[number];
 

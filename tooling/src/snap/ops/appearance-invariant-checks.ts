@@ -242,9 +242,9 @@ function r4(ctx: AppearanceCheckContext): readonly AppearanceInvariantCheck[] {
     check("environment-identity", envPass, "full mobile/coarse/none/touch descriptor", JSON.stringify(environment.actual)),
     check(
       "root-scale-density-layout",
-      style(current, "html", "--font-scale") === "1.25" && attr(current, "common-scope", "data-density") === "compact" && messageCarrierPass,
+      style(current, "html", "--appearance-font-scale") === "1.25" && attr(current, "common-scope", "data-density") === "compact" && messageCarrierPass,
       "fontScale=1.25 compact document",
-      `${style(current, "html", "--font-scale")}/${String(attr(current, "common-scope", "data-density"))}/${JSON.stringify(messageCarrier)}`,
+      `${style(current, "html", "--appearance-font-scale")}/${String(attr(current, "common-scope", "data-density"))}/${JSON.stringify(messageCarrier)}`,
     ),
     check(
       "viewport-containment",

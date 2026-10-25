@@ -28,8 +28,6 @@ export { setAnalyticsSearchQuery, useAnalyticsSearchQuery } from "./analytics-se
 export { clearAnalyticsSelection, selectAnalyticsCharacterFromList, useSelectedAnalyticsCharacterId } from "./analytics-selection-store.ts";
 export {
   DATA_THEME_ATTR,
-  FONT_SCALE_VAR,
-  REDUCED_MOTION_ATTR,
   rememberAppearanceBootHint,
   rememberDataThemeHint,
   type SeedThemeName,

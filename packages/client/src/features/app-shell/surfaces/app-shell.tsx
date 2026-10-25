@@ -7,7 +7,7 @@ import { Button } from "@orb/ui/button";
 import { LIVE_TOKEN_ROOT_ATTRIBUTE, PortalContainerContext } from "@orb/ui/lib";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { TooltipProvider } from "@orb/ui/tooltip";
-import type { CSSProperties, ReactElement, ReactNode, RefObject } from "react";
+import type { ReactElement, ReactNode, RefObject } from "react";
 import { useEffect, useRef } from "react";
 import { preload } from "react-dom";
 import { ListPaneHeaderHost } from "#components";
@@ -42,7 +42,6 @@ import { useShellTrackFlip } from "../hooks/use-shell-track-flip.ts";
 import { useStrayFileDropGuard } from "../hooks/use-stray-file-drop-guard.ts";
 import { appearanceBackgroundSource, resolveThemeBackgroundUrl } from "../lib/resolve-theme-background.ts";
 import { roomScreenShell } from "../lib/room-section.ts";
-import { shellContentWidth } from "../lib/shell-content-width.ts";
 
 /** Collapse whichever panels are currently AUTO-OVERLAYS (the scrim's dismiss, shared by its click and the
  *  Escape key). Module-scope + `layout`-taking so it is never an effect dependency (D54: no manual memo). */
@@ -134,24 +133,7 @@ export function AppShell(): ReactElement {
   const { theme, dataTheme } = useSelectedTheme();
   // Overlays portal to a themed root inside <ThemeScope> instead of <body>, so every float inherits the active theme's tokens.
   const portalRootRef = useRef<HTMLDivElement>(null);
-  useAppearanceRootEffects({
-    fontScale: appearance.fontScale,
-    dataTheme,
-    blurSurfaces: appearance.blurSurfaces,
-    shadowEffects: appearance.shadowEffects,
-    blurStrength: appearance.blurStrength,
-    reading: {
-      lineHeight: appearance.readingLineHeight,
-      letterSpacing: appearance.readingLetterSpacing,
-      paragraphSpacing: appearance.readingParagraphSpacing,
-      nameScale: appearance.readingNameScale,
-      bodyScale: appearance.readingBodyScale,
-      justify: appearance.justifyBodyText,
-    },
-    themeColorization: appearance.enableThemeColorization,
-    surfaceTexture: appearance.surfaceTexture,
-    reducedMotion: appearance.reducedMotion,
-  });
+  useAppearanceRootEffects(appearance, dataTheme);
   // A seed theme paints from its generated [data-theme] block (keyed by `dataTheme` above), NOT its stored
   // override — see resolve-theme-scope-tokens for the shadowing bug this prevents.
   // `ambientBackground` is the ROOT of the #236 ambient chain: the surface the active theme paints, so a
@@ -180,15 +162,6 @@ export function AppShell(): ReactElement {
     preload(bgUrl, { as: "image" });
   }
   const hasBgImage = bgUrl !== null;
-  // THE DIAL'S FLOOR IS A TOKEN, NOT A LITERAL (#1204). It was `680px` here, sized before `77e07912eb`
-  // shipped Geist — after which 65 CSS `ch` stepped 557.7 -> 650px and the narrowest dial position held
-  // 592px of flat prose / 628px of echo, i.e. under the transcript's own band floor for EVERY skin. The
-  // floor is now derived from that measure (dimension.shell-content-floor's $description carries the
-  // arithmetic) and lives in the vault, because a portable value is not a feature's to spell
-  // (client-architecture-lockdown.md §4). The middle term stays here: it is the reader's own percentage.
-  const shellVars: CSSProperties = {
-    "--width-shell-content": shellContentWidth(appearance.chatWidthPct),
-  } as CSSProperties;
   const activeDef = registry.get(layout.activeSection);
   const placeholderCopy = activeDef.placeholder;
   // At most one Weave decoration per screen — it rides the content placeholder only.
@@ -303,8 +276,6 @@ export function AppShell(): ReactElement {
             data-room-screen={roomScreen.roomScreen}
             data-elevation={appearance.elevation}
             {...(hasBgImage ? { "data-has-bg-image": true } : {})}
-            // eslint-disable-next-line orb/no-raw-intrinsic-paint -- the appearance channel (css-system plan, leg 9) owns these variables; until it lands they are written here
-            style={shellVars}
           >
             <CustomThemeStyle css={theme?.css ?? null} />
             {/* shell.css owns the prospective both-docked geometry. Its zero-or-deficit inline size is the

@@ -33,7 +33,7 @@ const FAMILY_PROBES: readonly CompilerFamilyProbe[] = [
   { family: "radius", candidate: "rounded-base" },
   { family: "dimension", candidate: "w-rail" },
   { family: "shadow", candidate: "shadow-glow" },
-  { family: "blur", candidate: "blur-strength" },
+  { family: "blur", candidate: "blur-veil" },
   { family: "immersive", candidate: "w-echo-art-width" },
   { family: "reading", candidate: "max-w-measure" },
   { family: "fade", candidate: "fade-edge-stop" },

@@ -16,7 +16,7 @@ const CONDITION = "orb/no-raw-media-condition";
 const PRIMITIVE_VAR = "var(--primitive-";
 const MOTION_PROPERTIES = new Set(["transition", "animation", "transition-duration", "animation-duration", "transition-timing-function"]);
 const DURATION_PROPERTIES = new Set(["transition-duration", "animation-duration"]);
-const REDUCED_MOTION = /prefers-reduced-motion|motion-reduce|\[data-reduced-motion/u;
+const REDUCED_MOTION = /prefers-reduced-motion|motion-reduce|appearance-reduced-motion/u;
 const RAW_TIME = /(?<![\w.-])(?<num>\d+(?:\.\d+)?|\.\d+)(?:ms|s)\b/gu;
 // A bare easing keyword or bezier; `--ease-*` token names are excluded by the lookbehind.
 const RAW_EASE = /(?<!-)\b(?:ease-in-out|ease-in|ease-out|ease)\b(?!-)|cubic-bezier\s*\(/gu;
@@ -58,8 +58,10 @@ export const Z_INDEX_VALUES = [/^var\(--z-[a-z-]+\)$/u, /^calc\(var\(--z-[a-z-]+
 /** A weight is a `--font-weight-*` token; a tier slot indirection resolves to one; the `100 900` range is the variable-font `@font-face` descriptor. */
 export const FONT_WEIGHT_TOKEN = /^var\(--font-weight-[a-z]+\)$/u;
 export const FONT_WEIGHT_VALUES = [FONT_WEIGHT_TOKEN, /^var\(--orb-tier-[a-z-]+-weight\)$/u, "100 900", "inherit"] as const;
+/** A registered appearance number read in its unit; the `1<unit>` is a conversion, not a design length. */
+export const APPEARANCE_UNIT_CONVERSION = /^calc\(var\(--appearance-[a-z0-9-]+\) \* 1(?:px|em|rem)\)$/u;
 /** Tracking is a `--tracking-*` token; the reading surface's user knob is a declared exception (integer-line-boxes.md §2). */
-export const LETTER_SPACING_VALUES = [/^var\(--tracking-[a-z-]+\)$/u, "var(--reading-letter-spacing)", "normal", "inherit"] as const;
+export const LETTER_SPACING_VALUES = [/^var\(--tracking-[a-z-]+\)$/u, APPEARANCE_UNIT_CONVERSION, "normal", "inherit"] as const;
 
 function withoutValueComments(value: string): string {
   const spans: { start: number; end: number }[] = [];
@@ -321,6 +323,54 @@ const layerRule: Rule<true> = (primary) => (root, result) => {
 layerRule.ruleName = LAYER;
 layerRule.messages = LAYER_MESSAGES;
 
+// The appearance channel's names come from the client manifest (`appearance-channel.build.ts`); a sheet that spells
+// one the channel does not write reads a value nothing ever sets.
+const APPEARANCE = "orb/appearance-name-in-manifest";
+const APPEARANCE_MESSAGES = messagesOf(APPEARANCE, {
+  rejected: "is not an appearance channel name; the manifest (appearance-carrier-manifest.ts) declares every one",
+});
+const APPEARANCE_PROPERTY = /--appearance-[a-z0-9-]+/gu;
+const APPEARANCE_ATTRIBUTE = /data-appearance-[a-z0-9-]+/gu;
+const APPEARANCE_VARIANT = /(?<![\w-])appearance-[a-z0-9-]+/gu;
+
+/** The names the generated channel declares: the registered properties, the root attributes and the variants. */
+export interface AppearanceVocabulary {
+  readonly properties: readonly string[];
+  readonly attributes: readonly string[];
+  readonly variants: readonly string[];
+}
+
+const appearanceRule: Rule<true, AppearanceVocabulary> = (primary, secondary) => (root, result) => {
+  const strings = [(value: unknown): boolean => typeof value === "string"];
+  const options = { actual: secondary, possible: { properties: strings, attributes: strings, variants: strings } };
+  if (!stylelint.utils.validateOptions(result, APPEARANCE, { actual: primary, possible: [true] }, options)) {
+    return;
+  }
+  const known = new Set([...secondary.properties, ...secondary.attributes, ...secondary.variants]);
+  const check = (node: Parameters<typeof stylelint.utils.report>[0]["node"], text: string, pattern: RegExp): void => {
+    for (const match of text.matchAll(pattern)) {
+      if (!known.has(match[0])) {
+        stylelint.utils.report({ result, ruleName: APPEARANCE, node, message: `"${match[0]}" ${APPEARANCE_MESSAGES.rejected}`, word: match[0] });
+      }
+    }
+  };
+  root.walkDecls((declaration) => {
+    check(declaration, declaration.prop, APPEARANCE_PROPERTY);
+    check(declaration, withoutValueComments(authoredValue(declaration)), APPEARANCE_PROPERTY);
+  });
+  root.walkRules((rule) => {
+    check(rule, rule.selector, APPEARANCE_ATTRIBUTE);
+  });
+  root.walkAtRules((atRule) => {
+    check(atRule, atRule.params, APPEARANCE_ATTRIBUTE);
+    if (atRule.name === "variant" || atRule.name === "custom-variant") {
+      check(atRule, atRule.params.split(/\s/u)[0] ?? "", APPEARANCE_VARIANT);
+    }
+  });
+};
+appearanceRule.ruleName = APPEARANCE;
+appearanceRule.messages = APPEARANCE_MESSAGES;
+
 /** Stylesheet-only rules consumed by the native Stylelint configuration. */
 export const CSS_RULES = [
   stylelint.createPlugin(LAYER, layerRule),
@@ -329,4 +379,5 @@ export const CSS_RULES = [
   stylelint.createPlugin(REST, restRule),
   stylelint.createPlugin(CONDITION, conditionRule),
   stylelint.createPlugin(SHADOW, shadowRule),
+  stylelint.createPlugin(APPEARANCE, appearanceRule),
 ];

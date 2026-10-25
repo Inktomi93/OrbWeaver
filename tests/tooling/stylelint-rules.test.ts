@@ -53,6 +53,15 @@ test("a custom property the sheets read is declared somewhere, or named as runti
   expect(await rulesHit(declaration("inset-inline-start: var(--x, 50%);"))).toEqual([]);
 });
 
+test("an appearance name a sheet spells is one the manifest's channel writes", async () => {
+  const rule = "orb/appearance-name-in-manifest";
+  expect(await rulesHit(declaration("opacity: var(--appearance-reading-line-height);"))).toEqual([]);
+  expect(await rulesHit(layered("@variant appearance-shadow-effects-true { .probe { opacity: 1; } }"))).toEqual([]);
+  expect(await rulesHit(declaration("opacity: var(--appearance-line-hight);"))).toEqual([rule, "csstools/value-no-unknown-custom-properties"].toSorted());
+  expect(await rulesHit(layered(':root[data-appearance-shadow="true"] .probe { opacity: 1; }'))).toEqual([rule]);
+  expect(await rulesHit(layered("@variant appearance-shadow-effects-on { .probe { opacity: 1; } }"))).toEqual([rule]);
+});
+
 test("physical properties, qualifying types, ids, deep selectors and important declarations are refused", async () => {
   expect(await rulesHit(declaration("margin-left: var(--spacing-row);"))).toEqual(["logical-css/require-logical-properties"]);
   expect(await rulesHit(declaration("text-align: left;"))).toEqual(["logical-css/require-logical-keywords"]);
@@ -138,11 +147,18 @@ test("stacking order, weight and tracking are tokens or the structural layers", 
     "z-index: -1;",
     "font-weight: var(--font-weight-semibold);",
     "letter-spacing: var(--tracking-caps);",
+    "letter-spacing: calc(var(--appearance-reading-letter-spacing) * 1em);",
   ]) {
     expect(await rulesHit(declaration(body)), body).toEqual([]);
   }
   expect(await rulesHit(layered('@font-face { font-family: Probe; font-weight: 100 900; src: url("probe.woff2"); }'))).toEqual([]);
-  for (const body of ["z-index: 5;", "z-index: calc(var(--z-overlay) - 2);", "font-weight: 600;", "letter-spacing: 0.02em;"]) {
+  for (const body of [
+    "z-index: 5;",
+    "z-index: calc(var(--z-overlay) - 2);",
+    "font-weight: 600;",
+    "letter-spacing: 0.02em;",
+    "letter-spacing: calc(var(--appearance-reading-letter-spacing) * 2em);",
+  ]) {
     expect(await rulesHit(declaration(body)), body).toEqual(["declaration-property-value-allowed-list"]);
   }
 });

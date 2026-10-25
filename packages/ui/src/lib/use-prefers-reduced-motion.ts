@@ -34,7 +34,7 @@ function subscribeReducedMotion(onChange: () => void): () => void {
   reducedMotionQuery?.addEventListener("change", onChange);
   const root = reducedMotionDocument?.documentElement;
   const observer = root !== undefined && ReducedMotionObserver !== undefined ? new ReducedMotionObserver(onChange) : null;
-  observer?.observe(root, { attributes: true, subtree: true, attributeFilter: ["data-reduced-motion"] });
+  observer?.observe(root, { attributes: true, subtree: true, attributeFilter: ["data-appearance-reduced-motion"] });
   return (): void => {
     reducedMotionQuery?.removeEventListener("change", onChange);
     observer?.disconnect();
@@ -42,7 +42,7 @@ function subscribeReducedMotion(onChange: () => void): () => void {
 }
 
 function getReducedMotionSnapshot(): boolean {
-  const appPreference = reducedMotionDocument?.querySelector('[data-reduced-motion="true"]');
+  const appPreference = reducedMotionDocument?.querySelector('[data-appearance-reduced-motion="true"]');
   return (reducedMotionQuery === null ? false : reducedMotionQuery.matches) || (appPreference !== null && appPreference !== undefined);
 }
 

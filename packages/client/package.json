@@ -10,7 +10,8 @@
     "dev": "vite --configLoader native",
     "build": "vite build --configLoader native",
     "preview": "vite preview --configLoader native",
-    "surface:build": "node owner-css-surface.build.ts"
+    "surface:build": "node owner-css-surface.build.ts",
+    "appearance:build": "node appearance-channel.build.ts"
   },
   "exports": {
     ".": "./src/index.ts",

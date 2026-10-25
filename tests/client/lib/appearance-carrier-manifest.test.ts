@@ -5,6 +5,7 @@ import {
   APPEARANCE_CARRIER_MANIFEST,
   APPEARANCE_CARRIER_OBSERVABLES,
   APPEARANCE_CARRIER_PLANES,
+  APPEARANCE_CHANNEL_ROWS,
   APPEARANCE_EDITOR_OWNERS,
   APPEARANCE_OWNER_KEYS,
 } from "#client/lib/appearance-carrier-manifest.ts";
@@ -32,6 +33,15 @@ test("every armed row has exactly one observable and two distinct arms", () => {
     expect(arms?.length, `${key} arms are malformed`).toBe(2);
     expect(JSON.stringify(arms?.[0]), `${key} arms are equal`).not.toBe(JSON.stringify(arms?.[1]));
   }
+});
+
+test("a key reaches CSS through the channel exactly when the root carries it, under one unique name", () => {
+  for (const [key, row] of MANIFEST_ROWS) {
+    const onRoot = row.carriers.some((carrier) => carrier === "root-html");
+    expect(row.channel.kind !== "none", `${key}: a root-carried key needs a channel, any other key none`).toBe(onRoot);
+  }
+  const names = APPEARANCE_CHANNEL_ROWS.map((row) => row.name);
+  expect(new Set(names).size).toBe(names.length);
 });
 
 test("every carrier plane carries at least one appearance key", () => {

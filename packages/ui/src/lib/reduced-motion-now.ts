@@ -16,7 +16,7 @@ interface ReducedMotionDocument {
 export function prefersReducedMotionNow(): boolean {
   const globals = globalThis as { matchMedia?: (query: string) => ReducedMotionQuery; document?: ReducedMotionDocument };
   const osReduced = typeof globals.matchMedia === "function" && globals.matchMedia(MEDIA_QUERIES["motion-reduce"]).matches;
-  const appPreference = globals.document?.querySelector('[data-reduced-motion="true"]');
+  const appPreference = globals.document?.querySelector('[data-appearance-reduced-motion="true"]');
   return osReduced || (appPreference !== null && appPreference !== undefined);
 }
 

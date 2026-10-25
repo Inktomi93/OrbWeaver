@@ -225,7 +225,7 @@ export const APPEARANCE_HISTORICAL_ROWS = [
       { id: "visible-interactives", selector: STRUCTURAL_INTERACTIVES, population: "many", sample: "interactive" },
     ],
     cascade: [
-      { selector: "html", property: "--font-scale", sources: ["inline"] },
+      { selector: "html", property: "--appearance-font-scale", sources: ["inline"] },
       ...spacingCascade(COMMON_SCOPE),
       { selector: BUBBLE, property: "display", sources: ["client-global", "ui-global", "ui-tier", "shell"] },
     ],

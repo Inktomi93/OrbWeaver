@@ -34,7 +34,7 @@
    * (ui-package-design.md §4): grayscale antialiasing keeps macOS text thin on the dark themes, and no synthesised
    * bold or italic stands in for a face Geist does not ship. */
   :root {
-    font-size: calc(100% * var(--font-scale, 1));
+    font-size: calc(100% * var(--appearance-font-scale));
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-synthesis: none;
@@ -264,7 +264,7 @@
       display: none;
     }
   }
-  [data-reduced-motion="true"] .orb-skeleton-shimmer::after {
+  :root[data-appearance-reduced-motion="true"] .orb-skeleton-shimmer::after {
     display: none;
   }
 

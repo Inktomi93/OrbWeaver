@@ -44,9 +44,9 @@ interface VtGlobals {
 }
 
 /**
- * "This user has asked for no motion" — the OS preference OR the app's own `data-reduced-motion` pref,
- * which the shell stamps on `.shell-grid` (a setting beyond the OS one). ONE home for the pair, because a
- * caller that checks only the OS half silently ignores half its users: `withViewTransition` skips the
+ * "This user has asked for no motion": the resolved reduced-motion state, the OS preference with the app's own
+ * setting over it (`prefersReducedMotionNow`). One home, because a caller that checks only the OS half ignores
+ * the app setting: `withViewTransition` skips the
  * crossfade on it, and `useListTrackFlip` skips the ANIMATED FLIP on it (#151 — a FLIP whose duration the
  * reduced-motion CSS floor collapses to ~0 does not become "instant", it becomes a one-to-two-frame hold of
  * its `from` corner, i.e. the whole content column painted a panel-width out of place). What it stamps on
@@ -54,8 +54,7 @@ interface VtGlobals {
  * is not motion and is not a recorded layout shift either.
  */
 export function motionIsReduced(): boolean {
-  const g = globalThis as VtGlobals;
-  return prefersReducedMotionNow() || (g.document?.querySelector?.('[data-reduced-motion="true"]') ?? null) !== null;
+  return prefersReducedMotionNow();
 }
 
 /** The transition raised by the current task. It admits updates only until its update callback runs, but

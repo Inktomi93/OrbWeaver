@@ -3,8 +3,10 @@
 // Biome formats CSS and lints nothing in it, so every CSS check has one owner here.
 import { join } from "node:path";
 import type { Config } from "stylelint";
+import { appearanceChannelVocabulary } from "./packages/client/appearance-channel.build.ts";
 import tokens from "./packages/ui/src/tokens/tokens.json" with { type: "json" };
 import {
+  APPEARANCE_UNIT_CONVERSION,
   CSS_RULES,
   FONT_WEIGHT_TOKEN,
   FONT_WEIGHT_VALUES,
@@ -41,14 +43,18 @@ const SHEETS = [
 
 /** Custom properties a component writes at runtime and the sheets read without a fallback; each names its writer. */
 const RUNTIME_CUSTOM_PROPERTIES = {
-  "--width-shell-content": "app-shell.tsx (the chatWidthPct dial)",
   "--orb-web-spiral-length": "primitives/spinner/spinner.tsx (the spiral's arc length)",
   "--orb-ws-pitch": "charts/meter/waystone.tsx (the lattice step)",
 };
 
+const appearance = appearanceChannelVocabulary();
+// The registered appearance properties are declared by `@property` in the generated channel and written on the root.
+const APPEARANCE_PROPERTIES = Object.fromEntries(appearance.properties.map((name) => [name, "initial"]));
+
 const config: Config = {
   extends: ["stylelint-config-standard"],
-  ignoreFiles: ["**/dist/**", "**/node_modules/**"],
+  // Codemod fixtures are data: an input spells the old form on purpose.
+  ignoreFiles: ["**/dist/**", "**/node_modules/**", "**/codemods/*/tests*/**"],
   plugins: [...CSS_RULES, "stylelint-value-no-unknown-custom-properties", "stylelint-plugin-logical-css"],
   reportNeedlessDisables: true,
   reportDescriptionlessDisables: true,
@@ -61,11 +67,12 @@ const config: Config = {
     "orb/rest-transform-grid": [true, { reportDisables: true }],
     "orb/no-raw-media-condition": [true, { containerSteps }],
     "orb/shadow-from-ingredients": true,
+    "orb/appearance-name-in-manifest": [true, appearance],
     "property-disallowed-list": ["/^--leading-[a-z-]+$/"],
     "declaration-property-value-allowed-list": {
       "line-height": [...leadings, "/^var\\(--orb-tier-[a-z-]+-leading\\)$/"],
       "/^--orb-tier-[a-z-]+-leading$/": leadings,
-      [LENGTH_PROPERTIES]: [LENGTH_FROM_TOKENS],
+      [LENGTH_PROPERTIES]: [LENGTH_FROM_TOKENS, APPEARANCE_UNIT_CONVERSION],
       "z-index": [...Z_INDEX_VALUES],
       "font-weight": [...FONT_WEIGHT_VALUES],
       "/^--orb-tier-[a-z-]+-weight$/": [FONT_WEIGHT_TOKEN],
@@ -109,7 +116,12 @@ const config: Config = {
     "comment-word-disallowed-list": [["/#\\d+/", "/\\b[A-Z]+-\\d+\\b/", "former", "previously", "load-bearing", "used to", "measured"]],
     "csstools/value-no-unknown-custom-properties": [
       true,
-      { importFrom: [...SHEETS, { customProperties: Object.fromEntries(Object.keys(RUNTIME_CUSTOM_PROPERTIES).map((name) => [name, "initial"])) }] },
+      {
+        importFrom: [
+          ...SHEETS,
+          { customProperties: { ...APPEARANCE_PROPERTIES, ...Object.fromEntries(Object.keys(RUNTIME_CUSTOM_PROPERTIES).map((name) => [name, "initial"])) } },
+        ],
+      },
     ],
     "logical-css/require-logical-properties": true,
     "logical-css/require-logical-keywords": true,

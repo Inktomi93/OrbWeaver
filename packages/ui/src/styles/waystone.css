@@ -239,6 +239,11 @@
     }
   }
 
+  /* A hidden tab composites nothing. */
+  [data-slot="waystone"][data-paused="true"] * {
+    animation-play-state: paused;
+  }
+
   @variant motion-reduce {
     [data-slot="waystone"] * {
       animation: none;
@@ -248,15 +253,10 @@
       opacity: 0.9;
     }
   }
-  [data-reduced-motion="true"] [data-slot="waystone"] * {
+  :root[data-appearance-reduced-motion="true"] [data-slot="waystone"] * {
     animation: none;
   }
-  [data-reduced-motion="true"] [data-slot="waystone"] [data-slot="waystone-bolt"] {
+  :root[data-appearance-reduced-motion="true"] [data-slot="waystone"] [data-slot="waystone-bolt"] {
     opacity: 0.9;
-  }
-
-  /* A hidden tab composites nothing. */
-  [data-slot="waystone"][data-paused="true"] * {
-    animation-play-state: paused;
   }
 }

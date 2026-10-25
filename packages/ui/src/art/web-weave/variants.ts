@@ -40,7 +40,7 @@ export const weaveVeilVariants = tv({
     // rule order can never fight the entered rules.)
     root: [
       "fixed inset-0 z-(--z-modal) bg-background text-foreground",
-      "opacity-0 blur-(--blur-strength)",
+      "opacity-0 blur-(--blur-veil)",
       "transition-[opacity,filter] duration-(--motion-layout) ease-out-expo",
       "data-entered:opacity-100 data-entered:blur-none",
     ],
