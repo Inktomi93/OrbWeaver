@@ -31,6 +31,7 @@ import { AppDataProviders } from "./compose/app-data-providers.tsx";
 import { appRuntime, queryClient, trpcClient, trpcProxy } from "./compose/app-singletons.ts";
 import { browserSessionDocumentHost } from "./compose/client-runtime.ts";
 import { stampAppearanceBootHint } from "./compose/stamp-appearance-boot-hint.ts";
+import { requireQueryBoundary } from "./data/suspense-reads.ts";
 import { installAppReadySignal } from "./lib/app-ready-signal.ts";
 import { bindRouteCrashReporter, routeResolution, router } from "./routes/router.tsx";
 import "./styles/index.ts";
@@ -70,6 +71,8 @@ bindSessionDocumentHost(browserSessionDocumentHost());
 // the thunk is read fresh on every `openConfig` call, not captured once).
 let configSectionsForNav: ConfigSectionRegistry | null = null;
 if (import.meta.env.DEV) {
+  // A suspending read with no QueryBoundary above it throws in dev, at its first render.
+  requireQueryBoundary();
   import("./lib/long-task-tracer.ts")
     .then(({ installLongTaskTracer }) => {
       installLongTaskTracer();

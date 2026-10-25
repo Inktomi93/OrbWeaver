@@ -1,3 +1,4 @@
+import { requireQueryBoundary } from "@orb/client/data";
 import { AppShell } from "@orb/client/features/app-shell";
 import type { ConfigGroupId, ModalSlotId, SectionId } from "@orb/client/state";
 import { openConfigTo, openModal, selectPreset, setActiveSection, useSectionRegistry } from "@orb/client/state";
@@ -6,6 +7,9 @@ import { CtClientProviders } from "@orb/testkit/browser";
 import { Container } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useState } from "react";
+
+// Every mount through these stories checks that each suspending read sits under a QueryBoundary.
+requireQueryBoundary();
 
 /** The production shell with one registered section active: its rail, header, list, content and context panes. */
 export function SectionShellStory({ section }: { readonly section: SectionId }): ReactElement {

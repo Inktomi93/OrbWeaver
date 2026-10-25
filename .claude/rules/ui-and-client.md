@@ -52,6 +52,7 @@ paths:
 ## React state and effects
 
 - The client and `@orb/ui` are React-Compiler compiled. Manual `memo`/`useMemo`/`useCallback` are banned outside the gate-exempted files. Diagnose re-render cost as a subscription or virtualization cost, not a missing memo.
+- Import `useSuspenseQuery`, `useSuspenseQueries` and `useSuspenseInfiniteQuery` from `#data`; each checks for a `QueryBoundary` above it. `useInfiniteQuery` belongs only to `createCollectionSurface`.
 - Never read or write `ref.current` during render, including passing a ref into a render-called function. Use setState-during-render with a prev check, or `useState`.
 - A controlled Base UI popover closed by your own `setOpen(false)` does not fire `onOpenChange`. Route every close path through one setter.
 - `.then(fn, fn)` with a void-returning handler resolves instead of propagating a rejection. Use `.finally()` for cleanup.

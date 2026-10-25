@@ -3,10 +3,9 @@
 // default, and the card pin moves only the room's anchor. None of them writes another's pointer.
 
 import type { PersonaId } from "@orb/kit/ids";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
-import { useGatedQuery, useInvalidation, useTRPC } from "#data";
+import { useGatedQuery, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { notify } from "#lib";
 import { useActiveChatId } from "#state";
 import { resolveNewChatPersona, resolvePlayingPersona } from "../lib/persona-current.ts";

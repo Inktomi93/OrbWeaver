@@ -8,12 +8,11 @@ import { History, Icon, IdCard } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Menu, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@orb/ui/menu";
 import { Text } from "@orb/ui/text";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useId } from "react";
 import type { Trpc } from "#data";
-import { useInvalidation, useReattributePersona, useTRPC } from "#data";
+import { useInvalidation, useReattributePersona, useSuspenseQuery, useTRPC } from "#data";
 import { deriveChatTitle, notify } from "#lib";
 
 type PersonaListItem = inferOutput<Trpc["persona"]["list"]>[number];

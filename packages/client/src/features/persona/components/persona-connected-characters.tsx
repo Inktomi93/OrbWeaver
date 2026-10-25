@@ -15,11 +15,10 @@ import { Icon, Plus } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { CharacterPicker, PickerDialog, QueryBoundary } from "#components";
-import { SkeletonRows, useInvalidation, useTRPC } from "#data";
+import { SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { useConnectCharacter, useDisconnectCharacter } from "../hooks/use-persona-mutations.ts";
 
 /** Keeps junction loading and retry local to the editor section. */

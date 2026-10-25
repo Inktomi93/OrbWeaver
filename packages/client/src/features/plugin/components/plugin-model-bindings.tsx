@@ -13,12 +13,11 @@ import type { PluginId } from "@orb/kit/ids";
 import { Stack } from "@orb/ui/layout";
 import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import type { Trpc } from "#data";
-import { useInvalidation, useTRPC } from "#data";
+import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { trpcErrorReason } from "#lib";
 import {
   PLUGIN_GRANT_TASK_LABELS,

@@ -121,6 +121,19 @@ const RESTRICTED_CLASSES = [
     message: "An arbitrary hex color bypasses the theme; use a semantic color token from theme.css.",
   },
   {
+    // `all` fades a focus ring, animates the layout vars Base UI recomputes live and inherits properties the part never
+    // opted into; every transition names its properties (motion-and-animation-guide.md §1.2).
+    pattern: String.raw`^(?:[^\s]*:)?transition-(?:all|\[all\])$`,
+    message: "`transition-all` animates every property; name them, for example transition-[opacity,scale] (motion-and-animation-guide.md §1.2).",
+  },
+  {
+    // Lifecycle motion is a transition keyed off data-starting-style / data-ending-style, which a mid-flight close can
+    // retarget; a keyframe animation cannot. The stock infinite loops and the word-reveal fade are not lifecycle motion.
+    pattern: String.raw`^(?:[^\s]*:)?(?:group-|peer-|in-)?data-(?:open|closed|starting-style|ending-style):(?:[^\s:]+:)*animate-(?!(?:none|spin|ping|pulse|bounce)$|\[orb-word-reveal[_\]])`,
+    message:
+      "A keyframe animation keyed on a Base UI lifecycle attribute; use a transition off data-starting-style / data-ending-style (motion-and-animation-guide.md §5.1).",
+  },
+  {
     pattern: String.raw`^(?:[^\s]*:)?max-(?:w|inline)-prose$`,
     message:
       "Tailwind's max-w-prose matches no house reading measure. Body/teaching prose takes max-w-(--reading-measure-prose) on the paragraph; editor content takes max-w-(--width-content-col).",
@@ -1200,6 +1213,31 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
   ] satisfies FlatConfig.Config[]
 ).map((block): FlatConfig.Config => ({ ...block, plugins: { orb: localPlugin } }));
 
+// Client and @orb/ui law that was review-only: manual memo, `use()` on a promise, and `useInfiniteQuery` outside its factory.
+const INFINITE_QUERY_HOME = "packages/client/src/data/create-collection-surface.ts";
+const SUSPENSE_READS_HOME = "packages/client/src/data/suspense-reads.ts";
+const INFINITE_QUERY_IMPORT = {
+  name: "@tanstack/react-query",
+  importNames: ["useInfiniteQuery"],
+  message: "Paginated browse is createCollectionSurface; useInfiniteQuery appears only inside that factory (client-architecture-state-and-gates.md §14).",
+};
+const SUSPENSE_READ_IMPORT = {
+  name: "@tanstack/react-query",
+  importNames: ["useSuspenseQuery", "useSuspenseQueries", "useSuspenseInfiniteQuery"],
+  message: "Import the suspending reads from #data: they check that a QueryBoundary sits above the read (client-architecture-state-and-gates.md §11).",
+};
+const UI_LAW_BLOCKS: FlatConfig.Config[] = [
+  { files: REACT_SOURCE, plugins: { orb: localPlugin }, rules: { "orb/no-manual-memo": "error", "orb/no-use-promise": "error" } },
+  // Flat config replaces a rule's options per block, so each file gets the one block naming every path it must refuse.
+  {
+    files: [CLIENT_SRC],
+    ignores: [INFINITE_QUERY_HOME, SUSPENSE_READS_HOME],
+    rules: { "no-restricted-imports": ["error", { paths: [INFINITE_QUERY_IMPORT, SUSPENSE_READ_IMPORT] }] },
+  },
+  { files: [INFINITE_QUERY_HOME], rules: { "no-restricted-imports": ["error", { paths: [SUSPENSE_READ_IMPORT] }] } },
+  { files: [SUSPENSE_READS_HOME], rules: { "no-restricted-imports": ["error", { paths: [INFINITE_QUERY_IMPORT] }] } },
+];
+
 const PRINCIPAL_RULES: { id: string; notUnder?: string[] }[] = [
   {
     id: "principal-alias",
@@ -1247,6 +1285,7 @@ export default [
     block.files === undefined || block.rules === undefined ? block : { ...block, ignores: [...(block.ignores ?? []), "**/*.gen.{ts,tsx}"] },
   ),
   ...LOCAL_RULE_BLOCKS,
+  ...UI_LAW_BLOCKS,
   {
     files: ["packages/server/src/**/*.{ts,tsx}"],
     ignores: ["packages/server/src/domain/import/**", "packages/server/src/domain/export/**", "packages/server/src/domain/settings/**"],

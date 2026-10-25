@@ -13,10 +13,9 @@
 import type { AppSettings, LogLevel } from "@orb/contracts/settings";
 import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary, useFirstBootBox } from "#components";
-import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQueries, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
 import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model.ts";

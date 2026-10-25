@@ -170,7 +170,7 @@ Features keep composing `<Stack gap>` / `<Row gap>` explicitly — the gap union
 
 ### 5.1 Static enforcement status
 
-D333 ends custom density census enforcement. The visual rules remain product law.
+The surface census (`tests/client/features/app-shell/surface-census.suite.ct.tsx`) mounts every registered section, modal and settings group and reads the rendered page. It refuses a `Surface` inside a `Surface` of the same tier (§3), a boxed `Card` inside a boxed `Card` (CD2), and a second visible primary control in one region (the rendered form of CD3). It does not judge whether a grouping is read-only (CD1) or count accent fills on elements other than the primary button; those stay review work.
 
 ### 5.2 Grant policy
 

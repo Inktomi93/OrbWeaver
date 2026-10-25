@@ -27,6 +27,35 @@ test("each custom rule refuses its planted control", async () => {
   expect(await rulesHit(declaration("padding: var(--primitive-space-8);"))).toEqual(["orb/no-raw-media-condition"]);
 });
 
+const FADE = "@keyframes fade { from { opacity: 0; } to { opacity: 1; } }";
+const SEQUENCE = "@keyframes sequence { 0% { opacity: 0; } 50% { opacity: 0.5; } 100% { opacity: 1; } }";
+const ANIMATE = "animation: fade var(--motion-base) var(--ease-out-expo);";
+
+test("a keyframe animation on a Base UI lifecycle attribute is refused unless a transition cannot express it", async () => {
+  const hit = ["orb/no-lifecycle-keyframes"];
+  expect(await rulesHit(`${FADE} ${layered(`.probe[data-open] { ${ANIMATE} }`)}`)).toEqual(hit);
+  expect(await rulesHit(`${FADE} ${layered(".probe[data-closed] { animation-name: fade; }")}`)).toEqual(hit);
+  expect(await rulesHit(`${FADE} ${layered(`.probe { &[data-ending-style] { ${ANIMATE} } }`)}`)).toEqual(hit);
+  expect(await rulesHit(`${SEQUENCE} ${layered(".probe[data-open] { animation: sequence var(--motion-base) var(--ease-out-expo); }")}`)).toEqual([]);
+  expect(await rulesHit(`${FADE} ${layered(".probe[data-open] { animation: fade var(--motion-shimmer) linear infinite; }")}`)).toEqual([]);
+  expect(
+    await rulesHit(
+      `${FADE.replace("fade", "orb-word-reveal")} ${layered(".probe[data-open] { animation: orb-word-reveal var(--motion-base) var(--ease-out-expo); }")}`,
+    ),
+  ).toEqual([]);
+  expect(await rulesHit(`${FADE} ${layered(".probe[data-open] { animation: none; }")}`)).toEqual([]);
+  expect(await rulesHit(`${FADE} ${layered(`.probe { ${ANIMATE} }`)}`)).toEqual([]);
+});
+
+test("a transition names its properties; `all` is refused in either spelling", async () => {
+  const hit = ["declaration-property-value-disallowed-list"];
+  expect(await rulesHit(declaration("transition: all var(--motion-base) var(--ease-out-expo);"))).toEqual(hit);
+  expect(await rulesHit(declaration("transition-property: all;"))).toEqual(hit);
+  expect(await rulesHit(declaration("transition: opacity var(--motion-base) var(--ease-out-expo), all var(--motion-base);"))).toEqual(hit);
+  expect(await rulesHit(declaration("transition: opacity var(--motion-base) var(--ease-out-expo);"))).toEqual([]);
+  expect(await rulesHit(declaration("transition-property: opacity, scale;"))).toEqual([]);
+});
+
 test("logical properties are required, except the overflow axes the Safari 18 floor cannot spell logically", async () => {
   expect(await rulesHit(declaration("overflow-y: auto;"))).toEqual([]);
   expect(await rulesHit(declaration("overflow-x: auto;"))).toEqual([]);

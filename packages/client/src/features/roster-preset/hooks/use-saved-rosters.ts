@@ -10,10 +10,10 @@ import type { RulePresetId, RulePresetKnobValueInputs, RulePresetView } from "@o
 import { rulePresetKnobBagToInputs } from "@orb/contracts/automation";
 import type { RosterPresetSummary } from "@orb/contracts/roster-preset";
 import type { RpgGameTemplate } from "@orb/contracts/rpg";
-import { skipToken, useQuery, useSuspenseQueries, useSuspenseQuery } from "@tanstack/react-query";
+import { skipToken, useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
-import { useTRPC } from "#data";
+import { useSuspenseQueries, useSuspenseQuery, useTRPC } from "#data";
 import { useActiveChatId } from "#state";
 
 type ChatDetail = inferOutput<Trpc["chat"]["getChat"]>;

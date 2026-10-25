@@ -131,7 +131,7 @@ export function AddDocumentBody(): ReactElement {
             {DOCUMENT_SCOPE_SOURCES.map((kind) => (
               <Button
                 aria-pressed={scope === kind}
-                intent={scope === kind ? "primary" : "ghost"}
+                intent={scope === kind ? "solid" : "ghost"}
                 key={kind}
                 onClick={(): void => setScope(kind)}
                 size="sm"
@@ -156,7 +156,7 @@ export function AddDocumentBody(): ReactElement {
             label, and `aria-pressed` is the honest name for "this is the one you are on". */}
         <Row className="flex-wrap" gap="field">
           {ADD_MODES.map((id) => (
-            <Button aria-pressed={mode === id} intent={mode === id ? "primary" : "ghost"} key={id} onClick={(): void => setMode(id)} size="sm" type="button">
+            <Button aria-pressed={mode === id} intent={mode === id ? "solid" : "ghost"} key={id} onClick={(): void => setMode(id)} size="sm" type="button">
               {MODE_LABELS[id]}
             </Button>
           ))}

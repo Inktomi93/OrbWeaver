@@ -155,7 +155,7 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
             <Button
               aria-pressed={mode === id}
               disabled={busy}
-              intent={mode === id ? "primary" : "ghost"}
+              intent={mode === id ? "solid" : "ghost"}
               key={id}
               onClick={(): void => setMode(id)}
               size="sm"
