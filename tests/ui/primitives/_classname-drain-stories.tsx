@@ -192,3 +192,99 @@ export function InputStory(): ReactElement {
     </CtIsolation>
   );
 }
+
+const EDGES = ["start", "end", "top", "bottom"] as const;
+
+/** One divider edge per Row and Stack, beside a probe in the border ink. */
+export function DividerStory(): ReactElement {
+  return (
+    <CtIsolation subject="Row and Stack divider" isolates="Each hairline edge on each layout box">
+      {EDGES.map((edge) => (
+        <Row key={`row-${edge}`} divider={edge} data-case={`row-${edge}`}>
+          row
+        </Row>
+      ))}
+      {EDGES.map((edge) => (
+        <Stack key={`stack-${edge}`} divider={edge} data-case={`stack-${edge}`}>
+          stack
+        </Stack>
+      ))}
+      <span data-probe="border" style={{ color: "var(--color-border)" }}>
+        probe
+      </span>
+    </CtIsolation>
+  );
+}
+
+/** Each Button tone on the two fill-less intents, and on a filled intent where it must not apply. */
+export function ButtonToneStory(): ReactElement {
+  return (
+    <CtIsolation subject="Button tone" isolates="The tone arms on ghost and link, and their absence on primary">
+      <Button intent="ghost" tone="primary">
+        ghost primary
+      </Button>
+      <Button intent="ghost" tone="destructive">
+        ghost destructive
+      </Button>
+      <Button intent="link" size="inline" tone="muted">
+        link muted
+      </Button>
+      <Button intent="primary" tone="muted">
+        primary muted
+      </Button>
+      <Button intent="primary">primary plain</Button>
+      <span data-probe="primary" style={{ color: "var(--color-primary)" }}>
+        p
+      </span>
+      <span data-probe="destructive" style={{ color: "var(--color-destructive)" }}>
+        d
+      </span>
+      <span data-probe="muted" style={{ color: "var(--color-muted-foreground)" }}>
+        m
+      </span>
+    </CtIsolation>
+  );
+}
+
+/** The receded arm on every primitive that carries it, beside a probe at the token's opacity. */
+export function RecededStory(): ReactElement {
+  return (
+    <CtIsolation subject="receded" isolates="The receded arm on Text, Icon, Row, Stack and ListRow">
+      <Text receded={true}>receded text</Text>
+      <Icon icon={Circle} receded={true} label="receded icon" />
+      <Row receded={true} data-case="row">
+        row
+      </Row>
+      <Stack receded={true} data-case="stack">
+        stack
+      </Stack>
+      <ListRow title="Archived chat" receded={true} />
+      <Text>plain text</Text>
+      <span data-probe="receded" style={{ opacity: "var(--opacity-receded)" }}>
+        probe
+      </span>
+    </CtIsolation>
+  );
+}
+
+const CARD_FILL_TONES = ["sidebar", "translucent", "backdrop"] as const;
+
+/** The fill tones and the input-edge tone, beside probes. */
+export function CardToneStory(): ReactElement {
+  return (
+    <CtIsolation subject="Card tones" isolates="The sidebar, translucent and backdrop fills and the input edge">
+      {CARD_FILL_TONES.map((tone) => (
+        <Card key={tone} tone={tone} data-case={tone}>
+          {tone}
+        </Card>
+      ))}
+      <Card tone="input" data-case="input">
+        input
+      </Card>
+      <span data-probe="sidebar" style={{ backgroundColor: "var(--color-sidebar)", borderColor: "var(--color-sidebar-border)", display: "block" }} />
+      <span data-probe="translucent" style={{ backgroundColor: "color-mix(in oklab, var(--color-card) 80%, transparent)", display: "block" }} />
+      <span data-probe="backdrop" style={{ backgroundColor: "color-mix(in oklab, var(--color-background) 80%, transparent)", display: "block" }} />
+      <span data-probe="input" style={{ borderColor: "var(--color-input)", backgroundColor: "transparent", display: "block" }} />
+    </CtIsolation>
+  );
+}

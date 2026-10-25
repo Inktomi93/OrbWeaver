@@ -9,6 +9,7 @@ import {
   FOCUS_RING_ON_STATE_RING,
   HIDDEN_AT,
   SELECTED_FILL,
+  TONE_INK,
   TOUCH_FLOOR_AT_COARSE,
   TOUCH_TARGET_PSEUDO,
   TOUCH_TARGET_PSEUDO_STRETCH,
@@ -214,6 +215,14 @@ export const buttonVariants = tv({
     hiddenAt: HIDDEN_AT,
     // A glyph-only chip is narrower than the touch floor at a coarse pointer; its `sm` height already clears it.
     touchFloor: { inline: TOUCH_FLOOR_AT_COARSE.inline },
+    // THE INK OF A FILL-LESS ACTION, by meaning, from the Text map. Only the `ghost` and `link` intents paint no fill
+    // of their own, so the tone arms below are compound on those two; a filled intent owns its paired ink.
+    tone: { default: "", primary: "", destructive: "", muted: "" },
   },
-  defaultVariants: { intent: "primary", size: "md", shape: "control", selection: "none" },
+  compoundVariants: [
+    { intent: ["ghost", "link"], tone: "primary", class: TONE_INK.accent },
+    { intent: ["ghost", "link"], tone: "destructive", class: TONE_INK.destructive },
+    { intent: ["ghost", "link"], tone: "muted", class: TONE_INK.muted },
+  ],
+  defaultVariants: { intent: "primary", size: "md", shape: "control", selection: "none", tone: "default" },
 });

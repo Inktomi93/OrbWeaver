@@ -26,6 +26,13 @@ export const cardVariants = tv({
       clear: "bg-transparent",
       background: "bg-background",
       accent: "bg-accent text-accent-foreground",
+      // The rail's own fill and edge, for a box that previews or sits in the sidebar.
+      sidebar: "border-sidebar-border bg-sidebar text-sidebar-foreground",
+      // A card fill that lets a wallpaper or art read through it, and its page-ground twin.
+      translucent: "bg-card/80",
+      backdrop: "bg-background/80",
+      // The edge a text field draws, for a box that groups field-like controls; no fill of its own.
+      input: "border-input bg-transparent",
       bubble: "border-0 bg-ai-bubble text-ai-bubble-foreground",
       muted: "bg-muted",
       warning: "border-warning bg-warning/10 text-warning",

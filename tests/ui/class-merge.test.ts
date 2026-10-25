@@ -110,3 +110,8 @@ test("a display utility and a logical size are different axes", () => {
   expect(cn("inline-flex", "inline-full")).toBe("inline-flex inline-full");
   expect(cn("block", "block-full")).toBe("block block-full");
 });
+
+test("the receded opacity token and a stock opacity step are one axis", () => {
+  expect(cn("opacity-50", "opacity-receded")).toBe("opacity-receded");
+  expect(cn("opacity-receded", "opacity-100")).toBe("opacity-100");
+});

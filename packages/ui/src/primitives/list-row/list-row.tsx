@@ -138,6 +138,8 @@ export interface ListRowProps {
    * cluster keeps its box and nothing reflows. A coarse pointer has no hover, so the cluster stays visible there.
    */
   revealActions?: boolean;
+  /** Dims the whole row to the receded step, for a row that stands behind its live siblings (an archived chat). */
+  receded?: boolean;
   /**
    * WHICH box wears the hover/selected tint. Default `body`. Pass `row` when the `actions` cluster is IN
    * FLOW and reveal-gated: the cluster is a sibling of the body, so a body-painted tint stops before it and
@@ -270,6 +272,7 @@ export function ListRow({
   actions,
   actionsFloat = false,
   revealActions = false,
+  receded = false,
   stackActions = false,
   stackActionsAt = "cq-32",
   rowTint = "body",
@@ -288,6 +291,7 @@ export function ListRow({
     clickable,
     float: actionsFloat,
     revealActions,
+    receded,
     stackActions,
     stackActionsAt,
     subtitleWrap,

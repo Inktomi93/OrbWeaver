@@ -207,6 +207,7 @@
   --reading-letter-spacing: 0rem;
   --reading-paragraph-spacing: 0.75rem;
   --fade-edge-stop: 10%;
+  --opacity-receded: 60%;
   --border-width-hairline: 1.25px;
   --border-width-control: 1px;
   --border-width-accent: 2px;
