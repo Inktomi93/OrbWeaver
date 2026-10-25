@@ -1,7 +1,9 @@
 import { blobUrl } from "@orb/contracts/assets";
-import { routeTrpc, trpcHold } from "@orb/testkit/ct";
+import { brandedId } from "@orb/kit/ids";
+import { holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusViewerReadResponder } from "@orb/testkit/iso";
+import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { NotificationInboxStory } from "./_ct-stories.tsx";
 
 test.use({
@@ -14,7 +16,7 @@ test.use({
   },
 });
 
-test("the registered bell settles a held native inbox read into the captured unread state", async ({ corpus, mount, page }) => {
+test("the registered bell settles a held native inbox read into its unread state", async ({ corpus, mount, page }) => {
   const snapshots = corpus.notificationInbox;
   const reader = corpus.memberIdentities?.notificationReader.viewer;
   if (snapshots === undefined || reader === undefined) {
@@ -24,18 +26,24 @@ test("the registered bell settles a held native inbox read into the captured unr
   if (ownerAvatar === undefined || ownerAvatar === null) {
     throw new Error("The shared corpus omitted its owner-only media control");
   }
-  const respond = createCorpusViewerReadResponder("notifications.list", reader.userId, snapshots.readerRaised);
-  const hold = trpcHold<"notifications.list">();
-  const trpc = await routeTrpc(page, {
-    "notifications.list": (input) => {
-      respond(input);
-      return hold;
-    },
-  });
+  await using root = await createCorpusHarness();
+  const rpc = await root.internalCallerFor(brandedId("UserId").parse(reader.userId));
+  await rpc.notifications.markAllRead();
+  await (await root.internalCallerFor(root.ownerId)).settings.updateAppSettings({ partial: { localMultiUser: true } });
+  const owner = await root.internalCallerFor(root.ownerId);
+  for (const title of ["Unread invitation one", "Unread invitation two"]) {
+    const room = (await owner.chat.startChat({ characterIds: [], title, opening: "none" })).chat;
+    await owner.invites.createInvite({ chatId: room.id, input: { invitedHandle: reader.handle } });
+  }
+  const hold = holdServed();
+  const trpc = await routeTrpc(
+    page,
+    serveCorpusProcedures(rpc, ["notifications.list"], () => hold),
+  );
   await mount<typeof NotificationInboxStory>("tests/client/features/notifications/_ct-stories/NotificationInboxStory", {});
   await hold.requested;
   await expect(page.getByRole("button", { name: "Notifications", exact: true })).toBeVisible();
-  hold.release(respond({}));
+  hold.release();
   await expect(page.getByRole("button", { name: "Notifications (2 unread)", exact: true })).toBeVisible();
   const foreign = await page.evaluate(async (path) => {
     const response = await fetch(path);

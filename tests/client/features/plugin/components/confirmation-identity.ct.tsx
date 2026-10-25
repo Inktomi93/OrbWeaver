@@ -1,8 +1,9 @@
-import { PLUGIN_UI_ROUTE } from "@orb/contracts/plugin";
-import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/ct";
+import { spawn } from "node:child_process";
+import { PLUGIN_MAIN_ENTRY, PLUGIN_UI_ENTRY, PLUGIN_UI_ROUTE, pluginManifestSchema } from "@orb/contracts/plugin";
+import { holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import { createCorpusReadResponder } from "@orb/testkit/iso";
-import { makePluginRow, makePluginScriptedPage } from "@orb/testkit/node/helpers";
+import { createCorpusHarness, makePluginBundle, seedInstalledPlugin, seedPluginGrant } from "@orb/testkit/node/composed";
+import { strToU8 } from "fflate";
 import type { PluginProtocolStory } from "../_ct-stories.tsx";
 
 const UI_SOURCE = `const ui = orb.ui(1);
@@ -23,16 +24,38 @@ ui.onEvent(async ({ event }) => {
   }
 });`;
 
-test("a refreshed action cannot inherit another action's open destructive confirmation", async ({ corpus, mount, page }) => {
-  const plugin = makePluginRow({ declaredCapabilities: ["ui.surface", "storage.kv"], grantedCapabilities: ["ui.surface", "storage.kv"] });
-  const refresh = trpcHold<"plugin.uiHostCall">();
+test("a refreshed action cannot inherit another action's open destructive confirmation", async ({ mount, page }) => {
+  await using root = await createCorpusHarness(undefined, { pluginSpawn: spawn });
+  const caller = await root.principalFor(root.ownerId);
+  const manifest = pluginManifestSchema.parse({
+    id: "confirm-identity",
+    name: "Confirmation identity",
+    description: "Refreshed destructive actions",
+    version: "1.0.0",
+    hostVersion: 1,
+    entry: PLUGIN_MAIN_ENTRY,
+    uiEntry: PLUGIN_UI_ENTRY,
+    capabilities: ["ui.surface", "storage.kv"],
+  });
+  const installed = await seedInstalledPlugin(root, {
+    caller,
+    grant: [],
+    bundle: makePluginBundle(
+      manifest,
+      'const h = orb.host(1); h.ui.register({ id: "protocol", anchor: "page", title: "Protocol", tier: "scripted" }); h.storage.set("refresh", "refreshed");',
+      root.clock.now(),
+      { [PLUGIN_UI_ENTRY]: strToU8(UI_SOURCE) },
+    ),
+  });
+  const plugin = installed.outcome;
+  expect(
+    (await seedPluginGrant(root, { caller, pluginId: plugin.id, grant: manifest.capabilities, acknowledgedNetHosts: [], enable: true })).outcome.status,
+  ).toBe("enabled");
+  const refresh = holdServed();
+  const rpc = await root.internalCallerFor(root.ownerId);
   await routeTrpc(page, {
-    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpus.reads["settings.getUserSettings"]),
-    "sessions.me": createCorpusReadResponder("sessions.me", corpus.reads["sessions.me"]),
-    "plugin.list": () => [plugin],
-    "plugin.listSurfaces": () => [makePluginScriptedPage(plugin.id)],
-    "plugin.getSurfaceState": ({ pluginId }) => (pluginId === plugin.id ? null : trpcError({ code: "NOT_FOUND" })),
-    "plugin.uiHostCall": refresh,
+    ...serveCorpusProcedures(rpc, ["settings.getUserSettings", "sessions.me", "plugin.list", "plugin.listSurfaces", "plugin.getSurfaceState"]),
+    ...serveCorpusProcedures(rpc, ["plugin.uiHostCall"], () => refresh),
   });
   await page.route(`${PLUGIN_UI_ROUTE}/${plugin.id}`, (route) => route.fulfill({ contentType: "application/octet-stream", body: UI_SOURCE }));
   await mount<typeof PluginProtocolStory>("tests/client/features/plugin/_ct-stories/PluginProtocolStory", { pluginId: plugin.id });
@@ -41,7 +64,7 @@ test("a refreshed action cannot inherit another action's open destructive confir
   await page.getByRole("button", { name: "Remove first", exact: true }).click();
   await expect(page.getByRole("alertdialog", { name: "Remove first?", exact: true })).toBeVisible();
 
-  refresh.release({ resultJson: '"refreshed"' });
+  refresh.release();
   await expect(page.getByText("Current second", { exact: true })).toBeVisible();
   await expect(page.getByRole("alertdialog")).toHaveCount(0);
   const nextTrigger = page.getByRole("button", { name: "Remove second", exact: true });

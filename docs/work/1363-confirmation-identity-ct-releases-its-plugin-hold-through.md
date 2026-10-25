@@ -23,4 +23,4 @@ The CT releases through holdServed with the real plugin call, and orb/ct-respond
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The [acceptance map](../reviews/test-enforcement-closeout.md) records implementation, controls, commands and limits. Main owns whole-tree acceptance.

@@ -27,6 +27,7 @@ export {
 } from "./corpus.ts";
 export { seedCorpusActors, seedCorpusConnections, seedRecallCorpus, seedRecallRoom } from "./corpus-actors.ts";
 export { captureCookieAuth, seedCorpusAccount } from "./corpus-auth.ts";
+export { createFirstBootHarness } from "./corpus-first-boot.ts";
 export {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,

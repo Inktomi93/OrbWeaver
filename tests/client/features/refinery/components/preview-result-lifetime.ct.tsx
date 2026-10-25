@@ -1,10 +1,17 @@
 import { blobIconUrl, blobUrl } from "@orb/contracts/assets";
 import { refineryScorePayloadSchema } from "@orb/contracts/refinery";
 import { projectJsonSchema } from "@orb/kit/json-schema";
-import { routeTrpc, serveCorpusProcedures, trpcError, trpcHold } from "@orb/testkit/ct";
+import { holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusWire } from "@orb/testkit/iso";
-import { createCorpusHarness } from "@orb/testkit/node/composed";
+import {
+  CORPUS_EMBED_MODEL,
+  CORPUS_EMBEDDING_VECTOR,
+  CORPUS_STRUCTURED_REPLIES,
+  CORPUS_TEXT_MODEL,
+  createCorpusHarness,
+  createCorpusProviderExecution,
+} from "@orb/testkit/node/composed";
 import type { ConsoleMessage } from "@playwright/test";
 import type { SchemaPreviewStory } from "./_payload-stories.tsx";
 
@@ -53,29 +60,39 @@ test("schema preview retains settled expansion through rerenders and failures, t
     ...first,
     fieldScores: [{ ...first.fieldScores[0], field: "description", score: 8, strengths: "A distinct successful assessment" }],
   });
-  const failed = trpcHold<"refinery.testSchema">();
-  const replaced = trpcHold<"refinery.testSchema">();
+  const failed = holdServed();
+  const replaced = holdServed();
   let attempt = 0;
-  await using root = await createCorpusHarness();
+  const replies = new Map(CORPUS_STRUCTURED_REPLIES);
+  replies.set("refinery_schema_preview", JSON.stringify(first));
+  const provider = createCorpusProviderExecution({
+    modelIds: [CORPUS_TEXT_MODEL, CORPUS_EMBED_MODEL],
+    embedding: CORPUS_EMBEDDING_VECTOR,
+    chatText: "",
+    structuredReplies: replies,
+    images: [],
+  });
+  await using root = await createCorpusHarness(undefined, { providerFetch: provider.execute });
+  const caller = await root.internalCallerFor(root.ownerId);
+  const connection = (await caller.connection.list()).find((item) => item.model === CORPUS_TEXT_MODEL);
+  if (connection === undefined) {
+    throw new Error("The corpus omitted its structured preview connection");
+  }
+  await caller.connection.setBinding({ task: "summarize", connectionId: connection.id });
   await routeTrpc(page, {
-    ...serveCorpusProcedures(await root.internalCallerFor(root.ownerId), ["settings.getUserSettings", "sessions.me", "character.list", "refinery.schemaPlan"]),
-    // The model's verdicts are scripted; the card they are asked about is the one the test picked.
-    "refinery.testSchema": ({ characterId }) => {
-      if (characterId !== character.id) {
-        return trpcError({ code: "NOT_FOUND" });
-      }
+    ...serveCorpusProcedures(caller, ["settings.getUserSettings", "sessions.me", "character.list", "refinery.schemaPlan"]),
+    ...serveCorpusProcedures(caller, ["refinery.testSchema"], () => {
       attempt += 1;
       if (attempt === 1) {
-        return first;
+        return;
       }
       return attempt === 2 ? failed : replaced;
-    },
+    }),
   });
   await corpusMedia();
   await mount<typeof SchemaPreviewStory>("tests/client/features/refinery/components/_payload-stories/SchemaPreviewStory", {});
-  await page
-    .getByRole("textbox", { name: "Schema (JSON — the full vocabulary)", exact: true })
-    .fill(JSON.stringify(projectJsonSchema(refineryScorePayloadSchema)));
+  const { $schema: _dialect, ...draftSchema } = projectJsonSchema(refineryScorePayloadSchema);
+  await page.getByRole("textbox", { name: "Schema (JSON — the full vocabulary)", exact: true }).fill(JSON.stringify(draftSchema));
   const mediaResponses = pictured.map(({ path }) => page.waitForResponse((response) => new URL(response.url()).pathname === path));
   await page.getByRole("button", { name: "Pick a card to test on", exact: true }).click();
   expect((await Promise.all(mediaResponses)).map((response) => response.status())).toEqual(pictured.map(() => 200));
@@ -155,7 +172,7 @@ test("schema preview retains settled expansion through rerenders and failures, t
   await page.screenshot({ path: pendingScreenshot });
   await testInfo.attach("settled-preview-during-pending", { path: pendingScreenshot });
 
-  failed.release(trpcError());
+  failed.fail();
   await expect(page.getByRole("button", { name: "Test on this card", exact: true })).toBeEnabled();
   await expect(assay).toHaveAttribute("aria-expanded", "true");
   await expect(page.getByText("Recognizable voice", { exact: true })).toBeVisible();
@@ -165,7 +182,8 @@ test("schema preview retains settled expansion through rerenders and failures, t
   await page.getByRole("button", { name: "Test on this card", exact: true }).click();
   await replaced.requested;
   await expect(assay).toHaveAttribute("aria-expanded", "true");
-  replaced.release(second);
+  replies.set("refinery_schema_preview", JSON.stringify(second));
+  replaced.release();
   const nextAssay = page.getByRole("button", { name: "description — 8", exact: true });
   await expect(nextAssay).toHaveAttribute("aria-expanded", "false");
   await expect(page.getByText("Recognizable voice", { exact: true })).toHaveCount(0);

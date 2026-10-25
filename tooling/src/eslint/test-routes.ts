@@ -1,7 +1,7 @@
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESLint, TSESTree } from "@typescript-eslint/utils";
 import ts from "typescript";
-import { constantInitializer, unwrapTsValue } from "./static-values.ts";
+import { constantInitializer, staticKeyName, unwrapTsValue } from "./static-values.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 
 // Route-map factories whose map argument is judged: the call name and the argument index of the map.
@@ -20,12 +20,13 @@ const FIXED_MESSAGE =
 const ERROR_MESSAGE =
   "An unconditional trpcError fabricates a refusal the server never sent: drive the real refusal through `serveCorpusProcedures`, or make the failure depend on the request.";
 
-type Responder = TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression;
+type Responder = TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | TSESTree.FunctionDeclaration;
 /** What a route value answers with: a refusal on every path, a request-aware answer, or a fixed guess. */
 const VERDICT = { error: "error", answers: "answers", fixed: "fixed" } as const;
 type Verdict = (typeof VERDICT)[keyof typeof VERDICT];
 
-const isResponder = (node: TSESTree.Node): node is Responder => node.type === "ArrowFunctionExpression" || node.type === "FunctionExpression";
+const isResponder = (node: TSESTree.Node): node is Responder =>
+  node.type === "ArrowFunctionExpression" || node.type === "FunctionExpression" || node.type === "FunctionDeclaration";
 
 const isTrpcErrorCall = (node: TSESTree.Node): boolean =>
   node.type === "CallExpression" && node.callee.type === "Identifier" && node.callee.name === "trpcError";
@@ -121,27 +122,46 @@ function returnedValues(context: OrbRuleContext, fn: Responder): readonly TSESTr
     if (node.type === "ReturnStatement") {
       return node.argument === null ? [] : [node.argument];
     }
-    return isResponder(node) || node.type === "FunctionDeclaration" ? [] : childNodes(context, node).flatMap(visit);
+    return isResponder(node) ? [] : childNodes(context, node).flatMap(visit);
   };
   return fn.body.type === "BlockStatement" ? visit(fn.body) : [fn.body];
 }
 
-// `void input` and a bare `input;` statement name the parameter without using it.
-const onlyNamed = (reference: TSESLint.Scope.Reference): boolean => {
-  const { parent } = reference.identifier;
-  return (parent.type === "UnaryExpression" && parent.operator === "void") || parent.type === "ExpressionStatement";
-};
+// Follow aliases only while their value reaches an observation; discarded expressions are not request reads.
+function meaningfulRead(context: OrbRuleContext, node: TSESTree.Node, seen: Set<TSESTree.Node>): boolean {
+  if (seen.has(node)) {
+    return false;
+  }
+  seen.add(node);
+  const parent = node.parent;
+  if (parent === undefined) {
+    return false;
+  }
+  if (parent.type === "ExpressionStatement" || (parent.type === "UnaryExpression" && parent.operator === "void")) {
+    return false;
+  }
+  if (parent.type === "SequenceExpression") {
+    return parent.expressions.at(-1) === node && meaningfulRead(context, parent, seen);
+  }
+  if (parent.type === "VariableDeclarator") {
+    return context.sourceCode
+      .getDeclaredVariables(parent)
+      .some((variable) => variable.references.some((reference) => reference.isRead() && meaningfulRead(context, reference.identifier, seen)));
+  }
+  if (parent.type === "MemberExpression" || parent.type === "TSAsExpression" || parent.type === "TSNonNullExpression") {
+    return meaningfulRead(context, parent, seen);
+  }
+  return true;
+}
 
 function readsParameter(context: OrbRuleContext, fn: Responder): boolean {
-  return (
-    fn.params.length > 0 &&
-    context.sourceCode
-      .getDeclaredVariables(fn)
-      .some(
-        (variable: TSESLint.Scope.Variable) =>
-          variable.defs.some((def) => def.type === "Parameter") && variable.references.some((reference) => reference.isRead() && !onlyNamed(reference)),
-      )
-  );
+  return context.sourceCode
+    .getDeclaredVariables(fn)
+    .some(
+      (variable: TSESLint.Scope.Variable) =>
+        variable.defs.some((def) => def.type === "Parameter") &&
+        variable.references.some((reference) => reference.isRead() && meaningfulRead(context, reference.identifier, new Set())),
+    );
 }
 
 interface Env {
@@ -166,6 +186,25 @@ function responderVerdict(env: Env, fn: Responder, depth: number): Verdict {
   return readsParameter(env.context, fn) ? VERDICT.answers : returned;
 }
 
+function localCallableVerdict(env: Env, value: TSESTree.Node, depth: number): Verdict | undefined {
+  if (value.type === "Identifier") {
+    const declaration = env.native.checker.getSymbolAtLocation(env.native.toTs(value))?.valueDeclaration;
+    const fn = declaration === undefined ? undefined : env.native.toEs(declaration);
+    if (fn !== undefined && isResponder(fn)) {
+      return responderVerdict(env, fn, depth + 1);
+    }
+  }
+  if (value.type === "CallExpression") {
+    const declaration = env.native.checker.getSymbolAtLocation(env.native.toTs(value.callee))?.valueDeclaration;
+    const declared = declaration === undefined ? undefined : env.native.toEs(declaration);
+    const fn = declared?.type === "VariableDeclarator" ? declared.init : declared;
+    if (fn !== undefined && fn !== null && isResponder(fn)) {
+      return combine(returnedValues(env.context, fn).map((returned) => verdictOf(env, returned, depth + 1)));
+    }
+  }
+  return undefined;
+}
+
 function verdictOf(env: Env, node: TSESTree.Node, depth = 0): Verdict {
   const value = unwrapTsValue(node);
   if (value.type === "Identifier" && depth < BINDING_HOPS) {
@@ -173,6 +212,10 @@ function verdictOf(env: Env, node: TSESTree.Node, depth = 0): Verdict {
     if (bound !== undefined) {
       return verdictOf(env, bound, depth + 1);
     }
+  }
+  const local = depth < BINDING_HOPS ? localCallableVerdict(env, value, depth) : undefined;
+  if (local !== undefined) {
+    return local;
   }
   if (isTrpcErrorCall(value)) {
     return VERDICT.error;
@@ -187,16 +230,17 @@ function verdictOf(env: Env, node: TSESTree.Node, depth = 0): Verdict {
 }
 
 // A literal is a route map when its contextual type holds a responder (one that can be a kit marker) for a dotted key it writes.
-function isTypedRouteMap(native: Native, object: TSESTree.ObjectExpression): boolean {
+function isTypedRouteMap(context: OrbRuleContext, native: Native, object: TSESTree.ObjectExpression): boolean {
   const contextual = native.checker.getContextualType(native.toTs(object) as ts.Expression);
   if (contextual === undefined) {
     return false;
   }
   return object.properties.some((property) => {
-    if (property.type !== "Property" || property.key.type !== "Literal" || !String(property.key.value).includes(".")) {
+    const key = property.type === "Property" ? staticKeyName(context, property) : undefined;
+    if (key === undefined || !key.includes(".")) {
       return false;
     }
-    const symbol = native.checker.getPropertyOfType(contextual, String(property.key.value));
+    const symbol = native.checker.getPropertyOfType(contextual, key);
     const slot = symbol === undefined ? undefined : native.checker.getTypeOfSymbolAtLocation(symbol, native.toTs(object));
     return slot !== undefined && constituents(slot).some((type) => MARKER_TYPES.has(type.getSymbol()?.name ?? ""));
   });
@@ -246,9 +290,28 @@ export const ctResponderReadsInputRule: OrbRule = {
           judgeMap(map);
         }
       },
+      "CallExpression[arguments.length>0]"(call: TSESTree.CallExpression): void {
+        const signature = native.checker.getResolvedSignature(native.toTs(call) as ts.CallExpression);
+        signature?.getParameters().forEach((parameter, index) => {
+          const type = native.checker.getTypeOfSymbolAtLocation(parameter, native.toTs(call));
+          const routeMap = native.checker
+            .getPropertiesOfType(type)
+            .some(
+              (slot) =>
+                slot.getName().includes(".") &&
+                constituents(native.checker.getTypeOfSymbolAtLocation(slot, native.toTs(call))).some((member) =>
+                  MARKER_TYPES.has(member.getSymbol()?.name ?? ""),
+                ),
+            );
+          const argument = call.arguments[index];
+          if (routeMap && argument !== undefined) {
+            judgeMap(argument);
+          }
+        });
+      },
       // A literal typed as a route map where it is written (a return type, a variable, a `satisfies`) is judged without a call.
       "ObjectExpression[properties.length>0]"(object: TSESTree.ObjectExpression): void {
-        if (isTypedRouteMap(native, object)) {
+        if (isTypedRouteMap(context, native, object)) {
           judgeMap(object);
         }
       },

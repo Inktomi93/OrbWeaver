@@ -3,13 +3,24 @@ import { seedThemes } from "@orb/server/entry/boot";
 import type { CorpusFirstBoot } from "../iso/corpus.ts";
 import { firstBootInput } from "../iso/corpus-first-boot.ts";
 import { bootGrantFor } from "./boot-grant.ts";
+import type { ServerTestHarness } from "./server.ts";
 import { createServerHarness } from "./server.ts";
+
+/** A fresh production root with the shipped palettes its normal boot installs. */
+export async function createFirstBootHarness(): Promise<ServerTestHarness> {
+  const root = await createServerHarness({ startJobs: false });
+  try {
+    await seedThemes({ db: bootGrantFor(root.db), logger: root.logger, now: root.clock.now });
+    return root;
+  } catch (error) {
+    await root[Symbol.asyncDispose]();
+    throw error;
+  }
+}
 
 /** A server of its own: the corpus graph already holds a second account, connections and themes a first boot does not. */
 export async function captureCorpusFirstBoot(): Promise<CorpusFirstBoot> {
-  await using root = await createServerHarness({ startJobs: false });
-  // A deployed server seeds the shipped themes at boot; the harness does not.
-  await seedThemes({ db: bootGrantFor(root.db), logger: root.logger, now: root.clock.now });
+  await using root = await createFirstBootHarness();
   const caller = await root.internalCallerFor(root.ownerId);
   const bindingsInput = firstBootInput.bindings();
   const schedulesInput = firstBootInput.schedules();
