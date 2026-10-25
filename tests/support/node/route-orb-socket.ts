@@ -20,21 +20,13 @@
 // (`route.fallback()`) to routeTrpc for everything else — including answering the attach mutations, which
 // routeTrpc resolves to `null` exactly as the real void-returning procedure does.
 
+import type { SubscriptionErrorFrame } from "@orb/contracts/rpc";
 import type { StreamFrame, StreamRoomRef, streamAttachInputSchema } from "@orb/contracts/stream";
 import { roomKey } from "@orb/contracts/stream";
 import type { Page, Request, Route } from "@playwright/test";
 
-/** The typed TERMINAL frame `withSubscriptionErrors` yields when a subscription's source throws a
- *  DomainError (`transport/trpc/subscriptions.ts`). Spelled here rather than imported: the client
- *  discriminates it structurally, and a CT stub must be able to author one without pulling the server in. */
-interface SubscriptionErrorPayload {
-  readonly __subscriptionError: true;
-  readonly code: string;
-  readonly message: string;
-}
-
 /** Anything the stub can put on the wire — a room frame, or the socket's typed terminal error. */
-type ScriptedFrame = StreamFrame | SubscriptionErrorPayload;
+type ScriptedFrame = StreamFrame | SubscriptionErrorFrame;
 
 /** One SSE frame in the tRPC shape (fields each `\n`-terminated, then a blank line dispatches it). */
 function sseFrame(fields: { event?: string; data: string; id?: string }): string {
@@ -81,8 +73,8 @@ export interface OrbSocketRecorder {
 }
 
 export interface RouteOrbSocketOptions {
-  /** The frames to serve, in order, on EVERY connect. Author them as `{ channel, …, event }`. */
-  readonly frames?: readonly ScriptedFrame[];
+  /** Frames for each connection; a supplier can await producer events and must release its subscription when the signal aborts. */
+  readonly frames?: readonly ScriptedFrame[] | ((signal: AbortSignal) => Promise<readonly ScriptedFrame[]>);
   /** Serve the body only once this many attach requests have finished with successful HTTP responses (the handshake). @defaultValue 0 */
   readonly awaitAttaches?: number;
   /** Emit the terminal `return` frame so the EventSource closes cleanly. @defaultValue true */
@@ -209,6 +201,36 @@ export async function routeOrbSocket(page: Page, opts: RouteOrbSocketOptions = {
     return success;
   };
 
+  const fulfillSocket = async (route: Route, clean: boolean): Promise<void> => {
+    const stop = new AbortController();
+    const closed = (): void => stop.abort();
+    page.once("close", closed);
+    try {
+      const supplied = typeof frames === "function" ? await frames(stop.signal) : frames;
+      if (page.isClosed()) {
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        headers: { "content-type": "text/event-stream", "cache-control": "no-cache" },
+        body: socketBody(
+          [
+            {
+              channel: "control",
+              type: "serverReady",
+              serverInstanceId: serverInstanceIds[Math.min(connects - 1, serverInstanceIds.length - 1)] ?? DEFAULT_SERVER_INSTANCE_ID,
+            },
+            ...supplied,
+          ],
+          clean,
+        ),
+      });
+    } finally {
+      stop.abort();
+      page.off("close", closed);
+    }
+  };
+
   await page.route("**/api/trpc/**", async (route) => {
     const req = route.request();
     const url = new URL(req.url());
@@ -226,21 +248,7 @@ export async function routeOrbSocket(page: Page, opts: RouteOrbSocketOptions = {
       }
       // Dropped connections omit `return` → EOF → the link reconnects under the scripted process identity.
       const clean = closeStream && connects > dropConnectionCount;
-      await route.fulfill({
-        status: 200,
-        headers: { "content-type": "text/event-stream", "cache-control": "no-cache" },
-        body: socketBody(
-          [
-            {
-              channel: "control",
-              type: "serverReady",
-              serverInstanceId: serverInstanceIds[Math.min(connects - 1, serverInstanceIds.length - 1)] ?? DEFAULT_SERVER_INSTANCE_ID,
-            },
-            ...frames,
-          ],
-          clean,
-        ),
-      });
+      await fulfillSocket(route, clean);
       return;
     }
 

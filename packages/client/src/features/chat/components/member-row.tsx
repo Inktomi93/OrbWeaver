@@ -156,7 +156,9 @@ export function MemberRow(props: MemberRowProps): ReactElement {
         </Button>
       ) : null}
 
-      {row.kind === "person" ? <PersonRowConfirms row={row} actions={props} confirm={confirm} setConfirm={setConfirm} /> : null}
+      {row.kind === "person" ? (
+        <PersonRowConfirms row={row} actions={props} confirm={confirm} setConfirm={setConfirm} removalFinalFocus={props.removalFinalFocus} />
+      ) : null}
     </Row>
   );
 }
@@ -333,11 +335,13 @@ function PersonRowConfirms({
   actions,
   confirm,
   setConfirm,
+  removalFinalFocus,
 }: {
   readonly row: MemberPersonRow;
   readonly actions: MemberRowActions;
   readonly confirm: MemberRowConfirm | null;
   readonly setConfirm: (c: MemberRowConfirm | null) => void;
+  readonly removalFinalFocus: () => boolean;
 }): ReactElement {
   return (
     <>
@@ -348,6 +352,7 @@ function PersonRowConfirms({
         title={`Remove ${row.displayName}?`}
         description="They lose access to this chat. Their messages stay in the transcript."
         confirmLabel="Remove"
+        finalFocus={removalFinalFocus}
         onConfirm={(): void => {
           actions.onRequestRemovalFocus?.(row.key);
           actions.onKick?.(row.userId);

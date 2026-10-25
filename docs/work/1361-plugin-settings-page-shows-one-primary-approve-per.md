@@ -23,4 +23,8 @@ The census case passes against corpus-served plugin.list with no waiver and no f
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Per-plugin Approve uses `secondary`; Remove uses `ghost`. The page keeps its page-level primary action without making every pending plugin a primary.
+
+The real-corpus `settings group plugins reads clean` case in [surface census](../../tests/client/features/app-shell/surface-census.suite.ct.tsx) passes without a responder override or waiver. Restoring primary approval in production makes the same case report `second-primary` with the pending plugin names.
+
+[Rendered closeout](../reviews/rendered-closeout.md) records commands, artifacts and the final verification status.

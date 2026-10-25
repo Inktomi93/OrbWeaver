@@ -1,8 +1,10 @@
 // Namecraft (UI-Primitives-and-Reuse §13.10): every registered section, modal and settings group is mounted through the
 // production door and judged by the name-quality probes. The rosters are the production tuples, never a list here.
 
+import { testId } from "@orb/client/lib";
 import { CONFIG_GROUP_IDS, MODAL_SLOT_IDS, SECTION_IDS } from "@orb/client/state";
 import { presetIdInputSchema } from "@orb/contracts/preset";
+import { formatVersionIdentity } from "@orb/kit/version-identity";
 import { formatFindings, nameQualityFindings, productNameFindings, settleSurface } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -76,7 +78,26 @@ test("the loaded preset detail has no name-quality findings", async ({ corpus, m
     throw new Error("The corpus has no captured preset detail");
   }
   const { id: presetId } = presetIdInputSchema.parse(captured);
+  const caller = await root.internalCallerFor(root.ownerId);
+  const preset = await caller.preset.get({ id: presetId });
   await mount<typeof PresetDetailShellStory>(`${STORIES}/PresetDetailShellStory`, { presetId });
+  await expect(page.getByRole("heading", { name: preset.name, exact: true })).toBeVisible();
+  await settleSurface(page);
+  expect(formatFindings(await productNameFindings(page))).toBe("");
+});
+
+test("the loaded Admin controls have no name-quality findings", async ({ mount, page }) => {
+  await mount<typeof ConfigGroupStory>(`${STORIES}/ConfigGroupStory`, { group: "admin" });
+  await expect(page.getByRole("textbox", { name: "Max generated-image download (MB)", exact: true })).toBeVisible();
+  await settleSurface(page);
+  expect(formatFindings(await productNameFindings(page))).toBe("");
+});
+
+test("the served build identity is rendered before the About name audit", async ({ mount, page }) => {
+  const caller = await root.internalCallerFor(root.ownerId);
+  const version = await caller.settings.getVersion();
+  await mount<typeof ConfigGroupStory>(`${STORIES}/ConfigGroupStory`, { group: "about" });
+  await expect(page.getByTestId(testId("aboutVersionLine"))).toHaveText(formatVersionIdentity(version));
   await settleSurface(page);
   expect(formatFindings(await productNameFindings(page))).toBe("");
 });
