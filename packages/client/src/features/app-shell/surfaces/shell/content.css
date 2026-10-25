@@ -51,7 +51,7 @@
    * transcript to nothing. The room scrolls instead, and the transcript keeps a floor. */
   @variant shell-short {
     [data-slot="chat-room-surface"] {
-      overflow-block: auto;
+      overflow-y: auto;
     }
     [data-slot="chat-room-surface"] > :has(> [data-slot="chat-room-flank-row"]) {
       min-block-size: var(--height-scroll-sm);

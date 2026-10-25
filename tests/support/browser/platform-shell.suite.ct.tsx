@@ -64,18 +64,24 @@ for (const viewport of [PHONE_PORTRAIT, PHONE_LANDSCAPE]) {
     await page.setViewportSize(viewport);
     const sideInset = viewport.width > viewport.height ? NOTCH_INSET : 0;
     const cdp = await page.context().newCDPSession(page);
-    await cdp.send("Emulation.setSafeAreaInsetsOverride", {
-      insets: { top: NOTCH_INSET, bottom: HOME_INDICATOR_INSET, left: sideInset, right: sideInset },
-    });
-    await mount<typeof ShellAmbientStory>(STORY, {});
-    await expect(page.getByRole("navigation", { name: "Primary", exact: true })).toBeVisible();
-    const paid = await page.evaluate(() => {
-      const grid = getComputedStyle(document.querySelector(".shell-grid") as Element);
-      return { top: grid.paddingTop, right: grid.paddingRight, left: grid.paddingLeft, overflowX: document.documentElement.scrollWidth - innerWidth };
-    });
-    // The bottom edge is not asserted: the grid reads the static `safe-area-max-inset-bottom`, which the Chromium
-    // override leaves at 0. A device reports it; only the dynamic insets can be given here.
-    expect(paid).toEqual({ top: `${String(NOTCH_INSET)}px`, right: `${String(sideInset)}px`, left: `${String(sideInset)}px`, overflowX: 0 });
+    try {
+      await cdp.send("Emulation.setSafeAreaInsetsOverride", {
+        insets: { top: NOTCH_INSET, bottom: HOME_INDICATOR_INSET, left: sideInset, right: sideInset },
+      });
+      await mount<typeof ShellAmbientStory>(STORY, {});
+      await expect(page.getByRole("navigation", { name: "Primary", exact: true })).toBeVisible();
+      const paid = await page.evaluate(() => {
+        const grid = getComputedStyle(document.querySelector(".shell-grid") as Element);
+        return { top: grid.paddingTop, right: grid.paddingRight, left: grid.paddingLeft, overflowX: document.documentElement.scrollWidth - innerWidth };
+      });
+      // The bottom edge is not asserted: the grid reads the static `safe-area-max-inset-bottom`, which the Chromium
+      // override leaves at 0. A device reports it; only the dynamic insets can be given here.
+      expect(paid).toEqual({ top: `${String(NOTCH_INSET)}px`, right: `${String(sideInset)}px`, left: `${String(sideInset)}px`, overflowX: 0 });
+    } finally {
+      // The page is reused by the next test in the worker: an unset override leaves every inset undefined, and the session stays open.
+      await cdp.send("Emulation.setSafeAreaInsetsOverride", { insets: {} });
+      await cdp.detach();
+    }
   });
 }
 

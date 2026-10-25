@@ -115,7 +115,8 @@ const config: Config = {
       true,
       { importFrom: [...SHEETS, { customProperties: Object.fromEntries(Object.keys(RUNTIME_CUSTOM_PROPERTIES).map((name) => [name, "initial"])) }] },
     ],
-    "logical-css/require-logical-properties": true,
+    // `overflow-block` and `overflow-inline` are Safari 26, and the floor is Safari 18, so the two axes stay spelled `overflow-y` and `overflow-x`.
+    "logical-css/require-logical-properties": [true, { ignore: ["overflow-x", "overflow-y"] }],
     "logical-css/require-logical-keywords": true,
     // The viewport units stay physical: `dvh` and `dvw` are the iPhone platform rules the owner keeps.
     "logical-css/require-logical-units": null,

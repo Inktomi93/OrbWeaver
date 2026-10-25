@@ -26,6 +26,12 @@ test("each custom rule refuses its planted control", async () => {
   expect(await rulesHit(declaration("padding: var(--primitive-space-8);"))).toEqual(["orb/no-raw-media-condition"]);
 });
 
+test("logical properties are required, except the overflow axes the Safari 18 floor cannot spell logically", async () => {
+  expect(await rulesHit(declaration("overflow-y: auto;"))).toEqual([]);
+  expect(await rulesHit(declaration("overflow-x: auto;"))).toEqual([]);
+  expect(await rulesHit(declaration("margin-left: 0;"))).toEqual(["logical-css/require-logical-properties"]);
+});
+
 test("a forced compositor layer is refused", async () => {
   expect(await rulesHit(declaration("will-change: transform;"))).toEqual(["property-disallowed-list"]);
   expect(await rulesHit(declaration("backface-visibility: hidden;"))).toEqual(["property-disallowed-list"]);
