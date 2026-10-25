@@ -12,6 +12,7 @@
 import { Button } from "@orb/ui/button";
 import { Copy, Icon, Pencil } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
+import { HOVER_REVEAL } from "@orb/ui/lib";
 import type { ListRowProps } from "@orb/ui/list-row";
 import { ListRow } from "@orb/ui/list-row";
 import { MenuItem } from "@orb/ui/menu";
@@ -19,7 +20,6 @@ import type { ReactElement, ReactNode } from "react";
 import { duplicateActionName, rowActionSubject, rowActionsName } from "#lib";
 import type { ConfirmDialogProps } from "./confirm-dialog.tsx";
 import { RowActionsMenu } from "./row-actions-menu.tsx";
-import { ROW_REVEAL } from "./row-reveal.ts";
 
 // The Rename · Duplicate · Delete actions for a library row (omit for a non-actionable row).
 interface LibraryRowActions {
@@ -59,7 +59,7 @@ interface LibraryRowActions {
   /** Where focus goes when the delete confirm closes: the kebab that opened it leaves with the row. */
   readonly deleteFinalFocus?: ConfirmDialogProps["finalFocus"];
   /** The row's ONE frequent non-navigational verb, surfaced INLINE beside the kebab (§12.2) — a
-   *  `ROW_REVEAL` ghost icon (rest hidden, revealed on the row's hover/focus-within, always-on for coarse).
+   *  `HOVER_REVEAL.hover` ghost icon (rest hidden, revealed on the row's hover/focus-within, always-on for coarse).
    *  The kebab KEEPS the same item (N3 mirror parity — inline is a shortcut, never the only path).
    *  Omitted ⇒ kebab-only, the world-info posture (books are low-churn; no frequency evidence). */
   readonly inlineVerb?: "duplicate";
@@ -197,7 +197,7 @@ export function LibraryRow(props: LibraryRowProps): ReactElement {
     (stateToggle === undefined ? 0 : 1) + (actions === undefined ? 0 : (actions.inlineVerb === undefined || actions.onDuplicate === undefined ? 0 : 1) + 1);
   return (
     <ListRow
-      // `group` roots the row so an inline verb's ROW_REVEAL fires on row hover/focus-within (§12.2).
+      // `group` roots the row so an inline verb's HOVER_REVEAL.hover fires on row hover/focus-within (§12.2).
       className="group"
       // Default: every trailing control is hover-revealed, so the cluster floats at the row's end instead of
       // reserving ~76px of the title column at rest (side-eye P1-2b). `actionsReserved` opts out for a row
@@ -246,7 +246,7 @@ function LibraryRowActionsMenu({
   return (
     <>
       {inlineVerb === undefined || duplicate === undefined ? null : (
-        <Button aria-label={duplicateActionName(subject)} className={ROW_REVEAL} intent="ghost" onClick={duplicate} size="icon" type="button">
+        <Button aria-label={duplicateActionName(subject)} className={HOVER_REVEAL.hover} intent="ghost" onClick={duplicate} size="icon" type="button">
           <Icon icon={Copy} size="sm" />
         </Button>
       )}

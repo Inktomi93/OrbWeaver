@@ -3,6 +3,7 @@
 // and an open room's identity: its participants, its name, its chips and the context pane's header on the same horizon.
 import { censusTitle } from "@orb/client/lib";
 import type { ChatId } from "@orb/kit/ids";
+import { pixel, resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, holdCorpusProcedure, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusWire } from "@orb/testkit/iso";
@@ -11,7 +12,7 @@ import type { Locator, Page } from "@playwright/test";
 import { commandShortcutLabel } from "#client/features/app-shell/lib/command-shortcut-label.ts";
 import type { AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import type { AppShellTrailProjectionStory } from "./_trail-projection-stories.tsx";
-import { JUMP_CHIP, namedGroupRoom, pixel, resolvedLength, routeRoom, routeShell, SECTION_PROCEDURES, SHELL_STORIES, seedShellState } from "./app-shell-ct.ts";
+import { JUMP_CHIP, namedGroupRoom, routeRoom, routeShell, SECTION_PROCEDURES, SHELL_STORIES } from "./app-shell-ct.ts";
 import { STORY_TRAIL_WIDGET } from "./trail-projection.ts";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;

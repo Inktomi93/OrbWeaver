@@ -149,24 +149,20 @@ function queueStateOf(index: number, openIndex: number | null, decision: Compare
 function QueueRow({
   review,
   state,
+  first,
   onOpen,
   onDecide,
 }: {
   review: ReviewEntry;
   state: QueueState;
+  first: boolean;
   onOpen: () => void;
   onDecide: (decision: CompareDecision) => void;
 }): ReactElement {
   const label = reviewTargetLabel(review.entry);
   const cleared = isClearedRewrite(review.entry);
   return (
-    <Row
-      align="center"
-      className="border-bs border-border py-field first:border-bs-0"
-      data-queue-state={state}
-      data-testid={testId("refineryQueueRow")}
-      gap="field"
-    >
+    <Row align="center" className="py-field" data-queue-state={state} divider={first ? undefined : "top"} data-testid={testId("refineryQueueRow")} gap="field">
       {state === "open" ? (
         // `px-block` matches the ghost button every OTHER row's name is (CONTROL_SIZE `sm`), so the field
         // names line up in one column instead of the open row sitting 12px left of its siblings.
@@ -260,6 +256,7 @@ export function AcceptReview({ entries, decided, onDecide }: AcceptReviewProps):
             <QueueRow
               key={queueKeyOf(review)}
               onDecide={(decision): void => decide(index, decision)}
+              first={index === 0}
               onOpen={(): void => setWalkedTo(index)}
               review={review}
               state={queueStateOf(index, openIndex, decided[index] ?? null)}

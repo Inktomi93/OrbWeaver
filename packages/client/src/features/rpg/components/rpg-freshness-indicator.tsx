@@ -92,7 +92,7 @@ export function RpgFreshnessIndicator({ delivery, pending }: RpgFreshnessIndicat
       <>
         <Badge tone="soft" size="sm" data-slot="rpg-freshness">
           {/* Icon is decorative by default (no `label` ⇒ aria-hidden); the pulse is purely visual. */}
-          <Icon icon={History} size="xs" className="animate-pulse" />
+          <Icon icon={History} pulse={true} size="xs" />
           <Text as="span" voice="gloss" ink="inherit">
             Updating…
           </Text>

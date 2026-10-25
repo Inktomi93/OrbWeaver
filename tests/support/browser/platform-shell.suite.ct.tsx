@@ -1,6 +1,7 @@
 // Platform checks on the production shell, run on Chromium and on the opt-in `webkit-iphone` project
 // (playwright-ct.config.ts). Playwright's WebKit on Linux is not Safari and reports 0 for every safe-area inset,
 // so the paid-inset arm is proved on Chromium with an inset override and WebKit records what it reports.
+import { APPEARANCE_CHANNEL_ROWS } from "@orb/client/lib";
 import { expect, test } from "../node/ct-corpus.ts";
 import { createShellAmbientReads } from "../node/ct-shell-reads.ts";
 import { routeTrpc } from "../node/route-trpc.ts";
@@ -14,6 +15,8 @@ const DESKTOP = { width: 1440, height: 900 } as const;
 const PHONE_LANDSCAPE_KEYBOARD = { width: 844, height: 190 } as const;
 // The MDN text-scale note asks a page to survive 200% to 300%; 200% is the floor claim here.
 const TEXT_SCALE_200 = "2";
+// The registered property the appearance writer sets for the font-scale setting, read from the manifest.
+const FONT_SCALE_PROPERTY = APPEARANCE_CHANNEL_ROWS.find((row) => row.key === "fontScale")?.name ?? "";
 const NOTCH_INSET = 47;
 const HOME_INDICATOR_INSET = 34;
 const CLEAN_MEDIA = { media: "screen", reducedMotion: "no-preference", colorScheme: "no-preference", forcedColors: "none", contrast: "no-preference" } as const;
@@ -90,7 +93,7 @@ for (const viewport of [PHONE_PORTRAIT, DESKTOP]) {
     await page.setViewportSize(viewport);
     await mount<typeof ShellAmbientStory>(STORY, {});
     // !important: the appearance writer owns the inline value and rewrites it after boot.
-    await page.addStyleTag({ content: `:root { --font-scale: ${TEXT_SCALE_200} !important; }` });
+    await page.addStyleTag({ content: `:root { ${FONT_SCALE_PROPERTY}: ${TEXT_SCALE_200} !important; }` });
     await expect(page.getByRole("navigation", { name: "Primary", exact: true })).toBeVisible();
     const fit = await page.evaluate(() => {
       const rail = document.querySelector("nav[aria-label=Primary]") as HTMLElement;

@@ -100,17 +100,12 @@ export function CommandPaletteSurface({ goToSections }: CommandPaletteSurfacePro
   };
 
   return (
-    <Stack ref={surfaceRef} tabIndex={-1} className="outline-none block-full">
+    <Stack ref={surfaceRef} tabIndex={-1} className="block-full" focusTarget={true}>
       {/* The registered commands' invisible runner mounts — the palette is a slash-command host too. */}
       {slash.mounts}
       {/* One ranking across every group: a row whose label or keyword equals or starts with the query outranks
           any fuzzy hit, whichever source declared it. */}
-      <Command
-        className="flex flex-col rounded-card border shadow-overlay block-full"
-        filter={declaredTermFirstFilter}
-        label="Command palette"
-        onEscape={closeModal}
-      >
+      <Command className="flex flex-col block-full" elevated={true} filter={declaredTermFirstFilter} label="Command palette" onEscape={closeModal}>
         <CommandInput aria-label="Search commands" placeholder="Jump to a thread, section, or action…" />
         <CommandList listSize="compact">
           <CommandEmpty>No matches.</CommandEmpty>

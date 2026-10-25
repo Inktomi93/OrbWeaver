@@ -201,8 +201,8 @@ export function PresetImportDialog({ open, onOpenChange, onImportSt, onImportOrb
         />
 
         {error !== null ? (
-          <Row align="start" className="text-destructive" gap="field">
-            <Icon icon={AlertTriangle} size="sm" />
+          <Row align="start" gap="field">
+            <Icon icon={AlertTriangle} size="sm" tone="destructive" />
             <Text prose={true} voice="label">
               {error}
             </Text>

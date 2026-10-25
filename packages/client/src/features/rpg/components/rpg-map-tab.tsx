@@ -19,7 +19,7 @@ export function RpgMapTab(): ReactElement {
       <Kicker>Map</Kicker>
       <Card tone="neutral" outline="dashed">
         <Stack gap="block" align="center" className="text-center">
-          <Icon icon={MapIcon} size="lg" className="text-muted-foreground" aria-hidden={true} />
+          <Icon icon={MapIcon} size="lg" tone="muted" aria-hidden={true} />
           <Text voice="label">{RPG_MAP_PLANNED}</Text>
           <Text voice="gloss">A map of the places the story has named and where you are among them. It is not built yet.</Text>
         </Stack>

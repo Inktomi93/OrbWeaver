@@ -66,7 +66,6 @@ import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/colla
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Plus } from "@orb/ui/icons";
 import { Grid, Row, Section, Stack, Surface } from "@orb/ui/layout";
-import { SCROLL_FADE_Y_CLASS } from "@orb/ui/lib";
 import { useScrollFadeY } from "@orb/ui/scroll-area";
 import { Separator } from "@orb/ui/separator";
 import { Heading, Text } from "@orb/ui/text";
@@ -148,7 +147,9 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
     <Surface tier="form">
       {/* The full-width scroller owns the section inset so swipe shelves can extend to the screen edge. */}
       <Stack
-        className={`${SCROLL_FADE_Y_CLASS} relative overflow-y-auto overscroll-contain px-section pbs-section pbe-gutter outline-none block-full min-block-0`}
+        className="relative overflow-y-auto overscroll-contain px-section pbs-section pbe-gutter block-full min-block-0"
+        scrollFade="y"
+        focusTarget={true}
         gap="section"
         ref={surfaceRef}
         tabIndex={-1}

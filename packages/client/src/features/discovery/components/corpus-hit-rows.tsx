@@ -4,7 +4,6 @@ import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import { Icon, Images, MessagesSquare } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
-import { RECEDED_INK } from "@orb/ui/lib";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -79,9 +78,10 @@ export function DiscoverHitRow({ hit, rank }: { readonly hit: DiscoverHit; reado
               {occurrences.map((segment, index) => (
                 <Tip key={segment.source.rowId} text={roomNumberingHint(chatSubtitle(segment.chatTitle, hit.name))}>
                   <Button
-                    className={`justify-start max-inline-full ${RECEDED_INK}`}
+                    className="justify-start max-inline-full"
                     intent="ghost"
                     size="sm"
+                    tone="muted"
                     onClick={(): void => selectCorpusArtifact({ kind: "scene", hit: segment, characterName: hit.name, rank })}
                   >
                     <Text as="span" className="truncate min-inline-0" tone="muted" voice="label">

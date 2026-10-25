@@ -104,7 +104,7 @@ function SignInCheckBlock({
 function SignInVerdictLines({ verdict }: { readonly verdict: SignInVerdict }): ReactElement {
   return (
     <Stack data-slot="connection-sign-in-verdict" data-ok={verdict.ok} gap="tight">
-      <Text className={verdict.ok ? "text-success" : "text-warning"} voice="gloss">
+      <Text tone={verdict.ok ? "success" : "warning"} voice="gloss">
         {verdict.title}
       </Text>
       {verdict.detail === null ? null : <Text voice="datum">{verdict.detail}</Text>}

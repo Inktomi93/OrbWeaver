@@ -11,8 +11,12 @@ interface Sized {
   value: string;
   /** The inline height this hook wrote, so a different inline height is known to be the caller's. */
   height: string;
-  /** Whether a class fixes the height, so `field-sizing` would never have sized the box. Read once, at mount. */
+  /** The classes the cascade check was made for; the check is made again when they change. */
+  className: string;
+  /** Whether a class fixes the height, so `field-sizing` would never have sized the box. */
   fixedByCascade: boolean;
+  /** The caller's inline height when it fixes one, else empty; the box is sized again when it changes or goes away. */
+  callerHeight: string;
 }
 const sized = new WeakMap<HTMLTextAreaElement, Sized>();
 
@@ -31,15 +35,27 @@ function fixedByCascade(field: HTMLTextAreaElement): boolean {
   return cascade !== auto;
 }
 
+// An inline height that this hook did not write is the caller's, and wins.
+function callerHeightOf(field: HTMLTextAreaElement): string {
+  return field.style.height !== "" && field.style.height !== sized.get(field)?.height ? field.style.height : "";
+}
+
+/** Whether the box is no longer the size the hook last measured it for. Reads attributes only, so it forces no layout. */
+function isStale(field: HTMLTextAreaElement): boolean {
+  const last = sized.get(field);
+  return last?.value !== field.value || last.className !== field.className || last.callerHeight !== callerHeightOf(field);
+}
+
 function sizeToContent(field: HTMLTextAreaElement): void {
   const own = sized.get(field);
-  // An inline height that this hook did not write is the caller's, and wins.
-  if (field.style.height !== "" && field.style.height !== own?.height) {
+  const callerHeight = callerHeightOf(field);
+  if (callerHeight !== "") {
+    sized.set(field, { value: field.value, height: own?.height ?? "", className: field.className, fixedByCascade: own?.fixedByCascade ?? false, callerHeight });
     return;
   }
-  const fixed = own?.fixedByCascade ?? fixedByCascade(field);
+  const fixed = own?.className === field.className ? own.fixedByCascade : fixedByCascade(field);
   if (fixed) {
-    sized.set(field, { value: field.value, height: "", fixedByCascade: true });
+    sized.set(field, { value: field.value, height: "", className: field.className, fixedByCascade: true, callerHeight });
     return;
   }
   const scrolled = field.scrollTop;
@@ -49,7 +65,7 @@ function sizeToContent(field: HTMLTextAreaElement): void {
   const height = `${field.scrollHeight + chrome}px`;
   field.style.height = height;
   field.scrollTop = scrolled;
-  sized.set(field, { value: field.value, height, fixedByCascade: false });
+  sized.set(field, { value: field.value, height, className: field.className, fixedByCascade: false, callerHeight });
 }
 
 function assign<T>(ref: Ref<T> | undefined, node: T | null): ReturnType<RefCallback<T>> {
@@ -70,10 +86,10 @@ function assign<T>(ref: Ref<T> | undefined, node: T | null): ReturnType<RefCallb
  */
 export function useFieldSizingFallback(forwardedRef?: Ref<HTMLTextAreaElement>): RefCallback<HTMLTextAreaElement> {
   const node = useRef<HTMLTextAreaElement | null>(null);
-  // Every commit asks, but only a changed value measures: reading `value` forces no layout, and a controlled value changes with no input event.
+  // Every commit asks, but only a changed value or class measures: reading them forces no layout, and a controlled value changes with no input event.
   useLayoutEffect(() => {
     const field = node.current;
-    if (field !== null && !nativeFieldSizing() && sized.get(field)?.value !== field.value) {
+    if (field !== null && !nativeFieldSizing() && isStale(field)) {
       sizeToContent(field);
     }
   });
@@ -88,15 +104,26 @@ export function useFieldSizingFallback(forwardedRef?: Ref<HTMLTextAreaElement>):
     field.addEventListener("input", resize);
     let width = field.offsetWidth;
     const observer = new ResizeObserver(() => {
+      // A width change rewraps the lines.
       if (field.offsetWidth !== width) {
         width = field.offsetWidth;
         resize();
       }
     });
     observer.observe(field);
+    // The caller's inline height or class set or removed without a commit of this component moves no edge when it
+    // equals the height the box already has, so only the attribute change reveals it. The hook's own sizing leaves
+    // the box fresh, so its own writes settle here.
+    const attributes = new MutationObserver(() => {
+      if (isStale(field)) {
+        resize();
+      }
+    });
+    attributes.observe(field, { attributes: true, attributeFilter: ["style", "class"] });
     return () => {
       field.removeEventListener("input", resize);
       observer.disconnect();
+      attributes.disconnect();
       node.current = null;
       if (typeof forwarded === "function") {
         forwarded();

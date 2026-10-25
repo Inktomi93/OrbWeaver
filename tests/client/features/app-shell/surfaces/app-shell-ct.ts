@@ -1,9 +1,9 @@
-// Node-side helpers the app-shell component specs share: story ids, accessible names and in-page probes.
-import type { Rgb } from "@orb/kit/theme-derivation";
+// Node-side helpers the app-shell component specs share: story ids, accessible names and routed procedures.
+// In-page probes live in `@orb/testkit/browser/spec`, where their browser callbacks typecheck.
 import type { TrpcRecorder } from "@orb/testkit/ct";
 import { createShellAmbientReads, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import type { CorpusWire } from "@orb/testkit/iso";
-import type { CDPSession, Locator, Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
 
 type ServedPath = Parameters<typeof serveCorpusProcedures>[1][number];
 
@@ -104,120 +104,6 @@ export const JUMP_CHIP = /^Jump — the command menu \(/u;
 
 export const PHONE = { width: 390, height: 844 } as const;
 
-interface ShortcutInit {
-  readonly altKey?: boolean;
-  readonly ctrlKey?: boolean;
-  readonly key?: string;
-  readonly metaKey?: boolean;
-  readonly repeat?: boolean;
-  readonly shiftKey?: boolean;
-}
-
-const SETTLE_FRAMES = 120;
-
-/** A rendered box once two reads a painted frame apart agree, so an entering transition is never measured mid-flight. */
-export async function settledBox(locator: Locator): Promise<{ x: number; y: number; width: number; height: number }> {
-  await locator.waitFor({ state: "visible" });
-  const page = locator.page();
-  let previous = await locator.boundingBox();
-  for (let frame = 0; frame < SETTLE_FRAMES; frame += 1) {
-    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
-    const current = await locator.boundingBox();
-    if (current !== null && JSON.stringify(current) === JSON.stringify(previous)) {
-      return current;
-    }
-    previous = current;
-  }
-  throw new Error(`the box never settled: last ${JSON.stringify(previous)}`);
-}
-
-/**
- * Drag and drop a synthetic transfer onto `target` and report whether the drop's default was cancelled, which is
- * what stops the browser navigating the tab to a dropped file. The probe listens on window after the shell's own guard.
- */
-export async function dropOn(target: Locator, transfer: { readonly file: string; readonly type: string } | { readonly text: string }): Promise<boolean> {
-  const page = target.page();
-  await page.evaluate(() => {
-    document.body.removeAttribute("data-drop-prevented");
-    globalThis.addEventListener("drop", (event) => document.body.setAttribute("data-drop-prevented", String(event.defaultPrevented)), { once: true });
-  });
-  const dataTransfer = await page.evaluateHandle((data) => {
-    const dt = new DataTransfer();
-    if ("file" in data) {
-      dt.items.add(new File(["dropped-bytes"], data.file, { type: data.type }));
-    } else {
-      dt.setData("text/plain", data.text);
-    }
-    return dt;
-  }, transfer);
-  await target.dispatchEvent("dragover", { dataTransfer });
-  await target.dispatchEvent("drop", { dataTransfer });
-  return page.evaluate(() => document.body.getAttribute("data-drop-prevented") === "true");
-}
-
-// The persisted shell store's key before any viewer binds the namespace, and its version. No door exports either;
-// the panels spec polls the persisted overrides after a toggle, so a drifted key or version fails there.
-const UNBOUND_SHELL_KEY = "orb:shell";
-const SHELL_STORE_VERSION = 2;
-
-/** Seed the shell store's storage before the app's modules run, the way a returning boot rehydrates it. */
-export async function seedShellState(page: Page, state: { readonly activeSection: string; readonly panelOverrides?: object }): Promise<void> {
-  await page.addInitScript(
-    ({ key, blob }) => {
-      globalThis.localStorage.setItem(key, blob);
-    },
-    { key: UNBOUND_SHELL_KEY, blob: JSON.stringify({ state: { panelOverrides: {}, ...state }, version: SHELL_STORE_VERSION }) },
-  );
-}
-
-/** The shell store's persisted panel overrides, or `null` before its first write. */
-export function persistedOverrides(page: Page): Promise<unknown> {
-  return page.evaluate((key) => {
-    const raw = globalThis.localStorage.getItem(key);
-    return raw === null ? null : ((JSON.parse(raw) as { state?: { panelOverrides?: unknown } }).state?.panelOverrides ?? null);
-  }, UNBOUND_SHELL_KEY);
-}
-
-/** A length custom property resolved to px by laying a box out at it; a computed custom property is only its token stream. */
-export function resolvedLength(page: Page, expression: string): Promise<number> {
-  return page.locator(".shell-grid").evaluate((grid, value) => {
-    const probe = grid.ownerDocument.createElement("div");
-    probe.style.position = "absolute";
-    probe.style.visibility = "hidden";
-    probe.style.width = value;
-    grid.append(probe);
-    const width = probe.getBoundingClientRect().width;
-    probe.remove();
-    return width;
-  }, expression);
-}
-
-/** rail | list | content | context, in px, off the grid's own resolved template. */
-export async function shellTracks(page: Page): Promise<readonly number[]> {
-  const columns = await page.locator(".shell-grid").evaluate((element) => getComputedStyle(element).gridTemplateColumns);
-  return columns.split(" ").map((track) => Number.parseFloat(track));
-}
-
-/** One framebuffer pixel, decoded in the page; a translucent border over glass has no computed-style answer. */
-export async function pixel(page: Page, x: number, y: number): Promise<Rgb> {
-  const shot = await page.screenshot({ clip: { height: 1, width: 1, x, y } });
-  return page.evaluate(
-    async (url) => {
-      const image = new Image();
-      image.src = url;
-      await image.decode();
-      const canvas = document.createElement("canvas");
-      canvas.width = 1;
-      canvas.height = 1;
-      const context = canvas.getContext("2d");
-      context?.drawImage(image, 0, 0);
-      const [r = 0, g = 0, b = 0] = context?.getImageData(0, 0, 1, 1).data ?? [];
-      return { b, g, r };
-    },
-    `data:image/png;base64,${shot.toString("base64")}`,
-  );
-}
-
 const TOUCH_DRAG_STEPS = 8;
 
 /** A finger drag through Chromium's real touch pipeline, so a touch-scroll region scrolls the way a phone scrolls it. */
@@ -231,50 +117,4 @@ export async function touchDrag(page: Page, from: { x: number; y: number }, to: 
   }
   await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
   await cdp.detach();
-}
-
-/** Dispatch one synthetic `k` keydown and report whether the shell cancelled its default. */
-export function dispatchCommandKey(page: Page, init: ShortcutInit, targetSelector?: string): Promise<boolean> {
-  return page.evaluate(
-    ({ eventInit, selector }) => {
-      const target = selector === undefined ? document : document.querySelector(selector);
-      if (target === null) {
-        throw new Error(`missing shortcut target: ${String(selector)}`);
-      }
-      const event = new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "k", ...eventInit });
-      target.dispatchEvent(event);
-      return event.defaultPrevented;
-    },
-    { eventInit: init, selector: targetSelector },
-  );
-}
-
-/** The user media preferences a case states; each one it leaves out is emulated as `no-preference`. */
-export interface MediaState {
-  readonly contrast?: "more" | "no-preference";
-  readonly transparency?: "reduce" | "no-preference";
-  readonly motion?: "reduce" | "no-preference";
-}
-
-const mediaSessions = new WeakMap<Page, CDPSession>();
-
-/**
- * State the whole emulated media list in one CDP call. Playwright models no reduced-transparency, and its own
- * `emulateMedia` replaces the CDP feature list, so a spec using this emulates media only here. The session stays
- * attached: its overrides end when it detaches.
- */
-export async function emulateMedia(page: Page, media: MediaState): Promise<void> {
-  const session = mediaSessions.get(page) ?? (await page.context().newCDPSession(page));
-  mediaSessions.set(page, session);
-  const features = [
-    { name: "prefers-color-scheme", value: "dark" },
-    { name: "prefers-reduced-motion", value: media.motion ?? "no-preference" },
-    { name: "prefers-contrast", value: media.contrast ?? "no-preference" },
-    { name: "prefers-reduced-transparency", value: media.transparency ?? "no-preference" },
-  ];
-  await session.send("Emulation.setEmulatedMedia", { features });
-  const missed = await page.evaluate((list) => list.filter(({ name, value }) => !matchMedia(`(${name}: ${value})`).matches), features);
-  if (missed.length > 0) {
-    throw new Error(`Chromium did not take the emulated media ${JSON.stringify(missed)}`);
-  }
 }

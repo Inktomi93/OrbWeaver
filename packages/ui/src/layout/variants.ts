@@ -1,5 +1,20 @@
 // Layout recipes define spacing intent; features consume the variants. Line-local exceptions license custom tracks.
-import { DISABLED_STATE_NATIVE, FOCUS_RING, HIDDEN_AT, HOVER_REVEAL, RECEDED, SR_ONLY_AT, TOUCH_FLOOR_AT_COARSE, tv } from "#lib";
+import {
+  DISABLED_STATE_NATIVE,
+  FOCUS_RING,
+  GROUND,
+  HIDDEN_AT,
+  HOVER_REVEAL,
+  INERT_UNTIL_HOVER,
+  RECEDED,
+  SCROLL_FADE_X_CLASS,
+  SCROLL_FADE_Y_CLASS,
+  SPOILER,
+  SR_ONLY_AT,
+  TOUCH_FLOOR_AT_COARSE,
+  tv,
+  WALLPAPER_PLATE,
+} from "#lib";
 
 const GAP = {
   // The small-end step (UI-Density-Law.md §2.2/D2): ATOM gaps inside an island — label↔bar,
@@ -46,7 +61,43 @@ const DIVIDER = {
   end: "border-e border-border",
   top: "border-bs border-border",
   bottom: "border-be border-border",
+  // A hairline between siblings in a list: the bottom edge on every box but the last, so the list ends clean.
+  between: "border-be border-border last:border-be-0",
 } as const;
+
+// The divider's weight and ink. `rule` is the 2px step for an edge that marks a state or a boundary (a set override,
+// a consent ask, the rail's seam in a preview) rather than separating neighbours; it is compound on the edge, so it
+// thickens only the edge that `divider` draws. The tone recolours that edge.
+const DIVIDER_TONE = {
+  border: "",
+  primary: "border-primary",
+  warning: "border-warning",
+  sidebar: "border-sidebar-border",
+} as const;
+// A dashed edge marks a doorway (a place to start something) rather than a boundary between neighbours.
+const DIVIDER_STYLE = { solid: "", dashed: "border-dashed" } as const;
+const DIVIDER_RULE = [
+  { divider: "start", dividerWeight: "rule", class: "border-s-2" },
+  { divider: "end", dividerWeight: "rule", class: "border-e-2" },
+  { divider: "top", dividerWeight: "rule", class: "border-bs-2" },
+  { divider: "bottom", dividerWeight: "rule", class: "border-be-2" },
+] as const;
+
+// A run of decorative fill, cut off at one edge into the ground: the cue that a scrolled strip hides more past that
+// edge. `fadeFrom` is the fill the strip sits on, so the fade dissolves into it.
+const FADE = {
+  start: "bg-linear-to-r via-60% to-transparent",
+  end: "bg-linear-to-l via-60% to-transparent",
+} as const;
+const FADE_FROM = { raised: "from-surface-raised", sidebar: "from-sidebar" } as const;
+
+// A surface the router or a list hands focus to (`tabIndex={-1}`) draws no outline of its own: arrival is announced, not
+// painted, and the controls inside draw their own rings.
+const FOCUS_TARGET = { true: "outline-none", false: "" } as const;
+
+// The edge-fade recipe for a box that scrolls on one axis (`globals.css`); the `useScrollFadeX`/`useScrollFadeY` hooks
+// mark which edges are hiding content, and the fade shows only there.
+const SCROLL_FADE = { x: SCROLL_FADE_X_CLASS, y: SCROLL_FADE_Y_CLASS } as const;
 
 export const stackVariants = tv({
   base: "flex flex-col",
@@ -70,8 +121,34 @@ export const stackVariants = tv({
     srOnlyAt: SR_ONLY_AT,
     touchFloor: TOUCH_FLOOR,
     divider: DIVIDER,
+    dividerWeight: { hairline: "", rule: "" },
+    dividerTone: DIVIDER_TONE,
+    dividerStyle: DIVIDER_STYLE,
     receded: { true: RECEDED, false: "" },
+    ground: GROUND,
+    plate: WALLPAPER_PLATE,
+    // The rows a search or a citation points at: the muted fill and the ring, so the anchor reads in a long list.
+    highlight: { true: "bg-muted ring-1 ring-ring", false: "" },
+    // Content the reader asked not to see yet (a spoiler): blurred and not selectable until revealed.
+    spoiler: { true: SPOILER, false: "" },
+    // A side panel that slides in from its inline end and is invisible once parked, on the shell's motion tokens.
+    slide: {
+      shown: "visible translate-x-0 transition-[translate,visibility] duration-(--shell-motion) ease-(--shell-ease)",
+      parked: "pointer-events-none invisible translate-x-full transition-[translate,visibility] duration-(--shell-motion) ease-(--shell-ease)",
+    },
+    // The ink drawn art inside the box inherits through `currentColor` (a diagram in a picker cell whose host recedes).
+    ink: { inherit: "", foreground: "text-foreground" },
+    focusTarget: FOCUS_TARGET,
+    scrollFade: SCROLL_FADE,
+    // A box whose opacity follows its state (it recedes while a re-run is pending) eases the change on the base motion
+    // step; the reduced-motion floor removes the transition.
+    opacityMotion: { true: "transition-opacity duration-(--motion-base) ease-out-expo", false: "" },
+    // A box that floats over its neighbours (an overlaid panel) casts the overlay shadow.
+    lifted: { true: "shadow-overlay", false: "" },
+    fade: FADE,
+    fadeFrom: FADE_FROM,
   },
+  compoundVariants: [...DIVIDER_RULE],
 });
 
 export const rowVariants = tv({
@@ -85,10 +162,25 @@ export const rowVariants = tv({
     srOnlyAt: SR_ONLY_AT,
     touchFloor: TOUCH_FLOOR,
     divider: DIVIDER,
+    dividerWeight: { hairline: "", rule: "" },
+    dividerTone: DIVIDER_TONE,
+    dividerStyle: DIVIDER_STYLE,
     receded: { true: RECEDED, false: "" },
     // A row of trailing actions that reveals on the nearest `group` ancestor's hover.
     reveal: HOVER_REVEAL,
+    inertUntilHover: { true: INERT_UNTIL_HOVER, false: "" },
+    focusTarget: FOCUS_TARGET,
+    scrollFade: SCROLL_FADE,
+    // A row that is itself a control picks up the accent fill on hover and holds it in its state: `expanded` keys on
+    // `data-expanded` (a row that opens its detail), `selected` on `data-selected` with a half-strength hover on the rest.
+    stateFill: {
+      expanded: "rounded-control transition-colors duration-(--motion-fast) ease-out-expo hover:bg-accent data-expanded:bg-accent",
+      selected: "rounded-control transition-colors duration-(--motion-fast) ease-out-expo hover:not-data-selected:bg-accent/50 data-selected:bg-accent",
+    },
+    ground: GROUND,
+    plate: WALLPAPER_PLATE,
   },
+  compoundVariants: [...DIVIDER_RULE],
 });
 
 // One-cell overlay stack (see layer.tsx). A single explicit `1fr`-free track that every child is placed
@@ -339,7 +431,7 @@ export const gridVariants = tv({
       // step at or above that minimum, so the consuming feature can spell its matching placement classes
       // without an arbitrary variant. The 830-896px band therefore keeps the in-flow gutter: conservative by
       // one step, never clipping. Container steps are `rem`-denominated, so the whole thing moves with
-      // `--font-scale` exactly like the measure it is derived from.
+      // `--appearance-font-scale` exactly like the measure it is derived from.
       //
       // NO ROLE MIRROR: the centred skins seat every role's chip LEADING (owner ruling, as Moonlit Echoes
       // leaves flat, hush and document unmirrored), so one template serves both roles and auto-placement
@@ -361,7 +453,7 @@ export const gridVariants = tv({
       // left the rail 0-28px — a thumb on no track at all. Below `@cq-32` the rail takes the whole width;
       // `@cq-32` and not `@cq-28` because the fold has to happen while there is still a rail worth keeping
       // (measured: the three-track arm needs ~468px of pane before the middle track clears an aimable
-      // floor). The step is in `rem`, so it moves with `--font-scale` — the reading arm folds later, which
+      // floor). The step is in `rem`, so it moves with `--appearance-font-scale` — the reading arm folds later, which
       // is exactly right for bigger type.
       //
       // THE FOLDED ARM IS TWO TRACKS, NOT ONE (side-eye 2026-08-30 P2-C). A single column stacked all four
@@ -408,6 +500,7 @@ export const containerVariants = tv({
   base: "@container",
   variants: {
     size: { sm: "max-inline-cq-24", md: "max-inline-cq-32", lg: "max-inline-cq-48" },
+    ground: GROUND,
   },
 });
 

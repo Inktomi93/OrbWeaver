@@ -1,6 +1,6 @@
 import type { CodeEditorDiagnostic } from "@orb/ui/code-editor";
 import { APPEARANCE_ATTRIBUTE_PREFIX } from "#lib";
-import type { OwnerCssHook, OwnerCssHookKind, OwnerCssRename } from "#owner-css";
+import type { AttributeMatch, HookReference, OwnerCssHook, OwnerCssHookKind, OwnerCssRename } from "#owner-css";
 import { scanHooks } from "#owner-css";
 
 const SPELLING: Record<OwnerCssHookKind, (name: string) => string> = {
@@ -48,6 +48,60 @@ function renameMessage(spelled: string, kind: OwnerCssHookKind, rename: OwnerCss
   return `\`${spelled}\` was removed from the theme surface and no longer matches anything.`;
 }
 
+// The partial operators (`^=`, `*=`, `$=`, `|=`) match a fragment, which no value list can judge.
+const WHOLE_VALUE_OPERATORS = new Set(["=", "~="]);
+
+interface ValueRule {
+  readonly values: readonly string[];
+  /** The attribute carries a space-separated list, so `=` takes any of its members together, or nothing. */
+  readonly members: boolean;
+}
+
+// A selector that no value the attribute can carry satisfies. `~=` takes one whitespace-free word; `=` on a list
+// takes members of it joined by single spaces (the empty list too), and on a single-valued attribute exactly one value.
+function neverMatches(found: AttributeMatch, rule: ValueRule): boolean {
+  const fold = (value: string): string => (found.caseInsensitive ? value.toLowerCase() : value);
+  const allowed = rule.values.map(fold);
+  const text = found.text ?? "";
+  if (found.operator === "~=") {
+    return text === "" || /\s/u.test(text) || !allowed.includes(fold(text));
+  }
+  if (rule.members) {
+    // The writer joins the stored members with one space, so only that exact shape (or nothing) can ever be present.
+    return (
+      text !== "" &&
+      !fold(text)
+        .split(" ")
+        .every((member) => allowed.includes(member))
+    );
+  }
+  return !allowed.includes(fold(text));
+}
+
+function attributeValueWarning(ref: HookReference, rule: ValueRule): CodeEditorDiagnostic[] {
+  const found = ref.attribute;
+  const list = rule.values.join(", ");
+  if (found === undefined || found.operator === null) {
+    const message = `\`${SPELLING[ref.kind](ref.name)}\` always carries a value, so a bare selector matches every element. Allowed values: ${list}.`;
+    return [{ severity: "warning", message, from: ref.from, to: ref.to }];
+  }
+  if (!(WHOLE_VALUE_OPERATORS.has(found.operator) && neverMatches(found, rule))) {
+    return [];
+  }
+  const message = `\`${found.text}\` is not a value \`${ref.name}\` can match with \`${found.operator}\`, so this selector may match nothing. Allowed values: ${list}.`;
+  return [{ severity: "warning", message, from: found.from, to: found.to }];
+}
+
+function attributeValueRules(surface: readonly OwnerCssHook[]): ReadonlyMap<string, ValueRule> {
+  return new Map(
+    surface.filter((hook) => hook.kind === "appearance-attribute").map((hook) => [hook.name, { values: hook.values ?? [], members: hook.members === true }]),
+  );
+}
+
+function valueRule(ref: HookReference, rules: ReadonlyMap<string, ValueRule>): ValueRule | undefined {
+  return ref.kind === "appearance-attribute" ? rules.get(ref.name) : undefined;
+}
+
 /**
  * Warnings for a stylesheet that names a theme hook the surface does not offer: a recorded rename (still works),
  * a recorded retirement, or an unknown name with the closest current one. Custom properties the sheet declares
@@ -60,13 +114,18 @@ export function themeCssHookWarnings(css: string, surface: readonly OwnerCssHook
   for (const hook of surface) {
     names[hook.kind].push(hook.name);
   }
+  const attributeRules = attributeValueRules(surface);
   return refs.flatMap((ref) => {
+    const rule = valueRule(ref, attributeRules);
+    if (rule !== undefined) {
+      return attributeValueWarning(ref, rule);
+    }
     // `var(--x, fallback)` hands the author's own default to an unset property: the knob is theirs.
     if (ref.fallback || names[ref.kind].includes(ref.name) || (ref.kind === "token" && !ref.declaration && declared.has(ref.name))) {
       return [];
     }
     const spelled = SPELLING[ref.kind](ref.name);
-    const rename = renames.find((row) => row.kind === ref.kind && row.name === ref.name);
+    const rename = renames.find((row) => row.kind === ref.kind && row.name === ref.name && row.value === undefined);
     if (rename !== undefined) {
       const message = renameMessage(spelled, ref.kind, rename);
       return [{ severity: "warning" as const, message, from: ref.from, to: ref.to }];

@@ -3,7 +3,14 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@orb/testkit/node";
 import { compile } from "tailwindcss";
-import { COMPUTED_SLOTS, OWNER_CSS_SURFACE_PATHS, readOwnerCssSources, renderOwnerCssSurface } from "../../packages/client/owner-css-surface.build.ts";
+import type { SurfaceInput } from "../../packages/client/owner-css-surface.build.ts";
+import {
+  COMPUTED_SLOTS,
+  OWNER_CSS_SURFACE_PATHS,
+  readOwnerCssSources,
+  renameTableViolations,
+  renderOwnerCssSurface,
+} from "../../packages/client/owner-css-surface.build.ts";
 import {
   OWNER_CSS_APPEARANCE_ATTRIBUTES,
   OWNER_CSS_SHELL_CLASSES,
@@ -23,6 +30,14 @@ const live = readOwnerCssSources(REPO_ROOT);
 
 test("the committed manifest is the one the live sources render", () => {
   expect(readFileSync(join(REPO_ROOT, OWNER_CSS_SURFACE_PATHS.manifest), "utf8")).toBe(renderOwnerCssSurface(live, OWNER_CSS_SURFACE));
+});
+
+test("a slot a primitive prop names reaches the surface like a data-slot attribute", () => {
+  const planted = renderOwnerCssSurface(
+    { ...live, sources: [...live.sources, { path: "planted.tsx", text: '<Card ownSlot="planted-owned-slot" />' }] },
+    OWNER_CSS_SURFACE,
+  );
+  expect(planted).toContain('"planted-owned-slot",');
 });
 
 test("a recorded slot rename and a recorded shell-class rename each change the manifest", () => {
@@ -70,15 +85,49 @@ test("a hook that leaves the surface without a rename row stops the regen and is
   expect(() => renderOwnerCssSurface({ ...lostToken, renames: [{ kind: "token", name: token, to: null }] }, OWNER_CSS_SURFACE)).not.toThrow();
 });
 
+test("an attribute value that leaves the surface without a rename row stops the regen and is named", () => {
+  const [attribute] = live.appearanceAttributes;
+  const [lost, ...kept] = attribute?.values ?? [];
+  const without = {
+    ...live,
+    appearanceAttributes: live.appearanceAttributes.map((candidate) => (candidate === attribute ? { ...candidate, values: kept } : candidate)),
+  };
+  expect(() => renderOwnerCssSurface(without, OWNER_CSS_SURFACE)).toThrow(`${attribute?.name}="${lost}"`);
+  const recorded = { ...without, renames: [{ kind: "appearance-attribute" as const, name: attribute?.name ?? "", value: lost ?? "", to: null }] };
+  expect(() => renderOwnerCssSurface(recorded, OWNER_CSS_SURFACE)).not.toThrow();
+});
+
+type Surface = typeof OWNER_CSS_SURFACE;
+
 test("every rename row names a hook that left the surface and points at one that is on it", () => {
-  const onSurface = (kind: string, name: string): boolean => OWNER_CSS_SURFACE.some((hook) => hook.kind === kind && hook.name === name);
-  const violations = OWNER_CSS_RENAMES.filter(
-    (rename) =>
-      onSurface(rename.kind, rename.name) ||
-      (rename.to !== null && !onSurface(rename.kind, rename.to)) ||
-      (rename.see !== undefined && !onSurface(rename.kind, rename.see)),
-  );
-  expect(violations).toEqual([]);
+  expect(renameTableViolations(OWNER_CSS_RENAMES, OWNER_CSS_SURFACE)).toEqual([]);
+});
+
+test("a whole-name row whose replacement is not on the surface is a violation", () => {
+  const [current] = OWNER_CSS_SURFACE.filter((hook) => hook.kind === "token");
+  const gone = { kind: "token" as const, name: "--planted-gone-hook", to: null };
+  expect(renameTableViolations([{ ...gone, see: current?.name ?? "" }], OWNER_CSS_SURFACE)).toEqual([]);
+  expect(renameTableViolations([{ ...gone, see: "--planted-missing-replacement" }], OWNER_CSS_SURFACE)).toHaveLength(1);
+});
+
+test("a value row is admitted by the regen for a dropped value and refused for a live one, a misnamed one and one with a successor", () => {
+  const [attribute] = live.appearanceAttributes;
+  const name = attribute?.name ?? "";
+  const [lost, ...kept] = attribute?.values ?? [];
+  const regenerated: Surface = OWNER_CSS_SURFACE.map((hook) => (hook.kind === "appearance-attribute" && hook.name === name ? { ...hook, values: kept } : hook));
+  const dropped = { kind: "appearance-attribute" as const, name, value: lost ?? "", to: null };
+  const without = {
+    ...live,
+    appearanceAttributes: live.appearanceAttributes.map((candidate) => (candidate === attribute ? { ...candidate, values: kept } : candidate)),
+  };
+  const regen = (renames: SurfaceInput["renames"]): string => renderOwnerCssSurface({ ...without, renames }, OWNER_CSS_SURFACE);
+  expect(renameTableViolations([...OWNER_CSS_RENAMES, dropped], regenerated)).toEqual([]);
+  expect(() => regen([...OWNER_CSS_RENAMES, dropped])).not.toThrow();
+  // The same row against the committed surface, where the value is still live.
+  expect(renameTableViolations([dropped], OWNER_CSS_SURFACE)).toEqual([dropped]);
+  expect(() => renderOwnerCssSurface({ ...live, renames: [...OWNER_CSS_RENAMES, dropped] }, OWNER_CSS_SURFACE)).toThrow(`${name}="${lost}"`);
+  expect(() => regen([...OWNER_CSS_RENAMES, dropped, { ...dropped, name: `${name}z` }])).toThrow(`${name}z`);
+  expect(() => regen([...OWNER_CSS_RENAMES, { ...dropped, to: name }])).toThrow(name);
 });
 
 test("the surface lists every kind, each name once, and no private name", () => {

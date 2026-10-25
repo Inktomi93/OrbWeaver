@@ -20,6 +20,7 @@
 // resting glyph SOLID — the dash pattern only exists while the pulse animates.
 
 import type { CSSProperties, ReactElement } from "react";
+import type { VariantProps } from "tailwind-variants";
 import { usePrefersReducedMotion } from "#lib";
 import { ORB_WEB_GLYPH, ORB_WEB_GLYPH_COMPACT, OrbWeb, OrbWebCompact } from "#primitives/icons";
 import { spinnerVariants } from "./variants.ts";
@@ -36,13 +37,15 @@ export interface WebSpinnerProps {
   size?: keyof typeof WEB_SPINNER_SIZES;
   /** Accessible name announced by `role="status"` — required (a spinner is a live status). */
   label: string;
+  tone?: VariantProps<typeof spinnerVariants>["tone"];
+  /** Layout only: the loader's placement. */
   className?: string;
 }
 
 /** The brand loader — indeterminate waits at every scale (the sanctioned spinner; skeletons still
- *  own layout loading). Inherits `currentColor`; tint via className (`text-primary` for brand waits). */
-export function WebSpinner({ size = "md", label, className }: WebSpinnerProps): ReactElement {
-  const slots = spinnerVariants();
+ *  own layout loading). Inherits `currentColor`; `tone="accent"` for brand waits. */
+export function WebSpinner({ size = "md", label, tone, className }: WebSpinnerProps): ReactElement {
+  const slots = spinnerVariants({ tone });
   const reduced = usePrefersReducedMotion();
   const px = WEB_SPINNER_SIZES[size];
   const compact = px <= COMPACT_MAX_PX;

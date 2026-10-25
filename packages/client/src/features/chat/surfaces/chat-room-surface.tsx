@@ -33,8 +33,7 @@ import { FlankColumn, FlankEdge, InlineFlankFitProbe } from "../components/room-
 import { useFlankPresentation } from "../hooks/use-flank-presentation.ts";
 import { useFlankTrackFlip } from "../hooks/use-flank-track-flip.ts";
 import { resolveRoomTheme } from "../lib/attribution.ts";
-import { CHAT_TRACK, COMPOSER_TRACK } from "../lib/chat-track.ts";
-import { BG_PHOTO_LOADING_PLATE } from "../lib/message-row-backing.ts";
+import { Track } from "../lib/chat-track.tsx";
 import { MessageListSurface } from "./message-list-surface.tsx";
 
 export interface ChatRoomSurfaceProps {
@@ -135,10 +134,9 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
           // the wallpaper IS the page and the reading plates carry the text).
           // A phone keeps the transcript and composer near the screen edge (owner ruling, as Moonlit Echoes pads its
           // chat 8px): the room steps its side inset down to `tight`, the transcript adds the ring clearance.
-          className={cn(
-            "px-block pbe-block outline-none block-full @max-cq-28:px-tight",
-            roomTheme?.background !== undefined && "not-in-data-has-bg-image:bg-background",
-          )}
+          className="px-block pbe-block block-full @max-cq-28:px-tight"
+          focusTarget={true}
+          ground={roomTheme?.background === undefined ? undefined : "backgroundUnlessArt"}
           gap="block"
           ref={surfaceRef}
           data-slot="chat-room-surface"
@@ -237,11 +235,11 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
                 // composer. `:empty` takes it out of layout entirely, so "mounted but silent" and "not mounted"
                 // read identically. It cannot hide a live contribution: any rendered node makes the wrapper
                 // non-empty.
-                <Stack gap="row" className={cn(COMPOSER_TRACK, "empty:hidden")} data-slot="chat-above-composer">
+                <Track of={Stack} track="composer" gap="row" className="empty:hidden" data-slot="chat-above-composer">
                   {aboveComposerContributions.map((c) => (
                     <Fragment key={c.id}>{c.node}</Fragment>
                   ))}
-                </Stack>
+                </Track>
               )}
               <ComposerSlot
                 chatId={chatId}
@@ -262,9 +260,9 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
 function RoomTranscriptSkeleton(): ReactElement {
   return (
     <Stack className="flex-1 min-block-0" data-slot="chat-room-mounting">
-      <Stack className={`${CHAT_TRACK} ${BG_PHOTO_LOADING_PLATE}`}>
+      <Track of={Stack} track="chat" plate="loading">
         <SkeletonRows count={3} />
-      </Stack>
+      </Track>
     </Stack>
   );
 }

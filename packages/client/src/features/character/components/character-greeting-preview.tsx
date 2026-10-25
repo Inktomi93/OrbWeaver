@@ -8,6 +8,7 @@ import type { ThemeOverride } from "@orb/contracts/theme";
 import { cardEmbeddableSubset } from "@orb/contracts/theme";
 import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
+import { Card } from "@orb/ui/card";
 import { Icon, Pencil, Plus, Trash2, WandSparkles } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { MacroTextarea } from "@orb/ui/macro-textarea";
@@ -19,7 +20,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { useColorQuotedSpeech, usePromptMacroSuggestions } from "#data";
 import type { AppFormInstance } from "#forms/editor";
-import { cn, notify } from "#lib";
+import { notify } from "#lib";
 import { useRovingChipFocus } from "../hooks/use-roving-chip-focus.ts";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model.ts";
 import { GreetingStudio } from "./greeting-studio.tsx";
@@ -197,15 +198,17 @@ function GreetingBody({
     <form.Subscribe selector={(s): string => s.values.greetings[index]?.text ?? ""}>
       {(active): ReactElement => (
         <ThemeScope tokens={cardTheme}>
-          <Stack gap="row" className={cn("rounded-base bg-ai-bubble p-block", spoilerBlur && "blur-md select-none")} data-slot="character-greeting-bubble">
-            {active.trim() === "" ? (
-              <Text voice="quiet">No first message yet.</Text>
-            ) : (
-              <Markdown trust={trusted ? "trusted" : "untrusted"} mode="static" colorQuotes={colorQuotes} allowExternalMedia={allowExternalMedia}>
-                {active}
-              </Markdown>
-            )}
-          </Stack>
+          <Card ownSlot="character-greeting-bubble" shadow="none" spoiler={spoilerBlur} tone="bubble">
+            <Stack gap="row">
+              {active.trim() === "" ? (
+                <Text voice="quiet">No first message yet.</Text>
+              ) : (
+                <Markdown trust={trusted ? "trusted" : "untrusted"} mode="static" colorQuotes={colorQuotes} allowExternalMedia={allowExternalMedia}>
+                  {active}
+                </Markdown>
+              )}
+            </Stack>
+          </Card>
         </ThemeScope>
       )}
     </form.Subscribe>

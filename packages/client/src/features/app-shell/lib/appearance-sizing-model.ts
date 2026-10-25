@@ -99,6 +99,15 @@ export const APPEARANCE_SIZING_SUBCATEGORY: ConfigSubcategory = {
   ],
 };
 
+/** The label the model gives the setting a control writes; the section's controls read it so a row has one name. */
+export function sizingSettingLabel(key: string): string {
+  const leaf = APPEARANCE_SIZING_SUBCATEGORY.settings?.find((setting) => setting.key === key);
+  if (leaf === undefined) {
+    throw new Error(`The sizing model has no setting for ${key}`);
+  }
+  return leaf.label;
+}
+
 /** The `appearance` keys this section — and ONLY this section — WRITES (SET-SEAMS §2.3 S1/S2). ONE
  *  spelling, three consumers: the body's `pickKeys` projection + seeded defaults, its `Pick`-derived form
  *  type, and the contribution's `owns` claim — so "the patch names only the keys this section owns" is true

@@ -62,7 +62,7 @@ export function MessageCostReadout({ message }: { readonly message: MessageView 
         data-slot="message-metadata-cost-trigger"
       >
         <Icon icon={Coins} size="xs" />
-        <Text voice="gloss" className="font-mono">
+        <Text tone="muted" voice="code">
           cost
         </Text>
       </Button>
@@ -70,7 +70,7 @@ export function MessageCostReadout({ message }: { readonly message: MessageView 
   }
 
   return (
-    <Text voice="gloss" className="font-mono" data-slot="message-metadata-cost">
+    <Text tone="muted" voice="code" data-slot="message-metadata-cost">
       {costLabel(query.isError, query.data?.totalCost)}
     </Text>
   );

@@ -65,11 +65,11 @@ function FactRowView({ row, busy, onOverride, onReset, note }: { readonly row: F
     // Focusable by script only: a confirm that closes over this row returns focus to the row, not to its first button.
     <Stack data-slot="connection-fact-row" data-fact={row.path} data-overridden={row.overridden} gap="tight" tabIndex={-1}>
       <Row align="start" className="@max-cq-32:flex-col @max-cq-32:items-stretch" gap="field" justify="between">
-        <Text className="shrink-0" voice="datum">
+        <Text className="shrink-0" voice="code">
           {row.name}
         </Text>
         <Stack className="grow min-inline-0" gap="tight">
-          <Text className={row.overridden ? "text-info" : undefined} voice="label">
+          <Text tone={row.overridden ? "info" : "default"} voice="label">
             {row.value}
           </Text>
           <Text voice="gloss">{row.source}</Text>

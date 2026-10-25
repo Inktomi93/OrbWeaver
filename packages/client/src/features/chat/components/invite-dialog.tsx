@@ -286,7 +286,7 @@ function InviteMintForm({ chatId, onOpenSharing }: { readonly chatId: ChatId; re
               {/* Copied on arrival. A failed copy lands in this control's own status and field, inside the dialog:
                   a toast would paint under the modal backdrop, and the link is shown only once. */}
               <CopyButton autoCopy={true} copiedHint="Anyone with it can join." data-testid={testId("inviteCopyLink")} text={mintedLink} what="invite link">
-                <Text voice="label" className="font-mono break-all">
+                <Text voice="code" className="break-all">
                   {mintedLink}
                 </Text>
               </CopyButton>

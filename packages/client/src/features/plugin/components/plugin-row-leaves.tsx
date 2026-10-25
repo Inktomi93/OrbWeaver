@@ -248,7 +248,15 @@ export function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing 
     // prose's contrast the same way. So a border-only leading rule is the zero-contrast-tax boundary: it
     // paints no ground behind the pills at all. The ruling survives ("state it apart with a warning edge,
     // never a fill"); its INPUT changed from a full box to a leading rule.
-    <Stack aria-label={`What ${plugin.name} asks for beyond what you've allowed`} className="border-s-2 border-s-warning ps-block" gap="block" role="alert">
+    <Stack
+      aria-label={`What ${plugin.name} asks for beyond what you've allowed`}
+      className="ps-block"
+      divider="start"
+      dividerTone="warning"
+      dividerWeight="rule"
+      gap="block"
+      role="alert"
+    >
       <Text className="max-inline-(--reading-measure-prose)" voice="promoted">
         {firstAsk ? firstConsentLine(plugin.name, plugin.declaredCapabilities.length) : reConsentLine(ungranted, plugin.widenedNetHosts)}
       </Text>

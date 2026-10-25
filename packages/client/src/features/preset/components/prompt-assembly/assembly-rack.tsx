@@ -115,8 +115,8 @@ export function AssemblyRack({
               </Button>
               {zones.missingPivot ? (
                 <Card tone="warning">
-                  <Row align="center" className="text-warning" gap="row">
-                    <Icon icon={AlertTriangle} size="sm" />
+                  <Row align="center" gap="row">
+                    <Icon icon={AlertTriangle} size="sm" tone="warning" />
                     <Text className="flex-1" voice="label">
                       No chat history marker — the conversation has nowhere to splice in.
                     </Text>
@@ -128,8 +128,8 @@ export function AssemblyRack({
               ) : null}
               {cacheBusters.length > 0 ? (
                 <Card tone="warning">
-                  <Row align="center" className="text-warning" gap="row">
-                    <Icon icon={AlertTriangle} size="sm" />
+                  <Row align="center" gap="row">
+                    <Icon icon={AlertTriangle} size="sm" tone="warning" />
                     <Text data-slot="prompt-cache-warning" voice="label">
                       {`Content that can change between turns above Chat History invalidates the history cache. Move ${cacheBusters
                         .map(sectionName)

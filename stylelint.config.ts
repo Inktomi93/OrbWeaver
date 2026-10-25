@@ -8,6 +8,7 @@ import { appearanceChannelVocabulary } from "./packages/client/appearance-channe
 import { BROWSER_TARGETS, HARMLESS_WHEN_UNSUPPORTED } from "./packages/client/browser-targets.ts";
 import tokens from "./packages/ui/src/tokens/tokens.json" with { type: "json" };
 import { browserSupportCssPlugin } from "./stylelint-browser-support.ts";
+import { CUSTOM_PROPERTY_RULES } from "./stylelint-custom-properties.ts";
 import {
   APPEARANCE_UNIT_CONVERSION,
   CSS_RULES,
@@ -18,6 +19,7 @@ import {
   LETTER_SPACING_VALUES,
   Z_INDEX_VALUES,
 } from "./stylelint-rules.ts";
+import { RUNTIME_CUSTOM_PROPERTIES } from "./tooling/src/css-names/index.ts";
 
 const leadings = Object.keys(tokens.leading)
   .filter((name) => !name.startsWith("$"))
@@ -44,12 +46,6 @@ const SHEETS = [
   "packages/client/src/features/app-shell/surfaces/shell/panels.css",
   "packages/client/src/features/app-shell/surfaces/shell/chrome.css",
 ].map((relative) => join(import.meta.dirname, relative));
-
-/** Custom properties a component writes at runtime and the sheets read without a fallback; each names its writer. */
-const RUNTIME_CUSTOM_PROPERTIES = {
-  "--orb-web-spiral-length": "primitives/spinner/spinner.tsx (the spiral's arc length)",
-  "--orb-ws-pitch": "charts/meter/waystone.tsx (the lattice step)",
-};
 
 /** The slots a shell region selector may name: what the shell renders, plus the room and list-header carriers its geometry and motion coordinate. */
 const SHELL_SLOTS = [
@@ -79,6 +75,7 @@ const config: Config = {
   ignoreFiles: ["**/dist/**", "**/node_modules/**", "**/codemods/*/tests*/**"],
   plugins: [
     ...CSS_RULES,
+    ...CUSTOM_PROPERTY_RULES,
     browserSupportCssPlugin(unsupportedAtFloor(BROWSER_TARGETS)),
     "stylelint-value-no-unknown-custom-properties",
     "stylelint-plugin-logical-css",
@@ -96,6 +93,7 @@ const config: Config = {
     "orb/shadow-from-ingredients": true,
     "orb/appearance-name-in-manifest": [true, appearance],
     "orb/browser-support-css": [true, { harmless: HARMLESS_WHEN_UNSUPPORTED }],
+    "orb/no-undeclared-var-fallback": true,
     // Compositor hacks: a permanent layer hint or a backface flip promotes a layer the browser would not, and costs memory on
     // the small devices this app runs on. Animate transform, translate, scale, rotate, opacity and filter.
     "property-disallowed-list": ["/^--leading-[a-z-]+$/", "will-change", "backface-visibility", "-webkit-overflow-scrolling"],
@@ -181,10 +179,10 @@ const config: Config = {
       },
     },
     {
-      // The ui entry compiles without the client's generated variants, so its sheets spell a preference's OS arm with
-      // the OS variant beside the root attribute (motion-floor.css).
+      // The ui entry compiles without the client's generated variants, so its sheets spell a preference's OS arm as the
+      // OS variant over the root guard, beside the root attribute's on arm (motion-floor.css).
       files: ["packages/ui/src/styles/**/*.css"],
-      rules: { "orb/appearance-name-in-manifest": [true, { ...appearance, osVariants: {} }] },
+      rules: { "orb/appearance-name-in-manifest": [true, { ...appearance, osGuard: true }] },
     },
     {
       // Generated from the appearance manifest: a preference variant's body is Tailwind's `&` + `@slot` form, and its

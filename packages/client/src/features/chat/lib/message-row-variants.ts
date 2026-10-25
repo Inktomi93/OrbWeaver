@@ -12,7 +12,7 @@ import { cn, messageBubbleClass } from "#lib";
 import type { BubbleDecoration, BubbleDecorationArgs } from "./art-decorations.ts";
 import { ECHO_MAX_WIDTH_STYLE, echoDecoration, whisperDecoration } from "./art-decorations.ts";
 import type { RowAttribution } from "./attribution.ts";
-import { BUBBLE_PHONE_CAP, CHAT_TRACK } from "./chat-track.ts";
+import { BUBBLE_PHONE_CAP, CHAT_TRACK } from "./chat-track.tsx";
 import { BG_PHOTO_READING_PLATE } from "./message-row-backing.ts";
 import type { SwipeFoot } from "./pager-chrome.ts";
 import { SWIPE_FOOT_ECHO, SWIPE_FOOT_INSIDE, SWIPE_FOOT_TRAIN } from "./pager-chrome.ts";

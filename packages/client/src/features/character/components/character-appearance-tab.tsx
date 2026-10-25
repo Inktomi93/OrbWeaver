@@ -352,15 +352,15 @@ function ThemePreview({ override }: { readonly override: ReturnType<typeof overr
     <ThemeScope tokens={override ?? {}}>
       <Card tone="background">
         <Stack gap="row">
-          <Text voice="label" className="text-speaker">
+          <Text voice="label" tone="speaker">
             Aria
           </Text>
           <Card tone="bubble">
             <Stack gap="field">
-              <Text as="span" className="text-dialogue">
+              <Text as="span" tone="dialogue">
                 “Welcome to the archive,” she said.
               </Text>{" "}
-              <Text as="span" className="text-narration">
+              <Text as="span" tone="narration">
                 The lamplight flickered against the shelves.
               </Text>
             </Stack>

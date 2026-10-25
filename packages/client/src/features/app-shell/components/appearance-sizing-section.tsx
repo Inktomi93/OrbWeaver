@@ -23,7 +23,7 @@ import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
 import { useIsBelowShellContentFloor } from "../hooks/use-is-mobile-viewport.ts";
 import { CHAT_WIDTH_MAX, CHAT_WIDTH_MIN, FONT_SCALE_MAX, FONT_SCALE_MIN, FONT_SCALE_STEP } from "../lib/appearance-bounds.ts";
 import { OS_PREFERENCE_ITEMS } from "../lib/appearance-select-items.ts";
-import { APPEARANCE_SIZING_KEYS, APPEARANCE_SIZING_SUBCATEGORY } from "../lib/appearance-sizing-model.ts";
+import { APPEARANCE_SIZING_KEYS, APPEARANCE_SIZING_SUBCATEGORY, sizingSettingLabel } from "../lib/appearance-sizing-model.ts";
 import { DensityCards } from "./appearance-density-cards.tsx";
 import { ElevationCards } from "./appearance-elevation-cards.tsx";
 
@@ -135,17 +135,17 @@ function SizingBody({
           </SettingRow>
           <SettingRow settingId="reduced-motion">
             <form.AppField name="reducedMotion">
-              {(field): ReactElement => <field.SegmentField label="Reduce motion" items={OS_PREFERENCE_ITEMS} />}
+              {(field): ReactElement => <field.SegmentField label={sizingSettingLabel("reducedMotion")} items={OS_PREFERENCE_ITEMS} />}
             </form.AppField>
           </SettingRow>
           <SettingRow settingId="reduced-transparency">
             <form.AppField name="reducedTransparency">
-              {(field): ReactElement => <field.SegmentField label="Reduce transparency" items={OS_PREFERENCE_ITEMS} />}
+              {(field): ReactElement => <field.SegmentField label={sizingSettingLabel("reducedTransparency")} items={OS_PREFERENCE_ITEMS} />}
             </form.AppField>
           </SettingRow>
           <SettingRow settingId="increased-contrast">
             <form.AppField name="increasedContrast">
-              {(field): ReactElement => <field.SegmentField label="Increase contrast" items={OS_PREFERENCE_ITEMS} />}
+              {(field): ReactElement => <field.SegmentField label={sizingSettingLabel("increasedContrast")} items={OS_PREFERENCE_ITEMS} />}
             </form.AppField>
           </SettingRow>
         </SettingRowGroup>

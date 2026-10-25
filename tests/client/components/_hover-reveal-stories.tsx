@@ -1,15 +1,13 @@
-import { HIDDEN_UNTIL_HOVER, INERT_UNTIL_HOVER, PIN_REVEAL, ROW_REVEAL } from "@orb/client/components";
-import { HOVER_REVEAL } from "@orb/ui/lib";
+import { HIDDEN_UNTIL_HOVER } from "@orb/client/components";
+import { HOVER_REVEAL, INERT_UNTIL_HOVER } from "@orb/ui/lib";
 import type { ReactElement } from "react";
 
-/** One row (`group`) carrying each hover-reveal fragment the client shares, each on its own child. */
+/** One row (`group`) carrying each hover-reveal fragment, each on its own child. */
 export function HoverRevealStory(): ReactElement {
   return (
     <div className="group">
-      <span className={ROW_REVEAL}>row</span>
       <span className={HIDDEN_UNTIL_HOVER}>hidden</span>
       <span className={INERT_UNTIL_HOVER}>inert</span>
-      <span className={PIN_REVEAL}>pin</span>
       <span className={HOVER_REVEAL.hover}>ui row</span>
       <span className={HOVER_REVEAL.faint}>ui pin</span>
     </div>

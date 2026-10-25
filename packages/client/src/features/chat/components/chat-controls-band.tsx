@@ -21,7 +21,7 @@
 // Card buttons are neutral/outline and each card
 // carries an explicit dismiss; the composer's Send stays CONTENT's one `primary` (UI §4.3 rule 3).
 //
-// THE BAND OWNS THE READING SURFACE, not the controls on it (`BAND_READING_SURFACE` below states why it is the composer's opaque recipe rather than the transcript's translucent plate).
+// THE BAND OWNS THE READING SURFACE, not the controls on it (`BandReadingSurface` below states why it is the composer's opaque recipe rather than the transcript's translucent plate).
 // One treatment at the anchor covers chips, cards, and every future S1 control; per-control backings would
 // be one more bespoke answer to the same over-art question.
 
@@ -88,7 +88,13 @@ const CHIP_INLINE_CAP = 4;
  *  the band cannot style is the one a feature outside chat wrote. `text-card-foreground` is the ink the
  *  `bg-card` guarantee is stated for (the `@orb/ui` Card's own base pairs the two), so the box carries
  *  both halves of one contract and an unstyled child lands on the proven pair. */
-const BAND_READING_SURFACE = "rounded-card border border-border bg-card px-field py-field text-card-foreground";
+function BandReadingSurface({ children }: { readonly children: ReactNode }): ReactElement {
+  return (
+    <Card ownSlot="chat-controls" shadow="none" shape="float">
+      <Stack gap="row">{children}</Stack>
+    </Card>
+  );
+}
 
 export interface ChatControlsBandProps {
   readonly chatId: ChatId;
@@ -251,7 +257,7 @@ function ControlCards({ controls, consumer }: { readonly controls: readonly Chat
     <Stack data-slot="chat-control-cards" gap="row">
       {/* The HAIRLINE ACCENT edge is the card's whole visual claim on attention: one border-weight step in
           the accent, never a filled CTA — the composer's Send is the room's one primary. */}
-      <Card className="border border-primary/40">
+      <Card tone="primaryEdge">
         <Stack gap="field">
           <Row align="center" gap="row" justify="between">
             <Text voice="label">{newest.title}</Text>
@@ -375,7 +381,7 @@ const KIND_STACK: Record<ChatControlKind, (controls: readonly ChatControl[], con
   chip: (controls, consumer) => <ControlChips consumer={consumer} controls={controls} />,
 };
 
-/** The band. It PAINTS a reading surface (`BAND_READING_SURFACE`) — and that is exactly why the emptiness
+/** The band. It PAINTS a reading surface (`BandReadingSurface`) — and that is exactly why the emptiness
  *  rule below is required rather than a micro-optimisation: a surface on an always-rendered
  *  wrapper would paint an empty strip above every room's composer.
  *
@@ -400,11 +406,11 @@ export function ChatControlsBand({ chatId, sources }: ChatControlsBandProps): Re
           empty wrapper rather than a box with an invisible child, and the collapse above can fire. */}
       {mounts}
       {controls.length === 0 ? null : (
-        <Stack className={BAND_READING_SURFACE} data-slot="chat-controls" gap="row">
+        <BandReadingSurface>
           {CHAT_CONTROL_KINDS.map((kind) => (
             <Fragment key={kind}>{KIND_STACK[kind](controls, consumer)}</Fragment>
           ))}
-        </Stack>
+        </BandReadingSurface>
       )}
     </>
   );

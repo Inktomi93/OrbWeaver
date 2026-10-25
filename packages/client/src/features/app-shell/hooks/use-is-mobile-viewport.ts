@@ -87,7 +87,7 @@ function subscribeShellContentFloor(onChange: () => void): () => void {
   // A late subscriber inherits whatever the last publish cached, so re-read once on attach.
   publish();
   globalThis.addEventListener("resize", publish);
-  // `--font-scale` lands on the root's `style` attribute (use-appearance-root-effects.ts) and moves the
+  // `--appearance-font-scale` lands on the root's `style` attribute (use-appearance-root-effects.ts) and moves the
   // floor without moving the viewport, so `resize` alone would miss it.
   const rootStyle = new MutationObserver(publish);
   rootStyle.observe(document.documentElement, { attributeFilter: ["style"] });
@@ -193,11 +193,11 @@ export function useIsContextContentConstrained(): boolean {
  *
  *  WHY THIS IS NOT A `rem` matchMedia like the two above: `rem` inside a media query resolves against the
  *  INITIAL root font-size, never the live one, and this floor's whole point is that it rides
- *  `--font-scale` (`:root { font-size: calc(100% * var(--font-scale)) }`) exactly like the `ch` measure it
+ *  `--appearance-font-scale` (`:root { font-size: calc(100% * var(--appearance-font-scale)) }`) exactly like the `ch` measure it
  *  was derived from. The two queries above CAN be rem because each is the JS twin of a CSS `@media` that
  *  resolves rem the same way; this one has no CSS twin and must agree with a `clamp()` instead. So the
  *  threshold is resolved through the token's own generated decoder against the LIVE root font-size, and the
- *  root `style` attribute — the one carrier of `--font-scale` (`use-appearance-root-effects.ts`) — is
+ *  root `style` attribute — the one carrier of `--appearance-font-scale` (`use-appearance-root-effects.ts`) — is
  *  observed beside `resize`. An unreadable root font-size answers `false`: an unmeasurable floor must not
  *  take a working control away. */
 export function useIsBelowShellContentFloor(): boolean {

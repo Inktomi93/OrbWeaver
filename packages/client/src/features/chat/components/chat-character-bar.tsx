@@ -29,9 +29,9 @@
 // the chat LIST rows already run on.
 //
 // The variant itself is NOT spelled here — axis-3 device capability is a shell/shared-layer concern
-// (`no-pointer-variants-in-features`, UI-Architecture §4b), so this composes the named fragment
-// `LABEL_TO_SR_ONLY_AT_COARSE` from `#components`. It is deliberately NOT `HIDE_AT_COARSE`: that one is
-// `display:none`, which would drop the names out of the accessibility tree as well as out of the row.
+// (`no-pointer-variants-in-features`, UI-Architecture §4b), so this passes `srOnlyAt="coarse"` to `Text`. It is
+// deliberately NOT `hiddenAt="coarse"`: that one is `display:none`, which would drop the names out of the
+// accessibility tree as well as out of the row.
 //
 // POINTER-CONDITIONAL, not width-conditional, for the reason `--size-touch-target` is: the phone is the
 // host that has BOTH the scarce height (a topbar and a bottom tab bar bracket the room) and the reader
@@ -58,14 +58,11 @@ import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
 import { Crown, Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
-import { cn } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { LABEL_TO_SR_ONLY_AT_COARSE } from "#components";
 import { useTRPC } from "#data";
 import { testId } from "#lib";
-import { BG_PHOTO_BAND_PLATE } from "../lib/message-row-backing.ts";
 import { filterCharacters, resolveHumanParticipants } from "../lib/roster.ts";
 
 export interface ChatCharacterBarProps {
@@ -100,31 +97,25 @@ function CharacterBarStrip({
     // OVER ART THE STRIP TAKES THE DERIVED BAND PLATE (#229/#237). It sits in `.shell-main`, which a
     // wallpaper makes transparent (shell.css), so its chips and names floated on the raw photo with only
     // the halo text-shadow behind them — the same over-art chrome class #106/#221 closed for the message
-    // row's own bands, and the one rule #237 extends across the shell's chrome. `BG_PHOTO_BAND_PLATE`
+    // row's own bands, and the one rule #237 extends across the shell's chrome. The `band` plate
     // pairs the polarity-derived plate with its matching ink and is inert without a wallpaper.
     <Row
       gap="field"
       align="center"
-      className={cn("flex-wrap px-block py-row", BG_PHOTO_BAND_PLATE)}
+      className="flex-wrap px-block py-row"
+      plate="band"
       data-testid={testId("chatCharacterBar")}
       aria-label="Characters"
       role="group"
     >
       {(characters.length > 1 ? characters : []).map((member) => (
-        <Row
-          key={member.key}
-          gap="row"
-          align="center"
-          data-slot="character-chip"
-          data-muted={member.disabled ? "" : undefined}
-          className={cn(member.disabled && "opacity-50")}
-        >
+        <Row key={member.key} gap="row" align="center" data-slot="character-chip" data-muted={member.disabled ? "" : undefined} receded={member.disabled}>
           <Avatar size="sm" fallbackDelay={0} hueSeed={member.hueSeed} {...(member.avatarHash === null ? {} : { src: blobUrl(member.avatarHash) })}>
             {initialsFor(member.displayName)}
           </Avatar>
           {/* `sr-only` at every pointer: the topbar title names the cast on screen, and the name keeps its
               place in the accessibility tree. */}
-          <Text as="span" className={cn("sr-only", member.disabled && "text-muted-foreground")} voice="label">
+          <Text as="span" className="sr-only" tone={member.disabled ? "muted" : "default"} voice="label">
             {member.displayName}
           </Text>
         </Row>
@@ -162,14 +153,14 @@ function HumanChips({ humans }: { readonly humans: readonly ParticipantView[] })
           </Avatar>
           {/* Same #511 arm as the character chip — and this is where it earns most: a human seat is named
               by its EMAIL until a persona names it (#162), the widest chip the strip ever paints. */}
-          <Text as="span" className={LABEL_TO_SR_ONLY_AT_COARSE} voice="label">
+          <Text as="span" srOnlyAt="coarse" voice="label">
             {member.displayName}
           </Text>
           {member.role === "host" ? <Icon icon={Crown} size="xs" aria-label="Host" data-slot="host-crown" /> : null}
         </Row>
       ))}
       {overflow > 0 ? (
-        <Text as="span" voice="gloss" className="font-mono">
+        <Text as="span" tone="muted" voice="code">
           +{overflow}
         </Text>
       ) : null}

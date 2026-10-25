@@ -24,8 +24,8 @@ import { Icon, Star, Swords } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import type { ReactElement, ReactNode } from "react";
-import { ROW_ACTION_INLINE, ROW_REVEAL_SWAP_COARSE_KEEP, RowToggleAction } from "#components";
-import { cn, timeLib } from "#lib";
+import { RowToggleAction } from "#components";
+import { timeLib } from "#lib";
 import { useReturnedRow } from "../hooks/use-returned-row.ts";
 import type { ChatRowPortrait } from "../lib/chat-summary-row.ts";
 import { chatRowActionName, chatSummaryRowView } from "../lib/chat-summary-row.ts";
@@ -150,18 +150,26 @@ function rowMarkers({
     <>
       {/* The GAME marker (`metadata.rpg` presence): the quiet twin of the star,
           labelled so the datum is TEXT for a screen reader, muted so it reads as a mark, not an action. */}
-      {chat.isGame ? <Icon className="text-muted-foreground" icon={Swords} label="Game chat" size="sm" /> : null}
+      {chat.isGame ? <Icon tone="muted" icon={Swords} label="Game chat" size="sm" /> : null}
       {/* THE PAUSED TWIN (#863, owner-ordered 2026-08-30): a game that is switched OFF keeps a quieter mark
           so a host can see which rooms have a game sleeping in them. Before this, turning game mode off
           erased every trace from the list, and the only surviving evidence was a host-only tab inside a pane
           that ships closed. Same glyph at reduced emphasis, and it SAYS "paused" — the datum is text for a
           screen reader, and the two states are never one ambiguous mark. */}
-      {chat.gamePaused && !chat.isGame ? <Icon className="text-muted-foreground/60" icon={Swords} label="Game chat — paused" size="sm" /> : null}
+      {chat.gamePaused && !chat.isGame ? <Icon receded={true} tone="muted" icon={Swords} label="Game chat — paused" size="sm" /> : null}
       {/* COARSE KEEPS THE MARKER (side-eye 2026-08-07 finding 6): the star TOGGLE collapses into the kebab
           at a coarse pointer, so a marker that also hid at coarse would vanish while the control carrying
           the same datum was gone too — a starred chat with no star anywhere on the row. The swap is
           hover-only there; see `ROW_REVEAL_SWAP_COARSE_KEEP`. */}
-      {chat.starred ? <Icon className={cn("text-warning", interactive && ROW_REVEAL_SWAP_COARSE_KEEP) ?? ""} icon={Star} label="Starred" size="sm" /> : null}
+      {chat.starred ? (
+        <Icon
+          className={interactive ? "group-focus-within/row:invisible group-hover/row:invisible" : ""}
+          icon={Star}
+          label="Starred"
+          size="sm"
+          tone="warning"
+        />
+      ) : null}
       {chat.archived ? (
         <Badge intent="neutral" size="sm" tone="soft">
           Archived
@@ -212,14 +220,14 @@ export function ChatSummaryRow({
                     control. It is always reveal-gated (`rest="never"`) because the title-line ★ marker is
                     what carries the pressed state at rest, and the two must never paint together. */}
                 {onToggleStar === undefined ? null : (
-                  // THE COARSE COLLAPSE (side-eye 2026-08-07 finding 6). `ROW_REVEAL` pins this toggle ON at a
+                  // THE COARSE COLLAPSE (side-eye 2026-08-07 finding 6). `HOVER_REVEAL.hover` pins this toggle ON at a
                   // coarse pointer, where it is a 44-48px touch box — so every row of the 320px roster spent
                   // 96px on an EMPTY star plus the kebab and left "Example — The Ashen Spire" 62px of 296px.
                   // The kebab already carries Star for both pointers (the mirror-parity ruling in
                   // chat-list-row-menu.tsx), so this arm needs no coarse twin: the inline control simply
                   // stands down and the menu is the one door. The title-line ★ marker above stays visible
                   // there, so the STATE never leaves the row — only the affordance moves.
-                  <Row align="center" className={ROW_ACTION_INLINE}>
+                  <Row align="center" hiddenAt="coarse">
                     <RowToggleAction
                       icon={Star}
                       label={starName}
@@ -250,7 +258,8 @@ export function ChatSummaryRow({
       titleStep={titleStep}
       // An archived chat recedes so the live rows read first — the "Archived" badge above is the datum,
       // this is only its reinforcement.
-      className={cn(className, chat.archived && "opacity-60") ?? ""}
+      className={className ?? ""}
+      receded={chat.archived}
     />
   );
 }

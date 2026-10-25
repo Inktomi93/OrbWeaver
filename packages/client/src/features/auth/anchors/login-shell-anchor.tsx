@@ -54,7 +54,7 @@ function useLoginColorScheme(): void {
 export function LoginShellAnchor({ children }: LoginShellAnchorProps): ReactElement {
   useLoginColorScheme();
   return (
-    <Stack className="relative overflow-y-auto bg-background text-foreground block-dvh" data-testid={testId("loginPage")}>
+    <Stack className="relative overflow-y-auto block-dvh" data-testid={testId("loginPage")} ground="background">
       <Layer className="shrink-0 min-block-full">
         <LoginWeaveBackdrop />
         <Stack align="center" justify="start" padding="section">
@@ -66,7 +66,7 @@ export function LoginShellAnchor({ children }: LoginShellAnchorProps): ReactElem
                 {/* Decorative pair: the mark + name — the surface's <h1> carries the page's real name. The
                     data-slot carries the readability halo (client globals.css) for the near-white wordmark
                     over the live weave, where a bright strand behind a glyph drops worst-case contrast. */}
-                <WeaveGlyph decorative={true} size={WORDMARK_GLYPH_PX} className="text-primary" />
+                <WeaveGlyph decorative={true} size={WORDMARK_GLYPH_PX} tone="accent" />
                 <Text as="span" voice="monogram">
                   orbweaver
                 </Text>

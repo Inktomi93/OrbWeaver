@@ -19,7 +19,7 @@ import { Meter } from "@orb/ui/meter";
 import { Separator } from "@orb/ui/separator";
 import { Skeleton } from "@orb/ui/skeleton";
 import { Heading, Text } from "@orb/ui/text";
-import type { ReactElement } from "react";
+import type { ComponentProps, ReactElement } from "react";
 import { Fragment, useState } from "react";
 import { testId } from "#lib";
 import { useCountUp } from "../hooks/use-count-up.ts";
@@ -126,13 +126,13 @@ export function PayloadView({ plan, payload, pending = false, arrived = false }:
   return (
     <Stack
       aria-busy={pending}
-      // The re-run arm: the settled payload recedes rather than vanishing. Compositor-only (`opacity`)
-      // and reduced-motion-safe by construction — the globals.css duration floor neutralizes the
-      // transition, and a static 60% dim is a legitimate resting state, not a frozen animation frame.
-      className={pending ? "opacity-60 transition-opacity duration-(--motion-base) ease-out-expo" : "transition-opacity duration-(--motion-base) ease-out-expo"}
+      // The re-run arm: the settled payload recedes rather than vanishing. Compositor-only (`opacity`) and
+      // reduced-motion-safe: a static dim is a legitimate resting state, not a frozen animation frame.
+      opacityMotion={true}
       data-pending={pending}
       data-testid={testId("refineryPayloadView")}
       gap="block"
+      receded={pending}
     >
       {banners.map((field) => (
         <VerdictBanner field={field} key={field.key} payload={payload} siblings={plan.fields} />
@@ -154,12 +154,12 @@ export function PayloadView({ plan, payload, pending = false, arrived = false }:
  *  mock's banner IS tinted, so the tone must paint, not just ride a data attribute).
  *  It rides `data-hint-tone`, never `data-tone` (#1113 = #1097's chip fix, whose header holds the reasoning:
  *  `data-tone` is the recipe-arm channel the ui-audit walker reads as AUTHORED IDENTITY). */
-const BANNER_TONE_CLASSES: Record<string, string> = {
-  good: "border-success/40 bg-success/10",
-  warn: "border-warning/40 bg-warning/10",
-  bad: "border-destructive/40 bg-destructive/10",
-  info: "border-info/40 bg-info/10",
-  neutral: "",
+const BANNER_TONE: Record<string, NonNullable<ComponentProps<typeof Card>["tone"]>> = {
+  good: "successTint",
+  warn: "warningTint",
+  bad: "destructiveTint",
+  info: "infoTint",
+  neutral: "neutral",
 };
 
 function VerdictBanner({ field, payload, siblings }: { field: PlanField; payload: Record<string, unknown>; siblings: readonly PlanField[] }): ReactElement {
@@ -173,7 +173,7 @@ function VerdictBanner({ field, payload, siblings }: { field: PlanField; payload
   const axisValue = typeof axisRaw === "number" ? axisRaw : null;
   const axisWidget = axis?.widget as GaugeWidget | undefined;
   return (
-    <Card className={BANNER_TONE_CLASSES[tone] ?? ""} data-testid={testId("refineryVerdictBanner")} data-hint-tone={tone}>
+    <Card data-testid={testId("refineryVerdictBanner")} data-hint-tone={tone} tone={BANNER_TONE[tone] ?? "neutral"}>
       <Row align="center" gap="block" padding="block">
         <Stack gap="field">
           <Heading level={3}>{value ?? ABSENT_TEXT}</Heading>
@@ -308,7 +308,7 @@ function ScalarRow({ field, value }: { field: PlanField; value: unknown }): Reac
   return (
     <Row align="center" data-field={field.key} data-testid={testId("refineryField")} gap="row">
       <Text voice="label">{field.label}</Text>
-      <Text voice="datum">{scalarText(value)}</Text>
+      <Text voice="code">{scalarText(value)}</Text>
     </Row>
   );
 }

@@ -302,7 +302,8 @@ function SceneGoals({ quests }: { readonly quests: RpgTrackerView["quests"] }): 
               intent="ghost"
               size="inline"
               onClick={(): void => revealContextPanel("rpg.quests")}
-              className="border border-transparent px-field text-start inline-full"
+              reserveEdge={true}
+              className="px-field text-start inline-full"
             >
               <GoalLine text={quest.name} done={quest.status === "completed"} {...(total > 0 ? { clock: { filled, total } } : {})} />
             </Button>
@@ -339,7 +340,7 @@ function SceneGameTrackers({
           max={trackerCeiling(entry.def, entry.value ?? undefined)}
           // The tracker SHAPE glyph leads the row (the closed-vocab Record — aria-hidden decoration;
           // the label stays the datum).
-          leading={<Icon icon={TRACKER_SHAPE_GLYPHS[entry.def.shape]} size="xs" className="shrink-0 text-muted-foreground" />}
+          leading={<Icon icon={TRACKER_SHAPE_GLYPHS[entry.def.shape]} size="xs" tone="muted" className="shrink-0" />}
           // The def's host-picked color, warded by the strict hex/OKLCH grammar; else the ordinal ramp.
           {...trackColorProps(resolveTrackerColor(entry.def.color, i))}
           {...(entry.def.hint === "" ? {} : { note: entry.def.hint })}

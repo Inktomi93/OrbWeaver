@@ -1134,7 +1134,7 @@ auditRuleTest(
 );
 
 // #233, home-delta 2026-08-18: three of the reading arm's findings were THIS false positive, and the
-// finding printed its own refutation ("line-height 1.25× (floor 1.25)"). At --font-scale 1.25 the body
+// finding printed its own refutation ("line-height 1.25× (floor 1.25)"). At --appearance-font-scale 1.25 the body
 // step computes to 13.125px and Chrome hands back a TRUNCATED line-height string ("16.4062px", not
 // 16.40625) — 16.4062 / 13.125 = 1.2499657, a hair under the floor. The numbers below are the measured
 // ones, not a synthetic epsilon: the fix must swallow Chrome's truncation and nothing wider.

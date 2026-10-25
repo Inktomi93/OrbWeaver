@@ -39,6 +39,8 @@
 //
 // All are static (no transition) ⇒ reduced-motion-safe.
 
+import { WALLPAPER_PLATE } from "@orb/ui/lib";
+
 // Reading backing (side-eye live P1, 2026-07-09): flat/hush/document carry NO bubble fill, AND the shell
 // strips their float halo (they stamp `data-slot="message-bubble"`, which the client globals target to kill the
 // text-shadow "bubbles carry their own fill" — but these three don't), so their body text landed DIRECTLY
@@ -112,107 +114,14 @@ export const BG_PHOTO_READING_PLATE = "in-data-[has-bg-image]:bg-reading-plate i
 //   · it no longer lands on the other seven skins' headers. That is the two-plate split (#288) closing.
 //
 // Self-gated on `in-data-[has-bg-image]` like its sibling, so a plain-background theme is byte-identical.
-export const BG_PHOTO_CHROME_PLATE =
-  "in-data-[has-bg-image]:bg-reading-plate in-data-[has-bg-image]:backdrop-blur-sm in-data-[has-bg-image]:rounded-card in-data-[has-bg-image]:px-field in-data-[has-bg-image]:py-row in-data-[has-bg-image]:text-reading-plate-foreground";
+export const BG_PHOTO_CHROME_PLATE: string = WALLPAPER_PLATE.chrome;
 
 // Pager text needs the card's opaque foreground/surface pair; art composites at legal palette pivots fail AA.
 export const BG_PHOTO_PAGER_PLATE =
   "in-data-[has-bg-image]:bg-card in-data-[has-bg-image]:rounded-card in-data-[has-bg-image]:px-field in-data-[has-bg-image]:py-row in-data-[has-bg-image]:text-card-foreground";
 
-// BAND backing (#229/#237) — the SAME over-art question as the chip above, answered for a full-bleed
-// STRIP rather than a floating chip. The character bar sits above the transcript inside `.shell-main`, which
-// over a wallpaper is `background: transparent` (shell.css) with only the halo text-shadow, so its chips
-// and names floated on the raw photo — the pass-3 character-bar finding, and the same class as the list pane's
-// 3.69:1 under Light. It takes the plate + blur + paired chrome ink and NOTHING ELSE: a band already owns
-// its own padding and spans its column, so the chip's `rounded-card`/`px-field`/`py-row` would fight it
-// (the strip's `px-block` and the chip's `px-field` are the same property at different modifiers — both
-// would emit and the variant would shrink the strip's gutters the moment a wallpaper appeared).
-//
-// It is spelled as its own full literal rather than composed off the chip constant: these two answer
-// different geometry questions and only share a visual recipe (the STICKY_ATTRIBUTION_CHROME precedent
-// directly below), and a composed string is one refactor away from the class literals Tailwind scans for
-// no longer appearing whole in the source.
-//
-// Self-gated on `in-data-[has-bg-image]` like both siblings, so a plain background is byte-identical.
-export const BG_PHOTO_BAND_PLATE =
-  "in-data-[has-bg-image]:bg-reading-plate in-data-[has-bg-image]:backdrop-blur-sm in-data-[has-bg-image]:text-reading-plate-foreground";
-
-// LOADING backing (#468) — the same over-art question as the three plates above, answered for the state
-// that comes BEFORE any of them: the transcript's suspense fallback.
-//
-// The defect it closes is a legibility one, not a timing one, and the distinction is the whole finding.
-// The rAF sampler (#454) proves the skeleton paints on the FIRST room frame of a Resume — 22 skeletons at
-// first room paint, every run, both refs — yet the room still read as EMPTY for ~400ms. The reason is that
-// the fallback painted three `bg-muted` bars directly onto the room's wallpaper with nothing behind them:
-// over art a muted bar is a faint band, and three faint bands over a photo is what "nothing happened"
-// looks like. Every settled thing in this column already answers this — a bubble by its fill, a no-fill
-// mode by BG_PHOTO_READING_PLATE, the chrome by its chip, the character bar by its band. The loading state was
-// the one member of the column that did not, so it is the one member that vanished.
-//
-// It takes the plate + blur and NOTHING ELSE from the family, plus `rounded-card` — it is a floating
-// object in an otherwise empty column, the CHIP geometry rather than the BAND's (BG_PHOTO_BAND_PLATE
-// states the same reasoning from the other side: a strip that spans its column must not take chip
-// corners; a block that floats in one must). It names NO ink — a skeleton is `aria-hidden` decoration and
-// there is no text on this plate for the #204 pairing to answer — but since #690 it DOES name the
-// decoration's own three colours, and that is the rest of this state's legibility.
-//
-// THE BARS ON THIS PLATE (#690, the question #682 left open here). The line this used to end on said the
-// bars "clear their own backing by a DERIVED ΔL": `bg-muted` (base + ramp.<arm>.muted) against a plate at
-// base − 0.038. That ΔL is 0.135 on a dark base but 0.008 on a LIGHT one — the shipped Light seed spells
-// muted 0.95 against a plate at 0.942, and since #682 gave the ramp its polarity arm a CUSTOM light theme
-// derives the same collision. TWO things were wrong with it, both measured:
-//   • `bg-muted` is not what a reader SEES. The shimmer's `::after` is 200% wide and always covers the
-//     whole bar, so with motion on the painted colours are the sweep's stops (`muted` → `accent` → `muted`),
-//     and `accent` is −0.05 on the light arm: the same collision, one token over. The base fill shows only
-//     under reduced motion.
-//   • On the light arm the bar therefore measured 1.01:1 against its own plate over bright art (1.11 over
-//     mid, 1.22 over black) — three bars that are not there, in the state that exists to say "something is
-//     happening". The dark arm measured 1.30 / 1.20 / 2.39 across the same art.
-// So the fix is the #685 remedy class applied to a FILL: the two polarity-DERIVED alpha washes, which
-// composite over the plate they land on instead of racing it down the ramp. `input` (the derived ink at
-// 12%) and a 24% mix of the derived foreground measure 1.26 / 1.55 on the light arm and 1.26 / 1.55 on the
-// dark one, i.e. essentially art-INDEPENDENT — the floor rises on BOTH polarities (1.01 → 1.26 light,
-// 1.20 → 1.26 dark) and the sweep stays a sweep. Nothing here is picked: both are the palette's own
-// derived tokens, so a carried room's bars are that room's colours.
-//
-// Self-gated on `in-data-[has-bg-image]` like its three siblings, so a plain-background room is
-// byte-identical to before — and the two sweep custom properties DEFAULT to the shipped tokens in
-// `@orb/ui` globals.css, so every skeleton outside this plate is byte-identical too. Static (no
-// transition) ⇒ reduced-motion-safe, and the reduced-motion arm is covered by the base fill moving with
-// the sweep. Pinned by pixels, not by computed style: a translucent plate over art is a COMPOSITE, and
-// `getComputedStyle` reports the same class list in both arms — message-list-surface.ct.tsx's
-// "LOADING OVER ART" rows sample the framebuffer, with the flag-off arm as their positive control.
-export const BG_PHOTO_LOADING_PLATE =
-  "in-data-[has-bg-image]:bg-reading-plate in-data-[has-bg-image]:backdrop-blur-sm in-data-[has-bg-image]:rounded-card " +
-  "in-data-[has-bg-image]:[--orb-skeleton-sweep-base:var(--color-input)] " +
-  "in-data-[has-bg-image]:[--orb-skeleton-sweep-crest:color-mix(in_oklab,var(--color-foreground)_24%,transparent)] " +
-  "in-data-[has-bg-image]:[&_[data-slot=skeleton]]:bg-input";
-
-// ERROR backing (#681) — the LOADING plate's twin for the state on the other side of the same read, and
-// the family's fifth member. The transcript's `QueryBoundary` renders `fallback` and `renderError` into
-// the same empty column; only the fallback was ever given a surface, so over art the error state's
-// "Couldn't load this conversation." + Retry drew straight onto the wallpaper — pixel-measured at 1.50:1
-// and 1.57:1 (side-eye #681, a carried-art room, desktop). Same defect class as its four siblings, on the
-// one member of the column that still had no answer.
-//
-// IT IS OPAQUE `card`, NOT THE TRANSLUCENT PLATE, AND THE INK IS WHY (the ct-framebuffer-contrast law:
-// route by ink, not by which sibling looks nearest). The loading plate can be a translucent window because
-// it carries NO TEXT — its own comment says so, and its skeleton bars clear it by a derived ΔL. This one
-// carries REAL prose in the MUTED tone plus an interactive control, and the plate/band's FLOORED pairing
-// is `text-foreground` alone (`palette-contrast.suite.test.ts` #204/#241). `muted-foreground` IS floored
-// against `card` in that same suite ("derived muted-foreground on card", every realistic base), so the
-// opaque card fill is the member whose pairing this state's ink actually has — and an opaque fill also
-// makes `backdrop-blur` dead paint, so the blur is deliberately absent (the #168 ruling).
-//
-// The #223/#241 two-whites argument does NOT reach here: that step existed because a band was stacked in
-// the prose column OVER plate-riding prose. This state REPLACES the column's content — there is no second
-// surface under it to step against.
-//
-// Self-gated on `in-data-[has-bg-image]` like all four siblings, so a plain-background room is
-// byte-identical. Static (no transition) ⇒ reduced-motion-safe. Pinned by PIXELS (the composite is what a
-// reader sees): the `#681` pair in message-list-surface.ct.tsx samples the framebuffer through the shared
-// `pixelContrast` kernel at two widths, with the pre-fix ratio as the defect it names.
-export const BG_PHOTO_ERROR_PLATE = "in-data-[has-bg-image]:bg-card in-data-[has-bg-image]:rounded-card";
+// The band, loading and error plates live with this one in `@orb/ui` (`WALLPAPER_PLATE`): they are the `plate`
+// prop on `Row` and `Stack`, so a feature never imports a class string for them.
 
 // STICKY SPEAKER ATTRIBUTION (#113) — a DIFFERENT backing from the two above, deliberately not merged
 // with them. Those two answer "the chrome is floating on a wallpaper at rest" and are wallpaper-gated.

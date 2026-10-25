@@ -103,17 +103,33 @@ const LAYOUT_PREFIXES = [
 // The screen-reader utilities reset `border-width`, a paint property, to hide an element visually.
 const ACCESSIBILITY_UTILITIES = new Set(["sr-only", "not-sr-only"]);
 
-const DECLARATION = /^\s*([a-zA-Z-][\w-]*)\s*:[^{]*;\s*$/gmu;
+// Under any variant too: a skip link is `sr-only` until it takes keyboard focus (`not-focus-visible:sr-only`).
+function isAccessibilityUtility(token: string): boolean {
+  return ACCESSIBILITY_UTILITIES.has(token.slice(token.lastIndexOf(":") + 1));
+}
+
+// One declaration per line, so a match never runs on into the next declaration and hides its property.
+const DECLARATION = /^\s*([a-zA-Z-][\w-]*)\s*:[^{\n]*;\s*$/gmu;
+// Tailwind registers the custom properties a utility composes through (`contain-inline-size` builds `contain` from
+// four `--tw-contain-*` parts) as `@property` rules, whose `syntax`/`inherits` descriptors are not declarations.
+const PROPERTY_REGISTRATION = /@property[^{]*\{[^}]*\}/gu;
+
+// A utility that only sets a colour (`shadow-accent`, `ring-primary`, `from-primary`) emits nothing but a `--tw-*` custom
+// property that a shadow, ring or gradient utility reads, so it is judged by the name: shadow, ring and gradient parts paint.
+const PAINT_CUSTOM_PROPERTY = /^--tw-(?:(?:inset-|text-|drop-)?shadow|(?:inset-)?ring|gradient)/u;
 
 function isLayoutProperty(property: string): boolean {
-  return property.startsWith("--") || LAYOUT_PROPERTIES.has(property) || LAYOUT_PREFIXES.some((prefix) => property.startsWith(prefix));
+  if (property.startsWith("--")) {
+    return !PAINT_CUSTOM_PROPERTY.test(property);
+  }
+  return LAYOUT_PROPERTIES.has(property) || LAYOUT_PREFIXES.some((prefix) => property.startsWith(prefix));
 }
 
 function kindOf(css: string | null | undefined): ClassKind {
   if (css === null || css === undefined) {
     return "unknown";
   }
-  const properties = [...css.matchAll(DECLARATION)].map(([, property]) => property ?? "");
+  const properties = [...css.replace(PROPERTY_REGISTRATION, "").matchAll(DECLARATION)].map(([, property]) => property ?? "");
   return properties.every(isLayoutProperty) ? "layout" : "paint";
 }
 
@@ -253,9 +269,7 @@ export function featureClassNameLayoutOnlyRule(classify: ClassClassifier): OrbRu
           if (!isComponentElement(attribute)) {
             return;
           }
-          const paint = [...new Set(collectTokens(context, attribute.value))].filter(
-            (token) => !ACCESSIBILITY_UTILITIES.has(token) && classify(token) === "paint",
-          );
+          const paint = [...new Set(collectTokens(context, attribute.value))].filter((token) => !isAccessibilityUtility(token) && classify(token) === "paint");
           if (paint.length > 0) {
             context.report({ node: attribute, message: MESSAGES.paint(paint) });
           }

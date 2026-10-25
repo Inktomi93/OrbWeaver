@@ -52,7 +52,8 @@ export function DatabankDetailSurface(): ReactElement {
 
   return (
     <Stack
-      className="relative overflow-y-auto overscroll-contain outline-none block-full min-block-0"
+      className="relative overflow-y-auto overscroll-contain block-full min-block-0"
+      focusTarget={true}
       data-slot="databank-content"
       ref={surfaceRef}
       tabIndex={-1}

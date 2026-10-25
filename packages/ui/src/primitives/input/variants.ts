@@ -54,6 +54,10 @@ export const inputVariants = tv({
       true: "tabular-nums",
       false: "",
     },
+    // The edit twin of a big readout (a stat cell's value) types at the readout's own step, so the swap does not jump.
+    typeStep: { field: "", title: "text-title leading-title" },
+    // The edit twin of an italic line (a character's thought) keeps the slant.
+    italic: { true: "italic", false: "" },
   },
-  defaultVariants: { layout: "field", width: "full", numeric: false },
+  defaultVariants: { layout: "field", width: "full", numeric: false, typeStep: "field", italic: false },
 });

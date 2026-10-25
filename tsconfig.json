@@ -15,6 +15,7 @@
     ".dependency-cruiser.ts",
     "stylelint-browser-support.ts",
     "stylelint-rules.ts",
+    "stylelint-custom-properties.ts",
     "packages/*/*",
     "scripts/**/*.ts",
     "scripts/**/*.mts",

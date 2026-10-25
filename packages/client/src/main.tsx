@@ -121,7 +121,7 @@ bindRouteCrashReporter(reportClientError);
 // BEFORE THE FIRST RENDER, ON PURPOSE (#188 N-1, widened by #231). Reduced motion, font scale and the
 // selected theme are SYNCED settings, so the shell can only stamp `<html>` once `settings.getUserSettings`
 // (and, for the theme, the chained `settings.getTheme`) resolves — and the boot veil weaves, animates and
-// drops frames a beat before that, while `--font-scale` resizes every rem-derived shell dimension when it
+// drops frames a beat before that, while `--appearance-font-scale` resizes every rem-derived shell dimension when it
 // finally lands (measured boot CLS 0.20–0.34 at scale 1.25, 209ms AFTER the veil's own exit stamp) and the
 // theme swaps the whole palette dark→light on the first screen of every visit. This replays THIS DEVICE's
 // remembered answers off localStorage synchronously — the strict CSP forbids an inline pre-hydration

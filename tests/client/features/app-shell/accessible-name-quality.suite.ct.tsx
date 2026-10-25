@@ -5,13 +5,23 @@ import { CONFIG_GROUP_IDS, MODAL_SLOT_IDS, SECTION_IDS } from "@orb/client/state
 import { presetIdInputSchema } from "@orb/contracts/preset";
 import { formatFindings, nameQualityFindings, productNameFindings, settleSurface } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { routeSurfaceReads } from "./_surface-harness.ts";
 import type { ConfigGroupStory, ModalShellStory, PresetDetailShellStory, SectionShellStory } from "./_surface-stories.tsx";
 
 const STORIES = "tests/client/features/app-shell/_surface-stories";
 
+let root: Awaited<ReturnType<typeof createCorpusHarness>>;
+test.beforeAll(async () => {
+  root = await createCorpusHarness();
+});
+
 test.beforeEach(async ({ corpus, page }) => {
-  await routeSurfaceReads(page, corpus);
+  await routeSurfaceReads(page, corpus, await root.internalCallerFor(root.ownerId));
+});
+
+test.afterAll(async () => {
+  await root[Symbol.asyncDispose]();
 });
 
 test.describe("planted defects", () => {

@@ -1,5 +1,6 @@
 import type { ReactElement } from "react";
 import { useEffect, useRef, useSyncExternalStore } from "react";
+import type { VariantProps } from "tailwind-variants";
 import { cn, usePrefersReducedMotion } from "#lib";
 import { backgroundVideoVariants } from "./variants.ts";
 
@@ -17,10 +18,13 @@ const getDocumentHiddenServer = (): boolean => false;
 export interface BackgroundVideoProps {
   /** The video source URL (an owned same-origin blob for the background use). */
   readonly src: string;
-  /** Force the STILL frame regardless of the OS motion preference — a consumer's app-level "reduce
-   *  motion" toggle. OS `prefers-reduced-motion: reduce` ALWAYS stills, independent of this flag. */
+  /** Force the STILL frame whatever the motion state. Resolved reduced motion (`usePrefersReducedMotion`: the app's
+   *  `system | on | off` setting over the OS query) stills it without this flag. */
   readonly paused?: boolean;
-  /** Passthrough skin — e.g. an `object-contain` utility overriding the baked `object-cover`. */
+  /** How the frame fills its box. @defaultValue "cover" */
+  readonly fit?: VariantProps<typeof backgroundVideoVariants>["fit"];
+  readonly rounded?: VariantProps<typeof backgroundVideoVariants>["rounded"];
+  /** Layout only: the box's size and placement. */
   readonly className?: string;
 }
 
@@ -31,17 +35,17 @@ export interface BackgroundVideoProps {
  * when the tab is hidden (`document.hidden`, Page Visibility API) to stop wasted decode + avoid holding the
  * screen awake in a background tab.
  *
- * MOTION POLICY: OS `prefers-reduced-motion: reduce` OR the `paused` prop → the STILL frame. The video is
+ * MOTION POLICY: resolved reduced motion (the app's setting over the OS query) OR the `paused` prop → the STILL frame. The video is
  * loaded (`preload="auto"`) but never played, so it holds its first decoded frame — FIRST-FRAME is the
  * still (no separate poster asset is threaded). `data-motion` (`"playing"`|`"still"`) reflects the
  * resolved motion state for styling consumers and tests.
  *
  * The native `<video>` attribute surface is DELIBERATELY NOT exposed: every background-loop attribute is a
  * policy invariant, so a passthrough prop would be an escape hatch around the policy — hence the narrow
- * `{ src, paused, className }` shape, not `extends ComponentProps<"video">`. ui deps kit only;
+ * `{ src, paused, fit, rounded, className }` shape, not `extends ComponentProps<"video">`. ui deps kit only;
  * positioning/scrim/z-index live in the app-shell composite (ThemeBackgroundVideoLayer).
  */
-export function BackgroundVideo({ src, paused = false, className }: BackgroundVideoProps): ReactElement {
+export function BackgroundVideo({ src, paused = false, fit, rounded, className }: BackgroundVideoProps): ReactElement {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const osReducedMotion = usePrefersReducedMotion();
   const hidden = useSyncExternalStore(subscribeVisibility, getDocumentHidden, getDocumentHiddenServer);
@@ -75,7 +79,7 @@ export function BackgroundVideo({ src, paused = false, className }: BackgroundVi
       tabIndex={-1}
       data-slot="background-video"
       data-motion={animating ? "playing" : "still"}
-      className={cn(backgroundVideoVariants(), className)}
+      className={cn(backgroundVideoVariants({ fit, rounded }), className)}
       src={src}
       muted={true}
       loop={true}

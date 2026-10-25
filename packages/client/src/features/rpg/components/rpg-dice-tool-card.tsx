@@ -60,7 +60,7 @@ export function RpgDiceToolCard({ record }: RpgDiceToolCardProps): ReactElement 
   // the total, the faces) is the accessible content; a screen reader reads it in order.
   return (
     <div data-slot="rpg-dice-roll">
-      <Card className="border border-border">
+      <Card>
         <Stack gap="field">
           <Row align="center" gap="row" justify="between">
             <Text voice="label">Dice · {result.notation}</Text>

@@ -1,3 +1,4 @@
+import type { CustomPropertyUses } from "../css-names/index.ts";
 import { browserNoNodeGlobalsRule, rawEgressRule, rawHttpClientRule, sessionChannelBoundaryRule, soleEnvReaderRule } from "./ambient.ts";
 import { detachedWorkRule } from "./async.ts";
 import { browserSupportRule } from "./browser-support.ts";
@@ -28,6 +29,7 @@ import { ctPollIntervalsSharedRule, evaluateNoScopeCaptureRule, typedTestIdRule,
 import type { AppearanceVocabulary } from "./ui-appearance.ts";
 import { appearanceNameRule } from "./ui-appearance.ts";
 import { floorlessControlRule, registerApiRule, registryContextRule, stateFilesRule, storeDerivedRule } from "./ui-composition.ts";
+import { customPropertyDeclaredRule } from "./ui-custom-properties.ts";
 import type { CandidatesToCss, ClassClassifier } from "./ui-feature-classname.ts";
 import { featureClassNameLayoutOnlyRule, noBuiltClassStringRule } from "./ui-feature-classname.ts";
 import { UI_FEATURE_RESTRICTIONS } from "./ui-feature-policy.ts";
@@ -89,6 +91,7 @@ export function createOrbPlugin(options: {
   browserHarmless: Readonly<Record<string, string>>;
   /** Tailwind's `DesignSystem.candidatesToCss`. */
   candidatesToCss: CandidatesToCss;
+  customProperties: CustomPropertyUses;
   classifyClass: ClassClassifier;
   baseUiDoors: BaseUiDoors;
 }): {
@@ -99,6 +102,7 @@ export function createOrbPlugin(options: {
       ...Object.fromEntries(LOCAL_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)] as const)),
       "no-raw-intrinsic-paint": rawIntrinsicPaintRule(options.shellClasses),
       "appearance-name-in-manifest": appearanceNameRule(options.appearanceVocabulary),
+      "custom-property-declared": customPropertyDeclaredRule(options.customProperties),
       "feature-classname-layout-only": featureClassNameLayoutOnlyRule(options.classifyClass),
       "no-built-class-string": noBuiltClassStringRule,
       ...Object.fromEntries(PRINCIPAL_RULES.map(({ id, rule }) => [id, rule] as const)),

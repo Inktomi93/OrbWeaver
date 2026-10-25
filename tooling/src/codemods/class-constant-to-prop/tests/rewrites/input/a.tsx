@@ -1,0 +1,10 @@
+const bare = <Row className={ROW_ACTION_INLINE} align="center" />;
+const withLiterals = <Text className={cn("inline-flex items-center", HIDE_AT_COARSE)} voice="gloss" />;
+const coerced = <Row className={cn(ROW_REVEAL, HIDE_AT_COARSE) ?? ""} gap="field" />;
+const flag = <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={Pencil} size="sm" />;
+const unmapped = <Row className={SOMETHING_ELSE} />;
+const dynamic = <Row className={cn(HIDE_AT_COARSE, active && "x")} />;
+const alreadySet = <Row className={HIDE_AT_COARSE} hiddenAt="fine" />;
+const clash = <Row className={cn(HIDE_AT_COARSE, SHOW_ONLY_AT_COARSE)} />;
+const plainString = <Row className="flex-wrap" />;
+export { bare, withLiterals, coerced, flag, unmapped, dynamic, alreadySet, clash, plainString };

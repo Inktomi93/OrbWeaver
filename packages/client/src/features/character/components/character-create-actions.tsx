@@ -22,7 +22,6 @@ import { DialogClose, DialogFooter } from "@orb/ui/dialog";
 import { Icon, Plus, Upload } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
-import { RECEDED_INK } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement } from "react";
@@ -236,7 +235,7 @@ export function CharacterLandingDoors(): ReactElement {
           file's own header calls Import "beside it as a GHOST icon, a secondary entry into the same 'get a
           character' job" — #969 flipped `ghost` to `text-current`, so it now paints at the same weight as
           the primary beside it. The primitive keeps inheriting; this composite states its own ink. */}
-      <Button className={RECEDED_INK} intent="ghost" onClick={(): void => setImportOpen(true)} size="sm">
+      <Button intent="ghost" onClick={(): void => setImportOpen(true)} size="sm" tone="muted">
         <Icon icon={Upload} size="sm" />
         Import a card
       </Button>
@@ -263,7 +262,7 @@ export function CharacterCreateActions(): ReactElement {
             display boxes that would have shrunk the visible target beside the `sm` New primary. */}
         {/* THE SAME SECONDARY-ENTRY RULING AS `CharacterLandingDoors` (#1256) — the band's own icon-only
             twin of the same Import door, beside the same `New` primary. */}
-        <Button aria-label="Import a character card" className={RECEDED_INK} intent="ghost" onClick={(): void => setImportOpen(true)} size="icon-sm">
+        <Button aria-label="Import a character card" intent="ghost" onClick={(): void => setImportOpen(true)} size="icon-sm" tone="muted">
           <Icon icon={Upload} size="sm" />
         </Button>
         <CharacterCreateButton />

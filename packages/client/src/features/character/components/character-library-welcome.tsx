@@ -38,6 +38,7 @@
 
 import type { ChatId } from "@orb/kit/ids";
 import { MS_PER_WEEK } from "@orb/kit/time";
+import { Card } from "@orb/ui/card";
 import { Container, Row, Stack } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
 import { useSuspenseQueries } from "@tanstack/react-query";
@@ -282,9 +283,9 @@ function FreshInstallArm({ listOffScreen, newest }: { readonly listOffScreen: bo
     <LandingFrame doors={doorsFor(listOffScreen)} gloss={listOffScreen ? FRESH_GLOSS_COLLAPSED : FRESH_GLOSS_DOCKED} title="Meet your characters">
       <Stack gap="section">
         {shippedFaces.length === 0 ? null : <CharacterShelf door="open" faces={shippedFaces} label={label} legend={null} onOpen={selectCharacter} />}
-        <Text className="rounded-base border border-dashed border-border p-row max-inline-(--reading-measure-prose)" voice="quiet">
-          {FRESH_HINT}
-        </Text>
+        <Card className="p-row max-inline-(--reading-measure-prose)" outline="dashed" padding="none" tone="clear">
+          <Text voice="quiet">{FRESH_HINT}</Text>
+        </Card>
       </Stack>
     </LandingFrame>
   );
@@ -333,7 +334,7 @@ function ResumeArm({
           // THE RULE SPANS THE PANE, THE LINE DOES NOT: the foot's border is the shelves' bottom edge, so it
           // rides a full-width wrapper, while the measure caps the PARAGRAPH (design-audit `line-length` —
           // uncapped, this line ran to 145 characters at 1280).
-          <Stack className="border-bs border-border pbs-row">
+          <Stack className="pbs-row" divider="top">
             <Text className="max-inline-(--reading-measure-prose)" voice="gloss">
               {weekLine(addedThisWeek)}
             </Text>

@@ -48,7 +48,7 @@ import { useEnterMotion } from "../hooks/use-enter-motion.ts";
 import { useGhostReasoning, useGhostText, useGhostThinking } from "../hooks/use-ghost-stream.ts";
 import type { RowAttribution } from "../lib/attribution.ts";
 import { avatarTreatmentFor } from "../lib/avatar-treatment.ts";
-import { ROW_BODY_AT_PHONE_WIDTH } from "../lib/chat-track.ts";
+import { ROW_BODY_AT_PHONE_WIDTH } from "../lib/chat-track.tsx";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import { columnClassFor, gutterRailFor, rowBodyClassFor } from "../lib/row-placement.ts";
 import { CardBlock } from "./card-block.tsx";

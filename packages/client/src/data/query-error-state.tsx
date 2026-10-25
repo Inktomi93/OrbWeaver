@@ -7,7 +7,7 @@
 import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import type { ReactElement, ReactNode } from "react";
+import type { ComponentProps, ReactElement, ReactNode } from "react";
 
 export interface QueryErrorStateProps {
   /** What failed to load, e.g. "your chats" / "the character library" (rendered as "Couldn't load \{label\}."). */
@@ -17,16 +17,12 @@ export interface QueryErrorStateProps {
   /** Replaces the default Retry button when a containing interaction primitive must own its key routing. */
   readonly renderRetry?: (onRetry: () => void) => ReactNode;
   /**
-   * The CALLER'S OWN SURFACE for this block — its column track, a wallpaper-gated plate.
-   *
-   * It exists because the alternative was a wrapper, and a wrapper is the one shape that must not happen
-   * here: a `renderError` arm renders this component directly, so a surface never grows into a second
-   * hand-rolled error state. The battery keeps owning what the block SAYS and that Retry really refetches; where
-   * the block sits and what it sits ON is the surface's own knowledge — the chat transcript's error state
-   * needs the room's reading plate over art (`BG_PHOTO_ERROR_PLATE`), and `packages/client/src/data`
-   * cannot import a feature's constant to know that.
+   * The CALLER'S OWN PLACE for this block: its column track (`className`, layout only) and the plate it sits on
+   * over a room's art (`plate`). They are props because a `renderError` arm renders this component directly, so
+   * a surface never wraps it into a second hand-rolled error state.
    */
   readonly className?: string;
+  readonly plate?: ComponentProps<typeof Stack>["plate"];
 }
 
 /**
@@ -35,9 +31,9 @@ export interface QueryErrorStateProps {
  *
  * Usage: `renderError={(_error, retry) => <QueryErrorState label="your chats" onRetry={retry} />}`
  */
-export function QueryErrorState({ label, onRetry, renderRetry, className }: QueryErrorStateProps): ReactElement {
+export function QueryErrorState({ label, onRetry, renderRetry, className, plate }: QueryErrorStateProps): ReactElement {
   return (
-    <Stack align="center" className={className} data-slot="query-error" gap="row" justify="center" padding="section">
+    <Stack align="center" className={className} data-slot="query-error" gap="row" justify="center" padding="section" plate={plate}>
       <Text role="status" tone="muted">
         Couldn't load {label}.
       </Text>

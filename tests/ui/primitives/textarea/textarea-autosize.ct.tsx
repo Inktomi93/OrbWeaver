@@ -2,7 +2,7 @@
 // to the same height the native arm gives it, inside the same min and max rows.
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import type { AutosizeTextareaStory, FixedClassHeightStory, FixedInlineHeightStory } from "./textarea-autosize-stories.tsx";
+import type { AutosizeTextareaStory, ClassFixedLaterStory, FixedClassHeightStory, FixedInlineHeightStory } from "./textarea-autosize-stories.tsx";
 
 const STORIES = "tests/ui/primitives/textarea/textarea-autosize-stories";
 const STORY = `${STORIES}/AutosizeTextareaStory`;
@@ -72,5 +72,41 @@ test.describe("without field-sizing support", () => {
     const classField = byClass.getByRole("textbox", { name: "Fixed class", exact: true });
     expect(await classField.evaluate((element) => element.style.height)).toBe("");
     expect(await classField.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
+  });
+
+  test("an inline height the caller removes after mount lets the box size to its text with no further input", async ({ mount }) => {
+    const component = await mount<typeof FixedInlineHeightStory>(`${STORIES}/FixedInlineHeightStory`);
+    const field = component.getByRole("textbox", { name: "Fixed inline", exact: true });
+    await expect(field).toHaveCSS("height", "40px");
+    await field.evaluate((element) => element.style.removeProperty("height"));
+    await expect.poll(async () => Math.abs((await ownHeight(field)) - (await nativeHeight(field)))).toBeLessThanOrEqual(SLACK);
+    expect(await ownHeight(field)).toBeGreaterThan(40);
+  });
+
+  test("a removed inline height that equals the box's rows height still lets it size to its text", async ({ mount }) => {
+    const component = await mount<typeof FixedInlineHeightStory>(`${STORIES}/FixedInlineHeightStory`);
+    const field = component.getByRole("textbox", { name: "Fixed inline", exact: true });
+    // Pin the inline height to the height the box has with no height set, so removing it moves no edge and no observer fires.
+    const rowsHeight = await field.evaluate((element) => {
+      element.style.height = "auto";
+      const height = element.getBoundingClientRect().height;
+      element.style.height = `${String(height)}px`;
+      return height;
+    });
+    await field.evaluate((element) => element.style.removeProperty("height"));
+    await expect.poll(() => ownHeight(field)).toBeGreaterThan(rowsHeight + SLACK);
+    expect(Math.abs((await ownHeight(field)) - (await nativeHeight(field)))).toBeLessThanOrEqual(SLACK);
+  });
+
+  test("a height class added after mount wins over the script's height, and one removed lets it size again", async ({ mount }) => {
+    const component = await mount<typeof ClassFixedLaterStory>(`${STORIES}/ClassFixedLaterStory`);
+    const field = component.getByRole("textbox", { name: "Fixed later", exact: true });
+    const toggle = component.getByRole("button", { name: "Toggle fixed height", exact: true });
+    const grown = await ownHeight(field);
+    await toggle.click();
+    await expect.poll(() => field.evaluate((element) => element.style.height)).toBe("");
+    expect(await ownHeight(field)).toBeLessThan(grown);
+    await toggle.click();
+    await expect.poll(() => ownHeight(field)).toBe(grown);
   });
 });

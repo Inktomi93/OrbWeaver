@@ -72,6 +72,8 @@ export interface SurfaceSource {
 export interface AppearanceAttribute {
   readonly name: string;
   readonly values: readonly string[];
+  /** The attribute carries a space-separated list of its values, so it may also be empty. */
+  readonly members: boolean;
 }
 
 export interface SurfaceInput {
@@ -88,12 +90,12 @@ export interface SurfaceInput {
   readonly renames: readonly OwnerCssRename[];
 }
 
-// Every spelling that puts a literal slot name on an element: the attribute, the props-object key, the `slot`/`dataSlot`
-// prop a wrapper forwards, and a `*_SLOT` constant a wrapper reads.
+// Every spelling that puts a literal slot name on an element: the attribute, the props-object key, the `slot`/`dataSlot`/
+// `ownSlot` prop a primitive forwards, and a `*_SLOT` constant a wrapper reads.
 const SLOT_LITERAL_PATTERNS = [
   /\bdata-slot="([a-z0-9-]+)"/gu,
   /"data-slot": "([a-z0-9-]+)"/gu,
-  /\b(?:slot|dataSlot)="([a-z0-9-]+)"/gu,
+  /\b(?:slot|dataSlot|ownSlot)="([a-z0-9-]+)"/gu,
   /\b[A-Z][A-Z_]*_SLOT = "([a-z0-9-]+)"/gu,
 ];
 const SHELL_CLASS_PATTERN = /\.(shell-[a-z0-9-]+)/gu;
@@ -137,27 +139,79 @@ function liveHooks({
   };
 }
 
+// A name recorded without a `value` is gone whole; a row with a `value` records one value of a name that stays.
+const isNameRow = (rename: OwnerCssRename, hook: OwnerCssHook): boolean => rename.kind === hook.kind && rename.name === hook.name && rename.value === undefined;
+
+function lostValues(hook: OwnerCssHook, live: SurfaceInput["appearanceAttributes"], renames: readonly OwnerCssRename[]): string[] {
+  const current = live.find((attribute) => attribute.name === hook.name)?.values;
+  return (hook.values ?? [])
+    .filter((value) => current !== undefined && !current.includes(value))
+    .filter((value) => !renames.some((rename) => rename.kind === hook.kind && rename.name === hook.name && rename.value === value))
+    .map((value) => `${hook.name}="${value}"`);
+}
+
 function assertRenamesRecorded(
   live: Record<OwnerCssHookKind, ReadonlySet<string>>,
+  attributes: SurfaceInput["appearanceAttributes"],
   previous: readonly OwnerCssHook[],
   renames: readonly OwnerCssRename[],
 ): void {
-  const unrecorded = previous.filter(
-    (hook) => !(live[hook.kind].has(hook.name) || renames.some((rename) => rename.kind === hook.kind && rename.name === hook.name)),
-  );
+  const unrecorded = [
+    ...previous
+      .filter((hook) => !(live[hook.kind].has(hook.name) || renames.some((rename) => isNameRow(rename, hook))))
+      .map((hook) => `${hook.kind} ${hook.name}`),
+    ...previous.flatMap((hook) => lostValues(hook, attributes, renames)),
+  ];
   if (unrecorded.length > 0) {
-    const names = unrecorded.map((hook) => `${hook.kind} ${hook.name}`).join(", ");
-    throw new Error(`Owner-CSS hooks left the surface without a row in src/owner-css/renames.ts: ${names}`);
+    throw new Error(`Owner-CSS hooks left the surface without a row in src/owner-css/renames.ts: ${unrecorded.join(", ")}`);
+  }
+}
+
+/**
+ * The rows of a rename table that contradict `surface`. A whole-name row names a hook that left the surface and
+ * points at ones that are on it. A value row names a live attribute whose list no longer holds the value, and has no
+ * successor.
+ */
+export function renameTableViolations(table: readonly OwnerCssRename[], surface: readonly OwnerCssHook[]): OwnerCssRename[] {
+  const hookOf = (kind: string, name: string): OwnerCssHook | undefined => surface.find((hook) => hook.kind === kind && hook.name === name);
+  return table.filter((rename) => {
+    if (rename.value !== undefined) {
+      const values = hookOf(rename.kind, rename.name)?.values;
+      return rename.to !== null || values === undefined || values.includes(rename.value);
+    }
+    return (
+      hookOf(rename.kind, rename.name) !== undefined ||
+      (rename.to !== null && hookOf(rename.kind, rename.to) === undefined) ||
+      (rename.see !== undefined && hookOf(rename.kind, rename.see) === undefined)
+    );
+  });
+}
+
+function assertRenameTableValid(
+  live: Record<OwnerCssHookKind, ReadonlySet<string>>,
+  attributes: SurfaceInput["appearanceAttributes"],
+  renames: readonly OwnerCssRename[],
+): void {
+  const surface = [
+    ...(["slot", "shell-class", "token"] as const).flatMap((kind) => [...live[kind]].map((name): OwnerCssHook => ({ kind, name }))),
+    ...attributes.map(({ name, values, members }): OwnerCssHook => ({ kind: "appearance-attribute", name, values, members })),
+  ];
+  const violations = renameTableViolations(renames, surface);
+  if (violations.length > 0) {
+    const rows = violations.map((rename) => `${rename.kind} ${rename.name}${rename.value === undefined ? "" : `="${rename.value}"`}`);
+    throw new Error(`Rows in src/owner-css/renames.ts contradict the regenerated surface: ${rows.join(", ")}`);
   }
 }
 
 /**
  * The manifest text for the given sources; pure, so a test can plant a rename. `previous` is the surface the
- * committed manifest published: a name it lists that the sources no longer produce needs a rename row.
+ * committed manifest published: a name it lists that the sources no longer produce needs a rename row, and every
+ * row must name a hook that left the surface and point only at ones that are on it.
  */
 export function renderOwnerCssSurface(input: SurfaceInput, previous: readonly OwnerCssHook[]): string {
   const live = liveHooks(input);
-  assertRenamesRecorded(live, previous, input.renames);
+  assertRenamesRecorded(live, input.appearanceAttributes, previous, input.renames);
+  assertRenameTableValid(live, input.appearanceAttributes, input.renames);
   return [
     HEADER,
     'import type { OwnerCssHook, OwnerCssHookKind } from "./src/owner-css/hook.ts";',
@@ -188,7 +242,7 @@ export function renderOwnerCssSurface(input: SurfaceInput, previous: readonly Ow
     '  ...hooks("slot", OWNER_CSS_SLOTS),',
     '  ...hooks("shell-class", OWNER_CSS_SHELL_CLASSES),',
     '  ...hooks("token", OWNER_CSS_TOKEN_VARS),',
-    '  ...OWNER_CSS_APPEARANCE_ATTRIBUTES.map(({ name, values }): OwnerCssHook => ({ kind: "appearance-attribute", name, values })),',
+    '  ...OWNER_CSS_APPEARANCE_ATTRIBUTES.map(({ name, values, members }): OwnerCssHook => ({ kind: "appearance-attribute", name, values, members })),',
     "];",
     "",
   ].join("\n");

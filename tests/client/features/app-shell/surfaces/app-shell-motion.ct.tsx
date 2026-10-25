@@ -3,23 +3,14 @@
 // view transition. Every sampler records per animation frame, because the defects it judges are one frame wide.
 import type { AppearanceSettings } from "@orb/contracts/settings/appearance";
 import type { ChatId } from "@orb/kit/ids";
+import { emulateMedia, releaseEmulatedMedia, resolvedLength, seedShellState, shellTracks } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusWire } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import type { AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
-import {
-  emulateMedia,
-  namedGroupRoom,
-  PHONE,
-  ROOM_PROCEDURES,
-  resolvedLength,
-  SECTION_PROCEDURES,
-  SHELL_STORIES,
-  seedShellState,
-  shellTracks,
-} from "./app-shell-ct.ts";
+import { namedGroupRoom, PHONE, ROOM_PROCEDURES, SECTION_PROCEDURES, SHELL_STORIES } from "./app-shell-ct.ts";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;
 const ROOM_STORY = `${SHELL_STORIES}/AppShellRoomStory`;
@@ -79,9 +70,17 @@ test.beforeEach(async ({ page }) => {
   await emulateMedia(page, {});
 });
 
+// The media session is per page and the page outlives the test; detach it so no later spec inherits the overrides.
+test.afterEach(async ({ page }) => {
+  await releaseEmulatedMedia(page);
+});
+
 test.afterAll(async () => {
   await root[Symbol.asyncDispose]();
 });
+
+// The motion cases follow the OS query at the default text size, whatever the corpus viewer chose.
+const MOTION_BASE: Partial<AppearanceSettings> = { reducedMotion: "system", fontScale: 1 };
 
 /** Serve the shell, its sections and a room, with the corpus viewer's settings under `appearance`. */
 async function routeMotion(page: Page, corpus: CorpusWire, appearance: Partial<AppearanceSettings> = {}): Promise<void> {
@@ -96,7 +95,7 @@ async function routeMotion(page: Page, corpus: CorpusWire, appearance: Partial<A
     ...serveCorpusProcedures(await root.internalCallerFor(root.ownerId), served),
     "settings.getUserSettings": () => ({
       ...settings,
-      config: { ...settings.config, appearance: { ...settings.config.appearance, reducedMotion: false, fontScale: 1, ...appearance } },
+      config: { ...settings.config, appearance: { ...settings.config.appearance, ...MOTION_BASE, ...appearance } },
     }),
   });
 }

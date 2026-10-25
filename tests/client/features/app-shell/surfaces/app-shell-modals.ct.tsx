@@ -6,6 +6,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
+import { channelName } from "../../../lib/appearance-channel-names.ts";
 import type { AppShellModalStory, AppShellStory } from "./_app-shell-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -30,6 +31,13 @@ const SERVED = [
 ] as const;
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
+
+const COLORIZATION_ATTRIBUTE = channelName("enableThemeColorization");
+
+/** Drive the root effect's own stamp directly, so one popup node is observed in both arms. */
+function stampColorization(page: Page, value: "false" | "true"): Promise<void> {
+  return page.evaluate(([name, stamped]) => document.documentElement.setAttribute(name, stamped), [COLORIZATION_ATTRIBUTE, value] as const);
+}
 
 function cssValue(locator: Locator, property: string): Promise<string> {
   return locator.evaluate((element, name) => getComputedStyle(element).getPropertyValue(name).trim(), property);
@@ -296,12 +304,12 @@ for (const modalId of ["command", "you"] as const satisfies readonly ModalSlotId
       Promise.all([cssValue(grid, "--color-border"), cssValue(portal, "--color-border"), cssValue(popup, "--color-border")]);
 
     // The root effect's own stamp, driven directly so the same popup node is observed in both arms.
-    await page.evaluate(() => document.documentElement.removeAttribute("data-theme-colorization"));
+    await stampColorization(page, "false");
     const off = await borders();
     expect(new Set(off).size).toBe(1);
     const offHeaderOutline = await header.evaluate((element) => getComputedStyle(element).outlineColor);
 
-    await page.evaluate(() => document.documentElement.setAttribute("data-theme-colorization", ""));
+    await stampColorization(page, "true");
     await expect.poll(() => cssValue(grid, "--color-border")).not.toBe(off[0]);
     const on = await borders();
     expect(on[1]).toBe(on[0]);
@@ -310,7 +318,7 @@ for (const modalId of ["command", "you"] as const satisfies readonly ModalSlotId
     // The selected theme's own CSS consumes the inherited token, so it follows too.
     await expect.poll(() => header.evaluate((element) => getComputedStyle(element).outlineColor)).not.toBe(offHeaderOutline);
 
-    await page.evaluate(() => document.documentElement.removeAttribute("data-theme-colorization"));
+    await stampColorization(page, "false");
     await expect.poll(() => cssValue(popup, "--color-border")).toBe(off[0]);
   });
 }
@@ -322,10 +330,10 @@ test("a seed theme keeps one border token across the root, the shell and the por
   await expect(page.locator('[data-slot="dialog-popup"]')).toBeVisible();
   const surfaces = [page.locator("html"), page.locator(".shell-grid"), page.locator('[data-slot="portal-root"]'), page.locator('[data-slot="dialog-popup"]')];
   const borders = (): Promise<string[]> => Promise.all(surfaces.map((surface) => cssValue(surface, "--color-border")));
-  await page.evaluate(() => document.documentElement.removeAttribute("data-theme-colorization"));
+  await stampColorization(page, "false");
   const off = await borders();
   expect(new Set(off).size).toBe(1);
-  await page.evaluate(() => document.documentElement.setAttribute("data-theme-colorization", ""));
+  await stampColorization(page, "true");
   await expect.poll(borders).not.toEqual(off);
   expect(new Set(await borders()).size).toBe(1);
 });

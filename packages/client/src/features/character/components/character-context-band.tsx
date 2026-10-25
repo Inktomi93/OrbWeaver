@@ -50,7 +50,7 @@ export function CharacterContextBand({ characterId }: CharacterContextBandProps)
   if (detail === undefined) {
     return (
       <Row gap="block" align="center" aria-busy={true} className="min-inline-0">
-        <Skeleton className="shrink-0 rounded-base block-(--size-avatar-lg) inline-(--size-avatar-lg)" data-slot="character-context-band-pending" />
+        <Skeleton className="shrink-0 block-(--size-avatar-lg) inline-(--size-avatar-lg)" data-slot="character-context-band-pending" variant="portrait" />
         <Skeleton className="block-(--size-control-sm) inline-full max-inline-cq-24" />
       </Row>
     );
@@ -69,7 +69,7 @@ export function CharacterContextBand({ characterId }: CharacterContextBandProps)
         <Heading level={2} data-slot="character-context-band-name" className="line-clamp-2 text-balance">
           {detail.name}
         </Heading>
-        <Text voice="gloss" className="truncate font-mono" data-slot="character-context-band-handle">
+        <Text voice="datumMono" className="truncate" data-slot="character-context-band-handle">
           @{detail.handle}
         </Text>
         {/* THE CHIP ROW DOES NOT WRAP — IT SCROLLS. A narrow pane would wrap the chips 2+1 and leave a

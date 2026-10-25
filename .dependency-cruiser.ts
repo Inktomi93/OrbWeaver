@@ -265,6 +265,8 @@ const TEST_CONSTANT_HOMES = {
   "packages/server/src/domain/chat/contract/errors.ts": "CHAT_OP_CODES and ChatNotFoundError: the refusal codes and class chat suites assert",
   "packages/server/src/domain/chat/contract/metadata.ts": "TOOL_RECURSE_LIMIT_DEFAULT: the default the corpus writes back",
   "packages/server/src/domain/chat/persistence/participants-read.ts": "loadPresentRole: the production role read the authority suite compares against",
+  "packages/server/src/domain/import/substrate/appearance.ts":
+    "stAppearancePatch and ST_POWER_USER_KEY: the pure ST power_user mapping and the settings.json key it reads",
   "packages/server/src/domain/plugin/contract/errors.ts": "PluginNotFoundError: the refusal class plugin seed cases assert",
   "packages/server/src/domain/plugin/substrate/plugin-macros.ts": "pluginMacroName: the token rule for a plugin's registered macro",
   "packages/server/src/domain/preset/constants.ts":
@@ -295,6 +297,9 @@ const TEST_CONSTANT_HOMES = {
   "packages/db/src/client/index.ts": "buildResetDropScript: the reset script builder",
   "packages/db/src/query/check-list.ts": "checkList: the SQL literal-list formatter",
   "packages/inference/src/contract/errors.ts": "PROVIDER_ERROR_KINDS: the provider error vocabulary",
+  "packages/ui/src/content/immersive-card/control-labels.ts": "IMMERSIVE_CARD_LABELS: the card header's control names",
+  "packages/ui/src/lib/reduced-motion-now.ts":
+    "resolveReducedMotion and APP_REDUCED_MOTION_ATTRIBUTE: the JS rule the CSS reduced-motion floor must agree with",
   "packages/client/src/data/import-tree-plan.ts": "planTreeImport: the folder import planner",
   "packages/client/src/data/import-tree-served.ts": "planServedTreeImport: the served-tree import planner",
   "packages/client/src/features/config/lib/config-copy.ts": "CONFIG_SECTION_LABEL: the settings section labels",
@@ -453,6 +458,11 @@ const PACKAGE_TEST_REACHES = {
   },
   "tests/client/features/app-shell/lib/command-shortcut-label.test.ts": {
     "packages/client/src/features/app-shell/lib/command-shortcut-label.ts": "commandShortcutLabel: the feature-private platform key hint",
+  },
+  "tests/client/features/app-shell/components/appearance-sizing-preferences.ct.tsx": {
+    "packages/client/src/features/app-shell/lib/appearance-select-items.ts": "OS_PREFERENCE_ITEMS: the mode words the section's segments print",
+    "packages/client/src/features/app-shell/lib/appearance-sizing-model.ts":
+      "APPEARANCE_SIZING_SUBCATEGORY: the labels and keys the section's three OS preference rows read",
   },
   "tests/client/features/app-shell/surfaces/app-shell-topbar.ct.tsx": {
     "packages/client/src/features/app-shell/lib/command-shortcut-label.ts":

@@ -55,3 +55,6 @@ export const FOCUS_RING_ON_STATE_RING = "focus-visible:ring-foreground";
 // `focus-visible:outline-2` layered on top still computes `outline-style: none` (the exact trap the
 // toast fell into). Rest is already outline-less by UA default — there is nothing to reset.
 export const FOCUS_RING_OUTLINE = "focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2";
+
+/** No ring of its own: a field inside a host box that draws the focus state for it (the composer card). */
+export const FOCUS_RING_NONE = "focus-visible:ring-0 focus-visible:ring-offset-0";

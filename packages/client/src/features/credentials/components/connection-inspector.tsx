@@ -66,17 +66,17 @@ function InspectionResult({ inspection }: { readonly inspection: EndpointInspect
   const verdict = verdictOf(inspection);
   return (
     <Stack data-ok={inspection.ok} data-slot="connection-inspection" gap="tight">
-      <Text className={inspection.ok ? "text-success" : "text-warning"} data-slot="connection-inspection-verdict" data-verdict={verdict.kind} voice="label">
+      <Text tone={inspection.ok ? "success" : "warning"} data-slot="connection-inspection-verdict" data-verdict={verdict.kind} voice="label">
         {verdict.text}
       </Text>
       <Text voice="label">Request</Text>
-      <Text as="div" className="break-all whitespace-pre-wrap" voice="datum">
+      <Text as="div" className="break-all whitespace-pre-wrap" voice="code">
         {[`POST ${request.url}`, ...headerLines, "", request.body].join("\n")}
       </Text>
       {response === null ? null : (
         <>
           <Text voice="label">Response</Text>
-          <Text as="div" className="break-all whitespace-pre-wrap" data-slot="connection-inspection-response" voice="datum">
+          <Text as="div" className="break-all whitespace-pre-wrap" data-slot="connection-inspection-response" voice="code">
             {response.bodyPreview === "" ? "(an empty body)" : response.bodyPreview}
           </Text>
         </>

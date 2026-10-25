@@ -5,7 +5,7 @@
 //
 // WHY THIS IS A RUNTIME RULE AND NOT A GATE (the doctrine's own axis, ops/walker/census-tier.ts's header
 // verbatim: "THE QUESTION IS NOT 'is this value legal' … It is 'did the RESOLVED pixel match'"). A landing
-// is the product of the live root font-size (the continuous `--font-scale` slider, docs/law/integer-line-boxes.md
+// is the product of the live root font-size (the continuous `--appearance-font-scale` slider, docs/law/integer-line-boxes.md
 // §2.1), the element's own box, and the device pixel ratio — none of which authorship can see. The
 // AUTHORSHIP-provable half of Law 2 is a gate (`tooling/src/verify/gates/rest-transform-grid.ts`); this is
 // the resolved half plus Laws 3 and 4, which have no authorship half at all.
@@ -27,7 +27,7 @@ const FRACTION_DIGITS = 3;
 const SCALE_DIGITS = 4;
 
 /** THE ONE TYPED MIRROR of the `integer-line-boxes` gate's ARM C exemption row — NEVER a second decision.
- *  The gate exempts `packages/client/src/styles/globals.css::var(--reading-line-height)`; that declaration
+ *  The gate exempts `packages/client/src/styles/globals.css::var(--appearance-reading-line-height)`; that declaration
  *  sits on `[data-slot="message-bubble"]`, so the same user-owned continuous multiplier decides every text
  *  landing inside the bubble. Two-sidedness at runtime is the ACCOUNTING, not a stale arm: the exclusion is
  *  counted and printed per run (#987 — "an N/A cohort cannot silently disappear from the denominator"), so

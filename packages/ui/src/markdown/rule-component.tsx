@@ -6,7 +6,7 @@
 // `[css] dead class — no rule defines it, so the style never applied · .my-6` in the chat transcript.
 // Streamdown's own `MarkdownHr` is `jsx("hr", { className: cn("my-6 border-border", className) })`, and
 // its dist is deliberately NOT a Tailwind source (markdown.tsx states that ruling: the vendor's raw
-// spacing scale would fight `--reading-paragraph-spacing`, which OWNS prose spacing on this surface), so
+// spacing scale would fight `--appearance-reading-paragraph-spacing`, which OWNS prose spacing on this surface), so
 // `my-6` generated nothing — and Tailwind's preflight zeroes margins. The rule therefore painted flush
 // against the prose on either side of it, which is the one thing a thematic break exists not to do.
 //

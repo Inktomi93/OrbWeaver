@@ -70,7 +70,7 @@ const liveResolverGlobals = globalThis as unknown as LiveResolverGlobals;
  * (`client/features/app-shell/surfaces/app-shell.tsx`), which is the deepest element that is an ANCESTOR of
  * every chart and every sandbox frame while still carrying the whole active palette: `<ThemeScope>`'s inline
  * custom properties reach it by inheritance, and the two declarations written below ThemeScope rather than
- * only on `<html>` (`html[data-theme-colorization] :is(.shell-grid, [data-slot="portal-root"])`) are seen
+ * only on `<html>` (the colorization variant's `:is(.shell-grid, [data-slot="portal-root"])` rule in client globals.css) are seen
  * here exactly as a grid descendant sees them. The portal sibling carries the same declarations for floats;
  * canvases and foreign realms live under the marked grid, so the grid remains their correct read root.
  *

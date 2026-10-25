@@ -4,7 +4,11 @@ import { cn } from "#lib";
 import { cardVariants } from "./variants.ts";
 
 /** The card's own axes, shared by both element arms below. */
-type CardOwnProps = VariantProps<typeof cardVariants>;
+type CardOwnProps = VariantProps<typeof cardVariants> & {
+  /** A Card that is also a named owner-CSS hook (`owner-css-surface.ts`) keeps that slot instead of `card-root`, and so
+   *  stays out of the tier map: its radius and inset are the variant's own at every tier. */
+  readonly ownSlot?: string;
+};
 
 /**
  * A card is a `div` unless the caller says otherwise. `as="button"` is the NATIVE arm — for the case where
@@ -41,16 +45,33 @@ function activateOnKey(event: KeyboardEvent<HTMLDivElement>): void {
 // island delegates its inset to its own content. `data-elevated`, `data-nested` and `data-padding` are the
 // attributes the tiers.css rules key on; the variant's utility alone would lose to the tier rule inside a Surface.
 export function Card(props: CardProps): ReactElement {
-  const { className, shape, elevated, interactive, nested, padding, tone, outline, glow } = props;
-  const skin = cn(cardVariants({ shape, elevated, interactive, nested, padding, tone, outline, glow }), className);
+  const {
+    className,
+    shape,
+    elevated,
+    interactive,
+    nested,
+    padding,
+    tone,
+    outline,
+    glow,
+    rail,
+    shadow,
+    holdsField,
+    dropTarget,
+    presence,
+    spoiler,
+    focusable,
+    ownSlot,
+  } = props;
+  const skin = cn(
+    cardVariants({ shape, elevated, interactive, nested, padding, tone, outline, glow, rail, shadow, holdsField, dropTarget, presence, spoiler, focusable }),
+    className,
+  );
+  const slot = ownSlot ?? "card-root";
   // The attributes the unlayered elevated-/nested-radius rules key on: inside a Surface the tier rule
-  // outranks any `rounded-*` utility the variant emits.
-  //
-  // `data-slot` is NOT in this bag and must not be (measured 2026-08-22, when it briefly was): the
-  // `density-tier` gate proves that every `data-slot` tiers.css maps is actually EMITTED by reading
-  // literal JSX attributes, so folding it into a spread object turned an owned slot into "a mapped-but-dead
-  // rule that paints nothing while the stylesheet reads as load-bearing" — gate-RED, correctly. It is
-  // spelled literally on each arm below.
+  // outranks any `rounded-*` utility the variant emits. `data-slot` is set after the caller's props on each arm, so a
+  // stray `data-slot` cannot drop a card out of the tier map; only `ownSlot` does, on purpose.
   const marks = {
     "data-elevated": elevated === true ? "" : undefined,
     "data-nested": nested === true ? "" : undefined,
@@ -69,6 +90,14 @@ export function Card(props: CardProps): ReactElement {
       tone: _tone,
       outline: _outline,
       glow: _glow,
+      rail: _rail,
+      shadow: _shadow,
+      holdsField: _holdsField,
+      dropTarget: _dropTarget,
+      presence: _presence,
+      spoiler: _spoiler,
+      focusable: _focusable,
+      ownSlot: _ownSlot,
       ...rest
     } = props;
     // `type="button"` BEFORE the spread, so a caller that genuinely needs a submit card can still say so —
@@ -79,7 +108,7 @@ export function Card(props: CardProps): ReactElement {
     // and background but NOT either of those — so an un-reset button arm renders the same card's prose
     // centred, which is a silent visual regression the div arm never had. It is prepended (never appended),
     // so both the variant and the caller's own className still win the merge.
-    return <button type="button" {...rest} className={cn("block text-start", skin)} {...marks} data-slot="card-root" />;
+    return <button type="button" {...rest} className={cn("block text-start", skin)} {...marks} data-slot={slot} />;
   }
   const {
     as: _as,
@@ -92,6 +121,14 @@ export function Card(props: CardProps): ReactElement {
     tone: _tone,
     outline: _outline,
     glow: _glow,
+    rail: _rail,
+    shadow: _shadow,
+    holdsField: _holdsField,
+    dropTarget: _dropTarget,
+    presence: _presence,
+    spoiler: _spoiler,
+    focusable: _focusable,
+    ownSlot: _ownSlot,
     ...rest
   } = props;
   const a11y =
@@ -102,5 +139,5 @@ export function Card(props: CardProps): ReactElement {
           onKeyDown: rest.onKeyDown ?? activateOnKey,
         }
       : undefined;
-  return <div {...rest} {...a11y} className={skin} {...marks} data-slot="card-root" />;
+  return <div {...rest} {...a11y} className={skin} {...marks} data-slot={slot} />;
 }

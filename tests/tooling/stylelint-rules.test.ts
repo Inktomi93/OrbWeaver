@@ -67,7 +67,20 @@ test("a custom property the sheets read is declared somewhere, or named as runti
   expect(await rulesHit(declaration("color: var(--color-nope);"))).toEqual(["csstools/value-no-unknown-custom-properties"]);
   expect(await rulesHit(declaration("color: var(--color-primary);"))).toEqual([]);
   expect(await rulesHit(declaration("max-inline-size: var(--width-shell-content);"))).toEqual([]);
-  expect(await rulesHit(declaration("inset-inline-start: var(--x, 50%);"))).toEqual([]);
+});
+
+test("a fallback does not excuse a custom property nothing declares", async () => {
+  const rule = "orb/no-undeclared-var-fallback";
+  expect(await rulesHit(declaration("font-size: calc(var(--text-body) * var(--reading-body-scale, 1));"))).toEqual([rule]);
+  expect(await rulesHit(declaration("color: var(--probe-gone, var(--color-primary));"))).toEqual([rule]);
+  // Declared in a sheet, registered by the generated channel, written at runtime, or written by a vendor.
+  expect(await rulesHit(declaration("color: var(--color-primary, red);"))).toEqual([]);
+  expect(await rulesHit(declaration("opacity: var(--appearance-font-scale, 1);"))).toEqual([]);
+  expect(await rulesHit(declaration("inset-inline-start: var(--orb-media-x, 50%);"))).toEqual([]);
+  expect(await rulesHit(declaration("color: var(--shiki-dark, currentcolor);"))).toEqual([]);
+  expect(await rulesHit(declaration("inline-size: var(--anchor-width, 0);"))).toEqual([]);
+  // The probe's own declaration counts.
+  expect(await rulesHit(layered(".probe {\n --probe-local: 1;\n opacity: var(--probe-local, 0.5);\n }"))).toEqual([]);
 });
 
 test("an appearance name a sheet spells is one the manifest's channel writes", async () => {
@@ -80,7 +93,28 @@ test("an appearance name a sheet spells is one the manifest's channel writes", a
   // A client sheet keys a preference on its resolved variant; the OS-only one ignores the app's off.
   expect(await rulesHit(layered("@variant motion-reduce { .probe { opacity: 1; } }"))).toEqual([rule]);
   expect(await rulesHit(layered("@variant appearance-reduced-motion { .probe { opacity: 1; } }"))).toEqual([]);
-  expect(await rulesHit(layered("@variant motion-reduce { .probe { opacity: 1; } }"), FLOOR_FILE)).toEqual([]);
+  // A ui sheet has no resolved variant, so its OS arm must carry the root guard, or the app's off cannot beat the OS.
+  expect(await rulesHit(layered("@variant motion-reduce { .probe { opacity: 1; } }"), FLOOR_FILE)).toEqual([rule]);
+  expect(await rulesHit(layered("@variant contrast-more { .probe, .other { opacity: 1; } }"), FLOOR_FILE)).toEqual([rule]);
+  expect(
+    await rulesHit(layered('@variant contrast-more { :root:not([data-appearance-increased-contrast="off"]) .probe, .other { opacity: 1; } }'), FLOOR_FILE),
+  ).toEqual([rule]);
+  expect(await rulesHit(layered('@variant motion-reduce { :root:not([data-appearance-reduced-motion="off"]) .probe { opacity: 1; } }'), FLOOR_FILE)).toEqual(
+    [],
+  );
+  // A variant nested in a rule guards through that rule's selectors, for its own declarations and for an `&` rule.
+  expect(await rulesHit(layered(".probe { @variant motion-reduce { opacity: 1; } }"), FLOOR_FILE)).toEqual([rule]);
+  expect(await rulesHit(layered(".probe { @variant motion-reduce { &::after { opacity: 1; } } }"), FLOOR_FILE)).toEqual([rule]);
+  expect(await rulesHit(layered(':root:not([data-appearance-reduced-motion="off"]) .probe { @variant motion-reduce { opacity: 1; } }'), FLOOR_FILE)).toEqual(
+    [],
+  );
+  expect(
+    await rulesHit(layered(':root:not([data-appearance-reduced-motion="off"]) .probe { @variant motion-reduce { &::after { opacity: 1; } } }'), FLOOR_FILE),
+  ).toEqual([]);
+  // A variant prefix in `@apply` is read too; a sheet cannot guard it.
+  expect(await rulesHit(layered(".probe { @apply motion-reduce:opacity-50; }"))).toEqual([rule]);
+  expect(await rulesHit(layered(".probe { @apply hover:not-contrast-more:opacity-50; }"))).toEqual([rule]);
+  expect(await rulesHit(layered(".probe { @apply appearance-reduced-motion:opacity-50; }"))).toEqual([]);
 });
 
 test("physical properties, qualifying types, ids, deep selectors and important declarations are refused", async () => {
@@ -194,7 +228,8 @@ test("a shell region paints from tokens and names no component", async () => {
     ".shell-grid { background: var(--color-background); }",
     ".shell-grid { background: color-mix(in oklab, var(--color-background) 72%, transparent); }",
     ".shell-main { background: oklch(from var(--color-card) l c h / 0.5); }",
-    ".shell-main { background: oklch(from var(--color-card) calc(l * 0.9) c h / calc(alpha * 0.5)); }",
+    ".shell-main { background: oklch(from var(--color-card) l c h / calc(alpha * 0.5)); }",
+    ".shell-main { background: rgb(from var(--color-card) r g b / 0.4); }",
     ".shell-grid { text-shadow: none; }",
     ".shell-panel-header > [data-slot='panel-overlay-close'] { opacity: 1; }",
     ".shell-main [data-slot='chat-room-flank-row'] .orb-chat-track { opacity: 1; }",
@@ -212,6 +247,31 @@ test("a shell region paints from tokens and names no component", async () => {
     [".shell-grid { color: rgb(from var(--glass-tint) r g b); }", "orb/shell-paint-law"],
     [".shell-grid { color: rgb(from var(--color-card) 255 0 0); }", "orb/shell-paint-law"],
     [".shell-grid { color: rgb(from var(--color-card) r g 0); }", "orb/shell-paint-law"],
+    [".shell-grid { color: rgb(from var(--color-card) calc(r + 255) g b); }", "orb/shell-paint-law"],
+    [".shell-grid { color: oklch(from var(--color-card) calc(l * 0.9) c h); }", "orb/shell-paint-law"],
+    [".shell-grid { color: rgb(from var(--color-card) calc(0.5 * r) g b); }", "orb/shell-paint-law"],
+    [".shell-grid { color: hsl(from var(--color-card) calc(h + 30deg) s l); }", "orb/shell-paint-law"],
+    [".shell-grid { color: hsl(from var(--color-card) calc(h * 2) s l); }", "orb/shell-paint-law"],
+    [".shell-grid { color: rgb(from var(--color-card) calc(r * 2) calc(g / 2) calc(b * 0.25)); }", "orb/shell-paint-law"],
+    [".shell-grid { color: oklch(from var(--color-card) l c calc(h - 20)); }", "orb/shell-paint-law"],
+    [".shell-grid { color: rgb(from var(--color-card) calc(r) g b); }", "orb/shell-paint-law"],
+    [".shell-grid { color: rgb(from var(--color-card) calc(r * -1) g b); }", "orb/shell-paint-law"],
+    [".shell-grid { color: rgb(from var(--color-card) calc(r * 100000) g b); }", "orb/shell-paint-law"],
+    [".shell-grid { color: rgb(from var(--color-card) calc(r * 0.000001) g b); }", "orb/shell-paint-law"],
+    [".shell-grid { color: rgb(from var(--color-card) calc(r / 0.01) g b); }", "orb/shell-paint-law"],
+    [".shell-grid { color: rgb(from var(--color-card) calc(r / 1000) g b); }", "orb/shell-paint-law"],
+    [".shell-grid { color: hsl(from var(--color-card) h s calc(l * -1)); }", "orb/shell-paint-law"],
+    [".shell-grid { color: oklch(from var(--color-card) calc(l * 1000) c h); }", "orb/shell-paint-law"],
+    [".shell-grid { color: rgb(from var(--color-card) calc(r * 0) g b); }", "orb/shell-paint-law"],
+    [".shell-grid { color: rgb(from var(--color-card) calc(r * 0 + 255) g b); }", "orb/shell-paint-law"],
+    [".shell-grid { color: rgb(from var(--color-card) alpha alpha alpha); }", "orb/shell-paint-law"],
+    [".shell-grid { color: rgb(from var(--color-card) g r b); }", "orb/shell-paint-law"],
+    [".shell-grid { color: oklch(from var(--color-card) calc(l + 0.1) c h); }", "orb/shell-paint-law"],
+    [".shell-grid { color: rgb(from var(--color-card) calc(r + 30deg) g b); }", "orb/shell-paint-law"],
+    [".shell-grid { color: rgb(from var(--color-card) calc(255) calc(0) calc(0)); }", "orb/shell-paint-law"],
+    [".shell-grid { color: rgb(from var(--color-card) none none none); }", "orb/shell-paint-law"],
+    [".shell-grid { color: rgb(from var(--color-card) red g b); }", "orb/shell-paint-law"],
+    [".shell-grid { color: hsl(from var(--color-card) r g b); }", "orb/shell-paint-law"],
     [".shell-grid [data-slot='message-bubble'] { opacity: 1; }", "orb/shell-paint-law"],
     [".shell-grid [data-slot='empty-state-root'] { opacity: 1; }", "orb/shell-paint-law"],
     [".shell-grid .orb-gradient-ring { opacity: 1; }", "orb/shell-paint-law"],

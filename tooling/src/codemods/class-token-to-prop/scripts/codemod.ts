@@ -16,7 +16,7 @@ interface PropRule {
   readonly attribute: string;
   /** The exact class token to remove. */
   readonly token: string;
-  /** The prop to add, and its string value. */
+  /** The prop to add, and its value: a string, or a JSX expression in braces (`{true}`). */
   readonly prop: string;
   readonly value: string;
 }
@@ -103,6 +103,11 @@ function siblingAttributeNames(attribute: SgNode<TSX>): ReadonlySet<string> {
   return new Set(siblings.filter((child) => child.kind() === "jsx_attribute").map((child) => child.child(0)?.text() ?? ""));
 }
 
+// A map value wrapped in braces is a JSX expression (`{true}` for a boolean prop); any other value is a string.
+function propValueText(value: string): string {
+  return value.startsWith("{") && value.endsWith("}") ? value : `"${value}"`;
+}
+
 function carriesMappedToken(node: SgNode<TSX>, rules: readonly PropRule[]): boolean {
   const literals = node.kind() === "string" ? [node] : node.findAll(STRING);
   return literals.some((literal) =>
@@ -147,7 +152,7 @@ function rewriteAttribute(attribute: SgNode<TSX>, rules: readonly PropRule[]): r
     return [];
   }
   const removesAttribute = rewrites.some((rewrite) => rewrite.removesAttribute);
-  const added = [...props].map(([prop, propValue]) => `${prop}="${propValue}"`).join(" ");
+  const added = [...props].map(([prop, propValue]) => `${prop}=${propValueText(propValue)}`).join(" ");
   const range = attribute.range();
   const start = removesAttribute ? range.start.index : range.end.index;
   return [
