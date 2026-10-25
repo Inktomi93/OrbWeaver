@@ -67,7 +67,20 @@ test("a custom property the sheets read is declared somewhere, or named as runti
   expect(await rulesHit(declaration("color: var(--color-nope);"))).toEqual(["csstools/value-no-unknown-custom-properties"]);
   expect(await rulesHit(declaration("color: var(--color-primary);"))).toEqual([]);
   expect(await rulesHit(declaration("max-inline-size: var(--width-shell-content);"))).toEqual([]);
+});
+
+test("a fallback does not excuse a custom property nothing declares", async () => {
+  const rule = "orb/no-undeclared-var-fallback";
+  expect(await rulesHit(declaration("font-size: calc(var(--text-body) * var(--reading-body-scale, 1));"))).toEqual([rule]);
+  expect(await rulesHit(declaration("color: var(--probe-gone, var(--color-primary));"))).toEqual([rule]);
+  // Declared in a sheet, registered by the generated channel, written at runtime, or written by a vendor.
+  expect(await rulesHit(declaration("color: var(--color-primary, red);"))).toEqual([]);
+  expect(await rulesHit(declaration("opacity: var(--appearance-font-scale, 1);"))).toEqual([]);
   expect(await rulesHit(declaration("inset-inline-start: var(--x, 50%);"))).toEqual([]);
+  expect(await rulesHit(declaration("color: var(--shiki-dark, currentcolor);"))).toEqual([]);
+  expect(await rulesHit(declaration("inline-size: var(--anchor-width, 0);"))).toEqual([]);
+  // The probe's own declaration counts.
+  expect(await rulesHit(layered(".probe {\n --probe-local: 1;\n opacity: var(--probe-local, 0.5);\n }"))).toEqual([]);
 });
 
 test("an appearance name a sheet spells is one the manifest's channel writes", async () => {

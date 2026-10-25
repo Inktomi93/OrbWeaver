@@ -261,7 +261,7 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
           form.handleSubmit().catch(() => notify.error("Couldn't save the character."));
         }}
       >
-        <Stack gap="section" className="mx-auto py-section inline-full max-inline-(--container-cq-lg)">
+        <Stack gap="section" className="mx-auto py-section inline-full max-inline-(--container-cq-48)">
           {/* THE CENSUS IS `meta`, NOT AN ACTION. In the bar's `children`, beside `shrink-0` siblings, the
               token line would clip the character's NAME — the one thing a phone's save bar is telling you.
               The `meta` slot keeps the census inline where there is room and drops it to its own full-width
