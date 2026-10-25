@@ -27,4 +27,6 @@ Per-plugin Approve uses `secondary`; Remove uses `ghost`. The page keeps its pag
 
 The real-corpus `settings group plugins reads clean` case in [surface census](../../tests/client/features/app-shell/surface-census.suite.ct.tsx) passes without a responder override or waiver. Restoring primary approval in production makes the same case report `second-primary` with the pending plugin names.
 
+The action Row wraps at constrained widths. [Consent layout](../../tests/client/features/plugin/components/consent-layout.ct.tsx) rejects the untouched phone layout's 79px overflow and passes with wrapping at phone and wide widths. It also checks keyboard access to Remove and focus return after cancelling its confirmation.
+
 [Rendered closeout](../reviews/rendered-closeout.md) records commands, artifacts and the final verification status.

@@ -46,6 +46,18 @@ The socket helper imports the production `SubscriptionErrorFrame` type rather th
 The unconstrained centre expectations were invalid at the scroll boundaries. Raw geometry shows clamping, not a command-primitive defect.
 The interior case derives its midpoint from a complete external catalog and asserts scroll room at both ends. No Command production change is needed.
 
+## Consent-action wrapping
+
+The consent action Row uses the existing `flex-wrap` layout utility. Approve stays `secondary`; Remove stays `ghost`.
+[The consent layout CT](../../tests/client/features/plugin/components/consent-layout.ct.tsx) mounts the production settings content from the registry at phone and wide widths with a coarse pointer. Corpus procedures supply every pending plugin.
+It checks both actions against their notice and viewport. Keyboard Tab reaches Remove, Enter opens its real confirm, and Escape returns focus to Remove.
+
+Untouched source fails at the phone width with 79px overflow; the wide case passes. The wrapping change passes both cases.
+Native red and green reports are retained in `/tmp/rendered-consent-review.fj34sG/`. Completed command output is in `/tmp/rendered-consent-red-qualified.log` and `/tmp/rendered-consent-green.log`.
+Affected client and DOM-test typechecks, scoped ESLint and named-entry dependency checks pass. Their output is in `/tmp/rendered-consent-typecheck.log`, `/tmp/rendered-consent-eslint.log` and `/tmp/rendered-consent-depcruise-green.log`.
+
+The canonical plugin label home is named in `TEST_CONSTANT_HOMES` for the existing no-copied-label contract. No production export or duplicate label is added.
+
 ## Limits
 
 Component tests qualify rendered behavior under the application gallery pipeline. They do not qualify full browser authentication or production deployment.
