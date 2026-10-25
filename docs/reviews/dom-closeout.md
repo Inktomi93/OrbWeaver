@@ -133,3 +133,11 @@ D54 names the configured Query rules rather than an absent strict preset. D73 di
 ## Review scope
 
 Read and changed the rule implementations, configured permissions, owned production call sites and their affected tests. This is not a line-by-line review of unrelated client files. Whole-application verification, merged CSS fixes and independent review belong to main.
+
+## Independent review correction
+
+The focused controls expose locally held apply arrays and untagged class-name templates before implementation: 6 failed and 86 passed. The corrected DOM suite passes 100 cases.
+
+The argument reader follows stable local aliases and TypeScript wrappers, expands known static array spreads, and preserves holes and unresolved spread positions. Public attributes and inert-marker controls retain their permitted behavior. The sealed-selector rule uses the same method and argument reader, then resolves quoted, template and constant-interpolated class names at the call boundary. Direct, call, apply and bind controls distinguish private names from public names. Arbitrary dynamic flow is not certified.
+
+This correction changes tooling and controls only. Product CT results remain applicable; no product CT was rerun. Scoped ESLint on the changed rules and controls passes. `pnpm typecheck tooling/tsconfig.json` passes, including its router dependency. Scoped Biome passes with --error-on-warnings.
