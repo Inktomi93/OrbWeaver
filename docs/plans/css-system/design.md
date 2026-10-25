@@ -388,6 +388,7 @@ Preflight already sets `-webkit-text-size-adjust: 100%`, the border and box-sizi
 | `contrast-color()` | note, defer | the theme engine derives contrast; revisit when a theme needs a computed ink | Baseline low (Chrome 147, Firefox 146, Safari 26) |
 | anchor positioning | reject | Base UI and floating-ui own positioning | not Baseline |
 | Custom Highlight API | reject | no transcript search-highlight surface exists | Safari supports it (webkit.org/blog/17818) |
+| `@scope` with a lower boundary | reject | would stop shell rules at component roots, but Firefox ships it in 146 against the Firefox 138 floor; `orb/shell-paint-law` binds the shell selectors by lint instead | Baseline low (Chrome 118, Firefox 146, Safari 26.4 for the at-rule; web-features `scope`) |
 
 ### Compositor rules
 

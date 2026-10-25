@@ -8,6 +8,7 @@ import config from "../../stylelint.config.ts";
 const REPO_ROOT = fileURLToPath(new URL("../..", import.meta.url));
 const AUTHORED_FILE = join(REPO_ROOT, "packages/client/src/styles/globals.css");
 const THEME_FILE = join(REPO_ROOT, "packages/ui/src/styles/theme.css");
+const SHELL_FILE = join(REPO_ROOT, "packages/client/src/features/app-shell/surfaces/shell/grid.css");
 const FLOOR_FILE = join(REPO_ROOT, "packages/ui/src/styles/motion-floor.css");
 
 async function rulesHit(code: string, codeFilename = AUTHORED_FILE): Promise<string[]> {
@@ -165,6 +166,35 @@ test("stacking order, weight and tracking are tokens or the structural layers", 
 
 test("the generated theme is exempt from the authored-value rules, not from the structural ones", async () => {
   expect(await rulesHit("@layer theme {\n  :root {\n    --spacing-row: 0.5rem;\n    color: #fff;\n  }\n}\n", THEME_FILE)).toEqual([]);
+});
+
+test("a shell region paints from tokens and names no component", async () => {
+  const hits = (rules: string): Promise<string[]> => rulesHit(layered(rules), SHELL_FILE);
+  for (const rules of [
+    ".shell-grid { background: var(--color-background); }",
+    ".shell-grid { background: color-mix(in oklab, var(--color-background) 72%, transparent); }",
+    ".shell-main { background: oklch(from var(--color-card) l c h / 0.5); }",
+    ".shell-grid { text-shadow: none; }",
+    ".shell-panel-header > [data-slot='panel-overlay-close'] { opacity: 1; }",
+    ".shell-main [data-slot='chat-room-flank-row'] .orb-chat-track { opacity: 1; }",
+  ]) {
+    expect(await hits(rules), rules).toEqual([]);
+  }
+  const refused: [string, string][] = [
+    [".shell-grid { background: #fff; }", "orb/shell-paint-law"],
+    [".shell-grid { background: oklch(0.2 0.1 200); }", "orb/shell-paint-law"],
+    [".shell-grid { background: color-mix(in oklab, #fff 40%, var(--color-card)); }", "orb/shell-paint-law"],
+    [".shell-grid { background: rgb(from red r g b / 0.5); }", "orb/shell-paint-law"],
+    [".shell-grid { color: red; }", "color-named"],
+    [".shell-grid [data-slot='message-bubble'] { opacity: 1; }", "orb/shell-paint-law"],
+    [".shell-grid [data-slot='empty-state-root'] { opacity: 1; }", "orb/shell-paint-law"],
+    [".shell-grid .orb-gradient-ring { opacity: 1; }", "orb/shell-paint-law"],
+  ];
+  for (const [rules, rule] of refused) {
+    expect(await hits(rules), rules).toContain(rule);
+  }
+  // The rule is scoped to the shell region files: the same selector is legal in the client styles home.
+  expect(await rulesHit(layered(".shell-grid [data-slot='message-bubble'] { opacity: 1; }"))).toEqual([]);
 });
 
 test("the shipped stylesheets pass", async () => {

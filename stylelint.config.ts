@@ -47,6 +47,24 @@ const RUNTIME_CUSTOM_PROPERTIES = {
   "--orb-ws-pitch": "charts/meter/waystone.tsx (the lattice step)",
 };
 
+/** The slots a shell region selector may name: what the shell renders, plus the room and list-header carriers its geometry and motion coordinate. */
+const SHELL_SLOTS = [
+  // Rendered by the app-shell feature.
+  "panel-overlay-close",
+  "context-bracket-band",
+  "context-tab-strip",
+  "context-rail-fade",
+  // The list pane header the shell sheds on a phone and counters through a FLIP.
+  "list-pane-title",
+  "list-pane-action",
+  "list-pane-identity",
+  "list-pane-back",
+  // The room's carriers that the centred counter and the flank motion move with the content track.
+  "chat-room-surface",
+  "chat-room-flank-row",
+];
+const SHELL_CLASSES = ["orb-chat-track"];
+
 const config: Config = {
   extends: ["stylelint-config-standard"],
   ignoreFiles: ["**/dist/**", "**/node_modules/**"],
@@ -122,6 +140,14 @@ const config: Config = {
     "logical-css/require-logical-units": null,
   },
   overrides: [
+    {
+      // The shell paints its own regions from tokens and never skins a component (client-architecture-lockdown.md §4.2).
+      files: ["packages/client/src/features/app-shell/surfaces/shell/*.css"],
+      rules: {
+        "orb/shell-paint-law": [true, { slots: SHELL_SLOTS, classes: SHELL_CLASSES }],
+        "color-named": "never",
+      },
+    },
     {
       // Generated from the vault: its values are the token sources, so the allow-lists and the orb/ value rules do not apply.
       files: ["packages/ui/src/styles/theme.css"],

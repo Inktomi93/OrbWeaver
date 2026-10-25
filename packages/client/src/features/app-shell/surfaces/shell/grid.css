@@ -152,24 +152,6 @@
      * `--color-reading-plate` is the candidate if that proves a defect. */
     text-shadow: var(--shadow-shell-over-art);
   }
-  .shell-grid[data-has-bg-image] [data-slot="message-bubble"],
-  .shell-grid[data-has-bg-image] [data-slot="composer"] {
-    text-shadow: none;
-  }
-  .shell-grid[data-has-bg-image][data-section="chats"] .shell-content [data-slot="empty-state-root"] {
-    inline-size: max-content;
-    max-inline-size: 100%;
-    margin-inline: auto;
-    padding: var(--spacing-section);
-    border-radius: var(--radius-card);
-    background-color: color-mix(in oklab, var(--color-background) 72%, transparent);
-    text-shadow: none;
-  }
-  @supports (backdrop-filter: blur(1px)) {
-    .shell-grid[data-has-bg-image][data-section="chats"] .shell-content [data-slot="empty-state-root"] {
-      backdrop-filter: blur(calc(var(--blur-strength) / 2)) saturate(var(--blur-saturate));
-    }
-  }
 
   /* Every section but chats is a reading surface over the wallpaper, so it takes the panes' backing. */
   .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"]) .shell-main {
