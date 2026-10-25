@@ -110,8 +110,8 @@ function TileBand({ title, trailing, headingId }: { readonly title: string; read
  *  mockup's `.doorway` treatment — the "not built yet" signal at a fraction of a dashed card's weight. */
 export function HomeDoorway({ tile, doorway }: { readonly tile: HomeTileContribution; readonly doorway: DormantDoorway }): ReactElement {
   return (
-    <Row align="start" className="border-s border-dashed border-border ps-row" data-home-tile={tile.id} gap="row">
-      <Icon className="mbs-tight shrink-0 text-muted-foreground" icon={tile.icon} size="sm" />
+    <Row align="start" className="border-dashed ps-row" data-home-tile={tile.id} divider="start" gap="row">
+      <Icon className="mbs-tight shrink-0" icon={tile.icon} size="sm" tone="muted" />
       <Stack className="min-inline-0" gap="tight">
         {/* A REAL HEADING (side-eye rail-home, ARIA rec 2 — 2026-08-22). This was a `<p>`, so `Buddy` and
             `Automation` read to AT as body text with no structural distinction from their own descriptions:

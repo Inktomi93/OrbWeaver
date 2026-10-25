@@ -178,7 +178,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
                 photographed (Badge is whitespace-nowrap by design; the row must be the thing that bends);
               · below @cq-28 the controls cluster drops onto its own line under the identity block, so the
                 toggle/Update/⋯ never compete with the badge for one cramped line at all. */}
-        <Stack className="border-be border-border pbe-block" gap="tight">
+        <Stack className="pbe-block" divider="bottom" gap="tight">
           <Row align="start" className="@max-cq-28:flex-col @max-cq-28:items-stretch" gap="block" justify="between">
             <Stack className="flex-1 min-inline-0" gap="tight">
               <Row align="center" className="flex-wrap" gap="field">

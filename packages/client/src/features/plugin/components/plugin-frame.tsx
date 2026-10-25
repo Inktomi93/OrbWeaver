@@ -157,7 +157,6 @@ export function PluginFrame({
         // every word.
         title={title === pluginName ? pluginName : `${pluginName} — ${title}`}
         onHostMessage={onHostMessage}
-        className="rounded-base border border-border bg-card inline-full"
       />
     </PluginSurfaceShell>
   );

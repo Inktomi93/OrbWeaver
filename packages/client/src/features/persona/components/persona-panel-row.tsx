@@ -18,10 +18,10 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useId, useState } from "react";
-import { ConfirmDialog, HIDE_AT_COARSE, PIN_REVEAL, ROW_ACTION_OVERFLOW, RowActionsMenu } from "#components";
+import { ConfirmDialog, RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
-import { cn, rowActionSubject, rowActionsName } from "#lib";
+import { rowActionSubject, rowActionsName } from "#lib";
 import { useUpdatePersona } from "../hooks/use-persona-mutations.ts";
 import { PersonaCrown } from "./persona-crown.tsx";
 import { PersonaEditorRegion } from "./persona-editor.tsx";
@@ -82,7 +82,7 @@ export function PersonaPanelRow({
           aria-describedby={persona.title === null ? undefined : titleId}
           aria-expanded={expanded}
           aria-label={subject}
-          className="absolute inset-0 rounded-control"
+          className="absolute inset-0"
           data-slot="persona-row-expand"
           intent="ghost"
           onClick={onToggleExpand}
@@ -120,7 +120,7 @@ export function PersonaPanelRow({
           <TooltipPopup side="top">{expanded ? `Hide details for ${subject}` : `Show details for ${subject}`}</TooltipPopup>
         </Tooltip>
         {/* COARSE ONLY: the two faint toggles above stand down at a coarse pointer, and their verbs ride here. */}
-        <Row align="center" className={cn("relative shrink-0", ROW_ACTION_OVERFLOW) ?? ""}>
+        <Row align="center" className="relative shrink-0" hiddenAt="fine">
           <RowActionsMenu label={rowActionsName(subject)}>
             <MenuItem onClick={onToggleFavorite}>
               <Icon icon={Heart} size="sm" />
@@ -158,25 +158,27 @@ function FavoriteToggle({ starred, subject, onToggle }: { readonly starred: bool
   const label = starred ? `Unfavorite ${subject}` : `Favorite ${subject}`;
   return (
     <>
-      <Tooltip describesTrigger={false}>
-        <TooltipTrigger
-          render={
-            <Button
-              aria-label={label}
-              aria-pressed={starred}
-              className={cn("relative shrink-0", starred ? "text-destructive" : PIN_REVEAL, HIDE_AT_COARSE) ?? ""}
-              intent="ghost"
-              onClick={onToggle}
-              size={starred ? "inline" : "icon"}
-            >
-              <Icon icon={Heart} size="sm" />
-            </Button>
-          }
-        />
-        <TooltipPopup side="top">{label}</TooltipPopup>
-      </Tooltip>
+      <Row className="relative shrink-0" hiddenAt="coarse" reveal={starred ? undefined : "faint"}>
+        <Tooltip describesTrigger={false}>
+          <TooltipTrigger
+            render={
+              <Button
+                aria-label={label}
+                aria-pressed={starred}
+                intent="ghost"
+                onClick={onToggle}
+                size={starred ? "inline" : "icon"}
+                tone={starred ? "destructive" : "default"}
+              >
+                <Icon icon={Heart} size="sm" />
+              </Button>
+            }
+          />
+          <TooltipPopup side="top">{label}</TooltipPopup>
+        </Tooltip>
+      </Row>
       {starred ? (
-        <Text as="span" aria-label="Favorited" className={cn("relative shrink-0 text-destructive", ROW_ACTION_OVERFLOW) ?? ""} role="img">
+        <Text as="span" aria-label="Favorited" className="relative shrink-0" hiddenAt="fine" role="img" tone="destructive">
           <Icon icon={Heart} size="sm" />
         </Text>
       ) : null}
