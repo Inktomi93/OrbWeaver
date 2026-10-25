@@ -51,6 +51,7 @@ const FAMILY_PROBES: readonly CompilerFamilyProbe[] = [
   { family: "ease", candidate: "ease-out-expo" },
   { family: "aspect", candidate: "aspect-portrait" },
   { family: "tracking", candidate: "tracking-micro" },
+  { family: "opacity", candidate: "opacity-receded" },
 ];
 
 function productionCandidates(sources: readonly { readonly base: string; readonly pattern: string; readonly negated: boolean }[]): ProductionCandidates {

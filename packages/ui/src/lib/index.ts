@@ -43,13 +43,13 @@ export {
   PortalContainerContext,
   usePortalContainer,
 } from "./portal-container.ts";
-export { RECEDED_INK } from "./receded-ink.ts";
+export { RECEDED, RECEDED_INK } from "./receded-ink.ts";
 export { prefersReducedMotionNow, scrollBehavior } from "./reduced-motion-now.ts";
 export { formatResultCount, formatSuggestionCount } from "./result-count.ts";
 export { BACKDROP_FILL, SCRIM, SCRIM_BASE } from "./scrim.ts";
 export { SCROLL_FADE_X_CLASS, SCROLL_FADE_Y_CLASS } from "./scroll-fade.ts";
 export { SELECTED_FILL, SELECTED_FILL_PRESSED } from "./selected-fill.ts";
-export { SELECTION_CONTROL, TOUCH_TARGET_PSEUDO } from "./selection-control.ts";
+export { SELECTION_CONTROL, TOUCH_TARGET_PSEUDO, TOUCH_TARGET_PSEUDO_STRETCH } from "./selection-control.ts";
 export { SELECTION_RAIL } from "./selection-rail.ts";
 export { SELECTION_RING_CHECKED, SELECTION_RING_SELECTED } from "./selection-ring.ts";
 export { sinHash } from "./sin-hash.ts";

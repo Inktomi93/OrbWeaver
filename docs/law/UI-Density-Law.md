@@ -70,11 +70,13 @@ The founding grammar — a surface's copy is one of four things:
 
 `datum` rides `text-label` rather than a new 11px step (D5): 11px is a 4.8% ratio move off `micro` — too fine to be a real scale step, and mono + tabular already separates it visually.
 
-Beside the voice, a feature passes three more Text axes, by owner ruling:
+Beside the voice, a feature passes these Text axes, by owner ruling:
 
 - `tone` is colour by meaning: `muted`, `accent`, `destructive`, `success`, `warning`, `info`, `accolade`, and the transcript inks `speaker`, `dialogue` and `narration`. `text-info` is a tone, never a voice. The map is `TONE_INK` in `packages/ui/src/lib/tone-ink.ts`, shared with `Icon`.
 - `strike` draws a line-through (a cancelled quest, a disabled section).
 - `hiddenAt` (`coarse` or `fine`) and `srOnlyAt` (`coarse`) swap the text per pointer class (§4.3).
+
+`receded` dims the whole element to the `opacity.receded` token (`opacity-receded`), on Text, Icon, Row, Stack and ListRow. It replaces hand-spelled `opacity-50`, `opacity-60` and a `/60` muted ink with one step, so an archived row and a secondary glyph recede alike.
 
 The `code` voice is Geist Mono at the code step in the foreground ink, for machine text you read or copy: ids, hashes, keys, addresses. `numeric` (tabular figures) is a modifier for a composite that sets its own step, such as `TrackerValue`; a feature readout takes a voice.
 
@@ -141,12 +143,12 @@ Check the rendered value with `getComputedStyle(...)` against the document-resol
 | - | - | - |
 | `Surface` | `tier` (required) | the one tier writer |
 | `Card` | NO `padding` variant; `elevated?: boolean` | padding is tier-resolved; `elevated` is the explicit opt-in to `rounded-card` + shadow. **`Card` has no `padding` prop; that absence IS the enforcement** (D7) — a surviving prop is a surviving escape hatch |
-| `Text` / `Heading` | `voice` (§2.3); `tone`, `strike`, `hiddenAt`, `srOnlyAt`; `size`/`weight`/`transform` are `@orb/ui`-internal | collapses 336 taste combinations to named intents; meaning colour and pointer-class swaps are props, never classes |
-| `Card` | `shape`: `island` (default) · `row` (one operable or listed row as its own box, `--radius-control`) · `well` (a recess inside a box: no border, `bg-muted`, `--radius-control`); `tone` gains `clear` (border only) and `accent` | a bordered, rounded, filled `Row` or `Stack` is a `Card`, not a layout box with paint (owner ruling); `tiers.css` re-declares the shape radius inside a tier |
-| `Icon` | `tone` (the Text map) · `shadow` (`drop-shadow-sm`, for a glyph over art or a bubble) | an icon's ink is a meaning, like text's |
-| `Button` | `intent="link"`: an underlined action in the primary ink, no fill; `hiddenAt`; `touchFloor="inline"` | a link-styled action is a Button intent; navigation is an anchor |
-| `Row` / `Stack` | `hiddenAt` · `srOnlyAt` · `touchFloor` (`block`: the box's own block size; `gap`: `gap-block` between tiled control cells) at a coarse pointer; `Row` `reveal` (`hover`, `faint`) | pointer capability is a primitive prop, never a feature's pointer variant; the strings live in `lib/pointer-visibility.ts`, `lib/touch-floor.ts` and `lib/hover-reveal.ts` |
-| `ListRow` | `revealActions` | the trailing cluster hides at rest and shows on the row's hover or focus-within, opacity only; a coarse pointer keeps it shown |
+| `Text` / `Heading` | `voice` (§2.3); `tone`, `strike`, `receded`, `hiddenAt`, `srOnlyAt`; `size`/`weight`/`transform` are `@orb/ui`-internal | collapses 336 taste combinations to named intents; meaning colour and pointer-class swaps are props, never classes |
+| `Card` | `shape`: `island` (default) · `row` (one operable or listed row as its own box, `--radius-control`) · `well` (a recess inside a box: no border, `bg-muted`, `--radius-control`); `tone` gains `clear` (border only), `accent`, `sidebar` (the rail's fill and edge), `translucent` (`bg-card/80`), `backdrop` (`bg-background/80`) and `input` (the field edge, no fill) | a bordered, rounded, filled `Row` or `Stack` is a `Card`, not a layout box with paint (owner ruling); `tiers.css` re-declares the shape radius inside a tier |
+| `Icon` | `tone` (the Text map) · `shadow` (`drop-shadow-sm`, for a glyph over art or a bubble) · `receded` | an icon's ink is a meaning, like text's |
+| `Button` | `intent="link"`: an underlined action in the primary ink, no fill; `tone` (`primary`, `destructive`, `muted`, from `TONE_INK`) on the fill-less `ghost` and `link` intents only; `hiddenAt`; `touchFloor="inline"` | a link-styled action is a Button intent; navigation is an anchor |
+| `Row` / `Stack` | `hiddenAt` · `srOnlyAt` · `touchFloor` (`block`: the box's own block size; `gap`: `gap-block` between tiled control cells) at a coarse pointer; `divider` (`start`, `end`, `top`, `bottom`: one 1px edge in `--color-border`); `receded`; `Row` `reveal` (`hover`, `faint`) | pointer capability is a primitive prop, never a feature's pointer variant; the strings live in `lib/pointer-visibility.ts`, `lib/touch-floor.ts` and `lib/hover-reveal.ts` |
+| `ListRow` | `revealActions` · `receded` | the trailing cluster hides at rest and shows on the row's hover or focus-within, opacity only; a coarse pointer keeps it shown |
 | `Badge` / `CollapsibleTrigger` | `touchFloor="block"` | a chip or a text-height disclosure takes the touch floor on its own box at a coarse pointer |
 | `Input` | `numeric` (tabular figures); `width` reaches the element | the edit twin of a numeric datum keeps its columns |
 | `Section` | `kicker` (caps micro label + hairline rule) + `kickerLayout: "stacked" \| "inline"` | the CD1 replacement for a box. The INLINE spelling makes the rule the section's own `border-top` and lets the kicker LEAD the control line — naming two groups costs +2px inline against +22px stacked |

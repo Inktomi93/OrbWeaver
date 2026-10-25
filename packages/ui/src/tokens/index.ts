@@ -194,6 +194,7 @@ export const TOKENS = {
   "reading.letter-spacing": { cssVar: "--reading-letter-spacing", value: "0rem" },
   "reading.paragraph-spacing": { cssVar: "--reading-paragraph-spacing", value: "0.75rem" },
   "fade.edge-stop": { cssVar: "--fade-edge-stop", value: "10%" },
+  "opacity.receded": { cssVar: "--opacity-receded", value: "60%" },
   "border-width.hairline": { cssVar: "--border-width-hairline", value: "1.25px" },
   "border-width.control": { cssVar: "--border-width-control", value: "1px" },
   "border-width.accent": { cssVar: "--border-width-accent", value: "2px" },

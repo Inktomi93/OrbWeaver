@@ -1,4 +1,4 @@
-import { DISABLED_STATE, FOCUS_RING_INSET, HOVER_REVEAL, SELECTION_RAIL, tv } from "#lib";
+import { DISABLED_STATE, FOCUS_RING_INSET, HOVER_REVEAL, RECEDED, SELECTION_RAIL, tv } from "#lib";
 
 // `body` is the ONE clickable/selected/disabled surface (a `group` parent so title/subtitle can flip
 // color off `data-selected`); `actions` is a plain sibling slot that never inherits those states.
@@ -152,6 +152,11 @@ export const listRowVariants = tv({
     // a coarse pointer keeps it visible. The root's unnamed `group` is the key.
     revealActions: {
       true: { actions: HOVER_REVEAL.hover },
+      false: {},
+    },
+    // A row that stands behind its live siblings (an archived chat): the whole row at the receded step.
+    receded: {
+      true: { root: RECEDED },
       false: {},
     },
     float: {

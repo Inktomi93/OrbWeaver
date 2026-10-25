@@ -291,7 +291,11 @@ export const registerApiRule: OrbRule = {
 
 const FLOORLESS_WRAP = /\bflex-wrap\b/u;
 
-const FLOORLESS_ROW_FLOOR = /\bmin-h-touch-target\b|\bmin-h-control-[a-z]+\b|pointer-coarse:min-h-[a-z-]+/u;
+// A row that floors its own block size seats its controls' hit areas: a token floor in its className, or the
+// `touchFloor="block"` prop, which spells the coarse floor.
+const FLOORLESS_ROW_FLOOR = /\bmin-block-\(--size-(?:touch-target|control-[a-z]+)\)|\bpointer-coarse:min-block-[^\s"'`]+/u;
+
+const FLOORLESS_ROW_TOUCH_FLOOR = /^touchFloor\s*=\s*(?:\{\s*)?["']block["']/u;
 
 const FLOORLESS_STACK_CONTROL = /rows\s*=\s*(?:\{\s*)?["']control["']/u;
 
@@ -376,6 +380,9 @@ export const floorlessControlRule = (floorlessButtonSizes: ReadonlySet<string>):
       const opening = element.openingElement;
       const ownClass = opening.attributes.find((attribute) => attribute.type === "JSXAttribute" && attribute.name.name === "className");
       if (ownClass !== undefined && FLOORLESS_ROW_FLOOR.test(sourceCode.getText(ownClass))) {
+        return false;
+      }
+      if (opening.attributes.some((attribute) => attribute.type === "JSXAttribute" && FLOORLESS_ROW_TOUCH_FLOOR.test(sourceCode.getText(attribute)))) {
         return false;
       }
       return (counts.get(element) ?? 0) > 0 || (counts.get(bodies.get(sourceCode.getText(opening.name))) ?? 0) > 0;

@@ -1,5 +1,5 @@
 // Layout recipes define spacing intent; features consume the variants. Line-local exceptions license custom tracks.
-import { DISABLED_STATE_NATIVE, FOCUS_RING, HIDDEN_AT, HOVER_REVEAL, SR_ONLY_AT, TOUCH_FLOOR_AT_COARSE, tv } from "#lib";
+import { DISABLED_STATE_NATIVE, FOCUS_RING, HIDDEN_AT, HOVER_REVEAL, RECEDED, SR_ONLY_AT, TOUCH_FLOOR_AT_COARSE, tv } from "#lib";
 
 const GAP = {
   // The small-end step (UI-Density-Law.md §2.2/D2): ATOM gaps inside an island — label↔bar,
@@ -39,6 +39,15 @@ const JUSTIFY = {
 // inside it), or the pitch between tiled control cells. Declared after `gap` in each recipe so the coarse gap wins.
 const TOUCH_FLOOR = { block: TOUCH_FLOOR_AT_COARSE.block, gap: TOUCH_FLOOR_AT_COARSE.gap } as const;
 
+// A hairline on one edge, in the border ink: how a box separates from its neighbour inside a surface without becoming
+// a box (UI-Density-Law.md CD2). `top` and `bottom` are the block edges, `start` and `end` the inline ones.
+const DIVIDER = {
+  start: "border-s border-border",
+  end: "border-e border-border",
+  top: "border-bs border-border",
+  bottom: "border-be border-border",
+} as const;
+
 export const stackVariants = tv({
   base: "flex flex-col",
   variants: {
@@ -60,6 +69,8 @@ export const stackVariants = tv({
     hiddenAt: HIDDEN_AT,
     srOnlyAt: SR_ONLY_AT,
     touchFloor: TOUCH_FLOOR,
+    divider: DIVIDER,
+    receded: { true: RECEDED, false: "" },
   },
 });
 
@@ -73,6 +84,8 @@ export const rowVariants = tv({
     hiddenAt: HIDDEN_AT,
     srOnlyAt: SR_ONLY_AT,
     touchFloor: TOUCH_FLOOR,
+    divider: DIVIDER,
+    receded: { true: RECEDED, false: "" },
     // A row of trailing actions that reveals on the nearest `group` ancestor's hover.
     reveal: HOVER_REVEAL,
   },

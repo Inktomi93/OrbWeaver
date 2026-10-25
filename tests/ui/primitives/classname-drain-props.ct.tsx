@@ -3,10 +3,14 @@
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import type {
+  ButtonToneStory,
   CardShapeStory,
+  CardToneStory,
+  DividerStory,
   InputStory,
   LinkStory,
   PointerVisibilityStory,
+  RecededStory,
   RevealStory,
   TextModifierStory,
   ToneStory,
@@ -151,4 +155,71 @@ test("an Input width step reaches the element and numeric sets tabular figures",
   expect(await style(sized, "inline-size")).toBe(await style(component.locator('[data-probe="avatar-md"]'), "inline-size"));
   expect(await style(sized, "font-variant-numeric")).toBe("tabular-nums");
   expect(await style(component.getByRole("textbox", { name: "full", exact: true }), "font-variant-numeric")).toBe("normal");
+});
+
+const EDGE_WIDTH = {
+  start: "border-inline-start-width",
+  end: "border-inline-end-width",
+  top: "border-block-start-width",
+  bottom: "border-block-end-width",
+} as const;
+const EDGE_COLOR = {
+  start: "border-inline-start-color",
+  end: "border-inline-end-color",
+  top: "border-block-start-color",
+  bottom: "border-block-end-color",
+} as const;
+
+test("each divider draws one hairline edge in the border ink and leaves the other edges bare", async ({ mount }) => {
+  const component = await mount<typeof DividerStory>(`${STORIES}/DividerStory`, {});
+  const ink = await style(component.locator('[data-probe="border"]'), "color");
+  for (const box of ["row", "stack"] as const) {
+    for (const edge of ["start", "end", "top", "bottom"] as const) {
+      const element = component.locator(`[data-case="${box}-${edge}"]`);
+      expect(await style(element, EDGE_WIDTH[edge]), `${box} ${edge}`).toBe("1px");
+      expect(await style(element, EDGE_COLOR[edge]), `${box} ${edge}`).toBe(ink);
+      const others = (["start", "end", "top", "bottom"] as const).filter((other) => other !== edge);
+      expect(await Promise.all(others.map((other) => style(element, EDGE_WIDTH[other]))), `${box} ${edge}`).toEqual(others.map(() => "0px"));
+    }
+  }
+});
+
+test("a Button tone inks the ghost and link intents and leaves a filled intent's ink alone", async ({ mount }) => {
+  const component = await mount<typeof ButtonToneStory>(`${STORIES}/ButtonToneStory`, {});
+  const probe = (name: string): Promise<string> => style(component.locator(`[data-probe="${name}"]`), "color");
+  const button = (name: string): Locator => component.getByRole("button", { name, exact: true });
+  // The pointer starts over the story's first element; park it on a probe so every control reads at rest.
+  await component.locator('[data-probe="muted"]').hover();
+  expect(await style(button("ghost primary"), "color")).toBe(await probe("primary"));
+  expect(await style(button("ghost destructive"), "color")).toBe(await probe("destructive"));
+  expect(await style(button("link muted"), "color")).toBe(await probe("muted"));
+  expect(await style(button("primary muted"), "color")).toBe(await style(button("primary plain"), "color"));
+});
+
+test("receded dims each primitive to the token's opacity", async ({ mount }) => {
+  const component = await mount<typeof RecededStory>(`${STORIES}/RecededStory`, {});
+  const step = await style(component.locator('[data-probe="receded"]'), "opacity");
+  expect(step).not.toBe("1");
+  for (const element of [
+    component.getByText("receded text", { exact: true }),
+    component.getByRole("img", { name: "receded icon", exact: true }),
+    component.locator('[data-case="row"]'),
+    component.locator('[data-case="stack"]'),
+    component.locator('[data-slot="list-row-root"]'),
+  ]) {
+    expect(await style(element, "opacity")).toBe(step);
+  }
+  expect(await style(component.getByText("plain text", { exact: true }), "opacity")).toBe("1");
+});
+
+test("the sidebar, translucent and backdrop tones paint their fills, and the input tone draws the field edge with no fill", async ({ mount }) => {
+  const component = await mount<typeof CardToneStory>(`${STORIES}/CardToneStory`, {});
+  const probe = (name: string): Locator => component.locator(`[data-probe="${name}"]`);
+  const card = (name: string): Locator => component.locator(`[data-case="${name}"]`);
+  for (const tone of ["sidebar", "translucent", "backdrop"] as const) {
+    expect(await style(card(tone), "background-color"), tone).toBe(await style(probe(tone), "background-color"));
+  }
+  expect(await style(card("sidebar"), "border-block-start-color")).toBe(await style(probe("sidebar"), "border-block-start-color"));
+  expect(await style(card("input"), "border-block-start-color")).toBe(await style(probe("input"), "border-block-start-color"));
+  expect(await style(card("input"), "background-color")).toBe(await style(probe("input"), "background-color"));
 });
