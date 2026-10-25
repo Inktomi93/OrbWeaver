@@ -4,8 +4,8 @@
 
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
-import type { CustomPropertyUses } from "../css-names/custom-properties.ts";
-import { PROPERTY_READ } from "../css-names/custom-properties.ts";
+import type { CustomPropertyUses } from "../css-names/index.ts";
+import { PROPERTY_READ } from "../css-names/index.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 
 // A declaration inside CSS text (`{ --x:` or `; --x:`) and a class string's `[--x:v]` arbitrary property.
@@ -18,9 +18,11 @@ const undeclared = (name: string): string =>
 const deadWrite = (name: string): string => `"${name}" is written by a class string but no sheet or source reads it; the write is dead.`;
 
 /** The messages for one string: undeclared reads and CSS-text writes, and class-string writes nothing reads. */
-function textFindings(text: string, { declared, read }: CustomPropertyUses): readonly string[] {
+function textFindings(text: string, { declared, read, readPrefixes }: CustomPropertyUses): readonly string[] {
   const names = [...text.matchAll(PROPERTY_READ), ...text.matchAll(CSS_TEXT_WRITE)].map((match) => match[1] ?? match[2] ?? "");
-  const dead = [...text.matchAll(CLASS_WRITE)].map((match) => match[1] ?? "").filter((name) => !read.has(name));
+  const dead = [...text.matchAll(CLASS_WRITE)]
+    .map((match) => match[1] ?? "")
+    .filter((name) => !(read.has(name) || readPrefixes.some((prefix) => name.startsWith(prefix))));
   return [...names.filter((name) => !declared.has(name)).map(undeclared), ...dead.map(deadWrite)];
 }
 

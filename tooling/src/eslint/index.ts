@@ -1,4 +1,4 @@
-import type { CustomPropertyUses } from "../css-names/custom-properties.ts";
+import type { CustomPropertyUses } from "../css-names/index.ts";
 import { browserNoNodeGlobalsRule, rawEgressRule, rawHttpClientRule, sessionChannelBoundaryRule, soleEnvReaderRule } from "./ambient.ts";
 import { detachedWorkRule } from "./async.ts";
 import { CLIENT_DATA_RESTRICTIONS, effectOnSharedSelectionRule } from "./client-data-policy.ts";

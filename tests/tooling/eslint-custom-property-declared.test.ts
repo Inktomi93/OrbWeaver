@@ -1,6 +1,8 @@
 // `orb/custom-property-declared`: a custom property a client or ui string reads, or a CT writes, is one a sheet, the generated
 // channel, a runtime writer or a vendor declares. Run through the real config, so the declared set is the one Stylelint reads.
-import { globSync, readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { globSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
@@ -8,10 +10,11 @@ import tseslint from "typescript-eslint";
 import { beforeAll } from "vitest";
 import {
   baseUiCustomProperties,
+  customPropertyUses,
   declaredCustomProperties,
   RUNTIME_CUSTOM_PROPERTIES,
   VENDOR_CUSTOM_PROPERTIES,
-} from "../../tooling/src/css-names/custom-properties.ts";
+} from "../../tooling/src/css-names/index.ts";
 
 const ROOT = join(import.meta.dirname, "../..");
 const RULE = "orb/custom-property-declared";
@@ -99,6 +102,26 @@ test("Base UI's names are read from its installed modules", () => {
   const names = baseUiCustomProperties(ROOT);
   expect(names).toContain("--anchor-width");
   expect(declaredCustomProperties(ROOT)).toContain("--available-height");
+});
+
+test("reads count from top-level sources, a dynamic prefix and a computed-style read", () => {
+  const root = mkdtempSync(join(tmpdir(), "orb-custom-properties-"));
+  try {
+    execFileSync("git", ["init", "--quiet"], { cwd: root });
+    mkdirSync(join(root, "packages/client/src/nested"), { recursive: true });
+    writeFileSync(join(root, "packages/client/src/index.ts"), 'export const A = "w-[var(--probe-top,1)]";\n');
+    writeFileSync(
+      join(root, "packages/client/src/nested/reader.ts"),
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: the case is template source the scan reads.
+      "export const A = (k: string): string => `w-[var(--probe-dyn-${k})]`;\nexport const B = (n: Element): string => getComputedStyle(n).getPropertyValue('--probe-style');\n",
+    );
+    const uses = customPropertyUses(root);
+    expect(uses.read).toContain("--probe-top");
+    expect(uses.read).toContain("--probe-style");
+    expect(uses.readPrefixes).toEqual(["--probe-dyn-"]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("every runtime-written name carries the app's prefix", () => {

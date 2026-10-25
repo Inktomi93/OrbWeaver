@@ -60,10 +60,16 @@ const CLASS_WRITE = /\[(--[\w-]+):/gu;
 /** A read: `var(--x`, `var( --x`, and Tailwind's `-(--x)` or type-hinted `-(length:--x)` utility value. */
 export const PROPERTY_READ = /var\(\s*(--[\w-]+)(?=\s*[,)])|(?<=-)\(\s*(?:[a-z-]+:)?(--[\w-]+)\s*\)/gu;
 
+/** A read whose name ends where a template interpolation begins: `var(--prefix-${k})` keeps every `--prefix-*` alive. */
+const PREFIX_READ = /(?:var\(\s*|(?<=-)\(\s*(?:[a-z-]+:)?)(--[\w-]+-)\$\{/gu;
+/** A script's read of one property off a computed style. */
+const STYLE_READ = /getPropertyValue\(\s*["'`](--[\w-]+)["'`]/gu;
+
 /** Every class-string write and read the client and ui sources spell, in one `git grep` for speed; the JS patterns then pick the names. */
 function sourceUses(root: string): string {
-  const pathspecs = ["client", "ui"].flatMap((name) => [`packages/${name}/src/**/*.ts`, `packages/${name}/src/**/*.tsx`]);
-  const grep = String.raw`\[--[A-Za-z0-9_-]+:|var\(\s*--[A-Za-z0-9_-]+\s*[,)]|-\(\s*([a-z-]+:)?--[A-Za-z0-9_-]+\s*\)`;
+  // git's `*` crosses directories, so `src/*.ts` reaches the top-level files too.
+  const pathspecs = ["client", "ui"].flatMap((name) => [`packages/${name}/src/*.ts`, `packages/${name}/src/*.tsx`]);
+  const grep = String.raw`\[--[A-Za-z0-9_-]+:|(var\(\s*|-\(\s*([a-z-]+:)?)--[A-Za-z0-9_-]+(\s*[,)]|-\$\{)|getPropertyValue\(\s*.--[A-Za-z0-9_-]+.`;
   return execFileSync("git", ["grep", "--untracked", "-h", "-o", "-I", "-E", grep, "--", ...pathspecs], {
     cwd: root,
     encoding: "utf8",
@@ -77,6 +83,8 @@ export interface CustomPropertyUses {
   readonly declared: ReadonlySet<string>;
   /** Every name a sheet or a source string reads. */
   readonly read: ReadonlySet<string>;
+  /** Prefixes of reads whose name is finished at runtime; a write under one is read. */
+  readonly readPrefixes: readonly string[];
 }
 
 export function customPropertyUses(root: string): CustomPropertyUses {
@@ -99,7 +107,11 @@ export function customPropertyUses(root: string): CustomPropertyUses {
     declared.add(match[1] ?? "");
   }
   collectReads(uses);
-  return { declared, read };
+  for (const match of uses.matchAll(STYLE_READ)) {
+    read.add(match[1] ?? "");
+  }
+  const readPrefixes = [...uses.matchAll(PREFIX_READ)].map((match) => match[1] ?? "");
+  return { declared, read, readPrefixes };
 }
 
 /** Every name a read may rely on; see {@link CustomPropertyUses}. */

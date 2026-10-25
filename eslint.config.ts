@@ -27,7 +27,7 @@ import tseslint from "typescript-eslint";
 import biomeConfig from "./biome.json" with { type: "json" };
 import { appearanceChannelVocabulary } from "./packages/client/appearance-channel.build.ts";
 import { OWNER_CSS_SHELL_CLASSES } from "./packages/client/owner-css-surface.ts";
-import { customPropertyUses } from "./tooling/src/css-names/custom-properties.ts";
+import { customPropertyUses } from "./tooling/src/css-names/index.ts";
 
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
 const UI_STYLESHEET = fileURLToPath(new URL("./packages/ui/src/styles/globals.css", import.meta.url));
