@@ -143,7 +143,7 @@ Scoped lane green does not prove the combined tree, including a fast-forward wit
 
 ## The barrier
 
-CI runs the native application checks before release. Pre-push checks GitHub synchronization, Biome, dependency-cruiser and ESLint sequentially.
+CI runs the native application checks before release. Pre-push checks GitHub synchronization, Biome, dependency-cruiser, ESLint, knip and typecheck sequentially.
 
 1. Check that main is clean and that no whole-tree check is reading the checkout.
 2. Run `pnpm lint`, `pnpm typecheck`, `pnpm test` and `pnpm test:ct` as applicable.
