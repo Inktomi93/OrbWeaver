@@ -95,6 +95,13 @@ test("every rename row names a hook that left the surface and points at one that
   expect(renameTableViolations(OWNER_CSS_RENAMES, OWNER_CSS_SURFACE)).toEqual([]);
 });
 
+test("a whole-name row whose replacement is not on the surface is a violation", () => {
+  const [current] = OWNER_CSS_SURFACE.filter((hook) => hook.kind === "token");
+  const gone = { kind: "token" as const, name: "--planted-gone-hook", to: null };
+  expect(renameTableViolations([{ ...gone, see: current?.name ?? "" }], OWNER_CSS_SURFACE)).toEqual([]);
+  expect(renameTableViolations([{ ...gone, see: "--planted-missing-replacement" }], OWNER_CSS_SURFACE)).toHaveLength(1);
+});
+
 test("a value row is admitted by the regen for a dropped value and refused for a live one, a misnamed one and one with a successor", () => {
   const [attribute] = live.appearanceAttributes;
   const name = attribute?.name ?? "";

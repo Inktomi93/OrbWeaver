@@ -30,7 +30,11 @@ test("the rewrite skips strings, honours a string holding /* and never stops ear
 
 test("the recorded retired appearance property is rewritten when unitless and left when its old value carried a unit", () => {
   const css = "a { font-size: calc(1rem * var(--font-scale)); filter: blur(var(--blur-strength)); }";
-  expect(rewriteRenamedHooks(css, OWNER_CSS_RENAMES)).toBe("a { font-size: calc(1rem * var(--appearance-font-scale)); filter: blur(var(--blur-strength)); }");
+  const successor = OWNER_CSS_RENAMES.find((row) => row.name === "--font-scale")?.to;
+  if (successor === undefined || successor === null) {
+    throw new Error("The rename table records no successor for --font-scale");
+  }
+  expect(rewriteRenamedHooks(css, OWNER_CSS_RENAMES)).toBe(`a { font-size: calc(1rem * var(${successor})); filter: blur(var(--blur-strength)); }`);
 });
 
 test("the rewrite carries on past an unquoted url() holding /*", () => {

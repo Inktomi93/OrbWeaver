@@ -73,6 +73,8 @@ const TRACK_WIDTHS = [1280, 1440, 1920] as const;
 const DIAL_PCT = 50;
 const BLUR_STRENGTH = 20;
 const READING_LINE_HEIGHT = 2;
+const READING_LETTER_SPACING = 0.05;
+const READING_BODY_SCALE = 1.6;
 const BLACK_ART_PASSWORD = "synthetic-corpus-ct-black-art-password";
 // Large enough that a cover fit paints it as a field, not a tile.
 const BLACK_ART_SIDE = 64;
@@ -701,7 +703,7 @@ test.describe("the three-way OS preferences", () => {
       const grid = page.locator(".shell-grid");
       await expect(grid).toBeVisible();
       await expect.poll(async () => (await rootValue(page, "--blur-fill-chrome")) === CONTRAST_FILL).toBe(applied);
-      await expect.poll(async () => (await computed(grid, "display", "::after")) === "none").toBe(applied);
+      await expect.poll(() => computed(grid, "display", "::after")).toBe(applied ? "none" : "block");
     });
   }
 
@@ -744,6 +746,18 @@ test.describe("in an open room", () => {
     for (const role of ROOM_ROLES) {
       const [lineHeight, fontSize] = await Promise.all([computed(bubble(page, role), "line-height"), computed(bubble(page, role), "font-size")]);
       expect(Number.parseFloat(lineHeight)).toBeCloseTo(READING_LINE_HEIGHT * Number.parseFloat(fontSize), 3);
+    }
+  });
+
+  test("a written letter-spacing resolves against each bubble's own font size, not the root's", async ({ corpus, mount, page }) => {
+    await routeAppearance(page, corpus, { readingLetterSpacing: READING_LETTER_SPACING, readingBodyScale: READING_BODY_SCALE });
+    await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: await groupRoomId() });
+    await roomReady(page);
+    const rootSize = Number.parseFloat(await computed(page.locator("html"), "font-size"));
+    for (const role of ROOM_ROLES) {
+      const [spacing, fontSize] = await Promise.all([computed(bubble(page, role), "letter-spacing"), computed(bubble(page, role), "font-size")]);
+      expect(Number.parseFloat(fontSize)).not.toBeCloseTo(rootSize, 1);
+      expect(Number.parseFloat(spacing)).toBeCloseTo(READING_LETTER_SPACING * Number.parseFloat(fontSize), 2);
     }
   });
 
