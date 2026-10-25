@@ -46,9 +46,9 @@ type TextButtonProps = ButtonBaseProps & { size?: Exclude<ButtonSize, IconOnlyBu
 export type ButtonProps = NamedButtonProps | TextButtonProps;
 
 export function Button(props: ButtonProps): ReactElement {
-  const { className, intent, size, shape, selection, loading = false, disabled = false, focusableWhenDisabled, ...rest } = props;
+  const { className, intent, size, shape, selection, hiddenAt, touchFloor, tone, loading = false, disabled = false, focusableWhenDisabled, ...rest } = props;
   // The className AND the `data-intent`/`data-size` axis stamp, from ONE selection object (#1080).
-  const stamp = variantProps(buttonVariants, { intent, size, shape, selection }, className);
+  const stamp = variantProps(buttonVariants, { intent, size, shape, selection, hiddenAt, touchFloor, tone }, className);
   return (
     <BaseButton
       data-slot="button"

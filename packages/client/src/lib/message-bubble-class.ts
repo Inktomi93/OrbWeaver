@@ -14,5 +14,5 @@ const BUBBLE_TOKENS: Record<MessageRole, string> = {
  *  floor is a min-width and the transcript measure belongs to the column, not the bubble. */
 export function messageBubbleClass(role: MessageRole): string {
   // `cn` is typed `string | undefined` (never undefined at runtime) — coalesce so callers get a `string`.
-  return cn("w-fit min-w-0 max-w-(--reading-bubble-cap) rounded-card px-block py-row", BUBBLE_TOKENS[role]) ?? "";
+  return cn("rounded-card px-block py-row inline-fit max-inline-(--reading-bubble-cap) min-inline-0", BUBBLE_TOKENS[role]) ?? "";
 }

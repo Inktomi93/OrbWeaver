@@ -42,7 +42,7 @@ const QUEST_TYPE_RE = /quest/i;
  *  one fewer column and a taller popover at coarse. */
 function ItemIconPicker({ itemName, onPick }: { readonly itemName: string; readonly onPick: (icon: string) => void }): ReactElement {
   return (
-    <Row gap="field" className={cn("max-w-(--width-control-col) flex-wrap", PICKER_GAP_AT_COARSE) ?? ""}>
+    <Row gap="field" className={cn("flex-wrap max-inline-(--width-control-col)", PICKER_GAP_AT_COARSE) ?? ""}>
       {Object.entries(ITEM_ICON_CHOICES).map(([name, glyph]) => (
         <Tip key={name} text={`${itemName}: use the ${name} icon`}>
           <Button

@@ -51,7 +51,7 @@ export function sameFold(previous: FoldState | null, next: FoldState): boolean {
  *  widths this module folds are the strip's own rhythm rather than the faces' names. Uncaptioned cells were
  *  already uniform (portrait inside the control floor) and stay content-sized. */
 export function cellWidthClass(caption: boolean): string | undefined {
-  return caption ? "w-(--size-avatar-hero)" : undefined;
+  return caption ? "inline-(--size-avatar-hero)" : undefined;
 }
 
 /** THE OVERFLOW TILE'S ACCESSIBLE NAME — LABEL IN NAME (WCAG 2.5.3, #208). A CAPTIONED tile prints "More"

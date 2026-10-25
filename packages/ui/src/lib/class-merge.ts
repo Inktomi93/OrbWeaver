@@ -40,6 +40,7 @@ export const CSS_MERGE_FAMILY_NAMES = [
   "size",
   "height",
   "ease",
+  "opacity",
 ] as const;
 
 // The DTCG type-scale utilities are custom `--text-*`/`--leading-*`/`--tracking-*` namespaces, so
@@ -106,6 +107,8 @@ const HEIGHT_SCALE = scaleOf("height");
 const ASPECT_SCALE = scaleOf("aspect");
 const BLUR_SCALE = scaleOf("blur");
 const EASE_SCALE = scaleOf("ease");
+// `--opacity-*` (`opacity-receded`) sits beside the stock numeric steps; unregistered, a stock step beside it survives.
+const OPACITY_SCALE = scaleOf("opacity");
 
 const CLASS_GROUPS = {
   ...CUSTOM_CLASS_GROUPS,
@@ -114,6 +117,7 @@ const CLASS_GROUPS = {
   h: [{ h: HEIGHT_SCALE }],
   "min-h": [{ "min-h": HEIGHT_SCALE }],
   "max-h": [{ "max-h": HEIGHT_SCALE }],
+  opacity: [{ opacity: OPACITY_SCALE }],
 };
 const THEME = {
   spacing: SPACING_SCALE,
@@ -272,12 +276,18 @@ const LOGICAL_TWINS: readonly (readonly [physical: DefaultClassGroupIds, logical
 ];
 
 // Axis utilities that tailwind-merge already resolves over the physical sides, extended to the logical twins.
+// Tailwind emits every logical corner and side before the physical sides, so a logical class written after a physical
+// side it overlaps (`rounded-t-card` then `rounded-ss-none`) can win its corners only by evicting that side.
 const LOGICAL_AXIS_CONFLICTS: Partial<Record<DefaultClassGroupIds, readonly DefaultClassGroupIds[]>> = {
   size: ["inline-size", "block-size"],
   "rounded-t": ["rounded-ss", "rounded-se"],
   "rounded-b": ["rounded-es", "rounded-ee"],
-  "rounded-s": ["rounded-tl", "rounded-bl"],
-  "rounded-e": ["rounded-tr", "rounded-br"],
+  "rounded-s": ["rounded-tl", "rounded-bl", "rounded-t", "rounded-b"],
+  "rounded-e": ["rounded-tr", "rounded-br", "rounded-t", "rounded-b"],
+  "rounded-ss": ["rounded-t", "rounded-l"],
+  "rounded-se": ["rounded-t", "rounded-r"],
+  "rounded-es": ["rounded-b", "rounded-l"],
+  "rounded-ee": ["rounded-b", "rounded-r"],
 };
 
 function logicalConflicts(): Partial<Record<DefaultClassGroupIds, readonly DefaultClassGroupIds[]>> {

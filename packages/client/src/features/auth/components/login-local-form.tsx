@@ -45,7 +45,7 @@ export function LoginLocalForm({ defaultHandle, onLoggedIn }: LoginLocalFormProp
   };
 
   return (
-    <form onSubmit={onSubmit} data-testid={testId("loginLocalForm")}>
+    <form aria-label="Sign in" onSubmit={onSubmit} data-testid={testId("loginLocalForm")}>
       <Stack gap="block">
         <Field label="Handle">
           <Input autoComplete="username" value={handle} onValueChange={(value): void => setHandle(value)} data-testid={testId("loginHandle")} />

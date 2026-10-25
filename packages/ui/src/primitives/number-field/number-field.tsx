@@ -4,6 +4,7 @@ import type { ReactElement, ReactNode } from "react";
 import { useId } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { cn, variantAttrs } from "#lib";
+import { useFieldIdentity } from "#primitives/field";
 import { Icon, Lock, Minus, MoveHorizontal, Plus } from "#primitives/icons";
 import { numberFieldVariants } from "./variants.ts";
 
@@ -96,13 +97,16 @@ export interface NumberFieldProps extends NumberFieldRootProps, VariantProps<typ
 export function NumberField(props: NumberFieldProps): ReactElement {
   const { className, scrubLabel, scrubDirection = "horizontal", placeholder, "aria-describedby": describedBy, "aria-label": ariaLabel, size, ...rest } = props;
   const slots = numberFieldVariants({ size });
+  const identity = useFieldIdentity(rest.id, rest.name);
+  // Base UI mirrors the name onto a hidden number input only; the visible input a user fills carries it too.
+  const nameProp = identity.name === undefined ? {} : { name: identity.name };
   const hasSteppers = size !== "inline";
   const hasScrub = scrubLabel !== undefined && scrubLabel !== null;
   const boundsId = useId();
   const bounds = boundsDescription(rest.min, rest.max, rest.locale, rest.format);
   const inputDescribedBy = [describedBy, bounds === null ? undefined : boundsId].filter((id) => id !== undefined && id !== "").join(" ");
   return (
-    <BaseNumberField.Root className={cn(slots.root(), className)} data-slot="number-field-root" {...rest}>
+    <BaseNumberField.Root className={cn(slots.root(), className)} data-slot="number-field-root" {...rest} {...identity}>
       {hasScrub ? (
         <BaseNumberField.ScrubArea className={slots.scrubArea()} data-slot="number-field-scrub-area" direction={scrubDirection}>
           {scrubLabel}
@@ -134,6 +138,7 @@ export function NumberField(props: NumberFieldProps): ReactElement {
           aria-label={ariaLabel}
           className={slots.input()}
           data-slot="number-field-input"
+          {...nameProp}
           placeholder={placeholder}
           {...variantAttrs(numberFieldVariants, { size })}
         />

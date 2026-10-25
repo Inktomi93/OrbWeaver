@@ -1,4 +1,4 @@
-import { DISABLED_STATE, FOCUS_RING_HAS, tv } from "#lib";
+import { DISABLED_STATE, FOCUS_RING_HAS, TOUCH_TARGET_PSEUDO, tv } from "#lib";
 
 // The slider skin. The control row is h-(--size-control-sm) so the drag surface meets the ≥44px touch
 // floor (§4b axis 3); the visible track stays h-field. Base UI positions Indicator/Thumb inline.
@@ -34,6 +34,8 @@ export const sliderVariants = tv({
       // the ring off the nested input's own focus-visible via :has() so EVERY slider rings on keyboard
       // focus (WCAG 2.4.7), Field-wrapped or not (focus-ring.ts _HAS is exactly this shape).
       "rounded-full border border-border block-(--size-slider-thumb) inline-(--size-slider-thumb)",
+      // The 24px knob is below the coarse floor, so its hit area is lifted to the touch-target square without changing the box.
+      TOUCH_TARGET_PSEUDO,
       // THE KNOB'S CENTERING IS LAYOUT, NOT A RESTING TRANSFORM (#1187, design-audit `off-grid-transform`
       // P3 on settings:chat-behavior --mobile). Base UI positions each thumb with an INLINE
       // `inset-inline-start: <pct>%; top: 50%; translate: -50% -50%` (slider/thumb/SliderThumb.js) — a

@@ -12,7 +12,7 @@ test("Button hit-area metadata is total and matches public Button and Stack outp
     const markup = renderToStaticMarkup(createElement(Button, { size, "aria-label": "size contract" }, "control"));
     const tokens = new Set((/class="([^"]*)"/u.exec(markup)?.[1] ?? "").split(/\s+/u));
     expect(markup, size).toContain("<button");
-    const overflows = tokens.has("before:h-(--size-touch-target)") || tokens.has("before:block-(--size-touch-target)");
+    const overflows = tokens.has("before:block-(--size-touch-target)");
     expect(metadata[size], size).toBe(overflows);
     expect(overflows && !tokens.has("before:absolute"), size).toBe(false);
   }

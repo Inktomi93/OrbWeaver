@@ -3,6 +3,7 @@ import { Autocomplete as BaseAutocomplete } from "@base-ui/react/autocomplete";
 import type { ReactElement, ReactNode } from "react";
 import type { PortalContainer } from "#lib";
 import { ANCHOR_GAP_INPUT, cn, formatSuggestionCount, usePortalContainer } from "#lib";
+import { useFieldIdentity } from "#primitives/field";
 import { Icon, X } from "#primitives/icons";
 import { autocompleteVariants } from "./variants.ts";
 
@@ -35,7 +36,7 @@ export interface AutocompleteGroup {
 // accessibility tree entirely. Two escapes, both live: a caller that knows its match count can decline to
 // open at all, and a caller with no room for an overlay at all uses `inline` below — for which Base UI
 // REQUIRES `open` (the list is only "considered visible" when the root says so).
-type AutocompletePassthrough = Pick<BaseRootProps<string>, "filter" | "autoHighlight" | "limit" | "open" | "onOpenChange">;
+type AutocompletePassthrough = Pick<BaseRootProps<string>, "filter" | "autoHighlight" | "limit" | "open" | "onOpenChange" | "name">;
 
 export interface AutocompleteProps extends AutocompletePassthrough {
   /**
@@ -168,6 +169,7 @@ function AutocompleteField({
   className,
   clearLabel,
   id,
+  name,
   placeholder,
   inputRef,
 }: {
@@ -177,6 +179,7 @@ function AutocompleteField({
   readonly className: string | undefined;
   readonly clearLabel: string;
   readonly id: BaseRootProps<string>["id"];
+  readonly name: string | undefined;
   readonly placeholder: string | undefined;
   readonly inputRef: BaseRootProps<string>["inputRef"];
 }): ReactElement {
@@ -189,6 +192,7 @@ function AutocompleteField({
         className={cn(slots.input(), className)}
         data-slot="autocomplete-input"
         id={id}
+        {...(name === undefined ? {} : { name })}
         placeholder={placeholder}
         ref={inputRef}
         {...(inline ? { "aria-expanded": hasSuggestions } : {})}
@@ -231,8 +235,10 @@ export function Autocomplete({
   container,
   inline = false,
   inputRef,
+  name,
   ...rest
 }: AutocompleteProps): ReactElement {
+  const identity = useFieldIdentity(id, name);
   const portalContainer = usePortalContainer();
   // THE INLINE ARM FILLS THE INPUT ITSELF. Base UI writes a picked item back into the field only when its
   // `popupRef` is set (`AriaCombobox` shouldFillInput) — i.e. only when a `Popup` part is mounted, which
@@ -270,8 +276,9 @@ export function Autocomplete({
         ariaLabel={ariaLabel}
         className={className}
         clearLabel={clearLabel}
-        id={id}
+        id={identity.id}
         inline={inline}
+        name={identity.name}
         inputRef={inputRef}
         placeholder={placeholder}
       />
@@ -316,6 +323,7 @@ export function Autocomplete({
       mode={mode}
       onValueChange={onValueChangeProp}
       value={value}
+      {...(identity.name === undefined ? {} : { name: identity.name })}
       {...rest}
     >
       {inner}
@@ -329,6 +337,7 @@ export function Autocomplete({
       mode={mode}
       onValueChange={onValueChangeProp}
       value={value}
+      {...(identity.name === undefined ? {} : { name: identity.name })}
       {...rest}
     >
       {inner}

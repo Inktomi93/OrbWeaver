@@ -4,7 +4,7 @@ import { Field as BaseField } from "@base-ui/react/field";
 import { formatBytes } from "@orb/kit/strings";
 import type { ChangeEvent, ComponentPropsWithRef, DragEvent, MouseEvent, ReactElement } from "react";
 import { useId, useState } from "react";
-import { useFieldLabelled } from "#primitives/field";
+import { useFieldIdentity, useFieldLabelled } from "#primitives/field";
 import { AlertTriangle, Check, Icon, Upload } from "#primitives/icons";
 import { WebSpinner } from "#primitives/spinner";
 import { matchesAccept } from "./accept.ts";
@@ -203,8 +203,11 @@ export function FileDropzone({
   // `ui-accname-survives-spread` gate's second sanctioned shape.
   "aria-label": ariaLabel,
   "aria-labelledby": ariaLabelledBy,
+  id,
+  name,
   ...rest
 }: FileDropzoneProps): ReactElement {
+  const identity = useFieldIdentity(id, name);
   const [dragOver, setDragOver] = useState(false);
   const [rejected, setRejected] = useState<FileDropzoneRejection[]>([]);
   const slots = fileDropzoneVariants();
@@ -312,6 +315,7 @@ export function FileDropzone({
             onChange={handleChange}
             onClick={handleClick}
             type="file"
+            {...identity}
             {...rest}
           />
         }

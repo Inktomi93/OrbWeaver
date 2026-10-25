@@ -204,6 +204,7 @@
   --immersive-document-last-row-min-height: 4.375rem;
   --immersive-ripple-portrait-width-phone: 6.25rem;
   --fade-edge-stop: 10%;
+  --opacity-receded: 60%;
   --border-width-hairline: 1.25px;
   --border-width-control: 1px;
   --border-width-accent: 2px;

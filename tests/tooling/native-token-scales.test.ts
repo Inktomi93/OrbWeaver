@@ -12,6 +12,11 @@ import tseslint from "typescript-eslint";
 
 const RULE = "better-tailwindcss/no-unknown-classes";
 const RESTRICTED_RULE = "better-tailwindcss/no-restricted-classes";
+const LOGICAL_RULE = "better-tailwindcss/enforce-logical-properties";
+/** The physical class each logical-properties message names, in report order. */
+function physicalIn(messages: readonly string[]): readonly string[] {
+  return messages.map((message) => /Replace "([^"]+)"/u.exec(message)?.[1] ?? message);
+}
 // Classes the compiler still accepts after the resets: stock line-heights, bare namespace forms and arbitrary design numbers.
 const RESTRICTED = [
   "leading-tight",
@@ -109,6 +114,20 @@ const PLANTED_CONSTANTS = [
   'export const RAIL = { root: "bg-[#ff0000]" };',
 ].join("\n");
 const PLANTED_CONSTANT_HITS = 7;
+/** Class strings in lowercase bindings, an object map and function returns, which the plugin's default selectors skip. */
+const PLANTED_BINDINGS = [
+  'const weldRounding = flag ? "rounded-l-none bg-red-500" : "w-[300px]";',
+  'export const toneClasses = { warn: "bg-red-500 md:flex" };',
+  'export const railClass = "border-l-2 max-w-prose";',
+  'export function cellWidthClass(c: boolean): string { return c ? "bg-[#ff0000]" : "p-[13px]"; }',
+  'export const rowClass = (c: boolean): string => (c ? "pl-row" : "bg-red-500");',
+  'export const SHOUT_CASE = "pointer-coarse:flex bg-red-500";',
+].join("\n");
+const PLANTED_BINDING_RESTRICTED = 9;
+const PLANTED_BINDING_PHYSICAL = ["rounded-l-none", "w-[300px]", "border-l-2", "pl-row"];
+/** A `cn()` on the left of `??` or the right of `&&` is a class value, not a test. */
+const PLANTED_CALL_IN_LOGICAL = 'export const shown = cn("h-auto", flag ? "mt-row" : "") ?? "";\nexport const gated = flag && cn("pl-row");';
+const PLANTED_CALL_IN_LOGICAL_PHYSICAL = ["h-auto", "mt-row", "pl-row"];
 /** A viewport variant, a pointer variant, a raw width step and an arbitrary width. */
 const SCOPED_CONTROLS = ["md:flex", "pointer-coarse:flex", "w-64", "w-[20rem]"];
 // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
@@ -198,6 +217,9 @@ test("effective UI/client native rules reject stock classes in real class carrie
     expect(RETIRED_GATE_CONTROLS.map((candidate) => lintWith(RESTRICTED_RULE, `cn("${candidate}");`).length)).toEqual(RETIRED_GATE_CONTROLS.map(() => 1));
     // The retired gates read every string literal; the patterns reach exported constants and their object values too.
     expect(lintWith(RESTRICTED_RULE, PLANTED_CONSTANTS), path).toHaveLength(PLANTED_CONSTANT_HITS + pointerRefusals);
+    expect(lintWith(RESTRICTED_RULE, PLANTED_BINDINGS), path).toHaveLength(PLANTED_BINDING_RESTRICTED + pointerRefusals);
+    expect(physicalIn(lintWith(LOGICAL_RULE, PLANTED_BINDINGS)), path).toEqual(PLANTED_BINDING_PHYSICAL);
+    expect(physicalIn(lintWith(LOGICAL_RULE, PLANTED_CALL_IN_LOGICAL)), path).toEqual(PLANTED_CALL_IN_LOGICAL_PHYSICAL);
     // The scoped patterns: viewport variants and raw widths everywhere outside the shell, pointer variants in features only.
     expect(
       SCOPED_CONTROLS.map((candidate) => lintWith(RESTRICTED_RULE, `cn("${candidate}");`).length),

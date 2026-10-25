@@ -41,8 +41,8 @@ function activateOnKey(event: KeyboardEvent<HTMLDivElement>): void {
 // island delegates its inset to its own content. `data-elevated`, `data-nested` and `data-padding` are the
 // attributes the tiers.css rules key on; the variant's utility alone would lose to the tier rule inside a Surface.
 export function Card(props: CardProps): ReactElement {
-  const { className, elevated, interactive, nested, padding, tone, outline, glow } = props;
-  const skin = cn(cardVariants({ elevated, interactive, nested, padding, tone, outline, glow }), className);
+  const { className, shape, elevated, interactive, nested, padding, tone, outline, glow } = props;
+  const skin = cn(cardVariants({ shape, elevated, interactive, nested, padding, tone, outline, glow }), className);
   // The attributes the unlayered elevated-/nested-radius rules key on: inside a Surface the tier rule
   // outranks any `rounded-*` utility the variant emits.
   //
@@ -55,11 +55,13 @@ export function Card(props: CardProps): ReactElement {
     "data-elevated": elevated === true ? "" : undefined,
     "data-nested": nested === true ? "" : undefined,
     "data-padding": padding === "none" ? "none" : undefined,
+    "data-shape": shape === undefined || shape === "island" ? undefined : shape,
   } as const;
   if (props.as === "button") {
     const {
       as: _as,
       className: _className,
+      shape: _shape,
       elevated: _elevated,
       interactive: _interactive,
       nested: _nested,
@@ -82,9 +84,11 @@ export function Card(props: CardProps): ReactElement {
   const {
     as: _as,
     className: _className,
+    shape: _shape,
     elevated: _elevated,
     interactive: _interactive,
     nested: _nested,
+    padding: _padding,
     tone: _tone,
     outline: _outline,
     glow: _glow,

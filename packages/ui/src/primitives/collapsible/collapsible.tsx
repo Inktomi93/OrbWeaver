@@ -31,16 +31,18 @@ export interface CollapsibleTriggerProps extends Omit<BaseTriggerProps, "classNa
    *  reasoned home on the `orb/sub-floor-disclosure` row of eslint.config.js (variants.ts carries the
    *  measurements). */
   size?: "text" | "control";
+  /** `block` floors a `text` trigger's own height at the touch target on a coarse pointer; fine stays text-height. */
+  touchFloor?: "block";
 }
 
 /** Bakes the trailing `ChevronDown` that rotates on `data-panel-open` (the accordion precedent) unless the
  *  consumer opts out with `chevron={false}` (it renders its own). */
-export function CollapsibleTrigger({ className, chevron = true, size = "control", children, ...rest }: CollapsibleTriggerProps): ReactElement {
+export function CollapsibleTrigger({ className, chevron = true, size = "control", touchFloor, children, ...rest }: CollapsibleTriggerProps): ReactElement {
   return (
     // STAMP SITE (#1097): the TRIGGER, not the root. `size` IS the trigger's tap box (`text` vs the
     // `control` floor), and the tap-target census reads the axis off the interactive element itself.
     <BaseCollapsible.Trigger
-      className={collapsibleVariants({ instant: false, size }).trigger({ className })}
+      className={collapsibleVariants({ instant: false, size, touchFloor }).trigger({ className })}
       data-slot="collapsible-trigger"
       {...variantAttrs(collapsibleVariants, { size })}
       {...rest}

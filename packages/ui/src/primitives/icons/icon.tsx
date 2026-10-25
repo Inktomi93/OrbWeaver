@@ -18,7 +18,10 @@
 import type { LucideIcon } from "lucide-react";
 import type { ReactElement } from "react";
 import { useId } from "react";
+import type { VariantProps } from "tailwind-variants";
+import { variantProps } from "#lib";
 import type { FillableIcon } from "./fillable.ts";
+import { iconVariants } from "./variants.ts";
 
 /** 12px — pairs with `--text-label`; sub-`sm` indicator marks (checkbox/select/number-field glyphs). */
 export const ICON_XS = 12;
@@ -46,7 +49,7 @@ const ID_UNSAFE = /[^a-zA-Z0-9_-]/g;
 const NO_FILL = 0;
 const FULL_FILL = 1;
 
-interface IconBaseProps {
+interface IconBaseProps extends VariantProps<typeof iconVariants> {
   size?: keyof typeof ICON_SIZES;
   /** Named stroke weight; `nonScalingStroke` makes it OPTICAL (constant px), not size-relative. */
   weight?: keyof typeof ICON_WEIGHTS;
@@ -82,7 +85,18 @@ function clampFraction(value: number): number {
 
 /** Sizing wrapper for the curated lucide set — decorative by default; constant house stroke weight;
  *  optional solid / fractional fill on the `FillableIcon` subset. */
-export function Icon({ icon: Glyph, size = "md", weight = "regular", fill = "none", partialFill, label, className }: IconProps): ReactElement {
+export function Icon({
+  icon: Glyph,
+  size = "md",
+  weight = "regular",
+  fill = "none",
+  partialFill,
+  label,
+  tone,
+  shadow,
+  receded,
+  className,
+}: IconProps): ReactElement {
   const instanceId = useId().replace(ID_UNSAFE, "");
   const fraction = clampFraction(partialFill ?? (fill === "solid" ? FULL_FILL : NO_FILL));
   const gradientId = `orb-icon-fill-${instanceId}`;
@@ -94,7 +108,7 @@ export function Icon({ icon: Glyph, size = "md", weight = "regular", fill = "non
       strokeWidth={ICON_WEIGHTS[weight]}
       aria-hidden={label === undefined}
       aria-label={label}
-      className={className}
+      {...variantProps(iconVariants, { tone, shadow, receded }, className)}
       {...(fraction === NO_FILL ? {} : { fill: isPartial ? `url(#${gradientId})` : "currentColor" })}
     >
       {isPartial ? (

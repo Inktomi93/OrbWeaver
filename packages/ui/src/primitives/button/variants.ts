@@ -7,8 +7,12 @@ import {
   DISABLED_STATE_NATIVE,
   FOCUS_RING,
   FOCUS_RING_ON_STATE_RING,
+  HIDDEN_AT,
   SELECTED_FILL,
+  TONE_INK,
+  TOUCH_FLOOR_AT_COARSE,
   TOUCH_TARGET_PSEUDO,
+  TOUCH_TARGET_PSEUDO_STRETCH,
   tv,
 } from "#lib";
 import type { BUTTON_SIZE_OVERFLOW } from "./size-hit-area.ts";
@@ -40,12 +44,7 @@ function glyphBox(box: string): string[] {
 }
 
 function inlineBox(typeStep: string): string[] {
-  return [
-    "relative h-auto min-h-0 justify-start font-normal",
-    typeStep,
-    "before:absolute before:top-1/2 before:left-1/2 before:h-(--size-touch-target) before:w-full before:min-w-(--size-touch-target)",
-    "before:-translate-x-1/2 before:-translate-y-1/2 before:content-['']",
-  ];
+  return ["relative block-auto min-block-0 justify-start font-normal", typeStep, TOUCH_TARGET_PSEUDO_STRETCH];
 }
 
 export const buttonVariants = tv({
@@ -83,6 +82,10 @@ export const buttonVariants = tv({
       // characters-mockups rationale §1). A radius differentiates nothing unless
       // something paints it, so the shape axis only starts working once the pill is drawn.
       outline: `border border-border bg-transparent text-current ${ACCENT_HOVER} active:bg-accent/80`,
+      // An ACTION SPELLED AS A LINK: an underlined run inside prose or a gloss line that
+      // does something in place. Navigation is an anchor, not this. No fill at any state, because a link-shaped
+      // control that grows a box on hover is a button pretending; the hover is the ink, the press the scale.
+      link: "bg-transparent text-primary underline hover:text-primary/80 active:text-primary/70",
     },
     size: {
       ...CONTROL_SIZE,
@@ -209,6 +212,17 @@ export const buttonVariants = tv({
        *  ring to a red-blind reader); the strike says "not this one" on its own. */
       negated: `border-transparent ${SELECTED_FILL} line-through inset-ring-2 inset-ring-destructive ${FOCUS_RING_ON_STATE_RING}`,
     },
+    hiddenAt: HIDDEN_AT,
+    // A glyph-only chip is narrower than the touch floor at a coarse pointer; its `sm` height already clears it.
+    touchFloor: { inline: TOUCH_FLOOR_AT_COARSE.inline },
+    // THE INK OF A FILL-LESS ACTION, by meaning, from the Text map. Only the `ghost` and `link` intents paint no fill
+    // of their own, so the tone arms below are compound on those two; a filled intent owns its paired ink.
+    tone: { default: "", primary: "", destructive: "", muted: "" },
   },
-  defaultVariants: { intent: "primary", size: "md", shape: "control", selection: "none" },
+  compoundVariants: [
+    { intent: ["ghost", "link"], tone: "primary", class: TONE_INK.accent },
+    { intent: ["ghost", "link"], tone: "destructive", class: TONE_INK.destructive },
+    { intent: ["ghost", "link"], tone: "muted", class: TONE_INK.muted },
+  ],
+  defaultVariants: { intent: "primary", size: "md", shape: "control", selection: "none", tone: "default" },
 });

@@ -1,5 +1,5 @@
 import type { ChangeEvent, ReactElement, ReactNode } from "react";
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import { Button } from "#primitives/button";
 import type { FileDropzoneResult } from "./file-dropzone.tsx";
 
@@ -30,6 +30,7 @@ export function FolderPicker({
   children,
 }: FolderPickerProps): ReactElement {
   const inputRef = useRef<HTMLInputElement>(null);
+  const inputId = useId();
 
   useEffect(() => {
     const el = inputRef.current;
@@ -65,7 +66,7 @@ export function FolderPicker({
       <Button intent={intent} loading={loading} disabled={inert} onClick={(): void => inputRef.current?.click()}>
         {children}
       </Button>
-      <input hidden={true} multiple={true} onChange={handleChange} ref={inputRef} type="file" />
+      <input hidden={true} id={inputId} multiple={true} name={inputId} onChange={handleChange} ref={inputRef} type="file" />
     </>
   );
 }

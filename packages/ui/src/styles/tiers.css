@@ -119,6 +119,11 @@
     border-radius: var(--radius-inset);
   }
 
+  /* The `row` and `well` shapes take the control radius in every tier: you operate a row, and a well belongs to its host. */
+  [data-surface-tier] [data-slot="card-root"][data-shape] {
+    border-radius: var(--radius-control);
+  }
+
   /* `padding="none"`: the island delegates its inset to its own content; the `p-0` utility alone would lose to the
    * tier rule above. */
   [data-surface-tier] [data-slot="card-root"][data-padding="none"] {

@@ -2,6 +2,13 @@
 
 The sites `orb/feature-classname-layout-only` and `orb/no-built-class-string` report in `packages/client/src/features`, from `pnpm eslint packages/client/src/features`. Each row is one `className`. The migration items are 1334 to 1336 and 1338; the rules are on, so the tree lints red until the last row goes.
 
+## Migration order for datum text
+
+1. Move every machine-text `voice="datum"` site (a payload, an id, a tool name, a macro) to `voice="code"`.
+2. Then switch `datum` to the ruled spelling (sans, `tabular-nums`, gloss step), update D5 in `docs/law/UI-Density-Law.md` in the same change, and move the `tabular-nums` rows below onto it.
+
+The props each row maps to are in the Evidence of `docs/work/1340-ui-primitives-for-the-classname-drain.md`.
+
 ## Paint on a primitive (271 sites)
 
 By element: Text 98, Row 40, Icon 31, Stack 30, Button 26, ? 9, TrackerValue 6, Card 5, WeaveGlyph 2, TabsList 2, CollapsiblePanel 2, Skeleton 2, Container 2, Separator 2, Badge 2, TabsPanel 1, DialogHeader 1, WebSpinner 1, ThemeScope 1, BackgroundVideo 1, CrossfadeImage 1, TrailingArrow 1, PortraitAvatar 1, Command 1, SandboxFrame 1, Textarea 1, Heading 1.

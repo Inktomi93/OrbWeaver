@@ -76,6 +76,29 @@ test("a physical axis utility evicts the logical sides it covers", () => {
   expect(cn("ps-row pe-row", "px-0")).toBe("px-0");
 });
 
+// Tailwind emits logical radius utilities before the physical sides, so the later logical class keeps its corners only by eviction.
+test.for([
+  ["rounded-t-card", "rounded-ss-none"],
+  ["rounded-t-card", "rounded-se-none"],
+  ["rounded-b-card", "rounded-es-none"],
+  ["rounded-b-card", "rounded-ee-none"],
+  ["rounded-l-card", "rounded-ss-none"],
+  ["rounded-l-card", "rounded-es-none"],
+  ["rounded-r-card", "rounded-se-none"],
+  ["rounded-r-card", "rounded-ee-none"],
+  ["rounded-t-card", "rounded-s-none"],
+  ["rounded-t-card", "rounded-e-none"],
+  ["rounded-b-card", "rounded-s-none"],
+  ["rounded-b-card", "rounded-e-none"],
+] as const)("%s then %s: the later logical class evicts the physical side", ([side, logical]) => {
+  expect(cn(side, logical)).toBe(logical);
+});
+
+test("a later physical side keeps the logical corner beside it, since the side sorts after it", () => {
+  expect(cn("rounded-ss-none", "rounded-t-card")).toBe("rounded-t-card");
+  expect(cn("rounded-s-none", "rounded-t-card")).toBe("rounded-s-none rounded-t-card");
+});
+
 test("the selection rail's physical spelling and a logical reset resolve per axis and modifier", () => {
   // The width reset evicts the physical width; the rest colour has no later twin and stays; the selected colour is evicted under its modifier.
   expect(cn("border-l-2 border-l-transparent data-selected:border-l-primary", "border-s-0 data-selected:border-s-transparent")).toBe(
@@ -86,4 +109,9 @@ test("the selection rail's physical spelling and a logical reset resolve per axi
 test("a display utility and a logical size are different axes", () => {
   expect(cn("inline-flex", "inline-full")).toBe("inline-flex inline-full");
   expect(cn("block", "block-full")).toBe("block block-full");
+});
+
+test("the receded opacity token and a stock opacity step are one axis", () => {
+  expect(cn("opacity-50", "opacity-receded")).toBe("opacity-receded");
+  expect(cn("opacity-receded", "opacity-100")).toBe("opacity-100");
 });

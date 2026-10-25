@@ -9,6 +9,6 @@ export interface RowProps extends ComponentProps<"div">, VariantProps<typeof row
  *
  * Usage: `<Row gap="field" justify="between">…</Row>`.
  */
-export function Row({ className, gap, align, justify, padding, ...props }: RowProps): ReactElement {
-  return <div {...props} className={rowVariants({ gap, align, justify, padding, className })} />;
+export function Row({ className, gap, align, justify, padding, hiddenAt, srOnlyAt, touchFloor, reveal, divider, receded, ...props }: RowProps): ReactElement {
+  return <div {...props} className={rowVariants({ gap, align, justify, padding, hiddenAt, srOnlyAt, touchFloor, reveal, divider, receded, className })} />;
 }

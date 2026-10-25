@@ -1,4 +1,4 @@
-import { tv } from "#lib";
+import { TOUCH_FLOOR_AT_COARSE, tv } from "#lib";
 
 // The badge/chip/pill skin — status token PAIRS on a rounded-full pill (ui-package-design §6.1).
 // `info` rides its own `--color-info` / `--color-info-foreground` pair (D71 static intent token; the
@@ -95,6 +95,9 @@ export const badgeVariants = tv({
       // pin asserts against the glyph's own box.
       dot: "shrink-0 block-field inline-field",
     },
+    // A chip carrying a glyph control whose overflowing hit area a wrap gap would clip takes the touch floor on
+    // its own block size at a coarse pointer, so the hit area fits inside the chip.
+    touchFloor: { block: TOUCH_FLOOR_AT_COARSE.block },
   },
   compoundVariants: [
     // THE SOFT TINT IS 8% FOR THE WHOLE FAMILY (2026-09-01; was 15%, with destructive alone at 8%).

@@ -9,6 +9,9 @@ import pluginRouter from "@tanstack/eslint-plugin-router";
 import vitest from "@vitest/eslint-plugin";
 import type { Linter } from "eslint";
 import betterTailwindcss from "eslint-plugin-better-tailwindcss";
+import { getDefaultSelectors } from "eslint-plugin-better-tailwindcss/api/defaults";
+import type { Selector, SelectorObjectValueMatcher, SelectorStringMatcher } from "eslint-plugin-better-tailwindcss/api/types";
+import { MatcherType, SelectorKind } from "eslint-plugin-better-tailwindcss/api/types";
 import drizzle from "eslint-plugin-drizzle";
 import jsxA11y from "eslint-plugin-jsx-a11y";
 import playwright from "eslint-plugin-playwright";
@@ -50,16 +53,21 @@ const BARE_NAMESPACE_UTILITIES = Object.keys(TOKENS).flatMap((path) => {
     }[group] ?? [];
   return roots.map((root) => `${root}-${name}`);
 });
-// Class strings also live in exported constants (`SELECTION_RAIL`, `CHIP_BOX`) and their object values; the plugin's
-// default selectors read only `className`-named variables, so the retired gates' reach over lib constants is kept
-// by naming every UPPER_CASE binding. Only the pattern and the logical-properties rules take it: the order and
-// unknown-class rules would read a prose constant's words as classes.
-const CLASS_VARIABLE_SELECTORS = [
-  ["^[A-Z][A-Z0-9_]*$", [{ match: "strings" }, { match: "objectValues" }]],
-  ["^classNames?$", [{ match: "strings" }]],
-  ["^classes$", [{ match: "strings" }]],
-  ["^styles?$", [{ match: "strings" }]],
-] as const;
+// Class strings live in every kind of binding (`SELECTION_RAIL`, a local `weldRounding`, a `toneClasses` map) and in
+// function returns (`cellWidthClass`), where the plugin's default selectors, which read only `className`-named
+// variables, do not look. These selectors read every binding, every function's returns (the patched plugin applies a
+// variable selector to a function declaration by name) and every string in a `tv()` recipe. Only the pattern and the
+// logical-properties rules take them: the order and unknown-class rules would read a prose string's words as classes.
+const CLASS_STRING_MATCHERS: (SelectorStringMatcher | SelectorObjectValueMatcher)[] = [{ type: MatcherType.String }, { type: MatcherType.ObjectValue }];
+const CLASS_SELECTORS: Selector[] = [
+  ...getDefaultSelectors().filter(({ kind }) => kind !== SelectorKind.Variable),
+  {
+    kind: SelectorKind.Variable,
+    name: "^.*$",
+    match: [...CLASS_STRING_MATCHERS, { type: MatcherType.AnonymousFunctionReturn, match: CLASS_STRING_MATCHERS }],
+  },
+  { kind: SelectorKind.Callee, name: "^tv$", match: CLASS_STRING_MATCHERS },
+];
 const RESTRICTED_CLASSES = [
   {
     // An arbitrary class value that carries a design number: a length, a decimal, or a track share other than 1fr.
@@ -615,7 +623,7 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
         "better-tailwindcss/no-duplicate-classes": "error",
         "better-tailwindcss/no-concatenated-classes": "error",
         // The namespace resets remove the stock scales; the patterns close the spellings a reset cannot see, per scope.
-        "better-tailwindcss/no-restricted-classes": ["error", { restrict: [...RESTRICTED_CLASSES, ...restrict], variables: [...CLASS_VARIABLE_SELECTORS] }],
+        "better-tailwindcss/no-restricted-classes": ["error", { restrict: [...RESTRICTED_CLASSES, ...restrict], selectors: CLASS_SELECTORS }],
         // Tailwind's own order, so a class list reads the same everywhere; component and unknown classes keep their place.
         "better-tailwindcss/enforce-consistent-class-order": ["error", { order: "official" }],
         "better-tailwindcss/enforce-consistent-variant-order": "error",
@@ -624,7 +632,7 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
         // it would prefer are the ones `no-restricted-classes` refuses; `logical` is enforce-logical-properties' axis.
         "better-tailwindcss/enforce-canonical-classes": ["error", { collapse: false, logical: false, ignore: [String.raw`\(--`] }],
         "better-tailwindcss/enforce-shorthand-classes": "error",
-        "better-tailwindcss/enforce-logical-properties": ["error", { variables: [...CLASS_VARIABLE_SELECTORS] }],
+        "better-tailwindcss/enforce-logical-properties": ["error", { selectors: CLASS_SELECTORS }],
         // The trailing form is Tailwind v4's; the modifier itself is refused above, so this governs only a named exception.
         "better-tailwindcss/enforce-consistent-important-position": ["error", { position: "recommended" }],
         // Biome's lineWidth is 160; the same width here means the two never fight over a class string.

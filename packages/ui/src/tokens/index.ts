@@ -191,6 +191,7 @@ export const TOKENS = {
   "immersive.document-last-row-min-height": { cssVar: "--immersive-document-last-row-min-height", value: "4.375rem" },
   "immersive.ripple-portrait-width-phone": { cssVar: "--immersive-ripple-portrait-width-phone", value: "6.25rem" },
   "fade.edge-stop": { cssVar: "--fade-edge-stop", value: "10%" },
+  "opacity.receded": { cssVar: "--opacity-receded", value: "60%" },
   "border-width.hairline": { cssVar: "--border-width-hairline", value: "1.25px" },
   "border-width.control": { cssVar: "--border-width-control", value: "1px" },
   "border-width.accent": { cssVar: "--border-width-accent", value: "2px" },

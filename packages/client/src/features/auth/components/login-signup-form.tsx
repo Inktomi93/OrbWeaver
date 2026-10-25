@@ -125,7 +125,7 @@ export function LoginSignupForm({ token, onSignedUp, onUseSignIn, onDismiss }: L
             .finally((): void => setPending(false));
         };
         return (
-          <form ref={formRef} onSubmit={onSubmit} noValidate={true} data-testid={testId("signupInviteForm")}>
+          <form aria-label="Sign up with an invite" ref={formRef} onSubmit={onSubmit} noValidate={true} data-testid={testId("signupInviteForm")}>
             <Stack gap="block">
               <Field label="Handle" description={`The name you sign in with: ${HANDLE_RULE}`} error={handleError}>
                 <Input

@@ -6,6 +6,7 @@ import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
+import { useFieldIdentity } from "#primitives/field";
 import { Check, Icon, Lock } from "#primitives/icons";
 // SIBLING-PRIMITIVE COMPOSITION BY RELATIVE PATH (§13.7 — `index.ts` never re-exports `./variants`, and a
 // sibling reaches a recipe through the file, never the public subpath). The picker item wears the SHARED
@@ -32,7 +33,8 @@ export interface RadioGroupItemProps extends RadioRootProps {
 // `anchor` is the value the tab stop is seated on: the value at mount or remount, or the user's last pick. An
 // outside change to a different value, decided while focus is not inside the group, remounts the group, which
 // seats the tab stop on the checked item. Focus is read at decision time, so no flag can go stale.
-export function RadioGroup({ className, value, onValueChange, ...rest }: RadioGroupProps): ReactElement {
+export function RadioGroup({ className, value, onValueChange, id, name, ...rest }: RadioGroupProps): ReactElement {
+  const identity = useFieldIdentity(id, name);
   const [root, setRoot] = useState<HTMLDivElement | null>(null);
   const [mountKey, setMountKey] = useState(0);
   const [seenValue, setSeenValue] = useState(value);
@@ -56,6 +58,7 @@ export function RadioGroup({ className, value, onValueChange, ...rest }: RadioGr
         setAnchor(next);
         onValueChange?.(next, details);
       }}
+      {...identity}
       {...rest}
     />
   );
