@@ -17,11 +17,9 @@
 
 import type { Theme, ThemeRadius } from "@orb/contracts/theme";
 import { THEME_FONT_ALLOWLIST, THEME_RADII } from "@orb/contracts/theme";
-import { validateThemeCss } from "@orb/kit/css-validate";
 import { AA_NORMAL_RATIO } from "@orb/kit/theme-derivation";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
-import type { CodeEditorDiagnostic, CodeEditorProps } from "@orb/ui/code-editor";
 import { Grid, Row, Section, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
@@ -29,7 +27,7 @@ import { THEME_SCOPE_EMIT_VARS, ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
 // biome's resolver mis-enumerates react's conditional-CJS export map and misses lazy/Suspense
 // specifically (main.tsx precedent); tsc resolves them and the client typechecks clean.
-import { lazy, Suspense, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import type { AppFormInstance, AutosaveSession } from "#forms/editor";
 import { AutosaveStatus, createAutosaveEntityForm } from "#forms/editor";
 // The THEME-shaped appearance table. It used to ride the settings feature's own
@@ -40,12 +38,7 @@ import { useThemeAutosave } from "../hooks/use-theme-autosave.ts";
 import { contrastRatio } from "../lib/theme-contrast.ts";
 import type { ThemeFormValues } from "../lib/theme-editor-model.ts";
 import { DEFAULT_THEME_FORM, themeFormFromEntity, themeOverrideFromForm } from "../lib/theme-editor-model.ts";
-
-// Lazy so CodeMirror never lands in the entry chunk for a modal-only editor.
-const CodeEditor = lazy(async () => {
-  const mod = await import("@orb/ui/code-editor");
-  return { default: mod.CodeEditor };
-}) as (props: CodeEditorProps) => ReactElement;
+import { ThemeCssField } from "./theme-css-field.tsx";
 
 // `labelStyle` — the "seen, not read" slot (#866 §7.8): each font option renders in its OWN typeface,
 // derived from the value itself (never a second table).
@@ -161,7 +154,7 @@ function ThemeEditorBody({ theme, session, mintedName, isUnmintedDraft }: ThemeE
         <>
           <Section heading="Custom CSS">
             <boundForm.AppField name="css">
-              {(field): ReactElement => <CssEditorField value={field.state.value} onChange={(next): void => field.handleChange(next)} />}
+              {(field): ReactElement => <ThemeCssField value={field.state.value} onChange={(next): void => field.handleChange(next)} />}
             </boundForm.AppField>
             <ThemeableVarsReference />
           </Section>
@@ -180,20 +173,6 @@ function ThemeEditorBody({ theme, session, mintedName, isUnmintedDraft }: ThemeE
         </Row>
       )}
     </Stack>
-  );
-}
-
-/** The custom-CSS code editor + live validator diagnostics (warn on `@import`, reject `position:fixed`). */
-function CssEditorField({ value, onChange }: { readonly value: string; readonly onChange: (next: string) => void }): ReactElement {
-  const { errors, warnings } = validateThemeCss(value);
-  const diagnostics: CodeEditorDiagnostic[] = [
-    ...errors.map((message) => ({ severity: "error" as const, message, from: 0, to: 0 })),
-    ...warnings.map((message) => ({ severity: "warning" as const, message, from: 0, to: 0 })),
-  ];
-  return (
-    <Suspense fallback={null}>
-      <CodeEditor lang="css" ariaLabel="Custom theme CSS" value={value} onChange={onChange} diagnostics={diagnostics} completions={THEME_SCOPE_EMIT_VARS} />
-    </Suspense>
   );
 }
 

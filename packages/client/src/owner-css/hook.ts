@@ -2,7 +2,8 @@
 // Pure and alias-free, because the node-side generator (`owner-css-surface.build.ts`) imports it too.
 
 /** What a public hook names: a `data-slot` value, a `.shell-*` class, or a served token (the ThemeScope vars are tokens). */
-export type OwnerCssHookKind = "slot" | "shell-class" | "token";
+export const OWNER_CSS_HOOK_KINDS = ["slot", "shell-class", "token"] as const;
+export type OwnerCssHookKind = (typeof OWNER_CSS_HOOK_KINDS)[number];
 
 /** One name the owner's custom CSS may target. */
 export interface OwnerCssHook {
