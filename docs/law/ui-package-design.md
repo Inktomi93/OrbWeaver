@@ -27,7 +27,7 @@ kit ─┬─→ contracts ─┬─→ db ─→ server           (backend arm)
   1. **resolver** — those packages are not in `packages/ui/package.json` (an import cannot resolve);
   2. **lint** — biome `noUndeclaredDependencies` (an undeclared import is an error);
   3. **dep-cruiser** — the `ui-cake` rule (backstop for deep `../../` escapes), plus
-     `ui-no-node-builtins` (ui is browser code; `node:*` is banned, same as kit).
+     `browser-and-iso-no-node-builtins` (ui is browser code; `node:*` is banned, same as kit).
 - **`react` + `react-dom` are PEERS** (both — `@base-ui/react` declares `react-dom` a required peer,
   amending D54's "peer react ONLY" in intent-preserving form: the client stays the renderer/provider,
   ui never bundles React).
@@ -236,7 +236,7 @@ factories are inventoried here because this package is their substrate and their
 | `createAutosaveEntityForm` | `client/forms` | same | listener-debounced (`listeners.onChange + onChangeDebounceMs`, the documented autosave backbone) + `onFieldUnmount` flush; **`reset` REMOVED from its returned type** (calling it is the autosave infinite loop; the type is the guard). |
 | `useAppForm` (the one `createFormHook`) | `client/forms` | Form context | single instance + bound field set (controlled `value=`, never `defaultValue=`; `useSelector`, not the deprecated `useStore`; error rendering standardized on `{message}` objects). |
 | `createEntityMutation` | `client/data` | Query/tRPC types | the canonical 4-phase optimistic flow (`onMutate`: cancel → snapshot → `setQueryData` → return rollback; `onError` restore; `onSettled` → `invalidate(event)` through the seam); the **`context.client`** arg (provider-clean); a variables-render lightweight mode; **v5 sticky-error reset on next `mutate`**; ONE error slot per mutation (`useMutation` only here: `orb/mutation-only-in-factory`); callback order `onMutate → onError → onSettled` (lint `mutation-property-order`). |
-| `createCollectionSurface` | `client/data` | Query + the virtual-list seal | `useInfiniteQuery` + `maxPages` + `placeholderData: keepPreviousData` gated on `isPlaceholderData`; tail-fetch off the VIRTUALIZER's range (no `react-intersection-observer`); selection store; empty/loading/error. |
+| `createCollectionSurface` | `client/data` | Query + the virtual-list seal | `useInfiniteQuery` (never `maxPages`: a page window evicts the head of a list being scrolled) + `placeholderData: keepPreviousData` gated on `isPlaceholderData`; tail-fetch off the VIRTUALIZER's range (no `react-intersection-observer`); selection store; empty/loading/error. |
 | `useGatedQuery` | `client/data` | Query types | null id → `skipToken` (kills `castId("")` — ESLint `orb/no-fake-disabled-id`); documents the `refetch()`-with-skipToken caveat. |
 | `<QueryBoundary>` | `client/components` | Query + Suspense | the `QueryErrorResetBoundary` → `ErrorBoundary onReset={reset}` handshake (retry that actually refetches); `useSuspenseQueries` for parallel; `startTransition` around pane switches (pairs `<Activity>`). |
 | `invalidation.ts` (the seam) | `client/data` | tRPC queryFilters | ONE domain-event → `queryFilter()` map; mutations' `onSettled` + bus handlers call `invalidate(event)` (gate `orb/no-inline-invalidate-outside-seam`); keys are always `trpc.*.queryKey(args)` — the same key the reader uses. |
@@ -379,10 +379,9 @@ passthrough) — say so inline where it is not obvious.
 **Standing law from the Base UI 1.7 alignment pass.** Base UI is the foundation of every
 interactive surface, so `@orb/ui` carries ZERO accidental narrowness: every part Base UI ships is
 either reachable through the seal or sealed away here WITH A REASON. Rows are keyed on the verbatim
-`<Namespace>.<Part>` string from the component's own `index.parts.d.ts` export alias — the same key
-the machine half (the `baseui-anatomy` surface manifest + gate) joins on, so the two halves cannot
-drift. **A new part on a version bump is a ROW, not a shrug:** add it with a disposition, or the gate
-reds.
+`<Namespace>.<Part>` string from the component's own `index.parts.d.ts` export alias.
+**A new part on a version bump is a ROW, not a shrug:** add it with a disposition. Review enforces
+this; no gate reads the table.
 
 Dispositions: **exposed** = reachable from a consumer (rendered by the seal, or exported as its own
 part) · **sealed-away** = deliberately not reachable, reason stated · **n/a** = not anatomy (a type

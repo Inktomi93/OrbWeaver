@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
-import { authorClassIgnores, classClassifier, createOrbPlugin } from "@orb/tooling/eslint";
+import { authorClassIgnores, baseUiDoors, classClassifier, createOrbPlugin } from "@orb/tooling/eslint";
 import { BUTTON_SIZE_OVERFLOW } from "@orb/ui/button/size-hit-area";
 import { TOKENS } from "@orb/ui/tokens";
 import pluginQuery from "@tanstack/eslint-plugin-query";
@@ -695,6 +695,7 @@ if (browserGlobalsOverride?.linter?.rules.style?.noRestrictedGlobals === undefin
   throw new Error("The browser Node-global policy must be configured in Biome");
 }
 const localPlugin = createOrbPlugin({
+  baseUiDoors: baseUiDoors(fileURLToPath(new URL("./packages/ui", import.meta.url))),
   browserNodeGlobals: new Set([...Object.keys(browserGlobalsOverride.linter.rules.style.noRestrictedGlobals.options.deniedGlobals), "process"]),
   floorlessButtonSizes: new Set(
     Object.entries(BUTTON_SIZE_OVERFLOW)
@@ -720,6 +721,17 @@ const PORTAL_FLOAT_HOMES = {
   "packages/ui/src/primitives/drawer/variants.ts": "its backdrop and viewport portal to the portal root",
   "packages/ui/src/art/web-weave/variants.ts": "the boot veil mounts at the document root, above the whole shell",
 } as const;
+// The only files that make motion in JS (motion-and-animation-guide.md §1.5). Each carries a shape the rule matches and says
+// why CSS cannot express it; tests/tooling/eslint-motion-gates.test.ts fails a home the rule no longer matches.
+const FLIP_INVERSION_HOMES = {
+  "packages/ui/src/primitives/tabs/tabs.tsx":
+    "the tabs indicator glide: the delta between two runtime boxes, inverted inline and flushed so the slot's transition runs it home",
+  "packages/ui/src/art/web-weave/web-weave.tsx":
+    "the brand web's canvas frame loop paints pixels, not style; the canvas has no CSS property to key a transition off",
+  "packages/ui/src/stream/use-smooth-text.ts": "the streamed-text pacer reveals a string prefix on frames; text content has no style property to transition",
+  "packages/client/src/features/refinery/hooks/use-count-up.ts":
+    "the hero gauge counts a printed figure that must equal the Meter's value; the figure is text content, not a style",
+} as const;
 // The only client files that touch browser storage directly. client-architecture-state-and-gates.md §10a sanctions each one and states why.
 const RAW_STORAGE_HOMES = [
   "packages/client/src/state/durable-local.ts",
@@ -737,7 +749,13 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
     },
     {
       files: ["packages/client/src/**/*.{ts,tsx}", "packages/ui/src/**/*.{ts,tsx}"],
+      ignores: Object.keys(FLIP_INVERSION_HOMES),
+      rules: { "orb/no-unruled-flip-inversion": "error" },
+    },
+    {
+      files: ["packages/client/src/**/*.{ts,tsx}", "packages/ui/src/**/*.{ts,tsx}"],
       rules: {
+        "orb/baseui-state-data-attributes": "error",
         "orb/no-off-token-inline-style": "error",
         "orb/theme-override-only-via-scope": "error",
       },
