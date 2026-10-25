@@ -117,3 +117,15 @@ for (const [viewport, short] of [
     expect(probed).toEqual(short ? { floor: `${String(floorPx)}px`, scrolls: "auto" } : { floor: "0px", scrolls: "visible" });
   });
 }
+
+test("a printed page drops the chrome, stops clipping the grid and uses the light palette", async ({ mount, page }) => {
+  await page.emulateMedia({ media: "print" });
+  await mount<typeof ShellAmbientStory>(STORY, {});
+  await expect(page.getByRole("navigation", { name: "Primary", exact: true })).toBeHidden();
+  const printed = await page.evaluate(() => ({
+    gridOverflow: getComputedStyle(document.querySelector(".shell-grid") as Element).overflowY,
+    gridDisplay: getComputedStyle(document.querySelector(".shell-grid") as Element).display,
+    scheme: getComputedStyle(document.documentElement).colorScheme,
+  }));
+  expect(printed).toEqual({ gridOverflow: "visible", gridDisplay: "block", scheme: "light" });
+});

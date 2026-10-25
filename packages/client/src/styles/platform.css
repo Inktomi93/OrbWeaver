@@ -1,0 +1,47 @@
+/* The platform media arms: the forced-colors palette and the printed page. Both live in the preference layer, so they
+ * win by layer order over every house rule that paints. */
+@reference "@orb/ui/styles/globals.css";
+
+@layer preference {
+  /* Forced colors replaces every background and drops every box-shadow, so a focus ring built from a shadow vanishes
+   * and a bar painted as a background (the tab indicator) merges into the canvas. Each gets a system colour. */
+  @variant forced-colors {
+    :focus-visible {
+      outline: var(--border-width-accent) solid Highlight;
+      outline-offset: var(--border-width-accent);
+    }
+    [data-slot="tabs-indicator"] {
+      forced-color-adjust: none;
+      background-color: Highlight;
+    }
+  }
+
+  /* A printed room is its transcript: the chrome is hidden, the grid stops clipping to the viewport, and the light
+   * palette is used whatever theme is selected, since dark paper does not exist. */
+  @variant print {
+    :root {
+      color-scheme: light;
+    }
+    .shell-rail,
+    .shell-panel,
+    .shell-topbar,
+    .shell-scrim,
+    [data-slot="composer"] {
+      display: none;
+    }
+    .shell-grid,
+    .shell-main,
+    .shell-content,
+    .shell-region-fill {
+      display: block;
+      position: static;
+      block-size: auto;
+      overflow: visible;
+      padding: 0;
+    }
+    [data-slot="message-list-scroll"] {
+      block-size: auto;
+      overflow: visible;
+    }
+  }
+}

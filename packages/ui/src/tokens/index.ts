@@ -400,6 +400,7 @@ export const MEDIA_QUERIES = {
   "motion-reduce": "(prefers-reduced-motion: reduce)",
   "transparency-reduce": "(prefers-reduced-transparency: reduce)",
   "contrast-more": "(prefers-contrast: more)",
+  "forced-colors": "(forced-colors: active)",
   "shell-desktop": "(width > 48rem)",
   "shell-mobile": "(width <= 48rem)",
   "shell-narrow": "(width <= 64rem)",

@@ -33,6 +33,7 @@ const SHEETS = [
   "packages/ui/src/styles/waystone.css",
   "packages/ui/src/styles/weave.css",
   "packages/client/src/styles/globals.css",
+  "packages/client/src/styles/platform.css",
   "packages/client/src/features/app-shell/surfaces/shell/grid.css",
   "packages/client/src/features/app-shell/surfaces/shell/motion.css",
   "packages/client/src/features/app-shell/surfaces/shell/panels.css",
