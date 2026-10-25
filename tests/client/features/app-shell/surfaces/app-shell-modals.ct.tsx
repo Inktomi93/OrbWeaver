@@ -95,6 +95,57 @@ test.describe("on the corpus owner's own settings", () => {
     await expect(opener).toBeFocused();
   });
 
+  test("switching Add document's mode moves neither its mode strip nor its footer, every arm offers Cancel, and its teaching line reads at least label size", async ({
+    mount,
+    page,
+  }) => {
+    await mount<typeof AppShellModalStory>(MODAL_STORY, { modalId: "addDocument" });
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+    // The mode strip is the row of pressable modes directly above the region the arms swap through.
+    const modes = await dialog.locator("button[aria-pressed]").evaluateAll((buttons) => {
+      const strip = buttons.at(-1)?.parentElement;
+      return buttons.filter((button) => button.parentElement === strip).map((button) => button.textContent);
+    });
+    expect(modes.length).toBe(3);
+    const arms: { strip: number; footerGap: number; regionShort: number; cancels: number }[] = [];
+    for (const label of modes) {
+      await dialog.getByRole("button", { name: label, exact: true }).click();
+      await expect(dialog.getByRole("button", { name: label, exact: true })).toHaveAttribute("aria-pressed", "true");
+      arms.push(
+        await dialog
+          .locator("button[aria-pressed]")
+          .last()
+          .evaluate((button) => {
+            const strip = button.parentElement;
+            const region = strip?.nextElementSibling;
+            const footer = region?.querySelector('[data-slot="dialog-footer"]');
+            const regionBox = region?.getBoundingClientRect();
+            const floor = region === null || region === undefined ? 0 : Number.parseFloat(getComputedStyle(region).minHeight);
+            return {
+              strip: strip?.getBoundingClientRect().y ?? Number.NaN,
+              footerGap: (regionBox?.bottom ?? Number.NaN) - (footer?.getBoundingClientRect().bottom ?? Number.NaN),
+              regionShort: floor - (regionBox?.height ?? Number.NaN),
+              cancels: [...(region?.querySelectorAll("button") ?? [])].filter((candidate) => candidate.textContent === "Cancel").length,
+            };
+          }),
+      );
+    }
+    const ys = arms.map((arm) => arm.strip);
+    expect(Math.max(...ys) - Math.min(...ys)).toBeLessThanOrEqual(1);
+    // Every arm hangs its footer at the same distance from the reserved floor, so a short arm leaves no void under Cancel.
+    const gaps = arms.map((arm) => arm.footerGap);
+    expect(Math.max(...gaps) - Math.min(...gaps)).toBeLessThanOrEqual(1);
+    expect(arms.map((arm) => ({ floorKept: arm.regionShort <= 1, cancels: arm.cancels }))).toStrictEqual(arms.map(() => ({ floorKept: true, cancels: 1 })));
+    const sizes = await dialog.evaluate((element) => ({
+      teaching: Number.parseFloat(getComputedStyle(element.querySelector('[data-slot="text"][data-voice="reading"]') ?? element).fontSize),
+      label: Number.parseFloat(getComputedStyle(element.querySelector('[data-slot="field-label"]') ?? element).fontSize),
+    }));
+    expect(sizes.teaching).toBeGreaterThanOrEqual(sizes.label);
+    await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+  });
+
   // Add document's body does not focus a control of its own, so the host's initial focus is what decides.
   test("a modal opens with focus in its body, never on Close, so the first Enter keeps it open", async ({ mount, page }) => {
     await mount<typeof AppShellModalStory>(MODAL_STORY, { modalId: "addDocument" });

@@ -14,6 +14,8 @@ const CONTEXT = '.shell-panel[data-panel-side="context"]';
 const WIDE = { width: 1280, height: 900 } as const;
 const NARROW_DESKTOP = { width: 900, height: 900 } as const;
 const PHONE = { width: 390, height: 844 } as const;
+// A box laid out at a token can read a fraction under it once the panel track rounds.
+const SUBPIXEL = 0.5;
 // The desktop names the frame region a toggle hides; the phone names the screen a tap lands on.
 const LIST_TOGGLE = /^(?:(?:Show|Hide) list panel|Show .+ (?:list|overview))$/u;
 const CONTEXT_TOGGLE = /^(?:Show|Hide) details$/u;
@@ -315,6 +317,46 @@ test.describe("on a wide desktop", () => {
       .getByRole("button", { name: "Presets", exact: true })
       .evaluate((node) => node.dispatchEvent(new MouseEvent("click", { bubbles: true })));
     await expect(page.getByRole("main")).toBeFocused();
+  });
+
+  test("at 1280 the Characters band keeps its full title and both create doors at the touch-free control floor, with one pane docked and with both", async ({
+    mount,
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await seedShellState(page, { activeSection: "characters", panelOverrides: { characters: { list: "docked", context: "docked" } } });
+    await mount<typeof AppShellStory>(STORY, {});
+    const band = page.locator(`${LIST} .shell-panel-header`);
+    const floor = await resolvedLength(page, "var(--spacing-control-sm)");
+    const read = (): Promise<{ readonly width: number; readonly clipped: boolean; readonly doors: number[] }> =>
+      band.evaluate((header) => {
+        const title = header.querySelector('[data-slot="list-pane-title"]');
+        const doors = [...header.querySelectorAll("button")].filter(
+          (button) =>
+            button.checkVisibility() && /^(?:New|New character|Import a character card)$/u.test(button.getAttribute("aria-label") ?? button.textContent.trim()),
+        );
+        return {
+          width: Math.round(header.closest(".shell-panel")?.getBoundingClientRect().width ?? 0),
+          clipped: title === null || title.scrollWidth > title.clientWidth,
+          doors: doors.map((button) => Math.min(button.getBoundingClientRect().width, button.getBoundingClientRect().height)),
+        };
+      });
+    await expect(page.locator(CONTEXT)).toHaveAttribute("data-panel-mode", "docked");
+    // The band's New is a word or a glyph by its own container width; exactly one of the pair is in the tree.
+    await expect(band.getByRole("button", { name: /^New(?: character)?$/u })).toHaveCount(1);
+    await expect(band.getByRole("button", { name: "Import a character card", exact: true })).toHaveCount(1);
+    await expect(band.locator('[data-slot="list-pane-title"]')).toContainText(/\d/u);
+    const squeezed = await read();
+    await page.getByRole("button", { name: "Hide details", exact: true }).click();
+    await expect(page.locator(CONTEXT)).toHaveAttribute("data-panel-mode", "collapsed");
+    await expect.poll(async () => (await read()).width).toBeGreaterThan(squeezed.width);
+    const single = await read();
+    expect(
+      [squeezed, single].map(({ clipped, doors }) => ({ clipped, doors: doors.length, short: doors.filter((side) => side < floor - SUBPIXEL).length })),
+    ).toStrictEqual([
+      { clipped: false, doors: 2, short: 0 },
+      { clipped: false, doors: 2, short: 0 },
+    ]);
   });
 
   test("both docked at 1360 the content track reaches its reading floor and each pane keeps its own floor", async ({ mount, page }) => {
