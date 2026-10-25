@@ -28,6 +28,22 @@ const REFUSED = [
     'declare function cva(base: string, config: object): unknown;\nexport const probe = cva("flex", { variants: { a: { b: "[anchor-name:--probe]" } } });',
   ],
   ["a guard on another name", 'export function probe(el: HTMLElement): unknown {\n  return "attributeStyleMap" in el ? el.computedStyleMap() : null;\n}'],
+  [
+    "a guard on the same member of a different object",
+    'export function probe(el: HTMLElement, other: HTMLElement): unknown {\n  return "computedStyleMap" in other ? el.computedStyleMap() : null;\n}',
+  ],
+  [
+    "a CSS.supports check, which tests a style and not this API",
+    'export function probe(el: HTMLElement): unknown {\n  return CSS.supports("width: 1px") ? el.computedStyleMap() : null;\n}',
+  ],
+  ["a polyfilled builtin read while the module evaluates", "export const EPOCH_ZERO_ISO = Temporal.Instant.fromEpochMilliseconds(0).toString();"],
+  ["a polyfilled member called while the module evaluates", 'export const ESCAPED = RegExp.escape("a.b");'],
+  ["a polyfilled builtin in a static field", "export class Probe {\n  static epoch = Temporal.Now.instant();\n}"],
+  ["a polyfilled builtin in an immediately invoked function", "export const probe = (() => Temporal.Now.instant())();"],
+  [
+    "a class string held in a named const",
+    'declare function cn(...parts: string[]): string;\nconst HELD = "flex [anchor-name:--probe]";\nexport const probe = cn(HELD);',
+  ],
 ] as const;
 
 const ADMITTED = [
@@ -43,11 +59,12 @@ const ADMITTED = [
   ],
   ["a typeof check on the global", 'export const probe = typeof CSSKeywordValue === "undefined" ? null : new CSSKeywordValue("auto");'],
   ["a typeof check through &&", 'export const probe = typeof CSSKeywordValue !== "undefined" && new CSSKeywordValue("auto");'],
-  ["a CSS.supports check", 'export function probe(el: HTMLElement): unknown {\n  return CSS.supports("width: 1px") ? el.computedStyleMap() : null;\n}'],
   ["a plain read, which is undefined and never throws", "export const probe = (el: HTMLElement): unknown => el.computedStyleMap;"],
   ["a member of the same name on an unrelated type", "export const probe = (box: { computedStyleMap(): number }): number => box.computedStyleMap();"],
   ["a local binding that shadows the global", "class CSSKeywordValue {}\nexport const probe = new CSSKeywordValue();"],
   ["a builtin the polyfill entry installs", 'export const probe = (): unknown => [RegExp.escape("a.b"), Error.isError(new Error()), Temporal.Now.instant()];'],
+  ["a polyfilled builtin inside a method", 'export class Probe {\n  read(): unknown {\n    return [Temporal.Now.instant(), RegExp.escape("a")];\n  }\n}'],
+  ["a polyfilled builtin behind a typeof guard at the top level", 'export const probe = typeof Temporal === "undefined" ? null : Temporal.Now.instant();'],
   [
     "a Tailwind class whose property is listed harmless",
     'declare function cn(...parts: string[]): string;\nexport const probe = cn("field-sizing-content", "flex");',

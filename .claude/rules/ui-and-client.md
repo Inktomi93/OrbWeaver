@@ -34,7 +34,7 @@ paths:
 
 ## Layout and CSS
 
-- `orb/browser-support` (ESLint) and `orb/browser-support-css` (Stylelint) refuse an API, property, value keyword or at-rule that a browser in `packages/client/browser-targets.ts` lacks. Guard a script use with `"x" in el`, `typeof X` or `CSS.supports`, and a style with an `@supports` that names it. The guard forms are in each rule's header.
+- `orb/browser-support` (ESLint) and `orb/browser-support-css` (Stylelint) refuse an API, property, value keyword or at-rule that a browser in `packages/client/browser-targets.ts` lacks. Guard a script use with `"x" in el` or `typeof X` on the same receiver, and a style with an `@supports` that names it. Call a polyfilled builtin (`POLYFILLED_BUILTINS`) inside a function, never at module top level. The guard forms are in each rule's header.
 - A layout or balance fix measures both width ends, any crossover, and every appearance variant.
 - A child carrying `flex:*` under a non-flex parent means the parent needs `display:flex`.
 - In a row of truncating text plus a must-not-shrink cluster, floor the cluster with `min-content`/`shrink-0` and give the text `min-width:0` plus truncate. Never do the reverse.

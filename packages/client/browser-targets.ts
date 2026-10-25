@@ -8,8 +8,8 @@ export const BROWSER_TARGETS = ["chrome136", "edge136", "firefox138", "safari18"
 // treats them as supported. A name here without an installer there fails to typecheck.
 export const POLYFILLED_BUILTINS = ["Temporal", "RegExp.escape", "Error.isError"] as const;
 
-// CSS properties a browser may ignore with no change to layout or behavior; the compat lint admits them
-// unguarded. Each entry says why ignoring it is harmless.
+// CSS a browser may ignore with no change to layout or behavior; the compat lint admits it unguarded. A key is a property
+// or a `property: value` pair, whichever is the narrowest that is harmless; each says why ignoring it is harmless.
 export const HARMLESS_WHEN_UNSUPPORTED = {
   "field-sizing": "the field keeps its floor width, and the Textarea sizes by script",
   "view-transition-name": "without view transitions the name does nothing",
@@ -17,6 +17,6 @@ export const HARMLESS_WHEN_UNSUPPORTED = {
   "scrollbar-color": "the native scrollbar shows",
   cursor: "touch screens show no cursor",
   resize: "touch browsers show no resize handle",
-  "text-wrap": "an unsupported keyword only moves line breaks",
+  "text-wrap: pretty": "only moves line breaks",
   "forced-color-adjust": "Safari has no forced-colors mode for it to opt out of",
 } as const satisfies Readonly<Record<string, string>>;

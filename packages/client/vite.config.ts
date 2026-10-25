@@ -678,7 +678,11 @@ export default defineConfig(({ mode }) => {
         ...(gallery ? { input: GALLERY_HTML } : {}),
         output: {
           codeSplitting: {
-            groups: [{ name: "zod", test: /[\\/]node_modules[\\/]zod[\\/]|[\\/]lib[\\/]zod-jitless\.ts$/ }],
+            groups: [
+              // Its own chunk, first in main.tsx's imports: the entry body runs after every shared chunk it imports, so the sync shims install here.
+              { name: "polyfills", test: /[\\/]lib[\\/]platform-(?:polyfills|shims)\.ts$/ },
+              { name: "zod", test: /[\\/]node_modules[\\/]zod[\\/]|[\\/]lib[\\/]zod-jitless\.ts$/ },
+            ],
           },
         },
       },

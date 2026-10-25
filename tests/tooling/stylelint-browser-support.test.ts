@@ -22,6 +22,11 @@ test.for([
   ["a property after a guard on another one", "@supports (display: grid) { .probe { anchor-name: --probe; } }"],
   ["a scroll-driven timeline", ".probe { animation-timeline: scroll(self block); }"],
   ["a property under another family's @supports", "@supports (animation-timeline: scroll()) { .probe { anchor-name: --probe; } }"],
+  [
+    "a text-* property under a (text-wrap: pretty) test, which vouches only for itself",
+    "@supports (text-wrap: pretty) { .probe { text-box-trim: trim-both; } }",
+  ],
+  ["a keyword the floor lacks on a supported property", ".probe { display: grid-lanes; }"],
   ["an at-rule", "@scope (.probe) { .inner { opacity: 1; } }"],
 ] as const)("refuses %s", async ([, rules]) => {
   expect(await hits(layered(rules))).toEqual([RULE]);
@@ -35,6 +40,7 @@ test.for([
   ["overscroll-behavior, a partial implementation that still ships", ".probe { overscroll-behavior: none; }"],
   ["a timeline under its @supports", "@supports (animation-timeline: scroll()) { .probe { animation-timeline: scroll(self block); } }"],
   ["a sibling longhand under the family's @supports", "@supports (animation-timeline: scroll()) { .probe { animation-range: 0 10px; } }"],
+  ["text-wrap: pretty, listed harmless by value", ".probe { text-wrap: pretty; }"],
   ["a supported property", ".probe { opacity: 1; }"],
   ["an at-rule under an @supports naming it", "@supports at-rule(@scope) { @scope (.probe) { .inner { opacity: 1; } } }"],
 ] as const)("admits %s", async ([, rules]) => {

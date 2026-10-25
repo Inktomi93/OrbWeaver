@@ -25,15 +25,19 @@ export interface BrowserSupportCssOptions {
 
 const RULE = "orb/browser-support-css";
 
-/** True when an enclosing `@supports` condition matches `pattern`. */
-function underSupports(node: CssNode, pattern: RegExp): boolean {
+/** The conditions of the `@supports` rules enclosing a node. */
+function supportsConditions(node: CssNode): string[] {
+  const conditions: string[] = [];
   for (let parent: Ancestor | undefined = node.parent; parent !== undefined; parent = parent.parent) {
-    if (parent.type === "atrule" && parent.name?.toLowerCase() === "supports" && pattern.test(parent.params ?? "")) {
-      return true;
+    if (parent.type === "atrule" && parent.name?.toLowerCase() === "supports") {
+      conditions.push(parent.params ?? "");
     }
   }
-  return false;
+  return conditions;
 }
+
+/** The properties a `@supports` condition tests (`(animation-timeline: scroll())` gives `animation-timeline`). */
+const testedProperties = (condition: string): string[] => [...condition.matchAll(/\(\s*([a-z][a-z-]*)\s*:/gu)].map(([, name = ""]) => name);
 
 /** The css plugin over the compat keys the declared floor lacks (`unsupportedAtFloor`). */
 export function browserSupportCssPlugin(unsupported: ReadonlyMap<string, Lacking>): ReturnType<typeof stylelint.createPlugin> {
@@ -53,9 +57,13 @@ export function browserSupportCssPlugin(unsupported: ReadonlyMap<string, Lacking
     };
     root.walkDecls((declaration) => {
       const property = declaration.prop.toLowerCase();
-      // A longhand of the same family (`animation-range` under `@supports (animation-timeline: ...)`) rides its sibling's test.
+      // A longhand rides a sibling's test only when that sibling is itself missing at the floor and shares its family
+      // (`animation-range` under `@supports (animation-timeline: ...)`); `(text-wrap: pretty)` vouches for no other `text-*`.
       const family = property.split("-")[0];
-      if (property.startsWith("-") || underSupports(declaration, new RegExp(String.raw`(?<![\w-])(?:${property}|${family}-[a-z-]+)\s*:`, "u"))) {
+      const guarded = supportsConditions(declaration)
+        .flatMap(testedProperties)
+        .some((tested) => tested === property || (index.properties.has(tested) && tested.split("-")[0] === family));
+      if (property.startsWith("-") || guarded) {
         return;
       }
       const refused = refusedDeclaration(index, property, declaration.value);
@@ -66,7 +74,8 @@ export function browserSupportCssPlugin(unsupported: ReadonlyMap<string, Lacking
     root.walkAtRules((atRule) => {
       const name = atRule.name.toLowerCase();
       const lacking = index.atRules.get(name);
-      if (lacking !== undefined && !underSupports(atRule, new RegExp(String.raw`at-rule\(\s*@${name}\s*\)`, "u"))) {
+      const guard = new RegExp(String.raw`at-rule\(\s*@${name}\s*\)`, "u");
+      if (lacking !== undefined && !supportsConditions(atRule).some((condition) => guard.test(condition))) {
         refuse(atRule, `\`@${name}\``, lacking);
       }
     });

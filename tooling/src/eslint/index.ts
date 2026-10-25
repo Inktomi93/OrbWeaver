@@ -87,6 +87,8 @@ export function createOrbPlugin(options: {
   appearanceVocabulary: AppearanceVocabulary;
   /** Compat keys some browser floor lacks (`unsupportedAtFloor`). */
   browserUnsupported: ReadonlyMap<string, readonly string[]>;
+  /** Builtins the client's polyfill entry installs (`POLYFILLED_BUILTINS`); a use at module evaluation is still refused. */
+  browserPolyfilled: readonly string[];
   /** Properties a browser may ignore with no layout or behavior change (`HARMLESS_WHEN_UNSUPPORTED`). */
   browserHarmless: Readonly<Record<string, string>>;
   /** Tailwind's `DesignSystem.candidatesToCss`. */
@@ -148,6 +150,7 @@ export function createOrbPlugin(options: {
         unsupported: options.browserUnsupported,
         harmless: options.browserHarmless,
         candidatesToCss: options.candidatesToCss,
+        polyfilled: options.browserPolyfilled,
       }),
     },
   };

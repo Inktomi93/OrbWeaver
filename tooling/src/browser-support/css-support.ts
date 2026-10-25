@@ -23,12 +23,15 @@ function parseKey(key: string): ["at-rule" | "property", string, string | undefi
   return spelled && name !== undefined ? [kind, name, value] : null;
 }
 
-/** Index the lacking CSS keys; a property in `harmless` (ignored with no layout or behavior change) is left out whole. */
+const isHarmless = (harmless: Readonly<Record<string, string>>, property: string, value: string | undefined): boolean =>
+  property in harmless || (value !== undefined && `${property}: ${value}` in harmless);
+
+/** Index the lacking CSS keys; a `harmless` entry (ignored with no layout or behavior change) is left out: `prop` for the property whole, `prop: value` for one keyword. */
 export function indexCss(unsupported: ReadonlyMap<string, Lacking>, harmless: Readonly<Record<string, string>>): CssSupportIndex {
   const index: CssSupportIndex = { properties: new Map(), values: new Map(), atRules: new Map() };
   for (const [key, lacking] of unsupported) {
     const [kind, name, value] = parseKey(key) ?? [];
-    if (name === undefined || (kind === "property" && name in harmless)) {
+    if (name === undefined || (kind === "property" && isHarmless(harmless, name, value))) {
       continue;
     }
     if (kind === "at-rule") {

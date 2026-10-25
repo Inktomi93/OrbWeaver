@@ -24,15 +24,25 @@ function childNodes(node: TSESTree.Node): TSESTree.Node[] {
     .filter((item): item is TSESTree.Node => typeof item === "object" && item !== null && "type" in item);
 }
 
-/** Every string a class holder carries: literals, template pieces and whatever they nest in (variant maps, ternaries, arrays). */
-function* stringsIn(node: TSESTree.Node): Generator<{ readonly site: TSESTree.Node; readonly text: string }> {
-  if (node.type === "Literal" && typeof node.value === "string") {
+/** The text of the `const` string an identifier names (`DIALOG_SCROLL_CLASS`), or `undefined` for anything else. */
+export type ConstantText = (identifier: TSESTree.Identifier) => string | undefined;
+
+const isPropertyName = (node: TSESTree.Identifier): boolean =>
+  (node.parent.type === "MemberExpression" && node.parent.property === node && !node.parent.computed) ||
+  (node.parent.type === "Property" && node.parent.key === node && !node.parent.computed);
+
+/** Every string a class holder carries: literals, template pieces, named `const` strings and whatever they nest in (variant maps, ternaries, arrays). */
+function* stringsIn(node: TSESTree.Node, constantText: ConstantText): Generator<{ readonly site: TSESTree.Node; readonly text: string }> {
+  const named = node.type === "Identifier" && !isPropertyName(node) ? constantText(node) : undefined;
+  if (named !== undefined) {
+    yield { site: node, text: named };
+  } else if (node.type === "Literal" && typeof node.value === "string") {
     yield { site: node, text: node.value };
   } else if (node.type === "TemplateElement") {
     yield { site: node, text: node.value.cooked ?? node.value.raw };
   } else {
     for (const child of childNodes(node)) {
-      yield* stringsIn(child);
+      yield* stringsIn(child, constantText);
     }
   }
 }
@@ -41,6 +51,7 @@ function* stringsIn(node: TSESTree.Node): Generator<{ readonly site: TSESTree.No
 export function classSupportVisitor(
   index: CssSupportIndex,
   candidatesToCss: CandidatesToCss,
+  constantText: ConstantText,
   refuse: (node: TSESTree.Node, what: string, lacking: readonly string[]) => void,
 ): RuleVisitor {
   const refusals = new Map<string, Refusal | null>();
@@ -57,7 +68,7 @@ export function classSupportVisitor(
     return refused;
   };
   const check = (root: TSESTree.Node): void => {
-    for (const { site, text } of stringsIn(root)) {
+    for (const { site, text } of stringsIn(root, constantText)) {
       if (!seen.has(site)) {
         seen.add(site);
         for (const token of text.split(/\s+/u).filter((word) => word !== "")) {

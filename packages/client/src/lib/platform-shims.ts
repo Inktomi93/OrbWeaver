@@ -44,11 +44,26 @@ export function regExpEscape(value: string): string {
   ).join("");
 }
 
-/** ECMA-262 `Error.isError` (ES2026): true for an object with an [[ErrorData]] slot, in any realm. A spoofed `@@toStringTag` is not one. */
+const ERROR_TAGS = new Set(["[object Error]", "[object DOMException]"]);
+const tagOf = (value: unknown): string => Object.prototype.toString.call(value);
+
+// A structured clone of a value with an [[ErrorData]] slot is a fresh error with no own tag; a look-alike clones to a plain object.
+function clonesToError(value: object): boolean {
+  try {
+    return ERROR_TAGS.has(tagOf(structuredClone(value)));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * ECMA-262 `Error.isError` (ES2026): true for an object with an [[ErrorData]] slot, in any realm, DOMException included. The
+ * builtin tag reads that slot unless the value carries a `@@toStringTag` (a look-alike, or an error that renamed its tag), and
+ * then the clone decides. `instanceof Error` would admit `Object.create(Error.prototype)`, which has no slot.
+ */
 export function isError(value: unknown): boolean {
   if (typeof value !== "object" || value === null) {
     return false;
   }
-  // `instanceof Error` would admit `Object.create(Error.prototype)`, which has no slot; the builtin tag is the realm-proof probe.
-  return value instanceof DOMException || (Object.prototype.toString.call(value) === "[object Error]" && !(Symbol.toStringTag in value));
+  return Symbol.toStringTag in value ? clonesToError(value) : tagOf(value) === "[object Error]";
 }

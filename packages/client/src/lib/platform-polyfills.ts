@@ -1,5 +1,6 @@
-// The client's polyfill entry: main.tsx imports it first, and the awaits below finish before any other module runs.
-// Each builtin installs only where the browser lacks it; `POLYFILLED_BUILTINS` (browser-targets.ts) is the list the compat lint trusts.
+// The client's polyfill entry: main.tsx imports it first, and the build gives it a chunk of its own (vite.config.ts).
+// The sync shims install before the first await, so no other module has run when they land. Temporal loads asynchronously and only where
+// missing, which is why `orb/browser-support` refuses a module-top-level use of any `POLYFILLED_BUILTINS` member: siblings do not wait for it.
 import { POLYFILLED_BUILTINS } from "../../browser-targets.ts";
 import { isError, regExpEscape } from "./platform-shims.ts";
 
@@ -19,16 +20,14 @@ const POLYFILLS = {
   },
   "RegExp.escape": {
     present: (): boolean => typeof RegExp.escape === "function",
-    install: (): void => define(RegExp, "escape", regExpEscape),
+    install: (): Promise<void> => Promise.resolve(define(RegExp, "escape", regExpEscape)),
   },
   "Error.isError": {
     present: (): boolean => typeof Error.isError === "function",
-    install: (): void => define(Error, "isError", isError),
+    install: (): Promise<void> => Promise.resolve(define(Error, "isError", isError)),
   },
-} satisfies Record<Polyfilled, { present: () => boolean; install: () => void | Promise<void> }>;
+} satisfies Record<Polyfilled, { present: () => boolean; install: () => Promise<void> }>;
 
-for (const name of POLYFILLED_BUILTINS) {
-  if (!POLYFILLS[name].present()) {
-    await POLYFILLS[name].install();
-  }
-}
+// Every install starts before any await, and the shims define their builtin as `Promise.resolve` evaluates it, so they land in this module's first turn.
+const pending = POLYFILLED_BUILTINS.filter((name) => !POLYFILLS[name].present()).map((name) => POLYFILLS[name].install());
+await Promise.all(pending);

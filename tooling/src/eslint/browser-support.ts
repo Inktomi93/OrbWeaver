@@ -2,6 +2,7 @@ import type { RuleVisitor } from "@eslint/core";
 import { indexCss } from "@orb/tooling/browser-support";
 import type { TSESTree } from "@typescript-eslint/utils";
 import ts from "typescript";
+import type { ConstantText } from "./browser-support-classes.ts";
 import { classSupportVisitor } from "./browser-support-classes.ts";
 import type { OrbRule, OrbRuleContext, Source } from "./syntax.ts";
 import type { CandidatesToCss } from "./ui-feature-classname.ts";
@@ -10,7 +11,7 @@ const NAME = /^[A-Za-z][A-Za-z0-9]*$/u;
 const API = "api.";
 const JS_BUILTINS = "javascript.builtins.";
 const GLOBAL_ROOTS = new Set(["window", "globalThis", "self"]);
-const CSS_SUPPORTS = /\bCSS\.supports\(/u;
+const FUNCTIONS = new Set<string>(["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"]);
 // lib.d.ts spells a static side `XConstructor` and a few instance sides under another name than the compat data does.
 const LIB_ALIASES: Readonly<Record<string, string>> = { IteratorObject: "Iterator", ReadonlyArray: "Array", ReadonlyMap: "Map", ReadonlySet: "Set" };
 const EXITS = new Set<string>(["ReturnStatement", "ThrowStatement", "ContinueStatement", "BreakStatement"]);
@@ -107,7 +108,7 @@ function statementsOf(node: TSESTree.Node): readonly TSESTree.Node[] {
 
 /** True when an enclosing branch, short-circuit or earlier exiting `if` tests for the thing `pattern` names. */
 function isGuarded(sourceCode: Source, site: TSESTree.Node, pattern: RegExp): boolean {
-  const tests = (test: TSESTree.Node): boolean => pattern.test(sourceCode.getText(test)) || CSS_SUPPORTS.test(sourceCode.getText(test));
+  const tests = (test: TSESTree.Node): boolean => pattern.test(sourceCode.getText(test));
   let child: TSESTree.Node = site;
   for (let parent = site.parent; parent; child = parent, parent = parent.parent) {
     const branch = (parent.type === "IfStatement" || parent.type === "ConditionalExpression") && child !== parent.test && tests(parent.test);
@@ -119,6 +120,55 @@ function isGuarded(sourceCode: Source, site: TSESTree.Node, pattern: RegExp): bo
     }
   }
   return false;
+}
+
+/** True when `node` runs as its module evaluates: not inside a function (an immediately invoked one still runs) or an instance field initializer. */
+function evaluatesAtLoad(node: TSESTree.Node): boolean {
+  let child: TSESTree.Node = node;
+  for (let parent = node.parent; parent; child = parent, parent = parent.parent) {
+    const invokedNow = parent.type === "CallExpression" && parent.callee === child;
+    const deferred = FUNCTIONS.has(child.type) ? !invokedNow : parent.type === "PropertyDefinition" && !parent.static && parent.value === child;
+    if (deferred) {
+      return false;
+    }
+  }
+  return true;
+}
+
+const regexpSource = (text: string): string => RegExp.escape(text);
+
+/** The text of a `const` string initializer (`as const`, parentheses, `satisfies` and template pieces looked through), or `undefined`. */
+function stringText(node: ts.Expression): string | undefined {
+  if (ts.isParenthesizedExpression(node) || ts.isAsExpression(node) || ts.isSatisfiesExpression(node)) {
+    return stringText(node.expression);
+  }
+  if (ts.isStringLiteralLike(node)) {
+    return node.text;
+  }
+  return ts.isTemplateExpression(node) ? [node.head.text, ...node.templateSpans.map((span) => span.literal.text)].join(" ") : undefined;
+}
+
+// biome-ignore lint/suspicious/noBitwiseOperators: TypeScript SymbolFlags is a compiler-owned bitfield.
+const isAlias = (symbol: ts.Symbol): boolean => (symbol.flags & ts.SymbolFlags.Alias) !== 0;
+
+// biome-ignore lint/suspicious/noBitwiseOperators: TypeScript NodeFlags is a compiler-owned bitfield.
+const isConstDeclaration = (declaration: ts.VariableDeclaration): boolean => (ts.getCombinedNodeFlags(declaration) & ts.NodeFlags.Const) !== 0;
+
+/** The text of the `const` string an identifier names, following an import to its declaring module. */
+function constantTextOf(context: OrbRuleContext): ConstantText {
+  const services = context.sourceCode.parserServices;
+  const program = services?.program;
+  return (identifier) => {
+    if (!program || services.esTreeNodeToTSNodeMap === undefined) {
+      return;
+    }
+    const checker = program.getTypeChecker();
+    const found = checker.getSymbolAtLocation(services.esTreeNodeToTSNodeMap.get(identifier));
+    const symbol = found !== undefined && isAlias(found) ? checker.getAliasedSymbol(found) : found;
+    const declaration = symbol?.valueDeclaration;
+    const isConst = declaration !== undefined && ts.isVariableDeclaration(declaration) && isConstDeclaration(declaration);
+    return isConst && declaration.initializer !== undefined ? stringText(declaration.initializer) : undefined;
+  };
 }
 
 /** The lib interface declaring the member a property access names, or `undefined` outside the checker's reach. */
@@ -144,9 +194,13 @@ function ownerOfMember(context: OrbRuleContext, node: TSESTree.MemberExpression)
  * are judged by their declaring interface and only the names the compat data flags cost a lookup.
  *
  * A use passes when it is optional (`el.m?.()`), or when an enclosing `if`, `?:`, `&&`, `||` or `??` tests for it, or an
- * earlier `if (...) return|throw|continue|break` in the same block does. A test counts when it contains `"m" in x`, `x.m`
- * or `x?.m` (member), the bare global name (global), or `CSS.supports(`. Polarity is not checked, so keep the guard honest.
- * A builtin the client's polyfill entry installs is dropped from `unsupported` before it gets here (`withoutPolyfilled`).
+ * earlier `if (...) return|throw|continue|break` in the same block does. A test counts when it contains `"m" in el`,
+ * `el.m` or `el?.m` for the SAME receiver text (member), or the bare global name (global). `CSS.supports` guards nothing here:
+ * it tests a style, not a script API. Polarity is not checked, so keep the guard honest.
+ *
+ * A builtin in `polyfilled` (the client's polyfill entry installs it) is judged by when it runs. Inside a function it passes,
+ * because main.tsx awaits the entry before it renders. At module top level it is refused: siblings evaluate before the
+ * entry's async install finishes, and the sync shims only land once the entry's own chunk has run.
  *
  * The Tailwind classes in `className`, `class` and class helpers are compiled and their declarations judged by the Stylelint
  * rule's key check: a property in `harmless` passes, and a class whose CSS sits under `@supports` is guarded.
@@ -156,9 +210,12 @@ export interface BrowserSupportOptions {
   /** Property → why a browser ignoring it changes no layout or behavior. */
   readonly harmless: Readonly<Record<string, string>>;
   readonly candidatesToCss: CandidatesToCss;
+  /** Builtins the polyfill entry installs (`POLYFILLED_BUILTINS`): `Temporal`, `RegExp.escape`. */
+  readonly polyfilled: readonly string[];
 }
 
-export const browserSupportRule = ({ unsupported, harmless, candidatesToCss }: BrowserSupportOptions): OrbRule => {
+export const browserSupportRule = ({ unsupported, harmless, candidatesToCss, polyfilled }: BrowserSupportOptions): OrbRule => {
+  const installed = new Set(polyfilled);
   const index = indexUnsupported(unsupported);
   const cssIndex = indexCss(unsupported, harmless);
   return {
@@ -168,14 +225,32 @@ export const browserSupportRule = ({ unsupported, harmless, candidatesToCss }: B
       const refuse = (node: TSESTree.Node, what: string, lacking: Lacking): void => {
         context.report({
           node,
-          message: `${what} is missing in ${lacking.join(", ")}, which are in the declared browser floor (packages/client/browser-targets.ts); guard it ("x" in el, typeof X, CSS.supports) or drop it.`,
+          message: `${what} is missing in ${lacking.join(", ")}, which are in the declared browser floor (packages/client/browser-targets.ts); guard it ("x" in el, typeof X) or drop it.`,
         });
+      };
+      // A polyfilled builtin is safe inside a function and refused where the module evaluates it.
+      const refuseEager = (node: TSESTree.Node, what: string): void => {
+        context.report({
+          node,
+          message: `${what} runs at module evaluation, before the polyfill entry has installed it (packages/client/src/lib/platform-polyfills.ts); call it inside a function.`,
+        });
+      };
+      // One verdict for a missing thing: a guard passes it; a polyfilled one is refused only where the module evaluates it.
+      const judge = (site: TSESTree.Node, key: string, lacking: Lacking, guard: RegExp): void => {
+        if (isGuarded(sourceCode, site, guard)) {
+          return;
+        }
+        if (!installed.has(key)) {
+          refuse(site, `\`${key}\``, lacking);
+        } else if (evaluatesAtLoad(site)) {
+          refuseEager(site, `\`${key}\``);
+        }
       };
       const checkGlobal = (name: string, use: Use, site: TSESTree.Node): void => {
         // A constructor-only gap (the name exists, `new` does not) matters at the `new` alone.
         const lacking = index.globals.get(name) ?? (use === "new" ? index.constructors.get(name) : undefined);
-        if (lacking !== undefined && !isGuarded(sourceCode, site, new RegExp(String.raw`\b${name}\b`, "u"))) {
-          refuse(site, `\`${name}\``, lacking);
+        if (lacking !== undefined) {
+          judge(site, name, lacking, new RegExp(String.raw`\b${name}\b`, "u"));
         }
       };
       const checkLibGlobals = (program: TSESTree.Program): void => {
@@ -193,12 +268,14 @@ export const browserSupportRule = ({ unsupported, harmless, candidatesToCss }: B
         const owners = index.members.get(name);
         const owner = owners === undefined ? undefined : ownerOfMember(context, node);
         const lacking = owner === undefined ? undefined : owners?.get(owner);
-        if (owner !== undefined && lacking !== undefined && !isGuarded(sourceCode, node, new RegExp(String.raw`["']${name}["']\s+in\b|\??\.${name}\b`, "u"))) {
-          refuse(node, `\`${owner}.${name}\``, lacking);
+        if (owner !== undefined && lacking !== undefined) {
+          // The guard must test this receiver: `"m" in other` says nothing about `el.m`.
+          const receiver = regexpSource(sourceCode.getText(node.object));
+          judge(node, `${owner}.${name}`, lacking, new RegExp(String.raw`["']${name}["']\s+in\s+${receiver}\b|${receiver}\??\.${name}\b`, "u"));
         }
       };
       return {
-        ...classSupportVisitor(cssIndex, candidatesToCss, (node, what, lacking) => {
+        ...classSupportVisitor(cssIndex, candidatesToCss, constantTextOf(context), (node, what, lacking) => {
           refuse(node, what, lacking);
         }),
         "Program:exit": checkLibGlobals,
