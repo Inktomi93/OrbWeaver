@@ -205,3 +205,24 @@ Native logs are `classic-discovery.log`, `classic-final.log` and `classic-preset
 
 The confirmed width difference is recorded, not removed. The acceptance criterion asks whether it occurs; no measured contract violation requires a layout rewrite.
 These checks qualify Linux Chromium's native thin scrollbar. They do not establish Windows gutter size, macOS overlay settings or real iPhone/Safari behavior.
+
+## Main verification and remaining scope
+
+Main integrated the CSS source, the DOM and test-authoring corrections, and the reviewed phone consent-row fix.
+The corresponding evidence remains in `dom-closeout.md`, `test-enforcement-closeout.md` and `rendered-closeout.md` beside this report.
+
+| Native check | Result | Output |
+| - | - | - |
+| `pnpm lint` | Exit 0; informational diagnostics only | `/tmp/ui-closeout-main-biome.log` |
+| `pnpm lint:css` | Exit 0 | `/tmp/ui-closeout-main-stylelint.log` |
+| `pnpm depcruise` | Exit 0 | `/tmp/ui-closeout-main-depcruise.log` |
+| `pnpm lint:eslint` | Exit 0 after the supported input-channel guards and canonical theme-label import | `/tmp/ui-closeout-main-eslint-final.log` |
+| `pnpm knip` | Exit 0 after removing an unused public testkit type forwarding | `/tmp/ui-closeout-main-knip-final.log` |
+| `pnpm knip:prod` | Exit 0; informational tag hints only | `/tmp/ui-closeout-main-knip-prod.log` |
+| `pnpm typecheck tsconfig.json` | Exit 0; affected UI, client, tooling and DOM programs retain their matching lane results | `/tmp/ui-closeout-main-root-typecheck.log` |
+
+These checks qualify their configured populations. They do not prove the absence of styling forms the rules never examined.
+The expanded audit finds client-tier scope gaps, alternate class carriers, static spreads and standalone vendor design inputs.
+Items 1299, 1316, 1326, 1335, 1336 and 1374 remain open until that migration and its stronger enforcement are qualified.
+The completed independent items can close without claiming that the entire client is already governed.
+Full application CI, the future browser-score matrix and real-device qualification are not claimed by this report.
