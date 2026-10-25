@@ -42,7 +42,7 @@ export interface HitBox {
  * two independent counts: a custom property's computed value is its authored TOKEN STREAM, so
  * (a) the `--spacing-*` family is clamped and the stream reads `round(up, 2.75rem, 1px)` — NaN
  * to `parseFloat`, and every downstream comparison silently vacuous — and (b) the `* 16` is a lie
- * for any reader with `--font-scale` off 1. A throwaway probe makes the ENGINE do the arithmetic, so it is
+ * for any reader with `--appearance-font-scale` off 1. A throwaway probe makes the ENGINE do the arithmetic, so it is
  * correct under the belt, the font scale, the pointer arm and the density scope alike.
  */
 function resolveSpacingPx(page: Page, cssVar: string): Promise<number> {

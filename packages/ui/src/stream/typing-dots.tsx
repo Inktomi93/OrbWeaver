@@ -10,8 +10,8 @@ export interface TypingDotsProps {
 // The pending "typing" affordance shown before a stream's first token (the ghost row's pre-first-token
 // window; a calmer sibling of `StreamShimmer`). Three muted dots pulse via the `orb-typing-dot`
 // @keyframes utility in `styles/globals.css` — a Tailwind transition can't express a looping pulse.
-// Reduced motion is handled ENTIRELY by that file's unlayered `animation-*: 0.01ms !important` floor
-// (OS @media + `[data-reduced-motion]`): the dots freeze at their resting (non-zero) opacity, still
+// Reduced motion is handled ENTIRELY by the `animation-*: 0.01ms !important` floor (motion-floor.css, the app's
+// setting resolved over the OS query): the dots freeze at their resting (non-zero) opacity, still
 // visible and static. `aria-label` is required — `role="status"` computes its name from the author.
 // The dots themselves are decorative (`aria-hidden`); the container carries the announced name.
 export function TypingDots({ label, className }: TypingDotsProps): ReactElement {

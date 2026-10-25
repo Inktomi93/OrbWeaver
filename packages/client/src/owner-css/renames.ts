@@ -4,4 +4,10 @@
 // chains are not followed.
 import type { OwnerCssRename } from "./hook.ts";
 
-export const OWNER_CSS_RENAMES: readonly OwnerCssRename[] = [];
+export const OWNER_CSS_RENAMES: readonly OwnerCssRename[] = [
+  // The reader's appearance settings moved onto the generated appearance channel, which is not an owner-CSS hook.
+  { kind: "token", name: "--reading-line-height", to: null },
+  { kind: "token", name: "--blur-strength", to: null },
+  { kind: "token", name: "--reading-letter-spacing", to: null },
+  { kind: "token", name: "--reading-paragraph-spacing", to: null },
+];

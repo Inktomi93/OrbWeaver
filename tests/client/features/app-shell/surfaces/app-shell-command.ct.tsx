@@ -4,7 +4,7 @@ import { createShellAmbientReads, routeTrpc, serveCorpusProcedures } from "@orb/
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { AppShellModalStory, AppShellStory } from "./_app-shell-stories.tsx";
-import { dispatchCommandKey, JUMP_CHIP, PHONE, SHELL_STORIES } from "./app-shell-ct.ts";
+import { dispatchCommandKey, JUMP_CHIP, PHONE, SHELL_STORIES } from "./app-shell-ct.tsx";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;
 const MODAL_STORY = `${SHELL_STORIES}/AppShellModalStory`;

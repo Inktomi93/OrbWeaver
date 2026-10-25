@@ -33,7 +33,7 @@ export const INTERACTIVE_TEXT_FLOOR_PX = 11;
 export const LEADING_FLOOR = SNAPPED_LENGTH_BASE_PX["leading.label"] / (Number.parseFloat(TOKENS["text.label"].value) * REM_PX);
 
 /** Rounding slack on the leading floor (#233). `getComputedStyle` hands back a TRUNCATED line-height
- *  string — at `--font-scale: 1.25` the body step measures 13.125px and Chrome reports "16.4062px" for
+ *  string — at `--appearance-font-scale: 1.25` the body step measures 13.125px and Chrome reports "16.4062px" for
  *  a line-height that is exactly 16.40625px, so the ratio arrives as 1.2499657 and a ramp-legal
  *  paragraph fires `tight-leading` against a floor it actually sits on (three such findings on the
  *  home reading arm, all retracted in-report). Chrome truncates at 4 decimals, so the worst error is

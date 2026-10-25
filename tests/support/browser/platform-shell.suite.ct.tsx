@@ -90,7 +90,7 @@ for (const viewport of [PHONE_PORTRAIT, DESKTOP]) {
     await page.setViewportSize(viewport);
     await mount<typeof ShellAmbientStory>(STORY, {});
     // !important: the appearance writer owns the inline value and rewrites it after boot.
-    await page.addStyleTag({ content: `:root { --font-scale: ${TEXT_SCALE_200} !important; }` });
+    await page.addStyleTag({ content: `:root { --appearance-font-scale: ${TEXT_SCALE_200} !important; }` });
     await expect(page.getByRole("navigation", { name: "Primary", exact: true })).toBeVisible();
     const fit = await page.evaluate(() => {
       const rail = document.querySelector("nav[aria-label=Primary]") as HTMLElement;

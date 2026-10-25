@@ -244,7 +244,7 @@ test("a failed real-response fallback rejects the appearance shim instead of rep
 // #2429 item 1 — THE AXIS THE TWO REFERENCE PROFILES MUST BOTH STATE. A preset is a PATCH: a key it does
 // not name keeps the running account's own value, so an unnamed axis means the arm rendered the OWNER's
 // row rather than a defined point. `enableThemeColorization` is the one that decides whether the accent
-// retint (`html[data-theme-colorization]`, packages/client/src/styles/globals.css) fires at all, and the
+// retint (the `appearance-enable-theme-colorization-true` variant, packages/client/src/styles/globals.css) fires at all, and the
 // side-eye that filed this row could not tell which side of it a `--appearance-preset maximal` shot was on.
 // The committed JSON already carries both values; this pin is what keeps them there — deleting either key
 // reds here instead of silently handing the next reviewer the account's row.

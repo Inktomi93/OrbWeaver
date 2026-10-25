@@ -79,7 +79,19 @@ test("an appearance name a sheet spells is one the manifest's channel writes", a
   // A client sheet keys a preference on its resolved variant; the OS-only one ignores the app's off.
   expect(await rulesHit(layered("@variant motion-reduce { .probe { opacity: 1; } }"))).toEqual([rule]);
   expect(await rulesHit(layered("@variant appearance-reduced-motion { .probe { opacity: 1; } }"))).toEqual([]);
-  expect(await rulesHit(layered("@variant motion-reduce { .probe { opacity: 1; } }"), FLOOR_FILE)).toEqual([]);
+  // A ui sheet has no resolved variant, so its OS arm must carry the root guard, or the app's off cannot beat the OS.
+  expect(await rulesHit(layered("@variant motion-reduce { .probe { opacity: 1; } }"), FLOOR_FILE)).toEqual([rule]);
+  expect(await rulesHit(layered("@variant contrast-more { .probe, .other { opacity: 1; } }"), FLOOR_FILE)).toEqual([rule]);
+  expect(
+    await rulesHit(layered('@variant contrast-more { :root:not([data-appearance-increased-contrast="off"]) .probe, .other { opacity: 1; } }'), FLOOR_FILE),
+  ).toEqual([rule]);
+  expect(await rulesHit(layered('@variant motion-reduce { :root:not([data-appearance-reduced-motion="off"]) .probe { opacity: 1; } }'), FLOOR_FILE)).toEqual(
+    [],
+  );
+  // A variant prefix in `@apply` is read too; a sheet cannot guard it.
+  expect(await rulesHit(layered(".probe { @apply motion-reduce:opacity-50; }"))).toEqual([rule]);
+  expect(await rulesHit(layered(".probe { @apply hover:not-contrast-more:opacity-50; }"))).toEqual([rule]);
+  expect(await rulesHit(layered(".probe { @apply appearance-reduced-motion:opacity-50; }"))).toEqual([]);
 });
 
 test("physical properties, qualifying types, ids, deep selectors and important declarations are refused", async () => {

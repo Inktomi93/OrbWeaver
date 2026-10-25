@@ -5,7 +5,7 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { SNAPPED_LENGTH_BASE_PX, TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import type { AppShellStory } from "./_app-shell-stories.tsx";
-import { dispatchCommandKey, routeRoom, SHELL_STORIES, seedShellState, touchDrag } from "./app-shell-ct.ts";
+import { dispatchCommandKey, routeRoom, SHELL_STORIES, seedShellState, touchDrag } from "./app-shell-ct.tsx";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;
 const LIST = '.shell-panel[data-panel-side="list"]';
