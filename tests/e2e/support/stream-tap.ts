@@ -20,7 +20,7 @@ const SSE_LINE_BREAK = /\r?\n/u;
 const chatIdSchema = typeIdSchema(ID_PREFIX.chat);
 
 /** One chat-room data frame as delivered on the stream. */
-export interface ChatWireFrame {
+interface ChatWireFrame {
   readonly chatId: ChatId;
   readonly type: string;
 }
