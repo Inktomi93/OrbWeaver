@@ -1,4 +1,5 @@
 import type { CodeEditorDiagnostic } from "@orb/ui/code-editor";
+import { APPEARANCE_ATTRIBUTE_PREFIX } from "#lib";
 import type { OwnerCssHook, OwnerCssHookKind, OwnerCssRename } from "#owner-css";
 import { scanHooks } from "#owner-css";
 
@@ -6,6 +7,7 @@ const SPELLING: Record<OwnerCssHookKind, (name: string) => string> = {
   slot: (name) => `[data-slot="${name}"]`,
   "shell-class": (name) => `.${name}`,
   token: (name) => name,
+  "appearance-attribute": (name) => `[${name}]`,
 };
 
 function editDistance(a: string, b: string): number {
@@ -36,6 +38,16 @@ function closestName(name: string, candidates: readonly string[]): string | null
   return best?.name ?? null;
 }
 
+function renameMessage(spelled: string, kind: OwnerCssHookKind, rename: OwnerCssRename): string {
+  if (rename.to !== null) {
+    return `\`${spelled}\` was renamed to \`${SPELLING[kind](rename.to)}\`. It still applies; update it to the new name.`;
+  }
+  if (rename.see !== undefined) {
+    return `\`${spelled}\` was replaced by \`${SPELLING[kind](rename.see)}\`, whose value is not the same form, so the old name no longer matches. Rewrite it by hand.`;
+  }
+  return `\`${spelled}\` was removed from the theme surface and no longer matches anything.`;
+}
+
 /**
  * Warnings for a stylesheet that names a theme hook the surface does not offer: a recorded rename (still works),
  * a recorded retirement, or an unknown name with the closest current one. Custom properties the sheet declares
@@ -44,7 +56,7 @@ function closestName(name: string, candidates: readonly string[]): string | null
 export function themeCssHookWarnings(css: string, surface: readonly OwnerCssHook[], renames: readonly OwnerCssRename[]): CodeEditorDiagnostic[] {
   const refs = scanHooks(css);
   const declared = new Set(refs.filter((ref) => ref.declaration).map((ref) => ref.name));
-  const names: Record<OwnerCssHookKind, string[]> = { slot: [], "shell-class": [], token: [] };
+  const names: Record<OwnerCssHookKind, string[]> = { slot: [], "shell-class": [], token: [], "appearance-attribute": [] };
   for (const hook of surface) {
     names[hook.kind].push(hook.name);
   }
@@ -56,14 +68,12 @@ export function themeCssHookWarnings(css: string, surface: readonly OwnerCssHook
     const spelled = SPELLING[ref.kind](ref.name);
     const rename = renames.find((row) => row.kind === ref.kind && row.name === ref.name);
     if (rename !== undefined) {
-      const message =
-        rename.to === null
-          ? `\`${spelled}\` was removed from the theme surface and no longer matches anything.`
-          : `\`${spelled}\` was renamed to \`${SPELLING[ref.kind](rename.to)}\`. It still applies; update it to the new name.`;
+      const message = renameMessage(spelled, ref.kind, rename);
       return [{ severity: "warning" as const, message, from: ref.from, to: ref.to }];
     }
-    // A declaration of an unknown custom property is the author's own variable, not a stale hook.
-    if (ref.declaration) {
+    // A declaration of an unknown custom property is the author's own variable, and an attribute outside the
+    // appearance family is the author's own marker; neither is a stale hook.
+    if (ref.declaration || (ref.kind === "appearance-attribute" && !ref.name.startsWith(APPEARANCE_ATTRIBUTE_PREFIX))) {
       return [];
     }
     const closest = closestName(ref.name, names[ref.kind]);

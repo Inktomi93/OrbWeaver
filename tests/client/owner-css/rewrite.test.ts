@@ -1,4 +1,5 @@
 import { expect, test } from "@orb/testkit/node";
+import { OWNER_CSS_RENAMES } from "#client/owner-css/renames.ts";
 import { rewriteRenamedHooks } from "#client/owner-css/rewrite.ts";
 
 type Renames = Parameters<typeof rewriteRenamedHooks>[1];
@@ -25,6 +26,11 @@ test("the rewrite skips strings, honours a string holding /* and never stops ear
     '/* open [data-slot="bubble"]',
   ].join("\n");
   expect(rewriteRenamedHooks(css, RENAMES)).toBe(css.replace('\n[data-slot="bubble"] {}', '\n[data-slot="message-bubble"] {}'));
+});
+
+test("the recorded retired appearance property is rewritten when unitless and left when its old value carried a unit", () => {
+  const css = "a { font-size: calc(1rem * var(--font-scale)); filter: blur(var(--blur-strength)); }";
+  expect(rewriteRenamedHooks(css, OWNER_CSS_RENAMES)).toBe("a { font-size: calc(1rem * var(--appearance-font-scale)); filter: blur(var(--blur-strength)); }");
 });
 
 test("the rewrite carries on past an unquoted url() holding /*", () => {

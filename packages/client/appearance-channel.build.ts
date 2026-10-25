@@ -180,6 +180,14 @@ export function appearanceChannelVocabulary(): AppearanceChannelVocabulary {
   };
 }
 
+/** Each attribute channel with the values its generated variants match, for the owner-CSS surface. */
+export function appearanceChannelAttributes(): readonly { readonly name: string; readonly values: readonly string[] }[] {
+  return APPEARANCE_CHANNEL_ROWS.flatMap((row) => {
+    const shape = shapeOf(row);
+    return row.kind === "attribute" && shape.kind !== "number" ? [{ name: row.name, values: shape.values }] : [];
+  });
+}
+
 export function renderAppearanceChannelCss(): string {
   const blocks = APPEARANCE_CHANNEL_ROWS.map((row) => {
     const shape = shapeOf(row);
