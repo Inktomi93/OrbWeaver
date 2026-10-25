@@ -17,7 +17,7 @@ import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useColorQuotedSpeech, usePromptMacroSuggestions } from "#data";
 import type { AppFormInstance } from "#forms/editor";
 import { notify } from "#lib";
@@ -242,6 +242,7 @@ function GreetingActions({
   readonly onStartAlternate: (nextIndex: number) => void;
 }): ReactElement {
   const [studioOpen, setStudioOpen] = useState(false);
+  const addOpeningRef = useRef<HTMLButtonElement>(null);
   return (
     // The group-only toggle (or its Opening-1 absence note) rides its OWN row above the action cluster —
     // it's an ATTRIBUTE of the greeting, not an action. Keeping it out of the `justify-end` button Row is
@@ -262,8 +263,8 @@ function GreetingActions({
               onActiveIndexChange(Math.max(0, index - 1));
               // This Remove button unmounts when the new active greeting is the solo first message, dropping
               // focus to <body> (no SR announcement on a destructive act — side-eye #6). Move focus to the
-              // always-present Add button next tick, after React commits the shrunk array.
-              requestAnimationFrame(() => document.getElementById(ADD_OPENING_ID)?.focus());
+              // always-present Add button now, so it is never on the button that is about to go.
+              addOpeningRef.current?.focus();
             }}
           >
             <Icon icon={Trash2} size="sm" />
@@ -271,7 +272,7 @@ function GreetingActions({
           </Button>
         ) : null}
         <Button
-          id={ADD_OPENING_ID}
+          ref={addOpeningRef}
           type="button"
           size="sm"
           intent="ghost"
@@ -323,10 +324,6 @@ function GreetingActions({
     </Stack>
   );
 }
-
-// The one Add-opening button carries a stable DOM id (a single GreetingActions instance mounts per editor)
-// so the remove handler can restore focus to it without threading a ref through the button primitive.
-const ADD_OPENING_ID = "greeting-add-opening";
 
 /** The greeting's own "attribute" line above the action cluster: the group-only toggle on an alternate, or —
  *  when other openings exist — a one-liner explaining why the flag is absent on the always-shown first

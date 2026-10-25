@@ -21,8 +21,9 @@ import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
-import type { KeyboardEvent, PointerEvent, ReactElement } from "react";
-import { useDeferredValue, useEffect, useId, useRef, useState } from "react";
+import type { KeyboardEvent, PointerEvent, ReactElement, RefObject } from "react";
+import { useDeferredValue, useId, useRef, useState } from "react";
+import { useFocusOnSwap } from "#lib";
 import { useRecentModels } from "#state";
 import type { ModelPickerView, modelCheckOf, PickerEntry } from "../lib/model-picker-model.ts";
 import {
@@ -114,12 +115,17 @@ export function ModelPicker(props: ModelPickerProps): ReactElement {
   );
 }
 
+/** The search box takes the caret the moment there is a list to search — after "List models" answers, and when a
+ *  saved row's catalog lands — so focus never falls back to the document. */
+function useSearchCaret(searchRef: RefObject<HTMLInputElement | null>, listReady: boolean, wanted: boolean): void {
+  useFocusOnSwap(searchRef, listReady && wanted);
+}
+
 /** The searchable list. `models: null` is the loading arm: the same frame with skeleton rows in it, so the
  *  dialog does not jump when the catalog lands. */
 function ListedPicker(props: ModelPickerProps & { readonly models: readonly ModelCatalogEntry[] | null }): ReactElement {
   const { value, onValueChange, typedAllowed, listOwner, error, recentKey, models, focusOnList = true } = props;
   const labelId = useId();
-  const pickerId = useId();
   const errorId = useId();
   // cmdk labels its input with the root's `label` through `aria-labelledby`, which outranks the input's own
   // `aria-label`, so the search box's name is spelled here.
@@ -132,6 +138,7 @@ function ListedPicker(props: ModelPickerProps & { readonly models: readonly Mode
   // The same fact for cmdk's own handlers: a navigation key's highlight move runs in the SAME event as the
   // keydown that set `navigated`, before the state is visible to this render's closures.
   const navigatingRef = useRef(false);
+  const searchRef = useRef<HTMLInputElement>(null);
   const recentIds = useRecentModels(recentKey);
   const view = usePickerView({ models, term, chips, recentIds, pinnedIds: [value, props.currentModel ?? ""], listOwner, closedList: !typedAllowed });
   const typed = models === null ? null : typedOption({ term, models, allowed: typedAllowed });
@@ -142,37 +149,7 @@ function ListedPicker(props: ModelPickerProps & { readonly models: readonly Mode
   const noRowValue = reassertions % 2 === 0 ? NO_ROW_VALUES[0] : NO_ROW_VALUES[1];
   const commandValue = activeValue === "" ? noRowValue : activeValue;
 
-  // The search box takes the caret the moment there is a list to search — after "List models" answers, and
-  // when a saved row's catalog lands — so focus never falls back to the document. Found through the picker's
-  // own box: cmdk mints the input's id, and `CommandInput` keeps its ref for its own ARIA corrections.
-  useEffect(() => {
-    if (listReady && focusOnList) {
-      document.getElementById(pickerId)?.querySelector<HTMLInputElement>("input[cmdk-input]")?.focus();
-    }
-  }, [listReady, focusOnList, pickerId]);
-
-  // The pick is rendered even past the render cap, but it may sit below the fold of the fixed-height list, so
-  // center its row in the list when the list lands or the pick changes. Rows carry their value in `data-value`.
-  // Only the list's own scrollTop moves (`scrollIntoView` would also scroll the settings pane around it), and
-  // only a frame later, once the list has its final height.
-  useEffect(() => {
-    if (!listReady || value === "") {
-      return;
-    }
-    const frame = requestAnimationFrame(() => {
-      const rows = document.getElementById(pickerId)?.querySelectorAll<HTMLElement>("[cmdk-item]") ?? [];
-      for (const row of rows) {
-        const rowValue = row.getAttribute("data-value");
-        const list = row.closest<HTMLElement>("[cmdk-list]");
-        if (list !== null && (rowValue === value || rowValue === `${RECENT_VALUE_PREFIX}${value}`)) {
-          const rowTop = row.getBoundingClientRect().top - list.getBoundingClientRect().top + list.scrollTop;
-          list.scrollTop = rowTop - (list.clientHeight - row.offsetHeight) / 2;
-          return;
-        }
-      }
-    });
-    return (): void => cancelAnimationFrame(frame);
-  }, [listReady, value, pickerId]);
+  useSearchCaret(searchRef, listReady, focusOnList);
 
   // A pointer the user MOVES over the list hands it the highlight. Chromium also fires a zero-movement
   // pointermove when the list renders under a still cursor; that one is not the user choosing a row.
@@ -217,7 +194,7 @@ function ListedPicker(props: ModelPickerProps & { readonly models: readonly Mode
   };
 
   return (
-    <Stack gap="tight" id={pickerId}>
+    <Stack gap="tight">
       <Text as="span" id={labelId} voice="label">
         Model
       </Text>
@@ -229,6 +206,7 @@ function ListedPicker(props: ModelPickerProps & { readonly models: readonly Mode
           disabled={models === null}
           onValueChange={onSearch}
           placeholder="Search models…"
+          ref={searchRef}
           value={term}
         />
         {view.showChips ? (
@@ -260,6 +238,7 @@ function ListedPicker(props: ModelPickerProps & { readonly models: readonly Mode
                 <CommandGroup heading="Recent">
                   {view.recentEntries.map((entry) => (
                     <CommandItem
+                      centerInList={entry.id === value}
                       key={`recent-${entry.id}`}
                       onSelect={(): void => onValueChange(castId<ModelId>(entry.id))}
                       value={`${RECENT_VALUE_PREFIX}${entry.id}`}
@@ -272,7 +251,12 @@ function ListedPicker(props: ModelPickerProps & { readonly models: readonly Mode
               {view.groups.map((group) => (
                 <CommandGroup heading={group.heading ?? undefined} key={group.key}>
                   {group.entries.map((entry) => (
-                    <CommandItem key={entry.id} onSelect={(): void => onValueChange(castId<ModelId>(entry.id))} value={entry.id}>
+                    <CommandItem
+                      centerInList={entry.id === value}
+                      key={entry.id}
+                      onSelect={(): void => onValueChange(castId<ModelId>(entry.id))}
+                      value={entry.id}
+                    >
                       <ModelPickerRow current={entry.id === props.currentModel} entry={entry} picked={entry.id === value} />
                     </CommandItem>
                   ))}

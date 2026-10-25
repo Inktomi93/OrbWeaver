@@ -30,8 +30,8 @@ import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseInfiniteQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
-import type { ReactElement, ReactNode, UIEvent } from "react";
-import { useDeferredValue, useEffect, useRef, useState } from "react";
+import type { ReactElement, ReactNode, Ref, UIEvent } from "react";
+import { useDeferredValue, useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { useDebouncedValue, useFocusOnSwap } from "#lib";
@@ -91,6 +91,8 @@ export interface CharacterPickerProps {
    *  cannot — at open time this body is still the suspense fallback, which has nothing tabbable in it), while
    *  a modal consumer runs its own focus-on-mount and the two would fight over the caret. */
   readonly autoFocusSearch?: boolean;
+  /** The search field, for an owner that moves focus into the picker from outside it. */
+  readonly searchRef?: Ref<HTMLInputElement>;
 }
 
 /** The searchable character picker body — a QueryBoundary + cmdk Command over `character.list`. */
@@ -125,8 +127,10 @@ function CharacterPickerBody({
   listClassName,
   onEscape,
   autoFocusSearch = false,
+  searchRef: ownerSearchRef,
 }: CharacterPickerProps): ReactElement {
   const searchRef = useRef<HTMLInputElement>(null);
+  useImperativeHandle(ownerSearchRef, () => searchRef.current as HTMLInputElement);
   const listRef = useRef<HTMLDivElement>(null);
   // The SWAP hook, not the guarded one: this body mounts as the direct result of a user activation, and
   // the control that opened it is gone (or the popup has already taken focus), so the `<body>` guard would

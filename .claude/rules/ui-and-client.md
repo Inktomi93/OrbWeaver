@@ -18,6 +18,8 @@ paths:
 - A feature that needs a raw `img`, `video` or `audio` element mints a primitive in `@orb/ui` and composes it thinly; `client/components` is not the place for one.
 - Before minting an accessible-name grammar, check whether `@orb/ui/src/lib/action-names.ts` already spells it. A ui-owned grammar lives there, not in client `lib`.
 - Any anchored popup composes the shared `POPUP_SURFACE` recipe, or states why not; a hand-spelled surface silently loses the Base UI available-height clamp.
+- Focus, scroll and measure with refs. Pass a ref to the part (`CommandInput` merges a caller `ref` with its own), use `initialFocus` and `finalFocus`, or ask the seal for a prop (`CommandItem` `centerInList`, `MenuPopup` `clamp`). A cross-pane address is a named home in `eslint.config.ts`, with its reason.
+- A `style` prop holds a runtime value only. Spell a static value as a token utility, a primitive prop or a variant; state a flash or a mode with a data attribute the stylesheet keys off.
 
 ## Composing Base UI primitives
 

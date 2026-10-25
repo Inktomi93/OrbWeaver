@@ -304,13 +304,14 @@ function ReservedFallback({
   }
   return (
     <Stack
+      className="overflow-clip"
       data-reserve-key={reserveKey}
       data-tile-reserved={Math.round(box)}
       // WHICH source held the box open: "this device MEASURED it" is a different claim from "the mount
       // declared a constant" — a first-boot assertion reading only `data-tile-reserved` would silently
       // start passing for the wrong reason.
       data-tile-reserve-source={measured === null ? "declared" : "measured"}
-      style={{ blockSize: `${Math.round(box)}px`, overflow: "clip" }}
+      style={{ blockSize: `${Math.round(box)}px` }}
     >
       {fillToBox(children, box)}
     </Stack>

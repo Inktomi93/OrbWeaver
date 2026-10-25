@@ -213,10 +213,7 @@ export function ConfigSearchInput({ groups }: ConfigSearchInputProps): ReactElem
       <Command label="Search settings" shouldFilter={false}>
         <Row align="center" gap="tight">
           <Stack className="flex-1 min-inline-0">
-            {/* NO CALLER REF HERE (stated so nobody re-tries it): `CommandInput` keeps
-                its own internal ref to correct cmdk's `aria-expanded`, and a `ref` passed through its props
-                replaces that one — the correction then reads `null` and the box claims an expanded listbox
-                that does not exist. The arrival focus lands on the active group's BAND instead. */}
+            {/* The arrival focus lands on the active group's BAND, not on this box. */}
             <ListSearch>
               <CommandInput
                 aria-label="Search settings"

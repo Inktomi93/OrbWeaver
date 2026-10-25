@@ -187,6 +187,30 @@ export const unruledFlipInversionRule: OrbRule = {
   },
 };
 
+const RENDER_BODY_NAME = /^(?:use[A-Z0-9]|[A-Z])/u;
+
+const RENDER_LAYOUT_MESSAGE =
+  "A layout read (getBoundingClientRect, getClientRects, getComputedStyle, offset or client size) in a component or hook body runs during render: measure in an effect, a ResizeObserver callback or an event handler.";
+
+/**
+ * A forced layout read whose nearest enclosing function is a component or hook (named `Component` or `useThing`)
+ * runs on every render. A read inside an effect, an event handler or an observer callback sits in a nested function
+ * and is not matched. Limit: a read inside a helper called from the render body is not followed.
+ */
+export const noRenderLayoutReadRule: OrbRule = {
+  meta: { type: "problem", schema: [] },
+  create(context: OrbRuleContext): RuleVisitor {
+    const judge = (node: TSESTree.Node): void => {
+      const fn = enclosingFunction(node);
+      const name = fn === undefined ? undefined : functionName(fn);
+      if (name !== undefined && RENDER_BODY_NAME.test(name) && isForcedLayoutRead(context, node)) {
+        context.report({ node, message: RENDER_LAYOUT_MESSAGE });
+      }
+    };
+    return { MemberExpression: judge, CallExpression: judge };
+  },
+};
+
 // Lifecycle state a Base UI part publishes itself; a parallel React boolean for it disagrees through the exit.
 const LIFECYCLE_STATE = /^(?:is)?(?:open|opened|closed|visible|shown|mounted|entering|exiting|starting|ending|expanded|collapsed)$/iu;
 const LIFECYCLE_ATTRIBUTES = new Set(["data-starting-style", "data-ending-style", "data-open", "data-closed"]);

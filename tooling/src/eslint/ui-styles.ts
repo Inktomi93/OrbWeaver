@@ -127,6 +127,120 @@ export const offTokenInlineStyleRule: OrbRule = {
   },
 };
 
+const STATIC_STYLE_MESSAGE =
+  "A static value (a literal, a constant, a token-only calc()) rides a style prop; make it an @orb/ui primitive prop or variant, or a token utility class. A style prop carries only what is computed at runtime from measurement or data.";
+
+/** A binding that cannot hold render data: an import, or a name declared at module scope. */
+function moduleLevelBinding(context: OrbRuleContext, identifier: TSESTree.Identifier): boolean {
+  const variable = lexicalVariable(context, identifier);
+  if (variable === undefined) {
+    return true;
+  }
+  return variable.defs[0]?.type === "ImportBinding" || variable.scope.type === "module" || variable.scope.type === "global";
+}
+
+/** True when `node` can only evaluate to the same thing on every render: built from literals, module-level names,
+ *  and calls of them over such values. A parameter, a hook result or a local derived from either is runtime. */
+function isStaticValue(context: OrbRuleContext, node: TSESTree.Node, depth = 0): boolean {
+  if (depth > STATIC_CONST_DEPTH) {
+    return false;
+  }
+  const expression = unwrapTsValue(node);
+  const next = (child: TSESTree.Node): boolean => isStaticValue(context, child, depth + 1);
+  switch (expression.type) {
+    case "Literal":
+      return true;
+    case "Identifier": {
+      if (moduleLevelBinding(context, expression)) {
+        return true;
+      }
+      const initializer = constantInitializer(context, expression);
+      return initializer !== undefined && next(initializer);
+    }
+    case "TemplateLiteral":
+      return expression.expressions.every(next);
+    case "MemberExpression":
+      return next(expression.object) && (!expression.computed || next(expression.property));
+    case "CallExpression":
+      return next(expression.callee) && expression.arguments.every((argument) => argument.type !== "SpreadElement" && next(argument));
+    case "UnaryExpression":
+      return next(expression.argument);
+    case "BinaryExpression":
+    case "LogicalExpression":
+      return next(expression.left) && next(expression.right);
+    case "ConditionalExpression":
+      return next(expression.test) && next(expression.consequent) && next(expression.alternate);
+    case "ObjectExpression":
+      return expression.properties.every((property) =>
+        property.type === "SpreadElement" ? next(property.argument) : (!property.computed || next(property.key)) && next(property.value),
+      );
+    case "ArrayExpression":
+      return expression.elements.every((element) => element !== null && element.type !== "SpreadElement" && next(element));
+    default:
+      return false;
+  }
+}
+
+/** A value that sets nothing: omitting a property is a runtime choice, not a static style. */
+const isAbsentValue = (node: TSESTree.Node): boolean => {
+  const value = unwrapTsValue(node);
+  return (value.type === "Identifier" && value.name === "undefined") || (value.type === "Literal" && (value.value === null || value.value === false));
+};
+
+function staticObjectEntries(context: OrbRuleContext, object: TSESTree.ObjectExpression, depth: number): readonly TSESTree.Node[] {
+  return object.properties.flatMap((property): readonly TSESTree.Node[] => {
+    if (property.type === "SpreadElement") {
+      return isStaticValue(context, property.argument) ? [property] : staticStyleEntries(context, property.argument, depth + 1);
+    }
+    const keyFixed = !property.computed || isStaticValue(context, property.key);
+    return keyFixed && !isAbsentValue(property.value) && isStaticValue(context, property.value) ? [property] : [];
+  });
+}
+
+/** The static parts of a style expression: each static property of an object written in place, named by a constant,
+ *  spread, or chosen by a runtime condition. A constant's findings are reported at the use. */
+function staticStyleEntries(context: OrbRuleContext, node: TSESTree.Node, depth: number): readonly TSESTree.Node[] {
+  if (depth > STATIC_CONST_DEPTH) {
+    return [];
+  }
+  const expression = unwrapTsValue(node);
+  switch (expression.type) {
+    case "ObjectExpression":
+      return staticObjectEntries(context, expression, depth);
+    case "ConditionalExpression":
+      return [...staticStyleEntries(context, expression.consequent, depth + 1), ...staticStyleEntries(context, expression.alternate, depth + 1)];
+    case "LogicalExpression":
+      return staticStyleEntries(context, expression.right, depth + 1);
+    case "Identifier": {
+      const initializer = constantInitializer(context, expression);
+      return initializer === undefined || staticStyleEntries(context, initializer, depth + 1).length === 0 ? [] : [expression];
+    }
+    default:
+      return [];
+  }
+}
+
+/**
+ * A feature's `style` prop carries only what is computed at runtime from measurement or data. A static property of a
+ * style object (a literal, a module constant, a token-only calc()) is a finding. The check is syntactic: an object
+ * reached through an import or a call is not followed, so it judges what the file itself spells.
+ */
+export const noStaticStylePropRule: OrbRule = {
+  meta: { type: "problem", schema: [] },
+  create(context: OrbRuleContext): RuleVisitor {
+    return {
+      "JSXAttribute[name.name='style'] > JSXExpressionContainer": (container: TSESTree.JSXExpressionContainer): void => {
+        if (container.expression.type === "JSXEmptyExpression") {
+          return;
+        }
+        for (const node of staticStyleEntries(context, container.expression, 0)) {
+          context.report({ node, message: STATIC_STYLE_MESSAGE });
+        }
+      },
+    };
+  },
+};
+
 const COLOR_TOKEN_PREFIX = "--color-";
 
 const keyHead = (context: OrbRuleContext, property: TSESTree.Property): string | null | undefined =>

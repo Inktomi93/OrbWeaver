@@ -32,7 +32,14 @@ export function LabelsSuggestions(): ReactElement {
 function SuggestionsBody(): ReactElement {
   const trpc = useTRPC();
   const { data: suggestions } = useSuspenseQuery(trpc.tag.listPendingSuggestions.queryOptions());
-  const root = useRef<HTMLDivElement>(null);
+  const applyButtons = useRef(new Map<string, HTMLButtonElement>());
+  const registerApply = (key: string, node: HTMLButtonElement | null): void => {
+    if (node === null) {
+      applyButtons.current.delete(key);
+    } else {
+      applyButtons.current.set(key, node);
+    }
+  };
   const empty = useRef<HTMLParagraphElement>(null);
   const [reviewed, setReviewed] = useState<ReviewedMark | null>(null);
   const handledReview = useRef<typeof reviewed>(null);
@@ -42,11 +49,13 @@ function SuggestionsBody(): ReactElement {
     }
     // Readback owns removal; keep focus where the reader moved it while the write settled.
     if (!reviewed.button.isConnected && document.activeElement === document.body) {
-      const actions = root.current?.querySelectorAll<HTMLButtonElement>('[data-slot="label-review-apply"]');
-      if (actions !== undefined && actions.length > 0) {
-        actions.item(Math.min(reviewed.index, actions.length - 1)).focus();
-      } else {
+      const remaining = groupSuggestions(suggestions).flatMap((group) => group.rows);
+      const next = remaining[Math.min(reviewed.index, remaining.length - 1)];
+      const nextApply = next === undefined ? undefined : applyButtons.current.get(suggestionKey(next));
+      if (nextApply === undefined) {
         empty.current?.focus();
+      } else {
+        nextApply.focus();
       }
     }
     handledReview.current = reviewed;
@@ -61,11 +70,12 @@ function SuggestionsBody(): ReactElement {
   }
   const ordered = groups.flatMap((group) => group.rows);
   return (
-    <Stack ref={root} gap="field">
+    <Stack gap="field">
       {groups.map((group) => (
         <SuggestionGroupBlock
           key={group.key}
           group={group}
+          registerApply={registerApply}
           onReviewed={(row, button): void => setReviewed({ key: suggestionKey(row), index: ordered.indexOf(row), button })}
         />
       ))}
@@ -84,9 +94,11 @@ const suggestionKey = (suggestion: TagSuggestionView): string => `${suggestion.i
 function SuggestionGroupBlock({
   group,
   onReviewed,
+  registerApply,
 }: {
   readonly group: SuggestionGroup;
   readonly onReviewed: (row: TagSuggestionView, button: HTMLButtonElement) => void;
+  readonly registerApply: (key: string, node: HTMLButtonElement | null) => void;
 }): ReactElement | null {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
@@ -105,7 +117,13 @@ function SuggestionGroupBlock({
       header: "Review",
       accessor: () => null,
       align: "end",
-      cell: (_value, row) => <SuggestionRow suggestion={row} onReviewed={(button): void => onReviewed(row, button)} />,
+      cell: (_value, row) => (
+        <SuggestionRow
+          applyRef={(node): void => registerApply(suggestionKey(row), node)}
+          suggestion={row}
+          onReviewed={(button): void => onReviewed(row, button)}
+        />
+      ),
     },
   ];
   if (first === undefined) {
@@ -182,9 +200,11 @@ function SuggestionCharacter({ suggestion, groupName }: { readonly suggestion: T
 function SuggestionRow({
   suggestion,
   onReviewed,
+  applyRef,
 }: {
   readonly suggestion: TagSuggestionView;
   readonly onReviewed: (button: HTMLButtonElement) => void;
+  readonly applyRef: (node: HTMLButtonElement | null) => void;
 }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
@@ -209,6 +229,7 @@ function SuggestionRow({
     <Row align="center" gap="field" justify="end" role="group" aria-label={`Suggested ${suggestion.name} for ${suggestion.characterName}`}>
       <Button
         data-slot="label-review-apply"
+        ref={applyRef}
         intent="secondary"
         size="sm"
         type="button"

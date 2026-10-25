@@ -13,8 +13,8 @@ export function factNoteOf(checking: EditorEmbedderCheck | null, refused: Editor
 }
 
 /** The pressed Override or Reset goes away with the change, so focus returns to its row once the write settles. */
-export function focusFact(facts: HTMLElement | null, path: string | null): void {
+export function focusFact(facts: ReadonlyMap<string, HTMLElement>, path: string | null): void {
   if (path !== null) {
-    facts?.querySelector<HTMLElement>(`[data-fact="${path}"]`)?.focus();
+    facts.get(path)?.focus();
   }
 }

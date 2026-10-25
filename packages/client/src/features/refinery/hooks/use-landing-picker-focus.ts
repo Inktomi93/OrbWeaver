@@ -3,25 +3,26 @@
 // (`requestRefineryLandingFocus`) INSTEAD of opening a second picker over the one CONTENT already mounts;
 // this hook reads the nonce (`useRefineryLandingFocusRequest`) and, on every bump, scrolls its container
 // into view and focuses the picker's search field. It returns the container ref `TeachingState` attaches
-// to its root: the picker's search box is the one `<input>` inside that subtree (the shared
-// `CharacterPicker`'s `CommandInput`), so a querySelector on the OWNED subtree reaches it without threading
-// a refinery-only focus prop through a component three other features share.
+// to its root and the search ref it hands the shared `CharacterPicker`.
 
 import type { RefObject } from "react";
 import { useEffect, useRef } from "react";
 import { useRefineryLandingFocusRequest } from "#state";
 
-/** Returns the container ref to attach to the landing picker's root; focuses+scrolls its search field
- *  whenever the landing-focus nonce bumps (0 at mount ⇒ no focus stolen on first paint). */
-export function useLandingPickerFocusOnRequest(): RefObject<HTMLDivElement | null> {
+/** Returns the two refs the landing attaches: the container to scroll into view and the picker's search field to
+ *  focus, whenever the landing-focus nonce bumps (0 at mount ⇒ no focus stolen on first paint). */
+export function useLandingPickerFocusOnRequest(): {
+  readonly containerRef: RefObject<HTMLDivElement | null>;
+  readonly searchRef: RefObject<HTMLInputElement | null>;
+} {
   const containerRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
   const focusNonce = useRefineryLandingFocusRequest();
   useEffect(() => {
     if (focusNonce > 0) {
-      const container = containerRef.current;
-      container?.scrollIntoView({ block: "nearest" });
-      container?.querySelector("input")?.focus();
+      containerRef.current?.scrollIntoView({ block: "nearest" });
+      searchRef.current?.focus();
     }
   }, [focusNonce]);
-  return containerRef;
+  return { containerRef, searchRef };
 }

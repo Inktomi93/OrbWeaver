@@ -41,6 +41,7 @@ export { SettingRowGroup } from "./setting-row-group.tsx";
 export { SettingCheckboxRow, SettingSwitchRow } from "./setting-switch-row.tsx";
 export { ConfigTeachScope, SettingRow } from "./setting-teach-row.tsx";
 export { SettingTrackRow } from "./setting-track-row.tsx";
+export { SkipToFirstRow } from "./skip-to-first-row.tsx";
 export { StoredConfigUnreadableNotice } from "./stored-config-unreadable-notice.tsx";
 export { TagEditorBody } from "./tag-editor-body.tsx";
 export {

@@ -16,7 +16,7 @@ import { Icon, MoreHorizontal, Trash2 } from "@orb/ui/icons";
 import { HOVER_REVEAL, RECEDED_INK } from "@orb/ui/lib";
 import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@orb/ui/menu";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement, ReactNode, Ref } from "react";
 import { useState } from "react";
 import type { ConfirmDialogProps } from "./confirm-dialog.tsx";
 import { ConfirmDialog } from "./confirm-dialog.tsx";
@@ -84,6 +84,8 @@ export interface RowActionsMenuProps {
   readonly ink?: "inherit" | "receded";
   /** The bottom destructive item + its confirm dialog. Omit for a menu with no destructive action. */
   readonly destructive?: RowDestructiveAction;
+  /** The ⋯ trigger button, for a caller that hands focus back to it (a dialog's `finalFocus`). */
+  readonly triggerRef?: Ref<HTMLButtonElement>;
 }
 
 // ── THE TRIGGER RECEDES, AND THIS COMPOSITE SAYS SO (#1244, 2026-09-02 — the #1141 fork, second instance;
@@ -136,7 +138,9 @@ function actionsTrigger({
   ink,
   reveal,
   tabIndex,
+  triggerRef,
 }: {
+  readonly triggerRef: Ref<HTMLButtonElement> | undefined;
   readonly label: string;
   readonly icon: LucideIcon;
   readonly size: NonNullable<RowActionsMenuProps["triggerSize"]>;
@@ -150,6 +154,7 @@ function actionsTrigger({
       aria-label={label}
       className={reveal ? `${TRIGGER_INK[ink]} ${HOVER_REVEAL.hover}` : TRIGGER_INK[ink]}
       intent="ghost"
+      ref={triggerRef}
       shape={shape}
       size={TRIGGER_BUTTON_SIZE[size]}
       {...(tabIndex === undefined ? {} : { tabIndex })}
@@ -176,10 +181,11 @@ export function RowActionsMenu({
   tooltip = false,
   ink = "receded",
   destructive,
+  triggerRef,
 }: RowActionsMenuProps): ReactElement {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const destructiveLabel = destructive?.label ?? "Delete";
-  const trigger = actionsTrigger({ icon, label, reveal, shape, ink, size: triggerSize, tabIndex: triggerTabIndex });
+  const trigger = actionsTrigger({ icon, label, reveal, shape, ink, size: triggerSize, tabIndex: triggerTabIndex, triggerRef });
 
   return (
     <>

@@ -517,6 +517,27 @@ function renderSeedThemesBlock(themes: readonly SeedTheme[]): string {
   return parts.join("");
 }
 
+/**
+ * The base palette (Hearth) restated under `[data-palette="base"]`. Hearth IS the base `@theme`, so it owns no
+ * `[data-theme]` block and the shell paints it by stamping nothing; a nested box that must show Hearth under another
+ * palette's scope (a theme thumbnail) names this block instead. Same keys as a seed block, values from the base tokens.
+ */
+function renderBasePaletteBlock(seeds: readonly SeedTheme[], portableByPath: ReadonlyMap<string, string>): string {
+  const [seed] = seeds;
+  if (seed === undefined) {
+    throw new Error("no seed value-set to key the base palette block");
+  }
+  const lines = seed.vars.map(([name]) => {
+    const path = name.slice("--".length).replace("-", ".");
+    const value = portableByPath.get(path);
+    if (value === undefined) {
+      throw new Error(`base palette: no portable base token ${path} for ${name}`);
+    }
+    return `  ${name}: ${value};`;
+  });
+  return `\n[data-palette="base"] {\n  color-scheme: dark;\n${lines.join("\n")}\n}\n`;
+}
+
 /** The generated `themes.gen.ts` module — the seed palettes as a typed TS record (parallel to TOKENS),
  *  re-exported by index.ts. Its own file so a growing palette roster never pushes the token map past the
  *  `component-size-ui` cap (see the header). */
@@ -602,7 +623,12 @@ export async function generateArtifacts(uiRoot = HERE): Promise<{ themeCss: stri
   const seedThemes = loadSeedThemes(contract);
   return {
     themeCss:
-      renderGeneratedCss(flat, conditions) + themeLayer(renderPointerFineBlock(fine, conditions[POINTER_FINE_CONDITION]) + renderSeedThemesBlock(seedThemes)),
+      renderGeneratedCss(flat, conditions) +
+      themeLayer(
+        renderPointerFineBlock(fine, conditions[POINTER_FINE_CONDITION]) +
+          renderSeedThemesBlock(seedThemes) +
+          renderBasePaletteBlock(seedThemes, portableByPath),
+      ),
     tokensTs: renderTokensTs({ tokens: flat, polarityArms, snapped, conditions }),
     themesTs: renderSeedThemesTs(seedThemes),
   };

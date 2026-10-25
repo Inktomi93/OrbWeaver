@@ -18,6 +18,7 @@ import type {
 } from "@base-ui/react/menu";
 import { Menu as BaseMenu } from "@base-ui/react/menu";
 import type { ComponentProps, ReactElement } from "react";
+import type { VariantProps } from "tailwind-variants";
 import type { PortalContainer } from "#lib";
 import { ANCHOR_GAP_TRIGGER, cn, HIDDEN_AT, usePortalContainer } from "#lib";
 import { Check, ChevronRight, Icon } from "#primitives/icons";
@@ -54,16 +55,18 @@ export interface MenuPopupProps extends Omit<BasePopupProps, "className"> {
   sideOffset?: BasePositionerProps["sideOffset"];
   /** Portal target — defaults to the themed portal root; pass a node/ref to override. */
   container?: PortalContainer;
+  /** How far the viewport clamp reaches; `belowChrome` stops one topbar row short of the edge. @defaultValue "viewport" */
+  clamp?: VariantProps<typeof menuVariants>["clamp"];
 }
 
 /** The menu surface — bundles Portal → Positioner → Popup so the anatomy can't be mis-assembled. */
 export function MenuPopup(props: MenuPopupProps): ReactElement {
-  const { className, children, side, align = "start", sideOffset = DEFAULT_SIDE_OFFSET, container, ...rest } = props;
+  const { className, children, side, align = "start", sideOffset = DEFAULT_SIDE_OFFSET, container, clamp, ...rest } = props;
   const portalContainer = usePortalContainer();
   return (
     <BaseMenu.Portal container={container ?? portalContainer}>
       <BaseMenu.Positioner align={align} className={slots.positioner()} data-slot="menu-positioner" side={side} sideOffset={sideOffset}>
-        <BaseMenu.Popup className={slots.popup({ className })} data-slot="menu-popup" {...rest}>
+        <BaseMenu.Popup className={menuVariants({ clamp }).popup({ className })} data-slot="menu-popup" {...rest}>
           {children}
         </BaseMenu.Popup>
       </BaseMenu.Positioner>

@@ -24,12 +24,12 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { use, useEffect, useId, useRef } from "react";
+import { use, useId, useRef } from "react";
 import { QueryBoundary } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, useTRPC } from "#data";
 import type { CommandPaletteSource, SlashCommandContext, SlashCommandContribution, SlashCommandGroup } from "#lib";
-import { SLASH_COMMAND_GROUP_LABELS, SLASH_COMMAND_GROUPS, useFocusOnMount } from "#lib";
+import { SLASH_COMMAND_GROUP_LABELS, SLASH_COMMAND_GROUPS, useFocusOnMount, useFocusOnSwap } from "#lib";
 import type { SectionId } from "#state";
 import { CommandPaletteSourceRegistryContext, closeModal, resumeChat, setActiveSection, useActiveChatId } from "#state";
 import { useSlashCommands } from "../hooks/use-slash-commands.tsx";
@@ -64,9 +64,8 @@ export function CommandPaletteSurface({ goToSections }: CommandPaletteSurfacePro
   useFocusOnMount(surfaceRef);
   // The palette is a search-first surface. Its generic surface focus keeps the initial-page guard shared
   // with every other surface; once this user-opened modal mounts, move to the actual command input.
-  useEffect(() => {
-    surfaceRef.current?.querySelector<HTMLInputElement>('[data-slot="command-input"]')?.focus();
-  }, []);
+  const searchRef = useRef<HTMLInputElement>(null);
+  useFocusOnSwap(searchRef);
   // The palette can be opened from anywhere, so the projection is the ACTIVE chat (null outside one) — a
   // command that needs a room says so through `unavailableReason` and renders disabled, never hidden.
   const chatId = useActiveChatId();
@@ -106,7 +105,7 @@ export function CommandPaletteSurface({ goToSections }: CommandPaletteSurfacePro
       {/* One ranking across every group: a row whose label or keyword equals or starts with the query outranks
           any fuzzy hit, whichever source declared it. */}
       <Command className="flex flex-col block-full" elevated={true} filter={declaredTermFirstFilter} label="Command palette" onEscape={closeModal}>
-        <CommandInput aria-label="Search commands" placeholder="Jump to a thread, section, or action…" />
+        <CommandInput aria-label="Search commands" placeholder="Jump to a thread, section, or action…" ref={searchRef} />
         <CommandList listSize="compact">
           <CommandEmpty>No matches.</CommandEmpty>
 

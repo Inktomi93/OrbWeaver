@@ -123,12 +123,10 @@
   }
 
   /* Equal padding and negative margin give the inset ring clearance without moving the content. */
-  .settings-flash-anchor {
+  [data-settings-flash] {
     border-radius: var(--radius-card);
     padding: var(--spacing-row);
     margin: calc(var(--spacing-row) * -1);
-  }
-  .settings-flash-anchor-lit {
     box-shadow: inset 0 0 0 var(--border-width-accent) var(--color-ring);
   }
 }

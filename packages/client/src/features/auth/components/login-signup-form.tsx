@@ -10,7 +10,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement, SyntheticEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import { signUpWithInvite } from "#data";
-import { createSavedEntityForm } from "#forms/editor";
+import { createSavedEntityForm, focusFirstInvalidFieldIn } from "#forms/editor";
 import { DEAD_INVITE_SENTENCE, testId } from "#lib";
 import { joinerPersonaOf } from "../lib/joiner-persona.ts";
 import { JoinerPersonaFields } from "./joiner-persona-fields.tsx";
@@ -75,7 +75,7 @@ export function LoginSignupForm({ token, onSignedUp, onUseSignIn, onDismiss }: L
   const formRef = useRef<HTMLFormElement | null>(null);
   useEffect(() => {
     if (attempts > 0) {
-      formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+      focusFirstInvalidFieldIn(formRef.current);
     }
   }, [attempts]);
 

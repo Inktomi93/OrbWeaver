@@ -90,9 +90,9 @@ export function TeachingState({ onStart, starting, resume }: TeachingStateProps)
   // The desktop list's empty-state CTA focuses THIS picker rather than opening a second one over it
   // (#307). The ref rides the root; the hook focuses+scrolls the picker's search field when the CTA bumps
   // the landing-focus nonce. At mount the nonce is 0, so nothing is stolen on first paint.
-  const focusRef = useLandingPickerFocusOnRequest();
+  const { containerRef, searchRef } = useLandingPickerFocusOnRequest();
   return (
-    <Stack align="center" data-testid={testId("refineryTeaching")} gap="section" className="py-section" ref={focusRef}>
+    <Stack align="center" data-testid={testId("refineryTeaching")} gap="section" className="py-section" ref={containerRef}>
       <Stack align="center" className="max-inline-(--reading-measure)" gap="tight">
         {/* `text-center` on BOTH lines, not just the gloss: the Stack centres each child as a BLOCK, so a
             two-line heading at the reading measure sat left-aligned above a centred sentence — two
@@ -139,6 +139,7 @@ export function TeachingState({ onStart, starting, resume }: TeachingStateProps)
             }}
             placeholder="Search characters…"
             reserveKey="refinery.landingPicker"
+            searchRef={searchRef}
             skeletonCount={skeletonRowCountFor(PICKER_LIST_HEIGHT_PX, DEFAULT_PICKER_SKELETON_ROWS)}
           />
         </Stack>

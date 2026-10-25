@@ -9,7 +9,7 @@ import {
   useCommandState,
 } from "cmdk";
 import type { ComponentProps, ReactElement, KeyboardEvent as ReactKeyboardEvent, ReactNode } from "react";
-import { useLayoutEffect, useRef } from "react";
+import { useEffect, useImperativeHandle, useLayoutEffect, useRef } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { cn, formatResultCount } from "#lib";
 import type { ButtonBaseProps, ButtonProps } from "#primitives/button";
@@ -64,8 +64,10 @@ export interface CommandInputProps extends Omit<ComponentProps<typeof BaseComman
 }
 
 /** The search box. The leading glyph is decorative — accessible name comes from aria-label. */
-export function CommandInput({ className, expanded, ...rest }: CommandInputProps): ReactElement {
+export function CommandInput({ className, expanded, ref, ...rest }: CommandInputProps): ReactElement {
   const inputRef = useRef<HTMLInputElement>(null);
+  // The caller's ref sees the same node the corrections below read, so a ref passed in never replaces them.
+  useImperativeHandle(ref, () => inputRef.current as HTMLInputElement);
   // cmdk's own `aria-controls` (its list id), remembered so the EXPANDED arm can put it back. It is stable
   // per Command root, and it is only ever read from the DOM cmdk itself wrote.
   const listIdRef = useRef<string | null>(null);
@@ -202,6 +204,11 @@ export function CommandGroup({ className, heading, ...rest }: CommandGroupProps)
 
 export interface CommandItemProps extends Omit<ComponentProps<typeof BaseCommandItem>, "className"> {
   className?: string;
+  /**
+   * Scroll the list so this row sits at its centre, once the row has mounted or this turns true. Only the list's own
+   * scroll box moves, never an ancestor pane, and only a frame later, once the list has its final height.
+   */
+  centerInList?: boolean;
 }
 
 /**
@@ -210,8 +217,27 @@ export interface CommandItemProps extends Omit<ComponentProps<typeof BaseCommand
  * children — an id-based `value` needs the display text passed via `keywords` too, or typing the
  * visible label matches nothing.
  */
-export function CommandItem({ className, ...rest }: CommandItemProps): ReactElement {
-  return <BaseCommandItem className={cn(slots.item(), className)} data-slot="command-item" {...rest} />;
+export function CommandItem({ className, centerInList = false, ref, ...rest }: CommandItemProps): ReactElement {
+  const rowRef = useRef<HTMLDivElement>(null);
+  useImperativeHandle(ref, () => rowRef.current as HTMLDivElement);
+  useEffect(() => {
+    if (!centerInList) {
+      return;
+    }
+    const frame = requestAnimationFrame(() => centerRowInList(rowRef.current));
+    return (): void => cancelAnimationFrame(frame);
+  }, [centerInList]);
+  return <BaseCommandItem className={cn(slots.item(), className)} data-slot="command-item" ref={rowRef} {...rest} />;
+}
+
+/** Put `row` at the centre of its cmdk list's own scroll box; a row outside a list is left where it is. */
+function centerRowInList(row: HTMLElement | null): void {
+  const list = row?.closest<HTMLElement>("[cmdk-list]") ?? null;
+  if (row === null || list === null) {
+    return;
+  }
+  const rowTop = row.getBoundingClientRect().top - list.getBoundingClientRect().top + list.scrollTop;
+  list.scrollTop = rowTop - (list.clientHeight - row.offsetHeight) / 2;
 }
 
 export interface CommandLoadingProps extends Omit<ComponentProps<typeof BaseCommandLoading>, "className"> {
