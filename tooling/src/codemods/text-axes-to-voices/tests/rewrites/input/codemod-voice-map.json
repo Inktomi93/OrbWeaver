@@ -1,0 +1,8 @@
+[
+  {
+    "file": "a.tsx",
+    "line": 1,
+    "before": "<Text size=\"micro\" tone=\"warning\">",
+    "after": "<Text voice=\"gloss\" tone=\"warning\">"
+  }
+]

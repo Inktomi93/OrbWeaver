@@ -10,15 +10,8 @@
 // verb travel with the lane whose numbers they are, and the foot bar keeps only the SESSION-wide acts
 // (guidance · Hand-edit · Iterate · the terminal apply).
 //
-// THE HAIRLINE MOVED HERE FROM THE STEPPER, WITH ITS CONTRACT INTACT: a bottom-edge sweep that says "this
-// stage is working" without the lane going blank under it. Compositor-only (`translate`), and it carries
-// its own reduced-motion opt-out through the shared `orb-indeterminate-hairline` class
-// (client/src/styles/globals.css), which REMOVES the travelling segment outright per motion guide §3.9 rather
-// than parking it — a frozen bar at one end reads as a stalled determinate progress bar, which is a worse
-// lie than no affordance. `aria-hidden` because it is pure ornament: the verb beside it is already
-// `aria-busy` while the call is in flight, so the state is announced once. The class also owns its own
-// containing block and clip (#143) — this host contributes only the track's ink and height, never
-// `relative`/`overflow-hidden`, so there is exactly one place the segment's geometry is decided.
+// Swatch owns the running segment and removes it under reduced motion; a parked segment would imply determinate progress.
+// The adjacent busy button announces the state, so the hairline remains decorative.
 
 import type { RefineryStage } from "@orb/contracts/refinery";
 import { Button } from "@orb/ui/button";
@@ -130,9 +123,7 @@ export function SessionPreflightWarn({
 
 /** The lane's running ornament — see the header for the reduced-motion contract it carries. */
 function RunningHairline(): ReactElement {
-  return (
-    <Swatch className="orb-indeterminate-hairline pointer-events-none block-px" data-testid={testId("refineryLaneHairline")} fill="primaryFaint" shape="pill" />
-  );
+  return <Swatch indeterminate={true} className="pointer-events-none block-px" data-testid={testId("refineryLaneHairline")} fill="primaryFaint" shape="pill" />;
 }
 
 export function LaneRunControl({

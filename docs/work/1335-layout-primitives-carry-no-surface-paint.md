@@ -24,4 +24,6 @@ Each shape maps to a `Card` or `Surface` variant (new ones named in the plan); a
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The feature drain uses Card and Surface variants instead of painted Row/Stack/Card className values. The enabled feature classifier and full UI/client lint run pass. The primitive variant CTs are selected for current rendered qualification.
+
+See [CSS closeout](../reviews/css-closeout.md) for exact check selections, artifacts and remaining limits.

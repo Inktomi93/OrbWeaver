@@ -77,7 +77,7 @@ function RoleGroupView({ group, onSelect }: { readonly group: RoleGroup; readonl
 function ConversationBand({ preview, onSelect }: { readonly preview: AssembledPreview; readonly onSelect: (sectionId: string) => void }): ReactElement {
   if (preview.missingPivot) {
     return (
-      <Text size="micro" tone="warning">
+      <Text tone="warning" voice="gloss">
         No chat history marker — the conversation has nowhere to splice in.
       </Text>
     );
@@ -87,7 +87,7 @@ function ConversationBand({ preview, onSelect }: { readonly preview: AssembledPr
       <Stack gap="field">
         <Row gap="row" align="center">
           <Icon icon={MessagesSquare} size="sm" />
-          <Text size="body" weight="semibold" transform="caps" className="flex-1">
+          <Text className="flex-1" voice="kicker">
             Chat history
           </Text>
           {preview.historyEnabled ? null : <Text voice="gloss">(disabled)</Text>}

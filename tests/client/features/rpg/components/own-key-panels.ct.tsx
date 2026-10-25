@@ -10,6 +10,7 @@ import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/ct";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
+import type { Locator } from "@playwright/test";
 import { UNSET_DATUM } from "#client/features/rpg/lib/unset-datum.ts";
 import type { RpgContextTabStory, RpgDiceComposerStory } from "./_own-key-panels-stories.tsx";
 
@@ -167,4 +168,41 @@ test("the Scene character card reads an unset inherited-name tracker as unset, t
   await mount<typeof RpgContextTabStory>(TAB_STORY, { chatId: room.chatId, tab: "rpg.scene" });
   await page.getByRole("button", { name: "Show known characters", exact: true }).click();
   await expect(npcValue).toHaveText(String(TRACKER_VALUE));
+});
+
+async function expectStableValueEdit(rest: Locator, cell: Locator, name: string, value: number): Promise<void> {
+  const before = await cell.boundingBox();
+  const size = await rest.locator('[data-slot="text"]').evaluate((element) => getComputedStyle(element).fontSize);
+  expect(before).not.toBeNull();
+  await rest.click();
+  const field = cell.getByRole("textbox", { name, exact: true });
+  await expect(field).toHaveValue(String(value));
+  await expect(field).toHaveCSS("font-size", size);
+  await expect.poll(async () => (await cell.boundingBox())?.height).toBe(before?.height);
+  await field.press("Escape");
+  await expect(rest).toBeVisible();
+  await expect.poll(async () => (await cell.boundingBox())?.height).toBe(before?.height);
+}
+
+test("label and promoted tracker voices keep the editor step and row height", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const room = await gameRoom(root);
+  await room.setInheritedValues();
+  const reads = await room.reads();
+  const { owner } = participants(reads, root.ownerId);
+  await routeTrpc(page, reads.routes);
+  await mount<typeof RpgContextTabStory>(TAB_STORY, { chatId: room.chatId, tab: "rpg.status" });
+  const ordinaryName = `${owner} ${LABEL} value`;
+  const ordinary = page.getByRole("button", { name: ordinaryName, exact: true });
+  await expect(ordinary).toHaveText(String(TRACKER_VALUE));
+  const ordinaryCell = page
+    .locator('[data-slot="meter-row"]')
+    .filter({ has: page.getByText(LABEL, { exact: true }) })
+    .first();
+  await expectStableValueEdit(ordinary, ordinaryCell, ordinaryName, TRACKER_VALUE);
+  await page.getByRole("button", { name: `Open ${owner}`, exact: true }).click();
+  const promotedName = `${LABEL} value`;
+  const promotedCell = page.locator('[data-slot="stat-cell"]').filter({ has: page.getByText(LABEL, { exact: true }) });
+  const promoted = promotedCell.getByRole("button", { name: promotedName, exact: true });
+  await expectStableValueEdit(promoted, promotedCell, promotedName, SCORE);
 });

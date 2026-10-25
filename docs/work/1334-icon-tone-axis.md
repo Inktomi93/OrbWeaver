@@ -24,4 +24,6 @@ The paint law gives features no colour classes; icon colour is a primitive skin.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Icon uses the shared TONE_INK map. Feature color classes are drained and the enabled layout-only className rule reports no Icon paint findings in the full client lint run. The existing className-drain CT is selected for current rendered qualification.
+
+See [CSS closeout](../reviews/css-closeout.md) for exact check selections, artifacts and remaining limits.

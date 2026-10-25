@@ -1,0 +1,1 @@
+.a { backdrop-filter: none; filter: blur(calc(var(--appearance-blur-strength) * 1px)) saturate(var(--blur-saturate)); }

@@ -12,6 +12,8 @@ import type { EditSession } from "#lib";
 import { cn, resolveCommit } from "#lib";
 import { UNSET_DATUM } from "../../lib/unset-datum.ts";
 
+type TrackerVoice = Extract<ComponentProps<typeof Text>["voice"], "label" | "promoted">;
+
 interface TrackerValueProps {
   /** The current value, pre-formatted by the block (e.g. "24/30", "wary", "16"). */
   readonly display: string;
@@ -28,8 +30,8 @@ interface TrackerValueProps {
   readonly restAriaLabel?: string;
   /** Text tone for the at-rest/read-only display (foreground by default; muted for secondary). */
   readonly tone?: ComponentProps<typeof Text>["tone"];
-  /** Text size of the at-rest/read-only display — "label" default; StatCell's big value passes "title". */
-  readonly size?: ComponentProps<typeof Text>["size"];
+  /** The control's voice; a stat tile promotes its value while ordinary fields use the label step. */
+  readonly voice?: TrackerVoice;
   /** Shown (muted) in the REST state when the value is empty, and as the input's placeholder — so an
    *  empty-but-editable field reads as intentionally-blank, not unfinished. */
   readonly placeholder?: string;
@@ -64,7 +66,7 @@ function TrackerValueRest({
   editTitle,
   onOpen,
   placeholder,
-  size,
+  voice,
   tone,
   wrap,
   numeric,
@@ -76,7 +78,7 @@ function TrackerValueRest({
   readonly editTitle: string;
   readonly onOpen: () => void;
   readonly placeholder: string | undefined;
-  readonly size: ComponentProps<typeof Text>["size"];
+  readonly voice: TrackerVoice;
   readonly tone: ComponentProps<typeof Text>["tone"];
   readonly wrap: boolean;
   readonly numeric: boolean;
@@ -101,7 +103,7 @@ function TrackerValueRest({
       >
         <Text
           as="span"
-          size={size}
+          voice={voice}
           tone={empty ? "muted" : tone}
           numeric={numeric}
           italic={italic}
@@ -123,7 +125,7 @@ export function TrackerValue({
   ariaLabel,
   restAriaLabel,
   tone = "default",
-  size = "label",
+  voice = "label",
   placeholder,
   className,
   width,
@@ -143,7 +145,7 @@ export function TrackerValue({
 
   if (onEdit === undefined) {
     return (
-      <Text as="span" size={size} tone={tone} numeric={numeric} italic={italic} className={className}>
+      <Text as="span" voice={voice} tone={tone} numeric={numeric} italic={italic} className={className}>
         {display}
       </Text>
     );
@@ -160,7 +162,7 @@ export function TrackerValue({
           setSession({ draft: source, openedFrom: source, conflict: null });
         }}
         placeholder={placeholder}
-        size={size}
+        voice={voice}
         tone={tone}
         wrap={wrap}
         numeric={numeric}
@@ -197,7 +199,7 @@ export function TrackerValue({
         width={width}
         numeric={numeric}
         italic={italic}
-        typeStep={size === "title" ? "title" : "field"}
+        typeStep={voice === "promoted" ? "title" : "field"}
         className={className ?? ""}
         data-slot="tracker-value-edit"
         // The CONFLICT surface. `data-conflict` carries the value that arrived (an automatable fact, and the

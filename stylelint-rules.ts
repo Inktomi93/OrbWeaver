@@ -324,6 +324,41 @@ const layerRule: Rule<true> = (primary) => (root, result) => {
 layerRule.ruleName = LAYER;
 layerRule.messages = LAYER_MESSAGES;
 
+const DUPLICATE_LAYER = "orb/no-duplicate-layer-block";
+const DUPLICATE_LAYER_MESSAGES = messagesOf(DUPLICATE_LAYER, { rejected: "Keep each named layer in one block per stylesheet" });
+
+function layerPrefix(node: AtRule, names: ReadonlyMap<AtRule, string>): string {
+  for (let parent: AtRule["parent"] | CssRoot["parent"] = node.parent; parent !== undefined; parent = parent.parent) {
+    if (isAtRule(parent) && names.has(parent)) {
+      return `${names.get(parent)}.`;
+    }
+  }
+  return "";
+}
+
+const duplicateLayerRule: Rule<true> = (primary) => (root, result) => {
+  if (!stylelint.utils.validateOptions(result, DUPLICATE_LAYER, { actual: primary, possible: [true] })) {
+    return;
+  }
+  const names = new Map<AtRule, string>();
+  const seen = new Set<string>();
+  root.walkAtRules("layer", (node) => {
+    if (node.nodes === undefined) {
+      return;
+    }
+    // Anonymous layers are distinct even when their named children share a spelling.
+    const local = node.params.trim();
+    const name = `${layerPrefix(node, names)}${local === "" ? `<anonymous-${names.size}>` : local}`;
+    names.set(node, name);
+    if (seen.has(name)) {
+      stylelint.utils.report({ result, ruleName: DUPLICATE_LAYER, node, message: DUPLICATE_LAYER_MESSAGES.rejected });
+    }
+    seen.add(name);
+  });
+};
+duplicateLayerRule.ruleName = DUPLICATE_LAYER;
+duplicateLayerRule.messages = DUPLICATE_LAYER_MESSAGES;
+
 // The shell region files paint the shell's own surfaces from tokens and never skin a component. `@scope` with a
 // lower boundary is not the mechanism: it needs Firefox 146 and the declared floor is Firefox 138 (browser-targets.ts).
 const SHELL = "orb/shell-paint-law";
@@ -667,6 +702,7 @@ lifecycleKeyframesRule.messages = LIFECYCLE_KEYFRAMES_MESSAGES;
 export const CSS_RULES = [
   stylelint.createPlugin(SHELL, shellRule),
   stylelint.createPlugin(LAYER, layerRule),
+  stylelint.createPlugin(DUPLICATE_LAYER, duplicateLayerRule),
   stylelint.createPlugin(MOTION, motionRule),
   stylelint.createPlugin(COLOR, colorRule),
   stylelint.createPlugin(REST, restRule),

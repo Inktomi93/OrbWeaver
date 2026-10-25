@@ -74,7 +74,6 @@ export function ItemQuantity({ item, edit }: { readonly item: RpgInventoryItem; 
         ariaLabel={`${item.name} quantity`}
         display={String(item.quantity)}
         kind="numeric"
-        size="micro"
         onEdit={(next): void => {
           const n = Number.parseInt(next, 10);
           if (!Number.isNaN(n)) {
@@ -86,6 +85,7 @@ export function ItemQuantity({ item, edit }: { readonly item: RpgInventoryItem; 
         numeric={true}
         width="avatar-md"
         restClassName=""
+        voice="label"
       />
     </Row>
   );
@@ -122,9 +122,9 @@ export function ItemProseLine({
       wrap={true}
       placeholder={placeholder}
       tone="muted"
-      size="micro"
       onEdit={(next): void => edit.onPatchItem(item.id, { [field]: next.trim() })}
       className="flex-1 min-inline-0"
+      voice="label"
     />
   );
 }

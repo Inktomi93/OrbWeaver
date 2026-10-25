@@ -75,22 +75,21 @@ export function ListPaneHeader({ title, accent, count, back, action }: ListPaneH
           data-slot="list-pane-title"
           id={LIST_PANE_TITLE_ID}
           level={2}
-          size="display"
           tone="default"
-          weight="semibold"
+          voice="masthead"
         >
           {/* The title TEXT is what truncates, not the heading box — see the count's note. It restates the
-              display axes because it is the element that carries them (the heading is the flex box), which
+              masthead voice because it is the element that carries it (the heading is the flex box), which
               is the same spelling the accent half beside it already uses. */}
           {/* An unscoped title is the pane's NAME: it never gives width up to the census beside it, the count
               gives instead. A scoped title carries an entity name that may be long, so it still truncates. */}
-          <Text as="span" className={accent === undefined ? "shrink-0" : "truncate"} size="display" tone="default" weight="semibold">
+          <Text as="span" className={accent === undefined ? "shrink-0" : "truncate"} tone="default" voice="masthead">
             {accent === undefined ? title : `${title} · `}
             {/* The entity half is the same step; it carries the MUTED tone now that the name it qualifies
                 owns the foreground, so the pane still reads as "Chats, scoped to HER" rather than as two
                 equal nouns. */}
             {accent === undefined ? null : (
-              <Text as="span" size="display" tone="muted" weight="semibold">
+              <Text as="span" tone="muted" voice="masthead">
                 {accent}
               </Text>
             )}

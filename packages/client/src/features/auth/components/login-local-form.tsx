@@ -62,7 +62,7 @@ export function LoginLocalForm({ defaultHandle, onLoggedIn }: LoginLocalFormProp
         {error === null ? null : (
           // RATIFIED raw axes (#582, the #573 precedent): the SEMANTIC destructive tone is the message —
           // no voice carries a semantic color (every one is foreground/muted/prose-ink by construction).
-          <Text size="label" tone="destructive" role="alert" data-testid={testId("loginError")}>
+          <Text tone="destructive" role="alert" data-testid={testId("loginError")} voice="gloss" prose={true}>
             {error}
           </Text>
         )}

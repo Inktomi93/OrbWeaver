@@ -28,7 +28,7 @@ export function HintEditor({ ariaLabel, hint, max, onEdit, placeholder = "what t
   }
   return (
     <Row gap="field" align="center" data-slot="hint-editor">
-      <Text as="span" size="micro" tone="muted" className="shrink-0">
+      <Text as="span" tone="muted" className="shrink-0" voice="gloss">
         hint
       </Text>
       <TrackerValue

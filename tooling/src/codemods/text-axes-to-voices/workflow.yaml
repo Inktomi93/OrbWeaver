@@ -1,0 +1,18 @@
+version: "1"
+params:
+  schema:
+    map:
+      name: "Adjudicated openings"
+      type: string
+      default: "codemod-voice-map.json"
+nodes:
+  - id: text-axes-to-voices
+    name: Apply adjudicated text voices
+    type: automatic
+    steps:
+      - name: Client JSX
+        js-ast-grep:
+          js_file: scripts/codemod.ts
+          base_path: "."
+          language: "tsx"
+          include: ["packages/client/src/**/*.tsx"]

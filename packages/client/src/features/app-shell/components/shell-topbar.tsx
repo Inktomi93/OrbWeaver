@@ -146,7 +146,7 @@ function listToggleLabel(mobile: boolean, listCollapsed: boolean, title: string)
 /** Both identity arms share the page-title display step, distinct from editable body text without enlarging adjacent chrome. */
 function TopbarTitle({ className, children }: { readonly className?: string; readonly children: ReactNode }): ReactElement {
   return (
-    <Text className={className} size="display" weight="semibold">
+    <Text className={className} voice="masthead">
       {children}
     </Text>
   );

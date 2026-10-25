@@ -1,0 +1,7 @@
+@layer ui, client;
+@layer client {
+/* first */ .a { opacity: 1; }
+/* second */ .a { opacity: 0.5; }
+}
+@layer ui { .b { opacity: 0; } }
+

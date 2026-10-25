@@ -228,7 +228,7 @@ function DepthPromptFacet({ form, suggestions }: { readonly form: CardForm; read
                painted itself muted or foreground would stop being a warning. No voice carries a semantic
                color (every one of them is `foreground`/`muted`/prose-ink by construction), and inventing
                a per-tone voice family would multiply the closed axis by six. */
-            <Text size="micro" tone="warning">
+            <Text tone="warning" voice="gloss">
               {ASSISTANT_PREFILL_WARNING}
             </Text>
           ) : null

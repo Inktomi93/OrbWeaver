@@ -212,9 +212,9 @@ describe("primitive ramp controls", () => {
     expect(codes(aliased)).toContain("primitive.raw");
   });
 
-  test("a shadow colour is a served variable, never a frozen literal (ADR 0200)", () => {
+  test.for(["--shadow-", "--text-shadow-"])("%s colour is a served variable, never a frozen literal (ADR 0200)", (prefix) => {
     const frozenRecipe = mutate(vault(), "base", (base) => {
-      descend(descend(base, "$extensions"), "orb.cssValues")["--shadow-planted"] = {
+      descend(descend(base, "$extensions"), "orb.cssValues")[`${prefix}planted`] = {
         value: "0 1px 2px oklch(0 0 0 / 0.4)",
         placement: "theme",
         description: "planted",
@@ -223,7 +223,7 @@ describe("primitive ramp controls", () => {
     });
     expect(codes(frozenRecipe)).toContain("shadow.ingredient");
     const derivedRecipe = mutate(vault(), "base", (base) => {
-      descend(descend(base, "$extensions"), "orb.cssValues")["--shadow-planted"] = {
+      descend(descend(base, "$extensions"), "orb.cssValues")[`${prefix}planted`] = {
         value: "0 1px 2px oklch(from var(--color-backdrop) l c h / 0.4), 0 0 0 var(--color-shadow-hairline)",
         placement: "theme",
         description: "planted",

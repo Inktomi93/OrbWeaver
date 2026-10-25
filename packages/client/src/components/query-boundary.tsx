@@ -179,7 +179,7 @@ function PendingFallback({ onPending, children }: { readonly onPending: () => vo
     <>
       {children}
       {online ? null : (
-        <Text role="status" size="micro" tone="muted" className="text-center">
+        <Text role="status" tone="muted" className="text-center" voice="gloss">
           Waiting for connection…
         </Text>
       )}

@@ -28,4 +28,6 @@ An ESLint rule allows only layout utilities in a feature `className` (the allow-
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Both feature className rules are enabled at error. The feature-className controls and the full UI/client lint census pass. The drain uses existing primitive props, including the chat row skin table.
+
+See [CSS closeout](../reviews/css-closeout.md) for exact check selections, artifacts and remaining limits.

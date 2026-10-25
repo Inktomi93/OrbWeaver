@@ -77,9 +77,8 @@ export function RailButton({
                 name or a quiet second line, never a control's own name. 10.5px also sits under the
                 design-audit interactive-text floor (11px, `undersized-ui-text` ×4 on the home route at
                 coarse pointer, issue #86 lead 3), and the ramp has no step between the two (D5 refused an
-                11px step). `size`, not `voice="label"` — voice would pin the ink to `text-foreground` and
-                kill the muted/active colour states shell.css owns. */}
-            <Text as="span" size="label" className="shell-rail-button-label">
+                11px step). `ink="inherit"` keeps the muted and active colors that the shell owns while the voice sets the type. */}
+            <Text as="span" className="shell-rail-button-label" voice="label" ink="inherit">
               {label}
             </Text>
           </Button>

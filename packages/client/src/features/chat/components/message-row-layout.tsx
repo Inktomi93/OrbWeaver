@@ -71,10 +71,19 @@ export function MessageContentColumn({
 }: ComponentProps<typeof Stack> & { readonly skin: RowSkin; readonly mirrored: boolean }): ReactElement {
   const align = mirrored ? "end" : undefined;
   if (skin.columnPlacement === "gutterCentred") {
-    return <Stack {...props} gap="row" data-slot="message-content-column" align={align} className={CENTRED_COLUMN} />;
+    return <Stack {...props} gap="row" data-slot="message-content-column" columnMeasure={skin.columnMeasure} align={align} className={CENTRED_COLUMN} />;
   }
   if (skin.bubbleLayout !== "trains") {
-    return <Stack {...props} gap="row" data-slot="message-content-column" align={align} className={ANCHORED_COLUMN} />;
+    return <Stack {...props} gap="row" data-slot="message-content-column" columnMeasure={skin.columnMeasure} align={align} className={ANCHORED_COLUMN} />;
   }
-  return <Stack {...props} gap="row" data-slot="message-content-column" align={align} className={mirrored ? MIRRORED_TRAIN_COLUMN : TRAIN_COLUMN} />;
+  return (
+    <Stack
+      {...props}
+      gap="row"
+      data-slot="message-content-column"
+      columnMeasure={skin.columnMeasure}
+      align={align}
+      className={mirrored ? MIRRORED_TRAIN_COLUMN : TRAIN_COLUMN}
+    />
+  );
 }

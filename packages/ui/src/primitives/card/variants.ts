@@ -1,4 +1,5 @@
 import { FOCUS_RING, MESSAGE_BUBBLE_BOX, MESSAGE_BUBBLE_FILL, RECEDED, SPOILER, tv } from "#lib";
+import { ART_DECORATION } from "../../lib/art-decoration.ts";
 
 // Card is a generic SURFACE, not a domain card — features (character cards, config panels)
 // compose it (ui-package-design §6.1).
@@ -72,6 +73,7 @@ export const cardVariants = tv({
     },
     // A set state marked on the card's leading edge (an override that differs from the default).
     rail: { none: "", primary: "border-s-2 border-s-primary" },
+    artDecoration: ART_DECORATION,
     // The shadow. `follow` takes the user's elevation (the glow arm lifts every card); `none` refuses it, for a
     // diagram that draws one elevation whatever the user chose; `overlay` always lifts, for the diagram's islands.
     shadow: { follow: "in-data-[elevation=glow]:shadow-overlay", none: "", overlay: "shadow-overlay" },

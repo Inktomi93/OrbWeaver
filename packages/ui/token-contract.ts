@@ -520,7 +520,7 @@ function validateRamps(tokens: readonly ContractToken[], diagnostics: TokenContr
   }
 }
 
-const SHADOW_TARGET_PREFIX = "--shadow-";
+const SHADOW_TARGET_PREFIXES = ["--shadow-", "--text-shadow-"];
 /** A hex colour, or a colour function that is not the relative form over a served colour variable. */
 const FROZEN_SHADOW_COLOR = /#[0-9a-f]{3,8}\b|\b(?:rgb|rgba|hsl|hsla|oklch|oklab|lab|lch)\((?!\s*from\s+var\(--color-)/iu;
 
@@ -617,7 +617,7 @@ function parseRootExtensions(base: JsonObject, byPath: ReadonlyMap<string, Contr
   }
   for (const [target, entry] of Object.entries(cssValues.data)) {
     // ADR 0200: a shadow recipe resolves every colour through a served variable, or Tailwind's build-time inlining freezes it.
-    if (target.startsWith(SHADOW_TARGET_PREFIX) && FROZEN_SHADOW_COLOR.test(entry.value)) {
+    if (SHADOW_TARGET_PREFIXES.some((prefix) => target.startsWith(prefix)) && FROZEN_SHADOW_COLOR.test(entry.value)) {
       diagnostics.push(
         diagnostic(
           `/$extensions/orb.cssValues/${target}/value`,

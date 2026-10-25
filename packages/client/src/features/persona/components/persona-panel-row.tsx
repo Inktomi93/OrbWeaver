@@ -89,7 +89,7 @@ export function PersonaPanelRow({
         </Avatar>
         {/* The NAME is the row's one shrinker; every trailing control reserves its own width (leg-4 P2). */}
         <Stack className="pointer-events-none relative flex-1 min-inline-0" data-slot="persona-row-name">
-          <Text as="span" className="truncate" weight="medium">
+          <Text as="span" className="truncate" voice="label">
             {persona.name}
           </Text>
           {persona.title === null ? null : (

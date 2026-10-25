@@ -128,10 +128,10 @@ export function BootVeil(): ReactElement | null {
           {PHASE_CAPTIONS[phase]}
         </Text>
         <Row align="center" justify="center" gap="row" aria-hidden={true} data-slot="brand-wordmark">
-          {/* data-slot carries the wordmark readability halo (client globals.css) — the near-white
+          {/* The text halo keeps the wordmark readable — the near-white
               name floats over the live weave; a bright strand behind a glyph drops worst-case contrast. */}
           <WeaveGlyph decorative={true} size={WORDMARK_GLYPH_PX} tone="accent" />
-          <Text as="span" voice="monogram">
+          <Text as="span" voice="monogram" halo={true}>
             orbweaver
           </Text>
         </Row>

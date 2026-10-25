@@ -19,7 +19,7 @@ import {
   LETTER_SPACING_VALUES,
   Z_INDEX_VALUES,
 } from "./stylelint-rules.ts";
-import { RUNTIME_CUSTOM_PROPERTIES } from "./tooling/src/css-names/index.ts";
+import { declaredCustomProperties } from "./tooling/src/css-names/index.ts";
 
 const leadings = Object.keys(tokens.leading)
   .filter((name) => !name.startsWith("$"))
@@ -66,8 +66,8 @@ const SHELL_SLOTS = [
 const SHELL_CLASSES = ["orb-chat-track", "orb-composer-track"];
 
 const appearance = appearanceChannelVocabulary();
-// The registered appearance properties are declared by `@property` in the generated channel and written on the root.
-const APPEARANCE_PROPERTIES = Object.fromEntries(appearance.properties.map((name) => [name, "initial"]));
+// Class recipes write custom properties too; both native variable rules use the same declaration inventory.
+const CUSTOM_PROPERTIES = Object.fromEntries([...declaredCustomProperties(import.meta.dirname)].map((name) => [name, "initial"]));
 
 const config: Config = {
   extends: ["stylelint-config-standard"],
@@ -86,6 +86,7 @@ const config: Config = {
   reportInvalidScopeDisables: true,
   rules: {
     "orb/rule-in-layer": true,
+    "orb/no-duplicate-layer-block": true,
     "orb/motion-token-purity": true,
     "orb/no-raw-color-in-css": true,
     "orb/rest-transform-grid": [true, { reportDisables: true }],
@@ -151,10 +152,7 @@ const config: Config = {
     "csstools/value-no-unknown-custom-properties": [
       true,
       {
-        importFrom: [
-          ...SHEETS,
-          { customProperties: { ...APPEARANCE_PROPERTIES, ...Object.fromEntries(Object.keys(RUNTIME_CUSTOM_PROPERTIES).map((name) => [name, "initial"])) } },
-        ],
+        importFrom: [...SHEETS, { customProperties: CUSTOM_PROPERTIES }],
       },
     ],
     // `overflow-block` and `overflow-inline` are Safari 26, and the floor is Safari 18, so the two axes stay spelled `overflow-y` and `overflow-x`.

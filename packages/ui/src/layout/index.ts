@@ -15,7 +15,7 @@ export { Row } from "./row.tsx";
 
 export { Section } from "./section.tsx";
 
-export { Stack } from "./stack.tsx";
+export { Stack, type StackProps } from "./stack.tsx";
 
 export { Surface } from "./surface.tsx";
 

@@ -384,12 +384,7 @@ export function MessageRow({
               the instant the reader clicked Edit, and in `flat` it slid 42px sideways as well. The
               suppression is kept; what it vacates is reserved. `minInlineSize` (not a fixed size) so a
               longer draft can still grow the box out to the column's own cap. */}
-          <MessageContentColumn
-            ref={columnRef}
-            skin={skin}
-            mirrored={mirrored}
-            style={resolveColumnStyle(skin.columnStyle, reservedInlineSize, reservedBlockSize)}
-          >
+          <MessageContentColumn ref={columnRef} skin={skin} mirrored={mirrored} style={resolveColumnStyle(reservedInlineSize, reservedBlockSize)}>
             {themedColumnContent(
               attribution.tokens,
               <>

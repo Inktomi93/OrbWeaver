@@ -160,7 +160,7 @@ export function NewChatPicker(): ReactElement {
           <Badge intent="neutral" tone="soft">
             {TEMPORARY_CHAT_BADGE}
           </Badge>
-          <Text size="label" tone="muted">
+          <Text tone="muted" voice="gloss" prose={true}>
             This room won't join your chats list, and you can't switch it later.
           </Text>
         </Row>

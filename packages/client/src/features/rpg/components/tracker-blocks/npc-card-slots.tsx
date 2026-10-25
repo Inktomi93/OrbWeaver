@@ -52,7 +52,7 @@ function NpcRelationship({ name, relationship, onEditRelationshipKind, relations
               {badge ?? (
                 <>
                   {relationshipGlyph}
-                  <Text as="span" size="micro" tone="muted">
+                  <Text as="span" tone="muted" voice="label">
                     + relationship
                   </Text>
                 </>
@@ -119,11 +119,11 @@ function NpcGuides({ name, appearance, outfit, thoughts, onEditGuide }: NpcGuide
     <Stack gap="field" data-slot="npc-guides">
       {shown.map(({ field, text }) => (
         <Row key={field} gap="field" align="baseline" className="min-inline-0">
-          <Text as="span" size="micro" tone="muted" className="shrink-0">
+          <Text as="span" tone="muted" className="shrink-0" voice="gloss">
             {field}
           </Text>
           {onEditGuide === undefined ? (
-            <Text as="span" size="label" tone="muted" italic={field === "thoughts"} className={GUIDE_LINE}>
+            <Text as="span" tone="muted" italic={field === "thoughts"} className={GUIDE_LINE} voice="gloss" prose={true}>
               {text}
             </Text>
           ) : (
@@ -163,7 +163,7 @@ function NpcMood({ name, mood, onEditMood }: NpcMoodProps): ReactElement | null 
     // screenshot, 08-01). justify-end keeps the slot hugging the card's right edge like the mock.
     return (
       <Row gap="field" align="baseline" className="flex-1 justify-end min-inline-0">
-        <Text as="span" size="micro" tone="muted" className="shrink-0">
+        <Text as="span" tone="muted" className="shrink-0" voice="gloss">
           mood
         </Text>
         <TrackerValue
@@ -183,7 +183,7 @@ function NpcMood({ name, mood, onEditMood }: NpcMoodProps): ReactElement | null 
     return null;
   }
   return (
-    <Text as="span" size="label" tone="muted" className="wrap-break-word min-inline-0">
+    <Text as="span" tone="muted" className="wrap-break-word min-inline-0" voice="gloss" prose={true}>
       mood — {mood}
     </Text>
   );
@@ -257,13 +257,13 @@ export function NpcCard({
         <Row justify="between" align="baseline" gap="block">
           <Row gap="field" align="center" className="min-inline-0">
             {emoji === undefined || emoji === "" ? null : (
-              <Text as="span" size="label" aria-hidden={true} className="shrink-0">
+              <Text as="span" aria-hidden={true} className="shrink-0" voice="label">
                 {emoji}
               </Text>
             )}
             {/* `shrink-0` keeps the name from collapsing to 0px when a long custom relationship label is present —
               the badge yields width to the name (it truncates), never the reverse. */}
-            <Text as="span" size="label" weight="semibold" className="shrink-0">
+            <Text as="span" className="shrink-0" voice="label">
               {name}
             </Text>
             <NpcRelationship

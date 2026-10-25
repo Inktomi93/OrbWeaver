@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "text-axes-to-voices"
+version: "0.1.0"
+description: "Apply adjudicated JSX voice choices with exact source guards."
+author: "Orbweaver"
+license: "MIT"
+targets:
+  languages: ["tsx"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

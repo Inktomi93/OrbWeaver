@@ -20,6 +20,7 @@ import {
   tv,
   WALLPAPER_PLATE,
 } from "#lib";
+import { ART_DECORATION } from "../lib/art-decoration.ts";
 
 const GAP = {
   // The small-end step (UI-Density-Law.md §2.2/D2): ATOM gaps inside an island — label↔bar,
@@ -158,6 +159,15 @@ export const stackVariants = tv({
     // How an image painted as the box's background fills it: `cover` crops it about its centre; `underFeather` lays a
     // gradient over a cover image anchored at the top, the gradient filling the box.
     imageFit: { cover: "bg-cover bg-center bg-no-repeat", underFeather: "bg-size-[auto,cover] bg-position-[left_top,center_top] bg-no-repeat" },
+    artDecoration: ART_DECORATION,
+    artMask: { start: "orb-art-mask-start", end: "orb-art-mask-end" },
+    columnMeasure: { illustrated: "orb-art-reservation" },
+    artPane: { portrait: "orb-art-reservation inline-(--art-pane-width)" },
+    feather: {
+      bubble: "orb-art-band [--art-feather-fill:var(--color-ai-bubble)]",
+      userBubble: "orb-art-band [--art-feather-fill:var(--color-user-bubble)]",
+      systemBubble: "orb-art-band [--art-feather-fill:var(--color-system-bubble)]",
+    },
     // A list item that genuinely arrives eases in from `from` to `settle`; a remounted item takes neither.
     arrival: ARRIVAL,
     focusTarget: FOCUS_TARGET,

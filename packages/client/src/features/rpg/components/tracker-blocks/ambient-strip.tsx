@@ -79,7 +79,7 @@ function AmbientVocabPicker({
         reserveEdge={true}
         className="gap-0 px-field text-start"
       >
-        <Text as="span" size="label" tone={empty ? "muted" : "default"}>
+        <Text as="span" tone={empty ? "muted" : "default"} voice="label">
           {restText}
         </Text>
       </Button>
@@ -127,7 +127,7 @@ function AmbientVocabPicker({
               setOpen(false);
             }}
           >
-            <Text as="span" size="micro">
+            <Text as="span" voice="label" ink="inherit">
               {label}
             </Text>
           </Button>
@@ -158,7 +158,7 @@ function AmbientVocabPicker({
             }}
           >
             <Icon icon={X} size="xs" />
-            <Text as="span" size="micro" tone="muted">
+            <Text as="span" tone="muted" voice="label">
               {`Clear ${fieldLabel.toLowerCase()}`}
             </Text>
           </Button>
@@ -182,7 +182,7 @@ function AmbientFieldControl({
 }): ReactElement {
   if (onEditField === undefined) {
     return (
-      <Text as="span" size="label" numeric={true} className="truncate">
+      <Text as="span" numeric={true} className="truncate" voice="label">
         {value}
       </Text>
     );
@@ -234,7 +234,7 @@ export function AmbientStrip({ location, date, timeOfDay, weather, onEditField, 
             // density ruling). `min-w-0` lets a long location value truncate/shrink instead of
             // forcing a full-width row.
             <Row key={key} gap="field" align="baseline" className="min-inline-0">
-              <Text as="span" size="label" tone="muted" className="shrink-0">
+              <Text as="span" tone="muted" className="shrink-0" voice="label">
                 {label}
               </Text>
               <AmbientFieldControl fieldKey={key} label={label} value={value} onEditField={onEditField} />

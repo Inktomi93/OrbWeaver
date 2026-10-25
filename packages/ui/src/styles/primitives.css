@@ -1,13 +1,18 @@
 /* @orb/ui region: document floors and the primitive-wide treatments no utility can spell. Imported by globals.css inside its layer. */
 
-/* The gradient border ring (the CTA, the active tab, the active rail button): a `::after` overlay whose transparent
- * padding-box fill composes over the element's own fill while the border-box gradient paints the ring, a primary
- * head over the polarity-fixed sheen foot. The two knobs are each site's tuned weight; the colours are the tokens'. */
-@utility orb-gradient-ring {
+/* A non-interactive paint layer fills its positioned host without intercepting the host's controls. */
+@utility orb-paint-carrier {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
+}
+
+/* The gradient border ring (the CTA, the active tab, the active rail button): a `::after` overlay whose transparent
+ * padding-box fill composes over the element's own fill while the border-box gradient paints the ring, a primary
+ * head over the polarity-fixed sheen foot. The two knobs are each site's tuned weight; the colours are the tokens'. */
+@utility orb-gradient-ring {
+  @apply orb-paint-carrier;
   border: var(--border-width-control) solid transparent;
   background:
     linear-gradient(transparent, transparent) padding-box,
@@ -19,6 +24,32 @@
  * a grid of cells drift to different baselines. `lh` follows the element's own voice; there is no token for it. */
 @utility orb-lines-2 {
   min-block-size: 2lh;
+}
+
+/* Resolve art reservations on their consumer so a carried scope's spacing and art width remain live. */
+@utility orb-art-reservation {
+  --art-pane-width: min(var(--immersive-echo-art-width), 25cqi);
+  --column-measure: min(100%, calc(var(--reading-measure-min) + var(--immersive-echo-art-width) + var(--spacing-block)));
+}
+
+/* A portrait dissolves toward its adjacent reading column and at its foot, not beneath the text. */
+@utility orb-art-mask-start {
+  mask-image: linear-gradient(to right, black 70%, transparent), linear-gradient(to bottom, black 60%, transparent);
+  mask-composite: intersect;
+}
+@utility orb-art-mask-end {
+  mask-image: linear-gradient(to left, black 70%, transparent), linear-gradient(to bottom, black 60%, transparent);
+  mask-composite: intersect;
+}
+
+/* Without an image the feather preserves a solid upper band for the fallback initial. */
+@utility orb-art-band {
+  --art-image: none;
+  --art-feather-start: 0%;
+  --art-feather-end: var(--immersive-whisper-feather);
+  --art-feather: linear-gradient(to bottom, transparent var(--art-feather-start), var(--art-feather-fill) var(--art-feather-end));
+  aspect-ratio: var(--aspect-banner);
+  background-image: var(--art-feather), var(--art-image);
 }
 
 /* A long, fully mounted list row (`commandVariants.item`) skips layout and paint off-screen but stays in the DOM, the
@@ -50,6 +81,11 @@
 }
 
 @layer ui {
+  .orb-art-band[data-art-image="false"] {
+    --art-feather-start: 55%;
+    --art-feather-end: 100%;
+    background-image: var(--art-feather);
+  }
   /* The client writes `--appearance-font-scale` onto the root; every rem-derived size follows. The font rendering set
    * (ui-package-design.md §4): grayscale antialiasing keeps macOS text thin on the dark themes, and no synthesised
    * bold or italic stands in for a face Geist does not ship. */
@@ -147,6 +183,36 @@
     mask-image: linear-gradient(to left, rgb(0 0 0 / var(--art-bleed-peak)), transparent);
   }
 
+  /* The transcript's edge fade: each edge dissolves only while content lies beyond it (the MessageList primitive
+   * toggles `data-fade-*`), eased in from the edge so the cut line reads as gone rather than half drawn; a zero
+   * stop collapses the band so an edge that hides nothing stays opaque. `--mask-top-inset` is the bottom edge of
+   * a header pinned across the top. Pinned by sampling pixels: computed style
+   * reports an opaque card for every faded row. */
+  [data-slot="message-list-scroll"] {
+    --fade-top-stop: 0%;
+    --fade-bottom-stop: 0%;
+    --mask-top-inset: 0px;
+    mask-image: linear-gradient(
+      to bottom,
+      black var(--mask-top-inset),
+      transparent var(--mask-top-inset),
+      rgb(0 0 0 / 0.04) calc(var(--mask-top-inset) + var(--fade-top-stop) * 0.25),
+      rgb(0 0 0 / 0.2) calc(var(--mask-top-inset) + var(--fade-top-stop) * 0.5),
+      rgb(0 0 0 / 0.55) calc(var(--mask-top-inset) + var(--fade-top-stop) * 0.75),
+      black calc(var(--mask-top-inset) + var(--fade-top-stop)),
+      black calc(100% - var(--fade-bottom-stop)),
+      rgb(0 0 0 / 0.55) calc(100% - var(--fade-bottom-stop) * 0.75),
+      rgb(0 0 0 / 0.2) calc(100% - var(--fade-bottom-stop) * 0.5),
+      rgb(0 0 0 / 0.04) calc(100% - var(--fade-bottom-stop) * 0.25),
+      transparent
+    );
+  }
+  [data-slot="message-list-scroll"][data-fade-top] {
+    --fade-top-stop: var(--fade-edge-stop);
+  }
+  [data-slot="message-list-scroll"][data-fade-bottom] {
+    --fade-bottom-stop: var(--fade-edge-stop);
+  }
   /* The scroll fades: an edge dissolves only while content is scrolled past it (the consumer toggles the
    * `data-fade-*` attributes), and the ramp bottoms out at a floor rather than zero, so the item straddling a
    * scrolled edge still carries ink while a mask keeps it hit-testable. The floor is derived, not picked: a
@@ -337,6 +403,33 @@
     scrollbar-width: thin;
   }
 
+  /* The indeterminate hairline (a refinery lane's running cell): a segment travelling on the compositor across its
+   * own clipped track. The class owns the track's containing block and clip, or the segment escapes to the pane.
+   * Reduced motion removes the segment, not only its travel: a parked bar reads as a stalled progress bar. */
+  @keyframes orb-indeterminate-hairline {
+    from {
+      translate: -100% 0;
+    }
+    to {
+      translate: 300% 0;
+    }
+  }
+  .orb-indeterminate-hairline {
+    position: relative;
+    overflow: hidden;
+  }
+  .orb-indeterminate-hairline::after {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    inline-size: 33%;
+    background-color: var(--color-primary);
+    animation: orb-indeterminate-hairline var(--motion-shimmer) linear infinite;
+  }
+  :root[data-appearance-reduced-motion="on"] .orb-indeterminate-hairline::after {
+    content: none;
+  }
+
   /* The skeleton sweep translates an oversized pseudo-element on the compositor; animating the background
    * position repainted every skeleton on every frame. */
   @keyframes orb-skeleton-shimmer {
@@ -370,6 +463,9 @@
     display: none;
   }
   @variant motion-reduce {
+    :root:not([data-appearance-reduced-motion="off"]) .orb-indeterminate-hairline::after {
+      content: none;
+    }
     :root:not([data-appearance-reduced-motion="off"]) .orb-skeleton-shimmer::after {
       display: none;
     }
@@ -410,6 +506,36 @@
     animation: orb-word-reveal var(--motion-base) var(--ease-out-expo) both;
   }
 
+  /* Code tokens follow the app theme, not the device: Streamdown switches its Shiki colours on the OS
+   * `prefers-color-scheme`, while the app's polarity is the `color-scheme` its theme scope sets. */
+  [data-streamdown="code-block"] [style*="--sdm-c"] {
+    color: light-dark(var(--sdm-c, currentcolor), var(--shiki-dark, var(--sdm-c, currentcolor)));
+  }
+  [data-streamdown="code-block"] [style*="--sdm-tbg"] {
+    background-color: light-dark(var(--sdm-tbg, transparent), var(--shiki-dark-bg, var(--sdm-tbg, transparent)));
+  }
+  [data-streamdown="code-block"] [style*="--sdm-bg"] {
+    background-color: light-dark(var(--sdm-bg, transparent), var(--shiki-dark-bg, var(--sdm-bg, transparent)));
+  }
+  /* Streamdown's copy and download glyphs take the pointer-conditional touch floor through a centred hit area. */
+  [data-streamdown="code-block-copy-button"],
+  [data-streamdown="code-block-download-button"] {
+    position: relative;
+  }
+  /* The pair is spaced so the hit areas never overlap. */
+  [data-streamdown="code-block-actions"] {
+    column-gap: calc(var(--size-touch-target) - var(--size-glyph-md));
+  }
+  [data-streamdown="code-block-copy-button"]::before,
+  [data-streamdown="code-block-download-button"]::before {
+    content: "";
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline-start: 50%;
+    inline-size: var(--size-touch-target);
+    block-size: var(--size-touch-target);
+    translate: -50% -50%;
+  }
   /* Streamdown's code-block container sets `content-visibility: auto` inline with a 200px intrinsic size, so a
    * block is born at that height and collapses to its real one a frame later. The container forwards neither
    * `style` nor `className`, so the only seam is CSS and only `!important` beats an inline style; the skip bought

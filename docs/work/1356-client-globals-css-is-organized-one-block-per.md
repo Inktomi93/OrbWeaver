@@ -24,4 +24,6 @@ Each sheet has one block per layer in layer order; each variant wraps its rules 
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Each authored sheet and generated theme has one block per named layer. Client appearance variants group their related rules. Glass uses one consumer-local recipe, with a half-strength scale for the empty-state plate. UI owns the message-list mask and Streamdown normalization; Text owns the token-derived wordmark halo. The duplicate-layer planted control fails before the rule and passes after. Current stylesheet lint and generator tests pass. Final rendered qualification is recorded in the closeout report.
+
+See [CSS closeout](../reviews/css-closeout.md) for exact check selections, artifacts and remaining limits.

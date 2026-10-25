@@ -76,6 +76,7 @@ Beside the voice, a feature passes these Text axes, by owner ruling:
 - `strike` draws a line-through (a cancelled quest, a disabled section).
 - `hiddenAt` (`coarse` or `fine`) and `srOnlyAt` (`coarse`) swap the text per pointer class (§4.3).
 - `italic` sets words that are not spoken (a character's thought); `selectAll` makes copyable machine text select whole; `pulse` breathes a working mark, motion-safe only; `hoverCue` (`lift`, `nudge`) is the cue a quiet part gives while its `group` control is hovered.
+- `halo` keeps a wordmark readable over live art through the theme-derived shadow recipe. `artScale` sizes decorative initials to their portrait or banner container.
 
 `receded` dims the whole element to the `opacity.receded` token (`opacity-receded`), on Text, Icon, Row, Stack and ListRow. It replaces hand-spelled `opacity-50`, `opacity-60` and a `/60` muted ink with one step, so an archived row and a secondary glyph recede alike.
 
@@ -122,18 +123,18 @@ Features cannot express the wrong thing because they never express spacing or ra
 
 ### 4.2 The tier stylesheet — the map made executable
 
-`packages/ui/src/styles/tiers.css` — hand-authored (it maps SLOT names to steps; slot names are not token data), UNLAYERED, imported beside `theme.css`.
+`packages/ui/src/styles/tiers.css` maps slots to token steps in the `ui` layer, after `utilities`. Each surface supplies inherited tier properties.
 
 ```css
-[data-surface-tier="instrument"] [data-slot="card-root"] {
-  padding: var(--spacing-row);
-  border-radius: var(--radius-base);
+[data-surface-tier] [data-slot="card-root"] {
+  padding: var(--orb-tier-island-pad);
+  border-radius: var(--orb-tier-island-radius);
 }
 ```
 
 Two properties make it a SEAL rather than a suggestion:
 
-1. **Unlayered beats layered.** Tailwind emits utilities into `@layer utilities`; unlayered CSS wins over any layered rule regardless of specificity (`theme.css` already relies on this). A primitive's own utility default is the tier-LESS fallback; the tier layer overrides it.
+1. **Layer order decides the override.** The declared `ui` layer follows `utilities`, so tier rules override primitive utility defaults. Nested surfaces supply their nearest inherited tier values.
 2. **`data-slot` already exists** on every primitive, so the map needs no new plumbing.
 
 Check the rendered value with `getComputedStyle(...)` against the document-resolved custom property, never a hardcoded px (§5.3).
@@ -143,7 +144,7 @@ Check the rendered value with `getComputedStyle(...)` against the document-resol
 | primitive | delta | why |
 | - | - | - |
 | `Surface` | `tier` (required) | the one tier writer |
-| `Card` | NO `padding` variant; `elevated?: boolean` | padding is tier-resolved; `elevated` is the explicit opt-in to `rounded-card` + shadow. **`Card` has no `padding` prop; that absence IS the enforcement** (D7) — a surviving prop is a surviving escape hatch |
+| `Card` | No spacing-scale padding axis; `padding="none"` delegates the inset; `elevated?: boolean` | Padding stays tier-resolved. The owner-ruled delegation exception supplies no alternate spacing value. `elevated` opts into the floating radius and shadow. |
 | `Text` / `Heading` | `voice` (§2.3); `tone`, `strike`, `receded`, `hiddenAt`, `srOnlyAt`, `solidLine` (a mark sized by its container takes its own em as the line box); `size`/`weight`/`transform` are `@orb/ui`-internal | collapses 336 taste combinations to named intents; meaning colour and pointer-class swaps are props, never classes |
 | `Card` | `shape`: `island` (default) · `row` (one operable or listed row as its own box, `--radius-control`) · `well` (a recess inside a box: no border, `bg-muted`, `--radius-control`) · `float` (a composer-class island in a room's column: `--radius-card` and the field inset, no shadow) · `inset` (`--radius-inset`, a pane in a preview) · `plate` (the fill alone under a line that crosses art) · `pill` · `bubble` (the transcript's bubble box, `MESSAGE_BUBBLE_BOX`); `tone` gains `clear` (border only), `accent`, `sidebar` (the rail's fill and edge), `translucent` (`bg-card/80`), `backdrop` (`bg-background/80`), `input` (the field edge, no fill), the status tints `successTint` · `warningTint` · `destructiveTint` · `infoTint` (fill and held-back edge, no ink), `primaryEdge`, `primaryOutline`, `raised`, `sidebarEdge`, `popover`, `mutedWash` and the role bubbles `bubble` · `userBubble` · `systemBubble` (`MESSAGE_BUBBLE_FILL`); `rail` (a 2px leading edge for a set state); `shadow` (`follow` the user's elevation, `none` for a diagram that draws one elevation, `overlay`); `holdsField` and `dropTarget` (a field host's hover, focus and armed-drop states); `presence` (a floating chip that comes and goes); `spoiler`; `receded` (a message held out of the model's context); `focusable` (a programmatic focus region draws the ring); `ownSlot` | a bordered, rounded, filled `Row` or `Stack` is a `Card`, not a layout box with paint (owner ruling); `tiers.css` re-declares the shape radius inside a tier, and `ownSlot` keeps an owner-CSS hook's slot, which takes the card out of the tier map |
 | `Avatar` | `cardCorners` (`start`, `end`: a portrait welded to a card's side) | a welded portrait's outer corners follow the card it welds to |
@@ -164,6 +165,8 @@ Check the rendered value with `getComputedStyle(...)` against the document-resol
 | `lib/control-size.ts` | `CHIP_BOX` beside `CONTROL_SIZE` | the rail cell in ONE home for both pressable primitives. Its height is `--size-touch-target`, not a control step: pointer-conditional, so the box IS the tap floor |
 
 Features keep composing `<Stack gap>` / `<Row gap>` explicitly — the gap union is already token-only. What is NOT a feature-level choice is ISLAND padding and radius.
+
+Art recipes are primitive choices: Card and Stack expose `artDecoration` for speaker edges and portrait reservations. Stack owns `artMask`, `artPane`, `columnMeasure`, `feather` and its runtime `featherSrc`. The consumer-local formulas preserve carried-theme and density values. Text owns `artScale` and `halo`; none introduces another text voice.
 
 **A radius differentiates nothing unless an edge draws it.** The chip pill radius was live and invisible for months because at rest the chips were transparent with a zero-width border — the measured defect that forced the `outline`/`chip`/`selection` deltas above.
 

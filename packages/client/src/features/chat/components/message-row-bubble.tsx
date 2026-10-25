@@ -33,10 +33,10 @@ export function renderSingleBubble(args: {
   readonly onArtFailed?: (failed: boolean) => void;
 }): ReactElement {
   const headerBand = args.decoration?.headerBand;
-  const style = args.decoration?.style;
+  const artDecoration = args.decoration?.treatment;
   if (headerBand !== undefined) {
     return (
-      <MessageBox {...args.facts} shape="bare" positioned={false} style={style}>
+      <MessageBox {...args.facts} shape="bare" positioned={false} artDecoration={artDecoration}>
         <WhisperBand band={headerBand} view={args.artView} onFailedChange={args.onArtFailed} />
         <Stack gap="row" className="px-block py-row">
           {args.header}
@@ -49,7 +49,7 @@ export function renderSingleBubble(args: {
   if (args.weldedAvatar === null) {
     const art = args.decoration?.art;
     return (
-      <MessageBox {...args.facts} shape="stack" positioned={art !== undefined} style={style}>
+      <MessageBox {...args.facts} shape="stack" positioned={art !== undefined} artDecoration={artDecoration}>
         {art === undefined ? null : <EchoArtTile art={art} view={args.artView} onFailedChange={args.onArtFailed} />}
         {args.header}
         {args.content}
@@ -58,7 +58,7 @@ export function renderSingleBubble(args: {
     );
   }
   return (
-    <MessageBox {...args.facts} shape="weld" positioned={false} style={style}>
+    <MessageBox {...args.facts} shape="weld" positioned={false} artDecoration={artDecoration}>
       {args.mirrored ? null : args.weldedAvatar}
       {/* The column stretches the card's height and the foot takes its end, so the swipe group sits in the card's
           bottom corner beside a tall portrait instead of floating under a short reply. */}

@@ -183,7 +183,7 @@ export function InboxRow({ item, onAccepted, onRequestHandoff, acceptedHandoff, 
             you open the bell because of a dot and find the dot that put it there. `aria-hidden`: the row's
             own actions are what say it is decidable; the mark is the sighted shorthand. */}
         {item.actionable ? <Badge intent="primary" size="dot" aria-hidden={true} className="mbs-field" /> : null}
-        <Text as="span" size="label" weight={item.readAt === null || item.actionable ? "medium" : undefined}>
+        <Text as="span" voice={item.readAt === null || item.actionable ? "label" : "gloss"} prose={true}>
           {rowCopy(item.payload, disabledPluginName)}
         </Text>
       </Row>

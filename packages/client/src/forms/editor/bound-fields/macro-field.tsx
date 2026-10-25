@@ -63,7 +63,7 @@ export function MacroField(props: MacroFieldProps): ReactElement {
       </Field>
       {props.showTokenCount === true ? (
         <Row gap="row" align="center" className="justify-end">
-          <Text size="micro" tone="muted" className="font-mono">
+          <Text tone="muted" voice="datum">
             ~{estimateTokens(field.state.value)} tokens
           </Text>
         </Row>

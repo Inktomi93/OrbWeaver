@@ -1,6 +1,4 @@
-/* The app frame stylesheet (client-architecture-lockdown.md §4.2, §4.4), assembled from its regions in cascade
- * order. noDescendingSpecificity is scoped off for these files: elevation-ramp rules are deliberately declared
- * early at higher specificity so later base/glass/bg-image overrides win on their own specificity. */
+/* The app frame: region geometry, token-derived paint and coordinated motion. The import order preserves the cascade within the shell layer. */
 @import "./shell/grid.css";
 @import "./shell/motion.css";
 @import "./shell/rail.css";
