@@ -24,7 +24,7 @@ export const USER_SCROLL_YIELD_MS = 150;
 const SCROLL_KEYS: ReadonlySet<string> = new Set(["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "]);
 
 /**
- * Wire the four ways a reader takes the axis by hand; returns the detach function.
+ * Wire the available wheel/touch channels and scroll keys; returns the detach function.
  *
  * PASSIVE on purpose: a `wheel`/`touchmove` listener the browser cannot prove is passive blocks the very
  * scroll it is watching, and React's JSX handlers give no passive guarantee (they also read to a11y
@@ -40,9 +40,16 @@ export function attachUserScrollInput(el: HTMLElement, onInput: () => void): () 
       onInput();
     }
   };
-  el.addEventListener("wheel", onInput, { passive: true });
-  el.addEventListener("touchstart", onInput, { passive: true });
-  el.addEventListener("touchmove", onInput, { passive: true });
+  // Pointer modalities differ across browsers; subscribe only to channels the element exposes.
+  if ("onwheel" in el) {
+    el.addEventListener("wheel", onInput, { passive: true });
+  }
+  if ("ontouchstart" in el) {
+    el.addEventListener("touchstart", onInput, { passive: true });
+  }
+  if ("ontouchmove" in el) {
+    el.addEventListener("touchmove", onInput, { passive: true });
+  }
   el.addEventListener("keydown", onKey, { passive: true });
   return (): void => {
     el.removeEventListener("wheel", onInput);
