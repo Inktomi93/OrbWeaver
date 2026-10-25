@@ -12,8 +12,7 @@ interface FirstBootRows {
   readonly narrow: number;
 }
 
-/** The box for the current width class. `undefined` when the tokens cannot be resolved (no document), which
- *  leaves the boundary unreserved. */
+/** The box for the current width class, resolved from live CSS or generated authored-root dimensions. */
 export function useFirstBootBox(rows: FirstBootRows): number | undefined {
   const phone = useMobileViewport();
   return skeletonBoxFor(phone ? rows.narrow : rows.wide) ?? undefined;

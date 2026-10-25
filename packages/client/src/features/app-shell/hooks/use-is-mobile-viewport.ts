@@ -13,7 +13,8 @@
 // useIsBelowShellContentFloor is the third kind — a viewport read against a rem TOKEN rather than a
 // breakpoint literal, so it resolves the token instead of querying it (its own doc block states why).
 
-import { MEDIA_QUERIES, snappedLengthPx, TOKENS } from "@orb/ui/tokens";
+import { resolveCssLength } from "@orb/ui/lib";
+import { MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
 import type { RefObject } from "react";
 import { useLayoutEffect, useSyncExternalStore } from "react";
 
@@ -53,7 +54,7 @@ const getNarrowSnapshot = snapshotOf(SHELL_NARROW_QUERY);
 
 /** The reader's chat-width floor, READ from the vault rather than re-spelled: the shell stamps the same
  *  token into `--width-shell-content`'s clamp, so there is exactly one number. */
-const SHELL_CONTENT_FLOOR = TOKENS["dimension.shell-content-floor"].value;
+const SHELL_CONTENT_FLOOR = TOKENS["dimension.shell-content-floor"].cssVar;
 
 /** Memoized because `getSnapshot` runs on every render of every consumer and the read is a forced style
  *  recalc; the subscription owns invalidation (the `contextContentConstrained` store's shape). */
@@ -63,14 +64,8 @@ function readBelowShellContentFloor(): boolean {
   if (typeof globalThis.getComputedStyle !== "function") {
     return false;
   }
-  const rootFontSizePx = Number.parseFloat(globalThis.getComputedStyle(document.documentElement).fontSize);
-  if (!Number.isFinite(rootFontSizePx)) {
-    return false;
-  }
-  // `snappedLengthPx` is the token pipeline's own inverse of the emitted length (#1640) — the decoder, not
-  // a re-spelling of `46.625 * root`.
-  const floorPx = snappedLengthPx(SHELL_CONTENT_FLOOR, rootFontSizePx);
-  return floorPx !== null && globalThis.innerWidth <= floorPx;
+  const floorPx = resolveCssLength(SHELL_CONTENT_FLOOR, Number.NaN);
+  return Number.isFinite(floorPx) && globalThis.innerWidth <= floorPx;
 }
 
 function subscribeShellContentFloor(onChange: () => void): () => void {
@@ -196,7 +191,7 @@ export function useIsContextContentConstrained(): boolean {
  *  `--appearance-font-scale` (`:root { font-size: calc(100% * var(--appearance-font-scale)) }`) exactly like the `ch` measure it
  *  was derived from. The two queries above CAN be rem because each is the JS twin of a CSS `@media` that
  *  resolves rem the same way; this one has no CSS twin and must agree with a `clamp()` instead. So the
- *  threshold is resolved through the token's own generated decoder against the LIVE root font-size, and the
+ *  threshold is resolved through native CSS against the LIVE root font-size, and the
  *  root `style` attribute — the one carrier of `--appearance-font-scale` (`use-appearance-root-effects.ts`) — is
  *  observed beside `resize`. An unreadable root font-size answers `false`: an unmeasurable floor must not
  *  take a working control away. */

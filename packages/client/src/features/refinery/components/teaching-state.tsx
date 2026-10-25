@@ -44,7 +44,7 @@ import type { LucideIcon } from "@orb/ui/icons";
 import { ChartColumn, ChevronRight, Gauge, Icon, Pencil } from "@orb/ui/icons";
 import { Grid, Row, Stack } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
-import { snappedLengthPx, TOKENS } from "@orb/ui/tokens";
+import { LENGTH_BASE_PX } from "@orb/ui/tokens";
 import type { ReactElement, ReactNode } from "react";
 import { CharacterPicker } from "#components";
 import { skeletonRowCountFor } from "#data";
@@ -70,9 +70,8 @@ interface TeachingStep {
 }
 
 /** The reserved list box in px at the 16px root: the same `height.scroll-lg` token the `h-(--height-scroll-lg)` list
- *  class beside it spends, decoded once so the skeleton row count and the box cannot drift apart. */
-const ROOT_FONT_PX = 16;
-const PICKER_LIST_HEIGHT_PX = snappedLengthPx(TOKENS["height.scroll-lg"].value, ROOT_FONT_PX) ?? 0;
+ *  class beside it spends. */
+const PICKER_LIST_HEIGHT_PX = LENGTH_BASE_PX["height.scroll-lg"];
 /** `CharacterPicker`'s own fallback count, used when the tokens cannot be resolved (no document). */
 const DEFAULT_PICKER_SKELETON_ROWS = 5;
 
