@@ -1,5 +1,19 @@
-/* @orb/ui region: the WebWeave and WebSpinner glow and keyframes. Imported by globals.css inside its layer. */
+/* @orb/ui region: the WebWeave, WeaveGlyph and WebSpinner glow and keyframes. Imported by globals.css inside its layer. */
 @layer ui {
+  /* The empty-state hero's glyph shimmer. */
+  @keyframes orb-weave-shimmer {
+    0%,
+    100% {
+      opacity: 0.82;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+  .orb-weave-shimmer {
+    animation: orb-weave-shimmer var(--motion-breathe) ease-in-out infinite;
+  }
+
   /* The web's ambient accent glow, centred on the hub the component positions through the two custom properties. */
   .orb-weave-glow {
     background: radial-gradient(

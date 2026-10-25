@@ -212,10 +212,10 @@ export const textVariants = tv({
     },
     // A mark sized by its container (an initial filling an art slot) takes its own em as the line box, so it centres in
     // the box instead of riding the voice's line height.
+    artScale: { portrait: "text-art-initial", banner: "text-band-initial" },
     solidLine: { true: "leading-none", false: "" },
     // A wordmark over live art keeps a dark, theme-derived halo behind its glyphs.
-    halo: { true: "text-shadow-(--shadow-wordmark)", false: "" },
-    artScale: { portrait: "text-art-initial", banner: "text-band-initial" },
+    halo: { true: "text-shadow-wordmark", false: "" },
     // The slanted face for words that are not spoken: a character's inner thought, a guide line.
     italic: { true: "italic", false: "" },
     // Machine text a reader copies whole (a source URL, a key fingerprint): one click selects the run.

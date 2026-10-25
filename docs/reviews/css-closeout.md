@@ -3,7 +3,7 @@
 ## Outcome
 
 Stylesheet ownership and repeated recipes are corrected. The layout-only className drain already exists. The missing text-axis enforcement and remaining typography sites are corrected here.
-Rendered acceptance and the classic-scrollbar boundary investigation remain pending in this draft.
+The scoped browser selection passes after the recorded runtime corrections. Final committed-source captures and the classic-scrollbar boundary investigation remain pending.
 
 ## Reading coverage
 
@@ -53,16 +53,16 @@ No vendored font binary, upstream KaTeX minified stylesheet or unrelated product
 
 | Item | Classification | Source and proof |
 | - | - | - |
-| 1356 | Fixed; rendered qualification pending | Client globals, UI primitives, token generator and `orb/no-duplicate-layer-block`; planted duplicate control fails before the rule and passes after. |
+| 1356 | Fixed; scoped rendered qualification passed | Client globals, UI primitives, token generator and `orb/no-duplicate-layer-block`; planted duplicate control fails before the rule and passes after. |
 | 1337 | Already implemented; static qualification passed | `CLASS_SELECTORS` and the better-tailwindcss patch reach bindings, recipe arrays and named-function returns. Native-token controls pass; UI/client lint is clean. |
 | 1316, 1335, 1336 | Already implemented; static qualification passed | Feature className rules enabled at error; full UI/client lint clean; feature-className controls pass. |
-| 1334, 1338, 1340 | Already implemented; rendered requalification pending | Text voices, shared semantic tone map, Icon tone and className-drain props; existing variant CTs selected. |
-| 1326 | Fixed; final qualification pending | The import-aware text-voice rule refuses internal axes, including aliases and static spreads. The client census reaches zero after the voice migration. |
+| 1334, 1338, 1340 | Already implemented; scoped rendered qualification passed | Text voices, shared semantic tone map, Icon tone and className-drain props; existing variant CTs selected. |
+| 1326 | Fixed; scoped qualification passed | The import-aware text-voice rule refuses internal axes, including aliases and static spreads. The client census reaches zero after the voice migration. |
 | 1321 | Already implemented; native qualification passed | Shell paint rule and planted controls; shipped stylesheet test passes. |
-| 1343 | Already implemented, including appearance channels; rendered requalification pending | Surface generator, appearance attributes and property rosters, rename/warning tests and editor CT. |
-| 1345 | Already implemented; rendered requalification pending | Textarea fallback and native-versus-fallback height CT. |
+| 1343 | Already implemented, including appearance channels; scoped rendered qualification passed | Surface generator, appearance attributes and property rosters, rename/warning tests and editor CT. |
+| 1345 | Already implemented; scoped rendered qualification passed | Textarea fallback and native-versus-fallback height CT. |
 | 1333 | Unresolved rendered qualification | Rule fixes are present; headed classic-scrollbar boundary checks remain pending. |
-| 1362 art sites | Fixed; rendered qualification pending | Art decorations and column measures use primitive props. New art recipe CTs and existing chat skin CTs cover geometry and paint. |
+| 1362 art sites | Fixed; scoped rendered qualification passed | Art decorations and column measures use primitive props. New art recipe CTs and existing chat skin CTs cover geometry and paint. |
 
 ## Codemods and semantic edits
 
@@ -105,6 +105,11 @@ These are typography changes, not stylesheet reorganization regressions. No voic
 - `pnpm test:tools tests/tooling/stylelint-rules.test.ts`: passed, including every shipped stylesheet.
 - `pnpm test:tools tests/tooling/generated-css-drift.repo.int.test.ts`: passed in the generator/stylelint selection.
 - Token contract, class merge, owner-CSS surface, rewrite and warning suites: passed; exact selection in `reports/css-closeout/token-tests.log`.
+- Final root/tooling and UI/client/DOM compiler selections pass; the final token-contract correction also passes the root program. Logs: `final-rule-typecheck.log`, `halo-typecheck.log`, `halo-contract-typecheck.log`.
+- Final corrected ESLint selection passes without ignored-file warnings (`final-eslint-corrected.log`); affected runtime and halo files pass their scoped reruns.
+- Final generated-drift and Stylelint controls: 22 passed (`final-generated-style-tests.log`); native Stylelint passes.
+- Text-voice alias controls: 16 passed, including red-first namespace-destructuring aliases and the legitimate own-component control.
+- Token contract: 20 passed after the text-shadow namespace control fails against the unchanged predicate.
 - Both generators: `pnpm --filter @orb/ui tokens:build` and `pnpm --filter @orb/client surface:build` passed.
 
 The initial `pnpm test` tooling invocation collected no files because that script excludes tooling. No passing result is claimed from it.
@@ -116,7 +121,21 @@ Before captures use an isolated stage at `241a3cf45413`, cloned from the owner c
 Home, chat, characters, appearance settings and refinery each pass at desktop 1440×900 and coarse-touch 390×844.
 The first cold stage boot passes without a retry. These are deterministic visual captures, not motion or performance evidence.
 The first immutable run is `closeout-css-2407117-2026-10-25T13-01-02-645Z`; subsequent run paths are recorded in `reports/css-closeout/before-*.log`.
-After captures and CT outcomes will be recorded here when complete.
+The browser selection covers 157 cases. The first run passes 142 and fails 15; its complete report and artifacts remain in `reports/css-closeout/ct-first/`.
+The affected appearance, chat skin and artwork selection passes 81 of 82 after root preference, fallback layer and initial line-height corrections.
+The remaining nested-theme halo assertion exposes root-resolved recipe ingredients. The native `text-shadow-wordmark` utility fixes consumer-local color resolution.
+The final artwork selection passes all four cases. Together with the unchanged 75 first-run cases and 78 appearance/chat cases, every selected case has matching passing evidence.
+`ct-final-1.log`, `ct-runtime-fix.log` and `ct-halo-green.log` hold the native outputs. No failed startup is converted into a passing cold-start claim.
+
+Root preference variants sit inside `:root`; descendant surface variants stay outside. Reduced transparency follows contrast and wins when both are enabled.
+The Whisper fallback has one gradient layer, so owner background-size/repeat/position overrides retain their semantics.
+The initial-size variant precedes the explicit solid line-height variant. Mask assertions accept equivalent angle serialization while preserving mirrored direction and intersection.
+The halo recipe uses the native text-shadow namespace. Its ingredient validation shares the existing shadow predicate; the planted text-shadow frozen-color control fails before the extension and passes after.
+A failed halo test attempt used the wrong generated registry key; its report remains under `ct-halo-key-error/`. The corrected key and affected DOM compiler pass.
+The owner surface regenerates against the published contract at `8bf53165a6`, not a token introduced only in this lane's checkpoint. Normal generator validation preserves all published hooks.
+
+TrackerValue's no-shift editor geometry is qualified on fine pointers. The coarse editor deliberately retains its larger 16px focus-zoom floor; this evidence does not claim coarse-pointer no-shift.
+Final captures will be recorded after the committed-source stage runs.
 
 ## Limits
 

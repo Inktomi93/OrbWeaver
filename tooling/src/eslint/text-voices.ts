@@ -10,9 +10,24 @@ const TEXT_PARTS = new Set(["Text", "Heading"]);
 const INTERNAL_AXES = new Set(["size", "weight", "transform"]);
 const MESSAGE = "Text and Heading take voice in client code; size, weight and transform are UI-internal axes. Semantic tone stays available.";
 
+function destructuredTextExport(
+  context: OrbRuleContext,
+  declaration: TSESTree.VariableDeclarator,
+  local: string,
+  seen: Set<TSESTree.Node>,
+): string | undefined {
+  if (declaration.id.type !== "ObjectPattern" || declaration.init === null || textExport(context, declaration.init, seen) !== "*") {
+    return;
+  }
+  const property = declaration.id.properties.find(
+    (candidate) => candidate.type === "Property" && candidate.value.type === "Identifier" && candidate.value.name === local,
+  );
+  return property?.type === "Property" ? staticKeyName(context, property) : undefined;
+}
+
 function boundTextExport(context: OrbRuleContext, node: TSESTree.Identifier | TSESTree.JSXIdentifier, seen: Set<TSESTree.Node>): string | undefined {
   const definition = lexicalVariable(context, node)?.defs[0];
-  if (definition?.type === "ImportBinding" && definition.parent.source.value === TEXT_DOOR) {
+  if (definition?.type === "ImportBinding" && definition.parent.type === "ImportDeclaration" && definition.parent.source.value === TEXT_DOOR) {
     const specifier = definition.node;
     if (specifier.type === "ImportNamespaceSpecifier") {
       return "*";
@@ -21,6 +36,9 @@ function boundTextExport(context: OrbRuleContext, node: TSESTree.Identifier | TS
       return specifier.imported.type === "Identifier" ? specifier.imported.name : specifier.imported.value;
     }
     return undefined;
+  }
+  if (definition?.type === "Variable" && definition.node.id.type === "ObjectPattern") {
+    return destructuredTextExport(context, definition.node, node.name, seen);
   }
   const id = definition?.type === "Variable" ? definition.node.id : undefined;
   const initializer = id?.type === "Identifier" ? constantInitializer(context, id) : undefined;

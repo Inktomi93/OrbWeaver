@@ -47,8 +47,9 @@
   --art-image: none;
   --art-feather-start: 0%;
   --art-feather-end: var(--immersive-whisper-feather);
+  --art-feather: linear-gradient(to bottom, transparent var(--art-feather-start), var(--art-feather-fill) var(--art-feather-end));
   aspect-ratio: var(--aspect-banner);
-  background-image: linear-gradient(to bottom, transparent var(--art-feather-start), var(--art-feather-fill) var(--art-feather-end)), var(--art-image);
+  background-image: var(--art-feather), var(--art-image);
 }
 
 /* A long, fully mounted list row (`commandVariants.item`) skips layout and paint off-screen but stays in the DOM, the
@@ -83,6 +84,7 @@
   .orb-art-band[data-art-image="false"] {
     --art-feather-start: 55%;
     --art-feather-end: 100%;
+    background-image: var(--art-feather);
   }
   /* The client writes `--appearance-font-scale` onto the root; every rem-derived size follows. The font rendering set
    * (ui-package-design.md §4): grayscale antialiasing keeps macOS text thin on the dark themes, and no synthesised
@@ -401,6 +403,33 @@
     scrollbar-width: thin;
   }
 
+  /* The indeterminate hairline (a refinery lane's running cell): a segment travelling on the compositor across its
+   * own clipped track. The class owns the track's containing block and clip, or the segment escapes to the pane.
+   * Reduced motion removes the segment, not only its travel: a parked bar reads as a stalled progress bar. */
+  @keyframes orb-indeterminate-hairline {
+    from {
+      translate: -100% 0;
+    }
+    to {
+      translate: 300% 0;
+    }
+  }
+  .orb-indeterminate-hairline {
+    position: relative;
+    overflow: hidden;
+  }
+  .orb-indeterminate-hairline::after {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    inline-size: 33%;
+    background-color: var(--color-primary);
+    animation: orb-indeterminate-hairline var(--motion-shimmer) linear infinite;
+  }
+  :root[data-appearance-reduced-motion="on"] .orb-indeterminate-hairline::after {
+    content: none;
+  }
+
   /* The skeleton sweep translates an oversized pseudo-element on the compositor; animating the background
    * position repainted every skeleton on every frame. */
   @keyframes orb-skeleton-shimmer {
@@ -434,6 +463,9 @@
     display: none;
   }
   @variant motion-reduce {
+    :root:not([data-appearance-reduced-motion="off"]) .orb-indeterminate-hairline::after {
+      content: none;
+    }
     :root:not([data-appearance-reduced-motion="off"]) .orb-skeleton-shimmer::after {
       display: none;
     }

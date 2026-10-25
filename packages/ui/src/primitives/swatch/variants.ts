@@ -5,6 +5,7 @@ import { tv } from "#lib";
 export const swatchVariants = tv({
   base: "block",
   variants: {
+    indeterminate: { true: "orb-indeterminate-hairline", false: "" },
     fill: {
       none: "",
       foreground: "bg-foreground",

@@ -51,49 +51,6 @@
     isolation: isolate;
   }
 
-  /* The empty-state hero's glyph shimmer. */
-  @keyframes orb-weave-shimmer {
-    0%,
-    100% {
-      opacity: 0.82;
-    }
-    50% {
-      opacity: 1;
-    }
-  }
-  .orb-weave-shimmer {
-    animation: orb-weave-shimmer var(--motion-breathe) ease-in-out infinite;
-  }
-
-  /* The indeterminate hairline (a refinery lane's running cell): a segment travelling on the compositor across its
-   * own clipped track. The class owns the track's containing block and clip, or the segment escapes to the pane.
-   * Reduced motion removes the segment, not only its travel: a parked bar reads as a stalled progress bar. */
-  @keyframes orb-indeterminate-hairline {
-    from {
-      translate: -100% 0;
-    }
-    to {
-      translate: 300% 0;
-    }
-  }
-  .orb-indeterminate-hairline {
-    position: relative;
-    overflow: hidden;
-  }
-  .orb-indeterminate-hairline::after {
-    content: "";
-    position: absolute;
-    inset-block: 0;
-    inline-size: 33%;
-    background-color: var(--color-primary);
-    animation: orb-indeterminate-hairline var(--motion-shimmer) linear infinite;
-  }
-  @variant appearance-reduced-motion {
-    .orb-indeterminate-hairline::after {
-      content: none;
-    }
-  }
-
   /* The streaming caret (D168; the seal passes no Streamdown `caret`): a blinking bar on the last leaf block of
    * the streamed Markdown. The selector walks to the leaf because an `::after` one level up, on the
    * `display: contents` dir wrapper, flows after the block and renders on a fresh line. */
@@ -433,10 +390,6 @@
       }
     }
     @variant shell-desktop {
-      /* Every edge uses the same mix toward the ink paired with its surface. */
-      :root {
-        --contrast-edge-mix: 65%;
-      }
       .shell-panel[data-panel-side="list"] {
         border-inline-end-width: var(--border-width-accent);
         border-inline-end-color: color-mix(in oklab, var(--color-sidebar-foreground) var(--contrast-edge-mix), var(--color-sidebar));
@@ -455,9 +408,21 @@
         border-color: color-mix(in oklab, var(--color-popover-foreground) var(--contrast-edge-mix), var(--color-popover));
       }
     }
-    :root {
+  }
+
+  /* A root variant must be inside its selector: the outer block form scopes descendant rules and cannot select the root. */
+  :root {
+    @variant appearance-increased-contrast {
+      @variant shell-desktop {
+        --contrast-edge-mix: 65%;
+      }
       --blur-fill-chrome: var(--blur-fill-contrast);
       --blur-fill-dense: var(--blur-fill-contrast);
+    }
+    /* This later declaration wins when both preferences are enabled. */
+    @variant appearance-reduced-transparency {
+      --blur-fill-chrome: var(--blur-fill-solid);
+      --blur-fill-dense: var(--blur-fill-solid);
     }
   }
 
@@ -466,11 +431,6 @@
    * is dropped per surface too: an opaque fill hides it but the compositor still pays for it. Each selector names
    * the box its glass counterpart paints, so this layer's declaration lands on it. */
   @variant appearance-reduced-transparency {
-    /* With both preferences enabled, this later root rule wins and keeps the fill solid. */
-    :root {
-      --blur-fill-chrome: var(--blur-fill-solid);
-      --blur-fill-dense: var(--blur-fill-solid);
-    }
     @variant appearance-blur-surfaces-panels {
       .shell-panel::before,
       .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"]) .shell-main::before {

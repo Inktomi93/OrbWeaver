@@ -12,6 +12,6 @@ export interface SwatchProps extends ComponentProps<"span">, VariantProps<typeof
  *
  * Usage: `<Swatch fill="success" shape="pill" className="block-(--size-dot) inline-(--size-dot)" />`
  */
-export function Swatch({ className, fill, shape, edge, ...props }: SwatchProps): ReactElement {
-  return <span aria-hidden={true} data-slot="swatch" {...props} className={cn(swatchVariants({ fill, shape, edge }), className)} />;
+export function Swatch({ className, fill, shape, edge, indeterminate, ...props }: SwatchProps): ReactElement {
+  return <span aria-hidden={true} data-slot="swatch" {...props} className={cn(swatchVariants({ fill, shape, edge, indeterminate }), className)} />;
 }

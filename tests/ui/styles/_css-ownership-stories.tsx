@@ -1,6 +1,7 @@
 import { CtIsolation } from "@orb/testkit/browser";
 import { Card } from "@orb/ui/card";
 import { Stack } from "@orb/ui/layout";
+import { Swatch } from "@orb/ui/swatch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 
@@ -12,6 +13,7 @@ export function ArtRecipesStory({ image = false, theme = "mocha" }: { readonly i
         <Text voice="monogram" halo={true} data-case="halo">
           Wordmark
         </Text>
+        <Swatch indeterminate={true} fill="primaryFaint" className="block-px inline-full" data-case="hairline" />
         <Stack container="size" style={{ inlineSize: 240, blockSize: 160 }}>
           <Text voice="monogram" artScale="portrait" solidLine={true} data-case="portrait-initial">
             P
