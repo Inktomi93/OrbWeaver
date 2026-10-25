@@ -2,9 +2,9 @@
 // The three-way OS preferences resolve in CSS: `on` applies under a neutral OS, `off` beats the OS asking for it,
 // and `system` follows the OS. Written through the production channel writer over the served sheets.
 import type { OsPreferenceMode } from "@orb/contracts/settings/appearance";
+import { emulateMedia, releaseEmulatedMedia } from "@orb/testkit/browser/spec";
 import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { emulateMedia, releaseEmulatedMedia } from "../features/app-shell/surfaces/app-shell-ct.tsx";
 import type { AppearanceChannelStory } from "./_appearance-channel-stories.tsx";
 
 const STORY = "tests/client/lib/_appearance-channel-stories/AppearanceChannelStory";

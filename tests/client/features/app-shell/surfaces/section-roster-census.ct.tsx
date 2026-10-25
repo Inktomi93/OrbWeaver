@@ -4,7 +4,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import type { AppShellStory } from "./_app-shell-stories.tsx";
-import { routeRoom, SHELL_STORIES } from "./app-shell-ct.tsx";
+import { routeRoom, SHELL_STORIES } from "./app-shell-ct.ts";
 
 const LIST = '.shell-panel[data-panel-side="list"]';
 const SEARCH_SETTLE_MS = 5000;

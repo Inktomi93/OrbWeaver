@@ -2,11 +2,12 @@
 // width regimes and the content-primacy crossover, the overlay sheets and their dismissals, the landmarks and the
 // skip, focus around the panes, and the both-docked squeeze, all read off the rendered grid.
 import { readFileSync } from "node:fs";
+import { persistedOverrides, resolvedLength, seedShellState, shellTracks } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import type { AppShellListDockStory, AppShellStory } from "./_app-shell-stories.tsx";
-import { persistedOverrides, resolvedLength, routeShell, SECTION_PROCEDURES, SHELL_STORIES, seedShellState, shellTracks } from "./app-shell-ct.tsx";
+import { routeShell, SECTION_PROCEDURES, SHELL_STORIES } from "./app-shell-ct.ts";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;
 const LIST = '.shell-panel[data-panel-side="list"]';

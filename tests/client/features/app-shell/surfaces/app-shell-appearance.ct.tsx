@@ -11,6 +11,7 @@ import { BACKGROUND_DIM_MIN, BLUR_SURFACES } from "@orb/contracts/settings/appea
 import type { ChatId } from "@orb/kit/ids";
 import type { Rgb } from "@orb/kit/theme-derivation";
 import { AA_NON_TEXT_RATIO, AA_NORMAL_RATIO, readingPlateAlpha, wcagContrastRatio } from "@orb/kit/theme-derivation";
+import { emulateMedia, pixel, releaseEmulatedMedia, resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusWire } from "@orb/testkit/iso";
@@ -19,17 +20,7 @@ import { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import type { AppShellModalStory, AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import type { ShellToPendingStory } from "./_shell-handover-stories.tsx";
-import {
-  emulateMedia,
-  PHONE,
-  pixel,
-  ROOM_PROCEDURES,
-  releaseEmulatedMedia,
-  resolvedLength,
-  SECTION_PROCEDURES,
-  SHELL_STORIES,
-  seedShellState,
-} from "./app-shell-ct.tsx";
+import { PHONE, ROOM_PROCEDURES, SECTION_PROCEDURES, SHELL_STORIES } from "./app-shell-ct.ts";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;
 const MODAL_STORY = `${SHELL_STORIES}/AppShellModalStory`;

@@ -265,6 +265,8 @@ const TEST_CONSTANT_HOMES = {
   "packages/server/src/domain/chat/contract/errors.ts": "CHAT_OP_CODES and ChatNotFoundError: the refusal codes and class chat suites assert",
   "packages/server/src/domain/chat/contract/metadata.ts": "TOOL_RECURSE_LIMIT_DEFAULT: the default the corpus writes back",
   "packages/server/src/domain/chat/persistence/participants-read.ts": "loadPresentRole: the production role read the authority suite compares against",
+  "packages/server/src/domain/import/substrate/appearance.ts":
+    "stAppearancePatch and ST_POWER_USER_KEY: the pure ST power_user mapping and the settings.json key it reads",
   "packages/server/src/domain/plugin/contract/errors.ts": "PluginNotFoundError: the refusal class plugin seed cases assert",
   "packages/server/src/domain/plugin/substrate/plugin-macros.ts": "pluginMacroName: the token rule for a plugin's registered macro",
   "packages/server/src/domain/preset/constants.ts":
@@ -449,6 +451,11 @@ const PACKAGE_TEST_REACHES = {
   },
   "tests/client/features/app-shell/lib/command-shortcut-label.test.ts": {
     "packages/client/src/features/app-shell/lib/command-shortcut-label.ts": "commandShortcutLabel: the feature-private platform key hint",
+  },
+  "tests/client/features/app-shell/components/appearance-sizing-preferences.ct.tsx": {
+    "packages/client/src/features/app-shell/lib/appearance-select-items.ts": "OS_PREFERENCE_ITEMS: the mode words the section's segments print",
+    "packages/client/src/features/app-shell/lib/appearance-sizing-model.ts":
+      "APPEARANCE_SIZING_SUBCATEGORY: the labels and keys the section's three OS preference rows read",
   },
   "tests/client/features/app-shell/surfaces/app-shell-topbar.ct.tsx": {
     "packages/client/src/features/app-shell/lib/command-shortcut-label.ts":

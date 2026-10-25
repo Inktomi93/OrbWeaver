@@ -3,6 +3,7 @@
 import { CONFIG_GROUP_IDS, MODAL_SLOT_IDS, SECTION_IDS } from "@orb/client/state";
 import { formatFormIdentityFindings, formIdentityFindings, settleSurface } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import type { BareFieldPrimitivesStory, FieldWrappedPrimitivesStory, FormKeysStory } from "./_field-identity-stories.tsx";
 import { routeSurfaceReads } from "./_surface-harness.ts";
@@ -10,8 +11,17 @@ import type { ConfigGroupStory, ModalShellStory, SectionShellStory } from "./_su
 
 const STORIES = "tests/client/features/app-shell/_surface-stories";
 
+let root: Awaited<ReturnType<typeof createCorpusHarness>>;
+test.beforeAll(async () => {
+  root = await createCorpusHarness();
+});
+
 test.beforeEach(async ({ corpus, page }) => {
-  await routeSurfaceReads(page, corpus);
+  await routeSurfaceReads(page, corpus, await root.internalCallerFor(root.ownerId));
+});
+
+test.afterAll(async () => {
+  await root[Symbol.asyncDispose]();
 });
 
 test("every @orb/ui field primitive emits an id or name without a caller", async ({ mount, page }) => {

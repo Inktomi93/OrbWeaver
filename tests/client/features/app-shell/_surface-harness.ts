@@ -1,10 +1,8 @@
 // The backend every registered surface may ask for when mounted alone. Corpus-captured procedures answer by exact request
 // input, so an uncaptured request fails the owning test; procedures the corpus never captured answer an empty collection or zero.
 
-import type { VersionIdentity } from "@orb/kit/version-identity";
-import { versionIdentitySchema } from "@orb/kit/version-identity";
 import type { TrpcRecorder } from "@orb/testkit/ct";
-import { createShellAmbientReads, defineTrpcRoutes, routeTrpc, trpcError, trpcHold } from "@orb/testkit/ct";
+import { createShellAmbientReads, defineTrpcRoutes, routeTrpc, serveCorpusProcedures, trpcHold } from "@orb/testkit/ct";
 import type { CorpusWire } from "@orb/testkit/iso";
 import { createCorpusReadResponder } from "@orb/testkit/iso";
 import type { Page } from "@playwright/test";
@@ -23,23 +21,12 @@ function pagedWire<T extends object>(input: T): T {
   return { ...input, direction: "forward" } as T;
 }
 
-const SURFACE_VERSION = {
-  version: "0.1.0",
-  commit: "f4cdde34be59f4cdde34be59f4cdde34be59f4cd",
-  short: "f4cdde34be59",
-  source: "checkout",
-  channel: "main",
-} satisfies VersionIdentity;
-
-function requiredSections(corpus: CorpusWire): {
-  readonly firstBoot: NonNullable<CorpusWire["firstBoot"]>;
-  readonly libraryRelations: NonNullable<CorpusWire["libraryRelations"]>;
-} {
-  const { firstBoot, libraryRelations } = corpus;
-  if (firstBoot === undefined || libraryRelations === undefined) {
-    throw new Error("The corpus has no first-boot or library-relations capture");
+function requiredFirstBoot(corpus: CorpusWire): NonNullable<CorpusWire["firstBoot"]> {
+  const { firstBoot } = corpus;
+  if (firstBoot === undefined) {
+    throw new Error("The corpus has no first-boot capture");
   }
-  return { firstBoot, libraryRelations };
+  return firstBoot;
 }
 
 function shellRecords(corpus: CorpusWire): NonNullable<CorpusWire["shellAmbient"]>["reads"] {
@@ -50,15 +37,27 @@ function shellRecords(corpus: CorpusWire): NonNullable<CorpusWire["shellAmbient"
   return shell.reads;
 }
 
-/** Route every read a registered surface may issue when mounted alone. */
-export function routeSurfaceReads(page: Page, corpus: CorpusWire): Promise<TrpcRecorder> {
+/** Presets, connections and the build identity: the server answers each for the request the surface sends, so a preset the surface opens is in its list. */
+const SERVED = [
+  "preset.list",
+  "preset.get",
+  "preset.listUsage",
+  "preset.resolveEffective",
+  "connection.list",
+  "connection.listBindings",
+  "connection.resolveChatCapability",
+  "settings.getVersion",
+] as const;
+
+/** Route every read a registered surface may issue when mounted alone; `caller` is a corpus root's internal caller. */
+export function routeSurfaceReads(page: Page, corpus: CorpusWire, caller: object): Promise<TrpcRecorder> {
   const { reads } = corpus;
   const shell = shellRecords(corpus);
-  const { firstBoot, libraryRelations: relations } = requiredSections(corpus);
-  const presetHold = trpcHold<"preset.get">();
+  const firstBoot = requiredFirstBoot(corpus);
   const spaceHold = trpcHold<"search.spaceStatus">();
   const routes = defineTrpcRoutes({
     ...createShellAmbientReads(corpus),
+    ...serveCorpusProcedures(caller, SERVED),
     // The list and the count both come from the one captured preview, so the roster a surface counts is the roster it lists.
     "rosterPreset.list": createCorpusReadResponder("rosterPreset.list", [shell.rosterPreview, { ...shell.rosterPreview, input: undefined }]),
     "rosterPreset.count": createCorpusReadResponder("rosterPreset.count", [
@@ -99,17 +98,8 @@ export function routeSurfaceReads(page: Page, corpus: CorpusWire): Promise<TrpcR
     }),
     "discovery.catalog": () => ({ genres: [], tones: [], topTags: [], tagPairs: [], totalDistilled: 0, totalCharacters: 0 }),
     "settings.getAppSettingsWithOverrides": createCorpusReadResponder("settings.getAppSettingsWithOverrides", [firstBoot.reads.appSettings]),
-    // The build identity depends on the commit under test, so the corpus cannot capture it; the production schema parses a fixed one.
-    "settings.getVersion": () => versionIdentitySchema.parse(SURFACE_VERSION),
     "share.signInMode": createCorpusReadResponder("share.signInMode", [firstBoot.reads.signInMode]),
     "share.status": createCorpusReadResponder("share.status", [firstBoot.reads.shareStatus]),
-    // Only the captured preset has a detail in the corpus; the active default another surface asks for stays pending.
-    "preset.listUsage": createCorpusReadResponder("preset.listUsage", [relations.reads.presetInactive]),
-    // The readout asks for the chat role's target, not the connection the corpus captured; the effective preset is the same.
-    "preset.resolveEffective": () => relations.reads.presetEffective.output,
-    // The corpus holds no connection capability read, so the readout shows its unresolved arm.
-    "connection.resolveChatCapability": () => trpcError({ code: "BAD_REQUEST" }),
-    "preset.get": (input) => (input.id === relations.reads.presetDetail.input.id ? relations.reads.presetDetail.output : presetHold),
     "discovery.topKeywords": () => [],
     "discovery.unusedCharacters": () => [],
     "discovery.modelRouting": () => [],
@@ -130,12 +120,9 @@ export function routeSurfaceReads(page: Page, corpus: CorpusWire): Promise<TrpcR
     "plugin.listSurfaces": () => [],
     "regex.listScripts": () => [],
     "worldInfo.listBooksWithUsage": () => [],
-    "preset.list": () => [],
     "refinery.listSessions": () => [],
     "workloads.list": () => [],
     "workloads.listSchedules": () => [],
-    "connection.list": () => [],
-    "connection.listBindings": () => [],
     "credentials.list": () => [],
     "admin.listUsers": () => [],
     "automation.listOwnerRules": () => [],
