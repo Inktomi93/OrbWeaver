@@ -113,7 +113,11 @@ export function fuzzySearch<T extends { id: string }>(items: readonly T[], query
   }
   const fieldsKey = fields.join(" ");
   const storeFieldsKey = (storeFields ?? fields).join(" ");
-  const byQuery = resultCache.getOrInsertComputed(items, () => new Map());
+  let byQuery = resultCache.get(items);
+  if (byQuery === undefined) {
+    byQuery = new Map();
+    resultCache.set(items, byQuery);
+  }
   const resultKey = JSON.stringify([
     trimmed,
     fieldsKey,
