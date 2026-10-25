@@ -57,6 +57,8 @@ export type SettingsPatch = Readonly<Record<string, unknown>>;
 /** The appearance values remembered before React. `dataTheme` is a separate selected-theme axis. */
 export interface AppearanceBootHintPatch {
   readonly reducedMotion?: unknown;
+  readonly reducedTransparency?: unknown;
+  readonly increasedContrast?: unknown;
   readonly fontScale?: unknown;
   readonly density?: unknown;
 }
@@ -68,6 +70,8 @@ const APPEARANCE_BOOT_HINT_VERSION = 1;
 export function appearanceBootHintPatch(patch: AppearancePatch): AppearanceBootHintPatch {
   return {
     ...(Object.hasOwn(patch, "reducedMotion") ? { reducedMotion: patch["reducedMotion"] } : {}),
+    ...(Object.hasOwn(patch, "reducedTransparency") ? { reducedTransparency: patch["reducedTransparency"] } : {}),
+    ...(Object.hasOwn(patch, "increasedContrast") ? { increasedContrast: patch["increasedContrast"] } : {}),
     ...(Object.hasOwn(patch, "fontScale") ? { fontScale: patch["fontScale"] } : {}),
     ...(Object.hasOwn(patch, "density") ? { density: patch["density"] } : {}),
   };

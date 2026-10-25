@@ -23,8 +23,8 @@ font size in the approved type hierarchy (24/20/16/15/13/10.5px) moves for this 
 
 Every multiplier that touches a line box, re-derived from the tree:
 
-1. **`--font-scale`** — `packages/ui/src/styles/globals.css` `:root { font-size: calc(100% *
-   var(--font-scale, 1)) }`; a continuous slider, min 0.8 / max 1.5 / step 0.05
+1. **`--appearance-font-scale`** — `packages/ui/src/styles/primitives.css` `:root { font-size: calc(100% *
+   var(--appearance-font-scale)) }`, a registered number from the client appearance channel; a continuous slider, min 0.8 / max 1.5 / step 0.05
    (`packages/client/src/features/app-shell/lib/appearance-bounds.ts:24-26`, contract clamp
    `packages/contracts/src/settings/appearance.ts:31-33`), tested at scales {1, 1.25}
    (`appearance-carrier-manifest.ts:104`). 12 of its 15 stops produce a non-integer root
@@ -34,8 +34,8 @@ Every multiplier that touches a line box, re-derived from the tree:
 3. **The tier map** — remaps slot type between existing pairings (label↔body, promoted title); it is
    a pairing selector, not a multiplier. Covered by making every pairing integer.
 4. **Reading knobs** (`readingLineHeight` 1.2–2.2 continuous, `readingBodyScale`/`NameScale`
-   0.8–1.6) — chat reading surface only (`packages/client/src/styles/globals.css:527`
-   `line-height: var(--reading-line-height)` on message prose). A user-authored continuous
+   0.8–1.6) — chat reading surface only (`packages/client/src/styles/globals.css`
+   `line-height: var(--appearance-reading-line-height)` on message prose). A user-authored continuous
    multiplier on a user-editable surface is a declared residual (Law 4's honest limit), carried as
    a declared product exception (§11). Guarding the reading surface is a separate client-globals
    change.
@@ -61,7 +61,7 @@ of a fourth guarded length. The switch knob is `track-height − 2×border − 2
 construction — and the rest landing is exactly `border + inset`, whole at every scale. There is no
 knob-size token. Measured at a fine pointer with `--border-width-control` 1px:
 
-| `--font-scale` | root | inset | knob = track−2b−2i | track | content box | rest offset = b + i | lands |
+| `--appearance-font-scale` | root | inset | knob = track−2b−2i | track | content box | rest offset = b + i | lands |
 | - | - | - | - | - | - | - | - |
 | 1 | 16px | 6 | 18 | 32 | 30 | 7 | whole px at every DPR |
 | 0.875 | 14px | ceil(5.25) = 6 | 14 | 28 | 26 | 7 | whole px at every DPR |
@@ -107,7 +107,7 @@ WHY fixed boxes and not re-tuned unitless ratios: the live cross-pairings (`text
 leading-body`, `text-micro leading-body`, `text-micro leading-label`, `text-label leading-body`)
 COUPLE the constraints — one unitless body ratio must make 15, 13, AND 10.5px all integer, which
 has no solution below 2.0. Fixed rem boxes decouple every pairing (any size under the box is
-integer by construction), scale proportionally with `--font-scale` (rem-denominated, so ratios are
+integer by construction), scale proportionally with `--appearance-font-scale` (rem-denominated, so ratios are
 scale-invariant), and match the field precedent (GOV.UK/Material author line-heights as fixed
 lengths). The GOV.UK multiple-of-5 rhythm was weighed and rejected: {30, 25, 20, 15} boxes would
 move the approved voices by whole pixels; smallest-delta wins (owner hierarchy approvals).
@@ -115,7 +115,7 @@ move the approved voices by whole pixels; smallest-delta wins (owner hierarchy a
 ### 3b. The round() guard: `round(up, <rem>, 1px)` in the emitted value
 
 The generated `theme.css` emits every snapped leading as `round(up, 1.4375rem, 1px)` — identity at
-scale 1 (authored integer), integer at EVERY `--font-scale` (the continuous multiplier from §2).
+scale 1 (authored integer), integer at EVERY `--appearance-font-scale` (the continuous multiplier from §2).
 `round()` is the one usable platform primitive (Chromium 117+/FF 118+/Safari 15.4+;
 `line-height-step` has zero support). The guard lives in the TOKEN VALUE so every consumer — the
 Tailwind `leading-*` utilities, tiers.css's `--orb-tier-*-leading` indirection, `lh`-unit
@@ -125,7 +125,7 @@ arithmetic (`.orb-lines-N`) — inherits it from one home.
 integer but can shrink it by up to half a pixel while the paired font size scales continuously, so
 the resolved ratio can fall below the ratified leading floor (§6's `LEADING_FLOOR` =
 `leading.label / text.label` = 16/13 ≈ 1.2308) at scales the authored value cannot see. On the
-`reading` appearance preset (`--font-scale` 1.25, root 20px), `text.micro` resolves to 13.125px
+`reading` appearance preset (`--appearance-font-scale` 1.25, root 20px), `text.micro` resolves to 13.125px
 while `round(0.8125rem, 1px)` under `nearest` resolves to 16px — ratio 1.219, below the floor.
 `nearest` also breaks `leading.label` on `text.label`, whose authored ratio IS the floor exactly, so
 half a pixel of slack in either direction drops below it. `up` never shrinks the box, so the
@@ -181,7 +181,7 @@ order (that file's own warning).
 - **Author leadings in `orb.cssValues`** (the vendor extension) — the value would be spelled twice
   (the dimension for arithmetic, the `round()` string for CSS) with no contract check binding
   them; `orb.output: snapped` keeps one authored value. Rejected.
-- **Px-denominated leadings** — would not track `--font-scale` (root-rem scaling), so text scales
+- **Px-denominated leadings** — would not track `--appearance-font-scale` (root-rem scaling), so text scales
   and boxes don't: overlap at 1.5×. Rejected.
 - **A declared pairing table in tokens.json** (`orb.leadingPairs`) reconciled against the tree —
   considered for two-sidedness, but the consuming sites ARE the contract (derive from consuming
@@ -257,7 +257,7 @@ the arithmetic that produces most fractional line boxes; this backstop catches w
 cannot reach: a horizontal offset a promoted layer introduces at layout time, not a line-box height.
 
 **Decision: RUNTIME.** Same reason as Law 3, plus one more: this backstop must fire on ANY surface
-at ANY scale, including scales no authored value can be checked against (most of the `--font-scale`
+at ANY scale, including scales no authored value can be checked against (most of the `--appearance-font-scale`
 slider's stops produce a non-integer root).
 
 **Population semantics** (is the contract):

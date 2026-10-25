@@ -123,9 +123,17 @@ interface MutableSubjectCensus {
 function browserAppearanceCensus(input: BrowserProbeInput): AppearanceDomSnapshot {
   const MaxParentSlots = 8;
   const browser = globalThis as unknown as BrowserGlobals;
-  const attributes = ["data-density", "data-theme", "data-chat-style", "data-has-bg-image", "data-reduced-motion", "data-slot", "data-placement"];
+  const attributes = ["data-density", "data-theme", "data-chat-style", "data-has-bg-image", "data-appearance-reduced-motion", "data-slot", "data-placement"];
   const styleProperties = [
-    ...new Set(["--spacing-field", "--spacing-row", "--spacing-block", "--spacing-section", "--font-scale", "--color-background", ...input.properties]),
+    ...new Set([
+      "--spacing-field",
+      "--spacing-row",
+      "--spacing-block",
+      "--spacing-section",
+      "--appearance-font-scale",
+      "--color-background",
+      ...input.properties,
+    ]),
   ];
   const inViewport = (rect: ProbeRect): boolean =>
     rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0 && rect.top < browser.innerHeight && rect.left < browser.innerWidth;

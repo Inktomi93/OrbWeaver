@@ -3,9 +3,9 @@
 // per-message chip (which would have to shift from the user row to the assistant row on submit). Three states:
 //   • idle       — no recall this turn / memory off (a muted brain, never a lying count).
 //   • recalling… — the pre-provider embed → cosine → CSLS → optional rerank WINDOW, a real round-trip BEFORE
-//                  the provider streams. A reduced-motion-SAFE pulse (`motion-safe:animate-pulse`, never a
-//                  spin — owner ruling): under `prefers-reduced-motion` it is a static labeled icon. This is
-//                  also the "is my request hanging?" tell.
+//                  the provider streams. A quiet pulse, never a spin (owner ruling): when reduced motion resolves
+//                  on, the motion floor ends it at rest, a static labeled icon. This is also the "is my request
+//                  hanging?" tell.
 //   • retrieved N — recall closed; N blocks surfaced (0 renders as "no memories", never a bare 0 that reads
 //                  like a bug).
 // CLICK → a popover: the live phase/count always, plus (HOST only) the full recall DETAIL — which digests,
@@ -52,11 +52,11 @@ function recallLabel(recall: RecallState | null): string {
   return `Memory — ${recall.count} recalled`;
 }
 
-/** The glyph tint per state: accent + a quiet pulse while recalling (motion-safe only — never a spin), full
+/** The glyph tint per state: accent + a quiet pulse while recalling (the motion floor stills it), full
  *  weight once memories are retrieved, and muted when idle (present but inactive, never implying a recall). */
 function iconClass(recall: RecallState | null): string {
   if (recall?.phase === "recalling") {
-    return "text-accent-fg motion-safe:animate-pulse";
+    return "text-accent-fg animate-pulse";
   }
   return recall === null ? "opacity-60" : "";
 }

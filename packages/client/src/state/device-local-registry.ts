@@ -55,7 +55,7 @@ const DEVICE_LOCAL_REGISTRY = {
       "because none of them can be stamped until `getUserSettings` (and, for the theme, the CHAINED " +
       "`getTheme`) resolves, while the boot veil animates (two over-budget frames) and the shell takes its " +
       "first layout ~1.2s earlier — measured: the veil drops frames the motion pref would have silenced, " +
-      "`--font-scale` re-flows every rem-derived shell dimension for a boot CLS of 0.20-0.34 at scale 1.25, " +
+      "`--appearance-font-scale` re-flows every rem-derived shell dimension for a boot CLS of 0.20-0.34 at scale 1.25, " +
       "and a Light user cold-loads the dark palette then swaps. Read synchronously before React mounts, " +
       "written back only from the authoritative read, and an axis this device has never been told stamps " +
       "NOTHING (a fresh device boots exactly as it does today)",

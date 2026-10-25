@@ -1,0 +1,9 @@
+{
+  "properties": {
+    "--blur-strength": { "name": "--appearance-blur-strength", "unit": "px" },
+    "--reading-body-scale": { "name": "--appearance-reading-body-scale" },
+    "--reading-line-height": { "name": "--appearance-reading-line-height" },
+    "--reading-letter-spacing": { "name": "--appearance-reading-letter-spacing", "unit": "em" },
+    "--reading-paragraph-spacing": { "name": "--appearance-reading-paragraph-spacing", "unit": "rem" }
+  }
+}

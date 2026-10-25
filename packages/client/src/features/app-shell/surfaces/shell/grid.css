@@ -167,7 +167,7 @@
   }
   @supports (backdrop-filter: blur(1px)) {
     .shell-grid[data-has-bg-image][data-section="chats"] .shell-content [data-slot="empty-state-root"] {
-      backdrop-filter: blur(calc(var(--blur-strength) / 2)) saturate(var(--blur-saturate));
+      backdrop-filter: blur(calc((var(--appearance-blur-strength) * 1px) / 2)) saturate(var(--blur-saturate));
     }
   }
 

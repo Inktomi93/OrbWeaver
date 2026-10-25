@@ -2,10 +2,10 @@ import { expect, test } from "@orb/testkit/tooling";
 import type { AppearancePrepaintEvidence, AppearancePrepaintSample } from "../../../../tooling/src/floor/appearance/appearance-prepaint.ts";
 import { evaluateAppearancePrepaint } from "../../../../tooling/src/snap/ops/appearance-prepaint.ts";
 
-const hydrated = { dataTheme: "dark", fontScale: "1.25", reducedMotion: "false" } as const;
+const hydrated = { dataTheme: "dark", fontScale: "1.25", reducedMotion: "system" } as const;
 
 function sample(dataTheme: string | null, appReady: string | null = null): AppearancePrepaintSample {
-  return { phase: "mutation", dataTheme, fontScale: "1.25", reducedMotion: "false", appReady };
+  return { phase: "mutation", dataTheme, fontScale: "1.25", reducedMotion: "system", appReady };
 }
 
 function evidence(samples: readonly AppearancePrepaintSample[], overflow = 0): AppearancePrepaintEvidence {
@@ -16,14 +16,11 @@ test("R7 accepts one stable prepaint identity through hydration", () => {
   const result = evaluateAppearancePrepaint(evidence([sample("dark"), sample("dark", "settled")]), hydrated);
   expect(result).toMatchObject({ sampled: 1, continuous: true });
 
-  const defaultFullMotion = { ...sample("dark"), reducedMotion: null };
-  expect(evaluateAppearancePrepaint(evidence([defaultFullMotion, { ...defaultFullMotion, appReady: "settled" }]), hydrated).continuous).toBe(true);
-  expect(
-    evaluateAppearancePrepaint(evidence([defaultFullMotion, { ...defaultFullMotion, appReady: "settled" }]), {
-      ...hydrated,
-      reducedMotion: "true",
-    }).continuous,
-  ).toBe(false);
+  // The boot replay writes the preference on every boot, so a missing or different pre-React value is a discontinuity.
+  const unstamped = { ...sample("dark"), reducedMotion: null };
+  expect(evaluateAppearancePrepaint(evidence([unstamped, { ...unstamped, appReady: "settled" }]), hydrated).continuous).toBe(false);
+  const forced = { ...sample("dark"), reducedMotion: "on" };
+  expect(evaluateAppearancePrepaint(evidence([forced, { ...forced, appReady: "settled" }]), hydrated).continuous).toBe(false);
 });
 
 test("R7 rejects fake/intermediate identity, late swap, overflow, and an absent sample", () => {

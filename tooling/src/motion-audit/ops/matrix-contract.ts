@@ -3,7 +3,7 @@
 // the browser arms use the shared full device descriptor.
 
 import type { RuntimeAppearanceContract } from "../../floor/appearance/appearance-matrix.ts";
-import { deriveAppearanceContract } from "../../floor/appearance/appearance-matrix.ts";
+import { APP_REDUCED_MOTION_ON, APP_REDUCED_MOTION_SYSTEM, deriveAppearanceContract } from "../../floor/appearance/appearance-matrix.ts";
 import { MOBILE_DEVICE } from "../../floor/browser/browser-environment.ts";
 import { instrumentRefusal } from "../../floor/browser/page-validate.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
@@ -13,6 +13,7 @@ import { planVariantMatrix, variantArtifactId } from "../../floor/variant-matrix
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --matrix --motion");
 
 const APP_MOTION_AXIS = "appearance.reducedMotion";
+
 const SCENARIO_AXIS = "scenario";
 const OS_MOTION_AXIS = "os-motion";
 const DEVICE_AXIS = "device";
@@ -74,8 +75,8 @@ function valueId(axes: readonly VariantAxis[], axisId: string, payload: unknown)
 }
 
 function motionTwins(axes: readonly VariantAxis[]): readonly VariantRequiredTwin[] {
-  const appFull = valueId(axes, APP_MOTION_AXIS, false);
-  const appReduced = valueId(axes, APP_MOTION_AXIS, true);
+  const appFull = valueId(axes, APP_MOTION_AXIS, APP_REDUCED_MOTION_SYSTEM);
+  const appReduced = valueId(axes, APP_MOTION_AXIS, APP_REDUCED_MOTION_ON);
   return [
     {
       id: "application-reduced-motion",
@@ -131,7 +132,7 @@ export function motionMatrixVariant(matrix: Pick<MotionAppearanceMatrix, "axes">
   return {
     id: variantArtifactId(cell.id, index),
     selector: payloadFor<string | null>(matrix, cell.assignment, SCENARIO_AXIS),
-    appReducedMotion: payloadFor<boolean>(matrix, cell.assignment, APP_MOTION_AXIS),
+    appReducedMotion: payloadFor<unknown>(matrix, cell.assignment, APP_MOTION_AXIS) === APP_REDUCED_MOTION_ON,
     osReducedMotion: payloadFor<boolean>(matrix, cell.assignment, OS_MOTION_AXIS),
     device: payloadFor<string | null>(matrix, cell.assignment, DEVICE_AXIS),
   };

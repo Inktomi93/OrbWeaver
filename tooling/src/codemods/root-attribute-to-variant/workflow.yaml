@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/codemod/codemod/refs/heads/main/schemas/workflow.json
+version: "1"
+params:
+  schema:
+    map:
+      name: "Map file"
+      description: "Path, relative to the target directory, of the JSON object with an `attributes` map of attribute selector to variant name"
+      type: string
+      default: "codemod-root-attribute-map.json"
+nodes:
+  - id: root-attribute-to-variant
+    name: Move root-attribute rules under their variant
+    type: automatic
+    steps:
+      - name: CSS files
+        js-ast-grep:
+          js_file: scripts/codemod.ts
+          base_path: "."
+          language: "css"
+          include: ["**/*.css"]
+          exclude: ["**/node_modules/**", "**/codemods/*/tests*/**", "**/*.gen.css", "packages/ui/src/styles/theme.css"]

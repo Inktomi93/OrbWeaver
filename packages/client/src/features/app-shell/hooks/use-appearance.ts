@@ -4,8 +4,8 @@
 // via trpc, never a feature import; not domain coupling), and the never-suspend/never-
 // crash posture: an unauthed/pending/errored read degrades to the ST-parity defaults, never undefined.
 //
-// THREE AXES HAVE A BETTER PENDING ANSWER THAN THEIR DEFAULT (#188 N-1, widened by #231): `reducedMotion`,
-// `fontScale` and `density`. Degrading them to the schema default is not neutral — the shell stamps them
+// THE BOOT AXES HAVE A BETTER PENDING ANSWER THAN THEIR DEFAULT (`APPEARANCE_BOOT_AXES`: the three OS
+// preferences, `fontScale` and `density`). Degrading them to the schema default is not neutral — the shell stamps them
 // on `<html>`/`.shell-grid` the moment it mounts, which CLOBBERS the boot replay `main.tsx` did from this
 // device's remembered answer: the motion floor snaps back to the OS query, the root font-size snaps back
 // to 1.0 (resizing every rem-derived shell dimension — the 0.20–0.34 boot CLS this closes), and the grid
@@ -16,21 +16,21 @@
 
 import type { AppearanceSettings } from "@orb/contracts/settings";
 import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
+import { pickKeys } from "@orb/kit/objects";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useTRPC } from "#data";
-import { rememberAppearanceBootHint, useAppearanceBootHint } from "#state";
+import { APPEARANCE_BOOT_AXES, rememberAppearanceBootHint, useAppearanceBootHint } from "#state";
 
 export function useAppearance(): AppearanceSettings {
   const trpc = useTRPC();
   const { data } = useQuery(trpc.settings.getUserSettings.queryOptions());
   const hint = useAppearanceBootHint();
   const synced = data?.config.appearance;
-  const { reducedMotion, fontScale, density } = hint;
   // Written back as ONE authoritative slice, from the one seam that knows the read has landed.
   useEffect((): void => {
     if (synced !== undefined) {
-      rememberAppearanceBootHint({ reducedMotion: synced.reducedMotion, fontScale: synced.fontScale, density: synced.density });
+      rememberAppearanceBootHint(pickKeys(synced, APPEARANCE_BOOT_AXES));
     }
   }, [synced]);
   if (synced !== undefined) {
@@ -38,5 +38,5 @@ export function useAppearance(): AppearanceSettings {
   }
   // The pending block: the schema defaults for every axis this device cannot know, the remembered answer
   // for the three it can. No manual memo — the React Compiler owns that here (D70 house rule).
-  return { ...DEFAULT_APPEARANCE_SETTINGS, reducedMotion, fontScale, density };
+  return { ...DEFAULT_APPEARANCE_SETTINGS, ...pickKeys(hint, APPEARANCE_BOOT_AXES) };
 }

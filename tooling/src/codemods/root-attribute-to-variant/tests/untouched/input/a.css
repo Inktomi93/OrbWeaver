@@ -1,0 +1,15 @@
+@layer preference {
+  /* Mixed attributes in one list are a hand edit. */
+  :root[data-blur-panels] .shell-panel::before,
+  :root[data-blur-composer] [data-slot="composer"] {
+    backdrop-filter: none;
+  }
+  /* A root compound, not a descendant. */
+  :root[data-shadow]:hover .a {
+    color: red;
+  }
+  /* An unmapped attribute. */
+  :root[data-keyboard-up] [data-slot="plugin-flank"] {
+    display: none;
+  }
+}

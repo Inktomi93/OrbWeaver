@@ -1,24 +1,19 @@
-// The "Sizing & motion" appearance-section MODEL (SET-SEAMS §6, stage 1) — the section's two non-JSX facts: the ONE
-// `ConfigSubcategory` shared by the contribution def and the section body's `<Section>` anchor stamp.
-//
-// This subcategory ABSORBS the pane's old `motion` sub and the `density`/`elevation` leaves that used to sit under
-// `message-style`: app-shell reads all five knobs (`surfaces/app-shell.tsx` paints the shell scope tokens, the
-// content-width clamp and `data-elevation`; `data-reduced-motion` goes onto <html> through
-// `useAppearanceRootEffects`, so the floor reaches portals and the boot veil), and §6's rule is that a SECTION is owned by its
-// reader — so the five land in one app-shell section rather than being split across two owners. The `sizing` anchor
-// id is unchanged (§7.1); every absorbed search LEAF travels here intact (§7.2), so a fuzzy jump for "reduce motion"
-// or "density" still lands on a real anchor.
+// The "Sizing & motion" appearance-section MODEL (SET-SEAMS §6): the one `ConfigSubcategory` shared by the
+// contribution def and the section body's `<Section>` anchor stamp. app-shell reads every knob here (the shell scope
+// tokens, `data-elevation` and the root appearance channel), and §6's rule is that a section is owned by its reader.
+// The `sizing` anchor id is stable (§7.1), so a fuzzy jump for "reduce motion" or "density" lands on a real anchor.
 
 import { APPEARANCE_OWNER_KEYS, DENSITY_ITEMS } from "#lib";
 import type { ConfigSubcategory } from "#state";
-import { ELEVATION_ITEMS } from "./appearance-select-items.ts";
+import { ELEVATION_ITEMS, OS_PREFERENCE_ITEMS } from "./appearance-select-items.ts";
 
 export const APPEARANCE_SIZING_SUBCATEGORY: ConfigSubcategory = {
   id: "sizing",
   label: "Sizing & motion",
   teach: {
-    summary: "Global layout knobs: chat column width, text scale, density, surface elevation and the app-wide reduced-motion override.",
-    affects: ["the entire app's spacing, depth and animation behavior, on this account"],
+    summary:
+      "Global layout knobs: chat column width, text scale, density and surface elevation, and the app's answer to your device's motion, transparency and contrast settings.",
+    affects: ["the entire app's spacing, depth, animation, glass and contrast, on this account"],
   },
   settings: [
     {
@@ -68,10 +63,37 @@ export const APPEARANCE_SIZING_SUBCATEGORY: ConfigSubcategory = {
       id: "reduced-motion",
       key: "reducedMotion",
       label: "Reduce motion",
+      options: OS_PREFERENCE_ITEMS,
       keywords: ["animation", "transition", "accessibility", "motion"],
       teach: {
-        summary: "Freezes animations and transitions, beyond your system's own reduced-motion setting.",
+        summary:
+          "System follows your device's reduced-motion setting. On freezes animations and transitions; Off keeps them even when the device asks for less motion.",
         affects: ["animations and transitions app-wide, including portals and the boot veil"],
+      },
+    },
+    {
+      id: "reduced-transparency",
+      key: "reducedTransparency",
+      label: "Reduce transparency",
+      options: OS_PREFERENCE_ITEMS,
+      keywords: ["glass", "blur", "transparency", "accessibility", "solid"],
+      teach: {
+        summary:
+          "System follows your device's reduce-transparency setting. On makes the glass surfaces solid; Off keeps the glass even when the device asks for less transparency.",
+        affects: ["the glass panels, composer, dialogs and message bubbles you enabled under Effects"],
+        related: [{ group: "appearance", sub: "effects", setting: "frosted-glass" }],
+      },
+    },
+    {
+      id: "increased-contrast",
+      key: "increasedContrast",
+      label: "Increase contrast",
+      options: OS_PREFERENCE_ITEMS,
+      keywords: ["contrast", "borders", "accessibility", "legibility"],
+      teach: {
+        summary:
+          "System follows your device's increase-contrast setting. On draws stronger edges, a denser glass fill and drops the film grain; Off keeps the standard look even when the device asks for more contrast.",
+        affects: ["panel, composer and dialog edges on large screens", "the glass fill and the film-grain texture"],
       },
     },
   ],

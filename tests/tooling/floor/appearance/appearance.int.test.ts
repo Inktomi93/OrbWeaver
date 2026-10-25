@@ -30,7 +30,7 @@ const RUN_TIMEOUT_MS = scaledBudget(60_000, 4);
 vi.setConfig({ testTimeout: RUN_TIMEOUT_MS, hookTimeout: RUN_TIMEOUT_MS });
 
 /** The stub account: reduced motion ON and comfortable density, exactly the shape the owner's row has. */
-const STORED = { reducedMotion: true, density: "comfortable", blurSurfaces: ["panels", "composer", "modals"] };
+const STORED = { reducedMotion: "on", density: "comfortable", blurSurfaces: ["panels", "composer", "modals"] };
 const EMPTY_ORB_CONSOLE = "<script>globalThis.__orb={consoleErrors:()=>({records:[],dropped:0,cap:128})};</script>";
 
 // The page reads the SAME batched GET the app's httpBatchLink sends (two procedures, settings SECOND — so a
@@ -118,18 +118,18 @@ test("the shim changes what the PAGE reads, and the origin's stored settings nev
   const bare = await runSnap(["--eval", READ_STATE]);
   expect(bare.status, bare.stdout + bare.stderr).toBe(0);
   // The red arm, and the one that made this lane necessary: the account says reduce, so the app reduces.
-  expect(bare.stdout).toContain('\\"reducedMotion\\":\\"true\\"');
+  expect(bare.stdout).toContain('\\"reducedMotion\\":\\"on\\"');
 
   const shimmed = await runSnap(["--full-motion", "--eval", READ_STATE]);
   expect(shimmed.status, shimmed.stdout + shimmed.stderr).toBe(0);
-  expect(shimmed.stdout).toContain('\\"reducedMotion\\":\\"false\\"');
+  expect(shimmed.stdout).toContain('\\"reducedMotion\\":\\"system\\"');
   // An unnamed key keeps the account's real value — an override of one axis, not a synthetic blob.
   expect(shimmed.stdout).toContain('\\"density\\":\\"comfortable\\"');
   // The sibling procedure of the SAME batch is untouched.
   expect(shimmed.stdout).toContain('\\"sibling\\":\\"2\\"');
 
   // NON-MUTATION: the stored object is the one the origin still serves, and no write ever reached it.
-  expect(STORED.reducedMotion).toBe(true);
+  expect(STORED.reducedMotion).toBe("on");
   expect(mutations).toBe(0);
 });
 
@@ -139,7 +139,7 @@ test("a non-motion axis renders too — one flag generalizes to every appearance
   expect(compact.status, compact.stdout + compact.stderr).toBe(0);
   expect(compact.stdout).toContain('\\"density\\":\\"compact\\"');
   // reducedMotion was not named, so it stays the account's own value.
-  expect(compact.stdout).toContain('\\"reducedMotion\\":\\"true\\"');
+  expect(compact.stdout).toContain('\\"reducedMotion\\":\\"on\\"');
 });
 
 test("the manifest records WHICH arm was measured, so a report cannot be read against the wrong state", async ({ scratch }) => {
