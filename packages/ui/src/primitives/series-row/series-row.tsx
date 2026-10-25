@@ -19,7 +19,7 @@ import { seriesRowVariants } from "./variants.ts";
 export type SeriesColor = 1 | 2 | 3 | 4 | 5 | 6;
 
 export interface SeriesRowProps extends Omit<ComponentProps<"span">, "children" | "color">, VariantProps<typeof seriesRowVariants> {
-  /** The series name — the row's datum, never truncated away from a title tooltip. */
+  /** The series name — the row's datum. */
   label: string;
   /** Pre-formatted trailing value ("1,208", "42%"). A string: ui does no Intl/number formatting. */
   value: string;
@@ -48,11 +48,11 @@ export function SeriesRow({ label, value, detail, color, divider, className, ...
     <span {...rest} className={cn(slots.root(), className)} data-slot="series-row">
       {color === undefined ? null : <span aria-hidden={true} className={cn(slots.swatch(), SWATCH_FILL[color])} data-slot="series-row-swatch" />}
       <span className={slots.content()} data-slot="series-row-content">
-        <span className={slots.label()} data-slot="series-row-label" title={label}>
+        <span className={slots.label()} data-slot="series-row-label">
           {label}
         </span>
         {detail === undefined ? null : (
-          <span className={slots.detail()} data-slot="series-row-detail" title={detail}>
+          <span className={slots.detail()} data-slot="series-row-detail">
             {detail}
           </span>
         )}

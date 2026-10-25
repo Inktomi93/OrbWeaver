@@ -158,8 +158,8 @@ Node token-authoring homes and type-only reexports follow [Spine-TypeScript §7.
   - **control heights** — `--control-sm/md/lg`, **POINTER-CONDITIONAL per D62 P1**: 44/48/56px at
     coarse (meets the touch floor), narrowing to 32/36/40px at `@media(pointer:fine)` via the token's
     `orb.pointerFine` extension. FLAG\[registry]: D62 P1 is the authority on the
-    per-pointer floor; the per-pointer tap-target CHECK lives in the design-audit probe
-    (`tooling/src/ui-audit/lib/checks-a11y.ts`), not the native application checks. `data-density="compact"` tightens orthogonally to pointer. Avatar/switch
+    per-pointer floor; the coarse-pointer tap-target CHECK is
+    `tests/client/features/app-shell/touch-target-floor.suite.ct.tsx`. `data-density="compact"` tightens orthogonally to pointer. Avatar/switch
     display sizes are pointer-INDEPENDENT (never narrow — §13.9 D62 delta).
   - **container breakpoints** — `--container-cq-<rem>`, one step per container width in use (§3 — container queries use named tokens).
   - **font rendering** — one rule on `:root` in `packages/ui/src/styles/globals.css`: `-webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; font-synthesis: none;` (owner ruling). Grayscale antialiasing keeps macOS text thin on the dark themes; no synthesised bold or italic stands in for a face Geist does not ship. Chromium on Linux renders no smoothing difference, so the visible effect is macOS-only.

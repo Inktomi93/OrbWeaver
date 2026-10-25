@@ -66,10 +66,24 @@
     animation: shell-trail-flip var(--shell-motion) var(--shell-ease);
   }
 
-  /* A centred child (every `CHAT_TRACK` carrier, chat-track.ts) moves half its parent's width change while the
-   * reading cap is not binding, so the counter rides the marker, one rule for every carrier, with the capped
-   * distance grid.css derives. */
-  .shell-grid:is([data-list-flip], [data-context-flip]) .orb-chat-track {
+  /* A centred child (every `CHAT_TRACK` and `COMPOSER_TRACK` carrier, chat-track.ts) moves half its parent's width
+   * change while its cap is not binding. A box centred by auto margins sits `max(0, P - cap) / 2` from its parent's
+   * start edge, so its delta across a commit is the difference of that for the two parent widths, halved; the sign
+   * lives in `--shell-track-shrink`. The cap is the carrier's own: the dial for the transcript's track, the dial
+   * capped at the reading measure for the composer's. The marker carries the rule, one for every carrier. */
+  .shell-grid:is([data-list-flip], [data-context-flip], [data-list-settle], [data-context-settle]) :is(.orb-chat-track, .orb-composer-track) {
+    --shell-centre-flip-from: calc(
+      (max(0px, var(--shell-room-track) + var(--shell-track-shrink) - var(--shell-track-cap)) - max(0px, var(--shell-room-track) - var(--shell-track-cap))) /
+      2
+    );
+  }
+  .shell-grid:is([data-list-flip], [data-context-flip], [data-list-settle], [data-context-settle]) .orb-chat-track {
+    --shell-track-cap: var(--width-shell-content);
+  }
+  .shell-grid:is([data-list-flip], [data-context-flip], [data-list-settle], [data-context-settle]) .orb-composer-track {
+    --shell-track-cap: var(--composer-track);
+  }
+  .shell-grid:is([data-list-flip], [data-context-flip]) :is(.orb-chat-track, .orb-composer-track) {
     animation: shell-centre-flip var(--shell-motion) var(--shell-ease);
   }
 
@@ -101,7 +115,7 @@
   .shell-grid:is([data-list-settle], [data-context-settle]) .shell-topbar-trail {
     translate: var(--shell-track-shrink) 0;
   }
-  .shell-grid:is([data-list-settle], [data-context-settle]) .orb-chat-track {
+  .shell-grid:is([data-list-settle], [data-context-settle]) :is(.orb-chat-track, .orb-composer-track) {
     translate: var(--shell-centre-flip-from) 0;
   }
   .shell-grid:is([data-list-settle], [data-context-settle]) [data-slot="list-pane-action"] {

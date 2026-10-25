@@ -56,7 +56,6 @@ export function ComposerSlashStrip({ matches, notice, unavailableFor, highlightI
       description: reason ?? command.describe,
       leading: command.icon === undefined ? undefined : <Icon icon={command.icon} size="sm" />,
       disabled: reason !== null,
-      title: reason ?? undefined,
       highlighted: index === highlightIndex,
     };
   });
