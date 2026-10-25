@@ -141,3 +141,9 @@ The focused controls expose locally held apply arrays and untagged class-name te
 The argument reader follows stable local aliases and TypeScript wrappers, expands known static array spreads, and preserves holes and unresolved spread positions. Public attributes and inert-marker controls retain their permitted behavior. The sealed-selector rule uses the same method and argument reader, then resolves quoted, template and constant-interpolated class names at the call boundary. Direct, call, apply and bind controls distinguish private names from public names. Arbitrary dynamic flow is not certified.
 
 This correction changes tooling and controls only. Product CT results remain applicable; no product CT was rerun. Scoped ESLint on the changed rules and controls passes. `pnpm typecheck tooling/tsconfig.json` passes, including its router dependency. Scoped Biome passes with --error-on-warnings.
+
+## Input-modality integration finding
+
+The browser-floor rule identifies wheel as unavailable on Safari iOS and touchstart/touchmove as unavailable on desktop Safari. These are alternate follow-yield input channels, not a required conjunction. Each listener now checks its own on-event property before registration. Keydown, passive options, callback behavior and unconditional native cleanup remain unchanged. The rule has no event waiver or baseline.
+
+Public MessageList controls simulate API availability rather than qualify real Safari hardware. They observe the shared reader-input callback by actual registered references, preserve unrelated vendor listeners, dispatch native event objects, and verify cleanup after unmount. On unchanged production, reduced profiles fail while combined support passes. The corrected wheel-only, touch-only and combined profiles pass. Browser-support controls pass 51 cases; affected UI, tooling and DOM-test compiler programs pass. Scoped lint confirms the production event findings are resolved.

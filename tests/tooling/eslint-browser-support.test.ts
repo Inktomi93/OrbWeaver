@@ -16,6 +16,10 @@ const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: RO
 
 // Firefox 138 lacks Element.computedStyleMap and CSSKeywordValue; Safari 18 lacks the Iterator helpers.
 const REFUSED = [
+  ["unguarded wheel input", "export const probe = (el: HTMLElement) => el.addEventListener('wheel', () => {});"],
+  ["unguarded touch start input", "export const probe = (el: HTMLElement) => el.addEventListener('touchstart', () => {});"],
+  ["unguarded touch move input", "export const probe = (el: HTMLElement) => el.addEventListener('touchmove', () => {});"],
+
   ["unsupported window event", "export const probe = () => window.addEventListener('scrollend', () => {});"],
   ["unsupported document event", "export const probe = () => document.addEventListener('scrollend', () => {});"],
   [
@@ -55,6 +59,10 @@ const REFUSED = [
 ] as const;
 
 const ADMITTED = [
+  ["guarded wheel input", "export const probe = (el: HTMLElement) => { if ('onwheel' in el) el.addEventListener('wheel', () => {}); };"],
+  ["guarded touch start input", "export const probe = (el: HTMLElement) => { if ('ontouchstart' in el) el.addEventListener('touchstart', () => {}); };"],
+  ["guarded touch move input", "export const probe = (el: HTMLElement) => { if ('ontouchmove' in el) el.addEventListener('touchmove', () => {}); };"],
+
   ["supported event", "export const probe = (el: HTMLElement) => el.addEventListener('scroll', () => {});"],
   ["guarded event", "export const probe = (el: HTMLElement) => { if ('onscrollend' in el) el.addEventListener('scrollend', () => {}); };"],
   [
