@@ -19,7 +19,6 @@ import type { TagId } from "@orb/kit/ids";
 import type { LucideIcon } from "@orb/ui/icons";
 import { Archive, Icon, Star } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
-import { RECEDED_INK } from "@orb/ui/lib";
 import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import { Toggle } from "@orb/ui/toggle";
@@ -220,12 +219,9 @@ function ScopePill({
     return null;
   }
   return (
-    // THE RECEDING INK IS STATED HERE, beside the tag chips' own (#1141): `Toggle`'s `outline` arm reads
-    // "must read as the same class of thing as the tag chips beside it", and since #969 flipped the
-    // transparent intents to the host's inherited ink neither of them recedes on its own. The rail is the
-    // host, so the rail says it — unprefixed, because `data-pressed:text-accent-foreground` (base) is a
-    // variant key twMerge keeps and the attribute selector wins whenever the pill is ON.
-    <Toggle aria-label={name} className={RECEDED_INK} intent="outline" onPressedChange={onToggle} pressed={pressed} shape="pill" size="chip">
+    // `Toggle` rests at the muted ink itself, so the scope pill recedes beside the tag chips (which state it in
+    // `restingInk`) without a call-site ink.
+    <Toggle aria-label={name} intent="outline" onPressedChange={onToggle} pressed={pressed} shape="pill" size="chip">
       <Icon icon={glyph} size="xs" />
       {label}
     </Toggle>

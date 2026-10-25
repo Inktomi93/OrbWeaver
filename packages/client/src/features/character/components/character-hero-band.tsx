@@ -30,7 +30,7 @@ import { QueryBoundary } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useUploadAsset, useUploadCaps } from "#data";
 import type { AppFormInstance } from "#forms/editor";
-import { notify, oversizeUploadMessage } from "#lib";
+import { cn, notify, oversizeUploadMessage } from "#lib";
 import { toggleSpoilerBlur, useSpoilerBlur } from "#state";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
 import { usePreviewRenderPolicy } from "../hooks/use-preview-render-policy.ts";
@@ -61,7 +61,7 @@ const TAG_SUGGESTION_SKELETON_ROWS = 1;
  *  and avatar-replace affordances on the surface — the band's `h2` and its 36px avatar are a GLANCE, these
  *  are the EDITOR — and hiding an affordance because a read-only copy of its value sits elsewhere would be
  *  a new defect one screen over. */
-export const HERO_ECHO_CLASS = "shell-character-hero-echo";
+const HERO_ECHO_CLASS = "shell-character-hero-echo";
 
 export interface CharacterHeroBandProps {
   readonly detail: CharacterHeroDetail;
@@ -100,7 +100,7 @@ export function CharacterHeroBand({
           <Row align="center" gap="row" className="flex-wrap">
             <Stack className="flex-1 min-inline-0" gap="field">
               <form.AppField name="name">{(field): ReactElement => <field.TextField label="Name" />}</form.AppField>
-              <Text voice="gloss" className={`truncate font-mono ${HERO_ECHO_CLASS}`}>
+              <Text voice="datumMono" className={cn("truncate", HERO_ECHO_CLASS)}>
                 @{detail.handle}
               </Text>
             </Stack>

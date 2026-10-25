@@ -5,6 +5,7 @@
 
 import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
+import { Card } from "@orb/ui/card";
 import { FieldLayout } from "@orb/ui/field";
 import { ChevronLeft, Icon } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
@@ -322,17 +323,17 @@ function ExampleTranscript({
   return (
     <Stack key={value} gap="block">
       {blocks.map((block, index) => (
-        <Stack
+        <Card
           // biome-ignore lint/suspicious/noArrayIndexKey: positions belong to the keyed immutable transcript snapshot; replacement remounts native Markdown state.
           key={index}
-          gap="row"
-          padding="field"
-          className="rounded-base border border-border"
+          padding="none"
+          tone="clear"
+          className="p-field"
         >
           <Markdown trust={trusted ? "trusted" : "untrusted"} mode="static" colorQuotes={colorQuotes} allowExternalMedia={allowExternalMedia}>
             {block}
           </Markdown>
-        </Stack>
+        </Card>
       ))}
     </Stack>
   );

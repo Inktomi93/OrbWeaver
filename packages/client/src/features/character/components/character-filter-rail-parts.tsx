@@ -14,7 +14,7 @@ import { ScrollArea } from "@orb/ui/scroll-area";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
-import { EditableTagChip, SHOW_ONLY_AT_COARSE } from "#components";
+import { EditableTagChip } from "#components";
 import type { TagFilterEntry, TagFilterState } from "#lib";
 import { cn, tagFilterStateOf } from "#lib";
 import { useRovingChipFocus } from "../hooks/use-roving-chip-focus.ts";
@@ -199,7 +199,7 @@ export function TagFilterChip({
     // Fine pointers keep right-click and F2 and the rail's resting width.
     <Row className="max-inline-full min-inline-0" gap="tight">
       <TagFilterChipButton onCycle={onCycle} presentation={presentation} state={state} tabIndex={tabIndex} tag={tag} />
-      <Text as="span" className={SHOW_ONLY_AT_COARSE}>
+      <Text as="span" hiddenAt="fine">
         <EditableTagChip iconOnly={true} tag={tag} />
       </Text>
     </Row>
@@ -307,10 +307,11 @@ export function RailAction({
       aria-label={accessibleName}
       // The receding ink is the RAIL's to state, not `ghost`'s — see {@link TagChipPresentation.restingInk}
       // for the two rulings this reconciles. This affordance has no selected arm, so it carries it flat.
-      className={`${RECEDED_INK} underline decoration-dotted`}
+      className="underline decoration-dotted"
       intent="ghost"
       onClick={onClick}
       size="chip"
+      tone="muted"
       type="button"
     >
       {label}

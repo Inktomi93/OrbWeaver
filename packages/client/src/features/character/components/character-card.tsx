@@ -36,7 +36,7 @@ import { Row } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { MenuItem, MenuLinkItem, MenuPopup, MenuSubmenuRoot, MenuSubmenuTrigger } from "@orb/ui/menu";
 import type { ReactElement, ReactNode } from "react";
-import { ROW_ACTION_INLINE, ROW_ACTION_OVERFLOW, ROW_REVEAL, ROW_REVEAL_SWAP_COARSE_KEEP, RowActionsMenu, RowToggleAction } from "#components";
+import { ROW_ACTION_OVERFLOW, ROW_REVEAL_SWAP_COARSE_KEEP, RowActionsMenu, RowToggleAction } from "#components";
 import { chatWithActionName, rowActionSubject, rowActionsName, selectActionName } from "#lib";
 import type { CHARACTER_ACTION_SCOPE_IDS } from "../lib/character-actions.ts";
 import { CHARACTER_ACTIONS, characterActionItemsForScope, characterActionLabel, EXPORT_CHARACTER_PATH } from "../lib/character-actions.ts";
@@ -190,7 +190,7 @@ function rowMarkers(character: Pick<CharacterCardItem, "archived" | "starred">):
   }
   return (
     <>
-      {character.starred ? <Icon className={`text-warning ${ROW_REVEAL_SWAP_COARSE_KEEP}`} icon={Star} label="Starred" size="sm" /> : null}
+      {character.starred ? <Icon className={ROW_REVEAL_SWAP_COARSE_KEEP} icon={Star} label="Starred" size="sm" tone="warning" /> : null}
       {character.archived ? (
         <Badge intent="warning" size="sm">
           Archived
@@ -256,7 +256,7 @@ function NormalRowActions({
           width: 0.31 @320 · 0.43 @390 · 0.48 @430, with `Calamity, Doomblade of the Ninth Epoch` clipped at
           all three. It stands down here and rides the kebab instead (its `ROW_ACTION_OVERFLOW` twin below),
           so the coarse cluster is the Chat CTA plus one overflow door. */}
-      <Row align="center" className={ROW_ACTION_INLINE}>
+      <Row align="center" hiddenAt="coarse">
         <RowToggleAction
           icon={Star}
           label={starName}
@@ -272,16 +272,11 @@ function NormalRowActions({
           affordances (`#components/row-reveal.ts`), which the star is and this is not — so #1695's symptom
           (three touch boxes charging a phone row) is answered by taking the cluster from three to TWO, not
           by reversing the CTA ruling. */}
-      <Button
-        aria-label={chatWithActionName(subject)}
-        className={ROW_REVEAL}
-        intent="ghost"
-        onClick={(): void => onChat(character.id)}
-        size="icon"
-        type="button"
-      >
-        <Icon icon={MessagesSquare} size="sm" />
-      </Button>
+      <Row reveal="hover">
+        <Button aria-label={chatWithActionName(subject)} intent="ghost" onClick={(): void => onChat(character.id)} size="icon" type="button">
+          <Icon icon={MessagesSquare} size="sm" />
+        </Button>
+      </Row>
       <RowActionsMenu
         align="start"
         label={rowActionsName(subject)}
