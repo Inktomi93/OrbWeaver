@@ -183,6 +183,8 @@ export const TOKENS = {
   "blur.veil": { cssVar: "--blur-veil", value: "14px" },
   "blur.fill-chrome": { cssVar: "--blur-fill-chrome", value: "70%" },
   "blur.fill-dense": { cssVar: "--blur-fill-dense", value: "88%" },
+  "blur.fill-contrast": { cssVar: "--blur-fill-contrast", value: "92%" },
+  "blur.fill-solid": { cssVar: "--blur-fill-solid", value: "100%" },
   "blur.saturate": { cssVar: "--blur-saturate", value: "1.4" },
   "immersive.echo-art-width": { cssVar: "--immersive-echo-art-width", value: "12rem" },
   "immersive.echo-art-height-phone": { cssVar: "--immersive-echo-art-height-phone", value: "15.625rem" },

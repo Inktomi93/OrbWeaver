@@ -308,12 +308,12 @@
          * palettes clear the 3:1 non-text floor on the framebuffer at this value. */
         --contrast-edge-mix: 65%;
       }
-      --blur-fill-chrome: 92%;
-      --blur-fill-dense: 92%;
+      --blur-fill-chrome: var(--blur-fill-contrast);
+      --blur-fill-dense: var(--blur-fill-contrast);
     }
     @variant appearance-reduced-transparency {
-      --blur-fill-chrome: 100%;
-      --blur-fill-dense: 100%;
+      --blur-fill-chrome: var(--blur-fill-solid);
+      --blur-fill-dense: var(--blur-fill-solid);
     }
   }
 

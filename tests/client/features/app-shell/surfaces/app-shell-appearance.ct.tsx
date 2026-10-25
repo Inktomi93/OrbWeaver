@@ -2,11 +2,10 @@
 // panes, the dials it stamps on the root, the remembered boot hint, and what survives a handover to the pending mark.
 
 import { crc32, deflateSync } from "node:zlib";
-import { APPEARANCE_CHANNEL_ROWS } from "@orb/client/lib";
 import type { StoredAsset } from "@orb/contracts/assets";
 import { BLOB_ROUTE } from "@orb/contracts/assets";
 import { CSRF_HEADER } from "@orb/contracts/identity";
-import type { AppearanceSettings } from "@orb/contracts/settings/appearance";
+import type { AppearanceSettings, OsPreferenceMode } from "@orb/contracts/settings/appearance";
 import { BACKGROUND_DIM_MIN, BLUR_SURFACES } from "@orb/contracts/settings/appearance";
 import type { ChatId } from "@orb/kit/ids";
 import type { Rgb } from "@orb/kit/theme-derivation";
@@ -15,8 +14,9 @@ import { createShellAmbientReads, routeTrpc, serveCorpusProcedures } from "@orb/
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusWire } from "@orb/testkit/iso";
 import { captureCookieAuth, createCorpusHarness } from "@orb/testkit/node/composed";
-import { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
+import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
+import { channelName } from "../../../lib/appearance-channel-names.ts";
 import type { AppShellModalStory, AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import type { ShellToPendingStory } from "./_shell-handover-stories.tsx";
 import {
@@ -54,19 +54,25 @@ const BASE_APPEARANCE: Partial<AppearanceSettings> = {
   reducedMotion: "system",
   surfaceTexture: "none",
 };
-// The root attribute the appearance channel writes for the reduced-motion setting, read from the manifest.
-const REDUCED_MOTION_ATTR = APPEARANCE_CHANNEL_ROWS.find((row) => row.key === "reducedMotion")?.name ?? "";
+// The root attributes the appearance channel writes, read from the manifest.
+const REDUCED_MOTION_ATTR = channelName("reducedMotion");
+const BLUR_SURFACES_ATTR = channelName("blurSurfaces");
+const SURFACE_TEXTURE_ATTR = channelName("surfaceTexture");
+const SHADOW_EFFECTS_ATTR = channelName("shadowEffects");
 const SERVED = [...SECTION_PROCEDURES, ...ROOM_PROCEDURES].filter((path) => path !== "settings.getUserSettings");
 // The reduced-motion floor writes `animation-duration: 0.01ms`, a literal with no token; anything under a
 // millisecond is floored, and the unfloored glyph runs at the resolved `--motion-breathe`.
 const FLOORED_MS = 1;
-// The contrast arm's authored fill dial in globals.css, which has no token.
-const CONTRAST_FILL = "92%";
-const CONTRAST_FILL_ALPHA = 0.92;
+// The glass fill dials the contrast and reduced-transparency arms set, from their tokens.
+const CONTRAST_FILL = TOKENS["blur.fill-contrast"].value;
+const SOLID_FILL = TOKENS["blur.fill-solid"].value;
+const CONTRAST_FILL_ALPHA = Number.parseFloat(CONTRAST_FILL) / 100;
 // The UA root font size the `:root { font-size }` scale multiplies; no token names a browser default.
 const UA_ROOT_PX = 16;
 const TRACK_WIDTHS = [1280, 1440, 1920] as const;
 const DIAL_PCT = 50;
+const BLUR_STRENGTH = 20;
+const READING_LINE_HEIGHT = 2;
 const BLACK_ART_PASSWORD = "synthetic-corpus-ct-black-art-password";
 // Large enough that a cover fit paints it as a field, not a tile.
 const BLACK_ART_SIDE = 64;
@@ -316,6 +322,10 @@ function computed(locator: Locator, property: string, pseudo: string | null = nu
   return locator.evaluate((element, [name, at]) => getComputedStyle(element, at).getPropertyValue(name), [property, pseudo] as const);
 }
 
+function rootValue(page: Page, property: string): Promise<string> {
+  return page.evaluate((name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim(), property);
+}
+
 // A `color-mix()` fill serializes with a trailing `/ alpha)`, a legacy colour with a comma alpha, an opaque one with none.
 function alphaOf(color: string): number {
   const slash = /\/\s*([\d.]+)\s*\)$/u.exec(color)?.[1];
@@ -485,6 +495,14 @@ test.describe("glass and elevation", () => {
     await expect.poll(() => carrierBlur(page.locator(CONTEXT))).toBe("none");
   });
 
+  test("the glass reads the blur-strength number in px", async ({ corpus, mount, page }) => {
+    await seedShellState(page, { activeSection: "chats" });
+    await routeAppearance(page, corpus, { blurSurfaces: ["panels"], blurStrength: BLUR_STRENGTH });
+    await mount<typeof AppShellStory>(STORY, {});
+    await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "docked");
+    await expect.poll(() => carrierBlur(page.locator(LIST))).toContain(`blur(${String(BLUR_STRENGTH)}px)`);
+  });
+
   test("the docked pane carries no layer promotion of its own while its carrier blurs", async ({ corpus, mount, page }) => {
     await seedShellState(page, { activeSection: "chats" });
     await routeAppearance(page, corpus, { blurSurfaces: ["panels"] });
@@ -558,7 +576,7 @@ test.describe("reduced transparency", () => {
     await seedShellState(page, { activeSection: "chats" });
     await routeAppearance(page, corpus, { blurSurfaces: ["panels"] });
     await mount<typeof AppShellStory>(STORY, {});
-    await expect(page.locator("html")).toHaveAttribute("data-appearance-blur-surfaces", "panels");
+    await expect(page.locator("html")).toHaveAttribute(BLUR_SURFACES_ATTR, "panels");
     await expect.poll(() => fillAlpha(page.locator(LIST))).toBe(1);
     await expect.poll(() => fillAlpha(page.locator(".shell-main"))).toBe(1);
   });
@@ -624,7 +642,7 @@ test.describe("contrast more", () => {
     await routeAppearance(page, corpus, { blurSurfaces: [] });
     await mount<typeof AppShellStory>(STORY, {});
     await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "docked");
-    await expect(page.locator("html")).toHaveAttribute("data-appearance-blur-surfaces", "");
+    await expect(page.locator("html")).toHaveAttribute(BLUR_SURFACES_ATTR, "");
     await expect.poll(() => borderWidths(page.locator(LIST))).toBe("0px 2px 0px 0px");
     await expect.poll(() => seamRatio(page)).toBeGreaterThanOrEqual(AA_NON_TEXT_RATIO);
   });
@@ -637,11 +655,61 @@ test.describe("contrast more", () => {
     const pane = page.locator(LIST);
     const dialog = page.locator(DIALOG);
     await expect(dialog).toBeVisible();
-    await expect(page.locator("html")).toHaveAttribute("data-appearance-blur-surfaces", "panels modals");
+    await expect(page.locator("html")).toHaveAttribute(BLUR_SURFACES_ATTR, "panels modals");
     await expect.poll(() => fillAlpha(pane, "::before")).toBe(1);
     await expect.poll(() => carrierBlur(pane)).toBe("none");
     await expect.poll(() => fillAlpha(dialog)).toBe(1);
     await expect.poll(() => computed(pane, "border-inline-end-width")).toBe("2px");
+  });
+});
+
+test.describe("the three-way OS preferences", () => {
+  // [app mode, the OS asks for the preference, the preference's arm applies]
+  const ModeCases = [
+    ["system", false, false],
+    ["system", true, true],
+    ["on", false, true],
+    ["off", true, false],
+  ] as const satisfies readonly (readonly [OsPreferenceMode, boolean, boolean])[];
+
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize(WIDE);
+    await seedShellState(page, { activeSection: "chats" });
+  });
+
+  for (const [mode, osReduce, solid] of ModeCases) {
+    test(`reduced transparency ${mode} with OS reduce=${String(osReduce)} makes the glass solid: ${String(solid)}`, async ({ corpus, mount, page }) => {
+      await emulateMedia(page, { contrast: "no-preference", transparency: osReduce ? "reduce" : "no-preference" });
+      await routeAppearance(page, corpus, { reducedTransparency: mode, blurSurfaces: ["panels"] });
+      await mount<typeof AppShellStory>(STORY, {});
+      const pane = page.locator(LIST);
+      await expect(pane).toHaveAttribute("data-panel-mode", "docked");
+      await expect.poll(async () => (await rootValue(page, "--blur-fill-chrome")) === SOLID_FILL).toBe(solid);
+      await expect.poll(async () => (await carrierBlur(pane)) === "none").toBe(solid);
+    });
+  }
+
+  for (const [mode, osMore, applied] of ModeCases) {
+    test(`increased contrast ${mode} with OS more=${String(osMore)} densifies the glass and drops the grain: ${String(applied)}`, async ({
+      corpus,
+      mount,
+      page,
+    }) => {
+      await emulateMedia(page, { contrast: osMore ? "more" : "no-preference", transparency: "no-preference" });
+      await routeAppearance(page, corpus, { increasedContrast: mode, surfaceTexture: "grain" });
+      await mount<typeof AppShellStory>(STORY, {});
+      const grid = page.locator(".shell-grid");
+      await expect(grid).toBeVisible();
+      await expect.poll(async () => (await rootValue(page, "--blur-fill-chrome")) === CONTRAST_FILL).toBe(applied);
+      await expect.poll(async () => (await computed(grid, "display", "::after")) === "none").toBe(applied);
+    });
+  }
+
+  test("with both preferences on, reduced transparency's solid fill wins the glass knob", async ({ corpus, mount, page }) => {
+    await routeAppearance(page, corpus, { reducedTransparency: "on", increasedContrast: "on" });
+    await mount<typeof AppShellStory>(STORY, {});
+    await expect(page.locator(".shell-grid")).toBeVisible();
+    await expect.poll(() => rootValue(page, "--blur-fill-chrome")).toBe(SOLID_FILL);
   });
 });
 
@@ -667,6 +735,33 @@ test.describe("in an open room", () => {
     await expect(dialog).toBeVisible();
     await expect.poll(() => fillAlpha(dialog)).toBeLessThan(1);
     await expect.poll(() => computed(dialog, "backdrop-filter", "::before")).toContain("blur(");
+  });
+
+  test("a written reading line-height reaches each bubble as a multiple of its own font size", async ({ corpus, mount, page }) => {
+    await routeAppearance(page, corpus, { readingLineHeight: READING_LINE_HEIGHT });
+    await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: await groupRoomId() });
+    await roomReady(page);
+    for (const role of ROOM_ROLES) {
+      const [lineHeight, fontSize] = await Promise.all([computed(bubble(page, role), "line-height"), computed(bubble(page, role), "font-size")]);
+      expect(Number.parseFloat(lineHeight)).toBeCloseTo(READING_LINE_HEIGHT * Number.parseFloat(fontSize), 3);
+    }
+  });
+
+  test("the shadow-effects attribute is always written, and its true variant paints a text shadow the false one withholds", async ({ corpus, mount, page }) => {
+    let state: { readonly appearance: Partial<AppearanceSettings> } = { appearance: { shadowEffects: false } };
+    await routeLiveAppearance(page, corpus, () => state);
+    const chatId = await groupRoomId();
+    const off = await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId });
+    await roomReady(page);
+    await expect(page.locator("html")).toHaveAttribute(SHADOW_EFFECTS_ATTR, "false");
+    await expect.poll(() => computed(bubble(page, "assistant"), "text-shadow")).toBe("none");
+    await off.unmount();
+
+    state = { appearance: { shadowEffects: true } };
+    await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId });
+    await roomReady(page);
+    await expect(page.locator("html")).toHaveAttribute(SHADOW_EFFECTS_ATTR, "true");
+    await expect.poll(() => computed(bubble(page, "assistant"), "text-shadow")).not.toBe("none");
   });
 
   test("reduced transparency turns the composer and each role's bubble solid and stops their blur", async ({ corpus, mount, page }) => {
@@ -709,7 +804,7 @@ test.describe("grain", () => {
     await routeAppearance(page, corpus, { surfaceTexture: "grain" });
     await mount<typeof AppShellStory>(STORY, {});
     const grid = page.locator(".shell-grid");
-    await expect(page.locator("html")).toHaveAttribute("data-appearance-surface-texture", "grain");
+    await expect(page.locator("html")).toHaveAttribute(SURFACE_TEXTURE_ATTR, "grain");
     await expect.poll(() => computed(grid, "content", "::after")).not.toBe("none");
     await expect.poll(() => computed(grid, "display", "::after")).not.toBe("none");
     await emulateMedia(page, { contrast: "more" });
@@ -732,7 +827,7 @@ test.describe("grain", () => {
       height: 8,
     }));
     const filmed = await Promise.all(patches.map((patch) => noiseSpread(page, patch)));
-    await page.locator("html").evaluate((element) => element.setAttribute("data-appearance-surface-texture", "none"));
+    await page.locator("html").evaluate((element, name) => element.setAttribute(name, "none"), SURFACE_TEXTURE_ATTR);
     const bare = await Promise.all(patches.map((patch) => noiseSpread(page, patch)));
     const flattest = bare.indexOf(Math.min(...bare));
     expect(bare[flattest]).toBeLessThan(filmed[flattest] ?? 0);
@@ -742,7 +837,7 @@ test.describe("grain", () => {
     await routeAppearance(page, corpus, { surfaceTexture: "none" });
     await mount<typeof AppShellStory>(STORY, {});
     await expect(page.locator('.shell-grid [data-slot="card-root"]').first()).toBeVisible();
-    await expect(page.locator("html")).toHaveAttribute("data-appearance-surface-texture", "none");
+    await expect(page.locator("html")).toHaveAttribute(SURFACE_TEXTURE_ATTR, "none");
     await expect.poll(() => computed(page.locator(".shell-grid"), "content", "::after")).toBe("none");
     await expect.poll(() => computed(page.locator('.shell-grid [data-slot="card-root"]').first(), "content", "::after")).toBe("none");
   });
@@ -1086,6 +1181,20 @@ test.describe("root dials", () => {
     await expect.poll(width).toBeCloseTo((crossover * DIAL_PCT) / 100, 0);
     await page.setViewportSize({ width: crossover + 400, height: 900 });
     await expect.poll(width).toBeCloseTo(((crossover + 400) * DIAL_PCT) / 100, 0);
+  });
+
+  test("the colorization variant on the root redeclares the root's border token", async ({ corpus, mount, page }) => {
+    let state: { readonly appearance: Partial<AppearanceSettings> } = { appearance: { enableThemeColorization: false } };
+    await routeLiveAppearance(page, corpus, () => state);
+    const plain = await mount<typeof AppShellStory>(STORY, {});
+    await expect(page.locator(".shell-grid")).toBeVisible();
+    const uncolored = await rootValue(page, "--color-border");
+    await plain.unmount();
+
+    state = { appearance: { enableThemeColorization: true } };
+    await mount<typeof AppShellStory>(STORY, {});
+    await expect(page.locator(".shell-grid")).toBeVisible();
+    await expect.poll(() => rootValue(page, "--color-border")).not.toBe(uncolored);
   });
 
   test("the font-scale dial sets the document's root font size", async ({ corpus, mount, page }) => {

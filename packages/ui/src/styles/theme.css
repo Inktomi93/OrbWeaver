@@ -196,6 +196,8 @@
   --blur-veil: 14px;
   --blur-fill-chrome: 70%;
   --blur-fill-dense: 88%;
+  --blur-fill-contrast: 92%;
+  --blur-fill-solid: 100%;
   --blur-saturate: 1.4;
   --immersive-echo-art-width: 12rem;
   --immersive-echo-art-height-phone: 15.625rem;

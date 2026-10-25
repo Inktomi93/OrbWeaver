@@ -8,6 +8,7 @@ import { Dialog, DialogPopup, DialogTitle } from "#primitives/dialog";
 import { ChevronDown, ChevronUp, Code, Expand, Icon } from "#primitives/icons";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "#primitives/tooltip";
 import { SandboxFrame, useSandboxTheme } from "../sandbox-frame/index.ts";
+import { IMMERSIVE_CARD_LABELS } from "./control-labels.ts";
 import { immersiveCardVariants } from "./variants.ts";
 
 // The inline render height — mirrors the SandboxFrame default; the expand affordance is the "see it big"
@@ -122,7 +123,7 @@ export function ImmersiveCard({
   const { themeTokens, styleTokens, fontFamily } = useSandboxTheme();
   const bodyProps = { showRaw, html, css, themeTokens, styleTokens, fontFamily, label, heightPx, allowExternalMedia, frameSrc };
 
-  const rawLabel = showRaw ? "Show rendered card" : "View raw source";
+  const rawLabel = showRaw ? IMMERSIVE_CARD_LABELS.renderedCard : IMMERSIVE_CARD_LABELS.rawSource;
   // Each icon-only control keeps its pointer hint as a Tooltip; the text repeats the aria-label, so the seal does not
   // announce it a second time.
   const rawToggle = (
@@ -159,10 +160,10 @@ export function ImmersiveCard({
             had no way to know one of them leaves the page's flow entirely. The name now states the
             DESTINATION, which is also what §13.10 N4 asks of a verb name. */}
         <Tooltip>
-          <TooltipTrigger render={<Button intent="ghost" size="icon" aria-label="Open card fullscreen" onClick={(): void => setExpanded(true)} />}>
+          <TooltipTrigger render={<Button intent="ghost" size="icon" aria-label={IMMERSIVE_CARD_LABELS.fullscreen} onClick={(): void => setExpanded(true)} />}>
             <Icon icon={Expand} size="sm" />
           </TooltipTrigger>
-          <TooltipPopup>Open card fullscreen</TooltipPopup>
+          <TooltipPopup>{IMMERSIVE_CARD_LABELS.fullscreen}</TooltipPopup>
         </Tooltip>
         {/* The disclosure — Base UI owns `aria-expanded`/`aria-controls` + the keyboard; the chrome stays the
             header's uniform ghost icon button (`chevron={false}` — this IS the chevron). */}
@@ -171,14 +172,14 @@ export function ImmersiveCard({
             render={
               <CollapsibleTrigger
                 chevron={false}
-                render={<Button intent="ghost" size="icon" aria-label={open ? "Collapse card" : "Show card"} />}
+                render={<Button intent="ghost" size="icon" aria-label={open ? IMMERSIVE_CARD_LABELS.collapse : IMMERSIVE_CARD_LABELS.expand} />}
                 data-slot="immersive-card-collapse"
               />
             }
           >
             <Icon icon={open ? ChevronUp : ChevronDown} size="sm" />
           </TooltipTrigger>
-          <TooltipPopup>{open ? "Collapse card" : "Show card"}</TooltipPopup>
+          <TooltipPopup>{open ? IMMERSIVE_CARD_LABELS.collapse : IMMERSIVE_CARD_LABELS.expand}</TooltipPopup>
         </Tooltip>
       </div>
       <CollapsiblePanel data-slot="immersive-card-panel">

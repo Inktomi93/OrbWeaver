@@ -168,12 +168,50 @@ function assertRenamesRecorded(
 }
 
 /**
+ * The rows of a rename table that contradict `surface`. A whole-name row names a hook that left the surface and
+ * points at ones that are on it. A value row names a live attribute whose list no longer holds the value, and has no
+ * successor.
+ */
+export function renameTableViolations(table: readonly OwnerCssRename[], surface: readonly OwnerCssHook[]): OwnerCssRename[] {
+  const hookOf = (kind: string, name: string): OwnerCssHook | undefined => surface.find((hook) => hook.kind === kind && hook.name === name);
+  return table.filter((rename) => {
+    if (rename.value !== undefined) {
+      const values = hookOf(rename.kind, rename.name)?.values;
+      return rename.to !== null || values === undefined || values.includes(rename.value);
+    }
+    return (
+      hookOf(rename.kind, rename.name) !== undefined ||
+      (rename.to !== null && hookOf(rename.kind, rename.to) === undefined) ||
+      (rename.see !== undefined && hookOf(rename.kind, rename.see) === undefined)
+    );
+  });
+}
+
+function assertRenameTableValid(
+  live: Record<OwnerCssHookKind, ReadonlySet<string>>,
+  attributes: SurfaceInput["appearanceAttributes"],
+  renames: readonly OwnerCssRename[],
+): void {
+  const surface = [
+    ...(["slot", "shell-class", "token"] as const).flatMap((kind) => [...live[kind]].map((name): OwnerCssHook => ({ kind, name }))),
+    ...attributes.map(({ name, values, members }): OwnerCssHook => ({ kind: "appearance-attribute", name, values, members })),
+  ];
+  const violations = renameTableViolations(renames, surface);
+  if (violations.length > 0) {
+    const rows = violations.map((rename) => `${rename.kind} ${rename.name}${rename.value === undefined ? "" : `="${rename.value}"`}`);
+    throw new Error(`Rows in src/owner-css/renames.ts contradict the regenerated surface: ${rows.join(", ")}`);
+  }
+}
+
+/**
  * The manifest text for the given sources; pure, so a test can plant a rename. `previous` is the surface the
- * committed manifest published: a name it lists that the sources no longer produce needs a rename row.
+ * committed manifest published: a name it lists that the sources no longer produce needs a rename row, and every
+ * row must name a hook that left the surface and point only at ones that are on it.
  */
 export function renderOwnerCssSurface(input: SurfaceInput, previous: readonly OwnerCssHook[]): string {
   const live = liveHooks(input);
   assertRenamesRecorded(live, input.appearanceAttributes, previous, input.renames);
+  assertRenameTableValid(live, input.appearanceAttributes, input.renames);
   return [
     HEADER,
     'import type { OwnerCssHook, OwnerCssHookKind } from "./src/owner-css/hook.ts";',

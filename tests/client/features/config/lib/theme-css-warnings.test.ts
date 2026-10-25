@@ -96,10 +96,14 @@ test("an @supports condition is a feature query, but the rules inside its block 
 });
 
 test("a retired appearance attribute warns and points at its replacement; an author's own data attribute does not", () => {
-  const css = "[data-shadow] { color: red; } [data-mine] { color: red; }";
+  const retired = OWNER_CSS_RENAMES.find((row) => row.kind === "appearance-attribute");
+  if (retired?.see === undefined) {
+    throw new Error("The rename table records no retired appearance attribute with a successor");
+  }
+  const css = `[${retired.name}] { color: red; } [data-mine] { color: red; }`;
   const warnings = themeCssHookWarnings(css, SURFACE, OWNER_CSS_RENAMES);
-  expect(warnings.map((warning) => css.slice(warning.from, warning.to))).toEqual(["data-shadow"]);
-  expect(warnings[0]?.message).toContain("data-appearance-shadow-effects");
+  expect(warnings.map((warning) => css.slice(warning.from, warning.to))).toEqual([retired.name]);
+  expect(warnings[0]?.message).toContain(retired.see);
 });
 
 test("a data-appearance attribute the surface lacks warns with the closest current one", () => {

@@ -295,6 +295,9 @@ const TEST_CONSTANT_HOMES = {
   "packages/db/src/client/index.ts": "buildResetDropScript: the reset script builder",
   "packages/db/src/query/check-list.ts": "checkList: the SQL literal-list formatter",
   "packages/inference/src/contract/errors.ts": "PROVIDER_ERROR_KINDS: the provider error vocabulary",
+  "packages/ui/src/content/immersive-card/control-labels.ts": "IMMERSIVE_CARD_LABELS: the card header's control names",
+  "packages/ui/src/lib/reduced-motion-now.ts":
+    "resolveReducedMotion and APP_REDUCED_MOTION_ATTRIBUTE: the JS rule the CSS reduced-motion floor must agree with",
   "packages/client/src/data/import-tree-plan.ts": "planTreeImport: the folder import planner",
   "packages/client/src/data/import-tree-served.ts": "planServedTreeImport: the served-tree import planner",
   "packages/client/src/features/config/lib/config-copy.ts": "CONFIG_SECTION_LABEL: the settings section labels",
