@@ -20,8 +20,8 @@ import { useSettingsViewerView } from "#data";
 import { useFocusOnMount } from "#lib";
 import type { ConfigGroupDefinition, ConfigGroupId, ConfigGroupRegistry } from "#state";
 import {
+  arriveAtConfigGroup,
   CONFIG_SHELVES,
-  closeConfigGroup,
   selectConfigGroup,
   selectConfigSub,
   useActiveConfigGroup,
@@ -93,7 +93,8 @@ export function ConfigListSurface({ groups }: ConfigListSurfaceProps): ReactElem
   };
   const onSelectGroup = (group: ConfigGroupDefinition): void => selectConfigGroup(group.id, firstSubId(group));
   const onSelectSub = (groupId: ConfigGroupId, subId: string): void => selectConfigSub(groupId, subId);
-  useConfigArrivalDefault(visible, activeGroup, onSelectGroup);
+  const onArrive = (group: ConfigGroupDefinition): void => arriveAtConfigGroup(group.id, firstSubId(group));
+  useConfigArrivalDefault(visible, activeGroup, onArrive);
 
   return (
     // `h-full min-h-0` is what makes the Stack's `overflow-y-auto overscroll-contain` real: the shell's LIST
@@ -105,7 +106,7 @@ export function ConfigListSurface({ groups }: ConfigListSurfaceProps): ReactElem
     // pane's contents, not its section: the shell's LIST band already says "Settings".
     <Stack
       aria-label="Settings groups"
-      className="relative h-full min-h-0 overflow-y-auto overscroll-contain outline-none"
+      className="relative overflow-y-auto overscroll-contain outline-none block-full min-block-0"
       data-slot="config-list"
       gap="section"
       ref={surfaceRef}
@@ -205,13 +206,10 @@ export function ConfigListSurface({ groups }: ConfigListSurfaceProps): ReactElem
 function useConfigArrivalDefault(
   visible: readonly ConfigGroupDefinition[],
   activeGroup: ConfigGroupId | null,
-  onSelectGroup: (group: ConfigGroupDefinition) => void,
+  onArrive: (group: ConfigGroupDefinition) => void,
 ): void {
-  // TWO refs, one per fact, because they retire at different moments: `fired` is the ONE-SHOT arrival latch
-  // and never re-arms (a reader who backed out to the teaching frame stays there), while `autoOpened` names
-  // the group this hook expanded and is cleared the moment that group is folded again.
+  // The ONE-SHOT arrival latch; it never re-arms (a reader who backed out to the teaching frame stays there).
   const fired = useRef(false);
-  const autoOpened = useRef<ConfigGroupId | null>(null);
   const mobile = useMobileViewport();
   useLayoutEffect((): void => {
     const first = visible[0];
@@ -219,22 +217,6 @@ function useConfigArrivalDefault(
       return;
     }
     fired.current = true;
-    autoOpened.current = first.id;
-    onSelectGroup(first);
+    onArrive(first);
   });
-  // …AND IT FOLDS ITSELF WHEN THE READER MOVES ON (#1217). The disclosure store is a per-device memory of
-  // what the READER opened (C-12), and the arrival default writes into it on nobody's behalf — so once the
-  // location moves somewhere else, the group this hook opened is nine rows of somebody else's map pinned
-  // above the library the reader actually entered (measured: the library sat 57% down the pane with 7 of 28
-  // rows visible). It closes exactly ONE group — the one it opened, remembered by id, and only while the
-  // reader has not re-opened it themselves, which is why the latch is cleared with the same act: after this
-  // the group is theirs again and its memory behaves like every sibling's.
-  useLayoutEffect((): void => {
-    const opened = autoOpened.current;
-    if (opened === null || activeGroup === null || activeGroup === opened) {
-      return;
-    }
-    autoOpened.current = null;
-    closeConfigGroup(opened);
-  }, [activeGroup]);
 }

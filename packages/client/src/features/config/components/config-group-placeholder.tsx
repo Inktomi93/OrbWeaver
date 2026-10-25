@@ -29,7 +29,7 @@ export interface ConfigGroupPlaceholderProps {
  *  pane's OWN `description` is where a "meanwhile, X lives at Y" pointer belongs). */
 export function ConfigGroupPlaceholder({ title, description }: ConfigGroupPlaceholderProps): ReactElement {
   return (
-    <Stack align="center" className="h-full justify-center" gap="block">
+    <Stack align="center" className="justify-center block-full" gap="block">
       {/* This `<Stack align="center">` once collapsed EmptyState to a one-word-per-line ribbon: its `@container`
           root ignores its contents, so shrink-to-fit centering resolved it to width 0. The floor now lives in
           the PRIMITIVE (`empty-state/variants.ts` root `w-full`, gap-audit 2026-08-08 fence #2) so no consumer

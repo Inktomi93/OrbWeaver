@@ -18,9 +18,10 @@
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { FOCUS_RING_ON_SIDEBAR } from "@orb/ui/lib";
+import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
+import { WeaveGlyph } from "@orb/ui/web-weave";
 import type { ReactElement, ReactNode } from "react";
-import { WeaveGlyph } from "#components";
 import type { ChromeEntry, MobileCuration, ModalSlotId, SectionId } from "#state";
 import { mobileBarCuration, SECTION_GROUPS, sheetOverflowChrome, useChromeRegistry, useModalRegistry } from "#state";
 import { RailButton } from "./rail-button.tsx";
@@ -189,9 +190,9 @@ function SheetBadgeCount({ entryId, label, useBadge }: { readonly entryId: strin
           "unread" would have been a false sentence spoken to the one reader who cannot see the rows. It is
           also the registry contract's own word (`ChromeEntry.useBadge`: "how many items this entry has
           WAITING for the user"), so the projection and its declaration now say the same thing. */}
-      <span className="sr-only" id={sheetBadgeId(entryId)} role="status">
+      <Text as="span" className="sr-only" id={sheetBadgeId(entryId)} role="status">
         {label}: {count} waiting
-      </span>
+      </Text>
     </>
   );
 }

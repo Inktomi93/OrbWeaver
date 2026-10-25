@@ -44,7 +44,7 @@ export {
 export { RECEDED_INK } from "./receded-ink.ts";
 export { prefersReducedMotionNow, scrollBehavior } from "./reduced-motion-now.ts";
 export { formatResultCount, formatSuggestionCount } from "./result-count.ts";
-export { SCRIM, SCRIM_BASE } from "./scrim.ts";
+export { BACKDROP_FILL, SCRIM, SCRIM_BASE } from "./scrim.ts";
 export { SCROLL_FADE_X_CLASS, SCROLL_FADE_Y_CLASS } from "./scroll-fade.ts";
 export { SELECTED_FILL, SELECTED_FILL_PRESSED } from "./selected-fill.ts";
 export { SELECTION_CONTROL, TOUCH_TARGET_PSEUDO } from "./selection-control.ts";

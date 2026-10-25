@@ -1,0 +1,14 @@
+{
+  "classes": {
+    "h-control-sm": "h-(--size-control-sm)",
+    "min-h-touch-target": "min-h-(--size-touch-target)",
+    "w-avatar-lg": "w-(--size-avatar-lg)",
+    "ms-slider-inset": "ms-(--size-slider-inset)",
+    "size-glyph-xs": "size-(--size-glyph-xs)",
+    "p-4": "p-row"
+  },
+  "variables": {
+    "--spacing-glyph-xs": "--size-glyph-xs",
+    "--spacing-control-sm": "--size-control-sm"
+  }
+}

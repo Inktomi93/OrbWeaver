@@ -201,7 +201,7 @@ function budgetHeadline(budget: AssemblyBudgetPreview, noRoom: boolean): string 
 function SourceRow({ slice, divider }: { readonly slice: AssemblyBudgetSlice; readonly divider: boolean }): ReactElement {
   return (
     <Collapsible>
-      <CollapsibleTrigger className="w-full">
+      <CollapsibleTrigger className="inline-full">
         <SeriesRow
           color={SOURCE_COLOR[slice.source]}
           detail={slice.detail === "" ? undefined : slice.detail}
@@ -229,13 +229,13 @@ function SourceBody({ slice }: { readonly slice: AssemblyBudgetSlice }): ReactEl
   }
   if (slice.text === "") {
     return (
-      <Text voice="gloss" className="block pb-row">
+      <Text voice="gloss" className="block pbe-row">
         Accounted by cost only — the wire history IS the transcript you're reading, so the preview never re-serves it.
       </Text>
     );
   }
   return (
-    <Text voice="datum" className="block whitespace-pre-wrap pb-row">
+    <Text voice="datum" className="block pbe-row whitespace-pre-wrap">
       {slice.text}
     </Text>
   );
@@ -247,11 +247,11 @@ function SourceBody({ slice }: { readonly slice: AssemblyBudgetSlice }): ReactEl
 function ContributorRow({ part }: { readonly part: AssemblyBudgetPart }): ReactElement {
   return (
     <Collapsible className="ps-row">
-      <CollapsibleTrigger className="w-full">
+      <CollapsibleTrigger className="inline-full">
         <SeriesRow label={part.label} value={groupThousands(part.tokens)} />
       </CollapsibleTrigger>
       <CollapsiblePanel>
-        <Text voice="datum" className="block whitespace-pre-wrap pb-row">
+        <Text voice="datum" className="block pbe-row whitespace-pre-wrap">
           {part.text}
         </Text>
       </CollapsiblePanel>
@@ -264,7 +264,7 @@ function ContributorRow({ part }: { readonly part: AssemblyBudgetPart }): ReactE
 function GameStateExcerpt({ text }: { readonly text: string }): ReactElement {
   return (
     <Card>
-      <Text voice="datum" className="relative block max-h-40 overflow-y-auto overscroll-contain whitespace-pre-wrap">
+      <Text voice="datum" className="relative block overflow-y-auto overscroll-contain whitespace-pre-wrap max-block-(--height-scroll-sm)">
         {text}
       </Text>
     </Card>

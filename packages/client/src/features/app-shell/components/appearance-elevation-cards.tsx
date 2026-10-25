@@ -43,10 +43,10 @@ type Elevation = AppearanceSettings["elevation"];
  *  seams KEPT. EXAGGERATED: 2px seams — a truthful hairline reads as nothing at this size. */
 function FlatDiagram(): ReactElement {
   return (
-    <Row className="h-10 w-full overflow-hidden rounded-control border border-border bg-sidebar">
+    <Row className="overflow-hidden rounded-control border border-border bg-sidebar block-(--size-preview-strip) inline-full">
       <Row className="flex-1" />
-      <Row className="flex-1 border-sidebar-border border-l-2" />
-      <Row className="flex-[2] border-sidebar-border border-l-2" />
+      <Row className="flex-1 border-s-2 border-sidebar-border" />
+      <Row className="flex-2 border-s-2 border-sidebar-border" />
     </Row>
   );
 }
@@ -59,10 +59,10 @@ function FlatDiagram(): ReactElement {
  *  1.5:1 floor. The CT re-measures them from the rendered pixels rather than trusting this line. */
 function RampDiagram(): ReactElement {
   return (
-    <Row className="h-10 w-full overflow-hidden rounded-control border border-border bg-background">
+    <Row className="overflow-hidden rounded-control border border-border bg-background block-(--size-preview-strip) inline-full">
       <Row className="flex-1 bg-foreground/8" />
       <Row className="flex-1 bg-foreground/32" />
-      <Row className="flex-[2] bg-foreground/60" />
+      <Row className="flex-2 bg-foreground/60" />
     </Row>
   );
 }
@@ -72,9 +72,9 @@ function RampDiagram(): ReactElement {
  *  shorter card make the lift read instantly; the hairline on each island keeps the LINE half true. */
 function GlowDiagram(): ReactElement {
   return (
-    <Row className="h-10 w-full items-center gap-row overflow-hidden rounded-control border border-border bg-background p-row">
-      <Row className="h-3/4 flex-1 rounded-inset border border-sidebar-border bg-sidebar shadow-overlay" />
-      <Row className="h-3/4 flex-[2] rounded-inset border border-sidebar-border bg-card shadow-overlay" />
+    <Row className="items-center gap-row overflow-hidden rounded-control border border-border bg-background p-row block-(--size-preview-strip) inline-full">
+      <Row className="flex-1 rounded-inset border border-sidebar-border bg-sidebar shadow-overlay block-3/4" />
+      <Row className="flex-2 rounded-inset border border-sidebar-border bg-card shadow-overlay block-3/4" />
     </Row>
   );
 }
@@ -103,7 +103,7 @@ export function ElevationCards({ value, onPick }: ElevationCardsProps): ReactEle
           <RadioGroupPickerItem
             key={item.value}
             art={
-              <Stack className="h-full w-full justify-center p-tight">
+              <Stack className="justify-center p-tight block-full inline-full">
                 <Diagram />
               </Stack>
             }

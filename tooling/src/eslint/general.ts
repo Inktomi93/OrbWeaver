@@ -1,7 +1,5 @@
-import { relative } from "node:path";
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESLint, TSESTree } from "@typescript-eslint/utils";
-import HISTORY_COMMENT_BASELINE from "./history-comment-baseline.json" with { type: "json" };
 import { staticKeyName, staticMemberName } from "./static-values.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 
@@ -19,82 +17,6 @@ export const commentedCodeRule: OrbRule = {
               message: "Commented-out code; delete it (git history keeps it). Comments are for prose, not parked code (.claude/rules/comments.md).",
             });
           }
-        }
-      },
-    };
-  },
-};
-
-// Standard and spec names that share the ticket shape (`UTF-8`, `SHA-256`, `TEST-NET-1`), plus ordinals spelled
-// the same way (`LINE-2`, `PHASE-1`).
-const TICKET_LOOKALIKES = ["AES", "CRC", "DPR", "ECMA", "GPT", "HTTP", "ISO", "LINE", "NET", "PHASE", "RFC", "RUNG", "SHA", "UAX", "UTF", "WCAG"];
-
-// A `D<n>` id and a law section (`§4.2`) are the stable anchors comments.md allows; neither matches a pattern here.
-const HISTORY_PATTERNS = [
-  // Two digits or more, no leading zero: `#1789`, not an ordinal (`#2`), a hex colour (`#000`) or an anchor (`a#12`).
-  { kind: "an issue number", pattern: /(?<![\w&/#`[-])#[1-9]\d+\b/gu },
-  { kind: "a review date", pattern: /\bside-eye\s+\d{4}-\d{2}-\d{2}\b/giu },
-  { kind: "a date", pattern: /\b\d{4}-\d{2}-\d{2}\b/gu },
-  { kind: "a ticket id", pattern: new RegExp(String.raw`\b(?!(?:${TICKET_LOOKALIKES.join("|")})-)[A-Z]{2,}-\d+\b`, "gu") },
-  // The passive `is used to build` states a purpose, not a past.
-  { kind: '"used to"', pattern: /(?<!\b(?:is|are|be|been|being|was|were|gets?|got|getting|and|or|not|never|only),?\s)\bused to\b/giu },
-  { kind: '"formerly"', pattern: /\bformerly\b/giu },
-  // Only a past-tense verb within two words makes it history (`the old latch` + `was per-tab`); `the old one` and
-  // `the old host retains` name runtime state.
-  { kind: '"the old"', pattern: /\bthe old(?=(?:\s+\S+){0,2}?\s+(?:was|were|had|did|\w+ed)\b)/giu },
-  // A compound adjective (`previously-seen key`) describes runtime state.
-  { kind: '"previously"', pattern: /\bpreviously\b(?!-)/giu },
-  { kind: '"load-bearing"', pattern: /\bload-bearing\b/giu },
-] as const;
-
-function historyHits(text: string): { kind: string; index: number; length: number }[] {
-  const hits = HISTORY_PATTERNS.flatMap(({ kind, pattern }) =>
-    [...text.matchAll(pattern)].map((match) => ({ kind, index: match.index, length: match[0].length })),
-  );
-  hits.sort((left, right) => left.index - right.index);
-  // A review date also matches the bare date pattern; one span is one finding.
-  const kept: typeof hits = [];
-  let end = 0;
-  for (const hit of hits) {
-    if (hit.index >= end) {
-      kept.push(hit);
-      end = hit.index + hit.length;
-    }
-  }
-  return kept;
-}
-
-const historyBaseline: Readonly<Record<string, number>> = HISTORY_COMMENT_BASELINE;
-
-// Existing hits are counted per file in history-comment-baseline.json. A file over its count reports every hit so
-// the author sees all of them; a file under it reports once, so a shrink is recorded wherever ESLint runs.
-// tests/tooling/eslint-history-comments.test.ts also catches a stale entry for a file ESLint no longer sees.
-export const historyCommentRule: OrbRule = {
-  meta: { type: "problem", schema: [] },
-  create(context: OrbRuleContext): RuleVisitor {
-    return {
-      Program: () => {
-        const source = context.sourceCode;
-        const hits = source.getAllComments().flatMap((comment) => {
-          const start = (comment.range as [number, number])[0] + 2;
-          return historyHits(comment.value).map((hit) => ({ ...hit, start: start + hit.index }));
-        });
-        const allowed = historyBaseline[relative(context.cwd, context.filename).replaceAll("\\", "/")] ?? 0;
-        if (hits.length < allowed) {
-          context.report({
-            loc: { line: 1, column: 0 },
-            message: `This file has ${hits.length} history comment hits against a baseline of ${allowed}; set its entry in tooling/src/eslint/history-comment-baseline.json to ${hits.length}, or remove the entry at 0, so the baseline only shrinks.`,
-          });
-          return;
-        }
-        if (hits.length === allowed) {
-          return;
-        }
-        for (const hit of hits) {
-          context.report({
-            loc: { start: source.getLocFromIndex(hit.start), end: source.getLocFromIndex(hit.start + hit.length) },
-            message: `History in a comment (${hit.kind}); this file has ${hits.length} against a baseline of ${allowed}. Git holds history: state the reason the code has now, citing only a D-number or a law section (.claude/rules/comments.md).`,
-          });
         }
       },
     };

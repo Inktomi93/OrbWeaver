@@ -24,7 +24,7 @@ import { usePrefersReducedMotion } from "@orb/ui/lib";
 import { useEffect, useState } from "react";
 
 const ENTER_TRANSITION = "transition-[opacity,translate] duration-(--motion-base) ease-out-expo";
-const ENTER_FROM = `${ENTER_TRANSITION} opacity-0 translate-y-1`;
+const ENTER_FROM = `${ENTER_TRANSITION} opacity-0 translate-y-tight`;
 
 /** Class fragment for a row's enter transition — `""` unless this mount is a genuine arrival. */
 export function useEnterMotion(enter: boolean): string {

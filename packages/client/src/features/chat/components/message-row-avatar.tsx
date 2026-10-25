@@ -21,8 +21,8 @@ import { FallbackLetter, PortraitAvatar } from "./art-slot.tsx";
  *  the margin. Mapped rather than branched, so a new rail member fails tsc here (the house dispatch rule). */
 const GUTTER_RAIL_CLASS: Readonly<Record<"none" | "leading" | "trailing", string>> = {
   none: "",
-  leading: "@4xl:justify-self-end",
-  trailing: "@4xl:justify-self-start",
+  leading: "@cq-56:justify-self-end",
+  trailing: "@cq-56:justify-self-start",
 };
 
 // "sticky-portrait" (Ripple) swaps the chip for a smart-cropped 2:3 portrait pinned via
@@ -151,7 +151,7 @@ function stickyPortrait(args: Parameters<typeof renderRowAvatar>[0], target: Vie
       className={
         cn(
           target === null && "sticky top-0",
-          "h-auto w-(--immersive-ripple-portrait-width) @max-md:w-(--immersive-ripple-portrait-width-phone)",
+          "h-auto w-(--immersive-ripple-portrait-width) @max-cq-28:w-(--immersive-ripple-portrait-width-phone)",
           weldRounding,
         ) ?? ""
       }

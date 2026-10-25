@@ -22,7 +22,7 @@ export interface PinnedHeader {
 // scrolling under the bar's edge is faded, never guillotined. Out of flow (`top-full`), so it adds no box to
 // the measured row height `exceedsViewport` reads.
 const FADE_BELOW =
-  "after:pointer-events-none after:absolute after:inset-x-0 after:top-full after:h-block after:bg-linear-to-b after:to-transparent after:content-['']";
+  "after:pointer-events-none after:absolute after:inset-x-0 after:inset-bs-full after:block-block after:bg-linear-to-b after:to-transparent after:content-['']";
 
 // The filled cards paint the role's own bubble fill and its paired ink, name and timestamp included (the
 // speaker inks derive from the page and are not judged against a bubble fill).
@@ -36,7 +36,7 @@ const FILL_INK = "[&_[data-slot=message-attribution]_*]:text-inherit [&_[data-sl
 // A filled card's bar reaches the card's side edges. The reach is the bubble's own inset on each side,
 // which `globals.css` defaults to `--spacing-block` and echo widens to its art pane on the art side, so the
 // bar spans the art as the card does.
-const CARD_REACH = "-ml-(--row-reach-left) pl-(--row-reach-left) -mr-(--row-reach-right) pr-(--row-reach-right)";
+const CARD_REACH = "-ms-(--row-reach-left) ps-(--row-reach-left) -me-(--row-reach-right) pe-(--row-reach-right)";
 
 /** Bubble, echo, whisper, ripple: the card's fill, its top radius and its full width. */
 export const PINNED_CARD: PinnedHeader = {
@@ -50,7 +50,8 @@ export const PINNED_PILL: PinnedHeader = {
 
 /** Flat, hush: no box at rest, so the bar is the reading band across the column's inset, fading below. */
 export const PINNED_BAND: PinnedHeader = {
-  paint: () => `bg-reading-band text-reading-plate-foreground after:from-reading-band -mx-section px-section @max-md:-mx-row @max-md:px-row ${FADE_BELOW}`,
+  paint: () =>
+    `bg-reading-band text-reading-plate-foreground after:from-reading-band -mx-section px-section @max-cq-28:-mx-row @max-cq-28:px-row ${FADE_BELOW}`,
 };
 
 /** Document: no name to pin. The bar is the actions chip alone, and the chip's plate is the actions'

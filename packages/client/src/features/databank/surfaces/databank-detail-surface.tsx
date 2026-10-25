@@ -51,7 +51,12 @@ export function DatabankDetailSurface(): ReactElement {
   useFocusOnMount(surfaceRef, documentId !== null);
 
   return (
-    <Stack className="relative h-full min-h-0 overflow-y-auto overscroll-contain outline-none" data-slot="databank-content" ref={surfaceRef} tabIndex={-1}>
+    <Stack
+      className="relative overflow-y-auto overscroll-contain outline-none block-full min-block-0"
+      data-slot="databank-content"
+      ref={surfaceRef}
+      tabIndex={-1}
+    >
       {documentId === null ? (
         <DatabankWelcome />
       ) : (
@@ -184,12 +189,12 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
           region (`RegionAnchor`), not a box this surface owns: `<Surface>` is `display: contents`, so it
           adds none. `w-full` rides with `mx-auto` because that region is a flex column. */}
       <Stack
-        className="mx-auto w-full max-w-(--width-content-col) @5xl:max-w-(--width-content-col-wide) py-section"
+        className="mx-auto py-section inline-full max-inline-(--width-content-col) @cq-64:max-inline-(--width-content-col-wide)"
         data-slot="databank-detail-editor"
         gap="section"
       >
         <Row align="start" gap="field" justify="between">
-          <Stack className="min-w-0" gap="tight">
+          <Stack className="min-inline-0" gap="tight">
             <Heading level={2}>{doc.name}</Heading>
             {/* THE EMPTY PHASE'S REMEDY. It rides HERE, under the scent, and not
                 in Maintenance beside the stall hint: Reindex is that hint's repair and it is the wrong
@@ -253,7 +258,7 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
                 between the sentence and the button that acts on it ("a measure caps the worst case; it does
                 not tie the pair"). The button rides its own sentence. */}
             <Row align="center" gap="row" justify="start">
-              <Text className="min-w-0 max-w-(--reading-measure-prose)" voice="gloss">
+              <Text className="max-inline-(--reading-measure-prose) min-inline-0" voice="gloss">
                 Use this after a settings change, or if search misses this document.
               </Text>
               <Button disabled={reindex.isPending} intent="secondary" onClick={onReindex} size="sm">
@@ -309,8 +314,8 @@ function SourceText({ documentId }: { readonly documentId: DocumentId }): ReactE
   return (
     // A read-only scroll REGION, not a form control (§2.2): the text is a readout, and `whitespace-pre-wrap`
     // is what keeps the extracted line structure legible.
-    <ScrollArea className="max-h-96">
-      <Text className="whitespace-pre-wrap break-words" voice="datum">
+    <ScrollArea className="max-block-(--height-scroll-lg)">
+      <Text className="wrap-break-word whitespace-pre-wrap" voice="datum">
         {query.data.extractedText ?? ""}
       </Text>
     </ScrollArea>
@@ -337,7 +342,7 @@ function DetailRow({ label, value }: { readonly label: string; readonly value: s
   return (
     <>
       <Text voice="gloss">{label}</Text>
-      <Text className="min-w-0 truncate">{value}</Text>
+      <Text className="truncate min-inline-0">{value}</Text>
     </>
   );
 }

@@ -88,7 +88,7 @@ function TileBand({ title, trailing, headingId }: { readonly title: string; read
     // an empty bank once its read lands, and a band that collapsed then shifted every tile below it.
     // The first tile of a column takes that height too, so the two columns' first kickers share one top; growing
     // every band would push the fresh house's columns past the 120px balance budget.
-    <Row align="center" className={trailing === undefined ? "group-first/tile:min-h-control-sm" : "min-h-control-sm"} gap="field">
+    <Row align="center" className={trailing === undefined ? "group-first/tile:min-block-(--size-control-sm)" : "min-block-(--size-control-sm)"} gap="field">
       {/* The `kicker` VOICE on a real heading element (density-pass §2.3); `level` keeps the document
           outline (a styled div would leave home with one heading and six anonymous blocks). */}
       <Heading id={headingId} level={2} voice="kicker">
@@ -110,9 +110,9 @@ function TileBand({ title, trailing, headingId }: { readonly title: string; read
  *  mockup's `.doorway` treatment — the "not built yet" signal at a fraction of a dashed card's weight. */
 export function HomeDoorway({ tile, doorway }: { readonly tile: HomeTileContribution; readonly doorway: DormantDoorway }): ReactElement {
   return (
-    <Row align="start" className="border-border border-l border-dashed pl-row" data-home-tile={tile.id} gap="row">
-      <Icon className="mt-tight shrink-0 text-muted-foreground" icon={tile.icon} size="sm" />
-      <Stack className="min-w-0" gap="tight">
+    <Row align="start" className="border-s border-dashed border-border ps-row" data-home-tile={tile.id} gap="row">
+      <Icon className="mbs-tight shrink-0 text-muted-foreground" icon={tile.icon} size="sm" />
+      <Stack className="min-inline-0" gap="tight">
         {/* A REAL HEADING (side-eye rail-home, ARIA rec 2 — 2026-08-22). This was a `<p>`, so `Buddy` and
             `Automation` read to AT as body text with no structural distinction from their own descriptions:
             the doorway region announced as one undifferentiated run of prose, and a heading-navigating

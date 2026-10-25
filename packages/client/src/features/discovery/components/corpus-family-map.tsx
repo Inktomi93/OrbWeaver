@@ -75,17 +75,17 @@ function FamilyPlate({ family, name }: { readonly family: VisualFamily; readonly
           shape="rounded"
           size="md"
         />
-        <Stack className="min-w-0 flex-1" gap="tight">
+        <Stack className="flex-1 min-inline-0" gap="tight">
           <Tooltip describesTrigger={false}>
             <TooltipTrigger
               render={
                 <Button
-                  className="min-w-0 max-w-full justify-start"
+                  className="justify-start max-inline-full min-inline-0"
                   intent="ghost"
                   size="sm"
                   onClick={(): void => selectCorpusArtifact({ kind: "cluster", cluster: family, visual: true, k: null, title: name })}
                 >
-                  <Text as="span" className="min-w-0 truncate" voice="label" ink="inherit">
+                  <Text as="span" className="truncate min-inline-0" voice="label" ink="inherit">
                     {name}
                   </Text>
                 </Button>

@@ -170,7 +170,7 @@ export function SwipeStrip({ message, foot }: SwipeStripProps): ReactElement {
         }
       />
       {waitingForNext ? (
-        <Text as="span" id={historyStatusId} voice="label" className="text-muted-foreground" role="status">
+        <Text as="span" id={historyStatusId} voice="label" tone="muted" role="status">
           Loading variant history…
         </Text>
       ) : null}

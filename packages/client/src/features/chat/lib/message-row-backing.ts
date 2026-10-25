@@ -303,7 +303,7 @@ export const BG_PHOTO_ERROR_PLATE = "in-data-[has-bg-image]:bg-card in-data-[has
 // cancelled padding) applies for the whole sticky verdict and never moves, and the fill and its ink apply
 // only while the header is actually pinned (`usePinnedHeader`). Toggling paint cannot re-enter the verdict.
 // The offset is `-top-px` rather than `top-0` because the observer reads the pin as a one-pixel top clip.
-export const STICKY_ATTRIBUTION_CHROME = "not-in-data-[has-bg-image]:-my-row sticky -top-px z-(--z-raised) py-row";
+export const STICKY_ATTRIBUTION_CHROME = "not-in-data-[has-bg-image]:-my-row sticky -inset-bs-px z-(--z-raised) py-row";
 
 /** What a sticky outside header paints while NOT pinned: the wallpaper chip's plate and ink without its
  *  padding, which the sticky box already carries as `py-row`. With no wallpaper, it paints nothing. */
@@ -321,4 +321,4 @@ export const STICKY_ATTRIBUTION_REST_PAINT =
 // reaching the row's edges, with a fade below it that is out of flow (`top-full`), so it adds no box to any
 // ancestor and the line passing under the bar's edge dissolves rather than being cut. At rest an inside
 // header sits on the bubble's own surface with the bubble's ink, exactly like a short reply's.
-export const STICKY_ATTRIBUTION_CHROME_INSIDE = "-mt-row sticky -top-px z-(--z-raised) pt-row";
+export const STICKY_ATTRIBUTION_CHROME_INSIDE = "-mbs-row sticky -inset-bs-px z-(--z-raised) pbs-row";

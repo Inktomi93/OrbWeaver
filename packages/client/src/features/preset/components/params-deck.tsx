@@ -100,7 +100,7 @@ export function ParamsDeck({ form, capability, effective, capabilityError, sampl
   return (
     <Surface tier="instrument">
       {/* THE DECK HAS ITS OWN MEASURE CAP (side-eye 2026-08-19 P2). The editor's content column BREATHES to
-          `--width-content-col-wide` (896px) once the pane clears @5xl — right for prose and for the rack,
+          `--width-content-col-wide` (896px) once the pane clears @cq-64 — right for prose and for the rack,
           wrong for an instrument: every surplus pixel goes into the knob TRACK, because the track is the
           row's only flexing cell. Measured at a 1224px pane: 595px of rail for a 0-2 temperature, i.e. ~300px
           per unit of a dial whose useful precision is 0.05 — a slider that got harder to aim as the window
@@ -111,7 +111,7 @@ export function ParamsDeck({ form, capability, effective, capabilityError, sampl
 
           THIS IS THE TOKEN'S ONE RATIFIED EXCEPTION, AND IT HAS NOW BEEN AUDITED AS ONE (#1682, refused).
           `--width-content-col` has eight consumers; #1664 gave seven of them the token's full stated
-          consumption (`mx-auto w-full max-w-(--width-content-col) @5xl:max-w-(--width-content-col-wide)`),
+          consumption (`mx-auto w-full max-w-(--width-content-col) @cq-64:max-w-(--width-content-col-wide)`),
           and a count over the remaining spellings read this site as the eighth oversight. It is not: an
           INSTRUMENT whose only flexing cell is a control track holds the cap and does NOT breathe, which is
           the 2026-08-19 ruling above. Measured again when the audit landed, by planting the briefed change
@@ -119,7 +119,7 @@ export function ParamsDeck({ form, capability, effective, capabilityError, sampl
           exists to prevent — and it reds the `params-deck.ct.tsx` pin that asserts the row IS the cap. The
           deck is centered (`mx-auto w-full`) precisely so it sits symmetrically inside the column that DOES
           breathe around it. */}
-      <Stack className="mx-auto w-full max-w-(--width-content-col)" gap="section">
+      <Stack className="mx-auto inline-full max-inline-(--width-content-col)" gap="section">
         <QualityCluster effective={effective} form={form} />
         {/* ONE gate for the model-fed clusters, never three copies of the same sentence (F-02). Its arms are
             PENDING (a skeleton) and FAILED (the server's message) — see the gate's header for why those two

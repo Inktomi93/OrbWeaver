@@ -1,0 +1,184 @@
+/* shell.css region: the phone regime, one `@variant shell-mobile` block. The index imports the regions in cascade order; a rule's winner across regions is
+ * decided there, so a rule moves between regions only with its source position. */
+@layer shell {
+  /* The one viewport condition: the desktop columns become a bottom tab bar and sliding sheets. */
+  @variant shell-mobile {
+    .shell-grid {
+      /* The tab bar's row carries the bottom inset, so the grid's own payment is refunded here; zero, not
+       * `revert`, which rolls past the whole author origin. */
+      padding-block-end: 0;
+      grid-template-columns: minmax(0, 1fr);
+      /* The static max inset: the dynamic one shrinks as browser chrome collapses and would twitch the bar on
+       * every scroll; the nested `env()` is the fallback for a browser that knows only the dynamic form. */
+      grid-template-rows: minmax(0, 1fr) calc(var(--rail-w) + env(safe-area-max-inset-bottom, env(safe-area-inset-bottom)));
+    }
+    .shell-main {
+      grid-column: 1;
+      grid-row: 1;
+    }
+    /* The scrim spans the band between the topbar and the tab bar. */
+    .shell-scrim {
+      inset-block: var(--dimension-chrome-row) calc(var(--rail-w) + env(safe-area-max-inset-bottom, env(safe-area-inset-bottom)));
+    }
+    /* The room screen has no tab bar (owner ruling, UI-Architecture-and-Layout.md), so the frame pays the
+     * bottom inset itself again. */
+    .shell-grid[data-room-screen] {
+      padding-block-end: env(safe-area-max-inset-bottom, env(safe-area-inset-bottom));
+      grid-template-rows: minmax(0, 1fr);
+    }
+    /* The sheets and scrim opened from the room run to that inset; the open context sheet already pays it as
+     * its own padding, so it is excluded. */
+    .shell-grid[data-room-screen] .shell-panel[data-panel-mode]:not([data-panel-side="context"][data-panel-mode="overlay"]),
+    .shell-grid[data-room-screen] .shell-scrim {
+      inset-block-end: env(safe-area-max-inset-bottom, env(safe-area-inset-bottom));
+    }
+    /* No FLIP on a phone: the panes are fixed over a one-column grid, so a docking pane moves no content and the
+     * stamping hook is regime-blind. Each clause matches the FLIP rule's specificity, since a weaker one loses
+     * and the keyframe's `translate` then adds to the sheet's `transform`; `translate: none` sits beside
+     * `animation: none` so no future keyframe on either property re-opens that composition. */
+    .shell-grid:is([data-list-flip], [data-context-flip]) .shell-main,
+    .shell-grid:is([data-list-flip], [data-context-flip]) .shell-topbar-trail,
+    .shell-grid:is([data-list-flip], [data-context-flip]) .orb-chat-track,
+    .shell-grid:is([data-list-flip], [data-context-flip]) .shell-panel[data-panel-side="list"][data-panel-mode],
+    .shell-grid:is([data-list-flip], [data-context-flip]) .shell-panel[data-panel-side="context"][data-panel-mode] {
+      animation: none;
+      translate: none;
+    }
+    /* The reduced-motion settle is cancelled for the same reason: its hold would translate a column that never moved. */
+    .shell-grid:is([data-list-settle], [data-context-settle]) .shell-main,
+    .shell-grid:is([data-list-settle], [data-context-settle]) .shell-topbar-trail,
+    .shell-grid:is([data-list-settle], [data-context-settle]) .orb-chat-track {
+      translate: none;
+    }
+    /* The rail DOM reflows into the tab bar: the group wrappers collapse so their buttons flow into one row. */
+    .shell-rail {
+      grid-column: 1;
+      grid-row: 2;
+      inline-size: auto;
+      border-inline-end: none;
+      border-block-start: var(--border-width-control) solid var(--color-sidebar-border);
+      flex-direction: row;
+      align-items: stretch;
+      justify-content: space-around;
+      gap: 0;
+      padding-block: 0;
+      padding-block-end: env(safe-area-max-inset-bottom, env(safe-area-inset-bottom));
+    }
+    .shell-rail-sections,
+    .shell-rail-group,
+    .shell-rail-actions {
+      display: contents;
+    }
+    .shell-rail-brand,
+    .shell-rail-spacer {
+      display: none;
+    }
+    .shell-rail .shell-rail-button {
+      flex: 1 1 0;
+      min-inline-size: 0;
+      inline-size: auto;
+      block-size: var(--rail-w);
+      flex-direction: column;
+      gap: var(--spacing-tight);
+      border-radius: 0;
+      color: var(--color-muted-foreground);
+    }
+    /* The active glow and ring are column affordances; a tab uses colour alone. */
+    .shell-rail .shell-rail-button[data-active] {
+      background: none;
+      color: var(--color-primary);
+    }
+    .shell-rail .shell-rail-button[data-active]::before,
+    .shell-rail .shell-rail-button[data-active]::after {
+      content: none;
+    }
+    .shell-rail-button-label {
+      display: block;
+    }
+    /* Entries curated into the You sheet (`mobile: "sheet"`) leave the bar and the accessibility tree. */
+    .shell-rail .shell-rail-button[data-mobile="sheet"],
+    .shell-rail .shell-rail-widget[data-mobile="sheet"] {
+      display: none;
+    }
+    /* The "You" overflow tab appears only on the bar. */
+    .shell-rail .shell-rail-button[data-rail-mobile-only] {
+      display: inline-flex;
+    }
+    /* `docked` resolves on a phone for the list of a section with nothing selected, where the pane is the
+     * screen; it is matched here so a docked context pane never falls through to the desktop track rule. */
+    .shell-panel[data-panel-mode="docked"],
+    .shell-panel[data-panel-mode="overlay"],
+    .shell-panel[data-panel-mode="collapsed"] {
+      position: fixed;
+      inset-block: var(--dimension-chrome-row) calc(var(--rail-w) + env(safe-area-max-inset-bottom, env(safe-area-inset-bottom)));
+      inline-size: 100dvw;
+      /* The shell's own overlay step, as on desktop: inside the grid's isolated scope a fixed pane still paints
+       * inside it, so a portal-tier number would order nothing more. */
+      z-index: var(--z-overlay);
+      transition: transform var(--shell-motion) var(--shell-ease);
+    }
+    /* The width is re-stated at the desktop context-width rule's specificity, or a collapsed context drawer keeps
+     * its desktop width and its slide leaves a slab over the content. A fixed sheet escapes the grid's insets, so
+     * it pays its own: the fill runs full-bleed and only the content is inset. */
+    .shell-panel[data-panel-side="list"][data-panel-mode="overlay"],
+    .shell-panel[data-panel-side="list"][data-panel-mode="collapsed"],
+    .shell-panel[data-panel-side="context"][data-panel-mode="overlay"],
+    .shell-panel[data-panel-side="context"][data-panel-mode="collapsed"] {
+      inset-inline: 0;
+      inline-size: 100dvw;
+      padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
+    }
+    /* The open context sheet takes the tab bar's row too: it owns the screen over an inert frame and carries its
+     * own dismiss. Not while collapsed, since an off-screen drawer must leave the bar's row free. */
+    .shell-panel[data-panel-side="context"][data-panel-mode="overlay"] {
+      inset-block-end: 0;
+      padding-block-end: env(safe-area-max-inset-bottom, env(safe-area-inset-bottom));
+    }
+
+    /* One exit from the sheet: while it is open the topbar's toggle stands down for the pane's own dismiss;
+     * collapsed, the toggle is the only phone door onto it (`context-toggle.tsx`). */
+    .shell-grid[data-context-mode="overlay"] .shell-context-toggle {
+      display: none;
+    }
+    .shell-panel[data-panel-side="list"][data-panel-mode="collapsed"] {
+      transform: translateX(-100%);
+    }
+    .shell-panel[data-panel-side="context"][data-panel-mode="collapsed"] {
+      transform: translateX(100%);
+    }
+    /* The list as the screen (owner ruling): the insets are stated, since a fixed pane with auto insets falls back
+     * to its static grid position and renders a viewport off the edge. No shadow and no scrim: it is the content. */
+    .shell-panel[data-panel-side="list"][data-panel-mode="docked"] {
+      inset-inline: 0;
+      inline-size: 100dvw;
+      /* Fixed too, so it pays the same inline insets. */
+      padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
+      transform: none;
+    }
+    /* The content under a list-as-screen does not paint: a glow on the landing punched through the roster
+     * between rows, and skipping the paint is cheaper anyway. Keyed on the shell's own mode. */
+    .shell-grid[data-list-mode="docked"] .shell-content {
+      display: none;
+    }
+
+    /* One name per screen: the topbar prints the section's name, so the band's unscoped title would repeat it;
+     * a scoped band names a swapped pane and survives. */
+    .shell-grid[data-list-mode="docked"] .shell-panel[data-panel-side="list"] [data-slot="list-pane-title"]:not([data-scoped]) {
+      display: none;
+    }
+
+    /* The band goes when nothing is left to paint: a back button, a scoped title or the pane's action. `:empty`
+     * cannot see the empty identity cluster, so the test is spelled as what would paint. */
+    .shell-grid[data-list-mode="docked"]
+      .shell-panel[data-panel-side="list"]
+      .shell-panel-header:not(
+        :has(> *:not([data-slot="list-pane-identity"])),
+        :has([data-slot="list-pane-back"]),
+        :has([data-slot="list-pane-title"][data-scoped])
+      ) {
+      display: none;
+    }
+    /* No blur kill-switch here: the glass rules (client globals) are scoped to `shell-desktop`, this block's exact
+     * complement, so none is emitted at this width, and an override here would lose to the appearance layer. */
+  }
+}

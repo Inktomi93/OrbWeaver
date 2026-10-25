@@ -35,7 +35,9 @@ interface TrackerValueProps {
   readonly placeholder?: string;
   /** Sizing/alignment for the EDIT input (and, absent `restClassName`, the rest button too). */
   readonly className?: string;
-  /** Rest-button override — when the input needs a fixed width (`!w-avatar-lg` numerics) the rest state
+  /** The edit input's inline size: content-sized, or one of the numeric column steps. */
+  readonly width?: ComponentProps<typeof Input>["width"];
+  /** Rest-button override: when the input takes a fixed `width` step (the numerics) the rest state
    *  should still hug its text like the read-only arm; pass the rest-specific classes here. */
   readonly restClassName?: string;
   /** The rest button's `title` — what this edit actually WRITES, when "Click to edit" understates it. The
@@ -87,9 +89,9 @@ function TrackerValueRest({
         // width/alignment classes still apply so the rest state lines up with the read-only arm. The
         // TRANSPARENT border reserves the edit input's 1px border box, so the click-to-reveal swap is
         // pixel-stable — no layout jump (the owner no-shift bar).
-        className={`gap-0 border border-transparent px-field text-left ${className}`}
+        className={`gap-0 border border-transparent px-field text-start ${className}`}
       >
-        <Text as="span" size={size} tone={empty ? "muted" : tone} className={wrap ? "min-w-0 whitespace-normal break-words" : "truncate"}>
+        <Text as="span" size={size} tone={empty ? "muted" : tone} className={wrap ? "wrap-break-word whitespace-normal min-inline-0" : "truncate"}>
           {restText}
         </Text>
       </Button>
@@ -109,6 +111,7 @@ export function TrackerValue({
   size = "label",
   placeholder,
   className,
+  width,
   restClassName,
   editTitle = "Click to edit",
   wrap = false,
@@ -172,6 +175,7 @@ export function TrackerValue({
         // (h-control-sm/px-block/text-body) would grow the row on reveal. Callers append width/alignment
         // only, never a height.
         layout="inline"
+        width={width}
         className={className ?? ""}
         data-slot="tracker-value-edit"
         // The CONFLICT surface. `data-conflict` carries the value that arrived (an automatable fact, and the

@@ -10,5 +10,5 @@ export interface HomePaneAnchorProps {
 
 /** Provide the container box the home grid consumes. */
 export function HomePaneAnchor({ children }: HomePaneAnchorProps): ReactElement {
-  return <Container className="w-full">{children}</Container>;
+  return <Container className="inline-full">{children}</Container>;
 }

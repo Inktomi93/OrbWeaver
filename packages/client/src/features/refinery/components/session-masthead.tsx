@@ -60,7 +60,7 @@ export function SessionMasthead({ characterId, cardName, status, applied, anchor
     <Stack data-testid={testId("refineryMasthead")} gap="field">
       <Text voice="kicker">Refinery · workbench</Text>
       <Row align="baseline" className="flex-wrap" gap="row">
-        <Heading className="min-w-0" level={2} voice="masthead">
+        <Heading className="min-inline-0" level={2} voice="masthead">
           {cardName}
         </Heading>
         {/* THE CHIPS ARE ONE CLUSTER, NOT LOOSE TEXT (side-eye 2026-08-19 P3). Read out of visual context
@@ -109,7 +109,7 @@ export function SessionMasthead({ characterId, cardName, status, applied, anchor
           </Button>
         </Row>
       </Row>
-      <Text className="max-w-(--reading-measure-prose)" voice="gloss">
+      <Text className="max-inline-(--reading-measure-prose)" voice="gloss">
         Score, rewrite and analyze in one view. Every analyze compares against the card as it was pinned, never the previous rewrite.
       </Text>
       {/* The scope chips are ONE cluster too, and their kicker is its name — `aria-label` rather than an

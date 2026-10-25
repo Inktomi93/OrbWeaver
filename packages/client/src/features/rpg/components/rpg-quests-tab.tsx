@@ -68,7 +68,7 @@ function QuestDescription({ quest, dim, edit }: { readonly quest: RpgQuestView; 
         tone="muted"
         size="micro"
         onEdit={(next): void => edit.onEditDescription(quest, next)}
-        className="w-full"
+        className="inline-full"
       />
     );
   }
@@ -100,7 +100,7 @@ function QuestObjectives({ quest, dim, edit }: { readonly quest: RpgQuestView; r
               aria-label={`${o.text} — completed`}
             />
           ) : null}
-          <Text as="span" voice="label" className={o.completed ? "min-w-0 flex-1 text-muted-foreground line-through" : "min-w-0 flex-1"}>
+          <Text as="span" voice="label" className={o.completed ? "flex-1 text-muted-foreground line-through min-inline-0" : "flex-1 min-inline-0"}>
             {o.text}
           </Text>
           {editable ? (
@@ -123,7 +123,7 @@ function QuestObjectives({ quest, dim, edit }: { readonly quest: RpgQuestView; r
               edit.onAddObjective(quest, trimmed);
             }
           }}
-          className="w-(--width-control-col)"
+          className="inline-(--width-control-col)"
         />
       ) : null}
     </Stack>
@@ -197,14 +197,14 @@ function QuestCard({ quest, edit }: QuestCardProps): ReactElement {
               {...(failed ? { className: "text-destructive" } : {})}
             />
           ) : null}
-          <Stack gap="field" className="min-w-0 flex-1">
+          <Stack gap="field" className="flex-1 min-inline-0">
             <Row gap="block" align="baseline" justify="between">
               {edit === undefined || dim ? (
                 <Text as="span" voice="label" className={dim ? "text-muted-foreground line-through" : undefined}>
                   {quest.name}
                 </Text>
               ) : (
-                <TrackerValue ariaLabel="Quest name" display={quest.name} onEdit={(next): void => edit.onEditName(quest, next)} className="w-full" />
+                <TrackerValue ariaLabel="Quest name" display={quest.name} onEdit={(next): void => edit.onEditName(quest, next)} className="inline-full" />
               )}
               <QuestCardMeta quest={quest} filled={filled} total={total} {...(edit === undefined ? {} : { edit })} />
             </Row>

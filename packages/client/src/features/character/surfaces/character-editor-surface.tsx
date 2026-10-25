@@ -134,7 +134,7 @@ export function CharacterEditorSurface({ characterId, detailContributors, onReve
     // area (character-library-welcome.tsx carries the same note).
     <Stack
       ref={scrollRef}
-      className="relative h-full overflow-y-auto overscroll-contain"
+      className="relative overflow-y-auto overscroll-contain block-full"
       onScroll={(event): void => {
         const node = event.currentTarget;
         // A hidden Activity reports zero layout, not a new reader position.
@@ -195,8 +195,8 @@ interface CharacterEditorFormProps {
  *  form handle it publishes to the CONTEXT inspector is always the current character's. */
 function CharacterEditorForm({ data, trpc, session, detailContributors, onRevealField }: CharacterEditorFormProps): ReactElement {
   // The session hands a widened AppForm surface with `reset` type-removed; the editor threads `form` into
-  // ~6 children typed against the full AppFormInstance, so widen once here (reset MISUSE is caught by the
-  // no-form-reset-in-autosave gate, not the type — the feature has zero `.reset(` call sites).
+  // ~6 children typed against the full AppFormInstance, so widen once here (the autosave type is what
+  // bans `reset`; the feature has zero `.reset(` call sites).
   const form = session.form as AppFormInstance<CharacterCardFormValues>;
 
   const surfaceRef = useRef<HTMLDivElement>(null);
@@ -261,7 +261,7 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
           form.handleSubmit().catch(() => notify.error("Couldn't save the character."));
         }}
       >
-        <Stack gap="section" className="mx-auto w-full max-w-(--container-cq-lg) py-section">
+        <Stack gap="section" className="mx-auto py-section inline-full max-inline-(--container-cq-lg)">
           {/* THE CENSUS IS `meta`, NOT AN ACTION. In the bar's `children`, beside `shrink-0` siblings, the
               token line would clip the character's NAME — the one thing a phone's save bar is telling you.
               The `meta` slot keeps the census inline where there is room and drops it to its own full-width
@@ -345,7 +345,7 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
       {/* Contributed review sections (§6c) — outside the autosave `<form>` (they carry their own
           mutations), in the SAME centered column so a live section can't crush the editor width. */}
       {detailSections.length === 0 ? null : (
-        <Stack gap="section" className="mx-auto w-full max-w-(--container-cq-lg) py-section" data-slot="character-editor-sections">
+        <Stack gap="section" className="mx-auto py-section inline-full max-inline-(--container-cq-48)" data-slot="character-editor-sections">
           {detailSections.map((section) => (
             <Fragment key={section.id}>{section.node}</Fragment>
           ))}

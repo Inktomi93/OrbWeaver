@@ -255,7 +255,7 @@ function BackgroundPickGrid({ form, values }: { readonly form: AutosaveSession<B
   return (
     <MediaGrid
       ariaLabel="Background image"
-      className="max-h-72 w-full"
+      className="inline-full max-block-(--height-scroll-md)"
       items={tiles}
       minCellWidth={THUMB_WIDTH}
       selection={{

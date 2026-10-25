@@ -50,7 +50,7 @@
 // visible double-move. This is the same hide-coupled-DOM-work rule UI-Architecture §4a states for
 // `<Activity>`.
 //
-// SHELL-TIER: `no-effect-on-shared-selection` bans effects keyed on shared selection in `features/**`;
+// SHELL-TIER: `orb/no-effect-on-shared-selection` bans effects keyed on shared selection in `features/**`;
 // app-shell is the shell tier and is exempt for exactly this class of layout/appearance root effect.
 
 import type { RefObject } from "react";

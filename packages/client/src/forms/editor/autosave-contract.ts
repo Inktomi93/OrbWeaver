@@ -6,7 +6,7 @@ import type { AutosaveSaveState } from "../create-autosave-entity-form-model.ts"
 import type { AppFormInstance, AppFormOptions } from "./use-app-form.ts";
 
 /** The AppForm surface the session hands its body, `reset` type-removed (calling it re-baselines defaults,
- *  which on a live autosave draft is the isDirty loop `no-form-reset-in-autosave` also bans). */
+ *  which on a live autosave draft is the isDirty loop). */
 export type AutosaveForm<TValues extends object> = Omit<AppFormInstance<TValues>, "reset">;
 
 /** The per-render surface a boundary hands its render-prop body. One session = one entity epoch. */

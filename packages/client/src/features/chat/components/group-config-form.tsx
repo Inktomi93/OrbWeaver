@@ -265,7 +265,7 @@ function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps): Reac
             <AccordionItem value="advanced">
               <AccordionTrigger>Advanced</AccordionTrigger>
               <AccordionPanel>
-                <Stack gap="section" className="pt-block">
+                <Stack gap="section" className="pbs-block">
                   <PolicyField>
                     {(utility, rerank): ReactElement => (
                       <form.Subscribe selector={(state): GroupOutput => state.values.output}>

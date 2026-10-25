@@ -30,7 +30,7 @@ export function PersonaCardPin({ isPinned, isHost, name, subject, onPin, onUnpin
       <Tooltip>
         <TooltipTrigger
           render={
-            <Text as="span" aria-label="Card's persona in this chat" className="relative shrink-0 text-muted-foreground" role="img">
+            <Text as="span" aria-label="Card's persona in this chat" className="relative shrink-0" tone="muted" role="img">
               <Icon icon={Pin} size="sm" />
             </Text>
           }

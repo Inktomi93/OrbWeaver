@@ -24,7 +24,7 @@ export function CorpusResultsList({
     <Stack
       ref={ref}
       aria-label={`Search results — ${label}`}
-      className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain"
+      className="relative flex-1 overflow-y-auto overscroll-contain min-block-0"
       data-testid={testId("corpusSearchResults")}
       gap="row"
       role="list"

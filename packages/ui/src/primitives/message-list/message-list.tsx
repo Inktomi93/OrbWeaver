@@ -412,7 +412,7 @@ export function MessageList<T>({
       data-slot="message-list-scroll"
     >
       {/* A real list inside the log: semantic rows make the virtual position metadata valid. WHAT ANNOUNCES — why `log` not `feed`/`grid`, why only the tail is live: ./announce.ts. */}
-      <ol ref={setViewportRef} className="relative m-0 w-full list-none p-0" data-slot="message-list-viewport">
+      <ol ref={setViewportRef} className="relative m-0 list-none p-0 inline-full" data-slot="message-list-viewport">
         {virtualizer.getVirtualItems().map((virtualItem) => (
           <li
             key={virtualItem.key}

@@ -1,5 +1,5 @@
 // The one mutation factory — every create/update/delete goes through it, never an inline
-// useMutation + loose cache surgery (the `client-cache-surgery-only-in-data` gate makes that
+// useMutation + loose cache surgery (the `orb/client-cache-surgery-only-in-data` gate makes that
 // physics: an imperative QueryClient call outside data/ is RED, so a cache need lands HERE). Bakes
 // the 4-phase cache-flavor optimistic recipe (cancelQueries → snapshot → setQueryData →
 // return-rollback; a per-query mutation token, not cache object identity, owns rollback so structural

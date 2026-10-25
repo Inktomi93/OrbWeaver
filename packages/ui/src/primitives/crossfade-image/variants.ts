@@ -8,11 +8,11 @@ import { tv } from "#lib";
 // fades) — `durationMs` on the component is a caller ESCAPE HATCH (inline style), never a class.
 export const crossfadeImageVariants = tv({
   slots: {
-    root: "relative block w-full overflow-hidden bg-muted",
-    image: "absolute inset-0 size-full opacity-100 transition-opacity duration-(--motion-base) ease-out-expo",
+    root: "relative block overflow-hidden bg-muted inline-full",
+    image: "absolute inset-0 opacity-100 transition-opacity duration-(--motion-base) ease-out-expo block-full inline-full",
     // The broken-image fallback (onError) — sits on the same muted box, no crossfade (there is
     // nothing to fade TO once the source has failed).
-    fallback: "absolute inset-0 flex size-full items-center justify-center text-muted-foreground",
+    fallback: "absolute inset-0 flex items-center justify-center text-muted-foreground block-full inline-full",
   },
   variants: {
     revealed: {

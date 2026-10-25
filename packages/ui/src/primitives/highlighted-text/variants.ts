@@ -5,7 +5,7 @@ import { tv } from "#lib";
 // distinct from warning's caution amber) — a search-match/mark is a neutral emphasis, not an alarm.
 export const highlightedTextVariants = tv({
   slots: {
-    root: "whitespace-pre-wrap break-words",
+    root: "wrap-break-word whitespace-pre-wrap",
     mark: "rounded-control bg-highlight px-field text-highlight-foreground",
   },
   // `skin` is the ROOT's type voice only — the mark keeps the `highlight` token pair in both arms, because

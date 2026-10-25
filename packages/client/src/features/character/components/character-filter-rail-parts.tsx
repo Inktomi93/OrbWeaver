@@ -119,7 +119,7 @@ export function TagVocabularyPanel({
         <Input
           aria-label="Filter tags"
           aria-controls={panelId}
-          className="min-w-0 flex-1"
+          className="flex-1 min-inline-0"
           onValueChange={setQuery}
           placeholder="Filter tags…"
           type="search"
@@ -135,7 +135,7 @@ export function TagVocabularyPanel({
           the SCROLLER is the thing that scrolls. The name is deliberately not the toolbar's
           ("Tag filter vocabulary"): a region and the toolbar inside it announcing the same words is the
           host-duplicates-its-body defect one pane over. */}
-      <ScrollArea viewportClassName="max-h-48" viewportProps={{ role: "region", "aria-label": "Tag vocabulary" }} wrapContent={true}>
+      <ScrollArea viewportClassName="max-h-(--height-scroll-md)" viewportProps={{ role: "region", "aria-label": "Tag vocabulary" }} wrapContent={true}>
         {/* `pe-row` is the SCROLLBAR's own width token (`scrollbar: w-row` in the primitive's variants):
             Base UI's scrollbar is positioned over the content, so without the inline-end gutter the last
             chip of every line renders underneath the thumb. */}
@@ -197,11 +197,11 @@ export function TagFilterChip({
   return (
     // iOS WebKit fires no `contextmenu` on long-press, so touch gets a visible edit button beside the chip.
     // Fine pointers keep right-click and F2 and the rail's resting width.
-    <Row className="min-w-0 max-w-full" gap="tight">
+    <Row className="max-inline-full min-inline-0" gap="tight">
       <TagFilterChipButton onCycle={onCycle} presentation={presentation} state={state} tabIndex={tabIndex} tag={tag} />
-      <span className={SHOW_ONLY_AT_COARSE}>
+      <Text as="span" className={SHOW_ONLY_AT_COARSE}>
         <EditableTagChip iconOnly={true} tag={tag} />
-      </span>
+      </Text>
     </Row>
   );
 }
@@ -253,7 +253,7 @@ function TagFilterChipButton({
           also repaint the ink `text-foreground`, erasing the muted-vs-selected reading that tells an off
           chip from an on one at rest. The chip's intent + selection own the colour; this span owns only
           the clip. */}
-          <Text as="span" className="min-w-0 truncate text-inherit" voice="label">
+          <Text as="span" className="truncate min-inline-0" ink="inherit" voice="label">
             {tag.name}
           </Text>
         </Button>
@@ -278,7 +278,7 @@ function TagFilterChipButton({
  *     interactive text (the `credit` voice's note in `ui/src/primitives/text/variants.ts`), and these ARE
  *     interactive text. They keep the label step; the absent edge carries the register.
  *  2. They take the `chip` BOX (the rail cell's touch-target height — which is what the mockup gives them
- *     too: `height: var(--spacing-touch-target)`, no border, no fill) rather than the floorless `inline`
+ *     too: `height: var(--size-touch-target)`, no border, no fill) rather than the floorless `inline`
  *     size a "no box at all" reading invites. `inline` is exactly what `no-floorless-control-in-wrap`
  *     exists to stop: a full-width 44px hit pseudo on an ~18px text button, repeated inside a `flex-wrap`
  *     rail, collides with its neighbours' targets. A `ghost` box paints nothing at rest anyway, so the

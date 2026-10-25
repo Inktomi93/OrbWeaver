@@ -16,7 +16,7 @@ export interface ChatListAnchorProps {
 /** Provide the `chat-list` container box the chat-list surface consumes. */
 export function ChatListAnchor({ children }: ChatListAnchorProps): ReactElement {
   return (
-    <Container className="h-full" name="chat-list">
+    <Container className="block-full" name="chat-list">
       {children}
     </Container>
   );

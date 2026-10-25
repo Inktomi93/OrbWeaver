@@ -11,5 +11,5 @@ export interface RoomFlankAnchorProps {
 
 /** Provide the container box the thread-and-flank row consumes. */
 export function RoomFlankAnchor({ children }: RoomFlankAnchorProps): ReactElement {
-  return <Container className="relative min-h-0 flex-1">{children}</Container>;
+  return <Container className="relative flex-1 min-block-0">{children}</Container>;
 }

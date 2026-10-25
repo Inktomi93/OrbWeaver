@@ -90,7 +90,7 @@ export function CharacterShelfFace({ id, name, avatarHash, starred, stamp, capti
         // eyebrow does not — a sighted reader gets a fact a screen-reader user would not. The VERB leads it
         // now (#1662) — see {@link faceActionName}.
         aria-label={faceActionName(name, stamp, starred, resume)}
-        className="flex-col items-stretch gap-tight text-left"
+        className="flex-col items-stretch gap-tight text-start"
         intent="ghost"
         onClick={(): void => (resume === null ? onOpen(id) : resume.onResume(resume.chatId))}
         size="media"

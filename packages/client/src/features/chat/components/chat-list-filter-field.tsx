@@ -13,7 +13,7 @@ import type { ReactElement } from "react";
 import { Tip } from "#components";
 
 /** The inline-end room BOTH filter fields keep for their inset clear glyph. It is EXACTLY the glyph's own
- *  box (`icon-sm` is `size-control-sm`, the same pointer-conditional token as the field's height), so the
+ *  box (`icon-sm` is `size-(--size-control-sm)`, the same pointer-conditional token as the field's height), so the
  *  value can never run under the control and the control can never spill past the field. Held CONSTANT
  *  rather than gated on the value, so typing the first character does not reflow the text under the cursor;
  *  on the month field the same padding also walks the UA's own `::-webkit-calendar-picker-indicator` inboard
@@ -28,7 +28,7 @@ export const CLEAR_INSET_RESERVE = "pe-control-sm";
 export function ClearFilterGlyph({ label, onClick }: { readonly label: string; readonly onClick: () => void }): ReactElement {
   return (
     <Tip text={label}>
-      <Button aria-label={label} className="absolute end-0" intent="ghost" onClick={onClick} size="icon-sm" type="button">
+      <Button aria-label={label} className="absolute inset-e-0" intent="ghost" onClick={onClick} size="icon-sm" type="button">
         <Icon icon={X} size="sm" />
       </Button>
     </Tip>

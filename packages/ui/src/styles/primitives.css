@@ -1,0 +1,314 @@
+/* @orb/ui region: document floors and the primitive-wide treatments no utility can spell. Imported by globals.css inside its layer. */
+
+/* The gradient border ring (the CTA, the active tab, the active rail button): a `::after` overlay whose transparent
+ * padding-box fill composes over the element's own fill while the border-box gradient paints the ring, a primary
+ * head over the polarity-fixed sheen foot. The two knobs are each site's tuned weight; the colours are the tokens'. */
+@utility orb-gradient-ring {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border: var(--border-width-control) solid transparent;
+  background:
+    linear-gradient(transparent, transparent) padding-box,
+    linear-gradient(180deg, oklch(from var(--color-primary) l c h / var(--ring-head, 0.55)), oklch(from var(--color-sheen) l c h / var(--ring-foot, 0.04)))
+    border-box;
+}
+
+/* Two reserved lines (`Text lines={2}`): `line-clamp-2` caps a run, it never reserves the second line, so captions in
+ * a grid of cells drift to different baselines. `lh` follows the element's own voice; there is no token for it. */
+@utility orb-lines-2 {
+  min-block-size: 2lh;
+}
+
+/* A long, fully mounted list row (`commandVariants.item`) skips layout and paint off-screen but stays in the DOM, the
+ * accessibility tree and find-in-page, which cmdk's keyboard model needs; the intrinsic size is the first-paint estimate
+ * and the browser remembers each row's real height. */
+@utility orb-skip-offscreen {
+  content-visibility: auto;
+  contain-intrinsic-size: auto var(--size-control-sm);
+}
+
+@layer ui {
+  /* The client writes `--font-scale` onto the root; every rem-derived size follows. The font rendering set
+   * (ui-package-design.md §4): grayscale antialiasing keeps macOS text thin on the dark themes, and no synthesised
+   * bold or italic stands in for a face Geist does not ship. */
+  :root {
+    font-size: calc(100% * var(--font-scale, 1));
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-synthesis: none;
+    /* Thin themed scrollbars: `scrollbar-color` inherits from here; `scrollbar-width` does not, so it is set on `*`. */
+    scrollbar-color: color-mix(in oklab, var(--color-foreground) 22%, transparent) transparent;
+  }
+
+  /* The accent aura behind the empty-state brand glyph. `closest-side` from a centred origin, so the ramp reaches
+   * zero before the box ends on every side; an origin on an edge paints a hard-edged smudge. */
+  [data-slot="empty-state-decoration"] {
+    position: relative;
+    isolation: isolate;
+  }
+  [data-slot="empty-state-decoration"]::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: -60% -40%;
+    pointer-events: none;
+    background: radial-gradient(closest-side at 50% 50%, oklch(from var(--color-primary) l c h / 0.14), transparent);
+  }
+
+  /* A `focal` empty-state title holds the display step at every width: in the `ui` layer it beats the slot's own
+   * container step-down, and a focal statement that shrinks with its column is not one (empty-state.ct.tsx). */
+  [data-slot="empty-state-title"][data-title-step="focal"] {
+    font-size: var(--text-display);
+    line-height: var(--leading-display);
+  }
+  /* The primary CTA wears the gradient ring at the recipe's default weight. Chrome only, never message prose.
+   * A selected media cell does not wear it: a selected cell is `SELECTION_RING_SELECTED` and nothing else
+   * (packages/ui/src/lib/selection-ring.ts); a call-to-action is not a selection state. */
+  [data-slot="button"][data-cta]::after {
+    @apply orb-gradient-ring;
+    z-index: 1;
+    border-radius: inherit;
+  }
+  /* A disabled primary is neutral, so its ring goes neutral too; an accent hairline would still read as live. */
+  [data-slot="button"][data-cta]:is(:disabled, [data-disabled]):not([aria-busy="true"])::after {
+    background: none;
+    border-color: var(--color-border);
+  }
+  /* The ring's positioning context; Base UI's button is not positioned by default. */
+  [data-slot="button"][data-cta] {
+    position: relative;
+  }
+
+  /* The active tab's ring at a lower weight. `TabsIndicator` is opt-in and most tab lists render none, so this is
+   * the only geometric mark most active tabs carry. */
+  [data-slot="tabs-tab"][data-active]::after {
+    --ring-head: 0.3;
+    --ring-foot: 0.02;
+    @apply orb-gradient-ring;
+    z-index: 0;
+    border-radius: var(--radius-control);
+  }
+
+  /* A long separator dissolves at its ends; a short vertical one is left alone, where a fade reads as a bug. */
+  [data-slot="separator"][data-orientation="horizontal"] {
+    mask-image: linear-gradient(to right, transparent, black var(--fade-edge-stop), black calc(100% - var(--fade-edge-stop)), transparent);
+  }
+
+  /* An unset date-family input wears the placeholder tone: its segmented editor never sees the placeholder utility,
+   * and `data-empty` (input.tsx) answers what CSS cannot, since Chromium matches neither `:placeholder-shown` nor
+   * `:invalid` on an empty date input. */
+  [data-slot="input-root"][data-empty]::-webkit-datetime-edit {
+    color: var(--color-muted-foreground);
+  }
+
+  /* The picker glyph is an image, so `color` does not reach it; opacity composites it toward the field's plate.
+   * In either state, since the indicator is a secondary affordance beside the consumer's clear glyph. */
+  [data-slot="input-root"]::-webkit-calendar-picker-indicator {
+    opacity: 0.55;
+  }
+
+  /* A drawer's last row clears the home indicator. A drawer portals beside the shell grid, so the grid's insets never
+   * reach it, and `env()` has no utility spelling; it adds to the section step, so without an indicator nothing
+   * changes. */
+  [data-slot="drawer-content"] {
+    padding-block-end: calc(var(--spacing-section) + env(safe-area-inset-bottom));
+  }
+
+  /* Art bleed (`art/art-bleed`): the band begins one low reading measure plus the section step in, so a host that
+   * caps its column at that measure has no ink over art and the band vanishes on a narrower surface with no
+   * media query; `home-hearth-room.tsx` caps its column at the same token. The section step over-estimates any
+   * tier's padding, a guarantee rather than a tuned number. `--art-bleed-peak` is how much picture survives at the
+   * host's edge. */
+  [data-slot="art-bleed"] {
+    --art-bleed-peak: 0.55;
+    inset-inline-start: min(100%, calc(var(--reading-measure-min) + var(--spacing-section)));
+    mask-image: linear-gradient(to left, rgb(0 0 0 / var(--art-bleed-peak)), transparent);
+  }
+
+  /* The scroll fades: an edge dissolves only while content is scrolled past it (the consumer toggles the
+   * `data-fade-*` attributes), and the ramp bottoms out at a floor rather than zero, so the item straddling a
+   * scrolled edge still carries ink while a mask keeps it hit-testable. The floor is derived, not picked: a
+   * full-contrast pair clears 4.5:1 at alpha 0.48 on the dark arm and 0.60 on the light one; 0.62 clears both.
+   * One declaration for both axes, so the two cues cannot dim differently. A muted pair is out of reach of any
+   * fade; the floor is set for controls and headings at full ink. */
+  .scroll-fade-x,
+  .scroll-fade-y {
+    --scroll-fade-floor: 0.62;
+  }
+  .scroll-fade-x {
+    --fade-start-stop: 0%;
+    --fade-end-stop: 0%;
+    mask-image: linear-gradient(
+      to right,
+      rgb(0 0 0 / var(--scroll-fade-floor)),
+      black var(--fade-start-stop),
+      black calc(100% - var(--fade-end-stop)),
+      rgb(0 0 0 / var(--scroll-fade-floor))
+    );
+  }
+  .scroll-fade-x[data-fade-start] {
+    --fade-start-stop: var(--fade-edge-stop);
+  }
+  .scroll-fade-x[data-fade-end] {
+    --fade-end-stop: var(--fade-edge-stop);
+  }
+
+  /* The block-axis fade for a self-scrolling surface (drivers in `@orb/ui/scroll-area`): the band is a length in
+   * the surface's own rhythm, not a fraction of the box, so it cannot grow with the pane and a control more than
+   * one section step above the cut paints at full strength. */
+  .scroll-fade-y {
+    --scroll-fade-depth: var(--spacing-section);
+    --fade-top-stop: 0px;
+    --fade-bottom-stop: 0px;
+    mask-image: linear-gradient(
+      to bottom,
+      rgb(0 0 0 / var(--scroll-fade-floor)),
+      black var(--fade-top-stop),
+      black calc(100% - var(--fade-bottom-stop)),
+      rgb(0 0 0 / var(--scroll-fade-floor))
+    );
+  }
+  /* A zero stop is a hard stop at the floor colour's position, so an edge that hides nothing renders opaque. */
+  .scroll-fade-y[data-fade-top] {
+    --fade-top-stop: var(--scroll-fade-depth);
+  }
+  .scroll-fade-y[data-fade-bottom] {
+    --fade-bottom-stop: var(--scroll-fade-depth);
+  }
+
+  /* A clamped menu's tail cue, as background not mask (a mask would clip the popup's own shadow): two `local`
+   * cover gradients ride the content over two `scroll` shadow gradients pinned to the box, so a shadow shows only
+   * while content is scrolled past that edge, with no listener and no state. The covers stay opaque across the
+   * shadow's depth, or a resting menu shows a ghost of it. */
+  [data-slot="menu-popup"] {
+    background-image:
+      linear-gradient(to bottom, var(--color-popover) 60%, transparent), linear-gradient(to top, var(--color-popover) 60%, transparent),
+      linear-gradient(to bottom, oklch(from var(--color-foreground) l c h / 0.35), transparent),
+      linear-gradient(to top, oklch(from var(--color-foreground) l c h / 0.35), transparent);
+    background-position: top, bottom, top, bottom;
+    background-repeat: no-repeat;
+    /* The shadow is drawn in the foreground ink: on a dark popover a black one is invisible. */
+    background-size:
+      100% var(--spacing-section),
+      100% var(--spacing-section),
+      100% var(--spacing-row),
+      100% var(--spacing-row);
+    background-attachment: local, local, scroll, scroll;
+  }
+
+  /* The hover spotlight follows the pointer position media-grid.tsx writes into `--x` and `--y`; fine pointer only. */
+  @variant pointer-fine {
+    [data-slot="media-grid-cell"]::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      border-radius: inherit;
+      opacity: 0;
+      transition: opacity var(--motion-fast) var(--ease-out-expo);
+      background: radial-gradient(6rem 6rem at var(--x, 50%) var(--y, 50%), oklch(from var(--color-primary) l c h / 0.18), transparent 70%);
+    }
+    [data-slot="media-grid-cell"]:hover::before {
+      opacity: 1;
+    }
+    @variant motion-reduce {
+      [data-slot="media-grid-cell"]::before,
+      [data-slot="media-grid-cell"]:hover::before {
+        display: none;
+      }
+    }
+  }
+
+  ::selection {
+    background-color: var(--color-primary);
+    color: var(--color-primary-foreground);
+  }
+
+  * {
+    scrollbar-width: thin;
+  }
+
+  /* The skeleton sweep translates an oversized pseudo-element on the compositor; animating the background
+   * position repainted every skeleton on every frame. */
+  @keyframes orb-skeleton-shimmer {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(100%);
+    }
+  }
+  /* The sweep's two stops are named so a host on an unusual surface can re-point them (message-row-backing.ts).
+   * The defaults are `var()` fallbacks, not declarations: a property declared here would beat the host's
+   * inherited override. */
+  .orb-skeleton-shimmer::after {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: -100%;
+    inline-size: 200%;
+    content: "";
+    pointer-events: none;
+    background-image: linear-gradient(
+      90deg,
+      var(--orb-skeleton-sweep-base, var(--color-muted)) 30%,
+      var(--orb-skeleton-sweep-crest, var(--color-accent)) 50%,
+      var(--orb-skeleton-sweep-base, var(--color-muted)) 70%
+    );
+    animation: orb-skeleton-shimmer var(--motion-shimmer) linear infinite;
+  }
+  @variant motion-reduce {
+    .orb-skeleton-shimmer::after {
+      display: none;
+    }
+  }
+  [data-reduced-motion="true"] .orb-skeleton-shimmer::after {
+    display: none;
+  }
+
+  /* The typing dots pulse in turn; the reduced-motion floor freezes each at its resting, nonzero opacity. */
+  @keyframes orb-typing-dot {
+    0%,
+    60%,
+    100% {
+      opacity: 0.35;
+    }
+    30% {
+      opacity: 1;
+    }
+  }
+  .orb-typing-dot {
+    opacity: 0.35;
+    animation: orb-typing-dot var(--motion-breathe) ease-in-out infinite;
+  }
+  /* The stagger divides the one shared period rather than minting durations. */
+  .orb-typing-dot:nth-child(2) {
+    animation-delay: calc(var(--motion-breathe) / 6);
+  }
+  .orb-typing-dot:nth-child(3) {
+    animation-delay: calc(var(--motion-breathe) / 3);
+  }
+
+  /* The streamed-word reveal (`markdown/reveal-plugin.ts`, D168): each revealed word's inline negative
+   * `animation-delay` anchors the fade to when it first appeared, so a node replacement mid-fade resumes instead
+   * of restarting; `fill both` so no pre-delay frame flashes. */
+  @keyframes orb-word-reveal {
+    from {
+      opacity: 0;
+    }
+  }
+  [data-orb-reveal] {
+    animation: orb-word-reveal var(--motion-base) var(--ease-out-expo) both;
+  }
+
+  /* Streamdown's code-block container sets `content-visibility: auto` inline with a 200px intrinsic size, so a
+   * block is born at that height and collapses to its real one a frame later. The container forwards neither
+   * `style` nor `className`, so the only seam is CSS and only `!important` beats an inline style; the skip bought
+   * offscreen layout alone, since Shiki tokenizes on mount regardless. */
+  [data-streamdown="code-block"] {
+    /* stylelint-disable-next-line declaration-no-important -- an inline style is beatable only this way */
+    content-visibility: visible !important;
+  }
+}

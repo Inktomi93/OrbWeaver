@@ -11,7 +11,7 @@ export function renderContextBoundaryDivider(show: boolean, budgetLabel?: string
   }
   const compacted = compactSummary !== null && compactSummary !== undefined && compactSummary.length > 0;
   return (
-    <Row gap="field" align="center" data-slot="context-boundary-divider" className="w-full">
+    <Row gap="field" align="center" data-slot="context-boundary-divider" className="inline-full">
       <Separator className="flex-1 bg-(--color-primary)/35" />
       {/* The divider NAMES a region of the transcript ("everything below is in context") — the `kicker`
           voice, which is exactly the caps-micro-with-a-hairline shape this line was already assembling by

@@ -16,7 +16,7 @@
 //      sensor that can see one).
 //
 // Everything here is an EFFECT on purpose: these are subscriptions to browser/document lifecycle, not
-// derived render state, and none of them writes a shared selection store (`no-effect-on-shared-selection`
+// derived render state, and none of them writes a shared selection store (`orb/no-effect-on-shared-selection`
 // is about deriving render state from a pointer, which this does not do).
 //
 // The seam is rebuilt INSIDE the resume callback rather than closed over from `useInvalidation()`: that

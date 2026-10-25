@@ -113,7 +113,7 @@ function TrackerRow({
               patch({ label: trimmed });
             }
           }}
-          className="min-w-0 flex-1"
+          className="flex-1 min-inline-0"
         />
         {def.shape === "meter" ? (
           <Row gap="field" align="baseline" className="shrink-0">
@@ -131,7 +131,8 @@ function TrackerRow({
                 const n = Number.parseInt(next, 10);
                 patch({ max: Number.isNaN(n) ? null : Math.max(1, n) });
               }}
-              className="!w-avatar-lg px-field text-right tabular-nums"
+              className="px-field text-end tabular-nums"
+              width="avatar-lg"
               restClassName="tabular-nums"
             />
           </Row>

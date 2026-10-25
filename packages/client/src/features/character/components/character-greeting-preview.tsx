@@ -197,7 +197,7 @@ function GreetingBody({
     <form.Subscribe selector={(s): string => s.values.greetings[index]?.text ?? ""}>
       {(active): ReactElement => (
         <ThemeScope tokens={cardTheme}>
-          <Stack gap="row" className={cn("rounded-base bg-ai-bubble p-block", spoilerBlur && "select-none blur-md")} data-slot="character-greeting-bubble">
+          <Stack gap="row" className={cn("rounded-base bg-ai-bubble p-block", spoilerBlur && "blur-md select-none")} data-slot="character-greeting-bubble">
             {active.trim() === "" ? (
               <Text voice="quiet">No first message yet.</Text>
             ) : (
@@ -366,7 +366,7 @@ function GreetingGroupOnlyToggle({ form, index }: { readonly form: CardForm; rea
           <label htmlFor={switchId}>
             {/* A control's visible name IS `label` (#573); its muted ink rides className because `tone` is
                 declared before `voice` and loses the merge. */}
-            <Text id={labelId} as="span" voice="label" className="text-muted-foreground">
+            <Text id={labelId} as="span" voice="label" tone="muted">
               Group chats only
             </Text>
           </label>

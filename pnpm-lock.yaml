@@ -506,6 +506,15 @@ catalogs:
     stylelint:
       specifier: 17.16.0
       version: 17.16.0
+    stylelint-config-standard:
+      specifier: 40.0.0
+      version: 40.0.0
+    stylelint-plugin-logical-css:
+      specifier: 2.1.0
+      version: 2.1.0
+    stylelint-value-no-unknown-custom-properties:
+      specifier: 6.1.1
+      version: 6.1.1
     tailwind-merge:
       specifier: ^3.7.0
       version: 3.7.0
@@ -760,6 +769,15 @@ importers:
       stylelint:
         specifier: 'catalog:'
         version: 17.16.0(@typescript/typescript6@6.0.2)(supports-color@7.2.0)
+      stylelint-config-standard:
+        specifier: 'catalog:'
+        version: 40.0.0(stylelint@17.16.0(@typescript/typescript6@6.0.2)(supports-color@7.2.0))
+      stylelint-plugin-logical-css:
+        specifier: 'catalog:'
+        version: 2.1.0(stylelint@17.16.0(@typescript/typescript6@6.0.2)(supports-color@7.2.0))
+      stylelint-value-no-unknown-custom-properties:
+        specifier: 'catalog:'
+        version: 6.1.1(stylelint@17.16.0(@typescript/typescript6@6.0.2)(supports-color@7.2.0))
       tailwindcss:
         specifier: 'catalog:'
         version: 4.3.3
@@ -7580,6 +7598,29 @@ packages:
 
   style-to-object@1.0.14:
     resolution: {integrity: sha512-LIN7rULI0jBscWQYaSswptyderlarFkjQ+t79nzty8tcIAceVomEVlLzH5VP4Cmsv6MtKhs7qaAiwlcp+Mgaxw==}
+
+  stylelint-config-recommended@18.0.0:
+    resolution: {integrity: sha512-mxgT2XY6YZ3HWWe3Di8umG6aBmWmHTblTgu/f10rqFXnyWxjKWwNdjSWkgkwCtxIKnqjSJzvFmPT5yabVIRxZg==}
+    engines: {node: '>=20.19.0'}
+    peerDependencies:
+      stylelint: ^17.0.0
+
+  stylelint-config-standard@40.0.0:
+    resolution: {integrity: sha512-EznGJxOUhtWck2r6dJpbgAdPATIzvpLdK9+i5qPd4Lx70es66TkBPljSg4wN3Qnc6c4h2n+WbUrUynQ3fanjHw==}
+    engines: {node: '>=20.19.0'}
+    peerDependencies:
+      stylelint: ^17.0.0
+
+  stylelint-plugin-logical-css@2.1.0:
+    resolution: {integrity: sha512-625OT+p5y2kkGBaRV7uTYscuH0m1UueMXh0WcidrXgwF2DOnKov+un9tvuyNG+SUC07W0ibcn+fZvQs/keskww==}
+    peerDependencies:
+      stylelint: ^14.0.0 || ^15.0.0 || ^16.0.0 || ^17.0.0
+
+  stylelint-value-no-unknown-custom-properties@6.1.1:
+    resolution: {integrity: sha512-eQ1zidKD5t9zMEaskjGUY4W47lH76qMlmsDSmCAPEwtaGzB4Ls7ORTfysC1D6hamp2zFC+vN1vpQ+GFz3Tw3lw==}
+    engines: {node: '>=18.12.0'}
+    peerDependencies:
+      stylelint: '>=16'
 
   stylelint@17.16.0:
     resolution: {integrity: sha512-ejlWnbJ13x1GU32+zZXa6sYQJsKKkwSdv2B4rAdO3OWdEmvhSJKcXi5pOphQYSzyaj1kXpuGJr7pcMBNfDIuPw==}
@@ -14470,6 +14511,25 @@ snapshots:
   style-to-object@1.0.14:
     dependencies:
       inline-style-parser: 0.2.7
+
+  stylelint-config-recommended@18.0.0(stylelint@17.16.0(@typescript/typescript6@6.0.2)(supports-color@7.2.0)):
+    dependencies:
+      stylelint: 17.16.0(@typescript/typescript6@6.0.2)(supports-color@7.2.0)
+
+  stylelint-config-standard@40.0.0(stylelint@17.16.0(@typescript/typescript6@6.0.2)(supports-color@7.2.0)):
+    dependencies:
+      stylelint: 17.16.0(@typescript/typescript6@6.0.2)(supports-color@7.2.0)
+      stylelint-config-recommended: 18.0.0(stylelint@17.16.0(@typescript/typescript6@6.0.2)(supports-color@7.2.0))
+
+  stylelint-plugin-logical-css@2.1.0(stylelint@17.16.0(@typescript/typescript6@6.0.2)(supports-color@7.2.0)):
+    dependencies:
+      stylelint: 17.16.0(@typescript/typescript6@6.0.2)(supports-color@7.2.0)
+
+  stylelint-value-no-unknown-custom-properties@6.1.1(stylelint@17.16.0(@typescript/typescript6@6.0.2)(supports-color@7.2.0)):
+    dependencies:
+      postcss-value-parser: 4.2.0
+      resolve: 1.22.13
+      stylelint: 17.16.0(@typescript/typescript6@6.0.2)(supports-color@7.2.0)
 
   stylelint@17.16.0(@typescript/typescript6@6.0.2)(supports-color@7.2.0):
     dependencies:

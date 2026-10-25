@@ -7,18 +7,21 @@ import { ACCENT_HOVER, FOCUS_RING_BARE, FOCUS_RING_WITHIN, ITEM_ROW, OVERLAY_ARR
 export const autocompleteVariants = tv({
   slots: {
     inputGroup: [
-      "relative flex h-control-sm w-full min-w-0 items-center rounded-control border border-input-border bg-field-fill",
+      "relative flex items-center rounded-control border border-input-border bg-field-fill block-(--size-control-sm) inline-full min-inline-0",
       "transition-colors duration-(--motion-fast) ease-out-expo",
       FOCUS_RING_WITHIN,
       "has-data-disabled:pointer-events-none has-data-disabled:opacity-50",
     ],
     input: [
-      "h-full w-full min-w-0 flex-1 bg-transparent px-block text-field leading-field text-foreground",
+      "flex-1 bg-transparent px-block text-field leading-field text-foreground block-full inline-full min-inline-0",
       "placeholder:text-muted-foreground",
       "outline-none",
     ],
     clear: [
-      "mr-field flex size-control-sm shrink-0 items-center justify-center rounded-control text-muted-foreground outline-none",
+      `
+        me-field flex shrink-0 items-center justify-center rounded-control text-muted-foreground outline-none block-(--size-control-sm)
+        inline-(--size-control-sm)
+      `,
       // Offset-less ring — the Clear sits INSIDE the input group, whose FOCUS_RING_WITHIN already
       // carries the offset ring; a second offset here would escape the box.
       `${ACCENT_HOVER} ${FOCUS_RING_BARE}`,
@@ -26,7 +29,7 @@ export const autocompleteVariants = tv({
     positioner: "z-(--z-popover) outline-none",
     // Locks to the exact anchor width; enter/exit fade+scale via OVERLAY_MOTION.anchoredPopup (the
     // shared overlay animation contract). `--transform-origin` is Base UI Positioner-provided.
-    popup: [POPUP_SURFACE, "w-(--anchor-width)", OVERLAY_MOTION.anchoredPopup],
+    popup: [POPUP_SURFACE, "inline-(--anchor-width)", OVERLAY_MOTION.anchoredPopup],
     arrow: OVERLAY_ARROW,
     list: "flex flex-col gap-field",
     // THE INLINE ARM's list (side-eye 2026-08-03 P0): the same items, IN FLOW under the field instead of in
@@ -34,7 +37,10 @@ export const autocompleteVariants = tv({
     // `Popup` throws outside a `Positioner`) — no overlay surface, since it sits INSIDE the caller's own
     // card: a bounded scroller (~4 rows at the coarse touch floor, so a large tag library cannot grow the card
     // past its own footer) and a hairline. `data-empty:hidden` so nothing to suggest leaves NO frame behind.
-    inlineList: "relative flex max-h-40 flex-col gap-field overflow-y-auto overscroll-contain rounded-control border border-border p-field data-empty:hidden",
+    inlineList: `
+      relative flex flex-col gap-field overflow-y-auto overscroll-contain rounded-control border border-border p-field max-block-(--height-scroll-sm)
+      data-empty:hidden
+    `,
     group: "flex flex-col gap-field",
     groupLabel: "px-block py-field text-label leading-label font-semibold text-muted-foreground",
     item: ITEM_ROW,

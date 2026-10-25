@@ -20,7 +20,7 @@ export function ReExtractBanner(): ReactElement | null {
   return (
     <>
       <Row align="center" data-slot="databank-re-extract-banner" gap="row" justify="between" role="status">
-        <Text className="min-w-0" voice="gloss">
+        <Text className="min-inline-0" voice="gloss">
           {staleExtractionLine(stale)}
         </Text>
         <Button className="shrink-0" disabled={sweep.pending} intent="secondary" onClick={(): void => sweep.ask("re-extract")} size="sm" type="button">

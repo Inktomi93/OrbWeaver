@@ -1,0 +1,124 @@
+/* shell.css region: the rail column and its brand, group, button and widget cells. The index imports the regions in cascade order; a rule's winner across regions is
+ * decided there, so a rule moves between regions only with its source position. */
+@layer shell {
+  /* One flat DOM list: the desktop icon column, which mobile.css reflows into the bottom tab bar. */
+  .shell-rail {
+    grid-column: 1;
+    grid-row: 1;
+    z-index: var(--z-raised);
+    inline-size: var(--rail-w);
+    background: var(--color-sidebar);
+    color: var(--color-sidebar-foreground);
+    border-inline-end: var(--border-width-control) solid var(--color-sidebar-border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-row);
+    /* No top padding: the brand cell sits flush at the top so its hairline shares the chrome-row baseline (D66). */
+    padding-block: 0 var(--spacing-block);
+  }
+  /* The brand cell is the rail's chrome-row header; `align-self: stretch` lets its hairline span the rail. */
+  .shell-rail-brand {
+    display: flex;
+    align-self: stretch;
+    align-items: center;
+    justify-content: center;
+    block-size: var(--dimension-chrome-row);
+    padding-inline: var(--spacing-block);
+    border-block-end: var(--border-width-control) solid var(--color-sidebar-border);
+    color: var(--color-muted-foreground);
+  }
+  /* A section that claims the `rail.brand` zone makes the brand cell its rail button: muted at rest, tinted when
+   * active, with an accent bar instead of the nav's glow and ring, which read too heavy at chrome-row height. */
+  .shell-rail-brand-button {
+    position: relative;
+    border-radius: 0;
+    color: var(--color-muted-foreground);
+  }
+  .shell-rail-brand-button:hover {
+    background: var(--color-sidebar-accent);
+    color: var(--color-sidebar-accent-foreground);
+  }
+  .shell-rail-brand-button[data-active] {
+    background: color-mix(in oklab, var(--color-primary) 14%, transparent);
+    color: var(--color-primary);
+  }
+  .shell-rail-brand-button[data-active]::before {
+    content: "";
+    position: absolute;
+    inset-block: var(--spacing-field);
+    inset-inline-start: 0;
+    /* The accent bar is the hairline-plus width, the same species as the topbar divider. */
+    inline-size: var(--border-width-accent);
+    border-start-end-radius: var(--border-width-accent);
+    border-end-end-radius: var(--border-width-accent);
+    background: var(--color-primary);
+  }
+  .shell-rail-sections {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-section);
+  }
+  .shell-rail-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-field);
+  }
+  .shell-rail-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-row);
+  }
+  /* The persona identity widget, a registered `rail.end` entry; the margin sets it apart from the buttons above. */
+  .shell-rail-widget {
+    margin-block-start: var(--spacing-row);
+  }
+  .shell-rail-spacer {
+    flex: 1 1 auto;
+  }
+
+  .shell-rail .shell-rail-button {
+    inline-size: var(--size-control-lg);
+    block-size: var(--size-control-lg);
+  }
+  .shell-rail .shell-rail-button:hover {
+    background: var(--color-sidebar-accent);
+    color: var(--color-sidebar-accent-foreground);
+  }
+  .shell-rail .shell-rail-button[data-active] {
+    background: color-mix(in oklab, var(--color-primary) 14%, transparent);
+    color: var(--color-primary);
+    position: relative;
+  }
+  /* On a `::before` layer: the Button's focus ring is also a box-shadow and would overwrite a direct one. */
+  .shell-rail .shell-rail-button[data-active]::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    box-shadow: var(--shadow-glow);
+  }
+  /* The active rail button wears the gradient ring (`orb-gradient-ring`, @orb/ui primitives.css) at this site's weight. */
+  .shell-rail .shell-rail-button[data-active]::after {
+    --ring-head: 0.45;
+    --ring-foot: 0.03;
+    @apply orb-gradient-ring;
+    z-index: 1;
+    border-radius: inherit;
+  }
+
+  /* On the desktop column the tooltip carries the label; it stays the accessible name through `aria-label`. */
+  .shell-rail-button-label {
+    line-height: var(--leading-none);
+    display: none;
+  }
+  /* The mobile-only "You" overflow tab has no place on the desktop icon column. */
+  .shell-rail-button[data-rail-mobile-only] {
+    display: none;
+  }
+}

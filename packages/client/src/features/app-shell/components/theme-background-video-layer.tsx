@@ -12,6 +12,7 @@
 // forces the still frame on top of the OS `prefers-reduced-motion` the primitive already honors.
 
 import type { AppearanceBackgroundFit } from "@orb/contracts/settings";
+import { BackgroundLayer } from "@orb/ui/background-layer";
 import { BackgroundVideo } from "@orb/ui/background-video";
 import type { ReactElement } from "react";
 
@@ -40,15 +41,10 @@ export function ThemeBackgroundVideoLayer({ url, fit, dim, appReducedMotion }: T
   }
   return (
     <>
-      <div aria-hidden="true" data-slot="theme-background-video-layer" className="pointer-events-none fixed inset-0 z-(--z-base)">
+      <BackgroundLayer slot="theme-background-video-layer">
         <BackgroundVideo src={url} paused={appReducedMotion} className={OBJECT_FIT_CLASS_BY_FIT[fit]} />
-      </div>
-      <div
-        aria-hidden="true"
-        data-slot="theme-background-scrim"
-        className="pointer-events-none fixed inset-0 z-(--z-base) bg-backdrop"
-        style={{ opacity: dim }}
-      />
+      </BackgroundLayer>
+      <BackgroundLayer slot="theme-background-scrim" scrim={{ dim }} />
     </>
   );
 }

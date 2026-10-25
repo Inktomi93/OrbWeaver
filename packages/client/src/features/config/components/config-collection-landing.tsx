@@ -121,7 +121,7 @@ export function ConfigCollectionLanding({ group }: { readonly group: CollectionG
     // `min-height: auto`, so without it the scroller grows to its content, virtualization is a no-op, and
     // the primitive's own unbounded-window guard throws at mount. A SHORT library still overflows this box
     // into the pane's scroller (overflow is visible), so a non-windowed list is unchanged.
-    <Stack className="min-h-0 flex-1" data-collection={group.id} data-slot="config-collection-landing" gap="section">
+    <Stack className="flex-1 min-block-0" data-collection={group.id} data-slot="config-collection-landing" gap="section">
       {/* `level={2}`: this glance IS the pane's identity, so its name is the pane's heading. */}
       <ConfigPaneGlance blurb={true} group={group} level={2} />
       <CollectionControlRow collection={collection} filter={filter} label={group.label} onFilterChange={setFilter} />
@@ -133,7 +133,7 @@ export function ConfigCollectionLanding({ group }: { readonly group: CollectionG
           nothing about what a member IS. The boundary moved here with them: `collection.list` suspends on the
           library's read, and an error inside it is the library's to retry, not the pane's to swallow. */}
       <QueryBoundary
-        fallback={<Skeleton className="h-16 w-full" />}
+        fallback={<Skeleton className="block-(--height-row-placeholder) inline-full" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label={group.label.toLowerCase()} onRetry={retry} />}
       >
         {collection.list({
@@ -159,7 +159,7 @@ function CollectionControlRow({
   readonly onFilterChange: (next: string) => void;
 }): ReactElement {
   return (
-    <Container className="w-full">
+    <Container className="inline-full">
       <Row align="center" className="flex-wrap" data-slot="collection-control-row" gap="field">
         {/* A FILTER, never the settings index's jump search (§3.2): it narrows THIS library's rows in place,
           which is the verb every peer LIST pane's `Input` performs. The settings `combobox` above it jumps
@@ -169,7 +169,7 @@ function CollectionControlRow({
           one box a reader types into. At 430 the glyph + its joint took the filter to ~85px — "Filter tag",
           clipped mid-word — against ~130px in the approved p2 board, which draws no glyph either. The
           placeholder already names the verb. */}
-        <Row align="center" className="min-w-0 flex-1">
+        <Row align="center" className="flex-1 min-inline-0">
           <Input aria-label={`Filter ${label.toLowerCase()}`} onValueChange={onFilterChange} placeholder={`Filter ${label.toLowerCase()}…`} value={filter} />
         </Row>
         <CollectionBulkToggle collection={collection} />
@@ -216,7 +216,7 @@ function CollectionCreate({ collection, inBand = false }: { readonly collection:
   return (
     // In the control row the form takes its own full-width line under the other controls when the row's
     // container is narrow, so asking for a name never squeezes the filter out.
-    <Stack className={inBand ? "order-last basis-full @2xl:order-none @2xl:basis-auto" : undefined}>
+    <Stack className={inBand ? "order-last basis-full @cq-40:order-0 @cq-40:basis-auto" : undefined}>
       <form
         aria-label={label}
         noValidate={true}
@@ -231,7 +231,7 @@ function CollectionCreate({ collection, inBand = false }: { readonly collection:
         <Row align="center" gap="field">
           <Input
             aria-label={askName.fieldLabel}
-            className="min-w-0 flex-1"
+            className="flex-1 min-inline-0"
             maxLength={askName.maxLength}
             onKeyDown={(event): void => {
               if (event.key === "Escape") {

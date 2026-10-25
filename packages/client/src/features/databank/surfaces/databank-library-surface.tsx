@@ -128,7 +128,7 @@ export function DatabankLibrarySurface(): ReactElement {
   useFocusOnMount(surfaceRef);
 
   return (
-    <Stack ref={surfaceRef} className="h-full outline-none" gap="block" tabIndex={-1}>
+    <Stack ref={surfaceRef} className="outline-none block-full" gap="block" tabIndex={-1}>
       {/* DELIBERATELY UNRESERVED, AND FOR A DIFFERENT REASON THAN #1748 RECORDED (re-derived on this tree).
           The sibling library pane (presets) was blocked by a scroll box under the boundary and is hoisted;
           this pane's body is a self-scrolling `<VirtualList className="h-full">`, which is not a box that can
@@ -224,7 +224,7 @@ function DatabankList(): ReactElement {
             than sitting under a virtualized viewport it could no longer be part of. */}
         <VirtualList
           aria-label="Documents"
-          className="h-full"
+          className="block-full"
           endApproachRows={collection.listProps.endApproachRows}
           estimateSize={(): number => ESTIMATED_ROW_PX}
           gapToken="tight"

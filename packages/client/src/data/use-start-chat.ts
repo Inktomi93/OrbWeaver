@@ -14,7 +14,7 @@
 // so the response SEEDS both room reads before navigation. The message page is marked stale after the native
 // crossfade settles: that refetch closes the bus's pre-attach gap without repainting the room mid-transition.
 // (Not the factory's `echo` arm: that seeds a key with the whole mutation DATA, and this response wraps the
-// row alongside `opening`.) Cache surgery is legal here and only here (`client-cache-surgery-only-in-data`).
+// row alongside `opening`.) Cache surgery is legal here and only here (`orb/client-cache-surgery-only-in-data`).
 
 import type { ChatId } from "@orb/kit/ids";
 import { useQueryClient } from "@tanstack/react-query";

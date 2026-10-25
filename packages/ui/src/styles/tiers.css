@@ -1,170 +1,127 @@
-/* @orb/ui — the density tier map, made executable (UI-Density-Law.md §4.2).
- *
- * HAND-AUTHORED (unlike theme.css): this file maps SLOT NAMES to token steps, and a slot name is not
- * token data. It is imported UNLAYERED beside theme.css, which is the whole mechanism: Tailwind v4 emits
- * every utility into `@layer utilities`, and an unlayered rule beats any layered rule regardless of
- * specificity. So a primitive's own utility default (`p-block` on Card) is the TIER-LESS fallback, and
- * these rules take over inside a `<Surface>`. Proven by computed value, never by reading the source
- * (UI-Density-Law.md §4.2 build step 0).
- *
- * WHY THE INDIRECTION THROUGH A CUSTOM PROPERTY rather than the spec's illustrative
- * `[data-surface-tier="instrument"] [data-slot="card-root"] { padding: … }` pair: those two rules have
- * IDENTICAL specificity, so a nested surface would resolve by SOURCE ORDER — an `instrument` surface
- * inside a `form` one would silently paint form steps (both selectors match). Custom properties INHERIT,
- * so `--orb-tier-*` always carries the NEAREST tier ancestor's value and nesting resolves correctly in
- * both directions (§5.3 CT 5 pins it). The consuming rules stay scoped to `[data-surface-tier] …` so a
- * primitive outside every Surface keeps its own utility default instead of resolving an unset var.
- *
- * These are PRIVATE vars (`--orb-` prefix, the globals.css `--orb-ws-*` precedent), never DTCG tokens:
- * their VALUES are tokens, their names are this file's plumbing. */
+@layer ui {
+  /* The density tier map (UI-Density-Law.md §4.2): slot names to token steps, hand-authored because a slot name is
+   * not token data. In the `ui` layer so a tier rule beats a primitive's own utility default inside a `<Surface>`.
+   * The steps ride inherited `--orb-tier-*` properties, not per-tier selector pairs, so a nested surface takes its
+   * nearest tier instead of resolving by source order. */
 
-/* Density is an inherited VALUE axis over the same semantic spacing names every primitive already uses.
- * It lives beside the slot map so the common ThemeScope carrier reaches both the shell and portalled
- * overlays; shell.css owns frame geometry, not a preference axis. Both arms are explicit because a
- * nested comfortable ThemeScope below a compact one must RESTORE the comfortable scale. The private
- * aliases are generated from the canonical DTCG values at :root; this file only maps the density axis. */
-[data-density="comfortable"] {
-  --spacing-field: var(--orb-density-comfortable-field);
-  --spacing-row: var(--orb-density-comfortable-row);
-  --spacing-block: var(--orb-density-comfortable-block);
-  --spacing-section: var(--orb-density-comfortable-section);
-  --orb-grid-cell-fixed: var(--orb-density-comfortable-cell-fixed);
-}
+  /* Density is an inherited value axis over the semantic spacing names; both arms are explicit so a comfortable
+   * scope below a compact one restores the comfortable scale. */
+  [data-density="comfortable"] {
+    --spacing-field: var(--orb-density-comfortable-field);
+    --spacing-row: var(--orb-density-comfortable-row);
+    --spacing-block: var(--orb-density-comfortable-block);
+    --spacing-section: var(--orb-density-comfortable-section);
+    --orb-grid-cell-fixed: var(--orb-density-comfortable-cell-fixed);
+  }
 
-[data-density="compact"] {
-  --spacing-field: var(--orb-density-compact-field);
-  --spacing-row: var(--orb-density-compact-row);
-  --spacing-block: var(--orb-density-compact-block);
-  --spacing-section: var(--orb-density-compact-section);
-  --orb-grid-cell-fixed: var(--orb-density-compact-cell-fixed);
-}
+  [data-density="compact"] {
+    --spacing-field: var(--orb-density-compact-field);
+    --spacing-row: var(--orb-density-compact-row);
+    --spacing-block: var(--orb-density-compact-block);
+    --spacing-section: var(--orb-density-compact-section);
+    --orb-grid-cell-fixed: var(--orb-density-compact-cell-fixed);
+  }
 
-[data-surface-tier="instrument"] {
-  /* instrument — read-mostly, glanceable, many data per cm²; chrome is subtracted until only data is left. */
-  --orb-tier-island-pad: var(--spacing-row);
-  --orb-tier-island-radius: var(--radius-base);
-  --orb-tier-row-gap: var(--spacing-field);
-  --orb-tier-row-atom-gap: var(--spacing-tight);
-  --orb-tier-row-title-size: var(--text-label);
-  --orb-tier-row-title-leading: var(--leading-label);
-  --orb-tier-row-title-weight: 600;
-  --orb-tier-row-gloss-size: var(--text-micro);
-  /* THE PLATFORM FLOOR RIDES THE TOKEN, NOT THIS FILE (#1868, §4b axis 3). This was
-   * `--text-label`/`--leading-label`, 13px, two steps under iOS Safari's 16px focus-zoom threshold — so
-   * every LIST-pane search box zoomed the viewport on tap. `text.field-dense` IS the 13px step, with the
-   * coarse arm baked in (tokens.json `orb.pointerFine`), so the instrument tier's intent survives on a
-   * mouse and yields on a finger without this file learning what a pointer is. An earlier cut put a
-   * `@media (any-pointer: coarse)` block right here; the token layer is where a capability belongs. */
-  --orb-tier-field-size: var(--text-field-dense);
-  --orb-tier-field-leading: var(--leading-field-dense);
-}
+  [data-surface-tier="instrument"] {
+    /* Instrument: read-mostly and glanceable; chrome is subtracted until only data is left. */
+    --orb-tier-island-pad: var(--spacing-row);
+    --orb-tier-island-radius: var(--radius-base);
+    --orb-tier-row-gap: var(--spacing-field);
+    --orb-tier-row-atom-gap: var(--spacing-tight);
+    --orb-tier-row-title-size: var(--text-label);
+    --orb-tier-row-title-leading: var(--leading-label);
+    --orb-tier-row-title-weight: var(--font-weight-semibold);
+    --orb-tier-row-gloss-size: var(--text-micro);
+    /* `text.field-dense` carries the coarse-pointer arm itself, so the dense field clears iOS Safari's focus-zoom
+     * floor on a finger without this file learning what a pointer is. */
+    --orb-tier-field-size: var(--text-field-dense);
+    --orb-tier-field-leading: var(--leading-field-dense);
+  }
 
-[data-surface-tier="form"] {
-  /* form — write-mostly, one decision per row; chrome carries grouping and affordance. The row/field steps
-   * here are the primitives' OWN tier-less defaults restated, which is the point: a form surface must land
-   * exactly where an un-tiered surface does, so declaring `tier="form"` never silently retunes a pane. */
-  --orb-tier-island-pad: var(--spacing-block);
-  --orb-tier-island-radius: var(--radius-card);
-  --orb-tier-row-gap: var(--spacing-row);
-  --orb-tier-row-atom-gap: var(--spacing-field);
-  --orb-tier-row-title-size: var(--text-body);
-  --orb-tier-row-title-leading: var(--leading-body);
-  --orb-tier-row-title-weight: 500;
-  --orb-tier-row-gloss-size: var(--text-label);
-  /* `text.field` rather than `text.body` — the form tier's field step is the FIELD token now, which is the
-   * same 15px on a fine pointer (so a form surface still lands exactly where an un-tiered one does, which
-   * is this block's whole promise) and 16px on a coarse one (#1868). */
-  --orb-tier-field-size: var(--text-field);
-  --orb-tier-field-leading: var(--leading-field);
-}
+  [data-surface-tier="form"] {
+    /* Form: write-mostly, one decision per row. These are the primitives' own tier-less defaults restated, so
+     * declaring `tier="form"` never retunes a pane. */
+    --orb-tier-island-pad: var(--spacing-block);
+    --orb-tier-island-radius: var(--radius-card);
+    --orb-tier-row-gap: var(--spacing-row);
+    --orb-tier-row-atom-gap: var(--spacing-field);
+    --orb-tier-row-title-size: var(--text-body);
+    --orb-tier-row-title-leading: var(--leading-body);
+    --orb-tier-row-title-weight: var(--font-weight-medium);
+    --orb-tier-row-gloss-size: var(--text-label);
+    /* The field token, not the body step: the same size on a fine pointer, the focus-zoom floor on a coarse one. */
+    --orb-tier-field-size: var(--text-field);
+    --orb-tier-field-leading: var(--leading-field);
+  }
 
-[data-surface-tier] [data-slot="card-root"] {
-  padding: var(--orb-tier-island-pad);
-  border-radius: var(--orb-tier-island-radius);
-}
+  [data-surface-tier] [data-slot="card-root"] {
+    padding: var(--orb-tier-island-pad);
+    border-radius: var(--orb-tier-island-radius);
+  }
 
-/* ── THE LIST CLASS (UI-Density-Law.md §3.1 "LIST panes") ────────────────────────────────────────
- * A ListRow is the list-pane island, and its DENSITY-BEARING properties are mapped here — not spelled in
- * `list-row/variants.ts` — for the reason S5 proved the hard way: a retune written into the variants is
- * GLOBAL, so the dense list-pane type landed on every unswept form-tier surface too (the settings modal's
- * nav rows dropped 15px → 13px with no tier ever declared). Anything whose value DIFFERS by tier belongs
- * in this file; the variants keep the tier-less (= form) default so an un-tiered row is unchanged.
- *
- * What is deliberately NOT here: the row's PADDING and RADIUS. Both are the same step in both tiers
- * (`px-row py-field`, `rounded-control` — §3.1 gives the list island `p-row`, and CD1 keeps a row a
- * radius-control cell in either tier), so mapping them would be either a no-op or an invented retune of
- * every un-swept form surface. They stay the variants' business, where `density` (the control-height axis)
- * already owns the row box. */
-[data-surface-tier] [data-slot="list-row-root"],
-[data-surface-tier] [data-slot="list-row-body"] {
-  gap: var(--orb-tier-row-gap);
-}
+  /* The list row (UI-Density-Law.md §3.1): every property whose value differs by tier is mapped here, never in
+   * `list-row/variants.ts`, where a retune is global. Padding and radius are the same step in both tiers and stay
+   * the variants' business. */
+  [data-surface-tier] [data-slot="list-row-root"],
+  [data-surface-tier] [data-slot="list-row-body"] {
+    gap: var(--orb-tier-row-gap);
+  }
 
-[data-surface-tier] [data-slot="list-row-markers"] {
-  gap: var(--orb-tier-row-atom-gap);
-}
+  [data-surface-tier] [data-slot="list-row-markers"] {
+    gap: var(--orb-tier-row-atom-gap);
+  }
 
-/* The row TITLE is the `label` voice at instrument (the mock's 12.5px/600 row name), the `body` voice at
- * form. The WEIGHT is a bare number because the type scale has no weight tokens (weight rides Tailwind's
- * `font-*` utilities everywhere else, and 600 is that scale's `semibold` step) — this is the mock's
- * contract for a LIST-row title only, which is why it lives on the tier layer and not in the `label` VOICE
- * (voices stay global; a voice change would move every label in the app). */
-[data-surface-tier] [data-slot="list-row-title"] {
-  font-size: var(--orb-tier-row-title-size);
-  font-weight: var(--orb-tier-row-title-weight);
-  line-height: var(--orb-tier-row-title-leading);
-}
+  /* The row title is the `label` voice at instrument and the `body` voice at form; on the tier layer, not in the
+   * voice, because a voice change would move every label in the app. */
+  [data-surface-tier] [data-slot="list-row-title"] {
+    font-size: var(--orb-tier-row-title-size);
+    font-weight: var(--orb-tier-row-title-weight);
+    line-height: var(--orb-tier-row-title-leading);
+  }
 
-/* THE PROMOTED ROW TITLE (`<ListRow titleStep="promoted">`, side-eye #102 F8) — the `title` step (16px)
- * for a list whose rows ARE the surface's content rather than a directory of it (home's also-open rooms,
- * which the approved ramp assigns 16px; the six-step ramp otherwise had NO title step in use on that
- * page). It has to be spelled HERE for the same reason the ELEVATED radius opt-in is: the tier rule above
- * is unlayered, so a `text-title` utility on the same slot would lose to it inside every <Surface>. It is
- * tier-INDEPENDENT on purpose — "this row is the content" is a statement about the list, not the pane. */
-[data-surface-tier] [data-slot="list-row-title"][data-title-step="promoted"] {
-  font-size: var(--text-title);
-  font-weight: 600;
-  line-height: var(--leading-title);
-}
+  /* The promoted row title (`titleStep="promoted"`), for a list whose rows are the surface's content: spelled here
+   * because a `text-title` utility would lose to the tier rule above; tier-independent on purpose. */
+  [data-surface-tier] [data-slot="list-row-title"][data-title-step="promoted"] {
+    font-size: var(--text-title);
+    font-weight: var(--font-weight-semibold);
+    line-height: var(--leading-title);
+  }
 
-/* The row's quiet second line + its stamp — the `gloss` voice at instrument, `label` at form. SIZE only:
- * the LINE-HEIGHT stays in the variants because it is the one property the `subtitleWrap` arm has to
- * raise (a clamped two-line gloss at 1.25 is cramped), and a tier rule here would outrank that arm.
- * The mock's stamp is 9.5px; there is no 9.5px token and one is not invented here — `micro` (10.5px) is
- * the step the same 9.5px mock value already resolves to for the `kicker` voice (§2.3). */
-[data-surface-tier] [data-slot="list-row-subtitle"],
-[data-surface-tier] [data-slot="list-row-subtitle-reveal"],
-[data-surface-tier] [data-slot="list-row-meta"] {
-  font-size: var(--orb-tier-row-gloss-size);
-}
+  /* The row's second line and stamp: the `gloss` voice at instrument, `label` at form. Size only; the line height
+   * stays in the variants because the `subtitleWrap` arm raises it and a tier rule would outrank that arm. */
+  [data-surface-tier] [data-slot="list-row-subtitle"],
+  [data-surface-tier] [data-slot="list-row-subtitle-reveal"],
+  [data-surface-tier] [data-slot="list-row-meta"] {
+    font-size: var(--orb-tier-row-gloss-size);
+  }
 
-/* Functional prose inside a row action owes the readable label floor; this opt-in outranks the
- * instrument tier's micro gloss without inventing another step. */
-[data-slot="list-row-subtitle"][data-subtitle-step="label"] {
-  font-size: var(--text-label);
-  line-height: var(--leading-label);
-}
+  /* Functional prose inside a row action owes the readable label floor; this opt-in outranks the instrument gloss. */
+  [data-slot="list-row-subtitle"][data-subtitle-step="label"] {
+    font-size: var(--text-label);
+    line-height: var(--leading-label);
+  }
 
-/* The pane's own chrome — a search field and a picker inside a LIST pane are NOT the datum, and at the
- * tier-less body step (15px) they outshouted the 13px row titles they filter (side-eye P1-1). One step
- * down at instrument, untouched at form. */
-[data-surface-tier] [data-slot="input-root"],
-[data-surface-tier] [data-slot="select-trigger"] {
-  font-size: var(--orb-tier-field-size);
-  line-height: var(--orb-tier-field-leading);
-}
+  /* A search field or picker inside a list pane is not the datum: one step down at instrument, untouched at form. */
+  [data-surface-tier] [data-slot="input-root"],
+  [data-surface-tier] [data-slot="select-trigger"] {
+    font-size: var(--orb-tier-field-size);
+    line-height: var(--orb-tier-field-leading);
+  }
 
-/* ELEVATED is the explicit opt-in that outranks the tier (UI-Density-Law.md §2.1: `--radius-card` is
- * the floating-island step). It must be spelled HERE, unlayered, because a `rounded-card` utility on the
- * card would lose to the tier rule above. */
-[data-surface-tier] [data-slot="card-root"][data-elevated] {
-  border-radius: var(--radius-card);
-}
+  /* The elevated opt-in outranks the tier (UI-Density-Law.md §2.1); a `rounded-card` utility would lose to the
+   * tier rule above. */
+  [data-surface-tier] [data-slot="card-root"][data-elevated] {
+    border-radius: var(--radius-card);
+  }
 
-/* NESTED is the opposite opt-in, and needs the same unlayered spelling for the same reason: an island
- * rendered INSIDE another box steps one radius below its host (`--radius-inset`, the SUB-CONTROL mark
- * step), so the nesting reads as nesting rather than as two competing boxes. CD2, as ruled by side-eye
- * 2026-08-03: keep the fill, drop the border, step the radius down one. */
-[data-surface-tier] [data-slot="card-root"][data-nested] {
-  border-radius: var(--radius-inset);
+  /* The nested opt-in steps an island one radius below its host, so nesting reads as nesting. */
+  [data-surface-tier] [data-slot="card-root"][data-nested] {
+    border-radius: var(--radius-inset);
+  }
+
+  /* `padding="none"`: the island delegates its inset to its own content; the `p-0` utility alone would lose to the
+   * tier rule above. */
+  [data-surface-tier] [data-slot="card-root"][data-padding="none"] {
+    padding: 0;
+  }
 }
