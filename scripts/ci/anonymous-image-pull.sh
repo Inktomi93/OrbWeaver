@@ -4,7 +4,7 @@ set -euo pipefail
 [[ "$DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
 [[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]
 [[ "$IMAGE_CHANNEL" == main || "$IMAGE_CHANNEL" == stable ]]
-PROOF_TOOL=quay.io/skopeo/stable@sha256:e5d5d2815b94d74767d40be7111647c3e9cdc84406a638ffe1c7ea1f286f52a3
+PROOF_TOOL=quay.io/skopeo/stable:v1.22.3-immutable@sha256:c0ee1f4edca5c01cb8d5611124f92f3cc47196ecab68aee5d0f90834e00574d5
 if ! docker pull "$PROOF_TOOL"; then
   echo "::error title=Anonymous proof tool::Cannot pull pinned Skopeo $PROOF_TOOL. Repair proof-tool availability; no user image was accessed."
   exit 2
