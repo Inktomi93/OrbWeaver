@@ -647,6 +647,41 @@ test.describe("the doors in an open room", () => {
   });
 });
 
+const PHASE_TOLERANCE_MS = 1;
+const ENTRY_PLAYBACK_RATE = 0.001;
+
+// Hold the document timeline, not individual rows: newcomers must inherit the production observer's cached origin.
+async function holdDoorClock(page: Page, button: string, selector: string, animationName: string): Promise<AsyncDisposable> {
+  const cdp = await page.context().newCDPSession(page);
+  const release = async (): Promise<void> => {
+    try {
+      await cdp.send("Animation.setPlaybackRate", { playbackRate: 1 });
+    } finally {
+      await cdp.detach();
+    }
+  };
+  try {
+    await cdp.send("Animation.enable");
+    await cdp.send("Animation.setPlaybackRate", { playbackRate: ENTRY_PLAYBACK_RATE });
+    await page.getByRole("button", { name: button, exact: true }).dispatchEvent("click");
+    await page.waitForFunction(
+      ({ target, name, phase }) => {
+        const animation = document
+          .querySelector(target)
+          ?.getAnimations()
+          .find((candidate) => (candidate as CSSAnimation).animationName === name);
+        return animation?.playState === "running" && Number(animation.currentTime) > phase;
+      },
+      { target: selector, name: animationName, phase: 2 * PHASE_TOLERANCE_MS },
+    );
+    await cdp.send("Animation.setPlaybackRate", { playbackRate: 0 });
+    return { [Symbol.asyncDispose]: release };
+  } catch (error) {
+    await release();
+    throw error;
+  }
+}
+
 test.describe("a row mounted mid-door", () => {
   test("joins the list door's flip in phase instead of starting its own from the corner", async ({ corpus, mount, page }) => {
     await seedShellState(page, BOTH_DOCKED);
@@ -658,24 +693,19 @@ test.describe("a row mounted mid-door", () => {
     await page.evaluate(() => {
       Reflect.set(globalThis, "__tracksAtRest", new Set(document.querySelectorAll(".orb-chat-track")));
     });
-    // Press the door and scroll the transcript up as soon as its flip starts, so the virtual list mounts the rows above
-    // while the flip is in flight. The read waits for the first frame a newcomer is painted in, then compares each newcomer's centre
-    // flip with `.shell-main`'s, which was armed at the stamp; it gives up when the door's flip ends.
-    const read = await page.getByRole("button", { name: "Hide list panel", exact: true }).evaluate(async (button) => {
+    await using _clock = await holdDoorClock(page, "Hide list panel", ".shell-main", "shell-main-flip");
+    const read = await page.evaluate(async () => {
       const frame = (): Promise<number> => new Promise((resolve) => requestAnimationFrame(resolve));
       const scroller = document.querySelector('[data-slot="message-list-scroll"]');
-      if (scroller === null || !(button instanceof HTMLElement)) {
-        throw new Error("The transcript scroller or the door button is absent");
+      if (scroller === null) {
+        throw new Error("The transcript scroller is absent");
       }
       const atRest = Reflect.get(globalThis, "__tracksAtRest") as Set<Element>;
       const flip = (element: Element | null, name: string): Animation | undefined =>
         element?.getAnimations().find((candidate) => (candidate as CSSAnimation).animationName === name);
-      button.click();
-      // The stamp lands in the door's passive effect; scroll on the first frame its flip exists.
-      let reference = flip(document.querySelector(".shell-main"), "shell-main-flip");
-      while (reference === undefined) {
-        await frame();
-        reference = flip(document.querySelector(".shell-main"), "shell-main-flip");
+      const reference = flip(document.querySelector(".shell-main"), "shell-main-flip");
+      if (reference === undefined) {
+        throw new Error("The held list door animation is absent");
       }
       scroller.scrollTop = 0;
       let newcomers: Element[] = [];
@@ -695,9 +725,10 @@ test.describe("a row mounted mid-door", () => {
       };
     });
     expect(read.reference, "the door's flip had already finished, so the read proves nothing").not.toBeNull();
+    expect(read.reference).toBeGreaterThan(2 * PHASE_TOLERANCE_MS);
     expect(read.newcomers.length, "the scroll mounted no row mid-door, so the read proves nothing").toBeGreaterThan(0);
     for (const time of read.newcomers) {
-      expect(Math.abs((time ?? Number.NaN) - (read.reference ?? Number.NaN))).toBeLessThan(1);
+      expect(Math.abs((time ?? Number.NaN) - (read.reference ?? Number.NaN))).toBeLessThan(PHASE_TOLERANCE_MS);
     }
   });
 });
@@ -710,23 +741,18 @@ test.describe("a row mounted mid flank door", () => {
     await expect(page.locator(DOOR_BOXES.row).first()).toBeVisible();
     await expect(page.getByText(FLANK_PANEL, { exact: true })).toBeVisible();
     await waitForShellIdle(page);
-    // The list door's read, on the flank door: press it, and on the first frame its flip runs, keep the rows it armed
-    // and scroll the transcript up. Then compare each row mounted after that with an armed row still mounted.
-    const read = await page.getByRole("button", { name: "Hide plugin panels", exact: true }).evaluate(async (button) => {
+    await using _clock = await holdDoorClock(page, "Hide plugin panels", '[data-slot="chat-room-flank-row"] .orb-chat-track', "room-flank-centre-flip");
+    const read = await page.evaluate(async () => {
       const frame = (): Promise<number> => new Promise((resolve) => requestAnimationFrame(resolve));
       const scroller = document.querySelector('[data-slot="message-list-scroll"]');
-      if (scroller === null || !(button instanceof HTMLElement)) {
-        throw new Error("The transcript scroller or the door button is absent");
+      if (scroller === null) {
+        throw new Error("The transcript scroller is absent");
       }
       // Read the row fresh each time: the room may re-render it across the door.
       const row = (): Element | null => document.querySelector('[data-slot="chat-room-flank-row"]');
       const flip = (element: Element): Animation | undefined =>
         element.getAnimations().find((candidate) => (candidate as CSSAnimation).animationName === "room-flank-centre-flip");
       const tracks = (): Element[] => Array.from(row()?.querySelectorAll(".orb-chat-track") ?? []);
-      button.click();
-      while (row()?.hasAttribute("data-flank-flip") !== true) {
-        await frame();
-      }
       const armed = new Set(tracks().filter((track) => flip(track) !== undefined));
       const reference = (): Animation | undefined =>
         Array.from(armed)
@@ -749,9 +775,10 @@ test.describe("a row mounted mid flank door", () => {
       };
     });
     expect(read.reference, "the door's flip had already finished, so the read proves nothing").not.toBeNull();
+    expect(read.reference).toBeGreaterThan(2 * PHASE_TOLERANCE_MS);
     expect(read.newcomers.length, "the scroll mounted no row mid-door, so the read proves nothing").toBeGreaterThan(0);
     for (const time of read.newcomers) {
-      expect(Math.abs((time ?? Number.NaN) - (read.reference ?? Number.NaN))).toBeLessThan(1);
+      expect(Math.abs((time ?? Number.NaN) - (read.reference ?? Number.NaN))).toBeLessThan(PHASE_TOLERANCE_MS);
     }
   });
 });

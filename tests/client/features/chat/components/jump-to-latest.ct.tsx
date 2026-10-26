@@ -1,21 +1,16 @@
-// The jump-to-latest pill follows where the transcript's scroll actually ends: away from the tail it counts what landed
-// below, and a jump to the tail clears it.
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import type { TrpcWireOutput } from "@orb/testkit/ct";
-import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+// The production room receives persisted messages through its real chat event subscription.
+import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { seedShellState } from "@orb/testkit/browser/spec";
+import { createShellAmbientReads, ROOM_PROCEDURES, routeOrbSocket, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import { createSeededIds } from "@orb/testkit/iso";
-import { createCorpusHarness } from "@orb/testkit/node/composed";
-import type { JumpToLatestStory } from "./_jump-to-latest-stories.tsx";
+import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, createCorpusHarness, createCorpusProviderExecution } from "@orb/testkit/node/composed";
+import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
-const STORY = "tests/client/features/chat/components/_jump-to-latest-stories/JumpToLatestStory";
+const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
 const ROWS = 14;
-const TAIL_SLACK_PX = 80;
+const SCROLL_ROUNDING_PX = 1;
 const SETTLE_MARGIN_MS = 400;
 
-type MessagesWire = TrpcWireOutput<"chat.listMessages">;
-
-// Safari and iOS before 26.2 never dispatch `scrollend`, so the pill must work from `scroll` alone there.
 const withoutScrollend = (): void => {
   const native = EventTarget.prototype.addEventListener;
   EventTarget.prototype.addEventListener = function patched(this: EventTarget, type: string, ...rest: unknown[]): void {
@@ -25,6 +20,9 @@ const withoutScrollend = (): void => {
   } as typeof EventTarget.prototype.addEventListener;
   Reflect.deleteProperty(HTMLElement.prototype, "onscrollend");
   Reflect.deleteProperty(Element.prototype, "onscrollend");
+  Reflect.deleteProperty(Window.prototype, "onscrollend");
+  Reflect.deleteProperty(globalThis, "onscrollend");
+  Reflect.deleteProperty(Document.prototype, "onscrollend");
 };
 
 for (const [title, nativeScrollend] of [
@@ -39,65 +37,107 @@ for (const [title, nativeScrollend] of [
     if (!nativeScrollend) {
       await page.addInitScript(withoutScrollend);
     }
-    await using root = await createCorpusHarness();
+    const provider = createCorpusProviderExecution({
+      modelIds: [CORPUS_EMBED_MODEL],
+      embedding: CORPUS_EMBEDDING_VECTOR,
+      chatText: "",
+      structuredReplies: new Map(),
+      images: [],
+    });
+    await using root = await createCorpusHarness(undefined, { providerFetch: provider.execute });
     const caller = await root.internalCallerFor(root.ownerId);
     const captured = corpus.reads["chat.getChat"][0]?.output;
     if (captured === undefined) {
       throw new Error("Committed corpus omitted a chat");
     }
     const chatId = (await caller.chat.getChat({ chatId: captured.id })).id;
-    const real = await caller.chat.listMessages({ chatId });
-    const source = real.messages.at(-1);
+    const source = (await caller.chat.listMessages({ chatId })).messages.at(-1);
     if (source === undefined) {
       throw new Error("Committed chat omitted its messages");
     }
-    // The transcript is the real one, repeated at the network edge until it overflows the viewport; each row is a fresh id.
-    const ids = createSeededIds();
-    const rows = (count: number, from: number): MessagesWire["messages"] =>
-      Array.from({ length: count }, (_, index) => ({ ...source, id: mintTypeId(ID_PREFIX.message, ids.next), seq: from + index }));
-    let messages: MessagesWire = { ...real, messages: rows(ROWS, source.seq + 1) };
+    for (let row = 0; row < ROWS; row++) {
+      await caller.chat.commitMessage({ chatId, content: source.content, timeZone: UTC_TIME_ZONE });
+    }
+    await seedShellState(page, { activeSection: "chats" });
+    const auth = await root.http.request("/api/auth/config");
+    const authBody = await auth.text();
+    await page.route("**/api/auth/config", (route) => route.fulfill({ contentType: "application/json", body: authBody }));
     await routeTrpc(page, {
-      ...serveCorpusProcedures(caller, [
-        "character.get",
-        "sessions.me",
-        "settings.getUserSettings",
-        "chat.getChat",
-        "chat.listReactions",
-        "plugin.list",
-        "plugin.listDisplayTransforms",
-        "plugin.listSurfaces",
-        "chat.previewContextFit",
-        "regex.listScripts",
-        "regex.listRoomDisplayScripts",
-      ]),
-      "chat.listMessages": (input) => {
-        if (input.chatId !== chatId) {
-          throw new Error(`The transcript was asked for ${input.chatId}, not the room under test`);
+      ...createShellAmbientReads(corpus),
+      ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...ROOM_PROCEDURES, "notifications.presence", "rpg.getGame", "rpg.listTurnToolCalls"]),
+      "stream.attach": ({ ref }) => (ref.channel === "chat" && ref.chatId === chatId ? null : trpcError({ code: "NOT_FOUND" })),
+      "stream.detach": ({ ref }) => (ref.channel === "chat" && ref.chatId === chatId ? null : trpcError({ code: "NOT_FOUND" })),
+    });
+    const listening = Promise.withResolvers<void>();
+    const joined = Promise.withResolvers<void>();
+    const stop = new AbortController();
+    let started = false;
+    await using subscription = new AsyncDisposableStack();
+    subscription.defer(async () => {
+      stop.abort();
+      if (started) {
+        await joined.promise;
+      }
+    });
+    const socket = await routeOrbSocket(page, {
+      awaitAttaches: 1,
+      frames: async (signal) => {
+        started = true;
+        const events = root.app.liveBuses.chat.subscribeChatEvents(chatId, AbortSignal.any([signal, stop.signal]));
+        listening.resolve();
+        try {
+          for await (const entry of events) {
+            if (entry.event.type === "messageCommitted") {
+              if (entry.seq === null) {
+                throw new Error("The committed message has no durable sequence");
+              }
+              return [{ channel: "chat", chatId, seq: entry.seq, event: entry.event }];
+            }
+          }
+          return [];
+        } catch (error) {
+          if (!stop.signal.aborted) {
+            throw error;
+          }
+          return [];
+        } finally {
+          joined.resolve();
         }
-        return messages;
       },
     });
     await page.setViewportSize({ width: 900, height: 420 });
-    const component = await mount<typeof JumpToLatestStory>(STORY, { chatId });
+    const component = await mount<typeof ChatRoomShellStory>(STORY, { chatId, socket: true });
+    expect(
+      await page.evaluate(() => ({
+        element: "onscrollend" in document.createElement("div"),
+        window: "onscrollend" in globalThis,
+        document: "onscrollend" in document,
+      })),
+    ).toEqual({ element: nativeScrollend, window: nativeScrollend, document: nativeScrollend });
     const scroller = page.locator('[data-slot="message-list-scroll"]');
     const distanceFromTail = (): Promise<number> => scroller.evaluate((element) => element.scrollHeight - element.scrollTop - element.clientHeight);
     await expect.poll(() => scroller.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
-    await expect.poll(distanceFromTail).toBeLessThan(TAIL_SLACK_PX);
+    await expect.poll(distanceFromTail).toBeLessThanOrEqual(SCROLL_ROUNDING_PX);
     const pill = page.getByRole("button", { name: /^Jump to latest/u });
     await expect(pill).toHaveCount(0);
-
-    // The reader scrolls away and rests; the reply lands after the position has been sampled, as it does for a person.
+    await listening.promise;
+    await expect.poll(() => socket.attaches().some((ref) => ref.channel === "chat" && ref.chatId === chatId)).toBe(true);
     await scroller.evaluate(async (element, settleMs) => {
       element.scrollTop = 0;
       await new Promise((resolve) => setTimeout(resolve, settleMs));
     }, SETTLE_MARGIN_MS);
-    messages = { ...messages, messages: [...messages.messages, ...rows(1, source.seq + ROWS + 1)] };
-    await component.update({ chatId, revision: 1 });
-    await expect(page.locator('output[aria-label="Read revision"]')).toHaveText("1");
+    expect(await distanceFromTail()).toBeGreaterThan(await scroller.evaluate((element) => element.clientHeight));
+    const outcome = await caller.chat.commitMessage({ chatId, content: source.content, timeZone: UTC_TIME_ZONE });
+    const committed = outcome.messages.at(-1);
+    if (committed === undefined) {
+      throw new Error("The native commit returned no message");
+    }
     await expect(page.getByRole("button", { name: "Jump to latest, 1 new message", exact: true })).toBeVisible();
-
     await page.getByRole("button", { name: "Jump to latest, 1 new message", exact: true }).click();
-    await expect.poll(distanceFromTail).toBeLessThan(TAIL_SLACK_PX);
+    await expect.poll(distanceFromTail).toBeLessThanOrEqual(SCROLL_ROUNDING_PX);
+    await expect(page.locator(`[data-message-id="${committed.id}"]`)).toBeVisible();
     await expect(pill).toHaveCount(0);
+    await component.unmount();
+    await joined.promise;
   });
 }
