@@ -334,7 +334,7 @@ export const TOKENS = {
   "height.picker-art-square": { cssVar: "--height-picker-art-square", value: "calc(round(nearest, 100cqw, 1px))" },
   "grid.lead": { cssVar: "--grid-lead", value: "1.55fr 1fr" },
   "grid.lead-wide": { cssVar: "--grid-lead-wide", value: "1.5fr 1.05fr" },
-  "reading.bubble-cap": { cssVar: "--reading-bubble-cap", value: "65ch" },
+  "reading.bubble-cap": { cssVar: "--reading-bubble-cap", value: "min(100%, 65ch)" },
   "text.art-initial": { cssVar: "--text-art-initial", value: "calc(var(--immersive-initial-cqmin) * 1cqmin)" },
   "text.band-initial": { cssVar: "--text-band-initial", value: "calc(var(--immersive-band-initial-cqmin) * 1cqmin)" },
 } as const;

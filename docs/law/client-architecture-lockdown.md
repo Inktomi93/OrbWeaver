@@ -155,7 +155,7 @@ elevation, never a component's skin.
 ### 4.5 The two cascade mechanisms
 
 **The declared layer order is the mechanism.** `packages/ui/src/styles/layers.css` declares
-`@layer theme, base, components, utilities, vendor, ui, shell, client, appearance, preference, motion`,
+`@layer properties, theme, base, components, utilities, vendor, ui, shell, client, appearance, preference, motion`,
 `globals.css` imports it before Tailwind, and every authored rule sits in one of the house layers: `ui` holds
 the faces, document floors, primitive treatments and `tiers.css`; `shell` the frame regions; `client` the
 client-wide reading and document rules; `appearance` glass, grain, plates and elevation; `preference` the

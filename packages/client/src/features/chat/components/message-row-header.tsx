@@ -47,14 +47,14 @@ function renderAttributionName(attribution: RowAttribution): ReactElement | null
   // The speaker's name IS the name of this row's one datum — the `label` voice (UI-Density-Law.md §2.3).
   if (attribution.tokens === null) {
     return (
-      <Text as="span" voice="label">
+      <Text as="span" voice="label" className="wrap-break-word min-inline-0">
         {attribution.name}
       </Text>
     );
   }
   return (
     <ThemeScope tokens={attribution.tokens} className="contents">
-      <Text as="span" voice="label" tone="speaker">
+      <Text as="span" voice="label" tone="speaker" className="wrap-break-word min-inline-0">
         {attribution.name}
       </Text>
     </ThemeScope>
@@ -81,7 +81,7 @@ function renderRowIdentity(args: {
     return null;
   }
   return (
-    <Row gap="field" align="center" className={mirrored ? "flex-row-reverse" : undefined}>
+    <Row gap="field" align="center" className={mirrored ? "flex-row-reverse flex-wrap min-inline-0" : "flex-wrap min-inline-0"}>
       {attribution.name === null ? null : (
         // BASELINE, like the ghost's copy of this cluster (`renderGhostNameRow`) and like the appearance
         // contract's own declaration for this row (`appearance-invariant-manifest.ts`
@@ -89,7 +89,7 @@ function renderRowIdentity(args: {
         // `[data-slot="message-attribution"]`). The settled row was the arm that never took it, and the
         // name is the one datum whose size moves independently (`--appearance-reading-name-scale`, globals.css:795),
         // so centring it puts a scaled name off the line its own row sits on.
-        <Row gap="field" align="baseline" data-slot="message-attribution">
+        <Row gap="field" align="baseline" className="wrap-break-word min-inline-0" data-slot="message-attribution">
           {renderAttributionName(attribution)}
         </Row>
       )}
@@ -179,7 +179,7 @@ export function renderGhostNameRow(args: {
   return (
     <NameRowFrame
       identity={
-        <Row gap="field" align="baseline" data-slot="message-attribution">
+        <Row gap="field" align="baseline" className="wrap-break-word min-inline-0" data-slot="message-attribution">
           {renderAttributionName(attribution)}
         </Row>
       }

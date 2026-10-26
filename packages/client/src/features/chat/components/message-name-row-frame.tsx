@@ -17,10 +17,10 @@ type HeaderPlacement = RowSkin["headerPlacement"];
 // top as the row's one raised layer (`--z-raised`, scoped to the row's stacking context, never over the shell). It is
 // positioned inside the row: only its top inset is cancelled, because a negative bottom margin lets the
 // sticky band paint past the row's bottom. Over wallpaper the chrome plate already supplies the outside inset.
-// Inside a container the cancellation is top-only (`-mt-row pt-row`), and the name lands on the pixel it held at rest.
+// Inside a container only the top inset is cancelled; the bottom inset contains the action rail's focus paint.
 // `-top-px` rather than `top-0` because the pin observer reads the pin as a one-pixel top clip.
 const STICKY_OUTSIDE = "not-in-data-[has-bg-image]:-mbs-row sticky -inset-bs-px z-(--z-raised) py-row";
-const STICKY_INSIDE = "-mbs-row sticky -inset-bs-px z-(--z-raised) pbs-row";
+const STICKY_INSIDE = "-mbs-row sticky -inset-bs-px z-(--z-raised) py-row";
 
 // While pinned, a card's bar reaches the card's side edges: the bubble's own inset on each side, which client
 // globals.css defaults to `--spacing-block` and echo widens to its art pane. A band reaches across the column's inset.
@@ -43,9 +43,8 @@ const REACH_COLUMN = "-mx-section px-section @max-cq-28:-mx-row @max-cq-28:px-ro
  *  take that fill's paired ink (`data-bubble-ink`, client globals.css): the speaker and gloss inks derive from the
  *  scope's base and are not judged against a bubble fill. A band keeps its base-derived ink.
  *
- *  THE ACTION CLUSTER CONTRIBUTES NO HEIGHT. It rides a zero-height flex wrapper: it keeps its full width in flow, its
- *  buttons keep painting and hit-testing at full size, and the inside arm's only reservation is the row's own minimum
- *  height, just enough that the centred rail fits between the container's top edge and the body. */
+ *  The action wrapper reserves its full glyph height. The header inset contains the focused ring and
+ *  coarse-pointer hit area, including when the rail wraps below the identity. */
 export interface NameRowFrameProps {
   readonly identity: ReactNode;
   readonly actions: ReactNode;
@@ -88,7 +87,7 @@ export function NameRowFrame({ identity, actions, stickyAttribution, placement, 
     >
       {identity}
       {actions === null ? null : (
-        <Row align="center" className="block-0" data-slot="message-actions-slot">
+        <Row align="center" className="block-0 min-block-(--size-glyph-lg)" data-slot="message-actions-slot">
           {actions}
         </Row>
       )}
@@ -173,6 +172,7 @@ function FrameRow({
       fadeBelow={paint.fadeBelow}
       cardCorners={paint.cardCorners}
       className={cn(
+        "flex-wrap",
         flip && "flex-row-reverse",
         stickyOutside && STICKY_OUTSIDE,
         stickyInside && STICKY_INSIDE,
@@ -185,7 +185,7 @@ function FrameRow({
         // ends where the forward chevron does and its touch area stays inside the scrollport.
         outside && "px-field",
         overlay && "-mbe-(--size-glyph-lg) box-content block-(--size-glyph-lg)",
-        // THE ACTION RAIL'S ONLY RESERVATION. The rail is centred on this row, so a content height of
+        // The rail is centred on this row, so a content height of
         // `glyph-lg - 2 * row` makes it span exactly the container's top inset, this row and the `gap-row` below it.
         // It is unconditional across ghost, editing and sticky arms. `box-content` keeps the sticky band's `pt-row` additive, so its cancellation stays exact.
         reserve && "box-content min-block-(--size-name-row-min)",

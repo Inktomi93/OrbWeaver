@@ -336,7 +336,7 @@
   --height-picker-art-square: calc(round(nearest, 100cqw, 1px));
   --grid-lead: 1.55fr 1fr;
   --grid-lead-wide: 1.5fr 1.05fr;
-  --reading-bubble-cap: 65ch;
+  --reading-bubble-cap: min(100%, 65ch);
   --text-art-initial: calc(var(--immersive-initial-cqmin) * 1cqmin);
   --text-band-initial: calc(var(--immersive-band-initial-cqmin) * 1cqmin);
 }
