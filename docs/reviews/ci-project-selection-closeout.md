@@ -47,7 +47,7 @@ Independent read-only adjudication finds no warranted process-reader repair. The
 
 ### Changed-host-state qualification
 
-A fresh readiness record at `/tmp/ci-project-selection-readiness.json` confirms that the observed candidate, parent and owner PIDs are absent. After that concrete apparatus-state qualification, the owner authorizes one fresh isolated empty-selection execution on the same frozen source. No process-reader allowance or source change is added.
+A fresh readiness record at `/tmp/ci-project-selection-readiness.json` confirms that the observed candidate, parent and owner PIDs are absent. After that concrete apparatus-state qualification, the primary runs one fresh isolated empty-selection execution on the same frozen source. No process-reader allowance or source change is added.
 
 `pnpm test tests/e2e/support/project-selection.int.test.ts --testNamePattern='public corpus smoke runner propagates empty selection' --reporter=default --reporter=json --outputFile=/tmp/ci-project-selection-empty-fresh.json` passes the selected case; the other cases are filtered out. Evidence: `/tmp/ci-project-selection-empty-fresh.log`, `/tmp/ci-project-selection-empty-fresh.json`.
 

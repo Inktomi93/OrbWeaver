@@ -20,3 +20,18 @@ The coupled CSS plan no longer claims a retained receded-ink rule. There is no b
 - Documentation formatting and `git diff --check` pass.
 
 The source stays frozen during this floor. No full Node application suite or rendered checks are rerun for this batch: it removes unsupported static enforcement and dead exports, not product behavior. See the [first-boot repair](ci-first-boot-closeout.md) for the browser changes and parent-owned application E2E. A new CI run still owns application-wide acceptance; no push is performed.
+
+## Subsequent CI repair wave
+
+The repair for run `40242985011` changes tests and reports only. Independent correctness review confirms the commits through `e01b7ed700`.
+
+- [Egress GC controls](ci-egress-closeout.md) prove collection, retained Request ownership and release without changing production egress or its timeout.
+- [Project-selection controls](ci-project-selection-closeout.md) bound and join native subprocess lifetimes. Their passing case evidence preserves the separate failed aggregate and retained fixture.
+- [Motion and scroll controls](ci-motion-scroll-closeout.md) hold a nonzero native animation phase and use persisted messages with published socket events.
+
+The original jump-pill CI cause remains unexplained. [Qualification item 1375](../work/1375-qualify-the-native-scrollend-jump-pill-ci-symptom.md) keeps that distinction visible; no production fix or flake classification is claimed.
+
+The existing application E2E evidence at source `a29129661b` remains applicable. Production packages, build scripts, testkit, fixtures, Playwright configuration and executed E2E flow dependencies are unchanged.
+The changed project-selection integration suite is outside the native E2E spec population. The earlier result is 27 passed and one declared phone exclusion; no fresh E2E result is claimed.
+
+The changed-source checks and independent review are complete. A new full CI run remains required; no push is performed.
