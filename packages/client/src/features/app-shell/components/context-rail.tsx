@@ -14,8 +14,10 @@
 // visited panel mounted so a revisit is free.
 
 import { Badge } from "@orb/ui/badge";
-import { ChevronLeft, ChevronRight, Crown, Icon, Lock } from "@orb/ui/icons";
+import { Button } from "@orb/ui/button";
+import { ChevronLeft, ChevronRight, Crown, Icon, Lock, MoreHorizontal } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
+import { Menu, MenuPopup, MenuRadioGroup, MenuRadioItem, MenuTrigger } from "@orb/ui/menu";
 import { Tabs, TabsIndicator, TabsList, TabsTab } from "@orb/ui/tabs";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, RefObject } from "react";
@@ -196,12 +198,14 @@ export function ContextHeaderTabs({
   paneLabel,
   tabs,
   activeTab,
+  onSelect,
 }: {
   readonly ariaLabel: string;
   /** What a single-tab header prints: the pane's own name, where the tablist's name is the section's. */
   readonly paneLabel?: string | undefined;
   readonly tabs: readonly ResolvedContextTab[];
   readonly activeTab: string | null;
+  readonly onSelect: (id: string) => void;
 }): ReactElement {
   const trackRef = useRef<HTMLDivElement | null>(null);
   const overflow = useTrackOverflow(trackRef, tabs.length);
@@ -235,6 +239,33 @@ export function ContextHeaderTabs({
         ))}
         <TabsIndicator />
       </TabsList>
+      {overflow.start || overflow.end ? (
+        <Menu>
+          <MenuTrigger
+            render={
+              <Button
+                aria-label={`All ${ariaLabel} tabs`}
+                data-slot="context-tab-overflow-trigger"
+                intent="ghost"
+                size="icon"
+                type="button"
+                className="me-field shrink-0"
+              >
+                <Icon icon={MoreHorizontal} size="sm" />
+              </Button>
+            }
+          />
+          <MenuPopup align="end">
+            <MenuRadioGroup value={activeTab ?? ""}>
+              {tabs.map((tab) => (
+                <MenuRadioItem key={tab.id} value={tab.id} closeOnClick={true} onClick={(): void => onSelect(tab.id)}>
+                  {tab.label}
+                </MenuRadioItem>
+              ))}
+            </MenuRadioGroup>
+          </MenuPopup>
+        </Menu>
+      ) : null}
       <OverflowMarks overflow={overflow} fill="sidebar" />
     </Row>
   );

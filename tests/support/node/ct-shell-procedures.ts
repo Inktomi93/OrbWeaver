@@ -66,6 +66,7 @@ export const ROOM_PROCEDURES = [
   "chat.listMessages",
   "chat.listReactions",
   "chat.previewContextFit",
+  "automation.listChatActivity",
   "persona.listConnectedToCharacter",
   "regex.listRoomDisplayScripts",
   "plugin.listDisplayTransforms",
