@@ -5,8 +5,13 @@
 // stated once: win32 exposes no process environment and no process group, so a run marker there is found
 // only in argv and a tree is stopped through its recorded pids; darwin folds a process's environment into
 // its command line.
+import type { Stats } from "node:fs";
+import { accessSync, constants as fsConstants, lstatSync } from "node:fs";
+import type { UserInfo } from "node:os";
+import { userInfo } from "node:os";
+import { join } from "node:path";
 import process from "node:process";
-import type { FullPriorityChild, RunNicedSyncResult } from "../process/proc.ts";
+import type { FullPriorityChild, RunNicedSyncOptions, RunNicedSyncResult } from "../process/proc.ts";
 import { runNicedSync, spawnFullPriorityChild } from "../process/proc.ts";
 import type { PnpmInvocation, ProcessEntry, SocketRow } from "./platform-parse.ts";
 import { parseCimProcesses, parseLsofSockets, parseNetstatSockets, parsePsClock, parsePsProcesses, parseSsSockets } from "./platform-parse.ts";
@@ -437,4 +442,125 @@ export function pnpmInvocation(opts: {
     };
   }
   return { kind: "path", command: "pnpm", args: [...opts.args] };
+}
+
+/** Host facts for optional, current-user graphical-session discovery. No cookie contents are read. */
+export interface GraphicalSessionDeps {
+  readonly platform?: NodeJS.Platform;
+  readonly account?: Pick<UserInfo<string>, "uid" | "homedir">;
+  readonly run?: (command: string, args: readonly string[], options: Pick<RunNicedSyncOptions, "timeout" | "maxBuffer">) => RunNicedSyncResult;
+  readonly stat?: (path: string) => Pick<Stats, "uid" | "mode" | "isFile" | "isSocket">;
+  readonly readable?: (path: string) => boolean;
+}
+
+const POSIX_PERMISSION_SPACE = 0o1000;
+const OWNER_PERMISSION_UNIT = 0o100;
+const OWNER_READ_PERMISSION = 0o400;
+const GRAPHICAL_QUERY_TIMEOUT_MS = 1000;
+const GRAPHICAL_QUERY_MAX_BYTES = 16_384;
+const GRAPHICAL_SESSION_FIELDS = ["User", "Active", "Remote", "Type", "Seat", "Display"] as const;
+const SESSION_ID_RE = /^[A-Za-z0-9][A-Za-z0-9_-]*$/u;
+const LOCAL_X_DISPLAY_RE = /^:(\d+)(?:\.\d+)?$/u;
+
+function sessionProperties(text: string): ReadonlyMap<string, string> | null {
+  const properties = new Map<string, string>();
+  for (const line of text.trim().split(/\r?\n/u)) {
+    const separator = line.indexOf("=");
+    const key = line.slice(0, separator);
+    if (separator < 1 || properties.has(key)) {
+      return null;
+    }
+    properties.set(key, line.slice(separator + 1));
+  }
+  return GRAPHICAL_SESSION_FIELDS.every((key) => properties.has(key)) ? properties : null;
+}
+
+function ownGraphicalFiles(account: Pick<UserInfo<string>, "uid" | "homedir">, display: string, deps: GraphicalSessionDeps): string | null {
+  const match = LOCAL_X_DISPLAY_RE.exec(display);
+  if (match === null || !Number.isSafeInteger(Number(match[1]))) {
+    return null;
+  }
+  const authority = join(account.homedir, ".Xauthority");
+  try {
+    const stat = deps.stat ?? ((path: string): Stats => lstatSync(path));
+    const auth = stat(authority);
+    const socket = stat(`/tmp/.X11-unix/X${String(Number(match[1]))}`);
+    const permissions = auth.mode % POSIX_PERMISSION_SPACE;
+    if (
+      !auth.isFile() ||
+      auth.uid !== account.uid ||
+      permissions % OWNER_PERMISSION_UNIT !== 0 ||
+      permissions < OWNER_READ_PERMISSION ||
+      !socket.isSocket() ||
+      (socket.uid !== account.uid && socket.uid !== 0)
+    ) {
+      return null;
+    }
+    if (deps.readable !== undefined) {
+      return deps.readable(authority) ? authority : null;
+    }
+    accessSync(authority, fsConstants.R_OK);
+    return authority;
+  } catch {
+    return null;
+  }
+}
+
+function activeGraphicalDisplays(sessions: readonly string[], uid: number, query: (args: readonly string[]) => RunNicedSyncResult): readonly string[] | null {
+  const candidates: string[] = [];
+  for (const id of sessions) {
+    if (!SESSION_ID_RE.test(id)) {
+      return null;
+    }
+    const result = query(["show-session", id, ...GRAPHICAL_SESSION_FIELDS.map((field) => `--property=${field}`), "--all", "--no-pager"]);
+    if (result.status !== 0) {
+      return null;
+    }
+    const fields = sessionProperties(result.stdout);
+    if (
+      fields === null ||
+      fields.get("User") !== String(uid) ||
+      !["yes", "no"].includes(fields.get("Active") ?? "") ||
+      !["yes", "no"].includes(fields.get("Remote") ?? "")
+    ) {
+      return null;
+    }
+    if (fields.get("Active") === "yes" && fields.get("Remote") === "no" && fields.get("Type") === "x11" && fields.get("Seat") !== "") {
+      candidates.push(fields.get("Display") ?? "");
+    }
+  }
+  return candidates;
+}
+
+/** The sole active local-seat X11 session belonging to this OS user, or no automatic selection. */
+export function ownGraphicalSession(deps: GraphicalSessionDeps = {}): { readonly display: string; readonly authority: string } | null {
+  if ((deps.platform ?? process.platform) !== "linux") {
+    return null;
+  }
+  let account: Pick<UserInfo<string>, "uid" | "homedir">;
+  try {
+    account = deps.account ?? userInfo();
+  } catch {
+    return null;
+  }
+  const query = (args: readonly string[]): RunNicedSyncResult =>
+    (deps.run ?? runNicedSync)("loginctl", args, { timeout: GRAPHICAL_QUERY_TIMEOUT_MS, maxBuffer: GRAPHICAL_QUERY_MAX_BYTES });
+  const listed = query(["show-user", String(account.uid), "--property=Sessions", "--value", "--no-pager"]);
+  if (listed.status !== 0) {
+    return null;
+  }
+  const sessions = listed.stdout.trim() === "" ? [] : listed.stdout.trim().split(/\s+/u);
+  const candidates = activeGraphicalDisplays(sessions, account.uid, query);
+  if (candidates === null) {
+    return null;
+  }
+  if (candidates.length !== 1) {
+    return null;
+  }
+  const display = candidates[0];
+  if (display === undefined) {
+    return null;
+  }
+  const authority = ownGraphicalFiles(account, display, deps);
+  return authority === null ? null : { display, authority };
 }

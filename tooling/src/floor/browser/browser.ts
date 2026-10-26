@@ -7,6 +7,8 @@
 import type { Browser, BrowserContext, CDPSession, devices, Page } from "@playwright/test";
 import { chromium } from "@playwright/test";
 import { warn } from "../cli/log.ts";
+import type { GraphicalSessionDeps } from "../host/platform.ts";
+import { ownGraphicalSession } from "../host/platform.ts";
 import { DEV_PORTS } from "../host/ports.ts";
 import { inheritedProcessEnv, processEnvValue } from "../process/process-env.ts";
 import { currentRunLease, currentRunMarker, runLeaseArg, runLeaseEnv, runMarkerArg, runMarkerEnv } from "../process/run-marker.ts";
@@ -148,6 +150,19 @@ interface LaunchedBrowser {
   readonly persistentContext?: BrowserContext;
 }
 
+/** Fill missing graphics context without replacing caller selectors or the marked launch environment. */
+export function browserLaunchEnvironment(environment: NodeJS.ProcessEnv, args: readonly string[] = [], deps: GraphicalSessionDeps = {}): NodeJS.ProcessEnv {
+  if (
+    ["DISPLAY", "XAUTHORITY", "WAYLAND_DISPLAY"].some((key) => Object.hasOwn(environment, key)) ||
+    environment["XDG_SESSION_TYPE"] === "wayland" ||
+    args.some((arg) => arg === "--ozone-platform" || arg.startsWith("--ozone-platform=") || arg === "--headless" || arg.startsWith("--headless="))
+  ) {
+    return environment;
+  }
+  const session = ownGraphicalSession(deps);
+  return session === null ? environment : { ...environment, ["DISPLAY"]: session.display, ["XAUTHORITY"]: session.authority };
+}
+
 /** THE RUN MARKER FOR EVERY BROWSER THIS PROCESS LAUNCHES (#1848). Playwright puts each browser in its own
  *  session, so a snap killed mid-drive (SIGKILL, a stage timeout, a lane torn down) leaves a Chromium that
  *  no process-group kill can reach — the same leak the CT runner had, and the reason 72 headless-shell
@@ -158,9 +173,9 @@ interface LaunchedBrowser {
  *  BOTH IDENTITIES RIDE WHEN THIS PROCESS HOLDS A LEASE (#2504): the OUTER run's marker, so that run's kill
  *  path still reaches this browser exactly as #1848 requires, AND the lease this process minted, which is
  *  the only value its own teardown may sweep. One stamp would have to serve both, and it could not. */
-function markedBrowserEnv(): NodeJS.ProcessEnv {
+function markedBrowserEnv(args: readonly string[]): NodeJS.ProcessEnv {
   const lease = currentRunLease();
-  return inheritedProcessEnv({ ...runMarkerEnv(currentRunMarker()), ...(lease === null ? {} : runLeaseEnv(lease)) });
+  return browserLaunchEnvironment(inheritedProcessEnv({ ...runMarkerEnv(currentRunMarker()), ...(lease === null ? {} : runLeaseEnv(lease)) }), args);
 }
 
 /** …AND THE ARG, because the env alone does not survive: chromium rewrites its own environ area for its
@@ -176,8 +191,9 @@ function markedBrowserArgs(args: readonly string[]): string[] {
 
 async function launchOwnedBrowser(opts: ProbeLaunchOptions, deviceDescriptor: (typeof devices)[string] | null): Promise<LaunchedBrowser> {
   const browserArgs = browserArgsWithAcceleration(opts.browserArgs);
+  const environment = markedBrowserEnv(browserArgs);
   if (opts.persistentProfileDir === undefined) {
-    return { browser: await chromium.launch({ headless: opts.headless, args: markedBrowserArgs(browserArgs), env: markedBrowserEnv() }) };
+    return { browser: await chromium.launch({ headless: opts.headless, args: markedBrowserArgs(browserArgs), env: environment }) };
   }
   // ONE SIZE ANSWER (#1668): the descriptor supplies touch/DPR/UA/isMobile while the shared size resolver
   // composes viewport + screen, so the launch options and environment receipt cannot disagree.
@@ -190,7 +206,7 @@ async function launchOwnedBrowser(opts: ProbeLaunchOptions, deviceDescriptor: (t
     ...sizing,
     headless: opts.headless,
     args: markedBrowserArgs(browserArgs),
-    env: markedBrowserEnv(),
+    env: environment,
   });
   const browser = persistentContext.browser();
   if (browser === null) {

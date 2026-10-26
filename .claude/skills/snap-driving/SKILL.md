@@ -56,6 +56,12 @@ means `--goto <section|config:<group>|modal:<slot>>` / `--open-chat` / `--open-c
 its own slot and publishes `reports/snaps/<name>.png` and similar as mutable latest pointers. Cite the
 slot's `run.json`.
 
+## Browser graphics
+
+On Linux, the shared launcher discovers the current OS user’s sole active local X11 desktop when graphics selectors are absent. It checks session ownership and private auth-file metadata without reading cookies. Normal headless launches stay headless.
+
+Explicit `DISPLAY`, `XAUTHORITY` or `WAYLAND_DISPLAY` keys, including empty values, prevent discovery. So do `XDG_SESSION_TYPE=wayland` and explicit Ozone or headless backend arguments. Missing, ambiguous or unusable desktop information leaves the inherited environment unchanged. CDP’s recorded acceleration posture remains authoritative; discovery does not waive software-rendering limits.
+
 ## §1 One selector engine per target
 
 A selector is one engine: CSS, or `role=…`, or `text=…`. Never concatenate engines:
