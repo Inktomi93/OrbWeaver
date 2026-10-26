@@ -82,7 +82,7 @@ function shouldSyncOnMount(contentHeightPx: number): boolean {
 }
 
 /**
- * The scrollport-height state update, EQUALITY-GUARDED. This is the `exceedsViewport` denominator, and the
+ * The scrollport-height state update, EQUALITY-GUARDED. This tracks scrollport resize for tail re-pinning. The
  * guard is why a streaming turn does not re-render the whole list through this path: a row growing changes
  * the OL's height, never the scrollport's, so `sync()` runs and this returns the identical number.
  *
@@ -118,7 +118,7 @@ export function useTailRepin(input: {
 
 /**
  * Seed + track everything that depends on the SCROLLPORT rather than on a scroll event: the edge fades,
- * the `exceedsViewport` denominator, and `pin-prompt`'s spacer release. Two carriers, per the header —
+ * tail re-pinning, and `pin-prompt`'s spacer release. Two carriers, per the header —
  * CONTAINER resizes ride the scroller's own ResizeObserver, CONTENT growth rides `contentHeightPx`.
  */
 export function useScrollportSync(input: {
@@ -130,13 +130,6 @@ export function useScrollportSync(input: {
   readonly setPinSpacerPx: Dispatch<SetStateAction<number>>;
 }): void {
   const { virtualizer, scrollRef, pinnedIndexRef, contentHeightPx, setScrollportHeightPx, setPinSpacerPx } = input;
-  // A jump's scroll event precedes the new virtual rows; judge their sticky headers after each commit.
-  useLayoutEffect(() => {
-    const el = scrollRef.current;
-    if (el !== null) {
-      updateEdgeFades(el);
-    }
-  });
   useLayoutEffect(() => {
     const el = scrollRef.current;
     if (el === null) {

@@ -68,9 +68,7 @@ export interface MessageRowProps {
   readonly showSwipes?: boolean;
   /** The transcript's last row: a bare skin shows its actions and keeps its minimum size only here. */
   readonly lastRow?: boolean;
-  /** #113 — the virtualizer MEASURED this row as taller than the scrollport, so the reader can be deep
-   *  inside the turn with the speaker's name scrolled off. Pins the name row to the top of the scrollport
-   *  and gives it a backing chip. Absent/false ⇒ byte-identical to before (no sticky, no chip). */
+  /** Keep the identity header pinned within its own row while it crosses the transcript edge. */
   readonly stickyAttribution?: boolean | undefined;
   readonly participants?: ReadonlyMap<CharacterId, ParticipantView> | undefined;
   /** The per-chat macro-name producer — one source for both the attribution badge and `{{char}}`/`{{user}}`. */

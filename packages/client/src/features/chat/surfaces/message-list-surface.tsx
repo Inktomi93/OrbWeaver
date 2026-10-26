@@ -17,7 +17,7 @@ import { buildIdentityAvatarMaps, buildIdentityNameContext, identityKey } from "
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
 import { Stack } from "@orb/ui/layout";
-import type { MessageListHandle, MessageListRowMeta } from "@orb/ui/message-list";
+import type { MessageListHandle } from "@orb/ui/message-list";
 import { MessageList } from "@orb/ui/message-list";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
@@ -303,11 +303,8 @@ function ChatThread({
   // (The noun is COMPACTION, not memory — this is `chats.compactSummary`, not the Memory plane.)
   const contextBoundaryCompactSummary = fit?.compactSummary ?? null;
 
-  // `meta.exceedsViewport` is the virtualizer's OWN measurement of this row against the scrollport — the
-  // only honest answer to "is this turn taller than the reader's screen", which is what decides whether
-  // the speaker attribution has to be sticky (#113). A content-length proxy would be wrong for exactly the
-  // rows that matter (a short body carrying three cards is multi-viewport; a long one-liner is not).
-  const renderItem = (item: (typeof items)[number], _index: number, meta: MessageListRowMeta): ReactNode =>
+  // Identity stays with its row even when a short turn crosses the transcript edge.
+  const renderItem = (item: (typeof items)[number]): ReactNode =>
     item.kind === "ghost" ? (
       <GhostMessageRow
         chatId={chatId}
@@ -328,15 +325,13 @@ function ChatThread({
         smoothStreamCps={behaviorPrefs.smoothStreamCps}
         reasoningAutoCollapse={behaviorPrefs.reasoningAutoCollapse}
         enterMotion={newArrivalKeys.has(item.id)}
-        // #116 — the SAME measured verdict the settled row takes. The live turn is the row that exceeds the
-        // scrollport most often (it grows past it while streaming), so this is where the pin earns most.
-        stickyAttribution={meta.exceedsViewport}
+        stickyAttribution={true}
       />
     ) : (
       <MessageRow
         message={item.view}
         chatStyle={chatStyle}
-        stickyAttribution={meta.exceedsViewport}
+        stickyAttribution={true}
         {...((): { readonly greeting?: ReturnType<typeof resolveGreetingBinding> } => {
           // exactOptionalPropertyTypes: a non-greeting row must OMIT the prop, never pass explicit-undefined.
           const greeting = resolveGreetingBinding({ windowOpen: greetingWindowOpen, message: item.view, alternatesByCharacter: greetingAlternates });
@@ -399,12 +394,12 @@ function ChatThread({
           getItemKey={messageItemKey}
           estimateSize={(index): number => estimateMessageRow(items[index] ?? { kind: "ghost" })}
           keepMounted={(item): boolean => liveCardRows.has(messageItemKey(item))}
-          renderItem={(item, index, meta): ReactNode => {
+          renderItem={(item): ReactNode => {
             const highlighted =
               item.kind === "message" && window !== null && window.endSeq !== null && item.view.seq >= window.anchorSeq && item.view.seq <= window.endSeq;
             return (
               <Stack data-corpus-anchor={highlighted ? "" : undefined} highlight={highlighted}>
-                {renderItem(item, index, meta)}
+                {renderItem(item)}
               </Stack>
             );
           }}

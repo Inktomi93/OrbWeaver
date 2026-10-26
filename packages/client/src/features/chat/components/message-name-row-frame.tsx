@@ -13,14 +13,13 @@ import type { HeaderShape } from "../lib/row-placement.ts";
 
 type HeaderPlacement = RowSkin["headerPlacement"];
 
-// THE STICKY PIN, for a row the virtualizer measured as taller than the scrollport: the header pins to the scrollport's
+// THE STICKY PIN: the identity header stays within its own row while pinning to the scrollport's
 // top as the row's one raised layer (`--z-raised`, scoped to the row's stacking context, never over the shell). It is
-// layout-neutral by construction, because the verdict is computed from the measured row height and any box it changed
-// would re-enter its own input. Outside a container the band's `py-row` is cancelled by `-my-row`, but only with no
-// wallpaper: over art the chrome plate's `py-row` is the padding, and cancelling it shrank the row as it went sticky.
+// positioned inside the row: only its top inset is cancelled, because a negative bottom margin lets the
+// sticky band paint past the row's bottom. Over wallpaper the chrome plate already supplies the outside inset.
 // Inside a container the cancellation is top-only (`-mt-row pt-row`), and the name lands on the pixel it held at rest.
 // `-top-px` rather than `top-0` because the pin observer reads the pin as a one-pixel top clip.
-const STICKY_OUTSIDE = "not-in-data-[has-bg-image]:-my-row sticky -inset-bs-px z-(--z-raised) py-row";
+const STICKY_OUTSIDE = "not-in-data-[has-bg-image]:-mbs-row sticky -inset-bs-px z-(--z-raised) py-row";
 const STICKY_INSIDE = "-mbs-row sticky -inset-bs-px z-(--z-raised) pbs-row";
 
 // While pinned, a card's bar reaches the card's side edges: the bubble's own inset on each side, which client
@@ -188,8 +187,7 @@ function FrameRow({
         overlay && "-mbe-(--size-glyph-lg) box-content block-(--size-glyph-lg)",
         // THE ACTION RAIL'S ONLY RESERVATION. The rail is centred on this row, so a content height of
         // `glyph-lg - 2 * row` makes it span exactly the container's top inset, this row and the `gap-row` below it.
-        // It is unconditional (ghost, editing and sticky arms alike) because the sticky verdict is computed from the
-        // measured row height. `box-content` keeps the sticky band's `pt-row` additive, so its cancellation stays exact.
+        // It is unconditional across ghost, editing and sticky arms. `box-content` keeps the sticky band's `pt-row` additive, so its cancellation stays exact.
         reserve && "box-content min-block-(--size-name-row-min)",
       )}
     >

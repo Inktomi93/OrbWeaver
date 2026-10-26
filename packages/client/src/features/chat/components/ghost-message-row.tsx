@@ -222,10 +222,7 @@ export interface GhostMessageRowProps {
   readonly reasoningAutoCollapse?: boolean | undefined;
   /** True only on the render the ghost genuinely appears; a mid-stream scrollback remount gets false. */
   readonly enterMotion?: boolean;
-  /** #113/#116 — the virtualizer MEASURED this row as taller than the scrollport. The LIVE turn reaches
-   *  that state constantly (a long reply grows past the screen while it streams), which is exactly when the
-   *  reader can no longer see who is speaking. Pins the ghost's name row to the top of the scrollport, the
-   *  same mechanism and the same layout-neutral chip the settled row takes. Absent/false ⇒ no sticky. */
+  /** Keep the identity header pinned within its own row while it crosses the transcript edge. */
   readonly stickyAttribution?: boolean | undefined;
   /** The settled row's `showModelIcon` gate: the credit glyph its action cluster will carry, reserved here so
    *  commit does not widen the card. Absent ⇒ no credit. */

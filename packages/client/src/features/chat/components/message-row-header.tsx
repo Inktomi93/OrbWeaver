@@ -135,10 +135,8 @@ export function renderRowNameRow(args: {
  *  (edit/swipe/kebab) only exists for canon. What is left is exactly the fact the ghost was missing: WHO is
  *  speaking, for the whole minutes-long generation, in a group room where arbitration picks the speaker.
  *
- *  Riding the shared frame is what buys #113's sticky pin for the live turn for free — once the growing
- *  ghost exceeds the scrollport the surface passes `stickyAttribution` and the name pins to the top of the
- *  scrollport with the stream flowing under it, layout-neutral (the band's `pt-row` is cancelled by
- *  `-mt-row`, and the inside row's minimum height stands in every arm, rail or no rail).
+ *  The surface passes `stickyAttribution` so the name stays within the live turn while the stream flows
+ *  under it. The shared frame gives live and settled identity the same row-bounded pin.
  *
  *  ARIA: plain text inside the ghost ROW's own live region, and nothing more. Post-#1499 the transcript
  *  CONTAINER is explicitly `aria-live="off"` (its implicit `role="log"` politeness announced every

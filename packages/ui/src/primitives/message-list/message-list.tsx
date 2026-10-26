@@ -8,7 +8,6 @@ import { assertBoundedScrollHeight, cn, FOCUS_RING_OUTLINE, gapPxFor, usePrefers
 import { rowLiveness } from "./announce.ts";
 import { useScrollportSync, useTailRepin } from "./content-growth.ts";
 import { attachUserScrollInput, shouldAdjustForResizedItem, USER_SCROLL_YIELD_MS } from "./follow-yield.ts";
-import type { MessageListRowMeta } from "./list-window.ts";
 import { composeRangeExtractor, updateEdgeFades } from "./list-window.ts";
 import type { MessageListRowNavigation } from "./row-roving.ts";
 import { MESSAGE_LIST_ROW_SLOT, useRowRoving } from "./row-roving.ts";
@@ -97,7 +96,7 @@ export interface MessageListProps<T> {
    * sequential order. Mandatory for any log whose length is unbounded.
    */
   readonly rowNavigation?: MessageListRowNavigation;
-  readonly renderItem: (item: T, index: number, meta: MessageListRowMeta) => ReactNode;
+  readonly renderItem: (item: T, index: number) => ReactNode;
   /** Caller-owned sizing/skin for the scroll container — the bounded height comes from here. */
   readonly className?: string;
   /** Escape hatch to the real scroll DOM node, e.g. for an external scroll-restoration hook. */
@@ -163,8 +162,7 @@ export function MessageList<T>({
   };
 
   const roving = rowNavigation === "roving";
-  // The scrollport height, for `MessageListRowMeta.exceedsViewport`. State (not a ref) because a row's
-  // rendered output depends on it; written only when the container actually resizes.
+  // A scrollport resize re-pins the tail so the keyboard cannot cover the newest content.
   const [scrollportHeightPx, setScrollportHeightPx] = useState(0);
   // The roving hook must run BEFORE the virtualizer (its `activeIndex` feeds the range extractor, which is
   // a virtualizer option), but it needs to SCROLL through the virtualizer — so the call is late-bound
@@ -383,7 +381,7 @@ export function MessageList<T>({
   // Unbounded-height tripwire: thrown, not warned — identical to virtual-list.
   useLayoutEffect(() => assertBoundedScrollHeight(scrollRef.current, "MessageList"), []);
 
-  // Edge fades, the `exceedsViewport` denominator and pin-prompt's spacer release — everything that keys on
+  // Edge fades, tail re-pinning and pin-prompt's spacer release — everything that keys on
   // the SCROLLPORT rather than on a scroll event. Both of its triggers, and why the scroller keeps a real
   // ResizeObserver while content growth does not, are `./content-growth.ts`'s header.
   useScrollportSync({ contentHeightPx, pinnedIndexRef, scrollRef, setPinSpacerPx, setScrollportHeightPx, virtualizer });
@@ -425,9 +423,7 @@ export function MessageList<T>({
             aria-live={rowLiveness(virtualItem.index, items.length)}
             {...(roving ? { tabIndex: virtualItem.index === activeIndex ? 0 : -1, "data-active": virtualItem.index === activeIndex ? "" : undefined } : {})}
           >
-            {renderItem(itemAt(virtualItem.index), virtualItem.index, {
-              exceedsViewport: scrollportHeightPx > 0 && virtualizer.itemSizeCache.has(virtualItem.key) && virtualItem.size > scrollportHeightPx,
-            })}
+            {renderItem(itemAt(virtualItem.index), virtualItem.index)}
           </li>
         ))}
       </ol>

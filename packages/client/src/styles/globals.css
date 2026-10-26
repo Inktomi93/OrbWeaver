@@ -190,11 +190,7 @@
   [data-has-bg-image] [data-slot="message-name-row"][data-placement="inside"] [data-slot^="message-metadata-"] {
     color: inherit;
   }
-  /* Over a wallpaper the band is one section step deep: a mask dissolves the prose onto the photo, below the
-   * contrast floor, so only the cut line goes. */
-  [data-has-bg-image] [data-slot="message-list-scroll"][data-fade-top] {
-    --fade-top-stop: var(--spacing-section);
-  }
+  /* Keep the bottom fade shallow over wallpaper so reading ink stays above the contrast floor. */
   [data-has-bg-image] [data-slot="message-list-scroll"][data-fade-bottom] {
     --fade-bottom-stop: var(--spacing-section);
   }
