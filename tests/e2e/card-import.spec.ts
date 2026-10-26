@@ -1,18 +1,41 @@
 // Bounded ingress smoke: real multipart import, an embedded book, deduplication and reload.
+import { characterListInputSchema } from "@orb/contracts/character";
 import type { CardImportResult } from "@orb/contracts/import";
 import { cardImportResultSchema } from "@orb/contracts/import";
-import type { Page } from "@playwright/test";
+import { isPlainObject } from "@orb/kit/guards";
+import type { Page, Response } from "@playwright/test";
 import { ownerActor } from "./support/actors.ts";
 import { charactersRailButton, waitForAppReady } from "./support/chat-room.ts";
 import { expect, test } from "./support/corpus-test.ts";
 import type { TrpcClientOutput } from "./support/trpc.ts";
+import { isTrpcRequestFor } from "./support/trpc.ts";
 
 const NAME = "Smoke Imported Archivist";
+const FILTER_WITNESS_NAME = "Smoke Filter Ordering Witness";
+const CHARACTER_LIST_PATH = "character.list";
 const DESCRIPTION = "A synthetic archivist carrying a tiny smoke lorebook.";
 const GREETING = "The synthetic archive is open.";
 const BOOK_CONTENT = "The synthetic lantern burns amber in the archive.";
 const CARD = `{"spec":"chara_card_v3","spec_version":"3.0","data":{"name":"${NAME}","description":"${DESCRIPTION}","first_mes":"${GREETING}","character_book":{"name":"Smoke Archive","entries":[{"keys":["lantern"],"content":"${BOOK_CONTENT}","comment":"Synthetic lantern","constant":true,"insertion_order":10}]}}}`;
 const FILE_LABEL = "Drop a SillyTavern character card (PNG or JSON), or click to browse";
+
+function isFilteredLibraryRead(response: Response): boolean {
+  if (!isTrpcRequestFor(response.url(), CHARACTER_LIST_PATH) || response.request().method() !== "POST") {
+    return false;
+  }
+  const inputs: unknown = response.request().postDataJSON();
+  if (!isPlainObject(inputs)) {
+    return false;
+  }
+  const paths = new URL(response.url()).pathname.split("/").at(-1)?.split(",") ?? [];
+  return paths.some((path, index) => {
+    if (path !== CHARACTER_LIST_PATH) {
+      return false;
+    }
+    const input = characterListInputSchema.safeParse(inputs[String(index)]);
+    return input.success && input.data?.search === NAME;
+  });
+}
 
 async function openCharactersList(page: Page): Promise<void> {
   await charactersRailButton(page).click();
@@ -46,9 +69,11 @@ test("importing a card preserves its fields and primary book, re-import deduplic
   baseURL,
 }) => {
   const host = ownerActor(baseURL ?? "");
-  const prior = await host.trpc.character.list.query({ search: NAME });
-  for (const character of prior.items.filter((item) => item.name === NAME)) {
-    await host.trpc.character.remove.mutate({ characterId: character.id });
+  for (const name of [NAME, FILTER_WITNESS_NAME]) {
+    const prior = await host.trpc.character.list.query({ search: name });
+    for (const character of prior.items.filter((item) => item.name === name)) {
+      await host.trpc.character.remove.mutate({ characterId: character.id });
+    }
   }
   await page.goto("/");
   await waitForAppReady(page);
@@ -59,6 +84,7 @@ test("importing a card preserves its fields and primary book, re-import deduplic
     throw new Error("card import returned no character");
   }
   let books: TrpcClientOutput<"worldInfo.listForCharacter"> = [];
+  let witnessId: TrpcClientOutput<"character.create">["id"] | undefined;
   try {
     const fields = await host.trpc.character.get.query({ characterId: imported.characterId });
     expect({ name: fields.name, description: fields.description, greetings: fields.greetings.map((greeting) => greeting.text) }).toEqual({
@@ -77,10 +103,20 @@ test("importing a card preserves its fields and primary book, re-import deduplic
     const listed = await host.trpc.character.list.query({ search: NAME });
     expect(listed.items.filter((item) => item.name === NAME).map((item) => item.id)).toEqual([imported.characterId]);
     expect(await host.trpc.worldInfo.listForCharacter.query({ characterId: imported.characterId })).toEqual(books);
+    // The unfiltered library must differ from the filtered result, even on an otherwise empty install.
+    witnessId = (
+      await host.trpc.character.create.mutate({
+        input: { handle: "smoke-filter-order-witness", name: FILTER_WITNESS_NAME, description: "An unrelated row in the real imported-card library." },
+      })
+    ).id;
     await page.reload();
     await waitForAppReady(page);
     await openCharactersList(page);
+    // Search retains old rows while its debounced server read runs; existence alone does not mean the row has settled.
+    const filtered = page.waitForResponse(isFilteredLibraryRead);
     await page.getByRole("textbox", { name: "Search characters", exact: true }).fill(NAME);
+    expect((await filtered).ok()).toBe(true);
+    await expect(page.getByRole("list", { name: "Character library", exact: true }).locator('[data-slot="list-row-root"]')).toHaveCount(1);
     const cta = page.getByRole("button", { name: `Chat with ${NAME}`, exact: true });
     const row = page.locator('[data-slot="list-row-root"]').filter({ has: cta });
     await expect(row).toBeVisible();
@@ -89,6 +125,9 @@ test("importing a card preserves its fields and primary book, re-import deduplic
     await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible();
     await expect(page.locator('[data-slot="message-row"]').getByRole("paragraph")).toHaveText(GREETING);
   } finally {
+    if (witnessId !== undefined) {
+      await host.trpc.character.remove.mutate({ characterId: witnessId });
+    }
     await host.trpc.character.remove.mutate({ characterId: imported.characterId });
     for (const book of books) {
       await host.trpc.worldInfo.removeBook.mutate({ bookId: book.id });
