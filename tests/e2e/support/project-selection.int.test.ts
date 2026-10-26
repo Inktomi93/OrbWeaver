@@ -8,9 +8,18 @@ import { isPlainObject } from "@orb/kit/guards";
 import { expect, test } from "@orb/testkit/node";
 import { pageArray, pageObject, pageString } from "@orb/tooling/floor/browser/page-validate";
 import { budget } from "@orb/tooling/floor/host/load-budget";
-import { spawnNiced, spawnNicedTranscript } from "@orb/tooling/floor/process/proc";
+import { spawnNicedTranscript } from "@orb/tooling/floor/process/proc";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
+import {
+  describeRunMarkerSweep,
+  joinRunMarkerSweep,
+  markedPids,
+  mintRunMarker,
+  runLeaseEnv,
+  runMarkerTranscriptTeardown,
+} from "@orb/tooling/floor/process/run-marker";
 import { LONG_TEST_TIMEOUT_BASE_MS } from "@orb/tooling/floor/testing/test-tags";
+import type { TestContext, TestOptions } from "vitest";
 import { E2E_RUN_ROOT, selectedModeProjects } from "./modes.ts";
 
 const SELECTORS = [
@@ -30,22 +39,120 @@ import config from "./playwright.config.ts";
 console.log(JSON.stringify(config.webServer.map(server => server.env.AUTH_MODE)));
 `;
 
-// The public pnpm runners take seconds; an async spawn keeps the worker's event loop and runner heartbeat live meanwhile.
-function publicRunner(args: readonly string[], env: NodeJS.ProcessEnv = {}): ReturnType<typeof spawnNicedTranscript> {
-  return spawnNicedTranscript("pnpm", ["--config.verify-deps-before-run=false", ...args], {
+// Native collection includes cold configuration/spec imports, not a desktop-latency assertion (D308).
+const NATIVE_EXECUTION_MS = budget(LONG_TEST_TIMEOUT_BASE_MS);
+// Smoke loads the corpus and native collection graphs; matrix adds its mode-selection graph.
+const SMOKE_EXECUTION_MS = budget(LONG_TEST_TIMEOUT_BASE_MS * 2);
+const MATRIX_EXECUTION_MS = budget(LONG_TEST_TIMEOUT_BASE_MS * 3);
+const JOIN_MS = budget(LONG_TEST_TIMEOUT_BASE_MS);
+// Sum scaled windows so the global scaling cap cannot erase the parent's cleanup headroom.
+const NATIVE_CASE = { tags: ["slow"], timeout: NATIVE_EXECUTION_MS + JOIN_MS } satisfies TestOptions;
+const SELECTION_CASE = { tags: ["slow"], timeout: NATIVE_EXECUTION_MS * 2 + JOIN_MS } satisfies TestOptions;
+const SMOKE_CASE = { tags: ["slow"], timeout: SMOKE_EXECUTION_MS + JOIN_MS } satisfies TestOptions;
+const MATRIX_CASE = { tags: ["slow"], timeout: MATRIX_EXECUTION_MS + JOIN_MS } satisfies TestOptions;
+const MATRIX_COMMAND = "e2e:corpus:matrix";
+const SMOKE_COMMAND = "e2e:corpus";
+type ChildContext = Pick<TestContext, "signal" | "onTestFinished">;
+type CommandResult = Awaited<ReturnType<typeof spawnNicedTranscript>> & { readonly stdout: string; readonly stderr: string; readonly lease: string };
+interface CommandOptions {
+  readonly timeoutMs: number;
+  readonly env?: NodeJS.ProcessEnv;
+  readonly onStdout?: (stdout: string) => void;
+}
+
+async function runCommand(context: ChildContext, command: string, args: readonly string[], options: CommandOptions): Promise<CommandResult> {
+  context.signal.throwIfAborted();
+  const lease = mintRunMarker();
+  const teardown = runMarkerTranscriptTeardown(lease);
+  let joining: ReturnType<typeof joinRunMarkerSweep> | undefined;
+  const joinChild = (): ReturnType<typeof joinRunMarkerSweep> => {
+    joining ??= joinRunMarkerSweep(lease);
+    return joining;
+  };
+  let stdout = "";
+  let stderr = "";
+  const child = spawnNicedTranscript(command, args, {
     cwd: process.cwd(),
-    env: inheritedProcessEnv(env),
-    timeoutMs: budget(LONG_TEST_TIMEOUT_BASE_MS),
+    env: inheritedProcessEnv({ ...options.env, ...runLeaseEnv(lease) }),
+    timeoutMs: options.timeoutMs,
+    onChunk: (chunk, stream): void => {
+      if (stream === "stdout") {
+        stdout += chunk;
+        options.onStdout?.(stdout);
+      } else {
+        stderr += chunk;
+      }
+    },
+    teardown: {
+      afterTimeoutKill: async () => describeRunMarkerSweep(await joinChild()),
+      arm: (killGroup) => {
+        const guard = teardown.arm(killGroup);
+        context.signal.addEventListener("abort", killGroup, { once: true });
+        return {
+          dispose: (): void => {
+            context.signal.removeEventListener("abort", killGroup);
+            guard.dispose();
+          },
+        };
+      },
+    },
+  });
+  context.onTestFinished(async () => {
+    // A timed-out callback can still be awaiting pipes held by an escaped child; join before awaiting it.
+    await joinChild();
+    await child;
+  }, JOIN_MS);
+  const result = await child;
+  return { ...result, stdout, stderr, lease };
+}
+
+function publicRunner(
+  context: ChildContext,
+  args: readonly [typeof MATRIX_COMMAND | typeof SMOKE_COMMAND, ...string[]],
+  env: NodeJS.ProcessEnv = {},
+): Promise<CommandResult> {
+  return runCommand(context, "pnpm", ["--config.verify-deps-before-run=false", ...args], {
+    timeoutMs: args[0] === MATRIX_COMMAND ? MATRIX_EXECUTION_MS : SMOKE_EXECUTION_MS,
+    env,
   });
 }
 
-function collect(selector: readonly string[], configFile = "playwright.config.ts"): ReturnType<typeof spawnNiced> {
-  return spawnNiced(process.execPath, [PLAYWRIGHT_CLI, "test", "-c", configFile, ...COLLECTION_ARGS, ...selector]);
+function collect(context: ChildContext, selector: readonly string[], configFile = "playwright.config.ts"): Promise<CommandResult> {
+  return runCommand(context, process.execPath, [PLAYWRIGHT_CLI, "test", "-c", configFile, ...COLLECTION_ARGS, ...selector], { timeoutMs: NATIVE_EXECUTION_MS });
 }
 
-test("the corpus matrix forwards one selected phone cell without accumulating default projects", { tags: ["slow"] }, async () => {
+const CANCELLATION_READY = "project-selection-child-ready";
+
+test("context cancellation settles a native child and joins its owned lease", NATIVE_CASE, async ({ onTestFinished }) => {
+  const cancellation = new AbortController();
+  let command: Promise<CommandResult>;
+  const context: ChildContext = {
+    signal: cancellation.signal,
+    onTestFinished: (finish, timeout): void => {
+      onTestFinished(async (nativeContext) => {
+        await finish(nativeContext);
+        expect(markedPids((await command).lease)).toEqual([]);
+      }, timeout);
+    },
+  };
+  command = runCommand(context, process.execPath, ["-e", `process.stdout.write(${JSON.stringify(CANCELLATION_READY)}); setInterval(() => {}, 1000);`], {
+    timeoutMs: NATIVE_EXECUTION_MS,
+    onStdout: (stdout): void => {
+      if (stdout.includes(CANCELLATION_READY)) {
+        cancellation.abort();
+      }
+    },
+  });
+  const result = await command;
+  expect(result.stdout).toContain(CANCELLATION_READY);
+  expect(cancellation.signal.aborted).toBe(true);
+  expect(result.code, result.transcript).toBeNull();
+  expect(result.transcript).not.toContain("[proc] TIMED OUT");
+});
+
+test("the corpus matrix forwards one selected phone cell without accumulating default projects", MATRIX_CASE, async ({ signal, onTestFinished }) => {
   const project = `corpus-phone-${THEME_CHAT_STYLES[0]}`;
-  const { code, transcript } = await publicRunner(["e2e:corpus:matrix", "--list", `--project=${project}`]);
+  const { code, transcript } = await publicRunner({ signal, onTestFinished }, [MATRIX_COMMAND, "--list", `--project=${project}`]);
   expect(code, transcript).toBe(0);
   expect(transcript.match(/^Corpus matrix cell: .+$/gmu)).toEqual([`Corpus matrix cell: ${project}`]);
   expect(transcript).toContain(`[${project}]`);
@@ -56,9 +163,15 @@ test("the corpus matrix forwards one selected phone cell without accumulating de
   expect(transcript).not.toContain("[corpus-local-");
 });
 
-test("the corpus matrix composes its selected cell before a native terminator and file filter", { tags: ["slow"] }, async () => {
+test("the corpus matrix composes its selected cell before a native terminator and file filter", MATRIX_CASE, async ({ signal, onTestFinished }) => {
   const project = `corpus-phone-${THEME_CHAT_STYLES[0]}`;
-  const { code, transcript } = await publicRunner(["e2e:corpus:matrix", `--project=${project}`, "--list", "tests/e2e/smoke.spec.ts", "--"]);
+  const { code, transcript } = await publicRunner({ signal, onTestFinished }, [
+    MATRIX_COMMAND,
+    `--project=${project}`,
+    "--list",
+    "tests/e2e/smoke.spec.ts",
+    "--",
+  ]);
   expect(code, transcript).toBe(0);
   const collected = transcript.split("\n").filter((line) => /^\s+\[corpus-/u.test(line));
   expect(collected.length).toBeGreaterThan(0);
@@ -88,24 +201,17 @@ function collectedProjects(suites: readonly unknown[]): string[] {
   ]);
 }
 
-test("native repeated, variadic, equals and wildcard project selection agrees with boot configuration and the shared seed selector", {
-  tags: ["slow"],
-}, async () => {
-  const runDirectory = dirname(E2E_RUN_ROOT);
-  const before = existsSync(runDirectory) ? readdirSync(runDirectory).sort() : [];
-  // Each selector's collection and boot probe are independent processes, so all of them run at once.
-  const observed = await Promise.all(
-    SELECTORS.map(async (selector) => {
-      const argv = [...COLLECTION_ARGS, ...selector];
-      const [collection, probe] = await Promise.all([
-        collect(selector),
-        spawnNiced(process.execPath, ["--input-type=module", "-e", CONFIG_PROBE, "--", ...argv]),
-      ]);
-      return { selector, argv, collection, probe };
-    }),
-  );
-  for (const { selector, argv, collection, probe } of observed) {
-    expect(collection.code, collection.stdout + collection.stderr).toBe(0);
+test.for(SELECTORS.map((selector) => ({ selector, label: JSON.stringify(selector) })))(
+  "native project selection $label agrees with boot configuration and the shared seed selector",
+  SELECTION_CASE,
+  async ({ selector }, { signal, onTestFinished }) => {
+    const runDirectory = dirname(E2E_RUN_ROOT);
+    const before = existsSync(runDirectory) ? readdirSync(runDirectory).sort() : [];
+    const context = { signal, onTestFinished };
+    const argv = [...COLLECTION_ARGS, ...selector];
+    const collection = await collect(context, selector);
+    const probe = await runCommand(context, process.execPath, ["--input-type=module", "-e", CONFIG_PROBE, "--", ...argv], { timeoutMs: NATIVE_EXECUTION_MS });
+    expect(collection.code, collection.transcript).toBe(0);
     const report: unknown = JSON.parse(collection.stdout);
     expect(report).toHaveProperty("errors", []);
     const native = [...new Set(collectedProjects(arrayField(report, "suites")))].sort();
@@ -113,51 +219,55 @@ test("native repeated, variadic, equals and wildcard project selection agrees wi
     const sharedSelection = selectedModeProjects(argv)
       .map((mode) => mode.name)
       .sort();
-    expect(probe.code, probe.stderr).toBe(0);
+    expect(probe.code, probe.transcript).toBe(0);
     const bootConfiguration: unknown = JSON.parse(probe.stdout);
     const bootModes = pageArray(bootConfiguration, "configuration probe auth modes").map((mode) => pageString(mode, "configuration probe auth mode"));
     expect(sharedSelection, JSON.stringify(selector)).toEqual(native);
     expect([...bootModes].sort(), JSON.stringify(selector)).toEqual(native);
-  }
-  expect(existsSync(runDirectory) ? readdirSync(runDirectory).sort() : []).toEqual(before);
-});
+    expect(existsSync(runDirectory) ? readdirSync(runDirectory).sort() : []).toEqual(before);
+  },
+);
 
-test("native collection rejects an unmatched project instead of falling back to other auth modes", async () => {
+test("native collection rejects an unmatched project instead of falling back to other auth modes", NATIVE_CASE, async ({ signal, onTestFinished }) => {
   const selector = ["--project=unconfigured-auth-project"];
   const argv = [...COLLECTION_ARGS, ...selector];
-  const collection = await collect(selector);
-  expect(collection.code, collection.stdout + collection.stderr).toBe(1);
+  const collection = await collect({ signal, onTestFinished }, selector);
+  expect(collection.code, collection.transcript).toBe(1);
   expect(collection.stdout + collection.stderr).toContain('Project(s) "unconfigured-auth-project" not found');
   expect(selectedModeProjects(argv)).toEqual([]);
 });
 
-test("native collection rejects a missing project value instead of treating it as default selection", async () => {
+test("native collection rejects a missing project value instead of treating it as default selection", NATIVE_CASE, async ({ signal, onTestFinished }) => {
   const argv = [...COLLECTION_ARGS, "--project"];
-  const collection = await collect(["--project"]);
-  expect(collection.code, collection.stdout + collection.stderr).toBe(1);
+  const collection = await collect({ signal, onTestFinished }, ["--project"]);
+  expect(collection.code, collection.transcript).toBe(1);
   expect(collection.stderr).toContain("argument missing");
   expect(collection.stderr).toContain("--project");
   expect(selectedModeProjects(argv)).toEqual([]);
 });
 
-test("native collection refuses a missing explicit configuration instead of silently loading the default", async () => {
+test("native collection refuses a missing explicit configuration instead of silently loading the default", NATIVE_CASE, async ({ signal, onTestFinished }) => {
   const configFile = join(import.meta.dirname, "missing-project-selection.config.ts");
-  const collection = await collect([], configFile);
-  expect(collection.code, collection.stdout + collection.stderr).toBe(1);
+  const collection = await collect({ signal, onTestFinished }, [], configFile);
+  expect(collection.code, collection.transcript).toBe(1);
   expect(collection.stderr).toContain(`${configFile} does not exist`);
 });
 
 for (const missing of [false, true]) {
   test(`the public corpus smoke runner ${missing ? "propagates empty selection" : "selects the committed case"} and joins clone cleanup`, {
-    tags: ["slow"],
-  }, async () => {
-    const { code, transcript } = await publicRunner(["e2e:corpus", "--list", ...(missing ? ["absent-corpus-selection.spec.ts"] : [])], {
-      ["E2E_CORPUS_FIXTURE"]: undefined,
-      ["CORPUS_PUBLICATION_FIXTURE"]: undefined,
-      ["CT_CORPUS_FIXTURE"]: undefined,
-      ["E2E_ALLOW_DEV_TARGET"]: "0",
-      ["E2E_LIVE"]: "0",
-    });
+    ...SMOKE_CASE,
+  }, async ({ signal, onTestFinished }) => {
+    const { code, transcript } = await publicRunner(
+      { signal, onTestFinished },
+      [SMOKE_COMMAND, "--list", ...(missing ? ["absent-corpus-selection.spec.ts"] : [])],
+      {
+        ["E2E_CORPUS_FIXTURE"]: undefined,
+        ["CORPUS_PUBLICATION_FIXTURE"]: undefined,
+        ["CT_CORPUS_FIXTURE"]: undefined,
+        ["E2E_ALLOW_DEV_TARGET"]: "0",
+        ["E2E_LIVE"]: "0",
+      },
+    );
     const clone = /^Corpus E2E clone: (.+)$/mu.exec(transcript)?.[1];
     expect(clone, transcript).toBeDefined();
     if (clone === undefined) {
