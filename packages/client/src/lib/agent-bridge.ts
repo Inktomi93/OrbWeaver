@@ -7,7 +7,7 @@ import type { AppearanceMatrixBridgeContract } from "./agent-bridge-appearance.t
 import { readAppearanceMatrixBridgeContract } from "./agent-bridge-appearance.ts";
 import type { OrbAgentHandles, OrbCssHandle, OrbNavHandle, OrbRpgReader, OrbSeedHandle, QuerySummary, ShellSnapshot } from "./agent-bridge-handles.ts";
 import { flagCounts, motionSummary } from "./agent-bridge-summary.ts";
-import type { OrbPluginLogReader } from "./agent-plugin-bridge.ts";
+import type { OrbPluginLogReader, OrbPluginUiReader } from "./agent-plugin-bridge.ts";
 import { appReady, isAppReady } from "./app-ready-signal.ts";
 import { enableAppearanceMessageRegistry } from "./appearance-message-registry.ts";
 import type { BusEventRecord } from "./bus-devlog.ts";
@@ -38,6 +38,7 @@ const ORB_RING_NAMES = [
   "animations",
   "perf",
   "plugin-log",
+  "plugin-ui",
   "automation-fires",
   "console-errors",
 ] as const;
@@ -104,6 +105,8 @@ interface OrbDebugHandle {
    *  the production `plugin.list` / `plugin.getLog` reads — the lines a floated hub-search continuation
    *  logs included (#806). Loud refusal on no match / ambiguity. */
   readonly pluginLog: OrbPluginLogReader;
+  /** Runtime-listed plugin UI registrations and current publication/host observations. */
+  readonly pluginUi: OrbPluginUiReader;
   /** Ordered configured-merge conflicts since the last checkpoint (#949). */
   readonly css: OrbCssHandle;
   /** The durable AUTOMATION FIRE LOG (`automation_fires`: every dispatch terminal with its per-arm `detail`),
@@ -146,6 +149,7 @@ const ORB_DEBUG_CAPABILITIES = {
   seed: "call await __orb.seed.game({profile:'d20'|'freeform',title?}) -> {chatId}; creates a fresh complete development game through production APIs",
   rpg: "call await __orb.rpg() -> {chatId,game,tracker,journal,turnToolCalls}; reads the active game through production APIs",
   pluginLog: "read installed plugins or one server-runtime host log",
+  pluginUi: "read owner-scoped runtime UI registrations and current cache/DOM observations; unobserved is not ineligible",
   css: "read or reset checkpoint CSS merge receipts",
   automationFires: "read durable automation fire audit rows",
   durableLocalUserId: "read the bound durable-local user namespace",
@@ -163,6 +167,12 @@ const ORB_RING_REGISTRY = {
   animations: { read: "animations()", lifetime: "session", resettable: false, description: "currently active animations" },
   perf: { read: "perf()", lifetime: "session", resettable: false, description: "load and session User Timing measures" },
   "plugin-log": { read: "pluginLog(ref)", lifetime: "server-runtime", resettable: false, description: "plugin-host runtime log" },
+  "plugin-ui": {
+    read: "await pluginUi()",
+    lifetime: "session",
+    resettable: false,
+    description: "live runtime registrations and current cache/DOM facts, not an eligibility verdict",
+  },
   "automation-fires": { read: "automationFires(filter)", lifetime: "durable", resettable: false, description: "durable automation dispatch audit" },
   "console-errors": {
     read: "consoleErrors()",
@@ -200,7 +210,8 @@ export function panelAvailability(panel: Element): boolean | null {
   return declared === null ? null : declared === "true";
 }
 
-function isRenderedElement(element: Element): boolean {
+/** Read current host paint without treating a mounted Activity subtree as visible. */
+export function isRenderedElement(element: Element): boolean {
   const targetStyle = getComputedStyle(element);
   if (targetStyle.visibility === "hidden" || targetStyle.visibility === "collapse") {
     return false;
@@ -229,7 +240,7 @@ export function installAgentDebugHandle(queryClient: QueryClient, handles: OrbAg
   installMotionObservers();
   installMotionFlaggers();
   installConsoleErrorRing();
-  const { nav, seed, rpg, pluginLog, automationFires, css, durableLocalUserId } = handles;
+  const { nav, seed, rpg, pluginLog, pluginUi, automationFires, css, durableLocalUserId } = handles;
   const shell = (): ShellSnapshot => ({
     section: document.querySelector('[aria-current="page"]')?.getAttribute("aria-label") ?? null,
     panels: [...document.querySelectorAll(".shell-panel")].map((p) => ({
@@ -333,6 +344,7 @@ export function installAgentDebugHandle(queryClient: QueryClient, handles: OrbAg
     seed,
     rpg,
     pluginLog,
+    pluginUi,
     css,
     automationFires,
     durableLocalUserId,
@@ -341,7 +353,7 @@ export function installAgentDebugHandle(queryClient: QueryClient, handles: OrbAg
     resetRing,
   };
   console.info(
-    "%c[orb]%c dev introspection ready → %cwindow.__orb%c.capabilities() · .rings()/.resetRing(name) · .snap() · .css.read() · .rpg() · .pluginLog(slug?) · .automationFires({chatId?}) · .queries() · .bus() · .perf() · .renders() · .motion() · .animations() · .flags()/.consoleErrors()/.resetEvidence()/.motionFlaggersSettled()/.motionFlaggersDrain()/.setMotionAuditDropTrackingPaused() · .shell() · .durableLocalUserId() · .nav.capabilities/section/corpusMode/openModal/openConfig/contextTab/openChat/openCharacter/closeModal/panel(name,mode)/focus(on) · .seed.game({profile:'d20'|'freeform'})/richGame;  wait on %chtml[data-app-ready]%c.  Docs: packages/client/src/lib/agent-tools.README.md",
+    "%c[orb]%c dev introspection ready → %cwindow.__orb%c.capabilities() · .rings()/.resetRing(name) · .snap() · .css.read() · .rpg() · .pluginLog(slug?) · .pluginUi() · .automationFires({chatId?}) · .queries() · .bus() · .perf() · .renders() · .motion() · .animations() · .flags()/.consoleErrors()/.resetEvidence()/.motionFlaggersSettled()/.motionFlaggersDrain()/.setMotionAuditDropTrackingPaused() · .shell() · .durableLocalUserId() · .nav.capabilities/section/corpusMode/openModal/openConfig/contextTab/openChat/openCharacter/closeModal/panel(name,mode)/focus(on) · .seed.game({profile:'d20'|'freeform'})/richGame;  wait on %chtml[data-app-ready]%c.  Docs: packages/client/src/lib/agent-tools.README.md",
     "color:#e0a; font-weight:bold",
     "color:#888",
     "color:#0a7; font-weight:bold",

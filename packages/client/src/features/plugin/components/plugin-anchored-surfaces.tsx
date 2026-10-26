@@ -140,6 +140,7 @@ export function PluginAnchoredSurfaces({ anchor, chatId, inSheet = false }: Plug
           return (
             <PluginFrame
               action={hideAction}
+              anchor={anchor}
               key={`${surface.pluginId}:${surface.surfaceId}`}
               pluginId={surface.pluginId}
               pluginName={surface.pluginName}
@@ -150,7 +151,15 @@ export function PluginAnchoredSurfaces({ anchor, chatId, inSheet = false }: Plug
           );
         }
         return (
-          <PluginSurfaceShell action={hideAction} key={`${surface.pluginId}:${surface.surfaceId}`} pluginName={surface.pluginName} title={surface.title}>
+          <PluginSurfaceShell
+            action={hideAction}
+            anchor={anchor}
+            pluginId={surface.pluginId}
+            surfaceId={surface.surfaceId}
+            key={`${surface.pluginId}:${surface.surfaceId}`}
+            pluginName={surface.pluginName}
+            title={surface.title}
+          >
             {surface.tier === "scripted" ? (
               <PluginScriptedSurface
                 anchor={anchor}

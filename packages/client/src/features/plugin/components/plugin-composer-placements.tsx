@@ -9,6 +9,7 @@ import { Row } from "@orb/ui/layout";
 import { Menu, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
+import { IS_DEV, pluginCommandAuditAttributes, pluginOverflowAuditAttributes } from "#lib";
 import { usePluginCommands, useRunPluginCommand, useSharedPluginNames } from "../hooks/use-plugin-commands.ts";
 import { pluginCommandActionLabel, pluginCommandShownName } from "../lib/plugin-command-copy.ts";
 import { PLUGIN_ICON_GLYPHS } from "../lib/plugin-icon-glyphs.ts";
@@ -40,7 +41,17 @@ function PlacedActionButton({
 }): ReactElement {
   const glyph = item.icon === undefined ? Blocks : PLUGIN_ICON_GLYPHS[item.icon];
   return (
-    <Button aria-label={placedActionLabel(item)} className="shrink-0" intent="ghost" loading={isPending} onClick={onRun} shape="pill" size="sm" type="button">
+    <Button
+      aria-label={placedActionLabel(item)}
+      className="shrink-0"
+      intent="ghost"
+      loading={isPending}
+      onClick={onRun}
+      shape="pill"
+      size="sm"
+      type="button"
+      {...(onRun === undefined ? {} : pluginCommandAuditAttributes(item.command.pluginId, item.command.name, "composer-action", "direct"))}
+    >
       <Icon icon={glyph} size="sm" />
       {item.shownName} · {pluginCommandActionLabel(item.label)}
     </Button>
@@ -139,7 +150,14 @@ export function PluginComposerActions({ chatId }: { readonly chatId: ChatId }): 
   const direct = placed.slice(0, directCount);
   const groups = groupPlacedCommands(placed.slice(directCount));
   return (
-    <Row aria-label="Plugin composer actions" className="relative flex-1 min-inline-(--size-control-md)" gap="field" ref={rowRef} role="group">
+    <Row
+      aria-label="Plugin composer actions"
+      className="relative flex-1 min-inline-(--size-control-md)"
+      gap="field"
+      ref={rowRef}
+      role="group"
+      {...(IS_DEV ? pluginOverflowAuditAttributes(placed.slice(directCount).map(({ command }) => command)) : {})}
+    >
       {/* The inert measurement copy keeps full attribution in the fit calculation without adding tab stops or scroll overflow. */}
       <Row aria-hidden={true} className="pointer-events-none invisible absolute inset-0 overflow-hidden" inert={true}>
         <Row className="shrink-0 inline-max" gap="field" ref={measureRef}>
@@ -176,6 +194,7 @@ export function PluginComposerActions({ chatId }: { readonly chatId: ChatId }): 
                   const glyph = item.icon === undefined ? Blocks : PLUGIN_ICON_GLYPHS[item.icon];
                   return (
                     <MenuItem
+                      {...pluginCommandAuditAttributes(item.command.pluginId, item.command.name, "composer-action", "overflow")}
                       aria-label={placedItemLabel(item)}
                       disabled={isPending}
                       key={`${item.command.pluginId}:${item.command.name}`}
@@ -212,6 +231,7 @@ export function PluginComposerMediaItems({ chatId }: { readonly chatId: ChatId }
             const glyph = item.icon === undefined ? Blocks : PLUGIN_ICON_GLYPHS[item.icon];
             return (
               <MenuItem
+                {...pluginCommandAuditAttributes(item.command.pluginId, item.command.name, "composer-media", "media")}
                 aria-label={placedItemLabel(item)}
                 disabled={isPending}
                 key={`${item.command.pluginId}:${item.command.name}`}

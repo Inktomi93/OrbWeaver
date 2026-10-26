@@ -11,12 +11,14 @@
 // the scrollable body (it cannot be scrolled away), carries an explicit "Plugin" kicker naming the CLASS of
 // thing this is, and has NO opt-out. The CT floor pins the band's presence on every page.
 
+import type { PluginSurfaceAnchor } from "@orb/contracts/plugin";
+import type { PluginId } from "@orb/kit/ids";
 import { Card } from "@orb/ui/card";
 import { Blocks, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { testId } from "#lib";
+import { pluginSurfaceAuditAttributes, testId } from "#lib";
 
 /** The shell's two CHROME SCALES — one wall, two shapes. `panel` is the boxed
  *  attribution card every room-level anchor uses. `inline` is the TRANSCRIPT shape: the same glyph + name +
@@ -32,6 +34,9 @@ const SHELL_CHROMES = ["panel", "inline"] as const;
 type PluginShellChrome = (typeof SHELL_CHROMES)[number];
 
 interface PluginSurfaceShellProps {
+  readonly pluginId: PluginId;
+  readonly surfaceId: string;
+  readonly anchor: PluginSurfaceAnchor;
   /** The owning plugin's display name — the attribution line, never plugin-supplied chrome. */
   readonly pluginName: string;
   /** The surface's own title (`host.ui.register`'s `title`) — the panel's label under the plugin name. */
@@ -48,7 +53,17 @@ interface PluginSurfaceShellProps {
 }
 
 /** Wrap a rendered plugin surface in its first-party attribution chrome. */
-export function PluginSurfaceShell({ pluginName, title, scale = "panel", children, chrome = "panel", action }: PluginSurfaceShellProps): ReactElement {
+export function PluginSurfaceShell({
+  pluginId,
+  surfaceId,
+  anchor,
+  pluginName,
+  title,
+  scale = "panel",
+  children,
+  chrome = "panel",
+  action,
+}: PluginSurfaceShellProps): ReactElement {
   // A SURFACE TITLED EXACTLY LIKE ITS PLUGIN SAYS THE NAME ONCE (side-eye 2026-08-29 P3-7: Card Atlas's
   // page rendered "Card Atlas · Card Atlas", which reads as a placeholder bug and wastes the title line).
   // The wall loses nothing — the band's whole job is the plugin's NAME, and that still renders on every
@@ -60,7 +75,7 @@ export function PluginSurfaceShell({ pluginName, title, scale = "panel", childre
   // scrolling body. Checked first — a `page` surface is never also `inline`.
   if (scale === "page") {
     return (
-      <Stack className="block-full min-block-0" data-plugin-surface-scale="page">
+      <Stack className="block-full min-block-0" data-plugin-surface-scale="page" {...pluginSurfaceAuditAttributes(pluginId, surfaceId, anchor)}>
         {/* THE PINNED BAND (§9). `shrink-0` + the scrolling body below it means it survives every scroll
             position — a band that scrolled away would leave the page unlabelled exactly when a person has
             forgotten what they are looking at. */}
@@ -94,7 +109,7 @@ export function PluginSurfaceShell({ pluginName, title, scale = "panel", childre
   // INLINE chrome (U6, §5.4): the per-row transcript shape — same wall (glyph + name + named region), no box.
   if (chrome === "inline") {
     return (
-      <Row align="center" className="flex-wrap" gap="field">
+      <Row align="center" className="flex-wrap" gap="field" {...pluginSurfaceAuditAttributes(pluginId, surfaceId, anchor)}>
         <Icon icon={Blocks} size="sm" />
         <Text voice="label">{pluginName}</Text>
         <Row align="center" aria-label={regionName} className="flex-wrap" gap="tight" role="group">
@@ -104,7 +119,7 @@ export function PluginSurfaceShell({ pluginName, title, scale = "panel", childre
     );
   }
   return (
-    <Card tone="neutral">
+    <Card tone="neutral" {...pluginSurfaceAuditAttributes(pluginId, surfaceId, anchor)}>
       <Stack gap="block">
         {/* The pinned attribution band — plugin glyph + name + the surface's own title. A person always knows
           WHICH plugin drew this and that it is a plugin, not the app's own screen. */}
