@@ -302,11 +302,15 @@ const TEST_CONSTANT_HOMES = {
     "resolveReducedMotion and APP_REDUCED_MOTION_ATTRIBUTE: the JS rule the CSS reduced-motion floor must agree with",
   "packages/client/src/data/import-tree-plan.ts": "planTreeImport: the folder import planner",
   "packages/client/src/data/import-tree-served.ts": "planServedTreeImport: the served-tree import planner",
+  "packages/client/src/features/chat/lib/chat-context-tab-labels.ts":
+    "CHAT_CONTEXT_TAB_LABELS and CHAT_CONTEXT_TABLIST_NAME: production context tab names used by navigation assertions",
   "packages/client/src/features/config/lib/config-copy.ts": "CONFIG_SECTION_LABEL: the settings section labels",
   "packages/client/src/features/rpg/lib/unset-datum.ts": "UNSET_DATUM: the unset reading's text",
   "packages/client/src/features/plugin/lib/extensions-copy.ts": "EXTENSIONS_GONE_TITLE: the vanished page's title",
   "packages/client/src/features/plugin/lib/plugin-copy.ts":
     "approveLabel and CHAT_PANEL_HIDE_LABEL: production action names required by the no-copied-label contract",
+  "packages/client/src/features/plugin/lib/plugin-panel-copy.ts":
+    "CHAT_PLUGINS_* and movePluginPanelLabel: production panel navigation, empty-state and placement action names",
   "packages/client/src/features/tag/lib/tag-list-name.ts": "TAG_LIST_NAME: the Labels finder's tag list name",
   "packages/client/src/state/create-persisted-store.ts": "createPersistedStore: the persisted-store factory a type contract reads",
   "packages/client/src/compose/contributors.ts": "chromeWidgets: the shipped chrome widget registry",

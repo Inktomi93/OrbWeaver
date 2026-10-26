@@ -79,8 +79,8 @@ export function persistedOverrides(page: Page): Promise<unknown> {
 }
 
 /** A length custom property resolved to px by laying a box out at it; a computed custom property is only its token stream. */
-export function resolvedLength(page: Page, expression: string): Promise<number> {
-  return page.locator(".shell-grid").evaluate((grid, value) => {
+export function resolvedLength(page: Page, expression: string, scope: Locator = page.locator(".shell-grid")): Promise<number> {
+  return scope.evaluate((grid, value) => {
     const probe = grid.ownerDocument.createElement("div");
     probe.style.position = "absolute";
     probe.style.visibility = "hidden";

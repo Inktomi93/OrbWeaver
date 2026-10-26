@@ -52,6 +52,7 @@ import type { ReactElement, ReactNode } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import type { ChatSettingsSectionContribution, ChatSettingsSectionState, ContributorRegistry } from "#lib";
+import { CHAT_CONTEXT_SECTION_IDS } from "../lib/chat-context-section-ids.ts";
 import { ChatBooksSection } from "./chat-books-section.tsx";
 import { DisclosureSection } from "./chat-context-disclosure-section.tsx";
 import { ChatDocumentsSection } from "./chat-documents-section.tsx";
@@ -325,13 +326,13 @@ function HostControls({
     // whose default posture is CLOSED while its own children stay open: one press opens the host's knobs
     // and every one of them is already there, rather than eight more doors behind the door (#830).
     <Stack gap="section">
-      <DisclosureSection defaultOpen={CLOSED_BY_DEFAULT} kicker="Host controls" sectionId="host-controls">
+      <DisclosureSection defaultOpen={CLOSED_BY_DEFAULT} kicker="Host controls" sectionId={CHAT_CONTEXT_SECTION_IDS.hostControls}>
         <Stack gap="section">
           <DisclosureSection defaultOpen={OPEN_BY_DEFAULT} kicker="Background" sectionId="background">
             <ChatBackgroundSection chatId={chatId} background={background} />
           </DisclosureSection>
           {showGroup ? (
-            <DisclosureSection defaultOpen={OPEN_BY_DEFAULT} kicker="Group behavior" sectionId="group-behavior">
+            <DisclosureSection defaultOpen={OPEN_BY_DEFAULT} kicker="Group behavior" sectionId={CHAT_CONTEXT_SECTION_IDS.groupBehavior}>
               <QueryBoundary
                 // Shape-matched skeleton for the Group-behavior form's initially-visible rows (the reply-mode
                 // toggle-group, the two switch fields, the Advanced accordion trigger) — never a spinner/text

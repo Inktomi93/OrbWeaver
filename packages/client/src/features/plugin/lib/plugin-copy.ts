@@ -433,4 +433,4 @@ export const CHAT_PANEL_HIDE_LABEL = "Hide";
 export function showInChatLabel(pluginName: string): string {
   return `Show the ${pluginName} panel in chat`;
 }
-export const PLUGIN_PANELS_SHEET_LABEL = "Plugin panels";
+export const PLUGIN_PANELS_SHEET_LABEL = "Sidecar panels";

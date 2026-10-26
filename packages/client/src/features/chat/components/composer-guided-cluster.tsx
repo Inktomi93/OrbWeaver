@@ -1,4 +1,4 @@
-// The composer uses two rows: guided utilities above; menu doors, draft and terminal Send below.
+// The composer keeps command menus and generation groups above Chat options, the draft and Send.
 // The connection readout is the next-turn line under
 // the composer card (`composer-next-turn-line.tsx`), not a slot here.
 //
@@ -40,7 +40,7 @@ import type { GuidedImpersonatePerson } from "@orb/contracts/preset";
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { FastForward, RotateCcw } from "@orb/ui/icons";
-import { Container, Row, Stack } from "@orb/ui/layout";
+import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
@@ -74,12 +74,12 @@ export interface ComposerGuidedClusterProps {
   /** The id of the element that already states the send refusal (the next-turn line). The band's refusal line
    *  then stands down and each control it idles is described by that element. */
   readonly refusalStatedBy: string | undefined;
-  /** The room-level action that leads the action rail. */
+  /** The room options door beside the draft. */
   readonly chatControl: ReactNode;
   readonly actionContributions: readonly ReactNode[];
   readonly roomContributions: readonly ReactNode[];
   readonly mediaContributions: readonly ReactNode[];
-  /** The composer-owned terminal send/stop control; kept beside attachment tools as one physical cluster. */
+  /** The composer-owned terminal send/stop control beside the draft. */
   readonly sendControl: ReactNode;
   readonly messageInput: ReactNode;
 }
@@ -150,24 +150,36 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
   };
 
   return (
-    <Container className="inline-full min-inline-0">
-      {/* The refusal line below is a SECOND row under the rail, so the two are spaced by a Stack's gap rather
-          than a margin (`Container` is a plain block — the house rule is "space via Stack/Grid gap",
-          variants.ts). With no refusal the Stack has one child and spends nothing. */}
-      <Stack gap="glyph" data-slot="composer-guided-cluster">
-        <Row align="center" justify="between" gap="glyph" className="flex-wrap min-inline-0" data-slot="composer-utilities">
-          <Row align="center" gap="glyph" className="flex-1 flex-wrap min-inline-0">
-            <Row aria-label="Your message" className="shrink-0" data-slot="composer-you-actions" gap="glyph" role="group">
-              <ImpersonateGuidedButton
-                disabled={!idle}
-                hasText={hasText}
-                onPick={fireImpersonate}
-                reason={reasonFor(IMPERSONATE_WAIT_FOR_TURN)}
-                refusalStatedBy={offStatedBy}
-              />
-              {guided.stopImpersonation === null ? null : <ImpersonateStopButton onStop={guided.stopImpersonation} />}
-            </Row>
-            {actionContributions}
+    <Stack className="flex-auto inline-full min-block-0 min-inline-0" gap="glyph" data-slot="composer-guided-cluster">
+      <Row align="center" justify="between" gap="glyph" className="shrink-0 min-inline-0" data-slot="composer-utilities">
+        <Row aria-label="Composer tools" align="center" gap="glyph" className="shrink-0" role="group">
+          <ComposerGuidedUtilityMenu
+            hasText={hasText}
+            trimmed={trimmed}
+            idle={idle}
+            generationUnavailableReason={reasonFor("Wait for the current reply to finish")}
+            canTargetTail={canTargetTail}
+            guided={guided}
+            utilities={utilities}
+            onChange={onChange}
+            onRewrite={rewrite.open}
+            game={game}
+            image={imageControls}
+            roomContributions={roomContributions}
+            mediaContributions={mediaContributions}
+          />
+          {actionContributions}
+        </Row>
+        <Row align="center" gap="glyph" className="shrink-0">
+          <Row aria-label="Your message" className="shrink-0 pe-field" data-slot="composer-you-actions" divider="end" gap="glyph" role="group">
+            <ImpersonateGuidedButton
+              disabled={!idle}
+              hasText={hasText}
+              onPick={fireImpersonate}
+              reason={reasonFor(IMPERSONATE_WAIT_FOR_TURN)}
+              refusalStatedBy={offStatedBy}
+            />
+            {guided.stopImpersonation === null ? null : <ImpersonateStopButton onStop={guided.stopImpersonation} />}
           </Row>
           <Row aria-label="Their reply" className="shrink-0 min-inline-0" data-slot="composer-them-actions" gap="glyph" role="group">
             <GuidedIconButton
@@ -202,43 +214,24 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
             />
           </Row>
         </Row>
-        <Row align="center" gap="field" className="min-inline-0" data-slot="composer-input">
-          {/* SillyTavern's input row: the menu doors stacked in one narrow column, so the draft takes the width.
-              The `glyph` gaps here, inside both action groups and between the two rows keep the glyph buttons'
-              touch-floor hit areas from overlapping: a glyph-lg box plus `glyph` is exactly the coarse target, at any density. */}
-          <Stack aria-label="Chat and message tools" align="center" className="shrink-0" gap="glyph" role="group">
-            {chatControl}
-            <ComposerGuidedUtilityMenu
-              hasText={hasText}
-              trimmed={trimmed}
-              idle={idle}
-              generationUnavailableReason={reasonFor("Wait for the current reply to finish")}
-              canTargetTail={canTargetTail}
-              guided={guided}
-              utilities={utilities}
-              onChange={onChange}
-              onRewrite={rewrite.open}
-              game={game}
-              image={imageControls}
-              roomContributions={roomContributions}
-              mediaContributions={mediaContributions}
-            />
-          </Stack>
-          {messageInput}
-          <Row aria-label="Send controls" className="shrink-0" gap="field" role="group">
-            {sendControl}
-          </Row>
+      </Row>
+      <Row align="center" gap="glyph" className="flex-auto min-block-(--size-control-md) min-inline-0" data-slot="composer-input">
+        {chatControl}
+        <Stack className="flex-1 self-stretch min-block-0 min-inline-0">{messageInput}</Stack>
+        <Row aria-label="Send controls" className="shrink-0" gap="field" role="group">
+          {sendControl}
         </Row>
-        <RewriteDialog
-          open={rewrite.isOpen}
-          onOpenChange={rewrite.setOpen}
-          instruction={rewrite.instruction}
-          onInstructionChange={rewrite.setInstruction}
-          selected={rewrite.toggles}
-          onToggle={rewrite.toggle}
-          onApply={rewrite.apply}
-        />
-        {/* THE REFUSAL IS VISIBLE WHERE NO TOOLTIP CAN OPEN (#2443). When the cluster is off for a PERSISTENT
+      </Row>
+      <RewriteDialog
+        open={rewrite.isOpen}
+        onOpenChange={rewrite.setOpen}
+        instruction={rewrite.instruction}
+        onInstructionChange={rewrite.setInstruction}
+        selected={rewrite.toggles}
+        onToggle={rewrite.toggle}
+        onApply={rewrite.apply}
+      />
+      {/* THE REFUSAL IS VISIBLE WHERE NO TOOLTIP CAN OPEN (#2443). When the cluster is off for a PERSISTENT
             cause, every icon here and the Send beside them carry the same one reason — and on a phone that
             reason had no carrier at all: Base UI's tooltip is `mouseOnly: true` with a `:focus-visible`-gated
             focus fallback, and an aria-disabled Base UI Button swallows its own click, so there is no press
@@ -251,13 +244,12 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
             "<Label> — " (`injection-copy.ts` guarantees full standalone sentences for the SEND causes only),
             and the Stop that ends it is already rendered beside the icons as visible chrome. A refusal another
             element already states (`refusalStatedBy`, the next-turn line) is not shown here either: one statement. */}
-        {bandRefusal === undefined ? null : (
-          <Text as="span" hiddenAt="fine" data-slot="composer-guided-refusal" voice="quiet">
-            {bandRefusal}
-          </Text>
-        )}
-      </Stack>
-    </Container>
+      {bandRefusal === undefined ? null : (
+        <Text as="span" className="shrink-0" hiddenAt="fine" data-slot="composer-guided-refusal" voice="quiet">
+          {bandRefusal}
+        </Text>
+      )}
+    </Stack>
   );
 }
 

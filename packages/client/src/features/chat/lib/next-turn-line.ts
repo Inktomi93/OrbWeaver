@@ -51,13 +51,13 @@ const CHECKING: NextTurnLine = { state: "checking" };
 const FAILED: NextTurnLine = { state: "failed", text: "Next reply: the connection couldn't be checked.", door: undefined };
 // The addresses come from `#lib`, which the Connections nav reads too: a feature never imports another's nav.
 const MODEL_ROLES_DOOR: NextTurnDoor = {
-  lead: `Choose one under ${MODEL_ROLES_PATH.trail} →`,
+  lead: "Choose one in",
   label: MODEL_ROLES_PATH.leaf,
   sub: CHAT_ROLE_DOOR.sub,
   setting: CHAT_ROLE_DOOR.setting,
 };
 const ADD_CONNECTION_LINE_DOOR: NextTurnDoor = {
-  lead: `${ADD_CONNECTION_PATH.trail} →`,
+  lead: "Open",
   label: ADD_CONNECTION_PATH.leaf,
   sub: ADD_CONNECTION_DOOR.sub,
   setting: ADD_CONNECTION_DOOR.setting,

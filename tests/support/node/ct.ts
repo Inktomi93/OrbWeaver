@@ -1,5 +1,6 @@
 // The Playwright door for component specs: network interception and section navigation on the Node side.
 
+export { emulateSoftKeyboard } from "@orb/tooling/floor/browser/soft-keyboard";
 export type { ServedHold } from "./ct-corpus-procedures.ts";
 export { holdCorpusProcedure, holdServed, serveCorpusProcedures } from "./ct-corpus-procedures.ts";
 export { ROOM_PROCEDURES, SECTION_PROCEDURES } from "./ct-shell-procedures.ts";

@@ -1,44 +1,6 @@
-// The per-message METADATA row (WS3, D44 §12.1) — each datum gated by its OWN appearance toggle
-// (`showTokenCount`/`showMessageId`/`showGenerationTimer`/`showGenerationCost`) and rendered only when its
-// datum is actually present on the `MessageView` (a draft/greeting row has null tokens/gen-window — no
-// datum, no gap).
-//
-// THE MODEL CREDIT IS NOT HERE (an owner ruling). `showModelIcon` gates it, but it prints in the row's REVEAL
-// cluster (`MessageActionsRow`) through `@orb/kit/model-name` — an attribution about the reply, revealed on
-// hover/focus, rather than a long raw weights path parked under every message over background art. The
-// `MessageMetadataVisibility` shape keeps the flag (it is the appearance section's own key set); this row does
-// not read it.
-//
-// D66 P5 (north-star ui-cohesion — quiet metadata): inline `--text-micro` `--font-mono`
-// `--color-muted-foreground` text, `·`-separated — no pills, no leading glyphs. The TIMESTAMP sits beside the
-// speaker name in the name row (`MessageTimestamp`, rendered by `message-row.tsx`); the `data-slot="message-metadata-*"`
-// values are preserved on the semantically-equivalent elements (rule 0.7), and the row still renders
-// nothing when every gated datum is absent.
-//
-// THIS ROW IS DATA ONLY — it holds no ACTIONS (an owner ruling). The wire-trace trigger's home is the message
-// kebab with the other row actions (D62 §12: the ⋯ menu IS the action home), so `MessageActionsRow` owns the
-// item, the host gate, and the dialog. A datum that needs the `viewerIsHost` bit takes it as its own prop.
-//
-// Generation timer: the turn engine writes `message_variants.gen_started_at`/`gen_finished_at`
-// on the real turn path and the read seam surfaces them as `genStartedAt`/
-// `genFinishedAt`. Its readout is quiet micro-mono text.
-//
-// THREE READS RIDE THE EXISTING TOGGLES, WITH NO NEW APPEARANCE KEY (`cacheReadTokens`/`cacheWriteTokens`,
-// `ttftMs`, `editedAt`). Each datum joins the toggle whose SUBJECT it already shares rather than minting a new
-// appearance key (a new key is ten coupled sites
-// across the settings section, the carrier manifest and the registry — it is a settings change, not a wire
-// change, and this row is not the place to spend one):
-//   · CACHE ECONOMICS → `showTokenCount`. It is the number that explains the token number beside it.
-//   · TIME-TO-FIRST-TOKEN → `showGenerationTimer`. Same subject as the duration, same `durationLabel` shape.
-//   · The EDITED marker → `showTimestamps`, in the NAME ROW beside the timestamp ({@link MessageTimestamp}) —
-//     it is a fact about WHEN this text became what it is.
-// No inferred outcome notice ("cut off — length cap"), by owner ruling: such a badge confuses (it is not
-// role-gated, an edit triggers it, it is unreadable on some themes). The output-cap continuation
-// datum below is a distinct persisted provider receipt: it explains why tokens can exceed the requested cap
-// and never derives a verdict from finish reason or edited content.
-//
-// EVERYTHING HERE STAYS OFF THE PROSE BLOCK (the reading-surface law). These are chrome data in the metadata
-// footer and the name row; not one of them touches the message body.
+// Metadata is data-only, outside prose; creation time sits beside the speaker, while showModelIcon credit and actions belong in the reveal cluster.
+// Cache economics follows showTokenCount; TTFT follows showGenerationTimer. Absent data and disabled toggles add no empty metadata row.
+// Never infer an outcome notice from finish reason or edits; only persisted output-cap receipts explain continuation beyond the requested limit.
 
 import type { MessageView } from "@orb/contracts/chat";
 import type { AppearanceSettings } from "@orb/contracts/settings";
@@ -69,18 +31,9 @@ export function MessageTimestamp({ message, show }: { readonly message: MessageV
     return null;
   }
   return (
-    <>
-      <Text as="span" tone="muted" voice="code" data-slot="message-metadata-timestamp">
-        {timeLib.formatTime(message.createdAt)}
-      </Text>
-      {/* The EDITED marker, so a rewritten reply is never indistinguishable from the one the model produced.
-          The edit time is visible beside the word, in the timestamp's own format. */}
-      {message.editedAt === null ? null : (
-        <Text as="span" voice="gloss" data-slot="message-metadata-edited">
-          {`edited ${timeLib.formatTime(message.editedAt)}`}
-        </Text>
-      )}
-    </>
+    <Text as="span" tone="muted" voice="code" data-slot="message-metadata-timestamp">
+      {timeLib.formatTime(message.createdAt)}
+    </Text>
   );
 }
 

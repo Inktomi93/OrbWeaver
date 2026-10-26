@@ -61,7 +61,7 @@ export function ComposerNextTurnLine({ chatId, availability, id }: ComposerNextT
     // stated dark-arm hole for a custom pivot palette (D144(d)), so the line takes an opaque fill: `bg-card`'s
     // AA floor holds for every ink it paints. No `rounded-card`: a text
     // backdrop is not a second elevated surface (UI-Density-Law.md §3/§5.1).
-    <Track of={Container} track="composer" className="py-tight" ground="card">
+    <Track of={Container} track="composer" className="shrink-0" ground="card">
       <Text
         as="p"
         voice="quiet"

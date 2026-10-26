@@ -15,10 +15,9 @@ export type AppearanceParse = { readonly patch: AppearancePatch } | { readonly e
 /** `--full-motion` is exactly this patch — the flag a motion sweep actually types. */
 export const FULL_MOTION_PATCH: AppearancePatch = { reducedMotion: "system" };
 
-/** THE curated appearance points (`--appearance-preset <name>`), committed beside the probes so a sweep
- *  names a profile instead of pasting JSON. One home: new coverage is a new PROFILE there, never a new flag.
- *  Read eagerly at parse time so an unknown/broken profile is CLI misuse (EXIT.misuse), not a mid-run surprise. */
+// The catalogue owns profile names and custom patches; production owns the defaults profile's values.
 const PRESETS_PATH = new URL("./appearance-presets.json", import.meta.url);
+const DEFAULTS_PRESET = "defaults";
 
 interface PresetFile {
   readonly presets?: Record<string, { readonly why?: string; readonly appearance?: unknown }>;
@@ -77,6 +76,11 @@ export function loadAppearancePreset(name: string): AppearanceParse {
   if (entry === undefined) {
     return { error: `--appearance-preset "${name}" is not a profile — valid: ${Object.keys(presets).join(", ")}` };
   }
+  if (name === DEFAULTS_PRESET) {
+    const defaults = appearanceSettingsSchema.parse({});
+    // Uploaded content survives; every display axis, including the selected background, resets.
+    return { patch: Object.fromEntries(Object.entries(defaults).filter(([key]) => key !== "backgroundLibrary")) };
+  }
   if (!isPlainObject(entry.appearance)) {
     return { error: `--appearance-preset "${name}" has no appearance object in tooling/src/floor/appearance/appearance-presets.json` };
   }
@@ -94,12 +98,13 @@ export const APPEARANCE_VALUE_FLAGS: readonly string[] = ["--appearance", APPEAR
 export function appearanceHelpBlock(): string {
   return `Appearance (the APP's own settings, shimmed over the settings response and never written — a DIFFERENT
 axis from --reduced-motion, which emulates the OS media query; they compose):
-  --full-motion                 render with the app's reduce-motion setting OFF
+  --full-motion                 use the app's system motion setting (OS preference still applies)
   --appearance '<json>'         deep-merge any appearance keys, e.g. '{"density":"compact"}'
   --appearance-preset <name>    curated profile: ${appearancePresetNames().join(" | ")}
-                                (tooling/src/floor/appearance/appearance-presets.json is the ONE home for these —
-                                new coverage is a new profile there, never a new flag; --appearance
-                                composes OVER a preset). No flag = the account's real state.`;
+                                defaults derives the production schema's defaults, retaining only backgroundLibrary.
+                                Custom profiles in tooling/src/floor/appearance/appearance-presets.json override
+                                named axes; other axes keep the account's values. Flags compose in argv order
+                                (later keys win). No flag = the account's real state.`;
 }
 
 /** Fold one appearance flag's outcome into a CLI's args — the patch accumulates (later keys win, so argv

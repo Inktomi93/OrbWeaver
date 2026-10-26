@@ -137,7 +137,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
           className="px-block pbe-block block-full @max-cq-28:px-tight"
           focusTarget={true}
           ground={roomTheme?.background === undefined ? undefined : "backgroundUnlessArt"}
-          gap="block"
+          gap="field"
           ref={surfaceRef}
           data-slot="chat-room-surface"
           role="group"
@@ -231,7 +231,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
                 // `empty:hidden` is the SILENT-CONTRIBUTOR collapse: a
                 // contribution that is mounted but currently paints nothing (the control band with no live
                 // control — its source fibers render null) leaves this wrapper with zero child NODES, and an
-                // empty flex child still costs the column one `gap="block"` step between the transcript and the
+                // empty flex child still costs the column one `gap="field"` step between the transcript and the
                 // composer. `:empty` takes it out of layout entirely, so "mounted but silent" and "not mounted"
                 // read identically. It cannot hide a live contribution: any rendered node makes the wrapper
                 // non-empty.

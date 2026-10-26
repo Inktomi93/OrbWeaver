@@ -184,7 +184,7 @@
   }
 
   /* Keep the transcript's top edge opaque so pinned identity and reading ink share one clean clip.
-   * Only the bottom edge fades, while more content lies below the scrollport. */
+   * Only the bottom edge fades while content lies below it; its depth cannot consume multiple prose lines. */
   [data-slot="message-list-scroll"] {
     --fade-bottom-stop: 0%;
     mask-image: linear-gradient(
@@ -198,7 +198,7 @@
     );
   }
   [data-slot="message-list-scroll"][data-fade-bottom] {
-    --fade-bottom-stop: var(--fade-edge-stop);
+    --fade-bottom-stop: min(var(--fade-edge-stop), var(--spacing-block));
   }
   /* The scroll fades: an edge dissolves only while content is scrolled past it (the consumer toggles the
    * `data-fade-*` attributes), and the ramp bottoms out at a floor rather than zero, so the item straddling a

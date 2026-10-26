@@ -40,6 +40,8 @@ The host owns application chrome. Plugin commands reach the Plugins menu, comman
 
 House surfaces resolve admitted bundle images through owner-scoped asset links. An isolated frame reads its plugin's installed images through its own frame handle at `GET /api/plugin-frame/:id/asset`, which checks owner, plugin, asset, size and revocation on every request (`packages/server/src/entry/http/plugin-frame.ts`). Guest isolation alone does not authorize a browser asset request.
 
+The `chat-flank` authoring anchor places ordinary panels in the chat Context pane's Plugins tab. Each panel collapses independently without unmounting its content. The viewer can select individual panels for the sidecar through `profile.sidecarChatPluginSurfaces`; unselected sidecars reserve no space or collapse control. Touch devices open explicitly selected sidecar panels in a sheet. Context retains controls to return sidecar panels and restore hidden panels. The host partitions registrations before reading published state, so a panel never mounts in both places.
+
 ## Change checks
 
 Update the public contract, guest validation, host adapter, and SDK mirror together when a capability changes. Test both grant and refusal through the real guest. Add a placement only with a host mount and rendered keyboard and mobile tests. Test a new install source through the shared bundle validator, consent path, and owner boundary. The plugin path rule in `.claude/rules/plugins.md` names the additional local controls.

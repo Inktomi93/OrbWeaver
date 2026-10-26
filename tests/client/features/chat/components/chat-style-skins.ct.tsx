@@ -2,9 +2,10 @@
 // the box each style gives its prose, the corners its art and welded portrait take, the plate over art, the action
 // reveal and the pinned header bar. Each expected value comes from the style's skin row and the resolved design tokens.
 import type { AppearanceSettings } from "@orb/contracts/settings/appearance";
+import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, ThemeId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
@@ -43,6 +44,7 @@ type Role = (typeof ROLES)[number];
 let root: Root;
 let roomId: ChatId;
 let longReplyId: string;
+let longUserId: string;
 
 test.use({ viewport: VIEWPORT });
 
@@ -57,7 +59,13 @@ test.beforeAll(async () => {
     if (ROLES.every((role) => spoken.has(role)) && messages.at(-1)?.role === "assistant" && earlier !== undefined) {
       roomId = row.id;
       longReplyId = earlier.id;
+      const user = messages.findLast((message) => message.role === "user");
+      if (user === undefined) {
+        throw new Error("The corpus room has no user message");
+      }
+      longUserId = user.id;
       const content = Array.from({ length: LONG_REPLY_PARAGRAPHS }, () => FILLER).join("\n\n");
+      await caller.chat.editMessage({ chatId: row.id, messageId: user.id, content, timeZone: UTC_TIME_ZONE });
       await caller.chat.editMessage({ chatId: row.id, messageId: earlier.id, content, timeZone: UTC_TIME_ZONE });
       return;
     }
@@ -71,19 +79,30 @@ test.afterAll(async () => {
 
 /** The corpus viewer's first saved wallpaper, as the appearance fields that select it. */
 function wallpaper(corpus: CorpusWire): Partial<AppearanceSettings> {
-  const entry = corpus.reads["settings.getUserSettings"][0]?.output.config.appearance.backgroundLibrary[0];
+  const library = appearanceSettingsSchema.parse({
+    backgroundLibrary: corpus.reads["settings.getUserSettings"][0]?.output.config.appearance.backgroundLibrary,
+  }).backgroundLibrary;
+  const entry = library[0];
   if (entry === undefined) {
     throw new Error("The corpus viewer has no saved wallpaper");
   }
-  return { backgroundImageKind: "asset", backgroundAssetId: entry.assetId, backgroundAssetHash: entry.assetHash, backgroundAssetMime: entry.mime };
+  return {
+    backgroundLibrary: library,
+    backgroundImageKind: "asset",
+    backgroundAssetId: entry.assetId,
+    backgroundAssetHash: entry.assetHash,
+    backgroundAssetMime: entry.mime,
+  };
 }
 
 /** Open the room in `chatStyle`, over a wallpaper or not, at the glow elevation, which lifts every card that follows it. */
 async function openRoom(page: Page, corpus: CorpusWire, chatStyle: ThemeChatStyle, art: boolean): Promise<void> {
   const caller = await root.internalCallerFor(root.ownerId);
+  await caller.settings.updateUserSettingsSection({ section: "theme", patch: { selectedThemeId: null } });
   await caller.settings.updateUserSettingsSection({
     section: "appearance",
     patch: {
+      ...appearanceSettingsSchema.parse({}),
       chatStyle,
       elevation: "glow",
       blurSurfaces: [],
@@ -293,6 +312,17 @@ async function revealFacts(page: Page, skin: RowSkin): Promise<{ readonly measur
   };
 }
 
+async function scrollIntoMessage(row: Locator, sticky = true): Promise<void> {
+  await row.evaluate((element, by) => {
+    const scroller = element.closest('[data-slot="message-list-scroll"]');
+    if (scroller === null) {
+      throw new Error("The message has no transcript scrollport");
+    }
+    scroller.scrollTop += element.getBoundingClientRect().top - scroller.getBoundingClientRect().top + by;
+  }, PIN_SCROLL_PX);
+  await expect.poll(() => row.locator('[data-slot="message-name-row"]').getAttribute("data-pinned")).toBe(sticky ? "" : null);
+}
+
 // The token each pinned fill paints; the long reply is the assistant's.
 const PINNED_FILL = { role: "--color-ai-bubble", band: "--color-reading-band" } as const;
 
@@ -302,13 +332,7 @@ async function pinFacts(page: Page, skin: RowSkin): Promise<{ readonly measured:
   const header = row.locator('[data-slot="message-name-row"]');
   const sticky = skin.actionsRow.identity;
   await expect.poll(() => header.getAttribute("data-sticky")).toBe(sticky ? "" : null);
-  await row.evaluate((element, by) => {
-    const scroller = element.closest('[data-slot="message-list-scroll"]');
-    if (scroller !== null) {
-      scroller.scrollTop += element.getBoundingClientRect().top - scroller.getBoundingClientRect().top + by;
-    }
-  }, PIN_SCROLL_PX);
-  await expect.poll(() => header.getAttribute("data-pinned")).toBe(sticky ? "" : null);
+  await scrollIntoMessage(row, sticky);
   const card = await resolvedLength(page, "var(--radius-card)");
   const fill = skin.pinnedHeader.fill;
   const top = skin.pinnedHeader.corners === "top" ? [card, card, 0, 0] : [card, card, card, card];
@@ -323,7 +347,7 @@ async function pinFacts(page: Page, skin: RowSkin): Promise<{ readonly measured:
       pinned: sticky,
       fill: sticky && fill !== "none" ? await tokenColor(header, PINNED_FILL[fill], "background-color") : TRANSPARENT,
       corners: skin.pinnedHeader.corners === undefined || !sticky ? [0, 0, 0, 0] : top,
-      fade: sticky && fill !== "none",
+      fade: false,
     },
   };
 }
@@ -389,16 +413,21 @@ const OWNER_FIT = { "background-size": "10px 10px", "background-position": "0% 0
 const OWNER_FIT_HOOKS = { echo: "message-echo-art", whisper: "message-band" } as const satisfies Partial<Record<ThemeChatStyle, string>>;
 
 /** Select a custom theme named `name` carrying `css` for the owner, run `body`, then restore the owner's own selection. */
-async function withOwnerCss(name: string, css: string, body: () => Promise<void>): Promise<void> {
+async function withOwnerCss(name: string, css: string, body: (themeId: ThemeId) => Promise<void>): Promise<void> {
   const caller = await root.internalCallerFor(root.ownerId);
   const before = (await caller.settings.getUserSettings()).config.theme.selectedThemeId;
   const theme = await caller.settings.createTheme({ name, override: {}, css });
   await caller.settings.updateUserSettingsSection({ section: "theme", patch: { selectedThemeId: theme.id } });
   try {
-    await body();
+    await body(theme.id);
   } finally {
     await caller.settings.updateUserSettingsSection({ section: "theme", patch: { selectedThemeId: before } });
   }
+}
+
+async function selectRoomTheme(themeId: ThemeId): Promise<void> {
+  const caller = await root.internalCallerFor(root.ownerId);
+  await caller.settings.updateUserSettingsSection({ section: "theme", patch: { selectedThemeId: themeId } });
 }
 
 /** The fill properties owner CSS sets, as `hook`'s first element computes them. */
@@ -416,8 +445,9 @@ function ownerFitCss(hook: string): string {
 for (const [chatStyle, hook] of Object.entries(OWNER_FIT_HOOKS) as [ThemeChatStyle, string][]) {
   test(`owner CSS on the ${hook} hook decides how the ${chatStyle} art fills its box`, async ({ corpus, mount, page }) => {
     let painted: Record<string, string> = {};
-    await withOwnerCss(`Owner CSS on ${hook}`, ownerFitCss(hook), async () => {
+    await withOwnerCss(`Owner CSS on ${hook}`, ownerFitCss(hook), async (themeId) => {
       await openRoom(page, corpus, chatStyle, false);
+      await selectRoomTheme(themeId);
       await mount<typeof ChatRoomShellStory>(ROOM_STORY, roomStoryProps());
       painted = await paintedFit(page, hook);
     });
@@ -509,4 +539,175 @@ test("the gallery popup ref keeps a real portrait visible when the viewport shri
   await dialog.getByRole("button", { name: "Close", exact: true }).click();
   await expect(dialog).toHaveCount(0);
   await expect(opener).toBeFocused();
+});
+
+test("Whisper leaves reading space above the composer in a short landscape room", async ({ corpus, mount, page }) => {
+  await page.setViewportSize({ width: 844, height: 390 });
+  await openRoom(page, corpus, "whisper", false);
+  const caller = await root.internalCallerFor(root.ownerId);
+  await caller.settings.updateUserSettingsSection({ section: "appearance", patch: { chatWidthPct: 100 } });
+  await mount<typeof ChatRoomShellStory>(ROOM_STORY, roomStoryProps());
+  const row = page.locator(`${ROW}[data-message-id="${longReplyId}"]`);
+  const band = row.locator('[data-slot="message-band"]');
+  await expect(band).toBeVisible();
+  await expect
+    .poll(async () => {
+      const art = await band.boundingBox();
+      const scrollport = await page.locator('[data-slot="message-list-scroll"]').boundingBox();
+      return art !== null && scrollport !== null && art.height <= scrollport.height / 3;
+    })
+    .toBe(true);
+  const box = await band.boundingBox();
+  if (box === null) {
+    throw new Error("The rendered Whisper banner has no box");
+  }
+  const aspect = await resolvedLength(page, "calc(1px * var(--aspect-banner))");
+  expect(box.width / box.height).toBeCloseTo(aspect, 2);
+});
+
+function longMessageIds(): readonly string[] {
+  return [longReplyId, longUserId];
+}
+
+const READING_VIEWPORTS = [
+  { width: 390, height: 844 },
+  { width: 844, height: 390 },
+  { width: 1440, height: 480 },
+] as const;
+
+async function containedActions(row: Locator, scrollport: Locator): Promise<void> {
+  const edit = row.getByRole("button", { name: MESSAGE_EDIT_NAME, exact: true });
+  await edit.focus();
+  await expect(edit).toBeFocused();
+  await expect(row.locator('[data-slot="message-actions-row"]')).toHaveCSS("opacity", "1");
+  try {
+    await expect
+      .poll(async () => {
+        const port = await scrollport.boundingBox();
+        const buttons = await row.locator('[data-slot="message-actions-row"]').getByRole("button").all();
+        const boxes = await Promise.all(buttons.map((button) => button.boundingBox()));
+        return (
+          port !== null &&
+          boxes.length > 0 &&
+          boxes.every(
+            (action) =>
+              action !== null &&
+              action.x >= port.x &&
+              action.y >= port.y &&
+              action.x + action.width <= port.x + port.width &&
+              action.y + action.height <= port.y + port.height,
+          )
+        );
+      })
+      .toBe(true);
+  } finally {
+    const buttons = await row.locator('[data-slot="message-actions-row"]').getByRole("button").all();
+    await test.info().attach(`action-geometry-${await row.getAttribute("data-message-id")}`, {
+      contentType: "application/json",
+      body: JSON.stringify({
+        id: await row.getAttribute("data-message-id"),
+        role: await row.getAttribute("data-role"),
+        row: await row.boundingBox(),
+        header: await row.locator('[data-slot="message-name-row"]').boundingBox(),
+        scrollport: await scrollport.boundingBox(),
+        controls: await Promise.all(buttons.map(async (button) => ({ name: await button.ariaSnapshot(), rect: await button.boundingBox() }))),
+      }),
+    });
+  }
+}
+
+// Native scroll input gives the reader the axis before the targeted reading-position drive.
+async function beginReading(page: Page, scrollport: Locator): Promise<void> {
+  const before = await scrollport.evaluate((element) => element.scrollTop);
+  await scrollport.hover();
+  await page.mouse.wheel(0, -PIN_SCROLL_PX);
+  await expect.poll(() => scrollport.evaluate((element) => element.scrollTop)).toBeLessThan(before);
+}
+
+async function revealDocumentRow(row: Locator): Promise<void> {
+  const header = row.locator('[data-slot="message-name-row"]');
+  await header.scrollIntoViewIfNeeded();
+  await expect(header).toBeInViewport({ ratio: 1 });
+}
+
+async function revealReadingRow(row: Locator, chatStyle: ThemeChatStyle): Promise<void> {
+  if (chatStyle === "document") {
+    await revealDocumentRow(row);
+  } else {
+    await scrollIntoMessage(row);
+  }
+}
+
+for (const viewport of READING_VIEWPORTS) {
+  test.describe(`reading at ${viewport.width}x${viewport.height}`, () => {
+    test.use({ viewport, hasTouch: true });
+    for (const chatStyle of THEME_CHAT_STYLES) {
+      test(`${chatStyle} retains contained actions and its identity policy for both speakers`, async ({ corpus, mount, page }) => {
+        await openRoom(page, corpus, chatStyle, true);
+        await mount<typeof ChatRoomShellStory>(ROOM_STORY, roomStoryProps());
+        const scrollport = page.locator('[data-slot="message-list-scroll"]');
+        await beginReading(page, scrollport);
+        if (chatStyle === "whisper") {
+          await page.locator(`${ROW}[data-message-id="${longMessageIds()[0]}"]`).evaluate((element) => {
+            const scroller = element.closest('[data-slot="message-list-scroll"]');
+            if (scroller === null) {
+              throw new Error("The message has no transcript scrollport");
+            }
+            scroller.scrollTop += element.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+          });
+          await test.info().attach("whisper-reading-start", { body: await page.screenshot(), contentType: "image/png" });
+        }
+        for (const messageId of longMessageIds()) {
+          const row = page.locator(`${ROW}[data-message-id="${messageId}"]`);
+          const header = row.locator('[data-slot="message-name-row"]');
+          await revealReadingRow(row, chatStyle);
+          await containedActions(row, scrollport);
+          await expect(row.locator('[data-slot="message-attribution"]')).toHaveCount(chatStyle === "document" ? 0 : 1);
+          if (chatStyle === "document") {
+            continue;
+          }
+          await expect(row.locator('[data-slot="message-attribution"]')).toBeVisible();
+          await test.info().attach(`pinned-row-${messageId}`, {
+            contentType: "application/json",
+            body: JSON.stringify(
+              await row.evaluate((element) => {
+                const scroller = element.closest('[data-slot="message-list-scroll"]');
+                const bar = element.querySelector('[data-slot="message-name-row"]');
+                return {
+                  id: element.getAttribute("data-message-id"),
+                  role: element.getAttribute("data-role"),
+                  row: element.getBoundingClientRect().toJSON(),
+                  header: bar?.getBoundingClientRect().toJSON(),
+                  scrollport: scroller?.getBoundingClientRect().toJSON(),
+                  scrollTop: scroller?.scrollTop,
+                };
+              }),
+            ),
+          });
+          await expect(header).toHaveAttribute("data-pinned", "");
+          await expect
+            .poll(async () => {
+              const port = await scrollport.boundingBox();
+              const bar = await header.boundingBox();
+              return port !== null && bar !== null && Math.abs(bar.y - port.y) <= 1 && bar.y + bar.height < port.y + port.height;
+            })
+            .toBe(true);
+          expect(await computed(header, "background-image", "::after")).toBe("none");
+          await containedActions(row, scrollport);
+        }
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      });
+    }
+  });
+}
+
+test("edited messages keep their creation timestamp without revision chrome", async ({ corpus, mount, page }) => {
+  const caller = await root.internalCallerFor(root.ownerId);
+  const reply = (await caller.chat.listMessages({ chatId: roomId, limit: TAIL_MESSAGES })).messages.find((message) => message.id === longReplyId);
+  expect(reply?.editedAt).toEqual(expect.any(Number));
+  await openRoom(page, corpus, "flat", false);
+  await mount<typeof ChatRoomShellStory>(ROOM_STORY, roomStoryProps());
+  const row = page.locator(`${ROW}[data-message-id="${longReplyId}"]`);
+  await expect(row.locator('[data-slot="message-metadata-timestamp"]')).toBeVisible();
+  await expect(row.locator('[data-slot="message-metadata-edited"]')).toHaveCount(0);
 });

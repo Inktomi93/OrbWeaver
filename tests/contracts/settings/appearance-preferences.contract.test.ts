@@ -34,3 +34,30 @@ test("an unreadable value heals to system rather than overriding the OS", () => 
   const parsed = appearanceSettingsSchema.parse({ reducedMotion: "always", reducedTransparency: 1, increasedContrast: true });
   expect([parsed.reducedMotion, parsed.reducedTransparency, parsed.increasedContrast]).toEqual(["system", "system", "system"]);
 });
+
+test("reading defaults leave typography and quote treatment intact", () => {
+  const parsed = appearanceSettingsSchema.parse({});
+  expect({ chatStyle: parsed.chatStyle, avatarSize: parsed.avatarSize, avatarShape: parsed.avatarShape }).toEqual({
+    chatStyle: "flat",
+    avatarSize: "sm",
+    avatarShape: "rounded",
+  });
+  expect({
+    fontScale: parsed.fontScale,
+    lineHeight: parsed.readingLineHeight,
+    colorQuotedSpeech: parsed.colorQuotedSpeech,
+    blurSurfaces: parsed.blurSurfaces,
+  }).toEqual({
+    fontScale: 1,
+    lineHeight: 1.55,
+    colorQuotedSpeech: true,
+    blurSurfaces: ["panels", "composer", "modals"],
+  });
+});
+
+test("existing reading overrides survive parsing without a migration", () => {
+  const appearance = { chatStyle: "bubble", avatarSize: "lg", avatarShape: "round", fontScale: 1.25, readingLineHeight: 1.8 } as const;
+  const outcome = userSettingsConfig.parseOutcome({ appearance }, USER_SETTINGS_SCHEMA_VERSION);
+  expect(outcome.intact).toBe(true);
+  expect(outcome.value.appearance).toMatchObject(appearance);
+});

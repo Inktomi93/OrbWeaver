@@ -5,8 +5,6 @@ import {
   DISABLED_STATE_NATIVE,
   FOCUS_RING,
   GROUND,
-  GROUND_FADE_BELOW,
-  GROUND_FADE_FROM,
   HIDDEN_AT,
   HOVER_DIM,
   HOVER_REVEAL,
@@ -108,11 +106,6 @@ const SCROLL_FADE = { x: SCROLL_FADE_X_CLASS, y: SCROLL_FADE_Y_CLASS } as const;
 // The `gutterCentred` tracks, shared by `Grid cols` and `Row tracks` (the annotation gutter beside a centred measure,
 // explained at the `Grid` member).
 const GUTTER_CENTRED_TRACKS = "grid-cols-[auto_minmax(0,1fr)] @cq-56:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]";
-
-// A ground's fade below takes that ground's fill as its starting colour.
-const FADE_BELOW_FROM = (Object.keys(GROUND_FADE_FROM) as (keyof typeof GROUND_FADE_FROM)[]).map(
-  (ground) => ({ fadeBelow: true, ground, class: GROUND_FADE_FROM[ground] }) as const,
-);
 
 export const stackVariants = tv({
   base: "flex flex-col",
@@ -220,12 +213,10 @@ export const rowVariants = tv({
     ground: GROUND,
     plate: WALLPAPER_PLATE,
     cardCorners: CARD_CORNERS,
-    // A pinned band's fill fades below its edge; the colour comes from its `ground`.
-    fadeBelow: { true: GROUND_FADE_BELOW, false: "" },
     // A row that must keep its element across a width step takes a grid's tracks; `display: grid` wins over the flex base.
     tracks: { gutterCentred: `grid ${GUTTER_CENTRED_TRACKS}` },
   },
-  compoundVariants: [...DIVIDER_RULE, ...FADE_BELOW_FROM],
+  compoundVariants: [...DIVIDER_RULE],
 });
 
 // One-cell overlay stack (see layer.tsx). A single explicit `1fr`-free track that every child is placed

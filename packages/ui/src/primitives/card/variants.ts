@@ -11,6 +11,8 @@ import { ART_DECORATION } from "../../lib/art-decoration.ts";
 export const cardVariants = tv({
   base: "rounded-base border border-border bg-card p-block text-card-foreground",
   variants: {
+    // A bounded column surface passes its allocated height to shrinkable content.
+    layout: { stack: "flex flex-col" },
     // THE BOX SHAPE: a bordered, rounded, filled Row or Stack is a Card. `island` is grouped
     // content inside a surface. `row` is one operable or listed row drawn as its own box (a pack item, a mini
     // preview row): the control radius, because you operate it. `well` is a recess inside a box: no border, a muted

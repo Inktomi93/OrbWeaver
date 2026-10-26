@@ -102,18 +102,17 @@ function outsidePlate(sticky: boolean): "island" | "chrome" {
 
 interface FramePaint {
   readonly ground: (typeof ROLE_FILL)[MessageRole] | "readingBand" | undefined;
-  readonly fadeBelow: boolean;
   readonly cardCorners: RowSkin["pinnedHeader"]["corners"];
 }
 
-const NO_PAINT: FramePaint = { ground: undefined, fadeBelow: false, cardCorners: undefined };
+const NO_PAINT: FramePaint = { ground: undefined, cardCorners: undefined };
 
-/** The pinned bar's fill, its fade below and the card corners it follows. */
+/** The pinned bar's opaque fill and the card corners it follows. */
 function pinnedPaint(pinned: RowSkin["pinnedHeader"], role: MessageRole): FramePaint {
   if (pinned.fill === "none") {
     return NO_PAINT;
   }
-  return { ground: pinned.fill === "role" ? ROLE_FILL[role] : "readingBand", fadeBelow: true, cardCorners: pinned.corners };
+  return { ground: pinned.fill === "role" ? ROLE_FILL[role] : "readingBand", cardCorners: pinned.corners };
 }
 
 interface FrameRowProps {
@@ -169,7 +168,6 @@ function FrameRow({
       data-bubble-ink={bubbleInk ? "" : undefined}
       plate={plate}
       ground={paint.ground}
-      fadeBelow={paint.fadeBelow}
       cardCorners={paint.cardCorners}
       className={cn(
         "flex-wrap",

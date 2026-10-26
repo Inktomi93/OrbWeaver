@@ -44,6 +44,7 @@
     "./floor/browser/debugging-endpoint": "./src/floor/browser/debugging-endpoint.ts",
     "./floor/browser/document-discards": "./src/floor/browser/document-discards.ts",
     "./floor/browser/page-validate": "./src/floor/browser/page-validate.ts",
+    "./floor/browser/soft-keyboard": "./src/floor/browser/soft-keyboard.ts",
     "./floor/browser/upload": "./src/floor/browser/upload.ts",
     "./floor/cli/entrypoint": "./src/floor/cli/entrypoint.ts",
     "./floor/cli/exit-contract": "./src/floor/cli/exit-contract.ts",

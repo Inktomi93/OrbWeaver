@@ -7,12 +7,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation, peekQueryData, useInvalidation, useTRPC } from "#data";
-import { notify } from "#lib";
+import { notify, setFlankSheetOpen } from "#lib";
+import { revealContextPanel } from "#state";
 import { CHAT_PANEL_HIDDEN_HINT, CHAT_PANEL_UNDO_LABEL, chatPanelHiddenTitle } from "../lib/plugin-copy.ts";
 
 interface PluginPanelPrefsPatchVars {
   readonly section: "profile";
-  readonly patch: { readonly hiddenChatPluginIds?: readonly PluginId[]; readonly flankCollapsed?: boolean };
+  readonly patch: Partial<UserSettingsRead["config"]["profile"]>;
 }
 /** The settings read the write patches in place — tRPC-inferred, so a reshape of it breaks here. */
 type UserSettingsRead = inferOutput<Trpc["settings"]["getUserSettings"]>;
@@ -36,6 +37,7 @@ const useSetPluginPanelPrefs = createEntityMutation<PluginPanelPrefsPatchVars, u
                 ...old.config.profile,
                 ...(vars.patch.hiddenChatPluginIds === undefined ? {} : { hiddenChatPluginIds: [...vars.patch.hiddenChatPluginIds] }),
                 ...(vars.patch.flankCollapsed === undefined ? {} : { flankCollapsed: vars.patch.flankCollapsed }),
+                ...(vars.patch.sidecarChatPluginSurfaces === undefined ? {} : { sidecarChatPluginSurfaces: vars.patch.sidecarChatPluginSurfaces }),
               },
             },
           },
@@ -77,7 +79,7 @@ export function usePluginChatVisibility(): PluginChatVisibility {
   // Read at click time, never from the render's snapshot: an Undo pressed seconds later must not restore a
   // list that another hide has since moved.
   const current = (): readonly PluginId[] => peekQueryData(queryClient, trpc.settings.getUserSettings.queryKey())?.config.profile.hiddenChatPluginIds ?? [];
-  const write = (next: readonly PluginId[]): void => setHidden.mutate({ section: "profile", patch: { hiddenChatPluginIds: next } });
+  const write = (next: readonly PluginId[]): void => setHidden.mutate({ section: "profile", patch: { hiddenChatPluginIds: [...next] } });
   const without = (pluginId: PluginId): readonly PluginId[] => current().filter((id) => id !== pluginId);
 
   return {
@@ -98,6 +100,55 @@ export function usePluginChatVisibility(): PluginChatVisibility {
       });
     },
     setShown: (pluginId, shown): void => write(shown ? without(pluginId) : [...without(pluginId), pluginId]),
+  };
+}
+
+type ChatPluginSurface = UserSettingsRead["config"]["profile"]["sidecarChatPluginSurfaces"][number];
+
+let movedPanel: { readonly surface: ChatPluginSurface; readonly sidecar: boolean } | null = null;
+
+/** Consume the placement handoff only when its destination control mounts. */
+export function takeMovedPanelFocus(surface: ChatPluginSurface, sidecar: boolean): boolean {
+  if (
+    movedPanel === null ||
+    movedPanel.sidecar !== sidecar ||
+    movedPanel.surface.pluginId !== surface.pluginId ||
+    movedPanel.surface.surfaceId !== surface.surfaceId
+  ) {
+    return false;
+  }
+  movedPanel = null;
+  return true;
+}
+
+export interface PluginChatPlacement {
+  readonly ready: boolean;
+  readonly isSidecar: (surface: ChatPluginSurface) => boolean;
+  readonly move: (surface: ChatPluginSurface, sidecar: boolean) => void;
+}
+
+/** A viewer selects sidecar panels individually; every other registration stays in Context. */
+export function usePluginChatPlacement(): PluginChatPlacement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const queryClient = useQueryClient();
+  const setPrefs = useSetPluginPanelPrefs({ trpc, invalidation });
+  const { data } = useQuery(trpc.settings.getUserSettings.queryOptions());
+  return {
+    ready: data !== undefined,
+    isSidecar: (surface): boolean =>
+      data?.config.profile.sidecarChatPluginSurfaces.some((entry) => entry.pluginId === surface.pluginId && entry.surfaceId === surface.surfaceId) ?? false,
+    move: (surface, sidecar): void => {
+      const selection = { pluginId: surface.pluginId, surfaceId: surface.surfaceId };
+      movedPanel = { surface: selection, sidecar };
+      if (!sidecar) {
+        setFlankSheetOpen(false);
+        revealContextPanel("plugins");
+      }
+      const current = peekQueryData(queryClient, trpc.settings.getUserSettings.queryKey())?.config.profile.sidecarChatPluginSurfaces ?? [];
+      const others = current.filter((entry) => entry.pluginId !== surface.pluginId || entry.surfaceId !== surface.surfaceId);
+      setPrefs.mutate({ section: "profile", patch: { sidecarChatPluginSurfaces: sidecar ? [...others, selection] : others } });
+    },
   };
 }
 

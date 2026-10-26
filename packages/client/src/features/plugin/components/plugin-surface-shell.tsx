@@ -12,10 +12,11 @@
 // thing this is, and has NO opt-out. The CT floor pins the band's presence on every page.
 
 import { Card } from "@orb/ui/card";
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Blocks, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement, ReactNode, Ref } from "react";
 import { testId } from "#lib";
 
 /** The shell's two CHROME SCALES — one wall, two shapes. `panel` is the boxed
@@ -45,10 +46,23 @@ interface PluginSurfaceShellProps {
   readonly chrome?: PluginShellChrome | undefined;
   /** A host control drawn at the end of the panel's attribution line (the panel chrome only). */
   readonly action?: ReactNode;
+  /** Keep chat panels mounted while their independent disclosure is folded. */
+  readonly collapsible?: boolean;
+  /** The host restores focus to this panel's disclosure after a placement change. */
+  readonly disclosureRef?: Ref<HTMLButtonElement> | undefined;
 }
 
 /** Wrap a rendered plugin surface in its first-party attribution chrome. */
-export function PluginSurfaceShell({ pluginName, title, scale = "panel", children, chrome = "panel", action }: PluginSurfaceShellProps): ReactElement {
+export function PluginSurfaceShell({
+  pluginName,
+  title,
+  scale = "panel",
+  children,
+  chrome = "panel",
+  action,
+  collapsible = false,
+  disclosureRef,
+}: PluginSurfaceShellProps): ReactElement {
   // A SURFACE TITLED EXACTLY LIKE ITS PLUGIN SAYS THE NAME ONCE (side-eye 2026-08-29 P3-7: Card Atlas's
   // page rendered "Card Atlas · Card Atlas", which reads as a placeholder bug and wastes the title line).
   // The wall loses nothing — the band's whole job is the plugin's NAME, and that still renders on every
@@ -101,6 +115,33 @@ export function PluginSurfaceShell({ pluginName, title, scale = "panel", childre
           {children}
         </Row>
       </Row>
+    );
+  }
+  if (collapsible) {
+    return (
+      <Card aria-label={regionName} role="group" tone="neutral">
+        <Collapsible defaultOpen={true}>
+          <Row align="center" gap="field">
+            <CollapsibleTrigger aria-label={regionName} className="flex-1 min-inline-0" ref={disclosureRef}>
+              <Icon icon={Blocks} size="sm" />
+              <Stack className="flex-1 text-start min-inline-0" gap="tight">
+                <Text className="truncate" voice="label">
+                  {pluginName}
+                </Text>
+                {showTitle ? (
+                  <Text className="truncate" voice="gloss">
+                    {title}
+                  </Text>
+                ) : null}
+              </Stack>
+            </CollapsibleTrigger>
+            {action}
+          </Row>
+          <CollapsiblePanel keepMounted={true} holds="controls">
+            <Stack gap="block">{children}</Stack>
+          </CollapsiblePanel>
+        </Collapsible>
+      </Card>
     );
   }
   return (

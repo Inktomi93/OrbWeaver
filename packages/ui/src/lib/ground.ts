@@ -25,19 +25,6 @@ export const GROUND = {
   readingBand: "bg-reading-band text-reading-plate-foreground",
 } as const;
 
-/** A pinned band's fill dissolving below its bottom edge over one block step, so the line passing under the edge fades
- *  instead of being cut. Out of flow, so it adds no box to the band or its ancestors; the band must be positioned. */
-export const GROUND_FADE_BELOW =
-  "after:pointer-events-none after:absolute after:inset-x-0 after:inset-bs-full after:block-block after:bg-linear-to-b after:to-transparent after:content-['']";
-
-/** The fade's starting colour for each ground that can take it: the band's own fill. */
-export const GROUND_FADE_FROM = {
-  bubble: "after:from-ai-bubble",
-  userBubble: "after:from-user-bubble",
-  systemBubble: "after:from-system-bubble",
-  readingBand: "after:from-reading-band",
-} as const satisfies Partial<Record<keyof typeof GROUND, string>>;
-
 const PLATE_ISLAND =
   "in-data-[has-bg-image]:bg-reading-plate in-data-[has-bg-image]:backdrop-blur-sm in-data-[has-bg-image]:rounded-card in-data-[has-bg-image]:text-reading-plate-foreground";
 

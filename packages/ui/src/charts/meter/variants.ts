@@ -237,25 +237,7 @@ export const waystoneVariants = tv({
     // The stone block; the dial track circle strokes `currentColor` off the muted tone (the empty-ring
     // idiom RingGauge's track shares).
     //
-    // ONE SIZING HOME (side-eye F16 + the owner's grow ruling): the stone was authored at 320px and shipped
-    // at 76px — stars at 1.4px, a 4.75px gable, sub-pixel mush, and "the dimmest orb in a row of orbs".
-    // It now ships at 120px (`size-(--size-meter-hero)`) as the panel's focal element, stepping down with its CONTAINER.
-    // A dead `size` PROP plus a caller-supplied responsive className was two homes that never agreed;
-    // this is the only one.
-    //
-    // THE MAPPING — container width → stone size. In the shell the container is `.shell-panel` (shell.css
-    // makes the panel the query container; the region `<Container>` wraps the BODY, and this stone rides
-    // the HEADER band), so the container width IS the context panel's width,
-    // `--dimension-panel-context: clamp(17rem, 30vw, 30rem)`:
-    //   ≥ 24rem (384px)          → 120px  — a docked panel from a 1280px viewport up (the owner's 30vw
-    //                                       ruling exists to put a STANDARD desktop on this step; the clamp
-    //                                       caps at 30rem/480px from 1600px), and the full-width mobile sheet
-    //   20rem–24rem (320–384px)  →  96px  — a docked panel at ~1067–1280px viewports
-    //   < 20rem (320px)          →  76px  — the panel's 17rem floor (≤~907px) and any narrow host; the SAME
-    //                                       threshold gates the sub-pixel layers off (globals.css §SIZE-GATING)
-    // The steps are CONTAINER breakpoints off the `--container-*` scale (sm = 24rem, xs = 20rem), never
-    // viewport ones (§4b axis-1). The previous `@max-lg`/`@max-md` (32rem/28rem) were both ABOVE the panel's
-    // 30rem ceiling, so even a maxed-out panel could only ever have reached the smallest step.
+    // D119 keeps a clock-set stone focal, stepping down by container width, never by pointer type.
     root: "block",
     // THE DIAL TRACK TAKES THE EDGE TOKEN, for the reason and by the measurement `arcMeterVariants.track`
     // states (#685, swept here by #693): `text-muted` is a SURFACE token, and one ramp step is all it can
@@ -270,18 +252,8 @@ export const waystoneVariants = tv({
     track: "text-border",
   },
   variants: {
-    // THE UNSET STONE IS ONE STEP SMALLER AT EVERY CONTAINER STEP (HUD-1 §7.3 — the band's compressed
-    // form). The size exists so the LAYERS read: the interpolated sky, the walking celestial, the stars,
-    // the weather, the hand. With no clock there is none of that — no treatment resolves at all — so the
-    // stone is a PROMISE of a reading rather than a reading, and paying the focal element's footprint for
-    // an empty disc is exactly the vertical budget F6 measured being burned (a ~140px band saying "No
-    // ambient set").
-    //
-    // DERIVED FROM THE DATUM, NOT PASSED IN. §7.3 sketched this as a `compact` boolean on the caller, and
-    // that spelling is RED here: ESLint layout-attribute restrictions in `eslint.config.js` (D42/D43) ban `compact`/`density`/`inDrawer`
-    // props precisely because a parent telling a child how to look is the anti-pattern the container model
-    // replaced. Reading it off `clock === null` is the stronger form of what that flag was for — the caller
-    // spells no size and makes no size decision, and this file stays the ONE sizing home (side-eye F16).
+    // An unset clock carries no layered reading; its smallest display step leaves room for the active tab.
+    // The clock selects this treatment, never a parent-supplied layout flag (D119).
     unset: {
       false: {
         root: `
@@ -290,15 +262,8 @@ export const waystoneVariants = tv({
           @max-cq-20:block-(--size-meter-md) @max-cq-20:inline-(--size-meter-md)
         `,
       },
-      // The globals.css SIZE-GATING has a matching `[data-phase="unset"]` arm, so the sub-pixel layers drop
-      // at the container step where the SMALLER stone gets too small, never one step late.
-      true: {
-        root: `
-          block-(--size-meter-lg) inline-(--size-meter-lg)
-          @max-cq-24:block-(--size-meter-md) @max-cq-24:inline-(--size-meter-md)
-          @max-cq-20:block-(--size-meter-sm) @max-cq-20:inline-(--size-meter-sm)
-        `,
-      },
+      // The small unset treatment drops its fine noon rays at every container width in waystone.css.
+      true: { root: "block-(--size-meter-sm) inline-(--size-meter-sm)" },
     },
   },
   defaultVariants: { unset: false },

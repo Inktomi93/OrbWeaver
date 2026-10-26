@@ -69,7 +69,11 @@ export default defineConfig<CtCorpusOptions>({
     // Opt-in (`pnpm test:ct:webkit`): Playwright's WebKit on Linux is WebKitGTK/WPE with patches, not Safari. It has no
     // iOS chrome, reports 0 for every safe-area inset, shows no soft keyboard and has no standalone mode, so it checks
     // layout and parsing only. The run-marker args are Chromium flags and would stop WebKit launching.
-    { name: "webkit-iphone", testMatch: ["**/platform-*.suite.ct.tsx"], use: { ...devices["iPhone 15"], launchOptions: {} } },
+    {
+      name: "webkit-iphone",
+      testMatch: ["**/platform-*.suite.ct.tsx", "**/features/chat/components/composer-two-rows.ct.tsx"],
+      use: { ...devices["iPhone 15"], launchOptions: {} },
+    },
     { name: "tooling", testDir: "tests/tooling" },
   ],
 });

@@ -153,7 +153,7 @@ function isAmbientUnset(location: string, when: ReturnType<typeof whenParts>): b
  *  F6 measured at 138px, 68% of the pane's chrome — every one of those lines is a blank, and the band was
  *  spending the pane's vertical budget on the word "No". The COMPRESSED form is one slim row: the unset copy
  *  on a single line and the cues + satellites inline beside the stone instead of stacked below it. The stone
- *  drops a size step on its OWN — an unset stone has no layers to carry, so `variants.ts` derives that from
+ *  takes the smallest display step on its OWN — an unset stone has no layers to carry, so `variants.ts` derives that from
  *  `clock === null` rather than taking a flag from here. (An earlier sketch had a `compact` prop; the
  *  ESLint layout-attribute restrictions / D42-D43 ban exactly that shape, and deriving it is what that flag was
  *  reaching for anyway.)

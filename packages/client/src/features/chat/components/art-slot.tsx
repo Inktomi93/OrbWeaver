@@ -115,7 +115,7 @@ export function WhisperBand({
       feather={band.feather}
       featherSrc={showsImage ? url : undefined}
       // Moonlit Echoes' Glimmer preset: the banner is half the card, centred; a phone widens it to 55%.
-      className="relative mx-auto inline-1/2 @max-cq-28:inline-11/20"
+      className="relative mx-auto inline-1/2 max-inline-(--immersive-whisper-banner-inline-cap) @max-cq-28:inline-11/20"
       ref={attach}
       style={style}
     >

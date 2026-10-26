@@ -1,5 +1,5 @@
-// The caller's chat-anchor registrations that are showing right now — the one read both the fan-out and the
-// touch device's Message tools door take, so the door appears exactly when the sheet would hold something.
+// Resolve caller-owned registrations for one selected host before reading published state.
+// Context and sidecar therefore never mount or read the same registration simultaneously.
 
 import type { PluginCapability, PluginSurfaceAnchor, PluginSurfaceSpec } from "@orb/contracts/plugin";
 import type { ChatId, PluginId } from "@orb/kit/ids";
@@ -9,7 +9,7 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { useTRPC } from "#data";
 import { specBindsState } from "../lib/plugin-surface-bindings.ts";
-import { usePluginChatVisibility } from "./use-plugin-chat-visibility.ts";
+import { usePluginChatPlacement, usePluginChatVisibility } from "./use-plugin-chat-visibility.ts";
 
 /** The two wire reads this fan-out joins, tRPC-INFERRED — so a reshape of either breaks here at compile time
  *  rather than at a runtime `undefined`. */
@@ -24,7 +24,7 @@ type PluginView = inferOutput<Trpc["plugin"]["list"]>[number];
  *  a server-registered `spec` and a state row to bind against; a `scripted` one has NEITHER until its guest boots
  *  and publishes — its spec IS the thing being computed (U4); a `frame` one renders its OWN document in an
  *  isolated iframe and has no spec and no published-state plane at all (U7). */
-type RenderableSurface =
+export type RenderableSurface =
   | {
       readonly tier: "static";
       readonly pluginId: PluginId;
@@ -102,18 +102,26 @@ export function useFlankInSheet(): boolean {
   return useCoarsePointer();
 }
 
-/** The registrations of `anchor` that are showing right now: the caller's enabled plugins' surfaces, less the
- *  plugins this user hid from chat, less a bound static surface whose plugin has published nothing yet. The phone's
- *  sheet door reads the same list, so it appears exactly when the sheet would hold something. */
-export function useVisibleAnchoredSurfaces(anchor: PluginSurfaceAnchor, chatId: ChatId | undefined): readonly RenderableSurface[] {
+/** Navigation remains available for hidden panels so the person can restore them in Context. */
+export function useHasChatPluginPanels(): boolean {
+  const trpc = useTRPC();
+  const { data } = useQuery(trpc.plugin.listSurfaces.queryOptions());
+  return data?.some((surface) => surface.anchor === "chat-flank") ?? false;
+}
+
+/** Resolve the selected host's visible registrations, withholding hidden and unpublished bound panels. */
+export function useVisibleAnchoredSurfaces(anchor: PluginSurfaceAnchor, chatId: ChatId | undefined, sidecar = false): readonly RenderableSurface[] {
   const trpc = useTRPC();
   // `listSurfaces` is the caller's OWN enabled plugins' registrations (owner-scoped server-side, and a disabled
   // plugin has no resident instance, so it contributes nothing) — the v1 invariant is viewer == installer.
   const { data: surfaces } = useQuery(trpc.plugin.listSurfaces.queryOptions());
   const { data: plugins } = useQuery(trpc.plugin.list.queryOptions());
   const { isHidden } = usePluginChatVisibility();
+  const placement = usePluginChatPlacement();
   // A hidden plugin is dropped BEFORE its state is read: nothing about it mounts or fetches while it is hidden.
-  const candidates = buildCandidates(surfaces ?? [], plugins ?? [], anchor).filter((candidate) => !isHidden(candidate.pluginId));
+  const candidates = buildCandidates(surfaces ?? [], plugins ?? [], anchor).filter(
+    (candidate) => !isHidden(candidate.pluginId) && (anchor !== "chat-flank" || (placement.ready && placement.isSidecar(candidate) === sidecar)),
+  );
 
   // ONE hook over N rows (never a hook per row): the published state each STATIC candidate's silence test needs.
   // `throwOnError: false` — a failed state read degrades that surface to silent, never into the room's boundary.

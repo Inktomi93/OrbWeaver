@@ -1,7 +1,6 @@
 // The one home of the custom-property names a read may rely on: every sheet's declarations, the appearance channel, the
 // names a component writes at runtime, and the vendor names. Stylelint and ESLint both refuse a read outside this set.
-import { execFileSync } from "node:child_process";
-import { globSync, readFileSync } from "node:fs";
+import { globSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 /** A custom property a component writes at runtime and a sheet or class string reads; each names its writer. */
@@ -25,8 +24,10 @@ export const VENDOR_CUSTOM_PROPERTIES: Readonly<Record<string, string>> = {
   "--sdm-tbg": "streamdown",
 };
 
-const GREP_BUFFER_BYTES = 67_108_864;
 const BASE_UI_DIR = "packages/ui/node_modules/@base-ui/react";
+const STYLESHEETS = "packages/*/src/**/*.css";
+const SCRIPT_SOURCES = "packages/{client,ui}/src/**/*.{ts,tsx}";
+const DEPENDENCIES = "**/node_modules/**";
 const COMMENT = /\/\*[\s\S]*?\*\//gu;
 const DECLARATION = /(?<![\w-])(--[\w-]+)\s*:/gu;
 const AT_PROPERTY = /@property\s+(--[\w-]+)/gu;
@@ -49,12 +50,6 @@ export function declaredInCss(text: string): readonly string[] {
   return [...code.matchAll(DECLARATION), ...code.matchAll(AT_PROPERTY)].map((match) => match[1] ?? "");
 }
 
-function stylesheets(root: string): readonly string[] {
-  return execFileSync("git", ["ls-files", "--cached", "--others", "--exclude-standard", "--", "packages/**/*.css"], { cwd: root, encoding: "utf8" })
-    .split("\n")
-    .filter((path) => path !== "");
-}
-
 /** A Tailwind arbitrary-property write in a class string: `[--x:v]`, bare or behind a variant. */
 const CLASS_WRITE = /\[(--[\w-]+):/gu;
 /** A read: `var(--x`, `var( --x`, and Tailwind's `-(--x)` or type-hinted `-(length:--x)` utility value. */
@@ -64,18 +59,6 @@ export const PROPERTY_READ = /var\(\s*(--[\w-]+)(?=\s*[,)])|(?<=-)\(\s*(?:[a-z-]
 const PREFIX_READ = /(?:var\(\s*|(?<=-)\(\s*(?:[a-z-]+:)?)(--[\w-]+-)\$\{/gu;
 /** A script's read of one property off a computed style. */
 const STYLE_READ = /getPropertyValue\(\s*["'`](--[\w-]+)["'`]/gu;
-
-/** Every class-string write and read the client and ui sources spell, in one `git grep` for speed; the JS patterns then pick the names. */
-function sourceUses(root: string): string {
-  // git's `*` crosses directories, so `src/*.ts` reaches the top-level files too.
-  const pathspecs = ["client", "ui"].flatMap((name) => [`packages/${name}/src/*.ts`, `packages/${name}/src/*.tsx`]);
-  const grep = String.raw`\[--[A-Za-z0-9_-]+:|(var\(\s*|-\(\s*([a-z-]+:)?)--[A-Za-z0-9_-]+(\s*[,)]|-\$\{)|getPropertyValue\(\s*.--[A-Za-z0-9_-]+.`;
-  return execFileSync("git", ["grep", "--untracked", "-h", "-o", "-I", "-E", grep, "--", ...pathspecs], {
-    cwd: root,
-    encoding: "utf8",
-    maxBuffer: GREP_BUFFER_BYTES,
-  });
-}
 
 /** What the sheets and the client and ui sources declare and read. */
 export interface CustomPropertyUses {
@@ -88,6 +71,13 @@ export interface CustomPropertyUses {
 }
 
 export function customPropertyUses(root: string): CustomPropertyUses {
+  readdirSync(root);
+  // Source homes, not repository metadata or build outputs, define the same census in a checkout and an archive.
+  const sheets = globSync(STYLESHEETS, { cwd: root, exclude: [DEPENDENCIES] });
+  const sources = globSync(SCRIPT_SOURCES, { cwd: root, exclude: [DEPENDENCIES] });
+  if (sheets.length + sources.length === 0) {
+    throw new Error(`Custom property census found no owned source files in ${root}`);
+  }
   const declared = new Set<string>([...Object.keys(RUNTIME_CUSTOM_PROPERTIES), ...Object.keys(VENDOR_CUSTOM_PROPERTIES), ...baseUiCustomProperties(root)]);
   const read = new Set<string>();
   const collectReads = (text: string): void => {
@@ -95,14 +85,14 @@ export function customPropertyUses(root: string): CustomPropertyUses {
       read.add(match[1] ?? match[2] ?? "");
     }
   };
-  for (const sheet of stylesheets(root)) {
+  for (const sheet of sheets) {
     const text = readFileSync(join(root, sheet), "utf8");
     for (const name of declaredInCss(text)) {
       declared.add(name);
     }
     collectReads(text.replace(COMMENT, ""));
   }
-  const uses = sourceUses(root);
+  const uses = sources.map((file) => readFileSync(join(root, file), "utf8")).join("\n");
   for (const match of uses.matchAll(CLASS_WRITE)) {
     declared.add(match[1] ?? "");
   }
