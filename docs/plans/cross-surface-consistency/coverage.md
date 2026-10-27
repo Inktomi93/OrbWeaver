@@ -91,6 +91,14 @@ Full Stylelint passes for the current package CSS population. Full integrated te
 
 Autosaving editors use Close, Done or Back. Cancel abandons unsubmitted input; it does not promise rollback of saved work.
 
+## Primary-surface deep pass
+
+After integrated verification, review Characters and Chat as complete primary workflows. Inspect List, Content and Context, every tab and nested item.
+
+Compare desktop with applicable side panels, coarse portrait and short landscape with enabled plugins. Judge hierarchy, density, action placement, discoverability and reading comfort, not containment alone.
+
+Reuse accepted evidence only for matching states. Record the complete navigation inventory, review dispositions and remaining gaps. Repair shared owners and inconsistent adoption together.
+
 ## Evidence homes
 
 The independent comparison index is `reports/side-eye/2026-10-26-cross-surface-consistency-comparison.md`.
