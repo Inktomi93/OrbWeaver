@@ -24,15 +24,8 @@ export const useCreateTag = createEntityMutation<inferInput<Trpc["tag"]["createT
   errorToast: (error) => (isTagNameConflict(error) ? null : "Couldn't create the tag."),
 });
 
-/** Rename a tag (name-only patch). Its own instance for a name-conflict-aware toast. */
-export const useRenameTag = createEntityMutation<inferInput<Trpc["tag"]["updateTag"]>, unknown>({
-  options: (trpc) => trpc.tag.updateTag.mutationOptions(),
-  busDriven: true,
-  errorToast: "Couldn't rename the tag — that name may already be in use.",
-});
-
-/** Update a tag's style/behavior (color · color2 · folderType · isHiddenOnCard). */
-export const useUpdateTagStyle = createEntityMutation<inferInput<Trpc["tag"]["updateTag"]>, unknown>({
+/** Persist the shared editor's authored name, colors and display behavior. */
+export const useUpdateTag = createEntityMutation<inferInput<Trpc["tag"]["updateTag"]>, inferOutput<Trpc["tag"]["updateTag"]>>({
   options: (trpc) => trpc.tag.updateTag.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't update the tag.",

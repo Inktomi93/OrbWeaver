@@ -1,5 +1,6 @@
 import { MODAL_SURFACE, OVERLAY_MOTION, SCRIM, tv } from "#lib";
 
+// Wide data pickers use a field inset to retain narrow-screen reading width; lg keeps its usual modal gutter.
 // Backdrop is the theme-aware `--scrim` token (never `bg-black/50`); the stack sits at `--z-modal`.
 // Scroll ownership: the POPUP owns layout AND scroll, never the backdrop/viewport — the viewport is a
 // plain flex container (not a scroll container) that centres the popup inline and places it on the block
@@ -33,6 +34,7 @@ export const dialogVariants = tv({
       sm: { viewport: "p-gutter", popup: "max-inline-(--width-dialog-sm)" },
       md: { viewport: "p-gutter", popup: "max-inline-(--width-dialog-md)" },
       lg: { viewport: "p-gutter", popup: "max-inline-(--width-dialog-lg)" },
+      wide: { viewport: "p-field", popup: "max-inline-(--width-dialog-lg)" },
       // The large shell modal: fills most of the screen but stays a centered card, capped at xl width.
       xl: { viewport: "p-gutter", popup: "block-full max-inline-(--width-dialog-xl)" },
       // Hugs its content on both axes, up to the xl width (a lightbox sized by the image it holds).

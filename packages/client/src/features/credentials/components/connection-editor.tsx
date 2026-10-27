@@ -19,7 +19,15 @@ import { QueryErrorState, SkeletonRows, useSuspenseQuery } from "#data";
 import { embedRefusalOf, embedRefusalText } from "#lib";
 import { isClaudeSubscription } from "../lib/add-connection-form-model.ts";
 import { capabilityFactRows, VECTOR_WIDTH_FACT_PATH } from "../lib/connection-capability-fact-model.ts";
-import { capabilityBadges, declaredOverrideCount, diagnosticsSetCount, hostLabel, inferredKindOf, purposeNotes } from "../lib/connection-editor-model.ts";
+import {
+  capabilityBadges,
+  credentialReadout,
+  declaredOverrideCount,
+  diagnosticsSetCount,
+  hostLabel,
+  inferredKindOf,
+  purposeNotes,
+} from "../lib/connection-editor-model.ts";
 
 import { withDeclaredOverride, withoutDeclaredOverride } from "../lib/connection-fact-model.ts";
 import { promptCacheChangedCount, showsPromptCache } from "../lib/prompt-cache-model.ts";
@@ -203,7 +211,7 @@ function AvailableConnectionEditorBody({
             </Field>
             {connection.baseUrl === null ? (
               <Field description="Stored once and never shown again. Replace or revoke it under Saved keys." label="API key">
-                <Text voice="datum">{connection.credentialId === null ? "none — this provider needs no key" : "saved"}</Text>
+                <Text voice="datum">{credentialReadout(provider.auth, connection.credentialId)}</Text>
               </Field>
             ) : (
               <SavedTextField

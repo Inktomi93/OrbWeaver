@@ -33,7 +33,7 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { MenuItem } from "@orb/ui/menu";
 import { Switch } from "@orb/ui/switch";
-import { Text } from "@orb/ui/text";
+import { Heading, Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -130,7 +130,10 @@ function ConnectionsBody({ anchorId }: { readonly anchorId: string }): ReactElem
 
   if (editingId !== null) {
     return (
-      <Section divider={true} heading={CONNECTIONS_LIST_SUBCATEGORY.label} id={anchorId}>
+      <Section id={anchorId}>
+        <Heading className="sr-only" level={3}>
+          {CONNECTIONS_LIST_SUBCATEGORY.label}
+        </Heading>
         <ConnectionEditor
           key={requestCount}
           advancedOpen={advancedOpenFor === editingId}

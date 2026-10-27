@@ -16,6 +16,7 @@ import type {
   DeclaredCapability,
   ModelCatalogEntry,
   ModelKind,
+  ProviderAuth,
   RoutableTask,
   Task,
 } from "@orb/contracts/inference";
@@ -26,6 +27,14 @@ import { ROLE_ROWS_ORDERED } from "#src/lib/connection-roles.ts";
 
 import { grouped } from "./connection-fact-model.ts";
 import { fieldText, parsePastedObject } from "./pasted-fields.ts";
+
+/** A missing credential is keyless only when the provider itself declares no authentication. */
+export function credentialReadout(auth: ProviderAuth, credentialId: string | null): string {
+  if (credentialId !== null) {
+    return "saved";
+  }
+  return auth === "none" ? "none — this provider needs no key" : "not set — this provider requires a saved credential";
+}
 
 /** ONE `extras` row while it is being edited. `id` is the row's IDENTITY (§5.3a property 1): the delete
  *  button removes THAT row and editing a key does not rebuild the list under the caret. A row with an empty
