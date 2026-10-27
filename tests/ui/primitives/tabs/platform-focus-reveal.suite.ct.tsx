@@ -6,13 +6,34 @@ const STORY = "tests/ui/primitives/tabs/_focus-reveal-stories/TabsFocusRevealSto
 
 async function expectRevealed(tab: Locator, clip: Locator): Promise<void> {
   await expect(tab).toBeFocused();
+  const paint = await tab.evaluate((node) => ({
+    visible: node.matches(":focus-visible"),
+    halo: Math.max(
+      0,
+      ...getComputedStyle(node)
+        .boxShadow.split(/,(?![^(]*\))/u)
+        .map((layer) => {
+          if (layer.includes("inset")) {
+            return 0;
+          }
+          return Number.parseFloat(layer.match(/-?(?:\d*\.)?\d+px/gu)?.at(-1) ?? "0");
+        }),
+    ),
+  }));
+  expect(paint.visible).toBe(true);
+  expect(paint.halo).toBeGreaterThan(0);
+  await expectInlineContained(tab, clip, paint.halo);
+}
+
+async function expectInlineContained(tab: Locator, clip: Locator, halo = 0): Promise<void> {
+  await expect(tab).toBeFocused();
   await expect
     .poll(async () => {
       const [tabBox, clipBox] = await Promise.all([tab.boundingBox(), clip.boundingBox()]);
       if (tabBox === null || clipBox === null) {
         throw new Error("The focused tab and actual clipping ancestor must render");
       }
-      return Math.max(clipBox.x - tabBox.x, tabBox.x + tabBox.width - clipBox.x - clipBox.width);
+      return Math.max(clipBox.x - tabBox.x + halo, tabBox.x + tabBox.width + halo - clipBox.x - clipBox.width);
     })
     .toBeLessThanOrEqual(1);
 }
@@ -57,7 +78,8 @@ for (const coarse of [false, true]) {
       await expect(page.getByRole("status", { name: "Final key calls", exact: true })).toHaveText("1");
       await expect(page.getByRole("tab", { name: "Unavailable", exact: true })).toBeDisabled();
       await page.getByRole("button", { name: "Focus final through caller ref", exact: true }).click();
-      await expectRevealed(last, clip);
+      await expectInlineContained(last, clip);
+      expect(await last.evaluate((node) => node.matches(":focus-visible"))).toBe(false);
     });
   });
 }

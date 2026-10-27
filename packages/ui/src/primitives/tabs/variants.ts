@@ -16,6 +16,8 @@ export const tabsVariants = tv({
     root: "flex flex-col gap-block inline-full data-[orientation=vertical]:flex-row",
     list: [
       "relative inline-flex items-center gap-block border-be border-border inline-fit",
+      // Reserve the outward ring at both scroll ends; scroll margin alone cannot extend maximum scroll.
+      "data-[orientation=horizontal]:px-tight",
       "data-[orientation=vertical]:flex-col data-[orientation=vertical]:items-stretch",
     ],
     tab: [
@@ -69,7 +71,7 @@ export const tabsVariants = tv({
     // is the variant plus the `ui-size-via-variant` gate, never a merge accident. A sealed size can only be
     // overridden HERE, the button `size="media"` precedent (F2).
     layout: {
-      inline: { tab: `px-block block-(--size-control-sm) ${FOCUS_RING}` },
+      inline: { tab: `px-block block-(--size-control-sm) data-[orientation=horizontal]:scroll-mx-tight ${FOCUS_RING}` },
       // `min-w-(--size-touch-target)` is the WIDTH half of the same floor the height already carries, and it is
       // sealed here for the same reason (side-eye 2026-08-07 §① P2). The rpg rail put the cells on
       // `grid-auto-columns: max-content` at a coarse pointer and three of six came out 34-43px wide — a
