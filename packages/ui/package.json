@@ -12,6 +12,7 @@
     "./alert-dialog": "./src/primitives/alert-dialog/index.ts",
     "./aria-announcer": "./src/primitives/aria-announcer/index.ts",
     "./art-bleed": "./src/art/art-bleed/index.ts",
+    "./aspect-frame": "./src/primitives/aspect-frame/index.ts",
     "./autocomplete": "./src/primitives/autocomplete/index.ts",
     "./avatar": "./src/primitives/avatar/index.ts",
     "./avatar-stack": "./src/primitives/avatar-stack/index.ts",

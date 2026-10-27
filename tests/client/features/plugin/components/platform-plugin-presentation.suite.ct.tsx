@@ -241,8 +241,12 @@ for (const viewport of VIEWPORTS) {
       await expectContained(back, detail);
       await expectContained(add, detail);
       await expect(detail.getByText("The remote card's detailed description.", { exact: true })).toBeVisible();
+      await page.screenshot({ path: test.info().outputPath("atlas-detail.png") });
       await back.click();
-      await expect(detail.getByText("Witness card 1", { exact: true })).toBeVisible();
+      await expect(detail.getByRole("button", { name: "Witness card 1, Witness", exact: true })).toBeVisible();
+      await expect(detail.getByRole("button", { name: "Next", exact: true })).toBeEnabled();
+      await expect(detail.getByText("Page 1 of 2", { exact: true })).toBeVisible();
+      await expect(detail.getByText("The remote card's detailed description.", { exact: true })).toHaveCount(0);
       await page.screenshot({ path: test.info().outputPath("atlas-rows.png") });
     });
   });
