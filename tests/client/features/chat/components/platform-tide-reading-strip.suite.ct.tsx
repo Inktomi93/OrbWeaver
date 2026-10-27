@@ -1,9 +1,9 @@
-import { resolvedLength } from "@orb/testkit/browser/spec";
+import { resolvedLength, scrollIntoReadingMessage, seedShellState, tokenColor } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { Locator } from "@playwright/test";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
-import type { ReadingRoom } from "./chat-style-reading.helpers.tsx";
-import { createReadingRoom, openReadingRoom, scrollIntoReadingMessage, tokenColor } from "./chat-style-reading.helpers.tsx";
+import type { ReadingRoom } from "./chat-style-reading.fixtures.ts";
+import { createReadingRoom, openReadingRoom } from "./chat-style-reading.fixtures.ts";
 
 const ROOM_STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
 const ROW = '[data-slot="message-row"]';
@@ -31,6 +31,7 @@ function registerTideBackingCase(width: number, height: number): void {
   test(`Tide ${width}x${height}: pinned headers cover both speakers' reading width without widening the resting identity`, async ({ corpus, mount, page }) => {
     await page.setViewportSize({ width, height });
     await openReadingRoom(page, corpus, fixture.root, { chatStyle: "tide", art: true });
+    await seedShellState(page, { activeSection: "chats" });
     await mount<typeof ChatRoomShellStory>(ROOM_STORY, { chatId: fixture.roomId });
     for (const messageId of [fixture.longReplyId, fixture.longUserId]) {
       const row = page.locator(`${ROW}[data-message-id="${messageId}"]`);
