@@ -1,11 +1,9 @@
 // Bound macro-aware textarea — useBoundField<string>() binding @orb/ui/macro-textarea inside <Field>.
 // The macro catalog is passed in as `suggestions` (ui imports no domain registry). `showTokenCount`
-// renders a live "~N tokens" line below the field, computed via the one kit estimator — promoted here
-// instead of hand-assembled per call site.
+// renders the one kit estimator inside the editor's helper footprint, so it follows the control's measure.
 
 import { estimateTokens } from "@orb/kit/tokens";
 import { Field } from "@orb/ui/field";
-import { Row } from "@orb/ui/layout";
 import type { MacroSuggestion } from "@orb/ui/macro-textarea";
 import { MacroTextarea } from "@orb/ui/macro-textarea";
 import { Text } from "@orb/ui/text";
@@ -26,7 +24,7 @@ export interface MacroFieldProps {
    *  growing, so a long value cannot push this field's own counter/error off the fold. */
   readonly maxRows?: number;
   readonly disabled?: boolean;
-  /** Extra classes forwarded to the underlying textarea (e.g. a taller min-height). */
+  /** Extra classes forwarded to the macro editor's root footprint (e.g. a taller min-height). */
   readonly className?: string;
   /** Native character cap (see `MacroTextareaProps.maxLength`) — blocks typing/paste past the limit, and
    *  deliberately leaves an already-over-cap STORED value rendered in full for the caller to refuse. */
@@ -40,35 +38,33 @@ export function MacroField(props: MacroFieldProps): ReactElement {
   const { className } = props;
   const { field, fieldProps } = useBoundField<string>(props);
   return (
-    <>
-      <Field {...fieldProps}>
-        <MacroTextarea
-          value={field.state.value}
-          onChange={(next): void => {
-            field.handleChange(next);
-          }}
-          onBlur={field.handleBlur}
-          suggestions={props.suggestions}
-          disabled={props.disabled ?? false}
-          // A GHOST IS WHAT AN EMPTY FIELD SHOWS (side-eye F-3's second half). The browser never paints a
-          // placeholder over a non-empty value, but the ATTRIBUTE stays in the a11y tree — so a template
-          // field whose stored value happens to equal its own factory default carried the identical
-          // 270-character string twice, once as the value and once as a description. Forwarding the ghost
-          // only while the field is empty makes the tree say what the screen says.
-          {...(props.placeholder === undefined || field.state.value !== "" ? {} : { placeholder: props.placeholder })}
-          {...(props.rows === undefined ? {} : { rows: props.rows })}
-          {...(props.maxRows === undefined ? {} : { maxRows: props.maxRows })}
-          {...(props.maxLength === undefined ? {} : { maxLength: props.maxLength })}
-          {...(className === undefined ? {} : { className })}
-        />
-      </Field>
-      {props.showTokenCount === true ? (
-        <Row gap="row" align="center" className="justify-end">
-          <Text tone="muted" voice="datum">
-            ~{estimateTokens(field.state.value)} tokens
-          </Text>
-        </Row>
-      ) : null}
-    </>
+    <Field {...fieldProps}>
+      <MacroTextarea
+        value={field.state.value}
+        onChange={(next): void => {
+          field.handleChange(next);
+        }}
+        onBlur={field.handleBlur}
+        suggestions={props.suggestions}
+        disabled={props.disabled ?? false}
+        helper={
+          props.showTokenCount === true ? (
+            <Text as="span" className="block text-end" tone="muted" voice="datum">
+              ~{estimateTokens(field.state.value)} tokens
+            </Text>
+          ) : undefined
+        }
+        // A GHOST IS WHAT AN EMPTY FIELD SHOWS (side-eye F-3's second half). The browser never paints a
+        // placeholder over a non-empty value, but the ATTRIBUTE stays in the a11y tree — so a template
+        // field whose stored value happens to equal its own factory default carried the identical
+        // 270-character string twice, once as the value and once as a description. Forwarding the ghost
+        // only while the field is empty makes the tree say what the screen says.
+        {...(props.placeholder === undefined || field.state.value !== "" ? {} : { placeholder: props.placeholder })}
+        {...(props.rows === undefined ? {} : { rows: props.rows })}
+        {...(props.maxRows === undefined ? {} : { maxRows: props.maxRows })}
+        {...(props.maxLength === undefined ? {} : { maxLength: props.maxLength })}
+        {...(className === undefined ? {} : { className })}
+      />
+    </Field>
   );
 }

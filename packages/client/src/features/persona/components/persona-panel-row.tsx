@@ -69,7 +69,7 @@ export function PersonaPanelRow({
     <Stack gap="field">
       <Row
         align="center"
-        className="group relative min-block-(--size-control-md)"
+        className="group relative flex-wrap min-block-(--size-control-md)"
         stateFill="expanded"
         data-expanded={expanded ? "" : undefined}
         gap="row"
@@ -87,8 +87,8 @@ export function PersonaPanelRow({
         <Avatar className="pointer-events-none relative shrink-0" fallbackDelay={0} hueSeed={persona.id} size="sm" {...avatarSrc}>
           {initialsFor(persona.name)}
         </Avatar>
-        {/* The NAME is the row's one shrinker; every trailing control reserves its own width (leg-4 P2). */}
-        <Stack className="pointer-events-none relative flex-1 min-inline-0" data-slot="persona-row-name">
+        {/* Prefer a readable title track; a host below that basis can still shrink it without overflowing. */}
+        <Stack className="pointer-events-none relative flex-1 basis-(--width-title-floor) min-inline-0" data-slot="persona-row-name">
           <Text as="span" className="truncate" voice="label">
             {persona.name}
           </Text>
