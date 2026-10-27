@@ -91,30 +91,23 @@ export function MemberDrillHeader({ back, title, meta, actions }: MemberDrillHea
     );
   }
   return (
-    // `flex-wrap` IS LOAD-BEARING AND WAS MEASURED, not defensive (the narrowest-real-mount rule). The
-    // world-info book draws Back + a name + THREE verbs, and the first spelling laid them out in one
-    // unwrappable line: measured at 430 (before the phone arm above existed), `Back to World Info` printed
-    // straight THROUGH `Edit details` and the heading collapsed to nothing — a CT screenshot, not a worry.
-    // The phone no longer reaches this arm, but the narrowest DESKTOP pane is 397px (a 752px window with
-    // the LIST docked at 307), which is inside the same failure band. The row is still one row at every
-    // width the boards are drawn at.
+    // Identity parts and verbs wrap independently so a long Back label cannot consume the member heading.
     <Row align="center" className="flex-wrap min-inline-0" data-slot="config-drill-header" gap="field" justify="between">
-      <Row align="center" className="min-inline-0" gap="field">
-        <Button className="shrink-0" intent="ghost" onClick={back.onClick} size="sm" type="button">
+      <Row align="center" className="flex-wrap max-inline-full min-inline-0" gap="field">
+        <Button className="shrink-0 wrap-anywhere max-inline-full" intent="ghost" onClick={back.onClick} size="wrap" type="button">
           <Icon icon={ArrowLeft} size="sm" />
           {back.label}
         </Button>
-        {/* `truncate` on the heading, not on a wrapper: a long member name ellipsises inside the row rather
-            than pushing the verbs off the pane's trailing edge (the `ListPaneHeader` twin's rule). */}
+        {/* The title's preferred floor wraps it before collapse; truncation bounds a longer name on its own line. */}
         {title === undefined ? null : (
-          <Heading className="truncate" level={2}>
+          <Heading className="flex-1 basis-(--width-title-floor) truncate max-inline-full min-inline-0" level={2}>
             {title}
           </Heading>
         )}
         {meta}
       </Row>
       {actions === undefined ? null : (
-        <Row align="center" className="shrink-0" gap="field">
+        <Row align="center" className="flex-wrap max-inline-full min-inline-0" gap="field">
           {actions}
         </Row>
       )}

@@ -161,15 +161,8 @@ function CollectionControlRow({
   return (
     <Container className="inline-full">
       <Row align="center" className="flex-wrap" data-slot="collection-control-row" gap="field">
-        {/* A FILTER, never the settings index's jump search (§3.2): it narrows THIS library's rows in place,
-          which is the verb every peer LIST pane's `Input` performs. The settings `combobox` above it jumps
-          instead, and the two must not read as one control.
-          NO LEADING GLYPH, and that is a MEASURED call rather than a taste one (#1725): the row carries five
-          controls and the filter is the only one that flexes, so every fixed pixel beside it comes out of the
-          one box a reader types into. At 430 the glyph + its joint took the filter to ~85px — "Filter tag",
-          clipped mid-word — against ~130px in the approved p2 board, which draws no glyph either. The
-          placeholder already names the verb. */}
-        <Row align="center" className="flex-1 min-inline-0">
+        {/* The local filter is not the settings index's jump search; its field floor wraps peer commands before the typing area collapses. */}
+        <Row align="center" className="flex-1 basis-(--width-field-floor) max-inline-full min-inline-0">
           <Input aria-label={`Filter ${label.toLowerCase()}`} onValueChange={onFilterChange} placeholder={`Filter ${label.toLowerCase()}…`} value={filter} />
         </Row>
         <CollectionBulkToggle collection={collection} />
@@ -332,18 +325,20 @@ function CollectionInsightList({ insights }: { readonly insights: readonly Colle
   return (
     <Stack data-slot="config-library-insights" gap="field">
       {insights.map((insight) => (
-        <Row align="center" gap="field" key={insight.id}>
-          <Text as="span" voice="kicker">
-            {insight.label}
-          </Text>
-          <CountText>{insight.value}</CountText>
+        <Row align="center" className="flex-wrap min-inline-0" gap="field" key={insight.id}>
+          <Row align="center" className="flex-wrap max-inline-full min-inline-0" gap="field">
+            <Text as="span" voice="kicker">
+              {insight.label}
+            </Text>
+            <CountText className="shrink-0 whitespace-nowrap">{insight.value}</CountText>
+          </Row>
           {insight.open === undefined ? null : (
             <Button
               aria-label={`${insight.open.label}: ${insight.label}`}
-              className="ms-auto"
+              className="ms-auto wrap-anywhere max-inline-full"
               intent="ghost"
               onClick={insight.open.run}
-              size="sm"
+              size="wrap"
               type="button"
             >
               {insight.open.label}
