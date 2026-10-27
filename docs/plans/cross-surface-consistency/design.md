@@ -137,7 +137,7 @@ The [previous repair report](../../reviews/surface-consistency-repair.md) covers
 
 ## Test-proof boundaries
 
-Require the following boundaries before broad census results establish acceptance. Witnessed censuses and targeted filesystem-mock and portable-shell restrictions are integrated. Capture admission and native import boundaries remain under qualification.
+Require the following boundaries before broad census results establish acceptance. Witnessed censuses, admitted capture playback, native import boundaries and targeted filesystem-mock and portable-shell restrictions are integrated.
 
 - Require concrete rendered subject witnesses before collecting surface findings. Empty, loading and error scenarios need explicit state expectations.
 - Keep raw detectors behind their owned testkit boundary. Product censuses use the witnessed operation, not a no-op readiness callback.
@@ -149,6 +149,8 @@ Require the following boundaries before broad census results establish acceptanc
 Use held-read, absent-subject, planted-field, filtered-result and limited-result controls. Verify legitimate empty states and valid captures remain usable.
 
 Semantic witness choice still requires source review. Type safety alone cannot establish that the intended surface was inspected.
+
+Capture and declaration owners use shared leaves without circular imports or duplicated schemas. Native compiler, dependency, custody, publication, rendered-consumer and app-entry checks qualify this boundary. Broader application and visual acceptance remain separate.
 
 ## Host portability
 
