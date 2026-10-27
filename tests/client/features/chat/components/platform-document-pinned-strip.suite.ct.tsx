@@ -8,7 +8,6 @@ import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator } from "@playwright/test";
-import { MESSAGE_ACTIONS_MENU_NAME } from "#client/features/chat/lib/message-action-names.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
@@ -20,6 +19,7 @@ const VIEWPORTS = [
   { width: 844, height: 390 },
 ] as const;
 const PARAGRAPHS = 40;
+const MENU_TRIGGER = 'button[aria-haspopup="menu"]';
 const CONTENT = Array.from(
   { length: PARAGRAPHS },
   (_, index) =>
@@ -112,7 +112,9 @@ async function expectPinnedStrip(row: Locator, scrollport: Locator): Promise<num
   const controls = await header.getByRole("button").all();
   const geometry = await actionGroupGeometry(scrollport, controls);
   expect(geometry.inlineOverflow).toBeLessThanOrEqual(1);
-  const menu = header.getByRole("button", { name: MESSAGE_ACTIONS_MENU_NAME, exact: true });
+  const menu = header.locator(MENU_TRIGGER);
+  await expect(menu).toHaveCount(1);
+  await expect(menu).toHaveAccessibleName(/\S/u);
   await menu.click();
   const popup = row.page().getByRole("menu");
   await expect(popup).toBeVisible();
@@ -158,7 +160,9 @@ for (const viewport of VIEWPORTS) {
         const row = page.locator(`[data-slot="message-row"][data-message-id="${reply.messageId}"]`);
         const header = row.locator('[data-slot="message-name-row"]');
         await expect(row.locator("p").filter({ hasText: /^Reading witness /u })).toHaveCount(PARAGRAPHS);
-        const menu = header.getByRole("button", { name: MESSAGE_ACTIONS_MENU_NAME, exact: true });
+        const menu = header.locator(MENU_TRIGGER);
+        await expect(menu).toHaveCount(1);
+        await expect(menu).toHaveAccessibleName(/\S/u);
         await menu.focus();
         await page.keyboard.press("PageUp");
         await row.evaluate((node) => {

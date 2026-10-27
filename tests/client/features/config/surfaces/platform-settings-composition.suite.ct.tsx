@@ -1,12 +1,12 @@
 import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
+import type { SettingsCompositionStory } from "@orb/testkit/browser";
 import { resolvedLength } from "@orb/testkit/browser/spec";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
-import type { SettingsCompositionStory } from "./_settings-composition-stories.tsx";
 
-const STORY = "tests/client/features/config/surfaces/_settings-composition-stories/SettingsCompositionStory";
+const STORY = "tests/support/browser/ct-settings-composition-stories/SettingsCompositionStory";
 const TRACK_CASES = [
   { sectionId: "chat-memory" },
   { sectionId: "world-info-settings" },
