@@ -1,10 +1,9 @@
 ---
 kind: work
-status: doing
+status: open
 updated: 2026-10-27
 priority: P2
 area: client
-lane: reading_geometry
 ---
 
 # Action groups fit narrow containers without hiding controls
