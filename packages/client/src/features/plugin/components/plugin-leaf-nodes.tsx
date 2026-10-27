@@ -388,11 +388,12 @@ function FormLeaf({
     // renderer has already told the plugin's author why (`warnPrimaryRefused`).
     return (
       <Button
+        className="self-start wrap-anywhere max-inline-full"
         disabled={buttonDisabled(node, state)}
         intent={buttonIntent(node, primaryButton)}
         loading={submitting}
         onClick={(): void => submit(node.actionId)}
-        size="sm"
+        size="wrap"
       >
         {node.label}
       </Button>
@@ -428,7 +429,7 @@ function ConfirmButtonLeaf({
       onConfirm={(): void => submit(node.actionId)}
       title={node.confirmTitle}
       trigger={
-        <Button ref={confirmTrigger} intent="destructive" loading={submitting} size="sm">
+        <Button className="self-start wrap-anywhere max-inline-full" ref={confirmTrigger} intent="destructive" loading={submitting} size="wrap">
           {node.label}
         </Button>
       }
