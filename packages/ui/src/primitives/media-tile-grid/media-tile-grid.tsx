@@ -4,7 +4,7 @@ import { Badge } from "#primitives/badge";
 import { Icon, Images } from "#primitives/icons";
 import { Skeleton } from "#primitives/skeleton";
 import { Text } from "#primitives/text";
-import type { MediaTileAspect } from "./aspect.ts";
+import type { MediaAspect } from "../aspect-frame/index.ts";
 import { mediaTileGridVariants } from "./variants.ts";
 
 /** One browse tile. Deliberately NOT generic over an entity: the whole point of this composite is that it takes
@@ -118,7 +118,7 @@ function tileName(item: MediaTileItem): string {
 export interface MediaTileGridProps {
   readonly items: readonly MediaTileItem[];
   /** @defaultValue "portrait" — the card/cover ratio the browse genre defaults to. */
-  readonly aspect?: MediaTileAspect;
+  readonly aspect?: MediaAspect;
   /** Absent ⇒ the tiles are display-only (no focus behaviour at all, not a disabled control). */
   readonly onActivate?: (id: string) => void;
   readonly className?: string;
@@ -160,7 +160,7 @@ export interface MediaTileGridSkeletonProps {
   /** How many placeholder tiles to draw. @defaultValue 8 */
   readonly count?: number;
   /** @defaultValue "portrait" — MUST match the real grid's aspect or the rows shift on arrival. */
-  readonly aspect?: MediaTileAspect;
+  readonly aspect?: MediaAspect;
 }
 
 /**
