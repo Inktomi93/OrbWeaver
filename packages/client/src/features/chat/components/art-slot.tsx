@@ -15,6 +15,10 @@ import type { BubbleDecoration } from "../lib/art-decorations.ts";
 /** A speaker's art as the tap target that opens it full size: `open` receives the button so focus can return to it. */
 export interface ArtView {
   readonly label: string;
+  readonly control: {
+    readonly attach: (opener: HTMLButtonElement | null) => void;
+    readonly activate: () => void;
+  };
   readonly open: (opener: HTMLElement) => void;
 }
 
@@ -59,14 +63,36 @@ function useSlotImage(urlAt: ((cssWidth: number) => string) | undefined): {
 
 /** A speaker's art as the control that opens it full size. The bare intent: a tint over the art would read as a smudge,
  *  and the press scale already answers a tap. `media` sizes the button from its child, so wrapped art keeps its box. */
-export function ArtButton({ view, ...button }: Omit<ComponentProps<typeof Button>, "aria-label" | "onClick"> & { readonly view: ArtView }): ReactElement {
-  return <Button {...button} aria-label={view.label} intent="bare" onClick={(event): void => view.open(event.currentTarget)} size="media" />;
+export function ArtButton({
+  view,
+  ...button
+}: Omit<ComponentProps<typeof Button>, "aria-label" | "onClick" | "ref"> & { readonly view: ArtView }): ReactElement {
+  return (
+    <Button
+      {...button}
+      ref={(opener): void => view.control.attach(opener)}
+      aria-label={view.label}
+      intent="bare"
+      onClick={(event): void => view.open(event.currentTarget)}
+      size="media"
+    />
+  );
 }
 
-// Fills the art it sits in, so the whole tile is the control. It is not a tab stop: the speaker's chip beside it
-// opens the same image, so keyboard readers get one stop per row.
+// Pointer activation forwards to the chip: one accessible control and one visible focus-return target per row.
 function ArtViewButton({ view, corner }: { readonly view: ArtView; readonly corner?: "topStart" | "topEnd" | undefined }): ReactElement {
-  return <ArtButton view={view} className="absolute inset-0" cardCorners={corner} tabIndex={-1} />;
+  return (
+    <Button
+      aria-hidden="true"
+      className="absolute inset-0"
+      cardCorners={corner}
+      intent="bare"
+      size="media"
+      tabIndex={-1}
+      onMouseDown={(event): void => event.preventDefault()}
+      onClick={view.control.activate}
+    />
+  );
 }
 
 // The initial in the avatar fallback's own ink, sized by its slot (a size container, so the letter scales with the
