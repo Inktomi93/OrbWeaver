@@ -17,15 +17,15 @@ export interface PinnedHeader {
   readonly fill: "role" | "band" | "none";
   /** The card corners the bar's fill follows: a card's top edge, or a pill's whole outline. */
   readonly corners?: "top" | "all";
-  /** How far the bar reaches past the content inset: to the card's side edges, or across the column's reading inset. */
-  readonly reach: "card" | "column" | "none";
+  /** The backing reaches the card edges, the column inset, or the train's full reading width. */
+  readonly reach: "card" | "column" | "train" | "none";
 }
 
 /** Bubble, echo, whisper, ripple: the card's fill across its full width, with its top corners. */
 export const PINNED_CARD: PinnedHeader = { fill: "role", corners: "top", reach: "card" };
 
-/** Tide: the speaker row above the train pins as one of the train's own pills. */
-export const PINNED_PILL: PinnedHeader = { fill: "role", corners: "all", reach: "none" };
+/** Tide: the role-filled pinned header spans the train so it cannot mask only part of a prose line. */
+export const PINNED_TRAIN: PinnedHeader = { fill: "role", reach: "train" };
 
 /** Flat, hush and document: the pinned bar covers the reading width without adding a filled box at rest. */
 export const PINNED_BAND: PinnedHeader = { fill: "band", reach: "column" };

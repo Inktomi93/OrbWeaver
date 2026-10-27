@@ -13,7 +13,9 @@ export function OriginalCardDialog({ card, onOpenChange }: { readonly card: Char
   return (
     <ViewerDialog onOpenChange={onOpenChange} open={true} title="Original card — pinned at session start">
       <Heading level={2}>{card.name}</Heading>
-      <Text voice="gloss">Read-only authored fields pinned when this session started. Macros are shown as written.</Text>
+      <Text className="max-inline-(--reading-measure-prose)" voice="gloss">
+        Read-only authored fields pinned when this session started. Macros are shown as written.
+      </Text>
       {REFINABLE_FIELDS.map((field) => {
         if (field === "greetings") {
           return <OriginalGreetings greetings={card.greetings} key={field} />;
@@ -31,7 +33,7 @@ export function OriginalCardDialog({ card, onOpenChange }: { readonly card: Char
                 Depth {card.depthPrompt.depth} · {card.depthPrompt.role ?? "role not specified"}
               </Text>
             ) : null}
-            <Text className="wrap-anywhere whitespace-pre-wrap" prose={true}>
+            <Text className="wrap-anywhere whitespace-pre-wrap max-inline-(--reading-measure-prose)" prose={true}>
               {content}
             </Text>
           </Stack>
@@ -52,7 +54,7 @@ function OriginalGreetings({ greetings }: { readonly greetings: CharacterCard["g
             Greeting {index + 1}
             {greeting.groupOnly === true ? " · group only" : ""}
           </Text>
-          <Text className="wrap-anywhere whitespace-pre-wrap" prose={true}>
+          <Text className="wrap-anywhere whitespace-pre-wrap max-inline-(--reading-measure-prose)" prose={true}>
             {greeting.text.length === 0 ? "Empty greeting" : greeting.text}
           </Text>
         </Stack>

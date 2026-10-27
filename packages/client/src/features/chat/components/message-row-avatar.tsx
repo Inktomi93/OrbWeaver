@@ -56,6 +56,7 @@ export function renderRowAvatar(args: {
   readonly imageUrlFor?: BubbleDecorationArgs["imageUrlFor"];
   /** The transcript's art viewer; null outside one, which leaves the avatar plain paint. */
   readonly viewArt: ArtViewer | null;
+  readonly artControl: ArtView["control"];
 }): ReactElement | null {
   if (args.attribution.name === null || !args.showInChatAvatars) {
     return null;
@@ -96,14 +97,14 @@ export function renderRowAvatar(args: {
     );
   }
   return (
-    <ArtButton view={artViewOf(target)} className={chipLayout}>
+    <ArtButton view={artViewOf(target, args.artControl)} className={chipLayout}>
       <Avatar {...avatar}>{initials}</Avatar>
     </ArtButton>
   );
 }
 
 /** The tap target for echo's tile or whisper's band: the speaker's own art, opened in the transcript's viewer. */
-export function artViewFor(viewArt: ArtViewer | null, attribution: RowAttribution | undefined): ArtView | null {
+export function artViewFor(viewArt: ArtViewer | null, attribution: RowAttribution | undefined, artControl: ArtView["control"]): ArtView | null {
   if (attribution?.name === null || attribution === undefined) {
     return null;
   }
@@ -111,7 +112,7 @@ export function artViewFor(viewArt: ArtViewer | null, attribution: RowAttributio
   if (target === null) {
     return null;
   }
-  return artViewOf(target);
+  return artViewOf(target, artControl);
 }
 
 /** What a tap on a speaker's art opens: the blob and the name it is titled with. Null leaves the art plain paint. */
@@ -125,8 +126,8 @@ function viewTargetFor(viewArt: ArtViewer | null, hash: string | null, name: str
   return viewArt === null || hash === null ? null : { open: viewArt.open, hash, name };
 }
 
-function artViewOf(target: ViewTarget): ArtView {
-  return { label: viewImageActionName(target.name), open: (opener) => target.open({ hash: target.hash, name: target.name }, opener) };
+function artViewOf(target: ViewTarget, control: ArtView["control"]): ArtView {
+  return { label: viewImageActionName(target.name), control, open: (opener) => target.open({ hash: target.hash, name: target.name }, opener) };
 }
 
 /** The portrait URL at the width its slot renders at (times the pixel ratio); undefined with no hash or static art. */
@@ -158,7 +159,7 @@ function stickyPortrait(args: Parameters<typeof renderRowAvatar>[0], target: Vie
     return portrait;
   }
   return (
-    <ArtButton view={artViewOf(target)} cardCorners={weld} className={cn(STICKY_TOP, "shrink-0") ?? ""}>
+    <ArtButton view={artViewOf(target, args.artControl)} cardCorners={weld} className={cn(STICKY_TOP, "shrink-0") ?? ""}>
       {portrait}
     </ArtButton>
   );

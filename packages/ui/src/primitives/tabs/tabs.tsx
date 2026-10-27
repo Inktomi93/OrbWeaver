@@ -77,10 +77,13 @@ function revealHorizontalTab(tab: HTMLElement): void {
       const left = bounds.left + ancestor.clientLeft;
       const right = left + ancestor.clientWidth;
       const focused = tab.getBoundingClientRect();
-      if (focused.left < left) {
-        ancestor.scrollLeft += focused.left - left;
-      } else if (focused.right > right) {
-        ancestor.scrollLeft += focused.right - right;
+      const style = getComputedStyle(tab);
+      const paintedLeft = focused.left - Number.parseFloat(style.scrollMarginLeft);
+      const paintedRight = focused.right + Number.parseFloat(style.scrollMarginRight);
+      if (paintedLeft < left) {
+        ancestor.scrollLeft += paintedLeft - left;
+      } else if (paintedRight > right) {
+        ancestor.scrollLeft += paintedRight - right;
       }
       return;
     }

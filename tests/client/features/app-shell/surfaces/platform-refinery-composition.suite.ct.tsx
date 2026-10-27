@@ -1,8 +1,9 @@
 import { testId } from "@orb/client/lib";
+import type { CreateCharacterInput } from "@orb/contracts/character";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { RefinableField } from "@orb/contracts/refinery";
 import { DEFAULT_APPEARANCE_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import { seedShellState } from "@orb/testkit/browser/spec";
+import { resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
@@ -26,6 +27,8 @@ const PINNED_TEXT = {
   creatorNotes: "The keeper speaks softly when the lantern dims.",
 } satisfies Record<Exclude<RefinableField, "greetings" | "depthPrompt">, string>;
 const ORIGINAL_DEPTH_NOTE = "The keeper watches the northern sky.";
+const LONG_DESCRIPTION = `${ORIGINAL_DESCRIPTION} ${"The lantern casts a warm circle across the charts while snow gathers against the observatory windows. ".repeat(16)}`;
+const LONG_GREETING = `${ORIGINAL_GREETING} ${"Bring your charts to the lantern and tell me what the northern sky revealed on your journey. ".repeat(16)}`;
 const SESSION_NAME = "North observatory revision";
 const CONTEXT = '.shell-panel[data-panel-side="context"]';
 const REGIMES = [
@@ -35,7 +38,11 @@ const REGIMES = [
   { name: "coarse landscape", viewport: { width: 844, height: 390 }, coarse: true, enlarged: false, narrowIdentity: false },
 ] as const;
 
-async function seedSession(caller: Caller, name: string | null): Promise<Awaited<ReturnType<Caller["refinery"]["startSession"]>>> {
+async function seedSession(
+  caller: Caller,
+  name: string | null,
+  anchor: Pick<CreateCharacterInput, "description" | "greetings"> = { description: ORIGINAL_DESCRIPTION, greetings: [{ text: ORIGINAL_GREETING }] },
+): Promise<Awaited<ReturnType<Caller["refinery"]["startSession"]>>> {
   await caller.settings.updateUserSettingsSection({ section: "appearance", patch: DEFAULT_APPEARANCE_SETTINGS });
   await caller.settings.updateUserSettingsSection({ section: "theme", patch: DEFAULT_USER_SETTINGS.theme });
   const card = await caller.character.create({
@@ -43,7 +50,7 @@ async function seedSession(caller: Caller, name: string | null): Promise<Awaited
       handle: "refinery-composition",
       name: CARD_NAME,
       ...PINNED_TEXT,
-      greetings: [{ text: ORIGINAL_GREETING }],
+      ...anchor,
       depthPrompt: { prompt: ORIGINAL_DEPTH_NOTE, depth: 4, role: "system" },
     }),
   });
@@ -183,7 +190,7 @@ for (const regime of REGIMES) {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark", forcedColors: "none" });
       await using root = await createCorpusHarness();
       const caller = await root.internalCallerFor(root.ownerId);
-      const session = await seedSession(caller, null);
+      const session = await seedSession(caller, null, { description: LONG_DESCRIPTION, greetings: [{ text: LONG_GREETING }] });
       const before = await caller.refinery.getSession({ sessionId: session.id });
       const liveDescription = "The live card now keeps a different lantern.";
       await caller.character.update({ characterId: session.characterId, input: { description: liveDescription, greetings: [{ text: "A live greeting." }] } });
@@ -204,11 +211,28 @@ for (const regime of REGIMES) {
       const dialog = page.getByRole("dialog", { name: "Original card — pinned at session start", exact: true });
       await expect(dialog).toBeVisible();
       await expect(dialog.getByRole("heading", { name: CARD_NAME, exact: true })).toBeVisible();
-      for (const text of Object.values(PINNED_TEXT)) {
-        await expect(dialog.getByText(text, { exact: true })).toBeVisible();
+      for (const text of Object.values({ ...PINNED_TEXT, description: LONG_DESCRIPTION })) {
+        const paragraph = dialog.getByText(text, { exact: true });
+        await expect(paragraph).toBeVisible();
+        await expectOriginalMeasure(paragraph, regime.name === "wide desktop");
       }
-      await expect(dialog.getByText(ORIGINAL_GREETING, { exact: true })).toBeVisible();
-      await expect(dialog.getByText(ORIGINAL_DEPTH_NOTE, { exact: true })).toBeVisible();
+      const greeting = dialog.getByText(LONG_GREETING, { exact: true });
+      await expect(greeting).toBeVisible();
+      await expectOriginalMeasure(greeting);
+      const depthNote = dialog.getByText(ORIGINAL_DEPTH_NOTE, { exact: true });
+      await expect(depthNote).toBeVisible();
+      await expectOriginalMeasure(depthNote);
+      await expectOriginalMeasure(
+        dialog.getByText("Read-only authored fields pinned when this session started. Macros are shown as written.", { exact: true }),
+      );
+      for (const paragraph of [dialog.getByText(LONG_DESCRIPTION, { exact: true }), greeting]) {
+        const lines = await paragraph.evaluate((node) => {
+          const range = document.createRange();
+          range.selectNodeContents(node);
+          return range.getClientRects().length;
+        });
+        expect(lines).toBeGreaterThan(1);
+      }
       await expect(dialog.getByText("Depth 4 · system", { exact: true })).toBeVisible();
       await expect(dialog.getByText(liveDescription, { exact: true })).toHaveCount(0);
       await expect(dialog.getByRole("textbox")).toHaveCount(0);
@@ -250,4 +274,24 @@ async function expectNarrow(title: Locator): Promise<void> {
 }
 async function expectWide(title: Locator): Promise<void> {
   await expect(title).toBeHidden();
+}
+
+async function expectOriginalMeasure(paragraph: Locator, widerHost = false): Promise<void> {
+  const measure = await resolvedLength(paragraph.page(), "var(--reading-measure-prose)", paragraph);
+  const facts = await paragraph.evaluate((node) => {
+    const parent = node.parentElement;
+    if (parent === null) {
+      throw new Error("The original-card paragraph has no layout owner");
+    }
+    const style = getComputedStyle(parent);
+    return {
+      width: node.getBoundingClientRect().width,
+      available: parent.clientWidth - Number.parseFloat(style.paddingInlineStart) - Number.parseFloat(style.paddingInlineEnd),
+    };
+  });
+  await test.info().attach("original-paragraph-measure", { body: JSON.stringify({ ...facts, measure }), contentType: "application/json" });
+  expect(measure).toBeGreaterThan(0);
+  expect(facts.available).toBeGreaterThan(widerHost ? measure : 0);
+  expect(facts.width).toBeLessThanOrEqual(Math.min(measure, facts.available) + 1);
+  expect(facts.width).toBeGreaterThanOrEqual(Math.min(measure, facts.available) - 1);
 }
