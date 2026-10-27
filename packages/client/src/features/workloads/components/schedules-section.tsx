@@ -166,8 +166,9 @@ function ScheduleRow({
     <ListRow
       title={kindLabel}
       subtitle={subtitleParts.join(" · ")}
+      stackActions={true}
       actions={
-        <Row align="center" gap="row">
+        <Row align="center" gap="row" className="flex-wrap max-inline-full">
           {schedule.mode === "bulk" ? <Badge intent="warning">Bulk</Badge> : null}
           <Switch aria-label={`Enable ${kindLabel} schedule`} checked={schedule.enabled} onCheckedChange={onToggle} />
           <Button intent="secondary" size="sm" aria-label={`Edit ${kindLabel} schedule`} onClick={onEdit}>
