@@ -118,7 +118,9 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
       )}
 
       <Stack gap="field">
-        <Text voice="promoted">{stats.name}</Text>
+        <Text data-shell-identity="defer" voice="promoted">
+          {stats.name}
+        </Text>
         <Text voice="gloss" role="note">
           This character · Aggregate only
         </Text>
