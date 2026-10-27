@@ -385,7 +385,7 @@ test("Keepsake Snapshot stays reachable in its attributed media menu without gen
   }
   await seedShellState(page, { activeSection: "chats" });
   const routes = await routeTrpc(page, {
-    ...createShellAmbientReads(corpus),
+    ...createShellAmbientReads(corpus, root.ownerId),
     ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...ROOM_PROCEDURES, "plugin.listCommands", "rpg.getGame", "rpg.listTurnToolCalls"]),
   });
   await mount<typeof PluginHideFocusStory>("tests/client/features/plugin/components/_hide-focus-stories/PluginHideFocusStory", { chatId: room.id });

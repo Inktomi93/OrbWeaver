@@ -1,8 +1,6 @@
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import type { CorpusWire } from "@orb/testkit/iso";
-import { createCorpusReadResponder } from "@orb/testkit/iso";
-import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { createFirstBootHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import {
   OWNER_CSS_APPEARANCE_ATTRIBUTES,
@@ -18,29 +16,25 @@ const SLOT = OWNER_CSS_SLOTS[0];
 const TOKEN = OWNER_CSS_TOKEN_VARS[0];
 const SHELL_CLASS = OWNER_CSS_SHELL_CLASSES[0];
 
-let root: Awaited<ReturnType<typeof createCorpusHarness>>;
-test.beforeAll(async () => {
-  root = await createCorpusHarness();
-});
+let root: Awaited<ReturnType<typeof createFirstBootHarness>>;
 
-test.afterAll(async () => {
+test.afterEach(async () => {
   await root[Symbol.asyncDispose]();
 });
 
-async function openThemeCssEditor(page: Page, corpus: CorpusWire): Promise<void> {
-  const { firstBoot } = corpus;
-  if (firstBoot === undefined) {
-    throw new Error("The corpus has no first-boot capture");
-  }
-  const { reads } = firstBoot;
-  await routeTrpc(page, {
-    "sessions.me": createCorpusReadResponder("sessions.me", [reads.viewer]),
-    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", [reads.settings]),
-    "settings.listThemes": createCorpusReadResponder("settings.listThemes", [reads.themes]),
-    "settings.getAppSettingsWithOverrides": createCorpusReadResponder("settings.getAppSettingsWithOverrides", [reads.appSettings]),
-    // Autosave mints a copy on the first edit; the root's own server answers both writes.
-    ...serveCorpusProcedures(await root.internalCallerFor(root.ownerId), ["settings.duplicateTheme", "settings.updateTheme"]),
-  });
+async function openThemeCssEditor(page: Page): Promise<void> {
+  // The first edit mints a theme: its reads and autosave must belong to the same fresh root.
+  await routeTrpc(
+    page,
+    serveCorpusProcedures(await root.internalCallerFor(root.ownerId), [
+      "sessions.me",
+      "settings.getUserSettings",
+      "settings.listThemes",
+      "settings.getAppSettingsWithOverrides",
+      "settings.duplicateTheme",
+      "settings.updateTheme",
+    ]),
+  );
 }
 
 async function typeIntoEditor(page: Page, text: string): Promise<void> {
@@ -53,9 +47,10 @@ async function typeIntoEditor(page: Page, text: string): Promise<void> {
 
 const completionOption = (page: Page, label: string): Locator => page.locator(".cm-tooltip-autocomplete [role=option]").filter({ hasText: label });
 
-test.beforeEach(async ({ corpus, mount, page }) => {
+test.beforeEach(async ({ mount, page }) => {
+  root = await createFirstBootHarness();
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await openThemeCssEditor(page, corpus);
+  await openThemeCssEditor(page);
   await mount<typeof FirstBootStory>("tests/client/features/config/surfaces/_first-boot-stories/FirstBootStory", {
     group: "appearance",
     phone: false,

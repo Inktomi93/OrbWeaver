@@ -29,7 +29,7 @@ for (const device of [
           throw new Error("The corpus must expose a recent room for Home's resume surface");
         }
         await routeTrpc(page, {
-          ...createShellAmbientReads(corpus),
+          ...createShellAmbientReads(corpus, root.ownerId),
           ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, "chat.getChat"]),
           "chat.listChats": (input) => {
             expect(input).toEqual({ limit: HOME_RECENT_CHATS_LIMIT });

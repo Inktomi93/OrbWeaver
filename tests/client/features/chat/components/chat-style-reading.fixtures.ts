@@ -4,7 +4,7 @@ import type { ThemeChatStyle } from "@orb/contracts/theme";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
-import type { CorpusWire } from "@orb/testkit/iso";
+import type { CorpusPlayback } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 
@@ -53,7 +53,7 @@ export async function createReadingRoom(): Promise<ReadingRoom> {
 }
 
 /** The corpus viewer's first saved wallpaper, as the appearance fields that select it. */
-function wallpaper(corpus: CorpusWire): Partial<AppearanceSettings> {
+function wallpaper(corpus: CorpusPlayback): Partial<AppearanceSettings> {
   const library = appearanceSettingsSchema.parse({
     backgroundLibrary: corpus.reads["settings.getUserSettings"][0]?.output.config.appearance.backgroundLibrary,
   }).backgroundLibrary;
@@ -73,7 +73,7 @@ function wallpaper(corpus: CorpusWire): Partial<AppearanceSettings> {
 /** Open the room in `chatStyle`, over a wallpaper or not, at the glow elevation, which lifts every card that follows it. */
 export async function openReadingRoom(
   page: Page,
-  corpus: CorpusWire,
+  corpus: CorpusPlayback,
   root: ReadingRoom["root"],
   { chatStyle, art }: { readonly chatStyle: ThemeChatStyle; readonly art: boolean },
 ): Promise<void> {
@@ -92,7 +92,7 @@ export async function openReadingRoom(
     },
   });
   await routeTrpc(page, {
-    ...createShellAmbientReads(corpus),
+    ...createShellAmbientReads(corpus, root.ownerId),
     ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...ROOM_PROCEDURES, ...GAME_PROCEDURES]),
   });
 }

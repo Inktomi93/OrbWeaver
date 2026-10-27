@@ -30,7 +30,7 @@ for (const regime of REGIMES) {
       if (stats === null) {
         throw new Error("The selected corpus character has no rolled-up activity");
       }
-      await routeTrpc(page, { ...createShellAmbientReads(corpus), ...serveCorpusProcedures(caller, SECTION_PROCEDURES) });
+      await routeTrpc(page, { ...createShellAmbientReads(corpus, root.ownerId), ...serveCorpusProcedures(caller, SECTION_PROCEDURES) });
       await seedShellState(page, { activeSection: "corpus", panelOverrides: { corpus: { list: "collapsed", context: "collapsed" } } });
       await mount<typeof InsightsIdentityShellStory>(STORY, { characterId: ranked.characterId });
       const pane = page.getByTestId(testId("analyticsCharacterSurface"));

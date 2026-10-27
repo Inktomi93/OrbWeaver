@@ -20,13 +20,11 @@ import type * as workloads from "@orb/contracts/workloads";
 import type * as world from "@orb/contracts/world-info";
 import type { UserId } from "@orb/kit/ids";
 import type { z } from "zod";
+import type { CorpusCapture } from "./corpus-capture.ts";
+import type { CorpusPlaybackCapture } from "./corpus-playback.ts";
 import type { TrpcWire } from "./trpc-wire.ts";
 
-/** Portable request presence and its captured response travel together. */
-export interface CorpusCapture<Input, Output> {
-  readonly input: Input;
-  readonly output: Output;
-}
+export type { CorpusCapture } from "./corpus-capture.ts";
 
 type Capture<Input, Output> = CorpusCapture<Input, TrpcWire<Output>>;
 // biome-ignore lint/suspicious/noConfusingVoidType: The fixture preserves native void-returning contracts; undefined is not a substitute for void.
@@ -136,8 +134,16 @@ export interface CorpusProcedures {
 export type CorpusProcedurePath = keyof CorpusProcedures;
 export type CorpusRead<P extends CorpusProcedurePath> = CorpusProcedures[P];
 
+/** A loader/root-admitted record; raw serializable captures remain independently constructible. */
+export type CorpusPlaybackRead<P extends CorpusProcedurePath> = CorpusPlaybackCapture<CorpusRead<P>["input"], CorpusRead<P>["output"]>;
+
 /** A captured viewer is fixture-selection evidence, never a browser authentication credential. */
 export interface CorpusViewerRead<P extends CorpusProcedurePath> {
   readonly viewerUserId: UserId;
   readonly read: CorpusRead<P>;
+}
+
+export interface CorpusPlaybackViewerRead<P extends CorpusProcedurePath> {
+  readonly viewerUserId: UserId;
+  readonly read: CorpusPlaybackRead<P>;
 }

@@ -68,7 +68,7 @@ async function pickDeviceProvider(page: Page, label: string): Promise<Locator> {
 test("the model list takes the caret when it lands, and a keyboard pick is centred in the list", async ({ corpus, mount, page }) => {
   const { caller, label, providerId, providers } = await scenario();
   await routeTrpc(page, {
-    ...createShellAmbientReads(corpus),
+    ...createShellAmbientReads(corpus, root.ownerId),
     ...serveCorpusProcedures(caller, SERVED),
     "connection.providersAvailable": () => providers,
     "connection.draftCatalogModels": (input) => {
@@ -99,7 +99,7 @@ test("the model list takes the caret when it lands, and a keyboard pick is centr
 test("a refused save puts focus on the inline failure", async ({ corpus, mount, page }) => {
   const { caller, label, providerId, providers } = await scenario();
   await routeTrpc(page, {
-    ...createShellAmbientReads(corpus),
+    ...createShellAmbientReads(corpus, root.ownerId),
     ...serveCorpusProcedures(caller, [...SERVED, "connection.create"]),
     "connection.providersAvailable": () => providers,
     "connection.draftCatalogModels": (input) => {
@@ -126,7 +126,7 @@ test("a saved first connection hands focus to the Add connection button that rep
   const answer = <Marker,>(route: unknown, input: unknown): Marker => Reflect.apply(route as (input: unknown) => Marker, undefined, [input]);
   let created = false;
   await routeTrpc(page, {
-    ...createShellAmbientReads(corpus),
+    ...createShellAmbientReads(corpus, root.ownerId),
     ...serveCorpusProcedures(caller, [
       "sessions.me",
       "connection.listBindings",

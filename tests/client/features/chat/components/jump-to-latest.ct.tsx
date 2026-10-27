@@ -63,7 +63,7 @@ for (const [title, nativeScrollend] of [
     const authBody = await auth.text();
     await page.route("**/api/auth/config", (route) => route.fulfill({ contentType: "application/json", body: authBody }));
     await routeTrpc(page, {
-      ...createShellAmbientReads(corpus),
+      ...createShellAmbientReads(corpus, root.ownerId),
       ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...ROOM_PROCEDURES, "notifications.presence", "rpg.getGame", "rpg.listTurnToolCalls"]),
       "stream.attach": ({ ref }) => (ref.channel === "chat" && ref.chatId === chatId ? null : trpcError({ code: "NOT_FOUND" })),
       "stream.detach": ({ ref }) => (ref.channel === "chat" && ref.chatId === chatId ? null : trpcError({ code: "NOT_FOUND" })),

@@ -43,7 +43,7 @@ async function prepare(
   const document = await caller.databank.get({ id: result.document.id, includeText: true });
   expect(document.extractedText).toBe(SOURCE_TEXT);
   const calls = await routeTrpc(page, {
-    ...createShellAmbientReads(corpus),
+    ...createShellAmbientReads(corpus, root.ownerId),
     ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, "databank.listGlobal", "databank.get", "databank.rename"]),
     ...serveCorpusProcedures(caller, ["databank.reindex"], () => trpcError({ code: "BAD_REQUEST", message: "This composition case does not rebuild indexes" })),
   });

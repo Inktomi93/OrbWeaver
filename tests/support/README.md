@@ -127,6 +127,10 @@ The committed synthetic corpus lives in `node/corpus-data`. Republish it when a 
 
 A case that measures first-boot geometry (a reserved box, an empty library) reads the `firstBoot` cohort, captured from a fresh server, not the finished corpus graph, which settles taller because it holds more themes, accounts and connections.
 
+`CorpusWire` and `CorpusRead` describe raw publication data. The loader and composed capsules return `CorpusPlayback`: its captures carry private runtime custody bound to the actual procedure, selected viewer and immutable input/output. Pass the expected viewer explicitly to both captured responders and `createShellAmbientReads`; use the root's `ownerId` or the selected `corpusViewer.userId`, not inferred agreement among records. Viewer selection is fixture routing, not HTTP authentication.
+
+Do not spread a capture to change a request, output or viewer. A copy remains inspectable/serializable raw data, but cannot answer playback, even behind a cast. For a new finite request, `captureCorpusRead(root, viewerUserId, path, input)` through `@orb/testkit/node/composed` executes the actual root operation and admits its result. For changing application state or arbitrary pagination, use `serveCorpusProcedures`. Raw hydrators remain available inside testkit for malformed/forward-wire and publication tests; they do not mint playback.
+
 Two publishes from one tree are byte-identical: every producer draws ids from the injected id source in a fixed order. `node/corpus-fixture-schema.test.ts` parses the committed fixture against the current published-corpus schema with the Node tests and names each missing or extra field.
 
 ## What is enforced
@@ -152,6 +156,7 @@ Two publishes from one tree are byte-identical: every producer draws ids from th
 | Recognized internal-module mocks and replacement service constructors are refused | Existing ESLint syntax and import restrictions |
 | A test never calls `vi.mock` or `vi.doMock`; an external edge is scripted through an injected seam on the production options | `EXTERNAL_MODULE_MOCK_RESTRICTION` in [eslint.config.ts](../../eslint.config.ts); `tests/tooling` is outside it because that project isolates modules |
 | A route map answers the request it receives, whether written in the call, bound to a variable, spread in or typed as `TrpcRoutes`: no fixed value for a procedure that takes input, and no `trpcError` on every path; a header directive with a reason admits a suite whose subject is the route helper | The `orb/ct-responder-reads-input` rule, which reads the route types in [route-trpc.ts](node/route-trpc.ts), in [eslint.config.ts](../../eslint.config.ts) |
+| Captured playback refuses raw, spread, cloned, cross-path and cross-viewer records; its binding cannot be mutated | The private admission/mint importer rules in [dependency-cruiser](../../.dependency-cruiser.ts), nominal capture types and runtime custody in [corpus-playback.ts](iso/corpus-playback.ts), and [the real loader/root controls](node/corpus-read-responder.int.test.ts) |
 | A test reads an appearance channel name from the manifest, never spells `data-appearance-*` or `--appearance-*` | The `orb/no-hand-typed-appearance-channel` rule; the message points at `APPEARANCE_CHANNEL_ROWS` and `APP_REDUCED_MOTION_ATTRIBUTE` |
 | An exported story mounts `CtIsolation` or `CtClientProviders` at its root | The `orb/ct-story-root-composition` rule on `tests/ui` and `tests/client` stories |
 | A story outside the app shell's own tests builds no `shell-*` class and no shell-owned `data-slot` | The `orb/no-hand-built-shell-dom` rule; the slot list derives from the app shell's own sources |

@@ -11,6 +11,8 @@ import { ChatOperationError } from "@orb/server/domain/chat";
 import { eq } from "drizzle-orm";
 import type { CorpusChatLifecycleMember, CorpusMemberMessagesRead } from "../iso/corpus.ts";
 import { corpusReadInput } from "../iso/corpus.ts";
+import type { CorpusPlaybackView } from "../iso/corpus-playback.ts";
+import { captureCorpusRead } from "./corpus-capture.ts";
 import type { createCorpusChatWire } from "./corpus-chat-wire.ts";
 import {
   CORPUS_CHAT_ABORT_CUE,
@@ -115,14 +117,14 @@ export async function captureCorpusMemberMessages(
   root: ServerTestHarness,
   viewerUserId: ServerTestHarness["ownerId"],
   chatId: CorpusMemberMessagesRead["chatId"],
-): Promise<CorpusMemberMessagesRead> {
+): Promise<CorpusPlaybackView<CorpusMemberMessagesRead>> {
   const caller = await root.internalCallerFor(viewerUserId);
   const input = corpusReadInput.chat({ id: chatId });
   const viewer = await caller.chat.getChat(input);
   if (viewer.viewerIsHost || viewer.viewerUserId !== viewerUserId) {
     throw new Error("Corpus member snapshots require the actual non-host viewer");
   }
-  return { viewerUserId: viewer.viewerUserId, chatId, read: { input, output: await caller.chat.listMessages(input) } };
+  return { viewerUserId: viewer.viewerUserId, chatId, read: await captureCorpusRead(root, viewerUserId, "chat.listMessages", input) };
 }
 
 async function lifecycleRoom(root: ServerTestHarness, handle: CharacterHandle): Promise<NativeRoom> {

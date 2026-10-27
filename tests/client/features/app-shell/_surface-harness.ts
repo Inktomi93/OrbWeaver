@@ -3,18 +3,10 @@
 
 import type { ServedHold, TrpcRecorder } from "@orb/testkit/ct";
 import { createShellAmbientReads, defineTrpcRoutes, routeTrpc, serveCorpusProcedures, trpcHold } from "@orb/testkit/ct";
-import type { CorpusWire } from "@orb/testkit/iso";
+import type { CorpusPlayback } from "@orb/testkit/iso";
 import { createCorpusReadResponder } from "@orb/testkit/iso";
 import type { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
-
-function requiredFirstBoot(corpus: CorpusWire): NonNullable<CorpusWire["firstBoot"]> {
-  const { firstBoot } = corpus;
-  if (firstBoot === undefined) {
-    throw new Error("The corpus has no first-boot capture");
-  }
-  return firstBoot;
-}
 
 /**
  * Every read the corpus never captured, plus presets, connections and the build identity: the server answers each for the
@@ -42,6 +34,9 @@ const SERVED = [
   "connection.resolveChatCapability",
   "connection.providersAvailable",
   "settings.getVersion",
+  "settings.getAppSettingsWithOverrides",
+  "share.signInMode",
+  "share.status",
   "discovery.home",
   "discovery.catalog",
   "discovery.topKeywords",
@@ -70,13 +65,13 @@ const SERVED = [
 
 interface SurfaceReadScenario {
   readonly hold?: { readonly path: (typeof SERVED)[number]; readonly gate: ServedHold };
-  readonly pluginDialog?: NonNullable<CorpusWire["pluginLibrary"]>["ownerActive"];
+  readonly pluginDialog?: NonNullable<CorpusPlayback["pluginLibrary"]>["ownerActive"];
 }
 
 /** Route the selected viewer's surface reads through its owning corpus root or exact captured responses. */
 export async function routeSurfaceReads(
   page: Page,
-  corpus: CorpusWire,
+  corpus: CorpusPlayback,
   root: Awaited<ReturnType<typeof createCorpusHarness>>,
   scenario: SurfaceReadScenario = {},
 ): Promise<TrpcRecorder> {
@@ -86,24 +81,20 @@ export async function routeSurfaceReads(
     await route.fulfill({ status: response.status, headers: Object.fromEntries(response.headers), body: await response.text() });
   });
   const { reads } = corpus;
-  const firstBoot = requiredFirstBoot(corpus);
   const spaceHold = trpcHold<"search.spaceStatus">();
   const pluginDialog = scenario.pluginDialog;
   const routes = defineTrpcRoutes({
-    ...createShellAmbientReads(corpus),
+    ...createShellAmbientReads(corpus, root.ownerId),
     ...serveCorpusProcedures(caller, SERVED),
-    "sessions.me": createCorpusReadResponder("sessions.me", reads["sessions.me"]),
-    "settings.listThemes": createCorpusReadResponder("settings.listThemes", reads["settings.listThemes"]),
-    "settings.getAppSettingsWithOverrides": createCorpusReadResponder("settings.getAppSettingsWithOverrides", [firstBoot.reads.appSettings]),
-    "share.signInMode": createCorpusReadResponder("share.signInMode", [firstBoot.reads.signInMode]),
-    "share.status": createCorpusReadResponder("share.status", [firstBoot.reads.shareStatus]),
+    "sessions.me": createCorpusReadResponder("sessions.me", root.ownerId, reads["sessions.me"]),
+    "settings.listThemes": createCorpusReadResponder("settings.listThemes", root.ownerId, reads["settings.listThemes"]),
     "search.spaceStatus": () => spaceHold,
     ...(pluginDialog === undefined
       ? {}
       : {
-          "plugin.list": createCorpusReadResponder("plugin.list", [pluginDialog.reads.plugins]),
-          "plugin.listSurfaces": createCorpusReadResponder("plugin.listSurfaces", [pluginDialog.reads.surfaces]),
-          "plugin.listBundleAssets": createCorpusReadResponder("plugin.listBundleAssets", [pluginDialog.reads.assets]),
+          "plugin.list": createCorpusReadResponder("plugin.list", root.ownerId, [pluginDialog.reads.plugins]),
+          "plugin.listSurfaces": createCorpusReadResponder("plugin.listSurfaces", root.ownerId, [pluginDialog.reads.surfaces]),
+          "plugin.listBundleAssets": createCorpusReadResponder("plugin.listBundleAssets", root.ownerId, [pluginDialog.reads.assets]),
         }),
     ...(scenario.hold === undefined ? {} : serveCorpusProcedures(caller, [scenario.hold.path], () => scenario.hold?.gate)),
   });

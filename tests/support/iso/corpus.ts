@@ -1,11 +1,10 @@
 // Portable corpus data contains owner-validated wire captures only, never Node row or credential material.
-import { authConfigSchema } from "@orb/contracts/auth-config";
 import { ownerBudgetViewSchema } from "@orb/contracts/automation";
 import { listCharactersResultSchema } from "@orb/contracts/character";
-import { chatDetailSchema, chatListPageSchema, messagesPageSchema, pendingJoinConfirmResultSchema, signedOutInvitePreviewSchema } from "@orb/contracts/chat";
+import { chatDetailSchema, chatListPageSchema } from "@orb/contracts/chat";
 import { bankHealthViewSchema, documentDetailViewSchema, listDocumentsResultSchema } from "@orb/contracts/databank";
 import { healthResponseSchema } from "@orb/contracts/diagnostics";
-import { authMeSchema, viewerViewSchema } from "@orb/contracts/identity";
+import { viewerViewSchema } from "@orb/contracts/identity";
 import { listInboxResultSchema } from "@orb/contracts/notifications";
 import { personaDetailSchema } from "@orb/contracts/persona";
 import { themeViewSchema, userSettingsViewSchema } from "@orb/contracts/settings";
@@ -21,15 +20,25 @@ import {
   wrappedSummarySchema,
 } from "@orb/contracts/stats";
 import { tagSuggestionViewSchema } from "@orb/contracts/tag";
-import type { ChatId } from "@orb/kit/ids";
-import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { secretRedactionLiterals } from "@orb/kit/secret-redaction";
 import { stableStringify } from "@orb/kit/stable-stringify";
 import { z } from "zod";
-import type { CorpusFirstBoot } from "./corpus-first-boot.ts";
+import { admitCorpusPlayback } from "./corpus-admission.ts";
+import type {
+  CorpusChatLifecycleMember,
+  CorpusMemberMessagesRead,
+  CorpusNotificationInbox,
+  CorpusPlayback,
+  CorpusReads,
+  CorpusWire,
+  CorpusWireInput,
+  inboxSnapshotSchema,
+  memberMessagesSnapshotSchema,
+} from "./corpus-data.ts";
+import { chatLifecycleMemberSchema, corpusAuthSchema, corpusOidcSchema, memberIdentitiesSchema, notificationInboxSchema } from "./corpus-data.ts";
+
 import { firstBootSchema, hydrateFirstBoot, publishFirstBoot } from "./corpus-first-boot.ts";
-import type { CorpusRegexLibrary, CorpusWorldInfoLibrary } from "./corpus-library.ts";
 import {
   hydrateRegexLibrary,
   hydrateWorldInfoLibrary,
@@ -38,15 +47,22 @@ import {
   regexLibrarySchema,
   worldInfoLibrarySchema,
 } from "./corpus-library.ts";
-import type { CorpusLibraryRelations } from "./corpus-library-relations.ts";
 import { hydrateLibraryRelations, libraryRelationsSchema, publishLibraryRelations } from "./corpus-library-relations.ts";
-import type { CorpusPluginLibrary } from "./corpus-plugin.ts";
 import { hydrateCorpusPlugins, pluginLibrarySchema, publishCorpusPlugins } from "./corpus-plugin.ts";
 import type { CorpusCapture, CorpusRead, CorpusViewerRead } from "./corpus-read.ts";
-import type { CorpusSearchLibrary } from "./corpus-search.ts";
 import { corpusSearchSchema, hydrateCorpusSearch, publishCorpusSearch } from "./corpus-search.ts";
-import type { CorpusShellAmbient } from "./corpus-shell.ts";
 import { hydrateShellAmbient, publishShellAmbient, shellAmbientSchema } from "./corpus-shell.ts";
+
+export type {
+  CorpusChatLifecycleMember,
+  CorpusCookieIdentity,
+  CorpusMemberMessagesRead,
+  CorpusNotificationInbox,
+  CorpusPlayback,
+  CorpusWire,
+  CorpusWireInput,
+} from "./corpus-data.ts";
+export { corpusCookieIdentitySchema } from "./corpus-data.ts";
 
 export type { CorpusFirstBoot } from "./corpus-first-boot.ts";
 export type { CorpusRegexLibrary, CorpusWorldInfoLibrary } from "./corpus-library.ts";
@@ -56,71 +72,6 @@ export type { CorpusShellAmbient } from "./corpus-shell.ts";
 const PRIVATE_MATERIAL_MESSAGE = "Corpus publication contains private material";
 
 export type { CorpusRead, CorpusViewerRead } from "./corpus-read.ts";
-
-export interface CorpusMemberMessagesRead extends CorpusViewerRead<"chat.listMessages"> {
-  readonly chatId: ChatId;
-}
-
-const inboxSnapshotSchema = z
-  .strictObject({ viewerUserId: brandedId("UserId"), output: listInboxResultSchema })
-  .refine(
-    ({ viewerUserId, output }) => output.items.every((item) => item.payload.recipientUserId === viewerUserId),
-    "Corpus inbox snapshot recipient mismatch",
-  );
-const notificationInboxSchema = z.strictObject({
-  readerRaised: inboxSnapshotSchema,
-  readerRead: inboxSnapshotSchema,
-  readerSettled: inboxSnapshotSchema,
-  readerFinal: inboxSnapshotSchema,
-  foreignBefore: inboxSnapshotSchema,
-  foreignAfter: inboxSnapshotSchema,
-  hostAccepted: inboxSnapshotSchema,
-});
-const memberMessagesSnapshotSchema = z
-  .strictObject({ viewerUserId: brandedId("UserId"), chatId: typeIdSchema(ID_PREFIX.chat), output: messagesPageSchema })
-  .refine(({ chatId, output }) => output.messages.every((message) => message.chatId === chatId), "Corpus member snapshot chat mismatch");
-const chatLifecycleMemberSchema = z.strictObject({
-  heldDuring: memberMessagesSnapshotSchema,
-  heldCompleted: memberMessagesSnapshotSchema,
-  abortedDuring: memberMessagesSnapshotSchema,
-  abortedCompleted: memberMessagesSnapshotSchema,
-});
-
-export type CorpusNotificationInbox = {
-  readonly [Snapshot in keyof z.output<typeof notificationInboxSchema>]: CorpusViewerRead<"notifications.list">;
-};
-export type CorpusChatLifecycleMember = {
-  readonly [Snapshot in keyof z.output<typeof chatLifecycleMemberSchema>]: CorpusMemberMessagesRead;
-};
-
-const corpusAuthSchema = z.strictObject({
-  anonymousConfig: authConfigSchema,
-  anonymousMe: authMeSchema,
-  signedInConfig: authConfigSchema,
-  signedInMe: authMeSchema,
-});
-
-/** Public responses captured with one native cookie; these bytes do not authenticate another request. */
-export const corpusCookieIdentitySchema = z
-  .strictObject({ viewer: viewerViewSchema, authMe: authMeSchema, authConfig: authConfigSchema })
-  .refine(
-    ({ viewer, authMe, authConfig }) =>
-      authConfig.mode === "local" && authMe.authenticated && authMe.handle === viewer.handle && authMe.role === viewer.globalRole,
-    "Corpus cookie identity response mismatch",
-  );
-export type CorpusCookieIdentity = z.output<typeof corpusCookieIdentitySchema>;
-const memberIdentitiesSchema = z
-  .strictObject({ notificationReader: corpusCookieIdentitySchema, sharedMember: corpusCookieIdentitySchema })
-  .refine(({ notificationReader, sharedMember }) => notificationReader.viewer.userId !== sharedMember.viewer.userId, "Corpus member identity cohort mismatch");
-type CorpusMemberIdentities = z.output<typeof memberIdentitiesSchema>;
-
-const corpusOidcSchema = z.strictObject({
-  anonymousConfig: authConfigSchema,
-  ownerMe: authMeSchema,
-  pendingPreview: signedOutInvitePreviewSchema,
-  confirmation: pendingJoinConfirmResultSchema,
-  joinerMe: authMeSchema,
-});
 
 /** The finite corpus requests, not a replacement for the production routers' input parsers. */
 export const corpusReadInput = {
@@ -201,72 +152,6 @@ const publishedCorpusSchema = z
     ({ shellAmbient, reads }) => shellAmbient === undefined || shellAmbient.viewerUserId === reads["sessions.me"][0]?.userId,
     "Corpus shell viewer mismatch",
   );
-
-interface CorpusReads {
-  readonly "sessions.me": readonly CorpusRead<"sessions.me">[];
-  readonly "settings.getUserSettings": readonly CorpusRead<"settings.getUserSettings">[];
-  readonly "settings.listThemes": readonly CorpusRead<"settings.listThemes">[];
-  readonly "character.list": readonly CorpusRead<"character.list">[];
-  readonly "character.count": readonly CorpusRead<"character.count">[];
-  readonly "persona.list": readonly CorpusRead<"persona.list">[];
-  readonly "persona.get": readonly CorpusRead<"persona.get">[];
-  readonly "chat.listChats": readonly CorpusRead<"chat.listChats">[];
-  readonly "chat.countChats": readonly CorpusRead<"chat.countChats">[];
-  readonly "chat.getChat": readonly CorpusRead<"chat.getChat">[];
-  readonly "databank.get": readonly CorpusRead<"databank.get">[];
-  readonly "databank.list": readonly CorpusRead<"databank.list">[];
-  readonly "databank.bankHealth": readonly CorpusRead<"databank.bankHealth">[];
-  readonly "notifications.list": readonly CorpusRead<"notifications.list">[];
-  readonly "tag.listPendingSuggestions": readonly CorpusRead<"tag.listPendingSuggestions">[];
-  readonly "worldInfo.countBooks": readonly CorpusRead<"worldInfo.countBooks">[];
-  readonly "regex.countScripts": readonly CorpusRead<"regex.countScripts">[];
-  readonly "rosterPreset.count": readonly CorpusRead<"rosterPreset.count">[];
-  readonly "automation.getOwnerBudgets": readonly CorpusRead<"automation.getOwnerBudgets">[];
-  readonly "stats.overview": readonly CorpusRead<"stats.overview">[];
-  readonly "stats.wrapped": readonly CorpusRead<"stats.wrapped">[];
-  readonly "stats.byModel": readonly CorpusRead<"stats.byModel">[];
-  readonly "stats.latency": readonly CorpusRead<"stats.latency">[];
-  readonly "stats.personaUsage": readonly CorpusRead<"stats.personaUsage">[];
-  readonly "stats.timeseries": readonly CorpusRead<"stats.timeseries">[];
-  readonly "stats.leaderboard": readonly CorpusRead<"stats.leaderboard">[];
-  readonly "stats.freshness": readonly CorpusRead<"stats.freshness">[];
-  readonly "stats.momentum": readonly CorpusRead<"stats.momentum">[];
-}
-
-/** Serializable input produced by the Node publisher, not an intake for arbitrary procedure requests. */
-export interface CorpusWireInput {
-  readonly pluginLibrary?: CorpusPluginLibrary;
-  readonly searchLibrary?: CorpusSearchLibrary;
-  readonly libraryRelations?: CorpusLibraryRelations;
-  readonly shellAmbient?: CorpusShellAmbient;
-  readonly firstBoot?: CorpusFirstBoot;
-  readonly memberIdentities?: CorpusMemberIdentities;
-  readonly worldInfoLibrary?: CorpusWorldInfoLibrary;
-  readonly regexLibrary?: CorpusRegexLibrary;
-  readonly auth: z.input<typeof corpusAuthSchema>;
-  readonly oidc?: z.input<typeof corpusOidcSchema>;
-  readonly health: z.input<typeof healthResponseSchema>;
-  readonly reads: CorpusReads;
-  readonly notificationInbox?: CorpusNotificationInbox;
-  readonly chatLifecycleMember?: CorpusChatLifecycleMember;
-}
-
-export interface CorpusWire {
-  readonly pluginLibrary?: CorpusPluginLibrary;
-  readonly searchLibrary?: CorpusSearchLibrary;
-  readonly libraryRelations?: CorpusLibraryRelations;
-  readonly shellAmbient?: CorpusShellAmbient;
-  readonly firstBoot?: CorpusFirstBoot;
-  readonly memberIdentities?: CorpusMemberIdentities;
-  readonly worldInfoLibrary?: CorpusWorldInfoLibrary;
-  readonly regexLibrary?: CorpusRegexLibrary;
-  readonly auth: z.output<typeof corpusAuthSchema>;
-  readonly oidc?: z.output<typeof corpusOidcSchema>;
-  readonly health: z.output<typeof healthResponseSchema>;
-  readonly reads: CorpusReads;
-  readonly notificationInbox?: CorpusNotificationInbox;
-  readonly chatLifecycleMember?: CorpusChatLifecycleMember;
-}
 
 function hydrateReads<Input, Output>(
   records: readonly CorpusCapture<Input, Output>[],
@@ -554,6 +439,6 @@ export function serializeCorpusWire(wire: CorpusWire, secrets: readonly string[]
 }
 
 /** Disk/browser intake validates the strict corpus envelope and each output through its canonical owner. */
-export function parseCorpusWire(serialized: string): CorpusWire {
-  return hydratePublication(publishedCorpusSchema.parse(JSON.parse(serialized)));
+export function parseCorpusWire(serialized: string): CorpusPlayback {
+  return admitCorpusPlayback(hydratePublication(publishedCorpusSchema.parse(JSON.parse(serialized))));
 }

@@ -12,6 +12,7 @@ import { CHAT_WARNING_CODES } from "../../../packages/contracts/src/chat/bus.ts"
 import { hydrateCorpusWire, parseCorpusWire, serializeCorpusWire } from "../iso/corpus.ts";
 import { createCorpusReadResponder, createCorpusViewerReadResponder } from "../iso/corpus-read-responder.ts";
 import { seedCorpusActors } from "./corpus-actors.ts";
+import { captureCorpusRead } from "./corpus-capture.ts";
 import { CORPUS_LIBRARY_RULE_PRESET, seedCorpusLibraryViews } from "./corpus-library-views.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
 import { captureCookieAuth, captureCorpusReads, seedCorpusLibraries } from "./corpus-seed.ts";
@@ -279,6 +280,12 @@ test("native library projections retain canonical usage, ordering, intake and re
   expect.soft(result.publication.relations).toEqual(libraryRelations);
   const captured = { ...base, worldInfoLibrary, regexLibrary, libraryRelations };
   const parsed = parseCorpusWire(serializeCorpusWire(captured, authentication.secrets));
+  const admitted = parsed.libraryRelations;
+  const admittedWorld = parsed.worldInfoLibrary;
+  const admittedRegex = parsed.regexLibrary;
+  assert(admitted !== undefined, "The parsed library publication lost its admitted relations");
+  assert(admittedWorld !== undefined, "The parsed library publication lost its admitted world books");
+  assert(admittedRegex !== undefined, "The parsed library publication lost its admitted regex scripts");
   expect(parsed.worldInfoLibrary).toEqual(worldInfoLibrary);
   expect(parsed.regexLibrary).toEqual(regexLibrary);
   expect(parsed.libraryRelations).toEqual(libraryRelations);
@@ -329,21 +336,29 @@ test("native library projections retain canonical usage, ordering, intake and re
     Object.assign(read, { input: null });
     expect(() => serializeCorpusWire(hydrateCorpusWire(malformed), authentication.secrets)).toThrow("publication recipe");
   }
-  const tagSnapshot = { viewerUserId: libraryRelations.viewerUserId, read: libraryRelations.reads.characterReach };
+  const tagSnapshot = { viewerUserId: admitted.viewerUserId, read: admitted.reads.characterReach };
   const tagRespond = createCorpusViewerReadResponder("tag.listAttachedEntities", root.ownerId, tagSnapshot);
   expect(tagRespond(tagSnapshot.read.input)).toEqual(tags.reaches[0]?.output);
   expect(() => tagRespond(libraryRelations.reads.personaReach.input)).toThrow("Uncaptured corpus read");
   expect(() => createCorpusViewerReadResponder("tag.listAttachedEntities", actors.secondUserId, tagSnapshot)).toThrow("snapshot viewer does not match");
-  expect(() => createCorpusReadResponder("tag.listPendingSuggestions", [tags.pending, tags.pendingAfter])).toThrow("Conflicting corpus captures");
-  expect(() => createCorpusReadResponder("tag.listTagsWithUsage", [tags.before, tags.usage])).toThrow("Conflicting corpus captures");
-  expect(() => createCorpusReadResponder("rosterPreset.applyToChat", [roster.applied, roster.appliedAgain])).toThrow("Conflicting corpus captures");
-  expect(() => createCorpusReadResponder("preset.listUsage", [result.preset.inactive, result.preset.active])).toThrow("Conflicting corpus captures");
-  const effectiveSnapshot = { viewerUserId: libraryRelations.viewerUserId, read: libraryRelations.reads.presetEffective };
+  expect(() => createCorpusReadResponder("tag.listPendingSuggestions", root.ownerId, [admitted.reads.tagPending, admitted.reads.tagPendingAfter])).toThrow(
+    "Conflicting corpus captures",
+  );
+  expect(() => createCorpusReadResponder("tag.listTagsWithUsage", root.ownerId, [admitted.reads.tagBefore, admitted.reads.tagUsage])).toThrow(
+    "Conflicting corpus captures",
+  );
+  expect(() => createCorpusReadResponder("rosterPreset.applyToChat", root.ownerId, [admitted.reads.rosterApplied, admitted.reads.rosterAppliedAgain])).toThrow(
+    "Conflicting corpus captures",
+  );
+  expect(() => createCorpusReadResponder("preset.listUsage", root.ownerId, [admitted.reads.presetInactive, admitted.reads.presetActive])).toThrow(
+    "Conflicting corpus captures",
+  );
+  const effectiveSnapshot = { viewerUserId: admitted.viewerUserId, read: admitted.reads.presetEffective };
   const effectiveRespond = createCorpusViewerReadResponder("preset.resolveEffective", root.ownerId, effectiveSnapshot);
   expect(effectiveRespond(result.preset.effective.input)).toEqual(result.preset.effective.output);
   expect(() => effectiveRespond({ id: library.preset.id })).toThrow("Uncaptured corpus read");
   expect(() => createCorpusViewerReadResponder("preset.resolveEffective", actors.secondUserId, effectiveSnapshot)).toThrow("snapshot viewer does not match");
-  const rulesSnapshot = { viewerUserId: libraryRelations.viewerUserId, read: libraryRelations.reads.rulesRepeated };
+  const rulesSnapshot = { viewerUserId: admitted.viewerUserId, read: admitted.reads.rulesRepeated };
   expect(createCorpusViewerReadResponder("automation.listRules", root.ownerId, rulesSnapshot)(roster.repeatedRules.input)).toEqual(roster.repeatedRules.output);
   expect(() => createCorpusViewerReadResponder("automation.listRules", actors.secondUserId, rulesSnapshot)).toThrow("snapshot viewer does not match");
   const driftedPreset = structuredClone(captured);
@@ -378,9 +393,11 @@ test("native library projections retain canonical usage, ordering, intake and re
   assert(liveRule !== undefined, "native live-rule publication omitted its enabled witness");
   const ruleCaller = await root.internalCallerFor(root.ownerId);
   await ruleCaller.automation.setRuleEnabled({ ruleId: liveRule.id, enabled: false });
-  const disabledRules = { input: roster.repeatedRules.input, output: await ruleCaller.automation.listRules(roster.repeatedRules.input) };
+  const disabledRules = await captureCorpusRead(root, root.ownerId, "automation.listRules", roster.repeatedRules.input);
   expect(disabledRules.output.find((entry) => entry.id === liveRule.id)?.enabled).toBe(false);
-  expect(() => createCorpusReadResponder("automation.listRules", [roster.repeatedRules, disabledRules])).toThrow("Conflicting corpus captures");
+  expect(() => createCorpusReadResponder("automation.listRules", root.ownerId, [admitted.reads.rulesRepeated, disabledRules])).toThrow(
+    "Conflicting corpus captures",
+  );
   await ruleCaller.automation.setRuleEnabled({ ruleId: liveRule.id, enabled: true });
   const driftedRelations = structuredClone(captured);
   Reflect.deleteProperty(driftedRelations.libraryRelations.reads.rosterApplied.output, "rulesMinted");
@@ -401,17 +418,21 @@ test("native library projections retain canonical usage, ordering, intake and re
   expect(result.publication.worldInfo).toEqual(worldInfoLibrary);
   expect(result.publication.regex).toEqual(regexLibrary);
   expect(parsed.reads).toEqual(base.reads);
-  const worldSnapshot = { viewerUserId: worldInfoLibrary.viewerUserId, read: worldInfoLibrary.reads.inheritedBooks };
+  const worldSnapshot = { viewerUserId: admittedWorld.viewerUserId, read: admittedWorld.reads.inheritedBooks };
   const respond = createCorpusViewerReadResponder("worldInfo.listForChat", root.ownerId, worldSnapshot);
   expect(respond(worldSnapshot.read.input)).toEqual(world.inheritedBooks.output);
   expect(() => respond(world.chatBooks.input)).toThrow("Uncaptured corpus read");
   expect(() => respond({ chatId: library.room.chat.id, includeInherited: false })).toThrow("Uncaptured corpus read");
   expect(() => createCorpusViewerReadResponder("worldInfo.listForChat", actors.secondUserId, worldSnapshot)).toThrow("snapshot viewer does not match");
-  const regexSnapshot = { viewerUserId: regexLibrary.viewerUserId, read: regexLibrary.reads.after };
+  const regexSnapshot = { viewerUserId: admittedRegex.viewerUserId, read: admittedRegex.reads.after };
   expect(createCorpusViewerReadResponder("regex.listForChat", root.ownerId, regexSnapshot)(regex.after.input)).toEqual(regex.after.output);
   expect(() => createCorpusViewerReadResponder("regex.listForChat", actors.secondUserId, regexSnapshot)).toThrow("snapshot viewer does not match");
-  expect(() => createCorpusReadResponder("regex.listForChat", [regex.before, regex.after])).toThrow("Conflicting corpus captures");
-  expect(() => createCorpusReadResponder("regex.listRoomDisplayScripts", [regex.displayOff, regex.displayOn])).toThrow("Conflicting corpus captures");
+  expect(() => createCorpusReadResponder("regex.listForChat", root.ownerId, [admittedRegex.reads.before, admittedRegex.reads.after])).toThrow(
+    "Conflicting corpus captures",
+  );
+  expect(() =>
+    createCorpusReadResponder("regex.listRoomDisplayScripts", root.ownerId, [admittedRegex.reads.displayOff, admittedRegex.reads.displayOn]),
+  ).toThrow("Conflicting corpus captures");
   const changedWorld = structuredClone(captured);
   Object.assign(changedWorld.worldInfoLibrary.reads.inheritedBooks, { input: world.chatBooks.input });
   expect(() => serializeCorpusWire(hydrateCorpusWire(changedWorld), authentication.secrets)).toThrow("publication recipe");

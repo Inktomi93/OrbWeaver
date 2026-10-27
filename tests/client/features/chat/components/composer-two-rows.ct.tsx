@@ -47,7 +47,7 @@ for (const viewport of VIEWPORTS) {
       await page.setViewportSize(viewport);
       await seedShellState(page, { activeSection: "chats" });
       const rpc = await routeTrpc(page, {
-        ...createShellAmbientReads(corpus),
+        ...createShellAmbientReads(corpus, root.ownerId),
         ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...ROOM_PROCEDURES, ...SETTINGS_READS, "rpg.getGame", "rpg.listTurnToolCalls"]),
         "plugin.listCommands": () => commands,
       });
@@ -156,7 +156,7 @@ for (const viewport of VIEWPORTS.slice(0, 2)) {
       await page.setViewportSize(viewport);
       await seedShellState(page, { activeSection: "chats" });
       await routeTrpc(page, {
-        ...createShellAmbientReads(corpus),
+        ...createShellAmbientReads(corpus, root.ownerId),
         ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...ROOM_PROCEDURES, "rpg.getGame", "rpg.listTurnToolCalls"]),
         "plugin.listCommands": () => commands,
       });
@@ -277,7 +277,7 @@ test("the attributed plugin menu collects arguments, runs native commands and un
   await caller.plugin.setEnabled({ pluginId: plugin.id, enabled: true });
   await seedShellState(page, { activeSection: "chats" });
   const rpc = await routeTrpc(page, {
-    ...createShellAmbientReads(corpus),
+    ...createShellAmbientReads(corpus, root.ownerId),
     ...serveCorpusProcedures(caller, [
       ...SECTION_PROCEDURES,
       ...ROOM_PROCEDURES,
@@ -335,7 +335,7 @@ for (const unavailable of [false, true]) {
     await page.setViewportSize({ width: 844, height: 390 });
     await seedShellState(page, { activeSection: "chats" });
     await routeTrpc(page, {
-      ...createShellAmbientReads(corpus),
+      ...createShellAmbientReads(corpus, root.ownerId),
       ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...ROOM_PROCEDURES, "plugin.listCommands", "rpg.getGame", "rpg.listTurnToolCalls"]),
     });
     await mount<typeof ChatRoomShellStory>(STORY, { chatId });
