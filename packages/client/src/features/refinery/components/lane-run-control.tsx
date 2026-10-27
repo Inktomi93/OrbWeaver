@@ -19,7 +19,9 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Swatch } from "@orb/ui/swatch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { useEffect, useRef } from "react";
 import { testId } from "#lib";
+import { clearRefineryWorkbenchDoor, useRefineryRequestedDoor } from "#state";
 import type { useRefineryPreflight } from "../hooks/use-refinery-schemas.ts";
 import type { preflightViewOf } from "../lib/preflight-warn.ts";
 import { stageWarnOf, warnScopeOf } from "../lib/preflight-warn.ts";
@@ -48,12 +50,8 @@ interface LaneRunControlProps {
   /** This lane is the canvas's ONE focal (CD3 — decided in `lib/workbench-lanes.ts`), so its verb is the
    *  canvas's ONE filled run control. Every other lane's stays `secondary`.
    *
-   *  WHY IT IS A PROP (side-eye 2026-08-19 P1-4). "Run score" existed twice on one screen — here, and in
-   *  the CONTEXT Runs tab's empty state — and the FILLED one was the ledger's. §14 is bolder in the work
-   *  pane, quieter in the ledger, so the ledger's went ghost and the loud one belongs here. It cannot be
-   *  unconditional: three filled run buttons plus the foot bar's terminal apply is the inverted-hierarchy
-   *  defect P1-11 named, one lane over. The focal is exactly one lane, and it already means "the step to
-   *  take", so it is also the right verb to paint. @defaultValue false */
+   *  The focal lane owns the filled run control; the ledger navigates here instead of running a stage.
+   *  @defaultValue false */
   readonly focal?: boolean;
   /** The §8 WARN is being rendered ONCE at session level because more than one stage breached with the
    *  SAME sentence — so this lane prints the ⚠ on its fit line and nothing else. Derived by the surface
@@ -140,6 +138,20 @@ export function LaneRunControl({
   warnHoisted = false,
 }: LaneRunControlProps): ReactElement {
   const warn = stageWarnOf(stagePre, contextTokens);
+  const runRef = useRef<HTMLButtonElement>(null);
+  const requestedDoor = useRefineryRequestedDoor();
+  useEffect(() => {
+    if (stage !== "score" || requestedDoor !== "score") {
+      return;
+    }
+    const button = runRef.current;
+    if (button === null) {
+      return;
+    }
+    button.scrollIntoView({ block: "nearest" });
+    button.focus({ preventScroll: true });
+    clearRefineryWorkbenchDoor();
+  }, [requestedDoor, stage]);
   return (
     <Stack data-lane-run={stage} gap="tight">
       {/* WRAPS, and the verb keeps its content floor. The rails are 15rem/17rem wide: a fit readout and a
@@ -156,6 +168,7 @@ export function LaneRunControl({
               own "Every other lane's stays `secondary`" ruling lost its rest ink. The primitive keeps
               inheriting; this composite states its own, through the muted `tone`. */}
           <Button
+            ref={runRef}
             aria-busy={running}
             disabled={busy || blocked !== null}
             intent={focal ? "primary" : "secondary"}

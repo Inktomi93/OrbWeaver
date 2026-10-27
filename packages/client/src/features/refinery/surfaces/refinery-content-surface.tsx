@@ -199,6 +199,7 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
           // is a branch and leaves the live card untouched, so it never flips this.
           applied={view.status === "completed" || (outcome?.verb === "apply" && outcome.applied.length > 0)}
           cardName={card.name}
+          unnamedSession={view.name === null}
           characterId={view.characterId}
           onEditScope={(): void => setScopeOpen(true)}
           round={view.iterationCount}
