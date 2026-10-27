@@ -90,18 +90,8 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionMemberV
   // Draft fields keyed by the loaded row; the mounted editor's Save is the one write affordance.
   const [name, setName] = useState(roster.name);
   const [description, setDescription] = useState(roster.description);
-  /**
-   * WHAT THE EDITOR OPENED WITH — the `lib/edit-session.ts` rule in its save-button form (#1561).
-   *
-   * The drafts above are seeded ONCE, so `name !== roster.name` is TRUE whenever the ROW moved underneath an
-   * untouched editor (another seat, another tab, an apply that renamed it). `dirty` gated the Save button
-   * on exactly that comparison, so a second writer LIT UP the one write affordance on the surface and a
-   * press would have sent the opened-with text back over what arrived — the suppress-a-pointless-write
-   * guard performing a destructive write, which is the class in its purest form.
-   *
-   * A once-seeded value, not a ref: it is read during render, and refs are handler/cleanup-only here.
-   */
-  const [openedFrom] = useState(() => ({ name: roster.name, description: roster.description }));
+  // Only this editor's acknowledged save advances the baseline; external reads never reseed an active draft.
+  const [openedFrom, setOpenedFrom] = useState(() => ({ name: roster.name, description: roster.description }));
   const busy = update.isPending || start.isPending;
   const dirty = name.trim() !== openedFrom.name || description !== openedFrom.description;
   // BOTH MOVED — a real conflict between two writers, surfaced rather than resolved (the tracker's third
@@ -110,18 +100,21 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionMemberV
   const contested = dirty && (roster.name !== openedFrom.name || roster.description !== openedFrom.description);
 
   const onSave = (): void => {
-    update.mutate({
-      presetId,
-      input: {
-        name: name.trim(),
-        description,
-        anchorPersonaId: roster.anchorPersonaId,
-        groupConfig: roster.groupConfig,
-        game: roster.game,
-        members: memberInputsOf(roster),
-        rules: ruleInputsOf(roster),
+    update.mutate(
+      {
+        presetId,
+        input: {
+          name: name.trim(),
+          description,
+          anchorPersonaId: roster.anchorPersonaId,
+          groupConfig: roster.groupConfig,
+          game: roster.game,
+          members: memberInputsOf(roster),
+          rules: ruleInputsOf(roster),
+        },
       },
-    });
+      { onSuccess: (saved): void => setOpenedFrom({ name: saved.name, description: saved.description }) },
+    );
   };
 
   // The campaign toggle writes at once. It resends the STORED fields, never the unsaved name/description
