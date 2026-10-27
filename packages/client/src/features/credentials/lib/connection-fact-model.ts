@@ -197,10 +197,10 @@ export function withoutDeclaredOverride(declared: DeclaredCapability | null, row
   if (declared === null) {
     return null;
   }
-  const next = erasePath({ ...declared }, row.path);
+  let next = erasePath({ ...declared }, row.path);
   for (const siblingPath of Object.keys(row.siblings)) {
     // A sibling only exists because the leaf needed it; it goes with the leaf.
-    Object.assign(next, erasePath(next, siblingPath));
+    next = erasePath(next, siblingPath);
   }
   return Object.keys(next).length === 0 ? null : (next as DeclaredCapability);
 }

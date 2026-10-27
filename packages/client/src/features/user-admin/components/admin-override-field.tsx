@@ -169,7 +169,7 @@ export interface AdminOverrideResetRowProps {
 export function AdminOverrideResetRow({ dirty, anyOverridden, saving, errored, onSave, onReset }: AdminOverrideResetRowProps): ReactElement {
   return (
     <Stack gap="field">
-      <Row gap="field" align="center">
+      <Row className="flex-wrap" gap="field" align="center">
         {onSave === undefined ? null : (
           <Button intent="primary" size="sm" disabled={dirty !== true || saving} onClick={onSave}>
             {saving ? "Saving…" : "Save"}

@@ -22,7 +22,7 @@ import {
 import type { BUTTON_SIZE_OVERFLOW } from "./size-hit-area.ts";
 
 // Sizes ride the control-height tokens (CONTROL_SIZE, shared with Toggle) so the ≥44px touch floor
-// holds by construction; button adds `icon`, `media`, `wrap`, `inline` and the four-step `glyph-*` ramp on
+// holds by construction; button adds `icon`, `media`, `wrap`, `wrap-md`, `inline` and the four-step `glyph-*` ramp on
 // top. The size axis is the SOLE owner of the box: no other variant (and no call-site class) may set a
 // height. The reason INVERTED at #146 and the rule is unchanged either way: the control-height tokens used
 // to be opaque to tailwind-merge, so a second height resolved by stylesheet order; now the spacing scale is
@@ -134,6 +134,8 @@ export const buttonVariants = tv({
       // it resolves last-wins, i.e. the call site silently beats the seal) — the `media` (F2) and TabsTab
       // `layout="stacked"` precedent. The arm is where the wrapping box is NAMED.
       wrap: "px-block py-field text-label leading-label whitespace-normal block-auto min-block-(--size-control-sm)",
+      // Long form actions retain the md typography and hit floor when their label needs another line.
+      "wrap-md": "px-block py-field text-body leading-body whitespace-normal block-auto min-block-(--size-control-md)",
       // INLINE: the DISPLAY-AT-REST arm — a datum/line of prose that is also the click target (a tracker
       // value, a beat line, a card row, a roster name). It wears NO control box: text-height, start-aligned,
       // regular weight, so it reads as the text it stands in for and the click-to-edit swap is pixel-stable.
