@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-10-26
 priority: P3
 area: client
+lane: main
 ---
 
 # Complete Settings and plugin visual coverage before closing the surface audit
@@ -22,4 +23,4 @@ Record reviewed and unreviewed states explicitly. Score actual images with the e
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The [surface audit closeout](../reviews/surface-audit-closeout.md) records completed bounded coverage, open repair owners and exclusions. Independent image scores and retained native runs are linked there. Coverage completion does not accept unresolved product defects.
