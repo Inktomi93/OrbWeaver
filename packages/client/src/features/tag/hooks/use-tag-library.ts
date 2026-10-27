@@ -67,7 +67,7 @@ export function useTagLibrarySummary(): { readonly count: number; readonly facts
   const facts: readonly TagLibraryFact[] = [
     {
       id: "unused",
-      label: "Unattached",
+      label: "Unused, no suggestions",
       value: `${String(unused.length)} of ${String(rows.length)}`,
       // The door acts on EVERY unused tag: it opens the prune confirm, which states the count and asks first.
       // Omitted when there are none: a door to nothing is a dead end.
