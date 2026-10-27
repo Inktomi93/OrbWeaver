@@ -1,13 +1,6 @@
-// The ONE subprocess home (policy `tooling-child-process-door`): every niced spawn lowers the child's
-// priority (owner-endorsed 2026-08-21 — the box co-hosts the homelab), never THIS process's own. The sync
-// doors spawn through `nicedCommand` (`nice` on POSIX, the `niced-exec.ts` launcher on win32 or when supervised); the async doors spawn `cmd` directly and
-// call `lowerChildPriority` (measured cheaper — see that export's header). A full-priority door's child
-// stays at this process's own priority either way.
-//
-// THE AMBIENT-ENV DOOR is ./process-env.ts: reading the environment is not a subprocess capability;
-// spawning is, and that half is here. The run-marker policy is NOT imported here either — the transcript
-// door takes its post-group-kill teardown injected (`TranscriptTeardown`), because `run-marker.ts` reads
-// the process table through `platform.ts`, which spawns through this file.
+// tooling-subprocess-import-owner confines direct runtime subprocess imports to this module, not its callers.
+// Niced doors lower the child's priority, never this process's; full-priority doors retain the caller's priority.
+// Environment reads and injected transcript teardown stay separate to avoid the platform/process import cycle.
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { closeSync, openSync } from "node:fs";
 import process from "node:process";
@@ -226,11 +219,7 @@ export function execNicedSyncBuffer(
   }
 }
 
-/** The ONE full-priority door — NO nice wrapper, loudly named so its callers ARE the exception census
- *  (policy `tooling-child-process-door`: one `full-priority-spawn` reviewed grant per caller). Reserved for a process a USER
- *  interactively waits on whose children serve requests (the snap stage's stack boot: a -19 staged app
- *  times out navigations under load, skewing the very receipts the stage exists to take). Everything
- *  else rides the niced doors above. */
+/** Retains full priority for interactive request-serving workloads; background tools use the niced doors. */
 export function spawnFullPrioritySync(
   cmd: string,
   args: readonly string[],
@@ -244,10 +233,7 @@ export function spawnFullPrioritySync(
   return { status: res.status };
 }
 
-/** The DETACHED-child twin of spawnFullPrioritySync — NO nice wrapper, same census discipline (policy
- *  `tooling-child-process-door`, the same per-caller grants). Reserved for a long-lived child that IS the
- *  interactive workload a human is waiting on (vLLM inference or a stateful browser session); everything
- *  else rides spawnNicedChild. */
+/** Retains full priority for long-lived interactive workloads; background children use {@link spawnNicedChild}. */
 export function spawnFullPriorityChild(cmd: string, args: readonly string[], opts: FullPriorityChildOptions = {}): FullPriorityChild {
   const logFd = opts.logPath === undefined ? undefined : openSync(opts.logPath, "a");
   const child = DOORS.spawn(cmd, [...args], {

@@ -9,6 +9,8 @@ paths:
 
 Read the [testkit authoring contract](../../tests/support/README.md) before adding or changing Node tests or helpers.
 
+Follow its [helper-world split](../../tests/support/README.md#keep-helper-compiler-worlds-separate) when a CT shares Node preparation and DOM page drivers.
+
 Read a suite's result from its own output file. `AGENTS.md` owns the piping rule.
 
 ## Tests run the product

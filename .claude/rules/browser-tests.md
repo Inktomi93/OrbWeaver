@@ -10,6 +10,8 @@ paths:
 
 Read the [testkit authoring contract](../../tests/support/README.md) before adding or changing browser tests or helpers.
 
+Follow its [helper-world split](../../tests/support/README.md#keep-helper-compiler-worlds-separate) instead of moving server preparation into browser mounts.
+
 ## Tests run the product
 
 Follow `docs/law/Spine-Testing.md` §9. Call production, derive types, import constants, and mount the real door. Never copy product logic, registries or wire shapes into a test.

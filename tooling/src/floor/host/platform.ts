@@ -1,10 +1,6 @@
-// THE ONE PLATFORM MODULE: every read of the socket table or the process table, every `/proc` path and
-// every OS-specific binary lives here or in its leaf, branched on an injectable `platform`. The
-// `tooling-os-neutral` policy exempts these two files alone; a Linux-only call anywhere else is a finding. This
-// file holds the spawns and openers; `platform-probes.ts` is the leaf with the `/proc` and `/sys` reads. Limits
-// stated once: win32 exposes no process environment and no process group, so a run marker there is found
-// only in argv and a tree is stopped through its recorded pids; darwin folds a process's environment into
-// its command line.
+// Socket and process adapters branch on an injectable platform; Linux file reads live in platform-probes.ts.
+// Windows exposes neither process environments nor process groups, so ownership uses argv and recorded pids.
+// macOS folds a process's environment into its command line.
 import type { Stats } from "node:fs";
 import { accessSync, constants as fsConstants, lstatSync } from "node:fs";
 import type { UserInfo } from "node:os";

@@ -1,16 +1,5 @@
-// THE ONE AMBIENT-ENVIRONMENT DOOR for @orb/tooling — read the process environment HERE, or grow another
-// `noProcessEnv` suppression at your call site (which is the drawer this package exists to end).
-//
-// It lived inside proc.ts until #1848, and the split is the tooling law's own §4.3 trigger: proc.ts is the
-// ONE `node:child_process` home (policy `tooling-child-process-door`) and reached its 450-line cap when the
-// run-marker sweep was wired into its timeout path. Reading the ambient environment is not a subprocess
-// capability — it is what a launcher does BEFORE it spawns — so this is where the seam falls. The three
-// exported doors keep their exact behaviour and their names; only their file changed.
-//
-// WHAT THIS IS NOT: an app-configuration reader. Server/app config has its own env door far above this
-// package (`packages/server/src/foundation/env`). Everything read here is a TOOLING/TEST PROTOCOL value —
-// PATH and HOME for a child, `ORB_*` switches a launcher exported for its own children — never product
-// configuration.
+// Ambient launcher environment and tooling/test protocols are separate from subprocess creation in proc.ts.
+// Product configuration belongs to the server's environment boundary, never this launcher adapter.
 import process from "node:process";
 
 /** Ambient process environment plus explicit child overrides. Tool launchers use this instead of each

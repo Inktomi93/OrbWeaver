@@ -39,6 +39,14 @@ To publish a helper, add its name to the door's barrel. Inside testkit, use rela
 
 Call production operations and registry factories. Derive inputs from their contracts, builders or corpus. Script external execution at its real boundary. Do not replace domain services, authorization, persistence or application modules with fabricated behavior.
 
+## Keep helper compiler worlds separate
+
+Keep root, server and data preparation in Node-rooted helpers. Import Playwright's `Page` as a type when those helpers need request-routing APIs.
+
+Put DOM/evaluate page drivers in `tests/support/browser/` and export them through `@orb/testkit/browser/spec`. Keep server composition and corpus initialization out of that door's dependency graph. Compose Node preparation and page drivers in the CT spec. Seed browser state before mounting.
+
+The native tsconfig files select compiler populations. Dependency-cruiser checks Node-rooted helper imports, including type-only dependencies. Changing a filename does not repair mixed responsibilities. Browser mounts still cannot reach Node or server implementations.
+
 ## Sign in through the product
 
 Use `@orb/testkit/node/auth` for any case that needs an authenticated request.
@@ -147,14 +155,15 @@ Two publishes from one tree are byte-identical: every producer draws ids from th
 | No door seed or helper reads a row and hands it to a verb suite | Inside `tests/support` the `testkit-rows-closed-importers` rule in [dependency-cruiser](../../.dependency-cruiser.ts) admits only its `ROWS_IMPORTERS` list to the rows tier |
 | A helper under a `persistence/` directory serves only its own tier | The `testkit-persistence-helpers-own-tier` rule in [dependency-cruiser](../../.dependency-cruiser.ts) |
 | Integration files share one module registry and never read the environment at import | `isolate: false` and the `setupFiles` warm on the integration project in [vitest.config.ts](../../vitest.config.ts); the harness seams in [node/server.ts](node/server.ts) |
-| A test never stubs or writes the process environment (`vi.stubEnv`, `process.env` writes); it uses a harness seam or the subject's own parameter | The `TEST_ENVIRONMENT_RESTRICTIONS` syntax rules in [eslint.config.ts](../../eslint.config.ts); `tests/tooling` is outside them because that project isolates modules |
+| A test never stubs or writes the process environment (`vi.stubEnv`, `process.env` writes); it uses a harness seam or the subject's own parameter | The `TEST_ENVIRONMENT_RESTRICTIONS` syntax rules in [eslint.config.ts](../../eslint.config.ts); `tests/tooling` is outside their configured scope |
 | A root's env knob is a key in its own parsed record, refused where production refuses it | `createServerHarness({ env })` and `createTestEnv` ([node/env.ts](node/env.ts)), both through the production `parseEnv` |
 | Every env schema key and machine fact has one row saying how a root reaches it, and `env` takes only raw rows | `ENV_SEAMS` is a `Record` over the schema's `EnvKey` and the parse's `HostFacts` in [node/env-seams.ts](node/env-seams.ts); [the class cases](node/env-seams.int.test.ts) and [type cases](node/env-seams.test-d.ts) |
 | Story props and updated props | Explicit native `mount<typeof Story>` and [compiler assertions](browser/gallery.dom.test-d.ts) |
 | Ordinary CT authoring uses typed mounts, browser JSX and type-only story imports | Native ESLint syntax restrictions in [eslint.config.ts](../../eslint.config.ts) |
 | Inline callback props stay out of Node mount calls | The same ESLint restrictions; aliases and arbitrary dataflow remain review responsibilities |
 | Recognized internal-module mocks and replacement service constructors are refused | Existing ESLint syntax and import restrictions |
-| A test never calls `vi.mock` or `vi.doMock`; an external edge is scripted through an injected seam on the production options | `EXTERNAL_MODULE_MOCK_RESTRICTION` in [eslint.config.ts](../../eslint.config.ts); `tests/tooling` is outside it because that project isolates modules |
+| A test never calls `vi.mock` or `vi.doMock`; an external edge is scripted through an injected seam on the production options | `EXTERNAL_MODULE_MOCK_RESTRICTION` in [eslint.config.ts](../../eslint.config.ts); `tests/tooling` is outside its configured scope |
+| Tooling tests use scratch files or an explicit filesystem dependency, not filesystem module replacement | `FILESYSTEM_MODULE_MOCK_RESTRICTION` in [eslint.config.ts](../../eslint.config.ts) refuses direct, dot and literal-computed `mock`/`doMock` calls with literal or import-expression `fs`, `node:fs`, `fs/promises` or `node:fs/promises` arguments; aliases and variable-derived names remain review responsibilities |
 | A route map answers the request it receives, whether written in the call, bound to a variable, spread in or typed as `TrpcRoutes`: no fixed value for a procedure that takes input, and no `trpcError` on every path; a header directive with a reason admits a suite whose subject is the route helper | The `orb/ct-responder-reads-input` rule, which reads the route types in [route-trpc.ts](node/route-trpc.ts), in [eslint.config.ts](../../eslint.config.ts) |
 | Captured playback refuses raw, spread, cloned, cross-path and cross-viewer records; its binding cannot be mutated | The private admission/mint importer rules in [dependency-cruiser](../../.dependency-cruiser.ts), nominal capture types and runtime custody in [corpus-playback.ts](iso/corpus-playback.ts), and [the real loader/root controls](node/corpus-read-responder.int.test.ts) |
 | A test reads an appearance channel name from the manifest, never spells `data-appearance-*` or `--appearance-*` | The `orb/no-hand-typed-appearance-channel` rule; the message points at `APPEARANCE_CHANNEL_ROWS` and `APP_REDUCED_MOTION_ATTRIBUTE` |
