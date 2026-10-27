@@ -26,7 +26,7 @@ for (const regime of REGIMES) {
         const caller = await root.internalCallerFor(root.ownerId);
         await caller.settings.updateUserSettingsSection({ section: "appearance", patch: DEFAULT_APPEARANCE_SETTINGS });
         await caller.settings.updateUserSettingsSection({ section: "theme", patch: DEFAULT_USER_SETTINGS.theme });
-        await routeTrpc(page, { ...createShellAmbientReads(corpus), ...serveCorpusProcedures(caller, SECTION_PROCEDURES) });
+        await routeTrpc(page, { ...createShellAmbientReads(corpus, root.ownerId), ...serveCorpusProcedures(caller, SECTION_PROCEDURES) });
         await seedShellState(page, { activeSection: "config" });
         await mount<typeof ConfigHeadingShellStory>(STORY, { group: subject.group });
         const content = page.locator('[data-slot="config-content"]');

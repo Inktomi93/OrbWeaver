@@ -1,17 +1,5 @@
-// THE SUBPROCESS DOORS' OPTION + RESULT SHAPES, split out of ./proc.ts when that module crossed the
-// 450-line cap (#2242, after #2211 widened the capture ceiling onto a second door).
-//
-// WHY THE SHAPES AND NOT A DOOR. `tooling-child-process-door` makes `tooling/src/floor/process/proc.ts` the ONE
-// module allowed to import `node:child_process`, and it resolves the two FULL-PRIORITY doors by DECLARATION
-// against that exact path (`lib/project-home-origin.ts`), licensed by an exact reviewed grant
-// `(tooling/src/floor/process/proc.ts, child-process-import)`. Moving any spawning code to a sibling would put a
-// second child_process import on the tree and give the home locator two candidate declarations of one door —
-// so what moves is the part that spawns NOTHING. These are pure type declarations: no import of
-// child_process, no runtime.
-//
-// IMPORTERS KEEP THEIR SPELLING: ./proc.ts re-exports every name below, the same door discipline
-// `floor/artifacts/artifacts.ts` already uses for `PrunedRun`. The precedent for splitting THIS file is its own
-// header — the ambient-env door moved to ./process-env.ts at this same cap in #1848.
+// Subprocess option and result types are re-exported through proc.ts so callers keep one process door.
+// tooling-subprocess-import-owner confines runtime subprocess imports to proc; these contracts create no processes.
 export interface SpawnNicedOptions {
   readonly cwd?: string;
   readonly env?: Readonly<Record<string, string>>;

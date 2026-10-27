@@ -6,7 +6,7 @@ import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import type { ChatId, ThemeId } from "@orb/kit/ids";
 import { beginReading, resolvedLength, scrollIntoReadingMessage as scrollIntoMessage, seedShellState, tokenColor } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import type { CorpusWire } from "@orb/testkit/iso";
+import type { CorpusPlayback } from "@orb/testkit/iso";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { MESSAGE_EDIT_NAME } from "#client/features/chat/lib/message-action-names.ts";
@@ -41,7 +41,7 @@ test.afterAll(async () => {
   await root[Symbol.asyncDispose]();
 });
 
-async function openRoom(page: Page, corpus: CorpusWire, chatStyle: ThemeChatStyle, art: boolean): Promise<void> {
+async function openRoom(page: Page, corpus: CorpusPlayback, chatStyle: ThemeChatStyle, art: boolean): Promise<void> {
   await openReadingRoom(page, corpus, root, { chatStyle, art });
   await seedShellState(page, { activeSection: "chats" });
 }

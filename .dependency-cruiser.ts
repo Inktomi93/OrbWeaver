@@ -1,5 +1,8 @@
 import { builtinModules } from "node:module";
+import { relative, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { DependencyType, IConfiguration, IForbiddenRuleType } from "dependency-cruiser";
+import ts from "typescript";
 import clientPackage from "./packages/client/package.json" with { type: "json" };
 import contractsPackage from "./packages/contracts/package.json" with { type: "json" };
 import dbPackage from "./packages/db/package.json" with { type: "json" };
@@ -7,7 +10,31 @@ import inferencePackage from "./packages/inference/package.json" with { type: "j
 import kitPackage from "./packages/kit/package.json" with { type: "json" };
 import serverPackage from "./packages/server/package.json" with { type: "json" };
 import uiPackage from "./packages/ui/package.json" with { type: "json" };
-import { BROWSER_TEST_SUFFIXES, TEST_KIND_DEFINITIONS, TEST_KIND_SUFFIXES } from "./tooling/src/floor/testing/test-kinds.ts";
+import { BROWSER_TEST_SUFFIXES, TEST_KIND_SUFFIXES } from "./tooling/src/floor/testing/test-kinds.ts";
+
+const ROOT = fileURLToPath(new URL(".", import.meta.url));
+const nodeTestProgram = ts.getParsedCommandLineOfConfigFile(
+  fileURLToPath(new URL("./tsconfig.json", import.meta.url)),
+  {},
+  {
+    ...ts.sys,
+    onUnRecoverableConfigFileDiagnostic: (diagnostic): never => {
+      throw new Error(ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n"));
+    },
+  },
+);
+if (nodeTestProgram === undefined) {
+  throw new Error("Cannot read the Node compiler's test population");
+}
+if (nodeTestProgram.errors.length > 0) {
+  throw new Error(nodeTestProgram.errors.map((diagnostic) => ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n")).join("\n"));
+}
+const nodeTestRoots = nodeTestProgram.fileNames
+  .map((file) => relative(ROOT, file).split(sep).join("/"))
+  .filter((file) => /^(?:tests|scripts)\/.*\.(?:ts|mts|cts)$/u.test(file));
+if (nodeTestRoots.length === 0) {
+  throw new Error("The Node compiler has no test or script roots");
+}
 
 const ENTRY_SOURCE = "^packages/server/src/entry/";
 // The entry files that own the physical database (Tier-5 invariant 1). Every other entry file, boot steps included,
@@ -60,9 +87,8 @@ const DOMAIN_TYPE_CONTRACT = "^tests/server/domain/([^/]+)/.*\\.test-d\\.ts$";
 const BROWSER_MOUNT_PATHS = ["^playwright/", "^(tests|scripts)/(?!support/(iso|node)/).*\\.tsx$"];
 const BROWSER_TEST_PATHS = [TEST_BROWSER_SUPPORT, ...BROWSER_MOUNT_PATHS];
 const BROWSER_TEST_FILES = `(?:${BROWSER_TEST_SUFFIXES.map((suffix) => suffix.replaceAll(".", "\\.")).join("|")})$`;
-const NODE_TEST_PATHS = TEST_KIND_DEFINITIONS.filter(({ compilerWorld }) => compilerWorld === "node").map(
-  ({ suffix }) => `^(tests|scripts)/.*${suffix.replaceAll(".", "\\.")}$`,
-);
+// Native roots include helpers while preserving the compiler's DOM, E2E and browser-support exclusions.
+const NODE_TEST_PATHS = `^(?:${nodeTestRoots.map((file) => RegExp.escape(file)).join("|")})$`;
 const NODE_BUILTINS = `^(?:node:)?(?:${builtinModules.map((name) => RegExp.escape(name)).join("|")})$`;
 const CLIENT_CSS_ENTRY = `${CLIENT}styles/index\\.ts$`;
 const CLIENT_SHELL_CSS = `${CLIENT}features/app-shell/surfaces/shell\\.css$`;
@@ -673,6 +699,22 @@ function packageTestMirrorRules([pkg, packageCake]: readonly [string, string]): 
 
 const TEST_WORLDS = [
   {
+    name: "testkit-corpus-playback-mint",
+    comment: "Only admission, root capture and private playback lookup may execute the nominal playback authority.",
+    severity: "error",
+    from: {
+      pathNot: ["^tests/support/iso/corpus-admission\\.ts$", "^tests/support/node/corpus-capture\\.ts$", "^tests/support/iso/corpus-read-responder\\.ts$"],
+    },
+    to: { path: "^tests/support/iso/corpus-playback\\.ts$", dependencyTypesNot: ["type-only", "type-import"] },
+  },
+  {
+    name: "testkit-corpus-admission-owner",
+    comment: "Raw corpus hydration is private to the ISO parser and Node fixture owner, not a suite-facing trust factory.",
+    severity: "error",
+    from: { pathNot: ["^tests/support/iso/corpus\\.ts$", "^tests/support/node/corpus\\.ts$"] },
+    to: { path: "^tests/support/iso/corpus-admission\\.ts$", dependencyTypesNot: ["type-only", "type-import"] },
+  },
+  {
     name: "client-persisted-store-implementation",
     comment: "Persistence names enter through the typed factory (D321).",
     severity: "error",
@@ -694,8 +736,10 @@ const TEST_WORLDS = [
   },
   {
     name: "node-tests-no-browser-helpers",
+    comment:
+      "This Node-rooted helper reaches browser declarations. Keep root/server preparation here; move DOM/evaluate helpers to the existing browser/spec owner and call both from the CT spec.",
     severity: "error",
-    from: { path: NODE_TEST_PATHS, pathNot: BROWSER_TEST_FILES },
+    from: { path: NODE_TEST_PATHS },
     to: { path: [TEST_BROWSER_SUPPORT, ...BROWSER_MOUNT_PATHS], reachable: true },
   },
   {
@@ -1309,6 +1353,16 @@ const EXECUTOR_BOUNDARIES = [
 ] satisfies IForbiddenRuleType[];
 
 const TOOLING_BOUNDARIES = [
+  {
+    name: "tooling-subprocess-import-owner",
+    comment: "Tooling creates subprocesses through proc; direct raw imports and re-exports belong only to that owner.",
+    severity: "error",
+    from: { path: "^tooling/src/", pathNot: "^tooling/src/floor/process/proc\\.ts$" },
+    to: {
+      path: ["^(?:node:)?child_process$", "(?:^|/)node_modules/cross-spawn(?:/|$)"],
+      dependencyTypesNot: ["type-only", "type-import"],
+    },
+  },
   {
     name: "packages-no-tooling",
     severity: "error",

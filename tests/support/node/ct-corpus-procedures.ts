@@ -1,22 +1,10 @@
 // Section procedures for a component spec, answered by the production server root over a corpus clone for each exact
 // request. Only the named procedures are served; routeTrpc still fails the test for any other.
+
+import { procedureAt } from "./corpus-procedure.ts";
 import type { TrpcErrorCode } from "./matchers.ts";
 import type { TrpcErrorMarker, TrpcInput, TrpcProcedurePath, TrpcRoutes } from "./route-trpc.ts";
 import { trpcError, trpcHold } from "./route-trpc.ts";
-
-type Procedure = (input: unknown) => Promise<unknown>;
-
-function procedureAt(caller: object, path: string): Procedure {
-  const [namespace, name] = path.split(".");
-  const group: unknown = namespace === undefined ? undefined : Reflect.get(caller, namespace);
-  // A tRPC caller's namespaces are proxy functions, so a namespace is any non-null object or function.
-  const reachable = (typeof group === "object" && group !== null) || typeof group === "function";
-  const procedure: unknown = reachable && name !== undefined ? Reflect.get(group, name) : undefined;
-  if (typeof procedure !== "function") {
-    throw new Error(`The corpus root has no procedure ${path}`);
-  }
-  return (input) => Reflect.apply(procedure, group, [input]) as Promise<unknown>;
-}
 
 function failureCode(error: unknown): TrpcErrorCode {
   const code: unknown = typeof error === "object" && error !== null ? Reflect.get(error, "code") : undefined;

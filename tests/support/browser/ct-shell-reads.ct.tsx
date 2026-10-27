@@ -4,8 +4,8 @@ import { createShellAmbientReads, SHELL_AMBIENT_PATHS } from "../node/ct-shell-r
 import { routeTrpc } from "../node/route-trpc.ts";
 import type { ShellAmbientStory } from "./ct-shell-reads-stories.tsx";
 
-test("the production shell mounts on the shared ambient reads alone and renders its rail", async ({ corpus, mount, page }) => {
-  const trpc = await routeTrpc(page, createShellAmbientReads(corpus));
+test("the production shell mounts on the shared ambient reads alone and renders its rail", async ({ corpus, corpusViewer, mount, page }) => {
+  const trpc = await routeTrpc(page, createShellAmbientReads(corpus, corpusViewer.userId));
   await mount<typeof ShellAmbientStory>("tests/support/browser/ct-shell-reads-stories/ShellAmbientStory", {});
   const rail = page.getByRole("navigation", { name: "Primary", exact: true });
   await expect(rail).toBeVisible();

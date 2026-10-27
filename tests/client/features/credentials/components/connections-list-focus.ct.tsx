@@ -22,7 +22,7 @@ test.beforeAll(async () => {
 
 test.beforeEach(async ({ corpus, page }) => {
   const caller = await root.internalCallerFor(root.ownerId);
-  await routeTrpc(page, { ...createShellAmbientReads(corpus), ...serveCorpusProcedures(caller, SERVED) });
+  await routeTrpc(page, { ...createShellAmbientReads(corpus, root.ownerId), ...serveCorpusProcedures(caller, SERVED) });
 });
 
 test.afterAll(async () => {

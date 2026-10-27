@@ -1,10 +1,11 @@
 // Controlled invite presentation, focus and completion; membership and whole-app navigation belong to integration and E2E.
 import { DEAD_INVITE_SENTENCE, inviteRoomSentence } from "@orb/client/lib";
 import { invitePreviewSchema } from "@orb/contracts/chat";
+import type { UserId } from "@orb/kit/ids";
 import type { TrpcInput, TrpcRoutes } from "@orb/testkit/ct";
 import { holdServed, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import type { CorpusWire } from "@orb/testkit/iso";
+import type { CorpusPlayback } from "@orb/testkit/iso";
 import { createCorpusReadResponder } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { makeChatDetail, makeChatId, makeRedeemInviteResult } from "@orb/testkit/node/helpers";
@@ -27,14 +28,14 @@ function previewFor({ token }: TrpcInput<"invites.previewInvite">): typeof PREVI
   return token === DEAD_TOKEN ? trpcError({ code: "NOT_FOUND", message: "The preview cannot be read." }) : PREVIEW;
 }
 
-function providerReads(corpus: CorpusWire): TrpcRoutes<"settings.getUserSettings" | "sessions.me"> {
+function providerReads(corpus: CorpusPlayback, viewerUserId: UserId): TrpcRoutes<"settings.getUserSettings" | "sessions.me"> {
   return {
-    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpus.reads["settings.getUserSettings"]),
-    "sessions.me": createCorpusReadResponder("sessions.me", corpus.reads["sessions.me"]),
+    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", viewerUserId, corpus.reads["settings.getUserSettings"]),
+    "sessions.me": createCorpusReadResponder("sessions.me", viewerUserId, corpus.reads["sessions.me"]),
   };
 }
 
-test("a controlled loading preview becomes ready and focuses its newly mounted primary action", async ({ corpus, mount, page }) => {
+test("a controlled loading preview becomes ready and focuses its newly mounted primary action", async ({ corpus, corpusViewer, mount, page }) => {
   await using root = await createCorpusHarness();
   await (await root.internalCallerFor(root.ownerId)).settings.updateAppSettings({ partial: { localMultiUser: true } });
   const rpc = await root.internalCallerFor(root.ownerId);
@@ -42,7 +43,10 @@ test("a controlled loading preview becomes ready and focuses its newly mounted p
   const invite = await rpc.invites.createInvite({ chatId: room.id, input: { maxUses: 2 } });
   const ready = await rpc.invites.previewInvite({ token: invite.token });
   const preview = holdServed();
-  const wire = await routeTrpc(page, { ...providerReads(corpus), ...serveCorpusProcedures(rpc, ["invites.previewInvite"], () => preview) });
+  const wire = await routeTrpc(page, {
+    ...providerReads(corpus, corpusViewer.userId),
+    ...serveCorpusProcedures(rpc, ["invites.previewInvite"], () => preview),
+  });
   const request = page.waitForRequest((candidate) => new URL(candidate.url()).pathname.endsWith("/invites.previewInvite"));
   await mount<typeof JoinInviteDialogStory>("tests/client/features/chat/anchors/_join-invite-stories/JoinInviteDialogStory", { token: invite.token });
   await preview.requested;
@@ -58,8 +62,8 @@ test("a controlled loading preview becomes ready and focuses its newly mounted p
   expect(wire.count("invites.redeemInvite")).toBe(0);
 });
 
-test("popup focus delivered after a ready preview still lands on Join chat", async ({ corpus, mount, page }) => {
-  await routeTrpc(page, { ...providerReads(corpus), "invites.previewInvite": previewFor });
+test("popup focus delivered after a ready preview still lands on Join chat", async ({ corpus, corpusViewer, mount, page }) => {
+  await routeTrpc(page, { ...providerReads(corpus, corpusViewer.userId), "invites.previewInvite": previewFor });
   await mount<typeof JoinInviteDialogStory>("tests/client/features/chat/anchors/_join-invite-stories/JoinInviteDialogStory", { token: TOKEN });
   const dialog = page.getByRole("dialog", { name: DIALOG, exact: true });
   const join = dialog.getByRole("button", { name: "Join chat", exact: true });
@@ -69,9 +73,9 @@ test("popup focus delivered after a ready preview still lands on Join chat", asy
   await expect(join).toBeFocused();
 });
 
-test("an invalid preview discloses no room or host and closes through the caller callback", async ({ corpus, mount, page }) => {
+test("an invalid preview discloses no room or host and closes through the caller callback", async ({ corpus, corpusViewer, mount, page }) => {
   const wire = await routeTrpc(page, {
-    ...providerReads(corpus),
+    ...providerReads(corpus, corpusViewer.userId),
     "invites.previewInvite": previewFor,
   });
   await mount<typeof JoinInviteDialogStory>("tests/client/features/chat/anchors/_join-invite-stories/JoinInviteDialogStory", { token: DEAD_TOKEN });
@@ -86,8 +90,8 @@ test("an invalid preview discloses no room or host and closes through the caller
   expect(wire.count("invites.redeemInvite")).toBe(0);
 });
 
-test("Not now dismisses the ready component without redeeming the invite", async ({ corpus, mount, page }) => {
-  const wire = await routeTrpc(page, { ...providerReads(corpus), "invites.previewInvite": previewFor });
+test("Not now dismisses the ready component without redeeming the invite", async ({ corpus, corpusViewer, mount, page }) => {
+  const wire = await routeTrpc(page, { ...providerReads(corpus, corpusViewer.userId), "invites.previewInvite": previewFor });
   await mount<typeof JoinInviteDialogStory>("tests/client/features/chat/anchors/_join-invite-stories/JoinInviteDialogStory", { token: TOKEN });
   const dialog = page.getByRole("dialog", { name: DIALOG, exact: true });
   await expect(dialog.getByText(ROOM_SENTENCE, { exact: true })).toBeVisible();
@@ -97,13 +101,13 @@ test("Not now dismisses the ready component without redeeming the invite", async
   expect(wire.count("invites.redeemInvite")).toBe(0);
 });
 
-test("a refused redemption replaces the previous preview with the same flat invalid state", async ({ corpus, mount, page }) => {
-  const viewer = createCorpusReadResponder("sessions.me", corpus.reads["sessions.me"])(undefined);
+test("a refused redemption replaces the previous preview with the same flat invalid state", async ({ corpus, corpusViewer, mount, page }) => {
+  const viewer = createCorpusReadResponder("sessions.me", corpusViewer.userId, corpus.reads["sessions.me"])(undefined);
   const chat = makeChatDetail({ id: PREVIEW.chatId, title: PREVIEW.roomName, viewerIsHost: false, viewerUserId: viewer.userId });
   // The invite is spent by someone else after the preview settled; the redemption for the same token is then refused.
   let spent = false;
   const wire = await routeTrpc(page, {
-    ...providerReads(corpus),
+    ...providerReads(corpus, corpusViewer.userId),
     "invites.previewInvite": previewFor,
     "invites.redeemInvite": ({ token }) =>
       spent && token === TOKEN ? trpcError({ code: "NOT_FOUND", message: "The invite was spent after preview." }) : makeRedeemInviteResult({ chat }),
@@ -122,11 +126,11 @@ test("a refused redemption replaces the previous preview with the same flat inva
   await expect(page.getByRole("status", { name: "Join dialog completion", exact: true })).toHaveText("Closed");
 });
 
-test("successful redemption completes through the caller callback", async ({ corpus, mount, page }) => {
-  const viewer = createCorpusReadResponder("sessions.me", corpus.reads["sessions.me"])(undefined);
+test("successful redemption completes through the caller callback", async ({ corpus, corpusViewer, mount, page }) => {
+  const viewer = createCorpusReadResponder("sessions.me", corpusViewer.userId, corpus.reads["sessions.me"])(undefined);
   const chat = makeChatDetail({ id: PREVIEW.chatId, title: PREVIEW.roomName, viewerIsHost: false, viewerUserId: viewer.userId });
   const wire = await routeTrpc(page, {
-    ...providerReads(corpus),
+    ...providerReads(corpus, corpusViewer.userId),
     "invites.previewInvite": previewFor,
     "invites.redeemInvite": ({ token }) => (token === TOKEN ? makeRedeemInviteResult({ chat }) : trpcError({ code: "NOT_FOUND" })),
   });

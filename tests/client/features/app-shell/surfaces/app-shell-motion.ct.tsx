@@ -6,7 +6,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { emulateMedia, releaseEmulatedMedia, resolvedLength, seedShellState, shellTracks } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import type { CorpusWire } from "@orb/testkit/iso";
+import type { CorpusPlayback } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { makePluginRow } from "@orb/testkit/node/helpers";
 import type { Page } from "@playwright/test";
@@ -96,14 +96,14 @@ const FLANK_ROUTES = {
 
 /** Serve the shell, its sections and a room, with the corpus viewer's settings under `appearance`, and with
  *  `flank` the fixture plugin's flank panel. */
-async function routeMotion(page: Page, corpus: CorpusWire, appearance: Partial<AppearanceSettings> = {}, flank = false): Promise<void> {
+async function routeMotion(page: Page, corpus: CorpusPlayback, appearance: Partial<AppearanceSettings> = {}, flank = false): Promise<void> {
   const caller = await root.internalCallerFor(root.ownerId);
   // The settings verbs run on the shared root, so each case writes its own appearance, and the flank column starts
   // open whatever an earlier case's door left.
   await caller.settings.updateUserSettingsSection({ section: "appearance", patch: { ...MOTION_BASE, ...appearance } });
   await caller.settings.updateUserSettingsSection({ section: "profile", patch: { flankCollapsed: false } });
   await routeTrpc(page, {
-    ...createShellAmbientReads(corpus),
+    ...createShellAmbientReads(corpus, root.ownerId),
     ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...ROOM_PROCEDURES, "settings.updateUserSettingsSection"]),
     ...(flank ? FLANK_ROUTES : {}),
   });

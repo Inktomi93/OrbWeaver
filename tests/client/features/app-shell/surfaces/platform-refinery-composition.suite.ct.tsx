@@ -99,7 +99,7 @@ for (const regime of REGIMES) {
           await caller.settings.updateUserSettingsSection({ section: "appearance", patch: ENLARGED_APPEARANCE_SETTINGS });
         }
         await routeTrpc(page, {
-          ...createShellAmbientReads(corpus),
+          ...createShellAmbientReads(corpus, root.ownerId),
           ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, "refinery.getSession", "refinery.listRuns", "refinery.preflight"]),
         });
         await seedShellState(page, {
@@ -142,7 +142,7 @@ for (const regime of REGIMES) {
       }
       let runRequests = 0;
       await routeTrpc(page, {
-        ...createShellAmbientReads(corpus),
+        ...createShellAmbientReads(corpus, root.ownerId),
         ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, "refinery.getSession", "refinery.listRuns", "refinery.preflight"]),
         ...serveCorpusProcedures(caller, ["refinery.runStage"], () => {
           runRequests += 1;
@@ -195,7 +195,7 @@ for (const regime of REGIMES) {
       const liveDescription = "The live card now keeps a different lantern.";
       await caller.character.update({ characterId: session.characterId, input: { description: liveDescription, greetings: [{ text: "A live greeting." }] } });
       await routeTrpc(page, {
-        ...createShellAmbientReads(corpus),
+        ...createShellAmbientReads(corpus, root.ownerId),
         ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, "refinery.getSession", "refinery.listRuns", "refinery.preflight", "refinery.listSchemas"]),
       });
       await seedShellState(page, { activeSection: "refinery", panelOverrides: { refinery: { list: "collapsed", context: "collapsed" } } });
@@ -257,7 +257,7 @@ test.describe("explicitly named equal to the card", () => {
     const caller = await root.internalCallerFor(root.ownerId);
     const session = await seedSession(caller, CARD_NAME);
     await routeTrpc(page, {
-      ...createShellAmbientReads(corpus),
+      ...createShellAmbientReads(corpus, root.ownerId),
       ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, "refinery.getSession", "refinery.listRuns", "refinery.preflight"]),
     });
     await seedShellState(page, { activeSection: "refinery", panelOverrides: { refinery: { list: "collapsed", context: "collapsed" } } });

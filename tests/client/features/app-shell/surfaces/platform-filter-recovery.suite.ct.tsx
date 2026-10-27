@@ -34,7 +34,7 @@ for (const regime of [
         } else {
           await caller.worldInfo.createBook({ input: { name: MEMBER } });
         }
-        const calls = await routeTrpc(page, { ...createShellAmbientReads(corpus), ...serveCorpusProcedures(caller, PROCEDURES) });
+        const calls = await routeTrpc(page, { ...createShellAmbientReads(corpus, root.ownerId), ...serveCorpusProcedures(caller, PROCEDURES) });
         await seedShellState(page, { activeSection: "config", panelOverrides: { config: { list: "collapsed", context: "collapsed" } } });
         await mount<typeof FilterRecoveryShellStory>(STORY, { group: collection.group });
         const content = page.locator('[data-slot="config-content"]');
@@ -64,7 +64,7 @@ for (const regime of [
         await caller.regex.removeScript({ scriptId: script.id });
       }
       expect(await caller.regex.listScripts()).toEqual([]);
-      const calls = await routeTrpc(page, { ...createShellAmbientReads(corpus), ...serveCorpusProcedures(caller, PROCEDURES) });
+      const calls = await routeTrpc(page, { ...createShellAmbientReads(corpus, root.ownerId), ...serveCorpusProcedures(caller, PROCEDURES) });
       await seedShellState(page, { activeSection: "config", panelOverrides: { config: { list: "collapsed", context: "collapsed" } } });
       await mount<typeof FilterRecoveryShellStory>(STORY, { group: "regex" });
       const content = page.locator('[data-slot="config-content"]');
@@ -87,7 +87,7 @@ for (const regime of [
         input: { handle: "filter-recovery-witness", name: MEMBER, description: "A keeper of copper observatory records." },
       });
       const session = await caller.refinery.startSession({ characterId: character.id, name: MEMBER });
-      const calls = await routeTrpc(page, { ...createShellAmbientReads(corpus), ...serveCorpusProcedures(caller, PROCEDURES) });
+      const calls = await routeTrpc(page, { ...createShellAmbientReads(corpus, root.ownerId), ...serveCorpusProcedures(caller, PROCEDURES) });
       await seedShellState(page, { activeSection: "refinery", panelOverrides: { refinery: { list: "docked", context: "collapsed" } } });
       await mount<typeof FilterRecoveryShellStory>(STORY, {});
       const list = page.locator('aside[data-panel-side="list"]');
@@ -113,7 +113,7 @@ for (const regime of [
         await caller.refinery.deleteSession({ sessionId: session.id });
       }
       expect(await caller.refinery.listSessions()).toEqual([]);
-      const calls = await routeTrpc(page, { ...createShellAmbientReads(corpus), ...serveCorpusProcedures(caller, PROCEDURES) });
+      const calls = await routeTrpc(page, { ...createShellAmbientReads(corpus, root.ownerId), ...serveCorpusProcedures(caller, PROCEDURES) });
       await seedShellState(page, { activeSection: "refinery", panelOverrides: { refinery: { list: "docked", context: "collapsed" } } });
       await mount<typeof FilterRecoveryShellStory>(STORY, {});
       const list = page.locator('aside[data-panel-side="list"]');

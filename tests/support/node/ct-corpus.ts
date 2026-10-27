@@ -2,15 +2,16 @@
 
 import { BLOB_ROUTE } from "@orb/contracts/assets";
 
+import type { UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import type { Route } from "@playwright/test";
 import { test as base } from "@playwright/test";
-import type { CorpusWire } from "../iso/corpus.ts";
+import type { CorpusPlayback, CorpusWire } from "../iso/corpus.ts";
 import { loadCorpusFixture } from "./corpus.ts";
 
 interface CorpusFixtures {
-  readonly corpus: CorpusWire;
-  readonly corpusViewer: CorpusWire["reads"]["sessions.me"][number]["output"];
+  readonly corpus: CorpusPlayback;
+  readonly corpusViewer: Omit<CorpusWire["reads"]["sessions.me"][number]["output"], "userId"> & { readonly userId: UserId };
   readonly corpusMedia: () => Promise<void>;
 }
 
@@ -32,7 +33,7 @@ export const test = base.extend<CorpusFixtures & CtCorpusOptions>({
     if (viewer === undefined) {
       throw new Error("Corpus media requires its captured viewer");
     }
-    await use(viewer);
+    await use(Object.freeze({ ...viewer, userId: brandedId("UserId").parse(viewer.userId) }));
   },
   corpusMedia: [
     async ({ page, baseURL, corpusDirectory, corpusViewer }, use) => {

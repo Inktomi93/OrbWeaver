@@ -27,7 +27,7 @@ test("removing a member closes the real confirm onto a surviving roster control"
   const authBody = await auth.text();
   await page.route("**/api/auth/config", (route) => route.fulfill({ contentType: "application/json", body: authBody }));
   const requests = await routeTrpc(page, {
-    ...createShellAmbientReads(corpus),
+    ...createShellAmbientReads(corpus, root.ownerId),
     ...serveCorpusProcedures(caller, [
       ...SECTION_PROCEDURES,
       ...ROOM_PROCEDURES,
@@ -113,7 +113,7 @@ test("the inline flank threshold resolves to its reading floor, sidebar and gap"
   }
   await seedShellState(page, { activeSection: "chats" });
   await routeTrpc(page, {
-    ...createShellAmbientReads(corpus),
+    ...createShellAmbientReads(corpus, root.ownerId),
     ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...ROOM_PROCEDURES, "notifications.presence", "rpg.getGame", "rpg.listTurnToolCalls"]),
   });
   await mount<typeof ChatRoomShellStory>(STORY, { chatId: room.id });

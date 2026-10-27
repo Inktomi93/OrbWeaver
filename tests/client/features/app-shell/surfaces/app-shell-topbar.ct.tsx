@@ -6,7 +6,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { pixel, resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, holdCorpusProcedure, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import type { CorpusWire } from "@orb/testkit/iso";
+import type { CorpusPlayback } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import { commandShortcutLabel } from "#client/features/app-shell/lib/command-shortcut-label.ts";
@@ -54,7 +54,7 @@ function bodyOffset(page: Page): Promise<number> {
   });
 }
 
-async function routeSections(page: Page, corpus: CorpusWire): Promise<void> {
+async function routeSections(page: Page, corpus: CorpusPlayback): Promise<void> {
   await routeShell(page, corpus, await root.internalCallerFor(root.ownerId), SECTION_PROCEDURES);
 }
 
@@ -76,7 +76,7 @@ test.describe("on a phone", () => {
     const caller = await root.internalCallerFor(root.ownerId);
     const census = await caller.character.count({ archived: false });
     const held = holdCorpusProcedure(caller, "character.get");
-    await routeTrpc(page, { ...createShellAmbientReads(corpus), ...serveCorpusProcedures(caller, SECTION_PROCEDURES), ...held.routes });
+    await routeTrpc(page, { ...createShellAmbientReads(corpus, root.ownerId), ...serveCorpusProcedures(caller, SECTION_PROCEDURES), ...held.routes });
     await seedShellState(page, { activeSection: "characters" });
     await mount<typeof AppShellStory>(STORY, {});
     const label = (await page.locator(".shell-rail").getByRole("button", { name: SECTION_LABELS.characters, exact: true }).getAttribute("aria-label")) ?? "";
@@ -243,7 +243,7 @@ function ownerCaller(): Promise<RoomCaller> {
 
 async function openNamedRoom(
   page: Page,
-  corpus: CorpusWire,
+  corpus: CorpusPlayback,
   caller: RoomCaller,
 ): Promise<{ readonly id: ChatId; readonly title: string; readonly cast: string }> {
   const room = namedGroupRoom((await caller.chat.listChats({ limit: 100 })).items);

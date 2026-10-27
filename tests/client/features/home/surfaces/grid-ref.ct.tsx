@@ -14,7 +14,7 @@ test.afterAll(async () => {
 
 test("Home passes its grid ref to quick-picks across the coarse-pointer column change", async ({ corpus, mount, page }) => {
   await routeTrpc(page, {
-    ...createShellAmbientReads(corpus),
+    ...createShellAmbientReads(corpus, root.ownerId),
     ...serveCorpusProcedures(await root.internalCallerFor(root.ownerId), SECTION_PROCEDURES),
   });
   const mounted = await mount<typeof HomeGridRefStory>("tests/client/features/home/surfaces/_grid-ref-stories/HomeGridRefStory", { width: 1440 });

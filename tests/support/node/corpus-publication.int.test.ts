@@ -10,6 +10,7 @@ import type { CorpusWire } from "../iso/corpus.ts";
 import { hydrateCorpusWire, parseCorpusWire, serializeCorpusWire } from "../iso/corpus.ts";
 import { createCorpusReadResponder, createCorpusViewerReadResponder } from "../iso/corpus-read-responder.ts";
 import { seedCorpusActors } from "./corpus-actors.ts";
+import { captureCorpusRead } from "./corpus-capture.ts";
 import { captureCorpusMemberMessages, seedCorpusChatLifecycle } from "./corpus-chat-lifecycle.ts";
 import { CORPUS_CHAT_MODEL, CORPUS_CHAT_REPLY, createCorpusChatWire } from "./corpus-chat-wire.ts";
 import { CORPUS_NOTIFICATION_RULE_MESSAGE, seedCorpusNotifications } from "./corpus-notifications.ts";
@@ -67,9 +68,13 @@ test("portable plugin stages preserve native viewers and finite requests while r
   expect(() => createCorpusViewerReadResponder("plugin.getSurfaceState", recipient.id, state)).toThrow("snapshot viewer does not match");
   expect(() => respond(library.recipientActive.reads.state.input)).toThrow("Uncaptured corpus read");
   // Decoded malformed input must not collapse to an inputless native request.
-  expect(() => Reflect.apply(createCorpusReadResponder("plugin.list", [active.reads.plugins]), undefined, [{}])).toThrow("Uncaptured corpus read");
-  expect(() => createCorpusReadResponder("plugin.getLog", [active.reads.log])({ ...active.reads.log.input, limit: 1 })).toThrow("Uncaptured corpus read");
-  expect(() => createCorpusReadResponder("plugin.getSurfaceState", [active.reads.state, library.ownerDisabled.reads.state])).toThrow(
+  expect(() => Reflect.apply(createCorpusReadResponder("plugin.list", root.ownerId, [active.reads.plugins]), undefined, [{}])).toThrow(
+    "Uncaptured corpus read",
+  );
+  expect(() => createCorpusReadResponder("plugin.getLog", root.ownerId, [active.reads.log])({ ...active.reads.log.input, limit: 1 })).toThrow(
+    "Uncaptured corpus read",
+  );
+  expect(() => createCorpusReadResponder("plugin.getSurfaceState", root.ownerId, [active.reads.state, library.ownerDisabled.reads.state])).toThrow(
     "Conflicting corpus captures",
   );
   for (const read of ["plugins", "surfaces", "commands", "displayTransforms"] as const) {
@@ -142,22 +147,26 @@ test("portable stats publish final native owner reads with exact request recipes
   expect(parsed).toEqual(wire);
   expect(parsed.reads["stats.overview"][0]?.output?.assistantTurns).toBe(1);
   expect(parsed.reads["stats.overview"]).not.toEqual(before.reads["stats.overview"]);
-  expect(createCorpusReadResponder("stats.overview", parsed.reads["stats.overview"])(undefined)).toEqual(await caller.stats.overview());
-  expect(createCorpusReadResponder("stats.wrapped", parsed.reads["stats.wrapped"])(undefined)).toEqual(await caller.stats.wrapped());
-  expect(createCorpusReadResponder("stats.byModel", parsed.reads["stats.byModel"])(undefined)).toEqual(await caller.stats.byModel());
+  expect(createCorpusReadResponder("stats.overview", root.ownerId, parsed.reads["stats.overview"])(undefined)).toEqual(await caller.stats.overview());
+  expect(createCorpusReadResponder("stats.wrapped", root.ownerId, parsed.reads["stats.wrapped"])(undefined)).toEqual(await caller.stats.wrapped());
+  expect(createCorpusReadResponder("stats.byModel", root.ownerId, parsed.reads["stats.byModel"])(undefined)).toEqual(await caller.stats.byModel());
   expect(parsed.reads["stats.byModel"][0]?.output).toEqual(expect.arrayContaining([expect.objectContaining({ model: CORPUS_TEXT_MODEL, tokensOut: 15 })]));
-  expect(createCorpusReadResponder("stats.personaUsage", parsed.reads["stats.personaUsage"])(undefined)).toEqual(await caller.stats.personaUsage());
-  expect(createCorpusReadResponder("stats.timeseries", parsed.reads["stats.timeseries"])(undefined)).toEqual(await caller.stats.timeseries());
-  expect(createCorpusReadResponder("stats.leaderboard", parsed.reads["stats.leaderboard"])(undefined)).toEqual(await caller.stats.leaderboard());
-  expect(createCorpusReadResponder("stats.freshness", parsed.reads["stats.freshness"])(undefined)).toEqual(await caller.stats.freshness());
-  expect(createCorpusReadResponder("stats.momentum", parsed.reads["stats.momentum"])(undefined)).toEqual(await caller.stats.momentum());
-  const latency = createCorpusReadResponder("stats.latency", parsed.reads["stats.latency"]);
+  expect(createCorpusReadResponder("stats.personaUsage", root.ownerId, parsed.reads["stats.personaUsage"])(undefined)).toEqual(
+    await caller.stats.personaUsage(),
+  );
+  expect(createCorpusReadResponder("stats.timeseries", root.ownerId, parsed.reads["stats.timeseries"])(undefined)).toEqual(await caller.stats.timeseries());
+  expect(createCorpusReadResponder("stats.leaderboard", root.ownerId, parsed.reads["stats.leaderboard"])(undefined)).toEqual(await caller.stats.leaderboard());
+  expect(createCorpusReadResponder("stats.freshness", root.ownerId, parsed.reads["stats.freshness"])(undefined)).toEqual(await caller.stats.freshness());
+  expect(createCorpusReadResponder("stats.momentum", root.ownerId, parsed.reads["stats.momentum"])(undefined)).toEqual(await caller.stats.momentum());
+  const latency = createCorpusReadResponder("stats.latency", root.ownerId, parsed.reads["stats.latency"]);
   expect(latency({ kind: "owner" })).toEqual(await caller.stats.latency({ kind: "owner" }));
   expect(parsed.reads["stats.latency"].map(({ input }) => input)).toEqual([{ kind: "owner" }]);
   expect(() => latency({ kind: "character", characterId: library.character.id })).toThrow("Uncaptured corpus read");
   expect(() => Reflect.apply(latency, undefined, [null])).toThrow("Uncaptured corpus read");
-  expect(() => Reflect.apply(createCorpusReadResponder("stats.overview", parsed.reads["stats.overview"]), undefined, [null])).toThrow("Uncaptured corpus read");
-  expect(() => createCorpusReadResponder("stats.byModel", parsed.reads["stats.byModel"])({})).toThrow("Uncaptured corpus read");
+  expect(() => Reflect.apply(createCorpusReadResponder("stats.overview", root.ownerId, parsed.reads["stats.overview"]), undefined, [null])).toThrow(
+    "Uncaptured corpus read",
+  );
+  expect(() => createCorpusReadResponder("stats.byModel", root.ownerId, parsed.reads["stats.byModel"])({})).toThrow("Uncaptured corpus read");
   const changed = structuredClone(wire);
   Object.assign(changed.reads["stats.latency"][0] ?? {}, { input: { kind: "character", characterId: library.character.id } });
   expect(() => serializeCorpusWire(hydrateCorpusWire(changed), [OWNER_PASSWORD])).toThrow("publication recipe");
@@ -223,7 +232,7 @@ test("notification corpus preserves seven actual viewer and lifecycle snapshots 
   expect(readerView).toMatchObject({ userId: result.reader.userId, handle: result.reader.handle, globalRole: "user" });
   expect(memberIdentities.notificationReader.viewer).toEqual(readerView);
   expect(memberIdentities.sharedMember.viewer.userId).toBe(actors.secondUserId);
-  const identityRead = { viewerUserId: shared.identity.viewer.userId, read: { input: undefined, output: shared.identity.viewer } };
+  const identityRead = { viewerUserId: shared.identity.viewer.userId, read: await captureCorpusRead(root, actors.secondUserId, "sessions.me", undefined) };
   expect(createCorpusViewerReadResponder("sessions.me", actors.secondUserId, identityRead)(undefined)).toEqual(shared.identity.viewer);
   expect(() => createCorpusViewerReadResponder("sessions.me", result.reader.userId, identityRead)).toThrow("snapshot viewer does not match");
   const swapped = { notificationReader: shared.identity, sharedMember: result.admission.identity };
@@ -267,7 +276,7 @@ test("notification corpus preserves seven actual viewer and lifecycle snapshots 
   }
   expect(snapshots.readerRaised.read.output).not.toEqual(snapshots.readerRead.read.output);
   expect(() => createCorpusViewerReadResponder("notifications.list", result.foreign.userId, snapshots.readerRaised)).toThrow("snapshot viewer does not match");
-  expect(() => createCorpusReadResponder("notifications.list", [snapshots.readerRaised.read, snapshots.readerRead.read])).toThrow(
+  expect(() => createCorpusReadResponder("notifications.list", result.reader.userId, [snapshots.readerRaised.read, snapshots.readerRead.read])).toThrow(
     "Conflicting corpus captures",
   );
   const respond = createCorpusViewerReadResponder("notifications.list", result.reader.userId, snapshots.readerRaised);
@@ -339,7 +348,7 @@ test("portable member snapshots retain held, completed and cancelled native mess
   expect(() => respond({ chatId: snapshots.abortedCompleted.chatId })).toThrow("Uncaptured corpus read");
   expect(() => Reflect.apply(respond, undefined, [null])).toThrow("Uncaptured corpus read");
   expect(() => createCorpusViewerReadResponder("chat.listMessages", root.ownerId, snapshots.heldCompleted)).toThrow("snapshot viewer does not match");
-  expect(() => createCorpusReadResponder("chat.listMessages", [snapshots.heldDuring.read, snapshots.heldCompleted.read])).toThrow(
+  expect(() => createCorpusReadResponder("chat.listMessages", actors.secondUserId, [snapshots.heldDuring.read, snapshots.heldCompleted.read])).toThrow(
     "Conflicting corpus captures",
   );
   const changed = structuredClone(snapshots);
