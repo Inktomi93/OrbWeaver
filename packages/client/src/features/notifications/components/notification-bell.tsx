@@ -177,8 +177,9 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
   // a CLICKABLE row whose accessible name is its `title` string, and an inbox row is a statement with its
   // own buttons inside it — nesting Accept/Decline in a button is invalid, and a row-level click has nowhere
   // to go (a notification is not a destination). The composed `Row`/`Stack`/`Text` grammar is the fit.
+  // The popup's text-scaled width floor must not widen the inline phone sheet past its containing drawer.
   const inbox = (
-    <Stack gap="block" className="min-inline-(--width-popup-floor)">
+    <Stack gap="block" className={isSheet ? "min-inline-0" : "min-inline-(--width-popup-floor)"}>
       {items.length === 0 ? (
         // A STATE, not a shrug (`empty-states-are-load-bearing`): the old bare "No notifications." read as a
         // failed load. `titleAs="p"` because the sheet lens already renders a heading above this block and a

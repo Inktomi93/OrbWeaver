@@ -7,6 +7,7 @@ export const BUTTON_SIZE_OVERFLOW = {
   "icon-sm": false,
   media: false,
   wrap: false,
+  "wrap-md": false,
   inline: true,
   "inline-body": true,
   "glyph-xs": true,
