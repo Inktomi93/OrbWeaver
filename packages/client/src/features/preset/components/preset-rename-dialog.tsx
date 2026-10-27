@@ -53,14 +53,7 @@ export function PresetRenameDialog({ open, onOpenChange, currentName, onRename }
         }}
       >
         <Stack gap="block">
-          <Input
-            value={name}
-            onValueChange={setName}
-            aria-label="Preset name"
-            placeholder="Preset name"
-            // eslint-disable-next-line jsx-a11y/no-autofocus -- the dialog opens on an explicit action; its only field takes focus
-            autoFocus={true}
-          />
+          <Input value={name} onValueChange={setName} aria-label="Preset name" placeholder="Preset name" />
           <DialogFooter>
             <DialogClose render={<Button intent="ghost">Cancel</Button>} />
             <Button intent="primary" type="submit" disabled={!canSave}>

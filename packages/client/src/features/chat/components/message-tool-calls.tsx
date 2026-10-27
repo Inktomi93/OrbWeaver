@@ -50,7 +50,7 @@ function ToolCallControls({ message, record }: { readonly message: MessageView; 
   };
   const hidden = record.hidden === true;
   return (
-    <Row gap="field" inertUntilHover={true}>
+    <Row gap="field" inertUntilHover={true} className="flex-wrap">
       <Button intent="ghost" size="sm" loading={edit.isPending} onClick={(): void => edit.mutate({ ...variables, action: hidden ? "show" : "hide" })}>
         {hidden ? "Show to AI" : "Hide from AI"}
       </Button>

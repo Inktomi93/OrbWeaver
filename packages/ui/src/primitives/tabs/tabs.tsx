@@ -1,3 +1,4 @@
+import { mergeProps } from "@base-ui/react/merge-props";
 import type {
   TabsIndicatorProps as BaseTabsIndicatorProps,
   TabsListProps as BaseTabsListProps,
@@ -54,7 +55,37 @@ export function TabsList({ className, rule, fold, ...rest }: TabsListProps): Rea
 // `layout="stacked"` is the glyph-over-caption cell (the rpg HUD's rails): the ONE home for a tab whose
 // height must follow its content — a caller cannot get there with `className` (see variants.ts).
 export function TabsTab({ className, layout, quiet, ...rest }: TabsTabProps): ReactElement {
-  return <BaseTabs.Tab className={cn(tabsVariants({ layout, quiet }).tab(), className)} data-slot="tabs-tab" {...rest} />;
+  return (
+    <BaseTabs.Tab
+      className={cn(tabsVariants({ layout, quiet }).tab(), className)}
+      data-slot="tabs-tab"
+      {...mergeProps<typeof BaseTabs.Tab>({ value: rest.value, onFocus: (event): void => revealHorizontalTab(event.currentTarget) }, rest)}
+    />
+  );
+}
+
+// Intrinsic tablists can be clipped by an ancestor; reveal only that scroll box, never the page or block axis.
+function revealHorizontalTab(tab: HTMLElement): void {
+  if (tab.dataset["orientation"] === "vertical") {
+    return;
+  }
+  let ancestor = tab.parentElement;
+  while (ancestor !== null && ancestor !== tab.ownerDocument.body && ancestor !== tab.ownerDocument.documentElement) {
+    const overflow = getComputedStyle(ancestor).overflowX;
+    if ((overflow === "auto" || overflow === "scroll") && ancestor.scrollWidth > ancestor.clientWidth) {
+      const bounds = ancestor.getBoundingClientRect();
+      const left = bounds.left + ancestor.clientLeft;
+      const right = left + ancestor.clientWidth;
+      const focused = tab.getBoundingClientRect();
+      if (focused.left < left) {
+        ancestor.scrollLeft += focused.left - left;
+      } else if (focused.right > right) {
+        ancestor.scrollLeft += focused.right - right;
+      }
+      return;
+    }
+    ancestor = ancestor.parentElement;
+  }
 }
 
 /** The indicator's resting box, as Base UI writes it onto the node's own inline style. */

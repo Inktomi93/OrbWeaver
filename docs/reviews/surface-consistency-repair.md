@@ -4,7 +4,7 @@
 
 The original surface-consistency repair outcomes are accepted by independent source and image review, with matching native checks. Home titles and Add-document prose meet their bounded acceptance targets.
 
-The action-group extension remains partially qualified. Its F30 census candidates are unresolved; this report does not close that work.
+The [action-group qualification](action-group-qualification.md) records completed candidate dispositions and their explicit limits. This report retains the initial action-family evidence.
 
 This report covers the shared working-tree changes against `8d3b3547dd`. It does not authorize landing or release. Main owns those decisions.
 
@@ -61,7 +61,7 @@ The cases use production mounts, actual verbs and external-edge scripting. Share
 
 Regimes distinguish a 300px desktop host, wide desktop, coarse 390px portrait and coarse 844px landscape. Enlargement derives from the production schema maximum.
 
-Matching Chromium family results and final action WebKit pass. The census's F30 finite-action candidates remain unconfirmed and unresolved. [Action-group work](../work/1370-action-groups-fit-narrow-containers-without-hiding-controls.md) remains open; this is not universal maximum-font certification.
+Matching Chromium family results and final action WebKit pass. The [candidate qualification](action-group-qualification.md) records the additional completed cases; this is not universal maximum-font certification.
 
 The isolated Preset story excludes app-root user-bus freshness. Clear proves the exact command, stored removal and Saved state, not full-app warning refresh or reload persistence.
 

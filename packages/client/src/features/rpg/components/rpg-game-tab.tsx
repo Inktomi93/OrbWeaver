@@ -97,21 +97,23 @@ function TrackerRow({
   const removeLabel = `Remove ${def.label}`;
   return (
     <DefRow slot="rpg-tracker-row">
-      <Row gap="field" align="center">
-        {def.shape === "meter" ? <TrackBar value={1} max={1} {...trackColorProps(resolveTrackerColor(def.color, index))} width="swatch" /> : null}
-        <TrackerValue
-          ariaLabel={`Tracker ${index + 1} label`}
-          display={def.label}
-          onEdit={(next): void => {
-            const trimmed = next.trim();
-            if (trimmed !== "") {
-              patch({ label: trimmed });
-            }
-          }}
-          className="flex-1 min-inline-0"
-        />
+      <Row gap="field" align="center" className="flex-wrap">
+        <Row gap="field" align="center" touchFloor="block" className="flex-1 min-inline-(--width-title-floor)">
+          {def.shape === "meter" ? <TrackBar value={1} max={1} {...trackColorProps(resolveTrackerColor(def.color, index))} width="swatch" /> : null}
+          <TrackerValue
+            ariaLabel={`Tracker ${index + 1} label`}
+            display={def.label}
+            onEdit={(next): void => {
+              const trimmed = next.trim();
+              if (trimmed !== "") {
+                patch({ label: trimmed });
+              }
+            }}
+            className="flex-1 min-inline-0"
+          />
+        </Row>
         {def.shape === "meter" ? (
-          <Row gap="field" align="baseline" className="shrink-0">
+          <Row gap="field" align="baseline" touchFloor="block" className="shrink-0 flex-wrap max-inline-full">
             <Text as="span" voice="gloss">
               default max
             </Text>
@@ -133,21 +135,23 @@ function TrackerRow({
             />
           </Row>
         ) : null}
-        <Tip text={bandLabel}>
-          <Button aria-label={bandLabel} intent="ghost" size="glyph-md" onClick={(): void => patch({ pinned: !def.pinned })}>
-            <Icon icon={def.pinned ? Eye : EyeOff} size="xs" />
-          </Button>
-        </Tip>
-        <Tip text={lockLabel}>
-          <Button aria-label={lockLabel} intent="ghost" size="glyph-md" onClick={(): void => patch({ locked: !def.locked })}>
-            <Icon icon={def.locked ? Lock : LockOpen} size="xs" />
-          </Button>
-        </Tip>
-        <Tip text={removeLabel}>
-          <Button aria-label={removeLabel} intent="ghost" size="glyph-md" onClick={(): void => onCommit({ ...def, key: "" })}>
-            <Icon icon={Trash2} size="xs" />
-          </Button>
-        </Tip>
+        <Row gap="field" align="center" className="shrink-0">
+          <Tip text={bandLabel}>
+            <Button aria-label={bandLabel} intent="ghost" size="icon-sm" onClick={(): void => patch({ pinned: !def.pinned })}>
+              <Icon icon={def.pinned ? Eye : EyeOff} size="xs" />
+            </Button>
+          </Tip>
+          <Tip text={lockLabel}>
+            <Button aria-label={lockLabel} intent="ghost" size="icon-sm" onClick={(): void => patch({ locked: !def.locked })}>
+              <Icon icon={def.locked ? Lock : LockOpen} size="xs" />
+            </Button>
+          </Tip>
+          <Tip text={removeLabel}>
+            <Button aria-label={removeLabel} intent="ghost" size="icon-sm" onClick={(): void => onCommit({ ...def, key: "" })}>
+              <Icon icon={Trash2} size="xs" />
+            </Button>
+          </Tip>
+        </Row>
       </Row>
       <Row gap="field" align="center" className="flex-wrap">
         <Badge tone="soft" size="sm">

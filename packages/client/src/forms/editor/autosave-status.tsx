@@ -31,7 +31,7 @@ export function AutosaveStatus({ state, onRetry, retryable = true }: AutosaveSta
     // A failed WRITE is urgent — assertive so a screen reader interrupts and announces it (role="alert"
     // = an implicit aria-live="assertive" live region; the retry stays a real focusable affordance).
     return (
-      <Row gap="field" align="center" data-slot="autosave-status" role="alert">
+      <Row className="flex-wrap" gap="field" align="center" data-slot="autosave-status" role="alert">
         <Icon tone="destructive" icon={AlertTriangle} size="sm" />
         <Text tone="destructive" voice="reading">
           {retryable ? "Save failed —" : "Save failed"}

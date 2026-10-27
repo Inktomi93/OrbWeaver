@@ -23,7 +23,12 @@ const REGIMES = [
   { name: "wide desktop", viewport: { width: 1440, height: 900 }, width: 960, touch: false, enlarged: false, inline: true },
 ] as const;
 
-async function prepare(caller: Caller, page: Page, subject: Subject, enlarged: boolean): Promise<ReturnType<typeof appearanceSettingsSchema.parse>> {
+async function prepare(
+  caller: Caller,
+  page: Page,
+  subject: Subject,
+  enlarged: boolean,
+): Promise<{ readonly appearance: ReturnType<typeof appearanceSettingsSchema.parse>; readonly calls: Awaited<ReturnType<typeof routeTrpc>> }> {
   const appearance = appearanceSettingsSchema.parse(enlarged ? { fontScale: ENLARGED_APPEARANCE_SETTINGS.fontScale } : {});
   await caller.settings.updateUserSettingsSection({ section: "appearance", patch: appearance });
   await caller.settings.updateUserSettingsSection({ section: "theme", patch: DEFAULT_USER_SETTINGS.theme });
@@ -50,7 +55,7 @@ async function prepare(caller: Caller, page: Page, subject: Subject, enlarged: b
       }),
     });
   }
-  await routeTrpc(
+  const calls = await routeTrpc(
     page,
     serveCorpusProcedures(caller, [
       ...SECTION_PROCEDURES,
@@ -61,9 +66,10 @@ async function prepare(caller: Caller, page: Page, subject: Subject, enlarged: b
       "rosterPreset.get",
       "automation.listRulePresets",
       "regex.listGlobal",
+      "regex.createScript",
     ]),
   );
-  return appearance;
+  return { appearance, calls };
 }
 
 async function expectBoundedContent(content: Locator, width: number): Promise<void> {
@@ -175,14 +181,89 @@ async function expectMemberHeader(content: Locator): Promise<void> {
   });
 }
 
+async function expectInlineCreationGeometry(content: Locator, form: Locator, controls: readonly [Locator, Locator, Locator]): Promise<void> {
+  const geometry = await actionGroupGeometry(form, controls);
+  const containment = await actionGroupGeometry(content, [form, ...controls]);
+  const fieldFloor = await resolvedLength(form.page(), "var(--width-field-floor)", form);
+  const targetFloor = await resolvedLength(form.page(), "var(--size-control-sm)", form);
+  await test.info().attach("open-inline-creation-geometry", {
+    body: JSON.stringify({ geometry, containment, fieldFloor, targetFloor }),
+    contentType: "application/json",
+  });
+  expect(geometry.inlineOverflow).toBeLessThanOrEqual(1);
+  expect(containment.inlineOverflow).toBeLessThanOrEqual(1);
+  expect(geometry.controls[0]?.width).toBeGreaterThanOrEqual(Math.min(fieldFloor, geometry.host.width));
+  for (const box of geometry.controls) {
+    expect(box.height).toBeGreaterThanOrEqual(targetFloor);
+  }
+  geometry.controls.forEach((box, index) => {
+    for (const sibling of geometry.controls.slice(index + 1)) {
+      expectSeparateBoxes(box, sibling);
+    }
+  });
+}
+
 for (const regime of REGIMES) {
   test.describe(regime.name, () => {
     test.use({ viewport: regime.viewport, hasTouch: regime.touch, isMobile: regime.touch });
 
+    test("open inline collection creation keeps a usable name field and explicit Create/Cancel actions", async ({ mount, page }) => {
+      await using root = await createCorpusHarness();
+      const caller = await root.internalCallerFor(root.ownerId);
+      const { appearance, calls } = await prepare(caller, page, "regex", regime.enlarged);
+      const before = await caller.regex.listScripts();
+      const maximum = createRegexScriptSchema.shape.name.maxLength;
+      if (maximum === null) {
+        throw new Error("The inline collection name must have its production schema boundary");
+      }
+      const name = `${"Inline creation qualification ".repeat(maximum).slice(0, maximum - 1)}x`;
+      await mount<typeof CollectionCompositionStory>(STORY, { group: "regex", width: regime.width, height: regime.viewport.height, appearance });
+      const content = page.locator('[data-slot="config-content"]');
+      await expectBoundedContent(content, regime.width);
+      const opener = content.getByRole("button", { name: "New script", exact: true });
+      await opener.focus();
+      await page.keyboard.press("Enter");
+      const form = content.getByRole("form", { name: "New script", exact: true });
+      const field = form.getByRole("textbox", { name: "Script name", exact: true });
+      const create = form.locator('button[type="submit"]');
+      const cancel = form.getByRole("button", { name: "Cancel", exact: true });
+      await expect(field).toBeFocused();
+      await expect(create).toHaveText("Create");
+      await expect(create).toBeDisabled();
+      await field.fill(name);
+      await expect(field).toHaveValue(name);
+      await expect(create).toBeEnabled();
+      await page.keyboard.press("Tab");
+      await expect(create).toBeFocused();
+      await page.keyboard.press("Tab");
+      await expect(cancel).toBeFocused();
+      await page.keyboard.press("Enter");
+      await expect(form).toBeHidden();
+      expect(calls.count("regex.createScript")).toBe(0);
+      expect(await caller.regex.listScripts()).toEqual(before);
+      await opener.focus();
+      await page.keyboard.press("Enter");
+      await expect(field).toBeFocused();
+      await expect(field).toHaveValue("");
+      await field.fill(name);
+      await expect(create).toBeEnabled();
+      await page.keyboard.press("Tab");
+      await expect(create).toBeFocused();
+      await expectInlineCreationGeometry(content, form, [field, create, cancel]);
+      await page.keyboard.press("Enter");
+      await expect(form).toBeHidden();
+      expect(calls.count("regex.createScript")).toBe(1);
+      expect(calls.lastInput("regex.createScript")?.input.name).toBe(name);
+      const previousIds = new Set(before.map((script) => script.id));
+      const after = await caller.regex.listScripts();
+      expect(after.filter((script) => !previousIds.has(script.id))).toMatchObject([{ name }]);
+      expect(after.filter((script) => previousIds.has(script.id))).toEqual(before);
+    });
+
     test("shared collection controls keep a usable filter and real bulk, create and import doors", async ({ mount, page }) => {
       await using root = await createCorpusHarness();
       const caller = await root.internalCallerFor(root.ownerId);
-      const appearance = await prepare(caller, page, "regex", regime.enlarged);
+      const { appearance } = await prepare(caller, page, "regex", regime.enlarged);
       await mount<typeof CollectionCompositionStory>(STORY, { group: "regex", width: regime.width, height: regime.viewport.height, appearance });
       const content = page.locator('[data-slot="config-content"]');
       await expectBoundedContent(content, regime.width);
@@ -211,7 +292,7 @@ for (const regime of REGIMES) {
     test("shared insight statements and long-name actions stay legible and open the real member", async ({ mount, page }) => {
       await using root = await createCorpusHarness();
       const caller = await root.internalCallerFor(root.ownerId);
-      const appearance = await prepare(caller, page, "regex", regime.enlarged);
+      const { appearance } = await prepare(caller, page, "regex", regime.enlarged);
       await mount<typeof CollectionCompositionStory>(STORY, { group: "regex", width: regime.width, height: regime.viewport.height, appearance });
       const content = page.locator('[data-slot="config-content"]');
       await expectBoundedContent(content, regime.width);
@@ -229,7 +310,7 @@ for (const regime of REGIMES.slice(0, 2)) {
       test(`${subject} adopts useful filtering and whole insight statements without losing its member door`, async ({ mount, page }) => {
         await using root = await createCorpusHarness();
         const caller = await root.internalCallerFor(root.ownerId);
-        const appearance = await prepare(caller, page, subject, regime.enlarged);
+        const { appearance } = await prepare(caller, page, subject, regime.enlarged);
         await mount<typeof CollectionCompositionStory>(STORY, { group: subject, width: regime.width, height: regime.viewport.height, appearance });
         const content = page.locator('[data-slot="config-content"]');
         await expectBoundedContent(content, regime.width);

@@ -13,7 +13,7 @@ import type { TrackName } from "./chat-track.tsx";
 import type { SwipeFoot } from "./pager-chrome.ts";
 import { SWIPE_FOOT_ECHO, SWIPE_FOOT_INSIDE, SWIPE_FOOT_TRAIN } from "./pager-chrome.ts";
 import type { ActionsRow, PinnedHeader } from "./row-edges.ts";
-import { ACTIONS_ONLY, ACTIONS_WITH_IDENTITY, PINNED_BAND, PINNED_CARD, PINNED_CHIP, PINNED_PILL } from "./row-edges.ts";
+import { ACTIONS_ONLY, ACTIONS_WITH_IDENTITY, PINNED_BAND, PINNED_CARD, PINNED_PILL } from "./row-edges.ts";
 
 /** How a row renders its identity art. `sticky-portrait` (Ripple) replaces the sibling avatar chip;
  *  `icon-left` keeps it, even for modes whose bubbleDecoration paints separate art. */
@@ -174,7 +174,7 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     bubbleLayout: "single",
     headerPlacement: "inside",
     swipeFoot: SWIPE_FOOT_INSIDE,
-    pinnedHeader: PINNED_CHIP,
+    pinnedHeader: PINNED_BAND,
     actionsRow: ACTIONS_ONLY,
     mirrorUser: false,
   },
