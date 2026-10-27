@@ -25,3 +25,5 @@ Existing UI and client laws, semantic ramps, plugin attribution and authoring co
 ## Test plan
 
 Use meaningful old-source failures for changed geometry or behavior, production-mounted Chromium and WebKit checks, applicable existing integration and E2E coverage, and independently scored same-profile rendered comparisons.
+
+The [coverage record](coverage.md) owns accepted comparisons, remaining findings and explicit limits. The task index is generated from linked work items.
