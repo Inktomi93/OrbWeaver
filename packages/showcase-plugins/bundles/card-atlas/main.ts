@@ -1920,7 +1920,7 @@ function pageStatus(source: SourceAdapter, q: string): string {
   const sortNote = session.sortKey === "relevance" ? "" : ` · ${SORT_LABELS[session.sortKey].toLowerCase()}`;
   const sfwNote = session.sfw ? " · SFW only" : "";
   if (session.pageRows.length === 0) {
-    return `Nothing from ${what}${note}${sfwNote}.`;
+    return `Nothing from ${what}${note}${sfwNote}. Try another search or adjust the filters.`;
   }
   return `${session.pageRows.length} from ${what}${note}${sortNote}${sfwNote}.`;
 }
@@ -2283,7 +2283,9 @@ function registerAtlasPage(sfwOn: boolean): void {
                 tilesFrom: { $state: "tiles" },
                 tileAction: "open_result",
                 aspect: "portrait",
-                empty: "Search to begin — the atlas covers nine community hubs.",
+                // Lifecycle guidance lives in the bound status above; an empty shelf must not claim
+                // the person has never searched when a hub has already failed or returned no matches.
+                empty: "No cards to show.",
                 // The LOADING third of the three-states law (#799). It is reachable at the static tier
                 // because every handler here already publishes BEFORE it floats its wire work (the
                 // settlement wall): that first publish sets this true, the continuation's sets it false.
@@ -2372,7 +2374,7 @@ if (canBrowse) {
     if (sfwOn) {
       registerAtlasPage(true);
     }
-    await publishBrowse("");
+    await publishBrowse("Search to begin — the atlas covers nine community hubs.");
   })().catch((err) => host.log.warn(`atlas boot failed: ${String(err)}`));
 }
 

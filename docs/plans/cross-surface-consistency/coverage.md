@@ -34,27 +34,70 @@ Main drives the private owner-data clone. Keep private content and images outsid
 - Insights retains every accounting caveat in each independently scrolling pane's existing disclosure.
 - Document retains its identity-free manuscript and quiet actions at rest. Its full-width pinned band closes partial-line masking in portrait and landscape.
 - Preset uses a naturally wrapping header above its existing tab strip. Native action/error cases and independent desktop, portrait and landscape comparisons pass.
+- Connections preserves its semantic heading, distinguishes missing credentials from keyless providers, and reflows narrow model identities. Independent portrait comparison accepts these repairs.
+- Echo and Whisper expose one image action per message. Actual decorative-art activation and canonical focus return pass independent portrait review.
+- Shared Tabs reveals the focused terminal cell and its complete focus ring without moving the editor vertically. Independent Preset comparison accepts the repair.
+- Tide retains its paragraph train and resting identity pill. Its pinned backing covers the reading strip; independent short-landscape comparison accepts the repair.
+- Refinery retains distinct named-session identity, routes Context to the existing Score control, and displays the pinned original with paragraph-local reading measures.
+- Databank preserves accessible identity, readable maintenance controls and literal source prose. Production-mounted checks and independent populated fixture comparisons pass.
+- Illustrated chat interiors preserve distinct art placement and pinned reading flow in portrait and short landscape. The captures establish positioned states, not continuous gesture behavior.
+- Atlas reports handled search failures without pristine-state instructions. Independent owner-clone desktop and portrait after-review accepts the guidance repair.
+- Shared configuration libraries and Refinery expose direct filter recovery. Actual Regex and populated-fixture Refinery comparisons accept the recovery controls.
 - The [action-group qualification](../../reviews/action-group-qualification.md) records completed candidate dispositions, native proof and explicit exclusions.
 
-## Remaining confirmed repairs
+## Repair acceptance still open
 
 | Owner | Finding | Required proof |
 | - | - | - |
-| Shared Tabs | Keyboard activation can leave the focused tab clipped by an outer horizontal scroll container | Native focus/reveal cases without unrelated page movement, plus actual Preset after-review |
-| Refinery identity | An unnamed session repeats the card identity in the phone shell and masthead | Preserve distinct named-session identity and accessible headings through production-shell cases |
-| Refinery Runs | The empty ledger duplicates the content scoring command | Navigate and focus the existing Score owner without running a model |
-| Refinery Original card | View clears a run selection instead of showing the pinned card | Read-only authored snapshot display, distinct from changed live content, with close/focus proof |
-| Refinery copy | A singular greeting uses plural wording | Use the actual greeting population with correct singular/plural wording |
+| Refinery conflict review | The conflict badge squeezes mandatory reconfirmation guidance into a narrow column | Preserve readable guidance, comparison panes and explicit decisions across content widths |
+| Insights identity | The selected character name repeats beneath the narrow shell title | Defer only redundant name paint while preserving desktop identity and accounting scope |
+| Plugin image presentation | The shared image leaf ignores the declared fixed aspect ratio | Honor existing ratio contracts for loaded and unavailable images without distorting assets or changing natural-ratio defaults |
+
+Refinery identity, original-viewer opening, Score navigation and viewer readability pass independent actual after-review. Singular greeting copy is source-qualified.
+
+Connections source review accepts the integrated implementation and matching Chromium/WebKit cases. The phone application capture preserves readable model identities and accurate credential guidance.
+
+Databank's old-source cases reproduce identity, maintenance and source-reading defects. The integrated repair passes compiler, Chromium, WebKit and independent source review. Populated desktop and portrait after-review accepts the repairs.
+
+Tags uses shared autosave feedback and inline merge confirmation. Native checks, source review and actual portrait confirmation review pass. Cancel preserves the editor and returns focus.
+
+Roster preserves explicit submission. Successful saves acknowledge the returned row without discarding newer edits; external-conflict cases remain protected.
+
+## Active-state evidence limits
+
+Atlas search reaches handled upstream failure on desktop and portrait. Repaired guidance passes independent review. Successful remote details use supplementary production-mounted guest evidence, not owner-data success.
+
+Supplementary corpus captures provide populated Databank, dossier and settled Refinery comparisons. They use the production application with fixture data, not the owner's population.
+
+Deck's local draw and reveal pass independent desktop and portrait comparison on the private clone. No retirement or external model action is included.
+
+Narrow plugin Context, the sidecar menu and sheet, and the saved-roster picker pass their pictured comparisons. Closed sidecar presentation is intentional, not missing plugin content.
+
+Insights character and cost readouts preserve explicit accounting scope. Duplicate narrow identity remains assigned; accounting calculations are outside visual acceptance.
+
+Album population uses the real guest, storage and image pipeline with a local scripted provider. The low-resolution fixture image does not establish generation quality. Gallery and return controls are accepted; declared image-ratio handling remains assigned.
 
 ## Verification discipline
 
+- Run full application and tooling tests, Chromium component tests, supported WebKit cases, E2E, TypeScript, Biome, ESLint and Stylelint on frozen integrated source.
+- Record each completed command and its execution population. `pnpm test` excludes tooling; include `pnpm test:tools` separately.
 - Freeze checkout writes before native runners.
 - Distinguish fixture failures, instrument refusals and demonstrated product failures.
 - Reuse passing evidence while source, fixture and execution scope remain unchanged.
 - Complete independent source and rendered review for repaired families.
 - Keep the broader goal open until every required family and state has an explicit disposition.
 
+Full Stylelint passes for the current package CSS population. Full integrated tests, E2E, TypeScript, Biome and ESLint remain pending the source freeze.
+
 Autosaving editors use Close, Done or Back. Cancel abandons unsubmitted input; it does not promise rollback of saved work.
+
+## Primary-surface deep pass
+
+After integrated verification, review Characters and Chat as complete primary workflows. Inspect List, Content and Context, every tab and nested item.
+
+Compare desktop with applicable side panels, coarse portrait and short landscape with enabled plugins. Judge hierarchy, density, action placement, discoverability and reading comfort, not containment alone.
+
+Reuse accepted evidence only for matching states. Record the complete navigation inventory, review dispositions and remaining gaps. Repair shared owners and inconsistent adoption together.
 
 ## Evidence homes
 

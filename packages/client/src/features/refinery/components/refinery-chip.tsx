@@ -27,13 +27,15 @@ const TONE_INTENT: Record<RefineryChipTone, NonNullable<ComponentProps<typeof Ba
 
 export interface RefineryChipProps {
   readonly tone?: RefineryChipTone;
+  /** Keep a full status sentence inside its row by wrapping at word boundaries. */
+  readonly wrap?: boolean;
   readonly children: ReactNode;
 }
 
-export function RefineryChip({ tone = "neutral", children }: RefineryChipProps): ReactElement {
+export function RefineryChip({ tone = "neutral", wrap = false, children }: RefineryChipProps): ReactElement {
   // The kicker voice carries the micro-caps grammar; `ink="inherit"` takes the intent's paired ink.
   return (
-    <Badge data-testid={testId("refineryChip")} intent={TONE_INTENT[tone]} size="compact">
+    <Badge className={wrap ? "whitespace-normal max-inline-full" : undefined} data-testid={testId("refineryChip")} intent={TONE_INTENT[tone]} size="compact">
       <Text as="span" data-hint-tone={tone} ink="inherit" voice="kicker">
         {children}
       </Text>
