@@ -2235,8 +2235,8 @@ function registerAtlasPage(sfwOn: boolean): void {
                   { kind: "textField", name: "exclude_tags", label: "Exclude tags", placeholder: "horror, ai-art — any one hides a card" },
                 ],
               },
-              // The three subordinate controls, ALWAYS VISIBLE beside each other — a source switcher
-              // collapsed under a disclosure under-served the primary browse decision. All are LIVE
+              // Keep the browse controls visible; the host can reflow whole controls when space is constrained.
+              // A disclosure would hide the primary source decision. All are LIVE
               // (`actionId`): picking a hub, a sort or flipping the SFW filter re-runs the search
               // immediately, never sits inert behind Search. The Sort menu is BOUND (`optionsFrom` — the
               // hub-v1.3 arm): each hub publishes ITS OWN honored orderings, so the select never advertises

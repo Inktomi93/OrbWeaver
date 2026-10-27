@@ -19,7 +19,7 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { QueryBoundary, SettingSwitchRow, UtilityModelDoor, useUtilityModel } from "#components";
+import { QueryBoundary, SettingRowGroup, SettingSwitchRow, SettingTrackRow, UtilityModelDoor, useUtilityModel } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import { MEMORY_COST_SENTENCE } from "#lib";
@@ -65,18 +65,22 @@ function MemorySettingsBody({ anchorId, sectionId }: { readonly anchorId: string
       <Stack gap="field">
         {/* TURNING IT ON ASKS FIRST; turning it off does not. On is the switch that spends: it is where the cost,
             the model that pays and the fate of existing chats are said, and where the backfill is offered. */}
-        <SettingSwitchRow
-          label="Remember earlier in long chats"
-          description={`One switch for your account, covering every chat you host. Once a chat grows past its most recent messages, your Utility model summarizes the older parts and the assistant recalls those summaries later, so it stays consistent across a long thread. ${MEMORY_COST_SENTENCE}`}
-          checked={enabled}
-          onChange={(next): void => {
-            if (next) {
-              setConfirmingOn(true);
-              return;
-            }
-            setEnabled.mutate({ section: "memory", patch: { enabled: false } });
-          }}
-        />
+        <SettingRowGroup>
+          <SettingTrackRow>
+            <SettingSwitchRow
+              label="Remember earlier in long chats"
+              description={`One switch for your account, covering every chat you host. Once a chat grows past its most recent messages, your Utility model summarizes the older parts and the assistant recalls those summaries later, so it stays consistent across a long thread. ${MEMORY_COST_SENTENCE}`}
+              checked={enabled}
+              onChange={(next): void => {
+                if (next) {
+                  setConfirmingOn(true);
+                  return;
+                }
+                setEnabled.mutate({ section: "memory", patch: { enabled: false } });
+              }}
+            />
+          </SettingTrackRow>
+        </SettingRowGroup>
         <MemoryOnConfirm
           open={confirmingOn}
           onOpenChange={setConfirmingOn}
@@ -87,16 +91,9 @@ function MemorySettingsBody({ anchorId, sectionId }: { readonly anchorId: string
             }
           }}
         />
-        {/* THE NOTE IS PROSE, IN THE ROW'S OWN COLUMN (side-eye 2026-08-08 P2). It shipped at the `gloss`
-            voice's bare `text-micro` (10.5px, tight leading) and ran the FULL section width (~140ch), while
-            the switch description one line above it — the same kind of teaching sentence — sits at
-            `text-label` (13px) inside the Field's label column (~95ch). Two voices and two measures for one
-            explanation, with the SMALLER type carrying the harder fact. `prose` is the sanctioned length
-            modifier (it lifts the step + leading and changes nothing else), and the end padding reserves the
-            same gutter the Field's control column takes, so both paragraphs break on the same column. */}
-        <Stack className="pe-(--width-control-col) @max-cq-28:pe-0" gap="field">
+        <Stack gap="field">
           <MemoryUtilityStatus enabled={enabled} />
-          <Text voice="gloss" prose={true}>
+          <Text voice="gloss" prose={true} className="max-inline-(--reading-measure-prose)">
             {`${MEMORY_EXISTING_CHATS_NOTE} To build every chat now, run the Memory backfill job.`}
           </Text>
           {/* A cross-SURFACE pointer is a DOOR, not a sentence (side-eye 2026-08-08 P3): "run it under
@@ -123,7 +120,7 @@ function MemoryUtilityStatus({ enabled }: { readonly enabled: boolean }): ReactE
   }
   if (utility.kind === "ready") {
     return (
-      <Text data-slot="memory-utility-status" prose={true} voice="gloss">
+      <Text data-slot="memory-utility-status" prose={true} className="max-inline-(--reading-measure-prose)" voice="gloss">
         {enabled ? `Summaries run on your Utility model, ${utility.label}.` : "Memory is off for your account, so no chat is summarized."}
       </Text>
     );
@@ -131,7 +128,7 @@ function MemoryUtilityStatus({ enabled }: { readonly enabled: boolean }): ReactE
   const reason = utility.kind === "unset" ? "no Utility model is set" : `your Utility model is set but not running: ${utility.cause}`;
   return (
     <Row align="center" className="flex-wrap" data-slot="memory-utility-status" gap="field">
-      <Text prose={true} voice="gloss">
+      <Text prose={true} className="max-inline-(--reading-measure-prose)" voice="gloss">
         {enabled ? `Summaries are paused: ${reason}.` : `Memory also needs a Utility model, and ${reason}.`}
       </Text>
       <UtilityModelDoor />

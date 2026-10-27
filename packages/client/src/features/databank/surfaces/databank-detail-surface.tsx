@@ -86,8 +86,7 @@ export function DatabankDetailSurface(): ReactElement {
 const PICK_A_DOCUMENT = "Pick a document from the list to see what was extracted, how much of it is indexed, and where it fires.";
 
 /** The empty bank's landing: what the Databank is, and the ONE Add it points at — no button of its own. */
-const EMPTY_BANK_DESCRIPTION =
-  "Your databank holds reference documents. Each one is split into passages and indexed, so the relevant ones can be pulled into your chats. Add a document to begin.";
+const EMPTY_BANK_DESCRIPTION = "Add a document from the library to see its extracted text, indexing status, and activation here.";
 /** …and with the LIST off screen, the shell control that brings the one Add back. */
 const EMPTY_BANK_COLLAPSED =
   "Your databank holds reference documents, indexed so the relevant ones can be pulled into your chats. Show list panel in the top bar opens the library, where a document gets added.";

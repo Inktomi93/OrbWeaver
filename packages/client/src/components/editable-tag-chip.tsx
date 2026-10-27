@@ -73,7 +73,14 @@ export function EditableTagChip({
         ref={triggerRef}
         render={
           trigger === undefined ? (
-            <Button className="max-inline-full min-inline-0" aria-label={editTitle} intent="ghost" size={iconOnly ? "icon-sm" : "chip"} type="button">
+            <Button
+              className="max-inline-full min-inline-0"
+              aria-label={editTitle}
+              intent="ghost"
+              size={iconOnly ? "icon-sm" : "chip"}
+              touchFloor="inline"
+              type="button"
+            >
               {iconOnly ? (
                 <Icon icon={Pencil} size="xs" />
               ) : (

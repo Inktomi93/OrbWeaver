@@ -47,6 +47,7 @@ export function CreateScheduleDialog({ open, onOpenChange, viewerIsOwner }: Crea
   return (
     <FormDialog
       description="Runs a background job on a recurring cadence. Each run queues automatically and shows in the Jobs list."
+      dismissLabel="Cancel"
       onOpenChange={onOpenChange}
       open={open}
       testKey="createScheduleDialog"
@@ -61,6 +62,7 @@ export function EditScheduleDialog({ open, onOpenChange, viewerIsOwner, schedule
   return (
     <FormDialog
       description="Retune this recurring job: change what it runs, its cadence, or (owner) its scope. Enable and pause stay on the row switch."
+      dismissLabel="Cancel"
       onOpenChange={onOpenChange}
       open={open}
       testKey="editScheduleDialog"

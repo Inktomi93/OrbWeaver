@@ -309,6 +309,8 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/plugin/lib/extensions-copy.ts": "EXTENSIONS_GONE_TITLE: the vanished page's title",
   "packages/client/src/features/plugin/lib/plugin-copy.ts":
     "approveLabel and CHAT_PANEL_HIDE_LABEL: production action names required by the no-copied-label contract",
+  "packages/client/src/features/plugin/lib/plugin-model-copy.ts":
+    "PLUGIN_MODEL_HEADING: the production model disclosure name used by plugin presentation assertions",
   "packages/client/src/features/plugin/lib/plugin-panel-copy.ts":
     "CHAT_PLUGINS_* and movePluginPanelLabel: production panel navigation, empty-state and placement action names",
   "packages/client/src/features/tag/lib/tag-list-name.ts": "TAG_LIST_NAME: the Labels finder's tag list name",
@@ -491,6 +493,16 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/lib/row-qualifiers.ts": "viewImageActionName: the portrait viewer opener accessible name",
     "packages/client/src/features/chat/lib/message-action-names.ts": "MESSAGE_EDIT_NAME: the row edit action and editor accessible name",
     "packages/client/src/features/chat/lib/message-row-variants.ts": "MESSAGE_ROW_SKINS: the skin rows each chat style's measured paint is held to",
+  },
+  "tests/client/features/chat/components/platform-appearance-chat-style-picker.suite.ct.tsx": {
+    "packages/client/src/features/chat/lib/message-row-variants.ts": "MESSAGE_ROW_SKINS: the production identity policy the picker diagram must represent",
+  },
+  "tests/client/features/workloads/components/platform-schedule-dialog-dismissal.suite.ct.tsx": {
+    "packages/client/src/features/workloads/lib/workloads-schedule-model.ts":
+      "SCHEDULE_CADENCE_LABELS: the production cadence names used to edit and reopen schedules",
+  },
+  "tests/client/features/refinery/components/platform-action-groups.suite.ct.tsx": {
+    "packages/client/src/features/refinery/lib/reason-copy.ts": "DROP_REASON_COPY: production queue refusal text used by rendered action-group assertions",
   },
   "tests/client/features/discovery/lib/corpus-duplicate-groups.test.ts": {
     "packages/client/src/features/discovery/lib/corpus-duplicate-groups.ts": "groupIdenticalArt: the feature-private duplicate grouping",

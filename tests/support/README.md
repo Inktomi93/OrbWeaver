@@ -90,6 +90,9 @@ Follow the [native gallery contract](../../docs/law/Spine-Testing.md#7-client--b
 
 1. Put the browser composition in a named export of a `*-stories.tsx` module beside the test.
 2. Mount client features through the existing production-backed providers. Name justified primitive or registry isolation explicitly for review.
+
+   An isolated component that needs root-carried appearance values may explicitly wrap its content in `CtAppearanceChannels`.
+   It runs the production channel writer and cleanup over schema defaults plus the named overrides; it does not replace AppShell or test appearance persistence.
 3. Import the story with `import type` in the spec.
 4. Call native `mount<typeof Story>(exactStoryId, dataProps)`. Keep callbacks and state inside the browser story.
 5. Register network handlers and initialization scripts before mounting. Use configured `baseURL` before the first navigation.

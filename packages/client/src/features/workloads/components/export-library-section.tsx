@@ -43,8 +43,8 @@ export function ExportLibrarySection(): ReactElement {
   };
 
   return (
-    <Stack gap="block">
-      <Text tone="muted">
+    <Stack className="max-inline-(--reading-measure)" gap="block">
+      <Text className="max-inline-(--reading-measure-prose)" tone="muted">
         Download a zip of your library to back it up or move it to another Orbweaver. Media (avatars, gallery, generated images) always travels with it.
       </Text>
       <Fieldset>
@@ -77,7 +77,7 @@ export function ExportLibrarySection(): ReactElement {
           ))}
         </SettingRowGroup>
       </Fieldset>
-      <Row justify="end">
+      <Row justify="start">
         <Button intent="primary" disabled={selected.size === 0} onClick={download} data-testid={testId("backupExportButton")}>
           <Icon icon={Download} size="sm" />
           Download my library

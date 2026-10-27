@@ -434,3 +434,11 @@ export function showInChatLabel(pluginName: string): string {
   return `Show the ${pluginName} panel in chat`;
 }
 export const PLUGIN_PANELS_SHEET_LABEL = "Sidecar panels";
+
+/** The settled install's management disclosure. */
+export const PLUGIN_DETAILS_LABEL = "Plugin details";
+
+/** The per-install management disclosure's disambiguated accessible name. */
+export function pluginDetailsLabel(pluginName: string): string {
+  return `${PLUGIN_DETAILS_LABEL} — ${pluginName}`;
+}

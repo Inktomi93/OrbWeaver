@@ -42,7 +42,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import { Card } from "@orb/ui/card";
 import type { LucideIcon } from "@orb/ui/icons";
 import { ChartColumn, ChevronRight, Gauge, Icon, Pencil } from "@orb/ui/icons";
-import { Grid, Row, Stack } from "@orb/ui/layout";
+import { Grid, Row, Section, Stack } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
 import { LENGTH_BASE_PX } from "@orb/ui/tokens";
 import type { ReactElement, ReactNode } from "react";
@@ -143,43 +143,31 @@ export function TeachingState({ onStart, starting, resume }: TeachingStateProps)
           />
         </Stack>
       </Card>
-      {/* EQUAL BASES, NOT A WRAPPING FLEX ROW (side-eye 2026-08-19 P2). The wrap fixed the clipping this
-          block's previous note describes — at the 358px phone pane the row rendered 448px wide and hung off
-          both edges — but content-sized cells inside it drew the three steps of ONE pipeline as a staircase
-          (measured 279/384/482px), so the step with the longest sentence read as the biggest one. A
-          three-track grid gives each step exactly a third and stacks to ONE column below the container step
-          (`gridVariants.triple`), which is the same "reflows to one column on a phone" this file's header
-          promises — now expressed as tracks rather than as slack.
-          The MECHANISM the wrap fix minted is preserved, not reverted: each chevron still lives inside its
-          own step's unit (see below), which is what kept it from orphaning. What changed is the ARM — the
-          reflow is a track count now, so there is no wrap point for a chevron to strand at in the first
-          place. */}
-      <Grid className="inline-full max-inline-(--reading-measure)" cols="triple" data-testid={testId("refineryTeachingSteps")} gap="tight">
-        {STEPS.map((step, index) => (
-          // EACH CHEVRON+CARD IS ONE UNIT (side-eye 2026-08-09 P2, preserved). The chevron is a child of
-          // its OWN step, never a free child of the steps row — that is what stopped it stranding at the
-          // end of a line pointing at nothing when the next cell reflowed away from it. It holds here for
-          // the stacked arm too: a step and its chevron are one grid cell, so they move together by
-          // construction.
-          <Row align="center" gap="tight" key={step.name}>
-            {/* ROTATED WHERE THE FLOW IS (side-eye 2026-08-19): stacked, the sequence runs DOWNWARD and a
+      <Section className="inline-full max-inline-(--reading-measure)" kicker="How it works">
+        {/* Equal tracks keep the longest explanation from becoming the dominant step. */}
+        <Grid cols="triple" data-testid={testId("refineryTeachingSteps")} gap="block">
+          {STEPS.map((step, index) => (
+            // Each chevron travels with its own step when the grid stacks.
+            <Row align="center" gap="tight" key={step.name}>
+              {/* ROTATED WHERE THE FLOW IS (side-eye 2026-08-19): stacked, the sequence runs DOWNWARD and a
                 right-pointing chevron between two cells points at the pane's edge. `rotate-90` turns the
                 same decoration to face the way the eye actually travels; above the step it is horizontal
                 again. It is decoration either way (`Icon` with no `label` is `aria-hidden`), so nothing
                 about the announced order changes — that is DOM order, which is the real sequence. */}
-            {index === 0 ? null : <Icon className="rotate-90 @cq-28:rotate-0" icon={ChevronRight} size="sm" />}
-            <Card className="flex-1 block-full">
-              <Stack gap="tight" padding="block">
+              {index === 0 ? null : <Icon className="rotate-90 @cq-28:rotate-0" icon={ChevronRight} size="sm" />}
+              <Stack className="flex-1 block-full" gap="tight">
                 <Row align="center" gap="tight">
                   <Icon icon={step.glyph} size="sm" />
                   <Text voice="label">{step.name}</Text>
                 </Row>
-                <Text voice="gloss">{step.detail}</Text>
+                <Text prose={true} voice="gloss">
+                  {step.detail}
+                </Text>
               </Stack>
-            </Card>
-          </Row>
-        ))}
-      </Grid>
+            </Row>
+          ))}
+        </Grid>
+      </Section>
     </Stack>
   );
 }

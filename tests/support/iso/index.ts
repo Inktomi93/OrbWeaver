@@ -1,5 +1,6 @@
 // The iso door: pure helpers every world may import.
 
+export { ENLARGED_APPEARANCE_SETTINGS } from "./appearance.ts";
 export type { BusPayloadFailure, EconomicsField } from "./bus-payload-policy.ts";
 export type { BeltMismatch, BeltMismatchOf, BusName, SubUnionEscape } from "./bus-registry.ts";
 export { createFrozenClock, FROZEN_AT_MS } from "./clock.ts";

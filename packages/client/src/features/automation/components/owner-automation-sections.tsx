@@ -72,7 +72,7 @@ function OwnerBudgetBody(): ReactElement {
 
   return (
     <Stack gap="block">
-      <Text voice="gloss">
+      <Text voice="gloss" prose={true} className="max-inline-(--reading-measure-prose)">
         A safety limit across all of your library-wide rules together, so a rule that starts repeating cannot keep spending. Each rule also has its own per-hour
         limit.
       </Text>
@@ -80,32 +80,34 @@ function OwnerBudgetBody(): ReactElement {
           already NAMED by the Field's own label (and described by its description), so a second name here
           would override the association rather than add to it — the house convention every other numeric
           knob in settings follows. */}
-      <Field label="Runs per hour" orientation="vertical" description="Across every library-wide rule you have.">
-        <NumberField
-          min={OWNER_CAP_MIN}
-          max={OWNER_CAP_MAX}
-          value={value}
-          // Display only — the in-progress edit, clamped for the field but NEVER persisted here (that is the
-          // mid-type guarantee: typing `5` en route to `50` moves the draft, not the belt).
-          onValueChange={(next): void => setDraft(next === null ? null : clamp(next))}
-          // The commit: fires on blur, on Enter (see `onKeyDown`), and on stepper/scrub release with the
-          // FINAL value. Empty reverts to the current ceiling; only a real change writes.
-          onValueCommitted={(next): void => {
-            const settled = next === null ? budget.maxFiresPerHour : clamp(next);
-            setDraft(null);
-            if (settled !== budget.maxFiresPerHour) {
-              save.mutate({ maxFiresPerHour: settled });
-            }
-          }}
-          // Enter is a NAVIGATE key for Base UI's NumberField (it does not commit on its own), so blur the
-          // input to route Enter through the same single commit path as clicking away.
-          onKeyDown={(event): void => {
-            if (event.key === "Enter" && event.target instanceof HTMLElement) {
-              event.target.blur();
-            }
-          }}
-        />
-      </Field>
+      <Stack className="max-inline-(--width-control-col)">
+        <Field label="Runs per hour" orientation="vertical" description="Across every library-wide rule you have.">
+          <NumberField
+            min={OWNER_CAP_MIN}
+            max={OWNER_CAP_MAX}
+            value={value}
+            // Display only — the in-progress edit, clamped for the field but NEVER persisted here (that is the
+            // mid-type guarantee: typing `5` en route to `50` moves the draft, not the belt).
+            onValueChange={(next): void => setDraft(next === null ? null : clamp(next))}
+            // The commit: fires on blur, on Enter (see `onKeyDown`), and on stepper/scrub release with the
+            // FINAL value. Empty reverts to the current ceiling; only a real change writes.
+            onValueCommitted={(next): void => {
+              const settled = next === null ? budget.maxFiresPerHour : clamp(next);
+              setDraft(null);
+              if (settled !== budget.maxFiresPerHour) {
+                save.mutate({ maxFiresPerHour: settled });
+              }
+            }}
+            // Enter is a NAVIGATE key for Base UI's NumberField (it does not commit on its own), so blur the
+            // input to route Enter through the same single commit path as clicking away.
+            onKeyDown={(event): void => {
+              if (event.key === "Enter" && event.target instanceof HTMLElement) {
+                event.target.blur();
+              }
+            }}
+          />
+        </Field>
+      </Stack>
     </Stack>
   );
 }
@@ -136,7 +138,7 @@ function OwnerRulesBody(): ReactElement {
           the library, not a room. */}
       <Text voice="gloss">These rules watch your library and act on their own — no chat has to be open.</Text>
       {rules.length === 0 ? (
-        <Text voice="gloss">
+        <Text voice="gloss" prose={true} className="max-inline-(--reading-measure-prose)">
           Nothing is watching your library yet. Add a rule — illustrate a character when its card changes, for instance — and it starts off until you enable it.
         </Text>
       ) : null}

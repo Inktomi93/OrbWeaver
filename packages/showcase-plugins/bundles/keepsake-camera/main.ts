@@ -471,7 +471,7 @@ if (canShoot) {
               {
                 kind: "text",
                 value:
-                  "The camera paints a moment from your scene into a postcard, then keeps it here. Open a chat and choose Plugin commands → Keepsake Camera → Run snapshot, or type /plugin keepsake-camera snapshot. The album cannot take a picture outside a chat.",
+                  "The camera paints a moment from your scene into a postcard, then keeps it here. Open a chat and choose Message tools → Keepsake Camera → Snapshot, or type /plugin keepsake-camera snapshot. The album cannot take a picture outside a chat.",
               },
               {
                 kind: "grid",

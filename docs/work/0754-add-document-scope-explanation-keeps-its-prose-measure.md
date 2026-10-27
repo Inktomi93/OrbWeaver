@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
-updated: 2026-10-05
+status: doing
+updated: 2026-10-27
 priority: P3
 area: ui
+lane: snap_defaults
 ---
 
 # Add-document scope explanation keeps its prose measure

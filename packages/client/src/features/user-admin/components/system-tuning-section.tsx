@@ -12,7 +12,7 @@ import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { QueryBoundary, useFirstBootBox } from "#components";
+import { QueryBoundary, SettingRowGroup, useFirstBootBox } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
@@ -102,7 +102,7 @@ function toDraft(resolved: EffectiveAppConfig): Draft {
 
 /** The section's own suspense/error boundary so it is self-contained. */
 export function SystemTuningSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
-  const firstBootBox = useFirstBootBox({ wide: 7, narrow: 13 });
+  const firstBootBox = useFirstBootBox({ wide: 12, narrow: 15 });
   return (
     // RESERVED (#1098) — the other of the two LONGEST admin knob stacks.
     <QueryBoundary
@@ -166,30 +166,32 @@ function SystemTuningBody({ anchorId, sectionId }: { readonly anchorId: string; 
   return (
     <Section divider={true} heading={SYSTEM_TUNING_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="field">
-        <Text voice="label" tone="muted">
+        <Text voice="label" tone="muted" prose={true} className="max-inline-(--reading-measure-prose)">
           Deployment-wide runtime tuning. Each applies live (per request / batch / check). Absent knobs run on the deployment floor.
         </Text>
-        {KNOBS.map((knob) => (
-          <AdminOverrideField
-            key={knob.id}
-            label={knob.label}
-            hint={knob.hint}
-            value={draft[knob.id] ?? ""}
-            onChange={(next): void => setDraft((d) => ({ ...d, [knob.id]: next }))}
-            overridden={knob.overridden(overrides)}
-            // `resolved` is floor ⊕ override — the FLOOR only while this knob has no stored override. Once it
-            // has one the floor is unrecoverable from this read, so the row points at Reset instead of naming
-            // the override as its own default (SET-SEAMS §4).
-            floorValue={envFloor(knob.overridden(overrides), knob.read(resolved))}
-            min={knob.min}
-            {...(knob.max === undefined ? {} : { max: knob.max })}
-            step={knob.step}
-          />
-        ))}
+        <SettingRowGroup>
+          {KNOBS.map((knob) => (
+            <AdminOverrideField
+              key={knob.id}
+              label={knob.label}
+              hint={knob.hint}
+              value={draft[knob.id] ?? ""}
+              onChange={(next): void => setDraft((d) => ({ ...d, [knob.id]: next }))}
+              overridden={knob.overridden(overrides)}
+              // `resolved` is floor ⊕ override — the FLOOR only while this knob has no stored override. Once it
+              // has one the floor is unrecoverable from this read, so the row points at Reset instead of naming
+              // the override as its own default (SET-SEAMS §4).
+              floorValue={envFloor(knob.overridden(overrides), knob.read(resolved))}
+              min={knob.min}
+              {...(knob.max === undefined ? {} : { max: knob.max })}
+              step={knob.step}
+            />
+          ))}
+        </SettingRowGroup>
         {/* The prompt-cache knob's clamp, ALWAYS visible (the D126 teaching-copy rider): a `hint` is
             hover-only chrome, and "the number I typed is not the number in use" is exactly the surprise a
             tooltip cannot carry. */}
-        <Text voice="gloss">
+        <Text voice="gloss" prose={true} className="max-inline-(--reading-measure-prose)">
           The prompt-cache depth floor only ever moves the cache breakpoint DEEPER. Each turn already computes the shallowest depth that is safe for it, and
           keeps that when it is deeper than this number — so a smaller value here changes nothing, and a turn whose prompt is still shifting is never cached at
           all. Raise it if you see cache writes on turns that should have been reads.

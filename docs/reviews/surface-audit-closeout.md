@@ -2,7 +2,7 @@
 
 ## Verdict
 
-The bounded surface audit is complete. Confirmed defects remain open on the work board. This report does not accept affected flows for release.
+The bounded surface audit is complete. The [repair report](surface-consistency-repair.md) owns current dispositions, production owners and completed checks. This audit report does not accept affected flows for release.
 
 The recurring problem is composition, not a demonstrated need to replace the ramps. Legal components still produce detached controls, excessive chrome and inappropriate paragraph treatment.
 
@@ -25,20 +25,22 @@ Portrait uses explicit schema defaults and no reference theme. Landscape uses ex
 
 The independent image review uses the existing H8 scale. Ordinary settings tracks, editors and plugin page bodies generally score 3. Detached forms and dense plugin management score 2. Atlas scores 2 in portrait and 3 at wider sizes. These are focused aesthetic judgments, not full heuristic totals.
 
-## Open repairs
+## Audit findings and repair outcomes
 
-| Work item | Confirmed outcome |
+These findings describe the audit reference, not unresolved defects in the repaired source. Use the [repair evidence](surface-consistency-repair.md#outcome-owners-and-evidence) for current acceptance.
+
+| Outcome | Confirmed audit finding |
 | - | - |
-| 1377 | Correct displayed grouped and attached populations |
-| 1378 | Preserve parent-book identity with Context closed |
-| 1379 | Bound authoring controls and paragraphs using their existing semantic layout owners |
-| 1380 | Reduce character-tag visual dominance without shrinking coarse targets |
-| 1381 | Correct repeated empty guidance and action-like readonly teaching |
-| 1387 | Keep plugin row controls inside narrow hosts |
-| 1388 | Give schedule dialogs a visible dismissal action |
-| 1389 | Point Album guidance to the actual Snapshot command |
-| 1390 | Reduce repeated installed-plugin management chrome |
-| 1391 | Make the Document picker diagram match actual mode identity |
+| Displayed populations | Grouped and attached labels use different populations from their displayed values |
+| World Info parent identity | Selected entry loses parent-book identity with Context closed |
+| Authoring composition | Local forms and paragraphs do not consistently use their governed measures |
+| Character-tag hierarchy | Tag metadata dominates authored content |
+| Empty and instructional hierarchy | Repeated Databank guidance and action-like Refinery teaching compete with actual actions |
+| Plugin row containment | Whole controls escape narrow plugin hosts |
+| Visible schedule dismissal | Create/Edit dialogs lack visible dismissal actions |
+| Album command guidance | Instructions name a menu that cannot reach the placed Snapshot command |
+| Plugin management chrome | Repeated management controls and nested settings cards add unnecessary chrome |
+| Document picker identity | Diagram displays identity cues that production Document intentionally omits |
 
 The schedule, Album and narrow plugin-row findings are P2. The plugin management and picker-diagram findings are P3.
 
@@ -63,6 +65,25 @@ The Document preview draws identities that the actual mode deliberately hides. C
 | Visual hierarchy and repeated teaching | Image review with the scoring guide; static acceptance alone cannot establish suitability |
 
 Regression tests must mount production components through the testkit. Do not maintain a second implementation or accept the current appearance as an unexplained baseline.
+
+## Repair acceptance
+
+Repair the existing component owners and their callers. Do not add per-surface appearance settings or change global ramps to compensate for local composition defects.
+
+Use the [testkit contract](../../tests/support/README.md) and [layer ownership table](../plans/test-foundation/design.md#layer-ownership-and-overlap) before adding coverage.
+
+| Behavior | Primary proof |
+| - | - |
+| Control containment, alignment, visible dismissal, identity and displayed populations | Production-mounted component tests with meaningful positive controls |
+| Unchanged persistence, authorization and settings merge behavior | Reuse maintained integration coverage; add cases only for an uncovered changed contract |
+| Cross-surface navigation and persisted browser journeys | Existing corpus E2E where applicable and focused live driving |
+| Density, hierarchy and paragraph suitability | Scored images of actual affected surfaces; no class-string snapshots |
+
+Write regression cases before product changes. Confirm their intended failure against unchanged production, then run the repaired cases. A setup failure is not that proof.
+
+Use explicit production appearance defaults for the reference state. Run affected components on Chromium and the installed Playwright WebKit. Include desktop, narrow hosts and coarse portrait/landscape cases where layout or touch matters.
+
+The [repair report](surface-consistency-repair.md) owns case decisions and execution evidence. The [bounded action-group extension](surface-consistency-repair.md#bounded-action-group-extension) retains unresolved census candidates separately. Keep one primary test home per failure mode and preserve unsupported or untested claims explicitly.
 
 ## Limits and rejected findings
 

@@ -1,5 +1,6 @@
 // The story door: production-backed providers, the registry door and isolation helpers a mounted story imports in the browser.
 
+export { CtAppearanceChannels } from "./ct-appearance-channels.tsx";
 export { CtAppDataProviders, CtClientProviders, CtConfigGroupBody } from "./ct-data-providers.tsx";
 export {
   AppDataProviders,

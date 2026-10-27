@@ -3,6 +3,7 @@ import { SkeletonRows } from "@orb/client/data";
 import { pluginPageKey, selectPluginPageFromList, useSectionRegistry } from "@orb/client/state";
 import type { PluginId } from "@orb/kit/ids";
 import { CtClientProviders } from "@orb/testkit/browser";
+import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useEffect } from "react";
 
@@ -31,6 +32,27 @@ export function PluginProtocolStory({
   return (
     <CtClientProviders key={runtimeEpoch}>
       <NativePluginPage pluginId={pluginId} surfaceId={surfaceId} />
+    </CtClientProviders>
+  );
+}
+
+/** A constrained, overflow-visible host around the actual Extensions content contribution. */
+export function PluginPresentationPageStory({
+  pluginId,
+  surfaceId,
+  width,
+}: {
+  readonly pluginId: PluginId;
+  readonly surfaceId: string;
+  readonly width: number;
+}): ReactElement {
+  return (
+    <CtClientProviders>
+      <div style={{ width, height: 844, display: "flex", overflow: "visible" }}>
+        <Stack className="flex-1 min-block-0 min-inline-0">
+          <NativePluginPage pluginId={pluginId} surfaceId={surfaceId} />
+        </Stack>
+      </div>
     </CtClientProviders>
   );
 }

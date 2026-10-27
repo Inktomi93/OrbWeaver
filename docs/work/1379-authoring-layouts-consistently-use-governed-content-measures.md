@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
-updated: 2026-10-26
+status: doing
+updated: 2026-10-27
 priority: P3
 area: client
+lane: reading_geometry
 ---
 
 # Authoring layouts consistently use governed content measures
@@ -32,6 +33,16 @@ Keep short status text compact. Preserve always-visible Admin qualifications, ov
 Do not change the shared spanning-setting body globally. Exclude the already-bounded accounting coverage notice from the prose repair.
 
 Mount production components through the testkit for behavioral regressions. Confirm the repaired composition through scored images.
+
+## Case decisions
+
+| Behavior | Layer and decision |
+| - | - |
+| Custom settings tracks, nested Frosted glass switches, Backup footer and Automation numeric containment | Add production-registry CT geometry cases in `tests/client/features/config/surfaces/platform-settings-composition.suite.ct.tsx`; prove old-source failures before repairs. |
+| Automation blur commit and persistence; Backup transfer | Keep existing corpus settings E2E coverage; do not duplicate its journey as CT. |
+| Paragraph, Persona, Home and World Info editor balance | Use bounded geometry where the contract is objective, plus scored actual surface images. |
+
+These cases address audit regressions, not wholesale legacy restoration. Execution remains pending until native results qualify the stated behavior.
 
 ## Evidence
 

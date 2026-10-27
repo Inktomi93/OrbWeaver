@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
-updated: 2026-10-25
+status: doing
+updated: 2026-10-27
 priority: P3
 area: client
+lane: snap_defaults
 ---
 
 # Home resume titles fit long unbroken room names at phone width

@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
-updated: 2026-10-26
+status: doing
+updated: 2026-10-27
 priority: P3
 area: client
+lane: snap_defaults
 ---
 
 # Characters tags use a quieter metadata hierarchy
@@ -19,6 +20,10 @@ The tag cloud dominates the inspected character editor before its authored conte
 ## Done when
 
 Review populated and sparse tag states at fine and coarse pointer sizes. Preserve accessible names, editing controls and coarse hit targets.
+
+## Case decisions
+
+Use scored images of actual sparse and populated states for visual hierarchy. Preserve accessible actions and values through focused interaction checks. Do not add variant-string or screenshot baselines that merely bless the implementation.
 
 ## Evidence
 

@@ -43,7 +43,7 @@ import type { PluginFrameCall } from "@orb/contracts/plugin";
 import { PLUGIN_FRAME_CALL_REFUSED, PLUGIN_FRAME_CALLS_IN_FLIGHT_MAX, parsePluginFrameCall, pluginFrameResultMessage } from "@orb/contracts/plugin";
 import type { ChatId, PluginId } from "@orb/kit/ids";
 import { SandboxFrame, useSandboxTheme } from "@orb/ui/sandbox-frame";
-import type { ReactElement, ReactNode, Ref } from "react";
+import type { ComponentProps, ReactElement, ReactNode, Ref } from "react";
 import { useRef } from "react";
 import { usePluginFrameSrc } from "#data";
 import { usePluginHostCall } from "../hooks/use-plugin-host-call.ts";
@@ -66,6 +66,8 @@ export interface PluginFrameProps {
    *  §9 pinned attribution band wraps it: a full-page frame is arbitrary HTML at the biggest impersonation
    *  scale in the design, so it needs the wall the vocabulary pages get, not the smaller panel band. */
   readonly scale?: "panel" | "page" | undefined;
+  /** The host anchor selects the shared attribution presentation. */
+  readonly chrome?: ComponentProps<typeof PluginSurfaceShell>["chrome"];
   /** A host control for the shell's attribution line — forwarded verbatim to {@link PluginSurfaceShell}. */
   readonly action?: ReactNode;
   readonly collapsible?: boolean;
@@ -98,6 +100,7 @@ export function PluginFrame({
   title,
   fallback = null,
   scale = "panel",
+  chrome = "panel",
   action,
   collapsible = false,
   disclosureRef,
@@ -147,7 +150,15 @@ export function PluginFrame({
     return fallback ?? null;
   }
   return (
-    <PluginSurfaceShell action={action} collapsible={collapsible} disclosureRef={disclosureRef} pluginName={pluginName} scale={scale} title={title}>
+    <PluginSurfaceShell
+      chrome={chrome}
+      action={action}
+      collapsible={collapsible}
+      disclosureRef={disclosureRef}
+      pluginName={pluginName}
+      scale={scale}
+      title={title}
+    >
       {/* `SandboxFrame` owns the iframe, its sandbox grant (`allow-scripts`, never `allow-same-origin`), the
           height fold, and the window-identity check. `html=""` because this is a ROUTED-ONLY surface: the srcdoc
           floor is never rendered when `src` is present (and would be script-dead anyway). The frame's accessible

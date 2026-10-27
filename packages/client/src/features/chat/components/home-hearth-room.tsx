@@ -168,7 +168,7 @@ export function HomeHearthRoom({
               "Example — …" — the one string on the surface that says WHICH room you are resuming, ellipsed
               to nothing. Two lines is the honest budget: enough to identify any room the corpus produces,
               not enough to become a paragraph at the focal step. */}
-          <Text as="span" className="line-clamp-2 min-inline-0" id={titleId} voice="focal">
+          <Text as="span" className="line-clamp-2 wrap-anywhere min-inline-0" id={titleId} voice="focal">
             {title}
           </Text>
           {chat.isGame ? (
@@ -177,10 +177,8 @@ export function HomeHearthRoom({
             </Badge>
           ) : null}
         </Row>
-        {/* The last line anyone said, at the reading step and capped at the reading measure — prose in a
-            column wider than its own measure is a row with a hole in it. Two lines: enough to recognise
-            the moment you left, not enough to become the transcript. */}
-        <Text className="line-clamp-2 max-inline-(--reading-measure-min)" id={scentId} voice="reading">
+        {/* The excerpt is ordinary prose; the outer column independently protects the art and controls. */}
+        <Text className="line-clamp-2 max-inline-(--reading-measure-prose)" id={scentId} voice="reading">
           {subtitle}
         </Text>
         {/* ALIGNED TO START, NOT CENTRE (side-eye HOME 2026-09-02 H17). At the 430x932 coarse mount the

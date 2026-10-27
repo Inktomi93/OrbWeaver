@@ -137,13 +137,9 @@ const STYLE_DRAWINGS: Record<ChatStyle, ReactElement> = {
   document: (
     <>
       <Speaker speaker="user">
-        <Avatar x={352} y={56} />
-        <Header x={272} y={49} />
         <Prose x={104} y={72} width={220} short={true} />
       </Speaker>
       <Speaker speaker="assistant">
-        <Avatar x={76} y={178} />
-        <Header x={104} y={171} />
         <Prose x={104} y={195} width={220} />
       </Speaker>
     </>

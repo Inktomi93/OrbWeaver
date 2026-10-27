@@ -10,7 +10,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Icon, Plus, X } from "@orb/ui/icons";
-import { Row } from "@orb/ui/layout";
+import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId, useRef, useState } from "react";
@@ -67,48 +67,52 @@ export function CharacterTagsRow({ characterId, tags, trpc }: CharacterTagsRowPr
   const visible = tags.filter((tag) => !tag.isHiddenOnCard);
   const tagWritePending = addTag.isPending || removeTag.isPending;
   return (
-    <Row aria-labelledby={labelId} gap="field" align="center" className="flex-wrap" data-slot="character-tags" role="group">
-      <Text id={labelId} voice="kicker">
-        Tags
-      </Text>
-      {visible.length === 0 ? (
-        // The house empty word (#502) — this row said "No tags" while the facet rows said "Add…" and the
-        // CONTEXT card said "None", three vocabularies for one state inside one editor. The verb lives in
-        // the "Add tag" button beside it, which is why the value can just say what is there.
-        <Text voice="gloss">{EMPTY_VALUE}</Text>
-      ) : (
-        visible.map((tag) => (
-          <Badge key={tag.id} size="sm">
-            <EditableTagChip tag={tag} />
-            <Button
-              type="button"
-              size="icon"
-              intent="ghost"
-              aria-label={removeActionName(tag.name)}
-              disabled={tagWritePending}
-              onClick={(): void => {
-                if (!beginTagWrite()) {
-                  return;
-                }
-                removeTag.mutate(
-                  { tagName: tag.name, characterIds: [characterId] },
-                  {
-                    onSettled: (): void => {
-                      tagWriteInFlight.current = false;
+    <Stack aria-labelledby={labelId} gap="field" data-slot="character-tags" role="group">
+      <Row align="center" gap="field" justify="between">
+        <Text id={labelId} voice="kicker">
+          Tags
+        </Text>
+        <Button disabled={tagWritePending} type="button" size="sm" intent="ghost" onClick={(): void => setOpen(true)}>
+          <Icon icon={Plus} size="sm" />
+          Add tag
+        </Button>
+      </Row>
+      <Row align="center" className="flex-wrap" gap="field">
+        {visible.length === 0 ? (
+          // The house empty word (#502) — this row said "No tags" while the facet rows said "Add…" and the
+          // CONTEXT card said "None", three vocabularies for one state inside one editor. The verb lives in
+          // the "Add tag" button beside it, which is why the value can just say what is there.
+          <Text voice="gloss">{EMPTY_VALUE}</Text>
+        ) : (
+          visible.map((tag) => (
+            <Badge key={tag.id} size="sm" tone="soft">
+              <EditableTagChip tag={tag} />
+              <Button
+                type="button"
+                size="icon"
+                intent="ghost"
+                aria-label={removeActionName(tag.name)}
+                disabled={tagWritePending}
+                onClick={(): void => {
+                  if (!beginTagWrite()) {
+                    return;
+                  }
+                  removeTag.mutate(
+                    { tagName: tag.name, characterIds: [characterId] },
+                    {
+                      onSettled: (): void => {
+                        tagWriteInFlight.current = false;
+                      },
                     },
-                  },
-                );
-              }}
-            >
-              <Icon icon={X} size="xs" />
-            </Button>
-          </Badge>
-        ))
-      )}
-      <Button disabled={tagWritePending} type="button" size="sm" intent="ghost" onClick={(): void => setOpen(true)}>
-        <Icon icon={Plus} size="sm" />
-        Add tag
-      </Button>
+                  );
+                }}
+              >
+                <Icon icon={X} size="xs" />
+              </Button>
+            </Badge>
+          ))
+        )}
+      </Row>
       <TagPickerDialog
         // Every ACCEPTED tag on this card, hidden ones included: a hidden tag is still attached, and
         // offering it would be a suggestion whose only outcome is a no-op write.
@@ -120,6 +124,6 @@ export function CharacterTagsRow({ characterId, tags, trpc }: CharacterTagsRowPr
         open={open}
         title="Tag this character"
       />
-    </Row>
+    </Stack>
   );
 }

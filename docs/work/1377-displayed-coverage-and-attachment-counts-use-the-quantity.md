@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
-updated: 2026-10-26
+status: doing
+updated: 2026-10-27
 priority: P2
 area: client
+lane: snap_defaults
 ---
 
 # Displayed coverage and attachment counts use the quantity their labels name
@@ -19,6 +20,14 @@ The rendered labels overstate grouped or attached populations. These are readout
 ## Done when
 
 Each label matches its actual population. Tests use different available and grouped or attached populations, including zero attachments. Preserve stored values.
+
+## Case decisions
+
+| Behavior | Layer and decision |
+| - | - |
+| Grouped-character headline differs from whole-library population | Add a production-mounted Corpus readout CT with distinct valid populations. This does not test the grouping algorithm. |
+| Attached persona count differs from available personas, including zero attachments | Add a production World Info Context CT using production-derived data. |
+| Attachment persistence and ownership | Keep maintained corpus library integration coverage. |
 
 ## Evidence
 

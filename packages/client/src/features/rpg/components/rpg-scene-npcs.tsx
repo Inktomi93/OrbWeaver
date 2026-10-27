@@ -18,7 +18,7 @@ import { ChevronDown, ChevronRight, Icon, UserPlus, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { Tip } from "#components";
 import { actorKey } from "../lib/actor-key.ts";
 import { RELATIONSHIP_GLYPHS } from "../lib/glyphs.ts";
@@ -210,15 +210,31 @@ export function SceneKnownCharacters({ offstage, edit }: { readonly offstage: re
  *  "Dismiss", with the name in the DOM and not in the control's accessible name. */
 function KnownCharacterDoorways({ actor, edit }: { readonly actor: RpgActorView; readonly edit: SceneNpcEdit }): ReactElement {
   const [pending, setPending] = useState<"dismiss" | "promote" | null>(null);
+  const promoteRef = useRef<HTMLButtonElement>(null);
+  const dismissRef = useRef<HTMLButtonElement>(null);
+  const returnFocus = useRef<NonNullable<typeof pending> | null>(null);
   const ref = actor.actorRef;
+
+  useLayoutEffect(() => {
+    if (pending === null && returnFocus.current !== null) {
+      const target = returnFocus.current === "promote" ? promoteRef : dismissRef;
+      returnFocus.current = null;
+      target.current?.focus();
+    }
+  }, [pending]);
+
+  const cancel = (action: NonNullable<typeof pending>): void => {
+    returnFocus.current = action;
+    setPending(null);
+  };
 
   if (pending === "dismiss") {
     return (
-      <Row gap="field" align="center" justify="end">
-        <Text as="span" voice="gloss">
+      <Row gap="field" align="center" justify="end" className="flex-wrap">
+        <Text as="span" voice="gloss" className="wrap-anywhere max-inline-full min-inline-0">
           Forget {actor.name} and everything tracked on them?
         </Text>
-        <Button intent="ghost" size="sm" aria-label={`Keep ${actor.name}`} onClick={(): void => setPending(null)}>
+        <Button intent="ghost" size="sm" aria-label={`Keep ${actor.name}`} onClick={(): void => cancel("dismiss")}>
           Keep
         </Button>
         <Button intent="destructive" size="sm" aria-label={`Confirm dismissing ${actor.name}`} onClick={(): void => edit.onDismiss(ref)}>
@@ -229,15 +245,15 @@ function KnownCharacterDoorways({ actor, edit }: { readonly actor: RpgActorView;
   }
   if (pending === "promote" && ref.kind === "npc") {
     return (
-      <Row gap="field" align="center" justify="end">
+      <Row gap="field" align="center" justify="end" className="flex-wrap">
         {/* THE CONFIRM IS WHERE THE PANEL SAYS WHAT DOES NOT CARRY. Her tracked state, her scene presence and
             the host's pins all follow her across the re-key; her mood and her stance toward the player have no
             home on a participant (a stance is an npc's datum), so they end here. A host who discovers
             that afterwards discovers it as a bug. */}
-        <Text as="span" voice="gloss">
+        <Text as="span" voice="gloss" className="wrap-anywhere max-inline-full min-inline-0">
           Give {actor.name} a character card and a seat in this room? Everything tracked on them comes along; their mood and their stance toward you do not.
         </Text>
-        <Button intent="ghost" size="sm" aria-label={`Cancel promoting ${actor.name}`} onClick={(): void => setPending(null)}>
+        <Button intent="ghost" size="sm" aria-label={`Cancel promoting ${actor.name}`} onClick={(): void => cancel("promote")}>
           Cancel
         </Button>
         <Button intent="primary" size="sm" aria-label={`Confirm promoting ${actor.name}`} onClick={(): void => edit.onPromote(ref)}>
@@ -247,19 +263,25 @@ function KnownCharacterDoorways({ actor, edit }: { readonly actor: RpgActorView;
     );
   }
   return (
-    <Row gap="field" align="center" justify="end">
+    <Row gap="field" align="center" justify="end" className="flex-wrap">
       {/* PERMISSION-shaped ABSENCE, not a disabled control: a participant actor has nothing to promote (she already
           has a card), so the doorway simply is not there for one. */}
       {ref.kind === "npc" ? (
         <Tip text={`Give ${actor.name} a character card and a seat in this room`}>
-          <Button intent="ghost" size="sm" aria-label={`Promote ${actor.name} to the room's characters`} onClick={(): void => setPending("promote")}>
+          <Button
+            ref={promoteRef}
+            intent="ghost"
+            size="sm"
+            aria-label={`Promote ${actor.name} to the room's characters`}
+            onClick={(): void => setPending("promote")}
+          >
             <Icon icon={UserPlus} size="xs" />
             Promote
           </Button>
         </Tip>
       ) : null}
       <Tip text={`Forget ${actor.name} — removes their state from this game`}>
-        <Button intent="ghost" size="sm" aria-label={`Dismiss ${actor.name}`} onClick={(): void => setPending("dismiss")}>
+        <Button ref={dismissRef} intent="ghost" size="sm" aria-label={`Dismiss ${actor.name}`} onClick={(): void => setPending("dismiss")}>
           <Icon icon={X} size="xs" />
           Dismiss
         </Button>

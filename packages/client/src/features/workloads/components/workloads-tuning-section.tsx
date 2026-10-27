@@ -10,10 +10,9 @@
 // the autosave form factory (D54 §13.4). Homed in components/ (a fragment inside the workloads pane surface,
 // which owns containment + focus).
 
-import { FieldLayout } from "@orb/ui/field";
-import { Container, Row, Section, Stack } from "@orb/ui/layout";
+import { Row, Section, Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
-import { QueryBoundary, useFirstBootBox } from "#components";
+import { QueryBoundary, SettingRowGroup, SettingTrackRow, useFirstBootBox } from "#components";
 import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { SectionSaveStatus } from "#forms/editor";
@@ -45,7 +44,7 @@ const useUpdateWorkloadsTuning = createEntityMutation<UpdateWorkloadsVars, unkno
 
 /** The Workloads analysis-tuning section body — mounted at the workloads pane's contributed-sections anchor. */
 export function WorkloadsTuningSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
-  const firstBootBox = useFirstBootBox({ wide: 5, narrow: 8 });
+  const firstBootBox = useFirstBootBox({ wide: 7, narrow: 8 });
   return (
     // RESERVED (#1098) — a config section that settles into a knob stack.
     <QueryBoundary
@@ -86,9 +85,9 @@ function WorkloadsTuningBody({
   const { form, saveState, retrySave } = session;
   return (
     <Section divider={true} heading={WORKLOADS_TUNING_SUBCATEGORY.label} id={anchorId}>
-      <FieldLayout orientation="horizontal">
-        <Container>
-          <Stack gap="field">
+      <Stack gap="field">
+        <SettingRowGroup>
+          <SettingTrackRow>
             <form.AppField name="dupThreshold">
               {(field): ReactElement => (
                 <field.NumberField
@@ -100,6 +99,8 @@ function WorkloadsTuningBody({
                 />
               )}
             </form.AppField>
+          </SettingTrackRow>
+          <SettingTrackRow>
             <form.AppField name="computeThemesK">
               {(field): ReactElement => (
                 <field.NumberField
@@ -110,6 +111,8 @@ function WorkloadsTuningBody({
                 />
               )}
             </form.AppField>
+          </SettingTrackRow>
+          <SettingTrackRow>
             <form.AppField name="maxPairs">
               {(field): ReactElement => (
                 <field.NumberField
@@ -121,6 +124,8 @@ function WorkloadsTuningBody({
                 />
               )}
             </form.AppField>
+          </SettingTrackRow>
+          <SettingTrackRow>
             <form.AppField name="hubFraction">
               {(field): ReactElement => (
                 <field.NumberField
@@ -132,12 +137,12 @@ function WorkloadsTuningBody({
                 />
               )}
             </form.AppField>
-            <Row gap="field" align="center">
-              <SectionSaveStatus id={sectionId} state={saveState} onRetry={retrySave} />
-            </Row>
-          </Stack>
-        </Container>
-      </FieldLayout>
+          </SettingTrackRow>
+        </SettingRowGroup>
+        <Row gap="field" align="center">
+          <SectionSaveStatus id={sectionId} state={saveState} onRetry={retrySave} />
+        </Row>
+      </Stack>
     </Section>
   );
 }
