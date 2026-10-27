@@ -7,6 +7,7 @@ export { densityFindings, formatDensityFindings } from "./density-census.ts";
 export { formatFormIdentityFindings, formIdentityFindings } from "./form-identity.ts";
 export { emulateMedia, releaseEmulatedMedia } from "./media-emulation.ts";
 export { pixelContrast, pixelSurface } from "./pixel-contrast.ts";
+export { beginReading, scrollIntoReadingMessage, tokenColor } from "./reading-position.ts";
 export { settleSurface } from "./settle-surface.ts";
 export { dispatchCommandKey, dropOn, persistedOverrides, pixel, resolvedLength, seedShellState, settledBox, shellTracks } from "./shell-drive.ts";
 export { touchTargetFindings } from "./touch-floor.ts";

@@ -3,17 +3,14 @@ import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
-import { expect } from "@orb/testkit/ct-corpus";
 import type { CorpusWire } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import type { Locator, Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
 
 export const TAIL_MESSAGES = 6;
 export const READING_ROLES = ["user", "assistant"] as const;
 const LONG_REPLY_PARAGRAPHS = 40;
-const PIN_SCROLL_PX = 400;
 const GAME_PROCEDURES = ["rpg.getGame", "rpg.listTurnToolCalls"] as const;
 const FILLER = "The lamp burned low while the rain kept time on the shutters.";
 
@@ -94,44 +91,8 @@ export async function openReadingRoom(
       ...(art ? wallpaper(corpus) : { backgroundImageKind: "none" }),
     },
   });
-  await seedShellState(page, { activeSection: "chats" });
   await routeTrpc(page, {
     ...createShellAmbientReads(corpus),
     ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...ROOM_PROCEDURES, ...GAME_PROCEDURES]),
   });
-}
-
-/** A colour token as `box`'s own scope paints it, read off a probe beside it, so a carried palette resolves alike. */
-export function tokenColor(box: Locator, token: string, property: "background-color" | "color"): Promise<string> {
-  return box.evaluate(
-    (element, [name, prop]) => {
-      const probe = element.ownerDocument.createElement("div");
-      probe.style.setProperty(prop, `var(${name})`);
-      element.parentElement?.append(probe);
-      const value = getComputedStyle(probe).getPropertyValue(prop);
-      probe.remove();
-      return value;
-    },
-    [token, property] as const,
-  );
-}
-
-/** Scrolls into the real message, then barriers on its observed pin state. */
-export async function scrollIntoReadingMessage(row: Locator, sticky = true): Promise<void> {
-  await row.evaluate((element, by) => {
-    const scroller = element.closest('[data-slot="message-list-scroll"]');
-    if (scroller === null) {
-      throw new Error("The message has no transcript scrollport");
-    }
-    scroller.scrollTop += element.getBoundingClientRect().top - scroller.getBoundingClientRect().top + by;
-  }, PIN_SCROLL_PX);
-  await expect.poll(() => row.locator('[data-slot="message-name-row"]').getAttribute("data-pinned")).toBe(sticky ? "" : null);
-}
-
-/** Native scroll input gives the reader the axis before the targeted reading-position drive. */
-export async function beginReading(page: Page, scrollport: Locator): Promise<void> {
-  const before = await scrollport.evaluate((element) => element.scrollTop);
-  await scrollport.hover();
-  await page.mouse.wheel(0, -PIN_SCROLL_PX);
-  await expect.poll(() => scrollport.evaluate((element) => element.scrollTop)).toBeLessThan(before);
 }
