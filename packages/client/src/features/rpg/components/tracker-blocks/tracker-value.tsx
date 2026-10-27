@@ -5,8 +5,8 @@
 import { Button } from "@orb/ui/button";
 import { Input } from "@orb/ui/input";
 import { Text } from "@orb/ui/text";
-import type { ComponentProps, ReactElement } from "react";
-import { useId, useState } from "react";
+import type { ComponentProps, ReactElement, Ref } from "react";
+import { useId, useRef, useState } from "react";
 import { Tip } from "#components";
 import type { EditSession } from "#lib";
 import { cn, resolveCommit } from "#lib";
@@ -71,6 +71,7 @@ function TrackerValueRest({
   wrap,
   numeric,
   italic,
+  buttonRef,
 }: {
   readonly ariaLabel: string;
   readonly className: string;
@@ -83,6 +84,7 @@ function TrackerValueRest({
   readonly wrap: boolean;
   readonly numeric: boolean;
   readonly italic: boolean;
+  readonly buttonRef: Ref<HTMLButtonElement>;
 }): ReactElement {
   const empty = display === "";
   const restText = empty ? (placeholder ?? UNSET_DATUM) : display;
@@ -95,6 +97,7 @@ function TrackerValueRest({
         data-slot="tracker-value-rest"
         aria-label={ariaLabel}
         onClick={onOpen}
+        ref={buttonRef}
         // Text-height at rest (the display-at-rest posture): the button hugs its datum text; a caller's
         // width/alignment classes still apply so the rest state lines up with the read-only arm. The reserved
         // edge holds the edit input's 1px border box, so the click-to-reveal swap does not shift.
@@ -142,6 +145,7 @@ export function TrackerValue({
   // a passive re-render can reach none of them, which is what makes the no-clobber rule structural.
   const [session, setSession] = useState<EditSession | null>(null);
   const conflictId = useId();
+  const restoreAfterCancel = useRef(false);
 
   if (onEdit === undefined) {
     return (
@@ -167,6 +171,12 @@ export function TrackerValue({
         wrap={wrap}
         numeric={numeric}
         italic={italic}
+        buttonRef={(element): void => {
+          if (element !== null && restoreAfterCancel.current) {
+            restoreAfterCancel.current = false;
+            element.focus();
+          }
+        }}
       />
     );
   }
@@ -218,6 +228,7 @@ export function TrackerValue({
           if (e.key === "Escape") {
             // Cancel: drop the draft, back to rest, nothing sent — and under a conflict that is the "keep
             // what arrived" answer, since the rest state renders the CURRENT value.
+            restoreAfterCancel.current = true;
             setSession(null);
           }
         }}
