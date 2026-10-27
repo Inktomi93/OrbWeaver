@@ -6,7 +6,6 @@ import { access, mkdtemp, readdir, readFile, readlink, realpath, rm } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
-import { createCharacterSchema } from "@orb/contracts/character";
 import {
   assertReferentialIntegrity,
   chatHandoffResumptions,
@@ -20,15 +19,14 @@ import {
   userCredentials,
   users,
 } from "@orb/db";
+import { secretRedactionLiterals } from "@orb/kit/secret-redaction";
 import { createCas } from "@orb/server/infra/storage/cas";
 import { eq, isNotNull, sql } from "drizzle-orm";
 import { parseCorpusWire } from "../iso/corpus.ts";
 import { createCorpusCapsule, loadCorpusFixture, prepareCorpusFixture } from "./corpus.ts";
 import { createCorpusRecipe, CORPUS_OWNER_PASSWORD as OWNER_PASSWORD, CORPUS_PROVIDER_KEY as PROVIDER_KEY } from "./corpus-recipe.ts";
-import { seedUserCredentialRows } from "./factories/rows/credentials.ts";
 import { expect, test } from "./fixtures.ts";
 import { NATIVE_OIDC_SETTINGS } from "./oidc-issuer.ts";
-import { createServerHarness } from "./server.ts";
 import { createTestLogger } from "./test-logger.ts";
 
 const CLONE_MARKER = 123;
@@ -97,26 +95,22 @@ test("a completed migrated capsule closes its real producers before cloning scru
     closeDb(source);
   }
   {
-    await using echoRoot = await createServerHarness({ secretBoxKey: key });
-    const principal = await echoRoot.principalFor(echoRoot.ownerId);
-    await seedUserCredentialRows(echoRoot, { principal, provider: "custom-openai", key: PROVIDER_KEY });
-    const caller = await echoRoot.internalCallerFor(echoRoot.ownerId);
-    const card = await caller.character.create({
-      input: createCharacterSchema.parse({ handle: "publication-echo", name: PROVIDER_KEY, description: "A publication boundary witness." }),
+    const echoedSecret = capsule.privateCaptures.libraries.character.name;
+    expect(secretRedactionLiterals([echoedSecret])).toContain(echoedSecret);
+    const { options: echoOptions } = await createCorpusRecipe(parent);
+    // A fresh producer seals actual public text as a credential; publication must refuse its real echo.
+    await using echoCapsule = await createCorpusCapsule({
+      ...echoOptions,
+      directory: join(parent, "publication echo"),
+      producers: "clone-boundary",
+      privateCredential: { ...echoOptions.privateCredential, key: echoedSecret },
     });
-    const output = await caller.character.list(undefined);
-    expect(output.items.find((item) => item.id === card.id)?.name).toBe(PROVIDER_KEY);
-    const original = capsule.wire.reads["character.list"];
+    expect(echoCapsule.privateCaptures.publicationSecrets).toContain(echoedSecret);
+    expect(echoCapsule.wire.reads["character.list"].some(({ output }) => output.items.some(({ name }) => name === echoedSecret))).toBe(true);
     const rejected = join(parent, "refused clone");
-    try {
-      // Intervene only at publication with genuine routed bytes; the captured source graph remains untouched.
-      Object.assign(capsule.wire.reads, { "character.list": [{ input: undefined, output }] });
-      expect(() => capsule.publishWire()).toThrow("Corpus publication contains private material");
-      await expect(prepareCorpusFixture(capsule, rejected)).rejects.toThrow("Corpus publication contains private material");
-      await expect(access(rejected)).rejects.toMatchObject({ code: "ENOENT" });
-    } finally {
-      Object.assign(capsule.wire.reads, { "character.list": original });
-    }
+    expect(() => echoCapsule.publishWire()).toThrow("Corpus publication contains private material");
+    await expect(prepareCorpusFixture(echoCapsule, rejected)).rejects.toThrow("Corpus publication contains private material");
+    await expect(access(rejected)).rejects.toMatchObject({ code: "ENOENT" });
   }
   const fixture = ownership.use(await prepareCorpusFixture(capsule, join(parent, "stage clone")));
   const loaded = loadCorpusFixture(fixture.layout.root);
