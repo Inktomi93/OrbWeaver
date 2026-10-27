@@ -1,6 +1,8 @@
-import { CtClientProviders, CtConfigGroupBody, configSections, isolationRegistry } from "@orb/testkit/browser";
 import { Container } from "@orb/ui/layout";
 import type { ReactElement } from "react";
+import { CtClientProviders, CtConfigGroupBody } from "./ct-data-providers.tsx";
+import { configSections } from "./ct-door.ts";
+import { isolationRegistry } from "./ct-isolation.ts";
 
 /** Isolate one registered production section from unrelated settings reads, retaining its actual form and provider graph. */
 export function SettingsCompositionStory({

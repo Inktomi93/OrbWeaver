@@ -1,4 +1,5 @@
 import { FOCUS_RING, tv } from "#lib";
+import { MEDIA_ASPECT_CLASSES } from "../aspect-frame/aspect.ts";
 
 // The BROWSE TILE skin. Distinct from `media-grid`'s cell, which is a square THUMBNAIL cell for an asset
 // gallery (image only, selection-oriented, virtualized): a browse tile is a titled CARD whose cover is the
@@ -35,9 +36,9 @@ export const mediaTileGridVariants = tv({
   },
   variants: {
     aspect: {
-      square: { cover: "aspect-square" },
-      portrait: { cover: "aspect-portrait" },
-      landscape: { cover: "aspect-video" },
+      square: { cover: MEDIA_ASPECT_CLASSES.square },
+      portrait: { cover: MEDIA_ASPECT_CLASSES.portrait },
+      landscape: { cover: MEDIA_ASPECT_CLASSES.landscape },
     },
     interactive: {
       true: { tile: "cursor-pointer", cover: "transition-transform duration-(--motion-fast) ease-out-expo group-hover:scale-105" },

@@ -158,13 +158,33 @@ function CollectionControlRow({
   readonly filter: string;
   readonly onFilterChange: (next: string) => void;
 }): ReactElement {
+  const filterRef = useRef<HTMLInputElement>(null);
   return (
     <Container className="inline-full">
       <Row align="center" className="flex-wrap" data-slot="collection-control-row" gap="field">
         {/* The local filter is not the settings index's jump search; its field floor wraps peer commands before the typing area collapses. */}
         <Row align="center" className="flex-1 basis-(--width-field-floor) max-inline-full min-inline-0">
-          <Input aria-label={`Filter ${label.toLowerCase()}`} onValueChange={onFilterChange} placeholder={`Filter ${label.toLowerCase()}…`} value={filter} />
+          <Input
+            ref={filterRef}
+            aria-label={`Filter ${label.toLowerCase()}`}
+            onValueChange={onFilterChange}
+            placeholder={`Filter ${label.toLowerCase()}…`}
+            value={filter}
+          />
         </Row>
+        {filter === "" ? null : (
+          <Button
+            intent="ghost"
+            size="sm"
+            type="button"
+            onClick={(): void => {
+              onFilterChange("");
+              filterRef.current?.focus();
+            }}
+          >
+            Clear filter
+          </Button>
+        )}
         <CollectionBulkToggle collection={collection} />
         {/* CREATE IS THE ROW'S ONE PRIMARY (C-2's no-aggregate-primary ruling is about the WELCOME, not here):
           it is the library's own verb, on the library's own pane. */}
