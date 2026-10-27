@@ -6,11 +6,11 @@ import { createCorpusReadResponder } from "@orb/testkit/iso";
 import { TOKENS } from "@orb/ui/tokens";
 import type { LooksUnderLightStory } from "./_looks-under-light-stories.tsx";
 
-test("the Hearth thumbnail paints the base surface on a Light page", async ({ corpus, mount, page }) => {
+test("the Hearth thumbnail paints the base surface on a Light page", async ({ corpus, corpusViewer, mount, page }) => {
   await routeTrpc(page, {
-    "sessions.me": createCorpusReadResponder("sessions.me", corpus.reads["sessions.me"]),
-    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpus.reads["settings.getUserSettings"]),
-    "settings.listThemes": createCorpusReadResponder("settings.listThemes", corpus.reads["settings.listThemes"]),
+    "sessions.me": createCorpusReadResponder("sessions.me", corpusViewer.userId, corpus.reads["sessions.me"]),
+    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpusViewer.userId, corpus.reads["settings.getUserSettings"]),
+    "settings.listThemes": createCorpusReadResponder("settings.listThemes", corpusViewer.userId, corpus.reads["settings.listThemes"]),
   });
   await mount<typeof LooksUnderLightStory>("tests/client/features/config/surfaces/_looks-under-light-stories/LooksUnderLightStory", {});
   const hearthRoom = page.getByRole("radio", { name: /Hearth/u }).locator('[data-slot="theme-mini-room"]');

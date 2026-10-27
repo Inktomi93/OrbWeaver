@@ -36,7 +36,7 @@ test("hiding the final plugin panel returns focus to the shell Chats main region
   }
   await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "collapsed", context: "docked" } } });
   await routeTrpc(page, {
-    ...createShellAmbientReads(corpus),
+    ...createShellAmbientReads(corpus, root.ownerId),
     ...serveCorpusProcedures(caller, [
       ...SECTION_PROCEDURES,
       ...ROOM_PROCEDURES,

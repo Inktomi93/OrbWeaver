@@ -3,10 +3,10 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusReadResponder } from "@orb/testkit/iso";
 import type { EntryListRebaseStory } from "./_entry-list-stories.tsx";
 
-test("a replaced entry snapshot invalidates obsolete consent and returns focus without removing another row", async ({ corpus, mount, page }) => {
+test("a replaced entry snapshot invalidates obsolete consent and returns focus without removing another row", async ({ corpus, corpusViewer, mount, page }) => {
   await routeTrpc(page, {
-    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpus.reads["settings.getUserSettings"]),
-    "sessions.me": createCorpusReadResponder("sessions.me", corpus.reads["sessions.me"]),
+    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpusViewer.userId, corpus.reads["settings.getUserSettings"]),
+    "sessions.me": createCorpusReadResponder("sessions.me", corpusViewer.userId, corpus.reads["sessions.me"]),
   });
   const component = await mount<typeof EntryListRebaseStory>("tests/client/components/_entry-list-stories/EntryListRebaseStory", {
     items: ["Alpha", "Beta", "Gamma"],

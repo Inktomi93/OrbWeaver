@@ -19,6 +19,7 @@ import { REQUEST_BODY_CAP_BYTES, REQUEST_RING_CAPACITY } from "../../../../../to
 import { resultPairsOf } from "../../../../../tooling/src/snap/lib/session-wire.ts";
 import { beginRunArms } from "../../../../../tooling/src/snap/ops/arms/registry.ts";
 import { parseSnapArgs } from "../../../../../tooling/src/snap/ops/parse.ts";
+import { installRequestRing, requestRingFor } from "../../../../../tooling/src/snap/ops/request-ring.ts";
 import { finishSession, launchSnapSession } from "../../../../../tooling/src/snap/ops/session.ts";
 import { scaledBudget } from "../../../_load-budget.ts";
 
@@ -275,21 +276,36 @@ test("a named session retains boot JSON only when the boot call activates its bo
 });
 
 test("minting repeated call arms does not add request listeners", async () => {
+  const server = await requestServer();
   const opts = parseSnapArgs(["--file", import.meta.filename, "--requests", ...ARGS]);
-  const session = await launchSnapSession(opts);
   try {
-    const listenerPage = session.page as typeof session.page & { readonly listenerCount: (event: string) => number };
-    const before = ["request", "response", "requestfinished", "requestfailed"].map((event) => listenerPage.listenerCount(event));
-    for (let call = 0; call < 8; call += 1) {
-      beginRunArms(session, opts);
+    const session = await launchSnapSession(opts);
+    try {
+      const listenerPage = session.page as typeof session.page & { readonly listeners: (event: string) => readonly object[] };
+      const events = ["request", "response", "requestfinished", "requestfailed"];
+      const before = events.map((event) => [...listenerPage.listeners(event)]);
+      const ring = requestRingFor(session);
+      for (let call = 0; call < 8; call += 1) {
+        beginRunArms(session, opts);
+        expect(installRequestRing(session)).toBe(ring);
+        for (const context of session.contexts) {
+          ring.attachProbeContext(context);
+        }
+      }
+      const after = events.map((event) => [...listenerPage.listeners(event)]);
+      expect(after).toEqual(before);
+
+      const start = ring.markCheckpoint();
+      await session.page.goto(server.base);
+      await session.page.waitForFunction("document.documentElement.dataset.appReady === 'settled'");
+      const recorded = await ring.read(start, null);
+      expect(recorded.total).toBe(4);
+      expect(recorded.entries.map((entry) => new URL(entry.url).pathname).sort()).toEqual(["/", "/known.css", "/known.json", "/oversize.json"]);
+      expect(new Set(recorded.entries.map((entry) => entry.index)).size).toBe(recorded.total);
+    } finally {
+      await finishSession(session, false, "listener-growth", false);
     }
-    const after = ["request", "response", "requestfinished", "requestfailed"].map((event) => listenerPage.listenerCount(event));
-    expect(before.every((count) => count > 0)).toBe(true);
-    // The legacy failed-request capture has no requestfinished listener; this one is the ring's positive
-    // attachment control, so an implementation that simply attaches nothing cannot pass on equality.
-    expect(before[2]).toBe(1);
-    expect(after).toEqual(before);
   } finally {
-    await finishSession(session, false, "listener-growth", false);
+    await server.close();
   }
 });

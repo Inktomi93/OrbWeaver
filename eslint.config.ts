@@ -220,14 +220,23 @@ const INTERNAL_MODULE_MOCK_RESTRICTION = {
   message: "Do not replace internal modules in product tests. Script external execution through the production test root.",
 };
 
-// A module mock binds by resolved module id and only for modules loaded after it, so under a shared registry
-// (`--no-isolate`, the integration project) a file that already loaded the subject keeps the real module and the
-// test dials the real thing. tests/tooling is outside this twice over: its isolated project mocks `node:fs` and
-// `node:child_process` for CLI subjects that have no seam by design.
+// A module mock cannot replace cached importers in the shared Node registry. Tooling remains outside this
+// product-test restriction, but that exemption does not make its mocks independent of import order.
 const EXTERNAL_MODULE_MOCK_RESTRICTION = {
   selector: `${MOCK_CALL}:not(${INTERNAL_MODULE_SPECIFIER})`,
   message:
     "Do not mock a module in tests. Pass the external edge through an injected seam on the production options (as buildConnector is on ScopedEgressOptions), or add one.",
+};
+
+const FILESYSTEM_MODULE_MOCK_RESTRICTION = {
+  selector: `${MOCK_CALL}:matches(${["fs", "node:fs", "fs/promises", "node:fs/promises"]
+    .flatMap((module) => [
+      `[arguments.0.type='Literal'][arguments.0.value='${module}']`,
+      `[arguments.0.type='ImportExpression'][arguments.0.source.value='${module}']`,
+    ])
+    .join(",")})`,
+  message:
+    "Do not replace filesystem modules in tooling tests: shared imports can bypass mocks and read operator files. Use @orb/testkit/tooling scratch/plantedTree resources or an explicit filesystem dependency.",
 };
 
 // The integration project shares one module registry (`isolate: false`), so a stubbed or written process
@@ -1930,10 +1939,12 @@ export default [
     },
   },
   {
+    files: ["tests/tooling/**/*.{ts,tsx,mts,cts}"],
+    rules: { "no-restricted-syntax": ["error", INVISIBLE_CONTROL_SYNTAX, FILESYSTEM_MODULE_MOCK_RESTRICTION] },
+  },
+  {
     files: ["tests/**/*.{ts,tsx}"],
-    // tests/tooling is outside this block twice over: it runs in the isolated `tooling` project, where a stubbed
-    // environment cannot reach another file, and its subjects (CLIs, `readBoxLoad`, the `.env` loader) read the
-    // process environment at call time by design with no parameter to pass the value through.
+    // Tooling CLI subjects own process-environment inputs; inherited runner cleanup restores their stubs.
     ignores: ["tests/tooling/**", "**/*.test-d.ts"],
     rules: {
       "no-restricted-syntax": [

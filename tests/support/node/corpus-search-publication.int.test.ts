@@ -19,7 +19,7 @@ import { resolveDataLayout } from "@orb/server/foundation/data-layout";
 import { cloneStageDb } from "@orb/tooling/snap";
 import { z } from "zod";
 import { createFrozenClock } from "../iso/clock.ts";
-import type { CorpusWire } from "../iso/corpus.ts";
+import type { CorpusPlayback } from "../iso/corpus.ts";
 import { hydrateCorpusWire, parseCorpusWire, serializeCorpusWire } from "../iso/corpus.ts";
 import { createCorpusViewerReadResponder } from "../iso/corpus-read-responder.ts";
 import type { CorpusSearchLibrary } from "../iso/corpus-search.ts";
@@ -68,7 +68,7 @@ test("settled search publication survives native authenticated clone reads and r
     }).execute,
   );
   const produced = await (async (): Promise<{
-    readonly wire: CorpusWire & { readonly searchLibrary: CorpusSearchLibrary };
+    readonly wire: CorpusPlayback & { readonly searchLibrary: NonNullable<CorpusPlayback["searchLibrary"]> };
     readonly exchanges: Parameters<typeof replayCorpusSearchWire>[0];
     readonly authentication: Awaited<ReturnType<typeof captureCookieAuth>>;
     readonly foreignId: Awaited<ReturnType<typeof seedCorpusActors>>["secondUserId"];
@@ -148,6 +148,8 @@ test("settled search publication survives native authenticated clone reads and r
       const captured = { ...base, searchLibrary: before };
       const parsed = parseCorpusWire(serializeCorpusWire(captured, authentication.secrets));
       expect(parsed.searchLibrary).toEqual(before);
+      const admitted = parsed.searchLibrary;
+      assert(admitted !== undefined, "The parsed search publication lost its admitted section");
       expect(source.reads).toEqual(earlier);
       for (const name of Object.keys(before.reads)) {
         const changed = structuredClone(captured);
@@ -168,7 +170,7 @@ test("settled search publication survives native authenticated clone reads and r
       assert(firstRoom !== undefined);
       Object.assign(firstRoom, { input: null });
       expect(() => serializeCorpusWire(changedRoom, authentication.secrets)).toThrow("publication recipe");
-      const snapshot = { viewerUserId: before.viewerUserId, read: before.reads.segments };
+      const snapshot = { viewerUserId: admitted.viewerUserId, read: admitted.reads.segments };
       expect(createCorpusViewerReadResponder("search.search", root.ownerId, snapshot)(snapshot.read.input)).toEqual(snapshot.read.output);
       expect(() => createCorpusViewerReadResponder("search.search", actors.secondUserId, snapshot)).toThrow("snapshot viewer does not match");
       const foreign = await root.internalCallerFor(actors.secondUserId);
@@ -289,9 +291,17 @@ test("settled search publication survives native authenticated clone reads and r
       expect(final.value.reads.similarCaptioned.output).toEqual(restored.reads.similarCaptioned.output);
       expect(final.value.reads.status.output).toEqual({ paused: false, embed: false, imageEmbed: false });
       const wire = { ...base, searchLibrary: final.value };
-      expect(parseCorpusWire(serializeCorpusWire(wire, secrets)).searchLibrary).toEqual(final.value);
+      const admittedFinal = parseCorpusWire(serializeCorpusWire(wire, secrets));
+      const finalSection = admittedFinal.searchLibrary;
+      assert(finalSection !== undefined, "The parsed final search publication lost its admitted section");
+      expect(finalSection).toEqual(final.value);
       await root.settleBackground();
-      return { wire, exchanges: final.exchanges, authentication, foreignId: actors.secondUserId };
+      return {
+        wire: { ...admittedFinal, searchLibrary: finalSection },
+        exchanges: final.exchanges,
+        authentication,
+        foreignId: actors.secondUserId,
+      };
     } finally {
       await preCloseHousekeeping(sourceDb);
     }

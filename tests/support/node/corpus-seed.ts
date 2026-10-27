@@ -12,9 +12,10 @@ import { DEFAULT_CHARACTER_CARDS } from "@orb/server/domain/character";
 import { seedDefaultPreset, seedThemes } from "@orb/server/entry/boot";
 import type { SeedDemoResult } from "@orb/tooling/seed";
 import { loadDemoSeed } from "@orb/tooling/seed";
-import type { CorpusWire } from "../iso/corpus.ts";
+import type { CorpusPlayback, CorpusWire } from "../iso/corpus.ts";
 import { corpusReadInput } from "../iso/corpus.ts";
 import { bootGrantFor } from "./boot-grant.ts";
+import { captureCorpusRead } from "./corpus-capture.ts";
 import { makeAssetBytes } from "./factories/asset.ts";
 import type { AutomationRuleRow } from "./factories/automation.ts";
 import {
@@ -365,8 +366,7 @@ interface CorpusReadIdentities {
 }
 
 /** Capture the current completed graph state using genuine operation-returned identities. */
-export async function captureCorpusReads(root: ServerHarness, identities: CorpusReadIdentities): Promise<CorpusWire["reads"]> {
-  const caller = await root.internalCallerFor(root.ownerId);
+export async function captureCorpusReads(root: ServerHarness, identities: CorpusReadIdentities): Promise<CorpusPlayback["reads"]> {
   const absentInput = corpusReadInput.absent();
   const soloInput = corpusReadInput.chat({ id: identities.soloChatId });
   const groupInput = corpusReadInput.chat({ id: identities.groupChatId });
@@ -374,42 +374,42 @@ export async function captureCorpusReads(root: ServerHarness, identities: Corpus
   const documentListInput = corpusReadInput.documentList();
   const ownerLatencyInput = corpusReadInput.ownerLatency();
   return {
-    "sessions.me": [{ input: absentInput, output: await caller.sessions.me(absentInput) }],
-    "settings.getUserSettings": [{ input: absentInput, output: await caller.settings.getUserSettings(absentInput) }],
-    "settings.listThemes": [{ input: absentInput, output: await caller.settings.listThemes(absentInput) }],
-    "character.list": [{ input: absentInput, output: await caller.character.list(absentInput) }],
-    "character.count": [{ input: absentInput, output: await caller.character.count(absentInput) }],
-    "persona.list": [{ input: absentInput, output: await caller.persona.list(absentInput) }],
+    "sessions.me": [await captureCorpusRead(root, root.ownerId, "sessions.me", absentInput)],
+    "settings.getUserSettings": [await captureCorpusRead(root, root.ownerId, "settings.getUserSettings", absentInput)],
+    "settings.listThemes": [await captureCorpusRead(root, root.ownerId, "settings.listThemes", absentInput)],
+    "character.list": [await captureCorpusRead(root, root.ownerId, "character.list", absentInput)],
+    "character.count": [await captureCorpusRead(root, root.ownerId, "character.count", absentInput)],
+    "persona.list": [await captureCorpusRead(root, root.ownerId, "persona.list", absentInput)],
     "persona.get": await Promise.all(
       (identities.personaIds ?? []).map(async (personaId) => {
         const input = corpusReadInput.persona({ id: personaId });
-        return { input, output: await caller.persona.get(input) };
+        return await captureCorpusRead(root, root.ownerId, "persona.get", input);
       }),
     ),
-    "chat.listChats": [{ input: absentInput, output: await caller.chat.listChats(absentInput) }],
-    "chat.countChats": [{ input: absentInput, output: await caller.chat.countChats(absentInput) }],
+    "chat.listChats": [await captureCorpusRead(root, root.ownerId, "chat.listChats", absentInput)],
+    "chat.countChats": [await captureCorpusRead(root, root.ownerId, "chat.countChats", absentInput)],
     "chat.getChat": [
-      { input: soloInput, output: await caller.chat.getChat(soloInput) },
-      { input: groupInput, output: await caller.chat.getChat(groupInput) },
+      await captureCorpusRead(root, root.ownerId, "chat.getChat", soloInput),
+      await captureCorpusRead(root, root.ownerId, "chat.getChat", groupInput),
     ],
-    "databank.get": [{ input: documentInput, output: await caller.databank.get(documentInput) }],
-    "databank.list": [{ input: documentListInput, output: await caller.databank.list(documentListInput) }],
-    "databank.bankHealth": [{ input: absentInput, output: await caller.databank.bankHealth(absentInput) }],
-    "notifications.list": [{ input: absentInput, output: await caller.notifications.list(absentInput) }],
-    "tag.listPendingSuggestions": [{ input: absentInput, output: await caller.tag.listPendingSuggestions(absentInput) }],
-    "worldInfo.countBooks": [{ input: absentInput, output: await caller.worldInfo.countBooks(absentInput) }],
-    "regex.countScripts": [{ input: absentInput, output: await caller.regex.countScripts(absentInput) }],
-    "rosterPreset.count": [{ input: absentInput, output: await caller.rosterPreset.count(absentInput) }],
-    "automation.getOwnerBudgets": [{ input: absentInput, output: await caller.automation.getOwnerBudgets(absentInput) }],
-    "stats.overview": [{ input: absentInput, output: await caller.stats.overview(absentInput) }],
-    "stats.wrapped": [{ input: absentInput, output: await caller.stats.wrapped(absentInput) }],
-    "stats.byModel": [{ input: absentInput, output: await caller.stats.byModel(absentInput) }],
-    "stats.latency": [{ input: ownerLatencyInput, output: await caller.stats.latency(ownerLatencyInput) }],
-    "stats.personaUsage": [{ input: absentInput, output: await caller.stats.personaUsage(absentInput) }],
-    "stats.timeseries": [{ input: absentInput, output: await caller.stats.timeseries(absentInput) }],
-    "stats.leaderboard": [{ input: absentInput, output: await caller.stats.leaderboard(absentInput) }],
-    "stats.freshness": [{ input: absentInput, output: await caller.stats.freshness(absentInput) }],
-    "stats.momentum": [{ input: absentInput, output: await caller.stats.momentum(absentInput) }],
+    "databank.get": [await captureCorpusRead(root, root.ownerId, "databank.get", documentInput)],
+    "databank.list": [await captureCorpusRead(root, root.ownerId, "databank.list", documentListInput)],
+    "databank.bankHealth": [await captureCorpusRead(root, root.ownerId, "databank.bankHealth", absentInput)],
+    "notifications.list": [await captureCorpusRead(root, root.ownerId, "notifications.list", absentInput)],
+    "tag.listPendingSuggestions": [await captureCorpusRead(root, root.ownerId, "tag.listPendingSuggestions", absentInput)],
+    "worldInfo.countBooks": [await captureCorpusRead(root, root.ownerId, "worldInfo.countBooks", absentInput)],
+    "regex.countScripts": [await captureCorpusRead(root, root.ownerId, "regex.countScripts", absentInput)],
+    "rosterPreset.count": [await captureCorpusRead(root, root.ownerId, "rosterPreset.count", absentInput)],
+    "automation.getOwnerBudgets": [await captureCorpusRead(root, root.ownerId, "automation.getOwnerBudgets", absentInput)],
+    "stats.overview": [await captureCorpusRead(root, root.ownerId, "stats.overview", absentInput)],
+    "stats.wrapped": [await captureCorpusRead(root, root.ownerId, "stats.wrapped", absentInput)],
+    "stats.byModel": [await captureCorpusRead(root, root.ownerId, "stats.byModel", absentInput)],
+    "stats.latency": [await captureCorpusRead(root, root.ownerId, "stats.latency", ownerLatencyInput)],
+    "stats.personaUsage": [await captureCorpusRead(root, root.ownerId, "stats.personaUsage", absentInput)],
+    "stats.timeseries": [await captureCorpusRead(root, root.ownerId, "stats.timeseries", absentInput)],
+    "stats.leaderboard": [await captureCorpusRead(root, root.ownerId, "stats.leaderboard", absentInput)],
+    "stats.freshness": [await captureCorpusRead(root, root.ownerId, "stats.freshness", absentInput)],
+    "stats.momentum": [await captureCorpusRead(root, root.ownerId, "stats.momentum", absentInput)],
   };
 }
 

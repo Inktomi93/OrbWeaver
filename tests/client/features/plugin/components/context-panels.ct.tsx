@@ -63,7 +63,7 @@ async function preparePanels(root: PanelRoot, page: Page, corpus: Parameters<typ
   }
   await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "collapsed", context: "docked" } } });
   const routes = await routeTrpc(page, {
-    ...createShellAmbientReads(corpus),
+    ...createShellAmbientReads(corpus, root.ownerId),
     ...serveCorpusProcedures(caller, [
       ...SECTION_PROCEDURES,
       ...ROOM_PROCEDURES,

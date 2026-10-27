@@ -13,7 +13,7 @@ import { AA_NON_TEXT_RATIO, AA_NORMAL_RATIO, readingPlateAlpha, wcagContrastRati
 import { emulateMedia, pixel, releaseEmulatedMedia, resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import type { CorpusWire } from "@orb/testkit/iso";
+import type { CorpusPlayback } from "@orb/testkit/iso";
 import { captureCookieAuth, createCorpusHarness } from "@orb/testkit/node/composed";
 import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
@@ -101,10 +101,10 @@ test.afterAll(async () => {
 
 /** The corpus viewer's settings with the cases' pinned appearance, `appearance` over it, and a selected theme when named. */
 function appearanceSettings(
-  corpus: CorpusWire,
+  corpus: CorpusPlayback,
   appearance: Partial<AppearanceSettings>,
   selectedThemeId?: string,
-): CorpusWire["reads"]["settings.getUserSettings"][number]["output"] {
+): CorpusPlayback["reads"]["settings.getUserSettings"][number]["output"] {
   const [captured] = corpus.reads["settings.getUserSettings"];
   if (captured === undefined) {
     throw new Error("The corpus has no settings capture");
@@ -115,18 +115,18 @@ function appearanceSettings(
 }
 
 /** Serve the shell and its sections, with the corpus viewer's settings carrying `appearance` and, when named, a selected theme. */
-async function routeAppearance(page: Page, corpus: CorpusWire, appearance: Partial<AppearanceSettings>, selectedThemeId?: string): Promise<void> {
+async function routeAppearance(page: Page, corpus: CorpusPlayback, appearance: Partial<AppearanceSettings>, selectedThemeId?: string): Promise<void> {
   await routeLiveAppearance(page, corpus, () => ({ appearance, selectedThemeId }));
 }
 
 /** {@link routeAppearance} with the settings read each time the shell asks, so a case can remount on a different answer. */
 async function routeLiveAppearance(
   page: Page,
-  corpus: CorpusWire,
+  corpus: CorpusPlayback,
   read: () => { readonly appearance: Partial<AppearanceSettings>; readonly selectedThemeId?: string | undefined },
 ): Promise<void> {
   await routeTrpc(page, {
-    ...createShellAmbientReads(corpus),
+    ...createShellAmbientReads(corpus, root.ownerId),
     ...serveCorpusProcedures(await root.internalCallerFor(root.ownerId), SERVED),
     "settings.getUserSettings": () => {
       const { appearance, selectedThemeId } = read();
@@ -161,7 +161,7 @@ function bubble(page: Page, role: (typeof ROOM_ROLES)[number]): Locator {
 }
 
 /** The corpus viewer's first saved wallpaper, as the appearance fields that select it. */
-function wallpaper(corpus: CorpusWire): Partial<AppearanceSettings> {
+function wallpaper(corpus: CorpusPlayback): Partial<AppearanceSettings> {
   const entry = corpus.reads["settings.getUserSettings"][0]?.output.config.appearance.backgroundLibrary[0];
   if (entry === undefined) {
     throw new Error("The corpus viewer has no saved wallpaper");
@@ -965,7 +965,7 @@ test.describe("over a wallpaper", () => {
     });
     await seedShellState(page, { activeSection: "chats" });
     await routeTrpc(page, {
-      ...createShellAmbientReads(corpus),
+      ...createShellAmbientReads(corpus, root.ownerId),
       ...serveCorpusProcedures(caller, SERVED),
       "settings.getUserSettings": () => appearanceSettings(corpus, {}),
     });
@@ -1109,7 +1109,7 @@ test.describe("the light arm over the darkest wallpaper a viewer can save", () =
     await using art = await blackArtRoot(page);
     await seedShellState(page, { activeSection: "chats" });
     await routeTrpc(page, {
-      ...createShellAmbientReads(corpus),
+      ...createShellAmbientReads(corpus, root.ownerId),
       ...serveCorpusProcedures(await art.internalCallerFor(art.ownerId), [...SECTION_PROCEDURES, ...ROOM_PROCEDURES]),
     });
     await mount<typeof AppShellStory>(STORY, {});
@@ -1140,7 +1140,7 @@ test.describe("the light arm over the darkest wallpaper a viewer can save", () =
     await using art = await blackArtRoot(page);
     await seedShellState(page, { activeSection: "chats" });
     await routeTrpc(page, {
-      ...createShellAmbientReads(corpus),
+      ...createShellAmbientReads(corpus, root.ownerId),
       ...serveCorpusProcedures(await art.internalCallerFor(art.ownerId), [...SECTION_PROCEDURES, ...ROOM_PROCEDURES]),
     });
     await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: await groupRoomId() });

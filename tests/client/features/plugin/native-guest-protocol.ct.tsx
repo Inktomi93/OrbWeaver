@@ -95,11 +95,16 @@ async function readProtocolResults(page: Page): Promise<{ inbound: JsonValue[]; 
 }
 
 for (const mode of ["lines", "chars"] as const) {
-  test(`native Worker log ${mode} limits preserve actual severity and refuse later overflow without stopping rendering`, async ({ corpus, mount, page }) => {
+  test(`native Worker log ${mode} limits preserve actual severity and refuse later overflow without stopping rendering`, async ({
+    corpus,
+    corpusViewer,
+    mount,
+    page,
+  }) => {
     const plugin = makePluginRow({ declaredCapabilities: ["ui.surface"], grantedCapabilities: ["ui.surface"] });
     const trpc = await routeTrpc(page, {
-      "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpus.reads["settings.getUserSettings"]),
-      "sessions.me": createCorpusReadResponder("sessions.me", corpus.reads["sessions.me"]),
+      "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpusViewer.userId, corpus.reads["settings.getUserSettings"]),
+      "sessions.me": createCorpusReadResponder("sessions.me", corpusViewer.userId, corpus.reads["sessions.me"]),
       "plugin.list": () => [plugin],
       "plugin.listSurfaces": () => [makePluginScriptedPage(plugin.id)],
       "plugin.getSurfaceState": knownPlugin(plugin.id, null),
@@ -133,6 +138,7 @@ for (const mode of ["lines", "chars"] as const) {
 
 test("the native Worker exchanges boot, render, event, host-call/result and settlement through the production contribution", async ({
   corpus,
+  corpusViewer,
   mount,
   page,
 }) => {
@@ -143,8 +149,8 @@ test("the native Worker exchanges boot, render, event, host-call/result and sett
   });
   const surfaces = [makePluginScriptedPage(plugin.id)];
   const trpc = await routeTrpc(page, {
-    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpus.reads["settings.getUserSettings"]),
-    "sessions.me": createCorpusReadResponder("sessions.me", corpus.reads["sessions.me"]),
+    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpusViewer.userId, corpus.reads["settings.getUserSettings"]),
+    "sessions.me": createCorpusReadResponder("sessions.me", corpusViewer.userId, corpus.reads["sessions.me"]),
     "plugin.list": () => [plugin],
     "plugin.listSurfaces": () => surfaces,
     "plugin.getSurfaceState": knownPlugin(plugin.id, null),
@@ -231,11 +237,16 @@ test("the native Worker exchanges boot, render, event, host-call/result and sett
   expect(page.workers()).toHaveLength(0);
 });
 
-test("a native guest boot failure publishes ready:false and reports the original cause through the selected page", async ({ corpus, mount, page }) => {
+test("a native guest boot failure publishes ready:false and reports the original cause through the selected page", async ({
+  corpus,
+  corpusViewer,
+  mount,
+  page,
+}) => {
   const plugin = makePluginRow();
   const trpc = await routeTrpc(page, {
-    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpus.reads["settings.getUserSettings"]),
-    "sessions.me": createCorpusReadResponder("sessions.me", corpus.reads["sessions.me"]),
+    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpusViewer.userId, corpus.reads["settings.getUserSettings"]),
+    "sessions.me": createCorpusReadResponder("sessions.me", corpusViewer.userId, corpus.reads["sessions.me"]),
     "plugin.list": () => [plugin],
     "plugin.listSurfaces": () => [makePluginScriptedPage(plugin.id)],
     "plugin.getSurfaceState": knownPlugin(plugin.id, null),
@@ -300,8 +311,8 @@ test("the default shared corpus renders its native Ledger publication and captur
   const viewerId = brandedId("UserId").parse(corpusViewer.userId);
   let stage = active;
   const trpc = await routeTrpc(page, {
-    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpus.reads["settings.getUserSettings"]),
-    "sessions.me": createCorpusReadResponder("sessions.me", corpus.reads["sessions.me"]),
+    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpusViewer.userId, corpus.reads["settings.getUserSettings"]),
+    "sessions.me": createCorpusReadResponder("sessions.me", corpusViewer.userId, corpus.reads["sessions.me"]),
     "plugin.list": (input) => createCorpusViewerReadResponder("plugin.list", viewerId, { viewerUserId: stage.viewerUserId, read: stage.reads.plugins })(input),
     "plugin.listSurfaces": (input) =>
       createCorpusViewerReadResponder("plugin.listSurfaces", viewerId, { viewerUserId: stage.viewerUserId, read: stage.reads.surfaces })(input),
@@ -334,87 +345,90 @@ const memoryTest = test.extend({
   },
 });
 
-memoryTest("native engine memory reservation refusal retires the real Worker without charging the plugin", async ({ corpus, mount, page, browser }) => {
-  const reservation = await page.evaluate(() => {
-    const small = new WebAssembly.Memory({ initial: 1, maximum: 1 });
-    try {
-      const oversized = new WebAssembly.Memory({ initial: 2, maximum: 2 });
-      return { smallBytes: small.buffer.byteLength, failure: null, unexpectedBytes: oversized.buffer.byteLength };
-    } catch (error) {
-      return { smallBytes: small.buffer.byteLength, failure: error instanceof Error ? { name: error.name, message: error.message } : null };
-    }
-  });
-  expect(reservation.smallBytes).toBe(65_536);
-  expect(reservation.failure).toMatchObject({ name: "RangeError", message: expect.any(String) });
-  const plugin = makePluginRow({
-    name: "Native reservation refusal",
-    declaredCapabilities: ["ui.surface", "storage.kv"],
-    grantedCapabilities: ["ui.surface", "storage.kv"],
-  });
-  const trpc = await routeTrpc(page, {
-    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpus.reads["settings.getUserSettings"]),
-    "sessions.me": createCorpusReadResponder("sessions.me", corpus.reads["sessions.me"]),
-    "plugin.list": () => [plugin],
-    "plugin.listSurfaces": () => [makePluginScriptedPage(plugin.id)],
-    "plugin.getSurfaceState": knownPlugin(plugin.id, null),
-    "plugin.uiHostCall": knownPlugin(plugin.id, { resultJson: '"Native ledger"' }),
-  });
-  await page.route(`${PLUGIN_UI_ROUTE}/${plugin.id}`, (route) => route.fulfill({ contentType: "application/octet-stream", body: UI_SOURCE }));
-  const pageErrors: string[] = [];
-  const closed: Promise<void>[] = [];
-  page.on("pageerror", (error) => pageErrors.push(error.message));
-  page.on("worker", (worker) => closed.push(new Promise<void>((resolve) => worker.once("close", () => resolve()))));
-  await observeProtocol(page);
-  await mount<typeof PluginProtocolStory>("tests/client/features/plugin/_ct-stories/PluginProtocolStory", { pluginId: plugin.id });
-  const retry = page.getByRole("button", { name: "Retry", exact: true });
-  const unavailable = expect.objectContaining({
-    kind: "unavailable" satisfies UiGuestUnavailableMessage["kind"],
-    message: expect.stringMatching(/the browser could not reserve \d+ bytes for the plugin's interface:/u),
-  });
-  for (const attempt of [1, 2]) {
-    await expect(retry).toBeVisible();
-    expect(closed).toHaveLength(attempt);
-    await Promise.all(closed);
-    const frames = jsonValueSchema.parse(JSON.parse((await page.evaluate((key) => sessionStorage.getItem(key), OBSERVATIONS)) ?? "null"));
-    expect(frames).toMatchObject({
-      inbound: Array.from({ length: attempt }, () => expect.objectContaining({ kind: "boot" })),
-      outbound: Array.from({ length: attempt }, () => unavailable),
-    });
-    expect(pageErrors).toHaveLength(attempt);
-    for (const error of pageErrors) {
-      expect(error).toMatch(/could not start in this browser:.*could not reserve \d+ bytes/u);
-    }
-    expect(page.workers()).toHaveLength(0);
-    const requestedBytes = Number(pageErrors[0]?.match(/could not reserve (\d+) bytes/u)?.[1]);
-    expect(requestedBytes).toBeGreaterThan(reservation.smallBytes);
-    const fixedReservation = await page.evaluate((bytes) => {
-      const pages = bytes / 65_536;
+memoryTest(
+  "native engine memory reservation refusal retires the real Worker without charging the plugin",
+  async ({ corpus, corpusViewer, mount, page, browser }) => {
+    const reservation = await page.evaluate(() => {
+      const small = new WebAssembly.Memory({ initial: 1, maximum: 1 });
       try {
-        const fixed = new WebAssembly.Memory({ initial: pages, maximum: pages });
-        return { bytes: fixed.buffer.byteLength, failure: null };
+        const oversized = new WebAssembly.Memory({ initial: 2, maximum: 2 });
+        return { smallBytes: small.buffer.byteLength, failure: null, unexpectedBytes: oversized.buffer.byteLength };
       } catch (error) {
-        return { bytes: null, failure: error instanceof Error ? { name: error.name, message: error.message } : null };
+        return { smallBytes: small.buffer.byteLength, failure: error instanceof Error ? { name: error.name, message: error.message } : null };
       }
-    }, requestedBytes);
-    expect(fixedReservation).toMatchObject({ bytes: null, failure: { name: "RangeError", message: expect.any(String) } });
-    if (attempt === 2) {
-      if (frames === null || typeof frames !== "object" || Array.isArray(frames)) {
-        throw new Error("Native protocol observation did not retain its message envelope");
-      }
-      await memoryTest.info().attach("native-memory-reservation", {
-        body: Buffer.from(
-          JSON.stringify({ browser: browser.version(), reservation, requestedBytes, fixedReservation, outbound: frames["outbound"], pageErrors }),
-        ),
-        contentType: "application/json",
+    });
+    expect(reservation.smallBytes).toBe(65_536);
+    expect(reservation.failure).toMatchObject({ name: "RangeError", message: expect.any(String) });
+    const plugin = makePluginRow({
+      name: "Native reservation refusal",
+      declaredCapabilities: ["ui.surface", "storage.kv"],
+      grantedCapabilities: ["ui.surface", "storage.kv"],
+    });
+    const trpc = await routeTrpc(page, {
+      "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpusViewer.userId, corpus.reads["settings.getUserSettings"]),
+      "sessions.me": createCorpusReadResponder("sessions.me", corpusViewer.userId, corpus.reads["sessions.me"]),
+      "plugin.list": () => [plugin],
+      "plugin.listSurfaces": () => [makePluginScriptedPage(plugin.id)],
+      "plugin.getSurfaceState": knownPlugin(plugin.id, null),
+      "plugin.uiHostCall": knownPlugin(plugin.id, { resultJson: '"Native ledger"' }),
+    });
+    await page.route(`${PLUGIN_UI_ROUTE}/${plugin.id}`, (route) => route.fulfill({ contentType: "application/octet-stream", body: UI_SOURCE }));
+    const pageErrors: string[] = [];
+    const closed: Promise<void>[] = [];
+    page.on("pageerror", (error) => pageErrors.push(error.message));
+    page.on("worker", (worker) => closed.push(new Promise<void>((resolve) => worker.once("close", () => resolve()))));
+    await observeProtocol(page);
+    await mount<typeof PluginProtocolStory>("tests/client/features/plugin/_ct-stories/PluginProtocolStory", { pluginId: plugin.id });
+    const retry = page.getByRole("button", { name: "Retry", exact: true });
+    const unavailable = expect.objectContaining({
+      kind: "unavailable" satisfies UiGuestUnavailableMessage["kind"],
+      message: expect.stringMatching(/the browser could not reserve \d+ bytes for the plugin's interface:/u),
+    });
+    for (const attempt of [1, 2]) {
+      await expect(retry).toBeVisible();
+      expect(closed).toHaveLength(attempt);
+      await Promise.all(closed);
+      const frames = jsonValueSchema.parse(JSON.parse((await page.evaluate((key) => sessionStorage.getItem(key), OBSERVATIONS)) ?? "null"));
+      expect(frames).toMatchObject({
+        inbound: Array.from({ length: attempt }, () => expect.objectContaining({ kind: "boot" })),
+        outbound: Array.from({ length: attempt }, () => unavailable),
       });
+      expect(pageErrors).toHaveLength(attempt);
+      for (const error of pageErrors) {
+        expect(error).toMatch(/could not start in this browser:.*could not reserve \d+ bytes/u);
+      }
+      expect(page.workers()).toHaveLength(0);
+      const requestedBytes = Number(pageErrors[0]?.match(/could not reserve (\d+) bytes/u)?.[1]);
+      expect(requestedBytes).toBeGreaterThan(reservation.smallBytes);
+      const fixedReservation = await page.evaluate((bytes) => {
+        const pages = bytes / 65_536;
+        try {
+          const fixed = new WebAssembly.Memory({ initial: pages, maximum: pages });
+          return { bytes: fixed.buffer.byteLength, failure: null };
+        } catch (error) {
+          return { bytes: null, failure: error instanceof Error ? { name: error.name, message: error.message } : null };
+        }
+      }, requestedBytes);
+      expect(fixedReservation).toMatchObject({ bytes: null, failure: { name: "RangeError", message: expect.any(String) } });
+      if (attempt === 2) {
+        if (frames === null || typeof frames !== "object" || Array.isArray(frames)) {
+          throw new Error("Native protocol observation did not retain its message envelope");
+        }
+        await memoryTest.info().attach("native-memory-reservation", {
+          body: Buffer.from(
+            JSON.stringify({ browser: browser.version(), reservation, requestedBytes, fixedReservation, outbound: frames["outbound"], pageErrors }),
+          ),
+          contentType: "application/json",
+        });
+      }
+      expect(trpc.count("plugin.reportUiCrash")).toBe(0);
+      expect(trpc.count("plugin.uiHostCall")).toBe(0);
+      await expect(page.getByText("Native browser ready", { exact: true })).toHaveCount(0);
+      if (attempt === 1) {
+        const nextWorker = page.waitForEvent("worker");
+        await retry.click();
+        await nextWorker;
+      }
     }
-    expect(trpc.count("plugin.reportUiCrash")).toBe(0);
-    expect(trpc.count("plugin.uiHostCall")).toBe(0);
-    await expect(page.getByText("Native browser ready", { exact: true })).toHaveCount(0);
-    if (attempt === 1) {
-      const nextWorker = page.waitForEvent("worker");
-      await retry.click();
-      await nextWorker;
-    }
-  }
-});
+  },
+);

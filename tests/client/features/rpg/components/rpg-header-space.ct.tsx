@@ -51,7 +51,7 @@ for (const populated of [false, true]) {
     const caller = await root.internalCallerFor(root.ownerId);
     await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "collapsed", context: "collapsed" } } });
     await routeTrpc(page, {
-      ...createShellAmbientReads(corpus),
+      ...createShellAmbientReads(corpus, root.ownerId),
       ...serveCorpusProcedures(caller, [
         ...SECTION_PROCEDURES,
         ...ROOM_PROCEDURES,
