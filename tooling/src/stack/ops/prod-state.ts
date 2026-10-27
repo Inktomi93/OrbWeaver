@@ -52,10 +52,10 @@ export function result(line: string): void {
 // ── env + port resolution (must MATCH foundation/env, which loads .env with override:true) ───────────
 
 /** The app's `.env`: the file foundation/env loads from the repo root, where every launcher starts the server. */
-export const ENV_FILE_PATH = (): string => envFilePath(REPO_ROOT);
+export const ENV_FILE_PATH = (repoRoot = REPO_ROOT): string => envFilePath(repoRoot);
 
-export function readEnvFile(): Readonly<Record<string, string | undefined>> {
-  return parseEnvText(readEnvText(ENV_FILE_PATH()) ?? "");
+export function readEnvFile(repoRoot = REPO_ROOT): Readonly<Record<string, string | undefined>> {
+  return parseEnvText(readEnvText(ENV_FILE_PATH(repoRoot)) ?? "");
 }
 
 /** The port the server will ACTUALLY bind. `.env` wins over the shell — the same precedence

@@ -199,7 +199,7 @@ function outcomeOf(wait: PortWait, holder: PortHolder): PortOutcome {
 }
 
 /** One port: unbound, freed, held by a holder this sweep may not or could not stop, or an unreadable table. */
-async function sweepPort(ctx: StackContext, port: number, deps: DevPortDeps): Promise<PortOutcome> {
+async function sweepPort(ctx: StackContext, port: number, deps: DevPortDeps, priorPortFreed: boolean): Promise<PortOutcome> {
   const table = deps.readPorts();
   if (table.kind === "refused") {
     return { kind: "unreadable", reason: table.reason };
@@ -209,7 +209,20 @@ async function sweepPort(ctx: StackContext, port: number, deps: DevPortDeps): Pr
     return { kind: "unbound" };
   }
   if (owner.kind === "unknown") {
-    return { kind: "owner-unknown" };
+    if (!priorPortFreed) {
+      return { kind: "owner-unknown" };
+    }
+    // A stopped holder's group can lose its sibling's fd before the sibling's socket row disappears.
+    const watch = portWatch(port, deps);
+    const wait = waitOutcome(watch, await settle(watch.free, TERM_GRACE_BASE_MS));
+    switch (wait.kind) {
+      case "free":
+        return { kind: "unbound" };
+      case "held":
+        return { kind: "owner-unknown" };
+      case "unreadable":
+        return wait;
+    }
   }
   const pid = owner.pid;
   const watch = portWatch(port, deps);
@@ -235,7 +248,7 @@ async function sweepPorts(ctx: StackContext, deps: DevPortDeps): Promise<PortSwe
   const refused: PortHolder[] = [];
   const ownerUnknown: number[] = [];
   for (const port of [ctx.ports.server, ctx.ports.vite]) {
-    const outcome = await sweepPort(ctx, port, deps);
+    const outcome = await sweepPort(ctx, port, deps, freed.length > 0);
     if (outcome.kind === "unreadable") {
       return outcome;
     }
