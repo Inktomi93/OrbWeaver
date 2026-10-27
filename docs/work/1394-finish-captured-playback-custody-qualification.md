@@ -27,25 +27,34 @@ Implementation is frozen and uncommitted in `/home/inktomi/.codex/worktrees/iden
 
 Final recovery snapshot: `0c57c6177718b7c02930ae5b6ea35ba500416de6`. The working copy is restored. The earlier snapshot `c4852602f079fdcd0a0590733bacfeb9ea77cb2d` is not the final source.
 
-The final Node, DOM and ISO compiler programs pass, including the router prerequisite. Scoped lint passes. Runtime qualification of the corrected implementation remains pending.
+The final Node, DOM and ISO compiler programs pass, including the router prerequisite. Scoped lint, focused custody runtime, coupled publication and loader suites, rendered consumers and census controls pass. Full integrated qualification remains open.
 
-Read `reports/stickler/capture-playback-boundary.md`. The final bounded key-correlation and search-publication corrections need delta review. Keep first-boot captures separate from the populated corpus viewer; use the actual scenario root rather than relabeling records.
+Read `reports/stickler/capture-playback-boundary.md`. The bounded key-correlation correction uses a closed generic key map; raw search-publication cases remain separate from admitted responder inputs. Keep first-boot captures separate from the populated corpus viewer; use the actual scenario root rather than relabeling records.
 
 The source list and safe logs are under `reports/surface-consistency-private/resume/`. Keep the capture and private-import batches together for integration.
 
-Run the focused custody suite first:
+Dependency-cruiser refuses these cycles in the current frozen implementation:
+
+- `corpus-playback.ts` → `corpus-read.ts` → `corpus-playback.ts`.
+- `corpus-admission.ts` → `corpus.ts` → `corpus-admission.ts`.
+
+Separate shared data declarations from runtime admission owners without duplicating shapes. Preserve public doors and the raw serialization contract. Do not exempt type-only cycles. Run the changed helper closure through native dependency-cruiser before integration.
+
+The safe evidence packet contains `orb-capture-custody-runtime-final.log`, `orb-capture-coupled-node-final.log`, `orb-capture-consumers-chromium.log`, `orb-capture-census-controls-final.log` and `orb-capture-helper-depcruise.log`. Reuse matching results; rerun only proof affected by the cycle correction.
+
+Use the focused custody suite when a correction affects its proof:
 
 ```bash
 pnpm test tests/support/node/corpus-read-responder.int.test.ts
 ```
 
-Then run coupled publication and loader coverage:
+Coupled publication and loader coverage:
 
 ```bash
 pnpm test tests/support/node/corpus-publication.int.test.ts tests/support/node/corpus-library-views.int.test.ts tests/support/node/corpus-search-publication.int.test.ts tests/support/node/factories/library-relations.int.test.ts tests/support/node/corpus-fixture-schema.test.ts tests/support/node/corpus-fixture-lifetime.int.test.ts tests/support/node/corpus-boundary.test.ts
 ```
 
-Run rendered consumers and the census integration:
+Rendered consumers and the broader census integration:
 
 ```bash
 pnpm test:ct tests/support/browser/ct-shell-reads.ct.tsx tests/client/features/config/surfaces/theme-css-editor.ct.tsx tests/client/components/entry-list-consent.ct.tsx tests/client/features/notifications/notification-inbox.ct.tsx tests/client/features/plugin/native-guest-protocol.ct.tsx tests/client/features/app-shell/surface-census.suite.ct.tsx tests/client/features/app-shell/accessible-name-quality.suite.ct.tsx tests/client/features/app-shell/form-identity.suite.ct.tsx
