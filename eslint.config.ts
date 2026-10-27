@@ -239,6 +239,29 @@ const FILESYSTEM_MODULE_MOCK_RESTRICTION = {
     "Do not replace filesystem modules in tooling tests: shared imports can bypass mocks and read operator files. Use @orb/testkit/tooling scratch/plantedTree resources or an explicit filesystem dependency.",
 };
 
+// These selectors recognize explicit process-door spellings, not aliases or dynamically built commands.
+const PORTABLE_PROCESS_METHOD =
+  "/^(spawn|spawnSync|execFile|execFileSync|runNicedSync|execNicedSync|execNicedSyncBuffer|spawnFullPrioritySync|spawnFullPriorityChild|spawnNiced|spawnNicedChild|spawnNicedTranscript)$/";
+const PORTABLE_PROCESS_CALL = `CallExpression:matches([callee.name=${PORTABLE_PROCESS_METHOD}], [callee.property.name=${PORTABLE_PROCESS_METHOD}], [callee.property.value=${PORTABLE_PROCESS_METHOD}])`;
+const PORTABLE_PROCESS_SYNTAX = [
+  {
+    selector: `${PORTABLE_PROCESS_CALL}[arguments.0.type='Literal'][arguments.0.value=/^(rm|cp|mkdir)$/]`,
+    message: "Use node:fs rm/cp/mkdir for portable filesystem work, not an external shell utility.",
+  },
+  {
+    selector: `${PORTABLE_PROCESS_CALL}[arguments.0.type='Literal'][arguments.0.value='kill']`,
+    message: "Use killPidGroup from @orb/tooling/floor/process/proc for process groups, not the external kill utility.",
+  },
+  {
+    selector: `${PORTABLE_PROCESS_CALL} > ObjectExpression.arguments > Property:matches([key.name='shell'], [key.value='shell']):matches([value.value=true], [value.type='Literal'][value.value=type(string)])`,
+    message: "Portable process calls use an executable and argv with no shell; keep OS-specific shell behavior in the process/platform adapter.",
+  },
+  {
+    selector: `${PORTABLE_PROCESS_CALL}[arguments.0.type='Literal'][arguments.0.value=/^(bash|sh)$/][arguments.1.type='ArrayExpression'][arguments.1.elements.0.type='Literal'][arguments.1.elements.0.value=/^-[a-z]*c[a-z]*$/]`,
+    message: "Pass the executable and argv directly instead of a first bash/sh -c option; a deliberate Bash script invocation remains allowed.",
+  },
+];
+
 // The integration project shares one module registry (`isolate: false`), so a stubbed or written process
 // environment leaks across files and the first file's value wins. Tests pass the value through the harness seam
 // (`createServerHarness` options) or the subject's own parameter instead.
@@ -1937,6 +1960,12 @@ export default [
         },
       ],
     },
+  },
+  {
+    files: ["tooling/src/**/*.{ts,tsx}", "scripts/**/*.{ts,tsx}"],
+    // These existing adapters own native OS process behavior; ordinary tooling callers do not.
+    ignores: ["tooling/src/floor/host/platform.ts", "tooling/src/floor/host/platform-probes.ts", "tooling/src/floor/process/proc.ts"],
+    rules: { "no-restricted-syntax": ["error", INVISIBLE_CONTROL_SYNTAX, ...PORTABLE_PROCESS_SYNTAX] },
   },
   {
     files: ["tests/tooling/**/*.{ts,tsx,mts,cts}"],
