@@ -4,7 +4,7 @@
 import type { ThemeChatStyle } from "@orb/contracts/theme";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import type { ChatId, ThemeId } from "@orb/kit/ids";
-import { resolvedLength } from "@orb/testkit/browser/spec";
+import { beginReading, resolvedLength, scrollIntoReadingMessage as scrollIntoMessage, seedShellState, tokenColor } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusWire } from "@orb/testkit/iso";
 import { TOKENS } from "@orb/ui/tokens";
@@ -15,15 +15,7 @@ import { MESSAGE_ROW_SKINS } from "#client/features/chat/lib/message-row-variant
 import { viewImageActionName } from "#client/lib/row-qualifiers.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 import type { ReadingRoom } from "./chat-style-reading.fixtures.ts";
-import {
-  beginReading,
-  createReadingRoom,
-  openReadingRoom,
-  READING_ROLES as ROLES,
-  scrollIntoReadingMessage as scrollIntoMessage,
-  TAIL_MESSAGES,
-  tokenColor,
-} from "./chat-style-reading.fixtures.ts";
+import { createReadingRoom, openReadingRoom, READING_ROLES as ROLES, TAIL_MESSAGES } from "./chat-style-reading.fixtures.ts";
 
 const ROOM_STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
 const VIEWPORT = { width: 1440, height: 900 } as const;
@@ -51,6 +43,7 @@ test.afterAll(async () => {
 
 async function openRoom(page: Page, corpus: CorpusWire, chatStyle: ThemeChatStyle, art: boolean): Promise<void> {
   await openReadingRoom(page, corpus, root, { chatStyle, art });
+  await seedShellState(page, { activeSection: "chats" });
 }
 
 function computed(locator: Locator, property: string, pseudo: string | null = null): Promise<string> {

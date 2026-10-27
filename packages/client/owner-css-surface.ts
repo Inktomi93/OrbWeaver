@@ -27,6 +27,8 @@ export const OWNER_CSS_SLOTS = [
   "analytics-scope",
   "archetypes-not-run",
   "art-bleed",
+  "aspect-frame",
+  "aspect-frame-content",
   "autocomplete-arrow",
   "autocomplete-clear",
   "autocomplete-empty",
