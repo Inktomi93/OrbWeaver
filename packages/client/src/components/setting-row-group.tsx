@@ -27,11 +27,17 @@ import { FieldLayout } from "@orb/ui/field";
 import { Container, Grid } from "@orb/ui/layout";
 import type { ReactElement, ReactNode } from "react";
 
-/** A section's settings rows, sharing one label track, one control-track start and one action cell. */
-export function SettingRowGroup({ children }: { readonly children: ReactNode }): ReactElement {
+const GROUP_LAYOUT = {
+  settings: { orientation: "horizontal", cols: "settingTrack", gap: "block" },
+  choices: { orientation: "inline", cols: "choiceTrack", gap: "field" },
+} as const;
+
+/** A section's settings or choices, sharing label and control tracks across its rows. */
+export function SettingRowGroup({ children, kind = "settings" }: { readonly children: ReactNode; readonly kind?: keyof typeof GROUP_LAYOUT }): ReactElement {
+  const layout = GROUP_LAYOUT[kind];
   return (
     <Container>
-      <FieldLayout align="track" orientation="horizontal">
+      <FieldLayout align="track" orientation={layout.orientation}>
         {/* `max-w-(--reading-measure)` caps the BLOCK (the E1 ask). It stays on the WIDE measure after the
             #1145 split, deliberately: this cap bounds a track pair of label and CONTROL, and a control row
             squeezed to a prose measure is a worse row. The prose half of the E1 ask moved to where it
@@ -41,7 +47,7 @@ export function SettingRowGroup({ children }: { readonly children: ReactNode }):
             `gap-x-block` is the label→control gutter; `gap-y-block` keeps the between-row rhythm the
             Section's own `gap-block` used to give
             these rows when they were its direct children. */}
-        <Grid className="gap-block max-inline-(--reading-measure)" cols="settingTrack" data-slot="setting-row-group">
+        <Grid className="gap-x-block max-inline-(--reading-measure)" cols={layout.cols} gap={layout.gap} data-slot="setting-row-group">
           {children}
         </Grid>
       </FieldLayout>

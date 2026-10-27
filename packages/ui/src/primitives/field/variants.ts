@@ -44,6 +44,16 @@ export const fieldVariants = tv({
         root: "flex-row items-start justify-between gap-row @max-cq-28:flex-col @max-cq-28:items-stretch @max-cq-28:justify-start",
         controlCol: "inline-(--width-control-col) @max-cq-28:items-stretch @max-cq-28:inline-full",
       },
+      // Reserve the hit surface in flow without enlarging the checkbox's painted mark.
+      inline: {
+        root: "grid grid-cols-[minmax(0,1fr)_auto] grid-rows-[minmax(var(--size-touch-target),auto)] items-center justify-start gap-row",
+        labelBlock: "contents",
+        label: "col-start-1 row-start-1 min-inline-0",
+        labelRow: "col-start-1 row-start-1 min-inline-0",
+        description: "col-span-full row-start-2 min-inline-0",
+        controlCol: "col-start-2 row-start-1 items-start inline-auto",
+        error: "col-span-full wrap-anywhere max-inline-(--reading-measure-prose) min-inline-0",
+      },
     },
     // THE HORIZONTAL ROW'S CROSS-AXIS (side-eye 2026-08-06 P2). `items-start` is only right when one column
     // is genuinely MULTI-LINE: a description wraps under the label and the control must hold the FIRST line
@@ -63,6 +73,13 @@ export const fieldVariants = tv({
     align: { block: {}, track: {} },
   },
   compoundVariants: [
+    {
+      align: "track",
+      orientation: "inline",
+      class: {
+        root: "col-span-2 grid-cols-subgrid",
+      },
+    },
     { orientation: "horizontal", multiline: false, class: { root: "items-center" } },
     {
       align: "track",

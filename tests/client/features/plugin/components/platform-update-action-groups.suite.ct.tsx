@@ -6,7 +6,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createServerHarness, makePluginBundle } from "@orb/testkit/node/composed";
 import { pluginDetailsLabel, updateAvailableLabel } from "#client/features/plugin/lib/plugin-copy.ts";
-import type { PluginActionGroupsStory } from "./_update-action-groups-stories.tsx";
+import type { PluginActionGroupsStory, PluginInstallActionsStory } from "./_update-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/plugin/components/_update-action-groups-stories/PluginActionGroupsStory";
 const SOURCE = "https://updates.example.test/action-group.zip";
@@ -149,6 +149,52 @@ for (const regime of REGIMES) {
       await page.keyboard.press("Enter");
       await expect(cancel).toHaveCount(0);
       expect(calls.count("plugin.installForAllUsers")).toBe(0);
+    });
+
+    test("install consent actions remain contained and Cancel does not install the preview", async ({ mount, page }, testInfo) => {
+      const appearance = appearanceSettingsSchema.parse({ fontScale: regime.fontScale });
+      await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark", forcedColors: "none" });
+      await using root = await createServerHarness({ startJobs: false });
+      const caller = await root.internalCallerFor(root.ownerId);
+      const manifest = pluginManifestSchema.parse({
+        id: "install-actions",
+        name: "Install action witness",
+        description: "A bundle preview for the real install consent actions.",
+        version: "1.0.0",
+        hostVersion: PLUGIN_HOST_VERSIONS[0],
+        entry: PLUGIN_MAIN_ENTRY,
+        capabilities: [],
+      });
+      const bundle = makePluginBundle(manifest, "orb.host(1);", root.clock.now());
+      await caller.settings.updateUserSettingsSection({ section: "appearance", patch: appearance });
+      await caller.settings.updateUserSettingsSection({ section: "theme", patch: { selectedThemeId: null } });
+      const calls = await routeTrpc(page, serveCorpusProcedures(caller, ["sessions.me", "settings.getUserSettings", "plugin.list"]));
+      await mount<typeof PluginInstallActionsStory>("tests/client/features/plugin/components/_update-action-groups-stories/PluginInstallActionsStory", {
+        width: regime.width,
+        appearance,
+      });
+      await page
+        .locator('input[type="file"]')
+        .first()
+        .setInputFiles({ name: "install-actions.zip", mimeType: "application/zip", buffer: Buffer.from(bundle) });
+      await expect(page.getByRole("heading", { name: `Review ${manifest.name} ${manifest.version}`, exact: true })).toBeVisible();
+      const install = page.getByRole("button", { name: "Install", exact: true });
+      const cancel = page.getByRole("button", { name: "Cancel", exact: true });
+      await expect(install).toBeEnabled();
+      await install.focus();
+      await page.keyboard.press("Tab");
+      await expect(cancel).toBeFocused();
+      const group = cancel.locator("..");
+      const geometry = await actionGroupGeometry(group, [install, cancel]);
+      await testInfo.attach("actual-install-action-boxes", { body: JSON.stringify(geometry), contentType: "application/json" });
+      expect(geometry.inlineOverflow).toBeLessThanOrEqual(1);
+      const floor = await resolvedLength(page, "var(--size-control-md)", group);
+      for (const box of geometry.controls) {
+        expect(box.height).toBeGreaterThanOrEqual(floor);
+      }
+      await page.keyboard.press("Enter");
+      await expect(cancel).toHaveCount(0);
+      expect(calls.count("plugin.install")).toBe(0);
     });
   });
 }

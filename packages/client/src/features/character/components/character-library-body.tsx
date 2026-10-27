@@ -96,7 +96,7 @@ export function CharacterLibraryBody({
       return (
         <EmptyState
           action={
-            <Row gap="field">
+            <Row className="flex-wrap max-inline-full" gap="field">
               <Button intent="secondary" onClick={onClearSearch} size="sm">
                 Clear search
               </Button>

@@ -46,6 +46,26 @@ for (const viewport of VIEWPORTS) {
       await createTrigger.click();
       const createDialog = page.getByTestId(testId("createScheduleDialog"));
       await expect(createDialog).toBeVisible();
+      await expectPairedScheduleActions(createDialog, "Create schedule");
+      if (viewport.label === "desktop") {
+        await test.step("the geometry assertion rejects misaligned production actions", async () => {
+          const cancel = createDialog.getByRole("button", { name: "Cancel", exact: true });
+          const transform = await cancel.evaluate((node) => {
+            const original = node.style.transform;
+            node.style.transform = `translateY(${node.getBoundingClientRect().height}px)`;
+            return original;
+          });
+          try {
+            await expect(expectPairedScheduleActions(createDialog, "Create schedule")).rejects.toThrow(/toBeLessThanOrEqual/u);
+          } finally {
+            await cancel.evaluate((node, original) => {
+              node.style.transform = original;
+            }, transform);
+          }
+          await expectPairedScheduleActions(createDialog, "Create schedule");
+        });
+      }
+      await expectScheduleActionsAfterScroll(createDialog, "Create schedule");
       await createDialog.getByRole("combobox", { name: "Runs", exact: true }).click();
       await page.getByRole("option", { name: SCHEDULE_CADENCE_LABELS.weekly, exact: true }).click();
       await dismissScheduleDialog(page, createDialog);
@@ -64,6 +84,8 @@ for (const viewport of VIEWPORTS) {
       const editTrigger = createdRow.getByRole("button", { name: /Edit .* schedule/u });
       await editTrigger.click();
       const editDialog = page.getByTestId(testId("editScheduleDialog"));
+      await expectPairedScheduleActions(editDialog, "Save schedule");
+      await expectScheduleActionsAfterScroll(editDialog, "Save schedule");
       const cadence = editDialog.getByRole("combobox", { name: "Runs", exact: true });
       await expect(cadence).toHaveText(SCHEDULE_CADENCE_LABELS.daily);
       await cadence.click();
@@ -81,6 +103,44 @@ for (const viewport of VIEWPORTS) {
       await expect(editTrigger).toBeFocused();
     });
   });
+}
+
+async function expectPairedScheduleActions(dialog: import("@playwright/test").Locator, submitLabel: string): Promise<void> {
+  const submit = dialog.getByRole("button", { name: submitLabel, exact: true });
+  const cancel = dialog.getByRole("button", { name: "Cancel", exact: true });
+  await expect(submit).toBeVisible();
+  await expect(cancel).toBeVisible();
+  const [submitBox, cancelBox] = await Promise.all([submit.boundingBox(), cancel.boundingBox()]);
+  if (submitBox === null || cancelBox === null) {
+    throw new Error("Paired schedule actions must have measurable bounds");
+  }
+  await test.info().attach("schedule-action-bounds", {
+    body: JSON.stringify({ submit: submitBox, cancel: cancelBox }),
+    contentType: "application/json",
+  });
+  expect(Math.abs(submitBox.y - cancelBox.y)).toBeLessThanOrEqual(1);
+  await expect(submit).toBeInViewport({ ratio: 1 });
+  await expect(cancel).toBeInViewport({ ratio: 1 });
+  const footer = dialog.locator('[data-slot="dialog-footer"]').filter({ has: dialog.page().getByRole("button", { name: submitLabel, exact: true }) });
+  await expect(footer.getByRole("button", { name: "Cancel", exact: true })).toHaveCount(1);
+}
+
+async function expectScheduleActionsAfterScroll(dialog: import("@playwright/test").Locator, submitLabel: string): Promise<void> {
+  const scrolls = await dialog.evaluate((node) => {
+    const scroller = [node, ...node.querySelectorAll("*")].find(
+      (element) => element.scrollHeight > element.clientHeight && getComputedStyle(element).overflowY === "auto",
+    );
+    if (scroller === undefined) {
+      return false;
+    }
+    scroller.scrollTop = scroller.scrollHeight;
+    return true;
+  });
+  if (!scrolls) {
+    return;
+  }
+  await expect.poll(() => dialog.evaluate((node) => [node, ...node.querySelectorAll("*")].some((element) => element.scrollTop > 0))).toBe(true);
+  await expectPairedScheduleActions(dialog, submitLabel);
 }
 
 async function dismissScheduleDialog(page: import("@playwright/test").Page, dialog: import("@playwright/test").Locator): Promise<void> {
