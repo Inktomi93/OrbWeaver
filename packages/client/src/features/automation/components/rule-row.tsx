@@ -251,18 +251,20 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
             slack (`min-w-0 flex-1`, so a long name wraps instead of pushing the switch off the 384px pane)
             and the one control a host needs WITHOUT opening the row sits beside it. `pr-block` supplies the
             padding the trigger's own `p-block` does not reach. */}
-        <Row align="center" className="pe-block" gap="field">
+        <Row align="center" className="flex-wrap pe-block" gap="field">
           {/* `size="control"` pins the pointer-conditional `--size-control-sm` floor (44px coarse / 32px
               fine) — the same arm the fire-log disclosure and the Field-overrides triggers take. `text-start`
               because a `button`'s UA `text-align: center` would centre a multi-line summary; the single-line
               triggers of the sibling sections never showed it. The accessible name COMPUTES from the
               trigger's own content, so it can never disagree with the visible summary (WCAG 2.5.3). */}
-          <CollapsibleTrigger className="flex-1 p-block text-start min-inline-0" size="control">
+          <CollapsibleTrigger className="flex-1 basis-(--width-title-floor) p-block text-start min-inline-0" size="control">
             {/* THE CLOSED FACE — the whole of what a rule IS at a glance: its name, what it does, and when it
                 last ran. It is the row's own name/gloss/state trio, standing ALONE while the actions wait
                 behind the disclosure. */}
             <Stack className="flex-1 min-inline-0" gap="tight">
-              <Text voice="promoted">{rule.name}</Text>
+              <Text className="wrap-anywhere" voice="promoted">
+                {rule.name}
+              </Text>
               {/* `prose`: the rule's own sentence is the same size as the connection description inside this card.
                   Shut, it keeps to one line (two on a phone) so a closed row stays dense; open, the whole sentence reads. */}
               <Text className={open ? undefined : closedGloss} prose={true} voice="gloss">
@@ -291,7 +293,7 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
             trigger would both resolve to the muted ink and erase the three-weights reading of the row. */}
         <CollapsiblePanel holds="controls">
           <Stack className="px-block pbe-block" gap="field">
-            <Row align="center" gap="field">
+            <Row align="center" className="flex-wrap" gap="field">
               {/* Test stays visually distinct from editing and the spending actions in the overflow menu. */}
               {onEdit === undefined ? null : (
                 <Button intent="ghost" size="sm" aria-label={`Edit ${rule.name}`} onClick={(event): void => onEdit(event.currentTarget)}>

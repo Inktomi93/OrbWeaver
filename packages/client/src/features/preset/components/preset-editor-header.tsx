@@ -88,8 +88,8 @@ export function PresetEditorHeader({
       <Stack gap="block" className="sticky inset-bs-0 z-(--z-raised) py-block" ground="card">
         <Container className="inline-full">
           <Stack className="mx-auto inline-full max-inline-(--width-content-col) @cq-64:max-inline-(--width-content-col-wide)" gap="block">
-            <Row align="center" justify="between" gap="field">
-              <Row align="center" className="min-inline-0" gap="field">
+            <Row align="center" className="flex-wrap" justify="between" gap="field">
+              <Row align="center" className="flex-1 basis-full flex-wrap min-inline-0" gap="field">
                 {/* The artifact's NAME is an h2 (side-eye F-28 / ARIA rec 8): it was a <p>, with the view's
                     kickers as h3s under no h2 at all, so heading navigation could not find the thing being
                     edited. It now RENDERS like the title it is (crunch-list 13): `voice="label"` held it at
@@ -105,7 +105,7 @@ export function PresetEditorHeader({
                     question (a viewport media query, not the content container's width): between 30rem and
                     the mobile breakpoint the topbar renders its WIDE arm, which for Presets is nothing at
                     all while the list is docked, so hiding on that signal would lose the name outright. */}
-                <Heading className="shrink truncate min-inline-(--width-title-floor)" data-shell-identity="defer" level={2}>
+                <Heading className="flex-1 basis-(--width-title-floor) truncate min-inline-0" data-shell-identity="defer" level={2}>
                   {presetName}
                 </Heading>
                 {/* THE NAME HAS A DOOR HERE. `New` mints a preset called "New preset" and opens THIS editor,
@@ -163,7 +163,7 @@ export function PresetEditorHeader({
                     resolution truth (`resolvedForLabel` spells it, once, for that panel), including the case
                     where the panel is away — not a permanent tax on every header in every regime. */}
               </Row>
-              <Row align="center" gap="field">
+              <Row align="center" className="shrink-0" gap="field">
                 {/* Autosave everywhere (§7): the live status takes the action slot, with no Save/Discard. */}
                 <AutosaveStatus state={saveState} onRetry={onRetrySave} />
                 {/* The BUILT-IN's menu would hold NOTHING — "Reset to starter" is a no-op wearing a

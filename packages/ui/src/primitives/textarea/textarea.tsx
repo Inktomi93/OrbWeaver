@@ -48,6 +48,7 @@ export function Textarea({
   id,
   name,
   ref,
+  "aria-describedby": ariaDescribedBy,
   ...rest
 }: TextareaProps): ReactElement {
   const identity = useFieldIdentity(id, name);
@@ -71,6 +72,8 @@ export function Textarea({
       // Field.Control owns `onValueChange` natively (value + ChangeEventDetails) — ride it rather than
       // deriving the value from a hand-wrapped DOM onChange, which would drop the eventDetails arm.
       {...(onValueChange === undefined ? {} : { onValueChange })}
+      // Register external descriptions before Base UI appends Field messages; render props would overwrite that merged list.
+      {...(ariaDescribedBy === undefined ? {} : { "aria-describedby": ariaDescribedBy })}
       render={
         <textarea
           {...(onChange === undefined ? {} : { onChange })}

@@ -1,4 +1,4 @@
-import { connectionsListSection } from "@orb/client/features/credentials";
+import { connectionsKeysSection, connectionsListSection } from "@orb/client/features/credentials";
 import type { AppearanceSettings } from "@orb/contracts/settings/appearance";
 import { CtAppearanceChannels, CtClientProviders } from "@orb/testkit/browser";
 import { Container } from "@orb/ui/layout";
@@ -10,6 +10,19 @@ export function ConnectionActionGroupsStory({ width, appearance }: { readonly wi
     <CtClientProviders>
       <CtAppearanceChannels settings={appearance}>
         <Container style={{ inlineSize: width }}>{connectionsListSection.body("connection-action-subject")}</Container>
+      </CtAppearanceChannels>
+    </CtClientProviders>
+  );
+}
+
+/** The Saved keys contribution owns redaction and the live/revoked action split. */
+export function CredentialActionGroupsStory({ width, appearance }: { readonly width: number; readonly appearance: AppearanceSettings }): ReactElement {
+  return (
+    <CtClientProviders>
+      <CtAppearanceChannels settings={appearance}>
+        <Container style={{ inlineSize: width }} data-slot="credential-action-host">
+          {connectionsKeysSection.body("credential-action-subject")}
+        </Container>
       </CtAppearanceChannels>
     </CtClientProviders>
   );

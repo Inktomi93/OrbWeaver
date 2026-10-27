@@ -209,7 +209,7 @@ function CollectionCreate({ collection, inBand = false }: { readonly collection:
   return (
     // In the control row the form takes its own full-width line under the other controls when the row's
     // container is narrow, so asking for a name never squeezes the filter out.
-    <Stack className={inBand ? "order-last basis-full @cq-40:order-0 @cq-40:basis-auto" : undefined}>
+    <Stack className={inBand ? "order-last basis-full max-inline-full min-inline-0 @cq-40:order-0 @cq-40:basis-auto" : "max-inline-full min-inline-0"}>
       <form
         aria-label={label}
         noValidate={true}
@@ -221,10 +221,10 @@ function CollectionCreate({ collection, inBand = false }: { readonly collection:
           }
         }}
       >
-        <Row align="center" gap="field">
+        <Row align="center" className="flex-wrap" gap="field">
           <Input
             aria-label={askName.fieldLabel}
-            className="flex-1 min-inline-0"
+            className="flex-1 basis-(--width-field-floor) max-inline-full min-inline-0"
             maxLength={askName.maxLength}
             onKeyDown={(event): void => {
               if (event.key === "Escape") {
@@ -236,12 +236,14 @@ function CollectionCreate({ collection, inBand = false }: { readonly collection:
             ref={nameRef}
             value={name}
           />
-          <Button disabled={trimmed === "" || pending} intent="primary" type="submit" {...(inBand ? { size: "sm" as const } : {})}>
-            Create
-          </Button>
-          <Button intent="ghost" onClick={cancel} type="button" {...(inBand ? { size: "sm" as const } : {})}>
-            Cancel
-          </Button>
+          <Row className="shrink-0 flex-wrap max-inline-full" gap="field">
+            <Button disabled={trimmed === "" || pending} intent="primary" type="submit" {...(inBand ? { size: "sm" as const } : {})}>
+              Create
+            </Button>
+            <Button intent="ghost" onClick={cancel} type="button" {...(inBand ? { size: "sm" as const } : {})}>
+              Cancel
+            </Button>
+          </Row>
         </Row>
       </form>
     </Stack>

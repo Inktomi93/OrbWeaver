@@ -137,8 +137,15 @@ export function LoginPendingJoin({ providerName, onJoined, onDismiss }: LoginPen
             {state.copy}
           </Text>
         ) : null}
-        <Row gap="row">
-          <Button intent="primary" type="submit" disabled={state.kind === "confirming"} data-testid={testId("pendingJoinConfirm")}>
+        <Row className="flex-wrap" gap="row">
+          <Button
+            className="max-inline-full"
+            intent="primary"
+            size="wrap-md"
+            type="submit"
+            disabled={state.kind === "confirming"}
+            data-testid={testId("pendingJoinConfirm")}
+          >
             {state.kind === "confirming" ? "Joining…" : "Create account and join"}
           </Button>
           <Button intent="ghost" onClick={onDismiss} data-testid={testId("pendingJoinDismiss")}>

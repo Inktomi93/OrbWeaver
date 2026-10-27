@@ -10,7 +10,8 @@ import { tv } from "#lib";
 // one styling hook.
 export const macroTextareaVariants = tv({
   slots: {
-    root: "relative flex flex-col gap-field",
+    // Measure the entire control footprint in the same code font as its textarea, not the surrounding form.
+    root: "relative flex flex-col gap-field font-mono text-code-field max-inline-(--reading-measure) min-inline-0",
     // resize-y: a native bottom-drag handle — the field auto-grows with content (the shared
     // textarea skin's `field-sizing: content`) but a caller can still pull it taller by hand
     // (persona-panel redesign — a long description wants more room on demand).
@@ -24,11 +25,11 @@ export const macroTextareaVariants = tv({
     // 47 — well BELOW the band the row asked for. 75ch reads 75 here, minus the field's own padding, which
     // lands inside the band at both ends. The row's SYMPTOM (65-75 per line) is satisfied; its TOKEN
     // prescription was derived for a different font class. Flagged to the orchestrator, not decided here.
-    textarea: "flex-1 resize-y font-mono text-code-field leading-code-field max-inline-(--reading-measure) min-block-0",
+    textarea: "flex-1 resize-y font-mono text-code-field leading-code-field min-block-0",
     listbox: [
       `
         absolute inset-s-0 inset-e-0 inset-bs-full z-(--z-overlay) mbs-field overflow-y-auto overscroll-contain rounded-card border border-border bg-popover
-        py-field shadow-overlay max-block-(--height-scroll-md)
+        py-field font-sans shadow-overlay max-block-(--height-scroll-md)
       `,
     ],
     groupLabel: "px-block py-field text-label leading-label font-semibold tracking-caps text-muted-foreground uppercase",
@@ -42,7 +43,7 @@ export const macroTextareaVariants = tv({
     itemMain: "flex flex-col gap-field min-inline-0",
     itemName: "font-mono text-code leading-label-relaxed text-foreground",
     itemDescription: "truncate text-label leading-label text-muted-foreground",
-    helper: "text-label leading-label text-muted-foreground",
-    argHint: "text-label leading-label text-muted-foreground",
+    helper: "font-sans text-label leading-label text-muted-foreground",
+    argHint: "font-sans text-label leading-label text-muted-foreground",
   },
 });
