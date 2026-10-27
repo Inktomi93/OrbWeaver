@@ -50,7 +50,7 @@ Every user-supplied rendering input is exactly one trust level, and that determi
 
 Preserve these treatments across portrait, landscape and desktop layouts. Respect the viewer's identity-art toggle and supported avatar choices.
 Styles that name a speaker keep both speakers' identity and action header sticky within the message. The pinned header uses an opaque reading background without a fade over prose.
-Document deliberately has no identity header to pin. Keep its actions reachable and contained instead of adding identity for uniformity.
+Document keeps a quiet trailing actions chip at rest. While pinned, its identity-free actions frame paints an opaque band across the reading width.
 Whisper's art feather stays inside its banner. Its height budget limits width through the source image's aspect ratio, preserving the crop.
 Echo and Ripple keep their intentional side-art placement rather than replacing it with hidden art.
 Keep the transcript top opaque. Limit its bottom overflow fade to the smaller of its proportional edge and one block spacing step.

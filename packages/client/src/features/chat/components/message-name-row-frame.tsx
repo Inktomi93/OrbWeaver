@@ -158,7 +158,7 @@ function FrameRow({
   return (
     <Row
       ref={rowRef}
-      justify="between"
+      justify={chip ? "end" : "between"}
       align="center"
       gap="field"
       data-slot="message-name-row"
@@ -176,9 +176,9 @@ function FrameRow({
         stickyInside && STICKY_INSIDE,
         reachCard && REACH_CARD,
         reachColumn && REACH_COLUMN,
-        // An actions-only bar is a chip at the trailing edge, and off the last row it overlays the row's top
-        // trailing corner at its full glyph height while costing the row no height at all.
-        chip && "ms-auto inline-fit",
+        // An actions-only bar stays a trailing chip at rest. Its pinned frame spans the reading width so
+        // partially covered text cannot look like a complete line. Off the last row it remains an overlay.
+        chip && !pinned && "ms-auto inline-fit",
         // An outside header (tide's) sits on the same inset as the pager under its train, so the last action
         // ends where the forward chevron does and its touch area stays inside the scrollport.
         outside && "px-field",
