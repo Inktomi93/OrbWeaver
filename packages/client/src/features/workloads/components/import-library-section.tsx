@@ -30,6 +30,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Progress } from "@orb/ui/progress";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { useRef } from "react";
 import { ImportedChatsMemoryOffer } from "#components";
 import type { TreeImportPlan } from "#data";
 import { useUploadCaps } from "#data";
@@ -126,6 +127,9 @@ export function ImportLibrarySection(): ReactElement {
   // of its own: the plan decides per file against the served folder caps and says why a file stays behind.
   const importMaxBytes = useUploadCaps().importBundle;
   const { state, stageFiles, stageFolder, chooseCollision, chooseAllCollisions, confirm, cancel, reset, track } = useLibraryImport();
+  const filePickerRef = useRef<HTMLInputElement>(null);
+  const folderPickerRef = useRef<HTMLElement | null>(null);
+  const stagedPickerRef = useRef<HTMLElement | null>(null);
   const staged = state.status === "staged" ? state : null;
   const busy = state.status === "uploading" || state.status === "running";
   const done = state.status === "done";
@@ -137,7 +141,7 @@ export function ImportLibrarySection(): ReactElement {
 
   return (
     <Stack gap="block">
-      <Text tone="muted">
+      <Text tone="muted" className="max-inline-(--reading-measure-prose)">
         Restore a backup, or bring your SillyTavern library over. Drop a full .zip export (characters, chats, personas, world books — everything) or a single
         character card — or pick an unzipped backup / SillyTavern profile folder.
       </Text>
@@ -150,10 +154,27 @@ export function ImportLibrarySection(): ReactElement {
         loading={busy}
         success={succeeded}
         maxSizeBytes={importMaxBytes}
-        onFilesSelected={({ accepted }): void => stageFiles(accepted)}
+        ref={filePickerRef}
+        onFilesSelected={({ accepted }): void => {
+          stagedPickerRef.current = filePickerRef.current;
+          stageFiles(accepted);
+        }}
       />
-      <Row justify="start" align="center" gap="field">
-        <FolderPicker loading={busy} onFilesSelected={({ accepted }): void => stageFolder(accepted)}>
+      <Row
+        justify="start"
+        align="center"
+        gap="field"
+        onFocusCapture={(event): void => {
+          folderPickerRef.current = event.target;
+        }}
+      >
+        <FolderPicker
+          loading={busy}
+          onFilesSelected={({ accepted }): void => {
+            stagedPickerRef.current = folderPickerRef.current;
+            stageFolder(accepted);
+          }}
+        >
           Import a folder…
         </FolderPicker>
         <Text voice="gloss">An unzipped Orbweaver backup or a SillyTavern profile folder. Your API keys (secrets.json) never leave this browser.</Text>
@@ -166,7 +187,10 @@ export function ImportLibrarySection(): ReactElement {
           choices={staged.choices}
           onChoose={chooseCollision}
           onChooseAll={chooseAllCollisions}
-          onCancel={cancel}
+          onCancel={(): void => {
+            cancel();
+            stagedPickerRef.current?.focus();
+          }}
           onConfirm={confirm}
         />
       )}
