@@ -150,6 +150,18 @@ Use held-read, absent-subject, planted-field, filtered-result and limited-result
 
 Semantic witness choice still requires source review. Type safety alone cannot establish that the intended surface was inspected.
 
+## Host portability
+
+Audit shared application, tooling and test helpers for accidental operating-system dependencies. Prefer Node filesystem, path, temporary-directory and process APIs.
+
+Keep necessary platform differences in the existing host adapters. Preserve the self-hosting contract in [D252](../../adr/0252-cross-platform-pnpm-dev.md).
+
+Distinguish portable commands from intentional CI, container and deployment boundaries. Do not use a Linux-only shell operation where a portable Node operation supplies the behavior.
+
+Verify retained enforcement before relying on source comments that name it. Repair confirmed bypasses with existing native checks and discriminating platform cases.
+
+Include filesystem fault controls, path conversion, executable launching and shutdown semantics. Linux execution and injected platform cases do not establish native Windows or macOS execution.
+
 ## Composed test selection
 
 Use the primary-surface review to select missing adoption cases without duplicating existing business tests.
