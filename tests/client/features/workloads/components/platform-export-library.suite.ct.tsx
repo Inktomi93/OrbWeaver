@@ -1,9 +1,9 @@
 import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
+import type { SettingsCompositionStory } from "@orb/testkit/browser";
 import { resolvedLength, touchTargetFindings } from "@orb/testkit/browser/spec";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import type { SettingsCompositionStory } from "../../config/surfaces/_settings-composition-stories.tsx";
 
 for (const regime of [
   { label: "wide desktop", width: 960, viewport: { width: 1280, height: 900 }, coarse: false },
@@ -20,7 +20,7 @@ for (const regime of [
       await caller.settings.updateUserSettingsSection({ section: "appearance", patch: DEFAULT_APPEARANCE_SETTINGS });
       await caller.settings.updateUserSettingsSection({ section: "theme", patch: { selectedThemeId: null } });
       await routeTrpc(page, serveCorpusProcedures(caller, ["sessions.me", "settings.getUserSettings"]));
-      await mount<typeof SettingsCompositionStory>("tests/client/features/config/surfaces/_settings-composition-stories/SettingsCompositionStory", {
+      await mount<typeof SettingsCompositionStory>("tests/support/browser/ct-settings-composition-stories/SettingsCompositionStory", {
         sectionId: "backup-export",
         width: regime.width,
         paneInset: true,

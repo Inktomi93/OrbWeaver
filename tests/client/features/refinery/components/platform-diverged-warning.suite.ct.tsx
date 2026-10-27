@@ -6,7 +6,6 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createServerHarness } from "@orb/testkit/node/composed";
-import { DROP_REASON_COPY } from "#client/features/refinery/lib/reason-copy.ts";
 import type { RefineryActionGroupsStory } from "./_action-groups-stories.tsx";
 
 const STORY = "tests/client/features/refinery/components/_action-groups-stories/RefineryActionGroupsStory";
@@ -16,6 +15,7 @@ const REWRITE = "The rewrite preserves a quieter observatory keeper.";
 const NOTE = "Creator notes that must survive a discarded clear.";
 const GREETING = "Welcome to the observatory.";
 const RECONFIRM = "re-confirm which version wins — Keep uses the rewrite, Discard keeps the live text";
+const DIVERGENCE_LABEL = "changed since the session started";
 const REGIMES = [
   { name: "wide desktop", width: 960, viewport: { width: 1280, height: 900 }, coarse: false, appearance: DEFAULT_APPEARANCE_SETTINGS },
   { name: "narrow desktop enlarged", width: 300, viewport: { width: 1280, height: 900 }, coarse: false, appearance: ENLARGED_APPEARANCE_SETTINGS },
@@ -83,8 +83,8 @@ for (const regime of REGIMES) {
       await expect(review.getByRole("button", { name: "Keep (empties field) creatorNotes", exact: true })).toBeVisible();
       await review.getByRole("button", { name: "reopen description", exact: true }).click();
       await review.getByRole("button", { name: "Keep description", exact: true }).click();
-      const queued = review.getByTestId(testId("refineryQueueRow")).filter({ hasText: DROP_REASON_COPY.diverged_since_session.chip });
-      const queuedWarning = queued.getByTestId(testId("refineryChip")).filter({ hasText: DROP_REASON_COPY.diverged_since_session.chip });
+      const queued = review.getByTestId(testId("refineryQueueRow")).filter({ hasText: DIVERGENCE_LABEL });
+      const queuedWarning = queued.getByTestId(testId("refineryChip")).filter({ hasText: DIVERGENCE_LABEL });
       await queuedWarning.scrollIntoViewIfNeeded();
       const queuedGeometry = await actionGroupGeometry(queued, [queuedWarning]);
       await test.info().attach("queued-divergence-bounds", { body: JSON.stringify(queuedGeometry), contentType: "application/json" });
@@ -100,7 +100,7 @@ for (const regime of REGIMES) {
       const chip = row.getByTestId(testId("refineryChip"));
       await expect(warning).toBeVisible();
       await expect(chip).toBeVisible();
-      await expect(chip).toHaveText(DROP_REASON_COPY.diverged_since_session.chip);
+      await expect(chip).toHaveText(DIVERGENCE_LABEL);
       await warning.scrollIntoViewIfNeeded();
       const floor = await resolvedLength(page, "var(--width-field-floor)", warning);
       const measure = await resolvedLength(page, "var(--reading-measure-prose)", warning);
