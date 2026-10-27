@@ -110,6 +110,14 @@ Runnable examples:
 - [Gallery startup and failure behavior](browser/gallery.ct.tsx)
 - [Native mount and update type contracts](browser/gallery.dom.test-d.ts)
 
+## Audit a rendered product surface
+
+Use `auditSurface` from `@orb/testkit/browser/spec` with a named scope, the expected loaded/empty/error state, a nonempty tuple of concrete rendered witnesses, and the checks to collect. `SurfaceAuditRequest` is exported type-only through `@orb/testkit/ct` so Node-side scenario builders do not import browser implementations.
+
+The audit waits for the witnesses, verifies their page and scope ownership, and only then waits for DOM stability and collects findings. Its result exposes only the requested checks, in both its type and its own fields; an unrun detector is not an empty-success result. A quiet shell or skeleton is not data readiness. Product censuses share an exhaustive local scenario table over the production surface vocabularies; an empty or error scenario must witness its own actual state. Types enforce the nonempty input, while scenario review and held-read controls establish that the chosen witnesses represent the intended subject.
+
+Raw name, form and density collectors stay internal to their owning testkit probes. They are not a product-audit shortcut. Do not replace the witness with network idle: unrelated pending reads and streams may remain active.
+
 ## Republish the corpus fixture
 
 The committed synthetic corpus lives in `node/corpus-data`. Republish it when a contract it captures changes.

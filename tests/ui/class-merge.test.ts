@@ -115,3 +115,11 @@ test("the receded opacity token and a stock opacity step are one axis", () => {
   expect(cn("opacity-50", "opacity-receded")).toBe("opacity-receded");
   expect(cn("opacity-receded", "opacity-100")).toBe("opacity-100");
 });
+
+test("optical stroke widths override width steps without evicting stroke color", () => {
+  expect(cn("stroke-1", "stroke-icon-regular")).toBe("stroke-icon-regular");
+  expect(cn("stroke-icon-regular", "stroke-2")).toBe("stroke-2");
+  expect(cn("stroke-icon-hairline", "stroke-icon-bold")).toBe("stroke-icon-bold");
+  expect(cn("stroke-primary", "stroke-icon-regular")).toBe("stroke-primary stroke-icon-regular");
+  expect(cn("stroke-icon-regular", "stroke-primary")).toBe("stroke-icon-regular stroke-primary");
+});

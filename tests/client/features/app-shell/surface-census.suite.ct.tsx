@@ -9,16 +9,15 @@ import { CONFIG_GROUP_IDS, MODAL_SLOT_IDS, SECTION_IDS } from "@orb/client/state
 import { presetIdInputSchema } from "@orb/contracts/preset";
 import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId, typeIdSchema } from "@orb/kit/ids";
-import { densityFindings, formatDensityFindings, settleSurface } from "@orb/testkit/browser/spec";
-import { serveCorpusProcedures } from "@orb/testkit/ct";
+import { auditSurface, formatDensityFindings, settledBox } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusWire } from "@orb/testkit/iso";
-import { createCorpusReadResponder, createSeededIds } from "@orb/testkit/iso";
+import { createSeededIds } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import { channelName } from "../../lib/appearance-channel-names.ts";
-import type { SurfaceRouteOverrides } from "./_surface-harness.ts";
 import { routeSurfaceReads } from "./_surface-harness.ts";
+import { groupScenario, modalScenario, sectionScenario } from "./_surface-scenarios.ts";
 import type {
   ConfigGroupStory,
   ImageSubjectModalStory,
@@ -39,7 +38,7 @@ test.beforeAll(async () => {
 });
 
 test.beforeEach(async ({ corpus, page }) => {
-  await routeSurfaceReads(page, corpus, await root.internalCallerFor(root.ownerId));
+  await routeSurfaceReads(page, corpus, root);
 });
 
 test.afterAll(async () => {
@@ -62,45 +61,13 @@ function watchMissingBoundary(page: Page): readonly string[] {
   return raised;
 }
 
-/** Empty when the surface settled with every read under a boundary and no density finding. */
-async function censusReport(page: Page, boundary: readonly string[]): Promise<string> {
-  await settleSurface(page);
-  return [...boundary, formatDensityFindings(await densityFindings(page))].filter((line) => line !== "").join("\n");
-}
-
-test.describe("planted defects", () => {
-  test("a second primary control in one region, a same-tier Surface and a boxed card in a boxed card each fail", async ({ page }) => {
-    const box = "border:1px solid #888;border-radius:8px;background:#eee;padding:4px";
-    await page.setContent(
-      '<aside class="shell-panel"><button data-slot="button" data-cta>Save</button><button data-slot="button" data-cta>Send</button></aside>' +
-        '<section data-surface-tier="form"><div data-surface-tier="form">inner</div></section>' +
-        `<div data-slot="card-root" style="${box}">outer<div data-slot="card-root" style="${box}">inner</div></div>`,
-    );
-    expect((await densityFindings(page)).map((finding) => finding.rule).toSorted()).toEqual(["nested-box", "same-tier-surface", "second-primary"]);
-  });
-
-  test("one primary per region, a different tier inside a tier and an unboxed well in a card all pass", async ({ page }) => {
-    const box = "border:1px solid #888;border-radius:8px;background:#eee;padding:4px";
-    await page.setContent(
-      '<aside class="shell-panel"><button data-slot="button" data-cta>Save</button></aside>' +
-        '<main class="shell-content"><button data-slot="button" data-cta>Send</button><button data-slot="button" data-cta disabled>Off</button></main>' +
-        '<section data-surface-tier="instrument"><div data-surface-tier="form">inner</div></section>' +
-        `<div data-slot="card-root" style="${box}">outer<div data-slot="card-root" style="background:#ddd;border-radius:6px">well</div></div>`,
-    );
-    expect(await densityFindings(page)).toEqual([]);
-    // The census reads this page: the same call reports a defect planted into it.
-    await page.setContent(
-      '<aside class="shell-panel"><button data-slot="button" data-cta>Save</button><button data-slot="button" data-cta>Send</button></aside>',
-    );
-    expect((await densityFindings(page)).map((finding) => finding.rule)).toEqual(["second-primary"]);
-  });
-});
-
 for (const section of SECTION_IDS) {
   test(`section ${section} reads clean`, async ({ mount, page }) => {
     const boundary = watchMissingBoundary(page);
     await mount<typeof SectionShellStory>(`${STORIES}/SectionShellStory`, { section });
-    expect(await censusReport(page, boundary)).toBe("");
+    const report = await auditSurface({ ...sectionScenario(page, section), checks: ["density"] });
+    expect(boundary).toEqual([]);
+    expect(formatDensityFindings(report.density)).toBe("");
   });
 }
 
@@ -112,14 +79,24 @@ test("the loaded preset detail reads clean", async ({ corpus, mount, page }) => 
   const { id: presetId } = presetIdInputSchema.parse(captured);
   const boundary = watchMissingBoundary(page);
   await mount<typeof PresetDetailShellStory>(`${STORIES}/PresetDetailShellStory`, { presetId });
-  expect(await censusReport(page, boundary)).toBe("");
+  const report = await auditSurface({
+    name: "loaded preset detail",
+    scope: page.locator("body"),
+    state: "loaded",
+    witnesses: [page.getByRole("button", { name: "Rename preset", exact: true })],
+    checks: ["density"],
+  });
+  expect(boundary).toEqual([]);
+  expect(formatDensityFindings(report.density)).toBe("");
 });
 
 for (const modal of MODAL_SLOT_IDS) {
   test(`modal ${modal} reads clean`, async ({ mount, page }) => {
     const boundary = watchMissingBoundary(page);
     await mount<typeof ModalShellStory>(`${STORIES}/ModalShellStory`, { modal });
-    expect(await censusReport(page, boundary)).toBe("");
+    const report = await auditSurface({ ...modalScenario(page, modal), checks: ["density"] });
+    expect(boundary).toEqual([]);
+    expect(formatDensityFindings(report.density)).toBe("");
   });
 }
 
@@ -134,7 +111,7 @@ test.describe("scaled new-chat footer", () => {
     await page.evaluate((property) => document.documentElement.style.setProperty(property, "1.25"), channelName("fontScale"));
     for (const width of [390, 900]) {
       await page.setViewportSize({ width, height: 844 });
-      await settleSurface(page);
+      await settledBox(blank);
       const geometry = await blank.evaluate((button) => {
         const footer = button.parentElement;
         if (footer === null) {
@@ -183,23 +160,15 @@ for (const group of CONFIG_GROUP_IDS) {
   test(`settings group ${group} reads clean`, async ({ mount, page }) => {
     const boundary = watchMissingBoundary(page);
     await mount<typeof ConfigGroupStory>(`${STORIES}/ConfigGroupStory`, { group });
-    expect(await censusReport(page, boundary)).toBe("");
+    const report = await auditSurface({ ...groupScenario(page, group), checks: ["density"] });
+    expect(boundary).toEqual([]);
+    expect(formatDensityFindings(report.density)).toBe("");
   });
 }
 
 // A modal that opens on a subject renders its "nothing selected" arm unseeded, so each is opened on the data the
 // corpus holds: a room, and the plugin's own dialog surface.
 const SEEDED_MODALS = ["imagine", "imageDetail", "imageEdit", "pluginDialog"] as const;
-
-/** The shared reads plus the ones a seeded surface needs; the later registration is the one that answers. */
-async function routeSeeded(page: Page, corpus: CorpusWire, overrides: SurfaceRouteOverrides): Promise<void> {
-  await routeSurfaceReads(page, corpus, await root.internalCallerFor(root.ownerId), overrides);
-}
-
-/** The listed procedures, answered by the corpus root's own server. */
-async function served(paths: Parameters<typeof serveCorpusProcedures>[1]): Promise<SurfaceRouteOverrides> {
-  return serveCorpusProcedures(await root.internalCallerFor(root.ownerId), paths);
-}
 
 // The control that shows the real form rendered, not the "nothing selected" arm.
 const IMAGE_FORM = { imageDetail: ["button", "Edit image"], imageEdit: ["textbox", "Edit instruction"] } as const;
@@ -226,17 +195,32 @@ test("the imagine modal reads clean on a seeded prompt", async ({ corpus, mount,
     seed: { chatId: corpusChatId(corpus), mode: "free", prompt: "A lantern over a harbour" },
   });
   await expect(page.getByRole("dialog")).not.toContainText("Nothing to imagine");
-  expect(await censusReport(page, boundary)).toBe("");
+  const report = await auditSurface({
+    name: "seeded image prompt",
+    scope: page.getByRole("dialog"),
+    state: "loaded",
+    witnesses: [page.getByRole("textbox", { name: "Image prompt", exact: true })],
+    checks: ["density"],
+  });
+  expect(boundary).toEqual([]);
+  expect(formatDensityFindings(report.density)).toBe("");
 });
 
 for (const modal of ["imageDetail", "imageEdit"] as const) {
   test(`the ${modal} modal reads clean on an image`, async ({ corpus, mount, page }) => {
-    await routeSeeded(page, corpus, await served(["imagery.readProvenance"]));
     const boundary = watchMissingBoundary(page);
     await mount<typeof ImageSubjectModalStory>(`${STORIES}/ImageSubjectModalStory`, { modal, subject: imageSubject(corpusChatId(corpus)) });
     const [role, name] = IMAGE_FORM[modal];
     await expect(page.getByRole("dialog").getByRole(role, { name })).toBeVisible();
-    expect(await censusReport(page, boundary)).toBe("");
+    const report = await auditSurface({
+      name: `seeded ${modal}`,
+      scope: page.getByRole("dialog"),
+      state: "loaded",
+      witnesses: [page.getByRole("dialog").getByRole(role, { name })],
+      checks: ["density"],
+    });
+    expect(boundary).toEqual([]);
+    expect(formatDensityFindings(report.density)).toBe("");
   });
 }
 
@@ -246,16 +230,23 @@ test("the pluginDialog modal reads clean on the plugin's dialog surface", async 
   if (stage === undefined || surface === undefined) {
     throw new Error("The corpus has no active plugin with a dialog surface");
   }
-  await routeSeeded(page, corpus, {
-    "plugin.list": createCorpusReadResponder("plugin.list", [stage.reads.plugins]),
-    "plugin.listSurfaces": createCorpusReadResponder("plugin.listSurfaces", [stage.reads.surfaces]),
-    ...(await served(["plugin.getSurfaceState"])),
-    "plugin.listBundleAssets": createCorpusReadResponder("plugin.listBundleAssets", [stage.reads.assets]),
-  });
+  const plugin = stage.reads.plugins.output.find((candidate) => candidate.id === surface.pluginId);
+  if (plugin === undefined || surface.tier !== "static" || surface.spec?.kind !== "text" || typeof surface.spec.value !== "string") {
+    throw new Error("The corpus dialog has no owning plugin or static detail text");
+  }
+  await routeSurfaceReads(page, corpus, root, { pluginDialog: stage });
   const boundary = watchMissingBoundary(page);
   await mount<typeof PluginDialogModalStory>(`${STORIES}/PluginDialogModalStory`, {
     subject: { pluginId: typeIdSchema(ID_PREFIX.plugin).parse(surface.pluginId), surfaceId: surface.id },
   });
   await expect(page.getByRole("dialog")).not.toContainText("no longer available");
-  expect(await censusReport(page, boundary)).toBe("");
+  const report = await auditSurface({
+    name: "seeded plugin dialog",
+    scope: page.getByRole("dialog"),
+    state: "loaded",
+    witnesses: [page.getByRole("dialog").getByText(plugin.name, { exact: true }), page.getByRole("dialog").getByText(surface.spec.value, { exact: true })],
+    checks: ["density"],
+  });
+  expect(boundary).toEqual([]);
+  expect(formatDensityFindings(report.density)).toBe("");
 });

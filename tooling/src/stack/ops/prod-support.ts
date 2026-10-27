@@ -52,10 +52,10 @@ function safeMtimeMs(path: string): number | null {
   }
 }
 
-export function distVerdict(): DistVerdict {
-  const newest = newestSourceEntries([...CLIENT_SOURCE_DIRS, ...CLIENT_SOURCE_FILES].map((rel) => join(REPO_ROOT, rel))).at(0);
+export function distVerdict(repoRoot = REPO_ROOT): DistVerdict {
+  const newest = newestSourceEntries([...CLIENT_SOURCE_DIRS, ...CLIENT_SOURCE_FILES].map((rel) => join(repoRoot, rel))).at(0);
   return classifyDist({
-    distIndexMtimeMs: safeMtimeMs(join(REPO_ROOT, CLIENT_DIST_INDEX_REL)),
+    distIndexMtimeMs: safeMtimeMs(join(repoRoot, CLIENT_DIST_INDEX_REL)),
     newestSourceMtimeMs: newest?.mtimeMs ?? null,
   });
 }
