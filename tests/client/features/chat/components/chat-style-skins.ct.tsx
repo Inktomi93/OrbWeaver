@@ -14,7 +14,7 @@ import type { RowSkin } from "#client/features/chat/lib/message-row-variants.ts"
 import { MESSAGE_ROW_SKINS } from "#client/features/chat/lib/message-row-variants.ts";
 import { viewImageActionName } from "#client/lib/row-qualifiers.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
-import type { ReadingRoom } from "./chat-style-reading.fixtures.ts";
+import type { ReadingRoom } from "./chat-style-reading.helpers.tsx";
 import {
   beginReading,
   createReadingRoom,
@@ -23,7 +23,7 @@ import {
   scrollIntoReadingMessage as scrollIntoMessage,
   TAIL_MESSAGES,
   tokenColor,
-} from "./chat-style-reading.fixtures.ts";
+} from "./chat-style-reading.helpers.tsx";
 
 const ROOM_STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
 const VIEWPORT = { width: 1440, height: 900 } as const;

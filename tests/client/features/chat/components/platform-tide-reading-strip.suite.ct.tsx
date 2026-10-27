@@ -2,8 +2,8 @@ import { resolvedLength } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { Locator } from "@playwright/test";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
-import type { ReadingRoom } from "./chat-style-reading.fixtures.ts";
-import { createReadingRoom, openReadingRoom, scrollIntoReadingMessage, tokenColor } from "./chat-style-reading.fixtures.ts";
+import type { ReadingRoom } from "./chat-style-reading.helpers.tsx";
+import { createReadingRoom, openReadingRoom, scrollIntoReadingMessage, tokenColor } from "./chat-style-reading.helpers.tsx";
 
 const ROOM_STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
 const ROW = '[data-slot="message-row"]';
