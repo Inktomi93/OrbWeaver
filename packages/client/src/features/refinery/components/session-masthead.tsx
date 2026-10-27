@@ -59,9 +59,11 @@ export function SessionMasthead({
         {/* WRAPS: grouping the two chips makes them one flex child of the masthead row, and the draft chip
             is a whole sentence — a non-wrapping group would paint outside the pane at the phone width the
             row above was already wrapping to survive. */}
-        <Row align="baseline" aria-label="Session state" className="flex-wrap" gap="field" role="group">
+        <Row align="baseline" aria-label="Session state" className="flex-wrap max-inline-full min-inline-0" gap="field" role="group">
           <RefineryChip tone={status === "active" ? "accent" : "neutral"}>{status}</RefineryChip>
-          <RefineryChip tone="neutral">{applied ? "applied · snapshot taken" : "draft — the live card is untouched"}</RefineryChip>
+          <RefineryChip tone="neutral" wrap={true}>
+            {applied ? "applied · snapshot taken" : "draft — the live card is untouched"}
+          </RefineryChip>
         </Row>
         {/* NO MODEL HERE: each stage can run on a different model, so the model is credited on each lane's
             own result (`RunModelCredit`), never once for the whole session. */}

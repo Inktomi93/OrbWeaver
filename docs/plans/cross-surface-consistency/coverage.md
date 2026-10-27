@@ -39,21 +39,25 @@ Main drives the private owner-data clone. Keep private content and images outsid
 - Shared Tabs reveals the focused terminal cell and its complete focus ring without moving the editor vertically. Independent Preset comparison accepts the repair.
 - Tide retains its paragraph train and resting identity pill. Its pinned backing covers the reading strip; independent short-landscape comparison accepts the repair.
 - Refinery retains distinct named-session identity, routes Context to the existing Score control, and displays the pinned original with paragraph-local reading measures.
+- Databank preserves accessible identity, readable maintenance controls and literal source prose. Production-mounted checks and independent populated fixture comparisons pass.
+- Illustrated chat interiors preserve distinct art placement and pinned reading flow in portrait and short landscape. The captures establish positioned states, not continuous gesture behavior.
+- Atlas reports handled search failures without pristine-state instructions. Independent owner-clone desktop and portrait after-review accepts the guidance repair.
+- Shared configuration libraries and Refinery expose direct filter recovery. Actual Regex and populated-fixture Refinery comparisons accept the recovery controls.
 - The [action-group qualification](../../reviews/action-group-qualification.md) records completed candidate dispositions, native proof and explicit exclusions.
 
 ## Repair acceptance still open
 
 | Owner | Finding | Required proof |
 | - | - | - |
-| Databank | Narrow identity repeats; maintenance text collapses; source prose lacks a readable size and measure | Production-shell regression cases, independent review and populated application comparisons |
-| Atlas | Handled search failure retains pristine search guidance | Guest-state regression cases and matching desktop/portrait error-state comparisons |
-| Collection search recovery | Shared configuration libraries and Refinery lack direct clear-query recovery in filtered-empty states | Restore results and appropriate focus without changing genuine-empty creation actions |
+| Refinery conflict review | The conflict badge squeezes mandatory reconfirmation guidance into a narrow column | Preserve readable guidance, comparison panes and explicit decisions across content widths |
+| Insights identity | The selected character name repeats beneath the narrow shell title | Defer only redundant name paint while preserving desktop identity and accounting scope |
+| Plugin image presentation | The shared image leaf ignores the declared fixed aspect ratio | Honor existing ratio contracts for loaded and unavailable images without distorting assets or changing natural-ratio defaults |
 
 Refinery identity, original-viewer opening, Score navigation and viewer readability pass independent actual after-review. Singular greeting copy is source-qualified.
 
 Connections source review accepts the integrated implementation and matching Chromium/WebKit cases. The phone application capture preserves readable model identities and accurate credential guidance.
 
-Databank's old-source cases reproduce identity, maintenance and source-reading defects. The integrated repair passes compiler, Chromium, WebKit and independent source review. Populated after-review remains pending.
+Databank's old-source cases reproduce identity, maintenance and source-reading defects. The integrated repair passes compiler, Chromium, WebKit and independent source review. Populated desktop and portrait after-review accepts the repairs.
 
 Tags uses shared autosave feedback and inline merge confirmation. Native checks, source review and actual portrait confirmation review pass. Cancel preserves the editor and returns focus.
 
@@ -61,21 +65,39 @@ Roster preserves explicit submission. Successful saves acknowledge the returned 
 
 ## Active-state evidence limits
 
-Atlas search reaches handled upstream failure on desktop and portrait. The error remains readable, but initial search guidance remains visible beside it. Populated results remain unqualified.
+Atlas search reaches handled upstream failure on desktop and portrait. Repaired guidance passes independent review. Successful remote details use supplementary production-mounted guest evidence, not owner-data success.
 
 Supplementary corpus captures provide populated Databank, dossier and settled Refinery comparisons. They use the production application with fixture data, not the owner's population.
 
-Deck's local draw and reveal are captured on the private clone. Independent review remains pending; no retirement or external model action is included.
+Deck's local draw and reveal pass independent desktop and portrait comparison on the private clone. No retirement or external model action is included.
+
+Narrow plugin Context, the sidecar menu and sheet, and the saved-roster picker pass their pictured comparisons. Closed sidecar presentation is intentional, not missing plugin content.
+
+Insights character and cost readouts preserve explicit accounting scope. Duplicate narrow identity remains assigned; accounting calculations are outside visual acceptance.
+
+Album population uses the real guest, storage and image pipeline with a local scripted provider. The low-resolution fixture image does not establish generation quality. Gallery and return controls are accepted; declared image-ratio handling remains assigned.
 
 ## Verification discipline
 
+- Run full application and tooling tests, Chromium component tests, supported WebKit cases, E2E, TypeScript, Biome, ESLint and Stylelint on frozen integrated source.
+- Record each completed command and its execution population. `pnpm test` excludes tooling; include `pnpm test:tools` separately.
 - Freeze checkout writes before native runners.
 - Distinguish fixture failures, instrument refusals and demonstrated product failures.
 - Reuse passing evidence while source, fixture and execution scope remain unchanged.
 - Complete independent source and rendered review for repaired families.
 - Keep the broader goal open until every required family and state has an explicit disposition.
 
+Full Stylelint passes for the current package CSS population. Full integrated tests, E2E, TypeScript, Biome and ESLint remain pending the source freeze.
+
 Autosaving editors use Close, Done or Back. Cancel abandons unsubmitted input; it does not promise rollback of saved work.
+
+## Primary-surface deep pass
+
+After integrated verification, review Characters and Chat as complete primary workflows. Inspect List, Content and Context, every tab and nested item.
+
+Compare desktop with applicable side panels, coarse portrait and short landscape with enabled plugins. Judge hierarchy, density, action placement, discoverability and reading comfort, not containment alone.
+
+Reuse accepted evidence only for matching states. Record the complete navigation inventory, review dispositions and remaining gaps. Repair shared owners and inconsistent adoption together.
 
 ## Evidence homes
 
