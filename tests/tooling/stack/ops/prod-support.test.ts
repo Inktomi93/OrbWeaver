@@ -1,4 +1,5 @@
-import { existsSync, mkdirSync, rmSync, statSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
+import type { Stats } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { vi } from "vitest";
@@ -10,10 +11,19 @@ test("an unreadable dist witness fails loud instead of classifying an unmeasurab
   mkdirSync(join(scratch, "packages/client/dist"), { recursive: true });
   expect(distVerdict(scratch).state).toBe("missing");
   writeFileSync(dist, "built");
-  expect(distVerdict(scratch).state).toBe("fresh");
-  unlinkSync(dist);
-  symlinkSync(dist, dist);
-  expect(() => distVerdict(scratch)).toThrow(/ELOOP/u);
+  const failure = Object.assign(new Error("planted distribution stat failure"), { code: "EIO" });
+  let refused = false;
+  const readStat = (path: string): Stats => {
+    expect(path).toBe(dist);
+    if (refused) {
+      throw failure;
+    }
+    return statSync(path);
+  };
+  expect(distVerdict(scratch, readStat).state).toBe("fresh");
+  refused = true;
+  expect(() => distVerdict(scratch, readStat)).toThrow(failure);
+  expect(readFileSync(dist, "utf8")).toBe("built");
 });
 
 test("an unreadable existing debug token fails loud instead of overwriting the mint-once credential", ({ scratch }) => {

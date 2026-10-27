@@ -7,7 +7,7 @@
 // (dependency-cruiser `no-circular` has no type-only exemption).
 import type { Server } from "node:http";
 import { createServer } from "node:http";
-import { normalize } from "node:path";
+import { posix } from "node:path";
 import type { DevToolsAssetServer, VerifiedDevToolsAssets } from "./devtools-assets-types.ts";
 
 const HTTP_OK = 200;
@@ -19,7 +19,7 @@ function requestPath(rawUrl: string | undefined): string | null {
     return null;
   }
   const path = rawUrl.split("?", 1)[0] as string;
-  return path.startsWith("/") && normalize(path) === path && !path.includes("//") && !path.split("/").includes("..") ? path : null;
+  return path.startsWith("/") && posix.normalize(path) === path && !path.includes("//") && !path.split("/").includes("..") ? path : null;
 }
 
 export async function startDevToolsAssetServer(assets: VerifiedDevToolsAssets): Promise<DevToolsAssetServer> {

@@ -97,6 +97,10 @@ jobs:
         id: ct
         if: ${{ !cancelled() && steps.stop-dev.outcome == 'success' }}
         run: pnpm test:ct tests/client/compose/client-mount.ct.tsx
+      - name: Portable tooling boundaries
+        id: portable-tooling
+        if: ${{ !cancelled() && steps.stop-dev.outcome == 'success' }}
+        run: pnpm test:tools tests/tooling/stack/lib/source-scan.test.ts tests/tooling/stack/ops/prod-support.test.ts tests/tooling/stack/ops/prod-state.test.ts tests/tooling/floor/devtools/devtools-assets-server.int.test.ts
       - name: Restore the Windows Defender scope
         if: always() && runner.os == 'Windows' && steps.defender.outcome == 'success'
         shell: pwsh
