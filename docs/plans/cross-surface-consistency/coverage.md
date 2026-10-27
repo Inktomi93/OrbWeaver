@@ -34,17 +34,38 @@ Main drives the private owner-data clone. Keep private content and images outsid
 - Insights retains every accounting caveat in each independently scrolling pane's existing disclosure.
 - Document retains its identity-free manuscript and quiet actions at rest. Its full-width pinned band closes partial-line masking in portrait and landscape.
 - Preset uses a naturally wrapping header above its existing tab strip. Native action/error cases and independent desktop, portrait and landscape comparisons pass.
+- Connections preserves its semantic heading, distinguishes missing credentials from keyless providers, and reflows narrow model identities. Independent portrait comparison accepts these repairs.
+- Echo and Whisper expose one image action per message. Actual decorative-art activation and canonical focus return pass independent portrait review.
+- Shared Tabs reveals the focused terminal cell and its complete focus ring without moving the editor vertically. Independent Preset comparison accepts the repair.
+- Tide retains its paragraph train and resting identity pill. Its pinned backing covers the reading strip; independent short-landscape comparison accepts the repair.
+- Refinery retains distinct named-session identity, routes Context to the existing Score control, and displays the pinned original with paragraph-local reading measures.
 - The [action-group qualification](../../reviews/action-group-qualification.md) records completed candidate dispositions, native proof and explicit exclusions.
 
-## Remaining confirmed repairs
+## Repair acceptance still open
 
 | Owner | Finding | Required proof |
 | - | - | - |
-| Shared Tabs | Keyboard activation can leave the focused tab clipped by an outer horizontal scroll container | Native focus/reveal cases without unrelated page movement, plus actual Preset after-review |
-| Refinery identity | An unnamed session repeats the card identity in the phone shell and masthead | Preserve distinct named-session identity and accessible headings through production-shell cases |
-| Refinery Runs | The empty ledger duplicates the content scoring command | Navigate and focus the existing Score owner without running a model |
-| Refinery Original card | View clears a run selection instead of showing the pinned card | Read-only authored snapshot display, distinct from changed live content, with close/focus proof |
-| Refinery copy | A singular greeting uses plural wording | Use the actual greeting population with correct singular/plural wording |
+| Databank | Narrow identity repeats; maintenance text collapses; source prose lacks a readable size and measure | Production-shell regression cases, independent review and populated application comparisons |
+| Atlas | Handled search failure retains pristine search guidance | Guest-state regression cases and matching desktop/portrait error-state comparisons |
+| Collection search recovery | Shared configuration libraries and Refinery lack direct clear-query recovery in filtered-empty states | Restore results and appropriate focus without changing genuine-empty creation actions |
+
+Refinery identity, original-viewer opening, Score navigation and viewer readability pass independent actual after-review. Singular greeting copy is source-qualified.
+
+Connections source review accepts the integrated implementation and matching Chromium/WebKit cases. The phone application capture preserves readable model identities and accurate credential guidance.
+
+Databank's old-source cases reproduce identity, maintenance and source-reading defects. The integrated repair passes compiler, Chromium, WebKit and independent source review. Populated after-review remains pending.
+
+Tags uses shared autosave feedback and inline merge confirmation. Native checks, source review and actual portrait confirmation review pass. Cancel preserves the editor and returns focus.
+
+Roster preserves explicit submission. Successful saves acknowledge the returned row without discarding newer edits; external-conflict cases remain protected.
+
+## Active-state evidence limits
+
+Atlas search reaches handled upstream failure on desktop and portrait. The error remains readable, but initial search guidance remains visible beside it. Populated results remain unqualified.
+
+Supplementary corpus captures provide populated Databank, dossier and settled Refinery comparisons. They use the production application with fixture data, not the owner's population.
+
+Deck's local draw and reveal are captured on the private clone. Independent review remains pending; no retirement or external model action is included.
 
 ## Verification discipline
 
