@@ -57,19 +57,26 @@ test("version-keyed patches cannot be invalidated by automatic dependency update
       updates: z.array(
         z.object({
           "package-ecosystem": z.string(),
-          ignore: z.array(z.object({ "dependency-name": z.string(), "update-types": z.array(z.string()).optional() })).optional(),
+          ignore: z
+            .array(z.object({ "dependency-name": z.string(), "update-types": z.array(z.string()).optional(), versions: z.array(z.string()).optional() }))
+            .optional(),
         }),
       ),
     })
     .parse(parse(read(repoRoot, ".github/dependabot.yml")));
-  const ignored = dependabot.updates.find((entry) => entry["package-ecosystem"] === "npm")?.ignore ?? [];
+  const policies = dependabot.updates.filter((entry) => entry["package-ecosystem"] === "npm");
+  expect(policies.length).toBeGreaterThan(0);
   const names = Object.keys(workspace.patchedDependencies).map((key) => key.slice(0, key.lastIndexOf("@")));
-  for (const name of names) {
-    const held = ignored.find(
-      (entry) => entry["dependency-name"] === name || (entry["dependency-name"].endsWith("/*") && name.startsWith(entry["dependency-name"].slice(0, -1))),
-    );
-    expect(held, name).toBeDefined();
-    expect(held?.["update-types"], name).toBeUndefined();
+  expect(names.length).toBeGreaterThan(0);
+  for (const policy of policies) {
+    for (const name of names) {
+      const held = policy.ignore?.find(
+        (entry) => entry["dependency-name"] === name || (entry["dependency-name"].endsWith("/*") && name.startsWith(entry["dependency-name"].slice(0, -1))),
+      );
+      expect(held, name).toBeDefined();
+      expect(held?.["update-types"], name).toBeUndefined();
+      expect(held?.versions, name).toBeUndefined();
+    }
   }
 });
 

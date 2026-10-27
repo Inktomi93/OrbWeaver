@@ -38,6 +38,7 @@ const FAMILY_PROBES: readonly CompilerFamilyProbe[] = [
   { family: "reading", candidate: "max-w-measure" },
   { family: "fade", candidate: "fade-edge-stop" },
   { family: "border-width", candidate: "border-hairline" },
+  { family: "stroke-width", candidate: "stroke-icon-regular" },
   { family: "font", candidate: "font-sans" },
   { family: "font-weight", candidate: "font-medium" },
   { family: "height", candidate: "h-scroll-md" },
@@ -135,6 +136,10 @@ test("stable compilation emits every generated theme target from production-shap
 
 test("compiler-positive families and Orb's governed merge registry are set-equal both ways", () => {
   expect(familyParity(COMPILER_FAMILIES, CSS_MERGE_FAMILY_NAMES)).toStrictEqual({ missing: [], bogus: [] });
+});
+
+test("the optical stroke token compiles as width, not stroke color", () => {
+  expect(COMPILED_CSS).toContain(".stroke-icon-regular {\n  stroke-width: var(--stroke-width-icon-regular);\n}");
 });
 
 test("parity controls fail for one omitted positive family and one bogus registration", () => {
