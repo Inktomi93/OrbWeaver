@@ -160,3 +160,42 @@ test.describe("coarse narrow save failure", () => {
     expect(calls.count("preset.update")).toBe(2);
   });
 });
+
+test.describe("coarse phone tab navigation", () => {
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  test("keyboard navigation reveals the whole selected Preset view tab without moving the editor vertically", async ({ mount, page }) => {
+    await using root = await createCorpusHarness();
+    const caller = await root.internalCallerFor(root.ownerId);
+    const appearance = appearanceSettingsSchema.parse({});
+    await caller.settings.updateUserSettingsSection({ section: "appearance", patch: appearance });
+    await caller.settings.updateUserSettingsSection({ section: "theme", patch: { selectedThemeId: null } });
+    const preset = await caller.preset.create({ name: "Keyboard view witness", kind: "generation" });
+    await routeTrpc(page, serveCorpusProcedures(caller, [...READS, "regex.listForPreset", "regex.listScripts"]));
+    await mount<typeof PresetActionGroupsStory>(STORY, { width: 390, appearance, subject: "editor", presetId: preset.id });
+    const editor = page.getByRole("region", { name: "Preset editor", exact: true });
+    const tabs = editor.getByRole("tablist", { name: "Preset sections", exact: true });
+    const clip = tabs.locator("..");
+    await tabs.getByRole("tab", { name: "Params", exact: true }).focus();
+    const before = await editor.evaluate((node) => node.scrollTop);
+    for (const [key, name] of [
+      ["End", "Transforms"],
+      ["Home", "Params"],
+      ["ArrowRight", "Prompt"],
+    ] as const) {
+      await page.keyboard.press(key);
+      const tab = tabs.getByRole("tab", { name, exact: true });
+      await expect(tab).toBeFocused();
+      await expect(tab).toHaveAttribute("aria-selected", "true");
+      await expect
+        .poll(async () => {
+          const [tabBox, clipBox] = await Promise.all([tab.boundingBox(), clip.boundingBox()]);
+          if (tabBox === null || clipBox === null) {
+            throw new Error("The selected Preset tab and its scroll wrapper must render");
+          }
+          return Math.max(clipBox.x - tabBox.x, tabBox.x + tabBox.width - clipBox.x - clipBox.width);
+        })
+        .toBeLessThanOrEqual(1);
+      expect(await editor.evaluate((node) => node.scrollTop)).toBe(before);
+    }
+  });
+});
