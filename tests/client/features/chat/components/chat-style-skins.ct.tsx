@@ -1,18 +1,12 @@
 // Every chat style's message row skin as the room renders it, with and without a wallpaper: the track and alignment,
 // the box each style gives its prose, the corners its art and welded portrait take, the plate over art, the action
 // reveal and the pinned header bar. Each expected value comes from the style's skin row and the resolved design tokens.
-import type { AppearanceSettings } from "@orb/contracts/settings/appearance";
-import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import type { ChatId, ThemeId } from "@orb/kit/ids";
-import type { MessageRole } from "@orb/kit/message-role";
-import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
-import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
+import { resolvedLength } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusWire } from "@orb/testkit/iso";
-import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { MESSAGE_EDIT_NAME } from "#client/features/chat/lib/message-action-names.ts";
@@ -20,25 +14,24 @@ import type { RowSkin } from "#client/features/chat/lib/message-row-variants.ts"
 import { MESSAGE_ROW_SKINS } from "#client/features/chat/lib/message-row-variants.ts";
 import { viewImageActionName } from "#client/lib/row-qualifiers.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
+import type { ReadingRoom } from "./chat-style-reading.fixtures.ts";
+import {
+  beginReading,
+  createReadingRoom,
+  openReadingRoom,
+  READING_ROLES as ROLES,
+  scrollIntoReadingMessage as scrollIntoMessage,
+  TAIL_MESSAGES,
+  tokenColor,
+} from "./chat-style-reading.fixtures.ts";
 
 const ROOM_STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
 const VIEWPORT = { width: 1440, height: 900 } as const;
-// Enough of a room's last messages that an earlier row of each role is on screen.
-const TAIL_MESSAGES = 6;
-const ROLES = ["user", "assistant"] as const satisfies readonly MessageRole[];
-// Paragraphs enough that one reply runs past the scrollport, so its header pins.
-const LONG_REPLY_PARAGRAPHS = 40;
-// How far into the long reply the transcript scrolls, past its header and well inside its body.
-const PIN_SCROLL_PX = 400;
-// The room the corpus ends on a reply in is a game room, which reads its game too.
-const GAME_PROCEDURES = ["rpg.getGame", "rpg.listTurnToolCalls"] as const;
 const ROW = '[data-slot="message-row"]';
 const BUBBLE = '[data-slot="message-bubble"]';
 const TRANSPARENT = "rgba(0, 0, 0, 0)";
-// The prose that runs long; any reply text serves.
-const FILLER = "The lamp burned low while the rain kept time on the shutters.";
 
-type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
+type Root = ReadingRoom["root"];
 type Role = (typeof ROLES)[number];
 
 let root: Root;
@@ -49,92 +42,19 @@ let longUserId: string;
 test.use({ viewport: VIEWPORT });
 
 test.beforeAll(async () => {
-  root = await createCorpusHarness();
-  const caller = await root.internalCallerFor(root.ownerId);
-  for (const row of (await caller.chat.listChats({ limit: 100 })).items) {
-    const { messages } = await caller.chat.listMessages({ chatId: row.id, limit: TAIL_MESSAGES });
-    const replies = messages.filter((message) => message.role === "assistant");
-    const spoken = new Set(messages.map((message) => message.role));
-    const earlier = replies.at(-2);
-    if (ROLES.every((role) => spoken.has(role)) && messages.at(-1)?.role === "assistant" && earlier !== undefined) {
-      roomId = row.id;
-      longReplyId = earlier.id;
-      const user = messages.findLast((message) => message.role === "user");
-      if (user === undefined) {
-        throw new Error("The corpus room has no user message");
-      }
-      longUserId = user.id;
-      const content = Array.from({ length: LONG_REPLY_PARAGRAPHS }, () => FILLER).join("\n\n");
-      await caller.chat.editMessage({ chatId: row.id, messageId: user.id, content, timeZone: UTC_TIME_ZONE });
-      await caller.chat.editMessage({ chatId: row.id, messageId: earlier.id, content, timeZone: UTC_TIME_ZONE });
-      return;
-    }
-  }
-  throw new Error("No corpus room ends on a reply with an earlier reply and both roles in its tail");
+  ({ root, roomId, longReplyId, longUserId } = await createReadingRoom());
 });
 
 test.afterAll(async () => {
   await root[Symbol.asyncDispose]();
 });
 
-/** The corpus viewer's first saved wallpaper, as the appearance fields that select it. */
-function wallpaper(corpus: CorpusWire): Partial<AppearanceSettings> {
-  const library = appearanceSettingsSchema.parse({
-    backgroundLibrary: corpus.reads["settings.getUserSettings"][0]?.output.config.appearance.backgroundLibrary,
-  }).backgroundLibrary;
-  const entry = library[0];
-  if (entry === undefined) {
-    throw new Error("The corpus viewer has no saved wallpaper");
-  }
-  return {
-    backgroundLibrary: library,
-    backgroundImageKind: "asset",
-    backgroundAssetId: entry.assetId,
-    backgroundAssetHash: entry.assetHash,
-    backgroundAssetMime: entry.mime,
-  };
-}
-
-/** Open the room in `chatStyle`, over a wallpaper or not, at the glow elevation, which lifts every card that follows it. */
 async function openRoom(page: Page, corpus: CorpusWire, chatStyle: ThemeChatStyle, art: boolean): Promise<void> {
-  const caller = await root.internalCallerFor(root.ownerId);
-  await caller.settings.updateUserSettingsSection({ section: "theme", patch: { selectedThemeId: null } });
-  await caller.settings.updateUserSettingsSection({
-    section: "appearance",
-    patch: {
-      ...appearanceSettingsSchema.parse({}),
-      chatStyle,
-      elevation: "glow",
-      blurSurfaces: [],
-      showInChatAvatars: true,
-      messageActions: "hover",
-      ...(art ? wallpaper(corpus) : { backgroundImageKind: "none" }),
-    },
-  });
-  await seedShellState(page, { activeSection: "chats" });
-  await routeTrpc(page, {
-    ...createShellAmbientReads(corpus),
-    ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...ROOM_PROCEDURES, ...GAME_PROCEDURES]),
-  });
+  await openReadingRoom(page, corpus, root, { chatStyle, art });
 }
 
 function computed(locator: Locator, property: string, pseudo: string | null = null): Promise<string> {
   return locator.evaluate((element, [name, at]) => getComputedStyle(element, at).getPropertyValue(name), [property, pseudo] as const);
-}
-
-/** A colour token as `box`'s own scope paints it, read off a probe beside it, so a carried palette resolves alike. */
-function tokenColor(box: Locator, token: string, property: "background-color" | "color"): Promise<string> {
-  return box.evaluate(
-    (element, [name, prop]) => {
-      const probe = element.ownerDocument.createElement("div");
-      probe.style.setProperty(prop, `var(${name})`);
-      element.parentElement?.append(probe);
-      const value = getComputedStyle(probe).getPropertyValue(prop);
-      probe.remove();
-      return value;
-    },
-    [token, property] as const,
-  );
 }
 
 const CORNERS = ["start-start", "start-end", "end-end", "end-start"] as const;
@@ -310,17 +230,6 @@ async function revealFacts(page: Page, skin: RowSkin): Promise<{ readonly measur
         : { fill: TRANSPARENT, corners: [0, 0, 0, 0] },
     },
   };
-}
-
-async function scrollIntoMessage(row: Locator, sticky = true): Promise<void> {
-  await row.evaluate((element, by) => {
-    const scroller = element.closest('[data-slot="message-list-scroll"]');
-    if (scroller === null) {
-      throw new Error("The message has no transcript scrollport");
-    }
-    scroller.scrollTop += element.getBoundingClientRect().top - scroller.getBoundingClientRect().top + by;
-  }, PIN_SCROLL_PX);
-  await expect.poll(() => row.locator('[data-slot="message-name-row"]').getAttribute("data-pinned")).toBe(sticky ? "" : null);
 }
 
 // The token each pinned fill paints; the long reply is the assistant's.
@@ -614,14 +523,6 @@ async function containedActions(row: Locator, scrollport: Locator): Promise<void
       }),
     });
   }
-}
-
-// Native scroll input gives the reader the axis before the targeted reading-position drive.
-async function beginReading(page: Page, scrollport: Locator): Promise<void> {
-  const before = await scrollport.evaluate((element) => element.scrollTop);
-  await scrollport.hover();
-  await page.mouse.wheel(0, -PIN_SCROLL_PX);
-  await expect.poll(() => scrollport.evaluate((element) => element.scrollTop)).toBeLessThan(before);
 }
 
 async function revealDocumentRow(row: Locator): Promise<void> {

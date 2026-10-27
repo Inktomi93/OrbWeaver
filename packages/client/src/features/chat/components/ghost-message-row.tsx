@@ -44,6 +44,7 @@ import { useState } from "react";
 import type { MessageRenderContext } from "#lib";
 import { renderMessageForDisplay } from "#lib";
 import { useArtViewer } from "../hooks/art-viewer-context.tsx";
+import { useArtControl } from "../hooks/use-art-control.ts";
 import { useEnterMotion } from "../hooks/use-enter-motion.ts";
 import { useGhostReasoning, useGhostText, useGhostThinking } from "../hooks/use-ghost-stream.ts";
 import type { RowAttribution } from "../lib/attribution.ts";
@@ -253,6 +254,7 @@ export function GhostMessageRow({
 }: GhostMessageRowProps): ReactElement {
   const arrival = useEnterMotion(enterMotion);
   const viewArt = useArtViewer();
+  const artControl = useArtControl();
   const rawText = useGhostText(chatId);
   const rawReasoning = useGhostReasoning(chatId);
   const thinking = useGhostThinking(chatId);
@@ -302,6 +304,7 @@ export function GhostMessageRow({
           // The live turn is always the assistant side, which never mirrors.
           mirrored: false,
           viewArt,
+          artControl,
         });
   // Ripple welds its portrait into the bubble, as the settled row does, so the streaming card is the card it settles as.
   const { weldedAvatar, leadingAvatar } = placeAvatar(avatarTreatment, avatarNode);
@@ -344,7 +347,7 @@ export function GhostMessageRow({
     decoration,
     weldedAvatar,
     mirrored: false,
-    artView: artViewFor(viewArt, attribution),
+    artView: artViewFor(viewArt, attribution, artControl),
     onArtFailed: setArtFailed,
   });
   // #2425 — ONE scope over the column's header AND bubble, the settled row's shape exactly

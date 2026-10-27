@@ -80,6 +80,7 @@ export function NameRowFrame({ identity, actions, stickyAttribution, placement, 
       stickyInside={sticky && !outside}
       reachCard={reach === "card"}
       reachColumn={reach === "column"}
+      reachTrain={reach === "train"}
       chip={!shape.identity}
       outside={outside}
       overlay={!shape.ownLine}
@@ -128,6 +129,7 @@ interface FrameRowProps {
   readonly stickyInside: boolean;
   readonly reachCard: boolean;
   readonly reachColumn: boolean;
+  readonly reachTrain: boolean;
   readonly chip: boolean;
   readonly outside: boolean;
   readonly overlay: boolean;
@@ -149,6 +151,7 @@ function FrameRow({
   stickyInside,
   reachCard,
   reachColumn,
+  reachTrain,
   chip,
   outside,
   overlay,
@@ -176,6 +179,7 @@ function FrameRow({
         stickyInside && STICKY_INSIDE,
         reachCard && REACH_CARD,
         reachColumn && REACH_COLUMN,
+        reachTrain && "self-stretch",
         // An actions-only bar stays a trailing chip at rest. Its pinned frame spans the reading width so
         // partially covered text cannot look like a complete line. Off the last row it remains an overlay.
         chip && !pinned && "ms-auto inline-fit",

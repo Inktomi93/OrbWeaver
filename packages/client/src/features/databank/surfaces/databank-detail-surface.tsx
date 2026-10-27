@@ -195,7 +195,13 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
       >
         <Row align="start" gap="field" justify="between">
           <Stack className="min-inline-0" gap="tight">
-            <Heading level={2}>{doc.name}</Heading>
+            {/* The shell owns narrow identity paint; the document heading remains in the accessible outline. */}
+            <Heading className="sr-only" level={2}>
+              {doc.name}
+            </Heading>
+            <Text aria-hidden="true" as="span" data-shell-identity="defer" voice="promoted">
+              {doc.name}
+            </Text>
             {/* THE EMPTY PHASE'S REMEDY. It rides HERE, under the scent, and not
                 in Maintenance beside the stall hint: Reindex is that hint's repair and it is the wrong
                 advice for this state — re-running extraction over the same image-only bytes returns the
@@ -257,11 +263,11 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
                 AND `justify="start"`, NOT `between` — a cap alone would pay for the measure with a hand-span
                 between the sentence and the button that acts on it ("a measure caps the worst case; it does
                 not tie the pair"). The button rides its own sentence. */}
-            <Row align="center" gap="row" justify="start">
-              <Text className="max-inline-(--reading-measure-prose) min-inline-0" voice="gloss">
+            <Row align="center" className="flex-wrap" gap="row" justify="start">
+              <Text className="flex-1 basis-(--width-field-floor) max-inline-(--reading-measure-prose) min-inline-0" voice="gloss">
                 Use this after a settings change, or if search misses this document.
               </Text>
-              <Button disabled={reindex.isPending} intent="secondary" onClick={onReindex} size="sm">
+              <Button className="shrink-0 wrap-anywhere max-inline-full" disabled={reindex.isPending} intent="secondary" onClick={onReindex} size="wrap">
                 <Icon icon={RefreshCw} size="sm" />
                 Rebuild search index for this document
               </Button>
@@ -314,8 +320,8 @@ function SourceText({ documentId }: { readonly documentId: DocumentId }): ReactE
   return (
     // A read-only scroll REGION, not a form control (§2.2): the text is a readout, and `whitespace-pre-wrap`
     // is what keeps the extracted line structure legible.
-    <ScrollArea className="max-block-(--height-scroll-lg)">
-      <Text className="wrap-break-word whitespace-pre-wrap" voice="datum">
+    <ScrollArea className="max-block-(--height-scroll-lg)" wrapContent={true}>
+      <Text className="wrap-break-word whitespace-pre-wrap max-inline-(--reading-measure-prose)" prose={true}>
         {query.data.extractedText ?? ""}
       </Text>
     </ScrollArea>

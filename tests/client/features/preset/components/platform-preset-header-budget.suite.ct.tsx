@@ -186,13 +186,29 @@ test.describe("coarse phone tab navigation", () => {
       const tab = tabs.getByRole("tab", { name, exact: true });
       await expect(tab).toBeFocused();
       await expect(tab).toHaveAttribute("aria-selected", "true");
+      const paint = await tab.evaluate((node) => ({
+        visible: node.matches(":focus-visible"),
+        halo: Math.max(
+          0,
+          ...getComputedStyle(node)
+            .boxShadow.split(/,(?![^(]*\))/u)
+            .map((layer) => {
+              if (layer.includes("inset")) {
+                return 0;
+              }
+              return Number.parseFloat(layer.match(/-?(?:\d*\.)?\d+px/gu)?.at(-1) ?? "0");
+            }),
+        ),
+      }));
+      expect(paint.visible).toBe(true);
+      expect(paint.halo).toBeGreaterThan(0);
       await expect
         .poll(async () => {
           const [tabBox, clipBox] = await Promise.all([tab.boundingBox(), clip.boundingBox()]);
           if (tabBox === null || clipBox === null) {
             throw new Error("The selected Preset tab and its scroll wrapper must render");
           }
-          return Math.max(clipBox.x - tabBox.x, tabBox.x + tabBox.width - clipBox.x - clipBox.width);
+          return Math.max(clipBox.x - tabBox.x + paint.halo, tabBox.x + tabBox.width + paint.halo - clipBox.x - clipBox.width);
         })
         .toBeLessThanOrEqual(1);
       expect(await editor.evaluate((node) => node.scrollTop)).toBe(before);
