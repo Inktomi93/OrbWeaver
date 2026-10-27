@@ -53,6 +53,7 @@ export function AddModelOnKeyDialog({ open, onOpenChange, connection, provider, 
       description={addModelActionGloss(scope, providerDisplayLabel(provider))}
       onOpenChange={onOpenChange}
       open={open}
+      size="wide"
       title={addModelActionLabel(scope)}
     >
       <AddModelOnKeyBody connection={connection} invalidation={invalidation} onDone={(): void => onOpenChange(false)} provider={provider} trpc={trpc} />
