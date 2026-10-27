@@ -23,21 +23,17 @@ test.beforeEach(async ({ page }) => {
 async function expectReadingPair(page: Page, field: Locator): Promise<void> {
   await expect(field).toBeVisible();
   const label = field.locator('[data-slot="field-label"]');
-  const control = field.locator('[data-slot="field-control-col"]');
+  const control = field.locator('[data-slot="number-field-root"], [role="switch"], [role="combobox"]');
   const geometry = await field.evaluate((element) => {
     const labelNode = element.querySelector('[data-slot="field-label"]');
-    const controlNode = element.querySelector('[data-slot="field-control-col"]');
+    const controlNode = element.querySelector('[data-slot="number-field-root"], [role="switch"], [role="combobox"]');
     if (labelNode === null || controlNode === null) {
-      throw new Error("The production Field must expose its label and control column");
+      throw new Error("The production Field must expose its label and actual control");
     }
     const range = document.createRange();
     range.selectNodeContents(labelNode);
     const labelBox = range.getBoundingClientRect();
-    const visibleControl = controlNode.querySelector('[data-slot="number-field-root"], [role="switch"], [role="combobox"]');
-    if (visibleControl === null) {
-      throw new Error("The measured row must contain an actual input or switch");
-    }
-    const controlBox = visibleControl.getBoundingClientRect();
+    const controlBox = controlNode.getBoundingClientRect();
     let container = element.parentElement;
     while (container !== null && getComputedStyle(container).containerType === "normal") {
       container = container.parentElement;
@@ -59,7 +55,7 @@ async function expectReadingPair(page: Page, field: Locator): Promise<void> {
   const valid =
     geometry.containerWidth < stackStep
       ? geometry.control.top >= geometry.label.bottom
-      : geometry.control.left >= geometry.label.left && geometry.control.left - geometry.label.right <= column;
+      : geometry.control.top < geometry.label.bottom && geometry.control.left >= geometry.label.right && geometry.control.left - geometry.label.right <= column;
   expect(valid, JSON.stringify({ ...geometry, stackStep, column })).toBe(true);
 }
 
@@ -150,6 +146,15 @@ for (const { name, width, viewport, hasTouch, isMobile } of REGIMES) {
       const input = page.getByRole("textbox", { name: "Runs per hour", exact: true });
       await expect(input).toBeVisible();
       const field = page.locator('[data-slot="field-root"]').filter({ has: input });
+      await expectReadingPair(page, field);
+      const description = field.locator('[data-slot="field-description"]');
+      const descriptionBox = await description.boundingBox();
+      const fieldBox = await field.boundingBox();
+      if (descriptionBox === null || fieldBox === null) {
+        throw new Error("The automation limit must expose its readable helper within the field");
+      }
+      const proseMeasure = await resolvedLength(page, "var(--reading-measure-prose)", description);
+      expect(descriptionBox.width).toBeCloseTo(Math.min(fieldBox.width, proseMeasure), 0);
       const control = field.locator('[data-slot="number-field-root"]');
       await expect(control).toBeVisible();
       const box = await control.boundingBox();

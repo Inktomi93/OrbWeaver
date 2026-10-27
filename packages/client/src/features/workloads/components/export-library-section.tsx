@@ -49,25 +49,12 @@ export function ExportLibrarySection(): ReactElement {
       </Text>
       <Fieldset>
         <FieldsetLegend>Include</FieldsetLegend>
-        {/* THE SHARED TRACK, NOT A PER-ROW DOCK (#980 F13). These rows sat as direct children of a bare
-            `w-full` Fieldset, so each `Field orientation="horizontal"` docked its control in a 200px column
-            at the PANE's right edge and the distance from a name to its checkbox was whatever the window
-            happened to be: measured 2026-09-06 at 906–937px on the live pane (labels ending x=461–492,
-            18px boxes at x=1398), with `design-audit` filing 8 × `row-void` P2 at 71–76%. You could not
-            tell by eye whether "Themes" was checked.
-            `SettingRowGroup` is the mechanism #932 minted for exactly this and it was simply not being
-            used here — the group's longest label sizes ONE label track over every row, so the marks land
-            in one column the eye can run down, and its `max-w-(--reading-measure)` caps the block so the
-            pair stops being pane-sized. It is also the SAME mechanism this era's library-row fix uses:
-            the void was a placement, never a spacing value. */}
-        <SettingRowGroup>
+        {/* Choices share their label track without stacking each mark beneath its label in a narrow host. */}
+        <SettingRowGroup kind="choices">
           {EXPORTABLE_KINDS.map((kind) => (
-            // `SettingTrackRow` is the chain's MIDDLE LINK, and it is not optional off the config surface:
-            // a `track` Field spans two of the group's four tracks, so consecutive Fields AUTO-PLACE two
-            // per line — measured here as controls in TWO columns (x=210 and x=495) the first time this
-            // group was mounted without it, i.e. the shared track was never shared.
             <SettingTrackRow key={kind}>
               <SettingCheckboxRow
+                orientation="inline"
                 label={PORTABLE_KIND_LABELS[kind]}
                 checked={selected.has(kind)}
                 tone={INCLUDE_GROUP_TONE}

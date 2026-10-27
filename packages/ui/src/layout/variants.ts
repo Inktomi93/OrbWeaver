@@ -352,6 +352,8 @@ export const gridVariants = tv({
       // and never a viewport media query. Requires an ancestor `<Container>`; `SettingRowGroup` renders one
       // (an element cannot query itself).
       settingTrack: "grid-cols-1 @cq-32:grid-cols-[var(--width-control-col)_var(--width-control-col)_auto_minmax(0,1fr)]",
+      // Short selection lists share an intrinsic label track and a natural-sized mark, even in a narrow host.
+      choiceTrack: "grid-cols-[fit-content(var(--width-control-col))_fit-content(var(--size-touch-target))]",
       // `pair`'s THREE-column sibling, same contract and same reason (added 2026-08-19, the refinery
       // teaching flow). Three cells that are ONE sequence — Score → Rewrite → Analyze — must be equal
       // bases: as a wrapping flex row of content-sized cards they measured 279/384/482px, i.e. the three

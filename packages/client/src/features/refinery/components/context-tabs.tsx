@@ -114,7 +114,7 @@ function RunRow({
             parse kept the shape; the keys are recorded, not silently swallowed.
           </Text>
         ) : null}
-        <Row gap="field">
+        <Row className="flex-wrap" gap="field">
           <Button intent="ghost" onClick={(): void => onView(run)} size="sm">
             View
           </Button>
@@ -360,7 +360,7 @@ export function VersionsTab({ state, liveDescription }: { state: RefineryContext
                   {snapshot.label ?? "unlabeled"}
                 </Text>
               </Row>
-              <Row gap="field">
+              <Row className="flex-wrap" gap="field">
                 <Button intent="ghost" onClick={(): void => setCompareId(compareId === snapshot.id ? null : snapshot.id)} size="sm">
                   {compareId === snapshot.id ? "Hide compare" : "Compare"}
                 </Button>
