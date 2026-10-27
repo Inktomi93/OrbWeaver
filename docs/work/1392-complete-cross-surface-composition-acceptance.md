@@ -11,7 +11,7 @@ plan: cross-surface-consistency
 
 ## What
 
-Finish the active comparative surface audit, shared Tabs focus reveal, Refinery identity and original-card repairs, and the remaining chat-mode boundary and menu states.
+Finish the remaining comparative family coverage in the active plan. Complete the linked capture, native-boundary and integrated-verification work before the primary Characters and Chat deep pass.
 
 ## Why
 

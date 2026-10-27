@@ -137,7 +137,7 @@ The [previous repair report](../../reviews/surface-consistency-repair.md) covers
 
 ## Test-proof boundaries
 
-The following enforcement is not yet built. Require it before broad census results establish acceptance.
+Require the following boundaries before broad census results establish acceptance. Witnessed censuses and targeted filesystem-mock and portable-shell restrictions are integrated. Capture admission and native import boundaries remain under qualification.
 
 - Require concrete rendered subject witnesses before collecting surface findings. Empty, loading and error scenarios need explicit state expectations.
 - Keep raw detectors behind their owned testkit boundary. Product censuses use the witnessed operation, not a no-op readiness callback.

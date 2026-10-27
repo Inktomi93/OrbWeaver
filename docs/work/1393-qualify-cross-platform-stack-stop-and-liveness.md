@@ -1,10 +1,9 @@
 ---
 kind: bug
-status: doing
+status: open
 updated: 2026-10-27
 priority: P2
 area: tooling
-lane: tooling_isolation
 plan: cross-surface-consistency
 ---
 
@@ -24,4 +23,10 @@ Use the existing process adapter, preserve ownership before signaling, retain st
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Implementation remains open. The retained test draft is unqualified and has lint findings; no runtime proof exists for the proposed controller.
+
+Checkout: `/home/inktomi/.codex/worktrees/stack-test-isolation/orbweaver`. Recovery snapshot: `5bd9363134f3f360e0077b8d5257d7964038b241`. The working copy is restored; keep the snapshot until qualification.
+
+Read `reports/stickler/platform-stop-handoff.md` before editing. Preserve exact process identity and descendant ownership across parent exit. A failed Windows process observation or termination must remain a refusal.
+
+Use a security executor. Prove old-source failure using only owned disposable children. Run focused Linux controls and distinguish injected Windows cases from native platform execution.
