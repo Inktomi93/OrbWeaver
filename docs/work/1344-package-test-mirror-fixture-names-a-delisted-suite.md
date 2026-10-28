@@ -12,6 +12,10 @@ area: tooling
 
 `tests/tooling/native-package-test-mirror.test.ts` fails two rows ("listed client suite running its listed leaf", "running a leaf its line does not name"). Both use `tests/client/features/plugin/native-guest-protocol.ct.tsx`, whose `PACKAGE_TEST_REACHES` entry item 0989 removed because the suite no longer imports the guest protocol leaf.
 
+## Why
+
+A stale suite-to-leaf fixture fails independently of the package import boundary it must test.
+
 ## Done when
 
 The two rows use a suite the reach list does list (or a planted fixture of their own), and `pnpm test:tools tests/tooling/native-package-test-mirror.test.ts` passes.

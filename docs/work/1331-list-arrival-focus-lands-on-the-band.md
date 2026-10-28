@@ -12,9 +12,13 @@ area: client
 
 On arrival the Chats and Presets list surfaces park focus on their own root, which sits after the list band, so a forward Tab skips the band's New button.
 
+## Why
+
+Forward Tab must reach the list band's controls before the search field and rows.
+
 ## Owner ruling
 
-2026-10-24: arrival focus lands on the band's first control (or the band), so Tab order is New, then search, then the rows.
+Arrival focus lands on the band's first control (or the band), so Tab order is New, then search, then the rows.
 
 ## Done when
 

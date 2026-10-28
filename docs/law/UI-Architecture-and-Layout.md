@@ -14,13 +14,11 @@ updated: 2026-10-17
 >
 > **Build state:** code owns landed truth; this doc states the rule, not the build percentage. `packages/ui/src` is the inventory of built primitives; `packages/ui/package.json#exports` is the public surface.
 >
-> **Ledger D66 amends four D62-era rulings below:** the LIST gets a real `.shell-panel-header` band (A1), the list-header **New** is the panel's ONE `primary` button (A2), message-action clusters rest HIDDEN not dimmed (A3), and every editor AUTOSAVES — no Save/Set/Discard (A4). Where §4.1/§4.2/§4.3 below still read as the D62 posture, D66 WINS. The inline `> [!NOTE]` blocks flag each conflict rather than overwrite the D62 text.
-
-> **The one-sentence thesis:** carry over neo's *structure* (feature-slice · surfaces/anchors · state-files · intent tokens · the gate battery) and *dump* neo's *component foundation* (shadcn copy-paste + Radix + the react-markdown stack). The replacement is **one headless primitive (Base UI), hand-authored components in the `@orb/ui` package, and the lint rules promoted to package physics.**
+> D66 overrides conflicting D62 text: use the LIST's `.shell-panel-header` band, one primary **New** control, hidden message actions at rest, and autosaving editors. No Save/Set/Discard.
 
 ### 0.5 The primitive index
 
-> A scannable index. Every row points to its canonical spec section — a table of contents, **NOT a second source of truth**. **Build order (§11.7 / §13.6):** tokens → `@orb/ui` primitives+seals → `@orb/client` data/forms/state primitives + the gates → features.
+> Build order (§11.7 / §13.6): tokens → UI primitives → client data/forms/state primitives → features.
 
 **`@orb/ui` primitives + seals** (each seals ONE lib behind an orbweaver API; `packages/ui/src` is the doc):
 

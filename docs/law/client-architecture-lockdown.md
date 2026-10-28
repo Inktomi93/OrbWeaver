@@ -159,7 +159,7 @@ elevation, never a component's skin.
 `globals.css` imports it before Tailwind, and every authored rule sits in one of the house layers: `ui` holds
 the faces, document floors, primitive treatments and `tiers.css`; `shell` the frame regions; `client` the
 client-wide reading and document rules; `appearance` glass, grain, plates and elevation; `preference` the
-contrast and transparency arms; `motion` the reduced-motion floor. `vendor` holds third-party sheets (the lazily
+contrast and transparency branches; `motion` the reduced-motion floor. `vendor` holds third-party sheets (the lazily
 loaded KaTeX stylesheet, `packages/ui/src/markdown/katex.css`) above preflight and below every house layer, so no
 vendor rule needs `!important` to lose. A sheet that can load before the ui entry imports `layers.css` itself. A later layer beats an earlier one
 regardless of specificity, which is how `tiers.css` repoints a primitive's utility default and how an
