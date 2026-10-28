@@ -12,9 +12,13 @@ area: tests
 
 0963 cases AR13 and AR14 (the empty Corpus Explore finder) cannot be built: the corpus owner has 33 of 38 characters distilled and no verb clears digests, so no subject renders the empty state.
 
+## Why
+
+The populated corpus cannot exercise the empty Explore state through production-backed client composition.
+
 ## Done when
 
-The corpus publishes a principal (or capture) with characters and zero digests, and `tests/client/features/discovery/components/corpus-explore-empty.ct.tsx` covers AR13 and AR14 through it.
+The corpus publishes a principal (or capture) with characters and zero digests. Add the proposed discovery component CT named `corpus-explore-empty` to cover AR13 and AR14 through it.
 
 ## Evidence
 

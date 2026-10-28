@@ -23,7 +23,7 @@ Preserve text and late-closing recall, Smart and databank cuts, omnibox targets,
 
 ## Case map
 
-The done line names the cases of the removed `scripts/probes/reranker-live/run.ts` (last at `821e8f8dff^`). Its copied search and chat contexts are not restored. Legacy paths below are relative to the external reference source named in [Spine-Testing](../law/Spine-Testing.md#2-the-tree).
+The done line preserves the reranker-live probe's behavior cases, available in Git at `821e8f8dff^`. Rebuild through production composition without its copied search and chat contexts. Legacy paths below are relative to the external reference source named in [Spine-Testing](../law/Spine-Testing.md#2-the-tree).
 
 New maintained homes:
 
@@ -39,7 +39,7 @@ New maintained homes:
 | Smart speaker pick | Rerank consumers: the character whose persona leads with the fact speaks. | Rebuild for `text`. Drop `needle`: Smart reads a card's leading sentences by design (`engine/character-line.ts`). |
 | Databank cut | Rerank consumers: with `k` 1 the reranked chunk alone reaches the prompt, never another room's or another account's document; with rerank off the vector-first chunk wins. | Rebuild |
 | Omnibox targets: digests, segments, corpus, discover, entities, characters, documents | Rerank consumers: each target's first hit is the reranked item only with its switch on; another account's document never appears, while that account's own search reaches it. | Rebuild |
-| Omnibox images | Non-rerank arm in [corpus search](../../tests/support/node/corpus-search.int.test.ts); the rerank path is the shared `applyRerank` the other targets prove. | Keep. A caption-rerank case needs the image corpus producer. |
+| Omnibox images | Non-rerank case in [corpus search](../../tests/support/node/corpus-search.int.test.ts); the rerank path is the shared `applyRerank` the other targets prove. | Keep. A caption-rerank case needs the image corpus producer. |
 | Late closing past the reranker window | Rerank consumers: a 2048 window carries the closing to the wire; a 512 window clamps it away and the item loses first place. | Rebuild |
 | Speaker-pick cuts (hand-judged hit rate) | Model-quality measurement on a live model; Smart rules live in [smart picker](../../tests/server/domain/chat/verbs/smart-picker.suite.int.test.ts). | Drop |
 | Reach sweep and token counts | Measurements of one model's tokenizer and attention reach, not product behavior. | Drop |

@@ -22,7 +22,7 @@ Each selected defect has a corrected reservation and a rendered CT or Snap check
 
 ## Owner ruling
 
-2026-10-24: declare first-boot boxes. The Settings groups that shift on a device's first visit (`config.workloads.*`, `config.connections.*`, `config.admin.*`, `config.appearance.looks`) get a per-width `reserveBlock`, with a CT that holds the read pending and asserts the box does not move.
+Declare first-boot boxes. The Settings groups that shift on a device's first visit (`config.workloads.*`, `config.connections.*`, `config.admin.*`, `config.appearance.looks`) get a per-width `reserveBlock`, with a CT that holds the read pending and asserts the box does not move.
 
 ## Evidence
 
@@ -30,7 +30,7 @@ There is no failing-surface list. The surfaces below come from source and from `
 
 ### Surfaces
 
-`ast-grep -l tsx '<QueryBoundary $$$A>$$$B</QueryBoundary>' packages/client/src` scanned 815 `.tsx` files and found 118 mounts in 104 files. 79 pass a `reserveKey`, 39 do not. The same pattern with `-l ts` scanned 770 `.ts` files and matched nothing. One mount passes `reserveBlock` (`rpg-hud-band.tsx`) and one passes it through the home tile contribution.
+The source survey uses the QueryBoundary AST pattern in client TSX and TS source. Its complete census is preserved at `reports/surface-consistency-private/governed-doc-recovery/originals/docs/work/1129-qualify-loading-reservations-on-queryboundary-surfaces.md`. The `rpg-hud-band.tsx` mount passes `reserveBlock`; a home tile contribution also supplies it.
 
 The 39 unkeyed mounts include modals, pickers, popovers, settings leaves and the app-shell context pane (`section-context-host.tsx`). No section sweep below attributes a shift to one of them.
 
@@ -87,7 +87,7 @@ Current declarations live in the owning components, not a separate numeric table
 | Admin tuning | [Media & trust](../../packages/client/src/features/user-admin/components/media-trust-section.tsx), [Operations](../../packages/client/src/features/user-admin/components/operations-section.tsx), [Memory](../../packages/client/src/features/user-admin/components/memory-tuning-section.tsx), [Rate limits](../../packages/client/src/features/user-admin/components/rate-limits-section.tsx), [System](../../packages/client/src/features/user-admin/components/system-tuning-section.tsx) |
 | Appearance | [Looks](../../packages/client/src/features/config/components/appearance-looks-section.tsx) |
 
-The [composition qualification](../../reports/surface-consistency-private/first-boot-reservation-qualification.md) records affected Jobs/Admin declaration measurements and native trace locations. It does not establish broader loading-reservation completion.
+The private composition qualification at `reports/surface-consistency-private/first-boot-reservation-qualification.md` records affected Jobs/Admin declaration measurements and native trace locations. It does not establish broader loading-reservation completion.
 
 `config.connections.editor` is not declared: it mounts on a click, for one connection, and its settled height varies per connection.
 
