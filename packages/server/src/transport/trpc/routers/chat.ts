@@ -26,11 +26,11 @@ import {
   effectiveRegexViewSchema,
   groupConfigSchema,
   guidedSteerSchema,
+  historyPageSchema,
   hostTierRegexAllowSchema,
   listMessagesInputSchema,
   memberCardViewSchema,
   messageContentBlockSchema,
-  messagesPageSchema,
   messageVariantSummarySchema,
   messageViewSchema,
   messageWindowSchema,
@@ -563,11 +563,17 @@ export const chatRouter = t.router({
     .input(getMemberCardSchema)
     .query(({ ctx, input }) => ctx.services.chat.getMemberCard({ principal: ctx.auth, ...input })),
   // A paged canon read (D26), member-gated (`requireParticipant` inside the verb — leak-free NOT_FOUND
-  // for a non-member, the same collapse `getChat` uses). `beforeSeq`/`limit` page backwards from the tail.
+  // for a non-member, the same collapse `getChat` uses). `cursor`/`limit` walk bounded history in either direction.
   listMessages: authedProcedure
-    .output(messagesPageSchema)
+    .output(historyPageSchema)
     .input(listMessagesInputSchema)
-    .query(({ ctx, input }) => ctx.services.chat.listMessages({ principal: ctx.auth, ...input })),
+    .query(({ ctx, input: { cursor, ...input } }) => {
+      const scope = { principal: ctx.auth, ...input };
+      if (cursor === null || cursor === undefined) {
+        return ctx.services.chat.listMessages(scope);
+      }
+      return ctx.services.chat.listMessages({ ...scope, ...(cursor.kind === "before" ? { beforeSeq: cursor.seq } : { afterSeq: cursor.seq }) });
+    }),
   getMessageWindow: authedProcedure
     .output(messageWindowSchema)
     .input(

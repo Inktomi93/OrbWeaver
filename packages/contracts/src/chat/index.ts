@@ -142,8 +142,8 @@ export { chatCensusInputSchema } from "./library.ts";
 export type { ChatListCursor } from "./listing.ts";
 export { CHAT_LIST_MAX_LIMIT, HOME_RECENT_CHATS_LIMIT } from "./listing.ts";
 export { memberToolCalls, projectViewForMember } from "./member-projection.ts";
-export type { MessagesPage, MessageWindow } from "./message-pages.ts";
-export { messagesPageSchema, messageWindowSchema } from "./message-pages.ts";
+export type { HistoryPage, MessagesPage, MessageWindow } from "./message-pages.ts";
+export { historyPageSchema, messagesPageSchema, messageWindowSchema } from "./message-pages.ts";
 // `MacroFreeze` (the single occurrence) is NOT re-exported here — kit owns that shape and consumers import it
 // from `@orb/kit/macro`; contracts owns only the persisted/wire ARRAY (`MacroFreezeRecord`) + its parse seam.
 export type {

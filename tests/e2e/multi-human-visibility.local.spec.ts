@@ -213,9 +213,9 @@ test("D16 from-join: a member's list + durable replay carry NO row below their o
     expect(clampedWire).toContain(POST_JOIN); // seq 4 — above the floor
     expect(Math.min(...clampedPage.messages.map((m) => m.seq))).toBe(JOIN_SEQ);
 
-    // PATH 1b — pagination stays honest: a `beforeSeq` cursor reaching under the floor returns an EMPTY page
+    // PATH 1b — pagination stays honest: a `cursor` reaching under the floor returns an EMPTY page
     // (the same terminal signal an exhausted backward walk gives), never a fabricated one.
-    const underFloor = await member.trpc.chat.listMessages.query({ chatId, beforeSeq: JOIN_SEQ });
+    const underFloor = await member.trpc.chat.listMessages.query({ chatId, cursor: { kind: "before", seq: JOIN_SEQ } });
     expect(underFloor.messages).toEqual([]);
 
     // PATH 2 — the DURABLE REPLAY (`sinceSeq: 0` on the real chat ROOM source: exactly what a member's

@@ -73,6 +73,8 @@ export function useStartChat(): UseStartChatResult {
       queryClient.setQueryData(trpc.chat.listMessages.queryKey({ chatId }), {
         messages: result.opening?.messages ?? [],
         identities: result.chat.identities,
+        previousCursor: null,
+        nextCursor: null,
       });
       // A roster start named its persona; every other launch says so when the default did not decide.
       if (intent.anchorPersonaId === undefined || intent.anchorPersonaId === null) {
