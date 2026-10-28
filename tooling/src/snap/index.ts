@@ -1,5 +1,6 @@
 // snap's programmatic front door — what tests and sibling tools import; the cli fronts this surface.
 // One tool, one API.
+export type { DeadCssEvidence } from "./contract/dead-css.ts";
 export type { FixtureStatus, FixtureTarget, FixtureTargetOverride } from "./contract/fixture.ts";
 export type {
   HeapBrowserContextId,
@@ -129,6 +130,7 @@ export { NETWORK_PROFILES, NO_CPU_THROTTLE, parseNetworkProfile, throttleResultV
 // `auditSettledPage` is the liftable core: a Playwright page + a debugging port, no snap session; the
 // request ring is its twin (one Playwright page, bounded lifetime state). The ring lives in ops/ because
 // it is installed before any run arm exists.
+export { scanDeadCss } from "./ops/arms/dead-css.ts";
 export { auditSettledPage } from "./ops/arms/lighthouse.ts";
 export { resolveContextsMode, snapContexts } from "./ops/contexts.ts";
 export { splitTrailingEvals } from "./ops/drive-actions.ts";
