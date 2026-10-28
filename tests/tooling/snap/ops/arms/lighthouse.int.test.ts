@@ -11,8 +11,14 @@
 // so a clean run — the negative control this whole file rests on — is unreachable over file://.
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
+import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
+import { launchProbeSession, withProbeSession } from "@orb/tooling/floor/browser/browser";
+import { createDebuggingProfile, readDebuggingPort } from "@orb/tooling/floor/browser/debugging-endpoint";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
+import { withProcessEnv } from "@orb/tooling/floor/process/process-env";
+import { auditSettledPage } from "@orb/tooling/snap";
+import type { CDPSession } from "@playwright/test";
 import { vi } from "vitest";
 import { scaledBudget } from "../../../_load-budget.ts";
 
@@ -149,4 +155,57 @@ test("--lighthouse desktop on the mobile device is refused: the label and the co
 
   expect(misuse.stdout).toContain("--lighthouse desktop cannot run on the --mobile device descriptor");
   await expect(misuse).toExitWith(EXIT.misuse);
+});
+
+test("target lookup refusal detaches its native session and preserves the observer-owned page", async ({ scratch }) => {
+  await using resources = new AsyncDisposableStack();
+  const fixture = await serveFixtures();
+  resources.defer(() => fixture.close());
+  const profile = await createDebuggingProfile();
+  resources.defer(profile.close);
+  await withProcessEnv("ORB_PROBE_TEST_CDP_FAULT", "Target.getTargetInfo@2", async () => {
+    const owner = await launchProbeSession({
+      headless: true,
+      viewport: { width: 640, height: 480 },
+      colorScheme: null,
+      reducedMotion: false,
+      localStorage: [],
+      persistentProfileDir: profile.profileDir,
+      browserArgs: profile.browserArgs,
+    });
+    await withProbeSession(owner, async () => {
+      await owner.page.goto(`${fixture.base}/clean.html`);
+      const openSession = owner.context.newCDPSession.bind(owner.context);
+      let opened = 0;
+      let closed = 0;
+      owner.context.newCDPSession = async (target): Promise<CDPSession> => {
+        const cdp = await openSession(target);
+        opened += 1;
+        cdp.on("close", () => {
+          closed += 1;
+        });
+        return cdp;
+      };
+      const healthy = await owner.context.newCDPSession(owner.page);
+      try {
+        expect((await healthy.send("Target.getTargetInfo")).targetInfo.targetId).not.toBe("");
+      } finally {
+        await healthy.detach();
+      }
+      await expect.poll(() => closed, { timeout: scaledBudget(5000) }).toBe(1);
+      await expect(
+        auditSettledPage(owner.page, {
+          device: "desktop",
+          mode: "snapshot",
+          port: await readDebuggingPort(profile.profileDir),
+          jsonPath: join(scratch, "refused-lighthouse.json"),
+          htmlPath: join(scratch, "refused-lighthouse.html"),
+        }),
+      ).rejects.toThrow("Target.getTargetInfo call #2 refused");
+      expect(opened).toBe(2);
+      await expect.poll(() => closed, { timeout: scaledBudget(5000) }).toBe(2);
+      expect(await owner.page.getByRole("heading", { name: "Plugins", exact: true }).textContent()).toBe("Plugins");
+      expect(owner.browser.isConnected()).toBe(true);
+    });
+  });
 });

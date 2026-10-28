@@ -113,6 +113,21 @@ async function awaitEndpoint(port: number): Promise<void> {
   );
 }
 
+async function targetIdAndDetach(readTargetId: () => Promise<string>, detach: () => Promise<void>): Promise<string> {
+  try {
+    await using cleanup = new AsyncDisposableStack();
+    cleanup.defer(detach);
+    return await readTargetId();
+  } catch (error) {
+    if (error instanceof SuppressedError) {
+      throw new Error(`${errorMessage(error.suppressed)}; CDP detach failed: ${errorMessage(error.error)}`, {
+        cause: error,
+      });
+    }
+    throw error;
+  }
+}
+
 /** The puppeteer handle for the EXACT target Playwright is driving. Matched by CDP target id, never by
  *  URL: a `--pages N` run has several tabs on one origin and a URL match would audit an arbitrary one. */
 async function attachToTarget(port: number, targetId: string): Promise<{ readonly page: PuppeteerPage; readonly disconnect: () => Promise<void> }> {
@@ -130,9 +145,11 @@ async function attachToTarget(port: number, targetId: string): Promise<{ readonl
   try {
     for (const candidate of await browser.pages()) {
       const session = await candidate.createCDPSession();
-      const info = await session.send("Target.getTargetInfo");
-      await session.detach();
-      if (info.targetInfo.targetId === targetId) {
+      const candidateId = await targetIdAndDetach(
+        async () => (await session.send("Target.getTargetInfo")).targetInfo.targetId,
+        () => session.detach(),
+      );
+      if (candidateId === targetId) {
         return { page: candidate, disconnect };
       }
     }
@@ -174,8 +191,10 @@ function lighthouseFlags(device: LighthouseDevice): Flags {
 export async function auditSettledPage(page: Page, ask: LighthouseAsk): Promise<LighthouseReceipt> {
   await awaitEndpoint(ask.port);
   const cdp = await page.context().newCDPSession(page);
-  const targetId = (await cdp.send("Target.getTargetInfo")).targetInfo.targetId;
-  await cdp.detach();
+  const targetId = await targetIdAndDetach(
+    async () => (await cdp.send("Target.getTargetInfo")).targetInfo.targetId,
+    () => cdp.detach(),
+  );
   const { page: puppeteerPage, disconnect } = await attachToTarget(ask.port, targetId);
   try {
     const { snapshot, navigation, generateReport } = await import("lighthouse");
