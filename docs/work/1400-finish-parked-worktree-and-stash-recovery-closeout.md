@@ -12,7 +12,7 @@ plan: cross-surface-consistency
 
 ## What
 
-Resolve every original parked worktree and stash using the private recovery inventory. Finish useful unmerged work; remove redundant checkouts only after preserving recoverable source and needed artifacts.
+Resolve every original parked worktree and stash using the private recovery inventory. Integrate useful work and remove redundant checkouts, stashes and recovery copies.
 
 ## Why
 
@@ -20,8 +20,8 @@ Unresolved parked changes can hide unfinished commitments, while obsolete snapsh
 
 ## Done when
 
-Record a final disposition for every inventoried checkout and stash. Confirm queued managed archives actually complete. Qualify and integrate active repairs before cleaning their trees or snapshots. Keep exact private recovery locations for preserved material and exclude newly active stages from obsolete-work counts.
+Record a final disposition for every inventoried checkout and stash. Verify actual removal instead of treating queued cleanup requests as completion. Qualify and integrate active repairs before removing their trees. Retain only material needed for unfinished work or its verification.
 
 ## Evidence
 
-Use `reports/surface-consistency-private/parked-work-closeout.md` and `reports/surface-consistency-private/parked-work-closeout.json` as the exact inventory and recovery record. Confirm managed archive requests complete; queued is not archived. Keep active platform snapshots until their implementation is qualified and merged. Preserve private recovery packs and source archives after obsolete reflog entries or checkouts are removed.
+Use `reports/surface-consistency-private/parked-work-closeout.md` and `reports/surface-consistency-private/parked-work-closeout.json` for the original inventory. Read `reports/surface-consistency-private/surface-walk-integration-progress.md` for current dispositions. Check live Git worktree and stash inventories before acting. Redundant copies are not unfinished work and must not remain solely for archival custody.
