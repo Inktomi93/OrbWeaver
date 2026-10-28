@@ -34,10 +34,10 @@ import type {
   ContextFitUnbound,
   EffectiveRegexView,
   GroupConfig,
+  HistoryPage,
   JoinHistoryVisibility,
   MemberCardView,
   MemberCardVisibility,
-  MessagesPage,
   MessageVariantSummary,
   MessageView,
   NextTurnConnectionView,
@@ -120,6 +120,7 @@ import type {
 import { gateLineagePerAncestor, requireHost, requireParticipant } from "../guard.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { loadInlineReplyAssetIds } from "../persistence/message-asset-links.ts";
+import { loadPageCursors } from "../persistence/page-cursors.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipants, loadPresentVisibilityRows } from "../persistence/participants-read.ts";
 import {
@@ -1074,11 +1075,17 @@ const DEFAULT_LIMIT = 50;
  *  `beforeSeq` cursor at/below the floor simply matches nothing, so the caller gets an EMPTY page (the
  *  same terminal signal an exhausted backward walk gives), never a fabricated one. */
 function createListMessages(ctx: ChatContext, deps: ReadDeps): ChatService["listMessages"] {
-  return async ({ principal, chatId, beforeSeq, limit }: ListMessagesParams): Promise<MessagesPage> => {
+  return async ({ principal, chatId, beforeSeq, afterSeq, limit }: ListMessagesParams): Promise<HistoryPage> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     const pageSize = Math.min(limit ?? DEFAULT_LIMIT, CHAT_MESSAGE_LIST_MAX_LIMIT);
-    const page = await loadMessagesPage(ctx.db, chatId, { beforeSeq, limit: pageSize, floorSeq: membership.historyFloorSeq });
-    // `loadMessagesPage` returns newest-first (the backward window); reverse for chronological display.
+    const page = await loadMessagesPage(ctx.db, chatId, {
+      beforeSeq,
+      afterSeq,
+      ascending: afterSeq !== undefined,
+      limit: pageSize,
+      floorSeq: membership.historyFloorSeq,
+    });
+    // Backward pages need reversal; the forward query already returns chronological rows.
     // The §3.6 MEMBER-STRIP trust boundary: hidden-class spans never reach a NON-HOST viewer's payload
     // (a client-only hide would leak the truth bytes in the wire). The host reads unstripped — the reveal
     // eye / standing-lie inventory are host-plane reads over the full body. P3: on a DECEPTION-active game the
@@ -1086,13 +1093,16 @@ function createListMessages(ctx: ChatContext, deps: ReadDeps): ChatService["list
     // non-game / non-deception chat, so no regression). The host bit is the PROJECTION class's
     // `viewerReadsHidden` (D110 — the DATA-PROJECTION class): a byte-selection verdict is homed ONCE, so this
     // page's strip can never drift from the bus replay's or the turn return's.
-    const chronological = page.reverse();
+    const chronological = afterSeq === undefined ? page.reverse() : page;
     const readsHidden = viewerReadsHidden(membership);
     const reasoningHostOnly = readsHidden ? false : await resolveReasoningHostOnly(ctx, chatId);
     const messages = readsHidden ? chronological : chronological.map((v) => projectViewForMember(v, reasoningHostOnly));
     const participants = await deps.loadParticipantViews(chatId);
     const identities = await loadChatIdentityProducer(ctx.db, { participants, messages, anchorPersonaId: membership.chat.anchorPersonaId });
-    return { messages, identities };
+    const firstSeq = messages[0]?.seq ?? (afterSeq === undefined ? beforeSeq : afterSeq + 1);
+    const lastSeq = messages.at(-1)?.seq ?? (beforeSeq === undefined ? afterSeq : Math.max(0, beforeSeq - 1));
+    const cursors = await loadPageCursors(ctx.db, chatId, { firstSeq, lastSeq, floorSeq: membership.historyFloorSeq });
+    return { messages, identities, ...cursors };
   };
 }
 

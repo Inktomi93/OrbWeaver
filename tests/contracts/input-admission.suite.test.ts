@@ -58,13 +58,18 @@ test("paged requests reject fractional and over-ceiling asks without clamping", 
   }
 });
 
-test("message reads preserve fractional cursors but require bounded integer page sizes", ({ ids }) => {
+test("message reads retain directional cursor bounds and bounded integer page sizes", ({ ids }) => {
   const chatId = mintTypeId(ID_PREFIX.chat, ids.next);
-  expect(listMessagesInputSchema.parse({ chatId, beforeSeq: 0.5, limit: CHAT_MESSAGE_LIST_MAX_LIMIT, ownerId: "discard" })).toEqual({
+  expect(listMessagesInputSchema.parse({ chatId, cursor: { kind: "before", seq: 1 }, limit: CHAT_MESSAGE_LIST_MAX_LIMIT, ownerId: "discard" })).toEqual({
     chatId,
-    beforeSeq: 0.5,
+    cursor: { kind: "before", seq: 1 },
     limit: CHAT_MESSAGE_LIST_MAX_LIMIT,
   });
+  expect(listMessagesInputSchema.parse({ chatId, cursor: null })).toEqual({ chatId, cursor: null });
+  expect(listMessagesInputSchema.parse({ chatId, cursor: { kind: "after", seq: 0 } })).toEqual({ chatId, cursor: { kind: "after", seq: 0 } });
+  for (const seq of [-1, 0.5]) {
+    expect(listMessagesInputSchema.safeParse({ chatId, cursor: { kind: "before", seq } }).success).toBe(false);
+  }
   expect(listMessagesInputSchema.safeParse({ chatId, limit: CHAT_MESSAGE_LIST_MAX_LIMIT + 1 }).success).toBe(false);
   expect(listMessagesInputSchema.safeParse({ chatId, limit: 1.5 }).success).toBe(false);
 });

@@ -158,7 +158,7 @@ interface ChatThreadProps {
   readonly toolRenderers: ContributorRegistry<ToolRenderer>;
 }
 
-type CanonPage = inferOutput<Trpc["chat"]["listMessages"]>;
+type CanonPage = Pick<inferOutput<Trpc["chat"]["listMessages"]>, "messages" | "identities">;
 type AnchoredPage = inferOutput<Trpc["chat"]["getMessageWindow"]>;
 
 /** The committed-chat transcript — suspends on the canon + roster reads, then merges the live ghost. */
@@ -263,7 +263,7 @@ function ChatThread({
   const pinMode = behaviorPrefs.streamScrollMode === "pin-prompt";
   // A pin is armed only for the live turn it was placed in — feed that to the pill so its spacer void
   // doesn't read as "scrolled away" (the newest content is on-screen, pinned + streaming).
-  const jump = useJumpToLatest({ messagesCount: messages.length, live, pinActive: pinMode && live, listHandleRef });
+  const jump = useJumpToLatest({ messages, live, pinActive: pinMode && live, listHandleRef });
   const pinnedPromptIdRef = useRef<string | null | undefined>(undefined);
   useEffect(() => {
     if (!pinMode) {

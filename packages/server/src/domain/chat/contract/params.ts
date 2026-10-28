@@ -186,10 +186,10 @@ export interface GetMessageWindowParams extends ChatScopedParams {
 }
 
 /** `listMessages` — paged canon read. */
-export interface ListMessagesParams extends ChatScopedParams {
-  readonly beforeSeq?: number | undefined;
-  readonly limit?: number | undefined;
-}
+export type ListMessagesParams = ChatScopedParams & { readonly limit?: number | undefined } & (
+    | { readonly beforeSeq?: number | undefined; readonly afterSeq?: never }
+    | { readonly beforeSeq?: never; readonly afterSeq: number }
+  );
 
 export interface ListParticipantsParams extends ChatScopedParams {}
 

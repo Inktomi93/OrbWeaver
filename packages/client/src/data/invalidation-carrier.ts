@@ -28,6 +28,7 @@
 
 import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
 import type { QueryClient } from "@tanstack/react-query";
+import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "./trpc.ts";
 
 interface PendingCanonQueue {
@@ -84,41 +85,69 @@ function queueUntilInitialRead(queryClient: QueryClient, queryHash: string, view
   queue.views.set(view.id, apply);
 }
 
-function applyCachedView(queryClient: QueryClient, trpc: Trpc, chatId: ChatBusEvent["chatId"], view: MessageView): boolean {
-  // tRPC's JSON projection reconstructs optional-field arrays as mutable transport values.
-  const cachedView = { ...view, toolCalls: [...view.toolCalls] };
-  const key = trpc.chat.listMessages.queryKey({ chatId });
-  // The bus carrier patches only an existing cached page; remove when it stops merging canon events into query data.
-  if (queryClient.getQueryData(key) === undefined) {
-    return false;
+type CanonPage = inferOutput<Trpc["chat"]["listMessages"]>;
+
+function reconcilePage(page: CanonPage, event: ChatBusEvent, append: boolean): CanonPage {
+  if (event.type === "messagesDeleted") {
+    return { ...page, messages: page.messages.filter((message) => !event.messageIds.includes(message.id)) };
   }
-  // The bus carrier applies canonical event rows before the authoritative refetch returns; remove when those rows are no longer patched.
-  queryClient.setQueryData(key, (page) => {
-    if (page === undefined) {
-      return page;
-    }
-    const index = page.messages.findIndex((message) => message.id === view.id);
-    if (index === -1) {
-      return { ...page, messages: [...page.messages, cachedView] };
-    }
-    const messages = [...page.messages];
-    messages[index] = cachedView;
-    return { ...page, messages };
-  });
-  return true;
+  if (!("view" in event)) {
+    return page;
+  }
+  const view = event.view;
+  const cachedView = { ...view, toolCalls: [...view.toolCalls] };
+  const index = page.messages.findIndex((message) => message.id === view.id);
+  if (index === -1) {
+    const lastSeq = page.messages.at(-1)?.seq;
+    return append && (lastSeq === undefined || view.seq >= lastSeq) ? { ...page, messages: [...page.messages, cachedView] } : page;
+  }
+  const messages = [...page.messages];
+  messages[index] = cachedView;
+  return { ...page, messages };
 }
 
-/** Apply a canon event's `view` to the open room's message list. Written to the room's TAIL page key
- *  (`{ chatId }` — the only `listMessages` key any client read uses; no caller passes `beforeSeq`, so the
- *  cached page is always the newest window): replace-by-id, or append at the tail for a row the page has
+function applyCachedChange(queryClient: QueryClient, trpc: Trpc, event: ChatBusEvent): boolean {
+  const key = trpc.chat.listMessages.queryKey({ chatId: event.chatId });
+  const cached = queryClient.getQueryData(key) !== undefined;
+  if (cached) {
+    queryClient.setQueryData(key, (page) => (page === undefined ? page : reconcilePage(page, event, true)));
+  }
+  const historyKey = trpc.chat.listMessages.infiniteQueryKey({ chatId: event.chatId });
+  if (queryClient.getQueryData(historyKey) !== undefined) {
+    queryClient.setQueryData(historyKey, (history) =>
+      history === undefined
+        ? history
+        : {
+            ...history,
+            pages: history.pages.map((page, index) => reconcilePage(page, event, index === history.pages.length - 1)),
+          },
+    );
+  }
+  return cached;
+}
+
+/** Reconcile canon views and removals before the authoritative refresh, across tail and loaded history.
+ *  Views are written to the room's TAIL page key
+ *  (`{ chatId }` — composer readers and ordinary history both consume this finite tail, with its carrier
+ *  taking precedence over overlapping paged rows): replace-by-id, or append at the tail for a row the page has
  *  never seen (a fresh reply / the caller's own just-sent user row). A carrier that beats the open room's
  *  initial read queues until that read lands; a background room with no query still gains no phantom list. */
 export function applyCanonView(queryClient: QueryClient, trpc: Trpc, event: ChatBusEvent): void {
+  if (event.type === "messagesDeleted") {
+    applyCachedChange(queryClient, trpc, event);
+    const key = trpc.chat.listMessages.queryKey({ chatId: event.chatId });
+    const query = queryClient.getQueryCache().find({ queryKey: key, exact: true });
+    const pending = query === undefined ? undefined : pendingCanonByClient.get(queryClient)?.get(query.queryHash);
+    for (const id of event.messageIds) {
+      pending?.views.delete(id);
+    }
+    return;
+  }
   if (!("view" in event)) {
     return;
   }
   const view = event.view;
-  if (applyCachedView(queryClient, trpc, event.chatId, view)) {
+  if (applyCachedChange(queryClient, trpc, event)) {
     return;
   }
   const key = trpc.chat.listMessages.queryKey({ chatId: event.chatId });
@@ -127,6 +156,6 @@ export function applyCanonView(queryClient: QueryClient, trpc: Trpc, event: Chat
     return;
   }
   queueUntilInitialRead(queryClient, query.queryHash, view, (): void => {
-    applyCachedView(queryClient, trpc, event.chatId, view);
+    applyCachedChange(queryClient, trpc, event);
   });
 }

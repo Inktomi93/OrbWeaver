@@ -1,6 +1,8 @@
 import type { MessageId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
+import type { MessageWindowCursor } from "../search/source.ts";
+import { messageWindowCursorSchema } from "../search/source.ts";
 import type { MessageView } from "./messages.ts";
 import { messageViewSchema } from "./messages.ts";
 import type { ChatIdentity } from "./producers.ts";
@@ -10,6 +12,12 @@ import { chatIdentitySchema } from "./producers.ts";
 export interface MessagesPage {
   readonly messages: readonly MessageView[];
   readonly identities: readonly ChatIdentity[];
+}
+
+/** Ordinary history retains stable page boundaries independently from source resolution. */
+export interface HistoryPage extends MessagesPage {
+  readonly previousCursor: MessageWindowCursor | null;
+  readonly nextCursor: MessageWindowCursor | null;
 }
 
 /** Source resolution is distinct from ordinary paging and retains its resolved stable endpoints. */
@@ -61,3 +69,8 @@ export const messageWindowSchema = z.discriminatedUnion("outcome", [
     hasAfter: z.literal(false),
   }),
 ]) satisfies z.ZodType<MessageWindow>;
+
+export const historyPageSchema = messagesPageSchema.extend({
+  previousCursor: messageWindowCursorSchema.nullable(),
+  nextCursor: messageWindowCursorSchema.nullable(),
+}) satisfies z.ZodType<HistoryPage>;

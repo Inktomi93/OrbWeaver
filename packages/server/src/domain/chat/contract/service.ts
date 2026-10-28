@@ -19,10 +19,10 @@ import type {
   ContextFitAnswer,
   EffectiveRegexView,
   GroupConfig,
+  HistoryPage,
   InvitePreview,
   InviteView,
   MemberCardView,
-  MessagesPage,
   MessageVariantSummary,
   MessageView,
   MessageWindow,
@@ -218,7 +218,7 @@ export interface ChatService {
    *  whose host has bound no chat connection answers the unbound state instead of a refusal. */
   readonly previewContextFit: (params: PreviewContextFitParams) => Promise<ContextFitAnswer>;
   /** Paged canon read — each slot joined to its selected variant + the page's macro name producer. */
-  readonly listMessages: (params: ListMessagesParams) => Promise<MessagesPage>;
+  readonly listMessages: (params: ListMessagesParams) => Promise<HistoryPage>;
   readonly getMessageWindow: (params: GetMessageWindowParams) => Promise<MessageWindow>;
   /** The full sibling-variant set for one slot — `{variantId, idx}[]` ordered by idx, no content. */
   readonly listMessageVariants: (params: ListMessageVariantsParams) => Promise<MessageVariantSummary[]>;

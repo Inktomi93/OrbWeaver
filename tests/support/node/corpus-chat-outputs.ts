@@ -179,7 +179,7 @@ export async function seedCorpusChatOutputs(root: ServerTestHarness): Promise<Co
     listChatInjections: await caller.chat.listChatInjections(scope),
     getGroupConfig: await caller.chat.getGroupConfig(scope),
   };
-  const older = await caller.chat.listMessages({ ...scope, beforeSeq: edited.seq, limit: 1 });
+  const older = await caller.chat.listMessages({ ...scope, cursor: { kind: "before", seq: edited.seq }, limit: 1 });
   await member.invites.selfLeave(scope);
   const fork = await caller.chat.forkChat(scope);
   reads.getChatLineage = await caller.chat.getChatLineage({ chatId: fork.chat.id });

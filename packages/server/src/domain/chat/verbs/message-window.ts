@@ -9,6 +9,7 @@ import type { MessageWindowAnchor, MessageWindowResolution, ParticipantData } fr
 import { requireParticipant } from "../guard.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { loadWindowAnchor, loadWindowRange } from "../persistence/message-window.ts";
+import { loadPageCursors } from "../persistence/page-cursors.ts";
 import { loadMessagesPage } from "../persistence/queries.ts";
 import { viewerReadsHidden } from "../substrate/member-visibility.ts";
 
@@ -46,10 +47,7 @@ export function createMessageWindow(
     const identities = await loadChatIdentityProducer(ctx.db, { participants, messages });
     const firstSeq = messages[0]?.seq;
     const lastSeq = messages.at(-1)?.seq;
-    const [before, after] = await Promise.all([
-      firstSeq === undefined ? [] : loadMessagesPage(ctx.db, chatId, { beforeSeq: firstSeq, limit: 1, floorSeq: floor }),
-      lastSeq === undefined ? [] : loadMessagesPage(ctx.db, chatId, { beforeSeq: undefined, afterSeq: lastSeq, ascending: true, limit: 1, floorSeq: floor }),
-    ]);
+    const cursors = await loadPageCursors(ctx.db, chatId, { firstSeq, lastSeq, floorSeq: floor });
     return {
       outcome,
       anchorMessageId: anchor.id,
@@ -58,8 +56,8 @@ export function createMessageWindow(
       endMessageId: end.id,
       messages,
       identities,
-      hasBefore: before.length > 0,
-      hasAfter: after.length > 0,
+      hasBefore: cursors.previousCursor !== null,
+      hasAfter: cursors.nextCursor !== null,
     };
   };
 }

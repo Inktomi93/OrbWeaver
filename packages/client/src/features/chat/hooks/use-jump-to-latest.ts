@@ -1,7 +1,7 @@
 // The state behind the floating "jump to latest" pill. At-tail reads from the scroll node's real
 // geometry, sampled when the scroll ends (`scrollend`, or a debounced `scroll` where the browser lacks it), never the seal's follow-intent signal — intent desyncs from
 // position the instant virtual-core writes scrollTop during a re-measure. The unread count is latched
-// to its running max while away from the tail: messagesCount and the live turn-phase flag commit in
+// to its running max while away from the tail: canon and the live turn-phase flag commit in
 // separate renders, so the raw delta formula can dip through 0 mid-settle and self-hide over a
 // genuinely-unread reply.
 //
@@ -12,6 +12,7 @@
 // (its own pinMode × live), so it feeds that in and we treat it as at-tail: suppresses the false pill
 // AND keeps the snapshot synced, so no stale count survives once the pin collapses.
 
+import type { MessageView } from "@orb/contracts/chat";
 import type { MessageListHandle } from "@orb/ui/message-list";
 import type { RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -21,7 +22,7 @@ const AT_TAIL_THRESHOLD_PX = 80;
 const SETTLE_DEBOUNCE_MS = 90;
 
 export interface UseJumpToLatestArgs {
-  readonly messagesCount: number;
+  readonly messages: readonly Pick<MessageView, "seq">[];
   readonly live: boolean;
   /** True while a pin-prompt pin is armed (surface's pinMode × live) — its bottom spacer inflates the
    *  raw distance-from-bottom, so we force at-tail to keep the pill from firing over on-screen content. */
@@ -37,7 +38,7 @@ export interface JumpToLatestState {
   readonly onJump: () => void;
 }
 
-export function useJumpToLatest({ messagesCount, live, pinActive, listHandleRef }: UseJumpToLatestArgs): JumpToLatestState {
+export function useJumpToLatest({ messages, live, pinActive, listHandleRef }: UseJumpToLatestArgs): JumpToLatestState {
   const [atTailSampled, setAtTail] = useState(true);
   // An armed pin means the newest content is on-screen regardless of the spacer-inflated geometry.
   const atTail = pinActive || atTailSampled;
@@ -81,14 +82,15 @@ export function useJumpToLatest({ messagesCount, live, pinActive, listHandleRef 
     [],
   );
 
-  // snapshot = the canon count last seen while at the tail, frozen while the reader is away.
-  const [snapshot, setSnapshot] = useState(messagesCount);
-  if (atTail && snapshot !== messagesCount) {
-    setSnapshot(messagesCount);
+  // Older pages change the loaded count, not the newest canon the reader has seen.
+  const tailSeq = messages.at(-1)?.seq ?? 0;
+  const [snapshot, setSnapshot] = useState(tailSeq);
+  if (atTail && snapshot !== tailSeq) {
+    setSnapshot(tailSeq);
   }
 
   const [unread, setUnread] = useState(0);
-  const rawUnread = Math.max(0, messagesCount - snapshot) + (live ? 1 : 0);
+  const rawUnread = messages.filter((message) => message.seq > snapshot).length + (live ? 1 : 0);
   const count = atTail ? 0 : Math.max(unread, rawUnread);
   if (count !== unread) {
     setUnread(count);

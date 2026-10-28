@@ -1,6 +1,6 @@
 // Corpus declarations and schemas stay below publication and playback admission to keep their dependency graph acyclic.
 import { authConfigSchema } from "@orb/contracts/auth-config";
-import { messagesPageSchema, pendingJoinConfirmResultSchema, signedOutInvitePreviewSchema } from "@orb/contracts/chat";
+import { historyPageSchema, pendingJoinConfirmResultSchema, signedOutInvitePreviewSchema } from "@orb/contracts/chat";
 import type { healthResponseSchema } from "@orb/contracts/diagnostics";
 import { authMeSchema, viewerViewSchema } from "@orb/contracts/identity";
 import { listInboxResultSchema } from "@orb/contracts/notifications";
@@ -36,7 +36,7 @@ export const notificationInboxSchema = z.strictObject({
   hostAccepted: inboxSnapshotSchema,
 });
 export const memberMessagesSnapshotSchema = z
-  .strictObject({ viewerUserId: brandedId("UserId"), chatId: typeIdSchema(ID_PREFIX.chat), output: messagesPageSchema })
+  .strictObject({ viewerUserId: brandedId("UserId"), chatId: typeIdSchema(ID_PREFIX.chat), output: historyPageSchema })
   .refine(({ chatId, output }) => output.messages.every((message) => message.chatId === chatId), "Corpus member snapshot chat mismatch");
 export const chatLifecycleMemberSchema = z.strictObject({
   heldDuring: memberMessagesSnapshotSchema,
