@@ -369,7 +369,9 @@ function LandingFrame({
             Container-queried, so it answers to the PANE (a three-pane desktop is as narrow as a phone). */}
       <Row align="start" className="@max-cq-28:flex-col" gap="section" justify="between">
         <Stack className="flex-1 min-inline-0" gap="tight">
-          <Heading level={2}>{title}</Heading>
+          <Heading level={1} voice="promoted">
+            {title}
+          </Heading>
           {/* The measure rides the PARAGRAPH, not its box: a `ch` resolves against the element's OWN
                 font, so the same cap on the Stack above was computed at the heading's step and let this
                 13px line run to 114 characters (design-audit `line-length`, measured at 1280). The token

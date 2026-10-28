@@ -44,7 +44,7 @@ export function CharacterShelf({
   return (
     <Stack gap="row">
       <Row align="baseline" className="pbe-tight" divider="bottom" gap="field" justify="between">
-        <Heading level={3} voice="kicker">
+        <Heading level={2} voice="kicker">
           {label}
         </Heading>
         {legend === null ? null : (
