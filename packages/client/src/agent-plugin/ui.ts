@@ -7,7 +7,7 @@ import { isRenderedElement } from "../lib/agent-bridge.ts";
 import type { OrbPluginPublication, OrbPluginUiCommand, OrbPluginUiHost, OrbPluginUiReader } from "../lib/agent-plugin-bridge.ts";
 import { PLUGIN_UI_AUDIT_ATTRIBUTES, PLUGIN_UI_COMMAND_LOCATIONS, pluginUiAuditKey } from "../lib/plugin-ui-audit-attributes.ts";
 
-const overflowSchema = z.array(z.string());
+const menuSchema = z.array(z.string());
 const locationSchema = z.enum(PLUGIN_UI_COMMAND_LOCATIONS);
 
 function attributeSelector(name: string, value: string): string {
@@ -40,12 +40,22 @@ function commandHosts(pluginId: PluginId, name: string, placements: OrbPluginUiC
   });
 }
 
-function overflowHosts(pluginId: PluginId, name: string): readonly OrbPluginUiHost[] {
-  const selector = `[${PLUGIN_UI_AUDIT_ATTRIBUTES.overflow}]`;
+function menuHosts(pluginId: PluginId, name: string): readonly OrbPluginUiHost[] {
+  const selector = `[${PLUGIN_UI_AUDIT_ATTRIBUTES.menu}]`;
   return [...document.querySelectorAll(selector)].flatMap((element, index) => {
-    const raw = element.getAttribute(PLUGIN_UI_AUDIT_ATTRIBUTES.overflow);
-    const parsed = overflowSchema.safeParse(raw === null ? null : JSON.parse(raw));
-    return parsed.success && parsed.data.includes(pluginUiAuditKey(pluginId, name)) ? [hostObservation(element, selector, index)] : [];
+    const raw = element.getAttribute(PLUGIN_UI_AUDIT_ATTRIBUTES.menu);
+    let commands: readonly string[] | undefined;
+    // Parser errors can contain private DOM values, so retain only the inventory's fixed refusal.
+    try {
+      const parsed = menuSchema.safeParse(raw === null ? null : JSON.parse(raw));
+      commands = parsed.success ? parsed.data : undefined;
+    } catch {
+      commands = undefined;
+    }
+    if (commands === undefined) {
+      throw new Error("Plugin UI inventory: malformed composer command metadata");
+    }
+    return commands.includes(pluginUiAuditKey(pluginId, name)) ? [hostObservation(element, selector, index)] : [];
   });
 }
 
@@ -98,7 +108,7 @@ export function buildAgentPluginUi(client: TrpcClient, trpc: Trpc, queryClient: 
             placements,
             ...(composerDraft === undefined ? {} : { composerDraft }),
             hosts: commandHosts(id, commandName, placements),
-            overflowHosts: overflowHosts(id, commandName),
+            menuHosts: menuHosts(id, commandName),
           })),
       })),
     };

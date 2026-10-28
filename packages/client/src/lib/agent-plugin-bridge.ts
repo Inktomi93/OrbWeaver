@@ -53,7 +53,7 @@ export interface OrbPluginUiCommand extends Pick<PluginCommandView, "name" | "de
     readonly target: PluginCommandView["placements"][number]["target"];
     readonly location: PluginUiCommandLocation;
   })[];
-  readonly overflowHosts: readonly OrbPluginUiHost[];
+  readonly menuHosts: readonly OrbPluginUiHost[];
 }
 
 export interface OrbPluginUiEntry extends OrbPluginListEntry {

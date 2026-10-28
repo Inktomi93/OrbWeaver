@@ -182,8 +182,6 @@ const ORB_RING_REGISTRY = {
   },
 } as const satisfies Record<OrbRingName, Omit<OrbRingMetadata, "name">>;
 
-const ORB_RINGS: readonly OrbRingMetadata[] = ORB_RING_NAMES.map((name) => ({ name, ...ORB_RING_REGISTRY[name] }));
-
 declare global {
   // `var` is required: ambient global augmentation must use var to attach to globalThis.
   var __orb: OrbDebugHandle | undefined;
@@ -235,6 +233,7 @@ export function isRenderedElement(element: Element): boolean {
  * PRODUCTION mode. One door, entered by the composition root and by the CT host alike.
  */
 export function installAgentDebugHandle(queryClient: QueryClient, handles: OrbAgentHandles): void {
+  const rings: readonly OrbRingMetadata[] = ORB_RING_NAMES.map((name) => ({ name, ...ORB_RING_REGISTRY[name] }));
   enableAppearanceMessageRegistry();
   installAnimationLifecycleRecorder();
   installMotionObservers();
@@ -349,7 +348,7 @@ export function installAgentDebugHandle(queryClient: QueryClient, handles: OrbAg
     automationFires,
     durableLocalUserId,
     capabilities: (): Readonly<Record<keyof OrbDebugHandle, string>> => ORB_DEBUG_CAPABILITIES,
-    rings: (): readonly OrbRingMetadata[] => ORB_RINGS,
+    rings: (): readonly OrbRingMetadata[] => rings,
     resetRing,
   };
   console.info(

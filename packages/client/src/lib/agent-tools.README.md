@@ -45,7 +45,7 @@ Example: `preview_eval("__orb.snap()")`, or in DevTools `copy(__orb.renders())`.
 - Each surface carries its canonical `id`, `anchor`, `tier`, title and optional tool names. Specifications and raw state are excluded.
 - `publication` summarizes only existing static-surface query-cache entries for the global scope and selected `chatId`. `published: null` means unread or unsettled; `false` means the cached answer was null; `true` means a cached publication exists. These are last-read facts, with status and timestamps, not an eligibility verdict. Scripted surfaces, frames and per-call tool cards use other content planes and return no publication summary.
 - Surface `hosts` identifies existing attribution shells, not content readiness. A scripted page's shell can hold loading, empty or failed content. `selector` and zero-based `index` target a current host. `visible` uses the bridge's existing paint check; `inert` and `ariaHidden` report ancestor attributes separately. Retained hidden Activity subtrees remain distinguishable from visible hosts.
-- Commands carry canonical names, groups, composer-draft markers and registered placement targets. `hosts` identifies mounted direct, overflow or media controls. Inert measurement copies carry no command identity. `overflowHosts` reports the composer's already-resolved overflow membership even while its menu is closed; it does not claim a menu item is mounted.
+- Commands carry canonical names, groups, composer-draft markers and registered placement targets. `hosts` identifies mounted composer menu or media controls. `menuHosts` reports the composer menu's resolved command roster while closed; it does not claim an item is mounted. Malformed menu metadata rejects the inventory with a diagnostic that omits its contents.
 - Empty host arrays mean no matching host was observed in the current DOM. They do not mean ineligible, unsupported or absent in another context. Navigate through the existing UI, then read again.
 
 The `data-orb-plugin-*` attributes are private DEV metadata, not owner-CSS hooks. The production debug import gate and synchronous navigation capabilities are unchanged.
@@ -99,7 +99,7 @@ it instead of network-idle, which hangs on the never-idle SSE connection:
 
 ## Console channels
 
-Prefixed, low-noise, IS\_DEV-gated — read via `preview_console_logs` or a console-capture transcript.
+Prefixed, low-noise, IS_DEV-gated — read via `preview_console_logs` or a console-capture transcript.
 
 - **`[bus]`** (`bus-devlog.ts`) — chat-bus subscription lifecycle + live count, each canon event → the
   query keys it invalidated, and a duplicate-invalidate storm alarm. The peer to `[trpc]`.

@@ -9,10 +9,10 @@ export const PLUGIN_UI_AUDIT_ATTRIBUTES = {
   command: "data-orb-plugin-command",
   target: "data-orb-plugin-target",
   location: "data-orb-plugin-location",
-  overflow: "data-orb-plugin-overflow",
+  menu: "data-orb-plugin-menu",
 } as const;
 
-export const PLUGIN_UI_COMMAND_LOCATIONS = ["direct", "overflow", "media"] as const;
+export const PLUGIN_UI_COMMAND_LOCATIONS = ["menu", "media"] as const;
 export type PluginUiCommandLocation = (typeof PLUGIN_UI_COMMAND_LOCATIONS)[number];
 
 type AuditAttributes = Partial<Record<(typeof PLUGIN_UI_AUDIT_ATTRIBUTES)[keyof typeof PLUGIN_UI_AUDIT_ATTRIBUTES], string>>;
@@ -27,7 +27,7 @@ export function pluginSurfaceAuditAttributes(pluginId: PluginId, surfaceId: stri
   return IS_DEV ? { [PLUGIN_UI_AUDIT_ATTRIBUTES.surface]: pluginUiAuditKey(pluginId, surfaceId), [PLUGIN_UI_AUDIT_ATTRIBUTES.anchor]: anchor } : {};
 }
 
-/** Identify an actual composer control; measurement copies do not call this helper. */
+/** Identify a mounted composer menu control. */
 export function pluginCommandAuditAttributes(
   pluginId: PluginId,
   name: string,
@@ -43,7 +43,7 @@ export function pluginCommandAuditAttributes(
     : {};
 }
 
-/** The closed overflow menu has no mounted items; publish the host's already-resolved partition. */
-export function pluginOverflowAuditAttributes(commands: readonly { readonly pluginId: PluginId; readonly name: string }[]): AuditAttributes {
-  return IS_DEV ? { [PLUGIN_UI_AUDIT_ATTRIBUTES.overflow]: JSON.stringify(commands.map(({ pluginId, name }) => pluginUiAuditKey(pluginId, name))) } : {};
+/** The closed menu has no mounted items; publish its already-resolved command roster. */
+export function pluginMenuAuditAttributes(commands: readonly { readonly pluginId: PluginId; readonly name: string }[]): AuditAttributes {
+  return IS_DEV ? { [PLUGIN_UI_AUDIT_ATTRIBUTES.menu]: JSON.stringify(commands.map(({ pluginId, name }) => pluginUiAuditKey(pluginId, name))) } : {};
 }

@@ -1105,11 +1105,11 @@ export const DOM_LOOKUP_HOMES = [
   },
   {
     file: "packages/client/src/agent-plugin/ui.ts",
-    function: "overflowHosts",
+    function: "menuHosts",
     method: "querySelectorAll",
     receiver: "document",
     selector: "(selector)",
-    reason: "The read-only development plugin inventory reads the composer's resolved overflow partition while its menu is closed.",
+    reason: "The read-only development plugin inventory reads the composer's resolved command roster while its menu is closed.",
   },
   {
     file: "packages/client/src/lib/agent-bridge-appearance.ts",

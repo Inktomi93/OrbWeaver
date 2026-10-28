@@ -111,7 +111,7 @@ export function PluginSurfaceShell({
   const Shell = SHELL_CONTAINERS[chrome];
   if (collapsible) {
     return (
-      <Shell aria-label={regionName} role="group">
+      <Shell aria-label={regionName} role="group" {...pluginSurfaceAuditAttributes(pluginId, surfaceId, anchor)}>
         <Collapsible defaultOpen={true}>
           <Row align="center" gap="field">
             <CollapsibleTrigger aria-label={regionName} className="flex-1 min-inline-0" ref={disclosureRef}>
@@ -137,7 +137,7 @@ export function PluginSurfaceShell({
     );
   }
   return (
-    <Shell>
+    <Shell {...pluginSurfaceAuditAttributes(pluginId, surfaceId, anchor)}>
       <Stack gap="block">
         {/* The pinned attribution band — plugin glyph + name + the surface's own title. A person always knows
           WHICH plugin drew this and that it is a plugin, not the app's own screen. */}
