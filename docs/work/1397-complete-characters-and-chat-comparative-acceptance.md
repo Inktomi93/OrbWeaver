@@ -23,7 +23,7 @@ Record the actual navigation inventory before scoring. Compare desktop with appl
 
 Cover every registered message mode at its start, assistant and user boundaries, long interiors and tail. Include avatars, names, sticky actions, decorative art and reading flow.
 
-Inspect composer menus through their final contributed action, group controls, plugin Context tabs, optional Sidecar placement and keyboard focus return.
+Inspect composer menus through their final contributed action, group controls, plugin Context tabs, optional Sidecar placement and keyboard focus return. Include lower image-dialog form access on mobile.
 
 Inspect every Character context tab, editor subitem and contributed section. Include both side panels together and their collapsed or sheet states.
 

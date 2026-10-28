@@ -71,7 +71,7 @@ Main drives the private owner-data clone. Keep private content and images outsid
 - Illustrated chat interiors preserve distinct art placement and pinned reading flow in portrait and short landscape. The captures establish positioned states, not continuous gesture behavior.
 - Atlas reports handled search failures without pristine-state instructions. Independent owner-clone desktop and portrait after-review accepts the guidance repair.
 - Shared configuration libraries and Refinery expose direct filter recovery. Actual Regex and populated-fixture Refinery comparisons accept the recovery controls.
-- The [action-group qualification](../../reviews/action-group-qualification.md) records completed candidate dispositions, native proof and explicit exclusions.
+- The action-group qualification record at `reports/surface-consistency-private/governed-doc-recovery/originals/docs/reviews/action-group-qualification.md` records completed candidate dispositions, native proof and explicit exclusions.
 
 ## Additional accepted repairs
 
@@ -133,7 +133,7 @@ The independent comparison index is `reports/side-eye/2026-10-26-cross-surface-c
 
 Native evidence and retained application captures are under `reports/surface-consistency-private/`. Its visual index identifies immutable run directories.
 
-The [previous repair report](../../reviews/surface-consistency-repair.md) covers its bounded contracts, not acceptance of this comparative goal.
+The previous repair report at `reports/surface-consistency-private/governed-doc-recovery/originals/docs/reviews/surface-consistency-repair.md` covers its bounded contracts, not acceptance of this comparative goal.
 
 ## Test-proof boundaries
 
@@ -180,3 +180,21 @@ Use the primary-surface review to select missing adoption cases without duplicat
 Retain existing autosave race, plugin invocation, Tabs focus and scripted-chat persistence coverage. Add only the distinct adoption or lifecycle behavior.
 
 The complete source audit and read inventory remain in `reports/stickler/week-ct-law-and-gaps/`. Source coverage does not establish native execution or physical iOS behavior.
+
+## Preserved product decisions and open comparisons
+
+Keep menu-first attributed plugin commands and the writing and generation rows. Preserve native generation actions and group-chat controls.
+
+Keep Context plugin panels independently collapsible. Sidecar placement remains an explicit choice per panel, with focus transferred when placement changes.
+
+Preserve opaque pinned reading backgrounds and mode-specific identity policies, including Document's identity-free presentation.
+
+Use Flat and small rounded avatars as the reference defaults. Preserve other users' valid saved overrides; prototype dimensions are not tokens.
+
+Qualify automatic active-tab reveal in Presets separately from keyboard focus visibility.
+
+Keep the Insights presentation choice explicit and retain accounting caveats inside each independently scrolling cost pane.
+
+Include the image dialog's lower form in the primary mobile walkthrough. Cold startup, failed aggregate runs and unavailable evidence remain unqualified.
+
+The automated walkthrough plan supplies repeatable collection; independent comparative acceptance remains required here.

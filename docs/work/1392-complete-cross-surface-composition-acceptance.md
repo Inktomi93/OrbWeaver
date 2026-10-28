@@ -27,6 +27,8 @@ Use the owner-data clone with enabled plugins. Independently score actual deskto
 
 Record accepted states, defects, corrections and precise exclusions in the active plan. Keep task-specific differences explicit. Preserve plugin contracts; do not push or deploy.
 
+Qualify automatic active-tab reveal in Presets and retain the Insights presentation decision with pane-local accounting caveats.
+
 ## Evidence
 
 The active plan owns the coverage matrix. The private promise audit maps original transcript commitments to this item and its linked work.
