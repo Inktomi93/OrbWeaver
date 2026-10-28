@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
-updated: 2026-10-27
+status: doing
+updated: 2026-10-28
 priority: P2
 area: testing
+lane: main
 plan: cross-surface-consistency
 ---
 
@@ -23,14 +24,18 @@ Read completed application and tooling tests, Chromium component tests, eligible
 
 ## Evidence
 
-Read `reports/surface-consistency-private/full-verification/status.md` and the safe logs under `reports/surface-consistency-private/resume/`. Match each result to its checked source and scope before reuse.
+Read `reports/surface-consistency-private/full-verification/status.md` for completed results, source scope, corrected failures and commands still required.
 
-Integrated full ESLint, full TypeScript and dependency-cruiser runs passed before subsequent dependent batches. Full Biome and Stylelint passed their recorded populations. Application tests exposed a generated owner-CSS freshness failure; regeneration and coupled suites pass. The original full application command was not green.
+Full application, tooling and Chromium runs have recorded failures and scoped repairs. Eligible full WebKit and default E2E acceptance remain open.
 
-The full tooling command failed. Scoped contract, stack-isolation and portability repairs pass. Governed-document failures remain separate and must not be concealed by exclusions or baselines. Full Chromium, eligible WebKit and default E2E execution remain pending.
+Include the geometry helper's complete consumer population and the repaired Admin census cases. Match each reusable result to unchanged source and execution scope.
 
-The raw `/tmp/orb-full-tooling-tests.log` contains credential-bearing failure output and is owner-readable only. Do not copy, print or commit it. The isolation defect is repaired; preserving the log does not undo credential exposure.
+Governed-document failures remain separately classified. Do not conceal them with exclusions or baselines.
 
-Serialize heavy checks and freeze the checked checkout. Use `pnpm test:tools` for tooling; `pnpm test` excludes that population. Run E2E through its disposable native stack with live-model cases disabled. Do not stop an unidentified service to free ports.
+The raw `/tmp/orb-full-tooling-tests.log` contains credential-bearing output. Do not copy, print or commit it; use the safe verification records.
 
-Reuse the existing icon ramp CT for rendered stroke-width acceptance. Reconcile the capture and native-boundary batches before claiming combined proof. Windows and macOS workflow definitions are not executed platform evidence.
+Serialize heavy checks and freeze the checked checkout. Use `pnpm test:tools` for tooling; `pnpm test` excludes that population.
+
+Run E2E through disposable native stacks with live-model cases disabled. Do not stop an unidentified service to free ports.
+
+Workflow definitions are not native Windows or macOS execution evidence. Report platform and live-model exclusions explicitly.

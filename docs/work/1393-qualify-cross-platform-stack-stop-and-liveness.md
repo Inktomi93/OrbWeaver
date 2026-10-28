@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
-updated: 2026-10-27
+status: doing
+updated: 2026-10-28
 priority: P2
 area: tooling
+lane: platform_stop_recovery
 plan: cross-surface-consistency
 ---
 
@@ -23,10 +24,12 @@ Use the existing process adapter, preserve ownership before signaling, retain st
 
 ## Evidence
 
-Implementation remains open. The retained test draft is unqualified and has lint findings; no runtime proof exists for the proposed controller.
+The recovered implementation is in `/home/inktomi/.codex/worktrees/stack-test-isolation/orbweaver`. Qualification and independent security review remain required before integration.
 
-Checkout: `/home/inktomi/.codex/worktrees/stack-test-isolation/orbweaver`. Recovery snapshot: `5bd9363134f3f360e0077b8d5257d7964038b241`. The working copy is restored; keep the snapshot until qualification.
+Read `reports/stickler/platform-stop-handoff.md` and `reports/surface-consistency-private/full-verification/status.md` for the current native controls and remaining checks.
 
-Read `reports/stickler/platform-stop-handoff.md` before editing. Preserve exact process identity and descendant ownership across parent exit. A failed Windows process observation or termination must remain a refusal.
+Preserve recovery snapshots `f73b0c13033147862eb3afe46ab23adb8d310bb0` and `5bd9363134f3f360e0077b8d5257d7964038b241` until qualification and integration.
 
-Use a security executor. Prove old-source failure using only owned disposable children. Run focused Linux controls and distinguish injected Windows cases from native platform execution.
+Use a security executor. Retain exact process identity and descendants across parent exit. Failed observation or termination must remain a refusal.
+
+Qualify timeout-callback error propagation and descendant retention with discriminating controls. Distinguish native Linux execution, injected Windows cases and unexecuted native platform behavior.

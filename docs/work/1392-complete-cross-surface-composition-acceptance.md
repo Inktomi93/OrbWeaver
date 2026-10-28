@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-10-27
+updated: 2026-10-28
 priority: P2
 area: client
 plan: cross-surface-consistency
@@ -11,7 +11,7 @@ plan: cross-surface-consistency
 
 ## What
 
-Finish the remaining comparative family coverage in the active plan. Complete the linked capture, native-boundary and integrated-verification work before the primary Characters and Chat deep pass.
+Finish comparative acceptance for the active plan's settings, collection authoring, library navigation, Corpus, plugin UI, dialogs and Chat families.
 
 ## Why
 
@@ -19,8 +19,16 @@ Bounded action-group qualification does not establish coherent complete surface 
 
 ## Done when
 
-Resolve confirmed findings with production-mounted checks and independent actual-app comparison. Record family coverage and exclusions in the active plan. Preserve plugin contracts and do not push or deploy.
+Compare related surfaces at matching defaults and effective content widths. Include empty, populated, selected and filtered states where applicable.
+
+Judge hierarchy, proportions, alignment, action placement and reading flow. Repair shared owners and inconsistent adoption together.
+
+Use the owner-data clone with enabled plugins. Independently score actual desktop, coarse portrait and landscape captures, including applicable List and Context combinations.
+
+Record accepted states, defects, corrections and precise exclusions in the active plan. Keep task-specific differences explicit. Preserve plugin contracts; do not push or deploy.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The active plan owns the coverage matrix. The private promise audit maps original transcript commitments to this item and its linked work.
+
+Read `reports/surface-consistency-private/promise-and-recovery-audit.md` and the comparison index in `reports/side-eye/2026-10-26-cross-surface-consistency-comparison.md`.

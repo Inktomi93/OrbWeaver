@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-10-27
+updated: 2026-10-28
 priority: P2
 area: client
 plan: cross-surface-consistency
@@ -19,14 +19,33 @@ These primary workflows need coherent hierarchy, density, action placement and r
 
 ## Done when
 
-Compare desktop with applicable side panels, phone portrait and short landscape at explicit appearance defaults. Score actual captures independently. Repair shared owners and inconsistent adoption with production-mounted regressions. Record exact coverage and exclusions without screenshot baselines.
+Record the actual navigation inventory before scoring. Compare desktop with applicable side panels, coarse portrait and short landscape at explicit production defaults.
+
+Cover every registered message mode at its start, assistant and user boundaries, long interiors and tail. Include avatars, names, sticky actions, decorative art and reading flow.
+
+Inspect composer menus through their final contributed action, group controls, plugin Context tabs, optional Sidecar placement and keyboard focus return.
+
+Inspect every Character context tab, editor subitem and contributed section. Include both side panels together and their collapsed or sheet states.
+
+Define each mode's intended differences and select coherent defaults where needed. Do not treat account preferences or existing screenshots as approved baselines.
+
+Resolve these composed-test decisions using the testkit and test-layer laws:
+
+- Loaded primary panels under constrained List and Context combinations.
+- Document user-message backing at the pinned reading strip.
+- Delayed media reservation and real-room reading position.
+- Final contributed menu action reach and focus return in a short host.
+- Typed draft, caret and composer identity across initial message arrival.
+- Narrow conflict and failure recovery in actual editors.
+
+Reuse existing business and lifecycle tests. Record an explicit disposition for each proposed case; implement missing behavior through production composition, not copied application logic.
+
+Score actual captures independently after repairs. Record complete coverage and precise exclusions in the active plan; containment-only checks do not establish acceptance.
 
 ## Evidence
 
-This deeper primary-surface pass remains unstarted. Bounded prior comparisons do not substitute for it.
+The complete primary-surface visual pass remains open. The navigation seed is preparation, not acceptance.
 
-Use the existing Snap-driving and side-eye skills, the current scoring guide and the active plan. Read the complete CLI and relevant UI/client law before driving. The owner-data clone and enabled-plugin state are documented in the private verification and visual packets.
+Read `reports/surface-consistency-private/primary-surface-navigation.md`, `reports/surface-consistency-private/promise-and-recovery-audit.md` and `reports/stickler/week-ct-law-and-gaps/`.
 
-Record a concrete navigation inventory before scoring. Include group-chat controls, composer menus, message modes, both applicable side panels and their collapsed states. Keep appearance defaults explicit and retain each mode's intended behavior.
-
-Use actual production-mounted regressions for confirmed defects and reuse existing business tests. Read the testkit contract and restoration/layer guidance before adding cases. Do not duplicate application behavior or accept blanket screenshot baselines.
+Use the Snap-driving and side-eye skills, current scoring guide, complete CLI contract and relevant UI/client laws.
