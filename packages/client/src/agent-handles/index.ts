@@ -29,7 +29,7 @@ import type { ContributorRegistry } from "#lib";
 import type { ConfigSectionContribution } from "#state";
 import { activeChatId, activeDurableLocalUserId } from "#state";
 import { buildAgentNav } from "../agent-nav/index.ts";
-import { buildAgentPlugin } from "../agent-plugin/index.ts";
+import { buildAgentPlugin, buildAgentPluginUi } from "../agent-plugin/index.ts";
 import { buildAgentRpg } from "../agent-rpg/index.ts";
 import { buildAgentSeed } from "../agent-seed/index.ts";
 import { installAgentDebugHandle } from "../lib/agent-bridge.ts";
@@ -52,6 +52,7 @@ export function installAgentHandles(
     seed: buildAgentSeed(trpcClient),
     rpg: buildAgentRpg(trpcClient, activeChatId),
     pluginLog: buildAgentPlugin(trpcClient),
+    pluginUi: buildAgentPluginUi(trpcClient, trpcProxy, queryClient, activeChatId),
     automationFires: readAutomationFires,
     css: { read: cssMergeTrace.read, reset: cssMergeTrace.reset },
     durableLocalUserId: activeDurableLocalUserId,

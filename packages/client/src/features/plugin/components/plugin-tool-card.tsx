@@ -89,6 +89,7 @@ export function PluginToolCard({ record }: PluginToolCardProps): ReactElement {
   if (surface.tier === "frame") {
     return (
       <PluginFrame
+        anchor="tool-card"
         fallback={<ToolFallback record={record} />}
         pluginId={surface.pluginId}
         pluginName={plugin.name}
@@ -106,7 +107,7 @@ export function PluginToolCard({ record }: PluginToolCardProps): ReactElement {
       return <ToolFallback record={record} />;
     }
     return (
-      <PluginSurfaceShell pluginName={plugin.name} title={surface.title}>
+      <PluginSurfaceShell anchor="tool-card" pluginId={surface.pluginId} surfaceId={surface.id} pluginName={plugin.name} title={surface.title}>
         <PluginScriptedSurface
           anchor="tool-card"
           fallback={<ToolFallback record={record} />}
@@ -121,7 +122,7 @@ export function PluginToolCard({ record }: PluginToolCardProps): ReactElement {
     );
   }
   return (
-    <PluginSurfaceShell pluginName={plugin.name} title={surface.title}>
+    <PluginSurfaceShell anchor="tool-card" pluginId={surface.pluginId} surfaceId={surface.id} pluginName={plugin.name} title={surface.title}>
       <PluginSurfaceRenderer anchor="tool-card" pluginId={surface.pluginId} spec={surface.spec} state={toolCardState(record)} surfaceId={surface.id} />
     </PluginSurfaceShell>
   );

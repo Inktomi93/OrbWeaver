@@ -8,6 +8,7 @@ import { Blocks, Icon, PanelRightOpen } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Menu, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@orb/ui/menu";
 import type { ReactElement } from "react";
+import { pluginCommandAuditAttributes, pluginMenuAuditAttributes } from "#lib";
 import { revealContextPanel } from "#state";
 import { usePluginCommands, useRunPluginCommand, useSharedPluginNames } from "../hooks/use-plugin-commands.ts";
 import { useHasChatPluginPanels } from "../hooks/use-visible-anchored-surfaces.ts";
@@ -87,7 +88,7 @@ export function PluginComposerActions({ chatId }: { readonly chatId: ChatId }): 
   }
   const groups = groupPlacedCommands(placed);
   return (
-    <Row aria-label="Plugin composer actions" className="shrink-0" role="group">
+    <Row aria-label="Plugin composer actions" className="shrink-0" role="group" {...pluginMenuAuditAttributes(placed.map(({ command }) => command))}>
       <Menu>
         <MenuTrigger
           render={
@@ -114,6 +115,7 @@ export function PluginComposerActions({ chatId }: { readonly chatId: ChatId }): 
                     disabled={isPending}
                     key={`${item.command.pluginId}:${item.command.name}`}
                     onClick={(): void => run(item.command)}
+                    {...pluginCommandAuditAttributes(item.command.pluginId, item.command.name, "composer-action", "menu")}
                   >
                     <Icon icon={glyph} size="sm" />
                     {item.label}
@@ -158,6 +160,7 @@ export function PluginComposerMediaItems({ chatId }: { readonly chatId: ChatId }
                 disabled={isPending}
                 key={`${item.command.pluginId}:${item.command.name}`}
                 onClick={(): void => run(item.command)}
+                {...pluginCommandAuditAttributes(item.command.pluginId, item.command.name, "composer-media", "media")}
               >
                 <Icon icon={glyph} size="sm" />
                 {item.label}

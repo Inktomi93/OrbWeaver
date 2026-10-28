@@ -1,14 +1,10 @@
-// Dev-only PLUGIN LOG read bridge — the `__orb.pluginLog(ref?)` impl. It rides the EXISTING owner-scoped
-// tRPC reads (`plugin.list` for the installed-plugin list, `plugin.getLog` for one plugin's runtime host.log
-// ring) so an agent driving a live stage reads exactly what the Plugins settings surface reads — including,
-// since #806, the lines a FLOATED guest continuation logged between invocations (a hub search's
-// `search failed: …`), which `plugin.getLog` used to structurally lose. No ref ⇒ the installed-plugin list
-// (id · slug · name · version · status); a ref resolves against slug OR id and REFUSES loudly on no match or
-// an ambiguous one — never a silent empty. Read-only by construction: no mutation has a bridge here (the
-// `agent-rpg/` posture).
+// DEV plugin readers use the owner's production APIs. The log reader resolves a slug or install id;
+// the UI inventory keeps runtime registrations separate from current cache and host observations.
 
 import type { PluginId } from "@orb/kit/ids";
 import type { OrbPluginListEntry, OrbPluginLogReader, OrbPluginLogResult } from "../lib/agent-plugin-bridge.ts";
+
+export { buildAgentPluginUi } from "./ui.ts";
 
 /** The two read operations this bridge actually consumes. Keeping the port narrow lets focused tests
  * prove the bridge without fabricating the rest of AppRouter. */

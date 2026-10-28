@@ -82,7 +82,7 @@ export function PluginDialogBody(): ReactElement {
   // the house modal shell. `PluginFrame` draws its own (panel-scale) attribution band, so an un-minted frame
   // leaves no orphaned box in the modal — the flank-law posture, chrome included. A frame carries no `spec`.
   if (surface.tier === "frame") {
-    return <PluginFrame pluginId={subject.pluginId} pluginName={plugin.name} surfaceId={surface.id} title={surface.title} />;
+    return <PluginFrame anchor="dialog" pluginId={subject.pluginId} pluginName={plugin.name} surfaceId={surface.id} title={surface.title} />;
   }
   const scriptedIds = (surfaces ?? [])
     .filter((candidate) => candidate.pluginId === subject.pluginId && candidate.tier === "scripted")
@@ -98,7 +98,7 @@ export function PluginDialogBody(): ReactElement {
     body = <PluginSurfaceRenderer anchor="dialog" pluginId={subject.pluginId} spec={surface.spec} surfaceId={surface.id} />;
   }
   return (
-    <PluginSurfaceShell pluginName={plugin.name} title={surface.title}>
+    <PluginSurfaceShell anchor="dialog" pluginId={subject.pluginId} surfaceId={surface.id} pluginName={plugin.name} title={surface.title}>
       {body}
     </PluginSurfaceShell>
   );

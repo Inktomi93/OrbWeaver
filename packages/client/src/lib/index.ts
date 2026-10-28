@@ -162,6 +162,7 @@ export { MESSAGE_ROLE_ITEMS, MESSAGE_ROLE_LABELS } from "./message-role-labels.t
 export type { NotifyAction, NotifyNotice } from "./notify.ts";
 export { bindNotify, leaseNotify, notify } from "./notify.ts";
 export { perfMark, perfMeasure } from "./perf-marks.ts";
+export { pluginCommandAuditAttributes, pluginMenuAuditAttributes, pluginSurfaceAuditAttributes } from "./plugin-ui-audit-attributes.ts";
 // The Tier-C plugin guest's main-thread ↔ worker wire — a contract between two
 // EXECUTION CONTEXTS, which is why it is a client-wide lib shape rather than a feature-private one.
 export type {

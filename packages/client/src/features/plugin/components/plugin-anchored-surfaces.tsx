@@ -141,6 +141,7 @@ export function PluginAnchoredSurfaceList({
           return (
             <PluginFrame
               action={hideAction}
+              anchor={anchor}
               collapsible={anchor === "chat-flank"}
               disclosureRef={disclosureRef}
               key={`${surface.pluginId}:${surface.surfaceId}`}
@@ -155,6 +156,9 @@ export function PluginAnchoredSurfaceList({
         return (
           <PluginSurfaceShell
             action={hideAction}
+            anchor={anchor}
+            pluginId={surface.pluginId}
+            surfaceId={surface.surfaceId}
             collapsible={anchor === "chat-flank"}
             disclosureRef={disclosureRef}
             key={`${surface.pluginId}:${surface.surfaceId}`}

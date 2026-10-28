@@ -237,9 +237,9 @@ export function ExtensionsPageSurface(): ReactElement {
     page.tier === "frame" ? (
       // U7 FRAME (#787) — the arbitrary-pixels arm at PAGE scale (§6.1/§9). `PluginFrame` draws its OWN
       // page-scale attribution shell, so an un-minted frame contributes no orphaned band.
-      <PluginFrame pluginId={page.pluginId} pluginName={page.pluginName} scale="page" surfaceId={page.surfaceId} title={page.title} />
+      <PluginFrame anchor="page" pluginId={page.pluginId} pluginName={page.pluginName} scale="page" surfaceId={page.surfaceId} title={page.title} />
     ) : (
-      <PluginSurfaceShell pluginName={page.pluginName} scale="page" title={page.title}>
+      <PluginSurfaceShell anchor="page" pluginId={page.pluginId} surfaceId={page.surfaceId} pluginName={page.pluginName} scale="page" title={page.title}>
         <PageBody page={page} />
       </PluginSurfaceShell>
     );

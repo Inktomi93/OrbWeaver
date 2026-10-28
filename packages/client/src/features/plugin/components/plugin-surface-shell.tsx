@@ -2,13 +2,15 @@
 // Pages also keep a pinned attribution band and explicit Plugin kicker above scrolling content.
 // Settings use an unboxed block inside the install's consent boundary; other panels retain their card.
 
+import type { PluginSurfaceAnchor } from "@orb/contracts/plugin";
+import type { PluginId } from "@orb/kit/ids";
 import { Card } from "@orb/ui/card";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Blocks, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode, Ref } from "react";
-import { testId } from "#lib";
+import { pluginSurfaceAuditAttributes, testId } from "#lib";
 
 /** Host-selected chrome: boxed panels, unboxed settings blocks, or transcript-inline attribution. */
 const SHELL_CHROMES = ["panel", "block", "inline"] as const;
@@ -16,6 +18,9 @@ type PluginShellChrome = (typeof SHELL_CHROMES)[number];
 const SHELL_CONTAINERS = { panel: Card, block: Stack } satisfies Record<Exclude<PluginShellChrome, "inline">, typeof Card | typeof Stack>;
 
 interface PluginSurfaceShellProps {
+  readonly pluginId: PluginId;
+  readonly surfaceId: string;
+  readonly anchor: PluginSurfaceAnchor;
   /** The owning plugin's display name — the attribution line, never plugin-supplied chrome. */
   readonly pluginName: string;
   /** The surface's own title (`host.ui.register`'s `title`) — the panel's label under the plugin name. */
@@ -37,6 +42,9 @@ interface PluginSurfaceShellProps {
 
 /** Wrap a rendered plugin surface in its first-party attribution chrome. */
 export function PluginSurfaceShell({
+  pluginId,
+  surfaceId,
+  anchor,
   pluginName,
   title,
   scale = "panel",
@@ -57,7 +65,7 @@ export function PluginSurfaceShell({
   // scrolling body. Checked first — a `page` surface is never also `inline`.
   if (scale === "page") {
     return (
-      <Stack className="block-full min-block-0" data-plugin-surface-scale="page">
+      <Stack className="block-full min-block-0" data-plugin-surface-scale="page" {...pluginSurfaceAuditAttributes(pluginId, surfaceId, anchor)}>
         {/* THE PINNED BAND (§9). `shrink-0` + the scrolling body below it means it survives every scroll
             position — a band that scrolled away would leave the page unlabelled exactly when a person has
             forgotten what they are looking at. */}
@@ -91,7 +99,7 @@ export function PluginSurfaceShell({
   // INLINE chrome (U6, §5.4): the per-row transcript shape — same wall (glyph + name + named region), no box.
   if (chrome === "inline") {
     return (
-      <Row align="center" className="flex-wrap" gap="field">
+      <Row align="center" className="flex-wrap" gap="field" {...pluginSurfaceAuditAttributes(pluginId, surfaceId, anchor)}>
         <Icon icon={Blocks} size="sm" />
         <Text voice="label">{pluginName}</Text>
         <Row align="center" aria-label={regionName} className="flex-wrap" gap="tight" role="group">
@@ -103,7 +111,7 @@ export function PluginSurfaceShell({
   const Shell = SHELL_CONTAINERS[chrome];
   if (collapsible) {
     return (
-      <Shell aria-label={regionName} role="group">
+      <Shell aria-label={regionName} role="group" {...pluginSurfaceAuditAttributes(pluginId, surfaceId, anchor)}>
         <Collapsible defaultOpen={true}>
           <Row align="center" gap="field">
             <CollapsibleTrigger aria-label={regionName} className="flex-1 min-inline-0" ref={disclosureRef}>
@@ -129,7 +137,7 @@ export function PluginSurfaceShell({
     );
   }
   return (
-    <Shell>
+    <Shell {...pluginSurfaceAuditAttributes(pluginId, surfaceId, anchor)}>
       <Stack gap="block">
         {/* The pinned attribution band — plugin glyph + name + the surface's own title. A person always knows
           WHICH plugin drew this and that it is a plugin, not the app's own screen. */}

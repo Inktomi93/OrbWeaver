@@ -19,6 +19,7 @@ the literal `import.meta.env.DEV` dynamic `agent-handles/index.ts` door.
 | `await __orb.seed.game({ profile: "d20" \| "freeform", title? })` | create a fresh, fully populated development game through production tRPC writes; returns `{ chatId }`. Open that exact room with `await __orb.nav.openChat(chatId)` — do not guess `latest` after creating an unlisted room |
 | `await __orb.rpg()` | active chat's authoritative state as `{ chatId, game, tracker, journal, turnToolCalls }`; read-only through production tRPC APIs |
 | `await __orb.pluginLog(ref?)` | no ref: the installed-plugin list `{ id, slug, name, version, status }[]`; a ref (slug or id): that plugin's RUNTIME host.log ring through `plugin.getLog` — including what a floated guest continuation logged between invocations (#806). `{ok:false, reason}` on no match / ambiguity |
+| `await __orb.pluginUi()` | owner-scoped runtime UI registrations, cached publication evidence, current surface hosts and composer placements; see the interpretation below |
 | `await __orb.automationFires({ chatId?, ruleId?, limit? })` | the durable automation fire log (`automation_fires`: every dispatch terminal + per-arm `detail`), newest-first, deployment-wide — a same-origin read of `/api/_debug/automation/fires` (owner session or `x-debug-token`); `{ok:false, reason}` carries a refused status |
 | `__orb.queries()` | the full TanStack Query cache: `{ key, status, fetch, stale, updatedAt }[]` |
 | `__orb.bus()` | chat-bus: `{ live, events }` — live subscription count + the recent canon-event ring |
@@ -35,6 +36,19 @@ the literal `import.meta.env.DEV` dynamic `agent-handles/index.ts` door.
 | `__orb.ready` / `.isReady()` | a promise / bool for "hydrated + initial reads settled" |
 
 Example: `preview_eval("__orb.snap()")`, or in DevTools `copy(__orb.renders())`.
+
+### Plugin UI inventory
+
+`pluginUi()` reads `plugin.list`, `plugin.listSurfaces` and `plugin.listCommands` through the signed-in owner's production APIs. Read failures reject the call. It does not execute commands, change grants, enable plugins, fetch surface state or boot guests.
+
+- `plugins` retains installed identities and statuses, including disabled and errored plugins. Nested `surfaces` and `commands` are runtime-listed registrations, not a complete manifest inventory. An empty list does not prove a plugin declares no UI.
+- Each surface carries its canonical `id`, `anchor`, `tier`, title and optional tool names. Specifications and raw state are excluded.
+- `publication` summarizes only existing static-surface query-cache entries for the global scope and selected `chatId`. `published: null` means unread or unsettled; `false` means the cached answer was null; `true` means a cached publication exists. These are last-read facts, with status and timestamps, not an eligibility verdict. Scripted surfaces, frames and per-call tool cards use other content planes and return no publication summary.
+- Surface `hosts` identifies existing attribution shells, not content readiness. A scripted page's shell can hold loading, empty or failed content. `selector` and zero-based `index` target a current host. `visible` uses the bridge's existing paint check; `inert` and `ariaHidden` report ancestor attributes separately. Retained hidden Activity subtrees remain distinguishable from visible hosts.
+- Commands carry canonical names, groups, composer-draft markers and registered placement targets. `hosts` identifies mounted composer menu or media controls. `menuHosts` reports the composer menu's resolved command roster while closed; it does not claim an item is mounted. Malformed menu metadata rejects the inventory with a diagnostic that omits its contents.
+- Empty host arrays mean no matching host was observed in the current DOM. They do not mean ineligible, unsupported or absent in another context. Navigate through the existing UI, then read again.
+
+The `data-orb-plugin-*` attributes are private DEV metadata, not owner-CSS hooks. The production debug import gate and synchronous navigation capabilities are unchanged.
 
 ## `window.__orb.nav` — SPA navigation actions (dev only)
 
@@ -85,7 +99,7 @@ it instead of network-idle, which hangs on the never-idle SSE connection:
 
 ## Console channels
 
-Prefixed, low-noise, IS\_DEV-gated — read via `preview_console_logs` or a console-capture transcript.
+Prefixed, low-noise, IS_DEV-gated — read via `preview_console_logs` or a console-capture transcript.
 
 - **`[bus]`** (`bus-devlog.ts`) — chat-bus subscription lifecycle + live count, each canon event → the
   query keys it invalidated, and a duplicate-invalidate storm alarm. The peer to `[trpc]`.

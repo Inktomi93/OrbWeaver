@@ -53,7 +53,17 @@ export function PluginSurfacesPanel({ pluginId, pluginName, grants }: PluginSurf
       {mine.map((surface) => {
         // U7 frame → its OWN shell (`PluginFrame`); scripted (U4) → the client guest; static → the renderer.
         if (surface.tier === "frame") {
-          return <PluginFrame chrome="block" key={surface.id} pluginId={pluginId} pluginName={pluginName} surfaceId={surface.id} title={surface.title} />;
+          return (
+            <PluginFrame
+              anchor="settings"
+              chrome="block"
+              key={surface.id}
+              pluginId={pluginId}
+              pluginName={pluginName}
+              surfaceId={surface.id}
+              title={surface.title}
+            />
+          );
         }
         if (surface.tier === "scripted") {
           return (
@@ -65,7 +75,7 @@ export function PluginSurfacesPanel({ pluginId, pluginName, grants }: PluginSurf
               surfaceId={surface.id}
               surfaceIds={scriptedIds}
               renderContent={(content): ReactElement => (
-                <PluginSurfaceShell chrome="block" pluginName={pluginName} title={surface.title}>
+                <PluginSurfaceShell anchor="settings" chrome="block" pluginId={pluginId} surfaceId={surface.id} pluginName={pluginName} title={surface.title}>
                   {content}
                 </PluginSurfaceShell>
               )}
@@ -73,7 +83,15 @@ export function PluginSurfacesPanel({ pluginId, pluginName, grants }: PluginSurf
           );
         }
         return (
-          <PluginSurfaceShell chrome="block" key={surface.id} pluginName={pluginName} title={surface.title}>
+          <PluginSurfaceShell
+            anchor="settings"
+            chrome="block"
+            pluginId={pluginId}
+            surfaceId={surface.id}
+            key={surface.id}
+            pluginName={pluginName}
+            title={surface.title}
+          >
             {surface.spec !== undefined && <PluginSurfaceRenderer anchor="settings" pluginId={pluginId} spec={surface.spec} surfaceId={surface.id} />}
           </PluginSurfaceShell>
         );

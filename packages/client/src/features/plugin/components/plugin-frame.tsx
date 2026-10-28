@@ -39,7 +39,7 @@
 //
 // A frame whose plugin holds no proxyable grant still gets the one-word refusal for every call, from the server.
 
-import type { PluginFrameCall } from "@orb/contracts/plugin";
+import type { PluginFrameCall, PluginSurfaceAnchor } from "@orb/contracts/plugin";
 import { PLUGIN_FRAME_CALL_REFUSED, PLUGIN_FRAME_CALLS_IN_FLIGHT_MAX, parsePluginFrameCall, pluginFrameResultMessage } from "@orb/contracts/plugin";
 import type { ChatId, PluginId } from "@orb/kit/ids";
 import { SandboxFrame, useSandboxTheme } from "@orb/ui/sandbox-frame";
@@ -51,6 +51,7 @@ import { PluginSurfaceShell } from "./plugin-surface-shell.tsx";
 
 export interface PluginFrameProps {
   readonly pluginId: PluginId;
+  readonly anchor: PluginSurfaceAnchor;
   /** The room this frame is mounted in, when its anchor has one (a chat anchor or a transcript tool card). The
    *  relay scopes chat-scoped host calls to it; absent, those calls are refused server-side for want of a room.
    *  The frame itself can never name a room. */
@@ -94,6 +95,7 @@ export interface PluginFrameProps {
  */
 export function PluginFrame({
   pluginId,
+  anchor,
   chatId,
   surfaceId,
   pluginName,
@@ -151,6 +153,9 @@ export function PluginFrame({
   }
   return (
     <PluginSurfaceShell
+      anchor={anchor}
+      pluginId={pluginId}
+      surfaceId={surfaceId}
       chrome={chrome}
       action={action}
       collapsible={collapsible}
