@@ -90,6 +90,7 @@ function ReadingBox({ box, role, shape, lastRowFloor, receded, positioned, artDe
   const plateInset = inset && !page;
   const pageInset = inset && page;
   const floor = page && lastRowFloor;
+  const overlayPage = page && !lastRowFloor;
   const weld = shape === "weld";
   return (
     <Stack
@@ -101,6 +102,7 @@ function ReadingBox({ box, role, shape, lastRowFloor, receded, positioned, artDe
       artDecoration={artDecoration}
       className={cn(
         "inline-full",
+        overlayPage ? "grid" : undefined,
         weld ? "flex-row items-start" : undefined,
         plateInset ? PLATE_INSET : undefined,
         pageInset ? PAGE_INSET : undefined,

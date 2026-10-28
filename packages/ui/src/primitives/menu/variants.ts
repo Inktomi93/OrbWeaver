@@ -44,7 +44,8 @@ export const menuVariants = tv({
     // already gets this via `POPUP_SURFACE`; Menu spells its own surface, so it had neither the cap nor
     // the scroller. Overscroll is contained so wheeling past the last item does not scroll the page.
     popup: `
-      relative overflow-y-auto overscroll-contain rounded-card border border-border bg-popover p-field text-popover-foreground shadow-overlay
+      relative overflow-y-auto overscroll-contain rounded-card border-(length:--border-width-control) border-border bg-popover p-field text-popover-foreground
+      shadow-overlay
       ${OVERLAY_MOTION.anchoredPopup}
     `,
     item: `${itemBase} ${LEADING_GUTTER}`,
@@ -68,11 +69,14 @@ export const menuVariants = tv({
     groupLabel: "px-row py-field text-label leading-label font-medium text-muted-foreground",
   },
   variants: {
-    // How far the viewport clamp reaches. `viewport` runs to the viewport's edge; `belowChrome` stops one chrome row
-    // short of it, for a menu that opens upward from a control near the bottom and would otherwise cover the topbar.
+    // Reserve chrome only while one complete control and the popup's insets still fit.
     clamp: {
       viewport: { popup: "max-block-(--available-height)" },
-      belowChrome: { popup: "max-block-[calc(var(--available-height)-var(--dimension-chrome-row))]" },
+      belowChrome: {
+        popup: `
+          max-block-[calc(min(var(--available-height),max(calc(var(--size-control-sm)+var(--spacing-field)*2+var(--border-width-control)*2),calc(var(--available-height)-var(--dimension-chrome-row)))))]
+        `,
+      },
     },
   },
   defaultVariants: { clamp: "viewport" },

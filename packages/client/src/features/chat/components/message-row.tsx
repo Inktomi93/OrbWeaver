@@ -317,6 +317,7 @@ export function MessageRow({
   const swipeFoot = renderRowSwipe({ editing, showSwipes, role, greeting, message, foot: skin.swipeFoot });
   const swipeInside = skin.swipeFoot.placement === "inside" ? swipeFoot : null;
   const swipeBelow = skin.swipeFoot.placement === "below" ? swipeFoot : null;
+  const actionsReveal = actionsRevealFor(skin, lastRow, messageActions);
   // #288 — THE HEADER IS BUILT ONCE AND PLACED ONCE. `inside` (seven of the eight skins) hands it to the
   // bubble, which renders it as the container's own header row; `outside` (tide, whose train of pills has
   // no single container to be inside) keeps the pre-#288 sibling above the box. Splitting the node from
@@ -329,6 +330,7 @@ export function MessageRow({
       role,
       showTimestamp: metadataVisibility.showTimestamps,
       stickyAttribution,
+      actionsReveal,
       placement: skin.headerPlacement,
       pinnedHeader: skin.pinnedHeader,
       mirrored,
@@ -340,7 +342,7 @@ export function MessageRow({
           <MessageActionsRow
             columnRef={columnRef}
             message={message}
-            messageActions={actionsRevealFor(skin, lastRow, messageActions)}
+            messageActions={actionsReveal}
             greetingBound={greeting !== undefined}
             viewerIsHost={viewerIsHost}
             generationCredit={generationCredit}

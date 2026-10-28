@@ -26,13 +26,25 @@ const CONTENT = Array.from(
     `Reading witness ${index + 1}. The lantern lit every word of the northern expedition's account while rain tapped against the observatory windows.`,
 ).join("\n\n");
 
-async function prepareReply(caller: Caller): Promise<{ chatId: ChatId; messageId: MessageId }> {
+async function prepareReadingRows(caller: Caller): Promise<{ chatId: ChatId; messageIds: readonly MessageId[] }> {
   for (const room of (await caller.chat.listChats({ limit: 100 })).items) {
     const chat = await caller.chat.getChat({ chatId: room.id });
-    const reply = (await caller.chat.listMessages({ chatId: room.id, limit: 6 })).messages.at(-1);
-    if (chat.viewerIsHost && reply?.role === "assistant" && reply.characterId !== null && !reply.excludedFromPrompt) {
+    const { messages } = await caller.chat.listMessages({ chatId: room.id, limit: 6 });
+    const reply = messages.filter((message) => message.role === "assistant").at(-2);
+    const tail = messages.at(-1);
+    const user = messages.find((message) => message.role === "user");
+    if (
+      tail?.role === "assistant" &&
+      user !== undefined &&
+      chat.viewerIsHost &&
+      reply?.role === "assistant" &&
+      reply.characterId !== null &&
+      !reply.excludedFromPrompt
+    ) {
       await caller.chat.editMessage({ chatId: room.id, messageId: reply.id, content: CONTENT, timeZone: UTC_TIME_ZONE });
-      return { chatId: room.id, messageId: reply.id };
+      await caller.chat.editMessage({ chatId: room.id, messageId: user.id, content: CONTENT, timeZone: UTC_TIME_ZONE });
+      await caller.chat.editMessage({ chatId: room.id, messageId: tail.id, content: CONTENT, timeZone: UTC_TIME_ZONE });
+      return { chatId: room.id, messageIds: [user.id, reply.id] };
     }
   }
   throw new Error("The corpus has no hosted room ending in a character reply");
@@ -82,7 +94,23 @@ async function expectNamedRest(row: Locator): Promise<void> {
   await expect(row.locator('[data-slot="message-attribution"]')).toBeVisible();
 }
 
-async function expectPinnedStrip(row: Locator, scrollport: Locator): Promise<number> {
+async function expectQuietDocumentBand(row: Locator): Promise<void> {
+  const header = row.locator('[data-slot="message-name-row"]');
+  const menu = header.locator(MENU_TRIGGER);
+  const height = await row.evaluate((node) => node.getBoundingClientRect().height);
+  await menu.evaluate((node: HTMLButtonElement) => node.blur());
+  await row.page().mouse.move(0, 0);
+  await expect(header).toHaveCSS("opacity", "0");
+  await menu.focus();
+  await expect(header).toHaveCSS("opacity", "1");
+  expect(await row.evaluate((node) => node.getBoundingClientRect().height)).toBe(height);
+}
+
+async function expectNamedBand(row: Locator): Promise<void> {
+  await expect(row.locator('[data-slot="message-name-row"]')).toHaveCSS("opacity", "1");
+}
+
+async function expectPinnedStrip(row: Locator, scrollport: Locator, expectReveal: (row: Locator) => Promise<void>): Promise<number> {
   const header = row.locator('[data-slot="message-name-row"]');
   await expect(header).toHaveAttribute("data-pinned", "");
   const facts = await row.evaluate((node) => {
@@ -115,6 +143,7 @@ async function expectPinnedStrip(row: Locator, scrollport: Locator): Promise<num
   const menu = header.locator(MENU_TRIGGER);
   await expect(menu).toHaveCount(1);
   await expect(menu).toHaveAccessibleName(/\S/u);
+  await expectReveal(row);
   await menu.click();
   const popup = row.page().getByRole("menu");
   await expect(popup).toBeVisible();
@@ -131,6 +160,68 @@ function expectExistingCard(alpha: number): void {
   expect(alpha).toBeGreaterThan(0);
 }
 
+async function expectRowEndRelease(row: Locator, scrollport: Locator): Promise<void> {
+  await row.evaluate((node) => {
+    const port = node.closest('[data-slot="message-list-scroll"]');
+    if (port === null) {
+      throw new Error("The reading row lost its production scrollport");
+    }
+    port.scrollTop += node.getBoundingClientRect().bottom - port.getBoundingClientRect().top + 2;
+  });
+  await expect
+    .poll(async () => {
+      const band = await row.locator('[data-slot="message-name-row"]').boundingBox();
+      const port = await scrollport.boundingBox();
+      return band === null || (port !== null && band.y + band.height <= port.y);
+    })
+    .toBe(true);
+}
+
+async function exerciseReadingRow(row: Locator, scrollport: Locator, style: ThemeChatStyle, messageId: MessageId): Promise<void> {
+  const page = row.page();
+  const header = row.locator('[data-slot="message-name-row"]');
+  await expect(row.locator("p").filter({ hasText: /^Reading witness /u })).toHaveCount(PARAGRAPHS);
+  const menu = header.locator(MENU_TRIGGER);
+  await expect(menu).toHaveCount(1);
+  await expect(menu).toHaveAccessibleName(/\S/u);
+  await menu.focus();
+  await page.keyboard.press("PageUp");
+  await row.evaluate((node) => {
+    const port = node.closest('[data-slot="message-list-scroll"]');
+    if (port === null) {
+      throw new Error("The message is not inside its production scrollport");
+    }
+    port.scrollTop += node.getBoundingClientRect().top - port.getBoundingClientRect().top - port.clientHeight / 4;
+  });
+  await expect(header).not.toHaveAttribute("data-pinned", "");
+  const identityCount = style === "document" ? 0 : 1;
+  await expect(row.locator('[data-slot="message-attribution"]')).toHaveCount(identityCount);
+  await expect(row.locator('[data-slot="message-metadata-timestamp"]')).toHaveCount(identityCount);
+  await expect(row.locator('[data-slot="avatar-root"]')).toHaveCount(identityCount);
+  const expectRest = style === "document" ? expectDocumentRest : expectNamedRest;
+  await expectRest(row);
+  await row
+    .locator("p")
+    .filter({ hasText: /^Reading witness /u })
+    .nth(10)
+    .evaluate((paragraph) => {
+      const port = paragraph.closest('[data-slot="message-list-scroll"]');
+      if (port === null) {
+        throw new Error("The paragraph is not inside its production scrollport");
+      }
+      port.scrollTop += paragraph.getBoundingClientRect().top - port.getBoundingClientRect().top + 2;
+    });
+  const alpha = await expectPinnedStrip(row, scrollport, style === "document" ? expectQuietDocumentBand : expectNamedBand);
+  const expectPaint = style === "bubble" ? expectExistingCard : expectOpaqueBand;
+  expectPaint(alpha);
+  await expect(row.locator('[data-slot="message-attribution"]')).toHaveCount(identityCount);
+  await expect(row.locator('[data-slot="message-metadata-timestamp"]')).toHaveCount(identityCount);
+  await expect(row.locator('[data-slot="avatar-root"]')).toHaveCount(identityCount);
+  await page.screenshot({ path: test.info().outputPath(`${style}-${messageId}-pinned.png`) });
+  await expectRowEndRelease(row, scrollport);
+  await page.screenshot({ path: test.info().outputPath(`${style}-${messageId}-released.png`) });
+}
+
 for (const viewport of VIEWPORTS) {
   test.describe(`${viewport.width}x${viewport.height} coarse reading`, () => {
     test.use({ viewport, hasTouch: true, isMobile: true });
@@ -138,7 +229,7 @@ for (const viewport of VIEWPORTS) {
       test(`${style} pins a complete reading strip without changing its identity policy`, async ({ corpus, page, mount }) => {
         await using root = await createCorpusHarness();
         const caller = await root.internalCallerFor(root.ownerId);
-        const reply = await prepareReply(caller);
+        const reply = await prepareReadingRows(caller);
         await caller.settings.updateUserSettingsSection({ section: "theme", patch: DEFAULT_USER_SETTINGS.theme });
         await caller.settings.updateUserSettingsSection({
           section: "appearance",
@@ -157,46 +248,14 @@ for (const viewport of VIEWPORTS) {
         });
         await mount<typeof ChatRoomShellStory>(STORY, { chatId: reply.chatId });
         const scrollport = page.locator('[data-slot="message-list-scroll"]');
-        const row = page.locator(`[data-slot="message-row"][data-message-id="${reply.messageId}"]`);
-        const header = row.locator('[data-slot="message-name-row"]');
-        await expect(row.locator("p").filter({ hasText: /^Reading witness /u })).toHaveCount(PARAGRAPHS);
-        const menu = header.locator(MENU_TRIGGER);
-        await expect(menu).toHaveCount(1);
-        await expect(menu).toHaveAccessibleName(/\S/u);
-        await menu.focus();
-        await page.keyboard.press("PageUp");
-        await row.evaluate((node) => {
-          const port = node.closest('[data-slot="message-list-scroll"]');
-          if (port === null) {
-            throw new Error("The message is not inside its production scrollport");
-          }
-          port.scrollTop += node.getBoundingClientRect().top - port.getBoundingClientRect().top - port.clientHeight / 4;
-        });
-        await expect(header).not.toHaveAttribute("data-pinned", "");
-        const identityCount = style === "document" ? 0 : 1;
-        await expect(row.locator('[data-slot="message-attribution"]')).toHaveCount(identityCount);
-        await expect(row.locator('[data-slot="message-metadata-timestamp"]')).toHaveCount(identityCount);
-        await expect(row.locator('[data-slot="avatar-root"]')).toHaveCount(identityCount);
-        const expectRest = style === "document" ? expectDocumentRest : expectNamedRest;
-        await expectRest(row);
-        await row
-          .locator("p")
-          .filter({ hasText: /^Reading witness /u })
-          .nth(10)
-          .evaluate((paragraph) => {
-            const port = paragraph.closest('[data-slot="message-list-scroll"]');
-            if (port === null) {
-              throw new Error("The paragraph is not inside its production scrollport");
-            }
-            port.scrollTop += paragraph.getBoundingClientRect().top - port.getBoundingClientRect().top + 2;
+        for (const messageId of reply.messageIds) {
+          await scrollport.evaluate((node) => {
+            node.scrollTop = 0;
           });
-        const alpha = await expectPinnedStrip(row, scrollport);
-        const expectPaint = style === "bubble" ? expectExistingCard : expectOpaqueBand;
-        expectPaint(alpha);
-        await expect(row.locator('[data-slot="message-attribution"]')).toHaveCount(identityCount);
-        await expect(row.locator('[data-slot="message-metadata-timestamp"]')).toHaveCount(identityCount);
-        await expect(row.locator('[data-slot="avatar-root"]')).toHaveCount(identityCount);
-        await page.screenshot({ path: test.info().outputPath(`${style}-pinned.png`) });
+          await expect.poll(() => scrollport.evaluate((node) => node.scrollTop)).toBe(0);
+          const row = page.locator(`[data-slot="message-row"][data-message-id="${messageId}"]`);
+          await exerciseReadingRow(row, scrollport, style, messageId);
+        }
       });
     }
   });
