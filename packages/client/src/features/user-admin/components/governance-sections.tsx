@@ -141,6 +141,7 @@ function MultiUserBody({ anchorId, sectionId }: { readonly anchorId: string; rea
           <Textarea rows={3} maxRows={8} value={allowlistDraft} onValueChange={setAllowlistDraft} placeholder={ALLOWLIST_PLACEHOLDER} />
         </Field>
         <AdminOverrideResetRow
+          sectionLabel={MULTI_USER_SUBCATEGORY.label}
           dirty={isOwner && allowlistDirty}
           anyOverridden={anyOverridden}
           saving={save.isPending}

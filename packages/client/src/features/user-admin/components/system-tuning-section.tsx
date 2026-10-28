@@ -197,6 +197,7 @@ function SystemTuningBody({ anchorId, sectionId }: { readonly anchorId: string; 
           all. Raise it if you see cache writes on turns that should have been reads.
         </Text>
         <AdminOverrideResetRow
+          sectionLabel={SYSTEM_TUNING_SUBCATEGORY.label}
           dirty={dirty}
           anyOverridden={anyOverridden}
           saving={save.isPending}

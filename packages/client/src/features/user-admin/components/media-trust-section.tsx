@@ -148,6 +148,7 @@ function MediaTrustBody({ anchorId, sectionId }: { readonly anchorId: string; re
           />
         </SettingRowGroup>
         <AdminOverrideResetRow
+          sectionLabel={MEDIA_TRUST_SUBCATEGORY.label}
           dirty={dirty}
           anyOverridden={anyOverridden}
           saving={save.isPending}

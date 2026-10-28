@@ -85,6 +85,7 @@ function OperationsBody({ anchorId, sectionId }: { readonly anchorId: string; re
           />
         </SettingRowGroup>
         <AdminOverrideResetRow
+          sectionLabel={OPERATIONS_SUBCATEGORY.label}
           anyOverridden={autoindexOverridden || logLevelOverridden}
           saving={save.isPending}
           errored={save.error !== null}

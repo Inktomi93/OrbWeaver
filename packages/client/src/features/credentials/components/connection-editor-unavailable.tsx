@@ -31,7 +31,7 @@ export function ConnectionEditorHeader({ label, onDone }: { readonly label: stri
   const backRef = useRef<HTMLButtonElement>(null);
   useFocusOnSwap(backRef);
   return (
-    <Row align="center" className="flex-wrap" gap="field">
+    <Row align="center" className="flex-wrap" data-slot="connection-editor-header" gap="field">
       <Row align="center" className="flex-1 basis-(--width-title-floor) min-inline-0" gap="field">
         <Button aria-label="Back to Connections" className="shrink-0" intent="ghost" onClick={onDone} ref={backRef} size="sm">
           <Icon icon={ArrowLeft} size="sm" />
