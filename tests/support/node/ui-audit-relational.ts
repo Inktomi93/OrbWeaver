@@ -11,7 +11,11 @@ export interface AuditRuleProof {
 }
 
 export const RELATIONAL_CLI_TIMEOUT_MS = 90_000;
-vi.setConfig({ testTimeout: RELATIONAL_CLI_TIMEOUT_MS, hookTimeout: RELATIONAL_CLI_TIMEOUT_MS });
+
+/** Register per suite: Vitest resets runtime config between files while retaining the helper module. */
+export function configureRelationalCliBudget(): void {
+  vi.setConfig({ testTimeout: RELATIONAL_CLI_TIMEOUT_MS, hookTimeout: RELATIONAL_CLI_TIMEOUT_MS });
+}
 
 /** THE ARGV every walker suite adds. The scan is `pnpm snap <route> --design-audit`; a local
  *  fixture is `--file <path>` rather than a `file://` BASE plus a route, because snap tells the two apart

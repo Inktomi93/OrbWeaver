@@ -12,8 +12,10 @@
 // cannot silently disappear from the denominator").
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { AUDIT_ARGV, auditReport, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
+import { AUDIT_ARGV, auditReport, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
 import { expect, test } from "@orb/testkit/tooling";
+
+configureRelationalCliBudget();
 
 interface GridReport {
   readonly findings: readonly { readonly rule: string; readonly value: string; readonly selector: string }[];

@@ -3,4 +3,12 @@
 export type { AppCaller, Fixtures } from "./fixtures.ts";
 export { expect, test } from "./fixtures.ts";
 export type { AuditRuleProof, RelationalPopulationReport } from "./ui-audit-relational.ts";
-export { AUDIT_ARGV, auditReport, findingSelectors, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument, stateTwin } from "./ui-audit-relational.ts";
+export {
+  AUDIT_ARGV,
+  auditReport,
+  configureRelationalCliBudget,
+  findingSelectors,
+  RELATIONAL_CLI_TIMEOUT_MS,
+  relationalDocument,
+  stateTwin,
+} from "./ui-audit-relational.ts";

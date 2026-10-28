@@ -16,9 +16,11 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { AuditRuleProof } from "@orb/testkit/node";
-import { AUDIT_ARGV, findingSelectors, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
+import { AUDIT_ARGV, configureRelationalCliBudget, findingSelectors, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
 import type { CliResult, RunCliOpts } from "@orb/testkit/tooling";
 import { expect, test } from "@orb/testkit/tooling";
+
+configureRelationalCliBudget();
 
 /** The live F12 geometry, authored the way the tree authors it: a `<style>` block, because a pseudo
  *  element cannot be spelled in an inline `style` attribute — which is itself why an inline-only fixture

@@ -18,9 +18,11 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { HIT_EXTENT_WALK_SOURCE, PSEUDO_ENVELOPE_SOURCE } from "@orb/testkit/iso";
-import { AUDIT_ARGV, auditReport, RELATIONAL_CLI_TIMEOUT_MS } from "@orb/testkit/node";
+import { AUDIT_ARGV, auditReport, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS } from "@orb/testkit/node";
 import { expect, test } from "@orb/testkit/tooling";
 import { WALKER_HIT_EXTENT } from "../../../../../tooling/src/ui-audit/ops/walker/hit-extent.ts";
+
+configureRelationalCliBudget();
 
 /** The shipped shape, reduced to its mechanism: `.value` is text-height and carries a pointer-conditional
  *  44px `::after`; `.row` takes the coarse floor so stacked pseudos have room (the #869 fix). `.bare` is
