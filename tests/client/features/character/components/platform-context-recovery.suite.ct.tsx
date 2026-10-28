@@ -80,6 +80,15 @@ async function selectCharacter(page: Page, name: string): Promise<void> {
   await expect(page.getByRole("form", { name: "Edit character", exact: true }).getByRole("textbox", { name: "Name", exact: true })).toHaveValue(name);
 }
 
+async function expectFailedSheetExit(page: Page, context: Locator): Promise<void> {
+  await expect(context).toHaveAttribute("data-panel-mode", "overlay");
+  await context.getByRole("button", { name: "Close Characters details", exact: true }).click();
+  await expect(context).toHaveAttribute("data-panel-mode", "collapsed");
+  await expect(page.getByRole("alert", { name: "Couldn't save the character.", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Show details", exact: true }).click();
+  await expect(context).toHaveAttribute("data-panel-mode", "overlay");
+}
+
 async function expectRetryContained(context: Locator, retry: Locator): Promise<void> {
   await retry.scrollIntoViewIfNeeded();
   await expect(retry).toBeVisible();
@@ -304,6 +313,11 @@ for (const regime of REGIMES) {
         await expect(page.getByRole("region", { name: "Alerts", exact: true }).getByText("Couldn't save the character.", { exact: true })).toBeVisible();
         await expect(font).toHaveText(FONT);
         await testInfo.attach("look-failed-save-before-retry", { body: await page.screenshot(), contentType: "image/png" });
+        await expect(status).toContainText("Save failed");
+        if (regime.coarse) {
+          await expectFailedSheetExit(page, context);
+        }
+        await expect(font).toHaveText(FONT);
         await expect(status).toContainText("Save failed");
         const retry = status.getByRole("button", { name: "Retry", exact: true });
         await expectRetryContained(context, retry);

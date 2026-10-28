@@ -18,7 +18,7 @@ import { Button } from "@orb/ui/button";
 import { Icon, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Tabs, TabsPanel } from "@orb/ui/tabs";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement, ReactNode, RefCallback } from "react";
 import { useEffect, useRef, useState } from "react";
 import type { ContextRegionView } from "#lib";
 import { GAME_STRIP_LABEL } from "#lib";
@@ -28,6 +28,7 @@ import { ContextHeaderTabs, ContextRail } from "./context-rail.tsx";
 export interface ContextBracketProps {
   /** The resolved tabs + the ONE selection seam + the host's view-level actions. */
   readonly view: ContextRegionView;
+  readonly headerRef?: RefCallback<HTMLElement> | undefined;
   /** The optional identity band under the header row — the section's `header` or a claiming region's band. */
   readonly band?: ReactNode;
   readonly empty?: ReactNode;
@@ -40,7 +41,7 @@ export interface ContextBracketProps {
   readonly onDismiss?: () => void;
 }
 
-export function ContextBracket({ view, band, empty, railLabel, paneLabel, dismissLabel, onDismiss }: ContextBracketProps): ReactElement {
+export function ContextBracket({ view, headerRef, band, empty, railLabel, paneLabel, dismissLabel, onDismiss }: ContextBracketProps): ReactElement {
   const gameTabs = view.tabs.filter((tab) => tab.strip === "game");
   const metaTabs = view.tabs.filter((tab) => tab.strip === "meta");
   const active = view.tabs.find((tab) => tab.id === view.activeTab) ?? null;
@@ -100,7 +101,7 @@ export function ContextBracket({ view, band, empty, railLabel, paneLabel, dismis
       className="flex flex-col gap-0 block-full min-block-0"
       topRule="primary"
     >
-      <Row data-slot="context-bracket-header" align="center" className="shell-context-header shrink-0">
+      <Row ref={headerRef} data-slot="context-bracket-header" align="center" className="shell-context-header shrink-0">
         <ContextHeaderTabs ariaLabel={railLabel} paneLabel={paneLabel} tabs={metaTabs} activeTab={view.activeTab} onSelect={view.selectTab} />
         {view.actions === undefined ? null : (
           <Row align="center" className="shrink-0 pe-field">

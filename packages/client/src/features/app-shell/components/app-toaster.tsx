@@ -4,5 +4,5 @@ import { Toaster } from "@orb/ui/toast";
 import type { ReactElement } from "react";
 
 export function AppToaster(): ReactElement {
-  return <Toaster />;
+  return <Toaster className="shell-toast-viewport" />;
 }

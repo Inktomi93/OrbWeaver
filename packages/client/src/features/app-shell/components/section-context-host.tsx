@@ -13,7 +13,7 @@
 // consumer for a tabs pane.
 
 import { Text } from "@orb/ui/text";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement, ReactNode, RefCallback } from "react";
 import { QueryBoundary } from "#components";
 import { SkeletonRows } from "#data";
 import type { ResolvedContextTabs } from "#lib";
@@ -42,12 +42,13 @@ const CONTEXT_HEADER_DEFAULT = (
 
 export interface SectionContextHostProps {
   readonly definition: SectionDefinition;
+  readonly headerRef?: RefCallback<HTMLElement> | undefined;
   /** The pane's own way out — the bracket seats it as the trailing × of its header row. */
   readonly dismissLabel?: string;
   readonly onDismiss?: () => void;
 }
 
-export function SectionContextHost({ definition, dismissLabel, onDismiss }: SectionContextHostProps): ReactNode {
+export function SectionContextHost({ definition, headerRef, dismissLabel, onDismiss }: SectionContextHostProps): ReactNode {
   const { context } = definition;
   if (context.kind === "none") {
     return contextEmpty(context);
@@ -62,6 +63,7 @@ export function SectionContextHost({ definition, dismissLabel, onDismiss }: Sect
     <QueryBoundary
       fallback={
         <ContextTabsPanel
+          headerRef={headerRef}
           tabs={[]}
           railLabel={definition.rail.label}
           empty={<SkeletonRows count={3} />}
@@ -71,6 +73,7 @@ export function SectionContextHost({ definition, dismissLabel, onDismiss }: Sect
       }
     >
       <ResolvedTabsHost
+        headerRef={headerRef}
         empty={contextEmpty(context)}
         useResolved={context.useResolved}
         // The header tablist's fallback name is the section's own rail label — the honest group name for a pane
@@ -102,16 +105,18 @@ export function SectionContextHeader({ definition }: Pick<SectionContextHostProp
 interface ResolvedTabsHostProps {
   readonly useResolved: () => ResolvedContextTabs | null;
   readonly empty: ReactNode;
+  readonly headerRef?: RefCallback<HTMLElement> | undefined;
   readonly railFallback: string;
   readonly paneLabel: string;
   readonly dismissLabel?: string;
   readonly onDismiss?: () => void;
 }
 
-function ResolvedTabsHost({ useResolved, empty, railFallback, paneLabel, dismissLabel, onDismiss }: ResolvedTabsHostProps): ReactElement {
+function ResolvedTabsHost({ useResolved, headerRef, empty, railFallback, paneLabel, dismissLabel, onDismiss }: ResolvedTabsHostProps): ReactElement {
   const resolved = useResolved();
   return (
     <ContextTabsPanel
+      headerRef={headerRef}
       tabs={resolved?.tabs ?? []}
       actions={resolved?.actions}
       header={resolved?.header}
