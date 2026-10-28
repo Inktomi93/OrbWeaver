@@ -7,7 +7,7 @@ import { Input } from "@orb/ui/input";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { timeLib } from "#lib";
 import { useUpdateChatTitle } from "../hooks/use-chat-row-mutations.ts";
@@ -33,15 +33,20 @@ function ParticipantsText({ label }: { readonly label: string }): ReactElement {
 }
 
 /** The creation date: quiet metadata, the first thing to drop when the row is tight (shell.css). */
-function DateText({ createdAt }: { readonly createdAt: number }): ReactElement {
+function DateText({ createdAt, id }: { readonly createdAt: number; readonly id: string | undefined }): ReactElement {
   return (
-    <Text as="span" voice="quiet" className="shell-topbar-date shrink-0 whitespace-nowrap">
+    <Text as="span" id={id} voice="quiet" className="shell-topbar-date shrink-0 whitespace-nowrap">
       {`\u00b7 ${timeLib.formatDate(createdAt)}`}
     </Text>
   );
 }
 
-function TitleText({ label, roomName, createdAt }: Pick<ChatHeaderTitleProps, "label" | "roomName" | "createdAt">): ReactElement {
+function TitleText({
+  label,
+  roomName,
+  createdAt,
+  dateId,
+}: Pick<ChatHeaderTitleProps, "label" | "roomName" | "createdAt"> & { readonly dateId?: string }): ReactElement {
   return (
     <>
       <ParticipantsText label={label} />
@@ -50,7 +55,7 @@ function TitleText({ label, roomName, createdAt }: Pick<ChatHeaderTitleProps, "l
           {roomName}
         </Text>
       )}
-      <DateText createdAt={createdAt} />
+      <DateText createdAt={createdAt} id={dateId} />
     </>
   );
 }
@@ -66,6 +71,7 @@ function TitleGroup({ children, width }: { readonly children: ReactNode; readonl
 }
 
 export function ChatHeaderTitle({ chatId, label, roomName, createdAt, canRename }: ChatHeaderTitleProps): ReactElement {
+  const dateId = useId();
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const updateTitle = useUpdateChatTitle({ trpc, invalidation });
@@ -97,6 +103,7 @@ export function ChatHeaderTitle({ chatId, label, roomName, createdAt, canRename 
         intent="ghost"
         size="sm"
         aria-label={`Rename chat — ${label}${roomName === null ? "" : `, ${roomName}`}`}
+        aria-describedby={dateId}
         className="shell-topbar-title-group shrink justify-start min-inline-0"
         ref={(node: HTMLButtonElement | null): void => {
           if (node !== null && restoreFocus.current) {
@@ -109,7 +116,7 @@ export function ChatHeaderTitle({ chatId, label, roomName, createdAt, canRename 
           setDraft(roomName ?? "");
         }}
       >
-        <TitleText label={label} roomName={roomName} createdAt={createdAt} />
+        <TitleText label={label} roomName={roomName} createdAt={createdAt} dateId={dateId} />
       </Button>
     );
   }
