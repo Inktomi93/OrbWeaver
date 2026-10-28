@@ -151,6 +151,7 @@ export function AdminOverrideSelect({ label, hint, value, items, overridden, flo
 }
 
 export interface AdminOverrideResetRowProps {
+  readonly sectionLabel: string;
   /** Enable Save — the draft carries a not-yet-saved change. Omit WITH `onSave` for a section whose
    *  controls all write immediately (a switch/select stack has no draft, so a permanently-disabled Save
    *  button would be dead chrome). */
@@ -166,7 +167,7 @@ export interface AdminOverrideResetRowProps {
 
 /** The Save + Reset-to-defaults row shared by the admin override sections. Save renders only for a section
  *  that HAS a draft; Reset appears only when the section has an active override. */
-export function AdminOverrideResetRow({ dirty, anyOverridden, saving, errored, onSave, onReset }: AdminOverrideResetRowProps): ReactElement {
+export function AdminOverrideResetRow({ sectionLabel, dirty, anyOverridden, saving, errored, onSave, onReset }: AdminOverrideResetRowProps): ReactElement {
   return (
     <Stack gap="field">
       <Row className="flex-wrap" gap="field" align="center">
@@ -176,7 +177,7 @@ export function AdminOverrideResetRow({ dirty, anyOverridden, saving, errored, o
           </Button>
         )}
         {anyOverridden ? (
-          <Button intent="secondary" size="sm" disabled={saving} onClick={onReset}>
+          <Button aria-label={`Reset to defaults: ${sectionLabel}`} intent="secondary" size="sm" disabled={saving} onClick={onReset}>
             Reset to defaults
           </Button>
         ) : null}

@@ -118,6 +118,7 @@ function RateLimitsBody({ anchorId, sectionId }: { readonly anchorId: string; re
           ))}
         </SettingRowGroup>
         <AdminOverrideResetRow
+          sectionLabel={RATE_LIMITS_SUBCATEGORY.label}
           dirty={dirty}
           anyOverridden={anyOverridden}
           saving={save.isPending}

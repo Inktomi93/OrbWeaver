@@ -32,7 +32,7 @@ for (const regime of REGIMES) {
       try {
         await mount<typeof AdminActionGroupsStory>(STORY, { width: regime.width, appearance: regime.appearance });
         const save = page.getByRole("button", { name: "Save", exact: true });
-        const reset = page.getByRole("button", { name: "Reset to defaults", exact: true });
+        const reset = page.getByRole("button", { name: "Reset to defaults: System tuning", exact: true });
         await expect(save).toBeDisabled();
         await expect(reset).toBeVisible();
         const field = page.getByRole("textbox", { name: "Prompt-cache depth floor (0–20)", exact: true });

@@ -208,6 +208,7 @@ function MemoryTuningBody({ anchorId, sectionId }: { readonly anchorId: string; 
           ))}
         </SettingRowGroup>
         <AdminOverrideResetRow
+          sectionLabel={MEMORY_TUNING_SUBCATEGORY.label}
           dirty={dirty}
           anyOverridden={anyDefaultsOverridden}
           saving={save.isPending}

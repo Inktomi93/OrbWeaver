@@ -102,7 +102,10 @@ for (const regime of REGIMES) {
         ).toBeVisible();
         await page.keyboard.press("Tab");
         await expect(done).toBeFocused();
-        const geometry = await actionGroupGeometry(back.locator(".."), [back, done]);
+        const editor = page.locator(`[data-slot="${unavailable ? "connection-editor-unavailable" : "connection-editor"}"]`);
+        const header = editor.locator('[data-slot="connection-editor-header"]');
+        await expect(header).toHaveCount(1);
+        const geometry = await actionGroupGeometry(header, [back, done]);
         await testInfo.attach("actual-connection-header-boxes", {
           body: JSON.stringify({ connectionId: connection.id, unavailable, ...geometry }),
           contentType: "application/json",

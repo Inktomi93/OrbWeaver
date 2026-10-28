@@ -206,6 +206,7 @@ export const OWNER_CSS_SLOTS = [
   "connection-credits-balance",
   "connection-editor",
   "connection-editor-detected",
+  "connection-editor-header",
   "connection-editor-provider",
   "connection-editor-tier",
   "connection-editor-unavailable",
