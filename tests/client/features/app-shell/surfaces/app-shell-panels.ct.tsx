@@ -1,11 +1,11 @@
 // The shell's LIST and CONTEXT panes on the production section registry: each section's pane capability, the
 // width regimes and the content-primacy crossover, the overlay sheets and their dismissals, the landmarks and the
 // skip, focus around the panes, and the both-docked squeeze, all read off the rendered grid.
-import { readFileSync } from "node:fs";
 import { persistedOverrides, resolvedLength, seedShellState, shellTracks } from "@orb/testkit/browser/spec";
 import { SECTION_LABELS, SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { loadAppearancePreset } from "@orb/testkit/node/helpers";
 import type { Locator, Page } from "@playwright/test";
 import type { AppShellListDockStory, AppShellStory } from "./_app-shell-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
@@ -21,7 +21,6 @@ const SUBPIXEL = 0.5;
 // The desktop names the frame region a toggle hides; the phone names the screen a tap lands on.
 const LIST_TOGGLE = /^(?:(?:Show|Hide) list panel|Show .+ (?:list|overview))$/u;
 const CONTEXT_TOGGLE = /^(?:Show|Hide) details$/u;
-const PRESETS_FILE = new URL("../../../../../tooling/src/floor/appearance/appearance-presets.json", import.meta.url);
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
 
@@ -84,15 +83,23 @@ async function primacyCrossover(page: Page): Promise<{ constrained: number; equa
 
 /** A curated appearance profile, written as the viewer's own appearance on a fresh corpus root. */
 async function rootWithProfile(name: string): Promise<Root> {
-  const presets = JSON.parse(readFileSync(PRESETS_FILE, "utf8")) as { presets: Record<string, { appearance: Record<string, unknown> }> };
-  const profile = presets.presets[name];
-  if (profile === undefined) {
-    throw new Error(`no appearance profile ${name}`);
+  const defaults = loadAppearancePreset("defaults");
+  const profile = loadAppearancePreset(name);
+  if ("error" in defaults) {
+    throw new Error(defaults.error);
+  }
+  if ("error" in profile) {
+    throw new Error(profile.error);
   }
   const profiled = await createCorpusHarness();
-  const caller = await profiled.internalCallerFor(profiled.ownerId);
-  await caller.settings.updateUserSettingsSection({ section: "appearance", patch: profile.appearance });
-  return profiled;
+  try {
+    const caller = await profiled.internalCallerFor(profiled.ownerId);
+    await caller.settings.updateUserSettingsSection({ section: "appearance", patch: { ...defaults.patch, ...profile.patch } });
+    return profiled;
+  } catch (error) {
+    await profiled[Symbol.asyncDispose]();
+    throw error;
+  }
 }
 
 /** The band's inset shadow stops read by geometry: the ember edge sits at the top (a positive block offset), the separator at the bottom. */

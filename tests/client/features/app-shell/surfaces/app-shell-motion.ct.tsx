@@ -1,6 +1,7 @@
 // The shell's motion on the production panes and a corpus room: what each door's FLIP holds on its first painted
 // frame and keeps inside its corridor, what reduced motion does instead, the phone's cancel, and the scoped section
 // view transition. Every sampler records per animation frame, because the defects it judges are one frame wide.
+import { spawn } from "node:child_process";
 import type { AppearanceSettings } from "@orb/contracts/settings/appearance";
 import type { ChatId } from "@orb/kit/ids";
 import { emulateMedia, releaseEmulatedMedia, resolvedLength, seedShellState, shellTracks } from "@orb/testkit/browser/spec";
@@ -8,7 +9,6 @@ import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_LABELS, SE
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import { makePluginRow } from "@orb/testkit/node/helpers";
 import type { Page } from "@playwright/test";
 import type { AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import { namedGroupRoom, PHONE, SHELL_STORIES } from "./app-shell-ct.ts";
@@ -63,7 +63,7 @@ let root: Awaited<ReturnType<typeof createCorpusHarness>>;
 let roomId: ChatId;
 
 test.beforeAll(async () => {
-  root = await createCorpusHarness();
+  root = await createCorpusHarness(undefined, { pluginSpawn: spawn });
   roomId = namedGroupRoom((await (await root.internalCallerFor(root.ownerId)).chat.listChats({ limit: 100 })).items).id;
 });
 
@@ -83,29 +83,49 @@ test.afterAll(async () => {
 // The motion cases follow the OS query at the default text size, whatever the corpus viewer chose.
 const MOTION_BASE: Partial<AppearanceSettings> = { reducedMotion: "system", fontScale: 1 };
 
-// One enabled plugin with a static panel at the room's flank anchor, so the room hosts the flank column and its door.
-const FLANK_PLUGIN = makePluginRow({ name: "Flank fixture" });
-const FLANK_PANEL = "Flank fixture panel";
-const FLANK_ROUTES = {
-  "plugin.list": () => [FLANK_PLUGIN],
-  "plugin.listSurfaces": () => [
-    { pluginId: FLANK_PLUGIN.id, id: "flank", anchor: "chat-flank", title: "Flank", tier: "static", spec: { kind: "text", value: FLANK_PANEL } } as const,
-  ],
-  "plugin.getSurfaceState": () => null,
-} as const;
+const FLANK_PANEL = "motion witness  ○○○○○○ 0/6";
 
 /** Serve the shell, its sections and a room, with the corpus viewer's settings under `appearance`, and with
- *  `flank` the fixture plugin's flank panel. */
+ *  `flank` the shipped Story Clocks readout, explicitly selected as a sidecar. */
 async function routeMotion(page: Page, corpus: CorpusPlayback, appearance: Partial<AppearanceSettings> = {}, flank = false): Promise<void> {
   const caller = await root.internalCallerFor(root.ownerId);
   // The settings verbs run on the shared root, so each case writes its own appearance, and the flank column starts
   // open whatever an earlier case's door left.
   await caller.settings.updateUserSettingsSection({ section: "appearance", patch: { ...MOTION_BASE, ...appearance } });
-  await caller.settings.updateUserSettingsSection({ section: "profile", patch: { flankCollapsed: false } });
+  if (flank) {
+    const plugin = (await caller.plugin.list()).find((candidate) => candidate.slug === "story-clocks");
+    if (plugin === undefined) {
+      throw new Error("The corpus has no shipped Story Clocks plugin");
+    }
+    await caller.plugin.setGrant({
+      pluginId: plugin.id,
+      grant: ["ui.surface", "chat.read", "chat.variables.write"],
+      acknowledgedNetHosts: [...(plugin.netHosts ?? [])],
+      enable: true,
+    });
+    const surfaces = (await caller.plugin.listSurfaces()).filter((candidate) => candidate.pluginId === plugin.id);
+    const sidecar = surfaces.find((candidate) => candidate.anchor === "chat-flank");
+    const controls = surfaces.find((candidate) => candidate.anchor === "chat-settings-section");
+    if (sidecar === undefined || controls === undefined) {
+      throw new Error("Story Clocks did not register its room readout and controls");
+    }
+    await caller.plugin.invokeUiAction({
+      pluginId: plugin.id,
+      surfaceId: controls.id,
+      actionId: "start",
+      values: { name: "Motion witness", segments: "6" },
+      chatId: roomId,
+    });
+    await caller.settings.updateUserSettingsSection({
+      section: "profile",
+      patch: { flankCollapsed: false, sidecarChatPluginSurfaces: [{ pluginId: plugin.id, surfaceId: sidecar.id }] },
+    });
+  } else {
+    await caller.settings.updateUserSettingsSection({ section: "profile", patch: { flankCollapsed: false, sidecarChatPluginSurfaces: [] } });
+  }
   await routeTrpc(page, {
     ...createShellAmbientReads(corpus, root.ownerId),
-    ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...ROOM_PROCEDURES, "settings.updateUserSettingsSection"]),
-    ...(flank ? FLANK_ROUTES : {}),
+    ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...ROOM_PROCEDURES, "plugin.getSurfaceState", "settings.updateUserSettingsSection"]),
   });
 }
 
