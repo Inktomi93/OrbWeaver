@@ -152,6 +152,7 @@ export function AssemblyRack({
                         duplicate={duplicateSet.has(index)}
                         onDrill={(): void => onDrillSection(section.id)}
                         onSelect={(): void => onSelectSection(section.id)}
+                        restoreFocus={section.id === restoreFocusSectionId}
                       />
                     );
                   }

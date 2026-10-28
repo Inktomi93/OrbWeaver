@@ -15,17 +15,22 @@ import { AlertTriangle, ChevronRight, Icon, MessagesSquare } from "@orb/ui/icons
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { useRef } from "react";
+import { useFocusOnSwap } from "#lib";
 
 export interface PivotBandProps {
   /** This is a DUPLICATE pivot (2nd+ `chat_history`) — render an inert warning band, no zone boundary. */
   readonly duplicate: boolean;
+  readonly restoreFocus: boolean;
   /** SELECT this row — the readout echoes it, exactly as a section row's name click does. */
   readonly onSelect: () => void;
   /** DRILL into the pivot's own (delivery-only) editor. */
   readonly onDrill: () => void;
 }
 
-export function PivotBand({ duplicate, onSelect, onDrill }: PivotBandProps): ReactElement {
+export function PivotBand({ duplicate, restoreFocus, onSelect, onDrill }: PivotBandProps): ReactElement {
+  const chevronRef = useRef<HTMLButtonElement>(null);
+  useFocusOnSwap(chevronRef, restoreFocus && !duplicate);
   if (duplicate) {
     return (
       <Card tone="warning">
@@ -60,7 +65,7 @@ export function PivotBand({ duplicate, onSelect, onDrill }: PivotBandProps): Rea
               your conversation splices in here — always on, always placed
             </Text>
           </Button>
-          <Button aria-label="Edit Chat history" className="shrink-0" intent="ghost" onClick={onDrill} size="icon" type="button">
+          <Button aria-label="Edit Chat history" className="shrink-0" intent="ghost" onClick={onDrill} ref={chevronRef} size="icon" type="button">
             <Icon icon={ChevronRight} size="sm" />
           </Button>
         </Row>
