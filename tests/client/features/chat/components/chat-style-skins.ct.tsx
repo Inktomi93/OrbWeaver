@@ -203,6 +203,8 @@ async function revealFacts(page: Page, skin: RowSkin): Promise<{ readonly measur
   const actions = row.locator('[data-slot="message-actions-row"]');
   await page.mouse.move(0, 0);
   const rest = { opacity: await computed(actions, "opacity"), pointer: await computed(actions, "pointer-events") };
+  await expect(row.locator('[data-slot="message-attribution"]')).toHaveCount(skin.actionsRow.identity ? 1 : 0);
+  await expect(row.locator('[data-slot="message-name-row"]')).toHaveCSS("opacity", skin.actionsRow.identity ? "1" : "0");
   await row
     .locator(BUBBLE)
     .first()
@@ -232,9 +234,8 @@ const PINNED_FILL = { role: "--color-ai-bubble", band: "--color-reading-band" } 
 async function pinFacts(page: Page, skin: RowSkin): Promise<{ readonly measured: object; readonly expected: object }> {
   const row = page.locator(`${ROW}[data-message-id="${longReplyId}"]`);
   const header = row.locator('[data-slot="message-name-row"]');
-  const sticky = skin.actionsRow.identity;
-  await expect.poll(() => header.getAttribute("data-sticky")).toBe(sticky ? "" : null);
-  await scrollIntoMessage(row, sticky);
+  await expect(header).toHaveAttribute("data-sticky", "");
+  await scrollIntoMessage(row);
   const card = await resolvedLength(page, "var(--radius-card)");
   const fill = skin.pinnedHeader.fill;
   const top = skin.pinnedHeader.corners === "top" ? [card, card, 0, 0] : [card, card, card, card];
@@ -246,9 +247,9 @@ async function pinFacts(page: Page, skin: RowSkin): Promise<{ readonly measured:
       fade: (await computed(header, "background-image", "::after")).includes("gradient"),
     },
     expected: {
-      pinned: sticky,
-      fill: sticky && fill !== "none" ? await tokenColor(header, PINNED_FILL[fill], "background-color") : TRANSPARENT,
-      corners: skin.pinnedHeader.corners === undefined || !sticky ? [0, 0, 0, 0] : top,
+      pinned: true,
+      fill: fill !== "none" ? await tokenColor(header, PINNED_FILL[fill], "background-color") : TRANSPARENT,
+      corners: skin.pinnedHeader.corners === undefined ? [0, 0, 0, 0] : top,
       fade: false,
     },
   };
@@ -518,20 +519,6 @@ async function containedActions(row: Locator, scrollport: Locator): Promise<void
   }
 }
 
-async function revealDocumentRow(row: Locator): Promise<void> {
-  const header = row.locator('[data-slot="message-name-row"]');
-  await header.scrollIntoViewIfNeeded();
-  await expect(header).toBeInViewport({ ratio: 1 });
-}
-
-async function revealReadingRow(row: Locator, chatStyle: ThemeChatStyle): Promise<void> {
-  if (chatStyle === "document") {
-    await revealDocumentRow(row);
-  } else {
-    await scrollIntoMessage(row);
-  }
-}
-
 for (const viewport of READING_VIEWPORTS) {
   test.describe(`reading at ${viewport.width}x${viewport.height}`, () => {
     test.use({ viewport, hasTouch: true });
@@ -554,7 +541,7 @@ for (const viewport of READING_VIEWPORTS) {
         for (const messageId of longMessageIds()) {
           const row = page.locator(`${ROW}[data-message-id="${messageId}"]`);
           const header = row.locator('[data-slot="message-name-row"]');
-          await revealReadingRow(row, chatStyle);
+          await scrollIntoMessage(row);
           await containedActions(row, scrollport);
           await expect(row.locator('[data-slot="message-attribution"]')).toHaveCount(chatStyle === "document" ? 0 : 1);
           if (chatStyle === "document") {

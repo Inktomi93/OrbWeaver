@@ -19,6 +19,7 @@ import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement, ReactNode } from "react";
 import type { RowAttribution } from "../lib/attribution.ts";
+import type { ActionsReveal } from "../lib/message-actions-reveal.ts";
 import type { RowSkin } from "../lib/message-row-variants.ts";
 import type { HeaderShape } from "../lib/row-placement.ts";
 import { MessageTimestamp } from "./message-metadata-row.tsx";
@@ -104,6 +105,7 @@ export function renderRowNameRow(args: {
   readonly message: MessageView;
   readonly showTimestamp: boolean;
   readonly stickyAttribution: boolean;
+  readonly actionsReveal: ActionsReveal;
   readonly actions: ReactNode;
   readonly placement: HeaderPlacement;
   /** `RowSkin.pinnedHeader`: the bar's paint while pinned. */
@@ -121,6 +123,7 @@ export function renderRowNameRow(args: {
       }
       actions={args.actions}
       stickyAttribution={args.stickyAttribution}
+      actionsReveal={args.actionsReveal}
       placement={args.placement}
       mirrored={mirrored}
       pinnedHeader={args.pinnedHeader}
@@ -165,6 +168,7 @@ export function renderGhostNameRow(args: {
         identity={null}
         actions={null}
         stickyAttribution={false}
+        actionsReveal="expanded"
         placement={args.placement}
         mirrored={false}
         pinnedHeader={args.pinnedHeader}
@@ -185,6 +189,7 @@ export function renderGhostNameRow(args: {
       }
       actions={args.actionsFootprint}
       stickyAttribution={args.stickyAttribution}
+      actionsReveal="expanded"
       placement={args.placement}
       // The ghost is always the assistant side; there is no own-message mirror to take.
       mirrored={false}

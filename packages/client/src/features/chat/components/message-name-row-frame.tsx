@@ -7,6 +7,8 @@ import { Row } from "@orb/ui/layout";
 import type { ReactElement, ReactNode } from "react";
 import { cn } from "#lib";
 import { usePinnedHeader } from "../hooks/use-pinned-header.ts";
+import type { ActionsReveal } from "../lib/message-actions-reveal.ts";
+import { ACTIONS_REVEAL_POSTURE } from "../lib/message-actions-reveal.ts";
 import type { RowSkin } from "../lib/message-row-variants.ts";
 import { ROLE_FILL } from "../lib/message-row-variants.ts";
 import type { HeaderShape } from "../lib/row-placement.ts";
@@ -49,6 +51,7 @@ export interface NameRowFrameProps {
   readonly identity: ReactNode;
   readonly actions: ReactNode;
   readonly stickyAttribution: boolean;
+  readonly actionsReveal: ActionsReveal;
   readonly placement: HeaderPlacement;
   /** User identity sits at the trailing edge; its action cluster takes the opposite edge. */
   readonly mirrored: boolean;
@@ -59,13 +62,22 @@ export interface NameRowFrameProps {
   readonly shape: HeaderShape;
 }
 
-export function NameRowFrame({ identity, actions, stickyAttribution, placement, mirrored, pinnedHeader, messageRole, shape }: NameRowFrameProps): ReactElement {
-  // An actions-only overlay never pins: its actions are hidden off the last row, and a pinned box hung over
-  // the page would either paint an empty plate on the words or overrun the row's end.
-  const sticky = stickyAttribution && shape.ownLine;
+export function NameRowFrame({
+  identity,
+  actions,
+  stickyAttribution,
+  actionsReveal,
+  placement,
+  mirrored,
+  pinnedHeader,
+  messageRole,
+  shape,
+}: NameRowFrameProps): ReactElement {
+  const sticky = stickyAttribution && (shape.ownLine || actions !== null);
   const { ref, pinned } = usePinnedHeader(sticky);
   const outside = placement === "outside";
   const reach = pinned ? pinnedHeader.reach : "none";
+  const overlayClass = shape.ownLine ? undefined : overlayLayout(sticky);
   return (
     <FrameRow
       rowRef={ref}
@@ -83,7 +95,8 @@ export function NameRowFrame({ identity, actions, stickyAttribution, placement, 
       reachTrain={reach === "train"}
       chip={!shape.identity}
       outside={outside}
-      overlay={!shape.ownLine}
+      overlayClass={overlayClass}
+      overlayReveal={shape.ownLine ? undefined : ACTIONS_REVEAL_POSTURE[actionsReveal]}
       reserve={!outside && shape.ownLine}
     >
       {identity}
@@ -94,6 +107,12 @@ export function NameRowFrame({ identity, actions, stickyAttribution, placement, 
       )}
     </FrameRow>
   );
+}
+
+function overlayLayout(sticky: boolean): string {
+  return sticky
+    ? "box-content min-block-(--size-name-row-min) col-start-1 row-start-1 self-start"
+    : "box-content block-(--size-glyph-lg) col-start-1 row-start-1 self-start";
 }
 
 /** An outside header's wallpaper plate at rest: the chrome island, or its bare island once the sticky box carries the inset. */
@@ -132,7 +151,8 @@ interface FrameRowProps {
   readonly reachTrain: boolean;
   readonly chip: boolean;
   readonly outside: boolean;
-  readonly overlay: boolean;
+  readonly overlayClass: string | undefined;
+  readonly overlayReveal: (typeof ACTIONS_REVEAL_POSTURE)[ActionsReveal];
   readonly reserve: boolean;
   readonly children: ReactNode;
 }
@@ -154,7 +174,8 @@ function FrameRow({
   reachTrain,
   chip,
   outside,
-  overlay,
+  overlayClass,
+  overlayReveal,
   reserve,
   children,
 }: FrameRowProps): ReactElement {
@@ -172,6 +193,7 @@ function FrameRow({
       plate={plate}
       ground={paint.ground}
       cardCorners={paint.cardCorners}
+      reveal={overlayReveal}
       className={cn(
         "flex-wrap",
         flip && "flex-row-reverse",
@@ -186,7 +208,7 @@ function FrameRow({
         // An outside header (tide's) sits on the same inset as the pager under its train, so the last action
         // ends where the forward chevron does and its touch area stays inside the scrollport.
         outside && "px-field",
-        overlay && "-mbe-(--size-glyph-lg) box-content block-(--size-glyph-lg)",
+        overlayClass,
         // The rail is centred on this row, so a content height of
         // `glyph-lg - 2 * row` makes it span exactly the container's top inset, this row and the `gap-row` below it.
         // It is unconditional across ghost, editing and sticky arms. `box-content` keeps the sticky band's `pt-row` additive, so its cancellation stays exact.

@@ -52,7 +52,13 @@ export function renderSingleBubble(args: {
       <MessageBox {...args.facts} shape="stack" positioned={art !== undefined} artDecoration={artDecoration}>
         {art === undefined ? null : <EchoArtTile art={art} view={args.artView} onFailedChange={args.onArtFailed} />}
         {args.header}
-        {args.content}
+        {args.facts.box === "page" ? (
+          <Stack className="col-start-1 row-start-1" gap="row">
+            {args.content}
+          </Stack>
+        ) : (
+          args.content
+        )}
         {args.footer}
       </MessageBox>
     );

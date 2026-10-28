@@ -1,5 +1,6 @@
 // The spec door: Node-side helpers a component spec drives the page with; nothing here loads client modules.
 
+export { touchGesture } from "@orb/tooling/floor/browser/touch-gesture";
 export { formatFindings, unnamedLandmarkElementFindings } from "./accessible-names.ts";
 export { actionGroupGeometry } from "./action-group-geometry.ts";
 export { expectCacheProse } from "./cache-prose.ts";

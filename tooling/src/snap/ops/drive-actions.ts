@@ -8,6 +8,7 @@ import type { Page } from "@playwright/test";
 import { print } from "../../floor/artifacts/artifacts.ts";
 import { settle } from "../../floor/browser/browser.ts";
 import { emulateSoftKeyboard } from "../../floor/browser/soft-keyboard.ts";
+import { touchGesture } from "../../floor/browser/touch-gesture.ts";
 import type { FileActionReceipt } from "../../floor/browser/upload.ts";
 import { driveFileDrop, driveFileUpload, fileActionReceiptLine } from "../../floor/browser/upload.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
@@ -36,10 +37,6 @@ async function runWheelStep(page: Page, step: Extract<Step, { readonly kind: "wh
   }
 }
 
-/** Moves in one swipe, and the frame-sized gap between them that lets the gesture detector see a drag. */
-const SWIPE_MOVES = 10;
-const SWIPE_MOVE_GAP_MS = 16;
-
 // One touch sequence from the centre of the selector's box. The session is created per gesture and detached
 // after it: a touch sequence leaves no emulation behind to keep alive. `drag` moves the finger by that many
 // px (null = no movement); `holdMs` is the pause before the finger lifts.
@@ -57,24 +54,7 @@ async function runTouchGesture(
   }
   const startX = box.x + box.width / 2;
   const startY = box.y + box.height / 2;
-  const cdp = await page.context().newCDPSession(page);
-  try {
-    await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: startX, y: startY }] });
-    if (gesture.drag !== null) {
-      for (let move = 1; move <= SWIPE_MOVES; move += 1) {
-        await settle(page, SWIPE_MOVE_GAP_MS);
-        const x = startX + (gesture.drag.dx * move) / SWIPE_MOVES;
-        const y = startY + (gesture.drag.dy * move) / SWIPE_MOVES;
-        await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x, y }] });
-      }
-    }
-    if (gesture.holdMs > 0) {
-      await settle(page, gesture.holdMs);
-    }
-    await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
-  } finally {
-    await cdp.detach();
-  }
+  await touchGesture(page, { x: startX, y: startY }, gesture);
 }
 
 // A finger dragged up by `dy` scrolls the content under it down by `dy`; `swipe-x` drags along X the same way.
