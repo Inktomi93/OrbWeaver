@@ -9,7 +9,7 @@ import type { LucideIcon } from "@orb/ui/icons";
 import { ChevronLeft, Icon, PanelLeftClose, PanelLeftOpen } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement, ReactNode, Ref } from "react";
 import { cn } from "#lib";
 import type { PanelMode } from "#state";
 
@@ -17,6 +17,7 @@ import type { PanelMode } from "#state";
 export const LIST_TOGGLE_MARKER = "shell-list-toggle";
 
 export interface ShellTopbarProps {
+  readonly ref?: Ref<HTMLElement>;
   readonly title: string;
   /** Per-section header node the route may supply (defaults to just the title). */
   readonly header?: ReactNode;
@@ -162,9 +163,9 @@ function wideIdentity({ title, header, listMode }: ShellTopbarProps): ReactNode 
   return listMode === "collapsed" ? <TopbarTitle>{title}</TopbarTitle> : null;
 }
 
-export function ShellTopbar(props: ShellTopbarProps): ReactElement {
+export function ShellTopbar({ ref, ...props }: ShellTopbarProps): ReactElement {
   return (
-    <header className="shell-topbar">
+    <header className="shell-topbar" ref={ref}>
       <div className="shell-topbar-lead">
         {leadControl(props)}
         <div className="shell-topbar-identity" data-identity="wide">

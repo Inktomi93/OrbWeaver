@@ -10,6 +10,7 @@ export const RUNTIME_CUSTOM_PROPERTIES: Readonly<Record<string, string>> = {
   "--orb-ws-glow": "charts/meter/waystone-layers.tsx (the altitude-derived glow floor)",
   "--orb-weave-hub-x": "art/web-weave/web-weave.tsx (the hub's glow position)",
   "--orb-weave-hub-y": "art/web-weave/web-weave.tsx (the hub's glow position)",
+  "--orb-notice-chrome-end": "app-shell/hooks/use-shell-notice-inset.ts (the bottom of the visible shell chrome bands)",
   "--orb-keyboard-inset": "app-shell/hooks/use-keyboard-inset-var.ts (the soft keyboard's inset, removed when it is down)",
   "--orb-media-x": "primitives/media-grid/media-grid.tsx (the pointer's inline offset in a cell)",
   "--orb-media-y": "primitives/media-grid/media-grid.tsx (the pointer's block offset in a cell)",

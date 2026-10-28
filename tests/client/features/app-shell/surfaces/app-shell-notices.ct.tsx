@@ -1,5 +1,6 @@
 // The shell's notice overlay and its stray-file guard: a notice never moves the content column, a burst stays inside
 // the overlay's cap, the empty overlay passes the pointer through, and only a file nothing else handled is swallowed.
+import { createCharacterSchema } from "@orb/contracts/character";
 import { dropOn, seedShellState, settledBox } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -145,6 +146,67 @@ test("a soft keyboard marks the root keyboard-up while it is open, and clears it
     viewport.dispatchEvent(new Event("resize"));
   });
   await expect(html).not.toHaveAttribute("data-keyboard-up");
+});
+
+test.describe("with an open sheet and keyboard", () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
+
+  test("the notice stack fits above the keyboard and keeps its dismiss reachable", async ({ mount, page }, testInfo) => {
+    const caller = await root.internalCallerFor(root.ownerId);
+    const card = await caller.character.create({
+      input: createCharacterSchema.parse({
+        handle: "notice-clearance-navigator",
+        name: "Notice clearance navigator",
+        description: "A card whose details stay reachable beside app notices.",
+      }),
+    });
+    await seedShellState(page, { activeSection: "characters", panelOverrides: { characters: { list: "docked", context: "collapsed" } } });
+    const component = await mount<typeof AppShellNoticeStory>(`${SHELL_STORIES}/AppShellNoticeStory`, {
+      title: "Imported with notes",
+      description: LONG_DETAIL,
+    });
+    await page.getByRole("textbox", { name: "Search characters", exact: true }).fill(card.name);
+    await page.getByRole("list", { name: "Character library", exact: true }).getByRole("button", { name: card.name, exact: true }).click();
+    await page.getByRole("button", { name: "Show details", exact: true }).click();
+    const context = page.locator('.shell-panel[data-panel-side="context"]');
+    await expect(context).toHaveAttribute("data-panel-mode", "overlay");
+    await page.setViewportSize({ width: 844, height: 390 });
+    await expect(context.getByRole("button", { name: "Close Characters details", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Raise a notice", exact: true }).click();
+    const notice = page.getByRole("status", { name: "Imported with notes", exact: true });
+    await expect(notice).toBeVisible();
+    await page.evaluate(() => {
+      const viewport = globalThis.visualViewport;
+      if (viewport === null) {
+        throw new Error("no visualViewport");
+      }
+      Object.defineProperty(viewport, "height", { configurable: true, get: () => globalThis.innerHeight - 250 });
+      viewport.dispatchEvent(new Event("resize"));
+    });
+    await expect(page.locator("html")).toHaveAttribute("data-keyboard-up", "");
+    const overlay = page.getByRole("region", { name: "Alerts", exact: true });
+    const visualBottom = await page.evaluate(() => globalThis.visualViewport?.height ?? 0);
+    expect(visualBottom).toBeGreaterThan(0);
+    await expect
+      .poll(async () => {
+        const box = await settledBox(overlay);
+        return box.y + box.height;
+      })
+      .toBeLessThanOrEqual(visualBottom);
+    const close = notice.getByRole("button", { name: "Close notification", exact: true });
+    await close.scrollIntoViewIfNeeded();
+    const closeBox = await settledBox(close);
+    const overlayBox = await settledBox(overlay);
+    const chromeBox = await settledBox(context.locator('[data-slot="context-bracket-header"]'));
+    expect(overlayBox.y).toBeGreaterThanOrEqual(chromeBox.y + chromeBox.height);
+    expect(closeBox.y).toBeGreaterThanOrEqual(overlayBox.y);
+    expect(closeBox.y + closeBox.height).toBeLessThanOrEqual(visualBottom);
+    await testInfo.attach("open-sheet-keyboard-notice", { body: await page.screenshot(), contentType: "image/png" });
+    await close.click();
+    await expect(notice).toHaveCount(0);
+    await component.unmount();
+    await expect(page.locator("html")).not.toHaveAttribute("data-keyboard-up");
+  });
 });
 
 test("a file dropped where nothing imports is swallowed with a notice, and a dragged text is left alone", async ({ mount, page }) => {

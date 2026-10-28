@@ -7,7 +7,7 @@ import { Button } from "@orb/ui/button";
 import { LIVE_TOKEN_ROOT_ATTRIBUTE, PortalContainerContext } from "@orb/ui/lib";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { TooltipProvider } from "@orb/ui/tooltip";
-import type { ReactElement, ReactNode, RefObject } from "react";
+import type { ReactElement, ReactNode, RefCallback, RefObject } from "react";
 import { useEffect, useRef } from "react";
 import { preload } from "react-dom";
 import { ListPaneHeaderHost } from "#components";
@@ -47,6 +47,7 @@ import { useKeyboardInsetVar } from "../hooks/use-keyboard-inset-var.ts";
 import { useSelectedTheme } from "../hooks/use-selected-theme.ts";
 import type { ShellLayout } from "../hooks/use-shell-layout.ts";
 import { useShellLayout } from "../hooks/use-shell-layout.ts";
+import { useShellNoticeInset } from "../hooks/use-shell-notice-inset.ts";
 import { useShellTrackFlip } from "../hooks/use-shell-track-flip.ts";
 import { useStrayFileDropGuard } from "../hooks/use-stray-file-drop-guard.ts";
 import { appearanceBackgroundSource, resolveThemeBackgroundUrl } from "../lib/resolve-theme-background.ts";
@@ -99,11 +100,27 @@ function useOverlayFocus(
   }, [overlay, open, pane, grid, scrim, focusReturnMarker]);
 }
 
-/** The context pane's own way out, handed to the bracket to seat as the header row's trailing ×. It closes the
- *  pane in every mode: docked, or a floating sheet a phone cannot reach the scrim under. The label is the same
- *  one `PanelChrome` would print, so a reader hears one name for one control. */
-function contextDismiss(layout: ShellLayout): Pick<SectionContextHostProps, "dismissLabel" | "onDismiss"> {
-  return { dismissLabel: `Close ${layout.activeSectionLabel} details`, onDismiss: (): void => layout.collapsePanel("context") };
+// A collapsed retained bracket contributes no chrome exclusion, and keeps the pane's own dismiss.
+function ContextPaneBody({
+  layout,
+  definition,
+  headerRef,
+}: {
+  readonly layout: ShellLayout;
+  readonly definition: SectionContextHostProps["definition"];
+  readonly headerRef: RefCallback<HTMLElement>;
+}): ReactElement {
+  return (
+    <RegionAnchor region="context">
+      <SectionContextHost
+        key={layout.activeSection}
+        definition={definition}
+        headerRef={layout.contextMode === "collapsed" ? undefined : headerRef}
+        dismissLabel={`Close ${layout.activeSectionLabel} details`}
+        onDismiss={(): void => layout.collapsePanel("context")}
+      />
+    </RegionAnchor>
+  );
 }
 
 /** The rail in the DOM slot its REGIME paints it in (side-eye a11y rec · WCAG 1.3.2 meaningful sequence).
@@ -131,6 +148,7 @@ export function AppShell(): ReactElement {
   const primacySentinelRef = useRef<HTMLDivElement>(null);
   useShellContentPrimacyObserver(primacySentinelRef);
   const layout = useShellLayout();
+  const noticeHeaderRef = useShellNoticeInset();
   // The phone's room screen has no tab bar; back is the header chevron (`roomScreenShell`).
   const roomScreen = roomScreenShell({ ...layout, activeChatId: useActiveChatId() });
   useCommandShortcut(commandModalId, layout.openModalId);
@@ -183,11 +201,7 @@ export function AppShell(): ReactElement {
   const contextPane = layout.contextAvailable
     ? {
         header: <SectionContextHeader key={layout.activeSection} definition={activeDef} />,
-        body: (
-          <RegionAnchor region="context">
-            <SectionContextHost key={layout.activeSection} definition={activeDef} {...contextDismiss(layout)} />
-          </RegionAnchor>
-        ),
+        body: <ContextPaneBody layout={layout} definition={activeDef} headerRef={noticeHeaderRef} />,
       }
     : { header: null, body: null };
   const contentFallback = <SectionPlaceholder title={placeholderCopy.title} description={placeholderCopy.description} weave={true} />;
@@ -318,6 +332,7 @@ export function AppShell(): ReactElement {
             <RailSlot activeSection={layout.activeSection} show={!layout.mobileViewport} />
 
             <PanelChrome
+              headerRef={noticeHeaderRef}
               panel="list"
               label={`${layout.activeSectionLabel} list`}
               available={layout.listAvailable}
@@ -337,6 +352,7 @@ export function AppShell(): ReactElement {
               <SectionTopbarTitle key={layout.activeSection} definition={activeDef} fallback={layout.activeSectionLabel}>
                 {(compactTitle, listDoorLabel, contentLabel): ReactElement => (
                   <ShellTopbar
+                    ref={noticeHeaderRef}
                     screenTitle={compactTitle}
                     listDoorLabel={listDoorLabel}
                     contentLabel={contentLabel}
@@ -354,12 +370,6 @@ export function AppShell(): ReactElement {
                   />
                 )}
               </SectionTopbarTitle>
-              {/* THE NOTICE BAND (#193) — a flow row between the chrome and the content, hosting the app's
-                  toast stack. Zero pixels while empty; when it holds a notice the content column is PUSHED,
-                  which is the whole escape: an overlay toast on a phone had to cover either the transcript
-                  or the composer, and both are load-bearing. Sits inside `.shell-main` rather than the grid
-                  so it spans the CONTENT column — the region whose reading surface it protects — and leaves
-                  the rail and both panels untouched. */}
               {/* A11y (side-eye R3): the scroll container is tabbable, so name it from the active section's
                   visible label — the `main` landmark otherwise announces as an unnamed region.
                   INERT BEHIND AN OPEN SHEET (item 22): whenever the scrim is up it already swallows every
@@ -388,6 +398,7 @@ export function AppShell(): ReactElement {
             </div>
 
             <PanelChrome
+              headerRef={noticeHeaderRef}
               panel="context"
               label={`${layout.activeSectionLabel} details`}
               available={layout.contextAvailable}

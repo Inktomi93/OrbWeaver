@@ -889,6 +889,7 @@ export const OWNER_CSS_SHELL_CLASSES = [
   "shell-rail-widget",
   "shell-region-fill",
   "shell-scrim",
+  "shell-toast-viewport",
   "shell-topbar",
   "shell-topbar-cluster",
   "shell-topbar-date",

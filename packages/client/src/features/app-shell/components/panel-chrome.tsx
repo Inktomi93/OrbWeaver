@@ -38,6 +38,7 @@ export interface PanelChromeProps {
   /** Header content the always-present band wraps. `undefined` renders the band empty-but-present (the
    *  baseline horizon — D66 A1). */
   readonly header?: ReactNode;
+  readonly headerRef?: Ref<HTMLElement>;
   /** The current mode — sets `data-panel-mode` (shell.css owns the transform/width per mode). */
   readonly mode: PanelMode;
   /** Does the ACTIVE SECTION declare this pane at all (`SectionDefinition.list` / `context`, `section-registry.ts`)?
@@ -70,6 +71,7 @@ export function PanelChrome({
   panel,
   label,
   header,
+  headerRef,
   mode,
   available,
   onDismiss,
@@ -142,7 +144,7 @@ export function PanelChrome({
           A claimed context pane supplies NOTHING, so the group renders empty and shell.css collapses the
           whole band exactly as it does docked (HUD-1 §3.1 — the claimant owns its top edge, including its
           own way out). */}
-      <header className="shell-panel-header">
+      <header className="shell-panel-header" ref={mode === "collapsed" ? undefined : headerRef}>
         {mode === "overlay" ? (
           <>
             <div className="shell-panel-header-group">{header}</div>

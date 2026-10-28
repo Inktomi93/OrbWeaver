@@ -1,6 +1,20 @@
 /* shell.css region: the content column's chrome: main, topbar, the identity budget, the context header and tab strip. The index imports the regions in cascade order; a rule's winner across regions is
  * decided there, so a rule moves between regions only with its source position. */
 @layer shell {
+  /* The root-owned stack clears every visible chrome band without moving the working surface. */
+  .shell-toast-viewport {
+    --orb-notice-block-cap: min(
+      var(--dimension-shell-notice-cap),
+      max(0px, calc(100dvh - var(--orb-keyboard-inset, 0px) - var(--orb-notice-chrome-end, var(--dimension-chrome-row)) - env(safe-area-inset-bottom)))
+    );
+
+    inset-block-start: var(--orb-notice-chrome-end, var(--dimension-chrome-row));
+    max-block-size: var(--orb-notice-block-cap);
+    /* When the keyboard leaves only a control's height, its hit area takes priority over outer spacing. */
+    padding-block: clamp(0px, calc((var(--orb-notice-block-cap) - var(--size-control-sm)) / 2), var(--spacing-section));
+    padding-inline: max(var(--spacing-section), env(safe-area-inset-left)) max(var(--spacing-section), env(safe-area-inset-right));
+  }
+
   .shell-main {
     grid-column: 3;
     grid-row: 1;
