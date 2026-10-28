@@ -1,6 +1,7 @@
 // V8 sampling profiler over Snap's existing post-navigation action/capture window. It shares the page
 // and tape; only the CDP profiler lifecycle is analyzer-specific.
 import { writeFile } from "node:fs/promises";
+import type { Profiler } from "node:inspector";
 import type { CDPSession } from "@playwright/test";
 import { artifactFile } from "../../../floor/artifacts/artifact-out.ts";
 import { exactScope } from "../../../floor/artifacts/artifact-scope.ts";
@@ -15,21 +16,22 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 const CPU_SAMPLING_INTERVAL_US = 100;
 
-interface CpuProfileEvidence {
-  readonly nodes: readonly unknown[];
-  readonly samples: readonly unknown[];
-}
-
-function cpuProfileEvidence(value: unknown): CpuProfileEvidence {
-  if (typeof value !== "object" || value === null) {
-    throw new Error("Profiler.stop returned no profile object");
+function cpuProfileEvidence(profile: Profiler.Profile): Profiler.Profile {
+  const { nodes, samples, timeDeltas, startTime, endTime } = profile;
+  if (!(Array.isArray(nodes) && nodes.length > 0 && Array.isArray(samples) && samples.length > 0)) {
+    throw new Error("Profiler.stop returned no sampled nodes/samples population");
   }
-  const nodes = Reflect.get(value, "nodes");
-  const samples = Reflect.get(value, "samples");
-  if (!(Array.isArray(nodes) && Array.isArray(samples))) {
-    throw new Error("Profiler.stop returned a malformed nodes/samples population");
+  if (!(Number.isFinite(startTime) && Number.isFinite(endTime) && endTime > startTime)) {
+    throw new Error("Profiler.stop returned no finite sampling window");
   }
-  return { nodes, samples };
+  if (!(Array.isArray(timeDeltas) && timeDeltas.length === samples.length && timeDeltas.every(Number.isFinite))) {
+    throw new Error("Profiler.stop returned no matched finite sample timing population");
+  }
+  const nodeIds = new Set(nodes.map(({ id }) => id));
+  if (!samples.every((id) => nodeIds.has(id))) {
+    throw new Error("Profiler.stop returned samples outside its node population");
+  }
+  return profile;
 }
 
 async function detachProfiler(cdp: CDPSession): Promise<string | null> {
@@ -66,7 +68,7 @@ export const CPU_PROFILE_ARM = {
     at: "run",
     begin: (_session, opts: Args): ArmRunInstance<"cpu-profile"> => {
       let cdp: CDPSession | null = null;
-      let profile: CpuProfileEvidence | null = null;
+      let profile: Profiler.Profile | null = null;
       let path: string | null = null;
       let failure: string | null = null;
       return {
@@ -100,11 +102,12 @@ export const CPU_PROFILE_ARM = {
           // the closure variable `failure` publishes the cpu-profile=REFUSED RESULT pair in pairs(). Ends if pairs() stops reading failure.
           try {
             const stopped = await cdp.send("Profiler.stop");
-            profile = cpuProfileEvidence(Reflect.get(stopped, "profile"));
+            profile = cpuProfileEvidence(stopped.profile);
           } catch (error) {
             failure = error instanceof Error ? error.message : String(error);
           } finally {
-            failure ??= await detachProfiler(cdp);
+            const failures = [failure, await detachProfiler(cdp)].filter((message) => message !== null);
+            failure = failures.length === 0 ? null : failures.join("; ");
             cdp = null;
           }
         },
@@ -125,7 +128,7 @@ export const CPU_PROFILE_ARM = {
               completeness: "complete",
               completenessDetail: "complete V8 sampling profile for the declared shared action window",
               scope: exactScope(0, 0, "action-tape"),
-              records: profile.samples.length,
+              records: profile.samples?.length ?? 0,
               limits: [],
             });
             await writeFile(path, JSON.stringify(profile));
@@ -147,7 +150,7 @@ export const CPU_PROFILE_ARM = {
             ? {}
             : {
                 "cpu-profile-nodes": { value: profile.nodes.length, refuseWhen: "zero" as const },
-                "cpu-profile-samples": { value: profile.samples.length, refuseWhen: "zero" as const },
+                "cpu-profile-samples": { value: profile.samples?.length ?? 0, refuseWhen: "zero" as const },
               },
         pairs: (): readonly ResultPair[] =>
           !opts.cpuProfile ? [["cpu-profile", "off"]] : [["cpu-profile", failure === null && path !== null ? path : "REFUSED"]],
@@ -163,7 +166,7 @@ export const CPU_PROFILE_ARM = {
                 state,
                 detail: failure,
                 nodes: profile?.nodes.length ?? 0,
-                samples: profile?.samples.length ?? 0,
+                samples: profile?.samples?.length ?? 0,
                 artifact: null,
               },
             },

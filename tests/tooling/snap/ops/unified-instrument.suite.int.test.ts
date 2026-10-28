@@ -1,12 +1,19 @@
 import { readFile, writeFile } from "node:fs/promises";
+import { createServer } from "node:http";
+import type { Profiler } from "node:inspector";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import type { CliResult } from "@orb/testkit/tooling";
 import { expect, test } from "@orb/testkit/tooling";
 import type { MeterData, StepReport } from "@orb/tooling/cpu-profile";
 import { APPEARANCE_PRESET_FLAG } from "@orb/tooling/floor/appearance/appearance-flags";
+import { launchProbeSession, withProbeSession } from "@orb/tooling/floor/browser/browser";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
+import { verifyDevToolsAssets } from "@orb/tooling/floor/devtools/devtools-assets";
 import { BOX_LOAD_ENV } from "@orb/tooling/floor/host/load-budget";
+import { withProcessEnv } from "@orb/tooling/floor/process/process-env";
 import type { AuditData } from "@orb/tooling/motion-audit";
+import type { CDPSession } from "@playwright/test";
 import { beforeEach, vi } from "vitest";
 import { buildReports } from "../../../../tooling/src/cpu-profile/ops/report.ts";
 import type { TimingCapability } from "../../../../tooling/src/floor/host/timing-capability.ts";
@@ -14,6 +21,7 @@ import { animationTotals } from "../../../../tooling/src/motion-audit/lib/animat
 import { clsTotals, loafTotals, observedClsTotals } from "../../../../tooling/src/motion-audit/lib/verdicts.ts";
 import { evaluateMotionAudit } from "../../../../tooling/src/motion-audit/ops/report.ts";
 import { interactionPerfFact } from "../../../../tooling/src/snap/lib/interaction-perf-verdict.ts";
+import { CPU_PROFILE_ARM } from "../../../../tooling/src/snap/ops/arms/cpu-profile.ts";
 import {
   INTERACTION_PERF_CLICK_BREACH_MS,
   interactionPerfBreachCount,
@@ -26,6 +34,7 @@ const CLI_TIMEOUT_MS = scaledBudget(180_000);
 vi.setConfig({ testTimeout: CLI_TIMEOUT_MS, hookTimeout: CLI_TIMEOUT_MS });
 
 const QUIET = ["--no-shot", "--no-deadcss", "--no-failure-evidence"];
+const CDP_FAULT_ENV = "ORB_PROBE_TEST_CDP_FAULT";
 
 // Keep load classification independent of hardware timing qualification. beforeEach survives unstubEnvs.
 beforeEach(() => {
@@ -457,20 +466,141 @@ test("a failing motion artifact carries the exact offender and threshold into th
   expect(report.stdout).not.toMatch(/^PROBLEM\s+arm=motion/gmu);
 });
 
-test("the CPU arm profiles the shared action tape and refuses an empty tape", async ({ runCli, scratch }) => {
+test("the CPU arm profiles the shared action tape and refuses an empty tape", async ({ runCli, scratch, repoRoot }) => {
   const file = join(scratch, "cpu.html");
   await writeFile(file, FIXTURE);
-  const profiled = await runCli("snap", ["--file", file, "--cpu-profile", "--click", "#clean", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
+  const profiled = await runCli("snap", ["--file", file, "--cpu-profile", "--click", "#target", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
   await expect(profiled).toExitWith(EXIT.clean);
   const path = resultValue(profiled.stdout, "cpu-profile");
   expect(path).toMatch(/\.cpuprofile$/u);
-  const artifact = JSON.parse(await readFile(path, "utf8")) as { readonly nodes?: readonly unknown[]; readonly samples?: readonly unknown[] };
-  expect(artifact.nodes?.length).toBeGreaterThan(0);
+  const artifact = JSON.parse(await readFile(path, "utf8")) as Profiler.Profile;
+  expect(artifact.nodes.length).toBeGreaterThan(0);
   expect(artifact.samples?.length).toBeGreaterThan(0);
+  expect(Number.isFinite(artifact.startTime)).toBe(true);
+  expect(Number.isFinite(artifact.endTime)).toBe(true);
+  expect(artifact.endTime).toBeGreaterThan(artifact.startTime);
+  expect(artifact.timeDeltas?.length).toBe(artifact.samples?.length);
+  expect(artifact.timeDeltas?.every(Number.isFinite)).toBe(true);
+  const nodeIds = new Set(artifact.nodes.map(({ id }) => id));
+  expect(artifact.samples?.every((id) => nodeIds.has(id))).toBe(true);
+  const sampledIds = new Set(artifact.samples);
+  expect(artifact.nodes.some(({ id, callFrame }) => sampledIds.has(id) && callFrame.url === pathToFileURL(file).href)).toBe(true);
+
+  const assets = verifyDevToolsAssets(join(repoRoot, "tooling/src/snap/lib/devtools-frontend"));
+  const modelAsset = assets.manifest.resources.find(({ url }) => url.endsWith("/models/cpu_profile/cpu_profile.js"));
+  expect(modelAsset).toBeDefined();
+  if (modelAsset === undefined) {
+    throw new Error("The verified DevTools closure has no native CPU profile model");
+  }
+  const profileBytes = await readFile(path);
+  const server = createServer((request, response) => {
+    if (request.method !== "GET") {
+      response.writeHead(405).end();
+    } else if (request.url === "/") {
+      response
+        .writeHead(200, { "content-type": "text/html" })
+        .end('<!doctype html><html lang="en"><title>CPU profile import</title><body><main>Native profile consumer</main></body></html>');
+    } else if (request.url === "/profile.cpuprofile") {
+      response.writeHead(200, { "content-type": "application/json" }).end(profileBytes);
+    } else if (request.url === "/favicon.ico") {
+      response.writeHead(204).end();
+    } else {
+      const resource = assets.filesByUrl.get(request.url ?? "");
+      if (resource === undefined) {
+        response.writeHead(404).end();
+      } else {
+        response.writeHead(200, { "content-type": resource.entry.mimeType }).end(resource.body);
+      }
+    }
+  });
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  try {
+    const address = server.address();
+    if (address === null || typeof address === "string") {
+      throw new Error("The native profile import fixture has no loopback port");
+    }
+    const origin = `http://127.0.0.1:${String(address.port)}`;
+    const modelUrl = `${origin}${modelAsset.url}`;
+    const consumer = await launchProbeSession({
+      headless: true,
+      viewport: { width: 640, height: 480 },
+      colorScheme: null,
+      reducedMotion: false,
+      localStorage: [],
+    });
+    await withProbeSession(consumer, async () => {
+      await consumer.page.goto(origin, { waitUntil: "domcontentloaded" });
+      expect(await consumer.page.locator("main").textContent()).toBe("Native profile consumer");
+      const imported = await consumer.page.evaluate<string>(
+        `(async () => {
+          const vendor = await import(${JSON.stringify(modelUrl)});
+          const profile = await (await fetch("/profile.cpuprofile")).json();
+          const model = new vendor.CPUProfileDataModel.CPUProfileDataModel(profile);
+          if (!Number.isFinite(model.profileStartTime) || !Number.isFinite(model.profileEndTime) || model.profileEndTime <= model.profileStartTime) {
+            throw new Error("Native DevTools imported a non-finite or empty CPU profile window");
+          }
+          if (!model.samples?.length || !model.timestamps.length || !model.timestamps.every(Number.isFinite)) {
+            throw new Error("Native DevTools imported no finite sampled timeline");
+          }
+          return "native-cpu-profile-imported";
+        })()`,
+      );
+      expect(imported).toBe("native-cpu-profile-imported");
+      expect(consumer.pageErrors).toEqual([]);
+    });
+  } finally {
+    await new Promise<void>((resolve, reject) => server.close((error) => (error === undefined ? resolve() : reject(error))));
+  }
 
   const empty = await runCli("snap", ["--file", file, "--cpu-profile", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
   await expect(empty).toExitWith(EXIT.toolError);
   expect(empty.stdout).toContain("CPU PROFILE REFUSED");
   expect(empty.stdout).toContain("no non-pause action");
   expect(empty.stdout).toContain("cpu-profile=REFUSED");
+});
+
+test("CPU stop refusal detaches its native session without closing the owner page", async () => {
+  const { parseSnapArgs } = await import("../../../../tooling/src/snap/index.ts");
+  await withProcessEnv(CDP_FAULT_ENV, "Profiler.stop", async () => {
+    const session = await launchProbeSession({
+      headless: true,
+      viewport: { width: 640, height: 480 },
+      colorScheme: null,
+      reducedMotion: false,
+      localStorage: [],
+    });
+    await withProbeSession(session, async () => {
+      await session.page.setContent(FIXTURE);
+      const openSession = session.context.newCDPSession.bind(session.context);
+      let opened = 0;
+      let closed = 0;
+      session.context.newCDPSession = async (target): Promise<CDPSession> => {
+        const cdp = await openSession(target);
+        opened += 1;
+        cdp.on("close", () => {
+          closed += 1;
+        });
+        return cdp;
+      };
+      const opts = parseSnapArgs(["/", "--cpu-profile", "--click", "#target"]);
+      expect(opts.errors).toEqual([]);
+      const action = opts.actions[0];
+      if (action === undefined) {
+        throw new Error("The CPU refusal control has no parsed action");
+      }
+      const instance = CPU_PROFILE_ARM.lifecycle.begin(session, opts);
+      await instance.beforeAction({ page: session.page, opts, pageIndex: 0, actionIndex: 0, action, navFailuresBefore: 0, stepFailuresBefore: 0 });
+      await session.page.locator("#target").click();
+      await instance.afterActions({ page: session.page, opts, pageIndex: 0 });
+      expect(opened).toBe(1);
+      expect(instance.facts()[0]?.data).toMatchObject({ state: "refused", detail: expect.stringContaining("Profiler.stop") });
+      expect(instance.exit(EXIT.clean)).toBe(EXIT.toolError);
+      await expect.poll(() => closed, { timeout: scaledBudget(5000) }).toBe(1);
+      expect(await session.page.locator("#clean").textContent()).toBe("clean");
+      expect(session.browser.isConnected()).toBe(true);
+    });
+  });
 });
