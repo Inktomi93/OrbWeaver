@@ -9,8 +9,10 @@
 // than a fence: 1 population without it, 2 with it.
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { AUDIT_ARGV, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
+import { AUDIT_ARGV, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
 import { expect, test } from "@orb/testkit/tooling";
+
+configureRelationalCliBudget();
 
 /** Two undersized offered controls in one authored home; `stamp` is what the primitive emits per arm. */
 function toolbar(stamps: readonly [string, string]): string {

@@ -2,9 +2,11 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { RelationalPopulationReport } from "@orb/testkit/node";
-import { AUDIT_ARGV, auditReport, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
+import { AUDIT_ARGV, auditReport, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
 import type { ToolFixtures } from "@orb/testkit/tooling";
 import { expect, test } from "@orb/testkit/tooling";
+
+configureRelationalCliBudget();
 
 test("quiet-state refuses a global comparison between unrelated component families and backdrops", async ({ runCli, scratch }) => {
   await writeFile(
