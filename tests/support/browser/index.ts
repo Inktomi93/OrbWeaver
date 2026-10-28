@@ -15,5 +15,6 @@ export { CtIsolation } from "./ct-isolated-subject.tsx";
 export { isolationRegistry } from "./ct-isolation.ts";
 export { CtProviders } from "./ct-providers.tsx";
 export { SettingsCompositionStory } from "./ct-settings-composition-stories.tsx";
+export { ShellAmbientStory } from "./ct-shell-reads-stories.tsx";
 export { CtShellRoom } from "./ct-shell-room.tsx";
 export { storyTestId } from "./story-test-ids.ts";

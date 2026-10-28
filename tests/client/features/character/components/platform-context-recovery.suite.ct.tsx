@@ -1,6 +1,7 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import { DEFAULT_APPEARANCE_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { THEME_FONT_ALLOWLIST } from "@orb/contracts/theme";
+import type { ShellAmbientStory } from "@orb/testkit/browser";
 import { actionGroupGeometry, seedShellState, settledBox } from "@orb/testkit/browser/spec";
 import type { TrpcRoutes } from "@orb/testkit/ct";
 import { createShellAmbientReads, holdServed, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
@@ -8,9 +9,8 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
-import type { AppShellStory } from "../../app-shell/surfaces/_app-shell-stories.tsx";
 
-const STORY = "tests/client/features/app-shell/surfaces/_app-shell-stories/AppShellStory";
+const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
 const CARD_NAME = "The northern observatory archivist with a long working name";
 const SNAPSHOT_LABEL = "Before the observatory expedition";
 const NO_SNAPSHOTS = "No snapshots yet. Take one to capture this character's current state.";
@@ -125,7 +125,7 @@ test("History's loaded control displays a snapshot from the actual caller", asyn
   const { caller, card, reads } = await prepare(root, page, corpus);
   await caller.character.snapshot({ characterId: card.id, label: SNAPSHOT_LABEL });
   await routeTrpc(page, { ...reads, ...serveCorpusProcedures(caller, ["character.listSnapshots"]) });
-  await mount<typeof AppShellStory>(STORY, {});
+  await mount<typeof ShellAmbientStory>(STORY, {});
   await openCharacterContext(page, "History");
   const context = page.locator('.shell-panel[data-panel-side="context"]');
   await expect(context.getByText(SNAPSHOT_LABEL, { exact: true })).toBeVisible();
@@ -153,7 +153,7 @@ test("History resets a failed read when selecting another character and retries 
       refuse && characterId === card.id ? trpcError({ code: "BAD_REQUEST", message: "The archivist's snapshot read is unavailable." }) : undefined,
     ),
   });
-  await mount<typeof AppShellStory>(STORY, {});
+  await mount<typeof ShellAmbientStory>(STORY, {});
   await openCharacterContext(page, "History");
   const context = page.locator('.shell-panel[data-panel-side="context"]');
   await expect(context.getByRole("button", { name: "Retry", exact: true })).toBeVisible();
@@ -195,7 +195,7 @@ test("Look isolates a failed character's draft on selection without leaking it i
       characterId === card.id ? trpcError({ code: "BAD_REQUEST", message: "The archivist's look cannot be saved." }) : undefined,
     ),
   });
-  await mount<typeof AppShellStory>(STORY, {});
+  await mount<typeof ShellAmbientStory>(STORY, {});
   await openCharacterContext(page, "Look");
   const context = page.locator('.shell-panel[data-panel-side="context"]');
   const font = context.getByRole("combobox", { name: "Font", exact: true });
@@ -228,7 +228,7 @@ for (const regime of REGIMES) {
       const pending = holdServed();
       await routeTrpc(page, { ...reads, ...serveCorpusProcedures(caller, ["character.listSnapshots"], () => pending) });
       try {
-        await mount<typeof AppShellStory>(STORY, {});
+        await mount<typeof ShellAmbientStory>(STORY, {});
         await openCharacterContext(page, "History");
         await pending.requested;
         const context = page.locator('.shell-panel[data-panel-side="context"]');
@@ -258,7 +258,7 @@ for (const regime of REGIMES) {
           return refuse ? trpcError({ code: "BAD_REQUEST", message: "The snapshot read is unavailable in this controlled case." }) : undefined;
         }),
       });
-      await mount<typeof AppShellStory>(STORY, {});
+      await mount<typeof ShellAmbientStory>(STORY, {});
       await openCharacterContext(page, "History");
       await failed.promise;
       const context = page.locator('.shell-panel[data-panel-side="context"]');
@@ -287,7 +287,7 @@ for (const regime of REGIMES) {
         ...serveCorpusProcedures(caller, ["character.update"], () => (intercept ? pending : undefined)),
       });
       try {
-        await mount<typeof AppShellStory>(STORY, {});
+        await mount<typeof ShellAmbientStory>(STORY, {});
         await openCharacterContext(page, "Look");
         const context = page.locator('.shell-panel[data-panel-side="context"]');
         const font = context.getByRole("combobox", { name: "Font", exact: true });
