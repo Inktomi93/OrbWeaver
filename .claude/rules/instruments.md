@@ -52,10 +52,10 @@ contain `|`.
 ## Contrast and accessible-name probes
 
 `getComputedStyle` passes `oklch`/`oklab` through unchanged; normalize color via a canvas `fillStyle`
-round-trip, never an rgb-only regex. A fill-only element (switch thumb, swatch, indicator) can read an
-inherited ink color that equals its fill by coincidence (`tooling/src/snap/lib/contrast-script.ts`);
-use a pixel-surface or design-audit probe for fill-polarity claims — axe/Lighthouse miss it too, since
-neither composites ancestor opacity. Accessible-name order is `rules/browser-tests.md`'s rule; use
+round-trip, never an rgb-only regex. A fill-only element (switch thumb, swatch, indicator) may inherit
+ink unrelated to its painted fill (`tooling/src/snap/lib/contrast-script.ts`). Use a pixel-surface or
+design-audit probe for fill-polarity claims. Axe text-contrast checks composite ancestor and stacking-context
+opacity; they do not establish fill-only glyph or switch-state polarity. Accessible-name order is `rules/browser-tests.md`'s rule; use
 `snap --aria` as the spec-correct source to cross-check against.
 
 ## ui-audit walker
