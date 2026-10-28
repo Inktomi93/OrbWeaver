@@ -5,8 +5,10 @@ import { routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testk
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, createFirstBootHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
+import type { Page } from "@playwright/test";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
+const AUTHORED_NAME = "The observatory archivist";
 const STATES = [
   { kind: "empty", heading: "No characters yet" },
   { kind: "fresh", heading: "Meet your characters" },
@@ -16,6 +18,26 @@ const REGIMES = [
   { name: "desktop", viewport: { width: 1440, height: 1000 }, coarse: false },
   { name: "phone", viewport: { width: 390, height: 844 }, coarse: true },
 ] as const;
+
+async function expectLibraryOutline(page: Page, title: string, hasRecent: boolean): Promise<void> {
+  const content = page.getByRole("main", { name: "Characters content", exact: true });
+  const mainHeading = content.getByRole("heading", { name: title, level: 1, exact: true });
+  await expect(mainHeading).toBeVisible();
+  await expect(content.getByRole("heading", { level: 1 })).toHaveCount(1);
+  await expect(mainHeading).toHaveCSS("font-size", `${await resolvedLength(page, `var(${TOKENS["text.title"].cssVar})`)}px`);
+  await expect(content.getByRole("heading", { name: "Recently chatted", level: 2, exact: true })).toHaveCount(Number(hasRecent));
+  for (const shelf of await content.getByRole("heading", { level: 2 }).all()) {
+    await expect(shelf).toHaveCSS("font-size", `${await resolvedLength(page, `var(${TOKENS["text.micro"].cssVar})`)}px`);
+    await expect(shelf).toHaveCSS("text-transform", "uppercase");
+  }
+  await expect(content.getByRole("heading", { level: 3 })).toHaveCount(0);
+}
+
+async function expectAuthoredCharacterDoor(page: Page, coarse: boolean): Promise<void> {
+  const library = page.getByRole("list", { name: coarse ? "Just added" : "Character library", exact: true });
+  await library.getByRole("button", { name: coarse ? new RegExp(`^${AUTHORED_NAME}, added `, "u") : AUTHORED_NAME, exact: !coarse }).click();
+  await expect(page.getByRole("form", { name: "Edit character", exact: true }).getByRole("textbox", { name: "Name", exact: true })).toHaveValue(AUTHORED_NAME);
+}
 
 for (const regime of REGIMES) {
   test.describe(regime.name, () => {
@@ -29,7 +51,7 @@ for (const regime of REGIMES) {
           await caller.character.create({
             input: createCharacterSchema.parse({
               handle: "library-outline-archivist",
-              name: "The observatory archivist",
+              name: AUTHORED_NAME,
               description: "A newly created character without a conversation or a favorite mark.",
             }),
           });
@@ -57,22 +79,16 @@ for (const regime of REGIMES) {
         if (regime.coarse) {
           await page.getByRole("button", { name: "Show Characters overview", exact: true }).click();
         }
-        const content = page.getByRole("main", { name: "Characters content", exact: true });
-        await expect(content.getByRole("heading", { name: state.heading, exact: true })).toBeVisible();
-        const mainHeading = content.getByRole("heading", { name: state.heading, level: 1, exact: true });
-        await expect(mainHeading).toBeVisible();
-        await expect(content.getByRole("heading", { level: 1 })).toHaveCount(1);
-        await expect(mainHeading).toHaveCSS("font-size", `${await resolvedLength(page, `var(${TOKENS["text.title"].cssVar})`)}px`);
-        await expect(content.getByRole("heading", { name: "Recently chatted", level: 2, exact: true })).toHaveCount(Number(state.kind === "resume"));
-        const shelfHeadings = content.getByRole("heading", { level: 2 });
-        for (const shelf of await shelfHeadings.all()) {
-          await expect(shelf).toHaveCSS("font-size", `${await resolvedLength(page, `var(${TOKENS["text.micro"].cssVar})`)}px`);
-          await expect(shelf).toHaveCSS("text-transform", "uppercase");
-        }
-        await expect(content.getByRole("heading", { level: 3 })).toHaveCount(0);
+        await expect(
+          page.getByRole("main", { name: "Characters content", exact: true }).getByRole("heading", { name: state.heading, exact: true }),
+        ).toBeVisible();
+        await expectLibraryOutline(page, state.heading, state.kind === "resume");
         const screenshot = testInfo.outputPath("library-outline.png");
         await page.screenshot({ path: screenshot });
         await testInfo.attach("library-outline", { path: screenshot, contentType: "image/png" });
+        if (state.kind === "fresh") {
+          await expectAuthoredCharacterDoor(page, regime.coarse);
+        }
       });
     }
   });

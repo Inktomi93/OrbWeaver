@@ -10,8 +10,8 @@
 // APPLICABILITY, NEVER EMPTY ROOMS. A shelf with nothing in it renders NOTHING — no header, no skeleton, no
 // "no starred characters yet" box. The three arms below are the three honest things this pane can be:
 //   · SOMETHING TO RESUME  — the lead + whichever shelves have faces.
-//   · A FRESH INSTALL      — nothing chatted and nothing starred, but cards exist: "Meet your characters" over the
-//                            shipped roster, plus one hint that says the other shelves are coming.
+//   · AN UNUSED LIBRARY    — nothing chatted and nothing starred, but cards exist: "Meet your characters" over
+//                            shipped cards when present, or newest cards when the list is collapsed.
 //   · GENUINELY EMPTY      — no cards at all. One line and the door; a shelf grid would be furniture.
 //
 // #520 / #532 — ONE `New` DOOR ON THE PLANE, and the #446/#520 ruling this file already carried SURVIVES
@@ -71,8 +71,8 @@ const LEAD_GLOSS_DOCKED = "Your library, by who you were talking to. Open anyone
 const LEAD_GLOSS_COLLAPSED = `Your library, by who you were talking to. The list is tucked away — everything you need is here.${LIST_OFF_SCREEN_HINT}`;
 
 const FRESH_GLOSS_DOCKED =
-  "Characters shipped with Orbweaver to talk to, take apart, or use as a starting point. Star the ones you like and they gather here; New at the top of the list makes your own.";
-const FRESH_GLOSS_COLLAPSED = `Characters shipped with Orbweaver to talk to, take apart, or use as a starting point. Star the ones you like and they gather here.${LIST_OFF_SCREEN_HINT}`;
+  "Choose a character in the list to read, edit, or start a chat. Star the ones you like and they gather here; New at the top of the list makes someone new.";
+const FRESH_GLOSS_COLLAPSED = `Choose a character below to read, edit, or start a chat. Star the ones you like and they gather here.${LIST_OFF_SCREEN_HINT}`;
 
 const FRESH_HINT = "Characters you've chatted with show up here under Recently chatted.";
 
@@ -111,6 +111,10 @@ function faceOf(character: CharacterRow, stamp: string | null, caption: string |
     caption,
     lastChatId: character.lastChatId,
   };
+}
+
+function justAddedFacesOf(characters: readonly CharacterRow[]): ShelfFace[] {
+  return characters.slice(0, JUST_ADDED_SHELF_LIMIT).map((character) => faceOf(character, `added ${timeLib.formatRelativeAgo(character.createdAt)}`, null));
 }
 
 /** The Characters CONTENT pane at rest. Its own `QueryBoundary`: the shell does NOT wrap a section's CONTENT
@@ -270,18 +274,21 @@ function EmptyArm({ listOffScreen }: { readonly listOffScreen: boolean }): React
   );
 }
 
-/** THE FRESH INSTALL — cards exist, but nothing has been chatted and nothing starred, so both of the
- *  landing's usual shelves are inapplicable. The roster it CAN show is the one that arrived with the app. */
+/** Authored cards also reach this arm; without shipped cards, a collapsed list needs another real way to open them. */
 function FreshInstallArm({ listOffScreen, newest }: { readonly listOffScreen: boolean; readonly newest: CharacterListPage }): ReactElement {
   const shippedFaces = newest.items.filter((character) => character.provenance === "shipped").map((character) => faceOf(character, null, pitchOf(character)));
   // THE COUNT IS PRINTED ONLY WHEN IT IS A CENSUS. `provenance` is a row field, not a server predicate, so
   // the shipped set is derived over THIS PAGE — which IS the whole library exactly when the census fits in
   // it. Past that the honest label is the bare noun: an un-computable number is never badged.
-  const label = newest.totalCount <= newest.items.length ? `Shipped with Orbweaver · ${String(shippedFaces.length)}` : "Shipped with Orbweaver";
+  const shippedLabel = newest.totalCount <= newest.items.length ? `Shipped with Orbweaver · ${String(shippedFaces.length)}` : "Shipped with Orbweaver";
+  let shelf = shippedFaces.length === 0 ? null : { faces: shippedFaces, label: shippedLabel };
+  if (shelf === null && listOffScreen) {
+    shelf = { faces: justAddedFacesOf(newest.items), label: "Just added" };
+  }
   return (
     <LandingFrame doors={doorsFor(listOffScreen)} gloss={listOffScreen ? FRESH_GLOSS_COLLAPSED : FRESH_GLOSS_DOCKED} title="Meet your characters">
       <Stack gap="section">
-        {shippedFaces.length === 0 ? null : <CharacterShelf door="open" faces={shippedFaces} label={label} legend={null} onOpen={selectCharacter} />}
+        {shelf === null ? null : <CharacterShelf door="open" faces={shelf.faces} label={shelf.label} legend={null} onOpen={selectCharacter} />}
         <Card className="p-row max-inline-(--reading-measure-prose)" outline="dashed" padding="none" tone="clear">
           <Text voice="quiet">{FRESH_HINT}</Text>
         </Card>
@@ -306,12 +313,7 @@ function ResumeArm({
   readonly starredCount: number;
   readonly newestItems: readonly CharacterRow[];
 }): ReactElement {
-  const justAddedFaces = newestItems
-    .slice(0, JUST_ADDED_SHELF_LIMIT)
-    // `formatRelativeAgo`, not `formatDate`: the absolute form is "Aug 30, 2026" — a year of
-    // characters nobody reads at shelf density, on a shelf whose whole claim is RECENCY. The
-    // sentence-relative form is also the one that freezes under `--probe`.
-    .map((character) => faceOf(character, `added ${timeLib.formatRelativeAgo(character.createdAt)}`, null));
+  const justAddedFaces = justAddedFacesOf(newestItems);
   const addedThisWeek = weekLineRows(newestItems, libraryCount);
   return (
     <LandingFrame doors={doorsFor(listOffScreen)} gloss={listOffScreen ? LEAD_GLOSS_COLLAPSED : LEAD_GLOSS_DOCKED} title="Pick up where you left off">
