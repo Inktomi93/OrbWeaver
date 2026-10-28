@@ -9,11 +9,10 @@ import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { ConfirmDialog } from "#components";
-import { useInvalidation, useTRPC } from "#data";
+import { ConfirmDialog, QueryBoundary } from "#components";
+import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { timeLib } from "#lib";
 import { useRestoreCharacter, useSnapshotCharacter } from "../hooks/use-character-context-mutations.ts";
 
@@ -28,9 +27,21 @@ function formatTimestamp(ms: number): string {
 }
 
 export function CharacterHistoryTab({ characterId }: CharacterHistoryTabProps): ReactElement {
+  return (
+    <QueryBoundary
+      key={characterId}
+      fallback={<SkeletonRows count={3} />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="this character's snapshots" onRetry={retry} />}
+    >
+      <HistoryTabBody characterId={characterId} />
+    </QueryBoundary>
+  );
+}
+
+function HistoryTabBody({ characterId }: CharacterHistoryTabProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const snapshotsQuery = useQuery(trpc.character.listSnapshots.queryOptions({ characterId }));
+  const snapshotsQuery = useSuspenseQuery(trpc.character.listSnapshots.queryOptions({ characterId }));
   const snapshot = useSnapshotCharacter({ trpc, invalidation });
   const restore = useRestoreCharacter({ trpc, invalidation });
   const snapshotInFlight = useRef(false);
@@ -50,8 +61,13 @@ export function CharacterHistoryTab({ characterId }: CharacterHistoryTabProps): 
     );
   };
 
+  // Suspense retains cached rows after a failed refetch; the boundary owns that read's Retry too.
+  if (snapshotsQuery.error !== null && !snapshotsQuery.isFetching) {
+    throw snapshotsQuery.error;
+  }
+
   // Reverse-chron (newest first) — the browse-log reading order, independent of the read's own ordering.
-  const rows = (snapshotsQuery.data ?? []).toSorted((a, b) => b.createdAt - a.createdAt);
+  const rows = snapshotsQuery.data.toSorted((a, b) => b.createdAt - a.createdAt);
 
   return (
     <Stack gap="block">

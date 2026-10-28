@@ -38,6 +38,7 @@ import type { ReactElement } from "react";
 import { BackgroundSourceField, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
+import { AutosaveStatus } from "#forms/editor";
 import { notify } from "#lib";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
 import { CharacterThemeForm } from "../hooks/use-character-theme-form.ts";
@@ -160,18 +161,19 @@ function ThemeControls({ characterId, characterName, serverValue }: ThemeControl
 
   return (
     <CharacterThemeForm entityId={characterId} serverValues={characterThemeFormFromOverride(serverValue)} save={save}>
-      {(session): ReactElement => <ThemeControlsBody characterName={characterName} form={session.form} />}
+      {(session): ReactElement => <ThemeControlsBody characterName={characterName} session={session} />}
     </CharacterThemeForm>
   );
 }
 
 interface ThemeControlsBodyProps {
   readonly characterName: string;
-  readonly form: AutosaveSession<CharacterThemeFormValues>["form"];
+  readonly session: AutosaveSession<CharacterThemeFormValues>;
 }
 
 /** The form-bearing theme controls — remounted per character by the boundary's keyed Session. */
-function ThemeControlsBody({ characterName, form }: ThemeControlsBodyProps): ReactElement {
+function ThemeControlsBody({ characterName, session }: ThemeControlsBodyProps): ReactElement {
+  const { form } = session;
   // Reset to global = clear each field to its empty (Inherit) value. The store-subscription driver
   // persists each setFieldValue (D78) — no call-site flush, no reseed (this is
   // a live field edit, not a re-baseline to a server row).
@@ -199,7 +201,10 @@ function ThemeControlsBody({ characterName, form }: ThemeControlsBodyProps): Rea
           clips. Wrapping drops the action group to its own line there and keeps it inline in the wide
           editor. */}
       <Row gap="field" align="center" className="flex-wrap justify-between">
-        <Text voice="label">Theme</Text>
+        <Row gap="field" align="center" className="flex-wrap">
+          <Text voice="label">Theme</Text>
+          <AutosaveStatus state={session.saveState} onRetry={session.retrySave} />
+        </Row>
         <Row gap="field" align="center" className="flex-wrap">
           <StartFromThemeField onPick={startFromTheme} />
           {/* One subscription for both live-override readers: the promote payload IS the unsaved-latest
