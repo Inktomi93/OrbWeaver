@@ -3,7 +3,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { listeningPids } from "@orb/tooling/floor/host/platform";
-import { killPidGroup } from "@orb/tooling/floor/process/proc";
+import { observeProcessGroup } from "@orb/tooling/floor/process/proc";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { describeRunMarkerSweep, sweepRunMarker } from "@orb/tooling/floor/process/run-marker";
 import { doDevDown, stackContext } from "@orb/tooling/stack";
@@ -22,9 +22,14 @@ if (!existsSync(record)) {
   if (!Number.isSafeInteger(pid) || pid <= 1) {
     throw new Error("Invalid contributor process record");
   }
-  killPidGroup(pid, "SIGTERM");
-  await sleep(GRACEFUL_STOP_MS);
-  killPidGroup(pid, "SIGKILL");
+  const tree = observeProcessGroup(pid);
+  if (tree === null) {
+    console.log("Recorded Windows wrapper is absent; descendant termination unverified; checking owned markers and listeners");
+  } else {
+    tree.signal("SIGTERM");
+    await sleep(GRACEFUL_STOP_MS);
+    tree.signal("SIGKILL");
+  }
   const markerFile = join(RUNNER_TEMP, "contributor-dev.marker");
   if (existsSync(markerFile)) {
     const sweep = await sweepRunMarker(readFileSync(markerFile, "utf8").trim());
@@ -46,6 +51,9 @@ if (!existsSync(record)) {
     throw new Error(`owned dev listener cleanup failed with exit ${String(stopped)}`);
   }
   await sleep(LISTENER_SETTLE_MS);
+  if (tree?.alive()) {
+    throw new Error("recorded contributor process tree remains live after teardown");
+  }
   const ports = listeningPids();
   if (ports.kind === "refused") {
     throw new Error(ports.reason);
@@ -55,5 +63,5 @@ if (!existsSync(record)) {
       throw new Error(`dev port ${String(port)} remains bound after teardown`);
     }
   }
-  console.log("STOPPED dev tree; server and Vite ports are free");
+  console.log("STOPPED checkout-owned dev listeners; server and Vite ports are free");
 }

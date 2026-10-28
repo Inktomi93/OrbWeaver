@@ -8,7 +8,8 @@ import type { ExitCode } from "../../floor/cli/exit-contract.ts";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
 import type { ListeningPortsRead } from "../../floor/host/platform.ts";
 import { listeningPids, processGroupId, processInfo } from "../../floor/host/platform.ts";
-import { killPidGroup } from "../../floor/process/proc.ts";
+import type { ProcessGroup, ProcessGroupDeps } from "../../floor/process/proc.ts";
+import { captureProcessGroup, killPidGroup, observeProcessGroup } from "../../floor/process/proc.ts";
 import { escalateStop, settle, TERM_GRACE_BASE_MS } from "../../floor/process/stop-escalation.ts";
 import type { HolderUnknown, LeaderProbes, LeaderRecord, LeaderState, StackContext } from "../contract/types.ts";
 import { leaderVerdict, readLeaderRecord, recordAuthorizesSignal, removeLeaderRecord } from "../lib/leader-record.ts";
@@ -30,6 +31,7 @@ export function result(line: string): void {
  *  through the verb itself. */
 export interface DevPortDeps {
   readonly readPorts: () => ListeningPortsRead;
+  readonly process?: ProcessGroupDeps;
 }
 
 export const REAL_PORT_DEPS: DevPortDeps = { readPorts: () => listeningPids() };
@@ -86,22 +88,34 @@ export function readVerdict(ctx: StackContext): { readonly read: ReturnType<type
   return { read, state: leaderVerdict(read, probes(ctx)) };
 }
 
-function signalGroup(record: LeaderRecord, signal: NodeJS.Signals): void {
-  if (record.pgid !== null && process.platform !== "win32") {
-    killPidGroup(record.pgid, signal);
-    return;
+function recordedGroups(ctx: StackContext, record: LeaderRecord, deps: DevPortDeps): readonly ProcessGroup[] {
+  if ((deps.process?.platform ?? process.platform) !== "win32") {
+    const groups = record.pgid === null ? [record.pid, ...record.children] : [record.pgid];
+    return groups.map((pid) => captureProcessGroup(pid, deps.process));
   }
-  // No process group on win32: each recorded pid's tree is terminated (`taskkill /T`).
-  for (const pid of [record.pid, ...record.children]) {
-    killPidGroup(pid, signal);
+  // Capture every independently owned root before the first termination can remove overlapping descendants.
+  const groups: ProcessGroup[] = [];
+  for (const pid of new Set([record.pid, ...record.children])) {
+    const group = observeProcessGroup(pid, deps.process);
+    if (group !== null) {
+      if (!ownsPid(ctx, pid)) {
+        throw new Error(`recorded Windows process ownership unavailable for pid ${String(pid)}`);
+      }
+      groups.push(group);
+    }
   }
+  return groups;
 }
 
 /** TERM the recorded group, wait, escalate to KILL, wait again. True when the group is empty. */
-async function stopRecordedGroup(record: LeaderRecord): Promise<boolean> {
+async function stopRecordedGroup(record: LeaderRecord, groups: readonly ProcessGroup[]): Promise<boolean> {
   return await escalateStop({
-    signal: (signal) => signalGroup(record, signal),
-    gone: () => !groupHasMembers(record),
+    signal: (signal) => {
+      for (const group of groups) {
+        group.signal(signal);
+      }
+    },
+    gone: () => groups.every((group) => !group.alive()),
     onEscalate: () => log(`group ${groupName(record)} ignored TERM; escalating to KILL`),
   });
 }
@@ -122,13 +136,9 @@ function signalPid(pid: number, signal: NodeJS.Signals): void {
 
 /** Stop a port holder this checkout owns through its group; a holder with no group is signalled alone. */
 function signalHolder(pid: number, signal: NodeJS.Signals): void {
-  const pgid = process.platform === "win32" ? null : processGroupId(pid);
+  const pgid = processGroupId(pid);
   if (pgid === null) {
-    if (process.platform === "win32") {
-      killPidGroup(pid, signal);
-    } else {
-      signalPid(pid, signal);
-    }
+    signalPid(pid, signal);
     return;
   }
   killPidGroup(pgid, signal);
@@ -187,7 +197,20 @@ function waitOutcome(watch: ReturnType<typeof portWatch>, freed: boolean): PortW
 }
 
 /** TERM a holder this checkout owns, wait, escalate to KILL, wait again. */
-async function stopHolder(pid: number, watch: ReturnType<typeof portWatch>): Promise<PortWait> {
+async function stopHolder(pid: number, watch: ReturnType<typeof portWatch>, deps: DevPortDeps): Promise<PortWait> {
+  if ((deps.process?.platform ?? process.platform) === "win32") {
+    const tree = captureProcessGroup(pid, deps.process);
+    return waitOutcome(
+      watch,
+      await escalateStop({
+        signal: tree.signal,
+        gone: () => {
+          const free = watch.free();
+          return watch.lost() !== null || (free && !tree.alive());
+        },
+      }),
+    );
+  }
   return waitOutcome(watch, await escalateStop({ signal: (signal) => signalHolder(pid, signal), gone: watch.free }));
 }
 
@@ -238,7 +261,7 @@ async function sweepPort(ctx: StackContext, port: number, deps: DevPortDeps, pri
     return { kind: "held", holder };
   }
   log(`:${String(port)} is still held by pid ${String(pid)} from this checkout; stopping its group`);
-  return outcomeOf(await stopHolder(pid, watch), holder);
+  return outcomeOf(await stopHolder(pid, watch, deps), holder);
 }
 
 /** The ports after the record: a holder whose command line names this checkout is stopped through its
@@ -264,7 +287,7 @@ async function sweepPorts(ctx: StackContext, deps: DevPortDeps): Promise<PortSwe
 }
 
 /** The record's half of the teardown: the group name for the result line, and whether it is still held. */
-async function stopRecorded(ctx: StackContext, quiet: boolean): Promise<{ readonly group: string; readonly stuck: boolean }> {
+async function stopRecorded(ctx: StackContext, quiet: boolean, deps: DevPortDeps): Promise<{ readonly group: string; readonly stuck: boolean }> {
   const { read, state } = readVerdict(ctx);
   if (read.kind === "corrupt") {
     log(`the record at ${read.path} is malformed; sweeping the ports`);
@@ -278,9 +301,11 @@ async function stopRecorded(ctx: StackContext, quiet: boolean): Promise<{ readon
   }
   const record = read.record;
   const group = groupName(record);
+  const windows = (deps.process?.platform ?? process.platform) === "win32";
+  const groups = windows ? recordedGroups(ctx, record, deps) : undefined;
   if (recordAuthorizesSignal(state) || (state === "departed-with-survivors" && ownsGroup(ctx, record))) {
     log(`stopping group ${group} (${state})`);
-    const gone = await stopRecordedGroup(record);
+    const gone = await stopRecordedGroup(record, groups ?? recordedGroups(ctx, record, deps));
     if (!gone) {
       log(`group ${group} still has members after KILL — manual cleanup required`);
     }
@@ -296,7 +321,7 @@ async function stopRecorded(ctx: StackContext, quiet: boolean): Promise<{ readon
 
 /** The whole teardown. `quiet` skips the "nothing to stop" line for a restart. */
 export async function doDevDown(ctx: StackContext, opts: { readonly quiet?: boolean } = {}, deps: DevPortDeps = REAL_PORT_DEPS): Promise<ExitCode> {
-  const { group, stuck } = await stopRecorded(ctx, opts.quiet === true);
+  const { group, stuck } = await stopRecorded(ctx, opts.quiet === true, deps);
   if (stuck) {
     result(`status=stuck pgid=${group}`);
     return EXIT.violations;

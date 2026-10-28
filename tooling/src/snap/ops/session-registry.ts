@@ -11,8 +11,10 @@ import { adoptRunSlot } from "../../floor/artifacts/artifact-out.ts";
 import { publishRunSlot } from "../../floor/artifacts/artifacts.ts";
 import { pidAlive } from "../../floor/artifacts/run-retention.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
-import { killPidGroup } from "../../floor/process/proc.ts";
+import type { ProcessGroup, ProcessGroupDeps } from "../../floor/process/proc.ts";
+import { observeProcessGroup } from "../../floor/process/proc.ts";
 import { processEnvValue } from "../../floor/process/process-env.ts";
+import { settle } from "../../floor/process/stop-escalation.ts";
 import { waitSync } from "../../floor/process/sync-sleep.ts";
 import type { SessionLimits, SessionRow } from "../contract/session.ts";
 import {
@@ -193,18 +195,6 @@ export function liveSessionNames(root: string): ReadonlySet<string> {
   return new Set(liveRows(sessionRegistryHome(root)).map((row) => row.name));
 }
 
-/** Signal the daemon's whole process group — `spawnFullPriorityChild` is detached, so the daemon leads its own
- *  group and the browser tree rides with it. Through the SYSCALL door (`floor/process/proc.ts` `killPidGroup`)
- *  and never a spawned `kill -SIG -<pgid>`: procps parses that as the pgid's first digit, which with
- *  seven-digit pids is `kill(-1)` — the whole box (#1254, paid by this file on 2026-09-02). A row whose
- *  pgid is not a real group leader (≤ 1) is refused outright: a corrupt row must never become a broadcast. */
-function signalSessionGroup(row: SessionRow, signal: "TERM" | "KILL"): void {
-  if (!Number.isInteger(row.pgid) || row.pgid <= 1) {
-    return;
-  }
-  killPidGroup(row.pgid, signal === "TERM" ? "SIGTERM" : "SIGKILL");
-}
-
 /** Wait for the daemon pid to leave, bounded by the close grace; true when it did. */
 export async function waitForDaemonExit(row: SessionRow, graceMs: number = SESSION_CLOSE_GRACE_MS): Promise<boolean> {
   const deadline = Date.now() + graceMs;
@@ -217,24 +207,18 @@ export async function waitForDaemonExit(row: SessionRow, graceMs: number = SESSI
   return true;
 }
 
-/** Reap a session whose daemon is dead, wedged or being force-closed: TERM the group, KILL it if it lingers
- *  past the grace, drop the socket + row, and SETTLE the session slot's in-flight marker (published with no
- *  aliases — nothing to point at, the ring may prune it) so `abandonedRuns` stops naming it (§3.8). */
-export async function reapSession(home: string, root: string, row: SessionRow): Promise<string> {
+/** Verify the captured tree is gone before settling its session slot (§3.8). A Windows daemon already
+ *  absent before observation permits only explicitly unverified stale-bookkeeping cleanup. */
+export async function reapSession(home: string, root: string, row: SessionRow, processDeps: ProcessGroupDeps = {}): Promise<string> {
   const steps: string[] = [];
-  if (pidAlive(row.daemonPid)) {
-    signalSessionGroup(row, "TERM");
-    if (await waitForDaemonExit(row)) {
-      steps.push(`stopped daemon pid ${row.daemonPid} (group ${row.pgid})`);
-    } else {
-      signalSessionGroup(row, "KILL");
-      steps.push(`killed daemon group ${row.pgid} (did not leave within ${SESSION_CLOSE_GRACE_MS}ms)`);
-    }
+  const windows = (processDeps.platform ?? process.platform) === "win32";
+  const tree = observeProcessGroup(windows ? row.daemonPid : row.pgid, processDeps);
+  if (tree === null) {
+    // A missing Windows daemon has no retained descendant identities; cleaning its registry is not a process-stop verdict.
+    steps.push("stale registry cleaned; descendant termination unverified");
   } else {
-    // The browser tree may outlive a daemon that died — the group signal reaches it whether or not the
-    // leader is gone (ESRCH when nothing is left, which `kill` reports and we do not need).
-    signalSessionGroup(row, "KILL");
-    steps.push(`daemon pid ${row.daemonPid} was already gone; signalled group ${row.pgid}`);
+    await stopSessionTree(tree, row);
+    steps.push(windows ? `force-stopped daemon tree ${row.daemonPid}` : `stopped daemon pid ${row.daemonPid} (group ${row.pgid})`);
   }
   removeSocket(home, row.name);
   removeRow(home, row.name);
@@ -243,6 +227,16 @@ export async function reapSession(home: string, root: string, row: SessionRow): 
     steps.push("settled the session slot's marker");
   }
   return steps.join(", ");
+}
+
+async function stopSessionTree(tree: ProcessGroup, row: SessionRow): Promise<void> {
+  tree.signal("SIGTERM");
+  if (!(await settle(() => !tree.alive(), SESSION_CLOSE_GRACE_MS))) {
+    tree.signal("SIGKILL");
+    if (!(await settle(() => !tree.alive(), SESSION_CLOSE_GRACE_MS))) {
+      throw new Error(`session process tree ${String(row.daemonPid)} remained live after termination`);
+    }
+  }
 }
 
 /** The one-line census `--stage-status` prints (§3.8's third reader): live names, dead names, the remedy. */
