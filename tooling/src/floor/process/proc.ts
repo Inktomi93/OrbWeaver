@@ -6,6 +6,7 @@ import { closeSync, openSync } from "node:fs";
 import process from "node:process";
 import crossSpawn from "cross-spawn";
 import { budget } from "../host/load-budget.ts";
+import { processGroup } from "../host/process-tree.ts";
 import type {
   CaptureCeilingOption,
   ChildExit,
@@ -13,6 +14,8 @@ import type {
   FullPriorityChildOptions,
   NicedChild,
   NicedChildOptions,
+  ProcessGroup,
+  ProcessGroupDeps,
   RunNicedSyncOptions,
   RunNicedSyncResult,
   SpawnNicedOptions,
@@ -34,6 +37,8 @@ export type {
   FullPriorityChildOptions,
   NicedChild,
   NicedChildOptions,
+  ProcessGroup,
+  ProcessGroupDeps,
   RunNicedSyncOptions,
   RunNicedSyncResult,
   SpawnNicedOptions,
@@ -61,32 +66,31 @@ export function platformSpawn(platform: NodeJS.Platform): { readonly spawn: type
 
 const DOORS = platformSpawn(process.platform);
 
-/** Signal a whole process GROUP by its pgid — THE ONE door. Both child doors share it: signalling only the
- *  direct child orphans the real tree (pnpm→node→server, setsid→vllm→EngineCore). Exported for the stage
- *  teardowns (#1254): never spell this as the external `kill -SIG -<pgid>` — procps-ng 4.0.4 parses that
- *  argument by its FIRST DIGIT (`kill -TERM -4570` → `kill(-4)`), so a seven-digit pgid starting in 1
- *  became `kill(-1)` and logged the owner out (2026-09-02). The syscall takes the real negative pgid. */
-export function killPidGroup(pid: number | undefined, signal: NodeJS.Signals): void {
+/** Capture an already-owned process tree before its root exits. Windows uses identity-checked forced termination. */
+export function captureProcessGroup(pid: number, deps: ProcessGroupDeps = {}): ProcessGroup {
+  const tree = observeProcessGroup(pid, deps);
+  if (tree === null) {
+    throw new Error(`process-tree root ${String(pid)} cannot be identified before termination`);
+  }
+  return tree;
+}
+
+/** Null proves only a Windows root is absent; it does not establish that its unobserved descendants stopped. */
+export function observeProcessGroup(pid: number, deps: ProcessGroupDeps = {}): ProcessGroup | null {
+  return processGroup(
+    pid,
+    deps.platform ?? process.platform,
+    deps.run ?? ((command, args): RunNicedSyncResult => runNicedSync(command, args, { timeout: 5000 })),
+    deps.signal ?? process.kill,
+  );
+}
+
+/** Signal an owned process group through the native platform edge. Retain {@link captureProcessGroup} across root exit. */
+export function killPidGroup(pid: number | undefined, signal: NodeJS.Signals, deps: ProcessGroupDeps = {}): void {
   if (typeof pid !== "number") {
     return;
   }
-  if (process.platform === "win32") {
-    // No negative-pid group kill on win32 — `taskkill /T /F` hard-terminates the tree regardless of `signal`.
-    // a failed taskkill means the tree is already gone or never spawned — the desired end state, same as POSIX ESRCH below.
-    try {
-      execFileSync("taskkill", ["/PID", String(pid), "/T", "/F"], { stdio: "ignore" });
-    } catch {
-      // Empty: see the cleanup explanation above.
-    }
-    return;
-  }
-  try {
-    process.kill(-pid, signal);
-  } catch (error) {
-    if (!errnoIs(error, "ESRCH")) {
-      throw error;
-    }
-  }
+  captureProcessGroup(pid, deps).signal(signal);
 }
 
 /** The default child ceiling, LOAD-SCALED through the one policy (#1232
@@ -339,9 +343,17 @@ export function spawnNicedTranscript(cmd: string, args: readonly string[], opts:
     };
     const timer = setTimeout(() => {
       timedOut = true;
-      chunks.push(`\n[proc] TIMED OUT after ${opts.timeoutMs}ms — killed the process group of pid ${child.pid ?? "?"}\n`);
-      killGroup();
-      sweeping = teardown === undefined ? null : teardown.afterTimeoutKill();
+      chunks.push(`\n[proc] TIMED OUT after ${opts.timeoutMs}ms — stopping the process group of pid ${child.pid ?? "?"}\n`);
+      try {
+        killGroup();
+        sweeping = teardown === undefined ? null : teardown.afterTimeoutKill();
+      } catch (error) {
+        chunks.push(`\n[proc] process termination failed: ${String(error)}\n`);
+        child.stdout.destroy();
+        child.stderr.destroy();
+        child.unref();
+        finish(null);
+      }
     }, opts.timeoutMs);
     // THE OPERATOR'S Ctrl-C is the other kill path: without the guard the runner dies, the stage child
     // dies with the terminal, and the browsers stay. The caller's teardown owns that policy.
@@ -411,7 +423,14 @@ export function spawnNiced(cmd: string, args: readonly string[], opts: SpawnNice
       timedOut = true;
       // The GROUP, not the direct child (#1508): a command that forks descendants left them RUNNING after
       // the caller had already seen `timedOut: true`, and those orphans pollute a later run's measurements.
-      killPidGroup(child.pid, "SIGKILL");
+      try {
+        killPidGroup(child.pid, "SIGKILL");
+      } catch (error) {
+        child.stdout.destroy();
+        child.stderr.destroy();
+        child.unref();
+        rejectPromise(error);
+      }
     }, opts.timeoutMs ?? budget(DEFAULT_TIMEOUT_BASE_MS));
     child.on("error", (e) => {
       clearTimeout(timer);

@@ -1,5 +1,21 @@
 // Subprocess option and result types are re-exported through proc.ts so callers keep one process door.
 // tooling-subprocess-import-owner confines runtime subprocess imports to proc; these contracts create no processes.
+/** External process execution and native signal edges used by an owned tree controller. */
+export interface ProcessGroupDeps {
+  readonly platform?: NodeJS.Platform;
+  readonly run?: (command: string, args: readonly string[]) => RunNicedSyncResult;
+  readonly signal?: (pid: number, signal: NodeJS.Signals | 0) => boolean;
+}
+
+/** A retained tree observation, captured before its owned root can exit. */
+export interface ProcessGroup {
+  readonly platform: NodeJS.Platform;
+  readonly signal: (signal: NodeJS.Signals) => void;
+  readonly signalRoot: (signal: NodeJS.Signals) => void;
+  readonly alive: () => boolean;
+  readonly rootAlive: () => boolean;
+}
+
 export interface SpawnNicedOptions {
   readonly cwd?: string;
   readonly env?: Readonly<Record<string, string>>;

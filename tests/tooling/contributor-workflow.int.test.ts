@@ -100,7 +100,7 @@ for (const [scenario, status] of [
       process.on('exit',()=>fs.writeFileSync(process.env.PROOF_PATH,JSON.stringify(events)));
       export const inheritedProcessEnv=()=>({...process.env});
       export const setTimeout=()=>Promise.resolve();
-      export const killPidGroup=(pid,signal)=>events.push(['kill',pid,signal]);
+      export const observeProcessGroup=pid=>({signal:signal=>events.push(['kill',pid,signal]),alive:()=>false});
       export async function sweepRunMarker(marker){events.push(['marker',marker]);return {};}
       export const describeRunMarkerSweep=()=>null;
       export const stackContext=(root)=>({root});

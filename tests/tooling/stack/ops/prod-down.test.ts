@@ -1,70 +1,87 @@
-import process from "node:process";
-import { expect, test } from "@orb/testkit/tooling";
-import { vi } from "vitest";
-import type { DownDeps } from "../../../../tooling/src/stack/ops/prod-down.ts";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { serializeProdRecord } from "../../../../tooling/src/stack/lib/prod-record.ts";
+import { doDown } from "../../../../tooling/src/stack/ops/prod-down.ts";
+import { expect, test } from "./prod-stop-fixtures.ts";
 
-const control = vi.hoisted(() => ({ alive: false }));
-vi.mock("node:timers/promises", () => ({ setTimeout: async () => undefined }));
-// `print` writes to process.stdout; spy the STREAM (a node edge) rather than mocking our own artifacts
-// module — the doctrine's line, and it keeps the real `print` under test.
-vi.spyOn(process.stdout, "write").mockImplementation(() => true);
-// INJECTED, never mocked (Spine-Testing §3): `doDown` takes its ownership verdict and liveness poll as
-// `DownDeps`, so these are supplied through the real seam. The rest of prod-state stays REAL, which is the
-// point — a wholesale module fake would also have replaced the ten symbols this test never steers.
-const deps: DownDeps = {
-  classify: () =>
-    Promise.resolve({
-      record: { pid: 123, pgid: 456, logPath: "/tmp/prod.log", startedAt: new Date(0).toISOString() },
-      classification: { verdict: "ours-unhealthy", reason: "planted owned process" },
-    }) as ReturnType<DownDeps["classify"]>,
-  processAlive: () => control.alive,
-};
-const { doDown } = await import("../../../../tooling/src/stack/ops/prod-down.ts");
+test("identity-gated Windows stop removes the private record only after the captured tree is gone", async ({ stop }) => {
+  expect(await doDown({ port: stop.record.port, process: stop.process, now: stop.now, pause: stop.pause })).toBe(0);
+  expect(stop.state.tasks).toEqual([["/PID", String(stop.record.pid), "/PID", String(stop.leaf.pid), "/F"]]);
+  expect(existsSync(stop.pidfile)).toBe(false);
+  expect(stop.root.hasExited()).toBe(false);
+});
 
-function signalError(code: string): Error & { code: string } {
-  return Object.assign(new Error(`planted ${code} signal failure`), { code });
-}
+test("taskkill permission refusal retains the actual production record", async ({ stop }) => {
+  stop.state.status = 5;
+  stop.state.remove = "none";
+  await expect(doDown({ port: stop.record.port, process: stop.process, now: stop.now, pause: stop.pause })).rejects.toThrow("taskkill failed");
+  expect(stop.state.tasks).toHaveLength(1);
+  expect(readFileSync(stop.pidfile, "utf8")).toBe(stop.original);
+  expect(stop.root.hasExited()).toBe(false);
+});
 
-test("SIGTERM ignores only a vanished process and surfaces permission failures", async () => {
-  control.alive = false;
-  const kill = vi.spyOn(process, "kill").mockImplementation((() => {
-    throw signalError("EPERM");
-  }) as typeof process.kill);
-  try {
-    await expect(doDown(deps)).rejects.toThrow("planted EPERM signal failure");
-  } finally {
-    kill.mockRestore();
+test("POSIX root TERM and group KILL permission refusals retain the actual production record", async ({ stop }) => {
+  for (const refused of ["SIGTERM", "SIGKILL"] as const) {
+    const calls: (readonly [number, string | number])[] = [];
+    await expect(
+      doDown({
+        port: stop.record.port,
+        now: stop.now,
+        pause: stop.pause,
+        process: {
+          platform: "linux",
+          signal: (pid, signal) => {
+            calls.push([pid, signal]);
+            if (signal === refused) {
+              throw Object.assign(new Error(`planted ${refused} permission refusal`), { code: "EPERM" });
+            }
+            return true;
+          },
+        },
+      }),
+    ).rejects.toThrow(`planted ${refused} permission refusal`);
+    expect(calls.filter(([, signal]) => signal !== 0).at(-1)).toEqual([refused === "SIGTERM" ? stop.record.pid : -stop.record.pid, refused]);
+    expect(readFileSync(stop.pidfile, "utf8")).toBe(stop.original);
   }
 });
 
-test("SIGKILL surfaces permission failure instead of reporting a live process stopped", async () => {
-  control.alive = false;
-  const now = vi.spyOn(Date, "now").mockReturnValueOnce(0).mockReturnValue(20_000);
-  let calls = 0;
-  const kill = vi.spyOn(process, "kill").mockImplementation((() => {
-    calls += 1;
-    if (calls === 2) {
-      throw signalError("EPERM");
-    }
-    return true;
-  }) as typeof process.kill);
-  try {
-    await expect(doDown(deps)).rejects.toThrow("planted EPERM signal failure");
-  } finally {
-    kill.mockRestore();
-    now.mockRestore();
+test("unreadable or malformed process observations preserve the actual production record", async ({ stop }) => {
+  for (const observation of [
+    { status: 1, stdout: "[]", stderr: "planted refusal" },
+    { status: 0, stdout: "{}", stderr: "" },
+  ]) {
+    stop.state.observation = observation;
+    await expect(doDown({ port: stop.record.port, process: stop.process, now: stop.now, pause: stop.pause })).rejects.toThrow("observation");
+    expect(readFileSync(stop.pidfile, "utf8")).toBe(stop.original);
   }
+  expect(stop.state.tasks).toEqual([]);
 });
 
-test("down refuses to remove the pidfile or report stopped when the process survives the deadline", async () => {
-  control.alive = true;
-  const now = vi.spyOn(Date, "now").mockReturnValueOnce(0).mockReturnValueOnce(20_000).mockReturnValueOnce(0).mockReturnValue(20_000);
-  const kill = vi.spyOn(process, "kill").mockReturnValue(true);
-  try {
-    await expect(doDown(deps)).rejects.toThrow("pid 123 remained live after the shutdown deadline");
-  } finally {
-    kill.mockRestore();
-    now.mockRestore();
-    control.alive = false;
-  }
+test("a surviving descendant after root termination retains the actual production record", async ({ stop }) => {
+  stop.state.remove = "root";
+  await expect(doDown({ port: stop.record.port, process: stop.process, now: stop.now, pause: stop.pause })).rejects.toThrow("remained live");
+  expect(stop.state.tasks).toEqual([
+    ["/PID", String(stop.record.pid), "/PID", String(stop.leaf.pid), "/F"],
+    ["/PID", String(stop.leaf.pid), "/F"],
+  ]);
+  expect(readFileSync(stop.pidfile, "utf8")).toBe(stop.original);
+});
+
+test("a foreign listener fails the real identity gate before process-tree observation or signaling", async ({ stop }) => {
+  const record = { ...stop.record, pid: stop.leafPid, pgid: stop.leafPid };
+  const text = serializeProdRecord(record);
+  writeFileSync(stop.pidfile, text);
+  expect(await doDown({ port: stop.record.port, process: stop.process })).toBe(1);
+  expect(stop.state.tasks).toEqual([]);
+  expect(readFileSync(stop.pidfile, "utf8")).toBe(text);
+  expect(stop.root.hasExited()).toBe(false);
+});
+
+test("an absent listener cannot delete a record when Windows descendant ownership cannot be established", async ({ stop }) => {
+  stop.root.kill("SIGKILL");
+  await stop.exited;
+  stop.state.rows = stop.state.rows.filter((row) => row.pid !== stop.record.pid);
+  await expect(doDown({ port: stop.record.port, process: stop.process })).rejects.toThrow("cannot be identified");
+  expect(readFileSync(stop.pidfile, "utf8")).toBe(stop.original);
+  expect(stop.state.tasks).toEqual([]);
+  expect(stop.leaf.hasExited()).toBe(false);
 });

@@ -14,7 +14,8 @@ import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { ExitCode } from "../../floor/cli/exit-contract.ts";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
 import { warn } from "../../floor/cli/log.ts";
-import { killPidGroup, spawnFullPriorityChild } from "../../floor/process/proc.ts";
+import type { ProcessGroup, ProcessGroupDeps } from "../../floor/process/proc.ts";
+import { captureProcessGroup, spawnFullPriorityChild } from "../../floor/process/proc.ts";
 import { childExitCode, forwardSignalsTo } from "../../floor/process/proc-signals.ts";
 import { SERVER_ENTRY_REL } from "../../floor/process/server-entry.ts";
 import type { ProdRecord, StackInvocation } from "../contract/types.ts";
@@ -53,76 +54,37 @@ const BOOT_ABORT_GRACE_MS = 5000;
 // Log lines echoed when a boot dies or times out — enough to carry a stack trace, short enough to read.
 const BOOT_FAILURE_LOG_LINES = 20;
 
-function processErrorHasCode(error: unknown, code: string): boolean {
-  return typeof error === "object" && error !== null && "code" in error && error.code === code;
-}
-
-function processGroupAlive(pgid: number): boolean {
-  try {
-    process.kill(-pgid, 0);
-    return true;
-  } catch (error) {
-    if (processErrorHasCode(error, "ESRCH")) {
-      return false;
-    }
-    if (processErrorHasCode(error, "EPERM")) {
-      return true;
-    }
-    throw error;
-  }
-}
-
-function signalFailedSpawn(deps: FailedSpawnDeps, pgid: number, signal: "SIGTERM" | "SIGKILL"): void {
-  try {
-    deps.signalGroup(pgid, signal);
-  } catch (error) {
-    if (!processErrorHasCode(error, "ESRCH")) {
-      throw error;
-    }
-  }
-}
-
-async function waitForFailedSpawnExit(record: ProdRecord, deps: FailedSpawnDeps): Promise<boolean> {
-  const deadline = deps.now() + BOOT_ABORT_GRACE_MS;
-  while (deps.now() < deadline && deps.groupAlive(record.pgid)) {
-    await deps.pause(POLL_INTERVAL_MS);
-  }
-  return !deps.groupAlive(record.pgid);
-}
-
 export interface FailedSpawnDeps {
-  readonly groupAlive: (pgid: number) => boolean;
-  readonly signalGroup: (pgid: number, signal: "SIGTERM" | "SIGKILL") => void;
-  readonly pause: (ms: number) => Promise<void>;
-  readonly now: () => number;
-  readonly readRecord: typeof readRecord;
-  readonly removePidfile: typeof removePidfile;
+  readonly process?: ProcessGroupDeps;
+  readonly pause?: (ms: number) => Promise<void>;
+  readonly now?: () => number;
 }
 
-const REAL_FAILED_SPAWN_DEPS: FailedSpawnDeps = {
-  groupAlive: processGroupAlive,
-  signalGroup: (pgid, signal) => {
-    killPidGroup(pgid, signal);
-  },
-  pause: (ms) => sleep(ms),
-  now: Date.now,
-  readRecord,
-  removePidfile,
-};
+async function waitForFailedSpawnExit(tree: ProcessGroup, deps: FailedSpawnDeps): Promise<boolean> {
+  const now = deps.now ?? Date.now;
+  const deadline = now() + BOOT_ABORT_GRACE_MS;
+  while (now() < deadline && tree.alive()) {
+    await (deps.pause ?? sleep)(POLL_INTERVAL_MS);
+  }
+  return !tree.alive();
+}
 
-/** Stop a server that failed to boot. Its app-owned watchdog and broker inherit the same detached process
- *  group, so one bounded teardown covers the complete production process tree. */
-export async function terminateFailedSpawn(record: ProdRecord, deps: FailedSpawnDeps = REAL_FAILED_SPAWN_DEPS): Promise<void> {
-  signalFailedSpawn(deps, record.pgid, "SIGTERM");
-  if (!(await waitForFailedSpawnExit(record, deps))) {
-    signalFailedSpawn(deps, record.pgid, "SIGKILL");
-    await waitForFailedSpawnExit(record, deps);
+/** Stop an owned failed boot, retaining the pre-exit tree observation until every descendant is gone. */
+export async function terminateFailedSpawn(
+  record: ProdRecord,
+  deps: FailedSpawnDeps = {},
+  tree: ProcessGroup = captureProcessGroup(record.pid, deps.process),
+): Promise<void> {
+  tree.signal("SIGTERM");
+  if (!(await waitForFailedSpawnExit(tree, deps))) {
+    tree.signal("SIGKILL");
+    await waitForFailedSpawnExit(tree, deps);
   }
-  if (deps.groupAlive(record.pgid)) {
-    throw new Error(`production server process group ${record.pgid} remained live after boot-timeout termination`);
+  if (tree.alive()) {
+    throw new Error(`production server process tree ${record.pid} remained live after boot-timeout termination`);
   }
-  if (mayRemovePidfile(deps.readRecord(), record.pid)) {
-    deps.removePidfile();
+  if (mayRemovePidfile(readRecord(), record.pid)) {
+    removePidfile();
   }
 }
 
@@ -221,14 +183,14 @@ async function spawnProd(port: number, debug: boolean, overlay: Readonly<Record<
   }
 }
 
-async function waitForDetachedBoot(record: ProdRecord, plan: ReturnType<typeof buildProdSpawnPlan>, debug: boolean): Promise<ExitCode> {
+async function waitForDetachedBoot(record: ProdRecord, plan: ReturnType<typeof buildProdSpawnPlan>, debug: boolean, tree: ProcessGroup): Promise<ExitCode> {
   const { pid, port } = record;
   const deadline = Date.now() + BOOT_POLL_MAX_MS;
   while (Date.now() < deadline) {
-    if (!processAlive(pid)) {
+    if (!tree.rootAlive()) {
       log("the server EXITED during boot — last log lines:");
       print(tailLog(BOOT_FAILURE_LOG_LINES));
-      await terminateFailedSpawn(record);
+      await terminateFailedSpawn(record, {}, tree);
       result(`mode=prod status=boot-failed log=${plan.logPath}`);
       return EXIT.violations;
     }
@@ -243,7 +205,7 @@ async function waitForDetachedBoot(record: ProdRecord, plan: ReturnType<typeof b
   }
   log(`TIMEOUT after ${BOOT_POLL_MAX_MS / MS_PER_SECOND}s waiting for a verified-healthy instance — last log lines:`);
   print(tailLog(BOOT_FAILURE_LOG_LINES));
-  await terminateFailedSpawn(record);
+  await terminateFailedSpawn(record, {}, tree);
   result(`mode=prod status=boot-timeout pid=${pid} log=${plan.logPath}`);
   return EXIT.violations;
 }
@@ -287,11 +249,12 @@ async function spawnProdLocked(port: number, debug: boolean, overlay: Readonly<R
   writeFileSync(PIDFILE(), serializeProdRecord(record));
   log(`spawned pid ${pid} (NODE_ENV=production node ${SERVER_ENTRY_REL}) — log ${plan.logPath}`);
 
+  const tree = captureProcessGroup(pid);
   try {
-    return await waitForDetachedBoot(record, plan, debug);
+    return await waitForDetachedBoot(record, plan, debug, tree);
   } catch (error) {
     try {
-      await terminateFailedSpawn(record);
+      await terminateFailedSpawn(record, {}, tree);
     } catch (cleanupError) {
       throw failedBootCleanupError(error, cleanupError);
     }
