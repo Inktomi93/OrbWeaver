@@ -1,7 +1,7 @@
 // The shell's topbar on the production registry: the narrow screen name a phone reads, the ⌘K chip's name, the phone
 // row's geometry at the narrowest width, the Characters band's doors moving to the trail while the list is the screen,
 // and an open room's identity: its participants, its name, its chips and the context pane's header on the same horizon.
-import { censusTitle } from "@orb/client/lib";
+import { censusTitle, chatRoomTitle } from "@orb/client/lib";
 import type { ChatId } from "@orb/kit/ids";
 import { pixel, resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, holdCorpusProcedure, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
@@ -245,10 +245,10 @@ async function openNamedRoom(
   page: Page,
   corpus: CorpusPlayback,
   caller: RoomCaller,
-): Promise<{ readonly id: ChatId; readonly title: string; readonly cast: string }> {
+): Promise<{ readonly id: ChatId; readonly title: string; readonly cast: string; readonly screenTitle: string }> {
   const room = namedGroupRoom((await caller.chat.listChats({ limit: 100 })).items);
   await routeRoom(page, corpus, caller);
-  return { id: room.id, title: room.title ?? "", cast: room.participantNames.join(", ") };
+  return { id: room.id, title: room.title ?? "", cast: room.participantNames.join(", "), screenTitle: chatRoomTitle(room.title, room.participantNames) };
 }
 
 /** The title floor resolved in the title group's own font, where `ch` takes its size. */
@@ -275,7 +275,47 @@ function clientWidth(locator: Locator): Promise<number> {
   return locator.evaluate((element) => element.clientWidth);
 }
 
+async function expectPrimaryRoomHeading(page: Page, title: string): Promise<void> {
+  const main = page.getByRole("main", { name: "Chats content", exact: true });
+  await expect(main.getByRole("heading", { level: 1 })).toHaveCount(1);
+  await expect(main.getByRole("heading", { level: 1, name: title, exact: true })).toBeVisible();
+  const surface = main.locator('[data-slot="chat-room-surface"]');
+  await expect(surface).toHaveAccessibleName(title);
+  await expect(surface.getByRole("heading", { level: 1, name: title, exact: true })).toHaveCount(1);
+}
+
 test.describe("an open named group room", () => {
+  test.describe("room heading at 1440", () => {
+    test.use({ viewport: { width: 1440, height: 900 } });
+
+    test("the room keeps its primary heading while the painted rename control is editing and after cancellation", async ({ corpus, mount, page }) => {
+      await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "collapsed", context: "collapsed" } } });
+      const room = await openNamedRoom(page, corpus, await ownerCaller());
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: room.id });
+      await expectPrimaryRoomHeading(page, room.title);
+      const rename = page.getByRole("button", { name: `Rename chat — ${room.cast}, ${room.title}`, exact: true });
+      await rename.click();
+      await expect(page.getByRole("textbox", { name: "Chat name", exact: true })).toBeFocused();
+      await expectPrimaryRoomHeading(page, room.title);
+      await page.keyboard.press("Escape");
+      await expect(rename).toBeFocused();
+      await expectPrimaryRoomHeading(page, room.title);
+    });
+  });
+
+  test.describe("room heading at 390", () => {
+    test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
+
+    test("the room keeps its primary heading when the narrow identity replaces the rich header", async ({ corpus, mount, page }) => {
+      await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "collapsed", context: "collapsed" } } });
+      const room = await openNamedRoom(page, corpus, await ownerCaller());
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: room.id });
+      await expectPrimaryRoomHeading(page, room.title);
+      await expect(page.locator(NARROW_TITLE)).toHaveText(room.screenTitle);
+      await expect(page.locator(WIDE_TITLE)).toBeHidden();
+    });
+  });
+
   test("the creation date describes the rename button and stays available after keyboard cancellation", async ({ corpus, mount, page }) => {
     await page.setViewportSize({ width: 1920, height: 900 });
     await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "collapsed", context: "collapsed" } } });

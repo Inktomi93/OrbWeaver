@@ -14,6 +14,7 @@
 import type { ChatId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Row, Stack, Surface } from "@orb/ui/layout";
+import { Heading } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
@@ -59,6 +60,7 @@ function resolveRoomAnchor(
 
 export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRenderers }: ChatRoomSurfaceProps): ReactElement {
   const chatId = handle.id;
+  const headingId = useId();
   const trpc = useTRPC();
 
   // Sole-character chrome takeover: in a true-solo room, that character's theme override wins at the chat
@@ -125,7 +127,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
           `<Surface>` is display:contents, so nothing in this pane's height chain moves. */}
       <Surface tier="instrument">
         <Stack
-          aria-label={roomLabel}
+          aria-labelledby={headingId}
           // A carried theme that picks a BASE SURFACE paints it (#204 derive law: a surface cannot exist
           // outside the palette — without this the carried scope re-derived every ink against a base the
           // reader never saw, dark carried inks over the app's dark page). Gated to the carried case (the
@@ -143,6 +145,10 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
           role="group"
           tabIndex={-1}
         >
+          {/* The painted identity is a rename action and yields to separate narrow chrome; the room owns a stable heading. */}
+          <Heading level={1} id={headingId} className="sr-only">
+            {roomLabel}
+          </Heading>
           {/* The character strip is presence-at-a-glance for the room's roster — size-gated inside. */}
           <ChatCharacterBar chatId={chatId} />
           {bodyMounted ? (
