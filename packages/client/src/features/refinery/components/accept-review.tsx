@@ -77,9 +77,13 @@ function blockOf(review: ReviewEntry): CompareBlock {
       label,
       body: (
         <Stack gap="tight">
-          <Row align="center" gap="field">
-            <RefineryChip tone="warn">changed since the session started</RefineryChip>
-            <Text voice="gloss">re-confirm which version wins — Keep uses the rewrite, Discard keeps the live text</Text>
+          <Row align="center" className="flex-wrap" gap="field">
+            <RefineryChip tone="warn" wrap={true}>
+              changed since the session started
+            </RefineryChip>
+            <Text className="flex-1 basis-(--width-field-floor) max-inline-(--reading-measure-prose) min-inline-0" voice="gloss">
+              re-confirm which version wins — Keep uses the rewrite, Discard keeps the live text
+            </Text>
           </Row>
           <ConflictPane label="Base — the session pin" text={original} />
           <ConflictPane label="Live — changed under the session" text={live} />
@@ -162,7 +166,14 @@ function QueueRow({
   const label = reviewTargetLabel(review.entry);
   const cleared = isClearedRewrite(review.entry);
   return (
-    <Row align="center" className="py-field" data-queue-state={state} divider={first ? undefined : "top"} data-testid={testId("refineryQueueRow")} gap="field">
+    <Row
+      align="center"
+      className="flex-wrap py-field"
+      data-queue-state={state}
+      divider={first ? undefined : "top"}
+      data-testid={testId("refineryQueueRow")}
+      gap="field"
+    >
       {state === "open" ? (
         // `px-block` matches the ghost button every OTHER row's name is (CONTROL_SIZE `sm`), so the field
         // names line up in one column instead of the open row sitting 12px left of its siblings.
@@ -170,7 +181,7 @@ function QueueRow({
           {label}
         </Text>
       ) : (
-        <Button className="flex-1 justify-start min-inline-0" intent="ghost" onClick={onOpen} size="sm">
+        <Button className="flex-1 basis-auto justify-start max-inline-full min-inline-0" intent="ghost" onClick={onOpen} size="wrap">
           <Text as="span" className="truncate min-inline-0" ink="inherit" voice="label">
             {label}
           </Text>
@@ -180,12 +191,16 @@ function QueueRow({
           </Text>
         </Button>
       )}
-      {review.diverged && state !== "open" ? <RefineryChip tone="warn">changed since the session started</RefineryChip> : null}
+      {review.diverged && state !== "open" ? (
+        <RefineryChip tone="warn" wrap={true}>
+          changed since the session started
+        </RefineryChip>
+      ) : null}
       {state === "open" ? <RefineryChip tone="neutral">open — deciding</RefineryChip> : null}
       {state === "kept" || state === "discarded" ? (
         <>
           <RefineryChip tone={state === "kept" ? "good" : "bad"}>{state}</RefineryChip>
-          <Button intent="ghost" onClick={onOpen} size="sm">
+          <Button intent="ghost" onClick={onOpen} size="wrap">
             reopen
             <Text as="span" className="sr-only">
               {" "}
@@ -196,7 +211,7 @@ function QueueRow({
       ) : null}
       {state === "undecided" ? (
         <>
-          <Button intent="secondary" onClick={(): void => onDecide(false)} size="sm">
+          <Button intent="secondary" onClick={(): void => onDecide(false)} size="wrap">
             Discard
             <Text as="span" className="sr-only">
               {" "}
@@ -204,7 +219,7 @@ function QueueRow({
             </Text>
           </Button>
           {/* The destructive-consent copy travels with the verb, not with the pane it was pressed in. */}
-          <Button intent="secondary" onClick={(): void => onDecide(true)} size="sm">
+          <Button intent="secondary" onClick={(): void => onDecide(true)} size="wrap">
             {cleared ? "Keep (empties field)" : "Keep"}
             <Text as="span" className="sr-only">
               {" "}

@@ -137,7 +137,7 @@ function ProseBody({ anchorId, sectionId, session, stored, onKeepMine }: ProseBo
   return (
     <Section container={true} divider={true} heading={PROSE_SETTINGS_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="block">
-        <Text voice="gloss">
+        <Text voice="gloss" prose={true} className="max-inline-(--reading-measure-prose)">
           The wording the app sends to a model on your behalf — summarizers, the memory writer, and the group turn arbiter. Leave a field blank to use the
           built-in wording (shown as the placeholder). In a shared room, the host's wording is the one that runs. The framings that wrap a turn's own prompt —
           the note frames, the continuation cue, and the group-round nudges — live with your preset's templates, not here.
@@ -255,14 +255,14 @@ function ProseCardFooter({ footer, length, onUseDefault, onKeepMine }: ProseCard
         </Row>
       ) : null}
       {footer.stale ? (
-        <Row gap="field" align="center">
-          <Badge intent="warning" tone="soft" size="sm">
+        <Row gap="field" align="center" className="flex-wrap">
+          <Badge intent="warning" tone="soft" size="sm" className="whitespace-normal max-inline-full">
             The built-in wording was updated
           </Badge>
-          <Button intent="ghost" size="sm" onClick={onUseDefault}>
+          <Button intent="ghost" size="wrap" onClick={onUseDefault}>
             Use the new wording
           </Button>
-          <Button intent="ghost" size="sm" onClick={onKeepMine}>
+          <Button intent="ghost" size="wrap" onClick={onKeepMine}>
             Keep mine
           </Button>
         </Row>

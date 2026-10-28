@@ -14,7 +14,7 @@ import type { AppSettings, LogLevel } from "@orb/contracts/settings";
 import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { QueryBoundary, useFirstBootBox } from "#components";
+import { QueryBoundary, SettingRowGroup, useFirstBootBox } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQueries, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
@@ -26,7 +26,7 @@ import { RestartServerControl } from "./restart-server-control.tsx";
 
 /** The section's own suspense/error boundary — it reads for itself, so it must recover for itself. */
 export function OperationsSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
-  const firstBootBox = useFirstBootBox({ wide: 4, narrow: 6 });
+  const firstBootBox = useFirstBootBox({ wide: 5, narrow: 6 });
   return (
     // RESERVED (#1098) — an admin settings section that settles into an override knob stack.
     <QueryBoundary
@@ -62,24 +62,28 @@ function OperationsBody({ anchorId, sectionId }: { readonly anchorId: string; re
   return (
     <Section container={true} divider={true} heading={OPERATIONS_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="field">
-        <Text voice="gloss">Indexing and log level apply live — no restart needed.</Text>
-        <AdminOverrideSwitch
-          label="Background corpus indexing"
-          hint="Keep the library's embedding index up to date in the background as content changes."
-          value={resolved.corpusAutoindex}
-          overridden={autoindexOverridden}
-          floorLabel={envFloor(autoindexOverridden, resolved.corpusAutoindex ? "on" : "off")}
-          onSet={(next): void => write({ corpusAutoindex: next })}
-        />
-        <AdminOverrideSelect
-          label="Log level"
-          hint="Server log verbosity. Applied live — no restart needed."
-          value={resolved.logLevel}
-          items={LOG_LEVEL_ITEMS}
-          overridden={logLevelOverridden}
-          floorLabel={envFloor(logLevelOverridden, resolved.logLevel)}
-          onSet={(next): void => write({ logLevel: next as LogLevel })}
-        />
+        <Text voice="gloss" prose={true} className="max-inline-(--reading-measure-prose)">
+          Indexing and log level apply live — no restart needed.
+        </Text>
+        <SettingRowGroup>
+          <AdminOverrideSwitch
+            label="Background corpus indexing"
+            hint="Keep the library's embedding index up to date in the background as content changes."
+            value={resolved.corpusAutoindex}
+            overridden={autoindexOverridden}
+            floorLabel={envFloor(autoindexOverridden, resolved.corpusAutoindex ? "on" : "off")}
+            onSet={(next): void => write({ corpusAutoindex: next })}
+          />
+          <AdminOverrideSelect
+            label="Log level"
+            hint="Server log verbosity. Applied live — no restart needed."
+            value={resolved.logLevel}
+            items={LOG_LEVEL_ITEMS}
+            overridden={logLevelOverridden}
+            floorLabel={envFloor(logLevelOverridden, resolved.logLevel)}
+            onSet={(next): void => write({ logLevel: next as LogLevel })}
+          />
+        </SettingRowGroup>
         <AdminOverrideResetRow
           anyOverridden={autoindexOverridden || logLevelOverridden}
           saving={save.isPending}

@@ -119,7 +119,7 @@ const NON_ARM_FLAG_SUMMARIES: Readonly<Record<string, NonArmFlagMeta>> = {
   "--reduced-motion": { group: "Environment", summary: "emulate the OS prefers-reduced-motion media query (not the app's own setting)" },
   "--appearance": { group: "Environment", summary: "deep-merge appearance keys over the real settings response; nothing is written" },
   "--appearance-preset": { group: "Environment", summary: "a curated appearance profile" },
-  "--full-motion": { group: "Environment", summary: "render with the app's own reduce-motion setting OFF" },
+  "--full-motion": { group: "Environment", summary: "use the app's system motion setting (OS preference still applies)" },
   "--theme": { group: "Environment", summary: "render as if that theme were selected; none = no selection" },
   "--cold-start": { group: "Where", summary: "bounded cold bootstrap on the captured document; waits for the normal readiness marker" },
   "--idle": { group: "Reach", summary: "bounded network-idle settle instead of the default fixed mount settle" },

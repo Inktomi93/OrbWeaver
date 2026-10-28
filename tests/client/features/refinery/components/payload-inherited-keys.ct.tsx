@@ -15,7 +15,7 @@ function row(path: string, extra: Partial<ForgeDesignEnvelope["fields"][number]>
 }
 
 // The forge lands any identifier as a field name, so an omitted optional field can share a name with an inherited object member.
-test("an omitted field named like an inherited object member renders as absent at every payload depth", async ({ corpus, mount, page }) => {
+test("an omitted field named like an inherited object member renders as absent at every payload depth", async ({ corpus, corpusViewer, mount, page }) => {
   const design: ForgeDesignEnvelope = {
     name: "inherited_names",
     description: "fields named like object members",
@@ -49,8 +49,8 @@ test("an omitted field named like an inherited object member renders as absent a
     payload: { overallScore: 6, summary: "A readable card", meta: { kept: "present" }, mood: "constructor", issues: [{ note: "first note" }] },
   });
   await routeTrpc(page, {
-    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpus.reads["settings.getUserSettings"]),
-    "sessions.me": createCorpusReadResponder("sessions.me", corpus.reads["sessions.me"]),
+    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpusViewer.userId, corpus.reads["settings.getUserSettings"]),
+    "sessions.me": createCorpusReadResponder("sessions.me", corpusViewer.userId, corpus.reads["sessions.me"]),
   });
   await mount<typeof PayloadOwnerStory>("tests/client/features/refinery/components/_payload-stories/PayloadOwnerStory", { run });
 

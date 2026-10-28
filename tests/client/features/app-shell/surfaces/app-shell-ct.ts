@@ -2,19 +2,23 @@
 // In-page probes live in `@orb/testkit/browser/spec`, where their browser callbacks typecheck.
 import type { TrpcRecorder } from "@orb/testkit/ct";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
-import type { CorpusWire } from "@orb/testkit/iso";
+import type { CorpusPlayback } from "@orb/testkit/iso";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 
 type ServedPath = Parameters<typeof serveCorpusProcedures>[1][number];
+type Caller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
 
 /** Home's captured reads, plus every listed procedure answered by `caller`, a corpus root's internal caller. */
-export function routeShell(page: Page, corpus: CorpusWire, caller: object, served: readonly ServedPath[]): Promise<TrpcRecorder> {
-  return routeTrpc(page, { ...createShellAmbientReads(corpus), ...serveCorpusProcedures(caller, served) });
+export async function routeShell(page: Page, corpus: CorpusPlayback, caller: Caller, served: readonly ServedPath[]): Promise<TrpcRecorder> {
+  const viewer = await caller.sessions.me();
+  return routeTrpc(page, { ...createShellAmbientReads(corpus, viewer.userId), ...serveCorpusProcedures(caller, served) });
 }
 
 /** Home's captured reads plus the section set and an open room's reads, each answered by `caller`. */
-export function routeRoom(page: Page, corpus: CorpusWire, caller: object): Promise<TrpcRecorder> {
-  return routeTrpc(page, { ...createShellAmbientReads(corpus), ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...ROOM_PROCEDURES]) });
+export async function routeRoom(page: Page, corpus: CorpusPlayback, caller: Caller): Promise<TrpcRecorder> {
+  const viewer = await caller.sessions.me();
+  return routeTrpc(page, { ...createShellAmbientReads(corpus, viewer.userId), ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...ROOM_PROCEDURES]) });
 }
 
 /** The first room of a `chat.listChats` page the user named, with more than one character seated. */

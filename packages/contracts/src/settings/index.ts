@@ -19,6 +19,7 @@ import { ipCertificateSettingSchema } from "#identity";
 import type { ExtractionMode, MultimodalCaptionMode } from "#imagery";
 import { IMAGERY_CAPTION_SLOT_IDS, IMAGERY_TEMPLATE_SLOT_IDS } from "#imagery";
 import { attachmentQualitySchema, PROMPT_CACHE_DEPTH_CEIL } from "#inference";
+import { pluginSurfaceIdSchema } from "#plugin";
 import { legacyProseOverrides, proseOverridesSchema, proseOverridesViewSchema, resolveProseText } from "#prose";
 import { memoryRetrievalModeSchema } from "#search";
 import { DATABANK_UPLOAD_MAX_BYTES } from "#uploads";
@@ -685,6 +686,7 @@ const profileSchema = z
     avatarAssetId: z.string().nullable().optional(),
     // Plugins whose chat panels this user hid, in every room. Element-wise: one stale element costs itself only.
     hiddenChatPluginIds: tolerantArray(typeIdSchema(ID_PREFIX.plugin), []).default([]),
+    sidecarChatPluginSurfaces: tolerantArray(z.object({ pluginId: typeIdSchema(ID_PREFIX.plugin), surfaceId: pluginSurfaceIdSchema }), []).default([]),
     // The inline plugin flank is collapsed: the header icon folds the column away so the transcript takes its width.
     flankCollapsed: z.boolean().catch(false).default(false),
   })

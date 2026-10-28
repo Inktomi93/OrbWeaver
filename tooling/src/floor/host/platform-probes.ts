@@ -1,6 +1,5 @@
-// THE PLATFORM MODULE'S LEAF (`platform.ts` is the rest): every `/proc` and `/sys` read, including the cgroup
-// quota files the load budget needs and the `/proc/net/tcp{,6}` socket table Linux falls back to without `ss`. It imports nothing from `proc.ts` or `load-budget*`, because the load
-// budget sits under the process doors (proc.ts takes its timeouts from it) and reads these files through here.
+// Linux process, socket and quota reads stay below the platform adapters and process-priority budget.
+// Importing proc or load-budget here would cycle through the process doors that consume this data.
 import { readdirSync, readFileSync, readlinkSync } from "node:fs";
 import { constants } from "node:os";
 import process from "node:process";

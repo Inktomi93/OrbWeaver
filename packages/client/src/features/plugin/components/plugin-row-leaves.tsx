@@ -147,7 +147,7 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
   };
 
   return (
-    <Row align="center" gap="field" justify="start">
+    <Row align="center" className="flex-wrap" gap="field" justify="start">
       <Button
         aria-label={`Check ${plugin.name} for updates`}
         intent="secondary"
@@ -158,13 +158,14 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
           // catching internally.
           void runCheck().catch(() => undefined);
         }}
-        size="sm"
+        size="wrap"
       >
         {CHECK_FOR_UPDATES_LABEL}
       </Button>
       {verdict.kind === "available" ? (
         <Button
           aria-label={verdict.ariaLabel}
+          className="wrap-anywhere max-inline-full"
           intent="primary"
           loading={upgradeStored.isPending || upgradeShowcase.isPending || upgradeGit.isPending}
           onClick={(): void => {
@@ -173,7 +174,7 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
             // if applyUpgrade stops catching internally.
             void applyUpgrade().catch(() => undefined);
           }}
-          size="sm"
+          size="wrap"
         >
           {verdict.label}
         </Button>

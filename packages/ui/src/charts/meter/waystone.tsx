@@ -134,8 +134,7 @@ function useDocumentVisible(): boolean {
 /** The waystone — a pure-SVG decorative composite; pair it with the band's text lines (the datum). */
 export function Waystone({ clock, weather = null, className }: WaystoneProps): ReactElement {
   const uid = useId();
-  // An unset stone has no layers to carry, so it drops a size step (variants.ts) — the compressed band's
-  // stone (HUD-1 §7.3), derived from the datum rather than dictated by the band.
+  // An unset clock carries no layered reading, so variants.ts gives it the smallest display step (D119).
   const slots = waystoneVariants({ unset: clock === null });
   const visible = useDocumentVisible();
   const treatment = clock === null ? null : resolveWaystoneTreatment(clock.hour + clock.minute / MINUTES_IN_HOUR, weather);

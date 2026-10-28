@@ -7,16 +7,16 @@
       "ui.js": "b17ba5d6eaa91ce1daebfc19d93e25302a3cc955eee054e58c3c1eef860ac107"
     },
     "card-atlas": {
-      "main.js": "05b795b2529262c30df65c81082205827abaf68a04100c92bd3387055d0ca289",
-      "manifest.json": "0572bc4be88e568032f237b1b39fbf07af37ed96dcd7a620e0500e8fbeb08442"
+      "main.js": "ff947381eb777bbdd447ac3e5d1ca0bdc7e75bab35686b2303cf850b1b43a09f",
+      "manifest.json": "2e10d193aa13a32e39288eed9823dd65564c822cb277a29f10d42915d2c9188d"
     },
     "draft-polish": {
       "main.js": "10d62b54d74dfa7e586893bb9550ea7d46545662981e08d938d87478adb51ac8",
       "manifest.json": "07c6c7a278404b59c44b6122aa708f3bb5fe522e1d942b98cba239dc1447c3d5"
     },
     "keepsake-camera": {
-      "main.js": "6ae970010f60513fc3b01a57a82b99291a3a631391978c24125102d14ed23cc1",
-      "manifest.json": "83ad71261054a5f14e33a5c0b1450f0ba5c2a1fac3e8358cb6d9c96e171c50e3"
+      "main.js": "5eae398df2f596bddbac3ee6a46c6d42dd31a9cc15774c4ad2e7b7c2c6c91fba",
+      "manifest.json": "aa75117db9699c40186d7f582b8187c6dfec639286bd0e87e5e715371302e903"
     },
     "oracle-deck": {
       "main.js": "679b0b11d21ebb30de62add8a572ec1f2b2576355ad3fedf22a05983d0c8149d",

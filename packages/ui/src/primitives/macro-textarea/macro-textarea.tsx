@@ -1,5 +1,5 @@
 import MiniSearch from "minisearch";
-import type { ChangeEvent, KeyboardEvent, ReactElement, ReactNode } from "react";
+import type { ChangeEvent, ComponentProps, KeyboardEvent, ReactElement, ReactNode } from "react";
 import { useId, useRef, useState } from "react";
 import { cn } from "#lib";
 import { Textarea } from "#primitives/textarea";
@@ -33,7 +33,7 @@ export interface MacroSuggestion {
   insertTemplate?: string;
 }
 
-export interface MacroTextareaProps {
+export interface MacroTextareaProps extends Pick<ComponentProps<typeof Textarea>, "aria-describedby"> {
   value: string;
   onChange: (next: string) => void;
   onBlur?: () => void;
@@ -182,12 +182,15 @@ export function MacroTextarea({
   maxLength,
   helper,
   "aria-label": ariaLabel,
+  "aria-describedby": ariaDescribedBy,
 }: MacroTextareaProps): ReactElement {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [trigger, setTrigger] = useState<MacroTrigger | null>(null);
   const [highlight, setHighlight] = useState(0);
   const [argHint, setArgHint] = useState<MacroSuggestion | null>(null);
   const listboxId = useId();
+  const helperId = useId();
+  const describedBy = [ariaDescribedBy, helper === undefined ? undefined : helperId].filter(Boolean).join(" ");
 
   const suggestionsList = resolveSuggestions(trigger, suggestions);
 
@@ -270,6 +273,7 @@ export function MacroTextarea({
         aria-autocomplete="list"
         aria-controls={open ? listboxId : undefined}
         aria-label={ariaLabel}
+        {...(describedBy === "" ? {} : { "aria-describedby": describedBy })}
         data-slot="macro-textarea-control"
         disabled={disabled}
         // mergeProps treats an explicit key as an override even when undefined — a bare id={id}
@@ -347,7 +351,7 @@ export function MacroTextarea({
         </p>
       ) : null}
       {helper === undefined ? null : (
-        <p className={slots.helper()} data-slot="macro-textarea-helper">
+        <p className={slots.helper()} data-slot="macro-textarea-helper" id={helperId}>
           {helper}
         </p>
       )}

@@ -27,6 +27,7 @@ import {
 } from "#state";
 import { useArtViewer } from "../hooks/art-viewer-context.tsx";
 import { AttachmentUrlProvider } from "../hooks/attachment-url-provider.tsx";
+import { useArtControl } from "../hooks/use-art-control.ts";
 import { useEnterMotion } from "../hooks/use-enter-motion.ts";
 import { resolveRowAttribution, speakerThemesByName } from "../lib/attribution.ts";
 import { avatarTreatmentFor } from "../lib/avatar-treatment.ts";
@@ -182,6 +183,7 @@ export function MessageRow({
   const columnRef = useRef<HTMLDivElement>(null);
   const arrival = useEnterMotion(enterMotion);
   const viewArt = useArtViewer();
+  const artControl = useArtControl();
   useEffect(() => {
     if (!appearanceMessageRegistryEnabled()) {
       return;
@@ -303,6 +305,7 @@ export function MessageRow({
     gutterRail,
     mirrored,
     viewArt,
+    artControl,
   });
   const weldedAvatar = avatarTreatment === "sticky-portrait" ? avatarNode : null;
   const leadingAvatar = weldedAvatar !== null || mirrored ? null : avatarNode;
@@ -405,7 +408,7 @@ export function MessageRow({
                   speakerThemes,
                   narratorVoiced: isNarratorVoiced(message.kind),
                   editing,
-                  artView: artViewFor(viewArt, attribution),
+                  artView: artViewFor(viewArt, attribution, artControl),
                   onArtFailed: setArtFailed,
                 })}
               </>,

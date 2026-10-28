@@ -17,7 +17,7 @@ import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { QueryBoundary, useFirstBootBox } from "#components";
+import { QueryBoundary, SettingRowGroup, useFirstBootBox } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
@@ -52,7 +52,7 @@ function toBytes(draft: string): number | null {
 
 /** The section's own suspense/error boundary — it reads for itself, so it must recover for itself. */
 export function MediaTrustSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
-  const firstBootBox = useFirstBootBox({ wide: 5, narrow: 9 });
+  const firstBootBox = useFirstBootBox({ wide: 8, narrow: 10 });
   return (
     // RESERVED (#1098) — an admin settings section that settles into an override knob stack.
     <QueryBoundary
@@ -103,46 +103,50 @@ function MediaTrustBody({ anchorId, sectionId }: { readonly anchorId: string; re
   return (
     <Section container={true} divider={true} heading={MEDIA_TRUST_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="field">
-        <Text voice="gloss">Deployment-wide content-render gates. A per-character override may TIGHTEN these, never loosen them.</Text>
-        <AdminOverrideSwitch
-          label="Block external media"
-          hint="Stops chat content from loading images and other media from the internet, which also blocks tracking pixels. It applies to everyone and takes effect when a tab reloads."
-          value={resolved.forbidExternalMedia}
-          overridden={forbidOverridden}
-          floorLabel={envFloor(forbidOverridden, resolved.forbidExternalMedia ? "on" : "off")}
-          onSet={(next): void => write({ forbidExternalMedia: next })}
-        />
-        <AdminOverrideSwitch
-          label="Render rich HTML as trusted"
-          hint="How messages look for characters set to “Inherit default” while interactive cards are off: on shows styled messages, off shows plain text. A character's own Trust tab choice still wins."
-          value={resolved.trustHtml}
-          overridden={trustOverridden}
-          floorLabel={envFloor(trustOverridden, resolved.trustHtml ? "on" : "off")}
-          onSet={(next): void => write({ trustHtml: next })}
-        />
-        {/* The html-trust ladder's TOP rung, deployment half. ON by default (owner ruling) and deliberately
+        <Text voice="gloss" prose={true} className="max-inline-(--reading-measure-prose)">
+          Deployment-wide content-render gates. A per-character override may TIGHTEN these, never loosen them.
+        </Text>
+        <SettingRowGroup>
+          <AdminOverrideSwitch
+            label="Block external media"
+            hint="Stops chat content from loading images and other media from the internet, which also blocks tracking pixels. It applies to everyone and takes effect when a tab reloads."
+            value={resolved.forbidExternalMedia}
+            overridden={forbidOverridden}
+            floorLabel={envFloor(forbidOverridden, resolved.forbidExternalMedia ? "on" : "off")}
+            onSet={(next): void => write({ forbidExternalMedia: next })}
+          />
+          <AdminOverrideSwitch
+            label="Render rich HTML as trusted"
+            hint="How messages look for characters set to “Inherit default” while interactive cards are off: on shows styled messages, off shows plain text. A character's own Trust tab choice still wins."
+            value={resolved.trustHtml}
+            overridden={trustOverridden}
+            floorLabel={envFloor(trustOverridden, resolved.trustHtml ? "on" : "off")}
+            onSet={(next): void => write({ trustHtml: next })}
+          />
+          {/* The html-trust ladder's TOP rung, deployment half. ON by default (owner ruling) and deliberately
             the loudest hint in this section: switching it off is the only box-wide control over the WebRTC
             beacon the grant opens, which no Content-Security-Policy directive can close. Each viewer can
             also turn card scripts off for themselves (`UserSettings.chat.runCardScripts`). */}
-        <AdminOverrideSwitch
-          label="Let interactive cards run their own scripts"
-          hint="On by default. Cards from characters set to “Interactive” or “Inherit default” can run scripts in a sealed frame: no cookies, no storage, no access to the app or to other cards. A script can still tell its author that you viewed it, and your IP address. Turn this off to stop all cards from running scripts. A card already on screen stops the next time it loads. Any character can be switched to Rich HTML on its Trust tab."
-          value={resolved.allowInteractiveCards}
-          overridden={interactiveOverridden}
-          floorLabel={envFloor(interactiveOverridden, resolved.allowInteractiveCards ? "on" : "off")}
-          onSet={(next): void => write({ allowInteractiveCards: next })}
-        />
-        <AdminOverrideField
-          label="Max generated-image download (MB)"
-          hint="Byte cap for a generated-image download fetched from a provider URL. Raise it for high-res models."
-          value={maxImageDraft}
-          onChange={setMaxImageDraft}
-          overridden={capOverridden}
-          floorValue={envFloor(capOverridden, resolved.maxImageBytes / BYTES_PER_MB)}
-          min={MAX_IMAGE_MB_MIN}
-          max={MAX_IMAGE_MB_MAX}
-          step={MAX_IMAGE_MB_STEP}
-        />
+          <AdminOverrideSwitch
+            label="Let interactive cards run their own scripts"
+            hint="On by default. Cards from characters set to “Interactive” or “Inherit default” can run scripts in a sealed frame: no cookies, no storage, no access to the app or to other cards. A script can still tell its author that you viewed it, and your IP address. Turn this off to stop all cards from running scripts. A card already on screen stops the next time it loads. Any character can be switched to Rich HTML on its Trust tab."
+            value={resolved.allowInteractiveCards}
+            overridden={interactiveOverridden}
+            floorLabel={envFloor(interactiveOverridden, resolved.allowInteractiveCards ? "on" : "off")}
+            onSet={(next): void => write({ allowInteractiveCards: next })}
+          />
+          <AdminOverrideField
+            label="Max generated-image download (MB)"
+            hint="Byte cap for a generated-image download fetched from a provider URL. Raise it for high-res models."
+            value={maxImageDraft}
+            onChange={setMaxImageDraft}
+            overridden={capOverridden}
+            floorValue={envFloor(capOverridden, resolved.maxImageBytes / BYTES_PER_MB)}
+            min={MAX_IMAGE_MB_MIN}
+            max={MAX_IMAGE_MB_MAX}
+            step={MAX_IMAGE_MB_STEP}
+          />
+        </SettingRowGroup>
         <AdminOverrideResetRow
           dirty={dirty}
           anyOverridden={anyOverridden}

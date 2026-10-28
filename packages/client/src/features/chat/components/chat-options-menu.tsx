@@ -17,7 +17,7 @@
 
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
-import { ArrowLeft, Icon, LayoutGrid, ListChecks, Menu as MenuIcon, MessagesSquare, Pencil, Swords, X } from "@orb/ui/icons";
+import { ArrowLeft, Icon, LayoutGrid, ListChecks, Menu as MenuIcon, MessagesSquare, Pencil, Settings, Swords, X } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { MenuItem, MenuPopup, MenuSeparator, MenuSubmenuRoot, MenuSubmenuTrigger } from "@orb/ui/menu";
 import { Text } from "@orb/ui/text";
@@ -204,9 +204,11 @@ export interface ChatOptionsMenuProps {
   readonly characters: readonly ChatOptionsCharacter[];
   /** The characters whose gallery the viewer owns (`ChatDetail.viewerOwnedCharacterIds`): the gallery rows. */
   readonly galleryCharacters: readonly ChatOptionsCharacter[];
+  /** Opens the existing room settings, only for the host of a group chat. */
+  readonly onGroupSettings?: (() => void) | undefined;
 }
 
-export function ChatOptionsMenu({ chatId, title, characters, galleryCharacters }: ChatOptionsMenuProps): ReactElement {
+export function ChatOptionsMenu({ chatId, title, characters, galleryCharacters, onGroupSettings }: ChatOptionsMenuProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const gameModeActions = useGameModeActions(chatId);
@@ -293,13 +295,17 @@ export function ChatOptionsMenu({ chatId, title, characters, galleryCharacters }
         {/* The #40/#862 GAME-MODE toggle — on/off at ANY time, in its own separator group. */}
         <GameMenuSection chatId={chatId} actions={gameModeActions} />
 
+        {onGroupSettings === undefined ? null : (
+          <MenuItem onClick={onGroupSettings}>
+            <Icon icon={Settings} size="sm" />
+            Chat settings
+          </MenuItem>
+        )}
+
         {/* #41 consolidation — Continue/Regenerate/Impersonate moved to the composer WAND (the
             guided-actions home; composer text optional there). The ⋯ menu keeps only actions with no
             wand/panel home. */}
-        {/* IA de-dup (owner rule: an option that has a CONTEXT-panel home does NOT belong in the three dots).
-            Removed here because each is already a context-panel tab/section: Chat settings (Settings tab),
-            Preview request (Preview tab), Injections (Injections tab), and Invite / Hand off host / Leave
-            (all in the Members tab's roster admin). Message selection has NO panel home, so it stays. */}
+        {/* Configuration stays in Context; Chat settings navigates there without duplicating its controls. */}
         {/* `ListChecks` is the house's EXISTING selection-mode glyph — the config collection band's bulk-select
             toggle wears it (`config-list-collection-group.tsx`), and one verb takes one glyph. This item was the
             only one in the menu with no icon (#869), leaving a hole in the glyph column directly under the game

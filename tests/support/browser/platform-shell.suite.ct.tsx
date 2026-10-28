@@ -21,8 +21,8 @@ const NOTCH_INSET = 47;
 const HOME_INDICATOR_INSET = 34;
 const CLEAN_MEDIA = { media: "screen", reducedMotion: "no-preference", colorScheme: "no-preference", forcedColors: "none", contrast: "no-preference" } as const;
 
-test.beforeEach(async ({ corpus, page }) => {
-  await routeTrpc(page, createShellAmbientReads(corpus));
+test.beforeEach(async ({ corpus, corpusViewer, page }) => {
+  await routeTrpc(page, createShellAmbientReads(corpus, corpusViewer.userId));
 });
 
 test.afterEach(async ({ page }) => {

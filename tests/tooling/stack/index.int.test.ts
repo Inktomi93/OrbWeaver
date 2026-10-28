@@ -99,8 +99,8 @@ async function freePort(): Promise<number> {
   return address.port;
 }
 
-async function portRefuses(port: number): Promise<boolean> {
-  const socket = connect(port, "127.0.0.1");
+async function portRefuses(port: number, host: string): Promise<boolean> {
+  const socket = connect(port, host);
   try {
     await once(socket, "connect");
     return false;
@@ -141,6 +141,7 @@ test("up writes the record under STACK_RUN_DIR, and down finds the live stack by
   mkdirSync(join(scratch, "data"), { recursive: true });
   const recordPath = join(scratch, "run", LEADER_RECORD_FILE);
   let booted = false;
+  let launchRecord: LeaderRecord | null = null;
   try {
     const up = await runCli("stack", ["up"], { env, timeoutMs: BOOT_CEILING_MS });
     booted = true;
@@ -153,6 +154,7 @@ test("up writes the record under STACK_RUN_DIR, and down finds the live stack by
     if (record === null) {
       return;
     }
+    launchRecord = record;
     expect(record.ports).toEqual(ports);
     expect(record.children.length, "the leader records both children").toBe(2);
     expect(record.runDir).toBe(join(scratch, "run"));
@@ -169,14 +171,16 @@ test("up writes the record under STACK_RUN_DIR, and down finds the live stack by
     const down = await runCli("stack", ["down"], { env, timeoutMs: STOP_CEILING_MS });
     expect(down.code, `${down.stdout}\n${down.stderr}`).toBe(0);
     expect(resultLine(down.stdout)).toContain("status=stopped");
-    expect(await portRefuses(ports.server), "the server must not survive `down`").toBe(true);
-    expect(await portRefuses(ports.vite), "vite must not survive `down`").toBe(true);
+    expect(await portRefuses(ports.server, "127.0.0.1"), "the server must not survive `down`").toBe(true);
+    expect(await portRefuses(ports.vite, "localhost"), "vite must not survive `down`").toBe(true);
     expect(existsSync(recordPath), "a stopped stack leaves no record").toBe(false);
     booted = false;
   } finally {
     if (booted) {
-      // The test's own record was overwritten above only after the assertions; a real `down` is the one
-      // cleanup that never guesses at ownership.
+      // Restore this launch's witnesses so a failed stale-record assertion cannot strand its children.
+      if (launchRecord !== null) {
+        writeFileSync(recordPath, serializeLeaderRecord(launchRecord));
+      }
       await runCli("stack", ["down"], { env, timeoutMs: STOP_CEILING_MS });
     }
   }

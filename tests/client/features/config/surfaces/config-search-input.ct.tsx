@@ -12,13 +12,13 @@ test.beforeAll(async () => {
   root = await createCorpusHarness();
 });
 
-test.beforeEach(async ({ corpus, mount, page }) => {
+test.beforeEach(async ({ corpus, corpusViewer, mount, page }) => {
   const overridesHold = trpcHold<"settings.getAppSettingsWithOverrides">();
   await page.emulateMedia({ reducedMotion: "reduce" });
   await routeTrpc(page, {
-    "sessions.me": createCorpusReadResponder("sessions.me", corpus.reads["sessions.me"]),
-    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpus.reads["settings.getUserSettings"]),
-    "settings.listThemes": createCorpusReadResponder("settings.listThemes", corpus.reads["settings.listThemes"]),
+    "sessions.me": createCorpusReadResponder("sessions.me", corpusViewer.userId, corpus.reads["sessions.me"]),
+    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpusViewer.userId, corpus.reads["settings.getUserSettings"]),
+    "settings.listThemes": createCorpusReadResponder("settings.listThemes", corpusViewer.userId, corpus.reads["settings.listThemes"]),
     // The admin-only overrides read only decorates the Modified marks; leaving it pending is the honest cold state.
     "settings.getAppSettingsWithOverrides": () => overridesHold,
     ...serveCorpusProcedures(await root.internalCallerFor(root.ownerId), [

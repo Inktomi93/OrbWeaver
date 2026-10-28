@@ -74,6 +74,7 @@ export function CredentialKeyRow({ credential, usedBy, providerLabel, trpc, inva
 
   return (
     <ListRow
+      stackActions={true}
       title={subject}
       {...(subtitle.text !== undefined ? { subtitle: subtitle.text } : {})}
       subtitleWrap={subtitle.wrap}
@@ -87,7 +88,7 @@ export function CredentialKeyRow({ credential, usedBy, providerLabel, trpc, inva
         </Row>
       }
       actions={
-        <Row gap="field" align="center">
+        <Row className="flex-wrap" gap="field" align="center">
           {revoked ? (
             <>
               <Button

@@ -18,7 +18,7 @@ import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
 import { pickKeys } from "@orb/kit/objects";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
-import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup, SettingSwitchRow } from "#components";
+import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup, SettingSwitchRow, SettingTrackRow } from "#components";
 import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
@@ -94,24 +94,25 @@ function EffectsBody({
             <Stack gap="field">
               <form.AppField name="blurSurfaces">
                 {(field): ReactElement => (
-                  <Stack gap="field">
+                  <SettingRowGroup>
                     {BLUR_SURFACE_ITEMS.map((item) => {
                       // item.value is a BlurSurface by construction (BLUR_SURFACE_ITEMS is built from
                       // BLUR_SURFACES); the SelectOption shape widens it to string, so re-narrow at the toggle.
                       const surface = item.value as BlurSurface;
                       return (
-                        <SettingSwitchRow
-                          key={item.value}
-                          label={item.label}
-                          checked={field.state.value.includes(surface)}
-                          onBlur={field.handleBlur}
-                          onChange={(next): void =>
-                            field.handleChange(next ? [...field.state.value, surface] : field.state.value.filter((value) => value !== surface))
-                          }
-                        />
+                        <SettingTrackRow key={item.value}>
+                          <SettingSwitchRow
+                            label={item.label}
+                            checked={field.state.value.includes(surface)}
+                            onBlur={field.handleBlur}
+                            onChange={(next): void =>
+                              field.handleChange(next ? [...field.state.value, surface] : field.state.value.filter((value) => value !== surface))
+                            }
+                          />
+                        </SettingTrackRow>
                       );
                     })}
-                  </Stack>
+                  </SettingRowGroup>
                 )}
               </form.AppField>
             </Stack>

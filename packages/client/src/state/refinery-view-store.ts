@@ -8,17 +8,10 @@
 
 import { createGatedStore } from "./create-gated-store.ts";
 
-const REFINERY_WORKBENCH_DOORS = ["scope", "guidance"] as const;
+const REFINERY_WORKBENCH_DOORS = ["scope", "guidance", "score"] as const;
 /**
- * A DOOR the CONTEXT pane can knock on, opened by the WORKBENCH control that owns the concept (#171).
- *
- * It is a remote control, never a second editor: the one-home ruling (#158) says scope is edited in the
- * masthead's scope dialog and guidance in the run bar's textarea, and both stay exactly there. What the
- * Setup readout gained is the ability to TAKE YOU to them — which is what a row that used to end in the
- * sentence "Changed on the workbench…" was standing in for. A sentence is not a door.
- *
- * Request-shaped (the requester sets it, the OWNER clears it on arrival) because the two doors live in two
- * different components and neither can be reached by a prop from the pane raising the request.
+ * A navigation request from CONTEXT to the workbench control that owns the concept.
+ * The owner acknowledges arrival; navigation never edits a field or runs a stage.
  */
 export type RefineryWorkbenchDoor = (typeof REFINERY_WORKBENCH_DOORS)[number];
 

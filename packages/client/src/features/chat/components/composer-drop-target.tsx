@@ -29,7 +29,8 @@ export function ComposerDropTarget({ dragActive, dropTargetProps, children }: Co
     <Track
       of={Card}
       track="composer"
-      className="relative isolate"
+      className="relative isolate flex-auto min-block-0"
+      layout="stack"
       ownSlot="composer"
       {...dropTargetProps}
       data-drag-over={dragActive ? "" : undefined}
@@ -41,7 +42,7 @@ export function ComposerDropTarget({ dragActive, dropTargetProps, children }: Co
       shadow="none"
       shape="float"
     >
-      <Stack className="min-inline-0" data-slot="composer-content" gap="field">
+      <Stack className="flex-auto min-block-0 min-inline-0" data-slot="composer-content" gap="field">
         {/* The drop AFFORDANCE — a designed state, not an afterthought: a drag over the composer is an empty
           state that has to name what will be taken (both media classes) or the highlight teaches nothing.
           Rendered in flow at the top of the card so it reads inside the surface it describes. */}

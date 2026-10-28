@@ -11,10 +11,9 @@
 // section-patch deep-merge. Homed in components/ (a fragment inside the chat-behavior pane surface, which
 // owns containment + focus).
 
-import { FieldLayout } from "@orb/ui/field";
-import { Container, Row, Section, Stack } from "@orb/ui/layout";
+import { Row, Section, Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
-import { QueryBoundary } from "#components";
+import { QueryBoundary, SettingRowGroup, SettingTrackRow } from "#components";
 import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { SectionSaveStatus } from "#forms/editor";
@@ -81,9 +80,9 @@ function DatabankSettingsBody({
   const { form, saveState, retrySave } = session;
   return (
     <Section divider={true} heading={DATABANK_SETTINGS_SUBCATEGORY.label} id={anchorId}>
-      <FieldLayout orientation="horizontal">
-        <Container>
-          <Stack gap="field">
+      <Stack gap="field">
+        <SettingRowGroup>
+          <SettingTrackRow>
             <form.AppField name="k">
               {(field): ReactElement => (
                 <field.NumberField
@@ -94,6 +93,8 @@ function DatabankSettingsBody({
                 />
               )}
             </form.AppField>
+          </SettingTrackRow>
+          <SettingTrackRow>
             <form.AppField name="minScore">
               {(field): ReactElement => (
                 <field.NumberField
@@ -105,6 +106,8 @@ function DatabankSettingsBody({
                 />
               )}
             </form.AppField>
+          </SettingTrackRow>
+          <SettingTrackRow>
             <form.AppField name="rerank">
               {(field): ReactElement => (
                 <field.SwitchField
@@ -113,6 +116,8 @@ function DatabankSettingsBody({
                 />
               )}
             </form.AppField>
+          </SettingTrackRow>
+          <SettingTrackRow>
             <form.AppField name="slotTokenBudget">
               {(field): ReactElement => (
                 <field.NumberField
@@ -123,12 +128,12 @@ function DatabankSettingsBody({
                 />
               )}
             </form.AppField>
-            <Row gap="field" align="center">
-              <SectionSaveStatus id={sectionId} state={saveState} onRetry={retrySave} />
-            </Row>
-          </Stack>
-        </Container>
-      </FieldLayout>
+          </SettingTrackRow>
+        </SettingRowGroup>
+        <Row gap="field" align="center">
+          <SectionSaveStatus id={sectionId} state={saveState} onRetry={retrySave} />
+        </Row>
+      </Stack>
     </Section>
   );
 }

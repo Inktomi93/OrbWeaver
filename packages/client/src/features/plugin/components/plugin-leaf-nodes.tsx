@@ -22,6 +22,7 @@ import type {
   PluginTextNode,
   PluginToggleNode,
 } from "@orb/contracts/plugin";
+import { AspectFrame } from "@orb/ui/aspect-frame";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
@@ -258,17 +259,22 @@ function DisplayLeaf({
 
 /** An `image` node — the src is ALWAYS an owner-scoped CAS blob url; a miss is the empty placeholder. */
 function SurfaceImage({ node, url }: { readonly node: PluginImageNode; readonly url: string | undefined }): ReactElement {
-  if (url === undefined) {
-    // Owner-scope miss: the installer does not own this asset (or it is gone). NEVER another user's blob.
-    return (
-      <Card className="flex flex-col items-center justify-center" outline="dashed" tone="clear">
+  const framed = node.aspect !== undefined;
+  const media =
+    url === undefined ? (
+      // Owner-scope miss: the installer does not own this asset (or it is gone). NEVER another user's blob.
+      <Card
+        className={framed ? "flex flex-col items-center justify-center block-full inline-full" : "flex flex-col items-center justify-center"}
+        outline="dashed"
+        tone="clear"
+      >
         <Text voice="gloss">{node.alt ?? "Image unavailable"}</Text>
       </Card>
+    ) : (
+      // Keep the sealed owner-scoped media path, including its broken-media fallback and contain fit.
+      <MessageMedia alt={node.alt ?? ""} {...(framed ? { className: "block-full inline-full" } : {})} media="image" src={{ kind: "asset", url }} />
     );
-  }
-  // Through the sealed house media primitive (asset-vs-external dispatch + broken-media fallback, D44) — the
-  // src is an OWNER-SCOPED CAS asset url, the only source the vocabulary permits.
-  return <MessageMedia alt={node.alt ?? ""} media="image" src={{ kind: "asset", url }} />;
+  return node.aspect === undefined ? media : <AspectFrame aspect={node.aspect}>{media}</AspectFrame>;
 }
 
 /** The house `Button` intent for one plugin `button` leaf (#818). The primary weight is granted by NODE
@@ -388,11 +394,12 @@ function FormLeaf({
     // renderer has already told the plugin's author why (`warnPrimaryRefused`).
     return (
       <Button
+        className="self-start wrap-anywhere max-inline-full"
         disabled={buttonDisabled(node, state)}
         intent={buttonIntent(node, primaryButton)}
         loading={submitting}
         onClick={(): void => submit(node.actionId)}
-        size="sm"
+        size="wrap"
       >
         {node.label}
       </Button>
@@ -428,7 +435,7 @@ function ConfirmButtonLeaf({
       onConfirm={(): void => submit(node.actionId)}
       title={node.confirmTitle}
       trigger={
-        <Button ref={confirmTrigger} intent="destructive" loading={submitting} size="sm">
+        <Button className="self-start wrap-anywhere max-inline-full" ref={confirmTrigger} intent="destructive" loading={submitting} size="wrap">
           {node.label}
         </Button>
       }

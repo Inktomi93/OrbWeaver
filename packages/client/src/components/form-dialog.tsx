@@ -1,22 +1,6 @@
-// FormDialog — the client-shared composite over @orb/ui/dialog for FORM + single-control PROMPT dialogs
-// (hoisted from the Workloads scaffold). Owns the Dialog→DialogPopup(test-id/size)→Stack→
-// Title + Description + body anatomy so it can't drift (the ConfirmDialog precedent, for the non-alert
-// species). Two footer shapes:
-//   • FORM body — the submit lives INSIDE `children` via FormSubmitButton (it calls form.handleSubmit()).
-//   • PROMPT — a single control is `children`; pass `submit` for the Cancel/Confirm footer this composite
-//     renders below it (the tag-prompt / rename / merge shape). TagPickerDialog is built on this mode.
-// Every footer here — PROMPT's Cancel/Confirm, the dismiss-only button, and a FORM body's own (FormSubmitButton)
-// — is a sticky DialogFooter at the end of the one scrolling body, so it stays in view when a tall body outgrows
-// a phone.
-// OWNER RULING: lives client-shared (NOT @orb/ui — ui stays parts-only; the ConfirmDialog homing). G24
-// (dialog-via-composite) seals the raw @orb/ui/dialog door in features/**: a form/prompt dialog uses this.
-//
-// PROMPT MODE IS A REAL `<form>` (side-eye 2026-08-03 P1): it was a Row of two buttons with no form and no
-// key handler, so Enter in the single control did NOTHING — in EVERY prompt dialog in the app, including
-// the tag picker whose entire flow is "type a name → confirm". The submit is `type="submit"`, so the
-// browser's own implicit-submission gives Enter back for free, on every one of them at once. It composes
-// with a combobox child: Base UI's Autocomplete consumes Enter while its list has a highlighted item
-// (`submitOnItemClick` is false by default), so the first Enter picks and the second submits.
+// Client-shared form/prompt shell; @orb/ui stays parts-only. FORM children own a paired sticky footer; PROMPT owns a native form and footer.
+// FormSubmitButton is for explicit commits: Cancel abandons pre-submit input, never rolls back or cancels a submitted write.
+// Autosaving editors use Close/Done/Back instead; every dialog retains a visible exit.
 
 import { Button } from "@orb/ui/button";
 import type { DialogPopupProps } from "@orb/ui/dialog";
@@ -221,12 +205,15 @@ export interface FormSubmitButtonProps {
   readonly disabled: boolean;
   readonly label: string;
   readonly onSubmit: () => void;
+  /** The visible dismissal paired with submit. @defaultValue "Cancel" */
+  readonly cancelLabel?: string;
 }
 
-/** The align-end primary submit button for a FORM-body dialog (fires the form's handleSubmit). */
-export function FormSubmitButton({ testKey, disabled, label, onSubmit }: FormSubmitButtonProps): ReactElement {
+/** The paired dismissal and primary submit footer for a FORM-body dialog. */
+export function FormSubmitButton({ testKey, disabled, label, onSubmit, cancelLabel = "Cancel" }: FormSubmitButtonProps): ReactElement {
   return (
     <DialogFooter>
+      <DialogClose render={<Button intent="ghost">{cancelLabel}</Button>} />
       <Button data-testid={testId(testKey)} disabled={disabled} intent="primary" onClick={onSubmit}>
         {label}
       </Button>

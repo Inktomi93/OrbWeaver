@@ -158,20 +158,33 @@ function CollectionControlRow({
   readonly filter: string;
   readonly onFilterChange: (next: string) => void;
 }): ReactElement {
+  const filterRef = useRef<HTMLInputElement>(null);
   return (
     <Container className="inline-full">
       <Row align="center" className="flex-wrap" data-slot="collection-control-row" gap="field">
-        {/* A FILTER, never the settings index's jump search (§3.2): it narrows THIS library's rows in place,
-          which is the verb every peer LIST pane's `Input` performs. The settings `combobox` above it jumps
-          instead, and the two must not read as one control.
-          NO LEADING GLYPH, and that is a MEASURED call rather than a taste one (#1725): the row carries five
-          controls and the filter is the only one that flexes, so every fixed pixel beside it comes out of the
-          one box a reader types into. At 430 the glyph + its joint took the filter to ~85px — "Filter tag",
-          clipped mid-word — against ~130px in the approved p2 board, which draws no glyph either. The
-          placeholder already names the verb. */}
-        <Row align="center" className="flex-1 min-inline-0">
-          <Input aria-label={`Filter ${label.toLowerCase()}`} onValueChange={onFilterChange} placeholder={`Filter ${label.toLowerCase()}…`} value={filter} />
+        {/* The local filter is not the settings index's jump search; its field floor wraps peer commands before the typing area collapses. */}
+        <Row align="center" className="flex-1 basis-(--width-field-floor) max-inline-full min-inline-0">
+          <Input
+            ref={filterRef}
+            aria-label={`Filter ${label.toLowerCase()}`}
+            onValueChange={onFilterChange}
+            placeholder={`Filter ${label.toLowerCase()}…`}
+            value={filter}
+          />
         </Row>
+        {filter === "" ? null : (
+          <Button
+            intent="ghost"
+            size="sm"
+            type="button"
+            onClick={(): void => {
+              onFilterChange("");
+              filterRef.current?.focus();
+            }}
+          >
+            Clear filter
+          </Button>
+        )}
         <CollectionBulkToggle collection={collection} />
         {/* CREATE IS THE ROW'S ONE PRIMARY (C-2's no-aggregate-primary ruling is about the WELCOME, not here):
           it is the library's own verb, on the library's own pane. */}
@@ -216,7 +229,7 @@ function CollectionCreate({ collection, inBand = false }: { readonly collection:
   return (
     // In the control row the form takes its own full-width line under the other controls when the row's
     // container is narrow, so asking for a name never squeezes the filter out.
-    <Stack className={inBand ? "order-last basis-full @cq-40:order-0 @cq-40:basis-auto" : undefined}>
+    <Stack className={inBand ? "order-last basis-full max-inline-full min-inline-0 @cq-40:order-0 @cq-40:basis-auto" : "max-inline-full min-inline-0"}>
       <form
         aria-label={label}
         noValidate={true}
@@ -228,10 +241,10 @@ function CollectionCreate({ collection, inBand = false }: { readonly collection:
           }
         }}
       >
-        <Row align="center" gap="field">
+        <Row align="center" className="flex-wrap" gap="field">
           <Input
             aria-label={askName.fieldLabel}
-            className="flex-1 min-inline-0"
+            className="flex-1 basis-(--width-field-floor) max-inline-full min-inline-0"
             maxLength={askName.maxLength}
             onKeyDown={(event): void => {
               if (event.key === "Escape") {
@@ -243,12 +256,14 @@ function CollectionCreate({ collection, inBand = false }: { readonly collection:
             ref={nameRef}
             value={name}
           />
-          <Button disabled={trimmed === "" || pending} intent="primary" type="submit" {...(inBand ? { size: "sm" as const } : {})}>
-            Create
-          </Button>
-          <Button intent="ghost" onClick={cancel} type="button" {...(inBand ? { size: "sm" as const } : {})}>
-            Cancel
-          </Button>
+          <Row className="shrink-0 flex-wrap max-inline-full" gap="field">
+            <Button disabled={trimmed === "" || pending} intent="primary" type="submit" {...(inBand ? { size: "sm" as const } : {})}>
+              Create
+            </Button>
+            <Button intent="ghost" onClick={cancel} type="button" {...(inBand ? { size: "sm" as const } : {})}>
+              Cancel
+            </Button>
+          </Row>
         </Row>
       </form>
     </Stack>
@@ -332,18 +347,20 @@ function CollectionInsightList({ insights }: { readonly insights: readonly Colle
   return (
     <Stack data-slot="config-library-insights" gap="field">
       {insights.map((insight) => (
-        <Row align="center" gap="field" key={insight.id}>
-          <Text as="span" voice="kicker">
-            {insight.label}
-          </Text>
-          <CountText>{insight.value}</CountText>
+        <Row align="center" className="flex-wrap min-inline-0" gap="field" key={insight.id}>
+          <Row align="center" className="flex-wrap max-inline-full min-inline-0" gap="field">
+            <Text as="span" voice="kicker">
+              {insight.label}
+            </Text>
+            <CountText className="shrink-0 whitespace-nowrap">{insight.value}</CountText>
+          </Row>
           {insight.open === undefined ? null : (
             <Button
               aria-label={`${insight.open.label}: ${insight.label}`}
-              className="ms-auto"
+              className="ms-auto wrap-anywhere max-inline-full"
               intent="ghost"
               onClick={insight.open.run}
-              size="sm"
+              size="wrap"
               type="button"
             >
               {insight.open.label}

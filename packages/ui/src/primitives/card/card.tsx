@@ -47,6 +47,7 @@ function activateOnKey(event: KeyboardEvent<HTMLDivElement>): void {
 export function Card(props: CardProps): ReactElement {
   const {
     className,
+    layout,
     shape,
     elevated,
     interactive,
@@ -68,6 +69,7 @@ export function Card(props: CardProps): ReactElement {
   } = props;
   const skin = cn(
     cardVariants({
+      layout,
       shape,
       elevated,
       interactive,
@@ -102,6 +104,7 @@ export function Card(props: CardProps): ReactElement {
     const {
       as: _as,
       className: _className,
+      layout: _layout,
       shape: _shape,
       elevated: _elevated,
       interactive: _interactive,
@@ -135,6 +138,7 @@ export function Card(props: CardProps): ReactElement {
   const {
     as: _as,
     className: _className,
+    layout: _layout,
     shape: _shape,
     elevated: _elevated,
     interactive: _interactive,

@@ -94,7 +94,7 @@ function PersonasSection({
   personas,
 }: AttachmentSectionProps & { readonly personas: inferOutput<Trpc["persona"]["list"]> }): ReactElement {
   return (
-    <Section kicker={`Attached by personas · ${personas.length}`}>
+    <Section kicker={`Attached by personas · ${attachments.personaIds.length}`}>
       {personas.length === 0 ? (
         <Text voice="gloss">No personas yet. Create one from the rail-foot Account &amp; personas panel.</Text>
       ) : (

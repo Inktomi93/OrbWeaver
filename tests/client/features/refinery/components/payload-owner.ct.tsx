@@ -5,7 +5,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusReadResponder, createSeededIds, FROZEN_AT_MS, testModelId } from "@orb/testkit/iso";
 import type { PayloadOwnerStory } from "./_payload-stories.tsx";
 
-test("assay expansion survives a same-run clone but not a different immutable run", async ({ corpus, mount, page }) => {
+test("assay expansion survives a same-run clone but not a different immutable run", async ({ corpus, corpusViewer, mount, page }) => {
   const ids = createSeededIds();
   const payload = refineryScorePayloadSchema.parse({
     fieldScores: [{ field: "description", score: 7, strengths: "Recognizable voice", weaknesses: "Missing context", suggestions: "Add a scene anchor" }],
@@ -39,8 +39,8 @@ test("assay expansion survives a same-run clone but not a different immutable ru
     },
   };
   await routeTrpc(page, {
-    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpus.reads["settings.getUserSettings"]),
-    "sessions.me": createCorpusReadResponder("sessions.me", corpus.reads["sessions.me"]),
+    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpusViewer.userId, corpus.reads["settings.getUserSettings"]),
+    "sessions.me": createCorpusReadResponder("sessions.me", corpusViewer.userId, corpus.reads["sessions.me"]),
   });
   const component = await mount<typeof PayloadOwnerStory>("tests/client/features/refinery/components/_payload-stories/PayloadOwnerStory", { run });
   const assay = page.getByRole("button", { name: "description — 7", exact: true });

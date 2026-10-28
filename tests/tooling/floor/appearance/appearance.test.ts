@@ -7,6 +7,7 @@
 // element it lands on, and that CLI misuse is refused instead of silently doing nothing.
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { expect, test } from "@orb/testkit/tooling";
 import {
   appearanceBootHintPatch,
@@ -17,6 +18,7 @@ import {
 } from "@orb/tooling/floor/appearance/appearance";
 import {
   APPEARANCE_PRESET_FLAG,
+  appearanceHelpBlock,
   appearancePresetNames,
   applyAppearanceFlag,
   FULL_MOTION_PATCH,
@@ -169,7 +171,7 @@ test("an unknown preset name is refused with the valid list, not treated as an e
   }
 });
 
-test("every committed profile states a why and carries a non-empty patch", () => {
+test("every committed profile states a why and resolves a valid non-empty patch", () => {
   const file = JSON.parse(readFileSync(PRESETS_PATH, "utf8")) as { presets: Record<string, { why?: string; appearance?: Record<string, unknown> }> };
   const names = appearancePresetNames();
 
@@ -177,10 +179,13 @@ test("every committed profile states a why and carries a non-empty patch", () =>
   for (const name of names) {
     const entry = file.presets[name];
     expect(entry?.why, `${name} owes a why`).toBeTruthy();
-    expect(Object.keys(entry?.appearance ?? {}).length, `${name} owes appearance keys`).toBeGreaterThan(0);
-    expect(validateAppearancePatch(entry?.appearance ?? {}, `${APPEARANCE_PRESET_FLAG} ${JSON.stringify(name)}`)).toEqual({
-      patch: entry?.appearance,
-    });
+    const outcome = loadAppearancePreset(name);
+    expect(outcome).toHaveProperty("patch");
+    if ("error" in outcome) {
+      throw new Error(outcome.error);
+    }
+    expect(Object.keys(outcome.patch).length, `${name} owes appearance keys`).toBeGreaterThan(0);
+    expect(validateAppearancePatch(outcome.patch, `${APPEARANCE_PRESET_FLAG} ${JSON.stringify(name)}`)).toEqual(outcome);
   }
 });
 
@@ -218,6 +223,63 @@ test("no appearance flag = the account's real state (the shim is not installed a
   expect(parseSnapArgs(["/"]).appearance).toBeNull();
 });
 
+test("defaults resolves every schema axis instead of stale values or omitted account preferences", () => {
+  const expected = Object.fromEntries(Object.entries(appearanceSettingsSchema.parse({})).filter(([key]) => key !== "backgroundLibrary"));
+  const nondefaultAvatarSize = expected["avatarSize"] === "lg" ? "sm" : "lg";
+  const args = parseSnapArgs(["/", APPEARANCE_PRESET_FLAG, "defaults"]);
+
+  expect(args.errors).toEqual([]);
+  expect(args.appearance).toEqual(expected);
+  expect({ ...expected, avatarSize: nondefaultAvatarSize }).not.toEqual(expected);
+  const omittedPreferences = Object.fromEntries(Object.entries(expected).filter(([key]) => key !== "reducedTransparency" && key !== "increasedContrast"));
+  expect(omittedPreferences).not.toEqual(expected);
+});
+
+test("defaults resets the shim's saved axes and background selection but retains uploaded content without mutating the response", () => {
+  const defaults = appearanceSettingsSchema.parse({});
+  const nondefaultAvatarSize = defaults.avatarSize === "lg" ? "sm" : "lg";
+  const backgroundLibrary = [{ name: "Retained upload", assetHash: "owned-hash" }];
+  const account = {
+    ...defaults,
+    avatarSize: nondefaultAvatarSize,
+    reducedTransparency: "on",
+    increasedContrast: "off",
+    backgroundImageKind: "asset",
+    backgroundAssetId: "owned-asset",
+    backgroundAssetHash: "owned-hash",
+    backgroundAssetMime: "image/png",
+    backgroundLibrary,
+  };
+  const args = parseSnapArgs(["/", APPEARANCE_PRESET_FLAG, "defaults"]);
+  expect(args.errors).toEqual([]);
+  expect(args.appearance).not.toBeNull();
+  if (args.appearance === null) {
+    throw new Error("defaults did not resolve an appearance patch");
+  }
+  const body = envelope(account);
+  const patched = applySettingsToBody(body, 0, { appearance: args.appearance });
+
+  expect(patched.applied).toBe(true);
+  expect(appearanceOf(patched.body)).toEqual({ ...defaults, backgroundLibrary });
+  expect(appearanceOf(patched.body)["backgroundLibrary"]).toBe(backgroundLibrary);
+  expect(appearanceOf(body)).toBe(account);
+  expect(account.backgroundAssetHash).toBe("owned-hash");
+  expect(appearanceBootHintPatch(args.appearance)).toEqual(appearanceBootHintPatch(defaults));
+});
+
+test("defaults composes with explicit patches in argv order and help distinguishes schema values from curated patches", () => {
+  const defaults = appearanceSettingsSchema.parse({});
+  const nondefaultAvatarSize = defaults.avatarSize === "lg" ? "sm" : "lg";
+  const override = JSON.stringify({ avatarSize: nondefaultAvatarSize });
+  const overridden = parseSnapArgs(["/", APPEARANCE_PRESET_FLAG, "defaults", "--appearance", override]);
+  const reset = parseSnapArgs(["/", "--appearance", override, APPEARANCE_PRESET_FLAG, "defaults"]);
+
+  expect(overridden.appearance?.["avatarSize"]).toBe(nondefaultAvatarSize);
+  expect(reset.appearance?.["avatarSize"]).toBe(defaults.avatarSize);
+  expect(appearanceHelpBlock()).toContain("defaults derives the production schema's defaults");
+  expect(appearanceHelpBlock()).toContain("backgroundLibrary");
+});
+
 test("a failed real-response fallback rejects the appearance shim instead of reporting a usable route", async () => {
   let handler: ((route: Route) => Promise<void>) | undefined;
   // eslint-disable-next-line orb/no-test-fabrication -- Controlled Playwright routing exposes the real registered handler to distinguish primary and fallback failures. Ends when native routing fault injection supplies this pair.
@@ -242,24 +304,7 @@ test("a failed real-response fallback rejects the appearance shim instead of rep
   await expect(handler?.(route) ?? Promise.resolve()).rejects.toBe(fallbackFailure);
 });
 
-// #2429 item 1 — THE AXIS THE TWO REFERENCE PROFILES MUST BOTH STATE. A preset is a PATCH: a key it does
-// not name keeps the running account's own value, so an unnamed axis means the arm rendered the OWNER's
-// row rather than a defined point. `enableThemeColorization` is the one that decides whether the accent
-// retint (the `appearance-enable-theme-colorization-true` variant, packages/client/src/styles/globals.css) fires at all, and the
-// side-eye that filed this row could not tell which side of it a `--appearance-preset maximal` shot was on.
-// The committed JSON already carries both values; this pin is what keeps them there — deleting either key
-// reds here instead of silently handing the next reviewer the account's row.
 test("the defaults and maximal profiles each PIN enableThemeColorization, at opposite values", () => {
-  const file = JSON.parse(readFileSync(PRESETS_PATH, "utf8")) as { presets: Record<string, { appearance?: Record<string, unknown> }> };
-
-  // Named, not merely present: `Object.hasOwn`, because `undefined` would parse away into the account's value.
-  expect(Object.hasOwn(file.presets["defaults"]?.appearance ?? {}, "enableThemeColorization")).toBe(true);
-  expect(Object.hasOwn(file.presets["maximal"]?.appearance ?? {}, "enableThemeColorization")).toBe(true);
-  // The two reference points are the SCHEMA's born value and everything-on — so this axis is off in one
-  // and on in the other, which is what makes a two-shot comparison a measurement of the axis.
-  expect(file.presets["defaults"]?.appearance?.["enableThemeColorization"]).toBe(false);
-  expect(file.presets["maximal"]?.appearance?.["enableThemeColorization"]).toBe(true);
-
-  // And the patch survives the shared validator, so the pinned value is one the app's own parse keeps.
+  expect(loadAppearancePreset("defaults")).toMatchObject({ patch: { enableThemeColorization: false } });
   expect(loadAppearancePreset("maximal")).toMatchObject({ patch: { enableThemeColorization: true } });
 });

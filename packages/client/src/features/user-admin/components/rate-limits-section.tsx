@@ -12,7 +12,7 @@ import { clampRateLimit, RATE_LIMIT_CAP_MIN } from "@orb/contracts/settings";
 import { Section, Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { QueryBoundary, useFirstBootBox } from "#components";
+import { QueryBoundary, SettingRowGroup, useFirstBootBox } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
@@ -53,7 +53,7 @@ function diffRateLimits(baseline: ResolvedRateLimits, draft: Draft): RateLimits 
 /** The section's own suspense/error boundary so it is self-contained (renders inside the admin pane's
  *  boundary in-app, but also stands alone). */
 export function RateLimitsSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
-  const firstBootBox = useFirstBootBox({ wide: 5, narrow: 9 });
+  const firstBootBox = useFirstBootBox({ wide: 7, narrow: 9 });
   return (
     // RESERVED (#1098) — an admin settings section that settles into one row per limit.
     <QueryBoundary
@@ -99,22 +99,24 @@ function RateLimitsBody({ anchorId, sectionId }: { readonly anchorId: string; re
   return (
     <Section divider={true} heading={RATE_LIMITS_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="field">
-        {FIELDS.map(({ key, label, hint }) => (
-          <AdminOverrideField
-            key={key}
-            label={label}
-            hint={hint}
-            value={draft[key]}
-            onChange={(next): void => setDraft((d) => ({ ...d, [key]: next }))}
-            overridden={isOverridden(stored?.[key])}
-            // `baseline` is floor ⊕ override, so it is the FLOOR only while no override is stored — once one
-            // is, the env floor is gone from this read and the row must not echo the override back as its
-            // own default (SET-SEAMS §4).
-            floorValue={envFloor(isOverridden(stored?.[key]), baseline[key])}
-            min={RATE_LIMIT_CAP_MIN}
-            step={RATE_LIMIT_STEP}
-          />
-        ))}
+        <SettingRowGroup>
+          {FIELDS.map(({ key, label, hint }) => (
+            <AdminOverrideField
+              key={key}
+              label={label}
+              hint={hint}
+              value={draft[key]}
+              onChange={(next): void => setDraft((d) => ({ ...d, [key]: next }))}
+              overridden={isOverridden(stored?.[key])}
+              // `baseline` is floor ⊕ override, so it is the FLOOR only while no override is stored — once one
+              // is, the env floor is gone from this read and the row must not echo the override back as its
+              // own default (SET-SEAMS §4).
+              floorValue={envFloor(isOverridden(stored?.[key]), baseline[key])}
+              min={RATE_LIMIT_CAP_MIN}
+              step={RATE_LIMIT_STEP}
+            />
+          ))}
+        </SettingRowGroup>
         <AdminOverrideResetRow
           dirty={dirty}
           anyOverridden={anyOverridden}

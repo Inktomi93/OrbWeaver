@@ -12,12 +12,20 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { useGatedQuery, useInvalidation, useTRPC } from "#data";
 import type { RefineryContextState } from "#lib";
-import { requestRefineryWorkbenchDoor, setRefineryArmedRewrite, setRefineryViewedRun, useRefineryArmedRewriteId, useRefineryViewedRunId } from "#state";
-import { useRunRefineryStage, useUpdateRefinerySession } from "../hooks/use-refinery-mutations.ts";
+import {
+  requestRefineryWorkbenchDoor,
+  setOpenOverlayPanel,
+  setRefineryArmedRewrite,
+  setRefineryViewedRun,
+  useRefineryArmedRewriteId,
+  useRefineryViewedRunId,
+} from "#state";
+import { useUpdateRefinerySession } from "../hooks/use-refinery-mutations.ts";
 import { useRefinerySchemas } from "../hooks/use-refinery-schemas.ts";
 import { useRefineryRuns, useRefinerySession } from "../hooks/use-refinery-sessions.ts";
 import { scopeChipLabelOf } from "../lib/render-plan.ts";
 import { RunsTab, SetupTab, VersionsTab } from "./context-tabs.tsx";
+import { OriginalCardDialog } from "./original-card-dialog.tsx";
 import type { SchemaEditorDialogProps } from "./schema-editor-dialog.tsx";
 import { SchemaEditorDialog } from "./schema-editor-dialog.tsx";
 
@@ -25,14 +33,14 @@ export function RunsTabBody({ state }: { state: RefineryContextState }): ReactEl
   const runs = useRefineryRuns(state.sessionId);
   const viewedRunId = useRefineryViewedRunId();
   const armedRewriteId = useRefineryArmedRewriteId();
-  const trpc = useTRPC();
-  const invalidation = useInvalidation();
-  const runStage = useRunRefineryStage({ trpc, invalidation });
   return (
     <RunsTab
       armedRewriteId={armedRewriteId}
       onArmRewrite={setRefineryArmedRewrite}
-      onRunScore={(): void => runStage.mutate({ sessionId: state.sessionId, stage: "score" })}
+      onGoToScore={(): void => {
+        setOpenOverlayPanel("none");
+        requestRefineryWorkbenchDoor("score");
+      }}
       onView={(run): void => setRefineryViewedRun(run.id)}
       runs={runs.data ?? []}
       viewedRunId={viewedRunId}
@@ -127,6 +135,7 @@ export function SetupTabBody({ state }: { state: RefineryContextState }): ReactE
   // `null` = closed. Conditionally mounted (not an always-mounted `open` bool) so switching stage/target
   // gives the dialog fresh internal state — its description/schemaText seed from `editing` at mount only.
   const [schemaEditor, setSchemaEditor] = useState<{ readonly stage: RefinerySchemaStage; readonly editing: SchemaEditorDialogProps["editing"] } | null>(null);
+  const [originalOpen, setOriginalOpen] = useState(false);
   if (session.data === undefined) {
     return null;
   }
@@ -139,18 +148,19 @@ export function SetupTabBody({ state }: { state: RefineryContextState }): ReactE
     <>
       <SetupTab
         analyzeSchemaLine={stageSchemaLineOf(customNameOf(view.stageConfig.analyze, schemas.data))}
-        anchorLine={`Pinned at session start · ${view.originalCard.greetings.length} greetings`}
+        anchorLine={`Pinned at session start · ${view.originalCard.greetings.length} greeting${view.originalCard.greetings.length === 1 ? "" : "s"}`}
         guidanceLine={guidanceLineOf(view.guidance)}
         onEditSchema={openSchemaEditor}
         // #171 — the doors: this pane READS scope and guidance and now knocks on the workbench control
         // that owns each, instead of printing a sentence naming it. The request travels the same
         // Content↔Context commons the Runs tab's actions already use.
         onOpenDoor={requestRefineryWorkbenchDoor}
-        onViewOriginal={(): void => setRefineryViewedRun(null)}
+        onViewOriginal={(): void => setOriginalOpen(true)}
         scopeLine={scopeLineOf(view)}
         scoreSchemaLine={stageSchemaLineOf(customNameOf(view.stageConfig.score, schemas.data))}
         stageModesLine={stageModesLineOf(view)}
       />
+      {originalOpen ? <OriginalCardDialog card={view.originalCard} onOpenChange={setOriginalOpen} /> : null}
       {/* THE SECOND SCOPE EDITOR LEFT WITH ITS ROW (#158 item 1). This body used to mount its OWN
           `ScopeEditorDialog` — with `score={null}`, so it could not show the score-informed hints
           CONTENT's copy does — beside CONTENT's, which is the "two independently-editable homes inches

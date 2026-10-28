@@ -271,7 +271,7 @@ function PluginSurfaceForm({ pluginId, surfaceId, spec, anchor, chatId, sink, st
 }
 
 /** Map a node's children to SurfaceNode. */
-function renderChildren(children: readonly PluginSurfaceNode[], depth: number, ctx: RenderCtx): ReactNode {
+function renderChildren(children: readonly PluginSurfaceNode[], depth: number, ctx: RenderCtx): readonly ReactElement[] {
   return children.map((child, index) => (
     // biome-ignore lint/suspicious/noArrayIndexKey: field-set identity scopes drafts and confirm actions scope their own consent; broader dynamic subtree state remains unqualified.
     <SurfaceNode ctx={ctx} depth={depth + 1} key={index} node={child} />
@@ -291,7 +291,15 @@ function SurfaceNode({ node, depth, ctx }: { readonly node: PluginSurfaceNode; r
     return <Stack gap={node.gap ?? "block"}>{renderChildren(node.children, depth, ctx)}</Stack>;
   }
   if (node.kind === "row") {
-    return <Row gap={node.gap ?? "field"}>{renderChildren(node.children, depth, ctx)}</Row>;
+    return (
+      <Row className="flex-wrap min-inline-0" gap={node.gap ?? "field"}>
+        {renderChildren(node.children, depth, ctx).map((child) => (
+          <Stack className="max-inline-full min-inline-0" key={child.key}>
+            {child}
+          </Stack>
+        ))}
+      </Row>
+    );
   }
   if (node.kind === "section") {
     return (

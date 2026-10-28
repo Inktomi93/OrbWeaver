@@ -19,7 +19,7 @@ import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { QueryBoundary, useFirstBootBox } from "#components";
+import { QueryBoundary, SettingRowGroup, useFirstBootBox } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
@@ -41,7 +41,7 @@ function useIsBoxOwner(): boolean {
 
 /** Multi-user — the local-mode seating switch (owner-only) beside the login-page posture (admin-writable). */
 export function MultiUserSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
-  const firstBootBox = useFirstBootBox({ wide: 25, narrow: 24 });
+  const firstBootBox = useFirstBootBox({ wide: 27, narrow: 25 });
   return (
     // RESERVED (#1098) — the seating switch plus the login-page posture — a small but fixed knob stack.
     <QueryBoundary
@@ -105,25 +105,29 @@ function MultiUserBody({ anchorId, sectionId }: { readonly anchorId: string; rea
   return (
     <Section container={true} divider={true} heading={MULTI_USER_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="field">
-        <Text voice="gloss">Seating and sign-in posture. Multi-CHARACTER chats always work; this is about additional HUMANS.</Text>
+        <Text voice="gloss" prose={true} className="max-inline-(--reading-measure-prose)">
+          Seating and sign-in posture. Multi-CHARACTER chats always work; this is about additional HUMANS.
+        </Text>
         <SharingPosturePanel />
-        <AdminOverrideSwitch
-          label="Allow multiple humans (local mode)"
-          hint="Let additional humans be invited and seated in rooms on a local-mode install. Off = single-human. No effect outside local mode. Owner-only."
-          value={resolved.localMultiUser}
-          overridden={multiUserOverridden}
-          floorLabel={envFloor(multiUserOverridden, resolved.localMultiUser ? "on" : "off")}
-          onSet={(next): void => write({ localMultiUser: next })}
-          disabled={!isOwner}
-        />
-        <AdminOverrideSwitch
-          label="Discreet login"
-          hint="Show a blank sign-in form — no handle pre-fill on the login page (no account enumeration)."
-          value={resolved.discreetLogin}
-          overridden={discreetOverridden}
-          floorLabel={envFloor(discreetOverridden, resolved.discreetLogin ? "on" : "off")}
-          onSet={(next): void => write({ discreetLogin: next })}
-        />
+        <SettingRowGroup>
+          <AdminOverrideSwitch
+            label="Allow multiple humans (local mode)"
+            hint="Let additional humans be invited and seated in rooms on a local-mode install. Off = single-human. No effect outside local mode. Owner-only."
+            value={resolved.localMultiUser}
+            overridden={multiUserOverridden}
+            floorLabel={envFloor(multiUserOverridden, resolved.localMultiUser ? "on" : "off")}
+            onSet={(next): void => write({ localMultiUser: next })}
+            disabled={!isOwner}
+          />
+          <AdminOverrideSwitch
+            label="Discreet login"
+            hint="Show a blank sign-in form — no handle pre-fill on the login page (no account enumeration)."
+            value={resolved.discreetLogin}
+            overridden={discreetOverridden}
+            floorLabel={envFloor(discreetOverridden, resolved.discreetLogin ? "on" : "off")}
+            onSet={(next): void => write({ discreetLogin: next })}
+          />
+        </SettingRowGroup>
         <Field
           label="Allowed private endpoints"
           description={

@@ -11,10 +11,9 @@
 // orb/surface-a11y-focus do not apply).
 
 import type { UserSettings } from "@orb/contracts/settings";
-import { FieldLayout } from "@orb/ui/field";
-import { Container, Row, Section, Stack } from "@orb/ui/layout";
+import { Row, Section, Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
-import { QueryBoundary } from "#components";
+import { QueryBoundary, SettingRowGroup, SettingTrackRow } from "#components";
 import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { SectionSaveStatus } from "#forms/editor";
@@ -80,9 +79,9 @@ function WorldInfoSettingsBody({
   const { form, saveState, retrySave } = session;
   return (
     <Section divider={true} heading={WORLD_INFO_SETTINGS_SUBCATEGORY.label} id={anchorId}>
-      <FieldLayout orientation="horizontal">
-        <Container>
-          <Stack gap="field">
+      <Stack gap="field">
+        <SettingRowGroup>
+          <SettingTrackRow>
             <form.AppField name="scanDepth">
               {(field): ReactElement => (
                 <field.NumberField
@@ -93,6 +92,8 @@ function WorldInfoSettingsBody({
                 />
               )}
             </form.AppField>
+          </SettingTrackRow>
+          <SettingTrackRow>
             <form.AppField name="tokenBudget">
               {(field): ReactElement => (
                 <field.NumberField
@@ -103,12 +104,12 @@ function WorldInfoSettingsBody({
                 />
               )}
             </form.AppField>
-            <Row gap="field" align="center">
-              <SectionSaveStatus id={sectionId} state={saveState} onRetry={retrySave} />
-            </Row>
-          </Stack>
-        </Container>
-      </FieldLayout>
+          </SettingTrackRow>
+        </SettingRowGroup>
+        <Row gap="field" align="center">
+          <SectionSaveStatus id={sectionId} state={saveState} onRetry={retrySave} />
+        </Row>
+      </Stack>
     </Section>
   );
 }

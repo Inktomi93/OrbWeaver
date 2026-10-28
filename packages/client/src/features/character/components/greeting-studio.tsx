@@ -16,7 +16,7 @@ import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useId, useState } from "react";
+import { useId, useLayoutEffect, useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { createEntityMutation, useColorQuotedSpeech, useInvalidation, useTRPC } from "#data";
 import { viewerTimeZone } from "#lib";
@@ -68,6 +68,16 @@ export function GreetingStudio({ characterId, baseGreeting, onAccept, trusted = 
   const [selected, setSelected] = useState<readonly string[]>([]);
   const [instruction, setInstruction] = useState("");
   const [preview, setPreview] = useState<string | null>(null);
+  const rewriteRef = useRef<HTMLButtonElement>(null);
+  const generateRef = useRef<HTMLButtonElement>(null);
+  const lastGenerator = useRef(rewriteRef);
+  const restoreGeneratorFocus = useRef(false);
+  useLayoutEffect(() => {
+    if (preview === null && restoreGeneratorFocus.current) {
+      restoreGeneratorFocus.current = false;
+      lastGenerator.current.current?.focus();
+    }
+  }, [preview]);
   // The visible axis label IS the group's accessible name (aria-labelledby, not a duplicate
   // aria-label) — side-eye finding: two identical unlinked strings double-announce on readers.
   const labelIdBase = useId();
@@ -87,12 +97,14 @@ export function GreetingStudio({ characterId, baseGreeting, onAccept, trusted = 
   const canRewrite = baseGreeting.trim().length > 0;
 
   const onRewrite = (): void => {
+    lastGenerator.current = rewriteRef;
     rewrite.mutate(
       { characterId, greeting: baseGreeting, steer: instruction, transforms: pickedTransforms(), timeZone: viewerTimeZone() },
       { onSuccess: (result): void => setPreview(result.text) },
     );
   };
   const onGenerate = (): void => {
+    lastGenerator.current = generateRef;
     generate.mutate(
       { characterId, steer: instruction, transforms: pickedTransforms(), timeZone: viewerTimeZone() },
       { onSuccess: (result): void => setPreview(result.text) },
@@ -113,7 +125,14 @@ export function GreetingStudio({ characterId, baseGreeting, onAccept, trusted = 
           </Stack>
         </Card>
         <Row gap="field" align="center" justify="end">
-          <Button intent="ghost" size="sm" onClick={(): void => setPreview(null)}>
+          <Button
+            intent="ghost"
+            size="sm"
+            onClick={(): void => {
+              restoreGeneratorFocus.current = true;
+              setPreview(null);
+            }}
+          >
             <Icon icon={X} size="sm" />
             Discard
           </Button>
@@ -164,13 +183,13 @@ export function GreetingStudio({ characterId, baseGreeting, onAccept, trusted = 
         aria-label="Greeting instructions"
       />
 
-      <Row gap="field" align="center" justify="end">
+      <Row className="flex-wrap" gap="field" align="center" justify="end">
         {isPending ? <WebSpinner size="sm" label="Generating…" /> : null}
-        <Button intent="secondary" size="sm" disabled={isPending} onClick={onGenerate}>
+        <Button ref={generateRef} intent="secondary" size="sm" disabled={isPending} onClick={onGenerate}>
           <Icon icon={Sparkles} size="sm" />
           Make new
         </Button>
-        <Button intent="primary" size="sm" disabled={isPending || !canRewrite} onClick={onRewrite}>
+        <Button ref={rewriteRef} intent="primary" size="sm" disabled={isPending || !canRewrite} onClick={onRewrite}>
           <Icon icon={WandSparkles} size="sm" />
           Rewrite
         </Button>

@@ -8,6 +8,7 @@ import { REPO_ROOT } from "../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { runNicedSync } from "../../floor/process/proc.ts";
 import type { DistVerdict } from "../contract/types.ts";
+import type { SourceScanReads } from "../lib/source-scan.ts";
 import { newestSourceEntries } from "../lib/source-scan.ts";
 import { CLIENT_DIST_INDEX_REL } from "../lib/spawn-plan.ts";
 import { classifyDist, debugPostureText } from "../lib/verdicts.ts";
@@ -41,9 +42,9 @@ const CLIENT_SOURCE_DIRS = [
 // the build entry and part of the module graph, and a config change requires a rebuild.
 const CLIENT_SOURCE_FILES = ["packages/client/index.html", "packages/client/vite.config.ts"];
 
-function safeMtimeMs(path: string): number | null {
+function safeMtimeMs(path: string, readStat: SourceScanReads["stat"] = statSync): number | null {
   try {
-    return statSync(path).mtimeMs;
+    return readStat(path).mtimeMs;
   } catch (error) {
     if (hasErrorCode(error, "ENOENT")) {
       return null;
@@ -52,10 +53,10 @@ function safeMtimeMs(path: string): number | null {
   }
 }
 
-export function distVerdict(): DistVerdict {
-  const newest = newestSourceEntries([...CLIENT_SOURCE_DIRS, ...CLIENT_SOURCE_FILES].map((rel) => join(REPO_ROOT, rel))).at(0);
+export function distVerdict(repoRoot = REPO_ROOT, readStat: SourceScanReads["stat"] = statSync): DistVerdict {
+  const newest = newestSourceEntries([...CLIENT_SOURCE_DIRS, ...CLIENT_SOURCE_FILES].map((rel) => join(repoRoot, rel))).at(0);
   return classifyDist({
-    distIndexMtimeMs: safeMtimeMs(join(REPO_ROOT, CLIENT_DIST_INDEX_REL)),
+    distIndexMtimeMs: safeMtimeMs(join(repoRoot, CLIENT_DIST_INDEX_REL), readStat),
     newestSourceMtimeMs: newest?.mtimeMs ?? null,
   });
 }

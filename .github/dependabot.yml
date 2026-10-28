@@ -42,9 +42,6 @@ updates:
     ignore:
       - dependency-name: typescript
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
-      # Its public types force DOM globals into the pure Node compiler world.
-      - dependency-name: colorjs.io
-        versions: ["0.7.1"]
       # The runner and CT package share a pinned Chromium revision; update them together by hand.
       - dependency-name: "@playwright/*"
       # Version-keyed patches must be ported before a dependency bump; unused patches fail installation.
@@ -57,6 +54,8 @@ updates:
       - dependency-name: cmdk
       - dependency-name: "@anthropic-ai/claude-agent-sdk"
       - dependency-name: "@vitest/eslint-plugin"
+      - dependency-name: colorjs.io
+      - dependency-name: eslint-plugin-better-tailwindcss
     commit-message:
       prefix: chore
       include: scope
@@ -75,9 +74,6 @@ updates:
     ignore:
       - dependency-name: typescript
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
-      # Its public types force DOM globals into the pure Node compiler world.
-      - dependency-name: colorjs.io
-        versions: ["0.7.1"]
       # The runner and CT package share a pinned Chromium revision; update them together by hand.
       - dependency-name: "@playwright/*"
       # Version-keyed patches must be ported before a dependency bump; unused patches fail installation.
@@ -90,6 +86,8 @@ updates:
       - dependency-name: cmdk
       - dependency-name: "@anthropic-ai/claude-agent-sdk"
       - dependency-name: "@vitest/eslint-plugin"
+      - dependency-name: colorjs.io
+      - dependency-name: eslint-plugin-better-tailwindcss
     commit-message:
       prefix: fix
       include: scope

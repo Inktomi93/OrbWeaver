@@ -24,6 +24,7 @@ import { Select } from "@orb/ui/select";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { SettingTrackRow } from "#components";
 
 /** The numeric row's floor formatter — the SAME default `Intl.NumberFormat` Base UI's NumberField formats
  *  its visible value with (locale + options both defaulted), so the floor sentence reads in the same
@@ -72,22 +73,24 @@ export interface AdminOverrideFieldProps {
  *  integer-only knobs), so the write path is unchanged. */
 export function AdminOverrideField({ label, hint, value, onChange, overridden, floorValue, min, max, step, disabled }: AdminOverrideFieldProps): ReactElement {
   return (
-    <Field
-      label={label}
-      description={floorDescription(overridden, floorValue === null ? null : NUMERIC_FLOOR_FORMAT.format(floorValue))}
-      orientation="horizontal"
-      {...(hint === undefined ? {} : { hint })}
-    >
-      <NumberField
-        aria-label={label}
-        value={value === "" ? null : Number(value)}
-        onValueChange={(next): void => onChange(next === null ? "" : String(next))}
-        {...(min === undefined ? {} : { min })}
-        {...(max === undefined ? {} : { max })}
-        {...(step === undefined ? {} : { step })}
-        {...(disabled === true ? { disabled: true } : {})}
-      />
-    </Field>
+    <SettingTrackRow>
+      <Field
+        label={label}
+        description={floorDescription(overridden, floorValue === null ? null : NUMERIC_FLOOR_FORMAT.format(floorValue))}
+        orientation="horizontal"
+        {...(hint === undefined ? {} : { hint })}
+      >
+        <NumberField
+          aria-label={label}
+          value={value === "" ? null : Number(value)}
+          onValueChange={(next): void => onChange(next === null ? "" : String(next))}
+          {...(min === undefined ? {} : { min })}
+          {...(max === undefined ? {} : { max })}
+          {...(step === undefined ? {} : { step })}
+          {...(disabled === true ? { disabled: true } : {})}
+        />
+      </Field>
+    </SettingTrackRow>
   );
 }
 
@@ -106,9 +109,11 @@ export interface AdminOverrideSwitchProps {
 /** A boolean AppSettings-override row (immediate-write; a toggle is one value, no draft/save). */
 export function AdminOverrideSwitch({ label, hint, value, overridden, floorLabel, onSet, disabled }: AdminOverrideSwitchProps): ReactElement {
   return (
-    <Field label={label} description={floorDescription(overridden, floorLabel)} orientation="horizontal" {...(hint === undefined ? {} : { hint })}>
-      <Switch checked={value} onCheckedChange={onSet} {...(disabled === true ? { disabled: true } : {})} />
-    </Field>
+    <SettingTrackRow>
+      <Field label={label} description={floorDescription(overridden, floorLabel)} orientation="horizontal" {...(hint === undefined ? {} : { hint })}>
+        <Switch checked={value} onCheckedChange={onSet} {...(disabled === true ? { disabled: true } : {})} />
+      </Field>
+    </SettingTrackRow>
   );
 }
 
@@ -127,19 +132,21 @@ export interface AdminOverrideSelectProps {
  *  control never clears to null — clear is the section reset). */
 export function AdminOverrideSelect({ label, hint, value, items, overridden, floorLabel, onSet, disabled }: AdminOverrideSelectProps): ReactElement {
   return (
-    <Field label={label} description={floorDescription(overridden, floorLabel)} orientation="horizontal" {...(hint === undefined ? {} : { hint })}>
-      <Select
-        aria-label={label}
-        items={items}
-        value={value}
-        onValueChange={(next): void => {
-          if (next !== null) {
-            onSet(next);
-          }
-        }}
-        {...(disabled === true ? { disabled: true } : {})}
-      />
-    </Field>
+    <SettingTrackRow>
+      <Field label={label} description={floorDescription(overridden, floorLabel)} orientation="horizontal" {...(hint === undefined ? {} : { hint })}>
+        <Select
+          aria-label={label}
+          items={items}
+          value={value}
+          onValueChange={(next): void => {
+            if (next !== null) {
+              onSet(next);
+            }
+          }}
+          {...(disabled === true ? { disabled: true } : {})}
+        />
+      </Field>
+    </SettingTrackRow>
   );
 }
 
@@ -162,7 +169,7 @@ export interface AdminOverrideResetRowProps {
 export function AdminOverrideResetRow({ dirty, anyOverridden, saving, errored, onSave, onReset }: AdminOverrideResetRowProps): ReactElement {
   return (
     <Stack gap="field">
-      <Row gap="field" align="center">
+      <Row className="flex-wrap" gap="field" align="center">
         {onSave === undefined ? null : (
           <Button intent="primary" size="sm" disabled={dirty !== true || saving} onClick={onSave}>
             {saving ? "Saving…" : "Save"}

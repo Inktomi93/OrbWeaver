@@ -4,8 +4,10 @@ import { Card } from "@orb/ui/card";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-test.for(["div", "button"] as const)("the %s arm keeps padding and shape off the element and marks them as data attributes", (as) => {
-  const markup = renderToStaticMarkup(createElement(Card, { as, padding: "none", shape: "row" }, "island"));
+test.for(["div", "button"] as const)("the %s arm keeps layout, padding and shape off the element and marks them as data attributes", (as) => {
+  const markup = renderToStaticMarkup(createElement(Card, { as, layout: "stack", padding: "none", shape: "row" }, "island"));
+  expect(markup).not.toMatch(/\slayout=/u);
+  expect(markup).toContain("flex-col");
   expect(markup).not.toMatch(/\spadding=/u);
   expect(markup).not.toMatch(/\sshape=/u);
   expect(markup).toContain('data-padding="none"');

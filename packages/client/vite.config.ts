@@ -12,6 +12,7 @@ import type { HtmlTagDescriptor, Plugin, ResolvedConfig } from "vite";
 import { defineConfig, isFileLoadingAllowed, resolveConfig, searchForWorkspaceRoot } from "vite";
 import checker from "vite-plugin-checker";
 import { BROWSER_TARGETS } from "./browser-targets.ts";
+import { devPreparation } from "./dev-preparation.config.ts";
 import { nativeTypecheck } from "./native-typecheck.config.ts";
 
 const WORKSPACE_ROOT = searchForWorkspaceRoot(import.meta.dirname);
@@ -635,7 +636,7 @@ export default defineConfig(({ mode }) => {
       dedupe: ["react", "react-dom"],
     },
     plugins: [
-      ...(gallery ? [] : [appGraphPreload(), precompressedAssets()]),
+      ...(gallery ? [] : [devPreparation(), appGraphPreload(), precompressedAssets()]),
       // React Compiler (stable 1.0, FULL-compile per D54) runs as a @rolldown/plugin-babel preset —
       // plugin-react v6 dropped internal Babel, so the compiler needs its own Babel pass. Order matches
       // the canonical react.dev / plugin-react snippet (`react()` then `babel()`) and is COSMETIC here:
@@ -783,10 +784,6 @@ export default defineConfig(({ mode }) => {
       // strictPort stays on for it too.
       strictPort: true,
       proxy: SERVER_PROXY,
-      // Pre-transform the shell entry + the route tree on server boot so the first paint isn't cold.
-      warmup: {
-        clientFiles: ["./src/entry.ts", "./src/main.tsx", "./src/routes/router.tsx"],
-      },
       // Monorepo file access — let Vite serve @orb/* source from outside packages/client (the workspace
       // root, discovered by walking up from this config). This root scope is REQUIRED (the workspace
       // packages live outside packages/client), so the guard is `deny` below, not a narrower `allow`.

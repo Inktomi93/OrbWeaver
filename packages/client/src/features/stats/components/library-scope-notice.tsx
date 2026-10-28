@@ -23,7 +23,7 @@ export function LibraryScopeNotice({ reason }: { readonly reason: string }): Rea
     return null;
   }
   return (
-    <Text voice="gloss" role="note" data-slot="analytics-library-scope">
+    <Text voice="gloss" role="note" data-slot="analytics-library-scope" prose={true} className="max-inline-(--reading-measure-prose)">
       Whole library — not just the character you opened. {reason}
     </Text>
   );

@@ -23,6 +23,7 @@ import { useEffect, useRef } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation, usePromptMacroSuggestions, useTRPC, useTRPCClient, useUploadAsset, useUploadCaps } from "#data";
 import type { AutosaveSession } from "#forms/editor";
+import { AutosaveStatus } from "#forms/editor";
 import { ASSISTANT_PREFILL_WARNING, downloadTextFile, MESSAGE_ROLE_ITEMS, notify, oversizeUploadMessage } from "#lib";
 import { takePersonaEditorFocus, usePersonaEditorFocusRequest } from "#state";
 import { PersonaForm } from "../hooks/use-persona-form.ts";
@@ -136,7 +137,7 @@ function PersonaEditorBody({ session, persona, onRequestDelete }: PersonaEditorB
   };
 
   return (
-    <Stack gap="row">
+    <Stack className="max-inline-(--reading-measure)" gap="row">
       <Row gap="row" align="start" data-slot="persona-editor-identity">
         <AvatarTrigger persona={persona} />
         <Stack gap="row" className="flex-1 min-inline-0">
@@ -148,6 +149,7 @@ function PersonaEditorBody({ session, persona, onRequestDelete }: PersonaEditorB
               <field.TextField label="Title" hint="A display subtitle for pickers — never injected into the prompt." placeholder="Optional" />
             )}
           </form.AppField>
+          <AutosaveStatus state={session.saveState} onRetry={session.retrySave} />
         </Stack>
       </Row>
 
@@ -208,7 +210,7 @@ function PersonaEditorBody({ session, persona, onRequestDelete }: PersonaEditorB
 
       <ProvenanceChip metadata={baseMetadata} />
 
-      <Row gap="row" align="center" className="justify-end" data-slot="persona-editor-footer">
+      <Row gap="row" align="center" className="flex-wrap justify-end" data-slot="persona-editor-footer">
         <Button disabled={duplicate.isPending} intent="ghost" size="sm" onClick={duplicatePersona}>
           <Icon icon={Copy} size="sm" />
           Duplicate

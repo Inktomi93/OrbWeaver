@@ -1,29 +1,6 @@
-// The chat composer is a compact message-first footer: the growing textarea owns the main line, followed by
-// one wrapping action rail with room, guided-reply, utility and terminal-send groups. Image controls live
-// inside Message tools; attachments still upload local media to CAS and ride the send as attachmentAssetIds.
-// Under the card, a line states why the room cannot reply when it cannot (`ComposerNextTurnLine`);
-// it is the one home for the no-connection refusal and its recovery door.
-//
-// ATTACH HAS THREE GESTURES (#376), one seam: the ✨ menu's picker, a file DRAGGED onto the composer card,
-// and a clipboard PASTE. All three land in `receiveAttachFiles` → `triageAttachFiles` (lib/attach-media.ts),
-// which owns the accepted-type vocabulary and both byte ceilings — the picker's `accept` attribute only
-// filters the OS dialog, so drop/paste need that gate made explicit rather than re-spelled per gesture.
-//
-// EMPTY-ENTER (continue + W-E generate): a bare Enter on an empty composer either extends the tail
-// assistant reply (`continueOnSend`) or prompts a fresh reply on a committed non-assistant tail
-// (`generateOnEmptySend`) — the pure `resolveEmptySendAction` picks the arm; the ▷ Response icon is the
-// always-visible equivalent.
-//
-// The composer serves a REAL ROOM, always (D166): a chat row exists
-// from the creation click, so there is no phase branch here, no lazy-create on first send, and no scope-key
-// flip mid-send — which is what the `onChangeRef` stale-closure dance existed to survive (the "first send
-// doesn't clear the composer" bug). All three are gone.
-//
-// SLASH COMMANDS (client-architecture-lockdown.md §6c): a send whose draft names a REGISTERED `/command`
-// dispatches to that command's runner instead of posting. Non-command text takes the byte-identical old
-// path; an UNKNOWN command is refused with a reason (never silently posted), and `//…` is the escape that
-// sends a message legitimately starting with a slash. With zero registrants nothing here can fire — every
-// draft classifies as a message, so the send path is exactly what it was.
+// The composer keeps command menus and grouped generation actions above Chat options, the draft and Send.
+// Attachments share one picker/drop/paste funnel; slash commands retain their registered dispatch and refusal path.
+// Drafts clear only after a committed send, while guided actions own their failure restoration.
 
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -336,102 +313,100 @@ export function Composer({
   };
 
   return (
-    <footer data-testid={testId("composer")}>
+    <Stack aria-label="Message composer" className="min-block-0" data-testid={testId("composer")} gap="tight" role="group">
       {/* The registered commands' invisible runner mounts — one fiber each, so a runner may use hooks.
           Zero registrants renders nothing at all. */}
       {slash.mounts}
-      <Stack gap="field">
-        <ComposerSlashStrip
-          matches={slashMatches}
-          notice={slashNotice}
-          unavailableFor={slash.unavailableFor}
-          highlightIndex={slashHighlight}
-          onPick={pickCommand}
-        />
-        {/* #791 — the arg-hint strip, shown once the draft moves past the token into `/plugin <slug> <cmd> …`. */}
-        <ComposerArgHintStrip offers={argOffers} onPick={pickArg} />
-        {/* The strip's APPEARANCE, announced (the macro-textarea status-line pattern): with `aria-expanded`
+      <ComposerSlashStrip
+        matches={slashMatches}
+        notice={slashNotice}
+        unavailableFor={slash.unavailableFor}
+        highlightIndex={slashHighlight}
+        onPick={pickCommand}
+      />
+      {/* #791 — the arg-hint strip, shown once the draft moves past the token into `/plugin <slug> <cmd> …`. */}
+      <ComposerArgHintStrip offers={argOffers} onPick={pickArg} />
+      {/* The strip's APPEARANCE, announced (the macro-textarea status-line pattern): with `aria-expanded`
             invalid on a `textbox`, `aria-controls` alone is a relationship, not an event — this polite count
             is what tells a non-sighted user that typing `/` surfaced offers. The primitive stays mounted so
             the text CHANGE announces (its own header states the never-unmount rule). */}
-        <AriaAnnouncer message={stripOpen ? `${String(slashMatches.length)} slash commands` : ""} />
-        <ComposerAttachmentStrip attachments={attachments} onRemove={removeAttachment} />
-        {/* Utilities precede the input row; the menu doors and terminal Send stay beside the draft. */}
-        <ComposerDropTarget dragActive={mediaDrop.dragActive} dropTargetProps={mediaDrop.dropTargetProps}>
-          <ComposerGuidedCluster
-            messageInput={
-              <Textarea
-                ref={textareaRef}
-                aria-label="Message"
-                // Editable-combobox wiring for the slash strip (a11y): while the strip is open the textarea
-                // advertises the listbox it CONTROLS and, when a row is highlighted, the active descendant — so a
-                // screen reader announces the highlighted offer without focus ever leaving the textarea.
-                {...slashCompletionAria(stripOpen)}
-                aria-activedescendant={activeSlashOptionId}
-                // SOFT-KEYBOARD HYGIENE (#1871 item 6, owner ruling 2026-09-19). NOTHING upstream sets these:
-                // `@orb/ui`'s Textarea renders a plain <textarea> through Base UI `Field.Control`, and
-                // Field.Control sets no input-hygiene attribute at all (in @base-ui/react 1.7.0 the three
-                // components that DO are OTPFieldInput, AriaCombobox — `autoCorrect: 'off'` +
-                // `autoCapitalize: 'none'` — and NumberFieldInput; the field/ tree carries none of them). So
-                // the composer states them itself.
-                // The Enter label FOLLOWS THE SETTING rather than being pinned: `enterSends` decides whether a
-                // bare Enter submits (composer-send-keys.ts), so a fixed "send" key lies for every reader who
-                // turned it off, and a fixed "enter" lies for the default. One live value, one truth.
-                enterKeyHint={behaviorPrefs.enterSends ? "send" : "enter"}
-                // A chat draft is prose the reader is composing in their own voice — autocorrect rewriting a
-                // character name and autocapitalise re-casing a deliberate lowercase line are both corruption
-                // of the message, not help. (Spellcheck is deliberately left ON: it MARKS, it never rewrites.)
-                autoCorrect="off"
-                autoCapitalize="off"
-                placeholder={placeholder}
-                value={value}
-                onChange={(e): void => {
-                  // The refusal explained the PREVIOUS send attempt — the next keystroke retires it. The highlight
-                  // resets too: the match set narrows as the token grows, so a stale index would point elsewhere.
-                  setSlashNotice(null);
-                  setSlashHighlight(-1);
-                  onChange(e.target.value);
-                }}
-                onKeyDown={onKeyDown}
-                // Ctrl/Cmd+V attach (#376). Deliberately does NOT preventDefault: a clipboard carrying text
-                // AND an image must attach the image and still paste the text (see the hook's header).
-                onPaste={mediaDrop.onPaste}
-                disabled={sendMessage.isPending}
-                chrome="bare"
-                className="flex-1 resize-none px-0 max-block-(--height-scroll-md) min-inline-0"
-                rows={1}
-                size="compact"
-              />
-            }
-            chatId={chatId}
-            value={value}
-            onChange={onChange}
-            busy={sendMessage.isPending}
-            tailIsAssistant={tailRole === "assistant"}
-            imageControls={imageControls}
-            sendAvailability={sendAvailability}
-            refusalStatedBy={refusalStatedBy}
-            chatControl={<ActiveChatOptionsMenu chatId={chatId} />}
-            actionContributions={actionContributions}
-            roomContributions={roomContributions}
-            mediaContributions={mediaContributions}
-            sendControl={
-              <ComposerSendControl
-                showStop={showStop}
-                stopping={stopping}
-                onStop={stopTurn.stop}
-                onSend={submit}
-                sendDisabled={sendGated || !(canSubmit || canEmptySend) || sendMessage.isPending || continueOnEmpty.isPending}
-                sendPending={sendMessage.isPending || continueOnEmpty.isPending}
-                hasDraft={canSubmit}
-                availability={sendControlAvailability}
-                unavailableStatedBy={sendGated ? refusalStatedBy : undefined}
-              />
-            }
-          />
-        </ComposerDropTarget>
-        <ComposerNextTurnLine chatId={chatId} availability={sendAvailability} id={nextTurnId} />
-      </Stack>
-    </footer>
+      <AriaAnnouncer message={stripOpen ? `${String(slashMatches.length)} slash commands` : ""} />
+      <ComposerAttachmentStrip attachments={attachments} onRemove={removeAttachment} />
+      {/* Utilities precede the input row; the menu doors and terminal Send stay beside the draft. */}
+      <ComposerDropTarget dragActive={mediaDrop.dragActive} dropTargetProps={mediaDrop.dropTargetProps}>
+        <ComposerGuidedCluster
+          messageInput={
+            <Textarea
+              ref={textareaRef}
+              aria-label="Message"
+              // Editable-combobox wiring for the slash strip (a11y): while the strip is open the textarea
+              // advertises the listbox it CONTROLS and, when a row is highlighted, the active descendant — so a
+              // screen reader announces the highlighted offer without focus ever leaving the textarea.
+              {...slashCompletionAria(stripOpen)}
+              aria-activedescendant={activeSlashOptionId}
+              // SOFT-KEYBOARD HYGIENE (#1871 item 6, owner ruling 2026-09-19). NOTHING upstream sets these:
+              // `@orb/ui`'s Textarea renders a plain <textarea> through Base UI `Field.Control`, and
+              // Field.Control sets no input-hygiene attribute at all (in @base-ui/react 1.7.0 the three
+              // components that DO are OTPFieldInput, AriaCombobox — `autoCorrect: 'off'` +
+              // `autoCapitalize: 'none'` — and NumberFieldInput; the field/ tree carries none of them). So
+              // the composer states them itself.
+              // The Enter label FOLLOWS THE SETTING rather than being pinned: `enterSends` decides whether a
+              // bare Enter submits (composer-send-keys.ts), so a fixed "send" key lies for every reader who
+              // turned it off, and a fixed "enter" lies for the default. One live value, one truth.
+              enterKeyHint={behaviorPrefs.enterSends ? "send" : "enter"}
+              // A chat draft is prose the reader is composing in their own voice — autocorrect rewriting a
+              // character name and autocapitalise re-casing a deliberate lowercase line are both corruption
+              // of the message, not help. (Spellcheck is deliberately left ON: it MARKS, it never rewrites.)
+              autoCorrect="off"
+              autoCapitalize="off"
+              placeholder={placeholder}
+              value={value}
+              onChange={(e): void => {
+                // The refusal explained the PREVIOUS send attempt — the next keystroke retires it. The highlight
+                // resets too: the match set narrows as the token grows, so a stale index would point elsewhere.
+                setSlashNotice(null);
+                setSlashHighlight(-1);
+                onChange(e.target.value);
+              }}
+              onKeyDown={onKeyDown}
+              // Ctrl/Cmd+V attach (#376). Deliberately does NOT preventDefault: a clipboard carrying text
+              // AND an image must attach the image and still paste the text (see the hook's header).
+              onPaste={mediaDrop.onPaste}
+              disabled={sendMessage.isPending}
+              chrome="bare"
+              className="flex-auto resize-none overflow-y-auto overscroll-contain px-0 max-block-(--height-scroll-md) min-inline-0"
+              rows={1}
+              size="compact"
+            />
+          }
+          chatId={chatId}
+          value={value}
+          onChange={onChange}
+          busy={sendMessage.isPending}
+          tailIsAssistant={tailRole === "assistant"}
+          imageControls={imageControls}
+          sendAvailability={sendAvailability}
+          refusalStatedBy={refusalStatedBy}
+          chatControl={<ActiveChatOptionsMenu chatId={chatId} />}
+          actionContributions={actionContributions}
+          roomContributions={roomContributions}
+          mediaContributions={mediaContributions}
+          sendControl={
+            <ComposerSendControl
+              showStop={showStop}
+              stopping={stopping}
+              onStop={stopTurn.stop}
+              onSend={submit}
+              sendDisabled={sendGated || !(canSubmit || canEmptySend) || sendMessage.isPending || continueOnEmpty.isPending}
+              sendPending={sendMessage.isPending || continueOnEmpty.isPending}
+              hasDraft={canSubmit}
+              availability={sendControlAvailability}
+              unavailableStatedBy={sendGated ? refusalStatedBy : undefined}
+            />
+          }
+        />
+      </ComposerDropTarget>
+      <ComposerNextTurnLine chatId={chatId} availability={sendAvailability} id={nextTurnId} />
+    </Stack>
   );
 }

@@ -30,6 +30,7 @@ export const CSS_MERGE_FAMILY_NAMES = [
   "shadow",
   "blur",
   "border-width",
+  "stroke-width",
   "font",
   "font-weight",
   "text",
@@ -109,6 +110,7 @@ const BLUR_SCALE = scaleOf("blur");
 const EASE_SCALE = scaleOf("ease");
 // `--opacity-*` (`opacity-receded`) sits beside the stock numeric steps; unregistered, a stock step beside it survives.
 const OPACITY_SCALE = scaleOf("opacity");
+const STROKE_WIDTH_SCALE = scaleOf("stroke-width");
 
 const CLASS_GROUPS = {
   ...CUSTOM_CLASS_GROUPS,
@@ -118,6 +120,7 @@ const CLASS_GROUPS = {
   "min-h": [{ "min-h": HEIGHT_SCALE }],
   "max-h": [{ "max-h": HEIGHT_SCALE }],
   opacity: [{ opacity: OPACITY_SCALE }],
+  "stroke-w": [{ stroke: STROKE_WIDTH_SCALE }],
 };
 const THEME = {
   spacing: SPACING_SCALE,

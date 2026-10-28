@@ -76,7 +76,7 @@ export interface RunsTabProps {
   /** Arm a rewrite run for the NEXT apply/analyze (operate-back) — null clears back to latest. */
   readonly armedRewriteId: string | null;
   readonly onArmRewrite: (runId: string | null) => void;
-  readonly onRunScore: () => void;
+  readonly onGoToScore: () => void;
 }
 
 function RunRow({
@@ -114,7 +114,7 @@ function RunRow({
             parse kept the shape; the keys are recorded, not silently swallowed.
           </Text>
         ) : null}
-        <Row gap="field">
+        <Row className="flex-wrap" gap="field">
           <Button intent="ghost" onClick={(): void => onView(run)} size="sm">
             View
           </Button>
@@ -129,21 +129,14 @@ function RunRow({
   );
 }
 
-export function RunsTab({ runs, viewedRunId, onView, armedRewriteId, onArmRewrite, onRunScore }: RunsTabProps): ReactElement {
+export function RunsTab({ runs, viewedRunId, onView, armedRewriteId, onArmRewrite, onGoToScore }: RunsTabProps): ReactElement {
   if (runs.length === 0) {
     return (
       <EmptyState
         action={
-          // GHOST, and deliberately the quiet twin. This ledger's empty state and the SCORE lane's own run
-          // control offer the same act on one screen, and the filled accent belongs to the work pane, not the
-          // pane that records what happened. §14 is bolder in the work pane, quieter in the ledger; the canvas's one filled run control is the
-          // FOCAL lane's (`workbench-lanes.ts` decides which lane that is). This stays a real door, because
-          // the Runs tab can be open with the workbench scrolled past its lanes.
-          // This comment block's own words ("GHOST, and deliberately the quiet twin") are the recession
-          // ruling; the primitive inherits its host's ink, so the composite states its own through the shared
-          // spelling.
-          <Button intent="ghost" onClick={onRunScore} size="sm" tone="muted">
-            Run score
+          // The ledger recovers the owning run control even when the workbench has scrolled past it.
+          <Button intent="ghost" onClick={onGoToScore} size="sm" tone="muted">
+            Go to Score
           </Button>
         }
         description="Every stage you run is recorded here — what it cost, which model ran it, and the verdict it produced."
@@ -360,7 +353,7 @@ export function VersionsTab({ state, liveDescription }: { state: RefineryContext
                   {snapshot.label ?? "unlabeled"}
                 </Text>
               </Row>
-              <Row gap="field">
+              <Row className="flex-wrap" gap="field">
                 <Button intent="ghost" onClick={(): void => setCompareId(compareId === snapshot.id ? null : snapshot.id)} size="sm">
                   {compareId === snapshot.id ? "Hide compare" : "Compare"}
                 </Button>

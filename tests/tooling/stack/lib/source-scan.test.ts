@@ -1,37 +1,43 @@
-import type * as Fs from "node:fs";
+import { readdirSync, statSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
-import { vi } from "vitest";
+import { newestSourceEntries } from "../../../../tooling/src/stack/lib/source-scan.ts";
 
-const fault = vi.hoisted(() => ({ kind: "" as "" | "readdir" | "stat" }));
-
-vi.mock("node:fs", async (importOriginal) => {
-  const real = await importOriginal<typeof Fs>();
-  return {
-    ...real,
-    readdirSync: (path: Parameters<typeof real.readdirSync>[0], options: Parameters<typeof real.readdirSync>[1]) => {
-      if (String(path) === "/planted-unreadable") {
-        const code = fault.kind === "readdir" ? "EACCES" : "ENOTDIR";
-        throw Object.assign(new Error(`planted ${code} source failure`), { code });
+test("an unreadable source directory fails loud instead of fabricating a partial newest-source time", ({ scratch }) => {
+  const readable = join(scratch, "readable.ts");
+  writeFileSync(readable, "export {};\n");
+  const failure = Object.assign(new Error("planted directory read failure"), { code: "EIO" });
+  let refused = false;
+  const reads = {
+    readDirectory: (path: string) => {
+      if (refused) {
+        throw failure;
       }
-      return (real.readdirSync as (...args: unknown[]) => unknown)(path, options);
+      return readdirSync(path, { withFileTypes: true });
     },
-    statSync: (path: Parameters<typeof real.statSync>[0], options?: Parameters<typeof real.statSync>[1]) => {
-      if (String(path) === "/planted-unreadable" && fault.kind === "stat") {
-        throw Object.assign(new Error("planted EIO source failure"), { code: "EIO" });
+    stat: statSync,
+  };
+  expect(newestSourceEntries([scratch], undefined, reads).map((entry) => entry.path)).toEqual([readable]);
+  refused = true;
+  expect(() => newestSourceEntries([scratch], undefined, reads)).toThrow(failure);
+});
+
+test("an unreadable source file fails loud instead of disappearing from freshness evidence", ({ scratch }) => {
+  const leaf = join(scratch, "leaf.ts");
+  writeFileSync(leaf, "export {};\n");
+  const failure = Object.assign(new Error("planted source stat failure"), { code: "EIO" });
+  let refused = false;
+  const reads = {
+    readDirectory: (path: string) => readdirSync(path, { withFileTypes: true }),
+    stat: (path: string) => {
+      if (refused) {
+        throw failure;
       }
-      return (real.statSync as (...args: unknown[]) => unknown)(path, options);
+      return statSync(path);
     },
   };
-});
-
-const { newestSourceEntries } = await import("../../../../tooling/src/stack/lib/source-scan.ts");
-
-test("an unreadable source directory fails loud instead of fabricating a partial newest-source time", () => {
-  fault.kind = "readdir";
-  expect(() => newestSourceEntries(["/planted-unreadable"])).toThrow("planted EACCES source failure");
-});
-
-test("an unreadable source file fails loud instead of disappearing from freshness evidence", () => {
-  fault.kind = "stat";
-  expect(() => newestSourceEntries(["/planted-unreadable"])).toThrow("planted EIO source failure");
+  expect(newestSourceEntries([leaf], undefined, reads).map((entry) => entry.path)).toEqual([leaf]);
+  expect(newestSourceEntries([join(scratch, "absent")])).toEqual([]);
+  refused = true;
+  expect(() => newestSourceEntries([leaf], undefined, reads)).toThrow(failure);
 });

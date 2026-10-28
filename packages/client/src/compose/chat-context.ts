@@ -3,6 +3,7 @@
 // ones are factories because the app and a CT hand them different `{ trpc, queryClient }` singletons.
 
 import { automationActivityTab } from "#features/automation";
+import { pluginContextTab } from "#features/plugin";
 import { makeRpgContextTabs, makeRpgHudRegion } from "#features/rpg";
 import type { CharacterDetailContribution, ChatContextState, ContextRegionDef, ContextTabDef, ContributorRegistry, MessageToolsRenderer } from "#lib";
 import { createContributorRegistry } from "#lib";
@@ -18,6 +19,7 @@ type ReadChannel = Parameters<typeof makeRpgContextTabs>[0];
 // belongs as a SECTION inside "This chat", and it now grafts through `chatSettingsSections` in `contributors.ts`.)
 export function makeChatContextContributors(channel: ReadChannel): ContributorRegistry<ContextTabDef<ChatContextState>> {
   return createContributorRegistry<ContextTabDef<ChatContextState>>("chat-context", [
+    pluginContextTab,
     ...makeRpgContextTabs(channel),
     // B11 — the room ACTIVITY tab (host-only), automation's second CONTEXT-strip graft: a ready def (no injected
     // read channel — its body reads through `useTRPC`), sibling of Members/"This chat"/Preview. automation owns

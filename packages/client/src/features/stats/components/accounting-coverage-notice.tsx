@@ -3,22 +3,25 @@ import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 
-/** States the retained accounting's limits beside every dollar readout. */
+/** Keep the accounting boundary visible in each pane; its disclosure carries the complete local explanation. */
 export function AccountingCoverageNotice({ characterOnly = false }: { readonly characterOnly?: boolean }): ReactElement {
   return (
     <Stack gap="field" data-slot="accounting-coverage" role="note">
       <Text voice="label">Partial accounting — not your provider bill</Text>
       <Text voice="quiet" className="max-inline-(--reading-measure-prose)">
-        Costs sum available compatible prices and omit missing prices. They may include provider-reported prices, configured-rate estimates or
-        subscription-notional estimates, not invoice charges.
-      </Text>
-      <Text voice="quiet" className="max-inline-(--reading-measure-prose)">
-        Prompt extraction and captioning costs are omitted. Background-work accounting is incomplete.
+        Missing prices are omitted; some costs are estimates.
       </Text>
       <Collapsible>
         <CollapsibleTrigger>Accounting coverage</CollapsibleTrigger>
         <CollapsiblePanel>
           <Stack gap="field">
+            <Text voice="quiet" className="max-inline-(--reading-measure-prose)">
+              Costs sum available compatible prices and omit missing prices. They may include provider-reported prices, configured-rate estimates or
+              subscription-notional estimates, not invoice charges.
+            </Text>
+            <Text voice="quiet" className="max-inline-(--reading-measure-prose)">
+              Prompt extraction and captioning costs are omitted. Background-work accounting is incomplete.
+            </Text>
             <Text voice="quiet" className="max-inline-(--reading-measure-prose)">
               {characterOnly
                 ? "Character costs cover recorded message generations only; image generation and compaction are library-level activity."

@@ -127,6 +127,10 @@ class ComposedServerRoot {
   readonly #internalCallerFor: (userId: UserId | null) => Promise<ReturnType<typeof createCaller>>;
   readonly #http: Pick<OwnedHttpRequests, "request" | "routes">;
 
+  static holds(root: ComposedServerRoot): boolean {
+    return #internalCallerFor in root;
+  }
+
   constructor(
     app: ServicesResult,
     db: Db,
@@ -162,6 +166,13 @@ class ComposedServerRoot {
 
 /** Persisted producers require the actual composed root, not a structural bag of replacement operations. */
 export type ServerProducerRoot = ComposedServerRoot;
+
+/** Runtime custody backs the nominal producer type when a caller bypasses TypeScript with a cast. */
+export function assertServerProducerRoot(root: ServerProducerRoot): void {
+  if (!ComposedServerRoot.holds(root)) {
+    throw new Error("Corpus capture requires a real server root");
+  }
+}
 
 export interface UnclaimedServerTestHarness extends ComposedServerRoot, Omit<ServerTestHarness, "ownerId" | "actor"> {
   readonly actor: (spec?: UnclaimedActorSpec) => Promise<ActorAccount>;

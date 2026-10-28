@@ -1,37 +1,21 @@
-// plugin-surface-shell — the impersonation WALL. EVERY plugin surface renders
-// inside this first-party chrome: the plugin's name + an identifying glyph, at every anchor, no opt-out. A
-// plugin composes house components INSIDE a labelled container that names its author, so it can imitate nothing
-// the label does not immediately contradict — the same trust story as a chat message. The surface body is a
-// group region whose accessible name is the plugin's, so assistive tech announces the boundary too.
-//
-// TWO SCALES SINCE U5, and the difference is a THREAT-MODEL difference, not a styling one (§9): a panel-scale
-// surface sits inside chrome a person is already reading as "someone else's panel", while a PAGE fills the whole
-// CONTENT region and is, in the design's own words, the biggest impersonation canvas here — a page can draw a
-// convincing fake settings screen out of house primitives. So the page scale's attribution band is PINNED above
-// the scrollable body (it cannot be scrolled away), carries an explicit "Plugin" kicker naming the CLASS of
-// thing this is, and has NO opt-out. The CT floor pins the band's presence on every page.
+// Mandatory host glyph/name attribution and a named content group prevent guest impersonation; neither can be omitted.
+// Pages also keep a pinned attribution band and explicit Plugin kicker above scrolling content.
+// Settings use an unboxed block inside the install's consent boundary; other panels retain their card.
 
 import type { PluginSurfaceAnchor } from "@orb/contracts/plugin";
 import type { PluginId } from "@orb/kit/ids";
 import { Card } from "@orb/ui/card";
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Blocks, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement, ReactNode, Ref } from "react";
 import { pluginSurfaceAuditAttributes, testId } from "#lib";
 
-/** The shell's two CHROME SCALES — one wall, two shapes. `panel` is the boxed
- *  attribution card every room-level anchor uses. `inline` is the TRANSCRIPT shape: the same glyph + name +
- *  title, on one line, with no box — because a `message-footer` surface mounts once per COMMITTED ROW, and a
- *  bordered card under every message is chrome the transcript cannot carry. The attribution itself is NOT
- *  reduced: the glyph and the plugin's name are visible on both arms, and the group region is named on both.
- *  What `inline` drops is the BOX, which is decoration; what it keeps is the wall.
- *
- *  It is NOT the `density` axis and must not be spelled as one: `data-density` is the app's global reading-
- *  comfort attribute (UI-Architecture §4b) and a component prop by that name is the layout-context anti-pattern
- *  the container model replaced. This names which CHROME the shell draws — a decision the anchor makes once. */
-const SHELL_CHROMES = ["panel", "inline"] as const;
+/** Host-selected chrome: boxed panels, unboxed settings blocks, or transcript-inline attribution. */
+const SHELL_CHROMES = ["panel", "block", "inline"] as const;
 type PluginShellChrome = (typeof SHELL_CHROMES)[number];
+const SHELL_CONTAINERS = { panel: Card, block: Stack } satisfies Record<Exclude<PluginShellChrome, "inline">, typeof Card | typeof Stack>;
 
 interface PluginSurfaceShellProps {
   readonly pluginId: PluginId;
@@ -48,8 +32,12 @@ interface PluginSurfaceShellProps {
   readonly children: ReactNode;
   /** Which chrome the shell draws (see {@link SHELL_CHROMES}). Default `panel`. */
   readonly chrome?: PluginShellChrome | undefined;
-  /** A host control drawn at the end of the panel's attribution line (the panel chrome only). */
+  /** A host control drawn at the end of the attribution line. */
   readonly action?: ReactNode;
+  /** Keep chat panels mounted while their independent disclosure is folded. */
+  readonly collapsible?: boolean;
+  /** The host restores focus to this panel's disclosure after a placement change. */
+  readonly disclosureRef?: Ref<HTMLButtonElement> | undefined;
 }
 
 /** Wrap a rendered plugin surface in its first-party attribution chrome. */
@@ -63,6 +51,8 @@ export function PluginSurfaceShell({
   children,
   chrome = "panel",
   action,
+  collapsible = false,
+  disclosureRef,
 }: PluginSurfaceShellProps): ReactElement {
   // A SURFACE TITLED EXACTLY LIKE ITS PLUGIN SAYS THE NAME ONCE (side-eye 2026-08-29 P3-7: Card Atlas's
   // page rendered "Card Atlas · Card Atlas", which reads as a placeholder bug and wastes the title line).
@@ -118,8 +108,36 @@ export function PluginSurfaceShell({
       </Row>
     );
   }
+  const Shell = SHELL_CONTAINERS[chrome];
+  if (collapsible) {
+    return (
+      <Shell aria-label={regionName} role="group">
+        <Collapsible defaultOpen={true}>
+          <Row align="center" gap="field">
+            <CollapsibleTrigger aria-label={regionName} className="flex-1 min-inline-0" ref={disclosureRef}>
+              <Icon icon={Blocks} size="sm" />
+              <Stack className="flex-1 text-start min-inline-0" gap="tight">
+                <Text className="truncate" voice="label">
+                  {pluginName}
+                </Text>
+                {showTitle ? (
+                  <Text className="truncate" voice="gloss">
+                    {title}
+                  </Text>
+                ) : null}
+              </Stack>
+            </CollapsibleTrigger>
+            {action}
+          </Row>
+          <CollapsiblePanel keepMounted={true} holds="controls">
+            <Stack gap="block">{children}</Stack>
+          </CollapsiblePanel>
+        </Collapsible>
+      </Shell>
+    );
+  }
   return (
-    <Card tone="neutral" {...pluginSurfaceAuditAttributes(pluginId, surfaceId, anchor)}>
+    <Shell>
       <Stack gap="block">
         {/* The pinned attribution band — plugin glyph + name + the surface's own title. A person always knows
           WHICH plugin drew this and that it is a plugin, not the app's own screen. */}
@@ -140,6 +158,6 @@ export function PluginSurfaceShell({
           {children}
         </Stack>
       </Stack>
-    </Card>
+    </Shell>
   );
 }

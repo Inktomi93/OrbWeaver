@@ -18,8 +18,9 @@ import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { count, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { createFrozenClock } from "../iso/clock.ts";
-import type { CorpusWire } from "../iso/corpus.ts";
+import type { CorpusPlayback } from "../iso/corpus.ts";
 import { encodeCorpusWire, hydrateCorpusWire, parseCorpusWire, serializeCorpusWire } from "../iso/corpus.ts";
+import { admitCorpusPlayback } from "../iso/corpus-admission.ts";
 import { createSeededIds, SEEDED_ID_MAX_CURSOR } from "../iso/ids.ts";
 import { bootGrantFor } from "./boot-grant.ts";
 import type { seedCorpusChatLifecycle as produceCorpusChatLifecycle } from "./corpus-chat-lifecycle.ts";
@@ -121,7 +122,7 @@ interface CorpusPrivateCaptures {
 
 export interface CorpusCapsule extends AsyncDisposable {
   readonly layout: DataLayout;
-  readonly wire: CorpusWire;
+  readonly wire: CorpusPlayback;
   readonly privateCaptures: CorpusPrivateCaptures;
   readonly publishWire: () => string;
   readonly replay: CorpusReplayState;
@@ -141,7 +142,7 @@ export interface PrivateCorpusCapsule extends Omit<CorpusCapsule, "privateCaptur
 
 export interface CorpusFixture {
   readonly layout: DataLayout;
-  readonly wire: CorpusWire;
+  readonly wire: CorpusPlayback;
   readonly replay?: CorpusReplayState;
   readonly privateParent?: string;
 }
@@ -219,8 +220,8 @@ function corpusDatabaseFile(layout: DataLayout): string {
   return path;
 }
 
-function parsePrivateCorpusWire(serialized: string): CorpusWire {
-  let wire: CorpusWire | undefined;
+function parsePrivateCorpusWire(serialized: string): CorpusPlayback {
+  let wire: CorpusPlayback | undefined;
   // Schema errors can embed captured content; the boundary reports only the refusal below.
   try {
     wire = parseCorpusWire(serialized);
@@ -477,7 +478,7 @@ export async function cloneCorpusFixture(fixture: CorpusFixture, directory: stri
 type CapturedCaptures<T extends { readonly oidc: CorpusPrivateCaptures["oidc"] }> = Omit<T, "oidc"> & { readonly oidc: T["oidc"] | undefined };
 
 interface CapturedCapsule {
-  readonly wire: CorpusWire;
+  readonly wire: CorpusPlayback;
   readonly privateCaptures: CapturedCaptures<CorpusPrivateCaptures> | CapturedCaptures<CloneBoundaryCaptures>;
   readonly publishWire: CorpusCapsule["publishWire"];
   readonly snapshotReplay: () => CorpusReplayState;
@@ -711,7 +712,7 @@ async function captureCloneBoundary(
   signal?.throwIfAborted();
   const secrets = [...sharedPublicationSecrets(graph), ...lifecycleSecrets(chatLifecycle)].filter((value) => value !== null && value !== undefined);
   return {
-    wire,
+    wire: admitCorpusPlayback(wire),
     snapshotReplay: () => ({ version: 1, nowMs: clock.now(), idCursor: ids.snapshot() }),
     publishWire: () => serializeCorpusWire(wire, secrets),
     privateCaptures: { publicationSecrets: secrets, oidc, credential, baseline, libraries, chatLifecycle },
@@ -933,7 +934,7 @@ async function captureCapsule(options: CorpusCapsuleOptions & CorpusCapsuleProdu
     ...lifecycleSecrets(chatLifecycle),
   ].filter((value) => value !== null && value !== undefined);
   return {
-    wire,
+    wire: admitCorpusPlayback(wire),
     snapshotReplay: () => ({ version: 1, nowMs: clock.now(), idCursor: ids.snapshot() }),
     publishWire: () => serializeCorpusWire(wire, [...secrets, ...plugins.wirePrivateLiterals]),
     privateCaptures: {

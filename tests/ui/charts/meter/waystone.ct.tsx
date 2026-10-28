@@ -1,3 +1,4 @@
+import { resolvedLength } from "@orb/testkit/browser/spec";
 import { expect, test } from "@playwright/test";
 import type { WaystoneStory } from "./waystone-stories.tsx";
 
@@ -70,4 +71,28 @@ test("golden windows paint ember below the midday sky and intermediate hours ble
   await expect(from).toHaveAttribute("stop-color", /^color-mix\(in oklab, color-mix\(/u);
   expect(await from.getAttribute("stop-color")).not.toContain(EMBER_TOKEN);
   await expect(component.locator('[data-slot="waystone-celestial"]')).toHaveAttribute("data-body", "sun");
+});
+
+test("an unset clock keeps the smallest display step while populated clocks retain their container scale", async ({ mount, page }) => {
+  const sizes = [
+    { width: 280, token: "--size-meter-md" },
+    { width: 350, token: "--size-meter-lg" },
+    { width: 420, token: "--size-meter-hero" },
+  ] as const;
+  const component = await mount<typeof WaystoneStory>(STORY, { clock: null, width: sizes[0].width });
+  const stone = component.locator('[data-slot="waystone"]');
+  const scope = stone.locator("xpath=..");
+  const emptySize = await resolvedLength(page, "var(--size-meter-sm)", scope);
+  for (const { width, token } of sizes) {
+    await component.update({ clock: null, width });
+    await expect(stone).toHaveAttribute("data-phase", "unset");
+    await expect.poll(async () => (await stone.boundingBox())?.height).toBe(emptySize);
+    await expect(stone.locator('[data-slot="waystone-marker"]')).toHaveCount(0);
+    await expect(stone.locator('[data-slot="waystone-cardinal-noon"] line').first()).toBeHidden();
+    await component.update({ clock: { hour: 12, minute: 30 }, weather: "rain", width });
+    await expect(stone.locator('[data-slot="waystone-marker"]')).toBeAttached();
+    await expect(stone.locator('[data-slot="waystone-sky"]')).toBeAttached();
+    const populatedSize = await resolvedLength(page, `var(${token})`, scope);
+    await expect.poll(async () => (await stone.boundingBox())?.height).toBe(populatedSize);
+  }
 });

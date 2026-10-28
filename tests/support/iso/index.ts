@@ -1,10 +1,13 @@
 // The iso door: pure helpers every world may import.
 
+export { ENLARGED_APPEARANCE_SETTINGS } from "./appearance.ts";
 export type { BusPayloadFailure, EconomicsField } from "./bus-payload-policy.ts";
 export type { BeltMismatch, BeltMismatchOf, BusName, SubUnionEscape } from "./bus-registry.ts";
 export { createFrozenClock, FROZEN_AT_MS } from "./clock.ts";
-export type { CorpusWire } from "./corpus.ts";
+export type { CorpusPlayback, CorpusWire } from "./corpus.ts";
 export { corpusReadInput } from "./corpus.ts";
+export type { CorpusPlaybackView } from "./corpus-playback.ts";
+export type { CorpusPlaybackRead, CorpusPlaybackViewerRead } from "./corpus-read.ts";
 export { createCorpusReadResponder, createCorpusViewerReadResponder } from "./corpus-read-responder.ts";
 export { HIT_EXTENT_WALK_SOURCE, PSEUDO_ENVELOPE_SOURCE } from "./hit-extent-walk.ts";
 export { createSeededIds, FIXTURE_ID_CURSOR } from "./ids.ts";

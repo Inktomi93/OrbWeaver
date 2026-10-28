@@ -31,6 +31,7 @@ export { extensionsSection } from "./lib/extensions-section.tsx";
 export { pluginCommandArgsModal } from "./lib/plugin-command-args-modal.tsx";
 export { pluginCommandPaletteSource } from "./lib/plugin-command-palette-source.ts";
 export { pluginCommandsChrome } from "./lib/plugin-commands-chrome.tsx";
+export { pluginContextTab } from "./lib/plugin-context-tab.tsx";
 export { pluginDialogModal } from "./lib/plugin-dialog-modal.tsx";
 export { pluginDistributeSection } from "./lib/plugin-distribute-section.tsx";
 export { pluginSlashCommands } from "./lib/plugin-slash-commands.ts";

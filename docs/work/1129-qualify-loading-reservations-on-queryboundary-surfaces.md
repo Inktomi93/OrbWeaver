@@ -77,25 +77,17 @@ The first two cold `--isolated` boots of this checkout ended in `data-app-ready 
 
 `useFirstBootBox({ wide, narrow })` (`packages/client/src/components/use-first-boot-box.ts`) prices a count of skeleton rows through the live spacing tokens (`skeletonBoxFor` in `skeleton-row-metrics.ts`, the inverse of `skeletonRowCountFor`) and feeds `reserveBlock`. `wide` applies on the desktop shell, `narrow` under the mobile shell breakpoint. A fine pointer prices a row at 48px and a coarse pointer at 64px, so the phone count is smaller where content is the same height. Each count is the settled box a typical library measured at that width, rounded to whole rows.
 
-| reserveKey | wide | narrow |
-| - | - | - |
-| config.workloads.schedules | 4 | 3 |
-| config.workloads.jobs | 5 | 5 |
-| config.workloads.tuning | 5 | 8 |
-| config.connections.list | 6 | 7 |
-| config.connections.roles | 25 | 22 |
-| config.connections.keys | 4 | 4 |
-| config.admin.users | 2 | 3 |
-| config.admin.approvals | 2 | 1 |
-| config.admin.linkSso | 2 | 2 |
-| config.admin.mediaTrust | 5 | 9 |
-| config.admin.operations | 4 | 6 |
-| config.admin.memoryTuning | 11 | 21 |
-| config.admin.rateLimits | 5 | 9 |
-| config.admin.systemTuning | 7 | 13 |
-| config.admin.multiUser | 25 | 24 |
-| config.admin.multiUser.share | 15 | 13 |
-| config.appearance.looks | 7 | 14 |
+Current declarations live in the owning components, not a separate numeric table. [useFirstBootBox](../../packages/client/src/components/use-first-boot-box.ts) resolves their row estimates through the live tokens.
+
+| Surface | Declaration owners |
+| - | - |
+| Workloads | [Schedules](../../packages/client/src/features/workloads/components/schedules-section.tsx), [Jobs](../../packages/client/src/features/workloads/components/workloads-jobs-section.tsx), [Analysis tuning](../../packages/client/src/features/workloads/components/workloads-tuning-section.tsx) |
+| Connections | [List](../../packages/client/src/features/credentials/components/connections-list-section.tsx), [Roles](../../packages/client/src/features/credentials/components/connections-roles-section.tsx), [Keys](../../packages/client/src/features/credentials/components/connections-keys-section.tsx) |
+| Admin management | [Users](../../packages/client/src/features/user-admin/components/admin-users-section.tsx), [Approvals](../../packages/client/src/features/user-admin/components/admin-approvals-section.tsx), [Link SSO](../../packages/client/src/features/user-admin/components/admin-link-sso-section.tsx), [Governance](../../packages/client/src/features/user-admin/components/governance-sections.tsx), [Share](../../packages/client/src/features/user-admin/components/share-card.tsx) |
+| Admin tuning | [Media & trust](../../packages/client/src/features/user-admin/components/media-trust-section.tsx), [Operations](../../packages/client/src/features/user-admin/components/operations-section.tsx), [Memory](../../packages/client/src/features/user-admin/components/memory-tuning-section.tsx), [Rate limits](../../packages/client/src/features/user-admin/components/rate-limits-section.tsx), [System](../../packages/client/src/features/user-admin/components/system-tuning-section.tsx) |
+| Appearance | [Looks](../../packages/client/src/features/config/components/appearance-looks-section.tsx) |
+
+The [composition qualification](../../reports/surface-consistency-private/first-boot-reservation-qualification.md) records affected Jobs/Admin declaration measurements and native trace locations. It does not establish broader loading-reservation completion.
 
 `config.connections.editor` is not declared: it mounts on a click, for one connection, and its settled height varies per connection.
 

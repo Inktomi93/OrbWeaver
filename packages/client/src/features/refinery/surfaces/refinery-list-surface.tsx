@@ -1,7 +1,7 @@
 // The sessions LIST (delta 3 arm A, ruled: FLAT, newest first, the character as row identity — one
 // selection axis, one row shape; "sessions for X" is a SEARCH, not a structure). A bounded owner list
 // fetched whole ⇒ `useSuspenseQuery` + `LibraryListLayout` (the lockdown §14 adjudication; the paginated
-// factory is for unbounded browses). The EMPTY state carries the start door — on a phone this pane IS
+// factory is for unbounded browses). The genuine-empty state carries the start door — on a phone this pane IS
 // the screen (the one-shell rule), so a bare "no sessions" would be the whole product on first contact.
 //
 // ── ROW IDENTITY (side-eye 2026-08-09 P1-4/P1-5/P1-6) ────────────────────────────────────────────────
@@ -174,29 +174,41 @@ export function RefineryListSurface(): ReactElement {
     (r) => query.length === 0 || r.characterName.toLowerCase().includes(query) || (r.sessionName ?? "").toLowerCase().includes(query),
   );
 
+  // A desktop landing focuses the existing CONTENT picker; the other regimes open the existing start door.
+  const startDoor = contentShowsPicker ? (
+    <Button intent="secondary" onClick={requestRefineryLandingFocus} size="sm">
+      Pick a character
+    </Button>
+  ) : (
+    <StartSessionDoor
+      trigger={(busy): ReactElement => (
+        <Button aria-busy={busy} intent="secondary" size="sm">
+          Pick a character
+        </Button>
+      )}
+    />
+  );
+
   return (
     <Stack className="block-full" focusTarget={true} gap="block" ref={surfaceRef} tabIndex={-1}>
       <LibraryListLayout
         empty={
           <EmptyState
             action={
-              // NOT A SECOND PICKER WHERE ONE IS ALREADY ON SCREEN (#307). On a desktop landing the CTA
-              // focuses the picker CONTENT mounts (`requestRefineryLandingFocus`) instead of anchoring a
-              // duplicate over it. The #157 ruling that made this CTA a LIVE door — never the dead no-op it
-              // was, byte-identical before and after — SURVIVES; its input changed: on desktop the live act
-              // is focusing the mounted picker, on a phone (no CONTENT picker) it is still opening the one.
-              contentShowsPicker ? (
-                <Button intent="secondary" onClick={requestRefineryLandingFocus} size="sm">
-                  Pick a character
+              sessions.data.length > 0 ? (
+                <Button
+                  intent="secondary"
+                  size="sm"
+                  type="button"
+                  onClick={(): void => {
+                    setSearch("");
+                    surfaceRef.current?.focus();
+                  }}
+                >
+                  Clear search
                 </Button>
               ) : (
-                <StartSessionDoor
-                  trigger={(busy): ReactElement => (
-                    <Button aria-busy={busy} intent="secondary" size="sm">
-                      Pick a character
-                    </Button>
-                  )}
-                />
+                startDoor
               )
             }
             description={

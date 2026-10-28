@@ -110,7 +110,7 @@ function EntryEditorBody({ entry, session, onDeleted }: EntryEditorBodyProps): R
   const { form } = session;
 
   return (
-    <Stack gap="block" padding="block">
+    <Stack className="mx-auto inline-full max-inline-(--width-content-col) @cq-64:max-inline-(--width-content-col-wide)" gap="block" padding="block">
       <Row gap="field" align="center" justify="between">
         {/* Converted #582 (the #573 near-kicker ruling: "takes semibold and becomes one"): a caps-micro
             group name, byte-identical to `kicker` once the weight axis is corrected regular→semibold. */}

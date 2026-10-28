@@ -77,11 +77,22 @@ export function SettingSwitchRow({ label, description, checked, onChange, onBlur
  *  dropped is the trap this file's own header records. */
 interface SettingCheckboxRowProps extends SettingRowControlProps {
   readonly tone?: CheckboxProps["tone"];
+  readonly orientation?: Parameters<typeof Field>[0]["orientation"];
 }
 
-export function SettingCheckboxRow({ label, description, checked, onChange, onBlur, disabled, disabledReason, tone }: SettingCheckboxRowProps): ReactElement {
+export function SettingCheckboxRow({
+  label,
+  description,
+  checked,
+  onChange,
+  onBlur,
+  disabled,
+  disabledReason,
+  tone,
+  orientation = "horizontal",
+}: SettingCheckboxRowProps): ReactElement {
   return (
-    <Field label={label} orientation="horizontal" {...describeRow(description, disabledReason)}>
+    <Field label={label} orientation={orientation} {...describeRow(description, disabledReason)}>
       <Checkbox
         checked={checked}
         tone={tone}

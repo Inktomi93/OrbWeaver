@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-06
+updated: 2026-10-26
 ---
 
 # UI-Theming-and-Content
@@ -32,6 +32,34 @@ Every user-supplied rendering input is exactly one trust level, and that determi
 - **The settings SHELL that hosts these (D62):** a full-bleed overlay with a left category nav; the IA is law at `UI-Architecture-and-Layout.md` §4.2. This § owns only the appearance/theme CONTENT.
 - **APPEARANCE settings — the NON-color surface (ST parity; a separate layer from the color theme).** Applied as root `data-*` attrs / CSS vars (`app-shell/hooks/use-appearance-root-effects.ts`), read by the shell + message render. The code is the live axis inventory (8 chat skins, avatars, surfaces/glass, background image, message chrome/metadata toggles, sizing/motion/density); **OUT (deliberately):** `movingUI` free-form dragging, `waifuMode` VN-fullscreen (VN cut, D49). **Also OUT — homed elsewhere:** ST's content-processing knobs (trim/collapse/regex post-processing) live on the **PRESET** (they mutate text — generation territory, D53). Appearance settings are **display-only** (never touch stored content); they're user/AppSettings-level, not per-character — the card-carriable plane is the two CARRIED TWINS (`ThemeOverride`, `ThemeBackground`), partitioned by `CARD_EMBEDDABLE_THEME_KEYS` (identity/atmosphere rides a card; ergonomics/accessibility/cost/treatment stay the viewer's).
 - **PERSISTENCE — the server `UserSettings` blob, NOT localStorage.** Theme + appearance prefs live server-side in the `user_settings` blob via `updateUserSettingsSection` (section-scoped writes). Two additive namespaces: **`theme`** (holds ONLY `selectedThemeId` — override values live on the selected `themes` ROW, never inline; one-home) and **`appearance`**. **localStorage / Zustand-`persist` is reserved for DEVICE-LOCAL transient state ONLY** (panel dock/collapse · drafts) — prefs that follow the user across devices go in the synced blob (`orb/persistence-boundary` keeps raw storage inside the store doors). Custom themes are a first-class single-owned `themes` ENTITY with CRUD (the preset pattern: `ownerId` + `fetchOwned`). Per-character themes ride the character row (§12.5). **The server/contracts/db design is IMPLEMENTED; the code is the doc.**
+
+#### Chat-style reading intent
+
+[`THEME_CHAT_STYLES`](../../packages/contracts/src/theme/override.ts) owns membership. [`MESSAGE_ROW_SKINS`](../../packages/client/src/features/chat/lib/message-row-variants.ts) owns each style's anatomy and dispatch.
+
+| Style | Reading intent |
+| - | - |
+| Bubble | Role-mirrored filled cards with identity chips beside the reading column. |
+| Flat | A centered reading column with identity in its gutter, without a filled card on a plain background. |
+| Document | A continuous page without identity art, speaker names or timestamps. Actions remain available without an identity bar. |
+| Echo | Role-mirrored cards reserve a side-art pane outside the prose measure. Art must not consume the prose column. |
+| Whisper | A banner sits above the card's identity and prose. Its short-height budget preserves reading space below the art. |
+| Hush | A centered reading column with a speaker stripe, without a filled card on a plain background. |
+| Ripple | Both speakers retain a welded portrait beside the prose. The portrait stays sticky within its card. |
+| Tide | Role-mirrored paragraph pills share an identity header outside the train. |
+
+Preserve these treatments across portrait, landscape and desktop layouts. Respect the viewer's identity-art toggle and supported avatar choices.
+Styles that name a speaker keep both speakers' identity and action header sticky within the message. The pinned header uses an opaque reading background without a fade over prose.
+Document keeps a quiet trailing actions chip at rest. While pinned, its identity-free actions frame paints an opaque band across the reading width.
+Whisper's art feather stays inside its banner. Its height budget limits width through the source image's aspect ratio, preserving the crop.
+Echo and Ripple keep their intentional side-art placement rather than replacing it with hidden art.
+Keep the transcript top opaque. Limit its bottom overflow fade to the smaller of its proportional edge and one block spacing step.
+
+[`chat-style-skins.ct.tsx`](../../tests/client/features/chat/components/chat-style-skins.ct.tsx) mounts the production room through `ChatRoomShellStory` and `CtShellRoom`.
+The cases reset appearance from the production schema and select a reference theme before applying explicit style and wallpaper choices.
+The viewport cases exercise both speakers at portrait, landscape and short-desktop sizes. The skin cases also exercise plain and wallpaper rooms.
+They use coarse-pointer emulation and native wheel input, not physical touch gestures.
+This coverage does not qualify real Safari chrome, soft keyboards or safe-area behavior. Shell panel regimes and live keyboard journeys require separate application evidence.
 
 #### Chat-style picker artwork
 

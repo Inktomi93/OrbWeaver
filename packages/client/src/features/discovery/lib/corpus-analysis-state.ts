@@ -261,9 +261,9 @@ function preferredHeroIdFor(phase: CorpusAnalysisPhase, families: number, storyT
 function headlineFor(
   phase: CorpusAnalysisPhase,
   input: CorpusAnalysisInput,
-  families: number,
-  storyThemes: number,
+  counts: { readonly families: number; readonly clustered: number; readonly storyThemes: number },
 ): { readonly text: string; readonly states: readonly string[] } {
+  const { families, clustered, storyThemes } = counts;
   if (phase === "empty") {
     return { text: "Nothing in your library yet.", states: [] };
   }
@@ -272,8 +272,8 @@ function headlineFor(
   }
   if (phase === "unanalysed") {
     return {
-      text: `${spelled(input.characters, "character")}, grouped into ${spelledInline(families, "visual family", "visual families")}.`,
-      states: ["characters", "families"],
+      text: `${spelled(clustered, "character")}, grouped into ${spelledInline(families, "visual family", "visual families")}.`,
+      states: clustered === input.characters ? ["characters", "families"] : ["families"],
     };
   }
   if (storyThemes === 0) {
@@ -304,7 +304,7 @@ export function deriveCorpusAnalysisState(input: CorpusAnalysisInput): CorpusAna
 
   const phase = phaseFor(input.characters, input.distilled, storyThemes);
 
-  const headline = headlineFor(phase, input, families, storyThemes);
+  const headline = headlineFor(phase, input, { families, clustered, storyThemes });
   const stated = new Set(headline.states);
 
   // Headline numbers are not repeated in the figure row; the hero is the first survivor in the phase

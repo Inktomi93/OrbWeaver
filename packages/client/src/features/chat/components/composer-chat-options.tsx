@@ -17,8 +17,13 @@ import type { ChatId } from "@orb/kit/ids";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
+import type { ChatContextTabId } from "#lib";
+import { revealContextPanel, setChatContextSectionOpen } from "#state";
+import { CHAT_CONTEXT_SECTION_IDS } from "../lib/chat-context-section-ids.ts";
 import { filterCharacters } from "../lib/roster.ts";
 import { ChatOptionsMenu } from "./chat-options-menu.tsx";
+
+const SETTINGS_TAB: ChatContextTabId = "settings";
 
 /** The composer-left ☰: the ONE options menu for the room this composer belongs to. Resolves the roster + server host gate (`viewerIsHost`) from the shared getChat query and
  *  renders the chat-options menu — the same wiring the topbar trail used before the D111 relocation. */
@@ -28,5 +33,18 @@ export function ActiveChatOptionsMenu({ chatId }: { readonly chatId: ChatId }): 
   const characters = filterCharacters(chat?.participants ?? []).map((c) => ({ characterId: c.characterId, name: c.displayName }));
   const owned = new Set(chat?.viewerOwnedCharacterIds);
   const galleryCharacters = characters.filter((c) => owned.has(c.characterId));
-  return <ChatOptionsMenu chatId={chatId} title={chat?.title ?? null} characters={characters} galleryCharacters={galleryCharacters} />;
+  const openGroupSettings = (): void => {
+    setChatContextSectionOpen(CHAT_CONTEXT_SECTION_IDS.hostControls, true);
+    setChatContextSectionOpen(CHAT_CONTEXT_SECTION_IDS.groupBehavior, true);
+    revealContextPanel(SETTINGS_TAB);
+  };
+  return (
+    <ChatOptionsMenu
+      chatId={chatId}
+      title={chat?.title ?? null}
+      characters={characters}
+      galleryCharacters={galleryCharacters}
+      onGroupSettings={chat?.viewerIsHost === true && characters.length > 1 ? openGroupSettings : undefined}
+    />
+  );
 }

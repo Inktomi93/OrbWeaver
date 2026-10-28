@@ -1,5 +1,8 @@
 import { builtinModules } from "node:module";
+import { relative, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { DependencyType, IConfiguration, IForbiddenRuleType } from "dependency-cruiser";
+import ts from "typescript";
 import clientPackage from "./packages/client/package.json" with { type: "json" };
 import contractsPackage from "./packages/contracts/package.json" with { type: "json" };
 import dbPackage from "./packages/db/package.json" with { type: "json" };
@@ -7,7 +10,31 @@ import inferencePackage from "./packages/inference/package.json" with { type: "j
 import kitPackage from "./packages/kit/package.json" with { type: "json" };
 import serverPackage from "./packages/server/package.json" with { type: "json" };
 import uiPackage from "./packages/ui/package.json" with { type: "json" };
-import { BROWSER_TEST_SUFFIXES, TEST_KIND_DEFINITIONS, TEST_KIND_SUFFIXES } from "./tooling/src/floor/testing/test-kinds.ts";
+import { BROWSER_TEST_SUFFIXES, TEST_KIND_SUFFIXES } from "./tooling/src/floor/testing/test-kinds.ts";
+
+const ROOT = fileURLToPath(new URL(".", import.meta.url));
+const nodeTestProgram = ts.getParsedCommandLineOfConfigFile(
+  fileURLToPath(new URL("./tsconfig.json", import.meta.url)),
+  {},
+  {
+    ...ts.sys,
+    onUnRecoverableConfigFileDiagnostic: (diagnostic): never => {
+      throw new Error(ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n"));
+    },
+  },
+);
+if (nodeTestProgram === undefined) {
+  throw new Error("Cannot read the Node compiler's test population");
+}
+if (nodeTestProgram.errors.length > 0) {
+  throw new Error(nodeTestProgram.errors.map((diagnostic) => ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n")).join("\n"));
+}
+const nodeTestRoots = nodeTestProgram.fileNames
+  .map((file) => relative(ROOT, file).split(sep).join("/"))
+  .filter((file) => /^(?:tests|scripts)\/.*\.(?:ts|mts|cts)$/u.test(file));
+if (nodeTestRoots.length === 0) {
+  throw new Error("The Node compiler has no test or script roots");
+}
 
 const ENTRY_SOURCE = "^packages/server/src/entry/";
 // The entry files that own the physical database (Tier-5 invariant 1). Every other entry file, boot steps included,
@@ -60,9 +87,8 @@ const DOMAIN_TYPE_CONTRACT = "^tests/server/domain/([^/]+)/.*\\.test-d\\.ts$";
 const BROWSER_MOUNT_PATHS = ["^playwright/", "^(tests|scripts)/(?!support/(iso|node)/).*\\.tsx$"];
 const BROWSER_TEST_PATHS = [TEST_BROWSER_SUPPORT, ...BROWSER_MOUNT_PATHS];
 const BROWSER_TEST_FILES = `(?:${BROWSER_TEST_SUFFIXES.map((suffix) => suffix.replaceAll(".", "\\.")).join("|")})$`;
-const NODE_TEST_PATHS = TEST_KIND_DEFINITIONS.filter(({ compilerWorld }) => compilerWorld === "node").map(
-  ({ suffix }) => `^(tests|scripts)/.*${suffix.replaceAll(".", "\\.")}$`,
-);
+// Native roots include helpers while preserving the compiler's DOM, E2E and browser-support exclusions.
+const NODE_TEST_PATHS = `^(?:${nodeTestRoots.map((file) => RegExp.escape(file)).join("|")})$`;
 const NODE_BUILTINS = `^(?:node:)?(?:${builtinModules.map((name) => RegExp.escape(name)).join("|")})$`;
 const CLIENT_CSS_ENTRY = `${CLIENT}styles/index\\.ts$`;
 const CLIENT_SHELL_CSS = `${CLIENT}features/app-shell/surfaces/shell\\.css$`;
@@ -302,11 +328,17 @@ const TEST_CONSTANT_HOMES = {
     "resolveReducedMotion and APP_REDUCED_MOTION_ATTRIBUTE: the JS rule the CSS reduced-motion floor must agree with",
   "packages/client/src/data/import-tree-plan.ts": "planTreeImport: the folder import planner",
   "packages/client/src/data/import-tree-served.ts": "planServedTreeImport: the served-tree import planner",
+  "packages/client/src/features/chat/lib/chat-context-tab-labels.ts":
+    "CHAT_CONTEXT_TAB_LABELS and CHAT_CONTEXT_TABLIST_NAME: production context tab names used by navigation assertions",
   "packages/client/src/features/config/lib/config-copy.ts": "CONFIG_SECTION_LABEL: the settings section labels",
   "packages/client/src/features/rpg/lib/unset-datum.ts": "UNSET_DATUM: the unset reading's text",
   "packages/client/src/features/plugin/lib/extensions-copy.ts": "EXTENSIONS_GONE_TITLE: the vanished page's title",
   "packages/client/src/features/plugin/lib/plugin-copy.ts":
     "approveLabel and CHAT_PANEL_HIDE_LABEL: production action names required by the no-copied-label contract",
+  "packages/client/src/features/plugin/lib/plugin-model-copy.ts":
+    "PLUGIN_MODEL_HEADING: the production model disclosure name used by plugin presentation assertions",
+  "packages/client/src/features/plugin/lib/plugin-panel-copy.ts":
+    "CHAT_PLUGINS_* and movePluginPanelLabel: production panel navigation, empty-state and placement action names",
   "packages/client/src/features/tag/lib/tag-list-name.ts": "TAG_LIST_NAME: the Labels finder's tag list name",
   "packages/client/src/state/create-persisted-store.ts": "createPersistedStore: the persisted-store factory a type contract reads",
   "packages/client/src/compose/contributors.ts": "chromeWidgets: the shipped chrome widget registry",
@@ -488,6 +520,16 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/chat/lib/message-action-names.ts": "MESSAGE_EDIT_NAME: the row edit action and editor accessible name",
     "packages/client/src/features/chat/lib/message-row-variants.ts": "MESSAGE_ROW_SKINS: the skin rows each chat style's measured paint is held to",
   },
+  "tests/client/features/chat/components/platform-appearance-chat-style-picker.suite.ct.tsx": {
+    "packages/client/src/features/chat/lib/message-row-variants.ts": "MESSAGE_ROW_SKINS: the production identity policy the picker diagram must represent",
+  },
+  "tests/client/features/workloads/components/platform-schedule-dialog-dismissal.suite.ct.tsx": {
+    "packages/client/src/features/workloads/lib/workloads-schedule-model.ts":
+      "SCHEDULE_CADENCE_LABELS: the production cadence names used to edit and reopen schedules",
+  },
+  "tests/client/features/refinery/components/platform-action-groups.suite.ct.tsx": {
+    "packages/client/src/features/refinery/lib/reason-copy.ts": "DROP_REASON_COPY: production queue refusal text used by rendered action-group assertions",
+  },
   "tests/client/features/discovery/lib/corpus-duplicate-groups.test.ts": {
     "packages/client/src/features/discovery/lib/corpus-duplicate-groups.ts": "groupIdenticalArt: the feature-private duplicate grouping",
   },
@@ -657,6 +699,22 @@ function packageTestMirrorRules([pkg, packageCake]: readonly [string, string]): 
 
 const TEST_WORLDS = [
   {
+    name: "testkit-corpus-playback-mint",
+    comment: "Only admission, root capture and private playback lookup may execute the nominal playback authority.",
+    severity: "error",
+    from: {
+      pathNot: ["^tests/support/iso/corpus-admission\\.ts$", "^tests/support/node/corpus-capture\\.ts$", "^tests/support/iso/corpus-read-responder\\.ts$"],
+    },
+    to: { path: "^tests/support/iso/corpus-playback\\.ts$", dependencyTypesNot: ["type-only", "type-import"] },
+  },
+  {
+    name: "testkit-corpus-admission-owner",
+    comment: "Raw corpus hydration is private to the ISO parser and Node fixture owner, not a suite-facing trust factory.",
+    severity: "error",
+    from: { pathNot: ["^tests/support/iso/corpus\\.ts$", "^tests/support/node/corpus\\.ts$"] },
+    to: { path: "^tests/support/iso/corpus-admission\\.ts$", dependencyTypesNot: ["type-only", "type-import"] },
+  },
+  {
     name: "client-persisted-store-implementation",
     comment: "Persistence names enter through the typed factory (D321).",
     severity: "error",
@@ -678,8 +736,10 @@ const TEST_WORLDS = [
   },
   {
     name: "node-tests-no-browser-helpers",
+    comment:
+      "This Node-rooted helper reaches browser declarations. Keep root/server preparation here; move DOM/evaluate helpers to the existing browser/spec owner and call both from the CT spec.",
     severity: "error",
-    from: { path: NODE_TEST_PATHS, pathNot: BROWSER_TEST_FILES },
+    from: { path: NODE_TEST_PATHS },
     to: { path: [TEST_BROWSER_SUPPORT, ...BROWSER_MOUNT_PATHS], reachable: true },
   },
   {
@@ -1293,6 +1353,16 @@ const EXECUTOR_BOUNDARIES = [
 ] satisfies IForbiddenRuleType[];
 
 const TOOLING_BOUNDARIES = [
+  {
+    name: "tooling-subprocess-import-owner",
+    comment: "Tooling creates subprocesses through proc; direct raw imports and re-exports belong only to that owner.",
+    severity: "error",
+    from: { path: "^tooling/src/", pathNot: "^tooling/src/floor/process/proc\\.ts$" },
+    to: {
+      path: ["^(?:node:)?child_process$", "(?:^|/)node_modules/cross-spawn(?:/|$)"],
+      dependencyTypesNot: ["type-only", "type-import"],
+    },
+  },
   {
     name: "packages-no-tooling",
     severity: "error",

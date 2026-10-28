@@ -102,7 +102,6 @@ function BookEditor({ bookId, back }: { readonly bookId: WorldBookId; readonly b
     );
   };
 
-  // A selected entry drills in — the editor replaces the list until "Back to entries" clears it.
   if (selectedEntry !== null) {
     return (
       <Stack className="min-block-0" focusTarget={true} data-slot="world-info-member-editor" gap="block" ref={surfaceRef} tabIndex={-1}>
@@ -110,7 +109,7 @@ function BookEditor({ bookId, back }: { readonly bookId: WorldBookId; readonly b
               two rungs of this one surface cannot speak two grammars. Its Back pops the ENTRY, never the
               book (the `makeSelectionSeam` stack's deepest rung), and it states the entry's name, which
               nothing else on this rung did: `EntryEditor` carries a Title FIELD, not a heading. */}
-        <MemberDrillHeader back={{ label: "Back to entries", onClick: (): void => clearWorldEntrySelection() }} title={selectedEntry.title} />
+        <MemberDrillHeader back={{ label: `Back to ${book.name}`, onClick: (): void => clearWorldEntrySelection() }} title={selectedEntry.title} />
         <EntryEditor entry={selectedEntry} onDeleted={(): void => clearWorldEntrySelection()} />
       </Stack>
     );

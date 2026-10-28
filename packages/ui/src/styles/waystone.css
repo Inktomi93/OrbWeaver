@@ -232,11 +232,9 @@
     }
   }
 
-  /* The unset stone is one step smaller at every container step, so its gate is one step wider. */
-  @container (max-width: 24rem) {
-    [data-slot="waystone"][data-phase="unset"] [data-slot="waystone-cardinal-noon"] line {
-      display: none;
-    }
+  /* An unset clock uses the smallest display step at every width, so its finest noon rays stay hidden. */
+  [data-slot="waystone"][data-phase="unset"] [data-slot="waystone-cardinal-noon"] line {
+    display: none;
   }
 
   /* A hidden tab composites nothing. */

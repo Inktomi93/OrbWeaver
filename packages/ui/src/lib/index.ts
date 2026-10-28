@@ -33,7 +33,7 @@ export {
   FOCUS_RING_WITHIN,
   FOCUS_RING_WITHIN_INSET,
 } from "./focus-ring.ts";
-export { GROUND, GROUND_FADE_BELOW, GROUND_FADE_FROM, WALLPAPER_PLATE } from "./ground.ts";
+export { GROUND, WALLPAPER_PLATE } from "./ground.ts";
 export { HOVER_CUE, HOVER_DIM, HOVER_REVEAL, HOVER_YIELD, INERT_UNTIL_HOVER } from "./hover-reveal.ts";
 export { readKeyboardInset, subscribeKeyboardInset } from "./keyboard-inset.ts";
 export { createLiveTokenStore, LIVE_TOKEN_ROOT_ATTRIBUTE, resolveCssColor, resolveCssLength, resolveCssVar } from "./live-token-resolver.ts";

@@ -188,7 +188,7 @@ function PresetList({ onSelectPreset }: { readonly onSelectPreset: (id: PresetId
                 New preset
               </Button>
             ) : (
-              <Row align="center" gap="field">
+              <Row align="center" className="flex-wrap" gap="field" justify="center">
                 <Button intent="secondary" onClick={(): void => setPresetSearchQuery("")} size="sm">
                   Clear search
                 </Button>

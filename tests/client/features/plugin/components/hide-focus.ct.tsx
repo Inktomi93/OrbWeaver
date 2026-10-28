@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { CHAT_PLUGINS_TAB_LABEL } from "@orb/client/lib";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
@@ -33,9 +34,9 @@ test("hiding the final plugin panel returns focus to the shell Chats main region
   if (room === undefined) {
     throw new Error("The corpus has no room");
   }
-  await seedShellState(page, { activeSection: "chats" });
+  await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "collapsed", context: "docked" } } });
   await routeTrpc(page, {
-    ...createShellAmbientReads(corpus),
+    ...createShellAmbientReads(corpus, root.ownerId),
     ...serveCorpusProcedures(caller, [
       ...SECTION_PROCEDURES,
       ...ROOM_PROCEDURES,
@@ -47,6 +48,7 @@ test("hiding the final plugin panel returns focus to the shell Chats main region
     ]),
   });
   await mount<typeof PluginHideFocusStory>("tests/client/features/plugin/components/_hide-focus-stories/PluginHideFocusStory", { chatId: room.id });
+  await page.getByRole("tab", { name: CHAT_PLUGINS_TAB_LABEL, exact: true }).click();
   const hide = page.getByRole("button", { name: `${CHAT_PANEL_HIDE_LABEL} ${manifest.name}`, exact: true });
   await expect(page.getByText("Focus panel content", { exact: true })).toBeVisible();
   await hide.click();

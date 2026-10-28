@@ -1,54 +1,52 @@
-import type * as Fs from "node:fs";
+import type { Stats } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { vi } from "vitest";
+import { PIDFILE, TOKEN_PATH } from "../../../../tooling/src/stack/ops/prod-state.ts";
+import { debugToken, distVerdict, removePidfile } from "../../../../tooling/src/stack/ops/prod-support.ts";
 
-const fsFailure = vi.hoisted(() => ({ code: "", operation: "none" }));
-
-vi.mock("node:fs", async (importOriginal) => {
-  const real = await importOriginal<typeof Fs>();
-  return {
-    ...real,
-    mkdirSync: (...args: Parameters<typeof real.mkdirSync>) => (fsFailure.operation === "read" ? undefined : real.mkdirSync(...args)),
-    writeFileSync: (...args: Parameters<typeof real.writeFileSync>) => (fsFailure.operation === "read" ? undefined : real.writeFileSync(...args)),
-    readFileSync: (...args: Parameters<typeof real.readFileSync>) => {
-      if (fsFailure.operation === "read") {
-        throw Object.assign(new Error(`planted ${fsFailure.code} token failure`), { code: fsFailure.code });
-      }
-      return (real.readFileSync as (...inner: unknown[]) => unknown)(...args);
-    },
-    unlinkSync: (...args: Parameters<typeof real.unlinkSync>) => {
-      if (fsFailure.operation === "unlink") {
-        throw Object.assign(new Error(`planted ${fsFailure.code} pidfile failure`), { code: fsFailure.code });
-      }
-      return real.unlinkSync(...args);
-    },
-    statSync: (path: Parameters<typeof real.statSync>[0], options?: Parameters<typeof real.statSync>[1]) => {
-      if (String(path).endsWith("/packages/client/dist/index.html")) {
-        throw Object.assign(new Error("planted EIO dist failure"), { code: "EIO" });
-      }
-      return (real.statSync as (...args: unknown[]) => unknown)(path, options);
-    },
+test("an unreadable dist witness fails loud instead of classifying an unmeasurable build as fresh", ({ scratch }) => {
+  const dist = join(scratch, "packages/client/dist/index.html");
+  mkdirSync(join(scratch, "packages/client/dist"), { recursive: true });
+  expect(distVerdict(scratch).state).toBe("missing");
+  writeFileSync(dist, "built");
+  const failure = Object.assign(new Error("planted distribution stat failure"), { code: "EIO" });
+  let refused = false;
+  const readStat = (path: string): Stats => {
+    expect(path).toBe(dist);
+    if (refused) {
+      throw failure;
+    }
+    return statSync(path);
   };
+  expect(distVerdict(scratch, readStat).state).toBe("fresh");
+  refused = true;
+  expect(() => distVerdict(scratch, readStat)).toThrow(failure);
+  expect(readFileSync(dist, "utf8")).toBe("built");
 });
 
-const { debugToken, distVerdict, removePidfile } = await import("../../../../tooling/src/stack/ops/prod-support.ts");
-
-test("an unreadable dist witness fails loud instead of classifying an unmeasurable build as fresh", () => {
-  expect(() => distVerdict()).toThrow("planted EIO dist failure");
+test("an unreadable existing debug token fails loud instead of overwriting the mint-once credential", ({ scratch }) => {
+  vi.stubEnv("STACK_RUN_DIR", scratch);
+  const path = join(scratch, "debug-token");
+  expect(TOKEN_PATH()).toBe(path);
+  writeFileSync(path, "planted-token\n");
+  expect(debugToken() === "planted-token").toBe(true);
+  rmSync(path);
+  mkdirSync(path);
+  expect(() => debugToken()).toThrow(/EISDIR/u);
+  expect(statSync(path).isDirectory()).toBe(true);
 });
 
-test("an unreadable existing debug token fails loud instead of overwriting the mint-once credential", () => {
-  fsFailure.operation = "read";
-  fsFailure.code = "EIO";
-  expect(() => debugToken()).toThrow("planted EIO token failure");
-  fsFailure.operation = "none";
-});
-
-test("pidfile cleanup ignores absence only and surfaces an unlink failure", () => {
-  fsFailure.operation = "unlink";
-  fsFailure.code = "ENOENT";
+test("pidfile cleanup ignores absence only and surfaces an unlink failure", ({ scratch }) => {
+  vi.stubEnv("STACK_RUN_DIR", scratch);
+  const path = join(scratch, "prod.json");
+  expect(PIDFILE()).toBe(path);
   expect(() => removePidfile()).not.toThrow();
-  fsFailure.code = "EIO";
-  expect(() => removePidfile()).toThrow("planted EIO pidfile failure");
-  fsFailure.operation = "none";
+  writeFileSync(path, "record");
+  removePidfile();
+  expect(existsSync(path)).toBe(false);
+  mkdirSync(path);
+  expect(() => removePidfile()).toThrow();
+  expect(existsSync(path)).toBe(true);
 });

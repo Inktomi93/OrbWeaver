@@ -124,7 +124,7 @@ function OverviewBody(): ReactElement {
       <Text voice="gloss" role="note">
         Whole library · Aggregate only
       </Text>
-      <Text voice="gloss" role="note">
+      <Text voice="gloss" role="note" prose={true} className="max-inline-(--reading-measure-prose)">
         {IMPORTED_ACTIVITY_NOTE}
       </Text>
       <AccountingCoverageNotice />
@@ -159,7 +159,7 @@ function OverviewBody(): ReactElement {
           {/* THE DEFINITIONS, STATED. "Words" is your turns PLUS the replies — one definition, here and on
               the drill. The swipe words sit beside "Swipes" and are NOT in it, so the pair does not read as a
               contradiction. */}
-          <Text voice="gloss">
+          <Text voice="gloss" prose={true} className="max-inline-(--reading-measure-prose)">
             Words counts your turns and the replies you kept; the {formatCompact(overview.swipeWords)} words in swipes you didn't keep are not included. Swiped
             replies is the share of replies you swiped at least once; swipes to kept reply is how far past the first take your kept reply sat, on average, among
             those. {UNRECORDED_NOTE}
@@ -201,7 +201,7 @@ function OverviewBody(): ReactElement {
                 user's thinking models produce has somewhere to land. Same duration voice as "Time generating" above. */}
             <StatFigure label="Time reasoning" value={formatDurationMs(overview.reasoningMs)} />
           </Grid>
-          <Text voice="gloss">
+          <Text voice="gloss" prose={true} className="max-inline-(--reading-measure-prose)">
             Cache hits is the share of the tokens you sent that the provider served from its prompt cache; Reasoning is the share of replies and swipes that
             produced a thinking pass. {UNRECORDED_NOTE}
           </Text>
@@ -219,7 +219,9 @@ function OverviewBody(): ReactElement {
                     value={formatThroughput(overview.throughputTps, throughputProvenance(overview.totalGenTimeMs, overview.tokensOutProvenance))}
                   />
                 </Grid>
-                <Text voice="gloss">Speed divides the tokens written by the time spent generating.</Text>
+                <Text voice="gloss" prose={true} className="max-inline-(--reading-measure-prose)">
+                  Speed divides the tokens written by the time spent generating.
+                </Text>
               </Stack>
             </CollapsiblePanel>
           </Collapsible>
@@ -317,7 +319,7 @@ function EmptyStateNoData(): ReactElement {
           </Button>
         }
       />
-      <Text voice="gloss" role="note">
+      <Text voice="gloss" role="note" prose={true} className="max-inline-(--reading-measure-prose)">
         {IMPORTED_ACTIVITY_NOTE}
       </Text>
       <RecomputeButton />

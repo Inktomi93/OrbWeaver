@@ -173,9 +173,7 @@ export type {
   UiGuestUnavailableMessage,
 } from "./plugin-ui-guest-protocol.ts";
 export { UI_GUEST_BOOT_WALL_MS, UI_GUEST_WALL_MS } from "./plugin-ui-guest-protocol.ts";
-
 export {} from "./probe-mode.ts";
-
 export { withUserMacros } from "./prompt-macros.ts";
 export {
   REGEX_PLACEMENT_GLYPHS,
@@ -210,7 +208,7 @@ export type {
   ResolvedContextTab,
   ResolvedContextTabs,
 } from "./registry-contracts.ts";
-export { CONFIG_TEACHER_TAB_IDS, defineContextRegion, defineContextTabs, GAME_STRIP_LABEL } from "./registry-contracts.ts";
+export { CHAT_PLUGINS_TAB_LABEL, CONFIG_TEACHER_TAB_IDS, defineContextRegion, defineContextTabs, GAME_STRIP_LABEL } from "./registry-contracts.ts";
 export { RenderProfiler } from "./render-profiler.tsx";
 export type { RowRenderPolicy } from "./render-trust.ts";
 export { DEPLOYMENT_FLOOR, resolveRowRenderPolicy } from "./render-trust.ts";

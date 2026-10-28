@@ -31,7 +31,6 @@ export function Row({
   ground,
   plate,
   cardCorners,
-  fadeBelow,
   tracks,
   ...props
 }: RowProps): ReactElement {
@@ -59,7 +58,6 @@ export function Row({
         ground,
         plate,
         cardCorners,
-        fadeBelow,
         tracks,
         className,
       })}

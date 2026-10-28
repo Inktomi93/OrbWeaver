@@ -1,46 +1,8 @@
 {
-  "$schema-note": "THE ONE HOME for curated appearance points the probes drive (--appearance-preset <name>). Each entry is a --appearance patch over the REAL getUserSettings response: keys listed here are pretended, every other key keeps the account's own value, and NOTHING is written. New coverage = a new profile HERE, never a new CLI flag. Keys and values must exist in the appearance schema (packages/contracts/src/settings/index.ts, appearanceSchema) — an unknown key is silently dropped by the app's own parse, which reads as a preset that did nothing.",
+  "$schema-note": "The catalogue for --appearance-preset profiles. defaults resolves production appearanceSettingsSchema values through @orb/contracts/settings/appearance; it retains only backgroundLibrary. Other profiles are partial patches over the real getUserSettings response: omitted axes retain account values. Nothing is written. New custom coverage is a profile here, never a CLI flag. Keys and values are validated against the production schema.",
   "presets": {
     "defaults": {
-      "why": "The schema's BORN values (appearanceSchema defaults) — what a brand-new account sees, which is NOT the owner's row (his row differs on chatStyle, showModelIcon, showInChatAvatars, reducedMotion and more). Use it to answer 'is the shipped default state good?'. backgroundLibrary is deliberately left alone: it is the user's uploaded content, not an appearance axis.",
-      "appearance": {
-        "chatWidthPct": 60,
-        "fontScale": 1,
-        "avatarSize": "md",
-        "avatarShape": "round",
-        "avatarAspect": "square",
-        "avatarRing": "none",
-        "density": "comfortable",
-        "elevation": "flat",
-        "chatStyle": "bubble",
-        "showTimestamps": true,
-        "showGenerationTimer": false,
-        "showGenerationCost": false,
-        "showTokenCount": false,
-        "showMessageId": false,
-        "showModelIcon": false,
-        "showInChatAvatars": true,
-        "messageActions": "hover",
-        "autoFixMarkdown": false,
-        "colorQuotedSpeech": true,
-        "blurSurfaces": ["panels", "composer", "modals"],
-        "shadowEffects": false,
-        "surfaceTexture": "none",
-        "reducedMotion": "system",
-        "backgroundImageKind": "none",
-        "backgroundFit": "cover",
-        "backgroundDim": 0.45,
-        "backgroundBlur": 0,
-        "readingLineHeight": 1.55,
-        "readingLetterSpacing": 0,
-        "readingParagraphSpacing": 0.75,
-        "readingNameScale": 1,
-        "readingBodyScale": 1,
-        "justifyBodyText": false,
-        "enableThemeColorization": false,
-        "blurStrength": 14,
-        "showLLMReasoningIcon": false
-      }
+      "why": "Resolved by loadAppearancePreset from appearanceSettingsSchema, not a mirrored patch. Every schema axis resets, including the background selection; backgroundLibrary retains the account uploaded content. Nothing is written."
     },
     "maximal": {
       "why": "ALL THE NICE STUFF ON — glow elevation, glass on every surface at a strong radius, grain texture, theme colorization, avatar accent rings, in-chat avatars, and motion actually running. This is the arm a motion/visual audit owes: with the owner's row (reducedMotion on, flat elevation, no texture) every ornament the app ships is invisible to the probe.",

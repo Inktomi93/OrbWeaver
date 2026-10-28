@@ -181,7 +181,7 @@ function registerIdentityCase(sample: (typeof CASES)[number]): void {
     });
     await seedShellState(page, { activeSection: "chats" });
     await routeTrpc(page, {
-      ...createShellAmbientReads(corpus),
+      ...createShellAmbientReads(corpus, root.ownerId),
       ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...ROOM_PROCEDURES, "rpg.getGame", "rpg.listTurnToolCalls"]),
     });
     await mount<typeof ChatRoomShellStory>(STORY, { chatId: roomId });

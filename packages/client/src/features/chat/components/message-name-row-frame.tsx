@@ -80,6 +80,7 @@ export function NameRowFrame({ identity, actions, stickyAttribution, placement, 
       stickyInside={sticky && !outside}
       reachCard={reach === "card"}
       reachColumn={reach === "column"}
+      reachTrain={reach === "train"}
       chip={!shape.identity}
       outside={outside}
       overlay={!shape.ownLine}
@@ -102,18 +103,17 @@ function outsidePlate(sticky: boolean): "island" | "chrome" {
 
 interface FramePaint {
   readonly ground: (typeof ROLE_FILL)[MessageRole] | "readingBand" | undefined;
-  readonly fadeBelow: boolean;
   readonly cardCorners: RowSkin["pinnedHeader"]["corners"];
 }
 
-const NO_PAINT: FramePaint = { ground: undefined, fadeBelow: false, cardCorners: undefined };
+const NO_PAINT: FramePaint = { ground: undefined, cardCorners: undefined };
 
-/** The pinned bar's fill, its fade below and the card corners it follows. */
+/** The pinned bar's opaque fill and the card corners it follows. */
 function pinnedPaint(pinned: RowSkin["pinnedHeader"], role: MessageRole): FramePaint {
   if (pinned.fill === "none") {
     return NO_PAINT;
   }
-  return { ground: pinned.fill === "role" ? ROLE_FILL[role] : "readingBand", fadeBelow: true, cardCorners: pinned.corners };
+  return { ground: pinned.fill === "role" ? ROLE_FILL[role] : "readingBand", cardCorners: pinned.corners };
 }
 
 interface FrameRowProps {
@@ -129,6 +129,7 @@ interface FrameRowProps {
   readonly stickyInside: boolean;
   readonly reachCard: boolean;
   readonly reachColumn: boolean;
+  readonly reachTrain: boolean;
   readonly chip: boolean;
   readonly outside: boolean;
   readonly overlay: boolean;
@@ -150,6 +151,7 @@ function FrameRow({
   stickyInside,
   reachCard,
   reachColumn,
+  reachTrain,
   chip,
   outside,
   overlay,
@@ -159,7 +161,7 @@ function FrameRow({
   return (
     <Row
       ref={rowRef}
-      justify="between"
+      justify={chip ? "end" : "between"}
       align="center"
       gap="field"
       data-slot="message-name-row"
@@ -169,7 +171,6 @@ function FrameRow({
       data-bubble-ink={bubbleInk ? "" : undefined}
       plate={plate}
       ground={paint.ground}
-      fadeBelow={paint.fadeBelow}
       cardCorners={paint.cardCorners}
       className={cn(
         "flex-wrap",
@@ -178,9 +179,10 @@ function FrameRow({
         stickyInside && STICKY_INSIDE,
         reachCard && REACH_CARD,
         reachColumn && REACH_COLUMN,
-        // An actions-only bar is a chip at the trailing edge, and off the last row it overlays the row's top
-        // trailing corner at its full glyph height while costing the row no height at all.
-        chip && "ms-auto inline-fit",
+        reachTrain && "self-stretch",
+        // An actions-only bar stays a trailing chip at rest. Its pinned frame spans the reading width so
+        // partially covered text cannot look like a complete line. Off the last row it remains an overlay.
+        chip && !pinned && "ms-auto inline-fit",
         // An outside header (tide's) sits on the same inset as the pager under its train, so the last action
         // ends where the forward chevron does and its touch area stays inside the scrollport.
         outside && "px-field",

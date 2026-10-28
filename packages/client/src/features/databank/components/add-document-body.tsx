@@ -154,7 +154,9 @@ export function AddDocumentBody(): ReactElement {
               placeholder="Search characters…"
             />
           ) : null}
-          <Text voice="gloss">{scopeCopy[scope]}</Text>
+          <Text className="max-inline-(--reading-measure-prose)" prose={true} voice="gloss">
+            {scopeCopy[scope]}
+          </Text>
         </Stack>
         {/* Three pressable modes, not a tablist: each swaps the body in place with no panel to own or
             label, and `aria-pressed` is the honest name for "this is the one you are on". */}

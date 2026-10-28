@@ -38,7 +38,7 @@ export const pluginChatFlankSurface: ChatSurfaceContribution = {
 export const pluginComposerPanelsSurface: ChatSurfaceContribution = {
   id: "pluginComposerPanels",
   anchor: "composer-room",
-  body: ({ chatId }): ReactElement | null => (chatId === null ? null : <PluginPanelsMenuItem chatId={chatId} />),
+  body: ({ chatId }): ReactElement | null => (chatId === null ? null : <PluginPanelsMenuItem />),
 };
 
 /** The `chat-settings-section` anchor: plugin panels inside the "This chat" tab's HOST-ONLY band. Host-gated by

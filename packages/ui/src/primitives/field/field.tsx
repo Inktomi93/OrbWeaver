@@ -11,7 +11,7 @@ import { FieldNameContext } from "./field-identity.ts";
 import { FieldLabelledContext } from "./field-labelled.ts";
 import { fieldVariants } from "./variants.ts";
 
-const FIELD_ORIENTATIONS = ["vertical", "horizontal"] as const;
+const FIELD_ORIENTATIONS = ["vertical", "horizontal", "inline"] as const;
 export type FieldOrientation = (typeof FIELD_ORIENTATIONS)[number];
 
 const FIELD_ALIGNS = ["block", "track"] as const;
@@ -72,7 +72,7 @@ export interface FieldProps extends Omit<FieldRootProps, "className"> {
    */
   labelFor?: string;
   description?: ReactNode;
-  /** Layout of label vs control. Defaults to the ambient `FieldLayout` (else `vertical`). */
+  /** Layout of label vs control, defaulting to FieldLayout. `inline` keeps a compact selection pair together at narrow widths. */
   orientation?: FieldOrientation;
   /** Short explainer surfaced as an info-icon hover tooltip beside the label (no vertical-space cost). */
   hint?: ReactNode;
@@ -170,6 +170,12 @@ export function Field({
       {error}
     </BaseField.Error>
   ) : null;
+  const pairedErrors = {
+    vertical: { control: null, row: null },
+    horizontal: { control: errorNode, row: null },
+    inline: { control: null, row: errorNode },
+  } satisfies Record<FieldOrientation, { readonly control: ReactNode; readonly row: ReactNode }>;
+  const pairedError = pairedErrors[resolved];
 
   return (
     <BaseField.Root
@@ -185,7 +191,7 @@ export function Field({
       <FieldLabelledContext value={true}>
         <FieldNameContext value={name}>
           <FieldControlDockContext value={resolved === "horizontal"}>
-            {resolved === "horizontal" ? (
+            {resolved !== "vertical" ? (
               <>
                 <div className={slots.labelBlock()} data-slot="field-label-block">
                   {labelNode}
@@ -193,8 +199,9 @@ export function Field({
                 </div>
                 <div className={slots.controlCol()} data-slot="field-control-col">
                   {children}
-                  {errorNode}
+                  {pairedError.control}
                 </div>
+                {pairedError.row}
               </>
             ) : (
               <>

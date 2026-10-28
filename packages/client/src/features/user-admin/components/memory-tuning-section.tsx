@@ -16,7 +16,7 @@ import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { QueryBoundary, useFirstBootBox } from "#components";
+import { QueryBoundary, SettingRowGroup, useFirstBootBox } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
@@ -125,7 +125,7 @@ function diffNumeric(effective: ResolvedMemoryDefaults, draft: NumericDraft): Me
 
 /** The section's own suspense/error boundary so it is self-contained. */
 export function MemoryTuningSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
-  const firstBootBox = useFirstBootBox({ wide: 11, narrow: 21 });
+  const firstBootBox = useFirstBootBox({ wide: 15, narrow: 22 });
   return (
     // RESERVED (#1098) — one of the two LONGEST admin knob stacks — the sentence it replaced under-reserved by most of a screen.
     <QueryBoundary
@@ -174,37 +174,39 @@ function MemoryTuningBody({ anchorId, sectionId }: { readonly anchorId: string; 
         <Text voice="label" tone="muted">
           Recall &amp; consolidation. Unchanged controls use the deployment defaults.
         </Text>
-        <AdminOverrideSelect
-          label="Retrieval mode"
-          hint={MODE_GUIDANCE[effective.mode].description}
-          value={effective.mode}
-          items={MODE_ITEMS}
-          overridden={isOverridden(stored?.mode)}
-          floorLabel={MODE_GUIDANCE[DEFAULT_MEMORY_DEFAULTS.mode].label}
-          onSet={(next): void => writeMemoryDefaults({ mode: next as MemoryRetrievalMode })}
-        />
-        <AdminOverrideSwitch
-          label="Keyword match"
-          hint="Also recall scenes whose saved keywords appear in recent messages. This can catch exact names, but may add loosely related scenes."
-          value={effective.keywordMatch}
-          overridden={isOverridden(stored?.keywordMatch)}
-          floorLabel={DEFAULT_MEMORY_DEFAULTS.keywordMatch ? "on" : "off"}
-          onSet={(next): void => writeMemoryDefaults({ keywordMatch: next })}
-        />
-        {NUMERIC_KNOBS.map(({ key, label, hint, step }) => (
-          <AdminOverrideField
-            key={key}
-            label={label}
-            hint={hint}
-            value={draft[key] ?? ""}
-            onChange={(next): void => setDraft((d) => ({ ...d, [key]: next }))}
-            overridden={isOverridden(stored?.[key])}
-            floorValue={DEFAULT_MEMORY_DEFAULTS[key]}
-            min={MEMORY_DEFAULTS_BOUNDS[key].min}
-            {...(MEMORY_DEFAULTS_BOUNDS[key].max === null ? {} : { max: MEMORY_DEFAULTS_BOUNDS[key].max })}
-            step={step}
+        <SettingRowGroup>
+          <AdminOverrideSelect
+            label="Retrieval mode"
+            hint={MODE_GUIDANCE[effective.mode].description}
+            value={effective.mode}
+            items={MODE_ITEMS}
+            overridden={isOverridden(stored?.mode)}
+            floorLabel={MODE_GUIDANCE[DEFAULT_MEMORY_DEFAULTS.mode].label}
+            onSet={(next): void => writeMemoryDefaults({ mode: next as MemoryRetrievalMode })}
           />
-        ))}
+          <AdminOverrideSwitch
+            label="Keyword match"
+            hint="Also recall scenes whose saved keywords appear in recent messages. This can catch exact names, but may add loosely related scenes."
+            value={effective.keywordMatch}
+            overridden={isOverridden(stored?.keywordMatch)}
+            floorLabel={DEFAULT_MEMORY_DEFAULTS.keywordMatch ? "on" : "off"}
+            onSet={(next): void => writeMemoryDefaults({ keywordMatch: next })}
+          />
+          {NUMERIC_KNOBS.map(({ key, label, hint, step }) => (
+            <AdminOverrideField
+              key={key}
+              label={label}
+              hint={hint}
+              value={draft[key] ?? ""}
+              onChange={(next): void => setDraft((d) => ({ ...d, [key]: next }))}
+              overridden={isOverridden(stored?.[key])}
+              floorValue={DEFAULT_MEMORY_DEFAULTS[key]}
+              min={MEMORY_DEFAULTS_BOUNDS[key].min}
+              {...(MEMORY_DEFAULTS_BOUNDS[key].max === null ? {} : { max: MEMORY_DEFAULTS_BOUNDS[key].max })}
+              step={step}
+            />
+          ))}
+        </SettingRowGroup>
         <AdminOverrideResetRow
           dirty={dirty}
           anyOverridden={anyDefaultsOverridden}
