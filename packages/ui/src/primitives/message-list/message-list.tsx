@@ -241,6 +241,8 @@ export function MessageList<T>({
     // portaled/fixed descendants (future edit-in-place overlays, Tier-B iframes).
     directDomUpdatesMode: "position",
     useFlushSync: false,
+    // Row measurements resize the virtual container; those writes must leave native resize delivery.
+    useAnimationFrameWithResizeObserver: true,
   });
 
   // The content-growth signal both `contentHeightPx` effects key on — virtual-core's own written number,

@@ -45,7 +45,7 @@
 
 import type { Virtualizer } from "@tanstack/react-virtual";
 import type { Dispatch, RefObject, SetStateAction } from "react";
-import { useLayoutEffect } from "react";
+import { useEffectEvent, useLayoutEffect } from "react";
 import { updateEdgeFades } from "./list-window.ts";
 import { pinSpacerSpent } from "./pin-spacer.ts";
 
@@ -130,39 +130,43 @@ export function useScrollportSync(input: {
   readonly setPinSpacerPx: Dispatch<SetStateAction<number>>;
 }): void {
   const { virtualizer, scrollRef, pinnedIndexRef, contentHeightPx, setScrollportHeightPx, setPinSpacerPx } = input;
-  useLayoutEffect(() => {
+  const sync = useEffectEvent(() => {
     const el = scrollRef.current;
     if (el === null) {
       return;
     }
-    const sync = (): void => {
-      updateEdgeFades(el);
-      setScrollportHeightPx((prev) => nextScrollportHeight(prev, el.clientHeight));
-      // pin-prompt: drop the pin once the spacer is spent (pin-spacer.ts owns that decision).
-      const pinnedIndex = pinnedIndexRef.current;
-      if (pinnedIndex === null) {
-        return;
-      }
-      const rendered = virtualizer.getVirtualItems();
-      if (
-        pinSpacerSpent(
-          el.clientHeight,
-          rendered.find((v) => v.index === pinnedIndex),
-          rendered.at(-1),
-        )
-      ) {
-        pinnedIndexRef.current = null;
-        setPinSpacerPx(0);
-      }
-    };
+    updateEdgeFades(el);
+    setScrollportHeightPx((prev) => nextScrollportHeight(prev, el.clientHeight));
+    // pin-prompt: drop the pin once the spacer is spent (pin-spacer.ts owns that decision).
+    const pinnedIndex = pinnedIndexRef.current;
+    if (pinnedIndex === null) {
+      return;
+    }
+    const rendered = virtualizer.getVirtualItems();
+    if (
+      pinSpacerSpent(
+        el.clientHeight,
+        rendered.find((v) => v.index === pinnedIndex),
+        rendered.at(-1),
+      )
+    ) {
+      pinnedIndexRef.current = null;
+      setPinSpacerPx(0);
+    }
+  });
+  useLayoutEffect(() => {
     if (shouldSyncOnMount(contentHeightPx)) {
       sync();
     }
-    if (typeof ResizeObserver === "undefined") {
+  }, [contentHeightPx]);
+  // Re-observing a shallower scrollport during row measurement creates another initial resize delivery.
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (el === null || typeof ResizeObserver === "undefined") {
       return;
     }
-    const observer = new ResizeObserver(sync);
+    const observer = new ResizeObserver(() => sync());
     observer.observe(el);
     return (): void => observer.disconnect();
-  }, [virtualizer, scrollRef, pinnedIndexRef, contentHeightPx, setScrollportHeightPx, setPinSpacerPx]);
+  }, [scrollRef]);
 }
