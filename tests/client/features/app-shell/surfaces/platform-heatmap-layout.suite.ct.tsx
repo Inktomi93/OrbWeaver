@@ -1,11 +1,11 @@
 // The isolated public Heatmap inherits dimensions from the actual Insights Context, never a copied shell.
+import { CORPUS_MODE_LABELS } from "@orb/client/lib";
 import { DEFAULT_APPEARANCE_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { controlledPanel, seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { z } from "zod";
-import { CORPUS_MODE_LABELS } from "#client/lib/corpus-modes.ts";
 import { channelName } from "../../../lib/appearance-channel-names.ts";
 import type { SectionShellStory } from "../_surface-stories.tsx";
 import type { HeatmapLayoutStory } from "./_heatmap-layout-stories.tsx";
