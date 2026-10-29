@@ -17,7 +17,6 @@ export interface HeatmapMatrix {
 }
 
 const AXIS_LABEL_INTERVAL = 2;
-const LEGEND_PADDING_ROWS = 3;
 
 function maxValue(values: readonly (readonly number[])[]): number {
   let max = 0;
@@ -36,12 +35,15 @@ export function buildHeatmapOption(matrix: HeatmapMatrix, colors: ChartColors): 
   // (below) to keep row 0 at the top, matching the caller's `rows` order.
   const data = matrix.rows.flatMap((_row, rowIndex) => matrix.cols.map((_col, colIndex) => [colIndex, rowIndex, matrix.values[rowIndex]?.[colIndex] ?? 0]));
 
+  const legendBlock = colors.metrics.barHeight + colors.metrics.lineHeight + 2 * colors.metrics.padding;
+
   return {
     grid: {
       left: colors.metrics.padding,
       right: colors.metrics.padding,
       top: colors.metrics.padding,
-      bottom: colors.metrics.lineHeight + LEGEND_PADDING_ROWS * colors.metrics.padding,
+      // The calculable legend paints handle labels outside its gradient; the hour axis needs its own text band.
+      bottom: legendBlock + colors.metrics.lineHeight + colors.metrics.padding,
       ...AXIS_LABEL_OUTER_BOUNDS,
     },
     tooltip: { trigger: "item" },
@@ -69,7 +71,11 @@ export function buildHeatmapOption(matrix: HeatmapMatrix, colors: ChartColors): 
       orient: "horizontal",
       left: "center",
       bottom: 0,
-      textStyle: { color: colors.axisLabelMuted },
+      itemWidth: colors.metrics.barHeight,
+      handleSize: colors.metrics.barHeight,
+      padding: colors.metrics.padding,
+      textGap: colors.metrics.tight,
+      textStyle: { color: colors.axisLabelMuted, fontSize: colors.metrics.fontSize, lineHeight: colors.metrics.lineHeight },
       inRange: { color: [colors.axisLine, colors.series] },
     },
     series: [
