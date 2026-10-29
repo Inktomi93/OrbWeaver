@@ -36,6 +36,8 @@ const LEADING_GUTTER =
 
 export const menuVariants = tv({
   slots: {
+    // A moving anchor feeds its press scale back into the popup's live viewport-height constraint.
+    trigger: "active:scale-100",
     positioner: "z-(--z-popover)",
     // `max-h-(--available-height)` + a scroller is the VIEWPORT CLAMP, not decoration: Base UI's
     // Positioner publishes `--available-height` as the space left between the anchor and the viewport

@@ -39,10 +39,12 @@ export function Menu<Payload = unknown>(props: BaseRootProps<Payload>): ReactEle
   return <BaseMenu.Root {...props} />;
 }
 
-/** Opens the menu. Unstyled passthrough — compose your own control via `render`. Accepts `handle` +
+/** Opens the menu with a stable anchor box; compose its control via `render`. Accepts `handle` +
  *  `payload` (Base UI 1.x) to act as a DETACHED trigger for a handle-driven menu. */
-export function MenuTrigger<Payload = unknown>(props: BaseTriggerProps<Payload>): ReactElement {
-  return <BaseMenu.Trigger {...props} />;
+export function MenuTrigger<Payload = unknown>({ className, ...props }: BaseTriggerProps<Payload>): ReactElement {
+  return (
+    <BaseMenu.Trigger className={(state): string => slots.trigger({ className: typeof className === "function" ? className(state) : className })} {...props} />
+  );
 }
 
 export interface MenuPopupProps extends Omit<BasePopupProps, "className"> {
