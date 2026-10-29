@@ -73,7 +73,7 @@ function SimilarityBody(): ReactElement {
   const { data: dupArt } = useSuspenseQuery(trpc.discovery.imageDuplicates.queryOptions());
 
   return (
-    <Stack className="relative flex-1 overflow-y-auto overscroll-contain min-block-0" data-slot="corpus-similarity-tab" gap="section">
+    <Stack className="relative min-block-0" data-slot="corpus-similarity-tab" gap="section">
       {/* THE FINDINGS LEAD (#554). These three sections used to sit 52,151px below the raw edge list. */}
       <CorpusDuplicateCharacters pairs={dupChars} />
       <CorpusDuplicateArt pairs={dupArt} />

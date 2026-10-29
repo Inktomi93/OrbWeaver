@@ -10,7 +10,17 @@ export { emulateMedia, releaseEmulatedMedia } from "./media-emulation.ts";
 export { pixelContrast, pixelSurface } from "./pixel-contrast.ts";
 export { beginReading, scrollIntoReadingMessage, tokenColor } from "./reading-position.ts";
 export { auditSurface } from "./settle-surface.ts";
-export { dispatchCommandKey, dropOn, persistedOverrides, pixel, resolvedLength, seedShellState, settledBox, shellTracks } from "./shell-drive.ts";
+export {
+  controlledPanel,
+  dispatchCommandKey,
+  dropOn,
+  persistedOverrides,
+  pixel,
+  resolvedLength,
+  seedShellState,
+  settledBox,
+  shellTracks,
+} from "./shell-drive.ts";
 export { touchTargetFindings } from "./touch-floor.ts";
 export type {
   ActorRefInput,

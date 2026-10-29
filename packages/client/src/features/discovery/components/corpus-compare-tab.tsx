@@ -43,12 +43,8 @@ const PICKER_PAGE = 200;
 
 export function CorpusCompareTab(): ReactElement {
   return (
-    // THE SCROLL BOX IS THE TAB'S, NOT THE BODY'S (#1726/#1727, the #1133 hoist). `reserveKey` wraps the
-    // settled child in an auto-height measuring Stack, so a scroller under the boundary resolves `flex-1`
-    // against an indefinite parent and strands everything past the fold; hoisted, the wrapper sits INSIDE
-    // the scroller and the scroller survives the read. (Its sibling corpus tabs key with no scroller of
-    // their own.)
-    <Stack className="relative flex-1 overflow-y-auto overscroll-contain min-block-0" data-testid={testId("corpusCompareTab")}>
+    // The bracket owns the stable viewport; the query boundary measures content without trapping scroll chaining.
+    <Stack className="relative min-block-0" data-testid={testId("corpusCompareTab")}>
       <QueryBoundary
         fallback={<SkeletonRows count={3} shape="line" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="characters" onRetry={retry} />}

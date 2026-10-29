@@ -32,10 +32,8 @@ import { RhythmFigures } from "./rhythm-figures.tsx";
 
 export function AnalyticsTimeTab(): ReactElement {
   return (
-    // THE SCROLL BOX IS THE TAB'S, NOT THE BODY'S (#1727, the #1133 hoist — the models tab's header carries
-    // the mechanism). Hoisted, the reservation's measuring wrapper sits INSIDE the scroller, where an
-    // auto-height child is exactly what a scroller wants, and the scroller survives the read.
-    <Stack className="relative flex-1 overflow-y-auto overscroll-contain min-block-0" data-testid={testId("analyticsTimeTab")}>
+    // ContextBracket owns the stable viewport; the reservation measures content without trapping scroll chaining.
+    <Stack className="relative min-block-0" data-testid={testId("analyticsTimeTab")}>
       <QueryBoundary
         fallback={<SkeletonRows count={3} shape="datum" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="activity" onRetry={retry} />}

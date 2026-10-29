@@ -78,7 +78,7 @@ function VisualsBody(): ReactElement {
   const { data: portrait } = useSuspenseQuery(trpc.discovery.portraitAlignment.queryOptions());
 
   return (
-    <Stack className="relative flex-1 overflow-y-auto overscroll-contain min-block-0" data-testid={testId("corpusVisualsTab")} gap="section">
+    <Stack className="relative min-block-0" data-testid={testId("corpusVisualsTab")} gap="section">
       <PortraitFit report={portrait} />
       <FacetExplorer facets={facets} />
     </Stack>

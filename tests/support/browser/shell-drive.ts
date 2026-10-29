@@ -3,6 +3,7 @@
 
 import type { Rgb } from "@orb/kit/theme-derivation";
 import type { Locator, Page } from "@playwright/test";
+import { expect } from "@playwright/test";
 
 interface ShortcutInit {
   readonly altKey?: boolean;
@@ -14,6 +15,16 @@ interface ShortcutInit {
 }
 
 const SETTLE_FRAMES = 120;
+
+/** Resolve the native relationship after the caller has activated the mounted control. */
+export async function controlledPanel(control: Locator): Promise<Locator> {
+  await expect(control, "The activated production control must publish its mounted panel relationship").toHaveAttribute("aria-controls", /\S+/u);
+  const id = await control.getAttribute("aria-controls");
+  if (id === null) {
+    throw new Error("The activated production control did not publish its controlled panel");
+  }
+  return control.page().locator(`[id=${JSON.stringify(id)}]`);
+}
 
 /** A rendered box once two reads a painted frame apart agree, so an entering transition is never measured mid-flight. */
 export async function settledBox(locator: Locator): Promise<{ x: number; y: number; width: number; height: number }> {

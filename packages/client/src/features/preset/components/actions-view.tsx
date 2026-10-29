@@ -41,9 +41,10 @@ import { Row, Section, Stack, Surface } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { Band } from "#components";
 import type { AppFormInstance } from "#forms/editor";
+import { useFocusOnSwap } from "#lib";
 import { closePresetTemplateDrill, drillPresetTemplate, selectPresetTemplate, useDrilledPresetTemplateId, useSelectedPresetTemplateId } from "#state";
 import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
 import type { TemplateRow, TemplateRowCluster } from "../lib/template-rows.ts";
@@ -101,6 +102,7 @@ export function ActionsView({ form, onSelectSection }: ActionsViewProps): ReactE
   // WHICH cluster bands are open (no filter active). Local: no cross-region reader, and after a fork the
   // author lands back INSIDE the drill-in, not the list — default-collapsed is the correct re-entry.
   const [openClusters, setOpenClusters] = useState<ReadonlySet<TemplateClusterId>>(new Set<TemplateClusterId>());
+  const [restoreFocusTemplateId, setRestoreFocusTemplateId] = useState<string | null>(null);
   const drilled = drilledId === null ? undefined : templateRowById(drilledId);
   // DRILL CARRIES THE SELECTION (side-eye F-2, the P1): drilling is a strictly stronger act than selecting,
   // so it writes BOTH axes — there is still exactly one writer per axis.
@@ -109,7 +111,16 @@ export function ActionsView({ form, onSelectSection }: ActionsViewProps): ReactE
     drillPresetTemplate(id);
   };
   if (drilled !== undefined) {
-    return <TemplateDrillIn form={form} onBack={closePresetTemplateDrill} row={drilled} />;
+    return (
+      <TemplateDrillIn
+        form={form}
+        onBack={(): void => {
+          setRestoreFocusTemplateId(drilled.def.id);
+          closePresetTemplateDrill();
+        }}
+        row={drilled}
+      />
+    );
   }
   const filtering = filter.trim() !== "";
   const groups = templateGroups(filter);
@@ -151,9 +162,17 @@ export function ActionsView({ form, onSelectSection }: ActionsViewProps): ReactE
             member (`steer`, `voice`, `studio`), which is a code identifier standing in for a heading. */}
         {groups.map((group) => (
           <Section key={group.kind} kicker={TEMPLATE_KIND_LABEL[group.kind]}>
-            <Stack gap="tight">
+            <Stack className="pe-field" gap="tight">
               {group.rows.map((row) => (
-                <TemplateListRow form={form} key={row.def.id} onDrill={onDrill} row={row} selected={row.def.id === selectedId} />
+                <TemplateListRow
+                  form={form}
+                  key={row.def.id}
+                  onDrill={onDrill}
+                  onRestoreFocus={(): void => setRestoreFocusTemplateId(null)}
+                  restoreFocus={row.def.id === restoreFocusTemplateId}
+                  row={row}
+                  selected={row.def.id === selectedId}
+                />
               ))}
               {group.clusters.map((cluster) => (
                 <TemplateCluster
@@ -164,7 +183,15 @@ export function ActionsView({ form, onSelectSection }: ActionsViewProps): ReactE
                   open={openClusters.has(cluster.id)}
                 >
                   {cluster.rows.map((row) => (
-                    <TemplateListRow form={form} key={row.def.id} onDrill={onDrill} row={row} selected={row.def.id === selectedId} />
+                    <TemplateListRow
+                      form={form}
+                      key={row.def.id}
+                      onDrill={onDrill}
+                      onRestoreFocus={(): void => setRestoreFocusTemplateId(null)}
+                      restoreFocus={row.def.id === restoreFocusTemplateId}
+                      row={row}
+                      selected={row.def.id === selectedId}
+                    />
                   ))}
                 </TemplateCluster>
               ))}
@@ -253,15 +280,21 @@ function TemplateListRow({
   form,
   row,
   onDrill,
+  onRestoreFocus,
   selected,
+  restoreFocus,
 }: {
   readonly form: PresetForm;
   readonly row: TemplateRow;
   readonly onDrill: (id: string) => void;
+  readonly onRestoreFocus: () => void;
   /** This row is the SELECTED template — the readout echoes it (ListRow paints the ember bar + tint). */
   readonly selected: boolean;
+  readonly restoreFocus: boolean;
 }): ReactElement {
   const { def, factoryDefault } = row;
+  const chevronRef = useRef<HTMLButtonElement>(null);
+  useFocusOnSwap(chevronRef, restoreFocus);
   return (
     // WHICH FIELD holds this row's text is the row model's answer, not a second copy of the split here: the
     // registry has three storage arms (guided prompt · format string · `prose` slot) and spelling the
@@ -283,7 +316,15 @@ function TemplateListRow({
                     Customized
                   </Badge>
                 ) : null}
-                <Button aria-label={`Edit ${def.label}`} intent="ghost" onClick={(): void => onDrill(def.id)} size="icon" type="button">
+                <Button
+                  aria-label={`Edit ${def.label}`}
+                  intent="ghost"
+                  onClick={(): void => onDrill(def.id)}
+                  onFocus={restoreFocus ? onRestoreFocus : undefined}
+                  ref={chevronRef}
+                  size="icon"
+                  type="button"
+                >
                   <Icon icon={ChevronRight} size="sm" />
                 </Button>
               </Row>
