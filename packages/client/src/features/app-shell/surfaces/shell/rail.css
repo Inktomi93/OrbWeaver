@@ -7,6 +7,7 @@
     grid-row: 1;
     z-index: var(--z-raised);
     inline-size: var(--rail-w);
+    min-block-size: 0;
     background: var(--color-sidebar);
     color: var(--color-sidebar-foreground);
     border-inline-end: var(--border-width-control) solid var(--color-sidebar-border);
@@ -20,6 +21,7 @@
   /* The brand cell is the rail's chrome-row header; `align-self: stretch` lets its hairline span the rail. */
   .shell-rail-brand {
     display: flex;
+    flex-shrink: 0;
     align-self: stretch;
     align-items: center;
     justify-content: center;
@@ -56,18 +58,26 @@
   }
   .shell-rail-sections {
     display: flex;
+    flex: 0 1 auto;
+    min-block-size: 0;
+    align-self: stretch;
+    overflow-y: auto;
+    /* Coarse controls fill the rail token, not its border-reduced content box. */
+    inline-size: var(--rail-w);
     flex-direction: column;
     align-items: center;
     gap: var(--spacing-section);
   }
   .shell-rail-group {
     display: flex;
+    flex-shrink: 0;
     flex-direction: column;
     align-items: center;
     gap: var(--spacing-field);
   }
   .shell-rail-actions {
     display: flex;
+    flex-shrink: 0;
     flex-direction: column;
     align-items: center;
     gap: var(--spacing-row);

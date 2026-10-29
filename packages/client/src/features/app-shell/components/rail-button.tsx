@@ -4,9 +4,8 @@
 // instead). `aria-label` is the accessible name in BOTH regimes — the desktop label is `display:none`, so
 // it contributes nothing to the name, and it never conflicts with the visible mobile label (same string).
 // Visual states live in shell.css keyed off `.shell-rail-button` + `data-active`/`data-mobile`, not inline
-// utilities — except the focus-ring OFFSET COLOR, which must match the sidebar tone under the rail
-// (Button's FOCUS_RING offsets to `background`); Button's `focusRing="sidebar"` offsets it to `--color-sidebar`
-// instead (north-star PP3).
+// utilities. Button's inset focus recipe keeps the keyboard ring inside the rail's scrollport,
+// including coarse-pointer controls that fill its width; an outer offset ring would be clipped.
 
 import { Button } from "@orb/ui/button";
 import type { LucideIcon } from "@orb/ui/icons";
@@ -67,7 +66,7 @@ export function RailButton({
             data-modal-trigger={modalId}
             data-rail-mobile-only={mobileOnly ? "" : undefined}
             className="shell-rail-button"
-            focusRing="sidebar"
+            focusRing="inset"
             onClick={onClick}
           >
             <Icon icon={icon} size="sm" />

@@ -7,6 +7,8 @@ import {
   DISABLED_STATE,
   DISABLED_STATE_NATIVE,
   FOCUS_RING,
+  FOCUS_RING_INSET,
+  FOCUS_RING_NONE,
   FOCUS_RING_ON_SIDEBAR,
   FOCUS_RING_ON_STATE_RING,
   HIDDEN_AT,
@@ -248,8 +250,8 @@ export const buttonVariants = tv({
     confirming: { true: "ring-2 ring-accent", false: "" },
     // A disabled control that teaches by its label stays at full strength; its state reads from the copy beside it.
     quietDisabled: { true: "disabled:opacity-100 data-disabled:opacity-100", false: "" },
-    // The focus ring's offset moat in the sidebar fill, for a control that sits on the rail.
-    focusRing: { surface: "", sidebar: FOCUS_RING_ON_SIDEBAR },
+    // Scrollport-bound controls keep the ring inside their box instead of clipping an outer moat.
+    focusRing: { surface: "", sidebar: FOCUS_RING_ON_SIDEBAR, inset: [FOCUS_RING_NONE, FOCUS_RING_INSET] },
   },
   compoundVariants: [
     { intent: FILL_LESS_INTENTS, tone: "primary", class: TONE_INK.accent },
