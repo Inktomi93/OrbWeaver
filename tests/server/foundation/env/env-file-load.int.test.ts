@@ -5,6 +5,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { AUTH_MODE_DEFAULT_FALLBACK } from "@orb/server/foundation/env";
 import { expect, test } from "@orb/testkit/node";
 import { z } from "zod";
 
@@ -28,9 +29,22 @@ function load(parent: string, name: string, dotenv: string | undefined, processE
   return run(cwd, processEnv);
 }
 
-function run(cwd: string, processEnv: Readonly<Record<string, string>>): Resolved {
+/** The production module's whole outcome in a fresh process: the parsed record, or the refusal that stopped the boot. */
+function boot(parent: string, name: string, dotenv: string | undefined, processEnv: Readonly<Record<string, string>> = {}): z.infer<typeof outcomeSchema> {
+  const cwd = mkdtempSync(join(parent, `${name}-`));
+  if (dotenv !== undefined) {
+    writeFileSync(join(cwd, ".env"), dotenv);
+  }
+  return outcomeOf(cwd, processEnv);
+}
+
+function outcomeOf(cwd: string, processEnv: Readonly<Record<string, string>>): z.infer<typeof outcomeSchema> {
   const child = spawnSync(process.execPath, [CHILD], { cwd, env: processEnv, encoding: "utf8" });
-  const outcome = outcomeSchema.parse(JSON.parse(child.stdout));
+  return outcomeSchema.parse(JSON.parse(child.stdout));
+}
+
+function run(cwd: string, processEnv: Readonly<Record<string, string>>): Resolved {
+  const outcome = outcomeOf(cwd, processEnv);
   if ("error" in outcome) {
     throw new Error(outcome.error);
   }
@@ -78,4 +92,31 @@ test("a UTF-8 byte-order mark does not rename the file's first key", ({ importSt
   const env = load(importStagingDir, "bom", `${UTF8_BOM}DEFAULT_USER_HANDLE=bommed\nPORT=9100\n`);
   expect(env.handle).toBe("bommed");
   expect(env.port).toBe(9100);
+});
+
+// The owner fallback and the peers it admits are launch-time decisions. `.env` loads with override on, so a value
+// written there would ride into every launch from the directory, dev and prod alike; the boot refuses it instead.
+test.for(["AUTH_FALLBACK=owner", "AUTH_FALLBACK_TRUSTED_PEERS=172.16.0.0/12"])(
+  "%s written in .env refuses the boot, while the same value from the launch environment boots",
+  (line, { importStagingDir }) => {
+    const [key = "", value = ""] = line.split("=");
+    expect(boot(importStagingDir, "pinned", `AUTH_MODE=single-user\n${line}\n`)).toEqual({ error: expect.any(String) });
+
+    // Controls: the same file without the line boots at the mode's default, and the launch environment may set it.
+    const unpinned = boot(importStagingDir, "unpinned", "AUTH_MODE=single-user\n");
+    expect(unpinned).toMatchObject({ env: { ["AUTH_FALLBACK"]: AUTH_MODE_DEFAULT_FALLBACK["single-user"] } });
+    expect(boot(importStagingDir, "launched", "AUTH_MODE=single-user\n", { [key]: value })).toMatchObject({ env: { [key]: expect.anything() } });
+  },
+);
+
+// The session cookie's transport is decided per request; the deleted knob must stay inert, never fatal and never
+// carried into the record, wherever an old line still sets it.
+test.for(["true", "false", "1", "TRUE"])("SESSION_COOKIE_INSECURE=%s boots and reaches no record field", (spelling, { importStagingDir }) => {
+  const launched = boot(importStagingDir, "launched", undefined, { ["AUTH_MODE"]: "local", ["SESSION_COOKIE_INSECURE"]: spelling });
+  expect(launched).toMatchObject({ env: { ["AUTH_MODE"]: "local" } });
+  expect("env" in launched && Object.hasOwn(launched.env, "SESSION_COOKIE_INSECURE")).toBe(false);
+
+  const filed = boot(importStagingDir, "filed", `AUTH_MODE=local\nPORT=9001\nSESSION_COOKIE_INSECURE=${spelling}\n`);
+  expect(filed).toMatchObject({ env: { ["AUTH_MODE"]: "local", ["PORT"]: 9001 } });
+  expect("env" in filed && Object.hasOwn(filed.env, "SESSION_COOKIE_INSECURE")).toBe(false);
 });
