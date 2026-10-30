@@ -261,7 +261,7 @@ Explore CONTENT owns the understanding pass. Empty finder and analysis tabs link
 
 Labels uses one visible word for manual labels. Its Usage rail retains the shared Context bracket even when it contains one view. A destructive decision belongs to the finder, which survives row removal. The confirm names the unused labels and owns mutation failure feedback. New-label creation reserves names across delayed library refreshes.
 
-- **Refinery is a first-class rail section + feature surface** (Score→Rewrite→Analyze — D28). Its sub-parts (stage-stepper, assay, issue-list, compare-diff → `@orb/ui/diff`, guidance-bar) are app components over the primitives.
+- **Refinery is a first-class rail section + feature surface** (Score→Rewrite→Analyze — D28). Its workbench parts (session masthead, the score, rewrite and analyze lanes, the run bar, per-block compare → `@orb/ui/diff`) are app components over the primitives.
 - **Each side panel has a 3-state model** in the shell store: **`docked`** · **`overlay`** (slides over via the §11.1 clamp — zero width closed) · **`collapsed`**. Per-panel, persisted, auto-`overlay` below a width breakpoint (the one app-shell `@media`).
 - **"Immersive-ST" = both side panels collapsed; "command-center" = panels docked.** Each panel has its own toggle; nothing else hides both at once. The §11.1 clamp-overlay is the `overlay` mechanism.
 - **A migrating ST user loses nothing:** swipes · edit-in-place · branch/fork · italics-narration · hide-from-AI all live in the CONTENT thread, identical regardless of chrome.
@@ -312,7 +312,7 @@ Per-section grid (end-state; the D62 program builds toward it):
 | Corpus · Explore | the mode switch + the search omnibox + target picker + results (default-docked) | overview home (coverage · insights · keywords) | readable artifact or character dossier | selected artifact evidence and source actions; otherwise `Whole corpus` analysis tabs |
 | Corpus · Insights | the mode switch + the searched, sorted character leaderboard | dashboard | character drill | dimension tabs (Models/Time/Personas) |
 | Corpus · Labels | the mode switch + the label finder (filter · sort · prune) and the New label primary | label library facts | the autosaving label editor | Usage: labels against generated facets, or the open label's attachments by kind and origin |
-| Refinery | past sessions (default-collapsed) | pick-a-character | pipeline (stepper · assay · issues · compare) | tabs: Runs · Setup · Versions (default-collapsed) |
+| Refinery | past sessions (default-collapsed) | pick-a-character | workbench: session masthead · three lanes on one canvas (score · rewrite · analyze) · one foot run bar · per-block Keep/Discard compare (`packages/client/src/features/refinery/surfaces/refinery-content-surface.tsx`) | tabs: Runs · Setup · Versions (default-collapsed) |
 
 Preset numeric sampling controls, effective labels and unsupported-value clearing share `packages/client/src/features/preset/lib/capability-panel-model.ts`. Its catalog covers every range-bearing sampling capability and binds each key to its matching form field. Specialized reasoning, output and context controls retain their own behavior. Presets own intent; capability evidence, resolution and provider translation remain separate contracts in `packages/inference/`.
 
