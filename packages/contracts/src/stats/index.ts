@@ -771,3 +771,9 @@ export const statsTimeseriesInputSchema = z.object({ from: z.int().optional(), t
 export const statsByModelInputSchema = z.object({ limit: z.int().positive().max(STATS_LIST_MAX_LIMIT).optional() }).optional();
 
 export const statsPersonaUsageInputSchema = z.object({ characterId: typeIdSchema(ID_PREFIX.character).optional() }).optional();
+
+/** Per-character selected-variant economics, owner-scoped. */
+export type CharacterEconomicsOp = (ownerId: UserId) => Promise<CharacterEconomics[]>;
+
+/** Per-(character, model) selected-variant economics, owner-scoped. */
+export type CharacterModelEconomicsOp = (ownerId: UserId) => Promise<CharacterModelEconomics[]>;

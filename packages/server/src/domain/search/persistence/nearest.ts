@@ -4,11 +4,11 @@
 // every scan ranks only rows as wide as its query: libSQL throws on a cross-width distance, and widths
 // follow the embedder, so one table can hold several.
 
+import type { DocumentSearchParams } from "@orb/contracts/search";
 import type { ReadOnlyDb } from "@orb/db";
 import { characterEmbeddings, characters, documentChunks, documents, embedGenerations, embedSpaceState } from "@orb/db";
 import type { CharacterId, DocumentChunkId, DocumentId, EmbedGenerationId, UserId } from "@orb/kit/ids";
 import { and, eq, inArray, ne, sql } from "drizzle-orm";
-import type { DocumentSearchParams } from "../contract/params.ts";
 import type { ResolveActiveDocumentScopeOp } from "../contract/service.ts";
 
 interface NearestCharacter {

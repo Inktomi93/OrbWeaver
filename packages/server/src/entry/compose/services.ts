@@ -434,7 +434,7 @@ export interface ServicesResult extends AsyncDisposable {
    *  and local-light sweep run outside the compose-built seed. Never rejects. */
   readonly enqueueEmbedReindex: EmbeddingReindexTriggers["enqueueEmbedReindex"];
   /** The same sweeps started detached, for a boot seed that must not wait on them. */
-  readonly detachEmbedReindex: (scope: UserId | null) => void;
+  readonly detachEmbedReindex: EmbeddingReindexTriggers["detachEmbedReindex"];
   /** Boot's re-index of every owner whose stored generation went stale without a user action, detached. */
   readonly detachStaleSpaceReindex: () => void;
   /** #250 — the memory-recall flight recorder's READ half. Always present (the recorder is unconditional);

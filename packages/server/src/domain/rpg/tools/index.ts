@@ -30,8 +30,8 @@ import {
   updateSceneArgsSchema,
   upsertQuestArgsSchema,
 } from "@orb/contracts/rpg";
+import type { ToolExecutionData, ToolHandlerDefinition, ToolHandlerResult } from "@orb/contracts/tool-use";
 import type { ChatTurnId } from "@orb/kit/ids";
-import type { ToolDefinition, ToolExecutionContext, ToolHandlerResult } from "#domain/tool-use";
 import { createRpgContext } from "../context.ts";
 import type { ActorRefIndex } from "../contract/params.ts";
 import type { RpgAssemblyContext, RpgContext, RpgGameRow } from "../contract/service.ts";
@@ -51,11 +51,11 @@ import {
 } from "./apply.ts";
 import { createExtractionMints } from "./mints.ts";
 
-/** The sanctioned erasure (the imagery/buddy precedent): a typed `ToolDefinition<A>` is unassignable to
- *  `ToolDefinition<unknown>` (handler contravariance), so mint with its own `A` and widen for the array;
+/** The sanctioned erasure (the imagery/buddy precedent): a typed `ToolHandlerDefinition<A>` is unassignable to
+ *  `ToolHandlerDefinition<unknown>` (handler contravariance), so mint with its own `A` and widen for the array;
  *  `register<A>` re-narrows. */
-function rpgTool<A, const Name extends RpgToolName>(def: ToolDefinition<A> & { readonly name: Name }): ToolDefinition & { readonly name: Name } {
-  return def as ToolDefinition & { readonly name: Name };
+function rpgTool<A, const Name extends RpgToolName>(def: ToolHandlerDefinition<A> & { readonly name: Name }): ToolHandlerDefinition & { readonly name: Name } {
+  return def as ToolHandlerDefinition & { readonly name: Name };
 }
 
 /** The turn context a stateful tool needs — the game + the turn's ephemeral id. Resolved once per invocation
@@ -70,7 +70,7 @@ interface ToolTurn {
  *  narrates when there is no chat, no turn correlation, or no game on the chat. */
 async function resolveToolTurn(
   ctx: RpgContext,
-  exec: ToolExecutionContext,
+  exec: ToolExecutionData,
   tool: string,
 ): Promise<{ ok: true; turn: ToolTurn } | { ok: false; result: ToolHandlerResult }> {
   if (exec.chatId === null || exec.turnId === null) {
@@ -99,7 +99,7 @@ async function participantIndexFor(ctx: RpgContext, game: RpgGameRow): Promise<A
 }
 
 /** Build the 7 rpg tool defs closing over `ctx` (registered at compose, W1c-b). */
-export function rpgToolDefinitions(input: RpgAssemblyContext): readonly ToolDefinition[] {
+export function rpgToolDefinitions(input: RpgAssemblyContext): readonly ToolHandlerDefinition[] {
   const ctx = createRpgContext(input);
   const extractionMints = createExtractionMints(ctx.idSource);
   const definitions = {
@@ -229,6 +229,6 @@ export function rpgToolDefinitions(input: RpgAssemblyContext): readonly ToolDefi
         });
       },
     }),
-  } satisfies { readonly [Name in RpgToolName]: ToolDefinition & { readonly name: Name } };
+  } satisfies { readonly [Name in RpgToolName]: ToolHandlerDefinition & { readonly name: Name } };
   return RPG_LITE_TOOL_NAMES.map((name) => definitions[name]);
 }

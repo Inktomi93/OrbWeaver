@@ -6,14 +6,13 @@
 // cross-feature dep arrives as an injected op, wired at the composition root; connection sideways-imports no
 // sibling runtime.
 
-import type { EmbeddingTask, VectorScope } from "@orb/contracts/embeddings";
+import type { SyncTargetGenerationsOp, TargetWouldMoveOp, VectorScope } from "@orb/contracts/embeddings";
 import type { Principal } from "@orb/contracts/identity";
 import type {
   ConnectionBinding,
   ConnectionView,
   CredentialOwned,
   EmbedSpaceChangePreview,
-  EmbedTargetRefusal,
   GetBoundConnectionOp,
   ModelListing,
   ResolvedCacheConnectionView,
@@ -95,15 +94,10 @@ export interface ConnectionContext {
    *  targets against it, awaited by the write: a target that moves queues their rebuild, one that matches does not, and
    *  an encoder that does not make its stated width, or does not answer the probe, moves nothing and is returned for
    *  the write to undo and refuse. */
-  readonly syncEmbedTargets: (ownerId: UserId) => Promise<EmbedTargetRefusal | null>;
+  readonly syncEmbedTargets: SyncTargetGenerationsOp;
   /** Would the owner's stored target for `task` move if `via` resolved through `connectionId`? `null` when that row
    *  cannot resolve. The embeddings domain's own move rule, read-only, for the change preview. */
-  readonly targetWouldMove: (args: {
-    readonly ownerId: UserId;
-    readonly task: EmbeddingTask;
-    readonly via: EmbeddingTask;
-    readonly connectionId: UserConnectionId;
-  }) => Promise<boolean | null>;
+  readonly targetWouldMove: TargetWouldMoveOp;
   /** How many vectors the owner has stored per scope (the embeddings domain's count), for the change preview. */
   readonly countOwnedVectors: (ownerId: UserId) => Promise<Readonly<Record<VectorScope, number>>>;
   /** The per-user freshness plane (`connectionsChanged`) — injected, never a sideways reach at the bus

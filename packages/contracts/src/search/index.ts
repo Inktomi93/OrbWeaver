@@ -1,5 +1,5 @@
 // Memory retrieval options and immutable Corpus evidence are shared boundary shapes.
-// Search execution params and internal scan rows remain in the server domain contracts.
+// Cross-domain search ops and their params live here; the other execution params and internal scan rows remain in the server domain contracts.
 
 // The chat-scoped retrieval-mode axis: off | mixA (all tier-0, chronological) | mixB (+vector retrieve)
 // | mixC (+rerank) | tiered (consolidation bridge). `contracts/settings`'s memory defaults enum derives
@@ -515,3 +515,29 @@ export const similarArtInputSchema = similarCharactersInput.extend({
 export type SearchDigestHitsOp = (params: MemoryQueryOptions, events?: DigestSearchEvents | undefined) => Promise<DigestSearchHit[]>;
 
 export type SearchCorpusHitsOp = (params: CorpusParams) => Promise<CorpusHit[]>;
+
+/** The databank RAG lens. `scope` is the injected-resolver argument shape: a chat turn resolves host-global ∪
+ *  chat-attached documents (host-only v1); an ad-hoc personal search is over the owner's whole bank. `k`,
+ *  `minScore` and `rerank` default to the shipped values when the caller omits them. */
+export interface DocumentSearchParams {
+  readonly scope: DocumentSearchScope;
+  /** The OWNER of the document space (the chat host on a chat scope, the caller on a personal one) — their
+   *  `embed`/`rerank` bindings define the space and fund the query. */
+  readonly ownerId: UserId;
+  readonly queryText: string;
+  readonly k?: number | undefined;
+  readonly minScore?: number | undefined;
+  readonly rerank?: boolean | undefined;
+}
+
+/** Seed-vector top-k over the card space, seeded from the stored embedding (not a re-embed). */
+export interface SimilarCharactersParams {
+  readonly ownerId: UserId;
+  readonly characterId: CharacterId;
+  readonly topN: number;
+}
+
+/** The `search.documents` lens: scope-gated cosine retrieval over `document_chunks`, reading-order restored. */
+export type SearchDocumentsOp = (params: DocumentSearchParams) => Promise<DocumentChunkHit[]>;
+
+export type SimilarCharactersOp = (params: SimilarCharactersParams) => Promise<CharacterCardHit[]>;

@@ -65,7 +65,7 @@ export { SELECTION_RAIL, SELECTION_RAIL_TONE } from "./selection-rail.ts";
 export { SELECTION_RING_CHECKED, SELECTION_RING_SELECTED } from "./selection-ring.ts";
 export { sinHash } from "./sin-hash.ts";
 export { ARRIVAL, OPEN_TURN, PULSE, SPOILER } from "./state-motion.ts";
-export { INKS, type Ink, isTone, TONE_ARMS, TONE_TEXT, type ToneInkSelection } from "./tone-ink.ts";
+export { INKS, isTone, TONE_ARMS, TONE_TEXT, type ToneInkSelection } from "./tone-ink.ts";
 export { TOUCH_FLOOR_AT_COARSE } from "./touch-floor.ts";
 export { usePrefersLightColorScheme } from "./use-prefers-light-color-scheme.ts";
 export { usePrefersReducedMotion } from "./use-prefers-reduced-motion.ts";

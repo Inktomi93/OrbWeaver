@@ -8,8 +8,8 @@
 
 import type {
   ActivityBucket,
-  CharacterEconomics,
-  CharacterModelEconomics,
+  CharacterEconomicsOp,
+  CharacterModelEconomicsOp,
   CharacterStatsView,
   LatencyScope,
   LatencyStats,
@@ -70,10 +70,10 @@ export interface StatsService {
 
   /** Per-character selected-variant economics, owner-scoped — discovery's `forgottenGems` composes this
    *  for the cost/usage dimension. */
-  characterEconomics: (ownerId: UserId) => Promise<CharacterEconomics[]>;
+  characterEconomics: CharacterEconomicsOp;
   /** Per-(character, model) selected-variant economics, owner-scoped — discovery's `modelRouting` re-groups
    *  by the character's distilled genre. */
-  characterModelEconomics: (ownerId: UserId) => Promise<CharacterModelEconomics[]>;
+  characterModelEconomics: CharacterModelEconomicsOp;
 
   /** Rebuild THIS owner's rollups from canon, awaited (the instant "recompute my stats"). The bulk
    *  all-owners sweep stays the `reconcile-stats` workload. */
