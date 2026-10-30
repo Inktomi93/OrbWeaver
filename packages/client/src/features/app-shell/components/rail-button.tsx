@@ -54,7 +54,7 @@ export function RailButton({
   modalId,
 }: RailButtonProps): ReactElement {
   return (
-    <Tooltip>
+    <Tooltip disableHoverablePopup={true}>
       <TooltipTrigger
         render={
           <Button
@@ -89,7 +89,9 @@ export function RailButton({
           </Button>
         }
       />
-      <TooltipPopup side="right">{label}</TooltipPopup>
+      <TooltipPopup className="pointer-events-none" side="right">
+        {label}
+      </TooltipPopup>
     </Tooltip>
   );
 }

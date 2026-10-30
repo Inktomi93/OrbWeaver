@@ -46,7 +46,7 @@ async function checkpoint(flow: SurfaceFlow, name: string, scope: Locator, witne
 async function closeContext(flow: SurfaceFlow): Promise<void> {
   const context = flow.page.locator(CONTEXT);
   if ((await context.getAttribute("data-panel-mode")) === "overlay") {
-    await context.getByRole("button", { name: `Close ${CONFIG_SECTION_LABEL} details`, exact: true }).click();
+    await flow.page.getByRole("button", { name: new RegExp(`^(?:Close ${CONFIG_SECTION_LABEL} details|Hide details)$`, "u") }).click();
   }
 }
 

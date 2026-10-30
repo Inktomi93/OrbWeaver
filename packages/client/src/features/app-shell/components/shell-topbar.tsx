@@ -1,8 +1,8 @@
-// ShellTopbar — the always-present strip above CONTENT. Shell-owned, section-agnostic chrome: the list
-// panel toggle (frame grammar, positionally bound to the list panel — stays intrinsic), the active section
-// title (or a per-section header node the route supplies), and the registry-driven `topbar.trail` zone
-// (⌘K derived from the modal registry; the bell/focus/context toggles ride the chrome registry as
-// widgets). Every icon button + the chip carries a Tooltip.
+// ShellTopbar — the always-present strip above CONTENT. Shell-owned, section-agnostic chrome: the phone's
+// back and list-screen swap, the active section title (or a per-section header node the route supplies), and
+// the registry-driven `topbar.trail` zone (⌘K derived from the modal registry; the bell and the rest ride the
+// chrome registry as widgets). The side panels' own controls are `PanelEdges`. Every icon button + the chip
+// carries a Tooltip.
 
 import { Button } from "@orb/ui/button";
 import type { LucideIcon } from "@orb/ui/icons";
@@ -13,7 +13,7 @@ import type { ReactElement, ReactNode, Ref } from "react";
 import { cn } from "#lib";
 import type { PanelMode } from "#state";
 
-/** The list overlay's durable focus-return target after its contents become hidden. */
+/** The list pane's durable focus-return target after its sheet closes. */
 export const LIST_TOGGLE_MARKER = "shell-list-toggle";
 
 export interface ShellTopbarProps {
@@ -69,8 +69,7 @@ export interface TopbarIconButtonProps {
 }
 
 /** One tooltip-wrapped topbar icon button — the label is both the tooltip text AND the aria-label.
- *  Exported so the fullscreen/context-toggle chrome widgets (features/app-shell/lib) render the SAME
- *  affordance shape the list-panel toggle uses. */
+ *  Exported so the trail chrome widgets (features/app-shell/lib) render the SAME affordance shape. */
 export function TopbarIconButton({ label, icon, pressed, expanded, onClick, marker, focusReturnMarker }: TopbarIconButtonProps): ReactElement {
   return (
     <Tooltip>
@@ -95,54 +94,34 @@ export function TopbarIconButton({ label, icon, pressed, expanded, onClick, mark
   );
 }
 
-/** The lead slot's ONE control: the mobile back affordance where it exists, else the list toggle where the
- *  section has a list, else nothing. Back WINS over the toggle — both would be doors to the same roster, and
- *  the mock's pushed-detail frame draws exactly one lead control.
+/** The lead slot's ONE control: the mobile back affordance where it exists, else on a phone the screen swap
+ *  between the section's roster and its overview, else nothing. Back WINS over the swap — both would be doors to
+ *  the same roster, and the mock's pushed-detail frame draws exactly one lead control.
  *
- *  THE PHONE SPEAKS SCREENS, THE DESKTOP SPEAKS PANELS (§14). "Hide list
- *  panel" names a frame REGION, which a phone does not have: at ≤48rem `resolvePanelMode` pins the LIST
- *  `docked` with nothing selected, i.e. the roster IS the screen, and this control swaps it for the section's
- *  no-selection CONTENT. So the mobile arm names the DESTINATION of the tap.
- *
- *  WHAT THIS DELIBERATELY DOES NOT DO — drop the control on mobile. It does not strand the user: the lead
- *  control re-renders as the inverse label one tap away. And the owner-ruled mobile one-shell rule
- *  (`state/panel-resolve.ts`, `hooks/use-shell-layout.ts`) pins the list `docked` for every list-bearing
- *  section, so this toggle is the ONLY phone door to a section's no-selection CONTENT (the Corpus Explore
- *  overview). */
+ *  A phone has no list PANEL: at ≤48rem `resolvePanelMode` pins the LIST `docked` with nothing selected, i.e. the
+ *  roster IS the screen, and this control swaps it for the section's no-selection CONTENT, so it names the
+ *  DESTINATION of the tap and is the only phone door to that overview. The desktop's list panel is opened and
+ *  closed by its own edge control (`PanelEdges`), never from this row. */
 function leadControl({ contentLabel, listDoorLabel, listMode, listAvailable, mobile, title, onToggleList, onBack, backLabel }: ShellTopbarProps): ReactNode {
   if (onBack !== undefined && onBack !== null) {
     // Same vocabulary as the LIST band's own back (components/list-pane-header.tsx): a ghost icon button
     // wearing ChevronLeft, named by where it goes.
     return <TopbarIconButton label={backLabel ?? "Back"} icon={ChevronLeft} onClick={onBack} />;
   }
-  if (!listAvailable) {
+  if (!listAvailable || mobile !== true) {
     return null;
   }
   const listCollapsed = listMode === "collapsed";
+  const screen = contentLabel ?? title;
   return (
     <TopbarIconButton
-      label={
-        mobile === true && listCollapsed && listDoorLabel !== null && listDoorLabel !== undefined
-          ? listDoorLabel
-          : listToggleLabel(mobile === true, listCollapsed, contentLabel ?? title)
-      }
+      label={listCollapsed ? (listDoorLabel ?? `Show ${screen} list`) : `Show ${screen} overview`}
       icon={listCollapsed ? PanelLeftOpen : PanelLeftClose}
       expanded={!listCollapsed}
       focusReturnMarker={LIST_TOGGLE_MARKER}
       onClick={onToggleList}
     />
   );
-}
-
-/** The list toggle's accessible name, per regime. DESKTOP keeps the frame vocabulary, which is correct
- *  there — the panel is a visible region of a three-track shell and "hide it" is literally what happens.
- *  MOBILE names the SCREEN a tap lands on: both arms lead with "Show" because on a phone neither state is
- *  a reduction of the other — they are the section's two full-width screens, its roster and its overview. */
-function listToggleLabel(mobile: boolean, listCollapsed: boolean, title: string): string {
-  if (!mobile) {
-    return listCollapsed ? "Show list panel" : "Hide list panel";
-  }
-  return listCollapsed ? `Show ${title} list` : `Show ${title} overview`;
 }
 
 /** Both identity arms share the page-title display step, distinct from editable body text without enlarging adjacent chrome. */
