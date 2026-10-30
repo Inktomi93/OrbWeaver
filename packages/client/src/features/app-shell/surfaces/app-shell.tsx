@@ -5,7 +5,7 @@
 
 import { Button } from "@orb/ui/button";
 import { LIVE_TOKEN_ROOT_ATTRIBUTE, PortalContainerContext } from "@orb/ui/lib";
-import { ThemeScope, ToneFallbackReporterContext } from "@orb/ui/theme-scope";
+import { ThemeScope } from "@orb/ui/theme-scope";
 import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode, RefCallback, RefObject } from "react";
 import { useEffect, useRef } from "react";
@@ -37,6 +37,7 @@ import { SectionTopbarTitle } from "../components/section-topbar-title.tsx";
 import { LIST_TOGGLE_MARKER, ShellTopbar } from "../components/shell-topbar.tsx";
 import { ThemeBackgroundLayer } from "../components/theme-background-layer.tsx";
 import { ThemeBackgroundVideoLayer } from "../components/theme-background-video-layer.tsx";
+import { ThemeFallbackReporters } from "../components/theme-fallback-reporters.tsx";
 import { TopbarTrailChrome } from "../components/topbar-trail.tsx";
 import { useAppearance } from "../hooks/use-appearance.ts";
 import { useAppearanceRootEffects } from "../hooks/use-appearance-root-effects.ts";
@@ -52,7 +53,6 @@ import { useShellTrackFlip } from "../hooks/use-shell-track-flip.ts";
 import { useStrayFileDropGuard } from "../hooks/use-stray-file-drop-guard.ts";
 import { appearanceBackgroundSource, resolveThemeBackgroundUrl } from "../lib/resolve-theme-background.ts";
 import { roomScreenShell } from "../lib/room-section.ts";
-import { TONE_FALLBACK_REPORTER } from "../lib/tone-fallback-log.ts";
 
 /** Collapse whichever panels are currently AUTO-OVERLAYS (the scrim's dismiss, shared by its click and the
  *  Escape key). Module-scope + `layout`-taking so it is never an effect dependency (D54: no manual memo). */
@@ -296,7 +296,7 @@ export function AppShell(): ReactElement {
       ) : (
         <ThemeBackgroundLayer url={bgUrl} fit={appearance.backgroundFit} dim={appearance.backgroundDim} blur={appearance.backgroundBlur} />
       )}
-      <ToneFallbackReporterContext value={TONE_FALLBACK_REPORTER}>
+      <ThemeFallbackReporters>
         <ThemeScope tokens={resolvedScopeTokens} className="contents" ambientBackground={ambientBackground} ambientAccent={ambientAccent}>
           <PortalContainerContext value={portalRootRef}>
             {/* The grid is the app's LIVE-TOKEN ROOT (#504): canvas + foreign-realm consumers (ECharts chrome,
@@ -435,7 +435,7 @@ export function AppShell(): ReactElement {
             <div ref={portalRootRef} className="shell-portal-root" data-slot="portal-root" />
           </PortalContainerContext>
         </ThemeScope>
-      </ToneFallbackReporterContext>
+      </ThemeFallbackReporters>
     </TooltipProvider>
   );
 }

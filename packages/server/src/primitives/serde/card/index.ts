@@ -637,6 +637,9 @@ export function selectBestCharacterBook(...candidates: unknown[]): unknown {
   return best?.book;
 }
 
+/** The title of a lore entry that carries no comment, name or key. */
+export const UNTITLED_LORE_ENTRY_TITLE = "Untitled";
+
 /** Project one ST `character_book` entry → the `world_entries` typed columns. ST uses `comment` (falling
  *  back to `name`, then the first key) as the author-facing memo → our `title`; when `comment` differs from
  *  the resolved title it is ALSO kept as `description` (lossless). `insertion_order` → `priority`. */
@@ -644,7 +647,7 @@ export function loreEntryColumns(entry: Record<string, unknown>): LoreEntryColum
   const keys = Array.isArray(entry["keys"]) ? entry["keys"].filter((k): k is string => typeof k === "string") : [];
   const comment = typeof entry["comment"] === "string" ? entry["comment"] : "";
   const name = typeof entry["name"] === "string" ? entry["name"] : "";
-  const title = firstNonEmpty(comment, name, keys[0] ?? "") ?? "Untitled";
+  const title = firstNonEmpty(comment, name, keys[0] ?? "") ?? UNTITLED_LORE_ENTRY_TITLE;
   const order = Number(entry["insertion_order"]);
   return {
     title,

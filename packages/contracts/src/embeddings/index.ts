@@ -256,6 +256,5 @@ export type {
   PruneMemoryBlocksParams,
   ResolveEmbeddingConnectionOp,
   SyncTargetGenerationsOp,
-  TargetWouldMoveArgs,
   TargetWouldMoveOp,
 } from "./owner-ops.ts";

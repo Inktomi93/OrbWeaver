@@ -224,7 +224,6 @@ export {
 } from "./row-qualifiers.ts";
 export type { SafeErrorRingRead } from "./safe-error-ring.ts";
 export { installSafeErrorRing, safeErrorRing } from "./safe-error-ring.ts";
-
 export { onSessionMessage, postSessionMessage, runSessionRecoverySingleFlight } from "./session-channel.ts";
 export type { SessionDocumentHost } from "./session-document-host.ts";
 export { bindSessionDocumentHost, leaseSessionDocumentHost, sessionDocument } from "./session-document-host.ts";
@@ -251,6 +250,7 @@ export { DEFAULT_TAG_SORT_MODE, sortTagsBy, TAG_SORT_MODES } from "./tag-sort.ts
 export { talkativenessAccessibleName, talkativenessPercent, talkativenessReadout } from "./talkativeness.ts";
 export { testId } from "./test-ids.ts";
 export { DENSITY_ITEMS } from "./theme-appearance-items.ts";
+export { recordInputBorderFallback, recordToneFallback } from "./theme-fallback-ring.ts";
 export type { ThemeColorFields } from "./theme-override-form.ts";
 export { assignThemeColorFields } from "./theme-override-form.ts";
 export { timeLib, viewerTimeZone } from "./time.ts";

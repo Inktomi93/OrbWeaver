@@ -4,6 +4,7 @@ import {
   buildCardFrameDocument,
   CARD_FRAME_SAFE_FLOOR,
   CARD_FRAME_SANDBOX,
+  CARD_FRAME_STYLE_TOKEN,
   clampCardFrameFontFamily,
   clampCardFrameStyleTokens,
   clampCardFrameThemeTokens,
@@ -22,15 +23,22 @@ const HOSTILE_THEME_TOKENS = {
   "not-a-custom-prop": "#336699",
   "--safe": "#336699",
 };
+const MONO_FAMILY = "'Geist Mono', ui-monospace, monospace";
 const HOSTILE_STYLE_TOKENS = {
-  "--sandbox-radius": "8px} </style><script>window.__pwned=1</script>",
-  "--calc": "calc(100% - 2px)",
+  [CARD_FRAME_STYLE_TOKEN.radius]: "8px} </style><script>window.__pwned=1</script>",
+  [CARD_FRAME_STYLE_TOKEN.rootSize]: "calc(100% - 2px)",
   "--fetch": "url(//evil.test/x.png)",
   // A color has no place in the non-color slot: the two grammars must stay disjoint.
   "--sandbox-accent": "#336699",
+  // A well-formed length under a name outside the slice: the slice is closed, so the name alone drops it.
   "--ok": "12px",
+  [CARD_FRAME_STYLE_TOKEN.monoFamily]: MONO_FAMILY,
 };
 const HOSTILE_FONT_FAMILY = "Geist; } body { background: url(//evil) } /*";
+// Each opens a CSS string that runs to the end of the one-line <style>, swallowing every rule after it.
+const UNBALANCED_FAMILIES = ['a"', "'Geist Mono", "Geist Mono'", "'Geist Mono\", mono", '"a"b"', "'a' b", "Geist, 'Mono"];
+// Font stacks the app and its pickable themes actually emit: quoted multi-word names and bare keyword sequences.
+const SHIPPED_FAMILIES = [MONO_FAMILY, "Geist, ui-sans-serif, system-ui, sans-serif", "'Times New Roman', serif", '"Iowan Old Style", serif'];
 
 function directives(csp: string): Map<string, string> {
   return new Map(
@@ -94,7 +102,7 @@ test("the built document applies the clamps itself, so hostile tokens never reac
     styleTokens: HOSTILE_STYLE_TOKENS,
     fontFamily: HOSTILE_FONT_FAMILY,
   });
-  for (const smuggled of ["__pwned", "url(//evil", "calc(", "not-a-custom-prop", "--accent:", "--sandbox-accent", "--sandbox-radius"]) {
+  for (const smuggled of ["__pwned", "url(//evil", "calc(", "not-a-custom-prop", "--accent:", "--sandbox-accent", "--ok", CARD_FRAME_STYLE_TOKEN.radius]) {
     expect(document, smuggled).not.toContain(smuggled);
   }
   // The style block closes once and the height script is the only script, so nothing broke out of the <style>.
@@ -102,8 +110,19 @@ test("the built document applies the clamps itself, so hostile tokens never reac
   expect(document.split("<script")).toHaveLength(2);
   // Surviving-value controls: the clamp drops per field, not the whole slice.
   expect(document).toContain("--safe: #336699;");
-  expect(document).toContain("--ok: 12px;");
+  expect(document).toContain(`${CARD_FRAME_STYLE_TOKEN.monoFamily}: ${MONO_FAMILY};`);
   expect(document).toContain("font-family: sans-serif;");
+});
+
+test("a font-family list with an unbalanced or stray quote is refused by both font readers; shipped stacks pass", () => {
+  for (const family of UNBALANCED_FAMILIES) {
+    expect(clampCardFrameFontFamily(family), family).toBeUndefined();
+    expect(clampCardFrameStyleTokens({ [CARD_FRAME_STYLE_TOKEN.monoFamily]: family }), family).toEqual({});
+  }
+  for (const family of SHIPPED_FAMILIES) {
+    expect(clampCardFrameFontFamily(family), family).toBe(family);
+    expect(clampCardFrameStyleTokens({ [CARD_FRAME_STYLE_TOKEN.monoFamily]: family }), family).toEqual({ [CARD_FRAME_STYLE_TOKEN.monoFamily]: family });
+  }
 });
 
 test("external media widens exactly img-src and media-src to https", () => {
@@ -119,9 +138,9 @@ test("external media widens exactly img-src and media-src to https", () => {
 
 test("hostile theme, style and font values are dropped per field while the safe ones survive", () => {
   expect(clampCardFrameThemeTokens(HOSTILE_THEME_TOKENS)).toEqual({ "--safe": "#336699" });
-  expect(clampCardFrameStyleTokens({ ...HOSTILE_STYLE_TOKENS, "--mono": "'Geist Mono', ui-monospace, monospace" })).toEqual({
-    "--ok": "12px",
-    "--mono": "'Geist Mono', ui-monospace, monospace",
+  expect(clampCardFrameStyleTokens({ ...HOSTILE_STYLE_TOKENS, [CARD_FRAME_STYLE_TOKEN.rootSize]: "125%" })).toEqual({
+    [CARD_FRAME_STYLE_TOKEN.monoFamily]: MONO_FAMILY,
+    [CARD_FRAME_STYLE_TOKEN.rootSize]: "125%",
   });
   expect(clampCardFrameFontFamily(HOSTILE_FONT_FAMILY)).toBeUndefined();
   expect(clampCardFrameFontFamily("Geist, sans-serif")).toBe("Geist, sans-serif");

@@ -52,9 +52,9 @@ export function RpgCardLightbox({
  *  the card carries the ORIGIN ROW's render policy on BOTH axes: the archive is a second lens on the same
  *  authored content, so its sandbox CSP must be the transcript's, never a laxer default. */
 function ArchivedCardBody({ card, chatId }: { readonly card: ArchivedCard; readonly chatId: ChatId | undefined }): ReactElement {
-  const { themeTokens, fontFamily } = useSandboxTheme();
+  const { themeTokens, styleTokens, fontFamily } = useSandboxTheme();
   const frameSrc = useCardFrameSrc(
-    chatId === undefined ? undefined : { chatId, characterId: card.characterId, html: card.html, css: undefined, themeTokens, fontFamily },
+    chatId === undefined ? undefined : { chatId, characterId: card.characterId, html: card.html, css: undefined, themeTokens, styleTokens, fontFamily },
   );
   return (
     <ImmersiveCard

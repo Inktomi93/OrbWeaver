@@ -21,10 +21,16 @@ export const selectionBarVariants = tv({
   // when the bar is narrow, and the dismiss keeps the bar's trailing edge on the first row where a user
   // looks for it. The count is `flex-none` rather than `flex-1` because the actions now carry the growth
   // (`justify-end` holds them against the dismiss instead of drifting into the middle).
+  //
+  // THE ACTION CLUSTER NEVER SHRINKS BELOW ITS WIDEST ITEM, AND THE ROOT WRAPS AROUND IT. A caller that hands the
+  // cluster one nowrap group (the characters bar's three verbs) makes the cluster's minimum the whole group, so
+  // when count + group + dismiss do not fit one line the group moves below the count TOGETHER, with the dismiss
+  // beside it, rather than overflowing the cluster over the count or splitting the group. Callers whose items wrap
+  // among themselves keep their one-line bar: their cluster's minimum is one item.
   slots: {
-    root: "flex items-center gap-row px-row py-field",
+    root: "flex flex-wrap items-center gap-row px-row py-field",
     count: "flex-none text-body leading-body whitespace-nowrap text-muted-foreground",
-    actions: "flex flex-1 flex-wrap items-center justify-end gap-field min-inline-0",
+    actions: "flex flex-1 flex-wrap items-center justify-end gap-field",
   },
   variants: {
     placement: {
