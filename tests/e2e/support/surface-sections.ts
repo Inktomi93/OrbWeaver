@@ -2917,7 +2917,10 @@ async function refineryVersions(journey: Journey, prefix: string): Promise<void>
 async function dismissContext(journey: Journey): Promise<void> {
   const region = pane(journey, "context");
   if ((await region.getAttribute("data-panel-mode")) === "overlay") {
-    await region.getByRole("button", { name: /^Close (?:.+ details|details|panel)$/u }).click();
+    await region
+      .page()
+      .getByRole("button", { name: /^(?:Close (?:.+ details|details|panel)|Hide details)$/u })
+      .click();
   }
   await expect(region).not.toHaveAttribute("data-panel-mode", "overlay");
 }

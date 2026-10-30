@@ -97,7 +97,7 @@ function RailBrand({
   }
   const sectionId = entry.behavior.sectionId;
   return (
-    <Tooltip>
+    <Tooltip disableHoverablePopup={true}>
       <TooltipTrigger
         render={
           <Button
@@ -117,7 +117,9 @@ function RailBrand({
           </Button>
         }
       />
-      <TooltipPopup side="right">{entry.label}</TooltipPopup>
+      <TooltipPopup className="pointer-events-none" side="right">
+        {entry.label}
+      </TooltipPopup>
     </Tooltip>
   );
 }
@@ -200,7 +202,7 @@ function SheetBadgeCount({ entryId, label, useBadge }: { readonly entryId: strin
   );
 }
 
-export function Rail({ activeSection, onSelectSection, onOpenModal, inert }: RailProps): ReactElement {
+export function Rail({ activeSection, onSelectSection: navigate, onOpenModal, inert }: RailProps): ReactElement {
   const entries = useChromeRegistry().list();
   const navEntries = entries.filter((e) => e.zone === "rail.nav");
   const endEntries = entries.filter((e) => e.zone === "rail.end");
@@ -225,6 +227,14 @@ export function Rail({ activeSection, onSelectSection, onOpenModal, inert }: Rai
   // tab right now. Desktop is untouched — the rail column renders every entry regardless of `data-mobile`.
   const curation = mobileBarCuration(entries, activeSection);
   const openModalId = useOpenModal();
+  // A sheet opened from the bar ends above it, so the bar stays live: a tab pressed while the sheet is up closes
+  // the sheet first (the way its own section rows do), then navigates, so focus lands on the new section.
+  const onSelectSection = (id: SectionId): void => {
+    if (youModal !== undefined && openModalId === youModal.id) {
+      closeModal();
+    }
+    navigate(id);
+  };
   return (
     <nav className="shell-rail" aria-label="Primary" data-tone={SHELL_ACCENT_TONE} inert={inert}>
       {brandEntry === undefined ? (

@@ -961,7 +961,7 @@ test("at an overlay width a closing details sheet keeps its box below the topbar
     };
     requestAnimationFrame(tick);
   }, SAMPLE_FRAMES);
-  await pane.getByRole("button", { name: /^Close .+ details$/u }).click();
+  await page.getByRole("button", { name: "Hide details", exact: true }).click();
   await expect(pane).toHaveAttribute("data-panel-mode", "collapsed");
   await waitForShellIdle(page);
   const tops = await page.evaluate(() => Reflect.get(globalThis, "__sheetTops") as number[]);

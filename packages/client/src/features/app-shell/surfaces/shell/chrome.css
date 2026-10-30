@@ -210,6 +210,14 @@
     }
   }
 
+  /* A column this narrow beside a panel edge control has no room for the chips, which are fixed-size and cannot move
+   * into the trail's menu; their facts are tabs of the Details pane, which that control opens. */
+  @container shell-main (max-width: 24rem) {
+    .shell-grid[data-context-edge] .shell-topbar-identity[data-identity="wide"]:has(.shell-chat-member-chip) {
+      display: none;
+    }
+  }
+
   /* Every topbar icon button clears the pointer-conditional touch floor, so the flex row cannot squeeze it. */
   @variant pointer-coarse {
     .shell-topbar-icon-btn {

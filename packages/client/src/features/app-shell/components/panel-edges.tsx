@@ -1,47 +1,33 @@
-// The shell's edge controls: one `PanelEdgeControl` per side panel, drawn at the screen-edge corner of the panel's
-// header row. The same node serves the panel open and closed, so the control never moves under the pointer.
+// A side panel's edge control: one `PanelEdgeControl` drawn at the screen-edge corner of the panel's header row.
+// The same node serves the panel docked, floating and closed, so it never moves under the pointer. It sits in the
+// document beside its panel, so the keyboard reaches it where it is drawn.
 
 import type { ReactElement } from "react";
 import { PanelEdgeControl } from "#components";
-import type { PanelName } from "#state";
+import type { PanelMode, PanelName } from "#state";
 import { CONTEXT_TOGGLE_MARKER } from "./context-toggle.tsx";
 import { LIST_TOGGLE_MARKER } from "./shell-topbar.tsx";
 
-/** The modes a panel draws its edge control in; a floating sheet carries its own dismiss. */
-export type PanelEdgeState = "docked" | "collapsed";
+const EDGES = {
+  list: { edge: "start", noun: "list panel", marker: LIST_TOGGLE_MARKER },
+  context: { edge: "end", noun: "details", marker: CONTEXT_TOGGLE_MARKER },
+} as const satisfies Record<PanelName, { readonly edge: "start" | "end"; readonly noun: string; readonly marker: string }>;
 
-export interface PanelEdgesProps {
-  /** `undefined` ⇒ the panel draws no edge control (not declared, the phone's screen swap, or a floating sheet). */
-  readonly list: PanelEdgeState | undefined;
-  readonly context: PanelEdgeState | undefined;
+export interface PanelEdgeProps {
+  readonly panel: PanelName;
+  /** `undefined` ⇒ the panel draws no edge control (not declared, or the phone, whose topbar holds its doors). */
+  readonly state: PanelMode | undefined;
   readonly onToggle: (panel: PanelName) => void;
 }
 
-export function PanelEdges({ list, context, onToggle }: PanelEdgesProps): ReactElement {
+export function PanelEdge({ panel, state, onToggle }: PanelEdgeProps): ReactElement | null {
+  if (state === undefined) {
+    return null;
+  }
+  const { edge, noun, marker } = EDGES[panel];
   return (
-    <>
-      {list === undefined ? null : (
-        <div className="shell-panel-edge" data-panel-edge="list">
-          <PanelEdgeControl
-            edge="start"
-            expanded={list === "docked"}
-            focusReturnMarker={LIST_TOGGLE_MARKER}
-            noun="list panel"
-            onToggle={(): void => onToggle("list")}
-          />
-        </div>
-      )}
-      {context === undefined ? null : (
-        <div className="shell-panel-edge" data-panel-edge="context">
-          <PanelEdgeControl
-            edge="end"
-            expanded={context === "docked"}
-            focusReturnMarker={CONTEXT_TOGGLE_MARKER}
-            noun="details"
-            onToggle={(): void => onToggle("context")}
-          />
-        </div>
-      )}
-    </>
+    <div className="shell-panel-edge" data-panel-edge={panel}>
+      <PanelEdgeControl edge={edge} expanded={state !== "collapsed"} focusReturnMarker={marker} noun={noun} onToggle={(): void => onToggle(panel)} />
+    </div>
   );
 }

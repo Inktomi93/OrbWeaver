@@ -12,7 +12,7 @@ import { useEffect, useRef } from "react";
 import { preload } from "react-dom";
 import { ListPaneHeaderHost } from "#components";
 import { resolveThemeScopeTokens } from "#lib";
-import type { PanelMode, SectionId } from "#state";
+import type { PanelMode, PanelName, SectionId } from "#state";
 import {
   clearShellContentFocus,
   closeModal,
@@ -28,8 +28,7 @@ import { CONTEXT_TOGGLE_MARKER } from "../components/context-toggle.tsx";
 import { CustomThemeStyle } from "../components/custom-theme-style.tsx";
 import { ModalHost } from "../components/modal-host.tsx";
 import { PanelChrome } from "../components/panel-chrome.tsx";
-import type { PanelEdgeState } from "../components/panel-edges.tsx";
-import { PanelEdges } from "../components/panel-edges.tsx";
+import { PanelEdge } from "../components/panel-edges.tsx";
 import { Rail } from "../components/rail.tsx";
 import { SectionContent } from "../components/section-content.tsx";
 import type { SectionContextHostProps } from "../components/section-context-host.tsx";
@@ -119,24 +118,34 @@ function ContextPaneBody({
         key={layout.activeSection}
         definition={definition}
         headerRef={layout.contextMode === "collapsed" ? undefined : headerRef}
-        {...(layout.contextMode === "docked"
-          ? {}
-          : { dismissLabel: `Close ${layout.activeSectionLabel} details`, onDismiss: (): void => layout.collapsePanel("context") })}
+        {...(sheetDismisses(layout, layout.contextMode)
+          ? { dismissLabel: `Close ${layout.activeSectionLabel} details`, onDismiss: (): void => layout.collapsePanel("context") }
+          : {})}
       />
     </RegionAnchor>
   );
 }
 
+/** Does a floating sheet carry a dismiss of its own? Only on a phone, whose sheet covers the screen and whose topbar
+ *  holds no panel control; a desktop sheet is closed from its edge control, which stays where it was. */
+function sheetDismisses(layout: ShellLayout, mode: PanelMode): boolean {
+  return layout.mobileViewport && mode !== "docked";
+}
+
+/** A panel's own sheet dismiss: a phone sheet carries one, a desktop sheet is closed from its edge control. */
+function phoneDismiss(layout: ShellLayout, panel: PanelName): { readonly onDismiss?: () => void } {
+  return layout.mobileViewport ? { onDismiss: (): void => layout.collapsePanel(panel) } : {};
+}
+
 /** The state each panel draws its edge control in, or `undefined` where it draws none: a pane the section does not
- *  declare, the phone (its topbar holds the doors onto the list screen and the detail sheet), and a floating
- *  sheet, which carries its own dismiss. */
-function edgeStates(layout: ShellLayout): { readonly list: PanelEdgeState | undefined; readonly context: PanelEdgeState | undefined } {
+ *  declare, and the phone, whose topbar holds the doors onto the list screen and the detail sheet. */
+function edgeStates(layout: ShellLayout): { readonly list: PanelMode | undefined; readonly context: PanelMode | undefined } {
   if (layout.mobileViewport) {
     return { list: undefined, context: undefined };
   }
   return {
-    list: layout.listAvailable && layout.listMode !== "overlay" ? layout.listMode : undefined,
-    context: layout.contextAvailable && layout.contextMode !== "overlay" ? layout.contextMode : undefined,
+    list: layout.listAvailable ? layout.listMode : undefined,
+    context: layout.contextAvailable ? layout.contextMode : undefined,
   };
 }
 
@@ -352,6 +361,7 @@ export function AppShell(): ReactElement {
               </Button>
               <RailSlot activeSection={layout.activeSection} show={!layout.mobileViewport} />
 
+              <PanelEdge panel="list" state={edges.list} onToggle={layout.togglePanel} />
               <PanelChrome
                 headerRef={noticeHeaderRef}
                 panel="list"
@@ -359,7 +369,7 @@ export function AppShell(): ReactElement {
                 available={layout.listAvailable}
                 header={activeDef.useListHeader === undefined ? null : <ListPaneHeaderHost key={layout.activeSection} useView={activeDef.useListHeader} />}
                 mode={layout.listMode}
-                onDismiss={(): void => layout.collapsePanel("list")}
+                {...phoneDismiss(layout, "list")}
                 covered={layout.underSheet}
                 primaryContent={layout.listIsPrimaryContent}
                 ref={listPaneRef}
@@ -419,6 +429,7 @@ export function AppShell(): ReactElement {
                 </main>
               </div>
 
+              <PanelEdge panel="context" state={edges.context} onToggle={layout.togglePanel} />
               <PanelChrome
                 headerRef={noticeHeaderRef}
                 panel="context"
@@ -426,14 +437,12 @@ export function AppShell(): ReactElement {
                 available={layout.contextAvailable}
                 header={contextPane.header}
                 mode={layout.contextMode}
-                onDismiss={(): void => layout.collapsePanel("context")}
+                {...phoneDismiss(layout, "context")}
                 ref={contextPaneRef}
                 sheet={layout.contextIsSheet}
               >
                 {contextPane.body}
               </PanelChrome>
-
-              <PanelEdges list={edges.list} context={edges.context} onToggle={layout.togglePanel} />
 
               <RailSlot activeSection={layout.activeSection} show={roomScreen.showMobileRail} inert={layout.underSheet} />
 

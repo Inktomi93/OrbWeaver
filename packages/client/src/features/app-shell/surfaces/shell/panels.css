@@ -160,7 +160,7 @@
   .shell-panel-edge {
     position: absolute;
     inset-block-start: env(safe-area-inset-top);
-    z-index: var(--z-overlay);
+    z-index: calc(var(--z-overlay) + 1);
     display: flex;
     align-items: center;
     block-size: var(--dimension-chrome-row);

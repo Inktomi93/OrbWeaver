@@ -52,8 +52,9 @@ export interface PanelChromeProps {
    *  `"unavailable"` is still not a fourth `PanelMode` (the pane resolves `collapsed`, the topbar ships no
    *  toggle — section-registry.ts). This attribute is a DECLARE, not a behaviour. */
   readonly available: boolean;
-  /** Close THIS panel — the band's own dismiss, rendered only while the panel FLOATS (see the header). */
-  readonly onDismiss: () => void;
+  /** Close THIS panel — the band's own dismiss, rendered only while the panel FLOATS on a phone. A desktop sheet is
+   *  closed from its edge control, so the host passes none. */
+  readonly onDismiss?: () => void;
   /** IS THIS PANE THE SCREEN'S PRIMARY CONTENT right now (#1349 — `ShellLayout.listIsPrimaryContent`)?
    *  `true` ⇒ the aside carries `main` instead of its `complementary` role and becomes the skip link's
    *  target, because on the phone landing the content column it would otherwise defer to is
@@ -149,7 +150,7 @@ export function PanelChrome({
           whole band exactly as it does docked (HUD-1 §3.1 — the claimant owns its top edge, including its
           own way out). */}
       <header className="shell-panel-header" data-tone={SHELL_ACCENT_TONE} ref={mode === "collapsed" ? undefined : headerRef}>
-        {mode === "overlay" ? (
+        {mode === "overlay" && onDismiss !== undefined ? (
           <>
             <div className="shell-panel-header-group">{header}</div>
             <Button

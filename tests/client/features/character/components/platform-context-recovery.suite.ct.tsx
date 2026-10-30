@@ -62,7 +62,7 @@ async function selectCharacter(page: Page, name: string): Promise<void> {
   }
   const context = page.locator('.shell-panel[data-panel-side="context"]');
   if ((await context.getAttribute("data-panel-mode")) === "overlay") {
-    await context.getByRole("button", { name: "Close Characters details", exact: true }).click();
+    await page.getByRole("button", { name: /^(?:Close Characters details|Hide details)$/u }).click();
   }
   const back = page.getByRole("button", { name: "Back to Characters", exact: true });
   if (await back.isVisible()) {
@@ -82,7 +82,7 @@ async function selectCharacter(page: Page, name: string): Promise<void> {
 
 async function expectFailedSheetExit(page: Page, context: Locator): Promise<void> {
   await expect(context).toHaveAttribute("data-panel-mode", "overlay");
-  await context.getByRole("button", { name: "Close Characters details", exact: true }).click();
+  await page.getByRole("button", { name: /^(?:Close Characters details|Hide details)$/u }).click();
   await expect(context).toHaveAttribute("data-panel-mode", "collapsed");
   await expect(page.getByRole("alert", { name: "Couldn't save the character.", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Show details", exact: true }).click();

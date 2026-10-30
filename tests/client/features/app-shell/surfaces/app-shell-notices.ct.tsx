@@ -175,7 +175,7 @@ test.describe("with an open sheet and keyboard", () => {
     const context = page.locator('.shell-panel[data-panel-side="context"]');
     await expect(context).toHaveAttribute("data-panel-mode", "overlay");
     await page.setViewportSize({ width: 844, height: 390 });
-    await expect(context.getByRole("button", { name: "Close Characters details", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Hide details", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Raise a notice", exact: true }).click();
     const notice = page.getByRole("status", { name: "Imported with notes", exact: true });
     await expect(notice).toBeVisible();

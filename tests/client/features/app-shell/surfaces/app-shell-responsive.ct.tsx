@@ -114,6 +114,23 @@ test.describe("the You sheet", () => {
     await expect(tab).toBeFocused();
   });
 
+  test("a tap on another tab closes the open sheet first, then lands on that section with focus outside the modal layer", async ({ mount, page }) => {
+    await mount<typeof AppShellStory>(STORY, {});
+    await youTab(page).tap();
+    await expect(sheet(page)).toBeVisible();
+    await page.locator('.shell-rail [data-mobile="tab"][aria-label="Chats"]').tap();
+    await expect(sheet(page)).toHaveCount(0);
+    await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", "chats");
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const active = document.activeElement;
+          return active !== null && active !== document.body && active.closest("[aria-hidden='true'], [inert]") === null;
+        }),
+      )
+      .toBe(true);
+  });
+
   test("it names who a new chat starts you as, offers no theme switch, and keeps Report a bug off the topbar as an inline form", async ({
     corpus,
     mount,
