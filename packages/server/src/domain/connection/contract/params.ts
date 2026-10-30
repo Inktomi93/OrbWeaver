@@ -17,7 +17,6 @@ import type { ResolveArgs } from "@orb/inference";
 import type { AutomationRuleId, ConnectionBindingId, PluginId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 
-export type { GetBoundConnectionParams } from "@orb/contracts/inference";
 export type ResolveTaskParams = ResolveAuthority & Pick<ResolveArgs, "signal">;
 
 // domain/connection/contract/params — every verb's *Params, declared ONCE (§7.4). The acting `principal`

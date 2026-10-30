@@ -166,7 +166,7 @@ function OverflowMarks({ overflow, fill }: { readonly overflow: RailOverflow; re
           fadeFrom={fill}
         >
           <Stack data-slot="context-rail-more">
-            <Icon icon={ChevronLeft} size="xs" tone="muted" />
+            <Icon icon={ChevronLeft} size="xs" ink="muted" />
           </Stack>
         </Stack>
       ) : null}
@@ -182,7 +182,7 @@ function OverflowMarks({ overflow, fill }: { readonly overflow: RailOverflow; re
           fadeFrom={fill}
         >
           <Stack data-slot="context-rail-more">
-            <Icon icon={ChevronRight} size="xs" tone="muted" />
+            <Icon icon={ChevronRight} size="xs" ink="muted" />
           </Stack>
         </Stack>
       ) : null}
@@ -246,7 +246,7 @@ export function ContextHeaderTabs({
               <Button
                 aria-label={`All ${ariaLabel} tabs`}
                 data-slot="context-tab-overflow-trigger"
-                intent="ghost"
+                variant="ghost"
                 size="icon"
                 type="button"
                 className="me-field shrink-0"
@@ -288,7 +288,7 @@ function ContextTab({ tab, isActive }: { readonly tab: ResolvedContextTab; reado
       <Text as="span" voice="label" data-slot="context-cell-caption" className="truncate" ink="inherit">
         {tab.label}
       </Text>
-      {locked ? <Icon icon={Lock} size="xs" aria-hidden={true} tone="muted" receded={true} /> : null}
+      {locked ? <Icon icon={Lock} size="xs" aria-hidden={true} ink="muted" receded={true} /> : null}
       {locked ? null : <ContextTabBadge count={count} dot={tab.badge === true} />}
     </TabsTab>
   );
@@ -297,12 +297,12 @@ function ContextTab({ tab, isActive }: { readonly tab: ResolvedContextTab; reado
 function ContextTabBadge({ count, dot }: { readonly count: number; readonly dot: boolean }): ReactElement | null {
   if (count > 0) {
     return (
-      <Badge intent="primary" size="sm" aria-hidden={true}>
+      <Badge tone="primary" variant="solid" size="sm" aria-hidden={true}>
         {count}
       </Badge>
     );
   }
-  return dot ? <Badge intent="primary" size="dot" aria-hidden={true} /> : null;
+  return dot ? <Badge tone="primary" variant="solid" size="dot" aria-hidden={true} /> : null;
 }
 
 /** One cell: glyph + caption, ALWAYS both — `layout="stacked"`, the primitive's OWN arm for a cell
@@ -365,7 +365,7 @@ function ContextCell({
           cell's inline-end edge IS the pane's edge and a flush glyph reads as clipped.
           LOGICAL (`end-*`), never `right-*`. Spelled as a whole literal at each site (not hoisted) because
           `ui-size-via-variant` reads these class strings statically. */}
-      {locked ? <Icon icon={Lock} size="xs" aria-hidden={true} className="absolute inset-e-field inset-bs-field" tone="muted" receded={true} /> : null}
+      {locked ? <Icon icon={Lock} size="xs" aria-hidden={true} className="absolute inset-e-field inset-bs-field" ink="muted" receded={true} /> : null}
       {locked || isActive ? null : <ContextCellBadge count={count} dot={tab.badge === true} />}
     </TabsTab>
   );
@@ -384,12 +384,12 @@ function renderCellIcon(tab: ResolvedContextTab, isActive: boolean, locked: bool
 function ContextCellBadge({ count, dot }: { readonly count: number; readonly dot: boolean }): ReactElement | null {
   if (count > 0) {
     return (
-      <Badge intent="primary" size="sm" aria-hidden={true} className="absolute inset-e-field inset-bs-field">
+      <Badge tone="primary" variant="solid" size="sm" aria-hidden={true} className="absolute inset-e-field inset-bs-field">
         {count}
       </Badge>
     );
   }
   // The childless dot is Badge's `size="dot"` arm — why this call site and why that size is at that arm's own
   // header, `@orb/ui/badge/variants.ts`, one home.
-  return dot ? <Badge intent="primary" size="dot" aria-hidden={true} className="absolute inset-e-field inset-bs-field" /> : null;
+  return dot ? <Badge tone="primary" variant="solid" size="dot" aria-hidden={true} className="absolute inset-e-field inset-bs-field" /> : null;
 }

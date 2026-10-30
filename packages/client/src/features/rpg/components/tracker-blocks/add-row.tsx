@@ -7,7 +7,7 @@ import { Icon } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import type { ComponentProps, ReactElement, ReactNode } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 
 // One create action the row offers for its draft (the trimmed value is handed to `onAdd`).
@@ -17,8 +17,8 @@ interface AddRowAction {
   /** The button word ("New quest", "meter"). */
   readonly label: string;
   readonly icon?: LucideIcon;
-  /** @defaultValue "primary" for the first action, "ghost" for the rest. */
-  readonly intent?: ComponentProps<typeof Button>["intent"];
+  /** The action's fill style: the solid primary or the quiet ghost. @defaultValue "solid" for the first action, "ghost" for the rest. */
+  readonly variant?: "solid" | "ghost";
   readonly onAdd: (value: string) => void;
 }
 
@@ -74,7 +74,7 @@ export function AddRow({ ariaLabel, placeholder, actions, leading, trailing, pen
       </Row>
       <Row gap="field" justify="end" className="flex-wrap">
         {actions.map((action, i) => (
-          <Button key={action.key} intent={action.intent ?? (i === 0 ? "primary" : "ghost")} size="sm" disabled={blocked} onClick={(): void => fire(action)}>
+          <Button key={action.key} variant={action.variant ?? (i === 0 ? "solid" : "ghost")} size="sm" disabled={blocked} onClick={(): void => fire(action)}>
             {action.icon === undefined ? null : <Icon icon={action.icon} size="xs" />}
             {action.label}
           </Button>

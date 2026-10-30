@@ -149,11 +149,7 @@ createRoot(rootEl).render(
                 icon={<Icon icon={AlertTriangle} size="lg" />}
                 title="Something went wrong"
                 description="The app hit an unexpected error. Reloading usually fixes it."
-                action={
-                  <Button intent="primary" onClick={(): void => globalThis.location.reload()}>
-                    Reload
-                  </Button>
-                }
+                action={<Button onClick={(): void => globalThis.location.reload()}>Reload</Button>}
               />
             </AppFailureSurface>
           )}

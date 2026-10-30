@@ -37,7 +37,7 @@ describe("css-color — the one colour reader", () => {
     // An unresolved var() and an authored relative form are what a caller must decline on, never
     // score against a fabricated channel.
     expect(parseCssColor("var(--color-shadow-hairline)")).toBeNull();
-    expect(parseCssColor("oklch(from var(--color-primary) l c h / 0.4)")).toBeNull();
+    expect(parseCssColor("oklch(from var(--color-ring) l c h / 0.4)")).toBeNull();
     expect(parseCssColor("none")).toBeNull();
   });
 

@@ -89,19 +89,19 @@ function FactRowView({ row, busy, onOverride, onReset, note, rowRef }: { readonl
           {row.name}
         </Text>
         <Stack className="grow min-inline-0" gap="tight">
-          <Text tone={row.overridden ? "info" : "default"} voice="label">
+          <Text tone={row.overridden ? "info" : undefined} voice="label">
             {row.value}
           </Text>
           <Text voice="gloss">{row.source}</Text>
         </Stack>
         <Row className="shrink-0 @max-cq-32:justify-end" gap="field">
           {row.overridden ? (
-            <Button aria-label={`Reset ${row.name}`} disabled={busy} intent="ghost" onClick={(): void => onReset(row)} size="sm">
+            <Button aria-label={`Reset ${row.name}`} disabled={busy} variant="ghost" onClick={(): void => onReset(row)} size="sm">
               Reset
             </Button>
           ) : null}
           {row.overridden || row.setElsewhere === true ? null : (
-            <Button aria-label={`Override ${row.name}`} disabled={busy} intent="ghost" onClick={(): void => setEditing(true)} size="sm">
+            <Button aria-label={`Override ${row.name}`} disabled={busy} variant="ghost" onClick={(): void => setEditing(true)} size="sm">
               Override
             </Button>
           )}
@@ -151,13 +151,12 @@ function FactOverrideEditor({
         )}
       </Stack>
       <Row className="shrink-0 @max-cq-32:justify-end" gap="field">
-        <Button intent="ghost" onClick={onCancel} size="sm">
+        <Button variant="ghost" onClick={onCancel} size="sm">
           Cancel
         </Button>
         <Button
           aria-label={`Save your ${row.name}`}
           disabled={busy || draft.trim() === "" || refusal !== null}
-          intent="primary"
           onClick={(): void => onCommit(parseFactValue(row.edit, draft))}
           size="sm"
         >

@@ -113,7 +113,7 @@ export function RuleManager({ chatId, rules }: { readonly chatId: ChatId | null;
         <Row gap="field">
           <Button
             ref={customButton}
-            intent="secondary"
+            variant="outline"
             size="sm"
             disabled={!ready}
             aria-describedby={ready ? undefined : reasonId}

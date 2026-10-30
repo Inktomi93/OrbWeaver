@@ -55,7 +55,7 @@ function ResumeSessions(): ReactElement | null {
           {active.map((session) => (
             <Button
               className="justify-start"
-              intent="secondary"
+              variant="outline"
               key={session.id}
               onClick={(): void => selectRefinerySession(castId<RefinerySessionId>(session.id))}
               size="sm"

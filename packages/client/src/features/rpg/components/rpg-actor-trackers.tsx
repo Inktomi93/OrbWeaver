@@ -267,7 +267,7 @@ export function StatusLine({ status, subject, edit }: { readonly status: string;
         ariaLabel={trackerFieldName("Status line", subject)}
         display={status}
         placeholder="Add status"
-        tone="muted"
+        ink="muted"
         onEdit={edit.onEditStatus}
         className="field-sizing-content max-inline-full min-inline-0"
         width="auto"
@@ -321,14 +321,14 @@ export function ConditionChips({
           and the live destructive zone are the same shape. FINE is untouched (a compact chip in a dense
           tracker row). */}
       {conditions.map((cond) => (
-        <Badge key={cond.name} tone="soft" size="sm" intent="danger" touchFloor="block">
+        <Badge key={cond.name} tone="destructive" size="sm" touchFloor="block">
           <Icon icon={resolveConditionGlyph(cond.name)} size="xs" />
           {cond.name}
           {onRemove === undefined ? null : (
             <Tip text={trackerActionName(`Remove ${cond.name}`, "from", subject)}>
               <Button
                 aria-label={trackerActionName(`Remove ${cond.name}`, "from", subject)}
-                intent="ghost"
+                variant="ghost"
                 // eslint-disable-next-line orb/no-floorless-control-in-wrap -- The chip carries touchFloor="block", so its remove target fits within the chip; ends when this geometry or floorless size changes.
                 size="glyph-xs"
                 onClick={(): void => onRemove(cond.name)}

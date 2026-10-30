@@ -107,7 +107,7 @@ function OverrideCollapseCard({ label, isSet, snippet, open, onOpenChange, onCle
             {children}
             <Row align="center" gap="field">
               {disabled ? null : (
-                <Button intent="ghost" size="sm" onClick={onClear}>
+                <Button variant="ghost" size="sm" onClick={onClear}>
                   <Icon icon={Eraser} size="xs" />
                   Clear
                 </Button>

@@ -82,7 +82,7 @@ export function StalenessRow({ form, stale, spelling }: StalenessRowProps): Reac
     // The rack's missing-pivot callout idiom, density-conformed: `rounded-base` (the ELEVATED `rounded-card`
     // step is D6-reserved) and the warning signal carried by the band + the glyph rather than by a `tone`
     // prop on Text (the four-voice grammar owns type color, §2).
-    <Card tone="warning">
+    <Card tone="warning" variant="soft">
       <Stack gap="field">
         <Row align="center" gap="field">
           <Icon icon={AlertTriangle} size="sm" tone="warning" />
@@ -91,10 +91,10 @@ export function StalenessRow({ form, stale, spelling }: StalenessRowProps): Reac
           </Text>
         </Row>
         <Row className="flex-wrap" gap="field">
-          <Button intent="ghost" onClick={(): void => setKept(true)} size="sm" type="button">
+          <Button variant="ghost" onClick={(): void => setKept(true)} size="sm" type="button">
             Keep
           </Button>
-          <Button intent="secondary" onClick={clear} size="sm" type="button">
+          <Button variant="outline" onClick={clear} size="sm" type="button">
             Clear
           </Button>
         </Row>

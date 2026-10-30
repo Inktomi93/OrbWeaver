@@ -88,7 +88,7 @@ function isLocked(section: PromptSection): boolean {
  *  The splice cue is the fused `@depth·order` read-only form — legal HERE (a compact badge) and nowhere
  *  else: the drill-in's fields stay split (round-3 ruling).
  *
- *  EVERY CUE IS `tone="soft"` (crunch item 14): the mock paints them as 13% tints of info/warning and the
+ *  EVERY CUE IS the `soft` style (crunch item 14): the mock paints them as 13% tints of info/warning and the
  *  lock/custom pair as a 7% neutral, i.e. quiet annotations on the name they follow. Solid pills made the
  *  cue column louder than the row identity it annotates — the same F-17 loudness class the glyph discs
  *  already lost. */
@@ -100,33 +100,25 @@ function SectionCues({ section }: { readonly section: PromptSection }): ReactEle
   return (
     <>
       {inject === undefined ? null : (
-        <Badge intent="info" size="sm" tone="soft">
+        <Badge tone="info" size="sm">
           <Icon icon={Hash} size="xs" />@{inject.depth}·{inject.order ?? DEFAULT_INJECT_ORDER}
         </Badge>
       )}
       {/* The stored trigger list WINS over the registry cue: a marker the user has narrowed says what the
           user chose, and two ⚡ pills on one row would read as two different gates. */}
       {firesLabel === null ? null : (
-        <Badge intent="warning" size="sm" tone="soft">
+        <Badge tone="warning" size="sm">
           <Icon icon={Zap} size="xs" />
           {firesLabel}
         </Badge>
       )}
       {isLocked(section) ? (
-        <Badge intent="neutral" size="sm" tone="soft">
+        <Badge size="sm">
           <Icon icon={Lock} size="xs" />
         </Badge>
       ) : null}
-      {hasCustomTemplate(section) ? (
-        <Badge intent="neutral" size="sm" tone="soft">
-          custom
-        </Badge>
-      ) : null}
-      {section.role === "system" ? null : (
-        <Badge intent="neutral" size="sm" tone="soft">
-          {section.role === "user" ? "U" : "A"}
-        </Badge>
-      )}
+      {hasCustomTemplate(section) ? <Badge size="sm">custom</Badge> : null}
+      {section.role === "system" ? null : <Badge size="sm">{section.role === "user" ? "U" : "A"}</Badge>}
     </>
   );
 }
@@ -152,7 +144,7 @@ export function SectionRow({ form, section, index, zone, selected, onSelect, onD
               "tilde em dash" and `~30` as "tilde three zero" — the compression that makes the column
               scannable makes it unspeakable. The visible cell is `aria-hidden`; the sr-only line beside it
               says the same fact in words, including the carrier arm's whole reason. */}
-          <Text aria-hidden={true} as="span" className="shrink-0 text-end inline-(--width-number-inline)" strike={!section.enabled} tone="muted" voice="datum">
+          <Text aria-hidden={true} as="span" className="shrink-0 text-end inline-(--width-number-inline)" strike={!section.enabled} ink="muted" voice="datum">
             {tokens}
           </Text>
           <Text as="span" className="sr-only">
@@ -167,7 +159,7 @@ export function SectionRow({ form, section, index, zone, selected, onSelect, onD
               <Switch aria-label={`${name} enabled`} checked={field.state.value} onCheckedChange={(next): void => field.handleChange(next)} />
             )}
           </form.AppField>
-          <Button aria-label={`Edit ${name}`} intent="ghost" onClick={(): void => onDrill(section.id)} ref={chevronRef} size="icon" type="button">
+          <Button aria-label={`Edit ${name}`} variant="ghost" onClick={(): void => onDrill(section.id)} ref={chevronRef} size="icon" type="button">
             <Icon icon={ChevronRight} size="sm" />
           </Button>
         </Row>
@@ -194,7 +186,7 @@ export function SectionRow({ form, section, index, zone, selected, onSelect, onD
               // claiming. The HUE PAIR is the mock's own (`--color-info` setup / `--color-warning` post) —
               // the crunch-item-14 blue sweep re-tints the SATURATED families (solid discs, filled chips,
               // macro pills), not this deliberate zone accent.
-              <Badge intent={zone === "post" ? "warning" : "info"} size="sm" tone="soft">
+              <Badge tone={zone === "post" ? "warning" : "info"} size="sm">
                 <Icon icon={sectionGlyphIcon(section)} size="sm" />
               </Badge>
             ),

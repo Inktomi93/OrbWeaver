@@ -109,7 +109,7 @@ import { createSeedRosterPreset } from "#domain/roster-preset";
 import type { RpgContext, RpgTraceRecorder } from "#domain/rpg";
 import { createExportRpgGame, createRpgEventBus, createRpgTraceRecorder } from "#domain/rpg";
 import { createFieldIndexCache, withRetrievalDegrade } from "#domain/search";
-import type { SessionsRolePolicy, SessionsService } from "#domain/sessions";
+import type { SessionsContext, SessionsRolePolicy, SessionsService } from "#domain/sessions";
 import { createResolveUserEnabled, createSessionsRolePolicy, createSessionsService } from "#domain/sessions";
 import type { DefaultBackgroundSeeder, SettingsContext, SettingsServiceDeps } from "#domain/settings";
 import {
@@ -429,12 +429,12 @@ export interface ServicesResult extends AsyncDisposable {
   /** D259 — chat's signup-invite ops, for the local signup route. */
   readonly signupInvites: SignupInviteOps;
   /** The per-user local-light seed, surfaced for the signup route (it runs after the signup commit). */
-  readonly seedUserConnections: (userId: UserId) => Promise<void>;
+  readonly seedUserConnections: SessionsContext["seedUserConnections"];
   /** The embed-space sweep enqueue (`search-discovery.ts`), surfaced for boot and the seed tools, whose owner seed
    *  and local-light sweep run outside the compose-built seed. Never rejects. */
   readonly enqueueEmbedReindex: EmbeddingReindexTriggers["enqueueEmbedReindex"];
   /** The same sweeps started detached, for a boot seed that must not wait on them. */
-  readonly detachEmbedReindex: (scope: UserId | null) => void;
+  readonly detachEmbedReindex: EmbeddingReindexTriggers["detachEmbedReindex"];
   /** Boot's re-index of every owner whose stored generation went stale without a user action, detached. */
   readonly detachStaleSpaceReindex: () => void;
   /** #250 — the memory-recall flight recorder's READ half. Always present (the recorder is unconditional);

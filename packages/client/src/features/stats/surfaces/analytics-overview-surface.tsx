@@ -266,7 +266,7 @@ function RecomputeButton(): ReactElement {
           A recompute is already running — it'll finish on its own.
         </Text>
       ) : null}
-      <Button intent="ghost" size="sm" disabled={recompute.isPending} onClick={(): void => recompute.mutate(undefined)}>
+      <Button variant="ghost" size="sm" disabled={recompute.isPending} onClick={(): void => recompute.mutate(undefined)}>
         {recompute.isPending ? "Recomputing…" : "Recompute now"}
       </Button>
     </Row>
@@ -314,7 +314,7 @@ function EmptyStateNoData(): ReactElement {
         title="No insights yet"
         description="Play a chat to build activity insights. Usage and cost appear only when recorded."
         action={
-          <Button intent="primary" size="sm" onClick={(): void => setActiveSection("chats")}>
+          <Button size="sm" onClick={(): void => setActiveSection("chats")}>
             Go to Chats
           </Button>
         }

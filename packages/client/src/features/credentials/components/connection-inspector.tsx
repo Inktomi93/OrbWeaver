@@ -26,7 +26,7 @@ export function ConnectionInspector({ connectionId, trpc, invalidation }: Connec
       <Row gap="field">
         <Button
           disabled={inspect.isPending}
-          intent="secondary"
+          variant="outline"
           onClick={(): void => inspect.mutate({ connectionId }, { onSuccess: (result): void => setInspection(result) })}
           size="sm"
         >

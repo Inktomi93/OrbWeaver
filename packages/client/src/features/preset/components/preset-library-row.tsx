@@ -133,7 +133,7 @@ export function PresetLibraryRow({
         ? {}
         : {
             subtitleLead: (
-              <Badge className="me-field" intent="warning" size="inline" tone="soft">
+              <Badge className="me-field" tone="warning" size="inline">
                 <Icon icon={AlertTriangle} size="xs" />
                 {PRESET_UNREADABLE_ROW_MARKER[unreadableConfigCause(preset.configUnreadable)]}
               </Badge>

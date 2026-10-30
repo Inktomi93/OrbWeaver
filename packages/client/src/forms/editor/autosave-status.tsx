@@ -21,7 +21,7 @@ export function AutosaveStatus({ state, onRetry, retryable = true }: AutosaveSta
     return (
       <Row gap="field" align="center" data-slot="autosave-status" role="status" aria-live="polite">
         <Text voice="gloss">Restored draft — not saved</Text>
-        <Button type="button" intent="ghost" size="sm" onClick={onRetry}>
+        <Button type="button" variant="ghost" size="sm" onClick={onRetry}>
           Resume saving
         </Button>
       </Row>
@@ -37,7 +37,7 @@ export function AutosaveStatus({ state, onRetry, retryable = true }: AutosaveSta
           {retryable ? "Save failed —" : "Save failed"}
         </Text>
         {retryable ? (
-          <Button type="button" intent="ghost" size="sm" onClick={onRetry}>
+          <Button type="button" variant="ghost" size="sm" onClick={onRetry}>
             Retry
           </Button>
         ) : null}

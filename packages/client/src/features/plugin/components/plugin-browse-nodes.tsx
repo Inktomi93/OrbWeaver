@@ -253,7 +253,7 @@ export function SurfaceSearchBar({
           />
         </Field>
         {node.actionId === undefined ? null : (
-          <Button intent="secondary" loading={submitting} onClick={fire} size="sm">
+          <Button variant="outline" loading={submitting} onClick={fire} size="sm">
             Search
           </Button>
         )}

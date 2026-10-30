@@ -232,7 +232,7 @@ function ArrayPickControl({ input, value, onPick, error }: InputControlProps): R
         <Row gap="field" align="center" justify="between">
           <Text voice="gloss">{consequence}</Text>
           {isSet ? (
-            <Button intent="ghost" size="sm" type="button" onClick={(): void => onPick(undefined)}>
+            <Button variant="ghost" size="sm" type="button" onClick={(): void => onPick(undefined)}>
               Use default
             </Button>
           ) : null}

@@ -299,7 +299,7 @@ function SceneGoals({ quests }: { readonly quests: RpgTrackerView["quests"] }): 
           <Tip key={quest.id} text="Open in Quests">
             <Button
               type="button"
-              intent="ghost"
+              variant="ghost"
               size="inline"
               onClick={(): void => revealContextPanel("rpg.quests")}
               reserveEdge={true}
@@ -340,7 +340,7 @@ function SceneGameTrackers({
           max={trackerCeiling(entry.def, entry.value ?? undefined)}
           // The tracker SHAPE glyph leads the row (the closed-vocab Record — aria-hidden decoration;
           // the label stays the datum).
-          leading={<Icon icon={TRACKER_SHAPE_GLYPHS[entry.def.shape]} size="xs" tone="muted" className="shrink-0" />}
+          leading={<Icon icon={TRACKER_SHAPE_GLYPHS[entry.def.shape]} size="xs" ink="muted" className="shrink-0" />}
           // The def's host-picked color, warded by the strict hex/OKLCH grammar; else the ordinal ramp.
           {...trackColorProps(resolveTrackerColor(entry.def.color, i))}
           {...(entry.def.hint === "" ? {} : { note: entry.def.hint })}

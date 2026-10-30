@@ -215,14 +215,14 @@ function CharacterPickerBody({
                 <Text role="alert" voice="gloss">
                   Couldn't load more characters.
                 </Text>
-                <Button intent="secondary" onClick={fetchMore} size="sm">
+                <Button variant="outline" onClick={fetchMore} size="sm">
                   Retry loading more characters
                 </Button>
               </>
             ) : null}
             {term === "" ? null : (
               <Button
-                intent="ghost"
+                variant="ghost"
                 onClick={(): void => {
                   setTerm("");
                   searchRef.current?.focus();

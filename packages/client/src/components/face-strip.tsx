@@ -232,7 +232,7 @@ function FaceButton({ ref, item, selected, verb, caption, squeezed, selectMode, 
       }
       data-face-key={faceKey(item)}
       data-face-squeezed={squeezed ? "" : undefined}
-      intent="ghost"
+      variant="ghost"
       onClick={(): void => onSelect(item.id)}
       size="media"
     >
@@ -251,10 +251,10 @@ function FaceButton({ ref, item, selected, verb, caption, squeezed, selectMode, 
           // accent is a STATE you are in — the same primary this strip's "Filtered: X" chip repeats below
           // it. That is what separates a face that FILTERS from a face that LAUNCHES. The `label` VOICE
           // keeps this functional text at the readable label step under the portrait datum. The
-          // SELECTED face's accent tint is a state, so it rides the tone beside the voice.
+          // SELECTED face's primary tint is a state, so it rides the tone beside the voice; at rest it takes the muted ink.
           <Text
             className={cn(squeezed ? "max-inline-full" : "max-inline-(--size-avatar-hero)", "truncate text-center")}
-            tone={selected ? "accent" : "muted"}
+            {...(selected ? { tone: "primary" } : { ink: "muted" })}
             voice="label"
           >
             {item.name}
@@ -355,7 +355,7 @@ export function FaceStrip({
   const folding = overflow !== undefined;
   const captionWidth = caption ? CAPTIONED_FACE_WIDTH : undefined;
   const moreCaption = caption ? (
-    <Text tone="muted" voice="label">
+    <Text ink="muted" voice="label">
       More
     </Text>
   ) : null;
@@ -443,7 +443,7 @@ export function FaceStrip({
                   className={cn("shrink-0", captionWidth) ?? ""}
                   data-face-overflow=""
                   ref={overflowRef}
-                  intent="ghost"
+                  variant="ghost"
                   size="icon"
                 >
                   <Stack align="center" gap="tight">
@@ -454,7 +454,7 @@ export function FaceStrip({
                         character named "More". The header's rhythm ruling is about the BOX, not the DRESS — a
                         dashed ring on no fill reads as a slot rather than a person at the identical pitch. */}
                     <Swatch shape="pill" edge="dashed" className="flex items-center justify-center block-(--size-avatar-md) inline-(--size-avatar-md)">
-                      <Text as="span" tone="muted" voice="label">{`+${hiddenCount}`}</Text>
+                      <Text as="span" ink="muted" voice="label">{`+${hiddenCount}`}</Text>
                     </Swatch>
                     {moreCaption}
                   </Stack>

@@ -83,7 +83,7 @@ export function LoginPendingJoin({ providerName, onJoined, onDismiss }: LoginPen
       <Stack gap="block" data-testid={testId("pendingJoinApproval")}>
         <Heading level={1}>Waiting for approval</Heading>
         <Text voice="quiet">Your account is created and has a seat in the room. An admin must approve it before you can sign in.</Text>
-        <Button intent="ghost" onClick={onDismiss}>
+        <Button variant="ghost" onClick={onDismiss}>
           Back to sign in
         </Button>
       </Stack>
@@ -138,17 +138,10 @@ export function LoginPendingJoin({ providerName, onJoined, onDismiss }: LoginPen
           </Text>
         ) : null}
         <Row className="flex-wrap" gap="row">
-          <Button
-            className="max-inline-full"
-            intent="primary"
-            size="wrap-md"
-            type="submit"
-            disabled={state.kind === "confirming"}
-            data-testid={testId("pendingJoinConfirm")}
-          >
+          <Button className="max-inline-full" size="wrap-md" type="submit" disabled={state.kind === "confirming"} data-testid={testId("pendingJoinConfirm")}>
             {state.kind === "confirming" ? "Joining…" : "Create account and join"}
           </Button>
-          <Button intent="ghost" onClick={onDismiss} data-testid={testId("pendingJoinDismiss")}>
+          <Button variant="ghost" onClick={onDismiss} data-testid={testId("pendingJoinDismiss")}>
             Not now
           </Button>
         </Row>

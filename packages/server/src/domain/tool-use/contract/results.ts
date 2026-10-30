@@ -3,9 +3,10 @@
 // erases each into a RegisteredTool whose run closes over the typed pair (schema + handler) — zero casts,
 // variance-sound by construction.
 
+import type { ToolCapability, ToolSource } from "@orb/contracts/tool-use";
 import type { UserId } from "@orb/kit/ids";
 import type { ZodRawShape } from "zod";
-import type { ToolCapability, ToolExecutionContext, ToolSource } from "./params.ts";
+import type { ToolExecutionContext } from "./params.ts";
 
 export type { ToolCallRecord } from "@orb/contracts/chat";
 
@@ -61,12 +62,6 @@ export type ToolRegistryKey = string & { readonly [toolRegistryKeyBrand]: true }
  *  per installing user (`substrate/partition.ts` carries the why). Iteration order stays insertion order, so
  *  `listDrivableToolNames` still reports registration order within an owner. */
 export type ToolRegistry = Map<ToolRegistryKey, RegisteredTool>;
-
-/** The deregistration handle the runtime plugin registrar returns (PL-A). Plugin deactivation/uninstall calls
- *  `unregister` so a disabled plugin's tool never stays resolvable — no ghost tools. */
-export interface PluginToolHandle {
-  readonly unregister: () => void;
-}
 
 /** The opaque ordered set resolveTools returns and both projections + executeToolCalls accept — resolving
  *  once per turn guarantees the tools the model saw are exactly the tools that can run. */

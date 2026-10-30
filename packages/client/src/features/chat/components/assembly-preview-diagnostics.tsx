@@ -124,7 +124,7 @@ function TraceSummary({ trace }: { readonly trace: AssembleTrace }): ReactElemen
         {activeFlags.length > 0 ? (
           <Row gap="field" align="center">
             {activeFlags.map((flag) => (
-              <Badge key={flag.label} intent="info">
+              <Badge key={flag.label} tone="info" variant="solid">
                 {flag.label}
               </Badge>
             ))}
@@ -190,7 +190,9 @@ function ShapeTraceSummary({ trace }: { readonly trace: ShapeTrace }): ReactElem
         <TraceLine label="Cache breakpoint" value={breakpoint} />
         {trace.multiCharacter ? (
           <Row gap="field" align="center">
-            <Badge intent="info">Multi-character</Badge>
+            <Badge tone="info" variant="solid">
+              Multi-character
+            </Badge>
           </Row>
         ) : null}
       </Stack>
@@ -209,7 +211,7 @@ const ROW_SOURCE_LABEL: Record<ShapeRowSource, string> = {
 /** Does this arm wear a BADGE? (side-eye 2026-08-06 P2 — the anomalous row had no more visual weight than
  *  the twenty ordinary ones around it, in the readout whose entire job is to make the odd row findable.)
  *  `canon` is the expected arm and stays quiet type; the two arms that mean "assembly did something to this
- *  row" get the `Badge intent="info"` weight `ShapeTraceSummary` already uses for a noteworthy shape fact.
+ *  row" get the `Badge tone="info"` weight `ShapeTraceSummary` already uses for a noteworthy shape fact.
  *  A mapped-type Record, so a widened axis fails `tsc` here too. */
 const ROW_SOURCE_BADGED: Record<ShapeRowSource, boolean> = {
   canon: false,
@@ -307,7 +309,7 @@ function WireRowLine({ row }: { readonly row: NumberedWireRow }): ReactElement {
       </Stack>
       <Row align="baseline" className="shrink-0" gap="field">
         {ROW_SOURCE_BADGED[row.source] ? (
-          <Badge intent="info" size="sm">
+          <Badge tone="info" variant="solid" size="sm">
             {ROW_SOURCE_LABEL[row.source]}
           </Badge>
         ) : (

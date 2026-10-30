@@ -26,7 +26,7 @@ function ArtifactProvenance({ destination }: { readonly destination: CorpusDesti
           <Text voice="gloss">Generated facets come from the current saved character summary.</Text>
           <Text voice="gloss">The summary does not record an analysis pass identifier.</Text>
           <Button
-            intent="secondary"
+            variant="outline"
             size="sm"
             onClick={(): void => {
               selectCharacter(destination.characterId);
@@ -150,7 +150,7 @@ function MomentActions({ source }: { readonly source: Extract<CorpusDestination,
   const { data: resolution } = useSuspenseQuery(trpc.chat.getMessageWindow.queryOptions({ chatId: source.chatId, target: { kind: "source", source } }));
   if (resolution.anchorMessageId !== null) {
     return (
-      <Button intent="primary" size="sm" onClick={(): void => openChatMoment(source.chatId, { kind: "source", source })}>
+      <Button size="sm" onClick={(): void => openChatMoment(source.chatId, { kind: "source", source })}>
         Open in chat at this moment
       </Button>
     );
@@ -158,7 +158,7 @@ function MomentActions({ source }: { readonly source: Extract<CorpusDestination,
   return (
     <>
       <Text voice="gloss">An exact transcript jump is unavailable.</Text>
-      <Button intent="secondary" size="sm" onClick={(): void => resumeChat(source.chatId)}>
+      <Button variant="outline" size="sm" onClick={(): void => resumeChat(source.chatId)}>
         Open chat
       </Button>
     </>

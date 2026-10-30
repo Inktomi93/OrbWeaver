@@ -126,12 +126,12 @@ function OutcomeActions({
   return (
     <Row className="flex-wrap" gap="row" justify="end">
       {recovery === null ? null : (
-        <Button disabled={recovery.pending} intent="secondary" onClick={recovery.onPress} size="sm">
+        <Button disabled={recovery.pending} variant="outline" onClick={recovery.onPress} size="sm">
           Discard the refused {recovery.refused === 1 ? "field" : "fields"} and{" "}
           {recovery.verb === "copy" ? `save the other ${recovery.remaining} as a copy` : `apply the other ${recovery.remaining}`}
         </Button>
       )}
-      <Button intent="secondary" onClick={onEditScope} size="sm">
+      <Button variant="outline" onClick={onEditScope} size="sm">
         Edit scope
       </Button>
       <Button onClick={onRerunRewrite} size="sm">

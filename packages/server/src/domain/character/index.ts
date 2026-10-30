@@ -3,20 +3,6 @@
 
 export type { GreetingCompletionDeps } from "./contract/greeting-ops.ts";
 export type { ImportCharacterPort } from "./contract/import-ops.ts";
-export type {
-  CardWriteBasis,
-  CharacterImportProvenance,
-} from "./contract/params.ts";
-// The refinery-consumed ops (R1 + the R4 sweep enumeration) — factories here, types in
-// contract/refinery-ops.ts, wired at compose.
-export type {
-  CountRefineryScoreTargetsOp,
-  DeleteSnapshotOp,
-  ListRefineryScoreTargetsOp,
-  LoadOwnedCardOp,
-  RefineryScoreTarget,
-  StampRefinerySignalsOp,
-} from "./contract/refinery-ops.ts";
 export type { BackfillPluginProvenanceResult } from "./contract/results.ts";
 export type { CharacterContext, CharacterService } from "./contract/service.ts";
 export { createLinkCharacterAvatars } from "./persistence/avatar-link-write.ts";

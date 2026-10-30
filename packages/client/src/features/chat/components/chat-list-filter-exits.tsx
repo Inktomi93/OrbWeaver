@@ -14,7 +14,7 @@ export function FilterExits({ exits }: { readonly exits: readonly FilterExit[] }
   return (
     <Row align="center" className="flex-wrap justify-center" gap="field">
       {exits.map((exit) => (
-        <Button intent="secondary" key={exit.key} onClick={exit.onClear} size="sm">
+        <Button variant="outline" key={exit.key} onClick={exit.onClear} size="sm">
           {exit.label}
         </Button>
       ))}

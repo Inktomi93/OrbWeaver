@@ -1,8 +1,6 @@
-import type { CharacterLibraryLens, CharacterListCursor, CharacterListSort, CreateCharacterInput, UpdateCharacterInput } from "@orb/contracts/character";
-import type { Principal } from "@orb/contracts/identity";
+import type { CharacterActorParams, CharacterLibraryLens, CharacterListCursor, CharacterListSort } from "@orb/contracts/character";
 import type { GreetingTransformId } from "@orb/contracts/preset";
-import type { ThemeBackground } from "@orb/contracts/theme";
-import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, ChatId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
 import type { IanaTimeZone } from "@orb/kit/time";
 
 export type { PluginCardDataTarget } from "@orb/contracts/character";
@@ -12,29 +10,6 @@ export type { PluginCardDataTarget } from "@orb/contracts/character";
 // ops (Mint/Find/FindByImportHash/FindByHandle) are internal and act on an already-resolved ownerId.
 
 export type { CharacterListCursor, CharacterListSort } from "@orb/contracts/character";
-
-interface CharacterActorParams {
-  readonly principal: Principal;
-}
-
-/** Import provenance stamp for `create`; importHash is the whole-file sha-256 dedup key, distinct from
- *  contentHash. Omit for app-authored cards. */
-export interface CharacterImportProvenance {
-  readonly importedFrom: string | null;
-  readonly importHash: string;
-  /** The background the card carried, re-linked by its content hash onto the owner's own asset (then by its
-   *  id); one the owner holds by neither is dropped. */
-  readonly background?: ThemeBackground | null;
-}
-
-export interface CreateCharacterParams extends CharacterActorParams {
-  readonly input: CreateCharacterInput;
-  readonly provenance?: CharacterImportProvenance;
-}
-
-export interface GetCharacterParams extends CharacterActorParams {
-  readonly characterId: CharacterId;
-}
 
 /** The library list's read, with EVERY lens the toolbar offers resolved server-side (owner ruling
  *  2026-08-13, the `listChats` precedent): a keyset page can only ever search/filter what it has fetched, so
@@ -57,34 +32,7 @@ export interface ListCharactersParams extends CharacterActorParams, CharacterLib
  */
 export interface ListCharacterTagGroupsParams extends CharacterActorParams, CharacterLibraryLens {}
 
-/** What a caller writing from an OLD basis declares it merged against (#1446/#1560) — the card state the
- *  write is conditional on. `contentHash` covers the card's IDENTITY; every member beside it is a field a
- *  stale-basis caller may WRITE that the hash deliberately does not witness (`#primitives/serde/card`
- *  `semanticFields` excludes the re-attribution fields on purpose, and `creatorNotes` is both excluded and
- *  refinable). A field in the second group with no member here is a silent overwrite waiting to happen, so
- *  the producer builds this object under a compile-forced mapped type. */
-export interface CardWriteBasis {
-  readonly contentHash: string;
-  readonly creatorNotes: string | null;
-}
-
-export interface UpdateCharacterParams extends CharacterActorParams {
-  readonly characterId: CharacterId;
-  readonly input: UpdateCharacterInput;
-  /** OPT-IN compare-and-swap for a caller writing from a basis it read EARLIER (#1446): the card state the
-   *  patch was constructed against ({@link CardWriteBasis}). Supplied means the write is conditional on the
-   *  card still carrying it, and a card that moved refuses TOTALLY with `CHARACTER_STALE_BASIS` instead of
-   *  overwriting the edit that landed in between. Omitted is the ordinary read-and-write-back edit,
-   *  unchanged (D28 in-place). NOT wire-reachable: the tRPC router builds this params object and never
-   *  forwards a client value. */
-  readonly expectedBasis?: CardWriteBasis;
-}
-
 export interface RemoveCharacterParams extends CharacterActorParams {
-  readonly characterId: CharacterId;
-}
-
-export interface DuplicateCharacterParams extends CharacterActorParams {
   readonly characterId: CharacterId;
 }
 
@@ -107,11 +55,6 @@ export interface BulkRemoveCardTagParams extends CharacterActorParams {
   readonly characterIds: readonly CharacterId[];
 }
 
-export interface SnapshotParams extends CharacterActorParams {
-  readonly characterId: CharacterId;
-  readonly label?: string | null;
-}
-
 export interface ListSnapshotsParams extends CharacterActorParams {
   readonly characterId: CharacterId;
 }
@@ -126,10 +69,6 @@ export interface GetSnapshotParams extends CharacterActorParams {
 export interface RestoreParams extends CharacterActorParams {
   readonly characterId: CharacterId;
   readonly snapshotId: CharacterSnapshotId;
-}
-
-export interface GetCardParams extends CharacterActorParams {
-  readonly characterId: CharacterId;
 }
 
 /** Greeting studio (audit §3) — the guided-action machinery pointed at a BASE greeting, owner-gated. Both
@@ -163,23 +102,6 @@ export interface GenerateGreetingParams extends CharacterActorParams {
   readonly timeZone?: IanaTimeZone | undefined;
 }
 
-/** Synthetic group-character mint/find (chat-injected, internal); owns the `__group__${chatId}` handle namespace. */
-export interface MintGroupCharParams {
-  readonly ownerId: UserId;
-  readonly chatId: ChatId;
-}
-
-export interface FindGroupCharParams {
-  readonly ownerId: UserId;
-  readonly chatId: ChatId;
-}
-
-/** Re-import dedup lookup (import-injected, internal): the owner's character already carrying importHash. */
-export interface FindByImportHashParams {
-  readonly ownerId: UserId;
-  readonly importHash: string;
-}
-
 /** The JSON-then-PNG exception of the import identity (import-injected, internal): the owner's character that
  *  landed from a JSON card takes this stored art and the with-art `importHash`, once. */
 export interface AttachImportedArtParams {
@@ -194,12 +116,6 @@ export interface StampImportIdentityParams {
   readonly ownerId: UserId;
   readonly characterId: CharacterId;
   readonly importHash: string;
-}
-
-/** By-handle lookup (seeder-injected, internal): the default-card seeder's partial-rerun resolve path. */
-export interface FindByHandleParams {
-  readonly ownerId: UserId;
-  readonly handle: CharacterHandle;
 }
 
 /** By-display-name lookup (import-injected, internal): a transcript names its character the way the user sees it. */

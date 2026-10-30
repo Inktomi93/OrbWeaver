@@ -87,7 +87,7 @@ export function LaneNotes({ viewingBack, iteration, behind, onBackToLatest }: La
       {viewingBack ? (
         <>
           <RefineryChip tone="warn">viewing round {iteration ?? 0} · superseded</RefineryChip>
-          <Button intent="ghost" onClick={onBackToLatest} size="sm">
+          <Button variant="ghost" onClick={onBackToLatest} size="sm">
             Back to latest
           </Button>
         </>

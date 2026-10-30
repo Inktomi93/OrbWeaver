@@ -53,7 +53,7 @@ const CHIP_INLINE_CAP = 4;
 
 /** THE BAND'S READING SURFACE (a member of the over-art contrast family, answered HERE rather than on the
  *  chips). Without a surface, every ancestor from `[data-slot=chat-control-chips]` up is transparent, so an
- *  `intent="outline"` chip (`bg-transparent`, `text-muted-foreground`) draws its border and its label straight
+ *  `variant="outline"` chip (`bg-transparent`, `text-muted-foreground`) draws its border and its label straight
  *  onto the room's photograph and fails contrast in a carried-art room. Its two neighbours in the same column
  *  both own a surface — the transcript's bubble/plate, the composer's opaque card.
  *
@@ -91,7 +91,7 @@ const CHIP_INLINE_CAP = 4;
  *  both halves of one contract and an unstyled child lands on the proven pair. */
 function BandReadingSurface({ children }: { readonly children: ReactNode }): ReactElement {
   return (
-    <Card ownSlot="chat-controls" shadow="none" shape="float">
+    <Card ownSlot="chat-controls" shape="float">
       <Stack gap="row">{children}</Stack>
     </Card>
   );
@@ -178,7 +178,7 @@ const MODE_GLYPH: Record<ChatControlMode, LucideIcon> = {
  *  the colour rule already forbids, and the consequence it gates is irreversible (a send chip posts a turn
  *  with no confirm). So the chip renders `CONTROL_MODE_WORD` as its own leading kicker — a text channel that
  *  survives greyscale, low vision, an icon font that fails to load, and a reader who has never met the glyph.
- *  The alternative arm — distinct chip INTENTS (a coloured send pill) — was refused twice over: it is the
+ *  The alternative arm — distinct chip TONES (a coloured send pill) — was refused twice over: it is the
  *  colour-alone channel wearing a new hat, and a filled send pill next to the composer would be a second
  *  `primary` (UI §4.3 rule 3). The accessible name is the
  *  SAME word + the label, with NO separator punctuation, so the whole visible string is a substring of the
@@ -199,7 +199,7 @@ function ControlActionButton({ action, consumer, as, onInvoked }: ControlActionB
       data-mode={action.mode}
       disabled={availability.disabled}
       focusableWhenDisabled={true}
-      intent={chip ? "outline" : "secondary"}
+      variant="outline"
       onClick={(): void => {
         runControlAction(action, consumer);
         onInvoked?.();
@@ -241,7 +241,7 @@ function OverflowCount({ hidden, noun, slot }: { readonly hidden: number; readon
     return null;
   }
   return (
-    <Text tone="muted" data-slot={slot} voice="datum">
+    <Text ink="muted" data-slot={slot} voice="datum">
       {controlOverflowNotice(hidden, noun)}
     </Text>
   );
@@ -258,12 +258,12 @@ function ControlCards({ controls, consumer }: { readonly controls: readonly Chat
     <Stack data-slot="chat-control-cards" gap="row">
       {/* The HAIRLINE ACCENT edge is the card's whole visual claim on attention: one border-weight step in
           the accent, never a filled CTA — the composer's Send is the room's one primary. */}
-      <Card tone="primaryEdge">
+      <Card tone="primary">
         <Stack gap="field">
           <Row align="center" gap="row" justify="between">
             <Text voice="label">{newest.title}</Text>
             <Tip text={`Dismiss ${newest.title}`}>
-              <Button aria-label={`Dismiss ${newest.title}`} intent="ghost" onClick={newest.dismiss} size="glyph-sm">
+              <Button aria-label={`Dismiss ${newest.title}`} variant="ghost" onClick={newest.dismiss} size="glyph-sm">
                 {/* `glyph-sm` is a 20px box that holds a 12px `xs` Icon (the token's own description) — a bare
                     lucide glyph renders at 24px and overflows it. Same call-site sizing rule as the chip's. */}
                 <Icon icon={X} size="xs" />
@@ -329,7 +329,7 @@ function ControlChipGroup({ group, consumer }: { readonly group: ChipGroup; read
           aria-expanded={expanded}
           aria-label={expanded ? expandedLabel : undefined}
           id={disclosureId}
-          intent="ghost"
+          variant="ghost"
           onClick={(): void => setExpanded((open) => !open)}
           shape="pill"
           size="chip"

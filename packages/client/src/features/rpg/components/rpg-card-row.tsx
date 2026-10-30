@@ -30,7 +30,7 @@ export function RpgCardRow({ card, onOpen }: RpgCardRowProps): ReactElement {
   return (
     <Button
       type="button"
-      intent="outline"
+      variant="outline"
       size="sm"
       aria-label={`Open card: ${label}, ${turnStamp(card.createdAt)}${card.origin === "lenient" ? `, ${LENIENT_NOTE}` : ""}`}
       onClick={(): void => onOpen(card.key)}
@@ -46,7 +46,7 @@ export function RpgCardRow({ card, onOpen }: RpgCardRowProps): ReactElement {
         </Text>
       ) : null}
       <RpgTurnRef messageId={card.messageId} createdAt={card.createdAt} />
-      <Icon icon={Expand} size="xs" tone="muted" className="shrink-0" />
+      <Icon icon={Expand} size="xs" ink="muted" className="shrink-0" />
     </Button>
   );
 }

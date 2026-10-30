@@ -24,6 +24,7 @@ import type { MotionSnapshot } from "./motion-stats.ts";
 import { installMotionObservers, motionSnapshot, resetMotionStats } from "./motion-stats.ts";
 import { recentMeasures } from "./perf-marks.ts";
 import { renderHeatmap, resetRenderStats } from "./render-stats.ts";
+import { themeFallbackRing } from "./theme-fallback-ring.ts";
 
 export type { NavResult, OrbAgentHandles, OrbNavCapabilities, OrbNavHandle, OrbRpgReader, OrbSeedHandle, SeedProfile } from "./agent-bridge-handles.ts";
 
@@ -41,6 +42,7 @@ const ORB_RING_NAMES = [
   "plugin-ui",
   "automation-fires",
   "console-errors",
+  "theme-fallbacks",
 ] as const;
 type OrbRingName = (typeof ORB_RING_NAMES)[number];
 
@@ -80,6 +82,9 @@ interface OrbDebugHandle {
    *  wall-clock stamped, capped, and counting its own evictions (`dropped`). The one signal this client held
    *  nowhere before #1095: a caught RENDER error reaches the server's log ring, a bare console.error did not. */
   readonly consoleErrors: () => ReturnType<typeof consoleErrorRing>;
+  /** Every ThemeScope fallback the app shell's reporters received this session: D336 primary fallbacks and D159 form-control
+   *  edge fallbacks, capped and counting their evictions (`dropped`). */
+  readonly themeFallbacks: () => ReturnType<typeof themeFallbackRing>;
   /** Clear the flag ring + its per-offender dedupe. Call between the STEPS of a driven flow: without
    *  it, step 1's offenders suppress the identical ones in step 2 and the later steps read clean. */
   readonly resetFlags: () => void;
@@ -138,6 +143,7 @@ const ORB_DEBUG_CAPABILITIES = {
   animations: "read currently active animations and compositor classification",
   flags: "read checkpoint motion defect flags",
   consoleErrors: "read the session console-error, uncaught-error and unhandled-rejection ring",
+  themeFallbacks: "read the session ThemeScope tone and form-control edge fallbacks",
   resetFlags: "clear the legacy motion-flag checkpoint",
   resetEvidence: "clear every checkpoint-safe client evidence store",
   motionFlaggersSettled: "wait for the initial motion-flagger census",
@@ -179,6 +185,12 @@ const ORB_RING_REGISTRY = {
     lifetime: "checkpoint",
     resettable: true,
     description: "console errors, uncaught errors and unhandled rejections",
+  },
+  "theme-fallbacks": {
+    read: "themeFallbacks()",
+    lifetime: "session",
+    resettable: false,
+    description: "ThemeScope tone and form-control edge fallbacks reported by the app shell",
   },
 } as const satisfies Record<OrbRingName, Omit<OrbRingMetadata, "name">>;
 
@@ -285,6 +297,7 @@ export function installAgentDebugHandle(queryClient: QueryClient, handles: OrbAg
     flags: flagCounts(),
     // Browser-side failures since load — a non-zero here is the first thing to read.
     consoleErrors: consoleErrorRing().records.length,
+    themeFallbacks: themeFallbackRing().tone.length + themeFallbackRing().inputBorder.length,
   });
   const resetters = {
     // The ring AND the duplicate-invalidate burst windows: a window left half-counted across a checkpoint
@@ -332,6 +345,7 @@ export function installAgentDebugHandle(queryClient: QueryClient, handles: OrbAg
     animations: activeAnimations,
     flags: motionFlags,
     consoleErrors: consoleErrorRing,
+    themeFallbacks: themeFallbackRing,
     resetFlags: resetMotionFlags,
     resetEvidence,
     motionFlaggersSettled,
@@ -352,7 +366,7 @@ export function installAgentDebugHandle(queryClient: QueryClient, handles: OrbAg
     resetRing,
   };
   console.info(
-    "%c[orb]%c dev introspection ready → %cwindow.__orb%c.capabilities() · .rings()/.resetRing(name) · .snap() · .css.read() · .rpg() · .pluginLog(slug?) · .pluginUi() · .automationFires({chatId?}) · .queries() · .bus() · .perf() · .renders() · .motion() · .animations() · .flags()/.consoleErrors()/.resetEvidence()/.motionFlaggersSettled()/.motionFlaggersDrain()/.setMotionAuditDropTrackingPaused() · .shell() · .durableLocalUserId() · .nav.capabilities/section/corpusMode/openModal/openConfig/contextTab/openChat/openCharacter/closeModal/panel(name,mode)/focus(on) · .seed.game({profile:'d20'|'freeform'})/richGame;  wait on %chtml[data-app-ready]%c.  Docs: packages/client/src/lib/agent-tools.README.md",
+    "%c[orb]%c dev introspection ready → %cwindow.__orb%c.capabilities() · .rings()/.resetRing(name) · .snap() · .css.read() · .rpg() · .pluginLog(slug?) · .pluginUi() · .automationFires({chatId?}) · .queries() · .bus() · .perf() · .renders() · .motion() · .animations() · .flags()/.consoleErrors()/.themeFallbacks()/.resetEvidence()/.motionFlaggersSettled()/.motionFlaggersDrain()/.setMotionAuditDropTrackingPaused() · .shell() · .durableLocalUserId() · .nav.capabilities/section/corpusMode/openModal/openConfig/contextTab/openChat/openCharacter/closeModal/panel(name,mode)/focus(on) · .seed.game({profile:'d20'|'freeform'})/richGame;  wait on %chtml[data-app-ready]%c.  Docs: packages/client/src/lib/agent-tools.README.md",
     "color:#e0a; font-weight:bold",
     "color:#888",
     "color:#0a7; font-weight:bold",

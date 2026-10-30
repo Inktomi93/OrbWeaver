@@ -148,7 +148,7 @@ export function ActionsView({ form, onSelectSection }: ActionsViewProps): ReactE
         {/* The FILTER (IA §2.2) — the config group-body's grammar, lifted to the tab because the box spans
             every group. The chrome is the host's; the matching is the row model's (`templateRowMatches`). */}
         <Row align="center" gap="tight">
-          <Icon icon={Search} size="sm" tone="muted" />
+          <Icon icon={Search} size="sm" ink="muted" />
           <Input aria-label="Filter templates" onValueChange={setFilter} placeholder="Filter templates…" value={filter} />
         </Row>
 
@@ -312,13 +312,13 @@ function TemplateListRow({
                     already said. The only chip left is the one that discriminates — success = you changed
                     this one — and the freed width goes to the description, the cell that tells rows apart. */}
                 {customized ? (
-                  <Badge intent="success" size="sm" tone="soft">
+                  <Badge tone="success" size="sm">
                     Customized
                   </Badge>
                 ) : null}
                 <Button
                   aria-label={`Edit ${def.label}`}
-                  intent="ghost"
+                  variant="ghost"
                   onClick={(): void => onDrill(def.id)}
                   onFocus={restoreFocus ? onRestoreFocus : undefined}
                   ref={chevronRef}
@@ -382,8 +382,8 @@ function MarkerCrossLink({
   // badge reads as a second, unlabelled control sitting next to it. `size="inline"` keeps the button a
   // text-height wrapper so the pill IS the visible box, rather than a pill floating in a control box.
   return (
-    <Button className="self-start" disabled={health === "absent"} intent="ghost" onClick={onClick} size="inline" type="button">
-      <Badge intent={health === "healthy" ? "info" : "warning"} size="sm" tone="soft">
+    <Button className="self-start" disabled={health === "absent"} variant="ghost" onClick={onClick} size="inline" type="button">
+      <Badge tone={health === "healthy" ? "info" : "warning"} size="sm">
         {MARKER_HEALTH_LABEL[health]}
         <Icon icon={ExternalLink} size="xs" />
       </Badge>

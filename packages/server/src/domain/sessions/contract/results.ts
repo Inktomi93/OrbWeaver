@@ -174,11 +174,3 @@ export interface PendingSignupPlan {
   readonly oidcIdToken: string | null;
   readonly statements: (admission: SQL) => { readonly take: StatementToken; readonly account: AwaitableStatementToken<{ id: UserId }[]> };
 }
-
-export interface UserPrincipalFields {
-  role: UserRoleState;
-  handle: Handle;
-  externalId: ExternalId | null;
-  /** The row's live login state — a REPORT, not a gate. See the caller split above. */
-  enabled: boolean;
-}

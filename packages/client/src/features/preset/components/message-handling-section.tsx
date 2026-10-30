@@ -110,7 +110,7 @@ export function MessageHandlingSection({
                 <Row align="center" gap="field">
                   <Text voice="gloss">This model needs at least {ROLE_HANDLING_LABELS[floor]}. A stricter choice still wins.</Text>
                   {isBelowFloor(roleHandling, floor) ? (
-                    <Badge intent="warning" size="sm" tone="soft">
+                    <Badge tone="warning" size="sm">
                       Applies as {ROLE_HANDLING_LABELS[floor]}
                     </Badge>
                   ) : null}

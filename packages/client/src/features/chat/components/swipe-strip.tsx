@@ -151,10 +151,10 @@ export function SwipeStrip({ message, foot }: SwipeStripProps): ReactElement {
         label={variantCountName(current, total)}
         prev={
           <Button
-            intent="ghost"
+            variant="ghost"
+            ink="muted"
             size="glyph-lg"
             shape="pill"
-            tone="muted"
             disabled={!canStepBack}
             loading={busy && canStepBack}
             aria-label={VARIANT_PREV_NAME}
@@ -166,16 +166,16 @@ export function SwipeStrip({ message, foot }: SwipeStripProps): ReactElement {
         count={
           // A VALUE you read — the `datum` voice, whose tabular figures stop the count nudging the chevron as
           // it ticks (UI-Density-Law.md §2.3). The position and nothing else: owner ruling, a label is noise.
-          <Text as="span" voice="datum" aria-hidden="true" data-slot="swipe-strip-counter" className="whitespace-nowrap" tone="muted">
+          <Text as="span" voice="datum" aria-hidden="true" data-slot="swipe-strip-counter" className="whitespace-nowrap" ink="muted">
             {current} / {total}
           </Text>
         }
         next={
           <Button
-            intent="ghost"
+            variant="ghost"
+            ink="muted"
             size="glyph-lg"
             shape="pill"
-            tone="muted"
             disabled={waitingForNext}
             loading={busy || waitingForNext}
             aria-label={nextChevronLabel}
@@ -187,7 +187,7 @@ export function SwipeStrip({ message, foot }: SwipeStripProps): ReactElement {
         }
       />
       {waitingForNext ? (
-        <Text as="span" id={historyStatusId} voice="label" tone="muted" role="status">
+        <Text as="span" id={historyStatusId} voice="label" ink="muted" role="status">
           Loading variant history…
         </Text>
       ) : null}
@@ -201,7 +201,7 @@ export function SwipeStrip({ message, foot }: SwipeStripProps): ReactElement {
 export function SwipeCount({ current, total, foot }: { readonly current: number | null; readonly total: number; readonly foot: SwipeFoot }): ReactElement {
   return (
     <FootRow edge={foot.edge} align="center" justify="end" data-slot="swipe-count">
-      <Text as="span" voice="datum" aria-hidden="true" data-slot="swipe-strip-counter" className="whitespace-nowrap" tone="muted">
+      <Text as="span" voice="datum" aria-hidden="true" data-slot="swipe-strip-counter" className="whitespace-nowrap" ink="muted">
         {current ?? "—"} / {total}
       </Text>
       <Text as="span" className="sr-only">

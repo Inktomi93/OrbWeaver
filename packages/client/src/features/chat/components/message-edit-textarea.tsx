@@ -117,12 +117,12 @@ export function MessageEditTextarea({ message, onSave, moveNeighbours }: Message
       />
       <Row gap="field" align="center" justify="end">
         {moveNeighbours === undefined ? null : <MessageMoveArrows message={message} neighbours={moveNeighbours} />}
-        <Button type="button" intent="ghost" size="sm" disabled={editMessage.isPending} aria-label="Cancel edit" onClick={cancel}>
+        <Button type="button" variant="ghost" size="sm" disabled={editMessage.isPending} aria-label="Cancel edit" onClick={cancel}>
           <Icon icon={X} size="sm" />
         </Button>
         <Button
           type="button"
-          intent="secondary"
+          variant="outline"
           size="sm"
           loading={editMessage.isPending}
           disabled={onSave === undefined && text.length === 0}

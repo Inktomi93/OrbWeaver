@@ -66,7 +66,7 @@ export function LoginLocalForm({ defaultHandle, onLoggedIn }: LoginLocalFormProp
             {error}
           </Text>
         )}
-        <Button intent="primary" type="submit" disabled={!canSubmit} data-testid={testId("loginSubmit")}>
+        <Button type="submit" disabled={!canSubmit} data-testid={testId("loginSubmit")}>
           {pending ? "Signing in…" : "Sign in"}
         </Button>
       </Stack>

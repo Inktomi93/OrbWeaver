@@ -1,11 +1,28 @@
 // domain/character/contract/service — typed API surface: CharacterContext (DI bundle) + CharacterService
 // (verb interface) + cross-feature injected-op types (character never sideways-imports assets or tag).
 
-import type { CharacterBulkTagResult, CharacterCard, CharacterDetail } from "@orb/contracts/character";
+import type {
+  CharacterBulkTagResult,
+  CharacterDetail,
+  CharacterRef,
+  CreateCharacterOp,
+  DuplicateCharacterOp,
+  FindCharacterByHandleOp,
+  FindCharacterByImportHashOp,
+  FindSyntheticGroupCharacterOp,
+  GetCharacterCardOp,
+  GetCharacterOp,
+  LoadCharacterCardTextOp,
+  MintSyntheticGroupCharacterOp,
+  SnapshotCharacterOp,
+  UpdateCharacterOp,
+} from "@orb/contracts/character";
+import type { ListCharacterIds } from "@orb/contracts/embeddings";
 import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { BumpStatsCanonVersion } from "@orb/contracts/stats";
+import type { DetachCardTagOp } from "@orb/contracts/tag";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
@@ -20,46 +37,25 @@ import type {
   BulkArchiveParams,
   BulkRemoveCardTagParams,
   BulkRemoveParams,
-  CreateCharacterParams,
-  DuplicateCharacterParams,
-  FindByHandleParams,
   FindByImportedFromParams,
-  FindByImportHashParams,
   FindByNameParams,
-  FindGroupCharParams,
   GenerateGreetingParams,
-  GetCardParams,
-  GetCharacterParams,
   GetSnapshotParams,
   ListCharactersParams,
   ListCharacterTagGroupsParams,
   ListSnapshotsParams,
-  MintGroupCharParams,
   RemoveCharacterParams,
   RestoreParams,
   RewriteGreetingParams,
-  SnapshotParams,
   StampImportIdentityParams,
-  UpdateCharacterParams,
 } from "./params.ts";
-import type {
-  CharacterRef,
-  GeneratedGreeting,
-  ImportedFromMatch,
-  ListCharactersResult,
-  ListCharacterTagGroupsResult,
-  SnapshotRef,
-  SnapshotSummary,
-  SnapshotView,
-} from "./results.ts";
+import type { GeneratedGreeting, ImportedFromMatch, ListCharactersResult, ListCharacterTagGroupsResult, SnapshotSummary, SnapshotView } from "./results.ts";
 
 /** Best-effort reap of avatar assets a deleted character may have orphaned (FK is onDelete: set null). */
 export type ReapAssetsOp = (assetIds: readonly AssetId[]) => Promise<void>;
 
 /** Attaches a tag by name to one owned character; returns whether it was newly attached (idempotent). */
 export type AttachCardTagOp = (args: { readonly ownerId: UserId; readonly characterId: CharacterId; readonly tagName: string }) => Promise<boolean>;
-
-export type DetachCardTagOp = (args: { readonly ownerId: UserId; readonly characterId: CharacterId; readonly tagName: string }) => Promise<boolean>;
 
 /** Carries the source character's attached world-info book REFERENCES onto the duplicate: fresh
  *  character_books rows pointing at the SAME books; world-info owns the junction write. Zero attachments =
@@ -122,17 +118,17 @@ export type CharacterAssemblyInput = Omit<DbAssemblyInput<CharacterContext>, "bu
 };
 
 export interface CharacterService {
-  readonly create: (params: CreateCharacterParams) => Promise<CharacterDetail>;
-  readonly get: (params: GetCharacterParams) => Promise<CharacterDetail>;
+  readonly create: CreateCharacterOp;
+  readonly get: GetCharacterOp;
   readonly count: (params: ListCharacterTagGroupsParams) => Promise<number>;
   readonly list: (params: ListCharactersParams) => Promise<ListCharactersResult>;
   /** The GROUP-BY-TAG census over the SAME lens `list` pages (#1696) — see `verbs/list-tag-groups.ts`. */
   readonly listTagGroups: (params: ListCharacterTagGroupsParams) => Promise<ListCharacterTagGroupsResult>;
   /** Edits the live card in place (no CAS/COW); recomputes contentHash. */
-  readonly update: (params: UpdateCharacterParams) => Promise<CharacterDetail>;
+  readonly update: UpdateCharacterOp;
   /** Cascades snapshots/personas; best-effort reaps the avatar asset. */
   readonly remove: (params: RemoveCharacterParams) => Promise<void>;
-  readonly duplicate: (params: DuplicateCharacterParams) => Promise<CharacterDetail>;
+  readonly duplicate: DuplicateCharacterOp;
   /** Missing/foreign ids are skipped, not thrown. */
   readonly bulkRemove: (params: BulkRemoveParams) => Promise<void>;
   readonly bulkArchive: (params: BulkArchiveParams) => Promise<void>;
@@ -141,22 +137,22 @@ export interface CharacterService {
   /** Per-item outcome — the honest wire for a partial batch (#1694). */
   readonly bulkRemoveCardTag: (params: BulkRemoveCardTagParams) => Promise<CharacterBulkTagResult>;
 
-  readonly snapshot: (params: SnapshotParams) => Promise<SnapshotRef>;
+  readonly snapshot: SnapshotCharacterOp;
   readonly listSnapshots: (params: ListSnapshotsParams) => Promise<SnapshotSummary[]>;
   /** One snapshot WITH its blob — the compare/inspect read (refinery Versions walk, §16.2). */
   readonly getSnapshot: (params: GetSnapshotParams) => Promise<SnapshotView>;
   readonly restore: (params: RestoreParams) => Promise<CharacterDetail>;
 
   /** Live card for an owned character, or null for not-owned/mid-delete — never throws. */
-  readonly getCard: (params: GetCardParams) => Promise<CharacterCard | null>;
+  readonly getCard: GetCharacterCardOp;
 
   /** Keyed by id alone, no owner scope — trusted system re-reader. */
-  readonly loadCardText: (characterId: CharacterId) => Promise<string | null>;
+  readonly loadCardText: LoadCharacterCardTextOp;
 
   /** ownerId scopes to one owner, omitted/null = all owners. */
-  readonly listEmbeddableCharacterIds: (ownerId?: UserId | null) => Promise<readonly CharacterId[]>;
+  readonly listEmbeddableCharacterIds: ListCharacterIds;
 
-  readonly findByImportHash: (params: FindByImportHashParams) => Promise<CharacterRef | null>;
+  readonly findByImportHash: FindCharacterByImportHashOp;
   /** Give an art-less owned character its avatar and re-key its import identity, in one conditional write.
    *  True when the row took the art; false when it already had one (nothing written). */
   readonly attachImportedArt: (params: AttachImportedArtParams) => Promise<boolean>;
@@ -166,12 +162,12 @@ export interface CharacterService {
   /** Batched provenance oracle (hub-injected): the owner's characters carrying any of `values` in
    *  `importedFrom` — backs the hub search page's already-imported markers (doc 03 §2.1). */
   readonly findByImportedFrom: (params: FindByImportedFromParams) => Promise<ImportedFromMatch[]>;
-  readonly findByHandle: (params: FindByHandleParams) => Promise<CharacterRef | null>;
+  readonly findByHandle: FindCharacterByHandleOp;
   /** Every owner character carrying the display name, oldest first: empty, one, or an ambiguity for the caller. */
   readonly findByName: (params: FindByNameParams) => Promise<readonly CharacterRef[]>;
 
-  readonly mintSyntheticGroupCharacter: (params: MintGroupCharParams) => Promise<CharacterRef>;
-  readonly findSyntheticGroupCharacter: (params: FindGroupCharParams) => Promise<CharacterRef | null>;
+  readonly mintSyntheticGroupCharacter: MintSyntheticGroupCharacterOp;
+  readonly findSyntheticGroupCharacter: FindSyntheticGroupCharacterOp;
 
   /** Greeting studio (audit §3): rewrite the supplied base greeting under the caller's `greeting_rewrite`
    *  template + composed steer. Owner-gated (leak-free NOT_FOUND for a non-owner); RETURNS text, NEVER writes. */

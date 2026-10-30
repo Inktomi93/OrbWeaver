@@ -83,7 +83,7 @@ function ConversationBand({ preview, onSelect }: { readonly preview: AssembledPr
     );
   }
   return (
-    <Card tone="muted">
+    <Card variant="soft">
       <Stack gap="field">
         <Row gap="row" align="center">
           <Icon icon={MessagesSquare} size="sm" />
@@ -116,7 +116,7 @@ function SpliceView({
 }): ReactElement {
   return (
     <Row gap="field" align="center">
-      <Badge intent="info" size="sm">
+      <Badge tone="info" variant="solid" size="sm">
         @{depth}·{order}
       </Badge>
       <BlockView block={block} onSelect={onSelect} />
@@ -128,7 +128,7 @@ function SpliceView({
 function BlockView({ block, onSelect }: { readonly block: PreviewBlock; readonly onSelect: (sectionId: string) => void }): ReactElement {
   return (
     <Button
-      intent="outline"
+      variant="outline"
       size="sm"
       // `p-row` is LOAD-BEARING, not drift: it overrides the `sm` step's sealed `px-block` on purpose — this
       // button wraps a multi-line block (kicker + body + cue) in a `flex-col`, so it needs top/bottom padding

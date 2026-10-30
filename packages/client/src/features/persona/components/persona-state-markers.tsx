@@ -45,7 +45,7 @@ function StateGlyph({
             as="span"
             aria-label={label}
             className="relative shrink-0"
-            tone="muted"
+            ink="muted"
             role="img"
             {...(seatBinds === undefined ? {} : { "data-seat-binds": seatBinds })}
           >

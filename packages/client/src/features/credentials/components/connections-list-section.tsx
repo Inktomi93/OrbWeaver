@@ -168,7 +168,7 @@ function ConnectionsBody({ anchorId }: { readonly anchorId: string }): ReactElem
         </Text>
         {/* ONE "Add connection" PER VIEWPORT: the empty state owns the verb while the list is empty. */}
         {connections.length === 0 ? null : (
-          <Button ref={addConnectionFocus} id={ADD_CONNECTION_CONTROL_ID} intent="primary" size="sm" onClick={(): void => setAddOpen(true)}>
+          <Button ref={addConnectionFocus} id={ADD_CONNECTION_CONTROL_ID} size="sm" onClick={(): void => setAddOpen(true)}>
             <Icon icon={Plus} size="sm" />
             Add connection
           </Button>
@@ -181,7 +181,7 @@ function ConnectionsBody({ anchorId }: { readonly anchorId: string }): ReactElem
           title="No connections yet"
           description="Add a provider key or your own server so your roles can reach a model."
           action={
-            <Button ref={addConnectionFocus} id={ADD_CONNECTION_CONTROL_ID} intent="primary" size="sm" onClick={(): void => setAddOpen(true)}>
+            <Button ref={addConnectionFocus} id={ADD_CONNECTION_CONTROL_ID} size="sm" onClick={(): void => setAddOpen(true)}>
               <Icon icon={Plus} size="sm" />
               Add connection
             </Button>
@@ -403,23 +403,23 @@ function ConnectionBadges({
   return (
     <Row gap="field" align="center" className="flex-wrap">
       {providerUnavailable ? (
-        <Badge intent="warning" size="sm" tone="soft">
+        <Badge tone="warning" size="sm">
           Provider unavailable
         </Badge>
       ) : null}
       {connection.tasks.length === 0 ? null : <Text voice="gloss">Can do:</Text>}
       {connectionRoleLabels(connection.tasks).map((label) => (
-        <Badge key={label} intent="primary" size="sm" tone="soft">
+        <Badge key={label} tone="primary" size="sm">
           {label}
         </Badge>
       ))}
       {connection.modelCheck === "unlisted" ? (
-        <Badge intent="warning" size="sm" tone="soft">
+        <Badge tone="warning" size="sm">
           Model not in list
         </Badge>
       ) : null}
       {connection.allowBackground ? null : (
-        <Badge intent="warning" size="sm" tone="soft">
+        <Badge tone="warning" size="sm">
           Background work off
         </Badge>
       )}

@@ -6,7 +6,7 @@
 // aliases the CT providers use — a relative path into packages/ui would resolve a second module instance
 // and mount blank.
 //
-// EVERY BUTTON STAGE PINS ITS `intent` EXPLICITLY. The default is `primary`, which stamps `data-cta` and
+// EVERY BUTTON STAGE PINS ITS `variant` EXPLICITLY. The default is the focal solid primary, which stamps `data-cta` and
 // paints the CTA gradient ring — so a stage without an intent would silently measure the RINGED
 // arm while claiming to measure the plain one. Both arms are stages of their own.
 
@@ -33,20 +33,20 @@ export function TouchFloorBoxCarriedIsolatedStory(): ReactElement {
 
 /** The PSEUDO-CARRIED companion: the ancestor-credit clause's purpose must still pass. A glyph-sm Button's visible box is far under the coarse floor, and the floor is carried entirely
  *  by its overflowing `::before` (`TOUCH_TARGET_PSEUDO` — `before:size-(--size-touch-target)`, `before:absolute`,
- *  centred), which has no DOM node of its own. `intent="ghost"` is the RINGLESS arm: nothing else claims a
+ *  centred), which has no DOM node of its own. `variant="ghost"` is the RINGLESS arm: nothing else claims a
  *  pseudo on this button, so it is the cleanest statement of "the hit area reaches the floor". Isolated
  *  and inset from x=0 for the same reasons as the box-carried stage above. */
 export function TouchFloorPseudoCarriedIsolatedStory(): ReactElement {
   return (
     <div style={{ padding: 120, position: "static", width: 400 }}>
       <div style={{ marginInlineStart: 48 }}>
-        <Button aria-label="Regenerate" data-testid="pseudo-carried-isolated" intent="ghost" size="glyph-sm" />
+        <Button aria-label="Regenerate" data-testid="pseudo-carried-isolated" variant="ghost" size="glyph-sm" />
       </div>
     </div>
   );
 }
 
-/** The CTA-RING REGRESSION GUARD — the same glyph at `intent="primary"`, i.e. wearing the CTA gradient ring.
+/** The CTA-RING REGRESSION GUARD — the same glyph as the focal solid primary, i.e. wearing the CTA gradient ring.
  *  The ring is `[data-slot="button"][data-cta]::after` (globals.css): UNLAYERED, `inset: 0`,
  *  `pointer-events: none`. The hit area is a `::before` so the two coexist; were it also an `::after`, the
  *  ring would replace it and the button would have NO tap target beyond its 25px box.
@@ -55,7 +55,7 @@ export function TouchFloorCtaGlyphIsolatedStory(): ReactElement {
   return (
     <div style={{ padding: 120, position: "static", width: 400 }}>
       <div style={{ marginInlineStart: 48 }}>
-        <Button aria-label="Regenerate" data-testid="cta-glyph-isolated" intent="primary" size="glyph-sm" />
+        <Button aria-label="Regenerate" data-testid="cta-glyph-isolated" size="glyph-sm" />
       </div>
     </div>
   );
@@ -83,7 +83,7 @@ export function TouchFloorPreFixCtaGlyphStory(): ReactElement {
         {".cbxh-prefix{position:relative;display:inline-flex;width:var(--size-glyph-sm);height:var(--size-glyph-sm);padding:0;border:0;background:var(--color-primary)}" +
           ".cbxh-prefix::after{content:'';position:absolute;top:50%;left:50%;width:var(--size-touch-target);height:var(--size-touch-target);translate:-50% -50%}" +
           ".cbxh-prefix::after{content:'';position:absolute;inset:0;z-index:1;pointer-events:none;border:1px solid transparent;border-radius:inherit;" +
-          "background:linear-gradient(transparent,transparent) padding-box,linear-gradient(180deg,oklch(from var(--color-primary) l c h / 0.55),oklch(from var(--color-sheen) l c h / 0.04)) border-box}"}
+          "background:linear-gradient(transparent,transparent) padding-box,linear-gradient(180deg,oklch(from var(--color-ring) l c h / 0.55),oklch(from var(--color-sheen) l c h / 0.04)) border-box}"}
       </style>
       <div style={{ marginInlineStart: 48 }}>
         <button aria-label="Regenerate" className="cbxh-prefix" data-testid="pre-fix-cta-glyph" type="button" />
@@ -92,7 +92,7 @@ export function TouchFloorPreFixCtaGlyphStory(): ReactElement {
   );
 }
 
-/** The `inline` arm at `intent="primary"` — the OTHER arm whose hit area shares a surface with the ring. Its visible box is text-height, its floor rides a full-width
+/** The `inline` arm as the focal solid primary — the OTHER arm whose hit area shares a surface with the ring. Its visible box is text-height, its floor rides a full-width
  *  `::before` sized on `--size-touch-target`, and at this intent the CTA ring sits on the `::after`
  *  directly over it. Isolated in a padded wrapper on purpose: this is simultaneously the positive control
  *  for the ring-overlap case AND a stage where a fabricated wrapper credit would be indistinguishable from
@@ -101,7 +101,7 @@ export function TouchFloorInlinePrimaryStory(): ReactElement {
   return (
     <div style={{ padding: 120, position: "static", width: 400 }}>
       <div style={{ marginInlineStart: 48 }}>
-        <Button data-testid="inline-primary" intent="primary" size="inline">
+        <Button data-testid="inline-primary" size="inline">
           Bruised knuckles
         </Button>
       </div>

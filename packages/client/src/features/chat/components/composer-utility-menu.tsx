@@ -169,7 +169,7 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
                 // so it is the same DOM node and the same string — but an icon-only `@orb/ui` Button REQUIRES
                 // its name at the type level, and a name declared one component up is invisible to that check
                 // (and to a reader of this element).
-                <Button aria-label="Message tools" type="button" intent="ghost" size="glyph-lg" shape="pill" className="shrink-0">
+                <Button aria-label="Message tools" type="button" variant="ghost" size="glyph-lg" shape="pill" className="shrink-0">
                   <Icon icon={WandSparkles} size="sm" />
                 </Button>
               }

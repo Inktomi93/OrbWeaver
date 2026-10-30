@@ -18,7 +18,8 @@ import type { LucideIcon } from "lucide-react";
 import type { ReactElement } from "react";
 import { useId } from "react";
 import type { VariantProps } from "tailwind-variants";
-import { INK_TONE, variantProps } from "#lib";
+import type { ToneInkSelection } from "#lib";
+import { variantProps } from "#lib";
 import type { FillableIcon } from "./fillable.ts";
 import { iconVariants } from "./variants.ts";
 
@@ -30,7 +31,7 @@ const ID_UNSAFE = /[^a-zA-Z0-9_-]/g;
 const NO_FILL = 0;
 const FULL_FILL = 1;
 
-interface IconBaseProps extends VariantProps<typeof iconVariants> {
+interface IconBaseProps extends Omit<VariantProps<typeof iconVariants>, "tone" | "ink"> {
   /** Accessible name. Omitted = decorative (`aria-hidden`), the default for icons beside text. */
   label?: string;
   className?: string;
@@ -46,6 +47,7 @@ interface IconBaseProps extends VariantProps<typeof iconVariants> {
  * value that is also rendered as text or exposed on the owning control's ARIA.
  */
 export type IconProps = IconBaseProps &
+  ToneInkSelection &
   (
     | {
         icon: FillableIcon;
@@ -71,6 +73,7 @@ export function Icon({
   partialFill,
   label,
   tone,
+  ink,
   shadow,
   receded,
   pulse,
@@ -87,7 +90,7 @@ export function Icon({
       nonScalingStroke={true}
       aria-hidden={label === undefined}
       aria-label={label}
-      {...variantProps(iconVariants, { size, weight, tone, shadow, receded, pulse, openTurn, yieldOnHover }, className, INK_TONE[tone ?? "default"])}
+      {...variantProps(iconVariants, { size, weight, tone, ink, shadow, receded, pulse, openTurn, yieldOnHover }, className, tone ?? null)}
       {...(fraction === NO_FILL ? {} : { fill: isPartial ? `url(#${gradientId})` : "currentColor" })}
     >
       {isPartial ? (

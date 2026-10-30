@@ -74,8 +74,8 @@ export function BookDetailsDialog({ open, onOpenChange, currentName, currentDesc
             <Textarea value={description} onChange={(event): void => setDescription(event.target.value)} placeholder="Optional" rows={3} />
           </Field>
           <DialogFooter>
-            <DialogClose render={<Button intent="ghost">Cancel</Button>} />
-            <Button intent="primary" type="submit" disabled={!canSave}>
+            <DialogClose render={<Button variant="ghost">Cancel</Button>} />
+            <Button type="submit" disabled={!canSave}>
               Save
             </Button>
           </DialogFooter>

@@ -65,7 +65,7 @@ function LocateRow({
     <Row gap="field" align="center" data-slot="config-save-footer" role={role} {...(role === "status" ? { "aria-live": "polite" as const } : {})}>
       {children}
       {canJumpToSection(sectionId) ? (
-        <Button type="button" intent="ghost" size="sm" onClick={(): void => onJumpToSection(sectionId)}>
+        <Button type="button" variant="ghost" size="sm" onClick={(): void => onJumpToSection(sectionId)}>
           Show me
         </Button>
       ) : null}

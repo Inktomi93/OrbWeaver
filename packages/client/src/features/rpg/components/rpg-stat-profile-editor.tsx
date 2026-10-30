@@ -69,16 +69,14 @@ function AttributeRow({
           }}
           className="flex-1 min-inline-0"
         />
-        <Badge tone="soft" size="sm">
-          {attr.key}
-        </Badge>
+        <Badge size="sm">{attr.key}</Badge>
         <HintTrigger
           className=""
           hint="the machine name the sheet stores this value under — minted once, kept through renames"
           subject={`${attr.label}'s key`}
         />
         <Tip text={`Remove ${attr.label} from the vocabulary`}>
-          <Button aria-label={`Remove ${attr.label} from the vocabulary`} intent="ghost" size="glyph-md" onClick={onRemove}>
+          <Button aria-label={`Remove ${attr.label} from the vocabulary`} variant="ghost" size="glyph-md" onClick={onRemove}>
             <Icon icon={Trash2} size="xs" />
           </Button>
         </Tip>

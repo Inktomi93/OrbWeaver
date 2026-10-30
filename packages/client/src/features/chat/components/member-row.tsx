@@ -68,7 +68,7 @@ export function MemberRow(props: MemberRowProps): ReactElement {
 
   const body = (
     <Button
-      intent="ghost"
+      variant="ghost"
       size="md"
       tabIndex={tabIndex}
       aria-label={rowAccessibleName(row)}
@@ -97,7 +97,7 @@ export function MemberRow(props: MemberRowProps): ReactElement {
         {initialsFor(row.displayName)}
       </Avatar>
       {row.kind === "person" ? <PresenceDot online={row.online} /> : null}
-      <Text as="span" voice="label" tone={row.kind === "character" && row.disabled ? "muted" : "default"} className="truncate min-inline-0">
+      <Text as="span" voice="label" ink={row.kind === "character" && row.disabled ? "muted" : undefined} className="truncate min-inline-0">
         {/* Identity ONLY. The ` · ${handle}` suffix that used to sit here rendered the raw login handle —
             an EMAIL under AUTH_MODE=oidc — beside every human's name (#162); `MemberPersonRow` no longer
             carries a handle at all, so the suffix has nothing to come back from. */}
@@ -146,7 +146,7 @@ export function MemberRow(props: MemberRowProps): ReactElement {
       {hasMenu ? (
         <Button
           type="button"
-          intent="ghost"
+          variant="ghost"
           size="icon"
           tabIndex={-1}
           aria-label={rowActionsName(row.displayName)}
@@ -189,37 +189,25 @@ function PresenceDot({ online }: { readonly online: boolean | null }): ReactElem
 /** The quiet state chips beside the name: host crown · "you" · pending nomination · muted. */
 function RowStateBadges({ row }: { readonly row: MemberPersonRow | MemberCharacterRow }): ReactElement | null {
   if (row.kind === "character") {
-    return row.disabled ? (
-      <Badge size="sm" intent="neutral" tone="soft">
-        Muted
-      </Badge>
-    ) : null;
+    return row.disabled ? <Badge size="sm">Muted</Badge> : null;
   }
   return (
     <>
       {row.isHost ? (
-        <Badge size="sm" tone="soft">
+        <Badge size="sm">
           <Icon icon={Crown} size="xs" />
           Host
         </Badge>
       ) : null}
-      {row.isViewer ? (
-        <Badge size="sm" intent="neutral" tone="soft">
-          you
-        </Badge>
-      ) : null}
+      {row.isViewer ? <Badge size="sm">you</Badge> : null}
       {row.pendingNominee ? (
-        <Badge size="sm" intent="info" tone="soft">
+        <Badge size="sm" tone="info">
           Nominated
         </Badge>
       ) : null}
       {/* The non-default D16 posture — the read side of the row menu's join-history toggle (the "Muted"
           precedent: the state is glanceable, the menu item states the change). */}
-      {row.historyVisibility === "from-join" ? (
-        <Badge size="sm" intent="neutral" tone="soft">
-          Limited history
-        </Badge>
-      ) : null}
+      {row.historyVisibility === "from-join" ? <Badge size="sm">Limited history</Badge> : null}
     </>
   );
 }
@@ -240,7 +228,7 @@ function CharacterInlineCluster({ row, actions }: { readonly row: MemberCharacte
     <Row gap="field" align="center" reveal="hover" hiddenAt="coarse">
       <Button
         type="button"
-        intent="ghost"
+        variant="ghost"
         size="icon"
         tabIndex={-1}
         aria-pressed={row.disabled}
@@ -252,7 +240,7 @@ function CharacterInlineCluster({ row, actions }: { readonly row: MemberCharacte
       {actions.onForceTurn === undefined ? null : (
         <Button
           type="button"
-          intent="ghost"
+          variant="ghost"
           size="icon"
           tabIndex={-1}
           aria-label={`Make ${row.displayName} speak next`}
@@ -308,7 +296,7 @@ function HandoffConfirm({
           onChange={setCopyCharacters}
         />
       }
-      confirmIntent="primary"
+      confirmTone="primary"
       confirmLabel="Hand off"
       onConfirm={(): void => {
         // `copyGmPreset` rides the SAME class-level opt-in: the GM voice is part of what the departing host

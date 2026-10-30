@@ -1,7 +1,7 @@
 import type { ComponentProps, KeyboardEvent, ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { cn, variantAttrs } from "#lib";
-import { CARD_TONE, cardVariants } from "./variants.ts";
+import { cardTone, cardVariants } from "./variants.ts";
 
 /** The card's own axes, shared by both element arms below. */
 type CardOwnProps = VariantProps<typeof cardVariants> & {
@@ -54,7 +54,8 @@ export function Card(props: CardProps): ReactElement {
     nested,
     padding,
     tone,
-    outline,
+    variant,
+    dashed,
     glow,
     rail,
     artDecoration,
@@ -76,7 +77,8 @@ export function Card(props: CardProps): ReactElement {
       nested,
       padding,
       tone,
-      outline,
+      variant,
+      dashed,
       glow,
       rail,
       artDecoration,
@@ -99,7 +101,7 @@ export function Card(props: CardProps): ReactElement {
     "data-nested": nested === true ? "" : undefined,
     "data-padding": padding === "none" ? "none" : undefined,
     "data-shape": shape === undefined || shape === "island" ? undefined : shape,
-    ...variantAttrs(cardVariants, { tone }, CARD_TONE[tone ?? "neutral"]),
+    ...variantAttrs(cardVariants, { tone, variant }, cardTone(tone)),
   } as const;
   if (props.as === "button") {
     const {
@@ -112,7 +114,8 @@ export function Card(props: CardProps): ReactElement {
       nested: _nested,
       padding: _padding,
       tone: _tone,
-      outline: _outline,
+      variant: _variant,
+      dashed: _dashed,
       glow: _glow,
       rail: _rail,
       artDecoration: _artDecoration,
@@ -146,7 +149,8 @@ export function Card(props: CardProps): ReactElement {
     nested: _nested,
     padding: _padding,
     tone: _tone,
-    outline: _outline,
+    variant: _variant,
+    dashed: _dashed,
     glow: _glow,
     rail: _rail,
     artDecoration: _artDecoration,

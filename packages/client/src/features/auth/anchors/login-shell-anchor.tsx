@@ -65,7 +65,7 @@ export function LoginShellAnchor({ children }: LoginShellAnchorProps): ReactElem
                 {/* Decorative pair: the mark + name — the surface's <h1> carries the page's real name. The
                     Text halo carries the readability treatment for the near-white wordmark
                     over the live weave, where a bright strand behind a glyph drops worst-case contrast. */}
-                <WeaveGlyph decorative={true} size="lg" tone="accent" />
+                <WeaveGlyph decorative={true} size="lg" tone="primary" />
                 <Text as="span" voice="monogram" halo={true}>
                   orbweaver
                 </Text>

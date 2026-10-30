@@ -1,7 +1,5 @@
 import type { ClassValue, VariantProps } from "tailwind-variants";
-import type { ToneStamp } from "#lib";
 import {
-  ACCENT_HOVER,
   CARD_CORNERS,
   CHIP_BOX,
   CONTROL_SIZE,
@@ -14,15 +12,17 @@ import {
   FOCUS_RING_ON_STATE_RING,
   HIDDEN_AT,
   HOVER_REVEAL,
+  INKS,
   SELECTED_FILL,
   SELECTION_RAIL,
   SELECTION_RAIL_TONE,
-  TONE_INK,
+  TONE_ARMS,
   TOUCH_FLOOR_AT_COARSE,
   TOUCH_TARGET_PSEUDO,
   TOUCH_TARGET_PSEUDO_STRETCH,
   tv,
 } from "#lib";
+import type { Tone } from "#tokens";
 import type { BUTTON_SIZE_OVERFLOW } from "./size-hit-area.ts";
 
 // Sizes ride the control-height tokens (CONTROL_SIZE, shared with Toggle) so the ≥44px touch floor
@@ -51,15 +51,12 @@ function glyphBox(box: string): string[] {
   return [box, "relative shrink-0 p-0", TOUCH_TARGET_PSEUDO];
 }
 
-// The intents that paint no fill, so a `tone` inks them; `bare` stays out because it takes its picture's ink.
-const FILL_LESS_INTENTS: ("ghost" | "link" | "outline" | "secondary")[] = ["ghost", "link", "outline", "secondary"];
-
 function inlineBox(typeStep: string): string[] {
   return ["relative block-auto min-block-0 justify-start font-normal", typeStep, TOUCH_TARGET_PSEUDO_STRETCH];
 }
 
-// The D336 solid and its pressed steps, in the tone `buttonTone` stamps.
-const TONE_SOLID_PRESSABLE = "bg-tone-solid text-tone-foreground hover:bg-tone-solid-hover active:bg-tone-solid-active";
+// The pressed tint of a fill-less style: the tone's tint-active fill under its on-tint ink.
+const TONE_TINT_HOVER = "hover:bg-tone-tint-active hover:text-tone-text-on-tint";
 
 export const buttonVariants = tv({
   base: [
@@ -74,40 +71,33 @@ export const buttonVariants = tv({
     "aria-busy:cursor-progress",
   ],
   variants: {
-    intent: {
-      // A disabled primary drops the accent fill for the neutral muted pair (a half-opacity accent read as nearly enabled).
-      // A busy (`loading`) button is disabled too but is working, so it keeps its fill; `globals.css` quiets its ring to match.
-      primary: [
-        `${TONE_SOLID_PRESSABLE} shadow-cta hover:shadow-cta-glow`,
+    // THE FILL STYLE (D336), painted only with the roles of the stamped tone, so every tone works with every style.
+    variant: {
+      // A disabled solid drops its fill for the neutral muted pair (a half-opacity fill read as nearly enabled).
+      // A busy (`loading`) button is disabled too but is working, so it keeps its fill; `primitives.css` quiets its ring to match.
+      solid: [
+        "bg-tone-solid text-tone-foreground hover:bg-tone-solid-hover active:bg-tone-solid-active",
         "disabled:not-aria-busy:bg-muted disabled:not-aria-busy:text-muted-foreground disabled:not-aria-busy:shadow-none",
         "data-disabled:not-aria-busy:bg-muted data-disabled:not-aria-busy:text-muted-foreground data-disabled:not-aria-busy:shadow-none",
       ],
-      secondary: `border border-border bg-transparent text-current ${ACCENT_HOVER} active:bg-accent/80`,
-      ghost: `text-current ${ACCENT_HOVER} active:bg-accent/80`,
-      destructive: TONE_SOLID_PRESSABLE,
-      // THE RESTING HAIRLINE (added 2026-08-17, program #102 variant B) — `ghost`'s ink with `secondary`'s
-      // edge, which is the one combination the intent axis could not spell and the one a FILTER CHIP needs.
-      //
-      // Why it is not either neighbour: `secondary` is a real secondary ACTION, so its border reads as a
-      // button you press — wrong for twenty-eight words out of a tag dictionary that must recede. `ghost`
-      // draws NO edge at all, and an edge is exactly what was missing: the characters pane's chips already
-      // sat at a ratified radius and nobody could tell,
-      // because at rest they were transparent with a ZERO-width border (measured 2026-08-17,
-      // characters-mockups rationale §1). A radius differentiates nothing unless
-      // something paints it, so the shape axis only starts working once the pill is drawn.
-      outline: `border border-border bg-transparent text-current ${ACCENT_HOVER} active:bg-accent/80`,
+      // The resting hairline: a secondary action, or a filter chip in a wrapping rail, where the drawn edge is what
+      // makes the pill radius read at all.
+      outline: `border border-tone-edge bg-transparent text-tone-text ${TONE_TINT_HOVER}`,
+      ghost: `text-tone-text ${TONE_TINT_HOVER}`,
       // An ACTION SPELLED AS A LINK: an underlined run inside prose or a gloss line that
       // does something in place. Navigation is an anchor, not this. No fill at any state, because a link-shaped
       // control that grows a box on hover is a button pretending; the hover is the ink, the press the scale.
       // The hover and press steps take the on-tint ink, one step nearer the page ink, so the link brightens against the page.
       link: "bg-transparent text-tone-text underline hover:text-tone-text-on-tint active:text-tone-text-on-tint",
-      // The primary fill without the CTA lift (no `shadow-cta`, no `data-cta` ring): a glyph disc that turns on
-      // when its action is ready, such as Send with a draft waiting. The region's one CTA stays `primary`.
-      solid: TONE_SOLID_PRESSABLE,
       // A button that wraps a picture (a portrait, a band of art) and draws nothing of its own: no fill at any
-      // state, so the art stays the affordance; it dims a step on hover instead of gaining an accent box.
+      // state, so the art stays the affordance; it dims a step on hover instead of gaining a tint. Step four of the
+      // css-system plan moves it to `PictureButton` (`docs/work/1421-build-the-tone-role-tier-and-one-variant.md`).
       bare: "cursor-pointer bg-transparent text-current hover:opacity-80",
     },
+    tone: TONE_ARMS,
+    // The focal action under CD3: the CTA lift and, through `data-cta`, the gradient ring. `Button` resolves it on for
+    // a solid primary unless the call site passes `focal={false}`.
+    focal: { true: "shadow-cta hover:shadow-cta-glow", false: "" },
     size: {
       ...CONTROL_SIZE,
       // `shrink-0` on both square arms, for the `glyphBox` reason: a square that shrinks in a crowded row is no
@@ -170,7 +160,7 @@ export const buttonVariants = tv({
       // `control-md` box (a toolbar button that happens to hold a glyph); a glyph button rides INSIDE a dense
       // row — a badge's dismiss, a list row's trailing delete, an editor row's toggle strip — where a control
       // height would be taller than the thing it hangs off. It was 13 call sites of
-      // `<Button intent="ghost" size="sm" className="!size-N !p-0">` at four scales, i.e. an `!important`
+      // `<Button variant="ghost" size="sm" className="!size-N !p-0">` at four scales, i.e. an `!important`
       // escape from the sealed `sm` control height, which is also how they escaped the `ui-size-via-variant`
       // gate for a day (it read `size-6`, not `!size-6`). A className CANNOT express this: `size-(--size-control-sm)`
       // was a custom token, opaque to tailwind-merge (`twMerge("size-(--size-control-sm)","size-6")` kept BOTH), so
@@ -194,7 +184,7 @@ export const buttonVariants = tv({
       "glyph-lg": glyphBox("size-(--size-glyph-lg)"),
       // THE WRAPPING-RAIL CELL — one home with Toggle's identical arm (`CHIP_BOX`, lib/control-size.ts),
       // because a scope toggle and a tag button sit in the SAME rail and two boxes there is the defect,
-      // not the feature. Pair it with `shape="pill"` + `intent="outline"`.
+      // not the feature. Pair it with `shape="pill"` + `variant="outline"`.
       chip: CHIP_BOX,
     } satisfies Record<keyof typeof BUTTON_SIZE_OVERFLOW, ClassValue>,
     // THE RADIUS AXIS (added 2026-08-16, program #102). It used to live in `base` as a bare
@@ -214,6 +204,10 @@ export const buttonVariants = tv({
     // A button that covers a part flush in a card's corners (art, a welded portrait) traces those corners, so its
     // focus ring follows the card. Declared after `shape`, whose control radius it refines corner by corner.
     cardCorners: CARD_CORNERS,
+    // A named ink for a fill-less style (D336); `Button` resolves `inherit` for a neutral ghost or link, which takes its
+    // host's ink. An outline draws its own box, so it keeps its tone's text role.
+    // Declared before `selection`, so a selected arm's own ink wins the merge.
+    ink: INKS,
     // THE SELECTION STATE LAYER (added 2026-08-17, program #102 variant B). Toggle already owns this
     // reading on `data-pressed` — but a TRI-STATE filter (off → include → exclude → off) cannot be a
     // Toggle: `aria-pressed` has two values and a third state announced through it would be a lie. So the
@@ -221,15 +215,15 @@ export const buttonVariants = tv({
     // as call-site classNames (`inset-ring-2 inset-ring-ring` / `… inset-ring-destructive line-through`) —
     // a skin decided in a feature, which is how two rails drift.
     //
-    // DECLARED AFTER `intent` ON PURPOSE (the Badge `tone` precedent): tv() emits variant classes in key
+    // DECLARED AFTER `variant` ON PURPOSE: tv() emits variant classes in key
     // order, so these must come last for tailwind-merge to resolve `bg-*`/`border-*`/`text-*` in the
-    // state's favour over the resting intent's.
+    // state's favour over the resting style's.
     //
     // The `on` arm is SELECTED_FILL, Toggle's `data-pressed` skin as a static arm, so a selected scope toggle
     // and a selected tag chip in one rail read the same. It is a fill, not a ring: keyboard focus owns the ring.
     // `negated` wears the same fill, so both set states read as one family against `off`, plus its own state ring.
     selection: {
-      /** Not selected — the resting `intent` skin stands alone, focus ring included. */
+      /** Not selected — the resting `variant` skin stands alone, focus ring included. */
       none: "",
       /** IN the set. */
       on: `border-transparent ${SELECTED_FILL}`,
@@ -245,9 +239,7 @@ export const buttonVariants = tv({
     reveal: HOVER_REVEAL,
     // A glyph-only chip is narrower than the touch floor at a coarse pointer; its `sm` height already clears it.
     touchFloor: { inline: TOUCH_FLOOR_AT_COARSE.inline },
-    // THE INK OF A FILL-LESS ACTION, by meaning, from the Text map. The `ghost`, `link`, `outline` and `secondary`
-    // intents paint no fill of their own, so the tone arms below are compound on those; a filled intent owns its ink.
-    tone: { default: "", primary: "", destructive: "", warning: "", muted: "", foreground: "" },
+
     // A dotted underline marks an action that discloses more of the same view (show all tags), not one that leaves.
     underline: { none: "", dotted: "underline decoration-dotted" },
     // A text-height control that swaps with an edit field reserves the field's 1px edge, so the swap does not shift.
@@ -259,19 +251,11 @@ export const buttonVariants = tv({
     // Scrollport-bound controls keep the ring inside their box instead of clipping an outer moat.
     focusRing: { surface: "", sidebar: FOCUS_RING_ON_SIDEBAR, inset: [FOCUS_RING_NONE, FOCUS_RING_INSET] },
   },
-  compoundVariants: [
-    { intent: FILL_LESS_INTENTS, tone: "primary", class: TONE_INK.accent },
-    { intent: FILL_LESS_INTENTS, tone: "destructive", class: TONE_INK.destructive },
-    { intent: FILL_LESS_INTENTS, tone: "warning", class: TONE_INK.warning },
-    { intent: FILL_LESS_INTENTS, tone: "muted", class: TONE_INK.muted },
-    { intent: FILL_LESS_INTENTS, tone: "foreground", class: TONE_INK.foreground },
-  ],
   defaultVariants: {
-    intent: "primary",
+    variant: "solid",
     size: "md",
     shape: "control",
     selection: "none",
-    tone: "default",
     underline: "none",
     reserveEdge: false,
     confirming: false,
@@ -280,37 +264,23 @@ export const buttonVariants = tv({
   },
 });
 
-const INTENT_TONE = {
-  primary: "primary",
-  secondary: null,
-  ghost: null,
-  destructive: "destructive",
-  outline: null,
-  link: "primary",
+export type ButtonVariant = keyof typeof buttonVariants.variants.variant;
+
+/** The tone a style takes when the call site names none: the solid and the link are the primary action and its
+ *  inline twin; an edge, a ghost and a picture stay neutral, so they read as quieter than the region's one CTA. */
+export const BUTTON_DEFAULT_TONE = {
   solid: "primary",
-  bare: null,
-} as const satisfies Record<keyof typeof buttonVariants.variants.intent, ToneStamp>;
-
-const INK_TONE_OF = {
-  default: null,
-  primary: "primary",
-  destructive: "destructive",
-  warning: "warning",
-  muted: null,
-  foreground: null,
-} as const satisfies Record<keyof typeof buttonVariants.variants.tone, ToneStamp>;
-
-type ButtonVariantProps = VariantProps<typeof buttonVariants>;
+  outline: "neutral",
+  ghost: "neutral",
+  link: "primary",
+  bare: "neutral",
+} as const satisfies Record<ButtonVariant, Tone>;
 
 /**
- * The D336 tone a button's roles resolve against. A filled intent names its own. A selection rail takes the primary
- * rail it paints: the owner-ratified selection idiom keeps one colour, so a rail row's `tone` ink yields to it, as
- * the rail did before the roles. Any other fill-less intent takes its `tone` ink.
+ * The D336 tone a button's roles resolve against. A selected row on a selection rail takes the primary rail it paints:
+ * the owner-ratified selection idiom keeps one colour, so a fill-less rail row's tone yields to it while selected and
+ * rests in its own tone.
  */
-export function buttonTone(intent: ButtonVariantProps["intent"], tone: ButtonVariantProps["tone"], selection: ButtonVariantProps["selection"]): ToneStamp {
-  const resolved = intent ?? "primary";
-  if (!(FILL_LESS_INTENTS as readonly string[]).includes(resolved)) {
-    return INTENT_TONE[resolved];
-  }
-  return selection === "rail" ? SELECTION_RAIL_TONE : (INK_TONE_OF[tone ?? "default"] ?? INTENT_TONE[resolved]);
+export function buttonTone(variant: ButtonVariant, tone: Tone, selection: VariantProps<typeof buttonVariants>["selection"], selected: boolean): Tone {
+  return selection === "rail" && selected && variant !== "solid" ? SELECTION_RAIL_TONE : tone;
 }

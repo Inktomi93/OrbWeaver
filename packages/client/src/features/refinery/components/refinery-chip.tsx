@@ -4,22 +4,25 @@
 // — never inferred from spellings.
 
 import type { RenderHintTone } from "@orb/contracts/refinery";
-import { Badge } from "@orb/ui/badge";
+import { Badge, STATUS_PILL_VARIANT } from "@orb/ui/badge";
 import { Text } from "@orb/ui/text";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { testId } from "#lib";
 
-/** The chip's tones: the render-hint vocabulary plus `accent`, the palette's own state tint for session chrome
- *  (a status, not a payload verdict — so it never borrows a semantic hue such as `info`). */
+/** The chip's tones: the render-hint vocabulary plus `accent`, the active session in the session chrome. */
 type RefineryChipTone = RenderHintTone | "accent";
 
-const TONE_INTENT: Record<RefineryChipTone, NonNullable<ComponentProps<typeof Badge>["intent"]>> = {
-  good: "success",
-  warn: "warning",
-  bad: "danger",
-  info: "info",
-  neutral: "neutral",
-  accent: "accent",
+type ChipBadge = Required<Pick<ComponentProps<typeof Badge>, "tone" | "variant">>;
+
+/** A verdict is a status pill; the active session takes the primary tint, the colour that marks the current selection
+ *  elsewhere in the app, so it stays apart from a neutral chip without filling like a verdict. */
+const CHIP_BADGE: Record<RefineryChipTone, ChipBadge> = {
+  good: { tone: "success", variant: STATUS_PILL_VARIANT.success },
+  warn: { tone: "warning", variant: STATUS_PILL_VARIANT.warning },
+  bad: { tone: "destructive", variant: STATUS_PILL_VARIANT.destructive },
+  info: { tone: "info", variant: STATUS_PILL_VARIANT.info },
+  neutral: { tone: "neutral", variant: STATUS_PILL_VARIANT.neutral },
+  accent: { tone: "primary", variant: "soft" },
 };
 
 // The word carries its render-hint on `data-hint-tone`, never `data-tone`: `@orb/ui` is the one writer of `data-tone`
@@ -33,9 +36,9 @@ export interface RefineryChipProps {
 }
 
 export function RefineryChip({ tone = "neutral", wrap = false, children }: RefineryChipProps): ReactElement {
-  // The kicker voice carries the micro-caps grammar; `ink="inherit"` takes the intent's paired ink.
+  // The kicker voice carries the micro-caps grammar; `ink="inherit"` takes the badge's own ink.
   return (
-    <Badge className={wrap ? "whitespace-normal max-inline-full" : undefined} data-testid={testId("refineryChip")} intent={TONE_INTENT[tone]} size="compact">
+    <Badge className={wrap ? "whitespace-normal max-inline-full" : undefined} data-testid={testId("refineryChip")} {...CHIP_BADGE[tone]} size="compact">
       <Text as="span" data-hint-tone={tone} ink="inherit" voice="kicker">
         {children}
       </Text>

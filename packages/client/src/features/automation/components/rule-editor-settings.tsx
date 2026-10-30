@@ -28,14 +28,14 @@ export function RuleEditorSettings({
       <form.AppField name="description">
         {(field): ReactElement =>
           field.state.value === null ? (
-            <Button intent="ghost" className="justify-start" onClick={(): void => field.handleChange("")}>
+            <Button variant="ghost" className="justify-start" onClick={(): void => field.handleChange("")}>
               <Icon icon={ChevronRight} size="sm" />
               Add description
             </Button>
           ) : (
             <Stack gap="tight">
               <field.TextareaField label="Description" />
-              <Button intent="ghost" className="justify-start" onClick={(): void => field.handleChange(null)}>
+              <Button variant="ghost" className="justify-start" onClick={(): void => field.handleChange(null)}>
                 Remove description
               </Button>
             </Stack>
@@ -80,7 +80,7 @@ export function RuleEditorSettings({
       <form.AppField name="predicateCel">
         {(field): ReactElement =>
           field.state.value === null ? (
-            <Button intent="ghost" className="justify-start" onClick={(): void => field.handleChange("")}>
+            <Button variant="ghost" className="justify-start" onClick={(): void => field.handleChange("")}>
               <Icon icon={ChevronRight} size="sm" />
               Add condition
             </Button>
@@ -94,7 +94,7 @@ export function RuleEditorSettings({
                     : "A CEL expression filters matching events. A rewrite's condition cannot read the event."
                 }
               />
-              <Button intent="ghost" className="justify-start" onClick={(): void => field.handleChange(null)}>
+              <Button variant="ghost" className="justify-start" onClick={(): void => field.handleChange(null)}>
                 Remove condition
               </Button>
             </Stack>

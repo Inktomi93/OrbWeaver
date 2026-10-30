@@ -17,7 +17,7 @@ export function InviteRoomPicker(): ReactElement {
     <Menu>
       <MenuTrigger
         render={
-          <Button type="button" intent="secondary" size="sm">
+          <Button type="button" variant="outline" size="sm">
             Invite someone to a room
           </Button>
         }

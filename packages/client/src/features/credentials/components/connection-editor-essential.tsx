@@ -152,7 +152,7 @@ export function ModelField({
       />
       {checkNow === "unlisted" ? (
         <Row gap="field">
-          <Button disabled={catalog.isFetching} intent="secondary" onClick={recheck} size="sm">
+          <Button disabled={catalog.isFetching} variant="outline" onClick={recheck} size="sm">
             Check the list again
           </Button>
         </Row>

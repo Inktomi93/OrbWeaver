@@ -60,7 +60,7 @@ export function TagCollectionRows({ view }: { readonly view: TagRowsView }): Rea
             No tags match that filter.
           </Text>
           <Button
-            intent="secondary"
+            variant="outline"
             size="sm"
             onClick={(): void => {
               setLabelFilter("");

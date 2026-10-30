@@ -195,7 +195,7 @@ export function PluginScriptedSurface({
         <Text prose={true} voice="gloss">
           This plugin has no content to show here yet.
         </Text>
-        <Button intent="ghost" onClick={(): void => setAttempt((current) => current + 1)} size="sm">
+        <Button variant="ghost" onClick={(): void => setAttempt((current) => current + 1)} size="sm">
           Reload
         </Button>
       </Stack>

@@ -40,7 +40,7 @@ export function CharacterDoor({ placeholder, label, chosenName, disabled = false
       {/* `modal` — this popover carries INPUT; the rule + its receipt live on `Popover` in @orb/ui's popover.tsx (#2444). */}
       <PopoverTrigger
         render={
-          <Button data-testid={testId("refineryCharacterDoor")} disabled={disabled} intent="secondary" size="sm">
+          <Button data-testid={testId("refineryCharacterDoor")} disabled={disabled} variant="outline" size="sm">
             {chosenName ?? placeholder}
           </Button>
         }

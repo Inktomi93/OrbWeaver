@@ -35,7 +35,8 @@ import { z } from "zod";
 import { TOKENS } from "#tokens";
 import type { ParsedOklch } from "./color-parse.ts";
 import { compositedBase, serializeOpaqueOklch, toOklch } from "./color-parse.ts";
-import { foregroundOn, surfaceVarsOn } from "./derive-vars.ts";
+import type { InputBorderFallback } from "./derive-vars.ts";
+import { foregroundOn, inputBorderOn, surfaceVarsOn } from "./derive-vars.ts";
 import type { CarriedToneScheme } from "./tone-knobs.ts";
 import { accentInk, carriedToneScheme, carriedToneSources, paintedAccentFill, solveCarriedToneMix, toneMixOf, toneMixVars } from "./tone-knobs.ts";
 
@@ -123,6 +124,8 @@ export interface ClampedTheme {
   readonly resolvedBackground?: string;
   /** Set when no one ink covers the primary fill and its solid steps, so the solve raised the step knobs (D336). */
   readonly toneFallback?: ToneFallback;
+  /** Set when the carried scope's form-control edge could not hold both D159 bounds; the 3:1 floor wins over the focus-ring ceiling. */
+  readonly inputBorderFallback?: InputBorderFallback;
 }
 
 /** The D336 primary fallback a scope took: the fill it paints and the hover and active percents the solve raised to. */
@@ -314,6 +317,22 @@ function colorSchemeFor(base: ParsedOklch | null): "light" | "dark" | null {
   return surfacePolarity(base);
 }
 
+interface CarriedSurface {
+  readonly vars: Readonly<Record<string, string>>;
+  readonly inputBorderFallback: InputBorderFallback | undefined;
+}
+
+/** Everything a carried background derives: the surface family, and the form-control edge solved over it below the focus ring (D159). */
+function carriedSurfaceOn(background: string, carriedBase: ParsedOklch | null, ring: Oklch | null): CarriedSurface {
+  const derivedOrigin = derivedOriginFor(background, toOklch(background), carriedBase);
+  const surface = surfaceVarsOn(background, carriedBase, derivedOrigin);
+  if (carriedBase === null) {
+    return { vars: surface, inputBorderFallback: undefined };
+  }
+  const edge = inputBorderOn(derivedOrigin, carriedBase, ring);
+  return { vars: { ...surface, ...edge.vars }, inputBorderFallback: edge.fallback };
+}
+
 /**
  * Parse + clamp raw override tokens into a safe custom-property map. Unknown keys are stripped
  * (schema), per-field failures are dropped (a bad `accent` leaves `--color-primary` inherited), and
@@ -387,11 +406,8 @@ export function clampThemeTokens(raw: unknown, ambientBackground?: string, ambie
   if (t.systemBubble?.bg !== undefined) {
     putBubble(t.systemBubble.bg, "--color-system-bubble", "--color-system-bubble-foreground");
   }
-  if (t.background !== undefined) {
-    const authoredBase = toOklch(t.background);
-    const derivedOrigin = derivedOriginFor(t.background, authoredBase, carriedBase);
-    Object.assign(vars, surfaceVarsOn(t.background, carriedBase, derivedOrigin));
-  }
+  const surface = t.background === undefined ? undefined : carriedSurfaceOn(t.background, carriedBase, accent?.painted ?? null);
+  Object.assign(vars, surface?.vars);
   Object.assign(vars, toneVars);
   // An explicit border color wins over the derived hairline, for both border scopes.
   put("--color-border", t.borderColor);
@@ -416,6 +432,7 @@ export function clampThemeTokens(raw: unknown, ambientBackground?: string, ambie
     ...inheritedInkOn(vars),
     ...(accentSource === undefined ? {} : { accentSource }),
     ...carriedContextOn(carriedBase, fallback),
+    ...(surface?.inputBorderFallback === undefined ? {} : { inputBorderFallback: surface.inputBorderFallback }),
   };
 }
 

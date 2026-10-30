@@ -972,6 +972,9 @@ export const effectiveAppConfigSchema = z.strictObject({
   imageVariantQuality: z.number(),
   promptCacheMinDepth: z.number(),
 }) satisfies z.ZodType<EffectiveAppConfig>;
+
+/** The live effective-config read: settings owns it, and the debug routes and the embeddings indexer consume it. */
+export type GetEffectiveConfigOp = () => EffectiveAppConfig;
 // Read producers already normalize configuration; wire envelopes reject typed additions without re-healing objects.
 const appSettingsOutputSchema = appSettingsSchema.strict().extend({
   memoryDefaults: memoryDefaultsSchema.strict().nullable().optional(),

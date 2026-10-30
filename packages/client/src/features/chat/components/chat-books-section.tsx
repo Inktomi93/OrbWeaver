@@ -106,7 +106,7 @@ export function ChatBooksSection({ chatId, isHost }: ChatBooksSectionProps): Rea
           be missing (how does a book get here?) is the member gloss above. */}
       {isHost ? (
         <>
-          <Button intent="secondary" onClick={(): void => setPickerOpen(true)} size="sm" type="button">
+          <Button variant="outline" onClick={(): void => setPickerOpen(true)} size="sm" type="button">
             Attach a world book
           </Button>
           <AddChatBookDialog attachedIds={attached.map((book) => book.id)} chatId={chatId} onOpenChange={setPickerOpen} open={pickerOpen} />

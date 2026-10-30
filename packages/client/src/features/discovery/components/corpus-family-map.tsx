@@ -63,7 +63,7 @@ function FamilyPlate({ family, name }: { readonly family: VisualFamily; readonly
     // the boundary, and with it the count, so a reader steps family by family and reads the census inside
     // the one they stopped on. Deliberately NO `aria-label` here: a named container is announced INSTEAD of
     // its content by several readers, which would delete the very meta line this is about.
-    <Card nested={true} role="listitem" tone="raised">
+    <Card nested={true} role="listitem" variant="soft">
       <Row align="center" gap="row">
         <AvatarStack
           aria-hidden={true}
@@ -81,7 +81,7 @@ function FamilyPlate({ family, name }: { readonly family: VisualFamily; readonly
               render={
                 <Button
                   className="justify-start max-inline-full min-inline-0"
-                  intent="ghost"
+                  variant="ghost"
                   size="sm"
                   onClick={(): void => selectCorpusArtifact({ kind: "cluster", cluster: family, visual: true, k: null, title: name })}
                 >
@@ -147,7 +147,7 @@ export function CorpusFamilyMap({ families, focal, canOpenFamilies }: CorpusFami
             library there is no door — `canOpenFamilies` is the destination's OWN gate signal, passed down
             rather than re-derived, and the readiness rail is already the one place that says why. */}
         {canOpenFamilies ? (
-          <Button className="shrink-0" intent="ghost" onClick={(): void => revealContextPanel("archetypes")} size="sm">
+          <Button className="shrink-0" variant="ghost" onClick={(): void => revealContextPanel("archetypes")} size="sm">
             All families →
           </Button>
         ) : null}

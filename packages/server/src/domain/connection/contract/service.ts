@@ -6,20 +6,20 @@
 // cross-feature dep arrives as an injected op, wired at the composition root; connection sideways-imports no
 // sibling runtime.
 
-import type { EmbeddingTask, VectorScope } from "@orb/contracts/embeddings";
+import type { SyncTargetGenerationsOp, TargetWouldMoveOp, VectorScope } from "@orb/contracts/embeddings";
 import type { Principal } from "@orb/contracts/identity";
 import type {
   ConnectionBinding,
   ConnectionView,
   CredentialOwned,
   EmbedSpaceChangePreview,
-  EmbedTargetRefusal,
+  GetBoundConnectionOp,
   ModelListing,
   ResolvedCacheConnectionView,
   ResolvedConnectionView,
   RoutableTask,
   RuleOwnedBy,
-  SendAvailability,
+  TaskAvailabilityOp,
   TokenizeResult,
 } from "@orb/contracts/inference";
 import type { AccountCredits, EndpointInspection, GenerationCost, VerifyAuthResult } from "@orb/contracts/providers";
@@ -40,7 +40,6 @@ import type {
   DropPluginProvidersParams,
   DropProviderParams,
   GenerationCostParams,
-  GetBoundConnectionParams,
   GetConnectionParams,
   ListBindingsParams,
   ListConnectionsParams,
@@ -95,15 +94,10 @@ export interface ConnectionContext {
    *  targets against it, awaited by the write: a target that moves queues their rebuild, one that matches does not, and
    *  an encoder that does not make its stated width, or does not answer the probe, moves nothing and is returned for
    *  the write to undo and refuse. */
-  readonly syncEmbedTargets: (ownerId: UserId) => Promise<EmbedTargetRefusal | null>;
+  readonly syncEmbedTargets: SyncTargetGenerationsOp;
   /** Would the owner's stored target for `task` move if `via` resolved through `connectionId`? `null` when that row
    *  cannot resolve. The embeddings domain's own move rule, read-only, for the change preview. */
-  readonly targetWouldMove: (args: {
-    readonly ownerId: UserId;
-    readonly task: EmbeddingTask;
-    readonly via: EmbeddingTask;
-    readonly connectionId: UserConnectionId;
-  }) => Promise<boolean | null>;
+  readonly targetWouldMove: TargetWouldMoveOp;
   /** How many vectors the owner has stored per scope (the embeddings domain's count), for the change preview. */
   readonly countOwnedVectors: (ownerId: UserId) => Promise<Readonly<Record<VectorScope, number>>>;
   /** The per-user freshness plane (`connectionsChanged`) — injected, never a sideways reach at the bus
@@ -123,7 +117,7 @@ export interface ConnectionService {
   // ── delegations to the runtime (the turn path, the composer's pre-send gate, the pane's readouts)
   /** Trusted server resolution retains its credential; client reads use the credential-free projection. */
   readonly resolve: (params: ResolveTaskParams) => Promise<ResolveOutcome>;
-  readonly availability: (params: ResolveTaskParams) => Promise<SendAvailability>;
+  readonly availability: TaskAvailabilityOp;
   /** The caller's OWN chat connection end-to-end, credential-free (`ResolvedConnectionView`). */
   readonly resolveChatCapability: (params: ResolveChatCapabilityParams) => Promise<ResolvedConnectionView>;
   readonly resolveChatCacheContext: (params: ResolveChatCapabilityParams) => Promise<ResolvedCacheConnectionView>;
@@ -141,7 +135,7 @@ export interface ConnectionService {
   // ── Model roles (`connection_bindings`)
   readonly listBindings: (params: ListBindingsParams) => Promise<readonly BindingView[]>;
   /** One indexed binding read and one owner-scoped row read; no runtime resolution or secret projection. */
-  readonly getBoundConnection: (params: GetBoundConnectionParams) => Promise<Pick<ConnectionView, "label" | "providerId" | "providerLabel" | "model"> | null>;
+  readonly getBoundConnection: GetBoundConnectionOp;
   readonly setBinding: (params: SetBindingParams) => Promise<ConnectionBinding>;
   readonly useForEverything: (params: UseForEverythingParams) => Promise<readonly ConnectionBinding[]>;
   /** Would this pending change move the caller to a new embedding generation, and how much would it rebuild?

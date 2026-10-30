@@ -88,7 +88,7 @@ function ImportPreflight({
   const title = stagedTitle(files, plan);
   return (
     // A named GROUP, not an alert: nothing has happened yet and nothing is being interrupted.
-    <Card aria-label={title} data-slot="import-preflight" padding="none" role="group" shape="row" tone="input">
+    <Card aria-label={title} data-slot="import-preflight" padding="none" role="group" shape="row" variant="outline">
       <Stack gap="field" padding="field">
         <Text voice="label">{title}</Text>
         <PersonaCollisionReview collisions={collisions} choices={choices} onChoose={onChoose} onChooseAll={onChooseAll} />
@@ -107,10 +107,10 @@ function ImportPreflight({
               ))}
         </Stack>
         <Row justify="start" align="center" gap="field">
-          <Button intent="primary" onClick={onConfirm} disabled={plan !== null && plan.batches.length === 0 && plan.skipped.length > 0}>
+          <Button onClick={onConfirm} disabled={plan !== null && plan.batches.length === 0 && plan.skipped.length > 0}>
             Import
           </Button>
-          <Button intent="secondary" onClick={onCancel}>
+          <Button variant="outline" onClick={onCancel}>
             Cancel
           </Button>
         </Row>
@@ -141,7 +141,7 @@ export function ImportLibrarySection(): ReactElement {
 
   return (
     <Stack gap="block">
-      <Text tone="muted" className="max-inline-(--reading-measure-prose)">
+      <Text ink="muted" className="max-inline-(--reading-measure-prose)">
         Restore a backup, or bring your SillyTavern library over. Drop a full .zip export (characters, chats, personas, world books — everything) or a single
         character card — or pick an unzipped backup / SillyTavern profile folder.
       </Text>
@@ -212,7 +212,7 @@ export function ImportLibrarySection(): ReactElement {
           <ImportReportSummary summary={state.summary} />
           <ImportedChatsMemoryOffer scope={state.summary.memoryScope} />
           <Row justify="start">
-            <Button intent="secondary" onClick={reset}>
+            <Button variant="outline" onClick={reset}>
               Import another
             </Button>
           </Row>

@@ -114,7 +114,7 @@ export function GreetingStudio({ characterId, baseGreeting, onAccept, trusted = 
   if (preview !== null) {
     return (
       <Stack gap="row" data-slot="greeting-studio-preview">
-        <Text tone="muted" voice="label">
+        <Text ink="muted" voice="label">
           Preview
         </Text>
         <Card tone="bubble">
@@ -126,7 +126,7 @@ export function GreetingStudio({ characterId, baseGreeting, onAccept, trusted = 
         </Card>
         <Row gap="field" align="center" justify="end">
           <Button
-            intent="ghost"
+            variant="ghost"
             size="sm"
             onClick={(): void => {
               restoreGeneratorFocus.current = true;
@@ -137,7 +137,6 @@ export function GreetingStudio({ characterId, baseGreeting, onAccept, trusted = 
             Discard
           </Button>
           <Button
-            intent="primary"
             size="sm"
             onClick={(): void => {
               onAccept(preview);
@@ -156,7 +155,7 @@ export function GreetingStudio({ characterId, baseGreeting, onAccept, trusted = 
     <Stack gap="block" data-slot="greeting-studio">
       {GREETING_TRANSFORM_AXES.map((axis) => (
         <Stack key={axis} gap="field">
-          <Text tone="muted" id={`${labelIdBase}-${axis}`} voice="gloss">
+          <Text ink="muted" id={`${labelIdBase}-${axis}`} voice="gloss">
             {AXIS_LABEL[axis]}
           </Text>
           <ToggleGroup
@@ -185,11 +184,11 @@ export function GreetingStudio({ characterId, baseGreeting, onAccept, trusted = 
 
       <Row className="flex-wrap" gap="field" align="center" justify="end">
         {isPending ? <WebSpinner size="sm" label="Generating…" /> : null}
-        <Button ref={generateRef} intent="secondary" size="sm" disabled={isPending} onClick={onGenerate}>
+        <Button ref={generateRef} variant="outline" size="sm" disabled={isPending} onClick={onGenerate}>
           <Icon icon={Sparkles} size="sm" />
           Make new
         </Button>
-        <Button ref={rewriteRef} intent="primary" size="sm" disabled={isPending || !canRewrite} onClick={onRewrite}>
+        <Button ref={rewriteRef} size="sm" disabled={isPending || !canRewrite} onClick={onRewrite}>
           <Icon icon={WandSparkles} size="sm" />
           Rewrite
         </Button>

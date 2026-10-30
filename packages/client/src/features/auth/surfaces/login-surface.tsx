@@ -170,7 +170,7 @@ function LoginBody({
         <Stack gap="block">
           <Heading level={1}>Sign in</Heading>
           <LoginTransportNotice transport={config.transport} clientScope={config.clientScope} />
-          <Text tone="muted" voice="gloss" prose={true}>
+          <Text ink="muted" voice="gloss" prose={true}>
             You'll be redirected to {config.oidcProviderName}, then back here.
           </Text>
           {authError === null ? null : (
@@ -181,7 +181,6 @@ function LoginBody({
             </Text>
           )}
           <Button
-            intent="primary"
             data-testid={testId("loginOidc")}
             onClick={(): void => {
               // A whole-window navigation — the server 302s to the IdP; fetch can't follow the dance. A stashed
@@ -197,7 +196,7 @@ function LoginBody({
       return (
         <Stack gap="block">
           <Heading level={1}>Authentication happens at your proxy</Heading>
-          <Text tone="muted" voice="gloss" prose={true}>
+          <Text ink="muted" voice="gloss" prose={true}>
             This deployment uses forward-auth — the reverse proxy should authenticate you and inject identity headers before a request reaches the app. Seeing
             this page means it didn't: check the proxy configuration (authentik/Authelia/oauth2-proxy) and the FORWARD_AUTH_TRUSTED_PROXIES allowlist.
           </Text>
@@ -207,12 +206,10 @@ function LoginBody({
       return (
         <Stack gap="block">
           <Heading level={1}>Single-user mode</Heading>
-          <Text tone="muted" voice="gloss" prose={true}>
+          <Text ink="muted" voice="gloss" prose={true}>
             No login needed — you're already in.
           </Text>
-          <Button intent="primary" onClick={onDone}>
-            Back to the app
-          </Button>
+          <Button onClick={onDone}>Back to the app</Button>
         </Stack>
       );
     default:
@@ -264,7 +261,7 @@ function LocalInviteArm({
         {`${inviteRoomSentence(room)} ${room.modeLabel}`}
       </Text>
       <LoginTransportNotice transport={config.transport} clientScope={config.clientScope} />
-      <Text tone="muted" voice="gloss" prose={true}>
+      <Text ink="muted" voice="gloss" prose={true}>
         Pick a handle and a password to create your account and join the room.
       </Text>
       <LoginSignupForm
@@ -296,8 +293,8 @@ function LoginRedirecting({ providerName }: { readonly providerName: string }): 
     <Stack gap="block">
       <Heading level={1}>Signing in…</Heading>
       <Row align="center" gap="row">
-        <WebSpinner size="xl" label="Redirecting" tone="accent" />
-        <Text voice="label" tone="muted">
+        <WebSpinner size="xl" label="Redirecting" tone="primary" />
+        <Text voice="label" ink="muted">
           Redirecting you to {providerName}.
         </Text>
       </Row>
@@ -318,10 +315,10 @@ function LoginUnreachable({ onRetry }: { readonly onRetry: () => void }): ReactE
   return (
     <Stack gap="block">
       <Heading level={1}>Can't reach the server</Heading>
-      <Text tone="muted" voice="gloss" prose={true}>
+      <Text ink="muted" voice="gloss" prose={true}>
         The app couldn't load its sign-in configuration. Check the server is running, then retry.
       </Text>
-      <Button intent="ghost" onClick={onRetry}>
+      <Button variant="ghost" onClick={onRetry}>
         Retry
       </Button>
     </Stack>

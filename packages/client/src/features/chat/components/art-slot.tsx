@@ -4,6 +4,7 @@
 
 import type { AvatarProps } from "@orb/ui/avatar";
 import { AVATAR_PIGMENT, Avatar } from "@orb/ui/avatar";
+import type { ButtonBaseProps } from "@orb/ui/button";
 import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -64,18 +65,18 @@ function useSlotImage(urlAt: ((cssWidth: number) => string) | undefined): {
   return { attach: setElement, url, failed };
 }
 
-/** A speaker's art as the control that opens it full size. The bare intent: a tint over the art would read as a smudge,
+/** A speaker's art as the control that opens it full size. The bare style: a tint over the art would read as a smudge,
  *  and the press scale already answers a tap. `media` sizes the button from its child, so wrapped art keeps its box. */
 export function ArtButton({
   view,
   ...button
-}: Omit<ComponentProps<typeof Button>, "aria-label" | "onClick" | "ref"> & { readonly view: ArtView }): ReactElement {
+}: Omit<ButtonBaseProps, "aria-label" | "onClick" | "ref" | "variant" | "tone" | "ink" | "focal"> & { readonly view: ArtView }): ReactElement {
   return (
     <Button
       {...button}
       ref={(opener): void => view.control.attach(opener)}
       aria-label={view.label}
-      intent="bare"
+      variant="bare"
       onClick={(event): void => view.open(event.currentTarget)}
       size="media"
     />
@@ -89,7 +90,7 @@ function ArtViewButton({ view, corner }: { readonly view: ArtView; readonly corn
       aria-hidden="true"
       className="absolute inset-0"
       cardCorners={corner}
-      intent="bare"
+      variant="bare"
       size="media"
       tabIndex={-1}
       onMouseDown={(event): void => event.preventDefault()}
@@ -98,7 +99,7 @@ function ArtViewButton({ view, corner }: { readonly view: ArtView; readonly corn
   );
 }
 
-// The initial in the avatar fallback's own ink, sized by its slot (a size container, so the letter scales with the
+// The initial in the avatar fallback's own ink, the primary's paired ink on the primary-derived art fill, sized by its slot (a size container, so the letter scales with the
 // art instead of staying a chip-sized glyph). The art is decorative, so it is hidden from the tree.
 export function FallbackLetter({
   initials,
@@ -111,7 +112,7 @@ export function FallbackLetter({
 }): ReactElement {
   return (
     <Stack align="center" aria-hidden="true" className={className} container="size" justify="center">
-      <Text as="div" artScale={scale} tone="onPrimary" voice="monogram" solidLine={true}>
+      <Text as="div" artScale={scale} tone="primary" ink="toneForeground" voice="monogram" solidLine={true}>
         {initials}
       </Text>
     </Stack>

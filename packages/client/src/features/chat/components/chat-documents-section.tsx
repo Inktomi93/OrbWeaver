@@ -192,7 +192,7 @@ export function ChatDocumentsSection({ chatId, isHost }: ChatDocumentsSectionPro
         // indexed, they simply have nowhere to land in the prompt this preset builds. Stated as the chip word
         // (the fact, scannable) plus one sentence naming the fix, in the section's own voice.
         <Row align="center" gap="field">
-          <Badge intent="warning" size="sm" tone="soft">
+          <Badge tone="warning" size="sm">
             Not reaching the prompt
           </Badge>
           <Text voice="gloss">Your preset never places {"{{databank}}"}, so these can't feed a turn. Add the Databank section to it and they will.</Text>
@@ -202,7 +202,7 @@ export function ChatDocumentsSection({ chatId, isHost }: ChatDocumentsSectionPro
       {slotUnknown ? (
         <Row align="center" gap="field">
           <Text voice="gloss">Couldn't check whether your preset places {"{{databank}}"}, so this section can't say if these reach a turn.</Text>
-          <Button intent="ghost" onClick={recheckSlot} size="sm" type="button">
+          <Button variant="ghost" onClick={recheckSlot} size="sm" type="button">
             Check again
           </Button>
         </Row>
@@ -237,7 +237,7 @@ export function ChatDocumentsSection({ chatId, isHost }: ChatDocumentsSectionPro
 
       {isHost ? (
         <>
-          <Button intent="secondary" onClick={(): void => setPickerOpen(true)} size="sm" type="button">
+          <Button variant="outline" onClick={(): void => setPickerOpen(true)} size="sm" type="button">
             Add from your bank
           </Button>
           <AddChatDocumentDialog activeIds={rows.map((row) => row.id)} chatId={chatId} onOpenChange={setPickerOpen} open={pickerOpen} />
@@ -315,14 +315,14 @@ function ActiveDocumentRow({ document, isHost, onSetHidden, onDetach }: ActiveDo
               is switched off should not have to read an icon's pressed state to find it. */}
           {visible ? null : (
             <>
-              <Badge className="me-field" intent="warning" size="inline" tone="soft">
+              <Badge className="me-field" tone="warning" size="inline">
                 Hidden
               </Badge>{" "}
             </>
           )}
           {chips.map((chip) => (
             <Fragment key={chip}>
-              <Badge className="me-field" intent="neutral" size="inline" tone="soft">
+              <Badge className="me-field" size="inline">
                 {chip}
               </Badge>{" "}
             </Fragment>

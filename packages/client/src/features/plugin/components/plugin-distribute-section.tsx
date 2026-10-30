@@ -169,11 +169,11 @@ function PluginDistributeBody({ anchorId }: { readonly anchorId: string }): Reac
               netHosts={state.preview.manifest.netHosts ?? []}
             />
             <Row className="flex-wrap" gap="field" justify="start">
-              <Button intent="primary" loading={distribute.isPending} onClick={onDistribute}>
+              <Button loading={distribute.isPending} onClick={onDistribute}>
                 Distribute to everyone
               </Button>
               <Button
-                intent="ghost"
+                variant="ghost"
                 onClick={(): void => {
                   setState({ step: "pick" });
                 }}
@@ -208,7 +208,7 @@ function PluginDistributeBody({ anchorId }: { readonly anchorId: string }): Reac
                     }
                     title={`Stop giving out "${row.name}" to every account?`}
                     trigger={
-                      <Button intent="secondary" size="sm">
+                      <Button variant="outline" size="sm">
                         Stop giving it out
                       </Button>
                     }

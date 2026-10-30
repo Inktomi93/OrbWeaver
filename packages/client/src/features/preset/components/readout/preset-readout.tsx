@@ -103,7 +103,7 @@ function ActiveProfile({
         <Row align="center" gap="field">
           <Text voice="label">{name}</Text>
           {/* The SAME chip the LIST row and the editor header wear — one state, one reading (F-07). */}
-          <Badge intent="primary" size="sm" tone="soft">
+          <Badge tone="primary" size="sm">
             Active
           </Badge>
         </Row>

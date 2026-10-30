@@ -92,7 +92,7 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
         title="Dossier unavailable"
         description="This character has not been sorted yet. Sort your characters to build its dossier. A card with only a name has nothing to read, so give it a description first."
         secondaryAction={
-          <Button intent="secondary" size="sm" onClick={onBack}>
+          <Button variant="outline" size="sm" onClick={onBack}>
             <Icon icon={ArrowLeft} size="sm" />
             {`Back to ${CORPUS_MODE_LABELS.explore}`}
           </Button>
@@ -106,7 +106,7 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
 
   return (
     <Stack gap="section">
-      <Button intent="ghost" size="sm" onClick={onBack} className="self-start" ref={backRef}>
+      <Button variant="ghost" size="sm" onClick={onBack} className="self-start" ref={backRef}>
         <Icon icon={ArrowLeft} size="sm" />
         {`Back to ${CORPUS_MODE_LABELS.explore}`}
       </Button>
@@ -126,7 +126,7 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
               up keeps `--reading-measure`, because the law's band is about BODY line length and a display
               line is not body copy. */}
           {dossier.elevatorPitch !== null ? (
-            <Text className="max-inline-(--reading-measure-prose)" tone="muted">
+            <Text className="max-inline-(--reading-measure-prose)" ink="muted">
               {dossier.elevatorPitch}
             </Text>
           ) : null}
@@ -149,7 +149,7 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
             <Text className="max-inline-(--reading-measure-prose)" voice="gloss">
               Not scored yet — run the Refinery's library score sweep, or open a Refinery session on this card.
             </Text>
-            <Button intent="ghost" onClick={(): void => setActiveSection("refinery")} size="sm">
+            <Button variant="ghost" onClick={(): void => setActiveSection("refinery")} size="sm">
               Open the Refinery →
             </Button>
           </Stack>
@@ -175,7 +175,7 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
         <Section heading="Facets">
           <Row align="center" gap="field" className="flex-wrap">
             {dossier.tags.map((tag) => (
-              <Badge key={tag} intent="neutral" size="sm">
+              <Badge key={tag} size="sm">
                 {tag}
               </Badge>
             ))}
@@ -363,7 +363,7 @@ function AskPanel({ characterId }: { readonly characterId: CharacterId }): React
             placeholder="What drives them? How do they treat allies?"
             value={draft}
           />
-          <Button intent="primary" size="sm" data-testid={testId("corpusAskSubmit")} onClick={ask} disabled={draft.trim() === ""}>
+          <Button size="sm" data-testid={testId("corpusAskSubmit")} onClick={ask} disabled={draft.trim() === ""}>
             <Icon icon={Sparkles} size="sm" />
             Ask
           </Button>
@@ -402,7 +402,7 @@ function AskAnswer({
     <Card>
       <Stack gap="field">
         <Row align="center" gap="field">
-          <Badge intent={state.intent} size="sm" data-testid={testId("corpusAskState")} data-answer-state={state.key}>
+          <Badge tone={state.tone} variant="solid" size="sm" data-testid={testId("corpusAskState")} data-answer-state={state.key}>
             {state.label}
           </Badge>
           <Text voice="gloss">{state.gloss ?? `${data.sampledMessages} scenes sampled`}</Text>
@@ -419,14 +419,14 @@ function AskAnswer({
 function answerState(data: Readonly<Pick<AskCardAnswer, "grounded" | "degraded">>): {
   readonly key: string;
   readonly label: string;
-  readonly intent: "success" | "warning";
+  readonly tone: "success" | "warning";
   readonly gloss: string | null;
 } {
   if (data.degraded) {
-    return { key: "degraded", label: "Unstructured reply", intent: "warning", gloss: "The model didn't answer in the expected shape — this is its raw text." };
+    return { key: "degraded", label: "Unstructured reply", tone: "warning", gloss: "The model didn't answer in the expected shape — this is its raw text." };
   }
   if (data.grounded) {
-    return { key: "grounded", label: "Grounded", intent: "success", gloss: null };
+    return { key: "grounded", label: "Grounded", tone: "success", gloss: null };
   }
-  return { key: "speculative", label: "Speculative", intent: "warning", gloss: null };
+  return { key: "speculative", label: "Speculative", tone: "warning", gloss: null };
 }

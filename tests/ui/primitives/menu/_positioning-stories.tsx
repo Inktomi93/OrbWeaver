@@ -17,7 +17,7 @@ export function ConstrainedMenuStory(): ReactElement {
               render={
                 <MenuTrigger
                   render={
-                    <Button aria-label="Constrained actions" intent="ghost" size="glyph-lg">
+                    <Button aria-label="Constrained actions" variant="ghost" size="glyph-lg">
                       ⋯
                     </Button>
                   }
@@ -47,7 +47,7 @@ export function EdgeMenuStory(): ReactElement {
         <Menu>
           <MenuTrigger
             render={
-              <Button aria-label="Edge actions" intent="ghost" size="icon">
+              <Button aria-label="Edge actions" variant="ghost" size="icon">
                 ⋯
               </Button>
             }

@@ -9,7 +9,7 @@
 // ITS LABELS ARE THE `bulk` SLICE OF ONE VOCABULARY (`../lib/character-actions.ts`, #838) — the same
 // registry the list row's kebab and the CONTEXT pane's `Character actions` read, so the three surfaces can
 // no longer drift into three names for one verb. This bar renders BUTTONS, not menu items, so it owns its
-// own chrome (no glyphs, `intent="destructive"` on the last one) and takes only the labels + order.
+// own chrome (no glyphs, `tone="destructive"` on the last one) and takes only the labels + order.
 
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -80,16 +80,16 @@ export function CharacterBulkBar({ ids, selectedCount, onClear, onRemoveSubmitte
       {/* `size="sm"` (the SelectionBar usage default) so count + the three actions + clear fit a narrow LIST
           panel without clipping the trailing Delete (the ~337px panel regression). */}
       <SelectionBar count={selectedCount} onClear={onClear}>
-        {/* ONE CLUSTER, so a narrow pane wraps the three verbs together onto the bar's second line instead of
-            stranding Delete alone. */}
+        {/* ONE UNIT: a nowrap Row cannot shrink below its three verbs, so when they do not fit beside the count the
+            bar wraps the whole group below it instead of stranding Delete alone. */}
         <Row gap="field">
           {characterActionsForScope("bulk").map((action) => (
             // Bulk archive never toggles (it always archives), so the label is the verb's one name — never
-            // `characterActionLabel`'s toggled face. Delete wears the destructive intent so the irreversible
+            // `characterActionLabel`'s toggled face. Delete is the destructive solid so the irreversible
             // act reads as one; the AlertDialog confirm below still states the count.
             <Button
               disabled={isPending}
-              intent={action.id === "delete" ? "destructive" : "secondary"}
+              {...(action.id === "delete" ? ({ tone: "destructive" } as const) : ({ variant: "outline" } as const))}
               key={action.id}
               onClick={bulkHandlers[action.id]}
               size="sm"

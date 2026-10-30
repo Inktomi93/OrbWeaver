@@ -71,7 +71,7 @@ function HistoryTabBody({ characterId }: CharacterHistoryTabProps): ReactElement
 
   return (
     <Stack gap="block">
-      <Button disabled={snapshot.isPending} intent="secondary" onClick={takeSnapshot}>
+      <Button disabled={snapshot.isPending} variant="outline" onClick={takeSnapshot}>
         Snapshot now
       </Button>
 
@@ -104,12 +104,12 @@ function HistoryTabBody({ characterId }: CharacterHistoryTabProps): ReactElement
 function RestoreConfirm({ onConfirm }: { readonly onConfirm: () => void | Promise<void> }): ReactElement {
   return (
     <ConfirmDialog
-      confirmIntent="primary"
+      confirmTone="primary"
       confirmLabel="Restore"
       description="This replaces the character's current card with this snapshot. Your current state is snapshotted first, so you can undo it."
       onConfirm={onConfirm}
       title="Restore this snapshot?"
-      trigger={<Button intent="ghost">Restore</Button>}
+      trigger={<Button variant="ghost">Restore</Button>}
     />
   );
 }

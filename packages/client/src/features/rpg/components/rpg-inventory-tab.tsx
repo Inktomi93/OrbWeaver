@@ -164,7 +164,7 @@ function PackSection({
         {/* The compact-grid / list view knob (a display preference, session-local). */}
         {items.length === 0 ? null : (
           <Tip text={toggleLabel}>
-            <Button intent="ghost" size="glyph-md" aria-label={toggleLabel} onClick={onToggleView}>
+            <Button variant="ghost" size="glyph-md" aria-label={toggleLabel} onClick={onToggleView}>
               <Icon icon={view === "grid" ? List : LayoutGrid} size="xs" />
             </Button>
           </Tip>
@@ -254,7 +254,7 @@ function PurseLine({
     return null;
   }
   return (
-    <Card tone="neutral">
+    <Card>
       <Row gap="field" align="center" className="flex-wrap" data-slot="rpg-purse-line">
         <Icon icon={Coins} size="sm" label="Party purse" />
         {[...totals.entries()].map(([name, total]) => {

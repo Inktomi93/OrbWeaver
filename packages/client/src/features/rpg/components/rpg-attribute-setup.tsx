@@ -48,13 +48,13 @@ export function RpgAttributeSetup({
     <Stack gap="field">
       <Text voice="gloss">Fill Strength through Charisma in that order, then edit any score. These actions replace those scores only.</Text>
       <Row gap="field" className="flex-wrap">
-        <Button intent="secondary" size="sm" disabled={busy || !canGenerate} aria-describedby={generationReasonId} onClick={(): Promise<void> => fill(true)}>
+        <Button variant="outline" size="sm" disabled={busy || !canGenerate} aria-describedby={generationReasonId} onClick={(): Promise<void> => fill(true)}>
           Roll 4d6 drop lowest
         </Button>
-        <Button intent="secondary" size="sm" disabled={busy || !canGenerate} aria-describedby={generationReasonId} onClick={(): Promise<void> => fill(false)}>
+        <Button variant="outline" size="sm" disabled={busy || !canGenerate} aria-describedby={generationReasonId} onClick={(): Promise<void> => fill(false)}>
           Use standard array
         </Button>
-        <Button intent="ghost" size="sm" onClick={(): void => setManual(true)}>
+        <Button variant="ghost" size="sm" onClick={(): void => setManual(true)}>
           Enter by hand
         </Button>
       </Row>

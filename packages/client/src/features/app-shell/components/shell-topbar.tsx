@@ -76,7 +76,7 @@ export function TopbarIconButton({ label, icon, pressed, expanded, onClick, mark
       <TooltipTrigger
         render={
           <Button
-            intent="ghost"
+            variant="ghost"
             size="icon"
             className={cn("shell-topbar-icon-btn", marker) ?? ""}
             aria-label={label}

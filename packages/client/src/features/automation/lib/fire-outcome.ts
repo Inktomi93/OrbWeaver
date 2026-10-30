@@ -2,4 +2,4 @@
 
 import type { BadgeProps } from "@orb/ui/badge";
 
-export type FireOutcomeView = Readonly<{ label: string; intent: BadgeProps["intent"] }>;
+export type FireOutcomeView = Readonly<{ label: string; tone: BadgeProps["tone"] }>;

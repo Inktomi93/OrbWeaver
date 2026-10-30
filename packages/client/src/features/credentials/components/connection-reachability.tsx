@@ -62,7 +62,7 @@ export function ConnectionReachability({ connectionId, baseUrl, wakeable, trpc, 
       <Row gap="field">
         <Button
           disabled={probe.isPending}
-          intent="secondary"
+          variant="outline"
           onClick={(): void => probe.mutate({ connectionId }, { onSuccess: (health): void => setVerdict(health) })}
           size="sm"
         >
@@ -156,7 +156,7 @@ function OwnerEndpointAdmission({ authority, trpc, invalidation, onAdmitted }: A
       <Row gap="field">
         <Button
           disabled={admit.isPending}
-          intent="secondary"
+          variant="outline"
           onClick={(): void =>
             admit.mutate({ partial: { privateEndpointAllowlist: [...entries, authority] } }, onAdmitted === undefined ? {} : { onSuccess: onAdmitted })
           }

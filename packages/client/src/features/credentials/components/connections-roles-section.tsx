@@ -63,7 +63,7 @@ function BuiltinRerankerHint({
         {`To use a lighter or older built-in reranker, open ${row.label} under Connections and pick another model.`}
       </Text>
       <Button
-        intent="ghost"
+        variant="ghost"
         onClick={(): void => {
           openConfigTo(CONNECTIONS_LIST_ADDRESS.group, CONNECTIONS_LIST_ADDRESS.sub);
           requestConnectionEditor(row.id);

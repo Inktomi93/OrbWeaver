@@ -5,9 +5,9 @@
 // then attach it at `status` (never downgrades an already-accepted row). Not principal-gated — `ownerId` is
 // the caller-resolved owner; the caller has already owner-verified the row. A blank name is a no-op.
 
+import type { AttachCardTagByNameParams } from "@orb/contracts/tag";
 import { DomainOperationError } from "@orb/kit/errors";
 import { normalizeTagName } from "@orb/kit/tag";
-import type { AttachCardTagByNameParams } from "../contract/params.ts";
 import type { TagContext, TagService } from "../contract/service.ts";
 import { attachCharacterTag } from "../persistence/junctions.ts";
 import { findTagIdByName, insertTagIfAbsent } from "../persistence/queries.ts";

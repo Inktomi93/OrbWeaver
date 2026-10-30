@@ -150,7 +150,7 @@ function PickerBody({
       {library.data.length === 0 ? <EmptyLibrary onOpenLibrary={onOpenLibrary} /> : null}
       {filterable ? (
         <Row align="center" gap="tight">
-          <Icon tone="muted" icon={Search} size="sm" />
+          <Icon ink="muted" icon={Search} size="sm" />
           <Input aria-label="Filter regex scripts" onValueChange={setFilter} placeholder="Filter regex scripts…" value={filter} />
         </Row>
       ) : null}
@@ -218,7 +218,7 @@ function EmptyLibrary({ onOpenLibrary }: { readonly onOpenLibrary: (() => void) 
           : "You haven't written any regex scripts yet — write one in your library, then attach it here."}
       </Text>
       {onOpenLibrary === undefined ? null : (
-        <Button intent="secondary" onClick={onOpenLibrary} size="sm" type="button">
+        <Button variant="outline" onClick={onOpenLibrary} size="sm" type="button">
           Open your script library
         </Button>
       )}
@@ -278,7 +278,7 @@ function PickerRow({
                 someone who already knew; this says the whole fact — the script is disabled in the LIBRARY,
                 so attaching it here changes nothing until you enable it there. */}
             {script.enabled ? null : (
-              <Badge className="shrink-0" intent="neutral" size="sm" tone="soft">
+              <Badge className="shrink-0" size="sm">
                 Disabled in your library
               </Badge>
             )}

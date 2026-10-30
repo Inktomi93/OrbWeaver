@@ -51,7 +51,7 @@ function ToolCallControls({ message, record }: { readonly message: MessageView; 
   const hidden = record.hidden === true;
   return (
     <Row gap="field" inertUntilHover={true} className="flex-wrap">
-      <Button intent="ghost" size="sm" loading={edit.isPending} onClick={(): void => edit.mutate({ ...variables, action: hidden ? "show" : "hide" })}>
+      <Button variant="ghost" size="sm" loading={edit.isPending} onClick={(): void => edit.mutate({ ...variables, action: hidden ? "show" : "hide" })}>
         {hidden ? "Show to AI" : "Hide from AI"}
       </Button>
       <ConfirmDialog
@@ -59,7 +59,7 @@ function ToolCallControls({ message, record }: { readonly message: MessageView; 
         description="The prose stays. This removes the card and its future prompt replay, not the tool's effects."
         confirmLabel="Delete"
         trigger={
-          <Button intent="ghost" size="sm">
+          <Button variant="ghost" size="sm">
             Delete tool call
           </Button>
         }

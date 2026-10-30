@@ -5,8 +5,7 @@
 // Handles a batch of ANY size (a bulk UPDATE, not a matrix op — the dense-vs-streaming threshold is entirely
 // discovery's concern). The `(id, model)` key lands the score on the right row IN THE RIGHT SPACE.
 
-import type { WriteHubScoresParams } from "../contract/params.ts";
-import type { WriteHubScoresResult } from "../contract/results.ts";
+import type { WriteHubScoresParams, WriteHubScoresResult } from "@orb/contracts/embeddings";
 import type { EmbeddingsContext, EmbeddingsService } from "../contract/service.ts";
 import { writeHubScoreRows } from "../persistence/queries.ts";
 

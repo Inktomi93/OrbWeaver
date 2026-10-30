@@ -33,7 +33,7 @@ export function ConnectionEditorHeader({ label, onDone }: { readonly label: stri
   return (
     <Row align="center" className="flex-wrap" data-slot="connection-editor-header" gap="field">
       <Row align="center" className="flex-1 basis-(--width-title-floor) min-inline-0" gap="field">
-        <Button aria-label="Back to Connections" className="shrink-0" intent="ghost" onClick={onDone} ref={backRef} size="sm">
+        <Button aria-label="Back to Connections" className="shrink-0" variant="ghost" onClick={onDone} ref={backRef} size="sm">
           <Icon icon={ArrowLeft} size="sm" />
         </Button>
         <Text className="wrap-anywhere min-inline-0" voice="label">
@@ -41,7 +41,7 @@ export function ConnectionEditorHeader({ label, onDone }: { readonly label: stri
         </Text>
       </Row>
       <Row className="grow" gap="field" justify="end">
-        <Button intent="secondary" onClick={onDone} size="sm">
+        <Button variant="outline" onClick={onDone} size="sm">
           Done
         </Button>
       </Row>
@@ -74,11 +74,11 @@ export function ConnectionEditorUnavailable({ connection, onDone, onRemoved, fin
           </Stack>
           <Row className="flex-wrap" gap="field">
             {isPluginProviderId(connection.providerId) ? (
-              <Button intent="secondary" onClick={(): void => openConfigTo("plugins", "installed")}>
+              <Button variant="outline" onClick={(): void => openConfigTo("plugins", "installed")}>
                 Manage plugins
               </Button>
             ) : null}
-            <Button intent="destructive" onClick={(): void => setConfirmOpen(true)}>
+            <Button tone="destructive" onClick={(): void => setConfirmOpen(true)}>
               Remove connection
             </Button>
           </Row>

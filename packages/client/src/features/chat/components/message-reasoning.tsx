@@ -105,12 +105,12 @@ function ReasoningEditor({ message }: { readonly message: MessageView }): ReactE
         disabled={edit.isPending}
       />
       <Row gap="field" justify="end">
-        <Button type="button" intent="ghost" size="sm" disabled={edit.isPending} aria-label={MESSAGE_REASONING_CANCEL_NAME} onClick={onDone}>
+        <Button type="button" variant="ghost" size="sm" disabled={edit.isPending} aria-label={MESSAGE_REASONING_CANCEL_NAME} onClick={onDone}>
           <Icon icon={X} size="sm" />
         </Button>
         <Button
           type="button"
-          intent="secondary"
+          variant="outline"
           size="sm"
           loading={edit.isPending}
           disabled={blank}
@@ -151,14 +151,14 @@ export function MessageReasoning({ message, displayText, showIcon, canEdit }: Me
         <Row gap="field" justify="end">
           <Button
             type="button"
-            intent="ghost"
+            variant="ghost"
             size="sm"
             aria-label={MESSAGE_REASONING_EDIT_NAME}
             onClick={(): void => startEditingReasoning(message.id, message.reasoning ?? "")}
           >
             <Icon icon={Pencil} size="sm" />
           </Button>
-          <Button type="button" intent="ghost" size="sm" aria-label={MESSAGE_REASONING_CLEAR_NAME} onClick={(): void => setConfirmOpen(true)}>
+          <Button type="button" variant="ghost" size="sm" aria-label={MESSAGE_REASONING_CLEAR_NAME} onClick={(): void => setConfirmOpen(true)}>
             <Icon icon={Eraser} size="sm" />
           </Button>
         </Row>

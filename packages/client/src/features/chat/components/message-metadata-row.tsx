@@ -31,7 +31,7 @@ export function MessageTimestamp({ message, show }: { readonly message: MessageV
     return null;
   }
   return (
-    <Text as="span" tone="muted" voice="code" data-slot="message-metadata-timestamp">
+    <Text as="span" ink="muted" voice="code" data-slot="message-metadata-timestamp">
       {timeLib.formatTime(message.createdAt)}
     </Text>
   );
@@ -48,7 +48,7 @@ function tokenCount(message: MessageView): number | null {
  *  despite being numbers). */
 function metadatum(slot: string, text: string): ReactElement {
   return (
-    <Text as="span" tone="muted" voice="code" data-slot={slot}>
+    <Text as="span" ink="muted" voice="code" data-slot={slot}>
       {text}
     </Text>
   );

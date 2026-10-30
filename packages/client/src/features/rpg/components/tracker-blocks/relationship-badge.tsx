@@ -8,16 +8,16 @@ import { Heart, Icon, Star, Users, UserX } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
 import type { ComponentProps, ReactElement } from "react";
 
-type BadgeIntent = NonNullable<ComponentProps<typeof Badge>["intent"]>;
+type BadgeTone = NonNullable<ComponentProps<typeof Badge>["tone"]>;
 
-/** The per-kind badge decoration — the intent color + the glyph. `custom` has none (a plain neutral label
+/** The per-kind badge decoration — the tone + the glyph. `custom` has none (a plain neutral label
  *  chip). Ordered lover→enemy along the warmth axis (§2.1). */
-const RELATIONSHIP_DECOR: Readonly<Record<Exclude<RpgRelationshipKind, "custom">, { readonly intent: BadgeIntent; readonly glyph: LucideIcon }>> = {
-  lover: { intent: "primary", glyph: Heart },
-  friend: { intent: "success", glyph: Star },
-  ally: { intent: "info", glyph: Users },
-  neutral: { intent: "neutral", glyph: Users },
-  enemy: { intent: "danger", glyph: UserX },
+const RELATIONSHIP_DECOR: Readonly<Record<Exclude<RpgRelationshipKind, "custom">, { readonly tone: BadgeTone; readonly glyph: LucideIcon }>> = {
+  lover: { tone: "primary", glyph: Heart },
+  friend: { tone: "success", glyph: Star },
+  ally: { tone: "info", glyph: Users },
+  neutral: { tone: "neutral", glyph: Users },
+  enemy: { tone: "destructive", glyph: UserX },
 };
 
 /** A npc's relationship badge (§2.1). The five known kinds get a color + icon; a `custom` kind
@@ -30,7 +30,7 @@ export function RelationshipBadge({ relationship }: { readonly relationship: Rpg
     // so the badge yields width to the name (which is `shrink-0` in NpcCard); the Scene card's editor shows the
     // full text. `min-w-0` lets the truncating child actually shrink inside the flex badge.
     return (
-      <Badge tone="soft" size="sm" intent="neutral" data-slot="relationship-badge" className="max-inline-(--width-control-col) min-inline-0">
+      <Badge size="sm" data-slot="relationship-badge" className="max-inline-(--width-control-col) min-inline-0">
         <Text as="span" className="truncate" voice="label">
           {label}
         </Text>
@@ -42,7 +42,7 @@ export function RelationshipBadge({ relationship }: { readonly relationship: Rpg
   }
   const decor = RELATIONSHIP_DECOR[relationship.kind];
   return (
-    <Badge tone="soft" size="sm" intent={decor.intent} data-slot="relationship-badge">
+    <Badge size="sm" tone={decor.tone} data-slot="relationship-badge">
       <Icon icon={decor.glyph} size="xs" />
       <Text as="span" voice="label">
         {relationship.kind}

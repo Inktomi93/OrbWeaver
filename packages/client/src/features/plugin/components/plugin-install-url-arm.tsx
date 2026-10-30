@@ -60,7 +60,7 @@ export function PluginInstallUrlArm({
         <Button
           aria-label="Fetch plugin bundle URL"
           disabled={trimmedUrl === "" || disabled}
-          intent="secondary"
+          variant="outline"
           loading={loading}
           onClick={(): void => {
             const epoch = onPreviewStarted(trimmedUrl);

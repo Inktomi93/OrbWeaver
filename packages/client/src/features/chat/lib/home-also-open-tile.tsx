@@ -67,7 +67,7 @@ export const chatAlsoOpenTile: HomeTileContribution = {
   action: (
     // The arrow is DECORATIVE (rail sweep P3-14): the button's accessible name is "All chats", not
     // "All chats →" — a glyph is not part of an affordance's name.
-    <Button intent="ghost" onClick={(): void => setActiveSection("chats")} size="sm">
+    <Button variant="ghost" onClick={(): void => setActiveSection("chats")} size="sm">
       All chats
       <TrailingArrow />
     </Button>

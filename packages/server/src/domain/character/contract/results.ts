@@ -2,12 +2,6 @@ import type { CharacterId } from "@orb/kit/ids";
 
 export type { PluginCardDataRead } from "@orb/contracts/character";
 
-/** A handle to a character identity row — the return of the injected synthetic-group mint/find ops
- *  (chat consumes it cross-feature; type-only re-exported from the front door). */
-export interface CharacterRef {
-  readonly characterId: CharacterId;
-}
-
 /** One `findByImportedFrom` match — the owner's character carrying a queried `importedFrom` value. The hub
  *  search verb builds a `importedFrom → characterId` map from the batch to stamp its page markers. */
 export interface ImportedFromMatch {
@@ -36,7 +30,6 @@ export type {
   GeneratedGreeting,
   ListCharactersResult,
   ListCharacterTagGroupsResult,
-  SnapshotRef,
   SnapshotSummary,
   SnapshotView,
 } from "@orb/contracts/character";

@@ -315,9 +315,9 @@ export function AddConnectionFormBody({
               return provider !== undefined && keyStorageBlocks(provider, keyStorage) ? null : (
                 <DialogFooter>
                   {onCancel === undefined ? (
-                    <DialogClose render={<Button intent="ghost">Cancel</Button>} />
+                    <DialogClose render={<Button variant="ghost">Cancel</Button>} />
                   ) : (
-                    <Button intent="ghost" onClick={onCancel} type="button">
+                    <Button variant="ghost" onClick={onCancel} type="button">
                       Back
                     </Button>
                   )}

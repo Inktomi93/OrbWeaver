@@ -42,22 +42,10 @@ export function ProvenanceStrip({ assetId }: { readonly assetId: AssetId }): Rea
         {data.prompt}
       </Text>
       <Row className="flex-wrap" gap="tight">
-        <Badge intent="neutral" size="sm" tone="soft">
-          {data.model}
-        </Badge>
-        <Badge intent="neutral" size="sm" tone="soft">
-          {data.mode}
-        </Badge>
-        {data.edited ? (
-          <Badge intent="neutral" size="sm" tone="soft">
-            Edited
-          </Badge>
-        ) : null}
-        {data.costUsd === null ? null : (
-          <Badge intent="neutral" size="sm" tone="soft">
-            {formatCost(data.costUsd)}
-          </Badge>
-        )}
+        <Badge size="sm">{data.model}</Badge>
+        <Badge size="sm">{data.mode}</Badge>
+        {data.edited ? <Badge size="sm">Edited</Badge> : null}
+        {data.costUsd === null ? null : <Badge size="sm">{formatCost(data.costUsd)}</Badge>}
       </Row>
     </Stack>
   );

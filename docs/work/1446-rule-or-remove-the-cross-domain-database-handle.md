@@ -22,6 +22,8 @@ One domain passes a database handle (`StatementToken`, `SQL`, `BatchHandle`, `Da
 
 Ruled already, so out of scope: D259 (signup statements), D264 (rpg game birth), and D257's `localUserInsertStatement`.
 
+Ruling ([D337](../adr/0337-owner-built-statements-join-another-domains-batch.md)): the atomic cases (admin and sessions, chat and stats, `emptyMemoryScope`, the rpg and handoff statements) are ruled by name in D337's table. Chat's `AssetsContext`, `RegexContext` and `ChatContext` uses by chat, discovery and persona carry no handle; their op types move to contracts or the consumer's `contract/`. Databank and discovery no longer import `EmbeddingsService`. Remaining work: the census tuple and its equality test, each ruled op's type moved out of the owning domain's import, and the handle-free type moves.
+
 ## Why
 
 A handle across domains means one domain writes or reads another's tables, which `docs/law/Core-0-Architecture-and-Structure.md` §4 forbids without an injected op. Item 1439's census lists each case as `db-handle-review`, and the derived-port rule cannot reach zero until each is ruled or removed.

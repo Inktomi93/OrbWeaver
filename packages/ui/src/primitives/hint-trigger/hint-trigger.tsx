@@ -64,7 +64,7 @@ export function HintTrigger({ hint, subject, className, size = "inline", onClick
       aria-label={ariaLabel}
       className={cn(slots.trigger(), className) ?? ""}
       data-slot="hint-trigger"
-      intent="ghost"
+      variant="ghost"
       {...(onClick === undefined ? {} : { onClick })}
       size={size}
       type="button"

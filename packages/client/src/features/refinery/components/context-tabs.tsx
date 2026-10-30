@@ -115,11 +115,11 @@ function RunRow({
           </Text>
         ) : null}
         <Row className="flex-wrap" gap="field">
-          <Button intent="ghost" onClick={(): void => onView(run)} size="sm">
+          <Button variant="ghost" onClick={(): void => onView(run)} size="sm">
             View
           </Button>
           {run.stage === "rewrite" ? (
-            <Button intent="ghost" onClick={(): void => onArmRewrite(armed ? null : run.id)} size="sm">
+            <Button variant="ghost" onClick={(): void => onArmRewrite(armed ? null : run.id)} size="sm">
               {armed ? "Use latest instead" : "Use for apply"}
             </Button>
           ) : null}
@@ -135,7 +135,7 @@ export function RunsTab({ runs, viewedRunId, onView, armedRewriteId, onArmRewrit
       <EmptyState
         action={
           // The ledger recovers the owning run control even when the workbench has scrolled past it.
-          <Button intent="ghost" onClick={onGoToScore} size="sm" tone="muted">
+          <Button variant="ghost" ink="muted" onClick={onGoToScore} size="sm">
             Go to Score
           </Button>
         }
@@ -198,7 +198,7 @@ function SetupRow({ k, v, action, onAction }: { k: string; v: string; action?: s
           // visual context — would meet identically-named buttons that open different editors. The name is DERIVED from the two strings the row already has, so a new row
           // cannot ship an ambiguous one, and it CONTAINS the visible label (WCAG 2.5.3 label-in-name: the
           // accessible name must start with what the control visibly says, or voice control cannot hit it).
-          <Button aria-label={`${action} ${k}`} intent="ghost" onClick={onAction} size="sm">
+          <Button aria-label={`${action} ${k}`} variant="ghost" onClick={onAction} size="sm">
             {action}
           </Button>
         ) : null}
@@ -328,7 +328,7 @@ export function VersionsTab({ state, liveDescription }: { state: RefineryContext
     return (
       <EmptyState
         action={
-          <Button intent="secondary" onClick={(): void => snapshotNow.mutate({ characterId: state.characterId, label: "manual: before refining" })} size="sm">
+          <Button variant="outline" onClick={(): void => snapshotNow.mutate({ characterId: state.characterId, label: "manual: before refining" })} size="sm">
             Snapshot the card now
           </Button>
         }
@@ -354,10 +354,10 @@ export function VersionsTab({ state, liveDescription }: { state: RefineryContext
                 </Text>
               </Row>
               <Row className="flex-wrap" gap="field">
-                <Button intent="ghost" onClick={(): void => setCompareId(compareId === snapshot.id ? null : snapshot.id)} size="sm">
+                <Button variant="ghost" onClick={(): void => setCompareId(compareId === snapshot.id ? null : snapshot.id)} size="sm">
                   {compareId === snapshot.id ? "Hide compare" : "Compare"}
                 </Button>
-                <Button intent="ghost" onClick={(): void => restore.mutate({ characterId: state.characterId, snapshotId: snapshot.id })} size="sm">
+                <Button variant="ghost" onClick={(): void => restore.mutate({ characterId: state.characterId, snapshotId: snapshot.id })} size="sm">
                   Restore
                 </Button>
               </Row>

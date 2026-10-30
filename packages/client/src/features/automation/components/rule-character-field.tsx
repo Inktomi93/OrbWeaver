@@ -31,12 +31,12 @@ export function RuleCharacterField({
       {value !== undefined && character.isError ? (
         <Text voice="gloss">The selected character is unavailable. Its saved identity is retained until you replace it.</Text>
       ) : null}
-      <Button intent="ghost" className="justify-start" onClick={(): void => setOpen(!open)}>
+      <Button variant="ghost" className="justify-start" onClick={(): void => setOpen(!open)}>
         <Icon icon={ChevronRight} size="sm" />
         {open ? "Close character picker" : `Choose ${label.toLowerCase()}`}
       </Button>
       {value === undefined ? null : (
-        <Button intent="ghost" className="justify-start" onClick={(): void => onChange(undefined)}>
+        <Button variant="ghost" className="justify-start" onClick={(): void => onChange(undefined)}>
           Use automatic {label.toLowerCase()}
         </Button>
       )}

@@ -41,7 +41,7 @@ export const rosterPresetHomeTile: HomeTileContribution = {
   },
   action: (
     // The arrow is decorative; the name is "All rosters".
-    <Button intent="ghost" onClick={(): void => openModal("savedRosters")} size="sm">
+    <Button variant="ghost" onClick={(): void => openModal("savedRosters")} size="sm">
       All rosters
       <TrailingArrow />
     </Button>

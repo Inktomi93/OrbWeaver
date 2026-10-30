@@ -99,6 +99,7 @@
 // read it as "card images work from the CAS": under the current cookie policy they cannot, and the model
 // cannot author a blob hash anyway. `data:` on a trusted card is the path that actually paints.
 
+import { FONT_SCALE_PERCENT } from "#font-scale";
 import { isPlainObject } from "#guards";
 import { isSafeColor } from "#safe-color";
 
@@ -284,25 +285,68 @@ export interface CardFrameContent {
   readonly css: string | undefined;
   readonly themeTokens: Readonly<Record<string, string>> | undefined;
   readonly fontFamily: string | undefined;
-  /** The NON-COLOR `--*` slice (#799) — a radius, a spacing step, the mono font-family list. It rides its OWN
-   *  slot for the reason `fontFamily` already does: `isSafeColor` is COLOR-ONLY, so a length or a family list
-   *  is rejected by it outright and could never travel in `themeTokens`. Clamped by
-   *  {@link clampCardFrameStyleTokens}, which admits exactly two shapes and rejects every CSS-escape / fetch
-   *  vector, the same property the color clamp guarantees. Every field on this interface EXISTS on every
-   *  construction site (never `?`), so a new one is a tsc-forced decision at each. */
+  /** The NON-COLOR slice: {@link CARD_FRAME_STYLE_TOKEN}. It rides its OWN slot for the reason `fontFamily`
+   *  already does: `isSafeColor` is COLOR-ONLY, so a length or a family list is rejected by it outright and
+   *  could never travel in `themeTokens`. Clamped by {@link clampCardFrameStyleTokens}. Every field on this
+   *  interface EXISTS on every construction site (never `?`), so a new one is a tsc-forced decision at each. */
   readonly styleTokens: Readonly<Record<string, string>> | undefined;
 }
+
+/** The closed NON-COLOR slice the frame document reads, by role. Each name has its own value grammar in
+ *  {@link clampCardFrameStyleToken}; a name outside this record never reaches a frame. */
+export const CARD_FRAME_STYLE_TOKEN = {
+  radius: "--sandbox-radius",
+  monoFamily: "--sandbox-font-mono",
+  rootSize: "--sandbox-root-size",
+} as const;
+export type CardFrameStyleTokenName = (typeof CARD_FRAME_STYLE_TOKEN)[keyof typeof CARD_FRAME_STYLE_TOKEN];
+/** The clamped style slice: any subset of {@link CARD_FRAME_STYLE_TOKEN}, each value already past its grammar. */
+export type CardFrameStyleTokens = Readonly<Partial<Record<CardFrameStyleTokenName, string>>>;
 
 const CUSTOM_PROP_KEY = /^--[\w-]+$/u;
 // A theme var carrying CSS-escape chars could break out of the <style> — drop it (per-field, never a
 // whole-object reject: one bad token must not blank the card's whole surface/text theming).
 const CSS_ESCAPE = /[<>{}]/u;
-// A font-family LIST shape check (`isSafeColor` is color-only): letters/digits/space/comma/hyphen/quotes
-// only, so a hostile custom-theme `--font-sans` cannot break out of the body rule.
-const FONT_FAMILY_LIST = /^[\w ,'"-]{1,120}$/u;
-// A CSS LENGTH/scalar shape check (#799) — a bare or unit-suffixed non-negative number, nothing else. No
-// parens, no separators, no escapes, so it can carry neither a `url()` nor a `<style>` break-out.
+// A font-family LIST grammar (`isSafeColor` is color-only), the one grammar for the `fontFamily` slot and the
+// mono style token. Each comma-separated name is a bare word sequence or one name wholly inside matching
+// quotes with no quote, backslash or newline inside. An unbalanced quote would open a CSS string that runs to
+// the end of the one-line <style> and swallow every rule after it, so a theme-written `--font-sans` or
+// `--font-mono` that carries one is dropped here, never emitted.
+const FONT_FAMILY_LIST_MAX_CHARS = 120;
+const FONT_FAMILY_NAME = String.raw`(?:[\w-]+(?: +[\w-]+)*|"[\w -]+"|'[\w -]+')`;
+const FONT_FAMILY_LIST = new RegExp(`^(?=.{1,${FONT_FAMILY_LIST_MAX_CHARS}}$)${FONT_FAMILY_NAME}(?: *, *${FONT_FAMILY_NAME})*$`, "u");
+// A CSS LENGTH shape check — a bare or unit-suffixed non-negative number, nothing else. No parens, no
+// separators, no escapes, so it can carry neither a `url()` nor a `<style>` break-out.
 const CSS_LENGTH = /^\d{1,4}(?:\.\d{1,4})?(?:px|rem|em|%)?$/u;
+const CSS_PERCENT = /^(\d{1,4}(?:\.\d{1,4})?)%$/u;
+
+// Out-of-range is clamped, not dropped: a dropped root size renders at 100%, further from the viewer's scale than either bound.
+function clampRootSize(value: string): string | undefined {
+  const percent = CSS_PERCENT.exec(value)?.[1];
+  if (percent === undefined) {
+    return;
+  }
+  const { min, max } = FONT_SCALE_PERCENT;
+  return `${Math.min(max, Math.max(min, Number(percent)))}%`;
+}
+
+const STYLE_TOKEN_GRAMMAR: Record<CardFrameStyleTokenName, (value: string) => string | undefined> = {
+  [CARD_FRAME_STYLE_TOKEN.radius]: (value) => (CSS_LENGTH.test(value) ? value : undefined),
+  [CARD_FRAME_STYLE_TOKEN.monoFamily]: (value) => (FONT_FAMILY_LIST.test(value) ? value : undefined),
+  [CARD_FRAME_STYLE_TOKEN.rootSize]: clampRootSize,
+};
+
+function isStyleTokenName(name: string): name is CardFrameStyleTokenName {
+  return Object.hasOwn(STYLE_TOKEN_GRAMMAR, name);
+}
+
+/** One style token through its own grammar: the value to emit (a root size may come back clamped into the
+ *  appearance font-scale range, `FONT_SCALE_PERCENT`), or `undefined` for an unknown name or a value its
+ *  grammar refuses. No grammar admits `<`, `>`, `{`, `}`, `(`, `;` or `\`, and every quote the font-family
+ *  grammar admits closes inside the same name, so no admitted value can leave its declaration. */
+export function clampCardFrameStyleToken(name: string, value: unknown): string | undefined {
+  return isStyleTokenName(name) && typeof value === "string" ? STYLE_TOKEN_GRAMMAR[name](value) : undefined;
+}
 
 /** Keeps only entries whose key is a `--*` custom-property name and whose value passes `isSafeColor` — the
  *  SAME predicate `<ThemeScope>` uses, never a second weaker one. Applied at BOTH boundaries (the client
@@ -320,25 +364,22 @@ export function clampCardFrameThemeTokens(raw: unknown): Readonly<Record<string,
   return out;
 }
 
-/** Keeps only NON-COLOR `--*` entries whose value is a CSS LENGTH or a FONT-FAMILY LIST (#799). It is the
- *  {@link clampCardFrameThemeTokens} discipline applied to the shapes `isSafeColor` structurally cannot judge:
- *  per-field (one bad token never blanks the rest), key-shape gated, CSS-escape gated, and the two value
- *  grammars are the same two the frame already trusts elsewhere (the length is new, the family list is the
- *  `fontFamily` slot's own). Applied at BOTH boundaries — the client before minting, the server before
- *  assembling — because the server's call is the trust boundary. */
-export function clampCardFrameStyleTokens(raw: unknown): Readonly<Record<string, string>> {
+/** Keeps only the {@link CARD_FRAME_STYLE_TOKEN} names, each through {@link clampCardFrameStyleToken}. It is
+ *  the {@link clampCardFrameThemeTokens} discipline applied to the shapes `isSafeColor` structurally cannot
+ *  judge: per-field, so one bad token never blanks the rest. Applied at BOTH boundaries — the client before
+ *  minting, the server before assembling — because the server's call is the trust boundary. */
+export function clampCardFrameStyleTokens(raw: unknown): CardFrameStyleTokens {
   if (!isPlainObject(raw)) {
     return {};
   }
-  const out: Record<string, string> = {};
+  const out: Partial<Record<CardFrameStyleTokenName, string>> = {};
   for (const [key, value] of Object.entries(raw)) {
-    if (
-      typeof value === "string" &&
-      CUSTOM_PROP_KEY.test(key) &&
-      !CSS_ESCAPE.test(`${key}${value}`) &&
-      (CSS_LENGTH.test(value) || FONT_FAMILY_LIST.test(value))
-    ) {
-      out[key] = value;
+    if (!isStyleTokenName(key)) {
+      continue;
+    }
+    const clamped = clampCardFrameStyleToken(key, value);
+    if (clamped !== undefined) {
+      out[key] = clamped;
     }
   }
   return out;
@@ -431,7 +472,7 @@ function baseBodyBlock(fontFamily: string | undefined): string {
   const scrollbar = "html { scrollbar-width: thin; scrollbar-color: color-mix(in oklab, var(--sandbox-fg) 22%, transparent) transparent; }";
   // The host's root font-size carries the user's font scale; the frame cannot inherit it, so the host injects it
   // as a root percentage and the frame's root follows. Card text in rem/em scales; authored px stays fixed.
-  const rootSize = "html { font-size: var(--sandbox-root-size, 100%); }";
+  const rootSize = `html { font-size: var(${CARD_FRAME_STYLE_TOKEN.rootSize}, 100%); }`;
   return `${scrollbar} ${rootSize} body { margin: 0; padding: 0; background: var(--sandbox-bg); color: var(--sandbox-fg); font-family: ${font}; }`;
 }
 

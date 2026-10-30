@@ -1,6 +1,7 @@
 import { SELECTION_CONTROL, tv } from "#lib";
 
-// The checkbox skin — bg-input/border-input-border at rest; checked and indeterminate flip to the tone's own
+// The checkbox skin — the `bg-input` fill and the D159 `border-input-border` edge at rest (a custom ThemeScope solves that
+// edge over its own panels); checked and indeterminate flip to the tone's own
 // checked fill with a glyph. SELECTION_CONTROL supplies the shared frame + state machine (focus ring,
 // disabled, read-only cursor, invalid border/ring, and the ::before touch-target hit area); the
 // checkbox layers its rounding, glyph text color, and the checked/indeterminate fill.

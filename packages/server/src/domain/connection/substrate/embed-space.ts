@@ -6,6 +6,7 @@
 // A task the principal has no binding for resolves to `null` — "no space": gaining a space from it asks the stored
 // target whether anything moved, falling back to it moves nothing.
 
+import type { EmbedMoveRefusal } from "@orb/contracts/embeddings";
 import type { Principal } from "@orb/contracts/identity";
 import type { EmbedTargetRefusal, RoutableTask } from "@orb/contracts/inference";
 import { embedDtypeOf, embedSpaceOf, servesImageVectors } from "@orb/contracts/inference";
@@ -100,7 +101,7 @@ export async function settleEmbedSpace(
   if (!spacesMayMoveTarget(args.before, args.after)) {
     return;
   }
-  let refused: EmbedTargetRefusal | null;
+  let refused: EmbedMoveRefusal | null;
   try {
     refused = await ctx.syncEmbedTargets(args.ownerId);
   } catch (error) {

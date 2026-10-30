@@ -13,11 +13,7 @@ export function RouteError({ onRetry }: { readonly onRetry: () => void }): React
         icon={<Icon icon={AlertTriangle} size="lg" />}
         title="Couldn't load this page"
         description="Part of the app failed to load. Retrying usually fixes it."
-        action={
-          <Button intent="primary" onClick={onRetry}>
-            Retry
-          </Button>
-        }
+        action={<Button onClick={onRetry}>Retry</Button>}
       />
     </AppFailureSurface>
   );

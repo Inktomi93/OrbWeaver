@@ -9,12 +9,12 @@
 // standalone entities and are NEVER cloned. Emits `character.updated`. Throws `CharacterNotFoundError` when
 // the source isn't owned/found.
 
+import type { DuplicateCharacterParams } from "@orb/contracts/character";
 import { deriveCharacterHandle } from "@orb/contracts/character";
 import type { CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import { cardContentHash } from "#primitives/serde/card";
 import { CharacterNotFoundError } from "../contract/errors.ts";
-import type { DuplicateCharacterParams } from "../contract/params.ts";
 import type { CharacterContext, CharacterService } from "../contract/service.ts";
 import { deleteOwnedCharacter, insertCharacter } from "../persistence/card.ts";
 import { canonicalTagsOf, cardOf, detailOf, listOwnerHandles, loadOwnedCharacterRow, loadOwnedCharacterWithAvatar } from "../persistence/queries.ts";

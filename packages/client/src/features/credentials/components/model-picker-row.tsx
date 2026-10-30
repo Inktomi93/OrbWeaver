@@ -44,15 +44,11 @@ function ModelMetadata({ entry, picked, current }: Parameters<typeof ModelPicker
   return (
     <Row align="center" className="flex-wrap min-inline-0 @max-cq-32:inline-full @cq-32:shrink-0" gap="field">
       {vision ? (
-        <Badge intent="info" size="sm">
+        <Badge tone="info" variant="solid" size="sm">
           vision
         </Badge>
       ) : null}
-      {tools ? (
-        <Badge intent="neutral" size="sm">
-          tools
-        </Badge>
-      ) : null}
+      {tools ? <Badge size="sm">tools</Badge> : null}
       {context === null ? null : (
         <Text as="span" voice="datumMono">
           {context}
@@ -63,13 +59,9 @@ function ModelMetadata({ entry, picked, current }: Parameters<typeof ModelPicker
           {price}
         </Text>
       )}
-      {current ? (
-        <Badge intent="neutral" size="sm" tone="soft">
-          Already added
-        </Badge>
-      ) : null}
+      {current ? <Badge size="sm">Already added</Badge> : null}
       {picked ? (
-        <Badge intent="primary" size="sm" tone="soft">
+        <Badge tone="primary" size="sm">
           Selected
         </Badge>
       ) : null}

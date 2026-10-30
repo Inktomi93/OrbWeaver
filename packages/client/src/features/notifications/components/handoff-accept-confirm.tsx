@@ -108,7 +108,7 @@ export function HandoffAcceptConfirm({ chatId, notificationId, offer, onClose, o
           </Stack>
         )
       }
-      confirmIntent="primary"
+      confirmTone="primary"
       confirmLabel="Accept"
       description={
         lines.length === 0

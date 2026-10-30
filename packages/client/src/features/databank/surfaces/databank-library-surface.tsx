@@ -291,7 +291,7 @@ function DatabankEmpty({ needle, phaseFilter, onClearSearch }: DatabankEmptyProp
     return (
       <EmptyState
         action={
-          <Button intent="secondary" onClick={clearDatabankPhaseFilter} size="sm">
+          <Button variant="outline" onClick={clearDatabankPhaseFilter} size="sm">
             Show every document
           </Button>
         }
@@ -302,7 +302,7 @@ function DatabankEmpty({ needle, phaseFilter, onClearSearch }: DatabankEmptyProp
     );
   }
   const add = (
-    <Button intent={needle === "" ? "secondary" : "ghost"} onClick={(): void => openModal("addDocument")} size="sm">
+    <Button variant={needle === "" ? "outline" : "ghost"} onClick={(): void => openModal("addDocument")} size="sm">
       Add a document
     </Button>
   );
@@ -313,7 +313,7 @@ function DatabankEmpty({ needle, phaseFilter, onClearSearch }: DatabankEmptyProp
           add
         ) : (
           <Row align="center" gap="field" justify="center">
-            <Button intent="secondary" onClick={onClearSearch} size="sm">
+            <Button variant="outline" onClick={onClearSearch} size="sm">
               Clear search
             </Button>
             {add}
@@ -334,10 +334,10 @@ function PhaseFilterChip({ phase }: { readonly phase: IngestPhase }): ReactEleme
   return (
     <Row align="center" gap="field">
       <Text voice="kicker">Filtered:</Text>
-      <Badge intent={badge.intent} size="sm" tone="soft">
+      <Badge tone={badge.tone} size="sm">
         {badge.label}
       </Badge>
-      <Button aria-label={`Clear the ${badge.label} filter`} intent="ghost" onClick={clearDatabankPhaseFilter} size="icon" type="button">
+      <Button aria-label={`Clear the ${badge.label} filter`} variant="ghost" onClick={clearDatabankPhaseFilter} size="icon" type="button">
         <Icon icon={X} size="sm" />
       </Button>
     </Row>

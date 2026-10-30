@@ -39,11 +39,11 @@ export function RuleDraftRow({
     <Stack gap="tight">
       <Text voice="gloss">Unfinished rule {ordinal}</Text>
       <Row gap="field">
-        <Button intent="secondary" size="wrap" className="flex-1 justify-start min-inline-0" onClick={(event): void => onResume(event.currentTarget)}>
+        <Button variant="outline" size="wrap" className="flex-1 justify-start min-inline-0" onClick={(event): void => onResume(event.currentTarget)}>
           Resume {title}
         </Button>
         <Button
-          intent="ghost"
+          variant="ghost"
           size="sm"
           aria-label={`Discard ${title}`}
           disabled={pending}

@@ -73,7 +73,7 @@ function ConnectionExtrasEditor({ rows, busy, onChange, onCommit, mintRowId, cur
         />
       ))}
       <Row gap="field">
-        <Button disabled={busy} intent="secondary" onClick={(): void => onChange([...rows, { id: mintRowId(), key: "", value: "" }])} size="sm">
+        <Button disabled={busy} variant="outline" onClick={(): void => onChange([...rows, { id: mintRowId(), key: "", value: "" }])} size="sm">
           <Icon icon={Plus} size="sm" />
           Add a field
         </Button>
@@ -162,7 +162,7 @@ function ExtraRowView({
           <Button
             aria-label={key === "" ? "Remove this field" : `Remove the ${key} field`}
             disabled={busy}
-            intent="ghost"
+            variant="ghost"
             onClick={(): void => onRemove(row.id)}
             size="sm"
           >

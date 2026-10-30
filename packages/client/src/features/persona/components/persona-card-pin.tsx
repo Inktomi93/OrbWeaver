@@ -29,7 +29,7 @@ export function PersonaCardPin({ isPinned, isHost, name, subject, onPin, onUnpin
       <Tooltip>
         <TooltipTrigger
           render={
-            <Text as="span" aria-label="Card's persona in this chat" className="relative shrink-0" tone="muted" role="img">
+            <Text as="span" aria-label="Card's persona in this chat" className="relative shrink-0" ink="muted" role="img">
               <Icon icon={Pin} size="sm" />
             </Text>
           }
@@ -47,10 +47,10 @@ export function PersonaCardPin({ isPinned, isHost, name, subject, onPin, onUnpin
               aria-label={isPinned ? `Card is pinned to ${subject} — press to unpin` : `Pin the card to ${subject}`}
               aria-pressed={isPinned}
               data-slot="persona-card-pin"
-              intent="ghost"
+              variant="ghost"
               onClick={isPinned ? onUnpin : onPin}
               size={isPinned ? "inline" : "icon"}
-              tone={isPinned ? "primary" : "default"}
+              tone={isPinned ? "primary" : undefined}
               {...(tabIndex === undefined ? {} : { tabIndex })}
             >
               <Icon icon={Pin} size="sm" />

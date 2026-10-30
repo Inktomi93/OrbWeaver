@@ -75,7 +75,7 @@ export function PluginSurfaceShell({
           {showTitle ? (
             <>
               <Text voice="gloss">·</Text>
-              <Text tone="foreground" voice="gloss">
+              <Text ink="foreground" voice="gloss">
                 {title}
               </Text>
             </>
@@ -147,7 +147,7 @@ export function PluginSurfaceShell({
           {showTitle ? (
             <>
               <Text voice="gloss">·</Text>
-              <Text tone="foreground" voice="gloss">
+              <Text ink="foreground" voice="gloss">
                 {title}
               </Text>
             </>

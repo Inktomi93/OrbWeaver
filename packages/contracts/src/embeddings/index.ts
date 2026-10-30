@@ -214,6 +214,20 @@ export interface HubScoreUpdate {
   readonly hubScore: number;
 }
 
+/** `writeHubScores` input — the only non-`store` UPDATE surface (the chunk-reclaim DELETEs are the
+ *  other non-`store` writes), and the only path that touches `hub_score`. `discovery` computes, this stores. */
+export interface WriteHubScoresParams {
+  readonly table: VectorTable;
+  readonly updates: readonly HubScoreUpdate[];
+}
+
+export interface WriteHubScoresResult {
+  readonly rowsUpdated: number;
+}
+
+/** The discovery → embeddings seam: takes pre-computed scores. */
+export type WriteHubScoresOp = (params: WriteHubScoresParams) => Promise<WriteHubScoresResult>;
+
 // ── The `index` workload's terminal result (the workloads junk-drawer exit: a workload's result shape is
 //    domain↔domain wire, authored by the OWNING domain — embeddings owns the ONE vector write path). ──
 
@@ -226,4 +240,21 @@ export interface EmbedPassResult {
 
 export const embedPassResultSchema = z.strictObject({ embedded: z.number(), skipped: z.number() }) satisfies z.ZodType<EmbedPassResult>;
 
-export type { DocumentVectorSweepReceipt, GenerationReceipt, MemoryEmbedSpace, PruneMemoryBlocksParams } from "./owner-ops.ts";
+export type { EmbeddingConnectionFacts } from "./connection.ts";
+export type { CountDocumentChunksParams, DocumentChunkStoreInput, OwnerChunkCountsParams, PruneDocumentChunksParams } from "./document-vectors.ts";
+export type {
+  CountDocumentChunksByOwnerOp,
+  CountDocumentChunksOp,
+  DocumentVectorSweepReceipt,
+  EmbedMoveRefusal,
+  GenerationReceipt,
+  ListCharacterIds,
+  ListImageAssetIds,
+  MemoryEmbedSpace,
+  PruneDocumentChunksOp,
+  PruneDocumentChunksResult,
+  PruneMemoryBlocksParams,
+  ResolveEmbeddingConnectionOp,
+  SyncTargetGenerationsOp,
+  TargetWouldMoveOp,
+} from "./owner-ops.ts";

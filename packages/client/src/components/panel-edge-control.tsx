@@ -43,7 +43,7 @@ export function PanelEdgeControl({ expanded, noun, edge, controls, onToggle, foc
             data-expanded={expanded ? "true" : "false"}
             data-focus-return-marker={focusReturnMarker}
             data-slot="panel-edge-control"
-            intent={expanded ? "ghost" : "outline"}
+            variant={expanded ? "ghost" : "outline"}
             onClick={onToggle}
             ref={ref}
             size="icon-sm"

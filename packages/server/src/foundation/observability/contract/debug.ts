@@ -1,5 +1,5 @@
 import type { RpgTraceRecord } from "@orb/contracts/rpg";
-import type { EffectiveAppConfig, GlobalSettingView } from "@orb/contracts/settings";
+import type { GetEffectiveConfigOp, GlobalSettingView } from "@orb/contracts/settings";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { Context } from "hono";
@@ -58,7 +58,7 @@ export interface DebugRoutesOptions {
   rpgTrace?: RpgTraceInspector;
   memoryRecall?: MemoryRecallInspector;
   sockets?: SocketInspector;
-  effectiveConfig?: () => EffectiveAppConfig;
+  effectiveConfig?: GetEffectiveConfigOp;
   /** The live capture decision for both wire reads; compose makes it, so foundation never re-reads the knob. */
   readonly wireCaptureEnabled: () => boolean;
   auth?: DebugAuthOptions | string;

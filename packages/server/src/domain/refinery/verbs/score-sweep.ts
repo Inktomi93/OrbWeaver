@@ -34,6 +34,7 @@
 // that ignores the json_schema fails EVERY card identically, so a naive `Promise.all` over the library would
 // fire N retry calls at once — the exact 429 storm the wave size bounds).
 
+import type { RefineryScoreTarget } from "@orb/contracts/character";
 import type { RefineryScorePayload, RefineryScoreSweepResult, RefinerySelection } from "@orb/contracts/refinery";
 import { REFINERY_STAGE_PAYLOADS } from "@orb/contracts/refinery";
 import type { RoleClients, StructuredOptions } from "@orb/contracts/role-clients";
@@ -42,7 +43,6 @@ import type { SideGenSampling } from "@orb/inference";
 import { ProviderError, runStructuredTurn } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
-import type { RefineryScoreTarget } from "#domain/character";
 import type { Logger } from "#foundation/observability";
 import { getLog, traceStructuredRetry } from "#foundation/observability";
 import type { ScoreSweepEstimateOptions, ScoreSweepOptions } from "../contract/params.ts";

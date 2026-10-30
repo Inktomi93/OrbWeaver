@@ -52,7 +52,7 @@ export function RuleLoreFields({
                   {(field): ReactElement => <field.TextField label={`Keyword ${keyword + 1}`} />}
                 </form.AppField>
                 <Button
-                  intent="ghost"
+                  variant="ghost"
                   onClick={(): void => {
                     Promise.all([form.removeFieldValue(`actions[${index}].keys`, keyword), form.removeFieldValue(`keywordIds[${index}]`, keyword)]).catch(() =>
                       notify.error("Couldn't remove the keyword."),
@@ -64,7 +64,7 @@ export function RuleLoreFields({
               </Stack>
             ))}
             <Button
-              intent="ghost"
+              variant="ghost"
               onClick={(): void => {
                 form.pushFieldValue(`actions[${index}].keys`, "");
                 form.pushFieldValue(`keywordIds[${index}]`, crypto.randomUUID());
@@ -155,7 +155,7 @@ function ReplyList({ form, index, action, ids }: ReplyFieldsProps & { readonly i
                     removeButtons.current.set(id, button);
                   }
                 }}
-                intent="ghost"
+                variant="ghost"
                 size="icon"
                 aria-label={removeActionName(`reply ${choice + 1}`)}
                 onClick={(): void => {
@@ -195,7 +195,7 @@ function ReplyList({ form, index, action, ids }: ReplyFieldsProps & { readonly i
       ) : (
         <Button
           ref={addButton}
-          intent="ghost"
+          variant="ghost"
           aria-describedby={ids.length === 0 ? emptyId : undefined}
           onClick={(): void => {
             form.pushFieldValue(`actions[${index}].choices`, { label: "", sendTemplate: "", mode: "send" });

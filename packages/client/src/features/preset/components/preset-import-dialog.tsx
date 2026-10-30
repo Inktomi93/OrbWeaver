@@ -213,8 +213,8 @@ export function PresetImportDialog({ open, onOpenChange, onImportSt, onImportOrb
       </Stack>
 
       <DialogFooter>
-        <DialogClose render={<Button intent="ghost">Cancel</Button>} />
-        <Button intent="primary" disabled={parsed === null || busy} onClick={onConfirm}>
+        <DialogClose render={<Button variant="ghost">Cancel</Button>} />
+        <Button disabled={parsed === null || busy} onClick={onConfirm}>
           Import preset
         </Button>
       </DialogFooter>

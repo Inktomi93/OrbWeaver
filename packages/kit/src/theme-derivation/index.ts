@@ -1067,6 +1067,114 @@ export function carriedTonePalette(base: Oklch): TonePalette<CarriedToneHost> {
   };
 }
 
+/** Lightness step of the form-control edge scan: fine enough that the first passing step sits within a tenth of a ratio point of the floor. */
+const INPUT_BORDER_L_STEP = 0.005;
+
+/** What the scope paints a form-control edge over: its chrome panels, and the `bg-input` fill (an ink at an alpha) laid over each. */
+export interface InputBorderGrounds {
+  readonly panels: readonly Oklch[];
+  readonly fillInk: Oklch;
+  readonly fillAlpha: number;
+}
+
+export interface InputBorderSolve {
+  readonly edge: Oklch;
+  /** False when the scan ran out of lightness before the 3:1 floor held on every ground. */
+  readonly floorMet: boolean;
+}
+
+export interface InputBorderInputs {
+  readonly base: Oklch;
+  /** The scope's ink lightness: the edge walks from the base toward it. */
+  readonly inkLightness: number;
+  readonly grounds: InputBorderGrounds;
+}
+
+function quantizedPixel(color: Oklch): Rgb {
+  const { r, g, b } = oklchToSrgb(color);
+  return { r: Math.round(r), g: Math.round(g), b: Math.round(b) };
+}
+
+/**
+ * The form-control edge of a carried palette (D159): the nearest lightness to the base, on either side,
+ * at which the edge holds WCAG 1.4.11's 3:1 against every panel and against the `bg-input` fill over each, measured on
+ * 8-bit pixels. The nearest passing step is the quietest edge, so it is also the one furthest below the focus ring.
+ * The focus ring is held above this edge afterwards, by {@link solveFocusRing}; the floor is never traded for it.
+ */
+export function solveInputBorder({ base, inkLightness, grounds }: InputBorderInputs): InputBorderSolve {
+  const preferred = inkLightness > base.l ? 1 : -1;
+  const panelPixels = grounds.panels.map((panel) => quantizedPixel(panel));
+  const fillInk = oklchToSrgb(grounds.fillInk);
+  const seen = [
+    ...panelPixels,
+    ...panelPixels.map((panel) => {
+      const lit = compositeSrgb(fillInk, grounds.fillAlpha, panel);
+      return { r: Math.round(lit.r), g: Math.round(lit.g), b: Math.round(lit.b) };
+    }),
+  ];
+  const steps = Math.round(1 / INPUT_BORDER_L_STEP);
+  // Both directions are walked together: around the polarity pivot the fill's own ink can darken the grounds so far that
+  // the scope's ink side holds no 3:1 edge while the far side does. The nearest passing step wins; a tie takes the ink side.
+  for (let step = 0; step <= steps; step += 1) {
+    for (const direction of [preferred, -preferred]) {
+      const l = base.l + direction * step * INPUT_BORDER_L_STEP;
+      if (l < 0 || l > 1) {
+        continue;
+      }
+      const candidate: Oklch = { l, c: 0, h: base.h };
+      const pixel = quantizedPixel(candidate);
+      if (seen.every((ground) => wcagContrastRatio(pixel, ground) >= AA_NON_TEXT_RATIO)) {
+        return { edge: candidate, floorMet: true };
+      }
+    }
+  }
+  // No lightness holds the floor: paint the scope's ink, the strongest edge it owns.
+  const edge: Oklch = { l: inkLightness, c: 0, h: base.h };
+  return { edge, floorMet: false };
+}
+
+/** The ratio on the card a ring should clear the edge by: a target the solve aims for, not a gate. Focus must out-shout rest by more than quantization noise. */
+export const RING_OVER_EDGE_MARGIN = 0.25;
+
+export interface FocusRingInputs {
+  /** The ring the scope would paint: the accent fill. Its hue and chroma are kept. */
+  readonly ring: Oklch;
+  readonly edge: Oklch;
+  readonly card: Oklch;
+}
+
+/**
+ * The focus ring that out-shouts the resting edge (D159's ceiling) under a carried scope: the ring's own hue and chroma at
+ * the nearest lightness whose ratio on the card is at least 3:1 and above the edge's by {@link RING_OVER_EDGE_MARGIN}.
+ * A ring already above the edge by the margin is returned unchanged. When no lightness reaches the margin, the best ring on
+ * the hue is returned if it still sits above the edge; `null` only when no ring on the hue does.
+ */
+export function solveFocusRing({ ring, edge, card }: FocusRingInputs): Oklch | null {
+  const cardPixel = quantizedPixel(card);
+  const edgeRatio = wcagContrastRatio(quantizedPixel(edge), cardPixel);
+  const target = Math.max(AA_NON_TEXT_RATIO, edgeRatio + RING_OVER_EDGE_MARGIN);
+  let best = { color: ring, ratio: wcagContrastRatio(quantizedPixel(ring), cardPixel) };
+  if (best.ratio >= target) {
+    return ring;
+  }
+  const steps = Math.round(1 / INPUT_BORDER_L_STEP);
+  for (let step = 1; step <= steps; step += 1) {
+    for (const direction of [1, -1]) {
+      // Clamped, so the extremes (white, black on this hue) are tried exactly rather than skipped by float dust.
+      const l = Math.min(1, Math.max(0, ring.l + direction * step * INPUT_BORDER_L_STEP));
+      const pixel = oklchToSrgb({ l, c: ring.c, h: ring.h });
+      const ratio = wcagContrastRatio({ r: Math.round(pixel.r), g: Math.round(pixel.g), b: Math.round(pixel.b) }, cardPixel);
+      if (ratio >= target) {
+        return srgbToOklch(pixel);
+      }
+      if (ratio > best.ratio) {
+        best = { color: srgbToOklch(pixel), ratio };
+      }
+    }
+  }
+  return best.ratio > edgeRatio ? best.color : null;
+}
+
 /** A colored tone's two authored colours: the intent base and its `-foreground` token, at the palette's polarity. */
 export interface ToneColors {
   readonly base: Oklch;

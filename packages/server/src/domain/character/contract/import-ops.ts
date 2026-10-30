@@ -1,7 +1,13 @@
-import type { CharacterDetail, CreateCharacterInput } from "@orb/contracts/character";
+import type {
+  CharacterDetail,
+  CharacterImportProvenance,
+  CharacterRef,
+  CreateCharacterInput,
+  FindByHandleParams,
+  FindByImportHashParams,
+} from "@orb/contracts/character";
 import type { CharacterId } from "@orb/kit/ids";
-import type { AttachImportedArtParams, CharacterImportProvenance, FindByHandleParams, FindByImportHashParams, FindByNameParams } from "./params.ts";
-import type { CharacterRef } from "./results.ts";
+import type { AttachImportedArtParams, FindByNameParams } from "./params.ts";
 import type { CharacterService } from "./service.ts";
 
 /** The import consumer needs identity only; the source signatures remain the actual owner's params. */

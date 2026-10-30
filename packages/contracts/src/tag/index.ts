@@ -4,7 +4,7 @@
 // `ownerId` (the tagger) — `taggerId` is populated ONLY for `targetType: "chat"`. `status` (pending/
 // accepted) is a `character_tags`-only junction column, not a parallel store.
 
-import type { CharacterId, TagId } from "@orb/kit/ids";
+import type { CharacterId, TagId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { tagMatchKey } from "@orb/kit/tag";
 import { z } from "zod";
@@ -218,3 +218,37 @@ export const pruneUnusedResultSchema = z.strictObject({ removed: z.number() }) s
 export const tagReachInputSchema = z.object({ tagId: typeIdSchema(ID_PREFIX.tag), targetType: tagTargetTypeSchema });
 
 export const pendingTagSuggestionsInputSchema = z.object({ characterId: typeIdSchema(ID_PREFIX.character).optional() }).optional();
+
+/** The internal resolve-or-create-by-name card-tag attach. Deliberately not an acting-principal shape: it
+ *  carries the already-resolved `ownerId` directly, because the caller has already owner-verified the
+ *  character. */
+export interface AttachCardTagByNameParams {
+  readonly ownerId: UserId;
+  readonly characterId: CharacterId;
+  readonly tagName: string;
+  /** Stamped on the tag at first create only. Default `manual`; import/seeded cards pass `card`;
+   *  corpus distillation passes `auto`. */
+  readonly source?: TagSource;
+  /** Default `accepted`; distillation passes `pending` to stage a suggestion. Never downgrades an
+   *  already-`accepted` row. */
+  readonly status?: TagStatus;
+}
+
+/** Resolve-or-create the owner's tag by name, then attach it to the character, idempotently. */
+export type AttachCardTagByNameOp = (params: AttachCardTagByNameParams) => Promise<boolean>;
+
+/** The one tag write the profile import and the seed paths reach. */
+export interface ImportTagPort {
+  readonly attachCardTagByName: AttachCardTagByNameOp;
+}
+
+/** `importTagLibrary` — the outcome of restoring a tag-library file. `total` is the tag count the file
+ *  carried (post-parse, malformed rows already dropped); `created` is how many were NEWLY minted into the
+ *  owner's namespace (the rest deduped against existing tags — the import merges, idempotently). */
+export interface TagLibraryImportResult {
+  readonly total: number;
+  readonly created: number;
+}
+
+/** Detaches a tag by name from one owned character; returns whether anything was detached (idempotent). */
+export type DetachCardTagOp = (args: { readonly ownerId: UserId; readonly characterId: CharacterId; readonly tagName: string }) => Promise<boolean>;

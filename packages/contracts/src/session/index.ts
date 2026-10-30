@@ -1,9 +1,10 @@
 // Browser-session views, not agent-SDK prompt-cache lineage. Tokens, token hashes and sealed OIDC
 // credentials never cross this boundary. Only the admin view carries the queried user's id.
 
-import type { ExternalId, SessionId, UserId } from "@orb/kit/ids";
+import type { ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
+import type { UserRoleState } from "#identity";
 
 /** One browser-session row as exposed to the admin device list. `revokedAt` is `null` while the device
  *  is live. Deliberately secret-free: no `tokenHash`/token/pepper/`userId`, and no `oidcIdToken*` column
@@ -56,3 +57,27 @@ export type GetOwnerUserId = () => Promise<UserId | undefined>;
 
 /** Is this a fresh local box whose owner row has no password yet (first-run setup pending)? */
 export type OwnerNeedsPassword = () => Promise<boolean>;
+
+/** A user's sessions for the admin device list. */
+export type ListSessionsForUserOp = (userId: UserId) => Promise<SessionView[]>;
+
+/** Revoke one session by id → WHOSE it was, or `null` if it was already revoked. The owner is what the entry tier
+ *  evicts live sockets by. */
+export type RevokeSessionOp = (sessionId: SessionId) => Promise<UserId | null>;
+
+/** Revoke all of a user's live sessions → count revoked. */
+export type RevokeAllSessionsForUserOp = (userId: UserId) => Promise<number>;
+
+/** A `users` row's live principal-fields. `enabled` is a REPORT, not a gate: the caller decides what a disabled row means. */
+export interface UserPrincipalFields {
+  role: UserRoleState;
+  handle: Handle;
+  externalId: ExternalId | null;
+  enabled: boolean;
+}
+
+/** Resolve a bare row id → its live principal-fields, or `null` for an unknown id. */
+export type LoadUserByIdOp = (userId: UserId) => Promise<UserPrincipalFields | null>;
+
+/** Is this handle an `OWNER_HANDLES` seed key or a look-alike of one? No signup or admin mint may hold it. */
+export type IsReservedSignupHandleOp = (handle: Handle) => boolean;

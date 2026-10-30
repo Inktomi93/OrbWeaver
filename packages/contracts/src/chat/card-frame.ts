@@ -14,6 +14,8 @@
 // The bytes in the mint are the SAME bytes the viewer's own browser is already about to render, so the mint
 // is not a new content-injection surface; what it is NOT allowed to do is assert its own trust tier.
 
+import type { CardFrameStyleTokenName } from "@orb/kit/card-frame";
+import { CARD_FRAME_STYLE_TOKEN, clampCardFrameStyleToken } from "@orb/kit/card-frame";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
@@ -33,10 +35,12 @@ const MAX_THEME_TOKENS = 24;
 const MAX_TOKEN_NAME_CHARS = 64;
 const MAX_TOKEN_VALUE_CHARS = 64;
 const MAX_FONT_FAMILY_CHARS = 120;
+const STYLE_TOKEN_NAMES: readonly CardFrameStyleTokenName[] = Object.values(CARD_FRAME_STYLE_TOKEN);
 
 // `JSON.stringify` needs at most six UTF-8 bytes per UTF-16 code unit (a lone surrogate/control escape).
 // This is the largest wire body the strict schema can accept: all bounded strings at their maxima, every
-// theme-token slot populated, the longest accepted TypeID selectors, and the exact JSON punctuation.
+// theme-token and style-token slot populated, the longest accepted TypeID selectors, and the exact JSON
+// punctuation.
 const JSON_MAX_BYTES_PER_CODE_UNIT = 6;
 const TYPE_ID_SUFFIX_CHARS = 26;
 const JSON_OBJECT_ENTRY_PUNCTUATION_BYTES = 5;
@@ -48,11 +52,33 @@ const MAX_STRING_CODE_UNITS =
   MAX_HTML_CHARS +
   MAX_CSS_CHARS +
   MAX_FONT_FAMILY_CHARS +
-  MAX_THEME_TOKENS * (MAX_TOKEN_NAME_CHARS + MAX_TOKEN_VALUE_CHARS);
-const JSON_ENVELOPE_BYTES = '{"chatId":"","characterId":"","html":"","css":"","themeTokens":{},"fontFamily":""}'.length;
-const THEME_ENTRY_PUNCTUATION_BYTES = MAX_THEME_TOKENS * JSON_OBJECT_ENTRY_PUNCTUATION_BYTES + (MAX_THEME_TOKENS - 1);
+  MAX_THEME_TOKENS * (MAX_TOKEN_NAME_CHARS + MAX_TOKEN_VALUE_CHARS) +
+  STYLE_TOKEN_NAMES.reduce((sum, name) => sum + name.length + MAX_FONT_FAMILY_CHARS, 0);
+const JSON_ENVELOPE_BYTES = '{"chatId":"","characterId":"","html":"","css":"","themeTokens":{},"styleTokens":{},"fontFamily":""}'.length;
+const entryPunctuationBytes = (entries: number): number => entries * JSON_OBJECT_ENTRY_PUNCTUATION_BYTES + (entries - 1);
 /** Byte cap for the raw mint POST. Derived from the accepted schema so transport cannot reject a valid mint. */
-export const CARD_FRAME_MINT_BODY_MAX_BYTES = MAX_STRING_CODE_UNITS * JSON_MAX_BYTES_PER_CODE_UNIT + JSON_ENVELOPE_BYTES + THEME_ENTRY_PUNCTUATION_BYTES;
+export const CARD_FRAME_MINT_BODY_MAX_BYTES =
+  MAX_STRING_CODE_UNITS * JSON_MAX_BYTES_PER_CODE_UNIT +
+  JSON_ENVELOPE_BYTES +
+  entryPunctuationBytes(MAX_THEME_TOKENS) +
+  entryPunctuationBytes(STYLE_TOKEN_NAMES.length);
+
+// One slice value: bounded for the parse, then refused unless the frame's own grammar for that name admits it.
+// The server still re-clamps at assembly, which is where an out-of-range root size is bounded.
+const styleTokenValue = (name: CardFrameStyleTokenName): z.ZodExactOptional<z.ZodString> =>
+  z
+    .string()
+    .max(MAX_FONT_FAMILY_CHARS)
+    .refine((value) => clampCardFrameStyleToken(name, value) !== undefined, { error: `${name} is outside its style grammar` })
+    .exactOptional();
+
+// The closed non-color slice: only the `CARD_FRAME_STYLE_TOKEN` names, each optional because the client's own
+// clamp may already have dropped a value. Strict, so any other key is a refusal rather than a silent strip.
+const cardFrameStyleTokensSchema = z.strictObject({
+  [CARD_FRAME_STYLE_TOKEN.radius]: styleTokenValue(CARD_FRAME_STYLE_TOKEN.radius),
+  [CARD_FRAME_STYLE_TOKEN.monoFamily]: styleTokenValue(CARD_FRAME_STYLE_TOKEN.monoFamily),
+  [CARD_FRAME_STYLE_TOKEN.rootSize]: styleTokenValue(CARD_FRAME_STYLE_TOKEN.rootSize),
+} satisfies Record<CardFrameStyleTokenName, z.ZodExactOptional<z.ZodString>>);
 
 /** The mint request. `strictObject` — an unknown key is a REJECT, not a silent strip: this body decides
  *  which policy a security boundary is built with, so a typo'd selector must fail loudly rather than
@@ -73,6 +99,9 @@ export const cardFrameMintRequestSchema = z.strictObject({
     .record(z.string().max(MAX_TOKEN_NAME_CHARS), z.string().max(MAX_TOKEN_VALUE_CHARS))
     .refine((r) => Object.keys(r).length <= MAX_THEME_TOKENS, { error: `at most ${MAX_THEME_TOKENS} theme tokens` })
     .optional(),
+  /** The viewer's radius, mono family and text scale for the frame root. Re-clamped server-side by
+   *  `clampCardFrameStyleTokens`, which bounds the root size to the appearance range. */
+  styleTokens: cardFrameStyleTokensSchema.optional(),
   /** The resolved UI font-family list. Re-validated server-side against the font-list grammar. */
   fontFamily: z.string().max(MAX_FONT_FAMILY_CHARS).optional(),
 });

@@ -211,19 +211,19 @@ function GrantRow({ capability, checked, isNew, roleUnset }: GrantRowProps): Rea
         {/* An UNGRANTED row's state, as a word beside the name it refuses — adjacent, where the far-docked
             control column used to strand it (file header). */}
         {checked ? null : (
-          <Text tone="muted" voice="label">
+          <Text ink="muted" voice="label">
             Not granted
           </Text>
         )}
         {/* "New" reads INFO (informational — this row changed) against "Costs money"'s WARNING (a real
             caution) — two amber "warning/soft" pills at a glance were indistinguishable (side-eye P2-8). */}
         {isNew ? (
-          <Badge id={newMarkId} intent="info" size="sm" tone="soft">
+          <Badge id={newMarkId} tone="info" size="sm">
             New
           </Badge>
         ) : null}
         {copy.spends === true ? (
-          <Badge intent="warning" size="sm" tone="soft">
+          <Badge tone="warning" size="sm">
             Costs money
           </Badge>
         ) : null}
@@ -231,7 +231,7 @@ function GrantRow({ capability, checked, isNew, roleUnset }: GrantRowProps): Rea
             plugin-copy.ts). `ghost` keeps it quieter than the two solid-tint marks above (a new/spend fact is
             more urgent than "this one reaches further than most"). */}
         {copy.risk === true ? (
-          <Badge intent="danger" size="sm" tone="ghost">
+          <Badge tone="destructive" variant="outline" size="sm">
             Reaches further
           </Badge>
         ) : null}
@@ -300,7 +300,7 @@ export function PluginGrantList({
         <Row key={host} align="center" gap="field" role="listitem">
           <Text voice="datumMono">{host}</Text>
           {addedHostSet.has(host) ? (
-            <Badge intent="info" size="sm" tone="soft">
+            <Badge tone="info" size="sm">
               New
             </Badge>
           ) : null}

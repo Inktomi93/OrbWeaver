@@ -137,7 +137,7 @@ function RosterChipButton({ count, onClick }: { readonly count: number; readonly
     <Button
       type="button"
       // The actionable chip lifts its ink (colour, not the border: a `soft` Badge draws the same hairline).
-      intent="secondary"
+      variant="outline"
       shape="pill"
       size="sm"
       aria-label={`Members — ${count}`}

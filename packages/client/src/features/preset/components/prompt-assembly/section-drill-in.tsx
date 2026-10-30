@@ -110,7 +110,7 @@ export function SectionDrillIn({ form, section, index, onBack }: SectionDrillInP
     // rec 2). `aria-label` is the section's own name — one editor, one object.
     <Stack aria-label={`${label} — section editor`} gap="section" role="region">
       <Row align="center" gap="row" justify="between">
-        <Button intent="ghost" onClick={onBack} ref={backRef} size="sm" type="button">
+        <Button variant="ghost" onClick={onBack} ref={backRef} size="sm" type="button">
           <Icon icon={ArrowLeft} size="sm" />
           Back to rack
         </Button>

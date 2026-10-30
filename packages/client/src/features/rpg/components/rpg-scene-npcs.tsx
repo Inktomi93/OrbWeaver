@@ -100,7 +100,7 @@ function SceneNpcCard({ actor, edit }: { readonly actor: RpgActorView; readonly 
       relationship={identity.relationship}
       fields={texts}
       // The relationship KIND glyph (the closed-vocab Record) leads the edit-mode picker.
-      relationshipGlyph={<Icon icon={RELATIONSHIP_GLYPHS[identity.relationship.kind]} size="xs" tone="muted" className="shrink-0" />}
+      relationshipGlyph={<Icon icon={RELATIONSHIP_GLYPHS[identity.relationship.kind]} size="xs" ink="muted" className="shrink-0" />}
       {...editProps}
       {...(meters.length === 0
         ? {}
@@ -173,7 +173,7 @@ export function SceneKnownCharacters({ offstage, edit }: { readonly offstage: re
         <Kicker>Known characters — {offstage.length}</Kicker>
         <Tip text={open ? "Hide the characters who are not in this scene" : "Characters the story has met who are not in this scene"}>
           <Button
-            intent="ghost"
+            variant="ghost"
             size="sm"
             aria-expanded={open}
             aria-label={open ? "Hide known characters" : "Show known characters"}
@@ -234,10 +234,10 @@ function KnownCharacterDoorways({ actor, edit }: { readonly actor: RpgActorView;
         <Text as="span" voice="gloss" className="wrap-anywhere max-inline-full min-inline-0">
           Forget {actor.name} and everything tracked on them?
         </Text>
-        <Button intent="ghost" size="sm" aria-label={`Keep ${actor.name}`} onClick={(): void => cancel("dismiss")}>
+        <Button variant="ghost" size="sm" aria-label={`Keep ${actor.name}`} onClick={(): void => cancel("dismiss")}>
           Keep
         </Button>
-        <Button intent="destructive" size="sm" aria-label={`Confirm dismissing ${actor.name}`} onClick={(): void => edit.onDismiss(ref)}>
+        <Button tone="destructive" size="sm" aria-label={`Confirm dismissing ${actor.name}`} onClick={(): void => edit.onDismiss(ref)}>
           Dismiss
         </Button>
       </Row>
@@ -253,10 +253,10 @@ function KnownCharacterDoorways({ actor, edit }: { readonly actor: RpgActorView;
         <Text as="span" voice="gloss" className="wrap-anywhere max-inline-full min-inline-0">
           Give {actor.name} a character card and a seat in this room? Everything tracked on them comes along; their mood and their stance toward you do not.
         </Text>
-        <Button intent="ghost" size="sm" aria-label={`Cancel promoting ${actor.name}`} onClick={(): void => cancel("promote")}>
+        <Button variant="ghost" size="sm" aria-label={`Cancel promoting ${actor.name}`} onClick={(): void => cancel("promote")}>
           Cancel
         </Button>
-        <Button intent="primary" size="sm" aria-label={`Confirm promoting ${actor.name}`} onClick={(): void => edit.onPromote(ref)}>
+        <Button size="sm" aria-label={`Confirm promoting ${actor.name}`} onClick={(): void => edit.onPromote(ref)}>
           Promote
         </Button>
       </Row>
@@ -270,7 +270,7 @@ function KnownCharacterDoorways({ actor, edit }: { readonly actor: RpgActorView;
         <Tip text={`Give ${actor.name} a character card and a seat in this room`}>
           <Button
             ref={promoteRef}
-            intent="ghost"
+            variant="ghost"
             size="sm"
             aria-label={`Promote ${actor.name} to the room's characters`}
             onClick={(): void => setPending("promote")}
@@ -281,7 +281,7 @@ function KnownCharacterDoorways({ actor, edit }: { readonly actor: RpgActorView;
         </Tip>
       ) : null}
       <Tip text={`Forget ${actor.name} — removes their state from this game`}>
-        <Button ref={dismissRef} intent="ghost" size="sm" aria-label={`Dismiss ${actor.name}`} onClick={(): void => setPending("dismiss")}>
+        <Button ref={dismissRef} variant="ghost" size="sm" aria-label={`Dismiss ${actor.name}`} onClick={(): void => setPending("dismiss")}>
           <Icon icon={X} size="xs" />
           Dismiss
         </Button>

@@ -81,7 +81,7 @@ function OrdinaryHistory({ tail, ...props }: TranscriptWindowProps & { readonly 
         <Row gap="field" align="center">
           <Button
             aria-describedby={description}
-            intent="ghost"
+            variant="ghost"
             size="sm"
             disabled={!pages.hasPreviousPage || pages.isFetching}
             onClick={(): void => void pages.fetchPreviousPage().catch(globalThis.reportError)}
@@ -157,7 +157,7 @@ function AnchoredThread({
       <Row className="flex-wrap" gap="field">
         <Button
           aria-describedby={pagingDescription}
-          intent="ghost"
+          variant="ghost"
           size="sm"
           disabled={!pages.hasPreviousPage || pages.isFetchingPreviousPage}
           onClick={(): void => void pages.fetchPreviousPage().catch(globalThis.reportError)}
@@ -166,17 +166,17 @@ function AnchoredThread({
         </Button>
         <Button
           aria-describedby={pagingDescription}
-          intent="ghost"
+          variant="ghost"
           size="sm"
           disabled={!pages.hasNextPage || pages.isFetchingNextPage}
           onClick={(): void => void pages.fetchNextPage().catch(globalThis.reportError)}
         >
           Later messages
         </Button>
-        <Button intent="ghost" size="sm" onClick={clearChatMoment}>
+        <Button variant="ghost" size="sm" onClick={clearChatMoment}>
           Latest messages
         </Button>
-        <Button intent="ghost" size="sm" onClick={(): void => setActiveSection("corpus")}>
+        <Button variant="ghost" size="sm" onClick={(): void => setActiveSection("corpus")}>
           Back to Corpus
         </Button>
       </Row>

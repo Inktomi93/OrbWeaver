@@ -3,7 +3,8 @@
 
 import type { ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
-import { INK_TONE, variantAttrs } from "#lib";
+import type { ToneInkSelection } from "#lib";
+import { variantAttrs } from "#lib";
 import { weaveGlyphVariants } from "./variants.ts";
 import { WEB_GLYPH_DISPLAY } from "./web-glyph.ts";
 
@@ -15,7 +16,7 @@ const DEW_R = 1.5;
 const DEW_OPACITY = 0.95;
 const SPOKES_D = WEB_GLYPH_DISPLAY.spokes.map((s) => `M ${s.x1.toFixed(2)} ${s.y1.toFixed(2)} L ${s.x2.toFixed(2)} ${s.y2.toFixed(2)}`).join(" ");
 
-export interface WeaveGlyphProps {
+interface WeaveGlyphOwnProps {
   readonly size?: VariantProps<typeof weaveGlyphVariants>["size"];
   readonly className?: string;
   /**
@@ -30,20 +31,21 @@ export interface WeaveGlyphProps {
    * button announced its own name plus a nested "Orbweaver" image.
    */
   readonly decorative?: boolean;
-  /** The mark's ink by meaning (`accent` is the brand's own primary), from the Text map. */
-  readonly tone?: VariantProps<typeof weaveGlyphVariants>["tone"];
 }
 
-/** The open-orb brand mark: eight spokes, one open spiral, the hub, a single dew drop. */
-export function WeaveGlyph({ size, className, anim = false, decorative = false, tone }: WeaveGlyphProps): ReactElement {
+export type WeaveGlyphProps = WeaveGlyphOwnProps & ToneInkSelection;
+
+/** The open-orb brand mark: eight spokes, one open spiral, the hub, a single dew drop. Its colour is a `tone`
+ *  (`primary` is the brand's own) or a named `ink`, from the Text maps. */
+export function WeaveGlyph({ size, className, anim = false, decorative = false, tone, ink }: WeaveGlyphProps): ReactElement {
   return (
     <svg
       viewBox={`0 0 ${WEB_GLYPH_DISPLAY.viewBox} ${WEB_GLYPH_DISPLAY.viewBox}`}
       fill="none"
       stroke="currentColor"
       strokeLinecap="round"
-      className={weaveGlyphVariants({ size, tone, anim, className })}
-      {...variantAttrs(weaveGlyphVariants, { size, tone }, INK_TONE[tone ?? "default"])}
+      className={weaveGlyphVariants({ size, tone, ink, anim, className })}
+      {...variantAttrs(weaveGlyphVariants, { size, tone }, tone ?? null)}
       // The two arms are mutually exclusive: a NAMED image, or a decoration inside an already-named
       // control. Written as literal attributes (not a spread) so the a11y lint can see the aria-hidden.
       aria-hidden={decorative ? true : undefined}

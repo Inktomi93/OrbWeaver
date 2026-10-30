@@ -126,7 +126,7 @@ export function TrackerGrantsEditor({
                 <Text as="span" voice="label" className="flex-1 truncate min-inline-0" data-slot="rpg-tracker-grant-label">
                   {def.label}
                 </Text>
-                <Badge id={outcomeId} intent={carried ? "success" : "neutral"} size="sm" tone="soft" data-slot="rpg-tracker-grant-outcome">
+                <Badge id={outcomeId} tone={carried ? "success" : "neutral"} size="sm" data-slot="rpg-tracker-grant-outcome">
                   {carried ? "Carries" : "Doesn't carry"}
                 </Badge>
                 <Select

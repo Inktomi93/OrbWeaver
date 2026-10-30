@@ -106,7 +106,7 @@ export function AssemblyRack({
                   spelling, both skip links. */}
               <Button
                 className="not-focus-visible:sr-only focus-visible:self-start"
-                intent="secondary"
+                variant="outline"
                 onClick={(): void => afterRackRef.current?.focus()}
                 size="sm"
                 type="button"
@@ -114,20 +114,20 @@ export function AssemblyRack({
                 Skip the section list
               </Button>
               {zones.missingPivot ? (
-                <Card tone="warning">
+                <Card tone="warning" variant="soft">
                   <Row align="center" gap="row">
                     <Icon icon={AlertTriangle} size="sm" tone="warning" />
                     <Text className="flex-1" voice="label">
                       No chat history marker — the conversation has nowhere to splice in.
                     </Text>
-                    <Button intent="secondary" onClick={onAddChatHistory} size="sm" type="button">
+                    <Button variant="outline" onClick={onAddChatHistory} size="sm" type="button">
                       Add chat history
                     </Button>
                   </Row>
                 </Card>
               ) : null}
               {cacheBusters.length > 0 ? (
-                <Card tone="warning">
+                <Card tone="warning" variant="soft">
                   <Row align="center" gap="row">
                     <Icon icon={AlertTriangle} size="sm" tone="warning" />
                     <Text data-slot="prompt-cache-warning" voice="label">

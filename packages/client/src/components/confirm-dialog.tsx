@@ -39,8 +39,8 @@ interface ConfirmDialogBaseProps {
   readonly confirmLabel?: string;
   /** The cancel button's label. @defaultValue "Cancel" */
   readonly cancelLabel?: string;
-  /** The confirm button's intent. @defaultValue "destructive" */
-  readonly confirmIntent?: "destructive" | "primary";
+  /** The confirm button's tone. @defaultValue "destructive" */
+  readonly confirmTone?: "destructive" | "primary";
   /**
    * Fires on confirm click. RETURN THE VERB'S SETTLE and this dialog becomes its retry surface (#1563).
    *
@@ -99,7 +99,7 @@ function isSettle(value: void | Promise<void>): value is Promise<void> {
  * element as the trigger) or controlled via `open`/`onOpenChange` (caller owns a separate trigger, e.g. a
  * menu item or icon action).
  *
- * Usage (uncontrolled): `<ConfirmDialog title="Delete this persona?" description={...} trigger={<Button intent="ghost">Delete</Button>} onConfirm={onDelete} />`
+ * Usage (uncontrolled): `<ConfirmDialog title="Delete this persona?" description={...} trigger={<Button variant="ghost">Delete</Button>} onConfirm={onDelete} />`
  * Usage (controlled): `<ConfirmDialog title="Delete this chat?" description={...} open={deleteOpen} onOpenChange={setDeleteOpen} onConfirm={confirmDelete} />`
  */
 export function ConfirmDialog({
@@ -108,7 +108,7 @@ export function ConfirmDialog({
   body,
   confirmLabel = "Confirm",
   cancelLabel = "Cancel",
-  confirmIntent = "destructive",
+  confirmTone = "destructive",
   onConfirm,
   trigger,
   open,
@@ -175,10 +175,10 @@ export function ConfirmDialog({
             </Text>
           )}
           <AlertDialogActions>
-            <AlertDialogClose render={<Button intent="ghost">{cancelLabel}</Button>} />
+            <AlertDialogClose render={<Button variant="ghost">{cancelLabel}</Button>} />
             {/* NOT an `AlertDialogClose` (#1563): the close is this component's to decide once the outcome
                 is known. Cancel stays one, because abandoning is done the moment it is pressed. */}
-            <Button disabled={settling ? true : confirmDisabled} intent={confirmIntent} loading={settling ? true : confirmLoading} onClick={onConfirmClick}>
+            <Button disabled={settling ? true : confirmDisabled} tone={confirmTone} loading={settling ? true : confirmLoading} onClick={onConfirmClick}>
               {confirmLabel}
             </Button>
           </AlertDialogActions>

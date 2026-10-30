@@ -55,9 +55,9 @@ export function InertCard({ title, authorName, children, className }: InertCardP
         <span className={slots.title()} data-slot="inert-card-title">
           {label}
         </span>
-        {/* The house chip primitive — `tone="soft"` is the status-chip look, quieter than the card title
+        {/* The house chip primitive — the default `soft` style is the status-chip look, quieter than the card title
             it sits beside. Never a hand-rolled pill (ui-package-design §6.1). */}
-        <Badge tone="soft" size="sm" data-slot="inert-card-badge">
+        <Badge size="sm" data-slot="inert-card-badge">
           {PLAIN_BADGE}
         </Badge>
       </div>

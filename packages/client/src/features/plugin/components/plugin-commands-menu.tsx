@@ -55,7 +55,7 @@ export function PluginCommandsMenu({ presentation }: { readonly presentation: "b
     return (
       <>
         {commands.map((command) => (
-          <Button disabled={isPending} intent="ghost" key={`${command.pluginId}:${command.name}`} onClick={(): void => runCommand(command)} size="sm">
+          <Button disabled={isPending} variant="ghost" key={`${command.pluginId}:${command.name}`} onClick={(): void => runCommand(command)} size="sm">
             <Text voice="label">
               {pluginCommandAttributedActionLabel(pluginCommandShownName(command.pluginName, command.slug, shared), command.group ?? "Commands", command.name)}
             </Text>
@@ -68,7 +68,7 @@ export function PluginCommandsMenu({ presentation }: { readonly presentation: "b
     <Menu>
       <MenuTrigger
         render={
-          <Button aria-label="Plugin commands" intent="ghost" size="sm">
+          <Button aria-label="Plugin commands" variant="ghost" size="sm">
             <Icon icon={WandSparkles} size="sm" />
           </Button>
         }

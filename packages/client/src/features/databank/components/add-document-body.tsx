@@ -266,7 +266,7 @@ function UploadBody({ onLanded, destination }: { readonly onLanded: OnLanded; re
           only exit was Esc or the backdrop, while both sibling arms offered a labelled way out. A dismiss is
           not part of the submit; it is owed by every arm. */}
       <DialogFooter className="mbs-auto">
-        <DialogClose render={<Button intent="ghost">Cancel</Button>} />
+        <DialogClose render={<Button variant="ghost">Cancel</Button>} />
       </DialogFooter>
     </Stack>
   );
@@ -311,8 +311,8 @@ function PasteBody({ onLanded, destination }: { readonly onLanded: OnLanded; rea
         <Textarea onChange={(event): void => setText(event.target.value)} placeholder="Paste or write the content to index…" rows={8} value={text} />
       </Field>
       <DialogFooter className="mbs-auto">
-        <DialogClose render={<Button intent="ghost">Cancel</Button>} />
-        <Button disabled={!canCreate} intent="primary" loading={create.isPending} onClick={onSubmit} type="button">
+        <DialogClose render={<Button variant="ghost">Cancel</Button>} />
+        <Button disabled={!canCreate} loading={create.isPending} onClick={onSubmit} type="button">
           Add
         </Button>
       </DialogFooter>
@@ -402,13 +402,12 @@ function LinkBody({ onLanded, destination }: { readonly onLanded: OnLanded; read
         }
       </form.Subscribe>
       <DialogFooter className="mbs-auto">
-        <DialogClose render={<Button intent="ghost">Cancel</Button>} />
+        <DialogClose render={<Button variant="ghost">Cancel</Button>} />
         <form.Subscribe selector={(state): boolean => state.values.url.trim() === ""}>
           {(urlEmpty): ReactElement => (
             <Button
               data-testid={testId("databankScrapeSubmit")}
               disabled={destination === null || urlEmpty || pending}
-              intent="primary"
               onClick={(): void => {
                 form.handleSubmit().catch(() => notify.error("Couldn't add the document."));
               }}

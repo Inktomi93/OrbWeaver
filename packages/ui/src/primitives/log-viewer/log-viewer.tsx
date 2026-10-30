@@ -159,7 +159,7 @@ export function LogViewer({ lines, maxLines, className }: LogViewerProps): React
       <div className={slots.toolbar()} data-slot="log-viewer-toolbar">
         {/* Status first: the toolbar is end-aligned, so its text grows leftward and the button never moves. */}
         <CopyButtonStatus />
-        <CopyButtonTrigger iconOnly={true} intent="ghost" />
+        <CopyButtonTrigger iconOnly={true} variant="ghost" />
       </div>
       <CopyButtonSubject>
         {shouldVirtualize ? (

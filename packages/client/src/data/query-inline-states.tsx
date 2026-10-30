@@ -27,13 +27,13 @@ export interface QueryInlineStatesProps {
  */
 export function QueryInlineStates({ status, isEmpty, pending, error, empty }: QueryInlineStatesProps): ReactElement | null {
   if (status.isPending) {
-    return <Text tone="muted">{pending}</Text>;
+    return <Text ink="muted">{pending}</Text>;
   }
   if (status.isError) {
     return <Text tone="destructive">{error}</Text>;
   }
   if (status.isSuccess && isEmpty) {
-    return <Text tone="muted">{empty}</Text>;
+    return <Text ink="muted">{empty}</Text>;
   }
   return null;
 }

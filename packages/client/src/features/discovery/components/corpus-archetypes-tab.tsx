@@ -76,7 +76,7 @@ export function CorpusArchetypesTab(): ReactElement {
         <Text prose={true} className="max-inline-(--reading-measure-prose)" voice="gloss">
           Archetypes need your characters sorted first. Start that in Explore.
         </Text>
-        <Button intent="ghost" size="sm" onClick={openCorpusOverview}>
+        <Button variant="ghost" size="sm" onClick={openCorpusOverview}>
           Show Explore overview
         </Button>
       </Stack>
@@ -194,7 +194,7 @@ function ClusterCard({ cluster, name }: { readonly cluster: ArchetypeCard; reado
     <Stack gap="field">
       <Row align="center" gap="field" justify="between">
         {/* The DISAMBIGUATED name (B6) — the card and its bar are one cluster and must answer to one name. */}
-        <Button intent="ghost" size="sm" onClick={(): void => selectCorpusArtifact({ ...cluster.destination, title: name })}>
+        <Button variant="ghost" size="sm" onClick={(): void => selectCorpusArtifact({ ...cluster.destination, title: name })}>
           {name}
         </Button>
         <Text voice="gloss">
@@ -209,7 +209,7 @@ function ClusterCard({ cluster, name }: { readonly cluster: ArchetypeCard; reado
       {cluster.topTags.length > 0 ? (
         <Row align="center" gap="field" className="flex-wrap">
           {cluster.topTags.map((tag) => (
-            <Badge key={tag} intent="neutral" size="sm">
+            <Badge key={tag} size="sm">
               {tag}
             </Badge>
           ))}
@@ -251,8 +251,8 @@ function ClusterCard({ cluster, name }: { readonly cluster: ArchetypeCard; reado
               vocabulary is the one this section already teaches. */}
           <Row className="flex-1 flex-wrap min-inline-0" gap="tight">
             {cluster.members.slice(0, CLUSTER_PREVIEW_MEMBERS).map((member) => (
-              <Button intent="ghost" key={member.characterId} onClick={(): void => selectCorpusCharacter(member.characterId)} size="sm">
-                <Text as="span" className="truncate" tone="muted" voice="label">
+              <Button variant="ghost" key={member.characterId} onClick={(): void => selectCorpusCharacter(member.characterId)} size="sm">
+                <Text as="span" className="truncate" ink="muted" voice="label">
                   {member.name}
                 </Text>
               </Button>

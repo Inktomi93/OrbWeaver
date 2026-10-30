@@ -171,7 +171,7 @@ function MemoryTuningBody({ anchorId, sectionId }: { readonly anchorId: string; 
   return (
     <Section divider={true} heading={MEMORY_TUNING_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="field">
-        <Text voice="label" tone="muted">
+        <Text voice="label" ink="muted">
           Recall &amp; consolidation. Unchanged controls use the deployment defaults.
         </Text>
         <SettingRowGroup>

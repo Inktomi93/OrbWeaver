@@ -9,7 +9,7 @@ import { openConfigTo } from "#state";
 
 function RoleModelDoor({ door }: { readonly door: typeof UTILITY_ROLE_DOOR | typeof RERANK_ROLE_DOOR }): ReactElement {
   return (
-    <Button intent="ghost" onClick={(): void => openConfigTo(door.group, door.sub, door.setting)} size="sm" type="button">
+    <Button variant="ghost" onClick={(): void => openConfigTo(door.group, door.sub, door.setting)} size="sm" type="button">
       {`Open ${MODEL_ROLES_PATH.leaf}`}
       <Icon icon={ExternalLink} size="xs" />
     </Button>

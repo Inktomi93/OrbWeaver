@@ -315,20 +315,20 @@ export const HOSTS_COLLAPSE_AT = 5;
  */
 export function statusCopy(plugin: ConsentAskFacts & { readonly status: PluginStatus; readonly reconsentPending: boolean }): {
   readonly label: string;
-  readonly intent: "success" | "neutral" | "warning" | "danger";
+  readonly tone: "success" | "neutral" | "warning" | "destructive";
 } {
   if (plugin.status === "enabled") {
-    return plugin.grantedCapabilities.length === 0 ? { label: "On — nothing granted yet", intent: "warning" } : { label: "On", intent: "success" };
+    return plugin.grantedCapabilities.length === 0 ? { label: "On — nothing granted yet", tone: "warning" } : { label: "On", tone: "success" };
   }
   if (plugin.status === "errored") {
-    return { label: "Stopped after an error", intent: "danger" };
+    return { label: "Stopped after an error", tone: "destructive" };
   }
   if (!plugin.reconsentPending) {
-    return { label: "Off", intent: "neutral" };
+    return { label: "Off", tone: "neutral" };
   }
   return consentAskKind(plugin) === "first"
-    ? { label: NEEDS_APPROVAL_LABEL, intent: "neutral" }
-    : { label: "Off — asked for more than you allowed", intent: "warning" };
+    ? { label: NEEDS_APPROVAL_LABEL, tone: "neutral" }
+    : { label: "Off — asked for more than you allowed", tone: "warning" };
 }
 
 /** The quiet state a plugin waiting on its owner's first approval wears, on the Plugins screen and in the

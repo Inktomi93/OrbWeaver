@@ -54,7 +54,7 @@ function ConnectedCharactersBody({ personaId }: { readonly personaId: PersonaId 
               key={character.id}
               title={character.name}
               actions={
-                <Button intent="ghost" onClick={(): void => disconnect.mutate({ characterId: character.id, personaId })}>
+                <Button variant="ghost" onClick={(): void => disconnect.mutate({ characterId: character.id, personaId })}>
                   Disconnect
                 </Button>
               }
@@ -63,7 +63,7 @@ function ConnectedCharactersBody({ personaId }: { readonly personaId: PersonaId 
         </Stack>
       )}
       <Row gap="field">
-        <Button intent="secondary" size="sm" onClick={(): void => setPickerOpen(true)}>
+        <Button variant="outline" size="sm" onClick={(): void => setPickerOpen(true)}>
           <Icon icon={Plus} size="sm" />
           Connect a character
         </Button>

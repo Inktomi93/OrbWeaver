@@ -203,7 +203,7 @@ function SwitchButton({
       aria-label={isPlaying ? `${subject} — current persona` : `Switch to ${subject}`}
       className="absolute inset-0"
       data-switch-row-button=""
-      intent="ghost"
+      variant="ghost"
       onClick={onSwitch}
       {...(tabIndex === undefined ? {} : { tabIndex })}
     />
@@ -272,7 +272,7 @@ function EditDoor({
   const door = (
     <Button
       aria-label={label}
-      intent="ghost"
+      variant="ghost"
       onClick={(): void => openEditor(personaId, presentation)}
       size="icon"
       {...(tabIndex === undefined ? {} : { tabIndex })}

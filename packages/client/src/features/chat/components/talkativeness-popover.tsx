@@ -50,7 +50,7 @@ export function TalkativenessPopover({
         render={
           <Button
             type="button"
-            intent="ghost"
+            variant="ghost"
             size="sm"
             tabIndex={-1}
             // WCAG 2.5.3 Label in Name (UI-Primitives-and-Reuse §13.10): the chip READS "Talks 50%", so

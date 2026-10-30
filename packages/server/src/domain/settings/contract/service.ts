@@ -1,6 +1,7 @@
 // The typed API surface: the `SettingsContext` DI bundle and the `SettingsService` interface. Cross-feature
 // deps arrive injected — admin's guard ops are type-only imports; the runtime ops wire at the entry root.
 
+import type { RequireAdmin, RequireOwner } from "@orb/contracts/admin";
 import type {
   AppSettingsView,
   BackgroundLibraryEntry,
@@ -18,7 +19,6 @@ import type { IdSource, ThemeId, UserId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import type { Clock } from "@orb/kit/time";
 import type { UpdateCheck, UpstreamProbes, VersionIdentity } from "@orb/kit/version-identity";
-import type { RequireAdmin, RequireOwner } from "#domain/admin";
 import type { Env } from "#foundation/env/record";
 import type { AuditEntry, DebugRoutesOptions } from "#foundation/observability";
 import type { ScopedEgress } from "#infra/network";

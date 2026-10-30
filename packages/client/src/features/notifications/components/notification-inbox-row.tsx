@@ -182,7 +182,7 @@ export function InboxRow({ item, onAccepted, onRequestHandoff, acceptedHandoff, 
             (#1798's `size="dot"` arm), so "there is a dot" means one thing in this feature rather than two —
             you open the bell because of a dot and find the dot that put it there. `aria-hidden`: the row's
             own actions are what say it is decidable; the mark is the sighted shorthand. */}
-        {item.actionable ? <Badge intent="primary" size="dot" aria-hidden={true} className="mbs-field" /> : null}
+        {item.actionable ? <Badge tone="primary" variant="solid" size="dot" aria-hidden={true} className="mbs-field" /> : null}
         <Text as="span" voice={item.readAt === null || item.actionable ? "label" : "gloss"} prose={true}>
           {rowCopy(item.payload, disabledPluginName)}
         </Text>
@@ -190,21 +190,14 @@ export function InboxRow({ item, onAccepted, onRequestHandoff, acceptedHandoff, 
       <Row gap="field" align="center" justify="end">
         {isInvite && !acted ? (
           <>
-            <Button
-              aria-label={`Accept invitation from ${item.payload.invitedByHandle}`}
-              type="button"
-              disabled={isPending}
-              intent="primary"
-              size="sm"
-              onClick={acceptInvite}
-            >
+            <Button aria-label={`Accept invitation from ${item.payload.invitedByHandle}`} type="button" disabled={isPending} size="sm" onClick={acceptInvite}>
               Accept
             </Button>
             <Button
               aria-label={`Decline invitation from ${item.payload.invitedByHandle}`}
               type="button"
               disabled={isPending}
-              intent="secondary"
+              variant="outline"
               size="sm"
               onClick={declineInvite}
             >
@@ -213,19 +206,12 @@ export function InboxRow({ item, onAccepted, onRequestHandoff, acceptedHandoff, 
           </>
         ) : null}
         {isHandoff && !acted && !acceptedHandoff ? (
-          <Button
-            aria-label="Accept the host handoff"
-            type="button"
-            disabled={isPending}
-            intent="primary"
-            size="sm"
-            onClick={(): void => onRequestHandoff(item)}
-          >
+          <Button aria-label="Accept the host handoff" type="button" disabled={isPending} size="sm" onClick={(): void => onRequestHandoff(item)}>
             Accept
           </Button>
         ) : null}
         {isConsent ? (
-          <Button aria-label="Review what your plugins ask for" type="button" disabled={isPending} intent="primary" size="sm" onClick={reviewConsent}>
+          <Button aria-label="Review what your plugins ask for" type="button" disabled={isPending} size="sm" onClick={reviewConsent}>
             Review
           </Button>
         ) : null}
@@ -234,7 +220,7 @@ export function InboxRow({ item, onAccepted, onRequestHandoff, acceptedHandoff, 
             aria-label={`Open Plugins — ${disabledPluginName}`}
             type="button"
             disabled={isPending}
-            intent="secondary"
+            variant="outline"
             size="sm"
             onClick={(): void => {
               if (item.payload.type === "plugin-disabled") {
@@ -255,7 +241,7 @@ export function InboxRow({ item, onAccepted, onRequestHandoff, acceptedHandoff, 
             aria-label={`Dismiss: ${rowCopy(item.payload, disabledPluginName)}`}
             type="button"
             disabled={isPending}
-            intent="ghost"
+            variant="ghost"
             size="sm"
             onClick={dismissRow}
           >

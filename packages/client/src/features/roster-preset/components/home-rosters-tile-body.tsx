@@ -34,7 +34,7 @@ function RosterStartRow(props: {
         <Button
           aria-label={`Start a chat with ${roster.name}${rosterCountsSuffix(roster)}`}
           disabled={busy}
-          intent="ghost"
+          variant="ghost"
           onClick={(): void => onStart(roster)}
           size="sm"
         >

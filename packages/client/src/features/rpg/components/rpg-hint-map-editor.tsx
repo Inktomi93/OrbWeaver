@@ -49,9 +49,7 @@ export function RpgHintMapEditor({ kicker, emptyLine, labelNoun, addPlaceholder,
       <Stack gap="field" rows="control">
         {entries.map(([label, hint]) => (
           <Row key={label} gap="field" align="center">
-            <Badge tone="soft" size="sm" intent="neutral">
-              {label}
-            </Badge>
+            <Badge size="sm">{label}</Badge>
             <HintEditor
               ariaLabel={`${label} hint`}
               hint={hint}
@@ -62,7 +60,7 @@ export function RpgHintMapEditor({ kicker, emptyLine, labelNoun, addPlaceholder,
             <Tip text={removeActionName(label)}>
               <Button
                 aria-label={removeActionName(label)}
-                intent="ghost"
+                variant="ghost"
                 size="glyph-md"
                 onClick={(): void => {
                   const { [label]: _removed, ...rest } = hints;

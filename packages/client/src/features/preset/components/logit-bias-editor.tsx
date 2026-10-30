@@ -82,14 +82,12 @@ function BiasEntries({ bias, onChange }: { readonly bias: Bias | undefined; read
       <Stack gap="tight">
         {entries.map(([key, value]) => (
           <Row align="center" gap="field" key={key}>
-            <Badge intent="neutral" size="sm" tone="soft">
-              {key}
-            </Badge>
+            <Badge size="sm">{key}</Badge>
             <Text voice="label">{String(value)}</Text>
             <Text voice="gloss">{readoutOf(key, lookup)}</Text>
             <Button
               aria-label={`Remove logit bias ${key}`}
-              intent="ghost"
+              variant="ghost"
               onClick={(): void => onChange(Object.fromEntries(entries.filter(([other]) => other !== key)))}
               size="icon"
               type="button"
@@ -108,7 +106,7 @@ function BiasEntries({ bias, onChange }: { readonly bias: Bias | undefined; read
           value={draftKey}
         />
         <NumberField aria-label="Bias" max={BIAS_MAX} min={BIAS_MIN} onValueChange={(next): void => setDraftBias(next)} value={draftBias} />
-        <Button intent="secondary" onClick={add} type="button">
+        <Button variant="outline" onClick={add} type="button">
           Add
         </Button>
       </Row>

@@ -16,7 +16,10 @@ import type { ThemeBackground, ThemeOverride } from "#theme";
 import { themeBackgroundSchema, themeOverrideSchema } from "#theme";
 import { worldBookRoleSchema } from "#world-info";
 // The analysis leaf avoids a cycle: refinery's public root composes these character validators.
+import type { RefineryAnalyzePayload } from "../refinery/core.ts";
 import { refineryAnalyzePayloadSchema, refineryAnalyzePayloadViewSchema } from "../refinery/core.ts";
+// The workloads scope leaf has no import back into this area; the area root would close a cycle through refinery.
+import type { WorkloadEstimateScope, WorkloadRunScope } from "../workloads/execution.ts";
 
 const HANDLE_MIN = 1;
 const HANDLE_MAX = 200;
@@ -1025,16 +1028,178 @@ export const characterListInputSchema = characterCensusInputSchema
   })
   .optional();
 
-/** A handle to a synthetic group-character identity row. */
-export interface GroupCharacterRef {
+/** A handle to a character identity row: the return of the by-handle, by-import-hash and synthetic-group ops. */
+export interface CharacterRef {
   readonly characterId: CharacterId;
 }
 
+/** Synthetic group-character mint/find (chat-injected, internal); owns the `__group__${chatId}` handle namespace. */
+export interface MintGroupCharParams {
+  readonly ownerId: UserId;
+  readonly chatId: ChatId;
+}
+
+export interface FindGroupCharParams {
+  readonly ownerId: UserId;
+  readonly chatId: ChatId;
+}
+
 /** Find-or-mint the hidden group-narrator identity for a room. Idempotent, never null. */
-export type MintSyntheticGroupCharacterOp = (params: { readonly ownerId: UserId; readonly chatId: ChatId }) => Promise<GroupCharacterRef>;
+export type MintSyntheticGroupCharacterOp = (params: MintGroupCharParams) => Promise<CharacterRef>;
 
 /** The group identity for a room, or null if it is not yet minted. */
-export type FindSyntheticGroupCharacterOp = (params: { readonly ownerId: UserId; readonly chatId: ChatId }) => Promise<GroupCharacterRef | null>;
+export type FindSyntheticGroupCharacterOp = (params: FindGroupCharParams) => Promise<CharacterRef | null>;
+
+export interface GetCardParams extends CharacterActorParams {
+  readonly characterId: CharacterId;
+}
 
 /** One card the principal may read, or null when it is gone or not theirs. */
-export type GetCharacterCardOp = (params: { readonly principal: Principal; readonly characterId: CharacterId }) => Promise<CharacterCard | null>;
+export type GetCharacterCardOp = (params: GetCardParams) => Promise<CharacterCard | null>;
+
+/** Card text for the embeddings indexer, keyed by id alone with no owner scope (a trusted system re-reader);
+ *  null when the card is gone or synthetic. */
+export type LoadCharacterCardTextOp = (characterId: CharacterId) => Promise<string | null>;
+
+/** Every user-facing character verb carries the resolved principal; ownership scopes off `principal.userId`. */
+export interface CharacterActorParams {
+  readonly principal: Principal;
+}
+
+/** Import provenance stamp for `create`; importHash is the whole-file sha-256 dedup key, distinct from
+ *  contentHash. Omit for app-authored cards. */
+export interface CharacterImportProvenance {
+  readonly importedFrom: string | null;
+  readonly importHash: string;
+  /** The background the card carried, re-linked by its content hash onto the owner's own asset (then by its
+   *  id); one the owner holds by neither is dropped. */
+  readonly background?: ThemeBackground | null;
+}
+
+export interface CreateCharacterParams extends CharacterActorParams {
+  readonly input: CreateCharacterInput;
+  readonly provenance?: CharacterImportProvenance;
+}
+
+export interface GetCharacterParams extends CharacterActorParams {
+  readonly characterId: CharacterId;
+}
+
+/** What a caller writing from an OLD basis declares it merged against (#1446/#1560) — the card state the
+ *  write is conditional on. `contentHash` covers the card's IDENTITY; every member beside it is a field a
+ *  stale-basis caller may WRITE that the hash deliberately does not witness (`#primitives/serde/card`
+ *  `semanticFields` excludes the re-attribution fields on purpose, and `creatorNotes` is both excluded and
+ *  refinable). A field in the second group with no member here is a silent overwrite waiting to happen, so
+ *  the producer builds this object under a compile-forced mapped type. */
+export interface CardWriteBasis {
+  readonly contentHash: string;
+  readonly creatorNotes: string | null;
+}
+
+export interface UpdateCharacterParams extends CharacterActorParams {
+  readonly characterId: CharacterId;
+  readonly input: UpdateCharacterInput;
+  /** OPT-IN compare-and-swap for a caller writing from a basis it read EARLIER (#1446): the card state the
+   *  patch was constructed against ({@link CardWriteBasis}). Supplied means the write is conditional on the
+   *  card still carrying it, and a card that moved refuses TOTALLY with `CHARACTER_STALE_BASIS` instead of
+   *  overwriting the edit that landed in between. Omitted is the ordinary read-and-write-back edit,
+   *  unchanged (D28 in-place). NOT wire-reachable: the tRPC router builds this params object and never
+   *  forwards a client value. */
+  readonly expectedBasis?: CardWriteBasis;
+}
+
+export interface DuplicateCharacterParams extends CharacterActorParams {
+  readonly characterId: CharacterId;
+}
+
+export interface SnapshotParams extends CharacterActorParams {
+  readonly characterId: CharacterId;
+  readonly label?: string | null;
+}
+
+/** Re-import dedup lookup (import-injected, internal): the owner's character already carrying importHash. */
+export interface FindByImportHashParams {
+  readonly ownerId: UserId;
+  readonly importHash: string;
+}
+
+/** By-handle lookup (seeder-injected, internal): the default-card seeder's partial-rerun resolve path. */
+export interface FindByHandleParams {
+  readonly ownerId: UserId;
+  readonly handle: CharacterHandle;
+}
+
+export type CreateCharacterOp = (params: CreateCharacterParams) => Promise<CharacterDetail>;
+export type GetCharacterOp = (params: GetCharacterParams) => Promise<CharacterDetail>;
+export type UpdateCharacterOp = (params: UpdateCharacterParams) => Promise<CharacterDetail>;
+export type DuplicateCharacterOp = (params: DuplicateCharacterParams) => Promise<CharacterDetail>;
+export type SnapshotCharacterOp = (params: SnapshotParams) => Promise<SnapshotRef>;
+export type FindCharacterByHandleOp = (params: FindByHandleParams) => Promise<CharacterRef | null>;
+export type FindCharacterByImportHashOp = (params: FindByImportHashParams) => Promise<CharacterRef | null>;
+
+// ── Refinery's reach into the character library: the owner implements each op, refinery consumes it ──────
+
+/** Load one OWNED character's canonical card (the full `cardOf` projection — the one home for the card's
+ *  JSON parse seams). `undefined` = absent OR foreign, collapsed — the consumer throws ITS leak-free
+ *  not-found (the existence-oracle posture). Refinery snapshots this into `refinery_sessions.original_card`
+ *  at session start and re-reads the LIVE card at apply time (the greeting-index assert runs against the
+ *  live array, never the snapshot). */
+export type LoadOwnedCardOp = (args: { readonly ownerId: UserId; readonly characterId: CharacterId }) => Promise<CharacterCard | undefined>;
+
+/** ONE card the score sweep may work on — the card itself plus the owner the stamp must be scoped to (a
+ *  bulk sweep spans owners, so the row's own owner rides with it; the stamp op re-asserts it in the WHERE). */
+export interface RefineryScoreTarget {
+  readonly characterId: CharacterId;
+  readonly ownerId: UserId;
+  readonly card: CharacterCard;
+}
+
+/** What the sweep's enumeration returns. TWO numbers, because the FILL arm's whole point is that `targets`
+ *  is SMALLER than the library: reporting only the targets would make a fill run over a fully-scored library
+ *  say "scanned 0 cards", which reads as "your library is empty" instead of "everything already has a
+ *  score". `inScope` is the whole candidate set (a COUNT, not a fetch — the cards themselves stay unread). */
+interface RefineryScoreTargets {
+  readonly targets: readonly RefineryScoreTarget[];
+  readonly inScope: number;
+}
+
+/** Enumerate the cards a claimed `refine-score-sweep` run should consider. Every-owner reads require
+ *  the existing run authority; an owned read requires its UserId. `unscoredOnly`
+ *  pushes the sweep's FILL arm into SQL rather than reading the whole library to discard most of it.
+ *
+ *  Synthetic (`__group__`) characters are excluded: they are chat plumbing, never authored cards, so a
+ *  quality score about one is meaningless — the same fence `list` applies to the library. */
+export type ListRefineryScoreTargetsOp = (args: WorkloadRunScope & { readonly unscoredOnly: boolean }) => Promise<RefineryScoreTargets>;
+
+/** Exact ready cardinality under admitted estimate scope; no execution authority or private-card output. */
+export type CountRefineryScoreTargetsOp = (args: WorkloadEstimateScope & { readonly unscoredOnly: boolean }) => Promise<number>;
+
+/** One half of the derived signals — the two halves have INDEPENDENT producers (a score run stamps
+ *  `score`, an analyze run stamps `analysis`; security pass §1 gap 2), so the patch is one arm, never
+ *  both, and the stamp merges it over the currently-stored other half. */
+export type RefinerySignalsPatch = { readonly score: number } | { readonly analysis: RefineryAnalyzePayload };
+
+/** Merge-stamp `characters.refinery` for one OWNED character. The owner predicate rides IN THE WHERE
+ *  (injected-op-caller-gate: an op that dropped its caller would be a cross-tenant write hole) — the
+ *  refinery verb's ownership belt runs first, this is defense-in-depth, and a zero-row update is a
+ *  silent no-op by design. */
+export type StampRefinerySignalsOp = (args: {
+  readonly ownerId: UserId;
+  readonly characterId: CharacterId;
+  readonly patch: RefinerySignalsPatch;
+}) => Promise<void>;
+
+/** Delete ONE `character_snapshots` row by id, scoped to the OWNER + the owning character (#1551, tightened
+ *  #1571/train-78: `injected-op-caller-param` — a retraction is owner-scoped work like the stamp op above,
+ *  and the owner predicate rides IN THE WHERE for the same defense-in-depth reason). The apply path's
+ *  "auto: before refinery apply" belt-13 snapshot is the apply's WITNESS, not its prelude (the
+ *  `restoreCardInPlace` precedent's own words) — it must be taken BEFORE the conditional write to capture
+ *  the pre-image at all, so a `CHARACTER_STALE_BASIS` refusal from that write leaves a snapshot with
+ *  nothing to witness. This op is how `applyFields` retracts it: never a bulk/owner-wide delete, always the
+ *  exact id the failed apply's own `snapshotCharacter` call just minted. A zero-row delete is a silent
+ *  no-op (nothing to retract is not an error — a foreign owner's retraction deletes nothing). */
+export type DeleteSnapshotOp = (args: {
+  readonly ownerId: UserId;
+  readonly snapshotId: CharacterSnapshotId;
+  readonly characterId: CharacterId;
+}) => Promise<void>;
