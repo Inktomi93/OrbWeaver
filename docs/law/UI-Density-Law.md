@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-25
+updated: 2026-10-30
 ---
 
 # UI density law — the assignment law for the token scales
@@ -142,6 +142,8 @@ Two properties make it a SEAL rather than a suggestion:
 Check the rendered value with `getComputedStyle(...)` against the document-resolved custom property, never a hardcoded px (§5.3).
 
 ### 4.3 Primitive API deltas the law forced
+
+[D336](../adr/0336-tone-roles-and-one-variant-vocabulary.md) amends the colour, fill, size and use-specific axes below for `Card`, `Button`, `Badge`, `Text`, `ListRow`, `Row`, `Stack`, `Section` and `Grid`. That amendment is not yet built; [item 1421](../work/1421-build-the-tone-role-tier-and-one-variant.md) tracks it, and each step rewrites the rows it changes.
 
 | primitive | delta | why |
 | - | - | - |

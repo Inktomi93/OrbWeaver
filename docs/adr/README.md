@@ -282,3 +282,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D333 | [Retained tooling serves application development](0333-retained-tooling-serves-application-development.md) | active |
 | D334 | [A workload contribution may exclude kinds from running beside it](0334-workload-kinds-may-exclude-each-other.md) | active |
 | D335 | [Cross-owner boot verbs take a boot grant only boot importers can mint](0335-boot-cross-owner-verbs-take-a-boot-grant.md) | active |
+| D336 | [Intent colors derive tone roles, and primitives share one tone, variant and size vocabulary](0336-tone-roles-and-one-variant-vocabulary.md) | active |
