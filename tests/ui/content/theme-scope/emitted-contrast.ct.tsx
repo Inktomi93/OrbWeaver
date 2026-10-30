@@ -1,10 +1,12 @@
 import type { Oklch } from "@orb/kit/theme-derivation";
 import { AA_NON_TEXT_RATIO, AA_NORMAL_RATIO, oklabDistance, srgbToOklch, TONE_TINT_SEPARATION, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { pixelContrast, pixelSurface } from "@orb/testkit/browser/spec";
+import { THEME_SCOPE_EMIT_VARS, THEME_SCOPE_NON_PALETTE_VARS } from "@orb/ui/theme-scope/emit-vars";
 import { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/test";
 import type {
   NestedSeedStory,
+  NestedSeedSurfaceStory,
   ReadingBandStory,
   SelectedRowStory,
   SemanticContrastStory,
@@ -124,6 +126,31 @@ test("a seed palette nested inside a custom mid-grey scope paints its own tone r
   const onPage = await painted("page");
   expect(Object.keys(onPage).length).toBeGreaterThan(0);
   expect(await painted("carried")).toEqual(onPage);
+});
+
+test("a seed palette nested inside a carried scope resolves its own value for every palette variable the scope emits", async ({ mount, page }) => {
+  const component = await mount<typeof NestedSeedSurfaceStory>("tests/ui/content/theme-scope/_contrast-stories/NestedSeedSurfaceStory", {
+    background: MID_GREY,
+  });
+  const nonPalette: readonly string[] = THEME_SCOPE_NON_PALETTE_VARS;
+  const palette = THEME_SCOPE_EMIT_VARS.filter((name) => !nonPalette.includes(name));
+  const emitted = await component
+    .locator('[data-slot="theme-scope"]')
+    .evaluate((scope, names) => names.filter((name) => scope.style.getPropertyValue(name) === ""), palette);
+  // A variable the scope does not emit leaks nothing, so the comparison below would pass without judging it.
+  expect(emitted, "palette variables the full-palette scope left unset").toEqual([]);
+  const resolved = (nest: string): Promise<Readonly<Record<string, Readonly<Record<string, string>>>>> =>
+    page.locator(`[data-nest="${nest}"] [data-seed-probe]`).evaluateAll(
+      (probes, names) =>
+        Object.fromEntries(
+          probes.map((probe) => {
+            const style = getComputedStyle(probe);
+            return [probe.getAttribute("data-seed-probe"), Object.fromEntries(names.map((name) => [name, style.getPropertyValue(name).trim()]))];
+          }),
+        ),
+      palette,
+    );
+  expect(await resolved("carried")).toEqual(await resolved("page"));
 });
 
 for (const theme of [undefined, ...(Object.keys(SEED_THEME_VALUE_SETS) as (keyof typeof SEED_THEME_VALUE_SETS)[])]) {
