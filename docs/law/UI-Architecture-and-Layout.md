@@ -114,7 +114,7 @@ packages/client/
     routes/             # HAND-WRITTEN routes: / (app-root.tsx) · /login — no file-based codegen; admin
                         #   is a group in the Settings SECTION at /, NOT a standalone route (§6.1)
     components/         # tier 2 — domain-AWARE cross-feature composites with no single feature owner
-                        #   (ConfirmDialog · LibraryRow · CharacterPicker · QueryBoundary · WeaveGlyph …);
+                        #   (ConfirmDialog · LibraryRow · CharacterPicker · QueryBoundary …);
                         #   composition-tier DIRECTORY MODULES (lockdown §3)
     data/               # the data-layer primitives (TanStack Query + tRPC) — §13.1
       trpc.ts · query-client.ts · invalidation.ts · create-entity-mutation.ts ·

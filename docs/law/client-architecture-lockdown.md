@@ -17,7 +17,7 @@ updated: 2026-10-17
 ## 0. TL;DR — the non-negotiables (one screen)
 
 1. **Five tiers, one direction:** `@orb/ui` → `components/` → `{data,forms,state}/` → `lib/` → `features/`; routes + `main.tsx` compose on top. A feature imports DOWN only; features never import each other at runtime (dep-cruiser).
-2. **Ordinary features touch ZERO CSS.** Do not add `className`/`style` to a raw intrinsic element or add a feature stylesheet outside the shell-frame path (`orb/no-raw-intrinsic-paint` refuses `className`, `style` and spreads on a raw element in the client; the app shell's static shell.css class strings are its one exception). A `style` prop on an `@orb/ui` component carries only values computed at runtime from measurement or data; a static value is a primitive prop, a token utility or a variant (`orb/no-static-style-prop`). The six homes, their responsibilities, and that bounded exception live in §4; do not restate the vocabulary here.
+2. **Ordinary features touch ZERO CSS.** Do not add `className`/`style` to a raw intrinsic element or add a feature stylesheet outside the shell-frame path (`orb/no-raw-intrinsic-paint` refuses `className`, `style` and spreads on a raw element in the client; the app shell's static shell.css class strings are its one exception). A `style` prop on an `@orb/ui` component carries only values computed at runtime from measurement or data; a static value is a primitive prop, a token utility or a variant (`orb/no-static-style-prop`). The CSS homes, their responsibilities, and that bounded exception live in §4; do not restate the vocabulary here.
 3. **One registry primitive, no static maps.** Keep each section, settings pane, modal and contributor in one definition, assembled at the composition root. Do not add a parallel registry map. "Derive, don't re-declare."
 4. **The `/` route is a thin mount.** Do not add a sections map or feature imports to a route body. Assemble feature definitions and contributors at the composition door, and it is two modules: `main.tsx` (boot) plus `client/src/compose/` (the assemblies, behind the `/` route's lazy boundary). §7 states the split and why.
 5. **Cross-feature needs have exactly one channel each** — the eleven-row decision table is §12: ephemeral client state (and navigation) → the `state/` commons; another feature's server data → `trpc.*` (cache-first — NOT a network round-trip when cached); **EXTENDING another feature's surface → a CONTRIBUTOR registry assembled at the door** (ten families live; this is the graft channel); shapes → contracts/type-only; composites → `components/`; a feature's own Content↔Context → its editor-bridge (INTRA-feature only). Anything else is a violation.
@@ -59,7 +59,7 @@ The client is FIVE tiers, not "ui + features". A builder reaches DOWN this ladde
 | Tier | Home | What belongs | May import | Enforcer |
 | - | - | - | - | - |
 | 1 primitives | `@orb/ui` | domain-agnostic parts (Button, ListRow, Dialog, setting-row) | kit + sealed satellites | resolver physics + `ui-cake` + `ui-satellite-seals-*` |
-| 2 composites | `client/src/components/` | domain-aware cross-feature composites and app-level components with no single feature owner (ConfirmDialog, LibraryRow, CharacterPicker, QueryBoundary, WeaveGlyph) | ui · kit · contracts · `#data` · `#forms` · `#state` · `#lib` · siblings — never `features/`/`routes/` | dep-cruiser `client-components-tier` — three rules in `.dependency-cruiser.ts`: `client-components-tier` + `client-lib-below-components` + `client-state-below-components` |
+| 2 composites | `client/src/components/` | domain-aware cross-feature composites and app-level components with no single feature owner (ConfirmDialog, LibraryRow, CharacterPicker, QueryBoundary) | ui · kit · contracts · `#data` · `#forms` · `#state` · `#lib` · siblings — never `features/`/`routes/` | dep-cruiser `client-components-tier` — three rules in `.dependency-cruiser.ts`: `client-components-tier` + `client-lib-below-components` + `client-state-below-components` |
 | 3 factories/seams | `client/src/{data,forms,state}/` | the wiring machines: `createEntityMutation`, `createCollectionSurface`, form factories, the invalidation seam, the state commons + 3 store doors | per the existing direction rules | `client-data-direction` · `client-forms-direction` · `client-state-below-data` |
 | 4 util floor | `client/src/lib/` | cross-cutting display/util seams (time, notify, test-ids, message-render, message-role-labels, theme-override-form, agent-bridge) + the registry primitive | ui/kit/contracts only — reaches up to nothing in-client | `client-lib-floor` |
 | 5 features | `client/src/features/` | the slices (per-slice shape: `features/README.md` — surfaces/anchors/components/hooks/lib/index.ts); compose tiers 1–4, never each other | everything below + type-only cross-feature | `client-features-no-cross` · `client-feature-front-door` |
@@ -93,19 +93,24 @@ when to hoist. Review repeated composites before hoisting them; semantic near-du
 
 **Every reusable portable visual VALUE is a conformant DTCG token; every component SKIN is a `tv()`
 variant; LAYOUT is an `@orb/ui` primitive. A generated value that inherently depends on the CSS runtime is
-explicit vendor-extension data, never a fake token type. CSS is legal in exactly the six homes below, and a
+explicit vendor-extension data, never a fake token type. CSS is legal only in the homes below, and a
 feature is not a seventh home.** This is a path-closed set: a CSS file outside these paths is a defect even
 when its declarations use tokens.
 
-### 4.2 The six homes — closed by path
+### 4.2 The CSS homes — closed by path
 
 | Home | What it is | Hand-written? |
 | - | - | - |
 | `packages/ui/src/tokens/tokens.json` | THE reusable-value source: stable DTCG tokens/value-set composition plus schema-validated `orb.cssValues` metadata for generated values that cannot be portable. Edit → `pnpm --filter @orb/ui tokens:build` regenerates | yes (the source) |
 | `packages/ui/src/styles/theme.css` | generated Tailwind `@theme` plus seed `[data-theme]` value sets — DO NOT EDIT. The value-set sources are `packages/ui/src/tokens/themes/*.json`; there is no authored `ui/src/styles/themes/**` tier | NO — generated by `tokens.build.ts`, freshness-enforced |
 | `packages/ui/src/styles/globals.css` | ui's universal CSS mechanism tier: imports, UA/vendor normalization, reduced-motion and reset floors, shared keyframes, masks/formulas, and primitive-wide treatments — never product/shell styling | yes, only when CSS itself is the mechanism |
+| `packages/ui/src/styles/layers.css` | the cascade layer order statement, imported first by every entry | yes (one statement) |
+| `packages/ui/src/styles/fonts.css`, `motion-floor.css`, `primitives.css`, `waystone.css`, `weave.css` | ui region sheets that `globals.css` imports inside its layers: the vendored faces, the reduced-motion floor, document floors and primitive-wide `@utility` treatments, and the Waystone and WebWeave recipes | yes, under the same rule as `globals.css` |
+| `packages/ui/src/markdown/katex.css` | the lazily loaded vendor math sheet, ranked in the `vendor` layer | yes (vendor wrapper only) |
 | `packages/ui/src/styles/tiers.css` | density-tier slot map: semantic slot names repoint to DTCG token steps | yes (token references only) |
 | `packages/client/src/styles/globals.css` | client-wide CSS mechanisms: document appearance/defers, capability-query treatments, reading rules, and bounded recipes shared above features — never a component skin or shell-frame rule | yes, only when token/`tv()` composition cannot express it honestly |
+| `packages/client/src/styles/platform.css` | the platform media rules in the `preference` layer: the forced-colors palette and print | yes |
+| `packages/client/src/styles/appearance-channel.gen.css` | the appearance channel rules — DO NOT EDIT | NO — generated by `appearance-channel.build.ts`, freshness-enforced |
 | `packages/client/src/features/app-shell/surfaces/shell.css`, the index that imports its `shell/` region files in cascade order | the app frame: shell geometry, region paint from semantic tokens, responsive regime, and coordinated compositor motion — never component skins; `orb/shell-paint-law` holds it | yes — the ONE feature-tier stylesheet |
 
 `packages/ui/src/**/variants.ts` is not a CSS home. It is the component-skin mechanism: `tv()` composes token utilities and may not mint values or stylesheets.

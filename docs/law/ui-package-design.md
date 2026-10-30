@@ -300,8 +300,8 @@ history.
 Inclusion rule for any new primitive: **domain-agnostic** (a `Button`/`Badge`/`Card`, never a
 `CharacterCard`) AND referenced by ≥1 committed design; domain components live in `client/features`.
 The **proposal-diff** pattern (chat-crew 07) is a FEATURE over `@orb/ui/diff`, not a ui primitive;
-`weave-glyph` is app-level (`client/src/components/weave-glyph.tsx`, §13.9) and enters through the
-`#components` public door.
+`WeaveGlyph` lives in `@orb/ui` (`packages/ui/src/art/web-weave/weave-glyph.tsx`) and enters through the
+`@orb/ui/web-weave` door.
 
 ## 13. Primitive authoring rules (the recurring-mistake gates — BINDING)
 

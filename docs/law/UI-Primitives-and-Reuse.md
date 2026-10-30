@@ -60,7 +60,7 @@ updated: 2026-10-16
 
 ### 13.3 The new gates (machine-enforced — added by D54)
 
-Enforcement state per gate: §8 (LIVE vs PARKED). The D54 set (plan-time names; as-built in parens): `no-static-staletime-on-bus-keys` (built `orb/no-static-staletime`) · `no-inline-cache-surgery-in-stream` (built `orb/chat-stream-writes-in-bus-only`; scoped to subscription/stream bodies — must NOT flag `createEntityMutation.onMutate`) · native persisted-store factory required-key types plus `orb/no-raw-zustand-persist` · `virtualizer-only-in-seal` (LIVE — dep-cruiser `ui-satellite-seals-*`) · the upstream linters `@tanstack/eslint-plugin-query` + `eslint-plugin-react-hooks` (LIVE — `eslint.config.ts`; the Compiler's Rules-of-React enforcement is mandatory, not optional).
+The D54 set (plan-time names; as-built in parens): `no-static-staletime-on-bus-keys` (built `orb/no-static-staletime`) · `no-inline-cache-surgery-in-stream` (built `orb/chat-stream-writes-in-bus-only`; scoped to subscription/stream bodies — must NOT flag `createEntityMutation.onMutate`) · native persisted-store factory required-key types plus `orb/no-raw-zustand-persist` · `virtualizer-only-in-seal` (LIVE — dep-cruiser `ui-satellite-seals-*`) · the upstream linters `@tanstack/eslint-plugin-query` + `eslint-plugin-react-hooks` (LIVE — `eslint.config.ts`; the Compiler's Rules-of-React enforcement is mandatory, not optional).
 
 The Form factory bakes: pill off `!isDefaultValue` · **no hand-rolled `fieldValuesEqual`** (lib does deep compare) · post-submit-effect `reset(saved)` · version-locked `dontUpdateMeta` + a guard test · `useSelector` (not `useStore`).
 
@@ -68,25 +68,25 @@ The Form factory bakes: pill off `!isDefaultValue` · **no hand-rolled `fieldVal
 
 The §6.1 rule applied. **Trigger = ≥3 fields OR validation OR save/draft semantics** — *Form is for forms, not for "entities."* The six obligations the factories bake (verified FACTORY-ORIGINAL — no example or doc fixes them): seed-on-load · `key`-remount on id change · post-submit `reset(saved)` · the `seededRef + persistent-isDirty` reseed guard · the Zustand-`persist` draft mirror (autosave; OPTIONAL on saved, see the obligation-5 doctrine below) · `dontUpdateMeta` on non-user writes.
 
-Factory column = the factory each surface uses TODAY (code is the truth). D66 A4 (autosave everywhere) + the north-star §6 rollout flip the button-gated entity editors to autosave as they land — marked **COMMITTED, not yet built** where the code still gates on a button.
+Factory column = the factory each surface uses (code is the truth). Entity editors autosave (D66 A4). An explicit-submit form is for creating something or for input that must not save half-typed.
 
 | Surface | Factory (today) | Why |
 | - | - | - |
-| Character card editor | `createSavedEntityForm` (+ optional `draft` mirror) | long authored text; button-gated (save-bar + DirtyPill still live). D66 A4 flips to autosave — COMMITTED, not yet built |
-| Preset editor | `createSavedEntityForm` | many fields; button-gated. D66 A4 flips to autosave (`Save preset` removed) — COMMITTED, not yet built |
-| World-info / lorebook entry | `createSavedEntityForm` | multi-field; button-gated. North-star §6 flips to autosave — COMMITTED, not yet built |
+| Character card editor | `createAutosaveEntityForm` | long authored text; saves as you type |
+| Preset editor | `createAutosaveEntityForm` | many fields; saves as you type |
+| World-info / lorebook entry | `createAutosaveEntityForm` | multi-field; saves as you type |
 | Persona editor | `createAutosaveEntityForm` | multi-field |
 | Group-chat create + config | `createAutosaveEntityForm` | immediate-commit chat law (no save-bar); the whole-object DU rebuild lives in the save fn |
 | Room overrides (per-chat) | `createAutosaveEntityForm` | flip-and-it-saves |
 | Settings panels (appearance / system / connection config) | `createAutosaveEntityForm` | many grouped toggles, save-on-change |
-| Connection / credential add+edit | `createSavedEntityForm` | multi-field + validation (never autosave a half-typed credential) |
+| Connection / credential add | `createSavedEntityForm` | multi-field + validation (never autosave a half-typed credential) |
 | User-admin create / edit user | `createSavedEntityForm` | multi-field + validation |
-| D44 theme editor | `createSavedEntityForm` | the token subset (§12.1) |
+| D44 theme editor | `createAutosaveEntityForm` | the token subset (§12.1) |
 | — stays controlled + Zod — | | search box · lone toggle · single rename · login (2-field): trivial, no toolkit tax |
 
 **The under-use correction:** Form is for ANY multi-field / validation / save-or-draft surface — settings, connections, group config, theme, and user-admin all belong in a factory, not just the four entity editors.
 
-**Obligation-5 — the crash-mirror `draft` slot, when it earns its keep:** on an AUTOSAVE form the server row IS the crash mirror (a confirmed save lands within the debounce window), so the `draft` slot is OMITTED — a local mirror would duplicate synced truth (§12.1; the `use-appearance-form` / `use-persona-form` precedent). It earns its keep only for offline-heavy or long-invalid-mid-edit autosave panels. On a SAVED (button-gated) form `createSavedEntityForm` takes an OPTIONAL `draft` crash mirror: it seeds `defaultValues` from the SERVER row ONLY (so `isDefaultValue` still compares against server truth), then PROMOTES any surviving draft after mount as user-intent writes so `!isDefaultValue` lights the pill honestly (a restored draft that read "clean" would silently drop the work on the next navigation); a `draftSeededRef` makes the promotion mount-once so a background refetch can't re-apply it, a debounced form-level listener mirrors every real change (skipping the untouched seed so an open never mints a draft), and the slot clears on a confirmed save AND on `discard()`. Omitting `draft` is byte-identical to plain button-gated behavior. Required for editors whose fields carry long authored text (the character card editor is the founding consumer). Every `createEntityDraftStore` name registers in `DEVICE_LOCAL_REGISTRY` (`state/device-local-registry.ts`); the factory's name type is that registry's keys. (Codification trail: .)
+**Obligation-5 — the crash-mirror `draft` slot, when it earns its keep:** on an AUTOSAVE form the server row IS the crash mirror (a confirmed save lands within the debounce window), so the `draft` slot is OMITTED — a local mirror would duplicate synced truth (§12.1; the `use-appearance-form` / `use-persona-form` precedent). It earns its keep only for offline-heavy or long-invalid-mid-edit autosave panels. On a SAVED (button-gated) form `createSavedEntityForm` takes an OPTIONAL `draft` crash mirror: it seeds `defaultValues` from the SERVER row ONLY (so `isDefaultValue` still compares against server truth), then PROMOTES any surviving draft after mount as user-intent writes so `!isDefaultValue` lights the pill honestly (a restored draft that read "clean" would silently drop the work on the next navigation); a `draftSeededRef` makes the promotion mount-once so a background refetch can't re-apply it, a debounced form-level listener mirrors every real change (skipping the untouched seed so an open never mints a draft), and the slot clears on a confirmed save AND on `discard()`. Omitting `draft` is byte-identical to plain button-gated behavior. No saved form uses it. Every `createEntityDraftStore` name registers in `DEVICE_LOCAL_REGISTRY` (`state/device-local-registry.ts`); the factory's name type is that registry's keys.
 
 ### 13.5 Deferred-with-a-committed-default forks (D54)
 
