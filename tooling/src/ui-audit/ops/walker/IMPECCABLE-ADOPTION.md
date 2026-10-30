@@ -94,7 +94,6 @@ representative cap · 4 grouped by authored decision · X a bespoke accounting f
 | - | - | - | - | - |
 | `side-tab` | `side-tab` | P3 | 2 | dominant chromatic edge border (≥2px, ≥2× other sides); exempt tab-context, status/alert, safe tags, and the ratified ListRow selection accent |
 | `border-accent-on-rounded` | `border-accent-on-rounded` | P3 | 2 | thick chromatic border on any edge plus border-radius; shares `side-tab`'s exemptions |
-| `flat-type-hierarchy` | `flat-type-hierarchy` | P3 | 1 | page font-size census: 3 or more sizes with a max/min ratio under 2.0 |
 | `bounce-easing` | `bounce-easing` | P2 | 2 | bounce/elastic/wobble/spring animation-name, or an overshoot cubic-bezier |
 | `dark-glow` | `glow-shadow` | P3 | 2 | chromatic box/text-shadow halo; the sanctioned carrier is a `::before` layer, never the element's own shadow |
 | `radial-halo` | `radial-halo` | P2 | 2 | saturated radial wash fading to transparent, chromatic stop at high alpha, large surface |
@@ -153,6 +152,7 @@ translucent stop, as `image-indeterminate` (hand-verify) rather than trusting al
 
 | rule | reason |
 | - | - |
+| `flat-type-hierarchy` | a page-wide size ratio does not establish visual hierarchy; retain the raw size census and review semantic roles and governed voices |
 | `oversized-h1` | no display heroes in the shell registers |
 | `italic-serif-display` | no display heroes; faces are token-pinned to Geist |
 | `shape-assembled-illustration` | empty-state decorations and the weave glyph are sanctioned brand marks, not a hero-illustration class |

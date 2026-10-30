@@ -3,8 +3,9 @@
 // Subscriptions require an explicit terminal responder or their own SSE helper.
 
 import type { AppRouter } from "@orb/server";
-import type { Page, Request } from "@playwright/test";
+import type { Page, Request, Response } from "@playwright/test";
 import { expect } from "@playwright/test";
+import type { z } from "zod";
 import type { TrpcWire } from "../iso/trpc-wire.ts";
 // The ONE tRPC code union home (tests/support/node/matchers.ts, derived through classifyDomainError —
 // gate no-inline-union-redecl). Type-only: erased, no vitest runtime in the Playwright process.
@@ -420,6 +421,81 @@ function decodeInputs(req: Request, url: URL, isBatch: boolean): object {
   return typeof raw === "object" && raw !== null ? raw : {};
 }
 
+const TRPC_PATH_PREFIX = "/api/trpc/";
+
+function procedureNames(url: URL): readonly string[] {
+  return decodeURIComponent(url.pathname.slice(TRPC_PATH_PREFIX.length)).split(",");
+}
+
+function matchingProcedureIndexes<P extends TrpcProcedurePath>(request: Request, path: P, filter?: TrpcRequestFilter<P>): number[] {
+  const url = new URL(request.url());
+  if (!url.pathname.startsWith(TRPC_PATH_PREFIX)) {
+    return [];
+  }
+  const names = procedureNames(url);
+  const inputs = filter === undefined ? null : decodeInputs(request, url, url.searchParams.get("batch") === "1");
+  return names.flatMap((name, index) => {
+    if (name !== path) {
+      return [];
+    }
+    if (filter === undefined) {
+      return [index];
+    }
+    const parsed = filter.schema.safeParse(inputs === null ? undefined : Reflect.get(inputs, String(index)));
+    return parsed.success && filter.matches(parsed.data) ? [index] : [];
+  });
+}
+
+/** Match a procedure carried alone or within a native tRPC batch. */
+export function isTrpcRequestFor(url: string, path: TrpcProcedurePath): boolean {
+  const { pathname } = new URL(url);
+  return pathname.startsWith(TRPC_PATH_PREFIX) && procedureNames(new URL(url)).includes(path);
+}
+
+/** A production schema and semantic predicate for a pass-through request hold. */
+export interface TrpcRequestFilter<P extends TrpcProcedurePath> {
+  readonly schema: z.ZodType<TrpcInput<P>>;
+  readonly matches: (input: TrpcInput<P>) => boolean;
+}
+
+/** Inspect the same query/body decoder as CT routing without replacing the real server response. */
+export function matchesTrpcRequestInput<P extends TrpcProcedurePath>(request: Request, path: P, filter: TrpcRequestFilter<P>): boolean {
+  return matchingProcedureIndexes(request, path, filter).length > 0;
+}
+
+/** Read one actual successful wire result through its owning output schema; ambiguous batch members are refused. */
+export async function readTrpcOutput<P extends TrpcProcedurePath, TOutput extends TrpcWireOutput<P>>(
+  response: Response,
+  path: P,
+  schema: z.ZodType<TOutput>,
+  filter?: TrpcRequestFilter<P>,
+): Promise<TOutput> {
+  const indexes = matchingProcedureIndexes(response.request(), path, filter);
+  if (indexes.length !== 1) {
+    throw new Error(`A native ${path} response must identify exactly one matching procedure`);
+  }
+  const index = indexes[0];
+  if (index === undefined) {
+    throw new Error(`The native ${path} response has no matching procedure`);
+  }
+  const body: unknown = await response.json();
+  let envelope = body;
+  if (new URL(response.url()).searchParams.get("batch") === "1") {
+    if (!Array.isArray(body)) {
+      throw new Error(`The native ${path} batch response is not an array`);
+    }
+    envelope = body[index];
+  }
+  if (typeof envelope !== "object" || envelope === null) {
+    throw new Error(`The native ${path} response has no success envelope`);
+  }
+  const result: unknown = Reflect.get(envelope, "result");
+  if (typeof result !== "object" || result === null) {
+    throw new Error(`The native ${path} response did not carry a successful result`);
+  }
+  return schema.parse(Reflect.get(result, "data"));
+}
+
 export interface TrpcRecorder {
   /** Unvalidated, unnormalized request JSON correlated by AppRouter procedure path; never server-parsed input. */
   readonly inputs: <P extends TrpcProcedurePath>(proc: P) => TrpcInput<P>[];
@@ -449,7 +525,7 @@ export async function routeTrpc<const TRoutes extends object>(
     const url = new URL(req.url());
     const isBatch = url.searchParams.get("batch") === "1";
     // Batched requests comma-join the procedures into the path; non-batched is one proc.
-    const procs = decodeURIComponent(url.pathname.split("/api/trpc/")[1] ?? "").split(",");
+    const procs = procedureNames(url);
     const byIndex = decodeInputs(req, url, isBatch);
 
     for (const [index, proc] of procs.entries()) {

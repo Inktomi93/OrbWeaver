@@ -24,6 +24,10 @@ export const CORPUS_REFINERY_SCHEMA_REVISION = "corpus_refinery_score_revision";
 
 const CUSTOM_SCORE_REPLY = JSON.stringify({ overallScore: 8, notes: "The keeper preserves the ledger's character." });
 
+/** The refinery stage replies the scripted edge answers, keyed by the wire schema name the stage requests. */
+export const CORPUS_REFINERY_REPLY_NAMES = ["refinery_score", "refinery_rewrite", "refinery_analyze"] as const;
+const [REFINERY_SCORE_REPLY, REFINERY_REWRITE_REPLY, REFINERY_ANALYZE_REPLY] = CORPUS_REFINERY_REPLY_NAMES;
+
 export const CORPUS_STRUCTURED_REPLIES: ReadonlyMap<string, string> = new Map([
   [
     "comparison_narrative",
@@ -31,7 +35,7 @@ export const CORPUS_STRUCTURED_REPLIES: ReadonlyMap<string, string> = new Map([
   ],
   ["card_answer", JSON.stringify({ answer: "The keeper remembers the orbital ledger.", grounded: true })],
   [
-    "refinery_score",
+    REFINERY_SCORE_REPLY,
     JSON.stringify({
       fieldScores: [{ field: "description", score: 8, strengths: "A clear keeper.", weaknesses: "The task is broad.", suggestions: "Name the ledger." }],
       overallScore: 8,
@@ -40,9 +44,9 @@ export const CORPUS_STRUCTURED_REPLIES: ReadonlyMap<string, string> = new Map([
       inventedDirective: "This unrecognized model field must be itemized and stripped.",
     }),
   ],
-  ["refinery_rewrite", JSON.stringify({ fields: [{ field: "description", text: "A curious keeper preserves the orbital ledger and its witnesses." }] })],
+  [REFINERY_REWRITE_REPLY, JSON.stringify({ fields: [{ field: "description", text: "A curious keeper preserves the orbital ledger and its witnesses." }] })],
   [
-    "refinery_analyze",
+    REFINERY_ANALYZE_REPLY,
     JSON.stringify({
       preserved: ["The keeper's curiosity."],
       lost: [],

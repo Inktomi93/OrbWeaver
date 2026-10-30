@@ -1,8 +1,5 @@
-// Typography & copy-surface floors (ramp-bound type/leading/tracking/caps/justify/line-length), one
-// text element at a time. The PAGE-level censuses (off-theme-font, flat-type-hierarchy) live beside
-// this in checks-font-census.ts, and the CROSS-SAMPLE caveat-outweighed fold in checks-caveat.ts —
-// both split off for the same reason: a different subject needs its own population. Pure.
-// Provenance: lib/collect.ts header.
+// Typography checks judge individual rendered text against governed legibility and layout bounds.
+// Page font faces and same-block caveat hierarchy have separate classifiers.
 import type { CandidateDisposition, Finding } from "../contract/findings.ts";
 import type { TextStyleInput } from "../contract/samples.ts";
 import { INTERACTIVE_TEXT_FLOOR_PX, LEADING_FLOOR, LEADING_FLOOR_EPSILON, RAMP_FLOOR_EPSILON_PX, TEXT_MICRO_PX } from "./ramp.ts";
@@ -63,13 +60,14 @@ function checkTypeFloor(input: TextStyleInput): Finding | null {
   if (input.codeContext || input.directTextLen < MIN_FLAGGABLE_TEXT || input.fontSizePx <= 0) {
     return null;
   }
-  if (input.fontSizePx < TEXT_MICRO_PX - RAMP_FLOOR_EPSILON_PX) {
+  const rampFloor = input.rampFloorPx ?? TEXT_MICRO_PX;
+  if (input.fontSizePx < rampFloor - RAMP_FLOOR_EPSILON_PX) {
     return {
       rule: "text-below-ramp",
       severity: "P2",
       selector: input.selector,
-      value: `${input.fontSizePx}px (ramp floor ${TEXT_MICRO_PX}px)`,
-      message: `rendered text is ${input.fontSizePx}px — below the smallest ratified type step (text.micro ${TEXT_MICRO_PX}px); off the token ramp AND a legibility failure`,
+      value: `${input.fontSizePx}px (ramp floor ${rampFloor}px)`,
+      message: `rendered text is ${input.fontSizePx}px — below the smallest ratified type step (local text.micro ${rampFloor}px); use the governed type ramp`,
       origin: "impeccable",
     };
   }

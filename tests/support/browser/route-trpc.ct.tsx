@@ -1,7 +1,10 @@
 /* eslint-disable orb/ct-responder-reads-input -- the subject is routeTrpc's own response semantics, so each responder is the scripted marker under test */
 // Native route failures must fail the owning CT even when the page handles the network error and keeps rendering.
+import { presetDetailSchema, presetIdInputSchema } from "@orb/contracts/preset";
+import { serveCorpusProcedures } from "@orb/testkit/ct";
+import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { expect, test } from "@playwright/test";
-import { malformedOrForwardTrpcWire, routeTrpc, trpcEndSubscription, trpcError, trpcHold } from "../node/route-trpc.ts";
+import { isTrpcRequestFor, malformedOrForwardTrpcWire, readTrpcOutput, routeTrpc, trpcEndSubscription, trpcError, trpcHold } from "../node/route-trpc.ts";
 
 const ORIGIN = "http://route-trpc.test";
 const HEADING = "The subject heading still renders";
@@ -69,4 +72,51 @@ test("a declared hold keeps its complete batch pending until explicitly released
   expect(recorder.count("health")).toBe(2);
   held.release({ ok: true });
   expect(await response).toEqual([{ result: { data: { ok: true } } }, { result: { data: { ok: true } } }]);
+});
+
+test("successful native response capture binds repeated batch paths to the validated input and owning output", async ({ page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const first = await caller.preset.create({ name: "First response", kind: "generation" });
+  const second = await caller.preset.create({ name: "Second response", kind: "generation" });
+  await page.route(`${ORIGIN}/**`, (route) => route.fulfill({ contentType: "text/html", body: `<h1>${HEADING}</h1>` }));
+  await page.goto(ORIGIN);
+  await routeTrpc(page, serveCorpusProcedures(caller, ["preset.get"]));
+  const response = page.waitForResponse((item) => isTrpcRequestFor(item.url(), "preset.get"));
+  await page.evaluate(
+    async ({ firstId, secondId }) => {
+      await fetch(`/api/trpc/preset.get,preset.get?batch=1&input=${encodeURIComponent(JSON.stringify({ 0: { id: firstId }, 1: { id: secondId } }))}`);
+    },
+    { firstId: first.id, secondId: second.id },
+  );
+  const actual = await response;
+  await expect(readTrpcOutput(actual, "preset.get", presetDetailSchema)).rejects.toThrow("exactly one matching procedure");
+  const captured = await readTrpcOutput(actual, "preset.get", presetDetailSchema, { schema: presetIdInputSchema, matches: (input) => input.id === second.id });
+  expect(captured).toEqual(second);
+});
+
+test("native output capture validates unbatched success and refuses server errors and malformed output", async ({ page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const preset = await caller.preset.create({ name: "Output validation", kind: "generation" });
+  await page.route(`${ORIGIN}/**`, (route) => route.fulfill({ contentType: "text/html", body: `<h1>${HEADING}</h1>` }));
+  await page.goto(ORIGIN);
+  await routeTrpc(page, serveCorpusProcedures(caller, ["preset.get"]));
+  const successful = page.waitForResponse((item) => isTrpcRequestFor(item.url(), "preset.get"));
+  await page.evaluate(async (id) => {
+    await fetch(`/api/trpc/preset.get?input=${encodeURIComponent(JSON.stringify({ id }))}`);
+  }, preset.id);
+  expect(await readTrpcOutput(await successful, "preset.get", presetDetailSchema)).toEqual(preset);
+  await routeTrpc(page, { "preset.get": () => trpcError({ code: "FORBIDDEN", message: "Scripted refusal" }) });
+  const refused = page.waitForResponse((item) => isTrpcRequestFor(item.url(), "preset.get"));
+  await page.evaluate(async (id) => {
+    await fetch(`/api/trpc/preset.get?input=${encodeURIComponent(JSON.stringify({ id }))}`);
+  }, preset.id);
+  await expect(readTrpcOutput(await refused, "preset.get", presetDetailSchema)).rejects.toThrow("successful result");
+  await routeTrpc(page, { "preset.get": () => malformedOrForwardTrpcWire({ id: "invalid-produced-id" }) });
+  const malformed = page.waitForResponse((item) => isTrpcRequestFor(item.url(), "preset.get"));
+  await page.evaluate(async (id) => {
+    await fetch(`/api/trpc/preset.get?input=${encodeURIComponent(JSON.stringify({ id }))}`);
+  }, preset.id);
+  await expect(readTrpcOutput(await malformed, "preset.get", presetDetailSchema)).rejects.toThrow();
 });

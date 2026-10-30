@@ -26,6 +26,7 @@
 import { HOME_RECENT_DOCUMENTS_LIMIT } from "@orb/contracts/databank";
 import { Database } from "@orb/ui/icons";
 import type { HomeTileContribution } from "#state";
+import { DATABANK_DOCUMENTS_TILE_ID } from "#state";
 import { HomeDocumentsTileAction, HomeDocumentsTileBody } from "../components/home-documents-tile-body.tsx";
 
 /** LAST on the shelf, which makes this tile the shelf's FOOT — the block `home-surface.tsx` pairs with the
@@ -46,7 +47,7 @@ const DOCUMENTS_TILE_ORDER = 50;
 const DOCUMENTS_SKELETON_ROWS = HOME_RECENT_DOCUMENTS_LIMIT + 1;
 
 export const databankDocumentsTile: HomeTileContribution = {
-  id: "databank.documents",
+  id: DATABANK_DOCUMENTS_TILE_ID,
   // The section's own name, so the tile and the rail glyph you jump to read as one place.
   title: "Databank",
   icon: Database,

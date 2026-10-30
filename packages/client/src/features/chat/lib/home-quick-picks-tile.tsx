@@ -4,8 +4,9 @@
 
 import { Users } from "@orb/ui/icons";
 import type { HomeTileContribution } from "#state";
+import { QUICK_PICKS_TILE_ID } from "#state";
 import { HomeQuickPicksTileBody } from "../components/home-quick-picks-tile-body.tsx";
-import { QUICK_PICKS_TILE_ID, useStarterRegion } from "./home-starter-region.ts";
+import { useStarterRegion } from "./home-starter-region.ts";
 
 const QUICK_PICKS_TILE_ORDER = 20;
 

@@ -62,7 +62,7 @@ export interface OrbPluginUiEntry extends OrbPluginListEntry {
 }
 
 /** Runtime-listed registrations and current observations; inactive contexts are not evaluated for eligibility. */
-export interface OrbPluginUiSnapshot {
+interface OrbPluginUiSnapshot {
   readonly chatId: ChatId | null;
   readonly plugins: readonly OrbPluginUiEntry[];
 }

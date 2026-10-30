@@ -1,4 +1,4 @@
-// No testkit door export reaches a drizzle row read, except the one accepted route named below, so a seed cannot hand a
+// No testkit door export reaches a drizzle row read, except the accepted private construction routes below, so a seed cannot hand a
 // verb suite a row. Dependency-cruiser cannot judge this: it sees modules, and every door already reaches the rows tier
 // through `fixtures.ts` → `corpus.ts`, so a planted re-export adds no new module edge. The walk follows values instead.
 // Measured 17.2 s for the file at load average 10; the planted program reuses the first build's parsed source files.
@@ -22,9 +22,12 @@ const DRIZZLE = { owners: new Set(["BaseSQLiteDatabase", "LibSQLDatabase", "SQLi
 const LIBSQL = { owners: new Set(["Client", "Transaction"]), path: "/node_modules/@libsql/core/" };
 const CLIENT_READS = new Set(["execute", "batch", "migrate"]);
 const RAW_CLIENT = "$client";
-// The capsule is the corpus publisher: it refuses a copied private database holding unfinished work before boot and
-// then publishes the fixture, which is a snapshot of rows (eslint.config.ts names corpus.ts for the same reasons).
-const ACCEPTED = [{ door: "./node/composed", exported: "createCorpusCapsule" }] as const;
+// These constructors retain raw parity metadata in private provenance, not domain seeds; their row homes are explicit in ESLint.
+const ACCEPTED = [
+  { door: "./node/composed", exported: "createCorpusCapsule" },
+  { door: "./node/helpers", exported: "openPreparedSurfaceRoot" },
+  { door: "./node/helpers", exported: "prepareSurfaceData" },
+] as const;
 
 // Each shape a door could hand out a row-reading seed by, each its own export on one planted composed door.
 const SEED_IMPORT = 'import { seedCorpusLibraries } from "./corpus-seed.ts";';

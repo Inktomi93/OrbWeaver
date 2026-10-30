@@ -2,11 +2,9 @@
 import process from "node:process";
 import type { ChatInspection, DebugErrorsResponse, RpgTracesResponse, WireCapture, WireCapturesResponse } from "@orb/contracts/debug";
 import { chatInspectionSchema, debugErrorsResponseSchema, rpgTracesResponseSchema, wireCapturesResponseSchema } from "@orb/contracts/debug";
-import { TRPC_BATCH_MAX_ITEMS } from "@orb/contracts/rpc";
 import { isPlainObject } from "@orb/kit/guards";
 import type { CharacterHandle, CharacterId, ChatId, MessageId, UserConnectionId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import type { AppRouter } from "@orb/server";
 import type {
   ActorRefInput,
   CompactionIntent,
@@ -18,10 +16,15 @@ import type {
   TrpcInput,
   TrpcPath,
 } from "@orb/testkit/browser/spec";
+import type { TrpcRequestFilter } from "@orb/testkit/node/helpers";
+import { isTrpcRequestFor, matchesTrpcRequestInput } from "@orb/testkit/node/helpers";
 import type { Page, Route } from "@playwright/test";
-import type { TRPCClient } from "@trpc/client";
-import { createTRPCClient, httpBatchLink } from "@trpc/client";
 import { DEV_TARGET_ALLOWED, E2E_DEBUG_TOKEN, E2E_LOCAL_ENGINE_LABEL, SINGLE_USER } from "./modes.ts";
+import type { TrpcClient } from "./trpc-client.ts";
+import { createTrpcClient } from "./trpc-client.ts";
+
+export type { TrpcClient } from "./trpc-client.ts";
+export { createTrpcClient } from "./trpc-client.ts";
 
 // The vite front door (the specs' baseURL). Every consumer of this module is a single-user-project spec, so
 // this is always SINGLE_USER.baseUrl — the actor clients target their stack via the spec's per-project
@@ -65,9 +68,6 @@ export function batchResultData(body: unknown): { readonly data: unknown } | und
   return isPlainObject(result) ? { data: result["data"] } : undefined;
 }
 
-/** The public native client for this router, including its serialized output types. */
-export type TrpcClient = TRPCClient<AppRouter>;
-
 type ClientProcedure<TPath extends TrpcPath> = ProcedureAt<TrpcClient, TPath>;
 
 /** A query or mutation result with the installed client's serialization semantics. */
@@ -86,28 +86,6 @@ export type TaskBinding = TrpcClientOutput<"connection.listBindings">[number];
 
 /** The native client's persisted tracker projection. */
 type TrackerView = TrpcClientOutput<"rpg.getTrackerView">;
-
-/** Bind the native batch transport to one stack and the caller's exact identifying headers. */
-export function createTrpcClient(baseUrl: string, headers: Readonly<Record<string, string>> = {}): TrpcClient {
-  return createTRPCClient<AppRouter>({
-    links: [
-      httpBatchLink({
-        url: `${baseUrl}/api/trpc`,
-        maxItems: TRPC_BATCH_MAX_ITEMS,
-        headers: ({ opList }) => (opList[0].type === "mutation" ? { ...headers, "content-type": "application/json" } : headers),
-        fetch: async (url, init) => {
-          const response = await fetch(url, init === undefined ? undefined : { ...init, signal: init.signal ?? null });
-          if (!response.ok) {
-            throw new Error(
-              `e2e trpc: ${url instanceof Request ? url.url : String(url)} ${init?.method ?? "GET"} failed (${String(response.status)}): ${await response.text()}`,
-            );
-          }
-          return response;
-        },
-      }),
-    ],
-  });
-}
 
 /** The single-user stack's native client; actors and per-mode setup bind their own origin. */
 export const trpc = createTrpcClient(BASE_URL);
@@ -739,13 +717,7 @@ export function abortTurn(chatId: ChatId): Promise<unknown> {
   return trpc.chat.abort.mutate({ chatId });
 }
 
-const TRPC_PATH_PREFIX = "/api/trpc/";
-
-/** Does this request URL carry the procedure, alone or inside a batch (`/api/trpc/a,b?batch=1`)? */
-export function isTrpcRequestFor(url: string, path: TrpcPath): boolean {
-  const { pathname } = new URL(url);
-  return pathname.startsWith(TRPC_PATH_PREFIX) && pathname.slice(TRPC_PATH_PREFIX.length).split(",").includes(path);
-}
+export { isTrpcRequestFor } from "@orb/testkit/node/helpers";
 
 /** A procedure held at the network edge: the real request waits until `release`, then reaches the real server. */
 export interface HeldTrpcProcedure {
@@ -756,12 +728,16 @@ export interface HeldTrpcProcedure {
 }
 
 /** Hold every browser request carrying `path` until released. A batch that carries it is held whole. */
-export async function holdTrpcProcedure(page: Page, path: TrpcPath): Promise<HeldTrpcProcedure> {
+export async function holdTrpcProcedure<P extends TrpcPath>(page: Page, path: P, filter?: TrpcRequestFilter<P>): Promise<HeldTrpcProcedure> {
   const held: Route[] = [];
   let released = false;
   const { promise: requested, resolve } = Promise.withResolvers<void>();
   const matches = (url: URL): boolean => isTrpcRequestFor(url.href, path);
   const handler = async (route: Route): Promise<void> => {
+    if (filter !== undefined && !matchesTrpcRequestInput(route.request(), path, filter)) {
+      await route.fallback();
+      return;
+    }
     resolve();
     if (released) {
       await route.continue();

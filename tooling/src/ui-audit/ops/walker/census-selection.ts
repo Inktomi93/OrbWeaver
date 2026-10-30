@@ -75,8 +75,10 @@ export const WALKER_CENSUS_SELECTION = `  // ── selection idiom: authored ST
   function selectionState(el) {
     if (el.hasAttribute("data-checked") || el.getAttribute("aria-checked") === "true") return { kind: "checked", selected: true };
     if (el.hasAttribute("data-unchecked") || el.getAttribute("aria-checked") === "false") return { kind: "checked", selected: false };
-    if (el.hasAttribute("data-selected") || el.getAttribute("aria-selected") === "true") return { kind: "selected", selected: true };
-    if (el.hasAttribute("data-unselected") || el.getAttribute("aria-selected") === "false") return { kind: "selected", selected: false };
+    // cmdk serializes false as a present string attribute; Base UI uses presence-only true hooks.
+    var dataSelected = el.getAttribute("data-selected");
+    if ((dataSelected !== null && dataSelected !== "false") || el.getAttribute("aria-selected") === "true") return { kind: "selected", selected: true };
+    if (dataSelected === "false" || el.hasAttribute("data-unselected") || el.getAttribute("aria-selected") === "false") return { kind: "selected", selected: false };
     var current = el.getAttribute("aria-current");
     if (el.hasAttribute("data-current") || (current !== null && current !== "false")) return { kind: "current", selected: true };
     if (el.hasAttribute("data-not-current") || current === "false") return { kind: "current", selected: false };

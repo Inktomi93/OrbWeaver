@@ -171,7 +171,6 @@ Finding at all and their control is the printed population row.
 | crushed-tracking | `letter-spacing` below the band | `w/census-text` | `lib/checks-typography` | **none — owed** |
 | caveat-outweighed | a sentence-shaped caveat set SMALLER than the endpoints it bounds | `w/census-text` | `lib/checks-caveat` | `T/tooling/ui-audit/index.int.test.ts` (both directions) |
 | off-theme-font | the PAGE's censused font faces + a paint probe for each | `w/census-text` (`fontCensus`) | `lib/checks-font-census` | `T/tooling/ui-audit/index.int.test.ts` (unpaintable face + present twin) |
-| flat-type-hierarchy | the PAGE's censused font-size SET | `w/census-text` (`fontCensus.sizes`) | `lib/checks-typography` | **none — owed** |
 | buried-raster | raster carriers (`<img>` / `background-image` url) at accumulated opacity < 0.15 | `w/census-text` (`buriedRasters`) | `lib/checks-media` | **none — owed** by design: the owner ruled this detector must not fire on today's tree, so a live plant would be a manufactured finding — `T/…/lib/checks-media.test.ts` is the checker-level proof |
 | tier-drift | painted value vs the tier's OWN `--orb-tier-*`, resolved by the browser (a self-oracle) | `w/census-tier` | `lib/checks-quality` | `T/…/census-tier.int.test.ts` (7 arms) · `census-tier.test.ts` (the pair-map derivation) |
 | off-grid-text | device-pixel landing of text inside a promotion context | `w/census-grid` | `lib/checks-typography` | `T/…/census-grid.int.test.ts` · `census-grid.test.ts` |

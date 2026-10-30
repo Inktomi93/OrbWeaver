@@ -75,7 +75,14 @@ export { seedCreatedTag } from "./factories/tag.ts";
 export { createQueueScanner, seedWorkloadSchedule } from "./factories/workload.ts";
 export type { PhysicalPeer, PhysicalPeerFetch } from "./physical-peer.ts";
 export { servePhysicalPeer } from "./physical-peer.ts";
-export type { ServerHarnessOptions, ServerTestHarness, UnclaimedServerTestHarness } from "./server.ts";
+export type {
+  NativeServerHarnessOptions,
+  NativeServerTestHarness,
+  ServerHarnessOptions,
+  ServerRuntimeTime,
+  ServerTestHarness,
+  UnclaimedServerTestHarness,
+} from "./server.ts";
 export { configureOidc, createServerHarness } from "./server.ts";
 export { claimShareOwner, readRelayStarts, relayExecutable, relayProgram, SHARE_OWNER_PASSWORD } from "./share.ts";
 export { requireShowcaseBundle, requireShowcaseManifest } from "./showcase-bundle.ts";

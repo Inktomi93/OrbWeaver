@@ -82,7 +82,6 @@ export const DESIGN_AUDIT_RULES = [
   { id: "crushed-tracking", family: "typography", severity: ["P3"] },
   { id: "caveat-outweighed", family: "typography", severity: ["P2"] },
   { id: "off-theme-font", family: "typography", severity: ["P2"] },
-  { id: "flat-type-hierarchy", family: "typography", severity: ["P3"] },
   { id: "buried-raster", family: "media", severity: ["P1"] },
   { id: "tier-drift", family: "quality", severity: ["P2"] },
   { id: "off-grid-text", family: "typography", severity: ["P2"] },

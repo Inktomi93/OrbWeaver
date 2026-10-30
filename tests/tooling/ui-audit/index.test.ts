@@ -928,6 +928,14 @@ auditRuleTest(
   },
 );
 
+test("a local resolved type floor follows scaling without weakening the physical control-label floor", () => {
+  const rampFloorPx = TEXT_MICRO_PX * 0.8;
+  const scaled = { ...TEXT_STYLE_BASE, fontSizePx: rampFloorPx, rampFloorPx };
+  expect(checkTextStyle(scaled).map(({ rule }) => rule)).not.toContain("text-below-ramp");
+  expect(checkTextStyle({ ...scaled, fontSizePx: rampFloorPx - 1 }).map(({ rule }) => rule)).toContain("text-below-ramp");
+  expect(checkTextStyle({ ...scaled, interactive: true }).map(({ rule }) => rule)).toContain("undersized-ui-text");
+});
+
 auditRuleTest(
   [
     { rule: "undersized-ui-text", kind: "fires", reason: "interactive micro text below eleven pixels emits" },
@@ -1781,19 +1789,16 @@ auditRuleTest(
   },
 );
 
-auditRuleTest(
-  [
-    { rule: "flat-type-hierarchy", kind: "fires", reason: "a compressed heading-size spread emits" },
-    { rule: "flat-type-hierarchy", kind: "silent", reason: "the real ramp spread stays clean" },
-  ],
-  "a compressed size spread fires flat-type-hierarchy; the real ramp spread passes",
-  () => {
-    const flat = checkFontCensus({ faces: [], probeUsable: true, sizes: [12, 13, 14] });
-    expect(flat.map((f) => f.rule)).toContain("flat-type-hierarchy");
-    const ramp = checkFontCensus({ faces: [], probeUsable: true, sizes: [10.5, 13, 15, 24] });
-    expect(ramp).toEqual([]);
-  },
-);
+test("the page size census remains descriptive rather than prescribing a hierarchy ratio", () => {
+  for (const sizes of [
+    [12, 13, 14],
+    [13, 15, 16, 20],
+    [10.5, 13, 15, 24],
+  ]) {
+    const census = { faces: [], probeUsable: true, sizes };
+    expect(checkFontCensus(census)).toEqual([]);
+  }
+});
 
 // ── duplicate-action-door: which repetitions are HOMES (#252 · #851) ─────────
 // The walker hands over one row per offered named control; this function decides how many HOMES they

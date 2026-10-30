@@ -7,17 +7,15 @@ import { useEffect } from "react";
 import { TrailingArrow } from "#components";
 import { useTRPC } from "#data";
 import type { HomeTileContribution } from "#state";
-import { openModal, rememberHomeTileSettledHidden, useHomeTileSettledHidden } from "#state";
+import { openModal, ROSTERS_TILE_ID, rememberHomeTileSettledHidden, useHomeTileSettledHidden } from "#state";
 import { HomeRostersTileBody } from "../components/home-rosters-tile-body.tsx";
+import { homeRostersVisible } from "./home-rosters-visibility.ts";
 
 // Between the character faces and temp chat: all three start a chat, and a roster is the group one.
 const ROSTERS_TILE_ORDER = 25;
 
 // The fill count inside a remembered box; a device with no memory draws no box at all (see `useVisible`).
 const ROSTERS_SKELETON_ROWS = 3;
-
-/** The registry id, which is also this tile's key in the device's box memory. */
-const ROSTERS_TILE_ID = "rosterPreset.rosters";
 
 export const rosterPresetHomeTile: HomeTileContribution = {
   id: ROSTERS_TILE_ID,
@@ -33,7 +31,7 @@ export const rosterPresetHomeTile: HomeTileContribution = {
     const trpc = useTRPC();
     const { data: rosters } = useQuery(trpc.rosterPreset.count.queryOptions());
     const settledHiddenBefore = useHomeTileSettledHidden(ROSTERS_TILE_ID);
-    const settled = rosters === undefined ? undefined : rosters > 0;
+    const settled = rosters === undefined ? undefined : homeRostersVisible(rosters);
     useEffect(() => {
       if (settled !== undefined) {
         rememberHomeTileSettledHidden(ROSTERS_TILE_ID, !settled);

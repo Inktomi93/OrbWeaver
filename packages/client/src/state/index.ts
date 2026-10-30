@@ -218,6 +218,18 @@ export {
   onGameModeStopped,
 } from "./game-mode-transition.ts";
 export type { DormantDoorway, HomeTileContribution, HomeTileRegion } from "./home-tile-contracts.ts";
+export type { HomeTileId } from "./home-tile-ids.ts";
+export {
+  ALSO_OPEN_TILE_ID,
+  CHAT_MASTHEAD_TILE_ID,
+  CHAT_RECENTS_TILE_ID,
+  CHAT_TEMP_CHAT_TILE_ID,
+  DATABANK_DOCUMENTS_TILE_ID,
+  HOME_JUMP_TILE_ID,
+  HOME_TILE_IDS,
+  QUICK_PICKS_TILE_ID,
+  ROSTERS_TILE_ID,
+} from "./home-tile-ids.ts";
 export {
   readRememberedFootPaired,
   rememberHomeFootPaired,

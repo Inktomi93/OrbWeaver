@@ -20,8 +20,9 @@ import { useEffect } from "react";
 import { TrailingArrow } from "#components";
 import { useTRPC } from "#data";
 import type { HomeTileContribution } from "#state";
-import { forgetSurfaceBox, setActiveSection, useSurfaceBox } from "#state";
+import { ALSO_OPEN_TILE_ID, forgetSurfaceBox, setActiveSection, useSurfaceBox } from "#state";
 import { HomeAlsoOpenTileBody } from "../components/home-also-open-tile-body.tsx";
+import { homeAlsoOpenVisible } from "./home-also-open-visibility.ts";
 
 /** Between the hero (10) and the jump rail (40) — the mock's order down the hearth column. */
 const ALSO_OPEN_TILE_ORDER = 15;
@@ -30,9 +31,6 @@ const ALSO_OPEN_TILE_ORDER = 15;
  *  renders no box at all, see `useVisible`). The hero takes `items[0]`, so this list is at most one row
  *  short of the page the shared query asks for. Derived from that limit, never a second number that can drift from it. */
 const ALSO_OPEN_SKELETON_ROWS = HOME_RECENT_CHATS_LIMIT - 1;
-
-/** The registry id, which is also this tile's key in the device's box memory. */
-const ALSO_OPEN_TILE_ID = "chat.alsoOpen";
 
 export const chatAlsoOpenTile: HomeTileContribution = {
   id: ALSO_OPEN_TILE_ID,
@@ -57,7 +55,7 @@ export const chatAlsoOpenTile: HomeTileContribution = {
     const trpc = useTRPC();
     const { data: page } = useQuery(trpc.chat.listChats.queryOptions({ limit: HOME_RECENT_CHATS_LIMIT }));
     const remembered = useSurfaceBox(ALSO_OPEN_TILE_ID) !== null;
-    const visible = page === undefined ? remembered : page.items.length > 1;
+    const visible = page === undefined ? remembered : homeAlsoOpenVisible(page.items.length);
     const settledHidden = page !== undefined && !visible;
     useEffect(() => {
       if (settledHidden) {

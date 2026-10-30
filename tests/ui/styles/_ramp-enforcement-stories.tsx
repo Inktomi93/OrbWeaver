@@ -1,15 +1,17 @@
-import { CtIsolation } from "@orb/testkit/browser";
+import { CtAppearanceChannels, CtIsolation } from "@orb/testkit/browser";
 import { BarList } from "@orb/ui/bar-list";
 import { Button } from "@orb/ui/button";
 import type { OrbEChartsInstance } from "@orb/ui/chart";
 import { CodeEditor } from "@orb/ui/code-editor";
 import { Histogram } from "@orb/ui/histogram";
 import { Icon, Lock } from "@orb/ui/icons";
+import { Input } from "@orb/ui/input";
+import { Stack, Surface } from "@orb/ui/layout";
 import { SegmentedClock } from "@orb/ui/meter";
 import { Select } from "@orb/ui/select";
 import { WebSpinner } from "@orb/ui/spinner";
 import { Switch } from "@orb/ui/switch";
-import { Text } from "@orb/ui/text";
+import { Heading, Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { ThemeScope } from "@orb/ui/theme-scope";
@@ -91,6 +93,33 @@ export function RampChartsStory({
           </output>
         </div>
       </ThemeScope>
+    </CtIsolation>
+  );
+}
+
+export function RampTypographyStory({ fontScale }: { readonly fontScale: number }): ReactElement {
+  return (
+    <CtIsolation
+      subject="Governed typography"
+      isolates="Production voices, heading defaults and entry floors use the actual root-channel writer without application data."
+    >
+      <CtAppearanceChannels settings={{ fontScale }}>
+        <Stack padding="block" gap="row">
+          <Heading level={1}>Heading sample</Heading>
+          <Heading level={2}>Subheading sample</Heading>
+          <Heading level={3} voice="masthead">
+            Masthead sample
+          </Heading>
+          <Text voice="reading">Reading sample</Text>
+          <Text voice="label">Label sample</Text>
+          <Text voice="gloss">Gloss sample</Text>
+          <Text voice="code">Code sample</Text>
+          <Input aria-label="Form typography" defaultValue="Form entry" />
+          <Surface tier="instrument">
+            <Input aria-label="Dense typography" defaultValue="Dense entry" />
+          </Surface>
+        </Stack>
+      </CtAppearanceChannels>
     </CtIsolation>
   );
 }

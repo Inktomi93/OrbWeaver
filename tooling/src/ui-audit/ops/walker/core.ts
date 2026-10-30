@@ -354,13 +354,7 @@ const WALKER_CORE_CENSUS = `  // ONE settled identity snapshot is the denominato
   var devChromeSkips = 0;
   var inaccessibleSubjects = 0;
   var walkMutationCount = 0;
-  // THE OBSERVER OUTLIVES A THROW (#1317 item 10). Both disconnect sites are on the walk's happy path
-  // (ops/walker/returns.ts and ops/hover-walker-read.ts), so a segment that throws mid-walk leaves a live
-  // subtree MutationObserver on the page forever. Harmless on a launched browser we are about to close;
-  // on an attached --session it accumulates on the OWNER's page, one per failed run, each firing on every
-  // DOM change for the rest of that session. The walk cannot wrap itself in try/finally without changing
-  // the segment concatenation contract, so the install is made SELF-HEALING instead: the previous run's
-  // observer is disconnected here before this one is armed, which bounds the leak at one.
+  // Other compositions reuse this census without full-walk teardown; replace their retained observer before installing its successor.
   if (window.__orbWalkObserver) window.__orbWalkObserver.disconnect();
   var walkObserver = new MutationObserver(function (records) {
     for (var wm = 0; wm < records.length; wm += 1) {

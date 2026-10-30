@@ -19,10 +19,6 @@ import type { TextStyleInput } from "../contract/samples.ts";
 // what the loud thing beside it means, set smaller than the thing it bounds, inverts the reading order of
 // a security argument.
 //
-// WHY THIS IS NOT `flat-type-hierarchy`. That rule asks whether a PAGE has enough distinct steps. This
-// one asks whether the steps are assigned to the right content — a page can have a perfect ramp and still
-// hand its loudest step to a machine readout and its quietest to the guarantee.
-//
 // THE HARD PART, STATED HONESTLY. Semantic importance is NOT computable from the DOM, and plenty of good
 // design renders a datum larger than its label. A rule that fires on every label/value pair is a wall,
 // and a wall trains readers to skip the output (#644). So this rule never guesses: it reads the app's OWN

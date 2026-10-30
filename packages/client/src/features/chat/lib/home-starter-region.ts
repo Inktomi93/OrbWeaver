@@ -4,10 +4,7 @@ import { usePrefetchQuery, useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useTRPC } from "#data";
 import type { HomeTileRegion } from "#state";
-import { rememberHomeRegion, useRememberedHomeRegion } from "#state";
-
-/** The quick-picks tile id, which is also its key in the device's region memory. */
-export const QUICK_PICKS_TILE_ID = "chat.quickPicks";
+import { QUICK_PICKS_TILE_ID, rememberHomeRegion, useRememberedHomeRegion } from "#state";
 
 function regionFor(roomCount: number): HomeTileRegion {
   return roomCount === 0 ? "hearth" : "shelf";

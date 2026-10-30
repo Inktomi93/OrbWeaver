@@ -1,7 +1,7 @@
 import { globSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { HomeTileContribution, SectionDefinition } from "@orb/client/state";
-import { assembleChrome, CONFIG_GROUP_IDS, isCollectionGroup, MODAL_SLOT_IDS, SECTION_IDS } from "@orb/client/state";
+import { assembleChrome, CONFIG_GROUP_IDS, HOME_TILE_IDS, isCollectionGroup, MODAL_SLOT_IDS, SECTION_IDS } from "@orb/client/state";
 import { createAuthedComposition, createClientRuntime } from "@orb/testkit/browser";
 import { expect, test } from "@orb/testkit/node";
 import ts from "typescript";
@@ -76,6 +76,7 @@ test("every collection body file is registered by a group", async () => {
 test("home tiles keep unique ids and an honest dormant doorway", () => {
   const ids = homeTiles.list().map((tile) => tile.id);
   expect(new Set(ids).size).toBe(ids.length);
+  expect(ids).toEqual([...HOME_TILE_IDS]);
   expect(homeTiles.list().flatMap((tile) => dormantFaults(tile.body))).toEqual([]);
 });
 

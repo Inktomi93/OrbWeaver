@@ -73,6 +73,7 @@ export interface TierDriftInput {
   readonly tier: string;
   readonly slot: string;
   readonly property: string;
+  /** The governing custom property, or a literal CSS expression such as a delegated zero inset. */
   readonly varName: string;
   readonly unit: "num" | "px" | "ratio";
   readonly sanctionedRaw: string;

@@ -71,7 +71,7 @@ export type { CorpusShellAmbient } from "./corpus-shell.ts";
 
 const PRIVATE_MATERIAL_MESSAGE = "Corpus publication contains private material";
 
-export type { CorpusRead, CorpusViewerRead } from "./corpus-read.ts";
+export type { CorpusRead } from "./corpus-read.ts";
 
 /** The finite corpus requests, not a replacement for the production routers' input parsers. */
 export const corpusReadInput = {

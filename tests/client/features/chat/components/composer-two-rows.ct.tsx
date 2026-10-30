@@ -342,6 +342,10 @@ for (const unavailable of [false, true]) {
     const input = page.getByRole("textbox", { name: "Message", exact: true });
     await expect(page.locator('[data-slot="composer-next-turn"]')).toHaveCount(unavailable ? 1 : 0);
     await input.fill("A short draft.");
+    const send = page.getByRole("button", { name: "Send message", exact: true });
+    await expect(send).toHaveAttribute("data-tooltip-describes", unavailable ? "caller" : "name");
+    await expect(send).toBeEnabled({ enabled: !unavailable });
+    await expect(send).toHaveAccessibleDescription(unavailable ? ((await page.locator('[data-slot="composer-next-turn"]').textContent()) ?? "") : "");
     const naturalHeight = await page.locator('[data-slot="composer"]').evaluate((element) => element.getBoundingClientRect().height);
     await input.focus();
     await emulateSoftKeyboard(page, 190);

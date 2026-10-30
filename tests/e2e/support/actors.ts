@@ -7,7 +7,7 @@ import { expect } from "@playwright/test";
 import type { CryptoKey } from "jose";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import type { NewConnection, TrpcClient, TrpcClientOutput } from "./trpc.ts";
-import { createTrpcClient } from "./trpc.ts";
+import { createTrpcClient } from "./trpc-client.ts";
 
 // Every actor constructor takes the stack's `baseUrl` explicitly — the spec passes Playwright's per-project
 // `baseURL` fixture (its vite origin), so an actor ALWAYS targets the same stack as the project, with no
@@ -116,7 +116,7 @@ export async function loginLocal(baseUrl: string, handle: Handle, password: stri
   const setCookie = res.headers.get("set-cookie") ?? "";
   const match = res.ok ? new RegExp(`${SESSION_COOKIE}=([^;]+)`).exec(setCookie) : null;
   if (match === null) {
-    throw new Error(`actor loginLocal(${handle}): no session cookie (HTTP ${res.status}): ${setCookie}`);
+    throw new Error(`actor loginLocal: no session cookie (HTTP ${res.status})`);
   }
   // Rebuild the cookie header value (name=value) — a browser would; the seam reads exactly this pair.
   return makeActorClient(baseUrl, { cookie: `${SESSION_COOKIE}=${match[1]}`, [CSRF_HEADER]: "1" });

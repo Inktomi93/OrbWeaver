@@ -134,4 +134,20 @@ ${WALKER_MUTATION_CARRIES}  var preWalkObserver = new MutationObserver(function 
 // the composition order makes that split free, as for
 // WALKER_OBSCURED_REACH above.
 export const COLLECT_SAMPLES_JS = `(async () => {
-${PRE_WALK_SETTLE}${WALKER_CORE}${WALKER_CENSUS_FRAME}${WALKER_TARGET_IDENTITY}${WALKER_RESOLVE}${WALKER_STATE_PAINT}${WALKER_STATE_GLOW}${WALKER_CENSUS_TEXT}${WALKER_HIT_EXTENT}${WALKER_ACCESSIBLE_NAME}${WALKER_CENSUS_INTERACTIVE}${WALKER_CENSUS_INTERACTIVE_NAVIGABILITY}${WALKER_CENSUS_BORDER}${WALKER_CENSUS_DECOR}${WALKER_CENSUS_ACCENT}${WALKER_CENSUS_GLOW}${WALKER_CENSUS_QUALITY}${WALKER_CENSUS_COLLISION}${WALKER_OBSCURED_REACH}${WALKER_CENSUS_OCCLUSION}${WALKER_CENSUS_COHORT}${WALKER_CENSUS_SELECTION}${WALKER_CENSUS_REGION}${WALKER_CENSUS_TIER}${WALKER_CENSUS_GRID}${WALKER_RETURNS}})()`;
+  try {
+${PRE_WALK_SETTLE}${WALKER_CORE}${WALKER_CENSUS_FRAME}${WALKER_TARGET_IDENTITY}${WALKER_RESOLVE}${WALKER_STATE_PAINT}${WALKER_STATE_GLOW}${WALKER_CENSUS_TEXT}${WALKER_HIT_EXTENT}${WALKER_ACCESSIBLE_NAME}${WALKER_CENSUS_INTERACTIVE}${WALKER_CENSUS_INTERACTIVE_NAVIGABILITY}${WALKER_CENSUS_BORDER}${WALKER_CENSUS_DECOR}${WALKER_CENSUS_ACCENT}${WALKER_CENSUS_GLOW}${WALKER_CENSUS_QUALITY}${WALKER_CENSUS_COLLISION}${WALKER_OBSCURED_REACH}${WALKER_CENSUS_OCCLUSION}${WALKER_CENSUS_COHORT}${WALKER_CENSUS_SELECTION}${WALKER_CENSUS_REGION}${WALKER_CENSUS_TIER}${WALKER_CENSUS_GRID}${WALKER_RETURNS}
+  } finally {
+    if (typeof preWalkObserver !== "undefined") preWalkObserver.disconnect();
+    if (typeof walkObserver !== "undefined") {
+      walkObserver.disconnect();
+      if (window.__orbWalkObserver === walkObserver) delete window.__orbWalkObserver;
+    }
+    if (typeof scrollRestore !== "undefined") {
+      for (var cleanupIndex = scrollRestore.length - 1; cleanupIndex >= 0; cleanupIndex -= 1) {
+        var cleanupSlot = scrollRestore[cleanupIndex];
+        cleanupSlot.el.scrollTop = cleanupSlot.top;
+        cleanupSlot.el.scrollLeft = cleanupSlot.left;
+      }
+    }
+  }
+})()`;
