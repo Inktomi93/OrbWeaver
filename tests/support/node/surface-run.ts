@@ -1,8 +1,10 @@
-import { readFileSync, renameSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
 import { viewerViewSchema } from "@orb/contracts/identity";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
 import { brandedId } from "@orb/kit/ids";
+import { execGit } from "@orb/tooling/floor/git/git";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import type { PlaywrightWorkerOptions } from "@playwright/test";
 import { z } from "zod";
@@ -69,6 +71,42 @@ export function surfaceArtifactModes(posture: SurfaceArtifactPosture): {
 }
 
 export type SurfaceRunConfig = z.output<typeof surfaceRunConfigSchema>;
+
+/** What a production client build reads. Journey, testkit and documentation edits outside these paths reuse a build. */
+const SURFACE_CLIENT_BUILD_INPUTS = ["packages", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", "tsconfig.base.json"] as const;
+
+/** The working-tree source state a client build comes from: every input path with the git blob id of its current
+ *  bytes, so staging or committing unchanged bytes keeps a build current and any edit, addition or deletion does not. */
+export function surfaceClientBuildKey(root: string): string {
+  const blobs = new Map<string, string>();
+  for (const line of execGit(root, ["ls-files", "--stage", "-z", "--", ...SURFACE_CLIENT_BUILD_INPUTS]).split("\0")) {
+    const match = /^\d+ ([0-9a-f]+) \d+\t(.+)$/u.exec(line);
+    if (match?.[1] !== undefined && match[2] !== undefined) {
+      blobs.set(match[2], match[1]);
+    }
+  }
+  const changed = execGit(root, ["ls-files", "-z", "--modified", "--others", "--exclude-standard", "--", ...SURFACE_CLIENT_BUILD_INPUTS])
+    .split("\0")
+    .filter((path) => path !== "");
+  const present = changed.filter((path) => existsSync(join(root, path)));
+  const ids =
+    present.length === 0
+      ? []
+      : execGit(root, ["hash-object", "--stdin-paths"], { input: `${present.join("\n")}\n` })
+          .trim()
+          .split("\n");
+  for (const path of changed) {
+    blobs.delete(path);
+  }
+  present.forEach((path, index) => {
+    blobs.set(path, ids[index] ?? "");
+  });
+  const hash = createHash("sha256");
+  for (const [path, id] of [...blobs].toSorted(([left], [right]) => (left < right ? -1 : 1))) {
+    hash.update(`${path}\0${id}\0`);
+  }
+  return hash.digest("hex");
+}
 
 /** Preserve the reporter boundary across native worker replacements. */
 export function writeSurfaceCaseAdmission(root: string, testId: string, completedAt: number | null): void {

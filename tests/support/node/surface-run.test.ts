@@ -1,3 +1,6 @@
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { configureFixtureGitIdentity, execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { expect, test } from "./fixtures.ts";
 import {
   readSurfaceCaseAdmission,
@@ -5,6 +8,7 @@ import {
   readSurfaceRunConfig,
   surfaceArtifactModes,
   surfaceCaseDelayMs,
+  surfaceClientBuildKey,
   surfaceNativeTimeout,
   writeSurfaceCaseAdmission,
 } from "./surface-run.ts";
@@ -68,4 +72,28 @@ test("persisted reporter admissions distinguish the next case from the preceding
   const admission = readSurfaceCaseAdmission(importStagingDir);
   expect(admission).toEqual({ testId: "next-case", completedAt: 210 });
   expect(surfaceCaseDelayMs(admission?.completedAt ?? null, 245, 100)).toBe(55);
+});
+
+test("a client build is current exactly while its build inputs are unchanged", ({ importStagingDir: root }) => {
+  execFixtureGit(root, ["init", "--quiet"]);
+  configureFixtureGitIdentity(root);
+  mkdirSync(join(root, "packages", "client"), { recursive: true });
+  mkdirSync(join(root, "tests", "e2e"), { recursive: true });
+  writeFileSync(join(root, "packages", "client", "app.ts"), "export const label = 1;\n");
+  writeFileSync(join(root, "tests", "e2e", "walk.spec.ts"), "export {};\n");
+  execFixtureGit(root, ["add", "-A"]);
+  execFixtureGit(root, ["commit", "--quiet", "-m", "fixture"]);
+  const built = surfaceClientBuildKey(root);
+  writeFileSync(join(root, "tests", "e2e", "walk.spec.ts"), "export const driver = 2;\n");
+  expect(surfaceClientBuildKey(root), "a journey edit reuses the build").toBe(built);
+  writeFileSync(join(root, "packages", "client", "app.ts"), "export const label = 2;\n");
+  const edited = surfaceClientBuildKey(root);
+  expect(edited, "an unstaged source edit makes the build stale").not.toBe(built);
+  execFixtureGit(root, ["add", "-A"]);
+  expect(surfaceClientBuildKey(root), "staging the same bytes keeps the same build current").toBe(edited);
+  writeFileSync(join(root, "packages", "client", "new.ts"), "export {};\n");
+  const added = surfaceClientBuildKey(root);
+  expect(added, "an untracked source file makes the build stale").not.toBe(edited);
+  rmSync(join(root, "packages", "client", "app.ts"));
+  expect(surfaceClientBuildKey(root), "a deleted source file makes the build stale").not.toBe(added);
 });

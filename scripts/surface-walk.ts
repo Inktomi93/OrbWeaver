@@ -1,5 +1,5 @@
-import { appendFileSync } from "node:fs";
-import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import { appendFileSync, existsSync } from "node:fs";
+import { appendFile, cp, mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import process from "node:process";
@@ -20,6 +20,7 @@ import {
   SURFACE_NATIVE_TIMEOUT_MS,
   SURFACE_OUTPUT_ROOT_ENV,
   SURFACE_RUN_CONFIG_ENV,
+  surfaceClientBuildKey,
   surfaceNativeTimeout,
   surfaceReadCommand,
   surfaceRunConfigSchema,
@@ -34,6 +35,7 @@ import { z } from "zod";
 const REPORT_TEARDOWN_RESERVE_MS = 60_000;
 const BUILD_TIMEOUT_MS = 180_000;
 const PRIVATE_UMASK = 0o077;
+const CLIENT_BUILDS_DIRECTORY = "client-builds";
 const NATIVE_CONFIG = { walk: "playwright-surface.config.ts", controls: "playwright-surface-controls.config.ts" } as const;
 
 function setPrivateCreationMode(): void {
@@ -119,10 +121,45 @@ async function recordLauncherFailure(runRoot: string, stage: string, evidence: s
   process.stderr.write(`Surface E2E incomplete: ${stage}; cause retained at ${evidence}\n`);
 }
 
-async function preparedWalk(prepared: PreparedSurfaceData, authValue: string | undefined, nativeArgs: readonly string[]): Promise<number> {
+/** Reuse the production client build whose source key matches the tree; build and retain it otherwise. Only the
+ *  current key is kept, and a build whose inputs changed while it ran is refused rather than cached as current. */
+async function currentClientBuild(privateRoot: string, runRoot: string, buildLog: string): Promise<string | null> {
+  const builds = join(privateRoot, CLIENT_BUILDS_DIRECTORY);
+  await mkdir(builds, { recursive: true, mode: 0o700 });
+  const key = surfaceClientBuildKey(process.cwd());
+  const current = join(builds, key);
+  if (existsSync(join(current, "index.html"))) {
+    await writeFile(buildLog, `Reused production client build ${key}; its build inputs match the working tree.\n`, { mode: 0o600 });
+    return current;
+  }
+  const buildTemporary = join(runRoot, "build-tmp");
+  await mkdir(buildTemporary, { mode: 0o700 });
+  const pending = join(builds, `${key}.pending-${String(process.pid)}`);
+  const build = await spawnNicedTranscript("pnpm", ["--filter", "@orb/client", "exec", "vite", "build", "--configLoader", "native", "--outDir", pending], {
+    cwd: process.cwd(),
+    env: inheritedProcessEnv({ ORB_ENV_NO_FILE: "1", TMPDIR: buildTemporary, TMP: buildTemporary, TEMP: buildTemporary }),
+    timeoutMs: budget(BUILD_TIMEOUT_MS),
+    onChunk: (chunk) => appendFileSync(buildLog, chunk, { mode: 0o600 }),
+  });
+  await writeFile(buildLog, build.transcript, { mode: 0o600 });
+  if (build.code !== 0 || surfaceClientBuildKey(process.cwd()) !== key) {
+    await rm(pending, { recursive: true, force: true });
+    return null;
+  }
+  // Retire superseded builds; another launcher's in-progress build stays its own to finish or discard.
+  for (const entry of await readdir(builds)) {
+    if (!entry.includes(".pending-")) {
+      await rm(join(builds, entry), { recursive: true, force: true });
+    }
+  }
+  await rename(pending, current);
+  return current;
+}
+
+async function preparedWalk(privateRoot: string, prepared: PreparedSurfaceData, authValue: string | undefined, nativeArgs: readonly string[]): Promise<number> {
   const clientDirectory = join(prepared.runRoot, "client");
   const buildLog = join(prepared.runRoot, "build.log");
-  const buildTemporary = join(prepared.runRoot, "build-tmp");
+  const buildTemporary = join(prepared.runRoot, "showcase-tmp");
   await mkdir(buildTemporary, { mode: 0o700 });
   const showcaseLog = join(prepared.runRoot, "showcase-build.log");
   const showcase = await spawnNicedTranscript("pnpm", ["--filter", "@orb/showcase-plugins", "build"], {
@@ -136,21 +173,13 @@ async function preparedWalk(prepared: PreparedSurfaceData, authValue: string | u
     await recordLauncherFailure(prepared.runRoot, "Showcase plugin build", showcaseLog);
     return 2;
   }
-  const build = await spawnNicedTranscript(
-    "pnpm",
-    ["--filter", "@orb/client", "exec", "vite", "build", "--configLoader", "native", "--outDir", clientDirectory],
-    {
-      cwd: process.cwd(),
-      env: inheritedProcessEnv({ ORB_ENV_NO_FILE: "1", TMPDIR: buildTemporary, TMP: buildTemporary, TEMP: buildTemporary }),
-      timeoutMs: budget(BUILD_TIMEOUT_MS),
-      onChunk: (chunk) => appendFileSync(buildLog, chunk, { mode: 0o600 }),
-    },
-  );
-  await writeFile(buildLog, build.transcript, { mode: 0o600 });
-  if (build.code !== 0) {
+  const build = await currentClientBuild(privateRoot, prepared.runRoot, buildLog);
+  if (build === null) {
     await recordLauncherFailure(prepared.runRoot, "Production client build", buildLog);
     return 2;
   }
+  // The run serves its own copy, so a later build cannot change the bytes this run's evidence describes.
+  await cp(build, clientDirectory, { recursive: true });
   const authMode = z.enum(AUTH_MODES).parse(authValue ?? (prepared.dataMode === "owner" ? "single-user" : "local"));
   await using server = await openPreparedSurfaceRoot(prepared, {
     clientDistDir: clientDirectory,
@@ -243,7 +272,7 @@ await runTool(async () => {
       },
       ...(values["owner-data"] === undefined ? {} : { ownerDataDirectory: resolve(values["owner-data"]) }),
     });
-    return await preparedWalk(prepared, values.auth, nativeArgs);
+    return await preparedWalk(privateRoot, prepared, values.auth, nativeArgs);
   } catch (error) {
     if (runRoot === undefined) {
       throw error;

@@ -75,11 +75,22 @@ function httpLines(route: CaseRoute): string[] {
     .map((annotation) => `HTTP: ${annotation.description ?? "Summary unavailable"}`);
 }
 
+/** The native selector that reruns exactly this case: its project plus its describe and title, anchored at the end. */
+function caseSelector(route: CaseRoute): string {
+  // Escape only pattern syntax: `RegExp.escape` also hex-escapes spaces and leading letters, which no one can read back.
+  const title = route.titlePath
+    .slice(-2)
+    .join(" ")
+    .replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+  return `--project=${route.project ?? "<project>"} -g "${title}$"`;
+}
+
 function caseLines(route: CaseRoute): string[] {
   const lines: string[] = [];
   lines.push(
     `### ${route.result?.status ?? "no end result"}: ${route.titlePath.join(" / ")}`,
     "",
+    `Rerun alone: append \`-- ${caseSelector(route)}\` to the launcher command; a \`-measurement\` twin of the project skips audits and screenshots.`,
     `Expected: ${route.test.expectedStatus}; retry: ${String(route.retry)}; native errors: ${String(route.result?.errors.length ?? 0)}.`,
     `Complete case: ${route.file}`,
     `Read: \`${surfaceReadCommand(route.file)}\``,

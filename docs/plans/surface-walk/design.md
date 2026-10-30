@@ -143,6 +143,31 @@ Completed native step events and case results remain readable if final native re
 The command retains its latest-run pointer in the private parent.
 Native logs, screenshots, traces, configuration, credentials, and provenance remain within the private run directory.
 
+## Development loop
+
+Develop a journey one case at a time on a measurement project.
+
+1. Select one case with `-- --project=<project> -g "<describe> <title>$"`. Each case in `agent-entry.md` prints its exact selector.
+2. Use the `-measurement` twin of a project while you develop. It runs the same journey without axe, the design census, the touch sweep, screenshots or traces.
+3. Run the `-evidence` project for a surface once its journeys pass.
+
+The launcher reuses the production client build while the source state of `packages/` and the root build files is unchanged. It keys the build on the git blob ids of the current working-tree bytes, keeps only the current build under the private parent's `client-builds/`, and refuses to cache a build whose inputs changed while it ran. Journey and testkit edits reuse the build.
+
+A one-case measurement run takes about 45 seconds. The synthetic dataset production and the native case each take about 20 seconds of it. The showcase bundle build takes about 2 seconds and has no reuse.
+
+## Journey authoring method
+
+Coverage comes from the generic walker: tab bodies, disclosures, menus, scroll windows and the unvisited-control inventory over production registries and rendered controls.
+
+Write bespoke driver code only for an action with an outcome to assert: create, rename, delete, run, generate, or persist across a reload. A control that a journey only opens or navigates gets no bespoke function.
+
+1. Read the surface's unvisited and failed rows in the walk's own inventory first.
+2. Where the inventory does not name a control or its success signal, read Snap's machine output: `pnpm snap <route> --map` for the control map and `pnpm snap --report latest` for the run index. Do not review screenshots to find controls.
+3. Write the journey for the actions with outcomes.
+4. Iterate with one-case measurement runs until the journey passes.
+5. Run the evidence project once for the surface.
+6. Group the evidence findings by rule for each surface. Board one item per rule per surface. Do not gate journey work on evidence findings.
+
 ## Runner configuration
 
 [playwright-surface.config.ts](../../../playwright-surface.config.ts) owns native journey selection, projects, deadlines, and reporting.
@@ -154,7 +179,7 @@ Configuration input contracts remain Node-safe; browser drivers stay in the brow
 
 The frontend is a production build with no development agent bridge.
 The backend is the existing production-composed testkit graph with native HTTP, actual plugin reactivation, stopped jobs, and an owned scripted text-generation peer.
-The launcher builds maintained showcase bundles before admission. Production admission may upgrade pristine managed plugins to those exact bundles.
+The launcher builds maintained showcase bundles before admission and reuses a current production client build (see Development loop). Production admission may upgrade pristine managed plugins to those exact bundles.
 Private boot provenance records these changes beside immutable source facts; the original-subject census excludes replacement bundle assets.
 Startup refuses unrelated subject, consent or completed embedding changes.
 The peer admits only its exact origin, supported paths and declared model; other provider and SDK execution stays refused.

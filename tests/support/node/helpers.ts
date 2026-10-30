@@ -67,6 +67,7 @@ export {
   SURFACE_RUN_CONFIG_ENV,
   surfaceArtifactModes,
   surfaceCaseDelayMs,
+  surfaceClientBuildKey,
   surfaceNativeTimeout,
   surfaceRunConfigSchema,
 } from "./surface-run.ts";
