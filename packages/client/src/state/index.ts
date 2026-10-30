@@ -292,13 +292,8 @@ export {
   useSelectedPresetId,
   useSelectedPresetSectionId,
 } from "./preset-selection-store.ts";
-export {
-  closePresetTemplateDrill,
-  drillPresetTemplate,
-  selectPresetTemplate,
-  useDrilledPresetTemplateId,
-  useSelectedPresetTemplateId,
-} from "./preset-template-selection-store.ts";
+export { closePresetTemplateDrill, drillPresetTemplate, useDrilledPresetTemplateId } from "./preset-template-drill-store.ts";
+export { selectPresetTemplate, useSelectedPresetTemplateId } from "./preset-template-selection-store.ts";
 export { pushRecentModel, useRecentModels } from "./recent-models-store.ts";
 export { requestRefineryLandingFocus, useRefineryLandingFocusRequest } from "./refinery-landing-focus-store.ts";
 export {

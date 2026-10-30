@@ -1,6 +1,14 @@
 import { alternation, memberNamed } from "./syntax.ts";
 
-export const STATE_MINT_NAMES = ["create", "createStore", "createGatedStore", "createEntityDraftStore"];
+export const STATE_MINT_NAMES = [
+  "create",
+  "createStore",
+  "createGatedStore",
+  "createEntityDraftStore",
+  "createPersistedStore",
+  "createDrillSelectionStore",
+  "createKindedSelectionStore",
+];
 
 export const STATE_MINT = alternation(STATE_MINT_NAMES);
 

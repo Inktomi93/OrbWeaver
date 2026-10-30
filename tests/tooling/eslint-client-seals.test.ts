@@ -691,6 +691,27 @@ for (const [name, rule, path, source, count] of [
   ],
   ["state-files exported handle", STATE, "packages/client/src/state/leak.ts", 'export const useX = createGatedStore("x", () => ({ n: 0 }));\n', 1],
   [
+    "state-files two factory-minted selection stores in one file",
+    STATE,
+    "packages/client/src/state/two-drills.ts",
+    'const a = createDrillSelectionStore<string>("a");\nconst b = createKindedSelectionStore("b");\nexport const pickA = a.select;\nexport const pickB = b.select;\n',
+    1,
+  ],
+  [
+    "state-files eleven fields in a persisted store",
+    STATE,
+    "packages/client/src/state/big-persisted.ts",
+    `const useX = createPersistedStore("x", () => (${states(11)}), { version: 1 });\nexport const v = () => useX();\n`,
+    1,
+  ],
+  [
+    "state-files one factory-minted selection store is fine",
+    STATE,
+    "packages/client/src/state/one-drill.ts",
+    'const a = createDrillSelectionStore<string>("a");\nexport const pickA = a.select;\n',
+    0,
+  ],
+  [
     "state-files exported wrapped create application",
     STATE,
     "packages/client/src/state/wrapped.ts",
