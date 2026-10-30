@@ -3,6 +3,7 @@
 
 import type { ThemeOverride } from "@orb/contracts/theme";
 import { expect, test } from "@orb/testkit/node";
+import { THEME_SCOPE_EMIT_VARS } from "@orb/ui/theme-scope/emit-vars";
 import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
 import { describe } from "vitest";
 import { THEME_HEARTH_NAME } from "#server/domain/settings/constants.ts";
@@ -48,6 +49,11 @@ describe("each seeded override equals the ui palette it mirrors", () => {
       expect(`radius.${override.radius}` in TOKENS).toBe(true);
     });
   }
+
+  test("every paired property is one the theme scope emits, so a renamed variable breaks the pairing here", () => {
+    const emitted: readonly string[] = THEME_SCOPE_EMIT_VARS;
+    expect(COLOR_FIELDS.map(({ cssVar }) => cssVar).filter((cssVar) => !emitted.includes(cssVar))).toEqual([]);
+  });
 
   test("the ui value sets are exactly the seeds other than Hearth", () => {
     const byText = (a: string, b: string): number => a.localeCompare(b);
