@@ -1,7 +1,6 @@
 // Build the derived-data and persona graph; runtime policies live behind their domain front doors.
 // Workload admission is late-bound because chat contributes runners after this graph is constructed.
 
-import type { DurableChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { RoleClientsWithSignal } from "@orb/inference";
@@ -14,7 +13,7 @@ import type { AssetsService } from "#domain/assets";
 import { createAssetEmbeddingReads } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
 import { createEmbeddableCardText, createLoadCharacterEmbeddingOwner } from "#domain/character";
-import type { ChatBoundBackfillOps } from "#domain/chat";
+import type { ChatBoundBackfillOps, ChatServiceDeps, EmitDurableChatEventOp } from "#domain/chat";
 import {
   consolidationHash,
   createCapturePersonaSeatsForDelete,
@@ -102,11 +101,11 @@ export interface SearchDiscoveryComposeDeps {
   /** LIVE effective-config getter (the memory tier-grid seam reads memoryDefaults per call). */
   readonly getEffectiveConfig: NonNullable<DebugRoutesOptions["effectiveConfig"]>;
   /** chat's bus durable-first emit — persona's active-persona write publishes onto it. */
-  readonly emitChatEvent: (event: DurableChatBusEvent) => Promise<void>;
+  readonly emitChatEvent: EmitDurableChatEventOp;
   /** chat's DURABLE-APPEND-FREE fan (design §3.4) — the entity→room bridge's only emit surface. Separate dep
    *  from `emitChatEvent` because they are different lanes, not two spellings of one: this one writes no
    *  `chat_events` row and carries no seq. */
-  readonly emitChatEventLive: (event: LiveOnlyChatBusEvent) => void;
+  readonly emitChatEventLive: ChatServiceDeps["emitLive"];
   /** preset's ONE cross-feature op: the caller's chat-role capability, for `preset.resolveEffective`'s
    *  projection of the generation funnel. `connection` composes BEFORE this seam at the keystone, so it is a
    *  plain dep, not a forward-ref. */

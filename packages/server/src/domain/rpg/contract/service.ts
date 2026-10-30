@@ -17,6 +17,7 @@
 import type {
   ClaimChatOp,
   GetMembership,
+  ReadChatUserMacrosOp,
   ResolveRpgCardCorpus,
   ResolveRpgParticipants,
   RpgCardCorpus,
@@ -24,7 +25,6 @@ import type {
   ViewerVisibility,
 } from "@orb/contracts/chat";
 import type { Can, ParticipantRoleState } from "@orb/contracts/identity";
-import type { UserMacroSpec } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type {
   CancelStateRoundsOp,
@@ -374,7 +374,6 @@ export type RpgCopyPresetToUser = (args: { readonly fromOwnerId: UserId; readonl
  *  A game macro sharing a name with a preset macro SHADOWS it at turn time (`shadowPresetUserMacros`, chat's
  *  one home for the rule), so the host editor has to know which names are taken. rpg reads no preset/settings
  *  table: this is chat's own resolution (the picks pane reads the SAME op), wired at compose. */
-type RpgResolvePresetUserMacros = (chatId: ChatId) => Promise<readonly UserMacroSpec[]>;
 
 /** The honest-arms capability verdict (extended by the D112 fold guard).
  *  ONE resolve of the host connection, TWO verdicts — the connection resolve is the expensive part (credential +
@@ -667,7 +666,7 @@ export interface RpgContext {
   /** The GM-preset gift — the handoff copy offer's preset arm (preset owns the table; wired at compose). */
   readonly copyPresetToUser: RpgCopyPresetToUser;
   /** The chat's active-preset user macros (WAVE MU) — the shadow gloss on the host macro editor. */
-  readonly resolvePresetUserMacros: RpgResolvePresetUserMacros;
+  readonly resolvePresetUserMacros: ReadChatUserMacrosOp;
   /** The user whose connection funds this room's turns (the present host, chat's own resolution), or `null` for a
    *  hostless room. The reads price and judge THAT connection, because it is the one the next turn rides. */
   readonly resolveRoomFunder: (chatId: ChatId) => Promise<UserId | null>;

@@ -31,6 +31,7 @@ import { projectBodyForSummary } from "@orb/kit/content";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { and, eq, sql } from "drizzle-orm";
 import type { ChatContext, ChatServiceDeps, QuietGenerate } from "../contract/context.ts";
+import type { EngineDeps } from "../contract/engine-context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type { CompactParams } from "../contract/params.ts";
 import type { CompactResult } from "../contract/results.ts";
@@ -39,21 +40,10 @@ import { requireHost } from "../guard.ts";
 import { loadCanonHistoryAfter, loadChatRow } from "../persistence/queries.ts";
 import { isPromptEligible } from "../substrate/prompt-eligibility.ts";
 
-/** `coveragePoint` = the seq through which the new marker covers (the fit/marker boundary the caller resolved).
- *  Absent ⇒ cover every committed turn. `connection` is the chat's resolved connection the quiet generation
- *  rides. */
-interface RunCompactionArgs {
-  readonly chatId: ChatId;
-  readonly connection: Resolved<"chat">;
-  /** The host whose box funds the marker generation — the quiet-op cost lands on THIS owner's stats. */
-  readonly ownerId: UserId;
-  readonly coveragePoint?: number | undefined;
-  readonly instructions?: string | undefined;
-  readonly signal?: AbortSignal | undefined;
-}
+type RunCompaction = EngineDeps["runCompaction"];
 
 interface CompactionBundle extends Pick<ChatService, "compact"> {
-  readonly runCompaction: (args: RunCompactionArgs) => Promise<CompactResult>;
+  readonly runCompaction: RunCompaction;
 }
 
 interface CompactionDeps {
@@ -203,8 +193,8 @@ async function advanceCoverageOnly(
 /** The lock-free compaction core. Rebuilds ONE marker over [prior marker + prompt-eligible turns since it,
  *  through `coveragePoint`] via the chat's own model, writes the advanced marker + coverage stamp. A span with
  *  no new turns is an idempotent no-op. No gate / no bus emit — that's the verb's / engine's job. */
-function makeRunCompaction(ctx: ChatContext, quietGenerate: QuietGenerate): (args: RunCompactionArgs) => Promise<CompactResult> {
-  return async ({ chatId, connection, ownerId, coveragePoint, instructions, signal }: RunCompactionArgs): Promise<CompactResult> => {
+function makeRunCompaction(ctx: ChatContext, quietGenerate: QuietGenerate): RunCompaction {
+  return async ({ chatId, connection, ownerId, coveragePoint, instructions, signal }): Promise<CompactResult> => {
     const chat = await loadChatRow(ctx.db, chatId);
     if (chat === undefined) {
       throw new ChatNotFoundError(chatId);
@@ -257,7 +247,7 @@ function makeRunCompaction(ctx: ChatContext, quietGenerate: QuietGenerate): (arg
 
 /** `compact` — host-only. The manual lever over the lock-free core: gate, resolve the chat's connection, run the
  *  core, emit `chatUpdated`. */
-function createCompact(ctx: ChatContext, deps: CompactionDeps, runCompaction: (args: RunCompactionArgs) => Promise<CompactResult>): ChatService["compact"] {
+function createCompact(ctx: ChatContext, deps: CompactionDeps, runCompaction: RunCompaction): ChatService["compact"] {
   return async ({ principal, chatId, instructions }: CompactParams): Promise<CompactResult> => {
     // The caller IS the host (requireHost passed) → the host funds the marker generation on their OWN connection.
     await requireHost(ctx, principal, chatId);

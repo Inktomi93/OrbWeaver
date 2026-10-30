@@ -1,5 +1,5 @@
 import type { PluginSubscriberRegistry } from "@orb/contracts/automation";
-import type { PromptTransform } from "@orb/contracts/chat";
+import type { RegisterPromptTransformOp, UnregisterPromptTransformOp } from "@orb/contracts/chat";
 import type { InvocationChat, ResolvePluginChatAuthority } from "@orb/contracts/plugin";
 import type { PluginToolHandle, PluginToolSpecData } from "@orb/contracts/tool-use";
 import type { Logger, TraceRing } from "#foundation/observability";
@@ -16,7 +16,7 @@ export interface PluginRegistrarDeps {
   /** The root's trace ring each supervised plugin-event delivery seals into. */
   readonly traces: TraceRing;
   readonly toolUse: { readonly registerPluginTool: RegisterPluginToolOp };
-  readonly promptTransforms: { readonly register: (transform: PromptTransform) => void; readonly unregister: (id: string) => void };
+  readonly promptTransforms: { readonly register: RegisterPromptTransformOp; readonly unregister: UnregisterPromptTransformOp };
   readonly pluginSubscribers: PluginSubscriberRegistry;
   readonly resolveChatAuthority: ResolvePluginChatAuthority;
   readonly newEventId: () => string;

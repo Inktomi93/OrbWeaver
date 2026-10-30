@@ -15,6 +15,7 @@ import type {
   MemoryDigestInput,
   NextTurnConnectionView,
   ParticipantData,
+  PlanGameBirthOp,
   PromptTransform,
   ReadChatUserMacrosOp,
   RegisterPromptTransformOp,
@@ -39,7 +40,7 @@ import type { SendAvailability } from "@orb/contracts/inference";
 import type { NotificationEvent, PresenceView } from "@orb/contracts/notifications";
 import type { ResolveCurrentPersonaOp, ResolveDefaultPersonaOp } from "@orb/contracts/persona";
 import type { ChoiceBlockSpec, ResolveUtilityPresetParams, UserIntent } from "@orb/contracts/preset";
-import type { CancelStateRoundsOp, RpgGameTemplate } from "@orb/contracts/rpg";
+import type { CancelStateRoundsOp } from "@orb/contracts/rpg";
 import type { BlockKey, MemoryQueryOptions, ResolveCorpusSourceState, ScoredBlock } from "@orb/contracts/search";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
@@ -62,7 +63,6 @@ import type {
   PendingTurnId,
   PersonaId,
   PresetId,
-  RpgGameId,
   UserId,
 } from "@orb/kit/ids";
 import type { RandomSource, UserMacroDef } from "@orb/kit/macro";
@@ -99,6 +99,8 @@ export type LoadUserHandlesOp = (userIds: readonly UserId[]) => Promise<readonly
 
 /** The present roster's participant views for a chat — the read-model resolver `service.ts` builds once. */
 export type LoadParticipantViewsOp = (chatId: ChatId) => Promise<readonly ParticipantData[]>;
+/** The batched twin of {@link LoadParticipantViewsOp}: one page of rooms resolves its seats in a single pass. */
+export type LoadParticipantViewsBatchOp = (chatIds: readonly ChatId[]) => Promise<ReadonlyMap<ChatId, readonly ParticipantData[]>>;
 
 /** The invite preview for a chat the caller already cleared for preview (`verbs/invite-preview.ts`). */
 export type AssembleInvitePreviewOp = (chatId: ChatId) => Promise<InvitePreview>;
@@ -178,7 +180,7 @@ export type SummarizeOp = (funderUserId: UserId, ...args: Parameters<RoleClients
  *  preset the turn runs: the same ladder (a game's GM-voice preset, else the host's default). Resolved at the entry
  *  root (chat never reads the preset domain); a hostless/stale room degrades to the system-default params.
  *  `maxContextTokens` sets the window on a route that sends one, so the pass runs the turn's own. */
-type ResolveChatPresetParamsOp = (chatId: ChatId) => Promise<SideGenSampling & Pick<UserIntent, "maxContextTokens">>;
+export type ResolveChatPresetParamsOp = (chatId: ChatId) => Promise<SideGenSampling & Pick<UserIntent, "maxContextTokens">>;
 
 /** B7 — a user's per-user reaction defaults, picked off the same schema-real `UserSettings.chat` arm the
  *  turn path consumes as `ChatBehaviorInputs` (never a re-spelled shape). The op half of
@@ -385,7 +387,7 @@ export interface ChatRpgOps extends RpgTurnOps {
   /** The #40 DRAFT-TIME game birth plan. RPG constructs its own table statements and minted id; chat folds
    *  them into the room's creation batch and stores only the opaque pointer. No domain constructs the
    *  other's rows, while room/game/pointer are one durable commit. */
-  readonly planGameBirth: (chatId: ChatId, params: RpgGameTemplate) => ChatRpgGameBirthPlan;
+  readonly planGameBirth: PlanGameBirthOp<StatementToken>;
   /** Post-commit in-process notification for a successfully committed birth plan. */
   readonly gameBirthCommitted: (chatId: ChatId) => void;
   /** The GM-voice preset redirect: the game's `gmPresetId` (or `null` = not a game / no override), resolved
@@ -502,12 +504,6 @@ export interface ChatRpgOps extends RpgTurnOps {
    *  transferred with its tracker rows still on the old keys, and a re-run converges (an already-moved actor
    *  refuses per-actor and changes nothing). Never throws into the accept. `[]`/a non-game chat writes nothing. */
   readonly handoffRekeyActors: (chatId: ChatId, cardCopies: readonly HandoffCardPair[]) => Promise<void>;
-}
-
-/** RPG's unexecuted contribution to a chat-owned atomic birth batch. */
-export interface ChatRpgGameBirthPlan {
-  readonly gameId: RpgGameId;
-  readonly statements: readonly StatementToken[];
 }
 
 /** Durable post-swap work owned by the accepted host. The persistence seam parses this exact shape before

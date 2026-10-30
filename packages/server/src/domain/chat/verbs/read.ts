@@ -77,7 +77,7 @@ import { estimateTokens } from "@orb/kit/tokens";
 import { getLog } from "#foundation/observability";
 import { captureParticipantRole } from "#primitives/role-data";
 import type { MacroRenderEnv } from "../contract/assembly-macros.ts";
-import type { ChatContext, ChatServiceDeps, LoadParticipantViewsOp } from "../contract/context.ts";
+import type { ChatContext, ChatServiceDeps, LoadParticipantViewsBatchOp, LoadParticipantViewsOp } from "../contract/context.ts";
 import { ChatNotFoundError } from "../contract/errors.ts";
 import type { ForeignInputs, HumanSeatPersona, ResolveForeignInputsOp } from "../contract/foreign.ts";
 import { DEFAULT_CHAT_BEHAVIOR } from "../contract/foreign.ts";
@@ -195,7 +195,7 @@ async function resolveReasoningHostOnly(ctx: ChatContext, chatId: ChatId): Promi
 
 /** The collaborators not on `ChatContext` (see the file header). */
 interface ReadDeps {
-  readonly loadParticipantViewsBatch: (chatIds: readonly ChatId[]) => Promise<ReadonlyMap<ChatId, readonly ParticipantData[]>>;
+  readonly loadParticipantViewsBatch: LoadParticipantViewsBatchOp;
   readonly loadParticipantViews: LoadParticipantViewsOp;
   readonly resolveConnection: ChatServiceDeps["resolveConnection"];
   /** The deterministic pre-send serveability verdict for the chat's own resolved connection (#54). Reads the

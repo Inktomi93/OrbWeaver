@@ -7,7 +7,6 @@
 
 import type {
   ClaimChatOp,
-  DurableChatBusEvent,
   GetMembership,
   ResolveCanonWindow,
   ResolveRegexSources,
@@ -18,7 +17,6 @@ import type {
 import { SIGNUP_INVITES_MINTABLE } from "@orb/contracts/chat";
 import type { AuthMode, Can, Principal } from "@orb/contracts/identity";
 import type { UserIntent } from "@orb/contracts/preset";
-import type { ProseOverrides } from "@orb/contracts/prose";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { ProviderExecutor } from "@orb/inference";
@@ -37,16 +35,20 @@ import type {
   ChatBoundBackfillOps,
   ChatContext,
   ChatInferenceDeps,
+  ChatRoomInputs,
   ChatService,
   ChatServiceDeps,
   ChatWorkloadDeps,
+  EmitDurableChatEventOp,
   GetPendingUserText,
   ImageRefAssets,
   MemoryRecallRecorder,
   PostNarratorMessage,
   PresenceReadOp,
+  PromptCacheMinDepthOp,
   PromptTransformRegistry,
   RequestTurnOp,
+  ResolveChatPresetParamsOp,
   SignupInviteDeps,
   SignupInviteOps,
 } from "#domain/chat";
@@ -143,7 +145,7 @@ export interface ChatComposeInput {
   readonly now: Clock;
   /** The one chat bus's durable-first emit, built at the composition root and injected so chat doesn't
    *  construct a second bus. The same wrapper backs persona's active-persona write. */
-  readonly emitChatEvent: (event: DurableChatBusEvent) => Promise<void>;
+  readonly emitChatEvent: EmitDurableChatEventOp;
   /** The same emit with the durable append verdict retained for resumable host-handoff completion. */
   readonly emitChatEventChecked: ChatServiceDeps["emitChecked"];
   /** The chat bus's prepared birth-event seam: statement joins room creation; callback fans after commit. */
@@ -200,7 +202,7 @@ export interface ChatComposeInput {
   /** The deployment's Anthropic prompt-cache depth FLOOR, read per turn off the resolved AppSettings tier
    *  (`EffectiveAppConfig.promptCacheMinDepth`, Settings › Admin › System tuning). A thunk, not a value, so an
    *  admin flip reaches the next turn without a restart. Absent ⇒ the floor 0 (byte-identical no-op). */
-  readonly promptCacheMinDepth?: () => number;
+  readonly promptCacheMinDepth?: PromptCacheMinDepthOp;
   readonly assets: AssetsService;
   /** Materialize a user-pasted external carried-background URL into an owned CAS asset (side-eye F-P0-2) — the
    *  shared compose-built op the `setChatBackground` verb runs for a `kind:"external"` source. */
@@ -229,7 +231,7 @@ export interface ChatComposeInput {
  *  publish onto the chat bus (e.g. world-info). */
 export interface ChatComposeResult extends AsyncDisposable {
   readonly service: ChatService;
-  readonly emitBusEvent: (event: DurableChatBusEvent) => Promise<void>;
+  readonly emitBusEvent: EmitDurableChatEventOp;
   /** The generic, principal-free chat ops domain/rpg receives by injection — built over chat's own
    *  ctx here (chat never learns rpg). Wired onto `RpgContext.chat` at the rpg compose block. */
   readonly rpgChatOps: {
@@ -268,10 +270,10 @@ export interface ChatComposeResult extends AsyncDisposable {
      *  resolution moment there could disagree with the very prompt it is extracting from — a divergence by
      *  construction, ruled out. A VERB DOOR has no first resolution to diverge from; the consenting human
      *  clicked a button and this IS the moment, exactly as `resolvePromptUserMacros` is for the picks pane. */
-    readonly resolveChatPresetProse: (chatId: ChatId) => Promise<ProseOverrides>;
+    readonly resolveChatPresetProse: ChatRoomInputs["resolveChatPresetProse"];
     /** The same ladder's generation params, the one home of the room's Max context: a send on the room's chat
      *  connection outside the turn applies it with `withPresetWindow`, so it runs the window the turn sends. */
-    readonly resolveChatPresetParams: (chatId: ChatId) => Promise<UserIntent>;
+    readonly resolveChatPresetParams: (...args: Parameters<ResolveChatPresetParamsOp>) => Promise<UserIntent>;
   };
   /** The D50 PromptTransform registrar — surfaced so automation's rule lifecycle
    *  + the plugin host `register`/`unregister` their `transform_draft` transforms onto the same list the

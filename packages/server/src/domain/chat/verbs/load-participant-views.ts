@@ -2,7 +2,7 @@
 
 import type { ParticipantData } from "@orb/contracts/chat";
 import type { AssetId, CharacterId, ChatId, Handle, PersonaId, UserId } from "@orb/kit/ids";
-import type { ChatContext, LoadParticipantViewsOp } from "../contract/context.ts";
+import type { ChatContext, LoadParticipantViewsBatchOp, LoadParticipantViewsOp } from "../contract/context.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipantsBatch } from "../persistence/participants-read.ts";
 import { REMOVED_CHARACTER_LABEL, REMOVED_MEMBER_LABEL } from "../substrate/participant-name.ts";
@@ -23,9 +23,9 @@ function resolveSeatDisplayName(
 
 export function createLoadParticipantViews(ctx: ChatContext): {
   readonly loadParticipantViews: LoadParticipantViewsOp;
-  readonly loadParticipantViewsBatch: (chatIds: readonly ChatId[]) => Promise<ReadonlyMap<ChatId, readonly ParticipantData[]>>;
+  readonly loadParticipantViewsBatch: LoadParticipantViewsBatchOp;
 } {
-  const loadParticipantViewsBatch = async (chatIds: readonly ChatId[]): Promise<ReadonlyMap<ChatId, readonly ParticipantData[]>> => {
+  const loadParticipantViewsBatch: LoadParticipantViewsBatchOp = async (chatIds) => {
     const rows = await loadParticipantsBatch(ctx.db, chatIds);
     const rowsByChat = Map.groupBy(rows, (row) => row.chatId);
     const hosts = new Map([...rowsByChat].map(([chatId, seats]) => [chatId, hostUserIdOf(seats)]));
