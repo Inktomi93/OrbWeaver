@@ -69,7 +69,8 @@ import { foldFaces, sameFold, tileName } from "./face-strip-fold.ts";
 
 const CAPTIONED_FACE_WIDTH = "inline-(--size-avatar-hero)";
 
-interface FaceStripItem {
+/** One face in the strip; a curation that feeds `FaceStrip` types its output with this. */
+export interface FaceStripItem {
   readonly id: string;
   readonly name: string;
   /** CAS key — null falls back to the hue-seeded initials blob. */

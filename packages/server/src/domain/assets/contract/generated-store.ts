@@ -1,4 +1,4 @@
-import type { AssetKind, StoredAsset } from "@orb/contracts/assets";
+import type { StoredAsset } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
 import type { UserId } from "@orb/kit/ids";
 import type { AssetsService } from "./service.ts";
@@ -9,4 +9,3 @@ export interface GeneratedStoreDeps {
   readonly maxBytes: () => number;
 }
 export type StoreGeneratedImage = (ownerId: UserId, bytes: Uint8Array, mime: string) => Promise<StoredAsset>;
-export type GeneratedAssetStore = (principal: Principal, bytes: Uint8Array, kind: AssetKind, mime: string) => Promise<StoredAsset>;

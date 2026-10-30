@@ -237,6 +237,9 @@ export interface AttachCardTagByNameParams {
 /** Resolve-or-create the owner's tag by name, then attach it to the character, idempotently. */
 export type AttachCardTagByNameOp = (params: AttachCardTagByNameParams) => Promise<boolean>;
 
+/** The seed path's narrowed attach: ownership and name only, so a seeded card can never set the tag's source or status. */
+export type AttachSeedCardTag = (params: Pick<AttachCardTagByNameParams, "ownerId" | "characterId" | "tagName">) => ReturnType<AttachCardTagByNameOp>;
+
 /** The one tag write the profile import and the seed paths reach. */
 export interface ImportTagPort {
   readonly attachCardTagByName: AttachCardTagByNameOp;

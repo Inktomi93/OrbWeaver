@@ -7,6 +7,7 @@
 import type {
   AutomationRuleTools,
   ConfirmSuggestionResult,
+  EmitAutomationEvent,
   FireView,
   GlobalVariableView,
   OwnerBudgetView,
@@ -18,7 +19,7 @@ import type {
 } from "@orb/contracts/automation";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
-import type { Can } from "@orb/contracts/identity";
+import type { Can, ResolveUserEnabled } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import type { AutomationFireId, AutomationRuleId, IdSource } from "@orb/kit/ids";
 import type { RandomSource } from "@orb/kit/macro";
@@ -29,10 +30,8 @@ import type {
   ApplyProseRewrite,
   ArmDispatch,
   AutomationOps,
-  EmitAutomationEvent,
   EnabledRuleIndex,
   ExecutePluginSuggestion,
-  IsAuthorEnabled,
   IsPluginLive,
   ListRuleTools,
   PromptTransformIndex,
@@ -104,8 +103,8 @@ export interface AutomationContext {
   readonly resolveAuthor: ResolveAuthorPrincipal;
   /** C5 — the OWNER-GLOBAL lane's standing-authority read: is a chat-less rule's author still an ENABLED
    *  account? Injected rather than selected locally because `users` belongs to `domain/sessions` +
-   *  `domain/admin` alone (see {@link IsAuthorEnabled}). */
-  readonly isAuthorEnabled: IsAuthorEnabled;
+   *  `domain/admin` alone. */
+  readonly isAuthorEnabled: ResolveUserEnabled;
   /** S4 plugin arm — the PLUGIN-origin confirm's executor. Wired at compose to `domain/plugin` (the cake:
    *  automation never imports a sibling domain). It re-enters the PLUGIN's own bridge, so a confirmed act
    *  takes the plugin's gates and belts — NOT automation's `runArm`, whose arms carry a different

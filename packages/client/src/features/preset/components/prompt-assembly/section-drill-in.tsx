@@ -67,6 +67,7 @@ import type { PresetEditorValues } from "../../lib/preset-editor-values.ts";
 import { DeliveryCluster } from "../delivery-cluster.tsx";
 import type { DerivedZones } from "./derive-zones.ts";
 import { deriveZones } from "./derive-zones.ts";
+import type { SectionEditProps } from "./section-body.tsx";
 import { SectionBody } from "./section-body.tsx";
 
 type AssemblyForm = AppFormInstance<PresetEditorValues>;
@@ -191,15 +192,9 @@ function EnableEcho({ form, index, label }: { readonly form: AssemblyForm; reado
   );
 }
 
-interface ClusterProps {
-  readonly form: AssemblyForm;
-  readonly section: PromptSection;
-  readonly index: number;
-}
-
 /** The two clusters that branch on the derived zone (O-9★): `inChat` = this section is delivered INTO the
  *  conversation at a depth, which is the only arm where depth and order mean anything. */
-interface ZonedClusterProps extends ClusterProps {
+interface ZonedClusterProps extends SectionEditProps {
   readonly inChat: boolean;
 }
 
@@ -303,7 +298,7 @@ function PlacementFields({ form, section, index, inChat, zones }: ZonedClusterPr
 /** TRIGGERS — the EDITABLE firing gate, and (§5.0) the ONLY place that vocabulary exists: a guided
  *  template's firing condition is the user's click, so Actions carries a descriptive gloss and no control.
  *  No selection = fires on every generation, which is the unset field. */
-function TriggerFields({ form, section, index }: ClusterProps): ReactElement {
+function TriggerFields({ form, section, index }: SectionEditProps): ReactElement {
   const trigger = "trigger" in section ? section.trigger : undefined;
   const name = `sections[${index}].trigger` as const;
   // ALL-SELECTED ≡ NO FILTER (owner rider): a list naming every generation type filters nothing, so it is
@@ -359,7 +354,7 @@ function TriggerFields({ form, section, index }: ClusterProps): ReactElement {
  *  `section is TemplatedMarkerSection` type predicate so this guard is one shared, type-checked
  *  contract instead of a hand-derived boolean; the O-12 fix (the schema arm, never the runtime `in`
  *  key, gates the block) is byte-identical. */
-function OverrideLocks({ form, section, index }: ClusterProps): ReactElement | null {
+function OverrideLocks({ form, section, index }: SectionEditProps): ReactElement | null {
   if (!isTemplatedMarkerSection(section)) {
     return null;
   }
@@ -385,7 +380,7 @@ function OverrideLocks({ form, section, index }: ClusterProps): ReactElement | n
 /** The ONE section-actions ⋯ menu. A MARKER gets Move-to-zone ONLY — Duplicate and Delete are OMITTED, not
  *  disabled (§5.2's structural rule: markers are the prompt's fixed anatomy, and the one-way Add door is
  *  deliberate ST parity). A LITERAL keeps the full set, Delete behind the confirm. */
-function SectionActionsMenu({ form, section, index, onBack }: ClusterProps & { readonly onBack: () => void }): ReactElement | null {
+function SectionActionsMenu({ form, section, index, onBack }: SectionEditProps & { readonly onBack: () => void }): ReactElement | null {
   const structural = isStructuralSection(section);
   const ids = useIds();
   const onDelete = (): void => {

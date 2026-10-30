@@ -12,7 +12,7 @@
 
 // `UserId` is a plain `Branded` nanoid, so it validates with `brandedId` rather than `typeIdSchema`.
 
-import type { NotificationId, UserId } from "@orb/kit/ids";
+import type { ChatId, ChatInviteId, NotificationId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { handoffOfferContentsSchema } from "../chat/roster.ts";
@@ -356,3 +356,25 @@ export const markAllReadResultSchema = z.strictObject({ markedCount: z.number() 
 export type EmitNotification = (event: NotificationEvent) => Promise<void>;
 
 export const listInboxInputSchema = z.object({ cursor: z.number().optional(), limit: z.int().min(1).max(NOTIFICATIONS_LIST_MAX_LIMIT).optional() }).optional();
+
+/** What the inbox asks chat about: the ids on ONE page of rows that carry a chat-owned decision. The op
+ *  traffics in bare ids so neither domain spells the other's vocabulary. */
+export interface StandingAsksParams {
+  /** Whose inbox: the provider re-checks it, so a foreign row can never come back "standing". */
+  readonly recipientUserId: UserId;
+  /** Invites named by `invite` rows on this page (deduped by the caller). */
+  readonly inviteIds: readonly ChatInviteId[];
+  /** Chats named by `handoff-nominated` rows on this page (deduped by the caller). */
+  readonly nominatedChatIds: readonly ChatId[];
+}
+
+/** The SUBSET still awaiting the recipient's decision. An id the caller asked about and does not get back
+ *  is settled, gone, or was never theirs: one indistinguishable answer, so the read is no existence oracle
+ *  over another user's rooms. */
+export interface StandingAsksResult {
+  readonly inviteIds: readonly ChatInviteId[];
+  readonly nominatedChatIds: readonly ChatId[];
+}
+
+/** Resolve which of a page's chat-owned decisions are still standing. ONE call per page, never per row. */
+export type ResolveStandingAsks = (params: StandingAsksParams) => Promise<StandingAsksResult>;

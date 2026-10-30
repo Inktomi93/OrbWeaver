@@ -2,12 +2,12 @@
 // shared `NotificationsContext` (zero logic of its own — see contract/service.ts for the domain's D16
 // durable-inbox contract, the `emit` composition, and the one-directional edge from chat).
 
+import type { ResolveStandingAsks } from "@orb/contracts/notifications";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { IdSource } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import { createNotificationsContext } from "./context.ts";
-import type { ResolveStandingAsks } from "./contract/ops.ts";
 import type { NotificationsService } from "./contract/service.ts";
 import { createList } from "./verbs/list.ts";
 import { createRead } from "./verbs/read.ts";
@@ -21,7 +21,7 @@ interface NotificationsServiceDeps {
   db: DatabaseHandle;
   now: Clock;
   readonly idSource: IdSource;
-  /** The #1799 cross-feature read behind `InboxView.actionable` (contract/ops.ts). Required: see the field's
+  /** The #1799 cross-feature read behind `InboxView.actionable` (`@orb/contracts/notifications`). Required: see the field's
    *  note on `NotificationsContext` for why a defaulted no-op would be a silently wrong indicator. */
   resolveStandingAsks: ResolveStandingAsks;
 }

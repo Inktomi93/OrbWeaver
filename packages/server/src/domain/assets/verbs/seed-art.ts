@@ -1,9 +1,10 @@
 // Bundled avatars and galleries pass through the same Principal and magic-byte guard as an upload.
 
+import type { StoreSeedPlate } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
 import type { AssetId, CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { SeedArtDeps, SeedAvatarOps, SeedPlateStoreDeps, StoreSeedPlate } from "../contract/seed-art.ts";
+import type { SeedArtDeps, SeedAvatarOps, SeedPlateStoreDeps } from "../contract/seed-art.ts";
 
 // A shipped file key, not a persona name; changing it requires a pack migration.
 const PERSONA_SEED_AVATAR = castId<CharacterHandle>("persona-you");

@@ -2,7 +2,7 @@
 // No versions: the card IS the flat `characters` row, edited in place. No `raw` blob — every known field
 // has a typed home, so an app-authored card round-trips identically to an imported one.
 
-import type { CharacterHandle, CharacterId, CharacterSnapshotId, ChatId, PluginId, TagId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, ChatId, PluginId, TagId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { injectionDirectiveSchema } from "@orb/kit/injection";
 import { SLUG_HANDLE_PATTERN, slugifyHandle } from "@orb/kit/slug";
@@ -1207,3 +1207,15 @@ export type DeleteSnapshotOp = (args: {
   readonly snapshotId: CharacterSnapshotId;
   readonly characterId: CharacterId;
 }) => Promise<void>;
+
+/** One character-to-avatar pairing the backfill proved (the stored blob's hash matched the card's `importHash`). */
+export interface CharacterAvatarLink {
+  readonly characterId: CharacterId;
+  readonly assetId: AssetId;
+}
+
+/** The character-owned avatar relink: owner-scoped per row, one batch, a no-op on an empty list. */
+export type LinkCharacterAvatars = (args: { readonly ownerId: UserId; readonly links: readonly CharacterAvatarLink[] }) => Promise<void>;
+
+/** Finds a bundled seed character by handle for a principal, or `null` when none is seeded under it. */
+export type FindSeedCharacter = (principal: Principal, handle: CharacterHandle) => Promise<CharacterId | null>;

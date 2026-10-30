@@ -427,3 +427,8 @@ export type ResolveHandleOp = (handle: Handle) => Promise<UserId | null>;
 
 /** The principal a user's own authority resolves to when the caller acts on their behalf. */
 export type ResolveHostPrincipalOp = (userId: UserId) => Promise<Principal>;
+
+/** The disabled-account containment read: whether a user's backing row is enabled. Read fresh per call and
+ *  fail-closed: a vanished row answers `false`, never "assume enabled". Sessions owns the `users` table, so
+ *  every other domain takes this as an injected op. */
+export type ResolveUserEnabled = (userId: UserId) => Promise<boolean>;

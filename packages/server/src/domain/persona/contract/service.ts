@@ -6,6 +6,7 @@ import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
 import type { PersonaCollision } from "@orb/contracts/import";
 import type { CapturePersonaRoomReachOp, ConnectedCharacterView, PersonaDetail } from "@orb/contracts/persona";
+import type { PortableFile } from "@orb/contracts/portability";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
@@ -29,7 +30,7 @@ import type {
   SetActivePersonaParams,
   UpdatePersonaParams,
 } from "./params.ts";
-import type { DisconnectResult, PersonaImportOutcome, PersonaPortableFile, PersonaSeedRepoint, RemovePersonaResult } from "./results.ts";
+import type { DisconnectResult, PersonaImportOutcome, PersonaSeedRepoint, RemovePersonaResult } from "./results.ts";
 
 /** The DI bundle every persona verb closes over, wired at the composition root. */
 export interface PersonaContext {
@@ -105,7 +106,7 @@ export interface PersonaService {
   /** Read an owned persona as ONE portable file (excludes `avatarAssetId`). The bundle descriptor streams
    *  it and the single-entity export door serves the same bytes — one producer, no drift. Throws
    *  {@link PersonaNotFoundError} when not owned/found. */
-  readonly export: (params: ExportPersonaParams) => Promise<PersonaPortableFile>;
+  readonly export: (params: ExportPersonaParams) => Promise<PortableFile>;
   /** Restore ONE portable persona file (the `export` round-trip twin). Idempotent: a same-named persona is
    *  merged in place. Never throws for a malformed file — the refusal is a typed outcome the calling door
    *  renders. Never carries an avatar (re-attaching one after restore is a separate, explicit action). */

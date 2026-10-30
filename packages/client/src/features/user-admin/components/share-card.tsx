@@ -20,6 +20,7 @@ import type { SHARE_PHASES, ShareLinkMemory } from "../lib/share-model.ts";
 import { dismissLinkChange, EMPTY_SHARE_LINK_MEMORY, rememberShareLink, shareStartFailure, shareStatusPollMs, shareView } from "../lib/share-model.ts";
 import { InviteRoomPicker } from "./share-invite-picker.tsx";
 import { ShareIpCertificate } from "./share-ip-certificate.tsx";
+import type { SeatingFacts } from "./share-preconditions.tsx";
 import { SharePreconditions } from "./share-preconditions.tsx";
 import { ShareProse, ShareWarningText } from "./share-prose.tsx";
 
@@ -93,15 +94,8 @@ function focusIsLost(): boolean {
   return document.activeElement === null || document.activeElement === document.body;
 }
 
-/** The seating settings the card reads, and the one confirmed write that turns the missing ones on. */
-export interface ShareCardProps {
-  readonly localMultiUser: boolean;
-  readonly discreetLogin: boolean;
-  readonly onEnableSeating: () => Promise<void>;
-}
-
 /** Owner-only: the caller omits it for anyone else. Its own boundary, so a failed read leaves the section standing. */
-export function ShareCard(props: ShareCardProps): ReactElement {
+export function ShareCard(props: SeatingFacts): ReactElement {
   const firstBootBox = useFirstBootBox({ wide: 15, narrow: 13 });
   return (
     <Card>
@@ -120,7 +114,7 @@ export function ShareCard(props: ShareCardProps): ReactElement {
   );
 }
 
-function ShareCardBody({ localMultiUser, discreetLogin, onEnableSeating }: ShareCardProps): ReactElement {
+function ShareCardBody({ localMultiUser, discreetLogin, onEnableSeating }: SeatingFacts): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data: status } = useSuspenseQuery({

@@ -32,7 +32,7 @@ import type {
   ResponseCache,
   TokenDetails,
 } from "@orb/contracts/inference";
-import type { EffortLevel, UserIntent } from "@orb/contracts/preset";
+import type { EffortLevel, ReasoningTagPair, UserIntent } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type {
   ChatHistoryMessage,
@@ -148,7 +148,7 @@ export interface TurnRequest {
    *  openai-compat transport uses it to split `<think>` at STREAM time; the engine's own post-hoc split
    *  (`applyReceiveTransforms`) stays for every shape and wire the middleware cannot express, and no-ops
    *  when the wire already produced a reasoning channel. */
-  readonly reasoningTags?: { readonly prefix: string; readonly suffix: string } | undefined;
+  readonly reasoningTags?: ReasoningTagPair | undefined;
   /** The tools this turn offers, BACKEND-NEUTRAL (D177): the executable set
    *  as definitions + the ONE `execute` callback the pipeline binds to `executeToolCalls`, and the TERMINAL (D112
    *  R1) declarations. How they reach the wire — an MCP server the SDK loops over, or a `tools[]` array the

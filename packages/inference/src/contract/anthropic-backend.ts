@@ -1,7 +1,7 @@
 import type { ChatId } from "@orb/kit/ids";
 import type { RandomSource } from "@orb/kit/macro";
 import type { Clock } from "@orb/kit/time";
-import type { AddSpanEvent, ProviderScrubSet, Resolved, ScheduleTimeout, WireCaptureSink } from "#contract";
+import type { AddSpanEvent, Resolved, ScheduleTimeout, WireCaptureSink } from "#contract";
 import type { InferenceDeps, InferenceLog } from "./runtime.ts";
 
 export interface AnthropicChatDeps {
@@ -23,16 +23,6 @@ export interface AnthropicBackendDeps {
   readonly captureWire?: InferenceDeps["captureWire"];
   readonly captureWireReply?: InferenceDeps["captureWireReply"];
   readonly imageToPng?: InferenceDeps["imageToPng"];
-}
-
-/** One `GET /v1/models` dial. The key is a plain string: a saved connection's decrypted key, or a key typed into
- *  a draft that has nothing saved yet. `secrets` is what the dial's error text is scrubbed of. */
-export interface AnthropicModelsDial {
-  readonly baseUrl: string | null;
-  readonly secret: string | null;
-  readonly secrets: ProviderScrubSet;
-  readonly label: string;
-  readonly signal?: AbortSignal | undefined;
 }
 
 export interface AnthropicTransportDeps {

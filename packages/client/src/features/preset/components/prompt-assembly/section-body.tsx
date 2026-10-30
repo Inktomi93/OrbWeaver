@@ -41,13 +41,14 @@ const BODY_MIN_H = "min-block-(--height-scroll-sm)";
 /** The one ghost/reset sentence, shared by every authored body so the grammar reads identically. */
 const GHOST_PLACEHOLDER_HINT = "Leave it empty and the built-in default rides — clearing the field IS the reset.";
 
-export interface SectionBodyProps {
+/** The editing handle every section surface takes: the form, the section and its position in the assembly. */
+export interface SectionEditProps {
   readonly form: AssemblyForm;
   readonly section: PromptSection;
   readonly index: number;
 }
 
-export function SectionBody({ form, section, index }: SectionBodyProps): ReactElement {
+export function SectionBody({ form, section, index }: SectionEditProps): ReactElement {
   if (section.type === "literal") {
     return (
       <PresetMacroSuggestions form={form}>
@@ -67,7 +68,7 @@ export function SectionBody({ form, section, index }: SectionBodyProps): ReactEl
 
 /** A templated marker's FRAMING template — one textarea, ghosting the factory default. The two
  *  empty-default markers (`main_prompt`/`post_history`) ghost their explainer instead of bare nothing. */
-function TemplatedMarkerBody({ form, section, index }: SectionBodyProps): ReactElement | null {
+function TemplatedMarkerBody({ form, section, index }: SectionEditProps): ReactElement | null {
   if (!isTemplatedMarkerSection(section)) {
     return null;
   }

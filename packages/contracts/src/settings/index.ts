@@ -1,4 +1,4 @@
-import type { ThemeId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ThemeId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
@@ -1060,6 +1060,15 @@ export type CertificateSettingOp = () => EffectiveAppConfig["ipCertificate"];
 
 /** Persist the owner's IP-certificate choice; `null` turns it off. */
 export type SaveCertificateSettingOp = (principal: Principal, setting: EffectiveAppConfig["ipCertificate"]) => Promise<void>;
+
+/** Points `seeds.welcomeAssistantCharacterId` at the seeded welcome card, when it is still unset. */
+export type MarkWelcomeAssistant = (principal: Principal, characterId: CharacterId) => Promise<void>;
+
+/** The user's default preset id, as `UserSettings.seeds` holds it. */
+export type ReadDefaultPresetId = (principal: Principal) => Promise<UserSettings["seeds"]["defaultPresetId"]>;
+
+/** One account seed step: seeds a user's content and reports whether the seed completed. */
+export type ContentSeedOp = (principal: Principal) => Promise<boolean>;
 
 /** Has this user's default persona been seeded? */
 export type PersonaSeededOp = (principal: Principal) => Promise<boolean>;

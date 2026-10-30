@@ -1,4 +1,4 @@
-import type { RetrievalFallback, SearchCorpusHitsOp, SearchDigestHitsOp } from "@orb/contracts/search";
+import type { RetrievalDegrade, SearchCorpusHitsOp, SearchDigestHitsOp } from "@orb/contracts/search";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { ChatContext } from "./context.ts";
 
@@ -8,6 +8,6 @@ export interface ChatMemorySearchDeps {
   readonly resolveHostUserId: (chatId: ChatId) => Promise<UserId | null>;
   readonly digests: SearchDigestHitsOp;
   readonly corpus: SearchCorpusHitsOp;
-  readonly withRetrievalDegrade: <T>(run: () => Promise<T>, degraded: RetrievalFallback<T>) => Promise<T>;
+  readonly withRetrievalDegrade: RetrievalDegrade;
 }
 export type ChatMemorySearchOps = Pick<ChatContext, "searchDigests" | "searchCorpus">;

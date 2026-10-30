@@ -1,6 +1,6 @@
 // A turn may survive a missing or rebuilding index, never an unrelated query/provider failure.
 
-import type { RetrievalFallback } from "@orb/contracts/search";
+import type { RetrievalDegrade } from "@orb/contracts/search";
 import { SEARCH_NO_SPACE, SEARCH_SPACE_REINDEXING, SearchError } from "../contract/errors.ts";
 
 function isSpaceRefusal(err: unknown): boolean {
@@ -8,7 +8,7 @@ function isSpaceRefusal(err: unknown): boolean {
 }
 
 /** Report and degrade only space refusals; every other rejection retains its identity. */
-export async function withRetrievalDegrade<T>(run: () => Promise<T>, degraded: RetrievalFallback<T>): Promise<T> {
+export const withRetrievalDegrade: RetrievalDegrade = async (run, degraded) => {
   try {
     return await run();
   } catch (err) {
@@ -18,4 +18,4 @@ export async function withRetrievalDegrade<T>(run: () => Promise<T>, degraded: R
     degraded.onIndexUnavailable?.();
     return degraded.empty;
   }
-}
+};

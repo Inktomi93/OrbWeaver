@@ -2,16 +2,16 @@
 // connected to that character. Zero or two-plus connections (ambiguity), or a group founding, answer null so
 // the room falls through to the default seed. Principal-less and compose-built; chat consumes it as an op.
 
+import type { ResolveConnectedPersonaOp } from "@orb/contracts/chat";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
-import type { ChatContext } from "#domain/chat";
 import type { PersonaContext } from "../contract/service.ts";
 import { loadOwnedConnectedPersonaIds } from "../persistence/queries.ts";
 
 /** Two rows are enough to tell "exactly one" from "ambiguous". */
 const AMBIGUITY_PROBE = 2;
 
-export function createResolveConnectedPersona(assembly: DbAssemblyInput<Pick<PersonaContext, "db">>): ChatContext["resolveConnectedPersona"] {
+export function createResolveConnectedPersona(assembly: DbAssemblyInput<Pick<PersonaContext, "db">>): ResolveConnectedPersonaOp {
   const ctx: Pick<PersonaContext, "db"> = { ...assembly, db: databaseForOwner(assembly.db) };
   return async (userId, characterIds) => {
     const [characterId] = characterIds;

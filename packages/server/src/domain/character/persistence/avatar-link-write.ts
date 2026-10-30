@@ -28,6 +28,7 @@
 // content), and `refinery-ops.ts` states the stamp is "a derived-signal refresh (F6), not an authored
 // edit". An avatar pointer is neither — it is the card's face.
 
+import type { LinkCharacterAvatars } from "@orb/contracts/character";
 import type { Db } from "@orb/db";
 import { assets, characters } from "@orb/db";
 import { batchMany, batchStmt } from "@orb/db/query";
@@ -36,7 +37,7 @@ import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, eq, exists, sql } from "drizzle-orm";
-import type { CharacterAvatarLinkContext, LinkCharacterAvatars } from "../contract/avatar-link.ts";
+import type { CharacterAvatarLinkContext } from "../contract/avatar-link.ts";
 
 /** THE ASSET AXIS OF THE RELINK'S BELT (#1480 item 4). The character axis (id + owner) was always in the
  *  WHERE; the asset the SET writes was not checked at all, so a caller-supplied `link.assetId` naming

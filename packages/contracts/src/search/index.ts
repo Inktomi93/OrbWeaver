@@ -459,6 +459,9 @@ export interface RetrievalFallback<T> {
   readonly onIndexUnavailable: (() => void) | undefined;
 }
 
+/** Runs a retrieval and degrades to the fallback only on an index-unavailable refusal; search owns the verb. */
+export type RetrievalDegrade = <T>(run: () => Promise<T>, degraded: RetrievalFallback<T>) => Promise<T>;
+
 /** WHERE a unified search runs. `owner` = the whole corpus (all the user's cards/chats); `chat` = one
  *  authorized chat (the egocentric `scopedCharacterId` is the verbatim-lens POV, required by the
  *  `segments` target); `character` = this character ACROSS ALL the owner's chats — the membership-widened

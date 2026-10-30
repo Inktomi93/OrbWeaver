@@ -346,14 +346,14 @@ function serviceTargets(checker: ts.TypeChecker, site: ImportSite, service: Decl
     const foreign = foreignTypes(checker, member);
     const isOp = (ts.isPropertySignature(member) || ts.isMethodSignature(member)) && isHandTyped(member);
     // A field whose type contracts already holds moves nothing: the consumer declares the slice it reads.
-    const kind: TargetKind = !isOp && foreign.server.length === 0 && !passesDbHandle(foreign) ? "split" : crossDomainKind(foreign);
+    const kind: TargetKind = !isOp && foreign.server.length === 0 && !passesDbHandle(foreign) ? "split" : crossDomainKind(foreign, [`${name}.${op}`]);
     const plan =
       kind === "move-to-contracts"
         ? `name ${op} ${isOp ? "as a contracts op type" : "'s type in contracts"}`
         : `type ${op} in domain ${site.domain}'s contract/ over contracts data`;
     const note = [
       `domain ${site.domain} ${isOp ? "calls" : "reads"} ${name}.${op} from domain ${site.from}; never move the whole ${name}: ${plan}`,
-      crossDomainNote(kind, foreign, [name]),
+      crossDomainNote(kind, foreign, [`${name}.${op}`]),
     ]
       .filter((part) => part !== "")
       .join("; ");
@@ -366,7 +366,7 @@ function serviceTargets(checker: ts.TypeChecker, site: ImportSite, service: Decl
 // A data shape another domain declares: it moves to contracts whole, or splits around its runtime types.
 function dataTarget(checker: ts.TypeChecker, site: ImportSite, name: string, declarations: readonly ts.Declaration[]): PlannedTarget {
   const foreign = mergeForeignTypes(declarations.map((declaration) => foreignTypes(checker, declaration)));
-  const kind = crossDomainKind(foreign);
+  const kind = crossDomainKind(foreign, [name]);
   const ownerAt = declarations.map((declaration) => `${relative(site.root, declaration.getSourceFile().fileName)}:${lineOf(declaration)}`).join(", ");
   const note = [`domain ${site.domain} takes ${name} from domain ${site.from}`, crossDomainNote(kind, foreign, [name])]
     .filter((part) => part !== "")

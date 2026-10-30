@@ -12,6 +12,7 @@ export { DescribedMenuItem } from "./described-menu-item.tsx";
 export { EditableTagChip } from "./editable-tag-chip.tsx";
 export { useEmbedRefusalToastAfterUnmount } from "./embedder-refusal-toast.ts";
 export { EntryListEditor } from "./entry-list-editor.tsx";
+export type { FaceStripItem } from "./face-strip.tsx";
 export { FaceStrip } from "./face-strip.tsx";
 export { FlowDialog } from "./flow-dialog.tsx";
 export { FormDialog, FormSubmitButton } from "./form-dialog.tsx";

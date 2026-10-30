@@ -11,6 +11,7 @@ import type {
   ChatRequest,
   ChatResult,
   ListModelsRequest,
+  ModelsDial,
   ProbeRequest,
   ProviderBackend,
   StructuredRequest,
@@ -18,7 +19,7 @@ import type {
 } from "#contract";
 import { ProviderError } from "#contract";
 import { runSideGen } from "#roles";
-import type { AnthropicBackendDeps, AnthropicModelsDial, AnthropicTransportDeps } from "../../contract/anthropic-backend.ts";
+import type { AnthropicBackendDeps, AnthropicTransportDeps } from "../../contract/anthropic-backend.ts";
 import type { NormalizeImageBytes } from "../../contract/wire.ts";
 import { fetchJson } from "../http/fetch-json.ts";
 import { resolvedScrubSet, sanitizeApiError } from "../http/sanitize.ts";
@@ -46,7 +47,7 @@ function headersOf(secret: string | null): Record<string, string> {
   return { [VERSION_HEADER]: API_VERSION, ...(secret !== null && secret.length > 0 ? { [API_KEY_HEADER]: secret } : {}) };
 }
 
-function dialOf(req: ListModelsRequest): AnthropicModelsDial {
+function dialOf(req: ListModelsRequest): ModelsDial {
   const { connection } = req;
   return {
     baseUrl: connection.baseUrl,
@@ -57,7 +58,7 @@ function dialOf(req: ListModelsRequest): AnthropicModelsDial {
   };
 }
 
-export async function fetchAnthropicModels(dial: AnthropicModelsDial, fetchImpl: typeof fetch): Promise<ModelCatalogEntry[]> {
+export async function fetchAnthropicModels(dial: ModelsDial, fetchImpl: typeof fetch): Promise<ModelCatalogEntry[]> {
   const result = await fetchJson({
     fetch: fetchImpl,
     url: `${anthropicBaseUrl(dial, dial.label)}${MODELS_PATH}`,
@@ -70,7 +71,7 @@ export async function fetchAnthropicModels(dial: AnthropicModelsDial, fetchImpl:
 }
 
 /** The model list for one dial, a saved row's or a draft's (`catalog/listing.ts`). */
-export async function listAnthropicModels(dial: AnthropicModelsDial, fetchImpl: typeof fetch): Promise<ModelListing> {
+export async function listAnthropicModels(dial: ModelsDial, fetchImpl: typeof fetch): Promise<ModelListing> {
   try {
     return listingOf(await fetchAnthropicModels(dial, fetchImpl));
     // the failure becomes `{ listed: false, reason }` through failedListing at anthropic-messages/index.ts:78, which the model pane reads; generation stays usable with an explicit model. Ends if callers require a successful catalog.
@@ -123,4 +124,4 @@ export function createAnthropicBackend(deps: AnthropicBackendDeps): ProviderBack
   };
 }
 
-export type { AnthropicBackendDeps, AnthropicModelsDial } from "../../contract/anthropic-backend.ts";
+export type { AnthropicBackendDeps } from "../../contract/anthropic-backend.ts";

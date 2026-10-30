@@ -330,7 +330,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     // THE #1799 CROSS-FEATURE JOIN, made here and only here. The inbox needs to know which of a page's
     // decisions are still open; the answer lives in chat's `chat_invites.status` /
     // `chats.pending_host_user_id`. notifications declares the op TYPE it consumes
-    // (`domain/notifications/contract/ops.ts`) and chat exports the runtime factory — neither imports the
+    // (`@orb/contracts/notifications`) and chat exports the runtime factory — neither imports the
     // other, and `tsc` proves the two spellings agree on this line. A standalone `(db)` factory rather than
     // a `ChatService` verb, so this block does not have to wait for the chat service (composed later).
     resolveStandingAsks: createResolveStandingAsks(db),

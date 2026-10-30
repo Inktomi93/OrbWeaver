@@ -1,8 +1,8 @@
+import type { RequireParticipantOp } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { TagStatus, TagTargetRef } from "@orb/contracts/tag";
 import type { Db } from "@orb/db";
 import type { TagId, UserId } from "@orb/kit/ids";
-import type { RequireParticipant } from "./service.ts";
 
 interface JunctionContext {
   readonly db: Db;
@@ -11,7 +11,7 @@ interface JunctionContext {
 export type TargetAccessParams = JunctionContext &
   TagTargetRef & {
     readonly principal: Principal;
-    readonly requireParticipant: RequireParticipant;
+    readonly requireParticipant: RequireParticipantOp;
   };
 
 export type InsertJunctionParams = JunctionContext &

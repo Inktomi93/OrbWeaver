@@ -10,7 +10,7 @@
 // asset GC could not see it at all. Seeding them makes a plate an ORDINARY owned background — which is also
 // what retires the `seeded` kind.
 
-import type { SeededPlateAsset } from "@orb/contracts/assets";
+import type { StoreSeedPlate } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
 import type { BackgroundLibraryEntry, ResolveSeededPlateOp } from "@orb/contracts/settings";
 import type { ThemeBackground } from "@orb/contracts/theme";
@@ -26,7 +26,7 @@ export interface DefaultBackgroundSeederDeps {
   readonly plates: readonly SeedBackgroundPlate[];
   /** Lift ONE plate's shipped bytes into an owned `background` asset (CAS-deduped). `null` ⇒ the pack ships
    *  no such plate / the store refused it, so the caller skips ONE plate instead of failing the seed. */
-  readonly storePlate: (principal: Principal, slug: string) => Promise<SeededPlateAsset | null>;
+  readonly storePlate: StoreSeedPlate;
   /** Mint one `backgroundLibrary` row id (the settings service's own `newBackgroundEntryId`). */
   readonly newEntryId: IdSource["uuid"];
   /** The caller's own settings — the latch, the pack stamp and the current library. */

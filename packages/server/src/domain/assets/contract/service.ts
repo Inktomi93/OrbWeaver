@@ -2,8 +2,17 @@
 // (upload/fetch/variant core, gallery, and maintenance/DR verbs). Every surface is owner-scoped off
 // `principal.userId`; maintenance verbs are un-principal (CLI/workload/DR callers only).
 
-import type { AssetBlobRef, AssetCasRefByIdOp, AssetListItem, GalleryItemView, LoadAssetBytesOp, StoreAsset } from "@orb/contracts/assets";
-import type { CharacterOwnedOp } from "@orb/contracts/character";
+import type {
+  AssetBlobRef,
+  AssetCasRefByIdOp,
+  AssetListItem,
+  GalleryItemView,
+  LoadAssetBytesOp,
+  LoadChatAssetRefsOp,
+  LoadCoParticipantOwnerOp,
+  StoreAsset,
+} from "@orb/contracts/assets";
+import type { CharacterOwnedOp, LinkCharacterAvatars } from "@orb/contracts/character";
 import type { ListImageAssetIds } from "@orb/contracts/embeddings";
 import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
@@ -37,10 +46,10 @@ export interface AssetsContext {
   readonly imageProbe: ImageAdapter["probe"];
   /** Roster-avatar reference-check (NOT a hash→any-owner oracle): returns the asset's owner only if the
    *  hash is an avatar/attachment the caller may render in a shared chat; `undefined` otherwise. Optional. */
-  readonly loadCoParticipantOwner?: (callerId: UserId, hash: string) => Promise<UserId | undefined>;
+  readonly loadCoParticipantOwner?: LoadCoParticipantOwnerOp;
   /** Chat-scoped render resolver: `(assetId, hash)` pairs among `assetIds` the caller may render in `chatId`
    *  (structural `message_assets` reference + owner present + caller present). Optional. */
-  readonly loadChatAssetRefs?: (callerId: UserId, chatId: ChatId, assetIds: readonly AssetId[]) => Promise<readonly AssetBlobRef[]>;
+  readonly loadChatAssetRefs?: LoadChatAssetRefsOp;
   /** Gallery owner-only posture: does `ownerId` own `characterId`? Optional — absent skips the subject check. */
   readonly assertCharacterOwned?: CharacterOwnedOp;
   /** Gallery export re-link: an owned character's portable handle, or null if missing or foreign. Optional. */
@@ -51,15 +60,8 @@ export interface AssetsContext {
    *  CHARACTER's column — a cross-domain write routes through the owning domain, Constitution.md §2 / Tier-1-DB.md
    *  §"Cross-tier composition"). REQUIRED, not optional: an absent op would silently turn the relink into a
    *  no-op that still reports `linked: n`. Locally declared (structural), never a sideways type import. */
-  readonly linkCharacterAvatars: LinkCharacterAvatarsOp;
+  readonly linkCharacterAvatars: LinkCharacterAvatars;
 }
-
-/** Character-owned avatar-relink write op; assets maps its verified `(characterId, assetId)` pairs and never
- *  touches the `characters` table itself. Owner-scoped per row; a no-op on an empty list. */
-type LinkCharacterAvatarsOp = (args: {
-  readonly ownerId: UserId;
-  readonly links: readonly { readonly characterId: CharacterId; readonly assetId: AssetId }[];
-}) => Promise<void>;
 
 export interface AssetsService {
   /** Persist bytes to the owner's CAS + upsert the index row. `created:false` on within-user dedup;

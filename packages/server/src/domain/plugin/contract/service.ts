@@ -5,7 +5,7 @@
 // runtime is assembled at the composition root (one-directional flow: transport → domain/plugin →
 // infra/plugin-host → nothing).
 
-import type { StoredAsset } from "@orb/contracts/assets";
+import type { ReapAssetsOp, StoredAsset } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
 import type { ProviderDef } from "@orb/contracts/inference";
 import type {
@@ -287,7 +287,7 @@ export interface PluginContext {
   readonly assets: {
     readonly store: (caller: Principal, bytes: Uint8Array, mime: string) => Promise<StoredAsset>;
     readonly readBytes: ReadPluginBundleBytes;
-    readonly reapOrphans: (assetIds: readonly AssetId[]) => Promise<void>;
+    readonly reapOrphans: ReapAssetsOp;
   };
   /** Fetch a plugin bundle's bytes at a caller-supplied URL through the EGRESS GUARD (U8,
    *  seam 15 — the URL-install funnel). Wired at compose to `infra/network`'s `fetchPluginBundle`: `safeFetch`

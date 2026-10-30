@@ -4,7 +4,7 @@ import { z } from "zod";
 import { googleBaseUrl, googleModelId } from "../backends/google/model.ts";
 import { fetchJson } from "../backends/http/fetch-json.ts";
 import { bareCatalogEntry, failedListing, listingOf } from "../backends/wire/model-listing.ts";
-import type { ProviderScrubSet } from "../contract/errors.ts";
+import type { ModelsDial } from "../contract/diagnostics.ts";
 import { ProviderError } from "../contract/errors.ts";
 
 const modelsSchema = z.object({
@@ -23,14 +23,6 @@ const modelsSchema = z.object({
   ),
   nextPageToken: z.string().optional(),
 });
-
-interface GoogleModelsDial {
-  readonly baseUrl: string | null;
-  readonly secret: string | null;
-  readonly secrets: ProviderScrubSet;
-  readonly label: string;
-  readonly signal?: AbortSignal | undefined;
-}
 
 function catalogEntry(row: z.infer<typeof modelsSchema>["models"][number]): ModelCatalogEntry[] {
   let kind: ModelCatalogEntry["kind"];
@@ -52,7 +44,7 @@ function catalogEntry(row: z.infer<typeof modelsSchema>["models"][number]): Mode
   ];
 }
 
-export async function fetchGoogleModels(dial: GoogleModelsDial, fetchImpl: typeof fetch): Promise<ModelCatalogEntry[]> {
+export async function fetchGoogleModels(dial: ModelsDial, fetchImpl: typeof fetch): Promise<ModelCatalogEntry[]> {
   if (dial.secret === null || dial.secret.length === 0) {
     throw new ProviderError({ kind: "invalid", retryable: false, message: "Google model discovery requires an API key" });
   }
@@ -85,7 +77,7 @@ export async function fetchGoogleModels(dial: GoogleModelsDial, fetchImpl: typeo
   return rows;
 }
 
-export async function listGoogleModels(dial: GoogleModelsDial, fetchImpl: typeof fetch): Promise<ModelListing> {
+export async function listGoogleModels(dial: ModelsDial, fetchImpl: typeof fetch): Promise<ModelListing> {
   // optional discovery returns `failedListing(err, secrets)`, i.e. `{ listed: false, reason }` with the scrubbed reason (backends/wire/model-listing.ts), which the model picker shows as its failed arm; explicit model entry remains available. Ends if discovery becomes required.
   try {
     return listingOf(await fetchGoogleModels(dial, fetchImpl));

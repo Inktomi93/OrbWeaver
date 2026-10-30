@@ -7,7 +7,7 @@
 //
 // IT PERFORMS NO VALIDATION AND MUST NOT START. Every wall is at the trust edge in `substrate/manifest.ts`:
 // the path shape, the count/size/aggregate bomb caps, and the magic-byte format check all ran before a
-// `PluginBundleAsset` existed. Re-checking here would put a SECOND copy of the admitted-format set in the
+// `PluginBundleAssetBytes` existed. Re-checking here would put a SECOND copy of the admitted-format set in the
 // tree, and the copy that drifts is always the one nobody is looking at. This function's whole job is the
 // write, and the `mime` it passes is the one the SNIFF produced — never a claim.
 //

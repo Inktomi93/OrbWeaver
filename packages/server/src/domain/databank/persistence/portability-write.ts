@@ -8,6 +8,7 @@
 // this document.
 
 import { portableCharacterHandle } from "@orb/contracts/character";
+import type { PortableFile } from "@orb/contracts/portability";
 import { assets, characterDocuments, characters, documents, globalDocuments } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
@@ -20,14 +21,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import type { CanonicalDocument } from "#primitives/serde/databank";
 import { buildDocumentFile, DATABANK_SCHEMA_KIND, parseDocumentFile } from "#primitives/serde/databank";
 import { portableParseError } from "#primitives/serde/lib";
-import type {
-  DatabankImportOutcome,
-  DatabankPortabilityContext,
-  ExportDocument,
-  ExportedDocumentFile,
-  ImportDocument,
-  ListOwnedDocumentIds,
-} from "../contract/portability.ts";
+import type { DatabankImportOutcome, DatabankPortabilityContext, ExportDocument, ImportDocument, ListOwnedDocumentIds } from "../contract/portability.ts";
 import { queueIngest } from "../substrate/queue-ingest.ts";
 import { findByImportHash, loadOwnedDocument } from "./queries.ts";
 
@@ -55,7 +49,7 @@ async function attachedHandles(ctx: Pick<DatabankPortabilityContext, "db">, owne
 
 export function createExportDocument(input: DbAssemblyInput<Pick<DatabankPortabilityContext, "db">>): ExportDocument {
   const ctx: Pick<DatabankPortabilityContext, "db"> = { ...input, db: databaseForOwner(input.db) };
-  return async ({ ownerId, documentId }): Promise<ExportedDocumentFile | null> => {
+  return async ({ ownerId, documentId }): Promise<PortableFile | null> => {
     const row = await loadOwnedDocument(ctx.db, ownerId, documentId);
     if (row === undefined) {
       return null;

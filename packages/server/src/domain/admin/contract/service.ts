@@ -10,7 +10,6 @@ import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/query";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { CharacterId, ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
-import type { SessionsService } from "#domain/sessions";
 import type { AuditEntry, AuditWiring } from "#foundation/observability";
 import type { PasswordHasher } from "#infra/auth";
 import type {
@@ -35,6 +34,7 @@ import type {
   SetEnabledResult,
   SetRoleResult,
 } from "./results.ts";
+import type { SessionStatementWiring } from "./session-statements.ts";
 
 /** The session-management slice admin needs — satisfied structurally by the real `SessionsService` at the
  *  composition root. Not re-exported from the front door — a private port. */
@@ -76,8 +76,6 @@ interface SessionAdminPort {
    *  by that key, so no admin mint may hold it. Canonical home domain/sessions (`isReservedSignupHandle`). */
   readonly isReservedHandle: IsReservedSignupHandleOp;
 }
-
-type SessionStatementWiring = Pick<SessionsService, "revokeAllForUserStatement" | "linkExternalIdStatement" | "localUserInsertStatement">;
 
 export type AdminSessionWiring = Omit<SessionAdminPort, keyof SessionStatementWiring> & SessionStatementWiring;
 

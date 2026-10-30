@@ -1,4 +1,3 @@
-import type { ChatSeatPortrait } from "@orb/contracts/chat";
 // The ONE derivation of a chat summary's display fields (title fallback · participant subtitle ·
 // last-activity epoch) — shared by the chats-list rows, the landing "Recent chats" strip, the command
 // palette, and (via `deriveChatTitle`) the topbar/context identity, so the surfaces can't drift
@@ -20,19 +19,6 @@ type ChatSummaryItem = inferOutput<Trpc["chat"]["listChats"]>["items"][number];
 // (D166): they named a room that had no row yet, from its founding
 // cards. Every room has a row from the creation click, so `deriveChatTitle` — over the real roster — is the
 // one answer, and its "Untitled chat" fallback is honest for a blank room that legitimately exists.
-
-/** One resolved character SEAT for the row's leading slot (visual-blech audit F7 + D3) — the name backs the
- *  avatar's initials fallback and its accessible label; `avatarHash` is the CAS portrait key (null = this
- *  seat has no portrait, which paints the hue-seeded initials blob).
- *
- *  DERIVED from the wire, never re-spelled (#192). The seats arrive ON the chat row now
- *  (`ChatSummary.participantPortraits`, resolved by the roster read the list projection already runs); the
- *  client used to build them by fetching the whole character library and indexing character ids into it,
- *  which is the map this alias replaced. A single seat paints one
- *  portrait; two or more paint an `AvatarStack`, because a shared room must read SHARED at rest.
- *
- */
-export interface ChatRowPortrait extends ChatSeatPortrait {}
 
 /** The mock's credit register: a character's SHORT display name, i.e. everything before its first appositive
  *  comma ("Calamity, Doomblade of the Ninth Epoch" → "Calamity"; "Sabine Veyra" → "Sabine Veyra"). A comma

@@ -4,7 +4,7 @@
 
 import type { ChatContentPart, TextSignature, VariantProviderMetadata } from "@orb/contracts/chat";
 import type { AttachmentQuality, ChatApi, ChatUsage, NormalizedFinishReason } from "@orb/contracts/inference";
-import type { EffortLevel, ResponseCacheControl, UserIntent } from "@orb/contracts/preset";
+import type { EffortLevel, ReasoningTagPair, ResponseCacheControl, UserIntent } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ChatId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -187,7 +187,7 @@ type HistoryChatRequest = ChatRequestCommon & {
    *  ON. The openai-compat transport turns an XML-shaped pair into `extractReasoningMiddleware` so the split
    *  happens at STREAM time (the F-table "Adopt" row); every other shape, and every other wire, leaves the
    *  engine's post-hoc split to do it. Absent ⇒ no inline split is wanted at all. */
-  readonly reasoningTags?: { readonly prefix: string; readonly suffix: string } | undefined;
+  readonly reasoningTags?: ReasoningTagPair | undefined;
   /** `tools` carries TERMINAL declarations (D112 R1), so the turn must co-emit prose and state calls. */
   readonly terminalToolsAttached?: boolean | undefined;
 };
@@ -231,7 +231,7 @@ export type ChatTurnInput = ChatRequestCommon & {
   readonly tools?: ChatTurnTools | undefined;
   readonly responseFormat?: ResponseFormat | undefined;
   readonly cacheBreakpointDepth?: number | undefined;
-  readonly reasoningTags?: { readonly prefix: string; readonly suffix: string } | undefined;
+  readonly reasoningTags?: ReasoningTagPair | undefined;
 };
 
 /**

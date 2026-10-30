@@ -11,6 +11,7 @@
 // A re-imported document is not re-written; its ATTACHMENTS are still (re)asserted, so a bundle whose
 // document already existed still restores the scopes it was attached under.
 
+import type { PortableFile } from "@orb/contracts/portability";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { DocumentId, UserId } from "@orb/kit/ids";
@@ -33,19 +34,12 @@ export interface DatabankPortabilityContext {
 
 export type DatabankPortabilityAssemblyContext = DbAssemblyInput<DatabankPortabilityContext>;
 
-/** One portable document file: its `filename` (relative — the descriptor prefixes the bundle `dir`) and the
- *  serialized bytes. */
-export interface ExportedDocumentFile {
-  readonly filename: string;
-  readonly bytes: Uint8Array;
-}
-
 /** Every document the owner owns — the enumeration the descriptor's `exportAll` streams over. */
 export type ListOwnedDocumentIds = (args: { readonly ownerId: UserId }) => Promise<readonly DocumentId[]>;
 
 /** Export ONE owned document (+ its re-linkable scopes) as a portable file, or null when the document is
  *  not the caller's (or absent) — the leak-free posture of every owner-scoped databank read. */
-export type ExportDocument = (args: { readonly ownerId: UserId; readonly documentId: DocumentId }) => Promise<ExportedDocumentFile | null>;
+export type ExportDocument = (args: { readonly ownerId: UserId; readonly documentId: DocumentId }) => Promise<PortableFile | null>;
 
 /** `created:false` ⇒ the file deduped against an existing document (idempotent re-import). A refusal
  *  carries the operator-facing reason the calling door renders. */

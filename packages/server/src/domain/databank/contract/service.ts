@@ -13,7 +13,7 @@
 // `search()` are both BUILT (databank graduated D91).
 
 import type { LoadAssetBytes, StoredAsset } from "@orb/contracts/assets";
-import type { ResolveVisibleRoomsOp } from "@orb/contracts/chat";
+import type { RequireParticipantOp, ResolveVisibleRoomsOp } from "@orb/contracts/chat";
 import type {
   ActiveChatDocumentView,
   BankHealthView,
@@ -92,10 +92,6 @@ type EnsureChatHostOp = (principal: Principal, chatId: ChatId) => Promise<void>;
 /** The chat's PRESENT host (chat's own read), or `null` for a hostless room. Databank reads neither the roster
  *  nor `chats`, so the panel's host/member branch asks chat. */
 type ResolveChatHostOp = (chatId: ChatId) => Promise<UserId | null>;
-
-/** The D18 chat-member predicate (chat's own guard). `listActiveForChat` is member-readable — every
- *  participant deserves to SEE what feeds the room's prompts (even though only the host's docs are retrieved). */
-type EnsureChatMemberOp = (principal: Principal, chatId: ChatId) => Promise<void>;
 
 /** The active embed space tag the chunk-store arm tags rows with — PER OWNER (the owner's `embed` binding
  *  defines it and its width, inference program §7.5/§10), read per call. `null` = no binding: nothing to embed
@@ -197,7 +193,9 @@ export interface DatabankContext {
   readonly enqueueIngest: EnqueueIngestOp;
   readonly enqueueReindex: EnqueueReindexOp;
   readonly ensureChatHost: EnsureChatHostOp;
-  readonly ensureChatMember: EnsureChatMemberOp;
+  /** The D18 chat-member predicate (chat's own guard). `listActiveForChat` is member-readable — every
+   *  participant deserves to SEE what feeds the room's prompts (even though only the host's docs are retrieved). */
+  readonly ensureChatMember: RequireParticipantOp;
   readonly resolveChatHost: ResolveChatHostOp;
   /** The leak-safe reverse-room read `listAttachments` names its rooms through (#276) — chat's answer to "of
    *  these rooms, which may this caller see, and what are they called". Injected for the same reason the two
