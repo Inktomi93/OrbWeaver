@@ -2,7 +2,7 @@
 // and every settings zod schema/parser live in @orb/contracts/settings — callers import those directly.
 
 export { createSettingsAssemblyContext as createSettingsContext } from "./context.ts";
-export type { LegacySeedLatches, SettingsComposedOps } from "./contract/composed-ops.ts";
+export type { SettingsComposedOps } from "./contract/composed-ops.ts";
 export type { ContentSeedPolicyDeps, ContentSeedStep, UserContentSeeder } from "./contract/content-seed.ts";
 export type { SettingsImportOutcome } from "./contract/portability.ts";
 export type { DefaultBackgroundSeeder } from "./contract/seeder.ts";

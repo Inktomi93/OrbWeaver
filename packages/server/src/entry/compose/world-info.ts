@@ -8,7 +8,7 @@
 // role-sensitive ops; the owner resolver serves the automation/plugin/portability author-ownership gates. Two
 // distinct call sites, kept distinct.
 
-import type { DurableChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/chat";
+import type { LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
 import type { DatabaseHandle } from "@orb/db/wiring";
@@ -30,6 +30,7 @@ import { createBulkImportLorebook, createHasPrimaryBook, createLinkCarriedBooks,
 import type { AuditEntry, Logger } from "#foundation/observability";
 import type { LiveBuses } from "#transport/trpc";
 import { createHostPrincipalResolver } from "../auth/index.ts";
+import type { ChatComposeResult } from "./chat.ts";
 import { minter } from "./minter.ts";
 import { createDeleteReachCapture } from "./room-reach.ts";
 
@@ -43,9 +44,8 @@ export interface WorldInfoComposeDeps {
   readonly now: Clock;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly sessions: SessionsService;
-  /** chat's bus durable-first emit (`ChatComposeResult.emitBusEvent`) — world-info publishes WI events onto it.
-   *  Deliberately wider than `WorldInfoContext.emitWiEvent`: chat's emit takes every durable event, world-info sends the WI subset. */
-  readonly emitChatBusEvent: (event: DurableChatBusEvent) => Promise<void>;
+  /** chat's bus durable-first emit — world-info publishes WI events onto it. */
+  readonly emitChatBusEvent: ChatComposeResult["emitBusEvent"];
   /** The in-process domain-event emit. World-info's CONTENT writes raise `world-info.updated`, which the
    *  entity→room reach engine (`room-reach.ts`, subscribed at the search-discovery seam) fans to every room
    *  whose assembly pool reads the book. Distinct plane from both `emitChatBusEvent` (one chat's ATTACHMENT

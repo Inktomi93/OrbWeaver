@@ -6,8 +6,9 @@ import process from "node:process";
 import { EXIT } from "../floor/cli/exit-contract.ts";
 import { UsageError } from "../floor/cli/run-tool.ts";
 import { DELIBERATE } from "./deliberate.ts";
-import type { Leg } from "./port-census.ts";
-import { LEGS, portCensus } from "./port-census.ts";
+import { portCensus } from "./port-census.ts";
+import type { Leg } from "./port-targets.ts";
+import { LEGS } from "./port-targets.ts";
 import { scanUnwired } from "./scan.ts";
 import { TEST_WORLDS } from "./worlds.ts";
 

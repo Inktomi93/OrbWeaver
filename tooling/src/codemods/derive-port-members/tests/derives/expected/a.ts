@@ -18,6 +18,10 @@ export interface ClockPort {
   readonly random: RandomSource;
 }
 
+export interface ParamsPort {
+  readonly lookup: (...args: Parameters<SessionsService["lookup"]>) => Promise<string>;
+}
+
 export interface Deps {
   readonly sessions: { revoke: SessionsService["revoke"] };
 }

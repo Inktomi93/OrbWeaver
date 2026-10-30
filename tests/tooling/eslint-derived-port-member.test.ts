@@ -19,9 +19,20 @@ const OWNERS = {
     "  create: (userId: string) => Promise<{ token: string; expiresAt: number }>;",
     "  revoke: (token: string) => Promise<void>;",
     "  onSettled: () => void;",
+    "  cancel: (input: RevokeInput, signal: AbortSignal) => Promise<void>;",
+    "  resolve: (input: RevokeInput) => Promise<ResolveOutcome>;",
+    "  drop: (input: DropInput, signal: AbortSignal) => Promise<void>;",
+    "  statement: (id: string) => StatementToken;",
     "}",
+    'import type { StatementToken } from "../../../../../db/src/wiring.ts";',
+    "export interface DropInput { readonly token: string; }",
+    'import type { RevokeInput } from "../../../../../contracts/src/sessions.ts";',
+    'import type { ResolveOutcome } from "../../../../../inference/src/resolve.ts";',
     "export declare const sessions: SessionsService;",
   ].join("\n"),
+  "packages/contracts/src/sessions.ts": "export interface RevokeInput { readonly token: string; }",
+  "packages/db/src/wiring.ts": "export interface StatementToken { readonly sql: string; }",
+  "packages/inference/src/resolve.ts": "export interface ResolveOutcome { readonly ok: boolean; }",
   [CLOCK]: "export type Clock = () => number;\nexport interface Seams { readonly now: Clock; }\nexport declare const seams: Seams;",
 };
 
@@ -80,6 +91,34 @@ test.for([
     findings: ["move the shape to packages/contracts"],
   },
   {
+    name: "a cross-domain signature that still names the owner's domain data",
+    file: CROSS,
+    source:
+      'import { sessions } from "../../sessions/contract/service.ts";\nimport type { DropInput } from "../../sessions/contract/service.ts";\ninterface Port { readonly drop: (input: DropInput, signal: AbortSignal) => Promise<void>; }\nexport const port: Port = sessions;',
+    findings: ["with domain data (DropInput): move that data to packages/contracts"],
+  },
+  {
+    name: "a cross-domain signature that passes a db handle",
+    file: CROSS,
+    source:
+      'import { sessions } from "../../sessions/contract/service.ts";\nimport type { StatementToken } from "../../../../../db/src/wiring.ts";\ninterface Port { readonly statement: (id: string) => StatementToken; }\nexport const port: Port = sessions;',
+    findings: ["passes a db handle (StatementToken) across domains"],
+  },
+  {
+    name: "a split cross-domain signature: contracts data and a platform global",
+    file: CROSS,
+    source:
+      'import { sessions } from "../../sessions/contract/service.ts";\nimport type { RevokeInput } from "../../../../../contracts/src/sessions.ts";\ninterface Port { readonly cancel: (input: RevokeInput, signal: AbortSignal) => Promise<void>; }\nexport const port: Port = sessions;',
+    findings: [],
+  },
+  {
+    name: "a split cross-domain signature: contracts data and an inference type",
+    file: CROSS,
+    source:
+      'import { sessions } from "../../sessions/contract/service.ts";\nimport type { RevokeInput } from "../../../../../contracts/src/sessions.ts";\nimport type { ResolveOutcome } from "../../../../../inference/src/resolve.ts";\ninterface Port { readonly resolve: (input: RevokeInput) => Promise<ResolveOutcome>; }\nexport const port: Port = sessions;',
+    findings: [],
+  },
+  {
     name: "a port derived from its owner",
     file: SITE,
     source: `${IMPORTS}\ntype Port = Pick<SessionsService, "create" | "revoke">;\nexport const port: Port = sessions;`,
@@ -98,9 +137,21 @@ test.for([
     findings: [],
   },
   {
-    name: "a port that narrows the return on purpose",
+    name: "a port that narrows the return but hand-copies the parameters",
     file: SITE,
     source: `${IMPORTS}\ninterface Port { readonly create: (userId: string) => Promise<{ token: string }>; }\nexport const port: Port = sessions;`,
+    findings: ["Port.create hand-copies the parameters of SessionsService.create"],
+  },
+  {
+    name: "a port that derives the parameters and narrows only the return",
+    file: SITE,
+    source: `${IMPORTS}\ninterface Port { readonly create: (...args: Parameters<SessionsService["create"]>) => Promise<{ token: string }>; }\nexport const port: Port = sessions;`,
+    findings: [],
+  },
+  {
+    name: "a port whose own op is passed into a wider slot",
+    file: SITE,
+    source: `${IMPORTS}\ninterface Limits { readonly points: number | (() => number); }\ninterface Port { readonly limit: () => number; }\nexport declare const port: Port;\nexport const limits: Limits = { points: () => port.limit() };`,
     findings: [],
   },
 ] as const)("derived-port-member judges $name", async ({ file, source, findings }, { plantedTree }) => {

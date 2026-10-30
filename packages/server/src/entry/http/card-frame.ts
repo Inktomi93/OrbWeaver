@@ -51,7 +51,6 @@
 // Its behaviour here is unchanged: same 128-bit ids, same count AND byte ceilings, same oldest-first eviction,
 // same sliding 30-minute TTL, same owner check as the last word. This file's own tests are the proof of that.
 
-import type { ParticipantView } from "@orb/contracts/chat";
 import {
   allowsInteractiveCards,
   CARD_FRAME_MINT_BODY_MAX_BYTES,
@@ -67,6 +66,7 @@ import type { CharacterId, ChatId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
+import type { ChatService } from "#domain/chat";
 import { hasCsrfHeader } from "#infra/auth";
 import type { PrincipalEnv } from "./contract/request-env.ts";
 import { createFrameHandleStore, FRAME_HANDLE_SHAPE, FRAME_HANDLE_TTL_MS } from "./frame-handle-store.ts";
@@ -82,10 +82,9 @@ const PAYLOAD_TOO_LARGE = 413;
  *  so `entry/http` states exactly the slice it consumes (the `BlobAssetsPort` precedent). */
 export interface CardFrameParticipantsPort {
   /** Narrowed on purpose: the frame reads only each participant's `characterId` and `renderPolicy`. */
-  readonly listParticipants: (params: {
-    readonly principal: Principal;
-    readonly chatId: ChatId;
-  }) => Promise<readonly Pick<ParticipantView, "characterId" | "renderPolicy">[]>;
+  readonly listParticipants: (
+    params: Parameters<ChatService["listParticipants"]>[0],
+  ) => Promise<readonly Pick<Awaited<ReturnType<ChatService["listParticipants"]>>[number], "characterId" | "renderPolicy">[]>;
 }
 
 export interface CardFrameDeps {
