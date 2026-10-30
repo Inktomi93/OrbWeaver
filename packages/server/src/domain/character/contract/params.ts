@@ -71,10 +71,6 @@ export interface RestoreParams extends CharacterActorParams {
   readonly snapshotId: CharacterSnapshotId;
 }
 
-export interface GetCardParams extends CharacterActorParams {
-  readonly characterId: CharacterId;
-}
-
 /** Greeting studio (audit §3) — the guided-action machinery pointed at a BASE greeting, owner-gated. Both
  *  verbs RETURN text and NEVER write; the client appends the accepted result via `character.update`.
  *
