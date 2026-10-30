@@ -27,13 +27,12 @@ Keep every unfinished case and qualification limit below until its owning work s
 | Reference scope | Required behavior | Owner and boundary |
 | - | - | - |
 | AR13, AR14; G34 | A phone's empty Explore finder opens the understanding overview, moves focus into Content and closes the appropriate sheets. | [Empty Explore subject](1342-corpus-empty-explore-subject.md) must supply a production-backed viewer or capture with characters and no digests. Rebuild one controlled-empty CT over the actual Corpus section. |
-| AS161, AS162, AS200, AS201, AS202; G9 | Stored boot hints preserve motion, font scale, density and theme through the first shell commit while settings are pending. No-hint controls invent no preference or theme. | Add pre-mount cases to `corpus-shell.spec.ts` through the real boot entry. A CT that reproduces boot stamping does not prove its ordering. |
 | AR8, AR12 and AR16 | Preserve bare, filtered and empty census meanings, including a filtered zero. | The [phone topbar CT](../../tests/client/features/app-shell/surfaces/app-shell-topbar.ct.tsx) owns the plugin pages title behavior. Pure composer evidence and list-band evidence do not automatically qualify phone-shell wiring. |
 | AR18 | Labels prune/delete returns focus to the exact finder target under the real user-bus/refetch race. | [Labels focus](1311-a-labels-prune-on-a-phone-lands-focus-on.md) requires the phone-shell E2E reproduction. Finder-only and socket-stubbed CTs do not reproduce that race. |
 | AS43 | Arrival focus puts New before search and rows in forward Tab order. | [List arrival focus](../../tests/client/features/app-shell/surfaces/list-arrival-focus.ct.tsx). A case that only keeps focus out of main does not establish the first Tab stop. |
 | AS66–AS69 | A closed Context sheet remains closed after open, list hide/show, sheet close and another list hide. | [Context carry](../../tests/client/features/app-shell/surfaces/app-shell-panels.ct.tsx). Preserve visibility transfer without changing stored preference semantics. Shorter carry sequences do not cover this sequence. |
 | AS93, AS96, AS97, AS99 | Real-room message rows and composer stay in their corridors from the first painted frame, including scaled docking and Context changes. | [Room carriers](1341-centred-room-carriers-jump-on-pane-doors.md). Keep current main acceptance separate from earlier shell-box-only evidence and held-out carriers. |
-| Production-served corpus boot | The document and its module graph reach the application without aborted lazy-module/CSS startup. | [Production boot](1310-a-production-served-e2e-boot-can-abort-its.md). Keep a cold failure distinct from warm-server and fresh-browser evidence. |
+| Production-served corpus boot | The document and its module graph reach the application without aborted lazy-module/CSS startup. | Harness stacks no longer watch sources (`tooling/src/dev/lib/plan.ts`), the cause the 1310 work reproduced. Keep a cold failure distinct from warm-server and fresh-browser evidence. |
 
 Case names in this document identify existing or proposed specs. The disposition index below does not assert a new runtime result.
 
@@ -111,7 +110,7 @@ The complete original inputs, assertions, collapse groups, review corrections an
 | AS83, AS84, AS85, AS86, AS87, AS88, AS89, AS90, AS91, AS92, AS94, AS95, AS100, AS102, AS104, AS105, AS106, AS107, AS112, AS184, AS185 | CT implementation recorded | `app-shell-motion.ct.tsx` |
 | AS93, AS96, AS97, AS99 | CT partial: real-room carrier qualification remains separate | `app-shell-motion.ct.tsx` |
 | AS123 | CT implementation; no system-message subject | `app-shell-appearance.ct.tsx` |
-| AS161, AS162, AS200, AS201, AS202 | Open pre-mount E2E | `corpus-shell.spec.ts` |
+| AS161, AS162, AS200, AS201, AS202 | Move (done) | `corpus-shell.spec.ts` |
 | AS164, AS165 | Unit implementation recorded | `command-shortcut-label.test.ts` |
 
 ### Drop decisions
@@ -141,7 +140,8 @@ The complete original inputs, assertions, collapse groups, review corrections an
 - AS40's same-section member projection is not established by its section-change case.
 - AS42 does not retain a next-Tab assertion against the reference story's invented content control.
 - AS93/AS96/AS97/AS99 retain their real-room carrier limitation until current evidence qualifies the named boxes and widths.
-- G9 and G34 remain unfinished as listed above. Do not infer their completion from other boot or Corpus cases.
+- G9's boot replay asserts the motion, font-scale and theme stamps on `<html>` before React mounts. Density has no root channel and renders only on the shell's theme scope, so the e2e cases do not assert it.
+- G34 remains unfinished as listed above. Do not infer its completion from other boot or Corpus cases.
 
 ## Harness and execution
 

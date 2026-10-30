@@ -17,7 +17,6 @@ const DESCRIPTION = "A synthetic archivist carrying a tiny smoke lorebook.";
 const GREETING = "The synthetic archive is open.";
 const BOOK_CONTENT = "The synthetic lantern burns amber in the archive.";
 const CARD = `{"spec":"chara_card_v3","spec_version":"3.0","data":{"name":"${NAME}","description":"${DESCRIPTION}","first_mes":"${GREETING}","character_book":{"name":"Smoke Archive","entries":[{"keys":["lantern"],"content":"${BOOK_CONTENT}","comment":"Synthetic lantern","constant":true,"insertion_order":10}]}}}`;
-const FILE_LABEL = "Drop a SillyTavern character card (PNG or JSON), or click to browse";
 
 function isFilteredLibraryRead(response: Response): boolean {
   if (!isTrpcRequestFor(response.url(), CHARACTER_LIST_PATH) || response.request().method() !== "POST") {
@@ -54,7 +53,7 @@ async function importCard(page: Page): Promise<CardImportResult> {
   const dialog = page.getByRole("dialog", { name: "Import a character card", exact: true });
   await expect(dialog).toBeVisible();
   const uploaded = page.waitForResponse((candidate) => candidate.request().method() === "POST" && new URL(candidate.url()).pathname === "/api/import");
-  await dialog.getByLabel(FILE_LABEL, { exact: true }).setInputFiles({ name: "smoke-archivist.json", mimeType: "application/json", buffer: Buffer.from(CARD) });
+  await dialog.locator('input[type="file"]').setInputFiles({ name: "smoke-archivist.json", mimeType: "application/json", buffer: Buffer.from(CARD) });
   const response = await uploaded;
   expect(response.ok()).toBe(true);
   const result = cardImportResultSchema.parse(await response.json());

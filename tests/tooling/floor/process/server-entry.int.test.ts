@@ -23,6 +23,7 @@ function devPlan(repoRoot: string): ReturnType<typeof serverSpawnPlan> {
     nodePath: "node",
     server: { name: "@orb/server", dir: join(repoRoot, "packages", "server"), workspaceDeps: [] },
     watchRoots: [],
+    watch: true,
     cwd: repoRoot,
     env: {},
   });

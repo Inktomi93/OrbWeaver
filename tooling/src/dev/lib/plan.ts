@@ -80,24 +80,24 @@ export function devChildEnv(
   return out;
 }
 
-/** Windows uses Node's imported-file filter so directory notifications cannot restart the server. */
+/** Windows uses Node's imported-file filter so directory notifications cannot restart the server.
+ *  `watch: false` plans a server that runs the loaded source to its end, for a stack a test run owns: a source edit
+ *  during the run must not restart or stop the server under it. */
 export function serverSpawnPlan(opts: {
   readonly platform: NodeJS.Platform;
   readonly nodePath: string;
   readonly server: WorkspacePackage;
   readonly watchRoots: readonly string[];
+  readonly watch: boolean;
   readonly cwd: string;
   readonly env: Readonly<Record<string, string>>;
 }): DevSpawnPlan {
+  const watchFlags = opts.watch
+    ? ["--watch", "--watch-preserve-output", ...(opts.platform === "win32" ? [] : opts.watchRoots.map((root) => `--watch-path=${root}`))]
+    : [];
   return {
     command: opts.nodePath,
-    args: [
-      ...SERVER_NODE_FLAGS,
-      "--watch",
-      "--watch-preserve-output",
-      ...(opts.platform === "win32" ? [] : opts.watchRoots.map((root) => `--watch-path=${root}`)),
-      join(opts.server.dir, SERVER_ENTRY_IN_PACKAGE),
-    ],
+    args: [...SERVER_NODE_FLAGS, ...watchFlags, join(opts.server.dir, SERVER_ENTRY_IN_PACKAGE)],
     cwd: opts.cwd,
     env: opts.env,
   };
