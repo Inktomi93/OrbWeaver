@@ -17,6 +17,7 @@ import type { AssetCreatedEvent, CharacterUpdatedEvent, DomainEvent } from "@orb
 import type { ResolveUtilityPresetParams } from "@orb/contracts/preset";
 import type { EmbedResult, ImageEmbedResult } from "@orb/contracts/providers";
 import type { ImageEmbedInput, RoleClientsFor } from "@orb/contracts/role-clients";
+import type { GetEffectiveConfigOp } from "@orb/contracts/settings";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { EveryOwnerRun, TargetSnapshotOp } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
@@ -28,15 +29,7 @@ import type { SQL } from "drizzle-orm";
 import type { Logger } from "#foundation/observability";
 import type { GenerationReceipt, GenerationTask } from "./generation.ts";
 import type { EmbedPassParams, PruneMemoryBlocksParams, SegmentStoreParams, StoreParams } from "./params.ts";
-import type {
-  EffectiveConfigRead,
-  ImageSpace,
-  ImageSpaceDegrade,
-  PruneMemoryBlocksResult,
-  PurgeDocumentVectorsResult,
-  PurgeMemoryVectorsResult,
-  StoreResult,
-} from "./results.ts";
+import type { ImageSpace, ImageSpaceDegrade, PruneMemoryBlocksResult, PurgeDocumentVectorsResult, PurgeMemoryVectorsResult, StoreResult } from "./results.ts";
 
 // The typed API surface: the two DI bundles, the verb interface, injected cross-feature op types, and the
 // indexer interface. Every cross-feature capability arrives as an injected op (no sideways imports); there is
@@ -261,7 +254,7 @@ export interface EmbeddingsWorkloadDeps {
 }
 
 export interface EmbeddingsIndexerSubscriptionDeps {
-  readonly getEffectiveConfig: EffectiveConfigRead;
+  readonly getEffectiveConfig: GetEffectiveConfigOp;
   readonly indexer: EmbeddingsIndexer;
 }
 
