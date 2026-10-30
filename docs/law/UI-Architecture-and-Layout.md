@@ -263,7 +263,7 @@ Labels uses one visible word for manual labels. Its Usage rail retains the share
 
 ##### 4.1a The shell's stacking contract — three things, and only one of them is a paint order
 
-This subsection defines no ORDER (that is the `z` scale, §3) and no SCOPE VOCABULARY (that is `Z_TOKEN_SCOPES`, §3) — only which of the three a given thing is.
+This subsection defines no ORDER (that is the `z` scale, §3) — only which of the three a given thing is.
 
 1. **The PROVIDER layer is not a paint layer.** `TooltipProvider` and `PortalContainerContext` wrap the shell and render no element; `ThemeScope` renders one at `display: contents`; `RegionAnchor`'s dev `RenderProfiler` renders none. None generates a box, so none appears in the paint order — never draw a provider or a profiler into a z diagram.
 2. **The SHELL scope is isolated.** `.shell-grid` carries `isolation: isolate`, so every z-index written in `shell.css` orders that box's own children (rail · CONTENT · scrim · panels) and nothing outside it. The shell may therefore use only `in-context` and `app-frame` tiers; naming a `portal-float` token there mis-states the reach.

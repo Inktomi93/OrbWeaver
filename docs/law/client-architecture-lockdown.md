@@ -336,7 +336,7 @@ and the rail-footer/topbar/mobile-bar derive their modal affordances from the re
 parallel trigger map. The `avatar` placement is the one exception: its desktop affordance is
 the feature-provided `railFoot`, which owns the account trigger itself. (b) `body` carries the
 declared-planned case `(() => ReactElement) | { planned: string }`, mirroring `SectionDefinition`.
-Delivered via `ModalRegistryContext`, consumed blind by `ModalHost`.
+Delivered via `modalRegistryContext`, consumed blind by `ModalHost`.
 
 `orb/modal-definition-home` keeps a `ModalDefinition` declaration in its feature's `lib/`. `orb/modal-definition-literal` requires the declaration to be one object literal.
 
@@ -405,7 +405,7 @@ navigation verb. `orb/config-group-definition-home` keeps a `ConfigGroupDefiniti
 `CONFIG_GROUP_IDS`/`ConfigGroupId` live in `packages/client/src/state/config-group-ids.ts`, its own two-reader vocabulary
 module (§5 rule 5); `ConfigGroupDefinition`, `SettingsViewerView` (the state-owned viewer projection `when`
 consumes — plain derived values only, no `data/` import, §5 rule 6), `CONFIG_SHELVES` and
-`SettingsSubcategory` home in `packages/client/src/state/config-group-registry.ts`. The Context+hook/Provider pair mirrors
+`ConfigSubcategory` home in `packages/client/src/state/config-group-registry.ts`. The Context+hook/Provider pair mirrors
 `modal-registry-context.ts`/`-provider.tsx`. The host computes `SettingsViewerView` from its non-suspense
 `sessions.me` probe (§10's sanctioned non-suspense exception) and supplies it at nav/search/pane filter
 time.
