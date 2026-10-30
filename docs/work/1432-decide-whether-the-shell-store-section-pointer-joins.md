@@ -22,6 +22,6 @@ Owner rules; the rule and §5.1 name the same pointer set, with a planted case f
 
 ## Evidence
 
-Owner ruled: widen the rule. `orb/no-effect-on-shared-selection` now counts `useActiveSection` and `useOpenModal` from `packages/client/src/state/shell-store.ts` as shared selection pointers, the two selection reads §5.1 names. The store's viewport, context-tab and overlay hooks stay out: they are device and transient state, not selection. §5.1 in `docs/law/ui-architecture-state-and-stack.md` names the same set.
+Owner ruled: widen the rule. `orb/no-effect-on-shared-selection` now counts `useActiveSection` and `useOpenModal` from `packages/client/src/state/shell-store.ts` as shared selection pointers, the two selection reads §5.1 names. The store's viewport and tab hooks stay out: they are device and transient state, not selection. §5.1 in `docs/law/ui-architecture-state-and-stack.md` names the same set.
 
 `tests/tooling/eslint-client-data-gates.test.ts` plants an effect keyed on each pointer hook (two cases) and a control keyed on `useMobileViewport`. On the old rule both planted cases failed (0 findings, 1 expected); with the widened rule all 79 cases pass. `pnpm lint:eslint packages/client/src` reports no finding, so no site needed a fix.

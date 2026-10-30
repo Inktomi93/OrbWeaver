@@ -29,10 +29,7 @@ type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
 
 // The combinations measured clean on Chromium. A surface absent here has a defect at that scale and is not claimed.
 const QUALIFIED = {
-  topbar: [
-    [PHONE, TEXT_200],
-    [DESKTOP, TEXT_200],
-  ],
+  topbar: [[DESKTOP, TEXT_200]],
   room: [[DESKTOP, TEXT_200]],
   importDialog: [
     [PHONE, TEXT_200],
@@ -55,32 +52,70 @@ test.afterAll(async () => {
   await root[Symbol.asyncDispose]();
 });
 
-/** Reachable controls painted past the viewport or past a horizontally clipping ancestor; a horizontal scroller keeps its children reachable. */
+/**
+ * Reachable controls that a user could not press: painted past the viewport or past a clipping ancestor on either axis (a scroller
+ * keeps its children reachable on its own axis), or covered at their centre by something that is not the control.
+ */
 function clippedControls(subject: Element, { reachable, subpixel }: { readonly reachable: string; readonly subpixel: number }): string[] {
   const label = (element: Element): string =>
     `${element.tagName.toLowerCase()} "${(element.getAttribute("aria-label") ?? element.textContent).trim().slice(0, 40)}"`;
-  const outsideOf = (box: DOMRect, bounds: { readonly left: number; readonly right: number }): boolean =>
-    box.left < bounds.left - subpixel || box.right > bounds.right + subpixel;
+  const spans = (
+    box: DOMRect,
+    bounds: DOMRect | { readonly left: number; readonly right: number; readonly top: number; readonly bottom: number },
+  ): string[] => [
+    ...(box.left < bounds.left - subpixel || box.right > bounds.right + subpixel ? ["x"] : []),
+    ...(box.top < bounds.top - subpixel || box.bottom > bounds.bottom + subpixel ? ["y"] : []),
+  ];
+  const ancestorsOf = (element: Element): Element[] => {
+    const chain: Element[] = [];
+    for (let up = element.parentElement; up !== null && up !== document.documentElement; up = up.parentElement) {
+      chain.push(up);
+    }
+    return chain;
+  };
+  const kindOf = (overflow: string): "scroll" | "clip" | "free" => {
+    if (overflow === "auto" || overflow === "scroll") {
+      return "scroll";
+    }
+    return overflow === "hidden" || overflow === "clip" ? "clip" : "free";
+  };
+  const clipAxis = (element: Element, box: DOMRect): string | null => {
+    // Inner to outer: each ancestor the control sticks out of, on which axis, and what that ancestor does with the excess.
+    const events = ancestorsOf(element).flatMap((ancestor) => {
+      const style = getComputedStyle(ancestor);
+      return spans(box, ancestor.getBoundingClientRect()).map((axis) => ({ axis, ancestor, kind: kindOf(axis === "x" ? style.overflowX : style.overflowY) }));
+    });
+    const scrolls = (axis: string, before: number): boolean => events.slice(0, before).some((event) => event.axis === axis && event.kind === "scroll");
+    const cut = events.find((event, index) => event.kind === "clip" && !scrolls(event.axis, index));
+    if (cut !== undefined) {
+      return `clipped on ${cut.axis} by ${label(cut.ancestor)}`;
+    }
+    const past = spans(box, { left: 0, right: innerWidth, top: 0, bottom: innerHeight }).filter((axis) => !scrolls(axis, events.length));
+    return past.length === 0 ? null : `past the viewport edge on ${past.join("")}`;
+  };
+  const coveredBy = (element: Element, box: DOMRect): Element | null => {
+    const x = box.left + box.width / 2;
+    const y = box.top + box.height / 2;
+    const top = x >= 0 && x < innerWidth && y >= 0 && y < innerHeight ? document.elementFromPoint(x, y) : element;
+    return top !== null && element.contains(top) ? null : top;
+  };
   const verdict = (element: Element): string | null => {
     const box = element.getBoundingClientRect();
-    for (let ancestor = element.parentElement; ancestor !== null && ancestor !== document.documentElement; ancestor = ancestor.parentElement) {
-      const { overflowX } = getComputedStyle(ancestor);
-      const outside = outsideOf(box, ancestor.getBoundingClientRect());
-      if (outside && (overflowX === "auto" || overflowX === "scroll")) {
-        return null;
-      }
-      if (outside && (overflowX === "hidden" || overflowX === "clip")) {
-        return `${label(element)} [${String(Math.round(box.left))}..${String(Math.round(box.right))}] clipped by ${label(ancestor)}`;
-      }
+    const at = `[${String(Math.round(box.left))},${String(Math.round(box.top))} ${String(Math.round(box.width))}x${String(Math.round(box.height))}]`;
+    const clipped = clipAxis(element, box);
+    if (clipped !== null) {
+      return `${label(element)} ${at} ${clipped}`;
     }
-    return outsideOf(box, { left: 0, right: innerWidth })
-      ? `${label(element)} [${String(Math.round(box.left))}..${String(Math.round(box.right))}] past the viewport edge`
-      : null;
+    const cover = coveredBy(element, box);
+    return cover === null ? null : `${label(element)} ${at} is covered at its centre by ${label(cover)} ${cover.className}`;
   };
   return [...subject.querySelectorAll(reachable)]
     .filter(
       (element) =>
-        element.checkVisibility({ visibilityProperty: true }) && element.closest("[inert]") === null && element.getBoundingClientRect().width > subpixel,
+        element.checkVisibility({ visibilityProperty: true }) &&
+        element.closest("[inert]") === null &&
+        getComputedStyle(element).pointerEvents !== "none" &&
+        element.getBoundingClientRect().width > subpixel,
     )
     .map(verdict)
     .filter((found): found is string => found !== null);
@@ -126,7 +161,7 @@ for (const [viewport, scale] of QUALIFIED.topbar) {
       await mount<typeof AppShellStory>(STORY, {});
       await expect(page.locator(".shell-topbar")).toBeVisible();
       await scaleRoot(page, scale.factor);
-      expect(await findings(page.locator(".shell-topbar"))).toEqual([]);
+      await expect.poll(() => findings(page.locator(".shell-topbar"))).toEqual([]);
       expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
     });
   });
@@ -148,7 +183,7 @@ for (const [viewport, scale] of QUALIFIED.room) {
       for (const control of [input, page.getByRole("button", { name: "Send message", exact: true })]) {
         await expect(control).toBeInViewport({ ratio: 1 });
       }
-      expect(await findings(page.locator(".shell-content"))).toEqual([]);
+      await expect.poll(() => findings(page.locator(".shell-content"))).toEqual([]);
       expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
     });
   });
@@ -174,7 +209,7 @@ for (const [viewport, scale] of QUALIFIED.importDialog) {
       const frame = await dialog.boundingBox();
       expect(frame?.x ?? -1).toBeGreaterThanOrEqual(-SUBPIXEL);
       expect((frame?.x ?? 0) + (frame?.width ?? 0)).toBeLessThanOrEqual(viewport.size.width + SUBPIXEL);
-      expect(await findings(dialog)).toEqual([]);
+      await expect.poll(() => findings(dialog)).toEqual([]);
       expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
     });
   });
