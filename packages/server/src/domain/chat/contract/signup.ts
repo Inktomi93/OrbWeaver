@@ -1,6 +1,7 @@
 import type { InvitePreview, SignupMinterCheckOp } from "@orb/contracts/chat";
 import type { AuthMode } from "@orb/contracts/identity";
-import type { JoinerPersona } from "@orb/contracts/persona";
+import type { JoinerPersona, JoinerPersonaStatementParams } from "@orb/contracts/persona";
+import type { JoinerSettingsStatementParams } from "@orb/contracts/settings";
 import type { AwaitableStatementToken, StatementToken } from "@orb/db/wiring";
 import type { ChatId, ChatInviteId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
@@ -27,7 +28,7 @@ export type SignupUserStatementOp = (args: { readonly handle: Handle; readonly p
 
 /** The persona-owned insert of the joiner's persona, which the seat after it names. It inserts only where the
  *  statement before it changed a row. */
-type SignupPersonaStatementOp = (args: { readonly ownerId: UserId; readonly persona: JoinerPersona; readonly at: number }) => {
+type SignupPersonaStatementOp = (args: JoinerPersonaStatementParams) => {
   readonly personaId: PersonaId;
   readonly statement: AwaitableStatementToken<{ id: PersonaId }[]>;
 };
@@ -35,11 +36,7 @@ type SignupPersonaStatementOp = (args: { readonly ownerId: UserId; readonly pers
 /** The settings-owned first settings row of the new account, aiming its current and default persona at the one the
  *  batch created, so the first-run persona ask stands down and later rooms seat it as that persona too. It writes
  *  only where the statement before it changed a row. */
-export type SignupPersonaPointersStatementOp = (args: {
-  readonly ownerId: UserId;
-  readonly personaId: PersonaId;
-  readonly at: number;
-}) => AwaitableStatementToken<{ userId: UserId }[]>;
+export type SignupPersonaPointersStatementOp = (args: JoinerSettingsStatementParams) => AwaitableStatementToken<{ userId: UserId }[]>;
 
 /** Hashes an invite token before persistence; the raw token is never stored. */
 export type HashTokenOp = (token: string) => string;

@@ -20,7 +20,7 @@ import type { OptionStripItem } from "@orb/ui/option-strip";
 import { OptionStrip } from "@orb/ui/option-strip";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import type { SlashCommandContribution } from "#lib";
+import type { SlashCommandContribution, SlashCommandUnavailableFor } from "#lib";
 import { Track } from "../lib/chat-track.tsx";
 import { SLASH_LISTBOX_ID, slashOptionId } from "../lib/slash-command.ts";
 
@@ -29,7 +29,7 @@ export interface ComposerSlashStripProps {
   readonly matches: readonly SlashCommandContribution[];
   /** The reason the last send was refused (unknown command / unavailable command), or null. */
   readonly notice: string | null;
-  readonly unavailableFor: (command: SlashCommandContribution) => string | null;
+  readonly unavailableFor: SlashCommandUnavailableFor;
   /** The index of the keyboard-highlighted offer, or -1 when none is highlighted (the passive-open state). */
   readonly highlightIndex: number;
   /** Completes the draft to `/<id> ` and returns focus to the textarea. */

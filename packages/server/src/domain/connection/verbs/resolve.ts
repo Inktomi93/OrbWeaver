@@ -3,11 +3,11 @@
 // thing decided here is the PROJECTION: `resolveChatCapability` hands back the credential-free
 // `ResolvedConnectionView`, never the `Resolved` a backend consumes.
 
-import type { CapabilityTarget, ResolvedConnectionView, TokenizeResult } from "@orb/contracts/inference";
+import type { CapabilityTarget, ResolveChatCapabilityParams, ResolvedConnectionView, TokenizeResult } from "@orb/contracts/inference";
 import type { ResolveOutcome } from "@orb/inference";
 import { cachePolicyContextOf, resolveCachePolicy, responseReplaySupportedFor } from "@orb/inference";
 import { ConnectionNotFoundError } from "../contract/errors.ts";
-import type { ResolveChatCapabilityParams, TokenizeWordsParams } from "../contract/params.ts";
+import type { TokenizeWordsParams } from "../contract/params.ts";
 import type { ConnectionCapabilityView } from "../contract/results.ts";
 import type { ConnectionContext, ConnectionService } from "../contract/service.ts";
 import { fetchOwnedConnection } from "../persistence/connections.ts";

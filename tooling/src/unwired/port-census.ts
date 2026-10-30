@@ -346,14 +346,14 @@ function serviceTargets(checker: ts.TypeChecker, site: ImportSite, service: Decl
     const foreign = foreignTypes(checker, member);
     const isOp = (ts.isPropertySignature(member) || ts.isMethodSignature(member)) && isHandTyped(member);
     // A field whose type contracts already holds moves nothing: the consumer declares the slice it reads.
-    const kind: TargetKind = !isOp && foreign.server.length === 0 && !passesDbHandle(foreign) ? "split" : crossDomainKind(foreign);
+    const kind: TargetKind = !isOp && foreign.server.length === 0 && !passesDbHandle(foreign) ? "split" : crossDomainKind(foreign, [`${name}.${op}`]);
     const plan =
       kind === "move-to-contracts"
         ? `name ${op} ${isOp ? "as a contracts op type" : "'s type in contracts"}`
         : `type ${op} in domain ${site.domain}'s contract/ over contracts data`;
     const note = [
       `domain ${site.domain} ${isOp ? "calls" : "reads"} ${name}.${op} from domain ${site.from}; never move the whole ${name}: ${plan}`,
-      crossDomainNote(kind, foreign, [name]),
+      crossDomainNote(kind, foreign, [`${name}.${op}`]),
     ]
       .filter((part) => part !== "")
       .join("; ");
@@ -366,7 +366,7 @@ function serviceTargets(checker: ts.TypeChecker, site: ImportSite, service: Decl
 // A data shape another domain declares: it moves to contracts whole, or splits around its runtime types.
 function dataTarget(checker: ts.TypeChecker, site: ImportSite, name: string, declarations: readonly ts.Declaration[]): PlannedTarget {
   const foreign = mergeForeignTypes(declarations.map((declaration) => foreignTypes(checker, declaration)));
-  const kind = crossDomainKind(foreign);
+  const kind = crossDomainKind(foreign, [name]);
   const ownerAt = declarations.map((declaration) => `${relative(site.root, declaration.getSourceFile().fileName)}:${lineOf(declaration)}`).join(", ");
   const note = [`domain ${site.domain} takes ${name} from domain ${site.from}`, crossDomainNote(kind, foreign, [name])]
     .filter((part) => part !== "")
@@ -468,11 +468,16 @@ function indexMembers(root: string, program: ts.Program): ReadonlyMap<string, In
   return nodes;
 }
 
-function forgottenKind(linked: boolean, crossDomain: boolean): TargetKind {
+// A cross-domain copy that carries a database handle cannot move to contracts (contracts reaches only kit and zod):
+// D337's table rules it, or the ledger review does.
+function forgottenKind(linked: boolean, entry: ForgottenExport): TargetKind {
   if (!linked) {
     return "review";
   }
-  return crossDomain ? "move-to-contracts" : "forgotten-door-export";
+  if (!entry.crossDomain) {
+    return "forgotten-door-export";
+  }
+  return passesDbHandle(entry.foreign) ? crossDomainKind(entry.foreign, [entry.name]) : "move-to-contracts";
 }
 
 // A copy counts as the same concept only when a flow, a type reference or an alias links it to the declaration;
@@ -481,12 +486,13 @@ function forgottenTargets(found: Iterable<ForgottenExport>, links: Links): Plann
   return [...found].map((entry): PlannedTarget => {
     const linked = entry.copies.filter((_, index) => links.linked(entry.key, entry.copyKeys[index] ?? ""));
     const shapeOnly = entry.copies.filter((copy) => !linked.includes(copy));
-    const kind = forgottenKind(linked.length > 0, entry.crossDomain);
+    const kind = forgottenKind(linked.length > 0, entry);
     const exports =
       kind !== "forgotten-door-export" || entry.doorFile === null || entry.door === null
         ? []
         : [{ file: entry.doorFile, name: entry.name, from: `./${relative(entry.doorFile.replace(/[^/]+$/u, ""), entry.file)}` }];
-    const note = [linked.length > 0 ? `copies: ${linked.join(", ")}` : "", shapeOnly.length > 0 ? `same shape, no flow: ${shapeOnly.join(", ")}` : ""]
+    const handle = kind === "db-handle-review" || kind === "split" ? crossDomainNote(kind, entry.foreign, [entry.name]) : "";
+    const note = [linked.length > 0 ? `copies: ${linked.join(", ")}` : "", shapeOnly.length > 0 ? `same shape, no flow: ${shapeOnly.join(", ")}` : "", handle]
       .filter((part) => part !== "")
       .join("; ");
     return {

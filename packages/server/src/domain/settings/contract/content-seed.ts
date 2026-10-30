@@ -1,6 +1,7 @@
 // The ordered account seed consumes concrete operations selected from the canonical manifest at graph construction.
 
 import type { Principal } from "@orb/contracts/identity";
+import type { ContentSeedOp } from "@orb/contracts/settings";
 import type { UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { Logger } from "#foundation/observability";
@@ -9,7 +10,7 @@ import type { LegacySeedLatches, ReadSeededKeys, SettingsComposedOps } from "./c
 export interface ContentSeedStep {
   readonly key: string;
   readonly legacyLatch?: keyof LegacySeedLatches;
-  readonly seed: (principal: Principal) => Promise<boolean>;
+  readonly seed: ContentSeedOp;
 }
 export interface ContentSeedPolicyDeps {
   readonly logger: Logger;

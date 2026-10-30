@@ -11,19 +11,10 @@
 // caller's gate) — the `listChatBooks` precedent.
 
 import type { Db } from "@orb/db";
-import type { UserId } from "@orb/kit/ids";
 
 /** The DI bundle `createResolveRegexSources` closes over. Pure owner-scoped reads — no clock/id/audit. */
 export interface RegexResolveContext {
   readonly db: Db;
-}
-
-/** WHOSE display scripts a room broadcasts (D121-E host option) — chat's answer, injected. `enabled:false`
- *  is the default and the byte-identical arm; `hostUserId` is null for a hostless (archived orphan) room,
- *  which also resolves to broadcasting nothing. */
-export interface RoomDisplayPolicy {
-  readonly enabled: boolean;
-  readonly hostUserId: UserId | null;
 }
 
 // THE REVERSE-ROSTER ROOM FILTER MOVED OUT OF THIS FILE (2026-08-19). It was `ResolveVisibleRooms`, declared

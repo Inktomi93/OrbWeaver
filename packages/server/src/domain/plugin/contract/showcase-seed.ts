@@ -3,7 +3,8 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { ExamplePluginSeededOp, MarkExamplePluginSeededOp, ReadSeededPluginVersionsOp, WriteSeededPluginVersionsOp } from "@orb/contracts/settings";
 import type { Logger } from "#foundation/observability";
-import type { PluginSeedOps, ShowcaseVersionReader } from "./seed-ops.ts";
+import type { PluginSeedOps } from "./seed-ops.ts";
+import type { PluginContext } from "./service.ts";
 
 export interface ExamplePluginSeederDeps {
   readonly logger: Logger;
@@ -15,7 +16,7 @@ export interface ExamplePluginSeederDeps {
   /** The version the SHIPPED bundle declares, read off its own manifest (`readShowcaseManifest`) and never
    *  re-spelled anywhere. `null` when the package ships no such slug — the same absence `packBundle` reports,
    *  so one missing bundle produces one skipped slug rather than two disagreeing answers. */
-  readonly bundledVersion: ShowcaseVersionReader;
+  readonly bundledVersion: PluginContext["showcase"]["version"];
   /** The REAL install verb, under the receiving user's own Principal. */
   readonly install: (...args: Parameters<PluginSeedOps["install"]>) => Promise<Pick<Awaited<ReturnType<PluginSeedOps["install"]>>, "id">>;
   /** The REAL upgrade verb — the SAME one a hand upload and the one-click url update drive, which is what

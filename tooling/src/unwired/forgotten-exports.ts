@@ -5,6 +5,8 @@ import { relative } from "node:path";
 import ts from "typescript";
 import type { LoadedWorld } from "./doors.ts";
 import { doorsOf, exportNameOf } from "./doors.ts";
+import type { ForeignTypes } from "./foreign-types.ts";
+import { foreignTypes } from "./foreign-types.ts";
 import { derivedMembers, isHandTyped, placementOf } from "./restated-port.ts";
 import { isProduction } from "./worlds.ts";
 
@@ -22,6 +24,8 @@ export interface ForgottenExport {
   readonly copyKeys: readonly string[];
   /** A copy sits in another server domain, so the shape moves to contracts instead of out through the door. */
   readonly crossDomain: boolean;
+  /** The runtime types the declaration names, which decide whether the shape can move to contracts at all. */
+  readonly foreign: ForeignTypes;
 }
 
 // Interfaces this small match by accident; a copy is a shape with at least this many members.
@@ -142,6 +146,7 @@ export function forgottenDoorExports(world: LoadedWorld): readonly ForgottenExpo
       copies: copies.map((copy) => copy.at),
       copyKeys: copies.map((copy) => copy.id),
       crossDomain,
+      foreign: foreignTypes(checker, shape.declaration),
     });
   }
   return found;

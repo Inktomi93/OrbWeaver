@@ -13,8 +13,6 @@ export interface CreatePersonaParams extends PersonaActorParams {
   readonly input: CreatePersonaInput;
 }
 
-export interface ListPersonasParams extends PersonaActorParams {}
-
 export interface GetPersonaParams extends PersonaActorParams {
   readonly personaId: PersonaId;
 }
@@ -62,17 +60,6 @@ export interface SetActivePersonaParams {
 
 export interface DuplicatePersonaParams extends PersonaActorParams {
   readonly personaId: PersonaId;
-}
-
-export interface ExportPersonaParams extends PersonaActorParams {
-  readonly personaId: PersonaId;
-}
-
-/** The FILE is the unit (the thin-arm law): the single-entity door and the bundle descriptor hand the same
- *  bytes to the same verb, so the two paths can never drift. Never carries avatarAssetId — the backup shape
- *  (personaBackupSchema) excludes it. */
-export interface ImportPersonaParams extends PersonaActorParams {
-  readonly bytes: Uint8Array;
 }
 
 /** The pre-commit read of a profile import: which incoming personas would collide with an owned one. */

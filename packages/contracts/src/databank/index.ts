@@ -473,4 +473,10 @@ export const listDocumentsInputSchema = z.object({
   limit: z.int().min(DATABANK_LIST_LIMIT_MIN).max(DATABANK_LIST_LIMIT_MAX).optional(),
   cursor: documentListCursorSchema.nullish(),
 });
-export type { CaptureDatabankRoomReachOp } from "./owner-ops.ts";
+export type {
+  CaptureDatabankRoomReachOp,
+  DatabankImportOutcome,
+  ExportDocument,
+  ImportDocument,
+  ListOwnedDocumentIds,
+} from "./owner-ops.ts";

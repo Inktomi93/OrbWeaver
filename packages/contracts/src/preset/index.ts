@@ -587,6 +587,9 @@ export type RolePresetParams = Pick<UserIntent, RolePresetField> & { readonly re
  *  runs a background summarize or structured call takes it as an injected op. */
 export type ResolveUtilityPresetParams = (userId: UserId) => Promise<RolePresetParams | undefined>;
 
+/** A user's preset prompt config by id, or `null` when the preset is absent. */
+export type ReadOptionalPresetConfig = (userId: UserId, id: PresetId) => Promise<PromptConfig | null>;
+
 const XML_OPEN_TAG_RE = /^<(?<name>[A-Za-z][\w:-]*)>$/u;
 
 /** A tag pair as the stream splitter carries it: trimmed (SillyTavern's default pair wraps the tags in newlines), and
@@ -3572,6 +3575,7 @@ export function parsePresetFile(raw: unknown): ParsePresetResult {
   return { ok: true, name, config: result.data };
 }
 
+export type { CopyPresetToUser, ExportPresets, ImportPreset, PresetReadable } from "./owner-ops.ts";
 export { type PresetImportOutcome, presetImportOutcomeSchema } from "./portability.ts";
 
 // Wire outputs validate already-produced configuration; storage parsing retains its lenient degradation.

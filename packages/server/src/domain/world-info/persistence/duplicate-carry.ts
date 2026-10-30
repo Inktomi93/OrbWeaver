@@ -26,11 +26,12 @@
 // RETRY-SAFE: the attach insert is `onConflictDoNothing` on the (characterId, worldBookId) PK, so a carry
 // re-run after a later failure in `duplicate` converges instead of erroring on rows it already wrote.
 
+import type { CopyCharacterBooks } from "@orb/contracts/world-info";
 import { characterBooks, characters, worldBooks } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import { and, eq, inArray } from "drizzle-orm";
-import type { CopyCharacterBooks, WorldInfoDuplicateCarryContext } from "../contract/import.ts";
+import type { WorldInfoDuplicateCarryContext } from "../contract/import.ts";
 
 /** Both character ids present in the caller's own library — the owned-source gate, resolved in ONE round
  *  trip (`persona/persistence/queries.ts`'s `ensureCharacterOwned` idiom). A foreign or absent id on either

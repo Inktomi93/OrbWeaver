@@ -1,4 +1,4 @@
-// domain/persona/contract/import — the `PersonaImportContext` DI bundle + op type for the persona-OWNED
+// domain/persona/contract/import — the `PersonaImportContext` DI bundle for the persona-OWNED
 // bulk-import WRITE (`createBulkImportPersonas`, Option B). A PURPOSE-BUILT context (NOT the full
 // `PersonaContext`): the bulk path needs only db + clock + the persona id minter — no audit/user-bus/chat
 // guards. Homed under `contract/` (the `types-in-contract`/`no-context-returntype` gate); explicit
@@ -8,10 +8,8 @@
 // (`@orb/contracts/persona`) and calls the op. Persona owns the WRITE (dedup-by-name + `personas` insert) and
 // returns `idByName` so import can attribute chat `user_name`s.
 
-import type { PersonaCollisionChoices } from "@orb/contracts/import";
-import type { BulkImportPersonaInput, BulkImportPersonasResult } from "@orb/contracts/persona";
 import type { Db } from "@orb/db";
-import type { PersonaId, UserId } from "@orb/kit/ids";
+import type { PersonaId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 
 /** The DI bundle `createBulkImportPersonas` closes over (assembled at the entry composition root). */
@@ -20,13 +18,3 @@ export interface PersonaImportContext {
   readonly now: Clock;
   readonly newPersonaId: () => PersonaId;
 }
-
-/** The persona-owned bulk-import op the entry root wires into `import`'s
- *  `ImportContext.profile.bulkImportPersonas`. An equal-content persona is reused; a same-name,
- *  different-content one follows `collisions[foldedName]` (merge into the owned persona, or keep both). */
-export type BulkImportPersonas = (args: {
-  readonly ownerId: UserId;
-  readonly personas: readonly BulkImportPersonaInput[];
-  /** Absent or unlisted ⇒ merge. */
-  readonly collisions?: PersonaCollisionChoices | undefined;
-}) => Promise<BulkImportPersonasResult>;

@@ -1,4 +1,4 @@
-import type { AutomationBusEvent } from "@orb/contracts/automation";
+import type { AutomationBusEvent, EmitAutomationEvent } from "@orb/contracts/automation";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { ChatId, UserId } from "@orb/kit/ids";
@@ -31,7 +31,7 @@ export interface NotificationsBus extends Disposable {
 }
 
 export interface AutomationBus extends Disposable {
-  readonly publishAutomationEvent: (event: AutomationBusEvent) => void;
+  readonly publishAutomationEvent: EmitAutomationEvent;
   readonly subscribeAutomation: (chatId: ChatId, signal: AbortSignal) => AsyncIterable<AutomationBusEvent>;
 }
 

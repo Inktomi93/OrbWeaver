@@ -3,12 +3,12 @@
 // preset with equal content is reused; a different one under the same name keeps its row and the file lands
 // under the next free name. Never throws for a malformed file — returns { ok:false, error }.
 
+import type { ImportPreset, PresetImportOutcome } from "@orb/contracts/preset";
 import { parsePresetFile, presetContentKey } from "@orb/contracts/preset";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import { nextFreeName } from "@orb/kit/strings";
 import { getLog } from "#foundation/observability";
-import type { ImportPreset, PresetImportOutcome } from "../contract/portability.ts";
 import type { PresetContext } from "../contract/service.ts";
 import { insertPreset, listOwned } from "../persistence/queries.ts";
 

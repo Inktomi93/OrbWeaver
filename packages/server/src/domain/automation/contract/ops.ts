@@ -1,6 +1,5 @@
 import type {
   AutomationAction,
-  AutomationBusEvent,
   AutomationCelEnv,
   AutomationEmitSource,
   AutomationOrigin,
@@ -9,22 +8,22 @@ import type {
   AutomationSuggestionKind,
   AutomationTrigger,
   ChatAutomationReads,
+  EmitAutomationEvent,
   RulePresetId,
   RulePresetKnobValues,
   SuggestibleAction,
   TriggerFact,
 } from "@orb/contracts/automation";
-import type { PromptTransform, ResolveViewerVisibility } from "@orb/contracts/chat";
-import type { Can, Principal } from "@orb/contracts/identity";
+import type { RegisterPromptTransformOp, ResolveChatProseOp, ResolveViewerVisibility, UnregisterPromptTransformOp } from "@orb/contracts/chat";
+import type { Can, ResolveHostPrincipalOp, ResolveUserEnabled } from "@orb/contracts/identity";
 import type { GeneratePicturePrompt, SizePresetName } from "@orb/contracts/imagery";
 import type { NotificationEvent, NotificationRecipient } from "@orb/contracts/notifications";
 import type { ExecutePluginSuggestion, PluginBridge, PluginSuggestedAct } from "@orb/contracts/plugin";
 import type { SideGenKind } from "@orb/contracts/preset";
-import type { ProseOverrides } from "@orb/contracts/prose";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { IsToolDrivableByOp } from "@orb/contracts/tool-use";
-import type { UpsertEntriesResult, UpsertLoreEntryInput } from "@orb/contracts/world-info";
+import type { UpsertEntriesOp } from "@orb/contracts/world-info";
 import type { automationRules, Db } from "@orb/db";
 import type {
   AutomationRuleCreationId,
@@ -36,7 +35,6 @@ import type {
   MessageVariantId,
   PluginId,
   UserId,
-  WorldBookId,
 } from "@orb/kit/ids";
 import type { RandomSource } from "@orb/kit/macro";
 import type { SerialLanes } from "@orb/kit/serial-lanes";
@@ -274,7 +272,7 @@ export interface AutomationOps {
     /** PROSE-1 census 91 — the ROOM HOST's prose overrides for this chat (owner-decision 8, option (a)),
      *  wired to chat's `resolveChatProse` at compose. The `set_chat_background` quiet pick reads its two
      *  authored clauses from here; a hostless/stale room resolves `{}` ⇒ the shipped defaults. */
-    readonly resolveChatProse: (chatId: ChatId) => Promise<ProseOverrides>;
+    readonly resolveChatProse: ResolveChatProseOp;
     /** BG-F — the `set_chat_background` arm's WRITE, wired to chat's host-gated `setChatBackground` under the
      *  author's Principal at compose (the author's dispatch-time host authority was re-verified at the gate).
      *  Writes the per-chat carried background — INERT for every viewer outside a true-solo room (BG-C), which
@@ -290,11 +288,7 @@ export interface AutomationOps {
   /** The SHARED, hand-edit-safe world-info writer (CC-D; the ONE write path — consumed, never forked).
    *  `authorUserId` resolves to the book owner's Principal at compose. */
   readonly worldInfo: {
-    readonly upsertEntries: (args: {
-      readonly authorUserId: UserId;
-      readonly bookId: WorldBookId;
-      readonly entries: readonly UpsertLoreEntryInput[];
-    }) => Promise<UpsertEntriesResult>;
+    readonly upsertEntries: UpsertEntriesOp;
   };
   /** The unified-inbox delivery for a `post_notification` arm (the `automation-notice` member);
    *  wired to the composed durable-first `notifications.emit` at compose (never a re-rolled inbox). */
@@ -347,10 +341,6 @@ export interface AutomationOps {
   }) => Promise<{ readonly text: string }>;
 }
 
-/** Resolve a rule AUTHOR's `Principal` for the dispatch-time authority re-check. Minted at the entry
- *  seam (the constitution: only entry constructs a Principal) and injected; `null` when the user is gone. */
-export type ResolveAuthorPrincipal = (userId: UserId) => Promise<Principal | null>;
-
 /** The domain rows a CHAT-LESS `TriggerFact` can reference — one per domain-bus event. Homed HERE (the
  *  domain's type home) rather than beside the read it drives, because TWO independent consumers ask about it:
  *  the plugin fan-out's visibility gate and the owner-global rule gate, through the one mapping in
@@ -371,23 +361,6 @@ export interface FactSubject {
   readonly kind: DomainRowKind;
   readonly id: string;
 }
-
-/** C5 — is a rule AUTHOR still a live, ENABLED account? The owner-GLOBAL lane's standing-authority read
- *  (`substrate/authority.ts::holdsOwnerAuthority` states what it substitutes for and why).
- *
- *  IT IS AN INJECTED OP AND NOT A LOCAL SELECT, and the reason is the identity spine rather than taste: the
- *  `users` table is read and written by `domain/sessions` + `domain/admin` ONLY (the no-direct-users-read
- *  chokepoint, `Spine-Identity-and-Auth.md`), so every other domain takes what it needs about a user through
- *  the resolved Principal or an op wired at compose. A chat rule's authority needs no such read — its
- *  answer comes from the roster — which is exactly why this arrived with the lane that has no roster.
- *
- *  Fail-CLOSED at the wiring: a vanished row answers `false`, never "assume enabled". */
-export type IsAuthorEnabled = (userId: UserId) => Promise<boolean>;
-
-/** The automation feedback-bus sink. Injected; wired at compose to `publishAutomationEvent` —
- *  fans the event to the chat's `automation.stream` subscribers (the transport-owned per-chat live bus). The
- *  `surface_quick_reply` arm's `quickReplySurfaced` is the one MEMBER-visible event; the rest are host-only. */
-export type EmitAutomationEvent = (event: AutomationBusEvent) => void;
 
 /** The in-process pre-check index — chats with ≥1 enabled rule + whether any enabled DOMAIN-trigger
  *  rule exists. `ASSUMES(single-replica)`: the sets are per-process, reloaded at boot + on every lifecycle
@@ -433,8 +406,8 @@ export interface PromptTransformIndexDeps {
   readonly ops: AutomationOps;
   readonly prng: RandomSource;
   readonly now: Clock;
-  readonly register: (transform: PromptTransform) => void;
-  readonly unregister: (id: string) => void;
+  readonly register: RegisterPromptTransformOp;
+  readonly unregister: UnregisterPromptTransformOp;
 }
 
 /** The prompt-transform index — the automation side of the D50 `PromptTransform` seam. A
@@ -725,9 +698,11 @@ export interface SuggestionStore {
 export interface AuthorityDeps {
   readonly db: Db;
   readonly can: Can;
-  readonly resolveAuthor: ResolveAuthorPrincipal;
-  /** C5 — the OWNER-GLOBAL arm's standing read (see {@link IsAuthorEnabled}). */
-  readonly isAuthorEnabled: IsAuthorEnabled;
+  /** The rule AUTHOR's `Principal` for the dispatch-time authority re-check, minted at the entry seam. */
+  readonly resolveAuthor: ResolveHostPrincipalOp;
+  /** C5 — the OWNER-GLOBAL arm's standing read: is a rule AUTHOR still a live, ENABLED account? Injected because
+   *  `users` belongs to `domain/sessions` + `domain/admin` alone (`Spine-Identity-and-Auth.md`). */
+  readonly isAuthorEnabled: ResolveUserEnabled;
 }
 
 /** What ONE dispatch batch did: whether any rule disabled itself (the caller reloads the enabled index)

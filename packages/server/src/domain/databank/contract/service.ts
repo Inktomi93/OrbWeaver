@@ -13,7 +13,7 @@
 // `search()` are both BUILT (databank graduated D91).
 
 import type { LoadAssetBytes, StoredAsset } from "@orb/contracts/assets";
-import type { ResolveVisibleRoomsOp } from "@orb/contracts/chat";
+import type { RequireHostOp, RequireParticipantOp, ResolveVisibleRoomsOp } from "@orb/contracts/chat";
 import type {
   ActiveChatDocumentView,
   BankHealthView,
@@ -46,7 +46,7 @@ import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { CharacterId, ChatId, DocumentId, UserId, WorkloadId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
-import type { AuditEntry, Logger } from "#foundation/observability";
+import type { AuditWiring, Logger } from "#foundation/observability";
 import type { ScopedEgress } from "#infra/network";
 import type {
   BankHealthParams,
@@ -85,17 +85,9 @@ type EnqueueIngestOp = (args: { documentId: DocumentId; ownerId: UserId }) => Pr
 /** Enqueue a `databank-reindex` workload (the panel/verb-driven derived-layer maintenance). */
 type EnqueueReindexOp = (args: { ownerId: UserId; scope: ReindexScope; mode: ReindexMode }) => Promise<{ readonly workloadId: WorkloadId }>;
 
-/** The D18 chat-host predicate (chat's own guard). Attaching a document injects content into every
- *  participant's prompts on the host's dime — write authority is host, not any member. */
-type EnsureChatHostOp = (principal: Principal, chatId: ChatId) => Promise<void>;
-
 /** The chat's PRESENT host (chat's own read), or `null` for a hostless room. Databank reads neither the roster
  *  nor `chats`, so the panel's host/member branch asks chat. */
 type ResolveChatHostOp = (chatId: ChatId) => Promise<UserId | null>;
-
-/** The D18 chat-member predicate (chat's own guard). `listActiveForChat` is member-readable — every
- *  participant deserves to SEE what feeds the room's prompts (even though only the host's docs are retrieved). */
-type EnsureChatMemberOp = (principal: Principal, chatId: ChatId) => Promise<void>;
 
 /** The active embed space tag the chunk-store arm tags rows with — PER OWNER (the owner's `embed` binding
  *  defines it and its width, inference program §7.5/§10), read per call. `null` = no binding: nothing to embed
@@ -116,7 +108,7 @@ export interface DatabankContext {
   readonly db: Db;
   readonly now: Clock;
   readonly newDocumentId: () => DocumentId;
-  readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
+  readonly audit: AuditWiring["log"];
   /**
    * The per-user freshness plane (`databankChanged`) — injected, never a sideways reach at the bus (D38).
    * Every persisting verb calls it with the OWNER after its durable write commits, and the ingest subsystem
@@ -196,8 +188,12 @@ export interface DatabankContext {
   readonly getDatabankSettings: GetDatabankSettingsOp;
   readonly enqueueIngest: EnqueueIngestOp;
   readonly enqueueReindex: EnqueueReindexOp;
-  readonly ensureChatHost: EnsureChatHostOp;
-  readonly ensureChatMember: EnsureChatMemberOp;
+  /** The D18 chat-host predicate (chat's own guard). Attaching a document injects content into every
+   *  participant's prompts on the host's dime, so write authority is host, not any member. */
+  readonly ensureChatHost: RequireHostOp;
+  /** The D18 chat-member predicate (chat's own guard). `listActiveForChat` is member-readable — every
+   *  participant deserves to SEE what feeds the room's prompts (even though only the host's docs are retrieved). */
+  readonly ensureChatMember: RequireParticipantOp;
   readonly resolveChatHost: ResolveChatHostOp;
   /** The leak-safe reverse-room read `listAttachments` names its rooms through (#276) — chat's answer to "of
    *  these rooms, which may this caller see, and what are they called". Injected for the same reason the two

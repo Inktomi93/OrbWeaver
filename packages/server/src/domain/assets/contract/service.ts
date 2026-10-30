@@ -2,11 +2,20 @@
 // (upload/fetch/variant core, gallery, and maintenance/DR verbs). Every surface is owner-scoped off
 // `principal.userId`; maintenance verbs are un-principal (CLI/workload/DR callers only).
 
-import type { AssetBlobRef, AssetCasRefByIdOp, AssetListItem, GalleryItemView, LoadAssetBytesOp, StoreAsset } from "@orb/contracts/assets";
-import type { CharacterOwnedOp } from "@orb/contracts/character";
+import type {
+  AssetBlobRef,
+  AssetCasRefByIdOp,
+  AssetListItem,
+  GalleryItemView,
+  LoadAssetBytesOp,
+  LoadChatAssetRefsOp,
+  LoadCoParticipantOwnerOp,
+  ReadOwnedAssetBytes,
+  StoreAsset,
+} from "@orb/contracts/assets";
+import type { CharacterOwnedOp, LinkCharacterAvatars } from "@orb/contracts/character";
 import type { ListImageAssetIds } from "@orb/contracts/embeddings";
 import type { EmitDomainEvent } from "@orb/contracts/events";
-import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { AssetId, CharacterHandle, CharacterId, ChatId, GalleryItemId, UserId } from "@orb/kit/ids";
@@ -15,7 +24,7 @@ import type { ImageAdapter } from "#infra/image";
 import type { Cas, VariantCache } from "#infra/storage";
 import type { BackfillParams, BackfillResult, FsckOptions, FsckResult, GcOptions, GcResult, ReapResult, RebuildOptions, RebuildResult } from "./maintenance.ts";
 import type { GalleryAddParams, GalleryListParams, GetMetadataParams, ListOwnedParams, RemoveFromGalleryParams, ResolveVariantParams } from "./params.ts";
-import type { AssetMetadata, OwnedAssetBytes } from "./results.ts";
+import type { AssetMetadata } from "./results.ts";
 
 /** The DI bundle every assets verb closes over (wired at `service.ts`); explicit interface, not `ReturnType<>`. */
 export interface AssetsContext {
@@ -37,10 +46,10 @@ export interface AssetsContext {
   readonly imageProbe: ImageAdapter["probe"];
   /** Roster-avatar reference-check (NOT a hash→any-owner oracle): returns the asset's owner only if the
    *  hash is an avatar/attachment the caller may render in a shared chat; `undefined` otherwise. Optional. */
-  readonly loadCoParticipantOwner?: (callerId: UserId, hash: string) => Promise<UserId | undefined>;
+  readonly loadCoParticipantOwner?: LoadCoParticipantOwnerOp;
   /** Chat-scoped render resolver: `(assetId, hash)` pairs among `assetIds` the caller may render in `chatId`
    *  (structural `message_assets` reference + owner present + caller present). Optional. */
-  readonly loadChatAssetRefs?: (callerId: UserId, chatId: ChatId, assetIds: readonly AssetId[]) => Promise<readonly AssetBlobRef[]>;
+  readonly loadChatAssetRefs?: LoadChatAssetRefsOp;
   /** Gallery owner-only posture: does `ownerId` own `characterId`? Optional — absent skips the subject check. */
   readonly assertCharacterOwned?: CharacterOwnedOp;
   /** Gallery export re-link: an owned character's portable handle, or null if missing or foreign. Optional. */
@@ -51,15 +60,8 @@ export interface AssetsContext {
    *  CHARACTER's column — a cross-domain write routes through the owning domain, Constitution.md §2 / Tier-1-DB.md
    *  §"Cross-tier composition"). REQUIRED, not optional: an absent op would silently turn the relink into a
    *  no-op that still reports `linked: n`. Locally declared (structural), never a sideways type import. */
-  readonly linkCharacterAvatars: LinkCharacterAvatarsOp;
+  readonly linkCharacterAvatars: LinkCharacterAvatars;
 }
-
-/** Character-owned avatar-relink write op; assets maps its verified `(characterId, assetId)` pairs and never
- *  touches the `characters` table itself. Owner-scoped per row; a no-op on an empty list. */
-type LinkCharacterAvatarsOp = (args: {
-  readonly ownerId: UserId;
-  readonly links: readonly { readonly characterId: CharacterId; readonly assetId: AssetId }[];
-}) => Promise<void>;
 
 export interface AssetsService {
   /** Persist bytes to the owner's CAS + upsert the index row. `created:false` on within-user dedup;
@@ -74,7 +76,7 @@ export interface AssetsService {
   /** Owner-gated byte read (EC-B): the CALLER'S OWN asset bytes + mime by id — imagery caption/edit source,
    *  rpg, databank. Throws AssetNotFoundError when missing OR not the caller's
    *  (collapsed, leak-free). NOT `loadAssetBytes` — that is the un-principal indexer read (D20). */
-  readonly readOwnedAssetBytes: (caller: Principal, assetId: AssetId) => Promise<OwnedAssetBytes>;
+  readonly readOwnedAssetBytes: ReadOwnedAssetBytes;
   /** Resolve an asset's `(ownerId, hash, mime)` from its row id alone — un-principal, pure row lookup. */
   readonly assetCasRefById: AssetCasRefByIdOp;
   /** Every image asset id; `ownerId` scopes to one owner, omitted/null = all owners. Un-principal sweep. */

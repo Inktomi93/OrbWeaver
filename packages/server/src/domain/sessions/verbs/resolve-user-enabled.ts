@@ -2,9 +2,10 @@
 // inherited books, an automation author's standing authority). Read fresh per call, and FAIL-CLOSED: a missing row
 // answers `false`, never "assume enabled". Principal-less and compose-built over the service's own row read.
 
+import type { ResolveUserEnabled } from "@orb/contracts/identity";
 import type { UserId } from "@orb/kit/ids";
 import type { SessionsService } from "../contract/service.ts";
 
-export function createResolveUserEnabled(sessions: Pick<SessionsService, "loadUserById">): (userId: UserId) => Promise<boolean> {
+export function createResolveUserEnabled(sessions: Pick<SessionsService, "loadUserById">): ResolveUserEnabled {
   return async (userId: UserId): Promise<boolean> => (await sessions.loadUserById(userId))?.enabled === true;
 }

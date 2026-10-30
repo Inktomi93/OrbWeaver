@@ -29,7 +29,14 @@
 // uniqueness check this write once ran protected the title-keyed `upsertEntries` stream (its callers key by
 // title); that verb documents last-write-wins for a repeated title and needs no refusal here.
 
-import type { BulkImportLorebookInput, BulkImportLorebookResult } from "@orb/contracts/world-info";
+import type {
+  AttachOwnedBooksByName,
+  BulkImportLorebook,
+  BulkImportLorebookInput,
+  BulkImportLorebookResult,
+  HasPrimaryBook,
+  ImportStandaloneLorebook,
+} from "@orb/contracts/world-info";
 import { entryMetadataSchema } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import { characterBooks, characters, worldBooks, worldEntries } from "@orb/db";
@@ -43,7 +50,7 @@ import { nextFreeLabel } from "@orb/kit/strings";
 import { and, asc, eq, inArray, ne } from "drizzle-orm";
 import type { DedupBook, DedupCandidateBook, DedupLoreEntry } from "#primitives/serde/world-info";
 import { findDuplicateBook } from "#primitives/serde/world-info";
-import type { AttachOwnedBooksByName, BulkImportLorebook, HasPrimaryBook, ImportStandaloneLorebook, WorldInfoImportContext } from "../contract/import.ts";
+import type { WorldInfoImportContext } from "../contract/import.ts";
 
 /** The FK would fail-closed anyway, but the explicit check gives a typed DomainNotFoundError. */
 async function assertOwnedCharacter(db: Db, ownerId: UserId, characterId: CharacterId): Promise<void> {

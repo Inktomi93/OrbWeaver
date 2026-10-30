@@ -18,13 +18,14 @@
 // every other time read is injected (the test-determinism gate's whole point) and would hold a process handle
 // open for a map that is allowed to be empty.
 
-import type { AutomationAction, SuggestibleAction, SuggestibleArmType } from "@orb/contracts/automation";
+import type { AutomationAction, EmitAutomationEvent, SuggestibleAction, SuggestibleArmType } from "@orb/contracts/automation";
 import { AUTOMATION_SUGGESTION_SUMMARY_MAX, SPEND_ARM_TYPES } from "@orb/contracts/automation";
 import type { PluginSuggestedAct } from "@orb/contracts/plugin";
 import { summarizePluginAct } from "@orb/contracts/plugin";
 import type { AutomationSuggestionId, ChatId, PluginId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
-import type { EmitAutomationEvent, PendingSuggestion, SuggestionSource, SuggestionStore } from "../contract/ops.ts";
+import type { PendingSuggestion, SuggestionSource, SuggestionStore } from "../contract/ops.ts";
+import type { NewSuggestionId } from "../contract/suggestion-id.ts";
 
 /** How long a pending ask lives before it is swept. A host who has not answered in half an hour is not
  *  answering THIS beat's ask — the room has moved on, and a re-fire mints a fresh one. */
@@ -179,7 +180,7 @@ export function summarizeSuggestibleArm(action: SuggestibleAction): string {
 export function createPluginSuggestionRaiser(deps: {
   readonly suggestions: SuggestionStore;
   readonly notify: EmitAutomationEvent;
-  readonly newSuggestionId: () => AutomationSuggestionId;
+  readonly newSuggestionId: NewSuggestionId;
   readonly now: Clock;
 }): (req: {
   readonly plugin: { readonly id: PluginId; readonly name: string };

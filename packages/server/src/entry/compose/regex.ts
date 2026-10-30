@@ -9,13 +9,7 @@
 // watchdog (`@orb/server/primitives/regex`) is injected onto ChatContext as `applyRegexReplace`. This seam wires
 // only the DATA the engine runs on (Constitution.md §1 "engine vs data").
 
-import type { LiveOnlyChatBusEvent, ResolveRegexSources } from "@orb/contracts/chat";
-import type { DatabaseHandle } from "@orb/db/wiring";
-import type { IdSource } from "@orb/kit/ids";
-import { ID_PREFIX } from "@orb/kit/ids";
-import type { Clock } from "@orb/kit/time";
-import { can } from "#domain/admin";
-import { createResolveRoomDisplayPolicy, requireHost, requireParticipant } from "#domain/chat";
+import type { ResolveRegexSources } from "@orb/contracts/chat";
 import type {
   ExportCardScripts,
   ExportRegexScripts,
@@ -23,8 +17,15 @@ import type {
   ImportGlobalScripts,
   ImportPresetScripts,
   ImportRegexScript,
-  RegexService,
-} from "#domain/regex";
+} from "@orb/contracts/regex";
+import type { DatabaseHandle } from "@orb/db/wiring";
+import type { IdSource } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
+import { can } from "#domain/admin";
+import type { ChatServiceDeps } from "#domain/chat";
+import { createResolveRoomDisplayPolicy, requireHost, requireParticipant } from "#domain/chat";
+import type { RegexService } from "#domain/regex";
 import {
   createExportCardScripts,
   createExportRegexScripts,
@@ -53,7 +54,7 @@ export interface RegexComposeDeps {
   /** chat's DURABLE-APPEND-FREE live fan — the entity→room bridge's emit surface (the world-info precedent).
    *  Threaded here for #1733: regex's chat-arm writes and its library-row switch both have a member-visible
    *  projection in rooms, and `regexChanged` is a per-USER channel that never reaches them. */
-  readonly emitChatEventLive: (event: LiveOnlyChatBusEvent) => void;
+  readonly emitChatEventLive: ChatServiceDeps["emitLive"];
 }
 
 /** The regex compose product: the service + the four portability ops + the chat-turn resolve op. */

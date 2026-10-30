@@ -37,6 +37,10 @@ export type LoadInlineReplyAssetIdsOp = () => Promise<ReadonlyMap<MessageId, Rea
 /** Reserves `count` consecutive receipt event ordinals and returns the first. */
 export type ReserveReceiptEventsOp = (count: number) => number;
 
+/** The deployment's prompt-cache depth floor, read per turn so an admin change governs the next request with no
+ *  restart. */
+export type PromptCacheMinDepthOp = () => number;
+
 /** The inter-turn delay the auto-mode chain waits on. */
 export type DelayOp = (ms: number) => Promise<void>;
 

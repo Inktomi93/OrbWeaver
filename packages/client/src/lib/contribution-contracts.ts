@@ -361,6 +361,9 @@ export interface SlashCommandContribution {
   readonly mount: (props: SlashCommandMountProps) => ReactNode;
 }
 
+/** The host's resolved availability of a command: `null` = runnable, a string = the reason it is not. */
+export type SlashCommandUnavailableFor = (command: SlashCommandContribution) => string | null;
+
 /** ONE dynamic row a {@link CommandPaletteSource} fans into the command palette (§6c). A plain,
  *  pre-resolved row — NOT a {@link SlashCommandContribution}: a static contribution is one declaration = one
  *  row, assembled at the door, and cannot express rows that only exist at runtime (a plugin's registered

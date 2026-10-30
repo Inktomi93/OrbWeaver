@@ -6,6 +6,7 @@ import type { ForeignTypes } from "./foreign-types.ts";
 import { describeForeignTypes, passesDbHandle, runtimeTypes } from "./foreign-types.ts";
 import type { PortMember, Restatement } from "./restated-port.ts";
 import { placementOf, tierRank } from "./restated-port.ts";
+import { D337_RULING, isRuledJointBatchOp } from "./ruled-ops.ts";
 
 /** What a target asks its leg to do. The codemod applies {@link APPLIED_KINDS}; the others are judgment or hand work. */
 export const TARGET_KINDS = [
@@ -236,24 +237,27 @@ export function rankOfKey(key: string): number {
   return placement === null ? Number.MAX_SAFE_INTEGER : tierRank(placement);
 }
 
-// The joint batches the ledger rules, by the owner member or imported name that hands a statement or handle across
-// domains. Every other db-handle pass is unruled: a defect to redesign, each with its own item.
+// The joint batches an earlier ledger row rules, by the owner member or imported name that hands a statement or handle
+// across domains. D337's ops are in `ruled-ops.ts`; every other db-handle pass is unruled: a defect to redesign.
 const DB_HANDLE_RULINGS: ReadonlyMap<string, string> = new Map([
   ["SessionsService.signupUserStatement", "D259 (signup invite mints the account, persona and seat in one gated batch)"],
   ["PendingSignupPlan.statements", "D259 (the OIDC pending-join confirm runs the same gated batch)"],
   ["ChatRpgGameBirthPlan", "D264 (startChat births the game in chat's creation batch through rpg's planGameBirth)"],
-  ["SessionsService", "D257 for localUserInsertStatement (admin's mint in its audited batch); revokeAllForUserStatement and linkExternalIdStatement unruled"],
 ]);
 
-export function crossDomainKind(foreign: ForeignTypes): TargetKind {
-  if (passesDbHandle(foreign)) {
+const rulingOf = (rulingKeys: readonly string[]): string | undefined =>
+  rulingKeys.some(isRuledJointBatchOp) ? D337_RULING : rulingKeys.map((key) => DB_HANDLE_RULINGS.get(key)).find((found) => found !== undefined);
+
+export function crossDomainKind(foreign: ForeignTypes, rulingKeys: readonly string[]): TargetKind {
+  if (passesDbHandle(foreign) && rulingOf(rulingKeys) === undefined) {
     return "db-handle-review";
   }
   return runtimeTypes(foreign).length > 0 ? "split" : "move-to-contracts";
 }
 
 export function crossDomainNote(kind: TargetKind, foreign: ForeignTypes, rulingKeys: readonly string[]): string {
-  const ruling =
-    kind === "db-handle-review" ? `ruling: ${rulingKeys.map((key) => DB_HANDLE_RULINGS.get(key)).find((found) => found !== undefined) ?? "unruled"}` : "";
+  const ruled = rulingOf(rulingKeys);
+  const unruled = kind === "db-handle-review" ? "ruling: unruled" : "";
+  const ruling = ruled === undefined ? unruled : `ruling: ${ruled}`;
   return [describeForeignTypes(foreign), ruling].filter((part) => part !== "").join("; ");
 }

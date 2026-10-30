@@ -3,7 +3,7 @@
 // 1-verb interface). Every cross-feature dependency is a declared op type; the runtime value is wired at
 // the composition root.
 
-import type { AssetKind, StoredAsset } from "@orb/contracts/assets";
+import type { GeneratedAssetStore, ImageryGalleryAdd, ReadOwnedAssetBytes } from "@orb/contracts/assets";
 import type { CharacterCard, CharacterOwnedOp } from "@orb/contracts/character";
 import type { Principal, ResolveHostPrincipalOp } from "@orb/contracts/identity";
 import type { GeneratePicture, PromptTemplateMode } from "@orb/contracts/imagery";
@@ -13,7 +13,7 @@ import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import type { BatchHandle, DatabaseHandle, DbAssemblyInput } from "@orb/db/wiring";
 import type { BindingActor, GeneratedImage, ImageGenerateRequest as InferenceImageGenerateRequest, Resolved } from "@orb/inference";
-import type { AssetId, CharacterId, ChatId, ImageryCallId, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ImageryCallId, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
 import type { Clock, IanaTimeZone } from "@orb/kit/time";
 import type { EditImageParams, ExtractionMode, ExtractPromptParams, MultimodalMode, ReadProvenanceParams } from "./params.ts";
 import type { ExtractedPrompt, GeneratedPicture, GenerationProvenance, ImageryWarning } from "./results.ts";
@@ -136,7 +136,7 @@ export interface ImageryContext {
    *  on any SSRF block/non-2xx/size-cap/network failure — the caller drops that image. */
   readonly fetchImage: (url: string) => Promise<Uint8Array | null>;
   /** `assets.store` — the per-user CAS write under the run-as principal. `kind` is always `"generated"` from this domain. */
-  readonly storeAsset: (owner: Principal, bytes: Uint8Array, kind: AssetKind, mime: string) => Promise<StoredAsset>;
+  readonly storeAsset: GeneratedAssetStore;
   /** The chat-owned quiet extraction shaper (over the `summarize` role — doc 02 §2): chat windows its own
    *  recent history + resolves the char/user macros against ITS MacroContext (imagery passes the raw mode
    *  template). Never persisted. `caller` is the viewer the room gate and history floor apply to;
@@ -170,7 +170,7 @@ export interface ImageryContext {
   }) => Promise<{ readonly text: string; readonly costUsd: number | null }>;
   /** Owner-gated byte read of the caller's OWN asset (B3 avatar reference + editImage source) — assets'
    *  `readOwnedAssetBytes` (EC-B). Throws assets' not-found on non-owned; imagery does not re-gate. */
-  readonly readAsset: (caller: Principal, assetId: AssetId) => Promise<{ readonly bytes: Uint8Array; readonly mime: string }>;
+  readonly readAsset: ReadOwnedAssetBytes;
 
   /** `character.get` — the card (avatar lookup, B3) PLUS the row's `contentHash` the identity hash reads.
    * `CharacterDetail` satisfies this at compose; imagery never imports the
@@ -185,7 +185,7 @@ export interface ImageryContext {
   readonly ownsCharacter: CharacterOwnedOp;
   /** `assets.addToGallery` under the picture owner's principal: join an owned picture to that owner's
    *  gallery as this character's. Idempotent on `(assetId, subjectCharacterId)`. */
-  readonly addToGallery: (owner: Principal, assetId: AssetId, subjectCharacterId: CharacterId) => Promise<void>;
+  readonly addToGallery: ImageryGalleryAdd;
 }
 
 /** Assembly receives neither the query connection nor raw atomic callback operands. */

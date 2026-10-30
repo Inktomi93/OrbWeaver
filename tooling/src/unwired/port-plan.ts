@@ -176,7 +176,7 @@ function planDerive(context: PlanContext, { port, site, paramsOnly }: Restating,
 
 function planCrossDomain(context: PlanContext, owner: PortMember): Plan {
   const foreign = foreignTypes(context.checker, owner);
-  const kind = crossDomainKind(foreign);
+  const kind = crossDomainKind(foreign, [memberLabel(owner)]);
   return plain(kind, crossDomainNote(kind, foreign, [memberLabel(owner)]));
 }
 

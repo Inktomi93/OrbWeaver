@@ -38,7 +38,6 @@ import type {
   DomainTriggerType,
   RulePresetId,
   RulePresetKnobDescriptor,
-  RulePresetKnobValue,
   RulePresetKnobValueOf,
   RulePresetScope,
 } from "@orb/contracts/automation";
@@ -46,10 +45,6 @@ import { ANALYSIS_SCORE_MAX, CLOCK_MAX_VAR_KEY, CLOCK_VAR_KEY, NEEDLE_TENSION_VA
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import { AUTOMATION_NOTICE_MESSAGE_MAX } from "@orb/contracts/notifications";
 import { MS_PER_HOUR } from "@orb/kit/time";
-
-/** A caller's PARTIAL knob overrides for a mint — an absent key takes its descriptor's default. Validated
- *  against the named preset's own descriptors by `substrate/presets`'s `resolveRulePresetKnobs` before any build. */
-export type RulePresetKnobOverrides = Readonly<Record<string, RulePresetKnobValue>>;
 
 // ── the def shape ────────────────────────────────────────────────────────────────────────────────────
 /** One rule a preset mints. `predicate` is the CEL source built from the knobs (`null` = always).

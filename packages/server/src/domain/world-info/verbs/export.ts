@@ -3,12 +3,12 @@
 // Foreign/absent book returns null (leak-free — "not yours" and "doesn't exist" are one answer).
 
 import type { PortableFile } from "@orb/contracts/portability";
-import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
+import type { BulkImportLorebookInput, ExportWorldBook } from "@orb/contracts/world-info";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import { slugifyHandle } from "@orb/kit/slug";
 import { buildWorldBookFile } from "#primitives/serde/world-info";
-import type { ExportWorldBook, WorldInfoExportContext } from "../contract/export.ts";
+import type { WorldInfoExportContext } from "../contract/export.ts";
 import { listBookEntries, loadOwnedBook } from "../persistence/queries.ts";
 
 export function createExport(input: DbAssemblyInput<WorldInfoExportContext>): ExportWorldBook {

@@ -41,7 +41,15 @@ export {
   GenerationObservationPersistenceError,
   normalizeFinishReason,
 } from "./chat.ts";
-export type { AccountCreditsRequest, GenerationCostRequest, InspectRequest, ListModelsRequest, ProbeRequest, VerifyAuthRequest } from "./diagnostics.ts";
+export type {
+  AccountCreditsRequest,
+  GenerationCostRequest,
+  InspectRequest,
+  ListModelsRequest,
+  ModelsDial,
+  ProbeRequest,
+  VerifyAuthRequest,
+} from "./diagnostics.ts";
 export type { ProviderErrorKind, ProviderScrubSet, VectorWidthMismatch } from "./errors.ts";
 export { ProviderError, SCHEMA_REJECTED_DETAIL } from "./errors.ts";
 export type { ChatDeltaEvent, ChatEvent, RateLimitSnapshot } from "./events.ts";

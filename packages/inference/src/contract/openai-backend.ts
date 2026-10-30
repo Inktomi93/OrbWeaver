@@ -9,7 +9,7 @@ import type {
   TokenizeApi,
   WordTokens,
 } from "@orb/contracts/inference";
-import type { ResponseCacheControl, ResponseCacheSettings } from "@orb/contracts/preset";
+import type { ReasoningTagPair, ResponseCacheControl, ResponseCacheSettings } from "@orb/contracts/preset";
 import type { ChatId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import type { RandomSource } from "@orb/kit/macro";
@@ -149,7 +149,7 @@ export interface ModelCall {
   /** The openrouter chat settings the SDK models at the MODEL level (ignored on the other transport). */
   readonly openRouterChat?: { readonly strict?: boolean | undefined; readonly parallelToolCalls?: boolean | undefined } | undefined;
   /** The preset's inline-reasoning tag pair; drives the `extractReasoningMiddleware` wrap (see `think-tags.ts`). */
-  readonly reasoningTags?: ReasoningTags | undefined;
+  readonly reasoningTags?: ReasoningTagPair | undefined;
 }
 
 /** What `think` is spelled from: the effort the turn resolved, the levels the model's descriptor names (absent ⇒
@@ -182,12 +182,6 @@ export interface RerankDeps {
   readonly fetch: typeof fetch;
   readonly normalize: NormalizeImageBytes;
   readonly log: InferenceLog;
-}
-
-/** The preset's literal open/close tags (`reasoningParse.prefix`/`suffix`), as the turn request carries them. */
-export interface ReasoningTags {
-  readonly prefix: string;
-  readonly suffix: string;
 }
 
 /** Where one connection's words are tokenized. */

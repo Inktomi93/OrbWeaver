@@ -15,11 +15,12 @@ import { z } from "zod";
 import type { ChatBusEvent } from "#chat";
 import { PROMPT_TRANSFORM_POINTS } from "#chat";
 import type { DomainEventType } from "#events";
+import type { Principal } from "#identity";
 import { generateImageActionArgsSchema } from "#imagery";
 import { AUTOMATION_NOTICE_COOLDOWN_SECONDS, NOTIFICATION_RECIPIENTS } from "#notifications";
 import type { TurnInitiator } from "../chat/bus.ts";
 import type { RoutableTask } from "../inference/tasks.ts";
-import type { RulePresetId, RulePresetKnobValues } from "./presets.ts";
+import type { RulePresetId, RulePresetKnobValues, RulePresetView } from "./presets.ts";
 import { rulePresetIdSchema, rulePresetKnobOutputValuesSchema } from "./presets.ts";
 
 /** `ChatBusEvent` discriminators automation may trigger on — a subset of the frozen chat-bus union.
@@ -1222,6 +1223,47 @@ export interface RuleView {
   readonly updatedAt: number;
 }
 
+export interface CreateRuleFromPresetParams {
+  readonly principal: Principal;
+  /** The room to mint into, or NULL for the owner-GLOBAL lane. It must AGREE with the named preset's own
+   *  declared `scope` and the verb refuses a mismatch typed — a preset's rules are written against a scope
+   *  (a global preset's arms may not touch a room), so pairing them wrongly is an authoring error the mint
+   *  names rather than a configuration the engine tries to honour. */
+  readonly chatId: ChatId | null;
+  readonly presetId: RulePresetId;
+  /** A PARTIAL bag: an absent key takes its descriptor default, an unknown key is refused. */
+  readonly knobs?: RulePresetKnobValues;
+  /** The minting caller's zone, stamped on every rule of the set (an hours knob means the caller's hours). */
+  readonly timeZone: IanaTimeZone;
+}
+
+export interface SetRuleEnabledParams {
+  readonly principal: Principal;
+  readonly ruleId: AutomationRuleId;
+  readonly enabled: boolean;
+}
+
+export interface DeleteRuleParams {
+  readonly principal: Principal;
+  readonly ruleId: AutomationRuleId;
+}
+
+export interface ListRulesParams {
+  readonly principal: Principal;
+  readonly chatId: ChatId;
+}
+
+/** Mint a preset's ordered rule set into a chat, or into the owner-global lane. */
+export type CreateRuleFromPresetOp = (params: CreateRuleFromPresetParams) => Promise<RuleView[]>;
+/** Enable or disable a rule (host-only). */
+export type SetRuleEnabledOp = (params: SetRuleEnabledParams) => Promise<void>;
+/** Delete a rule (host-only). */
+export type DeleteRuleOp = (params: DeleteRuleParams) => Promise<void>;
+/** List a chat's rules (host-only), ordered by position. */
+export type ListRulesOp = (params: ListRulesParams) => Promise<RuleView[]>;
+/** The preset picker's read model: the committed catalogue projected to the wire view, in catalogue order. */
+export type ListRulePresetsOp = () => RulePresetView[];
+
 /** One fire-log row — the host's "why didn't my rule fire" surface (`listFires`). `detail` carries the
  *  per-arm results / the error / the rendered previews (test_run), read-seam parsed. */
 export interface FireView {
@@ -1324,3 +1366,7 @@ export const confirmSuggestionResultSchema = z.strictObject({
 }) satisfies z.ZodType<ConfirmSuggestionResult>;
 
 export const automationChatInputSchema = z.object({ chatId: typeIdSchema(ID_PREFIX.chat) });
+
+/** The automation feedback-bus sink: fans one bus event to its chat's `automation.stream` subscribers. The
+ *  `surface_quick_reply` arm's `quickReplySurfaced` is the one MEMBER-visible event; the rest are host-only. */
+export type EmitAutomationEvent = (event: AutomationBusEvent) => void;

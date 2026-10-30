@@ -101,12 +101,15 @@ export type EntityMutationConfig<TVars, TData, TRead = unknown> = EntityMutation
 /** A `busDriven` mutation reconciles via the bus, not itself — its settle invalidates nothing. */
 const NO_INVALIDATION = (): readonly InvalidateFilter[] => [];
 
+/** The promise-returning arm of an entity mutation: callers that must await the settle (a delete that navigates away) type their port with it. */
+export type EntityMutateAsync<TVars, TData> = (vars: TVars) => Promise<TData>;
+
 export interface EntityMutationResult<TVars, TData> {
   /** `options` forwards react-query's per-call `MutateOptions` — the callbacks run IN ADDITION to the
    *  factory's baked cache recipe + the global error toast (e.g. a call-site `onError` for the guided
    *  input-restore, F3). */
   readonly mutate: UseMutateFunction<TData, DefaultError, TVars>;
-  readonly mutateAsync: (vars: TVars) => Promise<TData>;
+  readonly mutateAsync: EntityMutateAsync<TVars, TData>;
   readonly isPending: boolean;
   /** The in-flight variables — render as the ghost row in variables-mode (§13.1). */
   readonly pendingVariables: TVars | undefined;

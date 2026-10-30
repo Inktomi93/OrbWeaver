@@ -14,7 +14,17 @@
 // therefore cannot make export pair checkpoint rows with a different snapshot set, and a kill mid-import
 // leaves the chat with no game rather than half a campaign.
 
-import type { RpgPortableCheckpoint } from "@orb/contracts/rpg";
+import type {
+  ExportRpgGame,
+  ImportRpgGame,
+  RpgImportOutcome,
+  RpgPortableCheckpoint,
+  RpgPortableGame,
+  RpgPortableJournalEntry,
+  RpgPortableSheet,
+  RpgPortableSnapshot,
+  RpgPortableTurnToolCalls,
+} from "@orb/contracts/rpg";
 import { rpgGameConfigSchema, rpgRecordedToolCallSchema, rpgSheetSchema, rpgSnapshotStateSchema } from "@orb/contracts/rpg";
 import { rpgCheckpoints, rpgGames, rpgJournal, rpgSheets, rpgSnapshots, rpgTurnToolCalls } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
@@ -23,17 +33,7 @@ import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { RpgSnapshotId } from "@orb/kit/ids";
 import { asc, eq, inArray } from "drizzle-orm";
-import type {
-  ExportRpgGame,
-  ImportRpgGame,
-  RpgImportOutcome,
-  RpgPortabilityContext,
-  RpgPortableGame,
-  RpgPortableJournalEntry,
-  RpgPortableSheet,
-  RpgPortableSnapshot,
-  RpgPortableTurnToolCalls,
-} from "../contract/portability.ts";
+import type { RpgPortabilityContext } from "../contract/portability.ts";
 
 const LIMIT_ONE = 1;
 

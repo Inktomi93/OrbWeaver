@@ -1,11 +1,10 @@
 import type { ResolveUtilityPresetParams } from "@orb/contracts/preset";
-import type { UserSettings } from "@orb/contracts/settings";
-import type { UserId } from "@orb/kit/ids";
+import type { LoadUserSettings } from "@orb/contracts/settings";
 import type { PresetService } from "./service.ts";
 
 export interface SideGenParamsDeps {
   readonly preset: Pick<PresetService, "get">;
-  readonly loadUserSettings: (userId: UserId) => Promise<UserSettings>;
+  readonly loadUserSettings: LoadUserSettings;
 }
 export interface SideGenParams {
   readonly resolveUtilityPresetParams: ResolveUtilityPresetParams;

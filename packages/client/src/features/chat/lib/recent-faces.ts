@@ -11,6 +11,7 @@
 // six portraits. Pure + structural, so it unit-tests without a data layer.
 
 import type { CharacterId } from "@orb/kit/ids";
+import type { FaceStripItem } from "#components";
 //
 // UNCAPPED by default (FACEFILT): the curation answers "who, in what order", and the STRIP answers "how many
 // fit" by measuring the pane it lives in — a count here was a second, blinder answer to the same question,
@@ -23,17 +24,9 @@ export interface FaceSourceChat {
   readonly participantPortraits: readonly { readonly characterId: CharacterId; readonly name: string; readonly avatarHash: string | null }[];
 }
 
-/** One curated face — the id the filter chip is set from, in the `FaceStrip` item shape (so the strip takes
- *  the curation's output directly; no adapter, no second spelling of a face). */
-export interface RecentFace {
-  readonly id: string;
-  readonly name: string;
-  readonly avatarHash: string | null;
-}
-
 /** Distinct character seats in first-appearance order across `chats`; `cap` bounds the run when given. */
-export function recentFaces(chats: readonly FaceSourceChat[], cap?: number): readonly RecentFace[] {
-  const faces: RecentFace[] = [];
+export function recentFaces(chats: readonly FaceSourceChat[], cap?: number): readonly FaceStripItem[] {
+  const faces: FaceStripItem[] = [];
   const seen = new Set<string>();
   for (const chat of chats) {
     for (const seat of chat.participantPortraits) {

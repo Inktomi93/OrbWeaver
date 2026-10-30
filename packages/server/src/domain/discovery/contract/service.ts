@@ -13,7 +13,7 @@ import type { LoadUserSettings } from "@orb/contracts/settings";
 import type { CharacterEconomicsOp, CharacterModelEconomicsOp } from "@orb/contracts/stats";
 import type { AttachCardTagByNameOp } from "@orb/contracts/tag";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
-import type { EveryOwnerRun, WorkloadEstimateScope, WorkloadRunScope } from "@orb/contracts/workloads";
+import type { ListCorpusOwners, WorkloadEstimateScope, WorkloadRunScope } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import type {
@@ -353,5 +353,5 @@ export interface DiscoveryWorkloadDeps {
   /** The bulk arm's announce audience — every owner with corpus rows (`persistence/embed-store-reads`
    *  `distinctCorpusOwners`, whose header states the deliberate over-inclusiveness). Only consulted when the
    *  run context's `ownerId` is `null`; a scoped run announces to exactly that owner. */
-  readonly listCorpusOwners: (run: EveryOwnerRun) => Promise<UserId[]>;
+  readonly listCorpusOwners: ListCorpusOwners;
 }

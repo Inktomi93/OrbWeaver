@@ -4,10 +4,10 @@
 
 import type { CharacterCard, CreateCharacterInput, UpdateCharacterInput } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
-import type { ResolveSeededPlateOp } from "@orb/contracts/settings";
-import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
-import type { AssetId, CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
-import type { BulkImportLorebook, HasPrimaryBook } from "#domain/world-info";
+import type { MarkWelcomeAssistant, ResolveSeededPlateOp } from "@orb/contracts/settings";
+import type { AttachSeedCardTag } from "@orb/contracts/tag";
+import type { BulkImportLorebook, BulkImportLorebookInput, HasPrimaryBook } from "@orb/contracts/world-info";
+import type { AssetId, CharacterHandle, CharacterId } from "@orb/kit/ids";
 import type { Logger } from "#foundation/observability";
 import type { CharacterService } from "./service.ts";
 
@@ -65,7 +65,7 @@ export interface DefaultCharacterSeederDeps {
    *  chose (#1443). */
   readonly characters: Pick<CharacterService, "create" | "findByHandle" | "update" | "getCard" | "get">;
   /** Attach one of a seeded card's native tags as a card/pending suggestion. Idempotent + never downgrades. */
-  readonly attachCardTag: (args: { readonly ownerId: UserId; readonly characterId: CharacterId; readonly tagName: string }) => Promise<boolean>;
+  readonly attachCardTag: AttachSeedCardTag;
   /** Store this handle's bundled avatar art, or null when the pack ships none / the store fails. */
   readonly storeAvatar?: (principal: Principal, handle: CharacterHandle) => Promise<AssetId | null>;
   /** Seed this character's starter gallery so a fresh library isn't an empty grid. Failures swallowed by the caller. */
@@ -86,7 +86,7 @@ export interface DefaultCharacterSeederDeps {
    *  the row without an identity. */
   readonly stampOwnIdentity?: (principal: Principal, characterId: CharacterId) => Promise<void>;
   /** Points `seeds.welcomeAssistantCharacterId` at the seeded welcome card, when it is still unset. */
-  readonly markWelcomeAssistant: (principal: Principal, welcomeAssistantId: CharacterId) => Promise<void>;
+  readonly markWelcomeAssistant: MarkWelcomeAssistant;
 }
 
 export interface DefaultCharacterSeeder {

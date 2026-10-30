@@ -11,6 +11,7 @@
 import type { UserCredentialId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
+import type { Principal } from "#identity";
 import { providerIdSchema } from "#inference";
 
 // Dispatch axis: every member needs a resolver arm + an infra/providers runner (tsc's assertNever
@@ -56,6 +57,30 @@ export const credentialHealthSchema = z.discriminatedUnion("status", [
   z.strictObject({ status: z.literal("throttled"), checkedAt: z.number() }),
   z.strictObject({ status: z.literal("unchecked"), checkedAt: z.number(), reason: z.string() }),
 ]) satisfies z.ZodType<CredentialHealth>;
+
+/** The ROW half of a connection probe. `result` is the diagnostic's verdict (the connection domain dialled);
+ *  `localEndpoint` says the dialled host was loopback/LAN — an offline box there is a REACHABILITY fact, never
+ *  a credential problem, so it must not feed the auto-revoke strike counter (owner ruling). */
+export interface RecordProbeOutcomeParams {
+  readonly principal: Principal;
+  readonly credentialId: UserCredentialId;
+  readonly result: CredentialHealth;
+  readonly localEndpoint: boolean;
+}
+
+/** The credentials domain's row half of a probe, injected into the connection domain that dials. */
+export type RecordProbeOutcomeOp = (params: RecordProbeOutcomeParams) => Promise<CredentialHealth>;
+
+/** Follow a connection's rename: the key labelled `from` takes `to`. A key carrying any other label keeps it. */
+export interface RelabelCredentialParams {
+  readonly principal: Principal;
+  readonly credentialId: UserCredentialId;
+  readonly from: string;
+  readonly to: string;
+}
+
+/** Rename the caller's key to follow its connection's rename; answered by credentials, asked by connection. */
+export type RelabelCredentialOp = (params: RelabelCredentialParams) => Promise<void>;
 
 /** WHY a credential is revoked — the ONE home of the vocabulary (`user_credentials.revoked_reason` derives
  *  its enum from this tuple, and `CredentialView` carries the member to the Connections pane). Read together

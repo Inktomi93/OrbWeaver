@@ -4,9 +4,9 @@
 // is the explicit interface in `contract/service.ts` (no `ReturnType<>` — `no-context-returntype`; see
 // that file for the full D60 belt rationale and the `orb/no-direct-users-read` rule this builder satisfies).
 
+import type { ResolveStandingAsks } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
 import type { IdSource } from "@orb/kit/ids";
-import type { ResolveStandingAsks } from "./contract/ops.ts";
 import type { NotificationsContext } from "./contract/service.ts";
 
 export function createNotificationsContext(db: Db, now: () => number, resolveStandingAsks: ResolveStandingAsks, idSource: IdSource): NotificationsContext {

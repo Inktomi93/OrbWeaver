@@ -5,15 +5,15 @@
 
 import type { ResolveVisibleRoomsOp } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
-import type { CapabilityTarget, ResolvedCacheConnectionView } from "@orb/contracts/inference";
-import type { EffectivePreset, PresetDetail, PresetSummary, PresetUsageView } from "@orb/contracts/preset";
-import type { UserSettings } from "@orb/contracts/settings";
+import type { ResolveChatCapabilityOp } from "@orb/contracts/inference";
+import type { EffectivePreset, PresetDetail, PresetImportOutcome, PresetSummary, PresetUsageView } from "@orb/contracts/preset";
+import type { LoadUserSettings } from "@orb/contracts/settings";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
-import type { ChatId, PresetId, UserId } from "@orb/kit/ids";
+import type { ChatId, PresetId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
-import type { AuditEntry, Logger } from "#foundation/observability";
+import type { AuditWiring, Logger } from "#foundation/observability";
 import type {
   CreatePresetParams,
   GetPresetParams,
@@ -25,15 +25,6 @@ import type {
   ResolveEffectiveParams,
   UpdatePresetParams,
 } from "./params.ts";
-import type { PresetImportOutcome } from "./portability.ts";
-
-/** The injected capability read — `connection.resolveChatCapability` at the composition root. Takes the acting
- *  Principal and an optional target (a role or a connection id, owner-checked by the connection domain), and no
- *  caller-supplied user id, so the injected op can only ever answer for the caller's own connections. */
-export type ResolveChatCapabilityOp = (params: {
-  readonly principal: Principal;
-  readonly target?: CapabilityTarget | undefined;
-}) => Promise<ResolvedCacheConnectionView>;
 
 /**
  * The injected BACKWARD-BINDINGS read (#279) — "where is this preset bound from outside the library".
@@ -49,7 +40,7 @@ export type ResolvePresetUsageOp = (principal: Principal, presetId: PresetId) =>
 /** The three foreign facts {@link ResolvePresetUsageOp}'s producer reads, each wired at the composition root:
  *  settings' user settings (the active pick), rpg's GM-voice rooms, and chat's leak-safe room filter. */
 export interface PresetUsageDeps {
-  readonly loadUserSettings: (userId: UserId) => Promise<UserSettings>;
+  readonly loadUserSettings: LoadUserSettings;
   readonly listGmPresetChatIds: (presetId: PresetId) => Promise<readonly ChatId[]>;
   readonly resolveVisibleRooms: ResolveVisibleRoomsOp;
 }
@@ -60,7 +51,7 @@ export interface PresetContext {
   readonly db: Db;
   readonly now: Clock;
   readonly newPresetId: () => PresetId;
-  readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
+  readonly audit: AuditWiring["log"];
   /** Fires `presetsChanged` with the acting owner's `userId` after every preset mutation's durable write,
    *  so a second device's list refetches. */
   readonly emitUserEvent: EmitUserEvent;

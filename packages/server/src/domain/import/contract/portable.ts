@@ -1,14 +1,15 @@
-import type { Principal } from "@orb/contracts/identity";
+import type { ImportDocument } from "@orb/contracts/databank";
+import type { Principal, ResolveHostPrincipalOp } from "@orb/contracts/identity";
+import type { ImportPersonaOp } from "@orb/contracts/persona";
 import type { PortableEntity } from "@orb/contracts/portability";
+import type { ImportRegexScript } from "@orb/contracts/regex";
 import type { TagLibraryImportResult } from "@orb/contracts/tag";
 import type { UserId } from "@orb/kit/ids";
-import type { ImportDocument } from "#domain/databank";
-import type { PersonaService } from "#domain/persona";
 import type { ImportContextWiring } from "./build-context.ts";
 import type { ImportProfileDeps } from "./service.ts";
 
 export interface OwnerImportDeps {
-  readonly resolveOwnerPrincipal: (ownerId: UserId) => Promise<Principal>;
+  readonly resolveOwnerPrincipal: ResolveHostPrincipalOp;
   readonly contextFor: (principal: Principal) => ImportContextWiring;
   readonly wallClockZone: () => string;
   readonly profile: Pick<
@@ -26,9 +27,9 @@ export interface OwnerImportDeps {
 }
 export interface PortableImportDeps extends OwnerImportDeps {
   readonly tags: (ownerId: UserId, bytes: Uint8Array) => Promise<TagLibraryImportResult>;
-  readonly regex: (args: { readonly ownerId: UserId; readonly bytes: Uint8Array }) => Promise<{ readonly created: boolean }>;
+  readonly regex: ImportRegexScript;
   readonly document: ImportDocument;
-  readonly persona: Pick<PersonaService, "import">;
+  readonly persona: { readonly import: ImportPersonaOp };
 }
 export interface PortableImports {
   readonly tag: PortableEntity["importFile"];

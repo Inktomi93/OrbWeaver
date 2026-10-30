@@ -7,18 +7,23 @@
 import type {
   AutomationRuleTools,
   ConfirmSuggestionResult,
+  CreateRuleFromPresetOp,
+  DeleteRuleOp,
+  EmitAutomationEvent,
   FireView,
   GlobalVariableView,
+  ListRulePresetsOp,
+  ListRulesOp,
   OwnerBudgetView,
   PluginSubscriberRegistry,
-  RulePresetView,
   RuleView,
   RunRuleNowResult,
+  SetRuleEnabledOp,
   TestRunResult,
 } from "@orb/contracts/automation";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
-import type { Can } from "@orb/contracts/identity";
+import type { Can, ResolveHostPrincipalOp, ResolveUserEnabled } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import type { AutomationFireId, AutomationRuleId, IdSource } from "@orb/kit/ids";
 import type { RandomSource } from "@orb/kit/macro";
@@ -29,22 +34,17 @@ import type {
   ApplyProseRewrite,
   ArmDispatch,
   AutomationOps,
-  EmitAutomationEvent,
   EnabledRuleIndex,
   ExecutePluginSuggestion,
-  IsAuthorEnabled,
   IsPluginLive,
   ListRuleTools,
   PromptTransformIndex,
-  ResolveAuthorPrincipal,
   SuggestionStore,
 } from "./ops.ts";
 import type {
   ConfirmSuggestionParams,
-  CreateRuleFromPresetParams,
   CreateRuleParams,
   DeleteGlobalVariableParams,
-  DeleteRuleParams,
   DismissSuggestionParams,
   GetGlobalVariableParams,
   GetOwnerBudgetsParams,
@@ -52,14 +52,12 @@ import type {
   ListFiresParams,
   ListGlobalVariablesParams,
   ListOwnerRulesParams,
-  ListRulesParams,
   ListRuleToolsParams,
   ReorderRulesParams,
   ResolveStreamAuthorityParams,
   RunRuleNowParams,
   SetGlobalVariableParams,
   SetOwnerBudgetsParams,
-  SetRuleEnabledParams,
   SetRuleSuggestOnRefusalParams,
   TestRuleParams,
   UpdateRuleParams,
@@ -101,11 +99,11 @@ export interface AutomationContext {
    *  they enable/disable/reorder. Reloaded alongside `enabled` by the lifecycle verbs (never watcher-run). */
   readonly transforms: PromptTransformIndex;
   /** Resolve a rule author's Principal for the dispatch-time host re-check (minted at entry). */
-  readonly resolveAuthor: ResolveAuthorPrincipal;
+  readonly resolveAuthor: ResolveHostPrincipalOp;
   /** C5 — the OWNER-GLOBAL lane's standing-authority read: is a chat-less rule's author still an ENABLED
    *  account? Injected rather than selected locally because `users` belongs to `domain/sessions` +
-   *  `domain/admin` alone (see {@link IsAuthorEnabled}). */
-  readonly isAuthorEnabled: IsAuthorEnabled;
+   *  `domain/admin` alone. */
+  readonly isAuthorEnabled: ResolveUserEnabled;
   /** S4 plugin arm — the PLUGIN-origin confirm's executor. Wired at compose to `domain/plugin` (the cake:
    *  automation never imports a sibling domain). It re-enters the PLUGIN's own bridge, so a confirmed act
    *  takes the plugin's gates and belts — NOT automation's `runArm`, whose arms carry a different
@@ -149,25 +147,25 @@ export interface AutomationService {
    *  knob overrides against the preset's descriptors (a typed refusal on anything off-shape), substitutes
    *  them into the preset's CEL sources as literals, and validates through the shared planner after one
    *  scope gate. Commits the set atomically, born DISABLED, in mint (position) order. */
-  readonly createRuleFromPreset: (params: CreateRuleFromPresetParams) => Promise<RuleView[]>;
+  readonly createRuleFromPreset: CreateRuleFromPresetOp;
   /** The preset picker's read model — the committed catalogue projected to id/title/summary/knob
    *  descriptors, in catalogue order. Static: no principal, no chat, no db. */
-  readonly listRulePresets: () => RulePresetView[];
+  readonly listRulePresets: ListRulePresetsOp;
   /** Replace a rule's editable fields (host-only). Same validation; resets `consecutive_errors`. */
   readonly updateRule: (params: UpdateRuleParams) => Promise<RuleView>;
   /** Enable/disable a rule (host-only) — the watcher's chat-Set is maintained off this. Turning a disabled
    *  rule on resets `consecutive_errors`, so a re-enabled rule gets the full auto-disable ceiling again. */
-  readonly setRuleEnabled: (params: SetRuleEnabledParams) => Promise<void>;
+  readonly setRuleEnabled: SetRuleEnabledOp;
   /** RULED F4's per-rule opt-out (host-only; spec row B4) — flip whether a RATE REFUSAL of this rule still
    *  offers the host the "run it now?" invitation. Touches ONE column: the rule's authored shape, its
    *  enablement and its mint provenance are all untouched. */
   readonly setRuleSuggestOnRefusal: (params: SetRuleSuggestOnRefusalParams) => Promise<void>;
   /** Delete a rule (host-only). */
-  readonly deleteRule: (params: DeleteRuleParams) => Promise<void>;
+  readonly deleteRule: DeleteRuleOp;
   /** Total chat-host or owner-global order, admitted against the exact set at the SQL write snapshot. */
   readonly reorderRules: (params: ReorderRulesParams) => Promise<void>;
   /** List a chat's rules (host-only in v1), ordered by position. */
-  readonly listRules: (params: ListRulesParams) => Promise<RuleView[]>;
+  readonly listRules: ListRulesOp;
   /** C5 — list the caller's OWN owner-global (chat-less) rules, ordered by position. The D18 single-owned
    *  read: the scope is `principal.userId`, so there is no id to pass and no lane but your own to see. */
   readonly listOwnerRules: (params: ListOwnerRulesParams) => Promise<RuleView[]>;

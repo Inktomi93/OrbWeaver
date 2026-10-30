@@ -10,7 +10,6 @@ import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/query";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { CharacterId, ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
-import type { SessionsService } from "#domain/sessions";
 import type { AuditEntry, AuditWiring } from "#foundation/observability";
 import type { PasswordHasher } from "#infra/auth";
 import type {
@@ -35,6 +34,7 @@ import type {
   SetEnabledResult,
   SetRoleResult,
 } from "./results.ts";
+import type { SessionStatementWiring } from "./session-statements.ts";
 
 /** The session-management slice admin needs — satisfied structurally by the real `SessionsService` at the
  *  composition root. Not re-exported from the front door — a private port. */
@@ -77,8 +77,6 @@ interface SessionAdminPort {
   readonly isReservedHandle: IsReservedSignupHandleOp;
 }
 
-type SessionStatementWiring = Pick<SessionsService, "revokeAllForUserStatement" | "linkExternalIdStatement" | "localUserInsertStatement">;
-
 export type AdminSessionWiring = Omit<SessionAdminPort, keyof SessionStatementWiring> & SessionStatementWiring;
 
 /** The inline-embed slice admin needs — composed at the root from `character` and `embeddings`. Resolves
@@ -117,7 +115,7 @@ export interface AdminContext {
    *  break the action. NOT for a privileged durable write: those take
    *  {@link AdminContext.auditStatementAfterWrite} (#1691, and #1707 for `linkSsoIdentity` — an SSO BIND is
    *  a durable identity write, so it left this channel). */
-  readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
+  readonly audit: AuditWiring["log"];
   /**
    * #1691 — the ATOMIC audit channel for a privileged write (create/reset-password/set-role/set-enabled,
    * + linkSsoIdentity since #1707):

@@ -6,10 +6,8 @@
 // (a foreign / absent book returns null — the leak-free posture of the owner-scoped book reads). Homed under
 // `contract/` (types-in-contract / no-context-returntype); explicit interfaces, never a `ReturnType<>`.
 
-import type { PortableFile } from "@orb/contracts/portability";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
-import type { UserId, WorldBookId } from "@orb/kit/ids";
 
 /** The DI bundle `createExport` closes over (assembled at the entry composition root). Read-only: the
  *  standalone export is a pure owner-scoped read + serde build — no clock / id-minter / audit needed. */
@@ -18,11 +16,3 @@ export interface WorldInfoExportContext {
 }
 
 export type WorldInfoExportAssemblyContext = DbAssemblyInput<WorldInfoExportContext>;
-
-/** Export ONE owned book (+ its entries) as the portable `worlds/*.json` file, or null when the book is not
- *  the caller's (or absent). */
-export type ExportWorldBook = (args: { readonly ownerId: UserId; readonly bookId: WorldBookId }) => Promise<PortableFile | null>;
-
-/** Every book the owner owns — the enumeration the bundle descriptor's `exportAll` streams over. Homed here
- *  (F8) so the composition root wires a world-info op instead of running world-info's query itself. */
-export type ListOwnedBookIds = (args: { readonly ownerId: UserId }) => Promise<readonly WorldBookId[]>;

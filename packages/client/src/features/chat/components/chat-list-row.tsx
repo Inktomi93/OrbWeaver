@@ -3,6 +3,7 @@
 // parity). Extracted from `chat-list-surface.tsx` when the character screen's projection pane became its
 // second consumer: the two panes are the SAME list of the SAME chats, so a forked row would be two truths.
 
+import type { ChatSeatPortrait } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { Stack } from "@orb/ui/layout";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -12,7 +13,6 @@ import type { Trpc } from "#data";
 import { deriveChatTitle, timeLib } from "#lib";
 import type { ChatListRowActions } from "../hooks/use-chat-row-mutations.ts";
 import { useWarmRoomOnIntent } from "../hooks/use-prefetch-room.ts";
-import type { ChatRowPortrait } from "../lib/chat-summary-row.ts";
 import { chatRowActionName } from "../lib/chat-summary-row.ts";
 import { ChatListRowMenu } from "./chat-list-row-menu.tsx";
 import { ChatSummaryRow } from "./chat-summary-row.tsx";
@@ -25,7 +25,7 @@ export interface ChatListRowProps {
   readonly onSelect: (chatId: ChatId) => void;
   readonly onDeletedChat?: ((chatId: ChatId) => void) | undefined;
   /** The row's resolved character seats (F7/D3) — 1 paints a portrait, 2+ an AvatarStack, 0 the blob. */
-  readonly portraits: readonly ChatRowPortrait[];
+  readonly portraits: readonly ChatSeatPortrait[];
   /** The row's DISAMBIGUATOR, resolved by the surface across the whole list (`rowQualifiers`) — the stamp
    *  the row shows, escalated where it collided. Omitted falls back to this row's own stamp, which is right
    *  for a one-off row and wrong for a list (side-eye P2c). */

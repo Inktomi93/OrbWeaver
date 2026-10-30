@@ -1,7 +1,6 @@
 // Runtime capability decisions keep the caller-selected funder separate from the room's host-owned vector space.
 
 import { RERANK_FLOOR, windowForPreset } from "@orb/contracts/inference";
-import type { UserIntent } from "@orb/contracts/preset";
 import type { BindingActor, NoConnectionError, Resolved, RoleClientsWithSignal } from "@orb/inference";
 import { carriesStructured, unavailableRefusal } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
@@ -18,7 +17,7 @@ function createTaskWindowReaders(deps: {
   readonly roleClientsFor: (...args: Parameters<ChatInferenceDeps["roleClientsFor"]>) => Promise<Pick<RoleClientsWithSignal, "resolved">>;
   readonly availability: ChatInferenceDeps["connection"]["availability"];
   readonly resolveHostPrincipal: ChatInferenceDeps["resolveHostPrincipal"];
-  readonly resolveUtilityPresetParams: (userId: UserId) => Promise<Pick<UserIntent, "maxContextTokens"> | undefined>;
+  readonly resolveUtilityPresetParams: ChatInferenceDeps["resolveUtilityPresetParams"];
 }): { readonly summarize: ChatContext["summarizerContextTokens"]; readonly embed: ChatContext["embedContextTokens"] } {
   // `resolved()` reads null for every reason the task cannot run; the availability verdict names the first one,
   // so the funder is told what to fix instead of always "nothing is bound".

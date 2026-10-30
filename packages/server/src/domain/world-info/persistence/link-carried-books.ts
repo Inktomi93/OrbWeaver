@@ -15,13 +15,14 @@
 //     never exploitable — but "safe because of who calls it" is a comment, not a placement (constitution §2),
 //     and an injected op's signature is the whole promise the NEXT wiring inherits.
 
+import type { LinkCarriedBooks } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import { characterBooks, characters, worldBooks } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { and, eq, inArray } from "drizzle-orm";
-import type { LinkCarriedBooks, WorldInfoDuplicateCarryContext } from "../contract/import.ts";
+import type { WorldInfoDuplicateCarryContext } from "../contract/import.ts";
 
 const LIMIT_ONE = 1;
 

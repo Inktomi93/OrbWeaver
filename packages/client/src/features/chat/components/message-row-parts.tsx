@@ -19,7 +19,7 @@ import type { MoveNeighbours } from "../lib/move-neighbours.ts";
 import { NO_MOVE_NEIGHBOURS } from "../lib/move-neighbours.ts";
 import type { SwipeFoot } from "../lib/pager-chrome.ts";
 import { splitIntoTrainParagraphs } from "../lib/split-paragraphs.ts";
-import type { ArtView } from "./art-slot.tsx";
+import type { ArtFailedReport, ArtView } from "./art-slot.tsx";
 import { GreetingSwipeStrip } from "./greeting-swipe-strip.tsx";
 import { MessageBox } from "./message-box.tsx";
 import { MessageContent } from "./message-content.tsx";
@@ -183,7 +183,7 @@ export function renderRowBubble(args: {
   readonly editing: boolean;
   /** Opens echo's tile or whisper's band full size; null when the row has none or sits outside a viewer. */
   readonly artView: ArtView | null;
-  readonly onArtFailed?: (failed: boolean) => void;
+  readonly onArtFailed?: ArtFailedReport;
 }): ReactElement {
   const facts: MessageBoxFacts = {
     box: args.skin.box,

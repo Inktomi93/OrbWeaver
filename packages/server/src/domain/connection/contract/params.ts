@@ -1,7 +1,6 @@
 import type { Principal } from "@orb/contracts/identity";
 import type {
   BindingActorKind,
-  CapabilityTarget,
   ConnectionApi,
   ConnectionExtrasDoc,
   ConnectionTransportDoc,
@@ -10,6 +9,7 @@ import type {
   PromptCacheSettings,
   ProviderDef,
   ResolveTaskParams as ResolveAuthority,
+  ResolveChatCapabilityParams,
   RoutableTask,
 } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
@@ -26,12 +26,6 @@ export type ResolveTaskParams = ResolveAuthority & Pick<ResolveArgs, "signal">;
 
 interface ActorParams {
   readonly principal: Principal;
-}
-
-/** `resolveChatCapability` — one of the caller's OWN connections as the chat funnel sees it, credential-free
- *  (the params panel, the rpg lite gate, the Connections pane's readout). Absent `target` ⇒ the chat role. */
-export interface ResolveChatCapabilityParams extends ActorParams {
-  readonly target?: CapabilityTarget | undefined;
 }
 
 /** `tokenizeWords` — the words a logit-bias editor holds, tokenized on the same target `resolveChatCapability` reads. */

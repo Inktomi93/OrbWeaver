@@ -64,24 +64,13 @@ const RADIUS_ITEMS: SelectItems<string> = THEME_RADII.map((value) => ({
   label: RADIUS_LABELS[value],
 }));
 
-export interface ThemeEditorProps {
-  /** The OWNED theme being edited — or, with `mint`, the DRAFT values a not-yet-existing row starts from
-   *  (seeds are read-only, so the picker never opens this on one directly). */
-  readonly theme: Theme;
-  /**
-   * DRAFT session: create the row this session edits, and resolve to it. Called AT MOST ONCE, by the
-   * autosave driver's first real save (or a retry that beat it). Omit for an existing row.
-   */
-  readonly mint?: ThemeAutosaveDeps["mint"];
-}
-
 // The session-boundary autosave form (D78 §1, mirroring the preset editor's `PresetForm`). Module-scope so
 // the Boundary + its inner Session hold stable identities. `save` is supplied per-instance (`useThemeAutosave`
 // closes over the live tRPC client + the row/mint state, neither reachable at this module scope).
 const ThemeForm = createAutosaveEntityForm<ThemeFormValues>({ defaultValues: DEFAULT_THEME_FORM });
 
 /** The token-override + custom-CSS editor for one owned theme (or one draft — see `mint`). */
-export function ThemeEditor({ theme, mint }: ThemeEditorProps): ReactElement {
+export function ThemeEditor({ theme, mint }: ThemeAutosaveDeps): ReactElement {
   const { save, mintedName } = useThemeAutosave({ theme, ...(mint === undefined ? {} : { mint }) });
 
   return (

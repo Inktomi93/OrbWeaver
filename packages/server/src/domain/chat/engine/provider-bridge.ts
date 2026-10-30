@@ -1,6 +1,7 @@
 // Preserve streamed text and provider refusal identity while adapting push delivery to chat's pull stream.
 import type { ChatDeltaEvent, ChatEvent, ChatRequest, ChatResult, ChatTurnInput, ProviderExecutor } from "@orb/inference";
 import { toChatRequest } from "@orb/inference";
+import type { PromptCacheMinDepthOp } from "../contract/engine-context.ts";
 import type { TurnRequest, TurnStreamChunk } from "../contract/results.ts";
 
 /** The runner's `ChatResult.events` → the domain stream's out-of-band chunks (D41 no-silent-degrade, the READ
@@ -217,7 +218,7 @@ export function createRunChatTurnBridge(deps: {
    *  tuning) — read PER TURN so an admin flip governs the next request with no restart (the D126 thunk
    *  precedent). Optional: absent reads as the born-in-DB floor 0, which is `Math.max`'s identity, so a
    *  harness that omits it produces byte-identical wire bodies. */
-  readonly promptCacheMinDepth?: () => number;
+  readonly promptCacheMinDepth?: PromptCacheMinDepthOp;
 }): (req: TurnRequest) => AsyncIterable<TurnStreamChunk> {
   return async function* runChatTurn(req: TurnRequest): AsyncIterable<TurnStreamChunk> {
     const pump = createChunkPump<TurnStreamChunk>();

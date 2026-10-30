@@ -1,3 +1,4 @@
+import type { FindSeedCharacter } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import type { CreateRosterPresetInput } from "@orb/contracts/roster-preset";
 import type { CharacterHandle, CharacterId } from "@orb/kit/ids";
@@ -11,6 +12,6 @@ export type SeedRosterPreset = (principal: Principal, roster: SeedRosterInput) =
 export interface RosterSeedStepDeps extends Pick<SeedRosterInput, "name" | "description"> {
   readonly characterHandles: readonly CharacterHandle[];
   readonly startsGame: boolean;
-  readonly findCharacter: (principal: Principal, handle: CharacterHandle) => Promise<CharacterId | null>;
+  readonly findCharacter: FindSeedCharacter;
   readonly createRosterPreset: SeedRosterPreset;
 }

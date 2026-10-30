@@ -9,10 +9,9 @@
 // (owner ruling). Throttled to one probe per credential per 60s window — the throttle is claimed HERE, after
 // the dial, on the credential id, so a second ask inside the window answers `throttled` without a row write.
 
-import type { CredentialHealth } from "@orb/contracts/credentials";
+import type { CredentialHealth, RecordProbeOutcomeParams } from "@orb/contracts/credentials";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
-import type { RecordProbeOutcomeParams } from "../contract/params.ts";
 import type { CredentialContext, CredentialsService } from "../contract/service.ts";
 import { clearRevokedOwned, fetchOwnedCredential, setRevokedById } from "../persistence/queries.ts";
 import { requireOwned } from "../substrate/credential-not-found.ts";

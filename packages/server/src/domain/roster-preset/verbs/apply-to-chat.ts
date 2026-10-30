@@ -35,14 +35,13 @@
 // Non-cast rules — hand-authored, other presets' — are NEVER touched (the never-kicks law's rule twin),
 // and a sans-rules cast performs ZERO automation ops.
 
-import type { RulePresetId, RulePresetView } from "@orb/contracts/automation";
+import type { RulePresetId, RulePresetView, RuleView } from "@orb/contracts/automation";
 import { rulePresetKnobBagsEqual } from "@orb/contracts/automation";
 import type { Principal } from "@orb/contracts/identity";
 import type { RosterPresetRuleSkip } from "@orb/contracts/roster-preset";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import type { IanaTimeZone } from "@orb/kit/time";
-import type { RuleView } from "#domain/automation";
 import { RosterPresetNotFoundError } from "../contract/errors.ts";
 import type { ApplyRosterPresetParams } from "../contract/params.ts";
 import type { CastRuleWrite, RosterPresetContext, RosterPresetService } from "../contract/service.ts";

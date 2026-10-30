@@ -146,7 +146,7 @@ export async function isBookOwnedBy(db: Db, bookId: WorldBookId, userId: UserId)
 // `orb/no-direct-users-read` boundary refuses it: the `users` table is read and written by
 // `domain/sessions` + `domain/admin` ONLY (Spine-Identity-and-Auth.md), and every other domain takes what it
 // needs about a user from the resolved Principal or an injected op. So the owner-global lane's standing read
-// crosses as `IsAuthorEnabled` (`contract/ops.ts`), wired at compose to sessions' own `loadUserById`. The
+// crosses as `ResolveUserEnabled` (`@orb/contracts/identity`), wired at compose to sessions' own `loadUserById`. The
 // note stays because the read is an obvious one to re-add here, and the reason it may not live here is a
 // spine rule rather than anything visible in this file.
 

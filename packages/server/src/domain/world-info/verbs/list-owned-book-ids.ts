@@ -4,12 +4,13 @@
 // `id ASC` because the export STREAMS this enumeration: its order IS the bundle's order, and an unordered
 // read makes two exports of an unchanged library differ. The PK is a total order by construction.
 
+import type { ListOwnedBookIds } from "@orb/contracts/world-info";
 import { worldBooks } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { WorldBookId } from "@orb/kit/ids";
 import { asc, eq } from "drizzle-orm";
-import type { ListOwnedBookIds, WorldInfoExportContext } from "../contract/export.ts";
+import type { WorldInfoExportContext } from "../contract/export.ts";
 
 export function createListOwnedBookIds(input: DbAssemblyInput<WorldInfoExportContext>): ListOwnedBookIds {
   const ctx: WorldInfoExportContext = { ...input, db: databaseForOwner(input.db) };

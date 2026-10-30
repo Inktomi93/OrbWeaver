@@ -12,6 +12,7 @@ import type {
   UserConnection,
 } from "@orb/contracts/inference";
 import { modalitySchema, modelCatalogEntrySchema, PREFILL_MODES } from "@orb/contracts/inference";
+import type { SettingsKvPort } from "@orb/contracts/settings";
 import type { PluginId, UserCredentialId, UserId } from "@orb/kit/ids";
 import type { RandomSource } from "@orb/kit/macro";
 import type { Clock, ScheduleOp } from "@orb/kit/time";
@@ -22,6 +23,7 @@ import type { WireCaptureSink } from "./backend.ts";
 import type { ProviderErrorKind } from "./errors.ts";
 import type { Resolved } from "./resolved.ts";
 import type { RoleClientsWithSignal } from "./roles.ts";
+import type { ImageToPng } from "./wire.ts";
 
 export type { BindingActor } from "@orb/contracts/inference";
 
@@ -168,7 +170,7 @@ export interface SnapshotStore {
   readonly write: (key: string, value: string) => Promise<void>;
   /** Drop every persisted snapshot whose key starts with `prefix` — an invalidation that outlives the process,
    *  since a mirror re-reads its snapshot on the next cold warm (a restart) and a stale row would answer. */
-  readonly deletePrefix: (prefix: string) => Promise<void>;
+  readonly deletePrefix: SettingsKvPort["deletePrefix"];
 }
 
 /** The by-id read exposes scope before decoding stored JSON, so corrupt foreign bytes cannot hide a mismatch. */
@@ -239,7 +241,7 @@ export interface InferenceDeps {
   readonly providerStore: ProviderStore;
   readonly captureWire?: WireCaptureSink | undefined;
   readonly captureWireReply?: boolean | undefined;
-  readonly imageToPng?: ((bytes: Uint8Array) => Promise<Uint8Array>) | undefined;
+  readonly imageToPng?: ImageToPng | undefined;
   readonly agentSdk: {
     readonly query?: AgentSdkQuery;
     readonly spawnClaudeCodeProcess?: AgentSdkSpawn;

@@ -15,6 +15,7 @@ import type {
   MemoryDigestInput,
   NextTurnConnectionView,
   ParticipantData,
+  PlanGameBirthOp,
   PromptTransform,
   ReadChatUserMacrosOp,
   RegisterPromptTransformOp,
@@ -32,16 +33,19 @@ import type {
   TurnRetrievalEvents,
   UnregisterPromptTransformOp,
 } from "@orb/contracts/chat";
+import type { ResolveCharacterDistillatesOp } from "@orb/contracts/discovery";
 import type { MemoryEmbedSpace, PruneMemoryBlocksParams } from "@orb/contracts/embeddings";
-import type { Can, Principal, ResolveHandleOp } from "@orb/contracts/identity";
+import type { Can, Principal, ResolveHandleOp, ResolveUserEnabled } from "@orb/contracts/identity";
 import type { GeneratePicturePrompt, SizePresetName } from "@orb/contracts/imagery";
 import type { SendAvailability } from "@orb/contracts/inference";
 import type { NotificationEvent, PresenceView } from "@orb/contracts/notifications";
-import type { ResolveCurrentPersonaOp, ResolveDefaultPersonaOp } from "@orb/contracts/persona";
+import type { ResolveConnectedPersonaOp, ResolveCurrentPersonaOp, ResolveDefaultPersonaOp, ResolveUserPublicsOp } from "@orb/contracts/persona";
 import type { ChoiceBlockSpec, ResolveUtilityPresetParams, UserIntent } from "@orb/contracts/preset";
-import type { CancelStateRoundsOp, RpgGameTemplate } from "@orb/contracts/rpg";
+import type { CopyHandoffRegexScriptsArgs, CountHandoffRegexScripts } from "@orb/contracts/regex";
+import type { CancelStateRoundsOp } from "@orb/contracts/rpg";
 import type { BlockKey, MemoryQueryOptions, ResolveCorpusSourceState, ScoredBlock } from "@orb/contracts/search";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
+import type { CopyHandoffBooksArgs, CountHandoffBooks } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import type { StatementToken } from "@orb/db/wiring";
@@ -62,16 +66,15 @@ import type {
   PendingTurnId,
   PersonaId,
   PresetId,
-  RpgGameId,
   UserId,
 } from "@orb/kit/ids";
 import type { RandomSource, UserMacroDef } from "@orb/kit/macro";
 import type { Clock, IanaTimeZone } from "@orb/kit/time";
 import type { TestKeyRegex } from "@orb/kit/world-info";
-import type { AuditEntry, AuditWiring } from "#foundation/observability";
+import type { AuditWiring } from "#foundation/observability";
 import type { ChatAccountingContext } from "./accounting-context.ts";
 import type { ActiveTurns } from "./active-turns.ts";
-import type { CharacterDistillate, SpeakerArbiter, SpeakerReranker } from "./arbitration.ts";
+import type { SpeakerArbiter, SpeakerReranker } from "./arbitration.ts";
 import type { ApplyPromptTransformsOp, DelayOp, EmitDurableChatEventOp, EngineContext, RunChatTurnOp } from "./engine-context.ts";
 import type { ChatBehaviorInputs, ResolveForeignInputsOp } from "./foreign.ts";
 import type { ResolveChatUserMacroDefs } from "./macro-readers.ts";
@@ -99,6 +102,8 @@ export type LoadUserHandlesOp = (userIds: readonly UserId[]) => Promise<readonly
 
 /** The present roster's participant views for a chat — the read-model resolver `service.ts` builds once. */
 export type LoadParticipantViewsOp = (chatId: ChatId) => Promise<readonly ParticipantData[]>;
+/** The batched twin of {@link LoadParticipantViewsOp}: one page of rooms resolves its seats in a single pass. */
+export type LoadParticipantViewsBatchOp = (chatIds: readonly ChatId[]) => Promise<ReadonlyMap<ChatId, readonly ParticipantData[]>>;
 
 /** The invite preview for a chat the caller already cleared for preview (`verbs/invite-preview.ts`). */
 export type AssembleInvitePreviewOp = (chatId: ChatId) => Promise<InvitePreview>;
@@ -121,52 +126,17 @@ type CopyHandoffCardsOp = (args: {
 
 /** The host-handoff LORE copy (world-info's `CopyHandoffBooks`, declared structurally). Copies the books and
  *  returns the UNEXECUTED `chat_books` detach-original/attach-copy statements for the swap batch. */
-type CopyHandoffBooksOp = (args: {
-  readonly fromOwnerId: UserId;
-  readonly toOwnerId: UserId;
-  readonly chatId: ChatId;
-  readonly cardCopies: readonly HandoffCardPair[];
-}) => Promise<readonly StatementToken[]>;
+type CopyHandoffBooksOp = (args: CopyHandoffBooksArgs) => Promise<readonly StatementToken[]>;
 
 /** The host-handoff REGEX copy (regex's `CopyHandoffRegexScripts`, declared structurally). Copies the
  *  departing host's CHAT-TIER scripts into the nominee's library and returns the UNEXECUTED
  *  `chat_regex_scripts` re-point. Takes no `cardCopies`: a room's script attachment is room state that stands
  *  on its own, so unlike the lore arm it is not derived from what the seats did. */
-type CopyHandoffRegexScriptsOp = (args: {
-  readonly fromOwnerId: UserId;
-  readonly toOwnerId: UserId;
-  readonly chatId: ChatId;
-}) => Promise<readonly StatementToken[]>;
-
-/** The host-handoff LORE copy's DISCLOSURE twin (world-info's `CountHandoffBooks`, declared structurally) —
- *  how many DISTINCT books the copy above would mint for `toOwnerId`, resolved by the same owner-filtered
- *  source reads and the same convergence rule, and writing nothing. `characterIds` are the SOURCE cards the
- *  offer would copy (the card half); the room half needs no input. */
-type CountHandoffBooksOp = (args: {
-  readonly fromOwnerId: UserId;
-  readonly toOwnerId: UserId;
-  readonly chatId: ChatId;
-  readonly characterIds: readonly CharacterId[];
-}) => Promise<number>;
-
-/** The host-handoff REGEX copy's DISCLOSURE twin (regex's `CountHandoffRegexScripts`, declared
- *  structurally) — how many scripts the copy above would MINT for `toOwnerId`, sharing the copy's own plan
- *  resolver so a script the nominee already owns content-identically is disclosed as what it is: nothing new. */
-type CountHandoffRegexScriptsOp = (args: { readonly fromOwnerId: UserId; readonly toOwnerId: UserId; readonly chatId: ChatId }) => Promise<number>;
+type CopyHandoffRegexScriptsOp = (args: CopyHandoffRegexScriptsArgs) => Promise<readonly StatementToken[]>;
 
 /** The host-handoff DIGEST re-key (embeddings' `HandoffRestampStatements`, declared structurally). Returns
  *  UNEXECUTED statements scoped to this chat; empty for an empty pair list. */
 type RestampHandoffDigestsOp = (args: { readonly chatId: ChatId; readonly pairs: readonly HandoffCardPair[] }) => Promise<readonly StatementToken[]>;
-
-/** Resolves a human participant's display fields. */
-type ResolveUserPublicsOp = (
-  userId: UserId,
-  personaId: PersonaId | null,
-) => Promise<{
-  displayName: string | null;
-  handle: Handle | null;
-  avatarAssetId: AssetId | null;
-} | null>;
 
 /** The memory summarizer + the smart-arbitrate side-LLM. The SIGNAL-BEARING variant of the isomorphic
  *  `RoleClients["summarize"]` (`RoleClientsWithSignal`): chat is the one caller that already owns a
@@ -178,7 +148,7 @@ export type SummarizeOp = (funderUserId: UserId, ...args: Parameters<RoleClients
  *  preset the turn runs: the same ladder (a game's GM-voice preset, else the host's default). Resolved at the entry
  *  root (chat never reads the preset domain); a hostless/stale room degrades to the system-default params.
  *  `maxContextTokens` sets the window on a route that sends one, so the pass runs the turn's own. */
-type ResolveChatPresetParamsOp = (chatId: ChatId) => Promise<SideGenSampling & Pick<UserIntent, "maxContextTokens">>;
+export type ResolveChatPresetParamsOp = (chatId: ChatId) => Promise<SideGenSampling & Pick<UserIntent, "maxContextTokens">>;
 
 /** B7 — a user's per-user reaction defaults, picked off the same schema-real `UserSettings.chat` arm the
  *  turn path consumes as `ChatBehaviorInputs` (never a re-spelled shape). The op half of
@@ -326,15 +296,6 @@ export type GetPendingUserText = (chatId: ChatId) => Promise<string | null>;
  *  carries the producer's membership-transition statements, committed in the same batch as the notification row. */
 type NotificationsEmitOp = (event: NotificationEvent, coStatements?: readonly StatementToken[]) => Promise<void>;
 
-/** The disabled-account containment gate (owner-ruled 2026-08-15): whether a human's backing `users` row
- *  is enabled. Read fresh per call (never cached), mirroring `sessions.validate`'s per-request re-check, so
- *  an admin disable propagates the very next round. Chat never reads `users` itself — see
- *  `resolveHandle`. Feeds {@link isBackingUserEnabled} (`persistence/participant.ts`) at the ONE
- *  consumer that already gates a human's identity on presence (`presentHumanUserIdsOf`,
- *  `substrate/participants-humans.ts`) — a disabled human's PERSONA drops from the room's foreign-input consent
- *  set the same way a departed member's already does. */
-type ResolveUserEnabledOp = (userId: UserId) => Promise<boolean>;
-
 /** Server-derived SSE liveness for a userId (never client-asserted — a spoofable presence is a
  *  prompt-composition attack). Read once per round for seated-character-gating. */
 export type PresenceReadOp = (userId: UserId) => Promise<PresenceView>;
@@ -385,7 +346,7 @@ export interface ChatRpgOps extends RpgTurnOps {
   /** The #40 DRAFT-TIME game birth plan. RPG constructs its own table statements and minted id; chat folds
    *  them into the room's creation batch and stores only the opaque pointer. No domain constructs the
    *  other's rows, while room/game/pointer are one durable commit. */
-  readonly planGameBirth: (chatId: ChatId, params: RpgGameTemplate) => ChatRpgGameBirthPlan;
+  readonly planGameBirth: PlanGameBirthOp<StatementToken>;
   /** Post-commit in-process notification for a successfully committed birth plan. */
   readonly gameBirthCommitted: (chatId: ChatId) => void;
   /** The GM-voice preset redirect: the game's `gmPresetId` (or `null` = not a game / no override), resolved
@@ -504,12 +465,6 @@ export interface ChatRpgOps extends RpgTurnOps {
   readonly handoffRekeyActors: (chatId: ChatId, cardCopies: readonly HandoffCardPair[]) => Promise<void>;
 }
 
-/** RPG's unexecuted contribution to a chat-owned atomic birth batch. */
-export interface ChatRpgGameBirthPlan {
-  readonly gameId: RpgGameId;
-  readonly statements: readonly StatementToken[];
-}
-
 /** Durable post-swap work owned by the accepted host. The persistence seam parses this exact shape before
  *  the roster resumes the idempotent actor/event tail. */
 export interface HandoffResumption {
@@ -557,10 +512,6 @@ export type GeneratePictureOp = (
   // (chat owns its bus vocabulary — the turnAbortNotice precedent) and emits one `warning` ChatEvent per entry.
   readonly warnings: readonly { readonly code: string; readonly detail: string }[];
 }>;
-
-/** The persona to auto-anchor a new chat founded on exactly one character with exactly one connection.
- *  Ambiguity or a group founding falls through to {@link ResolveDefaultPersonaOp}. */
-type ResolveConnectedPersonaOp = (userId: UserId, characterIds: readonly CharacterId[]) => Promise<PersonaId | null>;
 
 /** Does `personaId` belong to `ownerId`? The persona-reattribution ownership belt: a line may be re-stamped
  *  only to a persona the acting user owns. */
@@ -665,7 +616,7 @@ export interface ChatContext extends EngineContext, ChatAccountingContext {
   readonly hashToken: HashTokenOp;
   /** D259 — whether this mode mints signup invites, and the mode every invite is stamped with. */
   readonly signupInvites: SignupInviteCapability;
-  readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
+  readonly audit: AuditWiring["log"];
   /** Unexecuted audit insert for the host-handoff swap's all-or-nothing forensic record. */
   readonly auditStatement: AuditWiring["statement"];
   /** The world-info regex-KEY ReDoS watchdog (#710) — the assembler `.test`s a `use_regex` entry's user-authored
@@ -692,7 +643,7 @@ export interface ChatContext extends EngineContext, ChatAccountingContext {
   readonly getCard: GetCardOp;
   /** Discovery's distillates for the owner's characters, keyed by id; an undistilled or foreign id is absent.
    *  Injected because `character_summaries` is discovery's table. */
-  readonly resolveCharacterDistillates: (ownerId: UserId, characterIds: readonly CharacterId[]) => Promise<ReadonlyMap<CharacterId, CharacterDistillate>>;
+  readonly resolveCharacterDistillates: ResolveCharacterDistillatesOp;
   /** HOST HANDOFF, the accepted offer's card arm: copy the DEPARTING host's seated cards into the NOMINEE's
    *  library, point-in-time. Injected because `characters` is the character domain's table; find-before-mint by
    *  provenance, so a retried accept converges on the copies it already made. A source id that no longer
@@ -715,8 +666,8 @@ export interface ChatContext extends EngineContext, ChatAccountingContext {
    *  disclosure must be UNABLE to write: the nomination happens before consent, and an op that could mint is
    *  an op that eventually will. Each lives in its copy's own file over its copy's own plan resolver, so
    *  what the row promises and what the accept does cannot drift into two rules. */
-  readonly countHandoffBooks: CountHandoffBooksOp;
-  readonly countHandoffRegexScripts: CountHandoffRegexScriptsOp;
+  readonly countHandoffBooks: CountHandoffBooks;
+  readonly countHandoffRegexScripts: CountHandoffRegexScripts;
   /** HOST HANDOFF, the accepted offer's memory arm: the UNEXECUTED digest re-key (`chat_digests.scopedCharacterId`
    *  + `chat_digest_speakers.characterId`) for THIS chat. Injected because both tables are the embeddings
    *  domain's; without it the departed host's card DELETE would cascade the transferred room's memory away. */
@@ -756,7 +707,14 @@ export interface ChatContext extends EngineContext, ChatAccountingContext {
   readonly resolveUtilityPresetParams: ResolveUtilityPresetParams;
   readonly emitNotification: NotificationsEmitOp;
   readonly resolveHandle: ResolveHandleOp;
-  readonly resolveUserEnabled: ResolveUserEnabledOp;
+  /** The disabled-account containment gate (owner-ruled 2026-08-15): whether a human's backing `users` row
+   *  is enabled. Read fresh per call (never cached), mirroring `sessions.validate`'s per-request re-check, so
+   *  an admin disable propagates the very next round. Chat never reads `users` itself — see
+   *  `resolveHandle`. Feeds {@link isBackingUserEnabled} (`persistence/participant.ts`) at the ONE
+   *  consumer that already gates a human's identity on presence (`presentHumanUserIdsOf`,
+   *  `substrate/participants-humans.ts`) — a disabled human's PERSONA drops from the room's foreign-input consent
+   *  set the same way a departed member's already does. */
+  readonly resolveUserEnabled: ResolveUserEnabled;
 
   readonly readPresence: PresenceReadOp;
   readonly generatePicture: GeneratePictureOp;

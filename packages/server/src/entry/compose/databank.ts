@@ -5,12 +5,12 @@
 // (the same predicates chat's own seam wraps). Owns no business logic — it only threads the already-built infra
 // handles + sibling service front doors onto the `DatabankContext`.
 
-import type { LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { IdSource } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import { can } from "#domain/admin";
+import type { ChatServiceDeps } from "#domain/chat";
 import { loadPresentHostUserId, requireHost, requireParticipant } from "#domain/chat";
 import type { DatabankContext, DatabankIngest, DatabankPortabilityContext, DatabankService } from "#domain/databank";
 import { createDatabankIngest, createDatabankService } from "#domain/databank";
@@ -61,7 +61,7 @@ export interface DatabankComposeDeps {
    *  Threaded here for #2471: every databank junction write has a member-visible projection in the rooms
    *  that credit the document (the D85 rack), and `databankChanged` is a per-USER channel that never
    *  reaches them. */
-  readonly emitChatEventLive: (event: LiveOnlyChatBusEvent) => void;
+  readonly emitChatEventLive: ChatServiceDeps["emitLive"];
 }
 
 /** The databank compose product: the retrieval/producer service + the chunk-embed ingest subsystem. */

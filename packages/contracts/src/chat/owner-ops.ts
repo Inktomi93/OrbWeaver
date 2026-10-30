@@ -211,3 +211,10 @@ interface ResolvedRegexSources {
 }
 
 export type ResolveRegexSources = (args: ResolveRegexSourcesArgs) => Promise<ResolvedRegexSources>;
+
+/** The room-membership gate: resolves for a participant, throws for anyone else. Chat owns the guard and every
+ *  consumer domain takes it as an injected op. */
+export type RequireParticipantOp = (principal: Principal, chatId: ChatId) => Promise<void>;
+
+/** The room-host gate, the host twin of {@link RequireParticipantOp}: resolves for the room's host, throws for anyone else. */
+export type RequireHostOp = (principal: Principal, chatId: ChatId) => Promise<void>;

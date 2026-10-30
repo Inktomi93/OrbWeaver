@@ -1,6 +1,6 @@
 // Deleted seeded characters stay deleted: this resolves an owned handle but never mints a replacement.
 
-import type { FindSeedCharacter } from "../contract/seed-reader.ts";
+import type { FindSeedCharacter } from "@orb/contracts/character";
 import type { CharacterService } from "../contract/service.ts";
 
 export function createFindSeedCharacter(find: CharacterService["findByHandle"]): FindSeedCharacter {

@@ -9,7 +9,7 @@
 // row); what stays here is the ROW side of a probe outcome — `recordProbeOutcome` writes the revocation / strike
 // consequences, because only this domain writes `user_credentials`.
 
-import type { CredentialHealth, CredentialStorageStatus, CredentialView, ResolvedSecret } from "@orb/contracts/credentials";
+import type { CredentialStorageStatus, CredentialView, RecordProbeOutcomeOp, RelabelCredentialOp, ResolvedSecret } from "@orb/contracts/credentials";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { InferenceDeps, ProviderRegistry } from "@orb/inference";
@@ -24,8 +24,6 @@ import type {
   ListCredentialsParams,
   MarkRevokedByUserParams,
   MarkRevokedParams,
-  RecordProbeOutcomeParams,
-  RelabelCredentialParams,
   RemoveCredentialParams,
   ReplaceCredentialParams,
   ResolveCredentialParams,
@@ -62,7 +60,7 @@ export interface CredentialsService {
   readonly maybeRevokeOnAuthFailed: NonNullable<InferenceDeps["onAuthFailed"]>;
   /** The ROW half of a connection probe (the connection domain dials; this domain records): applies the
    *  revoke / strike / clear consequences of a `CredentialHealth` verdict and re-stamps `checkedAt`. */
-  readonly recordProbeOutcome: (params: RecordProbeOutcomeParams) => Promise<CredentialHealth>;
+  readonly recordProbeOutcome: RecordProbeOutcomeOp;
 
   // CRUD
   /** Store a NEW key; never overwrites an existing one. */
@@ -70,7 +68,7 @@ export interface CredentialsService {
   /** Replace one stored key's secret in place, named by id — the only way a stored secret changes. */
   readonly replace: (params: ReplaceCredentialParams) => Promise<CredentialView>;
   /** Rename a key to follow its connection's rename, only while it still carries the connection's old name. */
-  readonly relabel: (params: RelabelCredentialParams) => Promise<void>;
+  readonly relabel: RelabelCredentialOp;
   readonly remove: (params: RemoveCredentialParams) => Promise<void>;
   readonly list: (params: ListCredentialsParams) => Promise<CredentialView[]>;
   /** Is per-user credential STORAGE configured on this deployment (CREDENTIAL-STORAGE-SILENT-FAIL)? The READ

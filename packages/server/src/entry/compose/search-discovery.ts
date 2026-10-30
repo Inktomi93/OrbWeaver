@@ -1,7 +1,6 @@
 // Build the derived-data and persona graph; runtime policies live behind their domain front doors.
 // Workload admission is late-bound because chat contributes runners after this graph is constructed.
 
-import type { DurableChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { RoleClientsWithSignal } from "@orb/inference";
@@ -14,7 +13,7 @@ import type { AssetsService } from "#domain/assets";
 import { createAssetEmbeddingReads } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
 import { createEmbeddableCardText, createLoadCharacterEmbeddingOwner } from "#domain/character";
-import type { ChatBoundBackfillOps } from "#domain/chat";
+import type { ChatBoundBackfillOps, ChatServiceDeps, EmitDurableChatEventOp, SignupInviteDeps } from "#domain/chat";
 import {
   consolidationHash,
   createCapturePersonaSeatsForDelete,
@@ -48,7 +47,7 @@ import {
 } from "#domain/embeddings";
 import type { NotificationsService } from "#domain/notifications";
 import { createNotificationsService } from "#domain/notifications";
-import type { JoinerPersonaStatementOp, PersonaContext, PersonaService, ResolvePersonasForParticipants } from "#domain/persona";
+import type { PersonaContext, PersonaService, ResolvePersonasForParticipants } from "#domain/persona";
 import {
   createJoinerPersonaStatement,
   createPersonaService,
@@ -102,11 +101,11 @@ export interface SearchDiscoveryComposeDeps {
   /** LIVE effective-config getter (the memory tier-grid seam reads memoryDefaults per call). */
   readonly getEffectiveConfig: NonNullable<DebugRoutesOptions["effectiveConfig"]>;
   /** chat's bus durable-first emit — persona's active-persona write publishes onto it. */
-  readonly emitChatEvent: (event: DurableChatBusEvent) => Promise<void>;
+  readonly emitChatEvent: EmitDurableChatEventOp;
   /** chat's DURABLE-APPEND-FREE fan (design §3.4) — the entity→room bridge's only emit surface. Separate dep
    *  from `emitChatEvent` because they are different lanes, not two spellings of one: this one writes no
    *  `chat_events` row and carries no seq. */
-  readonly emitChatEventLive: (event: LiveOnlyChatBusEvent) => void;
+  readonly emitChatEventLive: ChatServiceDeps["emitLive"];
   /** preset's ONE cross-feature op: the caller's chat-role capability, for `preset.resolveEffective`'s
    *  projection of the generation funnel. `connection` composes BEFORE this seam at the keystone, so it is a
    *  plain dep, not a forward-ref. */
@@ -130,7 +129,7 @@ export interface SearchDiscoveryComposeResult {
    *  resolver's ONE room-plane persona read). Built from the SAME `PersonaContext` as the service. */
   readonly resolvePersonasForParticipants: ResolvePersonasForParticipants;
   /** D259 — the sign-up joiner's persona statement chat's signup batch runs. Built from the same `PersonaContext`. */
-  readonly joinerPersonaStatement: JoinerPersonaStatementOp;
+  readonly joinerPersonaStatement: SignupInviteDeps["signupPersonaStatement"];
   readonly presetCtx: PresetContext;
   readonly preset: PresetService;
   readonly stats: StatsService;
@@ -330,7 +329,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     // THE #1799 CROSS-FEATURE JOIN, made here and only here. The inbox needs to know which of a page's
     // decisions are still open; the answer lives in chat's `chat_invites.status` /
     // `chats.pending_host_user_id`. notifications declares the op TYPE it consumes
-    // (`domain/notifications/contract/ops.ts`) and chat exports the runtime factory — neither imports the
+    // (`@orb/contracts/notifications`) and chat exports the runtime factory — neither imports the
     // other, and `tsc` proves the two spellings agree on this line. A standalone `(db)` factory rather than
     // a `ChatService` verb, so this block does not have to wait for the chat service (composed later).
     resolveStandingAsks: createResolveStandingAsks(db),

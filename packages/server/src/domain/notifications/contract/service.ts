@@ -1,8 +1,7 @@
-import type { InboxView, ListInboxResult, MarkAllReadResult } from "@orb/contracts/notifications";
+import type { InboxView, ListInboxResult, MarkAllReadResult, ResolveStandingAsks } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
 import type { IdSource } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
-import type { ResolveStandingAsks } from "./ops.ts";
 import type { DismissParams, ListInboxParams, MarkAllReadParams, RecordParams, RefreshStandingParams, ReplaySinceParams, RetractParams } from "./params.ts";
 
 // The typed API surface: the DI bundle and the 4-verb interface.

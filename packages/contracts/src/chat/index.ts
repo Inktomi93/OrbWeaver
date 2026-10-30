@@ -236,6 +236,8 @@ export type {
   RegisterPromptTransformOp,
   RequestTurnOp,
   RequestTurnParams,
+  RequireHostOp,
+  RequireParticipantOp,
   ResolveCharacterTagsOp,
   ResolveRegexSources,
   ResolveSeatDecoOp,
@@ -394,6 +396,7 @@ export {
   TALKATIVENESS_DEFAULT,
 } from "./roster.ts";
 export type {
+  ChatRpgGameBirthPlan,
   ChatRpgGatherData,
   ClaimChatOp,
   ForkGameArgs,
@@ -401,6 +404,7 @@ export type {
   ForkGameResult,
   GatherTurnContextArgs,
   GetMembership,
+  PlanGameBirthOp,
   ResolveCanonWindow,
   ResolveChatProseOp,
   ResolveGmSeatHolderKindOp,
