@@ -25,6 +25,7 @@ import type {
   ViewerVisibility,
 } from "@orb/contracts/chat";
 import type { Can, ParticipantRoleState } from "@orb/contracts/identity";
+import type { CopyPresetToUser, PresetReadable } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type {
   CancelStateRoundsOp,
@@ -58,7 +59,6 @@ import type {
   IdSource,
   MessageId,
   MessageVariantId,
-  PresetId,
   RpgCheckpointId,
   RpgGameId,
   RpgJournalId,
@@ -353,23 +353,6 @@ export type RpgPostNarratorMessage = (
   buildSnapshotStatement: (ids: { readonly messageId: MessageId; readonly variantId: MessageVariantId }) => StatementToken,
 ) => Promise<{ readonly messageId: MessageId; readonly variantId: MessageVariantId }>;
 
-/** The preset-ownership gate (fork-clones-the-game §3.2). Is `presetId` SAFE for `userId` to carry as their
- *  game's `gmPresetId` — i.e. readable BY them (owned OR the shared system default)? The fork clone calls it for
- *  the source game's `gmPresetId` under the FORKER: a preset the forker cannot read (the source host's private
- *  preset) must NOT ride into the fork, or `resolvePresetOverride` would feed a cross-tenant preset into the
- *  forker's own turns the moment they play the copy (the [[injected-op-caller-gate]] class). rpg cannot read
- *  presets — the impl is wired at compose off the preset front door (the `resolveHostPrincipal` precedent). */
-export type RpgResolvePresetOwned = (presetId: PresetId, userId: UserId) => Promise<boolean>;
-
-/** The GM-preset GIFT (the host-handoff copy offer's preset arm) — copy `presetId` out of `fromOwnerId`'s
- *  library into `toUserId`'s and hand back the copy's id, or `null` when the source does not resolve under
- *  `fromOwnerId` (foreign, deleted, or the shared system default, which needs no copy). BOTH owners are
- *  explicit params and both are proven by the impl (the [[injected-op-caller-gate]] class — an op that
- *  re-derived either end could mint a stranger's generation config into anyone's library). rpg cannot write
- *  presets; the impl is wired at compose off the preset front door, exactly like {@link RpgResolvePresetOwned}
- *  reads them. Consumed ONLY by the handoff heal — every other rpg path either owns its preset or nulls it. */
-export type RpgCopyPresetToUser = (args: { readonly fromOwnerId: UserId; readonly toUserId: UserId; readonly presetId: PresetId }) => Promise<PresetId | null>;
-
 /** The chat's ACTIVE-preset user macros (WAVE MU) — the injected CHAT op behind the GM console's shadow gloss.
  *  A game macro sharing a name with a preset macro SHADOWS it at turn time (`shadowPresetUserMacros`, chat's
  *  one home for the rule), so the host editor has to know which names are taken. rpg reads no preset/settings
@@ -662,9 +645,9 @@ export interface RpgContext {
   readonly promoteToCharacter: RpgPromoteToCharacter;
   readonly postNarratorMessage: RpgPostNarratorMessage;
   /** The preset-ownership gate (§3.2 fork host-secret strip) — is a `gmPresetId` safe for the forker to carry? */
-  readonly resolvePresetOwned: RpgResolvePresetOwned;
+  readonly resolvePresetOwned: PresetReadable;
   /** The GM-preset gift — the handoff copy offer's preset arm (preset owns the table; wired at compose). */
-  readonly copyPresetToUser: RpgCopyPresetToUser;
+  readonly copyPresetToUser: CopyPresetToUser;
   /** The chat's active-preset user macros (WAVE MU) — the shadow gloss on the host macro editor. */
   readonly resolvePresetUserMacros: ReadChatUserMacrosOp;
   /** The user whose connection funds this room's turns (the present host, chat's own resolution), or `null` for a

@@ -11,6 +11,7 @@
 import type { BulkImportChatsOp } from "@orb/contracts/chat";
 import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { ResolveHostPrincipalOp } from "@orb/contracts/identity";
+import type { ImportWorldInfoPort } from "@orb/contracts/world-info";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { IdSource } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
@@ -25,7 +26,7 @@ import { createBulkImportPersonas } from "#domain/persona";
 import type { SessionsService } from "#domain/sessions";
 import { createResolveUserEnabled } from "#domain/sessions";
 import { createStatsBatchWiring } from "#domain/stats";
-import type { ImportWorldInfoPort, WorldInfoService } from "#domain/world-info";
+import type { WorldInfoService } from "#domain/world-info";
 import { createBulkImportLorebook, createHasPrimaryBook, createLinkCarriedBooks, createWorldInfoService } from "#domain/world-info";
 import type { AuditWiring, Logger } from "#foundation/observability";
 import type { LiveBuses } from "#transport/trpc";

@@ -2,10 +2,6 @@
 // UserIntent, guided-action) are never re-exported here — callers import them from @orb/contracts/preset.
 
 export type {
-  ExportPresets,
-  ImportPreset,
-} from "./contract/portability.ts";
-export type {
   PresetAssemblyContext as PresetContext,
   PresetService,
 } from "./contract/service.ts";

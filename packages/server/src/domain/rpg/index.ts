@@ -14,9 +14,7 @@ export type { ExportRpgGame, ImportRpgGame, RpgPortableGame } from "./contract/p
 export type { RpgRoundsAssemblyDeps as RpgRoundsDeps } from "./contract/rounds.ts";
 export type {
   RpgAssemblyContext as RpgContext,
-  RpgCopyPresetToUser,
   RpgPostNarratorMessage,
-  RpgResolvePresetOwned,
   RpgResolveViewerVisibility,
   RpgService,
 } from "./contract/service.ts";

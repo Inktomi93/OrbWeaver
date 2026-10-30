@@ -25,6 +25,7 @@ import type { BumpStatsCanonVersion } from "@orb/contracts/stats";
 import type { DetachCardTagOp } from "@orb/contracts/tag";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
+import type { CopyCharacterBooks } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import type { BatchHandle, DatabaseHandle, DbAssemblyInput } from "@orb/db/wiring";
@@ -56,12 +57,6 @@ export type ReapAssetsOp = (assetIds: readonly AssetId[]) => Promise<void>;
 
 /** Attaches a tag by name to one owned character; returns whether it was newly attached (idempotent). */
 export type AttachCardTagOp = (args: { readonly ownerId: UserId; readonly characterId: CharacterId; readonly tagName: string }) => Promise<boolean>;
-
-/** Carries the source character's attached world-info book REFERENCES onto the duplicate: fresh
- *  character_books rows pointing at the SAME books; world-info owns the junction write. Zero attachments =
- *  no-op. Internal to the DI bundle (the runtime op is world-info's `CopyCharacterBooks`, wired at compose).
- *  `ownerId` is the owned-source gate — the op re-checks BOTH ends rather than trusting the call site. */
-type CopyCharacterBooksOp = (args: { readonly ownerId: UserId; readonly fromCharacterId: CharacterId; readonly toCharacterId: CharacterId }) => Promise<void>;
 
 /** The editable greeting-studio prompt material resolved from the CALLER's preset (audit §3): the
  *  `greeting_rewrite`/`greeting_new` `guidedActions` template PLUS that preset's `prose` overrides. Wired at
@@ -99,7 +94,8 @@ export interface CharacterContext {
   readonly attachCardTag: AttachCardTagOp;
   readonly detachCardTag: DetachCardTagOp;
   /** Carries attached world-info book references onto a duplicate (world-info owns the junction, D28). */
-  readonly copyCharacterBooks: CopyCharacterBooksOp;
+  /** Carries the source character's attached book references onto a duplicate; wired at compose. */
+  readonly copyCharacterBooks: CopyCharacterBooks;
   /** Fires charactersChanged with the owner's userId after each durable write; distinct from emit
    *  (which drives embedding re-index, not client cache). */
   readonly emitUserEvent: EmitUserEvent;

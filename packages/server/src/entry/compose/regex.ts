@@ -10,13 +10,6 @@
 // only the DATA the engine runs on (Constitution.md §1 "engine vs data").
 
 import type { ResolveRegexSources } from "@orb/contracts/chat";
-import type { DatabaseHandle } from "@orb/db/wiring";
-import type { IdSource } from "@orb/kit/ids";
-import { ID_PREFIX } from "@orb/kit/ids";
-import type { Clock } from "@orb/kit/time";
-import { can } from "#domain/admin";
-import type { ChatServiceDeps } from "#domain/chat";
-import { createResolveRoomDisplayPolicy, requireHost, requireParticipant } from "#domain/chat";
 import type {
   ExportCardScripts,
   ExportRegexScripts,
@@ -24,8 +17,15 @@ import type {
   ImportGlobalScripts,
   ImportPresetScripts,
   ImportRegexScript,
-  RegexService,
-} from "#domain/regex";
+} from "@orb/contracts/regex";
+import type { DatabaseHandle } from "@orb/db/wiring";
+import type { IdSource } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
+import { can } from "#domain/admin";
+import type { ChatServiceDeps } from "#domain/chat";
+import { createResolveRoomDisplayPolicy, requireHost, requireParticipant } from "#domain/chat";
+import type { RegexService } from "#domain/regex";
 import {
   createExportCardScripts,
   createExportRegexScripts,

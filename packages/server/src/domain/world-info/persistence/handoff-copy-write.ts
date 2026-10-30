@@ -23,6 +23,7 @@
 // a live bug. The ROOM half needs no destination gate: `chat_books` is keyed by the room and stays
 // chat-id-only ON PURPOSE (the room-public chat-book posture — a per-arm owner authority, #1396).
 
+import type { CountHandoffBooks } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import { characterBooks, characters, chatBooks, worldBooks, worldEntries } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
@@ -31,7 +32,7 @@ import type { DatabaseHandle, DbAssemblyInput, StatementToken } from "@orb/db/wi
 import { databaseForOwner, statementToken } from "@orb/db/wiring-owner";
 import type { CharacterId, ChatId, UserId, WorldBookId } from "@orb/kit/ids";
 import { and, eq, inArray } from "drizzle-orm";
-import type { CopyHandoffBooks, CountHandoffBooks } from "../contract/handoff-copy.ts";
+import type { CopyHandoffBooks } from "../contract/handoff-copy.ts";
 import type { WorldInfoImportContext } from "../contract/import.ts";
 
 type BookRow = typeof worldBooks.$inferSelect;

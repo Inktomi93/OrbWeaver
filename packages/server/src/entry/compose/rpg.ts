@@ -11,22 +11,14 @@
 // resolveRpgParticipants/postNarratorMessage) flow the OTHER way, off `chatCompose.rpgChatOps` — chat learns nothing
 // rpg-shaped, rpg learns no chat tables (§2 one-directional flow, both directions principal-free).
 
+import type { CopyPresetToUser, PresetReadable } from "@orb/contracts/preset";
 import type { IdSource } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { Clock, ScheduleOp } from "@orb/kit/time";
 import { can } from "#domain/admin";
 import { isCharacterHandleConflict } from "#domain/character";
 import type { PostNarratorMessage } from "#domain/chat";
-import type {
-  ImportRpgGame,
-  RpgContext,
-  RpgCopyPresetToUser,
-  RpgPostNarratorMessage,
-  RpgResolvePresetOwned,
-  RpgResolveViewerVisibility,
-  RpgRoundsDeps,
-  RpgService,
-} from "#domain/rpg";
+import type { ImportRpgGame, RpgContext, RpgPostNarratorMessage, RpgResolveViewerVisibility, RpgRoundsDeps, RpgService } from "#domain/rpg";
 import {
   buildFoldedTurnBuilder,
   buildFoldTurnToolCalls,
@@ -64,9 +56,9 @@ export interface RpgComposeDeps extends Omit<RpgRoundsDeps, "rpgChatOps" | "isHa
    *  belt on it (#1528) and never re-derive either half. */
   readonly resolveViewerVisibility: RpgResolveViewerVisibility;
   /** The preset-ownership gate (fork-clones-the-game §3.2), wired off the preset front door `get`. */
-  readonly resolvePresetOwned: RpgResolvePresetOwned;
+  readonly resolvePresetOwned: PresetReadable;
   /** The GM-preset GIFT (the host-handoff copy offer's preset arm), wired off preset's `createCopyPresetToUser`. */
-  readonly copyPresetToUser: RpgCopyPresetToUser;
+  readonly copyPresetToUser: CopyPresetToUser;
   /** The ONE tool-use registry — rpg registers its state tools into it (the imagery precedent). */
   readonly toolUse: Pick<ToolUseService, "register">;
 }

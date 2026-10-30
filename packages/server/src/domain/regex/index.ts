@@ -2,15 +2,6 @@
 // does NOT read these tables directly — it consumes the injected `ResolveRegexSources` op (contract/
 // resolve.ts), which is what keeps the four-scope dereference in ONE home.
 
-export type {
-  ExportCardScripts,
-  ExportRegexScripts,
-  ImportCardScripts,
-  ImportGlobalScripts,
-  ImportPresetScripts,
-  ImportRegexScript,
-} from "./contract/portability.ts";
-
 export type { RegexAssemblyContext as RegexContext, RegexService } from "./contract/service.ts";
 
 export { createCopyHandoffRegexScripts, createCountHandoffRegexScripts } from "./persistence/handoff-copy-write.ts";

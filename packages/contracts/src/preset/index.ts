@@ -3572,6 +3572,7 @@ export function parsePresetFile(raw: unknown): ParsePresetResult {
   return { ok: true, name, config: result.data };
 }
 
+export type { CopyPresetToUser, ExportPresets, ImportPreset, PresetReadable } from "./owner-ops.ts";
 export { type PresetImportOutcome, presetImportOutcomeSchema } from "./portability.ts";
 
 // Wire outputs validate already-produced configuration; storage parsing retains its lenient degradation.

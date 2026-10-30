@@ -15,6 +15,7 @@
 // (`db/schema/preset.ts`) because the update verb's `{mode:"new"}` mints legal siblings of one source;
 // admission is therefore verb-scoped, exactly as the COW converge arm does it.
 
+import type { CopyPresetToUser } from "@orb/contracts/preset";
 import { PROMPT_CONFIG_SCHEMA_VERSION, promptConfigConfig } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { presets } from "@orb/db";
@@ -22,7 +23,7 @@ import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { PresetId, UserId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import { requireIntactStoredConfig } from "#primitives/stored-config";
-import type { CopyPresetToUser, PresetHandoffCopyAssemblyContext, PresetHandoffCopyContext } from "../contract/handoff-copy.ts";
+import type { PresetHandoffCopyAssemblyContext, PresetHandoffCopyContext } from "../contract/handoff-copy.ts";
 import { findOwnedForkOf, insertConvergedPresetForkIfAbsent } from "./queries.ts";
 
 const LIMIT_ONE = 1;

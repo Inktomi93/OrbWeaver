@@ -2,8 +2,9 @@
 
 import type { AutomationRuleId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
 import type { Principal } from "#identity";
+import type { ResolvedCacheConnectionView } from "./cache-policy.ts";
 import type { UserConnection } from "./connection.ts";
-import type { BindingActor } from "./connection-ref.ts";
+import type { BindingActor, CapabilityTarget } from "./connection-ref.ts";
 import type { SendAvailability } from "./resolved.ts";
 import type { RoutableTask, Task } from "./tasks.ts";
 
@@ -26,6 +27,14 @@ export interface GetBoundConnectionParams {
 export interface BoundConnectionView extends Pick<UserConnection, "label" | "providerId" | "model"> {
   readonly providerLabel: string;
 }
+
+/** The caller's own connection for a role or a connection id, with the cache context. Takes the acting Principal
+ *  and an optional target (owner-checked by the connection domain), and no caller-supplied user id, so the op
+ *  can only answer for the caller's own connections. */
+export type ResolveChatCapabilityOp = (params: {
+  readonly principal: Principal;
+  readonly target?: CapabilityTarget | undefined;
+}) => Promise<ResolvedCacheConnectionView>;
 
 /** Can the funder's task run under this fold, and if not, why. */
 export type TaskAvailabilityOp = (params: ResolveTaskParams) => Promise<SendAvailability>;
