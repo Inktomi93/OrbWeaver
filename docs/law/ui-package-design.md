@@ -167,9 +167,9 @@ Node token-authoring homes and type-only reexports follow [Spine-TypeScript §7.
   API) emits BOTH `packages/ui/src/styles/theme.css` (the Tailwind v4 `@theme` block → utility namespaces) and
   `packages/ui/src/tokens/index.ts` (the typed TS map). Both are **committed, generated artifacts** with a
   DO-NOT-EDIT header.
-- **Freshness is machine-enforced:** the external legacy source (`/home/inktomi/inktomi-stack/development/orbweaver-legacy-tests-2026-10-21/ui/tokens/index.test.ts`) re-runs the codegen
-  in-memory and diffs against the committed artifacts — hand-editing the theme or letting it drift
-  from `tokens.json` FAILS `pnpm test`. ("Derived, never hand-authored" as a test, not a hope.)
+- **Freshness is machine-enforced:** `tests/tooling/generated-css-drift.repo.int.test.ts` re-runs the generators
+  in memory and compares their output with the committed files, so a hand-edited or stale theme fails. CI runs it
+  in the contributor workflow's "Generated file freshness" step; locally, run it with `pnpm test:tools`.
 - **Themes are value-sets over these names** (D294, UI-Theming-and-Content §12.1): Hearth is `:root`. NO structural mode exists.
   FLAG\[registry]: the shipped theme SET is **Hearth · Mocha · Light** (D62's placement rulings
   are the authority; never the seed mockup's Catppuccin/Loom names) — built as `owner_id IS NULL` seed
