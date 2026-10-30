@@ -6,9 +6,9 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import {
-  MESSAGE_ACTIONS_MENU_NAME,
-  MESSAGE_FORK_NAME,
+  MESSAGE_EDIT_NAME,
   MESSAGE_MOVE_DOWN_NAME,
+  MESSAGE_MOVE_GENERATING,
   MESSAGE_MOVE_UP_NAME,
   MESSAGE_REASONING_CLEAR_CONFIRM,
   MESSAGE_REASONING_CLEAR_NAME,
@@ -17,18 +17,20 @@ import {
   MESSAGE_REASONING_NAME,
   MESSAGE_REASONING_SAVE_NAME,
 } from "#client/features/chat/lib/message-action-names.ts";
-import type { ToolActionsStory } from "./_remaining-action-groups-stories.tsx";
+import type { RoomTranscriptStory } from "./_message-reasoning-and-move-stories.tsx";
 
-// The production transcript surface over the real composed server and the corpus's own rooms. The story is the one
-// the persisted-tool-action suite mounts: it renders `MessageListSurface` for a chat and nothing else.
-const STORY = "tests/client/features/chat/components/_remaining-action-groups-stories/ToolActionsStory";
+// The production transcript surface over the real composed server and the corpus's own rooms.
+const STORY = "tests/client/features/chat/components/_message-reasoning-and-move-stories/RoomTranscriptStory";
+const START_TURN_LABEL = "Start a turn";
 const PROCEDURES = [
   "sessions.me",
   "settings.getUserSettings",
   "chat.getChat",
   "chat.listMessages",
   "chat.listReactions",
+  "chat.listMessageVariants",
   "chat.previewContextFit",
+  "chat.editMessage",
   "chat.moveMessage",
   "chat.editReasoning",
   "chat.clearReasoning",
@@ -52,9 +54,11 @@ async function hostRoom(root: Harness): Promise<{ readonly chatId: ChatId; reado
   const host = await root.internalCallerFor(root.ownerId);
   for (const room of (await host.chat.listChats({ limit: 100 })).items) {
     const detail = await host.chat.getChat({ chatId: room.id });
-    const messages = (await host.chat.listMessages({ chatId: room.id })).messages.toSorted((a, b) => a.seq - b.seq);
+    const page = await host.chat.listMessages({ chatId: room.id });
+    const messages = page.messages.toSorted((a, b) => a.seq - b.seq);
     if (
       detail.viewerIsHost &&
+      page.previousCursor === null &&
       messages.length >= SHORT_ROOM.min &&
       messages.length <= SHORT_ROOM.max &&
       new Set(messages.map((m) => m.authorUserId)).size > 1
@@ -67,6 +71,22 @@ async function hostRoom(root: Harness): Promise<{ readonly chatId: ChatId; reado
     }
   }
   throw new Error("The corpus has no short room the owner hosts with two authors");
+}
+
+/** A room the owner hosts whose newest page does not reach the start of its history, so older canon exists. */
+async function pagedRoom(
+  root: Harness,
+): Promise<{ readonly chatId: ChatId; readonly host: Caller; readonly first: { readonly id: MessageId; readonly seq: number } }> {
+  const host = await root.internalCallerFor(root.ownerId);
+  for (const room of (await host.chat.listChats({ limit: 100 })).items) {
+    const detail = await host.chat.getChat({ chatId: room.id });
+    const page = await host.chat.listMessages({ chatId: room.id });
+    const first = page.messages.toSorted((a, b) => a.seq - b.seq)[0];
+    if (detail.viewerIsHost && page.previousCursor !== null && first !== undefined) {
+      return { chatId: room.id, host, first: { id: first.id, seq: first.seq } };
+    }
+  }
+  throw new Error("The corpus has no room the owner hosts with more rows than its first page");
 }
 
 /** A room the corpus's second human HOSTS and the owner joins as a member. Each writes one line and plants reasoning
@@ -109,24 +129,30 @@ async function serveAs(root: Harness, page: Page, viewer: Caller): Promise<void>
   await routeTrpc(page, serveCorpusProcedures(viewer, PROCEDURES));
 }
 
-const storyProps = (chatId: ChatId): Parameters<typeof ToolActionsStory>[0] => ({
+const storyProps = (chatId: ChatId): Parameters<typeof RoomTranscriptStory>[0] => ({
   chatId,
   width: 960,
   height: 900,
   appearance: appearanceSettingsSchema.parse({}),
+  startTurnLabel: START_TURN_LABEL,
 });
 
 const order = async (caller: Caller, chatId: ChatId): Promise<readonly MessageId[]> =>
   (await caller.chat.listMessages({ chatId })).messages.toSorted((a, b) => a.seq - b.seq).map((message) => message.id);
 
-async function openMenu(page: Page, id: MessageId): Promise<Locator> {
+/** Open the row's own editor and return the row; the host's Move arrows live in its toolbar. */
+async function enterEdit(page: Page, id: MessageId): Promise<Locator> {
   const row = page.locator(`[data-message-id="${id}"]`);
   await row.hover();
-  await row.getByRole("button", { name: MESSAGE_ACTIONS_MENU_NAME, exact: true }).click();
-  return page.getByRole("menu");
+  await row.getByRole("button", { name: MESSAGE_EDIT_NAME, exact: true }).click();
+  await expect(row.getByRole("textbox", { name: MESSAGE_EDIT_NAME, exact: true })).toBeVisible();
+  return row;
 }
 
-test("the host's message menu moves a row down and disables the doors at the ends of the transcript", async ({ mount, page, corpusMedia }) => {
+const upArrow = (row: Locator): Locator => row.getByRole("button", { name: MESSAGE_MOVE_UP_NAME, exact: true });
+const downArrow = (row: Locator): Locator => row.getByRole("button", { name: MESSAGE_MOVE_DOWN_NAME, exact: true });
+
+test("the host's edit toolbar moves a row down and disables the arrows at the true ends of the chat", async ({ mount, page, corpusMedia }) => {
   await using root = await createCorpusHarness();
   const { chatId, host, ids } = await hostRoom(root);
   const [first, second, third] = ids;
@@ -136,35 +162,86 @@ test("the host's message menu moves a row down and disables the doors at the end
   }
   await serveAs(root, page, host);
   await corpusMedia();
-  await mount<typeof ToolActionsStory>(STORY, storyProps(chatId));
+  await mount<typeof RoomTranscriptStory>(STORY, storyProps(chatId));
 
-  const top = await openMenu(page, first);
-  await expect(top.getByRole("menuitem", { name: MESSAGE_MOVE_UP_NAME })).toBeDisabled();
-  await expect(top.getByRole("menuitem", { name: MESSAGE_MOVE_DOWN_NAME })).toBeEnabled();
-  await page.keyboard.press("Escape");
+  const top = await enterEdit(page, first);
+  await expect(upArrow(top)).toBeDisabled();
+  await expect(downArrow(top)).toBeEnabled();
+  await top.getByRole("button", { name: "Cancel edit", exact: true }).click();
 
-  const bottom = await openMenu(page, last);
-  await expect(bottom.getByRole("menuitem", { name: MESSAGE_MOVE_DOWN_NAME })).toBeDisabled();
-  await expect(bottom.getByRole("menuitem", { name: MESSAGE_MOVE_UP_NAME })).toBeEnabled();
-  await page.keyboard.press("Escape");
+  const bottom = await enterEdit(page, last);
+  await expect(downArrow(bottom)).toBeDisabled();
+  await expect(upArrow(bottom)).toBeEnabled();
+  await bottom.getByRole("button", { name: "Cancel edit", exact: true }).click();
 
-  const middle = await openMenu(page, second);
-  await middle.getByRole("menuitem", { name: MESSAGE_MOVE_DOWN_NAME }).click();
+  const middle = await enterEdit(page, second);
+  await downArrow(middle).click();
   await expect.poll(() => order(host, chatId)).toEqual([first, third, second, ...ids.slice(3)]);
 });
 
-test("a member's message menu offers no move doors", async ({ corpus, mount, page, corpusMedia }) => {
+test("the first loaded row moves up when older history exists beyond the loaded page", async ({ mount, page, corpusMedia }) => {
+  await using root = await createCorpusHarness();
+  const { chatId, host, first } = await pagedRoom(root);
+  const predecessor = (await host.chat.listMessages({ chatId, cursor: { kind: "before", seq: first.seq }, limit: 1 })).messages.at(-1);
+  if (predecessor === undefined) {
+    throw new Error("The paged room has no row before its first loaded row");
+  }
+  await serveAs(root, page, host);
+  await corpusMedia();
+  await mount<typeof RoomTranscriptStory>(STORY, storyProps(chatId));
+
+  const row = page.locator(`[data-message-id="${first.id}"]`);
+  const scroller = page.locator('[data-slot="message-list-scroll"]');
+  await expect
+    .poll(async () => {
+      await scroller.evaluate((element) => {
+        element.scrollTop = 0;
+      });
+      return await row.count();
+    })
+    .toBe(1);
+  const editing = await enterEdit(page, first.id);
+  await expect(upArrow(editing)).toBeEnabled();
+  await upArrow(editing).click();
+  // The two rows trade their seq values: the moved row takes the predecessor's place.
+  await expect
+    .poll(async () => (await host.chat.listMessages({ chatId, cursor: { kind: "after", seq: predecessor.seq - 1 }, limit: 2 })).messages.map((m) => m.id))
+    .toEqual([first.id, predecessor.id]);
+});
+
+test("the arrows disable while a turn is generating in the room", async ({ mount, page, corpusMedia }) => {
+  await using root = await createCorpusHarness();
+  const { chatId, host, ids } = await hostRoom(root);
+  const [middle] = ids.slice(1, 2);
+  if (middle === undefined) {
+    throw new Error("The room has no interior row");
+  }
+  await serveAs(root, page, host);
+  await corpusMedia();
+  await mount<typeof RoomTranscriptStory>(STORY, storyProps(chatId));
+
+  const row = await enterEdit(page, middle);
+  await expect(upArrow(row)).toBeEnabled();
+  await expect(downArrow(row)).toBeEnabled();
+  await page.getByRole("button", { name: START_TURN_LABEL, exact: true }).click();
+  await expect(upArrow(row)).toBeDisabled();
+  await expect(downArrow(row)).toBeDisabled();
+  await expect(row.getByText(MESSAGE_MOVE_GENERATING, { exact: true })).toBeVisible();
+  expect(await order(host, chatId)).toEqual(ids);
+});
+
+test("a member's edit toolbar has no move arrows", async ({ corpus, mount, page, corpusMedia }) => {
   await using root = await createCorpusHarness();
   const { chatId, viewer, ownLine } = await memberRoom(root, corpus.memberIdentities);
   await serveAs(root, page, viewer);
   await corpusMedia();
-  await mount<typeof ToolActionsStory>(STORY, storyProps(chatId));
+  await mount<typeof RoomTranscriptStory>(STORY, storyProps(chatId));
 
-  const menu = await openMenu(page, ownLine);
-  // The menu is open and carries the member's own doors; only the host-only pair is absent.
-  await expect(menu.getByRole("menuitem", { name: MESSAGE_FORK_NAME })).toBeVisible();
-  await expect(menu.getByRole("menuitem", { name: MESSAGE_MOVE_UP_NAME })).toHaveCount(0);
-  await expect(menu.getByRole("menuitem", { name: MESSAGE_MOVE_DOWN_NAME })).toHaveCount(0);
+  const row = await enterEdit(page, ownLine);
+  // The member's own editor is open and carries its controls; only the host-only pair is absent.
+  await expect(row.getByRole("button", { name: "Save edit", exact: true })).toBeVisible();
+  await expect(upArrow(row)).toHaveCount(0);
+  await expect(downArrow(row)).toHaveCount(0);
 });
 
 test("reasoning Edit saves, Escape cancels, and Clear confirms before it removes the stored reasoning", async ({ mount, page, corpusMedia }) => {
@@ -176,7 +253,7 @@ test("reasoning Edit saves, Escape cancels, and Clear confirms before it removes
   }
   await serveAs(root, page, host);
   await corpusMedia();
-  await mount<typeof ToolActionsStory>(STORY, storyProps(chatId));
+  await mount<typeof RoomTranscriptStory>(STORY, storyProps(chatId));
 
   const row = page.locator(`[data-message-id="${target}"]`);
   const edit = row.getByRole("button", { name: MESSAGE_REASONING_EDIT_NAME, exact: true });
@@ -212,7 +289,7 @@ test("a member is offered the reasoning controls on their own line only", async 
   const { chatId, viewer, ownLine, hostLine } = await memberRoom(root, corpus.memberIdentities);
   await serveAs(root, page, viewer);
   await corpusMedia();
-  await mount<typeof ToolActionsStory>(STORY, storyProps(chatId));
+  await mount<typeof RoomTranscriptStory>(STORY, storyProps(chatId));
 
   const own = page.locator(`[data-message-id="${ownLine}"]`);
   const hosts = page.locator(`[data-message-id="${hostLine}"]`);

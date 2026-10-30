@@ -1,5 +1,5 @@
-// The per-message action cluster: Edit / Fork inline, with Hide-from-AI / Copy / Move up / Move down (host) /
-// View-wire-trace / Delete under a ⋯ menu (D66 A3 collapse — north-star ui-cohesion §4 N3). Only a canon row renders it (the streaming
+// The per-message action cluster: Edit / Fork inline, with Hide-from-AI / Copy / View-wire-trace / Delete
+// under a ⋯ menu (D66 A3 collapse — north-star ui-cohesion §4 N3). Only a canon row renders it (the streaming
 // row reserves its width with `GhostActionsFootprint`, drawn from the same `MessageActionsCluster`). Edit/Hide/Fork apply only to user/assistant rows — a system row
 // is a room notice, not authored prose. This row does not re-derive author-or-host authority client-side; a
 // caller without permission gets the verb's own NOT_FOUND. Edit doesn't mutate here — it only flips the
@@ -46,7 +46,6 @@ import type { ActionsReveal } from "../lib/message-actions-reveal.ts";
 import { ACTIONS_REVEAL_POSTURE } from "../lib/message-actions-reveal.ts";
 import { GenerationCredit } from "./generation-credit.tsx";
 import { MessageActionsCluster } from "./message-actions-cluster.tsx";
-import { MessageMoveItems } from "./message-move-items.tsx";
 import { ReattributeFromHereConfirm, ReattributeFromHereItem } from "./reattribute-from-here.tsx";
 import { RowReactionPicker } from "./row-reaction-picker.tsx";
 import { SavedRepliesItem, SavedRepliesPicker } from "./saved-replies-picker.tsx";
@@ -144,10 +143,6 @@ export interface MessageActionsRowProps {
    *  ever refuse — and is never told the plane exists. Absent ⇒ NOT host (fail-closed: a caller that forgets
    *  to thread it hides the item rather than exposing it). The server gate is the AUTHORITY; this is UX. */
   readonly viewerIsHost?: boolean | undefined;
-  /** The loaded neighbours' `seq`, null at an end of the transcript. They feed the host's Move up / Move down;
-   *  absent ⇒ both disabled. */
-  readonly previousSeq?: number | null | undefined;
-  readonly nextSeq?: number | null | undefined;
   /** Show the generation credit (`GenerationCredit`). The row gates it on the `showModelIcon` appearance
    *  toggle; absent ⇒ no credit. */
   readonly generationCredit?: boolean | undefined;
@@ -169,8 +164,6 @@ export function MessageActionsRow({
   viewerIsHost = false,
   generationCredit = false,
   characterNames = [],
-  previousSeq = null,
-  nextSeq = null,
   chip = false,
 }: MessageActionsRowProps): ReactElement {
   const trpc = useTRPC();
@@ -336,9 +329,6 @@ export function MessageActionsRow({
                 onClick={onRevertContinue}
               />
             ) : null}
-            {/* HOST-ONLY: `chat.moveMessage` is `requireHost`, so a member is offered no door (the wire trace's
-            posture). An end of the transcript disables the door with its reason, never hides it. */}
-            {viewerIsHost ? <MessageMoveItems message={message} previousSeq={previousSeq} nextSeq={nextSeq} /> : null}
             {showWireTrace ? (
               <MenuItem data-testid={testId("variantWireTrigger")} onClick={(): void => setWireOpen(true)}>
                 <Icon icon={Code} size="sm" />

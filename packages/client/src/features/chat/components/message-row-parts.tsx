@@ -15,6 +15,8 @@ import { renderMessageForDisplay } from "#lib";
 import type { BubbleDecoration } from "../lib/art-decorations.ts";
 import type { GreetingBinding } from "../lib/greeting-window.ts";
 import type { RowSkin } from "../lib/message-row-variants.ts";
+import type { MoveNeighbours } from "../lib/move-neighbours.ts";
+import { NO_MOVE_NEIGHBOURS } from "../lib/move-neighbours.ts";
 import type { SwipeFoot } from "../lib/pager-chrome.ts";
 import { splitIntoTrainParagraphs } from "../lib/split-paragraphs.ts";
 import type { ArtView } from "./art-slot.tsx";
@@ -91,12 +93,15 @@ export function resolveRowContent(args: {
   readonly renderContext: MessageRenderContext;
   readonly speakerThemes: ReadonlyMap<string, ThemeScopeTokens>;
   readonly narratorVoiced: boolean;
+  /** The host's edit toolbar carries Move up / Move down; a member's carries none. */
+  readonly viewerIsHost: boolean;
+  readonly neighbours: MoveNeighbours | undefined;
 }): ReactNode {
   if (args.editing) {
     // No `onSave` override: the edit lands through the committed message-edit verb. The draft-greeting
     // override (`setDraftGreeting`, a client store) died with draft mode — a seeded greeting is real canon
     // now, so editing one IS a message edit (D166).
-    return <MessageEditTextarea message={args.message} />;
+    return <MessageEditTextarea message={args.message} moveNeighbours={args.viewerIsHost ? (args.neighbours ?? NO_MOVE_NEIGHBOURS) : undefined} />;
   }
   if (args.trainParagraphs !== null) {
     return null;

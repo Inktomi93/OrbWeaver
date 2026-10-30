@@ -34,6 +34,7 @@ import { avatarTreatmentFor } from "../lib/avatar-treatment.ts";
 import type { GreetingBinding } from "../lib/greeting-window.ts";
 import { resolveMessageRenderContext } from "../lib/message-render-context.ts";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
+import type { MoveNeighbours } from "../lib/move-neighbours.ts";
 import { actionsRevealFor, gutterRailFor, headerShape, rowMirrored } from "../lib/row-placement.ts";
 import { toolBoundaryDisplayMessage } from "../lib/tool-prose.ts";
 import { MessageActionsRow } from "./message-actions-row.tsx";
@@ -109,9 +110,8 @@ export interface MessageRowProps {
    *  metadata row; that row is data-only now). Absent ⇒ not host (fail-closed). */
   readonly viewerIsHost?: boolean | undefined;
   readonly messageActions?: "expanded" | "hover" | undefined;
-  /** The loaded neighbours' `seq` (null at an end of the transcript) — the host's Move up / Move down targets. */
-  readonly previousSeq?: number | null | undefined;
-  readonly nextSeq?: number | null | undefined;
+  /** What lies above and below this row — the host's Move up / Move down in the edit toolbar. */
+  readonly neighbours?: MoveNeighbours | undefined;
   /** True for the one row that is the "last-in-context" boundary; renders a quiet divider above it. */
   readonly contextBoundary?: boolean;
   /** The present-tense fit budget label ("N of M used · R reserved") shown on the boundary divider when the
@@ -176,8 +176,7 @@ export function MessageRow({
   metadataVisibility = NO_METADATA_VISIBLE,
   viewerIsHost = false,
   messageActions,
-  previousSeq = null,
-  nextSeq = null,
+  neighbours,
   contextBoundary = false,
   contextBoundaryLabel,
   contextBoundaryCompactSummary,
@@ -281,6 +280,8 @@ export function MessageRow({
     renderContext,
     speakerThemes,
     narratorVoiced: isNarratorVoiced(message.kind),
+    viewerIsHost,
+    neighbours,
   });
 
   const decoration =
@@ -350,8 +351,6 @@ export function MessageRow({
             messageActions={actionsReveal}
             greetingBound={greeting !== undefined}
             viewerIsHost={viewerIsHost}
-            previousSeq={previousSeq}
-            nextSeq={nextSeq}
             generationCredit={generationCredit}
             characterNames={[...speakerThemes.keys()]}
             chip={skin.actionsRow.chip}

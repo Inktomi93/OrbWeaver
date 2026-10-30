@@ -88,6 +88,9 @@ test("chat.editReasoning and chat.clearReasoning: the author and the host may wr
 
     await expect(member.chat.editReasoning({ chatId, messageId: hostLine, reasoning: "not mine" })).toThrowTRPCError("BAD_REQUEST");
     await expect(member.chat.clearReasoning({ chatId, messageId: hostLine })).toThrowTRPCError("BAD_REQUEST");
+    // The sibling edit procedures refuse a non-author with the same code, so the new pair is not a different refusal.
+    await expect(member.chat.editMessage({ chatId, messageId: hostLine, content: "not mine", timeZone: UTC_TIME_ZONE })).toThrowTRPCError("BAD_REQUEST");
+    await expect(member.chat.deleteMessages({ chatId, messageIds: [hostLine] })).toThrowTRPCError("BAD_REQUEST");
     const refused = (await ownerCaller.chat.listMessages({ chatId })).messages.find((message) => message.id === hostLine);
     expect(refused?.reasoning).toBeNull();
 

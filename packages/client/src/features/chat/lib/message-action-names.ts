@@ -49,13 +49,14 @@ export const MESSAGE_ACTIONS_MENU_NAME = "More message actions";
  */
 export const MESSAGE_REASONING_NAME = "Reasoning";
 
-/** The host's reorder doors: each swaps the row with its neighbour in the loaded transcript (`message-move-items.tsx`). */
+/** The host's reorder arrows in the message edit toolbar (`message-move-arrows.tsx`). */
 export const MESSAGE_MOVE_UP_NAME = "Move up";
 export const MESSAGE_MOVE_DOWN_NAME = "Move down";
 
-/** The disabled reasons at the ends of the loaded transcript, shown beside the item (never `title` alone). */
+/** The disabled reasons, shown beside the arrows (never `title` alone). */
 export const MESSAGE_MOVE_UP_UNAVAILABLE = "No message above this one.";
 export const MESSAGE_MOVE_DOWN_UNAVAILABLE = "No message below this one.";
+export const MESSAGE_MOVE_GENERATING = "Wait for the reply to finish.";
 
 /** The settled reasoning block's author-or-host controls (`message-reasoning.tsx`). The field and its door share
  *  one name for the reason `MESSAGE_EDIT_NAME` gives: the door is hidden while the field is open. */

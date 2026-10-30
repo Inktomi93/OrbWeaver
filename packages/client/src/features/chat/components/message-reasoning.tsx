@@ -13,6 +13,7 @@ import type { KeyboardEvent, ReactElement } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "#components";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
+import { cancelEditingReasoning, setReasoningEditDraft, startEditingReasoning, useIsEditingReasoning, useReasoningEditDraftText } from "#state";
 import {
   MESSAGE_REASONING_CANCEL_NAME,
   MESSAGE_REASONING_CLEAR_CONFIRM,
@@ -46,14 +47,15 @@ const useClearReasoningMutation = createEntityMutation<ReasoningVars, unknown>({
   errorToast: "Couldn't clear that reasoning.",
 });
 
-/** The inline field. The draft is local state: it lives for one open field on one row, unlike the message
- *  editor's, which must survive a windowed row's remount. */
-function ReasoningEditor({ message, onDone }: { readonly message: MessageView; readonly onDone: () => void }): ReactElement {
+/** The inline field. Edit mode and the draft live in the edit-draft store beside the body editor's, because the
+ *  transcript is windowed and a row scrolled out mid-edit remounts. */
+function ReasoningEditor({ message }: { readonly message: MessageView }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const edit = useEditReasoningMutation({ trpc, invalidation });
   const stored = message.reasoning ?? "";
-  const [draft, setDraft] = useState(stored);
+  const draft = useReasoningEditDraftText(message.id);
+  const onDone = (): void => cancelEditingReasoning(message.id);
   const fieldRef = useRef<HTMLTextAreaElement | null>(null);
   const blank = draft.trim().length === 0;
 
@@ -98,7 +100,7 @@ function ReasoningEditor({ message, onDone }: { readonly message: MessageView; r
         className="inline-full"
         aria-label={MESSAGE_REASONING_EDIT_NAME}
         value={draft}
-        onChange={(e): void => setDraft(e.target.value)}
+        onChange={(e): void => setReasoningEditDraft(message.id, e.target.value)}
         onKeyDown={onKeyDown}
         disabled={edit.isPending}
       />
@@ -135,11 +137,11 @@ export function MessageReasoning({ message, displayText, showIcon, canEdit }: Me
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const clear = useClearReasoningMutation({ trpc, invalidation });
-  const [editing, setEditing] = useState(false);
+  const editing = useIsEditingReasoning(message.id);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   if (editing) {
-    return <ReasoningEditor message={message} onDone={(): void => setEditing(false)} />;
+    return <ReasoningEditor message={message} />;
   }
 
   return (
@@ -147,7 +149,13 @@ export function MessageReasoning({ message, displayText, showIcon, canEdit }: Me
       <ReasoningBlock reasoning={displayText} thinking={false} label={MESSAGE_REASONING_NAME} showIcon={showIcon} />
       {canEdit ? (
         <Row gap="field" justify="end">
-          <Button type="button" intent="ghost" size="sm" aria-label={MESSAGE_REASONING_EDIT_NAME} onClick={(): void => setEditing(true)}>
+          <Button
+            type="button"
+            intent="ghost"
+            size="sm"
+            aria-label={MESSAGE_REASONING_EDIT_NAME}
+            onClick={(): void => startEditingReasoning(message.id, message.reasoning ?? "")}
+          >
             <Icon icon={Pencil} size="sm" />
           </Button>
           <Button type="button" intent="ghost" size="sm" aria-label={MESSAGE_REASONING_CLEAR_NAME} onClick={(): void => setConfirmOpen(true)}>

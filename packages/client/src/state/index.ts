@@ -255,12 +255,17 @@ export { clearLabelSelection, labelDeleted, selectLabel, selectLabelFromList, us
 export { collapseListPanel, dockListPanel, registerListFlipCarry } from "./list-flip-carry.ts";
 export {
   cancelEditingMessage,
+  cancelEditingReasoning,
   setMessageEditDraft,
+  setReasoningEditDraft,
   startEditingMessage,
+  startEditingReasoning,
   useIsEditingMessage,
+  useIsEditingReasoning,
   useMessageEditDraftText,
   useMessageEditReservedBlockSize,
   useMessageEditReservedInlineSize,
+  useReasoningEditDraftText,
 } from "./message-edit-draft.ts";
 export {
   enterSelectionMode,
