@@ -421,3 +421,9 @@ export interface Can {
   (principal: Principal, action: GlobalAction, resource: GlobalResource): void;
   (principal: Principal, action: ChatAction, resource: ChatResource): void;
 }
+
+/** The exact handle to user id lookup; an unknown or disabled handle collapses to null. */
+export type ResolveHandleOp = (handle: Handle) => Promise<UserId | null>;
+
+/** The principal a user's own authority resolves to when the caller acts on their behalf. */
+export type ResolveHostPrincipalOp = (userId: UserId) => Promise<Principal>;

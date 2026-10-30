@@ -19,7 +19,6 @@
 // FLAG[compaction-transcript]: the summarized transcript labels each turn by its role (user/assistant/system),
 // not the resolved speaker name — richer per-speaker labeling is a later refinement.
 
-import type { DurableChatBusEvent } from "@orb/contracts/chat";
 import type { UserIntent } from "@orb/contracts/preset";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { resolveProseText } from "@orb/contracts/prose";
@@ -31,7 +30,7 @@ import type { Resolved } from "@orb/inference";
 import { projectBodyForSummary } from "@orb/kit/content";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { and, eq, sql } from "drizzle-orm";
-import type { ChatContext, QuietGenerate } from "../contract/context.ts";
+import type { ChatContext, ChatServiceDeps, QuietGenerate } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type { CompactParams } from "../contract/params.ts";
 import type { CompactResult } from "../contract/results.ts";
@@ -58,11 +57,11 @@ interface CompactionBundle extends Pick<ChatService, "compact"> {
 }
 
 interface CompactionDeps {
-  readonly emit: (event: DurableChatBusEvent) => Promise<void>;
+  readonly emit: ChatServiceDeps["emit"];
   /** The quiet-generation seam — a non-canon generation through the chat's own model (wired at compose). */
   readonly quietGenerate: QuietGenerate;
   /** Resolve the chat's connection for the MANUAL lever (the engine hook passes its own `prep.connection`). */
-  readonly resolveConnection: (args: { readonly funderUserId: UserId; readonly chatId: ChatId }) => Promise<Resolved<"chat">>;
+  readonly resolveConnection: ChatServiceDeps["resolveConnection"];
 }
 
 /** Build the marker generation's user prompt from the prior marker (folded in so the new marker supersedes it),

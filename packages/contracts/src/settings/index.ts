@@ -1029,3 +1029,5 @@ export const themeViewSchema = z.strictObject({
 }) satisfies z.ZodType<ThemeView>;
 
 export type { ImportedAppearance, ImportedAppearanceOutcome, ImportedThemeLanding, SettingsImportOutcome } from "./import-results.ts";
+
+export type LoadUserSettingsOp = (userId: UserId) => Promise<UserSettings>;

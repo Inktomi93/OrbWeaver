@@ -1,5 +1,8 @@
 import type { LiveOnlyChatBusEvent, RoomEntityKind } from "@orb/contracts/chat";
+import type { CaptureDatabankRoomReachOp } from "@orb/contracts/databank";
 import type { DomainEvent } from "@orb/contracts/events";
+import type { CapturePersonaRoomReachOp } from "@orb/contracts/persona";
+import type { CaptureRegexRoomReachOp, ResolveRegexScriptRoomsOp } from "@orb/contracts/regex";
 import type { CharacterId, ChatId, DocumentId, PersonaId, RegexScriptId, UserId, WorldBookId } from "@orb/kit/ids";
 import type { Logger } from "#foundation/observability";
 
@@ -22,16 +25,16 @@ export interface RoomSeatReach {
 
 /** Capture before junction teardown; consumers fan only after their owner-scoped write succeeds. */
 export interface RoomDeleteReachCapture {
-  readonly persona: (personaId: PersonaId) => Promise<() => void>;
+  readonly persona: CapturePersonaRoomReachOp;
   readonly "world-info": (bookId: WorldBookId) => Promise<() => void>;
-  readonly regex: (scriptIds: readonly RegexScriptId[]) => Promise<(deleted: readonly RegexScriptId[]) => void>;
-  readonly databank: (documentId: DocumentId) => Promise<() => void>;
+  readonly regex: CaptureRegexRoomReachOp;
+  readonly databank: CaptureDatabankRoomReachOp;
 }
 
 export interface RoomEntityRefreshDeps {
   readonly logger: Logger;
   readonly resolve: RoomReachResolvers;
-  readonly resolveRegexScripts: (scriptIds: readonly RegexScriptId[]) => Promise<Map<RegexScriptId, ChatId[]>>;
+  readonly resolveRegexScripts: ResolveRegexScriptRoomsOp;
   readonly resolveMemberRooms: RoomSeatReach["member"];
   readonly emitRoomEvent: (event: LiveOnlyChatBusEvent) => void;
 }

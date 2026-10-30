@@ -11,13 +11,13 @@
 // refusal, never silently degraded to a share-link.
 
 import { randomBytes } from "node:crypto";
-import type { CreateInviteInput, DurableChatBusEvent, InvitePreview, InviteView } from "@orb/contracts/chat";
+import type { CreateInviteInput, InvitePreview, InviteView } from "@orb/contracts/chat";
 import { SIGNUP_MAX_TTL_MS, SIGNUP_MAX_USES } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import { MS_PER_HOUR } from "@orb/kit/time";
-import type { AssembleInvitePreviewOp, ChatContext, ClaimChatOp } from "../contract/context.ts";
+import type { AssembleInvitePreviewOp, ChatContext, ChatServiceDeps, ClaimChatOp, LoadParticipantViewsOp } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type {
   AcceptInviteParams,
@@ -29,7 +29,6 @@ import type {
   RevokeInviteParams,
 } from "../contract/params.ts";
 import type { ChatService } from "../contract/service.ts";
-import type { ParticipantData } from "../contract/views.ts";
 import { requireHost } from "../guard.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import {
@@ -50,12 +49,12 @@ import { resolveViewerOwnedCharacterIds } from "../substrate/viewer-gallery.ts";
 
 /** The collaborators the invite verbs close over (see the file header). */
 interface InviteDeps {
-  readonly emit: (event: DurableChatBusEvent) => Promise<void>;
+  readonly emit: ChatServiceDeps["emit"];
   /** The husk→real transition (R0). Only `createInvite` claims: opening a room to another human is
    *  effort put into it (F4(a)). The redeem/accept/revoke/decline arms cannot reach an unclaimed room
    *  -- an invite has to exist first, and minting it claimed. */
   readonly claimChat: ClaimChatOp;
-  readonly loadParticipantViews: (chatId: ChatId) => Promise<readonly ParticipantData[]>;
+  readonly loadParticipantViews: LoadParticipantViewsOp;
   /** The one preview assembly (`verbs/invite-preview.ts`), wired at `service.ts`. */
   readonly assemblePreview: AssembleInvitePreviewOp;
 }

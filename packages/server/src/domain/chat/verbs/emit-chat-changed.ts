@@ -5,10 +5,11 @@
 // Fan scope (security): only users who are members at this moment, plus the caller's `extraUserIds` (a
 // just-kicked or deleted member enumerated before the row cascade). Never a non-member.
 
+import type { PublishChatChangedOp } from "@orb/contracts/chat";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import { getLog } from "#foundation/observability";
-import type { ChatContext, EmitChatChanged, PublishChatChangedOp } from "../contract/context.ts";
+import type { ChatContext, EmitChatChanged } from "../contract/context.ts";
 import { loadPresentHumanUserIds } from "../persistence/participants-read.ts";
 
 export function createEmitChatChanged(input: DbAssemblyInput<Pick<ChatContext, "db" | "logger">>, publishChatChanged: PublishChatChangedOp): EmitChatChanged {

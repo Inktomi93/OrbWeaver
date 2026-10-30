@@ -13,8 +13,9 @@ import type { Db } from "@orb/db";
 import { chatStreamEvents, chats, messages } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchStmt } from "@orb/db/query";
-import type { ChatId, ChatStreamEventId, ChatStreamGenerationId, MessageId } from "@orb/kit/ids";
+import type { ChatId, MessageId } from "@orb/kit/ids";
 import { eq, sql } from "drizzle-orm";
+import type { EngineContext } from "../contract/engine-context.ts";
 
 interface ChatStreamMessageRoot {
   readonly id: MessageId;
@@ -24,8 +25,8 @@ interface ChatStreamMessageRoot {
 interface ChatStreamInsertArgs {
   readonly message: ChatStreamMessageRoot;
   readonly deltas: readonly ChatDeltaEvent[];
-  readonly newEventId: () => ChatStreamEventId;
-  readonly newGenerationId: () => ChatStreamGenerationId;
+  readonly newEventId: EngineContext["newStreamEventId"];
+  readonly newGenerationId: EngineContext["newStreamGenerationId"];
   readonly createdAt: number;
 }
 

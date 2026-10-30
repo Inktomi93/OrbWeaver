@@ -34,7 +34,7 @@
 // `getVariables` returns the effective config-plane view: stored ChoiceBlock picks merged over the active
 // preset's declared defaults, resolved with the `stable` pick mode so the read is stable.
 
-import type { ChatInjectionView, DurableChatBusEvent, LiveOnlyChatBusEvent, UserMacroPicksView, VariablePicksView } from "@orb/contracts/chat";
+import type { ChatInjectionView, LiveOnlyChatBusEvent, UserMacroPicksView, VariablePicksView } from "@orb/contracts/chat";
 import type { UserMacroSpec, UserMacroValues } from "@orb/contracts/preset";
 import { userMacroValuesSchema } from "@orb/contracts/preset";
 import { chatInjections, chatParticipants, chats } from "@orb/db";
@@ -47,7 +47,8 @@ import { MS_PER_HOUR } from "@orb/kit/time";
 import type { SQL } from "drizzle-orm";
 import { and, eq, exists, isNotNull, isNull, lt, ne, not, or, sql } from "drizzle-orm";
 import type { ActiveTurns } from "../contract/active-turns.ts";
-import type { ChatContext, ClaimChatOp } from "../contract/context.ts";
+import type { ChatContext, ChatServiceDeps, ClaimChatOp } from "../contract/context.ts";
+import type { EmitDurableChatEventOp } from "../contract/engine-context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type { PreparedRetainedCanonStats } from "../contract/generation-observation.ts";
 import type {
@@ -87,9 +88,6 @@ import { ownedByConsentingHuman } from "../substrate/participants-humans.ts";
 import { shadowPresetUserMacros } from "../substrate/user-macros.ts";
 import { resolveChoiceVariables } from "../substrate/variables.ts";
 
-/** The emit op the lifecycle verbs close over. */
-type EmitChatEvent = (event: DurableChatBusEvent) => Promise<void>;
-
 /** The LIVE-ONLY fan (`entry/compose/services::emitChatEventLive`) — the door `chatDeleted` takes. Not
  *  async and never rejecting: a no-listener publish is a free in-process `EventEmitter.emit`, which is what
  *  makes it safe to call AFTER the DELETE without a failure mode to classify. */
@@ -97,10 +95,10 @@ type EmitChatEventLive = (event: LiveOnlyChatBusEvent) => void;
 
 /** The collaborators not on `ChatContext`. */
 interface ChatLifecycleDeps {
-  readonly emit: EmitChatEvent;
+  readonly emit: ChatServiceDeps["emit"];
   /** The durable-append-free fan the three removing verbs announce a dead room on (see the file header's
    *  DELETE-FIRST block). Separate from `emit` because they are different LANES, not two spellings of one. */
-  readonly emitLive: EmitChatEventLive;
+  readonly emitLive: ChatServiceDeps["emitLive"];
   /** The in-flight turn registry — `delete` sweeps the deleted room's turns (see {@link createDelete}). */
   readonly activeTurns: ActiveTurns;
   /** The husk→real transition (R0) — every write here calls it BEFORE writing. */
@@ -151,7 +149,7 @@ function toInjectionView(row: typeof chatInjections.$inferSelect): ChatInjection
 /** Host-only single-column chat-row write + the `chatUpdated` catch-all (the shared title/star/archive body). */
 async function hostRowUpdate(
   ctx: ChatContext,
-  emit: EmitChatEvent,
+  emit: EmitDurableChatEventOp,
   claimChat: ClaimChatOp,
   args: {
     readonly principal: UpdateTitleParams["principal"];
@@ -176,21 +174,21 @@ async function hostRowUpdate(
 }
 
 /** `updateTitle` — host-only. */
-function createUpdateTitle(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["updateTitle"] {
+function createUpdateTitle(ctx: ChatContext, emit: EmitDurableChatEventOp, claimChat: ClaimChatOp): ChatService["updateTitle"] {
   return async ({ principal, chatId, title }: UpdateTitleParams): Promise<void> => {
     await hostRowUpdate(ctx, emit, claimChat, { principal, chatId, patch: { title } });
   };
 }
 
 /** `star` — host-only (a room-level flag — see the matrix FLAG). */
-function createStar(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["star"] {
+function createStar(ctx: ChatContext, emit: EmitDurableChatEventOp, claimChat: ClaimChatOp): ChatService["star"] {
   return async ({ principal, chatId, starred }: StarChatParams): Promise<void> => {
     await hostRowUpdate(ctx, emit, claimChat, { principal, chatId, patch: { starred } });
   };
 }
 
 /** `archive` — host-only (archiving removes the room from every member's active list). */
-function createArchive(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["archive"] {
+function createArchive(ctx: ChatContext, emit: EmitDurableChatEventOp, claimChat: ClaimChatOp): ChatService["archive"] {
   return async ({ principal, chatId, archived }: ArchiveChatParams): Promise<void> => {
     await hostRowUpdate(ctx, emit, claimChat, { principal, chatId, patch: { archived } });
   };
@@ -199,7 +197,7 @@ function createArchive(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimCh
 /** `setChatAnchorPersona` — host-only manual re-pin of the anchor. `personaId: null` clears the pin. A
  *  non-null target must be owned by a present AND ENABLED human participant of this room — checked via
  *  `ctx.verifyPersonaOwned` against each present-and-enabled human's `userId`. */
-function createSetChatAnchorPersona(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["setChatAnchorPersona"] {
+function createSetChatAnchorPersona(ctx: ChatContext, emit: EmitDurableChatEventOp, claimChat: ClaimChatOp): ChatService["setChatAnchorPersona"] {
   return async ({ principal, chatId, personaId }: SetChatAnchorPersonaParams): Promise<void> => {
     await requireHost(ctx, principal, chatId);
     if (personaId !== null) {
@@ -440,7 +438,7 @@ function createGetVariables(ctx: ChatContext): ChatService["getVariables"] {
 }
 
 /** `setVariables` — member. Flush the `{{var}}`→value map to `chats.variableValues`. Emits `chatUpdated`. */
-function createSetVariables(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["setVariables"] {
+function createSetVariables(ctx: ChatContext, emit: EmitDurableChatEventOp, claimChat: ClaimChatOp): ChatService["setVariables"] {
   return async ({ principal, chatId, values }: SetVariablesParams): Promise<void> => {
     await requireParticipant(ctx, principal, chatId);
     await claimChat(chatId);
@@ -461,7 +459,7 @@ function createSetVariables(ctx: ChatContext, emit: EmitChatEvent, claimChat: Cl
  *  else's prompt — refused whole with a typed reason, never silently cleaned (a partial write would tell the
  *  member their pick landed). Kit's `resolveStaticInput` is the second belt, for picks ALREADY stored when
  *  their option was renamed away. */
-function createSetUserMacroValues(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["setUserMacroValues"] {
+function createSetUserMacroValues(ctx: ChatContext, emit: EmitDurableChatEventOp, claimChat: ClaimChatOp): ChatService["setUserMacroValues"] {
   return async ({ principal, chatId, values }: SetUserMacroValuesParams): Promise<void> => {
     await requireParticipant(ctx, principal, chatId);
     await claimChat(chatId);
@@ -579,7 +577,7 @@ function createGetRuntimeVariables(ctx: ChatContext): ChatService["getRuntimeVar
 }
 
 /** `clearVariables` — member. Null the persisted variable flush. Emits `chatUpdated`. */
-function createClearVariables(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["clearVariables"] {
+function createClearVariables(ctx: ChatContext, emit: EmitDurableChatEventOp, claimChat: ClaimChatOp): ChatService["clearVariables"] {
   return async ({ principal, chatId }: ClearVariablesParams): Promise<void> => {
     await requireParticipant(ctx, principal, chatId);
     await claimChat(chatId);
@@ -590,7 +588,7 @@ function createClearVariables(ctx: ChatContext, emit: EmitChatEvent, claimChat: 
 
 /** `setChatInjection` — host-only. `id` set ⇒ update the existing row (scoped to chatId — a foreign/unknown
  *  id is a leak-free NOT_FOUND); absent ⇒ insert a fresh row. Emits `chatUpdated`; returns the resolved view. */
-function createSetChatInjection(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["setChatInjection"] {
+function createSetChatInjection(ctx: ChatContext, emit: EmitDurableChatEventOp, claimChat: ClaimChatOp): ChatService["setChatInjection"] {
   return async ({ principal, chatId, id, position, depth, role, content, order }: SetChatInjectionParams): Promise<ChatInjectionView> => {
     await requireHost(ctx, principal, chatId);
     await claimChat(chatId);
@@ -651,7 +649,7 @@ function createListChatInjections(ctx: ChatContext): ChatService["listChatInject
  *  ANNOUNCING: `chatUpdated` is what makes every present client re-read the room, so firing it for a delete
  *  that moved no row asserts a mutation that did not happen — to every member's cache and to any automation
  *  watching the room (#1463 item 9). `RETURNING` is the transition test, the same shape the claim stamp uses. */
-function createDeleteChatInjection(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["deleteChatInjection"] {
+function createDeleteChatInjection(ctx: ChatContext, emit: EmitDurableChatEventOp, claimChat: ClaimChatOp): ChatService["deleteChatInjection"] {
   return async ({ principal, chatId, injectionId }: DeleteChatInjectionParams): Promise<void> => {
     await requireHost(ctx, principal, chatId);
     await claimChat(chatId);

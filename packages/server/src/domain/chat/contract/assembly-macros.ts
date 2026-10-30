@@ -6,7 +6,7 @@
 import type { AssembleContext, UserMacroDraws } from "@orb/contracts/chat";
 import type { UserMacroValues } from "@orb/contracts/preset";
 import type { ChatId } from "@orb/kit/ids";
-import type { MacroFreeze, MacroRegistry, RejectedUserMacro, UserMacroDef } from "@orb/kit/macro";
+import type { MacroFreeze, MacroRegistry, RandomSource, RejectedUserMacro, UserMacroDef } from "@orb/kit/macro";
 
 export const CHOICE_PICK_MODES = ["random", "stable"] as const;
 /** How a ChoiceBlock `randomPick` variable resolves: `random` draws one of the stored values from the gather's PRNG
@@ -21,7 +21,7 @@ export const CHOICE_PICK_DRAWS: Record<ChoicePickMode, boolean> = { random: true
  *  single value and no render can fall back to kit's ambient `Math.random`. */
 export interface MacroRenderEnv {
   readonly registry: MacroRegistry;
-  readonly random: () => number;
+  readonly random: RandomSource;
 }
 
 /** Per-render knobs for `renderMacros`. `original` is the preset Main-Prompt/Jailbreak (the two overridable
@@ -31,7 +31,7 @@ export interface MacroRenderEnv {
 export interface RenderMacrosOptions {
   readonly original?: string | undefined;
   readonly registry?: MacroRegistry | undefined;
-  readonly random: () => number;
+  readonly random: RandomSource;
 }
 
 /** The inputs to `buildTurnMacroContext` — the turn-stage regex/guided macro context, built once per turn. */
@@ -42,7 +42,7 @@ export interface TurnMacroContextArgs {
   readonly input?: string | undefined;
   /** The turn PRNG (`ChatContext.prng`) every `{{random}}`/`{{roll}}`/`{{pick}}` draw rides; required so no draw
    *  reaches kit's ambient fallback. */
-  readonly random: () => number;
+  readonly random: RandomSource;
   readonly onWarn?: ((msg: string, err?: unknown) => void) | undefined;
   /** The per-turn user-macro registry (WAVE MU) — the turn-stage regex/guided context resolves user macros
    *  against it; absent ⇒ the process `globalMacroRegistry` (byte-identical). */
@@ -52,7 +52,7 @@ export interface TurnMacroContextArgs {
 /** The inputs to `freezeVolatileMacros` — the commit-time volatile bake. */
 export interface FreezeVolatileMacrosArgs {
   /** The turn PRNG the bake draws from, so a committed row's baked value is deterministic and replayable. */
-  readonly random: () => number;
+  readonly random: RandomSource;
   /** The per-turn FREEZE registry (WAVE MU); absent ⇒ the process volatile-only registry. */
   readonly registry?: MacroRegistry | undefined;
   /** The caller's sink for the record of what this bake froze (D129-F). */
@@ -93,7 +93,7 @@ export interface BuildTurnUserMacrosArgs {
    *  byte-exact so a re-generation resolves the identical draw. Absent ⇒ a fresh-draw turn. */
   readonly frozenDraws?: UserMacroDraws | undefined;
   /** The seeded turn PRNG (`deps.prng`) — fresh random-pick draws ride it; NEVER ambient entropy. */
-  readonly prng: () => number;
+  readonly prng: RandomSource;
 }
 
 /** The `buildTurnUserMacros` product — the per-turn registry pair + the effective draw record + refusals. */

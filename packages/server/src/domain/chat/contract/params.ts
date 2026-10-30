@@ -2,6 +2,7 @@ import type {
   ChatInjectionInput,
   ChatLibraryLens,
   ChatListCursor,
+  ChatScopedParams,
   CreateInviteInput,
   GroupConfigInput,
   GuidedSteer,
@@ -28,7 +29,6 @@ import type { ThemeBackground } from "@orb/contracts/theme";
 import type {
   AssetId,
   CharacterId,
-  ChatId,
   ChatInjectionId,
   ChatInviteId,
   ChatParticipantId,
@@ -54,11 +54,6 @@ export type { GuidedSteer } from "@orb/contracts/chat";
 /** Common to every chat verb: the acting principal. */
 interface ChatActorParams {
   readonly principal: Principal;
-}
-
-/** The common chatId-scoped base — requireParticipant/requireHost resolves against (principal, chatId). */
-interface ChatScopedParams extends ChatActorParams {
-  readonly chatId: ChatId;
 }
 
 /** A message-scoped base (canon edits/variant operations). */
@@ -108,12 +103,12 @@ export interface ListChatsParams extends CountChatsParams {
 }
 
 /** `listForks` — the membership-scoped fork children of a chat. */
-export interface ListForksParams extends ChatScopedParams {}
+export type ListForksParams = ChatScopedParams;
 
 /** `getChatLineage` — walks the fork ancestry, membership-gated per ancestor. */
-export interface GetChatLineageParams extends ChatScopedParams {}
+export type GetChatLineageParams = ChatScopedParams;
 
-export interface GetChatParams extends ChatScopedParams {}
+export type GetChatParams = ChatScopedParams;
 
 /** `getMemberCard` — read ONE roster character's card, field-clamped to the room's `memberCardVisibility`
  *  (D22). The `characterId` MUST be a present character seat of THIS chat; a not-in-roster / foreign id is a
@@ -135,7 +130,7 @@ export interface PreviewAssemblyParams extends ChatScopedParams, ViewerClockPara
 }
 
 /** `getActivePresetConfig` — the resolved PromptConfig the chat assembles against. */
-export interface GetActivePresetConfigParams extends ChatScopedParams {}
+export type GetActivePresetConfigParams = ChatScopedParams;
 
 /** `previewActionTemplates` — every ACTION template of ONE preset,
  *  resolved against THIS chat. `presetId` is the editor's OVERRIDE: assemble this room as if that preset were
@@ -191,7 +186,7 @@ export type ListMessagesParams = ChatScopedParams & { readonly limit?: number | 
     | { readonly beforeSeq?: never; readonly afterSeq: number }
   );
 
-export interface ListParticipantsParams extends ChatScopedParams {}
+export type ListParticipantsParams = ChatScopedParams;
 
 /** `listMessageVariants` — the full sibling-variant set for one slot (no content). */
 export interface ListMessageVariantsParams extends MessageScopedParams {}
@@ -201,7 +196,7 @@ export interface ReplayStreamEventsParams extends ChatScopedParams {
   readonly afterSeq?: number | undefined;
 }
 
-export interface StreamEventBoundsParams extends ChatScopedParams {}
+export type StreamEventBoundsParams = ChatScopedParams;
 
 /** `replayChatEvents` — resume the durable chat-bus log from a cursor. */
 export interface ReplayChatEventsParams extends ChatScopedParams {
@@ -209,7 +204,7 @@ export interface ReplayChatEventsParams extends ChatScopedParams {
 }
 
 /** `chatEventBounds` — the durable chat-bus log's cursor bounds. */
-export interface ChatEventBoundsParams extends ChatScopedParams {}
+export type ChatEventBoundsParams = ChatScopedParams;
 
 /** `send` — persist a user message then run the AI turn. */
 export interface SendParams extends ChatScopedParams, ViewerClockParams {
@@ -289,7 +284,7 @@ export interface CompactParams extends ChatScopedParams {
 }
 
 /** `abort` — cancel an in-flight turn (lock-free; owner-of-the-turn only). */
-export interface AbortParams extends ChatScopedParams {}
+export type AbortParams = ChatScopedParams;
 
 /** `generateImage` — generates n image(s), then persists one message whose body carries n asset: refs. */
 interface GenerateImageFields extends ChatScopedParams, ViewerClockParams {
@@ -398,19 +393,19 @@ export interface ForkChatParams extends ChatScopedParams {
  *  wire input fields; `id` set means update, absent means create. */
 export interface SetChatInjectionParams extends ChatScopedParams, Readonly<ChatInjectionInput> {}
 
-export interface ListChatInjectionsParams extends ChatScopedParams {}
+export type ListChatInjectionsParams = ChatScopedParams;
 
 export interface DeleteChatInjectionParams extends ChatScopedParams {
   readonly injectionId: ChatInjectionId;
 }
 
 /** `getVariables` — the effective ChoiceBlock variables computed for the next turn. */
-export interface GetVariablesParams extends ChatScopedParams {}
+export type GetVariablesParams = ChatScopedParams;
 
 /** `getRuntimeVariables` — the room's RUNTIME variable fold (S5 §4's vars read, priced with `setVariable`;
  *  the needle's meter and B9's clock widget both consume it). Member-gated: the vars plane is
  *  member-visible BY DESIGN — which is exactly why analysis arcs/twists/guidance never write into it. */
-export interface GetRuntimeVariablesParams extends ChatScopedParams {}
+export type GetRuntimeVariablesParams = ChatScopedParams;
 
 /** `toggleReaction` (B6/MR0) — add or remove ONE emoji on ONE variant, attributed to the caller's own seat.
  *
@@ -458,11 +453,11 @@ export interface ReactAsCharacterParams extends ChatScopedParams {
 /** `listReactions` (B6/MR0) — the room's bounded grouped reaction window, member-gated and floor-clamped.
  *  Takes no cursor and no variant: it is ONE read per room that the client indexes by `variantId`, so a
  *  swipe re-targets data already held (the `rpg.listTurnToolCalls` posture). */
-export interface ListReactionsParams extends ChatScopedParams {}
+export type ListReactionsParams = ChatScopedParams;
 
 /** `getVariablePicks` — the picks pane's ChoiceBlock read: the chat's declared variables + the persisted
  *  picks `setVariables` writes (the `getUserMacroPicks` sibling — the pane's two knob families). */
-export interface GetVariablePicksParams extends ChatScopedParams {}
+export type GetVariablePicksParams = ChatScopedParams;
 
 /** `setVariables` — flushes a \{\{var\}\}→value map to chats.variableValues. */
 export interface SetVariablesParams extends ChatScopedParams {
@@ -478,19 +473,19 @@ export interface SetUserMacroValuesParams extends ChatScopedParams {
 
 /** `getUserMacroPicks` (#24) — the picks pane's ONE read: the chat's pickable user-macro declarations +
  *  the persisted picks `setUserMacroValues` writes. */
-export interface GetUserMacroPicksParams extends ChatScopedParams {}
+export type GetUserMacroPicksParams = ChatScopedParams;
 
-export interface ClearVariablesParams extends ChatScopedParams {}
+export type ClearVariablesParams = ChatScopedParams;
 
 /** `delete` — deletes the chat (host-only; cascades messages/roster/invites/etc.). */
-export interface DeleteChatParams extends ChatScopedParams {}
+export type DeleteChatParams = ChatScopedParams;
 
 /** `reapTemporaryChats` — sweeps the caller's expired temporary chats AND expired husks (R0 §4.6). */
 export interface ReapTemporaryChatsParams extends ChatActorParams {}
 
 /** `reapHusk` — the nav-away drop of ONE unclaimed room (R0 §4.6). Host-only; the server re-checks
  *  `started_at IS NULL`, so this is a REQUEST to reap, never an assertion that the room is a husk. */
-export interface ReapHuskParams extends ChatScopedParams {}
+export type ReapHuskParams = ChatScopedParams;
 
 export interface UpdateTitleParams extends ChatScopedParams {
   readonly title: string | null;
@@ -631,7 +626,7 @@ export interface SetToolRecurseLimitParams extends ChatScopedParams {
   readonly limit: number;
 }
 
-export interface GetGroupConfigForChatParams extends ChatScopedParams {}
+export type GetGroupConfigForChatParams = ChatScopedParams;
 
 /** `setSeatKnobs` — the ONE participantId-keyed AI-seat knob write (host-only; D80). Replaces the retired
  *  per-kind forking (`setParticipantDisabled`/`setParticipantTalkativeness`/`setAgentSeatDisabled` — the
@@ -667,7 +662,7 @@ export interface RevokeInviteParams extends ChatScopedParams {
 }
 
 /** `listInvites` — host-only. Every invite for the chat as InviteViews. */
-export interface ListInvitesParams extends ChatScopedParams {}
+export type ListInvitesParams = ChatScopedParams;
 
 /** `declineInvite` — declines a targeted invite the caller was notified about. Keyed by inviteId, not the
  *  raw token. */
@@ -697,7 +692,7 @@ export interface SetMemberHistoryVisibilityParams extends ChatScopedParams {
 }
 
 /** `selfLeave` — a member leaves their own membership. A sole-host self-leave archives the room. */
-export interface SelfLeaveParams extends ChatScopedParams {}
+export type SelfLeaveParams = ChatScopedParams;
 
 /** `nominateHostHandoff` — host-only, step 1 of the two-party handoff: nominates a member as the new host. */
 export interface NominateHostHandoffParams extends ChatScopedParams {
@@ -708,4 +703,4 @@ export interface NominateHostHandoffParams extends ChatScopedParams {
 }
 
 /** `acceptHostHandoff` — step 2: the nominee accepts, triggering the atomic role swap. */
-export interface AcceptHostHandoffParams extends ChatScopedParams {}
+export type AcceptHostHandoffParams = ChatScopedParams;

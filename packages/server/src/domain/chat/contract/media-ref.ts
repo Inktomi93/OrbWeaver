@@ -1,13 +1,13 @@
-import type { assets, Db } from "@orb/db";
+import type { AssetCasRefByIdOp, LoadAssetBytesOp } from "@orb/contracts/assets";
+import type { Db } from "@orb/db";
 import type { AssetId, ChatId, UserId } from "@orb/kit/ids";
 import type { ImageAdapter } from "#infra/image";
 import type { PrepareVideo } from "#infra/media";
-import type { ChatContext } from "./context.ts";
 export interface ImageRefAssets {
   readonly frameCount: ImageAdapter["frameCount"];
   readonly prepareVideo: PrepareVideo;
-  readonly assetCasRefById: (id: AssetId) => Promise<Pick<typeof assets.$inferSelect, "ownerId" | "mime"> | undefined>;
-  readonly loadAssetBytes: (id: AssetId) => Promise<Uint8Array | null>;
+  readonly assetCasRefById: AssetCasRefByIdOp;
+  readonly loadAssetBytes: LoadAssetBytesOp;
 }
 
 /** The room facts a stored asset must satisfy before its bytes are read for the model. */
@@ -24,5 +24,3 @@ export interface ResolveMediaRefDeps {
   readonly mediaProcessing: Pick<ImageRefAssets, "frameCount" | "prepareVideo">;
   readonly forbidExternalMedia: () => boolean;
 }
-
-export type ResolveMediaRef = ChatContext["resolveImageUrl"];

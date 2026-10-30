@@ -19,11 +19,11 @@
 // world-info's, the room's regex scripts are the regex domain's. Chat composes the plan and owns only the
 // room-side statements.
 
-import type { HandoffOffer, HandoffOfferContents } from "@orb/contracts/chat";
+import type { HandoffOffer, HandoffOfferContents, OfferedSeat } from "@orb/contracts/chat";
 import { NO_HANDOFF_OFFER_CONTENTS } from "@orb/contracts/chat";
 import { statementForOwner } from "@orb/db/wiring-owner";
 import type { ChatId, UserId } from "@orb/kit/ids";
-import type { ChatContext, HandoffCopyPlan, OfferedSeat } from "../contract/context.ts";
+import type { ChatContext, HandoffCopyPlan } from "../contract/context.ts";
 import type { ParticipantRow } from "../contract/participant-row.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
 

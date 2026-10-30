@@ -22,7 +22,7 @@ export interface AdminAuthChecker {
   isAdmin: (c: Context) => boolean;
 }
 
-interface RecorderFilter {
+export interface RecorderFilter {
   chatId?: ChatId;
   limit?: number;
 }

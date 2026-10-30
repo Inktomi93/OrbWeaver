@@ -16,7 +16,7 @@
 import type { AssembleContext, ChatInjection, MacroFreezeRecord, MemoryRecallSlice, MessageView } from "@orb/contracts/chat";
 import type { GenerationType } from "@orb/contracts/preset";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
-import type { MacroRegistry } from "@orb/kit/macro";
+import type { MacroRegistry, RandomSource } from "@orb/kit/macro";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { humanizeDuration, UTC_TIME_ZONE } from "@orb/kit/time";
 import { buildAssembleContext } from "../assembly/context.ts";
@@ -317,7 +317,7 @@ export async function gatherAssembleContext(
     /** The render PRNG: every `{{random}}`/`{{roll}}`/`{{pick}}` in the build (injections, lore, personas, notes,
      *  steers, the WI-stage macro context) draws from it. A turn passes the live seeded PRNG; a preview passes the
      *  stable preview one. Never ambient `Math.random`. */
-    readonly prng: () => number;
+    readonly prng: RandomSource;
     /** How ChoiceBlock `randomPick` variables resolve — `random` draws with {@link prng} (a turn), `stable` leaves
      *  the stored value (a preview, so it never varies per poll). Explicit, never derived from `prng`. */
     readonly choicePicks: ChoicePickMode;
