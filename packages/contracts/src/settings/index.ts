@@ -2,7 +2,7 @@ import type { ThemeId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
-import type { ThemeOverride } from "#theme";
+import type { ThemeBackground, ThemeOverride } from "#theme";
 import { themeOverrideSchema } from "#theme";
 import type { VersionedParseFailure } from "#versioned-config";
 import { VERSIONED_PARSE_FAILURES } from "#versioned-config";
@@ -13,8 +13,9 @@ import { isPlainObject } from "@orb/kit/guards";
 import { SCROLL_MODES } from "@orb/kit/scroll-mode";
 import { z } from "zod";
 import { DEFAULT_GROUP_CONFIG, groupConfigSchema, storedGroupConfigSchema } from "#chat";
+import type { DatabankSettings } from "#databank";
 import { chunkParamsSchema, databankRetrievalSettingsSchema } from "#databank";
-import type { IpCertificateSetting } from "#identity";
+import type { IpCertificateSetting, Principal } from "#identity";
 import { ipCertificateSettingSchema } from "#identity";
 import type { ExtractionMode, MultimodalCaptionMode } from "#imagery";
 import { IMAGERY_CAPTION_SLOT_IDS, IMAGERY_TEMPLATE_SLOT_IDS } from "#imagery";
@@ -26,6 +27,7 @@ import { DATABANK_UPLOAD_MAX_BYTES } from "#uploads";
 import { defineVersionedConfig, tolerantArray } from "#versioned-config";
 import type { AppearanceSettings } from "./appearance.ts";
 import { appearanceSettingsSchema } from "./appearance.ts";
+import type { SettingsImportOutcome } from "./import-results.ts";
 
 // The `appearance` section lives in its own module so the client's pre-paint boot hint can reach the
 // CONTRACT's own schema object (e94c50a718: one set of bounds, never a client copy) without composing this
@@ -1036,4 +1038,54 @@ export const themeViewSchema = z.strictObject({
 
 export type { ImportedAppearance, ImportedAppearanceOutcome, ImportedThemeLanding, SettingsImportOutcome } from "./import-results.ts";
 
-export type LoadUserSettingsOp = (userId: UserId) => Promise<UserSettings>;
+/** A signed-in actor reading their own settings; the verb scopes by `principal.userId`. */
+export interface GetUserSettingsParams {
+  readonly principal: Principal;
+}
+
+/** Admin-only read of the app-wide settings; the verb gates on `principal`. */
+export interface GetAppSettingsParams {
+  readonly principal: Principal;
+}
+
+export type GetUserSettingsOp = (params: GetUserSettingsParams) => Promise<UserSettingsView>;
+
+export type GetAppSettingsWithOverridesOp = (params: GetAppSettingsParams) => Promise<AppSettingsView>;
+
+/** One owner's databank settings, defaults filled. */
+export type GetDatabankSettingsOp = (ownerId: UserId) => Promise<DatabankSettings>;
+
+/** The sync read of the owner's IP-certificate choice from the resolved cache; `null` is off. */
+export type CertificateSettingOp = () => EffectiveAppConfig["ipCertificate"];
+
+/** Persist the owner's IP-certificate choice; `null` turns it off. */
+export type SaveCertificateSettingOp = (principal: Principal, setting: EffectiveAppConfig["ipCertificate"]) => Promise<void>;
+
+/** Has this user's default persona been seeded? */
+export type PersonaSeededOp = (principal: Principal) => Promise<boolean>;
+
+/** Has the first-run example-plugin install pass latched for this user? */
+export type ExamplePluginSeededOp = (principal: Principal) => Promise<boolean>;
+
+/** Latch the first-run example-plugin install pass for this user. */
+export type MarkExamplePluginSeededOp = (principal: Principal) => Promise<void>;
+
+/** The showcase plugin versions the seeder recorded for a user, by slug. */
+export type SeededPluginVersions = Readonly<Record<string, string>>;
+
+export type ReadSeededPluginVersionsOp = (principal: Principal) => Promise<SeededPluginVersions>;
+
+export type WriteSeededPluginVersionsOp = (principal: Principal, versions: SeededPluginVersions) => Promise<void>;
+
+/** Has this user's once-per-recipient distributed-plugin delivery been applied? */
+export type DistributedPluginAppliedOp = (principal: Principal) => Promise<boolean>;
+
+/** Latch the once-per-recipient distributed-plugin delivery for this user. */
+export type MarkDistributedPluginAppliedOp = (principal: Principal) => Promise<void>;
+
+/** Slug → this user's owned scene-plate background ref, or `null` when the shipped pack has no such plate. */
+export type ResolveSeededPlateOp = (principal: Principal, slug: string) => Promise<ThemeBackground | null>;
+
+/** The settings-owned theme import: a bundle descriptor, a profile import or a single file. `fallbackName` names
+ *  a raw SillyTavern theme that carries no `name`. */
+export type ImportThemeOp = (ownerId: UserId, bytes: Uint8Array, fallbackName?: string) => Promise<SettingsImportOutcome>;

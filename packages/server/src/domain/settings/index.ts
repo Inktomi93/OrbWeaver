@@ -4,7 +4,6 @@
 export { createSettingsAssemblyContext as createSettingsContext } from "./context.ts";
 export type { SettingsComposedOps } from "./contract/composed-ops.ts";
 export type { ContentSeedPolicyDeps, ContentSeedStep, UserContentSeeder } from "./contract/content-seed.ts";
-export type { SettingsImportOutcome } from "./contract/portability.ts";
 export type { DefaultBackgroundSeeder } from "./contract/seeder.ts";
 export type {
   SettingsAssemblyContext as SettingsContext,

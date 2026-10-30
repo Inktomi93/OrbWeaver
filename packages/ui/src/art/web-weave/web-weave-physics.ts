@@ -15,7 +15,7 @@
 // Everything is deterministic given (plucks, now) — vitest drives it directly, no rAF, no browser.
 
 import type { WeaveStrand } from "./web-weave-geometry.ts";
-import type { WeaveXY } from "./web-weave-math.ts";
+import type { WeavePoint } from "./web-weave-math.ts";
 
 /** One live pluck: WHERE it struck (fraction of the strand's index space), WHEN (wall-clock ms), and
  *  how hard (px of transverse displacement at the strike, before decay). */
@@ -55,20 +55,20 @@ function pluckOffset(strandLength: number, s: number, plucks: readonly WeavePluc
 
 /** The pluck displacement of one SAMPLE, as a vector along the strand's local normal (zero when the
  *  strand is quiet — the caller's fast path). */
-export function pluckDisplacement(strand: WeaveStrand, index: number, plucks: readonly WeavePluck[], now: number): WeaveXY {
+export function pluckDisplacement(strand: WeaveStrand, index: number, plucks: readonly WeavePluck[], now: number): WeavePoint {
   const offset = pluckOffset(strand.length, index / (strand.pts.length - 1), plucks, now);
   if (offset === 0) {
     return ORIGIN;
   }
-  const before = strand.pts[Math.max(0, index - 1)] as WeaveXY;
-  const after = strand.pts[Math.min(strand.pts.length - 1, index + 1)] as WeaveXY;
+  const before = strand.pts[Math.max(0, index - 1)] as WeavePoint;
+  const after = strand.pts[Math.min(strand.pts.length - 1, index + 1)] as WeavePoint;
   const dx = after.x - before.x;
   const dy = after.y - before.y;
   const span = Math.hypot(dx, dy) || 1;
   return { x: (-dy / span) * offset, y: (dx / span) * offset };
 }
 
-const ORIGIN: WeaveXY = { x: 0, y: 0 };
+const ORIGIN: WeavePoint = { x: 0, y: 0 };
 
 /** Each pluck adds this to the web-wide shiver (clamped at 1 — a drag can't shake the web apart). */
 const SHIVER_PER_PLUCK = 0.5;
@@ -122,7 +122,7 @@ export function swayGain({ now, x, wind, shiver }: SwayGainInput): number {
 export interface WeaveStrandHit {
   readonly strand: WeaveStrand;
   readonly s0: number;
-  readonly point: WeaveXY;
+  readonly point: WeavePoint;
 }
 
 /** Every other sample is tested — the silk is sampled far finer than a fingertip is precise. */
@@ -130,14 +130,14 @@ const HIT_STRIDE = 2;
 
 /** The strand under a pointer, or null. The BRIDGE is exempt: it is the web's suspension line, off in
  *  the corners of the box, and plucking it reads as touching the frame rather than the web. */
-export function findStrandHit(strands: readonly WeaveStrand[], at: WeaveXY, hitRadius: number): WeaveStrandHit | null {
+export function findStrandHit(strands: readonly WeaveStrand[], at: WeavePoint, hitRadius: number): WeaveStrandHit | null {
   const radiusSq = hitRadius * hitRadius;
   for (const strand of strands) {
     if (strand.kind === "bridge") {
       continue;
     }
     for (let i = 0; i < strand.pts.length; i += HIT_STRIDE) {
-      const p = strand.pts[i] as WeaveXY;
+      const p = strand.pts[i] as WeavePoint;
       const dx = p.x - at.x;
       const dy = p.y - at.y;
       if (dx * dx + dy * dy < radiusSq) {

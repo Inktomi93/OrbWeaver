@@ -11,6 +11,7 @@ import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { RpgFieldLock } from "./rpg-field-lock.tsx";
+import type { AddRowAction } from "./tracker-blocks/index.ts";
 import { TrackerValue } from "./tracker-blocks/index.ts";
 
 /** The host's per-item write callbacks (absent ⇒ the read-only member arm — PERMISSION-omit). */
@@ -18,7 +19,7 @@ export interface PackEdit {
   readonly onPickIcon: (itemId: string, icon: string) => void;
   readonly onPatchItem: (itemId: string, patch: Partial<RpgInventoryItem>) => void;
   readonly onRemoveItem: (itemId: string) => void;
-  readonly onAddItem: (name: string) => void;
+  readonly onAddItem: AddRowAction["onAdd"];
   /** The hand pins THIS item carries (#78 — `…inventory.<id>.<field>`), in stored order; empty ⇒ the story
    *  still owns every field of it. The panel renders the tell from this list and hands the WHOLE list back on
    *  Release: a per-field residue would leave a pin no lens renders and no gesture can reach. */

@@ -9,7 +9,7 @@
 // and the timer are ALL injected at entry/ — the driver constructs nothing.
 
 import type { DatabaseHandle } from "@orb/db/wiring";
-import type { Clock } from "@orb/kit/time";
+import type { Clock, ScheduleOp } from "@orb/kit/time";
 import { MS_PER_MINUTE } from "@orb/kit/time";
 import type { ScheduleTickDeps } from "#domain/workloads";
 import type { Logger } from "#foundation/observability";
@@ -22,8 +22,6 @@ const LOG_COMPONENT = "workload-schedule-scheduler";
 // cadence is hourly, so a minute of latency on "due" is negligible, and the scan is one indexed select.
 const DEFAULT_CHECK_INTERVAL_MS = MS_PER_MINUTE;
 
-/** A timer seam (entry wires `setInterval`; tests pass a synchronous fake). Returns a `clear` closure. */
-type ScheduleOp = (fn: () => void, ms: number) => () => void;
 // `tickWorkloadSchedules` — advance every due schedule and enqueue its workload (front door).
 type TickSchedulesOp = (deps: ScheduleTickDeps) => Promise<void>;
 

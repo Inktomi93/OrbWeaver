@@ -12,10 +12,11 @@
 // sees this read, and a deception-active game's tracker stays surface-only by the §1.6 extraction-prompt clause,
 // NOT by redacting this feed).
 
+import type { ResolveCanonWindow } from "@orb/contracts/chat";
 import { buildIdentityNameContext } from "@orb/contracts/chat";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
-import type { ChatContext, ResolveCanonWindow } from "../contract/context.ts";
+import type { ChatContext } from "../contract/context.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { loadCanonHistory } from "../persistence/queries.ts";
 import { projectRpgTranscript, sliceCanonWindow } from "../substrate/rpg-transcript.ts";

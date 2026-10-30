@@ -5,7 +5,7 @@
 import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
 import type { PersonaCollision } from "@orb/contracts/import";
-import type { ConnectedCharacterView, PersonaDetail } from "@orb/contracts/persona";
+import type { CapturePersonaRoomReachOp, ConnectedCharacterView, PersonaDetail } from "@orb/contracts/persona";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
@@ -53,7 +53,7 @@ export interface PersonaContext {
    *  the pointers still exist and returns a thunk that fans `roomEntityChanged` to that captured set; the verb
    *  fires the thunk AFTER the row is confirmed gone. Live-only + error-isolated: it never rejects, so the
    *  capture cannot fault the delete. A persona seated/anchored nowhere captures ∅ (a no-op thunk). */
-  readonly captureRoomReachForDelete: (personaId: PersonaId) => Promise<() => void>;
+  readonly captureRoomReachForDelete: CapturePersonaRoomReachOp;
 
   readonly requireChatAuthorOrHost: (principal: Principal, chatId: ChatId, targetUserId: UserId) => Promise<void>;
   readonly setChatActivePersona: (chatId: ChatId, targetUserId: UserId, personaId: PersonaId | null) => Promise<void>;

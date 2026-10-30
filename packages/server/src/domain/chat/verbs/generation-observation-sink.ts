@@ -1,7 +1,8 @@
+import type { GenerationObservationParent } from "@orb/contracts/chat";
 import { batchHandle, databaseForOwner } from "@orb/db/wiring-owner";
 import type { GenerationObservationCallback } from "@orb/inference";
 import { createChatContext } from "../context.ts";
-import type { GenerationObservationAssemblyContext, GenerationObservationContext, GenerationObservationParent } from "../contract/generation-observation.ts";
+import type { GenerationObservationAssemblyContext, GenerationObservationContext } from "../contract/generation-observation.ts";
 import type { ChatAssemblyContext } from "../contract/wiring.ts";
 import { createGenerationObservationSession } from "../persistence/generation-observation.ts";
 

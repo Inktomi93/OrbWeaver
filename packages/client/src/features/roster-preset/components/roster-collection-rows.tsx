@@ -12,6 +12,7 @@
 import type { RosterPresetSummary } from "@orb/contracts/roster-preset";
 import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
+import type { LibraryRowActions } from "#components";
 import { LibraryRow } from "#components";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { CollectionListView } from "#lib";
@@ -31,7 +32,7 @@ function RosterLibraryRow({
   /** MAY return a promise (#1563b, widened #1632): it flows through `LibraryRow.actions.onDelete` →
    *  `RowActionsMenu.destructive.onConfirm` → `ConfirmDialog.onConfirm`, which awaits it and becomes the
    *  retry surface. `() => void` accepted an async handler anyway, so the type contradicted the behaviour. */
-  readonly onDelete: () => void | Promise<void>;
+  readonly onDelete: NonNullable<LibraryRowActions["onDelete"]>;
 }): ReactElement {
   return (
     <LibraryRow

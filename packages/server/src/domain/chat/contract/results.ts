@@ -7,12 +7,14 @@ import type {
   ChatVariables,
   CueRole,
   GroupConfig,
+  ParticipantData,
   ReactAsCharacterResult,
   SpeakerRef,
   TextSignature,
   TokenProvenance,
   TurnInitiator,
   TurnIntent,
+  TurnKind,
   TurnOutcome,
   UserMacroDraws,
   VariantProviderMetadata,
@@ -48,7 +50,7 @@ import type { MacroRegistry, RowCharacterName, RowPersonaName } from "@orb/kit/m
 import type { MessageRole } from "@orb/kit/message-role";
 import type { MemoryConfig, MemoryRecallInputs } from "./memory.ts";
 import type { ReactAsCharacterParams } from "./params.ts";
-import type { ChatDetailData, ParticipantData } from "./views.ts";
+import type { ChatDetailData } from "./views.ts";
 
 export type { RequestTurnOp } from "@orb/contracts/chat";
 
@@ -78,9 +80,6 @@ export interface TurnSpeakerShape {
   /** The active speaker's identity — the per-speaker card selection keys on this. */
   readonly speakerRef: SpeakerRef;
 }
-
-const TURN_KINDS = ["send", "swipe", "continue", "generate", "impersonate", "opening", "auto", "force"] as const;
-export type TurnKind = (typeof TURN_KINDS)[number];
 
 /** Maps the domain's turn-kind axis to the public bus {@link TurnIntent}. `opening`/`auto`/`force` surface as
  *  their nearest public lifecycle intent. One home — the engine's `turnStarted`/`turnCompleted`/`turnAborted`

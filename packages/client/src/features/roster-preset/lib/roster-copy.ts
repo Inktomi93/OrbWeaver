@@ -26,6 +26,7 @@ import type { RulePresetId, RulePresetKnobDescriptor, RulePresetKnobValue, RuleP
 import type { ApplyRosterPresetResult, RosterPresetSummary } from "@orb/contracts/roster-preset";
 import type { RpgGameTemplate } from "@orb/contracts/rpg";
 import { RPG_RULESET_DEFAULT, RPG_RULESET_LABEL } from "@orb/contracts/rpg";
+import type { RulePresetCatalogue } from "../hooks/use-saved-rosters.ts";
 
 /** A stored knob bag as either surface holds it — the view's RESOLVED bag or the wire INPUT bag (whose
  *  `string[]` arm assigns into this readonly one). */
@@ -101,7 +102,7 @@ function applySentence(args: {
   readonly rosterName: string;
   readonly result: ApplyRosterPresetResult;
   readonly started: boolean;
-  readonly ruleTitleOf: (id: RulePresetId) => string;
+  readonly ruleTitleOf: RulePresetCatalogue["titleOf"];
 }): string {
   const { rosterName, result, ruleTitleOf } = args;
   const parts: string[] = [];
@@ -133,7 +134,7 @@ export function applyNotice(args: {
   readonly rosterName: string;
   readonly result: ApplyRosterPresetResult;
   readonly started: boolean;
-  readonly ruleTitleOf: (id: RulePresetId) => string;
+  readonly ruleTitleOf: RulePresetCatalogue["titleOf"];
 }): { readonly channel: "success" | "warn"; readonly line: string } {
   const degraded = args.result.skipped.length > 0 || args.result.rulesSkipped.length > 0;
   return { channel: degraded ? "warn" : "success", line: applySentence(args) };

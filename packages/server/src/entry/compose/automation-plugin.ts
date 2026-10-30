@@ -1,8 +1,8 @@
 // Wire automation and plugin onto the same effect ports, feedback registries and enforcement belts.
 // Author and installer Principals are row-derived through the injected entry resolver.
 
+import type { ResolveUtilityPresetParams } from "@orb/contracts/preset";
 import type { DatabaseHandle } from "@orb/db/wiring";
-import type { SideGenSampling } from "@orb/inference";
 import type { AssetId, CharacterId, IdSource, PluginId, SandboxWireId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { RandomSource } from "@orb/kit/macro";
@@ -90,7 +90,7 @@ export interface AutomationPluginComposeDeps {
   readonly egress: Pick<ScopedEgress, "safeFetch" | "fetchPluginBundle">;
   readonly scheduleTimeout: ScheduleOp;
   readonly random: RandomSource;
-  readonly newOpaqueId: () => string;
+  readonly newOpaqueId: IdSource["uuid"];
   readonly idSource: IdSource;
   readonly db: DatabaseHandle;
   readonly now: Clock;
@@ -135,7 +135,7 @@ export interface AutomationPluginComposeDeps {
    *  instance and no late bind, which is the shape the S4 store had to work around. */
   readonly pluginMacros: PluginMacroRegistry;
   /** A user's Utility-role preset params (D299) — /autobg, rule analysis and plugin quiet calls. */
-  readonly resolveUtilityPresetParams: (userId: UserId) => Promise<SideGenSampling | undefined>;
+  readonly resolveUtilityPresetParams: ResolveUtilityPresetParams;
   /** #679 U8 seam 15 — databank's canon-write op (`createFromText`), narrowed. The membrane's `databank.ingest`
    *  host fn rides it under the installer (compose resolves the Principal): a scraper plugin ingests into the
    *  installer's OWN library and the derived indexer auto-runs (the write enqueues the ingest workload). */

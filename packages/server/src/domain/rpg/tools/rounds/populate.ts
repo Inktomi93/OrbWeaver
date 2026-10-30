@@ -1,6 +1,7 @@
 // The host `populateFromCharacter` model call: resolves the room connection as the host, runs one constrained round
 // over the card and opening, and folds it through the same delta path a turn round uses.
 
+import type { RpgCardCorpus } from "@orb/contracts/chat";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { ExtractionRefs } from "@orb/contracts/rpg";
@@ -10,7 +11,6 @@ import { generationOf } from "@orb/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
-import type { RpgCardCorpus } from "#domain/chat";
 import { createRpgRoundsContext } from "#src/domain/rpg/context.ts";
 import type { ExtractCtx, RpgRoundsAssemblyDeps, RpgRoundsDeps } from "#src/domain/rpg/contract/rounds.ts";
 import type { RpgContext } from "#src/domain/rpg/contract/service.ts";

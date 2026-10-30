@@ -6,7 +6,8 @@
 // A layer painted at REST coordinates over a swaying web visibly floats off it, so strands, glint
 // segments, dew and the weaver all come through here.
 
-import type { WeavePoint, WeaveStrand } from "./web-weave-geometry.ts";
+import type { WeaveStrand } from "./web-weave-geometry.ts";
+import type { WeavePoint } from "./web-weave-math.ts";
 import type { WeavePluck } from "./web-weave-physics.ts";
 import { pluckDisplacement, swayGain } from "./web-weave-physics.ts";
 

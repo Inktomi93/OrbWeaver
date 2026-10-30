@@ -51,15 +51,17 @@ async function hubOwners(db: Db, scope: WorkloadRunScope, distinct: (db: Db, run
   return [scope.ownerId];
 }
 
+interface HubPassConfig<T> {
+  readonly table: VectorTable;
+  readonly groupKeyOf: (row: T) => string;
+  readonly deps: ComputeHubScoresDeps;
+  readonly opts: ComputeHubScoresOptions;
+}
+
 async function fanOutHubPass<T extends HubRow>(
   owners: readonly UserId[],
   readForOwner: (ownerId: UserId) => Promise<T[]>,
-  cfg: {
-    readonly table: VectorTable;
-    readonly groupKeyOf: (row: T) => string;
-    readonly deps: ComputeHubScoresDeps;
-    readonly opts: ComputeHubScoresOptions;
-  },
+  cfg: HubPassConfig<T>,
 ): Promise<HubStats> {
   let rowsScored = 0;
   let groupsProcessed = 0;
@@ -71,15 +73,7 @@ async function fanOutHubPass<T extends HubRow>(
   return { rowsScored, groupsProcessed };
 }
 
-async function runHubPass<T extends HubRow>(
-  rows: readonly T[],
-  cfg: {
-    readonly table: VectorTable;
-    readonly groupKeyOf: (row: T) => string;
-    readonly deps: ComputeHubScoresDeps;
-    readonly opts: ComputeHubScoresOptions;
-  },
-): Promise<HubStats> {
+async function runHubPass<T extends HubRow>(rows: readonly T[], cfg: HubPassConfig<T>): Promise<HubStats> {
   const { table, groupKeyOf, deps, opts } = cfg;
   const updates: HubScoreUpdate[] = [];
   const groups = groupBy(rows, groupKeyOf);

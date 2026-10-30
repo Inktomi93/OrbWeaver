@@ -320,7 +320,7 @@ function SceneGameTrackers({
   lockPin,
 }: {
   readonly trackers: RpgTrackerView["gameTrackers"];
-  readonly onEditGameTracker?: (entry: RpgTrackerEntry, next: number) => void;
+  readonly onEditGameTracker?: SceneEditCallbacks["onEditGameTracker"];
   /** The section-scoped `trackerValues` hand-lock pin — ONE lock covers every game-tracker value,
    *  so the pin renders once beside the section label. `null` when unlocked/not-host. */
   readonly lockPin?: ReactNode;

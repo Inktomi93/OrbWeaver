@@ -81,6 +81,7 @@ export type { BackfillPassResult, ImportWindow, MemoryBackfillResult, MemoryBack
 export { importWindowSchema, memoryBackfillWorkloadParams, mergeImportWindows } from "./backfill.ts";
 export type {
   BulkImportChatInput,
+  BulkImportChatsOp,
   BulkImportChatsResult,
   BulkImportInjectionInput,
   BulkImportMessageInput,
@@ -134,6 +135,7 @@ export { contentSpansToBlocks, messageContentBlockSchema } from "./content-block
 
 export type { AnchorState, ChatDetail, RedeemInviteResult } from "./detail.ts";
 export { chatDetailSchema, redeemInviteResultSchema, viewerGalleryCharacter } from "./detail.ts";
+export type { GenerationObservationParent } from "./generation-observation.ts";
 export type { HandoffCardCopy, HandoffCardPair, HandoffHealArgs } from "./handoff-context.ts";
 export type { ImpersonateStreamDelta } from "./impersonation.ts";
 export { chatIdInputSchema, chatListInputSchema, listMessagesInputSchema } from "./inputs.ts";
@@ -391,8 +393,37 @@ export {
   stepFromRenderPolicyOverride,
   TALKATIVENESS_DEFAULT,
 } from "./roster.ts";
+export type {
+  ChatRpgGatherData,
+  ClaimChatOp,
+  ForkGameArgs,
+  ForkGameOp,
+  ForkGameResult,
+  GatherTurnContextArgs,
+  GetMembership,
+  ResolveCanonWindow,
+  ResolveChatProseOp,
+  ResolveGmSeatHolderKindOp,
+  ResolveRpgCardCorpus,
+  ResolveRpgParticipants,
+  RpgCardCorpus,
+  RpgTurnFacts,
+  RpgTurnTranscriptMessage,
+  SetRpgPointer,
+  TurnKind,
+} from "./rpg-ops.ts";
+export type {
+  AddCharacterToChatOp,
+  AddCharacterToChatParams,
+  ParticipantData,
+  SetGroupConfigOp,
+  SetGroupConfigParams,
+  SetSeatKnobsOp,
+  SetSeatKnobsParams,
+} from "./seat-ops.ts";
 export type { StartChatInput } from "./start.ts";
 export { startChatSchema } from "./start.ts";
+export type { TeachingCollection, TeachingContext, TeachingIdentity, TeachingKnobs } from "./teaching.ts";
 export type { TokenProvenance } from "./token-provenance.ts";
 export { combineTokenProvenance, TOKEN_PROVENANCES, tokenProvenanceSchema } from "./token-provenance.ts";
 export type {

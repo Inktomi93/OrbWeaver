@@ -118,6 +118,7 @@ export interface RowRovingOptions<T> {
   /** False ⇒ every effect below is a no-op and the returned index is -1: the list is byte-identical. */
   readonly enabled: boolean;
   readonly items: readonly T[];
+  /** Stable per-item key — must be id-based, not index (the list both appends and prepends). */
   readonly getItemKey: (item: T, index: number) => string | number;
   readonly viewportRef: RefObject<HTMLOListElement | null>;
   /** Bring a row into view before focus lands on it (the virtualizer's own scrollToIndex). */

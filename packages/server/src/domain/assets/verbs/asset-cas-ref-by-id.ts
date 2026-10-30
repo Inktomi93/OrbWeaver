@@ -5,8 +5,8 @@
 // D21 in-room shared-fiction scope, never a bare hash→owner oracle) — and builds the data-URI from `mime`.
 // Compose-root-internal; never a user-facing surface. `undefined` when the row is gone.
 
+import type { AssetCasRef } from "@orb/contracts/assets";
 import type { AssetId } from "@orb/kit/ids";
-import type { AssetCasRef } from "../contract/results.ts";
 import type { AssetsContext, AssetsService } from "../contract/service.ts";
 import { loadAssetCasRefById } from "../persistence/queries.ts";
 

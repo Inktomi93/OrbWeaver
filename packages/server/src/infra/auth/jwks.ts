@@ -41,8 +41,6 @@ const PINNED_ALGS = ["RS256", "ES256"] as const;
  *  varies the header per request, not a legitimate rotating key set. */
 const JWKS_CACHE_CAP = 32;
 
-type AnyKeySet = JwksKeySet;
-
 /** Tiny LRU: Map iteration order = insertion order; `delete+set` on read promotes to most-recent; on
  *  insert past cap, evict the least-recent (oldest key). No dep added. */
 class LruMap<K, V> {
@@ -87,19 +85,19 @@ function cacheKey(metaJwks: string): string {
  * outbound reference, so it is https-gated + allowlist-gated.
  */
 interface JwksReadState {
-  readonly cache: LruMap<string, AnyKeySet>;
+  readonly cache: LruMap<string, JwksKeySet>;
   readonly execution: typeof fetch;
   readonly log: Logger;
 }
 
-function readJwks({ cache, execution, log }: JwksReadState, metaJwks: string, allowlist: readonly string[]): AnyKeySet | null {
+function readJwks({ cache, execution, log }: JwksReadState, metaJwks: string, allowlist: readonly string[]): JwksKeySet | null {
   const key = cacheKey(metaJwks);
   const cached = cache.get(key);
   if (cached !== undefined) {
     return cached;
   }
   const trimmed = metaJwks.trim();
-  let set: AnyKeySet;
+  let set: JwksKeySet;
   if (trimmed.startsWith("{")) {
     try {
       // JSON.parse returns `unknown` (ts-reset); createLocalJWKSet validates the shape and throws on a
@@ -140,7 +138,7 @@ function readJwks({ cache, execution, log }: JwksReadState, metaJwks: string, al
 
 /** Own one configured client's key cache without replacing another graph's keys or fetch operation. */
 export function createJwksReader(execution: typeof fetch, log: Logger): JwksReader {
-  const state: JwksReadState = { cache: new LruMap<string, AnyKeySet>(JWKS_CACHE_CAP), execution, log };
+  const state: JwksReadState = { cache: new LruMap<string, JwksKeySet>(JWKS_CACHE_CAP), execution, log };
   const { cache } = state;
   let disposed = false;
   return {
@@ -170,7 +168,7 @@ function groupsFromClaim(claim: unknown): string[] {
  *  alg-confusion): fail-closed point 5. jose throws on every one of those; we catch and null. */
 async function jwtVerifyOrNull(
   { jwt, issuer, audience }: Pick<ForwardJwtVerifyArgs, "jwt" | "issuer" | "audience">,
-  keyset: AnyKeySet,
+  keyset: JwksKeySet,
   log: Logger,
 ): Promise<JWTPayload | null> {
   try {

@@ -5,14 +5,23 @@
 // offline, so no request Principal exists). Two bridges: role-irrelevant ops use the cheap synthetic
 // `hostPrincipal`; role-sensitive ops (owner-gates) use the injected `resolveHostPrincipal`.
 
-import type { DurableChatBusEvent } from "@orb/contracts/chat";
+import type {
+  ClaimChatOp,
+  DurableChatBusEvent,
+  GetMembership,
+  ResolveCanonWindow,
+  ResolveRegexSources,
+  ResolveRpgCardCorpus,
+  ResolveRpgParticipants,
+  SetRpgPointer,
+} from "@orb/contracts/chat";
 import { SIGNUP_INVITES_MINTABLE } from "@orb/contracts/chat";
 import type { AuthMode, Can, Principal } from "@orb/contracts/identity";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { DatabaseHandle } from "@orb/db/wiring";
-import type { ChatRequest, ChatResult } from "@orb/inference";
+import type { ProviderExecutor } from "@orb/inference";
 import type { ChatId, Handle, IdSource, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import type { RandomSource } from "@orb/kit/macro";
@@ -31,8 +40,6 @@ import type {
   ChatService,
   ChatServiceDeps,
   ChatWorkloadDeps,
-  ClaimChatOp,
-  GetMembership,
   GetPendingUserText,
   ImageRefAssets,
   MemoryRecallRecorder,
@@ -40,10 +47,6 @@ import type {
   PresenceReadOp,
   PromptTransformRegistry,
   RequestTurnOp,
-  ResolveCanonWindow,
-  ResolveRpgCardCorpus,
-  ResolveRpgParticipants,
-  SetRpgPointer,
   SignupInviteDeps,
   SignupInviteOps,
 } from "#domain/chat";
@@ -88,7 +91,6 @@ import { createPersonaOwned, createResolveConnectedPersona, createResolvePersona
 import type { PluginMacroRegistry } from "#domain/plugin";
 import type { PresetService } from "#domain/preset";
 import { createLoadOptionalPreset } from "#domain/preset";
-import type { ResolveRegexSources } from "#domain/regex";
 import { createCopyHandoffRegexScripts, createCountHandoffRegexScripts } from "#domain/regex";
 import type { RpgContext } from "#domain/rpg";
 import type { SearchService } from "#domain/search";
@@ -154,7 +156,7 @@ export interface ChatComposeInput {
   readonly sessionSecret: string | null;
   /** The frozen-host → `Principal` bridge for role-sensitive ops. */
   readonly resolveHostPrincipal: ChatAssetOpsDeps["resolvePrincipal"];
-  readonly audit: ChatContext["audit"];
+  readonly audit: AuditWiring["log"];
   /** The root's audit wiring, for the statements that must commit with their primary write. */
   readonly auditStatements: AuditWiring;
   readonly traces: TraceRing;
@@ -194,7 +196,7 @@ export interface ChatComposeInput {
    *  to undefined (byte-identical no-op). Bridged from `databank.gatherRetrieval` at the composition root. */
   readonly gatherDatabank?: ChatContext["gatherDatabank"];
   /** The compose-tier executor FENCE (§7.5-1a): chat receives exactly the bound `runChatTurn`. */
-  readonly runChatTurn: (req: ChatRequest) => Promise<ChatResult>;
+  readonly runChatTurn: ProviderExecutor["runChatTurn"];
   /** The deployment's Anthropic prompt-cache depth FLOOR, read per turn off the resolved AppSettings tier
    *  (`EffectiveAppConfig.promptCacheMinDepth`, Settings › Admin › System tuning). A thunk, not a value, so an
    *  admin flip reaches the next turn without a restart. Absent ⇒ the floor 0 (byte-identical no-op). */

@@ -9,7 +9,16 @@
 import type { ResolveVisibleRoomsOp } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { PortableFile } from "@orb/contracts/portability";
-import type { BulkResult, DetachResult, ImportScriptFileResult, RegexScriptRow, RegexScriptUsage, RemoveResult, ReorderResult } from "@orb/contracts/regex";
+import type {
+  BulkResult,
+  CaptureRegexRoomReachOp,
+  DetachResult,
+  ImportScriptFileResult,
+  RegexScriptRow,
+  RegexScriptUsage,
+  RemoveResult,
+  ReorderResult,
+} from "@orb/contracts/regex";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
@@ -86,7 +95,7 @@ export interface RegexContext {
    *  `fanRegexScriptRooms` after a delete resolves ∅ and every OTHER member of the room keeps reading a rack
    *  that still lists the gone script. Call this BEFORE the delete to snapshot the reach, then call the
    *  returned thunk with the ids the delete really removed. Error-isolated: it can never fault the delete. */
-  readonly captureRoomReachForDelete: (scriptIds: readonly RegexScriptId[]) => Promise<(deleted: readonly RegexScriptId[]) => void>;
+  readonly captureRoomReachForDelete: CaptureRegexRoomReachOp;
 }
 
 export type RegexAssemblyContext = DbAssemblyInput<RegexContext>;

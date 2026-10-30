@@ -19,14 +19,14 @@ import { loadPresentCharacterSeats, requireHost } from "#domain/chat";
 import { createPersonaOwned } from "#domain/persona";
 import type { RosterPresetContext, RosterPresetService } from "#domain/roster-preset";
 import { createRosterPresetService } from "#domain/roster-preset";
-import type { AuditEntry } from "#foundation/observability";
+import type { AuditWiring } from "#foundation/observability";
 import { minter } from "./minter.ts";
 
 interface RosterPresetComposeInput {
   readonly idSource: IdSource;
   readonly db: DatabaseHandle;
   readonly now: Clock;
-  readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
+  readonly audit: AuditWiring["log"];
   readonly emitUserEvent: EmitUserEvent;
   readonly can: Can;
   readonly chat: ChatService;

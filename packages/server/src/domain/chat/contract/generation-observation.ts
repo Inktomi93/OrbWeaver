@@ -1,11 +1,11 @@
-import type { MessageView } from "@orb/contracts/chat";
+import type { GenerationObservationParent, MessageView } from "@orb/contracts/chat";
 import type { GenerationUsageLeg } from "@orb/contracts/inference";
 import type { ApplyStatsDelta, StatsDelta } from "@orb/contracts/stats";
 import type { Db, messages, messageVariants } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { GenerationObservationCallback } from "@orb/inference";
-import type { ChatId, ChatTurnId, MessageId, MessageVariantId, UserConnectionId, UserId } from "@orb/kit/ids";
+import type { ChatId, MessageId, MessageVariantId, UserConnectionId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { SQL } from "drizzle-orm";
 import type { StatsBatchWiring } from "#domain/stats";
@@ -18,14 +18,6 @@ export interface GenerationObservationContext {
 
 export type GenerationObservationAssemblyContext = Omit<DbAssemblyInput<GenerationObservationContext>, "applyStatsDelta"> &
   Pick<StatsBatchWiring, "applyStatsDelta">;
-
-/** A retained source fences late responses; absent source ids mean the room itself is the parent. */
-export interface GenerationObservationParent {
-  readonly chatId: ChatId;
-  readonly turnId: ChatTurnId;
-  readonly sourceMessageId: MessageId | null;
-  readonly sourceVariantId: MessageVariantId | null;
-}
 
 export interface GenerationObservationFact {
   readonly ordinal: number;

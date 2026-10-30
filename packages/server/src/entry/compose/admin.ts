@@ -30,7 +30,7 @@ export interface AdminComposeDeps {
   readonly hashPassword: PasswordHasher["hash"];
   /** The same post-commit connection seed sessions consumes. */
   readonly seedUserConnections: AdminContext["seedUserConnections"];
-  readonly audit: AdminContext["audit"];
+  readonly audit: AuditWiring["log"];
   readonly auditStatementAfterWrite: AuditWiring["statementAfterWrite"];
   readonly sessions: Pick<
     SessionsService,

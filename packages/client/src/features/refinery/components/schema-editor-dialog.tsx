@@ -112,8 +112,8 @@ interface SaveDeps {
   readonly stage: RefinerySchemaStage;
   readonly create: ReturnType<typeof useCreateRefinerySchema>;
   readonly update: ReturnType<typeof useUpdateRefinerySchema>;
-  readonly onSaved: (schemaId: RefinerySchemaId) => void;
-  readonly onOpenChange: (open: boolean) => void;
+  readonly onSaved: SchemaEditorDialogProps["onSaved"];
+  readonly onOpenChange: SchemaEditorDialogProps["onOpenChange"];
 }
 
 /** The save press: create-or-update against the library, closing on success (the refusal renders
