@@ -4,8 +4,8 @@
 // no write, no embed. Returns a Map keyed by documentId (documents with zero chunks are simply absent → the
 // caller defaults them to 0). The Map is built HERE (a verb), never in the query layer.
 
+import type { CountDocumentChunksParams } from "@orb/contracts/embeddings";
 import type { DocumentId } from "@orb/kit/ids";
-import type { CountDocumentChunksParams } from "../contract/params.ts";
 import type { EmbeddingsContext, EmbeddingsService } from "../contract/service.ts";
 import { countDocumentChunks } from "../persistence/queries.ts";
 

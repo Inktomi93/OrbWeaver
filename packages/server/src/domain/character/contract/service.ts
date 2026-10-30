@@ -6,7 +6,6 @@ import type {
   CharacterDetail,
   CharacterRef,
   CreateCharacterOp,
-  DetachCardTagOp,
   DuplicateCharacterOp,
   FindCharacterByHandleOp,
   FindCharacterByImportHashOp,
@@ -18,10 +17,12 @@ import type {
   SnapshotCharacterOp,
   UpdateCharacterOp,
 } from "@orb/contracts/character";
+import type { ListCharacterIds } from "@orb/contracts/embeddings";
 import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { BumpStatsCanonVersion } from "@orb/contracts/stats";
+import type { DetachCardTagOp } from "@orb/contracts/tag";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
@@ -149,7 +150,7 @@ export interface CharacterService {
   readonly loadCardText: LoadCharacterCardTextOp;
 
   /** ownerId scopes to one owner, omitted/null = all owners. */
-  readonly listEmbeddableCharacterIds: (ownerId?: UserId | null) => Promise<readonly CharacterId[]>;
+  readonly listEmbeddableCharacterIds: ListCharacterIds;
 
   readonly findByImportHash: FindCharacterByImportHashOp;
   /** Give an art-less owned character its avatar and re-key its import identity, in one conditional write.

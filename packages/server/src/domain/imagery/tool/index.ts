@@ -15,7 +15,7 @@
 //   • `useAvatarReference` — inert without a `subjectCharacterId` (B3 needs a subject), so it rides the arm too.
 
 import { DEFAULT_ACTION_MODE, generateImageActionArgsSchema, IMAGERY_GENERATE_IMAGE_TOOL_DESCRIPTION, promptTemplateModeSchema } from "@orb/contracts/imagery";
-import type { ToolDefinition, ToolExecutionContext, ToolHandlerResult } from "#domain/tool-use";
+import type { ToolExecutionData, ToolHandlerDefinition, ToolHandlerResult } from "@orb/contracts/tool-use";
 import type { GeneratePictureParams } from "../contract/params.ts";
 import type { ImageryService } from "../contract/service.ts";
 
@@ -28,13 +28,13 @@ interface ImageryToolDeps {
   readonly generatePicture: ImageryService["generatePicture"];
 }
 
-/** The sanctioned erasure (buddy's precedent): a typed def is unassignable to `ToolDefinition<unknown>`
+/** The sanctioned erasure (buddy's precedent): a typed def is unassignable to `ToolHandlerDefinition<unknown>`
  *  (handler contravariance), so mint with its own `A` and widen here for the array; `register<A>` re-narrows. */
-function imageryTool<A>(def: ToolDefinition<A>): ToolDefinition {
-  return def as ToolDefinition;
+function imageryTool<A>(def: ToolHandlerDefinition<A>): ToolHandlerDefinition {
+  return def as ToolHandlerDefinition;
 }
 
-export function imageryToolDefinitions(deps: ImageryToolDeps): readonly ToolDefinition[] {
+export function imageryToolDefinitions(deps: ImageryToolDeps): readonly ToolHandlerDefinition[] {
   return [
     imageryTool({
       name: "generate_image",
@@ -44,7 +44,7 @@ export function imageryToolDefinitions(deps: ImageryToolDeps): readonly ToolDefi
       argsSchema: generateImageToolArgsSchema,
       capability: null,
       source: "builtin",
-      handler: async (args, exec: ToolExecutionContext): Promise<ToolHandlerResult> => {
+      handler: async (args, exec: ToolExecutionData): Promise<ToolHandlerResult> => {
         if (exec.chatId === null) {
           return { ok: false, error: "generate_image requires a chat context" };
         }

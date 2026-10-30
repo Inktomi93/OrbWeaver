@@ -15,6 +15,7 @@ import { DOCUMENT_DESTINATION_FORM_FIELD, documentDestinationSchema } from "@orb
 import { docUploadMime } from "@orb/contracts/extraction";
 import type { CardImportResult } from "@orb/contracts/import";
 import { cardLorebookRestoreResultSchema } from "@orb/contracts/import";
+import type { ImportTagPort } from "@orb/contracts/tag";
 import { ASSET_UPLOAD_MAX_BYTES, DATABANK_UPLOAD_MAX_BYTES, IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import { DomainOperationError } from "@orb/kit/errors";
 import { getHTTPStatusCodeFromError } from "@trpc/server/http";
@@ -26,7 +27,6 @@ import { AssetContentRejectedError } from "#domain/assets";
 import type { ImportCharacterPort } from "#domain/character";
 import type { DatabankService } from "#domain/databank";
 import type { ImportCardScripts } from "#domain/regex";
-import type { ImportTagPort } from "#domain/tag";
 import type { ImportWorldInfoPort } from "#domain/world-info";
 import { hasCsrfHeader } from "#infra/auth";
 import { classifyDomainError } from "#transport/trpc";

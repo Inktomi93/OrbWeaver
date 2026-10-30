@@ -1,9 +1,9 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { PortableEntity } from "@orb/contracts/portability";
+import type { TagLibraryImportResult } from "@orb/contracts/tag";
 import type { UserId } from "@orb/kit/ids";
 import type { ImportDocument } from "#domain/databank";
 import type { PersonaService } from "#domain/persona";
-import type { TagLibraryImportResult } from "#domain/tag";
 import type { ImportContextWiring } from "./build-context.ts";
 import type { ImportProfileDeps } from "./service.ts";
 
