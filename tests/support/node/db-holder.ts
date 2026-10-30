@@ -2,20 +2,20 @@
 // between requests that a layout migration on the same volume must refuse to move the file under. A closed
 // in-process handle is no substitute: it still holds the WAL lock after the close.
 
-import { writeFileSync } from "node:fs";
 import process from "node:process";
 import { createDb } from "@orb/db";
 import { sql } from "drizzle-orm";
 
 const HOLD_TICK_MS = 60_000;
 
-const [dbPath, readyPath] = process.argv.slice(2);
-if (dbPath === undefined || readyPath === undefined) {
-  throw new Error("usage: db-holder.ts <db path> <ready file>");
+const [dbPath] = process.argv.slice(2);
+if (dbPath === undefined) {
+  throw new Error("usage: db-holder.ts <db path>");
 }
 const db = await createDb(`file:${dbPath}`);
 await db.all(sql`SELECT name FROM sqlite_master`);
-writeFileSync(readyPath, "held");
+// The parent waits on this message, so it never polls for a ready file.
+process.send?.("held");
 // The tick closes over `db` to keep it reachable. Unreferenced, the handle is garbage once this module body
 // ends, and its finalizer closes the connection and drops the lock mid-test, so the migration moves the file.
 setInterval(() => db, HOLD_TICK_MS);
