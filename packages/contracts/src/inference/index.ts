@@ -21,7 +21,6 @@ export * from "./media-quality.ts";
 export * from "./modalities.ts";
 export * from "./model-schema.ts";
 export type {
-  BoundConnectionView,
   CredentialOwned,
   GetBoundConnectionOp,
   GetBoundConnectionParams,
