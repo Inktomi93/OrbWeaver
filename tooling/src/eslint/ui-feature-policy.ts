@@ -7,20 +7,6 @@ const FORM_STATE_APIS = ["useActionState", "useFormState", "useFormStatus", "use
 
 const LAYOUT_CONTEXT_PROPS = ["compact", "inDrawer", "inModal", "isMobile", "narrow"];
 
-// `container={false}` turns containment off, so it neither declares nor provides one.
-const CONTAINER_ON = "JSXAttribute[name.name='container']:not([value.expression.value=false])";
-
-const CONTAINMENT_OWNER = `:matches(JSXOpeningElement[name.name='Container'], JSXOpeningElement[name.name=/^(Section|Stack)$/]:has(> ${CONTAINER_ON}))`;
-
-// A bare, string or boolean `container` is containment whatever the element is called; a Portal's `container` is an element or a ref.
-const CONTAINER_FLAG =
-  "JSXAttribute[name.name='container']:matches(:not([value]), [value.type='Literal'], [value.expression.type='Literal']):not([value.expression.value=false])";
-
-const CONTAINER_SPREAD = "JSXSpreadAttribute > ObjectExpression > Property:matches([key.name='container'], [key.value='container']):not([value.value=false])";
-
-// What a surface may not write: the Container element however it is reached, a container flag on any element, and a spread that carries one.
-const SURFACE_DECLARATION = `:matches(${CONTAINMENT_OWNER}, JSXOpeningElement[name.type='JSXMemberExpression'][name.property.name='Container'], JSXOpeningElement:has(> ${CONTAINER_FLAG}), JSXOpeningElement:has(${CONTAINER_SPREAD}))`;
-
 // Importing Container is how a surface would declare one under another name.
 const CONTAINER_IMPORT = "ImportDeclaration[source.value=/^@orb\\/ui\\/layout/] > ImportSpecifier[imported.name='Container']";
 
@@ -31,42 +17,23 @@ const BODY_PROPS_CONTAINER =
 const BODY_PROPS_OPAQUE =
   "JSXAttribute[name.name='bodyProps'] > JSXExpressionContainer > :matches(:not(ObjectExpression), ObjectExpression:has(> SpreadElement))";
 
-// A dialog or drawer anchor provides its containment as the dialog box itself: the element it returns (beside its sibling dialogs in a fragment), not one nested in another element's children or props.
-const DIALOG_BOX = "JSXElement:not(JSXElement JSXElement) > JSXOpeningElement[name.name=/(?:Dialog|Drawer)$/]";
+/** The surface selectors that need no import resolution; `ui-containment.ts` adds the resolved ones. */
+export const SURFACE_SELECTORS = [
+  {
+    selector: CONTAINER_IMPORT,
+    message: "A surface never imports Container, under any name: it declares no container. Move it to the anchor that mounts the surface.",
+  },
+  {
+    selector: BODY_PROPS_OPAQUE,
+    message: "A surface passes `bodyProps` as a plain object literal, so its `container` stays visible here; move any spread or shared object to the anchor.",
+  },
+  {
+    selector: BODY_PROPS_CONTAINER,
+    message: "A surface never declares its own container, including through `bodyProps`. Move it to the anchor that mounts the surface.",
+  },
+] as const;
 
 export const UI_FEATURE_RESTRICTIONS = [
-  {
-    // A surface consumes the containment its anchor provides (UI-Architecture-and-Layout.md §4).
-    id: "surface-consumes-container",
-    selectors: [
-      {
-        selector: SURFACE_DECLARATION,
-        message: "A surface never declares its own container. Move the <Container> (or `container` prop) to the anchor that mounts it.",
-      },
-      {
-        selector: CONTAINER_IMPORT,
-        message: "A surface never imports Container, under any name: it declares no container. Move it to the anchor that mounts the surface.",
-      },
-      {
-        selector: BODY_PROPS_OPAQUE,
-        message:
-          "A surface passes `bodyProps` as a plain object literal, so its `container` stays visible here; move any spread or shared object to the anchor.",
-      },
-      {
-        selector: BODY_PROPS_CONTAINER,
-        message: "A surface never declares its own container, including through `bodyProps`. Move it to the anchor that mounts the surface.",
-      },
-    ],
-  },
-  {
-    id: "anchor-provides-container",
-    selectors: [
-      {
-        selector: `Program:not(:has(${CONTAINMENT_OWNER})):not(:has(${DIALOG_BOX}))`,
-        message: "An anchor provides containment: render <Container> (or <Section container>), or the dialog box it anchors.",
-      },
-    ],
-  },
   {
     id: "no-layout-context-props",
     selectors: [

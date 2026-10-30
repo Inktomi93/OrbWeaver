@@ -40,6 +40,7 @@ import { textVoiceOnlyRule } from "./text-voices.ts";
 import type { AppearanceVocabulary } from "./ui-appearance.ts";
 import { appearanceNameRule } from "./ui-appearance.ts";
 import { floorlessControlRule, registerApiRule, registryContextRule, stateFilesRule, storeDerivedRule } from "./ui-composition.ts";
+import { anchorProvidesContainerRule, surfaceConsumesContainerRule } from "./ui-containment.ts";
 import { customPropertyDeclaredRule } from "./ui-custom-properties.ts";
 import type { DomLookupHome } from "./ui-dom.ts";
 import { classListWriteRule, domLookupRule } from "./ui-dom.ts";
@@ -127,6 +128,8 @@ export function createOrbPlugin(options: {
   return {
     rules: {
       ...Object.fromEntries(LOCAL_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)] as const)),
+      "surface-consumes-container": surfaceConsumesContainerRule,
+      "anchor-provides-container": anchorProvidesContainerRule,
       "no-raw-intrinsic-paint": rawIntrinsicPaintRule(options.shellClasses),
       "no-hand-built-shell-dom": restrictionRule({ selectors: shellDomSelectors(options.shellSlots) }),
       "appearance-name-in-manifest": appearanceNameRule(options.appearanceVocabulary),

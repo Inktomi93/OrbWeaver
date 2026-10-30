@@ -12,6 +12,8 @@ area: client
 
 The list and context toggles live in the center pane's top bar, so clicking one reflows the center pane and the button moves out from under the cursor; the context pane also has a header x (added by the 851/852 work) that does the same collapse as the toggle, so one action has two controls in two places, and the toggle icon does not show open versus closed state.
 
+Order: build after item 1442 (the shell action overflow mechanism), because both change the same header chrome.
+
 ## Why
 
 Owner: the toggles feel odd to click and the x duplicates the collapse control; do it properly once.
