@@ -1,6 +1,7 @@
 // Storage adapter contracts are server-only injected capabilities, never application wire shapes.
 import type { FileHandle } from "node:fs/promises";
 import type { VariantKind } from "@orb/contracts/assets";
+import type { InferenceDeps } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
 
 /** The tools that own a per-user runtime root (inference program §8.4-2). One member today: the agent-sdk's
@@ -10,7 +11,7 @@ export type RuntimeTool = (typeof RUNTIME_TOOLS)[number];
 
 export interface UserRuntimeDirs {
   /** The path — created on first read (0700), so a spawn never races a missing directory. */
-  readonly dirFor: (ownerId: UserId, tool: RuntimeTool) => string;
+  readonly dirFor: InferenceDeps["userRuntimeDir"];
   /** Remove the user's whole tool dir — the credentials domain calls it when the row is deleted. */
   readonly remove: (ownerId: UserId, tool: RuntimeTool) => void;
 }

@@ -1,6 +1,6 @@
 // Explicit funder authority for runtime resolution; no credential or server service bag.
 
-import type { UserConnectionId } from "@orb/kit/ids";
+import type { AutomationRuleId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
 import type { Principal } from "#identity";
 import type { UserConnection } from "./connection.ts";
 import type { BindingActor } from "./connection-ref.ts";
@@ -25,3 +25,9 @@ export interface GetBoundConnectionParams {
 export interface BoundConnectionView extends Pick<UserConnection, "label" | "providerId" | "model"> {
   readonly providerLabel: string;
 }
+
+/** Does this user own this credential row? Answered by the credentials producer, asked by connection bindings. */
+export type CredentialOwned = (ownerId: UserId, credentialId: UserCredentialId) => Promise<boolean>;
+
+/** Is this automation rule authored by this user? Answered by automation, asked by connection bindings. */
+export type RuleOwnedBy = (ruleId: AutomationRuleId, userId: UserId) => Promise<boolean>;

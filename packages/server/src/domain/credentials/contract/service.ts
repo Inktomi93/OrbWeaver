@@ -10,10 +10,11 @@
 // consequences, because only this domain writes `user_credentials`.
 
 import type { CredentialHealth, CredentialStorageStatus, CredentialView, ResolvedSecret } from "@orb/contracts/credentials";
-import type { ProviderDef } from "@orb/contracts/inference";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
-import type { UserCredentialId, UserId } from "@orb/kit/ids";
+import type { InferenceDeps, ProviderRegistry } from "@orb/inference";
+import type { UserCredentialId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { AuditEntry, Logger } from "#foundation/observability";
 import type { SecretBox } from "#infra/crypto";
 import type { CredentialHealthThrottle } from "./health.ts";
@@ -23,7 +24,6 @@ import type {
   ListCredentialsParams,
   MarkRevokedByUserParams,
   MarkRevokedParams,
-  MaybeRevokeParams,
   RecordProbeOutcomeParams,
   RelabelCredentialParams,
   RemoveCredentialParams,
@@ -36,13 +36,13 @@ export interface CredentialContext {
   readonly logger: Logger;
   readonly healthThrottle: Omit<CredentialHealthThrottle, keyof Disposable>;
   readonly db: Db;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly newCredentialId: () => UserCredentialId;
   readonly box: SecretBox;
   /** The provider row `viewer` may use (built-in ∪ runtime rows; a plugin row only for the owner of an enabled
    *  install contributing it, D147), or undefined. `add` uses the row's branded id directly: the id is half the
    *  AAD, so membership validation and branding must be one operation. */
-  readonly findProvider: (providerId: string, viewer: UserId) => ProviderDef | undefined;
+  readonly findProvider: ProviderRegistry["get"];
   /** The db-bound best-effort `logAudit`, wired at the composition root. Every credential mutation
    *  writes a durable `audit_logs` row IN ADDITION TO the ephemeral `securityEvent`/`emitUserEvent` — a leaked
    *  or rotated key must leave a persistent forensic trail, not just a pino line that ages out. Best-effort:
@@ -59,7 +59,7 @@ export interface CredentialContext {
 export interface CredentialsService {
   // Turn-time
   readonly resolve: (params: ResolveCredentialParams) => Promise<ResolvedSecret>;
-  readonly maybeRevokeOnAuthFailed: (params: MaybeRevokeParams) => Promise<void>;
+  readonly maybeRevokeOnAuthFailed: NonNullable<InferenceDeps["onAuthFailed"]>;
   /** The ROW half of a connection probe (the connection domain dials; this domain records): applies the
    *  revoke / strike / clear consequences of a `CredentialHealth` verdict and re-stamps `checkedAt`. */
   readonly recordProbeOutcome: (params: RecordProbeOutcomeParams) => Promise<CredentialHealth>;

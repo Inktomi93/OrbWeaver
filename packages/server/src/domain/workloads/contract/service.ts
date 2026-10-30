@@ -1,10 +1,11 @@
 // Workload service and runner contracts. Cross-feature capabilities arrive through injected operations.
 
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
-import type { ModelCallEstimate, WorkloadEvent, WorkloadLane, WorkloadRef } from "@orb/contracts/workloads";
+import type { ModelCallEstimate, WorkloadLane, WorkloadRef } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
+import type { Clock, TimerScheduler } from "@orb/kit/time";
 import type { IsAdmin, IsOwner, RequireOwner } from "#domain/admin";
 import type { AuditEntry, Logger, TraceRing } from "#foundation/observability";
 import type { WorkloadContributions } from "./contribution.ts";
@@ -16,9 +17,10 @@ import type {
   GetWorkloadParams,
   ListWorkloadsParams,
   RetryWorkloadParams,
-  StartWorkloadParams,
 } from "./params.ts";
+import type { WorkloadProgressBus } from "./progress-bus.ts";
 import type { WorkloadScheduleService } from "./schedule.ts";
+import type { StartWorkload } from "./start-op.ts";
 import type { WorkloadRowAnyKind, WorkloadRunnableRow } from "./workload-row.ts";
 
 /** Mint a fresh `WorkloadId` — the injected determinism seam. */
@@ -36,7 +38,7 @@ export interface WorkloadServiceContext {
    *  assembled from every owning domain (chat is built LAST), and one of those owners — import — needs
    *  `workloads.start` to enqueue its post-import backfill. Deref happens per verb call, long after boot. */
   readonly getContributions: () => WorkloadContributions;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly newWorkloadId: NewWorkloadId;
   readonly newScheduleId: NewWorkloadScheduleId;
   /** MODE authz seam: `requireOwner` gates a BULK run (owner-only); `isAdmin` chooses the read scope. */
@@ -45,7 +47,7 @@ export interface WorkloadServiceContext {
   /** The non-throwing owner test, for a read that must answer a non-owner exactly as it answers a missing row. */
   readonly isOwner: IsOwner;
   /** The graph-owned lifecycle publisher, shared by verbs and the workload engine. */
-  readonly emitEvent: (event: WorkloadEvent) => void;
+  readonly emitEvent: WorkloadProgressBus["emitWorkloadEvent"];
   /** The per-user freshness plane: a system-started owned row announces `workloadsChanged` to its owner. */
   readonly emitUserEvent: EmitUserEvent;
 }
@@ -68,14 +70,14 @@ export interface WorkloadRunnerDeps {
   readonly contributions: WorkloadContributions;
   /** Suppress-and-drop audit writer; the engine emits `WORKLOAD_FAILED` on a terminal runtime failure. */
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly heartbeatMs?: number;
   readonly cancelPollMs?: number;
   /** The lease TIMER seam (heartbeat + cancel-poll): schedule `fn` every `ms`, returning its cancel. The
    *  house `ScheduleOp` shape (`transport/jobs/workloads-worker.ts`), so no handle type leaks. Injected for
    *  the same reason `now` is: a test ticks the lease through this seam instead of replacing the global
    *  clock, which `vi.useFakeTimers` does and Spine-Testing.md §3 bans. Production passes the root's `timers.interval`. */
-  readonly scheduleInterval: (fn: () => void, ms: number) => () => void;
+  readonly scheduleInterval: TimerScheduler["interval"];
 }
 
 /**
@@ -129,7 +131,7 @@ export interface BootReclaimArgs {
 
 /** The `WorkloadService` surface; every verb threads `caller` as the F3 authorization subject (`null` = trusted system trigger). */
 export interface WorkloadService extends WorkloadScheduleService {
-  readonly start: (params: StartWorkloadParams) => Promise<WorkloadRef>;
+  readonly start: StartWorkload;
   readonly estimateModelCalls: (params: EstimateModelCallsParams) => Promise<ModelCallEstimate>;
   readonly estimateRetryModelCalls: (params: EstimateRetryModelCallsParams) => Promise<ModelCallEstimate>;
   readonly cancel: (params: CancelWorkloadParams) => Promise<CancelWorkloadResult>;

@@ -9,13 +9,12 @@
 export type { ScopedEgress, ScopedEgressOptions } from "./contract/egress.ts";
 export type { NativeHttpBindings } from "./contract/http-server.ts";
 export type { PhysicalPeerRead } from "./contract/ingress.ts";
-
+export type { PluginGitSource } from "./contract/plugin-git.ts";
 export type { TlsTerminator, TlsTerminatorOptions } from "./contract/tls-terminator.ts";
 export {
   ANY_HOST,
   createScopedEgress,
   EgressBlockedError,
-  ENDPOINT_ADMISSIONS,
   installEgressFirewall,
   type SafeFetchOptions,
   type SafeFetchResult,
@@ -36,7 +35,6 @@ export {
   trustedProxiesOf,
 } from "./ingress.ts";
 export { isInRanges, isPrivateOrLoopback, isPublicUnicast } from "./ip-ranges.ts";
-
 export { createNetworkPluginGitSource } from "./plugin-git.ts";
 export { createOwnedResponseBody } from "./response-body.ts";
 export { startTlsTerminator } from "./tls-terminator.ts";

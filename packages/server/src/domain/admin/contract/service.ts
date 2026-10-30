@@ -9,8 +9,10 @@ import type { Db } from "@orb/db";
 import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/query";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { CharacterId, ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { SessionsService } from "#domain/sessions";
 import type { AuditEntry, AuditWiring } from "#foundation/observability";
+import type { PasswordHasher } from "#infra/auth";
 import type {
   CreateUserParams,
   EmbedCharacterCardParams,
@@ -98,9 +100,9 @@ export interface ServerRestartPort {
  *  (exempt from `no-direct-users-read` — every read here gates first). */
 export interface AdminContext {
   readonly db: Db;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly newUserId: () => UserId;
-  readonly hashPassword: (plain: string) => Promise<string>;
+  readonly hashPassword: PasswordHasher["hash"];
   /** #2481 / inference program §5.3b — the minted account's local-light vector floor, as an INJECTED op:
    *  `domain/admin` may not import `domain/connection`. Called by `createUser` AFTER `commitAuditedWrite`'s
    *  batch commits, NEVER inside it — a failed convenience seed must not un-create an account (which is the

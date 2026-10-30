@@ -463,8 +463,8 @@ function publishPrivateEndpointAllowlistFor(context: EgressContext, entries: rea
 }
 
 /** THE ADMISSION AXIS, homed at its producer (§7.5 — one `as const` tuple, every reader derives). The
- *  connection domain's `EndpointAdmission` is `(typeof ENDPOINT_ADMISSIONS)[number]`; nothing re-spells the
- *  four members. The verdicts themselves are documented on {@link endpointAdmissionFor} below. */
+ *  connection domain derives its admission type from `ScopedEgress`; nothing re-spells the four members. The verdicts
+ *  themselves are documented on {@link endpointAdmissionFor} below. */
 
 /** The WRITE-TIME admission read the connection domain runs before it saves an endpoint row (the guard above
  *  re-judges every connect): `public` = not a private/loopback literal (a hostname resolves at connect, where
@@ -1344,7 +1344,7 @@ export const ANY_HOST: typeof ANY_HOST_POLICY = ANY_HOST_POLICY;
 export const systemConnector: ScopedEgressOptions["buildConnector"] = buildConnector;
 /** The real physical request, read at call time so it always reaches the platform fetch the process installed. */
 export const systemFetch: ScopedEgressOptions["fetch"] = (input, init) => globalThis.fetch(input, init);
-export const ENDPOINT_ADMISSIONS = ENDPOINT_ADMISSION_VALUES;
+const ENDPOINT_ADMISSIONS = ENDPOINT_ADMISSION_VALUES;
 
 async function configuredEndpointFetchFor(context: EgressContext, input: Parameters<typeof fetch>[0], init?: RequestInit): Promise<Response> {
   if (context.closed) {
