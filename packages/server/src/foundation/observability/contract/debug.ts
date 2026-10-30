@@ -79,5 +79,5 @@ export interface BugReportInspectors {
   readonly rpgTrace?: BugReportRecorder;
   readonly memoryRecall?: BugReportRecorder;
   /** The live wire-capture decision the debug routes report. */
-  readonly wireCaptureEnabled: () => boolean;
+  readonly wireCaptureEnabled: DebugRoutesOptions["wireCaptureEnabled"];
 }

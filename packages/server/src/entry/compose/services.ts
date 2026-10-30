@@ -231,7 +231,7 @@ export interface ServicesDeps {
    *  graph reads comes from here, so a root that sets a key in its record turns the same production read. */
   readonly env: Env;
   /** The agent-sdk child-env baseline, the process environment's present variables (`createProcessSeams`). */
-  readonly hostEnvAllowlist: () => Readonly<Record<string, string>>;
+  readonly hostEnvAllowlist: InferenceDeps["env"]["hostEnvAllowlist"];
   /** Where this process's `AUTH_MODE` came from (`createProcessSeams`); the share panel names it. */
   readonly authModeSource: AuthModeSource;
   readonly pluginExecution?: AutomationPluginComposeDeps["pluginExecution"];
@@ -253,7 +253,7 @@ export interface ServicesDeps {
   readonly random: RandomSource;
   readonly randomInt: RpgContext["randomInt"];
   readonly idSource: IdSource;
-  readonly newOpaqueId: () => string;
+  readonly newOpaqueId: IdSource["uuid"];
   /** This root's identity, minted once from its id source; the live transport publishes it so a client sees a restart. */
   readonly serverInstanceId: string;
   readonly db: DatabaseHandle;
@@ -346,7 +346,7 @@ export interface ServicesResult extends AsyncDisposable {
   readonly settleBackground: BackgroundWork["settle"];
   readonly supervise: BackgroundWork["supervise"];
   /** The root's opaque nonce, for the supervised work the HTTP app starts on this graph. */
-  readonly newOpaqueId: () => string;
+  readonly newOpaqueId: IdSource["uuid"];
   /** The automation service (D46) — surfaced top-level so A5's watcher/dispatch subsystem subscribes to the
    *  buses through it (`createAutomationWatcherEnv` reads this handle). Also on the transport `Services` bundle
    *  (the `automation` router — the §A8 rule/budget/fire lifecycle surface). */

@@ -10,9 +10,9 @@
 
 import type { LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import type { EmitDomainEvent } from "@orb/contracts/events";
-import type { Principal } from "@orb/contracts/identity";
+import type { ResolveHostPrincipalOp } from "@orb/contracts/identity";
 import type { DatabaseHandle } from "@orb/db/wiring";
-import type { IdSource, UserId } from "@orb/kit/ids";
+import type { IdSource } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import { can } from "#domain/admin";
@@ -25,9 +25,9 @@ import { createBulkImportPersonas } from "#domain/persona";
 import type { SessionsService } from "#domain/sessions";
 import { createResolveUserEnabled } from "#domain/sessions";
 import { createStatsBatchWiring } from "#domain/stats";
-import type { ImportWorldInfoPort, WorldInfoService } from "#domain/world-info";
+import type { ImportWorldInfoPort, WorldInfoContext, WorldInfoService } from "#domain/world-info";
 import { createBulkImportLorebook, createHasPrimaryBook, createLinkCarriedBooks, createWorldInfoService } from "#domain/world-info";
-import type { AuditEntry, Logger } from "#foundation/observability";
+import type { Logger } from "#foundation/observability";
 import type { LiveBuses } from "#transport/trpc";
 import { createHostPrincipalResolver } from "../auth/index.ts";
 import type { ChatComposeResult } from "./chat.ts";
@@ -42,7 +42,7 @@ export interface WorldInfoComposeDeps {
   readonly idSource: IdSource;
   readonly db: DatabaseHandle;
   readonly now: Clock;
-  readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
+  readonly audit: WorldInfoContext["audit"];
   readonly sessions: SessionsService;
   /** chat's bus durable-first emit — world-info publishes WI events onto it. */
   readonly emitChatBusEvent: ChatComposeResult["emitBusEvent"];
@@ -68,7 +68,7 @@ export interface WorldInfoComposeResult {
   readonly importWorldInfo: ImportWorldInfoPort;
   readonly bulkImportChats: BulkImportChats;
   readonly bulkImportPersonas: BulkImportPersonas;
-  readonly resolveOwnerPrincipal: (userId: UserId) => Promise<Principal>;
+  readonly resolveOwnerPrincipal: ResolveHostPrincipalOp;
 }
 
 export function buildWorldInfo(deps: WorldInfoComposeDeps): WorldInfoComposeResult {

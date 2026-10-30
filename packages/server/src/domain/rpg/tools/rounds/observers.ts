@@ -1,16 +1,16 @@
 // The rpg flush's observability hooks and its bus emit: what the state round did on each turn, made visible in the
 // log and (when tracing is on) the flight recorder. A deliberate outcome logs at debug or info; a degrade warns.
 
+import type { ScheduleOp } from "@orb/kit/time";
 import type { Logger } from "#foundation/observability";
 import type { RpgRoundObservers } from "#src/domain/rpg/contract/rounds.ts";
-import type { FlushBarrierScheduleTimeout } from "#src/domain/rpg/contract/service.ts";
 import type { RpgTraceSink } from "#src/domain/rpg/contract/trace.ts";
 import { createRpgFlushBarrier } from "#src/domain/rpg/flush-barrier.ts";
 
 /** Trace state-round outcomes and publish through the application's live RPG channel. */
 export function createRpgRoundObservers(
   trace: RpgTraceSink | undefined,
-  scheduleTimeout: FlushBarrierScheduleTimeout,
+  scheduleTimeout: ScheduleOp,
   emitBus: RpgRoundObservers["emitBus"],
   logger: Logger,
 ): RpgRoundObservers {

@@ -77,15 +77,18 @@ function deriveEnabledRosterRules(rules: readonly RoomRule[]): CapturedRosterRul
   return [...byPreset.values()].map((held) => held.spec);
 }
 
+/** What a roster surface asks of the rule-preset catalogue: a preset by id, and the title a stored id is shown under. */
+export interface RulePresetCatalogue {
+  readonly presetOf: (id: RulePresetId) => RulePresetView | undefined;
+  readonly titleOf: (id: RulePresetId) => string;
+}
+
 /** The rule-preset CATALOGUE as every roster surface reads it — the picker's include-line, its apply
  *  reports, and the library editor all need the same two answers about a stored `rulePresetId`: what is it
  *  CALLED, and what do its knob keys MEAN (the knob labels the gloss is built from — `lib/roster-copy.ts`).
  *  One query key, so the surfaces share one cache entry. A stored id the catalogue no longer offers falls
  *  back to the raw id — degraded but visible, matching what the apply reports as a skip. */
-export function useRulePresetCatalogue(enabled: boolean): {
-  presetOf: (id: RulePresetId) => RulePresetView | undefined;
-  titleOf: (id: RulePresetId) => string;
-} {
+export function useRulePresetCatalogue(enabled: boolean): RulePresetCatalogue {
   const trpc = useTRPC();
   const catalogueQuery = useQuery({ ...trpc.automation.listRulePresets.queryOptions(), enabled });
   const byId = new Map((catalogueQuery.data ?? []).map((preset) => [preset.id, preset]));

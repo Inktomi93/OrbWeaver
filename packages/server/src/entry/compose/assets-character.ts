@@ -14,7 +14,7 @@
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { readSeedBackground, SEED_BACKGROUND_PLATES } from "@orb/default-content";
-import type { CharacterId, IdSource, UserId } from "@orb/kit/ids";
+import type { IdSource } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { AssetsContext, AssetsService, BackgroundStoreDeps, MaterializeBackgroundDeps } from "#domain/assets";
@@ -32,6 +32,7 @@ import {
 } from "#domain/character";
 import { createLoadChatAssetRefs, createLoadCoParticipantOwner, migrateSeededRoomBackgrounds } from "#domain/chat";
 import type { ExportService } from "#domain/export";
+import type { ImageryContext } from "#domain/imagery";
 import { cardPngIdentity } from "#domain/import";
 import type { DefaultPersonaSeeder, DefaultPersonaSeederDeps, PersonaService } from "#domain/persona";
 import { createDefaultPersonaSeeder, createFindSeededDefault } from "#domain/persona";
@@ -123,7 +124,7 @@ export interface AssetsCharacterComposeResult {
   readonly backgroundSeeder: DefaultBackgroundSeeder;
   readonly materializeBackgroundOp: MaterializeBackgroundOp;
   /** Does `ownerId` own `characterId`? The same read `assetsCtx.assertCharacterOwned` gates the gallery add on. */
-  readonly characterOwned: (ownerId: UserId, characterId: CharacterId) => Promise<boolean>;
+  readonly characterOwned: ImageryContext["ownsCharacter"];
 }
 
 /** Bind each canonical owner; persona identifies its artifact, settings repairs picks and completes the latch. */

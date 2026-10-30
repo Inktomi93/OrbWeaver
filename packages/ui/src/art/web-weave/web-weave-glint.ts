@@ -8,7 +8,8 @@
 // own alpha, and the lighting is sampled at the segment MIDPOINT so a long segment cannot flicker
 // between two windows.
 
-import type { WeavePoint, WeaveStrand, WovenWeb } from "./web-weave-geometry.ts";
+import type { WeaveStrand, WovenWeb } from "./web-weave-geometry.ts";
+import type { WeavePoint } from "./web-weave-math.ts";
 
 const TAU = Math.PI * 2;
 /** One sweep per period (ms) — a slow, linear loop (guide §2 Loading). */

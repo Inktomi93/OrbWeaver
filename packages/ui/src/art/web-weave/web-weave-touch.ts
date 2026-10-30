@@ -7,7 +7,8 @@
 // because that state exists ONLY while a host is interactive, and a non-interactive weave never
 // constructs one (its plucks map is null and the render's per-strand lookup short-circuits).
 
-import type { WeavePoint, WeaveStrand, WovenWeb } from "./web-weave-geometry.ts";
+import type { WeaveStrand, WovenWeb } from "./web-weave-geometry.ts";
+import type { WeavePoint } from "./web-weave-math.ts";
 import type { WeavePluck } from "./web-weave-physics.ts";
 import { decayShiver, findStrandHit, PLUCK_LIFE_MS, PLUCK_MAX_PER_STRAND, raiseShiver } from "./web-weave-physics.ts";
 import type { PreyState } from "./web-weave-prey.ts";

@@ -19,6 +19,7 @@ import type { Can, ChatMembership, ParticipantRoleState } from "@orb/contracts/i
 import type { UserMacroSpec } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type {
+  CancelStateRoundsOp,
   ChatRpgPointer,
   EmitRpgEvent,
   RpgConfigView,
@@ -60,7 +61,7 @@ import type {
   RpgTurnToolCallsId,
   UserId,
 } from "@orb/kit/ids";
-import type { Clock, ScheduleOp } from "@orb/kit/time";
+import type { Clock } from "@orb/kit/time";
 import type { ResolveRpgCardCorpus, RpgCardCorpus, RpgTurnContext } from "#domain/chat";
 import type {
   AddJournalEntryParams,
@@ -224,13 +225,6 @@ export interface RpgStagingStore {
  *  settle within the bound and the next turn proceeded on last-known state. Homed here (substrate-not-a-type-home). */
 export type FlushBarrierOnTimeout = (info: { readonly chatId: ChatId }) => void;
 
-/** The flush barrier's injected TIMER seam: schedule `fn` after `ms`, returning its cancel. The house
- *  `ScheduleOp` shape (`transport/jobs/workloads-worker.ts`), so the handle type never leaks. Injected for
- *  the same reason the clock is: the bound is then drivable from a test WITHOUT replacing the global clock
- *  (Spine-Testing.md §3 — the `test-determinism` gate bans `vi.useFakeTimers`). Required: production passes
- *  the root's `timers.timeout`. */
-export type FlushBarrierScheduleTimeout = ScheduleOp;
-
 /** The per-chat FLUSH BARRIER's public interface (impl: `flush-barrier.ts`). `onTurnCompleted` REGISTERS its
  *  in-flight flush; the gather AWAITS it before assembling the reminder, so a fast re-send reads the
  *  just-committed state, not stale state (the "one-beat-behind but GUARANTEED" contract). Bounded — a hung
@@ -256,7 +250,7 @@ export interface RpgFlushBarrier {
    *  barrier's job is to gate the next turn's assembly on SETTLEMENT, and a cancelled round still has to unwind
    *  (and clear its staging) before the next gather may read; dropping it here would re-open the stale-read race
    *  the barrier exists to close. */
-  readonly cancel: (chatId: ChatId, ownerUserId: UserId) => number;
+  readonly cancel: CancelStateRoundsOp;
 }
 
 export interface OwnedRpgFlushBarrier extends RpgFlushBarrier, AsyncDisposable {}

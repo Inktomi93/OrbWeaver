@@ -34,6 +34,7 @@ import { AutosaveStatus, createAutosaveEntityForm } from "#forms/editor";
 // `appearance-select-items.ts`; SET-SEAMS stage 1 split that file into its chat- and app-shell-owned halves,
 // so the table three features render homes at the `#lib` shared-vocabulary floor.
 import { DENSITY_ITEMS } from "#lib";
+import type { ThemeAutosaveDeps } from "../hooks/use-theme-autosave.ts";
 import { useThemeAutosave } from "../hooks/use-theme-autosave.ts";
 import { contrastRatio } from "../lib/theme-contrast.ts";
 import type { ThemeFormValues } from "../lib/theme-editor-model.ts";
@@ -71,7 +72,7 @@ export interface ThemeEditorProps {
    * DRAFT session: create the row this session edits, and resolve to it. Called AT MOST ONCE, by the
    * autosave driver's first real save (or a retry that beat it). Omit for an existing row.
    */
-  readonly mint?: () => Promise<Theme>;
+  readonly mint?: ThemeAutosaveDeps["mint"];
 }
 
 // The session-boundary autosave form (D78 §1, mirroring the preset editor's `PresetForm`). Module-scope so

@@ -1,6 +1,7 @@
 // Blur is rasterized when the palette changes. Moving silk only transforms and composites the sprites.
-import type { WeavePoint } from "./web-weave-geometry.ts";
+
 import { WIDTH_CAPTURE } from "./web-weave-geometry.ts";
+import type { WeavePoint } from "./web-weave-math.ts";
 
 export const WEAVE_GLOW_STYLES = {
   capture: { width: WIDTH_CAPTURE, blur: 3, opacity: 1 },
