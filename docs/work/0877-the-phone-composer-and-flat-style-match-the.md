@@ -6,11 +6,13 @@ priority: P2
 area: chat
 ---
 
-# The phone composer and flat style match the SillyTavern reference
+# Phone chat-style text columns match the Moonlit Echoes reference
 
 ## What
 
-Side-eye against the owner's SillyTavern reference (~/Downloads/SillyTavern.png): the phone composer is about 23px taller than ST's (the doors sit 12px apart), its placeholder is left-aligned where ST centres it, and flat-style text starts 54px from the edge against about 21px in stock ST. Swipe arrows are out of scope: the per-style swipe foot follows the owner's Moonlit ruling and landed in 829-831.
+The composer half is superseded: `cd0dc3c6ea` built the two-row composer from the SillyTavern walkthrough. At 390x844 SillyTavern's composer measures 132.5px including its Guided Generations row, and Orbweaver's measures 106px for the same two rows, so no composer height change is owed.
+
+Remaining: match each chat style's phone text column to its Moonlit Echoes reference at 390x844 and 844x390. The reference values are in `reports/moonlit-reference/codex-2026-10-26-measurements.md` (search `mode: '`), with screenshots beside it. For example, Flat portrait text is 278.5px wide beside a 56px avatar column. Swipe arrows stay out of scope (829-831).
 
 ## Why
 
@@ -18,7 +20,7 @@ Owner's bar for the phone chat: as long as the composer and action rows are like
 
 ## Done when
 
-The phone composer's height, door gap and placeholder alignment match the reference within a few pixels, and flat style's text inset matches stock ST; CTs pin the measurements and a side-eye compares against the screenshot.
+For each style, the phone text column width and inset match the Moonlit reference within a few pixels in portrait and landscape, or a recorded reason explains the difference. A production-mounted CT pins the measurements, and a side-eye compares the result against the reference screenshots.
 
 ## Evidence
 
