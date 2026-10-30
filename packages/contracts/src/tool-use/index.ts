@@ -48,6 +48,12 @@ export interface ToolDescriptor<A = unknown> {
   readonly source: ToolSource;
 }
 
+/** A descriptor plus a handler that needs only the signal-free execution data. A registrant that never reads the
+ *  turn's cancellation (rpg, imagery) types its tools with this; tool-use runs them through its own `ToolDefinition`. */
+export interface ToolHandlerDefinition<A = unknown> extends ToolDescriptor<A> {
+  readonly handler: (args: A, exec: ToolExecutionData) => Promise<ToolHandlerResult>;
+}
+
 /** A RUNTIME plugin-tool registration, less the guest `invoke` closure (it takes an `AbortSignal`, so the
  *  domains that run it declare it). The args schema arrives as raw JSON Schema from an untrusted guest; the
  *  ceiling runs as the INSTALLING principal, not the turn caller; `name` is already the namespaced

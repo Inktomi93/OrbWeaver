@@ -15,15 +15,9 @@
 //   • `useAvatarReference` — inert without a `subjectCharacterId` (B3 needs a subject), so it rides the arm too.
 
 import { DEFAULT_ACTION_MODE, generateImageActionArgsSchema, IMAGERY_GENERATE_IMAGE_TOOL_DESCRIPTION, promptTemplateModeSchema } from "@orb/contracts/imagery";
-import type { ToolDescriptor, ToolExecutionData, ToolHandlerResult } from "@orb/contracts/tool-use";
+import type { ToolExecutionData, ToolHandlerDefinition, ToolHandlerResult } from "@orb/contracts/tool-use";
 import type { GeneratePictureParams } from "../contract/params.ts";
 import type { ImageryService } from "../contract/service.ts";
-
-/** An imagery tool: the contracts descriptor plus this domain's handler. The handler signature stays with the
- *  domain that writes the handler; tool-use runs it through the registry's own `ToolDefinition`. */
-interface ImageryToolDefinition<A = unknown> extends ToolDescriptor<A> {
-  readonly handler: (args: A, exec: ToolExecutionData) => Promise<ToolHandlerResult>;
-}
 
 /** The model-facing tool args — the projectable subset of the action-arm vocabulary (see the file header). */
 const generateImageToolArgsSchema = generateImageActionArgsSchema.options[1]
@@ -34,13 +28,13 @@ interface ImageryToolDeps {
   readonly generatePicture: ImageryService["generatePicture"];
 }
 
-/** The sanctioned erasure (buddy's precedent): a typed def is unassignable to `ImageryToolDefinition<unknown>`
+/** The sanctioned erasure (buddy's precedent): a typed def is unassignable to `ToolHandlerDefinition<unknown>`
  *  (handler contravariance), so mint with its own `A` and widen here for the array; `register<A>` re-narrows. */
-function imageryTool<A>(def: ImageryToolDefinition<A>): ImageryToolDefinition {
-  return def as ImageryToolDefinition;
+function imageryTool<A>(def: ToolHandlerDefinition<A>): ToolHandlerDefinition {
+  return def as ToolHandlerDefinition;
 }
 
-export function imageryToolDefinitions(deps: ImageryToolDeps): readonly ImageryToolDefinition[] {
+export function imageryToolDefinitions(deps: ImageryToolDeps): readonly ToolHandlerDefinition[] {
   return [
     imageryTool({
       name: "generate_image",

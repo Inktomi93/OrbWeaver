@@ -1,10 +1,10 @@
 import type { ImageCaptionMeta } from "@orb/contracts/embeddings";
-import type { DebugRoutesOptions } from "#foundation/observability";
+import type { EffectiveAppConfig } from "@orb/contracts/settings";
 
 export type { StoreResult } from "@orb/contracts/embeddings";
 
 /** The live effective-config read both the reindex triggers and the indexer subscription close over. */
-export type EffectiveConfigRead = NonNullable<DebugRoutesOptions["effectiveConfig"]>;
+export type EffectiveConfigRead = () => EffectiveAppConfig;
 
 /** One owner's Utility analysis before persistence: caption and provenance/facets share one call.
  * An empty caption is the facetless skip signal. The indexer saves a successful annotation before
