@@ -397,7 +397,6 @@ export {
 } from "./roster.ts";
 export type {
   ChatRpgGameBirthPlan,
-  ChatRpgGatherData,
   ClaimChatOp,
   ForkGameArgs,
   ForkGameOp,
@@ -422,7 +421,6 @@ export type {
   RpgGatherWithTools,
   RpgTurnAbortedOp,
   RpgTurnCompletedOp,
-  RpgTurnFacts,
   RpgTurnRuntime,
   RpgTurnTranscriptMessage,
   RpgUserCommitOp,
