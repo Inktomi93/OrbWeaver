@@ -9,17 +9,20 @@ import { Text } from "@orb/ui/text";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { testId } from "#lib";
 
-/** The chip's tones: the render-hint vocabulary plus `accent`, the palette's state tint for session chrome (a status,
- *  not a payload verdict — so it never borrows a semantic hue). It is the neutral tone's tint under D336. */
+/** The chip's tones: the render-hint vocabulary plus `accent`, the active session in the session chrome. */
 type RefineryChipTone = RenderHintTone | "accent";
 
-const CHIP_BADGE_TONE: Record<RefineryChipTone, NonNullable<ComponentProps<typeof Badge>["tone"]>> = {
-  good: "success",
-  warn: "warning",
-  bad: "destructive",
-  info: "info",
-  neutral: "neutral",
-  accent: "neutral",
+type ChipBadge = Required<Pick<ComponentProps<typeof Badge>, "tone" | "variant">>;
+
+/** A verdict is a status pill; the active session takes the primary tint, the colour that marks the current selection
+ *  elsewhere in the app, so it stays apart from a neutral chip without filling like a verdict. */
+const CHIP_BADGE: Record<RefineryChipTone, ChipBadge> = {
+  good: { tone: "success", variant: STATUS_PILL_VARIANT.success },
+  warn: { tone: "warning", variant: STATUS_PILL_VARIANT.warning },
+  bad: { tone: "destructive", variant: STATUS_PILL_VARIANT.destructive },
+  info: { tone: "info", variant: STATUS_PILL_VARIANT.info },
+  neutral: { tone: "neutral", variant: STATUS_PILL_VARIANT.neutral },
+  accent: { tone: "primary", variant: "soft" },
 };
 
 // The word carries its render-hint on `data-hint-tone`, never `data-tone`: `@orb/ui` is the one writer of `data-tone`
@@ -35,13 +38,7 @@ export interface RefineryChipProps {
 export function RefineryChip({ tone = "neutral", wrap = false, children }: RefineryChipProps): ReactElement {
   // The kicker voice carries the micro-caps grammar; `ink="inherit"` takes the badge's own ink.
   return (
-    <Badge
-      className={wrap ? "whitespace-normal max-inline-full" : undefined}
-      data-testid={testId("refineryChip")}
-      tone={CHIP_BADGE_TONE[tone]}
-      variant={STATUS_PILL_VARIANT[CHIP_BADGE_TONE[tone]]}
-      size="compact"
-    >
+    <Badge className={wrap ? "whitespace-normal max-inline-full" : undefined} data-testid={testId("refineryChip")} {...CHIP_BADGE[tone]} size="compact">
       <Text as="span" data-hint-tone={tone} ink="inherit" voice="kicker">
         {children}
       </Text>

@@ -185,7 +185,7 @@ Done when: `tsc` refuses each removed value. `tests/client/features/app-shell/su
 | Old value | New |
 | - | - |
 | `intent` | `tone`; `danger` becomes `destructive` |
-| `intent="accent"` | `tone="neutral"` with `variant="soft"`: the neutral accent fill is the neutral `tint-active`, which no Badge style paints, so the refinery session chip (`RefineryChip` `accent`) takes the neutral tint |
+| `intent="accent"` | `tone="primary"` with `variant="soft"` for the refinery session chip (`RefineryChip` `accent`): the active session must stay apart from the neutral chips, primary marks the current selection elsewhere in the app, and a Badge style for the neutral `tint-active` would be new vocabulary for one chip |
 | `tone="solid"`, `"soft"`, `"ghost"` | `variant` `solid`, `soft`, `outline`; `soft` is the default, and a neutral solid pill (the muted fill) becomes `soft` |
 | `size` `sm`, `md`, `compact` | kept; a pill is not a control |
 | `size="inline"` | `InlineToken`: a chip that behaves like a word in running text |
