@@ -155,11 +155,11 @@ export interface OverflowActionsProps {
   readonly label: string;
   readonly className?: string;
   readonly gap?: "row" | "field";
-  /** The row's `data-slot`, so a region that addresses its action box (the list band's) names it. */
-  readonly slot?: string;
+  /** The row's `data-slot`; each caller spells its own literal so the owner-CSS surface harvest sees it. */
+  readonly slot: string;
 }
 
-export function OverflowActions({ actions, label, className, gap = "row", slot = "overflow-actions" }: OverflowActionsProps): ReactElement {
+export function OverflowActions({ actions, label, className, gap = "row", slot }: OverflowActionsProps): ReactElement {
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
