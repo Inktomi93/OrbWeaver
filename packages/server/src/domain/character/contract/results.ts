@@ -30,7 +30,6 @@ export type {
   GeneratedGreeting,
   ListCharactersResult,
   ListCharacterTagGroupsResult,
-  SnapshotRef,
   SnapshotSummary,
   SnapshotView,
 } from "@orb/contracts/character";
