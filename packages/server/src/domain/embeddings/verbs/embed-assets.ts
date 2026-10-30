@@ -3,19 +3,13 @@
 import type { EmbedPassResult } from "@orb/contracts/embeddings";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import { GenerationSupersededError } from "#primitives/embedding-generation";
+import { isMissingFile } from "#primitives/errno";
 import type { EmbedPassParams } from "../contract/params.ts";
 import type { StoreResult } from "../contract/results.ts";
 import type { EmbeddingsContext, EmbeddingsService } from "../contract/service.ts";
 import { completeGenerationScope, resolveImageTargetGeneration } from "../substrate/generation.ts";
 
-// `cas.read` rejects with ENOENT when a stored file is gone while its asset row remains. That one fault fails the
-// asset alone; any other I/O error (corrupt, permission) still stops the sweep.
-const MISSING_FILE_CODE = "ENOENT";
-
-function isMissingFile(error: unknown): boolean {
-  return typeof error === "object" && error !== null && "code" in error && error.code === MISSING_FILE_CODE;
-}
-
+// A stored file gone while its asset row remains (`cas.read` ENOENT) fails that asset alone; any other I/O error still stops the sweep.
 const ASSET_OUTCOMES = ["written", "skipped", "failed"] as const;
 type AssetOutcome = (typeof ASSET_OUTCOMES)[number];
 

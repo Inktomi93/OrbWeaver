@@ -22,4 +22,7 @@ A sweep over a set with one missing file embeds the rest, records the missing as
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+- `tests/server/domain/embeddings/persistence/image-sweep-rows.int.test.ts`, case "an avatar whose stored file is gone fails alone": removes one stored blob, runs `embedAssets` through the composed root. Red on the old sweep with the ENOENT; green after, returning `failedAssets` with the asset id and embedding the other asset.
+- `packages/server/src/domain/embeddings/verbs/embed-assets.ts` fails only the missing-file asset; the detection is `isMissingFile` in `packages/server/src/primitives/errno/index.ts`, shared with the cas, secret-file and export-character callers.
+- `failedAssets` is an optional readonly array on `EmbedPassResult` in `packages/contracts/src/embeddings/index.ts`; the client run summary tallies it.
+- Typecheck of `tsconfig.node.json`, `packages/server` and `packages/client`, ESLint, whole-tree depcruise and `pnpm knip:prod` pass.

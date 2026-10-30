@@ -1,5 +1,6 @@
 // Physical prose and finite swipe replies only; memory parsing, tier math and generation stay in production.
 
+import { resolveProseText } from "@orb/contracts/prose";
 import { SUMMARIZE_TRANSCRIPT_MARKER } from "@orb/server/domain/chat";
 import { corpusKnowledgeText } from "./corpus-knowledge.ts";
 import type { CorpusProviderCompletion } from "./corpus-provider.ts";
@@ -10,7 +11,8 @@ export const CORPUS_KNOWLEDGE_SWIPE_TAKES = [
   "The traveller finds the second signal beside the loom.",
   "The traveller answers the third signal from the harbor.",
 ] as const;
-const CONSOLIDATION_LEAD = "Prior digests to consolidate";
+// The consolidation prompt leads with this slot; its default text is the one production sends when the host sets no override.
+const CONSOLIDATION_LEAD = resolveProseText("chat.memory.consolidationLead", {});
 
 /** Supply a body-bearing arc to the real consolidator without encoding any grouping or tier rule. */
 export function corpusKnowledgeVariantsText(body: string): string {
