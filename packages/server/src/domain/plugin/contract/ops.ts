@@ -8,6 +8,7 @@ import type { GenerateImageActionArgs } from "@orb/contracts/imagery";
 import type {
   InvocationChat,
   PluginAssetReadOps,
+  PluginBridge,
   PluginChatReads,
   PluginDocumentReads,
   PluginEventSubscription,
@@ -25,9 +26,9 @@ import type {
   PluginTransformRegistration,
   PluginWorldInfoReads,
 } from "@orb/contracts/plugin";
+import type { UpsertEntriesOp } from "@orb/contracts/world-info";
 import type { AssetId, CharacterId, ChatId, DocumentId, PluginId, SandboxWireId, UserId } from "@orb/kit/ids";
 import type { UserMacroDef } from "@orb/kit/macro";
-import type { AutomationOps } from "#domain/automation";
 
 /** Per-plugin serialization for durable rows, guest state, registrations, and provider contributions. */
 
@@ -119,7 +120,7 @@ export interface PluginHostOps {
     readonly listCharacters: PluginChatReads["listCharacters"];
     /** The standalone runtime-variable write — the SAME delta seam automation's `set_variable` arm rides.
      *  `capability: chat.variables.write`. */
-    readonly applyVariableOps: AutomationOps["chat"]["applyVariableOps"];
+    readonly applyVariableOps: PluginBridge["chat"]["applyVariableOps"];
     /** The autonomous turn seam (`chat.requestTurn`, turn.trigger). Maps onto chat's principal-free
      *  `requestTurn` at compose with `initiator:"plugin"` HARDCODED (a plugin cannot forge a different origin) +
      *  `triggeredBy` = the INSTALLER (attribution and abort ownership — the bridge closes it over the installer,
@@ -141,7 +142,7 @@ export interface PluginHostOps {
    *  `RULE_MAX_ENTRIES_PER_BOOK`); the plugin path gated neither. */
   readonly worldInfo: {
     /** The SHARED, hand-edit-safe world-info writer (the ONE write path) — automation's injected type verbatim. */
-    readonly upsertEntries: AutomationOps["worldInfo"]["upsertEntries"];
+    readonly upsertEntries: UpsertEntriesOp;
     /** Is the guest-named book attached to the ADMITTED chat? The attachment IS the room's consent to that
      *  book's prompt content, so a plugin invoked in chat X may not write a book attached only to chat Y (both
      *  can be owned by the same installer, which is all the shared writer's ownership gate can see). Wired at

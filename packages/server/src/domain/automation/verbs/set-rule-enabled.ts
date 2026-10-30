@@ -2,7 +2,7 @@
 // disabled). This flip is the primary maintainer of the watcher's in-process enabled index: after the
 // write, reload the index so the pre-check sees the new enablement immediately.
 
-import type { SetRuleEnabledParams } from "../contract/params.ts";
+import type { SetRuleEnabledParams } from "@orb/contracts/automation";
 import type { AutomationContext, AutomationService } from "../contract/service.ts";
 import { requireRuleAuthority } from "../guard.ts";
 import { setRuleEnabledRow } from "../persistence/rules.ts";

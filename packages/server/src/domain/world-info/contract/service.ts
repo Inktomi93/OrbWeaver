@@ -28,7 +28,7 @@ import type {
 import type { Db } from "@orb/db";
 import type { ChatId, WorldBookId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
-import type { AuditEntry } from "#foundation/observability";
+import type { AuditWiring } from "#foundation/observability";
 import type { ImportWorldBookOutcome, WorldInfoImportContext } from "./import.ts";
 import type {
   ApplyEntryOrderParams,
@@ -70,7 +70,7 @@ export interface WorldInfoContext {
   readonly now: Clock;
   readonly newBookId: WorldInfoImportContext["newBookId"];
   readonly newEntryId: WorldInfoImportContext["newEntryId"];
-  readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
+  readonly audit: AuditWiring["log"];
   readonly requireChatHost: (principal: Principal, chatId: ChatId) => Promise<void>;
   readonly requireChatMember: (principal: Principal, chatId: ChatId) => Promise<void>;
   readonly readInheritedChatBooks: (principal: Principal, chatId: ChatId) => Promise<ChatBookView[]>;

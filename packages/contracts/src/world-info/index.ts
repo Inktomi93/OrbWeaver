@@ -4,7 +4,7 @@
 // `inject` reuses the shared `@orb/kit/injection` directive; role is the canonical `MessageRole`, never a
 // world-info-local re-spell.
 
-import type { CharacterId, ChatId, PersonaId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { injectionDirectiveSchema } from "@orb/kit/injection";
 import { ENTRY_KEY_MODES, ENTRY_POSITIONS, ENTRY_SCOPE_MODES } from "@orb/kit/world-info";
@@ -309,6 +309,13 @@ export interface UpsertEntriesResult {
   readonly updated: number;
   readonly skippedHandEdited: number;
 }
+
+/** The shared machine-writer op: upsert `entries` into `bookId` as the book owner `authorUserId`. */
+export type UpsertEntriesOp = (args: {
+  readonly authorUserId: UserId;
+  readonly bookId: WorldBookId;
+  readonly entries: readonly UpsertLoreEntryInput[];
+}) => Promise<UpsertEntriesResult>;
 
 /** One row of a book's entry index — the lean shape a machine writer reads to build its merge/dedup prompt
  *  and count against a per-book cap (never the full `EntryView`). */

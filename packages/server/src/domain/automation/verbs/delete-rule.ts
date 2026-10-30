@@ -2,7 +2,7 @@
 // only insofar as the guard first proves the rule exists + the caller hosts its chat (a leak-free NOT_FOUND
 // otherwise).
 
-import type { DeleteRuleParams } from "../contract/params.ts";
+import type { DeleteRuleParams } from "@orb/contracts/automation";
 import type { AutomationContext, AutomationService } from "../contract/service.ts";
 import { requireRuleAuthority } from "../guard.ts";
 import { deleteRuleRow } from "../persistence/rules.ts";

@@ -46,7 +46,7 @@ import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { CharacterId, ChatId, DocumentId, UserId, WorkloadId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
-import type { AuditEntry, Logger } from "#foundation/observability";
+import type { AuditWiring, Logger } from "#foundation/observability";
 import type { ScopedEgress } from "#infra/network";
 import type {
   BankHealthParams,
@@ -116,7 +116,7 @@ export interface DatabankContext {
   readonly db: Db;
   readonly now: Clock;
   readonly newDocumentId: () => DocumentId;
-  readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
+  readonly audit: AuditWiring["log"];
   /**
    * The per-user freshness plane (`databankChanged`) — injected, never a sideways reach at the bus (D38).
    * Every persisting verb calls it with the OWNER after its durable write commits, and the ingest subsystem

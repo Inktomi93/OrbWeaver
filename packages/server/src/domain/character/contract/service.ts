@@ -31,7 +31,7 @@ import type { BatchStmt } from "@orb/db/query";
 import type { BatchHandle, DatabaseHandle, DbAssemblyInput } from "@orb/db/wiring";
 import type { AssetId, CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
-import type { AuditEntry, Logger } from "#foundation/observability";
+import type { AuditWiring, Logger } from "#foundation/observability";
 import type {
   AttachImportedArtParams,
   BulkAddCardTagParams,
@@ -88,7 +88,7 @@ export interface CharacterContext {
   readonly now: Clock;
   readonly newCharacterId: () => CharacterId;
   readonly newSnapshotId: () => CharacterSnapshotId;
-  readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
+  readonly audit: AuditWiring["log"];
   readonly emit: EmitDomainEvent;
   readonly reapAssets: ReapAssetsOp;
   readonly attachCardTag: AttachCardTagOp;
