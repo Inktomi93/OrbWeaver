@@ -10,7 +10,7 @@ import type { PersonaId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { readRoomCanon } from "@orb/testkit/node/composed";
-import { inputMessages, inputSystem, messageText, personaInputs, personaRoom } from "./persona-cache-physical.ts";
+import { inputMessages, inputSystem, invitePerson, messageText, personaInputs, personaRoom } from "./persona-cache-physical.ts";
 
 const VOICE_PROBE: PromptSection = { type: "literal", id: "voice", name: "voice", role: "system", enabled: true, content: "PROMPT_USER=<{{user}}>" };
 const CARD_DESCRIPTION = "CARD_USER=<{{user}}> CARD_PERSONA=<{{persona}}>";
@@ -134,4 +134,28 @@ test("swapping the seat or re-pinning the anchor never rewrites a stored message
   // Positive control: the same room does stamp the new seat on the next send.
   await say(h, "from steve");
   expect(await userStamps()).toEqual([alex, steve]);
+});
+
+test("in a two-human room each stored line resolves {{user}} to the persona it was stamped with", async () => {
+  await using h = await room(["one", "two"]);
+  const bob = await invitePerson(h);
+  const online = new AbortController();
+  using _presence = { [Symbol.dispose]: (): void => online.abort() };
+  h.root.app.presence.connect(h.owner.userId, online.signal);
+  h.root.app.presence.connect(bob.userId, online.signal);
+  const nova = await persona(h, "Nova", "Nova leads");
+  const juno = (await h.root.services.persona.create({ principal: bob, input: createPersonaSchema.parse({ name: "Juno", description: "Juno follows" }) })).id;
+  await seat(h, nova);
+  await h.root.services.persona.setActivePersona({ principal: bob, chatId: h.chatId, personaId: juno });
+  await pin(h, nova);
+
+  for (const speaker of [h.owner, bob]) {
+    const outcome = await h.root.services.chat.send({ principal: speaker, chatId: h.chatId, content: "{{user}} waves" });
+    expect(outcome.aborted).toBe(false);
+  }
+
+  const { history } = await newestInput(h);
+  // The host's line is not retargeted to the member's persona, nor the member's line to the anchor.
+  expect(history.split("Nova waves").length - 1).toBe(1);
+  expect(history.split("Juno waves").length - 1).toBe(1);
 });

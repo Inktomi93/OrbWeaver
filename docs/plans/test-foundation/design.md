@@ -154,7 +154,7 @@ Keep the server coverage above. Legacy `server/domain/chat/substrate/wire-histor
 
 This is a bounded case map. Legacy paths are relative to the external source named in [Spine-Testing](../../law/Spine-Testing.md#2-the-tree). Every rebuilt case runs the composed server root and reads native provider bytes or a public service read. Each rebuilt guard was checked against a planted production defect that made it fail for its stated reason. Open rows are unresolved and keep their register row Partial.
 
-The legacy collector and contribution cases exercised `collectTeaching` and the contributions with a synthetic registry or a synthetic game gather. The chat door exports neither the collector nor a registry seam, and no test-only door is added. The production registry never emits two identical injections, never throws, and registers in ascending order, so those laws have no production observable beyond the cases rebuilt below.
+The legacy collector and contribution cases exercised `collectTeaching` and the contributions with a synthetic registry or a synthetic game gather. The chat door exports neither the collector nor a registry seam, and no test-only door is added. The exact-duplicate guard is reachable through production and is rebuilt below. The remaining collector laws are not: the composed registry registers chat, then tool-use, then automation, and only chat and automation emit injections while only chat and tool-use emit tool names, so no two contributions that share an axis can arrive out of order. No production contribution throws.
 
 #### Teaching (`substrate/teaching.int.test.ts`, `substrate/teaching.test.ts`, `teaching-contribution.test.ts`)
 
@@ -168,7 +168,8 @@ The legacy collector and contribution cases exercised `collectTeaching` and the 
 | Host override of the teach slot; `{{user}}` and `{{char}}` render as names; no persona floors to the default persona name | Rebuild | [Turn teaching](../../../tests/server/domain/chat/verbs/turn-teaching.suite.int.test.ts) on the native Anthropic wire. |
 | Teach is delimited from a player's line; the frame slot is the host's to replace | Rebuild | [Turn teaching](../../../tests/server/domain/chat/verbs/turn-teaching.suite.int.test.ts). The production shape sends the framed teach as its own row after the player's line; the case asserts the invariant, that the teach never sits inside the player's text. |
 | Game reminder that already carries the framed teach suppresses the room's teach | Drop | Needs a synthetic gather. The shipped reminder carries the bare teach, which the game combinations exercise. |
-| Exact-duplicate guard, identity-keyed guard, first survivor, ascending order, stable tie, toolNames union, throwing contribution, shared context instance | Drop | Collector internals reachable only with a synthetic registry. The production registry cannot produce them; a planted removal of the guard changes no production output. |
+| Exact-duplicate guard: two contributions emitting the identical injection reach the model once | Rebuild | [Turn teaching](../../../tests/server/domain/chat/verbs/turn-teaching.suite.int.test.ts): the host's frame and cyoa slot make the choices teach equal the reaction-attribution note for a reacted line. Skipping the dedupe delivers it twice. Host-authored rows stay uncollapsed, in the next case. |
+| Identity-keyed guard, first survivor, ascending order, stable tie, toolNames union, throwing contribution, shared context instance | Drop | Collector internals that need a synthetic registry. Chat and automation share the injection axis and chat and tool-use share the tool-name axis, and each pair registers in ascending order, so a planted change to the sort or the union changes no production output. |
 | Registry ids and orders | Drop | Implementation listing; its observable effects are the cases above. |
 | Gather injections keep their order; gather `tools` become tool names | Drop | The production gather emits one injection and no registry tools. Both need a synthetic gather. |
 | Non-game chat and knob off contribute nothing | Keep | [Offer choices](../../../tests/server/domain/chat/verbs/turn-offer-choices.suite.int.test.ts) and the react-tool combinations in [turn teaching](../../../tests/server/domain/chat/verbs/turn-teaching.suite.int.test.ts). |
@@ -186,7 +187,7 @@ The legacy collector and contribution cases exercised `collectTeaching` and the 
 | Empty room, null ids, omitted arguments | Rebuild | [Identity](../../../tests/server/domain/chat/persistence/identity.int.test.ts): an empty room has an empty set. |
 | Dedupe of an id named by a seat and a line | Drop | The loader selects by id, so a duplicate row cannot exist; no planted change reaches it. |
 | Coverage is member-gated, not owner-gated | Rebuild | [Identity](../../../tests/server/domain/chat/persistence/identity.int.test.ts): a member's persona resolves for the host and the member reads the same set. |
-| Each row resolves `{{user}}` to its own stamp | Keep | [Persona resolution](../../../tests/server/domain/chat/persona-resolution.suite.int.test.ts) and [canon input writers](../../../tests/server/domain/chat/persistence/canon-input-writers.suite.int.test.ts). |
+| Each row resolves `{{user}}` to its own stamp, including rows stamped by different humans | Rebuild | [Persona resolution](../../../tests/server/domain/chat/persona-resolution.suite.int.test.ts): a two-human room where each human's stored line keeps its own persona. A null stamp falls back to the anchor in [canon input writers](../../../tests/server/domain/chat/persistence/canon-input-writers.suite.int.test.ts). |
 
 #### Persona resolution (`persona-resolution.suite.int.test.ts`)
 
@@ -202,9 +203,9 @@ The legacy collector and contribution cases exercised `collectTeaching` and the 
 | Reference case | Decision | Maintained home or reason |
 | - | - | - |
 | Estimate equals the sweep's summarize calls and falls to zero once built | Rebuild | [Backfill estimate](../../../tests/server/domain/chat/substrate/backfill-estimate.int.test.ts) through `workloads.estimateModelCalls` and the admitted workload. |
-| Character seated mid-chat is counted for the blocks it witnessed | Rebuild | Same suite. A late `addCharacterToChat` replaces the forced join sequence, which production cannot produce. |
+| Character seated mid-chat is counted for the blocks it witnessed | Rebuild | Same suite, with the exact count the sweep yields. A late `addCharacterToChat` replaces the forced join sequence, which production cannot produce. |
 | Edited block is counted again | Rebuild | Same suite. |
-| Group room counts its unminted shared bucket and mints nothing; memory off costs nothing | Rebuild | Same suite. |
+| Group room counts its unminted shared bucket and mints nothing; memory off costs nothing | Rebuild | Same suite. The per-host off check is reached only by the bulk estimate, which the case asks through `mode: "bulk"`. |
 | Import window counts and sweeps only the span's chats | Rebuild | Same suite, with a later import as the out-of-span room. A second owner's import in the same span is not exercised. |
 | Consolidation parents above tier zero | Open | The suite runs tier zero only. |
 | Import window over a very large chat set | Open | Needs bulk persistence seeding in a persistence suite. |

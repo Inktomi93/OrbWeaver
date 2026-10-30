@@ -200,6 +200,31 @@ test.for(REACT_ARMS)("the react tool: $title", async (arm) => {
   expect(declared).toBe(arm.attached);
 });
 
+test("two contributions that emit the identical injection reach the model once", async () => {
+  // The host's frame turns the choices teach into exactly the note the reaction attribution writes for a reaction
+  // to a line reading the same words: two contributions, one placement, one content.
+  const line = "hello there";
+  const note = `[A member reacted with 👍 to the message: "${line}"]`;
+  const prose: ProseOverrides = {
+    "rpg.reminder.cyoaTeach": { text: line, baseVersion: 1 },
+    "chat.teach.choicesFrame": { text: `[A member reacted with 👍 to the message: "{{teach}}"]`, baseVersion: 1 },
+  };
+  await using h = await textRoom(["ok", "ok"], { promptConfig: { ...DEFAULT_PROMPT_CONFIG, prose } });
+  const said = (await h.root.services.chat.commitMessage({ principal: h.owner, chatId: h.chatId, content: line })).messages[0];
+  if (said === undefined) {
+    throw new Error("commitMessage returned no row");
+  }
+  await h.root.services.chat.toggleReaction({ principal: h.owner, chatId: h.chatId, variantId: said.selectedVariantId, emoji: "👍" });
+
+  // Positive control: the reaction alone teaches the note once, so the doubled case below is a collision and not a miss.
+  await send(h);
+  expect(occurrences(await newestWire(h), note)).toBe(1);
+
+  await h.root.services.chat.setOfferChoices({ principal: h.owner, chatId: h.chatId, enabled: true });
+  await send(h);
+  expect(occurrences(await newestWire(h), note)).toBe(1);
+});
+
 test("two identical host-authored injections both reach the model; only contributions are collapsed", async () => {
   await using h = await textRoom(["ok"]);
   const line = "SAY IT TWICE";

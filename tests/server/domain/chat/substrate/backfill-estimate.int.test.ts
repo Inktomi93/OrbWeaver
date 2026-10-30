@@ -55,9 +55,9 @@ async function memoryRoom(options: { readonly transcript?: number; readonly char
   return { h, summaries: () => summarized, [Symbol.asyncDispose]: () => h[Symbol.asyncDispose]() };
 }
 
-async function estimate(h: ChatRoot, importWindow?: ImportWindow): Promise<number> {
+async function estimate(h: ChatRoot, importWindow?: ImportWindow, mode: "singular" | "bulk" = "singular"): Promise<number> {
   const params = importWindow === undefined ? {} : { importWindow };
-  const { calls } = await h.caller.workloads.estimateModelCalls({ input: { kind: "memory-backfill", params }, mode: "singular" });
+  const { calls } = await h.caller.workloads.estimateModelCalls({ input: { kind: "memory-backfill", params }, mode });
   if (calls === null) {
     throw new Error("the memory backfill has no model-call estimate");
   }
@@ -118,8 +118,8 @@ test("a late-seated character is counted only for the blocks it witnessed, exact
   await h.root.services.chat.addCharacterToChat({ principal: h.owner, chatId: h.chatId, characterId: bryn.id });
   const counted = await estimate(h);
   // The shared group bucket and the first seat hold all four blocks; the second seat joined after them, so it holds fewer than four.
-  expect(counted).toBeGreaterThanOrEqual(2 * 4);
-  expect(counted).toBeLessThan(3 * 4);
+  // Shared bucket 4 and first seat 4; the late seat holds the one block that spans its join.
+  expect(counted).toBe(9);
   expect(await sweep(room)).toBe(counted);
   expect(await estimate(h)).toBe(0);
 });
@@ -134,8 +134,11 @@ test("a group room counts its unminted shared bucket and mints nothing; a host w
   expect(counted).toBeGreaterThan(0);
   expect(await shared()).toBeNull();
 
+  // The bulk sweep resolves each host's own memory setting, so only the bulk count reaches the per-host off check.
+  expect(await estimate(h, undefined, "bulk")).toBe(counted);
   await h.caller.settings.updateUserSettingsSection({ section: "memory", patch: { enabled: false } });
   expect(await estimate(h)).toBe(0);
+  expect(await estimate(h, undefined, "bulk")).toBe(0);
 });
 
 test("an import window counts only the host's chats imported in the span, and the scoped sweep builds exactly those", async () => {
