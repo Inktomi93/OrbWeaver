@@ -12,6 +12,7 @@ import { acceptsAssistantPrefill, cacheMinTokensOf, DEFAULT_ATTACHMENT_QUALITY, 
 import type { EffortLevel } from "@orb/contracts/preset";
 import { errorMessage } from "@orb/kit/error-message";
 import type { JsonValue } from "@orb/kit/json";
+import type { Clock } from "@orb/kit/time";
 import { z } from "zod";
 import type { ChatHistoryMessage, ChatResult, OpenAiCompatChatRequest, RateLimitSnapshot, Resolved, ResolvedChatKnobs, ScheduleTimeout } from "#contract";
 import { ProviderError } from "#contract";
@@ -497,7 +498,7 @@ interface StreamOnceArgs {
   readonly options: LanguageModelV4CallOptions;
   readonly req: OpenAiCompatChatRequest;
   readonly label: string;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly markCommitted: () => void;
   readonly onFirstDelta: (at: number) => void;
   /** The response headers the V4 stream result exposes (B6) — before the first part, once per attempt. */

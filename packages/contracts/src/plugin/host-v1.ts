@@ -11,6 +11,7 @@
 import type { AssetId, Branded, CharacterId, ChatId, DocumentId, MessageId, SandboxWireId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
+import type { Clock } from "@orb/kit/time";
 import type { EntryPosition } from "@orb/kit/world-info";
 import type { ChatTriggerType, DomainTriggerType, TriggerFact } from "#automation";
 import type { PromptTransformOutcome, PromptTransformPoint, VariablePrecondition, VariableWriteResult } from "#chat";
@@ -182,7 +183,7 @@ export interface PluginHostV1 {
   readonly grants: readonly PluginCapability[];
 
   // Determinism — the ONLY time/entropy/id sources in the guest realm (README law).
-  readonly clock: { nowEpochMs: () => number }; // injected clock (test-determinism)
+  readonly clock: { nowEpochMs: Clock }; // injected clock (test-determinism)
   readonly random: { next: () => number }; // injected PRNG, [0,1)
   readonly ids: { mint: () => string }; // injected id factory (opaque uniqueness, NOT TypeIDs)
 

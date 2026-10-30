@@ -12,6 +12,8 @@ import type {
 import type { ResponseCacheControl, ResponseCacheSettings } from "@orb/contracts/preset";
 import type { ChatId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
+import type { RandomSource } from "@orb/kit/macro";
+import type { Clock } from "@orb/kit/time";
 import type { AddSpanEvent, ConnectionTransport, ProviderBackend, ProviderScrubSet, Reachability, Resolved, ScheduleTimeout, WireCaptureSink } from "#contract";
 import type { InferenceDeps, InferenceLog } from "./runtime.ts";
 import type { WirePlan, WrapFetchArgs } from "./v4.ts";
@@ -43,8 +45,8 @@ export interface ShapeArgs {
 
 export interface OpenAiCompatChatDeps {
   readonly scheduleTimeout: ScheduleTimeout;
-  readonly now: () => number;
-  readonly random: () => number;
+  readonly now: Clock;
+  readonly random: RandomSource;
   readonly log: InferenceLog;
   readonly addSpanEvent?: AddSpanEvent | undefined;
   readonly transport: TransportDeps;
@@ -54,7 +56,7 @@ export interface OpenAiCompatChatDeps {
 export interface DiagnosticsDeps {
   readonly scheduleTimeout: ScheduleTimeout;
   readonly fetch: typeof fetch;
-  readonly now: () => number;
+  readonly now: Clock;
 }
 
 /** What the inspector's call needs beyond the diagnostics deps: the app identity the model factory sends. */
@@ -82,8 +84,8 @@ export interface ImagesDeps {
 
 /** The slice of the runtime deps this backend closes over. */
 export interface OpenAiCompatBackendDeps {
-  readonly now: () => number;
-  readonly random: () => number;
+  readonly now: Clock;
+  readonly random: RandomSource;
   readonly scheduleTimeout: InferenceDeps["scheduleTimeout"];
   readonly log: InferenceDeps["log"];
   readonly addSpanEvent?: AddSpanEvent | undefined;
@@ -161,7 +163,7 @@ export interface NativeThink {
 export interface ReachabilityDeps {
   readonly scheduleTimeout: ScheduleTimeout;
   readonly fetch: typeof fetch;
-  readonly now: () => number;
+  readonly now: Clock;
 }
 
 export interface ReachabilityProber {

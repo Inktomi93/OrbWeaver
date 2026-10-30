@@ -1,11 +1,12 @@
 // The session lifecycle's browser-document port. Data owns the auth/recovery decisions; main.tsx binds
 // the real document once at composition, so those decisions never import DOM types or reach a feature.
 
+import type { Clock } from "@orb/kit/time";
 import { timeLib } from "./time.ts";
 
 export interface SessionDocumentHost {
   /** Current session lifecycle time in epoch milliseconds. */
-  readonly now: () => number;
+  readonly now: Clock;
   /** Current document pathname, or null when no browser document is bound. */
   readonly currentPathname: () => string | null;
   /** Order a whole-document navigation. */
