@@ -313,7 +313,7 @@ function ImportOverflow({ door }: { readonly door: NonNullable<CollectionContrib
         <Menu>
           <MenuTrigger
             render={
-              <Button aria-label="More library actions" variant="ghost" size="icon-sm">
+              <Button aria-label="More library actions" variant="ghost" size="sm" square={true}>
                 <Icon icon={MoreVertical} size="sm" />
               </Button>
             }
@@ -355,7 +355,8 @@ function CollectionInsightList({ insights }: { readonly insights: readonly Colle
               className="ms-auto wrap-anywhere max-inline-full"
               variant="ghost"
               onClick={insight.open.run}
-              size="wrap"
+              size="sm"
+              wrap={true}
               type="button"
             >
               {insight.open.label}

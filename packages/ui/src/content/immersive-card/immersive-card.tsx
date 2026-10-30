@@ -130,7 +130,7 @@ export function ImmersiveCard({
     <Tooltip>
       <TooltipTrigger
         render={
-          <Button variant="ghost" size="icon" aria-pressed={showRaw} aria-label={rawLabel} onClick={(): void => setShowRaw((v: boolean): boolean => !v)} />
+          <Button variant="ghost" square={true} aria-pressed={showRaw} aria-label={rawLabel} onClick={(): void => setShowRaw((v: boolean): boolean => !v)} />
         }
       >
         <Icon icon={Code} size="sm" />
@@ -160,7 +160,9 @@ export function ImmersiveCard({
             had no way to know one of them leaves the page's flow entirely. The name now states the
             DESTINATION, which is also what §13.10 N4 asks of a verb name. */}
         <Tooltip>
-          <TooltipTrigger render={<Button variant="ghost" size="icon" aria-label={IMMERSIVE_CARD_LABELS.fullscreen} onClick={(): void => setExpanded(true)} />}>
+          <TooltipTrigger
+            render={<Button variant="ghost" square={true} aria-label={IMMERSIVE_CARD_LABELS.fullscreen} onClick={(): void => setExpanded(true)} />}
+          >
             <Icon icon={Expand} size="sm" />
           </TooltipTrigger>
           <TooltipPopup>{IMMERSIVE_CARD_LABELS.fullscreen}</TooltipPopup>
@@ -172,7 +174,7 @@ export function ImmersiveCard({
             render={
               <CollapsibleTrigger
                 chevron={false}
-                render={<Button variant="ghost" size="icon" aria-label={open ? IMMERSIVE_CARD_LABELS.collapse : IMMERSIVE_CARD_LABELS.expand} />}
+                render={<Button variant="ghost" square={true} aria-label={open ? IMMERSIVE_CARD_LABELS.collapse : IMMERSIVE_CARD_LABELS.expand} />}
                 data-slot="immersive-card-collapse"
               />
             }

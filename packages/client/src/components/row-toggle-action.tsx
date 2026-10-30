@@ -7,7 +7,7 @@
 // always-on for coarse pointers, where hover does not exist). `rest="always"` keeps a toggle visible in both
 // states for a surface that is not a hover-revealing row.
 //
-// The control box is `size="icon"` = `size-(--size-control-md)` — 36px fine / 48px coarse BY TOKEN CONSTRUCTION
+// The control box is the `md` `square` = `size-(--size-control-md)` — 36px fine / 48px coarse BY TOKEN CONSTRUCTION
 // (D62 P1), so the per-pointer touch floor needs no hand math here.
 //
 // Requires the row root to carry `group` (that is what `HOVER_REVEAL.hover` keys on). Two features render this
@@ -86,7 +86,7 @@ export function RowToggleAction(props: RowToggleFillArm): ReactElement {
       variant="ghost"
       onClick={onToggle}
       role={radio ? "radio" : undefined}
-      size="icon"
+      square={true}
       type="button"
     >
       <RowToggleGlyph {...props} />

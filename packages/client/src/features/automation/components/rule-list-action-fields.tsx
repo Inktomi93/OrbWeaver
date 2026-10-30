@@ -156,7 +156,7 @@ function ReplyList({ form, index, action, ids }: ReplyFieldsProps & { readonly i
                   }
                 }}
                 variant="ghost"
-                size="icon"
+                square={true}
                 aria-label={removeActionName(`reply ${choice + 1}`)}
                 onClick={(): void => {
                   focusSlot.current = choice;

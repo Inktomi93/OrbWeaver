@@ -1,4 +1,16 @@
-import { DISABLED_STATE, FIELD_CONTROL, FIELD_CONTROL_BOX, FOCUS_RING, ITEM_ROW, OVERLAY_ARROW, OVERLAY_MOTION, POPUP_SURFACE, SCRIM, tv } from "#lib";
+import {
+  CONTROL_BLOCK,
+  DISABLED_STATE,
+  FIELD_CONTROL,
+  FIELD_CONTROL_BOX,
+  FOCUS_RING,
+  ITEM_ROW,
+  OVERLAY_ARROW,
+  OVERLAY_MOTION,
+  POPUP_SURFACE,
+  SCRIM,
+  tv,
+} from "#lib";
 
 // Trigger in-flow; positioner/popup portaled. --available-height/--anchor-width are Base UI Positioner-provided vars.
 export const selectVariants = tv({
@@ -44,7 +56,15 @@ export const selectVariants = tv({
     scrollArrow: "sticky z-(--z-raised) flex cursor-default items-center justify-center bg-popover text-muted-foreground block-section inline-full",
   },
   variants: {
-    // THE TRIGGER'S SCALE (the Input `layout` twin — same axis name, same two arms). `field` is the form
+    // THE CONTROL SCALE (D336): the step's height, so a field sits level with the buttons and toggles of its row. The
+    // type stays the field's own pointer-conditional step at every size, because iOS zooms on a smaller focused field.
+    size: {
+      chip: { trigger: CONTROL_BLOCK.chip },
+      sm: { trigger: CONTROL_BLOCK.sm },
+      md: { trigger: CONTROL_BLOCK.md },
+      lg: { trigger: CONTROL_BLOCK.lg },
+    },
+    // THE TRIGGER'S LAYOUT, declared after `size` (the Input `layout` twin — same axis name, same two arms). `field` is the form
     // control: the full FIELD_CONTROL chrome at the sealed control height. `inline` is the IDENTITY-LINE
     // trigger — a name/datum that happens to open a menu, so it wears the text itself (content width,
     // text-height, no box) and the popup is the affordance.
@@ -54,11 +74,11 @@ export const selectVariants = tv({
     // deterministically — the shipped site wrote `!h-auto !w-auto !px-field` to force the cascade. Same law
     // as Button `size`/TabsTab `layout`.
     layout: {
-      field: { trigger: [FIELD_CONTROL, "block-(--size-control-sm)"] },
+      field: { trigger: FIELD_CONTROL },
       inline: { trigger: [FIELD_CONTROL_BOX, "border-transparent bg-transparent px-field py-0 text-label leading-label block-auto inline-auto min-block-0"] },
     },
     // A trigger whose value is the name of the thing the line is about (an rpg subject): the name's semibold weight.
     strong: { true: { trigger: "font-semibold" }, false: {} },
   },
-  defaultVariants: { layout: "field" },
+  defaultVariants: { size: "sm", layout: "field" },
 });

@@ -165,7 +165,8 @@ export function CharacterPairRow({
         // can find in their own catalog page, and a pair from this list routinely is not in it.
         selectCorpusArtifact({ kind: "pair", pair: { kind: "characters", idA, idB, nameA: left, nameB: right, score } });
       }}
-      size="wrap"
+      size="sm"
+      wrap={true}
     >
       <PairFace badge={undefined} left={left} right={right} score={score} />
     </Button>
@@ -203,7 +204,8 @@ function ChatPairRow({
           pair: { kind: "chats", idA: chatId, idB: otherChatId, nameA: left, nameB: right, score, relation: badge ?? "similar" },
         });
       }}
-      size="wrap"
+      size="sm"
+      wrap={true}
     >
       <PairFace badge={badge} left={left} right={right} score={score} />
     </Button>

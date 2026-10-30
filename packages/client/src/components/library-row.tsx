@@ -147,7 +147,7 @@ const CLUSTER_SLOTS = 3;
  * TRAILING, not leading, is the whole point: slot 1 is then always the state toggle, at one x, on every row.
  * Padding the other end would straighten the kebab column instead — the column nobody scans.
  *
- * `size-(--size-control-md)` is the `size="icon"` Button box BY TOKEN, so the reservation cannot drift from the
+ * `size-(--size-control-md)` is the `square` Button box BY TOKEN, so the reservation cannot drift from the
  * control it reserves. `aria-hidden` and empty: this is layout, never a disabled affordance (a spacer that
  * reached the a11y tree would announce three phantom controls per built-in row).
  */
@@ -247,7 +247,7 @@ function LibraryRowActionsMenu({
   return (
     <>
       {inlineVerb === undefined || duplicate === undefined ? null : (
-        <Button aria-label={duplicateActionName(subject)} reveal="hover" variant="ghost" onClick={duplicate} size="icon" type="button">
+        <Button aria-label={duplicateActionName(subject)} reveal="hover" variant="ghost" onClick={duplicate} square={true} type="button">
           <Icon icon={Copy} size="sm" />
         </Button>
       )}

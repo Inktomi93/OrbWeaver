@@ -34,7 +34,7 @@ function AttachmentPreview({ attachment, onRemove }: { readonly attachment: Pend
           className="block-(--size-avatar-hero) inline-(--size-avatar-hero)"
         />
       )}
-      <Button type="button" variant="ghost" size="icon" aria-label={removeActionName(attachment.file.name)} onClick={onRemove} shape="pill">
+      <Button type="button" variant="ghost" square={true} aria-label={removeActionName(attachment.file.name)} onClick={onRemove} shape="pill">
         <Icon icon={X} size="sm" />
       </Button>
     </Row>

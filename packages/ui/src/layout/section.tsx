@@ -97,9 +97,9 @@ export function Section({
       // info" into the heading's accessible name (W3C accname subtree concatenation).
       <span className={slots.headingRow()}>
         {headingNode}
-        {/* size="icon" here (vs. Field's "inline") is a pre-existing drift, not unified in this
+        {/* size="md" here (vs. Field's "inline") is a pre-existing drift, not unified in this
             consolidation — that's a rendered-height change belonging to its own reviewed pass. */}
-        <HintTrigger hint={hint} size="icon" subject={heading} />
+        <HintTrigger hint={hint} size="md" subject={heading} />
       </span>
     ) : (
       headingNode

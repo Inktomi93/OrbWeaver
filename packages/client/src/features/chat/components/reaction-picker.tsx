@@ -127,7 +127,7 @@ export function ReactionPicker({
         <Row align="center" className="flex-wrap" gap="field">
           <Toggle
             aria-label="React to the whole message"
-            intent="outline"
+            variant="outline"
             onPressedChange={(): void => setTarget(null)}
             pressed={target === null}
             shape="pill"
@@ -139,7 +139,7 @@ export function ReactionPicker({
             <Tip key={t.index} text={t.text.trim()}>
               <Toggle
                 aria-label={`React to ${t.speaker}'s line`}
-                intent="outline"
+                variant="outline"
                 onPressedChange={(): void => setTarget({ index: t.index, speaker: t.speaker })}
                 pressed={target?.index === t.index}
                 shape="pill"
@@ -152,13 +152,13 @@ export function ReactionPicker({
         </Row>
       ) : null}
       {/* `wrap` is the grid: ten cells at a ≥44px coarse floor cannot hold one line on a phone, and a
-              wrapping rail is what the chip box is FOR (`CHIP_BOX` is one home with Button's `chip` size,
+              wrapping rail is what the chip box is FOR (the `chip` control step is one home with Button's,
               which is the wrapping-rail cell). */}
       <Row align="center" className="flex-wrap" gap="field">
         {REACTION_EMOJIS.map((emoji) => (
           <Toggle
             aria-label={`React with ${emoji}`}
-            intent="outline"
+            variant="outline"
             key={emoji}
             onPressedChange={(): void => {
               onPick(emoji, target);

@@ -116,7 +116,7 @@ function RosterRow(props: {
           ) : null}
           {/* The destructive door keeps a bare name: the counts inform CONSENT to apply, and a delete that
               recited them would read as though it were deleting the members too. */}
-          <Button disabled={busy} variant="ghost" size="icon-sm" onClick={(): void => onDelete(roster)} aria-label={`Delete ${roster.name}`}>
+          <Button disabled={busy} variant="ghost" size="sm" square={true} onClick={(): void => onDelete(roster)} aria-label={`Delete ${roster.name}`}>
             <Icon icon={Trash2} size="sm" />
           </Button>
         </Row>

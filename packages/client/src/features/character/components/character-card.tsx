@@ -273,7 +273,7 @@ function NormalRowActions({
           (three touch boxes charging a phone row) is answered by taking the cluster from three to TWO, not
           by reversing the CTA ruling. */}
       <Row reveal="hover">
-        <Button aria-label={chatWithActionName(subject)} variant="ghost" onClick={(): void => onChat(character.id)} size="icon" type="button">
+        <Button aria-label={chatWithActionName(subject)} variant="ghost" onClick={(): void => onChat(character.id)} square={true} type="button">
           <Icon icon={MessagesSquare} size="sm" />
         </Button>
       </Row>

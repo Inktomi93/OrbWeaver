@@ -54,7 +54,7 @@ The [implementation work](../../work/1299-build-the-css-system-ramps-conditions-
 | Feature layout classes and primitive skins | `tooling/src/eslint/ui-feature-classname.ts`, `packages/ui/src/primitives/` | Retained ESLint controls, className-drain and chat-skin CTs |
 | Logical class vocabulary | `CLASS_SELECTORS` in `eslint.config.ts`, maintained better-tailwindcss integration | Native-token and class-merge tests |
 | Text voices and semantic tones | `packages/ui/src/primitives/text/variants.ts`, `packages/ui/src/lib/tone-ink.ts` | Text-axis restrictions and rendered typography checks |
-| Tone roles, tone scoping and the control scale (not yet built) | `packages/ui/src/tokens/tokens.json`, `packages/ui/tokens.build.ts`, `packages/ui/src/content/theme-scope/`, `@orb/kit/theme-derivation`, `packages/ui/src/lib/control-size.ts` | Build contrast check, kit role suite, clamp tests and the tone matrix CT |
+| Tone roles, tone scoping and the control scale | `packages/ui/src/tokens/tokens.json`, `packages/ui/tokens.build.ts`, `packages/ui/src/content/theme-scope/`, `@orb/kit/theme-derivation`, `packages/ui/src/lib/control-size.ts` | Build contrast check, kit role suite, clamp tests and the tone matrix CT |
 | Appearance and OS preferences | `packages/client/src/lib/appearance-carrier-manifest.ts`, `packages/client/appearance-channel.build.ts` | Preference contracts, appearance CTs and reduced-motion-floor CT |
 | Supported owner styling | `packages/client/owner-css-surface.build.ts`, `packages/client/src/owner-css/` | Existing surface, warning, rewrite and editor tests |
 | Platform behavior | `packages/client/browser-targets.ts`, platform sheets and Textarea fallback | Platform and textarea-autosize CTs |
@@ -120,8 +120,11 @@ Done when: `tsc` refuses every old axis name and value. Each lint rule refuses i
 1. Make `CONTROL_SIZE` the scale `chip`, `sm`, `md`, `lg`, with `chip` built from `CHIP_BOX`.
 2. Give `size` from the scale to Button, Toggle, Input, Select, NumberField, Combobox, Autocomplete and ColorField.
 3. Replace Button `icon` and `icon-sm` with `square`, and `wrap` and `wrap-md` with `wrap`.
+4. Move Toggle from `intent` to `variant`, `tone` and `ink` by the Toggle mapping table.
 
 Codemods: the adjudicated rewrite from step 2, with a size table.
+
+A field takes the step's height and keeps its own `text-field` type at every step, because iOS zooms on a focused field under 16px. A field defaults to `sm`, its height before the scale; Button and Toggle default to `md`.
 
 Done when: a geometry CT measures one row of mixed controls per step at both pointer classes and finds one height. `tests/client/features/app-shell/touch-target-floor.suite.ct.tsx` passes.
 
@@ -179,6 +182,27 @@ Done when: `tsc` refuses each removed value. `tests/client/features/app-shell/su
 | `size="inline"`, `size="inline-body"` | `InlineAction` with a label or body step |
 | `size` `glyph-xs` to `glyph-lg` | `GlyphButton` with the glyph step |
 | `selection`, `shape`, `cardCorners`, `underline`, `reserveEdge`, `confirming`, `quietDisabled`, `focusRing`, `hiddenAt`, `reveal`, `touchFloor` | kept; `selection="rail"` keys on `data-selected` |
+
+#### Mapping: Toggle
+
+| Old value | New |
+| - | - |
+| `intent="neutral"`, no intent | `variant="ghost" tone="neutral"`, which rests in the `muted` ink |
+| `intent="outline"` | `variant="outline"` |
+| `intent="command"` | `ink="foreground"` |
+| `intent="primary"` | `tone="primary"`; pressed, it wears the selected fill like every tone, because the app has one selected fill for a set state |
+| `size` `sm`, `md`, `lg`, `chip`, `shape` | kept |
+
+#### Mapping: control scale
+
+| Old value | New |
+| - | - |
+| Input, Select, Autocomplete and ColorField at `--size-control-sm` | `size`, default `sm` |
+| Combobox floored at `--size-control-sm` with a field inset | `size` as a floor, default `sm`; the inset is inline only, so an empty field is one step high |
+| NumberField `size="md"` at `--size-touch-target` | `size`, default `sm`: one height with the Input beside it; the steppers are the step's square and carry the touch-target hit area across the group's edge |
+| NumberField `size="inline"` | `layout="inline"`, the Input and Select twin; it takes the step's height too |
+| HintTrigger `size="icon"` | `size="md"`, the `md` square |
+| Button `wrap` inset `py-field` | `py-tight`, so one wrapped line sits inside every step at a fine pointer |
 
 #### Mapping: Badge
 

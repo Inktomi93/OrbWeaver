@@ -19,8 +19,8 @@ function meaningEdge(tone: string): ToneRole {
   return tone === "neutral" ? "edge" : "solid";
 }
 
-/** What each painted property must equal: a role of the row's tone, the card fill, or the row's own (inherited) ink. */
-type Expected = ToneRole | "card" | "host";
+/** What each painted property must equal: a role of the row's tone, a named colour probe, or the row's own (inherited) ink. */
+type Expected = ToneRole | "card" | "host" | "muted" | "selection" | "selection-foreground";
 type Paint = Readonly<Record<string, Expected>>;
 
 /** One painted property of one case, read beside the colour its expectation resolves to in the same row. */
@@ -57,6 +57,8 @@ function readRow(row: Locator, paint: Readonly<Record<string, Paint>>): Promise<
 
 function paints(tone: string): Readonly<Record<string, Paint>> {
   const fillLessInk: Expected = tone === "neutral" ? "host" : "text";
+  // A neutral toggle recedes until pressed; pressed, every tone wears the one selected fill.
+  const toggleInk: Expected = tone === "neutral" ? "muted" : "text";
   return {
     "button-solid": { "background-color": "solid", color: "foreground" },
     "button-outline": { "border-block-start-color": "edge", color: "text" },
@@ -68,6 +70,9 @@ function paints(tone: string): Readonly<Record<string, Paint>> {
     "card-surface": { "background-color": "card", "border-block-start-color": "edge" },
     "card-soft": { "background-color": "tint", "border-block-start-color": meaningEdge(tone), color: "text-on-tint" },
     "card-outline": { "border-block-start-color": meaningEdge(tone) },
+    "toggle-ghost": { color: toggleInk },
+    "toggle-outline": { "border-block-start-color": "edge", color: toggleInk },
+    "toggle-pressed": { "background-color": "selection", color: "selection-foreground" },
     text: { color: "text" },
   };
 }

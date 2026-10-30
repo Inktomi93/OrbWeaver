@@ -53,7 +53,7 @@ function FlankSheet({ children }: { readonly children: ReactNode }): ReactElemen
               <DrawerTitle>{PLUGIN_PANELS_SHEET_LABEL}</DrawerTitle>
               <DrawerClose
                 render={
-                  <Button aria-label="Close" variant="ghost" size="icon" type="button">
+                  <Button aria-label="Close" variant="ghost" square={true} type="button">
                     <Icon icon={X} size="sm" />
                   </Button>
                 }

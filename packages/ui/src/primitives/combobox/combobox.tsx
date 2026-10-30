@@ -2,8 +2,9 @@ import type { ComboboxPositionerProps as BasePositionerProps, ComboboxRootProps 
 import { Combobox as BaseCombobox } from "@base-ui/react/combobox";
 import type { KeyboardEvent, ReactElement, ReactNode } from "react";
 import { useRef, useState } from "react";
+import type { VariantProps } from "tailwind-variants";
 import type { PortalContainer } from "#lib";
-import { ANCHOR_GAP_INPUT, cn, formatResultCount, removeActionName, usePortalContainer } from "#lib";
+import { ANCHOR_GAP_INPUT, cn, formatResultCount, removeActionName, usePortalContainer, variantAttrs } from "#lib";
 import { useFieldIdentity } from "#primitives/field";
 import { Icon, X } from "#primitives/icons";
 import { comboboxVariants } from "./variants.ts";
@@ -66,6 +67,8 @@ export interface ComboboxProps extends ComboboxPassthrough {
   "aria-label"?: string;
   /** Additional id(s) describing the input — merges with `<Field>`'s own wiring when composed. */
   "aria-describedby"?: string;
+  /** The control scale step (D336): the field's height, level with the controls of its row. @defaultValue "sm" */
+  size?: VariantProps<typeof comboboxVariants>["size"];
   /** Applied to the input (the in-flow element). */
   className?: string;
   id?: BaseRootProps<string, true>["id"];
@@ -118,6 +121,7 @@ export function Combobox({
   emptyText = "No results.",
   "aria-label": ariaLabel,
   "aria-describedby": ariaDescribedby,
+  size,
   className,
   id,
   arrow = false,
@@ -233,7 +237,7 @@ export function Combobox({
       {...(identity.name === undefined ? {} : { name: identity.name })}
       {...rest}
     >
-      <BaseCombobox.InputGroup className={slots.inputGroup()} data-slot="combobox-input-group">
+      <BaseCombobox.InputGroup className={slots.inputGroup({ size })} data-slot="combobox-input-group" {...variantAttrs(comboboxVariants, { size })}>
         <BaseCombobox.Chips className={slots.chips()} data-slot="combobox-chips">
           <BaseCombobox.Value>
             {(selected: string[]): ReactNode => (

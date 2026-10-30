@@ -129,7 +129,7 @@ function MoveControls({
         focusableWhenDisabled={true}
         variant="ghost"
         onClick={(): void => onMove(index, index - 1)}
-        size="icon"
+        square={true}
         type="button"
       >
         <Icon icon={ChevronUp} size="sm" />
@@ -140,7 +140,7 @@ function MoveControls({
         focusableWhenDisabled={true}
         variant="ghost"
         onClick={(): void => onMove(index, index + 1)}
-        size="icon"
+        square={true}
         type="button"
       >
         <Icon icon={ChevronDown} size="sm" />

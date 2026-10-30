@@ -220,7 +220,7 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
               {badge.label}
             </Badge>
             <Tip text={renameActionName(doc.name)}>
-              <Button aria-label={renameActionName(doc.name)} variant="ghost" onClick={(): void => setRenameOpen(true)} size="icon">
+              <Button aria-label={renameActionName(doc.name)} variant="ghost" onClick={(): void => setRenameOpen(true)} square={true}>
                 <Icon icon={Pencil} size="sm" />
               </Button>
             </Tip>
@@ -266,7 +266,14 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
               <Text className="flex-1 basis-(--width-field-floor) max-inline-(--reading-measure-prose) min-inline-0" voice="gloss">
                 Use this after a settings change, or if search misses this document.
               </Text>
-              <Button className="shrink-0 wrap-anywhere max-inline-full" disabled={reindex.isPending} variant="outline" onClick={onReindex} size="wrap">
+              <Button
+                className="shrink-0 wrap-anywhere max-inline-full"
+                disabled={reindex.isPending}
+                variant="outline"
+                onClick={onReindex}
+                size="sm"
+                wrap={true}
+              >
                 <Icon icon={RefreshCw} size="sm" />
                 Rebuild search index for this document
               </Button>

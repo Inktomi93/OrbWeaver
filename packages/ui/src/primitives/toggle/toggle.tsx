@@ -2,10 +2,12 @@ import type { ToggleProps as BaseToggleProps } from "@base-ui/react/toggle";
 import { Toggle as BaseToggle } from "@base-ui/react/toggle";
 import type { ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
+import type { ToneInkSelection } from "#lib";
 import { variantProps } from "#lib";
 import { toggleVariants } from "./variants.ts";
 
-export interface ToggleProps extends BaseToggleProps<string>, VariantProps<typeof toggleVariants> {
+/** Every Toggle prop but the D336 colour pair, which {@link ToggleProps} adds with its exclusivity. */
+interface ToggleBaseProps extends BaseToggleProps<string>, Omit<VariantProps<typeof toggleVariants>, "tone" | "ink"> {
   className?: string;
   /**
    * The cell's ARIA state model. `toggle` (default) is Base UI's own `aria-pressed` two-state button.
@@ -24,17 +26,29 @@ export interface ToggleProps extends BaseToggleProps<string>, VariantProps<typeo
   checked?: boolean;
 }
 
+/** A named ink excludes a non-neutral tone: the ink would repaint the tone's meaning away (D336). */
+export type ToggleProps = ToggleBaseProps & ToneInkSelection;
+
 /**
  * The toggle — Base UI Toggle sealed behind the token skin; a two-state pressable button
  * (bold/italic-style), pressed state on `data-pressed`. Controlled-capable via
- * `pressed`/`onPressedChange`; a bad `intent`/`size` is a tsc error (D42 §2 — Base UI seal).
+ * `pressed`/`onPressedChange`; a bad `variant`/`tone`/`size` is a tsc error (D42 §2 — Base UI seal).
  *
  * Usage: `<Toggle aria-label="Bold" pressed={bold} onPressedChange={setBold}>B</Toggle>`
  */
-export function Toggle({ className, intent, size, shape, semantics = "toggle", checked, ...rest }: ToggleProps): ReactElement {
+export function Toggle({ className, variant, tone, ink, size, shape, semantics = "toggle", checked, ...rest }: ToggleProps): ReactElement {
   const radioAria = semantics === "radio" ? { role: "radio", "aria-checked": checked === true, "aria-pressed": undefined } : {};
-  // The className AND the `data-intent`/`data-size` axis stamp, from ONE selection object (#1080). The
-  // AUTHORED choice sits beside Base UI's RUNTIME `data-pressed` without shadowing it — the stamped
-  // vocabulary is closed to four names Base UI never emits (lib/variant-attrs.ts).
-  return <BaseToggle data-slot="toggle" {...variantProps(toggleVariants, { intent, size, shape }, className)} {...rest} {...radioAria} />;
+  const resolvedTone = tone ?? "neutral";
+  // A neutral toggle recedes until pressed; a colour tone inks it with that tone's text role.
+  const resolvedInk = ink ?? (resolvedTone === "neutral" ? "muted" : undefined);
+  // The className, the axis stamp and the D336 tone scope, from ONE selection object. The AUTHORED choice sits beside
+  // Base UI's RUNTIME `data-pressed` without shadowing it — the stamped vocabulary is closed to names Base UI never emits.
+  return (
+    <BaseToggle
+      data-slot="toggle"
+      {...variantProps(toggleVariants, { variant, tone: resolvedTone, ink: resolvedInk, size, shape }, className, resolvedTone)}
+      {...rest}
+      {...radioAria}
+    />
+  );
 }

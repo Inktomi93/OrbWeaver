@@ -278,7 +278,7 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
                 // The TOPBAR's icon-button shape, not a bare `size="sm"`: at coarse this row's controls
                 // are 48×48 and the bell was rendering 40×44 beside three of them (side-eye leg-4 P3 —
                 // one control under the touch floor its neighbours all clear).
-                <Button variant="ghost" size="icon" className="shell-topbar-icon-btn relative" aria-label={bellLabel}>
+                <Button variant="ghost" square={true} className="shell-topbar-icon-btn relative" aria-label={bellLabel}>
                   <Icon icon={Bell} size="sm" />
                   {/* A DOT, NOT A NUMBER (#1798, owner ruling). What rode here was a full status pill — the
                       same lozenge that marks `always` on a lore entry — printing the count INLINE beside a

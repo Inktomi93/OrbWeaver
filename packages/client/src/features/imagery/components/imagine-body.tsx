@@ -164,7 +164,7 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
           value={[mode]}
         >
           {IMAGINE_MODES.map((id) => (
-            <Toggle intent="outline" key={id} size="sm" value={id}>
+            <Toggle variant="outline" key={id} size="sm" value={id}>
               {MODE_LABELS[id]}
             </Toggle>
           ))}

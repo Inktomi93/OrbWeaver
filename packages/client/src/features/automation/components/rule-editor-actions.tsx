@@ -93,7 +93,7 @@ export function RuleEditorActions({
                         </Text>
                         <Button
                           variant="ghost"
-                          size="icon"
+                          square={true}
                           aria-label={`Remove action ${index + 1}`}
                           onClick={(): void => {
                             Promise.all([

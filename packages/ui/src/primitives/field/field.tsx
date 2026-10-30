@@ -146,8 +146,8 @@ export function Field({
   const labelNode = hasHint ? (
     <span className={slots.labelRow()}>
       {labelText}
-      {/* THE HINT COSTS NO VERTICAL SPACE — this prop's own contract, and `size="icon"` broke it: a full
-          `--size-control-md` box (36px fine / 48px coarse) made a hinted label row stand 16px taller
+      {/* THE HINT COSTS NO VERTICAL SPACE — this prop's own contract, and `size="md"` breaks it: a full
+          `--size-control-md` square (36px fine / 48px coarse) makes a hinted label row stand 16px taller
           than a plain one, so every side-by-side pair of a hinted and an unhinted field sheared — its
           labels off one baseline, its controls off another (the preset drill-ins' DELIVERY row, crunch
           item 10, owner-reported live). `size="inline"` is the arm for exactly this: no control box,

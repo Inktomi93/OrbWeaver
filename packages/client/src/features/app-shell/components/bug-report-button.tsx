@@ -263,7 +263,7 @@ function BugReportFrame({ presentation, open, onOpenChange, children }: BugRepor
           render={
             <PopoverTrigger
               render={
-                <Button variant="ghost" size="icon" className="shell-topbar-icon-btn" aria-label="Report a bug">
+                <Button variant="ghost" square={true} className="shell-topbar-icon-btn" aria-label="Report a bug">
                   <Icon icon={Bug} size="sm" />
                 </Button>
               }

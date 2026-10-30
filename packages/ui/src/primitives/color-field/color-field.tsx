@@ -2,7 +2,8 @@ import { Field as BaseField } from "@base-ui/react/field";
 import type { PopoverRootProps as BasePopoverRootProps } from "@base-ui/react/popover";
 import type { ChangeEvent, ComponentProps, ReactElement } from "react";
 import { useId, useState } from "react";
-import { cn, isRenderableColor } from "#lib";
+import type { VariantProps } from "tailwind-variants";
+import { cn, isRenderableColor, variantAttrs } from "#lib";
 import { Button } from "#primitives/button";
 import { Field } from "#primitives/field";
 import { Check, Icon } from "#primitives/icons";
@@ -57,6 +58,8 @@ export interface ColorFieldProps {
   loading?: boolean;
   /** Momentary success flash: a checkmark over the swatch. Caller clears it — this primitive holds no timer. */
   success?: boolean;
+  /** The control scale step (D336): the field's height, level with the controls of its row. @defaultValue "sm" */
+  size?: VariantProps<typeof colorFieldVariants>["size"];
   className?: string;
   /**
    * The clear button's label. It is a prop because the empty value means different things to different
@@ -133,6 +136,7 @@ export function ColorField({
   disabled = false,
   loading = false,
   success = false,
+  size,
   className,
   resetLabel = "Reset to default",
   id,
@@ -184,7 +188,8 @@ export function ColorField({
           <PopoverTrigger
             render={
               <button
-                className={cn(slots.swatchTrigger(), className)}
+                className={cn(slots.swatchTrigger({ size }), className)}
+                {...variantAttrs(colorFieldVariants, { size })}
                 data-disabled={disabled ? "" : undefined}
                 data-loading={loading ? "" : undefined}
                 data-slot="color-field-trigger"

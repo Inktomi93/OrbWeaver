@@ -35,7 +35,7 @@ export function ListPaneHeader({ title, accent, count, back, actions }: ListPane
           band before it keeps spending a 48px chrome row on it. See shell.css's mobile arm. */}
       <Row align="center" className="min-inline-0" data-slot="list-pane-identity" gap="field">
         {back === undefined ? null : (
-          <Button aria-label={back.label} data-slot="list-pane-back" variant="ghost" onClick={back.onClick} size="icon" type="button">
+          <Button aria-label={back.label} data-slot="list-pane-back" variant="ghost" onClick={back.onClick} square={true} type="button">
             <Icon icon={ChevronLeft} size="sm" />
           </Button>
         )}
