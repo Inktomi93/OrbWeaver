@@ -1,10 +1,12 @@
+import type { StoreAvatarAsset } from "@orb/contracts/assets";
 import type { BulkImportChatsOp } from "@orb/contracts/chat";
 import type { PortabilityRegistry, PortableKind } from "@orb/contracts/portability";
 import { PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
+import type { ImportCardScripts } from "@orb/contracts/regex";
 import type { AttachCardTagByNameOp } from "@orb/contracts/tag";
 import type { Clock } from "@orb/kit/time";
 import { hostTimeZone } from "@orb/kit/time";
-import type { AssetsContext, ImportAssetPort } from "#domain/assets";
+import type { AssetsContext } from "#domain/assets";
 import { createExportAssets, createExportGallery, createImportAsset, createImportAvatarStore, createImportGallery } from "#domain/assets";
 import type { ImportCharacterPort } from "#domain/character";
 import { createCharacterImportOps } from "#domain/character";
@@ -18,7 +20,7 @@ import { createPortableImports } from "#domain/import";
 import type { BulkImportPersonas, PersonaService } from "#domain/persona";
 import type { PresetContext } from "#domain/preset";
 import { createExportPresets, createImportPresets } from "#domain/preset";
-import type { ExportRegexScripts, ImportCardScripts, ImportRegexScript } from "#domain/regex";
+import type { ExportRegexScripts, ImportRegexScript } from "#domain/regex";
 import type { SettingsContext } from "#domain/settings";
 import { createExportTheme, createExportUserSettings, createImportTheme, createImportUserSettings } from "#domain/settings";
 import type { TagContext } from "#domain/tag";
@@ -43,7 +45,7 @@ export interface PortabilityDeps {
   readonly exportService: Pick<ExportService, "exportCharacter" | "exportChatBundle" | "listHostChats">;
   readonly character: ImportCharacterPort;
   readonly listOwnedCharacterIds: PortableExportDeps["listCharacterIds"];
-  readonly storeAvatar: ImportAssetPort["store"];
+  readonly storeAvatar: StoreAvatarAsset;
   readonly attachCardTag: AttachCardTagByNameOp;
   readonly importLorebook: ImportWorldInfoPort["importLorebook"];
   /** #1598 — the seat oracle that keeps a re-uploaded card from replacing an edited primary book. */

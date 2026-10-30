@@ -6,9 +6,9 @@
 
 import type { PortableFile } from "@orb/contracts/portability";
 import type { ExportedCardScripts } from "@orb/contracts/regex";
+import type { ExportRpgGame } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
-import type { ExportRpgGame } from "#domain/rpg";
 import type { ImageAdapter } from "#infra/image";
 import type { Cas } from "#infra/storage";
 import type { ExportCharacterParams, ExportChatBundleParams, ExportChatParams, ListHostChatsParams, SeatCardIdentity } from "./params.ts";

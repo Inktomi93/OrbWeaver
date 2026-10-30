@@ -14,6 +14,9 @@ import { cn } from "#lib";
 import type { BubbleDecoration } from "../lib/art-decorations.ts";
 import { isFailedArt, rememberFailedArt, subscribeFailedArt } from "../lib/failed-art.ts";
 
+/** Reports whether a row's art failed to load, so the row can drop the chip that would repeat its fallback. */
+export type ArtFailedReport = (failed: boolean) => void;
+
 /** A speaker's art as the tap target that opens it full size: `open` receives the button so focus can return to it. */
 export interface ArtView {
   readonly label: string;
@@ -128,7 +131,7 @@ export function WhisperBand({
 }: {
   readonly band: NonNullable<BubbleDecoration["headerBand"]>;
   readonly view: ArtView | null;
-  readonly onFailedChange?: ((failed: boolean) => void) | undefined;
+  readonly onFailedChange?: ArtFailedReport | undefined;
 }): ReactElement {
   const { attach, url, failed } = useSlotImage(band.image?.urlAt);
   useFailedReport(failed, onFailedChange);
@@ -168,7 +171,7 @@ export function EchoArtTile({
 }: {
   readonly art: NonNullable<BubbleDecoration["art"]>;
   readonly view: ArtView | null;
-  readonly onFailedChange?: ((failed: boolean) => void) | undefined;
+  readonly onFailedChange?: ArtFailedReport | undefined;
 }): ReactElement {
   const { attach, url, failed } = useSlotImage(art.image?.urlAt);
   useFailedReport(failed, onFailedChange);
@@ -206,7 +209,7 @@ export function EchoArtTile({
 
 // Tells the row whether its art failed to load, so the row can drop the letter chip that would repeat the fallback.
 // Before paint: as a passive effect WebKit paints one frame with the chip before the row drops it.
-function useFailedReport(failed: boolean, onFailedChange: ((failed: boolean) => void) | undefined): void {
+function useFailedReport(failed: boolean, onFailedChange: ArtFailedReport | undefined): void {
   useLayoutEffect(() => {
     onFailedChange?.(failed);
   }, [failed, onFailedChange]);

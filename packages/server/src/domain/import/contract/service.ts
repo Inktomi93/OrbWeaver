@@ -6,13 +6,14 @@ import type { BulkImportChatsOp } from "@orb/contracts/chat";
 import type { PersonaCollisionChoices } from "@orb/contracts/import";
 import type { BulkImportPersonaInput, BulkImportPersonasResult } from "@orb/contracts/persona";
 import type { PortableFile } from "@orb/contracts/portability";
+import type { ImportCardScripts, ImportPresetScripts } from "@orb/contracts/regex";
+import type { ImportRpgGame } from "@orb/contracts/rpg";
 import type { ImportThemeOp } from "@orb/contracts/settings";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { BulkImportLorebookInput, BulkImportLorebookResult } from "@orb/contracts/world-info";
 import type { AssetId, CharacterHandle, CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { ImportPreset } from "#domain/preset";
-import type { ImportRpgGame } from "#domain/rpg";
 import type { CollectedPreset, CollectedTheme } from "./collection.ts";
 import type {
   ImportCharacterInput,
@@ -22,7 +23,6 @@ import type {
   ImportPersonaInput,
   RestoreCharacterBookInput,
 } from "./params.ts";
-import type { ImportCardScripts, ImportPresetScripts } from "./regex-lift-ops.ts";
 import type {
   ImportCharacterResult,
   ImportChatFileOutcome,

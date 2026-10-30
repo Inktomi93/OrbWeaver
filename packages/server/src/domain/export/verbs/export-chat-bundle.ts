@@ -27,6 +27,7 @@ import {
   tokenDetailsSchema,
 } from "@orb/contracts/inference";
 import type { PortableFile } from "@orb/contracts/portability";
+import type { RpgPortableGame } from "@orb/contracts/rpg";
 import {
   assets,
   characters,
@@ -43,7 +44,6 @@ import {
 import { assetIdsInContent } from "@orb/kit/content";
 import type { CharacterHandle, CharacterId, ChatId, ChatTurnId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import { and, asc, eq, getTableColumns, inArray, isNotNull, isNull } from "drizzle-orm";
-import type { RpgPortableGame } from "#domain/rpg";
 import type {
   PortableChat,
   PortableChatInjection,

@@ -27,7 +27,7 @@ import { use, useId, useRef } from "react";
 import { QueryBoundary } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, useSuspenseQuery, useTRPC } from "#data";
-import type { CommandPaletteSource, SlashCommandContext, SlashCommandContribution, SlashCommandGroup } from "#lib";
+import type { CommandPaletteSource, SlashCommandContext, SlashCommandContribution, SlashCommandGroup, SlashCommandUnavailableFor } from "#lib";
 import { SLASH_COMMAND_GROUP_LABELS, SLASH_COMMAND_GROUPS, useFocusOnMount, useFocusOnSwap } from "#lib";
 import type { SectionId } from "#state";
 import { CommandPaletteSourceRegistryContext, closeModal, resumeChat, setActiveSection, useActiveChatId } from "#state";
@@ -162,7 +162,7 @@ interface CommandsGroupProps {
   readonly commands: readonly SlashCommandContribution[];
   readonly group: SlashCommandGroup;
   readonly onRun: (id: string) => void;
-  readonly unavailableFor: (command: SlashCommandContribution) => string | null;
+  readonly unavailableFor: SlashCommandUnavailableFor;
 }
 
 /** One slash-command bucket. Renders nothing when the bucket is empty, so a zero-registrant build shows

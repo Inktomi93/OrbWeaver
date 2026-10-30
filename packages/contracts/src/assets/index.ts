@@ -324,6 +324,8 @@ export interface StoreParams {
   readonly maxBytes?: number;
 }
 export type StoreAsset = (params: StoreParams) => Promise<StoredAsset>;
+/** The avatar-only store the profile importers call: the assets domain implements it, narrowed to the answer they read. */
+export type StoreAvatarAsset = (params: StoreParams & { readonly kind: "avatar" }) => Promise<Pick<StoredAsset, "assetId">>;
 export type ReadOwnedAssetBytes = (caller: Principal, assetId: AssetId) => Promise<OwnedAssetBytes>;
 
 /** An asset's owner, CAS hash and mime, resolved by row id alone. */

@@ -6,6 +6,7 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
+import type { ImportCardScripts } from "@orb/contracts/regex";
 import { TRPC_BATCH_MAX_ITEMS } from "@orb/contracts/rpc";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { DomainRateLimitError } from "@orb/kit/errors";
@@ -24,7 +25,6 @@ import type { ImportAssetPort } from "#domain/assets";
 import type { ImportCharacterPort } from "#domain/character";
 import type { ExportService } from "#domain/export";
 import type { SettleImportMemory } from "#domain/import";
-import type { ImportCardScripts } from "#domain/regex";
 import type { SessionsService } from "#domain/sessions";
 import { readGlobalSettings } from "#domain/settings";
 import type { RelayController } from "#domain/share";

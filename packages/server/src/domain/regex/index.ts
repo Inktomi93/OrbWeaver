@@ -5,9 +5,6 @@
 export type {
   ExportCardScripts,
   ExportRegexScripts,
-  ImportCardScripts,
-  ImportGlobalScripts,
-  ImportPresetScripts,
   ImportRegexScript,
 } from "./contract/portability.ts";
 

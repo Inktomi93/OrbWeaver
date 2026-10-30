@@ -1,5 +1,6 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { CardImportResult } from "@orb/contracts/import";
+import type { ImportCardScripts } from "@orb/contracts/regex";
 import type { ImportTagPort } from "@orb/contracts/tag";
 import type { ImportAssetPort } from "#domain/assets";
 import { createImportAvatarStore } from "#domain/assets";
@@ -7,7 +8,6 @@ import type { ImportCharacterPort } from "#domain/character";
 import { createCharacterImportOps } from "#domain/character";
 import type { ImportFile, RestoreCharacterBookResult } from "#domain/import";
 import { buildImportContext, createImportService, importCardBatch } from "#domain/import";
-import type { ImportCardScripts } from "#domain/regex";
 import { createImportedCardTag } from "#domain/tag";
 import type { ImportWorldInfoPort } from "#domain/world-info";
 

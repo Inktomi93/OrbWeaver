@@ -16,7 +16,7 @@ import { skipToken, useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { use, useRef } from "react";
 import { useTRPC } from "#data";
-import type { SlashArgCompleter, SlashArgOffer, SlashCommandContext, SlashCommandContribution, SlashCommandRunner } from "#lib";
+import type { SlashArgCompleter, SlashArgOffer, SlashCommandContext, SlashCommandContribution, SlashCommandRunner, SlashCommandUnavailableFor } from "#lib";
 import { SlashCommandRegistryContext } from "#state";
 import { commandNotReadyNotice, parseSlashDraft, unknownCommandNotice } from "../lib/slash-command.ts";
 
@@ -31,7 +31,7 @@ export function useSlashCommands(chatId: ChatId | null): {
   readonly context: SlashCommandContext;
   readonly commands: readonly SlashCommandContribution[];
   readonly mounts: ReactNode;
-  readonly unavailableFor: (command: SlashCommandContribution) => string | null;
+  readonly unavailableFor: SlashCommandUnavailableFor;
   readonly dispatch: (value: string) => SlashDispatch;
   readonly run: (id: string) => void;
   readonly argOffers: (commandId: string, argsText: string) => readonly SlashArgOffer[];

@@ -6,7 +6,7 @@
 // reports whether it consumed the event (the composer then skips its native send path).
 
 import type { KeyboardEvent } from "react";
-import type { SlashCommandContribution } from "#lib";
+import type { SlashCommandContribution, SlashCommandUnavailableFor } from "#lib";
 import { shouldSendOnEnter } from "./composer-send-keys.ts";
 import { nextSlashHighlight, resolveSlashKey } from "./slash-command.ts";
 
@@ -17,7 +17,7 @@ export interface SlashStripKeyDeps {
   readonly setHighlight: (updater: (prev: number) => number) => void;
   /** Completes the draft to the picked command's token (the click path's effect). */
   readonly pick: (command: SlashCommandContribution) => void;
-  readonly unavailableFor: (command: SlashCommandContribution) => string | null;
+  readonly unavailableFor: SlashCommandUnavailableFor;
   /** Surfaces an UNAVAILABLE offer's reason instead of completing it (the disabled-affordance law). */
   readonly setNotice: (reason: string) => void;
 }

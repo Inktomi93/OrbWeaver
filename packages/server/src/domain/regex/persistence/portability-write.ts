@@ -9,7 +9,14 @@
 // before failing to attach them would leave the library with orphan scripts and the card with none.
 
 import type { PortableFile } from "@orb/contracts/portability";
-import type { ImportCardScriptsResult, PortableRegexScript, RegexScriptRow } from "@orb/contracts/regex";
+import type {
+  ImportCardScripts,
+  ImportCardScriptsResult,
+  ImportGlobalScripts,
+  ImportPresetScripts,
+  PortableRegexScript,
+  RegexScriptRow,
+} from "@orb/contracts/regex";
 import { characterRegexScripts, characters, globalRegexScripts, presetRegexScripts, regexScripts } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
@@ -21,16 +28,7 @@ import { slugifyHandle } from "@orb/kit/slug";
 import { and, asc, eq } from "drizzle-orm";
 import { portableParseError } from "#primitives/serde/lib";
 import { buildRegexScriptFile, parseRegexScriptFile, REGEX_SCRIPT_SCHEMA_KIND } from "#primitives/serde/regex";
-import type {
-  ExportCardScripts,
-  ExportRegexScript,
-  ExportRegexScripts,
-  ImportCardScripts,
-  ImportGlobalScripts,
-  ImportPresetScripts,
-  ImportRegexScript,
-  RegexPortabilityContext,
-} from "../contract/portability.ts";
+import type { ExportCardScripts, ExportRegexScript, ExportRegexScripts, ImportRegexScript, RegexPortabilityContext } from "../contract/portability.ts";
 import { findDuplicate, planCardLift, splitScript } from "../substrate/dedup.ts";
 import { ensureCharacterOwned, ensurePresetOwned } from "./ownership.ts";
 import { listOwnedScripts, loadOwnedScript, loadOwnedScriptsByIds, toRow } from "./queries.ts";

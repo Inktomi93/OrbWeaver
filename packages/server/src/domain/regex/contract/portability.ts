@@ -20,13 +20,7 @@
 // a card pack is the norm, and always-new would breed hundreds of identical rows.
 
 import type { PortableFile } from "@orb/contracts/portability";
-import type {
-  ExportedCardScripts,
-  ImportCardScriptsArgs,
-  ImportCardScriptsResult,
-  ImportGlobalScriptsArgs,
-  ImportPresetScriptsArgs,
-} from "@orb/contracts/regex";
+import type { ExportedCardScripts } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
 import type { CharacterId, RegexScriptId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
@@ -37,12 +31,6 @@ export interface RegexPortabilityContext {
   readonly now: Clock;
   readonly newScriptId: () => RegexScriptId;
 }
-
-export type ImportCardScripts = (args: ImportCardScriptsArgs) => Promise<ImportCardScriptsResult>;
-
-export type ImportPresetScripts = (args: ImportPresetScriptsArgs) => Promise<ImportCardScriptsResult>;
-
-export type ImportGlobalScripts = (args: ImportGlobalScriptsArgs) => Promise<ImportCardScriptsResult>;
 
 export type ExportCardScripts = (args: { readonly ownerId: UserId; readonly characterId: CharacterId }) => Promise<ExportedCardScripts>;
 

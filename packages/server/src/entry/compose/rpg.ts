@@ -11,6 +11,7 @@
 // resolveRpgParticipants/postNarratorMessage) flow the OTHER way, off `chatCompose.rpgChatOps` — chat learns nothing
 // rpg-shaped, rpg learns no chat tables (§2 one-directional flow, both directions principal-free).
 
+import type { ImportRpgGame } from "@orb/contracts/rpg";
 import type { IdSource } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { Clock, ScheduleOp } from "@orb/kit/time";
@@ -18,7 +19,6 @@ import { can } from "#domain/admin";
 import { isCharacterHandleConflict } from "#domain/character";
 import type { PostNarratorMessage } from "#domain/chat";
 import type {
-  ImportRpgGame,
   RpgContext,
   RpgCopyPresetToUser,
   RpgPostNarratorMessage,

@@ -10,21 +10,14 @@
 // only the DATA the engine runs on (Constitution.md §1 "engine vs data").
 
 import type { LiveOnlyChatBusEvent, ResolveRegexSources } from "@orb/contracts/chat";
+import type { ImportCardScripts, ImportGlobalScripts, ImportPresetScripts } from "@orb/contracts/regex";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { IdSource } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import { can } from "#domain/admin";
 import { createResolveRoomDisplayPolicy, requireHost, requireParticipant } from "#domain/chat";
-import type {
-  ExportCardScripts,
-  ExportRegexScripts,
-  ImportCardScripts,
-  ImportGlobalScripts,
-  ImportPresetScripts,
-  ImportRegexScript,
-  RegexService,
-} from "#domain/regex";
+import type { ExportCardScripts, ExportRegexScripts, ImportRegexScript, RegexService } from "#domain/regex";
 import {
   createExportCardScripts,
   createExportRegexScripts,

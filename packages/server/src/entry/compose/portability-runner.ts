@@ -1,5 +1,7 @@
 import type { BulkImportChatsOp } from "@orb/contracts/chat";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
+import type { ImportCardScripts, ImportGlobalScripts, ImportPresetScripts } from "@orb/contracts/regex";
+import type { ImportRpgGame } from "@orb/contracts/rpg";
 import { ASSET_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { IdSource, PersonaId, UserId } from "@orb/kit/ids";
@@ -24,8 +26,7 @@ import type { BulkImportPersonas, PersonaService } from "#domain/persona";
 import { createFindOwnedPersonaByName } from "#domain/persona";
 import type { PresetContext } from "#domain/preset";
 import { createImportPresets } from "#domain/preset";
-import type { ExportRegexScripts, ImportCardScripts, ImportGlobalScripts, ImportPresetScripts, ImportRegexScript } from "#domain/regex";
-import type { ImportRpgGame } from "#domain/rpg";
+import type { ExportRegexScripts, ImportRegexScript } from "#domain/regex";
 import type { SettingsContext } from "#domain/settings";
 import { createApplyImportedAppearance, createImportTheme } from "#domain/settings";
 import { createStatsBatchWiring, reconcileStats } from "#domain/stats";

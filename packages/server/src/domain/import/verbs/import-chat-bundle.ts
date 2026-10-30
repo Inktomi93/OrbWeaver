@@ -28,11 +28,11 @@
 import { assetIdSchema } from "@orb/contracts/assets";
 import type { BulkImportChatInput, BulkImportMessageInput, ContentSignatures, ImportedChatRemap, VariantMetadata } from "@orb/contracts/chat";
 import type { PortableFile } from "@orb/contracts/portability";
+import type { RpgPortableGame } from "@orb/contracts/rpg";
 import { themeBackgroundSchema } from "@orb/contracts/theme";
 import { relinkContentAssets } from "@orb/kit/content";
 import { isPlainObject } from "@orb/kit/guards";
 import type { AssetId, CharacterHandle, CharacterId, MessageId, MessageVariantId, PersonaId } from "@orb/kit/ids";
-import type { RpgPortableGame } from "#domain/rpg";
 import { sha256Hex } from "#primitives/content-hash";
 import type { PortableChat, PortableChatVariant, PortableRpgGame } from "#primitives/serde/chat-bundle";
 import { CHAT_BUNDLE_SCHEMA_KIND, parseChatBundleFile } from "#primitives/serde/chat-bundle";

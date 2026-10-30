@@ -44,6 +44,7 @@ import { resolve } from "node:path";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { AuthModeSource, Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
+import type { ImportCardScripts } from "@orb/contracts/regex";
 import { CATALOG_SETTINGS_PREFIX } from "@orb/contracts/settings";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { DatabaseHandle } from "@orb/db/wiring";
@@ -104,7 +105,6 @@ import {
 } from "#domain/plugin";
 import { buildSideGenParams, createCopyPresetToUser, createLoadOptionalPreset, createPresetReadable } from "#domain/preset";
 import { createResolveStructuredBinding } from "#domain/refinery";
-import type { ImportCardScripts } from "#domain/regex";
 import { createSeedRosterPreset } from "#domain/roster-preset";
 import type { RpgContext, RpgTraceRecorder } from "#domain/rpg";
 import { createExportRpgGame, createRpgEventBus, createRpgTraceRecorder } from "#domain/rpg";

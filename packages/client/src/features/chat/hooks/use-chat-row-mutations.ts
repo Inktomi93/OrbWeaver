@@ -13,6 +13,7 @@
 // matched key for rollback); that is a change to the shared `data/` machine, not to this row.
 
 import type { ChatId } from "@orb/kit/ids";
+import type { EntityMutateAsync } from "#data";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 
 interface UpdateTitleVars {
@@ -62,7 +63,7 @@ export interface ChatListRowActions {
   readonly updateTitle: (vars: UpdateTitleVars) => void;
   readonly star: (vars: StarChatVars) => void;
   readonly archive: (vars: ArchiveChatVars) => void;
-  readonly remove: (vars: DeleteChatVars) => Promise<unknown>;
+  readonly remove: EntityMutateAsync<DeleteChatVars, unknown>;
 }
 
 /** One mutation pack per mounted list, not one pack per virtual row. A viewport can mount fifteen rows;

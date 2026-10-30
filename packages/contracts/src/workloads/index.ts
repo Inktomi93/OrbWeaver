@@ -35,6 +35,7 @@ export type { WorkloadError, WorkloadEvent } from "./events.ts";
 export type {
   EveryOwnerEstimate,
   EveryOwnerRun,
+  ListCorpusOwners,
   ReportProgress,
   WorkloadEstimateScope,
   WorkloadLane,
