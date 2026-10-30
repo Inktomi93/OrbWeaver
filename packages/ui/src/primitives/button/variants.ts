@@ -303,13 +303,14 @@ const INK_TONE_OF = {
 type ButtonVariantProps = VariantProps<typeof buttonVariants>;
 
 /**
- * The D336 tone a button's roles resolve against. A filled intent names its own; a fill-less intent takes its
- * `tone` ink, and a selection rail takes the primary rail it paints.
+ * The D336 tone a button's roles resolve against. A filled intent names its own. A selection rail takes the primary
+ * rail it paints: the owner-ratified selection idiom keeps one colour, so a rail row's `tone` ink yields to it, as
+ * the rail did before the roles. Any other fill-less intent takes its `tone` ink.
  */
 export function buttonTone(intent: ButtonVariantProps["intent"], tone: ButtonVariantProps["tone"], selection: ButtonVariantProps["selection"]): ToneStamp {
   const resolved = intent ?? "primary";
   if (!(FILL_LESS_INTENTS as readonly string[]).includes(resolved)) {
     return INTENT_TONE[resolved];
   }
-  return INK_TONE_OF[tone ?? "default"] ?? (selection === "rail" ? SELECTION_RAIL_TONE : INTENT_TONE[resolved]);
+  return selection === "rail" ? SELECTION_RAIL_TONE : (INK_TONE_OF[tone ?? "default"] ?? INTENT_TONE[resolved]);
 }

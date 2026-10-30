@@ -1,13 +1,15 @@
 // D336 tone knobs for a carried background. The `[data-tone]` blocks read `--tone-mix-*` from the cascade, so a
 // scope that paints its own palette solves the amounts its ramp and intent bases need and emits them beside its
 // colours; the knob defaults clear every shipped palette, and the token build proves that.
-import type { CarriedToneHost, Oklch, ToneColors, ToneMixGroup, TonePalette, ToneScheme, ToneSource } from "@orb/kit/theme-derivation";
+import type { CarriedToneHost, Oklch, SolidInk, ToneColors, ToneMixGroup, TonePalette, ToneScheme, ToneSource } from "@orb/kit/theme-derivation";
 import {
   accentFillLightness,
   carriedTonePalette,
-  derivedForegroundLightness,
-  familyForegroundLightness,
+  compositeSrgb,
+  oklchToSrgb,
+  solidInkLightness,
   solveToneMix,
+  srgbToOklch,
   toneRoleColors,
 } from "@orb/kit/theme-derivation";
 import type { Tone, ToneMixKnob, ToneRole } from "#tokens";
@@ -17,12 +19,14 @@ import { toOklch } from "./color-parse.ts";
 
 /**
  * The knobs a carried palette re-solves (D336). Text and the tint pair lower toward the scope's own foreground and
- * background; the neutral solid steps raise toward the solid. The colored hover and active knobs move away from the
- * page ink, which only widens the pair the intent tokens already clear, so they keep their defaults.
+ * background; every solid step raises toward its solid, which the solid's own ink always clears, so the hover and
+ * active floors hold for every tone, a picked primary included.
  */
 const TONE_MIX_GROUPS = [
   { direction: "lower", scaled: [], inner: "text" },
   { direction: "lower", scaled: ["tint", "tint-active"], inner: "text-on-tint" },
+  { direction: "raise", inner: "hover" },
+  { direction: "raise", inner: "active" },
   { direction: "raise", inner: "neutral-hover" },
   { direction: "raise", inner: "neutral-active" },
 ] as const satisfies readonly ToneMixGroup<ToneMixKnob>[];
@@ -31,6 +35,12 @@ const SOLVED_TONE_KNOBS: readonly ToneMixKnob[] = TONE_MIX_GROUPS.flatMap((group
 
 type IntentTone = Exclude<Tone, "primary" | "neutral">;
 export type CarriedToneScheme = ToneScheme<ToneRole, ToneMixKnob, CarriedToneHost>;
+
+/** The fill a scope paints for an accent, and whether that pixel is the authored spelling itself. */
+export interface AccentPaint {
+  readonly fill: Oklch;
+  readonly authored: boolean;
+}
 
 function intentColor(path: keyof typeof TOKEN_POLARITY_ARMS, polarity: TonePalette<CarriedToneHost>["polarity"]): Oklch {
   const parsed = toOklch(TOKEN_POLARITY_ARMS[path][polarity]);
@@ -56,17 +66,24 @@ export function carriedToneScheme(base: Oklch): CarriedToneScheme {
 }
 
 /**
- * The primary a carried scope paints for an accent (#692 extended by D336): the accent at the lightness the
- * correction picks when the card or the solid steps need it, else `null` and the accent passes through.
+ * The opaque pixel a carried scope paints for an accent (#692, D336): the corrected fill when the card needs one,
+ * else the accent itself, composited over the scope's background when translucent and gamut-mapped when out of
+ * gamut. The clamp emits exactly this pixel, so the colour it judges is the colour the browser paints.
  */
-export function correctedAccentFill(scheme: CarriedToneScheme, accent: ParsedOklch): Oklch | null {
-  const lightness = accentFillLightness({ l: accent.l, c: accent.c, h: accent.h }, accent.alpha, scheme.palette.background, (fill) => solidSteps(scheme, fill));
-  return lightness === null ? null : { l: lightness, c: accent.c, h: accent.h };
+export function paintedAccentFill(scheme: CarriedToneScheme, accent: ParsedOklch): AccentPaint {
+  const verdict = accentFillLightness({ l: accent.l, c: accent.c, h: accent.h }, accent.alpha, scheme.palette.background);
+  if (verdict.kind === "corrected") {
+    return { fill: verdict.fill, authored: false };
+  }
+  const opaque = oklchToSrgb(accent);
+  const pixel = accent.alpha < 1 ? compositeSrgb(opaque, accent.alpha, oklchToSrgb(scheme.palette.background)) : opaque;
+  return { fill: srgbToOklch(pixel), authored: accent.alpha >= 1 && accent.inGamut !== false };
 }
 
-/** The ink lightness paired with an accent fill: one ink over the fill and its solid steps where one exists, else the fill's own. */
-export function accentInkLightness(scheme: CarriedToneScheme, fill: Oklch): number {
-  return familyForegroundLightness([fill, ...solidSteps(scheme, fill)]) ?? derivedForegroundLightness(fill);
+/** The ink paired with an accent fill: one ink over the fill and its solid steps where one exists, else the fill's
+ *  own ink, and the solve raises the step knobs until it clears them too. */
+export function accentInk(scheme: CarriedToneScheme, fill: Oklch): SolidInk {
+  return solidInkLightness(fill, solidSteps(scheme, fill));
 }
 
 /** A carried scope's tones: neutral on its ramp, the intent arms at its polarity, and the primary it paints, when known. */
@@ -76,7 +93,7 @@ export function carriedToneSources(scheme: CarriedToneScheme, primaryFill: Oklch
       return ["neutral"];
     }
     if (tone === "primary") {
-      return primaryFill === null ? [] : [{ base: primaryFill, foreground: { l: accentInkLightness(scheme, primaryFill), c: 0, h: primaryFill.h } }];
+      return primaryFill === null ? [] : [{ base: primaryFill, foreground: { l: accentInk(scheme, primaryFill).lightness, c: 0, h: primaryFill.h } }];
     }
     return [intentTone(tone, scheme.palette.polarity)];
   });

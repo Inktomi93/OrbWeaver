@@ -639,11 +639,11 @@
   }
 
   [data-pigment="avatar"] {
-    --pigment-avatar-1: oklch(from var(--color-primary) calc(l - 0.085) calc(c * 1.1) h);
-    --pigment-avatar-2: oklch(from var(--color-primary) calc(l - 0.065) calc(c * 0.5) h);
-    --pigment-avatar-3: oklch(from var(--color-primary) calc(l - 0.042) calc(c * 0.95) h);
-    --pigment-avatar-4: oklch(from var(--color-primary) calc(l - 0.02) calc(c * 0.62) h);
-    --pigment-avatar-5: var(--color-primary);
+    --pigment-avatar-1: oklch(from color-mix(in oklab, var(--color-primary) 86%, oklch(from var(--color-primary-foreground) clamp(0, calc((0.5 - l) * 1000), 1) 0 0) 14%) l calc(c * 1.1) h);
+    --pigment-avatar-2: oklch(from color-mix(in oklab, var(--color-primary) 89%, oklch(from var(--color-primary-foreground) clamp(0, calc((0.5 - l) * 1000), 1) 0 0) 11%) l calc(c * 0.5) h);
+    --pigment-avatar-3: oklch(from color-mix(in oklab, var(--color-primary) 93%, oklch(from var(--color-primary-foreground) clamp(0, calc((0.5 - l) * 1000), 1) 0 0) 7%) l calc(c * 0.95) h);
+    --pigment-avatar-4: oklch(from color-mix(in oklab, var(--color-primary) 96.5%, oklch(from var(--color-primary-foreground) clamp(0, calc((0.5 - l) * 1000), 1) 0 0) 3.5%) l calc(c * 0.62) h);
+    --pigment-avatar-5: oklch(from color-mix(in oklab, var(--color-primary) 100%, oklch(from var(--color-primary-foreground) clamp(0, calc((0.5 - l) * 1000), 1) 0 0) 0%) l calc(c * 1) h);
   }
 
   [data-pigment="waystone"] {

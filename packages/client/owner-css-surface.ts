@@ -904,7 +904,7 @@ export const OWNER_CSS_SHELL_CLASSES = [
   "shell-topbar-trail",
 ] as const;
 
-/** Every custom property theme.css serves on the document, plus the registered appearance properties; the ramp primitives are private and unserved. */
+/** Every custom property theme.css serves on the document, plus the registered appearance properties; the ramp primitives are private and unserved. The D336 `--color-tone-*` roles resolve only on or under a `[data-tone]` element. */
 export const OWNER_CSS_TOKEN_VARS = [
   "--appearance-blur-strength",
   "--appearance-chat-width-pct",
@@ -1264,6 +1264,8 @@ export const OWNER_CSS_THEME_SCOPE_VARS = [
   "--color-user-bubble-foreground",
   "--font-sans",
   "--radius-card",
+  "--tone-mix-active",
+  "--tone-mix-hover",
   "--tone-mix-neutral-active",
   "--tone-mix-neutral-hover",
   "--tone-mix-text",

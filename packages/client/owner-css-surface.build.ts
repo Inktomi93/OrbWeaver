@@ -222,7 +222,7 @@ export function renderOwnerCssSurface(input: SurfaceInput, previous: readonly Ow
     "/** Every `.shell-*` class shell.css styles. */",
     tuple("OWNER_CSS_SHELL_CLASSES", live["shell-class"]),
     "",
-    "/** Every custom property theme.css serves on the document, plus the registered appearance properties; the ramp primitives are private and unserved. */",
+    "/** Every custom property theme.css serves on the document, plus the registered appearance properties; the ramp primitives are private and unserved. The D336 `--color-tone-*` roles resolve only on or under a `[data-tone]` element. */",
     tuple("OWNER_CSS_TOKEN_VARS", live.token),
     "",
     "/** Every custom property a ThemeScope writes for a carried or custom theme. */",

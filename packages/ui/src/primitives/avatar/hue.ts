@@ -18,9 +18,9 @@
 //
 // DIFFERENTIATION IS LIGHTNESS × CHROMA, NEVER HUE (the ruling, verbatim: "vary lightness/chroma within
 // the band, not hue across the wheel, so entities stay tellable-apart without leaving register"). The
-// deltas are RELATIVE (`calc(l + Δ)`, `calc(c * k)`) and a bucket is never pinned to an absolute
+// deltas are RELATIVE (a mix share, `calc(c * k)`) and a bucket is never pinned to an absolute
 // lightness, so no palette can be pushed out of its own contrast pairing. The window's measured shape —
-// and why it is darken-only rather than symmetric — is stated below.
+// and why it moves away from the ink rather than always down — is stated below.
 
 import type { PigmentScope } from "#tokens";
 import { PIGMENTS } from "#tokens";
@@ -33,13 +33,13 @@ const DJB2_MULT = 33;
 // Reduce mod (2^31 - 1) so the running hash stays a bounded, exact integer (no float-precision drift).
 const HASH_MOD = 2_147_483_647;
 
-// THE FIVE IN-BAND STEPS (their lightness offsets and chroma multipliers live in the pigment recipes).
-// THE WINDOW IS DARKEN-ONLY (−0.085 … 0), and that is measured, not taste. `--color-primary-foreground` is the
-// ink on every bucket, and its polarity flips per palette: on Light the ink is near-white, so LIGHTENING the fill
-// walks it toward the text (a +0.06 step measured 3.78:1, a +0.09 step 3.45:1 — both under WCAG AA). Darkening is
-// the one direction that is safe on a light palette and merely costs margin on a dark one (Hearth's deepest
-// bucket measures 4.73:1). DIFFERENTIATION THEN RIDES CHROMA (0.5× … 1.1×), alternating rich/washed down the
-// lightness ramp so two neighbouring buckets never differ on one axis alone. Bucket 5 is the primary itself.
+// THE FIVE IN-BAND STEPS (their shares and chroma multipliers live in the pigment recipes): each mixes a share of the
+// theme's primary toward the lightness extreme opposite `--color-primary-foreground`. THE WINDOW MOVES AWAY FROM THE
+// INK, never in a fixed direction: the ink's polarity flips per palette, a fixed darkening cost contrast under a dark
+// ink (a mid primary measured 3.5:1) and a fixed lightening under a light one (a +0.06 step measured 3.78:1). Moving
+// away from the ink can only raise the pair's contrast, so every bucket keeps at least the primary↔ink contrast the
+// ThemeScope clamp already sweeps. DIFFERENTIATION ALSO RIDES CHROMA (0.5× … 1.1×), alternating rich/washed down the
+// ramp so two neighbouring buckets never differ on one axis alone. Bucket 5 is the primary itself.
 
 /** The pigment scope a consumer of {@link avatarFallbackHueColor} stamps as `data-pigment`. */
 export const AVATAR_PIGMENT = "avatar" satisfies PigmentScope;

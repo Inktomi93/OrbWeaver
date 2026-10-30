@@ -851,12 +851,15 @@ function fillVsCardRatio(fill: Rgb, card: Rgb): number {
   return Math.min(wcagContrastRatio(fill, card), wcagContrastRatio(quantized(fill), quantized(card)));
 }
 
+/** The accent-fill search's verdict: the accent already clears, a corrected fill, or no lightness that clears. */
+export type AccentFill = { readonly kind: "clears" } | { readonly kind: "corrected"; readonly fill: Oklch } | { readonly kind: "none" };
+
 /**
  * THE ACCENT FILL'S LIGHTNESS for a carried base — the §7a ink clamp's shape, applied to the one PICKED
- * token that paints a GRAPHIC rather than an ink (#692). `null` ⇒ the accent already clears against the
- * card it is painted on, so the caller passes it through BYTE-IDENTICALLY (the no-op-where-the-pick-was-
- * sensible guarantee `proseInkLightness` states); a number ⇒ the lightness to re-derive it at, keeping the
- * author's hue and chroma.
+ * token that paints a GRAPHIC rather than an ink (#692). `clears` ⇒ the accent already clears against the
+ * card it is painted on, so the caller passes it through (the no-op-where-the-pick-was-sensible guarantee
+ * `proseInkLightness` states); `corrected` ⇒ the fill re-derived at a new lightness, keeping the author's hue
+ * and chroma as far as the sRGB gamut allows.
  *
  * THE MOTIVATING MEASUREMENT (#692, and it is not a light-arm ramp defect): `--color-primary` is never
  * derived — `clamp.ts` emits the PICKED accent, so a scope that carries a light background and no accent
@@ -871,49 +874,89 @@ function fillVsCardRatio(fill: Rgb, card: Rgb): number {
  * arc, a ring gauge's fill, a track bar) is painted on a panel, and the card is the ramp member panels
  * take. The floor is {@link AA_NON_TEXT_RATIO} (3:1) because a fill IS a non-text graphical object.
  *
- * THE DIRECTION IS THE CARD'S measured polarity, so this can never fight its foreground: on a light card
- * the accent must go DARKER; on a dark card, lighter. The search walks `ACCENT_L_STEP` at a time
+ * THE FIRST DIRECTION IS THE CARD'S measured polarity: on a light card the accent goes DARKER first; on a dark
+ * card, lighter. The search walks `ACCENT_L_STEP` at a time
  * and stops at the FIRST clearing lightness — the smallest move that buys legibility, so an author's pick
  * is nudged rather than replaced. A translucent accent is composited over the card before judging (a naive
  * ratio on a translucent fill lies, `proseInkLightness`'s own trap) and the caller re-emits it OPAQUE.
  *
- * D336 extends the judge to the solid steps: `solidSteps` maps a fill to its hover and active colours, and a
- * lightness clears only when one ink also covers the fill and both steps ({@link familyForegroundLightness}).
- * The steps move away from the page ink, the same direction this search walks, so the walk leaves the
- * black/white crossover behind.
+ * The walk tries both directions a step at a time, the card's own direction first, and returns the nearest
+ * clearing lightness. The corrected fill is the opaque sRGB pixel at that lightness, so the caller paints exactly
+ * the colour this judged: an out-of-gamut chroma never reaches the CSS.
  *
- * Returns `null` rather than a bound when NO lightness in `[fgLMin, fgLMax]` clears — a base whose card
- * cannot carry this hue at all. Failing open is the pre-#692 behaviour, and inventing a colour is what
- * this whole file exists not to do.
+ * `none` means NO lightness in `[fgLMin, fgLMax]` clears — a card that cannot carry this hue at all. Failing open
+ * to the authored accent is the pre-#692 behaviour, and inventing a colour is what this file exists not to do.
  */
-export function accentFillLightness(accent: Oklch, accentAlpha: number, base: Oklch, solidSteps: (fill: Oklch) => readonly Oklch[]): number | null {
+export function accentFillLightness(accent: Oklch, accentAlpha: number, base: Oklch): AccentFill {
   const card = oklchToSrgb(rampSurface(base, rampDeltas(base).card));
-  const at = (l: number): Rgb => {
-    const opaque = oklchToSrgb({ l, c: accent.c, h: accent.h });
-    return accentAlpha < 1 ? compositeSrgb(opaque, accentAlpha, card) : opaque;
-  };
-  const clears = (fill: Rgb): boolean => {
-    const painted = srgbToOklch(fill);
-    return fillVsCardRatio(fill, card) >= AA_NON_TEXT_RATIO && familyForegroundLightness([painted, ...solidSteps(painted)]) !== null;
-  };
-  if (clears(at(accent.l))) {
-    return null;
+  const opaque = oklchToSrgb(accent);
+  if (fillVsCardRatio(accentAlpha < 1 ? compositeSrgb(opaque, accentAlpha, card) : opaque, card) >= AA_NON_TEXT_RATIO) {
+    return { kind: "clears" };
   }
-  const towardDark = surfacePolarity(base) === "light";
-  const limit = towardDark ? THEME_DERIVATION.fgLMin : THEME_DERIVATION.fgLMax;
-  const steps = Math.round(Math.abs(accent.l - limit) / ACCENT_L_STEP);
-  for (let step = 1; step <= steps; step += 1) {
-    const l = accent.l + (towardDark ? -step : step) * ACCENT_L_STEP;
-    // Judged OPAQUE at the re-derived lightness: the caller emits it opaque for the same reason the ink
-    // clamp does — a minimal alpha sits on the boundary and re-judging it is a fixed point that never passes.
-    if (clears(oklchToSrgb({ l, c: accent.c, h: accent.h }))) {
+  const first = surfacePolarity(base) === "light" ? -1 : 1;
+  const maxSteps = Math.round(Math.max(accent.l - THEME_DERIVATION.fgLMin, THEME_DERIVATION.fgLMax - accent.l) / ACCENT_L_STEP);
+  for (let step = 1; step <= maxSteps; step += 1) {
+    for (const sign of [first, -first]) {
       // Re-round: accent.l + n×0.001 accumulates binary-float dust that would reach the CSS literal.
-      return Math.round(l / ACCENT_L_STEP) * ACCENT_L_STEP;
+      const l = Math.round((accent.l + sign * step * ACCENT_L_STEP) / ACCENT_L_STEP) * ACCENT_L_STEP;
+      if (l < THEME_DERIVATION.fgLMin || l > THEME_DERIVATION.fgLMax) {
+        continue;
+      }
+      // Judged OPAQUE at the re-derived lightness: the caller emits it opaque for the same reason the ink
+      // clamp does — a minimal alpha sits on the boundary and re-judging it is a fixed point that never passes.
+      const pixel = oklchToSrgb({ l, c: accent.c, h: accent.h });
+      if (fillVsCardRatio(pixel, card) >= AA_NON_TEXT_RATIO) {
+        return { kind: "corrected", fill: srgbToOklch(pixel) };
+      }
     }
   }
-  return null;
+  return { kind: "none" };
 }
 
+/** The ink paired with a solid fill and its hover and active steps, and whether it covers the steps too. */
+export interface SolidInk {
+  readonly lightness: number;
+  readonly coversSteps: boolean;
+}
+
+/**
+ * The ink for a solid and its steps (D336). One ink over all three when one exists; else the fill's own ink at the
+ * polarity that leaves the steps the most contrast, so the clamp raises the step knobs toward the fill until the
+ * floor holds. A single surface always admits an ink above AA (black or white reaches √21 against any pixel).
+ */
+export function solidInkLightness(fill: Oklch, steps: readonly Oklch[]): SolidInk {
+  const family = familyForegroundLightness([fill, ...steps]);
+  if (family !== null) {
+    return { lightness: family, coversSteps: true };
+  }
+  const fillRgb = oklchToSrgb(fill);
+  const candidates = SURFACE_POLARITIES.flatMap((polarity) => {
+    const endpoint = oklchToSrgb({ l: polarity === "light" ? 0 : 1, c: 0, h: fill.h });
+    const target = Math.max(AA_NORMAL_RATIO, Math.min(AA_NORMAL_DERIVATION_RATIO, worstTextContrast(endpoint, [fillRgb])));
+    const lightness = tryNeutralInkLightness(polarity, [fillRgb], polarity === "light" ? THEME_DERIVATION.fgLMin : THEME_DERIVATION.fgLMax, target);
+    if (lightness === null) {
+      return [];
+    }
+    const ink = oklchToSrgb({ l: lightness, c: 0, h: fill.h });
+    return [
+      {
+        lightness,
+        stepsMin: worstTextContrast(
+          ink,
+          steps.map((step) => oklchToSrgb(step)),
+        ),
+      },
+    ];
+  });
+  const best = candidates.reduce<(typeof candidates)[number] | undefined>(
+    (winner, candidate) => (winner === undefined || candidate.stepsMin > winner.stepsMin ? candidate : winner),
+    undefined,
+  );
+  if (best === undefined) {
+    throw new Error("unable to derive a contrast-safe ink for a solid fill");
+  }
+  return { lightness: best.lightness, coversSteps: false };
+}
 /** The operands a D336 tone-role mix moves toward. `away` is `light-dark(black, white)`: the solid steps move away from the page ink. */
 export const TONE_MIX_TARGETS = ["foreground", "background", "away"] as const;
 export type ToneMixTarget = (typeof TONE_MIX_TARGETS)[number];

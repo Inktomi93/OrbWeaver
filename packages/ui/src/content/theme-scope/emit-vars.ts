@@ -80,6 +80,8 @@ export const THEME_SCOPE_EMIT_VARS = [
   "--tone-mix-tint",
   "--tone-mix-tint-active",
   "--tone-mix-text-on-tint",
+  "--tone-mix-hover",
+  "--tone-mix-active",
   "--tone-mix-neutral-hover",
   "--tone-mix-neutral-active",
   "--font-sans",

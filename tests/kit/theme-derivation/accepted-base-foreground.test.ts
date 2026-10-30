@@ -12,11 +12,9 @@ import {
   THEME_DERIVATION,
   wcagContrastRatio,
 } from "@orb/kit/theme-derivation";
+import { ACCEPTED_BASES } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 
-const LIGHTNESSES = [...Array.from({ length: 101 }, (_unused, index) => index / 100), 0.62, 0.6201];
-const CHROMAS = [0, 0.01, 0.25, 1, 3.6];
-const HUES = [0, 60, 180, 300];
 const SHARED_ROLES = ["sidebar", "surfaceRaised", "card", "popover", "secondary", "muted"] as const;
 
 // D202 fixes the pre-paint target independently of the implementation's private search constant.
@@ -75,8 +73,7 @@ function assertBase(base: Oklch): { readonly inputProjected: boolean; readonly r
 }
 
 test("accepted bases retain clearing semantic and muted/input solvers with nonzero projection populations", () => {
-  const bases = CHROMAS.flatMap((c) => LIGHTNESSES.flatMap((l) => HUES.map((h) => ({ l, c, h }))));
-  const results = bases.map(assertBase);
+  const results = ACCEPTED_BASES.map(assertBase);
   expect(results).toHaveLength(2060);
   expect(results.filter(({ inputProjected }) => inputProjected).length).toBeGreaterThan(0);
   expect(results.filter(({ rampProjected }) => rampProjected).length).toBeGreaterThan(0);

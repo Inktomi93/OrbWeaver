@@ -165,9 +165,9 @@ export const trackBarVariants = tv({
     // named zone rather than to a user-defined pool. The preset budget readout is the case: its bars
     // inherit the rack's steel-blue setup / warm-amber zone accent, and the ramp's step 1 (vitality
     // GREEN) is a hue the surface language does not otherwise contain (side-eye 2026-08-02, the
-    // mock-vs-rendered classification). Held at 55% so a column of bars stays quieter than the value
-    // text beside it, which is the accessible datum (§3.2 — the bar itself is aria-hidden). The fill is the
-    // zone tone's held-back edge, stamped on the fill element.
+    // mock-vs-rendered classification). The fill is the zone tone's held-back edge, stamped on the fill element,
+    // so a column of bars stays quieter than the value text beside it, which is the accessible datum (§3.2 — the
+    // bar itself is aria-hidden).
     accent: {
       ramp: {},
       info: { fill: "bg-tone-edge" },
