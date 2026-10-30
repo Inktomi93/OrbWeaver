@@ -24,18 +24,25 @@ const PAINT = z.object({
 type Paint = z.output<typeof PAINT>;
 type Rgba = z.output<typeof RGBA>;
 
-// Canvas byte rounding and premultiplied-alpha round trips; an unparsed color lands far outside it.
+// Canvas byte rounding; an unparsed color lands far outside it.
 const CHANNEL_TOLERANCE = 3;
 const RGB_CHANNELS = 3;
 const OPAQUE = 255;
 const WIDTH = 415;
+
+// A canvas stores premultiplied bytes, so a translucent color's channels are only recoverable to within one
+// alpha step (255 / alpha), and a GPU-backed canvas (the oracle) and a CPU-backed one (the chart's read-back)
+// round them differently. A low-alpha token such as the 8% border therefore differs by that step with no defect.
+function premultipliedStep(alpha: number | undefined): number {
+  return alpha === undefined || alpha >= OPAQUE ? 0 : Math.ceil(OPAQUE / Math.max(alpha, 1));
+}
 
 function channelGap(actual: readonly number[], expected: readonly number[], channels = expected.length): number {
   return Math.max(...expected.slice(0, channels).map((channel, index) => Math.abs(channel - (actual[index] ?? Number.NaN))));
 }
 
 function near(actual: readonly number[], expected: readonly number[], channels = expected.length): boolean {
-  return channelGap(actual, expected, channels) <= CHANNEL_TOLERANCE;
+  return channelGap(actual, expected, channels) <= CHANNEL_TOLERANCE + premultipliedStep(expected[RGB_CHANNELS]);
 }
 
 function distance(a: readonly number[], b: readonly number[]): number {
@@ -56,13 +63,9 @@ async function untilRethemed(page: Page): Promise<void> {
   await expect
     .poll(async () => {
       const current = await readPaint(page);
-      return Math.min(
-        ...current.layers.map((candidate) =>
-          Math.max(channelGap(candidate.cells[2], current.series.pixel), channelGap(candidate.cells[0], current.border.pixel)),
-        ),
-      );
+      return current.layers.some((candidate) => near(candidate.cells[2], current.series.pixel) && near(candidate.cells[0], current.border.pixel));
     })
-    .toBeLessThanOrEqual(CHANNEL_TOLERANCE);
+    .toBe(true);
 }
 
 /** The engine's composited screen pixels at chart-local points. */
