@@ -52,11 +52,22 @@ test("vite's proxy follows the server's resolved port unless the env already nam
 
 test("Windows filters actual imported files while other platforms retain explicit source roots", () => {
   const roots = [join("/repo", "packages", "server", "src")];
-  const options = { nodePath: "node", server: pkg(SERVER_PACKAGE), watchRoots: roots, cwd: "/repo", env: {} };
+  const options = { nodePath: "node", server: pkg(SERVER_PACKAGE), watchRoots: roots, watch: true, cwd: "/repo", env: {} };
   const windows = serverSpawnPlan({ ...options, platform: "win32" });
   expect(windows.args).toContain("--watch");
   expect(windows.args.some((arg) => arg.startsWith("--watch-path="))).toBe(false);
   for (const platform of ["linux", "darwin"] as const) {
     expect(serverSpawnPlan({ ...options, platform }).args).toContain(`--watch-path=${roots[0]}`);
   }
+});
+
+test("a server planned without watch carries no watch flag, so a source edit cannot restart or stop it", () => {
+  const roots = [join("/repo", "packages", "server", "src")];
+  const options = { platform: "linux", nodePath: "node", server: pkg(SERVER_PACKAGE), watchRoots: roots, cwd: "/repo", env: {} } as const;
+  const watched = serverSpawnPlan({ ...options, watch: true }).args;
+  const fixed = serverSpawnPlan({ ...options, watch: false }).args;
+  // POSITIVE CONTROL: the watched plan really does carry the flags the fixed plan must not.
+  expect(watched.some((arg) => arg.startsWith("--watch"))).toBe(true);
+  expect(fixed.some((arg) => arg.startsWith("--watch"))).toBe(false);
+  expect(fixed.at(-1)).toBe(watched.at(-1));
 });

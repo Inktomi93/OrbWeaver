@@ -1,11 +1,16 @@
 // The app shell on the committed corpus: boot readiness and focus, the lazy route's failure surface, the census
 // each screen prints, and the phone's tab bar, You sheet and push-and-Back navigation.
-import { CORPUS_MODE_LABELS } from "@orb/client/lib";
+import { APPEARANCE_CHANNEL_ROWS, CORPUS_MODE_LABELS, dataThemeOf } from "@orb/client/lib";
+import { DATA_THEME_ATTR } from "@orb/client/state";
 import { HOME_QUICK_PICKS_LIMIT } from "@orb/contracts/character";
+import { OS_PREFERENCE_MODES } from "@orb/contracts/settings";
+import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
+import { FONT_SCALE } from "@orb/kit/font-scale";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { SECTION_LABELS } from "@orb/testkit/ct";
 import type { Locator, Page } from "@playwright/test";
+import { z } from "zod";
 import type { ActorClient } from "./support/actors.ts";
 import { ownerActor } from "./support/actors.ts";
 import { waitForAppReady } from "./support/chat-room.ts";
@@ -34,8 +39,8 @@ const PROBE_GREETING = "The shell probe waits.";
 const PROBE_NAMES = ["Shell Probe Aster", "Shell Probe Birch"] as const;
 const PROBE_DRAFT = "Shell Probe Aster, unsaved";
 
-/** The real chunk with every export rebound to a namespace whose `AuthedApp` throws on render. The bundler renames a
- *  chunk's exports, so the names are read from the chunk the server actually served. */
+/** The real chunk with every export rebound to a component that throws on render. The route resolves its component by
+ *  export name, so each served export name must be a function; the names are read from the chunk the server actually served. */
 function crashingAuthedAppChunk(real: string): string {
   const clause = real.slice(real.lastIndexOf(EXPORT_CLAUSE) + EXPORT_CLAUSE.length, real.lastIndexOf("}"));
   const names = clause.split(",").map((binding) => binding.split(" as ").at(-1)?.trim() ?? "");
@@ -43,7 +48,84 @@ function crashingAuthedAppChunk(real: string): string {
     throw new Error("The authed-app chunk carries no export clause");
   }
   const rebound = names.map((name) => `crashing as ${name}`).join(",");
-  return `const crashing = { AuthedApp() { throw new Error(${JSON.stringify(ROUTE_CRASH)}); } };\nexport { ${rebound} };`;
+  return `function crashing() { throw new Error(${JSON.stringify(ROUTE_CRASH)}); }\nexport { ${rebound} };`;
+}
+
+// The schema's own defaults: what a device that was never told anything replays.
+const defaultAppearance = appearanceSettingsSchema.parse({});
+// The durable-local door's names (`state/durable-local.ts`, `state/appearance-boot-hint.ts`), none of them exported.
+const STORAGE_PREFIX = "orb:";
+const ACTIVE_USER_KEY = "orb:active-user";
+const BOOT_HINT_NAME = "appearance-boot";
+const BOOT_HINT_VERSION = 1;
+const BOOT_TRAIL = "__appearanceBootTrail";
+const ROOT_ID = "root";
+const APP_READY_ATTR = "data-app-ready";
+const STYLE_ATTR = "style";
+
+const bootEventSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("html"), attr: z.string(), value: z.string().nullable() }),
+  z.object({ kind: z.literal("mount") }),
+]);
+
+/** The root channel name the production manifest declares for a setting. */
+function channelName(key: (typeof APPEARANCE_CHANNEL_ROWS)[number]["key"]): string {
+  const row = APPEARANCE_CHANNEL_ROWS.find((candidate) => candidate.key === key);
+  if (row === undefined) {
+    throw new Error(`appearance.${key} declares no CSS channel`);
+  }
+  return row.name;
+}
+
+/** Store (or clear) this device's appearance hint, and record every `<html>` attribute write and React's first write
+ *  into `#root`, in order, from before the document's first script. Registered before the first navigation. */
+async function recordBoot(page: Page, hint: Readonly<Record<string, unknown>> | null): Promise<void> {
+  await page.addInitScript(
+    ({ stored, name, version, rootId, trailName, activeUserKey, prefix }) => {
+      // The store mints on the last-bound user's namespace when the device has met one (the fixture's earlier visit did).
+      const bound = localStorage.getItem(activeUserKey);
+      const key = bound === null ? `${prefix}${name}` : `${prefix}u/${bound}/${name}`;
+      if (stored === null) {
+        localStorage.removeItem(key);
+      } else {
+        localStorage.setItem(key, JSON.stringify({ state: stored, version }));
+      }
+      const trail: unknown[] = [];
+      Reflect.set(globalThis, trailName, trail);
+      new MutationObserver((records) => {
+        for (const record of records) {
+          if (record.type === "attributes" && record.target === document.documentElement && record.attributeName !== null) {
+            trail.push({ kind: "html", attr: record.attributeName, value: document.documentElement.getAttribute(record.attributeName) });
+          } else if (record.type === "childList" && record.target instanceof Element && record.target.id === rootId) {
+            trail.push({ kind: "mount" });
+          }
+        }
+      }).observe(document, { subtree: true, attributes: true, childList: true });
+    },
+    {
+      stored: hint,
+      name: BOOT_HINT_NAME,
+      version: BOOT_HINT_VERSION,
+      rootId: ROOT_ID,
+      trailName: BOOT_TRAIL,
+      activeUserKey: ACTIVE_USER_KEY,
+      prefix: STORAGE_PREFIX,
+    },
+  );
+}
+
+/** The last value each `<html>` attribute held before React first wrote into `#root`. */
+async function htmlBeforeMount(page: Page): Promise<ReadonlyMap<string, string | null>> {
+  const trail = z.array(bootEventSchema).parse(await page.evaluate((name) => Reflect.get(globalThis, name), BOOT_TRAIL));
+  const mounted = trail.findIndex((event) => event.kind === "mount");
+  expect(mounted, "React never wrote into #root").toBeGreaterThanOrEqual(0);
+  const before = new Map<string, string | null>();
+  for (const event of trail.slice(0, mounted)) {
+    if (event.kind === "html") {
+      before.set(event.attr, event.value);
+    }
+  }
+  return before;
 }
 
 function rail(page: Page): Locator {
@@ -223,6 +305,31 @@ test.describe("committed corpus shell", () => {
     expect(await page.evaluate(() => Reflect.get(globalThis, "__shellFocusTrail"))).toEqual([]);
     await page.keyboard.press("Tab");
     await expect(page.getByRole("button", { name: SKIP_LINK, exact: true })).toBeFocused();
+  });
+
+  test("a remembered appearance is on <html> before React mounts and before the app is ready", { tag: "@smoke" }, async ({ page, baseURL }) => {
+    const themes = await ownerActor(baseURL ?? "").trpc.settings.listThemes.query();
+    const theme = themes.map((row) => dataThemeOf(row)).find((name) => name !== null);
+    const motion = OS_PREFERENCE_MODES.find((mode) => mode !== defaultAppearance.reducedMotion);
+    if (theme === undefined || motion === undefined) {
+      throw new Error("Corpus has no seed theme with a stamped palette");
+    }
+    await recordBoot(page, { reducedMotion: motion, fontScale: FONT_SCALE.max, dataTheme: theme });
+    await openHome(page);
+    const before = await htmlBeforeMount(page);
+    expect(before.get(channelName("reducedMotion"))).toBe(motion);
+    expect(before.get(STYLE_ATTR)).toContain(`${channelName("fontScale")}: ${String(FONT_SCALE.max)}`);
+    expect(before.get(DATA_THEME_ATTR)).toBe(theme);
+    expect(before.has(APP_READY_ATTR)).toBe(false);
+  });
+
+  test("a device that was never told anything replays the defaults and no theme", { tag: "@smoke" }, async ({ page }) => {
+    await recordBoot(page, null);
+    await openHome(page);
+    const before = await htmlBeforeMount(page);
+    expect(before.get(channelName("reducedMotion"))).toBe(defaultAppearance.reducedMotion);
+    expect(before.get(STYLE_ATTR)).toContain(`${channelName("fontScale")}: ${String(defaultAppearance.fontScale)}`);
+    expect(before.has(DATA_THEME_ATTR)).toBe(false);
   });
 
   test("the app is not ready until Home's first chat read lands", { tag: "@smoke" }, async ({ page }) => {
