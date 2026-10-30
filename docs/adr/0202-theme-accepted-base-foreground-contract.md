@@ -1,7 +1,7 @@
 ---
 kind: adr
 status: active
-updated: 2026-09-23
+updated: 2026-10-30
 ---
 
 # Accepted-base foreground contract supersedes the raw-L pivot
@@ -23,7 +23,7 @@ Split off [ADR 0071](0071-theme-palette-pipeline.md), whose accepted-base foregr
   than substituting `muted-foreground`. If a proposed derived ramp member would make a documented shared
   family impossible, that delta retracts toward the unchanged authored base on a measured 0.001 grid; if the
   translucent input fill alone makes the muted/input family impossible, only its derived alpha retracts.
-  Dedicated accent/sidebar-accent surfaces are never projected.
+  Dedicated accent/sidebar-accent surfaces are never projected, except that the accent delta retracts toward the base where one ink cannot cover the accent and muted family, which D336 makes the neutral tone's text-on-tint hosts.
   Builder/create/update, ST import, root/nested/carried ThemeScopes and
   portals all accept the same `ThemeOverride` domain; only unreadable/contextual values without an ambient
   fail open. Seed blocks remain generated and gain only the two additive paired variables at their former

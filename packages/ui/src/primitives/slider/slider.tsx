@@ -4,7 +4,7 @@ import type { ReactElement, ReactNode } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { cn, variantAttrs } from "#lib";
 import { useFieldIdentity } from "#primitives/field";
-import { sliderVariants } from "./variants.ts";
+import { SLIDER_INVALID_TONE, sliderVariants } from "./variants.ts";
 
 // A range slider carries an array value → one thumb per entry; a single slider carries a scalar.
 function thumbCount(value: number | readonly number[] | null | undefined): number {
@@ -93,7 +93,7 @@ export function Slider<Value extends number | readonly number[] = number>(props:
         </div>
       ) : null}
       <BaseSlider.Control className={slots.control()} data-slot="slider-control">
-        <BaseSlider.Track className={slots.track()} data-slot="slider-track">
+        <BaseSlider.Track className={slots.track()} data-slot="slider-track" data-tone={SLIDER_INVALID_TONE}>
           <BaseSlider.Indicator className={slots.indicator()} data-slot="slider-indicator" />
         </BaseSlider.Track>
         {/* THUMBS ARE SIBLINGS OF THE TRACK, never children of it. The track clips (`overflow-hidden`, so

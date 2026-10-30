@@ -1,3 +1,4 @@
+import type { ToneStamp } from "#lib";
 import { tv } from "#lib";
 
 /**
@@ -12,7 +13,10 @@ export const separatorVariants = tv({
       vertical: "block-full inline-px",
     },
     // The rule in the primary ink at low strength: a boundary in a transcript that names a region (the context line).
-    tone: { border: "", primary: "bg-primary/35" },
+    tone: { border: "", primary: "bg-tone-edge" },
   },
   defaultVariants: { orientation: "horizontal", tone: "border" },
 });
+
+/** The D336 tone each rule stamps. */
+export const SEPARATOR_TONE = { border: null, primary: "primary" } as const satisfies Record<keyof typeof separatorVariants.variants.tone, ToneStamp>;

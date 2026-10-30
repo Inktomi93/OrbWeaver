@@ -74,6 +74,27 @@ export const THEME_SCOPE_EMIT_VARS = [
   "--color-shadow-ambient-near",
   "--color-shadow-ambient-far",
   "--color-shadow-cta-highlight",
+  // The D336 tone knobs a carried palette re-solves (`tone-knobs.ts`), so the `[data-tone]` roles under it clear
+  // their floors over its own ramp and intent arms.
+  "--tone-mix-text",
+  "--tone-mix-tint",
+  "--tone-mix-tint-active",
+  "--tone-mix-text-on-tint",
+  "--tone-mix-hover",
+  "--tone-mix-active",
+  // A colored tone's own solid steps (`toneKnobVar`): raised by the solve for that tone alone, else the scope's value.
+  "--tone-mix-primary-hover",
+  "--tone-mix-primary-active",
+  "--tone-mix-destructive-hover",
+  "--tone-mix-destructive-active",
+  "--tone-mix-warning-hover",
+  "--tone-mix-warning-active",
+  "--tone-mix-success-hover",
+  "--tone-mix-success-active",
+  "--tone-mix-info-hover",
+  "--tone-mix-info-active",
+  "--tone-mix-neutral-hover",
+  "--tone-mix-neutral-active",
   "--font-sans",
   "--radius-card",
 ] as const;

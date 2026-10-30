@@ -1,7 +1,8 @@
 import type { CSSProperties, ReactElement, ReactNode } from "react";
-import { createContext, use } from "react";
+import { createContext, use, useEffect } from "react";
 import type { ThemeScopeTokens } from "./clamp.ts";
 import { clampThemeTokens } from "./clamp.ts";
+import { ToneFallbackReporterContext } from "./tone-fallback.ts";
 
 export interface ThemeScopeProps {
   /** Raw override tokens (untrusted for a per-character theme). Every value is clamped at the boundary. */
@@ -56,6 +57,16 @@ export function ThemeScope({ tokens, children, className, ambientBackground, amb
   const ambient = ambientBackground ?? inheritedBase;
   const accentAmbient = ambientAccent ?? inheritedAccent;
   const clamped = clampThemeTokens(tokens, ambient ?? undefined, accentAmbient ?? undefined);
+  const reportFallback = use(ToneFallbackReporterContext);
+  // The fallback's fields, not the object the clamp rebuilds every render, so a scope reports one fallback once.
+  const fallbackAccent = clamped.toneFallback?.accent;
+  const fallbackHover = clamped.toneFallback?.hover;
+  const fallbackActive = clamped.toneFallback?.active;
+  useEffect(() => {
+    if (reportFallback !== null && fallbackAccent !== undefined && fallbackHover !== undefined && fallbackActive !== undefined) {
+      reportFallback({ accent: fallbackAccent, hover: fallbackHover, active: fallbackActive });
+    }
+  }, [reportFallback, fallbackAccent, fallbackHover, fallbackActive]);
   // Only validated `--*` keys reach `style` — never raw caller style. `colorScheme` (derived from the
   // base surface's polarity, when known) rides `style` too so a custom LIGHT theme flips native
   // controls AND the light-dark() intent arms to their light values instead of the seed's dark scheme.

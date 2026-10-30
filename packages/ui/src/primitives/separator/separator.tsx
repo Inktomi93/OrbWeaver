@@ -2,7 +2,7 @@ import type { SeparatorProps as BaseSeparatorProps } from "@base-ui/react/separa
 import { Separator as BaseSeparator } from "@base-ui/react/separator";
 import type { ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
-import { separatorVariants } from "./variants.ts";
+import { SEPARATOR_TONE, separatorVariants } from "./variants.ts";
 
 export interface SeparatorProps extends Omit<BaseSeparatorProps, "className"> {
   className?: string;
@@ -17,5 +17,13 @@ export interface SeparatorProps extends Omit<BaseSeparatorProps, "className"> {
  */
 export function Separator(props: SeparatorProps): ReactElement {
   const { className, orientation = "horizontal", tone, ...rest } = props;
-  return <BaseSeparator data-slot="separator" className={separatorVariants({ orientation, tone, className })} orientation={orientation} {...rest} />;
+  return (
+    <BaseSeparator
+      data-slot="separator"
+      data-tone={SEPARATOR_TONE[tone ?? "border"] ?? undefined}
+      className={separatorVariants({ orientation, tone, className })}
+      orientation={orientation}
+      {...rest}
+    />
+  );
 }

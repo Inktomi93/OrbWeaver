@@ -30,6 +30,7 @@ import type { ReactElement, ReactNode, Ref } from "react";
 import { startTransition, useEffect, useState } from "react";
 import { LIST_PANE_TITLE_ID } from "#lib";
 import type { PanelMode, PanelName } from "#state";
+import { SHELL_ACCENT_TONE } from "../lib/shell-accent.ts";
 
 export interface PanelChromeProps {
   readonly panel: PanelName;
@@ -144,7 +145,7 @@ export function PanelChrome({
           A claimed context pane supplies NOTHING, so the group renders empty and shell.css collapses the
           whole band exactly as it does docked (HUD-1 §3.1 — the claimant owns its top edge, including its
           own way out). */}
-      <header className="shell-panel-header" ref={mode === "collapsed" ? undefined : headerRef}>
+      <header className="shell-panel-header" data-tone={SHELL_ACCENT_TONE} ref={mode === "collapsed" ? undefined : headerRef}>
         {mode === "overlay" ? (
           <>
             <div className="shell-panel-header-group">{header}</div>

@@ -16,7 +16,11 @@ const CSS_COLOR_PRECISION = 8;
 
 /** Bounded CSS spelling safe to carry back through the 64-byte color gate in a nested ThemeScope. */
 export function serializeOpaqueOklch(color: Pick<ParsedOklch, "l" | "c" | "h">): string {
-  const component = (value: number): string => Number(value.toFixed(CSS_COLOR_PRECISION)).toString();
+  // Fixed notation, never an exponent: a near-zero chroma such as 2e-8 is valid CSS but fails the safe-color gate a nested scope reads it back through.
+  const component = (value: number): string => {
+    const fixed = value.toFixed(CSS_COLOR_PRECISION).replace(/\.?0+$/u, "");
+    return fixed === "-0" || fixed === "" ? "0" : fixed;
+  };
   return `oklch(${component(color.l)} ${component(color.c)} ${component(color.h)})`;
 }
 /** Any standards-valid color admitted by the security gate → CSS-gamut-mapped OKLCH+alpha. Invalid safe

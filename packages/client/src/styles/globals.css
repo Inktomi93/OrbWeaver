@@ -333,17 +333,8 @@
       text-shadow: var(--shadow-prose);
     }
   }
-  /* `appearance.enableThemeColorization` retints the hairline tokens from the accent, mixed against the
-   * foreground (a self-reference is a cycle). The descendant arm re-declares them below ThemeScope's inline
-   * palette for the shell and the portal root alike; the `html` arm serves a provider-less document. */
-  :root,
-  .shell-grid,
-  [data-slot="portal-root"] {
-    @variant appearance-enable-theme-colorization-true {
-      --color-border: color-mix(in oklab, var(--color-primary) 22%, var(--color-foreground) 6%);
-      --color-sidebar-border: color-mix(in oklab, var(--color-primary) 22%, var(--color-sidebar-foreground) 6%);
-    }
-  }
+  /* `appearance.enableThemeColorization` retints the hairline tokens from the accent: generated with the channel
+   * (appearance-channel.gen.css), because the recipe mixes an intent colour (D336). */
 
   /* The grain texture: one `::after` over the whole shell, reading column included (owner ruling); per-surface
    * carriers would seam the film at every chrome boundary. */

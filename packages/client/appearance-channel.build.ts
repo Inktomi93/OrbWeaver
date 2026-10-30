@@ -188,6 +188,23 @@ export function appearanceChannelAttributes(): readonly { readonly name: string;
   });
 }
 
+/**
+ * `appearance.enableThemeColorization` retints the hairline tokens from the accent, mixed against the foreground (a
+ * self-reference is a cycle). Generated rather than authored because it mixes an intent colour (D336). The descendant
+ * arm re-declares them below ThemeScope's inline palette for the shell and the portal root alike; the `:root` arm
+ * serves a provider-less document.
+ */
+const THEME_COLORIZATION_CSS = `@layer appearance {
+  :root,
+  .shell-grid,
+  [data-slot="portal-root"] {
+    @variant appearance-enable-theme-colorization-true {
+      --color-border: color-mix(in oklab, var(--color-primary) 22%, var(--color-foreground) 6%);
+      --color-sidebar-border: color-mix(in oklab, var(--color-primary) 22%, var(--color-sidebar-foreground) 6%);
+    }
+  }
+}`;
+
 export function renderAppearanceChannelCss(): string {
   const blocks = APPEARANCE_CHANNEL_ROWS.map((row) => {
     const shape = shapeOf(row);
@@ -199,7 +216,7 @@ export function renderAppearanceChannelCss(): string {
     }
     return renderVariants(row, shape);
   });
-  return `${HEADER}\n\n${blocks.join("\n\n")}\n`;
+  return `${HEADER}\n\n${[...blocks, THEME_COLORIZATION_CSS].join("\n\n")}\n`;
 }
 
 if (process.argv[1]?.endsWith(APPEARANCE_CHANNEL_PATHS.producer)) {

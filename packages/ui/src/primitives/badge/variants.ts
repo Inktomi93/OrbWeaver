@@ -1,26 +1,26 @@
+import type { ToneStamp } from "#lib";
 import { TOUCH_FLOOR_AT_COARSE, tv } from "#lib";
 
-// The badge/chip/pill skin — status token PAIRS on a rounded-full pill (ui-package-design §6.1).
-// `info` rides its own `--color-info` / `--color-info-foreground` pair (D71 static intent token; the
-// foreground was minted in north-star PP1). THREE tones per intent, in descending weight: `solid`
-// (default — the filled pill, unchanged), `soft` (an 8% color-mix tint + the intent's own text color +
-// a 30% hairline border, via Tailwind v4 opacity modifiers which compile to `color-mix(in oklab,
-// var(--color-<intent>) N%, transparent)` — north-star §2c), and `ghost` (NO fill at all — a hairline
-// outline + the intent's text color). Migrated status chips (Host / filter / member role) use `soft`;
-// `ghost` is for chips that must read quieter than the surface's primary CTA at rest even when there
-// are a dozen of them (UI-Density-Law §3.2 CD3 — weight solves loudness, not count).
-// The tone's own `bg-*` wins over the intent's via tailwind-merge (tone is declared after intent).
+// The badge/chip/pill skin — status pills (ui-package-design §6.1). A colored intent paints the D336 tone roles of the
+// tone `BADGE_TONE` stamps, so one meaning paints alike on every primitive and follows the scope's palette. THREE
+// fill styles per intent, in descending weight: `solid` (the filled pill), `soft` (the opaque tint, the held-back
+// edge and the on-tint ink) and `ghost` (no fill: the edge and the tone's text ink). `ghost` is for chips that must
+// read quieter than the surface's primary CTA even when there are a dozen of them (UI-Density-Law §3.2 CD3).
+// The fill style's own `bg-*` wins over the intent's via tailwind-merge (tone is declared after intent).
+const TONE_SOLID = "bg-tone-solid text-tone-foreground";
+const COLORED_INTENTS: ("primary" | "success" | "warning" | "danger" | "info")[] = ["primary", "success", "warning", "danger", "info"];
+
 export const badgeVariants = tv({
   base: "inline-flex items-center gap-field rounded-full font-medium whitespace-nowrap select-none",
   variants: {
     edge: { default: "", ink: "" },
     intent: {
       neutral: "bg-muted text-muted-foreground",
-      primary: "bg-primary text-primary-foreground",
-      success: "bg-success text-success-foreground",
-      warning: "bg-warning text-warning-foreground",
-      danger: "bg-destructive text-destructive-foreground",
-      info: "bg-info text-info-foreground",
+      primary: TONE_SOLID,
+      success: TONE_SOLID,
+      warning: TONE_SOLID,
+      danger: TONE_SOLID,
+      info: TONE_SOLID,
       // The palette's own state tint for session chrome (a status, not a verdict, so it never borrows a semantic hue).
       // Solid only: the accent is already a quiet fill, so it has no soft or ghost step.
       accent: "bg-accent text-accent-foreground",
@@ -108,38 +108,16 @@ export const badgeVariants = tv({
     sentenceCase: { true: "tracking-normal normal-case", false: "" },
   },
   compoundVariants: [
-    // THE SOFT TINT IS 8% FOR THE WHOLE FAMILY (2026-09-01; was 15%, with destructive alone at 8%).
-    // `soft` paints the intent's own hue as TEXT on a tint of that SAME hue, so the tint spends contrast
-    // out of the ink's own budget — and the budget is a property of the (ink, ground) PAIR, not of the
-    // token. The 15% family alpha was tuned against the card, which is the widest budget any ground
-    // offers; every quieter ground spends more. Measured across all three seeds × every chrome/quiet
-    // ground including the `bg-accent` a ListRow or Card paints on HOVER (list-row/variants.ts:107,188,212,
-    // card/variants.ts:34) UNDER whatever the row contains: at 15% the family put 42 (ink, ground) pairs
-    // under AA-NORMAL 4.5:1, worst 3.40:1; at 8% — with the two token arms that moved with it
-    // (tokens.json destructive dark, themes/light.json warning) — ZERO, worst 4.54:1. So the alpha the
-    // destructive chip already needed is simply the alpha the family needed, and the special case retires:
-    // ONE tint strength, no per-intent exception to keep in sync. The hairline stays at /30, so the pill
-    // keeps its shape and reads as a `soft` chip, not a ghost (the destructive arm has shipped at 8% since
-    // 2026-08-08 and reads correctly). Checked statically for every seed by the
-    // `seed-theme-ink-contrast` gate.
     { intent: "neutral", tone: "soft", class: "border-border bg-muted/8 text-muted-foreground" },
-    { intent: "primary", tone: "soft", class: "border-primary/30 bg-primary/8 text-primary" },
-    { intent: "success", tone: "soft", class: "border-success/30 bg-success/8 text-success" },
-    { intent: "warning", tone: "soft", class: "border-warning/30 bg-warning/8 text-warning" },
-    { intent: "danger", tone: "soft", class: "border-destructive/30 bg-destructive/8 text-destructive" },
-    { intent: "info", tone: "soft", class: "border-info/30 bg-info/8 text-info" },
+    { intent: COLORED_INTENTS, tone: "soft", class: "border-tone-edge bg-tone-tint text-tone-text-on-tint" },
     { intent: "neutral", tone: "ghost", class: "border-border text-muted-foreground" },
-    { intent: "primary", tone: "ghost", class: "border-primary/30 text-primary" },
-    { intent: "success", tone: "ghost", class: "border-success/30 text-success" },
-    { intent: "warning", tone: "ghost", class: "border-warning/30 text-warning" },
-    { intent: "danger", tone: "ghost", class: "border-destructive/30 text-destructive" },
-    { intent: "info", tone: "ghost", class: "border-info/30 text-info" },
+    { intent: COLORED_INTENTS, tone: "ghost", class: "border-tone-edge text-tone-text" },
     // THE IN-FLOW ARM DRAWS NO BORDER BOX, in any tone. `soft`/`ghost` carry a hairline everywhere else,
     // and everywhere else it is free — but an INLINE box's left/right borders are real horizontal ADVANCE,
     // so a bordered chip re-opens the exact gap the `inline` size exists to close (side-eye F-6: the chip's
     // side padding detached the following punctuation, `{{user}} 's voice`), and its top/bottom borders paint
     // outside a line box they cannot grow. Declared LAST so tailwind-merge's border-width group resolves in
-    // its favour over the tone's `border`; the tone's `border-<intent>/30` is a different group and simply
+    // its favour over the tone's `border`; the fill style's `border-tone-edge` is a different group and simply
     // stops being painted.
     { size: "inline", class: "border-0" },
     // A small unfilled status dot needs its own ink at the edge, not the low-contrast surface seam.
@@ -147,3 +125,14 @@ export const badgeVariants = tv({
   ],
   defaultVariants: { intent: "neutral", tone: "solid", size: "sm", face: "text", sentenceCase: false },
 });
+
+/** The D336 tone each intent stamps; `accent` paints the neutral ramp's state tint and reads no tone role. */
+export const BADGE_TONE = {
+  neutral: "neutral",
+  primary: "primary",
+  success: "success",
+  warning: "warning",
+  danger: "destructive",
+  info: "info",
+  accent: null,
+} as const satisfies Record<keyof typeof badgeVariants.variants.intent, ToneStamp>;

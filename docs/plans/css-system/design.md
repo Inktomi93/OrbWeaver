@@ -92,7 +92,7 @@ Each step lands alone and leaves the app working. Each step ends with isolated b
 #### Step 1: role tokens, tone scoping and contrast checks
 
 1. Add `derived` to the `orb.output` kinds in `packages/ui/token-contract.ts`. Author the tone tuple, the role recipes and the `--tone-mix-*` percentage tokens in `tokens.json`.
-2. Emit the `[data-tone]` blocks into the theme layer of `theme.css`. Register `--color-tone-*` in `@theme static`. Emit the tone and role tuples into `packages/ui/src/tokens/index.ts`.
+2. Emit the `[data-tone]` blocks into the theme layer of `theme.css`. Register `--color-tone-*` in `@theme reference`. Emit the tone and role tuples into `packages/ui/src/tokens/index.ts`.
 3. Add the numeric twin to `@orb/kit/theme-derivation` and fail the token build when a shipped palette misses a floor.
 4. Teach the clamp to solve and emit the `--tone-mix-*` knobs for a carried background. Add each knob to `THEME_SCOPE_EMIT_VARS` with a test that pins it. Extend the accent correction to `solid-hover` and `solid-active`.
 5. Stamp `data-tone` on Badge, Card, Button and Text from their current axes, and repaint every intent tint, hover mix and intent ink onto the roles. No axis renames yet.
@@ -101,7 +101,7 @@ Each step lands alone and leaves the app working. Each step ends with isolated b
 
 Codemods: `rewrite-class-tokens` with an exact map from each opacity-modifier token to its role utility, for example `bg-success/8` to `bg-tone-tint`. `rename-css-custom-properties` for any `var()` read the sheets rename. The stamps and the pigment blocks are hand edits.
 
-Done when: the token build regenerates fresh, and `tests/tooling/generated-css-drift.repo.int.test.ts` passes. A planted recipe under a floor fails the build. A kit role suite beside `tests/kit/theme-derivation/accepted-base-foreground.test.ts` clears every floor over the accepted-base matrix. A clamp test under `tests/ui/content/theme-scope/` pins the emitted knobs. `tests/ui/content/theme-scope/emitted-contrast.ct.tsx` reads computed role colors under each seed and a nested custom ThemeScope in the Chromium and WebKit CT projects. No CT project runs Firefox, so the lane reports that browser as unchecked.
+Done when: the token build regenerates fresh, and `tests/tooling/generated-css-drift.repo.int.test.ts` passes. A planted recipe under a floor fails the build. A role suite, `tests/ui/content/theme-scope/tone-knobs.test.ts`, clears every floor over the accepted-base matrix through the clamp; `tests/kit/theme-derivation/tone-roles.test.ts` holds the kit half. A clamp test under `tests/ui/content/theme-scope/` pins the emitted knobs. `tests/ui/content/theme-scope/emitted-contrast.ct.tsx` reads computed role colors under each seed and a nested custom ThemeScope in the Chromium and WebKit CT projects. No CT project runs Firefox, so the lane reports that browser as unchecked.
 
 #### Step 2: axis vocabulary and lint at zero
 

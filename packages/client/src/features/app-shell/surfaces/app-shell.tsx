@@ -5,7 +5,7 @@
 
 import { Button } from "@orb/ui/button";
 import { LIVE_TOKEN_ROOT_ATTRIBUTE, PortalContainerContext } from "@orb/ui/lib";
-import { ThemeScope } from "@orb/ui/theme-scope";
+import { ThemeScope, ToneFallbackReporterContext } from "@orb/ui/theme-scope";
 import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode, RefCallback, RefObject } from "react";
 import { useEffect, useRef } from "react";
@@ -52,6 +52,7 @@ import { useShellTrackFlip } from "../hooks/use-shell-track-flip.ts";
 import { useStrayFileDropGuard } from "../hooks/use-stray-file-drop-guard.ts";
 import { appearanceBackgroundSource, resolveThemeBackgroundUrl } from "../lib/resolve-theme-background.ts";
 import { roomScreenShell } from "../lib/room-section.ts";
+import { TONE_FALLBACK_REPORTER } from "../lib/tone-fallback-log.ts";
 
 /** Collapse whichever panels are currently AUTO-OVERLAYS (the scrim's dismiss, shared by its click and the
  *  Escape key). Module-scope + `layout`-taking so it is never an effect dependency (D54: no manual memo). */
@@ -295,82 +296,83 @@ export function AppShell(): ReactElement {
       ) : (
         <ThemeBackgroundLayer url={bgUrl} fit={appearance.backgroundFit} dim={appearance.backgroundDim} blur={appearance.backgroundBlur} />
       )}
-      <ThemeScope tokens={resolvedScopeTokens} className="contents" ambientBackground={ambientBackground} ambientAccent={ambientAccent}>
-        <PortalContainerContext value={portalRootRef}>
-          {/* The grid is the app's LIVE-TOKEN ROOT (#504): canvas + foreign-realm consumers (ECharts chrome,
+      <ToneFallbackReporterContext value={TONE_FALLBACK_REPORTER}>
+        <ThemeScope tokens={resolvedScopeTokens} className="contents" ambientBackground={ambientBackground} ambientAccent={ambientAccent}>
+          <PortalContainerContext value={portalRootRef}>
+            {/* The grid is the app's LIVE-TOKEN ROOT (#504): canvas + foreign-realm consumers (ECharts chrome,
               the sandbox card frame) resolve their concrete token values from HERE rather than from <html>,
               because a custom theme's palette is inline on <ThemeScope> above and the colorization rule
               redeclares --color-border on both the grid and its themed portal-root sibling below that inline
               carrier — neither custom branch is visible to a documentElement read. */}
-          <div
-            ref={gridRef}
-            className="shell-grid"
-            {...{ [LIVE_TOKEN_ROOT_ATTRIBUTE]: "" }}
-            data-section={layout.activeSection}
-            data-list-mode={layout.listMode}
-            data-context-mode={layout.contextMode}
-            data-room-screen={roomScreen.roomScreen}
-            data-elevation={appearance.elevation}
-            {...(hasBgImage ? { "data-has-bg-image": true } : {})}
-          >
-            <CustomThemeStyle css={theme?.css ?? null} />
-            {/* shell.css owns the prospective both-docked geometry. Its zero-or-deficit inline size is the
+            <div
+              ref={gridRef}
+              className="shell-grid"
+              {...{ [LIVE_TOKEN_ROOT_ATTRIBUTE]: "" }}
+              data-section={layout.activeSection}
+              data-list-mode={layout.listMode}
+              data-context-mode={layout.contextMode}
+              data-room-screen={roomScreen.roomScreen}
+              data-elevation={appearance.elevation}
+              {...(hasBgImage ? { "data-has-bg-image": true } : {})}
+            >
+              <CustomThemeStyle css={theme?.css ?? null} />
+              {/* shell.css owns the prospective both-docked geometry. Its zero-or-deficit inline size is the
                 rendered signal observed by useShellLayout; hidden and out of flow, so it cannot affect the
                 geometry it reports. */}
-            <div ref={primacySentinelRef} className="shell-content-primacy-sentinel" aria-hidden="true" />
-            {/* The skip precedes navigation and targets whichever pane owns the main landmark.
+              <div ref={primacySentinelRef} className="shell-content-primacy-sentinel" aria-hidden="true" />
+              {/* The skip precedes navigation and targets whichever pane owns the main landmark.
                 Inverse sr-only avoids the reset that removes the revealed button's padding and height. */}
-            <Button
-              className="not-focus-visible:sr-only focus-visible:absolute focus-visible:inset-s-row focus-visible:inset-bs-row focus-visible:z-(--z-overlay)"
-              intent="secondary"
-              onClick={(): void => (layout.listIsPrimaryContent ? listPaneRef : mainRef).current?.focus()}
-              size="sm"
-              type="button"
-            >
-              Skip to content
-            </Button>
-            <RailSlot activeSection={layout.activeSection} show={!layout.mobileViewport} />
+              <Button
+                className="not-focus-visible:sr-only focus-visible:absolute focus-visible:inset-s-row focus-visible:inset-bs-row focus-visible:z-(--z-overlay)"
+                intent="secondary"
+                onClick={(): void => (layout.listIsPrimaryContent ? listPaneRef : mainRef).current?.focus()}
+                size="sm"
+                type="button"
+              >
+                Skip to content
+              </Button>
+              <RailSlot activeSection={layout.activeSection} show={!layout.mobileViewport} />
 
-            <PanelChrome
-              headerRef={noticeHeaderRef}
-              panel="list"
-              label={`${layout.activeSectionLabel} list`}
-              available={layout.listAvailable}
-              header={activeDef.useListHeader === undefined ? null : <ListPaneHeaderHost key={layout.activeSection} useView={activeDef.useListHeader} />}
-              mode={layout.listMode}
-              onDismiss={(): void => layout.collapsePanel("list")}
-              primaryContent={layout.listIsPrimaryContent}
-              ref={listPaneRef}
-              sheet={layout.listIsSheet}
-            >
-              <RegionAnchor region="list">{listContent}</RegionAnchor>
-            </PanelChrome>
+              <PanelChrome
+                headerRef={noticeHeaderRef}
+                panel="list"
+                label={`${layout.activeSectionLabel} list`}
+                available={layout.listAvailable}
+                header={activeDef.useListHeader === undefined ? null : <ListPaneHeaderHost key={layout.activeSection} useView={activeDef.useListHeader} />}
+                mode={layout.listMode}
+                onDismiss={(): void => layout.collapsePanel("list")}
+                primaryContent={layout.listIsPrimaryContent}
+                ref={listPaneRef}
+                sheet={layout.listIsSheet}
+              >
+                <RegionAnchor region="list">{listContent}</RegionAnchor>
+              </PanelChrome>
 
-            <div className="shell-main">
-              {/* KEYED on the active section: `useSelectionTitle` is a per-section hook, so the component
+              <div className="shell-main">
+                {/* KEYED on the active section: `useSelectionTitle` is a per-section hook, so the component
                   that calls it must remount when the section does (the SectionContextHost idiom). */}
-              <SectionTopbarTitle key={layout.activeSection} definition={activeDef} fallback={layout.activeSectionLabel}>
-                {(compactTitle, listDoorLabel, contentLabel): ReactElement => (
-                  <ShellTopbar
-                    ref={noticeHeaderRef}
-                    screenTitle={compactTitle}
-                    listDoorLabel={listDoorLabel}
-                    contentLabel={contentLabel}
-                    title={layout.activeSectionLabel}
-                    header={activeDef.header?.()}
-                    trail={<TopbarTrailChrome mobile={layout.mobileViewport} />}
-                    listAvailable={layout.listAvailable}
-                    listMode={layout.listMode}
-                    // The phone arm's VOCABULARY switch, not a behaviour switch — see `leadControl`.
-                    mobile={layout.mobileViewport}
-                    onToggleList={(): void => layout.togglePanel("list")}
-                    // The section resolves mode vocabulary without teaching the shell its feature state.
-                    onBack={layout.backToList}
-                    backLabel={layout.backClosesSheet ? "Close details" : `Back to ${layout.backTargetLabel ?? contentLabel ?? layout.activeSectionLabel}`}
-                  />
-                )}
-              </SectionTopbarTitle>
-              {/* A11y (side-eye R3): the scroll container is tabbable, so name it from the active section's
+                <SectionTopbarTitle key={layout.activeSection} definition={activeDef} fallback={layout.activeSectionLabel}>
+                  {(compactTitle, listDoorLabel, contentLabel): ReactElement => (
+                    <ShellTopbar
+                      ref={noticeHeaderRef}
+                      screenTitle={compactTitle}
+                      listDoorLabel={listDoorLabel}
+                      contentLabel={contentLabel}
+                      title={layout.activeSectionLabel}
+                      header={activeDef.header?.()}
+                      trail={<TopbarTrailChrome mobile={layout.mobileViewport} />}
+                      listAvailable={layout.listAvailable}
+                      listMode={layout.listMode}
+                      // The phone arm's VOCABULARY switch, not a behaviour switch — see `leadControl`.
+                      mobile={layout.mobileViewport}
+                      onToggleList={(): void => layout.togglePanel("list")}
+                      // The section resolves mode vocabulary without teaching the shell its feature state.
+                      onBack={layout.backToList}
+                      backLabel={layout.backClosesSheet ? "Close details" : `Back to ${layout.backTargetLabel ?? contentLabel ?? layout.activeSectionLabel}`}
+                    />
+                  )}
+                </SectionTopbarTitle>
+                {/* A11y (side-eye R3): the scroll container is tabbable, so name it from the active section's
                   visible label — the `main` landmark otherwise announces as an unnamed region.
                   INERT BEHIND AN OPEN SHEET (item 22): whenever the scrim is up it already swallows every
                   pointer event aimed at this column, but a keyboard user could still Tab into controls
@@ -378,60 +380,61 @@ export function AppShell(): ReactElement {
                   to agree (the house Dialog/Drawer inert their background for exactly this reason). Scoped
                   to the CONTENT column, not the whole frame, because the sheet's own close control is the
                   topbar toggle ABOVE the scrim: inerting the frame would strand the user in it. */}
-              <main
-                className="shell-content"
-                ref={mainRef}
-                tabIndex={-1}
-                aria-label={`${layout.activeSectionLabel} content`}
-                // …and the SAME rule for the mobile LIST-as-screen, which carries no scrim but is still a
-                // full-viewport pane over this column (`contentInert` folds both — one flag, one truth).
-                inert={layout.contentInert}
+                <main
+                  className="shell-content"
+                  ref={mainRef}
+                  tabIndex={-1}
+                  aria-label={`${layout.activeSectionLabel} content`}
+                  // …and the SAME rule for the mobile LIST-as-screen, which carries no scrim but is still a
+                  // full-viewport pane over this column (`contentInert` folds both — one flag, one truth).
+                  inert={layout.contentInert}
+                >
+                  <SectionContent
+                    visible={!layout.listIsPrimaryContent}
+                    activeSection={layout.activeSection}
+                    contentBySection={contentBySection}
+                    fallback={contentFallback}
+                    focusAnchorRef={mainRef}
+                  />
+                </main>
+              </div>
+
+              <PanelChrome
+                headerRef={noticeHeaderRef}
+                panel="context"
+                label={`${layout.activeSectionLabel} details`}
+                available={layout.contextAvailable}
+                header={contextPane.header}
+                mode={layout.contextMode}
+                onDismiss={(): void => layout.collapsePanel("context")}
+                ref={contextPaneRef}
+                sheet={layout.contextIsSheet}
               >
-                <SectionContent
-                  visible={!layout.listIsPrimaryContent}
-                  activeSection={layout.activeSection}
-                  contentBySection={contentBySection}
-                  fallback={contentFallback}
-                  focusAnchorRef={mainRef}
-                />
-              </main>
+                {contextPane.body}
+              </PanelChrome>
+
+              <RailSlot activeSection={layout.activeSection} show={roomScreen.showMobileRail} />
+
+              {/* Stays mounted and fades via data-visible so it fades WITH the panel instead of hard-cutting on close. */}
+              <button
+                type="button"
+                className="shell-scrim"
+                data-visible={layout.scrimVisible}
+                aria-hidden={!layout.scrimVisible}
+                // A pointer control only: the keyboard closes a sheet with Escape or the sheet's own close.
+                tabIndex={-1}
+                ref={scrimRef}
+                aria-label="Dismiss panel"
+                onClick={(): void => dismissOverlays(layout)}
+              />
+
+              <ModalHost openModal={layout.openModalId} container={portalRootRef} onClose={closeModal} />
             </div>
-
-            <PanelChrome
-              headerRef={noticeHeaderRef}
-              panel="context"
-              label={`${layout.activeSectionLabel} details`}
-              available={layout.contextAvailable}
-              header={contextPane.header}
-              mode={layout.contextMode}
-              onDismiss={(): void => layout.collapsePanel("context")}
-              ref={contextPaneRef}
-              sheet={layout.contextIsSheet}
-            >
-              {contextPane.body}
-            </PanelChrome>
-
-            <RailSlot activeSection={layout.activeSection} show={roomScreen.showMobileRail} />
-
-            {/* Stays mounted and fades via data-visible so it fades WITH the panel instead of hard-cutting on close. */}
-            <button
-              type="button"
-              className="shell-scrim"
-              data-visible={layout.scrimVisible}
-              aria-hidden={!layout.scrimVisible}
-              // A pointer control only: the keyboard closes a sheet with Escape or the sheet's own close.
-              tabIndex={-1}
-              ref={scrimRef}
-              aria-label="Dismiss panel"
-              onClick={(): void => dismissOverlays(layout)}
-            />
-
-            <ModalHost openModal={layout.openModalId} container={portalRootRef} onClose={closeModal} />
-          </div>
-          {/* Themed portal root for every overlay — sibling of .shell-grid but inside <ThemeScope>. */}
-          <div ref={portalRootRef} className="shell-portal-root" data-slot="portal-root" />
-        </PortalContainerContext>
-      </ThemeScope>
+            {/* Themed portal root for every overlay — sibling of .shell-grid but inside <ThemeScope>. */}
+            <div ref={portalRootRef} className="shell-portal-root" data-slot="portal-root" />
+          </PortalContainerContext>
+        </ThemeScope>
+      </ToneFallbackReporterContext>
     </TooltipProvider>
   );
 }

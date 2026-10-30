@@ -2,7 +2,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import type { KeyboardEvent, ReactElement, Ref } from "react";
 import { useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { GapToken } from "#lib";
-import { assertBoundedScrollHeight, cn, finePointerNow, gapPxFor, prefersReducedMotionNow } from "#lib";
+import { ACCENT_AURA_PIGMENT, assertBoundedScrollHeight, cn, finePointerNow, gapPxFor, prefersReducedMotionNow } from "#lib";
 import { Check, Icon } from "#primitives/icons";
 import { mediaGridVariants } from "./variants.ts";
 
@@ -154,6 +154,7 @@ function MediaGridCell<T extends MediaGridItem>({
       className={slots.cell()}
       data-selected={selected ? "" : undefined}
       data-slot="media-grid-cell"
+      data-pigment={ACCENT_AURA_PIGMENT}
       onClick={(): void => onActivate(item, flatIndex)}
       onFocus={(): void => onFocusCell(flatIndex)}
       onKeyDown={onKeyDown}

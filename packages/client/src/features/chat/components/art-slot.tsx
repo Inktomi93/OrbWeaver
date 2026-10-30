@@ -3,7 +3,7 @@
 // is no image or the image fails to load.
 
 import type { AvatarProps } from "@orb/ui/avatar";
-import { Avatar } from "@orb/ui/avatar";
+import { AVATAR_PIGMENT, Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -135,6 +135,7 @@ export function WhisperBand({
     <Stack
       aria-hidden={tappable ? undefined : "true"}
       data-slot="message-band"
+      data-pigment={AVATAR_PIGMENT}
       cardCorners="top"
       hoverDim={tappable ? "self" : undefined}
       imageFit="underFeather"
@@ -184,6 +185,7 @@ export function EchoArtTile({
       {/* The tile dims with its pane's hover: the button over it takes the pointer, so the tile is never hovered itself. */}
       <Stack
         data-slot="message-echo-art"
+        data-pigment={AVATAR_PIGMENT}
         cardCorners={corner}
         hoverDim={tappable ? "parent" : undefined}
         imageFit="cover"

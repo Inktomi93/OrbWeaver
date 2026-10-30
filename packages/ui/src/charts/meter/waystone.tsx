@@ -71,6 +71,7 @@ import {
   SKY_WH,
   SKY_XY,
   VIEW,
+  WAYSTONE_PIGMENT,
 } from "./waystone-geometry.ts";
 import { BandLayer, DialArcs, DialCardinals, SkyLayers } from "./waystone-layers.tsx";
 import type { WaystoneWeather } from "./waystone-treatment.ts";
@@ -148,6 +149,7 @@ export function Waystone({ clock, weather = null, className }: WaystoneProps): R
       aria-hidden={true}
       className={cn(slots.root(), className)}
       data-slot="waystone"
+      data-pigment={WAYSTONE_PIGMENT}
       data-phase={litPhase ?? "unset"}
       data-weather={treatment === null ? "unset" : treatment.overlay}
       data-paused={!visible}

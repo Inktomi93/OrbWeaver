@@ -14,13 +14,10 @@
     animation: orb-weave-shimmer var(--motion-breathe) ease-in-out infinite;
   }
 
-  /* The web's ambient accent glow, centred on the hub the component positions through the two custom properties. */
+  /* The web's ambient accent glow, centred on the hub the component positions through the two custom properties. The
+   * colour is the generated `web-weave` pigment the host's `data-pigment` scopes. */
   .orb-weave-glow {
-    background: radial-gradient(
-      circle at var(--orb-weave-hub-x, 50%) var(--orb-weave-hub-y, 42%),
-      color-mix(in oklab, var(--color-primary) 13%, transparent),
-      transparent 62%
-    );
+    background: radial-gradient(circle at var(--orb-weave-hub-x, 50%) var(--orb-weave-hub-y, 42%), var(--pigment-web-weave-glow), transparent 62%);
   }
 
   /* The web spinner weaves: the spiral draws out from the hub, holds, then pays out while the spokes breathe and

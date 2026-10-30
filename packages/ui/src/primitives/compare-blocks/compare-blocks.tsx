@@ -4,7 +4,7 @@ import { cn } from "#lib";
 import { Button } from "#primitives/button";
 import { Checkbox } from "#primitives/checkbox";
 import { Check, Icon, Minus, Plus, X } from "#primitives/icons";
-import { compareBlocksVariants } from "./variants.ts";
+import { COMPARE_SIDE_TONE, compareBlocksVariants } from "./variants.ts";
 
 export interface CompareBlock {
   /** Optional field name, shown above the pair — omitted for a single full-text pair. */
@@ -103,7 +103,7 @@ function PairBody({ block, cleared, added, slots }: { block: CompareBlock; clear
           {block.stateNote !== undefined ? <p className={slots.stateNote()}>{block.stateNote}</p> : null}
         </div>
       ) : (
-        <div className={slots.panel({ side: "before" })} data-slot="compare-block-before">
+        <div className={slots.panel({ side: "before" })} data-slot="compare-block-before" data-tone={COMPARE_SIDE_TONE.before}>
           <span className={slots.sideHeader()}>
             <Icon icon={Minus} size="xs" />
             <span className={slots.srOnly()}>Before</span>
@@ -120,7 +120,7 @@ function PairBody({ block, cleared, added, slots }: { block: CompareBlock; clear
           {block.stateNote !== undefined ? <p className={slots.stateNote()}>{block.stateNote}</p> : null}
         </div>
       ) : (
-        <div className={slots.panel({ side: "after" })} data-slot="compare-block-after">
+        <div className={slots.panel({ side: "after" })} data-slot="compare-block-after" data-tone={COMPARE_SIDE_TONE.after}>
           <span className={slots.sideHeader()}>
             <Icon icon={Plus} size="xs" />
             <span className={slots.srOnly()}>After</span>
