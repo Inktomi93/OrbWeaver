@@ -44,7 +44,7 @@ updated: 2026-10-17
 | a suspending read | `useGatedQuery` or `useSuspenseQuery` inside `QueryBoundary`, with `QueryErrorState` (§11) | A bare `useQuery` state ladder or spinner |
 | another feature's server entity | `trpc.*` query options (§12) | Importing the feature or copying its data into a store |
 | active chat, section or selection | A `state/` commons hook | A query for client-side state |
-| cross-section navigation | An action from `#state` (§5.1) | Prop-drilling or importing the target feature |
+| cross-section navigation | An action from `#state` (`client-architecture-state-and-gates.md` §12 row 1) | Prop-drilling or importing the target feature |
 | feature content and its context inspector | The feature's `createFormHandleBridge` (§12 row 9) | A cross-feature bridge or global event emitter |
 | a domain event | Add the event to its union, emit after durable commit and map it in `invalidation.ts` (§13) | An ad-hoc event emitter for shared state |
 | readiness or dev state | `packages/client/src/lib/app-ready-signal.ts` or `packages/client/src/lib/agent-bridge.ts` (§12 row 11) | Importing dev instrumentation into production |
@@ -315,8 +315,9 @@ anchors carry different state, so `ChatSurfaceContribution` is a discriminated u
 anchors carry `ChatRoomSurfaceState`; `message-footer` carries `ChatMessageSurfaceState`. Threaded into the content by
 props. `message-footer` mounts per committed message row only. Flank layout is the seam's responsibility:
 a `@container` query on the chat-content region's own inline size stacks the flank below the thread
-beneath `lg` (512px) so no consumer can crush the reading column. Zero flank contributions ⇒ the thread
-renders alone with no wrapper.
+beneath `lg` (512px) so no consumer can crush the reading column. The flank row is always mounted and
+layout-neutral, so the room's height chain does not depend on whether any contributor is registered. With zero
+flank contributions the row holds the thread alone at full size.
 
 Contributor contract types home in `packages/client/src/lib/registry-contracts.ts` (tier 4 — importable by chat and
 contributors without either importing the other).
