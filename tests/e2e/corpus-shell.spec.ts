@@ -369,7 +369,8 @@ test.describe("committed corpus shell", () => {
     await expect(page.locator('[data-slot="collection-control-row"]')).toBeVisible();
     await expect(list).toHaveAttribute("data-panel-mode", "docked");
     await expect(page.getByRole("button", { name: "Back to Settings" })).toHaveCount(0);
-    await expect(page.locator(".shell-topbar").getByRole("button", { name: LIST_TOGGLE })).toBeVisible();
+    await expect(page.locator(".shell-topbar").getByRole("button", { name: LIST_TOGGLE })).toHaveCount(0);
+    await expect(page.locator('[data-panel-edge="list"]').getByRole("button", { name: LIST_TOGGLE })).toBeVisible();
   });
 });
 

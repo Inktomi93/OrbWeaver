@@ -150,6 +150,46 @@
     display: none;
   }
 
+  /* A panel's edge control (`panel-edges.tsx`) rides the chrome row at the panel's screen-edge corner. One node serves
+   * both states, so it sits over the header while the panel is docked and over the topbar's end once it closes, and
+   * the band underneath keeps its lane clear. The grid pays the device insets as padding, which absolute offsets
+   * ignore, so they are added here. */
+  .shell-grid {
+    --panel-edge-reserve: calc(var(--size-control-sm) + var(--spacing-row));
+  }
+  .shell-panel-edge {
+    position: absolute;
+    inset-block-start: env(safe-area-inset-top);
+    z-index: calc(var(--z-overlay) + 1);
+    display: flex;
+    align-items: center;
+    block-size: var(--dimension-chrome-row);
+  }
+  /* The control sits flush on the screen-edge side and keeps one row gap to the band beside it. */
+  .shell-panel-edge[data-panel-edge="list"] {
+    inset-inline-start: calc(env(safe-area-inset-left) + var(--rail-w));
+    padding-inline-end: var(--spacing-row);
+  }
+  .shell-panel-edge[data-panel-edge="context"] {
+    inset-inline-end: env(safe-area-inset-right);
+    padding-inline-start: var(--spacing-row);
+  }
+  .shell-grid[data-list-edge="docked"] .shell-panel[data-panel-side="list"] .shell-panel-header {
+    padding-inline-start: var(--panel-edge-reserve);
+  }
+  .shell-grid[data-context-edge="docked"] .shell-panel[data-panel-side="context"] .shell-panel-header,
+  .shell-grid[data-context-edge="docked"] .shell-context-header {
+    padding-inline-end: var(--panel-edge-reserve);
+  }
+  /* The topbar keeps its lane in both states: a lane that opened only when the panel closed would step the trail by
+   * its width inside the panel push, which the FLIP cannot counter. */
+  .shell-grid[data-list-edge] .shell-topbar {
+    --shell-topbar-lane-start: var(--panel-edge-reserve);
+  }
+  .shell-grid[data-context-edge] .shell-topbar {
+    --shell-topbar-lane-end: var(--panel-edge-reserve);
+  }
+
   .shell-panel-body {
     flex: 1 1 auto;
     min-block-size: 0;

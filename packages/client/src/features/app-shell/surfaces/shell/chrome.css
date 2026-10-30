@@ -35,7 +35,7 @@
     gap: var(--spacing-row);
     block-size: var(--dimension-chrome-row);
     /* The device inset is paid once on `.shell-grid`, on all four edges; this row keeps only its own rhythm. */
-    padding-inline: var(--spacing-block);
+    padding-inline: var(--shell-topbar-lane-start, var(--spacing-block)) var(--shell-topbar-lane-end, var(--spacing-block));
     border-block-end: var(--border-width-control) solid var(--color-border);
     background: var(--color-background);
   }
@@ -84,7 +84,18 @@
      * nothing sits past the row's edge: both controls are one icon-button step, and the gaps and padding are the row's. */
     min-inline-size: min(
       var(--dimension-shell-title-floor),
-      max(0px, calc(100cqi - 2 * var(--size-control-md) - 3 * var(--spacing-row) - 2 * var(--spacing-block)))
+      max(
+        0px,
+        calc(
+          100cqi -
+          2 *
+          var(--size-control-md) -
+          3 *
+          var(--spacing-row) -
+          var(--shell-topbar-lane-start, var(--spacing-block)) -
+          var(--shell-topbar-lane-end, var(--spacing-block))
+        )
+      )
     );
   }
 
@@ -196,6 +207,14 @@
     .shell-topbar-lead {
       flex-basis: 0;
       min-inline-size: min-content;
+    }
+  }
+
+  /* A column this narrow beside a panel edge control has no room for the chips, which are fixed-size and cannot move
+   * into the trail's menu; their facts are tabs of the Details pane, which that control opens. */
+  @container shell-main (max-width: 24rem) {
+    .shell-grid[data-context-edge] .shell-topbar-identity[data-identity="wide"]:has(.shell-chat-member-chip) {
+      display: none;
     }
   }
 

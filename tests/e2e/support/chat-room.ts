@@ -294,8 +294,9 @@ export async function openChatByTitle(page: Page, title: string): Promise<void> 
   await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: WAIT_SURFACE_MS });
 }
 
-/** Expand the CONTEXT (detail) panel if it is collapsed — the ONE toggle is the topbar
- *  `ContextToggle` (context-toggle.tsx), whose label states the action it performs. Idempotent. */
+/** Expand the CONTEXT (detail) panel if it is collapsed — the ONE toggle is the pane's
+ *  edge control (`PanelEdges`) on a desktop and the topbar `ContextToggle` on a phone, whose label states the
+ *  action it performs. Idempotent. */
 export async function openDetailPanel(page: Page): Promise<void> {
   const show = page.getByRole("button", { name: "Show details" });
   if ((await show.count()) > 0) {

@@ -7,9 +7,9 @@
 // the band is the BASELINE (the LIST surface's title/action move INTO it at N2). `header` content is an
 // optional slot the band wraps.
 //
-// In its DOCKED and COLLAPSED modes neither panel supplies a collapse control here — the CONTEXT panel's
-// open/close affordance is the registered `contextToggleChrome` topbar widget (the ONE detail-panel close
-// control); the LIST panel's is the topbar's intrinsic list toggle.
+// In its DOCKED and COLLAPSED modes neither panel supplies a collapse control here — each panel's open/close
+// affordance is its edge control (`panel-edges.tsx`) on a desktop, drawn over the band's lane, and the topbar's
+// door on a phone.
 //
 // A COLLAPSED BODY IS DEFERRED PAST THE BOOT COMMIT, AND ITS MOUNT DOES NOT RIDE THE OPEN'S CLICK FRAME
 // (#895) — see `bodyMounted` below for the measurement that split those into two different requirements.
@@ -52,8 +52,9 @@ export interface PanelChromeProps {
    *  `"unavailable"` is still not a fourth `PanelMode` (the pane resolves `collapsed`, the topbar ships no
    *  toggle — section-registry.ts). This attribute is a DECLARE, not a behaviour. */
   readonly available: boolean;
-  /** Close THIS panel — the band's own dismiss, rendered only while the panel FLOATS (see the header). */
-  readonly onDismiss: () => void;
+  /** Close THIS panel — the band's own dismiss, rendered only while the panel FLOATS on a phone. A desktop sheet is
+   *  closed from its edge control, so the host passes none. */
+  readonly onDismiss?: () => void;
   /** IS THIS PANE THE SCREEN'S PRIMARY CONTENT right now (#1349 — `ShellLayout.listIsPrimaryContent`)?
    *  `true` ⇒ the aside carries `main` instead of its `complementary` role and becomes the skip link's
    *  target, because on the phone landing the content column it would otherwise defer to is
@@ -149,7 +150,7 @@ export function PanelChrome({
           whole band exactly as it does docked (HUD-1 §3.1 — the claimant owns its top edge, including its
           own way out). */}
       <header className="shell-panel-header" data-tone={SHELL_ACCENT_TONE} ref={mode === "collapsed" ? undefined : headerRef}>
-        {mode === "overlay" ? (
+        {mode === "overlay" && onDismiss !== undefined ? (
           <>
             <div className="shell-panel-header-group">{header}</div>
             <Button
