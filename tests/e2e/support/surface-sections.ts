@@ -31,10 +31,10 @@ import { PRESETS_SECTION_LABEL } from "#client/features/preset/lib/presets-secti
 import { homeRostersVisible } from "#client/features/roster-preset/lib/home-rosters-visibility.ts";
 import { rosterCountsSuffix } from "#client/features/roster-preset/lib/roster-copy.ts";
 import { ANALYTICS_DEFAULT_SORT, ANALYTICS_SORT_OPTIONS } from "#client/features/stats/lib/analytics-view-model.ts";
+import { LEADERBOARD_ROW_ATTR } from "#client/features/stats/lib/leaderboard-row-attr.ts";
 import { BLANK_CHAT_NAME, START_TEMP_CHAT_NAME } from "#client/lib/chat-launch-names.ts";
 import { deriveChatTitle } from "#client/lib/chat-title.ts";
 import { CORPUS_MODE_LABELS, CORPUS_MODES } from "#client/lib/corpus-modes.ts";
-import { LEADERBOARD_ROW_ATTR } from "#client/lib/leaderboard-row-attr.ts";
 import { rowActionsName } from "#client/lib/row-qualifiers.ts";
 import type { SectionId } from "#client/state/section-ids.ts";
 import { SECTION_IDS } from "#client/state/section-ids.ts";
