@@ -7,7 +7,7 @@ export { settleBootSecrets } from "./boot-secrets.ts";
 export { composeBootDisclaimer } from "./disclaimer.ts";
 export { healLegacyBackgroundPinsOnBoot } from "./heal-legacy-background-pins.ts";
 export { planLocalLightPrefetch } from "./local-light-prefetch.ts";
-export { DB_LAUNCHED, runBootMigrations } from "./migrate.ts";
+export { runBootMigrations } from "./migrate.ts";
 export { migrateDataLayout } from "./migrate-data-layout.ts";
 export { migrateHandoffOfferVocabOnBoot } from "./migrate-handoff-offer-vocab.ts";
 export { migratePluginToolWireNamesOnBoot } from "./migrate-plugin-tool-wire-names.ts";

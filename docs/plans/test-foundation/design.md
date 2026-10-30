@@ -261,6 +261,127 @@ UI sessions, native timeouts, failed evidence retention or uncertain port releas
 
 The native lifecycle exercises cover successful teardown, assertion failure with retained logs and occupied-port refusal without deleting another owner's files. The public server-process regression holds an actual HTTP request across repeated shutdown signals; every caller waits for the same drain completion.
 
+### Selected case map: boot migration, data layout and env floors
+
+Legacy paths are relative to the external source named in [Spine-Testing](../../law/Spine-Testing.md#2-the-tree). The case map records every case of its reference files. Maintained homes:
+
+| Home | Layer and production entry |
+| - | - |
+| [Boot migration](../../../tests/server/entry/boot/persistence/migrate.int.test.ts) | Integration on a real file database, `runBootMigrations`; pre-migration databases come from the shipped chain cut before its last migration |
+| [Data-layout move](../../../tests/server/entry/boot/persistence/migrate-data-layout.int.test.ts) | Integration on a real filesystem and database, `migrateDataLayout`; the legacy flat tree is the historic state the move exists for; every crash state is a real failed rename; the idle-holder case runs two real processes through [the holder](../../../tests/support/node/db-holder.ts) and [the migration script](../../../tests/support/node/migrate-data-layout.ts) |
+| [Layout resolver](../../../tests/server/foundation/data-layout/index.test.ts) | Unit, `resolveDataLayout`; expectations derive from the layout's own `LEGACY_ENTRIES`, and a mapped record over `DataLayoutInput` fails `tsc` when a key is added |
+| [Boot migration deps](../../../tests/server/entry/boot/migrate.test-d.ts) | Type, `runBootMigrations` accepts no posture or reset option |
+| [Env floor](../../../tests/server/foundation/env/record/floor-defaults.test.ts) | Unit, the production `parseEnv` through `createTestEnv` |
+| [Env file load](../../../tests/server/foundation/env/env-file-load.int.test.ts) | Integration, the production process env module in a fresh node process per case ([child](../../../tests/support/node/env-file-child.ts)); the load runs once at import from the working directory and process environment, so one process cannot vary it |
+| [Boot disclaimer](../../../tests/server/entry/boot/disclaimer.test.ts) | Unit, `composeBootDisclaimer` with posture values derived from a parsed record |
+
+Decisions for `server/entry/boot/migrate.int.test.ts`:
+
+| Case | Decision | Evidence |
+| - | - | - |
+| Forward migration over a populated baseline keeps prior bytes | Keep | [Provenance migration](../../../tests/db/schema/chat-freeze-provenance.repo.int.test.ts) runs a boot over a copied file database and compares rows and the pre-migration backup. The boot suite adds the second boot that takes no copy. |
+| `resolveMigrationsFolder` ends in `migrations` | Drop | Private helper; every default-folder boot in the boot suite resolves it. |
+| Baseline applied on a fresh database, integrity gate, foreign keys on | Rebuild | Boot suite, first case, on a file database with the default folder. |
+| Second boot is a no-op | Rebuild | Same case, with the backup listing unchanged and the baseline `current`. |
+| Raw `runMigrations` crashes on a stale record | Drop | Asserts drizzle's behavior. The product refusal is the drifted-chain case. |
+| Regenerated-baseline dev database auto-resets | Drop: the reset arm is deleted under D163 | The `launched` option, `DB_LAUNCHED`, the boot reset branch and the database reset function are deleted, so `tsc` refuses a caller that passes the option ([type case](../../../tests/server/entry/boot/migrate.test-d.ts)). |
+| Backup taken on a migrating boot into the passed dir, skipped on a no-op boot | Rebuild | Boot suite, first case. |
+| Backup restores a commit still in the WAL | Rebuild | Boot suite on a database one migration behind, in place of the reset trigger. It also proves the copy predates the migration. |
+| Backup failure aborts before the reset | Rebuild | Boot suite: an unwritable backup dir aborts before the forward migration, and the retry migrates. The proxy that forced a transaction failure is dropped as fabricated. |
+| Debris at the stamped backup path is replaced | Rebuild | Boot suite. The name comes from `backupBeforeMigrate`, not a copy of its rule. |
+| A reset boot backs up first, then prunes to the cap | Rebuild, narrowed; the reset trigger is deleted | Boot suite asserts the migrating boot prunes the oldest copy and keeps the newest, and a no-op boot prunes nothing. Retention counts, pins and daily rollup stay with the database client batch. |
+| Shipped posture refuses a diverged chain on a file database before any backup | Rebuild | Boot suite, last case: the refusal is the boot's own typed `DomainOperationError`, which a drizzle crash from re-applying the chain is not, and the database, the rows and the copies are unchanged. |
+| A launched memory database refuses to auto-wipe | Keep | Covered by the file-database case above. |
+| Omitting `launched` fails closed | Drop: the reset arm is deleted under D163 | No posture option remains to omit; the type case guards it. |
+
+Decisions for `server/entry/boot/migrate-data-layout.int.test.ts`:
+
+| Case | Decision | Evidence |
+| - | - | - |
+| Fresh install gets the container dirs | Rebuild | Layout move suite. |
+| Legacy tree moves every named entry with a snapshot first | Rebuild | Layout move suite, derived from `LEGACY_ENTRIES`. It also covers the WAL-only row, modes, the stores that never move and the absent journal. |
+| Second run is a no-op | Rebuild | Same case. |
+| Target holds data: refuse before any rename | Rebuild | Layout move suite with a clearing control. The sizes in the refusal text are not asserted. |
+| Explicit slot, `DATABASE_URL` and `CREDENTIALS_KEY` keep an entry in place | Rebuild | One table over every keyed entry in `LEGACY_ENTRIES`, including the secrets and the no-snapshot rule for a kept database. |
+| Live-pid journal refuses | Rebuild | Layout move suite, from a journal a real failed rename left. |
+| Journal under this process's pid resumes | Rebuild | Same suite, default liveness. |
+| Source on another filesystem | Rebuild | Same suite, injected device probe, with a same-device control. |
+| Target container linked onto another filesystem | Rebuild | Same suite. |
+| Data root that is a symlink | Rebuild | Same suite. |
+| Resume re-plans against the current env | Rebuild | The apply-time failure case, keyed per entry, replays under an env that keeps the entry. |
+| Idle holder of the legacy database refuses | Rebuild | Same suite, two real processes and a released control; the poll loop is replaced by a process message. |
+| Zero-byte legacy database is ignored | Rebuild | Same suite. |
+| Dead-pid journal resumes | Rebuild | Same suite. |
+| Resume refuses when source and target both hold data | Rebuild | Same suite, tampering with a real crash state and a control that clears it. |
+| Resume refuses when neither side exists | Rebuild | Same suite. |
+| Empty mount point at a target | Rebuild | Same suite, with the keyed and keyless remedies. |
+| Failing resume boots leave one snapshot | Rebuild | Apply-time failure case. |
+| Apply-time rename failure keeps the journal until the env names the remedy | Rebuild | Same case, with the no-op boot after the remedy. |
+| Legacy database on another filesystem refuses with the `DATABASE_URL` value that keeps it | Rebuild, narrowed | The keeper table runs the working value from `fileDatabaseUrl`. The refusal wording and the value parsed from it are not asserted. |
+| Kept keyfile is warned with its keeper | Move to security batch | A secrets warning. |
+| Stranded session secret is warned on every boot | Move to security batch | A session pepper warning. |
+
+Decisions for `server/foundation/data-layout/index.test.ts`:
+
+| Case | Decision | Evidence |
+| - | - | - |
+| Slots derive from the default root, relative | Rebuild | Layout resolver, by relation to the root. |
+| `DATA_DIR` re-roots every slot | Rebuild | Same, for an absolute and a relative root. |
+| Explicit slot wins and lands in the explicit set | Rebuild | Same, one key at a time against the derived tree. |
+| Every slot key honoured, empty counts as unset | Rebuild | Same, over a record that lists every `DataLayoutInput` key by kind. |
+| Non-file `DATABASE_URL` carried through | Keep | [Native file identity](../../../tests/server/foundation/data-layout/persistence/file-identity.int.test.ts) covers the explicit URL inputs; the resolver suite adds the remote case. |
+| `DATA_LAYOUT_SKIP` parsing | Rebuild | Same. |
+| `DATA_LAYOUT_SKIP` refuses the database, keyfiles and keyed slots, and an unknown name | Rebuild, narrowed | Same, one case per keyed entry plus a control. The naming of the key in the message is not asserted. |
+| Database remedy carries the `DATABASE_URL` value | Drop | Message wording; the working value is run by the move suite. |
+| Explicit secrets land in the explicit set | Rebuild | Same. |
+| Import domain default equals the resolver | Drop | The import domain derives `DEFAULT_IMPORT_STAGING_DIR` from `resolveDataLayout`, so the two cannot differ. |
+
+Decisions for `server/foundation/env/floor-defaults.test.ts`:
+
+| Case | Decision | Evidence |
+| - | - | - |
+| Debug and observability gates default off | Rebuild | Env floor. |
+| Single-user default needs no SSO or secret keys | Rebuild | Env floor, the fallback derived from `AUTH_MODE_DEFAULT_FALLBACK`. |
+| `LOCAL_LIGHT_CACHE_DIR` default under the data root and override | Rebuild | Env floor reads every slot against the resolver. |
+| `LOCAL_LIGHT_CPU_PERCENT` default and invalid values | Rebuild, narrowed | Env floor keeps the valid value and every refusal. The default of fifty is a copy of production and is dropped. |
+| Data slots resolve from `DATA_DIR` | Rebuild | Env floor. |
+| `DATA_LAYOUT_SKIP` is checked at parse | Rebuild | Env floor. |
+| Rate-limit budgets have the documented floor | Drop | Asserts copies of production defaults. |
+| Boolean toggles transform | Rebuild | Env floor, on a non-security knob. |
+| Boolean knobs refuse widened spellings | Rebuild | Same. |
+| Boolean knobs accept exactly `true` and `false` | Rebuild | Same. |
+| `processEnvSnapshot` is a copy | Move to security batch | The agent child-env baseline; the function is now `hostEnvAllowlist`. |
+
+Decisions for `server/foundation/env/env-file-load.test.ts`:
+
+| Case | Decision | Evidence |
+| - | - | - |
+| `.env` beats a shell export | Rebuild | Env file load. |
+| Override off under `VITEST` and under `ORB_ENV_NO_OVERRIDE`; the file still fills unset keys | Rebuild | Same, one case per hatch. |
+| No `.env`, and an unreadable `.env` | Rebuild | Same, compared with a baseline process. |
+| Parser tolerance for comments, quotes, `export`, junk and CRLF | Drop | Behavior of the platform parser, not the loader. |
+| UTF-8 byte-order mark | Rebuild | Same. |
+| `KEY: value` lines ignored | Drop | Behavior of the platform parser. |
+| `ORB_ENV_NO_FILE` skips the load | Rebuild | Same, with a control. |
+| The test config sets `ORB_ENV_NO_FILE` | Drop | A runner configuration literal; the tooling mirror owns runner configuration. |
+| `AUTH_FALLBACK` in `.env` is boot-fatal, and absent boots clean | Move to security batch | Auth posture. The child-process reader above is the way to drive the load. |
+| Deleted `SESSION_COOKIE_INSECURE` stays inert | Move to security batch | Cookie transport. |
+
+Decisions for `server/entry/boot/disclaimer.test.ts`:
+
+| Case | Decision | Evidence |
+| - | - | - |
+| Topics in order | Rebuild | Boot disclaimer. |
+| Healthy loopback single-user carries the caveat and no security line | Rebuild | Same. |
+| Caveat rides a widened-peer single-user box | Rebuild | Same. |
+| Login modes carry no caveat | Rebuild | Same, over every login mode in the auth-mode tuple, with a row record that fails `tsc` for a new mode. |
+| Each exposure is one security warning | Rebuild | Same, for every exposure kind: bind, owner peers, diagnostics and break-glass. |
+| Closed forward-header door warns but is not an exposure | Rebuild | Same. |
+| Every security line is a warning | Rebuild | Folded into the exposure case, asserted for each kind. |
+| Break-glass line | Rebuild | Same, with a control per ingredient. |
+
+Defect controls: each guarded production behavior was planted in a worktree and the named case failed for its intended reason. The planted behaviors are the drifted-chain refusal, the posture option type, the backup gate, the abort on a failed backup, the retention sweep and its boot gating, debris replacement, the target-conflict check, the cross-device pre-flight, the sole-holder claim, the first-boot snapshot, own-pid and live-pid journal handling, keeper and skip-list planning, zero-byte handling, the resume snapshot rule, the skip validation, explicit-set recording, the boolean vocabulary, the gate defaults, the parse-time skip check, the override direction, the byte-order mark, `ORB_ENV_NO_FILE` and each disclaimer gate.
+
 ### Server composition
 
 The test root delegates to production entry composition. Each domain case uses that graph instead of constructing a domain assembly inside a fixture.

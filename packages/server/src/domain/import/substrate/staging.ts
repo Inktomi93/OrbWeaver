@@ -26,13 +26,13 @@
 import { join, resolve } from "node:path";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
+import { resolveDataLayout } from "#foundation/data-layout";
 
-/** Where uploads stage when no root is given: the data layout's `cache/import-staging` under the default
- *  data root (`foundation/data-layout` derives the same path; a test pins the two equal). Deliberately NOT
- *  `tmpdir()`: the OS temp dir is a SHARED namespace (world-writable, world-listable on a normal box), so
- *  every other local process can watch handles appear and read the bytes of a bundle that has not been
- *  consumed yet. App-owned and cwd-relative (a prod launch runs at the repo root). */
-export const DEFAULT_IMPORT_STAGING_DIR = "./data/cache/import-staging";
+/** Where uploads stage when no root is given: the data layout's own import-staging slot under the default
+ *  data root. Deliberately NOT `tmpdir()`: the OS temp dir is a SHARED namespace (world-writable,
+ *  world-listable on a normal box), so every other local process can watch handles appear and read the bytes
+ *  of a bundle that has not been consumed yet. App-owned and cwd-relative (a prod launch runs at the repo root). */
+export const DEFAULT_IMPORT_STAGING_DIR: string = resolveDataLayout({}).importStaging;
 
 /** The same single-safe-segment charset the staged-handle contract enforces, applied to the owner segment. */
 const OWNER_SEGMENT = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;

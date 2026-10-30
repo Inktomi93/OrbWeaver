@@ -144,7 +144,7 @@ export async function cloneMigratedStageDb(
   paths: Pick<StagePaths, "databaseUrl" | "assetsDir">,
   options: StageCloneOptions = {},
 ): Promise<StageDbProvenance> {
-  const { DB_LAUNCHED, runBootMigrations } = await import("@orb/server/entry/boot");
+  const { runBootMigrations } = await import("@orb/server/entry/boot");
   const { env } = await import("@orb/server/foundation/env");
   const { createLogger } = await import("@orb/server/foundation/observability");
   const { source, stageDb } = copyCloneDatabase(sourceDb, paths.databaseUrl);
@@ -155,7 +155,6 @@ export async function cloneMigratedStageDb(
       logger: createLogger(env.LOG_LEVEL, null),
       databaseUrl: paths.databaseUrl,
       backupDir: resolveDataLayout({ ["DATA_DIR"]: dirname(dirname(stageDb)) }).backups,
-      launched: DB_LAUNCHED,
     });
   } finally {
     await preCloseHousekeeping(db);
