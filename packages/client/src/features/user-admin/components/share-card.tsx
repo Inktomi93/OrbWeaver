@@ -3,7 +3,7 @@
 // Focus never falls to the page when a control it sits on unmounts; `ShareCardBody` names each successor.
 
 import type { CookieAuthMode, RelayDownReason, ShareRelayKind } from "@orb/contracts/identity";
-import { Badge } from "@orb/ui/badge";
+import { Badge, STATUS_PILL_VARIANT } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { CopyButton } from "@orb/ui/copy-button";
@@ -189,7 +189,9 @@ function ShareCardBody({ localMultiUser, discreetLogin, onEnableSeating }: Share
       {publicOnly ? null : <ShareProse>A public link to this server over a free relay, so friends outside your network can sign in.</ShareProse>}
       {/* Baseline, not center: at phone width the sentence runs to several lines, and the badge labels its first. */}
       <Row gap="field" align="baseline" role="status" aria-live="polite">
-        <Badge tone={badge.tone}>{badge.label}</Badge>
+        <Badge tone={badge.tone} variant={STATUS_PILL_VARIANT[badge.tone]}>
+          {badge.label}
+        </Badge>
         <ShareProse>
           {publicOnly ? "Friends sign in at this server's own address through your identity provider, so invite them there." : stateSentence(view)}
         </ShareProse>

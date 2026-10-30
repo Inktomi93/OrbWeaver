@@ -71,7 +71,7 @@ export function MacroBrowser({ userMacros, presetId }: MacroBrowserProps): React
           {MACRO_FLAG_DEFS.filter((def) => def.key !== "closing").map((def) => (
             <Row key={def.key} gap="field" align="center">
               <code>{def.char}</code>
-              <Badge tone={def.status === "implemented" ? "info" : "neutral"} size="sm">
+              <Badge tone={def.status === "implemented" ? "info" : "neutral"} variant={def.status === "implemented" ? "solid" : "soft"} size="sm">
                 {def.status}
               </Badge>
               <Text className="max-inline-(--reading-measure-prose)" voice="gloss">

@@ -4,7 +4,7 @@
 // ⋯ menu offers Sessions… and Reset password….
 
 import type { UserRole } from "@orb/contracts/identity";
-import { Badge } from "@orb/ui/badge";
+import { Badge, STATUS_PILL_VARIANT } from "@orb/ui/badge";
 import { Icon, KeyRound, MonitorSmartphone } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
@@ -50,7 +50,11 @@ export function AdminUserRow(props: AdminUserRowProps): ReactElement {
         subtitle={subtitle}
         actions={
           <Row align="center" gap="row">
-            {isOwnerRow ? <Badge tone={ROLE_BADGE_TONE[user.role]}>{ROLE_LABELS[user.role]}</Badge> : null}
+            {isOwnerRow ? (
+              <Badge tone={ROLE_BADGE_TONE[user.role]} variant={STATUS_PILL_VARIANT[ROLE_BADGE_TONE[user.role]]}>
+                {ROLE_LABELS[user.role]}
+              </Badge>
+            ) : null}
             {user.enabled ? null : (
               <Badge tone="destructive" variant="solid">
                 Disabled

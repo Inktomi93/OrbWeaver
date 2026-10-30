@@ -1,4 +1,5 @@
 import { TONE_ARMS, TOUCH_FLOOR_AT_COARSE, tv } from "#lib";
+import type { Tone } from "#tokens";
 
 // The badge/chip/pill skin — status pills (ui-package-design §6.1). Every fill style paints the D336 roles of the tone
 // the badge stamps, so any tone works with any style and one meaning paints alike on every primitive. Three styles in
@@ -106,3 +107,16 @@ export const badgeVariants = tv({
   ],
   defaultVariants: { tone: "neutral", variant: "soft", size: "sm", face: "text", sentenceCase: false },
 });
+
+/**
+ * The filled status pill for a tone a caller computes: a colour tone fills, and the neutral tone takes its tint,
+ * because the neutral solid is the page ink. One status set then reads as one weight whichever member is shown.
+ */
+export const STATUS_PILL_VARIANT = {
+  primary: "solid",
+  neutral: "soft",
+  destructive: "solid",
+  warning: "solid",
+  success: "solid",
+  info: "solid",
+} as const satisfies Record<Tone, "solid" | "soft">;

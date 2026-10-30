@@ -2,7 +2,7 @@
 // the failure that left plain http alone. Only local mode can take a certificate, so every other mode gets no block.
 
 import type { AuthMode, IpCertificateSetting, IpCertificateStatus } from "@orb/contracts/identity";
-import { Badge } from "@orb/ui/badge";
+import { Badge, STATUS_PILL_VARIANT } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { CopyButton } from "@orb/ui/copy-button";
 import { Row, Stack } from "@orb/ui/layout";
@@ -47,7 +47,9 @@ export function ShareIpCertificate({ mode, certificate }: ShareIpCertificateProp
       {/* Announced as it changes; the card's own status row stays the one `status` role. */}
       <Row gap="field" align="baseline" className="flex-wrap" aria-live="polite">
         <Text voice="label">HTTPS at your public address</Text>
-        <Badge tone={badge.tone}>{badge.label}</Badge>
+        <Badge tone={badge.tone} variant={STATUS_PILL_VARIANT[badge.tone]}>
+          {badge.label}
+        </Badge>
       </Row>
       <CertificateBody certificate={certificate} />
     </Stack>

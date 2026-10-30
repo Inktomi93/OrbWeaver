@@ -12,7 +12,8 @@ export interface BadgeProps extends ComponentProps<"span">, VariantProps<typeof 
  *
  * Usage: `<Badge tone="success">Active</Badge>` is the tinted status chip (the tone's tint, its edge and its
  * on-tint ink). `variant="solid"` fills the pill; `variant="outline"` drops the fill (the edge and the tone's text
- * ink) for chips that must stay quieter than the surface's focal element no matter how many of them render.
+ * ink) for chips that must stay quieter than the surface's focal element no matter how many of them render. A status
+ * pill whose tone is computed takes its style from `STATUS_PILL_VARIANT`.
  *
  * `size="inline"` is the IN-FLOW arm — a chip rendered inside a run of prose (a `{{macro}}` token in a
  * preview), which must not perturb the line box it lives in. See the variant's own note.

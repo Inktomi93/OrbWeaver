@@ -8,7 +8,7 @@
 import { SIGNUP_INVITES_MINTABLE, SIGNUP_MAX_TTL_DAYS, SIGNUP_MAX_USES } from "@orb/contracts/chat";
 import { isLoopbackHost } from "@orb/kit/allowed-hosts";
 import type { ChatId, ChatInviteId } from "@orb/kit/ids";
-import { Badge } from "@orb/ui/badge";
+import { Badge, STATUS_PILL_VARIANT } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { CopyButton } from "@orb/ui/copy-button";
 import { Grid, Row, Stack } from "@orb/ui/layout";
@@ -397,7 +397,7 @@ function InviteRow({ invite, onRevoke }: { readonly invite: InviteView; readonly
         ) : null
       }
       leading={
-        <Badge size="sm" tone={STATUS_TONE[invite.status]}>
+        <Badge size="sm" tone={STATUS_TONE[invite.status]} variant={STATUS_PILL_VARIANT[STATUS_TONE[invite.status]]}>
           {invite.status}
         </Badge>
       }

@@ -12,7 +12,7 @@ import {
   SETUP_COMMAND,
   signInModeEnvLines,
 } from "@orb/contracts/identity";
-import { Badge } from "@orb/ui/badge";
+import { Badge, STATUS_PILL_VARIANT } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { CopyButton } from "@orb/ui/copy-button";
@@ -197,7 +197,9 @@ function PreconditionItem({ row, mode, failure, seatingOff, onFixSeating }: Prec
     <Stack gap="tight" role="listitem" data-precondition={row.id} data-verdict={row.verdict}>
       <Row gap="field" align="center" className="flex-wrap">
         <Text voice="label">{PRECONDITION_LABEL[row.id]}</Text>
-        <Badge tone={badge.tone}>{badge.label}</Badge>
+        <Badge tone={badge.tone} variant={STATUS_PILL_VARIANT[badge.tone]}>
+          {badge.label}
+        </Badge>
       </Row>
       {/* The server's refusal names its own fix, so it replaces the row's standing detail; `alert` because it lands
           after the press while the status line above still reads Not sharing. */}
