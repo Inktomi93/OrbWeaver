@@ -128,6 +128,7 @@ None.
 - [0824](0824-verify-collection-responsiveness-during-local-indexing.md) triage Verify collection responsiveness during local indexing (owner)
 - [0872](0872-find-what-answered-an-api-batch-with-an.md) P3 Find what answered an API batch with an HTML page in production (owner)
 - [1401](1401-build-and-qualify-the-native-automated-surface-walkthrough.md) P1 Build and qualify the native automated surface walkthrough `surface-walk` (on 1421)
+- [1447](1447-extend-pnpm-unwired-ts-7-1-engine-and.md) P2 Extend pnpm unwired: TS 7.1 engine and dead-inside-live scans (fields, params, unions, shapes) (on 1439)
 
 ## Done
 
