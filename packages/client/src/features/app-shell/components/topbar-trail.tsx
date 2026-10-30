@@ -10,54 +10,57 @@
 // leg-4 P2), and it is the same `MobileCuration` axis the rail has always obeyed.
 
 import type { ReactElement, ReactNode } from "react";
+import type { OverflowAction } from "#components";
+import { OverflowActions, OverflowMenuForms, TRAIL_OVERFLOW_LABEL } from "#components";
+import type { OverflowMenuForm } from "#lib";
 import type { ActionChromeEntry, ChromeEntry } from "#state";
-import { useChromeRegistry } from "#state";
+import { openModal, useChromeRegistry } from "#state";
 import { CommandChip } from "./command-chip.tsx";
 
 function assertNever(behavior: never): never {
   throw new Error(`TopbarTrail: unhandled chrome behavior ${JSON.stringify(behavior)}`);
 }
 
+/** A `topbar.trail` entry: its widget form must declare a menu form (`TrailWidgetBehavior`). */
+type TrailChromeEntry = Extract<ActionChromeEntry, { readonly zone: "topbar.trail" }>;
+
 /** The zone narrows the entry: a section entry's zone is a `RailZone`, so a trail entry is a modal or a widget. */
-function isTrailEntry(entry: ChromeEntry): entry is ActionChromeEntry {
+function isTrailEntry(entry: ChromeEntry): entry is TrailChromeEntry {
   return entry.zone === "topbar.trail";
 }
 
-/** The zone's render. The registry list is frozen at the door, so calling each entry's `useVisible`
- *  unconditionally, in a fixed loop, is legal (the `contentBySection` precedent). */
+/** The zone's render: one measured row, every entry an action in registry order with its menu form beside its
+ *  inline form. The registry list is frozen at the door, so calling each entry's `useVisible` and `useMenuForms`
+ *  unconditionally, inside a per-entry component, is legal (the `contentBySection` precedent). */
 export function TopbarTrailChrome({ mobile }: { readonly mobile: boolean }): ReactElement {
   const chrome = useChromeRegistry();
-  const entries = chrome
+  const actions: OverflowAction[] = chrome
     .list()
     .filter(isTrailEntry)
-    .filter((e) => !(mobile && e.mobile === "sheet"));
-  // Registry order is the trail's order, so a run of consecutive widgets is the unit that groups.
-  const runs: ActionChromeEntry[][] = [];
-  for (const entry of entries) {
-    const last = runs.at(-1);
-    if (last !== undefined && entry.behavior.kind === "widget" && last[0]?.behavior.kind === "widget") {
-      last.push(entry);
-    } else {
-      runs.push([entry]);
-    }
+    .filter((e) => !(mobile && e.mobile === "sheet"))
+    .map((entry) => ({ id: entry.id, inline: <TrailEntry entry={entry} />, menu: <TrailMenuEntry entry={entry} /> }));
+  return <OverflowActions actions={actions} className="shell-topbar-trail" gap="field" label={TRAIL_OVERFLOW_LABEL} slot="overflow-actions" />;
+}
+
+function WidgetMenuForms({ useMenuForms }: { readonly useMenuForms: () => readonly OverflowMenuForm[] }): ReactElement {
+  return <OverflowMenuForms forms={useMenuForms()} />;
+}
+
+/** The entry's menu form, shown when the row has no room for its inline form. `false` from `useVisible` ⇒ nothing. */
+function TrailMenuEntry({ entry }: { readonly entry: TrailChromeEntry }): ReactNode {
+  const visible = entry.useVisible?.() ?? true;
+  if (!visible) {
+    return null;
   }
-  return (
-    <>
-      {runs.map((run) =>
-        run[0]?.behavior.kind === "widget" ? (
-          // The icon actions are ONE group, so the row reads as a palette trigger and a cluster, not a pill
-          // and a loose run of glyphs.
-          <div className="shell-topbar-cluster" key={run[0].id}>
-            {run.map((entry) => (
-              <TrailEntry key={entry.id} entry={entry} />
-            ))}
-          </div>
-        ) : (
-          run.map((entry) => <TrailEntry key={entry.id} entry={entry} />)
-        ),
-      )}
-    </>
-  );
+  const behavior = entry.behavior;
+  switch (behavior.kind) {
+    case "widget":
+      return <WidgetMenuForms useMenuForms={behavior.useMenuForms} />;
+    case "modal":
+      return <OverflowMenuForms forms={[{ id: entry.id, label: entry.label, icon: behavior.icon, onSelect: (): void => openModal(behavior.modalId) }]} />;
+    default:
+      return assertNever(behavior);
+  }
 }
 
 /**
@@ -76,7 +79,7 @@ export function TopbarTrailChrome({ mobile }: { readonly mobile: boolean }): Rea
  * There is no SECTION arm: `ActionChromeEntry` excludes it by type, because a section entry's zone is a
  * `RailZone` (`state/chrome-registry.ts`).
  */
-function TrailEntry({ entry }: { readonly entry: ActionChromeEntry }): ReactNode {
+function TrailEntry({ entry }: { readonly entry: TrailChromeEntry }): ReactNode {
   const visible = entry.useVisible?.() ?? true;
   if (!visible) {
     return null;

@@ -14,6 +14,7 @@
 import type { ReactElement } from "react";
 import type { ChromeEntry } from "#state";
 import { PluginCommandsMenu } from "../components/plugin-commands-menu.tsx";
+import { usePluginCommandForms } from "../hooks/use-plugin-command-forms.ts";
 import { useLauncherCommands } from "../hooks/use-plugin-commands.ts";
 
 export const pluginCommandsChrome: ChromeEntry = {
@@ -22,5 +23,10 @@ export const pluginCommandsChrome: ChromeEntry = {
   zone: "topbar.trail",
   mobile: "sheet",
   useVisible: (): boolean => useLauncherCommands().length > 0,
-  behavior: { kind: "widget", body: (presentation): ReactElement | null => <PluginCommandsMenu presentation={presentation} /> },
+  behavior: {
+    kind: "widget",
+    body: (presentation): ReactElement | null => <PluginCommandsMenu presentation={presentation} />,
+    // The menu entry is a submenu of the same commands.
+    useMenuForms: usePluginCommandForms,
+  },
 };

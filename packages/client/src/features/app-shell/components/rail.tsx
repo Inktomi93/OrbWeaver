@@ -30,6 +30,8 @@ export interface RailProps {
   readonly activeSection: SectionId;
   readonly onSelectSection: (id: SectionId) => void;
   readonly onOpenModal: (id: ModalSlotId) => void;
+  /** The bar is covered by a full-screen sheet: nothing in it may take focus or a press. */
+  readonly inert?: boolean;
 }
 
 /** One chrome entry as a rail affordance. A component (not a bare map body) so `useVisible` is a top-level
@@ -196,7 +198,7 @@ function SheetBadgeCount({ entryId, label, useBadge }: { readonly entryId: strin
   );
 }
 
-export function Rail({ activeSection, onSelectSection, onOpenModal }: RailProps): ReactElement {
+export function Rail({ activeSection, onSelectSection, onOpenModal, inert }: RailProps): ReactElement {
   const entries = useChromeRegistry().list();
   const navEntries = entries.filter((e) => e.zone === "rail.nav");
   const endEntries = entries.filter((e) => e.zone === "rail.end");
@@ -221,7 +223,7 @@ export function Rail({ activeSection, onSelectSection, onOpenModal }: RailProps)
   // tab right now. Desktop is untouched — the rail column renders every entry regardless of `data-mobile`.
   const curation = mobileBarCuration(entries, activeSection);
   return (
-    <nav className="shell-rail" aria-label="Primary" data-tone={SHELL_ACCENT_TONE}>
+    <nav className="shell-rail" aria-label="Primary" data-tone={SHELL_ACCENT_TONE} inert={inert}>
       {brandEntry === undefined ? (
         <div className="shell-rail-brand" aria-hidden="true">
           <WeaveGlyph size="lg" />

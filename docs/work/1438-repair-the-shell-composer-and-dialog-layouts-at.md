@@ -29,4 +29,6 @@ Each listed case is added to the text-scale suite and passes on Chromium and Web
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+- Added to `QUALIFIED` in `tests/client/features/app-shell/surfaces/platform-text-scale.suite.ct.tsx`, green on Chromium and WebKit: the topbar at 300% on the desktop (red before: Show details and Report a bug past the edge, clipped on x), the phone Characters band at 200% (red before: Import, New character and Show details covered by the Search field) and the Context panel header at 200% on the desktop.
+- The Context header case was not red for the ruled defect: its tab strip is the shrinker and has its own chooser, so no action sits past the edge (see 1442). Its only finding was tabs scrolled out of their own scroller, which the probe's hit test counted as covered. `clippedControls` now skips the hit test for a control its own scroller reaches by scrolling, the rule its header already states for the clip check. A planted case in the same suite (`_text-scale-probe-stories.tsx`) pins that a control clipped by an ancestor that does not scroll still fails and one its own scroller reaches passes.
+- Open: Jump to latest above the flank (`message-list-surface.tsx`), the dialog gutter token (tokens tree) and the composer's secondary actions.

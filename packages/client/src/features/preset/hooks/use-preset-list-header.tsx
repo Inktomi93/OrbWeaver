@@ -9,7 +9,6 @@
 
 import { Button } from "@orb/ui/button";
 import { Icon, Plus, Upload } from "@orb/ui/icons";
-import { Row } from "@orb/ui/layout";
 import { useState } from "react";
 import { Tip } from "#components";
 import { useInvalidation, useTRPC } from "#data";
@@ -25,6 +24,7 @@ const NEW_PRESET_NAME = "New preset";
 const NEW_PRESET_KIND = "generation";
 /** ONE string for the import door's accessible name AND its hover tooltip (O-3). */
 const IMPORT_LABEL = "Import a preset";
+const NEW_PRESET_LABEL = "New preset";
 
 export function usePresetListHeader(): ListPaneHeaderView {
   const trpc = useTRPC();
@@ -60,23 +60,32 @@ export function usePresetListHeader(): ListPaneHeaderView {
   };
 
   return {
-    action: (
-      <Row align="center" gap="field">
-        {/* Icon-only, so the tooltip is the same string as the aria-label and the two can't drift.
-                `size="icon"`, not `sm`: the `sm` box is width-fitted to a LABEL, so an icon-only trigger
-                would miss the coarse touch floor. `size="icon"` is `size-control-md`, which is 34px fine / 48px coarse BY TOKEN
-                (D62 P1), so the touch floor holds without any hand math here. */}
-        <Tip text={IMPORT_LABEL}>
-          <Button aria-label={IMPORT_LABEL} intent="ghost" onClick={(): void => setImportOpen(true)} size="icon">
-            <Icon icon={Upload} size="sm" />
+    actions: [
+      {
+        id: "preset-import",
+        inline: (
+          // Icon-only, so the tooltip is the same string as the aria-label and the two can't drift.
+          // `size="icon"`, not `sm`: the `sm` box is width-fitted to a LABEL, so an icon-only trigger would miss the
+          // coarse touch floor; `size="icon"` is `size-control-md`, 34px fine / 48px coarse by token.
+          <Tip text={IMPORT_LABEL}>
+            <Button aria-label={IMPORT_LABEL} intent="ghost" onClick={(): void => setImportOpen(true)} size="icon">
+              <Icon icon={Upload} size="sm" />
+            </Button>
+          </Tip>
+        ),
+        menu: [{ id: "preset-import", label: IMPORT_LABEL, icon: Upload, onSelect: (): void => setImportOpen(true) }],
+      },
+      {
+        id: "preset-new",
+        inline: (
+          <Button disabled={create.isPending} intent="primary" onClick={onCreate} size="sm">
+            <Icon icon={Plus} size="sm" />
+            New
           </Button>
-        </Tip>
-        <Button disabled={create.isPending} intent="primary" onClick={onCreate} size="sm">
-          <Icon icon={Plus} size="sm" />
-          New
-        </Button>
-      </Row>
-    ),
+        ),
+        menu: [{ id: "preset-new", label: NEW_PRESET_LABEL, icon: Plus, onSelect: onCreate, disabled: create.isPending }],
+      },
+    ],
     count: census ?? 0,
     title: PRESETS_SECTION_LABEL,
     overlay: (

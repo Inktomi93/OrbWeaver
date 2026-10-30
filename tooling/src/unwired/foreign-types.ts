@@ -13,9 +13,16 @@ const FOREIGN_HOMES = [
   { kind: "db", pattern: /\/packages\/db\/src\/|\/drizzle-orm\//u },
   { kind: "inference", pattern: /\/packages\/inference\/src\//u },
 ] as const;
-/** `platform`: a global the runtime supplies (`AbortSignal`, `Buffer`) or another library outside contracts' reach. */
-export type ForeignKind = (typeof FOREIGN_HOMES)[number]["kind"] | "platform";
+/** `platform`: a global the runtime supplies (`AbortSignal`, `Buffer`) or another library outside contracts' reach.
+ *  `kept`: a server type the tool-registry ruling keeps in its domain. */
+export type ForeignKind = (typeof FOREIGN_HOMES)[number]["kind"] | "platform" | "kept";
 export type ForeignTypes = Readonly<Record<ForeignKind, readonly string[]>>;
+
+// Server types the tool-registry ruling keeps in their domain, by name, with the plan for a consumer that names one.
+const KEPT_SHAPES: ReadonlyMap<string, string> = new Map([
+  ["ResolvedToolSet", "ResolvedToolSet stays private to tool-use: the consumer takes it as an opaque type parameter"],
+  ["ToolHandler", "the tool handler signature carries AbortSignal: it stays with the consuming domain's contract/"],
+]);
 
 /** The `@orb/db` types that carry a database handle or an unexecuted statement across a boundary. */
 export const DB_HANDLE_TYPES: ReadonlySet<string> = new Set([
@@ -45,9 +52,13 @@ export const aliased = (checker: ts.TypeChecker, symbol: ts.Symbol | undefined):
 
 /** The named types `node` mentions that packages/contracts cannot reach, by kind. */
 export function foreignTypes(checker: ts.TypeChecker, node: ts.Node): ForeignTypes {
-  const found: Record<ForeignKind, Set<string>> = { server: new Set(), db: new Set(), inference: new Set(), platform: new Set() };
+  const found: Record<ForeignKind, Set<string>> = { server: new Set(), db: new Set(), inference: new Set(), platform: new Set(), kept: new Set() };
   const followed = new Set<ts.Node>();
   const classify = (reference: ts.TypeReferenceNode, declaration: ts.Declaration): void => {
+    // A type parameter belongs to the signature that declares it, wherever that signature moves.
+    if (ts.isTypeParameterDeclaration(declaration)) {
+      return;
+    }
     // A rename (`type SideGenSampling = RolePresetParams`) is classified at the type it names.
     if (ts.isTypeAliasDeclaration(declaration) && ts.isTypeReferenceNode(declaration.type)) {
       if (!followed.has(declaration)) {
@@ -57,8 +68,9 @@ export function foreignTypes(checker: ts.TypeChecker, node: ts.Node): ForeignTyp
       return;
     }
     const kind = foreignKind(declaration.getSourceFile().fileName);
+    const name = reference.typeName.getText();
     if (kind !== null) {
-      found[kind].add(reference.typeName.getText());
+      found[kind === "server" && KEPT_SHAPES.has(name) ? "kept" : kind].add(name);
     }
   };
   const visit = (child: ts.Node): void => {
@@ -70,7 +82,13 @@ export function foreignTypes(checker: ts.TypeChecker, node: ts.Node): ForeignTyp
     ts.forEachChild(child, visit);
   };
   visit(node);
-  return { server: [...found.server].sort(), db: [...found.db].sort(), inference: [...found.inference].sort(), platform: [...found.platform].sort() };
+  return {
+    server: [...found.server].sort(),
+    db: [...found.db].sort(),
+    inference: [...found.inference].sort(),
+    platform: [...found.platform].sort(),
+    kept: [...found.kept].sort(),
+  };
 }
 
 export const mergeForeignTypes = (parts: readonly ForeignTypes[]): ForeignTypes => ({
@@ -78,10 +96,11 @@ export const mergeForeignTypes = (parts: readonly ForeignTypes[]): ForeignTypes 
   db: [...new Set(parts.flatMap((part) => part.db))].sort(),
   inference: [...new Set(parts.flatMap((part) => part.inference))].sort(),
   platform: [...new Set(parts.flatMap((part) => part.platform))].sort(),
+  kept: [...new Set(parts.flatMap((part) => part.kept))].sort(),
 });
 
-/** The runtime types a shape names: they stay with their owners, so the shape splits rather than moving whole. */
-export const runtimeTypes = (foreign: ForeignTypes): readonly string[] => [...foreign.platform, ...foreign.db, ...foreign.inference];
+/** The types a shape names that stay with their owners, so the shape splits rather than moving whole. */
+export const runtimeTypes = (foreign: ForeignTypes): readonly string[] => [...foreign.platform, ...foreign.db, ...foreign.inference, ...foreign.kept];
 
 export const passesDbHandle = (foreign: ForeignTypes): boolean => foreign.db.some((name) => DB_HANDLE_TYPES.has(name.replace(/^.*\./u, "")));
 
@@ -90,9 +109,16 @@ export const passesDbHandle = (foreign: ForeignTypes): boolean => foreign.db.som
 export const isSplitSignature = (foreign: ForeignTypes): boolean => runtimeTypes(foreign).length > 0 && foreign.server.length === 0 && !passesDbHandle(foreign);
 
 export function describeForeignTypes(foreign: ForeignTypes): string {
-  const labels: Readonly<Record<ForeignKind, string>> = { server: "data to contracts", platform: "platform", db: "@orb/db", inference: "@orb/inference" };
-  return (Object.keys(labels) as ForeignKind[])
-    .filter((kind) => foreign[kind].length > 0)
-    .map((kind) => `${labels[kind]}: ${foreign[kind].join(", ")}`)
-    .join("; ");
+  const labels: Readonly<Record<ForeignKind, string>> = {
+    server: "data to contracts",
+    platform: "platform",
+    db: "@orb/db",
+    inference: "@orb/inference",
+    kept: "stays by ruling",
+  };
+  const rulings = foreign.kept.flatMap((name) => KEPT_SHAPES.get(name) ?? []);
+  return [
+    ...(Object.keys(labels) as ForeignKind[]).filter((kind) => foreign[kind].length > 0).map((kind) => `${labels[kind]}: ${foreign[kind].join(", ")}`),
+    ...rulings,
+  ].join("; ");
 }

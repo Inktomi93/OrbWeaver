@@ -3,13 +3,17 @@
 import { CHARACTERS_SECTION_LABEL } from "../../../packages/client/src/features/character/lib/characters-section-label.ts";
 import { CHATS_SECTION_LABEL } from "../../../packages/client/src/features/chat/lib/chats-section-label.ts";
 import { CONFIG_SECTION_LABEL } from "../../../packages/client/src/features/config/lib/config-copy.ts";
+import { DATABANK_SECTION_LABEL } from "../../../packages/client/src/features/databank/lib/databank-section-label.ts";
 import { CORPUS_SECTION_LABEL } from "../../../packages/client/src/features/discovery/lib/corpus-section-label.ts";
+import { EXTENSIONS_SECTION_LABEL } from "../../../packages/client/src/features/plugin/lib/extensions-section-label.ts";
 import { PRESETS_SECTION_LABEL } from "../../../packages/client/src/features/preset/lib/presets-section-label.ts";
 
 export const SECTION_LABELS = {
   characters: CHARACTERS_SECTION_LABEL,
   chats: CHATS_SECTION_LABEL,
   corpus: CORPUS_SECTION_LABEL,
+  databank: DATABANK_SECTION_LABEL,
+  extensions: EXTENSIONS_SECTION_LABEL,
   presets: PRESETS_SECTION_LABEL,
   settings: CONFIG_SECTION_LABEL,
 } as const;

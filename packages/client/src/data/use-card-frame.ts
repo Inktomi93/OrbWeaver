@@ -41,6 +41,7 @@ function cardFrameMintBody(request: CardFrameRequest): CardFrameMintRequest {
     html: request.html,
     ...(request.css === undefined ? {} : { css: request.css }),
     themeTokens: { ...request.themeTokens },
+    styleTokens: { ...request.styleTokens },
     ...(request.fontFamily === undefined ? {} : { fontFamily: request.fontFamily }),
   };
 }

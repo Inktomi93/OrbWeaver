@@ -183,20 +183,23 @@ This is a bounded case map for seven reference files. It is not an audit of the 
 
 #### Bridge
 
-The legacy file drove `buildPluginBridge` over a bundle of fake host operations and asserted what they recorded. The root does not expose those operations, so a maintained case reaches the bridge only through a guest. The fake bundle is dropped.
+The legacy file drove `buildPluginBridge` over a bundle of fake host operations and asserted what they recorded. The root does not expose those operations, so the fake bundle is dropped. The Tier-C relay `uiHostCall` reaches the real bridge without a guest, and its proxy tuple admits the canon reads and the variable operations. Those cases are rebuilt there. The other cases test plugin capability enforcement, which is security-role work. The security batch rebuilds them through a real built guest on the production host: a showcase plugin, or a test guest built by the plugin toolchain.
 
 | Behavior | Primary home and maintained evidence | Decision |
 | - | - | - |
-| Hourly floors for `net.fetch`, `llm.quiet`, search and notices: ceiling, window release and per-plugin keys | Unit: [call floors](../../../tests/server/domain/plugin/substrate/call-floors.test.ts) calls the production floors on the injected clock. | Move. |
+| Floor mechanics: ceiling, window release, per-plugin keys and per-room notice keys | Unit: [call floors](../../../tests/server/domain/plugin/substrate/call-floors.test.ts) calls the production floor factories with test limits on the injected clock. | Move. |
+| The pairing of each capability with its production limit as composed in `entry/compose/automation-plugin.ts`, including `search.query` | The pairing is built inline in the composition root and no door exposes it. Enforcing it is capability enforcement. | Move to security batch. |
 | The synchronous-claim burst on the floors | Each floor is one synchronous step by construction. The ordering that matters is the bridge claiming before it awaits the operation. | Drop the floor-only burst. The bridge ordering moves to the security batch. |
-| A snippet with no plugin identity cannot egress or spend | Needs a guest invocation. | Move to security batch. |
-| `llm.quiet` closes the installer and shares one hourly lane with its options. The paid call never starts over the ceiling. Liveness becomes the provider abort signal | Needs a guest invocation. | Move to security batch. |
-| `turn.trigger` attributes the installer and threads the depth | Needs a guest invocation. | Move to security batch. |
-| Canon reads carry the installer's history floor and hidden-content verdict, and a non-member reads nothing. Roster, book and entry reads are member-gated and attachment-gated | Needs a guest invocation. The viewer decision itself is owned by [role authority](../../../tests/server/domain/chat/verbs/role-authority.int.test.ts) and [member visibility](../../../tests/server/domain/chat/substrate/member-visibility.int.test.ts). | Move to security batch. |
-| A guest lore write has macros neutralized, needs an attached book, is title-namespaced per plugin and capped at the entry ceiling | Needs a guest invocation. This is the capability-bypass pin: a stored live macro is a deferred variable write. | Move to security batch. Priority case. |
-| Variable, asset, search, databank and character ingest operations close over the installer | Needs a guest invocation. | Move to security batch. |
-| Card-state operations stamp the plugin's own slug and the installer | The storage walls are rebuilt below. The guest-side stamping needs a guest invocation. | Move to security batch. |
-| Imagery returns the asset id and never the cost | Needs a guest invocation. | Move to security batch. |
+| A snippet with no plugin identity cannot egress or spend | Capability enforcement. | Move to security batch. |
+| `llm.quiet` closes the installer and shares one hourly lane with its options. The paid call never starts over the ceiling. Liveness becomes the provider abort signal | Capability enforcement. | Move to security batch. |
+| `turn.trigger` attributes the installer and threads the depth | Capability enforcement. | Move to security batch. |
+| Canon reads carry the installer's history floor and hidden-content verdict | Integration: [relay bridge](../../../tests/server/domain/plugin/verbs/ui-host-call-bridge.int.test.ts) reads through `uiHostCall` as a from-join member and as a host. The host read is the positive control. | Rebuild. |
+| Variable operations close over the installer | Integration: the same relay bridge file sets, reads and deletes as two users and checks that neither sees the other's values. | Rebuild. |
+| A non-member installer reads nothing. Roster, book and entry reads are member-gated and attachment-gated | The relay refuses a non-member at the room gate, and the roster, book and entry reads are outside its proxy tuple. The viewer decision is owned by [role authority](../../../tests/server/domain/chat/verbs/role-authority.int.test.ts) and [member visibility](../../../tests/server/domain/chat/substrate/member-visibility.int.test.ts). | Move to security batch. |
+| A guest lore write has macros neutralized, needs an attached book, is title-namespaced per plugin and capped at the entry ceiling | Capability enforcement. This is the capability-bypass pin: a stored live macro is a deferred variable write. | Move to security batch. Priority case. |
+| Asset, search, databank and character ingest operations close over the installer | Capability enforcement. | Move to security batch. |
+| Card-state operations stamp the plugin's own slug and the installer | The storage walls are rebuilt below. The guest-side stamping is capability enforcement. | Move to security batch. |
+| Imagery returns the asset id and never the cost | Capability enforcement. | Move to security batch. |
 
 #### Plugin card data
 
@@ -243,6 +246,107 @@ The legacy file drove `buildPluginBridge` over a bundle of fake host operations 
 | A snapshot actor row under the retired `cast` arm fails the whole read loudly | Contract: [actor ref](../../../tests/contracts/rpg/actor-ref.contract.test.ts) refuses the arm and projects the live keys. Integration, storage subject: [stale actor key](../../../tests/server/domain/rpg/persistence/stale-actor-key.int.test.ts) reads the corrupt row through `getTrackerView`. | Rebuild. |
 | A stale presence key silently reads the NPC as offstage | The owner ruled a wipe, not a migration ([vocabulary map](../../law/vocabulary-map.md)). No product path writes the old spelling. The case pins a known silent orphan. | Drop. |
 | A stale lock path silently detaches the manual-edit pin | The same ruling and reason. | Drop. |
+
+### Selected case map: card and bundle serde, provider rows, seed theme pairing and workload estimates
+
+This is a bounded case map for six reference files. Legacy paths are relative to the external source named in [Spine-Testing](../../law/Spine-Testing.md#2-the-tree). Serialization cases live at the contract layer, because the subject is a pure parse and emit pair. Persistence, funding and ownership cases live in server integration.
+
+#### Character card serde
+
+Reference: `server/primitives/serde/card/index.test.ts`. No maintained test called the reader or the emitter directly. The [import suite](../../../tests/server/domain/import/loader/import-bundle.int.test.ts) reaches them only through whole files.
+
+| Behavior | Primary home and maintained evidence | Decision |
+| - | - | - |
+| V3 flatten, V1 and Pygmalion reads, fallback name, placeholder note, spec capture, unknown spec | Contract: [card serde](../../../tests/server/primitives/serde/card/card-serde.contract.test.ts) | Rebuild. Wire cards are JSON text, and canonical values come from the production reader. |
+| V3 promotions, group-only fold, residue, multilingual notes fold, assets passthrough | Contract: card serde | Rebuild. One table covers the notes fold: English first, first non-empty, creator notes win, malformed ignored. |
+| Favourite flag read as `true` only, live star written on export | Contract: card serde. Integration: [star through restore](../../../tests/server/domain/import/loader/import-bundle.int.test.ts) | Keep both. Integration owns persistence across a restore. Contract owns the strict boolean and the stale-residue rule. |
+| Plugin namespace stays inert and round-trips | Contract: card serde | Rebuild. The hostile nested keys must not promote a typed field. |
+| Emitter wire shape, ST disabled polarity, spec round trip, book only with entries, typed columns win over residue | Contract: card serde | Rebuild. |
+| Round trips: full fields, null fields, promotions, group-only greetings, residue | Contract: card serde | Rebuild. The legacy "emitter output re-parses" and "own output parses" cases merge into these. |
+| Content hash: key order, provenance exclusion, semantic change | Contract: card serde | Rebuild. The star is also outside the hash. |
+| Import hash: book residue, kept activation fields, art, spec, key order, notes, script id | Contract: card serde. Integration: [identity across export and restore](../../../tests/server/domain/import/loader/import-bundle.int.test.ts) | Keep both. Integration proves one character per box across crossings. Contract owns each identity rule. |
+| Book entry export: constant, insertion order, at-depth encoding, keyless entry | Contract: card serde | Rebuild through `buildCardV3`. The entry mapper is closure-private, and no export was added for the test. |
+| Entry read: columns, metadata, position table, native at-depth, `use_regex`, literal keys | Contract: card serde | Rebuild. The matcher is called on both sides of the regex flag. |
+| `extractLorebook` and `selectBestCharacterBook` | Contract: card serde | Rebuild. |
+| Hand-built canonical card literal for the hash cases | None | Drop. A reader-built card replaces it. |
+
+#### Chat bundle serde
+
+Reference: `server/primitives/serde/chat-bundle/index.test.ts`. The [import suite](../../../tests/server/domain/import/loader/import-bundle.int.test.ts) and the [portable JSON boundaries](../../../tests/server/domain/rpg/persistence/portable-json-boundaries.int.test.ts) cover the export and restore wiring. Neither calls the parser on hostile files.
+
+| Behavior | Primary home and maintained evidence | Decision |
+| - | - | - |
+| Envelope stamp, canonical read, byte-identical round trip, gameless chat | Contract: [chat bundle serde](../../../tests/server/primitives/serde/chat-bundle/chat-bundle-serde.contract.test.ts) | Rebuild. The two legacy round-trip cases and the gameless case merge. |
+| Foreign kind, non-JSON and newer version refuse by name | Contract: chat bundle serde | Rebuild. The current version parses as the positive control. |
+| Pending observations: positional parents, byte identity, duplicate ordinals refuse | Contract: chat bundle serde | Rebuild. A dangling source drops its fact, which the reference file did not cover. |
+| Native usage: zero, unknown axes, served model, partial modalities, price provenance | Contract: chat bundle serde | Rebuild. The legacy cost factory is replaced by the production usage schema. |
+| Contradictory legacy token copy refuses | Contract: chat bundle serde | Rebuild. The agreeing copy is the control. |
+| Provenance label re-derived, never a refusal | Contract: chat bundle serde | Rebuild. |
+| Dangling rpg references prune per plane; hand journal entry survives | Contract: chat bundle serde | Rebuild. In-range anchors are the control. |
+| Missing tool-call issues heal to an empty list; sheet handle blank and over-cap | Contract: chat bundle serde | Rebuild. The legacy check that the healed array is unfrozen is dropped as implementation detail. |
+| Export refuses malformed stored rpg planes; null planes export | Integration: [portable JSON boundaries](../../../tests/server/domain/rpg/persistence/portable-json-boundaries.int.test.ts) | Keep. Not a reference case, and not repeated here. |
+
+#### Provider rows and plugin claims
+
+Reference: `server/domain/connection/persistence/provider-rows.int.test.ts`. The [testkit provider capture](../../../tests/support/node/factories/plugin.int.test.ts) covers one claim and its tombstone on disable.
+
+| Behavior | Primary home and maintained evidence | Decision |
+| - | - | - |
+| Admin row: replace in place, one drop, second drop refused | Persistence: [provider rows](../../../tests/server/domain/connection/persistence/provider-rows.int.test.ts) through the registry | Rebuild. The functions are called through the connection service registry. |
+| Admin id cannot take a plugin namespace | Persistence: provider rows. Database: [namespace check](../../../tests/db/schema/provider-row-namespace.int.test.ts) | Move the table check to the database tier with both namespaces as controls. The registry refusal stays in provider rows. |
+| Owners of one definition share a row; each release narrows its own install; tombstones keep the row | Persistence: provider rows through real plugin install, consent and disable | Rebuild. |
+| Another owner's different definition never blocks or answers | Persistence: provider rows | Rebuild. |
+| Changed definition refused before any write, even after uninstall | Persistence: provider rows | Rebuild. The unchanged definition re-linking is the control. |
+| Two plugins of one owner claim one id concurrently | None | Drop. A plugin may claim only ids under its own manifest id, and an owner holds one install per slug, so no production path races two claims of one id. The post-write re-read in `replacePluginProviderRows` is a possible dead guard. |
+| Reconciliation reaps a definition no claim names | None | Drop. Claims are permanent, and no verb deletes an owner, so the only path is a raw claim delete. The reap arm of `reconcilePluginClaims` is a possible dead guard. |
+| Reads re-parse every stored row | None | Drop. Only a raw write of an unproducible row reaches it. The provider schema owns its refusal. |
+
+#### Seed theme pairing
+
+Reference: `server/domain/settings/seed-theme-pairing.suite.test.ts`. Nothing maintained pairs the server overrides with the ui palette. [Seed theme rows](../../../tests/server/domain/settings/persistence/system-themes.int.test.ts) read the same registry but not the palette.
+
+| Behavior | Primary home and maintained evidence | Decision |
+| - | - | - |
+| Each seed colour field equals its ui palette value | Suite: [seed theme pairing](../../../tests/server/domain/settings/seed-theme-pairing.suite.test.ts) | Rebuild. Each field must also be set, because two unset values compared equal in the reference. |
+| Font and radius name tokens the base palette defines | Suite: seed theme pairing | Rebuild. The literal font and radius names are dropped. |
+| Value sets equal the seeds other than Hearth | Suite: seed theme pairing | Rebuild. |
+| The shipped set is Hearth, Mocha and Light | Suite: seed theme pairing | Rebuild. The seeded ids and names are compared with their production constants, because the set equality passes when a seed and its value set are deleted together. |
+
+#### Workload estimates
+
+Reference: `server/domain/workloads/verbs/estimate-model-calls.int.test.ts`. Maintained [owner authority](../../../tests/server/domain/workloads/persistence/every-owner-authority.int.test.ts), [funded rows](../../../tests/server/domain/workloads/persistence/funded-tenant-rows.int.test.ts) and [refinery score sweeps](../../../tests/server/domain/refinery/persistence/score-sweep-rows.suite.int.test.ts) exercise the verb through the production root. The [backfill estimate suite](../../../tests/server/domain/chat/substrate/backfill-estimate.int.test.ts) owns the memory counts.
+
+| Behavior | Primary home and maintained evidence | Decision |
+| - | - | - |
+| Singular count follows the caller's library and funder | Integration: owner authority, refinery score sweeps | Keep. The reference asserted a mock's arguments; the maintained cases assert real counts and funding. |
+| Bulk estimate is the box owner's alone | Integration: owner authority, refinery score sweeps | Keep. |
+| Retry counts the row's owner, funder and params | Integration: funded rows, owner authority | Keep. |
+| Retry keeps the retry gates; a bulk row is not found for a non-owner admin | Integration: owner authority | Keep. |
+| Stranger and missing id give the same not-found | Integration: [estimate verbs](../../../tests/server/domain/workloads/verbs/estimate-model-calls.int.test.ts) | Rebuild. The maintained cases only assert that a throw occurs. |
+| A kind with no model call answers null; a mode the kind lacks is refused | Integration: estimate verbs | Rebuild. |
+| Refused run counts zero unless the confirm assumes admission; retry agrees with retry | Integration: estimate verbs through a real memory room | Rebuild. The refused retry is checked against the retry verb. |
+| Poison row answers null and the estimator is never asked | Persistence: [poison row](../../../tests/server/domain/workloads/persistence/estimate-poison-row.int.test.ts) | Rebuild. The healthy row of the same kind is the control. |
+
+#### Image sweep
+
+Reference: `server/domain/embeddings/verbs/embed-assets.int.test.ts`. The [indexer capture](../../../tests/support/node/factories/embedding-images.int.test.ts) and the [corpus image variants](../../../tests/support/node/corpus-image-variants.int.test.ts) cover the admission floor and its recorded skip. [Knowledge variants](../../../tests/support/node/corpus-knowledge-variants.int.test.ts) cover both embedding lenses under a joint encoder.
+
+| Behavior | Primary home and maintained evidence | Decision |
+| - | - | - |
+| Fresh sweep, resume at no cost, force, one row per lens | Persistence: [image sweep rows](../../../tests/server/domain/embeddings/persistence/image-sweep-rows.int.test.ts) | Rebuild. Requests at the provider edge are counted, and the quote is compared with the spend. |
+| Both lenses per avatar under a joint encoder | Integration: knowledge variants | Keep. |
+| Text fallback sweep records the text space as complete | Persistence: image sweep rows | Rebuild. The recorded space must equal the vectors' own space. |
+| Aborted sweep records nothing | Persistence: image sweep rows | Rebuild. It runs under an owner scope, because a global scope reaches no completion arm. |
+| Event-indexed avatar promotes its generation without a second spend | Persistence: image sweep rows | Rebuild. |
+| Progress positions | Persistence: image sweep rows | Rebuild. |
+| Below-floor asset: recorded skip, honored on rerun, not bypassed by force | Integration: indexer capture, corpus image variants | Keep. |
+| Quote is zero once analysed; force quotes every avatar | Persistence: image sweep rows | Rebuild. |
+| Quote for an avatar re-uploaded under its id | None | Drop. Bytes of one asset id are immutable in the store, so the state is not producible. |
+| Half-embedded avatar (raw vector only) is resumed, not skipped | None | Defer. The state needs a joint-encoder connection whose caption step fails mid-asset. The text fallback writes one lens, so the sweep cannot be interrupted between two. |
+| Vanished asset row is a skip | None | Defer. A deleted row mid-sweep has no deterministic production seam. A deleted blob under a live row throws and fails the sweep. |
+| Quote is zero for a Utility model that reads no pictures | None | Defer. Needs a text-only summarize connection built through the connection door. |
+| Captioned row from before the facet breakdown is work, not a skip | None | Defer. Needs a sanctioned historic-state home in the testkit README. |
+| Fused caption request body; local-light two-tower caption; refused joint-encoder update during routing | None | Defer. The first two are backend wire cases for the inference tests. The third needs the connection probe harness. |
 
 ### Selected case map: chat teaching, identity, read, backfill and persona resolution
 

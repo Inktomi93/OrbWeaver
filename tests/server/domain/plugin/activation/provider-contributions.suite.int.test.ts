@@ -140,7 +140,7 @@ test("identical definitions are served to each owner, and a changed definition i
 test("an invalid provider row is refused at install and leaves nothing offered", { tags: ["slow"] }, async () => {
   await using root = await createServerHarness({ pluginSpawn: spawn });
   const who = await owner(root);
-  const invalid = makePluginBundle(manifestOf({}), GUEST, root.clock.now());
+  const valid = makePluginBundle(manifestOf({}), GUEST, root.clock.now());
   // The refusal path needs a wire the manifest type cannot spell, so the one field is cast to feed it bad input.
   const row = { ...providerDefSchema.parse(endpointProvider("Acme")), wire: "guest-backend" as never };
   const bad = makePluginBundle({ ...manifestOf({}), providers: [row] }, GUEST, root.clock.now());
@@ -148,7 +148,7 @@ test("an invalid provider row is refused at install and leaves nothing offered",
   expect(await root.services.plugin.list({ caller: who })).toEqual([]);
   expect(await offered(root, who)).toBe(false);
   // Control: the same bundle without the bad row installs.
-  await expect(root.services.plugin.install({ caller: who, bundle: invalid, grant: [] })).resolves.toBeDefined();
+  await expect(root.services.plugin.install({ caller: who, bundle: valid, grant: [] })).resolves.toBeDefined();
 });
 
 test("a squatted provider id blocks and shadows nobody else", { tags: ["slow"] }, async () => {

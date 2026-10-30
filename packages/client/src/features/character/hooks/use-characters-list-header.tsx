@@ -30,6 +30,7 @@ import type { ListPaneHeaderView } from "#lib";
 import { useMobileViewport } from "#state";
 import { CharacterCreateActions } from "../components/character-create-actions.tsx";
 import { useCharacterCensus } from "../hooks/use-character-census.ts";
+import { CHARACTER_DOOR_FORMS } from "../lib/character-door-forms.ts";
 import { CHARACTERS_SECTION_LABEL } from "../lib/characters-section-label.ts";
 
 export function useCharactersListHeader(): ListPaneHeaderView {
@@ -45,5 +46,9 @@ export function useCharactersListHeader(): ListPaneHeaderView {
   // IT MUST BE AN OMITTED PROP, NEVER A HIDDEN ONE: a `display:none` action is still a child, and the shed
   // rule is `:has(> *:not([data-slot="list-pane-identity"]))` — CSS cannot un-see it.
   const mobile = useMobileViewport();
-  return { count: count ?? 0, title: CHARACTERS_SECTION_LABEL, ...(mobile ? {} : { action: <CharacterCreateActions /> }) };
+  return {
+    count: count ?? 0,
+    title: CHARACTERS_SECTION_LABEL,
+    ...(mobile ? {} : { actions: [{ id: "character-create", inline: <CharacterCreateActions />, menu: CHARACTER_DOOR_FORMS }] }),
+  };
 }

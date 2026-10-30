@@ -156,4 +156,14 @@
   .shell-main [data-slot="chat-room-flank-row"][data-flank-settle] .orb-chat-track {
     translate: var(--flank-centre-flip-from) 0;
   }
+
+  /* A surface with no skeleton declares its first read with `data-ready`: transparent until the read settles, then
+   * it fades in on the section crossfade's tokens. A surface that mounts already settled has no `false` state to
+   * leave, so it never fades; the reduced-motion floor removes the transition. */
+  .shell-grid [data-ready] {
+    transition: opacity var(--motion-base) var(--ease-out-expo);
+  }
+  .shell-grid [data-ready="false"] {
+    opacity: 0;
+  }
 }
