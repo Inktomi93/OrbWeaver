@@ -1,8 +1,8 @@
 // verb: relabel — a key follows its connection's rename. Only a key still carrying the old connection name moves,
 // so a name the user gave the key by hand is never overwritten; a taken name gets the next free spelling.
 
+import type { RelabelCredentialParams } from "@orb/contracts/credentials";
 import { nextFreeLabel } from "@orb/kit/strings";
-import type { RelabelCredentialParams } from "../contract/params.ts";
 import type { CredentialContext, CredentialsService } from "../contract/service.ts";
 import { fetchOwnedCredential, listProviderLabels, setLabelOwned } from "../persistence/queries.ts";
 

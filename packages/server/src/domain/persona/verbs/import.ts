@@ -12,13 +12,11 @@ import { nextFreeName } from "@orb/kit/strings";
 import { portableParseError } from "#primitives/serde/lib";
 import { findDuplicatePersona, PERSONA_SCHEMA_KIND, parsePersonaBackup, personaPlacementOf } from "#primitives/serde/persona";
 import { PersonaNotFoundError } from "../contract/errors.ts";
-import type { ImportPersonaParams } from "../contract/params.ts";
-import type { PersonaImportOutcome } from "../contract/results.ts";
 import type { PersonaContext, PersonaService } from "../contract/service.ts";
 import { detailOf, loadOwnedPersonaCandidates, loadOwnedPersonaWithAvatar } from "../persistence/queries.ts";
 
 export function createImport(ctx: PersonaContext): PersonaService["import"] {
-  return async ({ principal, bytes }: ImportPersonaParams): Promise<PersonaImportOutcome> => {
+  return async ({ principal, bytes }) => {
     const ownerId = principal.userId;
     const at = ctx.now();
     const parsed = parsePersonaBackup(bytes);

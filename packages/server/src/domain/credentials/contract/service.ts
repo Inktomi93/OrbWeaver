@@ -9,7 +9,14 @@
 // row); what stays here is the ROW side of a probe outcome — `recordProbeOutcome` writes the revocation / strike
 // consequences, because only this domain writes `user_credentials`.
 
-import type { CredentialHealth, CredentialStorageStatus, CredentialView, ResolvedSecret } from "@orb/contracts/credentials";
+import type {
+  CredentialHealth,
+  CredentialStorageStatus,
+  CredentialView,
+  RecordProbeOutcomeParams,
+  RelabelCredentialParams,
+  ResolvedSecret,
+} from "@orb/contracts/credentials";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { InferenceDeps, ProviderRegistry } from "@orb/inference";
@@ -24,8 +31,6 @@ import type {
   ListCredentialsParams,
   MarkRevokedByUserParams,
   MarkRevokedParams,
-  RecordProbeOutcomeParams,
-  RelabelCredentialParams,
   RemoveCredentialParams,
   ReplaceCredentialParams,
   ResolveCredentialParams,

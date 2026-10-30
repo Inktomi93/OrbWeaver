@@ -1,4 +1,4 @@
-import type { ThemeId, UserId } from "@orb/kit/ids";
+import type { PersonaId, ThemeId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
@@ -725,6 +725,14 @@ export const userSettingsSchema = z.object({
 });
 
 export type UserSettings = z.infer<typeof userSettingsSchema>;
+
+/** D259 — the params of a sign-up joiner's first settings row, unexecuted: the defaults with both persona pointers
+ *  aimed at the persona chat's signup batch created. It writes only where the statement before it changed a row. */
+export interface JoinerSettingsStatementParams {
+  readonly ownerId: UserId;
+  readonly personaId: PersonaId;
+  readonly at: number;
+}
 
 /** Read one user's stored settings, defaults filled. */
 export type LoadUserSettings = (userId: UserId) => Promise<UserSettings>;

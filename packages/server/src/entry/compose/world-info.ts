@@ -11,6 +11,7 @@
 import type { BulkImportChatsOp, LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { ResolveHostPrincipalOp } from "@orb/contracts/identity";
+import type { BulkImportPersonas } from "@orb/contracts/persona";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { IdSource } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
@@ -19,7 +20,6 @@ import { can } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
 import { createBulkImportChats, createReadInheritedChatBooks, requireHost, requireParticipant } from "#domain/chat";
-import type { BulkImportPersonas } from "#domain/persona";
 import { createBulkImportPersonas } from "#domain/persona";
 import type { SessionsService } from "#domain/sessions";
 import { createResolveUserEnabled } from "#domain/sessions";

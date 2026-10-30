@@ -4,8 +4,7 @@
 
 export type { DefaultPersonaSeeder, DefaultPersonaSeederDeps } from "./contract/default-seed.ts";
 
-export type { BulkImportPersonas } from "./contract/import.ts";
-export type { JoinerPersonaStatementOp, ResolvePersonasForParticipants } from "./contract/ops.ts";
+export type { ResolvePersonasForParticipants } from "./contract/ops.ts";
 
 export type { PersonaAssemblyContext as PersonaContext, PersonaService } from "./contract/service.ts";
 

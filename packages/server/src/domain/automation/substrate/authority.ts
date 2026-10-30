@@ -31,7 +31,7 @@ export function holdsOwnerAuthority(deps: Pick<AuthorityDeps, "isAuthorEnabled">
 /** Does `userId` hold HOST authority over `chatId` right now? */
 export async function holdsChatHostAuthority(deps: AuthorityDeps, chatId: ChatId, userId: UserId): Promise<boolean> {
   const [principal, role] = await Promise.all([deps.resolveAuthor(userId), loadCallerRole(deps.db, chatId, userId)]);
-  if (principal === null || role === undefined) {
+  if (role === undefined) {
     return false;
   }
   // the `false` is the denial verdict itself: `decideChat` in

@@ -14,7 +14,7 @@ import type { AssetsService } from "#domain/assets";
 import { createAssetEmbeddingReads } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
 import { createEmbeddableCardText, createLoadCharacterEmbeddingOwner } from "#domain/character";
-import type { ChatBoundBackfillOps } from "#domain/chat";
+import type { ChatBoundBackfillOps, SignupInviteDeps } from "#domain/chat";
 import {
   consolidationHash,
   createCapturePersonaSeatsForDelete,
@@ -48,7 +48,7 @@ import {
 } from "#domain/embeddings";
 import type { NotificationsService } from "#domain/notifications";
 import { createNotificationsService } from "#domain/notifications";
-import type { JoinerPersonaStatementOp, PersonaContext, PersonaService, ResolvePersonasForParticipants } from "#domain/persona";
+import type { PersonaContext, PersonaService, ResolvePersonasForParticipants } from "#domain/persona";
 import {
   createJoinerPersonaStatement,
   createPersonaService,
@@ -130,7 +130,7 @@ export interface SearchDiscoveryComposeResult {
    *  resolver's ONE room-plane persona read). Built from the SAME `PersonaContext` as the service. */
   readonly resolvePersonasForParticipants: ResolvePersonasForParticipants;
   /** D259 — the sign-up joiner's persona statement chat's signup batch runs. Built from the same `PersonaContext`. */
-  readonly joinerPersonaStatement: JoinerPersonaStatementOp;
+  readonly joinerPersonaStatement: SignupInviteDeps["signupPersonaStatement"];
   readonly presetCtx: PresetContext;
   readonly preset: PresetService;
   readonly stats: StatsService;

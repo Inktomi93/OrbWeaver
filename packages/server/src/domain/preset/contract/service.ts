@@ -7,11 +7,11 @@ import type { ResolveVisibleRoomsOp } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { CapabilityTarget, ResolvedCacheConnectionView } from "@orb/contracts/inference";
 import type { EffectivePreset, PresetDetail, PresetSummary, PresetUsageView } from "@orb/contracts/preset";
-import type { UserSettings } from "@orb/contracts/settings";
+import type { LoadUserSettings } from "@orb/contracts/settings";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
-import type { ChatId, PresetId, UserId } from "@orb/kit/ids";
+import type { ChatId, PresetId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { AuditEntry, Logger } from "#foundation/observability";
 import type {
@@ -49,7 +49,7 @@ export type ResolvePresetUsageOp = (principal: Principal, presetId: PresetId) =>
 /** The three foreign facts {@link ResolvePresetUsageOp}'s producer reads, each wired at the composition root:
  *  settings' user settings (the active pick), rpg's GM-voice rooms, and chat's leak-safe room filter. */
 export interface PresetUsageDeps {
-  readonly loadUserSettings: (userId: UserId) => Promise<UserSettings>;
+  readonly loadUserSettings: LoadUserSettings;
   readonly listGmPresetChatIds: (presetId: PresetId) => Promise<readonly ChatId[]>;
   readonly resolveVisibleRooms: ResolveVisibleRoomsOp;
 }

@@ -8,7 +8,7 @@
 
 import type { PersonaCollisionChoice } from "@orb/contracts/import";
 import { personaCollisionChoiceFor } from "@orb/contracts/import";
-import type { BulkImportPersonaInput, BulkImportPersonasResult } from "@orb/contracts/persona";
+import type { BulkImportPersonaInput, BulkImportPersonas, BulkImportPersonasResult } from "@orb/contracts/persona";
 import { personas } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany, batchStmt } from "@orb/db/query";
@@ -17,7 +17,7 @@ import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { AssetId, PersonaId } from "@orb/kit/ids";
 import type { PersonaCandidate, PersonaIdentity } from "#primitives/serde/persona";
 import { findDuplicatePersona, findNameCollision, foldPersonaName, mintPersonaName, personaPlacementOf } from "#primitives/serde/persona";
-import type { BulkImportPersonas, PersonaImportContext } from "../contract/import.ts";
+import type { PersonaImportContext } from "../contract/import.ts";
 import { loadOwnedAssetHashes, loadOwnedPersonaCandidates } from "./queries.ts";
 
 /** One input as the identity the dedup compares: its art is the stored asset's own content hash. */

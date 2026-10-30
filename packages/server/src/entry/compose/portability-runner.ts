@@ -1,4 +1,5 @@
 import type { BulkImportChatsOp } from "@orb/contracts/chat";
+import type { BulkImportPersonas } from "@orb/contracts/persona";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import { ASSET_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
 import type { DatabaseHandle } from "@orb/db/wiring";
@@ -20,7 +21,7 @@ import {
   createSettleImportMemory,
   DEFAULT_IMPORT_STAGING_DIR,
 } from "#domain/import";
-import type { BulkImportPersonas, PersonaService } from "#domain/persona";
+import type { PersonaService } from "#domain/persona";
 import { createFindOwnedPersonaByName } from "#domain/persona";
 import type { PresetContext } from "#domain/preset";
 import { createImportPresets } from "#domain/preset";
