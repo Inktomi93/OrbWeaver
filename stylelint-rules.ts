@@ -53,7 +53,7 @@ const RAW_ABSOLUTE_LENGTH = String.raw`(?<!, )\b(?!0(?:px|rem|em|ch|ex|pt|pc|cm|
 export const LENGTH_FROM_TOKENS = new RegExp(String.raw`^(?![\s\S]*${RAW_ABSOLUTE_LENGTH})[\s\S]*$`, "iu");
 /** The properties `LENGTH_FROM_TOKENS` governs, as the allow-list's property pattern. */
 export const LENGTH_PROPERTIES =
-  "/^(?:border-radius|gap|row-gap|column-gap|padding(?:-[a-z-]+)?|margin(?:-[a-z-]+)?|font-size|inset(?:-[a-z-]+)?|top|right|bottom|left|width|height|min-width|min-height|max-width|max-height|inline-size|block-size|min-inline-size|min-block-size|max-inline-size|max-block-size|box-shadow|outline(?:-width|-offset)?|border(?:-(?:top|right|bottom|left|inline|block)(?:-(?:start|end))?)?(?:-width)?|scroll-padding(?:-[a-z-]+)?|scroll-margin(?:-[a-z-]+)?|text-indent|--[a-z][a-z0-9-]*)$/";
+  "/^(?:border-radius|gap|row-gap|column-gap|padding(?:-[a-z-]+)?|margin(?:-[a-z-]+)?|inset(?:-[a-z-]+)?|top|right|bottom|left|width|height|min-width|min-height|max-width|max-height|inline-size|block-size|min-inline-size|min-block-size|max-inline-size|max-block-size|box-shadow|outline(?:-width|-offset)?|border(?:-(?:top|right|bottom|left|inline|block)(?:-(?:start|end))?)?(?:-width)?|scroll-padding(?:-[a-z-]+)?|scroll-margin(?:-[a-z-]+)?|text-indent|--(?!orb-tier-[a-z-]+-(?:size|leading|weight)$)[a-z][a-z0-9-]*)$/";
 /** A stacking order is a `--z-*` token, a one-step offset from one, or one of the structural layers -1, 0 and 1. */
 export const Z_INDEX_VALUES = [/^var\(--z-[a-z-]+\)$/u, /^calc\(var\(--z-[a-z-]+\) [-+] 1\)$/u, "-1", "0", "1", "auto"] as const;
 /** A weight is a `--font-weight-*` token; a tier slot indirection resolves to one; the `100 900` range is the variable-font `@font-face` descriptor. */
@@ -61,6 +61,14 @@ export const FONT_WEIGHT_TOKEN = /^var\(--font-weight-[a-z]+\)$/u;
 export const FONT_WEIGHT_VALUES = [FONT_WEIGHT_TOKEN, /^var\(--orb-tier-[a-z-]+-weight\)$/u, "100 900", "inherit"] as const;
 /** A registered appearance number read in its unit; the `1<unit>` is a conversion, not a design length. */
 export const APPEARANCE_UNIT_CONVERSION = /^calc\(var\(--appearance-[a-z0-9-]+\) \* 1(?:px|em|rem)\)$/u;
+/** A type step is a `--text-*` token, a tier slot that repoints to one, or the reading surface's user knob over one (integer-line-boxes.md §2). */
+export const TEXT_STEP = /^var\(--text-[a-z-]+\)$/u;
+export const FONT_SIZE_VALUES = [
+  TEXT_STEP,
+  /^var\(--orb-tier-[a-z-]+-size\)$/u,
+  /^calc\(var\(--text-[a-z-]+\) \* var\(--appearance-reading-[a-z-]+-scale\)\)$/u,
+  "inherit",
+] as const;
 /** Tracking is a `--tracking-*` token; the reading surface's user knob is a declared exception (integer-line-boxes.md §2). */
 export const LETTER_SPACING_VALUES = [/^var\(--tracking-[a-z-]+\)$/u, APPEARANCE_UNIT_CONVERSION, "normal", "inherit"] as const;
 

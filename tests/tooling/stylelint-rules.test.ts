@@ -115,7 +115,7 @@ test("a custom property the sheets read is declared somewhere, or named as runti
 
 test("a fallback does not excuse a custom property nothing declares", async () => {
   const rule = "orb/no-undeclared-var-fallback";
-  expect(await rulesHit(declaration("font-size: calc(var(--text-body) * var(--reading-body-scale, 1));"))).toEqual([rule]);
+  expect(await rulesHit(declaration("opacity: var(--reading-body-scale, 1);"))).toEqual([rule]);
   expect(await rulesHit(declaration("color: var(--probe-gone, var(--color-primary));"))).toEqual([rule]);
   // Declared in a sheet, registered by the generated channel, written at runtime, or written by a vendor.
   expect(await rulesHit(declaration("color: var(--color-primary, red);"))).toEqual([]);
@@ -274,6 +274,38 @@ test("stacking order, weight and tracking are tokens or the structural layers", 
     "font-weight: 600;",
     "letter-spacing: 0.02em;",
     "letter-spacing: calc(var(--appearance-reading-letter-spacing) * 2em);",
+  ]) {
+    expect(await rulesHit(declaration(body)), body).toEqual(["declaration-property-value-allowed-list"]);
+  }
+});
+
+test("a type size is a ramp step, and the root font-scale declaration is its one multiplier", async () => {
+  for (const body of [
+    "font-size: var(--text-label);",
+    "font-size: var(--orb-tier-row-title-size);",
+    "font-size: calc(var(--text-body) * var(--appearance-reading-body-scale));",
+    "font-size: calc(100% * var(--appearance-font-scale));",
+    "font-size: inherit;",
+    "--orb-tier-row-title-size: var(--text-body);",
+    "--orb-tier-row-title-leading: var(--leading-body);",
+    "--orb-tier-row-title-weight: var(--font-weight-medium);",
+    "font: inherit;",
+  ]) {
+    expect(await rulesHit(declaration(body)), body).toEqual([]);
+  }
+  for (const body of [
+    "font-size: 0.8125rem;",
+    "font-size: small;",
+    "font-size: 90%;",
+    "font-size: 2vw;",
+    "font-size: var(--spacing-row);",
+    "font-size: calc(var(--text-body) * 1.1);",
+    "font-size: calc(100% * var(--appearance-reading-body-scale));",
+    "--orb-tier-row-title-size: 13px;",
+    "--orb-tier-row-title-size: var(--spacing-row);",
+    "--orb-tier-row-title-leading: 1.4;",
+    "--orb-tier-row-title-weight: 600;",
+    "font: 600 13px Geist, sans-serif;",
   ]) {
     expect(await rulesHit(declaration(body)), body).toEqual(["declaration-property-value-allowed-list"]);
   }

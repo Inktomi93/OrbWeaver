@@ -12,8 +12,9 @@ import {
   setActiveSection,
   useSectionRegistry,
 } from "@orb/client/state";
+import type { AppearanceSettings } from "@orb/contracts/settings/appearance";
 import type { PresetId } from "@orb/kit/ids";
-import { CtClientProviders } from "@orb/testkit/browser";
+import { CtAppearanceChannels, CtClientProviders } from "@orb/testkit/browser";
 import { Container } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useState } from "react";
@@ -74,16 +75,20 @@ function ConfigGroupContent({ group }: { readonly group: ConfigGroupId }): React
   return <>{definition.content()}</>;
 }
 
-/** The production settings content for one registered group, isolated from route and shell mounting. */
-export function ConfigGroupStory({ group }: { readonly group: ConfigGroupId }): ReactElement {
+/**
+ * The production settings content for one registered group, isolated from route and shell mounting. Named appearance
+ * reaches the root through the production channel writer the shell would otherwise run.
+ */
+export function ConfigGroupStory({ group, appearance }: { readonly group: ConfigGroupId; readonly appearance?: Partial<AppearanceSettings> }): ReactElement {
+  const content = (
+    <div style={{ height: 900, width: 900, minHeight: 0, display: "flex" }}>
+      <Container style={{ flex: 1, minWidth: 0 }}>
+        <ConfigGroupContent group={group} />
+      </Container>
+    </div>
+  );
   return (
-    <CtClientProviders>
-      <div style={{ height: 900, width: 900, minHeight: 0, display: "flex" }}>
-        <Container style={{ flex: 1, minWidth: 0 }}>
-          <ConfigGroupContent group={group} />
-        </Container>
-      </div>
-    </CtClientProviders>
+    <CtClientProviders>{appearance === undefined ? content : <CtAppearanceChannels settings={appearance}>{content}</CtAppearanceChannels>}</CtClientProviders>
   );
 }
 

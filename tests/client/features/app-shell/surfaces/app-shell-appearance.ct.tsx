@@ -60,6 +60,7 @@ const SOLID_FILL = TOKENS["blur.fill-solid"].value;
 const CONTRAST_FILL_ALPHA = Number.parseFloat(CONTRAST_FILL) / 100;
 // The UA root font size the `:root { font-size }` scale multiplies; no token names a browser default.
 const UA_ROOT_PX = 16;
+const LARGE_FONT_SCALE = 1.25;
 const TRACK_WIDTHS = [1280, 1440, 1920] as const;
 const DIAL_PCT = 50;
 const BLUR_STRENGTH = 20;
@@ -1203,9 +1204,9 @@ test.describe("root dials", () => {
   });
 
   test("the font-scale dial sets the document's root font size", async ({ corpus, mount, page }) => {
-    await routeAppearance(page, corpus, { fontScale: 1.25 });
+    await routeAppearance(page, corpus, { fontScale: LARGE_FONT_SCALE });
     await mount<typeof AppShellStory>(STORY, {});
-    await expect.poll(() => computed(page.locator("html"), "font-size")).toBe(`${UA_ROOT_PX * 1.25}px`);
+    await expect.poll(() => computed(page.locator("html"), "font-size")).toBe(`${UA_ROOT_PX * LARGE_FONT_SCALE}px`);
   });
 
   test("the app's reduced-motion setting floors an animation outside the shell grid as well as inside it", async ({ corpus, mount, page }) => {
@@ -1232,5 +1233,13 @@ test.describe("handover to the pending mark", () => {
     const splash = await handOver(page, "off");
     await expect(page.locator("html")).toHaveAttribute(REDUCED_MOTION_ATTR, "off");
     await expect.poll(() => glyphDurationMs(splash)).toBe(await breatheTokenMs(page));
+  });
+
+  test("the pending mark that replaces the shell keeps the user's font scale on the root", async ({ corpus, mount, page }) => {
+    await routeAppearance(page, corpus, { reducedMotion: "on", fontScale: LARGE_FONT_SCALE });
+    await mount<typeof ShellToPendingStory>(HANDOVER, {});
+    await expect.poll(() => computed(page.locator("html"), "font-size")).toBe(`${UA_ROOT_PX * LARGE_FONT_SCALE}px`);
+    await handOver(page, "on");
+    await expect(page.locator("html")).toHaveCSS("font-size", `${UA_ROOT_PX * LARGE_FONT_SCALE}px`);
   });
 });

@@ -23,4 +23,8 @@ No authored text size outside the ramp tokens except documented exceptions; the 
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+- Census: authored text sizes in `packages/` TS, TSX and CSS are already ramp steps or Text voices. The bypass routes were open in the checks, not used in the code. The one exception is the container-sized art initials.
+- Font-scale reach: `--appearance-font-scale` on `<html>` sets the root size every rem step multiplies, and charts re-resolve on root style changes. The shell's unmount cleanup dropped the scale, so the pending, error and login surfaces that replace the shell painted at 1.0. The root now keeps every boot axis after unmount.
+- Checks: the Stylelint `font-size`, `font` and tier type-slot allow-lists; the ESLint arbitrary-text pattern and `RAW_FONT_SIZE_SYNTAX`. Both run at zero findings over `packages/**/*.css` and `packages/{ui,client}/src`.
+- Proof: `tests/client/features/app-shell/type-ramp-census.suite.ct.tsx` mounts every section, modal and settings group at font scale 1.15 and requires each text run on a scaled step. A planted `text-[13px]` on the label voice fails it. `app-shell-appearance.ct.tsx` proves the scale survives the handover to the pending mark (red before the fix). `tests/tooling/stylelint-rules.test.ts`, `native-token-scales.test.ts` and `eslint-raw-font-size.test.ts` prove a raw size fails each rule (red against the old configs).
+- Out of scope: sandboxed card and plugin frames (1411), including the showcase pocket-arcade bundle's px sizes.
