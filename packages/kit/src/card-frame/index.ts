@@ -429,7 +429,10 @@ function themeVarsBlock(themeTokens: Readonly<Record<string, string>>): string {
 function baseBodyBlock(fontFamily: string | undefined): string {
   const font = fontFamily === undefined ? "sans-serif" : `${fontFamily}, sans-serif`;
   const scrollbar = "html { scrollbar-width: thin; scrollbar-color: color-mix(in oklab, var(--sandbox-fg) 22%, transparent) transparent; }";
-  return `${scrollbar} body { margin: 0; padding: 0; background: var(--sandbox-bg); color: var(--sandbox-fg); font-family: ${font}; }`;
+  // The host's root font-size carries the user's font scale; the frame cannot inherit it, so the host injects it
+  // as a root percentage and the frame's root follows. Card text in rem/em scales; authored px stays fixed.
+  const rootSize = "html { font-size: var(--sandbox-root-size, 100%); }";
+  return `${scrollbar} ${rootSize} body { margin: 0; padding: 0; background: var(--sandbox-bg); color: var(--sandbox-fg); font-family: ${font}; }`;
 }
 
 /**
