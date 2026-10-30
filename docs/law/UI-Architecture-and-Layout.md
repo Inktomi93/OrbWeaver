@@ -106,8 +106,12 @@ packages/client/
   public/
     manifest.webmanifest # installable standalone app; no service worker and no offline mode (owner ruling)
   src/
-    main.tsx            # entry / composition root + THE REGISTRATION DOOR: the one place feature
-                        #   definitions + contributors are imported and assembled (lockdown §7)
+    main.tsx            # entry: binds the browser ports, mints the client runtime, mounts the app
+    compose/            # THE REGISTRATION DOOR (lockdown §7): `authed-composition.tsx` imports every feature
+                        #   definition and contributor and assembles the registries (`assembleChrome`);
+                        #   `authed-providers.tsx` provides them; `client-runtime.ts` mints the QueryClient, the
+                        #   tRPC client and `createTrpcProxy`. Only `packages/client/src/main.tsx`, `packages/client/src/routes/router.tsx` and compose/
+                        #   itself import it (dep-cruiser client-compose-door-only)
     agent-handles/ agent-nav/ agent-seed/ agent-plugin/ agent-rpg/
                         # dev-only agent-bridge impls that compose feature FRONT DOORS + #state actions.
                         #   main.tsx imports only agent-handles, behind import.meta.env.DEV; agent-handles
@@ -145,7 +149,7 @@ packages/client/
 ```
 
 - **Why not FSD:** `@orb/ui` already IS the shared-component layer; the `entities/` layer overlaps the feature concept and adds ceremony neo's flat slice never needed.
-- **Three deletions from neo:** `components/`+`components/ui/` → the `@orb/ui` package; `features/_shared/` → dissolved (generic bits → `@orb/ui`, form toolkit → `forms/`, cross-feature reads of SERVER state → `trpc.*`; ephemeral state follows the client-architecture-state-and-gates.md §12 table instead); file-based `routes/` codegen → 2 hand-written routes.
+- **Three deletions from neo:** `components/`+`components/ui/` → the `@orb/ui` package; `features/_shared/` → dissolved (generic bits → `@orb/ui`, form toolkit → `forms/`, cross-feature reads of SERVER state → `trpc.*`; ephemeral state follows the client-architecture-state-and-gates.md §12 table instead); file-based `routes/` codegen → hand-written routes.
 
 ### 3. Tokens — DTCG single source, derived theme
 
@@ -165,7 +169,7 @@ BUILT. The highest-leverage enforcement move, engine-agnostic:
 Responsiveness is **container-driven, not viewport-driven**. A component adapts to the *container it was dropped into*, not the screen — which realizes surfaces/anchors AND removes the `compact`/`inDrawer`/`density` props neo threaded through everything. Physical constraint that drives the shape: **a container queries its descendants, never itself** → the adapting element is always a *child* of the container → maps onto parent/child = anchor/surface.
 
 ```
-SHELL    — the ONLY viewport-aware layer (@media lives here, nowhere else). Macro layout (§4.1):
+SHELL    — the ONLY viewport-aware layer (viewport @media lives here, nowhere else). Macro layout (§4.1):
            RAIL (persistent nav) + LIST + CONTENT + CONTEXT; side panels dock⇄overlay⇄collapse;
            desktop multi-pane ⇄ mobile single-column (rail → bottom bar, §4.1). Establishes top-level named containers.
 ANCHOR   — containment PROVIDER. Wraps the surface in `container-type: inline-size` + `container-name`.
@@ -173,7 +177,7 @@ SURFACE  — containment CONSUMER. Pure content; queries `@container` variants. 
 CARD/ROW — sub-container where it must adapt independently inside a grid/list.
 ```
 
-- **`@media` is allowed ONLY in `app-shell`**. The `VIEWPORT_CLASSES` pattern in `eslint.config.ts` (`better-tailwindcss/no-restricted-classes`) also refuses viewport breakpoint class spellings outside `app-shell`.
+- **Viewport `@media` is allowed ONLY in `app-shell`** (the shell tier). Capability and preference queries (`pointer`, `hover`, `prefers-*`) live in the token and shell layers (§4b axis 3). The `VIEWPORT_CLASSES` pattern in `eslint.config.ts` (`better-tailwindcss/no-restricted-classes`) also refuses viewport breakpoint class spellings outside `app-shell`.
 - **`@orb/ui/layout` owns `container-type`** (BUILT) — feature code never writes raw `container-type`/`-name` or the `@container` utility (`orb/no-raw-container-in-features`); it uses `<Container name size>`, or the `container` prop of `Section` and `Stack` (`container="size"` also contains the block axis). Default `container-type: inline-size`.
 - **A surface declares no container; an anchor always provides one.** `orb/surface-consumes-container` refuses `<Container>` and the `container` prop in `surfaces/`. `orb/anchor-provides-container` requires each `anchors/` file to render `<Container>`, or the dialog box it anchors (a `*Dialog` or `*Drawer` element).
 - **An anchor sits inside its surface when the surface owns an outer box the container must measure inside.** The home grid, the persona popover, the extensions page and the room's thread-and-flank row each have a scroller inset, popup or page element of their own. Their anchor renders inside it, so the query reads the width left after that inset. The `anchors/` file still provides the container; the surface still declares none.
@@ -196,7 +200,8 @@ DESKTOP (wide):   [ RAIL | LIST | CONTENT | CONTEXT ]
             --spacing-section dividers: Chats · Characters ·
             Corpus (primary; `corpus` is the SECTION/feature name — the owning DOMAIN is `discovery`;
             its Explore · Insights · Labels modes compose the `stats` and `tag` surfaces through the door)
-            | Configuration · Plugin pages · Databank · Presets · Refinery (authoring group — Configuration
+            | Plugin pages · Databank · Presets · Refinery (authoring group, after the Configuration
+            section, which sits at the rail foot — Configuration
             is the roster of the LIBRARIES the others are built from; Plugin pages is ONE entry for the
             whole plugin platform, never one per plugin — it ships rail-VISIBLE with a teaching empty
             rather than hidden-until-populated, because a hidden entry makes the platform undiscoverable;
@@ -204,24 +209,23 @@ DESKTOP (wide):   [ RAIL | LIST | CONTENT | CONTEXT ]
             is the other library you author INTO — files/pages/pasted text, indexed for retrieval; the
             section↔collection question that R2's demotion reopens is recorded, unclosed, in
             `packages/client/src/features/databank/lib/databank-section.tsx`) → spacer →
-            Theme · Settings · persona Identity. The CEILING is a rule about KIND, not a count (D121): a
+            Settings (the Configuration section) · persona Identity. The CEILING is a rule about KIND, not a count (D121): a
             rail section owns a top-level workspace with its own LIST/CONTENT/CONTEXT grid; dialogs,
             preferences and one-shots go to modals/settings.
             The rail renders ONE assembled chrome registry
-            (`assembleChrome` at the main.tsx door → `CHROME_ZONES`, zones-as-data off `RAIL_ZONES` in
-            `section-registry.ts`): `rail.nav` = section entries derived from each `SectionDefinition.rail`,
+            (`assembleChrome` in `packages/client/src/compose/authed-composition.tsx` → `CHROME_ZONES`, zones-as-data off `RAIL_ZONES` in
+            `section-registry.ts`): `rail.brand` = the Home brand cell, `rail.nav` = section entries derived from each `SectionDefinition.rail`,
             `rail.end` (`rail.zone: "rail.end"`) = the SETTINGS SECTION (`config`, label "Settings") + the persona Identity widget
             (`personaChrome`) — one flat DOM list, CSS-reflowed to the mobile bar (§C), never a hand
             map (typed `ChromeEntry`). Modal triggers derive
             by placement (`ModalTriggerPlacement` in `modal-registry.ts`); every modal is `surface`,
             `topbar.trail` (⌘K) or `mobile-tab` (the You sheet); none is `rail.end`.
   LIST    — the active section's collection: header row (micro-caps title + create "+") → search →
-            ListRow rows. Side panel. Per-section DEFAULTS (user toggle wins thereafter):
-            docked for Chats/Characters/Configuration/Databank/Presets AND Corpus (the built Corpus LIST
-            IS the search omnibox — the section's primary entry point — so a collapsed default would
-            hide the only way in);
-            collapsed for the content-first hub (Refinery) — each section's `panelDefaults`
-            on its `SectionDefinition`.
+            ListRow rows. Side panel. Per-section DEFAULTS come from each
+            `SectionDefinition.panelDefaults` (`packages/client/src/state/section-registry.ts`); the user
+            toggle wins thereafter. A section whose LIST is its entry point docks it (the Corpus LIST IS
+            the search omnibox, so a collapsed default would hide the only way in). A content-first hub
+            (Refinery) collapses it.
   CONTENT — the fluid hero: HEADER bar (active entity · scene chip · thread actions) + the THREAD
             (chat/editor surface, prose capped 65–75ch) + the COMPOSER (pill input · attach · Send,
             mid-stream STOP, optimistic send). With NOTHING selected the Chats section renders the
@@ -229,19 +233,19 @@ DESKTOP (wide):   [ RAIL | LIST | CONTENT | CONTEXT ]
             never an empty room. Leftover width feeds the centered CONTENT gutter
             (`--width-shell-content` clamp) — CONTEXT is a fixed `--dimension-panel` column, not a
             width recipient (`client-architecture-state-and-gates.md` §15).
-  CONTEXT — the right detail panel (active artifact's detail + config; tabs). Side panel. Every
-            section defaults collapsed (each `SectionDefinition.panelDefaults`); the persisted
-            per-panel override wins thereafter.
+  CONTEXT — the right detail panel (active artifact's detail + config; tabs). Side panel. The default is each
+            `SectionDefinition.panelDefaults.context`; Presets docks it because its readout is the product.
+            The persisted per-panel override wins thereafter.
 
 MOBILE:  RAIL → BOTTOM tab bar (none in a chat room): Home · Chats · Characters · You (D271).
          Corpus enters through You. You is the mobile PROJECTION of shell chrome (§B) over the SAME resolved chrome
          list: `mobile:"sheet"` rail entries + the `rail.end` chrome (incl. the persona Identity
-         widget's `body("sheet")` view, so mobile persona switching lives here). Containment chain: You ⊃ Identity ⊃ Account
-         (the account leaf modal). Everything is reachable via ⌘K.
-         LIST/CONTEXT → full-screen / sheets; single column. Corpus uses the mode landings below.
-         Other sections land on CONTENT, never on a list sheet.
-         (Mobile is a responsive LAYOUT, not a theme.)
+         widget's `body("sheet")` view, so mobile persona switching lives here). Containment chain: You ⊃ Identity, whose
+         switcher carries the Account head and foot. Everything is reachable via ⌘K.
+         CONTEXT → sheet; single column. (Mobile is a responsive LAYOUT, not a theme.)
 ```
+
+**The mobile one-shell rule** (`packages/client/src/state/panel-resolve.ts`). A list-bearing section with nothing selected shows its LIST as the screen: docked in flow, no sheet, no scrim. A selection pushes CONTENT over it, and the topbar Back returns. The user's own close of the LIST (the topbar toggle) wins over this default. A section whose selection seam declares a `"content"` phone landing lands on its CONTENT instead; only Corpus Insights declares one (`packages/client/src/state/corpus-selection-store.ts`). `packages/client/src/state/section-list-projection.ts` is the one home of the "is the LIST the screen" question.
 
 D271 replaces only D62-P3 and preserves D211. Corpus is the Variant A workbench: an `Explore | Insights | Labels` switch over one LIST / CONTENT / CONTEXT anatomy. The switch heads the LIST, and heads CONTENT while the LIST is off screen. Its phone landing policy follows the active mode:
 
@@ -278,13 +282,13 @@ The shell is Discord's anatomy with different nouns; the mapping is LAW so no la
 
 | Discord | Orbweaver | Owns |
 | - | - | - |
-| Server rail | RAIL | which facet — sections (`rail.nav`) + theme · the Settings SECTION · persona-Identity at the foot (`rail.end` chrome) |
+| Server rail | RAIL | which facet — sections (`rail.nav`) + the Settings SECTION · persona-Identity at the foot (`rail.end` chrome) |
 | Channel sidebar | LIST | the section's collection: header row (micro-caps title + create `+`) → search → `ListRow`s. Finding. |
 | Chat pane | CONTENT | the artifact you're in: identity header + working surface. Doing. |
 | Members panel | CONTEXT | detail + config of CONTENT's active artifact. Closable; never navigation. |
 | Quick switcher | `command` modal (⌘K) | jump to any thread/section/create action |
-| User settings overlay | the `config` SECTION (rail foot, label "Settings"): a LIST of four shelves + CONTENT (+ CONTEXT collapsed); the `settings` modal is gone | USER shelf (Personas · Appearance · Chat behavior · Jobs · Backup & Restore) + APP shelf (Connections · Automation · Admin · This install, the member-visible install version) + COLLECTIONS shelf (Regex scripts · World Info · **Rosters** — the ruled word for the saved seats+knobs+rules template; `ROSTER_COLLECTION_ID = "rosterPreset"`) + EXTENSIONS shelf (Plugins). Generation config is the Presets section, not settings. (No Account PANE — Account is the leaf modal below.) |
-| Identity widget | persona `rail.end` chrome (`personaChrome`) → `account` leaf modal | the persona switcher + Account strip; the account card (handle · role · sign-out) is a leaf MODAL reached from inside Identity, NOT a settings pane (§B, You ⊃ Identity ⊃ Account) |
+| User settings overlay | the `config` SECTION (rail foot, label "Settings"): a LIST of four shelves + CONTENT (+ CONTEXT collapsed) | USER shelf (Personas · Appearance · Chat behavior · Jobs · Backup & Restore) + APP shelf (Connections · Automation · Admin · This install, the member-visible install version) + COLLECTIONS shelf (Regex scripts · World Info · **Rosters** — the ruled word for the saved seats+knobs+rules template; `ROSTER_COLLECTION_ID = "rosterPreset"`) + EXTENSIONS shelf (Plugins). Generation config is the Presets section, not settings. (No Account PANE — Account is the persona switcher's head and foot below.) |
+| Identity widget | persona `rail.end` chrome (`personaChrome` in `packages/client/src/features/persona/lib/persona-chrome.tsx`) | the persona switcher + Account strip; the account facts (handle · role · sign-out) are `PersonaAccountFoot` (`packages/client/src/features/persona/components/persona-account-foot.tsx`), NOT a settings pane and NOT a modal (§B, You ⊃ Identity) |
 
 Every non-collection group in the `config` SECTION is a `sections` SKIMMER over the D120 contribution seam.
 
@@ -304,7 +308,7 @@ Per-section grid (end-state; the D62 program builds toward it):
 | Configuration | one COLLAPSED group per registered `CollectionContribution` (band = icon · kicker · count · optional import · create `+`); expanded groups get a count-driven filter and windowed rows — World Info's book rows scented "entries · attached ×N" | the welcome (a launcher card per collection) | the selected member's OWN editor, mounted (never a dialog) — for a book, its entry list + entry editor | the selected collection's own CONTEXT variant (a book's activation scopes), or its own `{kind:"none"}` copy |
 | Extensions | the PAGE SWITCHER: one plugin-labelled row per registered `ui.page` surface across the caller's granted-and-enabled plugins — never in the rail (title + the plugin's name as subtitle AND accessible-name disambiguator) | the teaching empty, naming WHICH emptiness (nothing installed · awaiting consent · switched off · no page) or "pick a page" — each case names a different fact, with its own next step and its own config anchor, deliberately different copy, so the LIST and CONTENT panes cannot disagree, resolved once in `useExtensionsEmpty` | the selected page inside the PAGE-SCALE plugin shell: a pinned band (plugin name · glyph · "Plugin" kicker, no opt-out) above the scrollable DSL body | `{kind:"none"}` — a plugin page owns its whole CONTENT region |
 | Databank | document rows (name · phase chip when NOT ready · origin/size/chunks) + search; band = DATABANK · count · Add · a maintenance kebab | teaching state | the document detail (Details · Maintenance · the source-text reveal) | the activation panel: Everywhere · Active in · the retrieval-knobs pointer |
-| Presets | preset rows + CRUD toolbar | teaching state | tabbed editor (Sampling · Output · Quality · Reasoning · Templates · Post-process · Compaction · Prompt) | usage/bindings (default-collapsed) |
+| Presets | preset rows + CRUD toolbar | teaching state | tabbed editor, one view per `PRESET_EDITOR_VIEWS` entry (`packages/client/src/features/preset/lib/preset-nav.ts`) | one readout projected by the active editor view (default-docked) |
 | Corpus · Explore | the mode switch + the search omnibox + target picker + results (default-docked) | overview home (coverage · insights · keywords) | readable artifact or character dossier | selected artifact evidence and source actions; otherwise `Whole corpus` analysis tabs |
 | Corpus · Insights | the mode switch + the searched, sorted character leaderboard | dashboard | character drill | dimension tabs (Models/Time/Personas) |
 | Corpus · Labels | the mode switch + the label finder (filter · sort · prune) and the New label primary | label library facts | the autosaving label editor | Usage: labels against generated facets, or the open label's attachments by kind and origin |
@@ -318,7 +322,7 @@ Preset numeric sampling controls, effective labels and unsupported-value clearin
 2. Per-section selection is REMEMBERED — rail-switching away and back restores the section exactly (selection stores + `<Activity>` pane-keeping, §4a).
 3. Per-section panel DEFAULTS, user override wins (each `SectionDefinition.panelDefaults` sets only the initial value; the persisted per-panel mode wins thereafter).
 4. Cross-section actions carry their subject in ONE action path (`startNewChat({characterIds})` + `setActiveSection`) — the user lands ready to act.
-5. Modals are for interrupts and pickers ONLY (new-chat picker, add-member, theme, settings, account, ⌘K). Section content NEVER lives in a modal — it is a CONTEXT tab or a CONTENT state.
+5. Modals are for interrupts and pickers ONLY (new-chat picker, saved-roster picker, ⌘K; `MODAL_SLOT_IDS` in `packages/client/src/state/modal-slot-ids.ts` is the full set). Section content NEVER lives in a modal — it is a CONTEXT tab or a CONTENT state.
 
 #### 4.3 Interaction & visual grammar — the ten UX rules (ledger D62)
 
@@ -343,7 +347,7 @@ The client targets **React 19 + the React Compiler** (the compiler runs full-com
 
 **USE:**
 
-- **The React Compiler is ON — stop hand-writing `useMemo`/`useCallback`/`React.memo`.** `orb/no-manual-memo` refuses them in `packages/client/src` and `packages/ui/src`, except in a file that imports `@tanstack/react-virtual`, which the compiler skips. The ONE blind spot is `useVirtualizer` (interior mutability) → sealed in `@orb/ui/virtual-list` with **`directDomUpdates: true` + `containerRef`** (TanStack Virtual 3.14+, **NOT `"use no memo"`**); features never wire it by hand.
+- **The React Compiler is ON — stop hand-writing `useMemo`/`useCallback`/`React.memo`.** `orb/no-manual-memo` refuses them in `packages/client/src` and `packages/ui/src`, except in a file that imports `@tanstack/react-virtual`, which the compiler skips. The ONE blind spot is `useVirtualizer` (interior mutability) → sealed in `@orb/ui` (`virtual-list`, `message-list`, `media-grid`) with **`directDomUpdates: true` + `containerRef`** (TanStack Virtual 3.14+, **NOT `"use no memo"`**); features never wire it by hand.
 - **`<Activity>` for the single-route panes.** Keep a pane mounted-but-hidden on flip-away (chat ⇄ library) so returning is instant with scroll + form state intact (§5.1), replacing unmount/remount. Two companion rules: (1) on `hidden→visible` restore focus to the pane's stable anchor (its header) — a WCAG obligation, since focus dies silently on hide; (2) hide-coupled DOM work (scroll-position capture, media pause) runs in `useLayoutEffect`, not a passive `useEffect` cleanup, which runs too late.
 - **`useEffectEvent` is THE fix for the effect footguns** — separates an effect's non-reactive part from its deps. Prefer it over ref-juggling.
 - **`useDeferredValue` for every search/filter-over-collection surface** (library grid · corpus search · tag/world-info filters): the input stays responsive while the filtered list lags a frame behind. Pass `initialValue`. `startTransition` wraps pane *switches*; `useDeferredValue` absorbs derived-*list* churn; neither is a debounce hack. (§13.2 row.)
