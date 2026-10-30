@@ -9,7 +9,8 @@
 // recolors the card instead of baking a stale literal. Color values ride `themeTokens`
 // (re-clamped by `isSafeColor` at the frame boundary); the font value is a family LIST (`isSafeColor`
 // rejects it), so it rides its own `fontFamily` slot behind the kit font-list shape check.
-import { clampCardFrameFontFamily, clampCardFrameStyleTokens } from "@orb/kit/card-frame";
+import type { CardFrameStyleTokens } from "@orb/kit/card-frame";
+import { CARD_FRAME_STYLE_TOKEN, clampCardFrameFontFamily, clampCardFrameStyleTokens } from "@orb/kit/card-frame";
 import { useSyncExternalStore } from "react";
 import { createLiveTokenStore, resolveCssVar } from "#lib";
 import { TOKENS } from "#tokens";
@@ -35,13 +36,13 @@ const FONT_TOKEN = TOKENS["font.sans"];
  *  construction, so they ride the kit's style-token clamp (a CSS length or a font-family list) in their own
  *  record. That split is the `fontFamily` slot's own precedent, one shape class over. */
 const STYLE_TOKENS = {
-  "--sandbox-radius": TOKENS["radius.base"],
-  "--sandbox-font-mono": TOKENS["font.mono"],
+  [CARD_FRAME_STYLE_TOKEN.radius]: TOKENS["radius.base"],
+  [CARD_FRAME_STYLE_TOKEN.monoFamily]: TOKENS["font.mono"],
 } as const;
 
-/** The appearance channel that scales the host root, and the frame var it is delivered as (read by `@orb/kit/card-frame`). */
+/** The appearance channel that scales the host root. */
 const FONT_SCALE_CSS_VAR = "--appearance-font-scale";
-const ROOT_SIZE_VAR = "--sandbox-root-size";
+const ROOT_SIZE_VAR = CARD_FRAME_STYLE_TOKEN.rootSize;
 const PERCENT = 100;
 
 /** The frame root's font-size as a percent of the frame's own default, so the clamp's length grammar admits it. */
@@ -53,8 +54,8 @@ function rootSizePercent(scale: number): string {
 export interface SandboxThemeTokens {
   /** Safe `--*` color vars, injected + re-clamped by `isSafeColor` at the frame boundary. */
   readonly themeTokens: Readonly<Record<string, string>>;
-  /** The NON-COLOR `--*` vars (radius, the mono family), re-clamped by the kit style-token grammar. */
-  readonly styleTokens: Readonly<Record<string, string>>;
+  /** The NON-COLOR slice (radius, the mono family, the root size), re-clamped by the kit style-token grammar. */
+  readonly styleTokens: CardFrameStyleTokens;
   /** The resolved UI font-family list, or `undefined` when unresolved/unsafe. */
   readonly fontFamily: string | undefined;
 }

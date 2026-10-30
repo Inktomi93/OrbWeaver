@@ -22,4 +22,5 @@ The comment names the WASM sandbox as the boundary, cites finding 4, and names n
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+- The comment in `packages/server/src/infra/plugin-host/worker-runtime.ts` now names the QuickJS WASM sandbox as the plugin boundary and cites finding 4 of `docs/law/container-deployment-security.md`. It names no OS-user fix.
+- A search of `packages/server/src/infra/plugin-host`, `packages/server/src/domain/plugin`, `docker` and `scripts` found no other comment that calls OS-user separation a fix.

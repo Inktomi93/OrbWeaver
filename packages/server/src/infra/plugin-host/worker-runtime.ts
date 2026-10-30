@@ -43,7 +43,7 @@ const port = requireParentPort();
 
 // The permission model does not inherit to a Worker started with `execArgv: []`, so code in this Worker could start
 // one with no grants and read the filesystem through it. Drop this Worker's permission to start Workers before any
-// guest code loads. Defense in depth only; the complete fix is a separate OS user for the broker (finding 4 in
+// guest code loads. Defense in depth only: the QuickJS WASM sandbox is the plugin boundary (finding 4 in
 // `docs/law/container-deployment-security.md`). `@types/node` declares `process.permission` always present and
 // `drop` as required; at runtime permission is absent without `--permission`, and `drop` exists from Node 26.3.0.
 function runtimePermission(): (Omit<typeof process.permission, "drop"> & Partial<Pick<typeof process.permission, "drop">>) | undefined {
