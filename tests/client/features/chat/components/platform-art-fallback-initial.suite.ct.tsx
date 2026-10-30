@@ -4,6 +4,7 @@
 import type { ThemeChatStyle } from "@orb/contracts/theme";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import type { ChatId } from "@orb/kit/ids";
+import { AA_NORMAL_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
@@ -93,6 +94,73 @@ for (const viewport of [DESKTOP, PHONE]) {
           expect(ratio).toBeGreaterThanOrEqual(SLOT_RATIO.min);
           expect(ratio).toBeLessThanOrEqual(SLOT_RATIO.max);
         }
+      }
+    });
+  }
+}
+
+// Primaries a card or owner theme can carry: light, dark, mid and saturated, so the hue steps taken off each one are judged.
+const CUSTOM_PRIMARIES = ["#f5e663", "#1a1a40", "#808080", "#ff00ff", "#00ffff", "#ffffff", "#000000"] as const;
+
+/** Select a custom theme whose accent is `primary`; opening a style resets the selection, so this runs after it. */
+async function selectPrimary(primary: string, chatStyle: ThemeChatStyle): Promise<void> {
+  const caller = await root.internalCallerFor(root.ownerId);
+  const theme = await caller.settings.createTheme({ name: `Primary ${primary} in ${chatStyle}`, override: { accent: primary }, css: "" });
+  await caller.settings.updateUserSettingsSection({ section: "theme", patch: { selectedThemeId: theme.id } });
+}
+
+/** Each rendered initial's contrast against the fill of the art slot that holds it, labelled with the colours read.
+ *  The letter's own box spans the slot, so a pixel ring around it would sample what lies beyond the fill. */
+async function letterContrasts(page: Page): Promise<readonly { readonly label: string; readonly ratio: number }[]> {
+  const measured: { readonly label: string; readonly ratio: number }[] = [];
+  for (const role of READING_ROLES) {
+    const letters = page.locator(`${ROW}[data-role="${role}"] ${LETTER}`);
+    await expect(letters.first()).toBeVisible();
+    const pairs = await letters.evaluateAll((nodes) => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 1;
+      canvas.height = 1;
+      const context = canvas.getContext("2d", { willReadFrequently: true });
+      if (context === null) {
+        throw new Error("No 2d context to resolve colours through");
+      }
+      // The engine converts every CSS colour syntax, oklch included, to the bytes the glyph is painted in.
+      const bytes = (css: string): { r: number; g: number; b: number } => {
+        context.clearRect(0, 0, 1, 1);
+        context.fillStyle = css;
+        context.fillRect(0, 0, 1, 1);
+        const [r = 0, g = 0, b = 0] = context.getImageData(0, 0, 1, 1).data;
+        return { r, g, b };
+      };
+      return nodes.map((node) => {
+        let slot: Element | null = node.parentElement;
+        while (slot !== null && getComputedStyle(slot).backgroundColor === "rgba(0, 0, 0, 0)") {
+          slot = slot.parentElement;
+        }
+        if (slot === null) {
+          throw new Error("A fallback letter has no filled slot");
+        }
+        return { ink: bytes(getComputedStyle(node).color), fill: bytes(getComputedStyle(slot).backgroundColor) };
+      });
+    });
+    for (const pair of pairs) {
+      measured.push({ label: `${role}: ink ${JSON.stringify(pair.ink)} on ${JSON.stringify(pair.fill)}`, ratio: wcagContrastRatio(pair.ink, pair.fill) });
+    }
+  }
+  return measured;
+}
+
+for (const primary of CUSTOM_PRIMARIES) {
+  for (const chatStyle of ART_STYLES) {
+    test(`${chatStyle} keeps its fallback initial legible over a theme primary of ${primary}`, async ({ corpus, mount, page }) => {
+      await page.setViewportSize(DESKTOP);
+      await openStyle(page, corpus, chatStyle);
+      await selectPrimary(primary, chatStyle);
+      await mount<typeof ChatRoomShellStory>(ROOM_STORY, roomStoryProps());
+      const measured = await letterContrasts(page);
+      expect(measured.length).toBeGreaterThan(0);
+      for (const letter of measured) {
+        expect(letter.ratio, `${chatStyle} ${letter.label}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
       }
     });
   }

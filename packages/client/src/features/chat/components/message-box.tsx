@@ -15,10 +15,12 @@ const MESSAGE_BUBBLE_SLOT = "message-bubble";
 
 // A bubble at a phone width takes at most four fifths of its column (owner ruling, after Moonlit Echoes' phone layout).
 const BUBBLE_PHONE_CAP = "@max-cq-28:max-inline-4/5";
-// The plate column is inset a section from its gutter, and a stock 10px on a phone (SillyTavern flat).
-const PLATE_INSET = "px-section py-row @max-cq-28:px-row";
-// The page is inset the gutter, with no block-end inset: the next page runs on.
-const PAGE_INSET = "px-gutter pbs-row";
+// The plate column is inset a section from its gutter; on a phone its trailing edge takes a block, which leaves flat the
+// 32px more reading width than Moonlit that the small avatar chip buys.
+const PLATE_INSET = "px-section py-row @max-cq-28:pe-block";
+// The page is inset the gutter, with no block-end inset: the next page runs on. On a phone it keeps a tight inset, as
+// stock SillyTavern's document does, so the page keeps its reading width.
+const PAGE_INSET = "px-gutter pbs-row @max-cq-28:px-tight";
 const PAGE_LAST_ROW_FLOOR = "min-block-(--immersive-document-last-row-min-height)";
 
 /** The box's arrangement: `stack` lays the content out at the row gap on the box's own inset; `bare` (whisper's band
@@ -51,6 +53,9 @@ export function MessageBox(props: MessageBoxProps): ReactElement {
 function BubbleCard({ role, shape, phoneCap, editing, receded, positioned, artDecoration, children }: MessageBoxProps): ReactElement {
   const weld = shape === "weld";
   const inset = shape === "stack";
+  // An illustrated or striped card spans its column up to the bubble cap, so card widths do not jump between a short
+  // reply and a long one; an editor spans it too.
+  const spansColumn = editing || positioned || shape !== "stack" || artDecoration !== undefined;
   return (
     <Card
       data-slot={MESSAGE_BUBBLE_SLOT}
@@ -66,7 +71,7 @@ function BubbleCard({ role, shape, phoneCap, editing, receded, positioned, artDe
         weld ? "flex-row items-start" : "flex-col",
         inset ? "gap-row" : undefined,
         phoneCap && BUBBLE_PHONE_CAP,
-        editing && "inline-full",
+        spansColumn ? "inline-full" : undefined,
         positioned && "relative",
       )}
     >

@@ -90,7 +90,7 @@ export function CharacterImportDialog({ open, onOpenChange }: CharacterImportDia
     <FormDialog closeButton={true} dismissLabel="Cancel" onOpenChange={onOpenChange} open={open} title="Import a character card">
       <FileDropzone
         accept={CARD_ACCEPT}
-        instructions="Drop a SillyTavern character card (PNG or JSON), or click to browse"
+        subject="a SillyTavern character card (PNG or JSON)"
         multiple={true}
         onFilesSelected={({ accepted }): void => onFiles(accepted)}
       />
