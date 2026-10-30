@@ -38,7 +38,17 @@ import { compositedBase, serializeOpaqueOklch, toOklch } from "./color-parse.ts"
 import type { InputBorderFallback } from "./derive-vars.ts";
 import { foregroundOn, inputBorderOn, surfaceVarsOn } from "./derive-vars.ts";
 import type { CarriedToneScheme } from "./tone-knobs.ts";
-import { accentInk, carriedToneScheme, carriedToneSources, paintedAccentFill, solveCarriedToneMix, toneMixOf, toneMixVars } from "./tone-knobs.ts";
+import {
+  accentInk,
+  carriedToneScheme,
+  carriedToneSources,
+  paintedAccentFill,
+  primaryLiteralResets,
+  solveCarriedToneMix,
+  toneLiteralVars,
+  toneMixOf,
+  toneMixVars,
+} from "./tone-knobs.ts";
 
 // Fonts a user may pick — an allowlist; anything else is dropped.
 const THEME_FONT_ALLOWLIST = ["Geist", "ui-sans-serif", "ui-serif", "ui-monospace", "Georgia", "Times New Roman", "Iowan Old Style"] as const;
@@ -249,19 +259,21 @@ interface AccentAndTones {
 }
 
 /**
- * The accent emission and, under a carried palette, the D336 knobs its `[data-tone]` roles read, solved over its
- * ramp, its intent arms and the primary it paints; with no accent at all, primary is left out of the solve.
+ * The accent emission and, under a carried palette, what its `[data-tone]` roles read (D336): the knobs, solved over
+ * its ramp, its intent arms and the primary it paints, and each colored tone's literal roles; with no accent at all,
+ * primary is left out of both. A scope that paints its own accent over an outer palette resets the primary literals.
  */
 function accentAndTonesOn(picked: string | undefined, ambientAccent: string | undefined, carriedBase: ParsedOklch | null): AccentAndTones {
   const scheme = carriedBase === null ? null : carriedToneScheme(carriedBase);
   const accent = accentEmissionOn(picked, ambientAccent, scheme);
   if (scheme === null) {
-    return { accent, toneVars: {}, fallback: undefined };
+    return { accent, toneVars: accent === undefined ? {} : primaryLiteralResets(), fallback: undefined };
   }
-  const mix = solveCarriedToneMix(scheme, carriedToneSources(scheme, accent?.painted ?? null));
+  const sources = carriedToneSources(scheme, accent?.painted ?? null);
+  const mix = solveCarriedToneMix(scheme, sources);
   const primary = toneMixOf(mix, "primary");
   const fallback = accent === undefined || accent.coversSteps ? undefined : { accent: accent.fill, hover: primary.hover, active: primary.active };
-  return { accent, toneVars: toneMixVars(mix), fallback };
+  return { accent, toneVars: { ...toneMixVars(mix), ...toneLiteralVars(scheme, sources) }, fallback };
 }
 
 /** The base the §7a ink clamp judges against: the CARRIED background, else the AMBIENT one (#236). */

@@ -13,7 +13,7 @@ import { assertTokenContract, REQUIRED_SEED_VALUE_SET_PATHS, TOKEN_ARTIFACT_PATH
 import { assertNoNearDuplicateColors } from "./tokens.near-duplicate.ts";
 import { renderPigmentBlocks, renderPigmentTs } from "./tokens.pigments.ts";
 import type { ToneModel } from "./tokens.tones.ts";
-import { assertShippedToneFloors, renderToneBlocks, renderToneTs, toneKnobDefaults, toneModel, toneReferenceValues } from "./tokens.tones.ts";
+import { assertShippedToneFloors, renderToneBlocks, renderToneTs, toneModel, toneReferenceValues, toneRootDefaults } from "./tokens.tones.ts";
 
 export type { GeneratedCssValue } from "./token-contract.ts";
 
@@ -642,7 +642,7 @@ export async function generateArtifacts(uiRoot = HERE): Promise<{ themeCss: stri
         renderBasePaletteBlock(seedThemes, portableByPath) +
         renderToneBlocks(tones) +
         renderPigmentBlocks(contract.pigments),
-      toneKnobDefaults(tones),
+      toneRootDefaults(tones),
     ),
     tokensTs: renderTokensTs({ tokens: flat, polarityArms, lengths, conditions, tones, pigments: contract.pigments }),
     themesTs: renderSeedThemesTs(seedThemes),

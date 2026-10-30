@@ -109,6 +109,34 @@ export function ToneRoleContrastStory({
   );
 }
 
+/** The hue-carrying roles one tone paints, each sample addressed by `data-sample`; the tints and the solid are bare fills. */
+const HUE_SAMPLE_ROLES = ["solid", "tint", "tint-active"] as const satisfies readonly ToneRole[];
+
+/**
+ * Each colored tone's text on the page and its solid and tints as fills, inside a custom ThemeScope on `background`, with
+ * Hearth's base and accent as the ambient the shell root hands down.
+ */
+export function ToneHueStory({ background }: { readonly background: string }): ReactElement {
+  return (
+    <CtIsolation subject="Tone hues" isolates="Literal tone roles a custom ThemeScope emits over a mid-lightness page">
+      <ThemeScope tokens={{ background }} ambientBackground={TOKENS["color.background"].value} ambientAccent={TOKENS["color.primary"].value}>
+        <div data-sample="ground" style={{ backgroundColor: "var(--color-background)", display: "grid", gridTemplateColumns: GRID_COLUMNS, padding: "1rem" }}>
+          {TONES.filter((tone) => tone !== "neutral").map((tone) => (
+            <div key={tone} data-tone={tone} style={{ display: "grid", gap: "0.5rem" }}>
+              <p data-sample="text" style={{ ...SAMPLE_STYLE, color: `var(${TOKENS["color.tone-text"].cssVar})`, fontWeight: 700 }}>
+                {`${tone} text`}
+              </p>
+              {HUE_SAMPLE_ROLES.map((role) => (
+                <div key={role} data-sample={role} style={{ ...SAMPLE_STYLE, backgroundColor: `var(${TOKENS[`color.tone-${role}`].cssVar})` }} />
+              ))}
+            </div>
+          ))}
+        </div>
+      </ThemeScope>
+    </CtIsolation>
+  );
+}
+
 /** The tone marks that carry meaning on their own: a zone meter's fill on its track, and a status Card's edge on the page. */
 export function ToneMarkStory({ theme }: { readonly theme?: keyof typeof SEED_THEME_VALUE_SETS }): ReactElement {
   return (

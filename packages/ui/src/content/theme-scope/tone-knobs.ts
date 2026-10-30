@@ -1,21 +1,23 @@
-// D336 tone knobs for a carried background. The `[data-tone]` blocks read `--tone-mix-*` from the cascade, so a
-// scope that paints its own palette solves the amounts its ramp and intent bases need and emits them beside its
-// colours; the knob defaults clear every shipped palette, and the token build proves that.
+// D336 tone knobs and literal roles for a carried background. The `[data-tone]` blocks read `--tone-mix-*` and each
+// colored tone's `--tone-<tone>-<role>` literal from the cascade, so a scope that paints its own palette emits both
+// beside its colours; the root leaves every literal invalid, and the knob defaults clear every seed floor, which the token build proves.
 import type { CarriedToneHost, Oklch, SolidInk, ToneColors, ToneMixGroup, TonePalette, ToneScheme, ToneSource } from "@orb/kit/theme-derivation";
 import {
   accentFillLightness,
+  carriedLiteralRoles,
   carriedTonePalette,
   compositeSrgb,
   oklchToSrgb,
   solidInkLightness,
+  solveCarriedToneRoles,
   solveToneMix,
   srgbToOklch,
   toneRoleColors,
 } from "@orb/kit/theme-derivation";
 import type { Tone, ToneMixKnob, ToneRole } from "#tokens";
-import { TOKEN_POLARITY_ARMS, TOKENS, TONE_MIX_DEFAULTS, TONE_ROLE_RECIPES, TONES, toneKnobVar } from "#tokens";
+import { TOKEN_POLARITY_ARMS, TOKENS, TONE_MIX_DEFAULTS, TONE_ROLE_RECIPES, TONES, toneKnobVar, toneLiteralVar } from "#tokens";
 import type { ParsedOklch } from "./color-parse.ts";
-import { toOklch } from "./color-parse.ts";
+import { serializeOpaqueOklch, toOklch } from "./color-parse.ts";
 
 /**
  * The scope knobs a carried palette re-solves (D336), judged over every tone it paints: text and the tint pair lower
@@ -43,8 +45,15 @@ const SCOPE_KNOBS: readonly ToneMixKnob[] = [
   ...STEP_KNOBS,
 ];
 
-type IntentTone = Exclude<Tone, "primary" | "neutral">;
+type ColoredTone = Exclude<Tone, "neutral">;
+type IntentTone = Exclude<ColoredTone, "primary">;
 export type CarriedToneScheme = ToneScheme<ToneRole, ToneMixKnob, CarriedToneHost>;
+
+const COLORED_TONES = TONES.filter((tone): tone is ColoredTone => tone !== "neutral");
+const LITERAL_ROLES = carriedLiteralRoles(TONE_ROLE_RECIPES, TONE_MIX_DEFAULTS);
+
+/** The guaranteed-invalid value: a literal declared `initial` makes the `[data-tone]` block's `var()` take its mix. */
+const MIX_FALLBACK = "initial";
 
 /** The fill a scope paints for an accent, and whether that pixel is the authored spelling itself. */
 export interface AccentPaint {
@@ -161,4 +170,36 @@ export function toneMixVars(mix: CarriedToneMix): Readonly<Record<string, string
     }),
   );
   return Object.fromEntries([...scope, ...perTone]);
+}
+
+/**
+ * The literal role colours a carried scope emits (D336), one per colored tone and literal role: each keeps its tone's
+ * hue where a mix toward this palette's page would grey it out. A tone the scope cannot judge, a primary with no known
+ * accent, declares the mix fallback, so a nested scope never paints an outer palette's literal.
+ */
+export function toneLiteralVars(scheme: CarriedToneScheme, tones: readonly CarriedTone[]): Readonly<Record<string, string>> {
+  return Object.fromEntries(
+    COLORED_TONES.flatMap((tone) => {
+      const source = tones.find((carried) => carried.tone === tone)?.source;
+      const literals = source === undefined || source === "neutral" ? undefined : solveCarriedToneRoles(scheme, source, TONE_MIX_DEFAULTS);
+      return LITERAL_ROLES.map((role) => {
+        if (literals === undefined) {
+          return [toneLiteralVar(tone, role), MIX_FALLBACK] as const;
+        }
+        const color = literals[role];
+        if (color === undefined) {
+          throw new Error(`the kit solved no literal for ${tone} ${role}, which it classed as literal`);
+        }
+        return [toneLiteralVar(tone, role), serializeOpaqueOklch(color)] as const;
+      });
+    }),
+  );
+}
+
+/**
+ * The primary literals a scope that paints its own accent over an outer palette resets to the mix fallback: an outer
+ * carried scope's literals were solved for its own accent, and the mix follows this scope's `--color-primary`.
+ */
+export function primaryLiteralResets(): Readonly<Record<string, string>> {
+  return Object.fromEntries(LITERAL_ROLES.map((role) => [toneLiteralVar("primary", role), MIX_FALLBACK]));
 }

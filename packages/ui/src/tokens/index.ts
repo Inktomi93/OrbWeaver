@@ -557,6 +557,11 @@ export function toneKnobVar(tone: Tone, knob: ToneMixKnob): string {
   return ["--tone-mix", tone, knob].join("-");
 }
 
+/** A carried scope's literal colour for one colored tone's role (`carriedLiteralRoles`), read by the `[data-tone]` block before its mix. */
+export function toneLiteralVar(tone: Exclude<Tone, "neutral">, role: ToneRole): string {
+  return ["--tone", tone, role].join("-");
+}
+
 /** Each role's recipe as data, for the numeric twin in `@orb/kit/theme-derivation`. */
 export const TONE_ROLE_RECIPES = {
   "solid": {"colored":"base","neutral":{"bind":"foreground"},"floor":[]},
