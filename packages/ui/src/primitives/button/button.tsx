@@ -83,8 +83,11 @@ export function Button(props: ButtonProps): ReactElement {
     ...rest
   } = props;
   const resolvedTone = tone ?? BUTTON_DEFAULT_TONE[variant];
-  // A neutral fill-less style takes its host's ink (D336); a colour tone inks it with the tone's text role.
-  const resolvedInk = ink ?? (variant !== "solid" && resolvedTone === "neutral" ? "inherit" : undefined);
+  // A neutral ghost or link takes its host's ink (D336); an outline draws its own box in its tone's text role, and a
+  // colour tone inks every fill-less style with that role.
+  const resolvedInk = ink ?? ((variant === "ghost" || variant === "link") && resolvedTone === "neutral" ? "inherit" : undefined);
+  // The selection rail keys its paint on `data-selected`, so the row's tone follows the same attribute.
+  const selected = "data-selected" in props && props["data-selected"] !== undefined;
   const resolvedFocal = focal ?? (variant === "solid" && resolvedTone === "primary");
   // The className, the axis stamp and the D336 tone scope, from ONE selection object.
   const stamp = variantProps(
@@ -108,7 +111,7 @@ export function Button(props: ButtonProps): ReactElement {
       focusRing,
     },
     className,
-    buttonTone(variant, resolvedTone, selection),
+    buttonTone(variant, resolvedTone, selection, selected),
   );
   return (
     <BaseButton

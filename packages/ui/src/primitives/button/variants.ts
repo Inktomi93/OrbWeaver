@@ -204,7 +204,8 @@ export const buttonVariants = tv({
     // A button that covers a part flush in a card's corners (art, a welded portrait) traces those corners, so its
     // focus ring follows the card. Declared after `shape`, whose control radius it refines corner by corner.
     cardCorners: CARD_CORNERS,
-    // A named ink for a fill-less style (D336); `Button` resolves `inherit` for a neutral one, which takes its host's ink.
+    // A named ink for a fill-less style (D336); `Button` resolves `inherit` for a neutral ghost or link, which takes its
+    // host's ink. An outline draws its own box, so it keeps its tone's text role.
     // Declared before `selection`, so a selected arm's own ink wins the merge.
     ink: INKS,
     // THE SELECTION STATE LAYER (added 2026-08-17, program #102 variant B). Toggle already owns this
@@ -276,9 +277,10 @@ export const BUTTON_DEFAULT_TONE = {
 } as const satisfies Record<ButtonVariant, Tone>;
 
 /**
- * The D336 tone a button's roles resolve against. A selection rail takes the primary rail it paints: the
- * owner-ratified selection idiom keeps one colour, so a fill-less rail row's tone yields to it.
+ * The D336 tone a button's roles resolve against. A selected row on a selection rail takes the primary rail it paints:
+ * the owner-ratified selection idiom keeps one colour, so a fill-less rail row's tone yields to it while selected and
+ * rests in its own tone.
  */
-export function buttonTone(variant: ButtonVariant, tone: Tone, selection: VariantProps<typeof buttonVariants>["selection"]): Tone {
-  return selection === "rail" && variant !== "solid" ? SELECTION_RAIL_TONE : tone;
+export function buttonTone(variant: ButtonVariant, tone: Tone, selection: VariantProps<typeof buttonVariants>["selection"], selected: boolean): Tone {
+  return selection === "rail" && selected && variant !== "solid" ? SELECTION_RAIL_TONE : tone;
 }

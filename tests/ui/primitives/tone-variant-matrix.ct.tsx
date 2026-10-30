@@ -59,7 +59,7 @@ function paints(tone: string): Readonly<Record<string, Paint>> {
   const fillLessInk: Expected = tone === "neutral" ? "host" : "text";
   return {
     "button-solid": { "background-color": "solid", color: "foreground" },
-    "button-outline": { "border-block-start-color": "edge", color: fillLessInk },
+    "button-outline": { "border-block-start-color": "edge", color: "text" },
     "button-ghost": { color: fillLessInk },
     "button-link": { color: fillLessInk },
     "badge-solid": { "background-color": "solid", color: "foreground" },

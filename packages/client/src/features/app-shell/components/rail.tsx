@@ -107,6 +107,8 @@ function RailBrand({
             focusRing="sidebar"
             data-active={active ? "" : undefined}
             variant="ghost"
+            // The active brand stamps the shell accent, whose roles rail.css paints on the cell, the glyph and the bar.
+            tone={active ? SHELL_ACCENT_TONE : undefined}
             onClick={(): void => onSelectSection(sectionId)}
           >
             {/* The BUTTON carries the name (`aria-label`), so the glyph inside it is decoration — a nested
