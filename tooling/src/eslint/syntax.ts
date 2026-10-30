@@ -9,6 +9,10 @@ export const memberNamed = (name: string, prefix = ""): string =>
 
 export const alternation = (names: readonly string[]): string => `/^(${names.join("|")})$/`;
 
+/** The spellings that take a module whole (a namespace import, `export *`, a dynamic import), where a later member read is no longer a named import. A type-only form carries no value. */
+export const wholeModule = (source: string): string =>
+  `:matches(ImportDeclaration[source.value='${source}']:not([importKind='type']) > ImportNamespaceSpecifier, ExportAllDeclaration[source.value='${source}']:not([exportKind='type']), ImportExpression[source.value='${source}'])`;
+
 export const TANSTACK_FORM_MINTS = ["useForm", "createFormHook", "createFormHookContexts"];
 
 export const MATCH_MEDIA = "matchMedia";

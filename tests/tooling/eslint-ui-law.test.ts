@@ -165,6 +165,15 @@ const CASES = [
   [CLASSES, "animate-none on data-closed", classed("data-closed:animate-none"), UI, 0],
   [CLASSES, "an unconditional animation", classed("animate-pulse"), UI, 0],
   [CLASSES, "transition-all in a variants file string", 'export const slot = "transition-all duration-150";', UI_VARIANTS, 1],
+  [CLASSES, "a word-reveal keyframe on a lifecycle attribute", classed("data-open:animate-[orb-word-reveal_var(--motion-base)]"), UI, 1],
+  [CLASSES, "a word-reveal keyframe behind a group lifecycle attribute", classed("group-data-closed:animate-[orb-word-reveal_1s]"), UI, 1],
+  [CLASSES, "a word-reveal keyframe with no lifecycle attribute", classed("animate-[orb-word-reveal_var(--motion-base)]"), UI, 0],
+  [CLASSES, "a shell variant in a feature", classed("shell-mobile:hidden"), FEATURE, 1],
+  [CLASSES, "a stacked shell variant in a feature", classed("hover:shell-desktop:flex"), FEATURE, 1],
+  [CLASSES, "a narrow shell variant in client code outside features", classed("shell-narrow:flex"), `${CLIENT}components/probe.tsx`, 1],
+  [CLASSES, "a short shell variant in a ui primitive", classed("shell-short:hidden"), UI, 1],
+  [CLASSES, "a shell variant in the app shell", classed("shell-mobile:hidden"), `${CLIENT}features/app-shell/surfaces/probe.tsx`, 0],
+  [CLASSES, "a class that only starts with shell", classed("shell-panel"), FEATURE, 0],
 ] as const;
 
 test.for(CASES)("%s: %s", { timeout: 120_000 }, async ([rule, , source, path, count]) => {

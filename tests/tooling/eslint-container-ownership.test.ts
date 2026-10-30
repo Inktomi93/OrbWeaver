@@ -88,12 +88,37 @@ test.for([
   ["a dialog body props identifier", "export const S = ({ bp }) => <PickerDialog bodyProps={bp} />;", SURFACE_FILE],
   ["a dialog body props spread", "export const S = ({ bp }) => <PickerDialog bodyProps={{ ...bp }} />;", SURFACE_FILE],
   ["a quoted dialog body container", 'export const S = () => <PickerDialog bodyProps={{ "container": true }} />;', SURFACE_FILE],
+  ["a Container selected from a namespace", "export const S = () => <Layout.Container><Rows /></Layout.Container>;", SURFACE_FILE],
+  ["a Container imported under another name", 'import { Container as Box } from "@orb/ui/layout";\nexport const S = () => <Box><Rows /></Box>;', SURFACE_FILE],
+  [
+    "a bare container prop on a renamed Stack",
+    'import { Stack as Column } from "@orb/ui/layout";\nexport const S = () => <Column container><Rows /></Column>;',
+    SURFACE_FILE,
+  ],
+  [
+    "a container size on a renamed Section",
+    'import { Section as Panel } from "@orb/ui/layout";\nexport const S = () => <Panel container="size"><Rows /></Panel>;',
+    SURFACE_FILE,
+  ],
+  ["a container spread into a Stack", "export const S = () => <Stack {...{ container: true }}><Rows /></Stack>;", SURFACE_FILE],
 ] as const)("%s in a surface is a finding", async ([, source, path]) => {
   expect(await findings(SURFACE, source, path)).toHaveLength(1);
 });
 
 test("a surface whose bodyProps is a plain literal passes", async () => {
   expect(await findings(SURFACE, 'export const S = () => <PickerDialog bodyProps={{ className: "p-block" }} />;', SURFACE_FILE)).toEqual([]);
+});
+
+test.for([
+  ["a portal container option", "export const S = () => <Portal container={host}><Rows /></Portal>;"],
+  ["a layout import that declares nothing", 'import { Stack } from "@orb/ui/layout";\nexport const S = () => <Stack><Rows /></Stack>;'],
+  ["a spread that carries no container", "export const S = () => <Stack {...{ gap: 'row' }}><Rows /></Stack>;"],
+  [
+    "a renamed Stack with containment off",
+    'import { Stack as Column } from "@orb/ui/layout";\nexport const S = () => <Column container={false}><Rows /></Column>;',
+  ],
+] as const)("a surface with %s passes", async ([, source]) => {
+  expect(await findings(SURFACE, source, SURFACE_FILE)).toEqual([]);
 });
 
 test("a surface that turns containment off passes", async () => {
@@ -126,6 +151,17 @@ test.for([
 
 test("an anchor whose only container prop is off is a finding", async () => {
   expect(await findings(ANCHOR, "export const A = ({ children }) => <Section container={false}>{children}</Section>;", ANCHOR_FILE)).toHaveLength(1);
+});
+
+test("a dialog nested in a layout element is not the box the anchor provides", async () => {
+  expect(await findings(ANCHOR, "export const A = () => <Stack><ConfirmDialog open /></Stack>;", ANCHOR_FILE)).toHaveLength(1);
+  expect(await findings(ANCHOR, "export const A = () => <Row><PickerDialog open bodyProps={{ container: true }} /></Row>;", ANCHOR_FILE)).toHaveLength(1);
+  expect(await findings(ANCHOR, "export const A = () => <Container><ConfirmDialog open /></Container>;", ANCHOR_FILE)).toEqual([]);
+});
+
+test("a dialog the anchor returns, on a branch or beside its sibling dialogs, is still its box", async () => {
+  expect(await findings(ANCHOR, "export const A = ({ open }) => (open ? <FormDialog open /> : null);", ANCHOR_FILE)).toEqual([]);
+  expect(await findings(ANCHOR, "export const A = () => <><PickerDialog open /><GalleryLightbox /></>;", ANCHOR_FILE)).toEqual([]);
 });
 
 test("a dialog part is not the dialog box", async () => {

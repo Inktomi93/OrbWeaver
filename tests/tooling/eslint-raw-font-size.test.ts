@@ -45,6 +45,15 @@ const PLANTED = [
   ["a canvas font", 'export function paint(context) { context.font = "600 12px Geist"; }'],
   ["a style fontSize write", 'export function size(node) { node.style.fontSize = "12px"; }'],
   ["a font-size property write", 'export function size(node) { node.style.setProperty("font-size", "12px"); }'],
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: the planted source is itself a template literal.
+  ["a canvas font template with a literal size", "export function paint(context, family) { context.font = `600 12px ${family}`; }"],
+  ["a cssText write with a font size", 'export function size(node) { node.style.cssText = "font-size: 12px"; }'],
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: the planted source is itself a template literal.
+  ["a cssText template with a font size", "export function size(node, color) { node.style.cssText = `color: ${color}; font-size: 12px`; }"],
+  ["a style attribute with a font size", 'export function size(node) { node.setAttribute("style", "font-size: 12px"); }'],
+  ["a style attribute with a font shorthand", 'export function size(node) { node.setAttribute("style", "font: 600 12px Geist"); }'],
+  ["a font shorthand in a style object", 'export const STYLE = { font: "600 13px Geist" };'],
+  ["a quoted font shorthand in a style object", 'export const STYLE = { "font": `13px Geist` };'],
 ] as const;
 
 test.for(PLANTED.flatMap(([name, source]) => [[`${name} in the client`, source, CLIENT_PROBE] as const, [`${name} in @orb/ui`, source, UI_PROBE] as const]))(
@@ -65,6 +74,12 @@ test.for([
   ],
   ["a font family field", 'export const DEFAULT_THEME_FORM = { font: "Geist" };'],
   ["a font-size token write", 'export function size(node, token) { node.style.setProperty("font-size", token); }'],
+  ["a text-token fontSize var", 'export const STYLE = { fontSize: "var(--text-label)" };'],
+  ["a text-token fontSize var in JSX", 'export const A = () => <Box style={{ fontSize: "var(--text-label)" }} />;'],
+  ["a cssText write without a font", 'export function paint(node) { node.style.cssText = "color: red"; }'],
+  ["a cssText font size from a token", 'export function size(node) { node.style.cssText = "font-size: var(--text-label)"; }'],
+  ["a style attribute without a font", 'export function size(node) { node.setAttribute("style", "color: red"); }'],
+  ["a font shorthand keyword", 'export const STYLE = { font: "inherit" };'],
 ] as const)("%s passes", async ([, source]) => {
   expect(await findings(source, UI_PROBE)).toEqual([]);
 });

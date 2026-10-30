@@ -101,6 +101,8 @@ const config: Config = {
     "orb/browser-support-css": [true, { harmless: HARMLESS_WHEN_UNSUPPORTED }],
     "orb/no-undeclared-var-fallback": true,
     "orb/no-lifecycle-keyframes": true,
+    "orb/font-scale-on-root": [true, { value: ROOT_FONT_SCALE }],
+    "orb/no-arbitrary-apply": true,
     // Compositor hacks: a permanent layer hint or a backface flip promotes a layer the browser would not, and costs memory on
     // the small devices this app runs on. Animate transform, translate, scale, rotate, opacity and filter.
     "property-disallowed-list": ["/^--leading-[a-z-]+$/", "will-change", "backface-visibility", "-webkit-overflow-scrolling"],
@@ -118,7 +120,7 @@ const config: Config = {
       "/^--orb-tier-[a-z-]+-weight$/": [FONT_WEIGHT_TOKEN],
       "letter-spacing": [...LETTER_SPACING_VALUES],
       // A raw size, a keyword, a percentage or a viewport unit leaves the ramp, and the last ignores the font-scale setting.
-      "font-size": [...FONT_SIZE_VALUES, ROOT_FONT_SCALE],
+      "/^font-size$/i": [...FONT_SIZE_VALUES, ROOT_FONT_SCALE],
       "/^--orb-tier-[a-z-]+-size$/": [TEXT_STEP],
       font: ["inherit"],
     },

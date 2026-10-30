@@ -29,4 +29,12 @@ Each rule refuses the namespace and aliased spellings, with planted failing case
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Planted failing cases and passing controls are in `tests/tooling/eslint-client-data-gates.test.ts`, `tests/tooling/eslint-container-ownership.test.ts` and `tests/tooling/eslint-ui-law.test.ts`. Before: 20 planted cases failed. After: 210 of 210 pass.
+
+- `no-raw-zustand-persist` and `mutation-only-in-factory`: an aliased named import was already refused. A namespace import, `export *`, a dynamic import and a named re-export of `useMutation` are now refused (`wholeModule` in `tooling/src/eslint/syntax.ts`); a type-only namespace import passes.
+- `no-effect-on-shared-selection`: an effect imported under another name (`import { useEffect as run }`) is now followed. The file scope stays as the law states it: `*-selection-store` files plus the active-chat pointer, features only, app-shell exempt (`docs/law/ui-architecture-state-and-stack.md` §5.1). Widening it is a law change, not a spelling gap.
+- `VIEWPORT_CLASSES`: refuses `shell-mobile`, `shell-desktop`, `shell-narrow` and `shell-short` outside app-shell; the app-shell control passes.
+- `anchor-provides-container`: a `*Dialog` or `*Drawer` counts only as the element the anchor returns (beside sibling dialogs in a fragment). One nested in a layout element no longer satisfies it. Known limit: a returned fragment holding a confirm dialog beside the real box still passes.
+- `surface-consumes-container`: also refuses `<Layout.Container>`, an import of `Container` under any name, a literal `container` flag on any element, and a spread object carrying `container`. A renamed `Stack` with a non-literal `container` value still passes.
+- `animate-[orb-word-reveal…]`: decided as a rule change, with the law unchanged. The motion guide's class-string enforcer names only `animate-none` and the stock loops as passing, and the word-reveal fade is a stylesheet keyframe anchored by a negative delay that no class string spells. No source uses the class string; the exemption is removed.
+- Whole-tree run: `TIMING=1 pnpm lint:eslint packages/client/src packages/ui/src` reports one finding before the anchor fix (a fragment root) and none after; the changed rules stay outside the ten slowest.
