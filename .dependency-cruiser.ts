@@ -89,6 +89,46 @@ const BROWSER_TEST_PATHS = [TEST_BROWSER_SUPPORT, ...BROWSER_MOUNT_PATHS];
 const BROWSER_TEST_FILES = `(?:${BROWSER_TEST_SUFFIXES.map((suffix) => suffix.replaceAll(".", "\\.")).join("|")})$`;
 // Native roots include helpers while preserving the compiler's DOM, E2E and browser-support exclusions.
 const NODE_TEST_PATHS = `^(?:${nodeTestRoots.map((file) => RegExp.escape(file)).join("|")})$`;
+// The whole-tree reachable rules over thousands of test files cost minutes, so each one is split into a direct rule over
+// the test files and a reachable rule over the few files a test can enter that the direct rule does not read. The split
+// holds only while a test enters nothing outside the sets below, so a closed-imports rule refuses every other entry.
+const TEST_SIDE_TREES = "^(?:tests|scripts|playwright)/";
+const ROOT_FILE = "^[^/]+$";
+const TEST_ISO_WORLD = "^tests/support/iso/";
+// Test-side files outside the Node program and the testkit that Node-world files import: each is judged by a reachable rule.
+const NODE_TEST_SIDE_FILES = {
+  "^tests/e2e/support/modes\\.ts$": "scripts/corpus-fixture.ts loads the e2e project cells to size and select its matrix",
+  "^tests/server/domain/chat/engine/(?:core|engine|stats)-sdk-physical\\.mjs$":
+    "plain-JS stand-ins for the SDK executable that engine suites spawn and import for their model names",
+} as const satisfies Readonly<Record<string, string>>;
+// Root files a Node suite loads to exercise or read them; `not-to-test` bars each from importing test code.
+const ROOT_FILES_TESTS_LOAD = {
+  "^\\.dependency-cruiser\\.ts$": "boundary suites cruise this config",
+  "^eslint\\.config\\.ts$": "lint-rule suites run this config",
+  "^knip\\.ts$": "tooling suites read the entry map",
+  "^package\\.json$": "suites read the workspace manifest",
+  "^stylelint\\.config\\.ts$": "stylelint suites run this config",
+  "^vitest\\.config\\.ts$": "runner suites read the projects",
+} as const satisfies Readonly<Record<string, string>>;
+// Browser-support files a mount imports; a mount may not enter any other test-side file.
+const MOUNT_SUPPORT_FILES = {
+  "^tests/support/browser/(?:index|ct-door|ct-runtime|ct-isolation)\\.ts$": "the browser testkit door and the CT mount runtime it forwards",
+  "^tests/support/browser/(?:ct-data-providers|ct-isolated-subject)\\.tsx$": "the section and isolated-subject mounts stories render through",
+} as const satisfies Readonly<Record<string, string>>;
+// Feature test helpers a story imports; each stays free of Node imports so the story can load it.
+const MOUNT_HELPER_FILES = {
+  "^tests/client/features/app-shell/surfaces/trail-projection\\.ts$": "values the trail projection story and its spec share",
+  "^tests/client/features/auth/components/pending-join-fixtures\\.ts$": "the pending-join story's parsed fixtures",
+} as const satisfies Readonly<Record<string, string>>;
+// The only files of a browser package outside `src/` that its `src/` imports; each is judged by a reachable rule.
+const BROWSER_PACKAGE_ROOT_FILES = {
+  "^packages/client/owner-css-surface\\.ts$": "the generated owner CSS surface the theme field reads",
+  "^packages/client/browser-targets\\.ts$": "the browser target list the polyfill entry reads",
+} as const satisfies Readonly<Record<string, string>>;
+const NODE_TEST_SIDE_PATHS = Object.keys(NODE_TEST_SIDE_FILES);
+const ROOT_FILE_PATHS = Object.keys(ROOT_FILES_TESTS_LOAD);
+const MOUNT_ENTRY_PATHS = [...Object.keys(MOUNT_SUPPORT_FILES), ...Object.keys(MOUNT_HELPER_FILES)];
+const BROWSER_PACKAGE_SRC = "^packages/(?:client|ui|kit|contracts)/src/";
 const NODE_BUILTINS = `^(?:node:)?(?:${builtinModules.map((name) => RegExp.escape(name)).join("|")})$`;
 const CLIENT_CSS_ENTRY = `${CLIENT}styles/index\\.ts$`;
 const CLIENT_SHELL_CSS = `${CLIENT}features/app-shell/surfaces/shell\\.css$`;
@@ -764,23 +804,74 @@ const TEST_WORLDS = [
   {
     name: "node-tests-no-browser-helpers",
     comment:
-      "This Node-rooted helper reaches browser declarations. Keep root/server preparation here; move DOM/evaluate helpers to the existing browser/spec owner and call both from the CT spec.",
+      "This Node-rooted helper imports browser declarations. Keep root/server preparation here; move DOM/evaluate helpers to the existing browser/spec owner and call both from the CT spec. A Node test that reaches browser declarations through a testkit or listed test-side file is reported on that file by node-test-side-no-browser-helpers, not on the test.",
     severity: "error",
     from: { path: NODE_TEST_PATHS },
+    to: { path: [TEST_BROWSER_SUPPORT, ...BROWSER_MOUNT_PATHS] },
+  },
+  {
+    name: "node-test-side-no-browser-helpers",
+    comment:
+      "The reach half of node-tests-no-browser-helpers: the iso testkit world and the listed test-side files a Node test may import cannot reach browser declarations through any chain. The violation is reported on the file that starts the chain, not on the test that imports it.",
+    severity: "error",
+    from: { path: [TEST_ISO_WORLD, ...NODE_TEST_SIDE_PATHS] },
     to: { path: [TEST_BROWSER_SUPPORT, ...BROWSER_MOUNT_PATHS], reachable: true },
   },
   {
+    name: "node-tests-closed-test-side-imports",
+    comment:
+      "The split of node-tests-no-browser-helpers reads each Node-world file's own imports only, so a Node-world file imports test-side and root files from the Node program, the iso testkit world, the browser rules' own targets, NODE_TEST_SIDE_FILES and ROOT_FILES_TESTS_LOAD alone. List a new file there with its reason, or reach it through a testkit door.",
+    severity: "error",
+    from: { path: NODE_TEST_PATHS },
+    to: {
+      path: [TEST_SIDE_TREES, ROOT_FILE],
+      pathNot: [NODE_TEST_PATHS, TEST_ISO_WORLD, TEST_BROWSER_SUPPORT, ...BROWSER_MOUNT_PATHS, ...NODE_TEST_SIDE_PATHS, ...ROOT_FILE_PATHS],
+      dependencyTypesNot: ["core"],
+    },
+  },
+  {
     name: "browser-mounts-no-node-or-server",
-    comment: "Type edges and wrappers also bring compiler dependencies into the browser program.",
+    comment:
+      "Type edges and wrappers also bring compiler dependencies into the browser program. A mount that reaches Node or server code through a listed browser-support or helper file is reported on that file by browser-mount-entries-no-node-or-server, not on the mount.",
     severity: "error",
     from: { path: BROWSER_MOUNT_PATHS, pathNot: BROWSER_TEST_FILES },
+    to: { path: ["^tests/support/node/", NODE_BUILTINS, SRV] },
+  },
+  {
+    name: "browser-mount-entries-no-node-or-server",
+    comment:
+      "The reach half of browser-mounts-no-node-or-server: the iso testkit world, the browser-support files and helpers a mount may import, and the browser packages' own root files cannot reach Node or server code through any chain. The violation is reported on the file that starts the chain, not on the mount that imports it.",
+    severity: "error",
+    from: { path: [TEST_ISO_WORLD, ...MOUNT_ENTRY_PATHS, ...Object.keys(BROWSER_PACKAGE_ROOT_FILES)] },
     to: { path: ["^tests/support/node/", NODE_BUILTINS, SRV], reachable: true },
   },
   {
+    name: "browser-mounts-closed-imports",
+    comment:
+      "The split of browser-mounts-no-node-or-server reads each mount's own imports only, so a mount imports the iso testkit world, the source of the browser packages (client, ui, kit, contracts), MOUNT_SUPPORT_FILES and MOUNT_HELPER_FILES alone. List a new file there with its reason; Node and server targets stay with the rule above.",
+    severity: "error",
+    from: { path: BROWSER_MOUNT_PATHS, pathNot: BROWSER_TEST_FILES },
+    to: {
+      path: [TEST_SIDE_TREES, ROOT_FILE, "^packages/", "^tooling/"],
+      pathNot: [TEST_ISO_WORLD, "^tests/support/node/", SRV, BROWSER_PACKAGE_SRC, ...MOUNT_ENTRY_PATHS],
+      dependencyTypesNot: ["core"],
+    },
+  },
+  {
+    name: "browser-packages-src-closed",
+    comment:
+      "A mount's reach into the browser packages is judged by their direct rules (the cake, node-builtin and server rules), which hold only while their source imports no other file of its package than BROWSER_PACKAGE_ROOT_FILES.",
+    severity: "error",
+    from: { path: BROWSER_PACKAGE_SRC },
+    to: { path: "^packages/(?:client|ui|kit|contracts)/(?!src/)", pathNot: Object.keys(BROWSER_PACKAGE_ROOT_FILES) },
+  },
+  {
     name: "test-helper-world-direction",
+    comment:
+      "A testkit file imports only its own world or a lower one. The reach is judged by browser-mount-entries-no-node-or-server (iso to Node support), node-test-side-no-browser-helpers (iso to browser support) and node-tests-no-browser-helpers (Node support is a Node-world file), so a chain is reported on the file that starts it.",
     severity: "error",
     from: { path: "^tests/support/(iso|node)/" },
-    to: { path: "^tests/support/(node|browser)/", pathNot: "^tests/support/$1/", reachable: true },
+    to: { path: "^tests/support/(node|browser)/", pathNot: "^tests/support/$1/" },
   },
   {
     name: "testkit-app-router-bridge",
@@ -1441,9 +1532,11 @@ const TOOLING_BOUNDARIES = [
 const HYGIENE = [
   {
     name: "not-to-test",
+    comment:
+      "Covers every file of a package or of tooling, and the root files a test loads, because the test rules read a test's own imports and rely on no production file reaching test code.",
     severity: "error",
-    from: { path: ["^packages/[^/]+/src/", "^tooling/src/"] },
-    to: { path: ["^tests/", TEST_FILES] },
+    from: { path: ["^packages/", "^tooling/", ...ROOT_FILE_PATHS] },
+    to: { path: [TEST_SIDE_TREES, TEST_FILES] },
   },
   {
     name: "not-to-unresolvable",
