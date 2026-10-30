@@ -9,7 +9,7 @@ updated: 2026-10-17
 This is the motion law (D66). How motion is built in this app: **CSS
 / Tailwind keyed off Base UI data-attributes and CSS vars, on three INTERACTION duration tokens
 (`fast`/`base`/`layout`) plus continuous/ambient tokens (`shimmer`/`breathe`/`precip`/`transit`/`ambient`)
-and one easing curve** — never a React animation hook, never a second easing curve. §1 is the Base UI
+and one interaction easing curve** — never a React animation hook, never a second interaction curve. Continuous loops are a separate class with their own curve (`--ease-spinner`, the WebWeave loop). §1 is the Base UI
 mechanics an agent needs to add motion; §2 the taxonomy → token map; §3 the house principles
 (numbering is stable — code cites `guide §3.7`/`§3.9`); §4 the motion inventory (what's built,
 where, and what was deliberately left out).
@@ -107,8 +107,10 @@ cannot be interrupted and re-targeted the same way — if state flips mid-animat
 restarts or snaps. This is the same "interruptibility" property Emil Kowalski calls out as
 the single biggest tell of premium vs. amateur motion (§3). **Default to transitions.**
 Reach for `@keyframes` only for effects a transition literally cannot express — multi-step
-sequences, shimmer sweeps, spinner rotation, attention-getters (shake). The only `@keyframes`
-in the app today is the skeleton shimmer (`packages/ui/src/styles/globals.css`).
+sequences, shimmer sweeps, spinner rotation, attention-getters (shake). `@keyframes` live
+in the ui region sheets (`packages/ui/src/styles/primitives.css`, `packages/ui/src/styles/waystone.css`,
+`packages/ui/src/styles/weave.css`) and the shell and client sheets (`packages/client/src/features/app-shell/surfaces/shell/motion.css`,
+`packages/client/src/styles/globals.css`); the skeleton shimmer is in `packages/ui/src/styles/primitives.css`.
 
 This app's existing `OVERLAY_MOTION` fragments already made this exact call — they're
 transitions + `data-starting-style:`/`data-ending-style:` Tailwind arbitrary-variant classes,
@@ -195,7 +197,7 @@ curve.
 supplying the one fact CSS cannot know: *where this element was before the layout it is now
 in*. A FLIP (measure the previous box, apply the inverse, let CSS run it home) computes a
 DELTA and hands the interpolation straight back to CSS — the transition's property, duration
-and curve stay on the element's own classes. Two sites, and they are the whole exception class:
+and curve stay on the element's own classes. These sites are the whole exception class:
 
 - `packages/client/src/features/app-shell/hooks/use-shell-track-flip.ts` — the shell's panel
   push. JS stamps `data-<track>-flip="in|out"` for each of the two tracks (and the
@@ -203,6 +205,9 @@ and curve stay on the element's own classes. Two sites, and they are the whole e
   the two grid tracks, and the keyframes live there too, so CSS owns even the delta.
   **Prefer this shape whenever the distance is already a CSS value.** Renaming this file
   requires updating this citation in the same commit.
+- `packages/client/src/features/chat/hooks/use-flank-track-flip.ts` — the room flank's copy of
+  the same shape: JS stamps only `data-flank-flip` when the plugin column joins or leaves the
+  row, and `shell.css` owns the distance and the glide.
 - `glideIndicator` in `packages/ui/src/primitives/tabs/tabs.tsx` — the tabs indicator glide
   (§4.2 item 2). The delta is the difference between two runtime boxes, so no CSS value
   expresses it: JS writes the inverse `transform` inline, flushes, and drops it, and the
@@ -290,7 +295,7 @@ in order.
 5. **Sane defaults: ~150–250ms, ease-out for entrances, ease-in-out for on-screen movement,
    linear for continuous loops.** The three-tier token set already encodes this taxonomy
    (`--motion-fast` 130ms micro / `--motion-base` 220ms small-surface / `--motion-layout`
-   360ms layout-scale). Do NOT add a 4th interaction duration token or a 2nd easing curve.
+   360ms layout-scale). Do NOT add a 4th interaction duration token or a 2nd interaction easing curve.
    The continuous/ambient tokens (`--motion-shimmer`/`breathe`/`precip`/`transit`/`ambient`)
    serve loops and environmental effects — a separate class, never a substitute for the
    three-tier interaction taxonomy.
@@ -511,7 +516,7 @@ per-block `dir` wrapper and drops to a new line).
 - Don't animate high-frequency/hot-loop surfaces (every keystroke) — violates the "100+ times
   daily" litmus. The streamed-word reveal fade (§4.2 item 10) is sanctioned despite being a
   hot-loop surface: its reveal-time anchoring is the technique that makes a hot-loop fade correct.
-- Don't invent a 4th interaction duration token or a 2nd easing curve without a category that
+- Don't invent a 4th interaction duration token or a 2nd interaction easing curve without a category that
   genuinely doesn't fit `fast`/`base`/`layout` + `ease-out-expo`. The existing 3-tier interaction
   system covers the full taxonomy in §2; continuous/ambient tokens (`shimmer`/`breathe`/`precip`/
   `transit`/`ambient`) serve loops and environmental effects and are a separate class.

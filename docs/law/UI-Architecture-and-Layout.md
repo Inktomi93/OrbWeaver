@@ -108,10 +108,11 @@ packages/client/
   src/
     main.tsx            # entry / composition root + THE REGISTRATION DOOR: the one place feature
                         #   definitions + contributors are imported and assembled (lockdown §7)
-    agent-nav/ agent-seed/
+    agent-handles/ agent-nav/ agent-seed/ agent-plugin/ agent-rpg/
                         # dev-only agent-bridge impls that compose feature FRONT DOORS + #state actions.
-                        #   main.tsx is their ONLY importer (dep-cruiser client-composition-tier-door-only)
-    routes/             # HAND-WRITTEN routes: / (app-root.tsx) · /login — no file-based codegen; admin
+                        #   main.tsx imports only agent-handles, behind import.meta.env.DEV; agent-handles
+                        #   composes the others (dep-cruiser client-composition-tier-door-only)
+    routes/             # HAND-WRITTEN routes: / (app-root.tsx) · /$section · /login — no file-based codegen; admin
                         #   is a group in the Settings SECTION at /, NOT a standalone route (§6.1)
     components/         # tier 2 — domain-AWARE cross-feature composites with no single feature owner
                         #   (ConfirmDialog · LibraryRow · CharacterPicker · QueryBoundary …);
