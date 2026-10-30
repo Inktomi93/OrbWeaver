@@ -1145,6 +1145,43 @@ function belowRingOn(edge: Oklch, card: Oklch, ring: Oklch | null): boolean | nu
   return wcagContrastRatio(quantizedPixel(edge), cardPixel) < wcagContrastRatio(quantizedPixel(ring), cardPixel);
 }
 
+/** How far above the edge's ratio on the card a raised focus ring must sit: focus has to out-shout rest by more than quantization noise. */
+const RING_OVER_EDGE_MARGIN = 0.25;
+
+export interface FocusRingInputs {
+  /** The ring the scope would paint: the accent fill. Its hue and chroma are kept. */
+  readonly ring: Oklch;
+  readonly edge: Oklch;
+  readonly card: Oklch;
+}
+
+/**
+ * The focus ring that out-shouts the resting edge (D159's ceiling) under a carried scope: the ring's own hue and chroma at
+ * the nearest lightness whose ratio on the card is at least 3:1 and above the edge's by {@link RING_OVER_EDGE_MARGIN}.
+ * A ring already above the edge is returned unchanged; `null` when no lightness on that hue clears the edge.
+ */
+export function solveFocusRing({ ring, edge, card }: FocusRingInputs): Oklch | null {
+  const cardPixel = quantizedPixel(card);
+  const edgeRatio = wcagContrastRatio(quantizedPixel(edge), cardPixel);
+  if (wcagContrastRatio(quantizedPixel(ring), cardPixel) > edgeRatio) {
+    return ring;
+  }
+  const target = Math.max(AA_NON_TEXT_RATIO, edgeRatio + RING_OVER_EDGE_MARGIN);
+  const steps = Math.round(1 / INPUT_BORDER_L_STEP);
+  for (let step = 1; step <= steps; step += 1) {
+    for (const direction of [1, -1]) {
+      // Clamped, so the extremes (white, black on this hue) are tried exactly rather than skipped by float dust.
+      const l = Math.min(1, Math.max(0, ring.l + direction * step * INPUT_BORDER_L_STEP));
+      const pixel = oklchToSrgb({ l, c: ring.c, h: ring.h });
+      const painted = { r: Math.round(pixel.r), g: Math.round(pixel.g), b: Math.round(pixel.b) };
+      if (wcagContrastRatio(painted, cardPixel) >= target) {
+        return srgbToOklch(pixel);
+      }
+    }
+  }
+  return null;
+}
+
 /** A colored tone's two authored colours: the intent base and its `-foreground` token, at the palette's polarity. */
 export interface ToneColors {
   readonly base: Oklch;

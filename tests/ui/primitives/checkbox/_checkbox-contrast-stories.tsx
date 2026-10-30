@@ -42,10 +42,13 @@ export function CarrierEdgeStory({
   theme,
   background,
   accent,
+  ambientAccent,
 }: {
   readonly theme?: keyof typeof SEED_THEME_VALUE_SETS;
   readonly background?: string;
   readonly accent?: string;
+  /** The app theme's accent a scope without its own pick inherits. */
+  readonly ambientAccent?: string;
 }): ReactElement {
   return (
     <CtIsolation subject="Form-control carriers" isolates="The resting edge of checkbox, radio, switch and input against the surfaces they sit on">
@@ -53,7 +56,7 @@ export function CarrierEdgeStory({
         {background === undefined ? (
           <Hosts />
         ) : (
-          <ThemeScope tokens={{ background, ...(accent === undefined ? {} : { accent }) }}>
+          <ThemeScope tokens={{ background, ...(accent === undefined ? {} : { accent }) }} {...(ambientAccent === undefined ? {} : { ambientAccent })}>
             <Hosts />
           </ThemeScope>
         )}

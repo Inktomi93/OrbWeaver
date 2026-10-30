@@ -6,7 +6,7 @@ import { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import type { CarrierEdgeStory } from "./_checkbox-contrast-stories.tsx";
-import { CUSTOM_MID_GREY, STRONG_ACCENT } from "./carrier-scopes.ts";
+import { CUSTOM_MID_GREY, INHERITED_ACCENT, STRONG_ACCENT } from "./carrier-scopes.ts";
 
 const STORY = "tests/ui/primitives/checkbox/_checkbox-contrast-stories/CarrierEdgeStory";
 const CARRIERS = [
@@ -19,6 +19,7 @@ const CASES = [
   { name: "hearth seed" },
   ...(Object.keys(SEED_THEME_VALUE_SETS) as (keyof typeof SEED_THEME_VALUE_SETS)[]).map((theme) => ({ name: `${theme} seed`, theme })),
   { name: "custom mid-grey ThemeScope", background: CUSTOM_MID_GREY, accent: STRONG_ACCENT },
+  { name: "custom mid-grey ThemeScope with the inherited app accent", background: CUSTOM_MID_GREY, ambientAccent: INHERITED_ACCENT },
 ] as const;
 
 function borderColorOf(locator: Locator): Promise<string> {

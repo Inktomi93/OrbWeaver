@@ -19,10 +19,12 @@ import {
   readingPlateAlpha,
   readingPlateForeground,
   shadowIngredients,
+  solveFocusRing,
   solveInputBorder,
   THEME_DERIVATION,
 } from "@orb/kit/theme-derivation";
 import type { ParsedOklch } from "./color-parse.ts";
+import { serializeOpaqueOklch } from "./color-parse.ts";
 
 // The neutral surface ramp: each `--color-*` paired with the RampDeltas member that names its L shift,
 // applied via CSS relative-color-syntax so any base color format works and only L shifts (hue + chroma
@@ -176,7 +178,9 @@ export interface InputBorderEmission {
 /**
  * `--color-input-border` for a carried base (D159). The seeds keep the static light-dark token; a carried palette owns its
  * panels, so it solves the edge over them (`solveInputBorder` states the bounds). `ring` is the focus ring the scope
- * paints, `null` when the scope has no known accent, which leaves only the floor to judge.
+ * would paint, `null` when the scope has no known accent, which leaves only the floor to judge. When the edge does not sit
+ * below it, the emission raises `--color-ring` along its hue (`solveFocusRing`); only a hue no lightness of which clears
+ * the edge leaves a reported fallback.
  */
 export function inputBorderOn(origin: string, base: ParsedOklch, ring: Oklch | null): InputBorderEmission {
   const opaqueBase: Oklch = { l: base.l, c: base.c, h: base.h };
@@ -192,8 +196,18 @@ export function inputBorderOn(origin: string, base: ParsedOklch, ring: Oklch | n
     card: surfaces.card,
     ring,
   });
-  const vars = { "--color-input-border": foregroundAt(origin, solve.edge.l) };
-  return { vars, fallback: solve.floorMet && solve.belowRing !== false ? undefined : { edge: vars["--color-input-border"], floorMet: solve.floorMet } };
+  const edge = foregroundAt(origin, solve.edge.l);
+  const vars: Record<string, string> = { "--color-input-border": edge };
+  let ringHeld = solve.belowRing !== false;
+  if (!ringHeld && ring !== null) {
+    // Focus must out-shout rest: raise the ring along its own hue, leaving the accent fill (`--color-primary`) alone.
+    const raised = solveFocusRing({ ring, edge: solve.edge, card: surfaces.card });
+    if (raised !== null) {
+      vars["--color-ring"] = serializeOpaqueOklch(raised);
+      ringHeld = true;
+    }
+  }
+  return { vars, fallback: solve.floorMet && ringHeld ? undefined : { edge, floorMet: solve.floorMet } };
 }
 
 /**
