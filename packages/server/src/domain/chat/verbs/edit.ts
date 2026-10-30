@@ -634,8 +634,8 @@ function createEditMessage(ctx: ChatContext, deps: EditDeps): ChatService["editM
  *  (c) the index resolves against the card, read under the HOST's ownership exactly as `startChat` seeded it
  *      (`greeting_alternate_not_found`).
  *
- * Card-authored text steps in place. Any other body survives as a swipe beside the selected card alternate;
- * editedAt cannot distinguish authored prose because a card step stamps it too.
+ * Card-authored text steps in place. Any other body survives as a swipe beside the selected card alternate.
+ * Choosing an alternate is not an edit: the row keeps the edit stamp it already held, never a new one.
  */
 function createSetSeededGreeting(ctx: ChatContext, emit: EmitChatEvent): ChatService["setSeededGreeting"] {
   return async ({ principal, chatId, messageId, greetingIndex }: SetSeededGreetingParams) => {
@@ -666,7 +666,7 @@ function createSetSeededGreeting(ctx: ChatContext, emit: EmitChatEvent): ChatSer
             messageId,
             variantId: slot.selectedVariantId,
             content: alternate,
-            editedAt: now,
+            editedAt: slot.editedAt,
             toolCalls: slot.toolCalls,
           }),
           deltas: [

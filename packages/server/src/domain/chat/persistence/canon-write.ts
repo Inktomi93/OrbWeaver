@@ -689,7 +689,8 @@ export function combineReasoning(base: string | null, addition: string | null): 
 }
 
 /** Edit the selected variant's content in place (`editMessage`; the edit mutates the variant, never
- *  doubles content) and stamp `messages.editedAt`. Two statements (variant + slot).
+ *  doubles content) and write the `messages.editedAt` the caller passes: `now` for an edit, the row's existing stamp
+ *  for a step that is not one. Two statements (variant + slot).
  *
  *  The edited body is AUTHORED, not transformed, so the freeze provenance is cleared: keeping it would leave a
  *  `macro_freezes` record describing a bake the new bytes may not contain, and — in the case that first
@@ -701,7 +702,8 @@ export function editMessageContentStatements(
     readonly messageId: MessageId;
     readonly variantId: MessageVariantId;
     readonly content: string;
-    readonly editedAt: number;
+    /** The row's edit stamp after the write: `now` for an edit, the stamp it already held for a step that is not one. */
+    readonly editedAt: number | null;
     readonly toolCalls: readonly ToolCallRecord[];
   },
 ): BatchStmt[] {

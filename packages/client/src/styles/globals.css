@@ -153,7 +153,7 @@
   }
   /* A centred skin's column is one width for every row, code included, once the row is wide enough for the measure.
    * It is spelled here, after the code rule and more specific than it, because a utility in a lower layer loses to
-   * that rule. */
+   * that rule. The 56rem step is the `container.cq-56` token's value: a container query cannot read a var. */
   @container (min-width: 56rem) {
     [data-slot="message-content-column"][data-column="centred"] {
       inline-size: var(--centred-column-width);
