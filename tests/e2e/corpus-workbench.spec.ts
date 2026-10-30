@@ -1,6 +1,8 @@
 // The Corpus workbench on the committed corpus: its three modes, focus on each mode's landing, and state restoration
 // across the Insights drill and the Labels editor push.
-import { CORPUS_MODE_LABELS, CORPUS_WHOLE_LABEL, LEADERBOARD_ROW_ATTR, pruneConfirmLabel, testId } from "@orb/client/lib";
+
+import { LEADERBOARD_ROW_ATTR } from "@orb/client/features/stats";
+import { CORPUS_MODE_LABELS, CORPUS_WHOLE_LABEL, pruneConfirmLabel, testId } from "@orb/client/lib";
 import { SECTION_LABELS } from "@orb/testkit/ct";
 import type { Page } from "@playwright/test";
 import { ownerActor } from "./support/actors.ts";

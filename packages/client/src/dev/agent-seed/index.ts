@@ -29,7 +29,7 @@ import { CHARACTER_LIST_MAX_LIMIT } from "@orb/contracts/character";
 import type { RpgActorOp, RpgActorRef } from "@orb/contracts/rpg";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { OrbSeedHandle, SeedProfile } from "../lib/agent-bridge.ts";
+import type { OrbSeedHandle, SeedProfile } from "../../lib/agent-bridge.ts";
 import type { AgentSeedClient } from "./client.ts";
 import { GameSeedFlights, PendingGameSeed } from "./retry-attempt.ts";
 

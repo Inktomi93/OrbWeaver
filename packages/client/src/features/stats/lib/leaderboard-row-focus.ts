@@ -3,7 +3,7 @@
 // window, so the dashboard addresses the row by the character attribute the finder stamps on it.
 
 import type { CharacterId } from "@orb/kit/ids";
-import { LEADERBOARD_ROW_ATTR } from "#lib";
+import { LEADERBOARD_ROW_ATTR } from "./leaderboard-row-attr.ts";
 
 /** The leaderboard row body for `characterId`, when it is on screen and operable. */
 export function openerRow(characterId: CharacterId): HTMLElement | null {

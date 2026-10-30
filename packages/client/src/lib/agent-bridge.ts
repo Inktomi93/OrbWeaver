@@ -191,7 +191,7 @@ declare global {
  *  not publish one". Never defaults to `true`: a missing declare that read as "available" would be the
  *  exact silent-guess this attribute exists to end.
  *
- *  EXPORTED because `shell()` is not the only reader (#1149): `agent-nav/panel-request.ts` names the same
+ *  EXPORTED because `shell()` is not the only reader (#1149): `dev/agent-nav/panel-request.ts` names the same
  *  tri-state in its refusal for a `"docked"` request that never landed. One parser for one attribute — a
  *  second `getAttribute("data-panel-available") === "true"` elsewhere is the drift where the `null` arm
  *  quietly becomes `false` and a shell that published nothing gets accused of declaring nothing. */
@@ -226,7 +226,7 @@ export function isRenderedElement(element: Element): boolean {
 /**
  * Install `globalThis.__orb`.
  *
- * NO ENVIRONMENT GATE HERE: the only production caller is `agent-handles/index.ts`, which `main.tsx`
+ * NO ENVIRONMENT GATE HERE: the only production caller is `dev/agent-handles/index.ts`, which `main.tsx`
  * reaches by DYNAMIC import inside its literal `if (import.meta.env.DEV)` block — the one the bundler
  * constant-folds, so nothing on this graph exists in a shipped build at all. A second `IS_DEV` check behind
  * that could only ever be true, and it would shut out the component-test bundle, which Vite builds in

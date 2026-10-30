@@ -62,8 +62,8 @@ type ConfigSectionRegistry = ContributorRegistry<ConfigSectionContribution>;
 // surface an auth failure. Data owns every target and recovery decision; this adapter supplies only DOM I/O.
 bindSessionDocumentHost(browserSessionDocumentHost());
 
-// #1638 — `openConfig`'s config-section registry, for `agent-handles/index.ts`'s `installAgentHandles`.
-// `configSectionsForNav` is `null` until the dynamic import below resolves; `agent-nav/index.ts`'s
+// #1638 — `openConfig`'s config-section registry, for `dev/agent-handles/index.ts`'s `installAgentHandles`.
+// `configSectionsForNav` is `null` until the dynamic import below resolves; `dev/agent-nav/index.ts`'s
 // `openConfig` reads it through this THUNK at CALL time (never at build time), so a `sub`/`setting`
 // address asked for before this settles refuses loudly instead of validating vacuously. A STATIC import of
 // `compose/config-sections.ts` here would be the exact #433 defect this whole dev-only block exists to
@@ -84,7 +84,7 @@ if (import.meta.env.DEV) {
       configSectionsForNav = configSections;
     })
     .catch((error: unknown) => globalThis.reportError(error));
-  import("./agent-handles/index.ts")
+  import("./dev/agent-handles/index.ts")
     .then(({ installAgentHandles }) => {
       installAgentHandles(queryClient, trpcClient, trpcProxy, (): ConfigSectionRegistry | null => configSectionsForNav);
     })

@@ -4,7 +4,7 @@
 
 import type { ChatId } from "@orb/kit/ids";
 import type { TrpcClient } from "#data";
-import type { OrbRpgReader } from "../lib/agent-bridge.ts";
+import type { OrbRpgReader } from "../../lib/agent-bridge.ts";
 
 export function buildAgentRpg(client: TrpcClient, readChatId: () => ChatId | null): OrbRpgReader {
   return async () => {

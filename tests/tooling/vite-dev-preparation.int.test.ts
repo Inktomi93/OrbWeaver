@@ -43,7 +43,7 @@ const files = {
   "src/compose/startup-branch.ts": 'import "./startup-leaf.ts"; export const branch = true;',
   "src/compose/startup-leaf.ts": 'export const preparedLeaf = "actual transformed dependency";',
   "src/compose/config-sections.ts": "export const configSections = true;",
-  "src/agent-handles/index.ts": "export const installAgentHandles = true;",
+  "src/dev/agent-handles/index.ts": "export const installAgentHandles = true;",
   "src/lib/long-task-tracer.ts": "export const installLongTaskTracer = true;",
 };
 for (const [name, source] of Object.entries(files)) {

@@ -970,8 +970,8 @@ const CLIENT_BOUNDARIES = [
     name: "client-composition-tier-door-only",
     comment: "A composition helper must not launder cross-feature runtime access into a lower tier.",
     severity: "error",
-    from: { path: CLIENT, pathNot: [`${CLIENT}main\\.tsx$`, `${CLIENT}(agent-handles|agent-nav|agent-plugin|agent-rpg|agent-seed)/`] },
-    to: { path: `${CLIENT}(agent-handles|agent-nav|agent-plugin|agent-rpg|agent-seed)/` },
+    from: { path: CLIENT, pathNot: [`${CLIENT}main\\.tsx$`, `${CLIENT}dev/`] },
+    to: { path: `${CLIENT}dev/` },
   },
   {
     name: "client-compose-door-only",

@@ -7,7 +7,7 @@ const PREPARATION_ROOTS = [
   "/src/main.tsx",
   "/src/compose/authed-app.tsx",
   "/src/compose/config-sections.ts",
-  "/src/agent-handles/index.ts",
+  "/src/dev/agent-handles/index.ts",
   "/src/lib/long-task-tracer.ts",
 ] as const;
 

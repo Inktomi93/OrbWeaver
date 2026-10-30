@@ -3,9 +3,9 @@ import type { ChatId, PluginId } from "@orb/kit/ids";
 import type { QueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import type { Trpc, TrpcClient } from "#data";
-import { isRenderedElement } from "../lib/agent-bridge.ts";
-import type { OrbPluginPublication, OrbPluginUiCommand, OrbPluginUiHost, OrbPluginUiReader } from "../lib/agent-plugin-bridge.ts";
-import { PLUGIN_UI_AUDIT_ATTRIBUTES, PLUGIN_UI_COMMAND_LOCATIONS, pluginUiAuditKey } from "../lib/plugin-ui-audit-attributes.ts";
+import { isRenderedElement } from "../../lib/agent-bridge.ts";
+import type { OrbPluginPublication, OrbPluginUiCommand, OrbPluginUiHost, OrbPluginUiReader } from "../../lib/agent-plugin-bridge.ts";
+import { PLUGIN_UI_AUDIT_ATTRIBUTES, PLUGIN_UI_COMMAND_LOCATIONS, pluginUiAuditKey } from "../../lib/plugin-ui-audit-attributes.ts";
 
 const menuSchema = z.array(z.string());
 const locationSchema = z.enum(PLUGIN_UI_COMMAND_LOCATIONS);

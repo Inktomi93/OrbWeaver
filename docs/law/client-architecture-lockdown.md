@@ -67,15 +67,15 @@ The client is FIVE tiers, not "ui + features". A builder reaches DOWN this ladde
 Above the tiers: `routes/` composes features, never the reverse (`client-features-below-routes`), and
 `main.tsx` is the top nothing imports (`client-nothing-imports-main`). Their jobs are §7.
 
-**The composition-tier directory module.** A top-level `client/src/<name>/index.ts` sitting beside
+**The composition-tier directory module.** The `client/src/dev/` directory sitting beside
 `main.tsx` is a sixth, door-owned residency class — not a tier. What earns it: dev-only glue that must
 compose feature front doors plus `#state` module actions and is injected into the agent bridge — the
-`agent-nav/`, `agent-seed/`, `agent-rpg/`, `agent-plugin/` and `agent-handles/` modules (§7). They cannot
+`dev/agent-nav/`, `dev/agent-seed/`, `dev/agent-rpg/`, `dev/agent-plugin/` and `dev/agent-handles/` modules (§7). They cannot
 live at tier 4 (`client-lib-floor` forbids the floor from importing `#state`/`#features`/`#data`), are not
 features (they own no registered definition), and are not routes (`app-root.tsx` is the only route
 that may import a feature front door). Wall: `client-composition-tier-door-only` — only `main.tsx`
 imports them, with one exception: a sibling composition-tier module may compose another (they are all
-door glue), which is how `agent-handles/` legally assembles the other four behind `main.tsx`'s dev-only
+door glue), which is how `dev/agent-handles/` legally assembles the other four behind `main.tsx`'s dev-only
 dynamic import.
 
 **Bucket nesting is legal in every bucket, and it changes no rule.** A bucket may group its modules into
@@ -262,7 +262,7 @@ them:
 2. **The persisted-state sanitizers in the same file** — `isSectionId` (the `migrate()` guard) and the per-section `panelOverrides` sanitize; a removed id must fall back cleanly, an added one needs its `panelDefaults`.
 3. **The definition, its factory, and the feature front-door export** — co-located `features/<owner>/lib/<id>-section.tsx`, and the `main.tsx` door row.
 4. **Per-section selection stores** — the pointer is a `createDrillSelectionStore` mint in `state/`, centrally homed so a sibling can read it (§9).
-5. **`agent-nav/`'s vocabulary validation** — `__orb.nav` validates against `SECTION_IDS`.
+5. **`dev/agent-nav/`'s vocabulary validation** — `__orb.nav` validates against `SECTION_IDS`.
 6. **`tests/support/browser/ct-door.ts`** — forwards production composition; isolated variants derive from its registries without a second table.
 7. **Mobile fate** — `RailEntry.mobile` is required by the `packages/client/src/state/section-registry.ts` contract. Rail chrome actions also require mobile curation; topbar actions may omit it and default to `"tab"`. The door preserves the rail-modal `"sheet"` default.
 8. **Chrome derivation** — `assembleChrome` reads `sections.list()`; an entry you had to hand-add is a a parallel map.
@@ -348,7 +348,7 @@ singletons (QueryClient → tRPC client → toast manager, minted once in `packa
 `packages/client/src/lib/app-ready-signal.ts` — the readiness module owns the one Promise/DOM marker, and
 `globalThis.__orb.ready` imports that same Promise rather than forking state — reaches the dev
 `agent-bridge.ts` observer only through the literal
-`import.meta.env.DEV` dynamic `packages/client/src/agent-handles/index.ts` door, stacks providers (`QueryClientProvider` →
+`import.meta.env.DEV` dynamic `packages/client/src/dev/agent-handles/index.ts` door, stacks providers (`QueryClientProvider` →
 `TRPCProvider` → `ToastProvider` → `AppErrorBoundary` → `RouterProvider`), and raises the `BootVeil`;
 nothing imports `main.tsx` (`client-nothing-imports-main`). `packages/client/src/compose/authed-app.tsx` mounts the lazy authenticated route.
 `packages/client/src/compose/authed-composition.tsx` owns its injected factory: feature definitions and contributors are imported and assembled
@@ -367,10 +367,10 @@ from becoming a backdoor. The singletons live in `packages/client/src/compose/ap
 same QueryClient/tRPC client.
 
 **The door's third job: the composition-tier dir modules (§3).** `main.tsx` installs the agent-bridge
-implementations from `agent-nav/`, `agent-seed/`, `agent-rpg/` and `agent-plugin/`, handed to
+implementations from `dev/agent-nav/`, `dev/agent-seed/`, `dev/agent-rpg/` and `dev/agent-plugin/`, handed to
 `installAgentDebugHandle`; `client-composition-tier-door-only` makes `main.tsx` their only importer. This
-assembly is dev-only and must stay out of the production boot chunk: `main.tsx` reaches it through `if (import.meta.env.DEV) { void import("./agent-handles/index.ts") … }`, so the bundler constant-folds the
-case and the graph it pulls in leaves the production output. Adding a dev handle goes in `agent-handles/`,
+assembly is dev-only and must stay out of the production boot chunk: `main.tsx` reaches it through `if (import.meta.env.DEV) { void import("./dev/agent-handles/index.ts") … }`, so the bundler constant-folds the
+case and the graph it pulls in leaves the production output. Adding a dev handle goes in `dev/agent-handles/`,
 never onto `main.tsx`'s static import list.
 
 **`@orb/client` declares no `sideEffects` field.** Keep its import graph explicit. `@orb/kit` and `@orb/contracts` declare `"sideEffects": false`; `@orb/ui` declares `"sideEffects": ["**/*.css"]`.

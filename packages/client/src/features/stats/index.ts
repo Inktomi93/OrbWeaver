@@ -6,6 +6,8 @@ export {} from "./components/analytics-models-tab.tsx";
 export {} from "./components/analytics-personas-tab.tsx";
 export {} from "./components/analytics-time-tab.tsx";
 export { insightsContextTabs, insightsCorpusMode } from "./lib/insights-mode.tsx";
+/** @public The e2e corpus workbench spec addresses a leaderboard row by this attribute through the feature door. */
+export { LEADERBOARD_ROW_ATTR } from "./lib/leaderboard-row-attr.ts";
 export {} from "./surfaces/analytics-character-surface.tsx";
 export {} from "./surfaces/analytics-list-surface.tsx";
 export {} from "./surfaces/analytics-overview-surface.tsx";

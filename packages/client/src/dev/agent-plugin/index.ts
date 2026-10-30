@@ -2,7 +2,7 @@
 // the UI inventory keeps runtime registrations separate from current cache and host observations.
 
 import type { PluginId } from "@orb/kit/ids";
-import type { OrbPluginListEntry, OrbPluginLogReader, OrbPluginLogResult } from "../lib/agent-plugin-bridge.ts";
+import type { OrbPluginListEntry, OrbPluginLogReader, OrbPluginLogResult } from "../../lib/agent-plugin-bridge.ts";
 
 export { buildAgentPluginUi } from "./ui.ts";
 
