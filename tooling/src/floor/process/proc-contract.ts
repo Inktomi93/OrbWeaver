@@ -154,6 +154,14 @@ export interface NicedChildOptions {
   readonly logPath?: string;
 }
 
+/** {@link spawnNicedDuplex}'s child: both pipes open, its group reaped by `killGroup`. */
+export interface NicedDuplexChild {
+  readonly pid: number | undefined;
+  readonly stdin: NodeJS.WritableStream | null;
+  readonly stdout: NodeJS.ReadableStream | null;
+  readonly killGroup: (signal: NodeJS.Signals) => void;
+}
+
 export interface NicedChild {
   readonly pid: number | undefined;
   /** Has the child already exited? A supervisor polling an endpoint must be able to tell "not up YET" from

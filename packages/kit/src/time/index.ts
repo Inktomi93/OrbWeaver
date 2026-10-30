@@ -214,10 +214,13 @@ export const reportedTimeZoneSchema: z.ZodType<IanaTimeZone, string> = z.string(
 // module is the raw-`Intl`/ambient-clock exemption zone (no-raw-intl-time / no-raw-clock), so the
 // ambient defaults below are the sanctioned single site of both.
 
+/** The current instant as epoch milliseconds, injected wherever code reads time so a test can pin it. */
+export type Clock = () => number;
+
 /** Injectable formatter config — production omits everything (browser locale/tz, real clock);
  *  tests pin all three for deterministic output across ICU builds. */
 export interface TimeLibConfig {
-  readonly now?: () => number;
+  readonly now?: Clock;
   readonly locale?: string;
   readonly timeZone?: string;
 }
@@ -254,7 +257,7 @@ export interface TimeLib {
   readonly monthStart: (year: number, month: number) => number;
   /** Current epoch-ms from the SAME injected clock the formatters use — the sanctioned "now" read (a
    *  feature computing an elapsed-since a stored timestamp reads it here, never ambient `Date.now()`). */
-  readonly now: () => number;
+  readonly now: Clock;
 }
 
 /** An instant's local calendar position: the `YYYY-MM-DD` day, the weekday (0 = Sunday … 6 = Saturday)

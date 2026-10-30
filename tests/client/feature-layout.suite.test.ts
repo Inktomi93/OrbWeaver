@@ -1,5 +1,5 @@
 // Every built client feature slice follows the slice layout, and every feature directory owns a registered definition.
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { expect, test } from "@orb/testkit/node";
 
@@ -67,8 +67,6 @@ const SHELL_EXTRA = new Set(["registry", "store"]);
 const RESERVED = new Set(["app-shell", "auth", "config", "home", "refinery", "regex", "user-admin"]);
 /** An anchor names the containment it provides. */
 const ANCHOR_SUFFIXES = ["anchor", "dialog", "drawer", "popover", "menu", "panel"];
-/** The bare modal root only. A surface may compose `<DialogTrigger>` or `<ConfirmDialog>` but never render the outer container. */
-const OUTER_CONTAINER = /<(?:Dialog|AlertDialog|Drawer)[\s/>]/u;
 const CODE = /\.tsx?$/u;
 const ROOT_OK = /^(?:index\.ts|.*\.md|\.gitkeep)$/u;
 
@@ -98,17 +96,12 @@ function rootProblems(entries: readonly Entry[], feature: string, domains: Reado
   ];
 }
 
-/** Surface naming (app-shell is exempt: its surfaces are frame chrome) and surface purity, at any depth. */
-function surfaceProblems(entries: readonly Entry[], feature: string, readText: (path: string) => string): readonly string[] {
+/** Surface naming (app-shell is exempt: its surfaces are frame chrome), at any depth. Surface purity is `orb/surface-consumes-container`. */
+function surfaceProblems(entries: readonly Entry[], feature: string): readonly string[] {
   return bucketPaths(entries, feature, "surfaces", "file")
     .filter((file) => file.endsWith(".tsx"))
-    .flatMap((file) => {
-      const path = `${FEATURES}/${feature}/surfaces/${file}`;
-      return [
-        ...(feature === "app-shell" || basename(file).endsWith("-surface.tsx") ? [] : [`surface-name: ${path}`]),
-        ...(OUTER_CONTAINER.test(readText(path)) ? [`surface-purity: ${path}`] : []),
-      ];
-    });
+    .filter((file) => feature !== "app-shell" && !basename(file).endsWith("-surface.tsx"))
+    .map((file) => `surface-name: ${FEATURES}/${feature}/surfaces/${file}`);
 }
 
 function hookAndAnchorProblems(entries: readonly Entry[], feature: string): readonly string[] {
@@ -138,13 +131,13 @@ function groupAxisProblems(entries: readonly Entry[], feature: string): readonly
 }
 
 /** Violations of every built feature, as `rule: path`. A feature is built once it holds any .ts or .tsx. */
-function sliceProblems(entries: readonly Entry[], readText: (path: string) => string): readonly string[] {
+function sliceProblems(entries: readonly Entry[]): readonly string[] {
   const domains = new Set(directoryNames(entries, DOMAINS));
   return directoryNames(entries, FEATURES)
     .filter((feature) => descendants(entries, `${FEATURES}/${feature}`).some((entry) => entry.kind === "file" && CODE.test(entry.path)))
     .flatMap((feature) => [
       ...rootProblems(entries, feature, domains),
-      ...surfaceProblems(entries, feature, readText),
+      ...surfaceProblems(entries, feature),
       ...hookAndAnchorProblems(entries, feature),
       ...groupAxisProblems(entries, feature),
     ])
@@ -158,12 +151,12 @@ const inFeature = (feature: string, files: Readonly<Record<string, string>>): Re
 const COMPONENT = "export const C = () => null;\n";
 
 function slice(files: Readonly<Record<string, string>>): readonly string[] {
-  return sliceProblems(treeOf(files), (path) => files[path] ?? "");
+  return sliceProblems(treeOf(files));
 }
 
 function realSliceProblems(): readonly string[] {
   const entries = [...listTree(FEATURES), ...listTree(DOMAINS)];
-  return sliceProblems(entries, (path) => readFileSync(join(REPOSITORY, path), "utf8"));
+  return sliceProblems(entries);
 }
 
 test("every built real feature slice follows the layout", () => {
@@ -219,24 +212,14 @@ test("an anchor without a container-type suffix is reported", () => {
   ).toEqual([`anchor-name: ${FEATURES}/character/anchors/thing.tsx`]);
 });
 
-test("a surface rendering its own outer Dialog root is reported", () => {
+test("a surface in a bucket group dir keeps its naming contract", () => {
   expect(
     slice({
       ...domainIndex("character"),
       ...featureIndex("character"),
-      ...inFeature("character", { "surfaces/edit-surface.tsx": "export const E = () => <Dialog>x</Dialog>;\n" }),
+      ...inFeature("character", { "surfaces/gallery/card.tsx": COMPONENT }),
     }),
-  ).toEqual([`surface-purity: ${FEATURES}/character/surfaces/edit-surface.tsx`]);
-});
-
-test("a surface in a bucket group dir keeps both its naming and purity contracts", () => {
-  expect(
-    slice({
-      ...domainIndex("character"),
-      ...featureIndex("character"),
-      ...inFeature("character", { "surfaces/gallery/card.tsx": "export const C = () => <Drawer>x</Drawer>;\n" }),
-    }),
-  ).toEqual([`surface-name: ${FEATURES}/character/surfaces/gallery/card.tsx`, `surface-purity: ${FEATURES}/character/surfaces/gallery/card.tsx`]);
+  ).toEqual([`surface-name: ${FEATURES}/character/surfaces/gallery/card.tsx`]);
 });
 
 test("a hooks file in a bucket group dir keeps the use-* contract", () => {

@@ -3,6 +3,7 @@ import { browserNoNodeGlobalsRule, rawEgressRule, rawHttpClientRule, sessionChan
 import { detachedWorkRule } from "./async.ts";
 import { browserSupportRule } from "./browser-support.ts";
 import { CLIENT_DATA_RESTRICTIONS, effectOnSharedSelectionRule } from "./client-data-policy.ts";
+import { derivedPortMemberRule } from "./derived-port.ts";
 import { assumesSingleReplicaRule, commentedCodeRule, rawIdRule, sideGenSamplingRule, wireJsonRule } from "./general.ts";
 import { DB_SCHEMA_RESTRICTIONS, SERVER_HARD_RESTRICTIONS, TYPE_SHAPE_RESTRICTIONS } from "./general-policy.ts";
 import { moduleStateRule } from "./module-state.ts";
@@ -40,6 +41,7 @@ import { textVoiceOnlyRule } from "./text-voices.ts";
 import type { AppearanceVocabulary } from "./ui-appearance.ts";
 import { appearanceNameRule } from "./ui-appearance.ts";
 import { floorlessControlRule, registerApiRule, registryContextRule, stateFilesRule, storeDerivedRule } from "./ui-composition.ts";
+import { anchorProvidesContainerRule, surfaceConsumesContainerRule } from "./ui-containment.ts";
 import { customPropertyDeclaredRule } from "./ui-custom-properties.ts";
 import type { DomLookupHome } from "./ui-dom.ts";
 import { classListWriteRule, domLookupRule } from "./ui-dom.ts";
@@ -127,6 +129,8 @@ export function createOrbPlugin(options: {
   return {
     rules: {
       ...Object.fromEntries(LOCAL_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)] as const)),
+      "surface-consumes-container": surfaceConsumesContainerRule,
+      "anchor-provides-container": anchorProvidesContainerRule,
       "no-raw-intrinsic-paint": rawIntrinsicPaintRule(options.shellClasses),
       "no-hand-built-shell-dom": restrictionRule({ selectors: shellDomSelectors(options.shellSlots) }),
       "appearance-name-in-manifest": appearanceNameRule(options.appearanceVocabulary),
@@ -176,6 +180,7 @@ export function createOrbPlugin(options: {
       "evaluate-no-scope-capture": evaluateNoScopeCaptureRule,
       "assumes-single-replica": assumesSingleReplicaRule,
       "no-module-state": moduleStateRule,
+      "derived-port-member": derivedPortMemberRule,
       "no-hardcoded-side-gen-sampling": sideGenSamplingRule,
       "session-channel-boundary": sessionChannelBoundaryRule,
       "detached-work-traced": detachedWorkRule,

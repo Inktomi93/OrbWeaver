@@ -105,6 +105,13 @@ export const CLIENT_DATA_RESTRICTIONS = [
 /** The files whose exports are shared selection pointers: every `*-selection-store` and the active-chat pointer. */
 const POINTER_STORE_FILE = /\/state\/(?:[\w-]+-selection-store|active-chat-store)\.ts$/u;
 
+/**
+ * The shell store mixes selection pointers with device and transient state (viewport regime, context tab), so
+ * only its named pointer hooks count: the active section and the open modal (ui-architecture-state-and-stack.md §5.1).
+ */
+const SHELL_STORE_FILE = /\/state\/shell-store\.ts$/u;
+const SHELL_POINTER_HOOKS: ReadonlySet<string> = new Set(["useActiveSection", "useOpenModal"]);
+
 const EFFECT_HOOK = /^use(?:Layout)?Effect$/u;
 
 const HOOK_NAME = /^use[A-Z]/u;
@@ -151,7 +158,9 @@ function callsPointerHook(node: ts.Node, checker: ts.TypeChecker): boolean {
 function declaredInPointerStore(symbol: ts.Symbol | undefined, checker: ts.TypeChecker, followWrappers: boolean): boolean {
   const target = resolvedSymbol(symbol, checker);
   const declarations = target === undefined || !HOOK_NAME.test(target.name) ? [] : (target.declarations ?? []);
-  if (declarations.some((declaration) => POINTER_STORE_FILE.test(declaration.getSourceFile().fileName))) {
+  const isPointerFile = (file: string): boolean =>
+    POINTER_STORE_FILE.test(file) || (SHELL_STORE_FILE.test(file) && SHELL_POINTER_HOOKS.has(target?.name ?? ""));
+  if (declarations.some((declaration) => isPointerFile(declaration.getSourceFile().fileName))) {
     return true;
   }
   return followWrappers && declarations.some((declaration) => functionBody(declaration) !== undefined && callsPointerHook(declaration, checker));
@@ -231,7 +240,7 @@ function selectionDependency(element: TSESTree.Node | null, context: OrbRuleCont
 
 /**
  * An effect whose dependency list names a value read straight from a shared selection hook: a hook declared
- * in a pointer store file, or a hook whose body calls one. Reading the pointer in render and deriving from it
+ * in a pointer store file (or a named shell-store pointer hook), or a hook whose body calls one. Reading the pointer in render and deriving from it
  * is the sanctioned shape (ui-architecture-state-and-stack.md §5.1).
  * A parameter counts when a call site in the same file passes it a value read straight from such a hook.
  * Limit: a value derived from the pointer first (`const key = id ?? ""`), or handed down through a prop or an

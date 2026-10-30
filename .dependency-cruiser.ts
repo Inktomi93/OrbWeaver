@@ -301,6 +301,13 @@ const TEST_CONSTANT_HOMES = {
   "packages/server/src/domain/settings/substrate/seed-themes.ts": "SEED_THEMES: the seeded theme table",
   "packages/server/src/domain/settings/verbs/upstream-probes.ts": "UPSTREAM_ANSWER_TTL_MS: the probe answer lifetime",
   "packages/server/src/foundation/observability/tracing.ts": "getTraceByRequestId: the trace ring read the span suites assert through",
+  "packages/server/src/infra/plugin-host/process-argv.ts": "formatPluginBrokerArguments: the watchdog's broker launch the permission-drop suite repeats",
+  "packages/server/src/infra/plugin-host/process-channel.ts":
+    "parsePluginIpcMessage: the envelope parser the permission-drop suite reads a real broker through",
+  "packages/server/src/infra/plugin-host/process-permission.ts":
+    "pluginBrokerExecArgv: the production flags the permission-drop suite starts a real broker under",
+  "packages/server/src/infra/plugin-host/process-protocol.ts":
+    "parseBrokerParentMessage, parseMessageLine and serializeMessage: the frame codec the permission-drop suite speaks as the watchdog",
   "packages/server/src/infra/plugin-host/sandbox.ts": "Sandbox: the sandbox class its unit suite constructs",
   "packages/server/src/infra/relay/quick-tunnel.ts": "RELAY_STOP_GRACE_MS: the relay's stop grace",
   "packages/server/src/infra/upstream-update/adapter.ts": "parseLatestRelease and parseMainHead: the pure release and head parsers",

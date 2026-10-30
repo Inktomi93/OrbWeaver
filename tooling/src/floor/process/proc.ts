@@ -14,6 +14,7 @@ import type {
   FullPriorityChildOptions,
   NicedChild,
   NicedChildOptions,
+  NicedDuplexChild,
   ProcessGroup,
   ProcessGroupDeps,
   RunNicedSyncOptions,
@@ -37,6 +38,7 @@ export type {
   FullPriorityChildOptions,
   NicedChild,
   NicedChildOptions,
+  NicedDuplexChild,
   ProcessGroup,
   ProcessGroupDeps,
   RunNicedSyncOptions,
@@ -318,6 +320,18 @@ export function spawnNicedChild(cmd: string, args: readonly string[], opts: Nice
     killGroup: (signal): void => killPidGroup(child.pid, signal),
     unref: (): void => child.unref(),
   };
+}
+
+/** A niced child the parent converses with over stdin and stdout (a language server); stderr stays on this
+ *  terminal, and `killGroup` reaps its whole group. */
+export function spawnNicedDuplex(cmd: string, args: readonly string[], opts: { readonly cwd?: string } = {}): NicedDuplexChild {
+  const child = DOORS.spawn(cmd, [...args], {
+    ...(opts.cwd === undefined ? {} : { cwd: opts.cwd }),
+    detached: DETACHED_GROUP_LEADER,
+    stdio: ["pipe", "pipe", "inherit"],
+  });
+  lowerChildPriority(child.pid);
+  return { pid: child.pid, stdin: child.stdin, stdout: child.stdout, killGroup: (signal): void => killPidGroup(child.pid, signal) };
 }
 
 /** Long-running child, priority lowered directly after spawn, whose OUTPUT ORDER is load-bearing: stdout
