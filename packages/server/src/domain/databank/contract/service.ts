@@ -25,18 +25,25 @@ import type {
   ReindexResult,
   ReindexScope,
 } from "@orb/contracts/databank";
-import type { DocumentVectorSweepReceipt, MemoryEmbedSpace } from "@orb/contracts/embeddings";
+import type {
+  CountDocumentChunksByOwnerOp,
+  CountDocumentChunksOp,
+  DocumentChunkStoreInput,
+  DocumentVectorSweepReceipt,
+  MemoryEmbedSpace,
+  PruneDocumentChunksOp,
+  StoreResult,
+} from "@orb/contracts/embeddings";
 import type { ExtractTextOp } from "@orb/contracts/extraction";
 import type { Can, Principal } from "@orb/contracts/identity";
+import type { SearchDocumentsOp } from "@orb/contracts/search";
 import type { GetDatabankSettingsOp } from "@orb/contracts/settings";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
-import type { WorkloadRunScope } from "@orb/contracts/workloads";
+import type { TargetSnapshotOp, WorkloadRunScope } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { AssetId, CharacterId, ChatId, DocumentId, UserId, WorkloadId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
-import type { EmbeddingsService } from "#domain/embeddings";
-import type { SearchService } from "#domain/search";
 import type { AuditEntry, Logger } from "#foundation/observability";
 import type { ScopedEgress } from "#infra/network";
 import type {
@@ -102,6 +109,9 @@ type ActiveEmbedSpace = Pick<MemoryEmbedSpace, "model">;
  *  the read is honestly zero without a second query shape. */
 export const NO_EMBED_SPACE_MODEL = "";
 
+/** The `store` op databank drives: one document chunk, with the ingest pass's abort. */
+type EmbedDocumentChunkOp = (params: DocumentChunkStoreInput & { readonly signal?: AbortSignal | undefined }) => Promise<StoreResult>;
+
 /** The DI bundle every databank verb + the ingest subsystem close over (assembled at `entry/compose`). */
 export interface DatabankContext {
   readonly logger: Logger;
@@ -166,16 +176,16 @@ export interface DatabankContext {
   // injected cross-feature ops (types from the owning contracts; wired at compose)
   readonly assetsStore: AssetsStoreOp;
   readonly loadAssetBytes: LoadAssetBytesOp;
-  readonly embeddingsStore: EmbeddingsService["store"];
-  readonly pruneDocumentChunks: EmbeddingsService["pruneDocumentChunks"];
+  readonly embeddingsStore: EmbedDocumentChunkOp;
+  readonly pruneDocumentChunks: PruneDocumentChunksOp;
   /** The DocumentView chunk-count read — embeddings owns `document_chunks`, so databank never imports the
    *  vector table; it derives `chunkCount`/`embeddedCount` through this injected op (vector-scope-derived). */
-  readonly countChunks: EmbeddingsService["countDocumentChunks"];
+  readonly countChunks: CountDocumentChunksOp;
   /** The BANK-WIDE chunk read: the library PHASE lens's chunk half (its key set) and the health census's
    *  passage sums. Same boundary as `countChunks` and the same reason — the phase predicate needs a fact
    *  that lives in the vector table, and databank derives the phase from it rather than reading the table
    *  (verbs/list.ts states the declared limit and its escalation path). */
-  readonly chunkCountsByOwner: EmbeddingsService["countDocumentChunksByOwner"];
+  readonly chunkCountsByOwner: CountDocumentChunksByOwnerOp;
   readonly extractText: ExtractTextOp;
   /** The current `infra/extraction` EXTRACTOR_VERSION — the re-extract-on-upgrade selection predicate. */
   readonly extractorVersion: string;
@@ -199,7 +209,7 @@ export interface DatabankContext {
   /** The `search.documents` lens (DB6) — the ONE retrieval capability databank consumes for the chat GATHER
    *  (cluster boundary: databank never re-implements cosine). Scope resolves inside the lens via the resolver
    *  databank itself injected into search; here databank is the CONSUMER (chat → databank → search). */
-  readonly searchDocuments: SearchService["documents"];
+  readonly searchDocuments: SearchDocumentsOp;
 }
 
 export type DatabankAssemblyContext = DbAssemblyInput<DatabankContext>;
@@ -289,6 +299,6 @@ export interface DatabankWorkloadDeps {
    *  exactly that owner — which is what keeps a per-owner catch-up's completion off a neighbour's space. */
   readonly beginDocumentVectorSweep: (enumerationScope: WorkloadRunScope) => Promise<readonly DocumentVectorSweepReceipt[]>;
   readonly purgeDocumentVectors: (receipts: readonly DocumentVectorSweepReceipt[]) => Promise<void>;
-  /** Every stored embedding target in the enumeration scope, as one comparable string (`EmbeddingsService.targetSnapshot`). */
-  readonly targetSnapshot: EmbeddingsService["targetSnapshot"];
+  /** Every stored embedding target in the enumeration scope, as one comparable string (embeddings' `targetSnapshot`). */
+  readonly targetSnapshot: TargetSnapshotOp;
 }

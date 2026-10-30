@@ -1,53 +1,35 @@
 import type { AssetEmbeddingReads, LoadAssetBytes } from "@orb/contracts/assets";
-import type { EmbeddingTask, EmbedPassResult, VectorScope } from "@orb/contracts/embeddings";
+import type {
+  CountDocumentChunksByOwnerOp,
+  CountDocumentChunksOp,
+  EmbeddingConnectionFacts,
+  EmbedPassResult,
+  ListCharacterIds,
+  ListImageAssetIds,
+  PruneDocumentChunksOp,
+  ResolveEmbeddingConnectionOp,
+  SyncTargetGenerationsOp,
+  TargetWouldMoveOp,
+  VectorScope,
+  WriteHubScoresOp,
+} from "@orb/contracts/embeddings";
 import type { AssetCreatedEvent, CharacterUpdatedEvent, DomainEvent } from "@orb/contracts/events";
-import type { Capability, EncoderIdentityApi, EndpointFeatures, ProviderId, Wire } from "@orb/contracts/inference";
 import type { ResolveUtilityPresetParams } from "@orb/contracts/preset";
 import type { EmbedResult, ImageEmbedResult } from "@orb/contracts/providers";
 import type { ImageEmbedInput, RoleClientsFor } from "@orb/contracts/role-clients";
+import type { GetEffectiveConfigOp } from "@orb/contracts/settings";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
-import type { EveryOwnerRun } from "@orb/contracts/workloads";
+import type { EveryOwnerRun, TargetSnapshotOp } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { EmbeddingExecution } from "@orb/inference";
-import type {
-  AssetId,
-  CharacterEmbeddingId,
-  CharacterId,
-  ChatDigestId,
-  ChatId,
-  ChatSegmentId,
-  DocumentChunkId,
-  DocumentId,
-  ImageEmbeddingId,
-  UserConnectionId,
-  UserId,
-} from "@orb/kit/ids";
+import type { AssetId, CharacterEmbeddingId, CharacterId, ChatDigestId, ChatId, ChatSegmentId, DocumentChunkId, ImageEmbeddingId, UserId } from "@orb/kit/ids";
 import type { Clock, ScheduleOp } from "@orb/kit/time";
 import type { SQL } from "drizzle-orm";
 import type { Logger } from "#foundation/observability";
-import type { EmbedMoveRefusal, GenerationReceipt, GenerationTask } from "./generation.ts";
-import type {
-  CountDocumentChunksParams,
-  EmbedPassParams,
-  OwnerChunkCountsParams,
-  PruneDocumentChunksParams,
-  PruneMemoryBlocksParams,
-  SegmentStoreParams,
-  StoreParams,
-  WriteHubScoresParams,
-} from "./params.ts";
-import type {
-  EffectiveConfigRead,
-  ImageSpace,
-  ImageSpaceDegrade,
-  PruneDocumentChunksResult,
-  PruneMemoryBlocksResult,
-  PurgeDocumentVectorsResult,
-  PurgeMemoryVectorsResult,
-  StoreResult,
-  WriteHubScoresResult,
-} from "./results.ts";
+import type { GenerationReceipt, GenerationTask } from "./generation.ts";
+import type { EmbedPassParams, PruneMemoryBlocksParams, SegmentStoreParams, StoreParams } from "./params.ts";
+import type { ImageSpace, ImageSpaceDegrade, PruneMemoryBlocksResult, PurgeDocumentVectorsResult, PurgeMemoryVectorsResult, StoreResult } from "./results.ts";
 
 // The typed API surface: the two DI bundles, the verb interface, injected cross-feature op types, and the
 // indexer interface. Every cross-feature capability arrives as an injected op (no sideways imports); there is
@@ -55,18 +37,8 @@ import type {
 
 /** One resolved encoder snapshot. It deliberately omits credentials while retaining every non-secret field
  * that can change geometry; the call closures execute through this exact snapshot. */
-export interface EmbeddingConnectionSnapshot {
-  readonly connectionId: UserConnectionId;
-  readonly providerId: ProviderId;
-  readonly model: string;
-  readonly capability: Capability;
-  readonly api: EncoderIdentityApi;
-  readonly wire: Wire;
+export interface EmbeddingConnectionSnapshot extends EmbeddingConnectionFacts {
   readonly execution: EmbeddingExecution;
-  readonly baseUrl: string | null;
-  readonly features: EndpointFeatures;
-  readonly extras: unknown;
-  readonly transport: unknown;
   readonly embed: (
     input: string | readonly string[],
     opts?: { inputType?: "query" | "document"; instruction?: string; signal?: AbortSignal | undefined },
@@ -86,22 +58,10 @@ export interface PinnedImageSpace {
   readonly generation: PinnedGeneration;
 }
 
-/** `cachedFacts`: read only the server facts already cached, dialing nothing (a read-only preview). */
-export type ResolveEmbeddingConnection = (
-  ownerId: UserId,
-  task: EmbeddingTask,
-  connectionId?: UserConnectionId | undefined,
-  opts?: { readonly cachedFacts?: boolean | undefined },
-) => Promise<EmbeddingConnectionSnapshot | null>;
+export type ResolveEmbeddingConnection = ResolveEmbeddingConnectionOp<EmbeddingConnectionSnapshot>;
 
 /** Re-read a character card's embeddable text by id. `undefined` when deleted between emit and handler. */
 export type LoadCardText = (characterId: CharacterId) => Promise<string | undefined>;
-
-/** Enumerate non-synthetic character ids; `ownerId` scopes to one owner, omitted/null = all owners. */
-export type ListCharacterIds = (ownerId?: UserId | null) => Promise<readonly CharacterId[]>;
-
-/** Enumerate image asset ids; `ownerId` scopes to one owner, omitted/null = all owners. */
-export type ListImageAssetIds = (ownerId?: UserId | null) => Promise<readonly AssetId[]>;
 
 /** One root's memory of which summarize models cannot analyse an avatar, keyed by model id. */
 export interface AvatarAnalysisAvailability {
@@ -185,19 +145,14 @@ export interface EmbeddingsService {
    *  differ (which queues the rebuild through {@link EmbeddingsContext.onTargetGenerationMoved}). A binding that
    *  cannot resolve yet moves nothing and does not throw: its first write after it can resolve moves it. Every move
    *  is width-probed before any moves, so a refusal leaves both targets and their indexes as they were. */
-  readonly syncTargetGenerations: (ownerId: UserId) => Promise<EmbedMoveRefusal | null>;
+  readonly syncTargetGenerations: SyncTargetGenerationsOp;
   /** Would the owner's stored target for `task` move if `via` resolved through `connectionId`? `null` when that row
    *  cannot resolve. Read-only, and the same rule a move is made by, over the server facts already cached: it dials
    *  no host. */
-  readonly targetWouldMove: (args: {
-    readonly ownerId: UserId;
-    readonly task: GenerationTask;
-    readonly via: GenerationTask;
-    readonly connectionId: UserConnectionId;
-  }) => Promise<boolean | null>;
+  readonly targetWouldMove: TargetWouldMoveOp;
   /** Every stored target in scope (one owner, or every owner for `null`) as one comparable value: two equal
    *  snapshots mean no target in scope moved between them. Read-only. */
-  readonly targetSnapshot: (ownerId: UserId | null) => Promise<string>;
+  readonly targetSnapshot: TargetSnapshotOp;
   /** The owners whose stored target generation differs from the one their binding resolves to now. Read-only. */
   readonly staleGenerationOwners: () => Promise<readonly UserId[]>;
   /** How many vectors the owner has stored per scope — what an embedder change would delete and rebuild. */
@@ -218,7 +173,7 @@ export interface EmbeddingsService {
    */
   readonly storeSegments: (params: readonly SegmentStoreParams[], signal?: AbortSignal) => Promise<readonly StoreResult[]>;
   /** The only path that writes `hub_score` — the discovery → embeddings seam. Takes pre-computed scores. */
-  readonly writeHubScores: (params: WriteHubScoresParams) => Promise<WriteHubScoresResult>;
+  readonly writeHubScores: WriteHubScoresOp;
   /** Bulk text catch-up sweep: enumerate every non-synthetic character → re-read card text → `store`.
    *  Resumable (hash gate skips already-embedded), cooperative abort, failures propagate. */
   readonly embedCorpus: (params: EmbedPassParams) => Promise<EmbedPassResult>;
@@ -243,14 +198,14 @@ export interface EmbeddingsService {
   /** the reindex-shrink seam. After the ingest upserts a document's current chunks,
    *  this deletes the strays (shrunk tail `chunkIdx >= keepCount` + retired-space `model != model`), scoped to
    *  the one document. databank never touches `document_chunks` directly (single-write-path invariant). */
-  readonly pruneDocumentChunks: (params: PruneDocumentChunksParams) => Promise<PruneDocumentChunksResult>;
+  readonly pruneDocumentChunks: PruneDocumentChunksOp;
   /** The DocumentView chunk-count read (per document, active model) — embeddings owns `document_chunks`, so
    *  databank derives its counts through this injected op rather than importing the vector table. */
-  readonly countDocumentChunks: (params: CountDocumentChunksParams) => Promise<ReadonlyMap<DocumentId, number>>;
+  readonly countDocumentChunks: CountDocumentChunksOp;
   /** Every chunk count in an OWNER's bank — the databank library's PHASE-lens fact (its key set) and the
    *  bank-health census's passage sums. Owner-scoped, where {@link countDocumentChunks} is id-scoped (a page
    *  whose rows are already chosen). Same reason both exist at all: databank never imports the vector table. */
-  readonly countDocumentChunksByOwner: (params: OwnerChunkCountsParams) => Promise<ReadonlyMap<DocumentId, number>>;
+  readonly countDocumentChunksByOwner: CountDocumentChunksByOwnerOp;
   /** Reclaim the OLD document embed space — deletes `document_chunks` rows whose `model` differs
    *  from the active `roleClients.embedModel`. BULK-ONLY + skip-on-abort is the caller's guard (the
    *  databank-reindex runner), mirroring `purgeMemoryVectors`. */
@@ -299,7 +254,7 @@ export interface EmbeddingsWorkloadDeps {
 }
 
 export interface EmbeddingsIndexerSubscriptionDeps {
-  readonly getEffectiveConfig: EffectiveConfigRead;
+  readonly getEffectiveConfig: GetEffectiveConfigOp;
   readonly indexer: EmbeddingsIndexer;
 }
 

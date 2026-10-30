@@ -1,6 +1,7 @@
 import type { BulkImportChatsOp } from "@orb/contracts/chat";
 import type { PortabilityRegistry, PortableKind } from "@orb/contracts/portability";
 import { PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
+import type { AttachCardTagByNameOp } from "@orb/contracts/tag";
 import type { Clock } from "@orb/kit/time";
 import { hostTimeZone } from "@orb/kit/time";
 import type { AssetsContext, ImportAssetPort } from "#domain/assets";
@@ -20,7 +21,7 @@ import { createExportPresets, createImportPresets } from "#domain/preset";
 import type { ExportRegexScripts, ImportCardScripts, ImportRegexScript } from "#domain/regex";
 import type { SettingsContext } from "#domain/settings";
 import { createExportTheme, createExportUserSettings, createImportTheme, createImportUserSettings } from "#domain/settings";
-import type { ImportTagPort, TagContext } from "#domain/tag";
+import type { TagContext } from "#domain/tag";
 import { createImportedCardTag, createTagLibraryExport, createTagLibraryImport } from "#domain/tag";
 import type { ImportStandaloneLorebook, ImportWorldInfoPort, WorldInfoExportContext } from "#domain/world-info";
 import { createExportWorldBook, createImportWorldBook, createListOwnedBookIds } from "#domain/world-info";
@@ -43,7 +44,7 @@ export interface PortabilityDeps {
   readonly character: ImportCharacterPort;
   readonly listOwnedCharacterIds: PortableExportDeps["listCharacterIds"];
   readonly storeAvatar: ImportAssetPort["store"];
-  readonly attachCardTag: ImportTagPort["attachCardTagByName"];
+  readonly attachCardTag: AttachCardTagByNameOp;
   readonly importLorebook: ImportWorldInfoPort["importLorebook"];
   /** #1598 — the seat oracle that keeps a re-uploaded card from replacing an edited primary book. */
   readonly hasPrimaryBook: ImportWorldInfoPort["hasPrimaryBook"];

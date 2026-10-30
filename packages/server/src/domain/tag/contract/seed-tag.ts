@@ -1,6 +1,3 @@
-import type { AttachCardTagByNameParams } from "./params.ts";
-import type { TagService } from "./service.ts";
+import type { AttachCardTagByNameOp, AttachCardTagByNameParams } from "@orb/contracts/tag";
 
-export type AttachSeedCardTag = (
-  params: Pick<AttachCardTagByNameParams, "ownerId" | "characterId" | "tagName">,
-) => ReturnType<TagService["attachCardTagByName"]>;
+export type AttachSeedCardTag = (params: Pick<AttachCardTagByNameParams, "ownerId" | "characterId" | "tagName">) => ReturnType<AttachCardTagByNameOp>;

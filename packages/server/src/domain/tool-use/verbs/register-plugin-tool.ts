@@ -22,12 +22,13 @@
 // re-JSON-stringified), so a guest that returns `JSON.stringify(...)` yields exactly that JSON to the model.
 
 import type { InvocationChat } from "@orb/contracts/plugin";
+import type { PluginToolHandle } from "@orb/contracts/tool-use";
 import { errorMessage } from "@orb/kit/error-message";
 import { liftJsonSchema, projectJsonSchema } from "@orb/kit/json-schema";
 import { ToolNameCollisionError } from "../contract/errors.ts";
 import type { PluginToolSpec, ToolExecutionContext } from "../contract/params.ts";
 import { TOOL_NAME_RE } from "../contract/params.ts";
-import type { PluginToolHandle, RegisteredTool, RunOutcome, ToolRegistry } from "../contract/results.ts";
+import type { RegisteredTool, RunOutcome, ToolRegistry } from "../contract/results.ts";
 import { toolRegistryKey } from "../substrate/partition.ts";
 
 /** Resolve the resident handler's invocation-chat scope, as the INSTALLING principal (PL-C). `"denied"` = the

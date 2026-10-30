@@ -3,12 +3,12 @@ import type { BulkImportChatsOp } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { ImportFsPort, PersonaCollisionChoices } from "@orb/contracts/import";
 import type { ImportedAppearance, ImportedAppearanceOutcome, ImportThemeOp } from "@orb/contracts/settings";
+import type { AttachCardTagByNameOp } from "@orb/contracts/tag";
 import type { IdSource, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { ImportAssetPort } from "#domain/assets";
 import type { BulkImportPersonas } from "#domain/persona";
 import type { ImportPreset } from "#domain/preset";
-import type { ImportTagPort } from "#domain/tag";
 import type { AttachOwnedBooksByName, ImportStandaloneLorebook, ImportWorldInfoPort } from "#domain/world-info";
 import type { ImportContextWiring } from "./build-context.ts";
 import type { CollectResult } from "./collection.ts";
@@ -33,7 +33,7 @@ export interface ProfileDirImportDeps {
   readonly principal: Principal;
   readonly contextFor: (principal: Principal, store: ImportAssetPort["store"]) => ImportContextWiring;
   readonly storeAvatar: ImportAssetPort["store"];
-  readonly attachCardTag: ImportTagPort["attachCardTagByName"];
+  readonly attachCardTag: AttachCardTagByNameOp;
   readonly importLorebook?: ImportWorldInfoPort["importLorebook"];
   /** Travels with `importLorebook` (#1598 — the edited-primary guard). */
   readonly hasPrimaryBook?: ImportWorldInfoPort["hasPrimaryBook"];

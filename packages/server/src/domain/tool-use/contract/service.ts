@@ -3,14 +3,15 @@
 // on ChatContext, never a sideways import.
 
 import type { Can } from "@orb/contracts/identity";
+import type { IsToolDrivableByOp, ListDrivableToolNamesOp, PluginToolHandle, ResolveToolsOp } from "@orb/contracts/tool-use";
 import type { ChatToolDefinition } from "@orb/inference";
-import type { UserId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { PluginToolSpec, ToolCallBatch, ToolDefinition, ToolExecutionContext } from "./params.ts";
-import type { PluginToolHandle, ResolvedToolSet, ToolCallRecord } from "./results.ts";
+import type { ResolvedToolSet, ToolCallRecord } from "./results.ts";
 
 export interface ToolUseContext {
   readonly can: Can;
-  readonly clock: () => number;
+  readonly clock: Clock;
 }
 
 export interface ToolUseService {
@@ -26,16 +27,16 @@ export interface ToolUseService {
    *  A DIFFERENT question from "may this call run" (that is the `can()` ceiling + the PL-C installer gate at
    *  invocation): this one asks WHOSE contributor the tool is, and answers `true` only for a plugin the user
    *  installed themselves. Consumed by automation's mint gate and its per-fire D146-d pause check. */
-  readonly isToolDrivableBy: (name: string, userId: UserId) => boolean;
+  readonly isToolDrivableBy: IsToolDrivableByOp;
   /** DIRECT-DRIVE reachability, the ENUMERATION half: every contributor tool `userId` may drive right now.
    *  Read-through — a deactivated plugin's tools have already left the registry, so a name that stops being
    *  drivable stops appearing, and the per-turn attach seam can never hand `resolveTools` a ghost. */
-  readonly listDrivableToolNames: (userId: UserId) => readonly string[];
+  readonly listDrivableToolNames: ListDrivableToolNamesOp;
   /** Resolve caller-supplied names against `driverUserId`'s view of the registry — their own contributor tools
    *  plus the first-party ones, never another user's (#677; `substrate/partition.ts`). The driver is the turn
    *  HOST for a chat attach (the identity `listDrivableToolNames` enumerated from) and the rule AUTHOR for the
    *  `run_tool` arm. Unknown name throws (our wiring bug). */
-  readonly resolveTools: (driverUserId: UserId, names: readonly string[]) => ResolvedToolSet;
+  readonly resolveTools: ResolveToolsOp<ResolvedToolSet>;
   /** Run model-emitted calls sequentially, in array order; never throws for a per-call failure. */
   readonly executeToolCalls: (set: ResolvedToolSet, calls: ToolCallBatch, exec: ToolExecutionContext) => Promise<readonly ToolCallRecord[]>;
   /** The resolved set as backend-neutral definitions (the cached JSON schema + the zod shape it came from).
