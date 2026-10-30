@@ -51,7 +51,6 @@ import {
   announceOwnerClaim,
   backfillPluginProvenanceOnBoot,
   composeBootDisclaimer,
-  DB_LAUNCHED,
   handOffBootOwnerSweeps,
   healLegacyBackgroundPinsOnBoot,
   migrateDataLayout,
@@ -282,9 +281,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     const bootDb = bootDatabaseHandle(wiringDb);
     const audit = createAuditWiring(wiringDb, seams.idSource, log);
 
-    // `launched` is REQUIRED and passed explicitly (#1392) — the omission here is what left the
-    // auto-wipe refusal inert on every real boot.
-    await runBootMigrations({ logger: seams.logger, db, databaseUrl: env.DATABASE_URL, backupDir: env.DATA_LAYOUT.backups, launched: DB_LAUNCHED });
+    await runBootMigrations({ logger: seams.logger, db, databaseUrl: env.DATABASE_URL, backupDir: env.DATA_LAYOUT.backups });
 
     // #1649 DATA migration, immediately after the schema migrations and before anything reads a chat: the
     // host-handoff offer's `$.copyCast` key became `$.copyCharacters`, and the offer's read seam degrades an

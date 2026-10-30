@@ -12,8 +12,6 @@ updated: 2026-10-17
 >
 > **§-map:** §0–§4b → `UI-Architecture-and-Layout.md` · §5–§6.3.1 → `ui-architecture-state-and-stack.md` · §12–§12.8 → `UI-Theming-and-Content.md` · §13–§13.10 → `UI-Primitives-and-Reuse.md`.
 >
-> **Build state:** code owns landed truth; this doc states the rule, not the build percentage. `packages/ui/src` is the inventory of built primitives; `packages/ui/package.json#exports` is the public surface.
->
 > D66 overrides conflicting D62 text: use the LIST's `.shell-panel-header` band, one primary **New** control, hidden message actions at rest, and autosaving editors. No Save/Set/Discard.
 
 ### 0.5 The primitive index
@@ -129,8 +127,7 @@ packages/client/
         use-app-form.ts · create-saved-entity-form.ts · create-autosave-entity-form.tsx · bound-fields/
     state/              # ALL gated Zustand stores, FLAT (lint rule `orb/state-files`: one create/file, ≤10 fields, no exported set/getState)
     features/           # the slices — NO _shared/ drawer. The cross-feature channel is CHANNEL-SPECIFIC:
-                        #   the decision table is client-architecture-state-and-gates.md §12 (the old blanket
-                        #   "reads ONLY via trpc.*" is superseded — it is wrong for ephemeral state)
+                        #   the decision table is client-architecture-state-and-gates.md §12
       app-shell/        #   the 4-region rail shell (§4.1); the ONLY viewport @media site (§4b ax2);
                         #     the clamp-width overlay (§11.1); the chrome registry over CHROME_ZONES (typed `ChromeEntry`)
                         # THE ROSTER IS THE TREE — `ls packages/client/src/features`. A list here rots.
@@ -149,7 +146,6 @@ packages/client/
 ```
 
 - **Why not FSD:** `@orb/ui` already IS the shared-component layer; the `entities/` layer overlaps the feature concept and adds ceremony neo's flat slice never needed.
-- **Three deletions from neo:** `components/`+`components/ui/` → the `@orb/ui` package; `features/_shared/` → dissolved (generic bits → `@orb/ui`, form toolkit → `forms/`, cross-feature reads of SERVER state → `trpc.*`; ephemeral state follows the client-architecture-state-and-gates.md §12 table instead); file-based `routes/` codegen → hand-written routes.
 
 ### 3. Tokens — DTCG single source, derived theme
 
@@ -157,10 +153,10 @@ BUILT. The highest-leverage enforcement move, engine-agnostic:
 
 - Design values live ONCE in **W3C DTCG `packages/ui/src/tokens/tokens.json`** (`$value`/`$type`).
 - **Style Dictionary v5** codegen (`packages/ui/tokens.build.ts`) emits BOTH the Tailwind v4 `@theme` block (`packages/ui/src/styles/theme.css`) AND the typed TS map (`packages/ui/src/tokens/index.ts`) — committed, generated, DO-NOT-EDIT artifacts.
-- The Tailwind theme is therefore **DERIVED, never hand-authored**; "add a token" has one home. D333 ends custom token-freshness certification. The external legacy source contains the former token test as reference-only; checked-in output has no custom freshness guarantee.
+- The Tailwind theme is therefore **DERIVED, never hand-authored**; "add a token" has one home.
 - The scale includes a **container-breakpoint scale** (`--container-cq-<rem>`, §4), the **`--scrim`** token (§11.4), **control heights** with the ≥44px touch floor (§4b axis 3), and the D294 prose/bubble semantics (§12.1 ThemeScope targets) — the full set is `tokens.json` itself.
 - **STACKING ORDER lives in the `z` block of `tokens.json` and NOWHERE ELSE.** No other doc defines an ordering; the values are the law — `base 0 < raised 10 < overlay 40 < modal 50 < popover 65 < toast 68 < tooltip 70` — with each non-obvious rank carrying its reason in that token's own `$description` (see `z.toast`). Re-ranking a tier is a `tokens.json` edit + `pnpm --filter @orb/ui tokens:build`, never a per-component z override.
-- **STACKING SCOPE — where a tier may be used — is the second fact.** Order and scope are different questions. `base`/`raised` are `in-context` tiers, `overlay` is the `app-frame` tier, and `modal`/`popover`/`toast`/`tooltip` are `portal-float` — legal ONLY at a surface that leaves its subtree by mount position. A `portal-float` token named inside an isolated scope claims a reach that scope cannot grant. D333 ends custom static z-index and portal-mount certification. These placement constraints remain product architecture law.
+- **STACKING SCOPE — where a tier may be used — is the second fact.** Order and scope are different questions. `base`/`raised` are `in-context` tiers, `overlay` is the `app-frame` tier, and `modal`/`popover`/`toast`/`tooltip` are `portal-float` — legal ONLY at a surface that leaves its subtree by mount position. A `portal-float` token named inside an isolated scope claims a reach that scope cannot grant. These placement constraints remain product architecture law.
 
 **DEFERRED-with-a-default (token enforcement level):** default = Tailwind v4 + DTCG + the raw-value gates (sufficient). **Panda CSS `strictTokens`** (raw value = `tsc` error) is the deferred upgrade — adopt only if gate-bypass becomes a real, observed problem; the same DTCG source wires into Panda `theme.tokens`. (ledger D42.)
 
@@ -182,7 +178,6 @@ CARD/ROW — sub-container where it must adapt independently inside a grid/list.
 - **A surface declares no container; an anchor always provides one.** `orb/surface-consumes-container` refuses `<Container>`, the `container` prop and an outer `Dialog`, `AlertDialog` or `Drawer` root in `surfaces/`. `orb/anchor-provides-container` requires each `anchors/` file to render a container owner, or the dialog box it anchors (a `*Dialog` or `*Drawer` element). Both rules resolve a JSX name through its import: an alias or a re-export counts, a same-named local component does not.
 - **An anchor sits inside its surface when the surface owns an outer box the container must measure inside.** The home grid, the persona popover, the extensions page and the room's thread-and-flank row each have a scroller inset, popup or page element of their own. Their anchor renders inside it, so the query reads the width left after that inset. The `anchors/` file still provides the container; the surface still declares none.
 - **Density is a SEPARATE axis** from container size: `data-density="comfortable|compact"` (a user pref, attribute-driven) vs the container query (layout space). A component reads both; neither is a prop.
-- **Payoff:** "build the surface once, place it anywhere" (drawer · modal · grid cell · full pane), with zero variants and zero layout props.
 
 #### 4.1 The shell — the rail + collapsible panels (D55)
 
@@ -206,9 +201,7 @@ DESKTOP (wide):   [ RAIL | LIST | CONTENT | CONTEXT ]
             whole plugin platform, never one per plugin — it ships rail-VISIBLE with a teaching empty
             rather than hidden-until-populated, because a hidden entry makes the platform undiscoverable;
             per-plugin promotion is a recorded owner knob, not built (the impersonation surface); Databank
-            is the other library you author INTO — files/pages/pasted text, indexed for retrieval; the
-            section↔collection question that R2's demotion reopens is recorded, unclosed, in
-            `packages/client/src/features/databank/lib/databank-section.tsx`) → spacer →
+            is the other library you author INTO — files/pages/pasted text, indexed for retrieval) → spacer →
             Settings (the Configuration section) · persona Identity. The CEILING is a rule about KIND, not a count (D121): a
             rail section owns a top-level workspace with its own LIST/CONTENT/CONTEXT grid; dialogs,
             preferences and one-shots go to modals/settings.
@@ -274,8 +267,6 @@ This subsection defines no ORDER (that is the `z` scale, §3) — only which of 
 2. **The SHELL scope is isolated.** `.shell-grid` carries `isolation: isolate`, so every z-index written in `shell.css` orders that box's own children (rail · CONTENT · scrim · panels) and nothing outside it. The shell may therefore use only `in-context` and `app-frame` tiers; naming a `portal-float` token there mis-states the reach.
 3. **The PORTAL-FLOAT scope is where cross-boundary order is decided.** Dialogs, the ⌘K palette, menus, tooltips and toasts portal to `[data-slot="portal-root"]` — the grid's `display: contents` SIBLING — and paint in the document's own stacking context, above the whole shell. **A float escapes by MOUNT POSITION, never by z-index escalation.** The carrier stays box-less deliberately: giving it isolation or a z-index would mint a context the floats must then escape in turn. Its ordering-among-themselves is the token scale, and the reason the scale exists is that DOM/mount order alone does not survive a mount-order change — that is the mechanism to reach for when something must cover the frame.
 
-The external legacy source contains rendered checks for the isolation and overlay behavior. It is reference-only. Keep shell ownership and token vocabulary explicit.
-
 #### 4.2 The region map — what lives where (ledger D62)
 
 The shell is Discord's anatomy with different nouns; the mapping is LAW so no lane invents geography. The difference that matters: rail items are **facets of one world**, not separate servers — cross-section jumps (character card → start chat) are common and route through store actions (`setActiveSection` + a seed), never stranding the user.
@@ -293,13 +284,10 @@ The shell is Discord's anatomy with different nouns; the mapping is LAW so no la
 Every non-collection group in the `config` SECTION is a `sections` SKIMMER over the D120 contribution seam.
 
 > \[!NOTE]
-> LIST-header rulings AMENDED by ledger D66 (A1/A2): the LIST "header row" is now the shared
-> `.shell-panel-header` band on the `--dimension-chrome-row` baseline (A1), and its create affordance
-> is the panel's ONE `primary` **New** button, not a ghost `+` (A2). The D62 text below stands as the
-> standing law; D66 wins on the conflict. **D66 A1/A2 are COMMITTED-not-built** (`PanelChrome`'s header
-> is optional and the LIST passes none today) — do not read this §4.2 as as-built (`client-architecture-state-and-gates.md` §15).
+> Ledger D66 (A1/A2) amends the LIST "header row": it is the shared `.shell-panel-header` band on the
+> `--dimension-chrome-row` baseline, and its create affordance is the panel's ONE `primary` **New** button, not a ghost `+`. D66 wins on conflict.
 
-Per-section grid (end-state; the D62 program builds toward it):
+Per-section grid:
 
 | Section | LIST | CONTENT — none selected | CONTENT — selected | CONTEXT |
 | - | - | - | - | - |
@@ -362,7 +350,6 @@ The client targets **React 19 + the React Compiler** (the compiler runs full-com
 - **THE LIFETIME RULE.** A float whose SUBJECT is the content being left (an image lightbox for a message in this room) is CONTENT-SCOPED and does not outlive the swap. A float reachable from — and about — anywhere (the ⌘K palette, the You sheet, an ingest or creation ceremony, a plugin round-trip's outcome, a session-recovery prompt) is GLOBAL and survives it. For the shell's modal slots this is DECLARED, never remembered: `MODAL_CONTENT_LIFETIME` (`packages/client/src/state/modal-slot-ids.ts`) is a `Record<ModalSlotId, …>`, so a new slot fails `tsc` until it says which it is, and it is APPLIED in exactly one place, `withContentSwap` (`packages/client/src/state/shell-store.ts`) — every content-swapping action (`setActiveSection` · `selectChat`/`enterCreatedChat`/`goToLanding` · `selectCharacter`/`clearCharacterSelection`) runs its write through it instead of calling `withViewTransition` itself, so the float's removal and the new content land in one commit.
 - **WHO ACTUALLY STRANDS A FLOAT.** A house modal inerts and `aria-hidden`s the whole background, so the swap that strands a float is always a PROGRAMMATIC one — the `__orb.nav` bridge, an async mutation completion, a slash/plugin command runner, the session-recovery resume.
 - **A FEATURE-OWNED FLOAT CLOSES ITSELF.** A popover/menu is not a modal slot, so `withContentSwap` does not reach it, and Base UI's outside-press close does not fire when the navigation was raised by a control INSIDE the float. It closes in the same handler that navigates. A hidden `<Activity>` pane stays MOUNTED, so a float anchored in it keeps painting from the portal root while its anchor is `display:none`.
-- The external legacy source contains rendered dialog checks for rail and room changes. It is reference-only.
 
 **SKIP (redundant with TanStack — do NOT bolt on).** `orb/no-legacy-react-api` refuses the form-state hooks, `<form action>` and a `document.title` write; `orb/no-use-promise` refuses `use()` on a thenable by its type.
 
@@ -386,9 +373,9 @@ The client targets **React 19 + the React Compiler** (the compiler runs full-com
 
 **Axis 1 (the core).** A surface adapts to *its container* — the same `<CharacterGrid>` is 4-up in a wide pane, 1-up in a drawer, automatically. No mobile variant, no `compact`/`inDrawer`/`inModal`/`isMobile`/`narrow` prop (`orb/no-layout-context-props` refuses them on JSX in `packages/client/src` and `packages/ui/src`). Fluid type/spacing inside a component use `cqi`+`clamp()`, not viewport units.
 
-**Axis 2.** The one genuinely viewport-dependent reflow, in the SHELL: 3-pane ⇄ stack, drawer ⇄ sheet. Tiny (neo: one `clamp()` width var + the overlay model, §11.2). The `VIEWPORT_CLASSES` pattern in `eslint.config.ts` keeps viewport breakpoint class spellings out of features except `app-shell`.
+**Axis 2.** The one genuinely viewport-dependent reflow, in the SHELL: 3-pane ⇄ stack, drawer ⇄ sheet.
 
-**Axis 3 — capability, NOT size.** hover/pointer are media-query-only (container queries can't see them). **Pointer-conditional floor:** interactive primitives meet the ≥44px touch floor at `@media (pointer: coarse)` via token control-heights; fine pointers get the desktop scale — `control-sm` 32px · `control-md` 36px · `control-lg` 40px · icon 36px — emitted as a token-layer `pointer: fine` override (THIS layer, never features). An interactive element with a sub-44px visual box on coarse pointers wraps in a ≥44px hit area. `data-density="compact"` remains the separate spacing axis (ship COMFORTABLE; never build a parallel compact path). Hover is only ever an *enhancement* (`@media (hover:hover)`); **every hover action has a tap-equivalent** (and a `:focus-within` keyboard equivalent, §4.3 rule 4). Base UI suppresses tooltips on touch for free. The external legacy source contains per-pointer rendered checks; it is reference-only.
+**Axis 3 — capability, NOT size.** hover/pointer are media-query-only (container queries can't see them). **Pointer-conditional floor:** interactive primitives meet the ≥44px touch floor at `@media (pointer: coarse)` via token control-heights; fine pointers get the desktop scale — `control-sm` 32px · `control-md` 36px · `control-lg` 40px · icon 36px — emitted as a token-layer `pointer: fine` override (THIS layer, never features). An interactive element with a sub-44px visual box on coarse pointers wraps in a ≥44px hit area. `data-density="compact"` remains the separate spacing axis (ship COMFORTABLE; never build a parallel compact path). Hover is only ever an *enhancement* (`@media (hover:hover)`); **every hover action has a tap-equivalent** (and a `:focus-within` keyboard equivalent, §4.3 rule 4). Base UI suppresses tooltips on touch for free.
 
 The same rule binds Tailwind capability variants: `pointer-coarse:`/`pointer-fine:`/`hover-capable:`, their `any-pointer-*` twins, and raw `[@media(pointer|hover:…)]:` variants belong at the **token/shell layer**, never in a feature class string. A feature composes a pointer-conditional token or a primitive prop: `hiddenAt` uses `packages/ui/src/lib/pointer-visibility.ts`; `Row reveal` and `inertUntilHover` use `packages/ui/src/lib/hover-reveal.ts`. The `:hover` pseudo-class (`hover:bg-accent`) is an interaction state and stays legal in features. The `POINTER_CLASSES` pattern in `eslint.config.ts` (`better-tailwindcss/no-restricted-classes`) enforces this on class strings in features outside `app-shell`; a reasoned line exception follows D321#3.
 
@@ -397,7 +384,3 @@ The same rule binds Tailwind capability variants: `pointer-coarse:`/`pointer-fin
 - **`dvh`/`svh` units, not `vh`** (with a `vh` fallback line) — `svh` where above-fold must stay visible, `dvh` for the adaptive shell.
 - **The keyboard gotcha (verified):** `dvh`/`svh` are NOT shrunk by the virtual keyboard → set **`interactive-widget=resizes-content`** in the viewport meta so the composer reflows above the keyboard; `visualViewport` API only for precise composer-pinning if ever needed.
 - **`env(safe-area-inset-*)`** padding on shell + composer; **`overscroll-behavior: contain`** on every scroll region; `inputmode`/`type=` on inputs (Base UI fields set these).
-
-**Why no second build:** Base UI gives touch/keyboard/pointer *interaction* correctness for free; we own only *layout* (axes 1–2) + *platform CSS* (axis 4), and axes 2–4 are all shell/token/primitive-level. (D42 §4 + D43 §11.2.)
-
-Split off [ui-architecture-state-and-stack.md](ui-architecture-state-and-stack.md) for the 48 KiB law cap (§5 State, §6 the stack keep/dump).
