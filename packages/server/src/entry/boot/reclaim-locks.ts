@@ -11,6 +11,7 @@
 // uses, so a boot death never reads as a stale heartbeat.
 
 import type { BootDatabaseHandle } from "@orb/db/wiring";
+import type { Clock } from "@orb/kit/time";
 import { reclaimChatLocksOnBoot } from "#domain/chat";
 import type { WorkloadContributions, WorkloadProgressBus } from "#domain/workloads";
 import { reclaimInFlightOnBoot } from "#domain/workloads";
@@ -24,7 +25,7 @@ export interface ReclaimLocksDeps {
   /** The contribution registry the row read path validates params against (poison tolerance), and the
    *  reclaim reads each kind's declared `resume` policy from. */
   readonly contributions: WorkloadContributions;
-  readonly now: () => number;
+  readonly now: Clock;
   /** This replica's stable lock-holder tag — MUST match the tag chat acquires turn-locks under. */
   readonly holder: string;
 }

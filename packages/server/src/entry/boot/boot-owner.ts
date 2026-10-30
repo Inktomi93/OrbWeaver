@@ -3,10 +3,12 @@
 
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { IdSource, UserId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { SessionsRolePolicy, SessionsService } from "#domain/sessions";
 import { createSessionsService } from "#domain/sessions";
 import type { AuditWiring, Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
+import type { PasswordHasher } from "#infra/auth";
 import type { SessionsCrypto } from "../compose/sessions-crypto.ts";
 import { createLocalLightUserSeed } from "./seed-local-light.ts";
 import { seedOwner } from "./seed-owner.ts";
@@ -14,7 +16,7 @@ import { seedOwner } from "./seed-owner.ts";
 /** A seeded-mode boot: `seedOwner` mints or heals the OWNER_HANDLES row, with the local first-boot password when set. */
 export interface BootOwnerSeed {
   readonly initialPassword?: string;
-  readonly hashPassword?: (plain: string) => Promise<string>;
+  readonly hashPassword?: PasswordHasher["hash"];
 }
 
 export interface BootOwnerInput {
@@ -22,7 +24,7 @@ export interface BootOwnerInput {
   /** The root's audit writer, the same wiring compose receives. */
   readonly audit: AuditWiring["log"];
   readonly db: DatabaseHandle;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly idSource: IdSource;
   readonly rolePolicy: SessionsRolePolicy;
   readonly sessionSecret: string | null;
