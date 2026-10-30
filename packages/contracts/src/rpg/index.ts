@@ -167,7 +167,7 @@ export {
   rpgUpdateConfigInputSchema,
   rpgUpsertQuestInputSchema,
 } from "./inputs.ts";
-
+export type { CancelStateRoundsOp } from "./owner-ops.ts";
 export type { ChatRpgPointer } from "./pointer.ts";
 export { chatRpgPointerSchema, isRpgEngaged } from "./pointer.ts";
 export type { RpgStatAttributeDef, RpgStatProfile } from "./profile.ts";

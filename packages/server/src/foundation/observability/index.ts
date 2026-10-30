@@ -7,7 +7,7 @@ export type { BugReportDiagnosticsRead } from "./bug-report-diagnostics.ts";
 export { createBugReportDiagnosticsRead } from "./bug-report-diagnostics.ts";
 export { recordClientError } from "./client-error.ts";
 export type { AuditWiring } from "./contract/audit-wiring.ts";
-export type { DebugRoutesOptions } from "./contract/debug.ts";
+export type { DebugRoutesOptions, RecorderFilter } from "./contract/debug.ts";
 export {
   createWireCaptureSpill,
   isWireCaptureEnabled,

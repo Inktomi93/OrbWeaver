@@ -33,7 +33,7 @@
 // a claim; the first claim comes from whatever the caller does NEXT (a send, a generated opening, an
 // explicit host config write — `verbs/claim-chat.ts`).
 
-import type { DurableChatBusEvent, MessageView, OpeningPolicy } from "@orb/contracts/chat";
+import type { MessageView, OpeningPolicy } from "@orb/contracts/chat";
 import type { ChatRpgPointer } from "@orb/contracts/rpg";
 import { chatInjections, chatParticipants, chats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
@@ -41,12 +41,11 @@ import { batchMany, batchStmt } from "@orb/db/query";
 import { statementForOwner } from "@orb/db/wiring-owner";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
-import type { ChatContext, ChatRpgGameBirthPlan, ChatServiceDeps } from "../contract/context.ts";
+import type { ChatContext, ChatRpgGameBirthPlan, ChatServiceDeps, LoadParticipantViewsOp } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type { StartChatParams } from "../contract/params.ts";
 import type { StartChatData, TurnOutcome } from "../contract/results.ts";
 import type { ChatService } from "../contract/service.ts";
-import type { ParticipantData } from "../contract/views.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { buildInitialParticipantRows } from "../persistence/participants-read.ts";
 import { loadChatRow } from "../persistence/queries.ts";
@@ -60,9 +59,9 @@ import { resolveViewerOwnedCharacterIds } from "../substrate/viewer-gallery.ts";
 /** The collaborators not on `ChatContext`. `emit` is the chat bus; `loadParticipantViews` resolves the
  *  returned `ChatDetailData` roster. */
 interface StartChatDeps {
-  readonly emit: (event: DurableChatBusEvent) => Promise<void>;
+  readonly emit: ChatServiceDeps["emit"];
   readonly prepareCreationEvent: ChatServiceDeps["prepareCreationEvent"];
-  readonly loadParticipantViews: (chatId: ChatId) => Promise<readonly ParticipantData[]>;
+  readonly loadParticipantViews: LoadParticipantViewsOp;
 }
 
 type StartChatVerbs = Pick<ChatService, "startChat">;

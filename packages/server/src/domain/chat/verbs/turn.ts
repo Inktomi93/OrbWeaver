@@ -14,7 +14,6 @@
 import type {
   AssembleContext,
   ChatMetadata,
-  DurableChatBusEvent,
   GroupConfig,
   MacroFreezeRecord,
   MessageView,
@@ -32,7 +31,7 @@ import { batchMany, isConstraintViolation } from "@orb/db/query";
 import type { BindingActor, Resolved, WireTool } from "@orb/inference";
 import { resolveSideGenSampling } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, MessageId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
-import type { MacroFreeze, MacroRegistry, UserMacroDef } from "@orb/kit/macro";
+import type { MacroFreeze, MacroRegistry, RandomSource, UserMacroDef } from "@orb/kit/macro";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { foreignLabelStops } from "@orb/kit/speaker-label";
 import type { IanaTimeZone } from "@orb/kit/time";
@@ -43,6 +42,7 @@ import type { ActiveTurnHandle, ActiveTurns } from "../contract/active-turns.ts"
 import type { ArbiterCandidate, AutoModeResult, SmartArbitrationResult, SpeakerCandidate, TranscriptLine } from "../contract/arbitration.ts";
 import type { TurnUserMacros } from "../contract/assembly-macros.ts";
 import type { ChatContext, ChatRpgGatherResult, ClaimChatOp } from "../contract/context.ts";
+import type { DelayOp, EmitDurableChatEventOp } from "../contract/engine-context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type { ChatBehaviorInputs, ForeignInputs, HumanSeatPersona, ResolveForeignInputsOp, TurnTrigger, TurnVoice } from "../contract/foreign.ts";
 import { DEFAULT_CHAT_BEHAVIOR } from "../contract/foreign.ts";
@@ -145,9 +145,9 @@ interface TurnDeps {
   readonly engine: TurnEngine;
   readonly admission: HandoffBarrier;
   readonly activeTurns: ActiveTurns;
-  readonly emit: (event: DurableChatBusEvent) => Promise<void>;
-  readonly prng: () => number;
-  readonly delay: (ms: number) => Promise<void>;
+  readonly emit: EmitDurableChatEventOp;
+  readonly prng: RandomSource;
+  readonly delay: DelayOp;
   readonly resolveConnection: (args: {
     readonly funderUserId: UserId;
     readonly chatId: ChatId;
@@ -215,7 +215,7 @@ function composeBodyWithAttachments(text: string, attachmentAssetIds: readonly A
 const nudgeOf = (
   assembleContext: AssembleContext,
   key: "continueNudge" | "impersonateNudge" | "responseNudge",
-  opts: { readonly random: () => number; readonly person?: GuidedImpersonatePerson | undefined; readonly registry?: MacroRegistry | undefined },
+  opts: { readonly random: RandomSource; readonly person?: GuidedImpersonatePerson | undefined; readonly registry?: MacroRegistry | undefined },
 ): string => {
   // PROSE-1 §4.6: the override STORAGE is still `formatStrings.<key>`; the two rungs (override else shipped
   // default) funnel through the ONE prose resolver so precedence can't drift from the registry.
@@ -554,7 +554,7 @@ function buildTurnUserMacrosForTurn(args: {
   readonly logger: Logger;
   readonly chatId: ChatId;
   readonly foreign: ForeignInputs;
-  readonly prng: () => number;
+  readonly prng: RandomSource;
   readonly values: UserMacroValues;
   readonly gameDefs: readonly UserMacroSpec[];
   readonly pluginDefs: readonly UserMacroDef[];

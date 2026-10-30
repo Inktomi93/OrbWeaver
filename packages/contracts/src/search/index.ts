@@ -498,3 +498,8 @@ export const searchSuggestInputSchema = z.object({ query: z.string().min(1), lim
 export const similarArtInputSchema = similarCharactersInput.extend({
   lens: imageLensSchema.optional(),
 });
+
+/** Ranked digest hits, each carrying its block key. */
+export type SearchDigestHitsOp = (params: MemoryQueryOptions, events?: DigestSearchEvents | undefined) => Promise<DigestSearchHit[]>;
+
+export type SearchCorpusHitsOp = (params: CorpusParams) => Promise<CorpusHit[]>;

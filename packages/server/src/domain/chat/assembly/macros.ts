@@ -9,7 +9,7 @@ import type { GuidedActionKind, GuidedImpersonatePerson } from "@orb/contracts/p
 import { DEFAULT_GUIDED_ACTIONS } from "@orb/contracts/preset";
 import { resolveGuidedInstruction } from "@orb/kit/guided";
 import type { ChatId } from "@orb/kit/ids";
-import type { MacroContext, MacroFreeze, MacroRegistry, ProcessMacroOptions, RowMacroStamps } from "@orb/kit/macro";
+import type { MacroContext, MacroFreeze, MacroRegistry, ProcessMacroOptions, RandomSource, RowMacroStamps } from "@orb/kit/macro";
 import { createMacroContext, createVolatileOnlyRegistry, globalMacroRegistry, processMacros, resolveRowMacros } from "@orb/kit/macro";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import type { FreezeVolatileMacrosArgs, RenderMacrosOptions, TurnMacroContextArgs } from "../contract/assembly-macros.ts";
@@ -60,8 +60,8 @@ interface MacroExtras {
   model?: string | undefined;
   chatId?: ChatId | undefined;
   /** The PRNG for `{{random}}`/`{{roll}}`/`{{pick}}`: required on every render so none reaches kit's ambient default. */
-  random: () => number;
-  onWarn?: ((msg: string, err?: unknown) => void) | undefined;
+  random: RandomSource;
+  onWarn?: TurnMacroContextArgs["onWarn"];
   /** The commit-time VOLATILE-FREEZE sink (D129-F) — the caller's array; each volatile occurrence this pass
    *  bakes is pushed in document order. Absent ⇒ no recording (every non-freeze render). */
   freezes?: MacroFreeze[] | undefined;
@@ -229,7 +229,7 @@ export function resolveGuidedActionText(
     readonly chatId?: ChatId | undefined;
     readonly person?: GuidedImpersonatePerson | undefined;
     /** The turn PRNG every `{{random}}`/`{{roll}}`/`{{pick}}` in the template draws from. */
-    readonly random: () => number;
+    readonly random: RandomSource;
     /** The per-turn user-macro registry (WAVE MU) when the guided template references a user macro; absent
      *  ⇒ the process `globalMacroRegistry` (byte-identical). */
     readonly registry?: MacroRegistry | undefined;
@@ -264,7 +264,7 @@ export function resolveGuidedActionText(
 export function resolveNudgeText(
   ctx: AssembleContext,
   template: string,
-  opts: { readonly random: () => number; readonly person?: GuidedImpersonatePerson | undefined; readonly registry?: MacroRegistry | undefined },
+  opts: { readonly random: RandomSource; readonly person?: GuidedImpersonatePerson | undefined; readonly registry?: MacroRegistry | undefined },
 ): string {
   return resolveGuidedInstruction(template, "", macroOptionsFor(ctx, ctx.activePersona, { random: opts.random }), {
     ...(opts.person !== undefined ? { person: opts.person } : {}),
@@ -305,7 +305,7 @@ export function previewActionText(
   ctx: AssembleContext,
   template: string,
   opts: {
-    readonly random: () => number;
+    readonly random: RandomSource;
     readonly model?: string | undefined;
     readonly chatId?: ChatId | undefined;
     readonly registry?: MacroRegistry | undefined;

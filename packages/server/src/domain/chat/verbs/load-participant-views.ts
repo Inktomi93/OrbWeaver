@@ -1,7 +1,7 @@
 // Roster display resolves one page's owned decorations and distinct public identities, not one card per seat.
 
 import type { AssetId, CharacterId, ChatId, Handle, PersonaId, UserId } from "@orb/kit/ids";
-import type { ChatContext } from "../contract/context.ts";
+import type { ChatContext, LoadParticipantViewsOp } from "../contract/context.ts";
 import type { ParticipantData } from "../contract/views.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipantsBatch } from "../persistence/participants-read.ts";
@@ -22,7 +22,7 @@ function resolveSeatDisplayName(
 }
 
 export function createLoadParticipantViews(ctx: ChatContext): {
-  readonly loadParticipantViews: (chatId: ChatId) => Promise<readonly ParticipantData[]>;
+  readonly loadParticipantViews: LoadParticipantViewsOp;
   readonly loadParticipantViewsBatch: (chatIds: readonly ChatId[]) => Promise<ReadonlyMap<ChatId, readonly ParticipantData[]>>;
 } {
   const loadParticipantViewsBatch = async (chatIds: readonly ChatId[]): Promise<ReadonlyMap<ChatId, readonly ParticipantData[]>> => {

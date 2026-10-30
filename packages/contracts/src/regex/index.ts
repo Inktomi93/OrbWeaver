@@ -409,3 +409,4 @@ export const regexCharacterInputSchema = z.object({ characterId: typeIdSchema(ID
 export const regexPresetInputSchema = z.object({ presetId: typeIdSchema(ID_PREFIX.preset) });
 
 export const regexChatInputSchema = z.object({ chatId: typeIdSchema(ID_PREFIX.chat) });
+export type { CaptureRegexRoomReachOp, ResolveRegexScriptRoomsOp } from "./owner-ops.ts";

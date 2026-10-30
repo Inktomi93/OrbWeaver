@@ -5,7 +5,8 @@ import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { AssetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { sniffMime } from "@orb/kit/image-sniff";
-import type { ImageRefAssets, MediaRoomAccess, ResolveMediaRef, ResolveMediaRefDeps } from "../contract/media-ref.ts";
+import type { ResolveImageUrlOp } from "../contract/engine-context.ts";
+import type { ImageRefAssets, MediaRoomAccess, ResolveMediaRefDeps } from "../contract/media-ref.ts";
 import type { ResolvedMediaRef } from "../contract/results.ts";
 import { hasMessageAssetLinkInChat } from "../persistence/message-asset-links.ts";
 import { isPresentParticipant } from "../persistence/participants-read.ts";
@@ -13,7 +14,7 @@ import { isPresentParticipant } from "../persistence/participants-read.ts";
 const VIDEO_MIME_PREFIX = "video/";
 const GIF_MIME = "image/gif";
 
-export function createResolveMediaRef(input: DbAssemblyInput<ResolveMediaRefDeps>): ResolveMediaRef {
+export function createResolveMediaRef(input: DbAssemblyInput<ResolveMediaRefDeps>): ResolveImageUrlOp {
   const deps: ResolveMediaRefDeps = { ...input, db: databaseForOwner(input.db) };
   const room: MediaRoomAccess = {
     ownerIsPresent: (userId, chatId) => isPresentParticipant(deps.db, chatId, userId),
@@ -34,7 +35,7 @@ async function resolveImageRefToUrl(
   assets: ImageRefAssets,
   room: MediaRoomAccess,
   forbidExternalMedia: boolean,
-  params: Parameters<ResolveMediaRef>[0],
+  params: Parameters<ResolveImageUrlOp>[0],
 ): Promise<ResolvedMediaRef | null> {
   const { ownerId: hostId, chatId, ref } = params;
   if (ref.kind === "external") {

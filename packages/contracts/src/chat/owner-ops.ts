@@ -1,14 +1,17 @@
 // Shared owner data and injected operations; implementations and authority resolution stay in server domains.
 
-import type { AssetId, CharacterId, ChatId, EmbedGenerationId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, ChatParticipantId, EmbedGenerationId, PresetId, UserId } from "@orb/kit/ids";
 import type { IanaTimeZone } from "@orb/kit/time";
-import type { ParticipantRoleState } from "#identity";
+import type { ParticipantRoleState, Principal } from "#identity";
 import type { BindingActor } from "#inference";
+import type { UserMacroSpec } from "#preset";
+import type { RegexScriptRow } from "#regex";
 import type { BlockKey } from "#search";
 import type { TagView } from "#tag";
 import type { ThemeBackground, ThemeOverride } from "#theme";
-import type { DurableChatBusEvent, LiveOnlyChatBusEvent, TurnInitiator } from "./bus.ts";
+import type { DurableChatBusEvent, LiveOnlyChatBusEvent, PromptTransform, TurnInitiator } from "./bus.ts";
 import type { GuidedSteer } from "./metadata.ts";
+import type { CharacterRegexSlice } from "./regex-tiers.ts";
 import type { HistoryFloorSeq, RenderPolicy } from "./roster.ts";
 import type { TurnOutcome } from "./views.ts";
 
@@ -161,3 +164,50 @@ export interface TurnRetrievalEvents {
   readonly onRerankUnavailable: () => void;
   readonly onIndexUnavailable: () => void;
 }
+
+/** Publish one `chatsChanged` to one user's bus channel; `chatId` present means the event names the chat. */
+export type PublishChatChangedOp = (userId: UserId, chatId: ChatId | undefined) => void;
+
+/** Register a prompt transform; idempotent by id, so a re-register replaces the prior one. */
+export type RegisterPromptTransformOp = (transform: PromptTransform) => void;
+
+/** Deregister a prompt transform by id; a no-op for an unknown id. */
+export type UnregisterPromptTransformOp = (id: string) => void;
+
+/** A user's per-chat read of the chat's authored user macros. */
+export type ReadChatUserMacrosOp = (chatId: ChatId) => Promise<readonly UserMacroSpec[]>;
+
+/** The common chat-scoped verb input: the acting principal and the room. */
+export interface ChatScopedParams {
+  readonly principal: Principal;
+  readonly chatId: ChatId;
+}
+
+/** One present character seat the accepted offer considered: the participant row and the card it seats. */
+export interface OfferedSeat {
+  readonly participantId: ChatParticipantId;
+  readonly characterId: CharacterId;
+}
+
+/** Which scopes to dereference for one turn. Every field is already caller-gated. */
+interface ResolveRegexSourcesArgs {
+  /** The turn's frozen `runAsUserId`, the host. Gates the global, preset and character slices. */
+  readonly ownerId: UserId;
+  /** The chat's resolved active preset, or null when the system default prompt config stood in. */
+  readonly presetId: PresetId | null;
+  /** The present characters, in roster order. */
+  readonly characterIds: readonly CharacterId[];
+  /** The room. Room-public scope, not owner-filtered. */
+  readonly chatId: ChatId;
+}
+
+/** The four resolved slices, each ordered by its junction position. The consumer unions and dedupes them. */
+interface ResolvedRegexSources {
+  readonly hostGlobal: readonly RegexScriptRow[];
+  readonly preset: readonly RegexScriptRow[];
+  /** Per seat, in roster order: each seated character is its own tier. */
+  readonly character: readonly CharacterRegexSlice[];
+  readonly chat: readonly RegexScriptRow[];
+}
+
+export type ResolveRegexSources = (args: ResolveRegexSourcesArgs) => Promise<ResolvedRegexSources>;

@@ -8,8 +8,8 @@
 // Imagery is caller-blind — it returns blocks + warnings; chat holds the message-write authority. Reuses the
 // persist/emit pattern of `turn.ts` `persistUserMessage` (the D26 canon-write dance + the durable-first bus emit).
 
-import type { ChatWarningCode, DurableChatBusEvent, MessageView } from "@orb/contracts/chat";
-import type { ChatContext, ClaimChatOp } from "../contract/context.ts";
+import type { ChatWarningCode, MessageView } from "@orb/contracts/chat";
+import type { ChatContext, PostNarratorMessageDeps } from "../contract/context.ts";
 import type { GenerateImageParams } from "../contract/params.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireParticipant } from "../guard.ts";
@@ -42,11 +42,7 @@ function toChatWarningCode(imageryCode: string): ImageryChatWarningCode | null {
 }
 
 /** The collaborators not on `ChatContext` (the chat bus emit — chat's own collaborator, wired at the root). */
-interface GenerateImageDeps {
-  readonly emit: (event: DurableChatBusEvent) => Promise<void>;
-  /** The husk→real transition (R0) -- an image generation commits a caller-authored row, so it claims. */
-  readonly claimChat: ClaimChatOp;
-}
+type GenerateImageDeps = PostNarratorMessageDeps;
 
 export function createGenerateImage(ctx: ChatContext, deps: GenerateImageDeps): Pick<ChatService, "generateImage"> {
   return {

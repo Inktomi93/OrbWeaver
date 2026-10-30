@@ -35,7 +35,7 @@
 // (`stripChatEventForMember` at the live transport + the durable replay), so pre-stripping here would withhold
 // the host's own payload. Strip the return; emit the truth.
 
-import type { DurableChatBusEvent, MessageView, ReattributeScope } from "@orb/contracts/chat";
+import type { MessageView, ReattributeScope } from "@orb/contracts/chat";
 import { isSeededGreetingRow, macroFreezeRecordSchema, parseVariantMetadata } from "@orb/contracts/chat";
 import type { ParticipantRoleState } from "@orb/contracts/identity";
 import { PARTICIPANT_ROLES } from "@orb/contracts/identity";
@@ -44,7 +44,7 @@ import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
 import { assetIdsInContent } from "@orb/kit/content";
 import type { ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
-import type { MacroFreeze } from "@orb/kit/macro";
+import type { MacroFreeze, RandomSource } from "@orb/kit/macro";
 import type { RegexPlacement } from "@orb/kit/regex";
 import { executeRegexScripts } from "@orb/kit/regex";
 import { stripSelfSpeakerLabel } from "@orb/kit/speaker-label";
@@ -53,7 +53,8 @@ import { getLog } from "#foundation/observability";
 import { sha256Hex } from "#primitives/content-hash";
 import { captureParticipantRole } from "#primitives/role-data";
 import type { ActiveTurns } from "../contract/active-turns.ts";
-import type { ChatContext, ClaimChatOp } from "../contract/context.ts";
+import type { ChatContext, ChatServiceDeps, ClaimChatOp } from "../contract/context.ts";
+import type { EmitDurableChatEventOp } from "../contract/engine-context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type { ResolveForeignInputsOp } from "../contract/foreign.ts";
 import type { RetainedCanonCapturedView } from "../contract/generation-observation.ts";
@@ -135,13 +136,10 @@ import {
   swipeVariantDelta,
 } from "../substrate/stats-delta.ts";
 
-/** The emit op the edit verbs close over. */
-type EmitChatEvent = (event: DurableChatBusEvent) => Promise<void>;
-
 /** The collaborators not on `ChatContext`. `resolveForeignInputs` backs the runOnEdit re-apply only:
  *  editMessage needs the host-global + chat-preset regex sources. */
 interface EditDeps {
-  readonly emit: EmitChatEvent;
+  readonly emit: ChatServiceDeps["emit"];
   readonly resolveForeignInputs: ResolveForeignInputsOp;
   /** The husk→real transition (R0). Applied to the WHOLE bundle by {@link claiming}, not per verb. */
   readonly claimChat: ClaimChatOp;
@@ -150,7 +148,7 @@ interface EditDeps {
   /** The service PRNG, threaded to the D129-F freeze-at-selection bake ({@link freezeSelectedVariant}) and the
    *  runOnEdit regex macro context. A selection that has a stored freeze record consumes NO draw at all (it
    *  replays), so the bake draws only for the first freeze of a never-frozen alternate. */
-  readonly prng: () => number;
+  readonly prng: RandomSource;
 }
 
 /** The canon-edit slice of `ChatService` this grouped file owns. */
@@ -637,7 +635,7 @@ function createEditMessage(ctx: ChatContext, deps: EditDeps): ChatService["editM
  * Card-authored text steps in place. Any other body survives as a swipe beside the selected card alternate;
  * editedAt cannot distinguish authored prose because a card step stamps it too.
  */
-function createSetSeededGreeting(ctx: ChatContext, emit: EmitChatEvent): ChatService["setSeededGreeting"] {
+function createSetSeededGreeting(ctx: ChatContext, emit: EmitDurableChatEventOp): ChatService["setSeededGreeting"] {
   return async ({ principal, chatId, messageId, greetingIndex }: SetSeededGreetingParams) => {
     const membership = await requireHost(ctx, principal, chatId);
     const slot = await loadRetainedSlotInChat(ctx, chatId, messageId);
@@ -716,7 +714,7 @@ function createSetSeededGreeting(ctx: ChatContext, emit: EmitChatEvent): ChatSer
  * through the receive tier once on its own turn — re-running AI_OUTPUT over it would transform
  * already-transformed prose, and the audit's whole promise is that nothing changes except the flaw.
  */
-function createApplyProseRewrite(ctx: ChatContext, emit: EmitChatEvent): ChatService["applyProseRewrite"] {
+function createApplyProseRewrite(ctx: ChatContext, emit: EmitDurableChatEventOp): ChatService["applyProseRewrite"] {
   return async ({ principal, chatId, messageId, variantId, expectedContentHash, content }: ApplyProseRewriteParams) => {
     const membership = await requireHost(ctx, principal, chatId);
     const slot = await loadRetainedSlotInChat(ctx, chatId, messageId);
@@ -739,7 +737,7 @@ function createApplyProseRewrite(ctx: ChatContext, emit: EmitChatEvent): ChatSer
 
 /** `setMessageHidden` — author-or-host. Holds the slot out of assembly (or restores it) — a pure slot-flag
  *  write, no content change. Emits messageHidden. */
-function createSetMessageHidden(ctx: ChatContext, emit: EmitChatEvent): ChatService["setMessageHidden"] {
+function createSetMessageHidden(ctx: ChatContext, emit: EmitDurableChatEventOp): ChatService["setMessageHidden"] {
   return async ({ principal, chatId, messageId, hidden }: SetMessageHiddenParams) => {
     const slot = await loadSlotInChat(ctx, chatId, messageId);
     const membership = await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
@@ -847,7 +845,7 @@ async function writeEditedToolCall(ctx: ChatContext, params: EditToolCallParams,
   throw new ChatOperationError(CHAT_OP_CODES.toolCallChanged, "This tool call changed while it was being updated.");
 }
 
-function createEditToolCall(ctx: ChatContext, emit: EmitChatEvent): ChatService["editToolCall"] {
+function createEditToolCall(ctx: ChatContext, emit: EmitDurableChatEventOp): ChatService["editToolCall"] {
   return async (params: EditToolCallParams) => {
     const { principal, chatId, messageId, variantId } = params;
     const initial = await loadSlotInChat(ctx, chatId, messageId);
@@ -871,7 +869,7 @@ function createEditToolCall(ctx: ChatContext, emit: EmitChatEvent): ChatService[
 /** Writes the selected variant's reasoning (text or null) + stamps editedAt. Shared by edit/clear. */
 async function writeReasoning(
   ctx: ChatContext,
-  emit: EmitChatEvent,
+  emit: EmitDurableChatEventOp,
   args: {
     readonly chatId: ChatId;
     readonly slot: RetainedCanonCapturedView;
@@ -910,7 +908,7 @@ async function writeReasoning(
 }
 
 /** `editReasoning` — author-or-host. Overwrites the selected variant's reasoning text. Emits reasoningEdited. */
-function createEditReasoning(ctx: ChatContext, emit: EmitChatEvent): ChatService["editReasoning"] {
+function createEditReasoning(ctx: ChatContext, emit: EmitDurableChatEventOp): ChatService["editReasoning"] {
   return async ({ principal, chatId, messageId, reasoning }: EditReasoningParams) => {
     const slot = await loadRetainedSlotInChat(ctx, chatId, messageId);
     const membership = await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
@@ -927,7 +925,7 @@ function createEditReasoning(ctx: ChatContext, emit: EmitChatEvent): ChatService
 }
 
 /** `clearReasoning` — author-or-host. Nulls the selected variant's reasoning. Emits reasoningCleared. */
-function createClearReasoning(ctx: ChatContext, emit: EmitChatEvent): ChatService["clearReasoning"] {
+function createClearReasoning(ctx: ChatContext, emit: EmitDurableChatEventOp): ChatService["clearReasoning"] {
   return async ({ principal, chatId, messageId }: ClearReasoningParams) => {
     const slot = await loadRetainedSlotInChat(ctx, chatId, messageId);
     const membership = await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
@@ -945,7 +943,7 @@ function createClearReasoning(ctx: ChatContext, emit: EmitChatEvent): ChatServic
 
 /** `deleteMessages` — gates each target's author independently, then deletes the set (variants cascade).
  *  Emits messagesDeleted. An empty set is an idempotent no-op. */
-function createDeleteMessages(ctx: ChatContext, emit: EmitChatEvent): ChatService["deleteMessages"] {
+function createDeleteMessages(ctx: ChatContext, emit: EmitDurableChatEventOp): ChatService["deleteMessages"] {
   return async ({ principal, chatId, messageIds }: DeleteMessagesParams): Promise<void> => {
     if (messageIds.length === 0) {
       return;
@@ -1051,7 +1049,7 @@ function planResequence(ordered: readonly { readonly id: MessageId; readonly seq
 /** `moveMessage` — host-only. Reorders a slot to a new seq position via a parked, collision-free
  *  re-sequence. Refused (`locked`) while a turn is in flight: a running turn reads and appends canon by seq, so a
  *  reorder under it would land mid-generation. Emits messagesReordered. A no-op move emits nothing. */
-function createMoveMessage(ctx: ChatContext, emit: EmitChatEvent, activeTurns: ActiveTurns): ChatService["moveMessage"] {
+function createMoveMessage(ctx: ChatContext, emit: EmitDurableChatEventOp, activeTurns: ActiveTurns): ChatService["moveMessage"] {
   return async ({ principal, chatId, messageId, toSeq }: MoveMessageParams): Promise<void> => {
     await requireHost(ctx, principal, chatId);
     if (activeTurns.countActive(chatId) > 0) {
@@ -1090,7 +1088,7 @@ function createMoveMessage(ctx: ChatContext, emit: EmitChatEvent, activeTurns: A
 
 /** `duplicateMessage` — author-or-host. Copies the slot's attribution + its selected variant's content/
  *  economics to a fresh tail slot. Emits messageCommitted. */
-function createDuplicateMessage(ctx: ChatContext, emit: EmitChatEvent): ChatService["duplicateMessage"] {
+function createDuplicateMessage(ctx: ChatContext, emit: EmitDurableChatEventOp): ChatService["duplicateMessage"] {
   return async ({ principal, chatId, messageId }: DuplicateMessageParams) => {
     const slot = await loadRetainedSlotInChat(ctx, chatId, messageId);
     const membership = await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
@@ -1192,7 +1190,7 @@ function createDuplicateMessage(ctx: ChatContext, emit: EmitChatEvent): ChatServ
 
 /** `reattributeMessages` — host-only. Re-voices a set of slots to a characterId. Emits one messageEdited
  *  per slot. An empty set is a no-op. */
-function createReattributeMessages(ctx: ChatContext, emit: EmitChatEvent): ChatService["reattributeMessages"] {
+function createReattributeMessages(ctx: ChatContext, emit: EmitDurableChatEventOp): ChatService["reattributeMessages"] {
   return async ({ principal, chatId, messageIds, characterId }: ReattributeMessagesParams): Promise<void> => {
     await requireHost(ctx, principal, chatId);
     if (messageIds.length === 0) {
@@ -1238,7 +1236,7 @@ async function resolveReattributeTargets(ctx: ChatContext, chatId: ChatId, autho
  *  belt (c) is satisfied by construction — the arm widens REACH (past the client's old 100-message window),
  *  never AUTHORITY. Nothing else is touched: content stays raw (D51 — identity macros resolve live off the
  *  stamp), and rpg snapshots / memory digests / exports are not this verb's rows. */
-function createReattributePersona(ctx: ChatContext, emit: EmitChatEvent): ChatService["reattributePersona"] {
+function createReattributePersona(ctx: ChatContext, emit: EmitDurableChatEventOp): ChatService["reattributePersona"] {
   return async ({ principal, chatId, scope, personaId }: ReattributePersonaParams): Promise<void> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     const messageIds = await resolveReattributeTargets(ctx, chatId, principal.userId, scope);

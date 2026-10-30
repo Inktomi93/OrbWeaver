@@ -325,3 +325,17 @@ export interface StoreParams {
 }
 export type StoreAsset = (params: StoreParams) => Promise<StoredAsset>;
 export type ReadOwnedAssetBytes = (caller: Principal, assetId: AssetId) => Promise<OwnedAssetBytes>;
+
+/** An asset's owner, CAS hash and mime, resolved by row id alone. */
+export interface AssetCasRef {
+  readonly kind: AssetKind;
+  readonly ownerId: UserId;
+  readonly hash: string;
+  readonly mime: string;
+}
+
+/** Un-principal row lookup; undefined when no such row. */
+export type AssetCasRefByIdOp = (assetId: AssetId) => Promise<AssetCasRef | undefined>;
+
+/** CAS bytes of an asset by id alone, no owner gate. */
+export type LoadAssetBytesOp = (assetId: AssetId) => Promise<Uint8Array | null>;

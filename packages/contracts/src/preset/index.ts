@@ -9,7 +9,7 @@
 //   • prose.ts — the per-PRESET PROSE-1 slot table; the ONE home for the BYTES of every guided-action
 //     template + format string this file's schema defaults read.
 
-import type { ModelId, PresetId } from "@orb/kit/ids";
+import type { ModelId, PresetId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
 import type { UserMacroDef, UserMacroInputValue } from "@orb/kit/macro";
@@ -3804,3 +3804,6 @@ export const effectivePresetSchema = z.strictObject({
 export const presetIdInputSchema = z.object({ id: typeIdSchema(ID_PREFIX.preset) });
 
 export const resolveEffectivePresetInputSchema = z.object({ id: typeIdSchema(ID_PREFIX.preset), target: capabilityTargetSchema.optional() });
+
+/** A missing or foreign preset is optional; operational failures are not. */
+export type LoadOptionalPreset = (userId: UserId, id: PresetId) => Promise<PresetDetail | null>;

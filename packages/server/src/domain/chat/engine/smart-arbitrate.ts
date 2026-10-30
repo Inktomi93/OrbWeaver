@@ -12,6 +12,7 @@ import { RPG_SCENE_LINE_LABEL } from "@orb/contracts/rpg";
 import { GenerationObservationPersistenceError, runStructuredTurn } from "@orb/inference";
 import type { CharacterId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
+import type { RandomSource } from "@orb/kit/macro";
 import { clampToTokenBudget, safeTokenWindow } from "@orb/kit/tokens";
 import { z } from "zod";
 import type { ArbiterCandidate, SmartArbitrationResult, SpeakerArbiter, SpeakerCandidate, TranscriptLine } from "../contract/arbitration.ts";
@@ -56,7 +57,7 @@ interface SmartArbitrateParams {
   /** Characters the human trigger text named as a plain word — forwarded to the `natural` fallback. */
   readonly mentionedIds?: readonly CharacterId[] | undefined;
   /** The injected PRNG (D46) — drives the `natural` fallback's pick. */
-  readonly rng: () => number;
+  readonly rng: RandomSource;
   /** The ROOM HOST's prose overrides (`chat.arbiter.system`). Empty ⇒ the shipped arbiter prompt. */
   readonly prose: ProseOverrides;
   /** The resolved side-gen sampling options (the `arbiter` posture ← the host's preset params), as-is. */

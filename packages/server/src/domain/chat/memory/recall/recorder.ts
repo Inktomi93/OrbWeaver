@@ -16,13 +16,14 @@
 // ASSUMES(single-replica): the ring is per-process (the `bus.ts` / rpg-recorder precedent). The recorder
 // stamps `seq` (a monotonic counter) + `at` (via the injected clock), so recall stays clock-free for them.
 
+import type { Clock } from "@orb/kit/time";
 import type { MemoryRecallFilter, MemoryRecallRecord, MemoryRecallRecorder } from "../types.ts";
 
 /** The default ring depth — a long session's worth of recalls (one or two per turn); the oldest drops past it. */
 const DEFAULT_LIMIT = 256;
 
 /** Build the per-process recall recorder (ONE, wired at the composition root). */
-export function createMemoryRecallRecorder(deps: { readonly now: () => number; readonly limit?: number }): MemoryRecallRecorder {
+export function createMemoryRecallRecorder(deps: { readonly now: Clock; readonly limit?: number }): MemoryRecallRecorder {
   const limit = deps.limit ?? DEFAULT_LIMIT;
   const ring: MemoryRecallRecord[] = [];
   let seq = 0;

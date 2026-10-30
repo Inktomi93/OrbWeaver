@@ -43,7 +43,7 @@
 // holds (the same keyed DELETE that removes it answers whether it was there) and returns the RESULTING state
 // so the clicking tab can settle without waiting for its own bus round-trip.
 
-import type { ChatMetadata, ChatReactionsView, DurableChatBusEvent, MessageReactionGroup, ReactionEmoji } from "@orb/contracts/chat";
+import type { ChatMetadata, ChatReactionsView, MessageReactionGroup, ReactionEmoji } from "@orb/contracts/chat";
 import {
   CHAT_REACTION_SLOT_WINDOW,
   isNarratorVoiced,
@@ -55,7 +55,7 @@ import {
 import type { ChatParticipantId, MessageVariantId } from "@orb/kit/ids";
 import { parseSpeakerSpans, segmentSnippet } from "@orb/kit/speaker-label";
 import { createChatContext } from "../context.ts";
-import type { ChatContext } from "../contract/context.ts";
+import type { ChatContext, ChatServiceDeps } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import { DEFAULT_CHAT_BEHAVIOR } from "../contract/foreign.ts";
 import type { ListReactionsParams, ReactAsCharacterParams, StoredSegmentAnchor, ToggleReactionParams } from "../contract/params.ts";
@@ -83,7 +83,7 @@ type ReactionRow = Awaited<ReturnType<typeof listChatReactions>>[number];
  *  narrowing every durable emit surface takes) — `reactionsChanged` is canon and replays, so appending it is
  *  correct and a live-only member here would be a compile error. */
 interface ReactionsDeps {
-  readonly emit: (event: DurableChatBusEvent) => Promise<void>;
+  readonly emit: ChatServiceDeps["emit"];
 }
 
 /** The room's RESOLVED reaction posture: room metadata over the PRESENT HOST's per-user defaults (the

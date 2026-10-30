@@ -22,7 +22,7 @@
 // a floor the variable delta LOG collapses the same way, into ONE synthetic baseline batch
 // (`buildForkStandaloneDeltas`, D79 ruling #8).
 
-import type { ChatMetadata, DurableChatBusEvent, HistoryFloorSeq, StandaloneVariableDelta, VariantMetadata } from "@orb/contracts/chat";
+import type { ChatMetadata, HistoryFloorSeq, StandaloneVariableDelta, VariantMetadata } from "@orb/contracts/chat";
 import {
   memberToolCalls,
   parseVariantMetadata,
@@ -40,13 +40,12 @@ import type { AssetId, CharacterId, ChatId, MessageAssetId, MessageId, MessageVa
 import type { VarOp } from "@orb/kit/macro";
 import { eq } from "drizzle-orm";
 import { getLog } from "#foundation/observability";
-import type { ChatContext } from "../contract/context.ts";
+import type { ChatContext, ChatServiceDeps, LoadParticipantViewsOp } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type { ForkChatParams } from "../contract/params.ts";
 import type { ParticipantRow } from "../contract/participant-row.ts";
 import type { ForkData } from "../contract/results.ts";
 import type { ChatService } from "../contract/service.ts";
-import type { ParticipantData } from "../contract/views.ts";
 import { requireParticipant } from "../guard.ts";
 import { carriesAssetBackground, guardedChatId } from "../persistence/background-write.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
@@ -75,8 +74,8 @@ import { resolveViewerOwnedCharacterIds } from "../substrate/viewer-gallery.ts";
 /** The collaborators not on `ChatContext`. `emit` is the chat bus; `loadParticipantViews` resolves the
  *  roster read-model for the returned `ChatDetailData`. */
 interface ForkDeps {
-  readonly emit: (event: DurableChatBusEvent) => Promise<void>;
-  readonly loadParticipantViews: (chatId: ChatId) => Promise<readonly ParticipantData[]>;
+  readonly emit: ChatServiceDeps["emit"];
+  readonly loadParticipantViews: LoadParticipantViewsOp;
 }
 
 /** The fork slice of `ChatService` this grouped file owns. */

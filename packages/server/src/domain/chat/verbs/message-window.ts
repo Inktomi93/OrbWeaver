@@ -2,10 +2,10 @@ import type { HistoryFloorSeq, MessageView, MessageWindow } from "@orb/contracts
 import { CHAT_MESSAGE_LIST_MAX_LIMIT, projectViewForMember } from "@orb/contracts/chat";
 import type { CorpusSource, CorpusSourceOutcome } from "@orb/contracts/search";
 import type { ChatId } from "@orb/kit/ids";
-import type { ChatContext } from "../contract/context.ts";
+import type { ChatContext, LoadParticipantViewsOp } from "../contract/context.ts";
 import type { GetMessageWindowParams } from "../contract/params.ts";
 import type { ChatService } from "../contract/service.ts";
-import type { MessageWindowAnchor, MessageWindowResolution, ParticipantData } from "../contract/views.ts";
+import type { MessageWindowAnchor, MessageWindowResolution } from "../contract/views.ts";
 import { requireParticipant } from "../guard.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { loadWindowAnchor, loadWindowRange } from "../persistence/message-window.ts";
@@ -16,10 +16,7 @@ import { viewerReadsHidden } from "../substrate/member-visibility.ts";
 const DEFAULT_WINDOW_LIMIT = 40;
 
 /** A bounded canon window resolves source identity before applying the same viewer projection as paging. */
-export function createMessageWindow(
-  ctx: ChatContext,
-  deps: { readonly loadParticipantViews: (chatId: ChatId) => Promise<readonly ParticipantData[]> },
-): ChatService["getMessageWindow"] {
+export function createMessageWindow(ctx: ChatContext, deps: { readonly loadParticipantViews: LoadParticipantViewsOp }): ChatService["getMessageWindow"] {
   return async ({ principal, chatId, target, cursor, limit }: GetMessageWindowParams): Promise<MessageWindow> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     const floor = membership.historyFloorSeq;

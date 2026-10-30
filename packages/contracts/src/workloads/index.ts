@@ -44,7 +44,7 @@ export type {
   WorkloadRunScope,
 } from "./execution.ts";
 export { WORKLOAD_LANES } from "./execution.ts";
-export type { StartWorkloadOp, StartWorkloadParams } from "./owner-ops.ts";
+export type { StartWorkloadOp, StartWorkloadParams, TargetSnapshotOp } from "./owner-ops.ts";
 export type { StartWorkloadInput, WorkloadParamsByKind } from "./params.ts";
 export {
   asStartWorkloadInput,
