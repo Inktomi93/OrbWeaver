@@ -127,10 +127,10 @@ test("a finished sweep records the image space it embedded into, and an aborted 
   const [state] = await root.db.select().from(embedSpaceState).where(eq(embedSpaceState.scope, "images"));
   expect(state).toMatchObject({ ownerId: owner.userId });
   const [vector] = await root.db.select().from(imageEmbeddings);
-  const [generation] = await root.db
-    .select()
-    .from(embedGenerations)
-    .where(eq(embedGenerations.id, state?.activeGenerationId ?? ""));
+  if (state?.activeGenerationId === null || state?.activeGenerationId === undefined) {
+    throw new Error("the finished sweep must promote an active generation");
+  }
+  const [generation] = await root.db.select().from(embedGenerations).where(eq(embedGenerations.id, state.activeGenerationId));
   // The mark follows the space the vectors were written in, not a constant.
   expect(generation?.space).toBe(vector?.model);
 });

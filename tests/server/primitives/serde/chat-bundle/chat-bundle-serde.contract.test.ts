@@ -34,7 +34,7 @@ function refusalOf<T>(result: PortableParse<T>): string {
   return result.reason;
 }
 
-const usage = (over: Record<string, unknown> = {}): unknown => ({
+const usage = (over: Record<string, unknown> = {}): Record<string, unknown> => ({
   tokensIn: null,
   tokensOut: null,
   cacheReadTokens: null,
