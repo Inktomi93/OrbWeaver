@@ -8,7 +8,7 @@
 // role-sensitive ops; the owner resolver serves the automation/plugin/portability author-ownership gates. Two
 // distinct call sites, kept distinct.
 
-import type { BulkImportChatsOp, LiveOnlyChatBusEvent } from "@orb/contracts/chat";
+import type { BulkImportChatsOp } from "@orb/contracts/chat";
 import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { ResolveHostPrincipalOp } from "@orb/contracts/identity";
 import type { DatabaseHandle } from "@orb/db/wiring";
@@ -18,6 +18,7 @@ import type { Clock } from "@orb/kit/time";
 import { can } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
+import type { ChatServiceDeps } from "#domain/chat";
 import { createBulkImportChats, createReadInheritedChatBooks, requireHost, requireParticipant } from "#domain/chat";
 import type { BulkImportPersonas } from "#domain/persona";
 import { createBulkImportPersonas } from "#domain/persona";
@@ -53,7 +54,7 @@ export interface WorldInfoComposeDeps {
   /** chat's DURABLE-APPEND-FREE live fan (design §3.4) — the entity→room bridge's emit surface. Threaded here
    *  so `removeBook`'s PRE-WRITE reach capture (§3.6 residual) can fan `roomEntityChanged` to the rooms whose
    *  assembly pool read the deleted book, snapshotted before the CASCADE tore the junctions down. */
-  readonly emitChatEventLive: (event: LiveOnlyChatBusEvent) => void;
+  readonly emitChatEventLive: ChatServiceDeps["emitLive"];
   readonly assets: Pick<AssetsService, "resolveOwnedAssetRefs">;
   /** character's find-or-mint of a room's synthetic `__group__<chatId>` narrator identity — the SAME op
    *  chat's turn verb runs for a live `output:"narrator"` round. The bulk-import write needs it so an

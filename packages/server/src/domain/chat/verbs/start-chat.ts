@@ -33,15 +33,16 @@
 // a claim; the first claim comes from whatever the caller does NEXT (a send, a generated opening, an
 // explicit host config write — `verbs/claim-chat.ts`).
 
-import type { MessageView, OpeningPolicy } from "@orb/contracts/chat";
+import type { ChatRpgGameBirthPlan, MessageView, OpeningPolicy } from "@orb/contracts/chat";
 import type { ChatRpgPointer } from "@orb/contracts/rpg";
 import { chatInjections, chatParticipants, chats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany, batchStmt } from "@orb/db/query";
+import type { StatementToken } from "@orb/db/wiring";
 import { statementForOwner } from "@orb/db/wiring-owner";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
-import type { ChatContext, ChatRpgGameBirthPlan, ChatServiceDeps, LoadParticipantViewsOp } from "../contract/context.ts";
+import type { ChatContext, ChatServiceDeps, LoadParticipantViewsOp } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type { StartChatParams } from "../contract/params.ts";
 import type { StartChatData, TurnOutcome } from "../contract/results.ts";
@@ -165,7 +166,7 @@ async function resolveFoundingAnchor(
 
 /** RPG contributes statements to the chat-owned birth batch. An unwired RPG collaborator preserves the
  * ordinary chat-only creation shape. */
-function planGameBirth(ctx: ChatContext, chatId: ChatId, startAsGame: StartChatParams["startAsGame"]): ChatRpgGameBirthPlan | null {
+function planGameBirth(ctx: ChatContext, chatId: ChatId, startAsGame: StartChatParams["startAsGame"]): ChatRpgGameBirthPlan<StatementToken> | null {
   return startAsGame !== undefined && ctx.rpg !== null ? ctx.rpg.planGameBirth(chatId, startAsGame) : null;
 }
 

@@ -1,11 +1,11 @@
 // The chat data and injected ops the rpg domain consumes. Runtime types (AbortSignal, resolved connections,
 // tool wires) stay with their owners; each consumer types its op signature over these shapes.
 
-import type { CharacterId, ChatId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, MessageId, MessageVariantId, RpgGameId, UserId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { ChatMembership } from "#identity";
 import type { ProseOverrides } from "#prose-slot";
-import type { ChatRpgPointer, RpgParticipantActor } from "#rpg";
+import type { ChatRpgPointer, RpgGameTemplate, RpgParticipantActor } from "#rpg";
 import type { ChatInjection } from "./assemble.ts";
 
 /** The turn-kind axis of a chat turn. */
@@ -118,6 +118,17 @@ export interface ForkGameResult {
 }
 
 export type ForkGameOp = (args: ForkGameArgs) => Promise<ForkGameResult>;
+
+/** RPG's unexecuted contribution to a chat-owned atomic birth batch. `Statement` is the consumer's database
+ *  statement handle, which contracts cannot name. */
+export interface ChatRpgGameBirthPlan<Statement> {
+  readonly gameId: RpgGameId;
+  readonly statements: readonly Statement[];
+}
+
+/** The draft-time game birth plan: rpg builds its own table statements and minted id, chat folds them into the
+ *  room's creation batch. */
+export type PlanGameBirthOp<Statement> = (chatId: ChatId, params: RpgGameTemplate) => ChatRpgGameBirthPlan<Statement>;
 
 /** The GM seat holder's FK-derived kind. Chat branches only on the `agent` arm. */
 type GmSeatHolderKind = { readonly kind: "human" } | { readonly kind: "agent"; readonly enabled: boolean };

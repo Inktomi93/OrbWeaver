@@ -14,13 +14,12 @@ import type {
   SuggestibleAction,
   TriggerFact,
 } from "@orb/contracts/automation";
-import type { PromptTransform, ResolveViewerVisibility } from "@orb/contracts/chat";
+import type { RegisterPromptTransformOp, ResolveChatProseOp, ResolveViewerVisibility, UnregisterPromptTransformOp } from "@orb/contracts/chat";
 import type { Can, Principal } from "@orb/contracts/identity";
 import type { GeneratePicturePrompt, SizePresetName } from "@orb/contracts/imagery";
 import type { NotificationEvent, NotificationRecipient } from "@orb/contracts/notifications";
 import type { ExecutePluginSuggestion, PluginBridge, PluginSuggestedAct } from "@orb/contracts/plugin";
 import type { SideGenKind } from "@orb/contracts/preset";
-import type { ProseOverrides } from "@orb/contracts/prose";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { IsToolDrivableByOp } from "@orb/contracts/tool-use";
@@ -274,7 +273,7 @@ export interface AutomationOps {
     /** PROSE-1 census 91 — the ROOM HOST's prose overrides for this chat (owner-decision 8, option (a)),
      *  wired to chat's `resolveChatProse` at compose. The `set_chat_background` quiet pick reads its two
      *  authored clauses from here; a hostless/stale room resolves `{}` ⇒ the shipped defaults. */
-    readonly resolveChatProse: (chatId: ChatId) => Promise<ProseOverrides>;
+    readonly resolveChatProse: ResolveChatProseOp;
     /** BG-F — the `set_chat_background` arm's WRITE, wired to chat's host-gated `setChatBackground` under the
      *  author's Principal at compose (the author's dispatch-time host authority was re-verified at the gate).
      *  Writes the per-chat carried background — INERT for every viewer outside a true-solo room (BG-C), which
@@ -433,8 +432,8 @@ export interface PromptTransformIndexDeps {
   readonly ops: AutomationOps;
   readonly prng: RandomSource;
   readonly now: Clock;
-  readonly register: (transform: PromptTransform) => void;
-  readonly unregister: (id: string) => void;
+  readonly register: RegisterPromptTransformOp;
+  readonly unregister: UnregisterPromptTransformOp;
 }
 
 /** The prompt-transform index — the automation side of the D50 `PromptTransform` seam. A

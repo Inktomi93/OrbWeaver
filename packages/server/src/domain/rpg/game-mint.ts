@@ -5,18 +5,22 @@
 //   • `chat-ops.planGameBirth` — the #40 DRAFT-TIME front door: `chat.startChat` folds RPG's statement and
 //     its own pointer into room birth, so turn 1 is already in-game (rpg steering rides the first beat).
 
+import type { ChatRpgGameBirthPlan } from "@orb/contracts/chat";
 import type { RpgRuleset } from "@orb/contracts/rpg";
 import { RPG_RULESET_DEFAULT, RPG_RULESET_PROFILE, rpgGameConfigSchema, rpgSeedTrackers } from "@orb/contracts/rpg";
 import { rpgGames } from "@orb/db";
 import { batchMany, batchStmt } from "@orb/db/query";
+import type { StatementToken } from "@orb/db/wiring";
 import { statementForOwner, statementToken } from "@orb/db/wiring-owner";
 import type { ChatId, RpgGameId } from "@orb/kit/ids";
-import type { ChatRpgGameBirthPlan } from "../chat/index.ts";
 import type { RpgContext } from "./contract/service.ts";
 
 /** Build the one RPG-owned contribution to either birth path. No write occurs until the caller commits the
  *  returned statement, which lets `chat.startChat` fold it into room creation without constructing an RPG row. */
-export function planLiteGameBirth(ctx: RpgContext, args: { readonly chatId: ChatId; readonly ruleset?: RpgRuleset | undefined }): ChatRpgGameBirthPlan {
+export function planLiteGameBirth(
+  ctx: RpgContext,
+  args: { readonly chatId: ChatId; readonly ruleset?: RpgRuleset | undefined },
+): ChatRpgGameBirthPlan<StatementToken> {
   const now = ctx.now();
   // #862 — the game is born with a RULESET (default `freeform`), and its vocabulary DERIVES from that one
   // setting: `statProfile` + the seeded trackers are the ruleset's data, never a second stored choice.
