@@ -54,7 +54,11 @@
   }
   .shell-topbar-trail {
     flex: 0 1 auto;
-    min-inline-size: var(--size-touch-target);
+    min-inline-size: var(--size-control-md);
+  }
+  /* A trail with no visible action claims no room at all. */
+  .shell-topbar-trail[data-empty] {
+    min-inline-size: 0;
   }
   /* The one seam in the trail, between the command chip and the icon cluster. */
   .shell-topbar-divider {
@@ -77,8 +81,11 @@
    * floors its title group instead, since a floor on text inside a shrinkable box spills over its neighbours. */
   .shell-topbar-identity[data-identity="narrow"] .shell-topbar-title {
     /* A column too narrow for the lead control, this floor and the menu trigger lets the floor shrink with it, so
-     * nothing sits past the row's edge. */
-    min-inline-size: min(var(--dimension-shell-title-floor), 25cqi);
+     * nothing sits past the row's edge: both controls are one icon-button step, and the gaps and padding are the row's. */
+    min-inline-size: min(
+      var(--dimension-shell-title-floor),
+      max(0px, calc(100cqi - 2 * var(--size-control-md) - 3 * var(--spacing-row) - 2 * var(--spacing-block)))
+    );
   }
 
   /* The chat identity's shrink order: the title group owns the floor and clips its overflow, the room name yields

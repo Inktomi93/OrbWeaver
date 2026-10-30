@@ -11,7 +11,7 @@
 
 import type { ReactElement, ReactNode } from "react";
 import type { OverflowAction } from "#components";
-import { OverflowActions, OverflowMenuForms } from "#components";
+import { OverflowActions, OverflowMenuForms, TRAIL_OVERFLOW_LABEL } from "#components";
 import type { OverflowMenuForm } from "#lib";
 import type { ActionChromeEntry, ChromeEntry } from "#state";
 import { openModal, useChromeRegistry } from "#state";
@@ -39,7 +39,7 @@ export function TopbarTrailChrome({ mobile }: { readonly mobile: boolean }): Rea
     .filter(isTrailEntry)
     .filter((e) => !(mobile && e.mobile === "sheet"))
     .map((entry) => ({ id: entry.id, inline: <TrailEntry entry={entry} />, menu: <TrailMenuEntry entry={entry} /> }));
-  return <OverflowActions actions={actions} className="shell-topbar-trail" />;
+  return <OverflowActions actions={actions} className="shell-topbar-trail" gap="field" label={TRAIL_OVERFLOW_LABEL} />;
 }
 
 function WidgetMenuForms({ useMenuForms }: { readonly useMenuForms: () => readonly OverflowMenuForm[] }): ReactElement {

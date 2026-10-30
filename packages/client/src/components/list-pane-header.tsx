@@ -22,7 +22,7 @@ import type { ReactElement } from "react";
 import type { ListPaneHeaderProps } from "#lib";
 import { LIST_PANE_TITLE_ID } from "#lib";
 import { CountText } from "./count-text.tsx";
-import { OverflowActions, OverflowMenuForms } from "./overflow-actions.tsx";
+import { BAND_OVERFLOW_LABEL, OverflowActions, OverflowMenuForms } from "./overflow-actions.tsx";
 
 export type { ListPaneHeaderProps } from "#lib";
 
@@ -129,9 +129,12 @@ export function ListPaneHeader({ title, accent, count, back, actions }: ListPane
           shell.css's mobile band-shed test (`:not(:has(> *:not([data-slot="list-pane-identity"])))`) reads
           exactly what it read before: one non-identity child iff the pane has a primary action. */}
       {actions === undefined || actions.length === 0 ? null : (
-        <div data-slot="list-pane-action">
-          <OverflowActions actions={actions.map((action) => ({ id: action.id, inline: action.inline, menu: <OverflowMenuForms forms={action.menu} /> }))} />
-        </div>
+        <OverflowActions
+          actions={actions.map((action) => ({ id: action.id, inline: action.inline, menu: <OverflowMenuForms forms={action.menu} /> }))}
+          gap="field"
+          label={BAND_OVERFLOW_LABEL}
+          slot="list-pane-action"
+        />
       )}
     </>
   );

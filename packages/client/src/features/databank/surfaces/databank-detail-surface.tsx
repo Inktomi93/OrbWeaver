@@ -128,10 +128,11 @@ function DatabankWelcome(): ReactElement {
   const trpc = useTRPC();
   const listMode = useSectionListMode("databank");
   const census = useQuery(trpc.databank.bankHealth.queryOptions());
-  // `data-ready`: the pane has no skeleton, so its root declares when the first read has settled (data or error). The
+  // `data-ready`: the pane has no skeleton, so its root declares when the first read has settled or cannot proceed (data,
+  // error, or paused offline: `isLoading` is a read in flight). The
   // root persists across the read, so a section swap holds the outgoing view for it and shell/motion.css fades it in.
   return (
-    <Stack align="center" className="justify-center block-full min-block-0" data-ready={census.isPending ? "false" : "true"}>
+    <Stack align="center" className="justify-center block-full min-block-0" data-ready={census.isLoading ? "false" : "true"}>
       {census.data === undefined ? null : (
         // action={null}: the Databank CONTENT landing. It explains the Databank (empty bank) or nudges a pick (populated bank) and points at the one Add door, which lives in the sibling list (the band's Add and the empty bank's own CTA); minting a second Add button here is the refused two-Add-doors arm. Ends if the library stops carrying a create door.
         <EmptyState

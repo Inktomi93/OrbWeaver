@@ -105,9 +105,11 @@
     min-inline-size: var(--dimension-shell-title-floor);
   }
   .shell-panel-header [data-slot="list-pane-action"] {
-    display: flex;
     flex: 0 1 auto;
-    min-inline-size: var(--size-touch-target);
+    min-inline-size: var(--size-control-md);
+  }
+  .shell-panel-header [data-slot="list-pane-action"][data-empty] {
+    min-inline-size: 0;
   }
   /* The content-to-context binding signals state, so the ember top edge is the primary tone's solid (3:1 non-text). The
    * header stamps that tone (`SHELL_ACCENT_TONE`). */

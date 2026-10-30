@@ -11,8 +11,11 @@ import { SHELL_STORIES } from "./app-shell-ct.ts";
 const STORY = `${SHELL_STORIES}/AppShellStory`;
 const SETTLED_KEY = "__swapSettledReady";
 const STARTED_KEY = "__swapsStarted";
-// How long a swap must have held to show it did not release at its quiet interval.
-const HELD_PAST_MS = 100;
+// A frame count, not a duration: the swap's own settle polls run on timers, so a count of painted frames is a barrier that
+// stretches with the machine's load. It is far past the few polls a swap that ignores `data-ready` needs to settle.
+const FRAMES_PAST_QUIET = 60;
+// Longer than any test runs, so only the pane's own readiness can end the swap's wait.
+const DEADLINE_STYLE = ".shell-grid { --shell-swap-deadline: 600000ms; }";
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
 
@@ -37,14 +40,10 @@ async function recordSwaps(page: Page): Promise<void> {
       const start = document.startViewTransition.bind(document);
       document.startViewTransition = (update): ViewTransition => {
         Reflect.set(globalThis, startedKey, Number(Reflect.get(globalThis, startedKey)) + 1);
-        const began = performance.now();
         const transition = start(update);
         transition.updateCallbackDone
           .then(() => {
-            Reflect.set(globalThis, settledKey, {
-              ready: document.querySelector(".shell-content [data-ready]")?.getAttribute("data-ready") ?? "absent",
-              elapsed: performance.now() - began,
-            });
+            Reflect.set(globalThis, settledKey, document.querySelector(".shell-content [data-ready]")?.getAttribute("data-ready") ?? "absent");
           })
           .catch(globalThis.reportError);
         return transition;
@@ -71,7 +70,7 @@ async function routeHeld(page: Page, corpus: Parameters<typeof createShellAmbien
 }
 
 for (const family of FAMILIES) {
-  test(`the swap into ${family.name} does not settle on an unsettled pane inside its deadline, and the pane shows once its read lands`, async ({
+  test(`the swap into ${family.name} holds the outgoing view until the pane's first read lands, then settles on the ready pane`, async ({
     corpus,
     mount,
     page,
@@ -79,19 +78,41 @@ for (const family of FAMILIES) {
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await recordSwaps(page);
     const held = await routeHeld(page, corpus, family.held);
-    await seedShellState(page, { activeSection: "home" });
+    // The swap starts from Chats: Home's tiles read these same procedures, and their own skeleton rows would hold the swap
+    // to its deadline whether or not the destination declared its readiness. Each destination's list is collapsed for the
+    // same reason (its rows read the held procedure behind a skeleton), so the content pane's readiness is the only thing
+    // the swap can be waiting for.
+    await seedShellState(page, {
+      activeSection: "chats",
+      panelOverrides: { databank: { list: "collapsed" }, extensions: { list: "collapsed" }, presets: { list: "collapsed" } },
+    });
     await mount<typeof AppShellStory>(STORY, {});
+    await page.addStyleTag({ content: DEADLINE_STYLE });
     await page.locator(".shell-rail").getByRole("button", { name: family.label, exact: true }).click();
     await held.requested;
     // While the read is out, the surface says so.
     await expect(page.locator(".shell-content [data-ready]")).toHaveAttribute("data-ready", "false");
-    // The read stays out until the swap has given up waiting, so the swap's own bound is what ends it.
-    await expect.poll(() => page.evaluate((key) => Reflect.get(globalThis, key), SETTLED_KEY)).toBeDefined();
-    const settled = (await page.evaluate((key) => Reflect.get(globalThis, key), SETTLED_KEY)) as { readonly ready: string; readonly elapsed: number };
-    // It held well past the 48ms quiet interval that ended the wait while the pane was still unsettled.
-    expect(settled.elapsed).toBeGreaterThan(HELD_PAST_MS);
+    await page.evaluate(
+      (frames) =>
+        new Promise<void>((resolve) => {
+          let seen = 0;
+          const step = (): void => {
+            seen += 1;
+            if (seen >= frames) {
+              resolve();
+            } else {
+              requestAnimationFrame(step);
+            }
+          };
+          requestAnimationFrame(step);
+        }),
+      FRAMES_PAST_QUIET,
+    );
+    // The swap has had far longer than it needs to settle on a pane that ignores its read, and has not: the outgoing frame holds.
+    expect(await page.evaluate((key) => Reflect.get(globalThis, key), SETTLED_KEY)).toBeUndefined();
     held.release();
-    await expect(page.locator(".shell-content [data-ready]")).toHaveAttribute("data-ready", "true");
+    // It settles on a ready pane, and the pane shows.
+    await expect.poll(() => page.evaluate((key) => Reflect.get(globalThis, key), SETTLED_KEY)).toBe("true");
     await expect(page.locator(".shell-content [data-ready]")).toHaveCSS("opacity", "1");
   });
 

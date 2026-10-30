@@ -1,7 +1,7 @@
 // The shell's topbar on the production registry: the narrow screen name a phone reads, the ⌘K chip's name, the phone
 // row's geometry at the narrowest width, the Characters band's doors moving to the trail while the list is the screen,
 // and an open room's identity: its participants, its name, its chips and the context pane's header on the same horizon.
-import { OVERFLOW_TRIGGER_LABEL } from "@orb/client/components";
+import { TRAIL_OVERFLOW_LABEL } from "@orb/client/components";
 import { censusTitle, chatRoomTitle } from "@orb/client/lib";
 import type { ChatId } from "@orb/kit/ids";
 import { pixel, resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
@@ -128,12 +128,12 @@ test.describe("on a phone", () => {
     await expect(library(page).getByRole("button").first()).toBeVisible();
     const trail = page.locator(".shell-topbar-trail");
     await expect(trail.getByRole("button", { name: "New", exact: true })).toBeHidden();
-    await trail.getByRole("button", { name: OVERFLOW_TRIGGER_LABEL }).click();
+    await trail.getByRole("button", { name: TRAIL_OVERFLOW_LABEL }).click();
     await expect(page.getByRole("menuitem", { name: "New character", exact: true })).toBeVisible();
     await expect(page.getByRole("menuitem", { name: "Import a character card", exact: true })).toBeVisible();
     await page.keyboard.press("Escape");
     await library(page).getByRole("button").first().click();
-    await expect(trail.getByRole("button", { name: OVERFLOW_TRIGGER_LABEL })).toHaveCount(0);
+    await expect(trail.getByRole("button", { name: TRAIL_OVERFLOW_LABEL })).toHaveCount(0);
   });
 });
 

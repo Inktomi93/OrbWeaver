@@ -74,3 +74,18 @@ for (const section of SECTIONS) {
     expect(region).toBe("body");
   });
 }
+
+for (const section of SECTIONS) {
+  test(`returning to ${section.id} from Home by the rail lands focus on the band's control again`, async ({ mount, page }) => {
+    await seedShellState(page, { activeSection: "home" });
+    await mount<typeof AppShellStory>(STORY, {});
+    const rail = page.locator(".shell-rail");
+    for (const label of [section.label, "Home", section.label]) {
+      const entry = rail.getByRole("button", { name: label, exact: true });
+      await entry.focus();
+      await entry.press("Enter");
+    }
+    await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", section.id);
+    await expect.poll(() => focusRegion(page)).toBe("band");
+  });
+}

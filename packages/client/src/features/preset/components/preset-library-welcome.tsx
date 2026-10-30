@@ -79,7 +79,7 @@ export function PresetLibraryWelcome(): ReactElement {
   // The SAME cache the list pane and the band's census read (a non-suspending `useQuery` — this pane must
   // not suspend on a fact that only changes its wording), through the SAME predicate (`filterPresetsByName`),
   // so the three readers cannot drift into three answers about one list.
-  const { data: presets, isPending } = useQuery(trpc.preset.list.queryOptions());
+  const { data: presets, isLoading } = useQuery(trpc.preset.list.queryOptions());
   const needle = presetSearchNeedle(usePresetSearchQuery());
   // NEEDLE FIRST, deliberately: an unlanded/failed read leaves `presets` undefined, and "0 rows" would then
   // be a claim about the REQUEST, not about the filter. With no needle there is no filtered-to-nothing state
@@ -87,9 +87,10 @@ export function PresetLibraryWelcome(): ReactElement {
   const filteredToNothing = needle !== "" && filterPresetsByName(presets ?? [], needle).length === 0;
   const teaching = filteredToNothing ? NO_MATCHES : TEACHING;
   return (
-    // `data-ready`: this pane has no skeleton, so it declares when its first read has settled (data, empty or error);
-    // a section swap holds the outgoing view for it, and shell/motion.css fades the pane in if it settles later.
-    <Stack align="center" className="justify-center block-full min-block-0" data-ready={isPending ? "false" : "true"}>
+    // `data-ready`: this pane has no skeleton, so it declares when its first read has settled or cannot proceed (data,
+    // empty, error, or paused offline: `isLoading` is a read that is actually in flight). A section swap holds the
+    // outgoing view for it, and shell/motion.css fades the pane in if it settles later.
+    <Stack align="center" className="justify-center block-full min-block-0" data-ready={isLoading ? "false" : "true"}>
       {/* action={null}: the Presets CONTENT teaching state — a "pick a preset on the left, or create one" nudge shown alongside the library list, which itself carries the create CTA. The next step lives in the sibling list, so this state legitimately has no action of its own. Ends if the preset library list stops carrying its create CTA. */}
       <EmptyState
         action={null}

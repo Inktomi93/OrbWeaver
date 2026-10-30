@@ -1033,6 +1033,14 @@ export const DOM_LOOKUP_HOMES = [
   },
   {
     file: "packages/client/src/lib/view-transition.ts",
+    function: "destinationDeadline",
+    method: "querySelector",
+    receiver: "g.document",
+    selector: ".shell-grid",
+    reason: "The transition lifecycle adapter reads the frame's declared swap deadline from the one element that carries it.",
+  },
+  {
+    file: "packages/client/src/lib/view-transition.ts",
     function: "destinationSettled/check",
     method: "querySelector",
     receiver: "g.document",
@@ -1062,7 +1070,7 @@ export const DOM_LOOKUP_HOMES = [
     method: "querySelector",
     receiver: "browserDocument",
     selector:
-      '[data-panel-side="list"] :is([data-slot="list-pane-back"], [data-slot="list-pane-action"] :is(button, a[href], input, select, textarea)):not(:disabled)',
+      '[data-panel-side="list"] :is([data-slot="list-pane-back"], [data-slot="list-pane-action"] :is(button, a[href], input, select, textarea)):not(:disabled):not([inert] *):not([data-overflowed] *)',
     reason: "A list surface lands arrival focus on its LIST band's first control; the band is a sibling shell region, so no ref reaches it.",
   },
   {

@@ -24,7 +24,7 @@ import { useTRPC } from "#data";
 import type { EXTENSIONS_EMPTY_COPY } from "../lib/extensions-copy.ts";
 
 export interface ExtensionsEmptyView {
-  /** Has the first read of the plugin list and the surface catalog settled (data or error)? */
+  /** Has the first read of the plugin list and the surface catalog settled or become unable to proceed (data, error or offline)? */
   readonly settled: boolean;
   readonly reason: keyof typeof EXTENSIONS_EMPTY_COPY | null;
   readonly awaitingPlugins: readonly PluginView[];
@@ -50,10 +50,11 @@ const UNREAD: ExtensionsEmptyView = { settled: true, reason: null, awaitingPlugi
  */
 export function useExtensionsEmpty(): ExtensionsEmptyView {
   const trpc = useTRPC();
-  const { data: plugins, isPending: pluginsPending } = useQuery(trpc.plugin.list.queryOptions());
-  const { data: surfaces, isPending: surfacesPending } = useQuery(trpc.plugin.listSurfaces.queryOptions());
+  const { data: plugins, isLoading: pluginsLoading } = useQuery(trpc.plugin.list.queryOptions());
+  const { data: surfaces, isLoading: surfacesLoading } = useQuery(trpc.plugin.listSurfaces.queryOptions());
   if (plugins === undefined || surfaces === undefined) {
-    return pluginsPending || surfacesPending ? PENDING : UNREAD;
+    // A read in flight is pending; one that failed or is paused offline cannot proceed, and the pane says so with its own copy.
+    return pluginsLoading || surfacesLoading ? PENDING : UNREAD;
   }
   // By name, so the waiting group and the action that opens its first review read in one order.
   const awaitingPlugins = plugins.filter((plugin) => plugin.reconsentPending).toSorted((a, b) => a.name.localeCompare(b.name));

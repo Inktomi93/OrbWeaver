@@ -21,8 +21,9 @@ interface MinimalDocument {
 const DIALOG_FOCUS_SCOPE = '[role="dialog"], [role="alertdialog"]';
 // The LIST band's controls in tab order: the back chevron, then the pane's primary action. The band is a
 // sibling region of the surface, so the surface finds it through the slots `ListPaneHeader` stamps.
+// An action that moved into the menu is inert, so the first VISIBLE control is the next action, or the menu trigger.
 const LIST_BAND_FIRST_CONTROL =
-  '[data-panel-side="list"] :is([data-slot="list-pane-back"], [data-slot="list-pane-action"] :is(button, a[href], input, select, textarea)):not(:disabled)';
+  '[data-panel-side="list"] :is([data-slot="list-pane-back"], [data-slot="list-pane-action"] :is(button, a[href], input, select, textarea)):not(:disabled):not([inert] *):not([data-overflowed] *)';
 const browserDocument = (globalThis as { document?: MinimalDocument }).document;
 
 /** Focus a freshly-mounted surface — keyboard/SR focus management for when the user NAVIGATES to it.
