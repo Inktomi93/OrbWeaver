@@ -1,5 +1,6 @@
 // The boot disclaimer composes one line per fact and one security line per standing exposure; a healthy box says nothing alarming.
 import type { AuthMode } from "@orb/contracts/identity";
+import { AUTH_MODES } from "@orb/contracts/identity";
 import { composeBootDisclaimer } from "@orb/server/entry/boot";
 import { bindPostureInput, ownerFallbackPeerInput, resolveBindPosture, resolveOwnerFallbackPeers } from "@orb/server/foundation/env/record";
 import { expect, test } from "@orb/testkit/node";
@@ -42,10 +43,15 @@ const OIDC: EnvInput = {
   ["OIDC_CLIENT_SECRET"]: "x",
   ["OIDC_REDIRECT_URIS"]: "https://orb.example.test/api/auth/callback",
 };
-const LOGIN_MODES: readonly EnvInput[] = [
-  { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" },
-  { ...OIDC, ["AUTH_FALLBACK"]: "deny" },
-];
+// One row per login mode, so a mode added to the auth-mode tuple fails tsc here until it has a valid record.
+type LoginMode = Exclude<AuthMode, "single-user">;
+const LOGIN_MODE_ENV: Readonly<Record<LoginMode, EnvInput>> = {
+  local: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" },
+  "forward-header": { ["AUTH_MODE"]: "forward-header", ["AUTH_FALLBACK"]: "deny" },
+  oidc: { ...OIDC, ["AUTH_FALLBACK"]: "deny" },
+};
+const isLoginMode = (mode: AuthMode): mode is LoginMode => mode !== "single-user";
+const LOGIN_MODES: readonly EnvInput[] = AUTH_MODES.filter(isLoginMode).map((mode) => LOGIN_MODE_ENV[mode]);
 
 test("a block names the mode, listener, owner rule, cookie rule and secrets, in that order", () => {
   expect(topics(composeBootDisclaimer(options({ ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" })))).toEqual([
@@ -72,12 +78,22 @@ test("the single-user proxy caveat rides every single-user boot as information, 
   }
 });
 
-test("each standing exposure is exactly one security line, always a warning, and a healthy box has none", () => {
+test("each standing exposure kind is exactly one security line and a warning, and a healthy box has none", () => {
   expect(securityLines(composeBootDisclaimer(options({})))).toHaveLength(0);
-  expect(securityLines(composeBootDisclaimer(options({}, { ownerPeerWarnings: ["widened"] })))).toHaveLength(1);
-  const lines = composeBootDisclaimer(options({}, { bindWarnings: ["hatch"], diagnosticsWarnings: ["ring", "token"] }));
-  expect(securityLines(lines)).toHaveLength(3);
-  expect(securityLines(lines).every((line) => line.level === "warn")).toBe(true);
+  const live = options({ ...OIDC, ["AUTH_FALLBACK"]: "owner", ["AUTH_BREAK_GLASS"]: "true" });
+  const kinds: Readonly<Record<string, Options>> = {
+    bind: options({}, { bindWarnings: ["hatch"] }),
+    "owner peers": options({}, { ownerPeerWarnings: ["widened"] }),
+    diagnostics: options({}, { diagnosticsWarnings: ["ring"] }),
+    "break-glass": live,
+  };
+  for (const [kind, given] of Object.entries(kinds)) {
+    const lines = securityLines(composeBootDisclaimer(given));
+    expect(lines, kind).toHaveLength(1);
+    expect(lines[0]?.level, kind).toBe("warn");
+  }
+  // Several warnings of one kind are one line each.
+  expect(securityLines(composeBootDisclaimer(options({}, { diagnosticsWarnings: ["ring", "token"] })))).toHaveLength(2);
 });
 
 test("break-glass is an exposure only for a login mode that also lets the owner in without a credential", () => {

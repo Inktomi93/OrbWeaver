@@ -4,6 +4,7 @@ import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import type { Db } from "@orb/db";
 import { assertReferentialIntegrity, backupBeforeMigrate, checkBaseline, hasPendingMigrations, pruneDbBackups, runMigrations } from "@orb/db";
+import { DomainOperationError } from "@orb/kit/errors";
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 
@@ -44,7 +45,8 @@ export async function runBootMigrations(deps: MigrateDeps): Promise<void> {
   // The refusal comes BEFORE the backup: a boot that is going to abort has no db change to protect, and each
   // backup is a full copy.
   if (baseline.status === "regenerated") {
-    throw new Error(
+    throw new DomainOperationError(
+      "boot_migration_diverged",
       `boot/migrate: this database recorded migration ${baseline.appliedHash.slice(0, HASH_LOG_PREFIX)}…, which is in no entry of the shipped migration chain (newest: ${baseline.currentHash.slice(0, HASH_LOG_PREFIX)}…) — refusing to auto-wipe it. An applied migration is never edited or deleted; ship a forward incremental migration instead (a squash-reset would destroy live data).`,
     );
   }

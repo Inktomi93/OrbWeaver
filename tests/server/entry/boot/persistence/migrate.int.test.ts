@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { Db } from "@orb/db";
 import { backupBeforeMigrate, checkBaseline, closeDb, createDb, hasPendingMigrations, listBackupFiles, messageVariants, runMigrations } from "@orb/db";
+import { DomainOperationError } from "@orb/kit/errors";
 import { runBootMigrations } from "@orb/server/entry/boot";
 import { expect, test } from "@orb/testkit/node";
 import { createTestLogger, migrationsBefore, SHIPPED_MIGRATIONS } from "@orb/testkit/node/composed";
@@ -183,7 +184,8 @@ test("a database that recorded a migration the shipped chain does not hold refus
     // What a squashed or edited baseline leaves behind: the recorded migration is in no shipped entry.
     await db.run(sql`UPDATE __drizzle_migrations SET created_at = 0`);
     expect((await checkBaseline(db, SHIPPED_MIGRATIONS)).status).toBe("regenerated");
-    await expect(boot(db, where)).rejects.toThrow();
+    // The refusal is the boot's own typed error; a drizzle or SQLite failure from re-applying the chain is not.
+    await expect(boot(db, where)).rejects.toBeInstanceOf(DomainOperationError);
 
     expect(await contents(db)).toEqual([CONTENT]);
     expect(backupsIn(where.backupDir)).toEqual(copies);

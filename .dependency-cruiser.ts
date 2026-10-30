@@ -367,7 +367,6 @@ const TEST_CONSTANT_HOMES = {
   "packages/contracts/src/rpg/trace.ts": "rpgTraceEventSchema: the trace event parser",
   "packages/contracts/src/rpg/tracker.ts": "rpgTrackerValueSchema: the tracker value parser",
   "packages/contracts/src/workloads/admission.ts": "WORKLOAD_UNFUNDED: the unfunded refusal code",
-  "packages/db/src/client/index.ts": "buildResetDropScript: the reset script builder",
   "packages/db/src/query/check-list.ts": "checkList: the SQL literal-list formatter",
   "packages/inference/src/contract/errors.ts": "PROVIDER_ERROR_KINDS: the provider error vocabulary",
   "packages/ui/src/content/immersive-card/control-labels.ts": "IMMERSIVE_CARD_LABELS: the card header's control names",

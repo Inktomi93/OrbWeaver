@@ -290,7 +290,7 @@ Decisions for `server/entry/boot/migrate.int.test.ts`:
 | Backup failure aborts before the reset | Rebuild | Boot suite: an unwritable backup dir aborts before the forward migration, and the retry migrates. The proxy that forced a transaction failure is dropped as fabricated. |
 | Debris at the stamped backup path is replaced | Rebuild | Boot suite. The name comes from `backupBeforeMigrate`, not a copy of its rule. |
 | A reset boot backs up first, then prunes to the cap | Rebuild, narrowed; the reset trigger is deleted | Boot suite asserts the migrating boot prunes the oldest copy and keeps the newest, and a no-op boot prunes nothing. Retention counts, pins and daily rollup stay with the database client batch. |
-| Shipped posture refuses a diverged chain on a file database before any backup | Rebuild | Boot suite, last case: the database, the rows and the copies are unchanged. |
+| Shipped posture refuses a diverged chain on a file database before any backup | Rebuild | Boot suite, last case: the refusal is the boot's own typed `DomainOperationError`, which a drizzle crash from re-applying the chain is not, and the database, the rows and the copies are unchanged. |
 | A launched memory database refuses to auto-wipe | Keep | Covered by the file-database case above. |
 | Omitting `launched` fails closed | Drop: the reset arm is deleted under D163 | No posture option remains to omit; the type case guards it. |
 
@@ -374,10 +374,10 @@ Decisions for `server/entry/boot/disclaimer.test.ts`:
 | Topics in order | Rebuild | Boot disclaimer. |
 | Healthy loopback single-user carries the caveat and no security line | Rebuild | Same. |
 | Caveat rides a widened-peer single-user box | Rebuild | Same. |
-| Login modes carry no caveat | Rebuild | Same. |
-| Each exposure is one security warning | Rebuild | Same. |
+| Login modes carry no caveat | Rebuild | Same, over every login mode in the auth-mode tuple, with a row record that fails `tsc` for a new mode. |
+| Each exposure is one security warning | Rebuild | Same, for every exposure kind: bind, owner peers, diagnostics and break-glass. |
 | Closed forward-header door warns but is not an exposure | Rebuild | Same. |
-| Every security line is a warning | Rebuild | Folded into the exposure case. |
+| Every security line is a warning | Rebuild | Folded into the exposure case, asserted for each kind. |
 | Break-glass line | Rebuild | Same, with a control per ingredient. |
 
 Defect controls: each guarded production behavior was planted in a worktree and the named case failed for its intended reason. The planted behaviors are the drifted-chain refusal, the posture option type, the backup gate, the abort on a failed backup, the retention sweep and its boot gating, debris replacement, the target-conflict check, the cross-device pre-flight, the sole-holder claim, the first-boot snapshot, own-pid and live-pid journal handling, keeper and skip-list planning, zero-byte handling, the resume snapshot rule, the skip validation, explicit-set recording, the boolean vocabulary, the gate defaults, the parse-time skip check, the override direction, the byte-order mark, `ORB_ENV_NO_FILE` and each disclaimer gate.
