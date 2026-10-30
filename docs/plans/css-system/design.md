@@ -134,9 +134,79 @@ Done when: a geometry CT measures one row of mixed controls per step at both poi
 2. Move every call site to its component, then delete the old values from the primitive.
 3. Remove the visual-state axes from the layout boxes by the layout table.
 
-Codemods: `move-import-names` moves each call site's import to the new door. `rename-identifier` renames the element at its sites. `root-attribute-to-variant` moves any stylesheet rule keyed on a removed root attribute.
+Codemods: `tooling/src/codemods/use-specific-extraction` moves each element that carries a mapped attribute value to its named component and door. It reads one family map from `tooling/src/codemods/use-specific-extraction/maps/`. It refuses an element with a spread or a computed matched value, so those sites are hand edits. `move-import-names` and `rename-identifier` move a whole binding, so they cannot select elements by an attribute value. `root-attribute-to-variant` moves any stylesheet rule keyed on a removed root attribute.
+
+Run a family map from the repository root:
+
+```bash
+pnpm codemod workflow run -w tooling/src/codemods/use-specific-extraction -t . --param map=tooling/src/codemods/use-specific-extraction/maps/<family>.json --no-interactive --allow-dirty
+```
 
 Done when: `tsc` refuses each removed value. `tests/client/features/app-shell/surface-census.suite.ct.tsx` passes. The captures show no unexplained difference.
+
+##### Step 4 sub-steps
+
+Step 4 lands as ordered sub-steps. Each sub-step is one commit and leaves the app working. Each one adds its family map, its components with their CTs, a `.dom.test-d.ts` per touched primitive and its captures.
+
+| Sub-step | Scope | Depends on |
+| - | - | - |
+| 4a | The codemod, the button family core, `GlyphButton`, `InlineAction`, `PictureButton` | none |
+| 4b | `InlineToken`, `IndicatorDot` | 4a; the shell lane merged (`context-rail.tsx`, `rail.tsx`) |
+| 4c | `MessageBubble`, the theme preview parts, `FloatingChip`, `RoomIsland`, `Spoiler`, the plate and backdrop flag, `shadow="overlay"` | 4a; the shell lane merged (`appearance-elevation-cards.tsx`, `appearance-density-cards.tsx`) |
+| 4d | The layout boxes: `FocalSection`, `highlight`, slide and lift, `opacityMotion`, `stateFill`, `dividerTone` | 4c for `Spoiler`; the shell lane merged (`room-flank.tsx`) |
+| 4e | ListRow state on `data-selected`, `aria-expanded` and `data-disabled`; `revealActions` and `density` | item 1448 merged (`SELECTION_RAIL` in `packages/ui/src/lib/`) |
+
+Literal call sites at the survey, in `packages/client/src` and `packages/ui/src`. Re-run the survey after each merge; a spread site is a hand edit.
+
+| Sub-step | Value | Sites | Files |
+| - | - | - | - |
+| 4b | Badge `size="inline"` | 16 | 11, including `packages/ui/src/markdown/dice-inline.tsx` |
+| 4b | Badge `size="dot"`, `edge` | 7 | 5; `DOT_SKIN` in `packages/client/src/components/connection-role-slot.tsx` is computed |
+| 4c | Card `tone` `bubble`, `userBubble`, `systemBubble`, `shape="bubble"` | 10 | 6; `ROLE_FILL[role]` in `message-box.tsx` is computed |
+| 4c | Card `tone` `background`, `accent`, `sidebar`, `sidebarEdge`, `translucent`, `shape="inset"` | 11 | 5 |
+| 4c | Card `shape="pill"`, `tone="popover"`, `presence` | 3 | 1, `jump-to-latest-pill.tsx` |
+| 4c | Card `shape="float"`, `holdsField`, `dropTarget` | 1 | 1, `chat-controls-band.tsx`, plus the composer island and `composer-drop-target.tsx` |
+| 4c | Card `shape="plate"`, `tone="backdrop"` | 2 | 1, `message-row-divider.tsx` |
+| 4c | Card `shadow="overlay"` | 3 | 2 |
+| 4c | Card and Stack `spoiler` | 3 | 2, both computed |
+| 4d | Section `focal` | 2 | 2, both computed |
+| 4d | Stack and Grid `highlight` | 2 | 2, both computed |
+| 4d | Stack `slide`, `lifted` | 2 | 1, `room-flank.tsx` |
+| 4d | Stack `opacityMotion` | 1 | 1 |
+| 4d | Row `stateFill` | 2 | 2 |
+| 4d | Stack and Row `dividerTone` | 4 | 3 |
+| 4e | ListRow `selected`, `expanded`, `disabled`, `revealActions`, `density` | 16 | 14 |
+
+Inks on tints. D336 paints text on a tint with the tone's `text-on-tint` role; for `neutral` that role is `accent-foreground`. These recipes keep a page ink on a tint, which no floor covers: `foreground` on the neutral `tint-active` measures 3.35:1 over `oklch(0.5 0 0)`. Each sub-step repaints its rows.
+
+| Sub-step | Recipe | Change |
+| - | - | - |
+| 4c | Card `interactive` in `packages/ui/src/primitives/card/variants.ts` | Its hover and press paint `card-foreground` on `bg-tone-tint-active`; add `hover:text-tone-text-on-tint` and `active:text-tone-text-on-tint`. |
+| 4c | `packages/ui/src/primitives/compare-blocks/variants.ts` `before` and `after` panels | `text-foreground` on `bg-tone-tint` becomes `text-tone-text-on-tint`. |
+| 4c | `packages/ui/src/primitives/tool-call-block/variants.ts` `pre`, `packages/ui/src/content/immersive-card/variants.ts` body | `text-foreground` on `bg-muted`, the neutral tint, becomes `text-accent-foreground`. |
+| 4e | Tabs rail cell in `packages/ui/src/primitives/tabs/variants.ts` | `data-active:text-foreground` on `data-active:bg-tone-tint` becomes `data-active:text-tone-text-on-tint`, beside ListRow's `data-selected` state styles. |
+
+Each family map is a list of `{ element, door, match, to, toDoor, attributes }` rows. The first row whose `match` attributes all match wins, so list a more specific match first. A `match` value of `true` matches a bare or `{true}` attribute.
+
+| Map | Rows |
+| - | - |
+| `button-family.json` (4a) | Button `size` `glyph-xs`..`glyph-lg` → `GlyphButton glyph`; `size="inline"` → `InlineAction step="label"`; `size="inline-body"` → `InlineAction step="body"`; `size="media"` and `variant="bare"` → `PictureButton` |
+| `badge-family.json` (4b) | Badge `size="inline"` → `InlineToken`; Badge `size="dot"` → `IndicatorDot` |
+| `card-family.json` (4c) | Card `tone` and `shape` per the Card table → `MessageBubble role`, the preview parts, `FloatingChip`, `RoomIsland`; Card and Stack `spoiler={true}` → `Spoiler` |
+| `layout-family.json` (4d) | Section `focal={true}` → `FocalSection` |
+
+##### Step 4a record
+
+The button family keeps one render in `packages/ui/src/primitives/button/core.tsx`. Button, `GlyphButton`, `InlineAction` and `PictureButton` feed it their own box recipe. Every member keeps `data-slot="button"`, because the CTA ring and the busy ring in `packages/ui/src/styles/primitives.css` select the family by it. `glyph` and `step` join `STAMPED_VARIANT_AXES` and the ui-audit walker's `TARGET_VARIANT_ATTRS`, so two glyph steps stay two authored decisions. `BUTTON_BOX_OVERFLOW` in `packages/ui/src/primitives/button/box-hit-area.ts` names each box's hit area; `orb/no-floorless-control-in-wrap` reads the components whose every box sits under the floor.
+
+| Site | Choice |
+| - | - |
+| `packages/client/src/features/chat/components/composer-send-control.tsx` | A real change of emphasis: a waiting draft makes Send the action. `sendLook` keeps `focal={false}` and the `muted` ink; the spread site moved to `GlyphButton glyph="lg"` by hand. |
+| `packages/client/src/features/rpg/components/tracker-blocks/ambient-strip.tsx` | No intent swap remains. The datum at rest is `InlineAction step="label"`, ghost. |
+| `packages/client/src/features/rpg/components/tracker-blocks/npc-card-slots.tsx` | No intent swap remains. The relationship trigger is `InlineAction step="label"`, ghost, pill. |
+| `packages/client/src/features/persona/components/persona-crown.tsx`, `persona-card-pin.tsx`, `persona-panel-row.tsx` | A pressed state, not a change of emphasis. The toggle keeps one box, the `md` square, in both states, and the press reads from `aria-pressed` and the tone. Two components would remount the node on a press and drop keyboard focus. |
+| `packages/client/src/components/row-actions-menu.tsx`, `packages/ui/src/primitives/hint-trigger/hint-trigger.tsx` | The trigger box is a prop value, so each value renders its own component. |
+| `PictureButton` style | No style draws nothing, which replaces `bare`; `variant="ghost"` keeps the ghost tint for a captioned picture tile. |
 
 #### Mapping: Card
 

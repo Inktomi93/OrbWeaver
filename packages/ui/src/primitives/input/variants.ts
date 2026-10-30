@@ -16,7 +16,7 @@ export const inputVariants = tv({
     // type stays the field's own pointer-conditional step at every size, because iOS zooms on a smaller focused field.
     size: CONTROL_BLOCK,
     // THE INPUT'S LAYOUT — declared after `size`, so the inline arm's text height wins the merge. `field` is the form control (the default, unchanged).
-    // `inline` is the CLICK-TO-EDIT twin of Button's `size="inline"`: the input that replaces a datum in
+    // `inline` is the CLICK-TO-EDIT twin of `InlineAction`: the input that replaces a datum in
     // place must occupy the SAME visual slot the display did (owner no-shift bar), so it is text-height with
     // the datum's own inset and type, keeping only the chrome that marks it editable (border + bg-input).
     //

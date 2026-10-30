@@ -17,7 +17,7 @@
 
 import type { MessageView } from "@orb/contracts/chat";
 import type { ChatId, MessageId } from "@orb/kit/ids";
-import { Button } from "@orb/ui/button";
+import { GlyphButton } from "@orb/ui/glyph-button";
 import { ChevronLeft, ChevronRight, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -150,10 +150,10 @@ export function SwipeStrip({ message, foot }: SwipeStripProps): ReactElement {
         slot="swipe-strip"
         label={variantCountName(current, total)}
         prev={
-          <Button
+          <GlyphButton
             variant="ghost"
             ink="muted"
-            size="glyph-lg"
+            glyph="lg"
             shape="pill"
             disabled={!canStepBack}
             loading={busy && canStepBack}
@@ -161,7 +161,7 @@ export function SwipeStrip({ message, foot }: SwipeStripProps): ReactElement {
             onClick={goPrev}
           >
             <Icon icon={ChevronLeft} size="sm" />
-          </Button>
+          </GlyphButton>
         }
         count={
           // A VALUE you read — the `datum` voice, whose tabular figures stop the count nudging the chevron as
@@ -171,10 +171,10 @@ export function SwipeStrip({ message, foot }: SwipeStripProps): ReactElement {
           </Text>
         }
         next={
-          <Button
+          <GlyphButton
             variant="ghost"
             ink="muted"
-            size="glyph-lg"
+            glyph="lg"
             shape="pill"
             disabled={waitingForNext}
             loading={busy || waitingForNext}
@@ -183,7 +183,7 @@ export function SwipeStrip({ message, foot }: SwipeStripProps): ReactElement {
             onClick={goNext}
           >
             <Icon icon={ChevronRight} size="sm" />
-          </Button>
+          </GlyphButton>
         }
       />
       {waitingForNext ? (

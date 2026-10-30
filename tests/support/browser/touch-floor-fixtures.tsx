@@ -10,7 +10,8 @@
 // paints the CTA gradient ring — so a stage without an intent would silently measure the RINGED
 // arm while claiming to measure the plain one. Both arms are stages of their own.
 
-import { Button } from "@orb/ui/button";
+import { GlyphButton } from "@orb/ui/glyph-button";
+import { InlineAction } from "@orb/ui/inline-action";
 import type { ReactElement } from "react";
 
 /** The BOX-CARRIED regression stage: a plain, undersized, non-pseudo button ALONE in a huge, STATIC
@@ -40,7 +41,7 @@ export function TouchFloorPseudoCarriedIsolatedStory(): ReactElement {
   return (
     <div style={{ padding: 120, position: "static", width: 400 }}>
       <div style={{ marginInlineStart: 48 }}>
-        <Button aria-label="Regenerate" data-testid="pseudo-carried-isolated" variant="ghost" size="glyph-sm" />
+        <GlyphButton aria-label="Regenerate" data-testid="pseudo-carried-isolated" variant="ghost" glyph="sm" />
       </div>
     </div>
   );
@@ -55,7 +56,7 @@ export function TouchFloorCtaGlyphIsolatedStory(): ReactElement {
   return (
     <div style={{ padding: 120, position: "static", width: 400 }}>
       <div style={{ marginInlineStart: 48 }}>
-        <Button aria-label="Regenerate" data-testid="cta-glyph-isolated" size="glyph-sm" />
+        <GlyphButton aria-label="Regenerate" data-testid="cta-glyph-isolated" glyph="sm" />
       </div>
     </div>
   );
@@ -101,9 +102,9 @@ export function TouchFloorInlinePrimaryStory(): ReactElement {
   return (
     <div style={{ padding: 120, position: "static", width: 400 }}>
       <div style={{ marginInlineStart: 48 }}>
-        <Button data-testid="inline-primary" size="inline">
+        <InlineAction data-testid="inline-primary" step="label">
           Bruised knuckles
-        </Button>
+        </InlineAction>
       </div>
     </div>
   );

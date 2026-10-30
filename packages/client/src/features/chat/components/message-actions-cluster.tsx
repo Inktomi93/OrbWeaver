@@ -1,7 +1,7 @@
 // The inline action cluster both rows draw, and the streaming row's hidden footprint of it.
 
 import type { ChatId } from "@orb/kit/ids";
-import { Button } from "@orb/ui/button";
+import { GlyphButton } from "@orb/ui/glyph-button";
 import { GitFork, Icon, Pencil, SmilePlus } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import type { ReactElement, ReactNode, Ref } from "react";
@@ -51,12 +51,12 @@ export function MessageActionsCluster({
           the ⋯ there (`ROW_ACTION_INLINE`), where every verb also lives at every pointer (mirror parity). */}
       {editable ? (
         <>
-          <Button variant="ghost" size="glyph-lg" shape="pill" aria-label={MESSAGE_EDIT_NAME} onClick={onEdit}>
+          <GlyphButton variant="ghost" glyph="lg" shape="pill" aria-label={MESSAGE_EDIT_NAME} onClick={onEdit}>
             <Icon shadow={true} icon={Pencil} size="sm" />
-          </Button>
-          <Button variant="ghost" size="glyph-lg" shape="pill" hiddenAt="coarse" loading={forkPending} aria-label={MESSAGE_FORK_NAME} onClick={onFork}>
+          </GlyphButton>
+          <GlyphButton variant="ghost" glyph="lg" shape="pill" hiddenAt="coarse" loading={forkPending} aria-label={MESSAGE_FORK_NAME} onClick={onFork}>
             <Icon shadow={true} icon={GitFork} size="sm" />
-          </Button>
+          </GlyphButton>
         </>
       ) : null}
       {/* B6 — the FINE door. `ROW_ACTION_INLINE` stands it down at a coarse pointer, where its `MenuItem`
@@ -66,9 +66,9 @@ export function MessageActionsCluster({
           being rendered at all. Ordered AFTER the Edit/Fork primary actions (#786, owner ruling): a row's
           roving Tab stop must reach "Edit message" before "Add a reaction". */}
       {reactionsEnabled ? (
-        <Button aria-label={MESSAGE_REACTION_ADD_NAME} hiddenAt="coarse" variant="ghost" onClick={onReact} shape="pill" size="glyph-lg">
+        <GlyphButton aria-label={MESSAGE_REACTION_ADD_NAME} hiddenAt="coarse" variant="ghost" onClick={onReact} shape="pill" glyph="lg">
           <Icon shadow={true} icon={SmilePlus} size="sm" />
-        </Button>
+        </GlyphButton>
       ) : null}
       <RowActionsMenu
         label={MESSAGE_ACTIONS_MENU_NAME}

@@ -3,8 +3,8 @@
 // reseeds, silently breaking the save/discard/reseed lifecycle (the
 // ui-libraries example's `defaultValue` binding is the documented trap, INVERTED here on purpose).
 
-import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
+import { GlyphButton } from "@orb/ui/glyph-button";
 import { Eye, EyeOff, Icon } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row } from "@orb/ui/layout";
@@ -50,17 +50,17 @@ export function TextField(props: TextFieldProps): ReactElement {
           className="flex-1 min-inline-0"
         />
         {canReveal ? (
-          <Button
+          <GlyphButton
             type="button"
             variant="ghost"
-            size="glyph-md"
+            glyph="md"
             aria-label={revealed ? "Hide key" : "Show key"}
             aria-pressed={revealed}
             disabled={props.disabled}
             onClick={(): void => setRevealed((current) => !current)}
           >
             <Icon icon={revealed ? EyeOff : Eye} size="sm" />
-          </Button>
+          </GlyphButton>
         ) : null}
       </Row>
     </Field>

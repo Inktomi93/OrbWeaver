@@ -4,6 +4,7 @@ import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { Collapsible, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Circle, Icon } from "@orb/ui/icons";
+import { InlineAction } from "@orb/ui/inline-action";
 import { Input } from "@orb/ui/input";
 import { Row, Stack, Surface } from "@orb/ui/layout";
 
@@ -59,9 +60,9 @@ export function TextModifierStory(): ReactElement {
 export function LinkStory(): ReactElement {
   return (
     <CtIsolation subject="Button link intent" isolates="The link arm at rest">
-      <Button variant="link" size="inline">
+      <InlineAction variant="link" step="label">
         Show more
-      </Button>
+      </InlineAction>
       <span data-probe="primary" data-tone="primary" style={{ color: `var(${TOKENS["color.tone-text"].cssVar})`, backgroundColor: "transparent" }}>
         probe
       </span>
@@ -231,9 +232,9 @@ export function ButtonToneStory(): ReactElement {
       <Button variant="ghost" tone="destructive">
         ghost destructive
       </Button>
-      <Button variant="link" ink="muted" size="inline">
+      <InlineAction variant="link" ink="muted" step="label">
         link muted
-      </Button>
+      </InlineAction>
 
       <span data-probe="primary" data-tone="primary" style={{ color: `var(${TOKENS["color.tone-text"].cssVar})` }}>
         p

@@ -1,5 +1,6 @@
 import { CtIsolation } from "@orb/testkit/browser";
 import { Button } from "@orb/ui/button";
+import { GlyphButton } from "@orb/ui/glyph-button";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
@@ -17,9 +18,9 @@ export function ConstrainedMenuStory(): ReactElement {
               render={
                 <MenuTrigger
                   render={
-                    <Button aria-label="Constrained actions" variant="ghost" size="glyph-lg">
+                    <GlyphButton aria-label="Constrained actions" variant="ghost" glyph="lg">
                       ⋯
-                    </Button>
+                    </GlyphButton>
                   }
                 />
               }

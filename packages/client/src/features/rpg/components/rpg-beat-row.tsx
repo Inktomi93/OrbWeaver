@@ -12,9 +12,10 @@
 // (D66 A4 — there are no Save/Discard buttons in this product), so the editor commits on blur and Escape
 // abandons the draft.
 
-import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
+import { GlyphButton } from "@orb/ui/glyph-button";
 import { Icon, Trash2 } from "@orb/ui/icons";
+import { InlineAction } from "@orb/ui/inline-action";
 import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement, ReactNode } from "react";
@@ -92,9 +93,9 @@ export function BeatRow({ beat, edit }: BeatRowProps): ReactElement {
           confirmLabel="Delete"
           onConfirm={(): void => edit.onDelete(beat.key)}
           trigger={
-            <Button aria-label={`Delete entry: ${beat.title}`} variant="ghost" size="glyph-sm">
+            <GlyphButton aria-label={`Delete entry: ${beat.title}`} variant="ghost" glyph="sm">
               <Icon icon={Trash2} size="xs" />
-            </Button>
+            </GlyphButton>
           }
         />
       }
@@ -182,11 +183,11 @@ function BeatBodyEditor({
               // Sub-floor disclosure by ruling (a reasoned home of `orb/sub-floor-disclosure` in eslint.config.js): the box is the rendered Button's own (`render` merges the trigger class onto it): an inline Button carries its ::after touch floor, and a control min-h here would inflate the beat row's compact rest state.
               size="text"
               render={
-                <Button variant="ghost" size="inline" className="px-field text-start whitespace-normal max-inline-full min-inline-0">
+                <InlineAction variant="ghost" step="label" className="px-field text-start whitespace-normal max-inline-full min-inline-0">
                   <Text as="span" voice="label" className="wrap-break-word min-inline-0">
                     {restText}
                   </Text>
-                </Button>
+                </InlineAction>
               }
               aria-label={bodyLabel}
             />

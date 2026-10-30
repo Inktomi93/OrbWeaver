@@ -107,7 +107,7 @@ const LOCAL_RESTRICTIONS = [
 /** Keep UI and Biome policy inputs in the root config without importing their runtime graphs. */
 export function createOrbPlugin(options: {
   browserNodeGlobals: ReadonlySet<string>;
-  floorlessButtonSizes: ReadonlySet<string>;
+  floorlessControls: ReadonlySet<string>;
   shellClasses: ReadonlySet<string>;
   shellSlots: ReadonlySet<string>;
   exportedLabels: ReadonlyMap<string, ExportedLabel>;
@@ -180,7 +180,7 @@ export function createOrbPlugin(options: {
       "ct-responder-reads-input": ctResponderReadsInputRule,
       "ct-negative-only-case": ctNegativeOnlyCaseRule,
       "no-hand-copied-label": handCopiedLabelRule(options.exportedLabels),
-      "no-floorless-control-in-wrap": floorlessControlRule(options.floorlessButtonSizes),
+      "no-floorless-control-in-wrap": floorlessControlRule(options.floorlessControls),
       "evaluate-no-scope-capture": evaluateNoScopeCaptureRule,
       "assumes-single-replica": assumesSingleReplicaRule,
       "no-module-state": moduleStateRule,

@@ -25,7 +25,12 @@ Current defects:
 - [x] Step 1: role tokens, tone scoping and contrast checks.
 - [x] Step 2: axis vocabulary and lint at zero.
 - [x] Step 3: control scale. Toggle also moves from `intent` to the D336 `tone`/`variant` vocabulary here, since step 3 already gives it `size`.
-- [ ] Step 4: use-specific extraction.
+- [ ] Step 4: use-specific extraction. The plan's "Step 4 sub-steps" table orders it.
+  - [x] 4a: the extraction codemod and the button family.
+  - [ ] 4b: the Badge family.
+  - [ ] 4c: the Card family.
+  - [ ] 4d: the layout boxes.
+  - [ ] 4e: ListRow state.
 
 Each step lands alone and leaves the app working.
 
@@ -58,3 +63,10 @@ Step 3:
 - A `.dom.test-d.ts` per touched primitive under `tests/ui/primitives/` refuses every removed size value, NumberField `size="inline"` and Toggle `intent`. `tooling/src/codemods/primitive-axis-vocabulary` rewrote the literal call sites; its `sizes` and `rerun-sizes` fixtures hold the size table.
 - `tests/ui/primitives/platform-control-scale.suite.ct.tsx` measures one row of every control per step at both pointer classes, in the Chromium and WebKit CT projects, and finds one height, the step's token. A control planted at a foreign step reads as a second height.
 - `tests/ui/primitives/tone-variant-matrix.ct.tsx` reads Toggle's tone and style matrix and its pressed fill. `tests/client/features/app-shell/touch-target-floor.suite.ct.tsx` measures every scale step of the square, wrap, Toggle and NumberField boxes.
+
+Step 4a:
+
+- `GlyphButton`, `InlineAction` and `PictureButton` each own a box recipe behind their own door and render through `packages/ui/src/primitives/button/core.tsx`. Button no longer takes `size` `media`, `inline`, `inline-body` or `glyph-*`, or `variant="bare"`; `tests/ui/primitives/button/extracted-boxes.dom.test-d.ts` refuses each, and a `.dom.test-d.ts` per new component under `tests/ui/primitives/` pins its props.
+- `tooling/src/codemods/use-specific-extraction` moved the literal call sites by `maps/button-family.json`; its `moves`, `emptied`, `untouched` and `rerun` fixtures hold the shapes. The spread and computed sites are hand edits the plan's step 4a record lists.
+- `tests/ui/primitives/button/button-family.ct.tsx` measures each glyph and inline step against its token, the picture box against its picture, and the core's focal, busy and disabled states. `tests/ui/primitives/tone-variant-matrix.ct.tsx` reads the glyph and inline paints in every tone under each seed and a nested custom scope. Both run in the Chromium and WebKit CT projects, and a planted wrong box or style fails them.
+- `tests/ui/primitives/button/box-hit-area.dom.test.ts` holds `BUTTON_BOX_OVERFLOW` against what each door renders; `tests/tooling/eslint-floor-and-fragment.test.ts` holds `orb/no-floorless-control-in-wrap` on the glyph and inline components.

@@ -1,5 +1,6 @@
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
+import { GlyphButton } from "@orb/ui/glyph-button";
 import { Icon, Plus } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Container, Row, Stack, Surface } from "@orb/ui/layout";
@@ -44,15 +45,15 @@ export function SurfaceDesignStory({ width }: { readonly width: number }): React
               </Stack>
             </Surface>
             <Row gap="row">
-              <Button variant="ghost" size="glyph-xs" aria-label="Small control one">
+              <GlyphButton variant="ghost" glyph="xs" aria-label="Small control one">
                 <Icon icon={Plus} size="xs" />
-              </Button>
-              <Button variant="ghost" size="glyph-xs" aria-label="Small control two">
+              </GlyphButton>
+              <GlyphButton variant="ghost" glyph="xs" aria-label="Small control two">
                 <Icon icon={Plus} size="xs" />
-              </Button>
-              <Button variant="ghost" size="glyph-xs" aria-label="Small control three">
+              </GlyphButton>
+              <GlyphButton variant="ghost" glyph="xs" aria-label="Small control three">
                 <Icon icon={Plus} size="xs" />
-              </Button>
+              </GlyphButton>
               <Button variant="ghost" size="md" aria-label="Full control">
                 <Icon icon={Plus} size="xs" />
               </Button>
@@ -86,9 +87,9 @@ export function SurfaceTouchTilingStory(): ReactElement {
           <h1>Tiled touch controls</h1>
           <Row style={{ columnGap: "calc(var(--size-touch-target) - var(--size-glyph-lg))" }}>
             {["Left", "Middle", "Right"].map((name) => (
-              <Button key={name} size="glyph-lg" variant="ghost" aria-label={`Tiled ${name}`}>
+              <GlyphButton key={name} glyph="lg" variant="ghost" aria-label={`Tiled ${name}`}>
                 <Icon icon={Plus} size="sm" />
-              </Button>
+              </GlyphButton>
             ))}
           </Row>
         </Stack>

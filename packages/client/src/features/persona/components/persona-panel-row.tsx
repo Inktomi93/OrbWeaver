@@ -159,14 +159,8 @@ function FavoriteToggle({ starred, subject, onToggle }: { readonly starred: bool
         <Tooltip describesTrigger={false}>
           <TooltipTrigger
             render={
-              <Button
-                aria-label={label}
-                aria-pressed={starred}
-                variant="ghost"
-                onClick={onToggle}
-                {...(starred ? { size: "inline" } : { square: true })}
-                tone={starred ? "destructive" : undefined}
-              >
+              // A pressed state keeps one box (D336): the press reads from `aria-pressed` and the tone, and one node keeps focus.
+              <Button aria-label={label} aria-pressed={starred} variant="ghost" onClick={onToggle} square={true} tone={starred ? "destructive" : undefined}>
                 <Icon icon={Heart} size="sm" />
               </Button>
             }

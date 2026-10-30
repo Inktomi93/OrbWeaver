@@ -34,8 +34,8 @@
 // select and command item in `@orb/ui`; retuning it here would be a cross-cutting change to a surface this
 // row does not own.
 
-import { Button } from "@orb/ui/button";
 import { Icon, Link2, RotateCcw, Tag } from "@orb/ui/icons";
+import { InlineAction } from "@orb/ui/inline-action";
 import { Row } from "@orb/ui/layout";
 import { MenuItem, MenuSeparator } from "@orb/ui/menu";
 import type { ReactElement } from "react";
@@ -117,9 +117,9 @@ function SettingRowResetAction({ label, binding }: Omit<SettingRowActionsProps, 
     <ActionCell>
       {/* No tooltip: this button is disabled while the reset is pending, and a tooltip never wraps a disabled
           control. The name says what it does. */}
-      <Button aria-label={name} disabled={binding.resetPending} variant="ghost" onClick={binding.reset} size="inline" type="button">
+      <InlineAction aria-label={name} disabled={binding.resetPending} variant="ghost" onClick={binding.reset} step="label" type="button">
         <Icon icon={RotateCcw} size="sm" />
-      </Button>
+      </InlineAction>
     </ActionCell>
   );
 }

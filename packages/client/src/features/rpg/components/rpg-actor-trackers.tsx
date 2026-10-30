@@ -30,7 +30,7 @@ import type { RpgActorView, RpgTrackerDef, RpgTrackerValue } from "@orb/contract
 import { meterDisplayNumber, RPG_TRACKER_VALUE_EMPTY, trackerCeiling } from "@orb/contracts/rpg";
 import { readOwnKey } from "@orb/kit/objects";
 import { Badge } from "@orb/ui/badge";
-import { Button } from "@orb/ui/button";
+import { GlyphButton } from "@orb/ui/glyph-button";
 import { HintTrigger } from "@orb/ui/hint-trigger";
 import { Icon, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
@@ -313,7 +313,7 @@ export function ConditionChips({
           onRelease={(): void => edit.onRelease(".conditions")}
         />
       )}
-      {/* THE CHIP CARRIES THE TOUCH FLOOR AT COARSE (an owner ruling). The remove ✕ is `size="glyph-xs"` —
+      {/* THE CHIP CARRIES THE TOUCH FLOOR AT COARSE (an owner ruling). The remove ✕ is `glyph="xs"` —
           FLOORLESS, so its coarse hit area rides an OVERFLOWING `::after` rather than its own box, and on a
           wrapped row of short chips that area falls under the vertical floor on a DESTRUCTIVE verb.
           Flooring the CHIP fixes the CAUSE — a touch-size hit area hanging off a shorter chip — instead of
@@ -326,15 +326,15 @@ export function ConditionChips({
           {cond.name}
           {onRemove === undefined ? null : (
             <Tip text={trackerActionName(`Remove ${cond.name}`, "from", subject)}>
-              <Button
+              {/* eslint-disable-next-line orb/no-floorless-control-in-wrap -- The chip carries touchFloor="block", so its remove target fits within the chip; ends when this geometry or floorless size changes. */}
+              <GlyphButton
                 aria-label={trackerActionName(`Remove ${cond.name}`, "from", subject)}
                 variant="ghost"
-                // eslint-disable-next-line orb/no-floorless-control-in-wrap -- The chip carries touchFloor="block", so its remove target fits within the chip; ends when this geometry or floorless size changes.
-                size="glyph-xs"
+                glyph="xs"
                 onClick={(): void => onRemove(cond.name)}
               >
                 <Icon icon={X} size="xs" />
-              </Button>
+              </GlyphButton>
             </Tip>
           )}
         </Badge>

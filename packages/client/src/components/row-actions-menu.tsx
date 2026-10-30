@@ -11,8 +11,10 @@
 // showed its ⋯ at rest keeps showing it (do not newly hide a visible cluster).
 
 import { Button } from "@orb/ui/button";
+import { GlyphButton } from "@orb/ui/glyph-button";
 import type { LucideIcon } from "@orb/ui/icons";
 import { Icon, MoreHorizontal, Trash2 } from "@orb/ui/icons";
+import { InlineAction } from "@orb/ui/inline-action";
 import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@orb/ui/menu";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode, Ref } from "react";
@@ -53,8 +55,8 @@ export interface RowActionsMenuProps {
   readonly icon?: LucideIcon;
   /** Popup alignment. @defaultValue "end" */
   readonly align?: "center" | "end" | "start";
-  /** Trigger button size — this composite's OWN vocabulary, resolved to a Button box by
-   *  `TRIGGER_BUTTON_BOX` below, never a passthrough. `"inline"` is the HintTrigger-parity box (the
+  /** Trigger button size — this composite's OWN vocabulary, resolved to a button-family box by
+   *  `TRIGGER_BOX` below, never a passthrough. `"inline"` is the HintTrigger-parity box (the
    *  config setting row pairs the ⋯ with the tiny `i` and must not inflate the row); `"sm"` is the
    *  small SQUARE trigger for a row whose scale is the `sm` control step; `"glyph"` is the glyph-button box
    *  for a compact tool column (the composer's ☰), its touch floor carried by the glyph arm. @defaultValue "icon" */
@@ -87,33 +89,50 @@ export interface RowActionsMenuProps {
   readonly triggerRef?: Ref<HTMLButtonElement>;
 }
 
+/** The props every trigger box shares; the box picks the component that draws it. */
+interface TriggerShared {
+  readonly "aria-label": string;
+  readonly reveal: "hover" | undefined;
+  readonly ink: "muted" | undefined;
+  readonly variant: "ghost";
+  readonly ref: Ref<HTMLButtonElement> | undefined;
+  readonly shape: NonNullable<RowActionsMenuProps["shape"]>;
+  readonly tabIndex?: -1;
+}
+
 /**
- * THIS COMPOSITE'S TRIGGER VOCABULARY → the `Button` box that carries it (#1613).
+ * THIS COMPOSITE'S TRIGGER VOCABULARY → the button-family box that carries it.
  *
- * The trigger is ICON-ONLY at every arm — a glyph with an `aria-label` and no text run — so it must be
- * sized on an axis that floors BOTH sides. `triggerSize` used to be a raw passthrough, and its `"sm"`
- * value therefore named Button's TEXT step (`h-(--size-control-sm) px-block text-label`): a pointer-conditional
- * HEIGHT with a CONTENT width of `px-block × 2 + a 16px glyph` = 40px, i.e. 40×44 under a finger. That
- * is the D62 P1 floor missed on the short side, filed by design-audit's `tap-target` against the theme
- * Looks rows (`[aria-label="Actions for Hearth"]` / "Light" / "Mocha" — 3 affected of 3 judged, short
- * side 40px, settings:appearance --mobile 2026-09-05).
+ * The trigger is ICON-ONLY at every arm — a glyph with an `aria-label` and no text run — so it must be sized on an
+ * axis that floors BOTH sides. A Button text step would be a pointer-conditional height around a content width under
+ * the D62 P1 floor; the `sm` and `icon` squares take the step's height as their width too, so the box IS the tap
+ * floor. The `glyph` and `inline` boxes sit under the floor and carry their own hit area.
  *
- * The `sm` square is the SAME `--size-control-sm` box on both axes (44px coarse / 32px fine — the token is
- * pointer-conditional, so the box IS the tap floor and needs none of the `glyph-*` ramp's hit-area
- * pseudo; button/variants.ts states the `square` contract). Row HEIGHT is unchanged at both pointer
- * classes; the trigger gains 4px of width at a coarse pointer and sheds 8 at a fine one, which is the
- * square an icon-only control should always have been.
- *
- * A MAP, not a ternary: a new member of the union above fails `tsc` here rather than silently falling
- * through to a text step — the same one-union-plus-mapped-Record discipline the spine asks of every
- * dispatch axis.
+ * A MAP, not a ternary: a new member of the union above fails `tsc` here rather than silently falling through to a
+ * text step — the one-union-plus-mapped-Record discipline the spine asks of every dispatch axis.
  */
-const TRIGGER_BUTTON_BOX = {
-  glyph: { size: "glyph-lg" },
-  icon: { square: true },
-  inline: { size: "inline" },
-  sm: { size: "sm", square: true },
-} as const satisfies Record<NonNullable<RowActionsMenuProps["triggerSize"]>, Readonly<{ size: "glyph-lg" | "inline" } | { size?: "sm"; square: true }>>;
+const TRIGGER_BOX = {
+  glyph: (shared, glyph) => (
+    <GlyphButton {...shared} glyph="lg">
+      {glyph}
+    </GlyphButton>
+  ),
+  icon: (shared, glyph) => (
+    <Button {...shared} square={true}>
+      {glyph}
+    </Button>
+  ),
+  inline: (shared, glyph) => (
+    <InlineAction {...shared} step="label">
+      {glyph}
+    </InlineAction>
+  ),
+  sm: (shared, glyph) => (
+    <Button {...shared} size="sm" square={true}>
+      {glyph}
+    </Button>
+  ),
+} as const satisfies Record<NonNullable<RowActionsMenuProps["triggerSize"]>, (shared: TriggerShared, glyph: ReactElement) => ReactElement>;
 
 function actionsTrigger({
   label,
@@ -134,20 +153,16 @@ function actionsTrigger({
   readonly reveal: boolean;
   readonly tabIndex: -1 | undefined;
 }): ReactElement {
-  return (
-    <Button
-      aria-label={label}
-      reveal={reveal ? "hover" : undefined}
-      ink={ink === "receded" ? "muted" : undefined}
-      variant="ghost"
-      ref={triggerRef}
-      shape={shape}
-      {...TRIGGER_BUTTON_BOX[size]}
-      {...(tabIndex === undefined ? {} : { tabIndex })}
-    >
-      <Icon icon={icon} size="sm" />
-    </Button>
-  );
+  const shared: TriggerShared = {
+    "aria-label": label,
+    reveal: reveal ? "hover" : undefined,
+    ink: ink === "receded" ? "muted" : undefined,
+    variant: "ghost",
+    ref: triggerRef,
+    shape,
+    ...(tabIndex === undefined ? {} : { tabIndex }),
+  };
+  return TRIGGER_BOX[size](shared, <Icon icon={icon} size="sm" />);
 }
 
 /**

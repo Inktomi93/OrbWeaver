@@ -8,6 +8,7 @@
 import { storyTestId } from "@orb/testkit/browser";
 import { Button } from "@orb/ui/button";
 import { Checkbox } from "@orb/ui/checkbox";
+import { GlyphButton } from "@orb/ui/glyph-button";
 import { Slider } from "@orb/ui/slider";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
@@ -335,12 +336,12 @@ export function WalkerRowWrappedGlyphStory(): ReactElement {
   return (
     <div style={{ padding: 60, width: 460 }}>
       <div style={{ marginBlockEnd: 80, marginInlineStart: 48 }}>
-        <Button aria-label="Regenerate" data-testid={storyTestId("glyphAlone")} variant="ghost" size="glyph-sm" />
+        <GlyphButton aria-label="Regenerate" data-testid={storyTestId("glyphAlone")} variant="ghost" glyph="sm" />
       </div>
       {/* The prose is ABSOLUTELY placed at a known offset and raised, so "which element owns x=+22 from
           the control's centre" is a fixed fact of this story rather than a flex-gap accident. */}
       <div data-testid={storyTestId("capabilityRow")} style={{ display: "flex", marginBlockEnd: 80, position: "relative", width: 360 }}>
-        <Button aria-label="Grant file access" data-testid={storyTestId("glyphInRow")} variant="ghost" size="glyph-sm" />
+        <GlyphButton aria-label="Grant file access" data-testid={storyTestId("glyphInRow")} variant="ghost" glyph="sm" />
         <p
           data-testid={storyTestId("capabilityProse")}
           style={{ fontSize: 15, insetBlock: 0, insetInlineEnd: 0, insetInlineStart: 30, margin: 0, position: "absolute", zIndex: 1 }}
@@ -349,7 +350,7 @@ export function WalkerRowWrappedGlyphStory(): ReactElement {
         </p>
       </div>
       <div data-testid={storyTestId("tightRow")} style={{ display: "flex", position: "relative", width: 360 }}>
-        <Button aria-label="Grant network access" data-testid={storyTestId("glyphInTightRow")} variant="ghost" size="glyph-sm" />
+        <GlyphButton aria-label="Grant network access" data-testid={storyTestId("glyphInTightRow")} variant="ghost" glyph="sm" />
         <p
           data-testid={storyTestId("tightProse")}
           style={{ fontSize: 15, insetBlock: 0, insetInlineEnd: 0, insetInlineStart: "1.3rem", margin: 0, position: "absolute", zIndex: 1 }}
@@ -363,7 +364,7 @@ export function WalkerRowWrappedGlyphStory(): ReactElement {
 
 /** The PSEUDO-CARRIED companion (#662/#665): the ancestor-credit clause's MINTED purpose must still
  *  pass after the fix. A glyph-sm Button's visible box is far under the floor (packages/ui/src/primitives
- *  /button/variants.ts glyphBox — `size-(--size-glyph-sm)`), and the floor is carried entirely by its overflowing
+ *  /glyph-button/variants.ts glyphBox — `size-(--size-glyph-sm)`), and the floor is carried entirely by its overflowing
  *  `::before` (`TOUCH_TARGET_PSEUDO` — `before:size-(--size-touch-target)`, `before:absolute`; it was an `::after`
  *  until #1843 moved it off the CTA ring's layer) — no DOM node of its own, so where an ancestor clips it
  *  the box underneath is the only thing that can answer. Isolated (no sibling in the probe band) and inset
@@ -378,7 +379,7 @@ export function WalkerPseudoCarriedIsolatedGlyphStory(): ReactElement {
       <div style={{ marginInlineStart: 48 }}>
         {/* `variant` is pinned: the default is the focal solid primary, which stamps `data-cta` and adds the gradient
             ring — a second pseudo, and a second variable, in a stage about one pseudo's reach. */}
-        <Button aria-label="Regenerate" data-testid={storyTestId("pseudoCarriedIsolated")} variant="ghost" size="glyph-sm" />
+        <GlyphButton aria-label="Regenerate" data-testid={storyTestId("pseudoCarriedIsolated")} variant="ghost" glyph="sm" />
       </div>
     </div>
   );
