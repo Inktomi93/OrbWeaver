@@ -34,8 +34,8 @@ const PROBE_GREETING = "The shell probe waits.";
 const PROBE_NAMES = ["Shell Probe Aster", "Shell Probe Birch"] as const;
 const PROBE_DRAFT = "Shell Probe Aster, unsaved";
 
-/** The real chunk with every export rebound to a namespace whose `AuthedApp` throws on render. The bundler renames a
- *  chunk's exports, so the names are read from the chunk the server actually served. */
+/** The real chunk with every export rebound to a component that throws on render. The route resolves its component by
+ *  export name, so each served export name must be a function; the names are read from the chunk the server actually served. */
 function crashingAuthedAppChunk(real: string): string {
   const clause = real.slice(real.lastIndexOf(EXPORT_CLAUSE) + EXPORT_CLAUSE.length, real.lastIndexOf("}"));
   const names = clause.split(",").map((binding) => binding.split(" as ").at(-1)?.trim() ?? "");
@@ -43,7 +43,7 @@ function crashingAuthedAppChunk(real: string): string {
     throw new Error("The authed-app chunk carries no export clause");
   }
   const rebound = names.map((name) => `crashing as ${name}`).join(",");
-  return `const crashing = { AuthedApp() { throw new Error(${JSON.stringify(ROUTE_CRASH)}); } };\nexport { ${rebound} };`;
+  return `function crashing() { throw new Error(${JSON.stringify(ROUTE_CRASH)}); }\nexport { ${rebound} };`;
 }
 
 function rail(page: Page): Locator {

@@ -23,4 +23,5 @@ The case passes on the corpus cells and its fake derives the chunk shape from pr
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+- Cause: the fake rebound every export of the real authed-app chunk to a namespace object, but the route resolves its component by export name (`lazyRouteComponent(..., "AuthedApp")`), so React received an object (minified error 130) and reported that instead of the planted message. The served chunk ends `export{xHt as AuthedApp}`; the fake still reads its export names from that served chunk and now rebinds each to a function that throws.
+- Red: `pnpm e2e:corpus tests/e2e/corpus-shell.spec.ts -g "route render crash"` failed in all 16 corpus cells with error 130. Green: the same case passes on `corpus-desktop-bubble` and `corpus-phone-bubble`.
