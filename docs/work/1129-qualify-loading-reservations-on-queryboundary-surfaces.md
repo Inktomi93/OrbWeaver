@@ -115,3 +115,7 @@ Loads at the readings: 17 to 23 of 24.
 Cold stage: the first `--fresh` boot of the `--dirty` stage ended in `data-app-ready came up DEGRADED` (`NAV ERROR`) twice, so the desktop workloads "after" reading is a warm-stage, fresh-browser run and not a cold-stage pass. The `before` stage and the two cold boots at load above 24 earlier in the lane are not cited.
 
 `config.appearance.library` (character feature) is still undeclared; appearance first-boot CLS reads 0 after.
+
+### Reservation re-priced
+
+`first-boot-boxes.ct.tsx` failed on two cases because the declarations had drifted from the settled content: `config.admin.memoryTuning` on desktop and `config.admin.systemTuning` on a phone. Both counts were moved to the nearest whole row (`memory-tuning-section.tsx` wide 16, `system-tuning-section.tsx` narrow 14). All eight cases pass.

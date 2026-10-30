@@ -125,7 +125,7 @@ function diffNumeric(effective: ResolvedMemoryDefaults, draft: NumericDraft): Me
 
 /** The section's own suspense/error boundary so it is self-contained. */
 export function MemoryTuningSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
-  const firstBootBox = useFirstBootBox({ wide: 15, narrow: 22 });
+  const firstBootBox = useFirstBootBox({ wide: 16, narrow: 22 });
   return (
     // RESERVED (#1098) — one of the two LONGEST admin knob stacks — the sentence it replaced under-reserved by most of a screen.
     <QueryBoundary
