@@ -1,7 +1,7 @@
 ---
 kind: plan
 status: active
-updated: 2026-10-24
+updated: 2026-10-30
 ---
 
 # Restoration register
@@ -165,7 +165,7 @@ Legacy paths below are relative to the external reference source named in [Spine
 | `server/infra/plugin-host/_broker-containment-proof.ts` | Unreviewed | No maintained home; cited by container-deployment-security. | Compare, then port or drop. |
 | `server/infra/plugin-host/broker-supervision.suite.test.ts` | Unreviewed | No maintained home; cited by container-deployment-security. | Compare, then port or drop. |
 | `server/infra/plugin-host/membrane.test.ts` | Unreviewed | No maintained home; cited by ADR 0148. | Compare, then port or drop. |
-| `server/infra/plugin-host/process-permission.test.ts` | Unreviewed | No maintained home; cited by container-deployment-security. | Compare, then port or drop. |
+| `server/infra/plugin-host/process-permission.test.ts` | Partial | [Worker permission drop](../../../tests/server/infra/plugin-host/worker-permission-drop.int.test.ts) starts the real broker under its production flags and runs a snippet on the real worker runtime. It keeps the drop assertions: the guest Worker has no `worker` permission and a nested `execArgv: []` Worker is refused. It adds a served host call as the positive control, a denied read outside the grants, and the refusal on a Node without `permission.drop`. | Compare the main-thread and Worker read denials (data-dir key, `.env`, workspace root, `/proc/<pid>/environ`), the allowed code read, the `node:sqlite` removal, and the spawn and network denials. |
 | `server/infra/relay/pin.test.ts` | Unreviewed | No maintained home; cited by ADR 0272. | Compare, then port or drop. |
 | `server/primitives/serde/card/index.test.ts` | Unreviewed | No maintained home; cited by ADR 0148. | Compare, then port or drop. |
 | `server/primitives/serde/chat-bundle/index.test.ts` | Unreviewed | No maintained home; cited by ADR 0136. | Compare, then port or drop. |
