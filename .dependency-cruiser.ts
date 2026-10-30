@@ -541,6 +541,9 @@ const PACKAGE_TEST_REACHES = {
   "tests/client/features/chat/components/platform-art-fallback-initial.suite.ct.tsx": {
     "packages/client/src/features/chat/lib/message-row-variants.ts": "MESSAGE_ROW_SKINS: the art styles whose fallback initial the suite holds",
   },
+  "tests/client/features/chat/components/platform-immersive-card-width.suite.ct.tsx": {
+    "packages/client/src/features/chat/lib/message-row-variants.ts": "MESSAGE_ROW_SKINS: the immersive styles whose card width and fill the suite holds",
+  },
   "tests/client/features/chat/components/message-reasoning-and-move.ct.tsx": {
     "packages/client/src/features/chat/lib/message-action-names.ts": "the reasoning and move action names and refusal copy the suite addresses",
   },
@@ -1508,6 +1511,8 @@ const config = {
     skipAnalysisNotInRules: true,
     // Host builtin lookups acquire the same capability as an import.
     detectProcessBuiltinModuleCalls: true,
+    // The source is ESM with CJS only in spawned helper strings; no AMD exists, and the native compiler drops it.
+    moduleSystems: ["es6", "cjs"],
     enhancedResolveOptions: {
       extensions: [".ts", ".tsx", ".d.ts", ".js", ".jsx", ".json"],
       exportsFields: ["exports"],
