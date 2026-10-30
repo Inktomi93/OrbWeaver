@@ -18,13 +18,16 @@
 // the documented range. The defect being fixed is a value OUTSIDE the promised range, and a clamp closes
 // exactly that.
 
+/** A pseudo-random draw in `Math.random`'s contract, `[0, 1)`; injected so a test or a replay can seed it. */
+export type RandomSource = () => number;
+
 /** The largest draw strictly below 1 that a double can represent — the clamp ceiling, so a `1` draw lands
  *  on the range's TOP member (`floor(draw * n)` = `n - 1`) instead of one past it. */
 const ALMOST_ONE = 1 - Number.EPSILON / 2;
 
 /** Normalise one draw from an untrusted generator into `Math.random`'s contract, `[0, 1)`. Non-finite
  *  draws read as `0` (the range's low end — the one value that is always in-range for any span). */
-export function unitDraw(random: () => number): number {
+export function unitDraw(random: RandomSource): number {
   const raw = random();
   if (!Number.isFinite(raw) || raw <= 0) {
     return 0;

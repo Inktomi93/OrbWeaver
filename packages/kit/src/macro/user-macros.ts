@@ -29,6 +29,7 @@ import { macroAnalysisBinding, macroAnalysisInputBinding, macroTextIsVolatile } 
 import { neutralizeMacros } from "./content.ts";
 import { isIfTruthy } from "./metadata.ts";
 import { MACRO_NAME_RE } from "./parser.ts";
+import type { RandomSource } from "./prng.ts";
 import { unitDraw } from "./prng.ts";
 import type { MacroAnalysisOptions, MacroArgDef, MacroContext, MacroHandler, MacroMetadataInput, MacroRegistry, MacroSourceRef } from "./types.ts";
 
@@ -99,7 +100,7 @@ export type UserMacroInputValueBag = Readonly<Record<string, UserMacroInputValue
 
 export interface ResolveUserMacroInputsOptions {
   /** The injected PRNG (a float in [0,1)) random-pick draws ride — NEVER ambient entropy. */
-  readonly prng: () => number;
+  readonly prng: RandomSource;
   /** Prior random-pick draws for THIS turn (input name → drawn value) — the freeze-at-commit replay:
    *  a frozen draw is returned byte-exact and NO fresh draw happens (the swipe path). */
   readonly frozenDraws?: Readonly<Record<string, string>> | undefined;
