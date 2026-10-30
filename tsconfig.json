@@ -1,40 +1,26 @@
 {
-  "extends": "./tsconfig.world-node.json",
-  "compilerOptions": {
-    "jsx": "react-jsx",
-    "allowJs": true
-  },
-  "include": [
-    "reset.d.ts",
-    "eslint-plugins.d.ts",
-    "platform.d.ts",
-    "aggregator-assets.d.ts",
-    "tests/support/vitest-tags.d.ts",
-    "*.config.ts",
-    "knip.ts",
-    ".dependency-cruiser.ts",
-    "stylelint-browser-support.ts",
-    "stylelint-rules.ts",
-    "stylelint-custom-properties.ts",
-    "packages/*/*",
-    "scripts/**/*.ts",
-    "scripts/**/*.mts",
-    "scripts/**/*.cts",
-    "tests/**/*.ts",
-    "tests/**/*.mts",
-    "tests/**/*.cts",
-    "tests/support/node/**/*"
-  ],
-  "exclude": [
-    "**/node_modules",
-    "tests/**/*.dom.test-d.ts",
-    "tests/**/*.dom.test.ts",
-    "tests/**/*.spec.ts",
-    "tests/**/*.ct.tsx",
-    "tests/e2e",
-    "tests/support/browser",
-    "tests/support/iso/**/*",
-    "playwright",
-    "packages/plugin-sdk/*.d.ts"
+  // The solution file. It compiles nothing: each referenced world is its own program, checked one at a time by
+  // `scripts/typecheck.ts`. The references let the TypeScript language server place every file in its real world.
+  "files": [],
+  "references": [
+    { "path": "./packages/client/tsconfig.json" },
+    { "path": "./packages/contracts/tsconfig.json" },
+    { "path": "./packages/db/tsconfig.json" },
+    { "path": "./packages/default-content/tsconfig.json" },
+    { "path": "./packages/inference/tsconfig.json" },
+    { "path": "./packages/kit/tsconfig.json" },
+    { "path": "./packages/plugin-toolchain/tsconfig.json" },
+    { "path": "./packages/server/tsconfig.json" },
+    { "path": "./packages/server/tsconfig.router.json" },
+    { "path": "./packages/showcase-plugins/tsconfig.author-frame.json" },
+    { "path": "./packages/showcase-plugins/tsconfig.author-main.json" },
+    { "path": "./packages/showcase-plugins/tsconfig.author-ui.json" },
+    { "path": "./packages/showcase-plugins/tsconfig.json" },
+    { "path": "./packages/ui/tsconfig.json" },
+    { "path": "./tooling/src/codemods/tsconfig.json" },
+    { "path": "./tooling/tsconfig.json" },
+    { "path": "./tsconfig.node.json" },
+    { "path": "./tsconfig.tests-dom.json" },
+    { "path": "./tsconfig.tests-iso.json" }
   ]
 }

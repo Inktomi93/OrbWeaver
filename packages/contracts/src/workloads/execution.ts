@@ -10,6 +10,7 @@
 // `domain/workloads/contract/contribution.ts`, reached type-only through the workloads front door.
 
 import type { UserId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 
 /** Execution lane — which worker loop runs the row. `interactive` = per-user latency-sensitive (a document
  *  ingest a user is waiting on). `sweep` = bulk maintenance (a 20-minute import, a whole-CAS GC). The lanes
@@ -70,5 +71,5 @@ export type WorkloadRunContext = WorkloadRunScope & {
   readonly userId: UserId;
   /** Admitted model liability, independent of enumeration and the synthetic execution actor. */
   readonly funderUserId: UserId | null;
-  readonly now: () => number;
+  readonly now: Clock;
 };

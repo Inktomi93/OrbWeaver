@@ -3,13 +3,12 @@
 
 import type { DurableChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
-import type { EffectiveAppConfig } from "@orb/contracts/settings";
-import type { EveryOwnerRun } from "@orb/contracts/workloads";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { RoleClientsWithSignal } from "@orb/inference";
 import type { IdSource, UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { PubSub } from "@orb/kit/pubsub";
+import type { Clock } from "@orb/kit/time";
 import { can, isAdmin, isOwner, requireOwner } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
 import { createAssetEmbeddingReads } from "#domain/assets";
@@ -27,9 +26,17 @@ import {
   setParticipantActivePersona,
 } from "#domain/chat";
 import { resolveActiveDocumentIds, resolveActiveDocumentScope } from "#domain/databank";
-import type { DiscoveryContext, DiscoveryService } from "#domain/discovery";
+import type { DiscoveryContext, DiscoveryService, DiscoveryWorkloadDeps } from "#domain/discovery";
 import { createDiscoveryService, createDossierNeighbors, distinctCorpusOwners } from "#domain/discovery";
-import type { EmbeddingsContext, EmbeddingsIndexer, EmbeddingsService, ResolveEmbeddingConnection, VacuousMemoryReceipt } from "#domain/embeddings";
+import type {
+  EmbeddingReindexTriggers,
+  EmbeddingsContext,
+  EmbeddingsIndexer,
+  EmbeddingsService,
+  ResolveEmbeddingConnection,
+  VacuousMemoryReceiptDeps,
+  VectorSweepDeps,
+} from "#domain/embeddings";
 import {
   createEmbeddingLatches,
   createEmbeddingReindexTriggers,
@@ -58,9 +65,9 @@ import { createResolveUserProse } from "#domain/settings";
 import type { StatsService } from "#domain/stats";
 import { createStatsService } from "#domain/stats";
 import type { TagService } from "#domain/tag";
-import type { WorkloadContributions, WorkloadProgressBus, WorkloadService } from "#domain/workloads";
+import type { WorkloadProgressBus, WorkloadService, WorkloadServiceContext } from "#domain/workloads";
 import { createWorkloadService } from "#domain/workloads";
-import type { AuditEntry, DetachedSupervision, Logger, TraceRing } from "#foundation/observability";
+import type { AuditEntry, DebugRoutesOptions, DetachedSupervision, Logger, TraceRing } from "#foundation/observability";
 import type { LiveBuses } from "#transport/trpc";
 import { minter } from "./minter.ts";
 import { createDeleteReachCapture, createRoomEntityFan } from "./room-reach.ts";
@@ -74,11 +81,11 @@ export interface SearchDiscoveryComposeDeps {
   readonly emitWorkloadEvent: WorkloadProgressBus["emitWorkloadEvent"];
   readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
 
-  readonly supervise?: DetachedSupervision["superviseDetached"] | undefined;
+  readonly supervise?: DetachedSupervision["superviseDetached"];
   readonly scheduleTimeout: EmbeddingsContext["scheduleTimeout"];
   readonly idSource: IdSource;
   readonly db: DatabaseHandle;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   /** The per-FUNDER role-client binder (§8.5b): embeddings/search/discovery resolve the entity OWNER's rows
    *  (vector tasks are owner-scoped, §7.5) and the workload's acting user for the summarize passes. */
@@ -93,7 +100,7 @@ export interface SearchDiscoveryComposeDeps {
   readonly assets: Pick<AssetsService, "listImageAssetIds" | "loadAssetBytes" | "assetCasRefById">;
   readonly settings: Pick<SettingsService, "loadUserSettings" | "updateUserSettingsSection">;
   /** LIVE effective-config getter (the memory tier-grid seam reads memoryDefaults per call). */
-  readonly getEffectiveConfig: () => EffectiveAppConfig;
+  readonly getEffectiveConfig: NonNullable<DebugRoutesOptions["effectiveConfig"]>;
   /** chat's bus durable-first emit — persona's active-persona write publishes onto it. */
   readonly emitChatEvent: (event: DurableChatBusEvent) => Promise<void>;
   /** chat's DURABLE-APPEND-FREE fan (design §3.4) — the entity→room bridge's only emit surface. Separate dep
@@ -106,9 +113,9 @@ export interface SearchDiscoveryComposeDeps {
   readonly resolveChatCapability: PresetContext["resolveChatCapability"];
   /** The LATE-BOUND workload contribution registry (assembled after chat, at the keystone) — the workloads
    *  verbs deref it per call as their per-kind params validator. */
-  readonly getContributions: () => WorkloadContributions;
+  readonly getContributions: WorkloadServiceContext["getContributions"];
   /** chat's memory-enabled read (LATE-BOUND: chat composes after this seam), for the memory-off receipt. */
-  readonly isMemoryEnabled: (ownerId: UserId) => Promise<boolean>;
+  readonly isMemoryEnabled: VacuousMemoryReceiptDeps["isMemoryEnabled"];
   readonly emptyMemoryScope: ChatBoundBackfillOps["emptyMemoryScope"];
 }
 
@@ -133,21 +140,21 @@ export interface SearchDiscoveryComposeResult {
   readonly workloads: WorkloadService;
   /** Enqueue the embed-space sweeps: `null` for every owner, a `UserId` for that owner (a seed). Settles once
    *  every enqueue has; never rejects, because a failed enqueue is logged in its own span. */
-  readonly enqueueEmbedReindex: (scope: UserId | null) => Promise<void>;
+  readonly enqueueEmbedReindex: EmbeddingReindexTriggers["enqueueEmbedReindex"];
   /** {@link SearchDiscoveryComposeResult.enqueueEmbedReindex} for a trigger that must not wait on it: the same
    *  sweeps, started detached. */
-  readonly detachEmbedReindex: (scope: UserId | null) => void;
+  readonly detachEmbedReindex: EmbeddingReindexTriggers["detachEmbedReindex"];
   /** Boot's catch-up: the same sweeps for every owner whose stored generation is no longer the one their
    *  binding resolves to, started detached. No user action raised the trigger, so autoindex does not gate it. */
   readonly detachStaleSpaceReindex: () => void;
   /** An off or empty owner's current target receipt, including the empty present-host write fence. */
-  readonly vacuousMemoryReceipt: (ownerId: UserId) => Promise<VacuousMemoryReceipt | null>;
+  readonly vacuousMemoryReceipt: VectorSweepDeps["vacuousMemoryReceipt"];
   /** The bulk-pass announce audience — every owner with corpus rows, bound over this seam's `db`. Threaded
    *  into BOTH discovery's five analytics contributions and embeddings' `index` sweep as their
    *  `listCorpusOwners` op, so the box-wide arm's `corpusRecomputed` fan reaches every owner it touched
    *  (event-bus coverage survey §2.5/F6). Bound HERE, not at the caller, so the domain's own query stays
    *  behind the seam that owns discovery. */
-  readonly listCorpusOwners: (run: EveryOwnerRun) => Promise<UserId[]>;
+  readonly listCorpusOwners: DiscoveryWorkloadDeps["listCorpusOwners"];
 }
 
 export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDiscoveryComposeResult {

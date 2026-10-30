@@ -1,6 +1,7 @@
 import type { LocalLightCpuPercent, LocalTextEncoding, RerankOnnx } from "@orb/contracts/inference";
 import type { ImageInput } from "@orb/contracts/role-clients";
 import type { ModelId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { LoadTransformersKernel } from "#src/contract/local-light-kernel.ts";
 import type { LocalLightLoadProgress, LocalLightRerankServing } from "#src/contract/local-light-worker.ts";
 import type { EmbedRequest } from "#src/contract/roles.ts";
@@ -10,7 +11,7 @@ import type { InferenceDeps, InferenceLog } from "./runtime.ts";
 
 export interface LocalLightBackendDeps {
   readonly scheduleTimeout: InferenceDeps["scheduleTimeout"];
-  readonly now: () => number;
+  readonly now: Clock;
   readonly log: InferenceDeps["log"];
   readonly superviseDetached: InferenceDeps["superviseDetached"];
   readonly config: NonNullable<InferenceDeps["localLight"]> | undefined;
@@ -90,7 +91,7 @@ export interface LocalLightPrefetchHandle {
 
 export interface LocalLightPrefetchDeps {
   readonly cache: () => Pick<LocalLightModelCache, "preload">;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly log: InferenceLog;
   readonly detach: (name: string, fn: () => Promise<void>) => void;
 }

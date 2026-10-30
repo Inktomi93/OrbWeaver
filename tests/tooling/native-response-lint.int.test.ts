@@ -16,7 +16,7 @@ const UNRELATED_DEPRECATED_CALL = "\n/** @deprecated Use the current API. */\nfu
  *  checker pulls in the file's imports and nothing else (typescript-eslint `parserOptions.project` takes a path to
  *  a dedicated tsconfig that lists only the files to lint). */
 function scopedProject(repoRoot: string, scratch: string, filePath: string): string {
-  const rootConfigPath = join(repoRoot, "tsconfig.json");
+  const rootConfigPath = join(repoRoot, "tsconfig.node.json");
   const parsed: unknown = JSON.parse(readFileSync(rootConfigPath, "utf8"));
   const include = isPlainObject(parsed) && Array.isArray(parsed["include"]) ? parsed["include"] : [];
   const ambient = include.filter((entry): entry is string => typeof entry === "string" && entry.endsWith(".d.ts")).map((entry) => join(repoRoot, entry));

@@ -14,8 +14,9 @@ import type { ChatMessageSurfaceState, ChatSurfaceContribution, ContributorRegis
 import { renderMessageForDisplay } from "#lib";
 import type { BubbleDecoration } from "../lib/art-decorations.ts";
 import type { GreetingBinding } from "../lib/greeting-window.ts";
-import { MESSAGE_REASONING_NAME } from "../lib/message-action-names.ts";
 import type { RowSkin } from "../lib/message-row-variants.ts";
+import type { MoveNeighbours } from "../lib/move-neighbours.ts";
+import { NO_MOVE_NEIGHBOURS } from "../lib/move-neighbours.ts";
 import type { SwipeFoot } from "../lib/pager-chrome.ts";
 import { splitIntoTrainParagraphs } from "../lib/split-paragraphs.ts";
 import type { ArtView } from "./art-slot.tsx";
@@ -24,10 +25,10 @@ import { MessageBox } from "./message-box.tsx";
 import { MessageContent } from "./message-content.tsx";
 import { MessageEditTextarea } from "./message-edit-textarea.tsx";
 import type { MessageMetadataVisibility } from "./message-metadata-row.tsx";
+import { MessageReasoning } from "./message-reasoning.tsx";
 import type { MessageBoxFacts } from "./message-row-bubble.tsx";
 import { renderSingleBubble } from "./message-row-bubble.tsx";
 import { MessageToolCalls } from "./message-tool-calls.tsx";
-import { ReasoningBlock } from "./reasoning-block.tsx";
 import { SwipeCount, SwipeStrip } from "./swipe-strip.tsx";
 
 /** Train bubbles derive paragraphs from the display projection, never while editing canon. */
@@ -46,8 +47,7 @@ export function renderRowToolCalls(args: {
   if (args.editing) {
     return null;
   }
-  const canEdit =
-    args.viewerIsHost === true || (args.viewerUserId !== undefined && args.viewerUserId !== null && args.message.authorUserId === args.viewerUserId);
+  const canEdit = isAuthorOrHost({ message: args.message, viewerIsHost: args.viewerIsHost === true, viewerUserId: args.viewerUserId });
   return <MessageToolCalls records={args.message.toolCalls} renderers={args.renderers} message={args.message} canEdit={canEdit} />;
 }
 
@@ -59,12 +59,15 @@ export function renderRowToolCalls(args: {
  *  NULLS the field for a member of a deception-active game at every read path (listMessages, the durable
  *  replay, the live fan-out, the turn returns, the fork copy), so a stripped row arrives with nothing to
  *  render. Null/empty ⇒ no disclosure at all (never an empty affordance advertising a withheld channel).
- *  Suppressed while EDITING, like the tool-call + metadata rows. */
+ *  Suppressed while EDITING, like the tool-call + metadata rows. The author-or-host edit and clear controls
+ *  ride the block, so a row with nothing to show offers neither. */
 export function renderRowReasoning(args: {
   readonly editing: boolean;
   readonly message: MessageView;
   readonly renderContext: MessageRenderContext;
   readonly showLLMReasoningIcon: boolean;
+  readonly viewerIsHost: boolean;
+  readonly viewerUserId: UserId | null | undefined;
 }): ReactNode {
   const raw = args.message.reasoning;
   if (args.editing || raw === null || raw.length === 0) {
@@ -73,7 +76,12 @@ export function renderRowReasoning(args: {
   // Same macro/regex display pass the ghost's live trace gets, so `{{char}}`/`{{user}}` in a thinking trace
   // read identically before and after commit.
   const text = renderMessageForDisplay(raw, args.renderContext, args.message.characterId, args.message.personaId);
-  return <ReasoningBlock reasoning={text} thinking={false} label={MESSAGE_REASONING_NAME} showIcon={args.showLLMReasoningIcon} />;
+  return <MessageReasoning message={args.message} displayText={text} showIcon={args.showLLMReasoningIcon} canEdit={isAuthorOrHost(args)} />;
+}
+
+/** The author-or-host UX gate the server verbs enforce; a caller without it never sees the control. */
+function isAuthorOrHost(args: { readonly message: MessageView; readonly viewerIsHost: boolean; readonly viewerUserId: UserId | null | undefined }): boolean {
+  return args.viewerIsHost || (args.viewerUserId !== undefined && args.viewerUserId !== null && args.message.authorUserId === args.viewerUserId);
 }
 
 /** Null when Tide's trains take over — each paragraph gets its own MessageContent call. */
@@ -85,12 +93,15 @@ export function resolveRowContent(args: {
   readonly renderContext: MessageRenderContext;
   readonly speakerThemes: ReadonlyMap<string, ThemeScopeTokens>;
   readonly narratorVoiced: boolean;
+  /** The host's edit toolbar carries Move up / Move down; a member's carries none. */
+  readonly viewerIsHost: boolean;
+  readonly neighbours: MoveNeighbours | undefined;
 }): ReactNode {
   if (args.editing) {
     // No `onSave` override: the edit lands through the committed message-edit verb. The draft-greeting
     // override (`setDraftGreeting`, a client store) died with draft mode — a seeded greeting is real canon
     // now, so editing one IS a message edit (D166).
-    return <MessageEditTextarea message={args.message} />;
+    return <MessageEditTextarea message={args.message} moveNeighbours={args.viewerIsHost ? (args.neighbours ?? NO_MOVE_NEIGHBOURS) : undefined} />;
   }
   if (args.trainParagraphs !== null) {
     return null;

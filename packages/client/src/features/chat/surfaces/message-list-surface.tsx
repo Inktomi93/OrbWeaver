@@ -35,6 +35,7 @@ import { GhostMessageRow } from "../components/ghost-message-row.tsx";
 import { JumpToLatestPill } from "../components/jump-to-latest-pill.tsx";
 import { MessageRow } from "../components/message-row.tsx";
 import { resolveGenerationCredit } from "../components/message-row-parts.tsx";
+import type { TranscriptEdges } from "../components/transcript-window.tsx";
 import { TranscriptWindow } from "../components/transcript-window.tsx";
 import { useChatBehaviorPrefs } from "../hooks/use-chat-behavior-prefs.ts";
 import { useChatStyle } from "../hooks/use-chat-style.ts";
@@ -51,6 +52,7 @@ import { contextFitLabel } from "../lib/context-room.ts";
 import { isGreetingWindowOpen, resolveGreetingBinding } from "../lib/greeting-window.ts";
 import { liveCardRowIds } from "../lib/live-card-rows.ts";
 import type { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
+import { moveNeighboursAt } from "../lib/move-neighbours.ts";
 import { buildParticipantsById } from "../lib/roster.ts";
 import { settledLastRowId } from "../lib/row-placement.ts";
 
@@ -134,7 +136,7 @@ export function MessageListSurface({ chatId, busDeps, surfaceContributors, toolR
         <RenderProfiler id={CHAT_TRANSCRIPT_PROFILER_ID} warn={false}>
           <TranscriptWindow
             chatId={chatId}
-            render={(messagesPage, window): ReactElement => (
+            render={(messagesPage, window, edges): ReactElement => (
               <ChatThread
                 chatId={chatId}
                 chatStyle={chatStyle}
@@ -142,6 +144,7 @@ export function MessageListSurface({ chatId, busDeps, surfaceContributors, toolR
                 toolRenderers={toolRenderers}
                 messagesPage={messagesPage}
                 window={window}
+                edges={edges}
               />
             )}
           />
@@ -169,7 +172,8 @@ function ChatThread({
   toolRenderers,
   messagesPage,
   window,
-}: ChatThreadProps & { readonly messagesPage: CanonPage; readonly window: AnchoredPage | null }): ReactElement {
+  edges,
+}: ChatThreadProps & { readonly messagesPage: CanonPage; readonly window: AnchoredPage | null; readonly edges: TranscriptEdges }): ReactElement {
   const trpc = useTRPC();
   const { data: chatDetail } = useSuspenseQuery(trpc.chat.getChat.queryOptions({ chatId }));
   const messages = messagesPage.messages;
@@ -330,6 +334,11 @@ function ChatThread({
     ) : (
       <MessageRow
         message={item.view}
+        neighbours={moveNeighboursAt(
+          messages,
+          messages.findIndex((message) => message.id === item.view.id),
+          edges,
+        )}
         chatStyle={chatStyle}
         stickyAttribution={true}
         {...((): { readonly greeting?: ReturnType<typeof resolveGreetingBinding> } => {

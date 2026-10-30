@@ -1,3 +1,4 @@
+import type { Clock } from "@orb/kit/time";
 import type { ChatRequest, ChatResult } from "./chat.ts";
 import type { InferenceLog } from "./runtime.ts";
 import type { NormalizeImageBytes } from "./wire.ts";
@@ -10,7 +11,7 @@ export interface SideGenDeps {
   readonly concurrency: number;
   readonly normalize: NormalizeImageBytes;
   readonly log: InferenceLog;
-  readonly now: () => number;
+  readonly now: Clock;
 }
 
 /** One side-generation item as a chat turn's inputs: its two prompts and its images as URLs or data URLs. */

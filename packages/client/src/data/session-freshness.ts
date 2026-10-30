@@ -26,7 +26,9 @@
 // working app because their wifi blinked. Unreachable is ignored; only a RESOLVED `authenticated: false` is
 // a verdict.
 
+import type { Clock } from "@orb/kit/time";
 import { sessionDocument } from "#lib";
+import type { SessionDocumentHost } from "../lib/session-document-host.ts";
 
 /** The server's session-slide throttle — see the header for why the probe floor is exactly this. */
 const FRESHNESS_FLOOR_MS = 300_000;
@@ -48,9 +50,9 @@ function sessionFreshnessAgeMs(now: number = sessionDocument.now()): number {
 
 /** Everything the probe touches, injected so the whole rule is unit-testable with a fake clock. */
 export interface SessionFreshnessDeps {
-  readonly now: () => number;
+  readonly now: Clock;
   /** Is this tab visible RIGHT NOW? A hidden tab never probes. */
-  readonly isVisible: () => boolean;
+  readonly isVisible: SessionDocumentHost["isVisible"];
   /** The live session check — resolves TRUE only when the session is alive AND still belongs to the
    *  identity this tab is bound to (`probeSessionContinuity`; the compare is the ladder's, §4.2.1). A
    *  session that comes back as a DIFFERENT human is not freshness — it is the state this sensor exists to
@@ -61,7 +63,7 @@ export interface SessionFreshnessDeps {
    *  which owns which rung that lands on. */
   readonly onDead: () => void;
   /** Subscribe to the visibility edge; returns the unsubscribe. */
-  readonly subscribe: (listener: () => void) => () => void;
+  readonly subscribe: SessionDocumentHost["subscribeVisibility"];
 }
 
 /**

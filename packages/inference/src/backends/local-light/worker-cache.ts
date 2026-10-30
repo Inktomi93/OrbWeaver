@@ -10,7 +10,6 @@ import type { ProviderErrorInit } from "#src/contract/errors.ts";
 import { ProviderError } from "#src/contract/errors.ts";
 import type {
   LocalLightHostMessage,
-  LocalLightLoadProgress,
   LocalLightWorkerCall,
   LocalLightWorkerFailure,
   LocalLightWorkerMessage,
@@ -19,7 +18,7 @@ import type {
 } from "#src/contract/local-light-worker.ts";
 import type { ScheduleTimeout } from "#src/contract/runtime.ts";
 import type { InferenceLog } from "#src/deps.ts";
-import type { WorkerModelCache } from "../../contract/local-light.ts";
+import type { LocalLightPrefetchHandle, WorkerModelCache } from "../../contract/local-light.ts";
 
 // How long `close` waits for the worker to exit: one embed or rerank run returns well inside it. A model load
 // in progress can outlast it; the process exit then tears the worker down mid-run and aborts (exit 134).
@@ -32,7 +31,7 @@ interface WorkerModelCacheConfig extends LocalLightWorkerOptions {
   readonly scheduleTimeout: ScheduleTimeout;
   readonly closeWaitMs?: number | undefined;
   readonly maxPending?: number | undefined;
-  readonly onProgress?: ((progress: LocalLightLoadProgress) => void) | undefined;
+  readonly onProgress?: LocalLightPrefetchHandle["onProgress"];
   readonly log: InferenceLog;
 }
 

@@ -3,6 +3,7 @@
 // every sealed credential, or every local password, session and live invite link.
 
 import type { BootDatabaseHandle } from "@orb/db/wiring";
+import type { Clock } from "@orb/kit/time";
 import { hasRedeemableInvite } from "#domain/chat";
 import { hasSealedCredentials } from "#domain/credentials";
 import { createSettleSessionSecret } from "#domain/sessions";
@@ -11,7 +12,7 @@ import { loadOrCreateKeyfile } from "#infra/crypto";
 
 export interface BootSecretsDeps {
   readonly db: BootDatabaseHandle;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly credentialsKey: BootSecretResolution<Buffer>;
   readonly sessionSecret: BootSecretResolution<string>;
   /** Where a generated or unreadable keyfile is reported (`keyfileReport` over the record's `NODE_ENV`). */

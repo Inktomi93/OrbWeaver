@@ -14,8 +14,8 @@ import {
   readRoomCanon,
 } from "@orb/testkit/node/composed";
 
-/** Supply a finite physical reply plan without substituting a domain operation. */
-export async function textRoom(replies: readonly string[], options: Omit<ChatRootOptions, "providerFetch"> = {}): Promise<ChatRoot> {
+/** A finite physical reply plan as provider execution, for a room or a test that wraps the provider's own timing. */
+export function textProvider(replies: readonly string[]): typeof fetch {
   let next = 0;
   const provider = createCorpusProviderExecution({
     modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
@@ -31,7 +31,12 @@ export async function textRoom(replies: readonly string[], options: Omit<ChatRoo
       return { text, toolCalls: [], usage: { promptTokens: 4, completionTokens: 2 } };
     },
   });
-  return await createChatRoot({ memoryEnabled: false, ...options, providerFetch: provider.execute });
+  return provider.execute;
+}
+
+/** Supply a finite physical reply plan without substituting a domain operation. */
+export async function textRoom(replies: readonly string[], options: Omit<ChatRootOptions, "providerFetch"> = {}): Promise<ChatRoot> {
+  return await createChatRoot({ memoryEnabled: false, ...options, providerFetch: textProvider(replies) });
 }
 
 /** The JSON bodies of the room's recorded chat-completions requests, oldest first. */

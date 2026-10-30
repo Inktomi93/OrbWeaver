@@ -27,7 +27,6 @@ export { createExportRpgGame, createImportRpgGame } from "./persistence/portabil
 export { createRpgService } from "./service.ts";
 export { createRpgHandWrites } from "./snapshot-edit.ts";
 export { createRpgStagingStore } from "./staging.ts";
-
 // The 7 cheap-mode state tool defs (§4.5) — a factory closing over `RpgContext`; W1c-b registers them into the
 // ONE `toolUse` registry at compose (the imagery precedent).
 export { rpgToolDefinitions } from "./tools/index.ts";

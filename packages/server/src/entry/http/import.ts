@@ -21,7 +21,7 @@ import type { Principal } from "@orb/contracts/identity";
 import { importStartedSchema } from "@orb/contracts/import";
 import { IMPORT_BUNDLE_MAX_BYTES } from "@orb/contracts/uploads";
 import { DomainConflictError } from "@orb/kit/errors";
-import type { UserId } from "@orb/kit/ids";
+import type { IdSource, UserId } from "@orb/kit/ids";
 import type { Context, Hono } from "hono";
 import { DEFAULT_IMPORT_STAGING_DIR, stagedOwnerRoot } from "#domain/import";
 import type { WorkloadService } from "#domain/workloads";
@@ -43,7 +43,7 @@ export interface ImportBundleDeps {
   readonly workloads: Pick<WorkloadService, "start">;
   readonly stagingDir?: string;
   /** The root's opaque nonce; it keeps each staged bundle's filename unique. */
-  readonly newOpaqueId: () => string;
+  readonly newOpaqueId: IdSource["uuid"];
 }
 
 /** Write the upload stream to `path`, aborting (returning `false`) the instant it exceeds `maxBytes`.

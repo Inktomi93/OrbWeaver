@@ -1,19 +1,21 @@
 import type { ChatId } from "@orb/kit/ids";
+import type { RandomSource } from "@orb/kit/macro";
+import type { Clock } from "@orb/kit/time";
 import type { AddSpanEvent, ProviderScrubSet, Resolved, ScheduleTimeout, WireCaptureSink } from "#contract";
 import type { InferenceDeps, InferenceLog } from "./runtime.ts";
 
 export interface AnthropicChatDeps {
   readonly scheduleTimeout: ScheduleTimeout;
-  readonly now: () => number;
-  readonly random: () => number;
+  readonly now: Clock;
+  readonly random: RandomSource;
   readonly log: InferenceLog;
   readonly addSpanEvent?: AddSpanEvent | undefined;
   readonly transport: AnthropicTransportDeps;
 }
 
 export interface AnthropicBackendDeps {
-  readonly now: () => number;
-  readonly random: () => number;
+  readonly now: Clock;
+  readonly random: RandomSource;
   readonly scheduleTimeout: InferenceDeps["scheduleTimeout"];
   readonly log: InferenceDeps["log"];
   readonly addSpanEvent?: AddSpanEvent | undefined;

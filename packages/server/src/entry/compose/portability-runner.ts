@@ -1,8 +1,8 @@
-import type { Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import { ASSET_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { IdSource, PersonaId, UserId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { AssetsContext, AssetsService } from "#domain/assets";
 import { createBackgroundStore } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
@@ -11,7 +11,7 @@ import { createCompareAndSetImportedTokenUsage, createListImportedTokenUsageCand
 import type { DatabankPortabilityContext } from "#domain/databank";
 import type { ExportService } from "#domain/export";
 import type { ImageryPortabilityService } from "#domain/imagery";
-import type { ImportWorkloadDeps, SettleImportMemory } from "#domain/import";
+import type { ImportDriverDeps, ImportWorkloadDeps, SettleImportMemory } from "#domain/import";
 import {
   createEnqueueImportIndex,
   createImportLibraryEmitter,
@@ -49,7 +49,7 @@ export interface PortabilityRunnerComposeDeps {
 
   readonly idSource: IdSource;
   readonly db: DatabaseHandle;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly tagCtx: TagContext;
   readonly settingsCtx: SettingsContext;
   readonly presetCtx: PresetContext;
@@ -81,7 +81,7 @@ export interface PortabilityRunnerComposeDeps {
   readonly attachBooksByName: AttachOwnedBooksByName;
   readonly bulkImportChats: BulkImportChats;
   readonly bulkImportPersonas: BulkImportPersonas;
-  readonly resolveOwnerPrincipal: (userId: UserId) => Promise<Principal>;
+  readonly resolveOwnerPrincipal: ImportDriverDeps["resolveOwnerPrincipal"];
   readonly workloads: Pick<WorkloadService, "start">;
   /** The staging root the upload routes wrote under; absent uses the shared import staging default (the same
    *  default the routes resolve, so the contribution reads exactly where the route wrote — and the routes

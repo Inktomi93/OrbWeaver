@@ -12,6 +12,7 @@ export { queryMacros } from "./metadata.ts";
 // MACRO_NAME_RE: the fully-anchored macro-name shape — user-macro registration + the contracts-side
 // authoring schema both validate against it (one vocabulary with the parser's identifier scan).
 export { MACRO_NAME_RE, type MacroRun, scanMacroRuns, stripComments } from "./parser.ts";
+export type { RandomSource } from "./prng.ts";
 export { createDefaultRegistry, createNamesOnlyRegistry, createVolatileOnlyRegistry } from "./registry.ts";
 export type {
   RowCharacterName,

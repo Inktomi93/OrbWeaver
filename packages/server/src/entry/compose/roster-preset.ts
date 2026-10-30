@@ -10,6 +10,7 @@ import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { IdSource } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { AutomationService } from "#domain/automation";
 import { resolveChatRulePresetKnobs } from "#domain/automation";
 import { createOwnedCharacterIds } from "#domain/character";
@@ -24,7 +25,7 @@ import { minter } from "./minter.ts";
 interface RosterPresetComposeInput {
   readonly idSource: IdSource;
   readonly db: DatabaseHandle;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly emitUserEvent: EmitUserEvent;
   readonly can: Can;

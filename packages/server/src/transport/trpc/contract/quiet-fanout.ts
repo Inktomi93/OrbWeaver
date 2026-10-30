@@ -1,10 +1,11 @@
-import type { RoomEntityKind } from "@orb/contracts/chat";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
-import type { ChatId, UserId } from "@orb/kit/ids";
+import type { UserId } from "@orb/kit/ids";
+import type { ChatPublicationDeps } from "#domain/chat";
+import type { ImportDriverDeps } from "#domain/import";
 
 /** One application's request-scoped bulk coalescer; nested scopes within that application join their gesture. */
 export interface QuietFanout extends Disposable {
   readonly silenceUserEvent: (userId: UserId, type: UserBusEvent["type"], terminal: () => void) => boolean;
-  readonly silenceRoomEntityFan: (chatId: ChatId, entity: RoomEntityKind, terminal: () => void) => boolean;
-  readonly withQuietBulkFanout: <T>(run: () => Promise<T>) => Promise<T>;
+  readonly silenceRoomEntityFan: ChatPublicationDeps["silenceRoomEntityFan"];
+  readonly withQuietBulkFanout: ImportDriverDeps["quiet"];
 }

@@ -143,7 +143,7 @@ export class GenerationObservationPersistenceError extends Error {
   }
 }
 
-interface ChatRequestBase {
+export interface ChatRequestBase {
   readonly responseCache?: ResponseCacheControl | undefined;
   readonly onObservedResult?: GenerationObservationCallback | undefined;
   readonly attachmentQuality?: AttachmentQuality | undefined;

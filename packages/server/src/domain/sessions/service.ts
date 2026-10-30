@@ -7,10 +7,11 @@
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { IdSource, UserId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { AuditWiring, Logger } from "#foundation/observability";
 import { createSessionsContext } from "./context.ts";
 import type { SessionsRolePolicy } from "./contract/role-policy.ts";
-import type { SessionsCryptoOps, SessionsService } from "./contract/service.ts";
+import type { SessionsContext, SessionsCryptoOps, SessionsService } from "./contract/service.ts";
 import { selectOwnerUserId } from "./persistence/users.ts";
 import { createAuthenticate } from "./verbs/authenticate.ts";
 import { createCreate } from "./verbs/create.ts";
@@ -34,7 +35,7 @@ interface SessionsServiceDeps {
   readonly logger: Logger;
   readonly audit: AuditWiring["log"];
   db: DatabaseHandle;
-  now: () => number;
+  now: Clock;
   readonly idSource: IdSource;
   sessionSecret: string | null;
   /** The password hasher and cipher constructors the root wires from `infra/`. */
@@ -42,7 +43,7 @@ interface SessionsServiceDeps {
   /** #2481 — the injected per-user local-light seed (`SessionsContext.seedUserConnections`). Required on
    *  purpose: a composition root that forgets it mints accounts with no vector floor, silently, which is the
    *  defect this closes. Build it with `createLocalLightUserSeed` at `entry/boot/seed-local-light.ts`. */
-  seedUserConnections: (userId: UserId) => Promise<void>;
+  seedUserConnections: SessionsContext["seedUserConnections"];
 }
 
 export function createSessionsService(deps: SessionsServiceDeps): SessionsService {

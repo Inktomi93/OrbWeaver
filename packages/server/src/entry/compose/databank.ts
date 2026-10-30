@@ -6,15 +6,15 @@
 // handles + sibling service front doors onto the `DatabankContext`.
 
 import type { LiveOnlyChatBusEvent } from "@orb/contracts/chat";
-import type { RoleClients } from "@orb/contracts/role-clients";
 import type { DatabaseHandle } from "@orb/db/wiring";
-import type { IdSource, UserId } from "@orb/kit/ids";
+import type { IdSource } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import { can } from "#domain/admin";
 import { loadPresentHostUserId, requireHost, requireParticipant } from "#domain/chat";
 import type { DatabankContext, DatabankIngest, DatabankPortabilityContext, DatabankService } from "#domain/databank";
 import { createDatabankIngest, createDatabankService } from "#domain/databank";
-import type { EmbeddingsService } from "#domain/embeddings";
+import type { EmbeddingsService, LiveEmbedSpaceDeps } from "#domain/embeddings";
 import { createGetLiveEmbedSpace } from "#domain/embeddings";
 import type { SearchService } from "#domain/search";
 import type { SettingsService } from "#domain/settings";
@@ -43,7 +43,7 @@ export interface DatabankComposeDeps {
   readonly fetchWebDocument: ScopedEgress["fetchWebDocument"];
   readonly idSource: IdSource;
   readonly db: DatabaseHandle;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly assetsStore: DatabankContext["assetsStore"];
   readonly loadAssetBytes: DatabankContext["loadAssetBytes"];
@@ -51,7 +51,7 @@ export interface DatabankComposeDeps {
   readonly extractText: DatabankContext["extractText"];
   /** The per-FUNDER role-client binder: a bank's space is its OWNER's `embed` binding (vector tasks are
    *  owner-scoped, §7.5), read per call so a re-bound connection reaches the next ingest with no restart. */
-  readonly roleClientsFor: (ownerId: UserId) => Promise<Pick<RoleClients, "resolved">>;
+  readonly roleClientsFor: LiveEmbedSpaceDeps["roleClientsFor"];
   readonly search: Pick<SearchService, "documents">;
   readonly workloads: Pick<WorkloadService, "start">;
   /** The per-user settings loader — `getDatabankSettings(ownerId)` reads the user's `databank` section

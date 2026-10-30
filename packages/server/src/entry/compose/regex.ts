@@ -13,6 +13,7 @@ import type { LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { IdSource } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import { can } from "#domain/admin";
 import { createResolveRoomDisplayPolicy, requireHost, requireParticipant } from "#domain/chat";
 import type {
@@ -48,7 +49,7 @@ export interface RegexComposeDeps {
 
   readonly idSource: IdSource;
   readonly db: DatabaseHandle;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   /** chat's DURABLE-APPEND-FREE live fan — the entity→room bridge's emit surface (the world-info precedent).
    *  Threaded here for #1733: regex's chat-arm writes and its library-row switch both have a member-visible

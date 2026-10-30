@@ -146,6 +146,7 @@ export function createChatService(
     emit: deps.emit,
     resolveForeignInputs: deps.resolveForeignInputs,
     claimChat,
+    activeTurns: deps.activeTurns,
     // The D129-F freeze-at-selection bake draws from the SAME service PRNG a turn's freeze does — a greeting
     // alternate baked at selection is the same kind of draw as one baked at the first user turn.
     prng: deps.prng,

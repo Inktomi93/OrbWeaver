@@ -6,7 +6,7 @@ import process from "node:process";
 const root = resolve(import.meta.dirname, "..");
 const operands = process.argv.slice(2);
 const routerConfig = "packages/server/tsconfig.router.json";
-const routerConsumers = ["packages/client/tsconfig.json", "tooling/tsconfig.json", "tsconfig.json", "tsconfig.tests-dom.json"].map((config) =>
+const routerConsumers = ["packages/client/tsconfig.json", "tooling/tsconfig.json", "tsconfig.node.json", "tsconfig.tests-dom.json"].map((config) =>
   resolve(root, config),
 );
 const configs =
@@ -18,13 +18,17 @@ const configs =
           .sort(),
         "tooling/tsconfig.json",
         "tooling/src/codemods/tsconfig.json",
-        "tsconfig.json",
+        "tsconfig.node.json",
         "tsconfig.tests-dom.json",
         "tsconfig.tests-iso.json",
       ];
 for (const config of configs) {
   if (config.startsWith("-") || !config.endsWith(".json") || !statSync(resolve(root, config)).isFile()) {
     throw new Error(`Expected a tsconfig file, received ${JSON.stringify(config)}`);
+  }
+  // The root tsconfig.json is the solution file: it compiles nothing, so checking it would pass vacuously.
+  if (resolve(root, config) === resolve(root, "tsconfig.json")) {
+    throw new Error("tsconfig.json is the solution file and compiles nothing; check the Node world with tsconfig.node.json");
   }
 }
 

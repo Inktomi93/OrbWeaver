@@ -3,10 +3,10 @@
 // `ImageEmbedResult`) live in `@orb/contracts/providers`; the `RoleClients` bundle in
 // `@orb/contracts/role-clients` — callers import those from contracts, not through this door.
 
+export type { LiveEmbedSpaceDeps } from "./contract/live-embed-space.ts";
 // Consumed by `discovery` + `search` + tests, not just this domain.
 export type { VectorTable } from "./contract/params.ts";
-
-export type { VacuousMemoryReceipt } from "./contract/reindex.ts";
+export type { EmbeddingReindexTriggers, VacuousMemoryReceiptDeps } from "./contract/reindex.ts";
 // The entry root wires these; transport/tests reference them directly.
 export type {
   EmbeddingConnectionSnapshot,
@@ -16,6 +16,7 @@ export type {
   EmbeddingsWorkloadDeps,
   ResolveEmbeddingConnection,
 } from "./contract/service.ts";
+export type { VectorSweepDeps } from "./contract/vector-sweep-ops.ts";
 export { createEmbeddingsIndexer } from "./indexer/index.ts";
 export { createEmbeddingsIndexerSubscription } from "./indexer/subscription.ts";
 export { createHandoffRestampStatements } from "./persistence/handoff-restamp.ts";
@@ -27,6 +28,5 @@ export { createMemoryEmbeddingOps } from "./verbs/memory-ops.ts";
 export { createRecordUsage } from "./verbs/record-usage.ts";
 export { createResolveEmbeddingConnection } from "./verbs/runtime-connection.ts";
 export { createVacuousMemoryReceipt } from "./verbs/vacuous-memory-receipt.ts";
-
 export { createVectorSweepOps } from "./verbs/vector-sweep-ops.ts";
 export { createEmbeddingsWorkloadContributions } from "./workload-contributions.ts";

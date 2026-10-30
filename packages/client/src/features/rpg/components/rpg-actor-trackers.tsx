@@ -295,8 +295,8 @@ export function ConditionChips({
 }: {
   readonly conditions: ActorVolatile["conditions"];
   readonly subject?: string;
-  readonly onAdd?: (name: string) => void;
-  readonly onRemove?: (name: string) => void;
+  readonly onAdd?: ActorEdit["onAddCondition"];
+  readonly onRemove?: ActorEdit["onRemoveCondition"];
   readonly edit?: ActorEdit;
 }): ReactElement | null {
   if (conditions.length === 0 && onAdd === undefined) {

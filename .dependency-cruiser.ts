@@ -14,7 +14,7 @@ import { BROWSER_TEST_SUFFIXES, TEST_KIND_SUFFIXES } from "./tooling/src/floor/t
 
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
 const nodeTestProgram = ts.getParsedCommandLineOfConfigFile(
-  fileURLToPath(new URL("./tsconfig.json", import.meta.url)),
+  fileURLToPath(new URL("./tsconfig.node.json", import.meta.url)),
   {},
   {
     ...ts.sys,

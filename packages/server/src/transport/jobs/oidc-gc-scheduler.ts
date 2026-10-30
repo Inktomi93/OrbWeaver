@@ -16,7 +16,9 @@
 // DETERMINISM: `now` + `scheduleInterval` are injected (no ambient `Date.now`/`setInterval`). The testable core
 // `runOidcGc` takes one sweep and returns; the loop fires it at boot + on the injected timer.
 
+import type { Clock } from "@orb/kit/time";
 import { MS_PER_HOUR } from "@orb/kit/time";
+import type { DomainOidcStore } from "#domain/sessions";
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import type { BackgroundWork } from "#infra/tasks";
@@ -36,9 +38,9 @@ export interface OidcGcSchedulerDeps {
   readonly logger: Logger;
   readonly track?: BackgroundWork["track"];
   /** Reap every tx with `expiresAt <= before`, returning the count. Entry binds `createOidcStore(...).deleteExpired`. */
-  readonly sweep: (before: number) => Promise<number>;
+  readonly sweep: DomainOidcStore["deleteExpired"];
   /** The injected clock — the reap gates on it (no ambient `Date.now`). */
-  readonly now: () => number;
+  readonly now: Clock;
   readonly scheduleInterval: ScheduleOp;
   readonly intervalMs?: number;
 }

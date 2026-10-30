@@ -32,12 +32,12 @@
 // A room-level server fault arrives as a `roomFailed` frame carrying the classified code + message, routed
 // to the notify seam (never into `invalidateRpg`); the room detaches and the socket survives.
 
-import type { RpgBusEvent } from "@orb/contracts/rpg";
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { StreamRoomRef } from "@orb/contracts/stream";
 import type { ChatId } from "@orb/kit/ids";
 import { notify } from "#lib";
 import { applyRpgRoundEvent, clearRpgRounds } from "#state";
+import type { Invalidation } from "../invalidation.ts";
 import { useTRPC } from "../trpc.ts";
 import { useGatedQuery } from "../use-gated-query.ts";
 import { useBusRoom } from "./use-bus-room.ts";
@@ -45,12 +45,7 @@ import { useBusRoom } from "./use-bus-room.ts";
 /** What the hook needs from the central invalidation seam (`data/invalidation.ts`) — the rpg-bus entry point
  *  + the (re)connect gap-heal. Passed from `app-root.tsx` (the seam is rebuilt per render; identity churn is
  *  harmless — the room keys off `chatId`, which does change on chat switch). */
-export interface RpgBusDeps {
-  /** Route ONE live `RpgBusEvent` through the exhaustive `RPG_BUS_FILTERS` map. */
-  readonly invalidateRpg: (event: RpgBusEvent) => void;
-  /** The (re)connect gap-heal — re-resolve the whole game panel for `chatId`. */
-  readonly gapHealRpg: (chatId: ChatId) => void;
-}
+export interface RpgBusDeps extends Readonly<Pick<Invalidation, "invalidateRpg" | "gapHealRpg">> {}
 
 /**
  * Attach the per-game live event room and drive the invalidation seam from it. `null` detaches (no game).

@@ -35,19 +35,20 @@ import { MIN_PASSWORD_LENGTH } from "@orb/contracts/identity";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import { admitsHandle, withinHandleLength } from "@orb/kit/handle-key";
-import type { ExternalId, Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
+import type { ExternalId, Handle, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import { MS_PER_SECOND } from "@orb/kit/time";
 import type { Context, Hono, MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { Configuration } from "openid-client";
 import { buildAuthorizationUrl, calculatePKCECodeChallenge, randomNonce, randomPKCECodeVerifier, randomState } from "openid-client";
 import type { SignupInviteOps } from "#domain/chat";
-import type { ProvisionIdentityOptions, RevokedSessionsSummary, SessionsRolePolicy, SessionsService } from "#domain/sessions";
+import type { DomainOidcStore, SessionsContext, SessionsRolePolicy, SessionsService } from "#domain/sessions";
 import { OIDC_PENDING_JOIN_TTL_MS, OIDC_TRANSACTION_TTL_MS } from "#domain/sessions";
 import type { Logger } from "#foundation/observability";
 import { getLog, groupsLogFields, securityEvent } from "#foundation/observability";
-import type { BackchannelLogoutVerifier, OidcExchange, OidcTransaction, OwnerClaimCode, PublicHttpMintNotice } from "#infra/auth";
+import type { BackchannelLogoutVerifier, OidcExchange, OidcTransaction, OwnerClaimCode, PasswordHasher, PublicHttpMintNotice } from "#infra/auth";
 import {
   hasCsrfHeader,
   OIDC_BINDING_COOKIES,
@@ -65,7 +66,7 @@ import {
 import { addressThrottleKey, clientIp, peerIp } from "#infra/network";
 import type { RateLimiter } from "#src/transport/rate-limit.ts";
 import { createRateLimiter } from "#src/transport/rate-limit.ts";
-import type { LiveBuses } from "#transport/trpc";
+import type { LiveBuses, SocketRegistry } from "#transport/trpc";
 import { readSessionCookie } from "../auth/index.ts";
 
 const UNAUTHORIZED = 401;
@@ -411,22 +412,17 @@ async function resolveEndSessionUrl(
 
 /** The `domain/sessions` slice the mint routes consume (the seam owns resolution; this is the write side). */
 export interface AuthSessionsPort {
-  readonly create: (params: {
-    readonly userId: UserId;
-    readonly userAgent?: string | null;
-    /** #141 — the verified OIDC id_token, supplied by the callback ONLY. The verb seals it at rest (AAD =
-     *  the new session row id); this route never reads it back. */
-    readonly oidcIdToken?: string | null;
-  }) => Promise<{ readonly token: SessionToken; readonly expiresAt: number }>;
+  /** Narrowed on purpose: the mint routes set the cookie from `token` and `expiresAt` and never read `sessionId`. */
+  readonly create: (params: Parameters<SessionsService["create"]>[0]) => Promise<Pick<Awaited<ReturnType<SessionsService["create"]>>, "token" | "expiresAt">>;
   /** Returns WHICH session ended plus that session's OIDC end-session hint (`null` = already gone) so the
    *  route can evict that session's sockets and build the `id_token_hint` end-session URL (#141). */
-  readonly revokeByToken: (token: SessionToken) => Promise<{ readonly sessionId: SessionId; readonly oidcIdToken: string | null } | null>;
+  readonly revokeByToken: SessionsService["revokeByToken"];
   /** `options` carries the caller-resolved admission decisions (A1 JIT gate, A2 approval, the owner-claim proof).
    *  The OIDC callback resolves them; the verb stays mode-agnostic. */
-  readonly provisionIdentity: (identity: ResolvedIdentity, options: ProvisionIdentityOptions) => Promise<ProvisionOutcome>;
+  readonly provisionIdentity: SessionsService["provisionIdentity"];
   /** A5 — revoke every live session for the user(s) bound to an IdP subject (`sub`), for back-channel
    *  logout. Returns the count revoked + WHOSE (the route evicts those users' sockets). */
-  readonly revokeByExternalId: (externalId: ExternalId) => Promise<RevokedSessionsSummary>;
+  readonly revokeByExternalId: SessionsService["revokeByExternalId"];
 }
 
 /**
@@ -445,10 +441,7 @@ export interface AuthSessionsPort {
  *     about the HUMAN, and the only arm that also reaches sockets which authenticated with no session at all.
  *     Surviving devices whose own cookies are still valid reconnect and resume through the existing barrier.
  */
-export interface SessionSocketEviction {
-  readonly evictSession: (sessionId: SessionId) => number;
-  readonly evictUser: (userId: UserId) => number;
-}
+export interface SessionSocketEviction extends Readonly<Pick<SocketRegistry, "evictSession" | "evictUser">> {}
 
 /** The `provisionIdentity` result the OIDC callback dispatches on: `provisioned` (mint the session,
  *  gating on `enabled`) or `denied` (the login gate refused — no session). `reason:"account-exists"` is the
@@ -486,10 +479,7 @@ export interface LocalAuthenticator {
 
 /** The OIDC transaction store the route needs — mint (authorize) + consume (callback). Wider than
  *  infra/auth's consume-only store because the authorize-redirect route also mints. */
-export interface OidcMintStore {
-  readonly mint: (tx: OidcTransaction) => Promise<void>;
-  readonly consume: (state: string) => Promise<OidcTransaction | null>;
-}
+export interface OidcMintStore extends Readonly<Pick<DomainOidcStore, "mint" | "consume">> {}
 
 /** The OIDC claim-name mapping, provider-agnostic. Any name may be a dot-path for a nested claim. */
 export interface OidcClaimMap {
@@ -544,7 +534,7 @@ interface OidcSignupDeps {
   /** Is this cookie token a live session? A signed-in caller joins through the in-app dialog, never here. */
   readonly sessionIsLive: (token: SessionToken) => Promise<boolean>;
   /** The new account's local-light floor, run after the commit (total by contract). */
-  readonly seedUserConnections: (userId: UserId) => Promise<void>;
+  readonly seedUserConnections: SessionsContext["seedUserConnections"];
 }
 
 export interface AuthRoutesDeps {
@@ -553,7 +543,7 @@ export interface AuthRoutesDeps {
   readonly sessions: AuthSessionsPort;
   /** W7a — the live-socket eviction edge, applied wherever this file ends a session. */
   readonly sockets: SessionSocketEviction;
-  readonly now: () => number;
+  readonly now: Clock;
   /** Backs the per-IP login throttle (shared `rate_limit_buckets` table — replica-correct). */
   readonly db: DatabaseHandle;
   /** The RESOLVED per-IP login-attempt cap/min (env floor ⊕ AppSettings override), read FRESH per attempt —
@@ -585,13 +575,13 @@ export interface SignupRouteDeps {
   /** Chat's signup ops: the invite pre-check, the preview behind it, the one gated batch, and the join announcement. */
   readonly invites: Pick<SignupInviteOps, "admits" | "tokenHashOf" | "previewHash" | "redeem" | "announceJoined">;
   /** The sessions front-door predicate over `OWNER_HANDLES` and the single-user placeholder, case-insensitive. */
-  readonly isReservedHandle: (handle: Handle) => boolean;
+  readonly isReservedHandle: SessionsRolePolicy["isReservedSignupHandle"];
   /** Does an account already carry the handle, case-insensitively? */
-  readonly handleTaken: (handle: Handle) => Promise<boolean>;
+  readonly handleTaken: SessionsService["signupHandleTaken"];
   /** The scrypt password hasher bound to the `SESSION_SECRET` pepper. */
-  readonly hashPassword: (plain: string) => Promise<string>;
+  readonly hashPassword: PasswordHasher["hash"];
   /** The new account's local-light floor, run after the commit (total by contract). */
-  readonly seedUserConnections: (userId: UserId) => Promise<void>;
+  readonly seedUserConnections: SessionsContext["seedUserConnections"];
 }
 
 /** The over-budget response, IDENTICAL on both throttle axes (B1). Which belt fired is an OPERATOR signal

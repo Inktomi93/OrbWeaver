@@ -63,6 +63,7 @@ import type { StreamRoomRef } from "@orb/contracts/stream";
 import { roomKey } from "@orb/contracts/stream";
 import { DomainNotFoundError, DomainRateLimitError } from "@orb/kit/errors";
 import type { SessionId, SocketId, UserId } from "@orb/kit/ids";
+import type { ShareServiceDeps } from "#domain/share";
 
 /** Ratified hygiene bounds. None is load-bearing; they exist so a client bug cannot grow the maps. */
 const SOCKET_REAP_MS = 60_000;
@@ -167,7 +168,7 @@ export interface SocketRegistry {
    *  that authenticated with NO session (the owner fallback, forward-header SSO) which no session id names. */
   readonly evictUser: (userId: UserId) => number;
   /** Observability (`/api/_debug/stream/sockets`): live sockets, all users or one. */
-  readonly liveSocketCount: (userId?: UserId) => number;
+  readonly liveSocketCount: ShareServiceDeps["liveSocketCount"];
   /** Sweep cells dark past the window. Called on every entry point; exposed for the reap test. */
   readonly reap: () => number;
   /** The root's opaque nonce; it keeps each supervised room-pump name unique across re-attaches. */

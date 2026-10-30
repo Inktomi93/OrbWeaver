@@ -2,6 +2,7 @@ import type { SessionKey, SessionStore, SessionStoreEntry } from "@anthropic-ai/
 import type { AgentSdkModel } from "@orb/contracts/inference";
 import type { EffortLevel } from "@orb/contracts/preset";
 import type { ChatId, ModelId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { ZodRawShape } from "zod";
 import type {
   AgentSdkExecution,
@@ -9,8 +10,6 @@ import type {
   AgentSdkSessionId,
   AgentSdkSessionTotals,
   AgentSeedTurn,
-  ChatDeltaEvent,
-  ChatEvent,
   ChatResult,
   ContextUsage,
   ProviderBackend,
@@ -21,8 +20,9 @@ import type {
   SpawnIdentity,
   WireCaptureSink,
 } from "#contract";
-import type { AgentSdkQueryLease } from "#src/contract/agent-sdk-execution.ts";
-import type { ProviderCapabilityLog, ProviderLogger, ProviderTurnUsage } from "./http.ts";
+import type { AgentSdkQueryLease } from "./agent-sdk-execution.ts";
+import type { ChatDeltaSubscription, ChatRequestBase } from "./chat.ts";
+import type { ProviderLogger, ProviderTurnUsage } from "./http.ts";
 import type { InferenceDeps, InferenceLog } from "./runtime.ts";
 import type { PlannedResponseFormat } from "./structured.ts";
 import type { NormalizeImageBytes } from "./wire.ts";
@@ -53,7 +53,7 @@ export interface ClaudeSdkEnvArgs {
 }
 
 export interface AgentSdkBackendDeps {
-  readonly now: () => number;
+  readonly now: Clock;
   readonly log: InferenceDeps["log"];
   readonly env: InferenceDeps["env"];
   readonly userRuntimeDir: InferenceDeps["userRuntimeDir"];
@@ -112,7 +112,7 @@ export interface AgentSdkLog {
   }) => void;
   readonly compaction: (fields: Record<string, unknown>) => void;
   readonly dialog: (entry: { readonly source: "elicitation" | "user-dialog"; readonly kind: string }) => void;
-  readonly capability: (entry: ProviderCapabilityLog) => void;
+  readonly capability: ProviderLogger["capability"];
   readonly mcp: (entry: { readonly unhealthy: boolean; readonly servers: readonly ProviderMcpServerHealth[] }) => void;
   readonly info: (fields: Record<string, unknown>, message: string) => void;
   readonly warn: (fields: Record<string, unknown>, message: string) => void;
@@ -134,7 +134,7 @@ export interface DisciplineOptions {
 /** What a spawn needs from the connection: WHOSE runtime dir and WHICH token — the catalog warm runs before a
  *  full `Resolved` exists, so this is the narrow shape both it and a turn hand in. */
 export interface AgentSdkDeps {
-  readonly now: () => number;
+  readonly now: Clock;
   readonly log: InferenceLog;
   readonly execution: AgentSdkExecution;
   readonly sessionStore: SessionStore;
@@ -164,15 +164,15 @@ export interface TurnStreamContext {
    *  entry was unreadable, which leaves the turn's cost unrecorded. */
   readonly savedTotals: AgentSdkSessionTotals | null;
   readonly disposition?: SeededSessionDecision["disposition"] | undefined;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly chatId?: ChatId | undefined;
-  readonly onEvent?: ((event: ChatEvent) => void) | undefined;
-  readonly onDelta?: ((event: ChatDeltaEvent) => void) | undefined;
+  readonly onEvent?: ChatRequestBase["onEvent"];
+  readonly onDelta?: ChatDeltaSubscription["onDelta"];
   readonly onSessionId?: ((sessionId: AgentSdkSessionId) => void) | undefined;
   readonly configuredMaxOutputTokens?: number | null | undefined;
   readonly configuredMaxContextTokens?: number | null | undefined;
   readonly probeContextUsage?: (() => Promise<ContextUsage | undefined>) | undefined;
-  readonly stderrTail?: (() => string) | undefined;
+  readonly stderrTail?: AgentSdkQueryLease["stderrTail"];
   readonly safeErrorMessage?: AgentSdkQueryLease["safeErrorMessage"];
   /** The planned payload when the request carried a `responseFormat` (`outputFormat: json_schema` mounted). */
   readonly structured?: PlannedResponseFormat | undefined;

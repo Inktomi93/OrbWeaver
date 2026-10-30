@@ -5,6 +5,8 @@
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { STREAM_INACTIVITY_TIMEOUT_MS } from "@orb/contracts/stream";
 import { jsonValueSchema } from "@orb/kit/json";
+import type { RandomSource } from "@orb/kit/macro";
+import type { Clock } from "@orb/kit/time";
 import { MS_PER_SECOND } from "@orb/kit/time";
 
 /** The reconnect delay before the stream sends a `retry:` field, near what browsers use natively. */
@@ -42,8 +44,8 @@ interface PostEventSourceInit {
   readonly maxRetryDelayMs?: number;
   readonly openingTimeoutMs?: number;
   readonly inactivityTimeoutMs?: number;
-  readonly random?: () => number;
-  readonly now?: () => number;
+  readonly random?: RandomSource;
+  readonly now?: Clock;
 }
 
 interface ConnectionAttempt {

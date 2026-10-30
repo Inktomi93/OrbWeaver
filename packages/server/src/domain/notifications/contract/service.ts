@@ -4,9 +4,7 @@ import type { IdSource } from "@orb/kit/ids";
 import type { ResolveStandingAsks } from "./ops.ts";
 import type { DismissParams, ListInboxParams, MarkAllReadParams, RecordParams, RefreshStandingParams, ReplaySinceParams, RetractParams } from "./params.ts";
 
-export type { EmitNotification } from "@orb/contracts/notifications";
-
-// The typed API surface: the DI bundle, the producer-facing `emit` op type, and the 4-verb interface.
+// The typed API surface: the DI bundle and the 4-verb interface.
 // notifications is the per-user durable inbox: the table is the source of truth — durable-first, `record`
 // INSERTs the row and the per-user bus fan-out is a separate after-commit concern.
 

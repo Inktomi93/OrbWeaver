@@ -1,19 +1,19 @@
 // Imagery graph wiring; late-bound chat ops are dereferenced only when a request runs.
 
-import type { Principal } from "@orb/contracts/identity";
-import type { UserSettings } from "@orb/contracts/settings";
 import type { DatabaseHandle } from "@orb/db/wiring";
-import type { ProviderExecutor, RoleClientsWithSignal, SideGenSampling } from "@orb/inference";
-import type { CharacterId, ChatId, IdSource, UserId } from "@orb/kit/ids";
+import type { ProviderExecutor } from "@orb/inference";
+import type { IdSource } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { AssetsService } from "#domain/assets";
 import { createGeneratedAssetStore, createImageryGalleryAdd } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
-import type { ChatUserMacroDefs, ResolveViewerVisibility } from "#domain/chat";
+import type { ExtractQuietDeps, ImageryRoomAccessDeps, ResolveViewerVisibility } from "#domain/chat";
 import { createImageryRoomAccess, createVisibleExtractQuiet } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
-import type { ImageryService } from "#domain/imagery";
+import type { CaptionImageDeps, ImageryContext, ImageryService } from "#domain/imagery";
 import { createCaptionImage, createImageProviderOps, createImageryInstructions, createImageryService, imageryToolDefinitions } from "#domain/imagery";
+import type { SettingsService } from "#domain/settings";
 import { createStatsBatchWiring } from "#domain/stats";
 import type { ToolUseService } from "#domain/tool-use";
 import type { ScopedEgress } from "#infra/network";
@@ -23,32 +23,32 @@ export interface ImageryComposeDeps {
   readonly fetchImageBytes: ScopedEgress["fetchImageBytes"];
   readonly idSource: IdSource;
   readonly db: DatabaseHandle;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly connection: Pick<ConnectionService, "resolve">;
   /** The compose-tier executor FENCE (§7.5-1a): imagery may reach exactly `generateImage`. */
   readonly executor: Pick<ProviderExecutor, "generateImage">;
   readonly assets: Pick<AssetsService, "store" | "readOwnedAssetBytes" | "addToGallery">;
   /** The owner-scoped character read the gallery add verb gates on — imagery's auto-add gate reads the same one. */
-  readonly characterOwned: (ownerId: UserId, characterId: CharacterId) => Promise<boolean>;
+  readonly characterOwned: ImageryContext["ownsCharacter"];
   readonly character: Pick<CharacterService, "getCard" | "get">;
   /** The per-FUNDER role-client binder (§8.5b): the caption + extract-quiet side calls spend the run-as
    *  principal's own `summarize` row. */
-  readonly roleClientsFor: (funderUserId: UserId) => Promise<Pick<RoleClientsWithSignal, "summarize">>;
+  readonly roleClientsFor: CaptionImageDeps["roleClientsFor"];
   /** The chat's present host: the room a preview runs as (D298). */
-  readonly resolveChatHostUserId: (chatId: ChatId) => Promise<UserId | null>;
+  readonly resolveChatHostUserId: ImageryRoomAccessDeps["resolveChatHostUserId"];
   /** Is the character a present character seat of the chat? A preview's subject must be (chat's `isCharacterSeated`). */
-  readonly isCharacterSeated: (chatId: ChatId, characterId: CharacterId) => Promise<boolean>;
+  readonly isCharacterSeated: ImageryRoomAccessDeps["isCharacterSeated"];
   /** The row-derived host Principal (`createHostPrincipalResolver`), so a run-as principal carries its real role. */
-  readonly resolveHostPrincipal: (userId: UserId) => Promise<Principal>;
+  readonly resolveHostPrincipal: ImageryRoomAccessDeps["resolveHostPrincipal"];
   /** A user's Utility-role preset params (D299), for caption and extract-quiet. */
-  readonly resolveUtilityPresetParams: (userId: UserId) => Promise<SideGenSampling | undefined>;
+  readonly resolveUtilityPresetParams: ExtractQuietDeps["resolveUtilityPresetParams"];
   /** IMGMAC — late-bound (chat + rpg both compose after imagery): the chat's authored user-macro defs from
    *  BOTH homes, so an imagery mode template resolves `{{house_style}}` the way a turn does. Deref'd only at
    *  request time inside `extractQuiet`, exactly like `resolveViewerVisibility` below. */
-  readonly resolveUserMacroDefs: (chatId: ChatId) => Promise<ChatUserMacroDefs>;
+  readonly resolveUserMacroDefs: ExtractQuietDeps["resolveUserMacroDefs"];
   /** ⑫ — the run-as principal's UserSettings read (the FOREIGN-inputs seam) for the per-mode
    *  prompt-template/caption overrides. Imagery resolves `override ?? shipped-catalog-default` off this. */
-  readonly loadUserSettings: (userId: UserId) => Promise<UserSettings>;
+  readonly loadUserSettings: SettingsService["loadUserSettings"];
   readonly maxImageBytes: () => number;
   /** Late-bound: chat's `resolveViewerVisibility` (built after chat). Deref'd only at request time inside the
    *  `extractQuiet` gate — never during boot. */

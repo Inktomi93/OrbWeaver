@@ -147,5 +147,12 @@
       "Bash(pnpm install *)",
       "Bash(rm -rf playwright/.cache)"
     ]
+  },
+  "extraKnownMarketplaces": {
+    "orb-local": { "source": { "source": "directory", "path": "./.claude/marketplace" } }
+  },
+  "enabledPlugins": {
+    "ts7-lsp@orb-local": true,
+    "typescript-lsp@claude-plugins-official": false
   }
 }

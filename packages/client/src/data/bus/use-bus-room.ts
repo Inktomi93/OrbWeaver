@@ -29,7 +29,7 @@ export interface BusRoomHandlers<C extends StreamChannel> {
   readonly onServerReady?: RoomSubscriber["onServerReady"];
   /** THIS ROOM's typed failure (`roomFailed`, or an announce that gave up). NOT a socket-level fault —
    *  that is one cause for the whole tab and `useOrbSocket` tells it once (#222). */
-  readonly onError?: ((message: string) => void) | undefined;
+  readonly onError?: RoomSubscriber["onError"];
   /** A durable room's replay request (`0` = from the beginning). Live-only rooms omit it. Pass a THUNK for
    *  a value that must be current at every (re)announce — a reconnect's replay request, e.g. */
   readonly sinceSeq?: SinceSeqSource | undefined;

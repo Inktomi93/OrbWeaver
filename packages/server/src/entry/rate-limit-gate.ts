@@ -22,6 +22,7 @@
 
 import type { ResolvedRateLimits } from "@orb/contracts/settings";
 import type { DatabaseHandle } from "@orb/db/wiring";
+import type { Clock } from "@orb/kit/time";
 import type { Logger } from "#foundation/observability";
 import { createRateLimiter } from "../transport/rate-limit.ts";
 import type { RateLimitDecision, RateLimitGate } from "../transport/trpc/index.ts";
@@ -70,7 +71,7 @@ function isAiTurnPath(path: string): path is AiTurnPath {
 export interface RateLimitGateDeps {
   readonly logger: Logger;
   readonly db: DatabaseHandle;
-  readonly now: () => number;
+  readonly now: Clock;
   /** The RESOLVED rate-limit caps (env floor ⊕ admin override), read FRESH per request — a mid-session
    *  admin edit reloads the effective-config cache, so the next consume sees the new cap (LIVE). */
   readonly resolveRateLimits: () => ResolvedRateLimits;

@@ -22,10 +22,10 @@
 // (`domain/admin/verbs/link-sso-identity.ts`), reached through the injected SessionAdminPort — this verb
 // gates nothing (RESOLUTION tier has no `can()`); it enforces only the IDENTITY invariant.
 
+import type { UnclaimedLinkOutcome } from "@orb/contracts/session";
 import type { AwaitableStatementToken } from "@orb/db/wiring";
 import { awaitableStatementToken } from "@orb/db/wiring-owner";
 import type { ExternalId, UserId } from "@orb/kit/ids";
-import type { UnclaimedLinkOutcome } from "../contract/results.ts";
 import type { SessionsContext, SessionsService } from "../contract/service.ts";
 import { claimExternalIdIfUnbound, selectForProvisionByExternalId, selectForProvisionById } from "../persistence/users.ts";
 import { isSubjectMismatch } from "../substrate/role-policy.ts";

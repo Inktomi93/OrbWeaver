@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/codemod/codemod/refs/heads/main/schemas/workflow.json
+version: "1"
+params:
+  schema:
+    targets:
+      name: "Targets file"
+      description: "Path, relative to the target directory, of the JSON that pnpm unwired ports writes (one leg's slice with --leg)"
+      type: string
+      default: "reports/unwired/port-targets.json"
+nodes:
+  - id: derive-port-members
+    name: Derive port members from their owners
+    type: automatic
+    steps:
+      - name: TypeScript files
+        js-ast-grep:
+          js_file: scripts/codemod.ts
+          base_path: "."
+          language: "typescript"
+          include: ["packages/*/src/**/*.ts"]
+          exclude: ["**/node_modules/**", "**/codemods/*/tests*/**"]
+      - name: TSX files
+        js-ast-grep:
+          js_file: scripts/codemod.ts
+          base_path: "."
+          language: "tsx"
+          include: ["packages/*/src/**/*.tsx"]
+          exclude: ["**/node_modules/**", "**/codemods/*/tests*/**"]

@@ -19,8 +19,9 @@
 // posture. `@live`-gated (rides the seeded-member local stack + the WIRE_CAPTURE/engine pins).
 //
 // SCOPE BOUNDARY (reasoning host-only, §3.6): the deception-active REASONING-channel host-only cut has NO
-// deterministic WIRE door — `chat.editReasoning` is a DOMAIN verb but not a tRPC procedure (verified: a call
-// 404s), and `reasoningHostOnly` is consumed only INSIDE the chat ROOM source on the multiplexed socket (not a query),
+// deterministic WIRE door — `chat.editReasoning` is a tRPC procedure now, but it only rewrites a stored trace and
+// returns a view the server already projects for the viewer, so it cannot show the live reasoning channel or the
+// room stream; and `reasoningHostOnly` is consumed only INSIDE the chat ROOM source on the multiplexed socket (not a query),
 // as is the durable `replayChatEvents` replay. So the reasoning-channel projection AND the SSE/replay body
 // strip stay exhaustively DOMAIN-proven (`packages/server/src/domain/chat/substrate/member-visibility.ts`), not faked at E2E. This spec proves the security-critical
 // BODY strip end-to-end with a real member + the deception-active GATE — the layer the capstone could not reach.

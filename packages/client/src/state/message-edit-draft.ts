@@ -21,9 +21,15 @@ interface MessageEditDraft {
 
 interface MessageEditDraftState {
   readonly drafts: Readonly<Record<string, MessageEditDraft>>;
+  /** The reasoning editor's drafts, keyed by message id on the same terms: presence is the edit-mode flag. A
+   *  separate map because the body editor swaps the whole row into edit mode and this one edits beside it. */
+  readonly reasoningDrafts: Readonly<Record<string, string>>;
 }
 
-const useMessageEditDraftStore = createGatedStore<MessageEditDraftState>("message-edit-draft", (): MessageEditDraftState => ({ drafts: {} }));
+const useMessageEditDraftStore = createGatedStore<MessageEditDraftState>(
+  "message-edit-draft",
+  (): MessageEditDraftState => ({ drafts: {}, reasoningDrafts: {} }),
+);
 
 /** Enter edit mode for `messageId`, seeding the draft with the message's current content — call once,
  *  from the Edit action's click handler. Re-entering an already-editing row reseeds the draft (a
@@ -57,7 +63,35 @@ export function setMessageEditDraft(messageId: MessageId, text: string): void {
 export function cancelEditingMessage(messageId: MessageId): void {
   const drafts = { ...useMessageEditDraftStore.getState().drafts };
   delete drafts[messageId];
-  useMessageEditDraftStore.setState({ drafts }, true, "edit-draft/cancel");
+  useMessageEditDraftStore.setState({ ...useMessageEditDraftStore.getState(), drafts }, true, "edit-draft/cancel");
+}
+
+/** Enter reasoning-edit mode for `messageId`, seeding the draft with the stored reasoning. */
+export function startEditingReasoning(messageId: MessageId, initialText: string): void {
+  const reasoningDrafts = { ...useMessageEditDraftStore.getState().reasoningDrafts, [messageId]: initialText };
+  useMessageEditDraftStore.setState({ reasoningDrafts }, false, "edit-draft/start-reasoning");
+}
+
+export function setReasoningEditDraft(messageId: MessageId, text: string): void {
+  const reasoningDrafts = { ...useMessageEditDraftStore.getState().reasoningDrafts, [messageId]: text };
+  useMessageEditDraftStore.setState({ reasoningDrafts }, false, "edit-draft/set-reasoning");
+}
+
+/** Leave reasoning-edit mode (Escape, Cancel or a saved edit), dropping the draft. */
+export function cancelEditingReasoning(messageId: MessageId): void {
+  const reasoningDrafts = { ...useMessageEditDraftStore.getState().reasoningDrafts };
+  delete reasoningDrafts[messageId];
+  useMessageEditDraftStore.setState({ ...useMessageEditDraftStore.getState(), reasoningDrafts }, true, "edit-draft/cancel-reasoning");
+}
+
+/** Reactive: is this message's reasoning being edited? */
+export function useIsEditingReasoning(messageId: MessageId): boolean {
+  return useMessageEditDraftStore((s) => s.reasoningDrafts[messageId] !== undefined);
+}
+
+/** Reactive: the reasoning draft text, `""` when not editing. */
+export function useReasoningEditDraftText(messageId: MessageId): string {
+  return useMessageEditDraftStore((s) => s.reasoningDrafts[messageId] ?? "");
 }
 
 /** Reactive: is this message currently in edit mode? */

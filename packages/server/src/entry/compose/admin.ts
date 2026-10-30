@@ -1,8 +1,9 @@
 // Wire admin policy to session, producer and transport ops; the tool registry and export service are singletons.
 
 import type { DatabaseHandle } from "@orb/db/wiring";
-import type { IdSource, UserId } from "@orb/kit/ids";
-import type { AdminCardEmbedDeps, AdminService, ServerRestartPort } from "#domain/admin";
+import type { IdSource } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
+import type { AdminCardEmbedDeps, AdminContext, AdminService, ServerRestartPort } from "#domain/admin";
 import { can, createAdminCardEmbed, createAdminService, createAdminSessionPort } from "#domain/admin";
 import type { CharacterService } from "#domain/character";
 import type { EmbeddingsService } from "#domain/embeddings";
@@ -12,8 +13,8 @@ import type { SessionsService } from "#domain/sessions";
 import type { ToolUseService } from "#domain/tool-use";
 import { createToolUseService } from "#domain/tool-use";
 import type { AuditEntry, AuditWiring, Logger } from "#foundation/observability";
+import type { PasswordHasher } from "#infra/auth";
 import type { LiveBuses } from "#transport/trpc";
-
 import type { SessionSocketEviction } from "../http/index.ts";
 
 /** Boot dependencies and precise sibling service capabilities wired into admin and export. */
@@ -24,11 +25,11 @@ export interface AdminComposeDeps {
   /** The root's logger the export path's audit wiring binds. */
   readonly logger: Logger;
   readonly db: DatabaseHandle;
-  readonly now: () => number;
-  readonly newUserId: () => UserId;
-  readonly hashPassword: (password: string) => Promise<string>;
+  readonly now: Clock;
+  readonly newUserId: AdminContext["newUserId"];
+  readonly hashPassword: PasswordHasher["hash"];
   /** The same post-commit connection seed sessions consumes. */
-  readonly seedUserConnections: (userId: UserId) => Promise<void>;
+  readonly seedUserConnections: AdminContext["seedUserConnections"];
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly auditStatementAfterWrite: AuditWiring["statementAfterWrite"];
   readonly sessions: Pick<

@@ -35,6 +35,7 @@
     "plugin:author-release": "node scripts/release-plugin-authoring.ts",
     "sse-tap": "node --experimental-eventsource tooling/src/wire-tap/cli.ts sse",
     "cache:check": "node tooling/src/cache-check/cli.ts",
+    "unwired": "node tooling/src/unwired/cli.ts",
     "trace:render": "node tooling/src/render-trace/cli.ts render",
     "trace:tail": "node tooling/src/render-trace/cli.ts tail",
     "trace:fire": "node tooling/src/render-trace/cli.ts fire",

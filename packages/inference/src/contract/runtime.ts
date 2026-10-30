@@ -13,7 +13,8 @@ import type {
 } from "@orb/contracts/inference";
 import { modalitySchema, modelCatalogEntrySchema, PREFILL_MODES } from "@orb/contracts/inference";
 import type { PluginId, UserCredentialId, UserId } from "@orb/kit/ids";
-import type { ScheduleOp } from "@orb/kit/time";
+import type { RandomSource } from "@orb/kit/macro";
+import type { Clock, ScheduleOp } from "@orb/kit/time";
 import { z } from "zod";
 import type { SessionEntryWriter } from "./agent.ts";
 import type { AgentSdkNativeOptions, AgentSdkQuery, AgentSdkSpawn } from "./agent-sdk-native.ts";
@@ -207,7 +208,7 @@ export interface InferenceDeps {
   readonly scheduleTimeout: ScheduleTimeout;
   readonly scheduleTimeoutUnref: ScheduleTimeout;
   readonly beginEmbeddingAccounting: BeginEmbeddingAccounting;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly log: InferenceLog;
   readonly span: SpanFn;
   readonly superviseDetached: SuperviseDetached;
@@ -259,5 +260,5 @@ export interface InferenceDeps {
       }
     | undefined;
   readonly sdkFetch: typeof fetch;
-  readonly random: () => number;
+  readonly random: RandomSource;
 }

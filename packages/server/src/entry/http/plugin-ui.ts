@@ -25,11 +25,10 @@
 // re-parse through the ONE unzip funnel, so the bytes served always just passed the hardening. This file adds
 // exactly the transport-shaped decisions: who is asking, what the id is, and how the response is typed.
 
-import type { Principal } from "@orb/contracts/identity";
 import { PLUGIN_UI_ROUTE } from "@orb/contracts/plugin";
-import type { PluginId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { Hono } from "hono";
+import type { PluginService } from "#domain/plugin";
 import type { PrincipalEnv } from "./contract/request-env.ts";
 
 const NOT_FOUND = 404;
@@ -48,7 +47,7 @@ const pluginIdSchema = typeIdSchema(ID_PREFIX.plugin);
 export interface PluginUiPort {
   /** The owned plugin's `ui.js` source, or `null` when it ships no client guest. Throws the domain's leak-free
    *  NOT_FOUND for a plugin the caller does not own. */
-  readonly getUiBundle: (params: { readonly caller: Principal; readonly pluginId: PluginId }) => Promise<string | null>;
+  readonly getUiBundle: PluginService["getUiBundle"];
 }
 
 /** Register `GET /api/plugin-ui/:pluginId` on `app`. */

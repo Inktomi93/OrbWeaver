@@ -29,11 +29,11 @@
 // also why an `already-linked` no-op writes no audit row: the row is a biconditional with the WRITE, and a
 // re-link of the same subject writes nothing (the `setRole` owner→owner no-op precedent).
 
+import type { UnclaimedLinkOutcome } from "@orb/contracts/session";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { ADMIN_OP_CODES } from "../contract/errors.ts";
 import type { LinkSsoIdentityParams } from "../contract/params.ts";
-import type { UnclaimedLinkOutcome } from "../contract/results.ts";
 import type { AdminContext, AdminService } from "../contract/service.ts";
 import { isBootstrapOwnerRole, requireAdmin } from "../guard.ts";
 import { loadUser } from "../persistence/queries.ts";

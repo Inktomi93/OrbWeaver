@@ -13,6 +13,7 @@ import type { ModelId } from "@orb/kit/ids";
 import { abortableWait, RESOLUTION_ABORTED_MESSAGE, requireActiveSignal } from "../backends/http/abort-wait.ts";
 import type { BackendRegistry } from "../contract/backend.ts";
 import { ProviderError } from "../contract/errors.ts";
+import type { LocalLightModelCache } from "../contract/local-light.ts";
 import type { Resolved } from "../contract/resolved.ts";
 import type { ReachabilityProbe } from "../contract/runtime.ts";
 import type { ResolveArgs, ResolverContext } from "../contract/task-resolution.ts";
@@ -28,7 +29,7 @@ type LocalLightLoadFailed = (modelId: ModelId) => boolean;
 /** The two serving checks a resolved row still has to pass: the endpoint probe and the local-light load record. */
 interface ServingChecks {
   readonly probe: ReachabilityProbe | undefined;
-  readonly loadFailed: LocalLightLoadFailed;
+  readonly loadFailed: LocalLightModelCache["loadFailed"];
 }
 
 /** The deterministic verdict on a row that already resolved: a local-light row whose model failed its latest

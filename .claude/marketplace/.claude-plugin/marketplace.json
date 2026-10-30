@@ -1,0 +1,11 @@
+{
+  "name": "orb-local",
+  "owner": { "name": "Orbweaver" },
+  "plugins": [
+    {
+      "name": "ts7-lsp",
+      "source": "./plugins/ts7-lsp",
+      "description": "TypeScript 7.1 native language server for the LSP tool"
+    }
+  ]
+}

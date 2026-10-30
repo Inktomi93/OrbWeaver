@@ -17,6 +17,7 @@ import { chatImportResultSchema } from "@orb/contracts/import";
 import type { PortabilityRegistry, PortableEntity } from "@orb/contracts/portability";
 import { IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import type { ChatId, UserId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import { bodyLimit } from "hono/body-limit";
 import type { SettleImportMemory } from "#domain/import";
 import { hasCsrfHeader } from "#infra/auth";
@@ -39,7 +40,7 @@ export interface ImportChatDeps {
   /** The composed registry — its `chat` descriptor IS the import path (resolved once at registration). */
   readonly registry: PortabilityRegistry;
   /** The server clock the batch's memory scope opens on (the same clock the chat write stamps its claims with). */
-  readonly now: () => number;
+  readonly now: Clock;
   readonly settleImportMemory: SettleImportMemory;
 }
 

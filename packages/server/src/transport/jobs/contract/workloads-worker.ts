@@ -1,9 +1,16 @@
 // Native workload driver dependencies and completion ownership.
 import type { WorkloadLane } from "@orb/contracts/workloads";
 import type { DatabaseHandle } from "@orb/db/wiring";
-import type { WorkloadId } from "@orb/kit/ids";
+import type { IdSource, WorkloadId } from "@orb/kit/ids";
 import type { ScheduleOp } from "@orb/kit/time";
-import type { ReapWorkloadsArgs, WorkloadContributions, WorkloadRowAnyKind, WorkloadRunnableRow, WorkloadRunnerDeps } from "#domain/workloads";
+import type {
+  ReapWorkloadsArgs,
+  WorkloadContributions,
+  WorkloadProgressBus,
+  WorkloadRowAnyKind,
+  WorkloadRunnableRow,
+  WorkloadRunnerDeps,
+} from "#domain/workloads";
 import type { DetachedSupervision, Logger } from "#foundation/observability";
 import type { BackgroundWork } from "#infra/tasks";
 
@@ -16,16 +23,13 @@ type RunWorkloadOp = (deps: WorkloadRunnerDeps, row: WorkloadRunnableRow, signal
 type ReapOp = (args: ReapWorkloadsArgs) => Promise<number>;
 // `loadWorkload` — the by-id re-read the post-dispatch hot-loop guard uses (front door).
 type LoadWorkloadOp = (db: DatabaseHandle, contributions: WorkloadContributions, id: WorkloadId) => Promise<WorkloadRowAnyKind | null>;
-// Subscribe to the graph's workload lifecycle events; returns the unsubscribe. Injected so the
-// driver never imports the bus directly.
-type SubscribeWakeOp = (listener: () => void) => () => void;
 
 /** The DI bundle the worker driver closes over — every cross-feature/engine/timer dep injected at entry/. */
 export interface WorkloadsWorkerDeps {
   readonly logger: Logger;
   readonly supervise: DetachedSupervision["superviseDetached"];
   /** The root's opaque nonce; it keeps each supervised reap tick name unique. */
-  readonly newOpaqueId: () => string;
+  readonly newOpaqueId: IdSource["uuid"];
   readonly track?: BackgroundWork["track"];
   /** The per-dispatch runner deps (db + the cross-feature `env` hub + the per-owner binder + the injected
    *  clock + the lease cadences). Built at entry/compose; the worker threads it straight into `run`. */
@@ -36,7 +40,8 @@ export interface WorkloadsWorkerDeps {
   readonly run: RunWorkloadOp;
   readonly reap: ReapOp;
   readonly load: LoadWorkloadOp;
-  readonly subscribeWake: SubscribeWakeOp;
+  /** Subscribes to the graph's workload lifecycle events; injected so the driver never imports the bus directly. */
+  readonly subscribeWake: WorkloadProgressBus["subscribeWorkloadWake"];
   readonly scheduleInterval: ScheduleOp;
   readonly scheduleTimeout: ScheduleOp;
   readonly pollIntervalMs?: number;

@@ -39,6 +39,7 @@ import type { ChatControl, ChatControlAction, ChatControlKind, ChatControlMode, 
 import { CHAT_CONTROL_KINDS, CONTROL_CHIPS_COLLAPSE, CONTROL_MODE_CONSEQUENCE, CONTROL_MODE_WORD, controlOverflowNotice, controlStripNotice } from "#lib";
 import { requestComposerFocus, setComposerDraft, useTurnPhase } from "#state";
 import { useChatControls } from "../hooks/use-chat-controls.tsx";
+import type { UseSendMessageResult } from "../hooks/use-send-message.ts";
 import { useSendMessage } from "../hooks/use-send-message.ts";
 import type { ChatControlTurnState } from "../lib/chat-control-availability.ts";
 import { resolveControlAvailability } from "../lib/chat-control-availability.ts";
@@ -104,7 +105,7 @@ export interface ChatControlsBandProps {
 /** The room's consumption capability, closed over one chat — what every click in the band routes through. */
 interface ControlConsumer {
   readonly chatId: ChatId;
-  readonly send: (text: string) => void;
+  readonly send: UseSendMessageResult["send"];
   readonly turn: ChatControlTurnState;
 }
 

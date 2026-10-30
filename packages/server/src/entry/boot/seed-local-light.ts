@@ -28,6 +28,8 @@
 import type { BootDatabaseHandle, DatabaseHandle } from "@orb/db/wiring";
 import type { IdSource, UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
+import type { LocalLightSeedPolicyDeps } from "#domain/connection";
 import { createLocalLightUserSeed as createUserSeedPolicy, seedLocalLightAccounts, seedLocalLightConnections } from "#domain/connection";
 import { createListSeedAccountIds } from "#domain/sessions";
 import type { Logger } from "#foundation/observability";
@@ -37,9 +39,9 @@ export interface SeedLocalLightDeps {
   readonly logger: Logger;
   readonly idSource: IdSource;
   readonly db: DatabaseHandle;
-  readonly now: () => number;
+  readonly now: Clock;
   /** Called with an owner whose seed newly bound a vector task (their embed space changed). */
-  readonly onEmbedSpaceBound: (userId: UserId) => void;
+  readonly onEmbedSpaceBound: LocalLightSeedPolicyDeps["onEmbedSpaceBound"];
 }
 
 /** Preserve the per-call provider lookup and determinism seams while binding only graph capabilities. */

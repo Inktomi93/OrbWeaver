@@ -1,6 +1,7 @@
 // domain/character — FRONT DOOR: the only legal external import; re-exports the public surface. Cross-
 // boundary wire types/schemas live in `@orb/contracts/character` and are NOT re-exported here.
 
+export type { GreetingCompletionDeps } from "./contract/greeting-ops.ts";
 export type { ImportCharacterPort } from "./contract/import-ops.ts";
 export type {
   CardWriteBasis,
@@ -17,8 +18,7 @@ export type {
   StampRefinerySignalsOp,
 } from "./contract/refinery-ops.ts";
 export type { BackfillPluginProvenanceResult } from "./contract/results.ts";
-export type { CharacterService } from "./contract/service.ts";
-
+export type { CharacterContext, CharacterService } from "./contract/service.ts";
 export { createLinkCharacterAvatars } from "./persistence/avatar-link-write.ts";
 // A boot verb that reads or writes rows of every owner takes `BootDatabaseHandle`, which only boot mints (D335).
 export { backfillPluginProvenance } from "./persistence/backfill-plugin-provenance.ts";

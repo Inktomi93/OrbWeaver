@@ -1,5 +1,6 @@
 import type { CelBindings } from "#cel";
 import type { ChatId } from "#ids";
+import type { RandomSource } from "./prng.ts";
 
 export type MacroAST = MacroNode[];
 
@@ -301,7 +302,7 @@ export interface MacroContext {
   nowMs?: number | undefined;
   // Injectable PRNG for {{random}}/{{roll}}/{{pick}}/dice — a float in [0,1) like Math.random.
   // Absent → the ambient Math.random. Mirrors the nowMs clock seam for deterministic tests/replay.
-  random?: (() => number) | undefined;
+  random?: RandomSource | undefined;
   // Allows extensions (like Regex) or future features to pass arbitrary runtime state
   env: MacroEnv;
   // Recursively evaluate strings (e.g. for nested macros in args)

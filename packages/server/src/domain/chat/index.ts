@@ -12,8 +12,8 @@ export type {
   ChatRpgGatherResult,
   ChatRpgOps,
   ChatServiceDeps,
-  ChatUserMacroDefs,
   ClaimChatOp,
+  ExtractQuietDeps,
   ForkGameArgs,
   ForkGameResult,
   GatherTurnContextArgs,
@@ -34,15 +34,17 @@ export type {
   TeachingContext,
   TeachingContribution,
 } from "./contract/context.ts";
-
 export { ChatOperationError } from "./contract/errors.ts";
 export type { BeginGenerationObservation } from "./contract/generation-observation.ts";
+export type { ImageryRoomAccessDeps } from "./contract/imagery-access.ts";
 export type { BulkImportChats } from "./contract/import.ts";
 export type { ImageRefAssets } from "./contract/media-ref.ts";
 export type { MemoryRecallRecorder } from "./contract/memory.ts";
 export { getGroupConfig, getRoomOverrides, toolRecurseLimitSchema } from "./contract/metadata.ts";
+export type { ChatPublicationDeps } from "./contract/publication.ts";
 export type { ReactToolHandlerDeps } from "./contract/react-tool.ts";
 export type { RequestTurnOp } from "./contract/results.ts";
+export type { ChatInferenceDeps } from "./contract/runtime-inference.ts";
 export type { ChatService } from "./contract/service.ts";
 export type {
   SignupInviteDeps,
@@ -51,10 +53,8 @@ export type {
 export type { ChatAssemblyContext as ChatContext } from "./contract/wiring.ts";
 export type { ChatWorkloadDeps } from "./contract/workloads.ts";
 export { createRunChatTurnBridge } from "./engine/provider-bridge.ts";
-
 export { requireWiredAuthorOrHost as requireAuthorOrHost, requireWiredHost as requireHost, requireWiredParticipant as requireParticipant } from "./guard.ts";
 export { consolidationHash } from "./memory/generate/substrate/transcript.ts";
-
 export { createLiveTier0Range } from "./memory/recall/live-tier-range.ts";
 // The recall flight recorder (#250) — the composition root builds ONE and wires its sink onto `ChatContext`.
 export { createMemoryRecallRecorder } from "./memory/recall/recorder.ts";
@@ -91,8 +91,6 @@ export { createChatService, createVisibleExtractQuiet } from "./service.ts";
 // policy (the floor is handed to it by `chatEventBounds`). Same posture as the `requireHost`/
 // `requireParticipant` guards this door already exports for out-of-domain enforcement.
 export { isBelowHistoryFloor } from "./substrate/auth/index.ts";
-export { backfillGroupCharacters, backfillMemory } from "./substrate/backfill.ts";
-export { estimateMemoryBackfillCalls } from "./substrate/backfill-estimate.ts";
 export { createResolveChatUserMacroDefs } from "./substrate/macro-readers.ts";
 // The §3.6 member-strip verdict — exported for the SAME reason `isBelowHistoryFloor` is: the LIVE SSE
 // fan-out (transport) must apply the identical per-subscriber strip the durable replay applies, off the
@@ -119,7 +117,6 @@ export { buildChatToolOps } from "./verbs/create-tool-ops.ts";
 // root; each is principal-free (rpg gates game authority) and teaches chat nothing rpg-shaped.
 // The `chatsChanged` member fan wired onto `ChatContext.emitChatChanged`; compose injects the user bus.
 export { createEmitChatChanged } from "./verbs/emit-chat-changed.ts";
-
 export { createGenerationObservationSink } from "./verbs/generation-observation-sink.ts";
 export { createGetMembership } from "./verbs/get-membership.ts";
 export { createGetPendingUserText } from "./verbs/get-pending-user-text.ts";

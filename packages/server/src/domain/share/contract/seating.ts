@@ -1,4 +1,5 @@
 import type { Principal } from "@orb/contracts/identity";
+import type { GetOwnerUserId } from "@orb/contracts/session";
 import type { AppSettings, AppSettingsView, EffectiveAppConfig } from "@orb/contracts/settings";
 import type { UserId } from "@orb/kit/ids";
 
@@ -9,6 +10,6 @@ export interface EnableShareSeatingDeps {
   readonly seating: () => Pick<EffectiveAppConfig, SeatingKey>;
   readonly getAppSettingsWithOverrides: (params: { readonly principal: Principal }) => Promise<Pick<AppSettingsView, "overrides">>;
   readonly updateAppSettings: (params: { readonly principal: Principal; readonly partial: AppSettings }) => Promise<void>;
-  readonly getOwnerUserId: () => Promise<UserId | undefined>;
+  readonly getOwnerUserId: GetOwnerUserId;
   readonly resolvePrincipal: (userId: UserId) => Promise<Principal>;
 }

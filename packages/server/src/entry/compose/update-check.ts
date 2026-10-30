@@ -1,10 +1,11 @@
+import type { Clock } from "@orb/kit/time";
 import type { UpstreamProbes } from "@orb/kit/version-identity";
 import { createCachedUpstreamProbes } from "#domain/settings";
 import type { UpstreamFetchDeps } from "#infra/upstream-update";
 import { createUpstreamFetches } from "#infra/upstream-update";
 
 export interface UpstreamProbeDeps extends UpstreamFetchDeps {
-  readonly now: () => number;
+  readonly now: Clock;
 }
 
 /** Wire fixed GitHub I/O to settings' success-only manual-check cache. */

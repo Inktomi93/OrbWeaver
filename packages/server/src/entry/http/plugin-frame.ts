@@ -52,7 +52,6 @@
 // its documents under the APP policy (`script-src 'self'`, no `sandbox` directive) with nothing red: an
 // "isolated" frame that is not isolated.
 
-import type { Principal } from "@orb/contracts/identity";
 import type { PluginFrameBody } from "@orb/contracts/plugin";
 import {
   PLUGIN_FRAME_MINT_BODY_MAX_BYTES,
@@ -64,9 +63,10 @@ import {
 } from "@orb/contracts/plugin";
 import type { CardFrameMediaPolicy } from "@orb/kit/card-frame";
 import { buildCardFrameCsp, buildCardFrameDocument, cardFrameResponseHeaders } from "@orb/kit/card-frame";
-import type { PluginId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
+import type { PluginService } from "#domain/plugin";
 import { hasCsrfHeader } from "#infra/auth";
 import type { PrincipalEnv } from "./contract/request-env.ts";
 import { createFrameHandleStore, FRAME_HANDLE_SHAPE, FRAME_HANDLE_TTL_MS } from "./frame-handle-store.ts";
@@ -113,18 +113,11 @@ const MISS_DOC = buildCardFrameDocument({
  *  Structural port so `entry/http` states exactly the slice it consumes (the `CardFrameParticipantsPort` precedent);
  *  wired at compose to `services.plugin.getFrameBody`, whose three gates (ownership, the live `ui.frame` grant,
  *  the surface's own tier) are documented on the verb. */
-export interface PluginFrameSurfacePort {
-  readonly getFrameBody: (params: { readonly caller: Principal; readonly pluginId: PluginId; readonly surfaceId: string }) => Promise<PluginFrameBody | null>;
-  readonly getFrameAsset: (params: {
-    readonly caller: Principal;
-    readonly pluginId: PluginId;
-    readonly bundlePath: string;
-  }) => Promise<{ readonly bytes: Uint8Array; readonly mime: "image/png" | "image/jpeg" | "image/gif" | "image/webp" } | null>;
-}
+export interface PluginFrameSurfacePort extends Readonly<Pick<PluginService, "getFrameBody" | "getFrameAsset">> {}
 
 export interface PluginFrameDeps {
   readonly surfaces: PluginFrameSurfacePort;
-  readonly now: () => number;
+  readonly now: Clock;
 }
 
 function assetHeaders(mime: string, byteLength: number): Record<string, string> {
