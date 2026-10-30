@@ -1,7 +1,7 @@
 // The theme editor — edits one owned themes row. Token-override pickers, font/radius/density selects, a
 // custom-CSS code editor with live validateThemeCss diagnostics + a themeable-var reference, a scoped live
-// <ThemeScope> preview (authoring never restyles the real app), and non-blocking WCAG AA badges on the
-// picked text colors. AUTOSAVE through `updateTheme` (the house pattern — north-star §7 / D66 A4, the
+// <ThemeScope> preview (authoring never restyles the real app), non-blocking WCAG AA badges on the
+// picked text colors, and a notice naming any contrast bound the theme's colours made the app relax. AUTOSAVE through `updateTheme` (the house pattern — north-star §7 / D66 A4, the
 // preset editor's `createAutosaveEntityForm` + `AutosaveStatus` chrome, its mint-once sibling): the header
 // carries the live save status where a Save button used to be; the preview is live off the form's current
 // values regardless.
@@ -39,6 +39,7 @@ import { useThemeAutosave } from "../hooks/use-theme-autosave.ts";
 import { contrastRatio } from "../lib/theme-contrast.ts";
 import type { ThemeFormValues } from "../lib/theme-editor-model.ts";
 import { DEFAULT_THEME_FORM, themeFormFromEntity, themeOverrideFromForm } from "../lib/theme-editor-model.ts";
+import { ThemeFallbackNotice } from "./theme-fallback-notice.tsx";
 
 // Lazy so CodeMirror and the owner-css surface never land in the entry chunk for a modal-only editor.
 const ThemeCssField = lazy(async () => {
@@ -123,6 +124,9 @@ function ThemeEditorBody({ theme, session, mintedName, isUnmintedDraft }: ThemeE
           <boundForm.AppField name="borderColor">
             {(field): ReactElement => <field.ColorField label="Border" description="Leave as-is to derive a subtle border from the surface." />}
           </boundForm.AppField>
+          <boundForm.Subscribe selector={(state): ThemeFormValues => state.values}>
+            {(values): ReactElement => <ThemeFallbackNotice tokens={themeOverrideFromForm(values)} />}
+          </boundForm.Subscribe>
         </Section>
 
         <Section heading="Message text">
