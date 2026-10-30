@@ -49,7 +49,7 @@ async function attachedHandles(ctx: Pick<DatabankPortabilityContext, "db">, owne
 
 export function createExportDocument(input: DbAssemblyInput<Pick<DatabankPortabilityContext, "db">>): ExportDocument {
   const ctx: Pick<DatabankPortabilityContext, "db"> = { ...input, db: databaseForOwner(input.db) };
-  return async ({ ownerId, documentId }): Promise<PortableFile | null> => {
+  return async ({ ownerId, documentId }) => {
     const row = await loadOwnedDocument(ctx.db, ownerId, documentId);
     if (row === undefined) {
       return null;

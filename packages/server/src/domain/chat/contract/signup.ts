@@ -1,6 +1,6 @@
 import type { InvitePreview, SignupMinterCheckOp } from "@orb/contracts/chat";
 import type { AuthMode } from "@orb/contracts/identity";
-import type { JoinerPersonaStatementParams } from "@orb/contracts/persona";
+import type { JoinerPersona, JoinerPersonaStatementParams } from "@orb/contracts/persona";
 import type { JoinerSettingsStatementParams } from "@orb/contracts/settings";
 import type { AwaitableStatementToken, StatementToken } from "@orb/db/wiring";
 import type { ChatId, ChatInviteId, Handle, PersonaId, UserId } from "@orb/kit/ids";
