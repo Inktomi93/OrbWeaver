@@ -3,7 +3,7 @@
 // 1-verb interface). Every cross-feature dependency is a declared op type; the runtime value is wired at
 // the composition root.
 
-import type { AssetKind, StoredAsset } from "@orb/contracts/assets";
+import type { AssetKind, ReadOwnedAssetBytes, StoredAsset } from "@orb/contracts/assets";
 import type { CharacterCard, CharacterOwnedOp } from "@orb/contracts/character";
 import type { Principal, ResolveHostPrincipalOp } from "@orb/contracts/identity";
 import type { GeneratePicture, PromptTemplateMode } from "@orb/contracts/imagery";
@@ -170,7 +170,7 @@ export interface ImageryContext {
   }) => Promise<{ readonly text: string; readonly costUsd: number | null }>;
   /** Owner-gated byte read of the caller's OWN asset (B3 avatar reference + editImage source) — assets'
    *  `readOwnedAssetBytes` (EC-B). Throws assets' not-found on non-owned; imagery does not re-gate. */
-  readonly readAsset: (caller: Principal, assetId: AssetId) => Promise<{ readonly bytes: Uint8Array; readonly mime: string }>;
+  readonly readAsset: ReadOwnedAssetBytes;
 
   /** `character.get` — the card (avatar lookup, B3) PLUS the row's `contentHash` the identity hash reads.
    * `CharacterDetail` satisfies this at compose; imagery never imports the

@@ -12,13 +12,14 @@
 // rpg-shaped, rpg learns no chat tables (§2 one-directional flow, both directions principal-free).
 
 import type { CopyPresetToUser, PresetReadable } from "@orb/contracts/preset";
+import type { ImportRpgGame } from "@orb/contracts/rpg";
 import type { IdSource } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { Clock, ScheduleOp } from "@orb/kit/time";
 import { can } from "#domain/admin";
 import { isCharacterHandleConflict } from "#domain/character";
 import type { PostNarratorMessage } from "#domain/chat";
-import type { ImportRpgGame, RpgContext, RpgPostNarratorMessage, RpgResolveViewerVisibility, RpgRoundsDeps, RpgService } from "#domain/rpg";
+import type { RpgContext, RpgPostNarratorMessage, RpgResolveViewerVisibility, RpgRoundsDeps, RpgService } from "#domain/rpg";
 import {
   buildFoldedTurnBuilder,
   buildFoldTurnToolCalls,

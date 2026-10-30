@@ -2,11 +2,10 @@
 // (upload/fetch/variant core, gallery, and maintenance/DR verbs). Every surface is owner-scoped off
 // `principal.userId`; maintenance verbs are un-principal (CLI/workload/DR callers only).
 
-import type { AssetBlobRef, AssetCasRefByIdOp, AssetListItem, GalleryItemView, LoadAssetBytesOp, StoreAsset } from "@orb/contracts/assets";
+import type { AssetBlobRef, AssetCasRefByIdOp, AssetListItem, GalleryItemView, LoadAssetBytesOp, ReadOwnedAssetBytes, StoreAsset } from "@orb/contracts/assets";
 import type { CharacterOwnedOp } from "@orb/contracts/character";
 import type { ListImageAssetIds } from "@orb/contracts/embeddings";
 import type { EmitDomainEvent } from "@orb/contracts/events";
-import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { AssetId, CharacterHandle, CharacterId, ChatId, GalleryItemId, UserId } from "@orb/kit/ids";
@@ -15,7 +14,7 @@ import type { ImageAdapter } from "#infra/image";
 import type { Cas, VariantCache } from "#infra/storage";
 import type { BackfillParams, BackfillResult, FsckOptions, FsckResult, GcOptions, GcResult, ReapResult, RebuildOptions, RebuildResult } from "./maintenance.ts";
 import type { GalleryAddParams, GalleryListParams, GetMetadataParams, ListOwnedParams, RemoveFromGalleryParams, ResolveVariantParams } from "./params.ts";
-import type { AssetMetadata, OwnedAssetBytes } from "./results.ts";
+import type { AssetMetadata } from "./results.ts";
 
 /** The DI bundle every assets verb closes over (wired at `service.ts`); explicit interface, not `ReturnType<>`. */
 export interface AssetsContext {
@@ -74,7 +73,7 @@ export interface AssetsService {
   /** Owner-gated byte read (EC-B): the CALLER'S OWN asset bytes + mime by id — imagery caption/edit source,
    *  rpg, databank. Throws AssetNotFoundError when missing OR not the caller's
    *  (collapsed, leak-free). NOT `loadAssetBytes` — that is the un-principal indexer read (D20). */
-  readonly readOwnedAssetBytes: (caller: Principal, assetId: AssetId) => Promise<OwnedAssetBytes>;
+  readonly readOwnedAssetBytes: ReadOwnedAssetBytes;
   /** Resolve an asset's `(ownerId, hash, mime)` from its row id alone — un-principal, pure row lookup. */
   readonly assetCasRefById: AssetCasRefByIdOp;
   /** Every image asset id; `ownerId` scopes to one owner, omitted/null = all owners. Un-principal sweep. */

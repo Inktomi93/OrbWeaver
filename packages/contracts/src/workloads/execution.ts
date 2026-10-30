@@ -48,6 +48,9 @@ export interface EveryOwnerRun {
   readonly [everyOwnerRunBrand]: true;
 }
 
+/** The every-owner announce audience: each owner with corpus rows, resolved under run authority. */
+export type ListCorpusOwners = (run: EveryOwnerRun) => Promise<readonly UserId[]>;
+
 /** Count-only authority admitted by the workload estimate door, never execution authority. */
 export interface EveryOwnerEstimate {
   readonly [everyOwnerEstimateBrand]: true;

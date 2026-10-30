@@ -19,7 +19,7 @@ import type { EmbedResult, ImageEmbedResult } from "@orb/contracts/providers";
 import type { ImageEmbedInput, RoleClientsFor } from "@orb/contracts/role-clients";
 import type { GetEffectiveConfigOp } from "@orb/contracts/settings";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
-import type { EveryOwnerRun, TargetSnapshotOp } from "@orb/contracts/workloads";
+import type { ListCorpusOwners, TargetSnapshotOp } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { EmbeddingExecution } from "@orb/inference";
@@ -250,7 +250,7 @@ export interface EmbeddingsWorkloadDeps {
   /** The bulk arm's announce audience — every owner with corpus rows. Only consulted when the run context's
    *  `ownerId` is `null`; wired at compose to discovery's `distinctCorpusOwners` (whose header states the
    *  deliberate over-inclusiveness), which is why it arrives as an op rather than a local query. */
-  readonly listCorpusOwners: (run: EveryOwnerRun) => Promise<UserId[]>;
+  readonly listCorpusOwners: ListCorpusOwners;
 }
 
 export interface EmbeddingsIndexerSubscriptionDeps {

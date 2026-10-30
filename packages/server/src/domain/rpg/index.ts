@@ -7,7 +7,6 @@ export type { RpgEventBus } from "./contract/bus.ts";
 // PORTABILITY R6 — the chat-anchored campaign's read-whole/write-whole pair, wired at the composition root as
 // injected ops on the chat-bundle export/import verbs. A campaign was unportable BY CONSTRUCTION while the
 // bundle's chat arm was the ST jsonl interchange (F9); these are the fidelity arm's rpg half.
-export type { ExportRpgGame, ImportRpgGame, RpgPortableGame } from "./contract/portability.ts";
 // R-OBS — the rpg flight recorder's SHAPES: the compose mints ONE recorder when tracing is enabled and wires
 // its `sink` into the rpg compose deps; `/api/_debug/rpg/traces` reads its ring through the foundation
 // `RpgTraceInspector` port (which never learns an rpg type — the records serialize straight to JSON).

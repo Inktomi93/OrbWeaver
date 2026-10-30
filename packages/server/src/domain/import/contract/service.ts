@@ -8,12 +8,12 @@ import type { BulkImportPersonas } from "@orb/contracts/persona";
 import type { PortableFile } from "@orb/contracts/portability";
 import type { ImportPreset } from "@orb/contracts/preset";
 import type { ImportCardScripts, ImportPresetScripts } from "@orb/contracts/regex";
+import type { ImportRpgGame } from "@orb/contracts/rpg";
 import type { ImportThemeOp } from "@orb/contracts/settings";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { BulkImportLorebook, HasPrimaryBook, LinkCarriedBooks } from "@orb/contracts/world-info";
 import type { AssetId, CharacterHandle, CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
-import type { ImportRpgGame } from "#domain/rpg";
 import type { CollectedPreset, CollectedTheme } from "./collection.ts";
 import type {
   ImportCharacterInput,

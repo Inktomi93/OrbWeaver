@@ -1,3 +1,4 @@
+import type { StoreAvatarAsset } from "@orb/contracts/assets";
 import type { BulkImportChatsOp } from "@orb/contracts/chat";
 import type { BulkImportPersonas } from "@orb/contracts/persona";
 import type { PortabilityRegistry, PortableKind } from "@orb/contracts/portability";
@@ -7,7 +8,7 @@ import type { AttachCardTagByNameOp } from "@orb/contracts/tag";
 import type { ImportStandaloneLorebook, ImportWorldInfoPort } from "@orb/contracts/world-info";
 import type { Clock } from "@orb/kit/time";
 import { hostTimeZone } from "@orb/kit/time";
-import type { AssetsContext, ImportAssetPort } from "#domain/assets";
+import type { AssetsContext } from "#domain/assets";
 import { createExportAssets, createExportGallery, createImportAsset, createImportAvatarStore, createImportGallery } from "#domain/assets";
 import type { ImportCharacterPort } from "#domain/character";
 import { createCharacterImportOps } from "#domain/character";
@@ -45,7 +46,7 @@ export interface PortabilityDeps {
   readonly exportService: Pick<ExportService, "exportCharacter" | "exportChatBundle" | "listHostChats">;
   readonly character: ImportCharacterPort;
   readonly listOwnedCharacterIds: PortableExportDeps["listCharacterIds"];
-  readonly storeAvatar: ImportAssetPort["store"];
+  readonly storeAvatar: StoreAvatarAsset;
   readonly attachCardTag: AttachCardTagByNameOp;
   readonly importLorebook: ImportWorldInfoPort["importLorebook"];
   /** #1598 — the seat oracle that keeps a re-uploaded card from replacing an edited primary book. */

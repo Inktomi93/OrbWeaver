@@ -78,6 +78,7 @@ export type {
   SlashCommandGroup,
   SlashCommandMountProps,
   SlashCommandRunner,
+  SlashCommandUnavailableFor,
   ToolRenderer,
 } from "./contribution-contracts.ts";
 export {

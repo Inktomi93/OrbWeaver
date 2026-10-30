@@ -3,12 +3,7 @@
 // (the workload-env ingest product) and injects `resolveActiveDocumentIds` into `search.documents` (DB5).
 // The per-turn chat GATHER op + the search lens are later waves (DB5/DB6) — not exported here yet.
 
-export type {
-  DatabankPortabilityAssemblyContext as DatabankPortabilityContext,
-  ExportDocument,
-  ImportDocument,
-  ListOwnedDocumentIds,
-} from "./contract/portability.ts";
+export type { DatabankPortabilityAssemblyContext as DatabankPortabilityContext } from "./contract/portability.ts";
 export type { DatabankAssemblyContext as DatabankContext, DatabankIngest, DatabankService, DatabankWorkloadDeps } from "./contract/service.ts";
 
 export { createDatabankIngest } from "./ingest/index.ts";

@@ -1,4 +1,4 @@
-import type { StoredAsset, StoreParams } from "@orb/contracts/assets";
+import type { StoreAvatarAsset, StoredAsset, StoreParams } from "@orb/contracts/assets";
 import type { BulkImportChatsOp } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { ImportFsPort, PersonaCollisionChoices } from "@orb/contracts/import";
@@ -10,7 +10,6 @@ import type { AttachCardTagByNameOp } from "@orb/contracts/tag";
 import type { AttachOwnedBooksByName, ImportStandaloneLorebook, ImportWorldInfoPort } from "@orb/contracts/world-info";
 import type { IdSource, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
-import type { ImportAssetPort } from "#domain/assets";
 import type { ImportContextWiring } from "./build-context.ts";
 import type { CollectResult } from "./collection.ts";
 import type { ImportReport } from "./results.ts";
@@ -31,8 +30,8 @@ export interface ProfileDirImportDeps {
   /** The root holding one subdir per ST user profile (the loader collects each subdir independently). */
   readonly profileRoot: string;
   readonly principal: Principal;
-  readonly contextFor: (principal: Principal, store: ImportAssetPort["store"]) => ImportContextWiring;
-  readonly storeAvatar: ImportAssetPort["store"];
+  readonly contextFor: (principal: Principal, store: StoreAvatarAsset) => ImportContextWiring;
+  readonly storeAvatar: StoreAvatarAsset;
   readonly attachCardTag: AttachCardTagByNameOp;
   readonly importLorebook?: ImportWorldInfoPort["importLorebook"];
   /** Travels with `importLorebook` (#1598 — the edited-primary guard). */

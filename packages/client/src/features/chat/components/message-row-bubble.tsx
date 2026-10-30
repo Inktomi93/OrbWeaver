@@ -5,7 +5,7 @@
 import { Stack } from "@orb/ui/layout";
 import type { ReactElement, ReactNode } from "react";
 import type { BubbleDecoration } from "../lib/art-decorations.ts";
-import type { ArtView } from "./art-slot.tsx";
+import type { ArtFailedReport, ArtView } from "./art-slot.tsx";
 import { EchoArtTile, WhisperBand } from "./art-slot.tsx";
 import type { MessageBoxProps } from "./message-box.tsx";
 import { MessageBox } from "./message-box.tsx";
@@ -30,7 +30,7 @@ export function renderSingleBubble(args: {
   /** Opens the decoration's art full size; null where the row has no art to open or no viewer to open it in. */
   readonly artView: ArtView | null;
   /** Reports whether the row's art failed to load, so the row can drop the chip that would repeat its fallback. */
-  readonly onArtFailed?: (failed: boolean) => void;
+  readonly onArtFailed?: ArtFailedReport;
 }): ReactElement {
   const headerBand = args.decoration?.headerBand;
   const artDecoration = args.decoration?.treatment;

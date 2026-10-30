@@ -1,14 +1,14 @@
-import type { Principal } from "@orb/contracts/identity";
+import type { ImportDocument } from "@orb/contracts/databank";
+import type { Principal, ResolveHostPrincipalOp } from "@orb/contracts/identity";
 import type { ImportPersonaOp } from "@orb/contracts/persona";
 import type { PortableEntity } from "@orb/contracts/portability";
 import type { TagLibraryImportResult } from "@orb/contracts/tag";
 import type { UserId } from "@orb/kit/ids";
-import type { ImportDocument } from "#domain/databank";
 import type { ImportContextWiring } from "./build-context.ts";
 import type { ImportProfileDeps } from "./service.ts";
 
 export interface OwnerImportDeps {
-  readonly resolveOwnerPrincipal: (ownerId: UserId) => Promise<Principal>;
+  readonly resolveOwnerPrincipal: ResolveHostPrincipalOp;
   readonly contextFor: (principal: Principal) => ImportContextWiring;
   readonly wallClockZone: () => string;
   readonly profile: Pick<

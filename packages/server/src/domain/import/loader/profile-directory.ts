@@ -1,3 +1,4 @@
+import type { StoreAvatarAsset } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
 import type { ImportFsPort } from "@orb/contracts/import";
 import type { ImportGlobalScripts, RegexScriptCard } from "@orb/contracts/regex";
@@ -7,7 +8,6 @@ import type { AttachOwnedBooksByName } from "@orb/contracts/world-info";
 import type { AssetId, CharacterId, ChatId, UserId, WorldBookId } from "@orb/kit/ids";
 import { hostTimeZone } from "@orb/kit/time";
 import { inertActivationFields } from "@orb/kit/world-info";
-import type { ImportAssetPort } from "#domain/assets";
 import type {
   CollectedBackground,
   CollectedCard,
@@ -270,7 +270,7 @@ async function countWouldCreate(deps: ProfileDirImportDeps, bundles: readonly Co
 }
 
 /** Store one persona's avatar (maxBytes-capped) and pair it into the canonical persona-import input. */
-async function toPersonaInput(store: ImportAssetPort["store"], principal: Principal, p: CollectedPersona): Promise<ImportPersonaInput> {
+async function toPersonaInput(store: StoreAvatarAsset, principal: Principal, p: CollectedPersona): Promise<ImportPersonaInput> {
   let avatarAssetId: AssetId | null = null;
   if (p.avatarBytes !== undefined) {
     const stored = await store({
@@ -799,7 +799,7 @@ async function importCollectedBundles(
  *  hundreds imported" bug); (2) the index pass must run AFTER the whole import, never while it is still
  *  writing. So the per-chat `enqueueImportIndex` the importChats verb calls is a NO-OP
  *  here — the driver owns the one enqueue. */
-function contextFor(deps: ProfileDirImportDeps, store: ImportAssetPort["store"]): ReturnType<typeof buildImportContext> {
+function contextFor(deps: ProfileDirImportDeps, store: StoreAvatarAsset): ReturnType<typeof buildImportContext> {
   return buildImportContext({
     ...deps.contextFor(deps.principal, store),
     principal: deps.principal,
@@ -845,7 +845,7 @@ export async function runProfileDirectory(deps: ProfileDirImportDeps): Promise<I
   }
 
   // The card avatar is CAS-stored inside importCharacter via ctx.storeAsset → this capped store.
-  const store: ImportAssetPort["store"] = (params) => deps.storeAvatar({ ...params, maxBytes: ASSET_UPLOAD_MAX_BYTES });
+  const store: StoreAvatarAsset = (params) => deps.storeAvatar({ ...params, maxBytes: ASSET_UPLOAD_MAX_BYTES });
   const service = createImportService(contextFor(deps, store));
 
   let changed = 0;
