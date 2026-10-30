@@ -1,0 +1,112 @@
+{
+ "targets": [
+  {
+   "leg": "B",
+   "kind": "derive",
+   "form": "collapse",
+   "file": "a.ts",
+   "line": 6,
+   "members": ["create", "revoke"],
+   "port": "WholePort.create",
+   "owner": "SessionsService.create",
+   "ownerAt": "door/service.ts:2",
+   "type": "Pick<SessionsService, \"create\" | \"revoke\">",
+   "imports": [{ "name": "SessionsService", "from": "./door/index.ts" }],
+   "exports": [
+    { "file": "door/service.ts", "name": "SessionsService", "from": null },
+    { "file": "door/index.ts", "name": "SessionsService", "from": "./service.ts" }
+   ],
+   "note": ""
+  },
+  {
+   "leg": "B",
+   "kind": "derive",
+   "form": "member",
+   "file": "a.ts",
+   "line": 12,
+   "members": ["create"],
+   "port": "MixedPort.create",
+   "owner": "SessionsService.create",
+   "ownerAt": "door/service.ts:2",
+   "type": "SessionsService[\"create\"]",
+   "imports": [{ "name": "SessionsService", "from": "./door/index.ts" }],
+   "exports": [],
+   "note": ""
+  },
+  {
+   "leg": "B",
+   "kind": "derive",
+   "form": "member",
+   "file": "a.ts",
+   "line": 13,
+   "members": ["lookup"],
+   "port": "MixedPort.lookup",
+   "owner": "SessionsService.lookup",
+   "ownerAt": "door/service.ts:4",
+   "type": "SessionsService[\"lookup\"]",
+   "imports": [{ "name": "SessionsService", "from": "./door/index.ts" }],
+   "exports": [],
+   "note": ""
+  },
+  {
+   "leg": "B",
+   "kind": "narrowed",
+   "form": "member",
+   "file": "a.ts",
+   "line": 14,
+   "members": ["kept"],
+   "port": "MixedPort.kept",
+   "owner": "Other.kept",
+   "ownerAt": "other.ts:1",
+   "type": "Other[\"kept\"]",
+   "imports": [],
+   "exports": [],
+   "note": "a leg judges a narrowed member; the codemod leaves it"
+  },
+  {
+   "leg": "B",
+   "kind": "concept",
+   "form": "member",
+   "file": "a.ts",
+   "line": 18,
+   "members": ["now"],
+   "port": "ClockPort.now",
+   "owner": "Clock",
+   "ownerAt": "@orb/kit/time",
+   "type": "Clock",
+   "imports": [{ "name": "Clock", "from": "@orb/kit/time" }],
+   "exports": [],
+   "note": ""
+  },
+  {
+   "leg": "B",
+   "kind": "concept",
+   "form": "member",
+   "file": "a.ts",
+   "line": 19,
+   "members": ["random"],
+   "port": "ClockPort.random",
+   "owner": "RandomSource",
+   "ownerAt": "@orb/kit/macro",
+   "type": "RandomSource",
+   "imports": [{ "name": "RandomSource", "from": "@orb/kit/macro" }],
+   "exports": [],
+   "note": ""
+  },
+  {
+   "leg": "B",
+   "kind": "derive",
+   "form": "member",
+   "file": "a.ts",
+   "line": 23,
+   "members": ["revoke"],
+   "port": "Deps{…}.revoke",
+   "owner": "SessionsService.revoke",
+   "ownerAt": "door/service.ts:3",
+   "type": "SessionsService[\"revoke\"]",
+   "imports": [{ "name": "SessionsService", "from": "./door/index.ts" }],
+   "exports": [],
+   "note": ""
+  }
+ ]
+}
