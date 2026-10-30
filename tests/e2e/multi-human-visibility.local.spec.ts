@@ -17,12 +17,11 @@ import { setTimeout as sleep } from "node:timers/promises";
 import type { CharacterHandle, CharacterId, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { E2E_FIXTURE_PROVIDER_PORT } from "@orb/tooling/floor/host/ports";
 import { expect, test } from "@playwright/test";
 import type { ActorClient } from "./support/actors.ts";
 import { addMemberToChat, configureCustomProvider, loginLocal, ownerActor } from "./support/actors.ts";
 import { FIXTURE_COVER_MARKER, startFixtureProvider } from "./support/fixture-provider.ts";
-import { LOCAL_MEMBER } from "./support/modes.ts";
+import { E2E_RUN_PORTS, LOCAL_MEMBER } from "./support/modes.ts";
 import { collectChatRoomFrames, requireSatisfied } from "./support/sse.ts";
 import type { TrpcClientOutput, TrpcInput } from "./support/trpc.ts";
 
@@ -438,7 +437,7 @@ test("D122 TRIGGER: a MEMBER-triggered turn ships THEIR persona in the assembled
   test.setTimeout(180_000);
   const origin = baseURL ?? "";
   const host = ownerActor(origin);
-  const fixture = await startFixtureProvider(E2E_FIXTURE_PROVIDER_PORT, undefined, "What happened to the well?");
+  const fixture = await startFixtureProvider(E2E_RUN_PORTS.fixtureProvider, undefined, "What happened to the well?");
   let restoreProvider: (() => Promise<void>) | undefined;
   const characterId = await freshCharacter(host, castId<CharacterHandle>("e2e-d122-trigger"), {
     name: "Marrow",

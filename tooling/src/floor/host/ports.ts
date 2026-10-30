@@ -21,6 +21,11 @@
 // PURE — no env, no I/O, no imports. Every consumer that ALSO honours an env override (PORT, VITE_PORT,
 // FIXTURE_PORT, SNAP_BASE_URL, …) keeps that override at its own call site and uses these as the default.
 //
+// THE E2E RUN OFFSET: the e2e rows above are the BASE ports. A second e2e run on the same box shifts all of
+// them together by `E2E_PORT_OFFSET` (read and parsed at the config boundary, `tests/e2e/support/modes.ts`;
+// resolved here by `e2eRunPorts`). The offset is a multiple of 10, so two runs at different offsets never
+// share a port, and the shifted set must stay clear of every reserved row and every stage band.
+//
 // THE MIRROR SIDE, which this module cannot own (owner ruling 2026-09-02, #1271: house precedent, no env
 // file and no move into @orb/kit; the port-registry gate excludes it BY RULING, not as a deferral):
 //   • BY CAKE — `packages/client/vite.config.ts` (`5173`, `http://127.0.0.1:8788`). `tooling` sits ABOVE
@@ -203,3 +208,47 @@ export function stageBandForPort(port: number): number | null {
 export const ORB_APP_PORT_NUMBERS: ReadonlySet<number> = new Set(
   [DEV_PORTS, FIXTURE_PORTS, ...Object.values(E2E_PORTS), ...STAGE_BANDS.map(stageBandPorts)].flatMap((pair) => [pair.server, pair.vite]),
 );
+
+// ── the e2e run offset ────────────────────────────────────────────────────────────────────────────────
+
+/** Offsets are multiples of this: the e2e rows span 8794..8799 and 5181..5184, so a stride of ten keeps two
+ *  offset runs (and the base run) off each other's ports. */
+export const E2E_PORT_OFFSET_STRIDE = 10;
+
+/** Every port one e2e run binds. */
+export interface E2ERunPorts {
+  readonly stacks: typeof E2E_PORTS;
+  readonly oidcIssuer: number;
+  readonly fixtureProvider: number;
+}
+
+/**
+ * The e2e ports of a run shifted by `offset`. Offset 0 is the registry's base rows. A positive offset throws
+ * unless it is a multiple of {@link E2E_PORT_OFFSET_STRIDE} and every shifted port clears the reserved rows
+ * and the stage bands: a run that would bind onto the dev stack, an engine or a lane's stage is refused at
+ * the config boundary rather than at a bound port.
+ */
+export function e2eRunPorts(offset: number): E2ERunPorts {
+  if (!Number.isInteger(offset) || offset < 0 || offset % E2E_PORT_OFFSET_STRIDE !== 0) {
+    throw new RangeError(`E2E_PORT_OFFSET ${offset} must be a non-negative multiple of ${E2E_PORT_OFFSET_STRIDE} — tooling/src/floor/host/ports.ts`);
+  }
+  const shift = (pair: PortPair): PortPair => ({ server: pair.server + offset, vite: pair.vite + offset });
+  const ports: E2ERunPorts = {
+    stacks: {
+      singleUser: shift(E2E_PORTS.singleUser),
+      forwardHeader: shift(E2E_PORTS.forwardHeader),
+      local: shift(E2E_PORTS.local),
+      oidc: shift(E2E_PORTS.oidc),
+    },
+    oidcIssuer: E2E_OIDC_ISSUER_PORT + offset,
+    fixtureProvider: E2E_FIXTURE_PROVIDER_PORT + offset,
+  };
+  if (offset > 0) {
+    const bound = [...Object.values(ports.stacks).flatMap((pair) => [pair.server, pair.vite]), ports.oidcIssuer, ports.fixtureProvider];
+    const taken = bound.filter((port) => RESERVED_PORT_NUMBERS.has(port) || STAGE_BAND_PORT_NUMBERS.has(port) || port > MAX_TCP_PORT);
+    if (taken.length > 0) {
+      throw new RangeError(`E2E_PORT_OFFSET ${offset} lands on reserved or stage-band ports ${taken.join(", ")} — tooling/src/floor/host/ports.ts`);
+    }
+  }
+  return ports;
+}
