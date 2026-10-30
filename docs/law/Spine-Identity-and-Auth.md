@@ -193,8 +193,7 @@ The host's three options to limit (a visibility finding must name which one it b
 A role read answers exactly one of three questions, and each has one home:
 
 - **"May this caller act?"** is the enforcement class. The comparison lives in the kernel (`can()`),
-  reached through the domain's cited chokepoint (`packages/server/src/domain/chat/substrate/auth/decide.ts::assertHost`/
-  `permitsHost`; `packages/server/src/domain/rpg/guard.ts::assertHostRole`), which owns the leak-free refusal shape and nothing
+  reached through the domain's cited chokepoint (`assertHost` and `permitsHost` in `packages/server/src/domain/chat/substrate/auth/decide.ts`; `assertHostRole` in `packages/server/src/domain/rpg/guard.ts`), which owns the leak-free refusal shape and nothing
   else.
 - **"May this viewer read the hidden bytes?"** is the data-projection class. `member-visibility.ts::
   viewerHoldsHost` is the host bit; `viewerReadsHidden` is the named check the payload boundary calls;
@@ -202,7 +201,7 @@ A role read answers exactly one of three questions, and each has one home:
   into pure code for no behavior change. It has its own home so it can legitimately diverge later, such
   as a co-GM who commands the room but must not read deception truth.
 - **"Which seat is the host?"** is a roster lookup (role to identity, D19), homed at
-  `packages/server/src/domain/chat/substrate/participants-host.ts::hostSeatOf`/`hostUserIdOf`, whose consumers want an owner for a
+  `hostSeatOf` and `hostUserIdOf` in `packages/server/src/domain/chat/substrate/participants-host.ts`, whose consumers want an owner for a
   downstream read (card/preset/connection ownership, the stats delta's owner, the notification
   recipient) and whose `userId` guard is the one answer for that class.
 
@@ -344,7 +343,7 @@ The chat-level table above has two user-level partners in settings `seeds`:
 | current | `seeds.currentPersonaId` | the user's last-played persona |
 
 Neither user-level pointer is read live inside a chat. `startChat` resolves the founding anchor once, in
-this order (`packages/server/src/domain/chat/verbs/start-chat.ts::resolveFoundingAnchor`):
+this order (`resolveFoundingAnchor` in `packages/server/src/domain/chat/verbs/start-chat.ts`):
 
 1. The explicit `anchorPersonaId`, which the caller must own.
 2. The one persona connected to a solo founding character.
