@@ -1245,6 +1245,7 @@ export const OWNER_CSS_THEME_SCOPE_VARS = [
   "--color-dialogue",
   "--color-foreground",
   "--color-input",
+  "--color-input-border",
   "--color-muted",
   "--color-muted-foreground",
   "--color-narration",

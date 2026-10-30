@@ -1,31 +1,59 @@
 import { CtIsolation } from "@orb/testkit/browser";
 import { Checkbox } from "@orb/ui/checkbox";
+import { Input } from "@orb/ui/input";
+import { RadioGroup, RadioGroupItem } from "@orb/ui/radio-group";
+import { Switch } from "@orb/ui/switch";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
 import type { ReactElement } from "react";
-import { CHECKBOX_HOSTS } from "./checkbox-hosts.ts";
 
-function Hosts(): ReactElement {
+const HOSTS = ["background", "card", "popover"] as const;
+
+function Carriers({ host }: { readonly host: string }): ReactElement {
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 8rem)" }}>
-      {CHECKBOX_HOSTS.map((host) => (
-        <div key={host} data-host={host} style={{ backgroundColor: `var(--color-${host})`, padding: "1.5rem" }}>
-          <Checkbox aria-label={`Unchecked on ${host}`} checked={false} />
-        </div>
-      ))}
+    <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+      <Checkbox aria-label={`Checkbox on ${host}`} checked={false} />
+      <RadioGroup aria-label={`Radio on ${host}`} value="">
+        <RadioGroupItem aria-label={`Radio choice on ${host}`} value="one" />
+      </RadioGroup>
+      <Switch aria-label={`Switch on ${host}`} checked={false} />
+      <Input aria-label={`Input on ${host}`} readOnly={true} value="" />
     </div>
   );
 }
 
-/** Unchecked checkboxes over each host surface, under a seed palette (Hearth when absent) or a custom ThemeScope background. */
-export function CheckboxHostsStory({ theme, background }: { readonly theme?: keyof typeof SEED_THEME_VALUE_SETS; readonly background?: string }): ReactElement {
+function Hosts(): ReactElement {
   return (
-    <CtIsolation subject="Checkbox" isolates="The unchecked checkbox edge against the surfaces a control sits on, under seed palettes and a custom ThemeScope">
+    <div style={{ display: "grid", gap: "0.5rem" }}>
+      {HOSTS.map((host) => (
+        <div key={host} data-host={host} style={{ backgroundColor: `var(--color-${host})`, padding: "1.5rem" }}>
+          <Carriers host={host} />
+        </div>
+      ))}
+      {/* Swatches painted with the two tokens the carriers are judged against: the edge and the focus ring. */}
+      <div data-swatch="edge" style={{ backgroundColor: "var(--color-input-border)", padding: "1rem" }} />
+      <div data-swatch="ring" style={{ backgroundColor: "var(--color-ring)", padding: "1rem" }} />
+    </div>
+  );
+}
+
+/** The form-control carriers over each host surface, under a seed palette (Hearth when absent) or a custom ThemeScope. */
+export function CarrierEdgeStory({
+  theme,
+  background,
+  accent,
+}: {
+  readonly theme?: keyof typeof SEED_THEME_VALUE_SETS;
+  readonly background?: string;
+  readonly accent?: string;
+}): ReactElement {
+  return (
+    <CtIsolation subject="Form-control carriers" isolates="The resting edge of checkbox, radio, switch and input against the surfaces they sit on">
       <div data-theme={theme}>
         {background === undefined ? (
           <Hosts />
         ) : (
-          <ThemeScope tokens={{ background }}>
+          <ThemeScope tokens={{ background, ...(accent === undefined ? {} : { accent }) }}>
             <Hosts />
           </ThemeScope>
         )}

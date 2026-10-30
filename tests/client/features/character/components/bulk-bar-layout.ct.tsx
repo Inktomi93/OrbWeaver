@@ -7,8 +7,14 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator } from "@playwright/test";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
-const DESKTOP_WIDTHS = [1280, 1440, 1920] as const;
 const SELECTED = 2;
+const REGIMES = [
+  { name: "desktop 1280px", viewport: { width: 1280, height: 900 }, coarse: false },
+  { name: "desktop 1440px", viewport: { width: 1440, height: 900 }, coarse: false },
+  { name: "desktop 1920px", viewport: { width: 1920, height: 900 }, coarse: false },
+  { name: "phone 360px", viewport: { width: 360, height: 800 }, coarse: true },
+  { name: "phone 390px", viewport: { width: 390, height: 844 }, coarse: true },
+] as const;
 
 interface Box {
   readonly x: number;
@@ -39,11 +45,11 @@ function isHitTestable(control: Locator): Promise<boolean> {
   });
 }
 
-for (const width of DESKTOP_WIDTHS) {
-  test.describe(`desktop ${String(width)}px`, () => {
-    test.use({ viewport: { width, height: 900 }, isMobile: false, hasTouch: false });
+for (const regime of REGIMES) {
+  test.describe(regime.name, () => {
+    test.use({ viewport: regime.viewport, isMobile: regime.coarse, hasTouch: regime.coarse });
 
-    test("the Characters bulk bar keeps its count and every action apart and hit-testable", async ({ page, corpus, mount }) => {
+    test("the Characters bulk bar keeps its count and verbs apart, hit-testable, and the verbs on one line", async ({ page, corpus, mount }) => {
       await using root = await createCorpusHarness(undefined, { startJobs: false });
       const caller = await root.internalCallerFor(root.ownerId);
       for (const name of ["Bulk archivist one", "Bulk archivist two", "Bulk archivist three"]) {
@@ -66,10 +72,13 @@ for (const width of DESKTOP_WIDTHS) {
           "chat.reapTemporaryChats",
         ]),
       });
-      await seedShellState(page, { activeSection: "characters", panelOverrides: { characters: { list: "docked", context: "collapsed" } } });
+      await seedShellState(page, {
+        activeSection: "characters",
+        panelOverrides: { characters: { list: "docked", context: "collapsed" } },
+      });
       await mount<typeof ShellAmbientStory>(STORY, {});
 
-      await page.getByRole("button", { name: "Select multiple", exact: true }).click();
+      await page.getByRole("button", { name: /^Select( multiple)?$/u }).click();
       const checkboxes = page.getByRole("checkbox");
       await expect(checkboxes.first()).toBeVisible();
       for (let index = 0; index < SELECTED; index += 1) {
@@ -79,13 +88,12 @@ for (const width of DESKTOP_WIDTHS) {
       const bar = page.locator('[data-slot="selection-bar-root"]');
       const count = bar.locator('[data-slot="selection-bar-count"]');
       await expect(count).toHaveText(`${String(SELECTED)} selected`);
-      const controls = [
+      const verbs = [
         bar.getByRole("button", { name: "Tag", exact: true }),
         bar.getByRole("button", { name: "Archive", exact: true }),
         bar.getByRole("button", { name: "Delete", exact: true }),
-        bar.getByRole("button", { name: "Clear selection", exact: true }),
       ];
-      const parts = [count, ...controls];
+      const parts = [count, ...verbs, bar.getByRole("button", { name: "Clear selection", exact: true })];
       for (const part of parts) {
         await expect(part).toBeVisible();
         expect(await isHitTestable(part)).toBe(true);
@@ -96,6 +104,9 @@ for (const width of DESKTOP_WIDTHS) {
           expect(overlap(a, b)).toBe(false);
         }
       }
+      // The verbs are one unit: they share a line, so Delete is never stranded below Tag and Archive.
+      const verbTops = (await Promise.all(verbs.map(boxOf))).map((box) => box.y);
+      expect(Math.max(...verbTops) - Math.min(...verbTops)).toBeLessThanOrEqual(1);
     });
   });
 }

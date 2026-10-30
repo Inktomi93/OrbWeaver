@@ -1,6 +1,7 @@
 import { SELECTION_CONTROL, tv } from "#lib";
 
-// The checkbox skin — bg-input/border-input-border at rest; checked and indeterminate flip to the tone's own
+// The checkbox skin — the `bg-input` fill and the D159 `border-input-border` edge at rest (a custom ThemeScope solves that
+// edge over its own panels); checked and indeterminate flip to the tone's own
 // checked fill with a glyph. SELECTION_CONTROL supplies the shared frame + state machine (focus ring,
 // disabled, read-only cursor, invalid border/ring, and the ::before touch-target hit area); the
 // checkbox layers its rounding, glyph text color, and the checked/indeterminate fill.
@@ -45,9 +46,7 @@ import { SELECTION_CONTROL, tv } from "#lib";
 // not repaint a state it has no opinion about.
 export const checkboxVariants = tv({
   slots: {
-    // The unchecked edge rides `muted-foreground`, which a ThemeScope re-solves for its own background;
-    // `input-border` is a fixed pair a carried mid-grey background leaves at ~1.5:1 (WCAG 1.4.11).
-    root: [SELECTION_CONTROL, "rounded-control border-muted-foreground text-primary-foreground"],
+    root: [SELECTION_CONTROL, "rounded-control text-primary-foreground"],
     indicator: "group flex items-center justify-center",
     check: "hidden text-current group-data-checked:block group-data-readonly:hidden",
     dash: "hidden text-current group-data-indeterminate:block group-data-readonly:hidden",

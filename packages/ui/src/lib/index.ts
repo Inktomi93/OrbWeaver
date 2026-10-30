@@ -70,4 +70,4 @@ export { TOUCH_FLOOR_AT_COARSE } from "./touch-floor.ts";
 export { usePrefersLightColorScheme } from "./use-prefers-light-color-scheme.ts";
 export { usePrefersReducedMotion } from "./use-prefers-reduced-motion.ts";
 export { type ToneStamp, variantAttrs, variantProps } from "./variant-attrs.ts";
-export { assertBoundedScrollHeight, type GapToken, gapPxFor } from "./virtual-gap.ts";
+export { assertBoundedScrollHeight, type GapToken, gapPxFor, UnboundedScrollHeightError } from "./virtual-gap.ts";

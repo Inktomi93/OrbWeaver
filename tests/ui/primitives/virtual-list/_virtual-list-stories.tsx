@@ -1,5 +1,6 @@
 import { CtIsolation } from "@orb/testkit/browser";
 import { Button } from "@orb/ui/button";
+import { UnboundedScrollHeightError } from "@orb/ui/lib";
 import { VirtualList } from "@orb/ui/virtual-list";
 import type { ReactElement, ReactNode } from "react";
 import { Component, useState } from "react";
@@ -66,23 +67,37 @@ export function EdgeFadeStory({ count, fadeEdge }: { readonly count: number; rea
   );
 }
 
-class Catcher extends Component<{ readonly children: ReactNode }, { readonly caught: string | null }> {
-  override state = { caught: null as string | null };
-  static getDerivedStateFromError(error: Error): { caught: string } {
-    return { caught: error.message };
+class Catcher extends Component<{ readonly children: ReactNode }, { readonly caught: Error | null }> {
+  override state = { caught: null as Error | null };
+  static getDerivedStateFromError(error: Error): { caught: Error } {
+    return { caught: error };
   }
   override render(): ReactNode {
-    return this.state.caught === null ? this.props.children : <p data-slot="caught">{this.state.caught}</p>;
+    const { caught } = this.state;
+    if (caught === null) {
+      return this.props.children;
+    }
+    return (
+      <p
+        data-slot="caught"
+        data-seal={caught instanceof UnboundedScrollHeightError ? caught.seal : undefined}
+        data-tripwire={String(caught instanceof UnboundedScrollHeightError)}
+      >
+        caught
+      </p>
+    );
   }
 }
 
-/** The same list with NO bounded host: its scroll element grows to its content. */
-export function UnboundedStory({ count }: { readonly count: number }): ReactElement {
+function FailsToMount(): ReactElement {
+  throw new Error("A mount failure that is not the tripwire");
+}
+
+/** The same list with NO bounded host, or (`unrelated`) a child whose mount fails for another reason: the control for the tripwire's identity. */
+export function UnboundedStory({ count, unrelated = false }: { readonly count: number; readonly unrelated?: boolean }): ReactElement {
   return (
     <CtIsolation subject="VirtualList" isolates="The unbounded-window tripwire at mount, behind an error boundary">
-      <Catcher>
-        <List count={count} />
-      </Catcher>
+      <Catcher>{unrelated ? <FailsToMount /> : <List count={count} />}</Catcher>
     </CtIsolation>
   );
 }

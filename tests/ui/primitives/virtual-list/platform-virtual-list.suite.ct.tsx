@@ -80,8 +80,16 @@ test("no fade is held when every row already fits the window", async ({ mount, p
   await expect(page.locator(SCROLL)).not.toHaveAttribute("data-more", /.*/);
 });
 
-test("a list with no bounded height throws at mount", async ({ mount, page }) => {
+test("a list with no bounded height throws the unbounded-window tripwire at mount", async ({ mount, page }) => {
   await mount<typeof UnboundedStory>(`${STORIES}/UnboundedStory`, { count: 1000 });
-  await expect(page.locator('[data-slot="caught"]')).toBeVisible();
+  const caught = page.locator('[data-slot="caught"]');
+  await expect(caught).toHaveAttribute("data-tripwire", "true");
+  await expect(caught).toHaveAttribute("data-seal", "VirtualList");
   await expect(page.locator(SCROLL)).toHaveCount(0);
+});
+
+test("a mount failure that is not the tripwire is told apart from it", async ({ mount, page }) => {
+  await mount<typeof UnboundedStory>(`${STORIES}/UnboundedStory`, { count: 1000, unrelated: true });
+  await expect(page.locator('[data-slot="caught"]')).toHaveAttribute("data-tripwire", "false");
+  await expect(page.locator('[data-slot="caught"]')).not.toHaveAttribute("data-seal", /.*/);
 });
