@@ -10,7 +10,7 @@ paths:
 
 - Get every value from `packages/ui/src/tokens/tokens.json` through `pnpm --filter @orb/ui tokens:build` (`packages/ui/tokens.build.ts`). Never hand-edit `theme.css` or a generated token file. `better-tailwindcss/no-restricted-classes` blocks raw px, hex, palette colours and arbitrary Tailwind values, and `orb/no-raw-intrinsic-paint` blocks `className`, `style` and spreads on a raw HTML element in the client; compose `@orb/ui` primitives, and assert geometry against the resolved token value, never a hard-coded px.
 - Import icons only from `@orb/ui/icons`; grow that allowlist for a new icon, never import `lucide-react` directly.
-- `ThemeScope` emits CSS custom properties and `colorScheme` only, never a color value. Primary, ring and accent-fill are the one palette family a carried background does not derive.
+- `ThemeScope` emits CSS custom properties and `colorScheme` only, never a color value. A carried background corrects the accent fill and the focus ring for its own card (D336, D159) but does not derive them from the base.
 
 ## Composition and ownership
 

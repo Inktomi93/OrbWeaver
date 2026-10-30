@@ -57,6 +57,8 @@ export const THEME_SCOPE_EMIT_VARS = [
   "--color-border",
   "--color-sidebar-border",
   "--color-input",
+  // The form-control edge (D159): solved over the scope's own panels and below its focus ring.
+  "--color-input-border",
   // A carried palette cannot inherit one static polarity arm around the L=.62 pivot: derive five
   // concrete categorical fills against its own base/card/raised/sidebar family (#939).
   "--color-chart-1",
@@ -107,4 +109,11 @@ export const THEME_SCOPE_EMIT_VARS = [
  * `THEME_SCOPE_EMIT_VARS`, and the classification suite pins the two lists against each other. Neither
  * reader is on the shipped runtime path, which is why the export has no production importer.
  */
-export const THEME_SCOPE_STATIC_SEED_VARS = ["--color-chart-1", "--color-chart-2", "--color-chart-3", "--color-chart-4", "--color-chart-5"] as const;
+export const THEME_SCOPE_STATIC_SEED_VARS = [
+  "--color-chart-1",
+  "--color-chart-2",
+  "--color-chart-3",
+  "--color-chart-4",
+  "--color-chart-5",
+  "--color-input-border",
+] as const;

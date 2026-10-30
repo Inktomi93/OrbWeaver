@@ -77,6 +77,7 @@ export default defineConfig<CtCorpusOptions>({
         "**/platform-*.suite.ct.tsx",
         "**/features/chat/components/composer-two-rows.ct.tsx",
         "**/content/theme-scope/emitted-contrast.ct.tsx",
+        "**/content/theme-scope/fallback-delivery.ct.tsx",
         "**/primitives/tone-variant-matrix.ct.tsx",
       ],
       use: { ...devices["iPhone 15"], launchOptions: nativeBrowserLaunchOptions("webkit") },
