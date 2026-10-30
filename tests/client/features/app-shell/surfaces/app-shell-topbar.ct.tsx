@@ -5,10 +5,12 @@ import { TRAIL_OVERFLOW_LABEL } from "@orb/client/components";
 import { censusTitle, chatRoomTitle } from "@orb/client/lib";
 import type { ChatId } from "@orb/kit/ids";
 import { pixel, resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
+import type { TrpcWireOutput } from "@orb/testkit/ct";
 import { createShellAmbientReads, holdCorpusProcedure, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { makePluginRow } from "@orb/testkit/node/helpers";
 import type { Locator, Page } from "@playwright/test";
 import { commandShortcutLabel } from "#client/features/app-shell/lib/command-shortcut-label.ts";
 import type { AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
@@ -93,6 +95,48 @@ test.describe("on a phone", () => {
     await expect(title).toHaveText(label);
     held.release();
     await expect(title).toHaveText(name);
+  });
+
+  /** The Extensions section on a phone with `pages` registered plugin pages, served through the production shell. */
+  async function routePluginPages(page: Page, corpus: CorpusPlayback, pages: number): Promise<void> {
+    const caller = await root.internalCallerFor(root.ownerId);
+    const viewer = await caller.sessions.me();
+    const plugin = makePluginRow({ slug: "oracle-deck", name: "Oracle Deck" });
+    const surfaces: TrpcWireOutput<"plugin.listSurfaces"> = Array.from({ length: pages }, (_unused, index) => ({
+      pluginId: plugin.id,
+      id: `deck_page_${String(index)}`,
+      anchor: "page",
+      title: `Deck ${String(index)}`,
+      tier: "static",
+    }));
+    await routeTrpc(page, {
+      ...createShellAmbientReads(corpus, viewer.userId),
+      ...serveCorpusProcedures(caller, SECTION_PROCEDURES),
+      "plugin.list": () => [plugin],
+      "plugin.listSurfaces": () => surfaces,
+    });
+    await seedShellState(page, { activeSection: "extensions" });
+  }
+
+  test("the Plugin pages screen name carries the registered page count beside the section noun", async ({ corpus, mount, page }) => {
+    await routePluginPages(page, corpus, 2);
+    await mount<typeof AppShellStory>(STORY, {});
+    await expect(page.locator(NARROW_TITLE)).toHaveText(`${SECTION_LABELS.extensions} · 2`);
+  });
+
+  test("with no plugin page registered the screen name is the bare section noun", async ({ corpus, mount, page }) => {
+    await routePluginPages(page, corpus, 0);
+    await mount<typeof AppShellStory>(STORY, {});
+    await expect(page.locator(NARROW_TITLE)).toHaveText(SECTION_LABELS.extensions);
+  });
+
+  test("a Plugin pages finder that matches nothing keeps the library total in the screen name", async ({ corpus, mount, page }) => {
+    await routePluginPages(page, corpus, 3);
+    await mount<typeof AppShellStory>(STORY, {});
+    const title = page.locator(NARROW_TITLE);
+    await expect(title).toHaveText(`${SECTION_LABELS.extensions} · 3`);
+    await page.getByLabel("Search plugin pages").fill("no page has this name");
+    await expect(title).toHaveText(`${SECTION_LABELS.extensions} · 0 of 3`);
   });
 
   for (const width of PHONE_WIDTHS) {
@@ -484,9 +528,10 @@ test.describe("an open named group room", () => {
       const pane = page.locator(CONTEXT);
       const header = pane.locator('[data-slot="context-bracket-header"]');
       const band = page.locator(`${LIST} .shell-panel-header`);
+      // The pane's skeleton row stands beside the resolved one until the chat's tabs arrive; the tablist is the settled state.
+      await expect(pane.getByRole("tablist")).toHaveCount(1);
       await expect(header).toBeVisible();
       await expect(band).toBeVisible();
-      await expect(pane.getByRole("tablist")).toHaveCount(1);
       await expect(header.getByRole("tablist")).toHaveCount(1);
       const bottom = async (locator: Locator): Promise<number> => {
         const found = await locator.boundingBox();

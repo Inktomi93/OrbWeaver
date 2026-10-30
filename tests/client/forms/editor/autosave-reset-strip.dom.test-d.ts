@@ -32,6 +32,7 @@ test("a reset property cannot be handed back through the session surface", () =>
     form: session.form,
     saveState: "saved",
     restored: false,
+    status: "saved",
     retrySave: () => undefined,
     reseed: () => undefined,
     // @ts-expect-error the session object admits no reset property

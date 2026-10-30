@@ -30,11 +30,10 @@ import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { pageObject, pageString } from "@orb/tooling/floor/browser/page-validate";
-import { E2E_FIXTURE_PROVIDER_PORT } from "@orb/tooling/floor/host/ports";
 import { expect, test } from "@playwright/test";
 import { addMemberToChat, configureCustomProvider, loginLocal, ownerActor } from "./support/actors.ts";
 import { FIXTURE_COVER_MARKER, FIXTURE_LIE_TRUTH, startFixtureProvider } from "./support/fixture-provider.ts";
-import { LOCAL_MEMBER } from "./support/modes.ts";
+import { E2E_RUN_PORTS, LOCAL_MEMBER } from "./support/modes.ts";
 import type { StreamValue } from "./support/sse.ts";
 import { collectChatRoomFrames, readStreamEvent, requireSatisfied } from "./support/sse.ts";
 
@@ -104,7 +103,7 @@ test("P3 reasoning host-only: a deception turn's reasoning channel is withheld f
   const origin = baseURL ?? "";
   const host = ownerActor(origin);
 
-  const fixture = await startFixtureProvider(E2E_FIXTURE_PROVIDER_PORT, undefined, "What happened to the well?");
+  const fixture = await startFixtureProvider(E2E_RUN_PORTS.fixtureProvider, undefined, "What happened to the well?");
   let restoreProvider: (() => Promise<void>) | undefined;
 
   // Fresh spec-owned character (idempotent across crashed runs).

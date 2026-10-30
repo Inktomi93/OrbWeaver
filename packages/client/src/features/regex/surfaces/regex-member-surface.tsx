@@ -110,7 +110,7 @@ function RegexMemberEditorBody({
           `RegexTestPanel` + `RegexPipelinePanel`, the REGX2 two-questions ruling), so a header button
           would be a second door onto a panel already on screen. The mock draws the button because it
           draws no panels; converging the two is a design decision this lane refuses to take silently. */}
-      <MemberDrillHeader actions={<AutosaveStatus onRetry={session.retrySave} state={session.saveState} />} back={back} title={regexScriptTitle(row)} />
+      <MemberDrillHeader actions={<AutosaveStatus onRetry={session.retrySave} state={session.status} />} back={back} title={regexScriptTitle(row)} />
 
       {/* Delete lives on the ROW's kebab now (config-delete #271) — the editor is autosave-only. */}
       <RegexEditorFields form={session.form} scriptId={row.id} />

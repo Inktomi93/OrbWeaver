@@ -112,7 +112,7 @@ async function recordState(
 async function closeOverlay(page: Page): Promise<void> {
   const context = page.locator(CONTEXT);
   if ((await context.getAttribute("data-panel-mode")) === "overlay") {
-    await context.getByRole("button", { name: "Close Characters details", exact: true }).click();
+    await page.getByRole("button", { name: /^(?:Close Characters details|Hide details)$/u }).click();
   }
   await expect(context).not.toHaveAttribute("data-panel-mode", "overlay");
 }
@@ -144,7 +144,7 @@ async function openCard(flow: CharacterFlow, name: string, rowName = name): Prom
   await flow.requestPanes();
   await closeOverlay(flow.page);
   if ((await list.getAttribute("data-panel-mode")) === "overlay") {
-    await list.getByRole("button", { name: /^Close Characters(?: · .+)? list$/u }).click();
+    await flow.page.getByRole("button", { name: /^(?:Close Characters(?: · .+)? list|Hide list panel)$/u }).click();
   }
   await expect(list).not.toHaveAttribute("data-panel-mode", "overlay");
   return form;

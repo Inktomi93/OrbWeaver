@@ -22,7 +22,7 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import { WeaveGlyph } from "@orb/ui/web-weave";
 import type { ReactElement, ReactNode } from "react";
 import type { ChromeEntry, MobileCuration, ModalSlotId, SectionId } from "#state";
-import { mobileBarCuration, SECTION_GROUPS, sheetOverflowChrome, useChromeRegistry, useModalRegistry } from "#state";
+import { closeModal, mobileBarCuration, SECTION_GROUPS, sheetOverflowChrome, useChromeRegistry, useModalRegistry, useOpenModal } from "#state";
 import { SHELL_ACCENT_TONE } from "../lib/shell-accent.ts";
 import { RailButton } from "./rail-button.tsx";
 
@@ -97,7 +97,7 @@ function RailBrand({
   }
   const sectionId = entry.behavior.sectionId;
   return (
-    <Tooltip>
+    <Tooltip disableHoverablePopup={true}>
       <TooltipTrigger
         render={
           <Button
@@ -117,7 +117,9 @@ function RailBrand({
           </Button>
         }
       />
-      <TooltipPopup side="right">{entry.label}</TooltipPopup>
+      <TooltipPopup className="pointer-events-none" side="right">
+        {entry.label}
+      </TooltipPopup>
     </Tooltip>
   );
 }
@@ -200,7 +202,7 @@ function SheetBadgeCount({ entryId, label, useBadge }: { readonly entryId: strin
   );
 }
 
-export function Rail({ activeSection, onSelectSection, onOpenModal, inert }: RailProps): ReactElement {
+export function Rail({ activeSection, onSelectSection: navigate, onOpenModal, inert }: RailProps): ReactElement {
   const entries = useChromeRegistry().list();
   const navEntries = entries.filter((e) => e.zone === "rail.nav");
   const endEntries = entries.filter((e) => e.zone === "rail.end");
@@ -224,6 +226,15 @@ export function Rail({ activeSection, onSelectSection, onOpenModal, inert }: Rai
   // the sheet (`mobileBarCuration`, #state), so the door and its contents can never disagree about who is a
   // tab right now. Desktop is untouched — the rail column renders every entry regardless of `data-mobile`.
   const curation = mobileBarCuration(entries, activeSection);
+  const openModalId = useOpenModal();
+  // A sheet opened from the bar ends above it, so the bar stays live: a tab pressed while the sheet is up closes
+  // the sheet first (the way its own section rows do), then navigates, so focus lands on the new section.
+  const onSelectSection = (id: SectionId): void => {
+    if (youModal !== undefined && openModalId === youModal.id) {
+      closeModal();
+    }
+    navigate(id);
+  };
   return (
     <nav className="shell-rail" aria-label="Primary" data-tone={SHELL_ACCENT_TONE} inert={inert}>
       {brandEntry === undefined ? (
@@ -330,7 +341,7 @@ export function Rail({ activeSection, onSelectSection, onOpenModal, inert }: Rai
           mobile="tab"
           mobileOnly={true}
           modalId={youModal.id}
-          onClick={(): void => onOpenModal(youModal.id)}
+          onClick={(): void => (openModalId === youModal.id ? closeModal() : onOpenModal(youModal.id))}
         />
       )}
     </nav>

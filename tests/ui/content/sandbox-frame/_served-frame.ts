@@ -1,5 +1,9 @@
 // Real responses for the sandbox-frame cases: the card document comes from the production mint and serve routes, and the
 // embedding app policy from the production security headers, both through the composed HTTP app.
+
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { CardFrameMintResponse } from "@orb/contracts/chat";
 import { CARD_FRAME_ROUTE, cardFrameMintResponseSchema } from "@orb/contracts/chat";
 import { CSRF_HEADER } from "@orb/contracts/identity";
@@ -74,10 +78,24 @@ export async function routeServedFrame(page: Page, frame: ServedFrame): Promise<
   });
 }
 
+async function tempClientDist(): Promise<{ readonly path: string } & AsyncDisposable> {
+  const path = await mkdtemp(join(tmpdir(), "orb-sandbox-frame-dist-"));
+  await writeFile(join(path, "index.html"), "<!doctype html><title>sandbox frame</title>");
+  return { path, [Symbol.asyncDispose]: () => rm(path, { recursive: true, force: true }) };
+}
+
 /** The corpus test with a `room` fixture: a real root, its chat, and the card-frame routes over it. */
 export const test = corpusTest.extend<{ room: FrameRoom }>({
   room: async ({ corpus }, use) => {
-    await using root = await openCorpusHarness();
+    // The embedding policy is the production variant (no dev HMR loosenings), through the same served-response path.
+    // A production record binds every interface and serves a client bundle; this root never listens, it answers
+    // in-process, so it takes a stub bundle directory.
+    await using clientDist = await tempClientDist();
+    await using root = await openCorpusHarness(undefined, {
+      env: { ["NODE_ENV"]: "production" },
+      allowPublicBind: true,
+      clientDistDir: clientDist.path,
+    });
     const caller = await root.internalCallerFor(root.ownerId);
     const chat = corpus.reads["chat.getChat"][0]?.output;
     if (chat === undefined) {

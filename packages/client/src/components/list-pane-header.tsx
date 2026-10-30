@@ -81,9 +81,9 @@ export function ListPaneHeader({ title, accent, count, back, actions }: ListPane
           {/* The title TEXT is what truncates, not the heading box — see the count's note. It restates the
               masthead voice because it is the element that carries it (the heading is the flex box), which
               is the same spelling the accent half beside it already uses. */}
-          {/* An unscoped title is the pane's NAME: it never gives width up to the census beside it, the count
-              gives instead. A scoped title carries an entity name that may be long, so it still truncates. */}
-          <Text as="span" className={accent === undefined ? "shrink-0" : "truncate"} voice="masthead">
+          {/* The title is what gives when the band is short: the census beside it keeps its width, since a figure cut
+              to "10…" says nothing, while a cut name still reads as its pane. */}
+          <Text as="span" className="truncate" voice="masthead">
             {accent === undefined ? title : `${title} · `}
             {/* The entity half is the same step; it carries the MUTED tone now that the name it qualifies
                 owns the foreground, so the pane still reads as "Chats, scoped to HER" rather than as two
@@ -111,7 +111,7 @@ export function ListPaneHeader({ title, accent, count, back, actions }: ListPane
             // now that nothing in this cluster uppercases.
             // THE COUNT WEARS THE TITLE'S FAMILY: an unlabelled mono figure beside a sans name reads as a stray
             // datum, not the census of the list. Tabular figures keep it from jittering as it changes.
-            <CountText className="truncate min-inline-0">{count}</CountText>
+            <CountText className="shrink-0">{count}</CountText>
           )}
         </Heading>
       </Row>
