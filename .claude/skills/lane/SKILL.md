@@ -96,7 +96,7 @@ When a finding collides with a recorded ruling, keep the old mechanism and satis
 
 Choose the floor from the changed behavior. For code, run the named tests and typecheck affected programs. CI is the verdict for whole-application checks (D317). For prose-only changes, use the documentation formatter and link checks. Run affected CTs when rendered behavior changes.
 
-For any code change, run `pnpm exec depcruise packages tooling tests scripts playwright --config .dependency-cruiser.ts --affected main`. It checks every changed module and its reachers, tests included. Keep the target paths; without them the command prints usage and checks nothing.
+For any code change, run the whole-tree `pnpm depcruise`. It checks every module, tests included, in under a minute. Do not use `--affected`; it runs many times slower than the whole tree.
 
 Review-only assignments follow the `review` skill's checks. Questions and investigations run the checks needed to support their answer.
 
