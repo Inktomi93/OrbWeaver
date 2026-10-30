@@ -6,15 +6,31 @@
    "form": "collapse",
    "file": "a.ts",
    "line": 6,
-   "members": ["create", "revoke"],
+   "members": [
+    "create",
+    "revoke"
+   ],
    "port": "WholePort.create",
    "owner": "SessionsService.create",
    "ownerAt": "door/service.ts:2",
    "type": "Pick<SessionsService, \"create\" | \"revoke\">",
-   "imports": [{ "name": "SessionsService", "from": "./door/index.ts" }],
+   "imports": [
+    {
+     "name": "SessionsService",
+     "from": "./door/index.ts"
+    }
+   ],
    "exports": [
-    { "file": "door/service.ts", "name": "SessionsService", "from": null },
-    { "file": "door/index.ts", "name": "SessionsService", "from": "./service.ts" }
+    {
+     "file": "door/service.ts",
+     "name": "SessionsService",
+     "from": null
+    },
+    {
+     "file": "door/index.ts",
+     "name": "SessionsService",
+     "from": "./service.ts"
+    }
    ],
    "note": ""
   },
@@ -24,12 +40,19 @@
    "form": "member",
    "file": "a.ts",
    "line": 12,
-   "members": ["create"],
+   "members": [
+    "create"
+   ],
    "port": "MixedPort.create",
    "owner": "SessionsService.create",
    "ownerAt": "door/service.ts:2",
    "type": "SessionsService[\"create\"]",
-   "imports": [{ "name": "SessionsService", "from": "./door/index.ts" }],
+   "imports": [
+    {
+     "name": "SessionsService",
+     "from": "./door/index.ts"
+    }
+   ],
    "exports": [],
    "note": ""
   },
@@ -39,12 +62,19 @@
    "form": "member",
    "file": "a.ts",
    "line": 13,
-   "members": ["lookup"],
+   "members": [
+    "lookup"
+   ],
    "port": "MixedPort.lookup",
    "owner": "SessionsService.lookup",
    "ownerAt": "door/service.ts:4",
    "type": "SessionsService[\"lookup\"]",
-   "imports": [{ "name": "SessionsService", "from": "./door/index.ts" }],
+   "imports": [
+    {
+     "name": "SessionsService",
+     "from": "./door/index.ts"
+    }
+   ],
    "exports": [],
    "note": ""
   },
@@ -54,7 +84,9 @@
    "form": "member",
    "file": "a.ts",
    "line": 14,
-   "members": ["kept"],
+   "members": [
+    "kept"
+   ],
    "port": "MixedPort.kept",
    "owner": "Other.kept",
    "ownerAt": "other.ts:1",
@@ -69,12 +101,19 @@
    "form": "member",
    "file": "a.ts",
    "line": 18,
-   "members": ["now"],
+   "members": [
+    "now"
+   ],
    "port": "ClockPort.now",
    "owner": "Clock",
    "ownerAt": "@orb/kit/time",
    "type": "Clock",
-   "imports": [{ "name": "Clock", "from": "@orb/kit/time" }],
+   "imports": [
+    {
+     "name": "Clock",
+     "from": "@orb/kit/time"
+    }
+   ],
    "exports": [],
    "note": ""
   },
@@ -84,12 +123,19 @@
    "form": "member",
    "file": "a.ts",
    "line": 19,
-   "members": ["random"],
+   "members": [
+    "random"
+   ],
    "port": "ClockPort.random",
    "owner": "RandomSource",
    "ownerAt": "@orb/kit/macro",
    "type": "RandomSource",
-   "imports": [{ "name": "RandomSource", "from": "@orb/kit/macro" }],
+   "imports": [
+    {
+     "name": "RandomSource",
+     "from": "@orb/kit/macro"
+    }
+   ],
    "exports": [],
    "note": ""
   },
@@ -98,15 +144,110 @@
    "kind": "derive",
    "form": "member",
    "file": "a.ts",
-   "line": 23,
-   "members": ["revoke"],
-   "port": "Deps{…}.revoke",
+   "line": 27,
+   "members": [
+    "revoke"
+   ],
+   "port": "Deps{\u2026}.revoke",
    "owner": "SessionsService.revoke",
    "ownerAt": "door/service.ts:3",
    "type": "SessionsService[\"revoke\"]",
-   "imports": [{ "name": "SessionsService", "from": "./door/index.ts" }],
+   "imports": [
+    {
+     "name": "SessionsService",
+     "from": "./door/index.ts"
+    }
+   ],
    "exports": [],
    "note": ""
+  },
+  {
+   "leg": "B",
+   "port": "",
+   "owner": "",
+   "ownerAt": "",
+   "note": "",
+   "imports": [
+    {
+     "name": "SessionsService",
+     "from": "./door/index.ts"
+    }
+   ],
+   "exports": [],
+   "kind": "derive-params",
+   "form": "member",
+   "file": "a.ts",
+   "line": 23,
+   "members": [
+    "lookup"
+   ],
+   "type": "(...args: Parameters<SessionsService[\"lookup\"]>) => Promise<string>"
+  },
+  {
+   "leg": "B",
+   "port": "",
+   "owner": "",
+   "ownerAt": "",
+   "note": "",
+   "imports": [],
+   "exports": [
+    {
+     "file": "door/index.ts",
+     "name": "Present",
+     "from": "./present.ts"
+    }
+   ],
+   "kind": "add-door-export",
+   "form": "export",
+   "file": "door/index.ts",
+   "line": 0,
+   "members": [
+    "Present"
+   ]
+  },
+  {
+   "leg": "B",
+   "port": "",
+   "owner": "",
+   "ownerAt": "",
+   "note": "",
+   "imports": [],
+   "exports": [
+    {
+     "file": "door/index.ts",
+     "name": "Visible",
+     "from": "./visible.ts"
+    }
+   ],
+   "kind": "add-door-export",
+   "form": "export",
+   "file": "door/index.ts",
+   "line": 0,
+   "members": [
+    "Visible"
+   ]
+  },
+  {
+   "leg": "B",
+   "port": "",
+   "owner": "",
+   "ownerAt": "",
+   "note": "",
+   "imports": [],
+   "exports": [
+    {
+     "file": "door/index.ts",
+     "name": "Hidden",
+     "from": "./hidden.ts"
+    }
+   ],
+   "kind": "forgotten-door-export",
+   "form": "type",
+   "file": "door/service.ts",
+   "line": 1,
+   "members": [
+    "SessionsService"
+   ]
   }
  ]
 }

@@ -7,7 +7,7 @@ import type { DetectedServer, EndpointModel, InferenceDeps, SpawnIdentity } from
 
 /** The slice of the resolver context detection reads: the per-URL detect cache. */
 export interface DetectCache {
-  readonly detectedServer: (baseUrl: string) => Mirror<DetectedServer>;
+  readonly detectedServer: ResolverContext["detectedServer"];
 }
 
 export interface ResolveArgs extends ResolveTaskParams {

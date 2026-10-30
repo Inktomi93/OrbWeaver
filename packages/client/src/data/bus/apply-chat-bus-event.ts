@@ -6,11 +6,12 @@
 import type { ChatBusEvent, ChatWarning, TurnAbortReason } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import type { ChatStreamApi } from "#state";
+import type { Invalidation } from "../invalidation.ts";
 
 export interface ChatBusDeps {
   readonly stream: ChatStreamApi;
   /** The central seam's bus half (`createInvalidation().invalidate`). */
-  readonly invalidate: (event: ChatBusEvent) => void;
+  readonly invalidate: Invalidation["invalidate"];
   /** Optional user-visible surfacing for domain warnings (e.g. `image_dropped`). Takes the whole PAYLOAD,
    *  not the bare code: `settings_adjusted` carries the structured detail naming WHICH provider setting was
    *  ignored or clamped, and the copy mapper cannot write that notice from the code alone (#1440). */

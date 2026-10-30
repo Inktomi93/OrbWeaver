@@ -21,8 +21,8 @@
 // heals the case BOOT-4X called out (a REMOUNT that keeps an old cache across a detached stream).
 
 import type { StreamRoomRef } from "@orb/contracts/stream";
-import type { UserBusEvent } from "@orb/contracts/user-bus";
 import { notify } from "#lib";
+import type { Invalidation } from "../invalidation.ts";
 import { useBusRoom } from "./use-bus-room.ts";
 
 /** What the hook needs from the central invalidation seam (`data/invalidation.ts`) — the two user-bus
@@ -30,7 +30,7 @@ import { useBusRoom } from "./use-bus-room.ts";
  *  the room keys off nothing that changes). */
 export interface UserBusDeps {
   /** Route ONE live `UserBusEvent` through the exhaustive user map. */
-  readonly invalidateUser: (event: UserBusEvent) => void;
+  readonly invalidateUser: Invalidation["invalidateUser"];
   /** The RE-connect gap-heal — blanket-invalidate every filter the user map covers. */
   readonly invalidateAllUserRoots: () => void;
 }

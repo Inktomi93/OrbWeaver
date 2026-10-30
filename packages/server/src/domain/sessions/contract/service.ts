@@ -2,10 +2,11 @@
 // bundle. 13 verbs across the BFF session lifecycle + identity resolution.
 
 import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
-import type { SessionView } from "@orb/contracts/session";
+import type { GetOwnerUserId, OwnerNeedsPassword, SessionView, SettleUnclaimedLink } from "@orb/contracts/session";
 import type { Db } from "@orb/db";
 import type { AwaitableStatementToken, StatementToken } from "@orb/db/wiring";
 import type { ExternalId, Handle, IdSource, SessionId, SessionToken, UserId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { SQL } from "drizzle-orm";
 import type { AuditWiring, Logger } from "#foundation/observability";
 import type { Sealed, SecretBox } from "#infra/crypto";
@@ -16,7 +17,6 @@ import type {
   ProvisionResult,
   RevokedSession,
   RevokedSessionsSummary,
-  UnclaimedLinkOutcome,
   UserPrincipalFields,
   ValidatedSession,
 } from "./results.ts";
@@ -43,7 +43,7 @@ export interface SessionsContext {
   readonly audit: AuditWiring["log"];
   readonly rolePolicy: SessionsRolePolicy;
   db: Db;
-  now: () => number;
+  now: Clock;
   readonly idSource: IdSource;
   /** Mint a fresh opaque session token (256 bits of CSPRNG entropy). Rides the DI seam exactly like
    *  {@link SessionsContext.hashToken}, so `verbs/create` never reaches the `tokens/` subsystem directly
@@ -63,11 +63,13 @@ export interface SessionsContext {
   dummyPasswordHash: string;
   /** #141 — seal the OIDC `id_token` for at-rest storage on ITS OWN session row. The `sessionId` is the
    *  GCM AAD, not a lookup key: sealing against row A and storing on row B produces a blob that can never
-   *  be opened. Key = HKDF over the same `SESSION_SECRET`, bound at `context.ts` (the one AAD site). */
+   *  be opened. Key = HKDF over the same `SESSION_SECRET`, bound at `context.ts` (the one AAD site).
+   *  Narrowed from `SecretBox.encrypt` on purpose: the AAD is a branded `SessionId`, never a bare string. */
   sealIdToken: (idToken: string, sessionId: SessionId) => Sealed;
   /** #141 — open a sealed id_token bound to `sessionId`. THROWS on a wrong key / lifted row / tampered tag
    *  (GCM verifies before it returns a byte); `verbs/revoke` owns the degrade, because a logout must end
-   *  the session whether or not the end-session HINT survives. */
+   *  the session whether or not the end-session HINT survives. Narrowed from `SecretBox.decrypt` on purpose,
+   *  like `sealIdToken`: the AAD is a branded `SessionId`. */
   openIdToken: (sealed: Sealed, sessionId: SessionId) => string;
   /** #2481 / inference program §5.3b — the new account's local-light vector floor, as an INJECTED op:
    *  `domain/sessions` may not import `domain/connection`, so the composition root hands the seed in and the
@@ -150,10 +152,10 @@ export interface SessionsService {
    *  `target-bound`/`subject-taken`). `failure` is the caller's rejection, if any — when durable state does
    *  not explain it, it was never an identity refusal and the original error is RETHROWN unchanged (a failed
    *  audit insert riding the same batch lands there). @internal */
-  settleUnclaimedLink: (userId: UserId, externalId: ExternalId, failure?: unknown) => Promise<UnclaimedLinkOutcome>;
+  settleUnclaimedLink: SettleUnclaimedLink;
   /** The current owner's id, or `undefined` when no owner row exists yet (a fresh OIDC box before the
    *  first owner-policy login). Used by boot to decide whether owner-dependent seeds can run. @internal */
-  getOwnerUserId: () => Promise<UserId | undefined>;
+  getOwnerUserId: GetOwnerUserId;
   /** D259 — the UNEXECUTED signup account insert with its freshly minted id, for chat's signup batch. It
    *  writes only where `admission` (chat's opaque invite predicate) holds and no row holds the handle's key
    *  (D257), and it never absorbs a unique conflict. @internal */
@@ -189,7 +191,7 @@ export interface SessionsService {
   preparePendingSignup: (args: { readonly secret: string; readonly requireApproval: boolean }) => Promise<PendingSignupPlan | null>;
   /** B4 — is this a fresh local box whose owner row has no password yet (first-run setup pending)? Drives
    *  the `localFirstRun` config flag. @internal */
-  ownerNeedsPassword: () => Promise<boolean>;
+  ownerNeedsPassword: OwnerNeedsPassword;
   /** B4 — ONE-SHOT: claim the owner password (write the hash only when currently null). Returns the owner
    *  `UserId` iff this call set it, else `null` (already claimed) — never overwrites an existing credential. @internal */
   claimOwnerPassword: (passwordHash: string) => Promise<UserId | null>;

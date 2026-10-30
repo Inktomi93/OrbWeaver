@@ -9,12 +9,12 @@
 import type { VariantKind } from "@orb/contracts/assets";
 import { BLOB_ROUTE, variantKindSchema } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
-import type { UserId } from "@orb/kit/ids";
 import { sniffMime } from "@orb/kit/image-sniff";
 import type { Hono } from "hono";
 import type { AssetsService } from "#domain/assets";
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
+import type { Cas } from "#infra/storage";
 import type { PrincipalEnv } from "./contract/request-env.ts";
 
 /** The assets slice this registrar consumes, derived from the service rather than restated. */
@@ -54,7 +54,7 @@ function isInlineServable(mime: string): boolean {
 
 /** The `infra/storage` CAS slice the blob route reads originals from (per-user keyed). */
 export interface BlobCasPort {
-  readonly read: (ownerId: UserId, hash: string) => Promise<Uint8Array>;
+  readonly read: Cas["read"];
 }
 
 export interface BlobDeps {

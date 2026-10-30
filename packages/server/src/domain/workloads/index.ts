@@ -13,6 +13,7 @@ export type {
   WorkloadReapReason,
   WorkloadRunnerAssemblyDeps as WorkloadRunnerDeps,
   WorkloadService,
+  WorkloadServiceContext,
 } from "./contract/service.ts";
 export type { WorkloadRowAnyKind, WorkloadRunnableRow } from "./contract/workload-row.ts";
 export { createWorkloadProgressBus } from "./engine/progress-bus.ts";

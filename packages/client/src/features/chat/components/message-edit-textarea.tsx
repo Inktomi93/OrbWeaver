@@ -16,6 +16,8 @@ import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { viewerTimeZone } from "#lib";
 import { cancelEditingMessage, setMessageEditDraft, useMessageEditDraftText } from "#state";
 import { MESSAGE_EDIT_NAME } from "../lib/message-action-names.ts";
+import type { MoveNeighbours } from "../lib/move-neighbours.ts";
+import { MessageMoveArrows } from "./message-move-arrows.tsx";
 
 interface EditMessageVars {
   readonly chatId: ChatId;
@@ -34,9 +36,12 @@ export interface MessageEditTextareaProps {
   readonly message: MessageView;
   /** Overrides the chat.editMessage verb path; empty is allowed on this path. */
   readonly onSave?: ((text: string) => void) | undefined;
+  /** The host's Move up / Move down ride this toolbar; absent ⇒ no arrows. The verb is host-only, so only the
+   *  host's row passes it. */
+  readonly moveNeighbours?: MoveNeighbours | undefined;
 }
 
-export function MessageEditTextarea({ message, onSave }: MessageEditTextareaProps): ReactElement {
+export function MessageEditTextarea({ message, onSave, moveNeighbours }: MessageEditTextareaProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const editMessage = useEditMessageMutation({ trpc, invalidation });
@@ -110,7 +115,8 @@ export function MessageEditTextarea({ message, onSave }: MessageEditTextareaProp
         onKeyDown={onKeyDown}
         disabled={editMessage.isPending}
       />
-      <Row gap="field" justify="end">
+      <Row gap="field" align="center" justify="end">
+        {moveNeighbours === undefined ? null : <MessageMoveArrows message={message} neighbours={moveNeighbours} />}
         <Button type="button" intent="ghost" size="sm" disabled={editMessage.isPending} aria-label="Cancel edit" onClick={cancel}>
           <Icon icon={X} size="sm" />
         </Button>

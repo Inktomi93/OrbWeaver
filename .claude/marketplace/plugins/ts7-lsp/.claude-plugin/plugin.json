@@ -1,0 +1,6 @@
+{
+  "name": "ts7-lsp",
+  "version": "1.0.0",
+  "description": "Runs the workspace's TypeScript 7.1 native language server (@typescript/native) for the LSP tool.",
+  "author": { "name": "Orbweaver" }
+}

@@ -4,13 +4,14 @@
 // Middleware order: ingress IP-allowlist runs first, then the Host allowlist, then the auth seam resolves the
 // Principal EXACTLY ONCE per request onto the context — nothing downstream re-resolves identity.
 
-import type { Principal, RelayStatus } from "@orb/contracts/identity";
+import type { Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import { TRPC_BATCH_MAX_ITEMS } from "@orb/contracts/rpc";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { DomainRateLimitError } from "@orb/kit/errors";
-import type { UserId } from "@orb/kit/ids";
+import type { IdSource, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import { MS_PER_SECOND } from "@orb/kit/time";
 import type { TRPCError } from "@trpc/server";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
@@ -24,11 +25,13 @@ import type { ImportCharacterPort } from "#domain/character";
 import type { ExportService } from "#domain/export";
 import type { SettleImportMemory } from "#domain/import";
 import type { ImportCardScripts } from "#domain/regex";
+import type { SessionsService } from "#domain/sessions";
 import { readGlobalSettings } from "#domain/settings";
+import type { RelayController } from "#domain/share";
 import type { ImportWorldInfoPort } from "#domain/world-info";
 import type { Env } from "#foundation/env/record";
 import { allowedHostsInput, resolveAllowedHosts } from "#foundation/env/record";
-import type { AuditFailureSnapshot, Logger, MemoryRecallInspector, ObservabilityRings, RpgTraceInspector } from "#foundation/observability";
+import type { AuditWiring, Logger, MemoryRecallInspector, ObservabilityRings, RpgTraceInspector } from "#foundation/observability";
 import { createRequestObservability, registerDebugRoutes, securityEvent } from "#foundation/observability";
 import { versionIdentity } from "#foundation/version";
 import type { AllowedHostsReader, AuthConfig } from "#infra/auth";
@@ -45,7 +48,6 @@ import type {
   BlobAssetsPort,
   BlobCasPort,
   FirstRunRouteDeps,
-  LocalAuthenticator,
   OidcRoutesDeps,
   PrincipalEnv,
   SignupRouteDeps,
@@ -185,7 +187,7 @@ export interface AppDeps {
   /** The root's rings: the request middleware records into them and the debug routes read them. */
   readonly rings: ObservabilityRings;
   /** The root's suppressed audit failures the db stats probe reports. */
-  readonly auditFailures: () => AuditFailureSnapshot;
+  readonly auditFailures: AuditWiring["failures"];
   /** The parsed env record (`createProcessSeams`, or a test root's own parse): the IP and Host allowlists, the trusted
    *  hops, the debug token, the client bundle and the build posture this app reads. */
   readonly env: Env;
@@ -194,9 +196,9 @@ export interface AppDeps {
   readonly importStagingDir: string;
   readonly authConfig: Pick<AuthConfig, "mode" | "defaultHandle">;
   readonly multiHumanCapable?: ReturnType<typeof createMultiHumanCapability>;
-  readonly now: () => number;
+  readonly now: Clock;
   /** The root's opaque nonce, for the staging names the import routes mint. */
-  readonly newOpaqueId: () => string;
+  readonly newOpaqueId: IdSource["uuid"];
   readonly db: DatabaseHandle;
   readonly seam: AuthSeam;
   readonly services: Services;
@@ -237,11 +239,11 @@ export interface AppDeps {
    *  list. The app never writes it; the relay controller holds the write side. */
   readonly relayHosts: AllowedHostsReader;
   /** The share relay's state, served on `/api/auth/config`. */
-  readonly shareState: () => RelayStatus;
+  readonly shareState: RelayController["status"];
   /** Fire-and-forget: called after the Principal resolves; must never block the request. */
   readonly seedUserCharacters: (principal: Principal) => void;
   /** Present in local mode. */
-  readonly authenticate?: LocalAuthenticator;
+  readonly authenticate?: SessionsService["authenticate"];
   /** B4 — present in local mode; registers the first-run owner-password setup route + drives the config flag. */
   readonly firstRun?: FirstRunRouteDeps;
   /** D259 — present in local mode; registers the signup-through-invite route (the app adds the capability). */

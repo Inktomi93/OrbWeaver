@@ -3,7 +3,7 @@
 // (RosterPresetView/RosterPresetSummary/ApplyRosterPresetResult + the create/update schemas) live in
 // @orb/contracts/roster-preset; callers import them from there directly, not through this door.
 
-export type { SeedRosterPreset } from "./contract/seed.ts";
+export type { RosterSeedStepDeps, SeedRosterPreset } from "./contract/seed.ts";
 export type {
   RosterPresetAssemblyContext as RosterPresetContext,
   RosterPresetService,

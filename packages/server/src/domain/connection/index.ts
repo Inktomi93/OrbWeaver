@@ -1,6 +1,7 @@
 // domain/connection — FRONT DOOR: the service, composition factories and consumed public contracts.
 // Canonical inference wire shapes are imported directly from @orb/contracts/inference.
 
+export type { LocalLightSeedPolicyDeps } from "./contract/local-light-policy.ts";
 export {
   catalogRefreshOutcomeSchema,
   connectionCapabilityViewSchema,

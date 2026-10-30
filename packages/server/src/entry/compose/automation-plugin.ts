@@ -1,12 +1,12 @@
 // Wire automation and plugin onto the same effect ports, feedback registries and enforcement belts.
 // Author and installer Principals are row-derived through the injected entry resolver.
 
-import type { Principal } from "@orb/contracts/identity";
 import type { DatabaseHandle } from "@orb/db/wiring";
-import type { BindingActor, RoleClientsWithSignal, SideGenSampling } from "@orb/inference";
+import type { SideGenSampling } from "@orb/inference";
 import type { AssetId, CharacterId, IdSource, PluginId, SandboxWireId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
-import type { ScheduleOp, TimerScheduler } from "@orb/kit/time";
+import type { RandomSource } from "@orb/kit/macro";
+import type { Clock, ScheduleOp, TimerScheduler } from "@orb/kit/time";
 import { packShowcaseBundle, readShowcaseManifest, SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
 import type { AdminService } from "#domain/admin";
 import { can, createPluginDistributionRecipients } from "#domain/admin";
@@ -30,7 +30,7 @@ import type { DatabankService } from "#domain/databank";
 import type { ImageryService } from "#domain/imagery";
 import type { NotificationsService } from "#domain/notifications";
 import { createPluginNotificationDelivery, createRecordAndPublishNotification } from "#domain/notifications";
-import type { PluginBelts, PluginHostOps, PluginHostPort, PluginMacroRegistry, PluginService } from "#domain/plugin";
+import type { PluginBelts, PluginHostOps, PluginHostPort, PluginMacroRegistry, PluginQuietLlmDeps, PluginService } from "#domain/plugin";
 import {
   buildConfirmedActRunner,
   buildPluginStorage,
@@ -67,7 +67,6 @@ import { createNetworkPluginGitSource } from "#infra/network";
 import type { PluginHostSeamDeps } from "#infra/plugin-host";
 import { createPluginHost } from "#infra/plugin-host";
 import type { LiveBuses } from "#transport/trpc";
-
 import { createAutomationOps } from "./automation-watcher.ts";
 import type { ChatComposeResult } from "./chat.ts";
 import { minter } from "./minter.ts";
@@ -90,11 +89,11 @@ export interface AutomationPluginComposeDeps {
 
   readonly egress: Pick<ScopedEgress, "safeFetch" | "fetchPluginBundle">;
   readonly scheduleTimeout: ScheduleOp;
-  readonly random: () => number;
+  readonly random: RandomSource;
   readonly newOpaqueId: () => string;
   readonly idSource: IdSource;
   readonly db: DatabaseHandle;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly connection: Pick<ConnectionService, "registerPluginProviders" | "dropPluginProviders">;
   readonly chatCompose: ChatComposeResult;
   /** chat's `resolveViewerVisibility` (membership AND the D16 canon floor) — automation/plugin never re-derive. */
@@ -121,7 +120,7 @@ export interface AutomationPluginComposeDeps {
    *  one admin read, because `admin` is the only sanctioned reader of `users` and a distribution needs to know
    *  who the humans are. It re-gates on the acting admin, so the list is never obtained on nobody's authority. */
   readonly admin: Pick<AdminService, "listUsers">;
-  readonly resolveOwnerPrincipal: (userId: UserId) => Promise<Principal>;
+  readonly resolveOwnerPrincipal: PluginQuietLlmDeps["resolveOwnerPrincipal"];
   /** C5 — the owner-GLOBAL lane's standing-authority read, threaded from `domain/sessions` because the
    *  `users` table belongs to sessions + admin alone (the no-direct-users-read chokepoint). A chat rule's
    *  authority is its room's roster and needs none of this; a chat-less rule has no roster, so the account
@@ -129,7 +128,7 @@ export interface AutomationPluginComposeDeps {
   readonly sessions: Pick<SessionsService, "loadUserById">;
   /** The per-FUNDER role-client binder (§8.5b): a rule spends its AUTHOR's rows, a plugin its INSTALLER's. An
    *  `actor` folds that actor's own binding before the funder's (a plugin's `plugin-grant` row). */
-  readonly roleClientsFor: (funderUserId: UserId, actor?: BindingActor) => Promise<RoleClientsWithSignal>;
+  readonly roleClientsFor: PluginQuietLlmDeps["roleClientsFor"];
   /** The process-wide PLUGIN-MACRO registry — minted at the composition ROOT and
    *  handed to BOTH this plane (which writes it at activation) and chat's compose (which reads it per turn as
    *  `ChatContext.pluginMacros`). Minted there rather than here purely because chat composes FIRST: one shared

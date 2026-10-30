@@ -4,6 +4,7 @@
 
 import type { BootDatabaseHandle } from "@orb/db/wiring";
 import type { IdSource } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import { reconcileOwnersMissingTimeline } from "#domain/stats";
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
@@ -11,7 +12,7 @@ import { getLog } from "#foundation/observability";
 export interface RebuildStatsTimelineDeps {
   readonly logger: Logger;
   readonly db: BootDatabaseHandle;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly idSource: IdSource;
 }
 
