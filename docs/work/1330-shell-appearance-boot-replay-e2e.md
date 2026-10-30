@@ -23,4 +23,7 @@ Only the production-served boot proves the replay lands before React mounts.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+- `corpus-shell.spec.ts` stores a remembered motion preference, font scale and seed theme in the device hint with `addInitScript` before the first navigation, records every `<html>` attribute write and React's first write into `#root` in order, and asserts the hinted values are on `<html>` before that first write and with no `data-app-ready`. The control boots a device with no hint and asserts the schema defaults and no `data-theme`.
+- Green: both cases pass on `corpus-desktop-bubble` and `corpus-phone-bubble`.
+- Control: with the `stampAppearanceBootHint()` call in `main.tsx` disabled, both cases fail on `corpus-desktop-bubble` (motion channel read `undefined` before mount); the call is restored.
+- Density has no root channel (it renders on the shell's theme scope after the first commit), so the cases do not assert it; the 0963 rows say so.
