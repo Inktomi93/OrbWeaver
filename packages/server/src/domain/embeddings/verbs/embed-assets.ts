@@ -1,12 +1,14 @@
 // The catch-up sweep shares avatar preparation with event delivery and records completed generations.
+
+import type { EmbedPassResult } from "@orb/contracts/embeddings";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import { GenerationSupersededError } from "#primitives/embedding-generation";
 import type { EmbedPassParams } from "../contract/params.ts";
-import type { BulkEmbedResult, StoreResult } from "../contract/results.ts";
+import type { StoreResult } from "../contract/results.ts";
 import type { EmbeddingsContext, EmbeddingsService } from "../contract/service.ts";
 import { completeGenerationScope, resolveImageTargetGeneration } from "../substrate/generation.ts";
 export function createEmbedAssets(ctx: EmbeddingsContext, deps: Pick<EmbeddingsService, "indexAsset">): EmbeddingsService["embedAssets"] {
-  return async ({ force, signal, ownerId, onProgress, embedderChanged }: EmbedPassParams): Promise<BulkEmbedResult> => {
+  return async ({ force, signal, ownerId, onProgress, embedderChanged }: EmbedPassParams): Promise<EmbedPassResult> => {
     let embedded = 0;
     let skipped = 0;
     // `ownerId` scopes the sweep to one owner; `null` = every owner. The enumeration is materialised BEFORE

@@ -1,6 +1,6 @@
 import type { ImageLens } from "@orb/contracts/embeddings";
-import type { MemoryQueryOptions, SearchScope, SearchTarget } from "@orb/contracts/search";
-import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
+import type { DocumentSearchScope, MemoryQueryOptions, SearchScope, SearchTarget } from "@orb/contracts/search";
+import type { CharacterId, UserId } from "@orb/kit/ids";
 
 export type { CorpusParams } from "@orb/contracts/search";
 
@@ -37,7 +37,7 @@ export type SegmentsParams = MemoryQueryOptions;
  *  over the owner's whole bank. `k`/`minScore`/`rerank` default to ST's shipped values when the caller
  *  omits them (the verb stays total; the real caller — chat's gather, the panel — passes settings values). */
 export interface DocumentSearchParams {
-  readonly scope: { readonly chatId: ChatId } | { readonly ownerId: UserId };
+  readonly scope: DocumentSearchScope;
   /** The OWNER of the document space (the chat host on a chat scope, the caller on a personal one) — their
    *  `embed`/`rerank` bindings define the space and fund the query (inference program §7.5). */
   readonly ownerId: UserId;

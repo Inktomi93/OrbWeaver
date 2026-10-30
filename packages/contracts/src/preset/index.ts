@@ -9,7 +9,7 @@
 //   • prose.ts — the per-PRESET PROSE-1 slot table; the ONE home for the BYTES of every guided-action
 //     template + format string this file's schema defaults read.
 
-import type { ModelId, PresetId } from "@orb/kit/ids";
+import type { ModelId, PresetId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
 import type { UserMacroDef, UserMacroInputValue } from "@orb/kit/macro";
@@ -583,6 +583,10 @@ export interface ReasoningTagPair {
   readonly suffix: string;
 }
 export type RolePresetParams = Pick<UserIntent, RolePresetField> & { readonly reasoningTags?: ReasoningTagPair | undefined };
+
+/** A user's Utility-role preset params, `undefined` under task defaults — resolved at the composition root so a
+ *  domain never reads the preset domain. */
+export type ResolveUtilityPresetParams = (userId: UserId) => Promise<RolePresetParams | undefined>;
 
 const XML_OPEN_TAG_RE = /^<(?<name>[A-Za-z][\w:-]*)>$/u;
 

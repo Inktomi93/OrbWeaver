@@ -1,15 +1,15 @@
 import type { AssetEmbeddingReads, LoadAssetBytes } from "@orb/contracts/assets";
-import type { EmbeddingTask, VectorScope } from "@orb/contracts/embeddings";
+import type { EmbeddingTask, EmbedPassResult, VectorScope } from "@orb/contracts/embeddings";
 import type { AssetCreatedEvent, CharacterUpdatedEvent, DomainEvent } from "@orb/contracts/events";
 import type { Capability, EncoderIdentityApi, EndpointFeatures, ProviderId, Wire } from "@orb/contracts/inference";
+import type { ResolveUtilityPresetParams } from "@orb/contracts/preset";
 import type { EmbedResult, ImageEmbedResult } from "@orb/contracts/providers";
-import type { ImageEmbedInput, RoleClients } from "@orb/contracts/role-clients";
-import type { EffectiveAppConfig } from "@orb/contracts/settings";
+import type { ImageEmbedInput, RoleClientsFor } from "@orb/contracts/role-clients";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { EveryOwnerRun } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
-import type { EmbeddingExecution, SideGenSampling } from "@orb/inference";
+import type { EmbeddingExecution } from "@orb/inference";
 import type {
   AssetId,
   CharacterEmbeddingId,
@@ -23,7 +23,7 @@ import type {
   UserConnectionId,
   UserId,
 } from "@orb/kit/ids";
-import type { ScheduleOp } from "@orb/kit/time";
+import type { Clock, ScheduleOp } from "@orb/kit/time";
 import type { SQL } from "drizzle-orm";
 import type { Logger } from "#foundation/observability";
 import type { EmbedMoveRefusal, GenerationReceipt, GenerationTask } from "./generation.ts";
@@ -38,7 +38,7 @@ import type {
   WriteHubScoresParams,
 } from "./params.ts";
 import type {
-  BulkEmbedResult,
+  EffectiveConfigRead,
   ImageSpace,
   ImageSpaceDegrade,
   PruneDocumentChunksResult,
@@ -52,9 +52,6 @@ import type {
 // The typed API surface: the two DI bundles, the verb interface, injected cross-feature op types, and the
 // indexer interface. Every cross-feature capability arrives as an injected op (no sideways imports); there is
 // no principal/guard on any bundle — the vector substrate carries no ownerId.
-
-/** The per-owner bundle resolver the composition root binds over `runtime.roleClientsFor`. */
-export type RoleClientsFor = (ownerId: UserId) => Promise<RoleClients>;
 
 /** One resolved encoder snapshot. It deliberately omits credentials while retaining every non-secret field
  * that can change geometry; the call closures execute through this exact snapshot. */
@@ -147,11 +144,11 @@ export interface EmbeddingsContext {
    *  entity's OWNER funds the embed and DEFINES the space (their `embed`/`imageEmbed` binding). */
   readonly roleClientsFor: RoleClientsFor;
   /** The owner's Utility-role preset params (D299), `undefined` under task defaults — avatar analysis sampling. */
-  readonly resolveUtilityPresetParams: (userId: UserId) => Promise<SideGenSampling | undefined>;
+  readonly resolveUtilityPresetParams: ResolveUtilityPresetParams;
   readonly resolveEmbeddingConnection: ResolveEmbeddingConnection;
   /** Serialize target publication with connection writes; binding settlement already holds this queue. */
   readonly withStableEmbeddingBinding: <T>(ownerId: UserId, read: () => Promise<T>) => Promise<T>;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly newCharacterEmbeddingId: () => CharacterEmbeddingId;
   readonly newImageEmbeddingId: () => ImageEmbeddingId;
   readonly newChatDigestId: () => ChatDigestId;
@@ -224,10 +221,10 @@ export interface EmbeddingsService {
   readonly writeHubScores: (params: WriteHubScoresParams) => Promise<WriteHubScoresResult>;
   /** Bulk text catch-up sweep: enumerate every non-synthetic character → re-read card text → `store`.
    *  Resumable (hash gate skips already-embedded), cooperative abort, failures propagate. */
-  readonly embedCorpus: (params: EmbedPassParams) => Promise<BulkEmbedResult>;
+  readonly embedCorpus: (params: EmbedPassParams) => Promise<EmbedPassResult>;
   /** Bulk image catch-up sweep: enumerate every image asset → re-read bytes → `store` both lenses. Caption
    *  generation only runs when retained analysis is missing or explicitly forced; embedder rebuilds reuse it. Same resume/abort contract. */
-  readonly embedAssets: (params: EmbedPassParams) => Promise<BulkEmbedResult>;
+  readonly embedAssets: (params: EmbedPassParams) => Promise<EmbedPassResult>;
   /** The avatar analyses (one vision call each) {@link embedAssets} would make over this scope. Reads only. */
   readonly countAssetAnalysisCalls: (params: Pick<EmbedPassParams, "ownerId" | "force" | "embedderChanged">) => Promise<number>;
   /** Reclaim the OLD chat-memory embed space — deletes `chat_segments`/`chat_digests` rows whose
@@ -302,7 +299,7 @@ export interface EmbeddingsWorkloadDeps {
 }
 
 export interface EmbeddingsIndexerSubscriptionDeps {
-  readonly getEffectiveConfig: () => EffectiveAppConfig;
+  readonly getEffectiveConfig: EffectiveConfigRead;
   readonly indexer: EmbeddingsIndexer;
 }
 

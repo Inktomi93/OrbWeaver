@@ -34,9 +34,11 @@ import type { WorkloadRunScope } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { AssetId, CharacterId, ChatId, DocumentId, UserId, WorkloadId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { EmbeddingsService } from "#domain/embeddings";
 import type { SearchService } from "#domain/search";
 import type { AuditEntry, Logger } from "#foundation/observability";
+import type { ScopedEgress } from "#infra/network";
 import type {
   BankHealthParams,
   CharacterAttachParams,
@@ -104,20 +106,12 @@ export const NO_EMBED_SPACE_MODEL = "";
  *  bank-wide values); the per-user override lands with the Phase-6 panel. */
 type GetDatabankSettingsOp = (ownerId: UserId) => Promise<DatabankSettings>;
 
-/** The compose-bound web-document fetch for scrapeWeb (the hub-browse H1 `SafeFetchOp`
- *  — the ANY_HOST "arbitrary-URL class"). Reads the page bytes over the self-enforcing `safeFetch` (https-only,
- *  private-range denial, per-hop re-validation — ALL compose-bound and free; the allowlist + `maxBytes` are NOT
- *  caller-suppliable). THROWS on any refusal or fetch failure; the verb collapses that to a leak-free
- *  `ScrapeFailedError` WITHOUT importing infra to branch (the landed `fetchGifImage` precedent — a domain never
- *  imports `infra/network`). The scraper adds ZERO guard logic of its own. */
-type SafeFetchOp = (url: string) => Promise<Uint8Array>;
-
 /** The DI bundle every databank verb + the ingest subsystem close over (assembled at `entry/compose`). */
 export interface DatabankContext {
   readonly logger: Logger;
   readonly can: Can;
   readonly db: Db;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly newDocumentId: () => DocumentId;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   /**
@@ -189,8 +183,10 @@ export interface DatabankContext {
   readonly extractText: ExtractTextOp;
   /** The current `infra/extraction` EXTRACTOR_VERSION — the re-extract-on-upgrade selection predicate. */
   readonly extractorVersion: string;
-  /** The web-document fetch (DB7 scrapeWeb) — the ANY_HOST safeFetch guard, allowlist + cap compose-bound. */
-  readonly fetchUrl: SafeFetchOp;
+  /** The web-document fetch (DB7 scrapeWeb) — the ANY_HOST safeFetch guard, allowlist + cap compose-bound.
+   *  THROWS on any refusal or fetch failure; the verb collapses that to a leak-free `ScrapeFailedError` without
+   *  importing infra to branch. The scraper adds ZERO guard logic of its own. */
+  readonly fetchUrl: ScopedEgress["fetchWebDocument"];
   readonly getActiveEmbedSpace: (ownerId: UserId) => Promise<ActiveEmbedSpace | null>;
   readonly getDatabankSettings: GetDatabankSettingsOp;
   readonly enqueueIngest: EnqueueIngestOp;

@@ -6,10 +6,11 @@ import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import type { BatchHandle, DatabaseHandle, DbAssemblyInput } from "@orb/db/wiring";
 import type { EmbeddingCallId, EmbeddingInvocationId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 
 export interface EmbeddingAccountingContext {
   readonly db: Db;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly newCallId: () => EmbeddingCallId;
   readonly newInvocationId: () => EmbeddingInvocationId;
   readonly applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db>;

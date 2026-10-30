@@ -12,11 +12,12 @@ import type { PersonaCollisionChoices } from "@orb/contracts/import";
 import type { BulkImportPersonaInput, BulkImportPersonasResult } from "@orb/contracts/persona";
 import type { Db } from "@orb/db";
 import type { PersonaId, UserId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 
 /** The DI bundle `createBulkImportPersonas` closes over (assembled at the entry composition root). */
 export interface PersonaImportContext {
   readonly db: Db;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly newPersonaId: () => PersonaId;
 }
 
