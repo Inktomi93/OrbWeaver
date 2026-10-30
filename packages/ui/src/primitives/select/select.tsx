@@ -131,12 +131,12 @@ export interface SelectProps<Value = string, Multiple extends boolean = false> e
   triggerRef?: RefObject<HTMLButtonElement | null>;
   /** Applied to the trigger (the in-flow element). */
   className?: string;
+  /** The control scale step (D336): the field's height, level with the controls of its row. @defaultValue "sm" */
+  size?: VariantProps<typeof selectVariants>["size"];
   /**
    * The trigger's SCALE: `field` (default) is the form control; `inline` is the identity-line trigger —
    * text-height, content-width, chrome-free (the name IS the affordance). @defaultValue "field"
    */
-  /** The control scale step (D336): the field's height, level with the controls of its row. @defaultValue "sm" */
-  size?: VariantProps<typeof selectVariants>["size"];
   layout?: VariantProps<typeof selectVariants>["layout"];
   /** The trigger's value is a name set in its semibold weight (an identity line's subject). */
   strong?: boolean;
