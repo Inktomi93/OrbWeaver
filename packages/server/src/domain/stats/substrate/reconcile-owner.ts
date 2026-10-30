@@ -8,9 +8,10 @@
 import type { ReconcileStatsResult } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import type { IdSource, UserId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import { reconcileStats } from "../persistence/rebuild-from-canon.ts";
 
 /** Rebuild exactly ONE owner's rollups from canon (never the deployment-wide sweep). */
-export async function reconcileOwnerStats(db: Db, args: { ownerId: UserId; now: () => number; idSource: IdSource }): Promise<ReconcileStatsResult> {
+export async function reconcileOwnerStats(db: Db, args: { ownerId: UserId; now: Clock; idSource: IdSource }): Promise<ReconcileStatsResult> {
   return await reconcileStats(db, { ownerId: args.ownerId, now: args.now, idSource: args.idSource });
 }

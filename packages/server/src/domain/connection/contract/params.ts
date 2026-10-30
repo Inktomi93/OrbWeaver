@@ -15,6 +15,7 @@ import type {
 import type { Db } from "@orb/db";
 import type { ResolveArgs } from "@orb/inference";
 import type { AutomationRuleId, ConnectionBindingId, PluginId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 
 export type { GetBoundConnectionParams } from "@orb/contracts/inference";
 export type ResolveTaskParams = ResolveAuthority & Pick<ResolveArgs, "signal">;
@@ -171,7 +172,7 @@ export interface DropProviderParams {
 /** The local-light convenience seed's deps (inference program §7.2) — the db + clock + the two id minters. */
 export interface LocalLightSeedDeps {
   readonly db: Db;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly newConnectionId: () => UserConnectionId;
   readonly newBindingId: () => ConnectionBindingId;
 }

@@ -7,12 +7,13 @@ import type { GeneratePicture } from "@orb/contracts/imagery";
 import type { ExecutePluginSuggestion, PluginManifest } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { PluginHostOps } from "./ops.ts";
 import type { PluginContext } from "./service.ts";
 
 export interface PluginRuntimeDeps {
   readonly db: Db;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly requestTurn: RequestTurnOp;
   readonly imagery: { readonly generatePicture: GeneratePicture };
   readonly databankCreateFromText: CreateDocumentFromText;

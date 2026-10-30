@@ -7,7 +7,7 @@ import type { PluginSeedOps } from "./seed-ops.ts";
 export interface DistributedPluginApplierDeps {
   readonly logger: Logger;
   /** The REAL self-scoped verb, under the receiving user's own Principal. Returns which slugs it installed. */
-  readonly apply: (principal: Principal) => Promise<Pick<Awaited<ReturnType<PluginSeedOps["apply"]>>, "installedSlugs">>;
+  readonly apply: (...args: Parameters<PluginSeedOps["apply"]>) => Promise<Pick<Awaited<ReturnType<PluginSeedOps["apply"]>>, "installedSlugs">>;
   readonly isApplied: (principal: Principal) => Promise<boolean>;
   readonly markApplied: (principal: Principal) => Promise<void>;
 }

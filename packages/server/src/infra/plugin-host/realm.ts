@@ -13,6 +13,9 @@
 
 import type { PluginLogLevel } from "@orb/contracts/plugin";
 import { HostVersionError, PLUGIN_HOST_VERSIONS, PLUGIN_LOG_CHARS_MAX, PLUGIN_LOG_LEVELS, PLUGIN_LOG_LINES_MAX } from "@orb/contracts/plugin";
+import type { IdSource } from "@orb/kit/ids";
+import type { RandomSource } from "@orb/kit/macro";
+import type { Clock } from "@orb/kit/time";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { QuickJSContext, QuickJSHandle } from "quickjs-emscripten-core";
 import type { MembraneRuntime } from "./membrane.ts";
@@ -23,11 +26,11 @@ import { attachMembrane } from "./membrane.ts";
  *  clock here makes two runs byte-identical without touching the DoS deadline (which reads real time). */
 export interface HostSeams {
   /** Injected wall clock, epoch ms — the guest's `orb.host(1).clock.nowEpochMs()`. */
-  readonly nowEpochMs: () => number;
+  readonly nowEpochMs: Clock;
   /** Injected PRNG, [0, 1) — the guest's `orb.host(1).random.next()`. */
-  readonly nextRandom: () => number;
+  readonly nextRandom: RandomSource;
   /** Injected opaque-uniqueness id factory — the guest's `orb.host(1).ids.mint()` (NOT a TypeID). */
-  readonly mintId: () => string;
+  readonly mintId: IdSource["uuid"];
 }
 
 // The guest log levels ARE the contract's `PluginLogLevel` set (`@orb/contracts/plugin` — the ONE home the

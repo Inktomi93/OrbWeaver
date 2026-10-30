@@ -5,6 +5,7 @@
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { IdSource } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import { createNotificationsContext } from "./context.ts";
 import type { ResolveStandingAsks } from "./contract/ops.ts";
 import type { NotificationsService } from "./contract/service.ts";
@@ -18,7 +19,7 @@ import { createStanding } from "./verbs/standing.ts";
  *  (`isAgentRecipient` — the sanctioned `users.kind` read the entry root supplies; contract/service.ts). */
 interface NotificationsServiceDeps {
   db: DatabaseHandle;
-  now: () => number;
+  now: Clock;
   readonly idSource: IdSource;
   /** The #1799 cross-feature read behind `InboxView.actionable` (contract/ops.ts). Required: see the field's
    *  note on `NotificationsContext` for why a defaulted no-op would be a silently wrong indicator. */

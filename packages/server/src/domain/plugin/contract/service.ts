@@ -36,8 +36,10 @@ import type {
 } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import type { AssetId, ChatId, PluginId, UserId } from "@orb/kit/ids";
-import type { ScheduleOp } from "@orb/kit/time";
+import type { Clock, ScheduleOp } from "@orb/kit/time";
 import type { Logger } from "#foundation/observability";
+import type { PluginGitSource, ScopedEgress } from "#infra/network";
+import type { ProcessPluginHost } from "#infra/plugin-host";
 import type {
   PluginBelts,
   PluginHostOps,
@@ -140,21 +142,16 @@ export interface PluginHostPort {
    *  one USER, not the process), and refuses over it with a CONFLICT-class error — retryable the moment a slot
    *  frees, exactly like the per-user ceiling. Every field of `SnippetResult` describes a run that DID happen,
    *  so a refusal has no honest spelling in it. */
-  readonly runSnippet: (input: {
-    readonly code: string;
-    readonly grants: readonly PluginCapability[];
-    readonly bridge: PluginBridge;
-    readonly chat: InvocationChat;
-  }) => Promise<SnippetResult>;
+  readonly runSnippet: ProcessPluginHost["runSnippet"];
   /** A snapshot COPY of the instance's RUNTIME host.log ring: the activation drain, every later invocation's,
    *  AND whatever a floated continuation logged between invocations (picked up on this read — #806), oldest-
    *  first, bounded and evicted from the front by the port. IN-MEMORY and per resident instance
    *  (`ASSUMES(single-replica)`) — a restart or a deactivate→activate cycle resets it. It is a recent-activity
    *  view for the owner, NOT an audit log of record: derive nothing security-load-bearing from what it contains
    *  or from what it is missing. */
-  readonly readLog: (instance: PluginInstance) => readonly PluginLogView[];
+  readonly readLog: ProcessPluginHost["readLog"];
   /** Tear down the instance (disposes the guest context + all realm handles). Idempotent-safe. */
-  readonly dispose: (instance: PluginInstance) => void;
+  readonly dispose: ProcessPluginHost["dispose"];
 }
 
 /** What activation needs off the row (owner is `caller`) — never the whole DB row (the port never sees one).
@@ -273,7 +270,7 @@ export interface PluginContext {
   readonly logger: Logger;
   readonly scheduleTimeout: ScheduleOp;
   readonly db: Db;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly newPluginId: () => PluginId;
   // NO `can` SEAM, and that is the design (D147). A plugin is USER-SCOPED: anyone installs for themselves,
   // every management verb loads its row through the owner-scoped `getById(db, caller.userId, pluginId)`, and
@@ -299,12 +296,9 @@ export interface PluginContext {
    *  bare `fetch`. It THROWS on any refusal/non-2xx/network error (the domain never imports infra to branch —
    *  the `fetchWebDocument`→`ScrapeFailedError` precedent); the URL verbs collapse every throw to a single
    *  leak-free {@link PluginBundleFetchError}, so no SSRF oracle crosses the boundary. */
-  readonly fetchBundle: (url: string) => Promise<Uint8Array>;
+  readonly fetchBundle: ScopedEgress["fetchPluginBundle"];
   /** Git I/O stays in outer tiers; the domain retains lifecycle and install policy. */
-  readonly gitSource: {
-    readonly clone: (url: string) => Promise<{ readonly bundle: Uint8Array; readonly commit: string }>;
-    readonly head: (url: string) => Promise<string>;
-  };
+  readonly gitSource: Readonly<Pick<PluginGitSource, "clone" | "head">>;
   /** The SHOWCASE bundles this build ships (#1740) — the SECOND byte source an update can come from, beside
    *  `fetchBundle`'s remembered URL. Injected rather than imported for the same reason every other byte source
    *  is: `@orb/showcase-plugins` reads its bundles off DISK (`node:fs`), and the domain tier does not touch the

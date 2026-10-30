@@ -2,7 +2,7 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { Logger } from "#foundation/observability";
-import type { HeldSeedPlugin, PluginSeedOps, ShowcaseVersionReader } from "./seed-ops.ts";
+import type { PluginSeedOps, ShowcaseVersionReader } from "./seed-ops.ts";
 
 export interface ExamplePluginSeederDeps {
   readonly logger: Logger;
@@ -16,7 +16,7 @@ export interface ExamplePluginSeederDeps {
    *  so one missing bundle produces one skipped slug rather than two disagreeing answers. */
   readonly bundledVersion: ShowcaseVersionReader;
   /** The REAL install verb, under the receiving user's own Principal. */
-  readonly install: (args: Parameters<PluginSeedOps["install"]>[0]) => Promise<Pick<Awaited<ReturnType<PluginSeedOps["install"]>>, "id">>;
+  readonly install: (...args: Parameters<PluginSeedOps["install"]>) => Promise<Pick<Awaited<ReturnType<PluginSeedOps["install"]>>, "id">>;
   /** The REAL upgrade verb — the SAME one a hand upload and the one-click url update drive, which is what
    *  carries the consent wall (widened reach ⇒ disabled + standing re-consent; grant = prior ∩ declared). */
   readonly upgrade: PluginSeedOps["upgrade"];
@@ -25,7 +25,7 @@ export interface ExamplePluginSeederDeps {
   readonly requestConsent: PluginSeedOps["requestConsent"];
   /** Every SHOWCASE row the caller holds right now — one read per pass, which is also the collision check the
    *  install half needs (`install` refuses a slug the user already holds). */
-  readonly listHeld: (caller: Principal) => Promise<readonly HeldSeedPlugin[]>;
+  readonly listHeld: PluginSeedOps["listHeld"];
   readonly isSeeded: (principal: Principal) => Promise<boolean>;
   readonly markSeeded: (principal: Principal) => Promise<void>;
   /** `onboarding.seededPluginVersions` — what this system last wrote per slug (the divergence oracle). */

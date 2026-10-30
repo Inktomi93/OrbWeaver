@@ -20,7 +20,15 @@ export * from "./local-light-config.ts";
 export * from "./media-quality.ts";
 export * from "./modalities.ts";
 export * from "./model-schema.ts";
-export type { GetBoundConnectionOp, GetBoundConnectionParams, ResolveTaskParams, TaskAvailabilityOp } from "./owner-ops.ts";
+export type {
+  BoundConnectionView,
+  CredentialOwned,
+  GetBoundConnectionOp,
+  GetBoundConnectionParams,
+  ResolveTaskParams,
+  RuleOwnedBy,
+  TaskAvailabilityOp,
+} from "./owner-ops.ts";
 export * from "./policy.ts";
 export * from "./prompt-cache.ts";
 export * from "./provider-id.ts";

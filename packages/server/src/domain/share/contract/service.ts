@@ -16,9 +16,9 @@ import type {
   SignInModeView,
 } from "@orb/contracts/identity";
 import type { OwnerNeedsPassword } from "@orb/contracts/session";
-import type { UserId } from "@orb/kit/ids";
+import type { Clock, TimerScheduler } from "@orb/kit/time";
 import type { RequireAdmin, RequireOwner } from "#domain/admin";
-import type { AuditEntry, Logger } from "#foundation/observability";
+import type { AuditEntry, Logger, SocketInspector } from "#foundation/observability";
 import type { AcmeIssuer, CertificateStore } from "#infra/acme";
 import type { RelayHostWriter } from "#infra/auth";
 import type { TlsTerminator, TlsTerminatorOptions } from "#infra/network";
@@ -45,9 +45,9 @@ export interface RelayControllerDeps {
   readonly hosts: RelayHostWriter;
   /** The loopback URL of this server's own listener, which the relay forwards to. */
   readonly origin: () => string;
-  readonly now: () => number;
+  readonly now: Clock;
   /** Runs `run` once after `ms`; the returned function cancels it. */
-  readonly schedule: (run: () => void, ms: number) => () => void;
+  readonly schedule: TimerScheduler["timeoutUnref"];
 }
 
 /** The IP certificate lifecycle (D275): obtain, serve over https, renew on a schedule, and fall back to plain http.
@@ -80,9 +80,9 @@ export interface CertificateControllerDeps {
   readonly startHttps: (options: Pick<TlsTerminatorOptions, "port" | "certificatePem" | "keyPem">) => Promise<TlsTerminator>;
   /** The app listener's interface, which the HTTP-01 responder shares; undefined is every interface. */
   readonly bindHost: string | undefined;
-  readonly now: () => number;
+  readonly now: Clock;
   /** Runs `run` once after `ms`; the returned function cancels it. */
-  readonly schedule: (run: () => void, ms: number) => () => void;
+  readonly schedule: TimerScheduler["timeoutUnref"];
 }
 
 /** Why the IP certificate may not start, with the sentence that names its fix. */
@@ -150,9 +150,9 @@ export interface ShareServiceDeps extends ShareFacts, CertificateFacts {
   readonly authModeSource: AuthModeSource;
   readonly install: InstallKind;
   /** The live stream sockets on the box, or one user's alone when `userId` is given. */
-  readonly liveSocketCount: (userId?: UserId) => number;
+  readonly liveSocketCount: SocketInspector["liveSocketCount"];
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
-  readonly now: () => number;
+  readonly now: Clock;
 }
 
 /** The DI bundle the verbs close over: the deps plus the one precondition check every start runs. */

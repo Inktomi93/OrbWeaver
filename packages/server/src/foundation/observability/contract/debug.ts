@@ -71,7 +71,7 @@ export interface DebugRoutesOptions {
 }
 
 interface BugReportRecorder {
-  readonly recent: (filter: Pick<RecorderFilter, "limit">) => readonly object[];
+  readonly recent: MemoryRecallInspector["recent"];
 }
 
 /** Opaque recorder output is preserved; absence remains an explicit unavailable source in the bundle. */
