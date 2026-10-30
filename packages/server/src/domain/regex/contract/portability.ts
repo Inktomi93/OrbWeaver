@@ -4,6 +4,7 @@
 //   • `ImportCardScripts` — the card LIFT (the `importLorebook` twin): a card's by-value ST scripts become
 //     library rows + `character_regex_scripts` attachments. Carried orbweaver REFERENCES win over cloning
 //     (a same-install re-import re-links); a foreign card content-dedups against the owner's existing rows.
+
 //   • `ExportCardScripts` — the card RE-EMBED: walk the character's junction back out to the ST card-wire
 //     shape so `extensions.regex_scripts` is byte-shape-identical to what ST reads.
 //   • `ExportRegexScripts` / `ImportRegexScript` — the backup-bundle descriptor's two halves (the `regex/`
@@ -18,84 +19,41 @@
 // BEHAVIOR BODY is content-equal (canonical JSON of the behavior blob) AND its name matches. Re-importing
 // a card pack is the norm, and always-new would breed hundreds of identical rows.
 
-import type { RegexScriptCard } from "@orb/contracts/regex";
+import type { PortableFile } from "@orb/contracts/portability";
+import type {
+  ExportedCardScripts,
+  ImportCardScriptsArgs,
+  ImportCardScriptsResult,
+  ImportGlobalScriptsArgs,
+  ImportPresetScriptsArgs,
+} from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
-import type { CharacterId, PresetId, RegexScriptId, UserId } from "@orb/kit/ids";
+import type { CharacterId, RegexScriptId, UserId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 
 /** The DI bundle every portability op closes over (assembled at the entry composition root). */
 export interface RegexPortabilityContext {
   readonly db: Db;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly newScriptId: () => RegexScriptId;
-}
-
-/** What one card hands the lift. `carried` are the orbweaver-namespaced references (the attached-book twin) — each is
- *  attached DIRECTLY when it names a row this owner already has, and ignored otherwise. `scripts` is the
- *  ST by-value payload, lifted for everything `carried` did not cover. */
-export interface ImportCardScriptsArgs {
-  readonly ownerId: UserId;
-  readonly characterId: CharacterId;
-  readonly scripts: readonly RegexScriptCard[];
-  readonly carried: readonly RegexScriptId[];
-}
-
-/** What the lift did — the counts the import report surfaces. */
-export interface ImportCardScriptsResult {
-  /** Fresh library rows minted from the by-value payload. */
-  readonly created: number;
-  /** Candidates that matched an existing owned row (carried reference OR content-equal) and were attached
-   *  rather than cloned. */
-  readonly reused: number;
 }
 
 export type ImportCardScripts = (args: ImportCardScriptsArgs) => Promise<ImportCardScriptsResult>;
 
-/** The PRESET lift — the card lift's twin for ST's preset-scoped scripts (`extensions.regex_scripts` in an
- *  `OpenAI Settings/*.json` / the live `oai_settings`, written by ST's presetManager extension-field path).
- *  Same planner, same dedup rule, `preset_regex_scripts` junction; no carried-reference channel exists on
- *  the ST preset wire, so the by-value payload always content-dedups. */
-export interface ImportPresetScriptsArgs {
-  readonly ownerId: UserId;
-  readonly presetId: PresetId;
-  readonly scripts: readonly RegexScriptCard[];
-}
-
 export type ImportPresetScripts = (args: ImportPresetScriptsArgs) => Promise<ImportCardScriptsResult>;
-
-/** The GLOBAL lift — ST's `extension_settings.regex` array ("run on every chat") onto the owner's library +
- *  the `global_regex_scripts` attachment (orb's identical semantic: "applies to every chat you host").
- *  Same planner, `carried: []`; re-running a profile import re-asserts the attachments and mints nothing. */
-interface ImportGlobalScriptsArgs {
-  readonly ownerId: UserId;
-  readonly scripts: readonly RegexScriptCard[];
-}
 
 export type ImportGlobalScripts = (args: ImportGlobalScriptsArgs) => Promise<ImportCardScriptsResult>;
 
-/** The card RE-EMBED: the character's attached library rows projected back onto the ST card-wire shape,
- *  in junction `position` order, PLUS the reference list the same-install re-import re-links by. */
-export interface ExportedCardScripts {
-  readonly scripts: readonly RegexScriptCard[];
-  readonly carried: readonly RegexScriptId[];
-}
-
 export type ExportCardScripts = (args: { readonly ownerId: UserId; readonly characterId: CharacterId }) => Promise<ExportedCardScripts>;
 
-/** One portable library file: its `filename` (relative — the registry descriptor prefixes the bundle `dir`)
- *  and the serialized bytes. */
-export interface ExportedRegexScriptFile {
-  readonly filename: string;
-  readonly bytes: Uint8Array;
-}
-
 /** Every script the owner owns, one portable file each (the descriptor streams them). */
-export type ExportRegexScripts = (args: { readonly ownerId: UserId }) => Promise<readonly ExportedRegexScriptFile[]>;
+export type ExportRegexScripts = (args: { readonly ownerId: UserId }) => Promise<readonly PortableFile[]>;
 
 /** ONE owned script as its portable file — the single-entity EXPORT door (REGX2 · D121-D `kebab=Export`).
  *  A THIN ARM, not a second serialization path: it shares `toPortableFile` with {@link ExportRegexScripts}
  *  above, so the file a user shares and the file a backup carries are the same bytes by construction.
  *  A foreign/absent id answers `null` — "not yours" and "doesn't exist" are one answer. */
-export type ExportRegexScript = (args: { readonly ownerId: UserId; readonly scriptId: RegexScriptId }) => Promise<ExportedRegexScriptFile | null>;
+export type ExportRegexScript = (args: { readonly ownerId: UserId; readonly scriptId: RegexScriptId }) => Promise<PortableFile | null>;
 
 /** Import ONE `regex/*.json`. Dedups by the shared rule; `created:false` ⇒ it matched an existing row. */
 export type ImportRegexScript = (args: { readonly ownerId: UserId; readonly bytes: Uint8Array }) => Promise<{ readonly created: boolean }>;

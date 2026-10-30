@@ -3,7 +3,6 @@ import type { PortableEntity } from "@orb/contracts/portability";
 import type { UserId } from "@orb/kit/ids";
 import type { ImportDocument } from "#domain/databank";
 import type { PersonaService } from "#domain/persona";
-import type { ImportRegexScript } from "#domain/regex";
 import type { TagLibraryImportResult } from "#domain/tag";
 import type { ImportContextWiring } from "./build-context.ts";
 import type { ImportProfileDeps } from "./service.ts";
@@ -27,7 +26,7 @@ export interface OwnerImportDeps {
 }
 export interface PortableImportDeps extends OwnerImportDeps {
   readonly tags: (ownerId: UserId, bytes: Uint8Array) => Promise<TagLibraryImportResult>;
-  readonly regex: ImportRegexScript;
+  readonly regex: (args: { readonly ownerId: UserId; readonly bytes: Uint8Array }) => Promise<{ readonly created: boolean }>;
   readonly document: ImportDocument;
   readonly persona: Pick<PersonaService, "import">;
 }

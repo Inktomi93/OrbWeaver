@@ -1,11 +1,12 @@
 import type { Principal } from "@orb/contracts/identity";
+import type { Clock } from "@orb/kit/time";
 import type { BundleImportDeps, BundleImportReport, StagedBundleImportDeps } from "./bundle.ts";
 import type { ImportReport } from "./results.ts";
 import type { ImportWorkloadDeps, SettleImportMemory } from "./workloads.ts";
 
 export type ImportWorkloadDrivers = Pick<ImportWorkloadDeps, "runProfileDirImport" | "runBundleImport" | "runStagedDirImport">;
 export interface ImportDriverDeps {
-  readonly now: () => number;
+  readonly now: Clock;
   readonly quiet: <T>(run: () => Promise<T>) => Promise<T>;
   readonly resolveOwnerPrincipal: (ownerId: Principal["userId"]) => Promise<Principal>;
   readonly profile: (principal: Principal, args: Parameters<ImportWorkloadDeps["runProfileDirImport"]>[0]) => Promise<ImportReport>;

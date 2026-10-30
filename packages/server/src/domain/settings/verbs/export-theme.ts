@@ -4,11 +4,11 @@
 // id-less/owner-less `CanonicalTheme`, and hands the set to `#primitives/serde/theme`'s `buildThemeBackup`. PURE read
 // + serde — no db write, no audit (a read leaves no trace). `import-theme.ts` is the round-trip twin.
 
+import type { PortableFile } from "@orb/contracts/portability";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { UserId } from "@orb/kit/ids";
 import type { CanonicalTheme } from "#primitives/serde/theme";
 import { buildThemeBackup } from "#primitives/serde/theme";
-import type { SettingsPortableFile } from "../contract/portability.ts";
 import type { SettingsAssemblyContext, SettingsContext } from "../contract/service.ts";
 import { listOwnedThemes } from "../persistence/theme-queries.ts";
 
@@ -16,9 +16,9 @@ import { listOwnedThemes } from "../persistence/theme-queries.ts";
 const THEME_BACKUP_FILENAME = "themes.json";
 
 /** Read the owner's owned themes and serialize them to a theme-backup portable file. */
-export function createExportTheme(input: SettingsAssemblyContext): (ownerId: UserId) => Promise<SettingsPortableFile> {
+export function createExportTheme(input: SettingsAssemblyContext): (ownerId: UserId) => Promise<PortableFile> {
   const ctx: SettingsContext = { ...input, db: databaseForOwner(input.db) };
-  return async (ownerId: UserId): Promise<SettingsPortableFile> => {
+  return async (ownerId: UserId): Promise<PortableFile> => {
     const rows = await listOwnedThemes(ctx.db, ownerId);
     const themes: CanonicalTheme[] = rows.map((row) => ({
       name: row.name,

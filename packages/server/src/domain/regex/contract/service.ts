@@ -8,11 +8,13 @@
 
 import type { ResolveVisibleRoomsOp } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
+import type { PortableFile } from "@orb/contracts/portability";
 import type { BulkResult, DetachResult, ImportScriptFileResult, RegexScriptRow, RegexScriptUsage, RemoveResult, ReorderResult } from "@orb/contracts/regex";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { ChatId, RegexScriptId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { AuditEntry } from "#foundation/observability";
 import type {
   ApplyScopeOrderParams,
@@ -43,14 +45,14 @@ import type {
   RemoveScriptParams,
   UpdateScriptParams,
 } from "./params.ts";
-import type { ExportedRegexScriptFile } from "./portability.ts";
+import type { RegexPortabilityContext } from "./portability.ts";
 import type { RoomDisplayPolicy } from "./resolve.ts";
 
 /** DI bundle every regex verb closes over. Chat-scope guards are injected from chat itself. */
 export interface RegexContext {
   readonly db: Db;
-  readonly now: () => number;
-  readonly newScriptId: () => RegexScriptId;
+  readonly now: Clock;
+  readonly newScriptId: RegexPortabilityContext["newScriptId"];
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly requireChatHost: (principal: Principal, chatId: ChatId) => Promise<void>;
   readonly requireChatMember: (principal: Principal, chatId: ChatId) => Promise<void>;
@@ -122,7 +124,7 @@ export interface RegexService {
    *  backup bundle's own verbs — `exportScript` shares the descriptor's file projection, `importScriptFile`
    *  IS the descriptor's per-file import — so a shared script and a restored one can never diverge, and the
    *  family can never grow a second serialization path. Export answers `null` for a foreign/absent id. */
-  readonly exportScript: (params: ExportScriptParams) => Promise<ExportedRegexScriptFile | null>;
+  readonly exportScript: (params: ExportScriptParams) => Promise<PortableFile | null>;
   /** Throws `DomainOperationError("regex_script_unparseable", …)` with the serde's own reason for a file this
    *  build cannot read — the refusal reaches the user as words, never as "invalid file". */
   readonly importScriptFile: (params: ImportScriptFileParams) => Promise<ImportScriptFileResult>;

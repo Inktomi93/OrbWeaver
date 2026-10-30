@@ -1338,7 +1338,7 @@ function concatChunks(chunks: readonly Uint8Array[], total: number): Uint8Array 
   return out;
 }
 
-export type { SafeFetchOptions, SafeFetchResult } from "./contract/egress.ts";
+export type { SafeFetch, SafeFetchResult } from "./contract/egress.ts";
 export const ANY_HOST: typeof ANY_HOST_POLICY = ANY_HOST_POLICY;
 /** The real physical dial; a composition root passes it as `buildConnector`, and a test passes a scripted one. */
 export const systemConnector: ScopedEgressOptions["buildConnector"] = buildConnector;

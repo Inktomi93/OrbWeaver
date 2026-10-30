@@ -38,6 +38,7 @@ import { DomainConflictError } from "@orb/kit/errors";
 import type { IdSource } from "@orb/kit/ids";
 import type { Hono, MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
+import type { UploadedFile } from "#domain/import";
 import { DEFAULT_IMPORT_STAGING_DIR, incomingPersonasOf, stagedOwnerRoot } from "#domain/import";
 import type { PersonaService } from "#domain/persona";
 import type { WorkloadService } from "#domain/workloads";
@@ -78,12 +79,6 @@ export interface ImportTreeDeps {
   readonly stagingDir?: string;
   /** The root's opaque nonce; it keeps each staged tree's directory unique. */
   readonly newOpaqueId: IdSource["uuid"];
-}
-
-/** One accepted multipart part: its browser-supplied relative path + the bytes. */
-interface UploadPart {
-  readonly relPath: string;
-  readonly bytes: Uint8Array;
 }
 
 /** The two client-error statuses a fail-closed rejection can carry (literal union so `c.json` accepts it). */
@@ -173,7 +168,7 @@ function stripWrapper(path: string, wrapper: string | null): string {
 
 /** Collect + validate the multipart parts fail-closed: count, per-file bytes, path sanitization. Throws
  *  {@link TreeRejected} (nothing staged) on the first breach. A `secrets.json` part is dropped, never staged. */
-async function collectParts(form: FormData, logger: Logger): Promise<UploadPart[]> {
+async function collectParts(form: FormData, logger: Logger): Promise<UploadedFile[]> {
   const received = form.getAll(TREE_FILE_FIELD).filter((e): e is File => e instanceof File);
   // The browser never sends the credentials file; this guard holds for a caller that is not our browser.
   const files = received.filter((f) => !isStSecretsFile(f.name));
@@ -189,7 +184,7 @@ async function collectParts(form: FormData, logger: Logger): Promise<UploadPart[
   if (files.length > IMPORT_TREE_MAX_FILES) {
     throw new TreeRejected(PAYLOAD_TOO_LARGE, `too many files (over ${IMPORT_TREE_MAX_FILES})`);
   }
-  const parts: UploadPart[] = [];
+  const parts: UploadedFile[] = [];
   for (const file of files) {
     if (file.size > IMPORT_TREE_MAX_FILE_BYTES) {
       throw new TreeRejected(PAYLOAD_TOO_LARGE, `"${file.name}" exceeds the ${IMPORT_TREE_MAX_FILE_BYTES} byte per-file cap`);
@@ -237,7 +232,7 @@ async function stagePart(stagedRoot: string, relTarget: string, bytes: Uint8Arra
 }
 
 /** Stage every part under a fresh unique dir, normalizing paths by the sniffed `stagePrefix` + wrapper strip. */
-async function stageTree(stagedRoot: string, parts: readonly UploadPart[], wrapper: string | null, stagePrefix: string): Promise<void> {
+async function stageTree(stagedRoot: string, parts: readonly UploadedFile[], wrapper: string | null, stagePrefix: string): Promise<void> {
   for (const part of parts) {
     const relTarget = stagePrefix + stripWrapper(part.relPath, wrapper);
     await stagePart(stagedRoot, relTarget, part.bytes);
@@ -281,7 +276,7 @@ function readLayoutDeclaration(form: FormData): TreeLayoutDeclaration | null {
 async function stageUpload(
   nativeDirs: ReadonlySet<string>,
   staging: { readonly root: string; readonly newOpaqueId: () => string },
-  parts: readonly UploadPart[],
+  parts: readonly UploadedFile[],
   fields: { readonly choices: PersonaCollisionChoices; readonly declared: TreeLayoutDeclaration | null },
 ): Promise<{ readonly stagedRoot: string; readonly input: StartWorkloadInput }> {
   const wrapper = commonWrapper(parts.map((p) => p.relPath));

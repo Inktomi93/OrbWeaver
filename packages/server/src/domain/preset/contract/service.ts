@@ -12,6 +12,7 @@ import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { ChatId, PresetId, UserId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { AuditEntry, Logger } from "#foundation/observability";
 import type {
   CreatePresetParams,
@@ -57,7 +58,7 @@ export interface PresetUsageDeps {
 export interface PresetContext {
   readonly logger: Logger;
   readonly db: Db;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly newPresetId: () => PresetId;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   /** Fires `presetsChanged` with the acting owner's `userId` after every preset mutation's durable write,

@@ -20,12 +20,13 @@
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { PresetId, UserId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 
 /** db + clock + the id minter. Purpose-built (NOT the full `PresetContext`): the copy writes one row, emits
  *  no `presetsChanged` and audits nothing — the chat verb owns the transfer's audit row. */
 export interface PresetHandoffCopyContext {
   readonly db: Db;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly newPresetId: () => PresetId;
 }
 

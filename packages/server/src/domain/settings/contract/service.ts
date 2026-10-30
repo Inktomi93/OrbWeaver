@@ -14,12 +14,14 @@ import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { DatabaseHandle, DbAssemblyInput } from "@orb/db/wiring";
-import type { ThemeId, UserId } from "@orb/kit/ids";
+import type { IdSource, ThemeId, UserId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
+import type { Clock } from "@orb/kit/time";
 import type { UpdateCheck, UpstreamProbes, VersionIdentity } from "@orb/kit/version-identity";
 import type { RequireAdmin, RequireOwner } from "#domain/admin";
 import type { Env } from "#foundation/env/record";
-import type { AuditEntry } from "#foundation/observability";
+import type { AuditEntry, DebugRoutesOptions } from "#foundation/observability";
+import type { ScopedEgress } from "#infra/network";
 import type {
   AddExternalBackgroundParams,
   CreateThemeParams,
@@ -41,16 +43,16 @@ import type { ImportThemeFileOutcome } from "./portability.ts";
 /** The DI bundle every verb closes over, wired at the composition root. */
 export interface SettingsContext {
   readonly db: Db;
-  readonly now: () => number;
-  readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
+  readonly now: Clock;
+  readonly audit: SettingsServiceDeps["audit"];
   readonly requireAdmin: RequireAdmin;
   readonly requireOwner: RequireOwner;
   readonly serializeUserWrite: <T>(ownerId: UserId, run: () => Promise<T>) => Promise<T>;
-  readonly newThemeId: () => ThemeId;
+  readonly newThemeId: SettingsServiceDeps["newThemeId"];
   /** The floor-merge read side, bound from the `effective-config/` subsystem at the composition root.
    *  `getEffectiveConfig` is the sync cache read; `reloadEffectiveConfig` rebuilds it. */
-  readonly getEffectiveConfig: () => EffectiveAppConfig;
-  readonly reloadEffectiveConfig: () => Promise<EffectiveAppConfig>;
+  readonly getEffectiveConfig: NonNullable<DebugRoutesOptions["effectiveConfig"]>;
+  readonly reloadEffectiveConfig: SettingsService["reloadEffectiveConfig"];
   /** User-bus live-freshness emit: user-settings writes fire `settingsChanged`, theme verbs fire
    *  `themesChanged`, after the durable write. AppSettings/GlobalSettings are global/admin — no emit. */
   readonly emitUserEvent: EmitUserEvent;
@@ -58,10 +60,10 @@ export interface SettingsContext {
    *  from infra + assets.store; drives `addExternalBackground`. */
   readonly materializeBackground: MaterializeBackgroundOp;
   /** Mints the stable per-row id for a new `BackgroundLibraryEntry` (crypto uuid in prod; deterministic in tests). */
-  readonly newBackgroundEntryId: () => string;
+  readonly newBackgroundEntryId: IdSource["uuid"];
   /** This process's frozen build identity (`#foundation/version` at the root). Injected rather than imported
    *  so the update-check verdict table is drivable from a spec without a checkout on disk. */
-  readonly versionIdentity: () => VersionIdentity;
+  readonly versionIdentity: SettingsServiceDeps["versionIdentity"];
   /** ONE unauthenticated GET per release channel (main's head commit, the latest GitHub Release), wired at the
    *  composition root over the SSRF-safe egress belt. Each returns a typed refusal instead of throwing, so this
    *  domain branches on it without importing an infra error class. */
@@ -88,19 +90,19 @@ export interface SettingsServiceDeps {
   readonly effectiveConfig: Pick<SettingsContext, "getEffectiveConfig" | "reloadEffectiveConfig">;
   readonly onEffectiveConfigChanged?: ((config: EffectiveAppConfig) => void) | undefined;
   readonly db: DatabaseHandle;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly requireAdmin: RequireAdmin;
   readonly requireOwner: RequireOwner;
   readonly newThemeId: () => ThemeId;
   readonly emitUserEvent: EmitUserEvent;
   readonly materializeBackground: MaterializeBackgroundOp;
-  readonly newBackgroundEntryId: () => string;
+  readonly newBackgroundEntryId: IdSource["uuid"];
   readonly versionIdentity: () => VersionIdentity;
   readonly probeUpstream: UpstreamProbes;
   /** Hands the resolved private-endpoint allowlist to the egress guard after every reload, boot included. The
    *  guard keeps its own copy, so a save that only rebuilt the cache would leave a host refused until a restart. */
-  readonly publishPrivateEndpointAllowlist: (entries: readonly string[]) => void;
+  readonly publishPrivateEndpointAllowlist: ScopedEgress["publishPrivateEndpointAllowlist"];
 }
 
 export type SettingsAssemblyContext = DbAssemblyInput<SettingsContext>;
@@ -151,7 +153,7 @@ export interface SettingsService {
   readonly updateAppSettings: (params: UpdateAppSettingsParams) => Promise<EffectiveAppConfig>;
 
   /** Sync hot-path read of the in-memory resolved cache. Before the first reload it is the env-only floor. */
-  readonly getEffectiveConfig: () => EffectiveAppConfig;
+  readonly getEffectiveConfig: NonNullable<DebugRoutesOptions["effectiveConfig"]>;
   /** Rebuild the cache from the stored override (boot + after every admin write). */
   readonly reloadEffectiveConfig: () => Promise<EffectiveAppConfig>;
 

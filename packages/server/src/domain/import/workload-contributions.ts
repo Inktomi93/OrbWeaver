@@ -45,9 +45,9 @@ async function settleImportRun(args: {
   readonly dryRun: boolean;
   readonly ownerId: UserId;
   readonly report: ReportProgress;
-  readonly reconcileImportStats: (a: { readonly ownerId: UserId }) => Promise<void>;
-  readonly refreshPlannerStats: (a: { readonly ownerId: UserId }) => Promise<void>;
-  readonly emitLibraryChanged: (a: { readonly ownerId: UserId }) => void;
+  readonly reconcileImportStats: ImportWorkloadDeps["reconcileImportStats"];
+  readonly refreshPlannerStats: ImportWorkloadDeps["refreshPlannerStats"];
+  readonly emitLibraryChanged: ImportWorkloadDeps["emitLibraryChanged"];
   readonly logger: Logger;
 }): Promise<void> {
   const { result, dryRun, ownerId, report, reconcileImportStats, refreshPlannerStats, emitLibraryChanged } = args;

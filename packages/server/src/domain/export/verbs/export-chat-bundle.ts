@@ -26,6 +26,7 @@ import {
   storedGenerationUsageSchema,
   tokenDetailsSchema,
 } from "@orb/contracts/inference";
+import type { PortableFile } from "@orb/contracts/portability";
 import {
   assets,
   characters,
@@ -53,7 +54,6 @@ import type {
 } from "#primitives/serde/chat-bundle";
 import { buildChatBundleFile, CHAT_BUNDLE_EXT } from "#primitives/serde/chat-bundle";
 import type { ExportChatBundleParams, SeatCardIdentity } from "../contract/params.ts";
-import type { ExportedFile } from "../contract/results.ts";
 import type { ExportContext, ExportService } from "../contract/service.ts";
 import { slug } from "../substrate/download-slug.ts";
 
@@ -389,7 +389,7 @@ async function loadHostedChat(ctx: ExportContext, params: ExportChatBundleParams
 }
 
 export function createExportChatBundle(ctx: ExportContext, exportCharacter: ExportService["exportCharacter"]): ExportService["exportChatBundle"] {
-  return async (params: ExportChatBundleParams): Promise<ExportedFile | null> => {
+  return async (params: ExportChatBundleParams): Promise<PortableFile | null> => {
     const chat = await loadHostedChat(ctx, params);
     if (chat === null) {
       return null;

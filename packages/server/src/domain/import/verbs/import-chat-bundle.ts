@@ -27,6 +27,7 @@
 
 import { assetIdSchema } from "@orb/contracts/assets";
 import type { BulkImportChatInput, BulkImportMessageInput, ContentSignatures, ImportedChatRemap, VariantMetadata } from "@orb/contracts/chat";
+import type { PortableFile } from "@orb/contracts/portability";
 import { themeBackgroundSchema } from "@orb/contracts/theme";
 import { relinkContentAssets } from "@orb/kit/content";
 import { isPlainObject } from "@orb/kit/guards";
@@ -37,7 +38,6 @@ import type { PortableChat, PortableChatVariant, PortableRpgGame } from "#primit
 import { CHAT_BUNDLE_SCHEMA_KIND, parseChatBundleFile } from "#primitives/serde/chat-bundle";
 import { portableParseError } from "#primitives/serde/lib";
 import type { CardIdentityHashes, RestoredSeat } from "../contract/identity.ts";
-import type { ImportChatFileInput } from "../contract/params.ts";
 import type { ImportChatFileOutcome } from "../contract/results.ts";
 import type { ImportContext, ImportProfileDeps, ImportService } from "../contract/service.ts";
 import { requireProfile } from "../guard.ts";
@@ -384,7 +384,7 @@ async function restoreOverlays(args: {
 }
 
 export function createImportChatBundle(ctx: ImportContext): ImportService["importChatBundle"] {
-  return async ({ filename, bytes }: ImportChatFileInput): Promise<ImportChatFileOutcome> => {
+  return async ({ filename, bytes }: PortableFile): Promise<ImportChatFileOutcome> => {
     const parsed = parseChatBundleFile(bytes);
     if (!parsed.ok) {
       return { ok: false, error: portableParseError(CHAT_BUNDLE_SCHEMA_KIND, parsed.reason) };

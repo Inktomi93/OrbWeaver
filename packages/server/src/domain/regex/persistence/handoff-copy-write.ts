@@ -24,7 +24,8 @@ import { databaseForOwner, statementToken } from "@orb/db/wiring-owner";
 import type { ChatId, RegexScriptId, UserId } from "@orb/kit/ids";
 import { and, asc, eq } from "drizzle-orm";
 import type { SplitScript } from "../contract/dedup.ts";
-import type { CopyHandoffRegexScripts, CountHandoffRegexScripts, RegexHandoffCopyContext } from "../contract/handoff-copy.ts";
+import type { CopyHandoffRegexScripts, CountHandoffRegexScripts } from "../contract/handoff-copy.ts";
+import type { RegexPortabilityContext } from "../contract/portability.ts";
 import type { ScriptRecord } from "../contract/rows.ts";
 import { findDuplicate } from "../substrate/dedup.ts";
 import { listOwnedScripts, toRow } from "./queries.ts";
@@ -110,8 +111,8 @@ async function resolveHandoffScriptCopyPlan(db: Db, fromOwnerId: UserId, toOwner
   return { attachments, mints };
 }
 
-export function createCopyHandoffRegexScripts(input: DbAssemblyInput<RegexHandoffCopyContext>): CopyHandoffRegexScripts {
-  const ctx: RegexHandoffCopyContext = { ...input, db: databaseForOwner(input.db) };
+export function createCopyHandoffRegexScripts(input: DbAssemblyInput<RegexPortabilityContext>): CopyHandoffRegexScripts {
+  const ctx: RegexPortabilityContext = { ...input, db: databaseForOwner(input.db) };
   return async ({ fromOwnerId, toOwnerId, chatId }): Promise<readonly StatementToken[]> => {
     const { db } = ctx;
     const plan = await resolveHandoffScriptCopyPlan(db, fromOwnerId, toOwnerId, chatId);
