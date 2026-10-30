@@ -1,6 +1,4 @@
-// lib/ front door — the cross-cutting display/util seams. Deliberately NOT exported here (dev-only
-// modules never ride a shared barrel): ./dev-tools (main.tsx lazy-mounts it), ./long-task-tracer
-// (main.tsx dynamic-imports it).
+// lib/ front door — the cross-cutting display/util seams. Dev-only modules never ride this barrel.
 
 // `cn` and the item-action name grammars are @orb/ui's: a `@orb/ui` primitive spells `Remove <x>`
 // (combobox chips), `Select <x>` (table rows) and `Copy <x>` (copy-button), and `ui` cannot import `client` (the cake, §2), so the
