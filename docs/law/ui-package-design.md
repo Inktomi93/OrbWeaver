@@ -411,7 +411,7 @@ components with no part list.
 | `Combobox.createItems` | n/a | Maps objects to primitive IDs; the seal uses string chips. Revisit when it accepts object-backed collections. |
 | `Meter.Track` / `Meter.Indicator` | sealed-away | THE §10 hybrid: `MeterIndicator` hardcodes `width:%` (linear only), so the arc/bipolar geometry is hand-drawn SVG riding as `Meter.Root`'s children. Using the native pair would forbid two of the three kinds. |
 | `Progress.Status` | n/a | A TYPE alias (`'indeterminate' \| 'progressing' \| 'complete'`), not a part; it surfaces as Base UI's own `data-*` on the root. |
-| `Menu.FilterProvider` / `Menu.Input` / `Menu.useFilter` | sealed-away | Base UI ships menu filtering as a preview API. A picker with a search box is `@orb/ui/command` (R4); revisit when the API leaves preview and a menu surface needs inline filtering. |
+| `Menu.FilterProvider` / `Menu.Input` / `Menu.useFilter` / `Menu.List` / `Menu.Clear` / `Menu.Empty` | sealed-away | Base UI ships menu filtering as a preview API. A picker with a search box is `@orb/ui/command` (R4); revisit when the API leaves preview and a menu surface needs inline filtering. |
 | `Toast.Positioner` / `Toast.Arrow` | sealed-away | Every toast shares ONE bottom-right stack (`Toaster` bundles Portal → Viewport); Positioner/Arrow are for per-toast ANCHORED placement, which that single-stack decision cuts. |
 | `Field.Control` | exposed (indirectly) | Not rendered by the `Field` seal itself — the CONTROLS render through it (`Textarea`, `Select`, `ColorField`, `FileDropzone`), which is what makes native registration work. |
 | `Field.Item` / `Field.ValidityData` | sealed-away / n/a | `Item` is the multi-control-per-field grouping we have no surface for; `ValidityData` is a type. |
@@ -431,9 +431,8 @@ popup would add a DOM layer and a transition contract that the single-trigger 99
 AlertDialog, Drawer, Popover, Tooltip and (added in the 1.7 pass) **Menu**, whose seal was the lone
 gap. `Menu`/`MenuTrigger` are generic over `Payload` for the same reason Popover/Tooltip are: a
 non-generic wrap types the active trigger's payload `unknown` at every call site, which makes the
-render-function `children` variant unusable. Drawer's handle was already sealed; 1.7 gave it its own
-`DrawerHandle` class instead of re-exporting the dialog alias, which the seal picks up for free
-because it derives (`BaseDrawer.Handle<Payload>`).
+render-function `children` variant unusable. Drawer's handle is `createDrawerHandle`, the Base UI `createHandle`
+(`packages/ui/src/primitives/drawer/handle.ts`); the seal defines no handle class.
 
 ## 15. `className` and `style` — the seal narrows one and passes the other (PENDING RATIFICATION)
 

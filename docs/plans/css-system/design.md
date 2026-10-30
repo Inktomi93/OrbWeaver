@@ -1,7 +1,7 @@
 ---
 kind: plan
 status: active
-updated: 2026-10-25
+updated: 2026-10-30
 ---
 
 # One CSS system: ramps, aliases and a pinned owner-CSS surface
@@ -54,6 +54,7 @@ The [implementation work](../../work/1299-build-the-css-system-ramps-conditions-
 | Feature layout classes and primitive skins | `tooling/src/eslint/ui-feature-classname.ts`, `packages/ui/src/primitives/` | Retained ESLint controls, className-drain and chat-skin CTs |
 | Logical class vocabulary | `CLASS_SELECTORS` in `eslint.config.ts`, maintained better-tailwindcss integration | Native-token and class-merge tests |
 | Text voices and semantic tones | `packages/ui/src/primitives/text/variants.ts`, `packages/ui/src/lib/tone-ink.ts` | Text-axis restrictions and rendered typography checks |
+| Tone roles, tone scoping and the control scale (not yet built) | `packages/ui/src/tokens/tokens.json`, `packages/ui/tokens.build.ts`, `packages/ui/src/content/theme-scope/`, `@orb/kit/theme-derivation`, `packages/ui/src/lib/control-size.ts` | Build contrast check, kit role suite, clamp tests and the tone matrix CT |
 | Appearance and OS preferences | `packages/client/src/lib/appearance-carrier-manifest.ts`, `packages/client/appearance-channel.build.ts` | Preference contracts, appearance CTs and reduced-motion-floor CT |
 | Supported owner styling | `packages/client/owner-css-surface.build.ts`, `packages/client/src/owner-css/` | Existing surface, warning, rewrite and editor tests |
 | Platform behavior | `packages/client/browser-targets.ts`, platform sheets and Textarea fallback | Platform and textarea-autosize CTs |
@@ -81,6 +82,170 @@ Feature classes express layout. Color, type, border, radius and shadow choices b
 Chat skins remain a typed `ThemeChatStyle` table. The row components translate its track, alignment, box, header, action and swipe choices into primitive props.
 
 The name row's bubble-ink rule belongs in client globals because it addresses chat-owned slots. It does not become a generic primitive skin.
+
+### Tone roles and one variant vocabulary
+
+[D336](../../adr/0336-tone-roles-and-one-variant-vocabulary.md) owns the ruling: tones, roles, recipes, floors, scoping, the axis vocabulary and the lint constraint. This section owns the order, the mapping and the flagged sites. The phase is not yet built; [item 1421](../../work/1421-build-the-tone-role-tier-and-one-variant.md) tracks it.
+
+Each step lands alone and leaves the app working. Each step ends with isolated before and after captures of its changed surfaces and a rendered review.
+
+#### Step 1: role tokens, tone scoping and contrast checks
+
+1. Add `derived` to the `orb.output` kinds in `packages/ui/token-contract.ts`. Author the tone tuple, the role recipes and the `--tone-mix-*` percentage tokens in `tokens.json`.
+2. Emit the `[data-tone]` blocks into the theme layer of `theme.css`. Register `--color-tone-*` in `@theme static`. Emit the tone and role tuples into `packages/ui/src/tokens/index.ts`.
+3. Add the numeric twin to `@orb/kit/theme-derivation` and fail the token build when a shipped palette misses a floor.
+4. Teach the clamp to solve and emit the `--tone-mix-*` knobs for a carried background. Add each knob to `THEME_SCOPE_EMIT_VARS` with a test that pins it. Extend the accent correction to `solid-hover` and `solid-active`.
+5. Stamp `data-tone` on Badge, Card, Button and Text from their current axes, and repaint every intent tint, hover mix and intent ink onto the roles. No axis renames yet.
+6. Move the pigment recipes into the generator as scoped blocks: `packages/ui/src/art/web-weave/web-weave.tsx`, `packages/ui/src/styles/weave.css`, the CTA ring and glows in `packages/ui/src/styles/primitives.css`, `packages/ui/src/primitives/avatar/hue.ts` and `packages/ui/src/charts/meter/waystone-geometry.ts`.
+7. Repaint the shell's intent mixes onto roles under a `data-tone` stamp: `packages/client/src/features/app-shell/surfaces/shell/rail.css` and `packages/client/src/features/app-shell/surfaces/shell/panels.css`. Move the colorized border in `packages/client/src/styles/globals.css` into `packages/client/appearance-channel.build.ts` output.
+
+Codemods: `rewrite-class-tokens` with an exact map from each opacity-modifier token to its role utility, for example `bg-success/8` to `bg-tone-tint`. `rename-css-custom-properties` for any `var()` read the sheets rename. The stamps and the pigment blocks are hand edits.
+
+Done when: the token build regenerates fresh, and `tests/tooling/generated-css-drift.repo.int.test.ts` passes. A planted recipe under a floor fails the build. A kit role suite beside `tests/kit/theme-derivation/accepted-base-foreground.test.ts` clears every floor over the accepted-base matrix. A clamp test under `tests/ui/content/theme-scope/` pins the emitted knobs. `tests/ui/content/theme-scope/emitted-contrast.ct.tsx` reads computed role colors under each seed and a nested custom ThemeScope in the Chromium and WebKit CT projects. No CT project runs Firefox, so the lane reports that browser as unchecked.
+
+#### Step 2: axis vocabulary and lint at zero
+
+1. Rename the axes on Card, Button, Badge, Text, Icon, `WeaveGlyph` and `WebSpinner` by the mapping tables below. Delete the per-intent compound variants.
+2. Split `TONE_INK` in `packages/ui/src/lib/tone-ink.ts` into the tone map and the ink map.
+3. Key state styles off the attributes D336 names, and delete each boolean prop that restates one.
+4. Land the lint constraint at zero findings: the `RESTRICTED_CLASSES` patterns, the ESLint rule for TypeScript strings and the Stylelint rule for authored sheets.
+5. Rewrite the coupled law rows: `docs/law/UI-Density-Law.md` §2.3 and §4.3, `docs/law/ui-package-design.md` §5 (the Button default) and `docs/law/UI-Architecture-and-Layout.md` §4.3 (one primary action per view).
+
+Codemods: copy `text-axes-to-voices` into one adjudicated rewrite per primitive, keyed by call site with exact source guards. `class-token-to-prop` moves a feature `className` color token onto the `tone` or `ink` prop. Records typed as an axis union retype through `tsc`.
+
+Done when: `tsc` refuses every old axis name and value. Each lint rule refuses its planted fixture, and whole-tree lint reports zero findings. A production-mounted CT renders the tone and variant matrix of each primitive in each seed and a custom theme.
+
+#### Step 3: control scale
+
+1. Make `CONTROL_SIZE` the scale `chip`, `sm`, `md`, `lg`, with `chip` built from `CHIP_BOX`.
+2. Give `size` from the scale to Button, Toggle, Input, Select, NumberField, Combobox, Autocomplete and ColorField.
+3. Replace Button `icon` and `icon-sm` with `square`, and `wrap` and `wrap-md` with `wrap`.
+
+Codemods: the adjudicated rewrite from step 2, with a size table.
+
+Done when: a geometry CT measures one row of mixed controls per step at both pointer classes and finds one height. `tests/client/features/app-shell/touch-target-floor.suite.ct.tsx` passes.
+
+#### Step 4: use-specific extraction
+
+1. Create the named components in the mapping tables. Each owns its skin in its own `variants.ts`.
+2. Move every call site to its component, then delete the old values from the primitive.
+3. Remove the visual-state axes from the layout boxes by the layout table.
+
+Codemods: `move-import-names` moves each call site's import to the new door. `rename-identifier` renames the element at its sites. `root-attribute-to-variant` moves any stylesheet rule keyed on a removed root attribute.
+
+Done when: `tsc` refuses each removed value. `tests/client/features/app-shell/surface-census.suite.ct.tsx` passes. The captures show no unexplained difference.
+
+#### Mapping: Card
+
+| Old value | New |
+| - | - |
+| `tone="neutral"`, no tone | `tone="neutral"`, `variant="surface"` |
+| `tone="clear"` | `variant="outline"` |
+| `tone="muted"` | `variant="soft"` |
+| `tone="mutedWash"`, `tone="raised"`, `shape="well"` | `variant="soft"`; flagged |
+| `tone="warning"`, `tone="info"` | that tone, `variant="soft"` |
+| `tone="successTint"`, `"warningTint"`, `"destructiveTint"`, `"infoTint"` | that tone, `variant="soft"` |
+| `tone="primaryEdge"` | `tone="primary"`, `variant="surface"` |
+| `tone="primaryOutline"`, `tone="input"`, `tone="highlight"` | flagged |
+| `tone="bubble"`, `"userBubble"`, `"systemBubble"`, `shape="bubble"` | `MessageBubble` with a role prop |
+| `tone="background"`, `"accent"`, `"sidebar"`, `"sidebarEdge"`, `"translucent"`, `shape="inset"` | theme preview parts in `packages/ui/src/content/theme-swatch/` |
+| `shape="pill"`, `tone="popover"`, `presence` | `FloatingChip` |
+| `shape="float"` | `RoomIsland`: the card radius and field inset in a room's column |
+| `shape="plate"`, `tone="backdrop"` | flagged |
+| `spoiler` | `Spoiler`, shared with Stack |
+| `outline="dashed"` | `dashed`, because `outline` is now a variant |
+| `shadow` | removed: `elevated` takes the overlay shadow, `interactive` follows the user's elevation, a static card takes none |
+| `holdsField`, `dropTarget` | deleted after the lane confirms no forwarded caller |
+| `shape` `island` and `row`, `rail`, `glow`, `elevated`, `nested`, `padding`, `interactive`, `focusable`, `receded`, `artDecoration`, `ownSlot` | kept |
+
+#### Mapping: Button
+
+| Old value | New |
+| - | - |
+| `intent="primary"`, no intent | `variant="solid" tone="primary"`, the focal lift |
+| `intent="solid"` | `variant="solid" tone="primary" focal={false}` |
+| `intent="destructive"` | `variant="solid" tone="destructive"` |
+| `intent="secondary"`, `intent="outline"` | `variant="outline" tone="neutral"` |
+| `intent="ghost"` | `variant="ghost" tone="neutral"` |
+| `intent="link"` | `variant="link" tone="primary"` |
+| `intent="bare"`, `size="media"` | `PictureButton` |
+| `tone` `primary`, `destructive`, `warning` | the same tone |
+| `tone="muted"`, `tone="foreground"` | the same `ink` |
+| `tone="default"` | removed |
+| `size` `sm`, `md`, `lg`, `chip` | the same step |
+| `size="icon"`, `size="icon-sm"` | `size="md"` or `size="sm"` with `square` |
+| `size="wrap"`, `size="wrap-md"` | `size="sm"` or `size="md"` with `wrap` |
+| `size="inline"`, `size="inline-body"` | `InlineAction` with a label or body step |
+| `size` `glyph-xs` to `glyph-lg` | `GlyphButton` with the glyph step |
+| `selection`, `shape`, `cardCorners`, `underline`, `reserveEdge`, `confirming`, `quietDisabled`, `focusRing`, `hiddenAt`, `reveal`, `touchFloor` | kept; `selection="rail"` keys on `data-selected` |
+
+#### Mapping: Badge
+
+| Old value | New |
+| - | - |
+| `intent` | `tone`; `danger` becomes `destructive` |
+| `intent="accent"` | deleted after the lane confirms no forwarded caller |
+| `tone="solid"`, `"soft"`, `"ghost"` | `variant` `solid`, `soft`, `outline` |
+| `size` `sm`, `md`, `compact` | kept; a pill is not a control |
+| `size="inline"` | `InlineToken`: a chip that behaves like a word in running text |
+| `size="dot"`, `edge` | `IndicatorDot`, painted with `bg-tone-solid` |
+| `face`, `sentenceCase`, `touchFloor` | kept |
+
+#### Mapping: Text, Icon, WeaveGlyph and WebSpinner
+
+| Old value | New |
+| - | - |
+| `tone` `destructive`, `success`, `warning`, `info` | the same `tone` |
+| `tone="accent"` | `tone="primary"` |
+| `tone` `muted`, `foreground`, `accolade`, `speaker`, `dialogue`, `narration`, `prose` | the same `ink` |
+| `tone="onPrimary"` | `ink="toneForeground"` |
+| `tone="default"` | removed |
+| `ink="inherit"` | kept |
+| `voice` and every other axis | kept |
+
+#### Mapping: ListRow
+
+| Old value | New |
+| - | - |
+| `clickable` hover and press fill | the neutral `tint-active` under a `neutral` stamp |
+| `selected`, `expanded`, `disabled` | styled from `data-selected`, `aria-expanded` and `data-disabled` |
+| `revealActions`, `density` | deleted after the lane resolves the spread callers, or kept with a caller |
+| `receded`, `actionsFloat`, `rowTint`, `stackActions`, `subtitlePlacement`, `subtitleWrap`, `titleStep`, `titleQualifierFace` | kept; they place slots |
+
+#### Mapping: layout boxes
+
+| Old value | New |
+| - | - |
+| Stack `highlight`, Grid `highlight` | flagged; default a `Card variant="soft"` keyed on `aria-current` |
+| Stack `spoiler` | `Spoiler` |
+| Stack `slide`, `lifted` | the shell panel sheet, keyed on the flank's `data-slot`; flagged |
+| Stack `opacityMotion` | folded into `receded`, which carries its own opacity transition |
+| Row `stateFill` | flagged; default `ListRow` |
+| Section `focal` | `FocalSection` beside `Section` |
+| `dividerTone` `primary`, `warning` | paints `border-tone-solid` under a stamp |
+| `receded`, `ground`, `plate`, `ink`, `divider`, `hoverDim`, `fade`, `feather` and the art axes | kept: UI-Density-Law §2.3 and §4.3 rule them |
+
+#### Flagged sites
+
+A lane adjudicates each site by hand, records the choice in its codemod table and captures the surface.
+
+| Site | Question |
+| - | - |
+| `packages/client/src/components/confirm-dialog.tsx`, `packages/client/src/components/form-dialog.tsx`, `packages/client/src/features/plugin/components/plugin-leaf-nodes.tsx`, `packages/client/src/features/rpg/components/tracker-blocks/add-row.tsx`, `packages/client/src/features/character/components/character-bulk-bar.tsx` | A forwarded Button `intent` that can name a fill style or a color. Split it into `variant` and `tone` at the type that carries it. |
+| `packages/client/src/features/chat/components/composer-send-control.tsx` | `sendLook` swaps `solid` and `ghost` with a muted tone. It needs `focal={false}` and an `ink`. |
+| `packages/client/src/features/character/components/character-filter-rail-parts.tsx`, `packages/client/src/features/refinery/components/lane-run-control.tsx` | A computed tone on an outline or secondary Button. |
+| `packages/client/src/features/character/components/character-facet-editor.tsx`, `packages/client/src/features/character/components/character-greeting-preview.tsx`, `packages/client/src/features/databank/surfaces/databank-library-surface.tsx`, `packages/client/src/features/rpg/components/tracker-blocks/ambient-strip.tsx`, `packages/client/src/features/rpg/components/tracker-blocks/npc-card-slots.tsx`, `packages/client/src/components/panel-edge-control.tsx`, `packages/client/src/features/chat/components/chat-controls-band.tsx`, `packages/client/src/features/chat/surfaces/new-chat-picker-surface.tsx`, `packages/client/src/features/config/components/settings-unreadable-notice.tsx`, `packages/client/src/features/user-admin/components/share-ip-certificate.tsx` | A Button swaps `intent` to show a state. Decide between a pressed state and a real change of emphasis. |
+| `packages/client/src/features/rpg/components/rpg-veiled-section.tsx` | Card `highlight` has no tone. Default `tone="warning" variant="outline"`. |
+| `packages/client/src/features/chat/components/composer-drop-target.tsx` | Card `primaryOutline` is a drop target. Default `tone="primary" variant="outline"`, or the `FileDropzone` skin. |
+| `packages/client/src/features/workloads/components/import-library-section.tsx` | Card `input` loses the field edge for the neutral edge. |
+| `packages/client/src/features/preset/components/macro-text.tsx`, `packages/client/src/features/discovery/components/corpus-family-map.tsx`, `packages/client/src/features/config/components/theme-editor.tsx` | `mutedWash`, `raised` and `well` all become the neutral soft fill. Confirm each is still distinct from its host. |
+| `packages/client/src/features/chat/components/message-row-divider.tsx` | Card `plate` with `backdrop` composites over art under D144. Decide between a layout `plate` and a transcript component. |
+| `packages/client/src/features/refinery/components/payload-view.tsx`, `packages/client/src/features/chat/components/message-choices-block.tsx`, the Card `warning` and `info` sites | A soft card sets the `text-on-tint` ink on content that does not set its own. Confirm the icons and bare text. |
+| `packages/client/src/features/chat/surfaces/message-list-surface.tsx`, `packages/client/src/components/setting-teach-row.tsx` | A highlighted layout box. |
+| `packages/client/src/features/chat/components/room-flank.tsx` | The flank's slide and lift. |
+| `packages/client/src/features/persona/components/persona-panel-row.tsx`, `packages/client/src/features/persona/components/persona-switch-list.tsx` | A Row with a state fill. |
+| `packages/client/src/features/refinery/components/payload-lane.tsx`, `packages/client/src/features/refinery/components/rewrite-lane.tsx` | Section `focal`. |
+| The ListRow and Card call sites that spread props | A spread can carry an axis no literal scan sees. Resolve each before deleting a value. |
 
 ### Platform decisions
 
