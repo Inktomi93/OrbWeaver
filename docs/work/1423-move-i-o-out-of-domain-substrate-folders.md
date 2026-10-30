@@ -1,12 +1,12 @@
 ---
-kind: decision
+kind: work
 status: open
 updated: 2026-10-30
 priority: P2
 area: server
 ---
 
-# Move I/O out of domain substrate folders or amend the substrate ruling
+# Move I/O out of domain substrate folders
 
 ## What
 
@@ -18,7 +18,7 @@ The domain template tells an author where I/O lives. When the law and the code d
 
 ## Done when
 
-Owner rules either that substrate stays pure, in which case each I/O helper moves to `persistence/`, a verb or a named subsystem and a dependency-cruiser rule refuses runtime `persistence/`, `@orb/db` and `#infra` imports from `substrate/`; or that substrate may orchestrate I/O, in which case Core-0 §4 and the ledger state that and the slot's meaning.
+Owner ruling: `substrate/` stays pure, as Core-0 §4 states. Each I/O helper moves to `persistence/`, a verb or a named subsystem. A dependency-cruiser rule refuses runtime `persistence/`, `@orb/db` and `#infra` imports from `substrate/` at zero violations. Each moved helper keeps its tests through the production entry.
 
 ## Evidence
 

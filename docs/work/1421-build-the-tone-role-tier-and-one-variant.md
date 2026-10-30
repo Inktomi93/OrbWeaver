@@ -18,7 +18,7 @@ Current defects:
 - Each primitive hand-writes its own intent tints with opacity modifiers and `color-mix`. Badge soft success is `border-success/30 bg-success/8`; Card `successTint` is `border-success/40 bg-success/10`. The same concept paints differently.
 - Shadows are named per component (`shadow-cta`, `shadow-glow`, `shadow-prose`, `shadow-overlay`, `shadow-shell-over-art`) and z-index is a separate scale.
 - `CONTROL_SIZE` sets control heights only; Button adds many sizes of its own.
-- Card, Text, Button, ListRow and Badge carry use-specific variant values (message bubbles, sidebar edges, drop targets, floating chips, field hosts) beside their generic axes. Other primitives are behavior-heavy with few axes and stay as they are.
+- Card, Text, Button, ListRow and Badge carry use-specific variant values (message bubbles, sidebar edges, drop targets, floating chips, field hosts) beside their generic axes. The layout variants in `packages/ui/src/layout/variants.ts` (`Stack`, `Row`, `Section` and the toolbar parts) carry visual-state axes (`receded`, `highlight`, `spoiler`, `lifted`, `stateFill`, `opacityMotion`, `slide`); layout primitives keep only layout axes. Other primitives are behavior-heavy with few axes and stay as they are.
 
 Target structure:
 
@@ -40,7 +40,7 @@ Migration uses repo codemods under `tooling/src/codemods/` (load the `codemod` s
 
 Order: role tokens and tone scoping with contrast checks; axis vocabulary and lint; elevation ladder and control scale; use-specific variant extraction. Each step lands alone and leaves the app working.
 
-This needs an ADR for the role tier and the axis vocabulary (the token pipeline is ruled under D42; read `UI-Density-Law.md`, `client-architecture-lockdown.md` §4 and `ui-package-design.md` before drafting) and a plan under `docs/plans/` for owner sign-off before any lane starts.
+This needs an ADR for the role tier and the axis vocabulary that also amends D62 P5 (which says Button has no `outline` intent; the code has one) (the token pipeline is ruled under D42; read `UI-Density-Law.md`, `client-architecture-lockdown.md` §4 and `ui-package-design.md` before drafting) and a plan under `docs/plans/` for owner sign-off before any lane starts.
 
 ## Why
 

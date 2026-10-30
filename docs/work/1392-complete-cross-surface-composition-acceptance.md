@@ -29,6 +29,8 @@ Record accepted states, defects, corrections and precise exclusions in the activ
 
 Qualify automatic active-tab reveal in Presets and retain the Insights presentation decision with pane-local accounting caveats.
 
+Build the page-template tier in `packages/client/src/components/`: one composite per recurring page shape (list page, detail header, settings pane, editor, collection grid), each declaring its density and surface tier. Migrate features onto them with repo codemods where the shape is mechanical. Lint refuses a feature that rebuilds a template's shape from primitives once its template exists. Features that use shared composites least (tags, stats, refinery, databank) come first.
+
 ## Evidence
 
 The active plan owns the coverage matrix. The private promise audit maps original transcript commitments to this item and its linked work.
