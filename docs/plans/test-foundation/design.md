@@ -213,7 +213,7 @@ Reference: `server/domain/settings/seed-theme-pairing.suite.test.ts`. Nothing ma
 | Each seed colour field equals its ui palette value | Suite: [seed theme pairing](../../../tests/server/domain/settings/seed-theme-pairing.suite.test.ts) | Rebuild. Each field must also be set, because two unset values compared equal in the reference. |
 | Font and radius name tokens the base palette defines | Suite: seed theme pairing | Rebuild. The literal font and radius names are dropped. |
 | Value sets equal the seeds other than Hearth | Suite: seed theme pairing | Rebuild. |
-| The shipped set is exactly three named palettes | None | Drop. The set equality owns it, and a hand list only confirms itself. |
+| The shipped set is Hearth, Mocha and Light | Suite: seed theme pairing | Rebuild. The seeded ids and names are compared with their production constants, because the set equality passes when a seed and its value set are deleted together. |
 
 #### Workload estimates
 
@@ -245,6 +245,7 @@ Reference: `server/domain/embeddings/verbs/embed-assets.int.test.ts`. The [index
 | Below-floor asset: recorded skip, honored on rerun, not bypassed by force | Integration: indexer capture, corpus image variants | Keep. |
 | Quote is zero once analysed; force quotes every avatar | Persistence: image sweep rows | Rebuild. |
 | Quote for an avatar re-uploaded under its id | None | Drop. Bytes of one asset id are immutable in the store, so the state is not producible. |
+| Half-embedded avatar (raw vector only) is resumed, not skipped | None | Defer. The state needs a joint-encoder connection whose caption step fails mid-asset. The text fallback writes one lens, so the sweep cannot be interrupted between two. |
 | Vanished asset row is a skip | None | Defer. A deleted row mid-sweep has no deterministic production seam. A deleted blob under a live row throws and fails the sweep. |
 | Quote is zero for a Utility model that reads no pictures | None | Defer. Needs a text-only summarize connection built through the connection door. |
 | Captioned row from before the facet breakdown is work, not a skip | None | Defer. Needs a sanctioned historic-state home in the testkit README. |

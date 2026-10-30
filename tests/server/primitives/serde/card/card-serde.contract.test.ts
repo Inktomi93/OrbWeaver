@@ -19,6 +19,7 @@ import {
   loreEntryColumns,
   loreEntryMetadata,
   selectBestCharacterBook,
+  UNTITLED_LORE_ENTRY_TITLE,
 } from "@orb/server/primitives/serde/card";
 import { expect, test } from "@orb/testkit/node";
 import { describe } from "vitest";
@@ -515,7 +516,7 @@ describe("lorebook entries cross the wire in both directions", () => {
   test("a plain entry has no scope or inject, and its title falls back through comment, name and first key", () => {
     expect(loreEntryColumns({ keys: ["k"], content: "c" }).title).toBe("k");
     expect(loreEntryColumns({ content: "c", name: "Named" }).title).toBe("Named");
-    expect(loreEntryColumns({ content: "c" }).title).toBe("Untitled");
+    expect(loreEntryColumns({ content: "c" }).title).toBe(UNTITLED_LORE_ENTRY_TITLE);
     expect(loreEntryColumns({ content: "c", comment: "Memo", name: "Named" })).toMatchObject({ title: "Memo", description: null });
     const meta = loreEntryMetadata({ keys: ["k"], content: "c" });
     expect(meta).not.toHaveProperty("scopeMode");

@@ -6,7 +6,7 @@ import { expect, test } from "@orb/testkit/node";
 import { THEME_SCOPE_EMIT_VARS } from "@orb/ui/theme-scope/emit-vars";
 import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
 import { describe } from "vitest";
-import { THEME_HEARTH_NAME } from "#server/domain/settings/constants.ts";
+import { THEME_HEARTH_ID, THEME_HEARTH_NAME, THEME_LIGHT_ID, THEME_LIGHT_NAME, THEME_MOCHA_ID, THEME_MOCHA_NAME } from "#server/domain/settings/constants.ts";
 import { SEED_THEMES } from "#server/domain/settings/substrate/seed-themes.ts";
 
 /** The pairing itself: each override colour field and the `--color-*` property it must equal. */
@@ -53,6 +53,14 @@ describe("each seeded override equals the ui palette it mirrors", () => {
   test("every paired property is one the theme scope emits, so a renamed variable breaks the pairing here", () => {
     const emitted: readonly string[] = THEME_SCOPE_EMIT_VARS;
     expect(COLOR_FIELDS.map(({ cssVar }) => cssVar).filter((cssVar) => !emitted.includes(cssVar))).toEqual([]);
+  });
+
+  test("the shipped set is Hearth, Mocha and Light, in that order, under their sentinel ids", () => {
+    expect(SEED_THEMES.map(({ id, name }) => [id, name])).toEqual([
+      [THEME_HEARTH_ID, THEME_HEARTH_NAME],
+      [THEME_MOCHA_ID, THEME_MOCHA_NAME],
+      [THEME_LIGHT_ID, THEME_LIGHT_NAME],
+    ]);
   });
 
   test("the ui value sets are exactly the seeds other than Hearth", () => {
