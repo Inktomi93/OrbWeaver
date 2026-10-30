@@ -351,11 +351,10 @@ export function pruneDbBackups(url: string, backupDir: string): readonly string[
 /**
  * Suspend connection-level FK enforcement for a SCOPE — `await using _ = await fkEnforcementSuspended(db)`.
  * The restore is the `[Symbol.asyncDispose]`, so the OFF→ON bracket is declarative and cannot be half-written:
- * every exit of the scope (return, throw, or an early return added later) turns enforcement back ON, which is
- * the invariant the two hand-written `finally`s below each re-spelled. This is a RESTORE, not a release — the
- * pragma is connection state, not an acquired resource — but the shape is identical and `await using` is the
- * only spelling that makes the pairing unforgettable. The ON/OFF literals live HERE, once: a caller cannot
- * suspend FKs and restore something else.
+ * every exit of the scope (return, throw, or an early return added later) turns enforcement back ON. This is a
+ * RESTORE, not a release — the pragma is connection state, not an acquired resource — but the shape is identical
+ * and `await using` is the only spelling that makes the pairing unforgettable. The ON/OFF literals live HERE,
+ * once: a caller cannot suspend FKs and restore something else.
  */
 async function fkEnforcementSuspended(db: Db): Promise<AsyncDisposable> {
   await db.run(sql`PRAGMA foreign_keys = OFF`);
@@ -401,15 +400,15 @@ export async function assertReferentialIntegrity(db: Db): Promise<void> {
 // MATCH ANY ENTRY, NOT THE NEWEST ONE (2026-09-18, #316 Arm A). Until launch the chain was a single
 // regenerated `0000_baseline` and "the newest shipped entry" and "the chain" were the same fact, so this
 // compared against `.at(-1)` alone. Post-launch that read is a trap: a db sitting at `0000` with a freshly
-// committed `0001` is BEHIND, not diverged, and `.at(-1)` reports it `regenerated` — which under
-// `DB_LAUNCHED` is the FATAL arm, i.e. no forward migration could ever be applied. A db whose newest
+// committed `0001` is BEHIND, not diverged, and `.at(-1)` reports it `regenerated` — which the
+// boot refuses, so no forward migration could ever be applied. A db whose newest
 // applied migration IS one of the shipped entries is `current` on this axis; `hasPendingMigrations` owns
 // the orthogonal "is there anything left to apply" question and drizzle's migrator applies it.
 //
 // `regenerated` therefore now means: this db applied a migration that is in no shipped entry — an applied
 // `.sql` was edited or deleted (pre-launch that was the routine baseline squash; post-launch it is the
 // thing that must never happen, because drizzle would RE-APPLY over existing tables and die on "table
-// already exists"). `entry/boot/migrate.ts` reads this to decide fatal-vs-reset.
+// already exists"). `entry/boot/migrate.ts` reads this and refuses a `regenerated` database.
 type BaselineCheck =
   | { readonly status: "fresh" }
   | { readonly status: "current" }
@@ -536,74 +535,6 @@ export async function checkBaseline(db: Db, migrationsFolder: string): Promise<B
   // The newest shipped identity is what a fresh db would end at — the most useful thing to print beside
   // the orphaned one the db actually holds.
   return { status: "regenerated", appliedHash: applied.hash, currentHash: shipped.newest.hash };
-}
-
-// The order objects are dropped in: dependents (triggers/views/indexes) before the tables they hang off,
-// so a `DROP TABLE` can't be blocked by / silently orphan a dependent. `IF EXISTS` absorbs the case where
-// a table drop already cascaded its own indexes/triggers away.
-const RESET_DROP_ORDER = ["trigger", "view", "index", "table"] as const;
-
-/**
- * The reset's DDL script for a `sqlite_master` listing — pure, so the string a destructive path is about to
- * execute is unit-testable without running it.
- *
- * TWO properties it owes (#1376):
- *  · WRAPPED IN ONE TRANSACTION. `executeMultiple` is native `db.exec` with no implicit transaction
- *    (traced into `@libsql/client` 0.17.4 `sqlite3.js`), and SQLite auto-commits DDL statement by statement
- *    outside an explicit `BEGIN` — a mid-script failure left earlier DROPs committed and later ones un-run,
- *    i.e. a half-destroyed schema with no rollback. SQLite's DDL *is* transactional inside `BEGIN`.
- *    (The FK pragma is suspended by the CALLER, outside this transaction — `PRAGMA foreign_keys` is a no-op
- *    inside one.)
- *  · ESCAPED IDENTIFIERS. `sqlite_master.name` was interpolated into a quoted identifier raw, so a name
- *    containing `"` closed the identifier early and appended a second executable statement. Doubling `"` is
- *    SQLite's own escape for a quoted identifier.
- */
-export function buildResetDropScript(objects: readonly Record<string, unknown>[]): string {
-  const drops = RESET_DROP_ORDER.flatMap((kind) =>
-    objects.filter((o) => o["type"] === kind).map((o) => `DROP ${kind} IF EXISTS "${String(o["name"]).replaceAll('"', '""')}";`),
-  );
-  return drops.length === 0 ? "" : ["BEGIN;", ...drops, "COMMIT;"].join("\n");
-}
-
-/**
- * Full dev-db reset on the OPEN client (the ONE connection — no file-deletion race): drop
- * EVERY user object (tables/views/triggers/indexes, INCLUDING `__drizzle_migrations`) with FK enforcement
- * toggled OFF on the connection for the duration (restored at scope exit — {@link fkEnforcementSuspended}).
- * Internal `sqlite_%` objects (autoindexes, sequence,
- * stat tables) are managed by SQLite and left alone. Dropping `__drizzle_migrations` too means the very
- * next `runMigrations` re-applies the fresh baseline from a clean bookkeeping slate. Called ONLY by the
- * boot migrate step when {@link checkBaseline} reports `regenerated` and the caller passed an explicit
- * `launched: false` — which since #316 (2026-09-18) NO production caller does: `DB_LAUNCHED` is `true`, so
- * this path is reachable only from the tests that pin the reset arm itself.
- * ATOMIC: the drops run inside the one transaction {@link buildResetDropScript} wraps them in, and a
- * mid-script failure is rolled back rather than left half-applied.
- */
-export async function resetDevDatabase(db: Db): Promise<void> {
-  await using _fkSuspended = await fkEnforcementSuspended(db);
-  const objects = await db.all<Record<string, unknown>>(
-    sql`SELECT type, name FROM sqlite_master
-        WHERE type IN ('trigger', 'view', 'index', 'table') AND name NOT LIKE 'sqlite_%'`,
-  );
-  // One DDL script over the ONE connection (libSQL `executeMultiple`) rather than a per-object
-  // round-trip loop — a single teardown, not an N+1 read path.
-  const script = buildResetDropScript(objects);
-  if (script.length === 0) {
-    return;
-  }
-  const client = clientOf(db);
-  try {
-    await client.executeMultiple(script);
-  } catch (err) {
-    // `exec` stops at the failing statement and leaves the transaction OPEN; without this the connection
-    // would carry a half-applied teardown into whatever the caller does next. Rolling back restores the
-    // schema the boot step is about to re-migrate, and the original failure is what propagates.
-    // the rollback is best-effort: with no open transaction
-    // (the BEGIN itself failed) `ROLLBACK` errors, and that error must not mask the script failure, which the
-    // `throw err` on the next line propagates to the boot step.
-    // Ends if that rethrow goes away.
-    await client.execute("ROLLBACK").catch(() => undefined);
-    throw err;
-  }
 }
 
 const PLANNER_ANALYSIS_LIMIT = 1000;

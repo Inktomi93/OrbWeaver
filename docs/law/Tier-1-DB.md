@@ -57,7 +57,7 @@ Every schema change ships as a numbered migration. The committed baseline is his
 4. Never edit or delete an applied migration. Fix it with a new forward migration.
 5. Run `pnpm --filter @orb/db exec drizzle-kit check --config=drizzle.config.ts` to validate the journal and snapshot chain. Test migration behavior against a copy of a real database and verify referential integrity.
 
-`DB_LAUNCHED = true` in `packages/server/src/entry/boot/migrate.ts` refuses a database whose recorded migration is absent from the shipped journal. It never resets the database automatically.
+`runBootMigrations` in `packages/server/src/entry/boot/migrate.ts` refuses a database whose recorded migration is absent from the shipped journal. It never resets the database automatically.
 
 ## Esoteric / required behavior
 

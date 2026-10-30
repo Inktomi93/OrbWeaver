@@ -217,7 +217,7 @@ Reference: `server/domain/settings/seed-theme-pairing.suite.test.ts`. Nothing ma
 
 #### Workload estimates
 
-Reference: `server/domain/workloads/verbs/estimate-model-calls.int.test.ts`. Maintained [owner authority](../../../tests/server/domain/workloads/persistence/every-owner-authority.int.test.ts), [funded rows](../../../tests/server/domain/workloads/persistence/funded-tenant-rows.int.test.ts) and [refinery score sweeps](../../../tests/server/domain/refinery/persistence/score-sweep-rows.suite.int.test.ts) exercise the verb through the production root. The chat memory estimate suite owns the memory counts.
+Reference: `server/domain/workloads/verbs/estimate-model-calls.int.test.ts`. Maintained [owner authority](../../../tests/server/domain/workloads/persistence/every-owner-authority.int.test.ts), [funded rows](../../../tests/server/domain/workloads/persistence/funded-tenant-rows.int.test.ts) and [refinery score sweeps](../../../tests/server/domain/refinery/persistence/score-sweep-rows.suite.int.test.ts) exercise the verb through the production root. The [backfill estimate suite](../../../tests/server/domain/chat/substrate/backfill-estimate.int.test.ts) owns the memory counts.
 
 | Behavior | Primary home and maintained evidence | Decision |
 | - | - | - |
@@ -250,6 +250,95 @@ Reference: `server/domain/embeddings/verbs/embed-assets.int.test.ts`. The [index
 | Captioned row from before the facet breakdown is work, not a skip | None | Defer. Needs a sanctioned historic-state home in the testkit README. |
 | Fused caption request body; local-light two-tower caption; refused joint-encoder update during routing | None | Defer. The first two are backend wire cases for the inference tests. The third needs the connection probe harness. |
 
+### Selected case map: chat teaching, identity, read, backfill and persona resolution
+
+This is a bounded case map. Legacy paths are relative to the external source named in [Spine-Testing](../../law/Spine-Testing.md#2-the-tree). Every rebuilt case runs the composed server root and reads native provider bytes or a public service read. Each rebuilt guard was checked against a planted production defect that made it fail for its stated reason. Open rows are unresolved and keep their register row Partial.
+
+The legacy collector and contribution cases exercised `collectTeaching` and the contributions with a synthetic registry or a synthetic game gather. The chat door exports neither the collector nor a registry seam, and no test-only door is added. The exact-duplicate guard is reachable through production and is rebuilt below. The remaining collector laws are not: the composed registry registers chat, then tool-use, then automation, and only chat and automation emit injections while only chat and tool-use emit tool names, so no two contributions that share an axis can arrive out of order. No production contribution throws.
+
+#### Teaching (`substrate/teaching.int.test.ts`, `substrate/teaching.test.ts`, `teaching-contribution.test.ts`)
+
+| Reference case | Decision | Maintained home or reason |
+| - | - | - |
+| Zero-contribution chat: host rows reach the model | Rebuild | [Turn teaching](../../../tests/server/domain/chat/verbs/turn-teaching.suite.int.test.ts): two identical host rows both reach the model. |
+| Host rows ordered before the state block at one depth | Open | The order is the candidate walk's entry-id tie-break; no ruling names it. A swap in the merge changed no maintained output, so no guard was written. |
+| Game state block keeps its content and `game-state` stamp, cyoa off and on | Rebuild | [Turn teaching](../../../tests/server/domain/chat/verbs/turn-teaching.suite.int.test.ts): the budget source `game-state` exists for a game turn, its opening line reaches the provider, and a plain chat has none. |
+| Game cyoa on and room knob on: exactly one teach | Rebuild | [Turn teaching](../../../tests/server/domain/chat/verbs/turn-teaching.suite.int.test.ts): game and knob combinations through a real game turn, including the host's rewrite of the slot. |
+| Game cyoa off and room knob on: chat teaches; non-game room with the knob on: chat teaches | Rebuild | [Turn teaching](../../../tests/server/domain/chat/verbs/turn-teaching.suite.int.test.ts) and [offer choices](../../../tests/server/domain/chat/verbs/turn-offer-choices.suite.int.test.ts). |
+| Host override of the teach slot; `{{user}}` and `{{char}}` render as names; no persona floors to the default persona name | Rebuild | [Turn teaching](../../../tests/server/domain/chat/verbs/turn-teaching.suite.int.test.ts) on the native Anthropic wire. |
+| Teach is delimited from a player's line; the frame slot is the host's to replace | Rebuild | [Turn teaching](../../../tests/server/domain/chat/verbs/turn-teaching.suite.int.test.ts). The production shape sends the framed teach as its own row after the player's line; the case asserts the invariant, that the teach never sits inside the player's text. |
+| Game reminder that already carries the framed teach suppresses the room's teach | Drop | Needs a synthetic gather. The shipped reminder carries the bare teach, which the game combinations exercise. |
+| Exact-duplicate guard: two contributions emitting the identical injection reach the model once | Rebuild | [Turn teaching](../../../tests/server/domain/chat/verbs/turn-teaching.suite.int.test.ts): the host's frame and cyoa slot make the choices teach equal the reaction-attribution note for a reacted line. Skipping the dedupe delivers it twice. Host-authored rows stay uncollapsed, in the next case. |
+| Identity-keyed guard, first survivor, ascending order, stable tie, toolNames union, throwing contribution, shared context instance | Drop | Collector internals that need a synthetic registry. Chat and automation share the injection axis and chat and tool-use share the tool-name axis, and each pair registers in ascending order, so a planted change to the sort or the union changes no production output. |
+| Registry ids and orders | Drop | Implementation listing; its observable effects are the cases above. |
+| Gather injections keep their order; gather `tools` become tool names | Drop | The production gather emits one injection and no registry tools. Both need a synthetic gather. |
+| Non-game chat and knob off contribute nothing | Keep | [Offer choices](../../../tests/server/domain/chat/verbs/turn-offer-choices.suite.int.test.ts) and the react-tool combinations in [turn teaching](../../../tests/server/domain/chat/verbs/turn-teaching.suite.int.test.ts). |
+| Offer-choices precedence: room value wins, absent inherits the host default | Keep | [Offer choices](../../../tests/server/domain/chat/verbs/turn-offer-choices.suite.int.test.ts). |
+| Reaction knob precedence; react tool attaches only when both knobs resolve on | Rebuild | [Turn teaching](../../../tests/server/domain/chat/verbs/turn-teaching.suite.int.test.ts): host and room combinations read the provider's tool declarations. |
+
+#### Identity (`persistence/identity.int.test.ts`)
+
+| Reference case | Decision | Maintained home or reason |
+| - | - | - |
+| Seated character and active persona resolve with their kind; avatar-less entities keep a null hash | Rebuild | [Identity](../../../tests/server/domain/chat/persistence/identity.int.test.ts) through `getChat`. |
+| Pin names an identity no seat or line names; anchor state follows the pin's owner | Rebuild | [Identity](../../../tests/server/domain/chat/persistence/identity.int.test.ts): a host handoff and the founder's leave. |
+| Persona stamped on a line but not seated | Rebuild | [Identity](../../../tests/server/domain/chat/persistence/identity.int.test.ts) through `listMessages`. |
+| Removed character keeps its portrait | Rebuild | [Identity](../../../tests/server/domain/chat/persistence/identity.int.test.ts). |
+| Empty room, null ids, omitted arguments | Rebuild | [Identity](../../../tests/server/domain/chat/persistence/identity.int.test.ts): an empty room has an empty set. |
+| Dedupe of an id named by a seat and a line | Drop | The loader selects by id, so a duplicate row cannot exist; no planted change reaches it. |
+| Coverage is member-gated, not owner-gated | Rebuild | [Identity](../../../tests/server/domain/chat/persistence/identity.int.test.ts): a member's persona resolves for the host and the member reads the same set. |
+| Each row resolves `{{user}}` to its own stamp, including rows stamped by different humans | Rebuild | [Persona resolution](../../../tests/server/domain/chat/persona-resolution.suite.int.test.ts): a two-human room where each human's stored line keeps its own persona. A null stamp falls back to the anchor in [canon input writers](../../../tests/server/domain/chat/persistence/canon-input-writers.suite.int.test.ts). |
+
+#### Persona resolution (`persona-resolution.suite.int.test.ts`)
+
+| Reference case | Decision | Maintained home or reason |
+| - | - | - |
+| Worked examples: anchor and seat the same; swap; re-pin; description follows the anchor | Rebuild | [Persona resolution](../../../tests/server/domain/chat/persona-resolution.suite.int.test.ts) on the native Anthropic wire. |
+| Card `{{persona}}` resolves the anchor's description | Rebuild | Same suite. |
+| Seat swap and re-pin never rewrite a stored persona stamp | Rebuild | Same suite, with the next send as the positive control. |
+| Cases the reference file defers to other files: resolver binding, held pin, trigger without a seat persona | Keep | [Turn personas](../../../tests/server/domain/chat/assembly/turn-personas.int.test.ts) and [prompt config triggerer](../../../tests/server/domain/chat/verbs/prompt-config-triggerer.suite.int.test.ts). |
+
+#### Backfill estimate (`substrate/backfill-estimate.int.test.ts`)
+
+| Reference case | Decision | Maintained home or reason |
+| - | - | - |
+| Estimate equals the sweep's summarize calls and falls to zero once built | Rebuild | [Backfill estimate](../../../tests/server/domain/chat/substrate/backfill-estimate.int.test.ts) through `workloads.estimateModelCalls` and the admitted workload. |
+| Character seated mid-chat is counted for the blocks it witnessed | Rebuild | Same suite, with the exact count the sweep yields. A late `addCharacterToChat` replaces the forced join sequence, which production cannot produce. |
+| Edited block is counted again | Rebuild | Same suite. |
+| Group room counts its unminted shared bucket and mints nothing; memory off costs nothing | Rebuild | Same suite. The per-host off check is reached only by the bulk estimate, which the case asks through `mode: "bulk"`. |
+| Import window counts and sweeps only the span's chats | Rebuild | Same suite, with a later import as the out-of-span room. A second owner's import in the same span is not exercised. |
+| Consolidation parents above tier zero | Open | The suite runs tier zero only. |
+| Import window over a very large chat set | Open | Needs bulk persistence seeding in a persistence suite. |
+
+#### Read (`verbs/read.int.test.ts`)
+
+| Reference case group | Decision | Maintained home or reason |
+| - | - | - |
+| Inspector gates: `peekPrompt`, `previewAssembly`, `previewSection`, `previewActionTemplates`, `getShapeTrace`, `getVariantWire` are host-only; outsiders get not-found; member reads carry no full-only card bytes | Rebuild | [Read gates](../../../tests/server/domain/chat/verbs/read-gates.int.test.ts), with the host read of the same call as the positive control. |
+| Cross-room variant read: refusal matches an unknown id; sibling list is room-scoped | Rebuild | [Read gates](../../../tests/server/domain/chat/verbs/read-gates.int.test.ts). |
+| Non-participant gets not-found on every room read | Rebuild | [Read gates](../../../tests/server/domain/chat/verbs/read-gates.int.test.ts): a table of reads with a host and a member as controls. |
+| Library lists only the caller's rooms; archived and temporary rooms; viewer role | Rebuild | [Read gates](../../../tests/server/domain/chat/verbs/read-gates.int.test.ts). |
+| Search and count never reveal a hidden span, pre-join text or the body of a tail carrying a hidden tag | Rebuild | [Read gates](../../../tests/server/domain/chat/verbs/read-gates.int.test.ts); the floor on the tail search is also in [history floor reads](../../../tests/server/domain/chat/verbs/history-floor-reads-agree.int.test.ts). |
+| Join-history floor on message lists, pagination at the floor, picture render | Keep | [Role authority](../../../tests/server/domain/chat/verbs/role-authority.int.test.ts), [message cursors](../../../tests/server/transport/trpc/message-history-cursor.int.test.ts), [history floor reads](../../../tests/server/domain/chat/verbs/history-floor-reads-agree.int.test.ts), [co-participant render](../../../tests/server/domain/chat/verbs/co-participant-render-floor.int.test.ts). |
+| Column default `full`, promoted host unclamped, re-join floors at the latest join, host restricts and restores | Rebuild | [Read gates](../../../tests/server/domain/chat/verbs/read-gates.int.test.ts). |
+| Sibling-variant list refuses a pre-join slot | Rebuild | [Read gates](../../../tests/server/domain/chat/verbs/read-gates.int.test.ts). |
+| Durable replay and live delivery withhold pre-join bytes, including a later edit of a pre-join row | Keep | [Recipient isolation](../../../tests/server/transport/trpc/stream/recipient-isolation.int.test.ts). |
+| Replay clamps by delta slot; attach bounds carry the caller's floor | Open | Neither value is asserted on its own; [recipient isolation](../../../tests/server/transport/trpc/stream/recipient-isolation.int.test.ts) exercises both through the transport. |
+| Hidden-span stripping for members across resume cursors | Keep | [Member visibility](../../../tests/server/domain/chat/substrate/member-visibility.int.test.ts) and [role authority](../../../tests/server/domain/chat/verbs/role-authority.int.test.ts). |
+| Strip inside a closed card, tool-call offsets, durable reasoning channel, deception handoff, replayed committed view | Open | [Content policy](../../../tests/server/domain/chat/substrate/content-policy.suite.int.test.ts) covers the class table; the member payload cases need a deception-active game. |
+| Member card clamp by visibility level | Keep | [Member card clamp](../../../tests/server/domain/chat/verbs/member-card-clamp.int.test.ts) and [corpus chat outputs](../../../tests/support/node/corpus-chat-outputs.int.test.ts). |
+| Macro render of surviving card fields; bypass through full-only macros; hidden spans on card fields; lore level | Open | [Section render PRNG](../../../tests/server/domain/chat/assembly/section-render-prng.int.test.ts) covers stable random picks only. |
+| Chat detail, connection read with label hiding, send availability, unbound fit, variants, windows, lineage, pages | Keep | [Corpus chat outputs](../../../tests/support/node/corpus-chat-outputs.int.test.ts). |
+| Fork list is membership-scoped | Rebuild | [Read gates](../../../tests/server/domain/chat/verbs/read-gates.int.test.ts). |
+| Preview honesty: budget partition, per-member card cost, preset override, GM preset redirect, window ceiling, persona-swap leak, consent set, narrator shape, viewer time zone, no persist | Open | One group of preview cases through a bound connection and a game; not compared case by case. |
+| Fit preview: boundary, blown budget, compaction marker, card and choices pricing | Open | [Managed compaction trim](../../../tests/server/domain/chat/engine/managed-compaction-trim.suite.int.test.ts) reads the fit; boundary and wire-pricing cases are not compared. |
+| Effective regex: tiers, run order, levers, preset tier label | Open | Only the disabled-room read is asserted, in corpus chat outputs. |
+| Library detail: preview text projection, viewer last turn, participant names, portraits, game flags, keyset ties, page ceiling, character projection, search predicates, recency order | Open | Page and cursor basics are in corpus chat outputs; the remaining projections are not compared. |
+| Owned-character fields: gallery subject and owned ids | Open | Not asserted by a maintained case. |
+| Compaction checkpoint withheld from a clamped member; preview image quality; Ollama window; connection attribution after deletion; malformed stored blobs degrade to null; plugin provider identity | Open | No maintained runtime case; each needs its own fixture. |
+| Stream ring resume | Keep | [Stream event rows](../../../tests/server/domain/chat/persistence/stream-event-rows.int.test.ts). |
+| Durable bus log resume and first-turn head deltas | Keep | [Bus golden](../../../tests/server/domain/chat/bus-golden.suite.int.test.ts) and [composed root](../../../tests/server/domain/chat/composed-root.suite.int.test.ts). |
+
 ### E2E runtime qualification
 
 The combined native selection boots and warms single-user, local, forward-header and OIDC modes. It passes the selected smoke, authentication, CSRF, debug-admission and pending-join cases without changing readiness or timeout budgets.
@@ -271,6 +360,127 @@ Failed runs retain bounded stack-log tails beside native traces and reports. Reu
 UI sessions, native timeouts, failed evidence retention or uncertain port release retain the directory and report its path. Hard termination or a reporter override can bypass the hook. Remove retained directories only after confirming their owner stopped; there is no automatic orphan sweep.
 
 The native lifecycle exercises cover successful teardown, assertion failure with retained logs and occupied-port refusal without deleting another owner's files. The public server-process regression holds an actual HTTP request across repeated shutdown signals; every caller waits for the same drain completion.
+
+### Selected case map: boot migration, data layout and env floors
+
+Legacy paths are relative to the external source named in [Spine-Testing](../../law/Spine-Testing.md#2-the-tree). The case map records every case of its reference files. Maintained homes:
+
+| Home | Layer and production entry |
+| - | - |
+| [Boot migration](../../../tests/server/entry/boot/persistence/migrate.int.test.ts) | Integration on a real file database, `runBootMigrations`; pre-migration databases come from the shipped chain cut before its last migration |
+| [Data-layout move](../../../tests/server/entry/boot/persistence/migrate-data-layout.int.test.ts) | Integration on a real filesystem and database, `migrateDataLayout`; the legacy flat tree is the historic state the move exists for; every crash state is a real failed rename; the idle-holder case runs two real processes through [the holder](../../../tests/support/node/db-holder.ts) and [the migration script](../../../tests/support/node/migrate-data-layout.ts) |
+| [Layout resolver](../../../tests/server/foundation/data-layout/index.test.ts) | Unit, `resolveDataLayout`; expectations derive from the layout's own `LEGACY_ENTRIES`, and a mapped record over `DataLayoutInput` fails `tsc` when a key is added |
+| [Boot migration deps](../../../tests/server/entry/boot/migrate.test-d.ts) | Type, `runBootMigrations` accepts no posture or reset option |
+| [Env floor](../../../tests/server/foundation/env/record/floor-defaults.test.ts) | Unit, the production `parseEnv` through `createTestEnv` |
+| [Env file load](../../../tests/server/foundation/env/env-file-load.int.test.ts) | Integration, the production process env module in a fresh node process per case ([child](../../../tests/support/node/env-file-child.ts)); the load runs once at import from the working directory and process environment, so one process cannot vary it |
+| [Boot disclaimer](../../../tests/server/entry/boot/disclaimer.test.ts) | Unit, `composeBootDisclaimer` with posture values derived from a parsed record |
+
+Decisions for `server/entry/boot/migrate.int.test.ts`:
+
+| Case | Decision | Evidence |
+| - | - | - |
+| Forward migration over a populated baseline keeps prior bytes | Keep | [Provenance migration](../../../tests/db/schema/chat-freeze-provenance.repo.int.test.ts) runs a boot over a copied file database and compares rows and the pre-migration backup. The boot suite adds the second boot that takes no copy. |
+| `resolveMigrationsFolder` ends in `migrations` | Drop | Private helper; every default-folder boot in the boot suite resolves it. |
+| Baseline applied on a fresh database, integrity gate, foreign keys on | Rebuild | Boot suite, first case, on a file database with the default folder. |
+| Second boot is a no-op | Rebuild | Same case, with the backup listing unchanged and the baseline `current`. |
+| Raw `runMigrations` crashes on a stale record | Drop | Asserts drizzle's behavior. The product refusal is the drifted-chain case. |
+| Regenerated-baseline dev database auto-resets | Drop: the reset arm is deleted under D163 | The `launched` option, `DB_LAUNCHED`, the boot reset branch and the database reset function are deleted, so `tsc` refuses a caller that passes the option ([type case](../../../tests/server/entry/boot/migrate.test-d.ts)). |
+| Backup taken on a migrating boot into the passed dir, skipped on a no-op boot | Rebuild | Boot suite, first case. |
+| Backup restores a commit still in the WAL | Rebuild | Boot suite on a database one migration behind, in place of the reset trigger. It also proves the copy predates the migration. |
+| Backup failure aborts before the reset | Rebuild | Boot suite: an unwritable backup dir aborts before the forward migration, and the retry migrates. The proxy that forced a transaction failure is dropped as fabricated. |
+| Debris at the stamped backup path is replaced | Rebuild | Boot suite. The name comes from `backupBeforeMigrate`, not a copy of its rule. |
+| A reset boot backs up first, then prunes to the cap | Rebuild, narrowed; the reset trigger is deleted | Boot suite asserts the migrating boot prunes the oldest copy and keeps the newest, and a no-op boot prunes nothing. Retention counts, pins and daily rollup stay with the database client batch. |
+| Shipped posture refuses a diverged chain on a file database before any backup | Rebuild | Boot suite, last case: the refusal is the boot's own typed `DomainOperationError`, which a drizzle crash from re-applying the chain is not, and the database, the rows and the copies are unchanged. |
+| A launched memory database refuses to auto-wipe | Keep | Covered by the file-database case above. |
+| Omitting `launched` fails closed | Drop: the reset arm is deleted under D163 | No posture option remains to omit; the type case guards it. |
+
+Decisions for `server/entry/boot/migrate-data-layout.int.test.ts`:
+
+| Case | Decision | Evidence |
+| - | - | - |
+| Fresh install gets the container dirs | Rebuild | Layout move suite. |
+| Legacy tree moves every named entry with a snapshot first | Rebuild | Layout move suite, derived from `LEGACY_ENTRIES`. It also covers the WAL-only row, modes, the stores that never move and the absent journal. |
+| Second run is a no-op | Rebuild | Same case. |
+| Target holds data: refuse before any rename | Rebuild | Layout move suite with a clearing control. The sizes in the refusal text are not asserted. |
+| Explicit slot, `DATABASE_URL` and `CREDENTIALS_KEY` keep an entry in place | Rebuild | One table over every keyed entry in `LEGACY_ENTRIES`, including the secrets and the no-snapshot rule for a kept database. |
+| Live-pid journal refuses | Rebuild | Layout move suite, from a journal a real failed rename left. |
+| Journal under this process's pid resumes | Rebuild | Same suite, default liveness. |
+| Source on another filesystem | Rebuild | Same suite, injected device probe, with a same-device control. |
+| Target container linked onto another filesystem | Rebuild | Same suite. |
+| Data root that is a symlink | Rebuild | Same suite. |
+| Resume re-plans against the current env | Rebuild | The apply-time failure case, keyed per entry, replays under an env that keeps the entry. |
+| Idle holder of the legacy database refuses | Rebuild | Same suite, two real processes and a released control; the poll loop is replaced by a process message. |
+| Zero-byte legacy database is ignored | Rebuild | Same suite. |
+| Dead-pid journal resumes | Rebuild | Same suite. |
+| Resume refuses when source and target both hold data | Rebuild | Same suite, tampering with a real crash state and a control that clears it. |
+| Resume refuses when neither side exists | Rebuild | Same suite. |
+| Empty mount point at a target | Rebuild | Same suite, with the keyed and keyless remedies. |
+| Failing resume boots leave one snapshot | Rebuild | Apply-time failure case. |
+| Apply-time rename failure keeps the journal until the env names the remedy | Rebuild | Same case, with the no-op boot after the remedy. |
+| Legacy database on another filesystem refuses with the `DATABASE_URL` value that keeps it | Rebuild, narrowed | The keeper table runs the working value from `fileDatabaseUrl`. The refusal wording and the value parsed from it are not asserted. |
+| Kept keyfile is warned with its keeper | Move to security batch | A secrets warning. |
+| Stranded session secret is warned on every boot | Move to security batch | A session pepper warning. |
+
+Decisions for `server/foundation/data-layout/index.test.ts`:
+
+| Case | Decision | Evidence |
+| - | - | - |
+| Slots derive from the default root, relative | Rebuild | Layout resolver, by relation to the root. |
+| `DATA_DIR` re-roots every slot | Rebuild | Same, for an absolute and a relative root. |
+| Explicit slot wins and lands in the explicit set | Rebuild | Same, one key at a time against the derived tree. |
+| Every slot key honoured, empty counts as unset | Rebuild | Same, over a record that lists every `DataLayoutInput` key by kind. |
+| Non-file `DATABASE_URL` carried through | Keep | [Native file identity](../../../tests/server/foundation/data-layout/persistence/file-identity.int.test.ts) covers the explicit URL inputs; the resolver suite adds the remote case. |
+| `DATA_LAYOUT_SKIP` parsing | Rebuild | Same. |
+| `DATA_LAYOUT_SKIP` refuses the database, keyfiles and keyed slots, and an unknown name | Rebuild, narrowed | Same, one case per keyed entry plus a control. The naming of the key in the message is not asserted. |
+| Database remedy carries the `DATABASE_URL` value | Drop | Message wording; the working value is run by the move suite. |
+| Explicit secrets land in the explicit set | Rebuild | Same. |
+| Import domain default equals the resolver | Drop | The import domain derives `DEFAULT_IMPORT_STAGING_DIR` from `resolveDataLayout`, so the two cannot differ. |
+
+Decisions for `server/foundation/env/floor-defaults.test.ts`:
+
+| Case | Decision | Evidence |
+| - | - | - |
+| Debug and observability gates default off | Rebuild | Env floor. |
+| Single-user default needs no SSO or secret keys | Rebuild | Env floor, the fallback derived from `AUTH_MODE_DEFAULT_FALLBACK`. |
+| `LOCAL_LIGHT_CACHE_DIR` default under the data root and override | Rebuild | Env floor reads every slot against the resolver. |
+| `LOCAL_LIGHT_CPU_PERCENT` default and invalid values | Rebuild, narrowed | Env floor keeps the valid value and every refusal. The default of fifty is a copy of production and is dropped. |
+| Data slots resolve from `DATA_DIR` | Rebuild | Env floor. |
+| `DATA_LAYOUT_SKIP` is checked at parse | Rebuild | Env floor. |
+| Rate-limit budgets have the documented floor | Drop | Asserts copies of production defaults. |
+| Boolean toggles transform | Rebuild | Env floor, on a non-security knob. |
+| Boolean knobs refuse widened spellings | Rebuild | Same. |
+| Boolean knobs accept exactly `true` and `false` | Rebuild | Same. |
+| `processEnvSnapshot` is a copy | Move to security batch | The agent child-env baseline; the function is now `hostEnvAllowlist`. |
+
+Decisions for `server/foundation/env/env-file-load.test.ts`:
+
+| Case | Decision | Evidence |
+| - | - | - |
+| `.env` beats a shell export | Rebuild | Env file load. |
+| Override off under `VITEST` and under `ORB_ENV_NO_OVERRIDE`; the file still fills unset keys | Rebuild | Same, one case per hatch. |
+| No `.env`, and an unreadable `.env` | Rebuild | Same, compared with a baseline process. |
+| Parser tolerance for comments, quotes, `export`, junk and CRLF | Drop | Behavior of the platform parser, not the loader. |
+| UTF-8 byte-order mark | Rebuild | Same. |
+| `KEY: value` lines ignored | Drop | Behavior of the platform parser. |
+| `ORB_ENV_NO_FILE` skips the load | Rebuild | Same, with a control. |
+| The test config sets `ORB_ENV_NO_FILE` | Drop | A runner configuration literal; the tooling mirror owns runner configuration. |
+| `AUTH_FALLBACK` in `.env` is boot-fatal, and absent boots clean | Move to security batch | Auth posture. The child-process reader above is the way to drive the load. |
+| Deleted `SESSION_COOKIE_INSECURE` stays inert | Move to security batch | Cookie transport. |
+
+Decisions for `server/entry/boot/disclaimer.test.ts`:
+
+| Case | Decision | Evidence |
+| - | - | - |
+| Topics in order | Rebuild | Boot disclaimer. |
+| Healthy loopback single-user carries the caveat and no security line | Rebuild | Same. |
+| Caveat rides a widened-peer single-user box | Rebuild | Same. |
+| Login modes carry no caveat | Rebuild | Same, over every login mode in the auth-mode tuple, with a row record that fails `tsc` for a new mode. |
+| Each exposure is one security warning | Rebuild | Same, for every exposure kind: bind, owner peers, diagnostics and break-glass. |
+| Closed forward-header door warns but is not an exposure | Rebuild | Same. |
+| Every security line is a warning | Rebuild | Folded into the exposure case, asserted for each kind. |
+| Break-glass line | Rebuild | Same, with a control per ingredient. |
+
+Defect controls: each guarded production behavior was planted in a worktree and the named case failed for its intended reason. The planted behaviors are the drifted-chain refusal, the posture option type, the backup gate, the abort on a failed backup, the retention sweep and its boot gating, debris replacement, the target-conflict check, the cross-device pre-flight, the sole-holder claim, the first-boot snapshot, own-pid and live-pid journal handling, keeper and skip-list planning, zero-byte handling, the resume snapshot rule, the skip validation, explicit-set recording, the boolean vocabulary, the gate defaults, the parse-time skip check, the override direction, the byte-order mark, `ORB_ENV_NO_FILE` and each disclaimer gate.
 
 ### Server composition
 

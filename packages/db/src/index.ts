@@ -28,7 +28,6 @@ export {
   optimizeDb,
   preCloseHousekeeping,
   pruneDbBackups,
-  resetDevDatabase,
   runMigrations,
 } from "./client/index.ts";
 // Every drizzle table + the relations (the db-row producers).
