@@ -100,12 +100,12 @@ The tree below is committed law: `tests/client/feature-layout.suite.test.ts` enf
 
 ```
 packages/client/
-  package.json          # @orb/ui · @orb/contracts (type-only) · @orb/kit · @tanstack/react-router · react(-dom)
-                        #   · zustand · @trpc/tanstack-react-query · @tanstack/{react-query,react-form} ·
-                        #   workbox-window + vite-plugin-pwa. NO raw radix/cmdk/echarts/base-ui (§1.1 physics)
+  package.json          # @orb/ui · @orb/contracts · @orb/kit · @tanstack/react-router · react(-dom)
+                        #   · zustand · @trpc/tanstack-react-query · @tanstack/{react-query,react-form}.
+                        #   NO raw radix/cmdk/echarts/base-ui (§1.1 physics)
+  public/
+    manifest.webmanifest # installable standalone app; no service worker and no offline mode (owner ruling)
   src/
-    sw.ts / manifest    # PWA: workbox precache of the app shell + web-app-manifest.
-                        #   offline scope = the shell + last-opened chat; live data still needs the server (SSE bus)
     main.tsx            # entry / composition root + THE REGISTRATION DOOR: the one place feature
                         #   definitions + contributors are imported and assembled (lockdown §7)
     agent-nav/ agent-seed/
