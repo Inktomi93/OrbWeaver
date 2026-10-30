@@ -3,7 +3,15 @@ import { AA_NON_TEXT_RATIO, AA_NORMAL_RATIO, oklabDistance, srgbToOklch, TONE_TI
 import { pixelContrast, pixelSurface } from "@orb/testkit/browser/spec";
 import { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/test";
-import type { NestedSeedStory, ReadingBandStory, SemanticContrastStory, ToneHueStory, ToneMarkStory, ToneRoleContrastStory } from "./_contrast-stories.tsx";
+import type {
+  NestedSeedStory,
+  ReadingBandStory,
+  SelectedRowStory,
+  SemanticContrastStory,
+  ToneHueStory,
+  ToneMarkStory,
+  ToneRoleContrastStory,
+} from "./_contrast-stories.tsx";
 
 import { BASES, keepsHue, MID_GREY } from "./contrast-cases.ts";
 
@@ -95,6 +103,14 @@ test("a custom mid-grey page keeps every colored tone's hue in its painted text,
     }
   }
   expect(lost).toEqual([]);
+});
+
+test("a selected row's label clears AA on its primary tint over a custom mid-grey page", async ({ mount, page }) => {
+  const component = await mount<typeof SelectedRowStory>("tests/ui/content/theme-scope/_contrast-stories/SelectedRowStory", { background: MID_GREY });
+  const label = component.getByText("Connections", { exact: true });
+  await expect(label).toBeVisible();
+  const receipt = await pixelContrast(page, label);
+  expect(receipt.ratio, receipt.describe).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
 });
 
 test("a seed palette nested inside a custom mid-grey scope paints its own tone roles", async ({ mount, page }) => {

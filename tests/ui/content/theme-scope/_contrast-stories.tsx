@@ -1,5 +1,6 @@
 import { CtIsolation } from "@orb/testkit/browser";
 import { Card } from "@orb/ui/card";
+import { ListRow } from "@orb/ui/list-row";
 import { TrackBar } from "@orb/ui/meter";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ToneRole } from "@orb/ui/tokens";
@@ -180,6 +181,19 @@ export function NestedSeedStory({ background }: { readonly background: string })
         <section data-nest="carried">
           <SeedRoleSamples />
         </section>
+      </ThemeScope>
+    </CtIsolation>
+  );
+}
+
+/** A selected navigation row inside a custom ThemeScope on `background`: its label keeps the page ink on the primary tint. */
+export function SelectedRowStory({ background }: { readonly background: string }): ReactElement {
+  return (
+    <CtIsolation subject="Selected ListRow" isolates="The selection rail's tint under a custom ThemeScope">
+      <ThemeScope tokens={{ background }} ambientBackground={TOKENS["color.background"].value} ambientAccent={TOKENS["color.primary"].value}>
+        <div style={{ backgroundColor: "var(--color-background)", padding: "1rem", inlineSize: "20rem" }}>
+          <ListRow title="Connections" clickable={true} selected={true} />
+        </div>
       </ThemeScope>
     </CtIsolation>
   );

@@ -1574,20 +1574,22 @@ export function carriedLiteralRoles<Role extends string, Knob extends string, Ho
 /**
  * A tint on the tone's hue: the default mix's lightness and the tone's share of chroma, raised to the tint's least
  * chroma (scaled by its step over the weakest tint, so a stronger tint stays stronger). The nearest lightness, away
- * from the page ink first, that keeps that chroma, sits {@link TONE_TINT_SEPARATION} off the page and lets the page
- * ink's endpoint clear the AA floor wins; where the gamut holds no such chroma, the nearest that keeps the rest. The
- * endpoint is the page ink's own side, so every tint of a tone takes one ink and none crosses the black/white pivot.
+ * from the page ink first, that keeps that chroma, sits {@link TONE_TINT_SEPARATION} off the page and lets the page ink
+ * itself clear the text floor wins; where the gamut holds no such chroma, the nearest that keeps the rest.
+ *
+ * The page ink is judged, not only the tone's `text-on-tint`, because a selected row, an active tab and a compare panel
+ * keep the page ink on a tint (D336). Its aim is the page's own pair, capped at the derivation ratio and never below the
+ * floor; the page ink's end point clears whatever the page ink clears, so `text-on-tint` always has a solution too.
  */
 function solveTint<Host extends string>(palette: TonePalette<Host>, base: Oklch, percent: number, weakestPercent: number): Oklch {
   const { background, foreground } = palette;
   const floorChroma = Math.min(base.c, (TONE_TINT_MIN_CHROMA * percent) / weakestPercent);
   const chroma = Math.max((base.c * percent) / PERCENT, floorChroma);
-  const darkInk = foreground.l < background.l;
-  const endpoint = darkInk ? BLACK : WHITE;
+  const pageInkAim = Math.max(AA_NORMAL_RATIO, Math.min(AA_NORMAL_DERIVATION_RATIO, toneContrast(foreground, background)));
   let nearest: Oklch | undefined;
-  for (const l of lightnessWalk(mixOklab(base, percent, background).l, darkInk ? 1 : -1)) {
+  for (const l of lightnessWalk(mixOklab(base, percent, background).l, foreground.l < background.l ? 1 : -1)) {
     const candidate = onHue(l, chroma, base.h);
-    if (paintedDistance(candidate, background) < TONE_TINT_SEPARATION || toneContrast(endpoint, candidate) < AA_NORMAL_RATIO) {
+    if (paintedDistance(candidate, background) < TONE_TINT_SEPARATION || toneContrast(foreground, candidate) < pageInkAim) {
       continue;
     }
     if (candidate.c >= floorChroma - CHROMA_TOLERANCE) {
