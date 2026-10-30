@@ -1,14 +1,8 @@
-// ECharts renders to Canvas, where `var(--token)` does not resolve — chart chrome colors (axis
-// labels, grid lines, palette) must be CONCRETE values. This hook resolves each DTCG chrome token
-// through the shared live-token-resolver seam (`#lib`'s `createLiveTokenStore`/`resolveCssVar`) — a
-// getComputedStyle read on the app's marked resolution root (`LIVE_TOKEN_ROOT_ATTRIBUTE`, the shell grid a
-// chart paints inside — NOT `documentElement`, whose palette a custom theme never touches, #504), re-read
-// via the seam's MutationObserver over the three channels that can move a token (the list and its coverage
-// audit are the seam's, not this consumer's), so a Light/Dark flip, a colorization flip (#503, which
-// re-declares `--color-border` — this hook's `axisLine`) OR a custom-theme flip repaints the chart instead
-// of baking a stale literal.
+// ECharts paints to Canvas, where `var(--token)` does not resolve, and interpolates colors (VisualMap ramps,
+// emphasis) through zrender's sRGB-only parser, which reads OKLCH as black. Every governed color therefore
+// reaches the renderer as the engine-painted `rgba()` of its cascade value (`resolveCanvasColor`).
 import { useSyncExternalStore } from "react";
-import { createLiveTokenStore, resolveCssColor, resolveCssLength, resolveCssVar } from "#lib";
+import { createLiveTokenStore, resolveCanvasColor, resolveCssLength, resolveCssVar } from "#lib";
 import { LENGTH_BASE_PX, TOKEN_POLARITY_ARMS, TOKENS } from "#tokens";
 
 const CHART_LENGTHS = {
@@ -84,7 +78,7 @@ function resolveRamp(resolve: (token: { readonly cssVar: string; readonly value:
 }
 
 function resolveColor(token: { readonly cssVar: string; readonly value: string }): string {
-  return resolveCssVar(token.cssVar, token.value);
+  return resolveCanvasColor(token.cssVar, token.value);
 }
 
 function resolveChartColors(): ChartColors {
@@ -92,18 +86,14 @@ function resolveChartColors(): ChartColors {
     metrics: chartMetrics((path) => resolveCssLength(TOKENS[path].cssVar, LENGTH_BASE_PX[path])),
     fontFamily: resolveCssVar(TOKENS["font.sans"].cssVar, TOKENS["font.sans"].value),
     fontWeight: Number(resolveCssVar(TOKENS["font-weight.medium"].cssVar, TOKENS["font-weight.medium"].value)),
-    area: resolveCssColor(TOKENS["color.accent"].cssVar, TOKENS["color.accent"].value),
-    // Chart tokens are polarity-aware too: Canvas needs the cascade-resolved concrete arm, never the
-    // raw light-dark() token stream returned by getPropertyValue.
-    series: resolveCssColor(CHROME_TOKENS.series.cssVar, CHROME_TOKENS.series.value),
-    // Through the CASCADE, not through the custom property: these two are `light-dark()` tokens (D71), and
-    // a raw `getPropertyValue` hands back the literal `light-dark(...)` string, which canvas cannot paint.
-    seriesPositive: resolveCssColor(CHROME_TOKENS.seriesPositive.cssVar, CHROME_TOKENS.seriesPositive.value),
-    seriesNegative: resolveCssColor(CHROME_TOKENS.seriesNegative.cssVar, CHROME_TOKENS.seriesNegative.value),
+    area: resolveColor(TOKENS["color.accent"]),
+    series: resolveColor(CHROME_TOKENS.series),
+    seriesPositive: resolveColor(CHROME_TOKENS.seriesPositive),
+    seriesNegative: resolveColor(CHROME_TOKENS.seriesNegative),
     axisLabel: resolveColor(CHROME_TOKENS.axisLabel),
     axisLabelMuted: resolveColor(CHROME_TOKENS.axisLabelMuted),
     axisLine: resolveColor(CHROME_TOKENS.axisLine),
-    palette: resolveRamp((token) => resolveCssColor(token.cssVar, token.value)),
+    palette: resolveRamp(resolveColor),
   };
 }
 

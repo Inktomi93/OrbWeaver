@@ -33,6 +33,18 @@ interface LiveResolverProbeElement {
   readonly style: { color: string; position: string; paddingLeft: string };
   readonly remove: () => void;
 }
+/** A one-pixel 2D canvas the engine paints a resolved color into, so it converts every form it computes. */
+interface LiveResolverPaintCanvas {
+  width: number;
+  height: number;
+  readonly getContext: (contextId: "2d", settings: { readonly willReadFrequently: boolean }) => LiveResolverPaintContext | null;
+}
+interface LiveResolverPaintContext {
+  fillStyle: string;
+  readonly clearRect: (x: number, y: number, width: number, height: number) => void;
+  readonly fillRect: (x: number, y: number, width: number, height: number) => void;
+  readonly getImageData: (x: number, y: number, width: number, height: number) => { readonly data: ArrayLike<number> };
+}
 interface LiveResolverComputedStyle {
   readonly getPropertyValue: (property: string) => string;
 }
@@ -50,7 +62,7 @@ interface LiveResolverGlobals {
     readonly documentElement?: LiveResolverRootElement;
     readonly body?: LiveResolverRootElement;
     readonly head?: LiveResolverRootElement;
-    readonly createElement?: (tagName: string) => LiveResolverProbeElement;
+    readonly createElement?: ((tagName: "canvas") => LiveResolverPaintCanvas) & ((tagName: "span") => LiveResolverProbeElement);
     readonly querySelector?: (selectors: string) => LiveResolverRootElement | null;
     readonly fonts?: {
       readonly addEventListener: (event: "loadingdone", listener: () => void) => void;
@@ -106,23 +118,10 @@ export function resolveCssVar(cssVar: string, fallback: string): string {
   return resolved === "" ? fallback : resolved;
 }
 
-/**
- * Resolve a token that must be a CONCRETE COLOR for a canvas / foreign realm.
- *
- * `resolveCssVar` returns a custom property's raw TOKEN STREAM, which for the 9 semantic-intent tokens
- * (D71 — they are `light-dark(<light>, <dark>)` literals) is a string no canvas can paint. Measured
- * 2026-08-19: `--color-destructive` reads back `light-dark(oklch(50% .19 25), oklch(65% .19 25))` through
- * `getPropertyValue`, while the SAME var resolves to `oklch(0.65 0.19 25)` once it flows through a real
- * `color` declaration. So this makes the cascade do the resolution: a probe element takes
- * `color: var(--token)` and its computed `color` is read back.
- *
- * The probe must be ATTACHED — computed style on a detached node is empty (a documented trap in this repo)
- * — and it attaches INSIDE the resolution root (#504), or it would resolve the root's cascade position
- * rather than the consumer's. `position: fixed` is not decoration: the marked root is a CSS GRID, and an
- * in-flow probe would open an implicit track for the lifetime of the read.
- * Falls back exactly like `resolveCssVar`: no DOM, or an unresolvable/empty read, yields `fallback`.
- */
-export function resolveCssColor(cssVar: string, fallback: string): string {
+// A color token through the cascade, not the custom property: `getPropertyValue` returns the token stream
+// (`light-dark(...)`, D71), while a probe's computed `color` is concrete. The probe must be attached, inside the
+// resolution root, and fixed so it opens no track in the root's grid. No DOM or an empty read yields `fallback`.
+function resolveCssColor(cssVar: string, fallback: string): string {
   const host = markedRoot() ?? liveResolverGlobals.document?.body ?? liveResolverGlobals.document?.documentElement;
   const probe = liveResolverGlobals.document?.createElement?.("span");
   if (host?.append === undefined || probe === undefined || liveResolverGlobals.getComputedStyle === undefined) {
@@ -134,6 +133,55 @@ export function resolveCssColor(cssVar: string, fallback: string): string {
   const resolved = liveResolverGlobals.getComputedStyle(probe).getPropertyValue("color").trim();
   probe.remove();
   return resolved === "" ? fallback : resolved;
+}
+
+const CHANNEL_MAX = 255;
+// A fill value the engine rejects leaves `fillStyle` unchanged. Two distinct sentinels tell a rejection from
+// a color that happens to equal one of them, so a rejected value can never repaint the previous role's color.
+const FILL_SENTINELS = ["#010203", "#030201"] as const;
+let paintContext: LiveResolverPaintContext | null = null;
+
+// One CPU-backed pixel, created on first use. willReadFrequently keeps it off the accelerated canvas path.
+function canvasPaintContext(): LiveResolverPaintContext | null {
+  if (paintContext === null) {
+    const canvas = liveResolverGlobals.document?.createElement?.("canvas");
+    if (canvas !== undefined) {
+      canvas.width = 1;
+      canvas.height = 1;
+      paintContext = canvas.getContext("2d", { willReadFrequently: true });
+    }
+  }
+  return paintContext;
+}
+
+/**
+ * Resolve a color token to the `rgba()` the engine itself paints for it on a 2D canvas.
+ *
+ * @remarks
+ * A canvas library that interpolates colors in script (zrender, behind every ECharts chart) parses only legacy
+ * sRGB, while the cascade serializes OKLCH, Lab, `color()` and `none` hues. Painting the cascade-resolved color
+ * into one pixel and reading it back lets the engine convert every form it can compute, with its own gamut
+ * handling, so no computed color is left unconvertible. Without a DOM or a 2D canvas, or for a value the
+ * canvas rejects, it yields `fallback`.
+ */
+export function resolveCanvasColor(cssVar: string, fallback: string): string {
+  const context = canvasPaintContext();
+  if (context === null) {
+    return fallback;
+  }
+  const color = resolveCssColor(cssVar, fallback);
+  const accepted = FILL_SENTINELS.some((sentinel) => {
+    context.fillStyle = sentinel;
+    context.fillStyle = color;
+    return context.fillStyle !== sentinel;
+  });
+  if (!accepted) {
+    return fallback;
+  }
+  context.clearRect(0, 0, 1, 1);
+  context.fillRect(0, 0, 1, 1);
+  const [r = 0, g = 0, b = 0, alpha = 0] = Array.from(context.getImageData(0, 0, 1, 1).data);
+  return `rgba(${String(r)}, ${String(g)}, ${String(b)}, ${String(alpha / CHANNEL_MAX)})`;
 }
 
 /** Resolve a dimension through the browser, including owner-authored calc(), rem scaling and the pixel belt. */
