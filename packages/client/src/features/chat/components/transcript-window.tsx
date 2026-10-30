@@ -92,7 +92,9 @@ function OrdinaryHistory({ tail, ...props }: TranscriptWindowProps & { readonly 
         </Row>
       ) : null}
       {pages.isError ? <QueryErrorState label="conversation history" onRetry={pages.refetch} /> : null}
-      {props.render(mergePages([...pages.data.pages, tail]), null, { earlier: pages.hasPreviousPage, later: pages.hasNextPage })}
+      {/* The merged list ends at the live tail, which wins every overlap: nothing exists after its last row. `hasNextPage`
+          only describes the bridge from older pages up to that tail, and reads true while the tail is catching up. */}
+      {props.render(mergePages([...pages.data.pages, tail]), null, { earlier: pages.hasPreviousPage, later: false })}
     </Stack>
   );
 }

@@ -14,8 +14,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useId } from "react";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
+import { notify } from "#lib";
 import { isLiveTurnPhase, useTurnPhase } from "#state";
-import { MESSAGE_MOVE_DOWN_NAME, MESSAGE_MOVE_UP_NAME } from "../lib/message-action-names.ts";
+import { MESSAGE_MOVE_DOWN_NAME, MESSAGE_MOVE_FAILED, MESSAGE_MOVE_NEIGHBOUR_GONE, MESSAGE_MOVE_UP_NAME } from "../lib/message-action-names.ts";
 import type { MoveNeighbours } from "../lib/move-neighbours.ts";
 import { moveReasons } from "../lib/move-neighbours.ts";
 
@@ -28,7 +29,7 @@ interface MoveVars {
 const useMoveMessageMutation = createEntityMutation<MoveVars, unknown>({
   options: (trpc) => trpc.chat.moveMessage.mutationOptions(),
   busDriven: true,
-  errorToast: "Couldn't move that message.",
+  errorToast: MESSAGE_MOVE_FAILED,
 });
 
 export interface MessageMoveArrowsProps {
@@ -54,21 +55,39 @@ export function MessageMoveArrows({ message, neighbours }: MessageMoveArrowsProp
     const page = await queryClient.query({
       ...trpc.chat.listMessages.queryOptions({ chatId: message.chatId, cursor: { kind: direction, seq: message.seq }, limit: 1 }),
       staleTime: 0,
+      // The click is a one-shot gesture: a failed read is reported at once rather than retried behind a silent wait.
+      retry: false,
     });
     return (direction === "before" ? page.messages.at(-1) : page.messages[0])?.seq ?? null;
+  };
+
+  /** The neighbour's seq, or null after telling the reader why there is none: a failed read and a neighbour that
+   *  is gone since the row rendered both stop the move visibly, never silently. */
+  const readUnloadedNeighbour = async (direction: "before" | "after"): Promise<number | null> => {
+    let seq: number | null;
+    try {
+      seq = await unloadedNeighbourSeq(direction);
+    } catch {
+      notify.error(MESSAGE_MOVE_FAILED);
+      return null;
+    }
+    if (seq === null) {
+      notify.error(MESSAGE_MOVE_NEIGHBOUR_GONE);
+    }
+    return seq;
   };
 
   const moveTo = async (direction: "before" | "after", loadedSeq: number | null): Promise<void> => {
     if (generating || move.isPending) {
       return;
     }
-    const toSeq = loadedSeq ?? (await unloadedNeighbourSeq(direction));
+    const toSeq = loadedSeq ?? (await readUnloadedNeighbour(direction));
     if (toSeq === null) {
       return;
     }
     await move.mutateAsync({ chatId: message.chatId, messageId: message.id, toSeq });
   };
-  // the rejection comes from `useMoveMessageMutation`'s mutateAsync, whose errorToast is the surface; a failed neighbour read reaches the global reporter.
+  // the rejection comes from `useMoveMessageMutation`'s mutateAsync, whose errorToast is the surface; the neighbour read below reports its own failure.
   const run = (direction: "before" | "after", loadedSeq: number | null): void => void moveTo(direction, loadedSeq).catch(globalThis.reportError);
 
   return (

@@ -1,14 +1,16 @@
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { ChatId, MessageId, UserId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import {
   MESSAGE_EDIT_NAME,
   MESSAGE_MOVE_DOWN_NAME,
+  MESSAGE_MOVE_FAILED,
   MESSAGE_MOVE_GENERATING,
+  MESSAGE_MOVE_NEIGHBOUR_GONE,
   MESSAGE_MOVE_UP_NAME,
   MESSAGE_REASONING_CLEAR_CONFIRM,
   MESSAGE_REASONING_CLEAR_NAME,
@@ -121,12 +123,22 @@ async function memberRoom(
   return { chatId, viewer, ownLine: ownLine.id, hostLine: hostLine.id };
 }
 
-/** Serve the browser's reads and writes from `viewer`'s own caller, so the room answers as that principal. */
-async function serveAs(root: Harness, page: Page, viewer: Caller): Promise<void> {
+/** Serve the browser's reads and writes from `viewer`'s own caller, so the room answers as that principal. With
+ *  `neighbourRead`, the one-row cursor read a Move arrow makes for an unloaded neighbour gets that answer instead. */
+async function serveAs(root: Harness, page: Page, viewer: Caller, neighbourRead?: () => unknown): Promise<void> {
   const auth = await root.http.request("/api/auth/config");
   const authBody = await auth.text();
   await page.route("**/api/auth/config", (route) => route.fulfill({ contentType: "application/json", body: authBody }));
-  await routeTrpc(page, serveCorpusProcedures(viewer, PROCEDURES));
+  const served = serveCorpusProcedures(viewer, PROCEDURES);
+  const listMessages = served["chat.listMessages"];
+  if (typeof listMessages !== "function") {
+    throw new Error("The served chat.listMessages route is a scripted answer, not a caller");
+  }
+  await routeTrpc(page, {
+    ...served,
+    "chat.listMessages": (input) =>
+      neighbourRead !== undefined && input.limit === 1 && input.cursor?.kind === "before" ? (neighbourRead() as never) : listMessages(input),
+  });
 }
 
 const storyProps = (chatId: ChatId): Parameters<typeof RoomTranscriptStory>[0] => ({
@@ -208,6 +220,45 @@ test("the first loaded row moves up when older history exists beyond the loaded 
     .poll(async () => (await host.chat.listMessages({ chatId, cursor: { kind: "after", seq: predecessor.seq - 1 }, limit: 2 })).messages.map((m) => m.id))
     .toEqual([first.id, predecessor.id]);
 });
+
+// The neighbour read is the one step of a move that can fail before the server's own refusal path; it must tell the reader.
+const NEIGHBOUR_READ_FAILURES = [
+  { name: "fails", toast: MESSAGE_MOVE_FAILED, answer: (): unknown => trpcError() },
+  // A real server page for a cursor before the first row: the neighbour is gone since the row rendered.
+  { name: "comes back empty", toast: MESSAGE_MOVE_NEIGHBOUR_GONE, answer: (empty: unknown): unknown => empty },
+] as const;
+
+for (const failure of NEIGHBOUR_READ_FAILURES) {
+  test(`the first loaded row's Move up says so and changes nothing when its neighbour read ${failure.name}`, async ({ mount, page, corpusMedia }) => {
+    await using root = await createCorpusHarness();
+    const { chatId, host, first } = await pagedRoom(root);
+    const predecessor = (await host.chat.listMessages({ chatId, cursor: { kind: "before", seq: first.seq }, limit: 1 })).messages.at(-1);
+    if (predecessor === undefined) {
+      throw new Error("The paged room has no row before its first loaded row");
+    }
+    const beforeStart = JSON.parse(JSON.stringify(await host.chat.listMessages({ chatId, cursor: { kind: "before", seq: 0 }, limit: 1 }))) as unknown;
+    expect((beforeStart as { readonly messages: readonly unknown[] }).messages).toEqual([]);
+    await serveAs(root, page, host, () => failure.answer(beforeStart));
+    await corpusMedia();
+    await mount<typeof RoomTranscriptStory>(STORY, storyProps(chatId));
+
+    const row = page.locator(`[data-message-id="${first.id}"]`);
+    const scroller = page.locator('[data-slot="message-list-scroll"]');
+    await expect
+      .poll(async () => {
+        await scroller.evaluate((element) => {
+          element.scrollTop = 0;
+        });
+        return await row.count();
+      })
+      .toBe(1);
+    const editing = await enterEdit(page, first.id);
+    await upArrow(editing).click();
+    await expect(page.getByText(failure.toast, { exact: true }).first()).toBeVisible();
+    const adjacent = (await host.chat.listMessages({ chatId, cursor: { kind: "after", seq: predecessor.seq - 1 }, limit: 2 })).messages.map((m) => m.id);
+    expect(adjacent).toEqual([predecessor.id, first.id]);
+  });
+}
 
 test("the arrows disable while a turn is generating in the room", async ({ mount, page, corpusMedia }) => {
   await using root = await createCorpusHarness();

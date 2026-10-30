@@ -58,6 +58,10 @@ export const MESSAGE_MOVE_UP_UNAVAILABLE = "No message above this one.";
 export const MESSAGE_MOVE_DOWN_UNAVAILABLE = "No message below this one.";
 export const MESSAGE_MOVE_GENERATING = "Wait for the reply to finish.";
 
+/** The toasts a move that stopped before it reached the server raises, and the one its server refusal shares. */
+export const MESSAGE_MOVE_FAILED = "Couldn't move that message.";
+export const MESSAGE_MOVE_NEIGHBOUR_GONE = "That message moved. Try again.";
+
 /** The settled reasoning block's author-or-host controls (`message-reasoning.tsx`). The field and its door share
  *  one name for the reason `MESSAGE_EDIT_NAME` gives: the door is hidden while the field is open. */
 export const MESSAGE_REASONING_EDIT_NAME = "Edit reasoning";
