@@ -1,10 +1,10 @@
 ---
 kind: work
-status: doing
+status: blocked
 updated: 2026-10-30
 priority: P1
 area: testing
-lane: surface_walk
+blocked: on 1421
 plan: surface-walk
 ---
 
