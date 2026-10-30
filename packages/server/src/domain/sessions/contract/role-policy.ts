@@ -1,4 +1,5 @@
 import type { UserRole } from "@orb/contracts/identity";
+import type { IsReservedSignupHandleOp } from "@orb/contracts/session";
 import type { Handle } from "@orb/kit/ids";
 import type { Env, EnvKey } from "#foundation/env/record";
 import type { IdentityAccess } from "./results.ts";
@@ -20,7 +21,7 @@ export type SessionsRolePolicyConfig = Readonly<Pick<Env, (typeof ROLE_POLICY_EN
 export interface SessionsRolePolicy {
   readonly ownerHandles: () => readonly string[];
   readonly isOwnerSeedHandle: (handle: Handle) => boolean;
-  readonly isReservedSignupHandle: (handle: Handle) => boolean;
+  readonly isReservedSignupHandle: IsReservedSignupHandleOp;
   readonly isOwnerByPolicy: (handle: Handle, groups: readonly string[]) => boolean;
   readonly isOwnerGroupMember: (groups: readonly string[]) => boolean;
   readonly determineRole: (handle: Handle, groups: readonly string[]) => UserRole;

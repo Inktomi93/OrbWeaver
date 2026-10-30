@@ -9,6 +9,7 @@
   "sideEffects": false,
   "exports": {
     ".": "./src/index.ts",
+    "./admin": "./src/admin/index.ts",
     "./assets": "./src/assets/index.ts",
     "./auth-config": "./src/auth-config/index.ts",
     "./automation": "./src/automation/index.ts",

@@ -4,13 +4,12 @@
 // the row. No emit here — the character verb fires charactersChanged.
 
 import { normalizeTagName } from "@orb/kit/tag";
-import type { DetachCardTagByNameParams } from "../contract/params.ts";
 import type { TagContext, TagService } from "../contract/service.ts";
 import { detachCharacterTag } from "../persistence/junctions.ts";
 import { findTagIdByName } from "../persistence/queries.ts";
 
 export function createDetachCardTagByName(ctx: TagContext): TagService["detachCardTagByName"] {
-  return async ({ ownerId, characterId, tagName }: DetachCardTagByNameParams): Promise<boolean> => {
+  return async ({ ownerId, characterId, tagName }) => {
     const name = normalizeTagName(tagName);
     if (name === "") {
       return false;

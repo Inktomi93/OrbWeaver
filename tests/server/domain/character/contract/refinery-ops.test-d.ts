@@ -1,7 +1,8 @@
 // @subject packages/server/src/domain/character/contract/refinery-ops.ts
+import type { CountRefineryScoreTargetsOp, ListRefineryScoreTargetsOp } from "@orb/contracts/character";
 import type { EveryOwnerEstimate, EveryOwnerRun, WorkloadEstimateScope, WorkloadRunScope } from "@orb/contracts/workloads";
 import type { UserId } from "@orb/kit/ids";
-import type { CountRefineryScoreTargetsOp, createCountRefineryScoreTargets, ListRefineryScoreTargetsOp } from "@orb/server/domain/character";
+import type { createCountRefineryScoreTargets } from "@orb/server/domain/character";
 import { expectTypeOf, test } from "vitest";
 
 test("null and estimate scope cannot authorize refinery target execution", () => {

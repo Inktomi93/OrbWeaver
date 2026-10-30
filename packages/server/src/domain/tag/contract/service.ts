@@ -2,6 +2,7 @@
 // (the DI bundle), and TagService (the verb interface). Tag verbs gate on owner-equality scoping; the
 // chat-tag junction additionally routes through the injected `requireParticipant` since chats have no owner.
 
+import type { DetachCardTagOp } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import type { TagAttachedEntity, TagFilterVocabularyEntry, TagReachView, TagSuggestionView, TagTargetRef, TagView, TagWithUsage } from "@orb/contracts/tag";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
@@ -16,7 +17,6 @@ import type {
   AttachTagParams,
   BulkAttachTagParams,
   CreateTagParams,
-  DetachCardTagByNameParams,
   DetachTagParams,
   ListAttachedEntitiesParams,
   ListPendingSuggestionsParams,
@@ -85,5 +85,5 @@ export interface TagService {
   readonly attachChatTagByName: (params: AttachChatTagByNameParams) => Promise<boolean>;
   /** Resolve the owner's tag by name (case-insensitive, no create) and detach it from the character.
    *  Idempotent on absent. The tag row itself survives a detach. Not principal-gated. */
-  readonly detachCardTagByName: (params: DetachCardTagByNameParams) => Promise<boolean>;
+  readonly detachCardTagByName: DetachCardTagOp;
 }

@@ -21,14 +21,13 @@
 // belt-14 write's WITNESS, not its prelude, so a `CHARACTER_STALE_BASIS` refusal deletes exactly that row
 // before re-throwing — see the catch around `ctx.updateCharacter` below.
 
-import type { CharacterCard } from "@orb/contracts/character";
+import type { CardWriteBasis, CharacterCard } from "@orb/contracts/character";
 import { CHARACTER_STALE_BASIS_OP_CODE, updateCharacterSchema } from "@orb/contracts/character";
 import type { RefinableField } from "@orb/contracts/refinery";
 import { refinerySessions } from "@orb/db";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { RefinerySessionId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import type { CardWriteBasis } from "#domain/character";
 import type { CardIdentityField } from "#primitives/serde/card";
 import { cardContentHash } from "#primitives/serde/card";
 import { RefinerySessionCompletedError } from "../contract/errors.ts";

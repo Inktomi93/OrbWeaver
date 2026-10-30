@@ -3,7 +3,7 @@
 // cross-feature/infra dep arrives as an injected op — admin sideways-imports nothing.
 
 import type { Principal, UserRole } from "@orb/contracts/identity";
-import type { SessionAdminView, SettleUnclaimedLink } from "@orb/contracts/session";
+import type { IsReservedSignupHandleOp, RevokeAllSessionsForUserOp, SessionAdminView, SettleUnclaimedLink } from "@orb/contracts/session";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/query";
@@ -41,7 +41,7 @@ import type {
 interface SessionAdminPort {
   readonly listForUser: (userId: UserId) => Promise<readonly SessionAdminView[]>;
   readonly revoke: (sessionId: SessionId) => Promise<void>;
-  readonly revokeAllForUser: (userId: UserId) => Promise<number>;
+  readonly revokeAllForUser: RevokeAllSessionsForUserOp;
   /** #1691 — the UNEXECUTED kick-all, so a credential/authority write can commit its own session kick in ONE
    *  batch instead of awaiting it afterwards (a failed tail used to leave the NEW password live beside the
    *  OLD sessions). Canonical home `domain/sessions`; admin only orders the statements. */
@@ -74,7 +74,7 @@ interface SessionAdminPort {
   }) => AwaitableBatchStmt<{ readonly id: UserId }[]>;
   /** D258 — is this handle an `OWNER_HANDLES` seed key or a look-alike of one? Boot's seedOwner resolves the owner row
    *  by that key, so no admin mint may hold it. Canonical home domain/sessions (`isReservedSignupHandle`). */
-  readonly isReservedHandle: (handle: Handle) => boolean;
+  readonly isReservedHandle: IsReservedSignupHandleOp;
 }
 
 type SessionStatementWiring = Pick<SessionsService, "revokeAllForUserStatement" | "linkExternalIdStatement" | "localUserInsertStatement">;

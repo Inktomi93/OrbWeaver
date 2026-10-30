@@ -1,12 +1,12 @@
 // Workload service and runner contracts. Cross-feature capabilities arrive through injected operations.
 
+import type { IsAdmin, IsOwner, RequireOwner } from "@orb/contracts/admin";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
-import type { ModelCallEstimate, WorkloadLane, WorkloadRef } from "@orb/contracts/workloads";
+import type { ModelCallEstimate, StartWorkloadOp, WorkloadLane, WorkloadRef } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import type { Clock, TimerScheduler } from "@orb/kit/time";
-import type { IsAdmin, IsOwner, RequireOwner } from "#domain/admin";
 import type { AuditEntry, Logger, TraceRing } from "#foundation/observability";
 import type { WorkloadContributions } from "./contribution.ts";
 import type {
@@ -20,7 +20,6 @@ import type {
 } from "./params.ts";
 import type { WorkloadProgressBus } from "./progress-bus.ts";
 import type { WorkloadScheduleService } from "./schedule.ts";
-import type { StartWorkload } from "./start-op.ts";
 import type { WorkloadRowAnyKind, WorkloadRunnableRow } from "./workload-row.ts";
 
 /** Mint a fresh `WorkloadId` — the injected determinism seam. */
@@ -131,7 +130,7 @@ export interface BootReclaimArgs {
 
 /** The `WorkloadService` surface; every verb threads `caller` as the F3 authorization subject (`null` = trusted system trigger). */
 export interface WorkloadService extends WorkloadScheduleService {
-  readonly start: StartWorkload;
+  readonly start: StartWorkloadOp;
   readonly estimateModelCalls: (params: EstimateModelCallsParams) => Promise<ModelCallEstimate>;
   readonly estimateRetryModelCalls: (params: EstimateRetryModelCallsParams) => Promise<ModelCallEstimate>;
   readonly cancel: (params: CancelWorkloadParams) => Promise<CancelWorkloadResult>;
