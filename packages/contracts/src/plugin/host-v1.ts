@@ -934,6 +934,10 @@ export function isUiProxyableHostFunction(fn: string): fn is UiProxyableHostFunc
   return (UI_PROXYABLE_HOST_FUNCTIONS as readonly string[]).includes(fn);
 }
 
+/** The entries one plugin may own in one book through `worldInfo.upsertEntry`. Counted over the plugin's own title
+ *  namespace, so other plugins' and human entries never spend it; updating an owned entry is not growth. */
+export const PLUGIN_LORE_ENTRIES_PER_BOOK_MAX = 64;
+
 /** Per-field character ceiling before reduced canon, lore, search or event content enters a guest. */
 export const PLUGIN_READ_CONTENT_MAX_CHARS = 16_384;
 
