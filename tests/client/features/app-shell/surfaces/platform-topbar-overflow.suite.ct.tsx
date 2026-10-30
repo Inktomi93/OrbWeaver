@@ -14,10 +14,9 @@ import type { AppShellStory } from "./_app-shell-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;
-const CONTEXT = '.shell-panel[data-panel-side="context"]';
 const FONT_SCALE_PROPERTY = APPEARANCE_CHANNEL_ROWS.find((row) => row.key === "fontScale")?.name ?? "";
 const ENLARGED = 3;
-const TOGGLE = /^(?:Show|Hide) details$/u;
+const REPORT_BUG = "Report a bug";
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
 
@@ -59,14 +58,12 @@ test("an action leaves the topbar row for the menu as it narrows and returns as 
   await seedShellState(page, { activeSection: "chats" });
   await mount<typeof AppShellStory>(STORY, {});
   const trail = page.locator(".shell-topbar-trail");
-  const inline = trail.getByRole("button", { name: TOGGLE });
+  const inline = trail.getByRole("button", { name: REPORT_BUG });
   const trigger = trail.getByRole("button", { name: TRAIL_OVERFLOW_LABEL });
-  const context = page.locator(CONTEXT);
 
   // Room to spare: every action inline, the trigger reserved but not offered.
   await expect(inline).toBeVisible();
   await expect(trigger).toBeHidden();
-  await expect(context).toHaveAttribute("data-panel-mode", "collapsed");
 
   // Focus on the action that is about to leave the row moves to the trigger instead of dropping to the page.
   await inline.focus();
@@ -75,10 +72,11 @@ test("an action leaves the topbar row for the menu as it narrows and returns as 
   await expect(trigger).toBeFocused();
   await expect(inline).toBeHidden();
 
-  // The menu carries the same handler: Show details opens the pane the inline control would have.
+  // The menu carries the same handler: the entry opens the surface the inline control would have.
   await trigger.click();
-  await page.getByRole("menuitem", { name: "Show details", exact: true }).click();
-  await expect(context).not.toHaveAttribute("data-panel-mode", "collapsed");
+  await page.getByRole("menuitem", { name: REPORT_BUG, exact: true }).click();
+  await expect(page.getByRole("textbox", { name: "What happened?", exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
 
   await setScale(page, null);
   await expect(inline).toBeVisible();

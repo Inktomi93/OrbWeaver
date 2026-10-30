@@ -484,9 +484,10 @@ test.describe("an open named group room", () => {
       const pane = page.locator(CONTEXT);
       const header = pane.locator('[data-slot="context-bracket-header"]');
       const band = page.locator(`${LIST} .shell-panel-header`);
+      // The pane's skeleton row stands beside the resolved one until the chat's tabs arrive; the tablist is the settled state.
+      await expect(pane.getByRole("tablist")).toHaveCount(1);
       await expect(header).toBeVisible();
       await expect(band).toBeVisible();
-      await expect(pane.getByRole("tablist")).toHaveCount(1);
       await expect(header.getByRole("tablist")).toHaveCount(1);
       const bottom = async (locator: Locator): Promise<number> => {
         const found = await locator.boundingBox();

@@ -16,6 +16,15 @@
       grid-column: 1;
       grid-row: 1;
     }
+    /* The bar's own height (tab row plus the bottom inset) is the bottom inset a sheet opened from it keeps clear:
+     * the sheet and its scrim end above the bar, so the bar stays visible and its tab is the sheet's second tap. */
+    .shell-portal-root {
+      --drawer-bottom-inset: calc(var(--dimension-rail) + env(safe-area-max-inset-bottom, env(safe-area-inset-bottom)));
+    }
+    /* The room screen has no tab bar, so a sheet there runs to the floor. */
+    .shell-grid[data-room-screen] ~ .shell-portal-root {
+      --drawer-bottom-inset: 0px;
+    }
     /* The scrim spans the band between the topbar and the tab bar. */
     .shell-scrim {
       inset-block: var(--dimension-chrome-row) calc(var(--rail-w) + env(safe-area-max-inset-bottom, env(safe-area-inset-bottom)));
