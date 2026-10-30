@@ -1,90 +1,5 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "mcp__codegraph__.*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node",
-            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/codegraph-project.mjs"],
-            "timeout": 5
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Edit|Write|MultiEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node",
-            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/biome-check.mjs"],
-            "timeout": 30
-          }
-        ]
-      }
-    ],
-    "WorktreeCreate": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/worktree-setup.sh",
-            "timeout": 300,
-            "statusMessage": "Creating worktree + installing deps"
-          }
-        ]
-      }
-    ],
-    "WorktreeRemove": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/worktree-remove.sh",
-            "timeout": 120,
-            "statusMessage": "Removing worktree"
-          }
-        ]
-      }
-    ],
-    "SessionStart": [
-      {
-        "matcher": "startup|resume|compact|clear",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-onboard.sh",
-            "timeout": 60
-          },
-          {
-            "type": "command",
-            "command": "node",
-            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/orchestrator-inject.mjs", "1"],
-            "timeout": 10
-          },
-          {
-            "type": "command",
-            "command": "node",
-            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/orchestrator-inject.mjs", "2"],
-            "timeout": 10
-          },
-          {
-            "type": "command",
-            "command": "node",
-            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/orchestrator-inject.mjs", "3"],
-            "timeout": 10
-          }
-        ]
-      }
-    ]
-  },
-  "worktree": {
-    "baseRef": "head"
-  },
   "permissions": {
     "allow": [
       "Bash(pnpm test)",
@@ -147,5 +62,115 @@
       "Bash(pnpm install *)",
       "Bash(rm -rf playwright/.cache)"
     ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "mcp__codegraph__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/codegraph-project.mjs"
+            ],
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/biome-check.mjs"
+            ],
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "WorktreeCreate": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/worktree-setup.sh",
+            "timeout": 300,
+            "statusMessage": "Creating worktree + installing deps"
+          }
+        ]
+      }
+    ],
+    "WorktreeRemove": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/worktree-remove.sh",
+            "timeout": 120,
+            "statusMessage": "Removing worktree"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|compact|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-onboard.sh",
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/orchestrator-inject.mjs",
+              "1"
+            ],
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/orchestrator-inject.mjs",
+              "2"
+            ],
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/orchestrator-inject.mjs",
+              "3"
+            ],
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  },
+  "worktree": {
+    "baseRef": "head"
+  },
+  "enabledPlugins": {
+    "ts7-lsp@orb-local": true,
+    "typescript-lsp@claude-plugins-official": false
+  },
+  "extraKnownMarketplaces": {
+    "orb-local": {
+      "source": {
+        "source": "directory",
+        "path": "./.claude/marketplace"
+      }
+    }
   }
 }
