@@ -1,6 +1,7 @@
 // `pnpm unwired ports` plans each restating member: derive through the owner's door, a kit type for a concept,
 // a contracts move across domains, a hand note where a derive would close an import cycle.
 import { expect, test } from "@orb/testkit/tooling";
+import type { PortTarget } from "../../../tooling/src/unwired/index.ts";
 import { portCensus } from "../../../tooling/src/unwired/index.ts";
 
 const SERVER = "packages/server/src";
@@ -138,40 +139,53 @@ const FORGOTTEN_HANDLE_TREE = {
     'import type { StatementToken } from "../../../../../db/src/wiring.ts";',
     "export type PlaceStatement = (id: string) => StatementToken;",
     "export type NotificationsEmitOp = (id: string, co?: readonly StatementToken[]) => Promise<void>;",
+    "export type HandoffRestampStatements = (chatId: string, pairs: readonly string[]) => readonly StatementToken[];",
   ].join("\n"),
+  [`${SERVER}/domain/alpha/contract/views.ts`]: "export interface AlphaView { readonly id: string; readonly name: string; }",
   [`${SERVER}/domain/alpha/index.ts`]: [
     'import type { NotificationsEmitOp, PlaceStatement } from "./contract/ops.ts";',
     "export declare const alpha: { readonly place: PlaceStatement; readonly emit: NotificationsEmitOp };",
   ].join("\n"),
   [`${SERVER}/domain/beta/contract/service.ts`]: [
     'import type { StatementToken } from "../../../../../db/src/wiring.ts";',
+    "type RestampHandoffDigestsOp = (chatId: string, pairs: readonly string[]) => readonly StatementToken[];",
+    "interface BetaRow { readonly id: string; readonly name: string; }",
     "export interface BetaContext {",
     "  readonly place: (id: string) => StatementToken;",
     "  readonly emit: (id: string, co?: readonly StatementToken[]) => Promise<void>;",
+    "  readonly restampHandoffDigests: RestampHandoffDigestsOp;",
+    "  readonly rows: readonly BetaRow[];",
     "}",
   ].join("\n"),
   [`${SERVER}/domain/beta/index.ts`]: 'export type { BetaContext } from "./contract/service.ts";',
   [`${SERVER}/entry/compose/beta.ts`]: [
     'import { alpha } from "#domain/alpha";',
     'import type { BetaContext } from "#domain/beta";',
-    "export const beta: BetaContext = { place: alpha.place, emit: alpha.emit };",
+    'export const beta: Omit<BetaContext, "restampHandoffDigests" | "rows"> = { place: alpha.place, emit: alpha.emit };',
   ].join("\n"),
 };
 
-test("a forgotten door export carrying a db handle never reports move-to-contracts", { timeout: 120_000 }, async ({ plantedTree }) => {
+const typeTargets = (targets: readonly PortTarget[], name: string): readonly Pick<PortTarget, "kind" | "note">[] =>
+  targets.filter(({ form, members }) => form === "type" && members[0] === name).map(({ kind, note }) => ({ kind, note }));
+
+test("a handle-carrying type reports ruled only when it resolves to an op the ledger names", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(FORGOTTEN_HANDLE_TREE);
   const { targets } = portCensus(root, () => undefined);
-  const forgotten = targets.filter(({ form }) => form === "type").map(({ kind, members, note }) => ({ kind, members, note }));
-  expect(forgotten).toEqual([
-    {
-      kind: "db-handle-review",
-      members: ["PlaceStatement"],
-      note: expect.stringContaining("@orb/db: StatementToken; ruling: unruled"),
-    },
-    {
-      kind: "split",
-      members: ["NotificationsEmitOp"],
-      note: expect.stringContaining("ruling: D337"),
-    },
+  // Unruled: no name of the op is in the ledger tuple, and contracts can never hold its handle.
+  expect(typeTargets(targets, "PlaceStatement")).toEqual([
+    { kind: "db-handle-review", note: expect.stringContaining("@orb/db: StatementToken; ruling: unruled") },
   ]);
+  // Ruled by its own name, as D337's table writes it.
+  expect(typeTargets(targets, "NotificationsEmitOp")).toEqual([{ kind: "ruled", note: expect.stringContaining("ruling: D337") }]);
+  // Ruled through the consumer's alias, which types the op member D337 names.
+  expect(typeTargets(targets, "HandoffRestampStatements")).toEqual([{ kind: "ruled", note: expect.stringContaining("ruling: D337") }]);
+});
+
+test("a look-alike reports distinct once the registry records the pair, and review before", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(FORGOTTEN_HANDLE_TREE);
+  const pair = { shape: `${SERVER}/domain/alpha/contract/views.ts#AlphaView`, distinctFrom: [`${SERVER}/domain/beta/contract/service.ts#BetaRow`] } as const;
+  const judged = portCensus(root, () => undefined, [{ ...pair, reason: "planted: two domains' rows that share only {id, name}" }]);
+  const unjudged = portCensus(root, () => undefined, []);
+  expect(typeTargets(unjudged.targets, "AlphaView")).toEqual([{ kind: "review", note: expect.stringContaining("same shape, no flow") }]);
+  expect(typeTargets(judged.targets, "AlphaView")).toEqual([{ kind: "distinct", note: expect.stringContaining("distinct by registry") }]);
 });

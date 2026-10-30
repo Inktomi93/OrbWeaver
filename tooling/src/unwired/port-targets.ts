@@ -6,10 +6,13 @@ import type { ForeignTypes } from "./foreign-types.ts";
 import { describeForeignTypes, passesDbHandle, runtimeTypes } from "./foreign-types.ts";
 import type { PortMember, Restatement } from "./restated-port.ts";
 import { placementOf, tierRank } from "./restated-port.ts";
-import { D337_RULING, isRuledJointBatchOp } from "./ruled-ops.ts";
+import { jointBatchRulingOf } from "./ruled-ops.ts";
 
-/** What a target asks its leg to do. The codemod applies {@link APPLIED_KINDS}; the others are judgment or hand work. */
+/** What a target asks its leg to do. The codemod applies {@link APPLIED_KINDS}; {@link INFORMATIONAL_KINDS} ask nothing;
+ *  the others are judgment or hand work. */
 export const TARGET_KINDS = [
+  "ruled",
+  "distinct",
   "derive",
   "derive-params",
   "concept",
@@ -27,6 +30,9 @@ export type TargetKind = (typeof TARGET_KINDS)[number];
 
 /** The kinds the derive codemod applies; every other kind is a leg's judgment or hand work. */
 export const APPLIED_KINDS: ReadonlySet<TargetKind> = new Set<TargetKind>(["derive", "derive-params", "concept", "add-door-export"]);
+
+/** The kinds that report a settled judgment and ask no work: a ledger-ruled joint batch, a registered distinct look-alike. */
+export const INFORMATIONAL_KINDS: ReadonlySet<TargetKind> = new Set<TargetKind>(["ruled", "distinct"]);
 
 /** The cluster legs, each owning one concept end to end: its owner and every consumer site. */
 export const CLUSTER_GROUPS = ["character-ops", "platform", "retrieval", "tool-registry", "remaining-derives", "other"] as const;
@@ -148,10 +154,13 @@ function groupOf(area: string, ownerFile: string, file: string): ClusterGroup | 
   return shared && editing !== null ? AREA_GROUPS.get(editing) : undefined;
 }
 
-const GROUP_REASONS = {
+// The kinds no cluster leg works, each with the reason it sits in `other`.
+const GROUP_REASONS: Partial<Readonly<Record<TargetKind, string>>> = {
   "db-handle-review": "the ledger rules each cross-domain db handle case on its own board item",
   review: "a shape-only match: a leg confirms one concept before any move",
-} as const satisfies Partial<Record<TargetKind, string>>;
+  ruled: "a ledger-ruled joint batch: its handle crosses by ruling, no work",
+  distinct: "a judged-distinct look-alike in distinct-lookalikes.ts, no work",
+};
 
 /** Place a target in its cluster by the area that owns its concept. */
 export function clustered(target: PlannedTarget): PortTarget {
@@ -160,8 +169,9 @@ export function clustered(target: PlannedTarget): PortTarget {
   const ownerFile = target.form === "export" ? target.file : (target.ownerAt.split(/[:,]/u)[0] ?? "");
   const area = ownerArea(ownerFile);
   const cluster = `${area}:${conceptName(target)}`;
-  if (target.kind === "db-handle-review" || target.kind === "review") {
-    return { ...target, cluster, clusterGroup: "other", groupReason: GROUP_REASONS[target.kind] };
+  const reason = GROUP_REASONS[target.kind];
+  if (reason !== undefined) {
+    return { ...target, cluster, clusterGroup: "other", groupReason: reason };
   }
   const group = groupOf(area, ownerFile, target.file);
   if (group !== undefined) {
@@ -237,27 +247,18 @@ export function rankOfKey(key: string): number {
   return placement === null ? Number.MAX_SAFE_INTEGER : tierRank(placement);
 }
 
-// The joint batches an earlier ledger row rules, by the owner member or imported name that hands a statement or handle
-// across domains. D337's ops are in `ruled-ops.ts`; every other db-handle pass is unruled: a defect to redesign.
-const DB_HANDLE_RULINGS: ReadonlyMap<string, string> = new Map([
-  ["SessionsService.signupUserStatement", "D259 (signup invite mints the account, persona and seat in one gated batch)"],
-  ["PendingSignupPlan.statements", "D259 (the OIDC pending-join confirm runs the same gated batch)"],
-  ["ChatRpgGameBirthPlan", "D264 (startChat births the game in chat's creation batch through rpg's planGameBirth)"],
-]);
-
-const rulingOf = (rulingKeys: readonly string[]): string | undefined =>
-  rulingKeys.some(isRuledJointBatchOp) ? D337_RULING : rulingKeys.map((key) => DB_HANDLE_RULINGS.get(key)).find((found) => found !== undefined);
-
+/** A handle pass is ruled when one of its keys (the op member, the type naming it, each alias it is typed by) is in
+ *  `ruled-ops.ts`; every other handle pass is a defect to redesign. */
 export function crossDomainKind(foreign: ForeignTypes, rulingKeys: readonly string[]): TargetKind {
-  if (passesDbHandle(foreign) && rulingOf(rulingKeys) === undefined) {
-    return "db-handle-review";
+  if (passesDbHandle(foreign)) {
+    return jointBatchRulingOf(rulingKeys) === null ? "db-handle-review" : "ruled";
   }
   return runtimeTypes(foreign).length > 0 ? "split" : "move-to-contracts";
 }
 
 export function crossDomainNote(kind: TargetKind, foreign: ForeignTypes, rulingKeys: readonly string[]): string {
-  const ruled = rulingOf(rulingKeys);
+  const ruled = passesDbHandle(foreign) ? jointBatchRulingOf(rulingKeys) : null;
   const unruled = kind === "db-handle-review" ? "ruling: unruled" : "";
-  const ruling = ruled === undefined ? unruled : `ruling: ${ruled}`;
+  const ruling = ruled === null ? unruled : `ruling: ${ruled}`;
   return [describeForeignTypes(foreign), ruling].filter((part) => part !== "").join("; ");
 }

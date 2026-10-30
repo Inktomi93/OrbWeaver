@@ -3,6 +3,8 @@
 // reference or an alias makes two shapes one concept; every target lands in the cluster of its concept's owner.
 import { relative } from "node:path";
 import ts from "typescript";
+import type { DistinctRegistry } from "./distinct-lookalikes.ts";
+import { DISTINCT_LOOKALIKES, isDistinctPair } from "./distinct-lookalikes.ts";
 import { ImportGraph } from "./doors.ts";
 import { aliased, foreignTypes, mergeForeignTypes, passesDbHandle } from "./foreign-types.ts";
 import type { ForgottenExport } from "./forgotten-exports.ts";
@@ -13,6 +15,7 @@ import type { Indexed, Pair, PlannedTarget, PortTarget, TargetKind } from "./por
 import { clustered, conceptOf, crossDomainKind, crossDomainNote, keyOf, legOf, lineOf } from "./port-targets.ts";
 import type { Flow, PortMember, TypeFlow } from "./restated-port.ts";
 import {
+  aliasChain,
   aliasOf,
   derivedMembers,
   flowMembers,
@@ -22,8 +25,10 @@ import {
   isHandTyped,
   placementOf,
   restatementOf,
+  rulingKeysOf,
   tierRank,
 } from "./restated-port.ts";
+import { jointBatchRulingOf } from "./ruled-ops.ts";
 import { createWorldProgram, isProduction, packageWorlds } from "./worlds.ts";
 
 interface WorldCount {
@@ -140,6 +145,8 @@ interface Collected {
   readonly reads: Map<string, Set<string>>;
   readonly crossImports: Map<string, PlannedTarget>;
   readonly forgotten: Map<string, ForgottenExport>;
+  /** An alias's declaration key to the members typed by it, through renames: the op members a type names. */
+  readonly typedBy: Map<string, Set<string>>;
 }
 
 function homeOf(checker: ts.TypeChecker, member: PortMember): Home {
@@ -165,6 +172,14 @@ function collectMemberFlow(context: LinkContext, flow: Flow, into: Collected): v
   into.homes.set(pair.owner, homeOf(checker, found.owner));
 }
 
+// `readonly copyHandoffBooks: CopyHandoffBooksOp`: the alias and each alias it renames name the op `copyHandoffBooks`.
+function recordTypedBy(root: string, checker: ts.TypeChecker, member: ts.PropertySignature, typedBy: Collected["typedBy"]): void {
+  for (const alias of aliasChain(checker, member)) {
+    const key = declarationKey(root, alias);
+    typedBy.set(key, (typedBy.get(key) ?? new Set()).add(member.name.getText()));
+  }
+}
+
 function collectFlows(root: string, checker: ts.TypeChecker, source: ts.SourceFile, into: Collected): void {
   const context: LinkContext = { root, checker, links: into.links };
   const visit = (node: ts.Node): void => {
@@ -173,6 +188,9 @@ function collectFlows(root: string, checker: ts.TypeChecker, source: ts.SourceFi
     }
     if (ts.isTypeAliasDeclaration(node) && node.typeParameters === undefined) {
       linkAlias(context, node);
+    }
+    if (ts.isPropertySignature(node)) {
+      recordTypedBy(root, checker, node, into.typedBy);
     }
     const flows = flowsAt(checker, node);
     for (const flow of flows.types) {
@@ -345,15 +363,16 @@ function serviceTargets(checker: ts.TypeChecker, site: ImportSite, service: Decl
     }
     const foreign = foreignTypes(checker, member);
     const isOp = (ts.isPropertySignature(member) || ts.isMethodSignature(member)) && isHandTyped(member);
+    const keys = memberRulingKeys(checker, `${name}.${op}`, member);
     // A field whose type contracts already holds moves nothing: the consumer declares the slice it reads.
-    const kind: TargetKind = !isOp && foreign.server.length === 0 && !passesDbHandle(foreign) ? "split" : crossDomainKind(foreign, [`${name}.${op}`]);
+    const kind: TargetKind = !isOp && foreign.server.length === 0 && !passesDbHandle(foreign) ? "split" : crossDomainKind(foreign, keys);
     const plan =
       kind === "move-to-contracts"
         ? `name ${op} ${isOp ? "as a contracts op type" : "'s type in contracts"}`
         : `type ${op} in domain ${site.domain}'s contract/ over contracts data`;
     const note = [
       `domain ${site.domain} ${isOp ? "calls" : "reads"} ${name}.${op} from domain ${site.from}; never move the whole ${name}: ${plan}`,
-      crossDomainNote(kind, foreign, [`${name}.${op}`]),
+      crossDomainNote(kind, foreign, keys),
     ]
       .filter((part) => part !== "")
       .join("; ");
@@ -363,19 +382,35 @@ function serviceTargets(checker: ts.TypeChecker, site: ImportSite, service: Decl
   });
 }
 
+const memberRulingKeys = (checker: ts.TypeChecker, label: string, member: ts.Declaration): readonly string[] => [
+  label,
+  ...(ts.isPropertySignature(member) || ts.isMethodSignature(member) ? rulingKeysOf(checker, member) : []),
+];
+
+// The op members a declared type names: every member typed by it, through renames.
+const typedNames = (root: string, declarations: readonly ts.Declaration[], typedBy: Collected["typedBy"]): readonly string[] =>
+  declarations
+    .filter((declaration) => ts.isInterfaceDeclaration(declaration) || ts.isTypeAliasDeclaration(declaration))
+    .flatMap((declaration) => [...(typedBy.get(declarationKey(root, declaration)) ?? [])]);
+
+interface ImportedData {
+  readonly name: string;
+  readonly declarations: readonly ts.Declaration[];
+  /** The imported name and the op members it types, for a joint-batch ruling. */
+  readonly keys: readonly string[];
+}
+
 // A data shape another domain declares: it moves to contracts whole, or splits around its runtime types.
-function dataTarget(checker: ts.TypeChecker, site: ImportSite, name: string, declarations: readonly ts.Declaration[]): PlannedTarget {
+function dataTarget(checker: ts.TypeChecker, site: ImportSite, { name, declarations, keys }: ImportedData): PlannedTarget {
   const foreign = mergeForeignTypes(declarations.map((declaration) => foreignTypes(checker, declaration)));
-  const kind = crossDomainKind(foreign, [name]);
+  const kind = crossDomainKind(foreign, keys);
   const ownerAt = declarations.map((declaration) => `${relative(site.root, declaration.getSourceFile().fileName)}:${lineOf(declaration)}`).join(", ");
-  const note = [`domain ${site.domain} takes ${name} from domain ${site.from}`, crossDomainNote(kind, foreign, [name])]
-    .filter((part) => part !== "")
-    .join("; ");
+  const note = [`domain ${site.domain} takes ${name} from domain ${site.from}`, crossDomainNote(kind, foreign, keys)].filter((part) => part !== "").join("; ");
   return importTarget(site, { kind, members: [name], port: `import ${name} from ${site.specifier}`, owner: name, ownerAt, note });
 }
 
 // The targets for one name a cross-domain import takes: none for the D117 door, the ops read off a service, else the data.
-function nameTargets(checker: ts.TypeChecker, site: ImportSite, name: string, reads: Collected["reads"]): readonly PlannedTarget[] {
+function nameTargets(checker: ts.TypeChecker, site: ImportSite, name: string, { reads, typedBy }: Collected): readonly PlannedTarget[] {
   if (site.from === D117_DOOR.domain && D117_DOOR.names.has(name)) {
     return [];
   }
@@ -385,7 +420,10 @@ function nameTargets(checker: ts.TypeChecker, site: ImportSite, name: string, re
       checker.getExportsOfModule(site.module).find((symbol) => symbol.name === name),
     )?.declarations ?? [];
   const service = declarations.find(isService);
-  return service === undefined ? [dataTarget(checker, site, name, declarations)] : serviceTargets(checker, site, service, reads);
+  if (service !== undefined) {
+    return serviceTargets(checker, site, service, reads);
+  }
+  return [dataTarget(checker, site, { name, declarations, keys: [name, ...typedNames(site.root, declarations, typedBy)] })];
 }
 
 function collectCrossImports(root: string, checker: ts.TypeChecker, source: ts.SourceFile, into: Collected): void {
@@ -401,7 +439,7 @@ function collectCrossImports(root: string, checker: ts.TypeChecker, source: ts.S
     }
     const specifier = cross.statement.moduleSpecifier?.getText().slice(1, -1) ?? "";
     const site: ImportSite = { root, file, line: lineOf(cross.statement), specifier, domain, from: cross.domain, module: cross.module };
-    for (const target of importedNames(cross.statement).flatMap((name) => nameTargets(checker, site, name, into.reads))) {
+    for (const target of importedNames(cross.statement).flatMap((name) => nameTargets(checker, site, name, into))) {
       into.crossImports.set(`${file}:${target.line}:${target.port}`, target);
     }
   }
@@ -470,29 +508,72 @@ function indexMembers(root: string, program: ts.Program): ReadonlyMap<string, In
 
 // A cross-domain copy that carries a database handle cannot move to contracts (contracts reaches only kit and zod):
 // D337's table rules it, or the ledger review does.
-function forgottenKind(linked: boolean, entry: ForgottenExport): TargetKind {
-  if (!linked) {
-    return "review";
+interface Copies {
+  readonly linked: readonly string[];
+  /** Shape-only copies the distinct registry has not judged. */
+  readonly open: readonly string[];
+  readonly distinct: readonly string[];
+}
+
+// A ruled handle signature is settled whatever its copies; otherwise only a linked copy is the same concept, and a
+// look-alike is open review work until the distinct registry records the judgment.
+function forgottenKind(entry: ForgottenExport, copies: Copies, ruled: boolean): TargetKind {
+  if (entry.crossDomain && passesDbHandle(entry.foreign) && ruled) {
+    return "ruled";
+  }
+  if (copies.linked.length === 0) {
+    return copies.open.length === 0 ? "distinct" : "review";
   }
   if (!entry.crossDomain) {
     return "forgotten-door-export";
   }
-  return passesDbHandle(entry.foreign) ? crossDomainKind(entry.foreign, [entry.name]) : "move-to-contracts";
+  return passesDbHandle(entry.foreign) ? "db-handle-review" : "move-to-contracts";
 }
+
+// `file:line:Name` to the registry's `file#Name`.
+const shapeRefOf = (key: string): string => `${key.slice(0, key.indexOf(":"))}#${key.slice(key.lastIndexOf(":") + 1)}`;
+
+interface Judgments {
+  readonly links: Links;
+  readonly typedBy: Collected["typedBy"];
+  readonly distinct: DistinctRegistry;
+}
+
+function copiesOf(entry: ForgottenExport, { links, distinct }: Judgments): Copies {
+  const sorted: { linked: string[]; open: string[]; distinct: string[] } = { linked: [], open: [], distinct: [] };
+  entry.copies.forEach((copy, index) => {
+    const key = entry.copyKeys[index] ?? "";
+    if (links.linked(entry.key, key)) {
+      sorted.linked.push(copy);
+    } else {
+      sorted[isDistinctPair(distinct, shapeRefOf(entry.key), shapeRefOf(key)) ? "distinct" : "open"].push(copy);
+    }
+  });
+  return sorted;
+}
+
+// The names a ruling may know a forgotten type by: its own, its copies', and the op members each of them types.
+const forgottenRulingKeys = (entry: ForgottenExport, typedBy: Collected["typedBy"]): readonly string[] =>
+  [entry.key, ...entry.copyKeys].flatMap((key) => [key.slice(key.lastIndexOf(":") + 1), ...(typedBy.get(key) ?? [])]);
 
 // A copy counts as the same concept only when a flow, a type reference or an alias links it to the declaration;
 // a copy that matches only by printed shape goes to review, never into a contracts move.
-function forgottenTargets(found: Iterable<ForgottenExport>, links: Links): PlannedTarget[] {
+function forgottenTargets(found: Iterable<ForgottenExport>, judgments: Judgments): PlannedTarget[] {
   return [...found].map((entry): PlannedTarget => {
-    const linked = entry.copies.filter((_, index) => links.linked(entry.key, entry.copyKeys[index] ?? ""));
-    const shapeOnly = entry.copies.filter((copy) => !linked.includes(copy));
-    const kind = forgottenKind(linked.length > 0, entry);
+    const copies = copiesOf(entry, judgments);
+    const keys = forgottenRulingKeys(entry, judgments.typedBy);
+    const kind = forgottenKind(entry, copies, jointBatchRulingOf(keys) !== null);
     const exports =
       kind !== "forgotten-door-export" || entry.doorFile === null || entry.door === null
         ? []
         : [{ file: entry.doorFile, name: entry.name, from: `./${relative(entry.doorFile.replace(/[^/]+$/u, ""), entry.file)}` }];
-    const handle = kind === "db-handle-review" || kind === "split" ? crossDomainNote(kind, entry.foreign, [entry.name]) : "";
-    const note = [linked.length > 0 ? `copies: ${linked.join(", ")}` : "", shapeOnly.length > 0 ? `same shape, no flow: ${shapeOnly.join(", ")}` : "", handle]
+    const handle = passesDbHandle(entry.foreign) || kind === "split" ? crossDomainNote(kind, entry.foreign, keys) : "";
+    const note = [
+      copies.linked.length > 0 ? `copies: ${copies.linked.join(", ")}` : "",
+      copies.open.length > 0 ? `same shape, no flow: ${copies.open.join(", ")}` : "",
+      copies.distinct.length > 0 ? `distinct by registry: ${copies.distinct.join(", ")}` : "",
+      handle,
+    ]
       .filter((part) => part !== "")
       .join("; ");
     return {
@@ -514,7 +595,7 @@ function forgottenTargets(found: Iterable<ForgottenExport>, links: Links): Plann
 }
 
 /** Run the census over every package world in `root`, one program at a time. */
-export function portCensus(root: string, log: (line: string) => void): PortCensus {
+export function portCensus(root: string, log: (line: string) => void, distinct: DistinctRegistry = DISTINCT_LOOKALIKES): PortCensus {
   const collected: Collected = {
     pairs: new Map(),
     concepts: new Set(),
@@ -523,6 +604,7 @@ export function portCensus(root: string, log: (line: string) => void): PortCensu
     reads: new Map(),
     crossImports: new Map(),
     forgotten: new Map(),
+    typedBy: new Map(),
   };
   const worlds: WorldCount[] = [];
   for (const config of packageWorlds(root)) {
@@ -580,7 +662,8 @@ export function portCensus(root: string, log: (line: string) => void): PortCensu
   const placed = collapse(unique).map(clustered);
   // An alias the plan already rewrites needs no forgotten-export target: its copy is the owner it derives from.
   const rewritten = new Set(placed.filter((target) => target.form === "type").map((target) => `${target.file}:${target.line}`));
-  const forgotten = forgottenTargets(collected.forgotten.values(), collected.links).filter((target) => !rewritten.has(`${target.file}:${target.line}`));
+  const judgments: Judgments = { links: collected.links, typedBy: collected.typedBy, distinct };
+  const forgotten = forgottenTargets(collected.forgotten.values(), judgments).filter((target) => !rewritten.has(`${target.file}:${target.line}`));
   const targets = [...placed, ...doorExportTargets(placed), ...[...collected.crossImports.values()].map(clustered), ...forgotten.map(clustered)];
   return { targets: targets.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line), worlds };
 }

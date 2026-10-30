@@ -202,7 +202,8 @@ test("a derived form, a narrower owner and an alias typed by its owner restate n
 
 test("a shape-only match goes to review and a flow-linked copy moves to contracts", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(TREE);
-  const { targets } = portCensus(root, () => undefined);
+  // The planted paths are real ones the repository's distinct registry judges; this case is about the unjudged census.
+  const { targets } = portCensus(root, () => undefined, []);
   const forgotten = (file: string): readonly Pick<PortTarget, "kind" | "members" | "clusterGroup">[] =>
     targets.filter((target) => target.file === file && target.form === "type").map(({ kind, members, clusterGroup }) => ({ kind, members, clusterGroup }));
   expect(forgotten(`${S}/domain/databank/contract/params.ts`)).toEqual([{ kind: "review", members: ["ListActiveForChatParams"], clusterGroup: "other" }]);

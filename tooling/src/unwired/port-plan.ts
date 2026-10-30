@@ -9,7 +9,7 @@ import { foreignTypes } from "./foreign-types.ts";
 import type { Indexed, Pair, PlannedTarget, PortTarget, TargetExport, TargetImport, TargetKind } from "./port-targets.ts";
 import { conceptOf, crossDomainKind, crossDomainNote, legOf, lineOf, placementOfKey } from "./port-targets.ts";
 import type { PortMember } from "./restated-port.ts";
-import { aliasOf, effectiveMember, homeFileOf, isHandTyped, memberLabel, placementOf, RELATION, rootAlias, tierRank } from "./restated-port.ts";
+import { aliasOf, effectiveMember, homeFileOf, isHandTyped, memberLabel, placementOf, RELATION, rootAlias, rulingKeysOf, tierRank } from "./restated-port.ts";
 
 export interface PlanContext {
   readonly world: LoadedWorld;
@@ -176,8 +176,9 @@ function planDerive(context: PlanContext, { port, site, paramsOnly }: Restating,
 
 function planCrossDomain(context: PlanContext, owner: PortMember): Plan {
   const foreign = foreignTypes(context.checker, owner);
-  const kind = crossDomainKind(foreign, [memberLabel(owner)]);
-  return plain(kind, crossDomainNote(kind, foreign, [memberLabel(owner)]));
+  const keys = rulingKeysOf(context.checker, owner);
+  const kind = crossDomainKind(foreign, keys);
+  return plain(kind, crossDomainNote(kind, foreign, keys));
 }
 
 const domainOf = (fileName: string): string | null => placementOf(fileName)?.domain ?? null;

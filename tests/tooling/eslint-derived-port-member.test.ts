@@ -23,7 +23,10 @@ const OWNERS = {
     "  resolve: (input: RevokeInput) => Promise<ResolveOutcome>;",
     "  drop: (input: DropInput, signal: AbortSignal) => Promise<void>;",
     "  statement: (id: string) => StatementToken;",
+    "  revokeAllForUserStatement: (id: string) => StatementToken;",
+    "  register: (spec: RegisterSpec) => void;",
     "}",
+    "export interface RegisterSpec { readonly token: string; readonly invoke: (signal?: AbortSignal) => Promise<void>; }",
     'import type { StatementToken } from "../../../../../db/src/wiring.ts";',
     "export interface DropInput { readonly token: string; }",
     'import type { RevokeInput } from "../../../../../contracts/src/sessions.ts";',
@@ -103,6 +106,27 @@ test.for([
     source:
       'import { sessions } from "../../sessions/contract/service.ts";\nimport type { StatementToken } from "../../../../../db/src/wiring.ts";\ninterface Port { readonly statement: (id: string) => StatementToken; }\nexport const port: Port = sessions;',
     findings: ["passes a db handle (StatementToken) across domains"],
+  },
+  {
+    name: "a cross-domain db handle the ledger rules as a joint batch",
+    file: CROSS,
+    source:
+      'import { sessions } from "../../sessions/contract/service.ts";\nimport type { StatementToken } from "../../../../../db/src/wiring.ts";\ninterface Port { readonly revokeAllForUserStatement: (id: string) => StatementToken; }\nexport const port: Port = sessions;',
+    findings: [],
+  },
+  {
+    name: "a ruled op the consumer names by its own alias",
+    file: CROSS,
+    source:
+      'import { sessions } from "../../sessions/contract/service.ts";\nimport type { StatementToken } from "../../../../../db/src/wiring.ts";\ntype KickAllOp = (id: string) => StatementToken;\ninterface Port { readonly kickAll: KickAllOp; }\nexport const port: Port = { kickAll: sessions.revokeAllForUserStatement };',
+    findings: [],
+  },
+  {
+    name: "an owner verb over its own domain data that satisfies a consumer's split alias",
+    file: CROSS,
+    source:
+      'import { sessions } from "../../sessions/contract/service.ts";\nimport type { RevokeInput } from "../../../../../contracts/src/sessions.ts";\ntype RegisterOp = (spec: RevokeInput & { readonly invoke: (signal?: AbortSignal) => Promise<void> }) => void;\ninterface Port { readonly register: RegisterOp; }\nexport const port: Port = sessions;',
+    findings: [],
   },
   {
     name: "a split cross-domain signature: contracts data and a platform global",
