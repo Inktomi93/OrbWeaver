@@ -30,7 +30,7 @@ function TrailRegistry({ includeCommand, widgetFirst, children }: TrailProjectio
     order: widgetFirst ? commandOrder - 1 : commandOrder + 1,
     behavior: {
       kind: "widget",
-      body: (): ReactNode => <Button aria-label={STORY_TRAIL_WIDGET} variant="ghost" size="icon" />,
+      body: (): ReactNode => <Button aria-label={STORY_TRAIL_WIDGET} variant="ghost" square={true} />,
       useMenuForms: (): readonly OverflowMenuForm[] => [],
     },
   };

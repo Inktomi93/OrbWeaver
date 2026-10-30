@@ -74,7 +74,7 @@ function ReactionPill({ group, viewerReacted, onToggle }: ReactionPillProps): Re
             : `React with ${group.emoji} to ${qualifier}'s line — ${String(count)} so far`
         }
         data-slot="message-reaction-pill"
-        intent="outline"
+        variant="outline"
         onPressedChange={(): void => onToggle(group)}
         pressed={viewerReacted}
         shape="pill"

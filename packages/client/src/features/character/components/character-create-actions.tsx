@@ -174,7 +174,7 @@ function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; re
 // 16px glyph wearing a TEXT step's `px-block` padding: a 40px-wide box at a control-step height, which is
 // the #842 shape (an icon-only control 4px under the touch floor on its short side at a coarse pointer)
 // that the import ghost beside it already had to be rebuilt to escape. Two buttons gated by `display` give
-// the narrow arm a real `icon-sm` SQUARE — 32px fine, 44px coarse — and put exactly one of the pair in
+// the narrow arm a real `sm` SQUARE — 32px fine, 44px coarse — and put exactly one of the pair in
 // layout, and therefore in the a11y tree, at any given pane width.
 
 /** The LABELLED arm: stands down below the `cq-20` pane step. */
@@ -197,7 +197,7 @@ function CharacterCreateButton({ onOpen }: { readonly onOpen: () => void }): Rea
         <Icon icon={Plus} size="sm" />
         New
       </Button>
-      <Button aria-label="New character" className={CREATE_ICON_ARM} onClick={onOpen} size="icon-sm" type="button">
+      <Button aria-label="New character" className={CREATE_ICON_ARM} onClick={onOpen} size="sm" square={true} type="button">
         <Icon icon={Plus} size="sm" />
       </Button>
     </>
@@ -261,17 +261,17 @@ export function CharacterCreateActions(): ReactElement {
     <>
       {/* ONE flex child, so the band's space-between keeps the cluster hard against the trailing edge. */}
       <Row align="center" gap="field">
-        {/* `icon-sm`, NOT `sm` (side-eye 2026-08-30 rail-characters P2, #842). An icon-only `sm` button is a
+        {/* An `sm` `square`, NOT a plain `sm` (side-eye 2026-08-30 rail-characters P2, #842). An icon-only `sm` button is a
             control-HEIGHT box with `px-block` of width: 40×44 at a coarse pointer, i.e. 4px under the touch
             floor on its short side, corroborated by a four-cardinal `elementFromPoint` losing the point at
             ±21px horizontally and by `getComputedStyle(el,"::after").content === "none"` (a `sm` button
-            carries no hit-area pseudo — the 40px box IS the target). `icon-sm` is the same control step as a
+            carries no hit-area pseudo — the 40px box IS the target). The `sm` square is the same control step as a
             SQUARE (`size-control-sm p-0`), so it is 44×44 on coarse and 32×32 on fine, the height it
             already had and the width it was missing. Not a `glyph-*` step: those are pointer-INDEPENDENT
             display boxes that would have shrunk the visible target beside the `sm` New primary. */}
         {/* THE SAME SECONDARY-ENTRY RULING AS `CharacterLandingDoors` (#1256) — the band's own icon-only
             twin of the same Import door, beside the same `New` primary. */}
-        <Button aria-label="Import a character card" variant="ghost" ink="muted" onClick={(): void => setImportOpen(true)} size="icon-sm">
+        <Button aria-label="Import a character card" variant="ghost" ink="muted" onClick={(): void => setImportOpen(true)} size="sm" square={true}>
           <Icon icon={Upload} size="sm" />
         </Button>
         <CharacterCreateButton onOpen={(): void => setCreateOpen(true)} />

@@ -246,7 +246,7 @@ function KnobControls({
           min={min}
           onValueChange={(next): void => onChange(next ?? undefined)}
           placeholder={ghost === null ? UNKNOWN_DEFAULT_PLACEHOLDER : String(ghost.value)}
-          size="inline"
+          layout="inline"
           step={step}
           value={value ?? null}
         />
@@ -256,7 +256,7 @@ function KnobControls({
           className={explicit ? "" : "invisible"}
           variant="ghost"
           onClick={(): void => onChange(undefined)}
-          size="icon"
+          square={true}
           type="button"
         >
           <Icon icon={RotateCcw} size="xs" />
@@ -311,7 +311,7 @@ function KnobLabel({ label, hint }: { readonly label: string; readonly hint: str
         // accessible name twice. The primitive owns the name (`More info about <label>`) and the popup; only
         // the SIZE is stated here.
         //
-        // `size="icon"` IS THE TOUCH FLOOR (side-eye R-8, isolated by measurement): it pins a
+        // `square` IS THE TOUCH FLOOR (side-eye R-8, isolated by measurement): it pins a
         // `--size-control-md` box — 48px on a coarse pointer — where the primitive's `inline` default is a
         // glyph-sized box. `shrink-0` is the other half: the trigger is a FLEX ITEM in a fixed-width label
         // cell, and a long label used to eat into it ("Repetition penalty" rendered 44×48, "Max output
@@ -323,7 +323,7 @@ function KnobLabel({ label, hint }: { readonly label: string; readonly hint: str
         // hints beside it (which render the primitive's `inline` box): matching them would mean re-breaking
         // the 44px floor R-8 measured, and matching them UPWARD is a change to `Field` — every hinted field
         // in the app — which `@orb/ui`'s Section header already records as its own reviewed pass.
-        <HintTrigger className="shrink-0" hint={hint} size="icon" subject={label} />
+        <HintTrigger className="shrink-0" hint={hint} size="md" subject={label} />
       )}
     </Row>
   );

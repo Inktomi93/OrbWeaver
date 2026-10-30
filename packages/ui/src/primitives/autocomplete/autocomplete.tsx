@@ -1,8 +1,9 @@
 import type { AutocompletePositionerProps as BasePositionerProps, AutocompleteRootProps as BaseRootProps } from "@base-ui/react/autocomplete";
 import { Autocomplete as BaseAutocomplete } from "@base-ui/react/autocomplete";
 import type { ReactElement, ReactNode } from "react";
+import type { VariantProps } from "tailwind-variants";
 import type { PortalContainer } from "#lib";
-import { ANCHOR_GAP_INPUT, cn, formatSuggestionCount, usePortalContainer } from "#lib";
+import { ANCHOR_GAP_INPUT, cn, formatSuggestionCount, usePortalContainer, variantAttrs } from "#lib";
 import { useFieldIdentity } from "#primitives/field";
 import { Icon, X } from "#primitives/icons";
 import { autocompleteVariants } from "./variants.ts";
@@ -24,6 +25,8 @@ export interface AutocompleteGroup {
   /** The suggestions in this category (the display strings themselves). */
   items: readonly string[];
 }
+
+type AutocompleteSize = VariantProps<typeof autocompleteVariants>["size"];
 
 // Forwarded straight to Base UI Root: `filter` swaps the match predicate, `autoHighlight`
 // auto-selects the first result, `limit` caps the rendered matches, and `open`/`onOpenChange` are the
@@ -76,6 +79,8 @@ export interface AutocompleteProps extends AutocompletePassthrough {
   inputRef?: BaseRootProps<string>["inputRef"];
   /** Additional id(s) describing the input — merges with `<Field>`'s own wiring when composed. */
   "aria-describedby"?: string;
+  /** The control scale step (D336): the field's height, level with the controls of its row. @defaultValue "sm" */
+  size?: AutocompleteSize;
   /** Accessible name for the clear button. @defaultValue "Clear" */
   clearLabel?: string;
   /** Applied to the input (the in-flow element). */
@@ -163,6 +168,7 @@ function AutocompleteResultStatus({ silentWhenEmpty }: { readonly silentWhenEmpt
  *  A component of its own because the count comes from a Root-context hook, which cannot be read by the
  *  caller of `Autocomplete` — only from inside `BaseAutocomplete.Root`. */
 function AutocompleteField({
+  size,
   inline,
   ariaLabel,
   ariaDescribedby,
@@ -173,6 +179,7 @@ function AutocompleteField({
   placeholder,
   inputRef,
 }: {
+  readonly size: AutocompleteSize;
   readonly inline: boolean;
   readonly ariaLabel: string | undefined;
   readonly ariaDescribedby: string | undefined;
@@ -185,7 +192,7 @@ function AutocompleteField({
 }): ReactElement {
   const hasSuggestions = countSuggestions(BaseAutocomplete.useFilteredItems<unknown>()) > 0;
   return (
-    <BaseAutocomplete.InputGroup className={slots.inputGroup()} data-slot="autocomplete-input-group">
+    <BaseAutocomplete.InputGroup className={slots.inputGroup({ size })} data-slot="autocomplete-input-group" {...variantAttrs(autocompleteVariants, { size })}>
       <BaseAutocomplete.Input
         aria-describedby={ariaDescribedby}
         aria-label={ariaLabel}
@@ -197,7 +204,7 @@ function AutocompleteField({
         ref={inputRef}
         {...(inline ? { "aria-expanded": hasSuggestions } : {})}
       />
-      <BaseAutocomplete.Clear aria-label={clearLabel} className={slots.clear()} data-slot="autocomplete-clear">
+      <BaseAutocomplete.Clear aria-label={clearLabel} className={slots.clear({ size })} data-slot="autocomplete-clear">
         <Icon icon={X} size="sm" />
       </BaseAutocomplete.Clear>
     </BaseAutocomplete.InputGroup>
@@ -226,6 +233,7 @@ export function Autocomplete({
   "aria-label": ariaLabel,
   "aria-describedby": ariaDescribedby,
   clearLabel = "Clear",
+  size,
   className,
   id,
   arrow = false,
@@ -272,6 +280,7 @@ export function Autocomplete({
   const inner = (
     <>
       <AutocompleteField
+        size={size}
         ariaDescribedby={ariaDescribedby}
         ariaLabel={ariaLabel}
         className={className}

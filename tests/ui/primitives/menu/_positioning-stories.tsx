@@ -47,7 +47,7 @@ export function EdgeMenuStory(): ReactElement {
         <Menu>
           <MenuTrigger
             render={
-              <Button aria-label="Edge actions" variant="ghost" size="icon">
+              <Button aria-label="Edge actions" variant="ghost" square={true}>
                 ⋯
               </Button>
             }

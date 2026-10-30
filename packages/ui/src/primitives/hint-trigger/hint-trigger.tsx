@@ -17,9 +17,9 @@ export interface HintTriggerProps {
   readonly className?: string;
   /** `"inline"` costs no vertical space at a fine pointer (field.tsx's original rationale — a full
    *  control-size box made a hinted label row taller than an unhinted sibling); coarse pointers promote
-   *  the real button box to the touch floor. `"icon"` is a full control-size box.
+   *  the real button box to the touch floor. `"md"` is the `md` control step as a square.
    *  @defaultValue "inline" */
-  readonly size?: "inline" | "icon";
+  readonly size?: "inline" | "md";
   /** An OPTIONAL activation that REPLACES the built-in popover door (the config teacher's `i` opens the
    *  context pane). A caller that supplies one already owns a richer
    *  disclosure than this atom's own popup, so the two must not both answer the same press. */
@@ -66,7 +66,7 @@ export function HintTrigger({ hint, subject, className, size = "inline", onClick
       data-slot="hint-trigger"
       variant="ghost"
       {...(onClick === undefined ? {} : { onClick })}
-      size={size}
+      {...(size === "md" ? { size, square: true } : { size })}
       type="button"
     >
       <Icon icon={Info} size="xs" />

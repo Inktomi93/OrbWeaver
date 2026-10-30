@@ -221,7 +221,7 @@ function ScopePill({
   return (
     // `Toggle` rests at the muted ink itself, so the scope pill recedes beside the tag chips (which state it in
     // `restingInk`) without a call-site ink.
-    <Toggle aria-label={name} intent="outline" onPressedChange={onToggle} pressed={pressed} shape="pill" size="chip">
+    <Toggle aria-label={name} variant="outline" onPressedChange={onToggle} pressed={pressed} shape="pill" size="chip">
       <Icon icon={glyph} size="xs" />
       {label}
     </Toggle>

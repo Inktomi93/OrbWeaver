@@ -24,7 +24,7 @@ Current defects:
 
 - [x] Step 1: role tokens, tone scoping and contrast checks.
 - [x] Step 2: axis vocabulary and lint at zero.
-- [ ] Step 3: control scale. Toggle also moves from `intent` to the D336 `tone`/`variant` vocabulary here, since step 3 already gives it `size`.
+- [x] Step 3: control scale. Toggle also moves from `intent` to the D336 `tone`/`variant` vocabulary here, since step 3 already gives it `size`.
 - [ ] Step 4: use-specific extraction.
 
 Each step lands alone and leaves the app working.
@@ -51,3 +51,10 @@ Step 2:
 - Button, Badge, Card, Text, Icon, WeaveGlyph and WebSpinner take `tone`, `variant` and `ink` by the plan's mapping tables. A `.dom.test-d.ts` per primitive under `tests/ui/primitives/` and `tests/ui/art/web-weave/weave-glyph-axes.dom.test-d.ts` refuses every old axis name and value. `tooling/src/codemods/primitive-axis-vocabulary` rewrote the literal call sites; its fixtures hold the table.
 - `tests/ui/primitives/tone-variant-matrix.ct.tsx` reads each primitive's tone and variant matrix against the role probes and the painted ink contrast under each seed and a nested custom ThemeScope, in the Chromium and WebKit CT projects. A planted wrong role fails it.
 - `RESTRICTED_CLASSES` in `eslint.config.ts`, `orb/no-intent-color-recipe` in ESLint and the Stylelint rule of the same name refuse an intent or tone colour made translucent or mixed by hand. `tests/tooling/native-token-scales.test.ts`, `tests/tooling/eslint-intent-color-recipe.test.ts` and `tests/tooling/stylelint-intent-color-recipe.test.ts` plant each refusal and its accepted control; whole-tree `pnpm lint:eslint` and `pnpm lint:css` report zero.
+
+Step 3:
+
+- `CONTROL_SIZES` in `packages/ui/src/lib/control-size.ts` is the scale, and Button, Toggle, Input, Select, NumberField, Combobox, Autocomplete and ColorField take `size` from it. Button `square` and `wrap` replace `icon`, `icon-sm`, `wrap` and `wrap-md`; Toggle takes `variant`, `tone` and `ink`. The plan's Toggle and control-scale tables hold the mapping.
+- A `.dom.test-d.ts` per touched primitive under `tests/ui/primitives/` refuses every removed size value, NumberField `size="inline"` and Toggle `intent`. `tooling/src/codemods/primitive-axis-vocabulary` rewrote the literal call sites; its `sizes` and `rerun-sizes` fixtures hold the size table.
+- `tests/ui/primitives/platform-control-scale.suite.ct.tsx` measures one row of every control per step at both pointer classes, in the Chromium and WebKit CT projects, and finds one height, the step's token. A control planted at a foreign step reads as a second height.
+- `tests/ui/primitives/tone-variant-matrix.ct.tsx` reads Toggle's tone and style matrix and its pressed fill. `tests/client/features/app-shell/touch-target-floor.suite.ct.tsx` measures every scale step of the square, wrap, Toggle and NumberField boxes.

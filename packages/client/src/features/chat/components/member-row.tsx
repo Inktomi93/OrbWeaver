@@ -147,7 +147,7 @@ export function MemberRow(props: MemberRowProps): ReactElement {
         <Button
           type="button"
           variant="ghost"
-          size="icon"
+          square={true}
           tabIndex={-1}
           aria-label={rowActionsName(row.displayName)}
           onClick={(): void => bodyRef.current?.click()}
@@ -229,7 +229,7 @@ function CharacterInlineCluster({ row, actions }: { readonly row: MemberCharacte
       <Button
         type="button"
         variant="ghost"
-        size="icon"
+        square={true}
         tabIndex={-1}
         aria-pressed={row.disabled}
         aria-label={row.disabled ? `Unmute ${row.displayName}` : `Mute ${row.displayName}`}
@@ -241,7 +241,7 @@ function CharacterInlineCluster({ row, actions }: { readonly row: MemberCharacte
         <Button
           type="button"
           variant="ghost"
-          size="icon"
+          square={true}
           tabIndex={-1}
           aria-label={`Make ${row.displayName} speak next`}
           onClick={(): void => actions.onForceTurn?.(row.characterId)}

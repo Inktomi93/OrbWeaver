@@ -137,17 +137,17 @@ function TrackerRow({
         ) : null}
         <Row gap="field" align="center" className="shrink-0">
           <Tip text={bandLabel}>
-            <Button aria-label={bandLabel} variant="ghost" size="icon-sm" onClick={(): void => patch({ pinned: !def.pinned })}>
+            <Button aria-label={bandLabel} variant="ghost" size="sm" square={true} onClick={(): void => patch({ pinned: !def.pinned })}>
               <Icon icon={def.pinned ? Eye : EyeOff} size="xs" />
             </Button>
           </Tip>
           <Tip text={lockLabel}>
-            <Button aria-label={lockLabel} variant="ghost" size="icon-sm" onClick={(): void => patch({ locked: !def.locked })}>
+            <Button aria-label={lockLabel} variant="ghost" size="sm" square={true} onClick={(): void => patch({ locked: !def.locked })}>
               <Icon icon={def.locked ? Lock : LockOpen} size="xs" />
             </Button>
           </Tip>
           <Tip text={removeLabel}>
-            <Button aria-label={removeLabel} variant="ghost" size="icon-sm" onClick={(): void => onCommit({ ...def, key: "" })}>
+            <Button aria-label={removeLabel} variant="ghost" size="sm" square={true} onClick={(): void => onCommit({ ...def, key: "" })}>
               <Icon icon={Trash2} size="xs" />
             </Button>
           </Tip>

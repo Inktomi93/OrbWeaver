@@ -162,7 +162,7 @@ export function LoginSignupForm({ token, onSignedUp, onUseSignIn, onDismiss }: L
                 {pending ? "Creating your account…" : "Create account and join"}
               </Button>
               <Row className="flex-wrap" gap="row">
-                <Button className="max-inline-full" variant="ghost" size="wrap-md" onClick={onUseSignIn} data-testid={testId("signupUseSignIn")}>
+                <Button className="max-inline-full" variant="ghost" wrap={true} onClick={onUseSignIn} data-testid={testId("signupUseSignIn")}>
                   I already have an account
                 </Button>
                 <Button variant="ghost" onClick={onDismiss} data-testid={testId("signupDismiss")}>

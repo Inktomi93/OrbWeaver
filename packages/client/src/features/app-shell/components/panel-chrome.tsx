@@ -157,7 +157,7 @@ export function PanelChrome({
               data-slot="panel-overlay-close"
               variant="ghost"
               onClick={onDismiss}
-              size="icon"
+              square={true}
               type="button"
             >
               <Icon icon={X} size="sm" />

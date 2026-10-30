@@ -163,7 +163,7 @@ function PanelTrigger({ current }: { readonly current: PersonaListItem | null })
         render={
           <PopoverTrigger
             render={
-              <Button variant="ghost" size="icon" aria-label={label}>
+              <Button variant="ghost" square={true} aria-label={label}>
                 <Avatar fallbackDelay={0} hueSeed={current?.id ?? "none"} size="md" {...avatarSrc}>
                   {current === null ? <Icon icon={CircleUser} size="md" /> : initialsFor(current.name)}
                 </Avatar>

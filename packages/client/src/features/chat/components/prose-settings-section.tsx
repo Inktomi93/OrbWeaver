@@ -259,10 +259,10 @@ function ProseCardFooter({ footer, length, onUseDefault, onKeepMine }: ProseCard
           <Badge tone="warning" size="sm" className="whitespace-normal max-inline-full">
             The built-in wording was updated
           </Badge>
-          <Button variant="ghost" size="wrap" onClick={onUseDefault}>
+          <Button variant="ghost" size="sm" wrap={true} onClick={onUseDefault}>
             Use the new wording
           </Button>
-          <Button variant="ghost" size="wrap" onClick={onKeepMine}>
+          <Button variant="ghost" size="sm" wrap={true} onClick={onKeepMine}>
             Keep mine
           </Button>
         </Row>

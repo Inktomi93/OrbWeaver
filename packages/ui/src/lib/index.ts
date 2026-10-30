@@ -12,7 +12,7 @@ export { CARD_CORNERS } from "./card-corners.ts";
 export { cn, tv } from "./class-merge.ts";
 export { type ClipboardOutcome, writeClipboardText } from "./clipboard.ts";
 export { coarsePointerNow, finePointerNow, useCoarsePointer } from "./coarse-pointer-now.ts";
-export { CHIP_BOX, CONTROL_SIZE } from "./control-size.ts";
+export { CONTROL_BLOCK, CONTROL_INLINE, CONTROL_MIN_BLOCK, CONTROL_SIZE, CONTROL_SIZES, type ControlSize } from "./control-size.ts";
 export {
   type CssMergeTraceSnapshot,
   cssMergeTrace,

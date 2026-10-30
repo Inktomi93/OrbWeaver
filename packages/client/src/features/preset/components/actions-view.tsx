@@ -322,7 +322,7 @@ function TemplateListRow({
                   onClick={(): void => onDrill(def.id)}
                   onFocus={restoreFocus ? onRestoreFocus : undefined}
                   ref={chevronRef}
-                  size="icon"
+                  square={true}
                   type="button"
                 >
                   <Icon icon={ChevronRight} size="sm" />

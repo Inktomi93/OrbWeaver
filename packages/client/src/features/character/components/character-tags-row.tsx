@@ -89,7 +89,7 @@ export function CharacterTagsRow({ characterId, tags, trpc }: CharacterTagsRowPr
               <EditableTagChip tag={tag} />
               <Button
                 type="button"
-                size="icon"
+                square={true}
                 variant="ghost"
                 aria-label={removeActionName(tag.name)}
                 disabled={tagWritePending}

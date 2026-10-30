@@ -94,7 +94,8 @@ export function PluginAnchoredSurfaceList({
                     <Button
                       aria-label={movePluginPanelLabel(surface.pluginName, surface.title, !sidecar)}
                       variant="ghost"
-                      size="icon-sm"
+                      size="sm"
+                      square={true}
                       type="button"
                       onClick={(): void => placement.move(surface, !sidecar)}
                     >
@@ -122,7 +123,8 @@ export function PluginAnchoredSurfaceList({
                         hideButtons.current.set(surface.pluginId, node);
                       }
                     }}
-                    size="icon-sm"
+                    size="sm"
+                    square={true}
                     type="button"
                   >
                     <Icon icon={EyeOff} size="sm" />

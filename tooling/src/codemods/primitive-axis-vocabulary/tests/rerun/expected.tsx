@@ -9,7 +9,7 @@ import { WeaveGlyph } from "@orb/ui/web-weave";
 export const Buttons = () => (
   <>
     <Button>Save</Button>
-    <Button focal={false} size="icon" aria-label="Send" />
+    <Button focal={false} square={true} aria-label="Send" />
     <Button tone="destructive">Delete</Button>
     <Button variant="outline" size="sm">Cancel</Button>
     <Button variant="outline" shape="pill">Tag</Button>

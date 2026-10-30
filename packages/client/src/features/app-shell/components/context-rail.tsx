@@ -247,7 +247,7 @@ export function ContextHeaderTabs({
                 aria-label={`All ${ariaLabel} tabs`}
                 data-slot="context-tab-overflow-trigger"
                 variant="ghost"
-                size="icon"
+                square={true}
                 type="button"
                 className="me-field shrink-0"
               >

@@ -1154,16 +1154,18 @@ export function WalkerTooltipHintStory(): ReactElement {
   return (
     <div style={{ display: "flex", gap: 32, padding: 48, width: 520 }}>
       <Tooltip>
-        <TooltipTrigger render={<Button aria-label="Send message" data-testid={storyTestId("hintDescribed")} variant="ghost" size="icon" type="button" />} />
+        <TooltipTrigger render={<Button aria-label="Send message" data-testid={storyTestId("hintDescribed")} variant="ghost" square={true} type="button" />} />
         <TooltipPopup>Local engine is off — enable it to send.</TooltipPopup>
       </Tooltip>
       <Tooltip>
-        <TooltipTrigger render={<Button aria-label="Notifications" data-testid={storyTestId("hintNameRepeat")} variant="ghost" size="icon" type="button" />} />
+        <TooltipTrigger
+          render={<Button aria-label="Notifications" data-testid={storyTestId("hintNameRepeat")} variant="ghost" square={true} type="button" />}
+        />
         <TooltipPopup>Notifications</TooltipPopup>
       </Tooltip>
       <Tooltip describesTrigger={false}>
         <TooltipTrigger
-          render={<Button aria-label="Try another reply" data-testid={storyTestId("hintOptedOut")} variant="ghost" size="icon" type="button" />}
+          render={<Button aria-label="Try another reply" data-testid={storyTestId("hintOptedOut")} variant="ghost" square={true} type="button" />}
         />
         <TooltipPopup>Try another reply — needs an existing reply</TooltipPopup>
       </Tooltip>

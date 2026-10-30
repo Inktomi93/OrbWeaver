@@ -274,7 +274,7 @@ function EditDoor({
       aria-label={label}
       variant="ghost"
       onClick={(): void => openEditor(personaId, presentation)}
-      size="icon"
+      square={true}
       {...(tabIndex === undefined ? {} : { tabIndex })}
     >
       <Icon icon={Pencil} size="sm" />

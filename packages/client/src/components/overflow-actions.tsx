@@ -317,7 +317,7 @@ export function OverflowActions({ actions, label, className, gap = "row", slot }
                     setTriggerWidth(element.getBoundingClientRect().width);
                   }
                 }}
-                size="icon"
+                square={true}
                 type="button"
               >
                 <Icon icon={MoreHorizontal} size="sm" />

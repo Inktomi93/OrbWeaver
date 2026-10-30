@@ -289,7 +289,7 @@ function PlacementFields({ form, section, index, inChat, zones }: ZonedClusterPr
                 form.setFieldValue(`sections[${index}].inject`, next === null ? { depth } : { depth, order: next });
               }}
               placeholder={String(DEFAULT_INJECT_ORDER)}
-              size="inline"
+              layout="inline"
               step={1}
               value={inject?.order ?? null}
             />

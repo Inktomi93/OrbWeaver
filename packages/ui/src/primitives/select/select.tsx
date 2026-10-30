@@ -5,7 +5,7 @@ import type { CSSProperties, ReactElement, ReactNode, RefObject } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import type { VariantProps } from "tailwind-variants";
 import type { PortalContainer } from "#lib";
-import { ANCHOR_GAP_INPUT, cn, usePortalContainer } from "#lib";
+import { ANCHOR_GAP_INPUT, cn, usePortalContainer, variantAttrs } from "#lib";
 import { useFieldControlDocksEnd, useFieldIdentity } from "#primitives/field";
 import { Check, ChevronDown, Icon } from "#primitives/icons";
 import type { SelectItems, SelectOption, SelectOptionGroup } from "./items.ts";
@@ -135,6 +135,8 @@ export interface SelectProps<Value = string, Multiple extends boolean = false> e
    * The trigger's SCALE: `field` (default) is the form control; `inline` is the identity-line trigger —
    * text-height, content-width, chrome-free (the name IS the affordance). @defaultValue "field"
    */
+  /** The control scale step (D336): the field's height, level with the controls of its row. @defaultValue "sm" */
+  size?: VariantProps<typeof selectVariants>["size"];
   layout?: VariantProps<typeof selectVariants>["layout"];
   /** The trigger's value is a name set in its semibold weight (an identity line's subject). */
   strong?: boolean;
@@ -188,6 +190,7 @@ export function Select<Value = string, Multiple extends boolean = false>(props: 
     placeholder,
     triggerRef: externalTriggerRef,
     className,
+    size,
     layout,
     strong,
     label,
@@ -274,8 +277,9 @@ export function Select<Value = string, Multiple extends boolean = false>(props: 
             {...(ariaDescribedby !== undefined ? { "aria-describedby": ariaDescribedby } : {})}
             {...(ariaLabel !== undefined ? { "aria-label": ariaLabel } : {})}
             {...((ariaLabelledby ?? labelId) !== undefined ? { "aria-labelledby": ariaLabelledby ?? labelId } : {})}
-            className={cn(slots.trigger({ layout, strong }), className)}
+            className={cn(slots.trigger({ size, layout, strong }), className)}
             data-slot="select-trigger"
+            {...variantAttrs(selectVariants, { size, layout })}
             id={triggerId}
           >
             <BaseSelect.Value className={slots.value()} data-slot="select-value" placeholder={placeholder}>

@@ -1,4 +1,4 @@
-import { DISABLED_STATE, FOCUS_RING, FOCUS_RING_ON_POPOVER, tv } from "#lib";
+import { CONTROL_BLOCK, CONTROL_INLINE, DISABLED_STATE, FOCUS_RING, FOCUS_RING_ON_POPOVER, tv } from "#lib";
 
 // The color-field skin: `swatch` is the plain chip (shared by the display-only ColorSwatch and the
 // editable ColorField's trigger), `swatchTrigger` adds the button affordance (focus ring, disabled,
@@ -13,7 +13,7 @@ export const colorFieldVariants = tv({
       "shrink-0 rounded-control border border-input-border bg-field-fill data-unset:border-dashed data-unset:border-muted-foreground data-unset:bg-transparent",
     hexText: "text-label leading-label text-muted-foreground",
     swatchTrigger: [
-      "inline-flex shrink-0 items-center justify-center rounded-control border border-border p-0 block-(--size-control-sm) inline-(--size-control-sm)",
+      "inline-flex shrink-0 items-center justify-center rounded-control border border-border p-0",
       "transition-colors duration-(--motion-fast) ease-out-expo",
       "outline-none",
       FOCUS_RING,
@@ -41,11 +41,18 @@ export const colorFieldVariants = tv({
     resetButton: "self-start",
   },
   variants: {
-    // The display swatch's footprint. The editable trigger always uses `md`, the control size.
+    // THE CONTROL SCALE (D336): the editable trigger is the step's square, level with the controls of its row.
+    size: {
+      chip: { swatchTrigger: [CONTROL_BLOCK.chip, CONTROL_INLINE.chip] },
+      sm: { swatchTrigger: [CONTROL_BLOCK.sm, CONTROL_INLINE.sm] },
+      md: { swatchTrigger: [CONTROL_BLOCK.md, CONTROL_INLINE.md] },
+      lg: { swatchTrigger: [CONTROL_BLOCK.lg, CONTROL_INLINE.lg] },
+    },
+    // The display swatch's footprint, apart from the control scale: the display swatch is not a control.
     swatchSize: {
       md: { swatch: "block-(--size-control-sm) inline-(--size-control-sm)" },
       sm: { swatch: "block-(--size-dot-lg) inline-(--size-dot-lg)" },
     },
   },
-  defaultVariants: { swatchSize: "md" },
+  defaultVariants: { size: "sm", swatchSize: "md" },
 });

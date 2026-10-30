@@ -181,7 +181,7 @@ function QueueRow({
           {label}
         </Text>
       ) : (
-        <Button className="flex-1 basis-auto justify-start max-inline-full min-inline-0" variant="ghost" onClick={onOpen} size="wrap">
+        <Button className="flex-1 basis-auto justify-start max-inline-full min-inline-0" variant="ghost" onClick={onOpen} size="sm" wrap={true}>
           <Text as="span" className="truncate min-inline-0" ink="inherit" voice="label">
             {label}
           </Text>
@@ -200,7 +200,7 @@ function QueueRow({
       {state === "kept" || state === "discarded" ? (
         <>
           <RefineryChip tone={state === "kept" ? "good" : "bad"}>{state}</RefineryChip>
-          <Button variant="ghost" onClick={onOpen} size="wrap">
+          <Button variant="ghost" onClick={onOpen} size="sm" wrap={true}>
             reopen
             <Text as="span" className="sr-only">
               {" "}
@@ -211,7 +211,7 @@ function QueueRow({
       ) : null}
       {state === "undecided" ? (
         <>
-          <Button variant="outline" onClick={(): void => onDecide(false)} size="wrap">
+          <Button variant="outline" onClick={(): void => onDecide(false)} size="sm" wrap={true}>
             Discard
             <Text as="span" className="sr-only">
               {" "}
@@ -219,7 +219,7 @@ function QueueRow({
             </Text>
           </Button>
           {/* The destructive-consent copy travels with the verb, not with the pane it was pressed in. */}
-          <Button variant="outline" onClick={(): void => onDecide(true)} size="wrap">
+          <Button variant="outline" onClick={(): void => onDecide(true)} size="sm" wrap={true}>
             {cleared ? "Keep (empties field)" : "Keep"}
             <Text as="span" className="sr-only">
               {" "}

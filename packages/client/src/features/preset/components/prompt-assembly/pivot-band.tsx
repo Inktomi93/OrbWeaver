@@ -65,7 +65,7 @@ export function PivotBand({ duplicate, restoreFocus, onSelect, onDrill }: PivotB
               your conversation splices in here — always on, always placed
             </Text>
           </Button>
-          <Button aria-label="Edit Chat history" className="shrink-0" variant="ghost" onClick={onDrill} ref={chevronRef} size="icon" type="button">
+          <Button aria-label="Edit Chat history" className="shrink-0" variant="ghost" onClick={onDrill} ref={chevronRef} square={true} type="button">
             <Icon icon={ChevronRight} size="sm" />
           </Button>
         </Row>

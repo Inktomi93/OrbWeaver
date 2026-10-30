@@ -12,7 +12,7 @@ import { Icon, X } from "@orb/ui/icons";
 import type { ReactElement } from "react";
 import { Tip } from "#components";
 
-/** The way OUT of a narrowing filter, inset at the field's own inline end. `icon-sm` is the
+/** The way OUT of a narrowing filter, inset at the field's own inline end. The `sm` square is the
  *  `control-sm` SQUARE, i.e. the field's own height at either pointer: the button fills the field's inner end
  *  rather than hanging in the column gutter, and it clears the coarse tap floor by construction instead of by
  *  a hit-area pseudo. The absolute box takes its vertical static position from the row's `align="center"`, so
@@ -20,7 +20,7 @@ import { Tip } from "#components";
 export function ClearFilterGlyph({ label, onClick }: { readonly label: string; readonly onClick: () => void }): ReactElement {
   return (
     <Tip text={label}>
-      <Button aria-label={label} className="absolute inset-e-0" variant="ghost" onClick={onClick} size="icon-sm" type="button">
+      <Button aria-label={label} className="absolute inset-e-0" variant="ghost" onClick={onClick} size="sm" square={true} type="button">
         <Icon icon={X} size="sm" />
       </Button>
     </Tip>

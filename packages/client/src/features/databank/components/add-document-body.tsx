@@ -140,7 +140,7 @@ export function AddDocumentBody(): ReactElement {
             value={[scope]}
           >
             {DOCUMENT_SCOPE_SOURCES.map((kind) => (
-              <Toggle intent="outline" key={kind} size="sm" value={kind}>
+              <Toggle variant="outline" key={kind} size="sm" value={kind}>
                 {({ global: "Every chat", character: "This character", chat: "This chat" } satisfies Record<DocumentScopeSource, string>)[kind]}
               </Toggle>
             ))}
@@ -171,7 +171,7 @@ export function AddDocumentBody(): ReactElement {
           value={[mode]}
         >
           {ADD_MODES.map((id) => (
-            <Toggle intent="outline" key={id} size="sm" value={id}>
+            <Toggle variant="outline" key={id} size="sm" value={id}>
               {MODE_LABELS[id]}
             </Toggle>
           ))}
