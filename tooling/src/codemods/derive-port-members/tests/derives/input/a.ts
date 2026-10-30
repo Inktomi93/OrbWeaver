@@ -19,6 +19,10 @@ export interface ClockPort {
   readonly random: () => number;
 }
 
+export interface ParamsPort {
+  readonly lookup: (id: string) => Promise<string>;
+}
+
 export interface Deps {
   readonly sessions: { revoke(token: string): Promise<void> };
 }

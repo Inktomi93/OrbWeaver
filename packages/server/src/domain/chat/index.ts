@@ -12,7 +12,6 @@ export type {
   ChatRpgGatherResult,
   ChatRpgOps,
   ChatServiceDeps,
-  ChatUserMacroDefs,
   ClaimChatOp,
   ExtractQuietDeps,
   ForkGameArgs,
@@ -92,8 +91,6 @@ export { createChatService, createVisibleExtractQuiet } from "./service.ts";
 // policy (the floor is handed to it by `chatEventBounds`). Same posture as the `requireHost`/
 // `requireParticipant` guards this door already exports for out-of-domain enforcement.
 export { isBelowHistoryFloor } from "./substrate/auth/index.ts";
-export { backfillGroupCharacters, backfillMemory } from "./substrate/backfill.ts";
-export { estimateMemoryBackfillCalls } from "./substrate/backfill-estimate.ts";
 export { createResolveChatUserMacroDefs } from "./substrate/macro-readers.ts";
 // The §3.6 member-strip verdict — exported for the SAME reason `isBelowHistoryFloor` is: the LIVE SSE
 // fan-out (transport) must apply the identical per-subscriber strip the durable replay applies, off the

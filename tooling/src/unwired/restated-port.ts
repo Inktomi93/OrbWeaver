@@ -2,6 +2,8 @@
 // `orb/derived-port-member` and the `pnpm unwired ports` census both call `restatementsAt`, so they agree.
 // A hop the checker accepts structurally leaves no symbol link, which is why reference searches lose it.
 import ts from "typescript";
+import type { ForeignTypes } from "./foreign-types.ts";
+import { foreignTypes, isSplitSignature } from "./foreign-types.ts";
 
 /** Server tiers in import order: a member may derive only from a tier at or before its own. */
 const SERVER_TIERS = ["primitives", "foundation", "infra", "domain", "transport", "entry"] as const;
@@ -104,7 +106,9 @@ export function effectiveMember(checker: ts.TypeChecker, member: PortMember): Po
   return current;
 }
 
-export const RELATION = { identical: "identical", narrowed: "narrowed" } as const;
+/** `identical`: each type fits the other. `params`: the parameters are identical and only the return narrows.
+ *  `narrowed`: the owner's type fits the port's and the parameters differ too. */
+export const RELATION = { identical: "identical", params: "params", narrowed: "narrowed" } as const;
 export type Relation = (typeof RELATION)[keyof typeof RELATION];
 
 /** One hand-typed member restating another member's function type at a flow site. */
@@ -115,10 +119,12 @@ export interface Restatement {
   readonly restating: PortMember;
   /** The member it should derive from. */
   readonly owner: PortMember;
-  /** `identical`: each type is assignable to the other. `narrowed`: only the owner's is assignable to the port's. */
+  /** See {@link RELATION}. */
   readonly relation: Relation;
   /** Both sit in server domains, and different ones: no domain imports another, so the shape moves to contracts. */
   readonly crossDomain: boolean;
+  /** For a cross-domain pair, the types in the restating signature packages/contracts cannot hold; else null. */
+  readonly foreign: ForeignTypes | null;
   /** The member the value comes from, whichever of the two is restating: the implemented side of the hop. */
   readonly source: PortMember;
 }
@@ -134,12 +140,32 @@ function slotObjectType(checker: ts.TypeChecker, type: ts.Type): ts.Type | null 
   return parts.length === 1 ? (parts[0] ?? null) : null;
 }
 
+function sameParameters(checker: ts.TypeChecker, port: ts.Type, owner: ts.Type): boolean {
+  const [mine, ...more] = port.getCallSignatures();
+  const [theirs, ...others] = owner.getCallSignatures();
+  if (mine === undefined || theirs === undefined || more.length + others.length > 0 || mine.parameters.length !== theirs.parameters.length) {
+    return false;
+  }
+  return mine.parameters.every((parameter, index) => {
+    const other = theirs.parameters[index];
+    if (other === undefined) {
+      return false;
+    }
+    const a = checker.getTypeOfSymbol(parameter);
+    const b = checker.getTypeOfSymbol(other);
+    return checker.isTypeAssignableTo(a, b) && checker.isTypeAssignableTo(b, a);
+  });
+}
+
 function relationOf(checker: ts.TypeChecker, port: ts.Type, owner: ts.Type): Relation | null {
   const ownerFits = checker.isTypeAssignableTo(owner, port);
   if (!ownerFits) {
     return null;
   }
-  return checker.isTypeAssignableTo(port, owner) ? RELATION.identical : RELATION.narrowed;
+  if (checker.isTypeAssignableTo(port, owner)) {
+    return RELATION.identical;
+  }
+  return sameParameters(checker, port, owner) ? RELATION.params : RELATION.narrowed;
 }
 
 function judge(checker: ts.TypeChecker, site: ts.Node, slot: ts.Symbol, value: ts.Symbol): Restatement | null {
@@ -153,23 +179,30 @@ function judge(checker: ts.TypeChecker, site: ts.Node, slot: ts.Symbol, value: t
   if (port === owner || !(isHandTyped(port) || isHandTyped(owner))) {
     return null;
   }
-  const relation = relationOf(
-    checker,
-    nonNullable(checker, checker.getTypeOfSymbolAtLocation(slot, site)),
-    nonNullable(checker, checker.getTypeOfSymbolAtLocation(value, site)),
-  );
-  if (relation === null) {
-    return null;
-  }
-  const [restating, home] = ((): readonly [PortMember, PortMember] => {
+  const slotType = nonNullable(checker, checker.getTypeOfSymbolAtLocation(slot, site));
+  const valueType = nonNullable(checker, checker.getTypeOfSymbolAtLocation(value, site));
+  const [restating, home, restatingType, homeType, slotRestates] = ((): readonly [PortMember, PortMember, ts.Type, ts.Type, boolean] => {
+    const asPort = [port, owner, slotType, valueType, true] as const;
+    const asOwner = [owner, port, valueType, slotType, false] as const;
     if (!isHandTyped(owner)) {
-      return [port, owner];
+      return asPort;
     }
     if (!isHandTyped(port)) {
-      return [owner, port];
+      return asOwner;
     }
-    return rankOf(owner) > rankOf(port) ? [owner, port] : [port, owner];
+    if (rankOf(owner) !== rankOf(port)) {
+      return rankOf(owner) > rankOf(port) ? asOwner : asPort;
+    }
+    // A tie goes to the contract file as the home: a hook or a service beside it restates the contract.
+    return isContractFile(port.getSourceFile().fileName) && !isContractFile(owner.getSourceFile().fileName) ? asOwner : asPort;
   })();
+  // Judged in the rewrite's direction: the home's whole member type must fit where the restating one stands.
+  const relation = relationOf(checker, restatingType, homeType);
+  // A narrowing is judged against the member's owner, the value it is built from. A member that is only passed into a
+  // wider slot (`points: () => deps.resolveLoginLimit()`) is its own op, not a restatement of that slot.
+  if (relation === null || (relation !== RELATION.identical && !slotRestates)) {
+    return null;
+  }
   if (isConceptFreeCallback(restating)) {
     return null;
   }
@@ -178,8 +211,18 @@ function judge(checker: ts.TypeChecker, site: ts.Node, slot: ts.Symbol, value: t
   const fromDomain = from?.domain ?? null;
   const toDomain = to?.domain ?? null;
   const crossDomain = fromDomain !== null && toDomain !== null && fromDomain !== toDomain;
-  return { site, restating, owner: home, relation, crossDomain, source: owner };
+  const foreign = crossDomain ? foreignTypes(checker, restating) : null;
+  // A split signature (contracts data plus runtime types) is the consumer's own contract, not a restated concept.
+  if (foreign !== null && isSplitSignature(foreign)) {
+    return null;
+  }
+  return { site, restating, owner: home, relation, crossDomain, foreign, source: owner };
 }
+
+const CONTRACT_FILE = /\/packages\/(?:contracts|kit)\/|\/contract\/|[/.-]contract\.ts$/u;
+
+/** A contract file is a shape's home: a domain's `contract/`, a `*-contract.ts`, contracts or kit. */
+export const isContractFile = (fileName: string): boolean => CONTRACT_FILE.test(fileName.replaceAll("\\", "/"));
 
 function rankOf(member: PortMember): number {
   const placement = placementOf(member.getSourceFile().fileName);
@@ -241,6 +284,26 @@ function forwardedMember(checker: ts.TypeChecker, value: ts.Expression): ts.Symb
   return passesThrough ? memberSymbolOf(checker, call.expression) : undefined;
 }
 
+// An adapter lambda (`async (id) => { const n = await deps.m(id); evict(id); return n; }`) that calls exactly one
+// member of its own name: the member it wraps, judged like a forward so an identical signature still counts.
+function wrappedMember(checker: ts.TypeChecker, value: ts.Expression, name: string): ts.Symbol | undefined {
+  if (!(ts.isArrowFunction(value) || ts.isFunctionExpression(value))) {
+    return undefined;
+  }
+  const called = new Set<ts.Symbol>();
+  const visit = (node: ts.Node): void => {
+    if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === name) {
+      const symbol = checker.getSymbolAtLocation(node.expression);
+      if (symbol !== undefined) {
+        called.add(symbol);
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(value.body);
+  return called.size === 1 ? [...called][0] : undefined;
+}
+
 function propertyOf(checker: ts.TypeChecker, type: ts.Type, name: string): ts.Symbol | undefined {
   const parts = ((): readonly ts.Type[] => {
     const bare = nonNullable(checker, type);
@@ -259,7 +322,9 @@ function propertyFlow(checker: ts.TypeChecker, property: ts.PropertyAssignment |
   }
   const value = ts.isPropertyAssignment(property) ? property.initializer : property.name;
   const found = objectFlow(checker, property, checker.getTypeOfSymbolAtLocation(slot, property), value);
-  const source = ts.isPropertyAssignment(property) ? forwardedMember(checker, property.initializer) : checker.getShorthandAssignmentValueSymbol(property);
+  const source = ts.isPropertyAssignment(property)
+    ? (forwardedMember(checker, property.initializer) ?? wrappedMember(checker, property.initializer, name))
+    : checker.getShorthandAssignmentValueSymbol(property);
   const member = source === undefined ? null : judge(checker, property, slot, source);
   return member === null ? found : [...found, member];
 }

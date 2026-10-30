@@ -9,7 +9,9 @@ import { join } from "path";
 
 const DEFAULT_TARGETS_FILE = "reports/unwired/port-targets.json";
 // Only these kinds are mechanical; the census leaves the others to judgment.
-const APPLIED_KINDS = new Set(["derive", "concept"]);
+// The census's APPLIED_KINDS; the sandbox cannot import it, so the list is repeated here and the fixtures pin it.
+const APPLIED_KINDS = new Set(["derive", "derive-params", "concept", "add-door-export"]);
+const EDITED_FORMS = new Set(["member", "collapse"]);
 
 interface TargetExport {
   readonly file: string;
@@ -151,6 +153,12 @@ function importEdits(rootNode: SgNode<TS>, imports: readonly { readonly name: st
   return edits;
 }
 
+// A door that already exports the name, directly or as an alias (`X as Name`), gets no second export: TS2300.
+function exportsName(rootNode: SgNode<TS>, name: string): boolean {
+  const spelled = new RegExp(`(?:[{,]\\s*(?:type\\s+)?|\\bas\\s+)${name}\\s*[,}]`, "u");
+  return rootNode.children().some((child) => child.is("export_statement") && spelled.test(child.text()));
+}
+
 // `export` on a local declaration, or `export type { Name } from "…"` on a door.
 function exportEdits(rootNode: SgNode<TS>, entries: readonly TargetExport[]): Edit[] {
   const edits: Edit[] = [];
@@ -170,7 +178,9 @@ function exportEdits(rootNode: SgNode<TS>, entries: readonly TargetExport[]): Ed
       }
       continue;
     }
-    lines.push(`export type { ${entry.name} } from "${entry.from}";`);
+    if (!exportsName(rootNode, entry.name)) {
+      lines.push(`export type { ${entry.name} } from "${entry.from}";`);
+    }
   }
   if (lines.length > 0) {
     const anchor = rootNode
@@ -187,7 +197,7 @@ const codemod: Codemod<TS> = (root, options) => {
   const file = root.relativeFilename();
   const targets = readTargets(options.targetDir, options.params["targets"] ?? DEFAULT_TARGETS_FILE).filter((target) => APPLIED_KINDS.has(target.kind));
   const rootNode = root.root();
-  const mine = targets.filter((target) => target.file === file && target.form !== "import");
+  const mine = targets.filter((target) => target.file === file && EDITED_FORMS.has(target.form));
   const doors = targets.flatMap((target) => target.exports).filter((entry) => entry.file === file);
   const unique = [...new Map(doors.map((entry) => [`${entry.name}|${entry.from ?? ""}`, entry])).values()];
   const edits = [

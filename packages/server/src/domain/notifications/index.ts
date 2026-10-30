@@ -7,7 +7,7 @@
 
 export type { InboxView } from "@orb/contracts/notifications";
 export type { PluginNotificationDeliveryDeps } from "./contract/plugin-delivery.ts";
-export type { EmitNotification, NotificationsService } from "./contract/service.ts";
+export type { NotificationsService } from "./contract/service.ts";
 export { createNotificationsService } from "./service.ts";
 export { createPluginNotificationDelivery } from "./verbs/plugin-delivery.ts";
 export { createRecordAndPublishNotification } from "./verbs/record-and-publish.ts";
