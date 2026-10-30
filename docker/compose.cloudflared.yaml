@@ -24,7 +24,7 @@
 # TUNNEL_TOKEN_FILE instead (cloudflared reads either).
 services:
   cloudflared:
-    image: cloudflare/cloudflared:2026.9.3@sha256:072c067d25ccbe61d46e18f0d0723255f2bb5304f7317caa95b27031520ff92c
+    image: cloudflare/cloudflared:2026.10.1@sha256:a15a3b50b8dabd57ac2090e9484c0247dba9dfa1f0df4d298d4317f9d69eb2d5
     command: ["tunnel", "run"]              # the image's entrypoint is `cloudflared --no-autoupdate`
     environment:
       TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?set CLOUDFLARE_TUNNEL_TOKEN to your tunnel token}
