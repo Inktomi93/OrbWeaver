@@ -12,6 +12,8 @@ area: ui
 
 The You sheet's last row sits where the finger just tapped the You tab, so a double tap fires it; the current guard is a spacer (`DrawerTapGuard`) that costs the sheet the tab bar's height.
 
+Order: build after item 1421 step 1 merges. It needs the Drawer bottom presentation and a phone-shell inset token, both in that lane's files.
+
 ## Why
 
 The opening gesture must not activate a sheet row under the tab's touch target.

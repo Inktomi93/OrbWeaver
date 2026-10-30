@@ -151,6 +151,14 @@
   [data-slot="message-bubble"]:has(pre) {
     inline-size: 100%;
   }
+  /* A centred skin's column is one width for every row, code included, once the row is wide enough for the measure.
+   * It is spelled here, after the code rule and more specific than it, because a utility in a lower layer loses to
+   * that rule. */
+  @container (min-width: 56rem) {
+    [data-slot="message-content-column"][data-column="centred"] {
+      inline-size: var(--centred-column-width);
+    }
+  }
   /* With the soft keyboard up (`data-keyboard-up`, use-keyboard-inset-var.ts) the plugin flank folds away unless
    * the keyboard is its own, and the composer's refusal keeps to one line. */
   :root[data-keyboard-up] [data-slot="plugin-flank"]:not(:focus-within) {

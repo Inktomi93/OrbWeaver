@@ -1,7 +1,7 @@
 // The regex library's BULK bar (REGX2) — the selection-scoped verbs for the scripts checked in bulk mode.
 //
-// It lives in a COMPONENT, not the surface, so its interior AlertDialog is legal (surface-purity: a surface
-// renders no outer Dialog/Sheet/Drawer; a component owning its own interior confirm is fine — the
+// It lives in a COMPONENT, not the surface, so its interior AlertDialog is legal (`orb/surface-consumes-container`: a surface
+// renders no outer Dialog/AlertDialog/Drawer; a component owning its own interior confirm is fine — the
 // `character-bulk-bar` precedent, whose anatomy this mirrors: one grammar for "act on the things I checked"
 // across the whole app).
 //

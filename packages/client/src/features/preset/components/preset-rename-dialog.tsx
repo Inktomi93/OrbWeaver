@@ -1,6 +1,6 @@
 // The preset Rename flow (BUILD-SPEC §4.3) — a SMALL single-field Dialog (a lone rename stays controlled +
 // no form factory, §13.4 "single rename" allowlist). Confirming writes `preset.update {id, name}` (the name-
-// only path; config untouched). Owns its overlay (a component, not the surface — surface-purity). The caller
+// only path; config untouched). Owns its overlay (a component, not the surface — `orb/surface-consumes-container`). The caller
 // passes the current name (seed) + `onRename`; local input state is committed on submit.
 //
 // ITS ONE MOUNT IS THE EDITOR HEADER (#506). It was minted for the LIST hub and mounted in both places for a

@@ -658,6 +658,8 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
       "react-you-might-not-need-an-effect/no-initialize-state": "error",
       "react-you-might-not-need-an-effect/no-external-store-subscription": "error",
       ...jsxA11y.flatConfigs.strict.rules,
+      // Outside the strict preset. It resolves a mapped control through `components` above, which Biome's native-only rule cannot.
+      "jsx-a11y/no-aria-hidden-on-focusable": "error",
       "jsx-a11y/control-has-associated-label": [
         "error",
         { labelAttributes: ["label"], ignoreElements: ["audio", "canvas", "embed", "input", "textarea", "tr", "video"] },

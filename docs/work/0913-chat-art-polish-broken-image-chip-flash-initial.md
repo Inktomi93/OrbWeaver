@@ -22,4 +22,12 @@ Each point is fixed or has recorded evidence it does not occur, and a side-eye r
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Open points 1, 3 and 4; point 2 is done.
+
+- Point 2, done. The fixed-glyph test is gone with the legacy suite. `tests/client/features/chat/components/platform-art-fallback-initial.suite.ct.tsx` (component test; production room through `ChatRoomShellStory`; art styles derived from `MESSAGE_ROW_SKINS`) gives both speakers no avatar image and asserts the initial's font size over the slot's shorter side is between 0.4 and 0.8 in echo, whisper and ripple at 1440 and 390 px. A tightened bound fails it (control): whisper's band reads 0.70. Green: 6 passed in Chromium and 6 in WebKit.
+
+- Point 3, reproduced; fix is a ruling fork. With a custom primary of `#808080`, the second speaker's fallback initial measures 3.53:1 (ink rgb 21,21,21 on fill rgb 109,109,109) in echo, whisper and ripple; the other 18 primary and style cases (`#f5e663`, `#1a1a40`, `#ff00ff`, `#00ffff`, `#ffffff`, `#000000`) clear 4.5:1. Cause: `packages/ui/src/primitives/avatar/hue.ts` darkens every bucket by up to 0.085 lightness (an owner-ruled darken-only window), which lowers contrast when the ink is dark on a mid primary. A fill that moves away from the ink (mix toward the lightness opposite of `--color-primary-foreground`) cannot lower the pair's contrast, but it lightens Hearth's buckets, so it needs the owner's ruling. The measuring test is not committed because it would fail.
+
+- Point 1, not changed. A failed-art cache keyed by avatar hash removes the chip flash on remount, but a transient network failure would then hide a good image for the session. The cache lifetime is a design call.
+
+- Point 4, not done. A side-eye pass needs the side-eye role and a copy of the owner's data; a lane cannot spawn one.

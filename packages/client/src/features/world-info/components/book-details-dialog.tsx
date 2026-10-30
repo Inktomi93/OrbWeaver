@@ -1,7 +1,7 @@
 // The book DETAILS dialog — a SMALL two-field editor (name + description, the only two `BookView` fields) in
 // a controlled Dialog (a lone book-header edit stays controlled + no form factory, §13.4 "single rename"
 // allowlist extended to the book's two-field header). Confirming writes `worldInfo.updateBook {name,
-// description}`. Owns its overlay (a component, not the surface — surface-purity). The caller passes the
+// description}`. Owns its overlay (a component, not the surface — `orb/surface-consumes-container`). The caller passes the
 // current name/description (seed) + `onSave`; local state is committed on submit. Used both for RENAME (from
 // the library row kebab) and for editing the open book's header in CONTENT.
 

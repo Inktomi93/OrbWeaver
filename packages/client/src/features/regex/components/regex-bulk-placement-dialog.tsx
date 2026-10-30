@@ -9,7 +9,7 @@
 // deliberate act, and "set every one of these to run nowhere" is never what that act means — so the empty set
 // is a guarded dead end here, stated on the confirm rather than saved and lamented.
 //
-// It lives in a COMPONENT (the bulk bar mounts it), so its interior Dialog is legal (surface-purity: a surface
+// It lives in a COMPONENT (the bulk bar mounts it), so its interior Dialog is legal (`orb/surface-consumes-container`: a surface
 // renders no outer Dialog; a component owning its own interior one is fine — the `character-bulk-bar` shape).
 
 import type { RegexPlacement } from "@orb/kit/regex";
