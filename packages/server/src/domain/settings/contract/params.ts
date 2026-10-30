@@ -19,8 +19,6 @@ interface UserSettingsActorParams {
   readonly principal: Principal;
 }
 
-export interface GetUserSettingsParams extends UserSettingsActorParams {}
-
 /** `resetUserConfig` (#1771) — the whole-blob repair. Principal ONLY: it takes no id, so "reset someone
  *  else's settings" is not a request this verb can be asked to make. */
 export interface ResetUserConfigParams extends UserSettingsActorParams {}
@@ -39,8 +37,6 @@ export interface AddExternalBackgroundParams extends UserSettingsActorParams {
 interface AppSettingsActorParams {
   readonly principal: Principal;
 }
-
-export interface GetAppSettingsParams extends AppSettingsActorParams {}
 
 export interface UpdateAppSettingsParams extends AppSettingsActorParams {
   /** requireAdmin always; touching a D17 governance field additionally requires requireOwner. */

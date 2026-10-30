@@ -1,3 +1,4 @@
+import type { BulkImportChatsOp } from "@orb/contracts/chat";
 import type { PortabilityRegistry, PortableKind } from "@orb/contracts/portability";
 import { PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
 import type { AttachCardTagByNameOp } from "@orb/contracts/tag";
@@ -7,7 +8,6 @@ import type { AssetsContext, ImportAssetPort } from "#domain/assets";
 import { createExportAssets, createExportGallery, createImportAsset, createImportAvatarStore, createImportGallery } from "#domain/assets";
 import type { ImportCharacterPort } from "#domain/character";
 import { createCharacterImportOps } from "#domain/character";
-import type { BulkImportChats } from "#domain/chat";
 import type { DatabankPortabilityContext } from "#domain/databank";
 import { createExportDocument, createImportDocument, createListOwnedDocumentIds } from "#domain/databank";
 import type { ExportService, PortableExportDeps } from "#domain/export";
@@ -55,7 +55,7 @@ export interface PortabilityDeps {
   readonly exportRegexScripts: ExportRegexScripts;
   readonly importRegexScript: ImportRegexScript;
   readonly linkCarriedBooks: ImportWorldInfoPort["linkCarriedBooks"];
-  readonly bulkImportChats: BulkImportChats;
+  readonly bulkImportChats: BulkImportChatsOp;
   readonly bulkImportPersonas: BulkImportPersonas;
   // R6 — the orb-native chat arm's three cross-domain re-links, threaded into every per-owner ImportContext.
   readonly findPersonaByName: NonNullable<ImportProfileDeps["findPersonaByName"]>;

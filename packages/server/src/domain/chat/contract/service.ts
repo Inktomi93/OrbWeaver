@@ -12,6 +12,7 @@
 
 import type {
   ActionTemplatesPreview,
+  AddCharacterToChatOp,
   AssembledPrompt,
   AssemblyPreview,
   ChatInjectionView,
@@ -27,8 +28,11 @@ import type {
   MessageView,
   MessageWindow,
   NextTurnConnectionView,
+  ParticipantData,
   RoomOverrides,
   SectionPreview,
+  SetGroupConfigOp,
+  SetSeatKnobsOp,
   ShapeTrace,
   UserMacroPicksView,
   VariablePicksView,
@@ -42,7 +46,6 @@ import type {
   AbortParams,
   AcceptHostHandoffParams,
   AcceptInviteParams,
-  AddCharacterToChatParams,
   ApplyProseRewriteParams,
   ArchiveChatParams,
   ChatEventBoundsParams,
@@ -114,7 +117,6 @@ import type {
   SetChatBackgroundParams,
   SetChatDocumentVisibilityParams,
   SetChatInjectionParams,
-  SetGroupConfigParams,
   SetHostDisplayScriptsParams,
   SetMemberHistoryVisibilityParams,
   SetMemberPersonaLoreParams,
@@ -123,7 +125,6 @@ import type {
   SetReactionsEnabledParams,
   SetRegexAllowParams,
   SetRoomOverridesParams,
-  SetSeatKnobsParams,
   SetSeededGreetingParams,
   SetToolRecurseLimitParams,
   SetUserMacroValuesParams,
@@ -158,7 +159,6 @@ import type {
   ChatListPageData,
   ChatStreamReplayEvent,
   ChatSummaryData,
-  ParticipantData,
   StreamEventBounds,
 } from "./views.ts";
 
@@ -363,9 +363,9 @@ export interface ChatService {
 
   // ── group / roster ──────────────────────────────────────────────────────────────
   /** Host-only write of the `chatMetadata.group` sub-blob (parsed → fully-defaulted). */
-  readonly setGroupConfig: (params: SetGroupConfigParams) => Promise<GroupConfig>;
+  readonly setGroupConfig: SetGroupConfigOp;
   /** Add a character to the roster (host-only; the one character participant-insert chokepoint). */
-  readonly addCharacterToChat: (params: AddCharacterToChatParams) => Promise<ParticipantData>;
+  readonly addCharacterToChat: AddCharacterToChatOp;
   /** Remove a character seat from the roster (host-only) — the symmetric drop for `addCharacterToChat`.
    *  leftSeq-stamps the present character seat; an absent/already-left character is an idempotent no-op. Has
    *  a tRPC row today; the scene-cast prune (parked, D58) is a future INJECTED
@@ -424,7 +424,7 @@ export interface ChatService {
    *  optional; empty patch = no-op returning the current view). Replaces the retired per-kind forking
    *  (`setParticipantDisabled`/`setParticipantTalkativeness`/`setAgentSeatDisabled`) — one home, so no arm can
    *  be skipped again when the agent kind returns. A muted/tuned seat stays seated; cards/WI still contribute. */
-  readonly setSeatKnobs: (params: SetSeatKnobsParams) => Promise<ParticipantData>;
+  readonly setSeatKnobs: SetSeatKnobsOp;
 
   // ── invites (the one participant-insert chokepoint) ──────────
   /** Mint a share-link / targeted invite (host-only). Returns the persisted `InviteView` + the raw token

@@ -1,8 +1,8 @@
 // Roster display resolves one page's owned decorations and distinct public identities, not one card per seat.
 
+import type { ParticipantData } from "@orb/contracts/chat";
 import type { AssetId, CharacterId, ChatId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import type { ChatContext, LoadParticipantViewsOp } from "../contract/context.ts";
-import type { ParticipantData } from "../contract/views.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipantsBatch } from "../persistence/participants-read.ts";
 import { REMOVED_CHARACTER_LABEL, REMOVED_MEMBER_LABEL } from "../substrate/participant-name.ts";

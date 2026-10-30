@@ -15,13 +15,13 @@
 // byte-identical to a never-a-game chat). Siblings survive a detach for the same reason a set leaves them:
 // `json_remove` names one path.
 
-import type { ChatMetadata } from "@orb/contracts/chat";
+import type { ChatMetadata, SetRpgPointer } from "@orb/contracts/chat";
 import type { ChatRpgPointer } from "@orb/contracts/rpg";
 import { chats } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { createChatContext } from "../context.ts";
-import type { SetRpgPointer, SetRpgPointerDeps } from "../contract/context.ts";
+import type { SetRpgPointerDeps } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import type { ChatAssemblyContext } from "../contract/wiring.ts";
 import { carriedBackgroundAvailable } from "../persistence/background-write.ts";

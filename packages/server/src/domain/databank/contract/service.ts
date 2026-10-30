@@ -19,7 +19,6 @@ import type {
   BankHealthView,
   CaptureDatabankRoomReachOp,
   CreateDocumentFromText,
-  DatabankSettings,
   DocumentAttachmentsView,
   DocumentDetailView,
   DocumentView,
@@ -40,6 +39,7 @@ import type {
 import type { ExtractTextOp } from "@orb/contracts/extraction";
 import type { Can, Principal } from "@orb/contracts/identity";
 import type { SearchDocumentsOp } from "@orb/contracts/search";
+import type { GetDatabankSettingsOp } from "@orb/contracts/settings";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { TargetSnapshotOp, WorkloadRunScope } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
@@ -108,10 +108,6 @@ export const NO_EMBED_SPACE_MODEL = "";
 
 /** The `store` op databank drives: one document chunk, with the ingest pass's abort. */
 type EmbedDocumentChunkOp = (params: DocumentChunkStoreInput & { readonly signal?: AbortSignal | undefined }) => Promise<StoreResult>;
-
-/** Read a user's databank settings (chunk params + retrieval knobs). v1 returns the schema defaults (ST's
- *  bank-wide values); the per-user override lands with the Phase-6 panel. */
-type GetDatabankSettingsOp = (ownerId: UserId) => Promise<DatabankSettings>;
 
 /** The DI bundle every databank verb + the ingest subsystem close over (assembled at `entry/compose`). */
 export interface DatabankContext {

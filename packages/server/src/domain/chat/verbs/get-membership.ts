@@ -4,9 +4,10 @@
 // `can()`); the `createExtractQuiet` precedent. `null` = not a present member OR no such chat (one leak-free
 // answer — the not-a-participant 404 rpg surfaces).
 
+import type { GetMembership } from "@orb/contracts/chat";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
-import type { ChatContext, GetMembership } from "../contract/context.ts";
+import type { ChatContext } from "../contract/context.ts";
 import { loadPresentRole } from "../persistence/participants-read.ts";
 
 export function createGetMembership(input: DbAssemblyInput<Pick<ChatContext, "db">>): GetMembership {

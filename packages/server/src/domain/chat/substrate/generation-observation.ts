@@ -1,6 +1,7 @@
+import type { GenerationObservationParent } from "@orb/contracts/chat";
 import { responseCacheSchema, storedGenerationUsageLegSchema } from "@orb/contracts/inference";
 import type { chatGenerationObservations } from "@orb/db";
-import type { GenerationObservationFact, GenerationObservationGroup, GenerationObservationParent } from "../contract/generation-observation.ts";
+import type { GenerationObservationFact, GenerationObservationGroup } from "../contract/generation-observation.ts";
 
 /** Group normalized retained rows without adding mutable state to the query layer. */
 export function groupObservationRows(rows: readonly (typeof chatGenerationObservations.$inferSelect)[]): GenerationObservationGroup[] {

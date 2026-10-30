@@ -6,6 +6,7 @@
 // through chat's OWN injected guard (never re-implemented here — see {@link RosterPresetChatOps}).
 
 import type { RulePresetId, RulePresetKnobValues } from "@orb/contracts/automation";
+import type { AddCharacterToChatOp, SetGroupConfigOp, SetSeatKnobsOp } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { ApplyRosterPresetResult, RosterPresetMemberView, RosterPresetSummary, RosterPresetView } from "@orb/contracts/roster-preset";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
@@ -14,7 +15,6 @@ import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { CharacterId, ChatId, ChatParticipantId, PersonaId, RosterPresetId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { AutomationService, RulePresetKnobOverrides } from "#domain/automation";
-import type { ChatService } from "#domain/chat";
 import type { AuditEntry } from "#foundation/observability";
 import type {
   ApplyRosterPresetParams,
@@ -63,7 +63,10 @@ export interface MemberCardRow {
  *  non-host preset owner a roster-intersection oracle (`{added: [], alreadyPresent: […]}` against a
  *  foreign chatId). It is chat's own exported guard bound at compose — ONE authority home; a stranger
  *  and a non-existent room collapse to the same leak-free NOT_FOUND. */
-export interface RosterPresetChatOps extends Pick<ChatService, "addCharacterToChat" | "setGroupConfig" | "setSeatKnobs"> {
+export interface RosterPresetChatOps {
+  readonly addCharacterToChat: AddCharacterToChatOp;
+  readonly setGroupConfig: SetGroupConfigOp;
+  readonly setSeatKnobs: SetSeatKnobsOp;
   readonly requireHost: (principal: Principal, chatId: ChatId) => Promise<void>;
   readonly listPresentCharacterSeats: (chatId: ChatId) => Promise<readonly PresentCharacterSeat[]>;
 }

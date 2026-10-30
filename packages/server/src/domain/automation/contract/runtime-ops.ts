@@ -2,7 +2,7 @@ import type { RequestTurnOp, ToolCallRecord, TurnInitiator } from "@orb/contract
 import type { Principal, ResolveHostPrincipalOp } from "@orb/contracts/identity";
 import type { GeneratePicture } from "@orb/contracts/imagery";
 import type { ResolveUtilityPresetParams } from "@orb/contracts/preset";
-import type { UserSettingsView } from "@orb/contracts/settings";
+import type { GetUserSettingsOp } from "@orb/contracts/settings";
 import type { IsToolDrivableByOp, ListDrivableToolNamesOp, ResolveToolsOp } from "@orb/contracts/tool-use";
 import type { BindingActor, ChatToolDefinition, RoleClientsWithSignal, ToolCallInput } from "@orb/inference";
 import type { AssetId, ChatId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
@@ -18,7 +18,7 @@ export interface AutomationRuntimeDeps<TSet> {
     options?: { readonly initiator: TurnInitiator; readonly automationDepth: number } | undefined,
   ) => Promise<{ readonly messageId: MessageId; readonly variantId: MessageVariantId }>;
   readonly imagery: { readonly generatePicture: GeneratePicture };
-  readonly settings: { readonly getUserSettings: (params: { readonly principal: Principal }) => Promise<UserSettingsView> };
+  readonly settings: { readonly getUserSettings: GetUserSettingsOp };
   readonly toolUse: {
     readonly isToolDrivableBy: IsToolDrivableByOp;
     readonly listDrivableToolNames: ListDrivableToolNamesOp;
