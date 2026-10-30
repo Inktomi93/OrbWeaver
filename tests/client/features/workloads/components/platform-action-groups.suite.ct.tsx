@@ -1,5 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { testId } from "@orb/client/lib";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { personaCollisionReviewSchema, ST_SETTINGS_FILE } from "@orb/contracts/import";
@@ -247,7 +248,10 @@ for (const regime of REGIMES) {
       expect(await caller.workloads.listSchedules({})).toEqual(before);
     });
 
-    test("deferred bulk Cancel and terminal Retry stay separate and cancellation is nondestructive", async ({ mount, page }, testInfo) => {
+    test("deferred bulk Cancel and terminal Retry stay separate, the run action stays inside the host, and cancellation is nondestructive", async ({
+      mount,
+      page,
+    }, testInfo) => {
       await using root = await createServerHarness(ROOT_OPTIONS);
       const caller = await root.internalCallerFor(root.ownerId);
       const cancelled = await caller.workloads.start({ input: { kind: "import-token-usage-backfill", params: {} } });
@@ -286,6 +290,10 @@ for (const regime of REGIMES) {
       await expect(terminal.getByRole("button", { name: /^Cancel — /u })).toHaveCount(0);
       await measureActions(cancel.locator(".."), [cancel], testInfo, "deferred-job-actions");
       await measureActions(retry.locator(".."), [retry], testInfo, "terminal-job-actions");
+      // The header's run-a-job action shares one row with the filter tabs and may not leave the host at any regime.
+      const run = page.getByTestId(testId("workloadsRunButton"));
+      await expect(run).toBeVisible();
+      expect((await actionGroupGeometry(page.getByRole("group", { name: "Workload action host", exact: true }), [run])).inlineOverflow).toBeLessThanOrEqual(1);
       await retry.focus();
       await expect(retry).toBeFocused();
       await cancel.focus();
