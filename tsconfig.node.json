@@ -1,0 +1,40 @@
+{
+  "extends": "./tsconfig.world-node.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "allowJs": true
+  },
+  "include": [
+    "reset.d.ts",
+    "eslint-plugins.d.ts",
+    "platform.d.ts",
+    "aggregator-assets.d.ts",
+    "tests/support/vitest-tags.d.ts",
+    "*.config.ts",
+    "knip.ts",
+    ".dependency-cruiser.ts",
+    "stylelint-browser-support.ts",
+    "stylelint-rules.ts",
+    "stylelint-custom-properties.ts",
+    "packages/*/*",
+    "scripts/**/*.ts",
+    "scripts/**/*.mts",
+    "scripts/**/*.cts",
+    "tests/**/*.ts",
+    "tests/**/*.mts",
+    "tests/**/*.cts",
+    "tests/support/node/**/*"
+  ],
+  "exclude": [
+    "**/node_modules",
+    "tests/**/*.dom.test-d.ts",
+    "tests/**/*.dom.test.ts",
+    "tests/**/*.spec.ts",
+    "tests/**/*.ct.tsx",
+    "tests/e2e",
+    "tests/support/browser",
+    "tests/support/iso/**/*",
+    "playwright",
+    "packages/plugin-sdk/*.d.ts"
+  ]
+}

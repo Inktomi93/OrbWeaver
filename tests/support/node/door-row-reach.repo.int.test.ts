@@ -90,7 +90,7 @@ function doorFiles(): ReadonlyMap<string, string> {
 
 // One parse per file across every build: a planted program swaps only the composed door's source.
 function createProgramFactory(): (roots: readonly string[], composedSource?: string) => ts.Program {
-  const configPath = join(REPO, "tsconfig.json");
+  const configPath = join(REPO, "tsconfig.node.json");
   const parsed = ts.parseJsonConfigFileContent(ts.readConfigFile(configPath, ts.sys.readFile).config, ts.sys, dirname(configPath));
   const options = { ...parsed.options, noEmit: true };
   const host = ts.createCompilerHost(options, true);

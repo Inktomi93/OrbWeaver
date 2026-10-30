@@ -10,7 +10,7 @@ export function packageWorlds(root: string): readonly string[] {
 }
 
 /** The test worlds: a use found only here is test-only. */
-export const TEST_WORLDS = ["tsconfig.json", "tsconfig.tests-dom.json"] as const;
+export const TEST_WORLDS = ["tsconfig.node.json", "tsconfig.tests-dom.json"] as const;
 
 /** One world's program. `realpath` keeps a workspace package on its source path rather than its
  *  `node_modules` link, or every cross-package reference is lost. */

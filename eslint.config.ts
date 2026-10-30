@@ -299,7 +299,7 @@ const TEST_ENVIRONMENT_RESTRICTIONS = [
   },
 ];
 
-const TEST_PROJECTS = ["tsconfig.json", "tsconfig.tests-dom.json", "tsconfig.tests-iso.json"];
+const TEST_PROJECTS = ["tsconfig.node.json", "tsconfig.tests-dom.json", "tsconfig.tests-iso.json"];
 
 const NODE_TOOL_SOURCE = ["*.{ts,mts,cts}", "packages/*/*.{ts,mts,cts}", "scripts/**/*.{ts,mts,cts}"];
 
@@ -595,7 +595,7 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
   {
     files: NODE_TOOL_SOURCE,
     ignores: ["**/*.d.{ts,mts,cts}"],
-    languageOptions: { parserOptions: { project: ["tsconfig.json"], projectService: false, tsconfigRootDir: ROOT } },
+    languageOptions: { parserOptions: { project: ["tsconfig.node.json"], projectService: false, tsconfigRootDir: ROOT } },
     rules: ASYNC_SAFETY_RULES,
   },
   {

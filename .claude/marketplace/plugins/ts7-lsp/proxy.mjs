@@ -1,10 +1,9 @@
 // Starts the TypeScript 7.1 native language server and loads every typecheck world up front.
 // tsgo searches references only in projects it has loaded, and it loads a project only when one of its
 // files is opened, so without this a find-references on a kit or contracts symbol misses every other world.
-// Root `references` do not change that (measured on 7.1.0-beta), so this opens one file per world instead.
-// Limit: the server treats only files named `tsconfig.json` as projects, so worlds under other names
-// (`tsconfig.tests-dom.json`, `tsconfig.tests-iso.json`, the router and showcase author configs) fall back to
-// inferred projects and their callers are not found. `pnpm unwired` covers those worlds.
+// Root `references` alone do not load projects (measured on 7.1.0-beta), so this opens one file per world.
+// The root `tsconfig.json` is a solution file referencing every world, so files in worlds with other names
+// (`tsconfig.node.json`, the test worlds, the router and showcase author configs) map to their real program.
 import { execFileSync, spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
