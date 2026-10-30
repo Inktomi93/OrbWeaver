@@ -2,7 +2,7 @@ import type { CSSProperties, ReactElement, ReactNode } from "react";
 import { createContext, use, useEffect } from "react";
 import type { ThemeScopeTokens } from "./clamp.ts";
 import { clampThemeTokens } from "./clamp.ts";
-import { ToneFallbackReporterContext } from "./tone-fallback.ts";
+import { InputBorderFallbackReporterContext, ToneFallbackReporterContext } from "./tone-fallback.ts";
 
 export interface ThemeScopeProps {
   /** Raw override tokens (untrusted for a per-character theme). Every value is clamped at the boundary. */
@@ -58,6 +58,7 @@ export function ThemeScope({ tokens, children, className, ambientBackground, amb
   const accentAmbient = ambientAccent ?? inheritedAccent;
   const clamped = clampThemeTokens(tokens, ambient ?? undefined, accentAmbient ?? undefined);
   const reportFallback = use(ToneFallbackReporterContext);
+  const reportInputBorderFallback = use(InputBorderFallbackReporterContext);
   // The fallback's fields, not the object the clamp rebuilds every render, so a scope reports one fallback once.
   const fallbackAccent = clamped.toneFallback?.accent;
   const fallbackHover = clamped.toneFallback?.hover;
@@ -67,6 +68,13 @@ export function ThemeScope({ tokens, children, className, ambientBackground, amb
       reportFallback({ accent: fallbackAccent, hover: fallbackHover, active: fallbackActive });
     }
   }, [reportFallback, fallbackAccent, fallbackHover, fallbackActive]);
+  const fallbackEdge = clamped.inputBorderFallback?.edge;
+  const fallbackFloorMet = clamped.inputBorderFallback?.floorMet;
+  useEffect(() => {
+    if (reportInputBorderFallback !== null && fallbackEdge !== undefined && fallbackFloorMet !== undefined) {
+      reportInputBorderFallback({ edge: fallbackEdge, floorMet: fallbackFloorMet });
+    }
+  }, [reportInputBorderFallback, fallbackEdge, fallbackFloorMet]);
   // Only validated `--*` keys reach `style` — never raw caller style. `colorScheme` (derived from the
   // base surface's polarity, when known) rides `style` too so a custom LIGHT theme flips native
   // controls AND the light-dark() intent arms to their light values instead of the seed's dark scheme.

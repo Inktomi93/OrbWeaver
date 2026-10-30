@@ -27,6 +27,7 @@
     "./errors": "./src/errors/index.ts",
     "./evidence-window": "./src/evidence-window/index.ts",
     "./fix-markdown": "./src/fix-markdown/index.ts",
+    "./font-scale": "./src/font-scale/index.ts",
     "./guards": "./src/guards/index.ts",
     "./guided": "./src/guided/index.ts",
     "./handle-key": "./src/handle-key/index.ts",

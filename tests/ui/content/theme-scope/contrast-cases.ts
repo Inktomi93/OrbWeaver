@@ -6,3 +6,6 @@ export const BASES = [
   { name: "dark polarity boundary", background: "oklch(0.55 0.01 60)" },
   { name: "light polarity boundary", background: "oklch(0.57 0.01 60)" },
 ] as const;
+
+/** A neutral mid-grey, where a fixed-colour edge has the least room on either side. */
+export const MID_GREY = "oklch(0.6 0 0)";
