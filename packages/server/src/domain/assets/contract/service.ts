@@ -3,6 +3,7 @@
 // `principal.userId`; maintenance verbs are un-principal (CLI/workload/DR callers only).
 
 import type { AssetBlobRef, AssetCasRefByIdOp, AssetListItem, GalleryItemView, LoadAssetBytesOp, StoreAsset } from "@orb/contracts/assets";
+import type { CharacterOwnedOp } from "@orb/contracts/character";
 import type { ListImageAssetIds } from "@orb/contracts/embeddings";
 import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
@@ -41,7 +42,7 @@ export interface AssetsContext {
    *  (structural `message_assets` reference + owner present + caller present). Optional. */
   readonly loadChatAssetRefs?: (callerId: UserId, chatId: ChatId, assetIds: readonly AssetId[]) => Promise<readonly AssetBlobRef[]>;
   /** Gallery owner-only posture: does `ownerId` own `characterId`? Optional — absent skips the subject check. */
-  readonly assertCharacterOwned?: (ownerId: UserId, characterId: CharacterId) => Promise<boolean>;
+  readonly assertCharacterOwned?: CharacterOwnedOp;
   /** Gallery export re-link: an owned character's portable handle, or null if missing or foreign. Optional. */
   readonly resolveCharacterHandle?: (ownerId: UserId, characterId: CharacterId) => Promise<CharacterHandle | null>;
   /** Gallery import re-link: the owner's own character id carrying `handle`, or null if none exists. Optional. */

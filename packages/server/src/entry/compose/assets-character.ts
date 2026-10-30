@@ -11,6 +11,7 @@
 //   2. FORWARD-REFS `persona` + `preset` — the persona seeder's `createPersona` and character's greeting-template
 //      resolver deref services built LATER (search-discovery). The keystone threads them as request-time getters.
 
+import type { CharacterOwnedOp } from "@orb/contracts/character";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { readSeedBackground, SEED_BACKGROUND_PLATES } from "@orb/default-content";
@@ -19,7 +20,7 @@ import { ID_PREFIX } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { AssetsContext, AssetsService, BackgroundStoreDeps, MaterializeBackgroundDeps } from "#domain/assets";
 import { createAssetsService, createBackgroundStore, createMaterializeBackground, createSeedPlateStore } from "#domain/assets";
-import type { CharacterContext, CharacterService, DefaultCharacterSeeder, GreetingCompletionDeps } from "#domain/character";
+import type { CharacterService, DefaultCharacterSeeder, GreetingCompletionDeps } from "#domain/character";
 import {
   createCharacterOwned,
   createCharacterService,
@@ -32,7 +33,6 @@ import {
 } from "#domain/character";
 import { createLoadChatAssetRefs, createLoadCoParticipantOwner, migrateSeededRoomBackgrounds } from "#domain/chat";
 import type { ExportService } from "#domain/export";
-import type { ImageryContext } from "#domain/imagery";
 import { cardPngIdentity } from "#domain/import";
 import type { DefaultPersonaSeeder, DefaultPersonaSeederDeps, PersonaService } from "#domain/persona";
 import { createDefaultPersonaSeeder, createFindSeededDefault } from "#domain/persona";
@@ -56,7 +56,7 @@ import type { BulkImportLorebook, HasPrimaryBook } from "#domain/world-info";
 import { createCopyCharacterBooks } from "#domain/world-info";
 import type { Env } from "#foundation/env/record";
 import { personaAutoSeedAdmits } from "#foundation/env/record";
-import type { Logger } from "#foundation/observability";
+import type { AuditWiring, Logger } from "#foundation/observability";
 import type { ImageAdapter } from "#infra/image";
 import type { Cas, VariantCache } from "#infra/storage";
 import type { LiveBuses } from "#transport/trpc";
@@ -81,7 +81,7 @@ export interface AssetsCharacterComposeDeps {
   readonly variants: VariantCache;
   readonly imageAdapter: ImageAdapter;
   readonly emit: AssetsContext["emit"];
-  readonly audit: CharacterContext["audit"];
+  readonly audit: AuditWiring["log"];
   readonly tag: Pick<TagService, "attachCardTagByName" | "detachCardTagByName">;
   /** The per-FUNDER role-client binder (§8.5b) — the greeting studio spends the CALLER's own `summarize` row. */
   readonly roleClientsFor: GreetingCompletionDeps["roleClientsFor"];
@@ -124,7 +124,7 @@ export interface AssetsCharacterComposeResult {
   readonly backgroundSeeder: DefaultBackgroundSeeder;
   readonly materializeBackgroundOp: MaterializeBackgroundOp;
   /** Does `ownerId` own `characterId`? The same read `assetsCtx.assertCharacterOwned` gates the gallery add on. */
-  readonly characterOwned: ImageryContext["ownsCharacter"];
+  readonly characterOwned: CharacterOwnedOp;
 }
 
 /** Bind each canonical owner; persona identifies its artifact, settings repairs picks and completes the latch. */

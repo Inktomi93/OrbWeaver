@@ -38,7 +38,7 @@ import type { GeneratePicturePrompt, SizePresetName } from "@orb/contracts/image
 import type { SendAvailability } from "@orb/contracts/inference";
 import type { NotificationEvent, PresenceView } from "@orb/contracts/notifications";
 import type { ResolveCurrentPersonaOp, ResolveDefaultPersonaOp } from "@orb/contracts/persona";
-import type { ChoiceBlockSpec, UserIntent } from "@orb/contracts/preset";
+import type { ChoiceBlockSpec, ResolveUtilityPresetParams, UserIntent } from "@orb/contracts/preset";
 import type { CancelStateRoundsOp, RpgGameTemplate } from "@orb/contracts/rpg";
 import type { BlockKey, MemoryQueryOptions, ResolveCorpusSourceState, ScoredBlock } from "@orb/contracts/search";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
@@ -180,9 +180,6 @@ export type SummarizeOp = (funderUserId: UserId, ...args: Parameters<RoleClients
  *  `maxContextTokens` sets the window on a route that sends one, so the pass runs the turn's own. */
 type ResolveChatPresetParamsOp = (chatId: ChatId) => Promise<SideGenSampling & Pick<UserIntent, "maxContextTokens">>;
 
-/** A user's Utility-role preset params (D299), `undefined` under task defaults. Resolved at the entry root. */
-type ResolveUtilityPresetParamsOp = (userId: UserId) => Promise<SideGenSampling | undefined>;
-
 /** B7 — a user's per-user reaction defaults, picked off the same schema-real `UserSettings.chat` arm the
  *  turn path consumes as `ChatBehaviorInputs` (never a re-spelled shape). The op half of
  *  {@link ChatContext.readReactionDefaults}. */
@@ -226,7 +223,7 @@ export interface ExtractQuietDeps {
   readonly summarize: SummarizeOp;
   readonly getCard: GetCardOp;
   /** The funder's Utility-role preset params: extract-quiet runs on the summarize connection. */
-  readonly resolveUtilityPresetParams: ResolveUtilityPresetParamsOp;
+  readonly resolveUtilityPresetParams: ResolveUtilityPresetParams;
   /** IMGMAC (owner ruling: YES) — the two authoring homes' user-macro DEFS, so an imagery mode template
    *  resolves `{{house_style}}` exactly as a turn would. REQUIRED, not optional: an unwired composition root
    *  would silently re-open the "the settings UI offers a macro that never substitutes" hole this closed. */
@@ -756,7 +753,7 @@ export interface ChatContext extends EngineContext, ChatAccountingContext {
   readonly embedContextTokens: (funderUserId: UserId) => Promise<number>;
   /** The FUNDER's Utility-role preset params (D299), `undefined` under task defaults. The arbiter and the memory
    *  build fold them over their task posture; read per call, so a changed choice reaches the next summarize. */
-  readonly resolveUtilityPresetParams: ResolveUtilityPresetParamsOp;
+  readonly resolveUtilityPresetParams: ResolveUtilityPresetParams;
   readonly emitNotification: NotificationsEmitOp;
   readonly resolveHandle: ResolveHandleOp;
   readonly resolveUserEnabled: ResolveUserEnabledOp;

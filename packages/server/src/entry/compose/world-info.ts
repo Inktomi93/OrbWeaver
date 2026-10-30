@@ -24,9 +24,9 @@ import { createBulkImportPersonas } from "#domain/persona";
 import type { SessionsService } from "#domain/sessions";
 import { createResolveUserEnabled } from "#domain/sessions";
 import { createStatsBatchWiring } from "#domain/stats";
-import type { ImportWorldInfoPort, WorldInfoContext, WorldInfoService } from "#domain/world-info";
+import type { ImportWorldInfoPort, WorldInfoService } from "#domain/world-info";
 import { createBulkImportLorebook, createHasPrimaryBook, createLinkCarriedBooks, createWorldInfoService } from "#domain/world-info";
-import type { Logger } from "#foundation/observability";
+import type { AuditWiring, Logger } from "#foundation/observability";
 import type { LiveBuses } from "#transport/trpc";
 import { createHostPrincipalResolver } from "../auth/index.ts";
 import type { ChatComposeResult } from "./chat.ts";
@@ -41,7 +41,7 @@ export interface WorldInfoComposeDeps {
   readonly idSource: IdSource;
   readonly db: DatabaseHandle;
   readonly now: Clock;
-  readonly audit: WorldInfoContext["audit"];
+  readonly audit: AuditWiring["log"];
   readonly sessions: SessionsService;
   /** chat's bus durable-first emit — world-info publishes WI events onto it. */
   readonly emitChatBusEvent: ChatComposeResult["emitBusEvent"];

@@ -23,7 +23,6 @@ import type {
   ImportGlobalScripts,
   ImportPresetScripts,
   ImportRegexScript,
-  RegexContext,
   RegexService,
 } from "#domain/regex";
 import {
@@ -36,7 +35,7 @@ import {
   createRegexService,
   createResolveRegexSources,
 } from "#domain/regex";
-import type { Logger } from "#foundation/observability";
+import type { AuditWiring, Logger } from "#foundation/observability";
 import type { LiveBuses } from "#transport/trpc";
 import { minter } from "./minter.ts";
 import { createDeleteReachCapture, createEmitRoomRegexChanged, createFanRegexScriptRooms } from "./room-reach.ts";
@@ -50,7 +49,7 @@ export interface RegexComposeDeps {
   readonly idSource: IdSource;
   readonly db: DatabaseHandle;
   readonly now: Clock;
-  readonly audit: RegexContext["audit"];
+  readonly audit: AuditWiring["log"];
   /** chat's DURABLE-APPEND-FREE live fan — the entity→room bridge's emit surface (the world-info precedent).
    *  Threaded here for #1733: regex's chat-arm writes and its library-row switch both have a member-visible
    *  projection in rooms, and `regexChanged` is a per-USER channel that never reaches them. */

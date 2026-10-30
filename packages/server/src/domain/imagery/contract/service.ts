@@ -4,7 +4,7 @@
 // the composition root.
 
 import type { AssetKind, StoredAsset } from "@orb/contracts/assets";
-import type { CharacterCard } from "@orb/contracts/character";
+import type { CharacterCard, CharacterOwnedOp } from "@orb/contracts/character";
 import type { Principal, ResolveHostPrincipalOp } from "@orb/contracts/identity";
 import type { GeneratePicture, PromptTemplateMode } from "@orb/contracts/imagery";
 import type { GenerationCapability, GenerationUsage } from "@orb/contracts/inference";
@@ -182,7 +182,7 @@ export interface ImageryContext {
   /** Does `ownerId` own `characterId`? The auto-curation gate, read before any spend so a picture never
    *  targets a character its owner does not hold. Wired to the same owner-scoped `characters` read the
    *  gallery add verb gates on. */
-  readonly ownsCharacter: (ownerId: UserId, characterId: CharacterId) => Promise<boolean>;
+  readonly ownsCharacter: CharacterOwnedOp;
   /** `assets.addToGallery` under the picture owner's principal: join an owned picture to that owner's
    *  gallery as this character's. Idempotent on `(assetId, subjectCharacterId)`. */
   readonly addToGallery: (owner: Principal, assetId: AssetId, subjectCharacterId: CharacterId) => Promise<void>;

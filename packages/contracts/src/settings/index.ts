@@ -1038,8 +1038,6 @@ export const themeViewSchema = z.strictObject({
 
 export type { ImportedAppearance, ImportedAppearanceOutcome, ImportedThemeLanding, SettingsImportOutcome } from "./import-results.ts";
 
-export type LoadUserSettingsOp = (userId: UserId) => Promise<UserSettings>;
-
 /** A signed-in actor reading their own settings; the verb scopes by `principal.userId`. */
 export interface GetUserSettingsParams {
   readonly principal: Principal;

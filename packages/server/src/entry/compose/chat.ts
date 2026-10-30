@@ -156,7 +156,7 @@ export interface ChatComposeInput {
   readonly sessionSecret: string | null;
   /** The frozen-host → `Principal` bridge for role-sensitive ops. */
   readonly resolveHostPrincipal: ChatAssetOpsDeps["resolvePrincipal"];
-  readonly audit: ChatContext["audit"];
+  readonly audit: AuditWiring["log"];
   /** The root's audit wiring, for the statements that must commit with their primary write. */
   readonly auditStatements: AuditWiring;
   readonly traces: TraceRing;
