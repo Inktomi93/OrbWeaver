@@ -248,6 +248,56 @@
    "members": [
     "SessionsService"
    ]
+  },
+  {
+   "leg": "B",
+   "kind": "review",
+   "form": "member",
+   "file": "a.ts",
+   "line": 32,
+   "members": [
+    "create"
+   ],
+   "port": "Untouched.create",
+   "owner": "SessionsService.create",
+   "ownerAt": "door/service.ts:2",
+   "type": "SessionsService[\"create\"]",
+   "imports": [
+    {
+     "name": "SessionsService",
+     "from": "./door/index.ts"
+    }
+   ],
+   "exports": [
+    {
+     "file": "door/index.ts",
+     "name": "Reviewed",
+     "from": "./reviewed.ts"
+    }
+   ],
+   "note": ""
+  },
+  {
+   "leg": "B",
+   "kind": "derive",
+   "form": "type",
+   "file": "a.ts",
+   "line": 37,
+   "members": [
+    "LocalLookup"
+   ],
+   "port": "LocalLookup",
+   "owner": "SessionsService.lookup",
+   "ownerAt": "door/service.ts:4",
+   "type": "SessionsService[\"lookup\"]",
+   "imports": [
+    {
+     "name": "SessionsService",
+     "from": "./door/index.ts"
+    }
+   ],
+   "exports": [],
+   "note": ""
   }
  ]
 }

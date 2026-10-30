@@ -53,7 +53,16 @@ const TREE = {
   ].join("\n"),
   [`${SERVER}/domain/preset/contract/side-gen-params.ts`]:
     'import type { SideGenSampling } from "@orb/inference";\nexport type ResolveUtilityPresetParams = (userId: string) => Promise<SideGenSampling | undefined>;',
-  [`${SERVER}/domain/preset/index.ts`]: "export {};",
+  [`${SERVER}/domain/preset/index.ts`]: [
+    'import type { ResolveUtilityPresetParams } from "./contract/side-gen-params.ts";',
+    "export declare const sideGen: { readonly resolveUtilityPresetParams: ResolveUtilityPresetParams };",
+  ].join("\n"),
+  [`${SERVER}/domain/refinery/index.ts`]: 'export type { RefineryContext } from "./contract/service.ts";',
+  [`${SERVER}/entry/compose/refinery.ts`]: [
+    'import { sideGen } from "#domain/preset";',
+    'import type { RefineryContext } from "#domain/refinery";',
+    "export const refinery: RefineryContext = { resolveUtilityPresetParams: sideGen.resolveUtilityPresetParams };",
+  ].join("\n"),
   [`${SERVER}/domain/preset/verbs/side-gen.ts`]:
     'import type { SideGenSampling } from "@orb/inference";\nexport interface SideGenDeps {\n  readonly resolveParams: (userId: string) => Promise<SideGenSampling | undefined>;\n}',
   [`${SERVER}/domain/refinery/contract/service.ts`]:
@@ -135,11 +144,13 @@ test("the census plans every restating member against a real owner", { timeout: 
   expect(plan(targets, `${SERVER}/entry/http/healthz.ts`, "isShuttingDown")).toEqual([{ kind: "move-down", type: null }]);
 });
 
-test("a forgotten door export with a same-shape copy, and a synonym alias seen through", { timeout: 120_000 }, async ({ plantedTree }) => {
+test("a forgotten door export with a flow-linked copy, and a synonym alias seen through", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(TREE);
   const { targets } = portCensus(root, () => undefined);
   const forgotten = targets.filter((target) => target.form === "type").map(({ kind, file, members }) => ({ kind, file, members }));
-  // The copy in refinery is another domain, so the shape moves to contracts; the alias chain reaches contracts, so it is not a split.
+  // The composition root feeds refinery's copy from the preset alias, so they are one concept. The copy is another
+  // domain, so the shape moves to contracts; the alias chain reaches contracts, so it is not a split. Preset's own
+  // side-gen copy has no flow to the alias and stays out of the move.
   expect(forgotten).toEqual([
     { kind: "move-to-contracts", file: `${SERVER}/domain/preset/contract/side-gen-params.ts`, members: ["ResolveUtilityPresetParams"] },
   ]);

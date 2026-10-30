@@ -20,11 +20,43 @@ export const TARGET_KINDS = [
   "name-owner-type",
   "forgotten-door-export",
   "hand",
+  "review",
 ] as const;
 export type TargetKind = (typeof TARGET_KINDS)[number];
 
 /** The kinds the derive codemod applies; every other kind is a leg's judgment or hand work. */
 export const APPLIED_KINDS: ReadonlySet<TargetKind> = new Set<TargetKind>(["derive", "derive-params", "concept", "add-door-export"]);
+
+/** The cluster legs, each owning one concept end to end: its owner and every consumer site. */
+export const CLUSTER_GROUPS = ["character-ops", "platform", "retrieval", "tool-registry", "remaining-derives", "other"] as const;
+export type ClusterGroup = (typeof CLUSTER_GROUPS)[number];
+
+// The owning areas each concept cluster takes; a contracts area counts as the domain of the same name, so a derive
+// against a contracts op folds into the cluster that owns the concept.
+const AREA_GROUPS: ReadonlyMap<string, Exclude<ClusterGroup, "remaining-derives" | "other">> = new Map([
+  ["character", "character-ops"],
+  ["sessions", "platform"],
+  ["admin", "platform"],
+  ["workloads", "platform"],
+  ["connection", "platform"],
+  ["search", "retrieval"],
+  ["embeddings", "retrieval"],
+  ["stats", "retrieval"],
+  ["tag", "retrieval"],
+  ["tool-use", "tool-registry"],
+]);
+
+// The kinds a leg applies inside the consumer's own files: no contracts move, so they need no concept cluster.
+const LOCAL_KINDS: ReadonlySet<TargetKind> = new Set<TargetKind>([
+  "derive",
+  "derive-params",
+  "concept",
+  "add-door-export",
+  "move-down",
+  "name-owner-type",
+  "forgotten-door-export",
+  "hand",
+]);
 
 /** The disjoint rewrite legs, by the file a target edits. */
 export const LEGS = ["B", "C", "D", "E", "F"] as const;
@@ -45,8 +77,9 @@ export interface TargetExport {
   readonly from: string | null;
 }
 
-/** One member rewrite, one whole port collapsed into `Pick<Owner, …>`, or one cross-domain import. Lines are 1-based. */
-export interface PortTarget {
+/** One member rewrite, one whole port collapsed into `Pick<Owner, …>`, one cross-domain import, or one named type.
+ *  Lines are 1-based. */
+export interface PlannedTarget {
   readonly leg: Leg;
   readonly kind: TargetKind;
   readonly form: TargetForm;
@@ -62,6 +95,80 @@ export interface PortTarget {
   readonly imports: readonly TargetImport[];
   readonly exports: readonly TargetExport[];
   readonly note: string;
+}
+
+/** A planned target placed in its concept cluster. */
+export interface PortTarget extends PlannedTarget {
+  /** The owner's area and the concept: `character:getCard`. */
+  readonly cluster: string;
+  readonly clusterGroup: ClusterGroup;
+  /** Why an `other` target sits outside every cluster leg; null for the others. */
+  readonly groupReason: string | null;
+}
+
+const PACKAGE_SPECIFIER = /^@orb\/([^/]+)/u;
+const CONTRACTS_AREA = /^packages\/contracts\/src\/([^/.]+)/u;
+const SERVER_TIER = /^packages\/server\/src\/([^/]+)\//u;
+const PACKAGE_AREA = /^packages\/([^/]+)\//u;
+
+// The area that owns a file or a package specifier: a server domain, a contracts area, a server tier, a package.
+function ownerArea(fileOrSpecifier: string): string {
+  return (
+    placementOf(`/${fileOrSpecifier}`)?.domain ??
+    CONTRACTS_AREA.exec(fileOrSpecifier)?.[1] ??
+    SERVER_TIER.exec(fileOrSpecifier)?.[1] ??
+    PACKAGE_AREA.exec(fileOrSpecifier)?.[1] ??
+    PACKAGE_SPECIFIER.exec(fileOrSpecifier)?.[1] ??
+    fileOrSpecifier
+  );
+}
+
+// The concept a target is about: the owner member (or the alias it is typed by), a collapsed port's home, or the type
+// an import, a door or a forgotten export names.
+function conceptName(target: PlannedTarget): string {
+  if (target.form === "member" || (target.form === "type" && APPLIED_KINDS.has(target.kind))) {
+    return target.owner.slice(target.owner.lastIndexOf(".") + 1);
+  }
+  if (target.form === "collapse") {
+    return target.owner.slice(0, target.owner.indexOf("."));
+  }
+  return target.members[0] ?? target.owner;
+}
+
+// The group of the area that owns a concept. A contracts op, kit type or other shared home has no leg of its own, so
+// a derive against it folds into the group of the domain whose file it edits.
+function groupOf(area: string, ownerFile: string, file: string): ClusterGroup | undefined {
+  const own = AREA_GROUPS.get(area);
+  if (own !== undefined) {
+    return own;
+  }
+  const shared = (placementOf(`/${ownerFile}`)?.domain ?? null) === null;
+  const editing = placementOf(`/${file}`)?.domain ?? null;
+  return shared && editing !== null ? AREA_GROUPS.get(editing) : undefined;
+}
+
+const GROUP_REASONS = {
+  "db-handle-review": "the ledger rules each cross-domain db handle case on its own board item",
+  review: "a shape-only match: a leg confirms one concept before any move",
+} as const satisfies Partial<Record<TargetKind, string>>;
+
+/** Place a target in its cluster by the area that owns its concept. */
+export function clustered(target: PlannedTarget): PortTarget {
+  // `ownerAt` is `file:line`, a list of them for an import, a file for a forgotten export, or a package specifier for
+  // a concept; a door export is placed by the derive that needs it.
+  const ownerFile = target.form === "export" ? target.file : (target.ownerAt.split(/[:,]/u)[0] ?? "");
+  const area = ownerArea(ownerFile);
+  const cluster = `${area}:${conceptName(target)}`;
+  if (target.kind === "db-handle-review" || target.kind === "review") {
+    return { ...target, cluster, clusterGroup: "other", groupReason: GROUP_REASONS[target.kind] };
+  }
+  const group = groupOf(area, ownerFile, target.file);
+  if (group !== undefined) {
+    return { ...target, cluster, clusterGroup: group, groupReason: null };
+  }
+  return LOCAL_KINDS.has(target.kind)
+    ? { ...target, cluster, clusterGroup: "remaining-derives", groupReason: null }
+    : { ...target, cluster, clusterGroup: "other", groupReason: `no cluster leg owns ${area}` };
 }
 
 // The named kit types a concept member derives from: a clock, a random draw, an id mint. Clock and random members

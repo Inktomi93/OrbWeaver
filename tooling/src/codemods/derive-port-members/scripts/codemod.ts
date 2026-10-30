@@ -1,5 +1,5 @@
-// Rewrites hand-typed port members to derive from their owner (`Owner["m"]`, or `Pick<Owner, …>` for a whole port),
-// adds the type-only imports and door exports the derive needs. The targets come from `pnpm unwired ports`, which
+// Rewrites hand-typed port members and restating aliases to derive from their owner (`Owner["m"]`, `Pick<Owner, …>`
+// for a whole port, the owner's alias), adds the type-only imports and door exports the derive needs. The targets come from `pnpm unwired ports`, which
 // matched each member to its owner with the type checker; this transform only edits text at those positions.
 
 import type { Codemod, Edit, GetSelector, RuleConfig, SgNode } from "codemod:ast-grep";
@@ -11,7 +11,8 @@ const DEFAULT_TARGETS_FILE = "reports/unwired/port-targets.json";
 // Only these kinds are mechanical; the census leaves the others to judgment.
 // The census's APPLIED_KINDS; the sandbox cannot import it, so the list is repeated here and the fixtures pin it.
 const APPLIED_KINDS = new Set(["derive", "derive-params", "concept", "add-door-export"]);
-const EDITED_FORMS = new Set(["member", "collapse"]);
+// `type`: an alias that restates its owner's shape gets the owner's type as its value.
+const EDITED_FORMS = new Set(["member", "collapse", "type"]);
 
 interface TargetExport {
   readonly file: string;
@@ -95,10 +96,21 @@ function memberwise(first: SgNode<TS> | undefined, target: PortTarget, type: str
     .map((candidate) => deriveMember(candidate, `${home}["${nameOf(candidate)}"]`));
 }
 
+function aliasEdits(rootNode: SgNode<TS>, target: PortTarget, type: string): Edit[] {
+  const alias = rootNode
+    .findAll({ rule: { kind: "type_alias_declaration" } })
+    .find((candidate) => candidate.range().start.line === target.line - 1 && candidate.field("name")?.text() === target.members[0]);
+  const value = alias?.field("value") ?? null;
+  return value === null ? [] : [value.replace(type)];
+}
+
 function memberEdits(rootNode: SgNode<TS>, target: PortTarget): Edit[] {
   const { type } = target;
   if (type === null) {
     return [];
+  }
+  if (target.form === "type") {
+    return aliasEdits(rootNode, target, type);
   }
   if (target.form === "collapse") {
     const first = rootNode.findAll(MEMBER).find((candidate) => candidate.range().start.line === target.line - 1 && target.members.includes(nameOf(candidate)));

@@ -4,7 +4,7 @@ params:
   schema:
     targets:
       name: "Targets file"
-      description: "Path, relative to the target directory, of the JSON that pnpm unwired ports writes (one leg's slice with --leg)"
+      description: "Path, relative to the target directory, of the JSON that pnpm unwired ports writes (one cluster group with --cluster, or one leg with --leg)"
       type: string
       default: "reports/unwired/port-targets.json"
 nodes:

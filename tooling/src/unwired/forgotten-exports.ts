@@ -5,7 +5,7 @@ import { relative } from "node:path";
 import ts from "typescript";
 import type { LoadedWorld } from "./doors.ts";
 import { doorsOf, exportNameOf } from "./doors.ts";
-import { isHandTyped, placementOf } from "./restated-port.ts";
+import { derivedMembers, isHandTyped, placementOf } from "./restated-port.ts";
 import { isProduction } from "./worlds.ts";
 
 export interface ForgottenExport {
@@ -14,8 +14,12 @@ export interface ForgottenExport {
   readonly name: string;
   readonly door: string | null;
   readonly doorFile: string | null;
+  /** The census key of the declaration: `file:line:Name`. */
+  readonly key: string;
   /** `file:line Label` of each same-shape copy. */
   readonly copies: readonly string[];
+  /** The census key of each copy, in the order of {@link ForgottenExport.copies}. */
+  readonly copyKeys: readonly string[];
   /** A copy sits in another server domain, so the shape moves to contracts instead of out through the door. */
   readonly crossDomain: boolean;
 }
@@ -48,6 +52,8 @@ function membersKey(checker: ts.TypeChecker, type: ts.Type): string | null {
 interface Shape {
   readonly key: string;
   readonly at: string;
+  /** `file:line:Name`, the census key of a member or a declaration. */
+  readonly id: string;
   readonly file: string;
   readonly node: ts.Node;
 }
@@ -59,7 +65,7 @@ function memberShape(checker: ts.TypeChecker, file: string, node: ts.Node): Shap
     return null;
   }
   const key = signatureKey(checker, checker.getTypeAtLocation(node));
-  return key === null ? null : { key, at: `${file}:${lineOf(node)} ${node.name.getText()}`, file, node };
+  return key === null ? null : { key, at: `${file}:${lineOf(node)} ${node.name.getText()}`, id: `${file}:${lineOf(node)}:${node.name.getText()}`, file, node };
 }
 
 function declaredShape(checker: ts.TypeChecker, file: string, node: ts.Node): Declared | null {
@@ -68,7 +74,9 @@ function declaredShape(checker: ts.TypeChecker, file: string, node: ts.Node): De
   }
   const type = checker.getTypeAtLocation(node.name);
   const key = ts.isInterfaceDeclaration(node) || ts.isTypeLiteralNode(node.type) ? membersKey(checker, type) : signatureKey(checker, type);
-  return key === null ? null : { key, at: `${file}:${lineOf(node)} ${node.name.text}`, file, node, declaration: node };
+  return key === null
+    ? null
+    : { key, at: `${file}:${lineOf(node)} ${node.name.text}`, id: `${file}:${lineOf(node)}:${node.name.text}`, file, node, declaration: node };
 }
 
 const isExported = (declaration: Declared["declaration"]): boolean =>
@@ -113,7 +121,9 @@ export function forgottenDoorExports(world: LoadedWorld): readonly ForgottenExpo
     if (symbol === undefined || (door !== undefined && exportNameOf(world, door.file, symbol) !== null)) {
       continue;
     }
-    const copies = (byKey.get(shape.key) ?? []).filter((other) => other.node !== shape.node && other.file !== shape.file);
+    // A member the declaration derives from (`type Op = NonNullable<Owner["m"]>`) is its owner, not a copy.
+    const owners: ReadonlySet<ts.Node> = derivedMembers(checker, shape.declaration);
+    const copies = (byKey.get(shape.key) ?? []).filter((other) => other.node !== shape.node && other.file !== shape.file && !owners.has(other.node));
     if (copies.length === 0) {
       continue;
     }
@@ -128,7 +138,9 @@ export function forgottenDoorExports(world: LoadedWorld): readonly ForgottenExpo
       name: shape.declaration.name.text,
       door: door?.specifier ?? null,
       doorFile: door?.file ?? null,
+      key: shape.id,
       copies: copies.map((copy) => copy.at),
+      copyKeys: copies.map((copy) => copy.id),
       crossDomain,
     });
   }
