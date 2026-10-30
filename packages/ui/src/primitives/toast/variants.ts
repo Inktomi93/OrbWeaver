@@ -66,7 +66,7 @@ export const toastVariants = tv({
       ${ACCENT_HOVER}
       ${FOCUS_RING_ON_POPOVER}
     `,
-    // The action wears the house PRIMARY fill (Button's `intent="primary"` recipe, minus its page-CTA
+    // The action wears the house PRIMARY fill (Button's solid primary recipe, minus its page-CTA
     // shadow — a glow inside an already-elevated float is noise). `bg-secondary` FAILED WCAG 1.4.11: it is
     // one L-step off `bg-popover` (0.255 vs 0.245) for a measured 1.03:1 boundary with `border: 0`, so the
     // only actionable thing in the toast read as stray text. No border token fixes it — `--color-border` is

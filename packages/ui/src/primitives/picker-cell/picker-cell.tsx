@@ -54,7 +54,7 @@ export function PickerCell({ art, label, description, meta, shape, labelId, desc
           )}
         </span>
         {description === undefined ? null : (
-          <Text as="span" className={slots.description()} data-slot="picker-cell-description" id={descriptionId} size="label" tone="muted">
+          <Text as="span" className={slots.description()} data-slot="picker-cell-description" id={descriptionId} size="label" ink="muted">
             {description}
           </Text>
         )}

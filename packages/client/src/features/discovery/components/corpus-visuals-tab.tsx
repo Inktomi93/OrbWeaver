@@ -108,11 +108,7 @@ function PortraitFit({ report }: { readonly report: PortraitReport }): ReactElem
                 leading={<CharacterAvatar id={character.characterId} name={character.name} hash={character.avatarHash} />}
                 title={character.name}
                 subtitle={[character.artStyle, character.rating].filter((v) => v !== null && v !== "").join(" · ")}
-                actions={
-                  <Badge intent="neutral" size="sm">
-                    {matchWord(character.alignment)}
-                  </Badge>
-                }
+                actions={<Badge size="sm">{matchWord(character.alignment)}</Badge>}
               />
             ))}
           </Stack>

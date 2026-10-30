@@ -125,11 +125,11 @@ export function HomeDocumentsTileBody(): ReactElement {
             box, so an `sm` secondary on the shelf is no longer in the same weight class. */}
         {/* The two doors wrap: side by side they overrun a phone's column. */}
         <Row className="flex-wrap" gap="field">
-          <Button intent="secondary" onClick={(): void => openModal("addDocument")} size="sm">
+          <Button variant="outline" onClick={(): void => openModal("addDocument")} size="sm">
             <Icon icon={Plus} size="sm" />
             Add your first document
           </Button>
-          <Button intent="secondary" onClick={(): void => setActiveSection("databank")} size="sm">
+          <Button variant="outline" onClick={(): void => setActiveSection("databank")} size="sm">
             Open Databank
             <TrailingArrow />
           </Button>
@@ -180,14 +180,14 @@ export function HomeDocumentsTileBody(): ReactElement {
                 // already did (#169 — invisible to `ui-size-via-variant` until its value class learned
                 // about hyphens). `p-0` stays: the Badge inside is the whole visible chip.
                 className="p-0"
-                intent="ghost"
+                variant="ghost"
                 key={chip.phase}
                 onClick={(): void => showPhase(chip.phase)}
                 shape="pill"
                 size="sm"
                 type="button"
               >
-                <Badge intent={chip.intent} size="sm" tone="soft">
+                <Badge tone={chip.tone} size="sm">
                   {chip.label}
                 </Badge>
               </Button>
@@ -223,7 +223,7 @@ export function HomeDocumentsTileBody(): ReactElement {
                       // (2026-08-19) reaches all three surfaces, not two; safe since the badge inline
                       // arm learned to keep a block svg on the line.
                       subtitleLead: (
-                        <Badge className="me-field" intent={badge.intent} size="inline" tone="soft">
+                        <Badge className="me-field" tone={badge.tone} size="inline">
                           {badge.glyph === null ? null : <Icon icon={badge.glyph} size="xs" />}
                           {badge.label}
                         </Badge>
@@ -271,7 +271,7 @@ export function HomeDocumentsTileAction(): ReactElement | null {
   }
   return (
     // The arrow is DECORATIVE (rail sweep P3-14) — the name is "All documents".
-    <Button intent="ghost" onClick={(): void => setActiveSection("databank")} size="sm">
+    <Button variant="ghost" onClick={(): void => setActiveSection("databank")} size="sm">
       All documents
       <TrailingArrow />
     </Button>

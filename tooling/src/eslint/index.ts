@@ -48,6 +48,7 @@ import { classListWriteRule, domLookupRule } from "./ui-dom.ts";
 import type { CandidatesToCss, ClassClassifier } from "./ui-feature-classname.ts";
 import { featureClassNameLayoutOnlyRule, noBuiltClassStringRule } from "./ui-feature-classname.ts";
 import { UI_FEATURE_RESTRICTIONS } from "./ui-feature-policy.ts";
+import { intentColorRecipeRule } from "./ui-intent-color.ts";
 import { rawIntrinsicPaintRule } from "./ui-intrinsics.ts";
 import { noManualMemoRule, noUsePromiseRule } from "./ui-law-policy.ts";
 import {
@@ -123,6 +124,8 @@ export function createOrbPlugin(options: {
   classifyClass: ClassClassifier;
   baseUiDoors: BaseUiDoors;
   domLookupHomes: readonly DomLookupHome[];
+  /** The D336 tones that carry a base `--color-*` token, whose hand-written colour recipes are refused. */
+  intentColors: readonly string[];
 }): {
   rules: Record<string, OrbRule>;
 } {
@@ -163,6 +166,7 @@ export function createOrbPlugin(options: {
       "no-off-token-inline-style": offTokenInlineStyleRule,
       "theme-override-only-via-scope": themeOverrideRule,
       "no-tailwind-dark-variant": darkVariantRule,
+      "no-intent-color-recipe": intentColorRecipeRule(options.intentColors),
       "zustand-selector-derived": storeDerivedRule,
       "no-mutating-register-api": registerApiRule,
       "state-files": stateFilesRule,

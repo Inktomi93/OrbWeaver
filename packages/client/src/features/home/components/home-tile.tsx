@@ -111,7 +111,7 @@ function TileBand({ title, trailing, headingId }: { readonly title: string; read
 export function HomeDoorway({ tile, doorway }: { readonly tile: HomeTileContribution; readonly doorway: DormantDoorway }): ReactElement {
   return (
     <Row align="start" className="ps-row" data-home-tile={tile.id} divider="start" dividerStyle="dashed" gap="row">
-      <Icon className="mbs-tight shrink-0" icon={tile.icon} size="sm" tone="muted" />
+      <Icon className="mbs-tight shrink-0" icon={tile.icon} size="sm" ink="muted" />
       <Stack className="min-inline-0" gap="tight">
         {/* A REAL HEADING (side-eye rail-home, ARIA rec 2 — 2026-08-22). This was a `<p>`, so `Buddy` and
             `Automation` read to AT as body text with no structural distinction from their own descriptions:

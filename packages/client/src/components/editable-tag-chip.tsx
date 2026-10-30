@@ -76,7 +76,7 @@ export function EditableTagChip({
             <Button
               className="max-inline-full min-inline-0"
               aria-label={editTitle}
-              intent="ghost"
+              variant="ghost"
               size={iconOnly ? "icon-sm" : "chip"}
               touchFloor="inline"
               type="button"
@@ -100,7 +100,7 @@ export function EditableTagChip({
             <PopoverTitle className="truncate min-inline-0">{editTitle}</PopoverTitle>
             <PopoverClose
               render={
-                <Button className="shrink-0" aria-label="Close tag editor" intent="ghost" size="icon-sm" onClick={(): void => changeOpen(false)} type="button">
+                <Button className="shrink-0" aria-label="Close tag editor" variant="ghost" size="icon-sm" onClick={(): void => changeOpen(false)} type="button">
                   <Icon icon={X} size="sm" />
                 </Button>
               }
@@ -109,7 +109,7 @@ export function EditableTagChip({
           {body}
 
           <Button
-            intent="secondary"
+            variant="outline"
             size="sm"
             type="button"
             onClick={(): void => {

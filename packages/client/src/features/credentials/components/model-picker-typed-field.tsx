@@ -41,7 +41,7 @@ export function TypedModelField({
       {view.typingOffered ? (
         <Field
           description={
-            <Text as="span" tone={view.warns ? "warning" : "default"} data-slot="model-picker-notice" prose={true} voice="gloss">
+            <Text as="span" tone={view.warns ? "warning" : undefined} data-slot="model-picker-notice" prose={true} voice="gloss">
               {notice}
             </Text>
           }
@@ -57,7 +57,7 @@ export function TypedModelField({
           </Text>
           <Text
             className="max-inline-(--reading-measure-prose)"
-            tone={view.warns ? "warning" : "default"}
+            tone={view.warns ? "warning" : undefined}
             data-slot="model-picker-notice"
             prose={true}
             voice="gloss"
@@ -73,7 +73,7 @@ export function TypedModelField({
       )}
       {view.retry === null ? null : (
         <Row gap="field">
-          <Button intent="secondary" loading={busy} onClick={onRetry ?? undefined} size="sm">
+          <Button variant="outline" loading={busy} onClick={onRetry ?? undefined} size="sm">
             Try the list again
           </Button>
         </Row>

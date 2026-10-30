@@ -68,7 +68,7 @@ export function usePresetListHeader(): ListPaneHeaderView {
           // `size="icon"`, not `sm`: the `sm` box is width-fitted to a LABEL, so an icon-only trigger would miss the
           // coarse touch floor; `size="icon"` is `size-control-md`, 34px fine / 48px coarse by token.
           <Tip text={IMPORT_LABEL}>
-            <Button aria-label={IMPORT_LABEL} intent="ghost" onClick={(): void => setImportOpen(true)} size="icon">
+            <Button aria-label={IMPORT_LABEL} variant="ghost" onClick={(): void => setImportOpen(true)} size="icon">
               <Icon icon={Upload} size="sm" />
             </Button>
           </Tip>
@@ -78,7 +78,7 @@ export function usePresetListHeader(): ListPaneHeaderView {
       {
         id: "preset-new",
         inline: (
-          <Button disabled={create.isPending} intent="primary" onClick={onCreate} size="sm">
+          <Button disabled={create.isPending} onClick={onCreate} size="sm">
             <Icon icon={Plus} size="sm" />
             New
           </Button>

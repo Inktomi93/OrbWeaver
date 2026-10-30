@@ -155,10 +155,10 @@ export function PayloadView({ plan, payload, pending = false, arrived = false }:
  *  It rides `data-hint-tone`, never `data-tone` (#1113 = #1097's chip fix, whose header holds the reasoning:
  *  `data-tone` is the recipe-arm channel the ui-audit walker reads as AUTHORED IDENTITY). */
 const BANNER_TONE: Record<string, NonNullable<ComponentProps<typeof Card>["tone"]>> = {
-  good: "successTint",
-  warn: "warningTint",
-  bad: "destructiveTint",
-  info: "infoTint",
+  good: "success",
+  warn: "warning",
+  bad: "destructive",
+  info: "info",
   neutral: "neutral",
 };
 
@@ -173,7 +173,12 @@ function VerdictBanner({ field, payload, siblings }: { field: PlanField; payload
   const axisValue = typeof axisRaw === "number" ? axisRaw : null;
   const axisWidget = axis?.widget as GaugeWidget | undefined;
   return (
-    <Card data-testid={testId("refineryVerdictBanner")} data-hint-tone={tone} tone={BANNER_TONE[tone] ?? "neutral"}>
+    <Card
+      data-testid={testId("refineryVerdictBanner")}
+      data-hint-tone={tone}
+      tone={BANNER_TONE[tone] ?? "neutral"}
+      variant={tone === "neutral" ? "surface" : "soft"}
+    >
       <Row align="center" gap="block" padding="block">
         <Stack gap="field">
           <Heading level={3}>{value ?? ABSENT_TEXT}</Heading>
@@ -418,7 +423,7 @@ function RowsBlock({ field, row, value }: { field: PlanField; row: RowPlan; valu
                 aria-expanded={open}
                 className="justify-start"
                 data-testid={testId("refineryAssayRow")}
-                intent="ghost"
+                variant="ghost"
                 onClick={(): void => setOpenIndex(open ? null : i)}
                 size="sm"
               >

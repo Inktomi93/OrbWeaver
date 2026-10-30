@@ -88,7 +88,7 @@ export function PersonaEditorRegion({ persona, subject, onRequestDelete }: Perso
     }
   }, [request, persona.id]);
   return (
-    <Card aria-label={`Edit ${subject}`} focusable={true} ref={regionRef} role="group" tabIndex={-1} tone="clear">
+    <Card aria-label={`Edit ${subject}`} focusable={true} ref={regionRef} role="group" tabIndex={-1} variant="outline">
       <PersonaEditor persona={persona} onRequestDelete={onRequestDelete} />
     </Card>
   );
@@ -211,12 +211,12 @@ function PersonaEditorBody({ session, persona, onRequestDelete }: PersonaEditorB
       <ProvenanceChip metadata={baseMetadata} />
 
       <Row gap="row" align="center" className="flex-wrap justify-end" data-slot="persona-editor-footer">
-        <Button disabled={duplicate.isPending} intent="ghost" size="sm" onClick={duplicatePersona}>
+        <Button disabled={duplicate.isPending} variant="ghost" size="sm" onClick={duplicatePersona}>
           <Icon icon={Copy} size="sm" />
           Duplicate
         </Button>
         <Button
-          intent="ghost"
+          variant="ghost"
           size="sm"
           onClick={(): void => {
             exportPersona().catch(() => notify.error("Couldn't export the persona."));
@@ -225,7 +225,7 @@ function PersonaEditorBody({ session, persona, onRequestDelete }: PersonaEditorB
           <Icon icon={Download} size="sm" />
           Export
         </Button>
-        <Button intent="ghost" size="sm" onClick={onRequestDelete}>
+        <Button variant="ghost" size="sm" onClick={onRequestDelete}>
           <Icon icon={Trash2} size="sm" />
           Delete
         </Button>
@@ -262,7 +262,7 @@ function AvatarTrigger({ persona }: { readonly persona: PersonaDetail }): ReactE
       }}
     >
       {({ open }): ReactElement => (
-        <Button aria-label={`Change avatar for ${persona.name}`} className="shrink-0" intent="ghost" onClick={open} size="inline">
+        <Button aria-label={`Change avatar for ${persona.name}`} className="shrink-0" variant="ghost" onClick={open} size="inline">
           <Avatar fallbackDelay={0} hueSeed={persona.id} size="md" {...avatarSrc}>
             {initialsFor(persona.name)}
           </Avatar>
@@ -279,7 +279,9 @@ function ProvenanceChip({ metadata }: { readonly metadata: PersonaMetadata | nul
   }
   return (
     <Row gap="field" align="center">
-      <Badge intent="info">From a character card</Badge>
+      <Badge tone="info" variant="solid">
+        From a character card
+      </Badge>
       {metadata.swapMacros === true ? (
         <Text voice="gloss">
           {"{{char}}"}/{"{{user}}"} were swapped on mint.

@@ -219,7 +219,7 @@ function PreviewResolution({
 function FinishReasonReading({ value }: { readonly value: unknown }): ReactElement {
   const known = typeof value === "string" && (NORMALIZED_FINISH_REASONS as readonly string[]).includes(value);
   return (
-    <Badge intent={known ? "success" : "warning"} size="sm" tone="soft">
+    <Badge tone={known ? "success" : "warning"} size="sm">
       {known ? `reads as ${value}` : "we can't read that as a finish reason"}
     </Badge>
   );

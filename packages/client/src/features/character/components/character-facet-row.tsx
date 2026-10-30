@@ -6,7 +6,7 @@
 // primary tint (the chats-lane selection pattern), never a full accent border/fill.
 //
 // NO ICON TILE (2026-08-01 side-eye P2): the row used to lead with a filled `Badge` holding the facet
-// glyph, `intent="info"` once filled — a stack of saturated cold-blue squares down the Voice/Extras/
+// glyph, `tone="info"` once filled — a stack of saturated cold-blue squares down the Voice/Extras/
 // Advanced groups, in a hue this surface uses nowhere else, carrying no datum the label doesn't already
 // say. The label + its gloss + the state word ARE the row's content; the glyph survives where it identifies a
 // single thing, on the facet drill-in header (character-facet-editor.tsx).
@@ -60,7 +60,7 @@ export function CharacterFacetRow({ facet, selected, filled, preview, fillSummar
       data-selected={selected ? "" : undefined}
       // The outline box with the selection rail: a 2px start bar and a primary tint on the selected row, over a
       // reserved rail so selecting never shifts a row.
-      intent="outline"
+      variant="outline"
       selection="rail"
       size="sm"
       className="justify-start gap-row text-start inline-full min-inline-0"

@@ -329,18 +329,18 @@ export function WalkerBoxCarriedIsolatedControlStory(): ReactElement {
  *     #807's ruling still bites: the prose answers pixels the pseudo covers, it forwards nothing, and the
  *     extent must cap below the isolated arm's. Without it #807 has no failing arm left.
  *
- *  Every arm pins `intent="ghost"`: the default is `primary`, which stamps `data-cta` and paints the CTA
+ *  Every arm pins `variant="ghost"`: the default is the focal solid primary, which stamps `data-cta` and paints the CTA
  *  gradient ring, and a second pseudo is a second variable in a story about which element owns a pixel. */
 export function WalkerRowWrappedGlyphStory(): ReactElement {
   return (
     <div style={{ padding: 60, width: 460 }}>
       <div style={{ marginBlockEnd: 80, marginInlineStart: 48 }}>
-        <Button aria-label="Regenerate" data-testid={storyTestId("glyphAlone")} intent="ghost" size="glyph-sm" />
+        <Button aria-label="Regenerate" data-testid={storyTestId("glyphAlone")} variant="ghost" size="glyph-sm" />
       </div>
       {/* The prose is ABSOLUTELY placed at a known offset and raised, so "which element owns x=+22 from
           the control's centre" is a fixed fact of this story rather than a flex-gap accident. */}
       <div data-testid={storyTestId("capabilityRow")} style={{ display: "flex", marginBlockEnd: 80, position: "relative", width: 360 }}>
-        <Button aria-label="Grant file access" data-testid={storyTestId("glyphInRow")} intent="ghost" size="glyph-sm" />
+        <Button aria-label="Grant file access" data-testid={storyTestId("glyphInRow")} variant="ghost" size="glyph-sm" />
         <p
           data-testid={storyTestId("capabilityProse")}
           style={{ fontSize: 15, insetBlock: 0, insetInlineEnd: 0, insetInlineStart: 30, margin: 0, position: "absolute", zIndex: 1 }}
@@ -349,7 +349,7 @@ export function WalkerRowWrappedGlyphStory(): ReactElement {
         </p>
       </div>
       <div data-testid={storyTestId("tightRow")} style={{ display: "flex", position: "relative", width: 360 }}>
-        <Button aria-label="Grant network access" data-testid={storyTestId("glyphInTightRow")} intent="ghost" size="glyph-sm" />
+        <Button aria-label="Grant network access" data-testid={storyTestId("glyphInTightRow")} variant="ghost" size="glyph-sm" />
         <p
           data-testid={storyTestId("tightProse")}
           style={{ fontSize: 15, insetBlock: 0, insetInlineEnd: 0, insetInlineStart: "1.3rem", margin: 0, position: "absolute", zIndex: 1 }}
@@ -376,9 +376,9 @@ export function WalkerPseudoCarriedIsolatedGlyphStory(): ReactElement {
   return (
     <div style={{ padding: 120, position: "static", width: 400 }}>
       <div style={{ marginInlineStart: 48 }}>
-        {/* `intent` is pinned: the default is `primary`, which stamps `data-cta` and adds the gradient
+        {/* `variant` is pinned: the default is the focal solid primary, which stamps `data-cta` and adds the gradient
             ring — a second pseudo, and a second variable, in a stage about one pseudo's reach. */}
-        <Button aria-label="Regenerate" data-testid={storyTestId("pseudoCarriedIsolated")} intent="ghost" size="glyph-sm" />
+        <Button aria-label="Regenerate" data-testid={storyTestId("pseudoCarriedIsolated")} variant="ghost" size="glyph-sm" />
       </div>
     </div>
   );
@@ -1154,15 +1154,17 @@ export function WalkerTooltipHintStory(): ReactElement {
   return (
     <div style={{ display: "flex", gap: 32, padding: 48, width: 520 }}>
       <Tooltip>
-        <TooltipTrigger render={<Button aria-label="Send message" data-testid={storyTestId("hintDescribed")} intent="ghost" size="icon" type="button" />} />
+        <TooltipTrigger render={<Button aria-label="Send message" data-testid={storyTestId("hintDescribed")} variant="ghost" size="icon" type="button" />} />
         <TooltipPopup>Local engine is off — enable it to send.</TooltipPopup>
       </Tooltip>
       <Tooltip>
-        <TooltipTrigger render={<Button aria-label="Notifications" data-testid={storyTestId("hintNameRepeat")} intent="ghost" size="icon" type="button" />} />
+        <TooltipTrigger render={<Button aria-label="Notifications" data-testid={storyTestId("hintNameRepeat")} variant="ghost" size="icon" type="button" />} />
         <TooltipPopup>Notifications</TooltipPopup>
       </Tooltip>
       <Tooltip describesTrigger={false}>
-        <TooltipTrigger render={<Button aria-label="Try another reply" data-testid={storyTestId("hintOptedOut")} intent="ghost" size="icon" type="button" />} />
+        <TooltipTrigger
+          render={<Button aria-label="Try another reply" data-testid={storyTestId("hintOptedOut")} variant="ghost" size="icon" type="button" />}
+        />
         <TooltipPopup>Try another reply — needs an existing reply</TooltipPopup>
       </Tooltip>
     </div>

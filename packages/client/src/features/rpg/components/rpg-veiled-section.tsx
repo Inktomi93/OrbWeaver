@@ -50,7 +50,7 @@ function VeiledLedger({ chatId }: { readonly chatId: ChatId }): ReactElement | n
       {/* The row key is the lie's identity, so a revealed truth stays revealed while other rows come and go,
           and a changed truth is a new row that starts hidden. */}
       {lies.map(({ lie, subject }) => (
-        <Card tone="highlight" key={`${lie.character}:${lie.truth}:${lie.messageId}`}>
+        <Card tone="warning" variant="outline" key={`${lie.character}:${lie.truth}:${lie.messageId}`}>
           <Stack key={`${lie.character}:${lie.truth}:${lie.messageId}`} gap="field">
             <Row gap="field" align="baseline" justify="between">
               <Text as="span" voice="label">
@@ -62,7 +62,7 @@ function VeiledLedger({ chatId }: { readonly chatId: ChatId }): ReactElement | n
             {lie.reason === "" ? null : <Text voice="label">{lie.reason}</Text>}
             {/* The TRUTH — crown-gold, host-only, and unmounted until the host reveals it. */}
             <RevealGate subject={subject}>
-              <Text voice="gloss" tone="accolade">
+              <Text voice="gloss" ink="accolade">
                 truth: {lie.truth}
               </Text>
             </RevealGate>

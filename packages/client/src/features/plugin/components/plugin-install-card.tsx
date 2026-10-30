@@ -385,7 +385,7 @@ export function PluginInstallCard(): ReactElement {
               <Text prose={true} role="alert" voice="gloss">
                 "{alreadyInstalled.name}" ({alreadyInstalled.slug}) is already installed. Open installed plugins to check for an update.
               </Text>
-              <Button intent="primary" onClick={(): void => openConfigTo("plugins", "installed")} size="sm">
+              <Button onClick={(): void => openConfigTo("plugins", "installed")} size="sm">
                 Open installed plugins
               </Button>
             </Stack>
@@ -410,12 +410,12 @@ export function PluginInstallCard(): ReactElement {
                 back up to the button — the per-row marks above are what to READ, this is what to REMEMBER. */}
             <GrantSummary capabilities={state.manifest.capabilities} />
             <Row gap="field" justify="start">
-              <Button disabled={selecting || alreadyInstalled !== null} intent="primary" loading={installing} onClick={onInstall}>
+              <Button disabled={selecting || alreadyInstalled !== null} loading={installing} onClick={onInstall}>
                 Install
               </Button>
               <Button
                 disabled={doorsDisabled}
-                intent="ghost"
+                variant="ghost"
                 onClick={(): void => {
                   selectionEpoch.current += 1;
                   setState({ step: "pick" });

@@ -88,7 +88,7 @@ function GalleryGridBody(props: GalleryGridBodyProps): ReactElement {
         title="No images from this chat"
         description={`Pictures generated in this chat show here once you add them to ${characterName}'s gallery.`}
         action={
-          <Button intent="secondary" onClick={onShowEverywhere}>
+          <Button variant="outline" onClick={onShowEverywhere}>
             Show everywhere
           </Button>
         }
@@ -102,7 +102,7 @@ function GalleryGridBody(props: GalleryGridBodyProps): ReactElement {
         title="No images yet"
         description={`Upload images above, or add ones you already have to ${characterName}'s gallery.`}
         action={
-          <Button intent="primary" onClick={onAddClick}>
+          <Button onClick={onAddClick}>
             <Icon icon={ImagePlus} size="sm" />
             Add images
           </Button>
@@ -201,14 +201,14 @@ export function CharacterGalleryDialog({ open, onOpenChange, characterId, charac
         headerActions={
           <Row align="center" className="shrink-0 flex-wrap max-inline-full" gap="row">
             {galleryEmpty && scope === "everywhere" ? null : (
-              <Button intent="secondary" size="sm" onClick={(): void => setPickerOpen(true)}>
+              <Button variant="outline" size="sm" onClick={(): void => setPickerOpen(true)}>
                 <Icon icon={ImagePlus} size="sm" />
                 Add images
               </Button>
             )}
             <DialogClose
               render={
-                <Button intent="ghost" size="sm">
+                <Button variant="ghost" size="sm">
                   Close
                 </Button>
               }

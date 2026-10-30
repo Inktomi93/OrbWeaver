@@ -190,7 +190,7 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
               </Text>
             ) : null}
             <Row align="center" className="flex-wrap" gap="field">
-              <Button disabled={busy} intent="secondary" onClick={preview} size="sm" type="button">
+              <Button disabled={busy} variant="outline" onClick={preview} size="sm" type="button">
                 Read the chat first
               </Button>
               {extract.isPending ? (
@@ -230,7 +230,7 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
         </Stack>
       ) : null}
       <Row justify="end">
-        <Button disabled={!canGenerate} intent="primary" onClick={runGenerate} type="button">
+        <Button disabled={!canGenerate} onClick={runGenerate} type="button">
           {generate.isPending ? "Generating…" : "Generate"}
         </Button>
       </Row>

@@ -35,7 +35,7 @@ export function AssemblyToolbar({ form, onAdd }: AssemblyToolbarProps): ReactEle
             <Menu>
               <MenuTrigger
                 render={
-                  <Button intent="primary" size="sm">
+                  <Button size="sm">
                     <Icon icon={Plus} size="sm" />
                     Add
                   </Button>

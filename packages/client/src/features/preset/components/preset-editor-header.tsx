@@ -127,7 +127,7 @@ export function PresetEditorHeader({
                     Reset door beside it already speaks. */}
               {isSystemDefault ? null : (
                 <Tip text={RENAME_LABEL}>
-                  <Button aria-label={RENAME_LABEL} intent="ghost" onClick={(): void => setRenameOpen(true)} size="icon" type="button">
+                  <Button aria-label={RENAME_LABEL} variant="ghost" onClick={(): void => setRenameOpen(true)} size="icon" type="button">
                     <Icon icon={Pencil} size="sm" />
                   </Button>
                 </Tip>
@@ -135,10 +135,10 @@ export function PresetEditorHeader({
               {/* G7 — the two truths that change UNDER the editor. The ACTIVE chip is the LIST row's marker
                     verbatim (one state, one reading); its not-active twin is an AFFORDANCE, because a status
                     that only ever says "not active" is a dead end when the LIST is a closed sheet.
-                    `tone="soft"` (rider 1 / side-eye F-06): a SOLID ember chip carried the same fill as the
+                    the `soft` style (rider 1 / side-eye F-06): a SOLID ember chip carried the same fill as the
                     pane's one primary CTA, so a status read as a second call to action. */}
               {active ? (
-                <Badge intent="primary" size="sm" tone="soft">
+                <Badge tone="primary" size="sm">
                   Active
                 </Badge>
               ) : (
@@ -151,7 +151,7 @@ export function PresetEditorHeader({
                 // THE NAME LEADS WITH THE VISIBLE WORD (WCAG 2.5.3 label-in-name): a control reading
                 // "Activate" whose name lacks that word is unaddressable by speech. Visible word first, then the editor-voice gloss that keeps it distinct
                 // from the list's radio.
-                <Button aria-label="Activate — use this preset for generation" intent="ghost" onClick={onActivate} size="sm" type="button">
+                <Button aria-label="Activate — use this preset for generation" variant="ghost" onClick={onActivate} size="sm" type="button">
                   <Icon icon={Zap} size="sm" />
                   Activate
                 </Button>
@@ -181,7 +181,7 @@ export function PresetEditorHeader({
                     second header command ever lands, the kebab comes back with two items in it. */}
               {isSystemDefault ? null : (
                 <Tip text={RESET_LABEL}>
-                  <Button aria-label={RESET_LABEL} intent="ghost" onClick={(): void => setResetOpen(true)} size="icon" type="button">
+                  <Button aria-label={RESET_LABEL} variant="ghost" onClick={(): void => setResetOpen(true)} size="icon" type="button">
                     <Icon icon={RotateCcw} size="sm" />
                   </Button>
                 </Tip>

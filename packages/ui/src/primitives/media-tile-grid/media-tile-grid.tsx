@@ -52,9 +52,7 @@ function MediaTile({
         )}
         {item.badge === undefined ? null : (
           <span className={slots.badge()}>
-            <Badge size="sm" tone="soft">
-              {item.badge}
-            </Badge>
+            <Badge size="sm">{item.badge}</Badge>
           </span>
         )}
       </span>
@@ -69,7 +67,7 @@ function MediaTile({
       {item.tags === undefined || item.tags.length === 0 ? null : (
         <span className={slots.tagRow()} data-slot="media-tile-tags">
           {item.tags.map((tag) => (
-            <Badge key={tag} size="sm" tone="soft">
+            <Badge key={tag} size="sm">
               {tag}
             </Badge>
           ))}

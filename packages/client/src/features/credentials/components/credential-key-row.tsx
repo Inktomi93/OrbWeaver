@@ -81,7 +81,7 @@ export function CredentialKeyRow({ credential, usedBy, providerLabel, trpc, inva
       leading={
         <Row gap="field" align="center">
           {revoked ? (
-            <Badge intent="danger" size="sm">
+            <Badge tone="destructive" variant="solid" size="sm">
               Revoked
             </Badge>
           ) : null}
@@ -93,21 +93,21 @@ export function CredentialKeyRow({ credential, usedBy, providerLabel, trpc, inva
             <>
               <Button
                 data-testid={testId("credentialClearRevoked")}
-                intent="secondary"
+                variant="outline"
                 size="sm"
                 disabled={clearRevoked.isPending}
                 onClick={(): void => clearRevoked.mutate({ credentialId: credential.id })}
               >
                 Clear revoked
               </Button>
-              <Button intent="ghost" size="sm" aria-label={`Remove the ${subject} key`} onClick={(): void => setDeleteOpen(true)}>
+              <Button variant="ghost" size="sm" aria-label={`Remove the ${subject} key`} onClick={(): void => setDeleteOpen(true)}>
                 Remove
               </Button>
             </>
           ) : (
             <>
               <Button
-                intent="secondary"
+                variant="outline"
                 size="sm"
                 aria-label={`Replace the ${subject} key`}
                 disabled={replace.isPending}
@@ -117,7 +117,7 @@ export function CredentialKeyRow({ credential, usedBy, providerLabel, trpc, inva
               </Button>
               <Button
                 data-testid={testId("credentialMarkRevoked")}
-                intent="ghost"
+                variant="ghost"
                 size="sm"
                 aria-label={`Revoke the ${subject} key`}
                 disabled={markRevoked.isPending}

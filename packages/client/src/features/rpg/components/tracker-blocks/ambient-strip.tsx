@@ -71,7 +71,7 @@ function AmbientVocabPicker({
     return (
       <Button
         type="button"
-        intent="ghost"
+        variant="ghost"
         size="inline"
         data-slot="tracker-value-rest"
         aria-label={`${fieldLabel} value`}
@@ -79,7 +79,7 @@ function AmbientVocabPicker({
         reserveEdge={true}
         className="gap-0 px-field text-start"
       >
-        <Text as="span" tone={empty ? "muted" : "default"} voice="label">
+        <Text as="span" ink={empty ? "muted" : undefined} voice="label">
           {restText}
         </Text>
       </Button>
@@ -103,7 +103,7 @@ function AmbientVocabPicker({
           <Button
             key={label}
             type="button"
-            intent={label === value ? "secondary" : "ghost"}
+            variant={label === value ? "outline" : "ghost"}
             // A CONTROL SIZE, not `inline`. `inline` is the DISPLAY-AT-REST arm — a datum standing in for prose —
             // and it wears no control box, carrying its touch floor in an OVERFLOWING `::after` instead. In a
             // WRAPPING grid that pseudo is actively harmful: each chip's hit area is taller than the row pitch,
@@ -148,7 +148,7 @@ function AmbientVocabPicker({
         <Row divider="top" className="mbs-field basis-full pbs-field">
           <Button
             type="button"
-            intent="ghost"
+            variant="ghost"
             size="sm"
             className="justify-start inline-full"
             aria-label={`Clear ${fieldLabel.toLowerCase()}`}
@@ -158,7 +158,7 @@ function AmbientVocabPicker({
             }}
           >
             <Icon icon={X} size="xs" />
-            <Text as="span" tone="muted" voice="label">
+            <Text as="span" ink="muted" voice="label">
               {`Clear ${fieldLabel.toLowerCase()}`}
             </Text>
           </Button>
@@ -220,7 +220,7 @@ function AmbientFieldControl({
 export function AmbientStrip({ location, date, timeOfDay, weather, onEditField, lockSlot }: AmbientStripProps): ReactElement {
   const values: Readonly<Record<AmbientField, string | undefined>> = { location, date, timeOfDay, weather };
   return (
-    <Card tone="neutral">
+    <Card>
       <Row gap="block" align="center" className="flex-wrap" data-slot="ambient-strip">
         <Icon icon={MapPin} size="sm" label="Scene" />
         {AMBIENT_FIELDS.map(({ key, label }) => {
@@ -234,7 +234,7 @@ export function AmbientStrip({ location, date, timeOfDay, weather, onEditField, 
             // density ruling). `min-w-0` lets a long location value truncate/shrink instead of
             // forcing a full-width row.
             <Row key={key} gap="field" align="baseline" className="min-inline-0">
-              <Text as="span" tone="muted" className="shrink-0" voice="label">
+              <Text as="span" ink="muted" className="shrink-0" voice="label">
                 {label}
               </Text>
               <AmbientFieldControl fieldKey={key} label={label} value={value} onEditField={onEditField} />

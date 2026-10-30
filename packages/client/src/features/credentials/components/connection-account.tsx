@@ -49,7 +49,7 @@ function AccountCreditsBlock({ connectionId, trpc }: { readonly connectionId: Us
           <Row gap="field">
             <Button
               disabled={credits.isFetching}
-              intent="secondary"
+              variant="outline"
               onClick={(): void => {
                 credits.refetch().catch(() => undefined); // the query's own error state carries the failure
               }}
@@ -90,7 +90,7 @@ function SignInCheckBlock({
       <Row gap="field">
         <Button
           disabled={verify.isPending}
-          intent="secondary"
+          variant="outline"
           onClick={(): void => verify.mutate({ connectionId }, { onSuccess: (result): void => setVerdict(signInVerdict(result)) })}
           size="sm"
         >

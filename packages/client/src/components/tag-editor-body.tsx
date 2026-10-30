@@ -380,7 +380,7 @@ function TagMergeControl({
         ref={triggerRef}
         aria-expanded={open}
         disabled={others.length === 0}
-        intent="secondary"
+        variant="outline"
         onClick={(): void => setOpen(true)}
         size="sm"
         type="button"
@@ -408,10 +408,10 @@ function TagMergeControl({
             value={target}
           />
           <Row gap="field">
-            <Button intent="ghost" onClick={cancel} type="button">
+            <Button variant="ghost" onClick={cancel} type="button">
               Cancel
             </Button>
-            <Button intent="destructive" disabled={target === null || merging} loading={merging} onClick={confirmMerge} type="button">
+            <Button tone="destructive" disabled={target === null || merging} loading={merging} onClick={confirmMerge} type="button">
               Merge
             </Button>
           </Row>

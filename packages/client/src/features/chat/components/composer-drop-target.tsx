@@ -39,7 +39,6 @@ export function ComposerDropTarget({ dragActive, dropTargetProps, children }: Co
       // state is louder than focus: an armed target has to announce itself while a file hovers over it.
       dropTarget={true}
       holdsField={true}
-      shadow="none"
       shape="float"
     >
       <Stack className="flex-auto min-block-0 min-inline-0" data-slot="composer-content" gap="field">
@@ -47,7 +46,7 @@ export function ComposerDropTarget({ dragActive, dropTargetProps, children }: Co
           state that has to name what will be taken (both media classes) or the highlight teaches nothing.
           Rendered in flow at the top of the card so it reads inside the surface it describes. */}
         {dragActive ? (
-          <Card outline="dashed" ownSlot="composer-drop-affordance" padding="none" shadow="none" tone="primaryOutline">
+          <Card tone="primary" variant="outline" dashed={true} ownSlot="composer-drop-affordance" padding="none">
             <Row gap="field" align="center" justify="center" className="py-field">
               <Icon icon={ImagePlus} size="sm" />
               <Text voice="gloss">{DROP_AFFORDANCE}</Text>

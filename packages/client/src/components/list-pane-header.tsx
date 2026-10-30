@@ -35,7 +35,7 @@ export function ListPaneHeader({ title, accent, count, back, actions }: ListPane
           band before it keeps spending a 48px chrome row on it. See shell.css's mobile arm. */}
       <Row align="center" className="min-inline-0" data-slot="list-pane-identity" gap="field">
         {back === undefined ? null : (
-          <Button aria-label={back.label} data-slot="list-pane-back" intent="ghost" onClick={back.onClick} size="icon" type="button">
+          <Button aria-label={back.label} data-slot="list-pane-back" variant="ghost" onClick={back.onClick} size="icon" type="button">
             <Icon icon={ChevronLeft} size="sm" />
           </Button>
         )}
@@ -76,7 +76,6 @@ export function ListPaneHeader({ title, accent, count, back, actions }: ListPane
           data-slot="list-pane-title"
           id={LIST_PANE_TITLE_ID}
           level={2}
-          tone="default"
           voice="masthead"
         >
           {/* The title TEXT is what truncates, not the heading box — see the count's note. It restates the
@@ -84,13 +83,13 @@ export function ListPaneHeader({ title, accent, count, back, actions }: ListPane
               is the same spelling the accent half beside it already uses. */}
           {/* An unscoped title is the pane's NAME: it never gives width up to the census beside it, the count
               gives instead. A scoped title carries an entity name that may be long, so it still truncates. */}
-          <Text as="span" className={accent === undefined ? "shrink-0" : "truncate"} tone="default" voice="masthead">
+          <Text as="span" className={accent === undefined ? "shrink-0" : "truncate"} voice="masthead">
             {accent === undefined ? title : `${title} · `}
             {/* The entity half is the same step; it carries the MUTED tone now that the name it qualifies
                 owns the foreground, so the pane still reads as "Chats, scoped to HER" rather than as two
                 equal nouns. */}
             {accent === undefined ? null : (
-              <Text as="span" tone="muted" voice="masthead">
+              <Text as="span" ink="muted" voice="masthead">
                 {accent}
               </Text>
             )}

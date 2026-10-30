@@ -111,7 +111,7 @@ function DrawerModal({ body, container, def, onOpenChange }: DrawerModalProps): 
             <DrawerTitle>{def.title}</DrawerTitle>
             <DrawerClose
               render={
-                <Button intent="ghost" size="icon" aria-label="Close">
+                <Button variant="ghost" size="icon" aria-label="Close">
                   <Icon icon={X} size="sm" />
                 </Button>
               }
@@ -194,7 +194,7 @@ function DialogModal({
       headerActions={
         <DialogClose
           render={
-            <Button intent="ghost" size="icon" aria-label="Close">
+            <Button variant="ghost" size="icon" aria-label="Close">
               <Icon icon={X} size="sm" />
             </Button>
           }

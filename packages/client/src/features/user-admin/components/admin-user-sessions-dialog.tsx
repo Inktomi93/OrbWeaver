@@ -48,10 +48,10 @@ export function AdminUserSessionsDialog(props: AdminUserSessionsDialogProps): Re
       title={`Sessions — ${props.handle}`}
     >
       <Row align="center" justify="between">
-        <Text voice="label" tone="muted">
+        <Text voice="label" ink="muted">
           {activeCount} active{rows.length > activeCount ? ` / ${rows.length} total` : ""}
         </Text>
-        <Button intent="destructive" size="sm" disabled={activeCount === 0 || mutating} onClick={(): void => setConfirmRevokeAll(true)}>
+        <Button tone="destructive" size="sm" disabled={activeCount === 0 || mutating} onClick={(): void => setConfirmRevokeAll(true)}>
           Revoke all
         </Button>
       </Row>
@@ -79,7 +79,7 @@ export function AdminUserSessionsDialog(props: AdminUserSessionsDialogProps): Re
               actions={
                 revoked ? null : (
                   <Button
-                    intent="destructive"
+                    tone="destructive"
                     size="sm"
                     disabled={mutating}
                     aria-label={revokeSessionName(session.userAgent ?? session.id)}

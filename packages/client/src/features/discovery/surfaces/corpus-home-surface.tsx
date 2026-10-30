@@ -190,7 +190,7 @@ function CorpusHomeBody(): ReactElement {
     return (
       <EmptyState
         action={
-          <Button intent="primary" onClick={(): void => setActiveSection("characters")} size="sm">
+          <Button onClick={(): void => setActiveSection("characters")} size="sm">
             <Icon icon={Users} size="sm" />
             Go to Characters
           </Button>

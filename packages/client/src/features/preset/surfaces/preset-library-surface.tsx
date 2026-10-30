@@ -184,15 +184,15 @@ function PresetList({ onSelectPreset }: { readonly onSelectPreset: (id: PresetId
             // hand — a dead end wearing an explanation. Clear leads (it restores what you had); New is the
             // second door, because "nothing matched" is also the moment you decide to make the thing.
             needle === "" ? (
-              <Button disabled={create.isPending} intent="secondary" onClick={onCreate} size="sm">
+              <Button disabled={create.isPending} variant="outline" onClick={onCreate} size="sm">
                 New preset
               </Button>
             ) : (
               <Row align="center" className="flex-wrap" gap="field" justify="center">
-                <Button intent="secondary" onClick={(): void => setPresetSearchQuery("")} size="sm">
+                <Button variant="outline" onClick={(): void => setPresetSearchQuery("")} size="sm">
                   Clear search
                 </Button>
-                <Button disabled={create.isPending} intent="ghost" onClick={onCreate} size="sm">
+                <Button disabled={create.isPending} variant="ghost" onClick={onCreate} size="sm">
                   New preset
                 </Button>
               </Row>

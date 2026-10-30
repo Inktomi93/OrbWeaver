@@ -131,7 +131,7 @@ function WorkloadsJobsBody({ anchorId }: { readonly anchorId: string }): ReactEl
                   </TabsTab>
                 ))}
               </TabsList>
-              <Button intent="primary" data-testid={testId("workloadsRunButton")} onClick={(): void => setRunOpen(true)}>
+              <Button data-testid={testId("workloadsRunButton")} onClick={(): void => setRunOpen(true)}>
                 Run a job…
               </Button>
             </Row>
@@ -147,7 +147,7 @@ function WorkloadsJobsBody({ anchorId }: { readonly anchorId: string }): ReactEl
                       title={WORKLOAD_FILTER_EMPTY_COPY[id]}
                       action={
                         id === "all" ? (
-                          <Button intent="secondary" onClick={(): void => setRunOpen(true)}>
+                          <Button variant="outline" onClick={(): void => setRunOpen(true)}>
                             Run a job
                           </Button>
                         ) : undefined

@@ -214,7 +214,7 @@ function ThemeControlsBody({ characterName, session }: ThemeControlsBodyProps): 
             {(override): ReactElement => (
               <Row gap="field" align="center">
                 <SaveAsThemeButton characterName={characterName} override={override} />
-                <Button intent="ghost" disabled={override === null} onClick={resetToGlobal}>
+                <Button variant="ghost" disabled={override === null} onClick={resetToGlobal}>
                   Reset all to Inherit
                 </Button>
               </Row>
@@ -280,7 +280,7 @@ function SaveAsThemeButton({ characterName, override }: { readonly characterName
 
   return (
     <Button
-      intent="ghost"
+      variant="ghost"
       disabled={override === null || promote.isPending}
       onClick={(): void => {
         if (override === null) {
@@ -329,7 +329,7 @@ function StartFromThemeField({ onPick }: { readonly onPick: (theme: Theme) => vo
     <Menu>
       <MenuTrigger
         render={
-          <Button disabled={rows.length === 0} intent="secondary" size="sm">
+          <Button disabled={rows.length === 0} variant="outline" size="sm">
             Start from a theme…
             <Icon icon={ChevronDown} size="xs" />
           </Button>
@@ -357,15 +357,15 @@ function ThemePreview({ override }: { readonly override: ReturnType<typeof overr
     <ThemeScope tokens={override ?? {}}>
       <Card tone="background">
         <Stack gap="row">
-          <Text voice="label" tone="speaker">
+          <Text voice="label" ink="speaker">
             Aria
           </Text>
           <Card tone="bubble">
             <Stack gap="field">
-              <Text as="span" tone="dialogue">
+              <Text as="span" ink="dialogue">
                 “Welcome to the archive,” she said.
               </Text>{" "}
-              <Text as="span" tone="narration">
+              <Text as="span" ink="narration">
                 The lamplight flickered against the shelves.
               </Text>
             </Stack>

@@ -31,10 +31,10 @@ function actNumeral(act: number): string {
 const ACT_STATES = ["past", "current", "future"] as const;
 type ActState = (typeof ACT_STATES)[number];
 // `past` takes the Card's ink (`card-foreground` resolves to the same value as `foreground`) over the gloss voice's muted ink.
-const ACT_STATE_STYLE: Readonly<Record<ActState, { readonly glyph: string; readonly text: Pick<ComponentProps<typeof Text>, "tone" | "ink"> }>> = {
+const ACT_STATE_STYLE: Readonly<Record<ActState, { readonly glyph: string; readonly text: Pick<ComponentProps<typeof Text>, "ink"> }>> = {
   past: { glyph: "●", text: { ink: "inherit" } },
-  current: { glyph: "◉", text: { tone: "accolade" } },
-  future: { glyph: "○", text: { tone: "muted" } },
+  current: { glyph: "◉", text: { ink: "accolade" } },
+  future: { glyph: "○", text: { ink: "muted" } },
 };
 
 function actState(act: number, current: number): ActState {
@@ -66,16 +66,16 @@ export function RpgActRail({ plot, edit }: { readonly plot: RpgPlot; readonly ed
   const heading = currentTitle !== "" ? `Act ${actNumeral(plot.act)} — ${currentTitle}` : `Act ${actNumeral(plot.act)}`;
   const pinned = edit === undefined ? null : ["plot", "plot.act", "plot.acts"].find((p) => edit.isLocked(p));
   return (
-    <Card tone="neutral">
+    <Card>
       <Stack gap="field" data-slot="rpg-act-rail">
         <Row gap="block" align="center" justify="between">
           {edit === undefined ? (
-            <Text voice="kicker" tone="accolade">
+            <Text voice="kicker" ink="accolade">
               {heading}
             </Text>
           ) : (
             <Row gap="field" align="center" className="min-inline-0">
-              <Text as="span" voice="kicker" tone="accolade">
+              <Text as="span" voice="kicker" ink="accolade">
                 Act
               </Text>
               {/* Rest shows the mock's ROMAN numeral; the click-reveals input edits the arabic number. */}
@@ -93,9 +93,9 @@ export function RpgActRail({ plot, edit }: { readonly plot: RpgPlot; readonly ed
                 className="px-field text-center"
                 numeric={true}
                 width="avatar-md"
-                tone="accolade"
+                ink="accolade"
               />
-              <Text as="span" voice="label" aria-hidden={true} tone="muted">
+              <Text as="span" voice="label" aria-hidden={true} ink="muted">
                 —
               </Text>
               <TrackerValue
@@ -106,7 +106,7 @@ export function RpgActRail({ plot, edit }: { readonly plot: RpgPlot; readonly ed
                 className="field-sizing-content max-inline-full min-inline-0"
                 width="auto"
                 restClassName="min-inline-0"
-                tone="accolade"
+                ink="accolade"
               />
               {pinned === undefined || pinned === null ? null : <RpgFieldLock field="the act" onRelease={(): void => edit.onRelease(pinned)} />}
             </Row>

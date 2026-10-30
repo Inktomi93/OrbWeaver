@@ -73,7 +73,7 @@ export function CharacterCategorizedList<T extends { readonly id: string }>({
           <CollapsibleTrigger
             chevron={false}
             render={
-              <Button className="justify-start inline-full" intent="ghost" size="sm">
+              <Button className="justify-start inline-full" variant="ghost" size="sm">
                 {/* The chevron must SAY which way the section is (C9-1d): once `folderType` decides the
                     first paint, a collapsed group is an everyday state, and a chevron frozen pointing down
                     over a hidden panel is a lie. `CollapsibleTrigger` puts its `group` class + Base UI's
@@ -110,7 +110,7 @@ export function CharacterCategorizedList<T extends { readonly id: string }>({
         </Collapsible>
       ))}
       {hasNextPage ? (
-        <Button disabled={isLoadingMore} intent="ghost" onClick={onLoadMore}>
+        <Button disabled={isLoadingMore} variant="ghost" onClick={onLoadMore}>
           Load more
         </Button>
       ) : null}

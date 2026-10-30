@@ -35,7 +35,7 @@ export function SamplerOrder({ form, stages }: { readonly form: AppFormInstance<
               <FieldsetLegend>{LEGEND}</FieldsetLegend>
               <HintTrigger className="shrink-0" hint={HINT} subject={LEGEND} />
               {stored === undefined ? null : (
-                <Button intent="ghost" onClick={(): void => field.handleChange(undefined)} size="sm" type="button">
+                <Button variant="ghost" onClick={(): void => field.handleChange(undefined)} size="sm" type="button">
                   Use server order
                 </Button>
               )}

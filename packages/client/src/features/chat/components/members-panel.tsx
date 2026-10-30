@@ -362,7 +362,7 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
                 kicker="People"
                 action={
                   onInvitePeople === undefined ? undefined : (
-                    <Button type="button" intent="ghost" size="sm" ref={inviteTarget} onClick={onInvitePeople} data-testid={testId("invitePeopleButton")}>
+                    <Button type="button" variant="ghost" size="sm" ref={inviteTarget} onClick={onInvitePeople} data-testid={testId("invitePeopleButton")}>
                       <Icon icon={UserPlus} size="sm" />
                       Invite people
                     </Button>

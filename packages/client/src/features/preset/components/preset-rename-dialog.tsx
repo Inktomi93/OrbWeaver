@@ -55,8 +55,8 @@ export function PresetRenameDialog({ open, onOpenChange, currentName, onRename }
         <Stack gap="block">
           <Input value={name} onValueChange={setName} aria-label="Preset name" placeholder="Preset name" />
           <DialogFooter>
-            <DialogClose render={<Button intent="ghost">Cancel</Button>} />
-            <Button intent="primary" type="submit" disabled={!canSave}>
+            <DialogClose render={<Button variant="ghost">Cancel</Button>} />
+            <Button type="submit" disabled={!canSave}>
               Save
             </Button>
           </DialogFooter>

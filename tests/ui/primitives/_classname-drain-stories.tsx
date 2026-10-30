@@ -6,30 +6,30 @@ import { Collapsible, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Circle, Icon } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack, Surface } from "@orb/ui/layout";
-import { INK_TONE } from "@orb/ui/lib";
+
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import { TOKENS } from "@orb/ui/tokens";
 import type { ReactElement } from "react";
 
-const TONES = ["info", "accolade", "speaker", "dialogue", "narration"] as const;
-const PROBE_INKS = {
-  info: TOKENS["color.tone-text"].cssVar,
-  accolade: "--color-accolade",
-  speaker: "--color-speaker",
-  dialogue: "--color-dialogue",
-  narration: "--color-narration",
-} as const;
+const INKS = ["accolade", "speaker", "dialogue", "narration"] as const;
 
-/** Each meaning tone beside a probe painted straight from its token, so the test compares like with like. */
+/** A meaning tone and each named ink beside a probe painted straight from its token, so the test compares like with like. */
 export function ToneStory(): ReactElement {
   return (
-    <CtIsolation subject="Text and Icon meaning tones" isolates="The tone arms against their colour tokens, without application state">
-      {TONES.map((tone) => (
-        <Row key={tone} gap="field" data-tone-case={tone}>
-          <Text tone={tone}>{tone} text</Text>
-          <Icon icon={Circle} tone={tone} label={`${tone} icon`} />
-          <span data-probe={tone} data-tone={INK_TONE[tone] ?? undefined} style={{ color: `var(${PROBE_INKS[tone]})` }}>
+    <CtIsolation subject="Text and Icon tones and inks" isolates="The tone and ink arms against their colour tokens, without application state">
+      <Row gap="field" data-tone-case="info">
+        <Text tone="info">info text</Text>
+        <Icon icon={Circle} tone="info" label="info icon" />
+        <span data-probe="info" data-tone="info" style={{ color: `var(${TOKENS["color.tone-text"].cssVar})` }}>
+          probe
+        </span>
+      </Row>
+      {INKS.map((ink) => (
+        <Row key={ink} gap="field" data-tone-case={ink}>
+          <Text ink={ink}>{ink} text</Text>
+          <Icon icon={Circle} ink={ink} label={`${ink} icon`} />
+          <span data-probe={ink} style={{ color: `var(--color-${ink})` }}>
             probe
           </span>
         </Row>
@@ -59,7 +59,7 @@ export function TextModifierStory(): ReactElement {
 export function LinkStory(): ReactElement {
   return (
     <CtIsolation subject="Button link intent" isolates="The link arm at rest">
-      <Button intent="link" size="inline">
+      <Button variant="link" size="inline">
         Show more
       </Button>
       <span data-probe="primary" data-tone="primary" style={{ color: `var(${TOKENS["color.tone-text"].cssVar})`, backgroundColor: "transparent" }}>
@@ -107,7 +107,7 @@ export function TouchFloorStory(): ReactElement {
       <Stack touchFloor="block" data-case="stack-block">
         <Text as="span">value</Text>
       </Stack>
-      <Button aria-label="glyph chip" intent="secondary" size="sm" touchFloor="inline">
+      <Button aria-label="glyph chip" variant="outline" size="sm" touchFloor="inline">
         <Icon icon={Circle} size="xs" />
       </Button>
       <Badge size="compact" touchFloor="block">
@@ -130,12 +130,12 @@ export function RevealStory(): ReactElement {
     <CtIsolation subject="Row reveal and ListRow revealActions" isolates="The hover-reveal arms against their group">
       <div className="group" data-case="row-group">
         <Row reveal="hover" data-case="row-hover">
-          <Button intent="ghost" size="sm">
+          <Button variant="ghost" size="sm">
             act
           </Button>
         </Row>
         <Row reveal="faint" data-case="row-faint">
-          <Button intent="ghost" size="sm">
+          <Button variant="ghost" size="sm">
             pin
           </Button>
         </Row>
@@ -144,7 +144,7 @@ export function RevealStory(): ReactElement {
         title="Row with revealed actions"
         revealActions={true}
         actions={
-          <Button intent="ghost" size="sm">
+          <Button variant="ghost" size="sm">
             edit
           </Button>
         }
@@ -157,17 +157,20 @@ export function RevealStory(): ReactElement {
 /** The Card shapes and tones the drain needs, inside and outside a tier, beside token probes. */
 export function CardShapeStory(): ReactElement {
   return (
-    <CtIsolation subject="Card shape and tone" isolates="The row and well shapes and the clear and accent tones, tier-less and inside an instrument Surface">
+    <CtIsolation
+      subject="Card shape and style"
+      isolates="The row shape, the soft and outline styles and the accent surface, tier-less and inside an instrument Surface"
+    >
       <Card shape="row" data-case="row">
         row
       </Card>
-      <Card shape="well" data-case="well">
+      <Card variant="soft" data-case="well">
         well
       </Card>
-      <Card tone="clear" data-case="clear">
+      <Card variant="outline" data-case="clear">
         clear
       </Card>
-      <Card shape="well" tone="accent" data-case="accent-well">
+      <Card tone="accent" variant="soft" data-case="accent-well">
         accent
       </Card>
       <Card data-case="island">island</Card>
@@ -221,20 +224,17 @@ export function DividerStory(): ReactElement {
 /** Each Button tone on the two fill-less intents, and on a filled intent where it must not apply. */
 export function ButtonToneStory(): ReactElement {
   return (
-    <CtIsolation subject="Button tone" isolates="The tone arms on ghost and link, and their absence on primary">
-      <Button intent="ghost" tone="primary">
+    <CtIsolation subject="Button tone and ink" isolates="A tone and a named ink on the fill-less styles">
+      <Button variant="ghost" tone="primary">
         ghost primary
       </Button>
-      <Button intent="ghost" tone="destructive">
+      <Button variant="ghost" tone="destructive">
         ghost destructive
       </Button>
-      <Button intent="link" size="inline" tone="muted">
+      <Button variant="link" ink="muted" size="inline">
         link muted
       </Button>
-      <Button intent="primary" tone="muted">
-        primary muted
-      </Button>
-      <Button intent="primary">primary plain</Button>
+
       <span data-probe="primary" data-tone="primary" style={{ color: `var(${TOKENS["color.tone-text"].cssVar})` }}>
         p
       </span>
@@ -274,19 +274,16 @@ const CARD_FILL_TONES = ["sidebar", "translucent", "backdrop"] as const;
 /** The fill tones and the input-edge tone, beside probes. */
 export function CardToneStory(): ReactElement {
   return (
-    <CtIsolation subject="Card tones" isolates="The sidebar, translucent and backdrop fills and the input edge">
+    <CtIsolation subject="Card step-four surfaces" isolates="The sidebar, translucent and backdrop fills">
       {CARD_FILL_TONES.map((tone) => (
         <Card key={tone} tone={tone} data-case={tone}>
           {tone}
         </Card>
       ))}
-      <Card tone="input" data-case="input">
-        input
-      </Card>
+
       <span data-probe="sidebar" style={{ backgroundColor: "var(--color-sidebar)", borderColor: "var(--color-sidebar-border)", display: "block" }} />
       <span data-probe="translucent" style={{ backgroundColor: "color-mix(in oklab, var(--color-card) 80%, transparent)", display: "block" }} />
       <span data-probe="backdrop" style={{ backgroundColor: "color-mix(in oklab, var(--color-background) 80%, transparent)", display: "block" }} />
-      <span data-probe="input" style={{ borderColor: "var(--color-input)", backgroundColor: "transparent", display: "block" }} />
     </CtIsolation>
   );
 }

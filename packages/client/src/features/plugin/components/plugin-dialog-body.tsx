@@ -67,7 +67,7 @@ export function PluginDialogBody(): ReactElement {
           // The next step is real and specific: the plugin can be turned back on in Plugins. A modal whose body
           // says only "gone" strands a person inside a dialog they have to guess their way out of.
           action={
-            <Button intent="secondary" onClick={(): void => openConfigTo("plugins")} size="sm">
+            <Button variant="outline" onClick={(): void => openConfigTo("plugins")} size="sm">
               Open Plugins
             </Button>
           }

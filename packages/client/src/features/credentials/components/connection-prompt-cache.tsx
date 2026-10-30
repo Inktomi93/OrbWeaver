@@ -79,7 +79,7 @@ function PromptCacheBody(props: PromptCacheBodyProps): ReactElement {
       <ProviderControls {...props} />
       {hasStored ? (
         <Row justify="start">
-          <Button disabled={busy} intent="secondary" onClick={reset} size="sm">
+          <Button disabled={busy} variant="outline" onClick={reset} size="sm">
             Use the defaults
           </Button>
         </Row>

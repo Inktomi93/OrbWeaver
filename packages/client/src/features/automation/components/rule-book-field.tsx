@@ -65,7 +65,7 @@ export function RuleBookField({
         <>
           <Text voice="gloss">Couldn't load world books. Your selection is unchanged.</Text>
           <Button
-            intent="ghost"
+            variant="ghost"
             onClick={(): void => {
               query.refetch().catch(() => notify.error("Couldn’t refresh world books."));
             }}

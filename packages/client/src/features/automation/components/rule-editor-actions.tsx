@@ -92,7 +92,7 @@ export function RuleEditorActions({
                           {index + 1}. {armTitle(action.type)}
                         </Text>
                         <Button
-                          intent="ghost"
+                          variant="ghost"
                           size="icon"
                           aria-label={`Remove action ${index + 1}`}
                           onClick={(): void => {

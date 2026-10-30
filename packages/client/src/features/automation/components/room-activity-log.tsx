@@ -55,11 +55,11 @@ export function RoomActivityLog({ chatId }: RoomActivityLogProps): ReactElement 
           <Stack key={fire.id} gap="tight" data-slot="activity-row">
             <Row gap="block" align="center" justify="between">
               <Row className="min-inline-0" gap="block" align="center">
-                <Badge intent={view.intent} tone="soft" size="sm">
+                <Badge tone={view.tone} size="sm">
                   {view.label}
                 </Badge>
                 {wasConfirmed(fire.detail) ? (
-                  <Badge intent="info" tone="soft" size="sm">
+                  <Badge tone="info" size="sm">
                     Confirmed
                   </Badge>
                 ) : null}

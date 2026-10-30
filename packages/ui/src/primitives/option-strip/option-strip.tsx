@@ -58,7 +58,7 @@ export function OptionStrip({ "aria-label": ariaLabel, id, items, onSelect, clas
             key={item.id}
             id={item.id}
             type="button"
-            intent="ghost"
+            variant="ghost"
             role="option"
             aria-selected={item.highlighted ?? false}
             // aria-disabled (not native `disabled`) so the row stays hoverable.

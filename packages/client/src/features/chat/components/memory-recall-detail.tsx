@@ -102,7 +102,7 @@ function RecallCandidateLine({ candidate }: { readonly candidate: MemoryRecallCa
       <Text voice="code">{`${rank}tier ${candidate.tier} · block ${candidate.blockIdx}`}</Text>
       <Row align="baseline" className="shrink-0" gap="field">
         {candidate.verdict === "admitted" ? (
-          <Badge intent="info" size="sm">
+          <Badge tone="info" variant="solid" size="sm">
             {label}
           </Badge>
         ) : (

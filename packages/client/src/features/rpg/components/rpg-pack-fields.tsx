@@ -60,7 +60,7 @@ export function ItemName({ item, edit }: { readonly item: RpgInventoryItem; read
 export function ItemQuantity({ item, edit }: { readonly item: RpgInventoryItem; readonly edit?: PackEdit }): ReactElement | null {
   if (edit === undefined) {
     return item.quantity > 1 ? (
-      <Text as="span" tone="muted" voice="datum" className="shrink-0">
+      <Text as="span" ink="muted" voice="datum" className="shrink-0">
         ×{item.quantity}
       </Text>
     ) : null;
@@ -121,7 +121,7 @@ export function ItemProseLine({
       // owner-reported "…" line that hid the datum it existed to show.
       wrap={true}
       placeholder={placeholder}
-      tone="muted"
+      ink="muted"
       onEdit={(next): void => edit.onPatchItem(item.id, { [field]: next.trim() })}
       className="flex-1 min-inline-0"
       voice="label"

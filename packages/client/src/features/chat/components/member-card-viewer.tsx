@@ -150,7 +150,7 @@ function MemberCard({ card, onManage }: { readonly card: MemberCardView; readonl
       <Row gap="row" align="center">
         <Stack gap="field" className="min-inline-0">
           <Row gap="field" align="center">
-            <Badge size="sm" intent="neutral" tone="soft">
+            <Badge size="sm">
               <Icon icon={Lock} size="xs" />
               {VISIBILITY_LABEL[card.visibility]}
             </Badge>
@@ -296,12 +296,12 @@ function TagsSection({
       <Row gap="field" align="center" className="flex-wrap">
         {editableTags === null
           ? tags.map((tag) => (
-              <Badge key={tag} size="sm" intent="neutral" tone="soft">
+              <Badge key={tag} size="sm">
                 {tag}
               </Badge>
             ))
           : editableTags.map((tag) => (
-              <Badge key={tag.id} size="sm" intent="neutral" tone="soft">
+              <Badge key={tag.id} size="sm">
                 <EditableTagChip tag={tag} onManage={onManage} />
               </Badge>
             ))}
@@ -317,7 +317,7 @@ function HiddenTierNote({ label, description }: { readonly label: string; readon
     <Stack gap="row" data-testid={testId("memberCardHiddenNote")}>
       <Separator />
       <Row gap="field" align="center">
-        <Icon icon={EyeOff} size="sm" tone="muted" />
+        <Icon icon={EyeOff} size="sm" ink="muted" />
         <Stack gap="field" className="min-inline-0">
           <Text as="span" voice="label">
             {label} hidden
@@ -336,7 +336,7 @@ function SectionShell({ icon, title, children }: { readonly icon: typeof ScrollT
           navigates the card by heading. Visual style is UNCHANGED — the label size/weight/muted/caps
           skin is preserved via the Heading overrides; only the element rank changes. */}
       <Row gap="field" align="center">
-        <Icon icon={icon} size="sm" tone="muted" />
+        <Icon icon={icon} size="sm" ink="muted" />
         <Heading voice="kicker" level={3}>
           {title}
         </Heading>

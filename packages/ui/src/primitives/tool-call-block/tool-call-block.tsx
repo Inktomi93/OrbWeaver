@@ -67,13 +67,13 @@ export function ToolCallBlock({ record, defaultOpen, className }: ToolCallBlockP
         </span>
         <span aria-live="polite" className={slots.status()} data-slot="tool-call-block-status">
           {state === "error" ? (
-            <Badge intent="danger">
+            <Badge tone="destructive" variant="solid">
               <Icon icon={AlertTriangle} size="xs" /> Error
             </Badge>
           ) : null}
-          {state === "unexecuted" ? <Badge intent="neutral">Requested, not run</Badge> : null}
+          {state === "unexecuted" ? <Badge>Requested, not run</Badge> : null}
           {state === "success" ? (
-            <Badge intent="success">
+            <Badge tone="success" variant="solid">
               <Icon icon={Check} size="xs" /> Success
             </Badge>
           ) : null}

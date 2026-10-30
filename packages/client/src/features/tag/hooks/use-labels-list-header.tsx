@@ -11,7 +11,7 @@ export function useLabelsListHeader(active = true): ListPaneHeaderView {
       {
         id: "label-new",
         inline: (
-          <Button intent="primary" loading={create.pending} onClick={create.run} size="sm" type="button">
+          <Button loading={create.pending} onClick={create.run} size="sm" type="button">
             <Icon icon={Plus} size="sm" />
             {NEW_LABEL_NAME}
           </Button>

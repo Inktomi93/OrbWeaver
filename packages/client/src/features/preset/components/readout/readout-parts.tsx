@@ -175,7 +175,7 @@ function EffectiveProfileFailure({ error, onRetry }: { readonly error: unknown; 
   const copy = resolveFailureCopy(error);
   const message = resolveFailureMessage(error);
   return (
-    <Card tone="warning">
+    <Card tone="warning" variant="soft">
       <Row align="start" gap="field" role="alert">
         <Icon icon={AlertTriangle} size="sm" tone="warning" />
         <Stack gap="tight">
@@ -192,7 +192,7 @@ function EffectiveProfileFailure({ error, onRetry }: { readonly error: unknown; 
           </Text>
           {/* `self-start` — a `Stack` stretches its children, and a full-width Retry inside a warning band
             reads as the band's own primary action rather than as the recovery for the line above it. */}
-          <Button className="self-start" intent="secondary" onClick={onRetry} size="sm" type="button">
+          <Button className="self-start" variant="outline" onClick={onRetry} size="sm" type="button">
             Retry
           </Button>
         </Stack>

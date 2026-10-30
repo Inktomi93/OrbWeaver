@@ -148,7 +148,7 @@ function LeaderboardBody({
     ) : (
       <Stack gap="field" align="start">
         <Text voice="gloss">{`No character matches "${trimmed}".`}</Text>
-        <Button intent="secondary" size="sm" onClick={(): void => setAnalyticsSearchQuery("")}>
+        <Button variant="outline" size="sm" onClick={(): void => setAnalyticsSearchQuery("")}>
           Clear search
         </Button>
       </Stack>
@@ -177,7 +177,7 @@ function LeaderboardBody({
             selected={selectedId === row.characterId}
             onClick={(): void => selectAnalyticsCharacterFromList(row.characterId)}
             leading={
-              <Text voice="datum" tone="muted">
+              <Text voice="datum" ink="muted">
                 {index + 1}
               </Text>
             }

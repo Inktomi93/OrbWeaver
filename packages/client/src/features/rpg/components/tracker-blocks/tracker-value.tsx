@@ -4,6 +4,7 @@
 
 import { Button } from "@orb/ui/button";
 import { Input } from "@orb/ui/input";
+import type { ToneInkSelection } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
 import type { ComponentProps, ReactElement, Ref } from "react";
 import { useId, useRef, useState } from "react";
@@ -13,8 +14,7 @@ import { cn, resolveCommit } from "#lib";
 import { UNSET_DATUM } from "../../lib/unset-datum.ts";
 
 type TrackerVoice = Extract<ComponentProps<typeof Text>["voice"], "label" | "promoted">;
-
-interface TrackerValueProps {
+interface TrackerValueOwnProps {
   /** The current value, pre-formatted by the block (e.g. "24/30", "wary", "16"). */
   readonly display: string;
   /** The raw editable string (what seeds the input); defaults to `display`. */
@@ -28,8 +28,6 @@ interface TrackerValueProps {
   /** Accessible name for the at-rest button when it must include the displayed datum. The edit field keeps
    *  `ariaLabel`, so automation has a stable field name after opening the value. */
   readonly restAriaLabel?: string;
-  /** Text tone for the at-rest/read-only display (foreground by default; muted for secondary). */
-  readonly tone?: ComponentProps<typeof Text>["tone"];
   /** The control's voice; a stat tile promotes its value while ordinary fields use the label step. */
   readonly voice?: TrackerVoice;
   /** Shown (muted) in the REST state when the value is empty, and as the input's placeholder — so an
@@ -57,6 +55,10 @@ interface TrackerValueProps {
   readonly italic?: boolean;
 }
 
+/** The at-rest/read-only display's colour: a tone by meaning (a warning value) or a named ink (muted for a secondary
+ *  value), the voice's own ink by default. */
+type TrackerValueProps = TrackerValueOwnProps & ToneInkSelection;
+
 /** The REST state of an editable value — a real button CARRYING the datum text (see the header). Split out
  *  of `TrackerValue` so the editor arm's commit ruling is the only thing that file-reads as branching. */
 function TrackerValueRest({
@@ -67,7 +69,7 @@ function TrackerValueRest({
   onOpen,
   placeholder,
   voice,
-  tone,
+  paint,
   wrap,
   numeric,
   italic,
@@ -80,7 +82,7 @@ function TrackerValueRest({
   readonly onOpen: () => void;
   readonly placeholder: string | undefined;
   readonly voice: TrackerVoice;
-  readonly tone: ComponentProps<typeof Text>["tone"];
+  readonly paint: ToneInkSelection;
   readonly wrap: boolean;
   readonly numeric: boolean;
   readonly italic: boolean;
@@ -92,7 +94,7 @@ function TrackerValueRest({
     <Tip text={editTitle}>
       <Button
         type="button"
-        intent="ghost"
+        variant="ghost"
         size="inline"
         data-slot="tracker-value-rest"
         aria-label={ariaLabel}
@@ -107,7 +109,7 @@ function TrackerValueRest({
         <Text
           as="span"
           voice={voice}
-          tone={empty ? "muted" : tone}
+          {...(empty ? ({ ink: "muted" } as const) : paint)}
           numeric={numeric}
           italic={italic}
           className={wrap ? "wrap-break-word whitespace-normal min-inline-0" : "truncate"}
@@ -127,7 +129,8 @@ export function TrackerValue({
   kind = "text",
   ariaLabel,
   restAriaLabel,
-  tone = "default",
+  tone,
+  ink,
   voice = "label",
   placeholder,
   className,
@@ -138,6 +141,7 @@ export function TrackerValue({
   numeric = false,
   italic = false,
 }: TrackerValueProps): ReactElement {
+  const paint: ToneInkSelection = ink === undefined ? { tone } : { ink };
   const source = editValue ?? display;
   // ONE state, because the three fields are only ever meaningful together: the draft is seeded when the
   // editor OPENS, `openedFrom` freezes the value it was seeded FROM (what the commit is judged against),
@@ -149,7 +153,7 @@ export function TrackerValue({
 
   if (onEdit === undefined) {
     return (
-      <Text as="span" voice={voice} tone={tone} numeric={numeric} italic={italic} className={className}>
+      <Text as="span" voice={voice} {...paint} numeric={numeric} italic={italic} className={className}>
         {display}
       </Text>
     );
@@ -167,7 +171,7 @@ export function TrackerValue({
         }}
         placeholder={placeholder}
         voice={voice}
-        tone={tone}
+        paint={paint}
         wrap={wrap}
         numeric={numeric}
         italic={italic}

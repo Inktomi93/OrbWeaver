@@ -63,7 +63,7 @@ export function TemplateDrillIn({ form, row, onBack }: TemplateDrillInProps): Re
   return (
     <Stack aria-label={`${def.label} — template editor`} gap="section" role="region">
       <Row align="center" gap="row">
-        <Button intent="ghost" onClick={onBack} ref={backRef} size="sm" type="button">
+        <Button variant="ghost" onClick={onBack} ref={backRef} size="sm" type="button">
           <Icon icon={ArrowLeft} size="sm" />
           Back to actions
         </Button>
@@ -81,7 +81,7 @@ export function TemplateDrillIn({ form, row, onBack }: TemplateDrillInProps): Re
           </Heading>
           {/* The SAME chip the list row wears (crunch items 7/14) — outlined neutral, one kind vocabulary
               drawn one way on both surfaces. */}
-          <Badge intent="neutral" size="sm" tone="ghost">
+          <Badge variant="outline" size="sm">
             {def.kind}
           </Badge>
         </Row>
@@ -269,17 +269,17 @@ function ProseFooter({ footer, length }: { readonly footer: ProseFooterState; re
   return (
     <Row align="center" gap="field">
       {footer.over > 0 ? (
-        <Badge intent="danger" role="alert" size="sm" tone="soft">
+        <Badge tone="destructive" role="alert" size="sm">
           {footer.over} characters over the {PROSE_MAX_CHARS} limit — trim it to save
         </Badge>
       ) : null}
       {footer.missing.map((token) => (
-        <Badge intent="warning" key={token} size="sm" tone="soft">
+        <Badge tone="warning" key={token} size="sm">
           Missing {token}
         </Badge>
       ))}
       {footer.stale ? (
-        <Badge intent="warning" size="sm" tone="soft">
+        <Badge tone="warning" size="sm">
           The built-in wording was updated
         </Badge>
       ) : null}
@@ -383,7 +383,7 @@ function TokenVocabulary({ form, row, capability }: CapabilityProps): ReactEleme
           sentence), which is a real difference and the only one left between them. */}
       <Row align="center" gap="field" role="list">
         {tokens.map((token) => (
-          <Badge face="code" intent="info" key={token} role="listitem" size="sm" tone="ghost">
+          <Badge face="code" tone="info" variant="outline" key={token} role="listitem" size="sm">
             {token}
           </Badge>
         ))}
@@ -394,7 +394,7 @@ function TokenVocabulary({ form, row, capability }: CapabilityProps): ReactEleme
             !guidedFooterState(prompt, factoryDefault).missingInputLint ? null : (
               // The warning SIGNAL rides the band + the glyph, never a `tone` prop on Text — type colour
               // belongs to the four-voice grammar (§2).
-              <Card tone="warning">
+              <Card tone="warning" variant="soft">
                 <Row align="center" gap="field">
                   <Icon icon={AlertTriangle} size="sm" tone="warning" />
                   <Text voice="label">

@@ -87,7 +87,7 @@ export function GuidedIconButton(props: GuidedIconButtonProps): ReactElement {
         render={
           <Button
             type="button"
-            intent="ghost"
+            variant="ghost"
             size="glyph-lg"
             disabled={disabled}
             focusableWhenDisabled={true}
@@ -96,7 +96,7 @@ export function GuidedIconButton(props: GuidedIconButtonProps): ReactElement {
             onClick={disabled ? undefined : onFire}
             shape="pill"
             className={ICON_CONTROL_CLASS}
-            tone={hasText && !disabled ? "primary" : "muted"}
+            {...(hasText && !disabled ? ({ tone: "primary" } as const) : ({ ink: "muted" } as const))}
           >
             <SteerGlyph icon={icon} steering={hasText && !disabled} />
           </Button>
@@ -176,7 +176,7 @@ export function ImpersonateStopButton({ onStop }: { readonly onStop: () => void 
         render={
           <Button
             type="button"
-            intent="secondary"
+            variant="outline"
             size="glyph-lg"
             aria-label={IMPERSONATE_STOP_LABEL}
             data-testid={testId("composerGuidedStopImpersonate")}
@@ -233,12 +233,12 @@ export function ImpersonateGuidedButton({
                 <Button
                   aria-label={name}
                   type="button"
-                  intent="ghost"
+                  variant="ghost"
                   size="glyph-lg"
                   focusableWhenDisabled={true}
                   shape="pill"
                   className={ICON_CONTROL_CLASS}
-                  tone={hasText && !disabled ? "primary" : "muted"}
+                  {...(hasText && !disabled ? ({ tone: "primary" } as const) : ({ ink: "muted" } as const))}
                 >
                   <SteerGlyph icon={DRAMA} steering={hasText && !disabled} />
                 </Button>
@@ -293,7 +293,7 @@ export function ResponseGuidedButton({
           render={
             <Button
               type="button"
-              intent="ghost"
+              variant="ghost"
               size="glyph-lg"
               disabled={!idle}
               focusableWhenDisabled={disabledReason !== undefined}
@@ -302,7 +302,7 @@ export function ResponseGuidedButton({
               onClick={idle ? (): void => onFire(null) : undefined}
               shape="pill"
               className={ICON_CONTROL_CLASS}
-              tone={hasText ? "primary" : "muted"}
+              {...(hasText ? ({ tone: "primary" } as const) : ({ ink: "muted" } as const))}
             >
               <SteerGlyph icon={PLAY} steering={hasText} />
             </Button>
@@ -329,12 +329,12 @@ export function ResponseGuidedButton({
                 <Button
                   aria-label={name}
                   type="button"
-                  intent="ghost"
+                  variant="ghost"
                   size="glyph-lg"
                   focusableWhenDisabled={disabledReason !== undefined}
                   shape="pill"
                   className={ICON_CONTROL_CLASS}
-                  tone={hasText ? "primary" : "muted"}
+                  {...(hasText ? ({ tone: "primary" } as const) : ({ ink: "muted" } as const))}
                 >
                   <SteerGlyph icon={PLAY} steering={hasText} />
                 </Button>

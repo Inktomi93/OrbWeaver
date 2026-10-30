@@ -88,7 +88,7 @@ export function HomeQuickPicksTileBody({ gridRef }: { readonly gridRef?: RefObje
     return (
       <EmptyState
         action={
-          <Button intent="secondary" onClick={(): void => setActiveSection("characters")} size="sm">
+          <Button variant="outline" onClick={(): void => setActiveSection("characters")} size="sm">
             <Icon icon={Users} size="sm" />
             Create your first character
           </Button>
@@ -155,7 +155,7 @@ export function HomeQuickPicksTileBody({ gridRef }: { readonly gridRef?: RefObje
                 // does), and the pitch rides `aria-describedby`, which is what a description is for.
                 aria-label={character.name}
                 className="flex-col items-stretch gap-tight text-start"
-                intent="ghost"
+                variant="ghost"
                 onClick={(): void => {
                   if (character.lastChatId !== null) {
                     resumeChat(character.lastChatId);
@@ -220,7 +220,7 @@ export function HomeQuickPicksTileBody({ gridRef }: { readonly gridRef?: RefObje
                 )}
               </Button>
               {character.lastChatId === null ? null : (
-                <Button aria-label={`New chat with ${character.name}`} intent="ghost" onClick={(): void => startChatWith(character.id)} size="sm">
+                <Button aria-label={`New chat with ${character.name}`} variant="ghost" onClick={(): void => startChatWith(character.id)} size="sm">
                   New chat
                 </Button>
               )}
@@ -230,7 +230,7 @@ export function HomeQuickPicksTileBody({ gridRef }: { readonly gridRef?: RefObje
       </Stack>
       <Button
         className="snap-start flex-col items-center justify-center gap-tight"
-        intent="ghost"
+        variant="ghost"
         onClick={(): void => setActiveSection("characters")}
         size="media"
       >

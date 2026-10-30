@@ -52,7 +52,7 @@ function describeRow(description: ReactNode, disabledReason: ReactNode): { reado
       <>
         {description}
         {disabledReason !== undefined && (
-          <Text as="span" className="block" tone="muted">
+          <Text as="span" className="block" ink="muted">
             {disabledReason}
           </Text>
         )}

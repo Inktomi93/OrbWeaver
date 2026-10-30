@@ -156,7 +156,7 @@ function BackgroundBody({
               const picked =
                 values.backgroundImageKind === "asset" ? values.backgroundLibrary.find((entry) => entry.assetId === values.backgroundAssetId) : undefined;
               return picked === undefined ? null : (
-                <Button className="self-start" intent="ghost" onClick={(): void => removeEntry(picked)} size="sm" type="button">
+                <Button className="self-start" variant="ghost" onClick={(): void => removeEntry(picked)} size="sm" type="button">
                   <Icon icon={Trash2} size="sm" />
                   {removeActionName(picked.name)}
                 </Button>

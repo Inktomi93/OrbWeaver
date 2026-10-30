@@ -130,7 +130,7 @@ function FacetContextEmpty({ arm, glyph }: { readonly arm: FacetContextNone; rea
   return (
     <EmptyState
       action={
-        <Button intent="secondary" onClick={arm.action.run} size="sm" type="button">
+        <Button variant="outline" onClick={arm.action.run} size="sm" type="button">
           {arm.action.label}
         </Button>
       }
@@ -209,7 +209,7 @@ function DepthDetail({ form }: { readonly form: CardForm }): ReactElement {
         <form.Subscribe selector={(s): string => s.values.depthPromptText}>
           {(value): ReactElement => (
             <Row gap="block" align="center" className="flex-wrap">
-              <Text tone="muted" voice="datum">
+              <Text ink="muted" voice="datum">
                 {value.length} characters
               </Text>
               <Text voice="datumMono">~{estimateTokens(value)} tokens</Text>
@@ -249,7 +249,7 @@ function CountDetail({
       <form.Subscribe selector={(s): string => s.values[name]}>
         {(value): ReactElement => (
           <Row gap="block" align="center" className="flex-wrap">
-            <Text tone="muted" voice="datum">
+            <Text ink="muted" voice="datum">
               {value.length} characters
             </Text>
             {tokens ? <Text voice="datumMono">~{estimateTokens(value)} tokens</Text> : null}

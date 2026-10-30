@@ -1,4 +1,4 @@
-// Chat's "Temp chat" HOME tile contribution. Its button is `intent="secondary"` and it sits on the shelf beside the
+// Chat's "Temp chat" HOME tile contribution. Its button is `variant="outline"` and it sits on the shelf beside the
 // other things you reach for; Home's one focal is the resume-room hero in `home-recents-tile`'s body.
 
 import { Clock } from "@orb/ui/icons";

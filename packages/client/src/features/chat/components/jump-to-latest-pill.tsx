@@ -33,17 +33,17 @@ export function JumpToLatestPill({ count, visible, onJump }: JumpToLatestPillPro
       className="pointer-events-none absolute inset-x-0 inset-be-block z-(--z-overlay)"
       data-slot="jump-to-latest"
     >
-      <Card className="flex items-center inline-fit" padding="none" presence={visible ? "shown" : "hidden"} shadow="overlay" shape="pill" tone="popover">
+      <Card className="flex items-center inline-fit" padding="none" presence={visible ? "shown" : "hidden"} tone="popover" shape="pill" shadow="overlay">
         <Button
           type="button"
-          intent="ghost"
+          variant="ghost"
+          ink="foreground"
           size="sm"
           onClick={onJump}
           aria-label={`Jump to latest, ${label}`}
           tabIndex={visible ? 0 : -1}
           shape="pill"
           className="gap-field"
-          tone="foreground"
         >
           <Icon icon={ChevronDown} size="sm" />
           {label}

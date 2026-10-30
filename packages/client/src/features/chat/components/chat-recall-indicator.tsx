@@ -111,7 +111,7 @@ function RecallIndicatorBody({ chatId, viewerIsHost, memory }: ChatRecallIndicat
             // fill, the focus ring and the pointer cursor no datum has. Colour-as-liveness is the axis the
             // bracket already uses one slot up (the kicker's selection half, #102), so the pane teaches it
             // once. `shape="pill"` keeps the mock's ONE chip family.
-            intent="secondary"
+            variant="outline"
             shape="pill"
             size="sm"
             aria-label={recallLabel(recall)}
@@ -151,7 +151,7 @@ function MemoryOffSummary({ onTurnOn }: { readonly onTurnOn: () => void }): Reac
   return (
     <Stack gap="field">
       <Text voice="gloss">Chat memory is off.</Text>
-      <Button className="self-start" intent="secondary" onClick={onTurnOn} size="sm" type="button">
+      <Button className="self-start" variant="outline" onClick={onTurnOn} size="sm" type="button">
         Turn on
       </Button>
     </Stack>

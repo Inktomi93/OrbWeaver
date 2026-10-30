@@ -202,7 +202,7 @@ function HeroPortrait({ detail, trpc }: { readonly detail: CharacterHeroDetail; 
       }}
     >
       {({ open }): ReactElement => (
-        <Button aria-label="Replace portrait" className="relative shrink-0" confirming={confirming} intent="ghost" onClick={open} shape="pill" size="media">
+        <Button aria-label="Replace portrait" className="relative shrink-0" confirming={confirming} variant="ghost" onClick={open} shape="pill" size="media">
           <Avatar hueSeed={detail.id} size="hero" {...avatarSrc}>
             {initialsFor(detail.name)}
           </Avatar>
@@ -256,7 +256,7 @@ export function OwnLookMark({ themeOverride }: { readonly themeOverride: ThemeOv
                 // COLOUR, not the border: a `soft` Badge draws the same hairline — measured; the note in
                 // chat-recall-indicator.tsx carries it.) A `ghost`+`size="inline"` chip would draw nothing at
                 // rest and leave the unpressable datum chips as the row's only shaped items.
-                <Button intent="secondary" shape="pill" size="sm" type="button">
+                <Button variant="outline" shape="pill" size="sm" type="button">
                   <ThemeScope className="shrink-0 block-(--size-glyph-xs) inline-(--size-glyph-xs)" tokens={cardTheme}>
                     <Swatch className="block-full inline-full" edge="outline" fill="primary" shape="pill" />
                   </ThemeScope>
@@ -301,14 +301,14 @@ function HeroActions({
 }): ReactElement {
   return (
     <Row gap="row" align="center" className="flex-wrap">
-      <Button type="button" intent="primary" onClick={onNewChat}>
+      <Button type="button" onClick={onNewChat}>
         <Icon icon={MessagesSquare} size="sm" />
         New chat
       </Button>
       {chatCount > 0 ? (
         // The chat-count DOOR is a glance echo of the band's `N chats` chip and of the rail's own Chats
         // cell — `duplicate-action-door` names it twice. It yields with the handle (see HERO_ECHO_CLASS).
-        <Button type="button" intent="ghost" onClick={onViewChats} className={HERO_ECHO_CLASS}>
+        <Button type="button" variant="ghost" onClick={onViewChats} className={HERO_ECHO_CLASS}>
           {chatCount} {chatCount === 1 ? "chat" : "chats"}
           <Icon icon={ChevronRight} size="sm" />
         </Button>
@@ -319,7 +319,7 @@ function HeroActions({
           ACTION, `aria-pressed` describes the current STATE, and a control doing both inverts its meaning
           in exactly one of its two states. `Select multiple` on this same surface is the correct model
           (static name, `aria-pressed` false→true), which is what makes this a defect and not a style. */}
-      <Button type="button" intent="ghost" size="icon" aria-label="Hide spoilers" aria-pressed={spoilerBlur} onClick={toggleSpoilerBlur}>
+      <Button type="button" variant="ghost" size="icon" aria-label="Hide spoilers" aria-pressed={spoilerBlur} onClick={toggleSpoilerBlur}>
         <Icon icon={spoilerBlur ? EyeOff : Eye} size="sm" />
       </Button>
     </Row>

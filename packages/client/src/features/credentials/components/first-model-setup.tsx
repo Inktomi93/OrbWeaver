@@ -167,11 +167,11 @@ export function FirstModelSetup({
           {chatAssignmentText(chatState.pending, chatState.failure, name)}
         </Text>
         {chatState.failure === null ? (
-          <Button disabled={chatState.pending} intent="ghost" onClick={onChangeChat} size="sm">
+          <Button disabled={chatState.pending} variant="ghost" onClick={onChangeChat} size="sm">
             Change
           </Button>
         ) : (
-          <Button intent="ghost" onClick={retryChat} size="sm">
+          <Button variant="ghost" onClick={retryChat} size="sm">
             Retry Chat assignment
           </Button>
         )}
@@ -228,14 +228,13 @@ export function FirstModelSetup({
       )}
       <DialogFooter>
         {choice === "add" ? (
-          <Button disabled={chatState.pending || chatState.failure !== null} intent="primary" onClick={onAddUtility}>
+          <Button disabled={chatState.pending || chatState.failure !== null} onClick={onAddUtility}>
             Add a model
           </Button>
         ) : (
           <Button
             // A picked connection the list read has not caught up with yet would bind Chat alone; wait for it.
             disabled={chatState.pending || chatState.failure !== null || (choice === "existing" && utilityRow() === undefined)}
-            intent="primary"
             loading={saving}
             onClick={finish}
           >

@@ -94,7 +94,7 @@ export function CharacterTagSuggestions({ characterId, trpc }: CharacterTagSugge
           (the Configuration workspace's Tags collection, one rail click away); a per-card shortcut to a
           sibling section is not a capability, it is a fifth option at a decision point that already had
           four. The three that remain all act on THIS card. */}
-      <Button type="button" size="sm" intent="ghost" disabled={suggest.isPending} onClick={(): void => suggest.mutate({ characterId })}>
+      <Button type="button" size="sm" variant="ghost" disabled={suggest.isPending} onClick={(): void => suggest.mutate({ characterId })}>
         <Icon icon={Sparkles} size="sm" />
         {suggest.isPending ? "Suggesting…" : "Suggest tags"}
       </Button>
@@ -131,7 +131,7 @@ function SuggestionChip({
   const name = tag.name;
   return (
     // Each control already owns its padding and touch box; outer gaps prevent neighboring chips from packing.
-    <Badge intent="neutral" tone="ghost" size="sm" className="gap-0 p-0">
+    <Badge variant="outline" size="sm" className="gap-0 p-0">
       {/* THE LABEL RIDES THE `label` VOICE, NOT `gloss` (side-eye 2026-08-30 rail-characters P3, #843).
           `gloss` is the MICRO step (10.5px) — correct for the `Suggested` kicker, which is a footnote, and
           below the 11px functional floor for a CONTROL'S OWN LABEL. `design-audit` fired
@@ -139,14 +139,14 @@ function SuggestionChip({
           easy to mis-dismiss: the BUTTON computes 13px, the span inside it computed 10.5. The chip stays
           the quietest thing on the editor by the means CD3 actually names — no fill, a hairline outline —
           which this does not touch. */}
-      <Button type="button" size="sm" intent="ghost" aria-label={`Accept ${name}`} className="max-inline-full min-inline-0" onClick={onAccept}>
+      <Button type="button" size="sm" variant="ghost" aria-label={`Accept ${name}`} className="max-inline-full min-inline-0" onClick={onAccept}>
         <Icon icon={Check} size="xs" />
         <Text as="span" voice="label" className="truncate min-inline-0">
           {name}
         </Text>
       </Button>
       <EditableTagChip tag={tag} iconOnly={true} />
-      <Button type="button" size="icon" intent="ghost" aria-label={`Dismiss ${name}`} onClick={onReject}>
+      <Button type="button" size="icon" variant="ghost" aria-label={`Dismiss ${name}`} onClick={onReject}>
         <Icon icon={X} size="xs" />
       </Button>
     </Badge>

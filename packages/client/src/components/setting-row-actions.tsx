@@ -117,7 +117,7 @@ function SettingRowResetAction({ label, binding }: Omit<SettingRowActionsProps, 
     <ActionCell>
       {/* No tooltip: this button is disabled while the reset is pending, and a tooltip never wraps a disabled
           control. The name says what it does. */}
-      <Button aria-label={name} disabled={binding.resetPending} intent="ghost" onClick={binding.reset} size="inline" type="button">
+      <Button aria-label={name} disabled={binding.resetPending} variant="ghost" onClick={binding.reset} size="inline" type="button">
         <Icon icon={RotateCcw} size="sm" />
       </Button>
     </ActionCell>

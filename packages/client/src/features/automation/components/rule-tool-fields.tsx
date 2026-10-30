@@ -76,7 +76,7 @@ export function RuleToolFields({
         <>
           <Text voice="gloss">Couldn't load your tool catalog. Existing selections are kept.</Text>
           <Button
-            intent="ghost"
+            variant="ghost"
             onClick={(): void => {
               catalog.refetch().catch(() => undefined);
             }}
@@ -109,7 +109,7 @@ export function RuleToolFields({
         </Stack>
       )}
       <Button
-        intent="ghost"
+        variant="ghost"
         onClick={(): void => {
           catalog.refetch().catch(() => undefined);
         }}
@@ -119,14 +119,14 @@ export function RuleToolFields({
       <form.AppField name={`actions[${index}].resultVar`}>
         {(field): ReactElement =>
           field.state.value === undefined ? (
-            <Button intent="ghost" className="justify-start" onClick={(): void => field.handleChange("")}>
+            <Button variant="ghost" className="justify-start" onClick={(): void => field.handleChange("")}>
               <Icon icon={ChevronRight} size="sm" />
               Capture tool result
             </Button>
           ) : (
             <Stack gap="tight">
               <field.TextField label="Result variable name" />
-              <Button intent="ghost" className="justify-start" onClick={(): void => field.handleChange(undefined)}>
+              <Button variant="ghost" className="justify-start" onClick={(): void => field.handleChange(undefined)}>
                 Stop capturing result
               </Button>
             </Stack>

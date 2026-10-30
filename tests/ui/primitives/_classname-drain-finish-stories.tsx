@@ -40,13 +40,13 @@ function mix(token: string, percent: number): string {
 export function TextFinishStory(): ReactElement {
   return (
     <CtIsolation subject="Text and Icon modifiers" isolates="The tone, italic, selectAll, pulse and hover-cue arms and the lead and datum voices">
-      <Text data-case="foreground" tone="foreground" voice="gloss">
+      <Text data-case="foreground" ink="foreground" voice="gloss">
         foreground gloss
       </Text>
-      <Text data-case="prose" tone="prose">
+      <Text data-case="prose" ink="prose">
         prose
       </Text>
-      <Text data-case="onPrimary" tone="onPrimary">
+      <Text data-case="onPrimary" tone="primary" ink="toneForeground">
         on primary
       </Text>
       <Text data-case="italic" italic={true}>
@@ -66,7 +66,7 @@ export function TextFinishStory(): ReactElement {
       </Text>
       <Icon icon={Circle} label="pulsing icon" pulse={true} />
       <div className="group" data-case="cue-group">
-        <Text data-case="lift" hoverCue="lift" tone="muted">
+        <Text data-case="lift" hoverCue="lift" ink="muted">
           Resume
         </Text>
         <Text as="span" data-case="nudge" hoverCue="nudge">
@@ -97,39 +97,37 @@ export function ButtonFinishStory(): ReactElement {
       subject="Button intents and state axes"
       isolates="solid, bare, the widened tone, underline, reserveEdge, confirming, quietDisabled, focusRing and the rail"
     >
-      <Button intent="solid">solid</Button>
-      <Button intent="bare">bare</Button>
-      <Button intent="ghost" tone="foreground">
+      <Button focal={false}>solid</Button>
+      <Button variant="bare">bare</Button>
+      <Button variant="ghost" ink="foreground">
         ghost foreground
       </Button>
-      <Button intent="outline" tone="muted">
+      <Button variant="outline" ink="muted">
         outline muted
       </Button>
-      <Button intent="secondary" tone="muted">
-        secondary muted
-      </Button>
-      <Button intent="ghost" underline="dotted">
+
+      <Button variant="ghost" underline="dotted">
         show all
       </Button>
-      <Button intent="ghost" reserveEdge={true} size="inline">
+      <Button variant="ghost" reserveEdge={true} size="inline">
         reserved
       </Button>
-      <Button confirming={true} intent="ghost">
+      <Button confirming={true} variant="ghost">
         confirming
       </Button>
-      <Button disabled={true} intent="outline" quietDisabled={true}>
+      <Button disabled={true} variant="outline" quietDisabled={true}>
         quiet disabled
       </Button>
-      <Button disabled={true} intent="outline">
+      <Button disabled={true} variant="outline">
         dim disabled
       </Button>
-      <Button focusRing="sidebar" intent="ghost">
+      <Button focusRing="sidebar" variant="ghost">
         on the rail
       </Button>
-      <Button data-selected="" intent="outline" selection="rail">
+      <Button data-selected="" variant="outline" selection="rail">
         selected row
       </Button>
-      <Button intent="outline" selection="rail">
+      <Button variant="outline" selection="rail">
         resting row
       </Button>
       <span data-case="away">elsewhere</span>
@@ -142,8 +140,6 @@ export function ButtonFinishStory(): ReactElement {
     </CtIsolation>
   );
 }
-
-const TINTS = ["success", "warning", "destructive", "info"] as const;
 
 /** The Card shapes, tones and state axes the drain added, tier-less, inside a tier and under the glow elevation. */
 export function CardFinishStory(): ReactElement {
@@ -161,39 +157,22 @@ export function CardFinishStory(): ReactElement {
       <Card data-case="pill" shape="pill">
         pill
       </Card>
-      <Card data-case="bubble" shape="bubble" tone="userBubble">
+      <Card data-case="bubble" tone="userBubble" shape="bubble">
         bubble
       </Card>
       <Surface tier="instrument">
         <Card data-case="tier-float" shape="float">
           float in a tier
         </Card>
-        <Card data-case="tier-bubble" shape="bubble" tone="bubble">
+        <Card data-case="tier-bubble" tone="bubble" shape="bubble">
           bubble in a tier
         </Card>
       </Surface>
-      {TINTS.map((tint) => (
-        <Card data-case={`${tint}Tint`} key={tint} tone={`${tint}Tint`}>
-          {tint}
-        </Card>
-      ))}
-      <Card data-case="primaryEdge" tone="primaryEdge">
-        edge
-      </Card>
-      <Card data-case="primaryOutline" tone="primaryOutline">
-        outline
-      </Card>
-      <Card data-case="raised" tone="raised">
-        raised
-      </Card>
       <Card data-case="sidebarEdge" tone="sidebarEdge">
         sidebar edge
       </Card>
       <Card data-case="popover" tone="popover">
         popover
-      </Card>
-      <Card data-case="mutedWash" tone="mutedWash">
-        wash
       </Card>
       <Card data-case="rail" rail="primary">
         set
@@ -223,25 +202,19 @@ export function CardFinishStory(): ReactElement {
         lifted
       </Card>
       <div data-elevation="glow">
-        <Card data-case="glow-follow">follows</Card>
-        <Card data-case="glow-none" shadow="none">
-          diagram
+        <Card data-case="glow-follow" interactive={true}>
+          follows
         </Card>
+        <Card data-case="glow-none">static</Card>
       </div>
       <span data-case="away">elsewhere</span>
       <Probe name="radius-card" style={{ borderRadius: "var(--radius-card)", padding: "var(--spacing-field)" }} />
       <Probe name="radius-inset" style={{ borderRadius: "var(--radius-inset)" }} />
       <Probe name="radius-full" style={{ borderRadius: "var(--radius-full)" }} />
       <Probe name="bubble" style={{ backgroundColor: "var(--color-user-bubble)", paddingBlock: "var(--spacing-row)", paddingInline: "var(--spacing-block)" }} />
-      {TINTS.map((tint) => (
-        <Probe key={tint} name={`${tint}Tint`} tone={tint} style={{ backgroundColor: role("tint"), borderColor: role("edge") }} />
-      ))}
-      <Probe name="primaryEdge" tone="primary" style={{ borderColor: role("edge") }} />
       <Probe name="primary" tone="primary" style={{ borderColor: role("solid"), backgroundColor: "transparent" }} />
-      <Probe name="raised" style={{ backgroundColor: "var(--color-surface-raised)" }} />
       <Probe name="sidebarEdge" style={{ borderColor: "var(--color-sidebar-border)" }} />
       <Probe name="popover" style={{ backgroundColor: "var(--color-popover)", color: "var(--color-popover-foreground)" }} />
-      <Probe name="mutedWash" style={{ backgroundColor: mix("--color-muted", 40) }} />
       <Probe name="muted" style={{ backgroundColor: "var(--color-muted)" }} />
     </CtIsolation>
   );
@@ -375,7 +348,7 @@ export function PartsFinishStory(): ReactElement {
       <Separator data-case="separator" tone="primary" />
       <Skeleton className="block-(--size-avatar-lg) inline-(--size-avatar-lg)" data-case="skeleton" variant="portrait" />
       <Textarea aria-label="bare field" chrome="bare" face="code" />
-      <Badge data-case="badge-accent" face="code" intent="accent">
+      <Badge data-case="badge-code" face="code">
         token
       </Badge>
       <Text as="div" voice="kicker">
@@ -388,9 +361,9 @@ export function PartsFinishStory(): ReactElement {
       <Surface tier="instrument">
         <Input aria-label="title step in a tier" layout="inline" typeStep="title" />
       </Surface>
-      <WebSpinner label="Loading" tone="accent" />
+      <WebSpinner label="Loading" tone="primary" />
       <span data-case="weave">
-        <WeaveGlyph decorative={true} tone="accent" />
+        <WeaveGlyph decorative={true} tone="primary" />
       </span>
       <Tabs data-case="tabs" defaultValue="a" topRule="primary">
         <TabsList data-case="tabs-list" rule="none">

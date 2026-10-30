@@ -246,7 +246,7 @@ function LibraryRowActionsMenu({
   return (
     <>
       {inlineVerb === undefined || duplicate === undefined ? null : (
-        <Button aria-label={duplicateActionName(subject)} reveal="hover" intent="ghost" onClick={duplicate} size="icon" type="button">
+        <Button aria-label={duplicateActionName(subject)} reveal="hover" variant="ghost" onClick={duplicate} size="icon" type="button">
           <Icon icon={Copy} size="sm" />
         </Button>
       )}

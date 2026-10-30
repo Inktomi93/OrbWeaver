@@ -64,7 +64,7 @@ function AboutBody({ anchorId }: { readonly anchorId: string }): ReactElement {
       <Stack gap="field" data-testid={testId("aboutSection")}>
         {/* A failed copy replaces the version line with the full report (the line plus the full sha), so the
             text shows once and the field gets the row's whole width. */}
-        <CopyButton copiedHint="Paste it into the bug report." intent="ghost" text={reportLine(version)} what="version for a bug report">
+        <CopyButton copiedHint="Paste it into the bug report." variant="ghost" text={reportLine(version)} what="version for a bug report">
           {/* `code` — the version line carries a sha; mono is what makes it readable and transcribable by eye
               when someone is reading it off a screen into an issue. */}
           <Text voice="code" data-testid={testId("aboutVersionLine")}>
@@ -89,7 +89,7 @@ export function AboutUpdatesSection({ anchorId }: { readonly anchorId: string })
       <Stack gap="field">
         <Row align="center" gap="row">
           <Button
-            intent="secondary"
+            variant="outline"
             size="sm"
             disabled={update.isFetching}
             onClick={(): void => {
@@ -134,7 +134,9 @@ function UpdateVerdict({ check }: { readonly check: UpdateCheck }): ReactElement
   if (check.status === "up-to-date") {
     return (
       <Row align="center" gap="row" data-testid={testId("aboutUpdateVerdict")}>
-        <Badge intent="success">Up to date</Badge>
+        <Badge tone="success" variant="solid">
+          Up to date
+        </Badge>
         <Text voice="gloss">{currentLine(check.remote)}</Text>
       </Row>
     );
@@ -142,14 +144,16 @@ function UpdateVerdict({ check }: { readonly check: UpdateCheck }): ReactElement
   if (check.status === "behind") {
     return (
       <Row align="center" gap="row" data-testid={testId("aboutUpdateVerdict")}>
-        <Badge intent="warning">Update available</Badge>
+        <Badge tone="warning" variant="solid">
+          Update available
+        </Badge>
         <Text voice="gloss">{behindLine(check.remote)}</Text>
       </Row>
     );
   }
   return (
     <Row align="center" gap="row" data-testid={testId("aboutUpdateVerdict")}>
-      <Badge intent="neutral">Couldn't check</Badge>
+      <Badge>Couldn't check</Badge>
       <Text voice="gloss">{check.reason ?? "The upstream head could not be read."}</Text>
     </Row>
   );

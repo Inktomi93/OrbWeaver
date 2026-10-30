@@ -92,7 +92,7 @@ function ChatAnchorRow({ chat, personas, onCardPin }: PersonaRoomBlockProps): Re
     <Row gap="row" align="center" className="justify-between" data-slot="persona-anchor-line" data-anchor-state={chat.anchorState}>
       <Row gap="field" align="center" className="min-inline-0">
         <Icon icon={IdCard} size="xs" />
-        <Text tone="muted" voice="gloss" prose={true}>
+        <Text ink="muted" voice="gloss" prose={true}>
           {anchorLine(chat, personas)}
         </Text>
       </Row>
@@ -100,7 +100,7 @@ function ChatAnchorRow({ chat, personas, onCardPin }: PersonaRoomBlockProps): Re
         <Menu>
           <MenuTrigger
             render={
-              <Button className="shrink-0" intent="ghost" size="sm">
+              <Button className="shrink-0" variant="ghost" size="sm">
                 Re-pin…
               </Button>
             }
@@ -158,7 +158,7 @@ function ChatRestamp({ chat, personas }: { readonly chat: ChatDetail; readonly p
       <Button
         aria-describedby={scopeId}
         disabled={chat.viewerActivePersonaId === null || reattribute.isPending}
-        intent="ghost"
+        variant="ghost"
         onClick={onReattribute}
         size="sm"
       >

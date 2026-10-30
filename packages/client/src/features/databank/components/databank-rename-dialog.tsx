@@ -53,8 +53,8 @@ export function DatabankRenameDialog({ open, onOpenChange, currentName, onRename
               no a11y suppression to carry (the suppressions ratchet only shrinks). */}
           <Input aria-label="Document name" onValueChange={setName} placeholder="Document name" ref={inputRef} value={name} />
           <DialogFooter>
-            <DialogClose render={<Button intent="ghost">Cancel</Button>} />
-            <Button disabled={!canSave} intent="primary" type="submit">
+            <DialogClose render={<Button variant="ghost">Cancel</Button>} />
+            <Button disabled={!canSave} type="submit">
               Save
             </Button>
           </DialogFooter>

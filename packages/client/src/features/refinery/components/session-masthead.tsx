@@ -85,7 +85,7 @@ export function SessionMasthead({
               (this file's own header). A named button carries the same act without spending the ramp. */}
           <Button
             aria-label={`Open card ${cardName} in the Characters section`}
-            intent="ghost"
+            variant="ghost"
             onClick={(): void => {
               selectCharacter(characterId);
               setActiveSection("characters");
@@ -94,7 +94,7 @@ export function SessionMasthead({
           >
             Open card
           </Button>
-          <Button intent="secondary" onClick={onEditScope} size="sm">
+          <Button variant="outline" onClick={onEditScope} size="sm">
             Edit scope
           </Button>
         </Row>

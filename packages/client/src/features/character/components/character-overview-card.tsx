@@ -98,7 +98,7 @@ export function CharacterOverviewCard({ characterId }: CharacterOverviewCardProp
           it stays a gloss run with the name as inline emphasis rather than becoming a heading. */}
       <Text voice="gloss">
         Pick a field on {/* Inline emphasis keeps the surrounding voice; its semantic weight belongs to strong, not another voice. */}
-        <Text as="span" voice="gloss" tone="foreground">
+        <Text as="span" voice="gloss" ink="foreground">
           <strong>{data.name}</strong>
         </Text>{" "}
         to inspect it here.
@@ -248,7 +248,7 @@ function OverviewRow({
             is declared before `voice` and loses the merge — the ratified spelling for an intentional tone.
             The value is a `datum` when it is a tabular figure and a `label` otherwise; both were spelled
             `size="label"` before, which is the A3-red internal axis. */}
-        <Text voice="label" className="truncate min-inline-0" tone="muted" id={labelId}>
+        <Text voice="label" className="truncate min-inline-0" ink="muted" id={labelId}>
           {label}
         </Text>
         <Text voice={mono ? "datum" : "label"} className="shrink-0">

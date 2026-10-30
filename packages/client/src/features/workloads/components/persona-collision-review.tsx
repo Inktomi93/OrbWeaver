@@ -65,7 +65,7 @@ function DescriptionBlock({ label, text, id }: { readonly label: string; readonl
       </Stack>
       {long ? (
         <Row justify="start">
-          <Button intent="secondary" size="sm" aria-controls={textId} aria-expanded={open} onClick={(): void => setOpen(!open)}>
+          <Button variant="outline" size="sm" aria-controls={textId} aria-expanded={open} onClick={(): void => setOpen(!open)}>
             {open ? "Show less" : "Show all"}
           </Button>
         </Row>
@@ -164,10 +164,10 @@ export function PersonaCollisionReview({
       </Text>
       {many ? (
         <Row justify="start" gap="field">
-          <Button intent="secondary" size="sm" onClick={(): void => onChooseAll("merge")}>
+          <Button variant="outline" size="sm" onClick={(): void => onChooseAll("merge")}>
             Merge all
           </Button>
-          <Button intent="secondary" size="sm" onClick={(): void => onChooseAll("keep-both")}>
+          <Button variant="outline" size="sm" onClick={(): void => onChooseAll("keep-both")}>
             Keep all
           </Button>
         </Row>

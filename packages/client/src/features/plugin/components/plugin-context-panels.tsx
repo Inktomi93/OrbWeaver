@@ -41,7 +41,7 @@ function ContextPanels({ chatId }: { readonly chatId: ChatId }): ReactElement {
             const plugin = plugins.find((row) => row.id === surface.pluginId);
             return plugin === undefined ? null : (
               <Button
-                intent="ghost"
+                variant="ghost"
                 key={`${surface.pluginId}:${surface.id}`}
                 ref={(node): void => {
                   if (node !== null && takeMovedPanelFocus({ pluginId: surface.pluginId, surfaceId: surface.id }, true)) {
@@ -60,7 +60,7 @@ function ContextPanels({ chatId }: { readonly chatId: ChatId }): ReactElement {
       {hidden.length === 0 ? null : (
         <Section kicker="Hidden from chat">
           {hidden.map((plugin) => (
-            <Button intent="ghost" key={plugin.id} onClick={(): void => visibility.setShown(plugin.id, true)} size="sm">
+            <Button variant="ghost" key={plugin.id} onClick={(): void => visibility.setShown(plugin.id, true)} size="sm">
               {showInChatLabel(plugin.name)}
             </Button>
           ))}
@@ -71,7 +71,7 @@ function ContextPanels({ chatId }: { readonly chatId: ChatId }): ReactElement {
           title={CHAT_PLUGINS_EMPTY_TITLE}
           description={CHAT_PLUGINS_EMPTY_DESCRIPTION}
           action={
-            <Button intent="secondary" onClick={(): void => openConfigTo("plugins")} size="sm">
+            <Button variant="outline" onClick={(): void => openConfigTo("plugins")} size="sm">
               {CHAT_PLUGINS_MANAGE_LABEL}
             </Button>
           }

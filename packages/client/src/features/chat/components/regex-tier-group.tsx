@@ -106,7 +106,7 @@ export function RegexTierGroup({ chatId, isHost, tier, rows, tiers, labels, owne
       )}
       {isRoomTier && isHost ? (
         <>
-          <Button className="self-start" intent="secondary" onClick={(): void => setPickerOpen(true)} size="sm" type="button">
+          <Button className="self-start" variant="outline" onClick={(): void => setPickerOpen(true)} size="sm" type="button">
             <Icon icon={Plus} size="sm" />
             Attach a script
           </Button>
@@ -123,16 +123,11 @@ export function RegexTierGroup({ chatId, isHost, tier, rows, tiers, labels, owne
 function TierKicker({ allowed, count, label }: { readonly allowed: boolean; readonly count: number; readonly label: string }): ReactElement {
   return (
     <>
-      {label}{" "}
-      <Badge intent="neutral" size="inline" tone="soft">
-        {count}
-      </Badge>
+      {label} <Badge size="inline">{count}</Badge>
       {allowed ? null : (
         <>
           {" "}
-          <Badge intent="neutral" size="inline" tone="soft">
-            off here
-          </Badge>
+          <Badge size="inline">off here</Badge>
         </>
       )}
     </>

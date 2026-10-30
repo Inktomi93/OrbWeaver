@@ -1,4 +1,9 @@
-import { TONE_INK, tv } from "#lib";
+import { INKS, TONE_TEXT, tv } from "#lib";
+
+// The loader's colour classes sit on its root slot, so each shared map becomes a root-slot arm map.
+function onRoot<Key extends string>(map: Readonly<Record<Key, string>>): Record<Key, { root: string }> {
+  return Object.fromEntries(Object.entries<string>(map).map(([key, cls]) => [key, { root: cls }])) as Record<Key, { root: string }>;
+}
 
 // Spinner ink uses the same token sizes as icons; the root also owns its loading reservation.
 export const spinnerVariants = tv({
@@ -15,8 +20,9 @@ export const spinnerVariants = tv({
       xl: { root: "block-(--size-icon-xl) inline-(--size-icon-xl)" },
       hero: { root: "block-(--size-icon-hero) inline-(--size-icon-hero)" },
     },
-    // The loader inherits `currentColor`; a brand wait takes the accent ink.
-    tone: { default: {}, accent: { root: TONE_INK.accent }, muted: { root: TONE_INK.muted } },
+    // The loader inherits `currentColor` unless it takes a tone (a brand wait is `primary`) or a named ink.
+    tone: onRoot(TONE_TEXT),
+    ink: onRoot(INKS),
   },
-  defaultVariants: { tone: "default", size: "md" },
+  defaultVariants: { size: "md" },
 });

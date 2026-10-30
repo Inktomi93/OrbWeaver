@@ -77,11 +77,11 @@ function stageStatus(stage: RegexPipelineStage): string {
 /** The status line's tone — a failed compile is destructive, a skip is a warning, and a stage that simply ran
  *  keeps the gloss. Colour is load-bearing here: both non-default arms CONTRADICT the run, and a grey
  *  "Skipped" reads as a caption. */
-function statusTone(stage: RegexPipelineStage): "destructive" | "warning" | "default" {
+function statusTone(stage: RegexPipelineStage): "destructive" | "warning" | undefined {
   if (stage.error !== null) {
     return "destructive";
   }
-  return stage.skipped === null ? "default" : "warning";
+  return stage.skipped === null ? undefined : "warning";
 }
 
 export interface RegexPipelinePanelProps {
@@ -207,7 +207,7 @@ function SubjectMarker({ appended }: { readonly appended: boolean }): ReactEleme
     // wearing the kicker's 0.08em micro tracking — measured 0.84px of air between letters of running prose
     // at 13px. Micro tracking is what makes a caps kicker readable and what makes a sentence look loose;
     // both halves of the kicker voice have to stand down together, which is one token step, not a re-skin.
-    <Badge intent={appended ? "neutral" : "info"} sentenceCase={true} size="sm">
+    <Badge tone={appended ? "neutral" : "info"} variant={appended ? "soft" : "solid"} sentenceCase={true} size="sm">
       {appended ? "This script, wherever it’s attached" : "This script"}
     </Badge>
   );

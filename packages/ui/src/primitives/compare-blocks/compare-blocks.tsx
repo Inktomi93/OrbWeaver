@@ -151,7 +151,7 @@ function ReviewVerbs({
     <div className={slots.verbRow()} data-slot="compare-block-verbs">
       <Button
         aria-pressed={decision === "kept"}
-        intent={decision === "kept" ? "primary" : "secondary"}
+        variant={decision === "kept" ? "solid" : "outline"}
         onClick={(): void => onDecide(decision === "kept" ? null : true)}
         size="sm"
       >
@@ -159,7 +159,7 @@ function ReviewVerbs({
         {cleared ? "Keep (empties field)" : "Keep"}
         <span className={slots.srOnly()}> {name}</span>
       </Button>
-      <Button aria-pressed={decision === "discarded"} intent="secondary" onClick={(): void => onDecide(decision === "discarded" ? null : false)} size="sm">
+      <Button aria-pressed={decision === "discarded"} variant="outline" onClick={(): void => onDecide(decision === "discarded" ? null : false)} size="sm">
         <Icon icon={X} size="xs" />
         Discard
         <span className={slots.srOnly()}> {name}</span>

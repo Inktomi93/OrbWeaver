@@ -116,7 +116,7 @@ function RelatedRooms({ chatId }: { readonly chatId: Moment["hit"]["source"]["ch
   ) : (
     <Stack gap="field">
       {rooms.map((room) => (
-        <Button key={room.chatId} intent="ghost" size="wrap" onClick={(): void => resumeChat(room.chatId)}>
+        <Button key={room.chatId} variant="ghost" size="wrap" onClick={(): void => resumeChat(room.chatId)}>
           {room.title ?? "Untitled chat"}
         </Button>
       ))}
@@ -134,7 +134,7 @@ function AlternateTakes({ chatId }: { readonly chatId: Moment["hit"]["source"]["
         <Button
           aria-label={`${take.snippet} · ${take.variantCount} takes · message ${take.seq}`}
           key={take.messageId}
-          intent="ghost"
+          variant="ghost"
           size="wrap"
           onClick={(): void => openChatMoment(chatId, { kind: "message", messageId: take.messageId })}
         >

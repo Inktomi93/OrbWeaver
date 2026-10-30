@@ -3,6 +3,7 @@
 // Biome formats CSS and lints nothing in it, so every CSS check has one owner here.
 import { join } from "node:path";
 import { unsupportedAtFloor } from "@orb/tooling/browser-support";
+import { TOKENS, TONES } from "@orb/ui/tokens";
 import type { Config } from "stylelint";
 import { appearanceChannelVocabulary } from "./packages/client/appearance-channel.build.ts";
 import { BROWSER_TARGETS, HARMLESS_WHEN_UNSUPPORTED } from "./packages/client/browser-targets.ts";
@@ -69,6 +70,8 @@ const SHELL_SLOTS = [
 const SHELL_CLASSES = ["orb-chat-track", "orb-composer-track"];
 
 const appearance = appearanceChannelVocabulary();
+// The D336 tones that carry a base `--color-*` token; neutral binds the ramp instead and has none.
+const INTENT_COLORS = TONES.filter((tone) => `color.${tone}` in TOKENS);
 // The one declaration the font-scale setting reaches the ramp through: the root size every `--text-*` rem step multiplies.
 const ROOT_FONT_SCALE = `calc(100% * var(${appearanceChannelName("fontScale")}))`;
 // Class recipes write custom properties too; both native variable rules use the same declaration inventory.
@@ -103,6 +106,7 @@ const config: Config = {
     "orb/no-lifecycle-keyframes": true,
     "orb/font-scale-on-root": [true, { value: ROOT_FONT_SCALE }],
     "orb/no-arbitrary-apply": true,
+    "orb/no-intent-color-recipe": [true, { intents: INTENT_COLORS }],
     // Compositor hacks: a permanent layer hint or a backface flip promotes a layer the browser would not, and costs memory on
     // the small devices this app runs on. Animate transform, translate, scale, rotate, opacity and filter.
     "property-disallowed-list": ["/^--leading-[a-z-]+$/", "will-change", "backface-visibility", "-webkit-overflow-scrolling"],
@@ -188,6 +192,7 @@ const config: Config = {
         "orb/no-raw-color-in-css": null,
         "orb/no-raw-media-condition": null,
         "orb/shadow-from-ingredients": null,
+        "orb/no-intent-color-recipe": null,
         "property-disallowed-list": null,
         "declaration-property-value-allowed-list": null,
       },
@@ -202,7 +207,7 @@ const config: Config = {
       // Generated from the appearance manifest: a preference variant's body is Tailwind's `&` + `@slot` form, and its
       // query is read from `MEDIA_QUERIES`, the conditions' one home.
       files: ["packages/client/src/styles/appearance-channel.gen.css"],
-      rules: { "nesting-selector-no-missing-scoping-root": null, "orb/no-raw-media-condition": null },
+      rules: { "nesting-selector-no-missing-scoping-root": null, "orb/no-raw-media-condition": null, "orb/no-intent-color-recipe": null },
     },
     {
       // The reduced-motion floor exists to beat inline styles; every declaration in it is `!important` by design.

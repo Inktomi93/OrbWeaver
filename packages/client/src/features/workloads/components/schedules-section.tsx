@@ -85,11 +85,11 @@ function SchedulesBody({ anchorId }: { readonly anchorId: string }): ReactElemen
     <Section container={true} divider={true} heading={WORKLOADS_SCHEDULES_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="block" data-testid={testId("workloadsSchedulesSection")}>
         <Row align="center" justify="between" gap="row">
-          <Text voice="label" tone="muted">
+          <Text voice="label" ink="muted">
             Run a job automatically on a recurring cadence.
           </Text>
           {schedules.length === 0 ? null : (
-            <Button intent="secondary" data-testid={testId("scheduleCreateButton")} onClick={(): void => setCreateOpen(true)}>
+            <Button variant="outline" data-testid={testId("scheduleCreateButton")} onClick={(): void => setCreateOpen(true)}>
               New schedule…
             </Button>
           )}
@@ -98,7 +98,7 @@ function SchedulesBody({ anchorId }: { readonly anchorId: string }): ReactElemen
           <EmptyState
             title="No schedules yet. Recurring jobs you set up appear here."
             action={
-              <Button intent="secondary" data-testid={testId("scheduleCreateButton")} onClick={(): void => setCreateOpen(true)}>
+              <Button variant="outline" data-testid={testId("scheduleCreateButton")} onClick={(): void => setCreateOpen(true)}>
                 New schedule
               </Button>
             }
@@ -169,15 +169,19 @@ function ScheduleRow({
       stackActions={true}
       actions={
         <Row align="center" gap="row" className="flex-wrap max-inline-full">
-          {schedule.mode === "bulk" ? <Badge intent="warning">Bulk</Badge> : null}
+          {schedule.mode === "bulk" ? (
+            <Badge tone="warning" variant="solid">
+              Bulk
+            </Badge>
+          ) : null}
           <Switch aria-label={`Enable ${kindLabel} schedule`} checked={schedule.enabled} onCheckedChange={onToggle} />
-          <Button intent="secondary" size="sm" aria-label={`Edit ${kindLabel} schedule`} onClick={onEdit}>
+          <Button variant="outline" size="sm" aria-label={`Edit ${kindLabel} schedule`} onClick={onEdit}>
             Edit
           </Button>
           {/* Qualified like its Switch/Edit siblings (WCAG 2.4.6 / 4.1.2, side-eye 2026-08-08 P1-3): a list
               of rows whose only DESTRUCTIVE control announces the bare name "Delete" gives a screen-reader
               user N identical buttons and no way to tell which row they are about to destroy. */}
-          <Button intent="ghost" size="sm" aria-label={`Delete ${kindLabel} schedule`} onClick={onDelete}>
+          <Button variant="ghost" size="sm" aria-label={`Delete ${kindLabel} schedule`} onClick={onDelete}>
             Delete
           </Button>
         </Row>

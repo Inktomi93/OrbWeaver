@@ -131,7 +131,7 @@ function ArtCliqueRow({ members }: { readonly members: readonly ArtCliqueMember[
       </Text>
       <Row align="center" className="flex-wrap" gap="field">
         {shown.map((member) => (
-          <Button intent="ghost" key={member.id} onClick={(): void => selectCorpusCharacter(member.id)} size="sm">
+          <Button variant="ghost" key={member.id} onClick={(): void => selectCorpusCharacter(member.id)} size="sm">
             {member.name}
           </Button>
         ))}
@@ -159,7 +159,7 @@ export function CharacterPairRow({
   return (
     <Button
       className="justify-between inline-full"
-      intent="ghost"
+      variant="ghost"
       onClick={(): void => {
         // The NAMES travel with the ids (#563): the Compare tab's pickers can only name a selection they
         // can find in their own catalog page, and a pair from this list routinely is not in it.
@@ -196,7 +196,7 @@ function ChatPairRow({
       // one fact the row could not otherwise state.
       aria-label={`${left} ↔ ${right}, ${percent(score)} similar — compare rooms`}
       className="justify-between inline-full"
-      intent="ghost"
+      variant="ghost"
       onClick={(): void => {
         selectCorpusArtifact({
           kind: "pair",
@@ -228,11 +228,7 @@ function PairFace({
         {left} ↔ {right}
       </Text>
       <Row align="center" className="shrink-0" gap="field">
-        {badge === undefined ? null : (
-          <Badge intent="neutral" size="sm">
-            {badge}
-          </Badge>
-        )}
+        {badge === undefined ? null : <Badge size="sm">{badge}</Badge>}
         <Text as="span" voice="datumMono">
           {percent(score)}
         </Text>

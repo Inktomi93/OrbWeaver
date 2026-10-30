@@ -127,7 +127,7 @@ function MoveControls({
         aria-label={`Move ${name} up`}
         disabled={isFirst}
         focusableWhenDisabled={true}
-        intent="ghost"
+        variant="ghost"
         onClick={(): void => onMove(index, index - 1)}
         size="icon"
         type="button"
@@ -138,7 +138,7 @@ function MoveControls({
         aria-label={`Move ${name} down`}
         disabled={isLast}
         focusableWhenDisabled={true}
-        intent="ghost"
+        variant="ghost"
         onClick={(): void => onMove(index, index + 1)}
         size="icon"
         type="button"

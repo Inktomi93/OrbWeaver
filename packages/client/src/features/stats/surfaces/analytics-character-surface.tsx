@@ -93,7 +93,7 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
           // The phone's topbar already carries the one Back.
           action={
             phone ? null : (
-              <Button intent="secondary" size="sm" onClick={onBack}>
+              <Button variant="outline" size="sm" onClick={onBack}>
                 <Icon icon={ArrowLeft} size="sm" />
                 {`Back to ${CORPUS_MODE_LABELS.insights}`}
               </Button>
@@ -111,7 +111,7 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
     <Stack gap="section">
       {/* The phone's topbar already carries the one Back (the Labels and Explore drill posture). */}
       {phone ? null : (
-        <Button intent="ghost" size="sm" onClick={onBack} className="self-start">
+        <Button variant="ghost" size="sm" onClick={onBack} className="self-start">
           <Icon icon={ArrowLeft} size="sm" />
           {`Back to ${CORPUS_MODE_LABELS.insights}`}
         </Button>

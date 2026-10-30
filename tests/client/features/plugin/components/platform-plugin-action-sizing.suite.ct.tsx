@@ -125,7 +125,8 @@ for (const regime of REGIMES) {
       const body = await pageBody(page, plugin.name);
       const action = body.getByRole("button", { name: "Refresh note", exact: true });
       await expectIntrinsicAction(action, body);
-      await expect(action).toHaveAttribute("data-intent", "primary");
+      await expect(action).toHaveAttribute("data-variant", "solid");
+      await expect(action).toHaveAttribute("data-cta", "");
       expect(calls.count("plugin.invokeUiAction")).toBe(0);
       await action.click();
       await expect(body.getByText("refresh:", { exact: true })).toBeVisible();
@@ -159,8 +160,8 @@ for (const regime of REGIMES) {
         throw new Error("The Deck did not render its two actions");
       }
       expect(first.y + first.height).toBeLessThanOrEqual(second.y);
-      await expect(draw).toHaveAttribute("data-intent", "outline");
-      await expect(reveal).toHaveAttribute("data-intent", "secondary");
+      await expect(draw).toHaveAttribute("data-variant", "outline");
+      await expect(reveal).toHaveAttribute("data-variant", "outline");
       await draw.focus();
       await page.keyboard.press("Tab");
       await expect(reveal).toBeFocused();

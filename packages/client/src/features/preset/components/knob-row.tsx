@@ -254,7 +254,7 @@ function KnobControls({
         <Button
           aria-label={`Reset ${label} to inherited`}
           className={explicit ? "" : "invisible"}
-          intent="ghost"
+          variant="ghost"
           onClick={(): void => onChange(undefined)}
           size="icon"
           type="button"

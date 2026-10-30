@@ -150,13 +150,13 @@ function rowMarkers({
     <>
       {/* The GAME marker (`metadata.rpg` presence): the quiet twin of the star,
           labelled so the datum is TEXT for a screen reader, muted so it reads as a mark, not an action. */}
-      {chat.isGame ? <Icon tone="muted" icon={Swords} label="Game chat" size="sm" /> : null}
+      {chat.isGame ? <Icon ink="muted" icon={Swords} label="Game chat" size="sm" /> : null}
       {/* THE PAUSED TWIN (#863, owner-ordered 2026-08-30): a game that is switched OFF keeps a quieter mark
           so a host can see which rooms have a game sleeping in them. Before this, turning game mode off
           erased every trace from the list, and the only surviving evidence was a host-only tab inside a pane
           that ships closed. Same glyph at reduced emphasis, and it SAYS "paused" — the datum is text for a
           screen reader, and the two states are never one ambiguous mark. */}
-      {chat.gamePaused && !chat.isGame ? <Icon receded={true} tone="muted" icon={Swords} label="Game chat — paused" size="sm" /> : null}
+      {chat.gamePaused && !chat.isGame ? <Icon receded={true} ink="muted" icon={Swords} label="Game chat — paused" size="sm" /> : null}
       {/* COARSE KEEPS THE MARKER (side-eye 2026-08-07 finding 6): the star TOGGLE collapses into the kebab
           at a coarse pointer, so a marker that also hid at coarse would vanish while the control carrying
           the same datum was gone too — a starred chat with no star anywhere on the row. The swap is
@@ -170,11 +170,7 @@ function rowMarkers({
           tone="warning"
         />
       ) : null}
-      {chat.archived ? (
-        <Badge intent="neutral" size="sm" tone="soft">
-          Archived
-        </Badge>
-      ) : null}
+      {chat.archived ? <Badge size="sm">Archived</Badge> : null}
     </>
   );
 }

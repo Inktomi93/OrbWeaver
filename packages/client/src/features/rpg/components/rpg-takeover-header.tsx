@@ -128,12 +128,12 @@ function BandWhen({ when }: { readonly when: ReturnType<typeof whenParts> }): Re
   return (
     <Stack gap="field" className="min-inline-0" data-slot="rpg-band-when">
       {when.context === "" ? null : (
-        <Text as="span" tone="muted" voice="datum" className="line-clamp-2 wrap-break-word max-inline-full" data-slot="rpg-band-when-context">
+        <Text as="span" ink="muted" voice="datum" className="line-clamp-2 wrap-break-word max-inline-full" data-slot="rpg-band-when-context">
           {when.context}
         </Text>
       )}
       {when.state === "" ? null : (
-        <Text as="span" tone="muted" voice="datum" className="line-clamp-2 wrap-break-word max-inline-full" data-slot="rpg-band-when-state">
+        <Text as="span" ink="muted" voice="datum" className="line-clamp-2 wrap-break-word max-inline-full" data-slot="rpg-band-when-state">
           {when.state}
         </Text>
       )}
@@ -186,7 +186,7 @@ export function RpgTakeoverHeader({
       {veiledCue}
       {trackersReadOnly ? (
         <>
-          <Badge tone="soft" size="sm">
+          <Badge size="sm">
             <Icon icon={Lock} size="xs" />
             <Text as="span" voice="gloss" ink="inherit">
               Read-only

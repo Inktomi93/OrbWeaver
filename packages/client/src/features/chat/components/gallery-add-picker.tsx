@@ -167,7 +167,7 @@ function OwnedAssetPicker({ characterId, failure, isOwned, onConfirm, onUploadIn
         title="Nothing left to add"
         description="Every image you own is already in this gallery. Upload a new one from the gallery instead."
         action={
-          <Button intent="secondary" onClick={onUploadInstead}>
+          <Button variant="outline" onClick={onUploadInstead}>
             Upload instead
           </Button>
         }
@@ -207,12 +207,12 @@ function OwnedAssetPicker({ characterId, failure, isOwned, onConfirm, onUploadIn
         </Text>
         <DialogClose
           render={
-            <Button intent="ghost" disabled={isOwned}>
+            <Button variant="ghost" disabled={isOwned}>
               Cancel
             </Button>
           }
         />
-        <Button intent="primary" disabled={selected.size === 0 || isOwned} onClick={submit}>
+        <Button disabled={selected.size === 0 || isOwned} onClick={submit}>
           Add selected
         </Button>
       </DialogFooter>

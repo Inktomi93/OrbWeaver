@@ -159,7 +159,7 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionMemberV
             form's submit two rows above the form and leave the conflict notice (#1561) beside nothing. */}
       <MemberDrillHeader
         actions={
-          <Button disabled={busy} intent="ghost" onClick={onStart} size="sm">
+          <Button disabled={busy} variant="ghost" onClick={onStart} size="sm">
             Start chat
           </Button>
         }
@@ -179,7 +179,7 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionMemberV
         <Input onChange={(e): void => setDescription(e.target.value)} value={description} />
       </Field>
       <Row align="center" gap="field">
-        <Button disabled={busy || !dirty || name.trim().length === 0} intent="primary" size="sm" onClick={onSave}>
+        <Button disabled={busy || !dirty || name.trim().length === 0} size="sm" onClick={onSave}>
           Save
         </Button>
       </Row>

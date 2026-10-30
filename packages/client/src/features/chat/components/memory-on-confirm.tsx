@@ -60,7 +60,7 @@ export function MemoryOnConfirm({ open, onOpenChange, onConfirm }: MemoryOnConfi
   return (
     <ConfirmDialog
       body={body}
-      confirmIntent="primary"
+      confirmTone="primary"
       confirmLabel="Turn on Memory"
       description={`${MEMORY_COST_SENTENCE} ${utilitySentence(utility)}`}
       onConfirm={(): Promise<void> => onConfirm(buildExisting && calls > 0 && !notReady)}

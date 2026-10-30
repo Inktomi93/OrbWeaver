@@ -86,7 +86,7 @@ export function RuleEditor({
           <Stack gap="section">
             <Row gap="field" align="center" className="justify-between">
               <Heading level={4}>{chatId === null ? "Library-wide rule" : "Chat rule"}</Heading>
-              <Button intent="ghost" onClick={onClose}>
+              <Button variant="ghost" onClick={onClose}>
                 Close editor
               </Button>
             </Row>

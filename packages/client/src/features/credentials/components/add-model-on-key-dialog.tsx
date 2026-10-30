@@ -152,7 +152,7 @@ function AddModelOnKeyBody({
             )}
           </form.AppField>
           <DialogFooter>
-            <DialogClose render={<Button intent="ghost">Cancel</Button>} />
+            <DialogClose render={<Button variant="ghost">Cancel</Button>} />
             <form.SubmitButton>{CONNECTION_FORM_COPY.submit}</form.SubmitButton>
           </DialogFooter>
         </Stack>

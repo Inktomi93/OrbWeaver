@@ -38,7 +38,7 @@ export function RuleEditorSaveStatus({
           />
           {uncreated && !restored && pristine ? <Text voice="gloss">Name the rule and add an action.</Text> : null}
           {session.saveState === "blocked" && (!pristine || restored) ? (
-            <Button intent="ghost" className="justify-start" onClick={session.retrySave}>
+            <Button variant="ghost" className="justify-start" onClick={session.retrySave}>
               Review fields
             </Button>
           ) : null}

@@ -12,6 +12,7 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import type { MacroSuggestion } from "@orb/ui/macro-textarea";
 import { Markdown } from "@orb/ui/markdown";
 import { Text } from "@orb/ui/text";
+import { Toggle } from "@orb/ui/toggle";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useColorQuotedSpeech, usePromptMacroSuggestions } from "#data";
@@ -56,7 +57,7 @@ export function CharacterFacetEditor({ form, characterId, facetId, trusted, allo
   return (
     <Stack gap="section">
       <Row gap="row" align="center">
-        <Button ref={backRef} intent="ghost" size="sm" onClick={onBack}>
+        <Button ref={backRef} variant="ghost" size="sm" onClick={onBack}>
           <Icon icon={ChevronLeft} size="sm" />
           Back
         </Button>
@@ -293,9 +294,9 @@ function ExampleMessagesField({
           </form.Subscribe>
         )}
       </Stack>
-      <Button type="button" size="sm" intent={editing ? "secondary" : "ghost"} aria-pressed={editing} onClick={(): void => setEditing((e) => !e)}>
+      <Toggle size="sm" pressed={editing} onPressedChange={setEditing}>
         {editing ? "Done editing" : "Expand to edit"}
-      </Button>
+      </Toggle>
     </Stack>
   );
 }
@@ -323,7 +324,7 @@ function ExampleTranscript({
           // biome-ignore lint/suspicious/noArrayIndexKey: positions belong to the keyed immutable transcript snapshot; replacement remounts native Markdown state.
           key={index}
           padding="none"
-          tone="clear"
+          variant="outline"
           className="p-field"
         >
           <Markdown trust={trusted ? "trusted" : "untrusted"} mode="static" colorQuotes={colorQuotes} allowExternalMedia={allowExternalMedia}>

@@ -28,14 +28,14 @@ export function ReadoutBindingChip({ binding }: { readonly binding: ReadoutBindi
   if (binding.boundChatId === null) {
     return (
       <Row align="center" gap="field">
-        <Button intent="ghost" onClick={binding.rebind} size="sm" type="button">
+        <Button variant="ghost" onClick={binding.rebind} size="sm" type="button">
           Inspect against {binding.chatTitle}
         </Button>
       </Row>
     );
   }
   return (
-    <Card tone="info">
+    <Card tone="info" variant="soft">
       <Row align="center" gap="field" justify="between">
         <Row align="baseline" className="min-inline-0" gap="field">
           <Text voice="gloss">inspecting against:</Text>
@@ -46,7 +46,7 @@ export function ReadoutBindingChip({ binding }: { readonly binding: ReadoutBindi
         {/* The ✕ is a LABELLED control, not a decoration: its whole job is reversing a binding the user never
           asked for, so it says what it does (and why) to a reader who cannot see the glyph. */}
         <Tip text="Dismiss — fall back to the chat-free token view">
-          <Button aria-label={`Dismiss the binding to ${binding.chatTitle}`} intent="ghost" onClick={binding.dismiss} size="icon" type="button">
+          <Button aria-label={`Dismiss the binding to ${binding.chatTitle}`} variant="ghost" onClick={binding.dismiss} size="icon" type="button">
             <Icon icon={X} size="xs" />
           </Button>
         </Tip>
