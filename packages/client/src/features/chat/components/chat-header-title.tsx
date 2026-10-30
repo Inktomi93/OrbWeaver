@@ -100,7 +100,7 @@ export function ChatHeaderTitle({ chatId, label, roomName, createdAt, canRename 
     return (
       <Button
         type="button"
-        intent="ghost"
+        variant="ghost"
         size="sm"
         aria-label={`Rename chat — ${label}${roomName === null ? "" : `, ${roomName}`}`}
         aria-describedby={dateId}

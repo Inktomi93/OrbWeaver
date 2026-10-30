@@ -71,7 +71,7 @@ export function MacroBrowser({ userMacros, presetId }: MacroBrowserProps): React
           {MACRO_FLAG_DEFS.filter((def) => def.key !== "closing").map((def) => (
             <Row key={def.key} gap="field" align="center">
               <code>{def.char}</code>
-              <Badge intent={def.status === "implemented" ? "info" : "neutral"} size="sm">
+              <Badge tone={def.status === "implemented" ? "info" : "neutral"} size="sm">
                 {def.status}
               </Badge>
               <Text className="max-inline-(--reading-measure-prose)" voice="gloss">
@@ -101,21 +101,19 @@ function MacroRow({ meta }: { readonly meta: MacroMetadata }): ReactElement {
     <Stack gap="field">
       <Row gap="field" align="center">
         <code>{`{{${meta.name}}}`}</code>
-        <Badge intent="neutral" size="sm">
-          {meta.category}
-        </Badge>
+        <Badge size="sm">{meta.category}</Badge>
         {meta.volatile ? (
-          <Badge intent="warning" size="sm">
+          <Badge tone="warning" variant="solid" size="sm">
             volatile
           </Badge>
         ) : null}
         {meta.strict === true ? (
-          <Badge intent="info" size="sm">
+          <Badge tone="info" variant="solid" size="sm">
             strict
           </Badge>
         ) : null}
         {meta.source !== undefined ? (
-          <Badge intent="info" size="sm">
+          <Badge tone="info" variant="solid" size="sm">
             {MACRO_SOURCE_LABELS[meta.source.kind]}
           </Badge>
         ) : null}

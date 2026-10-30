@@ -1,6 +1,6 @@
-import { HOVER_YIELD, OPEN_TURN, PULSE, RECEDED, TONE_INK, tv } from "#lib";
+import { HOVER_YIELD, INKS, OPEN_TURN, PULSE, RECEDED, TONE_TEXT, tv } from "#lib";
 
-// The glyph paints `currentColor`, so `tone` is the icon's ink by meaning, from the one map Text shares.
+// The glyph paints `currentColor`, so `tone` and `ink` colour it from the maps Text shares (D336).
 export const iconVariants = tv({
   variants: {
     size: {
@@ -15,7 +15,8 @@ export const iconVariants = tv({
       regular: "stroke-icon-regular",
       bold: "stroke-icon-bold",
     },
-    tone: TONE_INK,
+    tone: TONE_TEXT,
+    ink: INKS,
     // A glyph that sits over art or a bubble fill (the message action cluster) lifts off it with the smallest shadow step.
     shadow: {
       true: "drop-shadow-sm",
@@ -28,5 +29,5 @@ export const iconVariants = tv({
     // A rest-visible marker that steps aside while its ListRow's revealed cluster shows the same fact.
     yieldOnHover: { true: HOVER_YIELD, false: "" },
   },
-  defaultVariants: { size: "md", weight: "regular", tone: "default", shadow: false, receded: false, pulse: false, openTurn: false, yieldOnHover: false },
+  defaultVariants: { size: "md", weight: "regular", shadow: false, receded: false, pulse: false, openTurn: false, yieldOnHover: false },
 });

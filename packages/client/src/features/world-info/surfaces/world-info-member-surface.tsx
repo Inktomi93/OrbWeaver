@@ -126,7 +126,7 @@ function BookEditor({ bookId, back }: { readonly bookId: WorldBookId; readonly b
       <MemberDrillHeader
         actions={
           <>
-            <Button intent="secondary" onClick={(): void => setDetailsOpen(true)} size="sm">
+            <Button variant="outline" onClick={(): void => setDetailsOpen(true)} size="sm">
               <Icon icon={Pencil} size="sm" />
               Edit details
             </Button>
@@ -136,11 +136,11 @@ function BookEditor({ bookId, back }: { readonly bookId: WorldBookId; readonly b
                   Secondary is the house's non-primary CHROME — it has a box at rest, and the primary keeps
                   its rank because it is the only filled control in the row. */}
             {canBackfill ? (
-              <Button disabled={backfill.isPending} intent="secondary" onClick={onBackfill} size="sm">
+              <Button disabled={backfill.isPending} variant="outline" onClick={onBackfill} size="sm">
                 Backfill titles
               </Button>
             ) : null}
-            <Button disabled={create.isPending} intent="primary" onClick={onCreate} size="sm">
+            <Button disabled={create.isPending} onClick={onCreate} size="sm">
               <Icon icon={Plus} size="sm" />
               New entry
             </Button>
@@ -160,7 +160,7 @@ function BookEditor({ bookId, back }: { readonly bookId: WorldBookId; readonly b
       {entries.length === 0 ? (
         <EmptyState
           action={
-            <Button disabled={create.isPending} intent="secondary" onClick={onCreate} size="sm">
+            <Button disabled={create.isPending} variant="outline" onClick={onCreate} size="sm">
               New entry
             </Button>
           }
@@ -199,13 +199,11 @@ function EntryRow({ entry, onSelect }: { readonly entry: EntryView; readonly onS
     <ListRow
       actions={
         entry.enabled ? (
-          <Badge intent="success" size="sm">
+          <Badge tone="success" variant="solid" size="sm">
             On
           </Badge>
         ) : (
-          <Badge intent="neutral" size="sm">
-            Off
-          </Badge>
+          <Badge size="sm">Off</Badge>
         )
       }
       clickable={true}

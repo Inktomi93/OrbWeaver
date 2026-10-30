@@ -163,7 +163,7 @@ function PanelTrigger({ current }: { readonly current: PersonaListItem | null })
         render={
           <PopoverTrigger
             render={
-              <Button intent="ghost" size="icon" aria-label={label}>
+              <Button variant="ghost" size="icon" aria-label={label}>
                 <Avatar fallbackDelay={0} hueSeed={current?.id ?? "none"} size="md" {...avatarSrc}>
                   {current === null ? <Icon icon={CircleUser} size="md" /> : initialsFor(current.name)}
                 </Avatar>
@@ -225,7 +225,7 @@ function ClampedDescription({ text }: { readonly text: string }): ReactElement {
         {text}
       </Text>
       {clamped ? (
-        <Button aria-expanded={expanded} intent="ghost" onClick={(): void => setExpanded(!expanded)} size="sm">
+        <Button aria-expanded={expanded} variant="ghost" onClick={(): void => setExpanded(!expanded)} size="sm">
           {expanded ? "Less" : "More"}
         </Button>
       ) : null}
@@ -238,7 +238,7 @@ function ManageDoor({ presentation }: { readonly presentation: ChromePresentatio
   const door = (
     <Button
       className="justify-start"
-      intent="ghost"
+      variant="ghost"
       size="sm"
       onClick={(): void => {
         openConfigTo("personas");

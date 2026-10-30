@@ -27,7 +27,7 @@ function TrailRegistry({ includeCommand, widgetFirst, children }: TrailProjectio
     label: STORY_TRAIL_WIDGET,
     zone: "topbar.trail",
     order: widgetFirst ? commandOrder - 1 : commandOrder + 1,
-    behavior: { kind: "widget", body: (): ReactNode => <Button aria-label={STORY_TRAIL_WIDGET} intent="ghost" size="icon" /> },
+    behavior: { kind: "widget", body: (): ReactNode => <Button aria-label={STORY_TRAIL_WIDGET} variant="ghost" size="icon" /> },
   };
   const chrome = isolationRegistry(
     "chrome",

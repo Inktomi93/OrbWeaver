@@ -19,7 +19,7 @@
 // the `orb/macro-resolution-home` restriction in eslint.config.js): this file chips a template AS a template and resolves
 // nothing.
 //
-// THE CHIP IS QUIET (crunch-list item 14, "THE BLUE PROBLEM"): `tone="soft"`, never the solid arm. A macro
+// THE CHIP IS QUIET (crunch-list item 14, "THE BLUE PROBLEM"): the `soft` style, never the solid one. A macro
 // reference is a NOUN INSIDE A SENTENCE, and the surface's job here is to show what the model receives — a
 // full-saturation `bg-info` lozenge every few words turns a paragraph into a field of blue and out-shouts
 // the wire text it annotates. The quiet arm is the mock's own `.tok` treatment (a ~15% info tint + the info
@@ -64,7 +64,7 @@ export function MacroText({ tokens, frame = "quoted" }: MacroTextProps): ReactEl
           token.kind === "macro" ? (
             // A text token stays a bare string child — strings in a `ReactNode[]` need no key, only
             // elements do. The key is index+value because the run is render-stable per template.
-            <Badge intent="info" key={`${String(i)}-${token.value}`} size="inline" tone="soft">
+            <Badge tone="info" key={`${String(i)}-${token.value}`} size="inline">
               {`{{${token.value}}}`}
             </Badge>
           ) : (
@@ -74,7 +74,7 @@ export function MacroText({ tokens, frame = "quoted" }: MacroTextProps): ReactEl
     </Text>
   );
   return frame === "quoted" ? (
-    <Card padding="none" shadow="none" tone="mutedWash">
+    <Card padding="none" variant="soft">
       {run}
     </Card>
   ) : (

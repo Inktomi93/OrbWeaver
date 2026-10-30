@@ -100,7 +100,7 @@ function MemorySettingsBody({ anchorId, sectionId }: { readonly anchorId: string
               Settings → Jobs" named a place the reader then had to go find by hand. The `CarrierBody`
               grammar — ghost button + external-link glyph, riding a standing shell intent — is the repo's
               existing shape for exactly this, so it is reused rather than re-invented. */}
-          <Button className="self-start" intent="ghost" onClick={(): void => openConfigTo("workloads", "jobs")} size="sm" type="button">
+          <Button className="self-start" variant="ghost" onClick={(): void => openConfigTo("workloads", "jobs")} size="sm" type="button">
             Go to Jobs
             <Icon icon={ExternalLink} size="xs" />
           </Button>

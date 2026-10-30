@@ -112,7 +112,7 @@ export function useDatabankListHeader(): ListPaneHeaderView {
             </MenuItem>
           </MenuGroup>
         </RowActionsMenu>
-        <Button intent="primary" onClick={(): void => openModal("addDocument")} size="sm">
+        <Button onClick={(): void => openModal("addDocument")} size="sm">
           <Icon icon={Plus} size="sm" />
           Add
         </Button>

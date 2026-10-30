@@ -69,7 +69,7 @@ export function RelationManagerSection<TId extends string>({
   return (
     <Section heading={heading}>
       {items.length === 0 ? (
-        <Text tone="muted">{emptyLabel}</Text>
+        <Text ink="muted">{emptyLabel}</Text>
       ) : (
         <Stack gap="row">
           {items.map((item) => (
@@ -78,7 +78,7 @@ export function RelationManagerSection<TId extends string>({
               title={item.title}
               {...subtitleProp(item)}
               actions={
-                <Button aria-label={`${removeLabel} ${item.title}`} intent="ghost" onClick={(): void => onRemove(item)}>
+                <Button aria-label={`${removeLabel} ${item.title}`} variant="ghost" onClick={(): void => onRemove(item)}>
                   {removeLabel}
                 </Button>
               }
@@ -87,12 +87,12 @@ export function RelationManagerSection<TId extends string>({
         </Stack>
       )}
       <Dialog>
-        <DialogTrigger render={<Button intent="secondary">{addTriggerLabel}</Button>} />
+        <DialogTrigger render={<Button variant="outline">{addTriggerLabel}</Button>} />
         <DialogPopup>
           <DialogBody grow={true} gap="block">
             <DialogTitle>{addTitle}</DialogTitle>
             {available.length === 0 ? (
-              <Text tone="muted">{addEmptyLabel}</Text>
+              <Text ink="muted">{addEmptyLabel}</Text>
             ) : (
               <Stack gap="row">
                 {available.map((item) => (
@@ -101,7 +101,7 @@ export function RelationManagerSection<TId extends string>({
                     title={item.title}
                     {...subtitleProp(item)}
                     actions={
-                      <Button aria-label={`${addLabel} ${item.title}`} intent="ghost" onClick={(): void => onAdd(item)}>
+                      <Button aria-label={`${addLabel} ${item.title}`} variant="ghost" onClick={(): void => onAdd(item)}>
                         {addLabel}
                       </Button>
                     }
@@ -110,7 +110,7 @@ export function RelationManagerSection<TId extends string>({
               </Stack>
             )}
             <DialogFooter>
-              <DialogClose render={<Button intent="ghost">Done</Button>} />
+              <DialogClose render={<Button variant="ghost">Done</Button>} />
             </DialogFooter>
           </DialogBody>
         </DialogPopup>

@@ -1,5 +1,5 @@
 // admin-model — the Admin pane's pure vocabulary: the create-user form shape + defaults, the role Select
-// options (never `owner` — the setRole verb refuses minting a second owner) and the badge-intent maps. DOM-free; presentation-only labels, the enforceable truth stays server-side.
+// options (never `owner` — the setRole verb refuses minting a second owner) and the badge-tone maps. DOM-free; presentation-only labels, the enforceable truth stays server-side.
 
 import type { UserRole } from "@orb/contracts/identity";
 import type { Handle } from "@orb/kit/ids";
@@ -33,8 +33,8 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   user: "User",
 };
 
-/** Role → badge intent (the per-row role chip). */
-export const ROLE_BADGE_INTENT: Record<UserRole, NonNullable<BadgeProps["intent"]>> = {
+/** Role → badge tone (the per-row role chip). */
+export const ROLE_BADGE_TONE: Record<UserRole, NonNullable<BadgeProps["tone"]>> = {
   owner: "primary",
   admin: "info",
   user: "neutral",

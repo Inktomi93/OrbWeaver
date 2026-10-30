@@ -47,7 +47,7 @@ export function ChatLandingSurface({ onNewChat }: ChatLandingSurfaceProps): Reac
       <Stack className="inline-full max-inline-(--width-shell-content)" gap="section">
         <EmptyState
           action={
-            <Button aria-label={START_NEW_CHAT_NAME} intent="primary" onClick={onNewChat}>
+            <Button aria-label={START_NEW_CHAT_NAME} onClick={onNewChat}>
               <Icon icon={Plus} size="sm" />
               New chat
             </Button>

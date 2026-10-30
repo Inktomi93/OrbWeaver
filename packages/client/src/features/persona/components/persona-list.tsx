@@ -112,7 +112,6 @@ export function PersonaList(): ReactElement {
           <EmptyState
             action={
               <Button
-                intent="primary"
                 size="sm"
                 onClick={(): void => {
                   onCreate().catch(() => notify.error("Couldn't create the persona."));
@@ -171,7 +170,7 @@ function PersonaHeader({
           floor, and each tooltip is the SAME string as the aria-label so the two can't drift. */}
       <Row gap="field" align="center" className="flex-wrap justify-end">
         <Tip text={FROM_CHARACTER_LABEL}>
-          <Button aria-label={FROM_CHARACTER_LABEL} intent="ghost" onClick={onFromCharacter} size="icon">
+          <Button aria-label={FROM_CHARACTER_LABEL} variant="ghost" onClick={onFromCharacter} size="icon">
             <Icon icon={Drama} size="sm" />
           </Button>
         </Tip>
@@ -185,13 +184,13 @@ function PersonaHeader({
         >
           {({ open }): ReactElement => (
             <Tip text={IMPORT_LABEL}>
-              <Button aria-label={IMPORT_LABEL} intent="ghost" onClick={open} size="icon">
+              <Button aria-label={IMPORT_LABEL} variant="ghost" onClick={open} size="icon">
                 <Icon icon={Upload} size="sm" />
               </Button>
             </Tip>
           )}
         </FileTrigger>
-        <Button intent="primary" size="sm" onClick={onNew}>
+        <Button size="sm" onClick={onNew}>
           <Icon icon={Plus} size="sm" />
           New persona
         </Button>

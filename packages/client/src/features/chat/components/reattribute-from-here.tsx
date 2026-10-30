@@ -96,7 +96,7 @@ function ReattributeConfirmDialog({
   const name = usePersonaName(message.chatId, personaId);
   return (
     <ConfirmDialog
-      confirmIntent="primary"
+      confirmTone="primary"
       confirmLabel="Reattribute"
       confirmLoading={reattribute.isPending}
       description={`Restamps your own lines from this message onward to "${name}". Earlier lines keep their names. What you wrote is untouched; replies keep the names they were written with.`}

@@ -142,7 +142,7 @@ export function CharacterActionsMenu({ characterId }: CharacterActionsMenuProps)
       </RowActionsMenu>
 
       <ConfirmDialog
-        confirmIntent="primary"
+        confirmTone="primary"
         confirmLabel={CHARACTER_ACTIONS.duplicate.label}
         description="This creates an independent copy of the card. The copy opens in the editor."
         onConfirm={confirmDuplicate}

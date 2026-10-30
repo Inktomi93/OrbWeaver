@@ -137,26 +137,24 @@ function TrackerRow({
         ) : null}
         <Row gap="field" align="center" className="shrink-0">
           <Tip text={bandLabel}>
-            <Button aria-label={bandLabel} intent="ghost" size="icon-sm" onClick={(): void => patch({ pinned: !def.pinned })}>
+            <Button aria-label={bandLabel} variant="ghost" size="icon-sm" onClick={(): void => patch({ pinned: !def.pinned })}>
               <Icon icon={def.pinned ? Eye : EyeOff} size="xs" />
             </Button>
           </Tip>
           <Tip text={lockLabel}>
-            <Button aria-label={lockLabel} intent="ghost" size="icon-sm" onClick={(): void => patch({ locked: !def.locked })}>
+            <Button aria-label={lockLabel} variant="ghost" size="icon-sm" onClick={(): void => patch({ locked: !def.locked })}>
               <Icon icon={def.locked ? Lock : LockOpen} size="xs" />
             </Button>
           </Tip>
           <Tip text={removeLabel}>
-            <Button aria-label={removeLabel} intent="ghost" size="icon-sm" onClick={(): void => onCommit({ ...def, key: "" })}>
+            <Button aria-label={removeLabel} variant="ghost" size="icon-sm" onClick={(): void => onCommit({ ...def, key: "" })}>
               <Icon icon={Trash2} size="xs" />
             </Button>
           </Tip>
         </Row>
       </Row>
       <Row gap="field" align="center" className="flex-wrap">
-        <Badge tone="soft" size="sm">
-          {def.shape}
-        </Badge>
+        <Badge size="sm">{def.shape}</Badge>
         <HintTrigger
           className=""
           hint="the shape decides how it renders and how the story writes it — fixed when it was named"
@@ -165,19 +163,17 @@ function TrackerRow({
         {/* The write axis is a TOGGLE, not a badge: a resource you spend reads and writes differently from a
             state you observe, and a host who mis-picked it at birth could not fix it. What the current axis
             means, and what a press does, is visible copy beside it. */}
-        <Button aria-describedby={writeGlossId} intent="ghost" size="sm" onClick={(): void => patch({ write: def.write === "delta" ? "set" : "delta" })}>
+        <Button aria-describedby={writeGlossId} variant="ghost" size="sm" onClick={(): void => patch({ write: def.write === "delta" ? "set" : "delta" })}>
           {WRITE_LABEL[def.write]}
         </Button>
         <Text id={writeGlossId} voice="gloss">
           {WRITE_GLOSS[def.write]}
         </Text>
         {def.subject === "game" ? (
-          <Badge tone="soft" size="sm" intent="neutral">
-            game-wide
-          </Badge>
+          <Badge size="sm">game-wide</Badge>
         ) : (
           <Tip text={`Who carries ${def.label}`}>
-            <Button intent="ghost" size="sm" onClick={(): void => patch({ appliesTo: nextAppliesTo(def.appliesTo) })}>
+            <Button variant="ghost" size="sm" onClick={(): void => patch({ appliesTo: nextAppliesTo(def.appliesTo) })}>
               {appliesToLabel(def.appliesTo)}
             </Button>
           </Tip>
@@ -252,13 +248,13 @@ function AddTracker({ onAdd }: { readonly onAdd: (label: string, shape: RpgTrack
       placeholder="name it first (e.g. Grit)"
       trailing={
         <Tip text="Who this tracker belongs to">
-          <Button intent="ghost" size="sm" onClick={(): void => setSubject(subject === "actor" ? "game" : "actor")}>
+          <Button variant="ghost" size="sm" onClick={(): void => setSubject(subject === "actor" ? "game" : "actor")}>
             {subject === "actor" ? "per character" : "game-wide"}
           </Button>
         </Tip>
       }
       actions={[
-        { key: "meter", label: "meter", icon: Plus, intent: "primary", onAdd: (label: string): void => onAdd(label, "meter", subject) },
+        { key: "meter", label: "meter", icon: Plus, variant: "solid", onAdd: (label: string): void => onAdd(label, "meter", subject) },
         { key: "text", label: "text", icon: Plus, onAdd: (label: string): void => onAdd(label, "text", subject) },
         { key: "list", label: "list", icon: Plus, onAdd: (label: string): void => onAdd(label, "list", subject) },
       ]}
@@ -367,7 +363,7 @@ function ResyncControl({ chatId }: { readonly chatId: ChatId }): ReactElement {
       />
       <Row gap="field">
         <Button
-          intent="secondary"
+          variant="outline"
           size="sm"
           disabled={busy}
           onClick={(): void => {
@@ -394,8 +390,8 @@ function HostConsole({ state }: { readonly state: RpgPanelState }): ReactElement
   return (
     <Stack gap="section" data-slot="rpg-game-tab">
       <Row gap="field" align="center">
-        <Icon icon={Crown} size="sm" tone="accolade" />
-        <Text voice="kicker" tone="accolade">
+        <Icon icon={Crown} size="sm" ink="accolade" />
+        <Text voice="kicker" ink="accolade">
           Host console — host only
         </Text>
       </Row>
@@ -408,9 +404,7 @@ function HostConsole({ state }: { readonly state: RpgPanelState }): ReactElement
           <>
             <Row gap="field" className="flex-wrap">
               {config.statProfile.attributes.map((def) => (
-                <Badge key={def.key} tone="soft">
-                  {def.label}
-                </Badge>
+                <Badge key={def.key}>{def.label}</Badge>
               ))}
             </Row>
             <Text voice="gloss">
@@ -418,7 +412,7 @@ function HostConsole({ state }: { readonly state: RpgPanelState }): ReactElement
                 ? "Fill character scores in Status: roll 4d6 drop lowest, use the standard array, or enter them by hand."
                 : "Enter and edit character scores in Status. Customize stat definitions in Advanced."}
             </Text>
-            <Button intent="secondary" size="sm" onClick={(): void => setContextTab("rpg.status")}>
+            <Button variant="outline" size="sm" onClick={(): void => setContextTab("rpg.status")}>
               Set character scores
             </Button>
           </>

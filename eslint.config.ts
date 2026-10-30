@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { staticImportGraph, unsupportedAtFloor, withoutPolyfilled } from "@orb/tooling/browser-support";
 import { authorClassIgnores, baseUiDoors, classClassifier, createOrbPlugin, exportedLabels, shellOwnedSlots } from "@orb/tooling/eslint";
 import { BUTTON_SIZE_OVERFLOW } from "@orb/ui/button/size-hit-area";
-import { TOKENS } from "@orb/ui/tokens";
+import { TOKENS, TONES } from "@orb/ui/tokens";
 import pluginQuery from "@tanstack/eslint-plugin-query";
 import pluginRouter from "@tanstack/eslint-plugin-router";
 import vitest from "@vitest/eslint-plugin";
@@ -44,6 +44,9 @@ const designSystem = await __unstable__loadDesignSystem(
 
 const SOURCE = ["packages/*/src/**/*.{ts,tsx}", "tooling/src/**/*.{ts,tsx}"];
 
+// The D336 tones that carry a base `--color-*` token; neutral binds the ramp instead and has none.
+const INTENT_COLORS = TONES.filter((tone) => `color.${tone}` in TOKENS);
+
 // Tailwind utilities the namespace resets cannot remove (the compiler still accepts them), refused here instead.
 // `size`, `height` and `width` tokens compile as bare `size-<name>`/`h-<name>`/`w-<name>` on some axes only, so the
 // `(--namespace-name)` form is the one spelling for every axis and the bare forms are refused.
@@ -73,6 +76,11 @@ const CLASS_SELECTORS: Selector[] = [
   { kind: SelectorKind.Callee, name: "^tv$", match: CLASS_STRING_MATCHERS },
 ];
 const RESTRICTED_CLASSES = [
+  {
+    // D336: a translucent intent or tone colour has no fixed contrast, because its pair depends on the host under it.
+    pattern: String.raw`^(?:[^\s]*:)?!?[a-z-]+-(?:${INTENT_COLORS.join("|")}|tone-[a-z-]+?)(?:-foreground)?\/[^\s]+$`,
+    message: "An opacity modifier on an intent or tone colour (D336); paint an opaque *-tone-* role (tint, edge, text-on-tint) under the element's tone.",
+  },
   {
     // An arbitrary class value that carries a design number: a length, a decimal, or a track share other than 1fr.
     // A keyword, `0`, `1fr`, `100%` or a `var(--token)` inside the brackets is structure and stays legal.
@@ -1283,6 +1291,7 @@ const localPlugin = createOrbPlugin({
   candidatesToCss: (classes) => designSystem.candidatesToCss(classes),
   customProperties: customPropertyUses(ROOT),
   classifyClass: classClassifier((classes) => designSystem.candidatesToCss(classes)),
+  intentColors: INTENT_COLORS,
 });
 const APPEARANCE_LITERAL_FIXTURES = [
   "tests/tooling/eslint-appearance-name.test.ts",
@@ -1327,6 +1336,19 @@ const RAW_STORAGE_HOMES = [
 const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
   [
     { files: ["tests/**/*.{ts,tsx}"], rules: { "orb/no-test-fabrication": "error" } },
+    {
+      files: ["packages/**/*.{ts,tsx}", "tooling/src/**/*.{ts,tsx}", "tests/**/*.{ts,tsx}"],
+      ignores: [
+        // Generated CSS is exempt (D336): the token map the build emits, and the generator that emits the appearance channel.
+        "packages/ui/src/tokens/index.ts",
+        "packages/client/appearance-channel.build.ts",
+        // The rules' own refusal fixtures spell the recipes they refuse.
+
+        "tests/tooling/eslint-intent-color-recipe.test.ts",
+        "tests/tooling/stylelint-intent-color-recipe.test.ts",
+      ],
+      rules: { "orb/no-intent-color-recipe": "error" },
+    },
     {
       files: ["packages/client/src/**/*.{ts,tsx}", "packages/ui/src/**/*.{ts,tsx}"],
       ignores: Object.keys(PORTAL_FLOAT_HOMES),

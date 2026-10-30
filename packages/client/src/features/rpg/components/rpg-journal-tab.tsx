@@ -245,9 +245,9 @@ function JournalMarks({ state }: { readonly state: RpgPanelState }): ReactElemen
       ) : (
         <Stack gap="field">
           {sorted.map((mark) => (
-            <Card tone="neutral" key={mark.id}>
+            <Card key={mark.id}>
               <Row key={mark.id} gap="block" align="center" data-slot="rpg-mark-row">
-                <Icon icon={Pin} size="xs" tone="muted" />
+                <Icon icon={Pin} size="xs" ink="muted" />
                 <Stack gap="field" className="flex-1 min-inline-0">
                   <Text as="span" voice="label" className="truncate">
                     {mark.label}
@@ -261,13 +261,13 @@ function JournalMarks({ state }: { readonly state: RpgPanelState }): ReactElemen
                     title={`Restore "${mark.label}"?`}
                     description="The game state rolls forward from this mark as a new current snapshot. The chronicle keeps everything since."
                     confirmLabel="Restore"
-                    confirmIntent="primary"
+                    confirmTone="primary"
                     confirmLoading={restoreCheckpoint.isPending}
                     onConfirm={(): void => {
                       restoreCheckpoint.mutate({ chatId: state.chatId, checkpointId: mark.id });
                     }}
                     trigger={
-                      <Button intent="ghost" size="sm">
+                      <Button variant="ghost" size="sm">
                         Restore
                       </Button>
                     }

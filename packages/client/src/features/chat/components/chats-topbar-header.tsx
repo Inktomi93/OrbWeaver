@@ -43,9 +43,7 @@ function TopbarHeader({ chatId }: { readonly chatId: ChatId }): ReactElement {
   return (
     <Row align="center" className="min-inline-0" gap="row">
       <ChatHeaderSurface chatId={chatId} />
-      <Badge intent="neutral" tone="soft">
-        {TEMPORARY_CHAT_BADGE}
-      </Badge>
+      <Badge>{TEMPORARY_CHAT_BADGE}</Badge>
     </Row>
   );
 }

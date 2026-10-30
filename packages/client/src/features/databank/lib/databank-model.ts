@@ -76,15 +76,15 @@ export function documentTypeLabel(mime: string): string {
 // DEFINES `stalled`: a phase that reads null here can never wedge.
 const IN_FLIGHT_WORD: Record<CountedIngestPhase, string | null> = { empty: null, indexing: "queued", embedding: "indexing", ready: null };
 
-/** What a phase's chip renders: its label, its `@orb/ui/badge` intent, and an optional leading glyph. */
+/** What a phase's chip renders: its label, its `@orb/ui/badge` tone, and an optional leading glyph. */
 interface IngestBadge {
   readonly label: string;
-  readonly intent: "success" | "warning" | "neutral" | "danger";
+  readonly tone: "success" | "warning" | "neutral" | "destructive";
   /** A leading `@orb/ui/icons` glyph, or `null` for a text-only chip — see the THIRD DIFFERENTIATOR note. */
   readonly glyph: LucideIcon | null;
 }
 
-/** The `@orb/ui/badge` intent + label per ingest phase — a mapped-type Record dispatch (a new phase without
+/** The `@orb/ui/badge` tone + label per ingest phase — a mapped-type Record dispatch (a new phase without
  *  a badge fails tsc; §5.5 exhaustiveness). */
 const INGEST_BADGES: Record<IngestPhase, IngestBadge> = {
   // WARNING, not neutral (side-eye 2026-08-08 P3): "Empty" is not the absence of a state, it is a FAILED
@@ -100,17 +100,17 @@ const INGEST_BADGES: Record<IngestPhase, IngestBadge> = {
   // pixel value distinguished only by a 10.5px word. Reverting `Empty` to neutral would satisfy the new
   // finding by re-committing the old one. A glyph is the axis neither ruling spends: the chip keeps its
   // amber, and only the arm that asks the user to DO something carries a mark.
-  empty: { label: "Empty", intent: "warning", glyph: AlertTriangle },
-  indexing: { label: "Queued", intent: "warning", glyph: null },
-  embedding: { label: "Indexing", intent: "warning", glyph: null },
-  ready: { label: "Ready", intent: "success", glyph: null },
+  empty: { label: "Empty", tone: "warning", glyph: AlertTriangle },
+  indexing: { label: "Queued", tone: "warning", glyph: null },
+  embedding: { label: "Indexing", tone: "warning", glyph: null },
+  ready: { label: "Ready", tone: "success", glyph: null },
   // DANGER, not warning: `Queued` and `Indexing` say "wait", and a user who has been waiting deserves the
   // one chip that says "this will not finish on its own". Reindex is the repair, on the row's own kebab.
   // No glyph: `danger` is already its own hue, so the mark would be decoration rather than a distinction.
-  stalled: { label: "Stalled", intent: "danger", glyph: null },
+  stalled: { label: "Stalled", tone: "destructive", glyph: null },
 };
 
-/** The badge (intent + label + glyph) for an ingest phase (the row chip + the detail header chip). */
+/** The badge (tone + label + glyph) for an ingest phase (the row chip + the detail header chip). */
 export function ingestBadge(phase: IngestPhase): IngestBadge {
   return INGEST_BADGES[phase];
 }
@@ -250,7 +250,7 @@ export interface BankHealth {
   readonly attention: readonly {
     readonly phase: IngestPhase;
     readonly label: string;
-    readonly intent: "success" | "warning" | "neutral" | "danger";
+    readonly tone: "success" | "warning" | "neutral" | "destructive";
   }[];
 }
 
@@ -272,7 +272,7 @@ export function bankHealth(census: BankHealthView, visible: readonly DocumentVie
   }
   const attention = INGEST_PHASES.filter((phase) => showsPhaseChip(phase) && census.byPhase[phase] > (shown.get(phase) ?? 0))
     .toSorted((a, b) => ATTENTION_ORDER[a] - ATTENTION_ORDER[b])
-    .map((phase) => ({ intent: ingestBadge(phase).intent, label: `${census.byPhase[phase]} ${ingestBadge(phase).label.toLowerCase()}`, phase }));
+    .map((phase) => ({ tone: ingestBadge(phase).tone, label: `${census.byPhase[phase]} ${ingestBadge(phase).label.toLowerCase()}`, phase }));
   return { attention, chunks: census.chunks, passages: census.passages, total: census.total };
 }
 

@@ -93,7 +93,7 @@ export function PluginAnchoredSurfaceList({
                   render={
                     <Button
                       aria-label={movePluginPanelLabel(surface.pluginName, surface.title, !sidecar)}
-                      intent="ghost"
+                      variant="ghost"
                       size="icon-sm"
                       type="button"
                       onClick={(): void => placement.move(surface, !sidecar)}
@@ -110,7 +110,7 @@ export function PluginAnchoredSurfaceList({
                 render={
                   <Button
                     aria-label={hideLabel}
-                    intent="ghost"
+                    variant="ghost"
                     onClick={(): void => {
                       focusAfterHide.current = visible.find((other) => other.pluginId !== surface.pluginId)?.pluginId ?? null;
                       hide({ id: surface.pluginId, name: surface.pluginName });

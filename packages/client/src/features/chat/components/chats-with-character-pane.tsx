@@ -81,7 +81,7 @@ export function ChatsWithCharacterPane({ characterId, characterName, onNewChat }
       // primary. (The hero's "New chat" is CONTENT tier, a different region, and fires the same writer.)
       <EmptyState
         action={
-          <Button intent="primary" onClick={onNewChat} size="sm">
+          <Button onClick={onNewChat} size="sm">
             <Icon icon={Plus} size="sm" />
             New chat
           </Button>
@@ -119,7 +119,7 @@ export function ChatsWithCharacterPane({ characterId, characterName, onNewChat }
         {items.length === 0 ? (
           <EmptyState
             action={
-              <Button intent="secondary" onClick={(): void => setQuery("")} size="sm">
+              <Button variant="outline" onClick={(): void => setQuery("")} size="sm">
                 Clear search
               </Button>
             }

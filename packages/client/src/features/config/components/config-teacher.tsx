@@ -89,7 +89,7 @@ function TeacherValueBlock({ value }: { readonly value: ConfigTeachValue }): Rea
         </Text>
       </Stack>
       <Row>
-        <Button intent="ghost" size="sm" onClick={value.reset}>
+        <Button variant="ghost" size="sm" onClick={value.reset}>
           <Icon icon={RotateCcw} size="sm" />
           Reset to default
         </Button>

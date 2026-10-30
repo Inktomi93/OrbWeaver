@@ -188,11 +188,11 @@ function BugReportButton({ devCapture, loadServerFacts, presentation = "bar" }: 
         ))}
       </RadioGroup>
       <Row gap="field" align="center" className="flex-wrap">
-        <Button type="button" intent="primary" size="sm" disabled={!hasNote || busy} onClick={prepare}>
+        <Button type="button" size="sm" disabled={!hasNote || busy} onClick={prepare}>
           {status.kind === "preparing" ? "Preparing…" : "Prepare report"}
         </Button>
         {devCapture ? (
-          <Button type="button" intent="secondary" size="sm" disabled={!hasNote || busy} onClick={capture}>
+          <Button type="button" variant="outline" size="sm" disabled={!hasNote || busy} onClick={capture}>
             {status.kind === "saving" ? "Capturing…" : "Capture report"}
           </Button>
         ) : null}
@@ -205,10 +205,10 @@ function BugReportButton({ devCapture, loadServerFacts, presentation = "bar" }: 
           </Text>
           <Textarea aria-label="Report to share" readOnly={true} rows={8} value={report.summary} />
           <Row gap="field" align="center" className="flex-wrap">
-            <Button type="button" intent="primary" size="sm" onClick={share}>
+            <Button type="button" size="sm" onClick={share}>
               Copy and open a GitHub issue
             </Button>
-            <Button type="button" intent="secondary" size="sm" onClick={download}>
+            <Button type="button" variant="outline" size="sm" onClick={download}>
               Download diagnostics
             </Button>
           </Row>
@@ -256,7 +256,7 @@ function BugReportFrame({ presentation, open, onOpenChange, children }: BugRepor
           render={
             <PopoverTrigger
               render={
-                <Button intent="ghost" size="icon" className="shell-topbar-icon-btn" aria-label="Report a bug">
+                <Button variant="ghost" size="icon" className="shell-topbar-icon-btn" aria-label="Report a bug">
                   <Icon icon={Bug} size="sm" />
                 </Button>
               }

@@ -1,35 +1,20 @@
-import type { ToneStamp } from "#lib";
-import { TOUCH_FLOOR_AT_COARSE, tv } from "#lib";
+import { TONE_ARMS, TOUCH_FLOOR_AT_COARSE, tv } from "#lib";
 
-// The badge/chip/pill skin — status pills (ui-package-design §6.1). A colored intent paints the D336 tone roles of the
-// tone `BADGE_TONE` stamps, so one meaning paints alike on every primitive and follows the scope's palette. THREE
-// fill styles per intent, in descending weight: `solid` (the filled pill), `soft` (the opaque tint, the held-back
-// edge and the on-tint ink) and `ghost` (no fill: the edge and the tone's text ink). `ghost` is for chips that must
-// read quieter than the surface's primary CTA even when there are a dozen of them (UI-Density-Law §3.2 CD3).
-// The fill style's own `bg-*` wins over the intent's via tailwind-merge (tone is declared after intent).
-const TONE_SOLID = "bg-tone-solid text-tone-foreground";
-const COLORED_INTENTS: ("primary" | "success" | "warning" | "danger" | "info")[] = ["primary", "success", "warning", "danger", "info"];
-
+// The badge/chip/pill skin — status pills (ui-package-design §6.1). Every fill style paints the D336 roles of the tone
+// the badge stamps, so any tone works with any style and one meaning paints alike on every primitive. Three styles in
+// descending weight: `solid` (the filled pill), `soft` (the opaque tint, the held-back edge and the on-tint ink, the
+// default status-chip look) and `outline` (no fill: the edge and the tone's text ink), for chips that must read
+// quieter than the surface's primary CTA even when there are a dozen of them (UI-Density-Law §3.2 CD3).
 export const badgeVariants = tv({
   base: "inline-flex items-center gap-field rounded-full font-medium whitespace-nowrap select-none",
   variants: {
     edge: { default: "", ink: "" },
-    intent: {
-      neutral: "bg-muted text-muted-foreground",
-      primary: TONE_SOLID,
-      success: TONE_SOLID,
-      warning: TONE_SOLID,
-      danger: TONE_SOLID,
-      info: TONE_SOLID,
-      // The palette's own state tint for session chrome (a status, not a verdict, so it never borrows a semantic hue).
-      // Solid only: the accent is already a quiet fill, so it has no soft or ghost step.
-      accent: "bg-accent text-accent-foreground",
+    variant: {
+      solid: "bg-tone-solid text-tone-foreground",
+      soft: "border border-tone-edge bg-tone-tint text-tone-text-on-tint",
+      outline: "border border-tone-edge bg-transparent text-tone-text",
     },
-    tone: {
-      solid: "",
-      soft: "border",
-      ghost: "border bg-transparent",
-    },
+    tone: TONE_ARMS,
     size: {
       // Title-only rows need state chrome without the vertical padding that changes their pitch.
       compact: "px-field font-sans text-label leading-label",
@@ -108,31 +93,16 @@ export const badgeVariants = tv({
     sentenceCase: { true: "tracking-normal normal-case", false: "" },
   },
   compoundVariants: [
-    { intent: "neutral", tone: "soft", class: "border-border bg-muted/8 text-muted-foreground" },
-    { intent: COLORED_INTENTS, tone: "soft", class: "border-tone-edge bg-tone-tint text-tone-text-on-tint" },
-    { intent: "neutral", tone: "ghost", class: "border-border text-muted-foreground" },
-    { intent: COLORED_INTENTS, tone: "ghost", class: "border-tone-edge text-tone-text" },
-    // THE IN-FLOW ARM DRAWS NO BORDER BOX, in any tone. `soft`/`ghost` carry a hairline everywhere else,
+    // THE IN-FLOW ARM DRAWS NO BORDER BOX, in any style. `soft`/`outline` carry a hairline everywhere else,
     // and everywhere else it is free — but an INLINE box's left/right borders are real horizontal ADVANCE,
     // so a bordered chip re-opens the exact gap the `inline` size exists to close (side-eye F-6: the chip's
     // side padding detached the following punctuation, `{{user}} 's voice`), and its top/bottom borders paint
     // outside a line box they cannot grow. Declared LAST so tailwind-merge's border-width group resolves in
-    // its favour over the tone's `border`; the fill style's `border-tone-edge` is a different group and simply
+    // its favour over the style's `border`; the style's `border-tone-edge` is a different group and simply
     // stops being painted.
     { size: "inline", class: "border-0" },
     // A small unfilled status dot needs its own ink at the edge, not the low-contrast surface seam.
     { edge: "ink", class: "border-current" },
   ],
-  defaultVariants: { intent: "neutral", tone: "solid", size: "sm", face: "text", sentenceCase: false },
+  defaultVariants: { tone: "neutral", variant: "soft", size: "sm", face: "text", sentenceCase: false },
 });
-
-/** The D336 tone each intent stamps; `accent` paints the neutral ramp's state tint and reads no tone role. */
-export const BADGE_TONE = {
-  neutral: "neutral",
-  primary: "primary",
-  success: "success",
-  warning: "warning",
-  danger: "destructive",
-  info: "info",
-  accent: null,
-} as const satisfies Record<keyof typeof badgeVariants.variants.intent, ToneStamp>;

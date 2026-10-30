@@ -67,11 +67,11 @@ export function usePresetListHeader(): ListPaneHeaderView {
                 would miss the coarse touch floor. `size="icon"` is `size-control-md`, which is 34px fine / 48px coarse BY TOKEN
                 (D62 P1), so the touch floor holds without any hand math here. */}
         <Tip text={IMPORT_LABEL}>
-          <Button aria-label={IMPORT_LABEL} intent="ghost" onClick={(): void => setImportOpen(true)} size="icon">
+          <Button aria-label={IMPORT_LABEL} variant="ghost" onClick={(): void => setImportOpen(true)} size="icon">
             <Icon icon={Upload} size="sm" />
           </Button>
         </Tip>
-        <Button disabled={create.isPending} intent="primary" onClick={onCreate} size="sm">
+        <Button disabled={create.isPending} onClick={onCreate} size="sm">
           <Icon icon={Plus} size="sm" />
           New
         </Button>

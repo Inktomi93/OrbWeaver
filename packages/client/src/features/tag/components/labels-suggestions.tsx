@@ -134,7 +134,7 @@ function SuggestionGroupBlock({
         <EditableTagChip tag={first} />
         <Text voice="gloss">{group.rows.length === 1 ? "1 character" : `${String(group.rows.length)} characters`}</Text>
         <Button
-          intent="secondary"
+          variant="outline"
           size="sm"
           type="button"
           disabled={applyingAll}
@@ -181,7 +181,7 @@ function SuggestionCharacter({ suggestion, groupName }: { readonly suggestion: T
       {/* `wrap`: a long character name wraps inside its cell instead of pushing the verbs off the pane. */}
       <Button
         className="text-start min-inline-0"
-        intent="ghost"
+        variant="ghost"
         size="wrap"
         type="button"
         onClick={(): void => {
@@ -229,7 +229,7 @@ function SuggestionRow({
       <Button
         data-slot="label-review-apply"
         ref={applyRef}
-        intent="secondary"
+        variant="outline"
         size="sm"
         type="button"
         disabled={pending}
@@ -257,7 +257,7 @@ function SuggestionRow({
         Apply
       </Button>
       <Button
-        intent="ghost"
+        variant="ghost"
         size="sm"
         type="button"
         disabled={pending}

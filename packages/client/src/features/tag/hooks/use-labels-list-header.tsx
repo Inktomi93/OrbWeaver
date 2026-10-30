@@ -8,7 +8,7 @@ export function useLabelsListHeader(active = true): ListPaneHeaderView {
   const create = useCreateLabel(active);
   return {
     action: (
-      <Button intent="primary" loading={create.pending} onClick={create.run} size="sm" type="button">
+      <Button loading={create.pending} onClick={create.run} size="sm" type="button">
         <Icon icon={Plus} size="sm" />
         {NEW_LABEL_NAME}
       </Button>

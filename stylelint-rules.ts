@@ -4,6 +4,7 @@ import { blankText } from "@orb/kit/strings";
 import valueParser from "postcss-value-parser";
 import type { PostcssResult, Rule } from "stylelint";
 import stylelint from "stylelint";
+import { intentColorRecipe } from "./tooling/src/css-names/index.ts";
 
 type CssRoot = Parameters<ReturnType<Rule>>[0];
 type Declaration = Parameters<Parameters<CssRoot["walkDecls"]>[0]>[0];
@@ -772,8 +773,41 @@ const arbitraryApplyRule: Rule<true> = (primary) => (root, result) => {
 arbitraryApplyRule.ruleName = ARBITRARY_APPLY;
 arbitraryApplyRule.messages = ARBITRARY_APPLY_MESSAGES;
 
+// D336: an authored sheet mixes no intent or tone colour by hand; the generated tone roles and `orb.pigments` own them.
+const INTENT_RECIPE = "orb/no-intent-color-recipe";
+const INTENT_RECIPE_MESSAGES = messagesOf(INTENT_RECIPE, {
+  rejected:
+    "A color-mix() or relative colour over an intent or tone colour; read a --color-tone-* role under a data-tone scope, or add a pigment in tokens.json",
+});
+
+const intentRecipeRule: Rule<true, { readonly intents: readonly string[] }> = (primary, secondary) => (root, result) => {
+  const options = { actual: secondary, possible: { intents: [(value: unknown): boolean => typeof value === "string"] } };
+  if (!stylelint.utils.validateOptions(result, INTENT_RECIPE, { actual: primary, possible: [true] }, options)) {
+    return;
+  }
+  root.walkDecls((declaration) => {
+    const value = authoredValue(declaration);
+    const recipe = intentColorRecipe(withoutValueComments(value), secondary.intents);
+    if (recipe === undefined) {
+      return;
+    }
+    const valueIndex = valueIndexOf(declaration, value);
+    stylelint.utils.report({
+      result,
+      ruleName: INTENT_RECIPE,
+      node: declaration,
+      message: `${INTENT_RECIPE_MESSAGES.rejected}: ${recipe}`,
+      index: valueIndex,
+      endIndex: valueIndex + value.length,
+    });
+  });
+};
+intentRecipeRule.ruleName = INTENT_RECIPE;
+intentRecipeRule.messages = INTENT_RECIPE_MESSAGES;
+
 /** Stylesheet-only rules consumed by the native Stylelint configuration. */
 export const CSS_RULES = [
+  stylelint.createPlugin(INTENT_RECIPE, intentRecipeRule),
   stylelint.createPlugin(SHELL, shellRule),
   stylelint.createPlugin(LAYER, layerRule),
   stylelint.createPlugin(DUPLICATE_LAYER, duplicateLayerRule),

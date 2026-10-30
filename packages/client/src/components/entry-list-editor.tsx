@@ -88,13 +88,13 @@ export function EntryListEditor<TItem>({
     // CD1 "a grouping is not a box" case the kicker arm exists for, and every consumer of it (the preset
     // Data/Transforms tabs, the owner-global Regex pane, the rpg macro deck) is an instrument deck.
     <Section kicker={heading}>
-      <Text tone="muted" voice="gloss">
+      <Text ink="muted" voice="gloss">
         {helperText}
       </Text>
 
       <Stack gap="field">
         {items.length === 0 ? (
-          <Text tone="muted" voice="gloss">
+          <Text ink="muted" voice="gloss">
             {emptyText}
           </Text>
         ) : (
@@ -116,7 +116,7 @@ export function EntryListEditor<TItem>({
                     onConfirm={(): void => onRemove(index)}
                     title={`Remove “${getTitle(item, index)}”?`}
                     trigger={
-                      <Button aria-label={removeActionName(getTitle(item, index))} intent="ghost" size="sm">
+                      <Button aria-label={removeActionName(getTitle(item, index))} variant="ghost" size="sm">
                         Remove
                       </Button>
                     }
@@ -132,7 +132,7 @@ export function EntryListEditor<TItem>({
           ))
         )}
         <Row>
-          <Button ref={addButton} intent="secondary" onClick={onAdd} size="sm">
+          <Button ref={addButton} variant="outline" onClick={onAdd} size="sm">
             <Icon icon={Plus} size="sm" />
             {addLabel}
           </Button>

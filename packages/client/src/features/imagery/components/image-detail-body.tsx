@@ -100,11 +100,11 @@ function ImageDetail({ subject }: { readonly subject: ImageSubject }): ReactElem
         <ProvenanceStrip assetId={subject.assetId} />
       </Section>
       <Row className="flex-wrap" gap="field" justify="end">
-        <Button intent="ghost" onClick={(): void => openImageEdit(subject)} type="button">
+        <Button variant="ghost" onClick={(): void => openImageEdit(subject)} type="button">
           <Icon icon={Pencil} size="sm" />
           Edit image
         </Button>
-        <Button disabled={settingBackground} intent="primary" onClick={onSetBackground} type="button">
+        <Button disabled={settingBackground} onClick={onSetBackground} type="button">
           <Icon icon={Images} size="sm" />
           {settingBackground ? "Setting…" : "Set as background"}
         </Button>

@@ -174,10 +174,10 @@ export function PluginCommandArgsBody(): ReactElement {
         </Stack>
       )}
       <DialogFooter>
-        <Button disabled={submitting} intent="ghost" onClick={(): void => closeModal()} size="sm">
+        <Button disabled={submitting} variant="ghost" onClick={(): void => closeModal()} size="sm">
           Cancel
         </Button>
-        <Button intent="primary" loading={submitting} onClick={onSubmit} size="sm">
+        <Button loading={submitting} onClick={onSubmit} size="sm">
           {pluginCommandActionLabel(subject.name)}
         </Button>
       </DialogFooter>

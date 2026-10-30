@@ -16,6 +16,7 @@ import { Markdown } from "@orb/ui/markdown";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
+import { Toggle } from "@orb/ui/toggle";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { useColorQuotedSpeech, usePromptMacroSuggestions } from "#data";
@@ -141,7 +142,7 @@ function GreetingPills({
           data-slot="greeting-opening"
           // biome-ignore lint/suspicious/noArrayIndexKey: greetings are positional alternates with no stable id (an ST card array) — the index IS the identity (§6.1 "Opening N").
           key={i}
-          intent="ghost"
+          variant="ghost"
           onClick={(): void => onSelect(i)}
           selection={i === activeIndex ? "on" : "none"}
           size="sm"
@@ -198,7 +199,7 @@ function GreetingBody({
     <form.Subscribe selector={(s): string => s.values.greetings[index]?.text ?? ""}>
       {(active): ReactElement => (
         <ThemeScope tokens={cardTheme}>
-          <Card ownSlot="character-greeting-bubble" shadow="none" spoiler={spoilerBlur} tone="bubble">
+          <Card ownSlot="character-greeting-bubble" tone="bubble" spoiler={spoilerBlur}>
             <Stack gap="row">
               {active.trim() === "" ? (
                 <Text voice="quiet">No first message yet.</Text>
@@ -255,7 +256,7 @@ function GreetingActions({
           <Button
             type="button"
             size="sm"
-            intent="ghost"
+            variant="ghost"
             onClick={(): void => {
               // The D78 store-subscription driver persists structural array ops (removeFieldValue routes
               // through setFieldValue) — no call-site flush (D78).
@@ -275,7 +276,7 @@ function GreetingActions({
           ref={addOpeningRef}
           type="button"
           size="sm"
-          intent="ghost"
+          variant="ghost"
           onClick={(): void => {
             // The D78 store-subscription driver persists the structural push (pushFieldValue routes through
             // setFieldValue) — no call-site flush (D78). The new slot then
@@ -287,14 +288,14 @@ function GreetingActions({
           <Icon icon={Plus} size="sm" />
           Add opening
         </Button>
-        <Button type="button" size="sm" intent={editing ? "secondary" : "ghost"} aria-pressed={editing} onClick={onToggleEdit}>
+        <Toggle size="sm" pressed={editing} onPressedChange={onToggleEdit}>
           <Icon icon={Pencil} size="sm" />
           {editing ? "Done" : "Edit"}
-        </Button>
-        <Button type="button" size="sm" intent={studioOpen ? "secondary" : "ghost"} aria-pressed={studioOpen} onClick={(): void => setStudioOpen((o) => !o)}>
+        </Toggle>
+        <Toggle size="sm" pressed={studioOpen} onPressedChange={setStudioOpen}>
           <Icon icon={WandSparkles} size="sm" />
           Studio
-        </Button>
+        </Toggle>
       </Row>
       {studioOpen ? (
         // The greeting studio (audit §3): accept appends the result as a NEW alternate (the original is
@@ -366,7 +367,7 @@ function GreetingGroupOnlyToggle({ form, index }: { readonly form: CardForm; rea
           <label htmlFor={switchId}>
             {/* A control's visible name IS `label` (#573); its muted ink rides className because `tone` is
                 declared before `voice` and loses the merge. */}
-            <Text id={labelId} as="span" voice="label" tone="muted">
+            <Text id={labelId} as="span" voice="label" ink="muted">
               Group chats only
             </Text>
           </label>

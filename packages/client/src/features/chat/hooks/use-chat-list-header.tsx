@@ -52,14 +52,14 @@ export function useChatListHeader(): ListPaneHeaderView {
         <Tooltip>
           <TooltipTrigger
             render={
-              <Button aria-label={IMPORT_CHAT_LABEL} intent="ghost" onClick={(): void => setImportOpen(true)} size="icon-sm">
+              <Button aria-label={IMPORT_CHAT_LABEL} variant="ghost" onClick={(): void => setImportOpen(true)} size="icon-sm">
                 <Icon icon={Upload} size="sm" />
               </Button>
             }
           />
           <TooltipPopup side="bottom">{IMPORT_CHAT_LABEL}</TooltipPopup>
         </Tooltip>
-        <Button intent="primary" onClick={(): void => openNewChatPicker()} size="sm">
+        <Button onClick={(): void => openNewChatPicker()} size="sm">
           <Icon icon={Plus} size="sm" />
           New
         </Button>

@@ -160,7 +160,7 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
           {list.length === 0 ? (
             <EmptyState
               action={
-                <Button intent="primary" onClick={onNewChat}>
+                <Button onClick={onNewChat}>
                   <Icon icon={Plus} size="sm" />
                   New chat
                 </Button>
@@ -286,7 +286,7 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
                                 real screen-reader-only text — the chip announces the derived “N items”, the trigger's
                                 name is untouched, and the band still paints the bare figure the mock draws
                                 (`sr-only` clips it to a 1px box, asserted in the CT). */}
-                            <Badge size="sm" tone="ghost">
+                            <Badge size="sm" variant="outline">
                               {doorways.length}
                               <Text as="span" className="sr-only">
                                 {" "}

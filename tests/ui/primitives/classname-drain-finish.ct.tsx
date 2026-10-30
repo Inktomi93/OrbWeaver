@@ -82,7 +82,7 @@ test("tone inks ghost, outline and secondary; underline, reserveEdge and confirm
   const button = (name: string): Locator => root.getByRole("button", { name, exact: true });
   expect(await style(button("ghost foreground"), "color")).toBe(await probe(root, "foreground", "color"));
   expect(await style(button("outline muted"), "color")).toBe(await probe(root, "muted", "color"));
-  expect(await style(button("secondary muted"), "color")).toBe(await probe(root, "muted", "color"));
+
   expect(await style(button("show all"), "text-decoration-style")).toBe("dotted");
   expect(await style(button("show all"), "text-decoration-line")).toBe("underline");
   expect(await style(button("reserved"), "border-block-start-width")).toBe("1px");
@@ -129,20 +129,11 @@ test("the float, inset, plate, pill and bubble shapes keep their radius and inse
   expect(await style(kase(root, "bubble"), "background-color")).toBe(await probe(root, "bubble", "background-color"));
 });
 
-test("each new Card tone paints its fill or edge from its token", async ({ mount }) => {
+test("each step-four Card surface paints its fill or edge from its token", async ({ mount }) => {
   const root = await mount<typeof CardFinishStory>(`${STORIES}/CardFinishStory`, {});
   await park(root);
-  for (const tint of ["successTint", "warningTint", "destructiveTint", "infoTint"]) {
-    expect(await style(kase(root, tint), "background-color"), tint).toBe(await probe(root, tint, "background-color"));
-    expect(await style(kase(root, tint), "border-block-start-color"), tint).toBe(await probe(root, tint, "border-block-start-color"));
-  }
-  expect(await style(kase(root, "primaryEdge"), "border-block-start-color")).toBe(await probe(root, "primaryEdge", "border-block-start-color"));
-  expect(await style(kase(root, "primaryOutline"), "border-block-start-color")).toBe(await probe(root, "primary", "border-block-start-color"));
-  expect(await style(kase(root, "primaryOutline"), "background-color")).toBe(await probe(root, "primary", "background-color"));
   expect(await style(kase(root, "sidebarEdge"), "border-block-start-color")).toBe(await probe(root, "sidebarEdge", "border-block-start-color"));
-  for (const tone of ["raised", "popover", "mutedWash"]) {
-    expect(await style(kase(root, tone), "background-color"), tone).toBe(await probe(root, tone, "background-color"));
-  }
+  expect(await style(kase(root, "popover"), "background-color")).toBe(await probe(root, "popover", "background-color"));
   expect(await style(kase(root, "popover"), "color")).toBe(await probe(root, "popover", "color"));
 });
 
@@ -166,7 +157,7 @@ test("rail, spoiler, presence, the field and drop states, focusable and ownSlot 
   await expect.poll(() => style(focusable, "outline-style")).toBe("none");
 });
 
-test("the shadow axis: overlay always lifts, follow takes the glow elevation, and none refuses it", async ({ mount }) => {
+test("an overlay card always lifts, an interactive card takes the glow elevation, and a static card takes none", async ({ mount }) => {
   const root = await mount<typeof CardFinishStory>(`${STORIES}/CardFinishStory`, {});
   expect(await style(kase(root, "overlay"), "box-shadow")).not.toBe("none");
   expect(await style(kase(root, "glow-follow"), "box-shadow")).not.toBe("none");
@@ -256,8 +247,7 @@ test("the other primitives' arms take their properties", async ({ mount, page })
   const field = root.getByRole("textbox", { name: "bare field", exact: true });
   expect(await style(field, "border-block-start-width")).toBe("0px");
   expect(await style(field, "font-family")).toBe(await probe(root, "mono", "font-family"));
-  expect(await style(kase(root, "badge-accent"), "background-color")).toBe(await probe(root, "accent", "background-color"));
-  expect(await style(kase(root, "badge-accent"), "font-family")).toBe(await probe(root, "mono", "font-family"));
+  expect(await style(kase(root, "badge-code"), "font-family")).toBe(await probe(root, "mono", "font-family"));
   expect(await style(kase(root, "badge-sentence"), "text-transform")).toBe("none");
   expect(await style(kase(root, "badge-sentence"), "letter-spacing")).toBe("normal");
   expect(await style(root.getByRole("combobox", { name: "Subject", exact: true }), "font-weight")).toBe("600");

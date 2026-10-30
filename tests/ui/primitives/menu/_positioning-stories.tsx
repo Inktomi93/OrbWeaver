@@ -17,7 +17,7 @@ export function ConstrainedMenuStory(): ReactElement {
               render={
                 <MenuTrigger
                   render={
-                    <Button aria-label="Constrained actions" intent="ghost" size="glyph-lg">
+                    <Button aria-label="Constrained actions" variant="ghost" size="glyph-lg">
                       ⋯
                     </Button>
                   }

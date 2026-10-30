@@ -41,12 +41,12 @@ const MODE_UNMET: Record<AuthMode, string> = {
   oidc: "",
 };
 
-const VERDICT_BADGE: Record<PreconditionRow["verdict"], { readonly label: string; readonly intent: "success" | "warning" | "neutral" | "danger" }> = {
-  met: { label: "Ready", intent: "success" },
-  unmet: { label: "Needs a fix", intent: "warning" },
-  waiting: { label: "Waiting", intent: "neutral" },
-  unchecked: { label: "Checked on start", intent: "neutral" },
-  refused: { label: "Refused", intent: "danger" },
+const VERDICT_BADGE: Record<PreconditionRow["verdict"], { readonly label: string; readonly tone: "success" | "warning" | "neutral" | "destructive" }> = {
+  met: { label: "Ready", tone: "success" },
+  unmet: { label: "Needs a fix", tone: "warning" },
+  waiting: { label: "Waiting", tone: "neutral" },
+  unchecked: { label: "Checked on start", tone: "neutral" },
+  refused: { label: "Refused", tone: "destructive" },
 };
 
 const PRECONDITION_LABEL: Record<PreconditionRow["id"], string> = {
@@ -136,7 +136,6 @@ function PreconditionList({
           <Button
             ref={startRef}
             type="button"
-            intent="primary"
             size="sm"
             disabled={!ready}
             focusableWhenDisabled={true}
@@ -155,7 +154,7 @@ function PreconditionList({
         title={`Turn on ${seatingNames(seatingAsk.settings)}?`}
         description={`${seatingReasons(seatingAsk.settings)} ${seatingAsk.settings.length === 1 ? "It stays" : "Both stay"} on after sharing stops.`}
         confirmLabel={seatingActionLabel(seatingAsk.settings)}
-        confirmIntent="primary"
+        confirmTone="primary"
         onConfirm={(): Promise<void> =>
           onEnableSeating().then((): void => {
             seatingReturn.current = startRef.current;
@@ -198,7 +197,7 @@ function PreconditionItem({ row, mode, failure, seatingOff, onFixSeating }: Prec
     <Stack gap="tight" role="listitem" data-precondition={row.id} data-verdict={row.verdict}>
       <Row gap="field" align="center" className="flex-wrap">
         <Text voice="label">{PRECONDITION_LABEL[row.id]}</Text>
-        <Badge intent={badge.intent}>{badge.label}</Badge>
+        <Badge tone={badge.tone}>{badge.label}</Badge>
       </Row>
       {/* The server's refusal names its own fix, so it replaces the row's standing detail; `alert` because it lands
           after the press while the status line above still reads Not sharing. */}
@@ -278,7 +277,7 @@ function SeatingFix({ off, onFix }: { readonly off: readonly SeatingSetting[]; r
     <Stack gap="tight">
       <ShareProse>{`Off now: ${seatingNames(off)}. ${seatingReasons(off)}`}</ShareProse>
       <Row gap="field" align="center" className="flex-wrap">
-        <Button type="button" intent="secondary" size="sm" onClick={onFix}>
+        <Button type="button" variant="outline" size="sm" onClick={onFix}>
           {seatingActionLabel(off)}
         </Button>
       </Row>

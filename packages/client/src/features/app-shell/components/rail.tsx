@@ -104,7 +104,7 @@ function RailBrand({
             className="shell-rail-brand shell-rail-brand-button"
             focusRing="sidebar"
             data-active={active ? "" : undefined}
-            intent="ghost"
+            variant="ghost"
             onClick={(): void => onSelectSection(sectionId)}
           >
             {/* The BUTTON carries the name (`aria-label`), so the glyph inside it is decoration — a nested
@@ -168,7 +168,7 @@ function SheetBadgeCount({ entryId, label, useBadge }: { readonly entryId: strin
           unread) — which is a second reason the visible number had to go: "3" beside a door whose sheet
           marks everything read on open is a figure a reader can watch change for reasons they did not cause.
           The COUNT SURVIVES IN THE SPOKEN DESCRIPTION below; see its note for why that is not a mismatch. */}
-      <Badge intent="primary" size="dot" aria-hidden={true} />
+      <Badge tone="primary" variant="solid" size="dot" aria-hidden={true} />
       {/* THE SPOKEN COUNT IS BOTH AN ANNOUNCEMENT AND A DURABLE FACT (#1129). `role="status"` says it the
           moment it lands; the tab's `aria-describedby` (RailButton) points HERE, so a reader who focuses the
           door a second later — or arrives after the read settled — still hears it. Before that, `aria-label`

@@ -87,7 +87,7 @@ function PickerBody({
       <EmptyState
         // The only next action REACHABLE from inside a modal is leaving it — the library lives behind the
         // rail, which this dialog is covering. Naming that honestly beats a CTA that cannot fire.
-        action={<DialogClose render={<Button intent="secondary">Close</Button>} />}
+        action={<DialogClose render={<Button variant="outline">Close</Button>} />}
         description="Write one in your script library — a find/replace rule with the streams it runs on — and it can run in this room."
         icon={<Icon icon={Code} size="lg" />}
         title="You have no regex scripts yet"
@@ -117,7 +117,7 @@ function PickerBody({
   return (
     <Stack gap="field">
       <Row align="center" gap="tight">
-        <Icon tone="muted" icon={Search} size="sm" />
+        <Icon ink="muted" icon={Search} size="sm" />
         <Input aria-label="Filter your scripts" onValueChange={setFilter} placeholder="Filter your scripts…" value={filter} />
       </Row>
       {matches.length === 0 ? (
@@ -161,13 +161,8 @@ function PickerBody({
         </Text>
       )}
       <DialogFooter>
-        <DialogClose render={<Button intent="ghost">Cancel</Button>} />
-        <Button
-          disabled={picked.length === 0 || attach.isPending}
-          intent="primary"
-          onClick={(): void => void commit().catch(globalThis.reportError)}
-          type="button"
-        >
+        <DialogClose render={<Button variant="ghost">Cancel</Button>} />
+        <Button disabled={picked.length === 0 || attach.isPending} onClick={(): void => void commit().catch(globalThis.reportError)} type="button">
           Attach to this chat
         </Button>
       </DialogFooter>

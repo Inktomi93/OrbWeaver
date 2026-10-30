@@ -159,7 +159,7 @@ function DiceSpan({ node, children, ...rest }: DiceSpanProps): ReactElement {
   return dice === undefined ? (
     <span {...rest}>{children}</span>
   ) : (
-    <Badge tone="soft" size="inline" data-slot="message-dice-chip">
+    <Badge size="inline" data-slot="message-dice-chip">
       <Icon icon={Dices} size="xs" />
       {dice.label} → {dice.total}
     </Badge>

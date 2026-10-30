@@ -76,7 +76,7 @@ export function ComposerNextTurnLine({ chatId, availability, id }: ComposerNextT
         {door === undefined ? null : (
           <>
             {` ${door.lead} `}
-            <Button intent="link" onClick={(): void => openConfigTo("connections", door.sub, door.setting)} size="inline-body" type="button">
+            <Button variant="link" onClick={(): void => openConfigTo("connections", door.sub, door.setting)} size="inline-body" type="button">
               {door.label}
             </Button>
           </>

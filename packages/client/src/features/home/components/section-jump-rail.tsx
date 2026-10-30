@@ -47,14 +47,10 @@ export function SectionJumpRail({ siblings }: { readonly siblings: readonly Home
         // voice control and to a semantic selector. `Go to <label>` CONTAINS the visible word (WCAG 2.5.3
         // label-in-name holds) and says what activation does, the same shape the hero's `Resume <room>` takes.
         <Tip key={def.id} text={def.placeholder.description}>
-          <Button aria-label={`Go to ${def.rail.label}`} intent="secondary" onClick={(): void => setActiveSection(def.id)} shape="pill" size="sm">
+          <Button aria-label={`Go to ${def.rail.label}`} variant="outline" onClick={(): void => setActiveSection(def.id)} shape="pill" size="sm">
             <Icon icon={def.rail.icon} size="sm" />
             {def.rail.label}
-            {typeof def.content === "function" ? null : (
-              <Badge intent="neutral" size="sm" tone="soft">
-                Planned
-              </Badge>
-            )}
+            {typeof def.content === "function" ? null : <Badge size="sm">Planned</Badge>}
           </Button>
         </Tip>
       ))}

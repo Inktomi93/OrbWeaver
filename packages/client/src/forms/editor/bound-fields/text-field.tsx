@@ -52,7 +52,7 @@ export function TextField(props: TextFieldProps): ReactElement {
         {canReveal ? (
           <Button
             type="button"
-            intent="ghost"
+            variant="ghost"
             size="glyph-md"
             aria-label={revealed ? "Hide key" : "Show key"}
             aria-pressed={revealed}

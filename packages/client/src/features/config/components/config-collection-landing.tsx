@@ -174,7 +174,7 @@ function CollectionControlRow({
         </Row>
         {filter === "" ? null : (
           <Button
-            intent="ghost"
+            variant="ghost"
             size="sm"
             type="button"
             onClick={(): void => {
@@ -215,12 +215,7 @@ function CollectionCreate({ collection, inBand = false }: { readonly collection:
   };
   if (askName === undefined || !asking) {
     return (
-      <Button
-        intent="primary"
-        onClick={(): void => (askName === undefined ? run() : setAsking(true))}
-        type="button"
-        {...(inBand ? { size: "sm" as const } : {})}
-      >
+      <Button onClick={(): void => (askName === undefined ? run() : setAsking(true))} type="button" {...(inBand ? { size: "sm" as const } : {})}>
         {inBand ? <Icon icon={Plus} size="sm" /> : null}
         {label}
       </Button>
@@ -257,10 +252,10 @@ function CollectionCreate({ collection, inBand = false }: { readonly collection:
             value={name}
           />
           <Row className="shrink-0 flex-wrap max-inline-full" gap="field">
-            <Button disabled={trimmed === "" || pending} intent="primary" type="submit" {...(inBand ? { size: "sm" as const } : {})}>
+            <Button disabled={trimmed === "" || pending} type="submit" {...(inBand ? { size: "sm" as const } : {})}>
               Create
             </Button>
-            <Button intent="ghost" onClick={cancel} type="button" {...(inBand ? { size: "sm" as const } : {})}>
+            <Button variant="ghost" onClick={cancel} type="button" {...(inBand ? { size: "sm" as const } : {})}>
               Cancel
             </Button>
           </Row>
@@ -287,7 +282,7 @@ function BulkToggleButton({ bulk }: { readonly bulk: NonNullable<CollectionContr
   return (
     // LABELLED, not icon-only (board 04 draws "✓ Select scripts"): entering a bulk MODE changes what every
     // row is, and a bare glyph beside four other controls is not a name a reader can act on.
-    <Button aria-pressed={mode.active} intent="ghost" onClick={mode.toggle} size="sm" type="button">
+    <Button aria-pressed={mode.active} variant="ghost" onClick={mode.toggle} size="sm" type="button">
       <Icon icon={ListChecks} size="sm" />
       {bulk.label}
     </Button>
@@ -318,7 +313,7 @@ function ImportOverflow({ door }: { readonly door: NonNullable<CollectionContrib
         <Menu>
           <MenuTrigger
             render={
-              <Button aria-label="More library actions" intent="ghost" size="icon-sm">
+              <Button aria-label="More library actions" variant="ghost" size="icon-sm">
                 <Icon icon={MoreVertical} size="sm" />
               </Button>
             }
@@ -358,7 +353,7 @@ function CollectionInsightList({ insights }: { readonly insights: readonly Colle
             <Button
               aria-label={`${insight.open.label}: ${insight.label}`}
               className="ms-auto wrap-anywhere max-inline-full"
-              intent="ghost"
+              variant="ghost"
               onClick={insight.open.run}
               size="wrap"
               type="button"

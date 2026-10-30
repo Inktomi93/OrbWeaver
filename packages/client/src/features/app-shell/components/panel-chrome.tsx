@@ -152,7 +152,7 @@ export function PanelChrome({
             <Button
               aria-label={label === undefined ? "Close panel" : `Close ${label}`}
               data-slot="panel-overlay-close"
-              intent="ghost"
+              variant="ghost"
               onClick={onDismiss}
               size="icon"
               type="button"

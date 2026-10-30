@@ -66,7 +66,7 @@ export function HomeRecentsTileBody(): ReactElement {
       <Stack className="min-block-(--height-home-recents-empty)" justify="center">
         <EmptyState
           action={
-            <Button intent="secondary" onClick={(): void => openNewChatPicker()} size="sm">
+            <Button variant="outline" onClick={(): void => openNewChatPicker()} size="sm">
               <Icon icon={Plus} size="sm" />
               New chat
             </Button>

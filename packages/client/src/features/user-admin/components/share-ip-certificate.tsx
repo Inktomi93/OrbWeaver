@@ -19,11 +19,11 @@ import { ShareProse, ShareWarningText } from "./share-prose.tsx";
 const PORT_MIN = 1;
 const PORT_MAX = 65_535;
 
-const STATE_BADGE: Record<IpCertificateStatus["state"], { readonly label: string; readonly intent: "success" | "info" | "neutral" | "danger" }> = {
-  off: { label: "Off", intent: "neutral" },
-  obtaining: { label: "Getting a certificate", intent: "info" },
-  active: { label: "https on", intent: "success" },
-  failed: { label: "Plain http only", intent: "danger" },
+const STATE_BADGE: Record<IpCertificateStatus["state"], { readonly label: string; readonly tone: "success" | "info" | "neutral" | "destructive" }> = {
+  off: { label: "Off", tone: "neutral" },
+  obtaining: { label: "Getting a certificate", tone: "info" },
+  active: { label: "https on", tone: "success" },
+  failed: { label: "Plain http only", tone: "destructive" },
 };
 
 function httpAddress(address: string): string {
@@ -47,7 +47,7 @@ export function ShareIpCertificate({ mode, certificate }: ShareIpCertificateProp
       {/* Announced as it changes; the card's own status row stays the one `status` role. */}
       <Row gap="field" align="baseline" className="flex-wrap" aria-live="polite">
         <Text voice="label">HTTPS at your public address</Text>
-        <Badge intent={badge.intent}>{badge.label}</Badge>
+        <Badge tone={badge.tone}>{badge.label}</Badge>
       </Row>
       <CertificateBody certificate={certificate} />
     </Stack>
@@ -112,7 +112,7 @@ function TurnOff(): ReactElement {
   const disable = useDisableIpCertificate({ trpc, invalidation });
   return (
     <Row gap="field" align="center">
-      <Button type="button" intent="secondary" size="sm" loading={disable.isPending} onClick={(): void => disable.mutate()}>
+      <Button type="button" variant="outline" size="sm" loading={disable.isPending} onClick={(): void => disable.mutate()}>
         Turn off https
       </Button>
     </Row>
@@ -168,7 +168,7 @@ function Offer({ initial }: { readonly initial: IpCertificateSetting | null }): 
       <Row gap="field" align="center">
         <Button
           type="button"
-          intent={initial === null ? "secondary" : "primary"}
+          variant={initial === null ? "outline" : "solid"}
           size="sm"
           loading={enable.isPending}
           onClick={(): void => {

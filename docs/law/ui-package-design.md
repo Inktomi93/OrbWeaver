@@ -180,7 +180,7 @@ Node token-authoring homes and type-only reexports follow [Spine-TypeScript §7.
 
 ## 5. Variants — the tailwind-variants conventions
 
-> **Button defaults to `intent="primary"`** (`defaultVariants`) — a bare `<Button>` renders ember. Inspect rendered button variants when auditing accents; do not infer behavior from a text match. (D66.)
+> **Button defaults to `variant="solid" tone="primary"`, the focal action with the CTA lift** — a bare `<Button>` renders ember. `focal={false}` drops the lift (D336). Inspect rendered button variants when auditing accents; do not infer behavior from a text match. (D66.)
 
 - Every styled primitive has a `variants.ts` exporting a `tv()` config; multi-part primitives use
   **`slots`** (D54). Component props extend `VariantProps<typeof x>` — **a bad variant is a `tsc`

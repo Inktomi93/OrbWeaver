@@ -40,7 +40,7 @@ function NpcRelationship({ name, relationship, onEditRelationshipKind, relations
           render={
             <Button
               type="button"
-              intent="ghost"
+              variant="ghost"
               size="inline"
               aria-label={`${name} relationship: ${kind}`}
               // The PILL shape + zero padding when a badge shows: the trigger's hover highlight must hug the
@@ -52,7 +52,7 @@ function NpcRelationship({ name, relationship, onEditRelationshipKind, relations
               {badge ?? (
                 <>
                   {relationshipGlyph}
-                  <Text as="span" tone="muted" voice="label">
+                  <Text as="span" ink="muted" voice="label">
                     + relationship
                   </Text>
                 </>
@@ -66,7 +66,7 @@ function NpcRelationship({ name, relationship, onEditRelationshipKind, relations
               <Button
                 key={option}
                 type="button"
-                intent={option === kind ? "secondary" : "ghost"}
+                variant={option === kind ? "outline" : "ghost"}
                 size="sm"
                 className="justify-start"
                 onClick={(): void => {
@@ -119,11 +119,11 @@ function NpcGuides({ name, appearance, outfit, thoughts, onEditGuide }: NpcGuide
     <Stack gap="field" data-slot="npc-guides">
       {shown.map(({ field, text }) => (
         <Row key={field} gap="field" align="baseline" className="min-inline-0">
-          <Text as="span" tone="muted" className="shrink-0" voice="gloss">
+          <Text as="span" ink="muted" className="shrink-0" voice="gloss">
             {field}
           </Text>
           {onEditGuide === undefined ? (
-            <Text as="span" tone="muted" italic={field === "thoughts"} className={GUIDE_LINE} voice="gloss" prose={true}>
+            <Text as="span" ink="muted" italic={field === "thoughts"} className={GUIDE_LINE} voice="gloss" prose={true}>
               {text}
             </Text>
           ) : (
@@ -131,7 +131,7 @@ function NpcGuides({ name, appearance, outfit, thoughts, onEditGuide }: NpcGuide
               ariaLabel={`${name} ${field}`}
               restAriaLabel={`${name} ${field}: ${text}`}
               display={text}
-              tone="muted"
+              ink="muted"
               onEdit={(next): void => onEditGuide(field, next)}
               wrap={true}
               className={GUIDE_FIELD}
@@ -163,7 +163,7 @@ function NpcMood({ name, mood, onEditMood }: NpcMoodProps): ReactElement | null 
     // screenshot, 08-01). justify-end keeps the slot hugging the card's right edge like the mock.
     return (
       <Row gap="field" align="baseline" className="flex-1 justify-end min-inline-0">
-        <Text as="span" tone="muted" className="shrink-0" voice="gloss">
+        <Text as="span" ink="muted" className="shrink-0" voice="gloss">
           mood
         </Text>
         <TrackerValue
@@ -183,7 +183,7 @@ function NpcMood({ name, mood, onEditMood }: NpcMoodProps): ReactElement | null 
     return null;
   }
   return (
-    <Text as="span" tone="muted" className="wrap-break-word min-inline-0" voice="gloss" prose={true}>
+    <Text as="span" ink="muted" className="wrap-break-word min-inline-0" voice="gloss" prose={true}>
       mood — {mood}
     </Text>
   );
@@ -252,7 +252,7 @@ export function NpcCard({
   relationshipGlyph,
 }: NpcCardProps): ReactElement {
   return (
-    <Card tone="neutral">
+    <Card>
       <Stack gap="block" data-slot="npc-card">
         <Row justify="between" align="baseline" gap="block">
           <Row gap="field" align="center" className="min-inline-0">

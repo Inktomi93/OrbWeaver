@@ -26,9 +26,10 @@ import { testId } from "#lib";
 import type { SendRefusal } from "../hooks/use-send-availability.ts";
 
 // A draft waiting to send: a compact solid disc at the glyph box (32px; the 44px hit area stays invisible), the
-// messenger convention. With nothing to send the glyph rests muted on no fill.
-function sendLook(ready: boolean): { readonly intent: "solid" | "ghost"; readonly tone: "default" | "muted" } {
-  return ready ? { intent: "solid", tone: "default" } : { intent: "ghost", tone: "muted" };
+// messenger convention, without the focal lift: the room's one focal action is not this glyph. With nothing to send
+// the glyph rests muted on no fill.
+function sendLook(ready: boolean): { readonly focal: false } | { readonly variant: "ghost"; readonly ink: "muted" } {
+  return ready ? { focal: false } : { variant: "ghost", ink: "muted" };
 }
 
 export interface ComposerSendControlProps {
@@ -54,7 +55,7 @@ export function ComposerSendControl(props: ComposerSendControlProps): ReactEleme
           render={
             <Button
               type="button"
-              intent="secondary"
+              variant="outline"
               size="glyph-lg"
               loading={props.stopping}
               disabled={props.stopping}

@@ -21,7 +21,7 @@ export function SkipToFirstRow({
   return (
     <Button
       className="not-focus-visible:sr-only focus-visible:self-start"
-      intent="secondary"
+      variant="outline"
       onClick={(): void => containerRef.current?.querySelector<HTMLElement>(FIRST_ROW)?.focus()}
       size="sm"
       type="button"

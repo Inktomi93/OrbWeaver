@@ -22,11 +22,7 @@ export function ListPaneHeaderStory({ title, accent, count, withBack = false, wi
     ...(withBack ? { back: { label: "Back to all characters", onClick: (): void => setBacks((value) => value + 1) } } : {}),
     ...(withAction
       ? {
-          action: (
-            <Button intent="primary" onClick={(): void => setActions((value) => value + 1)}>
-              New chat
-            </Button>
-          ),
+          action: <Button onClick={(): void => setActions((value) => value + 1)}>New chat</Button>,
         }
       : {}),
     overlay: backs === 0 && actions === 0 ? null : <output>{`Back activated ${String(backs)}; action activated ${String(actions)}`}</output>,

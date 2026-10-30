@@ -170,7 +170,7 @@ function RowMarkers({
       {alsoAt.length === 0 ? null : (
         // The count is for the eye: each other tier draws this row under its own heading on the same panel.
         <>
-          <Badge aria-hidden={true} intent="neutral" size="inline" tone="soft">
+          <Badge aria-hidden={true} size="inline">
             +{alsoAt.length}
           </Badge>
           <Text as="span" className="sr-only">
@@ -178,16 +178,8 @@ function RowMarkers({
           </Text>
         </>
       )}
-      {enabled ? null : (
-        <Badge intent="neutral" size="inline" tone="soft">
-          OFF
-        </Badge>
-      )}
-      {notYours ? (
-        <Badge intent="neutral" size="inline" tone="soft">
-          previous host
-        </Badge>
-      ) : null}
+      {enabled ? null : <Badge size="inline">OFF</Badge>}
+      {notYours ? <Badge size="inline">previous host</Badge> : null}
     </Row>
   );
 }

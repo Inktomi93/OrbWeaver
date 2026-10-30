@@ -225,7 +225,7 @@ function GenerateRow({
       <Button
         aria-busy={busy}
         disabled={busy || description.trim().length === 0}
-        intent="secondary"
+        variant="outline"
         onClick={(): void => {
           generate.mutate({ description, stage, arm }, { onSuccess: onLand });
         }}
@@ -263,7 +263,7 @@ function RefineRow({
       </Field>
       <Button
         disabled={busy}
-        intent="secondary"
+        variant="outline"
         onClick={(): void => {
           const instruction = instructionRef.current?.value.trim() ?? "";
           if (instruction.length > 0) {
@@ -394,7 +394,7 @@ export function SchemaEditorDialog({ open, onOpenChange, stage, editing, onSaved
               both are invisible: a reader looking at the longest authoring surface in the app could not
               SEE how to leave it without saving. It rides `requestClose`, so Cancel and Escape are one
               behaviour rather than two that drift. */}
-          <Button intent="ghost" onClick={requestClose} size="sm" type="button">
+          <Button variant="ghost" onClick={requestClose} size="sm" type="button">
             Cancel
           </Button>
           <Button

@@ -82,7 +82,7 @@ import { CountText } from "./count-text.tsx";
  * to say in `state` or `lib`. A consumer that needs to NAME an arm derives it — `BandProps["chevron"]` —
  * which is the §5.5 "one importable union, never re-spelled" shape with the union's one home right here.
  */
-export interface BandProps extends Omit<ButtonBaseProps, "children" | "intent" | "shape" | "selection" | "size"> {
+export interface BandProps extends Omit<ButtonBaseProps, "children" | "variant" | "tone" | "focal" | "shape" | "selection" | "size"> {
   /** The region's name — the band's visible label and, absent an `aria-label`, its accessible name. */
   readonly label: string;
   /** The chevron gutter's three arms. `reserved` keeps the BOX and drops the paint — a band with nothing to
@@ -129,7 +129,7 @@ export function Band({ label, chevron, icon, count, censusAlign = "trailing", ma
       className={cn(BAND_CHASSIS, className) ?? ""}
       selection="rail"
       data-selected={current ? "" : undefined}
-      intent="ghost"
+      variant="ghost"
       size="sm"
       type="button"
       {...rest}

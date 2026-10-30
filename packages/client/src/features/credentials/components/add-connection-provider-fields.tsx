@@ -96,7 +96,7 @@ export function ProviderFields({
   if (keyStorageBlocks(provider, keyStorage)) {
     return (
       <EmptyState
-        action={<DialogClose render={<Button intent="secondary">Close</Button>} />}
+        action={<DialogClose render={<Button variant="outline">Close</Button>} />}
         description={KEY_STORAGE_OFF_COPY.description}
         icon={<Icon icon={LockOpen} size="md" />}
         title={KEY_STORAGE_OFF_COPY.title}

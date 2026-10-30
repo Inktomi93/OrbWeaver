@@ -17,7 +17,7 @@ import { useState } from "react";
 import { ConfirmDialog, RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
 import { timeLib } from "#lib";
-import { ROLE_BADGE_INTENT, ROLE_ITEMS, ROLE_LABELS, userActionsName, userEnabledFieldName, userRoleFieldName } from "../lib/admin-model.ts";
+import { ROLE_BADGE_TONE, ROLE_ITEMS, ROLE_LABELS, userActionsName, userEnabledFieldName, userRoleFieldName } from "../lib/admin-model.ts";
 
 type AdminUser = inferOutput<Trpc["admin"]["listUsers"]>[number];
 
@@ -50,8 +50,12 @@ export function AdminUserRow(props: AdminUserRowProps): ReactElement {
         subtitle={subtitle}
         actions={
           <Row align="center" gap="row">
-            {isOwnerRow ? <Badge intent={ROLE_BADGE_INTENT[user.role]}>{ROLE_LABELS[user.role]}</Badge> : null}
-            {user.enabled ? null : <Badge intent="danger">Disabled</Badge>}
+            {isOwnerRow ? <Badge tone={ROLE_BADGE_TONE[user.role]}>{ROLE_LABELS[user.role]}</Badge> : null}
+            {user.enabled ? null : (
+              <Badge tone="destructive" variant="solid">
+                Disabled
+              </Badge>
+            )}
             {isOwnerRow ? null : (
               <Select
                 aria-label={userRoleFieldName(user.handle)}

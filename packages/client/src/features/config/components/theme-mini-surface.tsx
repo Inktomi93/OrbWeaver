@@ -66,7 +66,7 @@ function MiniRoom(): ReactElement {
       {/* CARD + SHAPE + INK: the theme's own card tone, radius and hairline, with a foreground sample on
           it — the pair a theme exists to keep readable, and the one pair that clears 3:1 on both
           polarities without asking two ramp neighbours to do something they cannot. */}
-      <Card className="min-inline-0" padding="none" shadow="none" shape="row">
+      <Card className="min-inline-0" padding="none" shape="row">
         <Row align="center" className="p-tight min-inline-0" gap="tight">
           <Swatch className="flex-1 block-(--size-preview-line) min-inline-0" fill="foreground" shape="pill" />
         </Row>

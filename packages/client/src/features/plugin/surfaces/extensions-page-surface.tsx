@@ -103,7 +103,7 @@ function NoPages({ empty }: { readonly empty: ExtensionsEmptyView }): ReactEleme
     return (
       <CentredEmpty
         action={
-          <Button intent="secondary" onClick={(): void => reviewFirstWaiting(empty.awaitingPlugins)} size="sm">
+          <Button variant="outline" onClick={(): void => reviewFirstWaiting(empty.awaitingPlugins)} size="sm">
             {waiting.action}
           </Button>
         }
@@ -116,7 +116,7 @@ function NoPages({ empty }: { readonly empty: ExtensionsEmptyView }): ReactEleme
   return (
     <CentredEmpty
       action={
-        <Button intent="secondary" onClick={(): void => openConfigTo("plugins", copy.sub)} size="sm">
+        <Button variant="outline" onClick={(): void => openConfigTo("plugins", copy.sub)} size="sm">
           {copy.action}
         </Button>
       }
@@ -131,11 +131,11 @@ function NoPages({ empty }: { readonly empty: ExtensionsEmptyView }): ReactEleme
 function NoSelection({ empty }: { readonly empty: ExtensionsEmptyView }): ReactElement {
   const action =
     empty.awaitingPlugins.length > 0 ? (
-      <Button intent="secondary" onClick={(): void => reviewFirstWaiting(empty.awaitingPlugins)} size="sm">
+      <Button variant="outline" onClick={(): void => reviewFirstWaiting(empty.awaitingPlugins)} size="sm">
         {EXTENSIONS_REVIEW_PLUGINS_ACTION}
       </Button>
     ) : (
-      <Button intent="secondary" onClick={(): void => openConfigTo("plugins")} size="sm">
+      <Button variant="outline" onClick={(): void => openConfigTo("plugins")} size="sm">
         {EXTENSIONS_OPEN_PLUGINS_ACTION}
       </Button>
     );
@@ -223,7 +223,7 @@ export function ExtensionsPageSurface(): ReactElement {
       <InsetPane surfaceRef={surfaceRef}>
         <CentredEmpty
           action={
-            <Button intent="secondary" onClick={(): void => openConfigTo("plugins")} size="sm">
+            <Button variant="outline" onClick={(): void => openConfigTo("plugins")} size="sm">
               {EXTENSIONS_OPEN_PLUGINS_ACTION}
             </Button>
           }

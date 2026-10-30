@@ -170,7 +170,7 @@ function ContextBody({ documentId }: { readonly documentId: DocumentId }): React
                 exact subcategory. A path a user has to retrace by hand is a control we declined to render. */}
             <Button
               className="self-start"
-              intent="ghost"
+              variant="ghost"
               // The category + subcategory as LITERALS, the house spelling for a settings deep link
               // (`openConfigTo("workloads", "jobs")`, `openConfigTo("chat-behavior", "memory")`).
               // The `DATABANK_SETTINGS_SUBCATEGORY` const that carries the same id lives in `features/chat`

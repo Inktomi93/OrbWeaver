@@ -115,7 +115,7 @@ function CharacterBarStrip({
           </Avatar>
           {/* `sr-only` at every pointer: the topbar title names the cast on screen, and the name keeps its
               place in the accessibility tree. */}
-          <Text as="span" className="sr-only" tone={member.disabled ? "muted" : "default"} voice="label">
+          <Text as="span" className="sr-only" ink={member.disabled ? "muted" : undefined} voice="label">
             {member.displayName}
           </Text>
         </Row>
@@ -160,7 +160,7 @@ function HumanChips({ humans }: { readonly humans: readonly ParticipantView[] })
         </Row>
       ))}
       {overflow > 0 ? (
-        <Text as="span" tone="muted" voice="code">
+        <Text as="span" ink="muted" voice="code">
           +{overflow}
         </Text>
       ) : null}

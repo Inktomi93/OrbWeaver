@@ -9,17 +9,17 @@ import { Text } from "@orb/ui/text";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { testId } from "#lib";
 
-/** The chip's tones: the render-hint vocabulary plus `accent`, the palette's own state tint for session chrome
+/** The chip's tones: the render-hint vocabulary plus `accent`, the palette's own primary for session chrome
  *  (a status, not a payload verdict — so it never borrows a semantic hue such as `info`). */
 type RefineryChipTone = RenderHintTone | "accent";
 
-const TONE_INTENT: Record<RefineryChipTone, NonNullable<ComponentProps<typeof Badge>["intent"]>> = {
+const CHIP_BADGE_TONE: Record<RefineryChipTone, NonNullable<ComponentProps<typeof Badge>["tone"]>> = {
   good: "success",
   warn: "warning",
-  bad: "danger",
+  bad: "destructive",
   info: "info",
   neutral: "neutral",
-  accent: "accent",
+  accent: "primary",
 };
 
 // The word carries its render-hint on `data-hint-tone`, never `data-tone`: `@orb/ui` is the one writer of `data-tone`
@@ -33,9 +33,9 @@ export interface RefineryChipProps {
 }
 
 export function RefineryChip({ tone = "neutral", wrap = false, children }: RefineryChipProps): ReactElement {
-  // The kicker voice carries the micro-caps grammar; `ink="inherit"` takes the intent's paired ink.
+  // The kicker voice carries the micro-caps grammar; `ink="inherit"` takes the badge's own ink.
   return (
-    <Badge className={wrap ? "whitespace-normal max-inline-full" : undefined} data-testid={testId("refineryChip")} intent={TONE_INTENT[tone]} size="compact">
+    <Badge className={wrap ? "whitespace-normal max-inline-full" : undefined} data-testid={testId("refineryChip")} tone={CHIP_BADGE_TONE[tone]} size="compact">
       <Text as="span" data-hint-tone={tone} ink="inherit" voice="kicker">
         {children}
       </Text>

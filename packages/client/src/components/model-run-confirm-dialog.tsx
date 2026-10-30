@@ -32,7 +32,7 @@ export function ModelRunConfirmDialog({ pending, onOpenChange, nested }: ModelRu
   return (
     <ConfirmDialog
       body={utility.kind === "unset" || utility.kind === "blocked" ? <UtilityModelDoor /> : undefined}
-      confirmIntent="primary"
+      confirmTone="primary"
       confirmLabel={pending.confirmLabel}
       description={modelRunCostSentence(pending.calls, utility, pending.recurring === true)}
       onConfirm={pending.run}

@@ -27,7 +27,7 @@ export function GalleryLoadMore({ hasNextPage, isFetchingNextPage, failed, onLoa
         </Text>
       ) : null}
       <Row justify="center">
-        <Button intent="secondary" size="sm" loading={isFetchingNextPage} onClick={onLoadMore}>
+        <Button variant="outline" size="sm" loading={isFetchingNextPage} onClick={onLoadMore}>
           Load more
         </Button>
       </Row>

@@ -197,12 +197,7 @@ export function FirstRunPersonaDialog(): ReactElement | null {
         <Textarea value={description} onChange={(event): void => setDescription(event.target.value)} />
       </Field>
       <DialogFooter>
-        <Button
-          intent="primary"
-          disabled={!canSubmit}
-          data-testid={testId("firstRunPersonaCreate")}
-          onClick={(): void => void submit().catch(globalThis.reportError)}
-        >
+        <Button disabled={!canSubmit} data-testid={testId("firstRunPersonaCreate")} onClick={(): void => void submit().catch(globalThis.reportError)}>
           {submitLabel}
         </Button>
       </DialogFooter>

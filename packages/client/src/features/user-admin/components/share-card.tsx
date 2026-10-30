@@ -27,12 +27,12 @@ const SHARE_CARD_TITLE = "Share over the internet";
 
 type ShareView = ReturnType<typeof shareView>;
 
-const PHASE_BADGE: Record<(typeof SHARE_PHASES)[number], { readonly label: string; readonly intent: "success" | "info" | "neutral" | "danger" }> = {
-  off: { label: "Not sharing", intent: "neutral" },
-  starting: { label: "Starting", intent: "info" },
-  up: { label: "Sharing", intent: "success" },
-  restarting: { label: "Down", intent: "danger" },
-  stopped: { label: "Down", intent: "danger" },
+const PHASE_BADGE: Record<(typeof SHARE_PHASES)[number], { readonly label: string; readonly tone: "success" | "info" | "neutral" | "destructive" }> = {
+  off: { label: "Not sharing", tone: "neutral" },
+  starting: { label: "Starting", tone: "info" },
+  up: { label: "Sharing", tone: "success" },
+  restarting: { label: "Down", tone: "destructive" },
+  stopped: { label: "Down", tone: "destructive" },
 };
 
 // Where focus that fell to the page goes in each phase: the relay's own controls while it starts, restarts or has
@@ -46,7 +46,7 @@ const PHASE_FOCUS: Record<(typeof SHARE_PHASES)[number], "stop" | "tryAgain" | n
 };
 
 // An oidc box needs no relay: the badge names what it already is.
-const PUBLIC_BADGE = { label: "Public", intent: "success" } as const;
+const PUBLIC_BADGE = { label: "Public", tone: "success" } as const;
 
 const RELAY_NAME: Record<ShareRelayKind, string> = {
   quick: "Cloudflare quick tunnel",
@@ -189,7 +189,7 @@ function ShareCardBody({ localMultiUser, discreetLogin, onEnableSeating }: Share
       {publicOnly ? null : <ShareProse>A public link to this server over a free relay, so friends outside your network can sign in.</ShareProse>}
       {/* Baseline, not center: at phone width the sentence runs to several lines, and the badge labels its first. */}
       <Row gap="field" align="baseline" role="status" aria-live="polite">
-        <Badge intent={badge.intent}>{badge.label}</Badge>
+        <Badge tone={badge.tone}>{badge.label}</Badge>
         <ShareProse>
           {publicOnly ? "Friends sign in at this server's own address through your identity provider, so invite them there." : stateSentence(view)}
         </ShareProse>
@@ -236,12 +236,12 @@ function ShareCardBody({ localMultiUser, discreetLogin, onEnableSeating }: Share
       )}
       <Row gap="field" align="center" className="flex-wrap">
         {view.phase === "stopped" ? (
-          <Button ref={tryAgainRef} type="button" intent="primary" size="sm" loading={start.isPending} onClick={startSharing}>
+          <Button ref={tryAgainRef} type="button" size="sm" loading={start.isPending} onClick={startSharing}>
             Try again
           </Button>
         ) : null}
         {view.phase === "off" ? null : (
-          <Button ref={stopRef} type="button" intent="secondary" size="sm" onClick={(): void => setStopOpen(true)}>
+          <Button ref={stopRef} type="button" variant="outline" size="sm" onClick={(): void => setStopOpen(true)}>
             Stop sharing
           </Button>
         )}
@@ -306,7 +306,9 @@ function UpPanel({ url, changed, plainHttp, linkCopyRef, onDismissChange }: UpPa
       </CopyButton>
       <Stack gap="tight" role="note" data-share-warning="public-link">
         <Row gap="field" align="center">
-          <Badge intent="warning">Public link</Badge>
+          <Badge tone="warning" variant="solid">
+            Public link
+          </Badge>
         </Row>
         <ShareWarningText>
           Anyone with this link reaches your sign-in page, and only an account gets past it: one made in Users, or one a sign-up link creates. An account a
@@ -352,7 +354,9 @@ function LinkChangedNotice({ onDismiss }: { readonly onDismiss: () => void }): R
   return (
     <Stack gap="tight" data-share-notice="link-changed">
       <Row gap="field" align="center" className="flex-wrap">
-        <Badge intent="warning">Link changed</Badge>
+        <Badge tone="warning" variant="solid">
+          Link changed
+        </Badge>
         <ShareWarningText role="alert">Your friends need the new link below</ShareWarningText>
       </Row>
       <ShareProse>Send it to your friends again. The old link is dead, and the relay cannot forward anyone from it.</ShareProse>
@@ -364,7 +368,7 @@ function LinkChangedNotice({ onDismiss }: { readonly onDismiss: () => void }): R
         Old invite links still work if you replace their host with the new one. To be safe, revoke and mint them again from the room's invite dialog.
       </ShareProse>
       <Row gap="field" align="center">
-        <Button type="button" intent="secondary" size="sm" onClick={onDismiss}>
+        <Button type="button" variant="outline" size="sm" onClick={onDismiss}>
           Dismiss the link notice
         </Button>
       </Row>
@@ -388,7 +392,7 @@ function SignEveryoneOut(): ReactElement {
         confirmLabel="Sign everyone out"
         onConfirm={(): Promise<void> => Promise.all(members.map((member) => revoke.mutateAsync({ userId: member.id }))).then(() => undefined)}
         trigger={
-          <Button type="button" intent="secondary" size="sm" disabled={nobody} focusableWhenDisabled={true} aria-describedby={nobody ? describedId : undefined}>
+          <Button type="button" variant="outline" size="sm" disabled={nobody} focusableWhenDisabled={true} aria-describedby={nobody ? describedId : undefined}>
             Sign everyone out
           </Button>
         }

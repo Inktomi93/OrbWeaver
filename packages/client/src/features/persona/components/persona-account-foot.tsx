@@ -42,7 +42,7 @@ export function PersonaAccountFoot(): ReactElement {
       </Row>
       {canLogout ? (
         <Button
-          intent="ghost"
+          variant="ghost"
           size="sm"
           className="justify-start"
           disabled={signingOut}

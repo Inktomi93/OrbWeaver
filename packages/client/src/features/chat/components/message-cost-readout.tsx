@@ -55,14 +55,14 @@ export function MessageCostReadout({ message }: { readonly message: MessageView 
     return (
       <Button
         type="button"
-        intent="ghost"
+        variant="ghost"
         size="sm"
         aria-label="Show generation cost"
         onClick={(): void => setRevealed(true)}
         data-slot="message-metadata-cost-trigger"
       >
         <Icon icon={Coins} size="xs" />
-        <Text tone="muted" voice="code">
+        <Text ink="muted" voice="code">
           cost
         </Text>
       </Button>
@@ -70,7 +70,7 @@ export function MessageCostReadout({ message }: { readonly message: MessageView 
   }
 
   return (
-    <Text tone="muted" voice="code" data-slot="message-metadata-cost">
+    <Text ink="muted" voice="code" data-slot="message-metadata-cost">
       {costLabel(query.isError, query.data?.totalCost)}
     </Text>
   );

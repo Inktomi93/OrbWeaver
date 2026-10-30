@@ -112,7 +112,7 @@ export function JoinInviteDialog({ token, onDone }: JoinInviteDialogProps): Reac
         <>
           <DialogDescription>{DEAD_INVITE_SENTENCE}</DialogDescription>
           <DialogFooter>
-            <Button intent="secondary" onClick={onDone} ref={primaryRef}>
+            <Button variant="outline" onClick={onDone} ref={primaryRef}>
               Close
             </Button>
           </DialogFooter>
@@ -122,15 +122,15 @@ export function JoinInviteDialog({ token, onDone }: JoinInviteDialogProps): Reac
         <>
           <DialogDescription>{inviteRoomSentence(state.preview)}</DialogDescription>
           <Stack gap="field">
-            <Text tone="muted" voice="label">
+            <Text ink="muted" voice="label">
               {state.preview.modeLabel}
             </Text>
           </Stack>
           <DialogFooter>
-            <Button intent="ghost" onClick={onDone}>
+            <Button variant="ghost" onClick={onDone}>
               Not now
             </Button>
-            <Button intent="primary" disabled={redeem.isPending} onClick={join} data-testid={testId("joinInviteConfirm")} ref={primaryRef}>
+            <Button disabled={redeem.isPending} onClick={join} data-testid={testId("joinInviteConfirm")} ref={primaryRef}>
               {redeem.isPending ? "Joining…" : "Join chat"}
             </Button>
           </DialogFooter>

@@ -292,7 +292,7 @@ function ChatListBody({
         // the LIST band's `New` when the general law is one door per plane, and why no allowance table row
         // is minted for it.
         action={
-          <Button intent="primary" onClick={onNewChat} size="sm">
+          <Button onClick={onNewChat} size="sm">
             <Icon icon={Plus} size="sm" />
             New chat
           </Button>

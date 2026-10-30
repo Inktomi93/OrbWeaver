@@ -87,7 +87,7 @@ function RosterRow(props: {
               {roster.name}
             </Text>
             {roster.rules.length > 0 ? (
-              <Badge className="shrink-0" intent="neutral" tone="soft">
+              <Badge className="shrink-0">
                 {roster.rules.length} rule{roster.rules.length === 1 ? "" : "s"}
               </Badge>
             ) : null}
@@ -96,35 +96,27 @@ function RosterRow(props: {
                 same face as one that only adds seats. Same badge grammar as the rules pill; the word is the
                 settings section's own ("Group behavior"), and the fact rides the apply doors' accessible
                 names through `rosterCountsSuffix` — a `<span>` badge has no name to carry it. */}
-            {roster.hasGroupConfig ? (
-              <Badge className="shrink-0" intent="neutral" tone="soft">
-                group behavior
-              </Badge>
-            ) : null}
-            {roster.game === null ? null : (
-              <Badge className="shrink-0" intent="neutral" tone="soft">
-                game
-              </Badge>
-            )}
+            {roster.hasGroupConfig ? <Badge className="shrink-0">group behavior</Badge> : null}
+            {roster.game === null ? null : <Badge className="shrink-0">game</Badge>}
           </Row>
           <Text voice="gloss" className="truncate">
             {characterCountPhrase(roster.characterCount)} · {memberNames}
           </Text>
         </Stack>
         <Row align="center" gap="tight" justify="end" className="shrink-0 flex-wrap">
-          <Button disabled={busy} intent="ghost" size="sm" onClick={(): void => onStart(roster)} aria-label={`Start a chat with ${roster.name}${counts}`}>
+          <Button disabled={busy} variant="ghost" size="sm" onClick={(): void => onStart(roster)} aria-label={`Start a chat with ${roster.name}${counts}`}>
             <Icon icon={MessagesSquare} size="sm" />
             Start
           </Button>
           {canAddToChat ? (
-            <Button disabled={busy} intent="ghost" size="sm" onClick={(): void => onAddToChat(roster)} aria-label={`Add ${roster.name} to this chat${counts}`}>
+            <Button disabled={busy} variant="ghost" size="sm" onClick={(): void => onAddToChat(roster)} aria-label={`Add ${roster.name} to this chat${counts}`}>
               <Icon icon={UserPlus} size="sm" />
               Add to chat
             </Button>
           ) : null}
           {/* The destructive door keeps a bare name: the counts inform CONSENT to apply, and a delete that
               recited them would read as though it were deleting the members too. */}
-          <Button disabled={busy} intent="ghost" size="icon-sm" onClick={(): void => onDelete(roster)} aria-label={`Delete ${roster.name}`}>
+          <Button disabled={busy} variant="ghost" size="icon-sm" onClick={(): void => onDelete(roster)} aria-label={`Delete ${roster.name}`}>
             <Icon icon={Trash2} size="sm" />
           </Button>
         </Row>
@@ -166,7 +158,7 @@ function RosterRulesIncludeLine(props: {
         <Text voice="gloss" prose={true} data-slot={INCLUDE_LINE_ID} id={INCLUDE_LINE_ID}>
           Couldn't check this room's rules.
         </Text>
-        <Button intent="ghost" size="sm" onClick={capture.retry}>
+        <Button variant="ghost" size="sm" onClick={capture.retry}>
           Retry
         </Button>
       </Row>
@@ -222,7 +214,7 @@ function SaveCurrentRoster(props: {
             aria-describedby={INCLUDE_LINE_ID}
             className="shrink-0"
             disabled={props.busy || trimmed.length === 0 || capture.status !== "ready" || game.status === "loading"}
-            intent="outline"
+            variant="outline"
             size="sm"
             onClick={(): void => {
               props.onSave(trimmed, campaign && game.status === "ready" ? game.template : null);
@@ -384,7 +376,7 @@ export function RosterPicker(): ReactElement {
           action={
             active?.isHost === true ? null : (
               <Button
-                intent="outline"
+                variant="outline"
                 size="sm"
                 onClick={(): void => {
                   closeModal();

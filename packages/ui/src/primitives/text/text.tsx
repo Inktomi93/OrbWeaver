@@ -1,6 +1,7 @@
 import type { ComponentProps, ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
-import { INK_TONE, variantProps } from "#lib";
+import type { ToneInkSelection } from "#lib";
+import { variantProps } from "#lib";
 import { textVariants } from "./variants.ts";
 
 // <Text> paints body prose, never a heading — heading semantics belong to <Heading>.
@@ -21,10 +22,15 @@ const HEADING_SIZE_BY_LEVEL = {
   6: "title",
 } as const;
 
-export interface TextProps extends ComponentProps<"p">, VariantProps<typeof textVariants> {
+// The colour pair leaves the recipe's independent axes for `ToneInkSelection`, which makes them exclusive (D336).
+type TextAxes = Omit<VariantProps<typeof textVariants>, "tone" | "ink">;
+
+interface TextOwnProps extends ComponentProps<"p">, TextAxes {
   /** @defaultValue "p" — the body intrinsic to render. Headings use <Heading>, never `as="h1"`. */
   as?: TextElement;
 }
+
+export type TextProps = TextOwnProps & ToneInkSelection;
 
 /**
  * Token-driven typographic scale over the body intrinsics (p/span/div) — there is no Base UI text primitive.
@@ -39,7 +45,7 @@ export interface TextProps extends ComponentProps<"p">, VariantProps<typeof text
  * of ONE item in a shelf of them, title step — `ListRow`'s `titleStep="promoted"` as a voice)): the voice grammar
  * is what makes a surface's hierarchy
  * legible instead of uniformly loud. `size`/`weight`/`transform` are the ui-package-internal axes a voice is
- * BUILT from. `tone` is colour by meaning and `strike` a line-through, both feature axes beside the voice;
+ * BUILT from. `tone` is colour by meaning, `ink` a named ink (exclusive with a non-neutral tone) and `strike` a line-through, feature axes beside the voice;
  * `hiddenAt`/`srOnlyAt` swap the text out per pointer class.
  */
 export function Text({
@@ -102,16 +108,18 @@ export function Text({
           hoverCue,
         },
         className,
-        INK_TONE[tone ?? "default"],
+        tone ?? null,
       )}
     />
   );
 }
 
-export interface HeadingProps extends ComponentProps<"h1">, VariantProps<typeof textVariants> {
+interface HeadingOwnProps extends ComponentProps<"h1">, TextAxes {
   /** The heading rank 1-6 — REQUIRED, renders the matching real h1-h6 (no styled-div headings). */
   level: HeadingLevel;
 }
+
+export type HeadingProps = HeadingOwnProps & ToneInkSelection;
 
 /** Renders a real h1-h6 with the type-scale skin; `size` defaults from `level`, override for the rare hero.
  *  `voice="kicker"` is the section-NAME heading (the mocks' band label) — it keeps the document outline
@@ -172,7 +180,7 @@ export function Heading({
           hoverCue,
         },
         className,
-        INK_TONE[tone ?? "default"],
+        tone ?? null,
       )}
     />
   );

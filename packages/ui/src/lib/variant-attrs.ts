@@ -30,8 +30,8 @@
 // THE DOM COST IS ATTRIBUTES ONLY, WITH ONE PAINT CHANNEL. `data-tone` is also the D336 paint scope: the generated
 // `[data-tone="<tone>"]` blocks resolve the `--color-tone-*` roles on the stamped element. A primitive that reads a
 // tone utility passes its D336 tone to the door below, which writes it over the recipe arm; when that displaces an
-// arm the tone tuple does not name (a fill style such as Badge's `soft`), the arm moves to `data-variant`, so
-// the audit walker keeps the authored decision. No other stamped attribute may become a paint selector.
+// arm and the recipe stamps no `variant` of its own, the arm moves to `data-variant`, so the audit walker keeps the
+// authored decision. No other stamped attribute may become a paint selector.
 //
 // ENFORCER (a prose-only boundary is a wish, constitution §2): the `ui-variant-axes-stamped` gate — a `tv()`
 // recipe in `packages/ui/src` declaring a stamped axis must reach the DOM through one of these two doors,

@@ -202,10 +202,10 @@ function CorpusPairSurface({ destination }: { readonly destination: Extract<Corp
       {pair.kind === "chats" ? (
         <>
           <Text>{pair.relation}</Text>
-          <Button intent="secondary" onClick={(): void => resumeChat(pair.idA)}>
+          <Button variant="outline" onClick={(): void => resumeChat(pair.idA)}>
             Open {pair.nameA}
           </Button>
-          <Button intent="secondary" onClick={(): void => resumeChat(pair.idB)}>
+          <Button variant="outline" onClick={(): void => resumeChat(pair.idB)}>
             Open {pair.nameB}
           </Button>
         </>
@@ -221,10 +221,10 @@ function CharacterPair({ pair }: { readonly pair: Extract<Extract<CorpusDestinat
   return (
     <Stack gap="block">
       <CompareResult idA={pair.idA} idB={pair.idB} deep={deep} onDeep={(): void => setDeep(true)} />
-      <Button intent="secondary" onClick={(): void => selectCorpusCharacter(pair.idA)}>
+      <Button variant="outline" onClick={(): void => selectCorpusCharacter(pair.idA)}>
         Open {pair.nameA}
       </Button>
-      <Button intent="secondary" onClick={(): void => selectCorpusCharacter(pair.idB)}>
+      <Button variant="outline" onClick={(): void => selectCorpusCharacter(pair.idB)}>
         Open {pair.nameB}
       </Button>
     </Stack>
@@ -240,7 +240,7 @@ function CorpusImageSurface({ destination }: { readonly destination: Extract<Cor
       <Text>{hit.caption ?? "No caption recorded."}</Text>
       <Text voice="gloss">{hit.characterName === null ? "This asset is not worn by a character." : `Worn by ${hit.characterName}.`}</Text>
       {characterId === null ? null : (
-        <Button intent="secondary" onClick={(): void => selectCorpusCharacter(characterId)}>
+        <Button variant="outline" onClick={(): void => selectCorpusCharacter(characterId)}>
           Open wearing character
         </Button>
       )}

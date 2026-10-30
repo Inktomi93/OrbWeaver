@@ -247,7 +247,7 @@ function ScopeEditorBody({ onOpenChange, card, selection, score, onSave }: Omit<
       })}
       <DialogFooter>
         <Button
-          intent="ghost"
+          variant="ghost"
           onClick={(): void => {
             const populated = populatedSelection(card);
             setFields(populated.fields);
@@ -260,7 +260,7 @@ function ScopeEditorBody({ onOpenChange, card, selection, score, onSave }: Omit<
           Reset to populated
         </Button>
         {score !== null ? (
-          <Button intent="ghost" onClick={selectUnderBar} size="sm">
+          <Button variant="ghost" onClick={selectUnderBar} size="sm">
             Select what scored under {LOW_SCORE_BAR}
           </Button>
         ) : null}

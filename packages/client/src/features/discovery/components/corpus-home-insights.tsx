@@ -107,7 +107,7 @@ function NeverPlayedList({
         ))}
       </Stack>
       {showAll || characters.length <= NEVER_PLAYED_HEAD ? null : (
-        <Button className="self-start" intent="ghost" onClick={(): void => setShowAll(true)} size="sm">
+        <Button className="self-start" variant="ghost" onClick={(): void => setShowAll(true)} size="sm">
           {`Show all ${formatCount(characters.length)}`}
         </Button>
       )}

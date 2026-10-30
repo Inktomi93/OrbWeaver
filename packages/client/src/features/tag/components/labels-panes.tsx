@@ -47,7 +47,7 @@ export function LabelsContent(): ReactElement {
                 renderRetry={(refetch): ReactElement => (
                   <Stack gap="block">
                     {exit}
-                    <Button intent="ghost" onClick={refetch}>
+                    <Button variant="ghost" onClick={refetch}>
                       Retry
                     </Button>
                   </Stack>

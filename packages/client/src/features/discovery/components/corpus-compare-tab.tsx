@@ -84,7 +84,7 @@ function CompareBody(): ReactElement {
       />
       {ready ? (
         <Button
-          intent="secondary"
+          variant="outline"
           size="sm"
           onClick={(): void => selectCorpusArtifact({ kind: "pair", pair: { kind: "characters", idA, idB, nameA: aName, nameB: bName, score: null } })}
         >
@@ -183,7 +183,7 @@ export function CompareResult({
         {deep ? (
           <DeepNarrative isPending={deepDiff.isPending} error={deepDiff.error} narrative={deepDiff.data?.narrative ?? null} />
         ) : (
-          <Button intent="primary" size="sm" data-testid={testId("corpusCompareDeep")} onClick={onDeep}>
+          <Button size="sm" data-testid={testId("corpusCompareDeep")} onClick={onDeep}>
             <Icon icon={Sparkles} size="sm" />
             Deep compare
           </Button>
@@ -219,7 +219,7 @@ function DeepNarrative({
     return (
       <Stack gap="field" data-testid={testId("corpusCompareDeepDegraded")}>
         <Row align="center" gap="field">
-          <Badge intent="warning" size="sm">
+          <Badge tone="warning" variant="solid" size="sm">
             Unstructured reply
           </Badge>
           <Text voice="gloss">The model didn't return a comparison in the expected shape — this is its raw answer.</Text>
@@ -247,7 +247,7 @@ function TagLine({ label, tags }: { readonly label: string; readonly tags: reado
         <Text voice="gloss">—</Text>
       ) : (
         tags.map((tag) => (
-          <Badge key={tag} intent="neutral" size="sm">
+          <Badge key={tag} size="sm">
             {tag}
           </Badge>
         ))

@@ -166,7 +166,7 @@ function SystemTuningBody({ anchorId, sectionId }: { readonly anchorId: string; 
   return (
     <Section divider={true} heading={SYSTEM_TUNING_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="field">
-        <Text voice="label" tone="muted" prose={true} className="max-inline-(--reading-measure-prose)">
+        <Text voice="label" ink="muted" prose={true} className="max-inline-(--reading-measure-prose)">
           Deployment-wide runtime tuning. Each applies live (per request / batch / check). Absent knobs run on the deployment floor.
         </Text>
         <SettingRowGroup>

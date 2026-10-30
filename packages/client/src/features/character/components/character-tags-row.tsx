@@ -72,7 +72,7 @@ export function CharacterTagsRow({ characterId, tags, trpc }: CharacterTagsRowPr
         <Text id={labelId} voice="kicker">
           Tags
         </Text>
-        <Button disabled={tagWritePending} type="button" size="sm" intent="ghost" onClick={(): void => setOpen(true)}>
+        <Button disabled={tagWritePending} type="button" size="sm" variant="ghost" onClick={(): void => setOpen(true)}>
           <Icon icon={Plus} size="sm" />
           Add tag
         </Button>
@@ -85,12 +85,12 @@ export function CharacterTagsRow({ characterId, tags, trpc }: CharacterTagsRowPr
           <Text voice="gloss">{EMPTY_VALUE}</Text>
         ) : (
           visible.map((tag) => (
-            <Badge key={tag.id} size="sm" tone="soft">
+            <Badge key={tag.id} size="sm">
               <EditableTagChip tag={tag} />
               <Button
                 type="button"
                 size="icon"
-                intent="ghost"
+                variant="ghost"
                 aria-label={removeActionName(tag.name)}
                 disabled={tagWritePending}
                 onClick={(): void => {

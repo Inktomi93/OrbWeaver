@@ -92,7 +92,7 @@ export function PluginComposerActions({ chatId }: { readonly chatId: ChatId }): 
       <Menu>
         <MenuTrigger
           render={
-            <Button aria-label="Plugin actions" loading={isPending} intent="ghost" shape="pill" size="glyph-lg" type="button">
+            <Button aria-label="Plugin actions" loading={isPending} variant="ghost" shape="pill" size="glyph-lg" type="button">
               <Icon icon={Blocks} size="sm" />
             </Button>
           }

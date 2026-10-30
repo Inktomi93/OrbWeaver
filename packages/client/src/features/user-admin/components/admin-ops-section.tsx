@@ -31,7 +31,7 @@ export function AdminCatalogSection({ anchorId }: { readonly anchorId: string })
         <Text voice="gloss">Re-fetch the OpenRouter model catalog every OpenRouter connection browses. Runs live against the provider.</Text>
         <Row gap="field" align="center" className="flex-wrap">
           <Button
-            intent="secondary"
+            variant="outline"
             size="sm"
             disabled={refreshCatalog.isPending}
             onClick={(): void => refreshCatalog.mutate({ providerId: OPENROUTER_PROVIDER_ID })}
@@ -78,7 +78,7 @@ export function AdminEmbedCardSection({ anchorId }: { readonly anchorId: string 
               setDone(false);
             }}
           />
-          <Button intent="secondary" size="sm" disabled={trimmed === "" || embed.isPending} onClick={onEmbed}>
+          <Button variant="outline" size="sm" disabled={trimmed === "" || embed.isPending} onClick={onEmbed}>
             Embed card
           </Button>
         </Row>

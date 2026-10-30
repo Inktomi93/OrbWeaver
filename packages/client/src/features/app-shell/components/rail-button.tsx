@@ -57,7 +57,7 @@ export function RailButton({
       <TooltipTrigger
         render={
           <Button
-            intent="ghost"
+            variant="ghost"
             size="icon"
             aria-label={label}
             aria-describedby={describedById === undefined || describedById === "" ? undefined : describedById}

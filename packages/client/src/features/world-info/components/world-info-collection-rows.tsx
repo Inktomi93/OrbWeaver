@@ -199,7 +199,7 @@ function WorldInfoCollectionRow({ book, selected, onSelect, onDelete, onDuplicat
  *  "attached ×3" cannot say WHICH scope, and everywhere is the one scope with no other home. */
 function GlobalMarker(): ReactElement {
   return (
-    <Badge intent="info" size="sm">
+    <Badge tone="info" variant="solid" size="sm">
       Global
     </Badge>
   );

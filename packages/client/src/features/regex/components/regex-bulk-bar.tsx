@@ -125,7 +125,7 @@ export function RegexBulkBar({ ids, onClear, trpc }: RegexBulkBarProps): ReactEl
       <SelectionBar count={count} onClear={onClear}>
         <Button
           disabled={isPending}
-          intent="secondary"
+          variant="outline"
           onClick={(): void => {
             if (!admitEnabledWrite()) {
               return;
@@ -138,7 +138,7 @@ export function RegexBulkBar({ ids, onClear, trpc }: RegexBulkBarProps): ReactEl
         </Button>
         <Button
           disabled={isPending}
-          intent="secondary"
+          variant="outline"
           onClick={(): void => {
             if (!admitEnabledWrite()) {
               return;

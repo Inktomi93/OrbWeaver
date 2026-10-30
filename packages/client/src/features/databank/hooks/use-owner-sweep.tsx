@@ -79,7 +79,7 @@ export function useOwnerSweep(): OwnerSweep {
     },
     confirm: (
       <ConfirmDialog
-        confirmIntent="primary"
+        confirmTone="primary"
         confirmLabel={copy.confirmLabel}
         description={copy.description}
         onConfirm={run}

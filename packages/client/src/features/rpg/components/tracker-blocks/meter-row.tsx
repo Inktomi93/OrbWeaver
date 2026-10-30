@@ -67,7 +67,7 @@ function MaxCell({
   if (onEditMax === undefined) {
     // No ceiling ⇒ no `/max` half at all. `/0` was the old fabrication.
     return max === null ? null : (
-      <Text as="span" tone="muted" numeric={true} voice="label">
+      <Text as="span" ink="muted" numeric={true} voice="label">
         /{max}
       </Text>
     );
@@ -77,7 +77,7 @@ function MaxCell({
       {/* PUNCTUATION, not a datum: in the editable arm the slash is its own text node between two NAMED
           fields, so an aria walk of a roster would read "17", "/", "20" as three peer readings. The
           read-only arm has no such node — its `/max` is part of the one datum string. */}
-      <Text as="span" tone="muted" aria-hidden="true" voice="label">
+      <Text as="span" ink="muted" aria-hidden="true" voice="label">
         /
       </Text>
       <TrackerValue
@@ -140,7 +140,7 @@ function ValueCell({
             onEditValue(n);
           }
         }}
-        tone={warning ? "warning" : "default"}
+        tone={warning ? "warning" : undefined}
         className="px-field text-end"
         numeric={true}
         width="avatar-lg"
@@ -176,7 +176,7 @@ function MeterLabel({
           The READ-ONLY arm keeps it: there the datum is plain text with no name of its own to carry it,
           so hiding the label would orphan the number. `leading` (the lock pin, a real button) is outside
           the hidden node on purpose. */}
-      <Text as="span" tone="muted" className="truncate" {...(nameCarried ? { "aria-hidden": true } : {})} voice="label">
+      <Text as="span" ink="muted" className="truncate" {...(nameCarried ? { "aria-hidden": true } : {})} voice="label">
         {label}
       </Text>
       {labelHint === undefined ? null : <HintTrigger className="" hint={labelHint} subject={label} />}
@@ -276,7 +276,7 @@ export function MeterRow({
         {...(dangerBelow === undefined ? {} : { dangerBelow })}
       />
       {note === undefined || note === null ? null : (
-        <Text tone="muted" voice="gloss">
+        <Text ink="muted" voice="gloss">
           {note}
         </Text>
       )}

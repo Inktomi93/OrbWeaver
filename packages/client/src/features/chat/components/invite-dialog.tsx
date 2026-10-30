@@ -310,7 +310,9 @@ function LoopbackLinkWarning({ onOpenSharing }: { readonly onOpenSharing: () => 
   return (
     <Stack gap="tight" role="note" data-invite-warning="loopback">
       <Row gap="field" align="center">
-        <Badge intent="warning">Only this computer</Badge>
+        <Badge tone="warning" variant="solid">
+          Only this computer
+        </Badge>
       </Row>
       <Text voice="gloss" prose={true} className="max-inline-(--reading-measure-prose)">
         {isAdmin
@@ -319,7 +321,7 @@ function LoopbackLinkWarning({ onOpenSharing }: { readonly onOpenSharing: () => 
       </Text>
       {isAdmin ? (
         <Row>
-          <Button type="button" intent="secondary" size="sm" onClick={onOpenSharing} data-testid={testId("inviteOpenSharing")}>
+          <Button type="button" variant="outline" size="sm" onClick={onOpenSharing} data-testid={testId("inviteOpenSharing")}>
             Open sharing settings
           </Button>
         </Row>
@@ -352,12 +354,12 @@ function OutstandingInvites({ chatId }: { readonly chatId: ChatId }): ReactEleme
   );
 }
 
-const STATUS_INTENT: Record<InviteView["status"], "info" | "success" | "neutral" | "danger"> = {
+const STATUS_TONE: Record<InviteView["status"], "info" | "success" | "neutral" | "destructive"> = {
   pending: "info",
   accepted: "success",
   declined: "neutral",
   expired: "neutral",
-  revoked: "danger",
+  revoked: "destructive",
 };
 
 // What the row is: a sign-up link creates accounts, so it never reads as a plain share link, Revoke included.
@@ -389,13 +391,13 @@ function InviteRow({ invite, onRevoke }: { readonly invite: InviteView; readonly
       stackActionsAt="cq-24"
       actions={
         invite.status === "pending" ? (
-          <Button type="button" intent="ghost" size="sm" onClick={(): void => onRevoke(invite.id)} aria-label={`Revoke this ${kind.toLowerCase()}`}>
+          <Button type="button" variant="ghost" size="sm" onClick={(): void => onRevoke(invite.id)} aria-label={`Revoke this ${kind.toLowerCase()}`}>
             Revoke
           </Button>
         ) : null
       }
       leading={
-        <Badge size="sm" intent={STATUS_INTENT[invite.status]}>
+        <Badge size="sm" tone={STATUS_TONE[invite.status]}>
           {invite.status}
         </Badge>
       }

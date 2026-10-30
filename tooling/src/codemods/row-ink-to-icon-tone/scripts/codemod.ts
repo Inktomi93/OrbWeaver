@@ -6,7 +6,7 @@
 import type { Codemod, Edit, GetSelector, RuleConfig, SgNode } from "codemod:ast-grep";
 import type TSX from "codemod:ast-grep/langs/tsx";
 
-/** The ink token each Icon `tone` paints (`TONE_INK` in `@orb/ui`). */
+/** The ink token each Icon `tone` paints (`TONE_TEXT` and `INKS` in `@orb/ui`). */
 const TONE_BY_TOKEN: Readonly<Record<string, string>> = {
   "text-muted-foreground": "muted",
   "text-primary": "accent",

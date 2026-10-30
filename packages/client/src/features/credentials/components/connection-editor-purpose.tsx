@@ -78,10 +78,10 @@ export function CapabilityRail({ badges }: { readonly badges: readonly Capabilit
         {badges.map((badge) => (
           <Badge
             className={badge.ok ? undefined : "@max-cq-32:hidden"}
-            intent={badge.ok ? "success" : "neutral"}
             key={badge.task}
             size="sm"
-            tone={badge.ok ? "soft" : "ghost"}
+            tone={badge.ok ? "success" : "neutral"}
+            variant={badge.ok ? "soft" : "outline"}
           >
             <Icon icon={badge.ok ? Check : X} size="sm" />
             {badge.reason === null ? badge.label : `${badge.label} — ${badge.reason}`}

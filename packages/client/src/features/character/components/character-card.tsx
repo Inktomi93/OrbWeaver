@@ -192,7 +192,7 @@ function rowMarkers(character: Pick<CharacterCardItem, "archived" | "starred">):
     <>
       {character.starred ? <Icon icon={Star} label="Starred" size="sm" tone="warning" yieldOnHover={true} /> : null}
       {character.archived ? (
-        <Badge intent="warning" size="sm">
+        <Badge tone="warning" variant="solid" size="sm">
           Archived
         </Badge>
       ) : null}
@@ -273,7 +273,7 @@ function NormalRowActions({
           (three touch boxes charging a phone row) is answered by taking the cluster from three to TWO, not
           by reversing the CTA ruling. */}
       <Row reveal="hover">
-        <Button aria-label={chatWithActionName(subject)} intent="ghost" onClick={(): void => onChat(character.id)} size="icon" type="button">
+        <Button aria-label={chatWithActionName(subject)} variant="ghost" onClick={(): void => onChat(character.id)} size="icon" type="button">
           <Icon icon={MessagesSquare} size="sm" />
         </Button>
       </Row>

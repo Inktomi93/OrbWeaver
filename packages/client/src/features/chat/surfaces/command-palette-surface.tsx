@@ -115,7 +115,7 @@ export function CommandPaletteSurface({ goToSections }: CommandPaletteSurfacePro
                 label="recent threads"
                 onRetry={retry}
                 renderRetry={(onRetry): ReactElement => (
-                  <CommandAuxiliaryButton intent="ghost" onClick={onRetry}>
+                  <CommandAuxiliaryButton variant="ghost" onClick={onRetry}>
                     Retry
                   </CommandAuxiliaryButton>
                 )}

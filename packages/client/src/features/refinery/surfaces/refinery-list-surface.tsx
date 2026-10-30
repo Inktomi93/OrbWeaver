@@ -176,13 +176,13 @@ export function RefineryListSurface(): ReactElement {
 
   // A desktop landing focuses the existing CONTENT picker; the other regimes open the existing start door.
   const startDoor = contentShowsPicker ? (
-    <Button intent="secondary" onClick={requestRefineryLandingFocus} size="sm">
+    <Button variant="outline" onClick={requestRefineryLandingFocus} size="sm">
       Pick a character
     </Button>
   ) : (
     <StartSessionDoor
       trigger={(busy): ReactElement => (
-        <Button aria-busy={busy} intent="secondary" size="sm">
+        <Button aria-busy={busy} variant="outline" size="sm">
           Pick a character
         </Button>
       )}
@@ -197,7 +197,7 @@ export function RefineryListSurface(): ReactElement {
             action={
               sessions.data.length > 0 ? (
                 <Button
-                  intent="secondary"
+                  variant="outline"
                   size="sm"
                   type="button"
                   onClick={(): void => {

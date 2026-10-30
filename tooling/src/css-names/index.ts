@@ -1,4 +1,4 @@
-// The custom-property names a read may rely on, shared by the Stylelint and ESLint rules that refuse the rest.
+// The custom-property names a read may rely on, and the D336 intent colour recipes, shared by the Stylelint and ESLint rules that refuse the rest.
 export type { CustomPropertyUses } from "./custom-properties.ts";
 export {
   baseUiCustomProperties,
@@ -9,3 +9,4 @@ export {
   RUNTIME_CUSTOM_PROPERTIES,
   VENDOR_CUSTOM_PROPERTIES,
 } from "./custom-properties.ts";
+export { intentColorRecipe } from "./intent-color-recipe.ts";

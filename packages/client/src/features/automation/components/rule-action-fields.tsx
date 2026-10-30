@@ -68,14 +68,14 @@ export function RuleActionFields({
             <form.AppField name={`actions[${index}].value`}>
               {(field): ReactElement =>
                 field.state.value === undefined ? (
-                  <Button intent="ghost" className="justify-start" onClick={(): void => field.handleChange("")}>
+                  <Button variant="ghost" className="justify-start" onClick={(): void => field.handleChange("")}>
                     <Icon icon={ChevronRight} size="sm" />
                     Add value template
                   </Button>
                 ) : (
                   <Stack gap="tight">
                     <field.MacroField label="Value template" suggestions={[]} />
-                    <Button intent="ghost" className="justify-start" onClick={(): void => field.handleChange(undefined)}>
+                    <Button variant="ghost" className="justify-start" onClick={(): void => field.handleChange(undefined)}>
                       Remove value template
                     </Button>
                   </Stack>
@@ -137,14 +137,14 @@ export function RuleActionFields({
           <form.AppField name={`actions[${index}].guidedTemplate`}>
             {(field): ReactElement =>
               field.state.value === undefined ? (
-                <Button intent="ghost" className="justify-start" onClick={(): void => field.handleChange("")}>
+                <Button variant="ghost" className="justify-start" onClick={(): void => field.handleChange("")}>
                   <Icon icon={ChevronRight} size="sm" />
                   Add turn guidance
                 </Button>
               ) : (
                 <Stack gap="tight">
                   <field.MacroField label="Turn guidance" suggestions={[]} />
-                  <Button intent="ghost" className="justify-start" onClick={(): void => field.handleChange(undefined)}>
+                  <Button variant="ghost" className="justify-start" onClick={(): void => field.handleChange(undefined)}>
                     Remove turn guidance
                   </Button>
                 </Stack>
@@ -163,14 +163,14 @@ export function RuleActionFields({
           <form.AppField name={`actions[${index}].instruction`}>
             {(field): ReactElement =>
               field.state.value === undefined ? (
-                <Button intent="ghost" className="justify-start" onClick={(): void => field.handleChange("")}>
+                <Button variant="ghost" className="justify-start" onClick={(): void => field.handleChange("")}>
                   <Icon icon={ChevronRight} size="sm" />
                   Add background guidance
                 </Button>
               ) : (
                 <Stack gap="tight">
                   <field.MacroField label="Background guidance" suggestions={[]} />
-                  <Button intent="ghost" className="justify-start" onClick={(): void => field.handleChange(undefined)}>
+                  <Button variant="ghost" className="justify-start" onClick={(): void => field.handleChange(undefined)}>
                     Remove background guidance
                   </Button>
                 </Stack>

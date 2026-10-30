@@ -87,13 +87,7 @@ function DisplayScriptRow({ isYours, script }: { readonly isYours: boolean; read
   const name = regexScriptTitle(script);
   return (
     <ListRow
-      markers={
-        script.enabled ? null : (
-          <Badge intent="neutral" size="inline" tone="soft">
-            OFF
-          </Badge>
-        )
-      }
+      markers={script.enabled ? null : <Badge size="inline">OFF</Badge>}
       {...(isYours
         ? {
             actions: (

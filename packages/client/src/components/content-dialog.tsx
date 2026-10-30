@@ -56,7 +56,7 @@ export function ContentDialogClose(): ReactElement {
   return (
     <DialogClose
       render={
-        <Button intent="ghost" size="sm">
+        <Button variant="ghost" size="sm">
           Close
         </Button>
       }

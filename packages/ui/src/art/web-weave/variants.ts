@@ -1,7 +1,7 @@
 // The web-weave art skins (tokens-only, §5). Two tv() configs — this dir is art-tier, not a
 // primitives/ trio, so the one-tv-per-dir clause doesn't apply; the {camelName}Variants naming is
 // kept anyway (greppability).
-import { TONE_INK, tv } from "#lib";
+import { INKS, TONE_TEXT, tv } from "#lib";
 
 export const weaveGlyphVariants = tv({
   variants: {
@@ -10,10 +10,11 @@ export const weaveGlyphVariants = tv({
       hero: "block-(--size-icon-hero) inline-(--size-icon-hero)",
       display: "block-(--size-icon-display) inline-(--size-icon-display)",
     },
-    tone: TONE_INK,
+    tone: TONE_TEXT,
+    ink: INKS,
     anim: { true: "orb-weave-shimmer", false: "" },
   },
-  defaultVariants: { size: "lg", tone: "default", anim: false },
+  defaultVariants: { size: "lg", anim: false },
 });
 
 // The web is DECORATION (aria-hidden, pointer-transparent) that fills whatever box hosts it — the

@@ -14,15 +14,11 @@ export function InviteUnavailable({ onBack, onUseSignIn }: { readonly onBack: ()
         {onUseSignIn === undefined ? DEAD_INVITE_SENTENCE : "Sign in with an existing account to try joining, or ask the host for a new link."}
       </Text>
       {onUseSignIn === undefined ? (
-        <Button intent="primary" onClick={onBack}>
-          Back to sign in
-        </Button>
+        <Button onClick={onBack}>Back to sign in</Button>
       ) : (
         <>
-          <Button intent="primary" onClick={onUseSignIn}>
-            Sign in to join
-          </Button>
-          <Button intent="ghost" onClick={onBack}>
+          <Button onClick={onUseSignIn}>Sign in to join</Button>
+          <Button variant="ghost" onClick={onBack}>
             Not now
           </Button>
         </>

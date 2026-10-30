@@ -97,11 +97,11 @@ export function CharacterLibraryBody({
         <EmptyState
           action={
             <Row className="flex-wrap max-inline-full" gap="field">
-              <Button intent="secondary" onClick={onClearSearch} size="sm">
+              <Button variant="outline" onClick={onClearSearch} size="sm">
                 Clear search
               </Button>
               {filtersActive ? (
-                <Button intent="secondary" onClick={clearCharacterFilters} size="sm">
+                <Button variant="outline" onClick={clearCharacterFilters} size="sm">
                   Clear filters
                 </Button>
               ) : null}
@@ -117,7 +117,7 @@ export function CharacterLibraryBody({
       return (
         <EmptyState
           action={
-            <Button intent="secondary" onClick={clearCharacterFilters} size="sm">
+            <Button variant="outline" onClick={clearCharacterFilters} size="sm">
               Clear filters
             </Button>
           }

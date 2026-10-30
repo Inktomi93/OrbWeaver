@@ -287,7 +287,7 @@ function TypedRow({ typed, onPick }: { readonly typed: string | null; readonly o
       {typed === null ? (
         <Stack aria-hidden={true} className="block-(--size-control-sm)" />
       ) : (
-        <CommandAuxiliaryButton intent="secondary" onClick={(): void => onPick(typed)} size="sm">
+        <CommandAuxiliaryButton variant="outline" onClick={(): void => onPick(typed)} size="sm">
           Use “{typed}” as typed
         </CommandAuxiliaryButton>
       )}
