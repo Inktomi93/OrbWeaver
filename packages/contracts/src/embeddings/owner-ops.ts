@@ -1,6 +1,7 @@
 // Shared owner data and injected operations; implementations and authority resolution stay in server domains.
 
 import type { AssetId, CharacterId, ChatId, DocumentId, EmbedGenerationId, UserConnectionId, UserId } from "@orb/kit/ids";
+import type { EmbedTargetRefusal } from "../inference/connection.ts";
 import type { EmbeddingTask } from "./accounting.ts";
 import type { CountDocumentChunksParams, OwnerChunkCountsParams, PruneDocumentChunksParams } from "./document-vectors.ts";
 
@@ -85,19 +86,9 @@ export type ListCharacterIds = (ownerId?: UserId | null) => Promise<readonly Cha
 export type ListImageAssetIds = (ownerId?: UserId | null) => Promise<readonly AssetId[]>;
 
 /** A target move refused before it purged anything: the new encoder does not make the width its connection states, did
- *  not answer the probe that would tell, or refused the row's key. `assumed`: no width was stated, so `stated` is the
- *  one assumed for the model. */
-export type EmbedMoveRefusal =
-  | {
-      readonly kind: "width";
-      readonly task: EmbeddingTask;
-      readonly stated: number;
-      readonly measured: number;
-      readonly truncatable: boolean;
-      readonly assumed: boolean;
-    }
-  | { readonly kind: "unreachable"; readonly task: EmbeddingTask }
-  | { readonly kind: "auth"; readonly task: EmbeddingTask };
+ *  not answer the probe that would tell, or refused the row's key. The connection domain undoes its write and raises
+ *  the typed error that carries {@link EmbedTargetRefusal}, which is this refusal without the task it names. */
+export type EmbedMoveRefusal = EmbedTargetRefusal & { readonly task: EmbeddingTask };
 
 /** rows deleted by the reindex-shrink prune (shrunk tail + retired-space rows). */
 export interface PruneDocumentChunksResult {
