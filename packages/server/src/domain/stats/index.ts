@@ -3,7 +3,6 @@
 
 export type { StatsService, StatsWorkloadDeps } from "./contract/service.ts";
 
-export type { StatsBatchWiring } from "./contract/wiring.ts";
 export { createResolveRetainedChatAccountingScope, createResolveRetainedChatRebase } from "./persistence/retained-chat-accounting.ts";
 export { createStatsService } from "./service.ts";
 export { createStatsWorkloadContributions } from "./workload-contributions.ts";

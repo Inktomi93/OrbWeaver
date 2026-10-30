@@ -24,6 +24,7 @@ export type {
   CredentialOwned,
   GetBoundConnectionOp,
   ResolveChatCapabilityOp,
+  ResolveChatCapabilityParams,
   ResolveTaskParams,
   RuleOwnedBy,
   TaskAvailabilityOp,

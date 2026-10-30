@@ -1,4 +1,4 @@
-import type { ResolveCharacterDistillatesOp } from "@orb/contracts/chat";
+import type { ResolveCharacterDistillatesOp } from "@orb/contracts/discovery";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import { readOwnedDistillates } from "../persistence/summary-reads.ts";

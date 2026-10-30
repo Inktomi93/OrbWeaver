@@ -13,7 +13,7 @@
 // `search()` are both BUILT (databank graduated D91).
 
 import type { LoadAssetBytes, StoredAsset } from "@orb/contracts/assets";
-import type { RequireParticipantOp, ResolveVisibleRoomsOp } from "@orb/contracts/chat";
+import type { RequireHostOp, RequireParticipantOp, ResolveVisibleRoomsOp } from "@orb/contracts/chat";
 import type {
   ActiveChatDocumentView,
   BankHealthView,
@@ -84,10 +84,6 @@ type EnqueueIngestOp = (args: { documentId: DocumentId; ownerId: UserId }) => Pr
 
 /** Enqueue a `databank-reindex` workload (the panel/verb-driven derived-layer maintenance). */
 type EnqueueReindexOp = (args: { ownerId: UserId; scope: ReindexScope; mode: ReindexMode }) => Promise<{ readonly workloadId: WorkloadId }>;
-
-/** The D18 chat-host predicate (chat's own guard). Attaching a document injects content into every
- *  participant's prompts on the host's dime — write authority is host, not any member. */
-type EnsureChatHostOp = (principal: Principal, chatId: ChatId) => Promise<void>;
 
 /** The chat's PRESENT host (chat's own read), or `null` for a hostless room. Databank reads neither the roster
  *  nor `chats`, so the panel's host/member branch asks chat. */
@@ -192,7 +188,9 @@ export interface DatabankContext {
   readonly getDatabankSettings: GetDatabankSettingsOp;
   readonly enqueueIngest: EnqueueIngestOp;
   readonly enqueueReindex: EnqueueReindexOp;
-  readonly ensureChatHost: EnsureChatHostOp;
+  /** The D18 chat-host predicate (chat's own guard). Attaching a document injects content into every
+   *  participant's prompts on the host's dime, so write authority is host, not any member. */
+  readonly ensureChatHost: RequireHostOp;
   /** The D18 chat-member predicate (chat's own guard). `listActiveForChat` is member-readable — every
    *  participant deserves to SEE what feeds the room's prompts (even though only the host's docs are retrieved). */
   readonly ensureChatMember: RequireParticipantOp;

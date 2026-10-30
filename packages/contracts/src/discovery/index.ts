@@ -9,7 +9,7 @@
 // `IMAGE_LENSES` in `@orb/contracts/embeddings`. Characters have NO fork lineage (D28 snapshots), so only
 // `duplicate_chat_pairs` carries the column; `duplicate_character_pairs` has none.
 
-import type { CharacterId, ChatId, DuplicateCharacterPairId, DuplicateChatPairId, MessageId, ThemeClusterId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, DuplicateCharacterPairId, DuplicateChatPairId, MessageId, ThemeClusterId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import type { TokenProvenance } from "../chat/token-provenance.ts";
@@ -855,3 +855,13 @@ export const imageFacetMemberSchema = z.strictObject({
 export const analyticsResultSchema = z
   .strictObject({ scanned: z.number(), written: z.number(), emptyReason: z.enum(ANALYTICS_EMPTY_REASONS).optional() })
   .transform(({ emptyReason, ...view }) => ({ ...view, ...(emptyReason !== undefined ? { emptyReason } : {}) })) satisfies z.ZodType<AnalyticsResult>;
+
+/** What discovery's distill pass learned about one card: its one-line pitch and its facet tags. Absent for an
+ *  undistilled card. Read by the shared "who is this" line both Smart pickers describe a character with. */
+export interface CharacterDistillate {
+  readonly elevatorPitch: string | null;
+  readonly tags: readonly string[];
+}
+
+/** Discovery's distillates for the owner's characters, keyed by id; an undistilled or foreign id is absent. */
+export type ResolveCharacterDistillatesOp = (ownerId: UserId, characterIds: readonly CharacterId[]) => Promise<ReadonlyMap<CharacterId, CharacterDistillate>>;

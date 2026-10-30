@@ -19,15 +19,12 @@ import type {
   PromptTransform,
   ReadChatUserMacrosOp,
   RegisterPromptTransformOp,
-  ResolveCharacterDistillatesOp,
   ResolveCharacterTagsOp,
   ResolveChatProseOp,
-  ResolveConnectedPersonaOp,
   ResolveGmSeatHolderKindOp,
   ResolveRegexSources,
   ResolveSeatDecoOp,
   ResolveSeatDecosOp,
-  ResolveUserPublicsOp,
   RoomOverrides,
   StoreSegmentParams,
   TeachingCollection,
@@ -36,12 +33,13 @@ import type {
   TurnRetrievalEvents,
   UnregisterPromptTransformOp,
 } from "@orb/contracts/chat";
+import type { ResolveCharacterDistillatesOp } from "@orb/contracts/discovery";
 import type { MemoryEmbedSpace, PruneMemoryBlocksParams } from "@orb/contracts/embeddings";
 import type { Can, Principal, ResolveHandleOp, ResolveUserEnabled } from "@orb/contracts/identity";
 import type { GeneratePicturePrompt, SizePresetName } from "@orb/contracts/imagery";
 import type { SendAvailability } from "@orb/contracts/inference";
 import type { NotificationEvent, PresenceView } from "@orb/contracts/notifications";
-import type { ResolveCurrentPersonaOp, ResolveDefaultPersonaOp } from "@orb/contracts/persona";
+import type { ResolveConnectedPersonaOp, ResolveCurrentPersonaOp, ResolveDefaultPersonaOp, ResolveUserPublicsOp } from "@orb/contracts/persona";
 import type { ChoiceBlockSpec, ResolveUtilityPresetParams, UserIntent } from "@orb/contracts/preset";
 import type { CopyHandoffRegexScriptsArgs, CountHandoffRegexScripts } from "@orb/contracts/regex";
 import type { CancelStateRoundsOp } from "@orb/contracts/rpg";

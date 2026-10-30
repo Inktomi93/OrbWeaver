@@ -3,7 +3,7 @@
 // its own token budget. Never the full card: a long card drowns a small model and truncates a reranker silently.
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type { CharacterDistillate } from "@orb/contracts/chat";
+import type { CharacterDistillate } from "@orb/contracts/discovery";
 import { processMacros } from "@orb/kit/macro";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { UTC_TIME_ZONE } from "@orb/kit/time";

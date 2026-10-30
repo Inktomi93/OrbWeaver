@@ -2,7 +2,7 @@
 
 import type { CharacterId, ChatId, RegexScriptId, UserId } from "@orb/kit/ids";
 import type { PortableFile } from "#portability";
-import type { ExportedCardScripts, ImportCardScriptsArgs, ImportCardScriptsResult, ImportGlobalScriptsArgs, ImportPresetScriptsArgs } from "./index.ts";
+import type { ExportedCardScripts, ImportCardScriptsArgs, ImportCardScriptsResult, ImportGlobalScriptsArgs, ImportPresetScriptsArgs } from "./schemas.ts";
 
 /** The rooms each script reaches, keyed by script id. */
 export type ResolveRegexScriptRoomsOp = (scriptIds: readonly RegexScriptId[]) => Promise<Map<RegexScriptId, ChatId[]>>;

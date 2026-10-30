@@ -1,6 +1,6 @@
 // Shared owner data and injected operations; implementations and authority resolution stay in server domains.
 
-import type { AssetId, CharacterId, ChatId, ChatParticipantId, EmbedGenerationId, Handle, PersonaId, PresetId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, ChatParticipantId, EmbedGenerationId, PresetId, UserId } from "@orb/kit/ids";
 import type { IanaTimeZone } from "@orb/kit/time";
 import type { ParticipantRoleState, Principal } from "#identity";
 import type { BindingActor } from "#inference";
@@ -216,26 +216,5 @@ export type ResolveRegexSources = (args: ResolveRegexSourcesArgs) => Promise<Res
  *  consumer domain takes it as an injected op. */
 export type RequireParticipantOp = (principal: Principal, chatId: ChatId) => Promise<void>;
 
-/** What discovery's distill pass learned about one card: its one-line pitch and its facet tags. Absent for an
- *  undistilled card. Read by the shared "who is this" line both Smart pickers describe a character with. */
-export interface CharacterDistillate {
-  readonly elevatorPitch: string | null;
-  readonly tags: readonly string[];
-}
-
-/** Discovery's distillates for the owner's characters, keyed by id; an undistilled or foreign id is absent. */
-export type ResolveCharacterDistillatesOp = (ownerId: UserId, characterIds: readonly CharacterId[]) => Promise<ReadonlyMap<CharacterId, CharacterDistillate>>;
-
-/** Resolves a human participant's display fields. */
-export type ResolveUserPublicsOp = (
-  userId: UserId,
-  personaId: PersonaId | null,
-) => Promise<{
-  displayName: string | null;
-  handle: Handle | null;
-  avatarAssetId: AssetId | null;
-} | null>;
-
-/** The persona to auto-anchor a new chat founded on exactly one character with exactly one connection.
- *  Ambiguity or a group founding falls through to the default persona. */
-export type ResolveConnectedPersonaOp = (userId: UserId, characterIds: readonly CharacterId[]) => Promise<PersonaId | null>;
+/** The room-host gate, the host twin of {@link RequireParticipantOp}: resolves for the room's host, throws for anyone else. */
+export type RequireHostOp = (principal: Principal, chatId: ChatId) => Promise<void>;

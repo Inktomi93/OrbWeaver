@@ -24,6 +24,7 @@ A database handle crosses a domain boundary only as an owner-built statement, gu
 | `planGameBirth` | rpg | chat's creation batch | [D264](0264-roster-preset-carries-a-game-template.md): a failed birth leaves no room |
 | `handoffHealStatements`, `restampHandoffDigests`, `copyHandoffBooks`, `copyHandoffRegexScripts` | rpg, embeddings, world-info, regex | chat's handoff swap | [D131](0131-a-host-handoff-carries-an-opt-in-class.md) (D): the room moves in one atomic batch |
 | `rpgRestoreStatement` | rpg | chat's restore | The game state restores with the message it belongs to |
+| `NotificationsEmitOp` coStatements and `claimStatement` | chat | notifications' emit | A notification and the chat write it announces commit together, so no notice points at an unsaved row and none is lost |
 
 The signup statements stay under D259. A new joint batch needs a new row here before its op lands. `pnpm unwired ports` reads the ruled ops from one tuple in `tooling/src/unwired/`, and a test holds that tuple equal to this table, so an op absent from the table reports as `db-handle-review`.
 

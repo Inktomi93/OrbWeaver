@@ -13,6 +13,8 @@ export const RULED_JOINT_BATCH_OPS = [
   "copyHandoffBooks",
   "copyHandoffRegexScripts",
   "rpgRestoreStatement",
+  "NotificationsEmitOp",
+  "claimStatement",
 ] as const;
 
 export const D337_RULING = "D337 (the owner builds the statement and the consumer's batch places it)";

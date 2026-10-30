@@ -5,10 +5,9 @@
 // indirection); jpg/webp→png transcode is the injected `infra/image` op, so export never imports `sharp`.
 
 import type { PortableFile } from "@orb/contracts/portability";
-import type { ExportedCardScripts } from "@orb/contracts/regex";
+import type { ExportCardScripts } from "@orb/contracts/regex";
 import type { ExportRpgGame } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
-import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { ImageAdapter } from "#infra/image";
 import type { Cas } from "#infra/storage";
 import type { ExportCharacterParams, ExportChatBundleParams, ExportChatParams, ListHostChatsParams, SeatCardIdentity } from "./params.ts";
@@ -22,7 +21,7 @@ export interface ExportContext {
   /** D121-E: the card RE-EMBED — the character's attached regex library rows projected back onto the ST card
    *  wire + the reference list a same-install re-import re-links by. Injected (cross-domain), because a
    *  card's scripts are no longer a column export could read off the flat row. */
-  readonly exportCardScripts: (args: { readonly ownerId: UserId; readonly characterId: CharacterId }) => Promise<ExportedCardScripts>;
+  readonly exportCardScripts: ExportCardScripts;
   /** R6: the chat-anchored rpg CAMPAIGN, read whole. Injected (cross-domain) for exactly the reason
    *  `exportCardScripts` is: a game is six tables `export` does not own, and reaching into them directly
    *  would be a sideways read. Null for the overwhelmingly common gameless chat. */

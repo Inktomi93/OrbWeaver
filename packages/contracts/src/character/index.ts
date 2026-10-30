@@ -14,12 +14,12 @@ import type { TagFolderType, TagView } from "#tag";
 import { tagFolderTypeSchema, tagViewSchema } from "#tag";
 import type { ThemeBackground, ThemeOverride } from "#theme";
 import { themeBackgroundSchema, themeOverrideSchema } from "#theme";
-import { worldBookRoleSchema } from "#world-info";
 // The analysis leaf avoids a cycle: refinery's public root composes these character validators.
 import type { RefineryAnalyzePayload } from "../refinery/core.ts";
 import { refineryAnalyzePayloadSchema, refineryAnalyzePayloadViewSchema } from "../refinery/core.ts";
 // The workloads scope leaf has no import back into this area; the area root would close a cycle through refinery.
 import type { WorkloadEstimateScope, WorkloadRunScope } from "../workloads/execution.ts";
+import { worldBookRoleSchema } from "../world-info/schemas.ts";
 
 const HANDLE_MIN = 1;
 const HANDLE_MAX = 200;

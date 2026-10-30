@@ -2,7 +2,7 @@
 // user owns it, else the account handle, with the profile avatar as the last fallback. Principal-less and
 // compose-built (the `resolvePersonasForParticipants` precedent); chat consumes it as an injected op.
 
-import type { ResolveUserPublicsOp } from "@orb/contracts/chat";
+import type { ResolveUserPublicsOp } from "@orb/contracts/persona";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { AssetId } from "@orb/kit/ids";

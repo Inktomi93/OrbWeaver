@@ -68,6 +68,9 @@ export interface RecordProbeOutcomeParams {
   readonly localEndpoint: boolean;
 }
 
+/** The credentials domain's row half of a probe, injected into the connection domain that dials. */
+export type RecordProbeOutcomeOp = (params: RecordProbeOutcomeParams) => Promise<CredentialHealth>;
+
 /** Follow a connection's rename: the key labelled `from` takes `to`. A key carrying any other label keeps it. */
 export interface RelabelCredentialParams {
   readonly principal: Principal;
@@ -75,6 +78,9 @@ export interface RelabelCredentialParams {
   readonly from: string;
   readonly to: string;
 }
+
+/** Rename the caller's key to follow its connection's rename; answered by credentials, asked by connection. */
+export type RelabelCredentialOp = (params: RelabelCredentialParams) => Promise<void>;
 
 /** WHY a credential is revoked — the ONE home of the vocabulary (`user_credentials.revoked_reason` derives
  *  its enum from this tuple, and `CredentialView` carries the member to the Connections pane). Read together

@@ -5,7 +5,7 @@
 // The chat scope is membership-scoped (D18 — no chats.ownerId); its guards (requireChatHost/Member) and
 // emit (emitWiEvent) arrive as injected ops from chat's own guards/bus, wired at the composition root.
 
-import type { RequireParticipantOp } from "@orb/contracts/chat";
+import type { RequireHostOp, RequireParticipantOp } from "@orb/contracts/chat";
 import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
 import type { PortableFile } from "@orb/contracts/portability";
@@ -72,7 +72,7 @@ export interface WorldInfoContext {
   readonly newBookId: WorldInfoImportContext["newBookId"];
   readonly newEntryId: WorldInfoImportContext["newEntryId"];
   readonly audit: AuditWiring["log"];
-  readonly requireChatHost: (principal: Principal, chatId: ChatId) => Promise<void>;
+  readonly requireChatHost: RequireHostOp;
   readonly requireChatMember: RequireParticipantOp;
   readonly readInheritedChatBooks: (principal: Principal, chatId: ChatId) => Promise<ChatBookView[]>;
   readonly emitWiEvent: (event: WiBusEvent) => Promise<void>;

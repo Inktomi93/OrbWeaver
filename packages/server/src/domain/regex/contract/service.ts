@@ -6,8 +6,7 @@
 // The chat scope is membership-scoped (D18 — no chats.ownerId); its guards (requireChatHost/Member) arrive
 // as injected ops from chat's own guards, wired at the composition root (the world-info shape).
 
-import type { RequireParticipantOp, ResolveVisibleRoomsOp } from "@orb/contracts/chat";
-import type { Principal } from "@orb/contracts/identity";
+import type { RequireHostOp, RequireParticipantOp, ResolveVisibleRoomsOp } from "@orb/contracts/chat";
 import type { PortableFile } from "@orb/contracts/portability";
 import type {
   BulkResult,
@@ -22,7 +21,6 @@ import type {
 } from "@orb/contracts/regex";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
-import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { ChatId, RegexScriptId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { AuditWiring } from "#foundation/observability";
@@ -63,7 +61,7 @@ export interface RegexContext {
   readonly now: Clock;
   readonly newScriptId: RegexPortabilityContext["newScriptId"];
   readonly audit: AuditWiring["log"];
-  readonly requireChatHost: (principal: Principal, chatId: ChatId) => Promise<void>;
+  readonly requireChatHost: RequireHostOp;
   readonly requireChatMember: RequireParticipantOp;
   /** D121-E display-tier room OPTION (owner ruling 2026-08-02): resolve WHOSE display scripts this room
    *  broadcasts. Injected from chat because both halves are chat's data — the room's host seat and the
@@ -97,8 +95,6 @@ export interface RegexContext {
    *  returned thunk with the ids the delete really removed. Error-isolated: it can never fault the delete. */
   readonly captureRoomReachForDelete: CaptureRegexRoomReachOp;
 }
-
-export type RegexAssemblyContext = DbAssemblyInput<RegexContext>;
 
 export interface RegexService {
   /** The caller's library, newest first. */

@@ -28,13 +28,17 @@ export interface BoundConnectionView extends Pick<UserConnection, "label" | "pro
   readonly providerLabel: string;
 }
 
+/** `resolveChatCapability` — one of the caller's OWN connections as the chat funnel sees it, credential-free
+ *  (the params panel, the rpg lite gate, the Connections pane's readout). Absent `target` is the chat role. */
+export interface ResolveChatCapabilityParams {
+  readonly principal: Principal;
+  readonly target?: CapabilityTarget | undefined;
+}
+
 /** The caller's own connection for a role or a connection id, with the cache context. Takes the acting Principal
  *  and an optional target (owner-checked by the connection domain), and no caller-supplied user id, so the op
  *  can only answer for the caller's own connections. */
-export type ResolveChatCapabilityOp = (params: {
-  readonly principal: Principal;
-  readonly target?: CapabilityTarget | undefined;
-}) => Promise<ResolvedCacheConnectionView>;
+export type ResolveChatCapabilityOp = (params: ResolveChatCapabilityParams) => Promise<ResolvedCacheConnectionView>;
 
 /** Can the funder's task run under this fold, and if not, why. */
 export type TaskAvailabilityOp = (params: ResolveTaskParams) => Promise<SendAvailability>;

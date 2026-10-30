@@ -116,3 +116,62 @@ test("the port census plans derive, concept, cross-domain and import targets", {
     ]),
   );
 });
+
+// Contracts reaches only kit and zod, so a copy whose signature carries an @orb/db handle can never move there.
+const FORGOTTEN_HANDLE_TREE = {
+  "packages/server/tsconfig.json": JSON.stringify({
+    compilerOptions: {
+      strict: true,
+      target: "ESNext",
+      lib: ["ESNext", "DOM"],
+      module: "ESNext",
+      moduleResolution: "bundler",
+      allowImportingTsExtensions: true,
+      noEmit: true,
+      types: [],
+      paths: { "#*": ["./src/*/index.ts"] },
+    },
+    include: ["src"],
+  }),
+  "packages/db/src/wiring.ts": "export interface StatementToken { readonly sql: string; }",
+  [`${SERVER}/domain/alpha/contract/ops.ts`]: [
+    'import type { StatementToken } from "../../../../../db/src/wiring.ts";',
+    "export type PlaceStatement = (id: string) => StatementToken;",
+    "export type NotificationsEmitOp = (id: string, co?: readonly StatementToken[]) => Promise<void>;",
+  ].join("\n"),
+  [`${SERVER}/domain/alpha/index.ts`]: [
+    'import type { NotificationsEmitOp, PlaceStatement } from "./contract/ops.ts";',
+    "export declare const alpha: { readonly place: PlaceStatement; readonly emit: NotificationsEmitOp };",
+  ].join("\n"),
+  [`${SERVER}/domain/beta/contract/service.ts`]: [
+    'import type { StatementToken } from "../../../../../db/src/wiring.ts";',
+    "export interface BetaContext {",
+    "  readonly place: (id: string) => StatementToken;",
+    "  readonly emit: (id: string, co?: readonly StatementToken[]) => Promise<void>;",
+    "}",
+  ].join("\n"),
+  [`${SERVER}/domain/beta/index.ts`]: 'export type { BetaContext } from "./contract/service.ts";',
+  [`${SERVER}/entry/compose/beta.ts`]: [
+    'import { alpha } from "#domain/alpha";',
+    'import type { BetaContext } from "#domain/beta";',
+    "export const beta: BetaContext = { place: alpha.place, emit: alpha.emit };",
+  ].join("\n"),
+};
+
+test("a forgotten door export carrying a db handle never reports move-to-contracts", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(FORGOTTEN_HANDLE_TREE);
+  const { targets } = portCensus(root, () => undefined);
+  const forgotten = targets.filter(({ form }) => form === "type").map(({ kind, members, note }) => ({ kind, members, note }));
+  expect(forgotten).toEqual([
+    {
+      kind: "db-handle-review",
+      members: ["PlaceStatement"],
+      note: expect.stringContaining("@orb/db: StatementToken; ruling: unruled"),
+    },
+    {
+      kind: "split",
+      members: ["NotificationsEmitOp"],
+      note: expect.stringContaining("ruling: D337"),
+    },
+  ]);
+});

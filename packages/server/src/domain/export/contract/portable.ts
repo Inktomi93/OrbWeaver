@@ -3,6 +3,7 @@ import type { ResolveHostPrincipalOp } from "@orb/contracts/identity";
 import type { ExportPersonaOp, ListPersonasOp } from "@orb/contracts/persona";
 import type { PortableEntity, PortableFile } from "@orb/contracts/portability";
 import type { ExportPresets } from "@orb/contracts/preset";
+import type { ExportRegexScripts } from "@orb/contracts/regex";
 import type { ExportWorldBook, ListOwnedBookIds } from "@orb/contracts/world-info";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { ExportService } from "./service.ts";
@@ -16,7 +17,7 @@ export interface PortableExportDeps {
   readonly presets: ExportPresets;
   readonly worldBook: ExportWorldBook;
   readonly listBookIds: ListOwnedBookIds;
-  readonly regex: (args: { readonly ownerId: UserId }) => Promise<readonly PortableFile[]>;
+  readonly regex: ExportRegexScripts;
   readonly document: ExportDocument;
   readonly listDocumentIds: ListOwnedDocumentIds;
   readonly persona: { readonly list: ListPersonasOp; readonly export: ExportPersonaOp };

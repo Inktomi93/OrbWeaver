@@ -1,10 +1,10 @@
 // World-info owner operations other domains inject; the world-info domain implements them and the composition root wires them.
 
 import type { CharacterId, ChatId, UserId, WorldBookId } from "@orb/kit/ids";
-import type { AttachedBookRef } from "#character";
-import type { HandoffCardPair } from "#chat";
 import type { PortableFile } from "#portability";
-import type { BulkImportLorebookInput, BulkImportLorebookResult, WorldBookRole } from "./index.ts";
+import type { AttachedBookRef } from "../character/index.ts";
+import type { HandoffCardPair } from "../chat/handoff-context.ts";
+import type { BulkImportLorebookInput, BulkImportLorebookResult, WorldBookRole } from "./schemas.ts";
 
 /** Throws DomainNotFoundError when the target character isn't the caller's.
  *

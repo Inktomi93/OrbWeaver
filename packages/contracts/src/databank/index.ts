@@ -477,7 +477,6 @@ export type {
   CaptureDatabankRoomReachOp,
   DatabankImportOutcome,
   ExportDocument,
-  ExportedDocumentFile,
   ImportDocument,
   ListOwnedDocumentIds,
 } from "./owner-ops.ts";

@@ -1,9 +1,10 @@
 // Shared owner data and injected operations; implementations and authority resolution stay in server domains.
 
-import type { PersonaId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import type { Principal } from "#identity";
 import type { PersonaCollisionChoices } from "#import";
-import type { BulkImportPersonaInput, BulkImportPersonasResult, JoinerPersona, PersonaDetail } from "./index.ts";
+import type { PortableFile } from "#portability";
+import type { BulkImportPersonaInput, BulkImportPersonasResult, JoinerPersona, PersonaDetail } from "./schemas.ts";
 
 /** Capture a persona's room seats before its delete; the thunk re-seats exactly those seats with the persona it is handed. */
 export type CapturePersonaSeatsForDeleteOp = (ownerId: UserId, personaId: PersonaId) => Promise<(reseatWith: PersonaId) => Promise<void>>;
@@ -38,13 +39,6 @@ export interface ImportPersonaParams {
   readonly bytes: Uint8Array;
 }
 
-/** `export` — one portable persona file, ready for either door (the bundle descriptor streams it; the
- *  single-entity door hands its bytes down as text). */
-export interface PersonaPortableFile {
-  readonly filename: string;
-  readonly bytes: Uint8Array;
-}
-
 /** `import` — NEVER throws for a malformed file (the delivery core's per-file isolation contract); a
  *  refusal carries the operator-facing reason the import door renders. `created:false` means a same-named
  *  persona was merged in place. */
@@ -56,7 +50,7 @@ export type PersonaImportOutcome =
 export type ListPersonasOp = (params: ListPersonasParams) => Promise<PersonaDetail[]>;
 
 /** Read an owned persona as ONE portable file (excludes `avatarAssetId`). */
-export type ExportPersonaOp = (params: ExportPersonaParams) => Promise<PersonaPortableFile>;
+export type ExportPersonaOp = (params: ExportPersonaParams) => Promise<PortableFile>;
 
 /** Restore ONE portable persona file, the `export` round-trip twin. Idempotent: a same-named persona is merged in place. */
 export type ImportPersonaOp = (params: ImportPersonaParams) => Promise<PersonaImportOutcome>;
@@ -67,3 +61,17 @@ export interface JoinerPersonaStatementParams {
   readonly persona: JoinerPersona;
   readonly at: number;
 }
+
+/** Resolves a human participant's display fields. */
+export type ResolveUserPublicsOp = (
+  userId: UserId,
+  personaId: PersonaId | null,
+) => Promise<{
+  displayName: string | null;
+  handle: Handle | null;
+  avatarAssetId: AssetId | null;
+} | null>;
+
+/** The persona to auto-anchor a new chat founded on exactly one character with exactly one connection.
+ *  Ambiguity or a group founding falls through to the default persona. */
+export type ResolveConnectedPersonaOp = (userId: UserId, characterIds: readonly CharacterId[]) => Promise<PersonaId | null>;

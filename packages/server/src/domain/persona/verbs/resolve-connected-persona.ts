@@ -2,7 +2,7 @@
 // connected to that character. Zero or two-plus connections (ambiguity), or a group founding, answer null so
 // the room falls through to the default seed. Principal-less and compose-built; chat consumes it as an op.
 
-import type { ResolveConnectedPersonaOp } from "@orb/contracts/chat";
+import type { ResolveConnectedPersonaOp } from "@orb/contracts/persona";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { PersonaContext } from "../contract/service.ts";
