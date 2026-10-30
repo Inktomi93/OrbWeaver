@@ -404,6 +404,7 @@ export function createAutosaveEntityForm<TValues extends object>(
             form: form as AutosaveForm<TValues>,
             saveState: displayed,
             restored: restoredUnsaved,
+            status: restoredUnsaved && displayed === "saved" ? "restored" : displayed,
             retrySave,
             reseed,
           })

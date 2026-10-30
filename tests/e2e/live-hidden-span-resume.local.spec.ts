@@ -32,7 +32,6 @@ import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { pageObject, pageString } from "@orb/tooling/floor/browser/page-validate";
-import { E2E_FIXTURE_PROVIDER_PORT } from "@orb/tooling/floor/host/ports";
 import { expect, test } from "@playwright/test";
 import { addMemberToChat, configureCustomProvider, loginLocal, ownerActor } from "./support/actors.ts";
 import {
@@ -43,7 +42,7 @@ import {
   FIXTURE_POST_SPAN_PROSE,
   startFixtureProvider,
 } from "./support/fixture-provider.ts";
-import { LOCAL_MEMBER } from "./support/modes.ts";
+import { E2E_RUN_PORTS, LOCAL_MEMBER } from "./support/modes.ts";
 import type { StreamValue } from "./support/sse.ts";
 import { collectChatRoomFrames, readStreamEvent, requireSatisfied } from "./support/sse.ts";
 
@@ -84,7 +83,7 @@ test("P3 mid-slot resume: a MEMBER resuming INSIDE an open <lie> tag never recei
   test.setTimeout(180_000);
   const origin = baseURL ?? "";
   const host = ownerActor(origin);
-  const fixture = await startFixtureProvider(E2E_FIXTURE_PROVIDER_PORT, undefined, "What happened to the well?");
+  const fixture = await startFixtureProvider(E2E_RUN_PORTS.fixtureProvider, undefined, "What happened to the well?");
   let restoreProvider: (() => Promise<void>) | undefined;
 
   const priorList = await host.trpc.character.list.query({});

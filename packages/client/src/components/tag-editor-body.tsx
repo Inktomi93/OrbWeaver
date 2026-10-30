@@ -193,7 +193,7 @@ function TagEditorFields({ tag, others, back, onMerged, session, confirmed, merg
           />
         )}
 
-        <AutosaveStatus state={session.saveState} onRetry={session.retrySave} />
+        <AutosaveStatus state={session.status} onRetry={session.retrySave} />
         <form.AppField name="name">
           {(field): ReactElement => (
             <Field error={touchedFieldError(field.state.meta)} label="Name" name="tag-name">

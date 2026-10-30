@@ -14,8 +14,11 @@ import {
   CT_VITE_PORT,
   DEV_PORTS,
   E2E_FIXTURE_PROVIDER_PORT,
+  E2E_OIDC_ISSUER_PORT,
+  E2E_PORT_OFFSET_STRIDE,
   E2E_PORTS,
   ENGINE_PORTS,
+  e2eRunPorts,
   FIXTURE_PORTS,
   RESERVED_PORT_NUMBERS,
   RESERVED_PORTS,
@@ -103,4 +106,47 @@ test("a reserved port names its owner, and an unreserved one names nobody", () =
   expect(reservedPort(ENGINE_PORTS.generate)?.role).toBe("engine");
   // A band port is deliberately NOT reserved — that is what makes it allocatable.
   expect(reservedPort(8888)).toBeUndefined();
+});
+
+// ── the e2e run offset ────────────────────────────────────────────────────────────────────────────────
+
+/** Every port a run binds, flattened, so the assertions read one list. */
+function runPortList(offset: number): number[] {
+  const ports = e2eRunPorts(offset);
+  return [...Object.values(ports.stacks).flatMap((pair) => [pair.server, pair.vite]), ports.oidcIssuer, ports.fixtureProvider];
+}
+
+const DEV_AND_ENGINE_PORTS: ReadonlySet<number> = new Set([DEV_PORTS.server, DEV_PORTS.vite, ...Object.values(ENGINE_PORTS)]);
+const BASE_RUN_PORTS = [...Object.values(E2E_PORTS).flatMap((pair) => [pair.server, pair.vite]), E2E_OIDC_ISSUER_PORT, E2E_FIXTURE_PROVIDER_PORT];
+
+test("offset 0 is the registry's base e2e rows", () => {
+  expect(runPortList(0)).toEqual(BASE_RUN_PORTS);
+});
+
+test("an offset run shifts every e2e port together and none lands on dev, an engine, a reserved row or a band", () => {
+  // POSITIVE CONTROL: the base run IS reserved, so the instrument must find it there.
+  expect(overlap(runPortList(0), RESERVED_PORT_NUMBERS)).toEqual(runPortList(0));
+
+  const offsets = [E2E_PORT_OFFSET_STRIDE, 2 * E2E_PORT_OFFSET_STRIDE, 8 * E2E_PORT_OFFSET_STRIDE];
+  for (const offset of offsets) {
+    const shifted = runPortList(offset);
+    expect(shifted).toEqual(BASE_RUN_PORTS.map((port) => port + offset));
+    expect(new Set(shifted).size).toBe(shifted.length);
+    expect(overlap(shifted, DEV_AND_ENGINE_PORTS)).toEqual([]);
+    expect(overlap(shifted, RESERVED_PORT_NUMBERS)).toEqual([]);
+    expect(overlap(shifted, STAGE_BAND_PORT_NUMBERS)).toEqual([]);
+  }
+});
+
+test("two offset runs, and the base run, share no port", () => {
+  const runs = [0, E2E_PORT_OFFSET_STRIDE, 2 * E2E_PORT_OFFSET_STRIDE].map(runPortList);
+  expect(new Set(runs.flat()).size).toBe(runs.flat().length);
+});
+
+test("an offset that is not a stride multiple, or that lands on a stage band, is refused", () => {
+  for (const offset of [1, E2E_PORT_OFFSET_STRIDE + 5, -E2E_PORT_OFFSET_STRIDE, 1.5, Number.NaN]) {
+    expect(() => e2eRunPorts(offset)).toThrow(/non-negative multiple of 10/u);
+  }
+  // Band 0's server is 8888: the offset that puts the forward-header server there is named in the refusal.
+  expect(() => e2eRunPorts(9 * E2E_PORT_OFFSET_STRIDE)).toThrow(/8888/u);
 });

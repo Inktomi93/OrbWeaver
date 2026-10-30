@@ -117,7 +117,7 @@ function EntryEditorBody({ entry, session, onDeleted }: EntryEditorBodyProps): R
         <Text voice="kicker">Entry</Text>
         <Row gap="field" align="center">
           {/* Autosave everywhere (§7): the live status stands where Save used to. */}
-          <AutosaveStatus state={session.saveState} onRetry={session.retrySave} />
+          <AutosaveStatus state={session.status} onRetry={session.retrySave} />
           <DeleteEntryAction
             title={entry.title}
             // The editor closes when the entry is GONE, not when the delete is SENT (#1501). Back to back,
