@@ -14,6 +14,7 @@ plan: css-system
 Give the shell's action rows one overflow mechanism. When the topbar trail, the Context panel header or a list band runs out of inline space, the actions that do not fit move into a "More" menu at the row's end, never wrapping, clipping or sliding under a neighbour.
 
 Design (ruled):
+
 - Each action in these rows declares a menu form beside its inline form: label, icon and the same handler. Registry-driven topbar trail widgets declare it on their registry entry, so a new widget cannot ship without one.
 - The row measures with a `ResizeObserver` on its own container (not a viewport media query), keeps actions inline in their declared priority order while they fit, and moves the rest into the menu. The "More" trigger is always reserved.
 - One shared hook and one menu component own the measuring and rendering. The topbar, the Context header and the list band use it; none hand-rolls its own.
