@@ -18,7 +18,7 @@
 // things about the same person — "chatted 3h ago · 4 chats" on Recently chatted, nothing on Starred,
 // "Added Aug 29" on Just added. Deriving inside the cell would mean the cell knowing which shelf it is in.
 //
-// D44 — the portrait goes through the `Avatar` media primitive and NOTHING is drawn over the art except the
+// D294 — the portrait goes through the `Avatar` media primitive and NOTHING is drawn over the art except the
 // starred MARK, which is a glyph rather than prose. The mark rides `<Layer>` (one grid cell, both children
 // in flow) rather than an absolute pair, so the art still sizes the cell.
 

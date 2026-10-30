@@ -37,7 +37,7 @@ export type ChatDeltaEvent = { chatId: ChatId; kind: "text"; text: string } | { 
  *  (the engine drops them, gated by `ModelCapability.input.vision`, + emits a `warning` bus event), and a
  *  non-video model never receives video parts (`input.video`, `video_dropped` — the #317 twin). This is
  *  the ONE home (D45 "the cross-boundary message DTOs in `@orb/contracts/chat` carry the same"); the infra
- *  `ChatHistoryMessage` imports it. Distinct from the D44 RENDER `MessageContentBlock` (display ⇆ client). */
+ *  `ChatHistoryMessage` imports it. Distinct from the D294 RENDER `MessageContentBlock` (display ⇆ client). */
 export type ChatContentPart =
   | { readonly type: "text"; readonly text: string; readonly thoughtSignature?: string }
   /* The model's own THINKING, kept so a tool loop can replay it (audit A1). Content, not display: the

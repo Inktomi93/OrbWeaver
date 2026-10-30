@@ -1,9 +1,9 @@
 import Color from "colorjs.io";
 
-// The D44 §12.1 color-safety predicate — the ONE clamp every raw-color acceptor shares. Kit-homed
+// The D294, UI-Theming-and-Content §12.1 color-safety predicate — the ONE clamp every raw-color acceptor shares. Kit-homed
 // (isomorphic and pure) because its consumers span the CAKE: the `@orb/ui` render clamps
 // (`<ThemeScope>`, `sandbox-frame` token injection, `color-field`) AND the `@orb/contracts/theme`
-// WIRE schema — ui and contracts cannot import each other (D44 §12.5: the two Zod clamps are a
+// WIRE schema — ui and contracts cannot import each other (D294, UI-Theming-and-Content §12.5: the two Zod clamps are a
 // deliberate cake-forced pair, pairing-test-pinned), but both reach kit, so the PREDICATE itself
 // never forks. Moved ui/lib → kit at the §12.8 contracts pass.
 
@@ -89,7 +89,7 @@ const NON_DETERMINISTIC_COLOR_KEYWORDS = new Set(
 const MAX_COLOR_LEN = 64;
 
 /**
- * The D44 §12.1 color-safety predicate: a color must parse as one of the safe CSS color forms
+ * The D294, UI-Theming-and-Content §12.1 color-safety predicate: a color must parse as one of the safe CSS color forms
  * (hex / rgb[a]() / hsl[a]() / oklch()/oklab() / a bare letter-word — see `NAMED`: a shape check, not a
  * named-color allowlist; an unknown word is browser-invalid, harmless). The anchored shapes exclude
  * every injection vector (`url()`, `expression()`, `javascript:`, `@import`, a `{`/`;` escape). The ONE

@@ -1,4 +1,4 @@
-// `useSelectedTheme` — resolves the user's ACTIVE theme entity (D44 §12.1): read
+// `useSelectedTheme` — resolves the user's ACTIVE theme entity (D294, UI-Theming-and-Content §12.1): read
 // `UserSettings.theme.selectedThemeId`, then fetch that `themes` row. `null` (no selection / a stale or
 // deleted id) resolves to `null` here → the shell applies the Hearth default (no [data-theme], empty
 // override). This is Layer 1 of the three-layer model (the viewer's OWN global theme); it is fetched for

@@ -1,6 +1,6 @@
 // The STATUS tab ("Status" + the tracked-field unification IA repair):
 // **the ONLY list of people**, and expanding an entry IS the sheet. Two states, one tab:
-//   • the CHARACTERS — portrait-led instrument cards (D44 portrait · name · relationship badge ON the name line,
+//   • the CHARACTERS — portrait-led instrument cards (D294 portrait · name · relationship badge ON the name line,
 //     rendered ONLY when the character also stands in the scene npcs — never a phantom
 //     "neutral") with the quick edits that belong on a glanceable row: the volatile `status` line, the
 //     tracker meters (value AND max click-to-edit), the lit condition chips;

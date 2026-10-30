@@ -1,4 +1,4 @@
-// `useAppearance` — the full synced `UserSettings.appearance` block (D44 §12.1), the source the shell
+// `useAppearance` — the full synced `UserSettings.appearance` block (D294, UI-Theming-and-Content §12.1), the source the shell
 // stamps ALL its display axes from (density · elevation · chatWidthPct · fontScale · the metadata/effect
 // toggles). The sanctioned cross-cutting trpc read shape (§11.0 — a feature reads a user DISPLAY pref
 // via trpc, never a feature import; not domain coupling), and the never-suspend/never-

@@ -67,7 +67,7 @@ import { requestTransport } from "#infra/auth";
 // frame would become a document with `script-src 'self'` and no `sandbox` directive, i.e. the exact
 // opposite of the intent, with nothing red.
 //
-// TWO MEMBERS, one class. `GET /api/card-frame/<id>` (D44/#91 — a per-character trust grant widening
+// TWO MEMBERS, one class. `GET /api/card-frame/<id>` (D294/#91 — a per-character trust grant widening
 // `img-src` for a model-authored card) and, since #679 U7, `GET /api/plugin-frame/<id>` (the plugin-UI
 // escape hatch — a plugin's own interface code in an isolated document). NOTHING ABOUT THE APP POLICY
 // ITSELF CHANGED when the second member landed: not one directive was added, removed or widened, and the

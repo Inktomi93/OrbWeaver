@@ -6,7 +6,7 @@ updated: 2026-10-17
 
 # UI-Architecture-and-Layout
 
-> **UI law**, split from the D42 spec. The ledger entries (D42–D44, D52, D54, D58) are the decision records; these docs are the expansion, and win on any conflict with another copy.
+> **UI law**, split from the D42 spec. The ledger entries (D42, D43, D294, D52, D54, D58) are the decision records; these docs are the expansion, and win on any conflict with another copy.
 >
 > **Reading order:** UI-Architecture-and-Layout → `UI-Theming-and-Content.md` → `UI-Primitives-and-Reuse.md` → `ui-package-design.md` → `motion-and-animation-guide.md`.
 >
@@ -153,7 +153,7 @@ BUILT. The highest-leverage enforcement move, engine-agnostic:
 - Design values live ONCE in **W3C DTCG `packages/ui/src/tokens/tokens.json`** (`$value`/`$type`).
 - **Style Dictionary v5** codegen (`packages/ui/tokens.build.ts`) emits BOTH the Tailwind v4 `@theme` block (`packages/ui/src/styles/theme.css`) AND the typed TS map (`packages/ui/src/tokens/index.ts`) — committed, generated, DO-NOT-EDIT artifacts.
 - The Tailwind theme is therefore **DERIVED, never hand-authored**; "add a token" has one home. D333 ends custom token-freshness certification. The external legacy source contains the former token test as reference-only; checked-in output has no custom freshness guarantee.
-- The scale includes a **container-breakpoint scale** (`--container-cq-<rem>`, §4), the **`--scrim`** token (§11.4), **control heights** with the ≥44px touch floor (§4b axis 3), and the D44 prose/bubble semantics (§12.1 ThemeScope targets) — the full set is `tokens.json` itself.
+- The scale includes a **container-breakpoint scale** (`--container-cq-<rem>`, §4), the **`--scrim`** token (§11.4), **control heights** with the ≥44px touch floor (§4b axis 3), and the D294 prose/bubble semantics (§12.1 ThemeScope targets) — the full set is `tokens.json` itself.
 - **STACKING ORDER lives in the `z` block of `tokens.json` and NOWHERE ELSE.** No other doc defines an ordering; the values are the law — `base 0 < raised 10 < overlay 40 < modal 50 < popover 65 < toast 68 < tooltip 70` — with each non-obvious rank carrying its reason in that token's own `$description` (see `z.toast`). Re-ranking a tier is a `tokens.json` edit + `pnpm --filter @orb/ui tokens:build`, never a per-component z override.
 - **STACKING SCOPE — where a tier may be used — is the second fact.** Order and scope are different questions. `base`/`raised` are `in-context` tiers, `overlay` is the `app-frame` tier, and `modal`/`popover`/`toast`/`tooltip` are `portal-float` — legal ONLY at a surface that leaves its subtree by mount position. A `portal-float` token named inside an isolated scope claims a reach that scope cannot grant. D333 ends custom static z-index and portal-mount certification. These placement constraints remain product architecture law.
 

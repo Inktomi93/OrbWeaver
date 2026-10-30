@@ -23,7 +23,7 @@ export const immersiveCardVariants = tv({
 });
 
 /**
- * The INERT-card skin — the Tier-A presentation of an `html-card` block (D44 §12.2: Tier A is the inert
+ * The INERT-card skin — the Tier-A presentation of an `html-card` block (D294, UI-Theming-and-Content §12.2: Tier A is the inert
  * sanitized allowlist, and it forbids `<style>`, so a card's own CSS cannot apply there).
  *
  * Deliberately the SAME frame as {@link immersiveCardVariants} (rounded-card / border / bg-card / header

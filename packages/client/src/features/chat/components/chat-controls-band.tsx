@@ -57,7 +57,7 @@ const CHIP_INLINE_CAP = 4;
  *  both own a surface — the transcript's bubble/plate, the composer's opaque card.
  *
  *  IT IS THE COMPOSER'S OWN RECIPE, NOT ANOTHER BESPOKE `bg-*`. `composer-drop-target.tsx` states the
- *  rule this takes: "Reading-surface rule (D44 §12.1): the composer carries its OWN opaque backing
+ *  rule this takes: "Reading-surface rule (D294, UI-Theming-and-Content §12.1): the composer carries its OWN opaque backing
  *  (`bg-card`), never leaning on the background scrim for legibility" — minted when a TRANSLUCENT tint left
  *  typed text unreadable over a bright picture at scrim 0. The S1 band is the composer's own footer
  *  neighbour and hosts the same thing (operable controls, not prose), so it takes the same surface: one

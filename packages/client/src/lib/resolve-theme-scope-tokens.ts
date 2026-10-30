@@ -1,4 +1,4 @@
-// Resolves what a <ThemeScope> mount actually receives from a theme row (D44 §12.1) — and, its other
+// Resolves what a <ThemeScope> mount actually receives from a theme row (D294, UI-Theming-and-Content §12.1) — and, its other
 // half, which generated `[data-theme]` block that row paints from.
 //
 // HOMED AT THE UTIL FLOOR, NOT IN app-shell (#920). It has two readers in two features now: the SHELL

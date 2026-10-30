@@ -13,7 +13,7 @@
 // does. Without it every blob probes as v1 and all lifts re-run on every read (corrupting data the
 // moment a lift is non-idempotent). Defaulted to the current version so a fresh seed is self-consistent.
 //
-// `themes` (TypeID PK) — the D44 §12.1 user theme library. Seed
+// `themes` (TypeID PK) — the D294, UI-Theming-and-Content §12.1 user theme library. Seed
 // palettes (Hearth/Mocha/Light) are rows with `owner_id IS NULL` (the `presets` two-row-kind precedent,
 // `db/schema/preset.ts`): non-deletable/non-editable by construction, since `fetchOwned(caller)` can
 // never match a NULL owner. CASCADE on `owner_id` (the D21 single-owned family norm — presets' RESTRICT
@@ -80,7 +80,7 @@ export const themes = sqliteTable(
       .$type<UserId>()
       .references(() => users.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
-    // The D44 Tier-A token-override value-set. Parsed LENIENTLY at the read seam via `themeOverrideSchema`
+    // The D294 Tier-A token-override value-set. Parsed LENIENTLY at the read seam via `themeOverrideSchema`
     // (@orb/contracts/theme) — a corrupt blob degrades to defaults there, never here.
     override: text("override", { mode: "json" }).$type<ThemeOverride>().notNull(),
     // Optional self-authored custom CSS (§12.1 Tier-B / global-owner tier — validated at the write

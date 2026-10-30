@@ -148,7 +148,7 @@ export interface RenderPolicy {
   /** The RESOLVED HTML-trust step — the single ordered axis (see {@link HTML_TRUST_STEPS}). */
   readonly htmlTrust: HtmlTrustStep;
   /** `true` = external (http/https) media in this participant's content is gated behind click-to-load
-   *  (the load itself is the tracking-pixel/exfil — D44 §12.3). */
+   *  (the load itself is the tracking-pixel/exfil — D294, UI-Theming-and-Content §12.3). */
   readonly forbidExternalMedia: boolean;
 }
 
@@ -295,7 +295,7 @@ export interface ParticipantView {
    *  partial/legacy payload or a not-yet-migrated test literal fails CLOSED at the client (absent ⇒ the
    *  untrusted + gate-external safe floor), never fails open. */
   renderPolicy?: RenderPolicy;
-  /** D44 §12.1/§12.5 — the RAW per-character theme-token override (`character.themeOverride`, threaded
+  /** D294, UI-Theming-and-Content §12.1/§12.5 — the RAW per-character theme-token override (`character.themeOverride`, threaded
    *  through unmerged — chat assembly never reads the `themes` table). `null` = no
    *  override for a character seat, or always `null` for a human seat. Resolution to "character over
    *  global over default" is a CLIENT ThemeScope NESTING concern (a per-speaker scope wrapping the root
@@ -345,7 +345,7 @@ export const participantViewSchema = z.strictObject({
 }) satisfies z.ZodType<ParticipantView>;
 
 // One character seat's carried APPEARANCE — the card-authored look a room may take over (the theme half,
-//  D44 §12.1, and the background half, BG-C). Deliberately the MINIMAL projection: it is the most a
+//  D294, UI-Theming-and-Content §12.1, and the background half, BG-C). Deliberately the MINIMAL projection: it is the most a
 //  pre-send DRAFT can honestly produce, since a draft has no `chat_participants` row to read.
 interface CarriedAppearanceMember {
   readonly displayName: string;
@@ -408,7 +408,7 @@ function isSingleHumanRoom(appearance: CarriedAppearance): boolean {
   return appearance.humanCount === SOLO_COUNT;
 }
 
-/** THE room-THEME takeover (D44 §12.1), ONE home for both chat phases: in a true-solo room the sole
+/** THE room-THEME takeover (D294, UI-Theming-and-Content §12.1), ONE home for both chat phases: in a true-solo room the sole
  *  character's authored theme wins at the chat root; any other composition keeps the viewer's own theme
  *  (`undefined`). What rides is the CARD-EMBEDDABLE subset only — a card supplies the room's LOOK, never
  *  the viewer's ergonomics (TD §3). */

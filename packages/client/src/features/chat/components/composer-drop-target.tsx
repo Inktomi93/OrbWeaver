@@ -34,7 +34,7 @@ export function ComposerDropTarget({ dragActive, dropTargetProps, children }: Co
       ownSlot="composer"
       {...dropTargetProps}
       data-drag-over={dragActive ? "" : undefined}
-      // Reading-surface rule (D44 §12.1): the composer carries its OWN opaque card backing, never leaning on the
+      // Reading-surface rule (D294, UI-Theming-and-Content §12.1): the composer carries its OWN opaque card backing, never leaning on the
       // background scrim for legibility. The interaction lift rides the opaque muted step, and the armed drop
       // state is louder than focus: an armed target has to announce itself while a file hovers over it.
       dropTarget={true}

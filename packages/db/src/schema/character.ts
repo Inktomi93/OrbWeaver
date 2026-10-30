@@ -64,7 +64,7 @@ export const characters = sqliteTable(
     // a `null` `trust_html` is "Inherit default", which resolves to the top rung while the deployment
     // `allowInteractiveCards` ceiling is up (owner ruling: interactive cards on by default).
     interactiveHtml: integer("interactive_html", { mode: "boolean" }),
-    // D44 §12.1/§12.5 — the per-character theme-token OVERRIDE (nullable: null = no override, inherit the
+    // D294, UI-Theming-and-Content §12.1/§12.5 — the per-character theme-token OVERRIDE (nullable: null = no override, inherit the
     // global selected theme). Mirrors `trustHtml`'s tri-state-override shape, but the "value" here is a
     // JSON blob, not a boolean. Resolution (`character override > global selected theme > default`) is a
     // CLIENT-side `<ThemeScope>` NESTING concern (scoped CSS custom properties cascade) — this column

@@ -1,4 +1,4 @@
-// `useMessageAppearance` — the per-message DISPLAY chrome knobs from the synced appearance blob (D44
+// `useMessageAppearance` — the per-message DISPLAY chrome knobs from the synced appearance blob (D294
 // §12.1): avatar size + shape + whether in-chat avatars show + (WS3) the metadata-chip visibility set
 // + messageActions. Read ONCE in the message-list surface and threaded to each `MessageRow` as props
 // (rows stay prop-driven + Compiler-memoized — never a per-row query subscription). Shares the

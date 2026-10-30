@@ -18,7 +18,7 @@
 // domain (`"./*": "./src/*/index.ts"`), and a deep-file pattern would silently make every internal contracts
 // module a public door with nothing to say so. `@orb/ui` is the house precedent for the enumerated form.
 //
-// Appearance (D44 §12.1) — DISPLAY-ONLY, never touches stored content (content-processing is preset
+// Appearance (D294, UI-Theming-and-Content §12.1) — DISPLAY-ONLY, never touches stored content (content-processing is preset
 // territory, D53). Per-character COLOR theme layers on top; movingUI/waifuMode are OUT of scope here.
 
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";

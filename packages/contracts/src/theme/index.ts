@@ -1,7 +1,7 @@
-// @orb/contracts/theme — the D44 §12.5 contracts home for theming: the `ThemeOverride` wire clamp
+// @orb/contracts/theme — the D294, UI-Theming-and-Content §12.5 contracts home for theming: the `ThemeOverride` wire clamp
 // (override.ts — the ONE wire copy of the §12.1 token subset) + the `Theme` entity shapes
 // (the single-owned user theme library; the SERVER slice — table, verbs,
-// seeding — is the unbuilt themes wave; these shapes land born-compliant so the D44 per-character
+// seeding — is the unbuilt themes wave; these shapes land born-compliant so the D294 per-character
 // theme column and the client `<ThemeScope>` consumers build against one home). A theme entity is
 // its own module (not `/settings`): `ThemeOverride` has three unrelated consumers (the settings-
 // homed entity, the character-row theme column, `<ThemeScope>`) — first-consumer misfiling is the

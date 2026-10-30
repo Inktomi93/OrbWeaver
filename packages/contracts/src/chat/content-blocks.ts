@@ -1,4 +1,4 @@
-// @orb/contracts/chat/content-blocks — the D44 §12.4 message-content RENDER model: a message body is a typed
+// @orb/contracts/chat/content-blocks — the D294, UI-Theming-and-Content §12.4 message-content RENDER model: a message body is a typed
 // SEQUENCE of content blocks (markdown / gated media / trust-tiered html-card), NOT one HTML string. This is
 // how a stored message is DISPLAYED — distinct from the provider-send model (`ChatContentPart`, D45 — what the
 // model receives), which shares one stored asset but is a different contract in the opposite direction. Also
@@ -9,7 +9,7 @@ import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { CONTENT_CLASS_POLICY } from "./content-classes.ts";
 
-// ── Message content blocks (D44 §12.4) ────────────────────────────────────────────────────────────
+// ── Message content blocks (D294, UI-Theming-and-Content §12.4) ────────────────────────────────────────────────────────────
 // A message body is a typed SEQUENCE of content blocks, NOT one HTML string (ST's fatal simplification).
 // This is the RENDER model — how a stored message is *displayed*. It is distinct from the provider-send
 // model (`ChatHistoryMessage.content` → content-parts, D45 — what the model receives as input); the two
@@ -22,14 +22,14 @@ const cardTrustSchema = z.enum(["tierA", "tierB"]);
 export type CardTrust = z.infer<typeof cardTrustSchema>;
 
 /** Where a media block's bytes come from: an owned asset (per-user CAS, D21) or an external URL (gated by
- *  `forbidExternalMedia` at render, D44 §12.3 — never auto-loaded for untrusted content). */
+ *  `forbidExternalMedia` at render, D294, UI-Theming-and-Content §12.3 — never auto-loaded for untrusted content). */
 const messageMediaSrcSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("asset"), assetId: typeIdSchema(ID_PREFIX.asset) }),
   z.object({ kind: z.literal("external"), url: z.string() }),
 ]);
 
 /** The typed message-content block union. `html-card` carries its own trust tier; `media` covers image +
- *  native audio/video; `markdown` is the default text path. (D44 §12.4 — born-compliant before Phase 5.) */
+ *  native audio/video; `markdown` is the default text path. (D294, UI-Theming-and-Content §12.4 — born-compliant before Phase 5.) */
 export const messageContentBlockSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("markdown"), md: z.string() }),
   z.object({
@@ -64,9 +64,9 @@ export type MessageContentBlock = z.infer<typeof messageContentBlockSchema>;
 
 /**
  * Project kit content spans (`@orb/kit/content` `tokenizeContent` — the ONE ref grammar, D51) into
- * the D44 render blocks: consecutive text spans join into one `markdown` block; image spans become
+ * the D294 render blocks: consecutive text spans join into one `markdown` block; image spans become
  * `media` blocks (`external` refs are rendered through the gated `MessageMedia`, never a raw
- * `<img>` — D44 §12.3). The `html-card` extraction grammar is NOT parsed here — it lands with the
+ * `<img>` — D294, UI-Theming-and-Content §12.3). The `html-card` extraction grammar is NOT parsed here — it lands with the
  * chat-content wiring that defines how a card is embedded in a stored body (the union member is
  * born-compliant; this projection covers the markdown + media classes the D51 grammar defines).
  *

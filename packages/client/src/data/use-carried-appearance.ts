@@ -2,7 +2,7 @@
 //
 // THE BUG IT EXISTS TO KILL (owner dogfood 2026-08-06 — "character backgrounds and avatars also dont show
 // up until the first message"): the carried look — the app-root background (BG-C) and the room-theme
-// takeover (D44 §12.1) — was resolved from `chat.getChat`'s roster, and a pre-send room did not have one, so
+// takeover (D294, UI-Theming-and-Content §12.1) — was resolved from `chat.getChat`'s roster, and a pre-send room did not have one, so
 // a brand-new chat wore the viewer's default chrome and re-skinned itself the instant the first message
 // created the row.
 //

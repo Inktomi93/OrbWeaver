@@ -44,7 +44,7 @@ type ColorFieldOpenChangeDetails = Parameters<NonNullable<BasePopoverRootProps["
 
 export interface ColorFieldProps {
   /**
-   * The current color — any form the D44 clamp accepts (hex / rgb / hsl / oklch / a named color).
+   * The current color — any form the D294 clamp accepts (hex / rgb / hsl / oklch / a named color).
    * NOTE `onValueChange` below is this composite's OWN commit callback (it fires only for a value that
    * passes `isRenderableColor`, and for the `""` clear), not a passthrough of any Base UI change arm — there
    * is no eventDetails to preserve on it.

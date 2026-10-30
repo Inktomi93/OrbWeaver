@@ -1,4 +1,4 @@
-// @orb/contracts/chat/card-frame — the wire for the TRUST-GATED CARD-FRAME DOORWAY (D44 §12.2's sandbox,
+// @orb/contracts/chat/card-frame — the wire for the TRUST-GATED CARD-FRAME DOORWAY (D294, UI-Theming-and-Content §12.2's sandbox,
 // delivered as a real response instead of a `srcdoc` blob). A `srcdoc` frame INHERITS the app document's
 // CSP, so a per-character trust grant can never widen `img-src` there; a document served from a URL carries
 // its OWN policy. This contract is the two-step that gets card bytes to such a URL:

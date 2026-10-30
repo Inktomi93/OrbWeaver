@@ -6,7 +6,7 @@ updated: 2026-10-16
 
 # UI-Primitives-and-Reuse
 
-> **The client reuse-model law (§13).** Decision records: D42–D44, D52, D54 (+ the D66 amendments). §-map + reading order: `UI-Architecture-and-Layout.md` header; the `@orb/ui` package build law is `ui-package-design.md`.
+> **The client reuse-model law (§13).** Decision records: D42, D43, D294, D52, D54 (+ the D66 amendments). §-map + reading order: `UI-Architecture-and-Layout.md` header; the `@orb/ui` package build law is `ui-package-design.md`.
 
 ## 13. The reuse model — the central primitives every feature builds on (D54)
 
@@ -81,7 +81,7 @@ Factory column = the factory each surface uses (code is the truth). Entity edito
 | Settings panels (appearance / system / connection config) | `createAutosaveEntityForm` | many grouped toggles, save-on-change |
 | Connection / credential add | `createSavedEntityForm` | multi-field + validation (never autosave a half-typed credential) |
 | User-admin create / edit user | `createSavedEntityForm` | multi-field + validation |
-| D44 theme editor | `createAutosaveEntityForm` | the token subset (§12.1) |
+| D294 theme editor | `createAutosaveEntityForm` | the token subset (§12.1) |
 | — stays controlled + Zod — | | search box · lone toggle · single rename · login (2-field): trivial, no toolkit tax |
 
 **The under-use correction:** Form is for ANY multi-field / validation / save-or-draft surface — settings, connections, group config, theme, and user-admin all belong in a factory, not just the four entity editors.

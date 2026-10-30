@@ -115,7 +115,7 @@ A surface has exactly ONE tier. A `form` island inside an `instrument` surface i
 
 ## 4. Mechanism — impossible by construction
 
-Features cannot express the wrong thing because they never express spacing or radius at all (the D44 pattern). Three moving parts.
+Features cannot express the wrong thing because they never express spacing or radius at all (the D294 pattern). Three moving parts.
 
 ### 4.1 The tier attribute — ONE writer
 

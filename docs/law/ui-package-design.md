@@ -10,7 +10,7 @@ updated: 2026-10-17
 
 > **AS-BUILT LAW.** Code (`packages/ui/src`) and CTs document what is built; `package.json#exports`
 > declares public doors. Client factories (§6.2) live in `packages/client/src/{forms,data,state}`.
-> `docs/law/UI-*.md` + D42/D43/D44/D52/D54/D58/D62/D66 win conflicts. This document owns package
+> `docs/law/UI-*.md` + D42/D43/D294/D52/D54/D58/D62/D66 win conflicts. This document owns package
 > decisions, factory homes/signatures/obligations and cross-cutting reasons. Structural law lives in
 > `UI-Primitives-and-Reuse.md` §13.7–§13.9. Code cites these section numbers: never renumber or move this file.
 
@@ -33,8 +33,8 @@ kit ─┬─→ contracts ─┬─→ db ─→ server           (backend arm)
   ui never bundles React).
 - **Contracts-adjacent primitives use ui-local STRUCTURAL props, never a contracts import.**
   `MessageMedia` takes `{ src: MessageMediaSource; … }` where `MessageMediaSource` is a ui-local
-  discriminated union structurally compatible with the D44 `MessageContentBlock.media` fields;
-  `ThemeScope` takes a ui-local `ThemeScopeTokens` shape matching the D44 §12.1 subset. The
+  discriminated union structurally compatible with the D294 `MessageContentBlock.media` fields;
+  `ThemeScope` takes a ui-local `ThemeScopeTokens` shape matching the D294, UI-Theming-and-Content §12.1 subset. The
   contracts↔ui structural pairing is asserted by a **type-level test in the client phase** (tests
   may import both packages; the packages never import each other). This is the same discipline as
   the server's injected-op contract types.
@@ -83,10 +83,10 @@ packages/ui/
     markdown/           # seals Streamdown — TWO trust policies (UI-Gates §11.6)
                         #   + math.ts (KaTeX) + shiki-plugin.ts (Shiki code highlight —
                         #   Streamdown 2.5 dropped its bundled Shiki); no diagram plugin, so a mermaid
-                        #   fence renders as code — Tier-A allowlist lives HERE (D44 §12.2)
+                        #   fence renders as code — Tier-A allowlist lives HERE (D294, UI-Theming-and-Content §12.2)
     stream/             # useSmoothText pacer + TTFT shimmer (§6.3.1 — pure string-math)
     content/            # sandbox-frame/ · message-media/ · theme-scope/ · lightbox/ — each a sealed
-                        #   dir (D44 — the security trio + lightbox)
+                        #   dir (D294 — the security trio + lightbox)
     code-editor/        # seals CodeMirror 6, token-themed (custom-CSS field · Tier-B card CSS · D46)
     diff/               # seals `diff` (jsdiff) — snapshot/edit-history diff views (D28/D54)
     lib/                # cross-cutting seams: `cn` (tailwind-variants merge, re-exported) + the
@@ -146,7 +146,7 @@ Node token-authoring homes and type-only reexports follow [Spine-TypeScript §7.
     `border`/`input`/`ring`/`sidebar`), the **`--scrim`** token (D43 §11.4 — theme-aware overlay; never
     `bg-black/50`), the chart ramp (`--chart-1..5`), and the **prose/bubble semantics**
     (`--user-bubble`/`--ai-bubble`/`--system-bubble` + `-foreground`, `--dialogue`/`--narration`/
-    `--prose-body`/`--speaker`) — the D44 §12.1 ThemeScope override TARGETS, defaulting to ramp values.
+    `--prose-body`/`--speaker`) — the D294, UI-Theming-and-Content §12.1 ThemeScope override TARGETS, defaulting to ramp values.
     `tokens.json` is the truth for the full set (it also carries shadow/blur/immersive/reading token
     families the appearance system drives) — this list names the override targets `ThemeScope` reads,
     not the whole tree.
@@ -170,7 +170,7 @@ Node token-authoring homes and type-only reexports follow [Spine-TypeScript §7.
 - **Freshness is machine-enforced:** the external legacy source (`/home/inktomi/inktomi-stack/development/orbweaver-legacy-tests-2026-10-21/ui/tokens/index.test.ts`) re-runs the codegen
   in-memory and diffs against the committed artifacts — hand-editing the theme or letting it drift
   from `tokens.json` FAILS `pnpm test`. ("Derived, never hand-authored" as a test, not a hope.)
-- **Themes are value-sets over these names** (D44 §12.1): Hearth is `:root`. NO structural mode exists.
+- **Themes are value-sets over these names** (D294, UI-Theming-and-Content §12.1): Hearth is `:root`. NO structural mode exists.
   FLAG\[registry]: the shipped theme SET is **Hearth · Mocha · Light** (D62's placement rulings
   are the authority; never the seed mockup's Catppuccin/Loom names) — built as `owner_id IS NULL` seed
   rows (`packages/server/src/domain/settings/seed-themes.ts`) AND generated `[data-theme]` value-sets in `theme.css`.
@@ -211,8 +211,8 @@ factories are inventoried here because this package is their substrate and their
 | `createVirtualList` seal → `<VirtualList>` | `{ count, getItemKey (REQUIRED, id-based), estimateSize, overscan?, lanes?, rangeExtractor?, renderItem }` | `directDomUpdates: true` + `containerRef` (Compiler fix, 3.14+); `useFlushSync: false` (React 19); the unbounded-window tripwire as a **thrown error** (not a warn); `measureElement` + `data-index` wiring; `directDomUpdatesMode: 'position'` for iframe/portal rows | CT: renders windowed; tripwire throws on unbounded parent; scroll updates ≤2 re-renders (the upstream E2E assertion) |
 | `<MessageList>` seal (chat) | adds `anchorTo:'end'`, `followOnAppend`, `isAtEnd`/`scrollToEnd` ("jump to latest"), no-recycle window for Tier-B iframe rows (the `keepMounted` predicate) | stick-to-bottom-without-yank; prepend stability (id keys); hoisted row state | CT: append-while-pinned follows; scrolled-up reader never yanked |
 | `<Meter kind>` + `<SegmentedClock>` | `Meter: { kind: 'linear'\|'arc'\|'bipolar', value, max?, milestones?: number[], dangerBelow?: number, label }` · `SegmentedClock: { segments: int ≥2, filled, size?, completed? }` | hand-rolled ARIA (`role="meter"` + value semantics) — ONE rendering mechanism across kinds (Base UI's Meter is linear-DOM-shaped; arc/bipolar need SVG); `dangerBelow` swaps the danger INTENT token (never a color calc); bipolar is center-origin −/+ | CT: 0/partial/full/completed clock; bipolar ticks; danger token swap; ARIA values (the fixtures come from `RpgHudView`-SHAPED plain objects, no contracts import) |
-| `@orb/ui/markdown` (Streamdown seal) | `<Markdown trust="trusted"\|"untrusted">` | the TWO trust policies (§11.6), built against the VERIFIED Streamdown 2.5 API — `allowedElements`/`disallowedElements` + `urlTransform` (the docs-assumed `allowedImagePrefixes`/`allowDataImages` API does NOT exist — recorded delta, §10): `trusted` = Streamdown's permissive defaults (rehype-sanitize + rehype-harden) plus the D44 §12.2 Tier-A element allowlist; `untrusted` = the Tier-A allowlist MINUS `img` + the `untrustedUrlTransform` protocol/host gate (`http`/`https`/`mailto` only, `data:` blocked); `remark-gfm {singleTilde:false}`; the `shiki-plugin.ts` `CodeHighlighterPlugin` supplied via `plugins.code` (Streamdown 2.5 ships no bundled Shiki); no `plugins.mermaid`, so a mermaid block renders as inert code under both policies; an error boundary around the lazy CodeBlock; a large-block guard | CT: `<script>` stripped; `on*` stripped; data-URI image blocked under `untrusted`; `~10~20°C` not struck through |
-| `<ThemeScope>` | `{ tokens: ThemeScopeTokens, children }` — ui-local Zod-clamped subset (D44 §12.1) | values parsed+clamped at the boundary (colors must parse as colors — reject `url()`/`expression()`; dims snap to token scale; font from allowlist); applies ONLY scoped CSS custom props on a wrapper; NEVER raw style passthrough (lint `orb/theme-override-only-via-scope`) | CT: hostile values (`url(//x)`, `expression(...)`, `;injection`) are rejected/dropped; legal overrides land as `--token` custom props on the scope node only |
+| `@orb/ui/markdown` (Streamdown seal) | `<Markdown trust="trusted"\|"untrusted">` | the TWO trust policies (§11.6), built against the VERIFIED Streamdown 2.5 API — `allowedElements`/`disallowedElements` + `urlTransform` (the docs-assumed `allowedImagePrefixes`/`allowDataImages` API does NOT exist — recorded delta, §10): `trusted` = Streamdown's permissive defaults (rehype-sanitize + rehype-harden) plus the D294, UI-Theming-and-Content §12.2 Tier-A element allowlist; `untrusted` = the Tier-A allowlist MINUS `img` + the `untrustedUrlTransform` protocol/host gate (`http`/`https`/`mailto` only, `data:` blocked); `remark-gfm {singleTilde:false}`; the `shiki-plugin.ts` `CodeHighlighterPlugin` supplied via `plugins.code` (Streamdown 2.5 ships no bundled Shiki); no `plugins.mermaid`, so a mermaid block renders as inert code under both policies; an error boundary around the lazy CodeBlock; a large-block guard | CT: `<script>` stripped; `on*` stripped; data-URI image blocked under `untrusted`; `~10~20°C` not struck through |
+| `<ThemeScope>` | `{ tokens: ThemeScopeTokens, children }` — ui-local Zod-clamped subset (D294, UI-Theming-and-Content §12.1) | values parsed+clamped at the boundary (colors must parse as colors — reject `url()`/`expression()`; dims snap to token scale; font from allowlist); applies ONLY scoped CSS custom props on a wrapper; NEVER raw style passthrough (lint `orb/theme-override-only-via-scope`) | CT: hostile values (`url(//x)`, `expression(...)`, `;injection`) are rejected/dropped; legal overrides land as `--token` custom props on the scope node only |
 | `<MessageMedia>` | `{ src: { kind:'asset', url } \| { kind:'external', url }, media: 'image'\|'audio'\|'video', alt, dims?, allowExternal: boolean }` | asset-vs-external dispatch; `forbidExternalMedia`-style click-to-load placeholder when `!allowExternal`; **autoplay FORCED OFF + `controls` required on untrusted A/V (non-overridable)**; lazy-load; aspect reservation (no layout shift); broken-media fallback; lightbox hook | CT: external img does NOT hit the network un-gated (placeholder first); untrusted `<video>` has `controls` and never `autoplay`; aspect box reserved pre-load |
 | `<SandboxFrame>` | `{ html, css?, themeTokens?, title, complete?, heightPx? }` | `sandbox` = `CARD_FRAME_SANDBOX` (`@orb/kit/card-frame`), **never `allow-same-origin`**; card scripts run only under the `interactive` posture (D294, §12.2 of UI-Theming-and-Content.md); per-frame CSP from `buildCardFrameCsp` (no `connect-src`, gated `img-src`/`media-src`); render-on-complete; `heightPx` until the frame reports a clamped height; theme-token injection so `var(--accent)` tracks | CT: `sandbox`/`csp` attrs EXACT (string-asserted); a card script does not execute under the `static` posture |
 | `<Lightbox>` | hand-built over Dialog + MessageMedia (D54 — no lib) | zoom view for image/video; focus trap + Esc from Base UI Dialog | CT: opens/closes; media renders through MessageMedia (gates compose) |
@@ -239,28 +239,28 @@ factories are inventoried here because this package is their substrate and their
 | `invalidation.ts` (the seam) | `client/data` | tRPC queryFilters | ONE domain-event → `queryFilter()` map; mutations' `onSettled` + bus handlers call `invalidate(event)` (gate `orb/no-inline-invalidate-outside-seam`); keys are always `trpc.*.queryKey(args)` — the same key the reader uses. |
 | bus reducer (`applyChatBusEvent`) | `client/data/bus` | contracts DU + QueryClient | pure exhaustive switch over the server-authoritative event union; slot lifecycle owned by terminal turn events; `onData` = buffer-local + invalidate, NEVER a second store (gates `orb/bus-on-data-no-store-write`, `orb/chat-stream-writes-in-bus-only` (plan-time `no-inline-cache-surgery-in-stream`) — scoped to subscription bodies so `onMutate` doesn't trip). |
 | `createEntityDraftStore` | `client/state` | Zustand persist | frozen `EMPTY` stable default (the v5 `?? CONSTANT` pattern) + `useShallow` for multi-field selectors (different jobs — keep both); `persist` requires `partialize: (s)=>({drafts:s.drafts})`, `version` and a total, crash-proof `migrate`; native types enforce key presence, not runtime totality; DU lifecycle transitions via `set(next, true)` replace. |
-| the panel-store shape | `client/state` | Zustand | one `create` per file · ≤10 authored fields · no exported `set`/`getState` · persisted device-local ONLY for device state (dock/collapse) — synced prefs go in the server `UserSettings` blob (D44 §12.1). |
+| the panel-store shape | `client/state` | Zustand | one `create` per file · ≤10 authored fields · no exported `set`/`getState` · persisted device-local ONLY for device state (dock/collapse) — synced prefs go in the server `UserSettings` blob (D294, UI-Theming-and-Content §12.1). |
 | the registry pattern (sections/modals/panes/chrome via `createRegistry`/`createContributorRegistry` — D70/D73; the former `RAIL_SLOTS`/`MODAL_SLOTS` static maps and the `check:registry-pairing` script are DEAD) | `client` features + `main.tsx` | feature wiring | registry-as-data wired at the composition root; walls carried by the `*-registry-completeness` gates + total door Records so a missing member is a `tsc` error. |
 | `ChatHandle` | `client` | domain-shaped | the `{kind:'committed';id} \| {kind:'draft';id;meta}` discriminated handle threaded from the root — the typed `this_chid`/`isOptimistic` successor. |
 | `packages/client/src/lib/time.ts` seam | `client/lib` | Intl + injected now | epoch-UTC wire → browser-local display, memoized `Intl.*`, injected `now` (snapshot-testable). |
 
 The as-built shapes are the code (`client/src/{forms,data}`).
 
-## 7. Security primitives — the D44 trio (exact-spec, comment-cited)
+## 7. Security primitives — the D294 trio (exact-spec, comment-cited)
 
-Each implementation carries `// D44 §12.x:` cites at the guard lines, and the
+Each implementation cites D294 and its UI-Theming-and-Content §12 section at the guard lines, and the
 CT tests assert the CONTAINMENT properties, not just rendering:
 
-- **Tier-A markdown/HTML** = Streamdown configured to OUR explicit allowlist (D44 §12.2:
+- **Tier-A markdown/HTML** = Streamdown configured to OUR explicit allowlist (D294, UI-Theming-and-Content §12.2:
   structural + text + tables + `details/summary` + lucide-mapped icons + gated links/images;
   forbidden: `script`, `on*`, `style`, inline `style=`, `iframe/object/embed/form/input`).
 - **Tier-B HTML** = `<SandboxFrame>` — the iframe IS the boundary (never sanitize-into-main-DOM;
   `eslint.config.ts` and Biome enforce this). Card scripts require the `interactive` frame posture
   (D294, UI-Theming-and-Content.md §12.2).
-- **Media** = `<MessageMedia>` — the D44 §12.3 policy (external gated default-safe;
+- **Media** = `<MessageMedia>` — the D294, UI-Theming-and-Content §12.3 policy (external gated default-safe;
   autoplay-off/controls-on non-overridable for untrusted; data-URI images off for untrusted).
 - **Theming** = `<ThemeScope>` — the ui-local Zod clamp (§1 note); CSP headers + the
-  `forbidExternalMedia` resolution are SERVER/entry concerns (D44 §12.5), not ui's.
+  `forbidExternalMedia` resolution are SERVER/entry concerns (D294, UI-Theming-and-Content §12.5), not ui's.
 
 ## 8. Verification
 
@@ -280,7 +280,7 @@ Two WHYs stay live because they still constrain the code:
     its visually-hidden `<span>` inside an `<svg>` (invalid). `MeterIndicator` hardcodes `width:%`
     (linear-only), which is why arc/bipolar are hand-drawn.
 - **`ThemeOverride` clamp lives in two homes by design:** the WIRE schema in `@orb/contracts/theme`
-  (D44 §12.5) and the ui-local RENDER clamp in `<ThemeScope>` (ui cannot import contracts). A
+  (D294, UI-Theming-and-Content §12.5) and the ui-local RENDER clamp in `<ThemeScope>` (ui cannot import contracts). A
   client-phase type test asserts the pairing. Contracts importing a ui shape was rejected — it inverts
   the cake (ui is a LEAF of client).
 

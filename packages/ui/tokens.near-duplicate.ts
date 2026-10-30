@@ -14,7 +14,7 @@
 // plane were measured against the tree and are floods of DESIGN, not drift: (1) near-but-unequal pairs
 // inside one value-set = 60+ hits, all systematic chroma tiering (every palette's popover is its
 // sidebar-accent at ×0.9 chroma); (2) "a base reference-group must stay one value per theme" = 21 hits,
-// all deliberate — `user-bubble` re-tinted away from `secondary` IS the D44 §12.1 ThemeScope override
+// all deliberate — `user-bubble` re-tinted away from `secondary` IS the D294, UI-Theming-and-Content §12.1 ThemeScope override
 // point. A per-theme re-value of a semantic token is the seed system working; the base ramp is where
 // two values compete to be one decision.
 //

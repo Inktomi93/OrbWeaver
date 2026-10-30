@@ -10,7 +10,7 @@
 //   • metadata.ts       — the `chats.metadata` sub-blobs (roomOverrides/group/opening/visibility/steer)
 //   • roster.ts         — the unified-roster wire (D16/D22/D80): roster/seat/invite/render-policy/history-floor
 //   • detail.ts         — the full chat read (`ChatDetail`) + the invite join result that carries it
-//   • content-blocks.ts — the D44 §12.4 render blocks + `contentSpansToBlocks`
+//   • content-blocks.ts — the D294, UI-Theming-and-Content §12.4 render blocks + `contentSpansToBlocks`
 //   • card-frame.ts     — the trust-gated card-frame doorway wire (mint request/response + the route)
 //   • content-classes.ts — the content-class visibility registry (`CONTENT_CLASS_POLICY`)
 //   • listing.ts        — the `listChats` KEYSET cursor (`chatListCursorSchema`)

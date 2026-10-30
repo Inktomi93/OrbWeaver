@@ -731,9 +731,9 @@ export default defineConfig(({ mode }) => {
       cssTarget: [...BROWSER_TARGETS],
       // Every target browser ships native modulepreload — drop the polyfill.
       modulePreload: { polyfill: false },
-      // CRITICAL (D44): assetsInlineLimit:0 → NO `data:` URIs, so the app CSP `img-src` stays tight
-      // (D44 `allowDataImages:false`). A few extra small-asset requests are fine on a self-hosted box;
-      // a `data:` image would force loosening `img-src`, which D44 forbids.
+      // CRITICAL (D294): assetsInlineLimit:0 → NO `data:` URIs, so the app CSP `img-src` stays tight
+      // (D294 `allowDataImages:false`). A few extra small-asset requests are fine on a self-hosted box;
+      // a `data:` image would force loosening `img-src`, which D294 forbids.
       assetsInlineLimit: 0,
       // false — emit NO sourcemaps into the served dist. `"hidden"` only drops the
       // `//# sourceMappingURL` comment; the deterministic `<bundle>.js.map` still lands in the dir

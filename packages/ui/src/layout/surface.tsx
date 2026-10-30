@@ -2,7 +2,7 @@
 // of the two density tiers its subtree is (`instrument` = read-mostly, scanned, dense · `form` =
 // write-mostly, one decision per row, airy); `styles/tiers.css` turns that attribute into the island
 // padding/radius every primitive underneath resolves. Features therefore never express island spacing or
-// radius at all — the D44 impossible-by-construction pattern.
+// radius at all — the D294 impossible-by-construction pattern.
 //
 // Why an ATTRIBUTE and not a prop/context: ESLint layout-attribute restrictions in `eslint.config.js` ban `density`/`compact`/`inDrawer`
 // props and UI-Architecture-and-Layout §4 states density is the `data-*` axis. This is the SURFACE-CLASS

@@ -27,7 +27,7 @@
 // #226 — every shelf is a single-column band over a FIXED-cell grid (`cols="cellShelf"`), so there is no
 // two-column crossover to unbalance and a wider pane buys MORE faces rather than bigger ones.
 //
-// D44 — portraits go through the `Avatar` primitive (`CharacterShelfFace`); no prose is drawn over art.
+// D294 — portraits go through the `Avatar` primitive (`CharacterShelfFace`); no prose is drawn over art.
 //
 // #1662 — RECENTLY CHATTED IS A RESUME SHELF, not a second way to open a card (owner-ruled 2026-09-05).
 // Its faces used to press `onOpen(id)`, the SAME door the library row one pane over already offers, so

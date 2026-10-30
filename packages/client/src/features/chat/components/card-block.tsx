@@ -1,4 +1,4 @@
-// The ONE card mount site (D44 §12.2). Two renderers call it — the settled row
+// The ONE card mount site (D294, UI-Theming-and-Content §12.2). Two renderers call it — the settled row
 // (`message-content.tsx`) and the STREAMING ghost row (`ghost-message-row.tsx`, once a card's fence has
 // closed) — and they must not become two spellings of one sandbox posture: a copy would let the ghost's
 // iframe drift off `CARD_FRAME_SANDBOX`, off the frame CSP, or onto a different tier. Sharing this file makes the

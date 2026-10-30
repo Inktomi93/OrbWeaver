@@ -40,7 +40,7 @@ export interface AuthMetaDeps {
   readonly forbidExternalMedia: () => boolean;
   /** The deployment HTML-trust DEFAULT (`effectiveConfig.trustHtml`) — the other half of the render-policy
    *  floor `resolveRenderPolicy` (`@orb/contracts/chat`) combines. Unlike `forbidExternalMedia` this one is a
-   *  default, not a ceiling: a card's `trustHtml` override wins either way (D44 §12.0, owner 2026-08-01).
+   *  default, not a ceiling: a card's `trustHtml` override wins either way (D294, UI-Theming-and-Content §12.0, owner 2026-08-01).
    *  Served because a client surface that PREVIEWS card content has to resolve the same policy the server
    *  will — a preview that reads the raw override column renders an INHERIT card untrusted on a deployment
    *  that trusts, which is a preview lying about the thing it exists to show. */

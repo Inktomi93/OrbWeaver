@@ -4,7 +4,7 @@
 // (derive-modernization §W5).
 //
 // F7 (visual-blech audit): the row renders the STATE its summary already carries instead of five identical
-// shapes — a real participant portrait when the caller resolves one (`portraitHash`, D44: through the
+// shapes — a real participant portrait when the caller resolves one (`portraitHash`, D294: through the
 // `Avatar` primitive, never a raw <img>), a starred marker, and a receded + labelled archived row. The
 // markers follow the a11y-datum rule: the star is an `Icon` with an accessible `label` and the archived
 // state is a TEXT badge — no state is carried by color/opacity alone.

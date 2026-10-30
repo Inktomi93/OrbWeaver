@@ -1,4 +1,4 @@
-// The D44 §12.1 custom-CSS validator — the shared LEAN check for a theme's
+// The D294, UI-Theming-and-Content §12.1 custom-CSS validator — the shared LEAN check for a theme's
 // self-authored CSS field (Tier B / global-owner tier, `UI-Theming-and-Content.md` §12.1: "the same
 // validator" backs both the server write verb and the client code-editor's inline diagnostics). Kit-homed
 // (isomorphic, pure, zero-dep) because both consumers span the cake the same way `isSafeColor` does: a

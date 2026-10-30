@@ -1,7 +1,7 @@
 // @orb/kit/content — the message-content tokenizer: splits a stored message body into ordered spans. ONE
 // parser, two projections (D45-amend): the chat domain's SEND path projects spans → provider content-parts
 // (the `{text}|{image,url}` wire shape, gated by `ModelCapability.input.vision`); the Phase-6 client RENDER
-// path projects the SAME spans → `MessageContentBlock[]` (D44). Pure + deterministic — no markdown dep, no I/O.
+// path projects the SAME spans → `MessageContentBlock[]` (D294). Pure + deterministic — no markdown dep, no I/O.
 //
 // THE ENCODING (D45-amend + the span grammar): a message body is `string` (D26 one content
 // home). Embedded structured spans:

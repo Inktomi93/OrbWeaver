@@ -4,7 +4,7 @@
 // mapping); the primitive owns the media POLICY (muted/loop/autoplay/playsinline invariants, document.hidden
 // pause, the reduced-motion still frame from the resolved app and OS preference, decorative aria-hidden). Composing over the primitive is also
 // what keeps this feature file gate-legal — the raw `<video>` element lives in the vetted ui primitive, not
-// here (D44, Biome `noRestrictedElements`).
+// here (D294, Biome `noRestrictedElements`).
 //
 // `object-fit` maps from the SAME `AppearanceBackgroundFit` union the image layer's `background-size`
 // encodes (BG-B fit parity), passed to the primitive via `className` — it overrides the primitive's baked
