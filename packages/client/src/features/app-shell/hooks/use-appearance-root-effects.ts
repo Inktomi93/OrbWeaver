@@ -6,14 +6,11 @@ import type { AppearanceSettings } from "@orb/contracts/settings";
 import { useLayoutEffect } from "react";
 import { APPEARANCE_CHANNEL_ROWS, clearAppearanceChannel, writeAppearanceChannel } from "#lib";
 import type { SeedThemeName } from "#state";
-import { DATA_THEME_ATTR } from "#state";
+import { APPEARANCE_BOOT_AXES, DATA_THEME_ATTR } from "#state";
 
-// The OS preferences stay on the root after the shell unmounts, so the route splash that replaces it honours them.
-const KEPT_AFTER_UNMOUNT: ReadonlySet<keyof AppearanceSettings> = new Set<keyof AppearanceSettings>([
-  "reducedMotion",
-  "reducedTransparency",
-  "increasedContrast",
-]);
+// The boot axes (the OS preferences and the font scale) stay on the root after the shell unmounts. The boot replay
+// stamps them before any surface mounts, so the route splash, error and login surfaces that replace the shell keep them too.
+const KEPT_AFTER_UNMOUNT: ReadonlySet<keyof AppearanceSettings> = new Set<keyof AppearanceSettings>(APPEARANCE_BOOT_AXES);
 const CLEARED_ON_UNMOUNT = APPEARANCE_CHANNEL_ROWS.map((row) => row.key).filter((key) => !KEPT_AFTER_UNMOUNT.has(key));
 
 export function useAppearanceRootEffects(appearance: AppearanceSettings, dataTheme: SeedThemeName | null): void {

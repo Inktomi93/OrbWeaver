@@ -80,6 +80,11 @@ const RESTRICTED_CLASSES = [
     message: "An arbitrary value with a design number bypasses the token scale; use a token utility or add one in tokens.json.",
   },
   {
+    // A size the arbitrary-value rules above admit as structure (a formula, a typed custom property) is still off the ramp.
+    pattern: String.raw`^(?:[^\s]*:)?!?text-(?:\[(?:length:|calc\(|min\(|max\(|clamp\()|\(length:)`,
+    message: "A font size is a type step: pass a Text voice, or add a --text-* token in tokens.json and its utility.",
+  },
+  {
     pattern: String.raw`^(?:[^\s]*:)?!?leading-(?:tight|snug|normal|relaxed|loose|\d+)!?$`,
     message: "A stock line-height; every line box is a leading token (docs/law/integer-line-boxes.md).",
   },
@@ -377,6 +382,17 @@ const EMPTY_ARIA_NAME_SYNTAX = {
     "JSXAttribute[name.name=/^aria-label(?:ledby)?$/]:matches([value.type='Literal'][value.value=/^\\s*$/], [value.expression.type='Identifier'][value.expression.name='undefined'], [value.expression.type='Literal'][value.expression.value=/^\\s*$/], [value.expression.type='UnaryExpression'][value.expression.operator='void'], [value.expression.type='TemplateLiteral'][value.expression.expressions.length=0][value.expression.quasis.0.value.cooked=/^\\s*$/])",
   message: "An empty aria-label or aria-labelledby names nothing: give it text, or omit the attribute.",
 };
+// A literal font size in a style object, a chart option, an SVG attribute or a canvas font never meets the type ramp and
+// ignores the font-scale setting; a value resolved from a `--text-*` token, or a `text.*` token path naming one, stays legal.
+const RAW_FONT_SIZE_SYNTAX = {
+  selector: [
+    'Property:matches([key.name="fontSize"], [key.value="font-size"]):matches([value.type="Literal"]:not([value.value=/^text\\.[a-z-]+$/]), [value.type="TemplateLiteral"][value.expressions.length=0])',
+    'JSXAttribute:matches([name.name="fontSize"], [name.name="font-size"]):matches([value.type="Literal"], [value.expression.type="Literal"], [value.expression.type="TemplateLiteral"][value.expression.expressions.length=0])',
+    'AssignmentExpression:matches([left.property.name="fontSize"], [left.property.name="font"]):matches([right.type="Literal"], [right.type="TemplateLiteral"][right.expressions.length=0])',
+    'CallExpression[callee.property.name="setProperty"][arguments.0.value="font-size"]:matches([arguments.1.type="Literal"], [arguments.1.type="TemplateLiteral"][arguments.1.expressions.length=0])',
+  ].join(", "),
+  message: "A literal font size bypasses the type ramp and the font-scale setting; pass a Text voice or resolve a --text-* token.",
+};
 // no-warning-comments matches each term as a plain substring when it holds no word character.
 const INVISIBLE_CONTROL_TERMS = INVISIBLE_CONTROL_RANGES.flatMap(([firstHex, lastHex]) => {
   const first = Number.parseInt(firstHex, HEX);
@@ -403,7 +419,7 @@ const ORB_TRACK_CLASS_SYNTAX = {
   selector: `:matches(Literal[value=${ORB_TRACK_CLASS_PATTERN}], TemplateElement[value.raw=${ORB_TRACK_CLASS_PATTERN}])`,
   message: "An orb-*-track class string belongs to its home file; render the carrier through the chat feature's `Track` component.",
 };
-const CLIENT_SYNTAX = [INVISIBLE_CONTROL_SYNTAX, CLIENT_QUERY_KEY_SYNTAX, CLIENT_FORM_NAME_SYNTAX, EMPTY_ARIA_NAME_SYNTAX];
+const CLIENT_SYNTAX = [INVISIBLE_CONTROL_SYNTAX, CLIENT_QUERY_KEY_SYNTAX, CLIENT_FORM_NAME_SYNTAX, EMPTY_ARIA_NAME_SYNTAX, RAW_FONT_SIZE_SYNTAX];
 
 function rootSources(...refs: string[]): string[] {
   return refs.map((ref) => {
@@ -1833,7 +1849,10 @@ export default [
     files: ORB_TRACK_CLASS_HOMES,
     rules: { "no-restricted-syntax": ["error", ...CLIENT_SYNTAX] },
   },
-  { files: ["packages/ui/src/**/*.{ts,tsx}"], rules: { "no-restricted-syntax": ["error", INVISIBLE_CONTROL_SYNTAX, EMPTY_ARIA_NAME_SYNTAX] } },
+  {
+    files: ["packages/ui/src/**/*.{ts,tsx}"],
+    rules: { "no-restricted-syntax": ["error", INVISIBLE_CONTROL_SYNTAX, EMPTY_ARIA_NAME_SYNTAX, RAW_FONT_SIZE_SYNTAX] },
+  },
   {
     files: ["packages/server/src/domain/settings/seed-themes.ts", "packages/server/src/domain/preset/seed.ts"],
     rules: {

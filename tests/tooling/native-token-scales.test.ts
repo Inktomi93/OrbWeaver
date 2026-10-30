@@ -28,6 +28,12 @@ const RESTRICTED = [
   "grid-cols-[1.55fr_1fr]",
   "max-h-[60cqh]",
   "@cq-28:h-[8.5rem]",
+  // Arbitrary type sizes with no design number: a formula or a typed custom property is still off the ramp.
+  "text-[calc(var(--text-body)*var(--density-scale))]",
+  "text-[max(var(--text-label),var(--text-body))]",
+  "text-[length:var(--spacing-row)]",
+  "text-(length:--spacing-row)",
+  "hover:text-(length:--text-body)",
 ];
 const STRUCTURAL_ARBITRARY = "h-(--height-scroll-md) grid-cols-[auto_minmax(0,1fr)] grid-cols-[repeat(auto-fill,var(--width-cell-fixed))] flex-2 max-h-1/2";
 const UI_AUTHORED_CLASS = "orb-weave-glow";

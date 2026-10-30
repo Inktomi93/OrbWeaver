@@ -53,6 +53,8 @@ This law follows the 8pt grid with a 4pt sub-grid (4pt inside a component, 8pt b
 
 The seven type sizes are correct and are NOT re-derived (D4 — no measured defect, and a re-derivation churns every surface).
 
+Every authored font size is a `--text-*` step. The root font size is `calc(100% * var(--appearance-font-scale))`, so each rem step follows the user's font-scale setting; a raw length, a keyword, a percentage or a viewport unit does not. The art initials (`text.art-initial`, `text.band-initial`) are the one exception: their container sizes them. The Stylelint `font-size` allow-list, the ESLint arbitrary-text pattern and `RAW_FONT_SIZE_SYNTAX` in `eslint.config.ts`, and `tests/client/features/app-shell/type-ramp-census.suite.ct.tsx` check this rule.
+
 The defect was the KNOB SPACE: `size` (7) × `weight` (4) × `tone` (6) × `transform` (2) = 336 legal combinations, chosen per call site by taste — the mechanism by which nothing recedes. **The law is one CLOSED `voice` axis.** `size`/`weight`/`transform` are `@orb/ui`-INTERNAL; a feature passes `voice`, plus the meaning axes listed below.
 
 The founding grammar — a surface's copy is one of four things:

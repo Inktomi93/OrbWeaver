@@ -1,6 +1,7 @@
 // The backend every registered surface may ask for when mounted alone. Corpus-captured procedures answer by exact request
 // input, so an uncaptured request fails the owning test; every other procedure is answered by the corpus root's own server.
 
+import type { AppearanceSettings } from "@orb/contracts/settings/appearance";
 import type { ServedHold, TrpcRecorder } from "@orb/testkit/ct";
 import { createShellAmbientReads, defineTrpcRoutes, routeTrpc, serveCorpusProcedures, trpcHold } from "@orb/testkit/ct";
 import type { CorpusPlayback } from "@orb/testkit/iso";
@@ -66,6 +67,8 @@ const SERVED = [
 interface SurfaceReadScenario {
   readonly hold?: { readonly path: (typeof SERVED)[number]; readonly gate: ServedHold };
   readonly pluginDialog?: NonNullable<CorpusPlayback["pluginLibrary"]>["ownerActive"];
+  /** Appearance the viewer's settings read answers with, over the captured settings, so the shell writes it to the root. */
+  readonly appearance?: Partial<AppearanceSettings>;
 }
 
 /** Route the selected viewer's surface reads through its owning corpus root or exact captured responses. */
@@ -82,12 +85,24 @@ export async function routeSurfaceReads(
   });
   const { reads } = corpus;
   const spaceHold = trpcHold<"search.spaceStatus">();
-  const pluginDialog = scenario.pluginDialog;
+  const { pluginDialog, appearance } = scenario;
   const routes = defineTrpcRoutes({
     ...createShellAmbientReads(corpus, root.ownerId),
     ...serveCorpusProcedures(caller, SERVED),
     "sessions.me": createCorpusReadResponder("sessions.me", root.ownerId, reads["sessions.me"]),
     "settings.listThemes": createCorpusReadResponder("settings.listThemes", root.ownerId, reads["settings.listThemes"]),
+    ...(appearance === undefined
+      ? {}
+      : {
+          "settings.getUserSettings": () => {
+            const [captured] = reads["settings.getUserSettings"];
+            if (captured === undefined) {
+              throw new Error("The corpus has no settings capture");
+            }
+            const settings = captured.output;
+            return { ...settings, config: { ...settings.config, appearance: { ...settings.config.appearance, ...appearance } } };
+          },
+        }),
     "search.spaceStatus": () => spaceHold,
     ...(pluginDialog === undefined
       ? {}

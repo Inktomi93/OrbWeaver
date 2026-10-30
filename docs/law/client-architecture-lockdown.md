@@ -123,7 +123,7 @@ responsibility, with a local reason.
 When a builder needs paint: add a conformant token value in `tokens.json`; when its generated output
 cannot exist outside the CSS runtime, add an explicitly owned `cssValues` entry instead of lying about
 `$type`; otherwise add a semantic density slot in `tiers.css` or a component variant/primitive in
-`@orb/ui`. Never raw colour, spacing, radius, shadow, motion, or z-index values outside the shell literals
+`@orb/ui`. Never raw colour, spacing, radius, shadow, motion, type size, or z-index values outside the shell literals
 below. An unknown or unsupported utility/token name resolves to no declaration; add it to the governed
 vocabulary first. The allowed path is not a dumping-ground license: the `cssValues` vendor extension is
 not a second token vocabulary, and it is not a place for feature paint.

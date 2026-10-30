@@ -6,17 +6,20 @@ import { unsupportedAtFloor } from "@orb/tooling/browser-support";
 import type { Config } from "stylelint";
 import { appearanceChannelVocabulary } from "./packages/client/appearance-channel.build.ts";
 import { BROWSER_TARGETS, HARMLESS_WHEN_UNSUPPORTED } from "./packages/client/browser-targets.ts";
+import { appearanceChannelName } from "./packages/client/src/lib/appearance-carrier-manifest.ts";
 import tokens from "./packages/ui/src/tokens/tokens.json" with { type: "json" };
 import { browserSupportCssPlugin } from "./stylelint-browser-support.ts";
 import { CUSTOM_PROPERTY_RULES } from "./stylelint-custom-properties.ts";
 import {
   APPEARANCE_UNIT_CONVERSION,
   CSS_RULES,
+  FONT_SIZE_VALUES,
   FONT_WEIGHT_TOKEN,
   FONT_WEIGHT_VALUES,
   LENGTH_FROM_TOKENS,
   LENGTH_PROPERTIES,
   LETTER_SPACING_VALUES,
+  TEXT_STEP,
   Z_INDEX_VALUES,
 } from "./stylelint-rules.ts";
 import { declaredCustomProperties } from "./tooling/src/css-names/index.ts";
@@ -66,6 +69,8 @@ const SHELL_SLOTS = [
 const SHELL_CLASSES = ["orb-chat-track", "orb-composer-track"];
 
 const appearance = appearanceChannelVocabulary();
+// The one declaration the font-scale setting reaches the ramp through: the root size every `--text-*` rem step multiplies.
+const ROOT_FONT_SCALE = `calc(100% * var(${appearanceChannelName("fontScale")}))`;
 // Class recipes write custom properties too; both native variable rules use the same declaration inventory.
 const CUSTOM_PROPERTIES = Object.fromEntries([...declaredCustomProperties(import.meta.dirname)].map((name) => [name, "initial"]));
 
@@ -112,6 +117,10 @@ const config: Config = {
       "font-weight": [...FONT_WEIGHT_VALUES],
       "/^--orb-tier-[a-z-]+-weight$/": [FONT_WEIGHT_TOKEN],
       "letter-spacing": [...LETTER_SPACING_VALUES],
+      // A raw size, a keyword, a percentage or a viewport unit leaves the ramp, and the last ignores the font-scale setting.
+      "font-size": [...FONT_SIZE_VALUES, ROOT_FONT_SCALE],
+      "/^--orb-tier-[a-z-]+-size$/": [TEXT_STEP],
+      font: ["inherit"],
     },
     "at-rule-no-unknown": [true, { ignoreAtRules: TAILWIND_AT_RULES }],
     // `@apply` takes a utility name, which the prelude grammar does not know.
