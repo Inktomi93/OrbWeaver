@@ -7,12 +7,18 @@ export function useLabelsListHeader(active = true): ListPaneHeaderView {
   const count = useTagCensus(active);
   const create = useCreateLabel(active);
   return {
-    action: (
-      <Button intent="primary" loading={create.pending} onClick={create.run} size="sm" type="button">
-        <Icon icon={Plus} size="sm" />
-        {NEW_LABEL_NAME}
-      </Button>
-    ),
+    actions: [
+      {
+        id: "label-new",
+        inline: (
+          <Button intent="primary" loading={create.pending} onClick={create.run} size="sm" type="button">
+            <Icon icon={Plus} size="sm" />
+            {NEW_LABEL_NAME}
+          </Button>
+        ),
+        menu: [{ id: "label-new", label: NEW_LABEL_NAME, icon: Plus, onSelect: create.run, disabled: create.pending }],
+      },
+    ],
     count: count ?? 0,
     title: CORPUS_MODE_LABELS.labels,
   };

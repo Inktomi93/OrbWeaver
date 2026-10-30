@@ -150,7 +150,7 @@ export {
   sendUnavailableReason,
 } from "./injection-copy.ts";
 export { DEAD_INVITE_SENTENCE, inviteRoomSentence } from "./invite-copy.ts";
-export type { ListPaneHeaderProps, ListPaneHeaderView, ListSearchPolicy } from "./list-pane-header-view.ts";
+export type { ListBandAction, ListPaneHeaderProps, ListPaneHeaderView, ListSearchPolicy } from "./list-pane-header-view.ts";
 export { LIST_PANE_TITLE_ID } from "./list-pane-title-id.ts";
 export {} from "./log-clock.ts";
 export type { MessageRenderContext } from "./message-render.ts";
@@ -158,6 +158,9 @@ export { renderMessageForDisplay } from "./message-render.ts";
 export { MESSAGE_ROLE_ITEMS, MESSAGE_ROLE_LABELS } from "./message-role-labels.ts";
 export type { NotifyAction, NotifyNotice } from "./notify.ts";
 export { bindNotify, leaseNotify, notify } from "./notify.ts";
+export type { OpenRequestChannel } from "./open-request-channel.ts";
+export { createOpenRequestChannel, useOpenRequests } from "./open-request-channel.ts";
+export type { OverflowMenuForm, OverflowMenuItem, OverflowSubmenu } from "./overflow-menu-form.ts";
 export { perfMark, perfMeasure } from "./perf-marks.ts";
 export { pluginCommandAuditAttributes, pluginMenuAuditAttributes, pluginSurfaceAuditAttributes } from "./plugin-ui-audit-attributes.ts";
 // The Tier-C plugin guest's main-thread ↔ worker wire — a contract between two
@@ -221,7 +224,6 @@ export {
 } from "./row-qualifiers.ts";
 export type { SafeErrorRingRead } from "./safe-error-ring.ts";
 export { installSafeErrorRing, safeErrorRing } from "./safe-error-ring.ts";
-
 export { onSessionMessage, postSessionMessage, runSessionRecoverySingleFlight } from "./session-channel.ts";
 export type { SessionDocumentHost } from "./session-document-host.ts";
 export { bindSessionDocumentHost, leaseSessionDocumentHost, sessionDocument } from "./session-document-host.ts";
@@ -248,6 +250,7 @@ export { DEFAULT_TAG_SORT_MODE, sortTagsBy, TAG_SORT_MODES } from "./tag-sort.ts
 export { talkativenessAccessibleName, talkativenessPercent, talkativenessReadout } from "./talkativeness.ts";
 export { testId } from "./test-ids.ts";
 export { DENSITY_ITEMS } from "./theme-appearance-items.ts";
+export { recordInputBorderFallback, recordToneFallback } from "./theme-fallback-ring.ts";
 export type { ThemeColorFields } from "./theme-override-form.ts";
 export { assignThemeColorFields } from "./theme-override-form.ts";
 export { timeLib, viewerTimeZone } from "./time.ts";
@@ -258,6 +261,6 @@ export { isSilencedTurnAbort, turnAbortNotice, turnMutationToast } from "./turn-
 export { oversizeUploadMessage } from "./upload-cap-check.ts";
 export { withoutUrlSearchParam } from "./url-search.ts";
 export { useDebouncedValue } from "./use-debounced-value.ts";
-export { useFocusOnMount, useFocusOnSwap } from "./use-focus-on-mount.ts";
+export { useFocusListArrival, useFocusOnMount, useFocusOnSwap } from "./use-focus-on-mount.ts";
 export { useRouterUrlReplace } from "./use-router-url-replace.ts";
 export { motionIsReduced, runAfterViewTransition, surfaceDeferredFailure } from "./view-transition.ts";

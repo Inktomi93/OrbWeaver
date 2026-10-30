@@ -38,8 +38,10 @@ function TierBCard({
   readonly allowExternal: boolean;
   readonly cardOrigin: CardOrigin | undefined;
 }): ReactElement {
-  const { themeTokens, fontFamily } = useSandboxTheme();
-  const frameSrc = useCardFrameSrc(cardOrigin === undefined ? undefined : { ...cardOrigin, html: block.html, css: block.css, themeTokens, fontFamily });
+  const { themeTokens, styleTokens, fontFamily } = useSandboxTheme();
+  const frameSrc = useCardFrameSrc(
+    cardOrigin === undefined ? undefined : { ...cardOrigin, html: block.html, css: block.css, themeTokens, styleTokens, fontFamily },
+  );
   return (
     <ImmersiveCard
       html={block.html}

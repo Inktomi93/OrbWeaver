@@ -17,10 +17,17 @@
 // and carried the first-paint defect #476 measured here. Nothing about the inbox's authorization moved:
 // every read and verb behind this bell still answers to the server's gates.
 
+import { Bell } from "@orb/ui/icons";
 import type { ReactElement } from "react";
+import type { OverflowMenuForm } from "#lib";
 import type { ChromeEntry } from "#state";
 import { NotificationBell } from "../components/notification-bell.tsx";
 import { useInbox } from "../hooks/use-inbox.ts";
+import { inboxRequests } from "./notifications-requests.ts";
+
+const MENU_FORMS: readonly OverflowMenuForm[] = [
+  { id: "notifications-bell", label: "Notifications", icon: Bell, onSelect: (): void => inboxRequests.request() },
+];
 
 export const notificationsChrome: ChromeEntry = {
   id: "notifications-bell",
@@ -48,5 +55,10 @@ export const notificationsChrome: ChromeEntry = {
   useBadge: (): number => useInbox().waitingCount,
   // BOTH LENSES ARE REAL now: `"bar"` is the badged bell + popover, `"sheet"` is the inline inbox block
   // the mobile You sheet renders (see `NotificationBell`).
-  behavior: { kind: "widget", body: (presentation): ReactElement => <NotificationBell presentation={presentation} /> },
+  behavior: {
+    kind: "widget",
+    body: (presentation): ReactElement => <NotificationBell presentation={presentation} />,
+    // The menu entry opens the bell's own popover.
+    useMenuForms: (): readonly OverflowMenuForm[] => MENU_FORMS,
+  },
 };

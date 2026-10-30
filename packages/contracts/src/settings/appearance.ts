@@ -21,6 +21,7 @@
 // Appearance (D294, UI-Theming-and-Content §12.1) — DISPLAY-ONLY, never touches stored content (content-processing is preset
 // territory, D53). Per-character COLOR theme layers on top; movingUI/waifuMode are OUT of scope here.
 
+import { FONT_SCALE } from "@orb/kit/font-scale";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 // BG-C: the background source-kind vocabulary (`BACKGROUND_IMAGE_KINDS`) is homed in `#theme` (shared with
@@ -31,8 +32,6 @@ import { tolerantArray } from "#versioned-config";
 const CHAT_WIDTH_PCT_MIN = 30;
 const CHAT_WIDTH_PCT_MAX = 100;
 const CHAT_WIDTH_PCT_DEFAULT = 60;
-const FONT_SCALE_MIN = 0.8;
-const FONT_SCALE_MAX = 1.5;
 const FONT_SCALE_DEFAULT = 1;
 // THE WALLPAPER SCRIM HAS A FLOOR, AND THE FLOOR IS DERIVED (#487). `theme-background-layer.tsx` calls the
 // scrim "mandatory … non-negotiable for text legibility"; a MIN of 0 made that sentence false — a legal
@@ -154,7 +153,7 @@ const BLUR_STRENGTH_DEFAULT = 14;
 export const appearanceSettingsSchema = z
   .object({
     chatWidthPct: z.int().min(CHAT_WIDTH_PCT_MIN).max(CHAT_WIDTH_PCT_MAX).catch(CHAT_WIDTH_PCT_DEFAULT).default(CHAT_WIDTH_PCT_DEFAULT),
-    fontScale: z.number().min(FONT_SCALE_MIN).max(FONT_SCALE_MAX).catch(FONT_SCALE_DEFAULT).default(FONT_SCALE_DEFAULT),
+    fontScale: z.number().min(FONT_SCALE.min).max(FONT_SCALE.max).catch(FONT_SCALE_DEFAULT).default(FONT_SCALE_DEFAULT),
     avatarSize: z.enum(["sm", "md", "lg"]).catch("sm").default("sm"),
     avatarShape: z.enum(["round", "square", "rounded"]).catch("rounded").default("rounded"),
     avatarAspect: z.enum(["square", "portrait"]).catch("square").default("square"),

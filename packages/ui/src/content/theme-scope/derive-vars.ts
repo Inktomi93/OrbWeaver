@@ -6,7 +6,7 @@
 // and any legal base format works — the numbers are `@orb/kit/theme-derivation`'s (the ONE home; the ST
 // theme importer predicts the same math in node). Two values cannot be spelled for the browser and are
 // solved in node instead: the reading plate's polarity-derived alpha (#217) and the elevation arm (#243).
-import type { Oklch, RampDeltas, ShadowIngredients } from "@orb/kit/theme-derivation";
+import type { MutedForegroundPair, Oklch, RampDeltas, ShadowIngredients } from "@orb/kit/theme-derivation";
 import {
   carriedAccentInkLightness,
   carriedForegroundLightness,
@@ -19,9 +19,12 @@ import {
   readingPlateAlpha,
   readingPlateForeground,
   shadowIngredients,
+  solveFocusRing,
+  solveInputBorder,
   THEME_DERIVATION,
 } from "@orb/kit/theme-derivation";
 import type { ParsedOklch } from "./color-parse.ts";
+import { serializeOpaqueOklch } from "./color-parse.ts";
 
 // The neutral surface ramp: each `--color-*` paired with the RampDeltas member that names its L shift,
 // applied via CSS relative-color-syntax so any base color format works and only L shifts (hue + chroma
@@ -136,6 +139,72 @@ function chartVarsOn(base: ParsedOklch): Readonly<Record<string, string>> {
   return Object.fromEntries(ramp.map((color, index) => [`--color-chart-${index + 1}`, `oklch(${color.l} ${color.c} ${color.h})`]));
 }
 
+/** The painted ramp pixels of a carried base, shared by the derived foregrounds and the form-control edge solve. */
+function carriedSurfaces(
+  opaqueBase: Oklch,
+  deltas: RampDeltas,
+): Readonly<Record<"raised" | "card" | "popover" | "sidebar" | "accent" | "sidebarAccent" | "secondary" | "muted", Oklch>> {
+  return {
+    raised: rampSurface(opaqueBase, deltas.surfaceRaised),
+    card: rampSurface(opaqueBase, deltas.card),
+    popover: rampSurface(opaqueBase, deltas.popover),
+    sidebar: rampSurface(opaqueBase, deltas.sidebar),
+    accent: rampSurface(opaqueBase, deltas.accent),
+    sidebarAccent: rampSurface(opaqueBase, deltas.sidebarAccent),
+    secondary: rampSurface(opaqueBase, deltas.secondary),
+    muted: rampSurface(opaqueBase, deltas.muted),
+  };
+}
+
+function carriedMutedPair(opaqueBase: Oklch, surfaces: ReturnType<typeof carriedSurfaces>): MutedForegroundPair {
+  return derivedMutedForegroundPair(
+    opaqueBase,
+    [opaqueBase, surfaces.card, surfaces.popover, surfaces.sidebar, surfaces.secondary, surfaces.muted],
+    [opaqueBase, surfaces.card, surfaces.popover],
+  );
+}
+
+/** What a scope reports when its form-control edge could not hold both bounds (D159): the edge it paints, and whether the 3:1 floor itself held. */
+export interface InputBorderFallback {
+  readonly edge: string;
+  readonly floorMet: boolean;
+}
+
+export interface InputBorderEmission {
+  readonly vars: Readonly<Record<string, string>>;
+  readonly fallback: InputBorderFallback | undefined;
+}
+
+/**
+ * `--color-input-border` for a carried base (D159). The seeds keep the static light-dark token; a carried palette owns its
+ * panels, so it solves the edge over them (`solveInputBorder` states the bounds). `ring` is the focus ring the scope
+ * would paint, `null` when the scope has no known accent, which leaves only the floor to judge. The emission raises
+ * `--color-ring` along its hue toward a margin above the edge (`solveFocusRing`); only a hue with no ring above the edge
+ * leaves a reported fallback.
+ */
+export function inputBorderOn(origin: string, base: ParsedOklch, ring: Oklch | null): InputBorderEmission {
+  const opaqueBase: Oklch = { l: base.l, c: base.c, h: base.h };
+  const surfaces = carriedSurfaces(opaqueBase, rampDeltas(opaqueBase));
+  const solve = solveInputBorder({
+    base: opaqueBase,
+    inkLightness: carriedForegroundLightness(opaqueBase),
+    grounds: {
+      panels: [opaqueBase, ...Object.values(surfaces)],
+      fillInk: { l: derivedForegroundLightness(opaqueBase), c: 0, h: base.h },
+      fillAlpha: carriedMutedPair(opaqueBase, surfaces).inputAlpha,
+    },
+  });
+  const edge = foregroundAt(origin, solve.edge.l);
+  const vars: Record<string, string> = { "--color-input-border": edge };
+  // Focus must out-shout rest: hold the ring above the edge along its own hue, leaving the accent fill (`--color-primary`) alone.
+  const held = ring === null ? null : solveFocusRing({ ring, edge: solve.edge, card: surfaces.card });
+  if (ring !== null && held !== null && held !== ring) {
+    vars["--color-ring"] = serializeOpaqueOklch(held);
+  }
+  const ringHeld = ring === null || held !== null;
+  return { vars, fallback: solve.floorMet && ringHeld ? undefined : { edge, floorMet: solve.floorMet } };
+}
+
 /**
  * EVERYTHING one picked base surface derives — the neutral ramp, the over-art plate + band, every neutral
  * foreground, the border/input fills, and the elevation ingredients. One cascade, one entry point, so the
@@ -167,16 +236,7 @@ export function surfaceVarsOn(background: string, base: ParsedOklch | null, deri
   }
 
   const opaqueBase: Oklch = { l: base.l, c: base.c, h: base.h };
-  const surfaces = {
-    raised: rampSurface(opaqueBase, deltas.surfaceRaised),
-    card: rampSurface(opaqueBase, deltas.card),
-    popover: rampSurface(opaqueBase, deltas.popover),
-    sidebar: rampSurface(opaqueBase, deltas.sidebar),
-    accent: rampSurface(opaqueBase, deltas.accent),
-    sidebarAccent: rampSurface(opaqueBase, deltas.sidebarAccent),
-    secondary: rampSurface(opaqueBase, deltas.secondary),
-    muted: rampSurface(opaqueBase, deltas.muted),
-  };
+  const surfaces = carriedSurfaces(opaqueBase, deltas);
   // The accent ink covers muted too: they are the neutral tone's two tints, and its text-on-tint is this ink (D336).
   vars["--color-accent-foreground"] = foregroundAt(origin, carriedAccentInkLightness(opaqueBase));
   vars["--color-foreground"] = foregroundAt(origin, carriedForegroundLightness(opaqueBase));
@@ -185,11 +245,7 @@ export function surfaceVarsOn(background: string, base: ParsedOklch | null, deri
   vars["--color-sidebar-foreground"] = foregroundAt(origin, derivedForegroundLightness(surfaces.sidebar));
   vars["--color-sidebar-accent-foreground"] = foregroundAt(origin, derivedForegroundLightness(surfaces.sidebarAccent));
   vars["--color-secondary-foreground"] = foregroundAt(origin, derivedForegroundLightness(surfaces.secondary));
-  const mutedPair = derivedMutedForegroundPair(
-    opaqueBase,
-    [opaqueBase, surfaces.card, surfaces.popover, surfaces.sidebar, surfaces.secondary, surfaces.muted],
-    [opaqueBase, surfaces.card, surfaces.popover],
-  );
+  const mutedPair = carriedMutedPair(opaqueBase, surfaces);
   vars["--color-muted-foreground"] = foregroundAt(origin, mutedPair.lightness);
   vars["--color-reading-plate-foreground"] = foregroundAt(origin, readingPlateForeground(opaqueBase).l);
   vars["--color-border"] = borderOn(origin, opaqueBase);

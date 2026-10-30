@@ -10,6 +10,7 @@
 
 import type { LucideIcon } from "@orb/ui/icons";
 import type { ReactNode } from "react";
+import type { OverflowMenuForm } from "../lib/overflow-menu-form.ts";
 import type { ModalSlotId } from "./modal-slot-ids.ts";
 import type { SectionId } from "./section-ids.ts";
 import type { MobileCuration, RailZone, SectionGroup } from "./section-registry.ts";
@@ -47,6 +48,13 @@ interface WidgetBehavior {
   readonly body: (presentation: ChromePresentation) => ReactNode;
 }
 
+/** A `topbar.trail` widget. The trail row measures its room and moves the actions that do not fit into a menu,
+ *  so a widget that declares no menu form has no way to stay reachable and does not type-check. Called as a hook
+ *  over the door-frozen entry list, once per overflowed entry. */
+export interface TrailWidgetBehavior extends WidgetBehavior {
+  readonly useMenuForms: () => readonly OverflowMenuForm[];
+}
+
 /** A rail SECTION's entry. Its zone is a `RailZone`, so no section entry can reach `topbar.trail`. */
 interface SectionChromeEntry extends ChromeEntryAxes {
   readonly zone: RailZone;
@@ -58,7 +66,7 @@ interface SectionChromeEntry extends ChromeEntryAxes {
 export type ActionChromeEntry = ChromeEntryAxes &
   (
     | { readonly zone: RailZone; readonly mobile: MobileCuration; readonly behavior: ModalBehavior | WidgetBehavior }
-    | { readonly zone: Exclude<ChromeZone, RailZone>; readonly mobile?: MobileCuration; readonly behavior: ModalBehavior | WidgetBehavior }
+    | { readonly zone: Exclude<ChromeZone, RailZone>; readonly mobile?: MobileCuration; readonly behavior: ModalBehavior | TrailWidgetBehavior }
   );
 
 /** A shell chrome affordance as ONE definition: the presentation axes every source shares, plus where it

@@ -3,8 +3,8 @@
 import { AppShell } from "@orb/client/features/app-shell";
 import { notify } from "@orb/client/lib";
 import type { ModalSlotId } from "@orb/client/state";
-import { dockListPanel, openModal, selectChatFromList } from "@orb/client/state";
-import type { ChatId } from "@orb/kit/ids";
+import { dockListPanel, openModal, selectCharacter, selectChatFromList } from "@orb/client/state";
+import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { CtClientProviders } from "@orb/testkit/browser";
 import { Button } from "@orb/ui/button";
 import type { ReactElement } from "react";
@@ -55,6 +55,23 @@ function SelectChatOnMount({ chatId }: { readonly chatId: ChatId }): null {
     selectChatFromList(chatId);
   }, [chatId]);
   return null;
+}
+
+function SelectCharacterOnMount({ characterId }: { readonly characterId: CharacterId }): null {
+  useEffect(() => {
+    selectCharacter(characterId);
+  }, [characterId]);
+  return null;
+}
+
+/** The production shell with one character opened the way a Characters row opens it. */
+export function AppShellCharacterStory({ characterId }: { readonly characterId: CharacterId }): ReactElement {
+  return (
+    <CtClientProviders>
+      <SelectCharacterOnMount characterId={characterId} />
+      <AppShell />
+    </CtClientProviders>
+  );
 }
 
 /** The production shell with one room opened the way a Chats row opens it. */

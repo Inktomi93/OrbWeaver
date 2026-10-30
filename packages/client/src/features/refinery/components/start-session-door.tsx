@@ -3,6 +3,8 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { CharacterPicker } from "#components";
 import { useOpenRefinery } from "#data";
+import { useOpenRequests } from "#lib";
+import { startSessionRequests } from "../lib/start-session-requests.ts";
 
 /**
  * The START DOOR, as one anatomy for the two chromes this file draws: the chrome band's `+` glyph and the
@@ -27,9 +29,21 @@ import { useOpenRefinery } from "#data";
  * glyph in every regime and the worded CTA on a PHONE (where CONTENT is not rendered) and with a session
  * open (where CONTENT shows the pipeline) — the arms where it is genuinely the only picker on screen.
  */
-export function StartSessionDoor({ trigger }: { readonly trigger: (busy: boolean) => ReactElement }): ReactElement {
+export function StartSessionDoor({
+  trigger,
+  answersRequests = false,
+}: {
+  readonly trigger: (busy: boolean) => ReactElement;
+  readonly answersRequests?: boolean;
+}): ReactElement {
   const { openRefinery, isPending } = useOpenRefinery();
   const [pickerOpen, setPickerOpen] = useState(false);
+  // Only the band's door answers the overflow menu, so a second door on the page never opens a second picker.
+  useOpenRequests(startSessionRequests, (): void => {
+    if (answersRequests) {
+      setPickerOpen(true);
+    }
+  });
   return (
     <Popover modal={true} onOpenChange={setPickerOpen} open={pickerOpen}>
       {/* `modal` — this popover carries INPUT; the rule + its receipt live on `Popover` in @orb/ui's popover.tsx (#2444). */}
