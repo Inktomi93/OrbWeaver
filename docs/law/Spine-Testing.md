@@ -137,7 +137,7 @@ Use native Playwright for rendered tests. Vitest browser mode is not part of thi
 
 - **Component tests:** `*.ct.tsx` under `tests/`, `playwright-ct.config.ts`, `pnpm test:ct`. Plain `@playwright/test` mounts browser stories through `playwright/index.html`.
 - **E2E:** `*.spec.ts` under `tests/e2e/`, `playwright.config.ts`, `pnpm e2e`. These tests exercise the running application and its wires.
-- Choose the layer by the behavior in the [test-foundation plan](../plans/test-foundation/design.md#layer-ownership-and-overlap). A component test does not establish a full application journey.
+- Choose the layer by the behavior in §10. A component test does not establish a full application journey.
 
 ### Composition and execution
 
@@ -210,6 +210,33 @@ This section governs product tests, including the shared builders under `tests/s
 - **Smoke the running app.** e2e specs drive the real stack headless for the core flows. They run on a committed synthetic corpus written by the seed tool, so CI needs no private data. A local run may point at a copy of the owner's data; that copy is never committed.
 - **Share setup.** Move repeated setup to a builder in the same file or in `tests/support`. Split a test file by concern before it is too large to review.
 - **A mirror is an import, not a filename.** A mirrored test imports its module and exercises its exports. A file at the mirrored path proves only that the file exists.
+
+## 10. Choosing the test layer
+
+Give each failure mode a primary test home. Choose the least expensive layer that exercises the actual behavior.
+
+| Layer | Owns | Does not replace |
+| - | - | - |
+| Unit | Pure production calculations, reducers, formatters and transformations; inexpensive input permutations. | I/O or business behavior reconstructed with fake services. |
+| Contract | Real schema acceptance and refusal, serialization, round trips and stored-data compatibility. | A hand-written schema copy or a browser journey. |
+| Type | Invalid IDs and combinations, required inputs and inferred outputs under the owning compiler world. | Runtime authorization, persistence or resource cleanup. |
+| Server integration | Business rules, ownership, transactions, cancellation and lifetimes through production composition and real persistence. | UI behavior or a copied implementation. |
+| CT | Real component interactions, controlled loading/error/empty states, focus, accessibility, geometry, viewports and themes. | Complete application journeys over a fabricated backend. |
+| E2E | Important journeys connecting the browser, authentication, transport, server, persistence and visible result. | Every lower-layer input, permission or presentation permutation. |
+
+Use the real HTTP entry for HTTP-specific integration cases. An internal caller does not prove cookie, CSRF or request-authentication behavior.
+
+Script external execution at its real boundary. Ordinary application coverage does not require live model-provider execution.
+
+A suite groups related cases; it is not another test layer. The `.suite` suffix does not require duplicate standalone or global tests.
+
+Retain cross-layer coverage only when it catches a distinct failure. Record that distinction in the batch's case map. Do not repeat an edge-case matrix at every layer.
+
+For settings, integration owns sibling-field preservation and concurrent writes. CT owns pending/error presentation. E2E owns saving through the browser and observing persistence after reload.
+
+Use risk and distinct behavior to choose cases, not test-count targets, coverage percentages or per-file quotas.
+
+Move flow-walking route and app-shell CT cases to corpus e2e. Keep component, measurement and controlled-state cases in CT.
 
 ## Esoterica (must-preserve facts)
 

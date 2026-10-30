@@ -6,7 +6,7 @@ Read this before adding tests, stories or test helpers. Testkit supplies product
 
 ## Choose the behavior and layer
 
-Choose the least expensive layer that exercises the actual behavior. Use the plan's [layer ownership table](../../docs/plans/test-foundation/design.md#layer-ownership-and-overlap).
+Choose the least expensive layer that exercises the actual behavior. Use the layer table in [Spine-Testing §10](../../docs/law/Spine-Testing.md#10-choosing-the-test-layer).
 
 - Use unit and contract tests for pure calculations and boundary input permutations.
 - Use server integration for authorization, persistence and business behavior through production composition.

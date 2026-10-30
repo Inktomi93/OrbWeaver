@@ -91,30 +91,7 @@ Keep the external reference source outside the test population. Do not restore d
 
 ### Layer ownership and overlap
 
-Give each failure mode a primary test home. Choose the least expensive layer that exercises the actual behavior.
-
-| Layer | Owns | Does not replace |
-| - | - | - |
-| Unit | Pure production calculations, reducers, formatters and transformations; inexpensive input permutations. | I/O or business behavior reconstructed with fake services. |
-| Contract | Real schema acceptance and refusal, serialization, round trips and stored-data compatibility. | A hand-written schema copy or a browser journey. |
-| Type | Invalid IDs and combinations, required inputs and inferred outputs under the owning compiler world. | Runtime authorization, persistence or resource cleanup. |
-| Server integration | Business rules, ownership, transactions, cancellation and lifetimes through production composition and real persistence. | UI behavior or a copied implementation. |
-| CT | Real component interactions, controlled loading/error/empty states, focus, accessibility, geometry, viewports and themes. | Complete application journeys over a fabricated backend. |
-| E2E | Important journeys connecting the browser, authentication, transport, server, persistence and visible result. | Every lower-layer input, permission or presentation permutation. |
-
-Use the real HTTP entry for HTTP-specific integration cases. An internal caller does not prove cookie, CSRF or request-authentication behavior.
-
-Script external execution at its real boundary. Ordinary application coverage does not require live model-provider execution.
-
-A suite groups related cases; it is not another test layer. The `.suite` suffix does not require duplicate standalone or global tests.
-
-Retain cross-layer coverage only when it catches a distinct failure. Record that distinction in the batch's case map. Do not repeat an edge-case matrix at every layer.
-
-For settings, integration owns sibling-field preservation and concurrent writes. CT owns pending/error presentation. E2E owns saving through the browser and observing persistence after reload.
-
-Use risk and distinct behavior to choose cases, not test-count targets, coverage percentages or per-file quotas.
-
-Move flow-walking route and app-shell CT cases to corpus e2e. Keep component, measurement and controlled-state cases in CT.
+[Spine-Testing §10](../../law/Spine-Testing.md#10-choosing-the-test-layer) owns the layer table and the overlap rule.
 
 ### Restoration decisions
 

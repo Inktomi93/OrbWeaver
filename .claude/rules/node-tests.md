@@ -19,14 +19,7 @@ Follow `docs/law/Spine-Testing.md` §9. Call production, derive types, import co
 
 ## Test layers and the rebuild
 
-`docs/plans/test-foundation/design.md` owns the layer split and the rebuild order. Each layer answers its own question:
-
-| Layer | Question |
-| - | - |
-| e2e | user flows and every wire |
-| CT | component behaviour and states |
-| server integration | domain logic and permissions on the composition root |
-| unit | pure logic in `@orb/kit` and `@orb/contracts` |
+`docs/law/Spine-Testing.md` §10 owns the layer table. `docs/plans/test-foundation/design.md` owns the rebuild order.
 
 - Retrofit work on a fake-heavy server harness stops. Those rows move to the rebuild.
 - Complete foundation qualification remains open; the plan's work items own its current state.
