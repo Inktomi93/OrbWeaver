@@ -54,4 +54,11 @@ AGENTS.md rules one home per concept: a second copy of a shape is a defect. A ha
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The close-out ran on the lane branch after it merged local main.
+
+- `pnpm unwired ports` reports no open target. Every remaining target is informational: `ruled` (a handle pass `tooling/src/unwired/ruled-ops.ts` names under D337 or D259) or `distinct` (a look-alike `tooling/src/unwired/distinct-lookalikes.ts` records with its reason). The run prints `targets=0` and the counts by kind; its output is `reports/unwired/port-targets.json`.
+- The census resolves a handle-carrying type or alias to the op members it types before it reads the ruling tuple. `tests/tooling/unwired/port-census.int.test.ts` plants an unruled handle op, a ruled one and an alias of a ruled op.
+- `orb/derived-port-member` is on in `eslint.config.ts`. `pnpm lint:eslint packages tooling tests` exits 0 with no suppression or baseline for the rule.
+- `domain-no-cross-feature` in `.dependency-cruiser.ts` has no type-only exemption. `domain-workloads-door-types-only` allows the D117 door type-only. `tests/tooling/native-domain-cross-feature-boundary.test.ts` refuses a planted type-only cross-domain import, and whole-tree `pnpm depcruise` passes.
+- The scratch `ports.mjs` assignability workaround is deleted.
+- The unwired members scan (`pnpm unwired`) writes `reports/unwired/unwired.json`. A product verb whose name no production file reads became a wire-or-remove item: [1475](1475-void-a-chat-s-pending-automation-asks-when.md) through [1484](1484-wire-or-remove-chat-s-corpus-search-op.md). The other members no production file names wait for a judgment of their intent, none of them deleted: `DrillSelectionStore.dismissSecondary`, `CollectionSelection.selectAll`, `ConnectionStore.listForOwner`, `SerialLanes.activeCount`, `ChatBus.readRing`, `RegexService.getScript`, `ReconcileInFlight.isRunning`, `Lifecycle.listeningAddress`, and the test hooks `ServicesResult.settleBackground` and `ServicesResult.storePluginFetchedAsset`. A member that production reaches only through a same-named consumer port across domains, a hop the scan does not follow, goes to [1485](1485-judge-the-unwired-members-whose-only-production-use.md).

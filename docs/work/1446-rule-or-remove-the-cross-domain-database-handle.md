@@ -34,4 +34,7 @@ Every listed case is either covered by a ledger row with its batch assembled at 
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+- `tooling/src/unwired/ruled-ops.ts` holds the D337 table's ops and the D259 signup statements, each group with its citation. `tests/tooling/unwired/ruled-ops.test.ts` holds the D337 group equal to the table and the D259 group to D337's citation.
+- The census resolves each handle-carrying type and each server alias to the op members it types, and the cross-domain classifier looks through op aliases. `pnpm unwired ports` reports every listed case as `ruled` and no `db-handle-review` target; the output is `reports/unwired/port-targets.json`.
+- Chat's `AssetsContext`, `RegexContext` and `ChatContext` uses carry no handle, and no domain imports another: whole-tree `pnpm depcruise` passes with the narrowed `domain-no-cross-feature`.
+- Rpg's chat ops no longer import `ChatRpgOps`. Each op, including the ruled `planGameBirth` and `handoffHealStatements`, is typed by an `@orb/contracts/chat` op type with the statement handle as a type parameter.
