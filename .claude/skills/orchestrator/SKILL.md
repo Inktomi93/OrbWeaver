@@ -54,7 +54,8 @@ Claude uses `SendMessage` and `TaskStop` below. In Codex, inspect state with `li
 - A leg to a merged lane fast-forwards its branch to main's tip and stacks new commits. Never ask for a second worktree.
 - Resume a lane killed by an API error with SendMessage to the same agent id. Quote its last output line.
 - Send a finished lane nothing until there is real work. A message resumes it, and it acts on any hint in it.
-- Keep a map of lane name to agent id. Reply by agent id; several lanes can share one role name.
+- Track lane name to agent id in context. Reply by agent id; several lanes can share one role name.
+- Write the lane map to a file only when a context sentinel fires or the owner orders a handoff.
 - Stop a runaway lane with TaskStop.
 
 ## Lane cap
@@ -120,7 +121,7 @@ The `lane` skill carries the standing lane rules. Restate only the deltas.
 - For a multi-wave program, run one `verifier` pass per wave over every change landed in it. That pass covers each item; spawn no second `verifier` per item inside a covered wave.
 - Call `side-eye` for a new UI surface or redesign, imagery or effects near text, settings panes, forms, wizards, empty, error, or loading states, and any accessibility doubt. Skip it for backend-only changes.
 - Treat scout findings as input. Check the important ones before you act on them.
-- Before a status report, check each "dispatched", "filed", "queued", or "merged" claim against the dispatch map and the tree. Retract an unsupported claim in the same message.
+- Before a status report, check each "dispatched", "filed", "queued", or "merged" claim against your lane list and the tree. Retract an unsupported claim in the same message.
 - To sweep finished lanes for dropped follow-ups, read each lane's last message in full. A keyword search misses other wording.
 
 ## Merge trains
