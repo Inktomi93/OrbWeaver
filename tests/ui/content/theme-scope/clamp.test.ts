@@ -1,6 +1,7 @@
 // The ThemeScope clamp emits the D336 tone knobs a carried palette needs, and only names on its emit surface.
 import type { Oklch } from "@orb/kit/theme-derivation";
 import { expect, test } from "@orb/testkit/node";
+import type { ToneMixKnob } from "@orb/ui/tokens";
 import { TOKENS, TONE_MIX_DEFAULTS, TONE_MIX_KNOBS } from "@orb/ui/tokens";
 import { clampThemeTokens } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
 import { toOklch } from "../../../../packages/ui/src/content/theme-scope/color-parse.ts";
@@ -10,7 +11,7 @@ import { carriedToneScheme, carriedToneSources, solveCarriedToneMix } from "../.
 const DARK_BASE = "oklch(0.158 0.006 60)";
 const MID_BASE = "oklch(0.5 0.01 60)";
 const LIGHT_BASE = "oklch(0.98 0.004 75)";
-const KNOB_VARS = new Map(TONE_MIX_KNOBS.map((knob) => [TOKENS[`tone-mix.${knob}`].cssVar, knob] as const));
+const KNOB_VARS = new Map<string, ToneMixKnob>(TONE_MIX_KNOBS.map((knob) => [TOKENS[`tone-mix.${knob}`].cssVar, knob] as const));
 const HEARTH_ACCENT = TOKENS["color.primary"].value;
 
 function parsed(color: string): Oklch {
