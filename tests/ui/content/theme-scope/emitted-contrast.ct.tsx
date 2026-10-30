@@ -1,10 +1,19 @@
-import { AA_NON_TEXT_RATIO, AA_NORMAL_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
+import type { Oklch } from "@orb/kit/theme-derivation";
+import { AA_NON_TEXT_RATIO, AA_NORMAL_RATIO, oklabDistance, srgbToOklch, TONE_TINT_SEPARATION, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { pixelContrast, pixelSurface } from "@orb/testkit/browser/spec";
 import { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/test";
-import type { ReadingBandStory, SemanticContrastStory, ToneMarkStory, ToneRoleContrastStory } from "./_contrast-stories.tsx";
+import type {
+  NestedSeedStory,
+  ReadingBandStory,
+  SelectedRowStory,
+  SemanticContrastStory,
+  ToneHueStory,
+  ToneMarkStory,
+  ToneRoleContrastStory,
+} from "./_contrast-stories.tsx";
 
-import { BASES } from "./contrast-cases.ts";
+import { BASES, keepsHue, MID_GREY } from "./contrast-cases.ts";
 
 for (const { name, background } of BASES) {
   test(`${name}: emitted semantic and muted/input tokens clear their painted backings`, async ({ mount, page }, testInfo) => {
@@ -68,6 +77,54 @@ for (const { name, background } of BASES.slice(0, 4)) {
     await testInfo.attach("settled-theme", { path: screenshot, contentType: "image/png" });
   });
 }
+
+test("a custom mid-grey page keeps every colored tone's hue in its painted text, tints and solid", async ({ mount, page }) => {
+  const component = await mount<typeof ToneHueStory>("tests/ui/content/theme-scope/_contrast-stories/ToneHueStory", { background: MID_GREY });
+  const ground = srgbToOklch((await pixelSurface(page, component.locator('[data-sample="ground"]'), { region: { x0: 0, x1: 0.01, y0: 0, y1: 0.01 } })).rgb);
+  const tones = await component.locator("[data-tone]").all();
+  expect(tones.length).toBeGreaterThan(0);
+  const lost: string[] = [];
+  for (const tone of tones) {
+    const name = await tone.getAttribute("data-tone");
+    await tone.scrollIntoViewIfNeeded();
+    const fill = async (sample: string): Promise<Oklch> => srgbToOklch((await pixelSurface(page, tone.locator(`[data-sample="${sample}"]`))).rgb);
+    const solid = await fill("solid");
+    const tints = { tint: await fill("tint"), "tint-active": await fill("tint-active") };
+    const text = srgbToOklch((await pixelContrast(page, tone.locator('[data-sample="text"]'))).ink);
+    for (const [role, painted] of Object.entries({ solid, text, ...tints })) {
+      if (!keepsHue(painted, solid.h)) {
+        lost.push(`${name} ${role} paints ${JSON.stringify(painted)} beside a solid at ${JSON.stringify(solid)}`);
+      }
+    }
+    for (const [role, painted] of Object.entries(tints)) {
+      if (oklabDistance(painted, ground) < TONE_TINT_SEPARATION) {
+        lost.push(`${name} ${role} ${JSON.stringify(painted)} merges with the page ${JSON.stringify(ground)}`);
+      }
+    }
+  }
+  expect(lost).toEqual([]);
+});
+
+test("a selected row's label clears AA on its primary tint over a custom mid-grey page", async ({ mount, page }) => {
+  const component = await mount<typeof SelectedRowStory>("tests/ui/content/theme-scope/_contrast-stories/SelectedRowStory", { background: MID_GREY });
+  const label = component.getByText("Connections", { exact: true });
+  await expect(label).toBeVisible();
+  const receipt = await pixelContrast(page, label);
+  expect(receipt.ratio, receipt.describe).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+});
+
+test("a seed palette nested inside a custom mid-grey scope paints its own tone roles", async ({ mount, page }) => {
+  await mount<typeof NestedSeedStory>("tests/ui/content/theme-scope/_contrast-stories/NestedSeedStory", { background: MID_GREY });
+  const painted = (nest: string): Promise<Readonly<Record<string, string>>> =>
+    page
+      .locator(`[data-nest="${nest}"] [data-role-sample]`)
+      .evaluateAll((samples) =>
+        Object.fromEntries(samples.map((sample) => [sample.getAttribute("data-role-sample"), getComputedStyle(sample).backgroundColor])),
+      );
+  const onPage = await painted("page");
+  expect(Object.keys(onPage).length).toBeGreaterThan(0);
+  expect(await painted("carried")).toEqual(onPage);
+});
 
 for (const theme of [undefined, ...(Object.keys(SEED_THEME_VALUE_SETS) as (keyof typeof SEED_THEME_VALUE_SETS)[])]) {
   test(`${theme ?? "hearth"}: a meter zone fill and a status Card edge hold the 3:1 non-text floor`, async ({ mount, page }) => {

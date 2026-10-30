@@ -179,19 +179,25 @@ function gammaEncode(linear: number): number {
   return (c <= GAMMA_LINEAR_THRESHOLD ? GAMMA_LINEAR_SLOPE * c : GAMMA_SCALE * c ** (1 / GAMMA_EXPONENT) - GAMMA_OFFSET) * SRGB_MAX;
 }
 
-/** OKLCH → sRGB (0–255), gamut-clamped. The inverse of the importer's sRGB→OKLCH. */
-export function oklchToSrgb({ l, c, h }: Oklch): Rgb {
+/** OKLCH → linear sRGB, unclamped, so a channel outside 0–1 shows the colour is out of gamut. */
+function linearSrgb({ l, c, h }: Oklch): readonly [number, number, number] {
   const radians = h / DEGREES_PER_RADIAN;
   const a = c * Math.cos(radians);
   const b = c * Math.sin(radians);
   const lRoot = (l + LMS_L_A * a + LMS_L_B * b) ** CUBE;
   const mRoot = (l - LMS_M_A * a - LMS_M_B * b) ** CUBE;
   const sRoot = (l - LMS_S_A * a - LMS_S_B * b) ** CUBE;
-  return {
-    r: gammaEncode(RGB_R_L * lRoot - RGB_R_M * mRoot + RGB_R_S * sRoot),
-    g: gammaEncode(-RGB_G_L * lRoot + RGB_G_M * mRoot - RGB_G_S * sRoot),
-    b: gammaEncode(-RGB_B_L * lRoot - RGB_B_M * mRoot + RGB_B_S * sRoot),
-  };
+  return [
+    RGB_R_L * lRoot - RGB_R_M * mRoot + RGB_R_S * sRoot,
+    -RGB_G_L * lRoot + RGB_G_M * mRoot - RGB_G_S * sRoot,
+    -RGB_B_L * lRoot - RGB_B_M * mRoot + RGB_B_S * sRoot,
+  ];
+}
+
+/** OKLCH → sRGB (0–255), gamut-clamped. The inverse of the importer's sRGB→OKLCH. */
+export function oklchToSrgb(color: Oklch): Rgb {
+  const [r, g, b] = linearSrgb(color);
+  return { r: gammaEncode(r), g: gammaEncode(g), b: gammaEncode(b) };
 }
 
 // Ottosson's linear-sRGB→LMS matrix (the inverse direction of the pair above; INV_-prefixed because
@@ -1308,18 +1314,32 @@ export function toneFloorMisses<Role extends string, Knob extends string, Host e
   scheme: ToneScheme<Role, Knob, Host>,
   tone: ToneSource,
   mix: Readonly<Record<Knob, number>>,
-  { knobs, ratio: floor = AA_NORMAL_RATIO }: ToneFloorFilter<Knob> = {},
+  { knobs, ratio = AA_NORMAL_RATIO }: ToneFloorFilter<Knob> = {},
 ): readonly ToneFloorMiss<Role, Host>[] {
-  const colors = toneRoleColors(scheme, tone, mix);
+  const readsKnob = (role: Role, over: ToneFloorSurface<Role, Host>): boolean =>
+    knobs === undefined || floorKnobs(scheme.recipes, role, over, tone).some((knob) => knobs.has(knob));
+  return roleFloorMisses(scheme, toneRoleColors(scheme, tone, mix), ratio, readsKnob);
+}
+
+/**
+ * Every D336 floor a resolved set of role colours misses, at `ratio`: the judge for colours a scope paints, whether
+ * its mixes spelled them or it emitted them as literals ({@link solveCarriedToneRoles}).
+ */
+export function roleFloorMisses<Role extends string, Knob extends string, Host extends string>(
+  scheme: ToneScheme<Role, Knob, Host>,
+  colors: Readonly<Record<Role, Oklch>>,
+  ratio: number = AA_NORMAL_RATIO,
+  judged: (role: Role, over: ToneFloorSurface<Role, Host>) => boolean = () => true,
+): readonly ToneFloorMiss<Role, Host>[] {
   const misses: ToneFloorMiss<Role, Host>[] = [];
   for (const role of Object.keys(scheme.recipes) as Role[]) {
     for (const over of scheme.recipes[role].floor) {
-      if (knobs !== undefined && !floorKnobs(scheme.recipes, role, over, tone).some((knob) => knobs.has(knob))) {
+      if (!judged(role, over)) {
         continue;
       }
-      const ratio = toneContrast(colors[role], "role" in over ? colors[over.role] : scheme.palette.hosts[over.host]);
-      if (ratio < floor) {
-        misses.push({ role, over, ratio });
+      const measured = toneContrast(colors[role], "role" in over ? colors[over.role] : scheme.palette.hosts[over.host]);
+      if (measured < ratio) {
+        misses.push({ role, over, ratio: measured });
       }
     }
   }
@@ -1423,4 +1443,233 @@ export function solveToneMix<Role extends string, Knob extends string, Host exte
     }
   }
   return solved;
+}
+
+/** The least OKLab distance a tint keeps from the page, and from another tone's tint unless the two hues are adjacent. */
+export const TONE_TINT_SEPARATION = 0.02;
+
+/** Two tones whose hues sit closer than this are hue-adjacent, so their tints are exempt from the pairwise separation. */
+export const TONE_HUE_ADJACENT_DEGREES = 45;
+
+// About one 8-bit step in OKLab at the mid lightnesses where tints sit: what quantizing two tints can spend of their separation.
+const TINT_PIXEL_HEADROOM = 0.004;
+
+/**
+ * The least chroma a tint keeps where its tone and the gamut allow: two tints at this chroma, one lightness and the
+ * adjacency bound apart in hue sit {@link TONE_TINT_SEPARATION} apart after quantization, so non-adjacent tints never merge.
+ */
+export const TONE_TINT_MIN_CHROMA = (TONE_TINT_SEPARATION + TINT_PIXEL_HEADROOM) / (2 * Math.sin(TONE_HUE_ADJACENT_DEGREES / 2 / DEGREES_PER_RADIAN));
+
+/** The Euclidean distance between two colours in OKLab. */
+export function oklabDistance(a: Oklch, b: Oklch): number {
+  const [l1, a1, b1] = toOklab(a);
+  const [l2, a2, b2] = toOklab(b);
+  return Math.hypot(l1 - l2, a1 - a2, b1 - b2);
+}
+
+function framebufferPixel(color: Oklch): Oklch {
+  return srgbToOklch(quantized(oklchToSrgb(color)));
+}
+
+/** The OKLab distance two colours paint at: the worse of the float colours and their 8-bit pixels. */
+export function paintedDistance(a: Oklch, b: Oklch): number {
+  return Math.min(oklabDistance(opaquePixel(a), opaquePixel(b)), oklabDistance(framebufferPixel(a), framebufferPixel(b)));
+}
+
+// Linear channels within this of 0–1 count as in gamut: the bisection below converges onto the boundary from inside.
+const GAMUT_EPSILON = 1e-7;
+const CHROMA_BISECTIONS = 24;
+
+function inSrgbGamut(color: Oklch): boolean {
+  return linearSrgb(color).every((channel) => channel >= -GAMUT_EPSILON && channel <= 1 + GAMUT_EPSILON);
+}
+
+/** The pixel at lightness `l` on hue `h`, at chroma `c` or the most the sRGB gamut holds there, whichever is less. */
+function onHue(l: number, c: number, h: number): Oklch {
+  // Black and white hold no chroma, so the search's end points are exactly the achromatic inks.
+  if (l <= 0 || l >= 1) {
+    return opaquePixel({ l, c: 0, h });
+  }
+  if (inSrgbGamut({ l, c, h })) {
+    return opaquePixel({ l, c, h });
+  }
+  let inside = 0;
+  let outside = c;
+  for (let bisection = 0; bisection < CHROMA_BISECTIONS; bisection += 1) {
+    const middle = (inside + outside) / 2;
+    if (inSrgbGamut({ l, c: middle, h })) {
+      inside = middle;
+    } else {
+      outside = middle;
+    }
+  }
+  return opaquePixel({ l, c: inside, h });
+}
+
+const ROLE_L_STEP = 0.001;
+const ROLE_L_STEPS = Math.round(1 / ROLE_L_STEP);
+// A pixel round trip moves chroma by less than this; a tint within it of its floor holds the floor.
+const CHROMA_TOLERANCE = 0.001;
+
+/** The lightnesses a role search tries, nearest first: the start, then outward a step at a time, `first` before the other side. */
+function* lightnessWalk(start: number, first: 1 | -1): Generator<number> {
+  yield start;
+  for (let step = 1; step <= ROLE_L_STEPS; step += 1) {
+    for (const sign of [first, -first]) {
+      // Re-rounded so the lightness reaching the CSS literal carries no accumulated float dust.
+      const l = Math.round((start + sign * step * ROLE_L_STEP) / ROLE_L_STEP) * ROLE_L_STEP;
+      if (l >= 0 && l <= 1) {
+        yield l;
+      }
+    }
+  }
+}
+
+function mixStepToward<Knob extends string>(colored: ColoredToneOrigin | ToneMixStep<Knob>, target: ToneMixTarget): ToneMixStep<Knob> | undefined {
+  return typeof colored === "object" && colored.toward === target ? colored : undefined;
+}
+
+interface LiteralRole<Role extends string, Knob extends string> {
+  readonly role: Role;
+  readonly step: ToneMixStep<Knob>;
+}
+
+/** The tints a carried scope emits literally: mixed toward the page and the ground of another role's floor, weakest first. */
+function literalSurfaces<Role extends string, Knob extends string, Host extends string>(
+  recipes: ToneRoleRecipes<Role, Knob, Host>,
+  defaults: Readonly<Record<Knob, number>>,
+): readonly LiteralRole<Role, Knob>[] {
+  const roles = Object.keys(recipes) as Role[];
+  const grounds = new Set(roles.flatMap((role) => recipes[role].floor.flatMap((over) => ("role" in over ? [over.role] : []))));
+  return roles
+    .flatMap((role) => {
+      const step = mixStepToward(recipes[role].colored, "background");
+      return step !== undefined && grounds.has(role) ? [{ role, step }] : [];
+    })
+    .toSorted((a, b) => defaults[a.step.mix] - defaults[b.step.mix]);
+}
+
+/** The inks a carried scope emits literally: mixed toward the page ink and judged by a floor. */
+function literalInks<Role extends string, Knob extends string, Host extends string>(
+  recipes: ToneRoleRecipes<Role, Knob, Host>,
+): readonly LiteralRole<Role, Knob>[] {
+  return (Object.keys(recipes) as Role[]).flatMap((role) => {
+    const step = mixStepToward(recipes[role].colored, "foreground");
+    return step !== undefined && recipes[role].floor.length > 0 ? [{ role, step }] : [];
+  });
+}
+
+/**
+ * The colored-tone roles a carried scope emits as literals (D336): the page-relative mixes a floor judges. A
+ * `color-mix()` toward a fixed page colour scales the tone's chroma down with every percent it gives up, so on a
+ * mid-lightness page a floor reached by mixing leaves no hue; a literal keeps the hue and solves the lightness.
+ */
+export function carriedLiteralRoles<Role extends string, Knob extends string, Host extends string>(
+  recipes: ToneRoleRecipes<Role, Knob, Host>,
+  defaults: Readonly<Record<Knob, number>>,
+): readonly Role[] {
+  return [...literalSurfaces(recipes, defaults), ...literalInks(recipes)].map(({ role }) => role);
+}
+
+/**
+ * A tint on the tone's hue: the default mix's lightness and the tone's share of chroma, raised to the tint's least
+ * chroma (scaled by its step over the weakest tint, so a stronger tint stays stronger). The nearest lightness, away
+ * from the page ink first, that keeps that chroma, sits {@link TONE_TINT_SEPARATION} off the page and lets the page ink
+ * itself clear the text floor wins; where the gamut holds no such chroma, the nearest that keeps the rest.
+ *
+ * The page ink is judged, not only the tone's `text-on-tint`, because a selected row, an active tab and a compare panel
+ * keep the page ink on a tint (D336). Its aim is the page's own pair, capped at the derivation ratio and never below the
+ * floor; the page ink's end point clears whatever the page ink clears, so `text-on-tint` always has a solution too.
+ */
+function solveTint<Host extends string>(palette: TonePalette<Host>, base: Oklch, percent: number, weakestPercent: number): Oklch {
+  const { background, foreground } = palette;
+  const floorChroma = Math.min(base.c, (TONE_TINT_MIN_CHROMA * percent) / weakestPercent);
+  const chroma = Math.max((base.c * percent) / PERCENT, floorChroma);
+  const pageInkAim = Math.max(AA_NORMAL_RATIO, Math.min(AA_NORMAL_DERIVATION_RATIO, toneContrast(foreground, background)));
+  let nearest: Oklch | undefined;
+  for (const l of lightnessWalk(mixOklab(base, percent, background).l, foreground.l < background.l ? 1 : -1)) {
+    const candidate = onHue(l, chroma, base.h);
+    if (paintedDistance(candidate, background) < TONE_TINT_SEPARATION || toneContrast(foreground, candidate) < pageInkAim) {
+      continue;
+    }
+    if (candidate.c >= floorChroma - CHROMA_TOLERANCE) {
+      return candidate;
+    }
+    nearest ??= candidate;
+  }
+  if (nearest === undefined) {
+    // Black and white sit at least the separation off any page and clear AA against each other's side.
+    throw new Error("unable to derive a tint that keeps its separation from the page");
+  }
+  return nearest;
+}
+
+/**
+ * An ink on the tone's hue at the tone's share of chroma, on the page ink's side: from the default mix's lightness, the
+ * nearest toward the page ink's end point that clears every ground at the derivation ratio, capped at what that end point
+ * reaches and never below the AA floor. The page ink clears the page family and every solved tint lets its end point clear
+ * the floor, so the end point always ends the search; the gamut thins the chroma toward it.
+ */
+function solveInk<Host extends string>(palette: TonePalette<Host>, base: Oklch, percent: number, grounds: readonly Oklch[]): Oklch {
+  const direction = palette.foreground.l < palette.background.l ? -1 : 1;
+  const chroma = (base.c * percent) / PERCENT;
+  const worst = (l: number): number => Math.min(...grounds.map((ground) => toneContrast(onHue(l, chroma, base.h), ground)));
+  const target = Math.max(AA_NORMAL_RATIO, Math.min(AA_NORMAL_DERIVATION_RATIO, worst(direction > 0 ? 1 : 0)));
+  const lightness = nearestClearingLightness(mixOklab(base, percent, palette.foreground).l, direction, (candidate) => worst(candidate) >= target);
+  if (lightness === null) {
+    throw new Error("unable to derive a tone ink that clears its grounds");
+  }
+  return onHue(lightness, chroma, base.h);
+}
+
+/** The nearest lightness from `start` toward `direction`'s end that `clears`, bisected on the step grid; `null` when the end itself does not. */
+function nearestClearingLightness(start: number, direction: 1 | -1, clears: (l: number) => boolean): number | null {
+  const end = direction > 0 ? 1 : 0;
+  if (clears(start)) {
+    return start;
+  }
+  if (!clears(end)) {
+    return null;
+  }
+  const at = (step: number): number => Math.min(1, Math.max(0, Math.round((start + direction * step * ROLE_L_STEP) / ROLE_L_STEP) * ROLE_L_STEP));
+  let low = 1;
+  let high = Math.ceil(Math.abs(end - start) / ROLE_L_STEP);
+  while (low < high) {
+    const middle = Math.floor((low + high) / 2);
+    if (clears(at(middle))) {
+      high = middle;
+    } else {
+      low = middle + 1;
+    }
+  }
+  return clears(at(low)) ? at(low) : end;
+}
+
+/**
+ * The literal colours a carried scope emits for one colored tone ({@link carriedLiteralRoles}), solved from the role
+ * defaults: its tints first, then each ink over the grounds its floor names, the solved tints included. Each keeps the
+ * tone's hue; the other roles stay the mixes the `[data-tone]` block spells.
+ */
+export function solveCarriedToneRoles<Role extends string, Knob extends string, Host extends string>(
+  scheme: ToneScheme<Role, Knob, Host>,
+  tone: ToneColors,
+  defaults: Readonly<Record<Knob, number>>,
+): Readonly<Partial<Record<Role, Oklch>>> {
+  const { recipes, palette } = scheme;
+  const colors: Record<Role, Oklch> = { ...toneRoleColors(scheme, tone, defaults) };
+  const literals: Partial<Record<Role, Oklch>> = {};
+  const surfaces = literalSurfaces(recipes, defaults);
+  const [weakest] = surfaces;
+  for (const { role, step } of surfaces) {
+    const tint = solveTint(palette, tone.base, defaults[step.mix], weakest === undefined ? defaults[step.mix] : defaults[weakest.step.mix]);
+    colors[role] = tint;
+    literals[role] = tint;
+  }
+  for (const { role, step } of literalInks(recipes)) {
+    const grounds = recipes[role].floor.map((over) => ("role" in over ? colors[over.role] : palette.hosts[over.host]));
+    const ink = solveInk(palette, tone.base, defaults[step.mix], grounds);
+    colors[role] = ink;
+    literals[role] = ink;
+  }
+  return literals;
 }

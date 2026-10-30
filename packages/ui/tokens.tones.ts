@@ -2,7 +2,7 @@
 // the clamp and tests read, and the floor check that fails a shipped palette under a role floor.
 // A role is never a :root variable: a root formula freezes to the root palette, so it resolves on the stamped element.
 import type { CarriedToneHost, Oklch, TonePalette, ToneRoleRecipe, ToneSource } from "@orb/kit/theme-derivation";
-import { CARRIED_TONE_HOSTS, compositeSrgb, oklchToSrgb, srgbToOklch, toneFloorMisses } from "@orb/kit/theme-derivation";
+import { CARRIED_TONE_HOSTS, carriedLiteralRoles, compositeSrgb, oklchToSrgb, srgbToOklch, toneFloorMisses } from "@orb/kit/theme-derivation";
 import type { ContractToken, DerivedOutput, GeneratedCssValue, TokenContractResult } from "./token-contract.ts";
 import { NEUTRAL_TONE, TONE_MIX_GROUP, TONE_ROLE_PREFIX } from "./token-contract.ts";
 
@@ -22,6 +22,8 @@ export interface ToneModel {
   readonly roles: readonly ToneRole[];
   readonly knobs: readonly string[];
   readonly defaults: Readonly<Record<string, number>>;
+  /** The roles a carried scope emits as literals per colored tone; the block reads each literal before its mix. */
+  readonly literalRoles: ReadonlySet<string>;
 }
 
 const DTCG_ALIAS_RE = /^\{([^{}]+)\}$/u;
@@ -69,7 +71,15 @@ export function toneModel(contract: TokenContractResult): ToneModel {
   });
   const mixTokens = contract.baseTokens.filter((token) => token.path[0] === TONE_MIX_GROUP);
   const defaults = Object.fromEntries(mixTokens.map((token) => [token.path[1] ?? "", Number(token.value)]));
-  return { tones: contract.tones, roles, knobs: Object.keys(defaults), defaults };
+  const literalRoles = carriedLiteralRoles(Object.fromEntries(roles.map((role) => [role.name, role.recipe])), defaults);
+  return { tones: contract.tones, roles, knobs: Object.keys(defaults), defaults, literalRoles: new Set(literalRoles) };
+}
+
+/** A carried scope's literal for one colored tone's role, `--tone-<tone>-<role>`; the generated `toneLiteralVar` spells the same name. */
+const TONE_LITERAL_PREFIX = `--${TONE_ROLE_PREFIX.slice(0, -1)}`;
+
+function toneLiteralVar(tone: string, role: string): string {
+  return [TONE_LITERAL_PREFIX, tone, role].join("-");
 }
 
 /** A tone's own step knob, `--tone-mix-<tone>-<knob>`; the generated `toneKnobVar` spells the same name. */
@@ -94,11 +104,17 @@ function mixCss(origin: string, step: MixStep, tone?: string): string {
   return `color-mix(in oklab, ${origin} ${amount}, ${MIX_TARGET_CSS[step.toward]})`;
 }
 
-/** Each colored tone's step knobs default to the scope's on the root; a carried scope re-declares every one. */
-export function toneKnobDefaults(model: ToneModel): readonly string[] {
+/**
+ * The root's tone declarations: each colored tone's step knobs default to the scope's, and each literal role starts at
+ * `initial`, the guaranteed-invalid value, so a seed paints the mix. A carried scope re-declares every one.
+ */
+export function toneRootDefaults(model: ToneModel): readonly string[] {
   return model.tones
     .filter((tone) => tone !== NEUTRAL_TONE)
-    .flatMap((tone) => stepKnobs(model).map((knob) => `${toneKnobVar(tone, knob)}: var(--${TONE_MIX_GROUP}-${knob});`));
+    .flatMap((tone) => [
+      ...stepKnobs(model).map((knob) => `${toneKnobVar(tone, knob)}: var(--${TONE_MIX_GROUP}-${knob});`),
+      ...model.roles.filter((role) => model.literalRoles.has(role.name)).map((role) => `${toneLiteralVar(tone, role.name)}: initial;`),
+    ]);
 }
 
 function neutralCss(role: ToneRole): string {
@@ -106,7 +122,7 @@ function neutralCss(role: ToneRole): string {
   return role.derived.neutral === undefined ? bound : mixCss(bound, role.derived.neutral);
 }
 
-function coloredCss(role: ToneRole, tone: string): string {
+function coloredCss(role: ToneRole, tone: string, literal: boolean): string {
   const { colored } = role.derived;
   if (colored === "base") {
     return `var(--color-${tone})`;
@@ -114,7 +130,9 @@ function coloredCss(role: ToneRole, tone: string): string {
   if (colored === "base-foreground") {
     return `var(--color-${tone}-foreground)`;
   }
-  return mixCss(`var(--color-${tone})`, colored, tone);
+  const mix = mixCss(`var(--color-${tone})`, colored, tone);
+  // The root leaves each literal invalid, so a seed paints the mix; a carried scope's literal keeps the hue the mix cannot.
+  return literal ? `var(${toneLiteralVar(tone, role.name)}, ${mix})` : mix;
 }
 
 /** One `[data-tone="<tone>"]` block per tone, each declaring every role with its formula. */
@@ -122,11 +140,20 @@ export function renderToneBlocks(model: ToneModel): string {
   return model.tones
     .map((tone) => {
       const lines = model.roles.map(
-        (role) => `  --color-${TONE_ROLE_PREFIX}${role.name}: ${tone === NEUTRAL_TONE ? neutralCss(role) : coloredCss(role, tone)};`,
+        (role) =>
+          `  --color-${TONE_ROLE_PREFIX}${role.name}: ${tone === NEUTRAL_TONE ? neutralCss(role) : coloredCss(role, tone, model.literalRoles.has(role.name))};`,
       );
       return `\n[data-tone="${tone}"] {\n${lines.join("\n")}\n}\n`;
     })
     .join("");
+}
+
+/**
+ * A seed palette block's tone declarations: every knob at its default and the root's step knobs and invalid literals.
+ * A seed nested inside a carried scope (a theme thumbnail) would otherwise inherit that scope's solve and literals.
+ */
+export function toneSeedResets(model: ToneModel): readonly string[] {
+  return [...model.knobs.map((knob) => `--${TONE_MIX_GROUP}-${knob}: ${model.defaults[knob]}%;`), ...toneRootDefaults(model)];
 }
 
 /** The `@theme reference` registration: it mints the `*-tone-*` utilities, and its value is the neutral spelling the
@@ -155,6 +182,11 @@ export function renderToneTs(model: ToneModel): readonly string[] {
     "/** A tone's own override of a scope knob, read first by that tone's colored steps. */",
     "export function toneKnobVar(tone: Tone, knob: ToneMixKnob): string {",
     `  return [${JSON.stringify(TONE_KNOB_PREFIX)}, tone, knob].join("-");`,
+    "}",
+    "",
+    "/** A carried scope's literal colour for one colored tone's role (`carriedLiteralRoles`), read by the `[data-tone]` block before its mix. */",
+    `export function toneLiteralVar(tone: Exclude<Tone, ${JSON.stringify(NEUTRAL_TONE)}>, role: ToneRole): string {`,
+    `  return [${JSON.stringify(TONE_LITERAL_PREFIX)}, tone, role].join("-");`,
     "}",
     "",
     "/** Each role's recipe as data, for the numeric twin in `@orb/kit/theme-derivation`. */",

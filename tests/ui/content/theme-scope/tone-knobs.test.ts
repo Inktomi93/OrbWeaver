@@ -1,16 +1,30 @@
 // D336: what the ThemeScope clamp emits for a carried background clears every tone's floors, primary included, for
-// picked and inherited accents. Each case reads the emitted variables back and judges the pixels they spell.
+// picked and inherited accents, and keeps each tint off the page and off every tint of a non-adjacent hue. Each case
+// reads the emitted variables back, knobs and literals, and judges the pixels they spell.
+import { hueDistance } from "@orb/kit/safe-color";
 import type { Oklch } from "@orb/kit/theme-derivation";
-import { toneFloorMisses } from "@orb/kit/theme-derivation";
+import {
+  AA_NORMAL_RATIO,
+  carriedLiteralRoles,
+  oklchToSrgb,
+  paintedDistance,
+  roleFloorMisses,
+  srgbToOklch,
+  TONE_HUE_ADJACENT_DEGREES,
+  TONE_TINT_SEPARATION,
+  toneContrast,
+  toneFloorMisses,
+  toneRoleColors,
+} from "@orb/kit/theme-derivation";
 import { ACCEPTED_BASES } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
-import type { Tone, ToneMixKnob } from "@orb/ui/tokens";
-import { TOKENS, TONE_MIX_DEFAULTS, TONE_MIX_KNOBS, toneKnobVar } from "@orb/ui/tokens";
+import type { Tone, ToneMixKnob, ToneRole } from "@orb/ui/tokens";
+import { TOKEN_POLARITY_ARMS, TOKENS, TONE_MIX_DEFAULTS, TONE_MIX_KNOBS, TONE_ROLE_RECIPES, toneKnobVar, toneLiteralVar } from "@orb/ui/tokens";
 import { clampThemeTokens } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
 import { serializeOpaqueOklch, toOklch } from "../../../../packages/ui/src/content/theme-scope/color-parse.ts";
-import type { CarriedTone } from "../../../../packages/ui/src/content/theme-scope/tone-knobs.ts";
+import type { CarriedTone, CarriedToneScheme } from "../../../../packages/ui/src/content/theme-scope/tone-knobs.ts";
 import { carriedToneScheme, carriedToneSources } from "../../../../packages/ui/src/content/theme-scope/tone-knobs.ts";
-import { BASES } from "./contrast-cases.ts";
+import { BASES, keepsHue, MID_GREY } from "./contrast-cases.ts";
 
 // The sweeps run the production clamp per case; they outrun the default per-test budget.
 const SWEEP_TIMEOUT_MS = 180_000;
@@ -48,19 +62,115 @@ function emittedMix(vars: Readonly<Record<string, string>>, tone: Tone): Readonl
   return Object.fromEntries(TONE_MIX_KNOBS.map((name) => [name, knob(name)])) as Record<ToneMixKnob, number>;
 }
 
-/** Every D336 floor the emitted scope misses: its intents and neutral from the carried palette, its primary and knobs as emitted. */
-function emittedMisses(background: string, tokens: { readonly accent?: string }, ambientAccent?: string): readonly string[] {
+/** The roles a soft fill paints: the tints the separation floor holds off the page and off each other. */
+const TINT_ROLES = ["tint", "tint-active"] as const satisfies readonly ToneRole[];
+
+const LITERAL_ROLES: readonly ToneRole[] = carriedLiteralRoles(TONE_ROLE_RECIPES, TONE_MIX_DEFAULTS);
+
+/** Two tones whose hues sit within the adjacency bound: their tints owe each other no separation. */
+function hueAdjacent(a: Oklch, b: Oklch): boolean {
+  return hueDistance(a.h, b.h) < TONE_HUE_ADJACENT_DEGREES;
+}
+
+/** The literal a scope emitted for one tone's role, or `undefined` where the role paints its mix. */
+function emittedLiteral(vars: Readonly<Record<string, string>>, tone: Tone, role: ToneRole): Oklch | undefined {
+  if (tone === "neutral" || !LITERAL_ROLES.includes(role)) {
+    return;
+  }
+  const spelling = vars[toneLiteralVar(tone, role)];
+  return spelling === undefined || spelling === "initial" ? undefined : parsed(spelling);
+}
+
+/** Every role one tone paints under the emitted scope: its emitted literal where it has one, else its mix at the emitted knobs. */
+function paintedRoles(scheme: CarriedToneScheme, vars: Readonly<Record<string, string>>, { tone, source }: CarriedTone): Readonly<Record<ToneRole, Oklch>> {
+  const mixed = toneRoleColors(scheme, source, emittedMix(vars, tone));
+  return Object.fromEntries(Object.entries(mixed).map(([role, color]) => [role, emittedLiteral(vars, tone, role as ToneRole) ?? color])) as Record<
+    ToneRole,
+    Oklch
+  >;
+}
+
+interface EmittedScope {
+  readonly scheme: CarriedToneScheme;
+  readonly vars: Readonly<Record<string, string>>;
+  readonly tones: readonly CarriedTone[];
+}
+
+/** A carried scope as the clamp emits it: its intents and neutral from the carried palette, its primary as emitted. */
+function emittedScope(background: string, tokens: { readonly accent?: string }, ambientAccent?: string): EmittedScope {
   const { vars } = clampThemeTokens({ background, ...tokens }, undefined, ambientAccent);
   const scheme = carriedToneScheme(parsed(background));
   const fill = vars["--color-primary"];
   const primary: CarriedTone[] =
     fill === undefined ? [] : [{ tone: "primary", source: { base: parsed(fill), foreground: emittedInk(vars["--color-primary-foreground"]) } }];
-  return [...carriedToneSources(scheme, null), ...primary].flatMap(({ tone, source }) =>
-    toneFloorMisses(scheme, source, emittedMix(vars, tone)).map(
-      (miss) => `${background} ${JSON.stringify(tokens)} ${ambientAccent ?? ""} ${tone} ${JSON.stringify(miss)}`,
+  return { scheme, vars, tones: [...carriedToneSources(scheme, null), ...primary] };
+}
+
+/** Every D336 floor the emitted scope misses, and every tint closer than the separation to the page or to a non-adjacent tone's tint. */
+function emittedMisses(background: string, tokens: { readonly accent?: string }, ambientAccent?: string): readonly string[] {
+  const { scheme, vars, tones } = emittedScope(background, tokens, ambientAccent);
+  const label = `${background} ${JSON.stringify(tokens)} ${ambientAccent ?? ""}`;
+  const colored = tones.flatMap((carried) =>
+    carried.source === "neutral" ? [] : [{ ...carried, base: carried.source.base, roles: paintedRoles(scheme, vars, carried) }],
+  );
+  const floors = tones.flatMap((carried) =>
+    roleFloorMisses(scheme, paintedRoles(scheme, vars, carried)).map((miss) => `${label} ${carried.tone} ${JSON.stringify(miss)}`),
+  );
+  const offPage = colored.flatMap(({ tone, roles }) =>
+    TINT_ROLES.flatMap((role) => {
+      const distance = paintedDistance(roles[role], scheme.palette.background);
+      return distance >= TONE_TINT_SEPARATION ? [] : [`${label} ${tone} ${role} sits ${distance.toFixed(4)} off the page`];
+    }),
+  );
+  // A selected row, an active tab and a compare panel keep the page ink on a tint.
+  const pageInk = colored.flatMap(({ tone, roles }) =>
+    TINT_ROLES.flatMap((role) => {
+      const ratio = toneContrast(scheme.palette.foreground, roles[role]);
+      return ratio >= AA_NORMAL_RATIO ? [] : [`${label} ${tone} page ink on ${role} is ${ratio.toFixed(3)}:1`];
+    }),
+  );
+  const pairs = colored.flatMap((a, index) =>
+    colored.slice(index + 1).flatMap((b) =>
+      hueAdjacent(a.base, b.base)
+        ? []
+        : TINT_ROLES.flatMap((role) => {
+            const distance = paintedDistance(a.roles[role], b.roles[role]);
+            return distance >= TONE_TINT_SEPARATION ? [] : [`${label} ${a.tone}/${b.tone} ${role} sit ${distance.toFixed(4)} apart`];
+          }),
     ),
   );
+  return [...floors, ...offPage, ...pageInk, ...pairs];
 }
+
+// The hue and chroma a colour paints at in the 8-bit framebuffer. The kit's own twin stays private: only
+// `paintedDistance` reads it in production, and an export no production caller needs is a test-only door.
+function framebuffer(color: Oklch): Oklch {
+  const { r, g, b } = oklchToSrgb(color);
+  return srgbToOklch({ r: Math.round(r), g: Math.round(g), b: Math.round(b) });
+}
+
+test("the adjacency bound exempts Hearth's primary beside warning, never destructive beside warning", () => {
+  const arm = (path: keyof typeof TOKEN_POLARITY_ARMS): Oklch => parsed(TOKEN_POLARITY_ARMS[path].dark);
+  expect(hueAdjacent(parsed(HEARTH_ACCENT), arm("color.warning"))).toBe(true);
+  expect(hueAdjacent(arm("color.destructive"), arm("color.warning"))).toBe(false);
+});
+
+test("on a mid-grey page every colored tone's text, tint and solid keeps its hue", () => {
+  const { scheme, vars, tones } = emittedScope(MID_GREY, {}, HEARTH_ACCENT);
+  const lost = tones.flatMap((carried) => {
+    if (carried.source === "neutral") {
+      return [];
+    }
+    const { base } = carried.source;
+    const roles = paintedRoles(scheme, vars, carried);
+    return (["solid", "text", "tint", "tint-active"] as const satisfies readonly ToneRole[]).flatMap((role) => {
+      const painted = framebuffer(roles[role]);
+      return keepsHue(painted, base.h) ? [] : [`${carried.tone} ${role} paints ${JSON.stringify(painted)} for a base at hue ${base.h.toFixed(1)}`];
+    });
+  });
+  expect(lost).toEqual([]);
+  expect(emittedMisses(MID_GREY, {}, HEARTH_ACCENT)).toEqual([]);
+});
 
 test("a fallback raises only the tone that needs it: primary's steps rise while destructive keeps the default", () => {
   const { vars } = clampThemeTokens({ background: "oklch(0.158 0.006 60)", accent: "oklch(0.3 0.1 260)" });
@@ -85,7 +195,7 @@ test("an out-of-gamut accent is judged as the pixel it paints", () => {
 });
 
 test(
-  "every tone clears every D336 floor over the accepted-base matrix with the inherited accent",
+  "every tone clears every D336 floor and every tint its separation over the accepted-base matrix with the inherited accent",
   () => {
     expect(ACCEPTED_BASES.flatMap((base) => emittedMisses(serializeOpaqueOklch(base), {}, HEARTH_ACCENT))).toEqual([]);
   },
@@ -93,7 +203,7 @@ test(
 );
 
 test(
-  "every picked and inherited accent clears every tone's floors on each contrast-case base",
+  "every picked and inherited accent clears every tone's floors and tint separations on each contrast-case base",
   () => {
     const misses = BASES.flatMap(({ background }) =>
       ACCENTS.flatMap((accent) => [...emittedMisses(background, { accent }), ...emittedMisses(background, {}, accent)]),

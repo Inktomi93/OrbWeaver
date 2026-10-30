@@ -1,5 +1,6 @@
 import { CtIsolation } from "@orb/testkit/browser";
 import { Card } from "@orb/ui/card";
+import { ListRow } from "@orb/ui/list-row";
 import { TrackBar } from "@orb/ui/meter";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ToneRole } from "@orb/ui/tokens";
@@ -105,6 +106,95 @@ export function ToneRoleContrastStory({
           </ThemeScope>
         )}
       </div>
+    </CtIsolation>
+  );
+}
+
+/** The hue-carrying roles one tone paints, each sample addressed by `data-sample`; the tints and the solid are bare fills. */
+const HUE_SAMPLE_ROLES = ["solid", "tint", "tint-active"] as const satisfies readonly ToneRole[];
+
+/**
+ * Each colored tone's text on the page and its solid and tints as fills, inside a custom ThemeScope on `background`, with
+ * Hearth's base and accent as the ambient the shell root hands down.
+ */
+export function ToneHueStory({ background }: { readonly background: string }): ReactElement {
+  return (
+    <CtIsolation subject="Tone hues" isolates="Literal tone roles a custom ThemeScope emits over a mid-lightness page">
+      <ThemeScope tokens={{ background }} ambientBackground={TOKENS["color.background"].value} ambientAccent={TOKENS["color.primary"].value}>
+        <div data-sample="ground" style={{ backgroundColor: "var(--color-background)", display: "grid", gridTemplateColumns: GRID_COLUMNS, padding: "1rem" }}>
+          {TONES.filter((tone) => tone !== "neutral").map((tone) => (
+            <div key={tone} data-tone={tone} style={{ display: "grid", gap: "0.5rem" }}>
+              <p data-sample="text" style={{ ...SAMPLE_STYLE, color: `var(${TOKENS["color.tone-text"].cssVar})`, fontWeight: 700 }}>
+                {`${tone} text`}
+              </p>
+              {HUE_SAMPLE_ROLES.map((role) => (
+                <div key={role} data-sample={role} style={{ ...SAMPLE_STYLE, backgroundColor: `var(${TOKENS[`color.tone-${role}`].cssVar})` }} />
+              ))}
+            </div>
+          ))}
+        </div>
+      </ThemeScope>
+    </CtIsolation>
+  );
+}
+
+/** Each seed palette's stamp: the base palette by its own block, the value-set palettes by `data-theme`. */
+const SEED_STAMPS = [
+  { name: "base", stamp: { "data-palette": "base" } },
+  ...(Object.keys(SEED_THEME_VALUE_SETS) as (keyof typeof SEED_THEME_VALUE_SETS)[]).map((name) => ({ name, stamp: { "data-theme": name } })),
+] as const;
+
+/** Every tone role under each seed palette, one fill per role addressed by `data-role-sample`. */
+function SeedRoleSamples(): ReactElement {
+  return (
+    <>
+      {SEED_STAMPS.map(({ name, stamp }) => (
+        <div key={name} {...stamp}>
+          {TONES.map((tone) => (
+            <div key={tone} data-tone={tone}>
+              {TONE_ROLES.map((role) => (
+                <div
+                  key={role}
+                  data-role-sample={`${name} ${tone} ${role}`}
+                  style={{ ...SAMPLE_STYLE, backgroundColor: `var(${TOKENS[`color.tone-${role}`].cssVar})` }}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+      ))}
+    </>
+  );
+}
+
+/**
+ * Every seed palette twice: on the page, and nested inside a custom ThemeScope on `background`, as a theme thumbnail
+ * sits inside a custom app theme. The nested seed must paint its own roles, never the carried scope's solve.
+ */
+export function NestedSeedStory({ background }: { readonly background: string }): ReactElement {
+  return (
+    <CtIsolation subject="Nested seed palettes" isolates="Seed [data-theme] tone roles nested inside a custom ThemeScope">
+      <section data-nest="page">
+        <SeedRoleSamples />
+      </section>
+      <ThemeScope tokens={{ background }} ambientBackground={TOKENS["color.background"].value} ambientAccent={TOKENS["color.primary"].value}>
+        <section data-nest="carried">
+          <SeedRoleSamples />
+        </section>
+      </ThemeScope>
+    </CtIsolation>
+  );
+}
+
+/** A selected navigation row inside a custom ThemeScope on `background`: its label keeps the page ink on the primary tint. */
+export function SelectedRowStory({ background }: { readonly background: string }): ReactElement {
+  return (
+    <CtIsolation subject="Selected ListRow" isolates="The selection rail's tint under a custom ThemeScope">
+      <ThemeScope tokens={{ background }} ambientBackground={TOKENS["color.background"].value} ambientAccent={TOKENS["color.primary"].value}>
+        <div style={{ backgroundColor: "var(--color-background)", padding: "1rem", inlineSize: "20rem" }}>
+          <ListRow title="Connections" clickable={true} selected={true} />
+        </div>
+      </ThemeScope>
     </CtIsolation>
   );
 }

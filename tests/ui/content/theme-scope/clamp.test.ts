@@ -1,8 +1,9 @@
-// The ThemeScope clamp emits the D336 tone knobs a carried palette needs, and only names on its emit surface.
+// The ThemeScope clamp emits the D336 tone knobs and literals a carried palette needs, and only names on its emit surface.
 import type { Oklch } from "@orb/kit/theme-derivation";
+import { carriedLiteralRoles } from "@orb/kit/theme-derivation";
 import { expect, test } from "@orb/testkit/node";
 import type { ToneMixKnob } from "@orb/ui/tokens";
-import { TOKENS, TONE_MIX_DEFAULTS, TONE_MIX_KNOBS } from "@orb/ui/tokens";
+import { TOKENS, TONE_MIX_DEFAULTS, TONE_MIX_KNOBS, TONE_ROLE_RECIPES, TONES, toneLiteralVar } from "@orb/ui/tokens";
 import { clampThemeTokens } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
 import { toOklch } from "../../../../packages/ui/src/content/theme-scope/color-parse.ts";
 import { THEME_SCOPE_EMIT_VARS } from "../../../../packages/ui/src/content/theme-scope/emit-vars.ts";
@@ -13,6 +14,8 @@ const MID_BASE = "oklch(0.5 0.01 60)";
 const LIGHT_BASE = "oklch(0.98 0.004 75)";
 const KNOB_VARS = new Map<string, ToneMixKnob>(TONE_MIX_KNOBS.map((knob) => [TOKENS[`tone-mix.${knob}`].cssVar, knob] as const));
 const HEARTH_ACCENT = TOKENS["color.primary"].value;
+const LITERAL_ROLES = carriedLiteralRoles(TONE_ROLE_RECIPES, TONE_MIX_DEFAULTS);
+const LITERAL_VARS: readonly string[] = TONES.flatMap((tone) => (tone === "neutral" ? [] : LITERAL_ROLES.map((role) => toneLiteralVar(tone, role))));
 
 function parsed(color: string): Oklch {
   const value = toOklch(color);
@@ -55,6 +58,29 @@ test("a mid-tone carried base emits the solved knobs, and the roles they spell c
   );
   expect(knobs["text"]).toBeLessThan(TONE_MIX_DEFAULTS.text);
   expect(knobs["neutral-active"]).toBeGreaterThan(TONE_MIX_DEFAULTS["neutral-active"]);
+});
+
+function literalVars(vars: Readonly<Record<string, string>>): Readonly<Record<string, string>> {
+  return Object.fromEntries(Object.entries(vars).filter(([name]) => LITERAL_VARS.includes(name)));
+}
+
+test("a carried scope emits every tone literal: a colour for each tone it judges, the mix fallback for a primary it cannot", () => {
+  expect(LITERAL_VARS.filter((name) => !(THEME_SCOPE_EMIT_VARS as readonly string[]).includes(name))).toEqual([]);
+  const judged = literalVars(clampThemeTokens({ background: MID_BASE }, undefined, HEARTH_ACCENT).vars);
+  expect(Object.keys(judged).toSorted()).toEqual([...LITERAL_VARS].toSorted());
+  expect(Object.values(judged).filter((value) => toOklch(value) === null)).toEqual([]);
+  const unknownPrimary = literalVars(clampThemeTokens({ background: MID_BASE }).vars);
+  expect(Object.keys(unknownPrimary).toSorted()).toEqual([...LITERAL_VARS].toSorted());
+  for (const role of LITERAL_ROLES) {
+    expect(unknownPrimary[toneLiteralVar("primary", role)], role).toBe("initial");
+    expect(toOklch(unknownPrimary[toneLiteralVar("warning", role)] ?? ""), role).not.toBeNull();
+  }
+});
+
+test("a scope that paints its own accent over an outer palette resets the primary literals, and an ink-only scope emits none", () => {
+  const accentOnly = literalVars(clampThemeTokens({ accent: "oklch(0.6 0.2 300)" }, MID_BASE, HEARTH_ACCENT).vars);
+  expect(accentOnly).toEqual(Object.fromEntries(LITERAL_ROLES.map((role) => [toneLiteralVar("primary", role), "initial"])));
+  expect(literalVars(clampThemeTokens({ dialogueColor: "oklch(0.8 0.1 90)" }, MID_BASE, HEARTH_ACCENT).vars)).toEqual({});
 });
 
 test("a carried scope paints the primary it judged, and reports when the solid steps needed the fallback", () => {
