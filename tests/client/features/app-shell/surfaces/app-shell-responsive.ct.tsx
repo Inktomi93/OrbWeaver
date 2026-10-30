@@ -80,6 +80,40 @@ test.describe("the You sheet", () => {
     await expect(youTab(page)).toBeFocused();
   });
 
+  test("it ends above the tab bar: no sheet row sits under the You tab's hit box, the bar stays tappable, and the second tap closes the sheet", async ({
+    mount,
+    page,
+  }) => {
+    await mount<typeof AppShellStory>(STORY, {});
+    expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+    const tab = youTab(page);
+    await tab.tap();
+    // The open sheet hides the page behind it from assistive tech, so the visible tab is found by its trigger stamp.
+    const barTab = page.locator('.shell-rail [data-modal-trigger="you"]');
+    const drawer = sheet(page);
+    await expect(drawer).toBeVisible();
+    const box = await barTab.boundingBox();
+    if (box === null) {
+      throw new Error("The You tab has no box");
+    }
+    expect(box.height).toBeGreaterThanOrEqual(LENGTH_BASE_PX["size.control-md"]);
+    const sheetBottom = await drawer.evaluate((element) => element.getBoundingClientRect().bottom);
+    expect(sheetBottom).toBeLessThanOrEqual(box.y + 1);
+    // Every corner and the centre of the tab's hit box lands on the tab itself, never on a row or the scrim.
+    for (const [x, y] of [
+      [box.x + 2, box.y + 2],
+      [box.x + box.width - 2, box.y + 2],
+      [box.x + 2, box.y + box.height - 2],
+      [box.x + box.width - 2, box.y + box.height - 2],
+      [box.x + box.width / 2, box.y + box.height / 2],
+    ] as const) {
+      expect(await barTab.evaluate((element, [px, py]) => element.contains(document.elementFromPoint(px, py)), [x, y] as const)).toBe(true);
+    }
+    await barTab.tap();
+    await expect(drawer).toHaveCount(0);
+    await expect(tab).toBeFocused();
+  });
+
   test("it names who a new chat starts you as, offers no theme switch, and keeps Report a bug off the topbar as an inline form", async ({
     corpus,
     mount,

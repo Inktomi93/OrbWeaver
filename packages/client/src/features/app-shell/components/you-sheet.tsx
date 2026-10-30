@@ -15,7 +15,6 @@
 // Add a chrome entry once at the door → desktop rail, mobile bar, AND this sheet all pick it up. The sheet
 // stays a REAL modal (the `you` Drawer slot — portal/focus-trap/scrim); CSS cannot fake that (§C).
 
-import { DrawerTapGuard } from "@orb/ui/drawer";
 import { Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
@@ -136,17 +135,6 @@ export function YouSheet(): ReactElement {
           ))}
         </Stack>
       )}
-
-      {/* THE DEAD BAND AT THE FOOT (side-eye F-16). The drawer is `side="bottom"` — `inset-x-0 bottom-0` —
-          so its LAST row sits flush against the viewport floor, which is exactly where the tab bar's `You`
-          hit box (105×56, bottom-anchored) was. Opening the sheet therefore parked a nav row directly under
-          the finger that had just tapped: a slightly long press or an accidental double-tap fired an
-          unintended navigation, and the row painted its active fill while a different row carried the
-          current-amber — two rows reading as selected at once.
-          The band is exactly the bar's own height (`--dimension-rail`, which IS "the mobile bottom-tab-bar
-          height" per the token's description), so it clears the tap point by construction rather than by a
-          number somebody picked. `aria-hidden` + empty: it is a keep-out zone, not content. */}
-      <DrawerTapGuard />
     </Stack>
   );
 }

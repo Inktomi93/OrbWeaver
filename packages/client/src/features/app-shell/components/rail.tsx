@@ -22,7 +22,7 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import { WeaveGlyph } from "@orb/ui/web-weave";
 import type { ReactElement, ReactNode } from "react";
 import type { ChromeEntry, MobileCuration, ModalSlotId, SectionId } from "#state";
-import { mobileBarCuration, SECTION_GROUPS, sheetOverflowChrome, useChromeRegistry, useModalRegistry } from "#state";
+import { closeModal, mobileBarCuration, SECTION_GROUPS, sheetOverflowChrome, useChromeRegistry, useModalRegistry, useOpenModal } from "#state";
 import { SHELL_ACCENT_TONE } from "../lib/shell-accent.ts";
 import { RailButton } from "./rail-button.tsx";
 
@@ -222,6 +222,7 @@ export function Rail({ activeSection, onSelectSection, onOpenModal, inert }: Rai
   // the sheet (`mobileBarCuration`, #state), so the door and its contents can never disagree about who is a
   // tab right now. Desktop is untouched — the rail column renders every entry regardless of `data-mobile`.
   const curation = mobileBarCuration(entries, activeSection);
+  const openModalId = useOpenModal();
   return (
     <nav className="shell-rail" aria-label="Primary" data-tone={SHELL_ACCENT_TONE} inert={inert}>
       {brandEntry === undefined ? (
@@ -328,7 +329,7 @@ export function Rail({ activeSection, onSelectSection, onOpenModal, inert }: Rai
           mobile="tab"
           mobileOnly={true}
           modalId={youModal.id}
-          onClick={(): void => onOpenModal(youModal.id)}
+          onClick={(): void => (openModalId === youModal.id ? closeModal() : onOpenModal(youModal.id))}
         />
       )}
     </nav>

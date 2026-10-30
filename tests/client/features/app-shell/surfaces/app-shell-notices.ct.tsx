@@ -167,6 +167,10 @@ test.describe("with an open sheet and keyboard", () => {
     });
     await page.getByRole("textbox", { name: "Search characters", exact: true }).fill(card.name);
     await page.getByRole("list", { name: "Character library", exact: true }).getByRole("button", { name: card.name, exact: true }).click();
+    // The push to the card's screen runs a view transition, which takes hit tests until it ends; a click inside it is
+    // retried by scrolling the page, which moves every box this test then measures.
+    await expect(page.getByRole("button", { name: "Back to Characters", exact: true })).toBeVisible();
+    await page.waitForFunction(() => document.getAnimations().every((animation) => animation.playState !== "running"));
     await page.getByRole("button", { name: "Show details", exact: true }).click();
     const context = page.locator('.shell-panel[data-panel-side="context"]');
     await expect(context).toHaveAttribute("data-panel-mode", "overlay");

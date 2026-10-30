@@ -7,9 +7,9 @@
 // the band is the BASELINE (the LIST surface's title/action move INTO it at N2). `header` content is an
 // optional slot the band wraps.
 //
-// In its DOCKED and COLLAPSED modes neither panel supplies a collapse control here — the CONTEXT panel's
-// open/close affordance is the registered `contextToggleChrome` topbar widget (the ONE detail-panel close
-// control); the LIST panel's is the topbar's intrinsic list toggle.
+// In its DOCKED and COLLAPSED modes neither panel supplies a collapse control here — each panel's open/close
+// affordance is its edge control (`panel-edges.tsx`) on a desktop, drawn over the band's lane, and the topbar's
+// door on a phone.
 //
 // A COLLAPSED BODY IS DEFERRED PAST THE BOOT COMMIT, AND ITS MOUNT DOES NOT RIDE THE OPEN'S CLICK FRAME
 // (#895) — see `bodyMounted` below for the measurement that split those into two different requirements.

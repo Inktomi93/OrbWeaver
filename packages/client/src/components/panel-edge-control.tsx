@@ -18,6 +18,8 @@ export interface PanelEdgeControlProps {
   /** The panel element this control shows and hides. */
   readonly controls?: string;
   readonly onToggle: () => void;
+  /** The host's durable focus-return target: it hands focus back here after a sheet closes. */
+  readonly focusReturnMarker?: string;
   /** The host's handle for handing focus back after a close it ran itself (Escape, an outside click). */
   readonly ref?: Ref<HTMLButtonElement>;
 }
@@ -28,7 +30,7 @@ const GLYPHS = {
   start: { hide: ArrowLeftToLine, show: ArrowRightFromLine },
 } as const;
 
-export function PanelEdgeControl({ expanded, noun, edge, controls, onToggle, ref }: PanelEdgeControlProps): ReactElement {
+export function PanelEdgeControl({ expanded, noun, edge, controls, onToggle, focusReturnMarker, ref }: PanelEdgeControlProps): ReactElement {
   const label = `${expanded ? "Hide" : "Show"} ${noun}`;
   return (
     <Tooltip>
@@ -39,6 +41,7 @@ export function PanelEdgeControl({ expanded, noun, edge, controls, onToggle, ref
             aria-expanded={expanded}
             aria-label={label}
             data-expanded={expanded ? "true" : "false"}
+            data-focus-return-marker={focusReturnMarker}
             data-slot="panel-edge-control"
             intent={expanded ? "ghost" : "outline"}
             onClick={onToggle}

@@ -7,7 +7,6 @@ export {
   DrawerPopup,
   DrawerProvider,
   DrawerSwipeArea,
-  DrawerTapGuard,
   DrawerTitle,
   DrawerTrigger,
   DrawerVirtualKeyboardProvider,

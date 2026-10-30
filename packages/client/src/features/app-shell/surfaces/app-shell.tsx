@@ -28,6 +28,8 @@ import { CONTEXT_TOGGLE_MARKER } from "../components/context-toggle.tsx";
 import { CustomThemeStyle } from "../components/custom-theme-style.tsx";
 import { ModalHost } from "../components/modal-host.tsx";
 import { PanelChrome } from "../components/panel-chrome.tsx";
+import type { PanelEdgeState } from "../components/panel-edges.tsx";
+import { PanelEdges } from "../components/panel-edges.tsx";
 import { Rail } from "../components/rail.tsx";
 import { SectionContent } from "../components/section-content.tsx";
 import type { SectionContextHostProps } from "../components/section-context-host.tsx";
@@ -101,7 +103,7 @@ function useOverlayFocus(
   }, [overlay, open, pane, grid, scrim, focusReturnMarker]);
 }
 
-// A collapsed retained bracket contributes no chrome exclusion, and keeps the pane's own dismiss.
+// A docked pane is closed from its edge control; a sheet carries its own dismiss, kept while it slides out.
 function ContextPaneBody({
   layout,
   definition,
@@ -117,11 +119,25 @@ function ContextPaneBody({
         key={layout.activeSection}
         definition={definition}
         headerRef={layout.contextMode === "collapsed" ? undefined : headerRef}
-        dismissLabel={`Close ${layout.activeSectionLabel} details`}
-        onDismiss={(): void => layout.collapsePanel("context")}
+        {...(layout.contextMode === "docked"
+          ? {}
+          : { dismissLabel: `Close ${layout.activeSectionLabel} details`, onDismiss: (): void => layout.collapsePanel("context") })}
       />
     </RegionAnchor>
   );
+}
+
+/** The state each panel draws its edge control in, or `undefined` where it draws none: a pane the section does not
+ *  declare, the phone (its topbar holds the doors onto the list screen and the detail sheet), and a floating
+ *  sheet, which carries its own dismiss. */
+function edgeStates(layout: ShellLayout): { readonly list: PanelEdgeState | undefined; readonly context: PanelEdgeState | undefined } {
+  if (layout.mobileViewport) {
+    return { list: undefined, context: undefined };
+  }
+  return {
+    list: layout.listAvailable && layout.listMode !== "overlay" ? layout.listMode : undefined,
+    context: layout.contextAvailable && layout.contextMode !== "overlay" ? layout.contextMode : undefined,
+  };
 }
 
 /** The rail in the DOM slot its REGIME paints it in (side-eye a11y rec · WCAG 1.3.2 meaningful sequence).
@@ -199,6 +215,7 @@ export function AppShell(): ReactElement {
   // A section that declares NO context pane renders nothing into the (zero-width, toggle-less) track —
   // the LIST twin above. Without this the pane-less front door still built a detail-panel body ("Select
   // something to see its details here") that nothing could ever reach.
+  const edges = edgeStates(layout);
   const contextPane = layout.contextAvailable
     ? {
         header: <SectionContextHeader key={layout.activeSection} definition={activeDef} />,
@@ -311,6 +328,8 @@ export function AppShell(): ReactElement {
               data-section={layout.activeSection}
               data-list-mode={layout.listMode}
               data-context-mode={layout.contextMode}
+              data-list-edge={edges.list}
+              data-context-edge={edges.context}
               data-room-screen={roomScreen.roomScreen}
               data-elevation={appearance.elevation}
               {...(hasBgImage ? { "data-has-bg-image": true } : {})}
@@ -413,6 +432,8 @@ export function AppShell(): ReactElement {
               >
                 {contextPane.body}
               </PanelChrome>
+
+              <PanelEdges list={edges.list} context={edges.context} onToggle={layout.togglePanel} />
 
               <RailSlot activeSection={layout.activeSection} show={roomScreen.showMobileRail} inert={layout.underSheet} />
 
