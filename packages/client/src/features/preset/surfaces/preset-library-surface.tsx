@@ -27,7 +27,7 @@ import type { ReactElement } from "react";
 import { useDeferredValue, useRef } from "react";
 import { LibraryListFrame, LibraryListRows, LibrarySurfaceShell } from "#components";
 import { useInvalidation, useSuspenseQueries, useTRPC, useTRPCClient } from "#data";
-import { downloadJson, notify, rowQualifiers, slugifyFilename, timeLib, useFocusOnMount } from "#lib";
+import { downloadJson, notify, rowQualifiers, slugifyFilename, timeLib, useFocusListArrival } from "#lib";
 import { selectPreset, setPresetSearchQuery, usePresetSearchQuery, useSelectedPresetId } from "#state";
 import { PresetLibraryRow } from "../components/preset-library-row.tsx";
 import { useCreatePreset, useRemovePreset, useSetDefaultPreset } from "../hooks/use-preset-mutations.ts";
@@ -44,7 +44,7 @@ export interface PresetLibrarySurfaceProps {
 
 export function PresetLibrarySurface({ onSelectPreset }: PresetLibrarySurfaceProps): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
-  useFocusOnMount(surfaceRef);
+  useFocusListArrival(surfaceRef);
   // The search box is pane CHROME and now renders above the boundary (#1748), so its value is read here.
   // It was already SECTION state rather than the list's own (`preset-search-store.ts`) — the chrome band's
   // census answers off the same lens — so nothing about ownership changes, only which side of the read it

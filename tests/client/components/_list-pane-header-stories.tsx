@@ -2,6 +2,7 @@ import { ListPaneHeaderHost } from "@orb/client/components";
 import type { ListPaneHeaderView } from "@orb/client/lib";
 import { CtIsolation } from "@orb/testkit/browser";
 import { Button } from "@orb/ui/button";
+import { Plus } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useState } from "react";
@@ -22,7 +23,13 @@ export function ListPaneHeaderStory({ title, accent, count, withBack = false, wi
     ...(withBack ? { back: { label: "Back to all characters", onClick: (): void => setBacks((value) => value + 1) } } : {}),
     ...(withAction
       ? {
-          action: <Button onClick={(): void => setActions((value) => value + 1)}>New chat</Button>,
+          actions: [
+            {
+              id: "new-chat",
+              inline: <Button onClick={(): void => setActions((value) => value + 1)}>New chat</Button>,
+              menu: [{ id: "new-chat", label: "New chat", icon: Plus, onSelect: (): void => setActions((value) => value + 1) }],
+            },
+          ],
         }
       : {}),
     overlay: backs === 0 && actions === 0 ? null : <output>{`Back activated ${String(backs)}; action activated ${String(actions)}`}</output>,

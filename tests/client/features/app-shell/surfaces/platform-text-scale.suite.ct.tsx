@@ -4,15 +4,18 @@
 // same way, but a `rem` inside a media query stays at the platform default, so a browser whose own default is 200% would
 // also flip the shell regime. Only the combinations that hold are listed in QUALIFIED; the rest are open defects on the board.
 import { APPEARANCE_CHANNEL_ROWS } from "@orb/client/lib";
+import type { CharacterId } from "@orb/kit/ids";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { SECTION_LABELS } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
-import type { AppShellStory } from "./_app-shell-stories.tsx";
+import type { AppShellCharacterStory, AppShellStory } from "./_app-shell-stories.tsx";
+import type { PlantedControlsStory } from "./_text-scale-probe-stories.tsx";
 import { routeRoom, SHELL_STORIES } from "./app-shell-ct.ts";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;
+const PROBE_STORIES = "tests/client/features/app-shell/surfaces/_text-scale-probe-stories";
 const PHONE = { name: "phone", touch: true, size: { width: 390, height: 844 } } as const;
 const DESKTOP = { name: "desktop", touch: false, size: { width: 1440, height: 900 } } as const;
 const TEXT_200 = { name: "200% text", factor: 2 } as const;
@@ -29,7 +32,12 @@ type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
 
 // The combinations measured clean on Chromium. A surface absent here has a defect at that scale and is not claimed.
 const QUALIFIED = {
-  topbar: [[DESKTOP, TEXT_200]],
+  topbar: [
+    [DESKTOP, TEXT_200],
+    [DESKTOP, LAYOUT_300],
+  ],
+  contextHeader: [[DESKTOP, TEXT_200]],
+  charactersBand: [[PHONE, TEXT_200]],
   room: [[DESKTOP, TEXT_200]],
   importDialog: [
     [PHONE, TEXT_200],
@@ -106,6 +114,14 @@ function clippedControls(subject: Element, { reachable, subpixel }: { readonly r
     if (clipped !== null) {
       return `${label(element)} ${at} ${clipped}`;
     }
+    // A control the user reaches by scrolling its own scroller is not covered by what sits where it would be unscrolled.
+    const reachedByScrolling = ancestorsOf(element).some((ancestor) => {
+      const style = getComputedStyle(ancestor);
+      return spans(box, ancestor.getBoundingClientRect()).some((axis) => kindOf(axis === "x" ? style.overflowX : style.overflowY) === "scroll");
+    });
+    if (reachedByScrolling) {
+      return null;
+    }
     const cover = coveredBy(element, box);
     return cover === null ? null : `${label(element)} ${at} is covered at its centre by ${label(cover)} ${cover.className}`;
   };
@@ -150,6 +166,15 @@ async function scaleRoot(page: Page, factor: number): Promise<void> {
   await expect.poll(() => page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).fontSize))).toBeGreaterThanOrEqual(16 * factor);
 }
 
+async function firstCharacterId(): Promise<CharacterId> {
+  const caller = await root.internalCallerFor(root.ownerId);
+  const [character] = (await caller.character.list({})).items;
+  if (character === undefined) {
+    throw new Error("The corpus has no character");
+  }
+  return character.id;
+}
+
 const documentOverflow = (page: Page): Promise<number> => page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
 
 for (const [viewport, scale] of QUALIFIED.topbar) {
@@ -162,6 +187,40 @@ for (const [viewport, scale] of QUALIFIED.topbar) {
       await expect(page.locator(".shell-topbar")).toBeVisible();
       await scaleRoot(page, scale.factor);
       await expect.poll(() => findings(page.locator(".shell-topbar"))).toEqual([]);
+      expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
+    });
+  });
+}
+
+for (const [viewport, scale] of QUALIFIED.contextHeader) {
+  test.describe(`Context panel header at ${scale.name} on the ${viewport.name}`, () => {
+    test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });
+
+    test("keeps every control reachable", async ({ mount, page }) => {
+      await seedShellState(page, { activeSection: "characters" });
+      await mount<typeof AppShellCharacterStory>(`${SHELL_STORIES}/AppShellCharacterStory`, { characterId: await firstCharacterId() });
+      await scaleRoot(page, scale.factor);
+      const toggle = page.getByRole("button", { name: /^(?:Show|Hide) details$/u });
+      if ((await toggle.getAttribute("aria-label")) === "Show details") {
+        await toggle.click();
+      }
+      await expect(page.locator(".shell-panel[data-panel-side='context'] [data-slot='context-bracket-header']")).toBeVisible();
+      await expect.poll(() => findings(page.locator(".shell-panel[data-panel-side='context']"))).toEqual([]);
+      expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
+    });
+  });
+}
+
+for (const [viewport, scale] of QUALIFIED.charactersBand) {
+  test.describe(`Characters list band at ${scale.name} on the ${viewport.name}`, () => {
+    test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });
+
+    test("keeps every control reachable and uncovered", async ({ mount, page }) => {
+      await seedShellState(page, { activeSection: "characters" });
+      await mount<typeof AppShellStory>(STORY, {});
+      await expect(page.locator(".shell-panel[data-panel-side='list']")).toHaveAttribute("data-panel-mode", "docked");
+      await scaleRoot(page, scale.factor);
+      await expect.poll(() => findings(page.locator(".shell-grid"))).toEqual([]);
       expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
     });
   });
@@ -214,3 +273,11 @@ for (const [viewport, scale] of QUALIFIED.importDialog) {
     });
   });
 }
+
+test("the probe fails a control clipped by an ancestor that does not scroll and passes one its own scroller reaches", async ({ mount, page }) => {
+  await mount<typeof PlantedControlsStory>(`${PROBE_STORIES}/PlantedControlsStory`, {});
+  const clipped = await findings(page.locator('[data-planted="clipped"]'));
+  expect(clipped).toHaveLength(1);
+  expect(clipped[0]).toContain("clipped on x");
+  expect(await findings(page.locator('[data-planted="scrolled"]'))).toEqual([]);
+});

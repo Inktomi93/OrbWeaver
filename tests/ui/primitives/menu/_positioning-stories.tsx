@@ -38,3 +38,25 @@ export function ConstrainedMenuStory(): ReactElement {
     </CtIsolation>
   );
 }
+
+/** A trigger pinned to the screen's right edge, whose popup starts at the trigger and so would run past the edge. */
+export function EdgeMenuStory(): ReactElement {
+  return (
+    <CtIsolation subject="Menu" isolates="Edge collision needs only an anchored popup, no application services.">
+      <div style={{ position: "fixed", right: 0, top: 80 }}>
+        <Menu>
+          <MenuTrigger
+            render={
+              <Button aria-label="Edge actions" variant="ghost" size="icon">
+                ⋯
+              </Button>
+            }
+          />
+          <MenuPopup align="start">
+            <MenuItem>A command wider than the trigger</MenuItem>
+          </MenuPopup>
+        </Menu>
+      </div>
+    </CtIsolation>
+  );
+}

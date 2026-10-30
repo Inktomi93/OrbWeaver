@@ -21,7 +21,8 @@ export interface ShellTopbarProps {
   readonly title: string;
   /** Per-section header node the route may supply (defaults to just the title). */
   readonly header?: ReactNode;
-  /** The registry-derived `topbar.trail` zone render (⌘K + chrome widgets), rendered as-is. */
+  /** The registry-derived `topbar.trail` zone render (⌘K + chrome widgets): the measured overflow row, which
+   *  carries the `shell-topbar-trail` class itself. */
   readonly trail: ReactNode;
   readonly listMode: PanelMode;
   /** Does the active section HAVE a LIST pane? `false` ⇒ NO toggle renders — a
@@ -176,7 +177,7 @@ export function ShellTopbar({ ref, ...props }: ShellTopbarProps): ReactElement {
         </div>
       </div>
 
-      <div className="shell-topbar-trail">{props.trail}</div>
+      {props.trail}
     </header>
   );
 }

@@ -26,7 +26,11 @@ const BUTTON_INKS = new Set(["muted", "foreground"]);
 
 // A filled intent owned its ink, so a `tone` beside it painted nothing and is dropped. A fill-less intent took the tone
 // as its ink: a colour stays a tone, a named ink moves to `ink`. `bare` took its picture's ink.
+// Only an element that still spells `intent` is old: a bare `tone` on a Button is already the D336 colour.
 function rewriteButton(values: Values): Rewrite {
+  if (!values.has("intent")) {
+    return null;
+  }
   const intent = values.get("intent") ?? "primary";
   const tone = values.get("tone");
   const filledTone = BUTTON_FILLED[intent];
@@ -60,6 +64,10 @@ const BADGE_VARIANT: Readonly<Record<string, string>> = { solid: "solid", soft: 
 // The neutral solid pill painted the muted fill, which is the neutral tone's tint: it keeps its look as `soft`, the
 // Badge default.
 function rewriteBadge(values: Values): Rewrite {
+  // A bare `tone` naming a D336 tone is already the new spelling; only `intent` or an old fill-style value is old.
+  if (!(values.has("intent") || Object.hasOwn(BADGE_VARIANT, values.get("tone") ?? ""))) {
+    return null;
+  }
   const tone = BADGE_TONE[values.get("intent") ?? "neutral"];
   const style = BADGE_VARIANT[values.get("tone") ?? "solid"];
   if (tone === undefined || style === undefined) {
@@ -209,8 +217,22 @@ function attributeValue(attribute: SgNode<TSX>): string | undefined {
 }
 
 /** One element's edits: the first mapped attribute becomes the new attributes, the others go with their space. */
+// An attribute only the D336 vocabulary spells marks an element the rewrite already moved, so a rerun leaves it alone.
+// Text's old `ink` axis spelled `inherit` and `voice`, so only another ink is new.
+const NEW_ONLY = new Set(["variant", "ink", "focal", "dashed"]);
+const OLD_INKS = new Set(["inherit", "voice"]);
+
+function spellsNewVocabulary(attribute: SgNode<TSX>): boolean {
+  const name = attribute.child(0)?.text() ?? "";
+  return NEW_ONLY.has(name) && !(name === "ink" && OLD_INKS.has(attributeValue(attribute) ?? ""));
+}
+
 function rewriteElement(element: SgNode<TSX>, rule: PrimitiveRule): readonly Edit[] {
-  const attributes = element.children().filter((child) => child.kind() === "jsx_attribute" && rule.axes.includes(child.child(0)?.text() ?? ""));
+  const named = element.children().filter((child) => child.kind() === "jsx_attribute");
+  if (named.some(spellsNewVocabulary)) {
+    return [];
+  }
+  const attributes = named.filter((child) => rule.axes.includes(child.child(0)?.text() ?? ""));
   if (attributes.length === 0) {
     return [];
   }

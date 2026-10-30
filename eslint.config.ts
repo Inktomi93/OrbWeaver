@@ -1041,15 +1041,24 @@ export const DOM_LOOKUP_HOMES = [
   },
   {
     file: "packages/client/src/lib/view-transition.ts",
+    function: "destinationDeadline",
+    method: "querySelector",
+    receiver: "g.document",
+    selector: ".shell-grid",
+    reason: "The transition lifecycle adapter reads the frame's declared swap deadline from the one element that carries it.",
+  },
+  {
+    file: "packages/client/src/lib/view-transition.ts",
     function: "destinationSettled/check",
     method: "querySelector",
     receiver: "g.document",
-    selector: '.shell-content [data-slot="skeleton"], .shell-panel[data-panel-side="list"]:not([data-panel-mode="collapsed"]) [data-slot="skeleton"]',
+    selector:
+      '.shell-content [data-slot="skeleton"], .shell-content [data-ready="false"], .shell-panel[data-panel-side="list"]:not([data-panel-mode="collapsed"]) [data-slot="skeleton"], .shell-panel[data-panel-side="list"]:not([data-panel-mode="collapsed"]) [data-ready="false"]',
     reason: "The transition lifecycle adapter reads its destination-pending marker before releasing the transition.",
   },
   {
     file: "packages/client/src/lib/use-focus-on-mount.ts",
-    function: "useFocusOnMount",
+    function: "useArrivalFocus",
     method: "closest",
     receiver: "active",
     selector: '[role="dialog"], [role="alertdialog"]',
@@ -1057,11 +1066,20 @@ export const DOM_LOOKUP_HOMES = [
   },
   {
     file: "packages/client/src/lib/use-focus-on-mount.ts",
-    function: "useFocusOnMount",
+    function: "useArrivalFocus",
     method: "closest",
     receiver: "ref.current",
     selector: '[role="dialog"], [role="alertdialog"]',
     reason: "The shared focus boundary checks dialog ownership before moving focus, including a surviving global dialog.",
+  },
+  {
+    file: "packages/client/src/lib/use-focus-on-mount.ts",
+    function: "useArrivalFocus",
+    method: "querySelector",
+    receiver: "browserDocument",
+    selector:
+      '[data-panel-side="list"] :is([data-slot="list-pane-back"], [data-slot="list-pane-action"] :is(button, a[href], input, select, textarea)):not(:disabled):not([inert] *):not([data-overflowed] *)',
+    reason: "A list surface lands arrival focus on its LIST band's first control; the band is a sibling shell region, so no ref reaches it.",
   },
   {
     file: "packages/client/src/lib/motion-dead-class-flagger.ts",

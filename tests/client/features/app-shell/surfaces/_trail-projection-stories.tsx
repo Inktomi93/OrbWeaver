@@ -1,6 +1,7 @@
 // The production AppShell over a chrome registry the story assembles itself: the production sections and modals, and
 // one trail widget ordered against the command trigger, so the topbar trail's contents and order come off the registry.
 import { AppShell } from "@orb/client/features/app-shell";
+import type { OverflowMenuForm } from "@orb/client/lib";
 import type { ChromeEntry } from "@orb/client/state";
 import { assembleChrome, ChromeRegistryProvider, useModalRegistry, useSectionRegistry } from "@orb/client/state";
 import { CtClientProviders, isolationRegistry } from "@orb/testkit/browser";
@@ -27,7 +28,11 @@ function TrailRegistry({ includeCommand, widgetFirst, children }: TrailProjectio
     label: STORY_TRAIL_WIDGET,
     zone: "topbar.trail",
     order: widgetFirst ? commandOrder - 1 : commandOrder + 1,
-    behavior: { kind: "widget", body: (): ReactNode => <Button aria-label={STORY_TRAIL_WIDGET} variant="ghost" size="icon" /> },
+    behavior: {
+      kind: "widget",
+      body: (): ReactNode => <Button aria-label={STORY_TRAIL_WIDGET} variant="ghost" size="icon" />,
+      useMenuForms: (): readonly OverflowMenuForm[] => [],
+    },
   };
   const chrome = isolationRegistry(
     "chrome",

@@ -15,6 +15,8 @@
     /* Co-motion vars: grid track, panel slide, and dismiss scrim must share one duration/curve or they shear. */
     --shell-motion: var(--motion-base);
     --shell-ease: var(--ease-out-expo);
+    /* How long a section swap holds the old frame for the destination's first paint (`lib/view-transition.ts`). */
+    --shell-swap-deadline: 150ms;
 
     display: grid;
     grid-template-columns: var(--rail-w) var(--list-track) minmax(0, 1fr) var(--context-track);

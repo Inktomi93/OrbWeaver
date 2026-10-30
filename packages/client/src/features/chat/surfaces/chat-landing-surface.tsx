@@ -33,7 +33,9 @@ export function ChatLandingSurface({ onNewChat }: ChatLandingSurfaceProps): Reac
   // Naming the shell affordance is the same fix the Presets welcome carries, on the same signal; this pane
   // also keeps its own primary in both arms, so neither is a dead end and no second door is minted.
   const listMode = useSectionListMode("chats");
-  useFocusOnMount(surfaceRef);
+  // This pane is kept mounted across section visits, so it takes focus once, on its first mount, and never again on a
+  // reveal: a return to Chats lands on the roster band's first control (`useFocusListArrival`), which a replay would undo.
+  useFocusOnMount(surfaceRef, true, false);
 
   return (
     <Stack

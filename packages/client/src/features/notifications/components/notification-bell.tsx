@@ -28,11 +28,12 @@ import type { ReactElement } from "react";
 import { Fragment, useEffect, useState } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
-import { testId } from "#lib";
+import { testId, useOpenRequests } from "#lib";
 import type { ChromePresentation } from "#state";
 import { closeModal, openConfigTo, openInstalledPlugin, selectChat, setActiveSection } from "#state";
 import { useInbox, useMarkAllNotificationsRead } from "../hooks/use-inbox.ts";
 import { useInboxStream } from "../hooks/use-inbox-stream.ts";
+import { inboxRequests } from "../lib/notifications-requests.ts";
 import { HandoffAcceptConfirm } from "./handoff-accept-confirm.tsx";
 import { InboxRow } from "./notification-inbox-row.tsx";
 
@@ -105,6 +106,11 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
       markAllRead.mutate(undefined);
     }
   };
+  useOpenRequests(inboxRequests, (): void => {
+    if (!isSheet) {
+      onOpenChange(true);
+    }
+  });
 
   const onAccepted = (chatId: ChatId): void => {
     setOpen(false);

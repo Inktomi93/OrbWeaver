@@ -67,16 +67,20 @@ function InsetPane({
   surfaceRef,
   children,
   className,
+  ready,
 }: {
   readonly surfaceRef: RefObject<HTMLDivElement | null>;
   readonly children: ReactNode;
   readonly className?: string;
+  /** `data-ready` for an arm with no skeleton while its first read is out; absent for an arm that never waits. */
+  readonly ready?: boolean;
 }): ReactElement {
   return (
     <Stack
       className={cn("relative overflow-y-auto px-section block-full min-block-0", className)}
       focusTarget={true}
       data-testid={testId("extensionsContent")}
+      {...(ready === undefined ? {} : { "data-ready": ready ? "true" : "false" })}
       ref={surfaceRef}
       tabIndex={-1}
     >
@@ -213,7 +217,11 @@ export function ExtensionsPageSurface(): ReactElement {
     );
   }
   if (key === null) {
-    return <InsetPane surfaceRef={surfaceRef}>{pages.length === 0 ? <NoPages empty={empty} /> : <NoSelection empty={empty} />}</InsetPane>;
+    return (
+      <InsetPane ready={empty.settled} surfaceRef={surfaceRef}>
+        {pages.length === 0 ? <NoPages empty={empty} /> : <NoSelection empty={empty} />}
+      </InsetPane>
+    );
   }
   if (page === undefined) {
     // The drill outlived what it named — the plugin was disabled or removed while it was open. The honest line,

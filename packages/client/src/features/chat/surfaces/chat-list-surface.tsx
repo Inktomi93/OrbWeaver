@@ -58,7 +58,7 @@ import { useRef } from "react";
 import { ListSearch, SkipToFirstRow } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useGatedQuery, useTRPC } from "#data";
-import { useDebouncedValue, useFocusOnMount } from "#lib";
+import { useDebouncedValue, useFocusListArrival } from "#lib";
 import type { ChatListCharacterFilter } from "#state";
 import {
   clearChatListCharacterFilter,
@@ -131,7 +131,7 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
   // the whole screen and the pixels have to be bought back.
   const isMobile = useMobileViewport();
   const surfaceRef = useRef<HTMLDivElement>(null);
-  useFocusOnMount(surfaceRef);
+  useFocusListArrival(surfaceRef);
 
   return (
     // INSTRUMENT tier (UI-Density-Law.md §3.1 LIST panes): the pane is scanned, not operated, so its

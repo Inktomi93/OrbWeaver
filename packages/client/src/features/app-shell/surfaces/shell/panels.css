@@ -98,6 +98,19 @@
     padding-inline: var(--spacing-block);
     box-shadow: var(--shell-band-ember), var(--shell-band-rule);
   }
+  /* The identity shrinks first, down to the title floor; only then does the action row give up room, by moving
+   * actions into its menu. */
+  .shell-panel-header [data-slot="list-pane-identity"] {
+    flex: 1 10000 auto;
+    min-inline-size: var(--dimension-shell-title-floor);
+  }
+  .shell-panel-header [data-slot="list-pane-action"] {
+    flex: 0 1 auto;
+    min-inline-size: var(--size-control-md);
+  }
+  .shell-panel-header [data-slot="list-pane-action"][data-empty] {
+    min-inline-size: 0;
+  }
   /* The content-to-context binding signals state, so the ember top edge is the primary tone's solid (3:1 non-text). The
    * header stamps that tone (`SHELL_ACCENT_TONE`). */
   .shell-panel[data-panel-side="context"] .shell-panel-header {
