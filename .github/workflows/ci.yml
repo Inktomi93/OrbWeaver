@@ -45,7 +45,7 @@ jobs:
       - run: pnpm --filter @orb/showcase-plugins build
       - run: pnpm test --maxWorkers=2 --reporter=default --reporter=json --outputFile=reports/test-report.json
       - if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: node-results
           path: reports/
@@ -65,7 +65,7 @@ jobs:
       - run: pnpm --filter @orb/showcase-plugins build
       - run: pnpm test:ct --workers=2
       - if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: component-results
           path: |
@@ -89,7 +89,7 @@ jobs:
       - run: pnpm --filter @orb/showcase-plugins build
       - run: pnpm e2e:smoke --workers=1
       - if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: smoke-results
           path: |
