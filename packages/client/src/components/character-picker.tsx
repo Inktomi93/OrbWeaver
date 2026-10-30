@@ -265,7 +265,7 @@ function KeyboardTailLoader({ lastLoadedValue, onReachLast }: KeyboardTailLoader
 interface CharacterPickerRowProps {
   readonly character: CharacterListItem;
   readonly onSelect: (id: CharacterId, name: string, avatarHash: string | null) => void;
-  readonly isSelected?: (id: CharacterId) => boolean;
+  readonly isSelected?: CharacterPickerProps["isSelected"];
 }
 
 // keywords carries the display name so cmdk's value-based filter still matches what the user reads.

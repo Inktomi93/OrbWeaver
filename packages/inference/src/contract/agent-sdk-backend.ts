@@ -114,9 +114,9 @@ export interface AgentSdkLog {
   readonly dialog: (entry: { readonly source: "elicitation" | "user-dialog"; readonly kind: string }) => void;
   readonly capability: ProviderLogger["capability"];
   readonly mcp: (entry: { readonly unhealthy: boolean; readonly servers: readonly ProviderMcpServerHealth[] }) => void;
-  readonly info: (fields: Record<string, unknown>, message: string) => void;
-  readonly warn: (fields: Record<string, unknown>, message: string) => void;
-  readonly debug: (fields: Record<string, unknown>, message: string) => void;
+  readonly info: InferenceLog["info"];
+  readonly warn: InferenceLog["warn"];
+  readonly debug: InferenceLog["debug"];
 }
 
 /** Subset of SDK `Options` the firewall base (`disciplineOptions`) pins; spread into `query` options. */

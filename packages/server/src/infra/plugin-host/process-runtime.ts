@@ -59,7 +59,14 @@ import {
   PLUGIN_SNIPPET_RUNTIME_MAX,
 } from "./budgets.ts";
 import type { PluginNetEgress } from "./contract/net-egress.ts";
-import type { CreateInstanceInputIn, CreateInstanceOutcomeOut, PluginHostSeamDeps, ProcessPluginHost, SnippetRunOut } from "./contract/port.ts";
+import type {
+  CreateInstanceInputIn,
+  CreateInstanceOutcomeOut,
+  CreateLogicalInstanceInputIn,
+  PluginHostSeamDeps,
+  ProcessPluginHost,
+  SnippetRunOut,
+} from "./contract/port.ts";
 import type { BrokerParentMessage, ParentBrokerMessage, RpcResult } from "./contract/process-protocol.ts";
 import { createPluginNetEgress } from "./net-egress.ts";
 import { PluginIpcSender, parsePluginIpcMessage } from "./process-channel.ts";
@@ -103,7 +110,7 @@ interface Binding {
   onCrash: (error: Error) => void;
   readonly releaseAdmission?: () => void;
   readonly runtimeConfig?: Omit<CreateInstanceInputIn, "bridge" | "mainJs">;
-  readonly reloadMainJs?: () => Promise<string>;
+  readonly reloadMainJs?: CreateLogicalInstanceInputIn["reloadMainJs"];
   catalog?: PluginInstance;
   retirement: { readonly runtimeId: string; readonly done: Promise<void> } | undefined;
 }
@@ -142,7 +149,7 @@ interface NewBindingInput {
   readonly bridge: PluginBridge;
   readonly grants: readonly PluginCapability[];
   readonly runtimeConfig?: Omit<CreateInstanceInputIn, "bridge" | "mainJs">;
-  readonly reloadMainJs?: () => Promise<string>;
+  readonly reloadMainJs?: CreateLogicalInstanceInputIn["reloadMainJs"];
   readonly label?: string;
   readonly releaseAdmission?: () => void;
 }

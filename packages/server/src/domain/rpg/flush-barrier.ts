@@ -61,7 +61,8 @@
 // lock. A multi-replica deploy would need a shared barrier (a doorway, not built).
 
 import type { ChatId, UserId } from "@orb/kit/ids";
-import type { FlushBarrierOnTimeout, FlushBarrierScheduleTimeout, OwnedRpgFlushBarrier } from "./contract/service.ts";
+import type { ScheduleOp } from "@orb/kit/time";
+import type { FlushBarrierOnTimeout, OwnedRpgFlushBarrier } from "./contract/service.ts";
 
 /** The bound: a flush that hasn't settled within this window releases the barrier (the turn proceeds on the
  *  last-known state rather than deadlocking on a hung flush). A flush is a single extraction/tool-round call +
@@ -82,10 +83,11 @@ interface InFlightFlush {
 }
 
 /** Build the flush barrier (a compose-created singleton — one per server process, like the staging store). The
- *  bound arms only through `scheduleTimeout`, so a test drives it without a global fake clock. */
+ *  bound arms only through `scheduleTimeout` (production passes the root's `timers.timeout`), so a test drives it
+ *  without a global fake clock. */
 export function createRpgFlushBarrier(
   onTimeout: FlushBarrierOnTimeout,
-  scheduleTimeout: FlushBarrierScheduleTimeout,
+  scheduleTimeout: ScheduleOp,
   timeoutMs: number = BARRIER_TIMEOUT_MS,
 ): OwnedRpgFlushBarrier {
   // The SET of in-flight flushes per chat (S2). Each flush self-removes on settle; an emptied set is deleted so

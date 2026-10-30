@@ -8,11 +8,12 @@
 
 import type { CharacterPreset } from "./web-weave-character.ts";
 import { REST_GAIT_AMP, SPRINT_GAIT } from "./web-weave-character.ts";
-import type { WeavePoint, WeaveState, WeaveStrand, WovenWeb } from "./web-weave-geometry.ts";
+import type { WeaveState, WeaveStrand, WovenWeb } from "./web-weave-geometry.ts";
 import type { WeaveGlintSegment } from "./web-weave-glint.ts";
 import { forEachGlintCandidate, glintSegmentLit, glintSweepAngle } from "./web-weave-glint.ts";
 import type { WeaveGlowPainter } from "./web-weave-glow.ts";
 import { WEAVE_GLOW_STYLES } from "./web-weave-glow.ts";
+import type { WeavePoint } from "./web-weave-math.ts";
 import { clamp01, easeOutCubic } from "./web-weave-math.ts";
 import type { PreyState } from "./web-weave-prey.ts";
 import type { SpiderTracker } from "./web-weave-spider.ts";

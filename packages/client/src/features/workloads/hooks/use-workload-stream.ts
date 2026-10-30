@@ -11,7 +11,7 @@
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Invalidation, Trpc } from "#data";
 import { useTRPC } from "#data";
-import type { WorkloadProgressView } from "../lib/workloads-model.ts";
+import type { WorkloadSubscriptionHandlers } from "./use-workload-subscription.ts";
 import { useWorkloadSubscription } from "./use-workload-subscription.ts";
 
 type WorkloadListItem = inferOutput<Trpc["workloads"]["list"]>[number];
@@ -20,7 +20,7 @@ export interface WorkloadStreamDeps {
   readonly workloadId: WorkloadListItem["id"];
   readonly invalidation: Invalidation;
   /** Row-local progress buffer sink — a `useState` setter at the row, never a cache/store write. */
-  readonly onProgress: (progress: WorkloadProgressView) => void;
+  readonly onProgress: WorkloadSubscriptionHandlers["onProgress"];
 }
 
 /** Tail one active workload's room: progress → the row buffer, everything else (state change, room fault,

@@ -1,5 +1,6 @@
 // Front door for the non-tRPC route registrars; app.ts mounts each register<X> on the shared Hono app.
 
+export type { AuthMetaDeps } from "./auth-meta.ts";
 export { registerAuthMeta } from "./auth-meta.ts";
 export type {
   AuthSessionsPort,
@@ -17,6 +18,7 @@ export type { PrincipalEnv } from "./contract/request-env.ts";
 
 export { registerExport } from "./export.ts";
 
+export type { HealthzDeps } from "./healthz.ts";
 export { registerHealthz } from "./healthz.ts";
 
 export { hostAllowlist } from "./host-allowlist.ts";

@@ -44,10 +44,12 @@ import { appRouter } from "../transport/trpc/index.ts";
 import type { AuthSeam } from "./auth/index.ts";
 import { createMultiHumanCapability, readSessionCookie } from "./auth/index.ts";
 import type {
+  AuthMetaDeps,
   AuthSessionsPort,
   BlobAssetsPort,
   BlobCasPort,
   FirstRunRouteDeps,
+  HealthzDeps,
   OidcRoutesDeps,
   PrincipalEnv,
   SignupRouteDeps,
@@ -231,8 +233,8 @@ export interface AppDeps {
   readonly importCardScripts: ImportCardScripts;
   readonly exportService: ExportService;
   readonly sessions: AuthSessionsPort;
-  readonly isShuttingDown: () => boolean;
-  readonly credentialsKeyOk: () => boolean;
+  readonly isShuttingDown: HealthzDeps["isShuttingDown"];
+  readonly credentialsKeyOk: HealthzDeps["credentialsKeyOk"];
   /** Whether the process runs in a container (the record's `INSTALL_KIND`); picks the fix the Host refusal names. */
   readonly inContainer: boolean;
   /** The relay registry's read side (`createRelayHostRegistry`): the Host allowlist admits these names beside the env
@@ -250,7 +252,7 @@ export interface AppDeps {
   readonly signup?: Omit<SignupRouteDeps, "multiHumanCapable">;
   /** B4 — present in local mode; the peer-scoped "owner needs a first-run password" read for /api/auth/config
    *  (gated on a loopback TCP peer and no relay tell, never the client `Host`). */
-  readonly localFirstRun?: (peerIp: string | undefined, headers: Headers) => Promise<boolean>;
+  readonly localFirstRun?: AuthMetaDeps["localFirstRun"];
   /** A8 — the human-facing IdP name for the login surface's "Continue with …" button (served on /api/auth/config). */
   readonly oidcProviderName: string;
   /** Present in oidc mode. */

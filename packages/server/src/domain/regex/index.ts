@@ -10,7 +10,6 @@ export type {
   ImportPresetScripts,
   ImportRegexScript,
 } from "./contract/portability.ts";
-export type { ResolveRegexSources } from "./contract/resolve.ts";
 
 export type { RegexAssemblyContext as RegexContext, RegexService } from "./contract/service.ts";
 

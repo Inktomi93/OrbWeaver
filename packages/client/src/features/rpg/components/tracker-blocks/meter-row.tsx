@@ -61,7 +61,7 @@ function MaxCell({
 }: {
   readonly label: string;
   readonly max: number | null;
-  readonly onEditMax?: (next: number) => void;
+  readonly onEditMax?: MeterRowProps["onEditMax"];
   readonly maxEditTitle?: string;
 }): ReactElement | null {
   if (onEditMax === undefined) {
@@ -121,7 +121,7 @@ function ValueCell({
   readonly max: number | null;
   readonly warning: boolean;
   readonly onEditValue: (next: number) => void;
-  readonly onEditMax?: (next: number) => void;
+  readonly onEditMax?: MeterRowProps["onEditMax"];
   readonly maxEditTitle?: string;
 }): ReactElement {
   return (
