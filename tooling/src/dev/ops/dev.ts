@@ -194,6 +194,8 @@ async function runDevChildren(serverEnv: ServerEnv, vitePort: number, packages: 
     nodePath: process.execPath,
     server,
     watchRoots: serverWatchRoots(packages),
+    // A Playwright-owned stack is a throwaway the run drives: a source edit mid-run must not restart or stop it.
+    watch: serverEnv.E2E_HARNESS !== "on",
     cwd: process.cwd(),
     env,
   });
