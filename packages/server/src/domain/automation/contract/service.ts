@@ -20,7 +20,7 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Can } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import type { AutomationFireId, AutomationRuleId } from "@orb/kit/ids";
+import type { AutomationFireId, AutomationRuleId, IdSource } from "@orb/kit/ids";
 import type { RandomSource } from "@orb/kit/macro";
 import type { SerialLanes } from "@orb/kit/serial-lanes";
 import type { Clock } from "@orb/kit/time";
@@ -219,7 +219,7 @@ export interface AutomationService {
 export interface AutomationWatcherEnv {
   readonly supervise: DetachedSupervision["superviseDetached"];
   /** The root's opaque nonce; it keeps each supervised handler name unique. */
-  readonly newOpaqueId: () => string;
+  readonly newOpaqueId: IdSource["uuid"];
   /** The per-chat firehose subscription (the buddy/agents `subscribeAllChatEvents` seam); returns unsubscribe. */
   readonly onChatEvent: (handler: (event: ChatBusEvent) => void) => () => void;
   /** The domain-event bus subscription (wired at entry/compose/event-bus.ts, D38); returns unsubscribe. */

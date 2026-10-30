@@ -67,7 +67,7 @@ import { createStatsService } from "#domain/stats";
 import type { TagService } from "#domain/tag";
 import type { WorkloadProgressBus, WorkloadService, WorkloadServiceContext } from "#domain/workloads";
 import { createWorkloadService } from "#domain/workloads";
-import type { AuditEntry, DebugRoutesOptions, DetachedSupervision, Logger, TraceRing } from "#foundation/observability";
+import type { AuditWiring, DebugRoutesOptions, DetachedSupervision, Logger, TraceRing } from "#foundation/observability";
 import type { LiveBuses } from "#transport/trpc";
 import { minter } from "./minter.ts";
 import { createDeleteReachCapture, createRoomEntityFan } from "./room-reach.ts";
@@ -86,7 +86,7 @@ export interface SearchDiscoveryComposeDeps {
   readonly idSource: IdSource;
   readonly db: DatabaseHandle;
   readonly now: Clock;
-  readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
+  readonly audit: AuditWiring["log"];
   /** The per-FUNDER role-client binder (§8.5b): embeddings/search/discovery resolve the entity OWNER's rows
    *  (vector tasks are owner-scoped, §7.5) and the workload's acting user for the summarize passes. */
   readonly roleClientsFor: (funderUserId: UserId) => Promise<RoleClientsWithSignal>;

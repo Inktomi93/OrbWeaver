@@ -4,7 +4,6 @@ import type {
   ChatListCursor,
   ChatScopedParams,
   CreateInviteInput,
-  GroupConfigInput,
   GuidedSteer,
   HandoffOffer,
   JoinHistoryVisibility,
@@ -16,7 +15,6 @@ import type {
   RedeemInviteInput,
   RegexTierKey,
   RoomOverrides,
-  SeatKnobs,
   ToolCallEditAction,
 } from "@orb/contracts/chat";
 import type { ChatDocumentVisibility } from "@orb/contracts/databank";
@@ -26,19 +24,7 @@ import type { UserIntent, UserMacroValues } from "@orb/contracts/preset";
 import type { RpgGameTemplate } from "@orb/contracts/rpg";
 import type { MessageWindowCursor, MessageWindowTarget } from "@orb/contracts/search";
 import type { ThemeBackground } from "@orb/contracts/theme";
-import type {
-  AssetId,
-  CharacterId,
-  ChatInjectionId,
-  ChatInviteId,
-  ChatParticipantId,
-  ChatTurnId,
-  MessageId,
-  MessageVariantId,
-  PersonaId,
-  PresetId,
-  UserId,
-} from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatInjectionId, ChatInviteId, ChatTurnId, MessageId, MessageVariantId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import type { IanaTimeZone } from "@orb/kit/time";
 
 export type { RequestTurnParams } from "@orb/contracts/chat";
@@ -519,18 +505,8 @@ export interface ReattributePersonaParams extends ChatScopedParams {
   readonly personaId: PersonaId;
 }
 
-/** `setGroupConfig` — host-only write of the chatMetadata.group sub-blob. */
-export interface SetGroupConfigParams extends ChatScopedParams {
-  readonly config: GroupConfigInput;
-}
-
-/** `addCharacterToChat` — adds a character to the roster (host-only). */
-export interface AddCharacterToChatParams extends ChatScopedParams {
-  readonly characterId: CharacterId;
-}
-
 /** `removeCharacterFromChat` — leftSeq-stamps a character seat out of the roster (host-only). The symmetric
- *  drop for {@link AddCharacterToChatParams}; the only server consumer today is rpg's scene-cast prune
+ *  drop for `addCharacterToChat`; the only server consumer today is rpg's scene-cast prune
  *  (D58, injected). */
 export interface RemoveCharacterFromChatParams extends ChatScopedParams {
   readonly characterId: CharacterId;
@@ -627,16 +603,6 @@ export interface SetToolRecurseLimitParams extends ChatScopedParams {
 }
 
 export type GetGroupConfigForChatParams = ChatScopedParams;
-
-/** `setSeatKnobs` — the ONE participantId-keyed AI-seat knob write (host-only; D80). Replaces the retired
- *  per-kind forking (`setParticipantDisabled`/`setParticipantTalkativeness`/`setAgentSeatDisabled` — the
- *  pattern that guaranteed skipped arms, e.g. agent talkativeness was unsettable). Targets a PRESENT
- *  AI-driven seat (character|agent) by its `participantId`; `patch` carries only the knobs to change (both
- *  optional — an empty patch is a no-op that still returns the current view). */
-export interface SetSeatKnobsParams extends ChatScopedParams {
-  readonly participantId: ChatParticipantId;
-  readonly patch: SeatKnobs;
-}
 
 /** `createInvite` — host-only. Mints a share-link or targeted-by-handle invite. The token is CSPRNG-minted
  *  and stored hashed; the raw token is returned once, never persisted raw. */

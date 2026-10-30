@@ -14,7 +14,7 @@
 
 import type { CharacterPreset, SpiderPose } from "./web-weave-character.ts";
 import { HEAD_DOWN } from "./web-weave-character.ts";
-import type { WeavePoint } from "./web-weave-geometry.ts";
+import type { WeavePoint } from "./web-weave-math.ts";
 import { wrapToPi } from "./web-weave-math.ts";
 
 /** The machine's five states — internal; callers read `PreyState["mode"]` if they need it. */

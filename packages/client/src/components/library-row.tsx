@@ -19,10 +19,11 @@ import { MenuItem } from "@orb/ui/menu";
 import type { ReactElement, ReactNode } from "react";
 import { duplicateActionName, rowActionSubject, rowActionsName } from "#lib";
 import type { ConfirmDialogProps } from "./confirm-dialog.tsx";
+import type { RowDestructiveAction } from "./row-actions-menu.tsx";
 import { RowActionsMenu } from "./row-actions-menu.tsx";
 
 // The Rename · Duplicate · Delete actions for a library row (omit for a non-actionable row).
-interface LibraryRowActions {
+export interface LibraryRowActions {
   /** The entity name — seeds the menu aria-label + the delete-confirm title. */
   readonly name: string;
   /** A per-row DISAMBIGUATOR appended to the action names ('Duplicate "Default (edited)" · 9h ago').
@@ -53,7 +54,7 @@ interface LibraryRowActions {
    *  resolve, and stays open with the reason on rejection. `() => void` still ACCEPTED an async handler (a
    *  `Promise` return is assignable to `void`), so the hold-and-retry was reached by accident rather than by
    *  contract, and the type told a reader to reach for `mutate` where the surface pays for `mutateAsync`. */
-  readonly onDelete?: () => void | Promise<void>;
+  readonly onDelete?: RowDestructiveAction["onConfirm"];
   /** The delete-confirm body — plain text/fragment only (see ConfirmDialog). Meaningless without `onDelete`. */
   readonly deleteDescription?: ReactNode;
   /** Where focus goes when the delete confirm closes: the kebab that opened it leaves with the row. */

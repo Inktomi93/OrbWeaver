@@ -8,13 +8,13 @@
 // here — a per-character read loop was N round-trips for the same answer, and a bare `inArray` WITHOUT the
 // regroup would silently hand the executor table order instead of the roster's.
 
-import type { CharacterRegexSlice } from "@orb/contracts/chat";
+import type { CharacterRegexSlice, ResolveRegexSources } from "@orb/contracts/chat";
 import { characterRegexScripts, regexScripts } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { and, asc, eq, inArray } from "drizzle-orm";
-import type { RegexResolveContext, ResolvedRegexSources, ResolveRegexSources } from "../contract/resolve.ts";
+import type { RegexResolveContext } from "../contract/resolve.ts";
 import type { ScriptRecord } from "../contract/rows.ts";
 import { listChatScripts, listGlobalScripts, listPresetScripts, toRow } from "./queries.ts";
 
@@ -41,7 +41,7 @@ async function characterSlices(ctx: RegexResolveContext, ownerId: UserId, charac
 
 export function createResolveRegexSources(input: DbAssemblyInput<RegexResolveContext>): ResolveRegexSources {
   const ctx: RegexResolveContext = { ...input, db: databaseForOwner(input.db) };
-  return async ({ ownerId, presetId, characterIds, chatId }): Promise<ResolvedRegexSources> => {
+  return async ({ ownerId, presetId, characterIds, chatId }): ReturnType<ResolveRegexSources> => {
     const [hostGlobal, preset, character, chat] = await Promise.all([
       listGlobalScripts(ctx.db, ownerId),
       presetId === null ? Promise.resolve<ScriptRecord[]>([]) : listPresetScripts(ctx.db, ownerId, presetId),

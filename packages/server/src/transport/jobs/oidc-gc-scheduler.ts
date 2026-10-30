@@ -16,7 +16,7 @@
 // DETERMINISM: `now` + `scheduleInterval` are injected (no ambient `Date.now`/`setInterval`). The testable core
 // `runOidcGc` takes one sweep and returns; the loop fires it at boot + on the injected timer.
 
-import type { Clock } from "@orb/kit/time";
+import type { Clock, ScheduleOp } from "@orb/kit/time";
 import { MS_PER_HOUR } from "@orb/kit/time";
 import type { DomainOidcStore } from "#domain/sessions";
 import type { Logger } from "#foundation/observability";
@@ -28,10 +28,6 @@ const LOG_COMPONENT = "oidc-gc-scheduler";
 /** Sweep cadence. PKCE transactions are short-lived (10-min TTL); an hourly reap is generous — an abandoned row
  *  is at most ~1h past its (already-rejected) expiry before it is deleted, which only bounds table growth. */
 const OIDC_GC_INTERVAL_MS = MS_PER_HOUR;
-
-/** A timer seam (entry wires `setInterval`; tests pass a synchronous fake). Returns a `clear` closure so the
- *  handle type never leaks. */
-type ScheduleOp = (fn: () => void, ms: number) => () => void;
 
 /** The DI bundle the scheduler closes over — the store sweep op + clock + timer, injected at entry/. */
 export interface OidcGcSchedulerDeps {

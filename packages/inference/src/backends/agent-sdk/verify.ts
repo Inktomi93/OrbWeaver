@@ -5,13 +5,7 @@
 // `ProviderErrorKind` vocab so the runner builds one `ProviderError` surface for every caller.
 
 import type { SDKAssistantMessageError, SDKResultError, TerminalReason } from "@anthropic-ai/claude-agent-sdk";
-import type { ProviderErrorKind } from "#contract";
-
-/** A classification result: the normalized kind + whether a retry could plausibly recover the turn. */
-interface Classification {
-  readonly kind: ProviderErrorKind;
-  readonly retryable: boolean;
-}
+import type { ErrorClassification } from "../../contract/http.ts";
 
 /**
  * The init-frame SHAPE GUARD (Tier-3b-Providers.md Esoteric §3). The SDK's `system/init` frame carries the
@@ -35,7 +29,7 @@ export function assertInitFrameShape(message: unknown): void {
  * error code is a `tsc` error here, not a silent collapse to "server". `overloaded` (SDK ≥0.3.161) is
  * transient capacity pressure; `max_output_tokens` is retryable (a smaller cap / continuation recovers).
  */
-export function classifyAssistantError(code: SDKAssistantMessageError): Classification {
+export function classifyAssistantError(code: SDKAssistantMessageError): ErrorClassification {
   switch (code) {
     case "authentication_failed":
     case "oauth_org_not_allowed":
@@ -73,7 +67,7 @@ export function classifyAssistantError(code: SDKAssistantMessageError): Classifi
  * `SDKResultError["subtype"]`. `error_max_turns` maps to `aborted` (a tool loop hit its ceiling — not a
  * server fault and not worth retrying as-is).
  */
-export function classifyResultSubtype(subtype: SDKResultError["subtype"]): Classification {
+export function classifyResultSubtype(subtype: SDKResultError["subtype"]): ErrorClassification {
   switch (subtype) {
     case "error_during_execution":
       return { kind: "server", retryable: true };
@@ -98,7 +92,7 @@ export function classifyResultSubtype(subtype: SDKResultError["subtype"]): Class
  * backoff). Both keep `kind:"rate_limit"`; the specific member rides `terminalReason`/`detail` provenance
  * so a consumer distinguishes them without a new error kind.
  */
-export function classifyTerminalReason(reason: TerminalReason): Classification {
+export function classifyTerminalReason(reason: TerminalReason): ErrorClassification {
   switch (reason) {
     case "blocking_limit":
       return { kind: "rate_limit", retryable: false };
@@ -145,6 +139,6 @@ export function classifyTerminalReason(reason: TerminalReason): Classification {
 
 /** Compile-time exhaustiveness guard — a new SDK union member makes `value` non-`never` (a `tsc` error).
  *  Falls back to the conservative non-retryable "unknown" if ever reached at runtime. */
-function assertNeverClassification(_value: never): Classification {
+function assertNeverClassification(_value: never): ErrorClassification {
   return { kind: "unknown", retryable: false };
 }

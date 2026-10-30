@@ -21,6 +21,7 @@ import type { Theme } from "@orb/contracts/theme";
 import { Check, Copy, Download, Icon, Pencil } from "@orb/ui/icons";
 import { MenuItem } from "@orb/ui/menu";
 import type { ReactElement } from "react";
+import type { RowDestructiveAction } from "#components";
 import { RowActionsMenu } from "#components";
 import { themeActionsName } from "../lib/theme-row-names.ts";
 
@@ -33,7 +34,7 @@ export interface ThemeRowMenuProps {
   /** MAY return a promise (#1563b, widened #1632): it reaches `RowActionsMenu.destructive.onConfirm` →
    *  `ConfirmDialog.onConfirm`, which awaits it — the confirm holds open busy and stays open with the reason
    *  on rejection. `() => void` accepted an async handler anyway, so the type said the opposite. */
-  readonly onDelete: () => void | Promise<void>;
+  readonly onDelete: RowDestructiveAction["onConfirm"];
 }
 
 /** A theme's ⋯ — Apply · (Edit in builder) · Duplicate · Export · (Delete, confirm-gated). */

@@ -5,11 +5,11 @@ import type {
   ChatBusEvent,
   HistoryFloorSeq,
   MessageView,
+  ParticipantData,
   ChatDetail as WireChatDetail,
   ChatLineageView as WireChatLineageView,
   ChatListPage as WireChatListPage,
   ChatSummary as WireChatSummary,
-  ParticipantView as WireParticipantView,
 } from "@orb/contracts/chat";
 import type { ParticipantRoleState } from "@orb/contracts/identity";
 import type { ChatStreamGenerationId } from "@orb/kit/ids";
@@ -68,10 +68,6 @@ export interface ChatEventAttach extends StreamEventBounds {
   readonly reasoningHostOnly: boolean;
 }
 
-/** Wire fields derive from the canonical view; only the server's captured role representation differs. */
-export interface ParticipantData extends Omit<WireParticipantView, "role"> {
-  readonly role: ParticipantRoleState;
-}
 export interface ChatDetailData extends Omit<WireChatDetail, "participants"> {
   readonly participants: readonly ParticipantData[];
 }

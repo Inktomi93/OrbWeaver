@@ -1,5 +1,6 @@
 import { expectTypeOf, test } from "vitest";
-import type { WeavePoint, WeaveStrand } from "#ui/art/web-weave/web-weave-geometry.ts";
+import type { WeaveStrand } from "#ui/art/web-weave/web-weave-geometry.ts";
+import type { WeavePoint } from "#ui/art/web-weave/web-weave-math.ts";
 import type { PreyState } from "#ui/art/web-weave/web-weave-prey.ts";
 
 test("chase modes carry a target but rest does not", () => {

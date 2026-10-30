@@ -9,35 +9,19 @@ export type { ChatBoundBackfillOps } from "./contract/bound-backfill.ts";
 // Chat owns the injected RPG turn operation and its result; RPG implements them through this type-only door.
 export type {
   ChatRpgGameBirthPlan,
-  ChatRpgGatherResult,
   ChatRpgOps,
   ChatServiceDeps,
-  ClaimChatOp,
   ExtractQuietDeps,
-  ForkGameArgs,
-  ForkGameResult,
-  GatherTurnContextArgs,
-  GetMembership,
   GetPendingUserText,
   PostNarratorMessage,
   PresenceReadOp,
   PromptTransformRegistry,
-  ResolveCanonWindow,
-  ResolveRpgCardCorpus,
-  ResolveRpgParticipants,
   ResolveViewerVisibility,
-  RpgCardCorpus,
-  RpgTurnContext,
-  RpgTurnTranscriptMessage,
-  SetRpgPointer,
-  TeachingCollection,
-  TeachingContext,
   TeachingContribution,
 } from "./contract/context.ts";
 export { ChatOperationError } from "./contract/errors.ts";
 export type { BeginGenerationObservation } from "./contract/generation-observation.ts";
 export type { ImageryRoomAccessDeps } from "./contract/imagery-access.ts";
-export type { BulkImportChats } from "./contract/import.ts";
 export type { ImageRefAssets } from "./contract/media-ref.ts";
 export type { MemoryRecallRecorder } from "./contract/memory.ts";
 export { getGroupConfig, getRoomOverrides, toolRecurseLimitSchema } from "./contract/metadata.ts";

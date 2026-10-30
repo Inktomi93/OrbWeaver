@@ -1,10 +1,10 @@
-import type { Principal } from "@orb/contracts/identity";
+import type { Principal, ResolveHostPrincipalOp } from "@orb/contracts/identity";
 import type { PluginId, UserId } from "@orb/kit/ids";
 import type { ImportCharacterResult } from "./results.ts";
 import type { ImportContext } from "./service.ts";
 
 export interface InstallerCharacterImportDeps {
-  readonly resolvePrincipal: (userId: UserId) => Promise<Principal>;
+  readonly resolvePrincipal: ResolveHostPrincipalOp;
   readonly contextFor: (principal: Principal) => ImportContext;
 }
 export type RunInstallerCharacterImport = (

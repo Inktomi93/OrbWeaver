@@ -1,4 +1,4 @@
-import type { Principal } from "@orb/contracts/identity";
+import type { Principal, ResolveHostPrincipalOp } from "@orb/contracts/identity";
 import type { Clock } from "@orb/kit/time";
 import type { BundleImportDeps, BundleImportReport, StagedBundleImportDeps } from "./bundle.ts";
 import type { ImportReport } from "./results.ts";
@@ -8,7 +8,7 @@ export type ImportWorkloadDrivers = Pick<ImportWorkloadDeps, "runProfileDirImpor
 export interface ImportDriverDeps {
   readonly now: Clock;
   readonly quiet: <T>(run: () => Promise<T>) => Promise<T>;
-  readonly resolveOwnerPrincipal: (ownerId: Principal["userId"]) => Promise<Principal>;
+  readonly resolveOwnerPrincipal: ResolveHostPrincipalOp;
   readonly profile: (principal: Principal, args: Parameters<ImportWorkloadDeps["runProfileDirImport"]>[0]) => Promise<ImportReport>;
   readonly bundle: (args: Pick<BundleImportDeps, "ownerId" | "archive" | "signal" | "extractOptions">) => Promise<BundleImportReport>;
   readonly staged: (args: Pick<StagedBundleImportDeps, "ownerId" | "signal"> & { readonly stagedPath: string }) => Promise<BundleImportReport>;

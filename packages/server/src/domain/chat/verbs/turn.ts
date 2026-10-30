@@ -14,12 +14,14 @@
 import type {
   AssembleContext,
   ChatMetadata,
+  ClaimChatOp,
   GroupConfig,
   MacroFreezeRecord,
   MessageView,
   PlainChatWarningCode,
   SmartPicker,
   SpeakerRef,
+  TurnKind,
   UserMacroDraws,
 } from "@orb/contracts/chat";
 import { AUTOMATION_DEPTH_HARD_CAP, buildIdentityNameContext, DEFAULT_GROUP_CONFIG, isAiDriven, speakerKey } from "@orb/contracts/chat";
@@ -41,7 +43,7 @@ import { getLog, withRequestSpan } from "#foundation/observability";
 import type { ActiveTurnHandle, ActiveTurns } from "../contract/active-turns.ts";
 import type { ArbiterCandidate, AutoModeResult, SmartArbitrationResult, SpeakerCandidate, TranscriptLine } from "../contract/arbitration.ts";
 import type { TurnUserMacros } from "../contract/assembly-macros.ts";
-import type { ChatContext, ChatRpgGatherResult, ClaimChatOp } from "../contract/context.ts";
+import type { ChatContext, ChatRpgGatherResult } from "../contract/context.ts";
 import type { DelayOp, EmitDurableChatEventOp } from "../contract/engine-context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type { ChatBehaviorInputs, ForeignInputs, HumanSeatPersona, ResolveForeignInputsOp, TurnTrigger, TurnVoice } from "../contract/foreign.ts";
@@ -62,16 +64,7 @@ import type {
   SwipeParams,
   UndoContinueParams,
 } from "../contract/params.ts";
-import type {
-  DrainDeferredTurnsScope,
-  DrainReport,
-  ImpersonateStreamDelta,
-  RequestTurnOp,
-  TurnEngine,
-  TurnKind,
-  TurnOutcome,
-  TurnPrep,
-} from "../contract/results.ts";
+import type { DrainDeferredTurnsScope, DrainReport, ImpersonateStreamDelta, RequestTurnOp, TurnEngine, TurnOutcome, TurnPrep } from "../contract/results.ts";
 import { KIND_TO_INTENT } from "../contract/results.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireHost, requireParticipant } from "../guard.ts";

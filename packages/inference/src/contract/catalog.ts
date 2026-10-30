@@ -3,7 +3,7 @@ import type { Clock } from "@orb/kit/time";
 import type { ProviderDiagnostics } from "./diagnostics.ts";
 import type { ProviderScrubSet } from "./errors.ts";
 import type { ProviderRegistry } from "./registry.ts";
-import type { InferenceDeps, MirrorWarm, ScheduleTimeout, SnapshotStore, SpawnIdentity } from "./runtime.ts";
+import type { InferenceDeps, InferenceLog, MirrorWarm, ScheduleTimeout, SnapshotStore, SpawnIdentity } from "./runtime.ts";
 
 export interface DetectArgs {
   readonly scheduleTimeout: ScheduleTimeout;
@@ -38,7 +38,7 @@ export interface CatalogListingDeps {
   readonly resolveCredential: InferenceDeps["resolveCredential"];
   readonly fetch: typeof fetch;
   /** Where a failed native model-info read is reported; it never fails the list. */
-  readonly warn: (fields: Readonly<Record<string, unknown>>, message: string) => void;
+  readonly warn: InferenceLog["warn"];
   readonly warmOpenRouter: () => Promise<MirrorWarm<ModelCatalogEntry[]>>;
   /** The daemon catalog through its mirror, under one user's identity; absent when the wire is not built. */
   readonly warmAgentSdk: ((identity: SpawnIdentity) => Promise<MirrorWarm<AgentSdkModel[]>>) | undefined;
@@ -49,7 +49,7 @@ export interface MirrorDeps {
   readonly now: Clock;
   readonly snapshotStore: SnapshotStore;
   readonly addSpanEvent?: InferenceDeps["addSpanEvent"];
-  readonly warn: (fields: Readonly<Record<string, unknown>>, message: string) => void;
+  readonly warn: InferenceLog["warn"];
 }
 
 export interface Mirror<T> {

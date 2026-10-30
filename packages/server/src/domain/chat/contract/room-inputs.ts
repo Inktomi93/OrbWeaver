@@ -1,6 +1,6 @@
 import type { LoadOptionalPreset } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
-import type { LoadUserSettingsOp } from "@orb/contracts/settings";
+import type { LoadUserSettings } from "@orb/contracts/settings";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { DebugRoutesOptions } from "#foundation/observability";
 import type { ChatContext, ChatServiceDeps } from "./context.ts";
@@ -10,7 +10,7 @@ import type { ResolveBackfillMemoryConfig } from "./memory.ts";
 /** Foreign facts are loaded through their owners; chat owns the room's resolution order. */
 
 export interface ChatRoomInputDeps {
-  readonly loadUserSettings: LoadUserSettingsOp;
+  readonly loadUserSettings: LoadUserSettings;
   readonly getEffectiveConfig: NonNullable<DebugRoutesOptions["effectiveConfig"]>;
   readonly loadOptionalPreset: LoadOptionalPreset;
   readonly resolveHostUserId: (chatId: ChatId) => Promise<UserId | null>;

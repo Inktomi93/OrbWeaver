@@ -4,7 +4,7 @@
 // component-size-ui cap; consumed by the icon seal (primitives/icons/orb-web.ts), the client
 // WeaveGlyph mark, and WebSpinner's dash metrics. Pure — no DOM, no colors.
 
-import type { WeavePoint } from "./web-weave-geometry.ts";
+import type { WeavePoint } from "./web-weave-math.ts";
 
 const TAU = Math.PI * 2;
 

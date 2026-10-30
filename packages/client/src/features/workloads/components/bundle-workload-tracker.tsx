@@ -18,15 +18,15 @@ import type { WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { useEffect, useRef } from "react";
 import { useTRPCClient } from "#data";
+import type { WorkloadSubscriptionHandlers } from "../hooks/use-workload-subscription.ts";
 import { useWorkloadSubscription } from "../hooks/use-workload-subscription.ts";
 import type { BundleCounts } from "../lib/portability-model.ts";
 import { asBundleCounts } from "../lib/portability-model.ts";
-import type { WorkloadProgressView } from "../lib/workloads-model.ts";
 import { toProgressView } from "../lib/workloads-model.ts";
 
 export interface BundleWorkloadTrackerProps {
   readonly workloadId: WorkloadId;
-  readonly onProgress: (progress: WorkloadProgressView) => void;
+  readonly onProgress: WorkloadSubscriptionHandlers["onProgress"];
   readonly onSucceeded: (counts: BundleCounts) => void;
   readonly onFailed: (message: string) => void;
 }

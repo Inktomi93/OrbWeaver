@@ -1,12 +1,12 @@
 import type { StoredAsset, StoreParams } from "@orb/contracts/assets";
+import type { BulkImportChatsOp } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { ImportFsPort, PersonaCollisionChoices } from "@orb/contracts/import";
-import type { ImportedAppearance, ImportedAppearanceOutcome, SettingsImportOutcome } from "@orb/contracts/settings";
+import type { ImportedAppearance, ImportedAppearanceOutcome, ImportThemeOp } from "@orb/contracts/settings";
 import type { AttachCardTagByNameOp } from "@orb/contracts/tag";
 import type { IdSource, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { ImportAssetPort } from "#domain/assets";
-import type { BulkImportChats } from "#domain/chat";
 import type { BulkImportPersonas } from "#domain/persona";
 import type { ImportPreset } from "#domain/preset";
 import type { AttachOwnedBooksByName, ImportStandaloneLorebook, ImportWorldInfoPort } from "#domain/world-info";
@@ -16,8 +16,6 @@ import type { ImportCardScripts, ImportGlobalScripts, ImportPresetScripts } from
 import type { ImportReport } from "./results.ts";
 import type { ImportWorkloadDeps } from "./workloads.ts";
 
-/** The settings-owned theme-import op (`createImportTheme`) as the driver consumes it. */
-type ImportTheme = (ownerId: UserId, bytes: Uint8Array, fallbackName?: string) => Promise<SettingsImportOutcome>;
 /** The settings-owned `appearance` landing op (`createApplyImportedAppearance`). */
 type ApplyImportedAppearance = (ownerId: UserId, imported: ImportedAppearance) => Promise<ImportedAppearanceOutcome>;
 
@@ -60,7 +58,7 @@ export interface ProfileDirImportDeps {
   /** The settings domain's own idempotent theme-import op (`createImportTheme`) — the ST theme wave hands it
    *  orb-native `orb.theme` bytes. Optional on the `importPreset` precedent: absent ⇒ the theme plane does
    *  not restore and every converted theme is reported skipped-with-reason, never silently dropped. */
-  readonly importTheme?: ImportTheme;
+  readonly importTheme?: ImportThemeOp;
   /** The CAS store for the ST `backgrounds/` plane. Optional: absent ⇒ no background imports (and every
    *  collected file is reported skipped-with-reason). */
   readonly storeBackground?: ImportBackgroundStore;
@@ -69,7 +67,7 @@ export interface ProfileDirImportDeps {
   readonly applyImportedAppearance?: ApplyImportedAppearance;
   /** Mints a `BackgroundLibraryEntry`'s stable per-row id (crypto uuid in prod; deterministic in tests). */
   readonly newBackgroundEntryId?: IdSource["uuid"];
-  readonly bulkImportChats: BulkImportChats;
+  readonly bulkImportChats: BulkImportChatsOp;
   readonly bulkImportPersonas: BulkImportPersonas;
   readonly enqueueImportIndex: (args: { readonly ownerId: UserId }) => Promise<void>;
   readonly reconcileImportStats: ImportWorkloadDeps["reconcileImportStats"];

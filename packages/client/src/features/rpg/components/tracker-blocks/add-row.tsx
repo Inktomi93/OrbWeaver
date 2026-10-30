@@ -11,7 +11,7 @@ import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 
 // One create action the row offers for its draft (the trimmed value is handed to `onAdd`).
-interface AddRowAction {
+export interface AddRowAction {
   /** React key + identity ("meter"). */
   readonly key: string;
   /** The button word ("New quest", "meter"). */

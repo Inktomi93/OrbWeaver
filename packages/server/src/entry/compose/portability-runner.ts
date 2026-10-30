@@ -1,3 +1,4 @@
+import type { BulkImportChatsOp } from "@orb/contracts/chat";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import { ASSET_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
 import type { DatabaseHandle } from "@orb/db/wiring";
@@ -6,7 +7,6 @@ import type { Clock } from "@orb/kit/time";
 import type { AssetsContext, AssetsService } from "#domain/assets";
 import { createBackgroundStore } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
-import type { BulkImportChats } from "#domain/chat";
 import { createCompareAndSetImportedTokenUsage, createListImportedTokenUsageCandidates } from "#domain/chat";
 import type { DatabankPortabilityContext } from "#domain/databank";
 import type { ExportService } from "#domain/export";
@@ -79,7 +79,7 @@ export interface PortabilityRunnerComposeDeps {
   readonly importGlobalScripts: ImportGlobalScripts;
   /** The ST world NAME-LINK attach (card `extensions.world` + charLore → the owner's books, by exact name). */
   readonly attachBooksByName: AttachOwnedBooksByName;
-  readonly bulkImportChats: BulkImportChats;
+  readonly bulkImportChats: BulkImportChatsOp;
   readonly bulkImportPersonas: BulkImportPersonas;
   readonly resolveOwnerPrincipal: ImportDriverDeps["resolveOwnerPrincipal"];
   readonly workloads: Pick<WorkloadService, "start">;

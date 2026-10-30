@@ -2,10 +2,11 @@
 // Character cards resolve under the room host's ownership; human seats resolve public identity fields.
 // Missing cards and headless seats are omitted because the tracker only projects addressable actors.
 
+import type { ResolveRpgParticipants } from "@orb/contracts/chat";
 import type { RpgActorRef, RpgParticipantActor } from "@orb/contracts/rpg";
 import type { UserId } from "@orb/kit/ids";
 import { createChatContext } from "../context.ts";
-import type { ChatContext, ResolveRpgParticipants } from "../contract/context.ts";
+import type { ChatContext } from "../contract/context.ts";
 import type { ParticipantRow } from "../contract/participant-row.ts";
 import type { ChatAssemblyContext } from "../contract/wiring.ts";
 import { classifyParticipant } from "../persistence/participant.ts";

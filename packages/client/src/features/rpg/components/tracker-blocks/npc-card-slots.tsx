@@ -18,7 +18,7 @@ import { TrackerValue } from "./tracker-value.tsx";
 interface NpcRelationshipProps {
   readonly name: string;
   readonly relationship?: RpgRelationship;
-  readonly onEditRelationshipKind?: (next: RpgRelationshipKind) => void;
+  readonly onEditRelationshipKind?: NpcCardProps["onEditRelationshipKind"];
   /** An optional relationship glyph (aria-hidden) for the SEED state only ("+ relationship") — the feature
    *  supplies it (the card does not choose its seed glyph). Once a badge renders it carries its OWN
    *  glyph, so the seed glyph must not double up beside it (owner double-star report, 08-01). */
@@ -103,7 +103,7 @@ interface NpcGuidesProps {
   /** Commit one guide (free text) — present ⇒ each SHOWN guide is editable-in-place. It cannot seed an
    *  unwritten guide: these are prose the story authors, and three empty labelled rows on every npc card
    *  would cost more than the seeding is worth. */
-  readonly onEditGuide?: (field: RpgNpcGuideField, next: string) => void;
+  readonly onEditGuide?: NpcCardProps["onEditGuide"];
 }
 
 /** The guide lines under the npc header — `appearance`/`outfit`/`thoughts` as quiet secondary prose. They
@@ -149,7 +149,7 @@ function NpcGuides({ name, appearance, outfit, thoughts, onEditGuide }: NpcGuide
 interface NpcMoodProps {
   readonly name: string;
   readonly mood?: string;
-  readonly onEditMood?: (next: string) => void;
+  readonly onEditMood?: NpcCardProps["onEditMood"];
 }
 
 /** The mood slot — display-at-rest with the inline editor on click (TrackerValue owns the grammar);

@@ -3,19 +3,11 @@
 
 import { Field } from "@orb/ui/field";
 import { Switch } from "@orb/ui/switch";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement } from "react";
+import type { BoundFieldShellProps } from "./use-bound-field.ts";
 import { useBoundField } from "./use-bound-field.ts";
 
-export interface SwitchFieldProps {
-  readonly label: ReactNode;
-  readonly description?: ReactNode;
-  /** A hover-tip explainer beside the label (`@orb/ui/field` `hint`) — for copy that doesn't need to
-   *  stay always-visible. */
-  readonly hint?: ReactNode;
-  readonly disabled?: boolean;
-}
-
-export function SwitchField(props: SwitchFieldProps): ReactElement {
+export function SwitchField(props: BoundFieldShellProps): ReactElement {
   const { field, fieldProps } = useBoundField<boolean>(props);
   return (
     <Field {...fieldProps}>

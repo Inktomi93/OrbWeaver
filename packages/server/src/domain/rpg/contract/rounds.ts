@@ -3,6 +3,7 @@
 // connection table; every such fact arrives through one of these.
 
 import type { CreateCharacterOp, FindCharacterByHandleOp, FindCharacterByImportHashOp } from "@orb/contracts/character";
+import type { AddCharacterToChatOp, ResolveCanonWindow, ResolveRpgParticipants } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { ResolveTaskParams } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
@@ -14,8 +15,8 @@ import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { ProviderExecutor, Resolved, ResolveOutcome } from "@orb/inference";
 import type { ChatId, IdSource, UserId } from "@orb/kit/ids";
 import type { WireReady } from "@orb/kit/json-schema";
-import type { BeginGenerationObservation, ChatService, ResolveCanonWindow, ResolveRpgParticipants } from "#domain/chat";
 import type { Logger } from "#foundation/observability";
+import type { BeginGenerationObservation } from "./chat-turn.ts";
 import type { OwnedRpgFlushBarrier, RpgContext } from "./service.ts";
 import type { RpgTraceSink } from "./trace.ts";
 
@@ -58,7 +59,7 @@ export interface RpgRoundsDeps {
     readonly findByImportHash: FindCharacterByImportHashOp;
   };
   /** R4 PROMOTION's other durable half: the host-gated, idempotent participant insert. */
-  readonly chat: Pick<ChatService, "addCharacterToChat">;
+  readonly chat: { readonly addCharacterToChat: AddCharacterToChatOp };
   /** Is this thrown value the character library's per-owner handle-uniqueness refusal? Character owns its errors. */
   readonly isHandleConflict: (err: unknown) => boolean;
 }

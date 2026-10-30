@@ -12,6 +12,7 @@
 //
 // The beat map lives in web-weave-timeline.ts (WHEN); this module is WHERE.
 
+import type { WeavePoint } from "./web-weave-math.ts";
 import { nearestRayHit, polylineLength, sagLine, toSegments, weaveJitter } from "./web-weave-math.ts";
 import { BRIDGE_CATCH_LEAD, BRIDGE_WALK_START, WEAVE_TIMELINE } from "./web-weave-timeline.ts";
 
@@ -22,11 +23,6 @@ import { BRIDGE_CATCH_LEAD, BRIDGE_WALK_START, WEAVE_TIMELINE } from "./web-weav
 //  `strand-out` is settled + the A9 handoff beat (the spider rides a new silk line off-screen).
 const WEAVE_STATES = ["weaving", "settled", "partial", "strand-out"] as const;
 export type WeaveState = (typeof WEAVE_STATES)[number];
-
-export interface WeavePoint {
-  readonly x: number;
-  readonly y: number;
-}
 
 const STRAND_KINDS = ["bridge", "frame", "radius", "aux", "capture"] as const;
 type StrandKind = (typeof STRAND_KINDS)[number];

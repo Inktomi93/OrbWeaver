@@ -1,7 +1,7 @@
 // Databank consumes chunk/retrieval settings; the separate chat slot budget never enters this projection.
-import type { DatabankSettingsLoader, GetDatabankSettings } from "../contract/databank-settings.ts";
+import type { GetDatabankSettingsOp, LoadUserSettings } from "@orb/contracts/settings";
 
-export function createGetDatabankSettings(loadUserSettings: DatabankSettingsLoader): GetDatabankSettings {
+export function createGetDatabankSettings(loadUserSettings: LoadUserSettings): GetDatabankSettingsOp {
   return async (ownerId) => {
     const { databank } = await loadUserSettings(ownerId);
     return { chunk: databank.chunk, retrieval: databank.retrieval };
