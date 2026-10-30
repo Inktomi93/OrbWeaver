@@ -136,8 +136,8 @@ function actionsTrigger({
     <Button
       aria-label={label}
       reveal={reveal ? "hover" : undefined}
-      tone={ink === "receded" ? "muted" : "default"}
-      intent="ghost"
+      ink={ink === "receded" ? "muted" : undefined}
+      variant="ghost"
       ref={triggerRef}
       shape={shape}
       size={TRIGGER_BUTTON_SIZE[size]}

@@ -150,7 +150,7 @@ export {
   sendUnavailableReason,
 } from "./injection-copy.ts";
 export { DEAD_INVITE_SENTENCE, inviteRoomSentence } from "./invite-copy.ts";
-export type { ListBandAction, ListPaneHeaderProps, ListPaneHeaderView, ListSearchPolicy } from "./list-pane-header-view.ts";
+export type { ListPaneHeaderProps, ListPaneHeaderView, ListSearchPolicy } from "./list-pane-header-view.ts";
 export { LIST_PANE_TITLE_ID } from "./list-pane-title-id.ts";
 export {} from "./log-clock.ts";
 export type { MessageRenderContext } from "./message-render.ts";
@@ -158,9 +158,8 @@ export { renderMessageForDisplay } from "./message-render.ts";
 export { MESSAGE_ROLE_ITEMS, MESSAGE_ROLE_LABELS } from "./message-role-labels.ts";
 export type { NotifyAction, NotifyNotice } from "./notify.ts";
 export { bindNotify, leaseNotify, notify } from "./notify.ts";
-export type { OpenRequestChannel } from "./open-request-channel.ts";
 export { createOpenRequestChannel, useOpenRequests } from "./open-request-channel.ts";
-export type { OverflowMenuForm, OverflowMenuItem, OverflowSubmenu } from "./overflow-menu-form.ts";
+export type { OverflowMenuForm } from "./overflow-menu-form.ts";
 export { perfMark, perfMeasure } from "./perf-marks.ts";
 export { pluginCommandAuditAttributes, pluginMenuAuditAttributes, pluginSurfaceAuditAttributes } from "./plugin-ui-audit-attributes.ts";
 // The Tier-C plugin guest's main-thread ↔ worker wire — a contract between two

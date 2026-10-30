@@ -23,7 +23,7 @@ export function ReExtractBanner(): ReactElement | null {
         <Text className="min-inline-0" voice="gloss">
           {staleExtractionLine(stale)}
         </Text>
-        <Button className="shrink-0" disabled={sweep.pending} intent="secondary" onClick={(): void => sweep.ask("re-extract")} size="sm" type="button">
+        <Button className="shrink-0" disabled={sweep.pending} variant="outline" onClick={(): void => sweep.ask("re-extract")} size="sm" type="button">
           <Icon icon={RefreshCw} size="sm" />
           Re-read
         </Button>

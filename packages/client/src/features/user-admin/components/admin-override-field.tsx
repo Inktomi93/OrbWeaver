@@ -172,12 +172,12 @@ export function AdminOverrideResetRow({ sectionLabel, dirty, anyOverridden, savi
     <Stack gap="field">
       <Row className="flex-wrap" gap="field" align="center">
         {onSave === undefined ? null : (
-          <Button intent="primary" size="sm" disabled={dirty !== true || saving} onClick={onSave}>
+          <Button size="sm" disabled={dirty !== true || saving} onClick={onSave}>
             {saving ? "Saving…" : "Save"}
           </Button>
         )}
         {anyOverridden ? (
-          <Button aria-label={`Reset to defaults: ${sectionLabel}`} intent="secondary" size="sm" disabled={saving} onClick={onReset}>
+          <Button aria-label={`Reset to defaults: ${sectionLabel}`} variant="outline" size="sm" disabled={saving} onClick={onReset}>
             Reset to defaults
           </Button>
         ) : null}

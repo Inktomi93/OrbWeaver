@@ -63,7 +63,7 @@ export function SettingsUnreadableGate({ children }: { readonly children: ReactN
         copy={copy}
         doors={
           <Row>
-            <Button intent={copy.resetIsPrimary ? "primary" : "ghost"} onClick={(): void => setConfirmOpen(true)} size="sm" type="button">
+            <Button variant={copy.resetIsPrimary ? "solid" : "ghost"} onClick={(): void => setConfirmOpen(true)} size="sm" type="button">
               {doorLabel}
             </Button>
           </Row>

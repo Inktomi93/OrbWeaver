@@ -209,7 +209,7 @@ test("a container condition is bound to the container ladder, and a shadow colou
     "box-shadow: var(--shadow-overlay), inset 0 0 0 var(--border-width-accent) var(--color-ring);",
     "box-shadow: 0 0 0 transparent;",
     "text-shadow: 0 1px 2px oklch(from var(--color-backdrop) l c h / 0.45);",
-    "--shell-band-ember: inset 0 var(--border-width-accent) 0 color-mix(in oklab, var(--color-primary) 55%, transparent);",
+    "--shell-band-ember: inset 0 var(--border-width-accent) 0 color-mix(in oklab, var(--color-ring) 55%, transparent);",
     "filter: drop-shadow(0 12px 32px var(--color-shadow-ambient-far));",
   ]) {
     expect(await rulesHit(declaration(body)), body).toEqual([]);

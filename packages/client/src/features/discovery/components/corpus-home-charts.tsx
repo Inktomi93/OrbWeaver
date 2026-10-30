@@ -120,7 +120,7 @@ export function KeywordExplorer({ top, pending }: { readonly top: readonly TopKe
         {keyword === NO_KEYWORD ? null : (
           <>
             <Button
-              intent="secondary"
+              variant="outline"
               size="sm"
               onClick={(): void =>
                 selectCorpusArtifact({
@@ -229,7 +229,7 @@ function StoryThemeDriftBody({
             <Row align="center" className="flex-wrap" gap="field" key={month.key}>
               <Text voice="kicker">{timeLib.formatMonthYear(month.start)}</Text>
               {themes.map((t) => (
-                <Badge intent="neutral" key={t.clusterIdx} size="sm">
+                <Badge key={t.clusterIdx} size="sm">
                   {t.themeName ?? "Unnamed"} ({t.count})
                 </Badge>
               ))}

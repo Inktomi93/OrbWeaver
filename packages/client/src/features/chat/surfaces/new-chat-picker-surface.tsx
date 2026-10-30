@@ -156,10 +156,8 @@ export function NewChatPicker(): ReactElement {
           Temporary). */}
       {intent?.temporary === true ? (
         <Row align="center" gap="field" padding="block">
-          <Badge intent="neutral" tone="soft">
-            {TEMPORARY_CHAT_BADGE}
-          </Badge>
-          <Text tone="muted" voice="gloss" prose={true}>
+          <Badge>{TEMPORARY_CHAT_BADGE}</Badge>
+          <Text ink="muted" voice="gloss" prose={true}>
             This room won't join your chats list, and you can't switch it later.
           </Text>
         </Row>
@@ -169,7 +167,7 @@ export function NewChatPicker(): ReactElement {
           {/* #26 — hop to the saved-roster picker (the slot is the destination — no feature import). The
               intent is cleared like any dismiss: a roster start carries its own creation parameters. */}
           <Button
-            intent="ghost"
+            variant="ghost"
             size="sm"
             onClick={(): void => {
               clearNewChatIntent();
@@ -202,7 +200,7 @@ export function NewChatPicker(): ReactElement {
         <Text as="span" className="sr-only" role="status">
           {selectionStatusFor(selectedCount)}
         </Text>
-        <Button className={ACTION_BUTTON} disabled={isPending} intent="ghost" onClick={(): void => found([])}>
+        <Button className={ACTION_BUTTON} disabled={isPending} variant="ghost" onClick={(): void => found([])}>
           <Icon icon={Plus} size="sm" />
           {BLANK_CHAT_NAME}
         </Button>
@@ -210,7 +208,7 @@ export function NewChatPicker(): ReactElement {
           className={ACTION_BUTTON}
           quietDisabled={teaching}
           disabled={teaching || isPending}
-          intent={teaching ? "outline" : "primary"}
+          variant={teaching ? "outline" : "solid"}
           onClick={(): void => found([...selected])}
         >
           <Icon icon={MessagesSquare} size="sm" />

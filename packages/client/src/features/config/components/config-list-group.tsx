@@ -249,7 +249,7 @@ function SectionsBand({ group, hasRows, open, active, modifiedMarker, unbuilt, b
       // mistaken for a broken one (the #1043 class, from the other direction). The CHASSIS classes that used
       // to be spelled here — `w-full`, NOT `flex-1` (#978 F1) among them — are `Band`'s now; that fix's one
       // home moved with the anatomy (#1723), which is what stops the next copy from missing it.
-      tone={unbuilt ? "muted" : "default"}
+      ink={unbuilt ? "muted" : undefined}
       chevron={chevron}
       data-config-group={group.id}
       data-slot="config-band"
@@ -264,7 +264,7 @@ function SectionsBand({ group, hasRows, open, active, modifiedMarker, unbuilt, b
       marks={
         <>
           {unbuilt ? (
-            <Badge data-slot="config-group-unbuilt" intent="neutral" size="sm" tone="soft">
+            <Badge data-slot="config-group-unbuilt" size="sm">
               {CONFIG_UNBUILT_MARKER}
             </Badge>
           ) : null}

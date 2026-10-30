@@ -77,10 +77,10 @@ export function CharacterContextBand({ characterId }: CharacterContextBandProps)
             item and scrolls (`context-rail.tsx` `RAIL_TRACK_CLASSES`, the house ruling). */}
         <Row gap="field" align="center" className="overflow-x-auto min-inline-0">
           <OwnLookMark themeOverride={detail.themeOverride} />
-          <Badge tone="soft" size="sm" intent="neutral" data-slot="character-context-band-chats">
+          <Badge size="sm" data-slot="character-context-band-chats">
             {chatCount === 1 ? "1 chat" : `${chatCount} chats`}
           </Badge>
-          <Badge tone="soft" size="sm" intent="neutral" data-slot="character-context-band-tokens">
+          <Badge size="sm" data-slot="character-context-band-tokens">
             {/* GROUPED: a four-digit run with no separator reads as an id, not a magnitude. `groupThousands`
                 is the ONE house grouper (`@orb/kit/strings`; `.toLocaleString()` stays banned repo-wide), so
                 this chip and the editor's own save-bar census cannot print the same number two ways. */}

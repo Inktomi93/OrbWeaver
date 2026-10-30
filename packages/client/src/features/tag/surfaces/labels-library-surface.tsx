@@ -61,7 +61,7 @@ function LibraryBody({ summary }: { readonly summary: ReturnType<typeof useTagLi
             </Text>
             <CountText>{fact.value}</CountText>
             {fact.open === undefined ? null : (
-              <Button className="ms-auto" intent="ghost" onClick={fact.open.run} size="sm" type="button">
+              <Button className="ms-auto" variant="ghost" onClick={fact.open.run} size="sm" type="button">
                 {fact.open.label}
               </Button>
             )}

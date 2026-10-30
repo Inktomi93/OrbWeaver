@@ -1,4 +1,4 @@
-import { HIDDEN_AT, HOVER_CUE, PULSE, RECEDED, SR_ONLY_AT, TONE_INK, tv } from "#lib";
+import { HIDDEN_AT, HOVER_CUE, INKS, PULSE, RECEDED, SR_ONLY_AT, TONE_TEXT, tv } from "#lib";
 
 // Shared by both <Text> and <Heading>. `weight` rides Tailwind's built-in font-weight utilities — no
 // DTCG weight token exists today. `code` rides `leading-label-relaxed` — the 13px continuous-reading box
@@ -122,14 +122,14 @@ export const textVariants = tv({
       // site — so the choice was a voice or an exemption.
       promoted: "font-sans text-title leading-title font-semibold tracking-normal text-foreground",
       // THE MUTED BODY LINE (added 2026-08-23, owner ruling on #573). The most common near-miss the density
-      // burn-down kept hitting: a plain `<Text tone="muted">` — an empty-state line, a "Loading…", a
+      // burn-down kept hitting: a plain `<Text ink="muted">` — an empty-state line, a "Loading…", a
       // deferred-state sentence — which is body-step regular text that has RECEDED. No voice reached it:
       // `gloss` is the muted MICRO step (a footnote under a datum) and drops the line two steps to 10.5px;
       // `reading` is the body step but rides `--color-prose-body`, the reading ink, which is exactly what
-      // a receded line is not. So the only spelling left was the raw `tone="muted"` the density A3 arm reds
+      // a receded line is not. So the only spelling left was the raw `ink="muted"` the density A3 arm reds
       // at every feature call site, and ~10 of tranche 1's residuals were this one shape.
       //
-      // It resolves the SAME step the `tone="muted"` default pair produced (byte-identical but for the
+      // It resolves the SAME step the `ink="muted"` default pair produced (byte-identical but for the
       // no-op `tracking-normal` every voice spells) — this is a VOCABULARY fix, not a visual change.
       quiet: "font-sans text-body leading-body font-normal tracking-normal text-muted-foreground",
       // THE OUTCOME LINE ABOVE ITS DETAILS: a report's one-sentence tally ("3 imported, 1 skipped") over the list it
@@ -144,7 +144,7 @@ export const textVariants = tv({
       // legal spelling.
       //
       // NO `tabular-nums`, deliberately — that is `datum`'s column-alignment property and it is wrong here
-      // (a hash is not a column of numbers). Resolves the same step the `size="code" tone="muted"` pair
+      // (a hash is not a column of numbers). Resolves the same step the `size="code" ink="muted"` pair
       // produced; call sites that carried `className="tabular-nums"` beside the old pair keep it.
       datumMono: "font-mono text-code leading-label-relaxed font-normal tracking-normal text-muted-foreground",
       // MACHINE TEXT YOU READ OR COPY: an id, a hash, a key, an address. Geist Mono at the
@@ -155,7 +155,7 @@ export const textVariants = tv({
       // its own band/tile fill — aria-hidden ornament, not prose. None of the four CONTENT voices fits it
       // (each would shrink a glyph whose entire job is to BE large), and the alternative at the call site
       // was spelling `size`/`weight` through className — a dodge the density gate structurally cannot see.
-      // Deliberately sets NO COLOR: the skin that owns the band owns the ink, so the `tone` default survives
+      // Deliberately sets NO COLOR: the skin that owns the band owns the ink, so the unset ink survives
       // here and one className on the call site still beats it. Callers that need a bigger mark than the
       // title step override `font-size` (the echo tile rides `--size-avatar-hero` inline).
       monogram: "font-sans text-title leading-title font-semibold tracking-normal",
@@ -196,9 +196,8 @@ export const textVariants = tv({
     lines: {
       2: "line-clamp-2 whitespace-normal orb-lines-2",
     },
-    // Colour by meaning: a feature picks the meaning, never a colour class. `default`
-    // keeps each voice's own ink.
-    tone: TONE_INK,
+    // Colour by meaning (D336): a feature picks the meaning, never a colour class. Unset keeps each voice's own ink.
+    tone: TONE_TEXT,
     // A struck-through line: a cancelled quest, a disabled prompt section. Not colour, so it pairs with any tone.
     strike: {
       true: "line-through",
@@ -225,21 +224,15 @@ export const textVariants = tv({
     hiddenAt: HIDDEN_AT,
     srOnlyAt: SR_ONLY_AT,
     receded: { true: RECEDED, false: "" },
-    // Filled controls own their ink, even when the child supplies a voice or tone.
-    ink: {
-      /** Take the surrounding control's ink. The ONLY correct value for text inside a filled control. */
-      inherit: "text-current",
-      /** Keep the voice's own color — the default everywhere text sits on a plain surface. */
-      voice: "",
-    },
+    // A named ink (D336), declared after the voice so it wins the colour merge; `inherit` is the ink of text inside a
+    // filled control, which owns its ink even when the child supplies a voice.
+    ink: INKS,
   },
   defaultVariants: {
     size: "body",
     weight: "regular",
-    tone: "default",
     transform: "none",
     prose: false,
-    ink: "voice",
     strike: false,
     numeric: false,
     solidLine: false,

@@ -62,7 +62,6 @@ function BubbleCard({ role, shape, phoneCap, editing, receded, positioned, artDe
       ownSlot={MESSAGE_BUBBLE_SLOT}
       shape="bubble"
       tone={ROLE_FILL[role]}
-      shadow="none"
       padding={inset ? undefined : "none"}
       receded={receded}
       artDecoration={artDecoration}

@@ -169,7 +169,7 @@ function PromptReadoutBody({
       <Section kicker="Budget">
         <Stack gap="tight">
           <Row align="center" gap="field">
-            <Badge intent="info" size="sm" tone="soft">
+            <Badge tone="info" size="sm">
               SETUP
             </Badge>
             <Text voice="gloss">
@@ -177,7 +177,7 @@ function PromptReadoutBody({
             </Text>
           </Row>
           <Row align="center" gap="field">
-            <Badge intent="warning" size="sm" tone="soft">
+            <Badge tone="warning" size="sm">
               POST
             </Badge>
             <Text voice="gloss">
@@ -221,7 +221,7 @@ function PromptReadoutBody({
           aria-controls={previewId}
           aria-expanded={previewOpen}
           className="self-start"
-          intent="secondary"
+          variant="outline"
           onClick={(): void => setPreviewOpen(!previewOpen)}
           size="sm"
           type="button"
@@ -285,7 +285,7 @@ function BudgetBar({
   const tokens = barTokens(section, costs);
   const off = !section.enabled;
   return (
-    <Button intent="ghost" onClick={(): void => selectPresetSection(section.id)} size="sm" selection={selected ? "on" : "none"}>
+    <Button variant="ghost" onClick={(): void => selectPresetSection(section.id)} size="sm" selection={selected ? "on" : "none"}>
       <Text className="flex-1 truncate text-start min-inline-0" strike={off} voice="label">
         {sectionName(section)}
       </Text>

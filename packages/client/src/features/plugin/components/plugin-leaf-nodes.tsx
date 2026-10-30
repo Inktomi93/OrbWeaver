@@ -37,6 +37,7 @@ import { NumberField } from "@orb/ui/number-field";
 import { Slider } from "@orb/ui/slider";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
+import type { Tone } from "@orb/ui/tokens";
 import type { ReactElement } from "react";
 import { useId, useRef, useState } from "react";
 import { ConfirmDialog } from "#components";
@@ -180,7 +181,7 @@ function DisplayLeaf({
   if (node.kind === "badge") {
     return (
       // Plugin text has no length bound the pill was drawn for: wrap inside the surface rather than clip.
-      <Badge className="whitespace-normal max-inline-full" intent={node.intent ?? "neutral"} size="sm" tone="soft">
+      <Badge className="whitespace-normal max-inline-full" tone={PLUGIN_BADGE_TONE[node.intent ?? "neutral"]} size="sm">
         {resolveString(node.text, state)}
       </Badge>
     );
@@ -265,8 +266,8 @@ function SurfaceImage({ node, url }: { readonly node: PluginImageNode; readonly 
       // Owner-scope miss: the installer does not own this asset (or it is gone). NEVER another user's blob.
       <Card
         className={framed ? "flex flex-col items-center justify-center block-full inline-full" : "flex flex-col items-center justify-center"}
-        outline="dashed"
-        tone="clear"
+        variant="outline"
+        dashed={true}
       >
         <Text voice="gloss">{node.alt ?? "Image unavailable"}</Text>
       </Card>
@@ -277,16 +278,22 @@ function SurfaceImage({ node, url }: { readonly node: PluginImageNode; readonly 
   return node.aspect === undefined ? media : <AspectFrame aspect={node.aspect}>{media}</AspectFrame>;
 }
 
-/** The house `Button` intent for one plugin `button` leaf (#818). The primary weight is granted by NODE
- *  IDENTITY — the walk arbitrated it over the whole surface at its anchor — so a `variant: "primary"` this leaf
- *  was NOT granted falls through to `secondary`, exactly like a `neutral` one. Reading `node.variant` for the
- *  primary arm here is the bug this function exists to make unwritable: it would give every claimant the weight. */
-function buttonIntent(node: PluginButtonNode, primaryButton: PluginButtonNode | null): "primary" | "outline" | "secondary" {
-  if (node === primaryButton) {
-    return "primary";
-  }
-  return node.variant === "outline" ? "outline" : "secondary";
+/** The house `Button` style for one plugin `button` leaf. The primary weight is granted by NODE IDENTITY — the walk
+ *  arbitrated it over the whole surface at its anchor — so a `variant: "primary"` this leaf was NOT granted falls
+ *  through to the outline, exactly like a `neutral` or `outline` one. Reading `node.variant` for the primary arm here
+ *  is the bug this function exists to make unwritable: it would give every claimant the weight. */
+function buttonVariant(node: PluginButtonNode, primaryButton: PluginButtonNode | null): "solid" | "outline" {
+  return node === primaryButton ? "solid" : "outline";
 }
+
+/** The plugin wire's badge intent as a house tone (D336): the wire keeps its published vocabulary. */
+const PLUGIN_BADGE_TONE = {
+  neutral: "neutral",
+  info: "info",
+  success: "success",
+  warning: "warning",
+  danger: "destructive",
+} as const satisfies Record<NonNullable<PluginBadgeNode["intent"]>, Tone>;
 
 /** A toggle's label rides beside its switch, not in a horizontal `Field`, whose control column docks to the
  *  row's far end and strands the switch across the page. Named statically (`aria-labelledby`), clickable through
@@ -396,7 +403,7 @@ function FormLeaf({
       <Button
         className="self-start wrap-anywhere max-inline-full"
         disabled={buttonDisabled(node, state)}
-        intent={buttonIntent(node, primaryButton)}
+        variant={buttonVariant(node, primaryButton)}
         loading={submitting}
         onClick={(): void => submit(node.actionId)}
         size="wrap"
@@ -435,7 +442,7 @@ function ConfirmButtonLeaf({
       onConfirm={(): void => submit(node.actionId)}
       title={node.confirmTitle}
       trigger={
-        <Button className="self-start wrap-anywhere max-inline-full" ref={confirmTrigger} intent="destructive" loading={submitting} size="wrap">
+        <Button className="self-start wrap-anywhere max-inline-full" ref={confirmTrigger} tone="destructive" loading={submitting} size="wrap">
           {node.label}
         </Button>
       }

@@ -89,14 +89,6 @@ export interface AttachChatTagByNameParams {
   readonly source?: TagSource;
 }
 
-/** The internal resolve-by-name card-tag detach — the mirror of `AttachCardTagByNameParams`. No
- *  `source`/`status` — a detach only needs to name the tag and drop the junction. */
-export interface DetachCardTagByNameParams {
-  readonly ownerId: UserId;
-  readonly characterId: CharacterId;
-  readonly tagName: string;
-}
-
 export interface ListAttachedEntitiesParams extends TagActorParams {
   readonly tagId: TagId;
   readonly targetType: TagTargetType;

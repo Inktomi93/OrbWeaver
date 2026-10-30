@@ -98,7 +98,7 @@ export function GalleryLightbox({ image, removal, onClose, finalFocus, onSettled
       headerActions={
         <DialogClose
           render={
-            <Button className="shrink-0" intent="ghost" ref={closeRef} size="sm">
+            <Button className="shrink-0" variant="ghost" ref={closeRef} size="sm">
               Close
             </Button>
           }
@@ -123,7 +123,7 @@ export function GalleryLightbox({ image, removal, onClose, finalFocus, onSettled
           </Stack>
           {removal === undefined ? null : (
             <Row justify="start" align="center" className="shrink-0">
-              <Button intent="destructive" onClick={(): void => setConfirmOpen(true)}>
+              <Button tone="destructive" onClick={(): void => setConfirmOpen(true)}>
                 <Icon icon={Trash2} size="sm" />
                 Remove from gallery
               </Button>

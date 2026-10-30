@@ -167,7 +167,7 @@ function ProseCard({ form, id, stored, onKeepMine }: ProseCardProps): ReactEleme
     form.setFieldValue(name, "");
   };
   return (
-    <Card tone="neutral">
+    <Card>
       <Stack gap="field" role="group" aria-label={slot.title}>
         <form.AppField name={name}>
           {(field): ReactElement => (
@@ -239,7 +239,7 @@ function ProseCardFooter({ footer, length, onUseDefault, onKeepMine }: ProseCard
       <Row gap="field" align="center">
         <Text voice="gloss">{footer.isDefault ? "Using the built-in wording" : "Customized"}</Text>
         {footer.isDefault ? null : (
-          <Button intent="ghost" size="sm" onClick={onUseDefault}>
+          <Button variant="ghost" size="sm" onClick={onUseDefault}>
             Reset to built-in
           </Button>
         )}
@@ -248,7 +248,7 @@ function ProseCardFooter({ footer, length, onUseDefault, onKeepMine }: ProseCard
       {footer.missing.length > 0 ? (
         <Row gap="field" align="center">
           {footer.missing.map((token) => (
-            <Badge key={token} intent="warning" tone="soft" size="sm">
+            <Badge key={token} tone="warning" size="sm">
               Missing {token}
             </Badge>
           ))}
@@ -256,13 +256,13 @@ function ProseCardFooter({ footer, length, onUseDefault, onKeepMine }: ProseCard
       ) : null}
       {footer.stale ? (
         <Row gap="field" align="center" className="flex-wrap">
-          <Badge intent="warning" tone="soft" size="sm" className="whitespace-normal max-inline-full">
+          <Badge tone="warning" size="sm" className="whitespace-normal max-inline-full">
             The built-in wording was updated
           </Badge>
-          <Button intent="ghost" size="wrap" onClick={onUseDefault}>
+          <Button variant="ghost" size="wrap" onClick={onUseDefault}>
             Use the new wording
           </Button>
-          <Button intent="ghost" size="wrap" onClick={onKeepMine}>
+          <Button variant="ghost" size="wrap" onClick={onKeepMine}>
             Keep mine
           </Button>
         </Row>

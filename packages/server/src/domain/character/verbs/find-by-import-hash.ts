@@ -4,7 +4,7 @@
 // synthetic-find precedent). Owner-scoped in the query, so a different owner's same-hash card
 // is never returned. A read: no audit, no emit.
 
-import type { FindByImportHashParams } from "../contract/params.ts";
+import type { FindByImportHashParams } from "@orb/contracts/character";
 import type { CharacterContext, CharacterService } from "../contract/service.ts";
 import { findByOwnerImportHash } from "../persistence/queries.ts";
 

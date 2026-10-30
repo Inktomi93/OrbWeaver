@@ -25,7 +25,7 @@ export function RpgDoorwayLine({ children, actionLabel, onAction }: RpgDoorwayLi
         {children}
       </Text>
       {actionLabel === undefined || onAction === undefined ? null : (
-        <Button intent="ghost" size="sm" onClick={onAction}>
+        <Button variant="ghost" size="sm" onClick={onAction}>
           {actionLabel}
         </Button>
       )}

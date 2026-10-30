@@ -85,9 +85,9 @@ export function GreetingSwipeStrip({ chatId, messageId, variants, current, foot 
       label={variantCountName(atCustom ? null : currentIdx + 1, total)}
       prev={
         <Button
-          intent="ghost"
+          variant="ghost"
+          ink="muted"
           size="glyph-lg"
-          tone="muted"
           disabled={!canPrev || step.isPending}
           loading={step.isPending}
           aria-label="Previous greeting"
@@ -97,15 +97,15 @@ export function GreetingSwipeStrip({ chatId, messageId, variants, current, foot 
         </Button>
       }
       count={
-        <Text as="span" voice="datum" aria-hidden="true" data-slot="greeting-swipe-strip-counter" className="whitespace-nowrap" tone="muted">
+        <Text as="span" voice="datum" aria-hidden="true" data-slot="greeting-swipe-strip-counter" className="whitespace-nowrap" ink="muted">
           {atCustom ? "—" : currentIdx + 1} / {total}
         </Text>
       }
       next={
         <Button
-          intent="ghost"
+          variant="ghost"
+          ink="muted"
           size="glyph-lg"
-          tone="muted"
           disabled={!canNext || step.isPending}
           loading={step.isPending}
           aria-label="Next greeting"

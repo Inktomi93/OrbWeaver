@@ -14,7 +14,6 @@
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { readSeedBackground, SEED_BACKGROUND_PLATES } from "@orb/default-content";
-import type { RoleClientsWithSignal } from "@orb/inference";
 import type { CharacterId, IdSource, UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
@@ -84,7 +83,7 @@ export interface AssetsCharacterComposeDeps {
   readonly audit: CharacterContext["audit"];
   readonly tag: Pick<TagService, "attachCardTagByName" | "detachCardTagByName">;
   /** The per-FUNDER role-client binder (§8.5b) — the greeting studio spends the CALLER's own `summarize` row. */
-  readonly roleClientsFor: (funderUserId: UserId) => Promise<Pick<RoleClientsWithSignal, "summarize">>;
+  readonly roleClientsFor: GreetingCompletionDeps["roleClientsFor"];
   /** The keystone's late-bound materializeBackground holder (character + seeders reference it at request time). */
   readonly materializeBackground: MaterializeBackgroundOp;
   /** LIVE effective per-image byte cap (the background materialize belt reads it per download). */

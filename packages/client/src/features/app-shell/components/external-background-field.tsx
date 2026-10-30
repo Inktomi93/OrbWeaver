@@ -80,7 +80,7 @@ export function ExternalBackgroundField({ onAdded }: ExternalBackgroundFieldProp
         {/* No `aria-label` here: Base UI's Field wires the visible label onto the control via
             `aria-labelledby`, which BEATS `aria-label` — a second name would only be dead weight. */}
         <Input className="flex-1" disabled={add.isPending} onValueChange={setUrl} placeholder="https://…" value={url} />
-        <Button disabled={trimmed === ""} intent="secondary" loading={add.isPending} onClick={submit} type="button">
+        <Button disabled={trimmed === ""} variant="outline" loading={add.isPending} onClick={submit} type="button">
           Add
         </Button>
       </Row>

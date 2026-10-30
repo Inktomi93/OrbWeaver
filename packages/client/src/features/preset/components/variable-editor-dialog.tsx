@@ -62,7 +62,7 @@ export function VariableEditorDialog({ form, index, onClose }: VariableEditorDia
       </form.AppField>
 
       <DialogFooter>
-        <DialogClose render={<Button intent="primary">Done</Button>} />
+        <DialogClose render={<Button>Done</Button>} />
       </DialogFooter>
     </FlowDialog>
   );
@@ -90,7 +90,7 @@ function OptionList({ form, index }: { readonly form: AppForm; readonly index: n
                   <form.AppField name={`variables[${index}].options[${j}].label`}>{(field): ReactElement => <field.TextField label="Label" />}</form.AppField>
                   <form.AppField name={`variables[${index}].options[${j}].value`}>{(field): ReactElement => <field.TextField label="Value" />}</form.AppField>
                   <Button
-                    intent="ghost"
+                    variant="ghost"
                     size="sm"
                     onClick={(): void => {
                       addButton.current?.focus();
@@ -107,7 +107,7 @@ function OptionList({ form, index }: { readonly form: AppForm; readonly index: n
             <Row>
               <Button
                 ref={addButton}
-                intent="secondary"
+                variant="outline"
                 size="sm"
                 onClick={(): void => {
                   form.pushFieldValue(optionsName, makeOption());

@@ -71,5 +71,5 @@ opacity; they do not establish fill-only glyph or switch-state polarity. Accessi
 - The walker's in-page probe sets and restores an attribute on an existing element; never inject a
   node, or `walkObserver` counts the probe itself as churn.
 - When auditing a variant, check the call site's `className` for utilities that re-spell a sibling
-  variant's recipe; a `data-intent` stamp proves only which variant was chosen, not what was painted
+  variant's recipe; a `data-variant` stamp proves only which variant was chosen, not what was painted
   (`tooling/src/ui-audit/lib/checks-quality.ts`).

@@ -130,16 +130,19 @@ export function CopyButtonRoot({ text, what, copiedHint, autoCopy = false, child
   );
 }
 
-export interface CopyButtonTriggerProps extends Omit<ButtonBaseProps, "aria-label" | "aria-labelledby" | "children" | "loading" | "onClick"> {
+export interface CopyButtonTriggerProps
+  extends Omit<ButtonBaseProps, "aria-label" | "aria-labelledby" | "children" | "loading" | "onClick" | "variant" | "tone" | "ink" | "focal"> {
   /** Render the glyph alone, for a dense toolbar. The accessible name is the same either way. */
   readonly iconOnly?: boolean;
+  /** A copy is a secondary action: the edge, or no edge in a dense toolbar. @defaultValue "outline" */
+  readonly variant?: "outline" | "ghost";
 }
 
 /** The press. Its name is `Copy <what>` in every state, so a success swaps the glyph, never the label (§13.10 N2). */
-export function CopyButtonTrigger({ iconOnly = false, intent = "secondary", size = "sm", ...rest }: CopyButtonTriggerProps): ReactElement {
+export function CopyButtonTrigger({ iconOnly = false, variant = "outline", size = "sm", ...rest }: CopyButtonTriggerProps): ReactElement {
   const { what, settled, copy } = useCopyContext("CopyButtonTrigger");
   return (
-    <Button aria-label={copyActionName(what)} {...rest} intent={intent} onClick={copy} size={size} type="button">
+    <Button aria-label={copyActionName(what)} {...rest} variant={variant} onClick={copy} size={size} type="button">
       <Icon icon={settled?.outcome === "copied" ? Check : Copy} size="sm" />
       {iconOnly ? null : "Copy"}
     </Button>

@@ -107,11 +107,11 @@ export function BackgroundSourceField({ value, onChange, readOnly = false, reser
       {/* Two FLAT arms (no nested ternary): the doors row at rest, the URL entry while drafting. */}
       {readOnly || inExternalMode ? null : (
         <Row align="center" gap="field" className="justify-between">
-          <Button intent="ghost" onClick={(): void => setExternalDraft("")} size="sm" type="button">
+          <Button variant="ghost" onClick={(): void => setExternalDraft("")} size="sm" type="button">
             From a URL…
           </Button>
           {/* The ADD door — upload/manage lives in ONE place (BG-D's atomic library writes). */}
-          <Button intent="ghost" onClick={(): void => openConfigTo("appearance", "background")} size="sm" type="button">
+          <Button variant="ghost" onClick={(): void => openConfigTo("appearance", "background")} size="sm" type="button">
             Add your own in Settings
           </Button>
         </Row>
@@ -119,7 +119,7 @@ export function BackgroundSourceField({ value, onChange, readOnly = false, reser
       {!readOnly && inExternalMode ? (
         <Row align="end" gap="field">
           <Input aria-label="Background image URL" className="flex-1" onValueChange={setExternalDraft} placeholder="https://…" value={draftValue} />
-          <Button disabled={draftValue.trim().length === 0} intent="secondary" onClick={applyExternal} type="button">
+          <Button disabled={draftValue.trim().length === 0} variant="outline" onClick={applyExternal} type="button">
             Apply
           </Button>
         </Row>

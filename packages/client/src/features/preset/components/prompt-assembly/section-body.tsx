@@ -127,7 +127,7 @@ function TemplateNoteDetail({ detail }: { readonly detail: { readonly label: str
         aria-controls={bodyId}
         aria-expanded={open}
         className="gap-tight self-start"
-        intent="ghost"
+        variant="ghost"
         onClick={(): void => setOpen((prev) => !prev)}
         size="sm"
         type="button"
@@ -160,13 +160,13 @@ function CarrierBody({ form, section }: { readonly form: AssemblyForm; readonly 
   const isWorldInfo = section.marker === "world_info_before" || section.marker === "world_info_after";
   return (
     <Stack gap="field">
-      <Card tone="muted">
+      <Card variant="soft">
         <Row align="start" gap="row">
           <Icon icon={Info} size="sm" />
           <Stack className="min-inline-0" gap="tight">
             <Text voice="label">{attribution.sentence}</Text>
             {manage === undefined ? null : (
-              <Button className="self-start" intent="ghost" onClick={(): void => openConfigTo(manage.collection)} size="sm" type="button">
+              <Button className="self-start" variant="ghost" onClick={(): void => openConfigTo(manage.collection)} size="sm" type="button">
                 {manage.label}
                 <Icon icon={ExternalLink} size="xs" />
               </Button>

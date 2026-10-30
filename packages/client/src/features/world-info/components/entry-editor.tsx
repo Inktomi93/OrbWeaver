@@ -266,7 +266,7 @@ function DeleteEntryAction({ title, onDelete }: { readonly title: string; readon
       onConfirm={onDelete}
       title={`Delete "${title}"?`}
       trigger={
-        <Button intent="ghost" size="sm" aria-label={`Delete ${title}`}>
+        <Button variant="ghost" size="sm" aria-label={`Delete ${title}`}>
           <Icon icon={Trash2} size="sm" />
         </Button>
       }

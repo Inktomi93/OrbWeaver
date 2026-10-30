@@ -36,10 +36,10 @@ export function PersonaCrown({ isDefault, subject, onSet, onClear, tabIndex }: P
                 aria-label={isDefault ? `${subject} is your default — press to clear` : `Make ${subject} your default`}
                 aria-pressed={isDefault}
                 data-slot="persona-crown"
-                intent="ghost"
+                variant="ghost"
                 onClick={isDefault ? onClear : onSet}
                 size={isDefault ? "inline" : "icon"}
-                tone={isDefault ? "primary" : "default"}
+                tone={isDefault ? "primary" : undefined}
                 {...(tabIndex === undefined ? {} : { tabIndex })}
               >
                 <Icon icon={Crown} size="sm" />
@@ -53,7 +53,7 @@ export function PersonaCrown({ isDefault, subject, onSet, onClear, tabIndex }: P
         <Tooltip>
           <TooltipTrigger
             render={
-              <Text as="span" aria-label={DEFAULT_MARKER_LABEL} className="relative shrink-0" hiddenAt="fine" role="img" tone="accent">
+              <Text as="span" aria-label={DEFAULT_MARKER_LABEL} className="relative shrink-0" hiddenAt="fine" role="img" tone="primary">
                 <Icon icon={Crown} size="sm" />
               </Text>
             }

@@ -9,10 +9,10 @@ export function UtilityFallbackStory(): ReactElement {
   return (
     <CtIsolation subject="Utility fallback" isolates="Utility state over the browser-specific property initialization layer">
       <Stack align="start" gap="section" padding="section">
-        <Button intent="ghost" size="glyph-lg" aria-label="Square control">
+        <Button variant="ghost" size="glyph-lg" aria-label="Square control">
           A
         </Button>
-        <Button intent="ghost" size="inline">
+        <Button variant="ghost" size="inline">
           Stretched control
         </Button>
         <Checkbox aria-label="Selection control" />

@@ -32,7 +32,7 @@ export function DeleteSchemaAction({ schema, onDeleted }: { readonly schema: Del
 
   return (
     <>
-      <Button intent="destructive" onClick={(): void => setOpen(true)} size="sm" type="button">
+      <Button tone="destructive" onClick={(): void => setOpen(true)} size="sm" type="button">
         Delete schema
       </Button>
       <ConfirmDialog

@@ -11,7 +11,7 @@ export interface CountTextProps {
 
 export function CountText({ children, className, "data-slot": dataSlot }: CountTextProps): ReactElement {
   return (
-    <Text as="span" className={className} data-slot={dataSlot} tone="muted" voice="label" numeric={true}>
+    <Text as="span" className={className} data-slot={dataSlot} ink="muted" voice="label" numeric={true}>
       {children}
     </Text>
   );

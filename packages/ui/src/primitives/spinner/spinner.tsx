@@ -21,7 +21,8 @@
 
 import type { CSSProperties, ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
-import { INK_TONE, usePrefersReducedMotion, variantAttrs } from "#lib";
+import type { ToneInkSelection } from "#lib";
+import { usePrefersReducedMotion, variantAttrs } from "#lib";
 import { ORB_WEB_GLYPH, ORB_WEB_GLYPH_COMPACT, OrbWeb, OrbWebCompact } from "#primitives/icons";
 import { spinnerVariants } from "./variants.ts";
 
@@ -29,19 +30,20 @@ import { spinnerVariants } from "./variants.ts";
  *  sliver of silk showing at the "empty" end of the loop. */
 const SPIRAL_LENGTH_PRECISION = 0;
 
-export interface WebSpinnerProps {
+interface WebSpinnerOwnProps {
   size?: VariantProps<typeof spinnerVariants>["size"];
   /** Accessible name announced by `role="status"` — required (a spinner is a live status). */
   label: string;
-  tone?: VariantProps<typeof spinnerVariants>["tone"];
   /** Layout only: the loader's placement. */
   className?: string;
 }
 
+export type WebSpinnerProps = WebSpinnerOwnProps & ToneInkSelection;
+
 /** The brand loader — indeterminate waits at every scale (the sanctioned spinner; skeletons still
- *  own layout loading). Inherits `currentColor`; `tone="accent"` for brand waits. */
-export function WebSpinner({ size = "md", label, tone, className }: WebSpinnerProps): ReactElement {
-  const slots = spinnerVariants({ tone, size });
+ *  own layout loading). Inherits `currentColor`; `tone="primary"` for brand waits. */
+export function WebSpinner({ size = "md", label, tone, ink, className }: WebSpinnerProps): ReactElement {
+  const slots = spinnerVariants({ tone, ink, size });
   const reduced = usePrefersReducedMotion();
   const compact = size === "sm" || size === "md";
   const Glyph = compact ? OrbWebCompact : OrbWeb;
@@ -58,7 +60,7 @@ export function WebSpinner({ size = "md", label, tone, className }: WebSpinnerPr
       data-animate={reduced ? undefined : ""}
       className={slots.root({ className })}
       style={dashVars}
-      {...variantAttrs(spinnerVariants, { tone, size }, INK_TONE[tone ?? "default"])}
+      {...variantAttrs(spinnerVariants, { tone, size }, tone ?? null)}
     >
       <Glyph className={slots.glyph()} aria-hidden={true} />
       <span className={slots.label()}>{label}</span>

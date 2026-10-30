@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "primitive-axis-vocabulary"
+version: "0.1.0"
+description: "Rewrite the literal colour and fill axes of the @orb/ui primitives into the D336 tone, variant and ink vocabulary."
+author: "Orbweaver"
+license: "MIT"
+targets:
+  languages: ["tsx"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

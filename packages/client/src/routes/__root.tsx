@@ -13,7 +13,7 @@ function NotFound(): ReactElement {
   return (
     <AppFailureSurface kind="not-found">
       <Heading level={1}>not found</Heading>
-      <Text tone="muted" voice="gloss" prose={true}>
+      <Text ink="muted" voice="gloss" prose={true}>
         that route doesn’t exist.
       </Text>
     </AppFailureSurface>

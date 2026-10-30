@@ -52,7 +52,7 @@ test.for([
   'export const C = ({width}) => <div style={{width: width + "px"}} />;',
   'export const C = () => <div style={{width: "100%", minWidth: 0}} />;',
   'const skins = { bad: {width: "7px"}, good: {width: "var(--width-content-col)"} }; export const C = () => <div style={skins.good} />;',
-  'export const C = () => <div style={{color: "oklch(from var(--color-primary) l c h / 0.5)"}} />;',
+  'export const C = () => <div style={{color: "oklch(from var(--color-ring) l c h / 0.5)"}} />;',
   "const EditorView = { theme: (options) => options }; export const value = EditorView.theme({record: {height: 12}});",
   'import type { OrbChartOption } from "../chart/echarts-setup.ts"; export function chart(fontSize: number): OrbChartOption { return {textStyle: {fontSize}}; }',
   'import { Histogram } from "@orb/ui/histogram"; export const C = ({height}) => <Histogram height={height} />;',

@@ -10,8 +10,8 @@ export interface FolderPickerProps {
   maxSizeBytes?: number;
   disabled?: boolean;
   loading?: boolean;
-  /** The button intent — `secondary` by default so it reads as the alternative to the primary dropzone. */
-  intent?: "primary" | "secondary" | "ghost";
+  /** The button's fill style — `outline` by default so it reads as the alternative to the primary dropzone. */
+  variant?: "solid" | "outline" | "ghost";
   children: ReactNode;
 }
 
@@ -26,7 +26,7 @@ export function FolderPicker({
   maxSizeBytes,
   disabled = false,
   loading = false,
-  intent = "secondary",
+  variant = "outline",
   children,
 }: FolderPickerProps): ReactElement {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -63,7 +63,7 @@ export function FolderPicker({
 
   return (
     <>
-      <Button intent={intent} loading={loading} disabled={inert} onClick={(): void => inputRef.current?.click()}>
+      <Button variant={variant} loading={loading} disabled={inert} onClick={(): void => inputRef.current?.click()}>
         {children}
       </Button>
       <input hidden={true} id={inputId} multiple={true} name={inputId} onChange={handleChange} ref={inputRef} type="file" />

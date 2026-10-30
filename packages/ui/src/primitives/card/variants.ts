@@ -1,5 +1,5 @@
-import type { ToneStamp } from "#lib";
-import { FOCUS_RING, MESSAGE_BUBBLE_BOX, MESSAGE_BUBBLE_FILL, RECEDED, SPOILER, tv } from "#lib";
+import { FOCUS_RING, isTone, MESSAGE_BUBBLE_BOX, MESSAGE_BUBBLE_FILL, RECEDED, SPOILER, TONE_ARMS, tv } from "#lib";
+import type { Tone } from "#tokens";
 import { ART_DECORATION } from "../../lib/art-decoration.ts";
 
 // Card is a generic SURFACE, not a domain card — features (character cards, config panels)
@@ -9,24 +9,44 @@ import { ART_DECORATION } from "../../lib/art-decoration.ts";
 // unlayered `styles/tiers.css` map resolves both from the surface's tier (UI-Density-Law.md §4.2), so a
 // feature never picks island padding or radius. `rounded-base` (grouped content), never `rounded-card` —
 // D6 demoted `--radius-card` to ELEVATED/floating islands only, which is what `elevated` opts into.
-const TONE_SOFT = "border-tone-edge bg-tone-tint";
-// A status box keeps a solid hairline: the edge is its boundary signal, so it holds the 3:1 non-text floor (WCAG 1.4.11).
-const TONE_STATUS = "border-tone-solid bg-tone-tint text-tone-text-on-tint";
+
+/**
+ * The use-specific surfaces that step 4 of the css-system plan moves to named components
+ * (`docs/work/1421-build-the-tone-role-tier-and-one-variant.md`): the message bubbles, the theme preview parts, the
+ * floating chip's popover fill and the transcript plate. They stay on `tone`, stamp the neutral scope and paint their
+ * own fill over the variant's.
+ */
+const STEP_FOUR_SURFACES = {
+  background: "bg-background",
+  accent: "bg-accent text-accent-foreground",
+  // The rail's own fill and edge, for a box that previews or sits in the sidebar.
+  sidebar: "border-sidebar-border bg-sidebar text-sidebar-foreground",
+  // The card fill with the rail's edge: a pane in a preview of the shell.
+  sidebarEdge: "border-sidebar-border",
+  // A card fill that lets a wallpaper or art read through it, and its page-ground twin under a transcript plate.
+  translucent: "bg-card/80",
+  backdrop: "bg-background/80",
+  bubble: MESSAGE_BUBBLE_FILL.assistant,
+  userBubble: MESSAGE_BUBBLE_FILL.user,
+  systemBubble: MESSAGE_BUBBLE_FILL.system,
+  // The popover fill and its ink, for a chip that floats over the transcript.
+  popover: "bg-popover text-popover-foreground",
+} as const;
+
+const MEANING_EDGE = "border-tone-solid data-[tone=neutral]:border-tone-edge";
 
 export const cardVariants = tv({
-  base: "rounded-base border border-border bg-card p-block text-card-foreground",
+  base: "rounded-base border p-block text-card-foreground",
   variants: {
     // A bounded column surface passes its allocated height to shrinkable content.
     layout: { stack: "flex flex-col" },
     // THE BOX SHAPE: a bordered, rounded, filled Row or Stack is a Card. `island` is grouped
     // content inside a surface. `row` is one operable or listed row drawn as its own box (a pack item, a mini
-    // preview row): the control radius, because you operate it. `well` is a recess inside a box: no border, a muted
-    // fill, the control radius, so it reads as part of its host and not a second box (CD2). Declared before `tone`
-    // so a tone's fill wins over the well's. The radius is re-declared in tiers.css, where the tier rule outranks it.
+    // preview row): the control radius, because you operate it. The radius is re-declared in tiers.css, where the
+    // tier rule outranks it.
     shape: {
       island: "",
       row: "rounded-control",
-      well: "rounded-control border-0 bg-muted",
       // An island that floats in a room's reading column (the composer, the band of controls above it): the card
       // radius and the field inset, with no shadow, because the room's art behind it is the lift.
       float: "rounded-card p-field",
@@ -39,56 +59,36 @@ export const cardVariants = tv({
       // A message bubble outside the transcript (a theme preview): the transcript's own bubble box. Pair it with a bubble tone.
       bubble: MESSAGE_BUBBLE_BOX,
     },
-    tone: {
-      neutral: "",
-      // Border only: a box that groups without lifting off its ground.
-      clear: "bg-transparent",
-      background: "bg-background",
-      accent: "bg-accent text-accent-foreground",
-      // The rail's own fill and edge, for a box that previews or sits in the sidebar.
-      sidebar: "border-sidebar-border bg-sidebar text-sidebar-foreground",
-      // A card fill that lets a wallpaper or art read through it, and its page-ground twin.
-      translucent: "bg-card/80",
-      backdrop: "bg-background/80",
-      // The edge a text field draws, for a box that groups field-like controls; no fill of its own.
-      input: "border-input bg-transparent",
-      bubble: MESSAGE_BUBBLE_FILL.assistant,
-      userBubble: MESSAGE_BUBBLE_FILL.user,
-      systemBubble: MESSAGE_BUBBLE_FILL.system,
-      muted: "bg-muted",
-      // A status box: the tone's tint, its solid hairline and its on-tint ink for content that sets no ink of its own.
-      warning: TONE_STATUS,
-      info: TONE_STATUS,
-      highlight: "border-highlight",
-      // The status tint and edge without the status ink: a verdict banner or a choices island whose own text and
-      // controls keep their inks and carry the meaning.
-      successTint: TONE_SOFT,
-      warningTint: TONE_SOFT,
-      destructiveTint: TONE_SOFT,
-      infoTint: TONE_SOFT,
-      // A card's one claim on attention spent as its edge, never a fill: the room's composer stays the one primary.
-      primaryEdge: "border-tone-edge",
-      // A drop zone's outline in the primary ink, with no fill, so it reads as a place and not a second card.
-      primaryOutline: "border-tone-solid bg-transparent",
-      // The muted fill held back: a block that quotes wire text inside a panel, so it reads as an artifact.
-      mutedWash: "bg-muted/40",
-      // The raised step, for a nested card that must lift off a card fill.
-      raised: "bg-surface-raised",
-      // The card fill with the rail's edge: a pane in a preview of the shell.
-      sidebarEdge: "border-sidebar-border",
-      // The popover fill and its ink, for a chip that floats over the transcript.
-      popover: "bg-popover text-popover-foreground",
+    // THE FILL STYLE (D336), painted only with the roles of the stamped tone, so every tone works with every style.
+    // A soft or outline box in a colour tone is a status box: its border carries the meaning, so it paints `solid` and
+    // holds the 3:1 non-text floor. The neutral tone carries no meaning and its solid is the page ink, so a neutral
+    // box keeps the quiet edge.
+    variant: {
+      // The card fill with the tone's edge: the default island.
+      surface: "border-tone-edge bg-card",
+      // The tone's tint under its meaning edge, and its on-tint ink for content that sets no ink of its own: a status
+      // box, a quoted block that reads as an artifact, a nested box that must lift off a card fill.
+      soft: `${MEANING_EDGE} bg-tone-tint text-tone-text-on-tint`,
+      // The meaning edge alone: a box that groups or marks without lifting off its ground.
+      outline: `${MEANING_EDGE} bg-transparent`,
     },
+    // Declared after `variant`, so a step-four surface's own fill wins the merge.
+    tone: { ...TONE_ARMS, ...STEP_FOUR_SURFACES },
     // A set state marked on the card's leading edge (an override that differs from the default).
     rail: { none: "", primary: "border-s-2 border-s-primary" },
     artDecoration: ART_DECORATION,
-    // The shadow. `follow` takes the user's elevation (the glow arm lifts every card); `none` refuses it, for a
-    // diagram that draws one elevation whatever the user chose; `overlay` always lifts, for the diagram's islands.
-    shadow: { follow: "in-data-[elevation=glow]:shadow-overlay", none: "", overlay: "shadow-overlay" },
-    // A card that holds a text field takes its interaction: a hover and focus lift on the opaque muted step, and a
-    // focus edge in the ring colour held back in alpha.
+    // The floating chip's and the preview islands' lift, until step four gives each its component. A static card takes
+    // no shadow, an interactive one follows the user's elevation and an elevated one always lifts.
+    shadow: { overlay: "shadow-overlay" },
+    // The composer island's field-host states, until step four gives it `RoomIsland`: a card that holds a text field
+    // takes its hover and focus lift on the opaque muted step and a focus edge in the ring colour held back in alpha,
+    // and a card that takes dropped files announces the armed state (`data-drag-over`) louder than focus.
     holdsField: {
       true: "focus-within:border-ring/60 focus-within:bg-muted hover:border-input hover:bg-muted",
+      false: "",
+    },
+    dropTarget: {
+      true: "data-drag-over:border-primary data-drag-over:bg-muted data-drag-over:ring-2 data-drag-over:ring-ring",
       false: "",
     },
     // A floating chip that comes and goes with its state: shown, it rises into place; hidden, it sinks a row step,
@@ -103,12 +103,7 @@ export const cardVariants = tv({
     receded: { true: RECEDED, false: "" },
     // A region that takes programmatic focus (a `tabIndex={-1}` editor a list hands focus to) draws the focus ring.
     focusable: { true: `outline-none ${FOCUS_RING}`, false: "" },
-    // A card that takes dropped files announces the armed state (`data-drag-over`) louder than focus.
-    dropTarget: {
-      true: "data-drag-over:border-primary data-drag-over:bg-muted data-drag-over:ring-2 data-drag-over:ring-ring",
-      false: "",
-    },
-    outline: { solid: "", dashed: "border-dashed" },
+    dashed: { true: "border-dashed", false: "" },
     glow: {
       none: "",
       accent: `
@@ -130,15 +125,12 @@ export const cardVariants = tv({
       true: "rounded-card shadow-overlay",
       false: "",
     },
-    // THE NESTED-ISLAND arm (CD2 as ruled by side-eye, 2026-08-03). An interactive island rendered INSIDE
-    // another box — a choices block inside a chat bubble — must stay distinguishable (a user has to see
-    // that those are pressable, which is the case CD2's "maximum" clause exists to permit), but the full
-    // Card treatment inside a box that already has border+radius+fill is TWO complete boxes, and the one
-    // shipped instance carried a second BORDER COLOR on top of the host's. This arm is the ruled
-    // single-axis separation: drop the border entirely, step the radius one below the host's, and let the
-    // FILL alone carry the distinction (the caller supplies it — an intent hue is a feature's call, never a
-    // generic surface's). The radius is re-declared unlayered in tiers.css for the same reason `elevated`
-    // is: a `rounded-*` utility on the card loses to the tier rule inside a Surface.
+    // THE NESTED-ISLAND arm (CD2). An interactive island rendered INSIDE another box — a choices block inside a chat
+    // bubble — must stay distinguishable, but the full Card treatment inside a box that already has
+    // border+radius+fill is TWO complete boxes. This arm is the ruled single-axis separation: drop the border
+    // entirely, step the radius one below the host's, and let the FILL alone carry the distinction (the caller
+    // supplies it). The radius is re-declared unlayered in tiers.css for the same reason `elevated` is: a
+    // `rounded-*` utility on the card loses to the tier rule inside a Surface.
     nested: {
       true: "rounded-inset border-0",
       false: "",
@@ -150,24 +142,32 @@ export const cardVariants = tv({
       tier: "",
       none: "p-0",
     },
+    // An operable card follows the user's elevation and takes the tone's pressed tint on hover and press.
     interactive: {
-      true: `cursor-pointer transition-colors duration-(--motion-fast) ease-out-expo hover:bg-accent focus-visible:outline-none active:bg-accent/80 ${FOCUS_RING}`,
+      true: `
+        cursor-pointer transition-colors duration-(--motion-fast) ease-out-expo
+        hover:bg-tone-tint-active
+        focus-visible:outline-none
+        active:bg-tone-tint-active
+        in-data-[elevation=glow]:shadow-overlay
+        ${FOCUS_RING}
+      `,
       false: "",
     },
   },
   defaultVariants: {
     shape: "island",
+    variant: "surface",
+    tone: "neutral",
     elevated: false,
     interactive: false,
     nested: false,
     padding: "tier",
-    tone: "neutral",
-    outline: "solid",
-    glow: "none",
-    rail: "none",
-    shadow: "follow",
+    dashed: false,
     holdsField: false,
     dropTarget: false,
+    glow: "none",
+    rail: "none",
     presence: "always",
     spoiler: false,
     receded: false,
@@ -175,31 +175,7 @@ export const cardVariants = tv({
   },
 });
 
-/** The D336 tone each `tone` arm stamps; an arm that reads no tone role opens no scope. */
-export const CARD_TONE = {
-  neutral: null,
-  clear: null,
-  background: null,
-  accent: null,
-  sidebar: null,
-  translucent: null,
-  backdrop: null,
-  input: null,
-  bubble: null,
-  userBubble: null,
-  systemBubble: null,
-  muted: null,
-  warning: "warning",
-  info: "info",
-  highlight: null,
-  successTint: "success",
-  warningTint: "warning",
-  destructiveTint: "destructive",
-  infoTint: "info",
-  primaryEdge: "primary",
-  primaryOutline: "primary",
-  mutedWash: null,
-  raised: null,
-  sidebarEdge: null,
-  popover: null,
-} as const satisfies Record<keyof typeof cardVariants.variants.tone, ToneStamp>;
+/** The D336 scope a card stamps: its tone, or the neutral scope for a step-four surface that paints its own fill. */
+export function cardTone(tone: keyof typeof cardVariants.variants.tone | undefined): Tone {
+  return tone !== undefined && isTone(tone) ? tone : "neutral";
+}

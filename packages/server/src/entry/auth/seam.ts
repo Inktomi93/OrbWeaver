@@ -35,10 +35,11 @@
 
 import type { Principal, RequestTransport } from "@orb/contracts/identity";
 import { isCookieAuthMode } from "@orb/contracts/identity";
+import type { UserPrincipalFields } from "@orb/contracts/session";
 import type { Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { isOwner } from "#domain/admin";
-import type { SessionsService, UserPrincipalFields } from "#domain/sessions";
+import type { SessionsService } from "#domain/sessions";
 import type { Logger } from "#foundation/observability";
 import type { AllowedHostsReader, AuthConfig, ForwardJwtVerifier, IdentityResolution, OidcTransactionStore, RelayedFallbackNotice } from "#infra/auth";
 import { hasCsrfHeader, readRequestCookie, resolve, selectSignedForwardJwt, sessionCookieFor } from "#infra/auth";

@@ -126,11 +126,11 @@ function SearchPaused({ over, onTextInstead }: { readonly over: UnifiedOver; rea
         {SEARCH_PAUSED_COPY[rebuild ?? "unknown"]}
       </Text>
       <Row className="flex-wrap" gap="field">
-        <Button intent="secondary" onClick={(): void => openConfigTo("workloads", "jobs")} size="sm" type="button">
+        <Button variant="outline" onClick={(): void => openConfigTo("workloads", "jobs")} size="sm" type="button">
           {REBUILD_JOBS_LABEL}
         </Button>
         {onTextInstead === undefined ? null : (
-          <Button intent="ghost" onClick={onTextInstead} size="sm" type="button">
+          <Button variant="ghost" onClick={onTextInstead} size="sm" type="button">
             {SEARCH_PAUSED_COPY.textInstead}
           </Button>
         )}

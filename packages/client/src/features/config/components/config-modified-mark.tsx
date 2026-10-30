@@ -9,7 +9,7 @@ export interface ConfigModifiedMarkProps {
 /** The same state mark fits both group bands and title-only section rows. */
 export function ConfigModifiedMark({ label, slot }: ConfigModifiedMarkProps): ReactElement {
   return (
-    <Badge data-slot={slot} intent="neutral" size="compact" tone="soft">
+    <Badge data-slot={slot} size="compact">
       {label}
     </Badge>
   );

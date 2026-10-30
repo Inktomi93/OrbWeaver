@@ -34,11 +34,11 @@ export interface QueryErrorStateProps {
 export function QueryErrorState({ label, onRetry, renderRetry, className, plate }: QueryErrorStateProps): ReactElement {
   return (
     <Stack align="center" className={className} data-slot="query-error" gap="row" justify="center" padding="section" plate={plate}>
-      <Text role="status" tone="muted">
+      <Text role="status" ink="muted">
         Couldn't load {label}.
       </Text>
       {renderRetry?.(onRetry) ?? (
-        <Button intent="ghost" onClick={onRetry}>
+        <Button variant="ghost" onClick={onRetry}>
           Retry
         </Button>
       )}

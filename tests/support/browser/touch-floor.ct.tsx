@@ -92,7 +92,7 @@ for (const pointer of [
       const control = page.getByTestId("inline-primary");
 
       // The `inline` arm's box is text-height (~18px), so the vertical answer is entirely the pseudo's —
-      // and at `intent="primary"` that pseudo sits under the CTA ring, the overlap this arm
+      // and on the focal solid primary that pseudo sits under the CTA ring, the overlap this arm
       // exists to cover. The horizontal arm is the button's own width, which already exceeds the floor: it is
       // asserted anyway because a credit bug that collapses the walk shows up there first.
       expect(await hitExtent(control, "y"), "an inline datum's floor is carried by its ::before, ring or no ring").toBeGreaterThanOrEqual(floor);

@@ -87,7 +87,7 @@ function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; re
       <Stack gap="field">
         {/* The four-voice grammar (density §2.3): a field caption is the NAME OF ONE DATUM → `label`.
             Tone rides a className, the landed dialog precedent (create-schedule-dialog). */}
-        <Text as="span" tone="muted" voice="label">
+        <Text as="span" ink="muted" voice="label">
           Name
         </Text>
         {/* THE FIELD SAYS IT IS THE ONE THAT WAS REFUSED (#548, se-verify-3 P2). #542 announced the refusal
@@ -114,7 +114,7 @@ function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; re
             {refusal}
           </Text>
         )}
-        <Text as="span" tone="muted" voice="label">
+        <Text as="span" ink="muted" voice="label">
           Description
         </Text>
         <Textarea
@@ -130,13 +130,13 @@ function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; re
           about (#548, see its note there). The string is the mapper's, so the toast and that line can
           never become two spellings of one refusal. */}
       {incomplete ? (
-        <Text tone="muted" voice="label">
+        <Text ink="muted" voice="label">
           A name and a description are both required.
         </Text>
       ) : null}
       <DialogFooter>
-        <DialogClose render={<Button intent="ghost">Cancel</Button>} />
-        <Button disabled={incomplete || create.isPending} intent="primary" onClick={onCreate}>
+        <DialogClose render={<Button variant="ghost">Cancel</Button>} />
+        <Button disabled={incomplete || create.isPending} onClick={onCreate}>
           Create
         </Button>
       </DialogFooter>
@@ -193,11 +193,11 @@ const CREATE_ICON_ARM = "@cq-20:hidden";
 function CharacterCreateButton({ onOpen }: { readonly onOpen: () => void }): ReactElement {
   return (
     <>
-      <Button className={CREATE_LABELLED_ARM} intent="primary" onClick={onOpen} size="sm">
+      <Button className={CREATE_LABELLED_ARM} onClick={onOpen} size="sm">
         <Icon icon={Plus} size="sm" />
         New
       </Button>
-      <Button aria-label="New character" className={CREATE_ICON_ARM} intent="primary" onClick={onOpen} size="icon-sm" type="button">
+      <Button aria-label="New character" className={CREATE_ICON_ARM} onClick={onOpen} size="icon-sm" type="button">
         <Icon icon={Plus} size="sm" />
       </Button>
     </>
@@ -227,7 +227,7 @@ export function CharacterLandingDoors(): ReactElement {
   const [importOpen, setImportOpen] = useState(false);
   return (
     <Row align="center" className="flex-wrap max-inline-full" gap="field">
-      <Button intent="primary" onClick={(): void => setCreateOpen(true)} size="sm">
+      <Button onClick={(): void => setCreateOpen(true)} size="sm">
         <Icon icon={Plus} size="sm" />
         New character
       </Button>
@@ -235,7 +235,7 @@ export function CharacterLandingDoors(): ReactElement {
           file's own header calls Import "beside it as a GHOST icon, a secondary entry into the same 'get a
           character' job" — #969 flipped `ghost` to `text-current`, so it now paints at the same weight as
           the primary beside it. The primitive keeps inheriting; this composite states its own ink. */}
-      <Button intent="ghost" onClick={(): void => setImportOpen(true)} size="sm" tone="muted">
+      <Button variant="ghost" ink="muted" onClick={(): void => setImportOpen(true)} size="sm">
         <Icon icon={Upload} size="sm" />
         Import a card
       </Button>
@@ -271,7 +271,7 @@ export function CharacterCreateActions(): ReactElement {
             display boxes that would have shrunk the visible target beside the `sm` New primary. */}
         {/* THE SAME SECONDARY-ENTRY RULING AS `CharacterLandingDoors` (#1256) — the band's own icon-only
             twin of the same Import door, beside the same `New` primary. */}
-        <Button aria-label="Import a character card" intent="ghost" onClick={(): void => setImportOpen(true)} size="icon-sm" tone="muted">
+        <Button aria-label="Import a character card" variant="ghost" ink="muted" onClick={(): void => setImportOpen(true)} size="icon-sm">
           <Icon icon={Upload} size="sm" />
         </Button>
         <CharacterCreateButton onOpen={(): void => setCreateOpen(true)} />

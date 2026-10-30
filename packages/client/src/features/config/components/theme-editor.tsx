@@ -176,7 +176,7 @@ function ThemeEditorBody({ theme, session, mintedName, isUnmintedDraft }: ThemeE
         </>
       ) : (
         <Row>
-          <Button intent="secondary" onClick={(): void => setAdvancedToolsVisible(true)}>
+          <Button variant="outline" onClick={(): void => setAdvancedToolsVisible(true)}>
             Show advanced theme tools
           </Button>
         </Row>
@@ -192,8 +192,8 @@ function ThemeableVarsReference(): ReactElement {
       <Text voice="kicker">Themeable variables</Text>
       <Row gap="field" className="flex-wrap">
         {THEME_SCOPE_EMIT_VARS.map((name) => (
-          <Card key={name} padding="none" shape="well">
-            <Text as="span" voice="code" className="px-field" tone="muted">
+          <Card key={name} padding="none" variant="soft">
+            <Text as="span" voice="code" className="px-field" ink="muted">
               {name}
             </Text>
           </Card>
@@ -213,23 +213,23 @@ function ThemePreview({ values }: { readonly values: ThemeFormValues }): ReactEl
       <ThemeScope tokens={themeOverrideFromForm(values)}>
         <Card tone="background">
           <Stack gap="row">
-            <Text voice="label" tone="speaker">
+            <Text voice="label" ink="speaker">
               Aria
             </Text>
-            <Card shadow="none" shape="bubble" tone="bubble">
+            <Card tone="bubble" shape="bubble">
               <Stack gap="field">
-                <Text as="span" tone="dialogue">
+                <Text as="span" ink="dialogue">
                   “Welcome to the archive,” she said.
                 </Text>{" "}
-                <Text as="span" tone="narration">
+                <Text as="span" ink="narration">
                   The lamplight flickered against the shelves.
                 </Text>
-                <Text as="span" tone="prose">
+                <Text as="span" ink="prose">
                   Everything here has a story.
                 </Text>
               </Stack>
             </Card>
-            <Card className="self-end" shadow="none" shape="bubble" tone="userBubble">
+            <Card className="self-end" tone="userBubble" shape="bubble">
               <Stack gap="field">
                 <Text as="span">Show me the oldest one.</Text>
               </Stack>
@@ -270,7 +270,7 @@ function ContrastBadge({ label, color, against }: { readonly label: string; read
   return (
     <Row gap="field" align="center">
       <Text voice="kicker">{label}</Text>
-      <Text voice="gloss" tone={passes ? "default" : "warning"}>
+      <Text voice="gloss" tone={passes ? undefined : "warning"}>
         {passes ? `${rounded}:1` : `${rounded}:1 — hard to read`}
       </Text>
     </Row>

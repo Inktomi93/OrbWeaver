@@ -5,10 +5,10 @@
 // caller passes in (chat passes the {@link ChatMembership} it loaded — admin never reads chat's db).
 // Authorization is re-evaluated per call; the decision is never cached back onto the Principal.
 
+import type { IsAdmin, IsOwner, RequireAdmin, RequireOwner } from "@orb/contracts/admin";
 import type { Can, ChatAction, ChatMembership, GlobalAction, Principal, ResourceRef, UserRole, UserRoleState } from "@orb/contracts/identity";
 import { DomainForbiddenError } from "@orb/kit/errors";
 import { participantRoleValue, userRoleValue } from "#primitives/role-data/decode";
-import type { IsAdmin, IsOwner, RequireAdmin, RequireOwner } from "./contract/guard.ts";
 
 // The role set that satisfies each global action — the sole encoding of `owner ⊇ admin`. Exhaustive: a new
 // `GlobalAction` member fails tsc here.

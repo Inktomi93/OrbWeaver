@@ -56,7 +56,7 @@ export function useRefineryListHeader(): ListPaneHeaderView {
                 <StartSessionDoor
                   answersRequests={true}
                   trigger={(busy): ReactElement => (
-                    <Button aria-busy={busy} aria-label={START_SESSION_LABEL} intent="ghost" size="glyph-md">
+                    <Button aria-busy={busy} aria-label={START_SESSION_LABEL} variant="ghost" size="glyph-md">
                       <Icon icon={Plus} size="sm" />
                     </Button>
                   )}

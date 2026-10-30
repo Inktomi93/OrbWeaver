@@ -112,7 +112,7 @@ export function ContextBracket({ view, headerRef, band, empty, railLabel, paneLa
           <Button
             aria-label={dismissLabel ?? "Close panel"}
             data-slot="context-bracket-dismiss"
-            intent="ghost"
+            variant="ghost"
             onClick={onDismiss}
             size="icon"
             type="button"

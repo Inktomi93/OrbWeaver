@@ -6,12 +6,11 @@
 // composition-root wire); app-authored cards omit it and the columns stay null. Re-reads with the
 // avatar JOIN for the detail view.
 
-import type { CharacterCard } from "@orb/contracts/character";
+import type { CharacterCard, CharacterImportProvenance, CreateCharacterParams } from "@orb/contracts/character";
 import { characterHandleSchema } from "@orb/contracts/character";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import { cardContentHash } from "#primitives/serde/card";
 import { CHARACTER_HANDLE_RESERVED, CharacterNotFoundError, CharacterOperationError } from "../contract/errors.ts";
-import type { CharacterImportProvenance, CreateCharacterParams } from "../contract/params.ts";
 import type { CharacterContext, CharacterService } from "../contract/service.ts";
 import { insertCharacter } from "../persistence/card.ts";
 import { canonicalTagsOf, detailOf, ensureAssetOwned, loadOwnedCharacterWithAvatar, ownedCarriedBackground } from "../persistence/queries.ts";

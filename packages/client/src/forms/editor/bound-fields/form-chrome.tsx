@@ -31,7 +31,13 @@ export function DirtyPill(): ReactElement {
   const form = useFormContext();
   return (
     <form.Subscribe selector={(s): boolean => s.isDefaultValue}>
-      {(isDefaultValue): ReactElement | null => (isDefaultValue ? null : <Badge intent="warning">Unsaved</Badge>)}
+      {(isDefaultValue): ReactElement | null =>
+        isDefaultValue ? null : (
+          <Badge tone="warning" variant="solid">
+            Unsaved
+          </Badge>
+        )
+      }
     </form.Subscribe>
   );
 }
@@ -46,7 +52,11 @@ export function FormErrorBanner(): ReactElement {
           return null;
         }
         const text = typeof onSubmitError === "string" ? onSubmitError : fieldErrorText([onSubmitError]);
-        return text === null ? null : <Badge intent="danger">{text}</Badge>;
+        return text === null ? null : (
+          <Badge tone="destructive" variant="solid">
+            {text}
+          </Badge>
+        );
       }}
     </form.Subscribe>
   );

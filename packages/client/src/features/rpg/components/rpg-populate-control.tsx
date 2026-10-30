@@ -78,7 +78,7 @@ export function RpgPopulateControl({ chatId, actor, canPopulate }: RpgPopulateCo
       </Text>
       <Row gap="field">
         <Button
-          intent="secondary"
+          variant="outline"
           size="sm"
           disabled={populate.isPending || reason !== ""}
           {...(reason === "" ? {} : { "aria-describedby": reasonId })}

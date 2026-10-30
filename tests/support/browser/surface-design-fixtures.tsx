@@ -44,24 +44,24 @@ export function SurfaceDesignStory({ width }: { readonly width: number }): React
               </Stack>
             </Surface>
             <Row gap="row">
-              <Button intent="ghost" size="glyph-xs" aria-label="Small control one">
+              <Button variant="ghost" size="glyph-xs" aria-label="Small control one">
                 <Icon icon={Plus} size="xs" />
               </Button>
-              <Button intent="ghost" size="glyph-xs" aria-label="Small control two">
+              <Button variant="ghost" size="glyph-xs" aria-label="Small control two">
                 <Icon icon={Plus} size="xs" />
               </Button>
-              <Button intent="ghost" size="glyph-xs" aria-label="Small control three">
+              <Button variant="ghost" size="glyph-xs" aria-label="Small control three">
                 <Icon icon={Plus} size="xs" />
               </Button>
-              <Button intent="ghost" size="md" aria-label="Full control">
+              <Button variant="ghost" size="md" aria-label="Full control">
                 <Icon icon={Plus} size="xs" />
               </Button>
             </Row>
             <ScrollArea style={{ blockSize: width / 3 }} wrapContent={true} viewportProps={{ "aria-label": "Design scroll control" }}>
               <Stack gap="section">
-                <Button intent="secondary">Scroll start</Button>
+                <Button variant="outline">Scroll start</Button>
                 <Stack style={{ blockSize: width * 3 }} aria-hidden="true" />
-                <Button intent="secondary">Scroll end</Button>
+                <Button variant="outline">Scroll end</Button>
               </Stack>
             </ScrollArea>
             <Surface tier="form">
@@ -86,7 +86,7 @@ export function SurfaceTouchTilingStory(): ReactElement {
           <h1>Tiled touch controls</h1>
           <Row style={{ columnGap: "calc(var(--size-touch-target) - var(--size-glyph-lg))" }}>
             {["Left", "Middle", "Right"].map((name) => (
-              <Button key={name} size="glyph-lg" intent="ghost" aria-label={`Tiled ${name}`}>
+              <Button key={name} size="glyph-lg" variant="ghost" aria-label={`Tiled ${name}`}>
                 <Icon icon={Plus} size="sm" />
               </Button>
             ))}

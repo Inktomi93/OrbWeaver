@@ -38,7 +38,7 @@ export function ApplyRow({ keptAccepts, armedRewrite, acts, completed }: ApplyRo
         </Text>
       ) : null}
       {armedRewrite !== null ? <RefineryChip tone="good">applying round {armedRewrite.iteration}'s rewrite</RefineryChip> : null}
-      <Button disabled={unsendable} intent="secondary" onClick={(): void => acts.run("copy", keptAccepts)} size="sm">
+      <Button disabled={unsendable} variant="outline" onClick={(): void => acts.run("copy", keptAccepts)} size="sm">
         Save as copy
       </Button>
       <Button

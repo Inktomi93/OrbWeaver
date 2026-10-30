@@ -75,9 +75,7 @@ function RegexKicker({ chip }: { readonly chip: string | null }): ReactNode {
       {chip === null ? null : (
         <>
           {" "}
-          <Badge intent="neutral" size="inline" tone="soft">
-            {chip}
-          </Badge>
+          <Badge size="inline">{chip}</Badge>
         </>
       )}
     </>
@@ -271,9 +269,7 @@ function RegexLeverStrip({
               <Text as="span" className="truncate" voice="label">
                 {label}
               </Text>
-              <Badge intent="neutral" size="inline" tone="soft">
-                {regexTierLeverCount(rows)}
-              </Badge>
+              <Badge size="inline">{regexTierLeverCount(rows)}</Badge>
             </Row>
             {/* The name carries the SCOPE, because the switch's meaning is exactly what its neighbours'
                 is not: this one is per-room ("— in this chat"), a row's is per-library ("— everywhere").

@@ -65,7 +65,7 @@ function QuestDescription({ quest, dim, edit }: { readonly quest: RpgQuestView; 
         ariaLabel={`${quest.name} description`}
         display={quest.description}
         placeholder="description…"
-        tone="muted"
+        ink="muted"
         onEdit={(next): void => edit.onEditDescription(quest, next)}
         className="inline-full"
         voice="label"
@@ -100,12 +100,12 @@ function QuestObjectives({ quest, dim, edit }: { readonly quest: RpgQuestView; r
               aria-label={`${o.text} — completed`}
             />
           ) : null}
-          <Text as="span" voice="label" tone={o.completed ? "muted" : "default"} strike={o.completed} className="flex-1 min-inline-0">
+          <Text as="span" voice="label" ink={o.completed ? "muted" : undefined} strike={o.completed} className="flex-1 min-inline-0">
             {o.text}
           </Text>
           {editable ? (
             <Tip text={`Remove objective: ${o.text}`}>
-              <Button aria-label={`Remove objective: ${o.text}`} intent="ghost" size="glyph-sm" onClick={(): void => edit.onRemoveObjective(quest, o.id)}>
+              <Button aria-label={`Remove objective: ${o.text}`} variant="ghost" size="glyph-sm" onClick={(): void => edit.onRemoveObjective(quest, o.id)}>
                 <Icon icon={X} size="xs" />
               </Button>
             </Tip>
@@ -140,7 +140,7 @@ function DeleteQuestAction({ quest, onDelete }: { readonly quest: RpgQuestView; 
       confirmLabel="Delete"
       onConfirm={(): void => onDelete(quest)}
       trigger={
-        <Button aria-label={`Delete quest: ${quest.name}`} intent="ghost" size="glyph-sm">
+        <Button aria-label={`Delete quest: ${quest.name}`} variant="ghost" size="glyph-sm">
           <Icon icon={Trash2} size="xs" />
         </Button>
       }
@@ -166,7 +166,7 @@ function QuestCardMeta({
   return (
     <Row gap="field" align="center" className="shrink-0">
       {total > 0 ? (
-        <Text as="span" tone="muted" voice="datum">
+        <Text as="span" ink="muted" voice="datum">
           {filled}/{total}
         </Text>
       ) : null}
@@ -184,7 +184,7 @@ function QuestCard({ quest, edit }: QuestCardProps): ReactElement {
   const dim = done || failed;
 
   return (
-    <Card tone="neutral">
+    <Card>
       <Stack gap="field" data-slot="rpg-quest-card">
         <Row gap="block" align="center">
           {total >= MIN_CLOCK_SEGMENTS ? (
@@ -194,13 +194,13 @@ function QuestCard({ quest, edit }: QuestCardProps): ReactElement {
               completed={done}
               size="sm"
               label={`${quest.name} objectives`}
-              tone={failed ? "destructive" : "default"}
+              tone={failed ? "destructive" : undefined}
             />
           ) : null}
           <Stack gap="field" className="flex-1 min-inline-0">
             <Row gap="block" align="baseline" justify="between">
               {edit === undefined || dim ? (
-                <Text as="span" voice="label" tone={dim ? "muted" : "default"} strike={dim}>
+                <Text as="span" voice="label" ink={dim ? "muted" : undefined} strike={dim}>
                   {quest.name}
                 </Text>
               ) : (

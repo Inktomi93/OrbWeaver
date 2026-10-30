@@ -82,8 +82,8 @@ export function RowToggleAction(props: RowToggleFillArm): ReactElement {
       aria-pressed={radio ? undefined : pressed}
       reveal={revealed ? "hover" : undefined}
       selection={pressed && selectedFill ? "on" : "none"}
-      tone={pressed && !selectedFill ? pressedTone : "default"}
-      intent="ghost"
+      tone={pressed && !selectedFill ? pressedTone : undefined}
+      variant="ghost"
       onClick={onToggle}
       role={radio ? "radio" : undefined}
       size="icon"

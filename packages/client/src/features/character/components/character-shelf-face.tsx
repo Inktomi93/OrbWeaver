@@ -91,7 +91,7 @@ export function CharacterShelfFace({ id, name, avatarHash, starred, stamp, capti
         // now (#1662) — see {@link faceActionName}.
         aria-label={faceActionName(name, stamp, starred, resume)}
         className="flex-col items-stretch gap-tight text-start"
-        intent="ghost"
+        variant="ghost"
         onClick={(): void => (resume === null ? onOpen(id) : resume.onResume(resume.chatId))}
         size="media"
         {...(caption === null ? {} : { "aria-describedby": captionId })}

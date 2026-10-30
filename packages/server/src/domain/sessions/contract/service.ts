@@ -1,8 +1,16 @@
 // The typed API surface: `SessionsService` is the authoritative verb listing, `SessionsContext` the DI
 // bundle. 13 verbs across the BFF session lifecycle + identity resolution.
 
-import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
-import type { GetOwnerUserId, OwnerNeedsPassword, SessionView, SettleUnclaimedLink } from "@orb/contracts/session";
+import type { ResolvedIdentity, ResolveHandleOp, UserRole } from "@orb/contracts/identity";
+import type {
+  GetOwnerUserId,
+  ListSessionsForUserOp,
+  LoadUserByIdOp,
+  OwnerNeedsPassword,
+  RevokeAllSessionsForUserOp,
+  RevokeSessionOp,
+  SettleUnclaimedLink,
+} from "@orb/contracts/session";
 import type { Db } from "@orb/db";
 import type { AwaitableStatementToken, StatementToken } from "@orb/db/wiring";
 import type { ExternalId, Handle, IdSource, SessionId, SessionToken, UserId } from "@orb/kit/ids";
@@ -11,15 +19,7 @@ import type { SQL } from "drizzle-orm";
 import type { AuditWiring, Logger } from "#foundation/observability";
 import type { Sealed, SecretBox } from "#infra/crypto";
 import type { CreateSessionParams, ProvisionIdentityOptions } from "./params.ts";
-import type {
-  CreateSessionResult,
-  PendingSignupPlan,
-  ProvisionResult,
-  RevokedSession,
-  RevokedSessionsSummary,
-  UserPrincipalFields,
-  ValidatedSession,
-} from "./results.ts";
+import type { CreateSessionResult, PendingSignupPlan, ProvisionResult, RevokedSession, RevokedSessionsSummary, ValidatedSession } from "./results.ts";
 import type { SessionsRolePolicy } from "./role-policy.ts";
 
 /** The peppered password verifier the root's hasher supplies. `dummyHash` is a well-formed hash in the
@@ -110,9 +110,9 @@ export interface SessionsService {
   revokeByToken: (token: SessionToken) => Promise<RevokedSession | null>;
   /** Revoke one session by id (admin: kick a specific device) → WHOSE it was, or `null` if it was already
    *  revoked. The owner is what the entry tier evicts live sockets by (W7a). @internal */
-  revoke: (sessionId: SessionId) => Promise<UserId | null>;
+  revoke: RevokeSessionOp;
   /** Revoke all of a user's live sessions → count revoked. @internal */
-  revokeAllForUser: (userId: UserId) => Promise<number>;
+  revokeAllForUser: RevokeAllSessionsForUserOp;
   /** The UNEXECUTED form of {@link SessionsService.revokeAllForUser} — the same atomic UPDATE, handed to a
    *  caller that must commit the kick INSIDE its own privileged write's `db.batch` rather than after it
    *  (#1691: `admin.resetPassword`'s revoke used to be a separate await, so a failed kick left the NEW
@@ -124,7 +124,7 @@ export interface SessionsService {
    *  Idempotent (re-delivered logout tokens re-revoke nothing, and name no users). @internal */
   revokeByExternalId: (externalId: ExternalId) => Promise<RevokedSessionsSummary>;
   /** A user's sessions for the admin device list. @internal */
-  listForUser: (userId: UserId) => Promise<SessionView[]>;
+  listForUser: ListSessionsForUserOp;
   /** Resolve a handle → `UserId`, JIT-creating the row on first sight. @internal */
   ensureUser: (handle: Handle) => Promise<UserId>;
   /** The SSO seam upsert: keys on the stable `externalId`, seeds `role` from owner policy on insert,
@@ -132,9 +132,9 @@ export interface SessionsService {
    *  caller-resolved admission decisions (A1 JIT gate / A2 approval) — the verb stays mode-agnostic. @internal */
   provisionIdentity: (identity: ResolvedIdentity, options: ProvisionIdentityOptions) => Promise<ProvisionResult>;
   /** Resolve a bare row id → its live principal-fields, or `null` for an unknown id. @internal */
-  loadUserById: (userId: UserId) => Promise<UserPrincipalFields | null>;
+  loadUserById: LoadUserByIdOp;
   /** Exact handle→userId. A disabled/unknown handle collapses to null (leak-free; exact match only). */
-  resolveHandle: (handle: Handle) => Promise<UserId | null>;
+  resolveHandle: ResolveHandleOp;
   /** Local password login: resolve `(handle, password)` → the row's `UserId`, or `null` for
    *  unknown/SSO-only/wrong-password/disabled — all collapse into one leak-free null with the same KDF
    *  time burned (no user-enumeration timing oracle). @internal */

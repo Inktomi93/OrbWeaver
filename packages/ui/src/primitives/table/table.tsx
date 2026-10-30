@@ -366,13 +366,13 @@ export function Table<TData>({
             {pageStart + 1}–{Math.min(pageStart + pageSize, sorted.length)} of {sorted.length}
           </span>
           <div className={slots.pagerButtons()}>
-            <Button disabled={pageIndex <= 0} intent="ghost" onClick={(): void => goToPage(pageIndex - 1)} size="sm" type="button">
+            <Button disabled={pageIndex <= 0} variant="ghost" onClick={(): void => goToPage(pageIndex - 1)} size="sm" type="button">
               <Icon icon={ChevronLeft} label="Previous page" size="sm" />
             </Button>
             <span className={slots.pagerInfo()}>
               Page {pageIndex + 1} of {pageCount}
             </span>
-            <Button disabled={pageIndex >= pageCount - 1} intent="ghost" onClick={(): void => goToPage(pageIndex + 1)} size="sm" type="button">
+            <Button disabled={pageIndex >= pageCount - 1} variant="ghost" onClick={(): void => goToPage(pageIndex + 1)} size="sm" type="button">
               <Icon icon={ChevronRight} label="Next page" size="sm" />
             </Button>
           </div>

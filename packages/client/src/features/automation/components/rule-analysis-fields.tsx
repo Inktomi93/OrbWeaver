@@ -38,14 +38,14 @@ export function RuleAnalysisFields({
       <form.AppField name={`actions[${index}].steer`}>
         {(field): ReactElement =>
           field.state.value === undefined ? (
-            <Button intent="ghost" className="justify-start" onClick={(): void => field.handleChange("")}>
+            <Button variant="ghost" className="justify-start" onClick={(): void => field.handleChange("")}>
               <Icon icon={ChevronRight} size="sm" />
               Add standing direction
             </Button>
           ) : (
             <Stack gap="tight">
               <field.MacroField label="Standing direction" suggestions={[]} />
-              <Button intent="ghost" className="justify-start" onClick={(): void => field.handleChange(undefined)}>
+              <Button variant="ghost" className="justify-start" onClick={(): void => field.handleChange(undefined)}>
                 Remove standing direction
               </Button>
             </Stack>

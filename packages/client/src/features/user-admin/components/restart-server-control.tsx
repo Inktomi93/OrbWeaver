@@ -111,7 +111,7 @@ export function RestartServerControl(): ReactElement {
         confirmLoading={restart.isPending}
         onConfirm={confirmRestart}
         trigger={
-          <Button type="button" intent="secondary" size="sm" disabled={busy || !hasLiveIdentity} focusableWhenDisabled={true} aria-describedby={hintId}>
+          <Button type="button" variant="outline" size="sm" disabled={busy || !hasLiveIdentity} focusableWhenDisabled={true} aria-describedby={hintId}>
             {RESTART_SERVER_LABEL}
           </Button>
         }

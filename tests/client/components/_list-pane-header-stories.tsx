@@ -26,11 +26,7 @@ export function ListPaneHeaderStory({ title, accent, count, withBack = false, wi
           actions: [
             {
               id: "new-chat",
-              inline: (
-                <Button intent="primary" onClick={(): void => setActions((value) => value + 1)}>
-                  New chat
-                </Button>
-              ),
+              inline: <Button onClick={(): void => setActions((value) => value + 1)}>New chat</Button>,
               menu: [{ id: "new-chat", label: "New chat", icon: Plus, onSelect: (): void => setActions((value) => value + 1) }],
             },
           ],

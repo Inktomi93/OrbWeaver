@@ -145,7 +145,7 @@ export function UserMacroEditorDialog({ form, index, onClose, suggestions }: Use
         </form.AppField>
 
         <DialogFooter>
-          <DialogClose render={<Button intent="primary">Done</Button>} />
+          <DialogClose render={<Button>Done</Button>} />
         </DialogFooter>
       </DialogBody>
     </FormDialog>
@@ -163,7 +163,7 @@ function ArgList({ form, index }: { readonly form: UserMacroEditorForm; readonly
   const addButton = useRef<HTMLButtonElement>(null);
   return (
     <Section heading="Arguments">
-      <Text tone="muted" voice="gloss">
+      <Text ink="muted" voice="gloss">
         Positional args a call passes ({"{{name::a::b}}"}) — each binds by name inside the template. Optional args must come last.
       </Text>
       <form.Subscribe selector={(state): UserMacrosFormValues => state.values}>
@@ -180,7 +180,7 @@ function ArgList({ form, index }: { readonly form: UserMacroEditorForm; readonly
                 </form.AppField>
                 <form.AppField name={`userMacros[${index}].args[${j}].default`}>{(field): ReactElement => <field.TextField label="Default" />}</form.AppField>
                 <Button
-                  intent="ghost"
+                  variant="ghost"
                   size="sm"
                   onClick={(): void => {
                     addButton.current?.focus();
@@ -196,7 +196,7 @@ function ArgList({ form, index }: { readonly form: UserMacroEditorForm; readonly
             <Row>
               <Button
                 ref={addButton}
-                intent="secondary"
+                variant="outline"
                 size="sm"
                 onClick={(): void => {
                   form.pushFieldValue(argsName, makeArg());
@@ -234,7 +234,7 @@ function InputList({ form, index }: { readonly form: UserMacroEditorForm; readon
   const addButton = useRef<HTMLButtonElement>(null);
   return (
     <Section heading="Inputs">
-      <Text tone="muted" voice="gloss">
+      <Text ink="muted" voice="gloss">
         Typed controls each user answers per turn — the pick binds by name inside the template. Random pick draws one from the selected pool every generation
         (swipes replay the same draw).
       </Text>
@@ -259,7 +259,7 @@ function InputList({ form, index }: { readonly form: UserMacroEditorForm; readon
             <Row>
               <Button
                 ref={addButton}
-                intent="secondary"
+                variant="outline"
                 size="sm"
                 onClick={(): void => {
                   const input = makeInput();
@@ -295,11 +295,11 @@ function InputEditor({
   const base = `userMacros[${macroIndex}].inputs[${inputIndex}]` as const;
   const hasOptions = kind !== "boolean-toggle";
   return (
-    <Card tone="neutral" role="group" aria-label={`Macro input ${inputIndex + 1}`}>
+    <Card role="group" aria-label={`Macro input ${inputIndex + 1}`}>
       <Stack gap="field">
         <Row gap="field" align="end" justify="between">
           <form.AppField name={`${base}.kind`}>{(field): ReactElement => <field.SelectField label="Kind" items={USER_MACRO_INPUT_KIND_ITEMS} />}</form.AppField>
-          <Button intent="ghost" size="sm" onClick={onRemove}>
+          <Button variant="ghost" size="sm" onClick={onRemove}>
             Remove
           </Button>
         </Row>
@@ -385,7 +385,7 @@ function InputOptionList({
               <form.AppField name={`${base}.options[${k}].label`}>{(field): ReactElement => <field.TextField label="Label" />}</form.AppField>
               <form.AppField name={`${base}.options[${k}].value`}>{(field): ReactElement => <field.TextField label="Value" />}</form.AppField>
               <Button
-                intent="ghost"
+                variant="ghost"
                 size="sm"
                 onClick={(): void => {
                   addButton.current?.focus();
@@ -402,7 +402,7 @@ function InputOptionList({
           <Row>
             <Button
               ref={addButton}
-              intent="secondary"
+              variant="outline"
               size="sm"
               onClick={(): void => {
                 form.pushFieldValue(optionsName, { label: "Option", value: "" });

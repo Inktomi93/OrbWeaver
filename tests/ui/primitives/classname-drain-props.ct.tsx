@@ -24,7 +24,7 @@ function style(locator: Locator, property: string): Promise<string> {
   return locator.evaluate((element, name) => getComputedStyle(element).getPropertyValue(name), property);
 }
 
-test("each meaning tone paints Text and Icon in its own token", async ({ mount }) => {
+test("a meaning tone and each named ink paint Text and Icon in their own token", async ({ mount }) => {
   const component = await mount<typeof ToneStory>(`${STORIES}/ToneStory`, {});
   for (const tone of TONES) {
     const row = component.locator(`[data-tone-case="${tone}"]`);
@@ -134,7 +134,7 @@ test("at a fine pointer the group's hover reveals the cluster: full for an actio
   await expect.poll(() => opacity(component.locator('[data-slot="list-row-actions"]'))).toBe("1");
 });
 
-test("the row and well shapes take the control radius in and out of a tier, the well drops its border for a muted fill", async ({ mount }) => {
+test("the row shape takes the control radius in and out of a tier, and the neutral soft style takes the muted tint", async ({ mount }) => {
   const component = await mount<typeof CardShapeStory>(`${STORIES}/CardShapeStory`, {});
   const card = (name: string): Locator => component.locator(`[data-case="${name}"]`);
   const control = await style(component.locator('[data-probe="control"]'), "border-start-start-radius");
@@ -142,7 +142,6 @@ test("the row and well shapes take the control radius in and out of a tier, the 
   expect(await style(card("tier-row"), "border-start-start-radius")).toBe(control);
   expect(await style(card("island"), "border-start-start-radius")).not.toBe(control);
   expect(await style(card("row"), "border-block-start-width")).toBe("1px");
-  expect(await style(card("well"), "border-block-start-width")).toBe("0px");
   expect(await style(card("well"), "background-color")).toBe(await style(component.locator('[data-probe="muted"]'), "background-color"));
   expect(await style(card("accent-well"), "background-color")).toBe(await style(component.locator('[data-probe="accent"]'), "background-color"));
   expect(await style(card("clear"), "background-color")).toBe(await style(component.locator('[data-probe="clear"]'), "background-color"));
@@ -184,7 +183,7 @@ test("each divider draws one hairline edge in the border ink and leaves the othe
   }
 });
 
-test("a Button tone inks the ghost and link intents and leaves a filled intent's ink alone", async ({ mount }) => {
+test("a Button tone and a named ink colour the ghost and link styles", async ({ mount }) => {
   const component = await mount<typeof ButtonToneStory>(`${STORIES}/ButtonToneStory`, {});
   const probe = (name: string): Promise<string> => style(component.locator(`[data-probe="${name}"]`), "color");
   const button = (name: string): Locator => component.getByRole("button", { name, exact: true });
@@ -193,7 +192,6 @@ test("a Button tone inks the ghost and link intents and leaves a filled intent's
   expect(await style(button("ghost primary"), "color")).toBe(await probe("primary"));
   expect(await style(button("ghost destructive"), "color")).toBe(await probe("destructive"));
   expect(await style(button("link muted"), "color")).toBe(await probe("muted"));
-  expect(await style(button("primary muted"), "color")).toBe(await style(button("primary plain"), "color"));
 });
 
 test("receded dims each primitive to the token's opacity", async ({ mount }) => {
@@ -212,7 +210,7 @@ test("receded dims each primitive to the token's opacity", async ({ mount }) => 
   expect(await style(component.getByText("plain text", { exact: true }), "opacity")).toBe("1");
 });
 
-test("the sidebar, translucent and backdrop tones paint their fills, and the input tone draws the field edge with no fill", async ({ mount }) => {
+test("the sidebar, translucent and backdrop surfaces paint their fills", async ({ mount }) => {
   const component = await mount<typeof CardToneStory>(`${STORIES}/CardToneStory`, {});
   const probe = (name: string): Locator => component.locator(`[data-probe="${name}"]`);
   const card = (name: string): Locator => component.locator(`[data-case="${name}"]`);
@@ -220,6 +218,4 @@ test("the sidebar, translucent and backdrop tones paint their fills, and the inp
     expect(await style(card(tone), "background-color"), tone).toBe(await style(probe(tone), "background-color"));
   }
   expect(await style(card("sidebar"), "border-block-start-color")).toBe(await style(probe("sidebar"), "border-block-start-color"));
-  expect(await style(card("input"), "border-block-start-color")).toBe(await style(probe("input"), "border-block-start-color"));
-  expect(await style(card("input"), "background-color")).toBe(await style(probe("input"), "background-color"));
 });

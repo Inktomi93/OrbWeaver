@@ -51,18 +51,18 @@ interface TagChipPresentation {
    *  carries THREE registers, and a filter chip "recedes to muted" against the command's foreground. And
    *  "Transparent `Button` actions inherit their host surface's paired ink; they do not substitute the
    *  low-emphasis `muted-foreground` semantic for an action label", so the transparent intents paint
-   *  `text-current`, which alone would collapse two of the rail's registers onto one ink. BOTH RULINGS
+   *  their host's ink, which alone would collapse two of the rail's registers onto one ink. BOTH RULINGS
    *  SURVIVE: the primitive keeps inheriting, and the HOST — this rail, where the register law lives — states
    *  the receding ink for the vocabulary it holds. Only the `off` arm carries it: an ON/NEGATED chip is
    *  wearing the selection layer's own fill-and-ink pairing, and a call-site ink would
    *  win the merge and erase exactly the muted-vs-selected reading {@link TagFilterChip} depends on. */
-  readonly restingTone: "muted" | "default";
+  readonly restingInk: "muted" | undefined;
 }
 
 const TAG_CHIP_PRESENTATION: Record<TagFilterState, TagChipPresentation> = {
-  off: { announced: "off", next: "activate to include", selection: "none", icon: null, restingTone: "muted" },
-  include: { announced: "included", next: "activate to exclude", selection: "on", icon: Check, restingTone: "default" },
-  exclude: { announced: "excluded", next: "activate to clear", selection: "negated", icon: Minus, restingTone: "default" },
+  off: { announced: "off", next: "activate to include", selection: "none", icon: null, restingInk: "muted" },
+  include: { announced: "included", next: "activate to exclude", selection: "on", icon: Check, restingInk: undefined },
+  exclude: { announced: "excluded", next: "activate to clear", selection: "negated", icon: Minus, restingInk: undefined },
 };
 
 /** THE BOUNDED EXPANSION. Four properties, each answering one symptom:
@@ -237,12 +237,12 @@ function TagFilterChipButton({
           aria-label={`Filter by ${tag.name}: ${presentation.announced} — ${presentation.next}`}
           className="max-inline-full min-inline-0"
           data-tag-filter-state={state}
-          intent="outline"
+          variant="outline"
           onClick={(): void => onCycle(tag.id)}
           selection={presentation.selection}
           shape="pill"
           size="chip"
-          tone={presentation.restingTone}
+          ink={presentation.restingInk}
           {...(tabIndex === undefined ? {} : { tabIndex })}
           type="button"
         >
@@ -303,13 +303,13 @@ export function RailAction({
       aria-controls={controls}
       aria-expanded={expanded}
       aria-label={accessibleName}
-      // The receding ink is the RAIL's to state, not `ghost`'s — see {@link TagChipPresentation.restingTone}
+      // The receding ink is the RAIL's to state, not `ghost`'s — see {@link TagChipPresentation.restingInk}
       // for the two rulings this reconciles. This affordance has no selected arm, so it carries it flat.
-      intent="ghost"
+      variant="ghost"
+      ink="muted"
       underline="dotted"
       onClick={onClick}
       size="chip"
-      tone="muted"
       type="button"
     >
       {label}

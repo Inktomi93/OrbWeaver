@@ -400,7 +400,7 @@ function EditorTier({
         <Row align="center" className="flex-wrap inline-full" gap="field">
           <Text voice="label">{title}</Text>
           {badge === undefined ? null : (
-            <Badge intent="info" size="sm" tone="soft">
+            <Badge tone="info" size="sm">
               {badge}
             </Badge>
           )}

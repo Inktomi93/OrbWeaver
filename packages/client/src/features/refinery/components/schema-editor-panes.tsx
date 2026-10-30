@@ -49,7 +49,7 @@ export function PreflightNote({ schema, stage }: { schema: Record<string, unknow
             data-plan={plan.outcome}
             data-testid={testId("refinerySchemaPlan")}
             prose={true}
-            tone={REFINERY_SCHEMA_PLAN_FAILING.has(plan.outcome) ? "warning" : "default"}
+            tone={REFINERY_SCHEMA_PLAN_FAILING.has(plan.outcome) ? "warning" : undefined}
             voice="gloss"
           >
             {refinerySchemaPlanLine(plan)}
@@ -122,7 +122,7 @@ export function PreviewCard({
           <Button
             aria-busy={testSchema.isPending}
             disabled={outerBusy || testSchema.isPending || testCharacterId === null}
-            intent="secondary"
+            variant="outline"
             onClick={(): void => {
               if (testCharacterId !== null) {
                 testSchema.mutate(

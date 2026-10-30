@@ -26,8 +26,8 @@ interface FormDialogSubmit {
   readonly loading?: boolean;
   /** The Cancel button's label. @defaultValue "Cancel" */
   readonly cancelLabel?: string;
-  /** The confirm button's intent. @defaultValue "primary" */
-  readonly intent?: "destructive" | "primary";
+  /** The confirm button's tone. @defaultValue "primary" */
+  readonly tone?: "destructive" | "primary";
 }
 
 export interface FormDialogProps {
@@ -121,7 +121,7 @@ export function FormDialog({
         {closeButton ? (
           <DialogClose
             render={
-              <Button aria-label="Close" className="absolute inset-e-field inset-bs-field" intent="ghost" size="icon" type="button">
+              <Button aria-label="Close" className="absolute inset-e-field inset-bs-field" variant="ghost" size="icon" type="button">
                 <Icon icon={X} size="sm" />
               </Button>
             }
@@ -145,8 +145,8 @@ function OwnedFooter({
   if (submit !== undefined) {
     return (
       <DialogFooter>
-        <DialogClose render={<Button intent="ghost">{submit.cancelLabel ?? "Cancel"}</Button>} />
-        <Button disabled={submit.disabled ?? false} form={formId} intent={submit.intent ?? "primary"} loading={submit.loading ?? false} type="submit">
+        <DialogClose render={<Button variant="ghost">{submit.cancelLabel ?? "Cancel"}</Button>} />
+        <Button disabled={submit.disabled ?? false} form={formId} tone={submit.tone ?? "primary"} loading={submit.loading ?? false} type="submit">
           {submit.label}
         </Button>
       </DialogFooter>
@@ -157,7 +157,7 @@ function OwnedFooter({
   }
   return (
     <DialogFooter>
-      <DialogClose render={<Button intent="ghost">{dismissLabel}</Button>} />
+      <DialogClose render={<Button variant="ghost">{dismissLabel}</Button>} />
     </DialogFooter>
   );
 }
@@ -213,8 +213,8 @@ export interface FormSubmitButtonProps {
 export function FormSubmitButton({ testKey, disabled, label, onSubmit, cancelLabel = "Cancel" }: FormSubmitButtonProps): ReactElement {
   return (
     <DialogFooter>
-      <DialogClose render={<Button intent="ghost">{cancelLabel}</Button>} />
-      <Button data-testid={testId(testKey)} disabled={disabled} intent="primary" onClick={onSubmit}>
+      <DialogClose render={<Button variant="ghost">{cancelLabel}</Button>} />
+      <Button data-testid={testId(testKey)} disabled={disabled} onClick={onSubmit}>
         {label}
       </Button>
     </DialogFooter>

@@ -42,7 +42,7 @@ function ReferenceEntry({ entry }: { readonly entry: ReferenceCount }): ReactEle
       <Row align="baseline" gap="row" justify="between">
         <Text voice="code">{`{{${entry.name}}}`}</Text>
         {count === 0 ? (
-          <Badge intent="warning" size="sm">
+          <Badge tone="warning" variant="solid" size="sm">
             0 refs
           </Badge>
         ) : (
@@ -70,7 +70,7 @@ function SiteChip({ site }: { readonly site: ReferenceSite }): ReactElement {
     return <Text voice="gloss">{site.label}</Text>;
   }
   return (
-    <Button intent="ghost" onClick={(): void => selectPresetSection(sectionId)} size="sm" type="button">
+    <Button variant="ghost" onClick={(): void => selectPresetSection(sectionId)} size="sm" type="button">
       {site.label}
     </Button>
   );

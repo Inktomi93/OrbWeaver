@@ -33,7 +33,7 @@ export function PivotBand({ duplicate, restoreFocus, onSelect, onDrill }: PivotB
   useFocusOnSwap(chevronRef, restoreFocus && !duplicate);
   if (duplicate) {
     return (
-      <Card tone="warning">
+      <Card tone="warning" variant="soft">
         <Row align="center" gap="row">
           <Icon icon={AlertTriangle} size="sm" tone="warning" />
           <Text className="flex-1" voice="label">
@@ -48,7 +48,7 @@ export function PivotBand({ duplicate, restoreFocus, onSelect, onDrill }: PivotB
   // read as two controls bracketing the row. The mock draws hairline micro-caps INSIDE the band — a zone
   // legend is a label for the space above/below the horizon, which is exactly the `kicker` voice's job.
   return (
-    <Card tone="muted" outline="dashed">
+    <Card variant="soft" dashed={true}>
       <Stack gap="tight">
         <Text tone="info" voice="kicker">
           setup · before the conversation
@@ -57,7 +57,7 @@ export function PivotBand({ duplicate, restoreFocus, onSelect, onDrill }: PivotB
           <Icon className="shrink-0" icon={MessagesSquare} size="sm" />
           {/* `min-w-0` on BOTH the button and its gloss: at ~530px the name collided with the chevron
             because nothing in the row could shrink (F-18). The NAME keeps its width, the gloss truncates. */}
-          <Button className="flex-1 justify-start text-start min-inline-0" intent="ghost" onClick={onSelect} size="sm" type="button">
+          <Button className="flex-1 justify-start text-start min-inline-0" variant="ghost" onClick={onSelect} size="sm" type="button">
             <Text as="span" className="shrink-0" voice="label">
               Chat history
             </Text>
@@ -65,7 +65,7 @@ export function PivotBand({ duplicate, restoreFocus, onSelect, onDrill }: PivotB
               your conversation splices in here — always on, always placed
             </Text>
           </Button>
-          <Button aria-label="Edit Chat history" className="shrink-0" intent="ghost" onClick={onDrill} ref={chevronRef} size="icon" type="button">
+          <Button aria-label="Edit Chat history" className="shrink-0" variant="ghost" onClick={onDrill} ref={chevronRef} size="icon" type="button">
             <Icon icon={ChevronRight} size="sm" />
           </Button>
         </Row>

@@ -79,16 +79,16 @@ export function DiscoverHitRow({ hit, rank }: { readonly hit: DiscoverHit; reado
                 <Tip key={segment.source.rowId} text={roomNumberingHint(chatSubtitle(segment.chatTitle, hit.name))}>
                   <Button
                     className="justify-start max-inline-full"
-                    intent="ghost"
+                    variant="ghost"
+                    ink="muted"
                     size="sm"
-                    tone="muted"
                     onClick={(): void => selectCorpusArtifact({ kind: "scene", hit: segment, characterName: hit.name, rank })}
                   >
-                    <Text as="span" className="truncate min-inline-0" tone="muted" voice="label">
+                    <Text as="span" className="truncate min-inline-0" ink="muted" voice="label">
                       {chatSubtitle(segment.chatTitle, hit.name)}
                       {occurrences.filter((candidate) => candidate.chatId === segment.chatId).length > 1 ? ` · occurrence ${index + 1}` : ""}
                     </Text>
-                    <Text aria-hidden={true} as="span" className="shrink-0" tone="muted" voice="label">
+                    <Text aria-hidden={true} as="span" className="shrink-0" ink="muted" voice="label">
                       →
                     </Text>
                   </Button>

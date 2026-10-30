@@ -71,7 +71,7 @@ export function RpgFreshnessIndicator({ delivery, pending }: RpgFreshnessIndicat
     // Current-beat fresh at commit — a minimal honest "Live" affordance (never a fake lag label).
     return (
       <>
-        <Badge tone="soft" intent="success" size="sm" data-slot="rpg-freshness">
+        <Badge tone="success" size="sm" data-slot="rpg-freshness">
           <Icon icon={Clock} size="xs" />
           <Text as="span" voice="gloss" ink="inherit">
             Live
@@ -90,7 +90,7 @@ export function RpgFreshnessIndicator({ delivery, pending }: RpgFreshnessIndicat
     // written by a second model call. The pulse is decorative (aria-hidden); the label is the datum.
     return (
       <>
-        <Badge tone="soft" size="sm" data-slot="rpg-freshness">
+        <Badge size="sm" data-slot="rpg-freshness">
           {/* Icon is decorative by default (no `label` ⇒ aria-hidden); the pulse is purely visual. */}
           <Icon icon={History} pulse={true} size="xs" />
           <Text as="span" voice="gloss" ink="inherit">
@@ -105,7 +105,7 @@ export function RpgFreshnessIndicator({ delivery, pending }: RpgFreshnessIndicat
   // the panel is the most recently persisted state, which is not necessarily the latest narrative beat.
   return (
     <>
-      <Badge tone="soft" size="sm" data-slot="rpg-freshness">
+      <Badge size="sm" data-slot="rpg-freshness">
         <Icon icon={History} size="xs" />
         <Text as="span" voice="gloss" ink="inherit">
           Last recorded beat

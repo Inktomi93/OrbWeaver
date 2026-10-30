@@ -46,7 +46,7 @@ export function CharacterAttachments({
               <Button
                 aria-label={`Detach ${documentName} from ${character.name}`}
                 disabled={attach.isPending || detach.isPending}
-                intent="ghost"
+                variant="ghost"
                 onClick={(): void => detach.mutate({ characterId: character.id, documentId })}
                 size="sm"
                 type="button"
@@ -64,7 +64,7 @@ export function CharacterAttachments({
       )}
       <Button
         disabled={attach.isPending || detach.isPending}
-        intent="secondary"
+        variant="outline"
         onClick={(): void => {
           attach.clearError();
           setPickerOpen(true);
@@ -110,7 +110,7 @@ function MutationRetry({ copy, onRetry }: { readonly copy: string; readonly onRe
         {copy}
       </Text>
       <Row>
-        <Button intent="secondary" onClick={onRetry} size="sm" type="button">
+        <Button variant="outline" onClick={onRetry} size="sm" type="button">
           Retry
         </Button>
       </Row>
@@ -120,7 +120,7 @@ function MutationRetry({ copy, onRetry }: { readonly copy: string; readonly onRe
 
 function CharacterDoor({ id, name }: { readonly id: CharacterId; readonly name: string }): ReactElement {
   return (
-    <Button className="flex-1 justify-start min-inline-0" intent="ghost" onClick={(): void => openCharacter(id)} size="sm" type="button">
+    <Button className="flex-1 justify-start min-inline-0" variant="ghost" onClick={(): void => openCharacter(id)} size="sm" type="button">
       <Icon icon={Users} size="xs" />
       <Text as="span" className="truncate min-inline-0" voice="label">
         {name}

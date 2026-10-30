@@ -63,13 +63,13 @@ export function CharacterRestoreBookAction({ canRestore }: CharacterRestoreBookA
     <>
       <FileTrigger accept={CARD_ACCEPT} onFilesSelected={([file]): void => setPicked(file ?? null)}>
         {({ open }): ReactElement => (
-          <Button intent="ghost" onClick={open}>
+          <Button variant="ghost" onClick={open}>
             Restore the embedded book from this card file
           </Button>
         )}
       </FileTrigger>
       <ConfirmDialog
-        confirmIntent="primary"
+        confirmTone="primary"
         confirmLabel="Restore"
         description={picked === null ? undefined : confirmDescription(picked.name)}
         onConfirm={onConfirm}

@@ -39,7 +39,7 @@ export interface CorpusRunJobEmptyStateProps {
 
 export function CorpusRunJobEmptyState({ title, description, offerDoor = true, secondaryAction }: CorpusRunJobEmptyStateProps): ReactElement {
   const door = offerDoor ? (
-    <Button intent="primary" size="sm" onClick={(): void => openConfigTo("workloads", "jobs")}>
+    <Button size="sm" onClick={(): void => openConfigTo("workloads", "jobs")}>
       <Icon icon={Sparkles} size="sm" />
       Run a job…
     </Button>

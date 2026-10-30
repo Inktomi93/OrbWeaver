@@ -49,15 +49,15 @@ function SheetLevel({ level, onEditLevel }: { readonly level: number | null; rea
   }
   if (onEditLevel === undefined) {
     return (
-      <Badge tone="soft" size="sm" data-slot="sheet-level">
-        <Text as="span" tone="muted" voice="datum">
+      <Badge size="sm" data-slot="sheet-level">
+        <Text as="span" ink="muted" voice="datum">
           Level {level}
         </Text>
       </Badge>
     );
   }
   return (
-    <Badge tone="soft" size="sm" data-slot="sheet-level">
+    <Badge size="sm" data-slot="sheet-level">
       <Row gap="field" align="center">
         <Text as="span" voice="gloss">
           Level
@@ -102,7 +102,7 @@ function SheetFlavor({ actor, onEditFlavor }: { readonly actor: RpgActorView; re
         ariaLabel={`${actor.name} flavor`}
         display={actor.sheet.flavor}
         placeholder="a line about who they are…"
-        tone="muted"
+        ink="muted"
         onEdit={onEditFlavor}
         wrap={true}
         className="field-sizing-content max-inline-full min-inline-0"
@@ -128,9 +128,9 @@ function WalletChip({
   readonly onRelease?: () => void;
 }): ReactElement {
   return (
-    <Badge tone="soft" size="sm" data-slot="sheet-wallet-chip">
+    <Badge size="sm" data-slot="sheet-wallet-chip">
       {onEditAmount === undefined ? (
-        <Text as="span" tone="muted" voice="datum">
+        <Text as="span" ink="muted" voice="datum">
           {coin.amount} {coin.name}
         </Text>
       ) : (
@@ -367,7 +367,7 @@ export function RpgCharacterDetail({ state, actor, edit, onBack }: RpgCharacterD
       {/* The breadcrumb — a real button (keyboard-reachable, ≥44px on a coarse pointer through the shared
           control tokens), naming where it goes. The participant list is one step away from every character. */}
       <Row gap="field" align="center">
-        <Button intent="ghost" size="sm" onClick={onBack} aria-label="Back to the characters">
+        <Button variant="ghost" size="sm" onClick={onBack} aria-label="Back to the characters">
           <Icon icon={ChevronLeft} size="xs" />
           Characters
         </Button>

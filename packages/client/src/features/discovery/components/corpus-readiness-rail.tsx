@@ -19,7 +19,7 @@
 // `corpus-run-job-empty-state.tsx` records, from two identical "Run a job…" buttons 400px apart): in that
 // state the INVITATION island is the focal and owns the verb. Once the passes have run the invitation is
 // gone and the rail carries the re-run, which is the only affordance left that needs a home — and it
-// therefore inherits the invitation's `intent="primary"`, because the two never render together and a
+// therefore inherits the invitation's focal solid, because the two never render together and a
 // surface's one door does not get quieter for having outlived its neighbour (#244 P1-3; the earlier
 // "quiet re-run" spelling made it literally invisible, see the button's own comment).
 //
@@ -99,12 +99,12 @@ export function CorpusReadinessRail({ stages, showRerun, queue }: CorpusReadines
             role="listitem"
           >
             <Row className="min-inline-0" gap="field">
-              <Icon tone={stage.done ? "accent" : "muted"} icon={stage.done ? Check : Circle} size="xs" />
+              <Icon {...(stage.done ? ({ tone: "primary" } as const) : ({ ink: "muted" } as const))} icon={stage.done ? Check : Circle} size="xs" />
               <Text as="span" className="min-inline-0" voice="label">
                 {stage.label}
               </Text>
             </Row>
-            <Text as="span" className="shrink-0" tone={stage.done ? "default" : "muted"} voice="datum">
+            <Text as="span" className="shrink-0" ink={stage.done ? undefined : "muted"} voice="datum">
               {stage.datum}
             </Text>
           </Row>
@@ -141,7 +141,7 @@ function CorpusReadinessRerun(): ReactElement {
   }
   return (
     <Stack align="start" gap="tight">
-      {/* PAINTED AND BOUNDED (#244 P1-3). This shipped `intent="ghost"` inside a stretch-aligned Stack, so
+      {/* PAINTED AND BOUNDED (#244 P1-3). This shipped `variant="ghost"` inside a stretch-aligned Stack, so
           the surface's ONLY door computed 869x32, transparent, borderless, at muted-foreground 13px, its
           label centred — a caption with a click handler, which is what the pass measured and what a
           first-timer reads it as. "Quiet" was the intent of the SLOT, never of the affordance; the mockup
@@ -150,15 +150,9 @@ function CorpusReadinessRerun(): ReactElement {
           a banner whichever intent it carries.
 
           ONE primary, and it is never TWO: this rerun renders only while `showRerun` is true, which is
-          exactly the phase in which the invitation (and its own `intent="primary"` door) is gone. CD3's
+          exactly the phase in which the invitation (and its own focal solid door) is gone. CD3's
           focal budget is spent by the map island's ring, not by a control. */}
-      <Button
-        aria-describedby={utilityMissing ? utilityNoteId : undefined}
-        disabled={pass.starting || utilityMissing}
-        intent="primary"
-        onClick={pass.start}
-        size="sm"
-      >
+      <Button aria-describedby={utilityMissing ? utilityNoteId : undefined} disabled={pass.starting || utilityMissing} onClick={pass.start} size="sm">
         Run the passes again
       </Button>
       {utilityMissing ? <UnderstandingPassUtilityNote id={utilityNoteId} utility={utility} /> : null}
@@ -196,7 +190,7 @@ function CorpusReadinessRerun(): ReactElement {
       {pass.failure === null ? null : (
         <Stack data-slot="readiness-rerun-failure" gap="tight">
           <Text voice="kicker">Last run</Text>
-          <Text tone="muted" voice="label">
+          <Text ink="muted" voice="label">
             {pass.failureWasCrash ? "The last pass stopped unexpectedly — run it again." : `The last pass stopped: ${pass.failure}`}
           </Text>
         </Stack>
@@ -206,7 +200,7 @@ function CorpusReadinessRerun(): ReactElement {
           control per this file's own "ONE primary" ruling above — and #969 flipped `ghost` to
           `text-current`, so it now paints at the same weight as that primary. The primitive keeps
           inheriting; this composite states its own ink. */}
-      <Button data-slot="readiness-jobs-door" intent="ghost" onClick={(): void => openConfigTo("workloads", "jobs")} size="sm" tone="muted">
+      <Button data-slot="readiness-jobs-door" variant="ghost" ink="muted" onClick={(): void => openConfigTo("workloads", "jobs")} size="sm">
         All jobs in Settings → Jobs
       </Button>
     </Stack>

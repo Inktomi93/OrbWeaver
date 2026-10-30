@@ -87,7 +87,7 @@ export function SnippetConsole({ chatId }: SnippetConsoleProps): ReactElement {
       ) : null}
 
       <Row gap="field" justify="start">
-        <Button disabled={overCap || code.trim().length === 0} intent="secondary" loading={runSnippet.isPending} onClick={onRun}>
+        <Button disabled={overCap || code.trim().length === 0} variant="outline" loading={runSnippet.isPending} onClick={onRun}>
           Run
         </Button>
       </Row>

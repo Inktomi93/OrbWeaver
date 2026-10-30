@@ -36,7 +36,7 @@ import {
   isRetryableWorkloadStatus,
   toProgressView,
   WORKLOAD_KIND_LABELS,
-  WORKLOAD_STATUS_INTENT,
+  WORKLOAD_STATUS_BADGE,
   WORKLOAD_STATUS_LABELS,
 } from "../lib/workloads-model.ts";
 import { workloadResultSummary } from "../lib/workloads-result-copy.ts";
@@ -110,22 +110,23 @@ function WorkloadRowBody({
                 and the amber sat beside a green "Succeeded" telling two stories about one row. The queue-state
                 badges below already speak this vocabulary — a category badge is neutral, and colour on this
                 row is reserved for the status badge that owns it. */}
-            {workload.mode === "bulk" ? <Badge intent="neutral">Bulk</Badge> : null}
-            {workload.poison ? <Badge intent="danger">Unreadable</Badge> : null}
+            {workload.mode === "bulk" ? <Badge>Bulk</Badge> : null}
+            {workload.poison ? (
+              <Badge tone="destructive" variant="solid">
+                Unreadable
+              </Badge>
+            ) : null}
             <QueueStateBadges deferred={deferred} waiting={waiting} />
             <Row aria-live="polite" data-slot="workload-status">
-              {/* A success is the expected state, so it takes the quiet outline while every other state keeps its fill. */}
-              <Badge intent={depFailed ? "warning" : WORKLOAD_STATUS_INTENT[workload.status]} tone={workload.status === "succeeded" ? "ghost" : "solid"}>
-                {statusLabel}
-              </Badge>
+              <Badge {...(depFailed ? ({ tone: "warning", variant: "solid" } as const) : WORKLOAD_STATUS_BADGE[workload.status])}>{statusLabel}</Badge>
             </Row>
             {active ? (
-              <Button type="button" intent="ghost" size="sm" aria-label={`Cancel — ${kindLabel}`} onClick={(): void => setConfirmCancel(true)}>
+              <Button type="button" variant="ghost" size="sm" aria-label={`Cancel — ${kindLabel}`} onClick={(): void => setConfirmCancel(true)}>
                 Cancel
               </Button>
             ) : null}
             {isRetryableWorkloadStatus(workload.status) ? (
-              <Button type="button" intent="secondary" size="sm" aria-label={`Retry — ${kindLabel}`} onClick={onRetry}>
+              <Button type="button" variant="outline" size="sm" aria-label={`Retry — ${kindLabel}`} onClick={onRetry}>
                 Retry
               </Button>
             ) : null}
@@ -184,8 +185,8 @@ function QueueStateBadges({ deferred, waiting }: { readonly deferred: boolean; r
   }
   return (
     <>
-      {deferred ? <Badge intent="neutral">Scheduled</Badge> : null}
-      {waiting ? <Badge intent="neutral">Waiting</Badge> : null}
+      {deferred ? <Badge>Scheduled</Badge> : null}
+      {waiting ? <Badge>Waiting</Badge> : null}
     </>
   );
 }

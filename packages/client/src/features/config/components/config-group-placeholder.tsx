@@ -38,9 +38,7 @@ export function ConfigGroupPlaceholder({ title, description }: ConfigGroupPlaceh
       <EmptyState action={null} icon={<Icon icon={Sparkles} size="lg" />} title={title} description={description} />
       {/* ONE SPELLING, TWO SURFACES (#925 ruling 2): the LIST row that opens this body wears the same phrase
           from the same home, so the map and the pane cannot drift into two claims about one arm. */}
-      <Badge intent="neutral" size="sm">
-        {CONFIG_UNBUILT_MARKER}
-      </Badge>
+      <Badge size="sm">{CONFIG_UNBUILT_MARKER}</Badge>
     </Stack>
   );
 }

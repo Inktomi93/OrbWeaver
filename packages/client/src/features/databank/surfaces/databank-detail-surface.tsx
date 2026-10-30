@@ -212,7 +212,7 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
             {/* The DETAIL keeps its `Ready` chip — §6.1's ruling deletes the chip from the LIST ROW, where
                 it was chrome on six rows in seven; here it is the answer to the question the user asked by
                 opening the document. */}
-            <Badge intent={badge.intent} size="sm" tone="soft">
+            <Badge tone={badge.tone} size="sm">
               {/* The act-now glyph rides here too — one chip anatomy, both panes (databank-model's
                   INGEST_BADGES note): a document that reads `Empty` on the list must not read as an
                   ordinary amber wait-state the moment it is opened. */}
@@ -220,7 +220,7 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
               {badge.label}
             </Badge>
             <Tip text={renameActionName(doc.name)}>
-              <Button aria-label={renameActionName(doc.name)} intent="ghost" onClick={(): void => setRenameOpen(true)} size="icon">
+              <Button aria-label={renameActionName(doc.name)} variant="ghost" onClick={(): void => setRenameOpen(true)} size="icon">
                 <Icon icon={Pencil} size="sm" />
               </Button>
             </Tip>
@@ -266,7 +266,7 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
               <Text className="flex-1 basis-(--width-field-floor) max-inline-(--reading-measure-prose) min-inline-0" voice="gloss">
                 Use this after a settings change, or if search misses this document.
               </Text>
-              <Button className="shrink-0 wrap-anywhere max-inline-full" disabled={reindex.isPending} intent="secondary" onClick={onReindex} size="wrap">
+              <Button className="shrink-0 wrap-anywhere max-inline-full" disabled={reindex.isPending} variant="outline" onClick={onReindex} size="wrap">
                 <Icon icon={RefreshCw} size="sm" />
                 Rebuild search index for this document
               </Button>
@@ -280,7 +280,7 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
         <Section kicker="Source text">
           <Stack gap="row">
             <Row justify="start">
-              <Button intent="ghost" onClick={(): void => setShowSource((prev) => !prev)} size="sm">
+              <Button variant="ghost" onClick={(): void => setShowSource((prev) => !prev)} size="sm">
                 <Icon icon={FileText} size="sm" />
                 {showSource ? "Hide source text" : "View source text"}
               </Button>

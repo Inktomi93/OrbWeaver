@@ -1,10 +1,8 @@
-// domain/admin/contract/guard — the global-role guard wrapper types admin owns (RequireAdmin/RequireOwner).
-// A leaf declares the shape here and receives the runtime op at the composition root, never sideways-
-// importing admin's guard.ts impl (whose implementation lives there). Authorization is per-call on the
-// Principal handed in — the guard never re-queries identity or caches a decision onto it.
+// @orb/contracts/admin — the global-role guard shapes admin implements and sibling domains receive as injected ops.
+// Authorization is per-call on the Principal handed in: the guard never re-queries identity or caches a decision onto it.
 
-import type { Principal } from "@orb/contracts/identity";
 import type { UserId } from "@orb/kit/ids";
+import type { Principal } from "#identity";
 
 /** owner ∪ admin gate. Returns the gated userId (chainable) or throws. */
 export type RequireAdmin = (principal: Principal) => UserId;

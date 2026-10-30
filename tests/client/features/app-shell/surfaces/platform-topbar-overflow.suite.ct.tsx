@@ -3,7 +3,7 @@
 // the menu trigger. The topbar trail and each list band declare a menu form per action; each form opens the surface its inline
 // control opens.
 
-import { BAND_OVERFLOW_LABEL, TRAIL_OVERFLOW_LABEL } from "@orb/client/components";
+import { TRAIL_OVERFLOW_LABEL } from "@orb/client/components";
 import { APPEARANCE_CHANNEL_ROWS } from "@orb/client/lib";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { SECTION_LABELS, SECTION_PROCEDURES } from "@orb/testkit/ct";
@@ -101,6 +101,7 @@ for (const form of [
 }
 
 const LIST_BAND_ACTION = '.shell-panel[data-panel-side="list"] [data-slot="list-pane-action"]';
+const OVERFLOW_TRIGGER = '[data-slot="overflow-actions-trigger"]';
 
 const SCALES = [3, 4, 5, 6, 7] as const;
 
@@ -135,7 +136,7 @@ test.describe("a list band on a phone", () => {
       await mount<typeof AppShellStory>(STORY, {});
       const action = page.locator(LIST_BAND_ACTION);
       await expect(action).toBeVisible();
-      const trigger = action.getByRole("button", { name: BAND_OVERFLOW_LABEL });
+      const trigger = action.locator(OVERFLOW_TRIGGER);
       await expect(trigger).toBeHidden();
       await enlargeUntilVisible(page, trigger, band.from);
       await trigger.click();

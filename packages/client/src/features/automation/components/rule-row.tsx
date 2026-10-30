@@ -91,14 +91,14 @@ type TestRunResult = inferOutput<Trpc["automation"]["testRule"]>;
 function predicateVerdict(predicate: TestRunResult["predicate"]): {
   readonly line: string;
   readonly label: string;
-  readonly intent: "success" | "neutral" | "danger";
+  readonly tone: "success" | "neutral" | "destructive";
 } {
   if (typeof predicate !== "boolean") {
-    return { line: `Condition errored: ${predicate.error}`, label: "Errored", intent: "danger" };
+    return { line: `Condition errored: ${predicate.error}`, label: "Errored", tone: "destructive" };
   }
   return predicate
-    ? { line: "Condition would match.", label: "Would match", intent: "success" }
-    : { line: "Condition would NOT match.", label: "Would not match", intent: "neutral" };
+    ? { line: "Condition would match.", label: "Would match", tone: "success" }
+    : { line: "Condition would NOT match.", label: "Would not match", tone: "neutral" };
 }
 
 /** One arm's dry-run preview line — the rendered template, or its render error, named by what the arm DOES
@@ -118,7 +118,7 @@ interface TestResultViewProps {
  *
  *  `role="status"`: the verdict appears asynchronously in response to a button press, so without a live
  *  region a screen-reader user pressing Test hears nothing at all. And the badge carries the verdict as a WORD,
- *  never intent colour alone. */
+ *  never tone colour alone. */
 function TestResultView({ rule, result }: TestResultViewProps): ReactElement {
   const trpc = useTRPC();
   const tools = useQuery(trpc.automation.listRuleTools.queryOptions(undefined, { enabled: rule.actions.some((action) => action.type === "run_tool") }));
@@ -126,7 +126,7 @@ function TestResultView({ rule, result }: TestResultViewProps): ReactElement {
   return (
     <Stack aria-label={`Test result for ${rule.name}`} gap="tight" role="status">
       <Row gap="block" align="center">
-        <Badge intent={verdict.intent} tone="soft" size="sm">
+        <Badge tone={verdict.tone} size="sm">
           {verdict.label}
         </Badge>
         <Text voice="gloss">{verdict.line}</Text>
@@ -289,18 +289,18 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
             readOnly={unreadable}
           />
         </Row>
-        {/* Both `Button` intents this row uses are `text-current`; in a prose panel Test and the ghost overflow
+        {/* Both `Button` styles this row uses take their host ink; in a prose panel Test and the ghost overflow
             trigger would both resolve to the muted ink and erase the three-weights reading of the row. */}
         <CollapsiblePanel holds="controls">
           <Stack className="px-block pbe-block" gap="field">
             <Row align="center" className="flex-wrap" gap="field">
               {/* Test stays visually distinct from editing and the spending actions in the overflow menu. */}
               {onEdit === undefined ? null : (
-                <Button intent="ghost" size="sm" aria-label={`Edit ${rule.name}`} onClick={(event): void => onEdit(event.currentTarget)}>
+                <Button variant="ghost" size="sm" aria-label={`Edit ${rule.name}`} onClick={(event): void => onEdit(event.currentTarget)}>
                   Edit
                 </Button>
               )}
-              <Button intent="secondary" size="sm" aria-label={`Test ${rule.name}`} loading={testRule.isPending} onClick={onTest}>
+              <Button variant="outline" size="sm" aria-label={`Test ${rule.name}`} loading={testRule.isPending} onClick={onTest}>
                 Test
               </Button>
               <RowActionsMenu

@@ -40,7 +40,7 @@ export function PanelEdgeControl({ expanded, noun, edge, controls, onToggle, ref
             aria-label={label}
             data-expanded={expanded ? "true" : "false"}
             data-slot="panel-edge-control"
-            intent={expanded ? "ghost" : "outline"}
+            variant={expanded ? "ghost" : "outline"}
             onClick={onToggle}
             ref={ref}
             size="icon-sm"

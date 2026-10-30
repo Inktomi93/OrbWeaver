@@ -99,15 +99,16 @@ export const WORKLOAD_STATUS_LABELS: Record<WorkloadStatus, string> = {
   worker_died: "Worker died",
 };
 
-/** Status → badge intent (never color alone — the label above always rides with it). */
-export const WORKLOAD_STATUS_INTENT: Record<WorkloadStatus, NonNullable<BadgeProps["intent"]>> = {
-  queued: "neutral",
-  running: "info",
-  cancelling: "warning",
-  succeeded: "success",
-  failed: "danger",
-  cancelled: "neutral",
-  worker_died: "danger",
+/** Status → badge (never color alone — the label above always rides with it). A success is the expected state, so it
+ *  takes the quiet outline; a colour state keeps its fill and a neutral one its tint. */
+export const WORKLOAD_STATUS_BADGE: Record<WorkloadStatus, Pick<BadgeProps, "tone" | "variant">> = {
+  queued: { tone: "neutral", variant: "soft" },
+  running: { tone: "info", variant: "solid" },
+  cancelling: { tone: "warning", variant: "solid" },
+  succeeded: { tone: "success", variant: "outline" },
+  failed: { tone: "destructive", variant: "solid" },
+  cancelled: { tone: "neutral", variant: "soft" },
+  worker_died: { tone: "destructive", variant: "solid" },
 };
 
 /** Lane → group heading (exhaustive over the WORKLOAD_LANES tuple — a new lane is a tsc error here). The

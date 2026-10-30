@@ -416,21 +416,21 @@ export function runOutcomeNotice(name: string, outcome: AutomationRunOutcome): {
 export function fireOutcomeView(outcome: AutomationFireOutcome): FireOutcomeView {
   switch (outcome) {
     case "fired":
-      return { label: "Fired", intent: "success" };
+      return { label: "Fired", tone: "success" };
     case "predicate_false":
-      return { label: "Condition not met", intent: "neutral" };
+      return { label: "Condition not met", tone: "neutral" };
     case "predicate_error":
-      return { label: "Condition errored", intent: "danger" };
+      return { label: "Condition errored", tone: "destructive" };
     case "budget_refused":
-      return { label: "Rate-capped", intent: "warning" };
+      return { label: "Rate-capped", tone: "warning" };
     case "depth_refused":
-      return { label: "Cascade-capped", intent: "warning" };
+      return { label: "Cascade-capped", tone: "warning" };
     case "action_error":
-      return { label: "Action errored", intent: "danger" };
+      return { label: "Action errored", tone: "destructive" };
     case "authority_refused":
-      return { label: "No authority", intent: "danger" };
+      return { label: "No authority", tone: "destructive" };
     case "test_run":
-      return { label: "Test run", intent: "info" };
+      return { label: "Test run", tone: "info" };
     default: {
       const exhaustive: never = outcome;
       throw new Error(`unhandled automation fire outcome: ${JSON.stringify(exhaustive)}`);

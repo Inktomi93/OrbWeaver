@@ -46,7 +46,7 @@ function ItemIconPicker({ itemName, onPick }: { readonly itemName: string; reado
         <Tip key={name} text={`${itemName}: use the ${name} icon`}>
           <Button
             aria-label={`${itemName}: use the ${name} icon`}
-            intent="ghost"
+            variant="ghost"
             // eslint-disable-next-line orb/no-floorless-control-in-wrap -- touchFloor="gap" supplies the measured touch-target pitch without changing the fine picker; ends when this geometry or floorless size changes.
             size="glyph-lg"
             onClick={(): void => onPick(name)}
@@ -62,7 +62,7 @@ function ItemIconPicker({ itemName, onPick }: { readonly itemName: string; reado
 /** The item GLYPH — a plain decoration for a viewer; for the HOST a popover trigger opening the #37c
  *  icon picker (the NAME text stays the datum either way). */
 function ItemGlyph({ item, onPickIcon }: { readonly item: RpgInventoryItem; readonly onPickIcon?: (icon: string) => void }): ReactElement {
-  const glyph = <Icon icon={resolveItemIcon(item.icon, item.name, item.type)} size="md" tone="muted" />;
+  const glyph = <Icon icon={resolveItemIcon(item.icon, item.name, item.type)} size="md" ink="muted" />;
   if (onPickIcon === undefined) {
     return glyph;
   }
@@ -70,7 +70,7 @@ function ItemGlyph({ item, onPickIcon }: { readonly item: RpgInventoryItem; read
     <Popover>
       <PopoverTrigger
         render={
-          <Button intent="ghost" size="inline" aria-label={`Pick an icon for ${item.name}`}>
+          <Button variant="ghost" size="inline" aria-label={`Pick an icon for ${item.name}`}>
             {glyph}
           </Button>
         }
@@ -100,11 +100,11 @@ function PackCellInk({ item, pinned = false }: { readonly item: RpgInventoryItem
       {QUEST_TYPE_RE.test(item.type) ? (
         // The accent quest-bound dot (primary voice = the game's pulse); the `type` text on the tile
         // title carries the datum (never color-alone).
-        <Text as="span" voice="gloss" aria-hidden={true} className="absolute inset-e-field inset-bs-field" tone="accent">
+        <Text as="span" voice="gloss" aria-hidden={true} className="absolute inset-e-field inset-bs-field" tone="primary">
           ●
         </Text>
       ) : null}
-      <Icon icon={resolveItemIcon(item.icon, item.name, item.type)} size="sm" tone="muted" className="shrink-0" />
+      <Icon icon={resolveItemIcon(item.icon, item.name, item.type)} size="sm" ink="muted" className="shrink-0" />
       <Stack gap="field" className="flex-1 min-inline-0">
         <Row gap="field" align="baseline" className="min-inline-0">
           {/* The NAME is the datum and a model writes it: it WRAPS inside the tile rather than
@@ -116,7 +116,7 @@ function PackCellInk({ item, pinned = false }: { readonly item: RpgInventoryItem
           </Text>
           {/* The ×N read, the list row's exact grammar — a stack of one renders nothing (no "×1" noise). */}
           {item.quantity > 1 ? (
-            <Text as="span" tone="muted" voice="datum" className="shrink-0">
+            <Text as="span" ink="muted" voice="datum" className="shrink-0">
               ×{item.quantity}
             </Text>
           ) : null}
@@ -208,7 +208,7 @@ function PackTileEditor({ item, edit }: { readonly item: RpgInventoryItem; reado
           confirmLabel="Drop"
           onConfirm={(): void => edit.onRemoveItem(item.id)}
           trigger={
-            <Button aria-label={`Drop item: ${item.name}`} intent="ghost" size="sm">
+            <Button aria-label={`Drop item: ${item.name}`} variant="ghost" size="sm">
               <Icon icon={Trash2} size="xs" />
               Drop
             </Button>
@@ -223,7 +223,7 @@ function PackTileEditor({ item, edit }: { readonly item: RpgInventoryItem; reado
  *  the editor: every datum is click-to-edit in place and the row carries a confirmed delete. */
 function PackListRow({ item, edit }: { readonly item: RpgInventoryItem; readonly edit?: PackEdit }): ReactElement {
   return (
-    <Card tone="neutral">
+    <Card>
       <Row gap="field" align="center" data-slot="rpg-pack-row">
         <ItemGlyph item={item} {...(edit === undefined ? {} : { onPickIcon: (icon: string): void => edit.onPickIcon(item.id, icon) })} />
         <Stack gap="field" className="flex-1 min-inline-0">
@@ -245,7 +245,7 @@ function PackListRow({ item, edit }: { readonly item: RpgInventoryItem; readonly
             confirmLabel="Drop"
             onConfirm={(): void => edit.onRemoveItem(item.id)}
             trigger={
-              <Button aria-label={`Drop item: ${item.name}`} intent="ghost" size="glyph-sm">
+              <Button aria-label={`Drop item: ${item.name}`} variant="ghost" size="glyph-sm">
                 <Icon icon={Trash2} size="xs" />
               </Button>
             }

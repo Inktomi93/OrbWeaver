@@ -5,6 +5,7 @@
 import type { Principal } from "@orb/contracts/identity";
 import type {
   AttachCardTagByNameOp,
+  DetachCardTagOp,
   TagAttachedEntity,
   TagFilterVocabularyEntry,
   TagReachView,
@@ -24,7 +25,6 @@ import type {
   AttachTagParams,
   BulkAttachTagParams,
   CreateTagParams,
-  DetachCardTagByNameParams,
   DetachTagParams,
   ListAttachedEntitiesParams,
   ListPendingSuggestionsParams,
@@ -93,5 +93,5 @@ export interface TagService {
   readonly attachChatTagByName: (params: AttachChatTagByNameParams) => Promise<boolean>;
   /** Resolve the owner's tag by name (case-insensitive, no create) and detach it from the character.
    *  Idempotent on absent. The tag row itself survives a detach. Not principal-gated. */
-  readonly detachCardTagByName: (params: DetachCardTagByNameParams) => Promise<boolean>;
+  readonly detachCardTagByName: DetachCardTagOp;
 }

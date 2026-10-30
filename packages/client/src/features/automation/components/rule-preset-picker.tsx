@@ -102,7 +102,7 @@ function RulePresetConfigure({ chatId, preset, onBack, onDone }: RulePresetConfi
           heading still reading "Add a rule": two titles, in reversed reading order, neither of them the
           one a screen reader announces for the dialog. */}
       <Row gap="block" align="center">
-        <Button intent="ghost" size="sm" onClick={onBack}>
+        <Button variant="ghost" size="sm" onClick={onBack}>
           Back
         </Button>
       </Row>
@@ -127,7 +127,7 @@ function RulePresetConfigure({ chatId, preset, onBack, onDone }: RulePresetConfi
           click is the same dead end whether or not it is `disabled` (side-eye #621 P1-4). Pressing it
           reveals every field's issue instead. */}
       {blocked === undefined ? null : <KnobBlockingLine knob={blocked} chatId={chatId} />}
-      <Button intent="primary" size="sm" loading={mint.isPending} onClick={add}>
+      <Button size="sm" loading={mint.isPending} onClick={add}>
         {preset.ruleCount > 1 ? `Add ${preset.ruleCount} rules` : "Add rule"}
       </Button>
     </Stack>
@@ -147,7 +147,7 @@ function RulePresetList({ presets, onPick }: RulePresetListProps): ReactElement 
         <Button
           key={preset.id}
           aria-label={preset.title}
-          intent="ghost"
+          variant="ghost"
           // `wrap` is the arm for exactly this: a CHOICE affordance carrying a sentence — the label wraps
           // and the height follows the wrapped text, floored at the `sm` control height (the tap floor).
           // A call-site `h-auto` would defeat the sealed box (`ui-size-via-variant`); the
@@ -236,7 +236,7 @@ export function RulePresetPicker({ chatId }: RulePresetPickerProps): ReactElemen
       {/* `modal` — this popover carries INPUT; the rule + its receipt live on `Popover` in @orb/ui's popover.tsx (#2444). */}
       <PopoverTrigger
         render={
-          <Button intent="secondary" size="sm">
+          <Button variant="outline" size="sm">
             <Icon icon={Plus} size="sm" />
             Add a rule
           </Button>

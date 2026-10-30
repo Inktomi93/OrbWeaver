@@ -11,11 +11,11 @@ plan: test-foundation
 
 ## What
 
-Restoration lanes moved these legacy cases to a security batch. From plugin bridge.test.ts, through a real guest: lore write first (macro neutralization, attached-book gate, per-plugin title namespace, 64-entry cap), then installer closure, viewer-visibility clamp, snippet identity, imagery, ingest and card-state slug stamping. From boot and env: the kept-keyfile and stranded session-secret warnings, the AUTH_FALLBACK-in-.env boot refusal, the inert SESSION_COOKIE_INSECURE cases and the processEnvSnapshot copy (tests/support/node/env-file-child.ts drives the .env cases). The case maps in docs/plans/test-foundation/design.md name each case.
+Restoration lanes moved these legacy cases to a security batch. From plugin bridge.test.ts, through a real built guest (a showcase plugin or a toolchain-built test guest) on the production host: lore write first (macro neutralization, attached-book gate, per-plugin title namespace, 64-entry cap), then installer closure, viewer-visibility clamp, snippet identity, imagery, ingest and card-state slug stamping. From boot and env: the kept-keyfile and stranded session-secret warnings, the AUTH_FALLBACK-in-.env boot refusal, the inert SESSION_COOKIE_INSECURE cases and the processEnvSnapshot copy (tests/support/node/env-file-child.ts drives the .env cases). The case maps in docs/plans/test-foundation/design.md name each case.
 
 ## Why
 
-The lore-write case pins a plugin capability bypass, and the boot cases guard secrets and auth posture; route to security-executor.
+These cases test plugin capability enforcement and secrets and auth posture, which is security-role work; route to security-executor. A real guest is available in tests, so nothing blocks them. The lore-write case pins a capability bypass and goes first.
 
 ## Done when
 

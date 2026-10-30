@@ -154,8 +154,9 @@ Done when: `tsc` refuses each removed value. `tests/client/features/app-shell/su
 | `shape="plate"`, `tone="backdrop"` | flagged |
 | `spoiler` | `Spoiler`, shared with Stack |
 | `outline="dashed"` | `dashed`, because `outline` is now a variant |
-| `shadow` | removed: `elevated` takes the overlay shadow, `interactive` follows the user's elevation, a static card takes none |
-| `holdsField`, `dropTarget` | deleted after the lane confirms no forwarded caller |
+| `shadow` | removed: `elevated` takes the overlay shadow, `interactive` follows the user's elevation, a static card takes none; `shadow="overlay"` stays for `FloatingChip` and the preview parts until they land |
+| `holdsField`, `dropTarget` | kept for `RoomIsland`: the composer island is a caller |
+| `tone="warning"` and the other colour tones on `soft` and `outline` | the border paints `solid`, because a status box's border carries meaning (D336 contrast); a neutral box keeps the edge |
 | `shape` `island` and `row`, `rail`, `glow`, `elevated`, `nested`, `padding`, `interactive`, `focusable`, `receded`, `artDecoration`, `ownSlot` | kept |
 
 #### Mapping: Button
@@ -184,8 +185,8 @@ Done when: `tsc` refuses each removed value. `tests/client/features/app-shell/su
 | Old value | New |
 | - | - |
 | `intent` | `tone`; `danger` becomes `destructive` |
-| `intent="accent"` | deleted after the lane confirms no forwarded caller |
-| `tone="solid"`, `"soft"`, `"ghost"` | `variant` `solid`, `soft`, `outline` |
+| `intent="accent"` | `tone="primary"` with `variant="soft"` for the refinery session chip (`RefineryChip` `accent`): the active session must stay apart from the neutral chips, primary marks the current selection elsewhere in the app, and a Badge style for the neutral `tint-active` would be new vocabulary for one chip |
+| `tone="solid"`, `"soft"`, `"ghost"` | `variant` `solid`, `soft`, `outline`; `soft` is the default, and a neutral solid pill (the muted fill) becomes `soft` |
 | `size` `sm`, `md`, `compact` | kept; a pill is not a control |
 | `size="inline"` | `InlineToken`: a chip that behaves like a word in running text |
 | `size="dot"`, `edge` | `IndicatorDot`, painted with `bg-tone-solid` |
@@ -198,7 +199,7 @@ Done when: `tsc` refuses each removed value. `tests/client/features/app-shell/su
 | `tone` `destructive`, `success`, `warning`, `info` | the same `tone` |
 | `tone="accent"` | `tone="primary"` |
 | `tone` `muted`, `foreground`, `accolade`, `speaker`, `dialogue`, `narration`, `prose` | the same `ink` |
-| `tone="onPrimary"` | `ink="toneForeground"` |
+| `tone="onPrimary"` | `tone="primary" ink="toneForeground"`: a mark on a primary-derived fill outside a primary scope names the tone it reads |
 | `tone="default"` | removed |
 | `ink="inherit"` | kept |
 | `voice` and every other axis | kept |

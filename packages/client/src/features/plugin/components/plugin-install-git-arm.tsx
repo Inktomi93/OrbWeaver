@@ -60,7 +60,7 @@ export function PluginInstallGitArm({
         <Button
           aria-label="Fetch Git repository"
           disabled={trimmedUrl === "" || disabled}
-          intent="secondary"
+          variant="outline"
           loading={loading}
           onClick={(): void => {
             const epoch = onPreviewStarted(trimmedUrl);

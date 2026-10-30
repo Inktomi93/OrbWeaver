@@ -168,7 +168,7 @@ function PickerCandidates({
       return (
         <EmptyState
           action={
-            <Button intent="secondary" onClick={onClearSearch} size="sm">
+            <Button variant="outline" onClick={onClearSearch} size="sm">
               Clear search
             </Button>
           }
@@ -182,7 +182,7 @@ function PickerCandidates({
       <EmptyState
         // The only next action REACHABLE from inside a modal is leaving it — the library lives behind the
         // rail, which this dialog is covering. Naming that honestly beats a CTA that cannot fire.
-        action={<DialogClose render={<Button intent="secondary">Close</Button>} />}
+        action={<DialogClose render={<Button variant="outline">Close</Button>} />}
         description={
           bankIsEmpty
             ? "Add one in Databank — upload a file, paste text, or pull in a page — and it can feed this chat."
@@ -202,7 +202,7 @@ function PickerCandidates({
             <Button
               aria-label={`Add ${document.name} to this chat`}
               disabled={isOwned}
-              intent="secondary"
+              variant="outline"
               onClick={(): void => void onAttach(document.id).catch(globalThis.reportError)}
               size="sm"
               type="button"

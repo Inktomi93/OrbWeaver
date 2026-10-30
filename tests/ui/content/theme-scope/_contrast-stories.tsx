@@ -120,7 +120,7 @@ export function ToneMarkStory({ theme }: { readonly theme?: keyof typeof SEED_TH
           </div>
         ))}
         {(["warning", "info"] as const).map((tone) => (
-          <Card key={tone} tone={tone} data-mark={`card-${tone}`}>
+          <Card key={tone} tone={tone} variant="soft" data-mark={`card-${tone}`}>
             {tone} box
           </Card>
         ))}

@@ -12,7 +12,7 @@ export function EditableTagChipStory({ tags, appearance }: { readonly tags: read
     <CtClientProviders>
       <CtAppearanceChannels settings={appearance}>
         <Stack gap="block" padding="section">
-          <Button intent="ghost" size="sm">
+          <Button variant="ghost" size="sm">
             Before tags
           </Button>
           <Row gap="block">

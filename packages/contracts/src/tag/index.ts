@@ -249,3 +249,6 @@ export interface TagLibraryImportResult {
   readonly total: number;
   readonly created: number;
 }
+
+/** Detaches a tag by name from one owned character; returns whether anything was detached (idempotent). */
+export type DetachCardTagOp = (args: { readonly ownerId: UserId; readonly characterId: CharacterId; readonly tagName: string }) => Promise<boolean>;

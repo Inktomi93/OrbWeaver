@@ -87,7 +87,7 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
                 non-interactive role is a lie to AT (and eslint's own no-interactive-element-to-noninteractive-role). */}
             <Button
               className="items-start justify-start text-start inline-full"
-              intent="ghost"
+              variant="ghost"
               onClick={(): void => selectCorpusCharacter(gem.characterId)}
               size="wrap"
             >
@@ -105,7 +105,7 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
                     2 or 4 columns, where "reading order" stops being obvious.
                     INSIDE the button, so it rides the tile's accessible NAME: the rank is part of what
                     this control is, not decoration beside it. */}
-                <Text as="span" className="shrink-0" tone="muted" voice="datum">
+                <Text as="span" className="shrink-0" ink="muted" voice="datum">
                   {index + 1}
                 </Text>
                 <CharacterAvatar hash={gem.avatarHash} id={gem.characterId} name={gem.name} size="lg" />

@@ -52,7 +52,7 @@ function AdminApprovalsBody({ anchorId }: { readonly anchorId: string }): ReactE
   return (
     <Section container={true} divider={true} heading={ADMIN_APPROVALS_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="row" data-testid={testId("adminApprovalsSection")}>
-        <Text voice="label" tone="muted">
+        <Text voice="label" ink="muted">
           Accounts awaiting approval can't sign in until you enable them. New sign-ins through your identity provider land here when approval is required.
         </Text>
 
@@ -98,8 +98,10 @@ function ApprovalRow({ user }: { readonly user: AdminUser }): ReactElement {
       subtitle={`Requested ${timeLib.formatRelative(user.createdAt)}`}
       actions={
         <Row align="center" gap="row">
-          <Badge intent="warning">Pending</Badge>
-          <Button size="sm" intent="primary" data-testid={testId("adminApproveButton")} disabled={setEnabled.isPending} onClick={approve}>
+          <Badge tone="warning" variant="solid">
+            Pending
+          </Badge>
+          <Button size="sm" data-testid={testId("adminApproveButton")} disabled={setEnabled.isPending} onClick={approve}>
             Approve
           </Button>
         </Row>

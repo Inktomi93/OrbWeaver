@@ -92,7 +92,7 @@ export function BeatRow({ beat, edit }: BeatRowProps): ReactElement {
           confirmLabel="Delete"
           onConfirm={(): void => edit.onDelete(beat.key)}
           trigger={
-            <Button aria-label={`Delete entry: ${beat.title}`} intent="ghost" size="glyph-sm">
+            <Button aria-label={`Delete entry: ${beat.title}`} variant="ghost" size="glyph-sm">
               <Icon icon={Trash2} size="xs" />
             </Button>
           }
@@ -182,7 +182,7 @@ function BeatBodyEditor({
               // Sub-floor disclosure by ruling (a reasoned home of `orb/sub-floor-disclosure` in eslint.config.js): the box is the rendered Button's own (`render` merges the trigger class onto it): an inline Button carries its ::after touch floor, and a control min-h here would inflate the beat row's compact rest state.
               size="text"
               render={
-                <Button intent="ghost" size="inline" className="px-field text-start whitespace-normal max-inline-full min-inline-0">
+                <Button variant="ghost" size="inline" className="px-field text-start whitespace-normal max-inline-full min-inline-0">
                   <Text as="span" voice="label" className="wrap-break-word min-inline-0">
                     {restText}
                   </Text>

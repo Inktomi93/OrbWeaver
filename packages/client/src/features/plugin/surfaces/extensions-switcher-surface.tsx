@@ -49,7 +49,7 @@ function ExtensionsPageList(): ReactElement {
     return (
       <EmptyState
         action={
-          <Button intent="secondary" onClick={(): void => openConfigTo("plugins", copy.sub)} size="sm">
+          <Button variant="outline" onClick={(): void => openConfigTo("plugins", copy.sub)} size="sm">
             {copy.action}
           </Button>
         }
@@ -64,7 +64,7 @@ function ExtensionsPageList(): ReactElement {
     return (
       <EmptyState
         action={
-          <Button intent="secondary" onClick={(): void => setExtensionsSearchQuery("")} size="sm">
+          <Button variant="outline" onClick={(): void => setExtensionsSearchQuery("")} size="sm">
             Clear search
           </Button>
         }

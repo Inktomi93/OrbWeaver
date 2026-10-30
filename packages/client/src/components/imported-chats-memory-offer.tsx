@@ -86,7 +86,7 @@ export function ImportedChatsMemoryOffer({ scope, onStarted, nested }: ImportedC
       <Text voice="reading">{note ?? OFFER_NOTE}</Text>
       {note === null ? (
         <Row justify="start">
-          <Button intent="secondary" onClick={build}>
+          <Button variant="outline" onClick={build}>
             {OFFER_LABEL}
           </Button>
         </Row>

@@ -15,6 +15,7 @@
 // writing from an OLD basis, and the provenance claim (#1432) only for the one caller whose `importedFrom`
 // is an idempotency key.
 
+import type { CardWriteBasis } from "@orb/contracts/character";
 import type { BumpStatsCanonVersion } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { assets, characterSnapshots, characters } from "@orb/db";
@@ -28,7 +29,6 @@ import { and, eq, exists, inArray, isNull, notExists, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { CHARACTER_BACKGROUND_UNAVAILABLE, CHARACTER_HANDLE_CONFLICT, CharacterOperationError } from "../contract/errors.ts";
 import type { CharacterHandoffCopyContext } from "../contract/handoff-copy.ts";
-import type { CardWriteBasis } from "../contract/params.ts";
 
 // The self-join alias the provenance claim's NOT EXISTS reads through — a subquery over the table being
 // written needs its own name (the refinery schema-library precedent).

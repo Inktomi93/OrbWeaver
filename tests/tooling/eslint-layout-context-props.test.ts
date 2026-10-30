@@ -49,5 +49,5 @@ test("the same attribute in an @orb/ui file is a finding", async () => {
 });
 
 test("a variant value, a data attribute and an unrelated prop pass", async () => {
-  expect(await findings('export const A = () => <Badge size="compact" data-compact={true} density="compact" tone="soft" />;', CLIENT)).toEqual([]);
+  expect(await findings('export const A = () => <Badge size="compact" data-compact={true} density="compact" variant="soft" />;', CLIENT)).toEqual([]);
 });

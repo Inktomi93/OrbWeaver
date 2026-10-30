@@ -220,7 +220,7 @@ export function ColorField({
           <Field className={slots.hexField()} label="Hex" {...(showError ? { error: unrenderableMessage(draft) } : {})}>
             <Input onValueChange={commit} spellCheck={false} value={draft} />
           </Field>
-          <Button className={slots.resetButton()} data-slot="color-field-reset" intent="ghost" onClick={handleReset} size="sm" type="button">
+          <Button className={slots.resetButton()} data-slot="color-field-reset" variant="ghost" onClick={handleReset} size="sm" type="button">
             {resetLabel}
           </Button>
         </div>

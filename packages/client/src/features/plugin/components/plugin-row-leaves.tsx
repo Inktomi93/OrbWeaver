@@ -150,7 +150,7 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
     <Row align="center" className="flex-wrap" gap="field" justify="start">
       <Button
         aria-label={`Check ${plugin.name} for updates`}
-        intent="secondary"
+        variant="outline"
         loading={check.isPending}
         onClick={(): void => {
           // runCheck already catches its own
@@ -166,7 +166,6 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
         <Button
           aria-label={verdict.ariaLabel}
           className="wrap-anywhere max-inline-full"
-          intent="primary"
           loading={upgradeStored.isPending || upgradeShowcase.isPending || upgradeGit.isPending}
           onClick={(): void => {
             // applyUpgrade already
@@ -292,7 +291,7 @@ export function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing 
       <Row className="flex-wrap" gap="field" justify="start">
         {/* THE ACTION NAMES ITS PLUGIN: several of these notices can share a screen, and an unnamed
             "Approve all" is how one plugin's permissions were granted to another. */}
-        <Button intent="secondary" loading={allowing} onClick={(): void => onAllow(plugin.declaredCapabilities)} size="sm">
+        <Button variant="outline" loading={allowing} onClick={(): void => onAllow(plugin.declaredCapabilities)} size="sm">
           {approveLabel(plugin.name, plugin.declaredCapabilities.length)}
         </Button>
         <ConfirmDialog
@@ -302,7 +301,7 @@ export function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing 
           title={`Remove "${plugin.name}"?`}
           trigger={
             // Removal stays quieter than approval without adding another page-level primary.
-            <Button intent="ghost" loading={removing} size="sm">
+            <Button variant="ghost" loading={removing} size="sm">
               Remove {plugin.name}
             </Button>
           }

@@ -78,10 +78,10 @@ export function PresetForkChoiceDialog({ open, sourceName, forkName, suggestedNa
           <Stack gap="block">
             <Input aria-label="New fork name" onValueChange={setName} placeholder="Preset name" ref={nameRef} value={name} />
             <DialogFooter>
-              <Button intent="ghost" onClick={(): void => setNaming(false)}>
+              <Button variant="ghost" onClick={(): void => setNaming(false)}>
                 Back
               </Button>
-              <Button disabled={trimmed === ""} intent="primary" type="submit">
+              <Button disabled={trimmed === ""} type="submit">
                 Create fork
               </Button>
             </DialogFooter>
@@ -90,11 +90,9 @@ export function PresetForkChoiceDialog({ open, sourceName, forkName, suggestedNa
       ) : (
         <Stack gap="block">
           <Stack gap="tight">
-            <Button intent="primary" onClick={onKeepEditing}>
-              {`Keep editing ${forkName}`}
-            </Button>
+            <Button onClick={onKeepEditing}>{`Keep editing ${forkName}`}</Button>
             <Button
-              intent="secondary"
+              variant="outline"
               onClick={(): void => {
                 setName(suggestedName);
                 setNaming(true);

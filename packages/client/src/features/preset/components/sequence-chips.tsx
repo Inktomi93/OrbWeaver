@@ -113,11 +113,11 @@ function SequenceChips({ form, name, legend, hint, noun, unsetWhenEmpty }: Seque
               {sequences.map((sequence) => {
                 const shown = encodeSequence(sequence);
                 return (
-                  <Badge intent="neutral" key={sequence} size="sm" tone="soft">
+                  <Badge key={sequence} size="sm">
                     {shown}
                     <Button
                       aria-label={`Remove ${noun} ${shown}`}
-                      intent="ghost"
+                      variant="ghost"
                       onClick={(): void => write(sequences.filter((s) => s !== sequence))}
                       size="icon"
                       type="button"

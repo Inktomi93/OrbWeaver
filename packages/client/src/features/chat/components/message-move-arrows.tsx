@@ -94,7 +94,7 @@ export function MessageMoveArrows({ message, neighbours }: MessageMoveArrowsProp
     <Row gap="field" align="center" data-slot="message-move-arrows">
       <Button
         type="button"
-        intent="ghost"
+        variant="ghost"
         size="sm"
         disabled={reasons.up !== undefined}
         aria-label={MESSAGE_MOVE_UP_NAME}
@@ -105,7 +105,7 @@ export function MessageMoveArrows({ message, neighbours }: MessageMoveArrowsProp
       </Button>
       <Button
         type="button"
-        intent="ghost"
+        variant="ghost"
         size="sm"
         disabled={reasons.down !== undefined}
         aria-label={MESSAGE_MOVE_DOWN_NAME}

@@ -64,19 +64,19 @@ function readoutForDot(readout: RoleReadout, dotIsStatus: boolean): RoleReadout 
   return !dotIsStatus && readout.kind === "steady" ? { kind: "blocked", cause: REBUILD_FAILED_CAUSE } : readout;
 }
 
-/** The DOT's skin per state. `unset` is a RING — `ghost` is the only tone with no fill, and the border is
- *  restated on the muted ink because the default hairline (`--color-border`, 8% alpha) is invisible at 6px. */
+/** The DOT's skin per state. `unset` is a RING — `outline` is the only style with no fill, and the border is
+ *  restated on the current ink because the tone edge is too faint to read at 6px. */
 const DOT_SKIN = {
-  running: { intent: "success", tone: "solid", edge: "default" },
-  blocked: { intent: "warning", tone: "solid", edge: "default" },
-  unset: { intent: "neutral", tone: "ghost", edge: "ink" },
-} as const satisfies Record<RoleStatus, Pick<ComponentProps<typeof Badge>, "intent" | "tone" | "edge">>;
+  running: { tone: "success", variant: "solid", edge: "default" },
+  blocked: { tone: "warning", variant: "solid", edge: "default" },
+  unset: { tone: "neutral", variant: "outline", edge: "ink" },
+} as const satisfies Record<RoleStatus, Pick<ComponentProps<typeof Badge>, "tone" | "variant" | "edge">>;
 
-/** Explicit status tones override the explanatory voice without changing its typography. */
+/** Explicit status tones override the explanatory voice without changing its typography; unset keeps the voice's ink. */
 const READOUT_TONE = {
-  steady: "default",
+  steady: undefined,
   divergent: "info",
-  unset: "default",
+  unset: undefined,
   blocked: "warning",
 } as const satisfies Record<RoleReadout["kind"], ComponentProps<typeof Text>["tone"]>;
 
@@ -188,7 +188,7 @@ export function ConnectionRoleSlot({
   return (
     <Row aria-busy={shownCheck !== null} gap="field" align="start" justify="between" className="flex-wrap">
       <Row gap="field" align="start">
-        <Badge aria-label={ROLE_STATUS_LABELS[dot]} edge={DOT_SKIN[dot].edge} intent={DOT_SKIN[dot].intent} role="img" size="dot" tone={DOT_SKIN[dot].tone} />
+        <Badge aria-label={ROLE_STATUS_LABELS[dot]} edge={DOT_SKIN[dot].edge} role="img" size="dot" tone={DOT_SKIN[dot].tone} variant={DOT_SKIN[dot].variant} />
         <Stack gap="tight">
           <Text voice="label">{row.heading}</Text>
           <Text prose={true} voice="gloss" className={PROSE_MEASURE}>
@@ -306,7 +306,7 @@ function RebuildLine({ rebuild }: { readonly rebuild: ReturnType<typeof useEmbed
           <Text voice="gloss" as="span" data-rebuild={rebuild} className={PROSE_MEASURE} tone={rebuild === "failed" ? "warning" : "info"}>
             {REBUILD_STATUS_COPY[rebuild]}
           </Text>
-          <Button intent="ghost" onClick={(): void => openConfigTo("workloads", "jobs")} size="sm" type="button">
+          <Button variant="ghost" onClick={(): void => openConfigTo("workloads", "jobs")} size="sm" type="button">
             {REBUILD_JOBS_LABEL}
           </Button>
         </>
@@ -361,7 +361,7 @@ function RequirementRail({ verdicts }: { readonly verdicts: readonly RoleRequire
         Needs:
       </Text>
       {verdicts.map((verdict) => (
-        <Badge key={verdict.label} intent={verdict.met === true ? "success" : "neutral"} size="sm" tone="ghost">
+        <Badge key={verdict.label} size="sm" tone={verdict.met === true ? "success" : "neutral"} variant="outline">
           {verdict.met === null ? null : <Icon icon={verdict.met ? Check : X} size="xs" />}
           {verdict.met === false ? `${verdict.label} — ${verdict.unmet}` : verdict.label}
         </Badge>

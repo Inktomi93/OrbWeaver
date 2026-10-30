@@ -176,7 +176,7 @@ function LooksBody(): ReactElement {
       {editing !== null ? (
         <Stack gap="block">
           <Row>
-            <Button intent="ghost" onClick={(): void => setEditing(null)}>
+            <Button variant="ghost" onClick={(): void => setEditing(null)}>
               ← Back to Looks
             </Button>
           </Row>
@@ -200,7 +200,7 @@ function LooksBody(): ReactElement {
                   >
                     {({ open }): ReactElement => (
                       <Tip text="Import a theme file">
-                        <Button aria-label="Import a theme file" intent="ghost" onClick={open} size="icon">
+                        <Button aria-label="Import a theme file" variant="ghost" onClick={open} size="icon">
                           <Icon icon={Upload} size="sm" />
                         </Button>
                       </Tip>
@@ -230,7 +230,7 @@ function LooksBody(): ReactElement {
                         {...(isActive(theme) ? { meta: "current" } : {})}
                         value={theme.id}
                       />
-                      <Card className="absolute inset-s-tight inset-bs-tight flex" padding="none" shape="row" tone="translucent">
+                      <Card className="absolute inset-s-tight inset-bs-tight flex" padding="none" tone="translucent" shape="row">
                         <ThemeRowMenu
                           onApply={(): void => apply(theme)}
                           onDelete={(): void => removeTheme.mutate({ id: theme.id })}
@@ -250,7 +250,7 @@ function LooksBody(): ReactElement {
 
             <SettingRow settingId="theme-builder" span={true}>
               <Row align="center" gap="row">
-                <Button intent="secondary" onClick={openBuilderFromCurrent}>
+                <Button variant="outline" onClick={openBuilderFromCurrent}>
                   <Icon icon={Plus} size="sm" />
                   {/* The door names the row the collection says is CURRENT. An EMPTY collection has no
                       such row and no name to borrow — that arm opens the from-scratch draft above, so it

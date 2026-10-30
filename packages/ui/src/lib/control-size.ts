@@ -23,5 +23,5 @@ export const CONTROL_SIZE = {
  *  wrapping chip needs) renders that span's own weight regardless of the box's, and the only way to
  *  overrule it from a feature is a `font-*` className — the literal-shape dodge the density gate's A3 arm
  *  exists to stop. The register separation is carried by the ink, the edge and the radius instead, which
- *  are all box properties this arm and `intent` genuinely own. */
+ *  are all box properties this arm and `variant` genuinely own. */
 export const CHIP_BOX = "block-(--size-touch-target) gap-tight px-row text-label leading-label";

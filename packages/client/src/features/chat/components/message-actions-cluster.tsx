@@ -51,10 +51,10 @@ export function MessageActionsCluster({
           the ⋯ there (`ROW_ACTION_INLINE`), where every verb also lives at every pointer (mirror parity). */}
       {editable ? (
         <>
-          <Button intent="ghost" size="glyph-lg" shape="pill" aria-label={MESSAGE_EDIT_NAME} onClick={onEdit}>
+          <Button variant="ghost" size="glyph-lg" shape="pill" aria-label={MESSAGE_EDIT_NAME} onClick={onEdit}>
             <Icon shadow={true} icon={Pencil} size="sm" />
           </Button>
-          <Button intent="ghost" size="glyph-lg" shape="pill" hiddenAt="coarse" loading={forkPending} aria-label={MESSAGE_FORK_NAME} onClick={onFork}>
+          <Button variant="ghost" size="glyph-lg" shape="pill" hiddenAt="coarse" loading={forkPending} aria-label={MESSAGE_FORK_NAME} onClick={onFork}>
             <Icon shadow={true} icon={GitFork} size="sm" />
           </Button>
         </>
@@ -66,7 +66,7 @@ export function MessageActionsCluster({
           being rendered at all. Ordered AFTER the Edit/Fork primary actions (#786, owner ruling): a row's
           roving Tab stop must reach "Edit message" before "Add a reaction". */}
       {reactionsEnabled ? (
-        <Button aria-label={MESSAGE_REACTION_ADD_NAME} hiddenAt="coarse" intent="ghost" onClick={onReact} shape="pill" size="glyph-lg">
+        <Button aria-label={MESSAGE_REACTION_ADD_NAME} hiddenAt="coarse" variant="ghost" onClick={onReact} shape="pill" size="glyph-lg">
           <Icon shadow={true} icon={SmilePlus} size="sm" />
         </Button>
       ) : null}

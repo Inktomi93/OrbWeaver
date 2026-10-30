@@ -145,7 +145,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
             <Stack className="flex-1 min-inline-0" gap="tight">
               <Row align="center" className="flex-wrap" gap="field">
                 <Text voice="promoted">{plugin.name}</Text>
-                <Badge intent={status.intent} size="sm" tone="soft">
+                <Badge tone={status.tone} size="sm">
                   {status.label}
                 </Badge>
               </Row>

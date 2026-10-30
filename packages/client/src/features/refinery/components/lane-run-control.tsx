@@ -94,7 +94,7 @@ function PreflightWarn({ message, scope, onScopeOpen }: { message: string; scope
     <Stack data-testid={testId("refineryPreflightWarn")} gap="tight">
       <Text voice="gloss">{message}</Text>
       <Row justify="start">
-        <Button aria-label={`Narrow the selection for ${scope}`} intent="ghost" onClick={onScopeOpen} size="sm">
+        <Button aria-label={`Narrow the selection for ${scope}`} variant="ghost" onClick={onScopeOpen} size="sm">
           Narrow the selection
         </Button>
       </Row>
@@ -152,6 +152,7 @@ export function LaneRunControl({
     button.focus({ preventScroll: true });
     clearRefineryWorkbenchDoor();
   }, [requestedDoor, stage]);
+  const runLabel = hasRun ? `Re-run ${stage}` : `Run ${stage}`;
   return (
     <Stack data-lane-run={stage} gap="tight">
       {/* WRAPS, and the verb keeps its content floor. The rails are 15rem/17rem wide: a fit readout and a
@@ -163,21 +164,19 @@ export function LaneRunControl({
         {stagePre === undefined || warn.message === null ? null : <FitLine contextTokens={contextTokens} stagePre={stagePre} />}
         <Row className="flex-1 justify-end" gap="field">
           {/* THE NON-FOCAL LANES RECEDE (#1256, 2026-09-02 — the #1141/#1244/#1249 fork, fourth instance).
-              60380f7d95 (#969) flipped `secondary` to `text-current`, so a non-focal lane's Run button now
-              paints at the SAME ink as the one filled `primary` lane beside it on the canvas — the header's
-              own "Every other lane's stays `secondary`" ruling lost its rest ink. The primitive keeps
-              inheriting; this composite states its own, through the muted `tone`. */}
-          <Button
-            ref={runRef}
-            aria-busy={running}
-            disabled={busy || blocked !== null}
-            intent={focal ? "primary" : "secondary"}
-            onClick={onRun}
-            size="sm"
-            tone={focal ? "default" : "muted"}
-          >
-            {hasRun ? `Re-run ${stage}` : `Run ${stage}`}
-          </Button>
+              A neutral outline takes its host's ink, so a non-focal lane's Run button would paint at the SAME ink
+              as the one filled lane beside it on the canvas — the header's own "every other lane's stays
+              secondary" ruling would lose its rest ink. The primitive keeps inheriting; this composite states
+              its own, through the muted `ink`. */}
+          {focal ? (
+            <Button ref={runRef} aria-busy={running} disabled={busy || blocked !== null} onClick={onRun} size="sm">
+              {runLabel}
+            </Button>
+          ) : (
+            <Button ref={runRef} aria-busy={running} disabled={busy || blocked !== null} variant="outline" ink="muted" onClick={onRun} size="sm">
+              {runLabel}
+            </Button>
+          )}
         </Row>
       </Row>
       {/* THE REASON RIDES WITH THE DISABLE (the prop's own note). A `title` would not do: it is

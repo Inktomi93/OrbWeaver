@@ -171,11 +171,7 @@ export function HomeHearthRoom({
           <Text as="span" className="line-clamp-2 wrap-anywhere min-inline-0" id={titleId} voice="focal">
             {title}
           </Text>
-          {chat.isGame ? (
-            <Badge intent="neutral" size="sm" tone="soft">
-              Game
-            </Badge>
-          ) : null}
+          {chat.isGame ? <Badge size="sm">Game</Badge> : null}
         </Row>
         {/* The excerpt is ordinary prose; the outer column independently protects the art and controls. */}
         <Text className="line-clamp-2 max-inline-(--reading-measure-prose)" id={scentId} voice="reading">
@@ -212,7 +208,7 @@ export function HomeHearthRoom({
               inert. It is a HINT now: the muted credit register, lifting to full ink with the card's own
               hover, and the arrow nudges with it. The arrow itself is `aria-hidden` so the island's
               accessible name stays the verb phrase and not a glyph name. */}
-          <Text as="span" className="ms-auto shrink-0" hoverCue="lift" tone="muted" voice="credit">
+          <Text as="span" className="ms-auto shrink-0" hoverCue="lift" ink="muted" voice="credit">
             Resume <TrailingArrow nudge={true} />
           </Text>
         </Row>

@@ -116,7 +116,7 @@ function TempChatContent({ ttlHours, placeholder }: { readonly ttlHours: number;
               …AND `sm`, which is what the shelf's OTHER peer-rank CTA already was (side-eye rail sweep
               P3-16): this rendered 169×34 beside databank's 171×32 text-link, two registers for two controls
               of identical rank in one column. Both are `secondary`/`sm` now. */}
-          <Button intent="secondary" onClick={startTempChat} size="sm">
+          <Button variant="outline" onClick={startTempChat} size="sm">
             <Icon icon={Plus} size="sm" />
             {START_TEMP_CHAT_NAME}
           </Button>
@@ -141,7 +141,7 @@ function TempChatContent({ ttlHours, placeholder }: { readonly ttlHours: number;
           `--reading-measure-prose` (47ch = 73.3 law-characters here, the densest copy in the app). */}
       <Text
         className={placeholder ? "invisible max-inline-(--reading-measure-prose)" : "max-inline-(--reading-measure-prose)"}
-        tone="muted"
+        ink="muted"
         {...(placeholder ? { "aria-hidden": true } : {})}
         voice="gloss"
         prose={true}

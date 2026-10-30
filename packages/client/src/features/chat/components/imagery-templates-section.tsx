@@ -149,7 +149,7 @@ function ImageryTemplatesBody({
         </Text>
         <Grid cols="auto" gap="field">
           {CARDS.map((card) => (
-            <Card tone="neutral" key={card.field}>
+            <Card key={card.field}>
               <Stack key={card.field} gap="field">
                 <form.AppField name={card.field}>
                   {(field): ReactElement => (

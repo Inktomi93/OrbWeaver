@@ -90,7 +90,7 @@ function HeadingWithCount({ label, count, unit }: { readonly label: string; read
       {count > 0 ? (
         <>
           {" "}
-          <Badge intent="neutral" size="inline" tone="soft">
+          <Badge size="inline">
             {count}
             {unit}
           </Badge>

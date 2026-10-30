@@ -310,7 +310,7 @@ export function OverflowActions({ actions, label, className, gap = "row", slot }
                 aria-label={label}
                 className="shrink-0"
                 data-slot="overflow-actions-trigger"
-                intent="ghost"
+                variant="ghost"
                 ref={(element): void => {
                   triggerRef.current = element;
                   if (element !== null) {

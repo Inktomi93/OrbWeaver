@@ -138,11 +138,11 @@ function ImageEdit({ subject }: { readonly subject: ImageSubject }): ReactElemen
           the SAME subject is the return leg (#623 P2: the detail→edit door used to be one-way). Disabled
           mid-edit: leaving the surface that owns the in-flight result would strand it. */}
       <Row className="flex-wrap" gap="field" justify="between">
-        <Button disabled={editImage.isPending} intent="ghost" onClick={(): void => openImageDetail(subject)} type="button">
+        <Button disabled={editImage.isPending} variant="ghost" onClick={(): void => openImageDetail(subject)} type="button">
           <Icon icon={ArrowLeft} size="sm" />
           Back to the image
         </Button>
-        <Button disabled={!canEdit} intent="primary" onClick={runEdit} type="button">
+        <Button disabled={!canEdit} onClick={runEdit} type="button">
           <Icon icon={WandSparkles} size="sm" />
           {editImage.isPending ? "Editing…" : "Generate edit"}
         </Button>

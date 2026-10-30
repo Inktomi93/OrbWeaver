@@ -131,7 +131,7 @@ function InjectionsList({ rows, isHost, onAdd, onSave, onDelete }: InjectionsLis
       )}
 
       {isHost ? (
-        <Button intent="secondary" size="sm" onClick={onAdd}>
+        <Button variant="outline" size="sm" onClick={onAdd}>
           Add injection
         </Button>
       ) : null}
@@ -185,7 +185,7 @@ function InjectionRow({ row, ordinal, isHost, onSave, onDelete }: InjectionRowPr
                           takes the summary's slot rather than sitting beside it — an empty row opens
                           itself, so its position/role are already spelled by the fields below. */}
                       {values.content.trim() === "" ? (
-                        <Badge intent="warning" tone="soft" size="sm">
+                        <Badge tone="warning" size="sm">
                           Not delivered — no content
                         </Badge>
                       ) : (
@@ -247,7 +247,7 @@ function InjectionRow({ row, ordinal, isHost, onSave, onDelete }: InjectionRowPr
                     irreversible action is never one click off a collapsed scan-list. */}
                 {isHost ? (
                   <Row align="center" gap="field">
-                    <Button intent="ghost" size="sm" aria-label="Remove injection" onClick={(): void => onDelete(row.key)}>
+                    <Button variant="ghost" size="sm" aria-label="Remove injection" onClick={(): void => onDelete(row.key)}>
                       Remove
                     </Button>
                   </Row>

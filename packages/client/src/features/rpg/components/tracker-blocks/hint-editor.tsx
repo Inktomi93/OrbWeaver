@@ -28,19 +28,19 @@ export function HintEditor({ ariaLabel, hint, max, onEdit, placeholder = "what t
   }
   return (
     <Row gap="field" align="center" data-slot="hint-editor">
-      <Text as="span" tone="muted" className="shrink-0" voice="gloss">
+      <Text as="span" ink="muted" className="shrink-0" voice="gloss">
         hint
       </Text>
       <TrackerValue
         ariaLabel={ariaLabel}
         display={hint}
         placeholder={placeholder}
-        tone="muted"
+        ink="muted"
         {...(onEdit === undefined ? {} : { onEdit: (next: string): void => onEdit(next.slice(0, max)) })}
         className="flex-1 min-inline-0"
       />
       {hint.length < max * COUNTER_AT ? null : (
-        <Text as="span" className="shrink-0" tone="muted" voice="datum">
+        <Text as="span" className="shrink-0" ink="muted" voice="datum">
           {hint.length}/{max}
         </Text>
       )}

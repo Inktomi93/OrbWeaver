@@ -121,7 +121,7 @@ function CharactersSection({ bookId, attachments, attachedCount }: AttachmentSec
   return (
     <Section kicker={`Attached by characters · ${attachedCount}`}>
       <Stack gap="row">
-        <Button intent="ghost" size="sm" aria-expanded={open} onClick={(): void => setOpen((prev) => !prev)}>
+        <Button variant="ghost" size="sm" aria-expanded={open} onClick={(): void => setOpen((prev) => !prev)}>
           <Icon icon={open ? ChevronDown : ChevronRight} size="sm" />
           {open ? "Hide characters" : "Attach to a character"}
         </Button>
@@ -162,7 +162,7 @@ function CharacterMatches({
       <Stack gap="field">
         <Text voice="gloss">{`No character matches "${needle}".`}</Text>
         <Row>
-          <Button intent="secondary" onClick={onClearSearch} size="sm">
+          <Button variant="outline" onClick={onClearSearch} size="sm">
             Clear search
           </Button>
         </Row>

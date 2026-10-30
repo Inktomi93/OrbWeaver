@@ -34,7 +34,15 @@ const RESTRICTED = [
   "text-[length:var(--spacing-row)]",
   "text-(length:--spacing-row)",
   "hover:text-(length:--text-body)",
+  // D336: a translucent intent or tone colour, under any utility or variant.
+  "bg-primary/10",
+  "hover:bg-tone-tint/50",
+  "border-s-warning/40",
+  "text-destructive-foreground/80",
+  "data-selected:ring-tone-edge/60",
 ];
+/** The opaque D336 roles and a translucent neutral-ramp colour, which carries no meaning of its own. */
+const OPAQUE_TONE_ROLES = "bg-tone-tint border-tone-edge text-tone-text-on-tint hover:bg-tone-solid-hover bg-muted/40 bg-card/80";
 const STRUCTURAL_ARBITRARY = "h-(--height-scroll-md) grid-cols-[auto_minmax(0,1fr)] grid-cols-[repeat(auto-fill,var(--width-cell-fixed))] flex-2 max-h-1/2";
 const UI_AUTHORED_CLASS = "orb-weave-glow";
 const CLIENT_AUTHORED_CLASS = "shell-panel";
@@ -243,6 +251,7 @@ test("effective UI/client native rules reject stock classes in real class carrie
     expect(config.rules[RESTRICTED_RULE]?.[0], path).toBe(2);
     expect(RESTRICTED.map((candidate) => lintWith(RESTRICTED_RULE, `cn("${candidate}");`).length)).toEqual(RESTRICTED.map(() => 1));
     expect(lintWith(RESTRICTED_RULE, `cn("${STRUCTURAL_ARBITRARY}");`)).toEqual([]);
+    expect(lintWith(RESTRICTED_RULE, `cn("${OPAQUE_TONE_ROLES}");`)).toEqual([]);
     expect(IMPORTANT.map((candidate) => lintWith(RESTRICTED_RULE, `cn("${candidate}");`).length)).toEqual(IMPORTANT.map(() => 1));
     expect(RETIRED_GATE_CONTROLS.map((candidate) => lintWith(RESTRICTED_RULE, `cn("${candidate}");`).length)).toEqual(RETIRED_GATE_CONTROLS.map(() => 1));
     // The retired gates read every string literal; the patterns reach exported constants and their object values too.

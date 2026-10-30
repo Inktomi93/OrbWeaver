@@ -12,12 +12,12 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useTurnToolCallsForVariant } from "../hooks/use-turn-tool-calls.ts";
 
-/** The badge intent per verdict — a mapped Record, so a widened verdict axis fails `tsc` here (§5.5) rather
+/** The badge tone per verdict — a mapped Record, so a widened verdict axis fails `tsc` here (§5.5) rather
  *  than silently rendering a lost write as if it had landed. */
-const VERDICT_INTENT: Record<RpgToolCallVerdict, NonNullable<BadgeProps["intent"]>> = {
+const VERDICT_BADGE_TONE: Record<RpgToolCallVerdict, NonNullable<BadgeProps["tone"]>> = {
   applied: "success",
   salvaged: "warning",
-  dropped: "danger",
+  dropped: "destructive",
   // A lock drop is the reader's OWN doing, so it is a warning rather than a failure — but it is never
   // `success`: part of what the model wrote is not in the state, and the line below names which path.
   overridden: "warning",
@@ -69,7 +69,7 @@ export function TurnToolCallsDisclosure({ message }: TurnToolCallsDisclosureProp
         size="text"
         data-target-floor="sub-floor-ok"
       >
-        <Icon icon={warning ? CircleAlert : Dices} size="sm" tone={warning ? "warning" : "muted"} />
+        <Icon icon={warning ? CircleAlert : Dices} size="sm" {...(warning ? ({ tone: "warning" } as const) : ({ ink: "muted" } as const))} />
         <Text voice="code">{failure === null ? calls.length : VERDICT_LABEL.dropped}</Text>
       </CollapsibleTrigger>
       <CollapsiblePanel>
@@ -114,7 +114,9 @@ function CallLine({ call }: { readonly call: RpgToolCallDisclosure }): ReactElem
     <Stack data-slot="turn-tool-call" gap="row">
       <Row align="center" gap="field" justify="between">
         <Text voice="code">{call.name}</Text>
-        <Badge intent={VERDICT_INTENT[call.verdict]}>{VERDICT_LABEL[call.verdict]}</Badge>
+        <Badge tone={VERDICT_BADGE_TONE[call.verdict]} variant="solid">
+          {VERDICT_LABEL[call.verdict]}
+        </Badge>
       </Row>
       {call.issues.length === 0 ? null : (
         <Stack data-slot="turn-tool-call-issues" gap="tight">

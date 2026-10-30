@@ -84,7 +84,7 @@ export function RpgChoiceEcho({ state }: RpgChoiceEchoProps): ReactElement | nul
   };
 
   return (
-    <Card tone="info">
+    <Card tone="info" variant="soft">
       <Stack gap="field" data-slot="rpg-choice-echo">
         <Text voice="kicker" tone="info">
           Choice on the table{" "}
@@ -103,7 +103,7 @@ export function RpgChoiceEcho({ state }: RpgChoiceEchoProps): ReactElement | nul
             // The option TEXT is the identity (an id-less immutable model-authored list — the
             // message-choices-block keying precedent; a verbatim repeat is the same choice).
             key={option}
-            intent="secondary"
+            variant="outline"
             size="wrap"
             focusableWhenDisabled={true}
             disabled={busy}

@@ -66,7 +66,7 @@ export function MessageSelectionBar({ chatId }: MessageSelectionBarProps): React
 
   return (
     <SelectionBar count={count} onClear={exitSelectionMode}>
-      <Button intent="destructive" size="sm" disabled={count === 0} loading={remove.isPending} onClick={(): void => setDeleteOpen(true)}>
+      <Button tone="destructive" size="sm" disabled={count === 0} loading={remove.isPending} onClick={(): void => setDeleteOpen(true)}>
         Delete
       </Button>
       <ConfirmDialog

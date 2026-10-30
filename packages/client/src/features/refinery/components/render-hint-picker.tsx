@@ -58,7 +58,7 @@ export function RenderHintPicker({ schemaTextRef, setSchemaText }: RenderHintPic
           value={hintRole}
         />
       </Field>
-      <Button intent="secondary" onClick={(): void => setSchemaText((text) => insertRenderHint(text, schemaTextRef.current, hintRole))} size="sm">
+      <Button variant="outline" onClick={(): void => setSchemaText((text) => insertRenderHint(text, schemaTextRef.current, hintRole))} size="sm">
         Insert render hint
       </Button>
     </Row>

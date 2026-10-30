@@ -39,11 +39,11 @@ interface StatCellProps {
  *  3-up (wide) by the caller. */
 export function StatCell({ label, value, hint, onEditValue }: StatCellProps): ReactElement {
   return (
-    <Card tone="neutral">
+    <Card>
       <Stack gap="field" align="center" data-slot="stat-cell">
         {hint === undefined ? null : <HintTrigger className="" hint={hint} subject={label} />}
         {onEditValue === undefined ? (
-          <Text as="span" tone={value === null ? "muted" : "default"} numeric={true} voice="promoted">
+          <Text as="span" ink={value === null ? "muted" : undefined} numeric={true} voice="promoted">
             {/* `??`, never `||` — a real reading of ZERO is a reading, and must not fall through to the em-dash. */}
             {value ?? UNSET_DATUM}
           </Text>
@@ -79,7 +79,7 @@ export function StatCell({ label, value, hint, onEditValue }: StatCellProps): Re
             voice="promoted"
           />
         )}
-        <Text as="span" tone="muted" voice="label">
+        <Text as="span" ink="muted" voice="label">
           {label}
         </Text>
       </Stack>
@@ -108,9 +108,9 @@ export interface TrackerChipProps {
 /** A `label — value` pill (the existing badge idiom, soft tone). Guide chips lead with a gauge glyph. */
 export function TrackerChip({ label, value, subject, guide = false, onEditValue }: TrackerChipProps): ReactElement {
   return (
-    <Badge tone="soft" size="sm" data-slot={guide ? "guide-chip" : "tracker-chip"}>
+    <Badge size="sm" data-slot={guide ? "guide-chip" : "tracker-chip"}>
       {guide ? <Icon icon={Gauge} size="sm" /> : null}
-      <Text as="span" tone="muted" voice="label">
+      <Text as="span" ink="muted" voice="label">
         {label} —{" "}
       </Text>
       {onEditValue === undefined ? (
@@ -149,14 +149,14 @@ interface BeatLineProps {
  *  The leading em-dash is the mock's beat marker (aria-hidden decoration — the text stays the datum). */
 export function BeatLine({ children }: BeatLineProps): ReactElement {
   return (
-    <Text tone="muted" data-slot="beat-line" className="flex gap-field" voice="gloss" prose={true}>
-      <Text as="span" aria-hidden={true} receded={true} className="shrink-0" voice="gloss" prose={true} tone="foreground">
+    <Text ink="muted" data-slot="beat-line" className="flex gap-field" voice="gloss" prose={true}>
+      <Text as="span" aria-hidden={true} receded={true} className="shrink-0" voice="gloss" prose={true} ink="foreground">
         —
       </Text>
       {/* min-w-0: the content is model-authored free text (journal beats, recent events) with no length
           contract — as a flex child it must be allowed to shrink so its inline content WRAPS; without it
           the line forces the tab wide (owner horizontal-scrollbar report, 08-01). */}
-      <Text as="span" tone="muted" className="wrap-break-word min-inline-0" voice="gloss" prose={true}>
+      <Text as="span" ink="muted" className="wrap-break-word min-inline-0" voice="gloss" prose={true}>
         {children}
       </Text>
     </Text>
@@ -185,14 +185,14 @@ export function GoalLine({ text, done = false, clock, onEditText }: GoalLineProp
   return (
     <Row justify="between" align="baseline" gap="block" className="flex-1 min-inline-0" data-slot="goal-line">
       {onEditText === undefined ? (
-        <Text as="span" tone={done ? "muted" : "default"} strike={done} className="truncate min-inline-0" voice="label">
+        <Text as="span" ink={done ? "muted" : undefined} strike={done} className="truncate min-inline-0" voice="label">
           {text}
         </Text>
       ) : (
         <TrackerValue ariaLabel="Goal" display={text} onEdit={onEditText} className="inline-full" />
       )}
       {clock === undefined ? null : (
-        <Text as="span" tone="muted" voice="datum">
+        <Text as="span" ink="muted" voice="datum">
           {clock.filled}/{clock.total}
         </Text>
       )}

@@ -28,7 +28,7 @@ export function CommandChip({ modalId, label, icon }: CommandChipProps): ReactNo
         <TooltipTrigger
           render={
             <Button
-              intent="ghost"
+              variant="ghost"
               size="icon"
               className="shell-topbar-icon-btn"
               // The DURABLE focus return for this modal: ModalHost reads it when a keyboard-opened palette

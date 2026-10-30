@@ -91,7 +91,7 @@ export function DraftModelsCheck({
 
   return (
     <Row align="center" gap="field">
-      <Button disabled={!ready} intent="secondary" loading={list.isPending} onClick={runCheck} size="sm">
+      <Button disabled={!ready} variant="outline" loading={list.isPending} onClick={runCheck} size="sm">
         List models
       </Button>
     </Row>

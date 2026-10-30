@@ -81,7 +81,7 @@ export function PersonaPanelRow({
           aria-label={subject}
           className="absolute inset-0"
           data-slot="persona-row-expand"
-          intent="ghost"
+          variant="ghost"
           onClick={onToggleExpand}
         />
         <Avatar className="pointer-events-none relative shrink-0" fallbackDelay={0} hueSeed={persona.id} size="sm" {...avatarSrc}>
@@ -106,7 +106,7 @@ export function PersonaPanelRow({
               <Button
                 aria-label={expanded ? `Hide details for ${subject}` : `Show details for ${subject}`}
                 className="relative shrink-0"
-                intent="ghost"
+                variant="ghost"
                 onClick={onToggleExpand}
                 size="icon"
               >
@@ -162,10 +162,10 @@ function FavoriteToggle({ starred, subject, onToggle }: { readonly starred: bool
               <Button
                 aria-label={label}
                 aria-pressed={starred}
-                intent="ghost"
+                variant="ghost"
                 onClick={onToggle}
                 size={starred ? "inline" : "icon"}
-                tone={starred ? "destructive" : "default"}
+                tone={starred ? "destructive" : undefined}
               >
                 <Icon icon={Heart} size="sm" />
               </Button>
