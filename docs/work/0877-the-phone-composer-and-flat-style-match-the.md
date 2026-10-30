@@ -22,4 +22,8 @@ The phone composer's height, door gap and placeholder alignment match the refere
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Not closed. The reference screenshot (`~/Downloads/SillyTavern.png`) and the SillyTavern container's CSS are not readable from the lane, so no pixel target exists to match.
+
+Measured on the current tree at 390x844, touch: the composer is 106px tall (a 32px command row and a 48px input row); the textarea's `text-align` is `start`; the doors in the command row sit 12px apart; flat style's text starts 46px from the screen edge (the card at 38px plus 8px of inset). The composer is the two-row layout since the redesign, so the old 114px and 23px figures no longer apply.
+
+Needs the owner's reference numbers (composer height, door gap, placeholder alignment, flat inset) before a test can pin them.

@@ -22,4 +22,8 @@ The pinned band height matches across styles on touch and the comment is current
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Not reproduced on the current tree. At 390x844 with a coarse pointer, every speaker-naming style pins a band whose fill under the action rail is one `--spacing-row` step, never flush with the body, and a single-line band holds the same fill under the name in tide as in the other styles. The frame comments in `packages/client/src/features/chat/components/message-name-row-frame.tsx` match the code.
+
+A band whose rail wraps under the identity is taller (bubble, echo and ripple at 390px). That follows the card's width and is the documented wrap of the rail, not a style difference.
+
+Pinned by `tests/client/features/chat/components/platform-pinned-band-height.suite.ct.tsx` (component test; mounts the production room through `ChatRoomShellStory`): 7 passed in Chromium and 7 in WebKit.
