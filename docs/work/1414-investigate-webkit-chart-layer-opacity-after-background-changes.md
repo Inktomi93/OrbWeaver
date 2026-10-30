@@ -103,3 +103,9 @@ for (const [name, engine, device, canvas] of cases) {
 ```
 
 For the component-test runner, mount the same document with `page.setContent` in a `platform-*.suite.ct.tsx` file and run `pnpm test:ct:webkit <file> --repeat-each=10 --workers=1`.
+
+### Lead: the Skia GPU canvas path
+
+Playwright's Linux WebKit is the GTK/WPE port, which accelerates 2D canvas through Skia on the GPU ([WebKit bug 274305](https://bugs.webkit.org/show_bug.cgi?id=274305), [WebKit bug 291678](https://bugs.webkit.org/show_bug.cgi?id=291678)). A downstream report shows WebKitGTK 2.52 leaving unpainted output on one GPU driver through that path and recovering with `WEBKIT_SKIA_ENABLE_CPU_RENDERING=1` ([block/buzz#2643](https://github.com/block/buzz/issues/2643)). The observed controls fit the GPU path: a `willReadFrequently` canvas, which stays on the CPU, never showed the defect, and CPU load alone did not trigger it. This box renders through the Intel UHD 770 on Mesa 25.2.8; its two NVIDIA GPUs run the model engines.
+
+Next test: run the reproduction script with and without `WEBKIT_SKIA_ENABLE_CPU_RENDERING=1` across several sessions, recording the Mesa version, which GPU WebKit's EGL selects, and whether the model engines hold GPU load. A CPU-rendering run that never fires while the default run fires confirms the path. Then file the bug upstream with the bare-HTML reproduction.
