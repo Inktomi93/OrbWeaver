@@ -5,13 +5,12 @@ import { wireCapturesResponseSchema } from "@orb/contracts/debug";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { E2E_FIXTURE_PROVIDER_PORT } from "@orb/tooling/floor/host/ports";
 import { expect, test } from "@playwright/test";
 import type { ActorClient } from "./support/actors.ts";
 import { configureCustomProvider, loginLocal, ownerActor } from "./support/actors.ts";
 import { ALL_ADMITTED, bugReportStatus, debugOutcomes, describeDebugTokenStates, gateRefusalReason, operatorToken, RELAYED } from "./support/debug-gate.ts";
 import { startFixtureProvider } from "./support/fixture-provider.ts";
-import { LOCAL_MEMBER, LOCAL_OWNER } from "./support/modes.ts";
+import { E2E_RUN_PORTS, LOCAL_MEMBER, LOCAL_OWNER } from "./support/modes.ts";
 
 const ADMIN_PASSWORD = "debug-gate-admin-password";
 const WIRE_CAPTURES = "/api/_debug/wire/captures";
@@ -58,7 +57,7 @@ test.describe("D17: a DELEGATED admin is not the box operator — the wire ring 
     const origin = baseURL ?? "";
     const owner = ownerActor(origin);
     const promptMarker = marker("debug-gate-foreign-prompt");
-    const fixture = await startFixtureProvider(E2E_FIXTURE_PROVIDER_PORT);
+    const fixture = await startFixtureProvider(E2E_RUN_PORTS.fixtureProvider);
     let restoreProvider: (() => Promise<void>) | undefined;
     const character = await owner.trpc.character.create.mutate({
       input: { handle: marker("debug-gate-card"), name: "Warden", description: "wire ring witness" },

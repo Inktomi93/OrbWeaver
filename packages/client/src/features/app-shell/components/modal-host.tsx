@@ -103,7 +103,7 @@ function DrawerModal({ body, container, def, onOpenChange }: DrawerModalProps): 
   // (https://base-ui.com/react/components/drawer). No body does today; this is the standing contract for the
   // first one that tries.
   return (
-    <Drawer open={true} onOpenChange={onDrawerOpenChange} side="bottom">
+    <Drawer open={true} onOpenChange={onDrawerOpenChange} side="bottom" modal="trap-focus">
       <DrawerVirtualKeyboardProvider>
         <DrawerPopup side="bottom" container={container} finalFocus={resolveDrawerFinalFocus}>
           {/* sticky so the title + close stay in view as DrawerPopup's own scroll region scrolls. */}

@@ -91,7 +91,7 @@ interface ThemeEditorBodyProps {
 }
 
 function ThemeEditorBody({ theme, session, mintedName, isUnmintedDraft }: ThemeEditorBodyProps): ReactElement {
-  const { form, saveState, retrySave } = session;
+  const { form, status, retrySave } = session;
   const [advancedToolsVisible, setAdvancedToolsVisible] = useState(false);
   // Widen once (the session's `form` is the boundary's surface minus `reset`) — the field bodies below
   // never call it, matching the preset editor's identical widen.
@@ -109,7 +109,7 @@ function ThemeEditorBody({ theme, session, mintedName, isUnmintedDraft }: ThemeE
   return (
     <Stack gap="section">
       <Row gap="field" align="center" className="justify-end">
-        <AutosaveStatus state={isUnmintedDraft && saveState === "saved" ? "draft" : saveState} onRetry={retrySave} />
+        <AutosaveStatus state={isUnmintedDraft && status === "saved" ? "draft" : status} onRetry={retrySave} />
       </Row>
       <boundForm.AppField name="name">{(field): ReactElement => <field.TextField label="Theme name" />}</boundForm.AppField>
 

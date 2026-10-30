@@ -32,7 +32,7 @@ export function RuleEditorSaveStatus({
       {(pristine): ReactElement => (
         <Stack gap="tight">
           <AutosaveStatus
-            state={uncreated && !restored && pristine ? "draft" : editorStatus(session.saveState, restored, uncreated)}
+            state={uncreated && !restored && pristine ? "draft" : editorStatus(session.status, uncreated)}
             onRetry={session.retrySave}
             retryable={failure === null || failure.retryable}
           />
@@ -53,12 +53,6 @@ export function RuleEditorSaveStatus({
   );
 }
 
-function editorStatus(state: AutosaveStatusProps["state"], restored: boolean, uncreated: boolean): AutosaveStatusProps["state"] {
-  if (state !== "saved") {
-    return state;
-  }
-  if (restored) {
-    return "restored";
-  }
-  return uncreated ? "draft" : "saved";
+function editorStatus(state: AutosaveStatusProps["state"], uncreated: boolean): AutosaveStatusProps["state"] {
+  return state === "saved" && uncreated ? "draft" : state;
 }

@@ -306,7 +306,7 @@ function PresetEditorBody({
   configUnreadable,
   onRevealSection,
 }: PresetEditorBodyProps): ReactElement {
-  const { form, saveState, restored, retrySave, reseed } = session;
+  const { form, status, retrySave, reseed } = session;
 
   // The reset ACT — the header owns the door and its confirm; the write is a SESSION concern (the mutation
   // plus the reseed that lands its response row), so it is wired here and injected.
@@ -347,7 +347,7 @@ function PresetEditorBody({
           isSystemDefault={isSystemDefault}
           onActivate={onActivate}
           onRename={onRename}
-          saveState={restored && saveState === "saved" ? "restored" : saveState}
+          saveState={status}
           onRetrySave={retrySave}
           onConfirmReset={confirmReset}
         />

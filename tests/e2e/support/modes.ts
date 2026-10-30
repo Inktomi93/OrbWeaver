@@ -34,7 +34,7 @@ import { join, resolve } from "node:path";
 import process from "node:process";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import { assertPrivateCorpusNetwork, assertPrivateCorpusOutput, assertPrivateCorpusOutputArguments, loadCorpusFixture } from "@orb/testkit/node/composed";
-import { DEV_PORTS, E2E_OIDC_ISSUER_PORT, E2E_PORTS, ENGINE_PORTS } from "@orb/tooling/floor/host/ports";
+import { DEV_PORTS, ENGINE_PORTS, e2eRunPorts } from "@orb/tooling/floor/host/ports";
 import { exportProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
 import type { IssuerTls } from "./oidc-issuer.ts";
@@ -52,6 +52,13 @@ if (runToken === undefined || !/^[1-9]\d*-[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9
 if (E2E_RUN_IS_OWNER) {
   exportProcessEnv(RUN_TOKEN_ENV, runToken);
 }
+const PORT_OFFSET_ENV = "E2E_PORT_OFFSET";
+const rawPortOffset = process.env[PORT_OFFSET_ENV];
+if (rawPortOffset !== undefined && !/^\d+$/u.test(rawPortOffset)) {
+  throw new Error(`${PORT_OFFSET_ENV} must be a non-negative integer, got ${JSON.stringify(rawPortOffset)}`);
+}
+/** Every port this run binds: the registry's base rows shifted together by `E2E_PORT_OFFSET`, so a second run on the box does not collide. */
+export const E2E_RUN_PORTS = e2eRunPorts(rawPortOffset === undefined ? 0 : Number(rawPortOffset));
 const CHECKOUT_ROOT = resolve(import.meta.dirname, "..", "..", "..");
 /** Disposable state belongs to one runner, never to a fixed port or auth mode. */
 export const E2E_RUN_ROOT = join(CHECKOUT_ROOT, ".cache", "e2e", "runs", runToken);
@@ -178,7 +185,7 @@ export const E2E_LOCAL_ENGINE_FALLBACK_MODEL = "Qwen/Qwen3-VL-8B-Instruct";
  * allowlist's env floor is born loopback ONLY under `AUTH_MODE=single-user`
  * (`settings/effective-config/layer.ts::privateEndpointAllowlistFloor`) — EMPTY on `local` and
  * `forward-header`. Both of those stacks author loopback endpoint rows (this engine; the local mode's
- * scripted fixture provider at `E2E_FIXTURE_PROVIDER_PORT`), so without this they would be refused at the
+ * scripted fixture provider at `E2E_RUN_PORTS.fixtureProvider`), so without this they would be refused at the
  * write seam. It is NOT the same key as `EGRESS_ALLOWLIST` below: that one widens the non-safeFetch egress
  * backstop at connect time, this one is the write-time admission.
  */
@@ -243,8 +250,8 @@ function isolatedDataEnv(mode: string): Readonly<Record<string, string>> {
 // The suite boots the app many times a minute for one owner, which a real session never does: a corpus cell peaked
 // near 900 tRPC requests in one window against the 600 default. Production's default is untouched.
 const E2E_RATE_LIMIT_AUTHED = "1200";
-const SINGLE_BACKEND_PORT = String(DEV_TARGET_ALLOWED ? DEV_PORTS.server : E2E_PORTS.singleUser.server);
-const SINGLE_VITE_PORT = String(DEV_TARGET_ALLOWED ? DEV_PORTS.vite : E2E_PORTS.singleUser.vite);
+const SINGLE_BACKEND_PORT = String(DEV_TARGET_ALLOWED ? DEV_PORTS.server : E2E_RUN_PORTS.stacks.singleUser.server);
+const SINGLE_VITE_PORT = String(DEV_TARGET_ALLOWED ? DEV_PORTS.vite : E2E_RUN_PORTS.stacks.singleUser.vite);
 export const SINGLE_USER: ModeProject = {
   name: "single-user",
   baseUrl: DEV_TARGET_ALLOWED ? `http://localhost:${SINGLE_VITE_PORT}` : `http://127.0.0.1:${SINGLE_BACKEND_PORT}`,
@@ -315,8 +322,8 @@ const FIRST_RUN_ASK_HANDLES = CORPUS_DEVICES.flatMap((device) =>
 // ── local (cookie/BFF sessions) — ports 8799/5183, ISOLATED DB/assets under .cache. AUTH_MODE=local +
 // the local-mode secrets; global-setup flips localMultiUser on + seeds a member. adopt-only + WIRE_CAPTURE
 // so the member-strip @live spec can plant a lie AND (optionally) drive a real turn. ──
-const LOCAL_BACKEND_PORT = String(E2E_PORTS.local.server);
-const LOCAL_VITE_PORT = String(E2E_PORTS.local.vite);
+const LOCAL_BACKEND_PORT = String(E2E_RUN_PORTS.stacks.local.server);
+const LOCAL_VITE_PORT = String(E2E_RUN_PORTS.stacks.local.vite);
 // Module-local (fed into MODE_PROJECTS below; only SINGLE_USER is exported — the config's reuse-check needs it).
 const LOCAL: ModeProject = {
   name: "local",
@@ -368,8 +375,8 @@ const LOCAL: ModeProject = {
 // FORWARD_AUTH_VERIFY_JWT=true + a non-empty JWKS allowlist (the signed path refuses an empty one; the JWKS
 // itself rides each request as a literal, so the allowlist gates only remote-URL egress). The actor mints a
 // signed JWT in-test (jose) — no external IdP, no login. ──
-const FWD_BACKEND_PORT = String(E2E_PORTS.forwardHeader.server);
-const FWD_VITE_PORT = String(E2E_PORTS.forwardHeader.vite);
+const FWD_BACKEND_PORT = String(E2E_RUN_PORTS.stacks.forwardHeader.server);
+const FWD_VITE_PORT = String(E2E_RUN_PORTS.stacks.forwardHeader.vite);
 const FORWARD_HEADER: ModeProject = {
   name: "forward-header",
   baseUrl: `http://127.0.0.1:${FWD_BACKEND_PORT}`,
@@ -413,7 +420,7 @@ const FORWARD_HEADER: ModeProject = {
 // callback would land on an origin that serves no client. The server therefore serves a built client
 // (`CLIENT_DIST_DIR`, built once per run by the first booted webServer), and the browser, the callback and the
 // redirect allowlist all name one origin. Vite still boots with the stack; nothing reads it.
-const OIDC_BACKEND_PORT = String(E2E_PORTS.oidc.server);
+const OIDC_BACKEND_PORT = String(E2E_RUN_PORTS.stacks.oidc.server);
 const OIDC_ORIGIN = `http://127.0.0.1:${OIDC_BACKEND_PORT}`;
 const OIDC_CALLBACK_ROUTE = "/api/auth/oidc/callback";
 // Absolute: the playwright config mints the certificate and the server child reads it, each from its own cwd.
@@ -428,8 +435,8 @@ export function oidcIssuerTls(): IssuerTls {
 
 /** The registered client and the issuer it trusts. Dev-only literals, like SESSION_SECRET above. */
 export const OIDC_CLIENT = {
-  issuerUrl: `https://127.0.0.1:${String(E2E_OIDC_ISSUER_PORT)}`,
-  issuerPort: E2E_OIDC_ISSUER_PORT,
+  issuerUrl: `https://127.0.0.1:${String(E2E_RUN_PORTS.oidcIssuer)}`,
+  issuerPort: E2E_RUN_PORTS.oidcIssuer,
   clientId: "orbweaver-e2e",
   clientSecret: "orbweaver-e2e-oidc-client-secret-insecure",
   providerName: "E2E IdP",
@@ -458,7 +465,7 @@ export const OIDC_MODE: ModeProject = {
     DEBUG_TOKEN: E2E_DEBUG_TOKEN,
     E2E_HARNESS: "on",
     PORT: OIDC_BACKEND_PORT,
-    VITE_PORT: String(E2E_PORTS.oidc.vite),
+    VITE_PORT: String(E2E_RUN_PORTS.stacks.oidc.vite),
     VITE_API_TARGET: OIDC_ORIGIN,
     ...isolatedDataEnv("oidc"),
     OWNER_HANDLES: HARNESS_OWNER_HANDLE,

@@ -149,7 +149,7 @@ function PersonaEditorBody({ session, persona, onRequestDelete }: PersonaEditorB
               <field.TextField label="Title" hint="A display subtitle for pickers — never injected into the prompt." placeholder="Optional" />
             )}
           </form.AppField>
-          <AutosaveStatus state={session.saveState} onRetry={session.retrySave} />
+          <AutosaveStatus state={session.status} onRetry={session.retrySave} />
         </Stack>
       </Row>
 

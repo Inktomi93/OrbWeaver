@@ -47,6 +47,13 @@ where everything is always mounted doesn't need the sweep.
 - **Disabled-affordance CTs:** assert `aria-disabled` + a `title` naming the unlock condition +
   activation-prevention (the click/keypress does nothing) — all three, not just one.
 
+## Ports
+
+Every mode stack, the OIDC issuer and the fixture provider bind fixed base ports from the registry
+(`tooling/src/floor/host/ports.ts`). A second e2e run on the box sets `E2E_PORT_OFFSET=<n>` (a multiple of 10,
+for example `10` or `20`) to shift all of them together; `modes.ts` reads it into `E2E_RUN_PORTS`, which specs use
+instead of the registry's base rows. An offset that would land on a reserved row or a stage band is refused.
+
 ## Artifacts
 
 `reports/e2e-results/` (trace/screenshot on failure) is WIPED by the next run. Read a failing run's

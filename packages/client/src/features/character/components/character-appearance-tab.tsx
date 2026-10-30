@@ -203,7 +203,7 @@ function ThemeControlsBody({ characterName, session }: ThemeControlsBodyProps): 
       <Row gap="field" align="center" className="flex-wrap justify-between">
         <Row gap="field" align="center" className="flex-wrap">
           <Text voice="label">Theme</Text>
-          <AutosaveStatus state={session.saveState} onRetry={session.retrySave} />
+          <AutosaveStatus state={session.status} onRetry={session.retrySave} />
         </Row>
         <Row gap="field" align="center" className="flex-wrap">
           <StartFromThemeField onPick={startFromTheme} />

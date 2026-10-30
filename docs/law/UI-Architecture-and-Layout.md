@@ -231,6 +231,8 @@ DESKTOP (wide):   [ RAIL | LIST | CONTENT | CONTEXT ]
             The persisted per-panel override wins thereafter.
 
 MOBILE:  RAIL → BOTTOM tab bar (none in a chat room): Home · Chats · Characters · You (D271).
+         A bottom sheet opened from the tab bar ends above the bar (`--drawer-bottom-inset`, set on the phone
+         shell's portal root from `--dimension-rail` plus the device inset), and a second tap on its tab closes it.
          Corpus enters through You. You is the mobile PROJECTION of shell chrome (§B) over the SAME resolved chrome
          list: `mobile:"sheet"` rail entries + the `rail.end` chrome (incl. the persona Identity
          widget's `body("sheet")` view, so mobile persona switching lives here). Containment chain: You ⊃ Identity, whose
@@ -256,7 +258,7 @@ Labels uses one visible word for manual labels. Its Usage rail retains the share
 
 - **Refinery is a first-class rail section + feature surface** (Score→Rewrite→Analyze — D28). Its workbench parts (session masthead, the score, rewrite and analyze lanes, the run bar, per-block compare → `@orb/ui/diff`) are app components over the primitives.
 - **Each side panel has a 3-state model** in the shell store: **`docked`** · **`overlay`** (slides over via the §11.1 clamp — zero width closed) · **`collapsed`**. Per-panel, persisted, auto-`overlay` below a width breakpoint (the one app-shell `@media`).
-- **"Immersive-ST" = both side panels collapsed; "command-center" = panels docked.** Each panel has its own toggle; nothing else hides both at once. The §11.1 clamp-overlay is the `overlay` mechanism.
+- **"Immersive-ST" = both side panels collapsed; "command-center" = panels docked.** Each panel has its own toggle; nothing else hides both at once. A desktop panel opens and closes from one `PanelEdgeControl` (`packages/client/src/components/panel-edge-control.tsx`) at the screen-edge corner of its header row. The same node serves the docked and the collapsed state, so it never moves under the pointer. The topbar carries no panel toggle on a desktop. On a desktop the control stays in place while its panel floats as a sheet and is that sheet's one dismiss. A phone sheet carries its own dismiss, and a phone keeps its doors in the topbar. The control sits in the document beside its panel, so the keyboard reaches it where it is drawn. The §11.1 clamp-overlay is the `overlay` mechanism.
 - **A migrating ST user loses nothing:** swipes · edit-in-place · branch/fork · italics-narration · hide-from-AI all live in the CONTENT thread, identical regardless of chrome.
 
 ##### 4.1a The shell's stacking contract — three things, and only one of them is a paint order

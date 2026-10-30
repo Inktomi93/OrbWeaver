@@ -52,11 +52,14 @@ for (const hasTouch of [false, true]) {
       await page.keyboard.press("Enter");
       await expect(strip.getByRole("tab", { selected: true })).not.toHaveText(target);
       await expect(pane.getByRole("tablist")).toHaveCount(1);
-      const close = header.locator('[data-slot="context-bracket-dismiss"]');
+      const close = page.getByRole("button", { name: "Hide details", exact: true });
       await expect(close).toBeVisible();
       const floor = await resolvedLength(page, "var(--size-touch-target)");
       const box = await choose.boundingBox();
       expect(Math.min(box?.width ?? 0, box?.height ?? 0)).toBeGreaterThanOrEqual(floor);
+      // The pane's close is its edge control, laid over the header's end lane: the tab strip's controls stop short of it.
+      const closeBox = await close.boundingBox();
+      expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(closeBox?.x ?? 0);
       await page.setViewportSize({ width: 1920, height: 900 });
       await expect(header).toBeVisible();
       await header.screenshot({ path: testInfo.outputPath("wide-header.png") });
