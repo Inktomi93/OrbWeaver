@@ -94,12 +94,15 @@ function steerFor(action: GuidedActionKind, input: string, person?: GuidedImpers
   return person === undefined ? { action, input } : { action, input, person };
 }
 
+/** Writes the composer's draft text: the guided cluster's edit and this hook's restore of a failed fire are one write. */
+export type ComposerDraftWrite = (text: string) => void;
+
 export interface UseGuidedActionsOptions {
   readonly chatId: ChatId;
   /** F3 — restore the just-fired steer text into the composer when a guided mutation FAILS (the source's
    *  sacred input-restore, client-only per D57). The wand's `onChange` clears the draft at fire time; on
    *  error the ephemeral steer would otherwise be lost. Called with the fired text on any non-abort error. */
-  readonly onFireError?: ((firedText: string) => void) | undefined;
+  readonly onFireError?: ComposerDraftWrite | undefined;
 }
 
 export interface UseGuidedActionsResult {

@@ -1,12 +1,14 @@
 // The chat data and injected ops the rpg domain consumes. Runtime types (AbortSignal, resolved connections,
 // tool wires) stay with their owners; each consumer types its op signature over these shapes.
 
-import type { CharacterId, ChatId, MessageId, MessageVariantId, RpgGameId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatTurnId, MessageId, MessageVariantId, PresetId, RpgGameId, UserId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { ChatMembership } from "#identity";
 import type { ProseOverrides } from "#prose-slot";
 import type { ChatRpgPointer, RpgGameTemplate, RpgParticipantActor } from "#rpg";
 import type { ChatInjection } from "./assemble.ts";
+import type { TurnAbortReason } from "./bus.ts";
+import type { HandoffCardPair, HandoffHealArgs } from "./handoff-context.ts";
 
 /** The turn-kind axis of a chat turn. */
 const TURN_KINDS = ["send", "swipe", "continue", "generate", "impersonate", "opening", "auto", "force"] as const;
@@ -140,3 +142,48 @@ export type ResolveGmSeatHolderKindOp = (chatId: ChatId) => Promise<GmSeatHolder
 /** The chat's app-tier PROSE overrides, resolved for the room host. A hostless or stale room resolves `{}`, so
  *  every slot falls to its shipped default. */
 export type ResolveChatProseOp = (chatId: ChatId) => Promise<ProseOverrides>;
+
+// The rest of the chat-rpg seam: chat's `ChatRpgOps` and rpg's own ops object both type their members by these, so
+// the owner's verb and the consumer's slot name one op. A runtime type (a statement handle, a resolved turn, a tool
+// wire) is a type parameter each side fills from its own imports.
+
+/** Post-commit notice that a game birth plan committed with its room. */
+export type GameBirthCommittedOp = (chatId: ChatId) => void;
+
+/** The game's GM-voice preset, resolved before preset resolution; `null` means not a game or no override. */
+export type ResolvePresetOverrideOp = (chatId: ChatId) => Promise<PresetId | null>;
+
+/** A game turn's gather contribution, or `null` for a non-game chat. `Result` adds the runtime-typed terminal tools. */
+export type GatherTurnContextOp<Result extends ChatRpgGatherData> = (args: GatherTurnContextArgs) => Promise<Result | null>;
+
+/** The send path's hook after the user row commits. */
+export type RpgUserCommitOp = (chatId: ChatId, messageId: MessageId) => Promise<void>;
+
+/** Marks a turn that responds to the latest user slot, so only it may consume a queued die. */
+export type MarkDicePreRollEligibleOp = (turnId: ChatTurnId) => void;
+
+/** The post-commit flush of a turn's staged writes onto its committed variant. `Turn` adds the resolved route,
+ *  terminal calls and signal to {@link RpgTurnFacts}. */
+// biome-ignore lint/complexity/useMaxParams: this names the existing positional `onTurnCompleted` op the engine calls; reshaping its call is not this type's to do.
+export type RpgTurnCompletedOp<Turn extends RpgTurnFacts> = (
+  chatId: ChatId,
+  messageId: MessageId,
+  variantId: MessageVariantId,
+  turnId: ChatTurnId,
+  turn: Turn,
+) => Promise<void>;
+
+/** Clears a failed turn's staging so it never flushes into its successor. */
+export type RpgTurnAbortedOp = (chatId: ChatId, turnId: ChatTurnId, reason: TurnAbortReason) => Promise<void>;
+
+/** Whether the game rooted at this chat withholds the reasoning channel from members. */
+export type ResolveReasoningHostOnlyOp = (chatId: ChatId) => Promise<boolean>;
+
+/** The rpg-side statements a host handoff commits in chat's swap batch. `Statement` is the consumer's handle. */
+export type HandoffHealStatementsOp<Statement> = (args: HandoffHealArgs) => Promise<readonly Statement[]>;
+
+/** Whether an accepted preset-copy offer would copy this room's GM voice into the nominee's library. */
+export type HandoffWouldCopyGmPresetOp = (chatId: ChatId, nomineeUserId: UserId) => Promise<boolean>;
+
+/** The post-swap move of each copied character's tracker rows onto its copy. */
+export type HandoffRekeyActorsOp = (chatId: ChatId, cardCopies: readonly HandoffCardPair[]) => Promise<void>;

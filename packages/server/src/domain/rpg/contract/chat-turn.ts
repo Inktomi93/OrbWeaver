@@ -1,6 +1,29 @@
-// The runtime-typed halves of the chat turn shapes rpg consumes. The data halves live in `@orb/contracts/chat`.
+// The runtime-typed halves of the chat turn shapes rpg consumes, and the ops object rpg builds for chat. The data
+// halves and every op type live in `@orb/contracts/chat`; chat's slot names the same op types, so the composition
+// root's wiring checks the two against each other.
 
-import type { ChatRpgGatherData, GenerationObservationParent, RpgTurnFacts } from "@orb/contracts/chat";
+import type {
+  ChatRpgGatherData,
+  ForkGameOp,
+  GameBirthCommittedOp,
+  GatherTurnContextOp,
+  GenerationObservationParent,
+  HandoffHealStatementsOp,
+  HandoffRekeyActorsOp,
+  HandoffWouldCopyGmPresetOp,
+  MarkDicePreRollEligibleOp,
+  PlanGameBirthOp,
+  ReadChatUserMacrosOp,
+  ResolveGmSeatHolderKindOp,
+  ResolvePresetOverrideOp,
+  ResolveReasoningHostOnlyOp,
+  RpgTurnAbortedOp,
+  RpgTurnCompletedOp,
+  RpgTurnFacts,
+  RpgUserCommitOp,
+} from "@orb/contracts/chat";
+import type { CancelStateRoundsOp } from "@orb/contracts/rpg";
+import type { StatementToken } from "@orb/db/wiring";
 import type { GenerationObservationCallback, Resolved, ToolCallInput, WireTool } from "@orb/inference";
 
 /** A completed turn's facts plus the resolved connection the post-commit round runs on, the folded terminal tool
@@ -21,3 +44,24 @@ export interface RpgGatherResult extends ChatRpgGatherData {
 
 /** Open a retained generation-observation sink for a host-door call; returns the callback the provider reports into. */
 export type BeginGenerationObservation = (parent: GenerationObservationParent) => GenerationObservationCallback;
+
+/** The ops rpg exposes to chat's turn, room and handoff seams (D58). Each is principal-free (chat gated the caller)
+ *  and a byte-identical no-op for a non-game chat. */
+export interface RpgChatOps {
+  readonly planGameBirth: PlanGameBirthOp<StatementToken>;
+  readonly gameBirthCommitted: GameBirthCommittedOp;
+  readonly resolvePresetOverride: ResolvePresetOverrideOp;
+  readonly resolveUserMacros: ReadChatUserMacrosOp;
+  readonly gatherTurnContext: GatherTurnContextOp<RpgGatherResult>;
+  readonly markDicePreRollEligible: MarkDicePreRollEligibleOp;
+  readonly onUserCommit: RpgUserCommitOp;
+  readonly onTurnCompleted: RpgTurnCompletedOp<RpgTurnContext>;
+  readonly onTurnAborted: RpgTurnAbortedOp;
+  readonly cancelStateRounds: CancelStateRoundsOp;
+  readonly resolveGmSeatHolderKind: ResolveGmSeatHolderKindOp;
+  readonly resolveReasoningHostOnly: ResolveReasoningHostOnlyOp;
+  readonly forkGame: ForkGameOp;
+  readonly handoffHealStatements: HandoffHealStatementsOp<StatementToken>;
+  readonly handoffWouldCopyGmPreset: HandoffWouldCopyGmPresetOp;
+  readonly handoffRekeyActors: HandoffRekeyActorsOp;
+}

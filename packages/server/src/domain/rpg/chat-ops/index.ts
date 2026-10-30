@@ -1,25 +1,19 @@
-// domain/rpg/chat-ops — the `ChatRpgOps` runtime (D58). This is the ops object rpg EXPOSES for
-// chat: chat's `ChatContext.rpg` slot (a null-op when rpg isn't wired). W1b-integration BUILDS it over the rpg
-// `RpgContext`; the composition root (W1c) hands it to `buildChatService({ rpg: … })` — this wave does NOT wire
-// it into chat (compose = W1c). The ops are PRINCIPAL-FREE (chat gated the turn's caller); each resolves
-// game-ness by the row and is a byte-identical no-op for a non-game chat.
-//
-// The object SATISFIES chat's `ChatRpgOps` interface — the shape's ONE home is chat's contract, re-exported from
-// chat's FRONT DOOR (`domain/chat`, PREBUILT for this seam); rpg type-imports it there (type-only, through the
-// sibling front door — the one-directional-flow SHAPE rule) rather than re-spelling a second copy. Runtime
-// cross-domain imports stay banned: this object reaches into NO chat value; it only produces the shape.
+// domain/rpg/chat-ops — the `RpgChatOps` runtime (D58). This is the ops object rpg EXPOSES for chat's
+// `ChatContext.rpg` slot (a null-op when rpg isn't wired); the composition root hands it to chat. The ops are
+// PRINCIPAL-FREE (chat gated the turn's caller); each resolves game-ness by the row and is a byte-identical no-op
+// for a non-game chat. Rpg imports nothing from chat (Core-0 §4): each op is typed by the `@orb/contracts` op type
+// chat's slot also names.
 //
 // The delivery-mode branch (§4.6 amendment) lives in the gather (terminal tools vs none) + the flush (fold the
 // turn's own calls vs run the dedicated post-commit round). See `./gather` + `./flush`.
 
-import type { ForkGameOp, GatherTurnContextArgs, ReadChatUserMacrosOp, ResolveGmSeatHolderKindOp } from "@orb/contracts/chat";
+import type { GatherTurnContextArgs } from "@orb/contracts/chat";
 import type { RpgExtractionMode } from "@orb/contracts/rpg";
 import { isDeceptionActive } from "@orb/contracts/rpg";
 import { statementToken } from "@orb/db/wiring-owner";
-import type { ChatId, MessageId, MessageVariantId, PresetId } from "@orb/kit/ids";
-import type { ChatRpgOps } from "#domain/chat";
+import type { ChatId, ChatTurnId, MessageId, MessageVariantId, PresetId } from "@orb/kit/ids";
 import { createRpgContext } from "../context.ts";
-import type { RpgGatherResult, RpgTurnContext } from "../contract/chat-turn.ts";
+import type { RpgChatOps, RpgGatherResult, RpgTurnContext } from "../contract/chat-turn.ts";
 import type { RpgAssemblyContext } from "../contract/service.ts";
 import { planLiteGameBirth } from "../game-mint.ts";
 import { findGameByChat } from "../persistence/games.ts";
@@ -29,9 +23,9 @@ import { forkGame } from "./fork-game.ts";
 import { gatherTurnContext } from "./gather.ts";
 import { handoffHealStatements, handoffRekeyActors, handoffWouldCopyGmPreset } from "./handoff-heal.ts";
 
-/** Build the `ChatRpgOps` runtime over the rpg ctx (D58). Handed to chat's compose (W1c); NOT
+/** Build the {@link RpgChatOps} runtime over the rpg ctx (D58). Handed to chat at the composition root; NOT
  *  wired here. The gather + flush hold the extractionMode branch; the rest are thin ctx reads/writes. */
-export function createRpgChatOps(input: RpgAssemblyContext): ChatRpgOps {
+export function createRpgChatOps(input: RpgAssemblyContext): RpgChatOps {
   const ctx = createRpgContext(input);
   // #40 — the disengage chokepoint: a game whose front-door toggle is OFF behaves as NO GAME in every
   // chat-op (gather/flush/preset/reasoning/commit) — the turn assembly is byte-identical to a non-game
@@ -81,14 +75,8 @@ export function createRpgChatOps(input: RpgAssemblyContext): ChatRpgOps {
   // owns the owner-scoped `cancel` the chat `abort` verb reaches through). One registry, because "which rounds
   // are in flight" is the same question both answer — see `flush-barrier.ts` for why the turn's own signal
   // cannot serve here.
-  // biome-ignore lint/complexity/useMaxParams: the signature is the injected `ChatRpgOps.onTurnCompleted` contract (chat's front door) — chat calls it positionally; it is not this impl's to reshape.
-  function onTurnCompleted(
-    chatId: ChatId,
-    messageId: MessageId,
-    variantId: MessageVariantId,
-    turnId: ChatRpgOnTurnCompletedTurnId,
-    turn: RpgTurnContext,
-  ): Promise<void> {
+  // biome-ignore lint/complexity/useMaxParams: the signature is the positional `RpgTurnCompletedOp` chat calls; it is not this impl's to reshape.
+  function onTurnCompleted(chatId: ChatId, messageId: MessageId, variantId: MessageVariantId, turnId: ChatTurnId, turn: RpgTurnContext): Promise<void> {
     const runFlush = async (signal: AbortSignal): Promise<void> => {
       const game = await findEngagedGame(chatId); // disengaged (#40) ⇒ no state round, no snapshot write
       if (game === undefined) {
@@ -106,14 +94,14 @@ export function createRpgChatOps(input: RpgAssemblyContext): ChatRpgOps {
     // #40 DRAFT-TIME birth (`chat.startChat` carried `startAsGame`): contribute RPG's row to the fresh room's
     // atomic batch. The startChat caller IS the just-minted host (chat's verb is the authority gate), and the
     // game exists before the opening turn so turn 1's gather sees it.
-    planGameBirth: (chatId, params): ReturnType<ChatRpgOps["planGameBirth"]> => planLiteGameBirth(ctx, { chatId, ruleset: params.ruleset }),
+    planGameBirth: (chatId, params) => planLiteGameBirth(ctx, { chatId, ruleset: params.ruleset }),
     gameBirthCommitted: (chatId): void => ctx.emitBus({ type: "gameChanged", chatId }),
     resolvePresetOverride,
     // The GAME-authored user macros (MU §12A.5 / owner ruling #20's game half): `config.userMacros`, handed
     // to chat as declarations for BOTH the per-turn macro registry and the picks-pane read. KNOB-DRIVEN and
     // mode-blind like `resolvePresetOverride` — a plain config read, no game logic. A non-game chat or a
     // DISENGAGED game (#40) yields `[]`: the turn resolves preset macros only, byte-identical to no game.
-    resolveUserMacros: async (chatId): ReturnType<ReadChatUserMacrosOp> => (await findEngagedGame(chatId))?.config.userMacros ?? [],
+    resolveUserMacros: async (chatId) => (await findEngagedGame(chatId))?.config.userMacros ?? [],
     // GATHER (§4.7): the depth-0 reminder injection + the resolved-mode tool set (cheap-with-tools) or none
     // (readonly). `args.pendingUserText`/`args.respondsToLatestUserTurn` are full's dice-feed inputs — lite
     // has no checks, so the gather ignores them (never threaded through to the impl below). `args.steerIdentity`
@@ -141,7 +129,7 @@ export function createRpgChatOps(input: RpgAssemblyContext): ChatRpgOps {
     // A non-game chat has no rounds and answers 0 (byte-identical).
     cancelStateRounds: (chatId, principalUserId): number => ctx.flushBarrier.cancel(chatId, principalUserId),
     // No GM seat in lite (`gmUserId` is always NULL) — the seat-kind read is always null (full's seat resolve).
-    resolveGmSeatHolderKind: (): ReturnType<ResolveGmSeatHolderKindOp> => Promise.resolve(null),
+    resolveGmSeatHolderKind: () => Promise.resolve(null),
     // P3 (§3.6): is the game DECEPTION-ACTIVE (`config.features.deception || omniscience`)? Drives the member
     // reasoning-host-only strip in chat. `false` for a non-game chat (no game row) / a game with neither channel.
     resolveReasoningHostOnly: async (chatId): Promise<boolean> => {
@@ -153,13 +141,13 @@ export function createRpgChatOps(input: RpgAssemblyContext): ChatRpgOps {
     // the SOURCE chat's game row directly (NOT `findEngagedGame`): a DISENGAGED game still clones — the fork
     // inherits its disengaged pointer (see `fork-game.ts`), preserving the source's front-door state, never
     // silently re-engaging it.
-    forkGame: (args): ReturnType<ForkGameOp> => forkGame(ctx, args),
+    forkGame: (args) => forkGame(ctx, args),
     // HOST HANDOFF (F1 + the copy offer): the unexecuted `gmPresetId` heal/gift + the `rpg_sheets`
     // re-key, folded into chat's role-swap batch — the fork carry-gate's twin on the OTHER member→host
     // transition. Reads the game row directly (a DISENGAGED game still carries the knob); `[]` for a non-game
     // chat ⇒ a plain-room handoff is byte-identical, and an offer-less accept is byte-identical to the
     // pre-offer heal.
-    handoffHealStatements: async (args): ReturnType<ChatRpgOps["handoffHealStatements"]> => (await handoffHealStatements(ctx, args)).map(statementToken),
+    handoffHealStatements: async (args) => (await handoffHealStatements(ctx, args)).map(statementToken),
     // HOST HANDOFF, the NOMINATE-side disclosure (#1762): the same knob/ownership gate the heal applies,
     // asked before the nominee has consented — so the inbox row can say whether the room's GM voice comes
     // with it. Reads only; `false` for a non-game chat.
@@ -169,7 +157,3 @@ export function createRpgChatOps(input: RpgAssemblyContext): ChatRpgOps {
     handoffRekeyActors: (chatId, cardCopies): Promise<void> => handoffRekeyActors(ctx, chatId, cardCopies),
   };
 }
-
-/** The `turnId` arm of `ChatRpgOps.onTurnCompleted` — chat's `ChatTurnId` brand (an EPHEMERAL kit id). Aliased
- *  locally so the file names chat's op-arg type without re-spelling the brand. */
-type ChatRpgOnTurnCompletedTurnId = Parameters<ChatRpgOps["onTurnCompleted"]>[3];

@@ -1,7 +1,6 @@
 // RPG receives the turn's resolved route and story; the engine receives terminal hooks, not game authority.
-import type { RpgTurnFacts, TurnAbortReason } from "@orb/contracts/chat";
+import type { MarkDicePreRollEligibleOp, RpgTurnAbortedOp, RpgTurnCompletedOp, RpgTurnFacts } from "@orb/contracts/chat";
 import type { Resolved, ToolCallInput } from "@orb/inference";
-import type { ChatId, ChatTurnId, MessageId, MessageVariantId } from "@orb/kit/ids";
 
 /** The completed turn's captured inputs are never re-resolved against a later host or preset. */
 export interface RpgTurnContext extends RpgTurnFacts {
@@ -14,9 +13,9 @@ export interface RpgTurnContext extends RpgTurnFacts {
 /** Terminal hooks receive resolved turn facts and cannot change membership, handoff or game configuration. */
 export interface RpgTurnOps {
   /** Called only for a turn responding to the latest user slot; later rounds cannot reuse queued dice. */
-  readonly markDicePreRollEligible: (turnId: ChatTurnId) => void;
+  readonly markDicePreRollEligible: MarkDicePreRollEligibleOp;
   /** Flush staged tool writes onto this committed variant with the turn's resolved connection and transcript. */
-  readonly onTurnCompleted: (chatId: ChatId, messageId: MessageId, variantId: MessageVariantId, turnId: ChatTurnId, turn: RpgTurnContext) => Promise<void>;
+  readonly onTurnCompleted: RpgTurnCompletedOp<RpgTurnContext>;
   /** Clear staging so a failed turn never flushes into its successor. */
-  readonly onTurnAborted: (chatId: ChatId, turnId: ChatTurnId, reason: TurnAbortReason) => Promise<void>;
+  readonly onTurnAborted: RpgTurnAbortedOp;
 }

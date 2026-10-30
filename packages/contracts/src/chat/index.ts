@@ -402,17 +402,28 @@ export type {
   ForkGameArgs,
   ForkGameOp,
   ForkGameResult,
+  GameBirthCommittedOp,
   GatherTurnContextArgs,
+  GatherTurnContextOp,
   GetMembership,
+  HandoffHealStatementsOp,
+  HandoffRekeyActorsOp,
+  HandoffWouldCopyGmPresetOp,
+  MarkDicePreRollEligibleOp,
   PlanGameBirthOp,
   ResolveCanonWindow,
   ResolveChatProseOp,
   ResolveGmSeatHolderKindOp,
+  ResolvePresetOverrideOp,
+  ResolveReasoningHostOnlyOp,
   ResolveRpgCardCorpus,
   ResolveRpgParticipants,
   RpgCardCorpus,
+  RpgTurnAbortedOp,
+  RpgTurnCompletedOp,
   RpgTurnFacts,
   RpgTurnTranscriptMessage,
+  RpgUserCommitOp,
   SetRpgPointer,
   TurnKind,
 } from "./rpg-ops.ts";
@@ -427,7 +438,7 @@ export type {
 } from "./seat-ops.ts";
 export type { StartChatInput } from "./start.ts";
 export { startChatSchema } from "./start.ts";
-export type { TeachingCollection, TeachingContext, TeachingIdentity, TeachingKnobs } from "./teaching.ts";
+export type { TeachingCollection, TeachingContext, TeachingContribution, TeachingIdentity, TeachingKnobs } from "./teaching.ts";
 export type { TokenProvenance } from "./token-provenance.ts";
 export { combineTokenProvenance, TOKEN_PROVENANCES, tokenProvenanceSchema } from "./token-provenance.ts";
 export type {
