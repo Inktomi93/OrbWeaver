@@ -12,6 +12,7 @@ plan: css-system
 ## What
 
 Add the three `@orb/ui` pieces the Moonlit Echoes parity (items 0880, 0882) needs:
+
 - a direction variant on the `Stack` `feather` mask (`packages/ui/src/layout/variants.ts`, `packages/ui/src/styles/primitives.css`), so Whisper's banner sits top-right and fades left;
 - an `immersive` minimum-height size token in `packages/ui/src/tokens/tokens.json`, so an Echo card is about 200px tall at rest;
 - a short edge-tick `artDecoration` treatment (`art-decoration.ts`), for Hush's right-edge tick and Whisper's tick.
