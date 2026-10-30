@@ -12,6 +12,8 @@
 
 import type { PluginLogLevel, UiProxyableHostFunction } from "@orb/contracts/plugin";
 import { PLUGIN_LOG_CHARS_MAX, PLUGIN_LOG_LEVELS, PLUGIN_LOG_LINES_MAX } from "@orb/contracts/plugin";
+import type { RandomSource } from "@orb/kit/macro";
+import type { Clock } from "@orb/kit/time";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { QuickJSContext, QuickJSHandle } from "quickjs-emscripten-core";
 // The wire leaf, never the `#lib` barrel — this module runs inside the worker (see ui-guest.worker.ts).
@@ -87,7 +89,7 @@ export interface GuestState {
 const PARK_MILLER_MULTIPLIER = 48_271;
 const PARK_MILLER_MODULUS = 2_147_483_647;
 
-export function makeSeams(message: UiGuestBootMessage): { readonly nowEpochMs: () => number; readonly nextRandom: () => number } {
+export function makeSeams(message: UiGuestBootMessage): { readonly nowEpochMs: Clock; readonly nextRandom: RandomSource } {
   const originPerf = performance.now();
   // A seed of 0 (or a multiple of the modulus) is the generator's one fixed point — it would return 0 forever.
   // Folding into [1, m-1] is the standard guard, not a paranoia check: the host's seed is a raw 32-bit draw.

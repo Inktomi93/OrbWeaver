@@ -19,6 +19,7 @@ import type { JSONObject, LanguageModelV4CallOptions, SharedV4Headers, SharedV4P
 import type { GenerationCapability, ReasoningOffMode, ResolvedWarning } from "@orb/contracts/inference";
 import { acceptsAssistantPrefill, acceptsTurnScopedSystem, bindsThinkingToPrefix, cacheMinTokensOf, REASONING_OFF_DEFAULT } from "@orb/contracts/inference";
 import type { EffortLevel } from "@orb/contracts/preset";
+import type { Clock } from "@orb/kit/time";
 import type {
   AnthropicChatRequest,
   ChatEvent,
@@ -293,7 +294,7 @@ interface StreamOnceArgs {
   readonly call: AnthropicCall;
   readonly options: LanguageModelV4CallOptions;
   readonly req: AnthropicChatRequest;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly markCommitted: () => void;
   readonly onFirstDelta: (at: number) => void;
   /** The response headers the V4 stream result exposes (B6) — before the first part, once per attempt. */

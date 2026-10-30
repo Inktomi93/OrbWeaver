@@ -28,7 +28,10 @@ import { selectConfigSub, useAggregateSaveStatus, useBlockedSaveSections, useCon
  *  so the locator always resolved; a `surface`-mode group can report too (Connections → Model roles), and
  *  its id is not in the section registry — a jump would silently no-op and "Show me" would be a button that
  *  does nothing. The footer asks the registry itself. */
-function useSectionLocator(): { readonly canJumpToSection: (sectionId: string) => boolean; readonly onJumpToSection: (sectionId: string) => void } {
+function useSectionLocator(): {
+  readonly canJumpToSection: ReturnType<typeof useConfigSectionRegistry>["has"];
+  readonly onJumpToSection: (sectionId: string) => void;
+} {
   const registry = useConfigSectionRegistry();
   return {
     canJumpToSection: (sectionId: string): boolean => registry.has(sectionId),

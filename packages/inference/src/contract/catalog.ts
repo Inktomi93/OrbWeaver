@@ -1,8 +1,9 @@
 import type { AgentSdkModel, ModelCatalogEntry, ModelInfoApi } from "@orb/contracts/inference";
+import type { Clock } from "@orb/kit/time";
 import type { ProviderDiagnostics } from "./diagnostics.ts";
 import type { ProviderScrubSet } from "./errors.ts";
 import type { ProviderRegistry } from "./registry.ts";
-import type { InferenceDeps, MirrorWarm, ScheduleTimeout, SnapshotStore, SpanAttrs, SpawnIdentity } from "./runtime.ts";
+import type { InferenceDeps, MirrorWarm, ScheduleTimeout, SnapshotStore, SpawnIdentity } from "./runtime.ts";
 
 export interface DetectArgs {
   readonly scheduleTimeout: ScheduleTimeout;
@@ -45,9 +46,9 @@ export interface CatalogListingDeps {
 }
 
 export interface MirrorDeps {
-  readonly now: () => number;
+  readonly now: Clock;
   readonly snapshotStore: SnapshotStore;
-  readonly addSpanEvent?: ((name: string, attrs?: SpanAttrs) => void) | undefined;
+  readonly addSpanEvent?: InferenceDeps["addSpanEvent"];
   readonly warn: (fields: Readonly<Record<string, unknown>>, message: string) => void;
 }
 

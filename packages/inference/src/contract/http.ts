@@ -1,4 +1,6 @@
 import type { WireSchemaMode } from "@orb/contracts/inference";
+import type { RandomSource } from "@orb/kit/macro";
+import type { Clock } from "@orb/kit/time";
 import type { AddSpanEvent, ConnectionTransport, ProviderErrorKind, ProviderScrubSet, ScheduleTimeout } from "#contract";
 
 /** A caller signal flattened onto a signal we own — hand `signal` to the provider call, `dispose()` on
@@ -105,11 +107,11 @@ export interface RetryOptions {
   /** Caller-cancel that interrupts the backoff sleep (so Stop during a rate-limit wait is prompt). */
   readonly signal?: AbortSignal;
   /** Injected jitter RNG in `[0, 1)` — deterministic in tests. */
-  readonly random: () => number;
+  readonly random: RandomSource;
   /** The request span's event sink (`provider.retry` / `provider.retry.abandoned`); absent ⇒ no-op. */
   readonly addSpanEvent?: AddSpanEvent;
   /** Injected clock (epoch-ms) for the `resetsAt`-proximity shortcut. Omit to skip it (pure backoff). */
-  readonly now?: () => number;
+  readonly now?: Clock;
 }
 
 /** The credential-bearing half of a resolved connection the scrub reads — the shape `Resolved` carries and
