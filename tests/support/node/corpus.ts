@@ -1,6 +1,7 @@
 // Capsules own disposable persisted graphs. Private intake preserves the source and remains Node-local;
 // only fresh synthetic captures may enter portable publication.
 import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
+import type { FileHandle } from "node:fs/promises";
 import { mkdir, mkdtemp, open, rm, writeFile } from "node:fs/promises";
 import { networkInterfaces, tmpdir } from "node:os";
 import { dirname, join, resolve, sep } from "node:path";
@@ -302,22 +303,7 @@ export async function rethrowPrivateCorpusFailure(directory: string, error: unkn
     const artifact = join(directory, CORPUS_PRIVATE_FAILURE_FILE);
     assertPrivateCorpusOutput(directory, artifact, environment);
     await using file = await open(artifact, "wx", 0o600);
-    // Trusted native Errors may materialize stack/cause; decoded row getters and custom inspectors stay disabled.
-    await file.writeFile(
-      inspect(error, {
-        depth: null,
-        maxArrayLength: null,
-        maxStringLength: null,
-        customInspect: false,
-        getters: false,
-        showHidden: true,
-        colors: false,
-        compact: false,
-        breakLength: Number.POSITIVE_INFINITY,
-      }),
-      "utf8",
-    );
-    await file.sync();
+    await writePrivateFailureEvidence(file, error);
   } catch (captureError) {
     // biome-ignore lint/style/useErrorCause: Native SuppressedError retains the capture failure in .error and the original in .suppressed; it has no ErrorOptions cause parameter.
     throw new SuppressedError(captureError, error, "Private corpus intake failed and its failure evidence could not be retained");
@@ -325,8 +311,36 @@ export async function rethrowPrivateCorpusFailure(directory: string, error: unkn
   throw error;
 }
 
+/** Serialize into an already-open private file; the consuming boundary owns path admission and exclusive creation. */
+export async function writePrivateFailureEvidence(file: FileHandle, error: unknown): Promise<void> {
+  // Trusted native Errors may materialize stack/cause; decoded row getters and custom inspectors stay disabled.
+  await file.writeFile(
+    inspect(error, {
+      depth: null,
+      maxArrayLength: null,
+      maxStringLength: null,
+      customInspect: false,
+      getters: false,
+      showHidden: true,
+      colors: false,
+      compact: false,
+      breakLength: Number.POSITIVE_INFINITY,
+    }),
+    "utf8",
+  );
+  await file.sync();
+}
+
 /** Private descendants must remain beneath their original inaccessible, non-repository output owner. */
 export function assertPrivateCorpusOutput(parent: string, directory: string, environment: NodeJS.ProcessEnv = inheritedProcessEnv()): void {
+  assertLocalCorpusOutputRouting(parent, directory, environment);
+  if (statSync(realpathSync(parent)).mode % PRIVATE_PERMISSION_MODULUS !== 0) {
+    throw new Error("Private corpus output requires its private parent");
+  }
+}
+
+/** Shared native-output routing; each consumer separately enforces its platform's directory privacy contract. */
+export function assertLocalCorpusOutputRouting(parent: string, directory: string, environment: NodeJS.ProcessEnv = inheritedProcessEnv()): void {
   if (environment["CI"] !== undefined || environment["GITHUB_ACTIONS"] !== undefined) {
     throw new Error("Private corpus is local-only and cannot enter CI");
   }
@@ -337,7 +351,7 @@ export function assertPrivateCorpusOutput(parent: string, directory: string, env
     throw new Error("Private corpus artifacts cannot override native output ownership");
   }
   const root = realpathSync(parent);
-  if (statSync(root).mode % PRIVATE_PERMISSION_MODULUS !== 0 || !resolve(directory).startsWith(`${root}${sep}`)) {
+  if (!resolve(directory).startsWith(`${root}${sep}`)) {
     throw new Error("Private corpus output requires its private parent");
   }
   let ancestor = existsSync(directory) ? realpathSync(directory) : realpathSync(dirname(directory));

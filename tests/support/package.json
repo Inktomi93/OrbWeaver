@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "catalog:",
+    "@axe-core/playwright": "catalog:",
     "@orb/client": "workspace:*",
     "@orb/contracts": "workspace:*",
     "@orb/db": "workspace:*",
@@ -44,6 +45,7 @@
     "sharp": "catalog:",
     "typeid-js": "catalog:",
     "vitest": "catalog:",
+    "web-vitals": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

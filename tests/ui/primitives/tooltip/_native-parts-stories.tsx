@@ -46,3 +46,20 @@ export function TooltipHandleStory(): ReactElement {
     </CtIsolation>
   );
 }
+
+export function TooltipCallerDescriptionStory({ refused }: { readonly refused: boolean }): ReactElement {
+  const reasonId = useId();
+  const reason = "Choose a connection before sending";
+  return (
+    <CtIsolation subject="Tooltip" isolates="Caller-owned refusal descriptions and repeated names need no application services.">
+      <Tooltip describesTrigger={false}>
+        <TooltipTrigger
+          aria-describedby={refused ? reasonId : undefined}
+          render={<Button aria-label="Send message" disabled={refused} focusableWhenDisabled={refused} />}
+        />
+        <TooltipPopup>{refused ? reason : "Send message"}</TooltipPopup>
+        {refused ? <span id={reasonId}>{reason}</span> : null}
+      </Tooltip>
+    </CtIsolation>
+  );
+}

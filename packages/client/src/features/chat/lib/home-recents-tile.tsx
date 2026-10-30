@@ -26,6 +26,7 @@ import { MessagesSquare } from "@orb/ui/icons";
 import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "#data";
 import type { HomeTileContribution } from "#state";
+import { CHAT_RECENTS_TILE_ID } from "#state";
 import { HomeRecentsTileBody } from "../components/home-recents-tile-body.tsx";
 import { isFirstRun } from "./home-hearth.ts";
 import { RECENTS_EMPTY_BLOCK_PX } from "./home-recents-reservation.ts";
@@ -56,7 +57,7 @@ function useRecentsTitle(): string {
 }
 
 export const chatRecentsTile: HomeTileContribution = {
-  id: "chat.recents",
+  id: CHAT_RECENTS_TILE_ID,
   // The mockup's approved band copy. "Recent chats" named a data set; this names what you do with it,
   // which is what the block leads the page with.
   title: RESUME_TITLE,

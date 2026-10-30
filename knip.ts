@@ -44,6 +44,9 @@ export const config = {
         "playwright/**/*.{ts,tsx}",
         // The CT Vite transform reads this stylesheet as text rather than through an ESM import.
         "playwright/index.css",
+        // Local-only configs require a private run at evaluation; analyze their imports without executing admission.
+        "playwright-surface.config.ts",
+        "playwright-surface-controls.config.ts",
       ],
       project: ["scripts/**/*.ts!", "tests/**/*-stories.tsx!", "tests/**/*.{ts,tsx}", "playwright/**/*.{ts,tsx,css}"],
       playwright: { config: ["playwright.config.ts", "playwright-ct.config.ts"] },

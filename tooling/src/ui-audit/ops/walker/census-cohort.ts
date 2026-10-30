@@ -1,27 +1,5 @@
-// ui-audit in-page walker — segment: SIBLING COHORT ANATOMY.
-//
-// THE GAP THIS CLOSES. Every other family in this walker judges ONE element against a threshold. The
-// defects a human reviewer actually reports are relational — "nine config-group rows are 16px tall while
-// the sibling collection rows in the same list are 32px" (the config surface's only P0), "one concept,
-// two anatomies: shipped themes are 829x66 cards, your themes are 60x20 chips", "one surface, four row
-// anatomies". No per-element threshold can express any of those: 16px is not wrong, it is wrong BESIDE
-// a 32px twin. So this census groups siblings that claim to be the same KIND of thing and records the
-// spread of their rendered anatomy; the verdict lives in ../../lib/checks-structure.ts.
-//
-// THE COHORT KEY IS THE AUTHOR'S OWN CLAIM, never a guess. Two siblings are the same kind when they
-// share tag + data-slot + explicit role. `data-slot` is this repo's component-identity attribute (the
-// same anchor `describe()` prefers), so a cohort is "the things the author built from one component"
-// — exactly the population that should agree. A cohort keyed on shape or class similarity would invent
-// a claim the author never made and flag every deliberately-varied list.
-//
-// WHY HEIGHT AND NOT A STYLE VECTOR. Height is the one property whose divergence is always legible to
-// the eye and never a deliberate variant in this app's vocabulary: density lives in tiers.css, size
-// lives in a tv() variant, and both apply per-cohort, not per-member. Padding/radius/border divergence
-// inside one cohort is real too, but it is frequently INTENTIONAL (a selected member gains a ring), so
-// it needs the selection-idiom lens rather than this one and is deliberately out of scope here.
-//
-// Raw JS in a template literal (no backticks / dollar-brace — see floor/browser/browser.ts for why a string,
-// not a function). Provenance + attribution: ops/walker.ts.
+// Compare sibling geometry only within the same authored component, variant, density and tier claims.
+// One parent preserves the common layout constraint; thresholds remain in checks-structure.ts.
 import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
@@ -81,8 +59,16 @@ export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ──�
   function cohortKey(el) {
     var slot = el.getAttribute("data-slot");
     if (!slot) return null;
-    var role = el.getAttribute("role");
-    return el.tagName.toLowerCase() + "|" + slot + "|" + (role === null ? "" : role.trim().toLowerCase());
+    var parts = [authoredTargetClaim(el)];
+    var geometryAttrs = ["data-shape", "data-padding", "data-elevated", "data-nested", "data-type-step", "data-title-step", "data-subtitle-step"];
+    for (var ga = 0; ga < geometryAttrs.length; ga += 1) {
+      if (el.hasAttribute(geometryAttrs[ga])) parts.push(geometryAttrs[ga] + "=" + el.getAttribute(geometryAttrs[ga]));
+    }
+    var density = el.closest("[data-density]");
+    var tier = el.closest("[data-surface-tier]");
+    if (density !== null) parts.push("density=" + density.getAttribute("data-density"));
+    if (tier !== null) parts.push("tier=" + tier.getAttribute("data-surface-tier"));
+    return parts.join("|");
   }
 
   // A cohort is scoped to ONE parent: same-slot elements in two different lists are two populations and

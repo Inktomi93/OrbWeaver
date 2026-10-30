@@ -120,11 +120,19 @@ Runnable examples:
 
 ## Audit a rendered product surface
 
+Use the [native product walkthrough](../../docs/plans/surface-walk/design.md) for reusable full-stack checkpoints with axe and document web-vitals evidence.
+
 Use `auditSurface` from `@orb/testkit/browser/spec` with a named scope, the expected loaded/empty/error state, a nonempty tuple of concrete rendered witnesses, and the checks to collect. `SurfaceAuditRequest` is exported type-only through `@orb/testkit/ct` so Node-side scenario builders do not import browser implementations.
 
 The audit waits for the witnesses, verifies their page and scope ownership, and only then waits for DOM stability and collects findings. Its result exposes only the requested checks, in both its type and its own fields; an unrun detector is not an empty-success result. A quiet shell or skeleton is not data readiness. Product censuses share an exhaustive local scenario table over the production surface vocabularies; an empty or error scenario must witness its own actual state. Types enforce the nonempty input, while scenario review and held-read controls establish that the chosen witnesses represent the intended subject.
 
 Raw name, form and density collectors stay internal to their owning testkit probes. They are not a product-audit shortcut. Do not replace the witness with network idle: unrelated pending reads and streams may remain active.
+
+Native surface walks reuse a local owner snapshot outside Git and keep datasets and evidence outside the checkout and CI. Each disposable clone retains embeddings and plugin consent; production operations pause only its copied schedules, and service jobs stay off. Native admission records canonical managed showcase upgrades separately from source provenance. The admitted original-subject census excludes replacement bundle assets. Other subject or consent changes still refuse startup. This workflow retains the production plugin sandbox. Generation uses one owned scripted loopback peer through a new disposable connection. Synthetic memory queries retain the canonical corpus embedding wire without network calls or vector-generation changes. Owner embedding targets and other provider or SDK execution stay refused. Production settings temporarily admit the exact scripted ports on the copy, then restore the effective allowlist. Original funding bindings and credentials remain unchanged at boot. This does not claim host-wide network isolation. The separate `corpus-fixture private` and `matrix` workflow retains its namespace requirements in [Spine-Testing](../../docs/law/Spine-Testing.md).
+
+`prepareSurfaceData` and `openPreparedSurfaceRoot` are private construction/provenance exceptions beside `createCorpusCapsule`. Their raw plugin-consent and embedding-state metadata serve admission and parity, not verb-suite seeds. Their row homes remain explicit in ESLint; ordinary direct and indirect row-reader exports stay refused.
+
+Run representative raw-audit component cases with `pnpm e2e:surface:controls`. `LOCAL_SURFACE_CONTROLS` in [the CT configuration](../../playwright-ct.config.ts) owns their local selection and ordinary CT exclusion.
 
 ## Republish the corpus fixture
 

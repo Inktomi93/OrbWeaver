@@ -22,6 +22,7 @@
 
 import type { Locator, Page } from "@playwright/test";
 import { pseudoHitEnvelope, readPseudoGeometry, walkFrom } from "../iso/hit-extent-walk.ts";
+import { diagnosticTarget } from "./performance-entry.ts";
 
 /** One control's effective hit target, in CSS px. */
 export interface HitBox {
@@ -84,9 +85,15 @@ export function touchFloorPx(page: Page): Promise<number> {
  *  worth far more as a NODE-testable pure function than as another thing only a browser can check. The
  *  window between the two reads is a layout the caller must already have settled — every consumer polls
  *  (`expect.poll`) precisely because a mid-transition read is not trustworthy in one call either. */
-export async function hitExtent(cell: Locator, axis: "x" | "y"): Promise<number> {
+export async function hitExtent(cell: Pick<Locator, "evaluate">, axis: "x" | "y"): Promise<number> {
   const geometry = await cell.evaluate(readPseudoGeometry);
-  return await cell.evaluate(walkFrom, { axis, envelope: pseudoHitEnvelope(geometry) });
+  const envelope = pseudoHitEnvelope(geometry);
+  const low = axis === "x" ? "left" : "top";
+  const high = axis === "x" ? "right" : "bottom";
+  const extent =
+    Math.max(geometry.border[high], envelope?.[high] ?? geometry.border[high]) - Math.min(geometry.border[low], envelope?.[low] ?? geometry.border[low]);
+  // Compositor rounding at fractional centres must not enlarge the authored hit surface.
+  return Math.min(extent, await cell.evaluate(walkFrom, { axis, envelope }));
 }
 
 /** The interactive elements a finger must be able to hit; a control mirrored out of the tree (`aria-hidden`) is not one. */
@@ -106,28 +113,84 @@ const TOUCH_TARGET_SELECTOR = [
   .map((selector) => `${selector}:not([aria-hidden='true'])`)
   .join(", ");
 
+async function isActiveTouchTarget(control: Pick<Locator, "evaluate">): Promise<boolean> {
+  return await control.evaluate((node) => {
+    if (node.closest("[inert]") !== null) {
+      return false;
+    }
+    if (node.closest('[aria-hidden="true"]') === null) {
+      return true;
+    }
+    const box = node.getBoundingClientRect();
+    const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+    // Retained accessibility-hidden content is offered only when it still owns its native hit target.
+    return hit === node || node.contains(hit);
+  });
+}
+
+type TouchControl = Awaited<ReturnType<Page["$$"]>>[number];
+
+/** One measured control's finding, or null when it reaches the floor on both axes. */
+async function touchTargetFinding(control: TouchControl, target: TouchControl, floor: number): Promise<string | null> {
+  // A control another layer covers at its centre has no size to measure: the walk would report 1x1. Name the
+  // occlusion instead, so a covered-but-focusable control is not misread as an undersized one.
+  const occluder = await target.evaluate((el) => {
+    const box = el.getBoundingClientRect();
+    const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+    return hit === null || hit === el || el.contains(hit) ? null : { tag: hit.tagName, slot: hit.getAttribute("data-slot"), role: hit.getAttribute("role") };
+  });
+  if (occluder !== null) {
+    return `occluded at its centre, not measured for size: ${await control.evaluate(diagnosticTarget)}; covered by ${JSON.stringify(occluder)}`;
+  }
+  const [width, height] = [await hitExtent(target, "x"), await hitExtent(target, "y")];
+  if (width >= floor && height >= floor) {
+    return null;
+  }
+  const identity = await control.evaluate(diagnosticTarget);
+  const evidence = await control.evaluate((el) => ({
+    rect: el.getBoundingClientRect().toJSON(),
+    role: el.getAttribute("role"),
+    ariaHidden: el.getAttribute("aria-hidden"),
+    hiddenAncestor: el.closest('[aria-hidden="true"]') !== null,
+    inert: el.closest("[inert]") !== null,
+  }));
+  return `${String(Math.round(width))}x${String(Math.round(height))} under the ${String(floor)}px floor: ${identity}; ${JSON.stringify(evidence)}`;
+}
+
 /**
- * Every visible interactive control whose effective hit extent is below the live touch floor on either axis, described
- * for a failure message. Run it under real coarse-pointer emulation (`hasTouch`): the floor is pointer-conditional.
+ * Every visible interactive control whose effective hit extent is below the live touch floor on either axis, or whose
+ * centre another layer covers, described for a failure message. Run it under real coarse-pointer emulation
+ * (`hasTouch`): the floor is pointer-conditional.
  */
 export async function touchTargetFindings(page: Page): Promise<readonly string[]> {
   const floor = await touchFloorPx(page);
-  const controls = page.locator(TOUCH_TARGET_SELECTOR);
+  // biome-ignore lint/style/noPlaywrightElementHandle: Keep the same native nodes while Activity inserts siblings; re-resolving nth locators changes the measured target.
+  const controls = await page.$$(TOUCH_TARGET_SELECTOR);
   const findings: string[] = [];
-  for (const control of await controls.all()) {
-    if (!(await control.isVisible())) {
-      continue;
+  try {
+    for (const control of controls) {
+      if (!((await control.isVisible()) && (await isActiveTouchTarget(control)))) {
+        continue;
+      }
+      // `elementFromPoint` answers null off-screen, so a pseudo reaching past the viewport edge would read short: centre the control.
+      await control.evaluate((el) => el.scrollIntoView({ block: "center" }));
+      // A control the page keeps clipped to a point (a slider's range input) is hit through the thumb that wraps it.
+      const clipped = await control.evaluate((el) => getComputedStyle(el).clipPath !== "none");
+      const parent = clipped ? await control.$("xpath=..") : null;
+      if (clipped && parent === null) {
+        throw new Error("A clipped touch control lost its containing hit target");
+      }
+      try {
+        const finding = await touchTargetFinding(control, parent ?? control, floor);
+        if (finding !== null) {
+          findings.push(finding);
+        }
+      } finally {
+        await parent?.dispose();
+      }
     }
-    // `elementFromPoint` answers null off-screen, so a pseudo reaching past the viewport edge would read short: centre the control.
-    await control.evaluate((el) => el.scrollIntoView({ block: "center" }));
-    // A control the page keeps clipped to a point (a slider's range input) is hit through the thumb that wraps it.
-    const clipped = await control.evaluate((el) => getComputedStyle(el).clipPath !== "none");
-    const target = clipped ? control.locator("xpath=..") : control;
-    const [width, height] = [await hitExtent(target, "x"), await hitExtent(target, "y")];
-    if (width < floor || height < floor) {
-      const html = await control.evaluate((el) => el.outerHTML.slice(0, 120).replace(/\s+/g, " "));
-      findings.push(`${String(Math.round(width))}x${String(Math.round(height))} under the ${String(floor)}px floor: ${html}`);
-    }
+  } finally {
+    await Promise.all(controls.map((control) => control.dispose()));
   }
   return findings;
 }

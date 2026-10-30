@@ -1,0 +1,71 @@
+import { expect, test } from "./fixtures.ts";
+import {
+  readSurfaceCaseAdmission,
+  readSurfaceOutputRoot,
+  readSurfaceRunConfig,
+  surfaceArtifactModes,
+  surfaceCaseDelayMs,
+  surfaceNativeTimeout,
+  writeSurfaceCaseAdmission,
+} from "./surface-run.ts";
+
+for (const flag of ["CI", "GITHUB_ACTIONS"] as const) {
+  test(`direct native configuration refuses ${flag} before reading paths or private config`, async () => {
+    const environment = { [flag]: "1", ["ORB_SURFACE_OUTPUT_ROOT"]: "/not-an-admitted-run", ["ORB_SURFACE_RUN_CONFIG"]: "/private-owner-config" };
+    await expect(readSurfaceOutputRoot(environment)).rejects.toThrow("local-only");
+    await expect(readSurfaceRunConfig(environment)).rejects.toThrow("local-only");
+  });
+}
+
+for (const option of ["trace", "screenshot", "video"] as const) {
+  test(`resolved native ${option} recording cannot masquerade as measurement`, () => {
+    expect(() => surfaceArtifactModes({ pass: "measurement", trace: "off", screenshot: "off", video: "off", [option]: "on" })).toThrow(
+      "Measurement refuses resolved native",
+    );
+  });
+}
+
+test("measurement accepts native object-shaped off options and evidence retains enabled recording", () => {
+  expect(surfaceArtifactModes({ pass: "measurement", trace: { mode: "off", snapshots: true }, screenshot: { mode: "off" }, video: { mode: "off" } })).toEqual({
+    pass: "measurement",
+    trace: "off",
+    screenshot: "off",
+    video: "off",
+  });
+  expect(surfaceArtifactModes({ pass: "evidence", trace: "on", screenshot: "only-on-failure", video: "on" })).toEqual({
+    pass: "evidence",
+    trace: "on",
+    screenshot: "only-on-failure",
+    video: "on",
+  });
+});
+
+test("explicit native execution deadlines govern the outer owner without replacing the selected budget", () => {
+  expect(surfaceNativeTimeout(["--global-timeout=3600000"], 100)).toBe(3_600_000);
+  expect(surfaceNativeTimeout(["--global-timeout", "3600000"], 100)).toBe(3_600_000);
+  expect(surfaceNativeTimeout(["--project=desktop"], 100)).toBe(100);
+  for (const args of [["--global-timeout=0"], ["--global-timeout"], ["--global-timeout=10", "--global-timeout=20"]]) {
+    expect(() => surfaceNativeTimeout(args, 100)).toThrow("one positive integer native --global-timeout");
+  }
+});
+
+test("independent native cases wait only for the preceding completion window", () => {
+  expect(surfaceCaseDelayMs(null, 245, 100)).toBe(0);
+  expect(surfaceCaseDelayMs(210, 245, 100)).toBe(55);
+  expect(surfaceCaseDelayMs(299, 299, 100)).toBe(1);
+  expect(surfaceCaseDelayMs(299, 300, 100)).toBe(0);
+  expect(surfaceCaseDelayMs(210, 450, 100)).toBe(0);
+  expect(surfaceCaseDelayMs(20, 25, 30)).toBe(5);
+});
+
+test("persisted reporter admissions distinguish the next case from the preceding completion", ({ importStagingDir }) => {
+  expect(readSurfaceCaseAdmission(importStagingDir)).toBeNull();
+  writeSurfaceCaseAdmission(importStagingDir, "failed-case", null);
+  expect(readSurfaceCaseAdmission(importStagingDir)).toEqual({ testId: "failed-case", completedAt: null });
+  writeSurfaceCaseAdmission(importStagingDir, "failed-case", 210);
+  expect(readSurfaceCaseAdmission(importStagingDir)?.testId).not.toBe("next-case");
+  writeSurfaceCaseAdmission(importStagingDir, "next-case", 210);
+  const admission = readSurfaceCaseAdmission(importStagingDir);
+  expect(admission).toEqual({ testId: "next-case", completedAt: 210 });
+  expect(surfaceCaseDelayMs(admission?.completedAt ?? null, 245, 100)).toBe(55);
+});

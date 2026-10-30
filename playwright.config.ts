@@ -1,4 +1,5 @@
 import process from "node:process";
+import { nativeBrowserLaunchOptions } from "@orb/tooling/floor/browser/browser";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { ReporterDescription } from "@playwright/test";
 import { defineConfig, devices } from "@playwright/test";
@@ -50,12 +51,18 @@ const reporters: ReporterDescription[] = [
 // One Playwright project per mode. Every project shares the browser/use defaults; each pins its own baseURL
 // (its server origin) + `E2E_BASE_URL` (via the webServer env) so the support tRPC + actor clients hit THAT
 // mode's stack.
-const projects = BROWSER_PROJECTS.map(({ name, mode, device, chatStyle }) => ({
-  name,
-  testMatch: mode.testMatch,
-  metadata: { chatStyle, authMode: mode.name },
-  use: { ...devices[device], baseURL: mode.baseUrl },
-}));
+const projects = BROWSER_PROJECTS.map(({ name, mode, device, chatStyle }) => {
+  const descriptor = devices[device];
+  if (descriptor === undefined) {
+    throw new Error(`Unknown Playwright device: ${device}`);
+  }
+  return {
+    name,
+    testMatch: mode.testMatch,
+    metadata: { chatStyle, authMode: mode.name },
+    use: { ...descriptor, baseURL: mode.baseUrl, launchOptions: nativeBrowserLaunchOptions(descriptor.defaultBrowserType) },
+  };
+});
 
 // One webServer per mode. EVERY mode boots its OWN isolated stack on distinct ports and NEVER blind-reuses
 // (the `reuseExistingServer` hazard: attaching to a stack the harness does not own — it seeded the operator's
@@ -95,6 +102,7 @@ const webServers = bootedModes.map((mode) => ({
 
 export default defineConfig({
   testDir: "tests/e2e",
+  testIgnore: ["**/corpus-surface-walk.spec.ts"],
   // Seed selected owned stacks without navigating the client before its first spec.
   // The working-tree guard surrounds setup, specs and teardown.
   globalSetup: ["./tooling/src/floor/testing/working-tree-guard.ts", "./tests/e2e/support/global-setup.ts"],

@@ -67,8 +67,8 @@ export function checkGradientText(input: GradientTextInput): Finding | null {
 const COHORT_MIN_RATIO = 1.5;
 const COHORT_MIN_STEP_PX = 8;
 
-/** ONE CONCEPT, TWO ANATOMIES (#978). Siblings that share the author's own kind-claim — same tag, same
- *  `data-slot`, same explicit role, one parent — are the population that should agree. When a minority of
+/** Siblings that share authored component, variant, density and tier claims under one parent are
+ *  the population that should agree. When a minority of
  *  them renders at a materially different height, the surface says "these are the same thing" and the
  *  pixels say otherwise; a reviewer reads that as unfinished before they can name why.
  *

@@ -321,6 +321,21 @@ export const WALKER_HIT_EXTENT = `  // ── the compositor hit-extent probe �
   //     its left probe is unaskable, but its right probe lands on the wrapper and settles the question.
   //   · a ring whose asked points were ALL owned while others fell off the screen answers nothing about
   //     the radius: the control may well own it. That, and only that, makes the result a lower bound.
+  // Adjacent hit areas can divide a compositor pixel asymmetrically around the border-box centre.
+  // Count contiguous owned samples in each direction instead of requiring a centred square.
+  function contiguousHitReach(el, cx, cy, dx, dy) {
+    var steps = 0;
+    while (steps < HIT_PROBE_MAX && ownsPoint(el, cx + dx * (steps + 1), cy + dy * (steps + 1))) steps += 1;
+    return steps;
+  }
+  function contiguousHitHalf(el, rect, cx, cy) {
+    var envelope = pseudoHitEnvelope(el);
+    var maxWidth = envelope === null ? rect.width : Math.max(rect.right, envelope.right) - Math.min(rect.left, envelope.left);
+    var maxHeight = envelope === null ? rect.height : Math.max(rect.bottom, envelope.bottom) - Math.min(rect.top, envelope.top);
+    var width = contiguousHitReach(el, cx, cy, -1, 0) + contiguousHitReach(el, cx, cy, 1, 0) + 1;
+    var height = contiguousHitReach(el, cx, cy, 0, -1) + contiguousHitReach(el, cx, cy, 0, 1) + 1;
+    return Math.min(width, height, maxWidth, maxHeight) / 2;
+  }
   function measureHitExtent(el, rect) {
     var cx = rect.left + rect.width / 2;
     var cy = rect.top + rect.height / 2;
@@ -351,6 +366,13 @@ export const WALKER_HIT_EXTENT = `  // ── the compositor hit-extent probe �
       if (capped) continue; // asked, and answered no: a genuine cap, not a frame limit
       if (missing > 0) unframed = true;
       else best = r;
+    }
+    if (best < HIT_PROBE_MAX && probeFrameFits(rect)) {
+      var contiguousHalf = contiguousHitHalf(el, rect, cx, cy);
+      for (var ch = 0; ch < HIT_PROBE_RADII.length; ch += 1) {
+        var confirmed = HIT_PROBE_RADII[ch];
+        if (confirmed <= contiguousHalf) best = Math.max(best, confirmed);
+      }
     }
     return { half: best, truncated: unframed };
   }

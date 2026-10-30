@@ -4,8 +4,8 @@ import type { SurfaceAuditRequest } from "@orb/testkit/ct";
 import type { Page } from "@playwright/test";
 
 type Witnesses = SurfaceAuditRequest["witnesses"];
-type Scenario = Omit<SurfaceAuditRequest, "checks" | "requireBothFormKeys">;
-type ModalScenario = Pick<SurfaceAuditRequest, "state" | "witnesses">;
+type Scenario = Omit<Exclude<SurfaceAuditRequest, { readonly state: "error" }>, "checks" | "requireBothFormKeys">;
+type ModalScenario = Pick<Scenario, "state" | "witnesses">;
 
 const SECTION_WITNESSES = {
   home: (page): Witnesses => [

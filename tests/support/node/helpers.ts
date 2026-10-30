@@ -27,11 +27,14 @@ export { freeLoopbackPort } from "./free-port.ts";
 export { requestWithHost } from "./host-request.ts";
 export { lanAddress } from "./lan-address.ts";
 export { magicBytes } from "./magic-bytes.ts";
+export { attachNativeFile } from "./native-attachments.ts";
 export { CLIENT_ID, createNativeIssuer, ISSUER, NATIVE_OIDC_SETTINGS } from "./oidc-issuer.ts";
 export type { RecordedRequest } from "./openai-server.ts";
 export { openAiServer, recordRequest, SLEEP_PROBE_SUFFIX } from "./openai-server.ts";
 export type { TerminalFrameOptions } from "./provider-stream.ts";
 export { terminalSseLine } from "./provider-stream.ts";
+export type { TrpcRequestFilter } from "./route-trpc.ts";
+export { isTrpcRequestFor, matchesTrpcRequestInput, readTrpcOutput } from "./route-trpc.ts";
 export type { SdkPrivateDiagnosticInput, SdkPrivateDiagnosticResult, SdkScriptSpawn } from "./sdk-process.ts";
 export {
   createSdkProcessSpawner,
@@ -41,6 +44,33 @@ export {
   sdkPrivateDiagnosticResultSchema,
 } from "./sdk-process.ts";
 export { STORY_SHOT_DIR } from "./story-shot.ts";
+export { SURFACE_CHECKS } from "./surface-audit.ts";
+export type { PreparedSurfaceData } from "./surface-data.ts";
+export { assertSurfaceRunOutput, createSurfaceArtifactRun, openPreparedSurfaceRoot, prepareSurfaceData, surfaceGenerationSchema } from "./surface-data.ts";
+export {
+  initializeSurfaceAgentEntry,
+  prepareSurfaceAgentReport,
+  SURFACE_AGENT_ENTRY,
+  SURFACE_AGENT_SUMMARY,
+  surfaceReadCommand,
+} from "./surface-index-reporter.ts";
+export type { SurfaceRunConfig, SurfaceWalkOptions } from "./surface-run.ts";
+export {
+  assertSurfaceLocalExecution,
+  readSurfaceCaseAdmission,
+  readSurfaceOutputRoot,
+  readSurfaceRunConfig,
+  SURFACE_BOOT_DIAGNOSTIC_TITLE,
+  SURFACE_CASE_REPORT_TIMEOUT_MS,
+  SURFACE_NATIVE_TIMEOUT_MS,
+  SURFACE_OUTPUT_ROOT_ENV,
+  SURFACE_RUN_CONFIG_ENV,
+  surfaceArtifactModes,
+  surfaceCaseDelayMs,
+  surfaceNativeTimeout,
+  surfaceRunConfigSchema,
+} from "./surface-run.ts";
 export type { TlsAnswer } from "./tls-hop.ts";
 export { tlsRequest } from "./tls-hop.ts";
+export { webVitalsSource } from "./web-vitals-source.ts";
 export { GENERAL_NAME_IP_TAG, ipBytes, ipCertificatePem, readCsr } from "./x509.ts";

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import type { TooltipDescriptionStory, TooltipHandleStory } from "./_native-parts-stories.tsx";
+import type { TooltipCallerDescriptionStory, TooltipDescriptionStory, TooltipHandleStory } from "./_native-parts-stories.tsx";
 
 test("native arrow and viewport do not duplicate portal parts into the at-rest accessible description", async ({ mount, page }) => {
   await mount<typeof TooltipDescriptionStory>("tests/ui/primitives/tooltip/_native-parts-stories/TooltipDescriptionStory");
@@ -34,4 +34,24 @@ test("a tooltip handle opens its anchor payload and switches to another detached
   await page.getByRole("button", { name: "Rooms", exact: true }).hover();
   await expect(popup).toBeVisible();
   await expect(popup).toHaveText("Room details");
+});
+
+test("caller opt-out distinguishes a name-only tooltip from an unavailable control's refusal", async ({ mount, page }) => {
+  const component = await mount<typeof TooltipCallerDescriptionStory>("tests/ui/primitives/tooltip/_native-parts-stories/TooltipCallerDescriptionStory", {
+    refused: false,
+  });
+  const trigger = page.getByRole("button", { name: "Send message", exact: true });
+  await expect(trigger).toBeEnabled();
+  await expect(trigger).toHaveAttribute("data-tooltip-describes", "name");
+  await expect(trigger).toHaveAccessibleDescription("");
+  await expect(page.getByRole("tooltip")).toHaveCount(0);
+  await component.update({ refused: true });
+  await expect(trigger).toBeDisabled();
+  await expect(trigger).toHaveAttribute("data-tooltip-describes", "caller");
+  await expect(trigger).toHaveAccessibleDescription("Choose a connection before sending");
+  await expect(page.getByRole("tooltip")).toHaveCount(0);
+  await component.update({ refused: false });
+  await expect(trigger).toBeEnabled();
+  await expect(trigger).toHaveAttribute("data-tooltip-describes", "name");
+  await expect(trigger).toHaveAccessibleDescription("");
 });

@@ -8,8 +8,9 @@
 
 import { LayoutGrid } from "@orb/ui/icons";
 import type { HomeTileContribution } from "#state";
-import { useMobileViewport } from "#state";
+import { HOME_JUMP_TILE_ID, useMobileViewport } from "#state";
 import { SectionJumpRail } from "../components/section-jump-rail.tsx";
+import { homeSectionJumpVisible } from "./section-jump-visibility.ts";
 
 const JUMP_TILE_ORDER = 40;
 
@@ -24,7 +25,7 @@ const JUMP_TILE_ORDER = 40;
  */
 export function makeSectionJumpTile(siblings: readonly HomeTileContribution[]): HomeTileContribution {
   return {
-    id: "home.jump",
+    id: HOME_JUMP_TILE_ID,
     title: "Elsewhere in the house",
     icon: LayoutGrid,
     order: JUMP_TILE_ORDER,
@@ -33,7 +34,7 @@ export function makeSectionJumpTile(siblings: readonly HomeTileContribution[]): 
     skeletonRows: 1,
     // A phone reaches every section from its tab bar or the You sheet, so the rail would only repeat that navigation
     // and push the page's starting points below the fold.
-    useVisible: (): boolean => !useMobileViewport(),
+    useVisible: (): boolean => homeSectionJumpVisible(useMobileViewport()),
     body: () => <SectionJumpRail siblings={siblings} />,
   };
 }

@@ -12,6 +12,7 @@
 // segments IN ORDER into COLLECT_SAMPLES_JS, so scope/hoisting behavior is byte-identical to the
 // pre-split monolith. Raw JS in a template literal (no backticks / dollar-brace — see
 // floor/browser/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
+import { TOKENS } from "@orb/ui/tokens";
 import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
 import { INACTIVE_KIND_EXPR } from "../../../floor/instrument/wcag.ts";
 import { TRANSCRIPT_SURFACE_SELECTOR_JS } from "../../lib/checks-typography.ts";
@@ -188,6 +189,7 @@ export const WALKER_CENSUS_TEXT = `
       var ancTextLen = (interactiveAnc.textContent || "").replace(/\\s+/g, " ").trim().length;
       interactivePrimary = direct.length >= ancTextLen - 8;
     }
+    var localMicro = tierSanctioned(el, "font-size", ${JSON.stringify(TOKENS["text.micro"].cssVar)});
     textStyles.push({
       selector: describe(el),
       // AUTHORED IDENTITY, the same pair #983 gave tap-target — a type-floor breach is a property of
@@ -205,6 +207,7 @@ export const WALKER_CENSUS_TEXT = `
       directText: direct.slice(0, 120),
       totalTextLen: (el.textContent || "").trim().length,
       fontSizePx: fontSizePx,
+      rampFloorPx: localMicro === null ? undefined : Number.parseFloat(localMicro.resolved),
       lineHeightPx: Number.isNaN(lineH) ? null : lineH,
       letterSpacingPx: Number.isNaN(letterS) ? 0 : letterS,
       textTransform: style.textTransform || "",
@@ -245,8 +248,7 @@ export const WALKER_CENSUS_TEXT = `
       blockPath: blockPathOf(el),
     });
 
-    // page censuses (impeccable overused-font/flat-type-hierarchy recipe, family list rebound
-    // to our token stacks in checks)
+    // Keep font faces and the size set as raw page evidence; the face classifier reads the token stacks.
     var stack = (style.fontFamily || "").split(",");
     for (var fi = 0; fi < stack.length; fi += 1) {
       var face = stack[fi].trim().replace(/^['"]|['"]$/g, "").toLowerCase();

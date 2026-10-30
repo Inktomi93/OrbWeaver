@@ -112,15 +112,21 @@ function chatsRailButton(page: Page): Locator {
  *  is now the Hearth Room hero (masthead + "Pick up where you left off" + "Other rooms" + face shelf), and
  *  the full Chats list lives on the Chats section (`main "Chats content"` + `complementary "Chats list"`),
  *  reached via the Primary rail. Every list-driven helper below routes through here rather than reading a
- *  list off `/` that no longer exists. Waits for the `aria-label="Chats list"` list OR the "No chats yet"
- *  empty-state to settle BEFORE the caller counts rows — reading the count while the suspense query is in
+ *  list off `/` that no longer exists. Reveals a collapsed list through the shell's actual control before
+ *  waiting for the list or empty-state — reading the count while the suspense query is in
  *  flight races a false 0. globalSetup guarantees at least one chat, so the list branch is the normal path. */
 export async function gotoChatsList(page: Page): Promise<void> {
   await page.goto("/");
   await waitForAppReady(page);
+  await openChatsList(page);
+}
+
+/** Reach the Chats list through the current document's actual rail and panel controls. */
+export async function openChatsList(page: Page): Promise<void> {
   const chatsRail = chatsRailButton(page);
   const closeDetails = page.getByRole("button", { name: "Close details", exact: true });
   const backToChats = page.getByRole("button", { name: "Back to Chats", exact: true });
+  const showList = page.getByRole("button", { name: "Show list panel", exact: true });
   const chatsList = page.getByRole("list", { name: "Chats list" });
   const emptyState = page.getByText("No chats yet");
   if (await closeDetails.isVisible()) {
@@ -130,9 +136,13 @@ export async function gotoChatsList(page: Page): Promise<void> {
     await backToChats.click();
   }
   await chatsRail.click({ timeout: WAIT_SHORT_MS });
-  await expect(chatsList.or(emptyState).or(backToChats).first()).toBeVisible({ timeout: WAIT_SHORT_MS });
+  await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", "chats", { timeout: WAIT_SHORT_MS });
+  await expect(chatsList.or(emptyState).or(backToChats).or(showList).first()).toBeVisible({ timeout: WAIT_SHORT_MS });
   if (await backToChats.isVisible()) {
     await backToChats.click();
+  }
+  if (await showList.isVisible()) {
+    await showList.click();
   }
   await expect(chatsList.or(emptyState).first()).toBeVisible({ timeout: WAIT_SHORT_MS });
 }

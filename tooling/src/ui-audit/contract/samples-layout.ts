@@ -8,17 +8,17 @@
 // of those is a statement about a number; each is a statement about a POPULATION disagreeing with
 // itself, and no per-element threshold can express one.
 
-/** One population of siblings that share the author's own kind-claim (tag + `data-slot` + explicit role)
+/** One population of siblings that share authored target, geometry-variant, density and tier claims
  *  under one parent, plus the spread of their rendered heights.
  *
  *  The cohort key is the author's CLAIM, never a guess: `data-slot` is this repo's component-identity
- *  attribute, so a cohort is "the things built from one component" — exactly the population that should
- *  agree. Keying on shape or class similarity would invent a claim nobody made and flag every
+ *  attribute, so a cohort is "the things built from one component and declared variant" — the population that should
+ *  agree. Keying on inferred shape or class similarity would invent a claim nobody made and flag every
  *  deliberately-varied list. */
 export interface CohortAnatomyInput {
   /** The parent that owns the cohort. */
   readonly selector: string;
-  /** `tag|data-slot|role` — the kind-claim these members share. */
+  /** Authored target, geometry-variant, density and tier claims shared under one containing parent. */
   readonly cohortKey: string;
   readonly members: number;
   readonly minHeightPx: number;

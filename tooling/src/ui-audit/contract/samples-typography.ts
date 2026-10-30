@@ -25,6 +25,8 @@ export interface TextStyleInput {
   /** Length of the whole subtree's text — the line-length estimator's basis. */
   readonly totalTextLen: number;
   readonly fontSizePx: number;
+  /** The local text.micro token resolved in this element's scope; absent on standalone documents without that token. */
+  readonly rampFloorPx?: number;
   readonly lineHeightPx: number | null;
   readonly letterSpacingPx: number;
   readonly textTransform: string;

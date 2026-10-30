@@ -4,14 +4,14 @@
 // keepNames `__name` helper breaking serialized functions — died with the 2026-08-03 tsx shed;
 // the lib-mismatch reason stands alone.)
 
-import type { Browser, BrowserContext, CDPSession, devices, Page } from "@playwright/test";
+import type { Browser, BrowserContext, CDPSession, devices, LaunchOptions, Page, PlaywrightWorkerOptions } from "@playwright/test";
 import { chromium } from "@playwright/test";
 import { warn } from "../cli/log.ts";
 import type { GraphicalSessionDeps } from "../host/platform.ts";
 import { ownGraphicalSession } from "../host/platform.ts";
 import { DEV_PORTS } from "../host/ports.ts";
 import { inheritedProcessEnv, processEnvValue } from "../process/process-env.ts";
-import { currentRunLease, currentRunMarker, runLeaseArg, runLeaseEnv, runMarkerArg, runMarkerEnv } from "../process/run-marker.ts";
+import { currentRunLease, currentRunMarker, inheritedRunMarker, runLeaseArg, runLeaseEnv, runMarkerArg, runMarkerEnv } from "../process/run-marker.ts";
 import { browserArgsWithAcceleration } from "./browser-acceleration.ts";
 import { createPageCapture, watchProbeContextPages } from "./browser-capture.ts";
 import { buildProbeContext, probeContext, probeSession, resolveDeviceDescriptor } from "./browser-context.ts";
@@ -161,6 +161,30 @@ export function browserLaunchEnvironment(environment: NodeJS.ProcessEnv, args: r
   }
   const session = ownGraphicalSession(deps);
   return session === null ? environment : { ...environment, ["DISPLAY"]: session.display, ["XAUTHORITY"]: session.authority };
+}
+
+/** Native runners share probe acceleration and graphics discovery without minting a resource owner during config import. */
+export function nativeBrowserLaunchOptions(
+  browserName: PlaywrightWorkerOptions["browserName"],
+  options: LaunchOptions = {},
+  deps: GraphicalSessionDeps = {},
+): LaunchOptions {
+  const marker = inheritedRunMarker();
+  const lease = currentRunLease();
+  const environment = inheritedProcessEnv({
+    ...options.env,
+    ...(marker === null ? {} : runMarkerEnv(marker)),
+    ...(lease === null ? {} : runLeaseEnv(lease)),
+  });
+  if (browserName !== "chromium") {
+    return { ...options, env: environment };
+  }
+  const args = [
+    ...browserArgsWithAcceleration(options.args),
+    ...(marker === null ? [] : [runMarkerArg(marker)]),
+    ...(lease === null ? [] : [runLeaseArg(lease)]),
+  ];
+  return { ...options, args, env: browserLaunchEnvironment(environment, args, deps) };
 }
 
 /** THE RUN MARKER FOR EVERY BROWSER THIS PROCESS LAUNCHES (#1848). Playwright puts each browser in its own

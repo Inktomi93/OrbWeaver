@@ -22,6 +22,7 @@ import type { AuditRuleProof } from "@orb/testkit/node";
 import { livingChromiumIdentities, watchChromiumDescendants } from "@orb/testkit/node/helpers";
 import type { ToolFixtures } from "@orb/testkit/tooling";
 import { expect, test } from "@orb/testkit/tooling";
+import type { Finding } from "@orb/tooling/ui-audit";
 import { vi } from "vitest";
 import { scaledBudget } from "../_load-budget.ts";
 
@@ -716,8 +717,8 @@ test("a page the walk censused NOTHING on is an INSTRUMENT ERROR, never a clean 
 // built to exercise a RELATIONAL rule — geometry and CSS, no text, no image, no control — refused with
 // "the walk censused 0 nodes" even though the walker saw and judged its elements. The workaround was a
 // stray text node in every relational fixture, unrelated to the rule under test. A censused relational
-// sample is a censused node: this run must reach a VERDICT, and the tier-drift finding proves the walk
-// judged the very elements the census claimed not to see.
+// sample is a censused node: this run must reach a VERDICT, and the tier-drift property findings prove
+// the walk judged the very elements the census claimed not to see.
 test("a relational-only fixture is judged, never refused as an empty census", async ({ runCli, scratch }) => {
   const body = `<style>
   [data-surface-tier="instrument"] { --orb-tier-island-pad: 8px; --orb-tier-island-radius: 4px; }
@@ -730,8 +731,16 @@ test("a relational-only fixture is judged, never refused as an empty census", as
   const res = await runCli("snap", ["--file", join(scratch, "relational-only.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(res.stdout, "the census families are not the judged families — a relational sample IS a census").not.toContain("censused 0 nodes");
   expect(Number(CENSUS_RE.exec(res.stdout)?.[1])).toBeGreaterThan(0);
-  const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as { readonly findings: readonly { readonly rule: string }[] };
-  expect(report.findings.filter(({ rule }) => rule === "tier-drift")).toHaveLength(1);
+  const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as { readonly findings: readonly Finding[] };
+  const tierDrifts = report.findings.filter(({ rule }) => rule === "tier-drift");
+  const expectedTierDrifts = [
+    'padding-block-end painted "20px" vs expected --orb-tier-island-pad="8px" for tier "instrument" on [data-slot=card-root]',
+    'padding-block-start painted "20px" vs expected --orb-tier-island-pad="8px" for tier "instrument" on [data-slot=card-root]',
+    'padding-inline-end painted "20px" vs expected --orb-tier-island-pad="8px" for tier "instrument" on [data-slot=card-root]',
+    'padding-inline-start painted "20px" vs expected --orb-tier-island-pad="8px" for tier "instrument" on [data-slot=card-root]',
+  ] as const;
+  expect(tierDrifts.map(({ value }) => value).sort()).toEqual([...expectedTierDrifts].sort());
+  expect(tierDrifts.every(({ selector }) => selector === "[data-slot=card-root]")).toBe(true);
 });
 
 // ── --upload (#651) ──────────────────────────────────────────────────────────

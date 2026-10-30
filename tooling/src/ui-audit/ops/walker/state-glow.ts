@@ -99,9 +99,12 @@ export const WALKER_STATE_GLOW = `  // ── the glow-layer vocabulary (one hom
       var probeEl = document.createElement("div");
       probeEl.style.cssText = "position:absolute;visibility:hidden;pointer-events:none";
       probeEl.style.boxShadow = raw;
-      host.appendChild(probeEl);
-      resolved = normalizedShadowLayers(getComputedStyle(probeEl).boxShadow);
-      host.removeChild(probeEl);
+      try {
+        host.appendChild(probeEl);
+        resolved = normalizedShadowLayers(getComputedStyle(probeEl).boxShadow);
+      } finally {
+        probeEl.remove();
+      }
       ctaGlowResolvedCache.set(el, resolved);
     }
     return resolved !== "" && resolved === normalizedShadowLayers(forcedBoxShadow);

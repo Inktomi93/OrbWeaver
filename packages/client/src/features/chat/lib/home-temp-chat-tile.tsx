@@ -3,12 +3,13 @@
 
 import { Clock } from "@orb/ui/icons";
 import type { HomeTileContribution } from "#state";
+import { CHAT_TEMP_CHAT_TILE_ID } from "#state";
 import { HomeTempChatSkeleton, HomeTempChatTileBody, TEMP_CHAT_SKELETON_ROWS } from "../components/home-temp-chat-tile-body.tsx";
 
 const TEMP_CHAT_TILE_ORDER = 30;
 
 export const chatTempChatTile: HomeTileContribution = {
-  id: "chat.tempChat",
+  id: CHAT_TEMP_CHAT_TILE_ID,
   title: "Temp chat",
   icon: Clock,
   order: TEMP_CHAT_TILE_ORDER,

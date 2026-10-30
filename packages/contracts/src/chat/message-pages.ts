@@ -9,7 +9,7 @@ import type { ChatIdentity } from "./producers.ts";
 import { chatIdentitySchema } from "./producers.ts";
 
 /** Each canon page carries identity coverage for its own historical speaker stamps. */
-export interface MessagesPage {
+interface MessagesPage {
   readonly messages: readonly MessageView[];
   readonly identities: readonly ChatIdentity[];
 }
@@ -43,7 +43,7 @@ export type MessageWindow =
       readonly hasAfter: false;
     };
 
-export const messagesPageSchema = z.strictObject({
+const messagesPageSchema = z.strictObject({
   messages: z.array(messageViewSchema).readonly(),
   identities: z.array(chatIdentitySchema).readonly(),
 }) satisfies z.ZodType<MessagesPage>;

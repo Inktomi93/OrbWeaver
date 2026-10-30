@@ -1,5 +1,5 @@
-// Chat's MASTHEAD contribution — home's opening sentence (program #102, mockup variant C). One more
-// co-located file plus one array member at the door, exactly like every other tile: home renders a
+// Chat's MASTHEAD contribution — home's opening sentence (program #102, mockup variant C). A
+// co-located definition and registered identity, like every other tile: home renders a
 // `masthead`-region contribution and never learns that the count in it came from chat.
 //
 // WHY IT IS A TILE AND NOT SOMETHING HOME OWNS: the sentence is about YOUR ROOMS, and `client-features-
@@ -13,12 +13,13 @@
 
 import { Compass } from "@orb/ui/icons";
 import type { HomeTileContribution } from "#state";
+import { CHAT_MASTHEAD_TILE_ID } from "#state";
 import { HomeMastheadBody, HomeMastheadSkeleton } from "../components/home-masthead-body.tsx";
 
 const MASTHEAD_TILE_ORDER = 0;
 
 export const chatMastheadTile: HomeTileContribution = {
-  id: "chat.masthead",
+  id: CHAT_MASTHEAD_TILE_ID,
   title: "Home",
   icon: Compass,
   order: MASTHEAD_TILE_ORDER,

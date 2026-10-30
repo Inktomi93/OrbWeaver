@@ -221,8 +221,8 @@ export function checkTierDrift(input: TierDriftInput): Finding | null {
     rule: "tier-drift",
     severity: "P2",
     selector: input.selector,
-    value: `${input.property} painted "${input.paintedRaw}" vs tier "${input.tier}"'s ${input.varName}="${input.sanctionedRaw}" on [data-slot=${input.slot}]`,
-    message: `this slot declares tier="${input.tier}" but its resolved ${input.property} does not match the tier map's ${input.varName} — an inline style or an off-tier utility is beating the unlayered tier rule (tiers.css is deliberately unlayered so it always wins), or the custom-property chain is broken and the slot silently fell back to its tier-less default. Resolve the ${input.property} to the tier map, or add the opt-in that is meant to outrank it`,
+    value: `${input.property} painted "${input.paintedRaw}" vs expected ${input.varName}="${input.sanctionedRaw}" for tier "${input.tier}" on [data-slot=${input.slot}]`,
+    message: `the resolved ${input.property} differs from this slot's declared tier and variant contract in tiers.css. Inspect the cascade, inline overrides, and custom-property chain; preserve the sanctioned variant's ${input.varName} rather than replacing it with the tier default`,
     origin: "orbweaver",
   };
 }

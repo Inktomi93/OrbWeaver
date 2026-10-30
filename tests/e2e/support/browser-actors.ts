@@ -18,21 +18,31 @@
 //
 // Kept in the e2e-support tree, import-free of the app/package trees (the `trpc.ts`/`actors.ts` posture).
 
-import { CSRF_HEADER } from "@orb/contracts/identity";
-import type { Handle } from "@orb/kit/ids";
+import type { ViewerView } from "@orb/contracts/identity";
+import { CSRF_HEADER, viewerViewSchema } from "@orb/contracts/identity";
+import type { Handle, UserId } from "@orb/kit/ids";
 import type { Browser, BrowserContext, Page } from "@playwright/test";
+import { z } from "zod";
 import { SESSION_COOKIE } from "./actors.ts";
 import { openChatByTitle } from "./chat-room.ts";
 
-/** One human's isolated browser session: their own cookie jar + one page, already on the app. */
+/** One human's authenticated identity, isolated cookie jar and page. */
 export interface BrowserActor {
   readonly handle: Handle;
   readonly context: BrowserContext;
   readonly page: Page;
+  readonly viewer: ViewerView;
   readonly close: () => Promise<void>;
 }
 
+export interface BrowserActorCredentials {
+  readonly handle: Handle;
+  readonly password: string;
+  readonly expectedUserId?: UserId;
+}
+
 const APP_READY = "html[data-app-ready]";
+const COOKIE_ACTOR_HEADERS = { [CSRF_HEADER]: "1", forwarded: "for=192.0.2.1" } as const;
 // The login route requires the CSRF header (blocks login-CSRF), so this actor sends it exactly as the real client does.
 const READY_TIMEOUT_MS = 30_000;
 /** The chat header's roster entry, by its ACCESSIBLE NAME prefix (`Members — <count>`) — the count varies
@@ -44,21 +54,62 @@ const MEMBERS_ENTRY = '[aria-label^="Members "]';
  *  status — if the login mints no session, so a spec never screenshots an anonymous page believing it is a
  *  member's view. */
 export async function openBrowserActor(browser: Browser, baseUrl: string, handle: Handle, password: string): Promise<BrowserActor> {
-  const context = await browser.newContext({ baseURL: baseUrl });
+  const actor = await authenticateBrowserActor(browser, baseUrl, { handle, password });
+  try {
+    await actor.page.goto(baseUrl);
+    await actor.page.locator(APP_READY).waitFor({ state: "attached", timeout: READY_TIMEOUT_MS });
+    return actor;
+  } catch (error) {
+    await actor.close();
+    throw error;
+  }
+}
+
+/** Authenticate in an isolated native cookie jar and return before the page's first navigation. */
+export async function authenticateBrowserActor(
+  browser: Browser,
+  baseUrl: string,
+  account: BrowserActorCredentials,
+  contextOptions: Parameters<Browser["newContext"]>[0] = {},
+): Promise<BrowserActor> {
+  const context = await browser.newContext({ ...contextOptions, baseURL: baseUrl });
+  try {
+    const viewer = await authenticateBrowserContext(context, baseUrl, account);
+    const page = await context.newPage();
+    return { handle: account.handle, viewer, context, page, close: () => context.close() };
+  } catch (error) {
+    await context.close();
+    throw error;
+  }
+}
+
+/** Admit a native runner's own context before its page navigates or instrumentation attaches. */
+export async function authenticateBrowserContext(context: BrowserContext, baseUrl: string, account: BrowserActorCredentials): Promise<ViewerView> {
+  const { handle, password } = account;
   const res = await context.request.post(`${baseUrl}/api/auth/login`, { form: { handle, password }, headers: { [CSRF_HEADER]: "1" } });
   if (!res.ok()) {
-    await context.close();
-    throw new Error(`openBrowserActor(${handle}): login failed (HTTP ${res.status()})`);
+    throw new Error(`Browser actor login failed (HTTP ${res.status()})`);
   }
+  // A relay tell disables ambient owner fallback, so this read proves the cookie admitted the requested human.
+  const response = await context.request.get(`${baseUrl}/api/trpc/sessions.me`, { headers: await browserActorRequestHeaders(context, baseUrl) });
+  const result = z.object({ result: z.object({ data: viewerViewSchema }) }).safeParse(await response.json());
+  if (!(response.ok() && result.success) || result.data.result.data.handle !== handle) {
+    throw new Error("Browser actor cookie did not admit the requested account");
+  }
+  const viewer = result.data.result.data;
+  if (account.expectedUserId !== undefined && viewer.userId !== account.expectedUserId) {
+    throw new Error("Browser actor cookie did not admit the requested identity");
+  }
+  return viewer;
+}
+
+/** Bind wire calls to the same native cookie jar as the rendered actor, with ambient fallback disabled. */
+export async function browserActorRequestHeaders(context: BrowserContext, baseUrl: string): Promise<Readonly<Record<string, string>>> {
   const cookies = await context.cookies(baseUrl);
-  if (!cookies.some((c) => c.name === SESSION_COOKIE && c.value !== "")) {
-    await context.close();
-    throw new Error(`openBrowserActor(${handle}): login returned no session cookie the browser kept`);
+  if (!cookies.some((cookie) => cookie.name === SESSION_COOKIE && cookie.value !== "")) {
+    throw new Error("Browser actor login returned no retained session cookie");
   }
-  const page = await context.newPage();
-  await page.goto(baseUrl);
-  await page.locator(APP_READY).waitFor({ state: "attached", timeout: READY_TIMEOUT_MS });
-  return { handle, context, page, close: () => context.close() };
+  return { ...COOKIE_ACTOR_HEADERS, cookie: cookies.map(({ name, value }) => `${name}=${value}`).join("; ") };
 }
 
 /** Open the chat whose list row carries `title` (the real Chats-list affordance), then its MEMBERS context

@@ -6,14 +6,15 @@ import type { AuthMode, Principal, ViewerView } from "@orb/contracts/identity";
 import { AUTH_MODES, viewerViewSchema } from "@orb/contracts/identity";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { AUTH_MODE_DEFAULT_FALLBACK } from "@orb/server/foundation/env";
 import type { JWTPayload } from "jose";
 import type { TestAPI, TestFunction } from "vitest";
 import { z } from "zod";
 import { readAccounts } from "./admin/accounts.ts";
+import type { AuthModeCapability } from "./auth-mode-options.ts";
+import { AUTH_MODE_CAPABILITIES, authModeHarnessOptions } from "./auth-mode-options.ts";
 import { test } from "./fixtures.ts";
-import { CLIENT_ID, createNativeIssuer, ISSUER, NATIVE_OIDC_SETTINGS } from "./oidc-issuer.ts";
-import type { ActorSpec, AuthModeEnv, ServerHarnessOptions, ServerTestHarness } from "./server.ts";
+import { createNativeIssuer, NATIVE_OIDC_SETTINGS } from "./oidc-issuer.ts";
+import type { ActorSpec, ServerHarnessOptions, ServerTestHarness } from "./server.ts";
 import { createServerHarness } from "./server.ts";
 import type { NativeIssuer } from "./sign-in.ts";
 import { forwardHeaders, SignInRefusal, signInWithOidc, signInWithPassword } from "./sign-in.ts";
@@ -21,36 +22,9 @@ import { forwardHeaders, SignInRefusal, signInWithOidc, signInWithPassword } fro
 // The authorization kernel's role reads. Role data decodes only behind admin's door (role-data-private-decoder), so a
 // suite reads a Principal's role through these, never a sideways import of admin.
 export { can, isAdmin, isOwner } from "@orb/server/domain/admin";
+export { AUTH_MODE_CAPABILITIES, authModeHarnessOptions } from "./auth-mode-options.ts";
 export { beginOidcLogin, cookieHeader, finishOidcLogin, forwardHeaders, SignInRefusal, signInWithOidc, signInWithPassword } from "./sign-in.ts";
 
-/** What each auth mode admits: `members` is a second account that can sign in, `ownerFallback` the
- *  un-credentialed loopback owner. Multiplayer surfaces read the product's own `app.multiHumanCapable()`. */
-interface AuthModeCapability {
-  readonly members: boolean;
-  readonly ownerFallback: boolean;
-}
-
-// The fallback column is the product's own unset `AUTH_FALLBACK` default, which every door root composes.
-function ownerFallbackOf(mode: AuthMode): boolean {
-  return AUTH_MODE_DEFAULT_FALLBACK[mode] === "owner";
-}
-
-/** The one capability table; a case asserts or skips on it, never on a mode name. */
-export const AUTH_MODE_CAPABILITIES = {
-  "single-user": { members: false, ownerFallback: ownerFallbackOf("single-user") },
-  local: { members: true, ownerFallback: ownerFallbackOf("local") },
-  oidc: { members: true, ownerFallback: ownerFallbackOf("oidc") },
-  "forward-header": { members: true, ownerFallback: ownerFallbackOf("forward-header") },
-} as const satisfies Record<AuthMode, AuthModeCapability>;
-
-type PhysicalPeer = NonNullable<ServerHarnessOptions["physicalPeer"]>;
-type ModeHarnessOptions<Mode extends AuthMode> = Required<Pick<ServerHarnessOptions, "physicalPeer">> &
-  Pick<ServerHarnessOptions, "oidc" | "networkExecution"> & { readonly env: AuthModeEnv<Mode> };
-
-const LOOPBACK_PEER = "127.0.0.1";
-// A public address for the issuer host and for every login-mode caller, so no loopback or private-range rule applies.
-const PUBLIC_PEER = "93.184.215.14";
-const ISSUER_HOST = new URL(ISSUER).hostname;
 const VIEWER_ROUTE = "/api/trpc/sessions.me";
 const SUBJECT_PREFIX = "subject";
 /** The SSO subject the owner row binds on its first SSO sign-in. */
@@ -59,51 +33,6 @@ const OWNER_SUBJECT = castId<ExternalId>("auth-door-owner-subject");
 const SIGN_IN_PASSWORD = "auth-door-member-password";
 
 const viewerEnvelopeSchema = z.object({ result: z.object({ data: viewerViewSchema }) });
-
-function atPeer(address: string): PhysicalPeer {
-  return () => address;
-}
-
-function issuerNetwork(issuer: NativeIssuer): NonNullable<ServerHarnessOptions["networkExecution"]> {
-  return {
-    resolver: (hostname) =>
-      hostname === ISSUER_HOST ? Promise.resolve([PUBLIC_PEER]) : Promise.reject(new Error(`unscripted address resolution: ${hostname}`)),
-    fetch: (input, init) => issuer.fetch(input, init),
-  };
-}
-
-// The mode's posture keys; its fallback is the product's own unset default, stated so the record reads as it resolves.
-function postureOf<Mode extends AuthMode>(mode: Mode): AuthModeEnv<Mode> {
-  return { ["AUTH_MODE"]: mode, ["AUTH_FALLBACK"]: AUTH_MODE_DEFAULT_FALLBACK[mode] };
-}
-
-const MODE_HARNESS: { readonly [Mode in AuthMode]: (issuer: NativeIssuer) => ModeHarnessOptions<Mode> } = {
-  "single-user": () => ({ env: postureOf("single-user"), physicalPeer: atPeer(LOOPBACK_PEER) }),
-  local: () => ({ env: postureOf("local"), physicalPeer: atPeer(PUBLIC_PEER) }),
-  oidc: (issuer) => ({
-    env: postureOf("oidc"),
-    physicalPeer: atPeer(PUBLIC_PEER),
-    oidc: NATIVE_OIDC_SETTINGS,
-    networkExecution: issuerNetwork(issuer),
-  }),
-  // No trusted proxy is declared, so only the signed path admits.
-  "forward-header": (issuer) => ({
-    env: {
-      ...postureOf("forward-header"),
-      ["FORWARD_AUTH_VERIFY_JWT"]: "true",
-      ["FORWARD_AUTH_JWKS_ALLOWLIST"]: ISSUER_HOST,
-      ["FORWARD_AUTH_JWT_ISSUER"]: ISSUER,
-      ["FORWARD_AUTH_JWT_AUDIENCE"]: CLIENT_ID,
-    },
-    physicalPeer: atPeer(PUBLIC_PEER),
-    networkExecution: issuerNetwork(issuer),
-  }),
-};
-
-/** The harness options that compose `mode` against `issuer`; a root built from them signs in through this door. */
-export function authModeHarnessOptions<Mode extends AuthMode>(mode: Mode, issuer: NativeIssuer): ModeHarnessOptions<Mode> {
-  return MODE_HARNESS[mode](issuer);
-}
 
 /** A claimed root composed in one auth mode, with the scripted issuer its SSO modes trust. */
 export type AuthModeRoot = ServerTestHarness & {

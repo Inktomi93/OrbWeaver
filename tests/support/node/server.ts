@@ -31,6 +31,7 @@ import type { Env } from "@orb/server/foundation/env";
 import { bindPostureInput, resolveBindPosture } from "@orb/server/foundation/env";
 import { createAuditWiring, createLogger, createObservabilityRings, getLog } from "@orb/server/foundation/observability";
 import { systemConnector, systemFetch } from "@orb/server/infra/network";
+import { createScopedTimers } from "@orb/server/infra/timers";
 import { appRouter, createCaller } from "@orb/server/transport/trpc";
 import type { Clock } from "../iso/clock.ts";
 import { createFrozenClock } from "../iso/clock.ts";
@@ -85,6 +86,21 @@ export interface ServerHarnessOptions extends EnvSeamOptions, Partial<Pick<Servi
   /** The production sessions crypto both the boot-owner step and the graph receive; a test passes one to spy on it. */
   readonly sessionsCrypto?: ServicesDeps["sessionsCrypto"];
 }
+
+export type ServerRuntimeTime = Pick<ServicesDeps, "now" | "monotonicNow" | "timers">;
+
+type SuppliedIdHarnessOptions = Omit<ServerHarnessOptions, "ids" | "ownerId"> & {
+  readonly ownerId: UserId;
+  readonly idSource: ServicesDeps["idSource"];
+  readonly ids?: never;
+};
+
+/** Native long-running consumers supply entry-owned time; deterministic callers keep their existing controls. */
+export type NativeServerHarnessOptions = Omit<SuppliedIdHarnessOptions, "clock" | "timers"> & {
+  readonly time: ServerRuntimeTime;
+  readonly clock?: never;
+  readonly timers?: never;
+};
 
 /** Raw env keys whose record composes `mode`. */
 export type AuthModeEnv<Mode extends AuthMode> = NonNullable<ServerHarnessOptions["env"]> & { readonly ["AUTH_MODE"]: Mode };
@@ -217,6 +233,44 @@ export interface ServerTestHarness extends ComposedServerRoot, AsyncDisposable {
   readonly settleSharing: ShareGraph["settle"];
 }
 
+interface SuppliedIdServerTestHarness extends ComposedServerRoot, Omit<ServerTestHarness, "ids"> {}
+
+export interface NativeServerTestHarness extends ComposedServerRoot, Omit<SuppliedIdServerTestHarness, "clock" | "timers"> {
+  readonly clock: Pick<Clock, "now">;
+  readonly timers: ServicesDeps["timers"];
+}
+
+type HarnessIdentity = Pick<ServicesDeps, "idSource" | "newOpaqueId"> & ({ readonly ids: SeededIds } | { readonly ownerId: UserId });
+
+function harnessIdentity(options: ServerHarnessOptions | UnclaimedServerHarnessOptions | SuppliedIdHarnessOptions): HarnessIdentity {
+  if ("idSource" in options) {
+    return { ownerId: options.ownerId, idSource: options.idSource, newOpaqueId: options.idSource.uuid };
+  }
+  const ids = options.ids ?? createSeededIds();
+  return { ids, idSource: createIdSource(ids.next), newOpaqueId: ids.uuid };
+}
+
+type HarnessScheduling =
+  | (Pick<NativeServerTestHarness, "clock" | "timers" | "ownerId"> & { readonly native: true; readonly monotonicNow: ServicesDeps["monotonicNow"] })
+  | { readonly native: false; readonly clock: Clock; readonly timers: ControlledTimers; readonly monotonicNow: ServicesDeps["monotonicNow"] };
+
+function harnessScheduling(
+  options: NativeServerHarnessOptions | ServerHarnessOptions | UnclaimedServerHarnessOptions,
+  lifetime: AsyncDisposableStack,
+): HarnessScheduling {
+  if ("time" in options) {
+    return {
+      native: true,
+      ownerId: options.ownerId,
+      clock: { now: options.time.now },
+      timers: lifetime.use(createScopedTimers(options.time.timers)),
+      monotonicNow: options.time.monotonicNow,
+    };
+  }
+  const clock = options.clock ?? createFrozenClock();
+  return { native: false, clock, timers: lifetime.use(options.timers ?? createControlledTimers(clock)), monotonicNow: clock.now };
+}
+
 /** The credentials key every kit root shares; a root that needs a second distinct key owns it locally. */
 export const SECRET_BOX_TEST_KEY = Buffer.alloc(32, 1);
 const SESSION_SECRET = "server-harness-session-secret-at-least-32-chars";
@@ -329,7 +383,7 @@ async function closeHarnessGraph(
   }
 }
 
-type HarnessConstruction = Pick<ServerTestHarness, "db" | "env" | "clock" | "idSource" | "timers" | "logger" | "rings"> & {
+type HarnessConstruction = Pick<NativeServerTestHarness, "db" | "env" | "clock" | "idSource" | "timers" | "logger" | "rings"> & {
   readonly authConfig: AuthConfig;
   readonly rolePolicy: SessionsRolePolicy;
 };
@@ -368,8 +422,8 @@ async function prepareHarnessOwner(
 const ACTOR_HANDLE_PREFIX = "actor";
 
 // Both mint verbs resolve an existing handle to its account, so an actor refuses a held handle instead of adopting it.
-async function unheldHandle(app: ServicesResult, ids: SeededIds, requested: Handle | undefined): Promise<Handle> {
-  const handle = requested ?? castId<Handle>(ids.next(ACTOR_HANDLE_PREFIX));
+async function unheldHandle(app: ServicesResult, idSource: ServicesDeps["idSource"], requested: Handle | undefined): Promise<Handle> {
+  const handle = requested ?? castId<Handle>(`${ACTOR_HANDLE_PREFIX}_${idSource.unprefixed()}`);
   const held = await app.sessions.resolveHandle(handle);
   if (held !== null) {
     throw new Error(`server harness: actor handle "${handle}" is already held by ${held}`);
@@ -379,12 +433,12 @@ async function unheldHandle(app: ServicesResult, ids: SeededIds, requested: Hand
 
 interface ActorMint {
   readonly app: ServicesResult;
-  readonly ids: SeededIds;
+  readonly idSource: ServicesDeps["idSource"];
 }
 
-function claimedActor({ app, ids }: ActorMint, ownerId: UserId, principalFor: ServerTestHarness["principalFor"]): ServerTestHarness["actor"] {
+function claimedActor({ app, idSource }: ActorMint, ownerId: UserId, principalFor: ServerTestHarness["principalFor"]): ServerTestHarness["actor"] {
   return async (spec = {}) => {
-    const handle = await unheldHandle(app, ids, spec.handle);
+    const handle = await unheldHandle(app, idSource, spec.handle);
     const userId = await app.sessions.ensureUser(handle);
     const principal = await principalFor(ownerId);
     const { admin } = app.services;
@@ -405,9 +459,9 @@ function claimedActor({ app, ids }: ActorMint, ownerId: UserId, principalFor: Se
   };
 }
 
-function unclaimedActor({ app, ids }: ActorMint): UnclaimedServerTestHarness["actor"] {
+function unclaimedActor({ app, idSource }: ActorMint): UnclaimedServerTestHarness["actor"] {
   return async (spec = {}) => {
-    const handle = await unheldHandle(app, ids, spec.handle);
+    const handle = await unheldHandle(app, idSource, spec.handle);
     const provisioned = await app.sessions.provisionIdentity(
       { externalId: spec.externalId ?? null, handle, groups: [], email: spec.email ?? null },
       { ownerClaimProven: false, requireApproval: spec.enabled === false },
@@ -570,11 +624,13 @@ export async function configureOidc(
 }
 
 /** Build an owned in-process server graph; a supplied database remains its caller's resource. */
+export function createServerHarness(options: NativeServerHarnessOptions): Promise<NativeServerTestHarness>;
+export function createServerHarness(options: SuppliedIdHarnessOptions): Promise<SuppliedIdServerTestHarness>;
 export function createServerHarness(options: UnclaimedServerHarnessOptions): Promise<UnclaimedServerTestHarness>;
 export function createServerHarness(options?: ServerHarnessOptions): Promise<ServerTestHarness>;
 export async function createServerHarness(
-  options: ServerHarnessOptions | UnclaimedServerHarnessOptions = {},
-): Promise<ServerTestHarness | UnclaimedServerTestHarness> {
+  options: NativeServerHarnessOptions | SuppliedIdHarnessOptions | ServerHarnessOptions | UnclaimedServerHarnessOptions = {},
+): Promise<NativeServerTestHarness | SuppliedIdServerTestHarness | ServerTestHarness | UnclaimedServerTestHarness> {
   await using construction = new AsyncDisposableStack();
   // biome-ignore lint/nursery/useDisposables: native rollback owns this timer until transfer; the missing-directory control proves disposal before adoption.
   let pendingTimers = options.timers;
@@ -585,11 +641,10 @@ export async function createServerHarness(
   if (options.db === undefined) {
     construction.defer(() => closeDb(db));
   }
-  const clock = options.clock ?? createFrozenClock();
-  const ids = options.ids ?? createSeededIds();
-  const idSource = createIdSource(ids.next);
-  // biome-ignore lint/nursery/useDisposables: this exact scheduler is adopted by the moved root stack, not the factory scope.
-  const timers: ServerTestHarness["timers"] = construction.use(pendingTimers ?? createControlledTimers(clock));
+  const scheduling = harnessScheduling(options, construction);
+  const { clock, timers } = scheduling;
+  const identity = harnessIdentity(options);
+  const { idSource, newOpaqueId } = identity;
   pendingTimers = undefined;
   const random = options.random ?? ((): number => 0.5);
   const env = harnessEnv(options, { rootDir });
@@ -629,8 +684,8 @@ export async function createServerHarness(
     timers,
     buildConnector: systemConnector,
     idSource,
-    newOpaqueId: ids.uuid,
-    serverInstanceId: ids.uuid(),
+    newOpaqueId,
+    serverInstanceId: newOpaqueId(),
     random,
     randomInt: (max) => Math.floor(random() * max),
     ownerId,
@@ -644,7 +699,7 @@ export async function createServerHarness(
     share: sharing.share,
     providerSeams: providerExecutionOf(options),
     pluginExecution: { spawn: options.pluginSpawn ?? refusingPluginSpawn },
-    monotonicNow: clock.now,
+    monotonicNow: scheduling.monotonicNow,
     networkExecution: networkExecutionOf(options, options.providerFetch ?? refusingProviderFetch()),
   });
   appLifetime = app;
@@ -703,18 +758,15 @@ export async function createServerHarness(
         clientIp: IN_PROCESS_CLIENT_IP,
       }),
     );
-  const actor = actorFor({ app, ids }, ownerId, principalFor);
+  const actor = actorFor({ app, idSource }, ownerId, principalFor);
   const workloadDriver = workloadsFor(app, workloadExecution, manualWorkloadAbort.signal, options.startJobs);
   const lifetime = construction.move();
-  return Object.assign(new ComposedServerRoot(app, db, internalCallerFor, http), {
+  const root = Object.assign(new ComposedServerRoot(app, db, internalCallerFor, http), {
     env,
     logger,
     rings,
     observability: observeRoot(rings),
-    clock,
-    ids,
     idSource,
-    timers,
     ...(ownerId === undefined ? {} : { ownerId }),
     ...(configuredOidc === undefined ? {} : { ownerClaimFile: configuredOidc.ownerClaimFile }),
     principalFor,
@@ -739,4 +791,11 @@ export async function createServerHarness(
       await lifetime.disposeAsync();
     },
   });
+  if (scheduling.native) {
+    return Object.assign(root, { ownerId: scheduling.ownerId, clock: scheduling.clock, timers: scheduling.timers });
+  }
+  if ("ids" in identity) {
+    return Object.assign(root, { ids: identity.ids, clock: scheduling.clock, timers: scheduling.timers });
+  }
+  return Object.assign(root, { ownerId: identity.ownerId, clock: scheduling.clock, timers: scheduling.timers });
 }

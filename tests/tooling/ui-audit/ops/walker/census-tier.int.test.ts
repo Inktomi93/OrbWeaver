@@ -57,9 +57,9 @@ async function auditFixture({ scratch, runCli, name, body }: AuditFixture): Prom
  *  `--orb-tier-*` values, a card-root rule consuming them unlayered, and the ELEVATED opt-in that must
  *  outrank the tier by higher specificity — exactly as tiers.css itself does it. */
 const CARD_TIER_CSS = `<style>
-  [data-surface-tier="instrument"] { --orb-tier-island-pad: 8px; --orb-tier-island-radius: 4px; }
+  [data-surface-tier="instrument"] { --orb-tier-island-pad: 8px; --orb-tier-island-radius: 4px; --radius-card: 20px; }
   [data-surface-tier] [data-slot="card-root"] { padding: var(--orb-tier-island-pad); border-radius: var(--orb-tier-island-radius); }
-  [data-surface-tier] [data-slot="card-root"][data-elevated] { border-radius: 20px; }
+  [data-surface-tier] [data-slot="card-root"][data-elevated] { border-radius: var(--radius-card); }
 </style>`;
 
 // ── fires: the tier declares one pixel, the paint delivers another ───────────
@@ -77,9 +77,8 @@ auditRuleTest(
     const body = `${CARD_TIER_CSS}<div data-surface-tier="instrument"><div data-slot="card-root" style="padding:20px;width:100px;height:60px;background:#222"></div></div>`;
     const { report } = await auditFixture({ scratch, runCli, name: "tier-drift-defect", body });
     const findings = report.findings.filter(({ rule }) => rule === "tier-drift");
-    expect(findings).toHaveLength(1);
-    // Both padding AND border-radius are candidates on card-root; only padding was pushed off-tier.
-    expect(report.populationAccounting?.["tier-drift"]).toMatchObject({ candidates: 2, judged: 2, emitted: 1 });
+    expect(findings).toHaveLength(4);
+    expect(report.populationAccounting?.["tier-drift"]).toMatchObject({ candidates: 5, judged: 5, emitted: 4 });
   },
 );
 
@@ -94,17 +93,16 @@ auditRuleTest(
         "the nearest legitimate neighbour: an ELEVATED card-root, whose border-radius the tier map's own opt-in outranks by design and must not be compared against the tier's default",
     },
   ],
-  "an ELEVATED card-root's opted-out radius is excluded, not flagged against the tier default",
+  "an elevated card-root is judged against its own radius token instead of the tier default",
   async ({ runCli, scratch }) => {
     const body = `${CARD_TIER_CSS}<div data-surface-tier="instrument"><div data-slot="card-root" data-elevated style="width:100px;height:60px;background:#222"></div></div>`;
     const { report } = await auditFixture({ scratch, runCli, name: "tier-drift-elevated", body });
     expect(report.findings.filter(({ rule }) => rule === "tier-drift")).toHaveLength(0);
-    // padding is judged and passes (8px sanctioned == 8px painted); radius is excluded as an opt-in.
     expect(report.populationAccounting?.["tier-drift"]).toMatchObject({
-      candidates: 2,
-      judged: 1,
+      candidates: 5,
+      judged: 5,
       affected: 0,
-      excluded: { "opt-in": 1 },
+      excluded: {},
     });
   },
 );
@@ -130,9 +128,9 @@ auditRuleTest(
     const { report } = await auditFixture({ scratch, runCli, name: "tier-drift-untiered", body });
     expect(report.findings.filter(({ rule }) => rule === "tier-drift")).toHaveLength(0);
     expect(report.populationAccounting?.["tier-drift"]).toMatchObject({
-      candidates: 2,
+      candidates: 5,
       judged: 0,
-      excluded: { "no-surface-tier": 2 },
+      excluded: { "no-surface-tier": 5 },
     });
   },
 );
@@ -158,9 +156,9 @@ auditRuleTest(
     const { report, code } = await auditFixture({ scratch, runCli, name: "tier-drift-broken", body });
     expect(report.findings.filter(({ rule }) => rule === "tier-drift")).toHaveLength(0);
     expect(report.populationAccounting?.["tier-drift"]).toMatchObject({
-      candidates: 2,
+      candidates: 5,
       judged: 0,
-      withheld: { unresolved: 2 },
+      withheld: { unresolved: 5 },
     });
     // A withheld candidate is a NO VERDICT run, not a pass — the runner must refuse rather than report clean.
     expect(code).toBe(2);
@@ -182,7 +180,7 @@ auditRuleTest(
     const body = `${CARD_TIER_CSS}<div data-surface-tier="instrument"><div data-slot="card-root" style="width:100px;height:60px;background:#222"></div></div>`;
     const { report, code } = await auditFixture({ scratch, runCli, name: "tier-drift-clean", body });
     expect(report.findings.filter(({ rule }) => rule === "tier-drift")).toHaveLength(0);
-    expect(report.populationAccounting?.["tier-drift"]).toMatchObject({ candidates: 2, judged: 2, affected: 0 });
+    expect(report.populationAccounting?.["tier-drift"]).toMatchObject({ candidates: 5, judged: 5, affected: 0 });
     expect(code).toBe(0);
   },
 );

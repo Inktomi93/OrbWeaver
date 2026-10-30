@@ -1,17 +1,9 @@
-// The PAGE-level type censuses — which faces a surface paints (`off-theme-font`) and whether its type
-// steps are far enough apart to read as a hierarchy (`flat-type-hierarchy`). Pure. Split out of
-// checks-typography.ts when #23 gave the face census its paint evidence and the pair crossed the
-// tooling-size cap: these two judge the PAGE as one subject, while everything left in that file judges
-// one text element at a time. Provenance/attribution: lib/collect.ts header.
+// The page font-face census compares declared and painted faces with the governed token stacks.
 import type { Finding, RulePopulationAccounting } from "../contract/findings.ts";
 import { PAGE_SUBJECT_SELECTOR } from "../contract/findings.ts";
 import type { FontCensusInput, FontFaceInput } from "../contract/samples.ts";
 import { settledPopulationAccounting } from "./population.ts";
 import { RAMP_FONT_FACES } from "./ramp.ts";
-
-const FLAT_HIERARCHY_MIN_SIZES = 3;
-
-const FLAT_HIERARCHY_MIN_RATIO = 2.0;
 
 // ── off-theme-font: the DECLARED face and the PAINTED face are two different questions (#23) ─────────
 //
@@ -122,22 +114,6 @@ export function checkFontCensus(census: FontCensusInput): Finding[] {
     const outcome = faceOutcome(face, census.probeUsable);
     if (outcome.kind === "judged" && outcome.finding !== null) {
       findings.push(outcome.finding);
-    }
-  }
-  if (census.sizes.length >= FLAT_HIERARCHY_MIN_SIZES) {
-    const sorted = [...census.sizes].sort((a, b) => a - b);
-    const min = sorted[0] as number;
-    const max = sorted.at(-1) as number;
-    if (min > 0 && max / min < FLAT_HIERARCHY_MIN_RATIO) {
-      findings.push({
-        rule: "flat-type-hierarchy",
-        severity: "P3",
-        selector: PAGE_SUBJECT_SELECTOR,
-        value: `${sorted.map((s) => `${s}px`).join(", ")} (ratio ${(max / min).toFixed(1)}:1)`,
-        message:
-          "page font sizes are too close together for a visible hierarchy — use fewer steps with more contrast (the ramp spans micro 10.5 → display 24 for a reason)",
-        origin: "impeccable",
-      });
     }
   }
   return findings;

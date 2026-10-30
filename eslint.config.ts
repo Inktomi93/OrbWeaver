@@ -200,6 +200,8 @@ const ROW_READ_HOMES = [
   // production pass left, and that snapshot is the product, so no read verb can stand in for it.
   // corpus.ts also refuses a copied private db holding unfinished work before the server that would resume it boots.
   "tests/support/node/corpus.ts",
+  // Surface intake identifies the original owner, inventories consent/completed embedding metadata and refuses resumable work before composition.
+  "tests/support/node/surface-data.ts",
   "tests/support/node/corpus-chat-lifecycle.ts",
   "tests/support/node/corpus-connection.ts",
   "tests/support/node/corpus-image-variants.ts",

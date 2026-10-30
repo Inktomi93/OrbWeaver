@@ -1,20 +1,4 @@
-// The HOME-TILE assembly — a `compose/` SIBLING of `authed-app.tsx`, not a second door.
-//
-// WHY IT MOVED OUT (2026-08-28, the U5 landing): `authed-app.tsx` reached its `component-size` cap. The gate's
-// own prescribed fix is "split into sub-files under a bucket", and §7 + `client-compose-door-only` name a
-// `compose/` sibling as exactly that for the door — so this is the sanctioned shape rather than a raised cap.
-// NOTHING about the one-assembly law changes: `createContributorRegistry` still runs in a `compose/` module
-// (G8's whole predicate), there is still exactly ONE home-tile registry project-wide, and the door still owns
-// it — `authed-app.tsx` imports the assembled registry and hands it to `makeHomeSection`, which is the same
-// blind consumption it always did.
-//
-// The HOME-TILE contributor seam — the whole point of the home section: a
-// feature raises a tile, home skims it. Adding "future stuff" to home is ONE co-located file in the OWNING
-// feature plus ONE array member HERE — home is never edited. Canonical `(order, id)` at the door: chat's
-// masthead line is order 0, its recents hero 10, its also-open list 15, the face shelf 20, the roster
-// feature's rosters 25 and temp chat 30;
-// home's own "Elsewhere in the house" rail is 40; databank's tile 50. WHICH COLUMN each lands in is the
-// tile's own `region`, never a list here. Home consumes the registry BLIND through `makeHomeSection`.
+// Feature-owned Home bodies are assembled once, exhaustively over the state-owned identity population.
 
 import { chatAlsoOpenTile, chatMastheadTile, chatQuickPicksTile, chatRecentsTile, chatTempChatTile } from "#features/chat";
 import { databankDocumentsTile } from "#features/databank";
@@ -22,22 +6,36 @@ import { makeSectionJumpTile } from "#features/home";
 import { rosterPresetHomeTile } from "#features/roster-preset";
 import type { ContributorRegistry } from "#lib";
 import { createContributorRegistry } from "#lib";
-import type { HomeTileContribution } from "#state";
+import type { HomeTileContribution, HomeTileId } from "#state";
+import {
+  ALSO_OPEN_TILE_ID,
+  CHAT_MASTHEAD_TILE_ID,
+  CHAT_RECENTS_TILE_ID,
+  CHAT_TEMP_CHAT_TILE_ID,
+  DATABANK_DOCUMENTS_TILE_ID,
+  HOME_JUMP_TILE_ID,
+  HOME_TILE_IDS,
+  QUICK_PICKS_TILE_ID,
+  ROSTERS_TILE_ID,
+} from "#state";
 
-const HOME_TILE_CONTRIBUTIONS: readonly HomeTileContribution[] = [
-  chatMastheadTile,
-  chatRecentsTile,
-  chatAlsoOpenTile,
-  chatQuickPicksTile,
-  rosterPresetHomeTile,
-  chatTempChatTile,
-  databankDocumentsTile,
-];
+const HOME_TILE_CONTRIBUTIONS = {
+  [CHAT_MASTHEAD_TILE_ID]: chatMastheadTile,
+  [CHAT_RECENTS_TILE_ID]: chatRecentsTile,
+  [ALSO_OPEN_TILE_ID]: chatAlsoOpenTile,
+  [QUICK_PICKS_TILE_ID]: chatQuickPicksTile,
+  [ROSTERS_TILE_ID]: rosterPresetHomeTile,
+  [CHAT_TEMP_CHAT_TILE_ID]: chatTempChatTile,
+  [DATABANK_DOCUMENTS_TILE_ID]: databankDocumentsTile,
+} satisfies Record<Exclude<HomeTileId, typeof HOME_JUMP_TILE_ID>, HomeTileContribution>;
 
-/** The ONE home-tile registry (G8) — assembled here, consumed blind by `makeHomeSection` at the door. */
-export const homeTiles: ContributorRegistry<HomeTileContribution> = createContributorRegistry<HomeTileContribution>("home-tiles", [
+const definitions = {
   ...HOME_TILE_CONTRIBUTIONS,
-  // LAST, and built FROM the list above: its rows are the section registry minus home minus every section
-  // a tile beside it already subsumes (`sectionId`).
-  makeSectionJumpTile(HOME_TILE_CONTRIBUTIONS),
-]);
+  [HOME_JUMP_TILE_ID]: makeSectionJumpTile(Object.values(HOME_TILE_CONTRIBUTIONS)),
+} satisfies Record<HomeTileId, HomeTileContribution>;
+
+/** The single Home registry consumes the same exhaustive identity population used by surface admission. */
+export const homeTiles: ContributorRegistry<HomeTileContribution> = createContributorRegistry<HomeTileContribution>(
+  "home-tiles",
+  HOME_TILE_IDS.map((id) => definitions[id]),
+);

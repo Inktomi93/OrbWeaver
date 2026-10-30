@@ -125,10 +125,10 @@ export function Tooltip<Payload = unknown>({ describesTrigger = true, ...props }
   const [tooltipText, setTooltipText] = useState<string | undefined>(undefined);
   const repeatsName = triggerName !== undefined && tooltipText !== undefined && sameSpokenString(triggerName, tooltipText);
   let decision: TooltipDescribesDecision = "self";
-  if (!describesTrigger) {
-    decision = "caller";
-  } else if (repeatsName) {
+  if (repeatsName) {
     decision = "name";
+  } else if (!describesTrigger) {
+    decision = "caller";
   }
   // No manual memo: the React Compiler owns the identity of this object, and a hand-written dependency
   // array here is the maintenance hazard `no-manual-memo` exists to stop.

@@ -24,7 +24,6 @@
 //
 // RUNG 1 · nullableFindings / a bare map — no population row is published, and that is the honest shape:
 //   landmark-missing          page singleton: one boolean about the document, no denominator exists
-//   flat-type-hierarchy       page singleton: the page's own censused size set is the subject
 //   skipped-heading           a SEQUENCE verdict over adjacent heading pairs — no per-candidate disposition
 //   broken-image              WALKER-PROVEN: only proven-broken images are returned; the check is TOTAL
 //   text-overflow             WALKER-PROVEN: every truncation carrying an affordance was excluded upstream (#825)
