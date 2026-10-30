@@ -8,10 +8,9 @@
 // consumer decides — the window knob is rpg's). The name-stamp resolves against the caller's `HistoryMacroNames`
 // producer (built from the same canon), so transcript names match the wire.
 
-import type { MessageView } from "@orb/contracts/chat";
+import type { MessageView, RpgTurnTranscriptMessage } from "@orb/contracts/chat";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { HistoryMacroNames } from "../contract/results.ts";
-import type { RpgTurnTranscriptMessage } from "../contract/rpg-turn.ts";
 
 /** Resolve a canon row's name-stamp: assistant → its stamped character name; user → its stamped persona name;
  *  system → null (no speaker). A null/unresolvable stamp yields null (the consumer renders "You"/an unnamed

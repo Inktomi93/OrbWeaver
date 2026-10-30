@@ -5,7 +5,15 @@
 // offline, so no request Principal exists). Two bridges: role-irrelevant ops use the cheap synthetic
 // `hostPrincipal`; role-sensitive ops (owner-gates) use the injected `resolveHostPrincipal`.
 
-import type { DurableChatBusEvent } from "@orb/contracts/chat";
+import type {
+  ClaimChatOp,
+  DurableChatBusEvent,
+  GetMembership,
+  ResolveCanonWindow,
+  ResolveRpgCardCorpus,
+  ResolveRpgParticipants,
+  SetRpgPointer,
+} from "@orb/contracts/chat";
 import { SIGNUP_INVITES_MINTABLE } from "@orb/contracts/chat";
 import type { AuthMode, Can, Principal } from "@orb/contracts/identity";
 import type { UserIntent } from "@orb/contracts/preset";
@@ -31,8 +39,6 @@ import type {
   ChatService,
   ChatServiceDeps,
   ChatWorkloadDeps,
-  ClaimChatOp,
-  GetMembership,
   GetPendingUserText,
   ImageRefAssets,
   MemoryRecallRecorder,
@@ -40,10 +46,6 @@ import type {
   PresenceReadOp,
   PromptTransformRegistry,
   RequestTurnOp,
-  ResolveCanonWindow,
-  ResolveRpgCardCorpus,
-  ResolveRpgParticipants,
-  SetRpgPointer,
   SignupInviteDeps,
   SignupInviteOps,
 } from "#domain/chat";

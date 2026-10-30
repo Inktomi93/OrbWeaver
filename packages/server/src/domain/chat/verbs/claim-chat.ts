@@ -31,12 +31,13 @@
 // day later must still land the room on the day it was created or the drift gate reds. Per-canon-row deltas
 // bucket on their own `createdAt` already.
 
+import type { ClaimChatOp } from "@orb/contracts/chat";
 import { chats, messages, messageVariants } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany, batchStmt } from "@orb/db/query";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
-import type { ChatContext, ClaimChatOp } from "../contract/context.ts";
+import type { ChatContext } from "../contract/context.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
 import { characterSeatedInAnotherChat, loadParticipants } from "../persistence/participants-read.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";

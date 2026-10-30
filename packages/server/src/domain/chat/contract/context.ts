@@ -1,8 +1,11 @@
 import type { FilterOwnedAssetIdsOp, ResolveAssetHashOp } from "@orb/contracts/assets";
 import type { CharacterCard, FindSyntheticGroupCharacterOp, MintSyntheticGroupCharacterOp } from "@orb/contracts/character";
 import type {
-  ChatInjection,
+  ChatRpgGatherData,
+  ClaimChatOp,
   DurableChatBusEvent,
+  ForkGameOp,
+  GatherTurnContextArgs,
   GroupConfig,
   HandoffCardPair,
   HandoffHealArgs,
@@ -11,28 +14,32 @@ import type {
   LiveOnlyChatBusEvent,
   MemoryDigestInput,
   NextTurnConnectionView,
+  ParticipantData,
   PromptTransform,
   ReadChatUserMacrosOp,
   RegisterPromptTransformOp,
   ResolveCharacterTagsOp,
+  ResolveChatProseOp,
+  ResolveGmSeatHolderKindOp,
   ResolveRegexSources,
   ResolveSeatDecoOp,
   ResolveSeatDecosOp,
   RoomOverrides,
   StoreSegmentParams,
+  TeachingCollection,
+  TeachingContext,
   TurnInitiator,
   TurnRetrievalEvents,
   UnregisterPromptTransformOp,
 } from "@orb/contracts/chat";
 import type { MemoryEmbedSpace, PruneMemoryBlocksParams } from "@orb/contracts/embeddings";
-import type { Can, ChatMembership, Principal, ResolveHandleOp } from "@orb/contracts/identity";
+import type { Can, Principal, ResolveHandleOp } from "@orb/contracts/identity";
 import type { GeneratePicturePrompt, SizePresetName } from "@orb/contracts/imagery";
 import type { SendAvailability } from "@orb/contracts/inference";
 import type { NotificationEvent, PresenceView } from "@orb/contracts/notifications";
 import type { ResolveCurrentPersonaOp, ResolveDefaultPersonaOp } from "@orb/contracts/persona";
 import type { ChoiceBlockSpec, UserIntent } from "@orb/contracts/preset";
-import type { ProseOverrides } from "@orb/contracts/prose";
-import type { CancelStateRoundsOp, ChatRpgPointer, RpgGameTemplate, RpgParticipantActor } from "@orb/contracts/rpg";
+import type { CancelStateRoundsOp, RpgGameTemplate } from "@orb/contracts/rpg";
 import type { BlockKey, MemoryQueryOptions, ResolveCorpusSourceState, ScoredBlock } from "@orb/contracts/search";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
@@ -69,9 +76,8 @@ import type { ApplyPromptTransformsOp, DelayOp, EmitDurableChatEventOp, EngineCo
 import type { ChatBehaviorInputs, ResolveForeignInputsOp } from "./foreign.ts";
 import type { ResolveChatUserMacroDefs } from "./macro-readers.ts";
 import type { MemoryLog, MemoryRecallPhaseEmitter, MemoryRecallSink } from "./memory.ts";
-import type { RpgTurnOps, RpgTurnTranscriptMessage } from "./rpg-turn.ts";
+import type { RpgTurnOps } from "./rpg-turn.ts";
 import type { HashTokenOp, SignupInviteCapability, SignupInviteDeps } from "./signup.ts";
-import type { ParticipantData } from "./views.ts";
 
 export type { ResolveViewerVisibility, StoreSegmentParams } from "@orb/contracts/chat";
 
@@ -83,7 +89,6 @@ export type {
   EmitChatChanged,
   RunChatTurnOp,
 } from "./engine-context.ts";
-export type { RpgTurnContext, RpgTurnTranscriptMessage } from "./rpg-turn.ts";
 
 // The explicit ChatContext DI bundle + every injected cross-feature op type. Homed under contract/ because
 // the exported-type gate forbids it in the conventional context.ts slot; the top-level context.ts re-exports
@@ -91,15 +96,6 @@ export type { RpgTurnContext, RpgTurnTranscriptMessage } from "./rpg-turn.ts";
 
 /** The account handles of `userIds`; a gone id is absent. Sessions owns the `users` read. */
 export type LoadUserHandlesOp = (userIds: readonly UserId[]) => Promise<readonly { readonly id: UserId; readonly handle: Handle }[]>;
-
-/** CLAIM a chat — the husk→real transition (R0 §4.2). Idempotent, one-way, and a no-op on an already-claimed
- *  or vanished room, so a verb calls it unconditionally and never asks whether the room is a husk. Built by
- *  `verbs/claim-chat.ts` at the chat composition root and injected into every qualifying verb bundle; the
- *  callers stay ignorant of `chats.started_at`, the stats replay and the list fan.
- *
- *  CALL IT BEFORE YOUR WRITE — the claim replays the creation stats over the canon present at claim, so a
- *  claim placed after the caller's own canon write counts that row twice (`verbs/claim-chat.ts` header). */
-export type ClaimChatOp = (chatId: ChatId) => Promise<void>;
 
 /** The present roster's participant views for a chat — the read-model resolver `service.ts` builds once. */
 export type LoadParticipantViewsOp = (chatId: ChatId) => Promise<readonly ParticipantData[]>;
@@ -186,13 +182,6 @@ type ResolveChatPresetParamsOp = (chatId: ChatId) => Promise<SideGenSampling & P
 
 /** A user's Utility-role preset params (D299), `undefined` under task defaults. Resolved at the entry root. */
 type ResolveUtilityPresetParamsOp = (userId: UserId) => Promise<SideGenSampling | undefined>;
-
-/** The chat's app-tier PROSE overrides (PROSE-1 §4.3) — the ROOM HOST's `UserSettings.prose`, resolved at the
- *  entry root through the SAME `resolveChatHostUserId` seam `resolveChatPresetParams` uses. The host, not the
- *  triggering member, is the ruled principal (owner-decision 8, option (a)): these are ROOM-level side
- *  generations, so a chat's digests / arbiter / summary marker must not change voice depending on who spoke.
- *  A hostless/stale room resolves `{}` ⇒ every slot falls to its shipped default, byte-identical. */
-type ResolveChatProseOp = (chatId: ChatId) => Promise<ProseOverrides>;
 
 /** B7 — a user's per-user reaction defaults, picked off the same schema-real `UserSettings.chat` arm the
  *  turn path consumes as `ChatBehaviorInputs` (never a re-spelled shape). The op half of
@@ -322,65 +311,12 @@ export interface PostNarratorMessageDeps {
   readonly claimChat: ClaimChatOp;
 }
 
-/** The narrow membership read (D58): the caller's PRESENT role in a chat, or `null` (not a
- *  present member / no such chat — one leak-free answer). rpg feeds it to `can()` for the game-auth gate; a
- *  `null` is the not-a-participant 404. A STANDALONE op with no principal — the raw membership lookup rpg gates
- *  around (membership has ONE loader; this is it exposed for injection, never a second read path). */
-export type GetMembership = (chatId: ChatId, userId: UserId) => Promise<ChatMembership | null>;
-
-/** The opaque rpg-pointer WRITE op (D58): merge the healed `metadata.rpg` `{gameId}` sub-blob so
- *  the client's takeover gate is a sync read off `ChatDetailData`. Called by rpg's `createGame`, the `updateConfig`
- *  engaged toggle, the game fork and (with `null`) `detachDanglingPointer`; chat never
- *  dereferences it (the truth is `rpg_games` — this is a SYNC SIGNAL). STANDALONE + principal-free (createGame
- *  gated host authority; the `GetMembership`/`PostNarratorMessage` injected-op precedent). The pointer schema is
- *  rpg's (`ChatRpgPointer`) — the foreign-schema precedent (chat stores it blind). A `null` pointer DELETES the
- *  `metadata.rpg` sub-blob (the dangling-pointer heal, fork-clones-the-game §3.3 — `detachDanglingPointer`
- *  nulls a pointer at a game that no longer exists). */
-export type SetRpgPointer = (chatId: ChatId, pointer: ChatRpgPointer | null) => Promise<void>;
-
 /** The pointer op's collaborators (the `PostNarratorMessageDeps` shape; not on `ChatContext`). */
 export interface SetRpgPointerDeps {
   /** The husk→real transition (R0). Every non-null pointer write is a host act (creating a game, or the engaged
    *  toggle either way), so it claims; the null detach is a server heal and never claims. */
   readonly claimChat: ClaimChatOp;
 }
-
-/** The roster-resolution op (D58): resolve a chat's PRESENT participants into rpg actor refs +
- *  display name + avatar. STANDALONE + principal-free (rpg gated the read; the `GetMembership`/`SetRpgPointer`
- *  injected-op precedent). Wired into `RpgContext.resolveParticipants` at the composition root (W1c-b). */
-export type ResolveRpgParticipants = (chatId: ChatId) => Promise<readonly RpgParticipantActor[]>;
-
-/** The DEEP canon-window read op (crunchy-cluster §1.3 — the `resyncFromStory` host escape hatch's story feed).
- *  STANDALONE + principal-free (the `ResolveRpgRoster` precedent — the rpg resync verb gated its host caller
- *  before invoking; this op only reads canon). Resolves the chat's selected-lineage canon into the SAME
- *  name-stamped, token-measured {@link RpgTurnTranscriptMessage} projection the engine threads at
- *  `fireRpgTurnCompleted` (one shared substrate builder — the state round and the resync can't drift), sliced to
- *  the last `maxTokens` (newest-first fill, oldest→newest order). Room-plane per D106; hidden-class spans stay
- *  INTACT (model-plane, D110 §3.6 — the member never sees this read). Wired into `RpgContext.resolveCanonWindow`
- *  at the composition root. */
-export type ResolveCanonWindow = (chatId: ChatId, opts: { readonly maxTokens: number }) => Promise<readonly RpgTurnTranscriptMessage[]>;
-
-/** The BORN-STATE corpus one character's populate round reads (the host `populateFromCharacter` verb):
- *  the card's authored prose + the room's OPENING line. This is deliberately NOT the story
- *  window — a populate round establishes what the character walked IN with, so reading play would let a beat
- *  that already happened bleed into the born state (that is `resyncFromStory`'s job, and it is a different
- *  verb). Card reads resolve under the room HOST's ownership (the `ResolveRpgRoster` seat precedent, D18/D19). */
-export interface RpgCardCorpus {
-  /** The card's display name — the `targetRef` the round's inventory writes must name. */
-  readonly name: string;
-  /** The card's authored prose (description · personality · scenario), labeled + joined. Empty sections are
-   *  omitted, so a thin card yields a short corpus rather than a scaffold of empty headings. */
-  readonly card: string;
-  /** The room's OPENING line (the first canon slot's selected body — the greeting as actually posted, edits
-   *  included). `""` when the room has no message yet (a game opened before its first beat). */
-  readonly opening: string;
-}
-
-/** Resolve one roster character's {@link RpgCardCorpus}. STANDALONE + principal-free (the rpg verb gated its
- *  HOST caller before invoking — the `ResolveCanonWindow` precedent). `null` = no such card under the room
- *  host / a hostless room: the caller refuses the round rather than running it on nothing. Wired into
- *  `RpgContext.resolveCardCorpus` at the composition root. */
-export type ResolveRpgCardCorpus = (chatId: ChatId, characterId: CharacterId) => Promise<RpgCardCorpus | null>;
 
 /** The pending user text a game turn is responding to (D58): the latest user-role message's
  *  selected-variant content, or `null` (no user line yet). rpg's `skill_check` re-reads it server-side to feed
@@ -436,19 +372,7 @@ export interface PromptTransformRegistry {
  *  (D58). STRUCTURAL — chat names NO rpg type: it merges `macros` generically into the turn's
  *  macro values (never learning a specific rpg macro name), `injections` into its single Injection[] list, and
  *  `tools` into `attachedToolNames`. The preset override rides a SEPARATE early hop (see {@link ChatRpgOps}). */
-export interface ChatRpgGatherResult {
-  readonly macros: Readonly<Record<string, string>>;
-  readonly injections: readonly ChatInjection[];
-  readonly tools: readonly string[];
-  // The `{{expr::…}}` CEL activation a game turn contributes (parity-plus §12) — a data-only `rpg` binding whose
-  // value is the tracker view shaped as a CelValue tree (scalars/lists/maps, NO functions). STRUCTURAL — chat
-  // threads it onto the AssembleContext's `celBindings` verbatim, never learning the `rpg` shape. Absent ⇒
-  // `{{expr::rpg.…}}` errors-to-"" (non-game).
-  readonly celBindings?: Readonly<Record<string, unknown>> | undefined;
-  /** The M2 keep-last-X card wire knob (parity-plus §3.5) — a plain number chat threads to
-   *  `runTurnPipeline.cardKeepLastX` (0 = every history card collapses to its stub). STRUCTURAL: chat
-   *  learns a wire-projection scalar, never an rpg type. */
-  readonly cardKeepLastX: number;
+export interface ChatRpgGatherResult extends ChatRpgGatherData {
   /** TERMINAL tools the contributor mounts on THIS turn (the R1 folded-extraction seam). STRUCTURAL — these
    *  are plain {@link WireTool}s; chat never learns what they mean. They differ from `tools` (registry names)
    *  in exactly one way, and it is the whole point: chat attaches them with `tool_choice:"auto"`, NEVER
@@ -528,7 +452,7 @@ export interface ChatRpgOps extends RpgTurnOps {
    *  narrator+merged invariant (F5): a game whose GM seat is AGENT-held may not be flipped to `per-speaker`
    *  (unseat the agent GM first — else a player-character turn would carry GM tools). Chat stays rpg-table-blind
    *  — this ONE injected read mirrors rpg's `resolvePartyActorKind` shape; chat branches only on `agent`. */
-  readonly resolveGmSeatHolderKind: (chatId: ChatId) => Promise<GmSeatHolderKind | null>;
+  readonly resolveGmSeatHolderKind: ResolveGmSeatHolderKindOp;
   /** Is the game rooted at this chat DECEPTION-ACTIVE (parity-plus §3.6 — deception OR omniscience config on)?
    *  `false` for a non-game chat / a game with neither hidden channel on. This is the SERVER-side
    *  gate for the member REASONING-STRIP: when true AND the viewer is not the room host, the whole reasoning/
@@ -549,7 +473,7 @@ export interface ChatRpgOps extends RpgTurnOps {
    *  tracker prose) must not launder into their new host view (the §3.6 member→host boundary — the SAME transition
    *  `resolveReasoningHostOnly`/`copyVariantStmt` already strip the reasoning + body channels across). `null` when
    *  rpg isn't wired / the source isn't a game ⇒ `{cloned:false}` and the fork stays plain. */
-  readonly forkGame: (args: ForkGameArgs) => Promise<ForkGameResult>;
+  readonly forkGame: ForkGameOp;
   /** HOST HANDOFF: the rpg-side statements `acceptHostHandoff` must commit IN ITS OWN
    *  SWAP BATCH when room authority moves to `newHostUserId`. Today that is the `gmPresetId` heal — the twin of
    *  the fork's `resolveForkGmPreset` gate: a GM-voice preset the NEW host cannot read is nulled, since from the
@@ -610,67 +534,6 @@ export interface HandoffCopyPlan {
    *  book arm this does not ride on a card copy — a room's script attachment is room state of its own. */
   readonly regexRepoint: readonly BatchStmt[];
 }
-
-/** {@link ChatRpgOps.gatherTurnContext}'s call args. Chat OWNS this shape (rpg satisfies it, the same
- *  front-door type-import precedent as {@link ForkGameArgs}). `pendingUserText`/`respondsToLatestUserTurn`
- *  are full's dice-feed inputs — lite's gather ignores both (ratified: lite has no d20 checks); required
- *  here anyway because every caller (turn build, preview) already resolves them for chat's own use, and an
- *  optional pair a mode silently ignores is exactly the shape the honest-degrade doctrine (§4.6) warns against
- *  for a KNOWN, not a hypothetical, ignorer — the doc on `gatherTurnContext` above names lite as the ignorer
- *  and why. `steerIdentity`/`regenSlotMessageId` stay optional (a caller-side absence, not a callee-side
- *  ignore): the preview path never regenerates a slot, and identity binding is threaded only when resolved. */
-export interface GatherTurnContextArgs {
-  readonly chatId: ChatId;
-  /** The turn's FUNDER — whose chat connection the rpg delivery verdict (fold guard / write path) reads (§8.4-3). */
-  readonly funderUserId: UserId;
-  /** Full's dice-feed input — lite's gather ignores it (D58; see `gatherTurnContext`'s doc). */
-  readonly pendingUserText: string | undefined;
-  /** Full's dice-feed input — lite's gather ignores it (D58; see `gatherTurnContext`'s doc). */
-  readonly respondsToLatestUserTurn: boolean;
-  readonly steerIdentity?: { readonly user: string | undefined; readonly char: string } | undefined;
-  readonly regenSlotMessageId?: MessageId | undefined;
-  /** PROSE-1 — the turn PRESET's model-facing prose OVERRIDES (`promptConfig.prose`, authored in the Templates
-   *  tab), composed by home exactly as `buildAssembleContext` composes them for the assembler. The rpg reminder
-   *  resolves its teaches/headings against this, so a host's re-authored teach lands on the game turn.
-   *
-   *  It is CHAT's resolution, threaded in, for the same reason `steerIdentity` is: the preset plane is chat's
-   *  (rpg has no preset reach beyond handing chat a `gmPresetId` to redirect to), and a game turn assembles that
-   *  redirected preset — so what arrives here is the GM preset's copy without rpg ever reading a preset row.
-   *  Optional and absent-safe: `{}` ⇒ every slot resolves to its shipped default, byte-identical. */
-  readonly prose?: ProseOverrides | undefined;
-}
-
-/** The `forkChat`→rpg clone call args (§3.2). Chat OWNS this shape (rpg satisfies it, the one-directional-flow
- *  front-door type-import rule already governing `ChatRpgOps`). Carries the fork's id remaps (snapshots/journal
- *  re-key THROUGH them — an entry off the map is dropped) + the forker's source-room posture (drives the
- *  host-secret strip). No `throughSeq`: the maps already exclude every row past the fork horizon (the maps are
- *  built from the floor-clamped, throughSeq-truncated slot/variant set `buildCanonCopy` copies). */
-export interface ForkGameArgs {
-  readonly sourceChatId: ChatId;
-  readonly newChatId: ChatId;
-  /** The fork's slot remap (source `messages.id` → fork id). journal `sourceMessageId` re-keys through it. */
-  readonly slotIdMap: ReadonlyMap<MessageId, MessageId>;
-  /** The fork's variant remap (source `messageVariants.id` → fork id). snapshots (UNIQUE variantId) and model
-   *  journal entries re-key THROUGH it; a variant with no entry (past the horizon) drops its rpg rows. */
-  readonly variantIdMap: ReadonlyMap<MessageVariantId, MessageVariantId>;
-  /** The forker's SOURCE-room posture. `readsHidden` = the source-room host verdict (`viewerReadsHidden`): a
-   *  non-host forker never had host-plane access to the source's secrets, so the clone strips them (the
-   *  member→host laundering rule, §3.6). `userId` is the ownership axis for the `gmPresetId` carry gate. */
-  readonly forker: { readonly userId: UserId; readonly readsHidden: boolean };
-}
-
-/** The clone outcome. `cloned:false` = a non-game source (or rpg unwired) ⇒ the fork ships plain, no pointer
- *  (the stopgap's `forkMetadataWithoutGame` already dropped the copied pointer, so this is the correct steady
- *  state). `cloned:true` = the game rows exist and the fork's pointer is live. */
-export interface ForkGameResult {
-  readonly cloned: boolean;
-}
-
-/** The GM seat's resolved holder kind (D60 AP4a) — mirrors rpg's FK-derived-kind shape
- *  so chat can gate {@link ChatRpgOps.resolveGmSeatHolderKind} without reading rpg tables. Chat branches only on
- *  the `agent` arm (the F5 seal); the `enabled` field mirrors rpg's shape for a future consumer. Module-private:
- *  it names an injected op's return shape and has no external importer (compose satisfies it structurally). */
-type GmSeatHolderKind = { readonly kind: "human" } | { readonly kind: "agent"; readonly enabled: boolean };
 
 /** The injected image-generation op. Chat holds message-write authority; imagery is caller-blind (returns
  *  blocks, never posts). */
@@ -772,75 +635,6 @@ type ResolvePromptVariablesOp = (chatId: ChatId) => Promise<readonly ChoiceBlock
 type GetGroupConfigOp = (rawMetadata: unknown) => GroupConfig;
 /** Parses a chat's raw metadata blob → its effective {@link RoomOverrides} (default-applied). */
 type GetRoomOverridesOp = (rawMetadata: unknown) => RoomOverrides;
-
-/** The per-chat knob reads a teaching contribution may branch on ({@link TeachingContext.knobs}). Grows
- *  ADDITIVELY — one NAMED field per contribution that needs one, never a bag: a contribution reads the knob
- *  it was built for and a new knob is a tsc-visible field, not a lookup that silently resolves undefined.
- *  ONE field today (`offerChoices`, the B1 knob — RULED F2 chat-homed). The resolver is
- *  `substrate/teaching.ts`'s `resolveTeachingKnobs`. */
-export interface TeachingKnobs {
-  /** Whether this chat asks the model to offer choices (the standing `:::choices` fence) — the room's own
-   *  `chatMetadata.offerChoices` when set, else the frozen host's per-user default (`resolveOfferChoices`). */
-  readonly offerChoices: boolean;
-  /** B7 — whether this chat's turns attach the `react` tool (`chatMetadata.charactersCanReact` over the
-   *  host's per-user default, `resolveCharactersCanReact`; OFF by default at both tiers). The attach
-   *  contribution additionally requires {@link TeachingKnobs.reactionsEnabled} — a room with the plane off
-   *  attaches nothing regardless of this knob. */
-  readonly charactersCanReact: boolean;
-  /** B7 — the reaction plane's resolved master switch (`chatMetadata.reactionsEnabled` over the host's
-   *  per-user default, `resolveReactionsEnabled`; ON by default). OFF silences the attribution
-   *  contribution and the react attach; the verb-side enforcement resolves the same pair through its own
-   *  injected op. */
-  readonly reactionsEnabled: boolean;
-}
-
-/** The NAMES a `names-only` macro render binds when a teach slot's host OVERRIDE types `{{user}}`/`{{char}}`
- *  ({@link TeachingContext.identity}). Chat owns this resolution for the whole turn (Chat-Macro-Resolution
- *  ruling B) and hands the resolved pair down — a contribution never re-derives a protagonist. */
-export interface TeachingIdentity {
-  /** The ACTIVE/triggering persona's name, or `undefined` when the turn has none (⇒ the kit floor). */
-  readonly user: string | undefined;
-  /** The Ruling-B host/null-speaker `{{char}}`: ALL THE SEATED CHARACTERS, joined, in a multi-character room, the single
-   *  character in solo, `""` for an empty roster. */
-  readonly char: string;
-}
-
-/** The ONE input a teaching contribution reasons from — assembled ONCE per turn in `buildTurnContext`, after
- *  the rpg gather, and handed to every contribution. Deliberately NOT the `ChatContext`: a contribution is a
- *  foreign domain's op, so it receives RESOLVED VALUES (the [foreign-inputs-seam] shape) and reads no chat
- *  table. `runAsUserId` is the turn's frozen host (D19), already resolved at the collection site. */
-export interface TeachingContext {
-  readonly chatId: ChatId;
-  readonly runAsUserId: UserId;
-  readonly knobs: TeachingKnobs;
-  /** The TURN PRESET's composed prose overrides (`composeProse({ preset: promptConfig.prose })`). REQUIRED,
-   *  not optional, and that is the enforcement: a teach's text lives in `PROSE_SLOTS` and is PRESET-EDITABLE,
-   *  so a contribution that resolved the bare baseline instead would emit DIFFERENT BYTES than the same slot
-   *  resolved by another contributor (rpg's reminder resolves it through the preset) — and the double-teach
-   *  guard collapses on CONTENT, so a divergence there re-opens the exact duplicate-instruction defect the
-   *  guard exists to close. An optional field would make that divergence the silent default at any collection
-   *  site that forgot it; a required one makes tsc name the site. */
-  readonly prose: ProseOverrides;
-  /** The names a host override's `{{user}}`/`{{char}}` bind to ({@link TeachingIdentity}) — REQUIRED for the
-   *  same byte-identity reason as `prose`: rpg renders a macro-bearing override through the names-only
-   *  registry, so a contribution that skipped the render would ship literal braces AND break the collapse. */
-  readonly identity: TeachingIdentity;
-  /** THIS turn's rpg gather, or `null` for a non-game chat / unwired rpg. Present so a contribution can see
-   *  what the GAME already teaches before teaching it a second time (the double-teach case). It is the SAME
-   *  object chat's own contribution projects — never a re-run of the gather. */
-  readonly rpgGather: ChatRpgGatherResult | null;
-}
-
-/** What ONE contribution contributes to a turn. Teach and attach travel TOGETHER by construction: a
- *  contribution that tells the model about a tool and a contribution that attaches it are the same
- *  contribution, so the two can never drift apart across a registry. */
-export interface TeachingCollection {
-  readonly injections: readonly ChatInjection[];
-  /** Registry tool names to attach to THIS turn. Resolved at the tool-use registry when the turn attaches
-   *  (an unknown name THROWS — `resolveTools`); capability-gated per turn downstream (`tools_unsupported`).
-   *  Empty ⇒ the turn is byte-identical to a tool-less one. */
-  readonly toolNames: readonly string[];
-}
 
 /** The S2 MODEL-TEACHING seam: ONE per-chat assembly of "what this chat's model is told it can do".
  *  A contribution is registered at `entry/compose` (never imported by a verb — the injected-op law) and

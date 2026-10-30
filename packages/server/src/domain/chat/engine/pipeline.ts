@@ -30,6 +30,7 @@ import type {
   ContentSignatures,
   MessageView,
   ToolCallRecord,
+  TurnKind,
 } from "@orb/contracts/chat";
 import type { AttachmentQuality, GenerationUsage } from "@orb/contracts/inference";
 import {
@@ -76,7 +77,6 @@ import type {
   OrderedReplyImage,
   ReplyPartReceipt,
   TurnEconomics,
-  TurnKind,
   TurnRequest,
   TurnSpeakerShape,
   TurnStreamChunk,

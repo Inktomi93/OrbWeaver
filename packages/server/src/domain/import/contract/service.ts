@@ -2,17 +2,17 @@
 // (verb interface) + the injected cross-feature op types the composition root wires at the root.
 
 import type { AttachedBookRef, CreateCharacterInput } from "@orb/contracts/character";
-import type { BulkImportChatInput, BulkImportChatsResult } from "@orb/contracts/chat";
+import type { BulkImportChatsOp } from "@orb/contracts/chat";
 import type { PersonaCollisionChoices } from "@orb/contracts/import";
 import type { BulkImportPersonaInput, BulkImportPersonasResult } from "@orb/contracts/persona";
 import type { PortableFile } from "@orb/contracts/portability";
+import type { ImportThemeOp } from "@orb/contracts/settings";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { BulkImportLorebookInput, BulkImportLorebookResult } from "@orb/contracts/world-info";
 import type { AssetId, CharacterHandle, CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { ImportPreset } from "#domain/preset";
 import type { ImportRpgGame } from "#domain/rpg";
-import type { SettingsImportOutcome } from "#domain/settings";
 import type { CollectedPreset, CollectedTheme } from "./collection.ts";
 import type {
   ImportCharacterInput,
@@ -108,13 +108,6 @@ type EnqueueImportIndex = (args: { readonly ownerId: UserId }) => Promise<void>;
 /** Inline post-import stats rollup rebuild. */
 type ReconcileImportStats = ImportWorkloadDeps["reconcileImportStats"];
 
-/** Chat-owned bulk-import write op; import maps its ST parse to the canonical input and never touches \@orb/db. */
-type BulkImportChatsOp = (args: {
-  readonly ownerId: UserId;
-  readonly characterId: CharacterId;
-  readonly chats: readonly BulkImportChatInput[];
-}) => Promise<BulkImportChatsResult>;
-
 /** Persona-owned bulk-import write op (content dedup, then the per-collision choice); returned idByName feeds
  *  chat attribution. */
 type BulkImportPersonasOp = (args: {
@@ -169,16 +162,12 @@ export interface ImportProfileDeps {
   /** Settings-owned theme import op — the ST theme wave hands it orb-native `orb.theme` BYTES, so the
    *  settings domain keeps its one serde AND its one (ownerId, name) collision rule and import owns neither.
    *  OPTIONAL on the `importPreset` precedent: absent ⇒ the theme plane simply does not restore. */
-  readonly importTheme?: ImportTheme;
+  readonly importTheme?: ImportThemeOp;
   /** Regex-owned PRESET lift — a collected preset's own `extensions.regex_scripts` become library rows +
    *  a `preset_regex_scripts` attachment, AFTER `importPreset` returns the row id. OPTIONAL on the
    *  `importCardScripts` precedent: absent ⇒ the scripts are reported skipped-with-reason, never silent. */
   readonly importPresetScripts?: ImportPresetScripts;
 }
-
-/** Settings-owned theme-backup import write op (`domain/settings` `createImportTheme`). Spelled here as an
- *  injected-op TYPE rather than imported, exactly like every other cross-domain op on this bundle. */
-type ImportTheme = (ownerId: UserId, bytes: Uint8Array) => Promise<SettingsImportOutcome>;
 
 /** DI bundle every import verb closes over. `profile` is absent for the card-only slice. */
 export interface ImportContext {

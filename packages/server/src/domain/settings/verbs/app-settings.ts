@@ -4,11 +4,11 @@
 // through a process-wide chain, then reloads the cache. ASSUMES(single-replica): the write chain is
 // per-process.
 
-import type { AppSettings, AppSettingsView, EffectiveAppConfig } from "@orb/contracts/settings";
+import type { AppSettings, AppSettingsView, EffectiveAppConfig, GetAppSettingsParams } from "@orb/contracts/settings";
 import { APP_SETTINGS_SCHEMA_VERSION, parseAppSettings } from "@orb/contracts/settings";
 import type { JsonValue } from "@orb/kit/json";
 import { APP_SETTINGS_KEY } from "../contract/keys.ts";
-import type { GetAppSettingsParams, UpdateAppSettingsParams } from "../contract/params.ts";
+import type { UpdateAppSettingsParams } from "../contract/params.ts";
 import type { SettingsContext, SettingsService } from "../contract/service.ts";
 import { readAppOverrideRaw, writeAppOverride } from "../persistence/queries.ts";
 import { deepMergeAppSettings } from "../substrate/merge.ts";

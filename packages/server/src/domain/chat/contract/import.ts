@@ -9,23 +9,11 @@
 // row shapes — D26 slot/variant, the founding roster, branch resolution); it learns nothing about ST.
 
 import type { MintSyntheticGroupCharacterOp } from "@orb/contracts/character";
-import type { BulkImportChatInput, BulkImportChatsResult } from "@orb/contracts/chat";
 import type { BumpStatsCanonVersion } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import type { BatchHandle, DatabaseHandle, DbAssemblyInput } from "@orb/db/wiring";
-import type {
-  AssetId,
-  CharacterId,
-  ChatId,
-  ChatInjectionId,
-  ChatParticipantId,
-  ChatTurnId,
-  MessageAssetId,
-  MessageId,
-  MessageVariantId,
-  UserId,
-} from "@orb/kit/ids";
+import type { AssetId, ChatId, ChatInjectionId, ChatParticipantId, ChatTurnId, MessageAssetId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 
 /** The DI bundle `createBulkImportChats` closes over (assembled at the entry composition root). All ids are
@@ -60,12 +48,3 @@ export interface ChatImportContext {
 export type ChatImportAssemblyContext = Omit<DbAssemblyInput<ChatImportContext>, "bumpStatsCanonVersion"> & {
   readonly bumpStatsCanonVersion: BumpStatsCanonVersion<BatchHandle, DatabaseHandle>;
 };
-
-/** The chat-owned bulk-import op (`createBulkImportChats`) the entry root wires into `import`'s
- *  `ImportContext.profile.bulkImportChats`. Throws `DomainNotFoundError` when the target character isn't the
- *  caller's. */
-export type BulkImportChats = (args: {
-  readonly ownerId: UserId;
-  readonly characterId: CharacterId;
-  readonly chats: readonly BulkImportChatInput[];
-}) => Promise<BulkImportChatsResult>;

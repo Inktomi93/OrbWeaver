@@ -1,6 +1,7 @@
 // The structured state round (the vehicle a game's connection may prefer over a forced tool round), the inventory
 // audit both tool vehicles run, and the fold of a round's tool calls into a state delta.
 
+import type { RpgTurnTranscriptMessage } from "@orb/contracts/chat";
 import type { ProseOverrides, ProseSlotId } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
 import type {
@@ -31,7 +32,6 @@ import { forcesToolRound, GenerationObservationPersistenceError, planStructuredF
 import type { ChatId, ChatTurnId } from "@orb/kit/ids";
 import type { WireReady } from "@orb/kit/json-schema";
 import { projectJsonSchema } from "@orb/kit/json-schema";
-import type { RpgTurnTranscriptMessage } from "#domain/chat";
 import type { StateRoundPlans } from "#src/domain/rpg/contract/params.ts";
 import type { RpgRoundsDeps, StructuredRound } from "#src/domain/rpg/contract/rounds.ts";
 import type { RpgRunToolRound, RpgStateDelta } from "#src/domain/rpg/contract/service.ts";

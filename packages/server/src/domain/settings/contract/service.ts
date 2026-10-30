@@ -3,9 +3,11 @@
 
 import type { RequireAdmin, RequireOwner } from "@orb/contracts/admin";
 import type {
-  AppSettingsView,
   BackgroundLibraryEntry,
   EffectiveAppConfig,
+  GetAppSettingsParams,
+  GetAppSettingsWithOverridesOp,
+  GetUserSettingsOp,
   GlobalSettingView,
   LoadUserSettings,
   ThemeView,
@@ -26,9 +28,7 @@ import type {
   AddExternalBackgroundParams,
   CreateThemeParams,
   DuplicateThemeParams,
-  GetAppSettingsParams,
   GetThemeParams,
-  GetUserSettingsParams,
   ImportThemeFileParams,
   ListThemesParams,
   PromoteThemeParams,
@@ -112,7 +112,7 @@ export type SettingsAssemblyContext = DbAssemblyInput<SettingsContext>;
 export interface SettingsService {
   /** Read this user's typed/defaulted UserSettings. A never-touched account reads parsed defaults with no
    *  write (`updatedAt: 0`). */
-  readonly getUserSettings: (params: GetUserSettingsParams) => Promise<UserSettingsView>;
+  readonly getUserSettings: GetUserSettingsOp;
   /** Deep-merge one namespace + re-validate the whole blob. Serialized per user. Inference routing is not a
    *  settings namespace: per-task selections live in connection bindings. */
   readonly updateUserSettingsSection: (params: UpdateUserSettingsSectionParams) => Promise<UserSettingsView>;
@@ -147,7 +147,7 @@ export interface SettingsService {
   readonly getAppSettings: (params: GetAppSettingsParams) => Promise<EffectiveAppConfig>;
   /** Admin-only. The resolved config PLUS the raw stored overrides — the admin surface's honest
    *  floor-vs-override read (`overrides.<field>` null/absent = floor governs, a value = active override). */
-  readonly getAppSettingsWithOverrides: (params: GetAppSettingsParams) => Promise<AppSettingsView>;
+  readonly getAppSettingsWithOverrides: GetAppSettingsWithOverridesOp;
   /** Admin-only; a PATCH touching an owner-box governance field additionally requires `requireOwner`.
    *  Read-merge-writes the override, then reloads the cache. */
   readonly updateAppSettings: (params: UpdateAppSettingsParams) => Promise<EffectiveAppConfig>;

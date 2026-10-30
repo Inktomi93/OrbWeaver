@@ -35,7 +35,7 @@
 // (`stripChatEventForMember` at the live transport + the durable replay), so pre-stripping here would withhold
 // the host's own payload. Strip the return; emit the truth.
 
-import type { MessageView, ReattributeScope } from "@orb/contracts/chat";
+import type { ClaimChatOp, MessageView, ReattributeScope } from "@orb/contracts/chat";
 import { isSeededGreetingRow, macroFreezeRecordSchema, parseVariantMetadata } from "@orb/contracts/chat";
 import type { ParticipantRoleState } from "@orb/contracts/identity";
 import { PARTICIPANT_ROLES } from "@orb/contracts/identity";
@@ -53,7 +53,7 @@ import { getLog } from "#foundation/observability";
 import { sha256Hex } from "#primitives/content-hash";
 import { captureParticipantRole } from "#primitives/role-data";
 import type { ActiveTurns } from "../contract/active-turns.ts";
-import type { ChatContext, ChatServiceDeps, ClaimChatOp } from "../contract/context.ts";
+import type { ChatContext, ChatServiceDeps } from "../contract/context.ts";
 import type { EmitDurableChatEventOp } from "../contract/engine-context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type { ResolveForeignInputsOp } from "../contract/foreign.ts";

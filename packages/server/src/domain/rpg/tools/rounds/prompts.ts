@@ -1,12 +1,12 @@
 // The state rounds' prompt inputs: the transcript slice, the model-projected state, the per-call ref vocabulary, and the
 // system/user prompt builders every vehicle shares, so the priced and the sent payloads come from one place.
 
+import type { RpgTurnTranscriptMessage } from "@orb/contracts/chat";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { ExtractionRefs, RpgActorRef, RpgGameConfig, RpgSheet, RpgSnapshotState, RpgTrackerCarrier } from "@orb/contracts/rpg";
 import { actorRefKey, buildTrackerWriteGroups, composePlaneTeaching, gameTrackerWriteKeys, rpgGameConfigSchema } from "@orb/contracts/rpg";
 import type { ChatId, UserId } from "@orb/kit/ids";
-import type { RpgTurnTranscriptMessage } from "#domain/chat";
 import type { PromptInputs, RpgRoundsDeps } from "#src/domain/rpg/contract/rounds.ts";
 import { findGameByChat } from "#src/domain/rpg/persistence/games.ts";
 import { listSheets } from "#src/domain/rpg/persistence/sheets.ts";

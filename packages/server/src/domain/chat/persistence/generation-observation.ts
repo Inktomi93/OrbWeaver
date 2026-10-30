@@ -1,5 +1,6 @@
 // Completed paid facts exist under retained chat/source parents until one atomic canon transfer removes them.
 
+import type { GenerationObservationParent } from "@orb/contracts/chat";
 import { parseVariantMetadata } from "@orb/contracts/chat";
 import { generationUsageLegSchema, projectGenerationUsage, responseCacheSchema, storedGenerationUsageLegSchema } from "@orb/contracts/inference";
 import type { RetainedChatAccountingScope } from "@orb/contracts/stats";
@@ -16,7 +17,6 @@ import type {
   GenerationObservationContext,
   GenerationObservationFact,
   GenerationObservationGroup,
-  GenerationObservationParent,
   GenerationObservationRemovalScope,
   GenerationObservationSession,
 } from "../contract/generation-observation.ts";

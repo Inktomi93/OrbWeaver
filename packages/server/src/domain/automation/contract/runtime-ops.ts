@@ -1,7 +1,7 @@
 import type { RequestTurnOp, ToolCallRecord, TurnInitiator } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { GeneratePicture } from "@orb/contracts/imagery";
-import type { UserSettingsView } from "@orb/contracts/settings";
+import type { GetUserSettingsOp } from "@orb/contracts/settings";
 import type { BindingActor, ChatToolDefinition, RoleClientsWithSignal, SideGenSampling, ToolCallInput } from "@orb/inference";
 import type { AssetId, ChatId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import type { AutomationOps, ListRuleTools } from "./ops.ts";
@@ -16,7 +16,7 @@ export interface AutomationRuntimeDeps<TSet> {
     options?: { readonly initiator: TurnInitiator; readonly automationDepth: number } | undefined,
   ) => Promise<{ readonly messageId: MessageId; readonly variantId: MessageVariantId }>;
   readonly imagery: { readonly generatePicture: GeneratePicture };
-  readonly settings: { readonly getUserSettings: (params: { readonly principal: Principal }) => Promise<UserSettingsView> };
+  readonly settings: { readonly getUserSettings: GetUserSettingsOp };
   readonly toolUse: {
     readonly isToolDrivableBy: (name: string, userId: UserId) => boolean;
     readonly listDrivableToolNames: (userId: UserId) => readonly string[];

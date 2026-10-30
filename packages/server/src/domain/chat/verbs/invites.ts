@@ -11,13 +11,13 @@
 // refusal, never silently degraded to a share-link.
 
 import { randomBytes } from "node:crypto";
-import type { CreateInviteInput, InvitePreview, InviteView } from "@orb/contracts/chat";
+import type { ClaimChatOp, CreateInviteInput, InvitePreview, InviteView } from "@orb/contracts/chat";
 import { SIGNUP_MAX_TTL_MS, SIGNUP_MAX_USES } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import { MS_PER_HOUR } from "@orb/kit/time";
-import type { AssembleInvitePreviewOp, ChatContext, ChatServiceDeps, ClaimChatOp, LoadParticipantViewsOp } from "../contract/context.ts";
+import type { AssembleInvitePreviewOp, ChatContext, ChatServiceDeps, LoadParticipantViewsOp } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type {
   AcceptInviteParams,

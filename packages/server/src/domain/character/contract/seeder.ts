@@ -4,7 +4,7 @@
 
 import type { CharacterCard, CreateCharacterInput, UpdateCharacterInput } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
-import type { ThemeBackground } from "@orb/contracts/theme";
+import type { ResolveSeededPlateOp } from "@orb/contracts/settings";
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import type { AssetId, CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
 import type { BulkImportLorebook, HasPrimaryBook } from "#domain/world-info";
@@ -74,7 +74,7 @@ export interface DefaultCharacterSeederDeps {
    *  bytes into their CAS on first ask. `null` ⇒ no plate lands, and the card is dressed theme-only. Wired
    *  at the composition root off `domain/settings`' scene-plate seeder — character never imports settings,
    *  and the seeder never touches the filesystem. */
-  readonly resolveSeededBackground?: (principal: Principal, slug: string) => Promise<ThemeBackground | null>;
+  readonly resolveSeededBackground?: ResolveSeededPlateOp;
   /** World-info's own lorebook import, which writes a card's lore as its primary book. Wired at the
    *  composition root; character never imports world-info at runtime. */
   readonly importLorebook: BulkImportLorebook;

@@ -17,7 +17,6 @@ import type { ResolveVisibleRoomsOp } from "@orb/contracts/chat";
 import type {
   ActiveChatDocumentView,
   BankHealthView,
-  DatabankSettings,
   DocumentAttachmentsView,
   DocumentDetailView,
   DocumentView,
@@ -29,6 +28,7 @@ import type {
 import type { DocumentVectorSweepReceipt, MemoryEmbedSpace } from "@orb/contracts/embeddings";
 import type { ExtractTextOp } from "@orb/contracts/extraction";
 import type { Can, Principal } from "@orb/contracts/identity";
+import type { GetDatabankSettingsOp } from "@orb/contracts/settings";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { WorkloadRunScope } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
@@ -101,10 +101,6 @@ type ActiveEmbedSpace = Pick<MemoryEmbedSpace, "model">;
 /** The model tag a count read uses when the owner has NO space: no stored chunk ever carries the empty tag, so
  *  the read is honestly zero without a second query shape. */
 export const NO_EMBED_SPACE_MODEL = "";
-
-/** Read a user's databank settings (chunk params + retrieval knobs). v1 returns the schema defaults (ST's
- *  bank-wide values); the per-user override lands with the Phase-6 panel. */
-type GetDatabankSettingsOp = (ownerId: UserId) => Promise<DatabankSettings>;
 
 /** The DI bundle every databank verb + the ingest subsystem close over (assembled at `entry/compose`). */
 export interface DatabankContext {

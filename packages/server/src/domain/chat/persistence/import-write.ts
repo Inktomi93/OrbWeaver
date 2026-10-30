@@ -8,6 +8,7 @@
 
 import type {
   BulkImportChatInput,
+  BulkImportChatsOp,
   BulkImportChatsResult,
   BulkImportVariantInput,
   ChatMetadata,
@@ -29,7 +30,7 @@ import { DomainNotFoundError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, ChatId, MessageId, MessageVariantId, ModelId, PersonaId, UserId } from "@orb/kit/ids";
 import { and, eq, gte, inArray, isNull, lt } from "drizzle-orm";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
-import type { BulkImportChats, ChatImportAssemblyContext, ChatImportContext } from "../contract/import.ts";
+import type { ChatImportAssemblyContext, ChatImportContext } from "../contract/import.ts";
 import { parseChatMetadata } from "../contract/metadata.ts";
 import { importedObservationRows } from "../substrate/import-observations.ts";
 import { carriesAssetBackground, guardedChatId } from "./background-write.ts";
@@ -838,7 +839,7 @@ async function importOneChat(args: {
 
 /** Dup-skips by the scoped atomic import claim (healing the skipped room's persona attribution — see
  *  {@link healPersonaAttribution}), commits each fresh chat as ONE `db.batch`, then resolves branch parents. */
-export function createBulkImportChats(assembly: ChatImportAssemblyContext): BulkImportChats {
+export function createBulkImportChats(assembly: ChatImportAssemblyContext): BulkImportChatsOp {
   const ctx: ChatImportContext = {
     ...assembly,
     db: databaseForOwner(assembly.db),

@@ -17,6 +17,7 @@ import type {
   SignInModeView,
 } from "@orb/contracts/identity";
 import type { OwnerNeedsPassword } from "@orb/contracts/session";
+import type { CertificateSettingOp, SaveCertificateSettingOp } from "@orb/contracts/settings";
 import type { Clock, TimerScheduler } from "@orb/kit/time";
 import type { AuditEntry, Logger, SocketInspector } from "#foundation/observability";
 import type { AcmeIssuer, CertificateStore } from "#infra/acme";
@@ -135,9 +136,9 @@ export interface ShareServiceDeps extends ShareFacts, CertificateFacts {
   readonly relay: RelayController;
   readonly certificate: CertificateController;
   /** The owner's stored IP certificate choice, or null when it is off. */
-  readonly certificateSetting: () => IpCertificateSetting | null;
+  readonly certificateSetting: CertificateSettingOp;
   /** Persists the choice as `principal`, the owner; null turns it off. */
-  readonly saveCertificateSetting: (principal: Principal, setting: IpCertificateSetting | null) => Promise<void>;
+  readonly saveCertificateSetting: SaveCertificateSettingOp;
   /** Turns on, as the owner, whichever of the two settings a public link needs is off: multi-human seating, so
    *  friends can be invited into rooms, and discreet login, so the sign-in page a stranger reaches names no
    *  account. Every start runs it once the preconditions hold, before the relay spawns. It resolves with the step

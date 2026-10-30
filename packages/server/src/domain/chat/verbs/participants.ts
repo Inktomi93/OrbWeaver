@@ -12,7 +12,17 @@
 // non-nominee accept is refused with not_turn_owner.
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type { ChatMetadata, DurableChatBusEvent, GroupConfig, MessageView } from "@orb/contracts/chat";
+import type {
+  AddCharacterToChatParams,
+  ChatMetadata,
+  ClaimChatOp,
+  DurableChatBusEvent,
+  GroupConfig,
+  MessageView,
+  ParticipantData,
+  SetGroupConfigParams,
+  SetSeatKnobsParams,
+} from "@orb/contracts/chat";
 import {
   DEFAULT_GROUP_CONFIG,
   groupConfigSchema,
@@ -38,12 +48,11 @@ import { castId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { captureParticipantRole } from "#primitives/role-data";
-import type { ChatContext, ClaimChatOp, HandoffCopyPlan, HandoffResumption } from "../contract/context.ts";
+import type { ChatContext, HandoffCopyPlan, HandoffResumption } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import { TOOL_RECURSE_LIMIT_MAX, TOOL_RECURSE_LIMIT_MIN, toolRecurseLimitSchema } from "../contract/metadata.ts";
 import type {
   AcceptHostHandoffParams,
-  AddCharacterToChatParams,
   GetGroupConfigForChatParams,
   KickParticipantParams,
   NominateHostHandoffParams,
@@ -52,7 +61,6 @@ import type {
   SetCharactersCanReactParams,
   SetChatBackgroundParams,
   SetChatDocumentVisibilityParams,
-  SetGroupConfigParams,
   SetHostDisplayScriptsParams,
   SetMemberHistoryVisibilityParams,
   SetMemberPersonaLoreParams,
@@ -60,13 +68,11 @@ import type {
   SetReactionsEnabledParams,
   SetRegexAllowParams,
   SetRoomOverridesParams,
-  SetSeatKnobsParams,
   SetToolRecurseLimitParams,
 } from "../contract/params.ts";
 import type { ParticipantRow } from "../contract/participant-row.ts";
 import type { HostTierRegexAllow } from "../contract/regex.ts";
 import type { ChatService } from "../contract/service.ts";
-import type { ParticipantData } from "../contract/views.ts";
 import { requireHandoffAcceptance, requireHandoffNominee, requireHost, requireParticipant } from "../guard.ts";
 import { carriedBackgroundAvailable, ownedBackgroundAvailable } from "../persistence/background-write.ts";
 import { isRetainedParentFenceViolation, restampChatCharacterStatement, retainedChatFenceStatement } from "../persistence/canon-write.ts";

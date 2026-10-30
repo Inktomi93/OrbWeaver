@@ -8,7 +8,7 @@
 // role-sensitive ops; the owner resolver serves the automation/plugin/portability author-ownership gates. Two
 // distinct call sites, kept distinct.
 
-import type { LiveOnlyChatBusEvent } from "@orb/contracts/chat";
+import type { BulkImportChatsOp, LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
 import type { DatabaseHandle } from "@orb/db/wiring";
@@ -18,7 +18,6 @@ import type { Clock } from "@orb/kit/time";
 import { can } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
-import type { BulkImportChats } from "#domain/chat";
 import { createBulkImportChats, createReadInheritedChatBooks, requireHost, requireParticipant } from "#domain/chat";
 import type { BulkImportPersonas } from "#domain/persona";
 import { createBulkImportPersonas } from "#domain/persona";
@@ -66,7 +65,7 @@ export interface WorldInfoComposeDeps {
 export interface WorldInfoComposeResult {
   readonly worldInfo: WorldInfoService;
   readonly importWorldInfo: ImportWorldInfoPort;
-  readonly bulkImportChats: BulkImportChats;
+  readonly bulkImportChats: BulkImportChatsOp;
   readonly bulkImportPersonas: BulkImportPersonas;
   readonly resolveOwnerPrincipal: (userId: UserId) => Promise<Principal>;
 }

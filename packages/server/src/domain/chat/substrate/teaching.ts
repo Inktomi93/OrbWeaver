@@ -14,9 +14,9 @@
 // silently omits what the model was told it could do produces a wrong prompt that reads as a model failure,
 // which is exactly the class of bug this codebase refuses to make quiet.
 
-import type { ChatInjection, ChatMetadata } from "@orb/contracts/chat";
+import type { ChatInjection, ChatMetadata, TeachingCollection, TeachingContext, TeachingKnobs } from "@orb/contracts/chat";
 import { resolveCharactersCanReact, resolveOfferChoices, resolveReactionsEnabled } from "@orb/contracts/chat";
-import type { ChatTeachingRegistry, TeachingCollection, TeachingContext, TeachingKnobs } from "../contract/context.ts";
+import type { ChatTeachingRegistry } from "../contract/context.ts";
 import type { ChatBehaviorInputs } from "../contract/foreign.ts";
 
 /** Resolves the per-chat teaching knobs every turn hands the collection ({@link TeachingKnobs}).

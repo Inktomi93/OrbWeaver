@@ -12,9 +12,9 @@
 // is play, and re-deriving state from play is `resyncFromStory` — a different verb with a different window.
 
 import type { CharacterCard } from "@orb/contracts/character";
+import type { ResolveRpgCardCorpus } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
 import { createChatContext } from "../context.ts";
-import type { ResolveRpgCardCorpus } from "../contract/context.ts";
 import type { ParticipantRow } from "../contract/participant-row.ts";
 import type { ChatAssemblyContext } from "../contract/wiring.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
