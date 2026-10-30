@@ -1,10 +1,21 @@
 // domain/refinery/contract/service — the typed API surface: context, engine dep, and RefineryService.
 // Refinery writes NO `characters.*` column itself: the card read, the signal stamp, the pre-apply snapshot
 // and the apply write are all CHARACTER ops injected at the entry root (F6 — character stays the only
-// writer; the shapes arrive type-only through character's front door, Constitution.md §2). Ownership derives
+// writer; the op shapes live in `@orb/contracts/character`, Constitution.md §2). Ownership derives
 // through the character join on every read/write (D23 — no `fetchOwned` on refinery tables, no ownerId
 // column to scope by).
 
+import type {
+  CountRefineryScoreTargetsOp,
+  DeleteSnapshotOp,
+  DuplicateCharacterOp,
+  GetCharacterOp,
+  ListRefineryScoreTargetsOp,
+  LoadOwnedCardOp,
+  SnapshotCharacterOp,
+  StampRefinerySignalsOp,
+  UpdateCharacterOp,
+} from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import type { ResolveUtilityPresetParams } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
@@ -30,16 +41,6 @@ import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { RefineryRunId, RefinerySchemaId, RefinerySessionId, UserId } from "@orb/kit/ids";
 import type { WireReady } from "@orb/kit/json-schema";
 import type { Clock } from "@orb/kit/time";
-// Type-only cross-feature SHAPE imports (depcruise domain-no-cross-feature: type-only across features is
-// allowed; the runtime ops are wired at the entry composition root).
-import type {
-  CharacterService,
-  CountRefineryScoreTargetsOp,
-  DeleteSnapshotOp,
-  ListRefineryScoreTargetsOp,
-  LoadOwnedCardOp,
-  StampRefinerySignalsOp,
-} from "#domain/character";
 import type { Logger } from "#foundation/observability";
 import type {
   ApplyAsCopyParams,
@@ -104,19 +105,19 @@ export interface RefineryContext {
   /** The refinery-owned planner's answer for a projected draft on the owner's bound `structured` connection. */
   readonly planSchema: (ownerId: UserId, schema: WireReady) => Promise<RefinerySchemaPlan>;
   /** `character.snapshot` — the pre-apply reversibility belt ("auto: before refinery apply", §4.13). */
-  readonly snapshotCharacter: CharacterService["snapshot"];
+  readonly snapshotCharacter: SnapshotCharacterOp;
   /** The apply path's own retraction (#1551): un-does the belt-13 snapshot above when the conditional
    *  write it was taken FOR refuses `CHARACTER_STALE_BASIS` — the snapshot is the apply's witness, not its
    *  prelude, so a refused apply must leave none behind. */
   readonly deleteSnapshot: DeleteSnapshotOp;
   /** `character.update` — the ONE canon write of an apply; the full character belt runs inside it. */
-  readonly updateCharacter: CharacterService["update"];
+  readonly updateCharacter: UpdateCharacterOp;
   /** `character.get` — the detail read for the zero-write apply arm (every accept dropped): a no-op
    *  `update({})` would still run character's whole write path for nothing. */
-  readonly getCharacter: CharacterService["get"];
+  readonly getCharacter: GetCharacterOp;
   /** `character.duplicate` — the `applyAsCopy` chassis (schema-renderer §17): what a duplicate carries
    *  (avatar ref, tags, attached books) FOLLOWS that verb's own rulings — one fork-copy law, not two. */
-  readonly duplicateCharacter: CharacterService["duplicate"];
+  readonly duplicateCharacter: DuplicateCharacterOp;
 }
 
 export type RefineryAssemblyContext = DbAssemblyInput<RefineryContext>;

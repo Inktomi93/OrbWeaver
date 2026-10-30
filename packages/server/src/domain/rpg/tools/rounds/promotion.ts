@@ -1,10 +1,10 @@
 // R4 PROMOTION's durable half: mint the card and seat it on the roster as the room host, with a uniquified handle
 // and a stable provenance marker so an identical retry resolves the card it already made.
 
+import type { CharacterImportProvenance } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import type { CharacterHandle, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { CharacterImportProvenance } from "#domain/character";
 import { sha256Hex } from "#primitives/content-hash";
 import { createRpgRoundsContext } from "#src/domain/rpg/context.ts";
 import type { RpgRoundsAssemblyDeps, RpgRoundsDeps } from "#src/domain/rpg/contract/rounds.ts";

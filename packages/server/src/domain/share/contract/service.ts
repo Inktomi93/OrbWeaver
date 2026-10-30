@@ -1,6 +1,7 @@
 // domain/share — the typed surface. The owner starts, stops and reads one relay (a quick tunnel) that makes this box
 // reachable from the internet; the relay controller owns the process and the relay host it admits.
 
+import type { RequireAdmin, RequireOwner } from "@orb/contracts/admin";
 import type {
   AuthMode,
   AuthModeSource,
@@ -17,7 +18,6 @@ import type {
 } from "@orb/contracts/identity";
 import type { OwnerNeedsPassword } from "@orb/contracts/session";
 import type { Clock, TimerScheduler } from "@orb/kit/time";
-import type { RequireAdmin, RequireOwner } from "#domain/admin";
 import type { AuditEntry, Logger, SocketInspector } from "#foundation/observability";
 import type { AcmeIssuer, CertificateStore } from "#infra/acme";
 import type { RelayHostWriter } from "#infra/auth";

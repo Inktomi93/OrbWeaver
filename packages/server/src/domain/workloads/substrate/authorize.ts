@@ -5,12 +5,12 @@
 // The leak-free rule (doctrine): a caller who may NOT see a row is told the SAME thing whether it is missing
 // or simply not theirs — the verb collapses both to `DomainNotFoundError` (never a FORBIDDEN existence oracle).
 
+import type { IsAdmin, IsOwner, RequireOwner } from "@orb/contracts/admin";
 import type { Principal } from "@orb/contracts/identity";
 import type { WorkloadKind, WorkloadMode } from "@orb/contracts/workloads";
 import { WORKLOAD_KIND_MODES } from "@orb/contracts/workloads";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
-import type { IsAdmin, IsOwner, RequireOwner } from "#domain/admin";
 import type { StartWorkloadParams } from "../contract/params.ts";
 import type { WorkloadReadAccess } from "../contract/workload-row.ts";
 

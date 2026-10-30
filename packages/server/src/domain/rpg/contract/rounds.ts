@@ -2,19 +2,19 @@
 // resolve, and the cross-feature ops each is wired with at the composition root. rpg reads no chat, character or
 // connection table; every such fact arrives through one of these.
 
+import type { CreateCharacterOp, FindCharacterByHandleOp, FindCharacterByImportHashOp } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
+import type { ResolveTaskParams } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ExtractionRefs, RpgGameConfig, RpgStateRoundTool, RpgStructuredRoundShape } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
-import type { ProviderExecutor, Resolved } from "@orb/inference";
+import type { ProviderExecutor, Resolved, ResolveOutcome } from "@orb/inference";
 import type { ChatId, IdSource, UserId } from "@orb/kit/ids";
 import type { WireReady } from "@orb/kit/json-schema";
-import type { CharacterService } from "#domain/character";
 import type { BeginGenerationObservation, ChatService, ResolveCanonWindow, ResolveRpgParticipants } from "#domain/chat";
-import type { ConnectionService } from "#domain/connection";
 import type { Logger } from "#foundation/observability";
 import type { OwnedRpgFlushBarrier, RpgContext } from "./service.ts";
 import type { RpgTraceSink } from "./trace.ts";
@@ -47,12 +47,16 @@ export interface RpgRoundsDeps {
   readonly rpgChatOps: RpgRoundsChatOps;
   /** The runtime fold, for the READ-side delivery verdicts and the two HOST doors. The in-turn state ROUNDS
    *  re-resolve nothing: they ride the character turn's already-resolved connection. */
-  readonly connection: Pick<ConnectionService, "resolve">;
+  readonly connection: { readonly resolve: (params: ResolveTaskParams) => Promise<ResolveOutcome> };
   readonly executor: Pick<ProviderExecutor, "runChatTurn">;
   /** The host's REAL `Principal` by userId (D19). */
   readonly resolveHostPrincipal: (userId: UserId) => Promise<Principal>;
   /** R4 PROMOTION's durable half: the card mint, its stable marker lookup, and the owner-handle probe. */
-  readonly character: Pick<CharacterService, "create" | "findByHandle" | "findByImportHash">;
+  readonly character: {
+    readonly create: CreateCharacterOp;
+    readonly findByHandle: FindCharacterByHandleOp;
+    readonly findByImportHash: FindCharacterByImportHashOp;
+  };
   /** R4 PROMOTION's other durable half: the host-gated, idempotent participant insert. */
   readonly chat: Pick<ChatService, "addCharacterToChat">;
   /** Is this thrown value the character library's per-owner handle-uniqueness refusal? Character owns its errors. */

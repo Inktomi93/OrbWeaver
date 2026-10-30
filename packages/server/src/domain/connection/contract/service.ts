@@ -14,12 +14,13 @@ import type {
   CredentialOwned,
   EmbedSpaceChangePreview,
   EmbedTargetRefusal,
+  GetBoundConnectionOp,
   ModelListing,
   ResolvedCacheConnectionView,
   ResolvedConnectionView,
   RoutableTask,
   RuleOwnedBy,
-  SendAvailability,
+  TaskAvailabilityOp,
   TokenizeResult,
 } from "@orb/contracts/inference";
 import type { AccountCredits, EndpointInspection, GenerationCost, VerifyAuthResult } from "@orb/contracts/providers";
@@ -40,7 +41,6 @@ import type {
   DropPluginProvidersParams,
   DropProviderParams,
   GenerationCostParams,
-  GetBoundConnectionParams,
   GetConnectionParams,
   ListBindingsParams,
   ListConnectionsParams,
@@ -123,7 +123,7 @@ export interface ConnectionService {
   // ── delegations to the runtime (the turn path, the composer's pre-send gate, the pane's readouts)
   /** Trusted server resolution retains its credential; client reads use the credential-free projection. */
   readonly resolve: (params: ResolveTaskParams) => Promise<ResolveOutcome>;
-  readonly availability: (params: ResolveTaskParams) => Promise<SendAvailability>;
+  readonly availability: TaskAvailabilityOp;
   /** The caller's OWN chat connection end-to-end, credential-free (`ResolvedConnectionView`). */
   readonly resolveChatCapability: (params: ResolveChatCapabilityParams) => Promise<ResolvedConnectionView>;
   readonly resolveChatCacheContext: (params: ResolveChatCapabilityParams) => Promise<ResolvedCacheConnectionView>;
@@ -141,7 +141,7 @@ export interface ConnectionService {
   // ── Model roles (`connection_bindings`)
   readonly listBindings: (params: ListBindingsParams) => Promise<readonly BindingView[]>;
   /** One indexed binding read and one owner-scoped row read; no runtime resolution or secret projection. */
-  readonly getBoundConnection: (params: GetBoundConnectionParams) => Promise<Pick<ConnectionView, "label" | "providerId" | "providerLabel" | "model"> | null>;
+  readonly getBoundConnection: GetBoundConnectionOp;
   readonly setBinding: (params: SetBindingParams) => Promise<ConnectionBinding>;
   readonly useForEverything: (params: UseForEverythingParams) => Promise<readonly ConnectionBinding[]>;
   /** Would this pending change move the caller to a new embedding generation, and how much would it rebuild?

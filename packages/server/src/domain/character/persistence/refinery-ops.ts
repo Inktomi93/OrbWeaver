@@ -13,6 +13,14 @@
 // is still live), and a `CHARACTER_STALE_BASIS` refusal from that write leaves the snapshot with nothing to
 // witness — this op is how the verb un-does exactly the row it just minted, scoped to its own id.
 
+import type {
+  CountRefineryScoreTargetsOp,
+  DeleteSnapshotOp,
+  ListRefineryScoreTargetsOp,
+  LoadOwnedCardOp,
+  RefineryScoreTarget,
+  StampRefinerySignalsOp,
+} from "@orb/contracts/character";
 import type { EveryOwnerEstimate, EveryOwnerRun } from "@orb/contracts/workloads";
 import type { ReadOnlyDb } from "@orb/db";
 import { characterSnapshots, characters } from "@orb/db";
@@ -21,16 +29,7 @@ import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, count, eq, exists, sql } from "drizzle-orm";
-import type {
-  CharacterRefineryOpsContext,
-  CountRefineryScoreTargetsOp,
-  DeleteSnapshotOp,
-  ListRefineryScoreTargetsOp,
-  LoadOwnedCardOp,
-  RefineryScoreCountContext,
-  RefineryScoreTarget,
-  StampRefinerySignalsOp,
-} from "../contract/refinery-ops.ts";
+import type { CharacterRefineryOpsContext, RefineryScoreCountContext } from "../contract/refinery-ops.ts";
 import { cardOf, loadOwnedCharacterRow } from "./queries.ts";
 
 /** Build the owned-card read op — `loadOwnedCharacterRow` (owner IN the WHERE) + the one-homed `cardOf`

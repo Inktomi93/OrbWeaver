@@ -12,7 +12,7 @@ import { createExportService } from "#domain/export";
 import type { SessionsService } from "#domain/sessions";
 import type { ToolUseService } from "#domain/tool-use";
 import { createToolUseService } from "#domain/tool-use";
-import type { AuditEntry, AuditWiring, Logger } from "#foundation/observability";
+import type { AuditWiring, Logger } from "#foundation/observability";
 import type { PasswordHasher } from "#infra/auth";
 import type { LiveBuses } from "#transport/trpc";
 import type { SessionSocketEviction } from "../http/index.ts";
@@ -30,7 +30,7 @@ export interface AdminComposeDeps {
   readonly hashPassword: PasswordHasher["hash"];
   /** The same post-commit connection seed sessions consumes. */
   readonly seedUserConnections: AdminContext["seedUserConnections"];
-  readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
+  readonly audit: AdminContext["audit"];
   readonly auditStatementAfterWrite: AuditWiring["statementAfterWrite"];
   readonly sessions: Pick<
     SessionsService,

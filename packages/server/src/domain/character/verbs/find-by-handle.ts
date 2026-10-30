@@ -5,7 +5,7 @@
 // content to one (the free-handle probes cannot ask for one, the handle alphabet excludes `_`). A read: no
 // audit, no emit.
 
-import type { FindByHandleParams } from "../contract/params.ts";
+import type { FindByHandleParams } from "@orb/contracts/character";
 import type { CharacterContext, CharacterService } from "../contract/service.ts";
 import { findByOwnerHandle } from "../persistence/queries.ts";
 

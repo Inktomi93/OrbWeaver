@@ -1,6 +1,6 @@
+import type { UserPrincipalFields } from "@orb/contracts/session";
 import type { UserId } from "@orb/kit/ids";
 import { captureUserRole } from "#primitives/role-data";
-import type { UserPrincipalFields } from "../contract/results.ts";
 import type { SessionsContext, SessionsService } from "../contract/service.ts";
 import { selectForProvisionById } from "../persistence/users.ts";
 

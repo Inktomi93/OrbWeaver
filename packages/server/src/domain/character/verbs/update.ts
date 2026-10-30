@@ -11,6 +11,7 @@
 // `expectedBasis`, and only then does the write carry the basis predicates (`persistence/card.ts`) and
 // refuse TOTALLY with `CHARACTER_STALE_BASIS` rather than overwrite the edit that landed in between.
 
+import type { UpdateCharacterParams } from "@orb/contracts/character";
 import { characterHandleSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import { backgroundMaterializeMessage } from "@orb/contracts/theme";
@@ -23,7 +24,6 @@ import {
   CharacterNotFoundError,
   CharacterOperationError,
 } from "../contract/errors.ts";
-import type { UpdateCharacterParams } from "../contract/params.ts";
 import type { CharacterContext, CharacterService } from "../contract/service.ts";
 import { writeCardInPlace } from "../persistence/card.ts";
 import {
