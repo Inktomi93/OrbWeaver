@@ -1,13 +1,13 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { ImportFsPort } from "@orb/contracts/import";
-import type { RegexScriptCard } from "@orb/contracts/regex";
+import type { ImportGlobalScripts, RegexScriptCard } from "@orb/contracts/regex";
 import type { BackgroundLibraryEntry } from "@orb/contracts/settings";
 import { ASSET_UPLOAD_MAX_BYTES, IMPORT_TREE_MAX_FILE_BYTES, IMPORT_TREE_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
+import type { AttachOwnedBooksByName } from "@orb/contracts/world-info";
 import type { AssetId, CharacterId, ChatId, UserId, WorldBookId } from "@orb/kit/ids";
 import { hostTimeZone } from "@orb/kit/time";
 import { inertActivationFields } from "@orb/kit/world-info";
 import type { ImportAssetPort } from "#domain/assets";
-import type { AttachOwnedBooksByName } from "#domain/world-info";
 import type {
   CollectedBackground,
   CollectedCard,
@@ -21,7 +21,6 @@ import type {
 import { ProfileImportLimitError } from "../contract/errors.ts";
 import type { ImportPersonaInput } from "../contract/params.ts";
 import type { ProfileCollected, ProfileCollectRecords, ProfileDirImportDeps, ProfileWaveOutcomes } from "../contract/profile-directory.ts";
-import type { ImportGlobalScripts } from "../contract/regex-lift-ops.ts";
 import type {
   ImportDryRunCensus,
   ImportReport,

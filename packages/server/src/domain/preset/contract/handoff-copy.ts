@@ -19,7 +19,7 @@
 
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
-import type { PresetId, UserId } from "@orb/kit/ids";
+import type { PresetId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 
 /** db + clock + the id minter. Purpose-built (NOT the full `PresetContext`): the copy writes one row, emits
@@ -31,9 +31,3 @@ export interface PresetHandoffCopyContext {
 }
 
 export type PresetHandoffCopyAssemblyContext = DbAssemblyInput<PresetHandoffCopyContext>;
-
-/** Copy one preset from `fromOwnerId`'s library into `toUserId`'s, verbatim. Returns the copy's id, or `null`
- *  when the source does not resolve under `fromOwnerId` (foreign, deleted, or the shared system default —
- *  which needs no copy because the recipient can already read it). A `null` tells the caller to fall back to
- *  the built conditional heal rather than to fail the accept. */
-export type CopyPresetToUser = (args: { readonly fromOwnerId: UserId; readonly toUserId: UserId; readonly presetId: PresetId }) => Promise<PresetId | null>;

@@ -6,7 +6,9 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
+import type { ImportCardScripts } from "@orb/contracts/regex";
 import { TRPC_BATCH_MAX_ITEMS } from "@orb/contracts/rpc";
+import type { ImportWorldInfoPort } from "@orb/contracts/world-info";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import type { IdSource, UserId } from "@orb/kit/ids";
@@ -24,11 +26,9 @@ import type { ImportAssetPort } from "#domain/assets";
 import type { ImportCharacterPort } from "#domain/character";
 import type { ExportService } from "#domain/export";
 import type { SettleImportMemory } from "#domain/import";
-import type { ImportCardScripts } from "#domain/regex";
 import type { SessionsService } from "#domain/sessions";
 import { readGlobalSettings } from "#domain/settings";
 import type { RelayController } from "#domain/share";
-import type { ImportWorldInfoPort } from "#domain/world-info";
 import type { Env } from "#foundation/env/record";
 import { allowedHostsInput, resolveAllowedHosts } from "#foundation/env/record";
 import type { AuditWiring, Logger, MemoryRecallInspector, ObservabilityRings, RpgTraceInspector } from "#foundation/observability";

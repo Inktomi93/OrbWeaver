@@ -27,8 +27,8 @@
 // `chat_regex_scripts` statements come back UNEXECUTED for the caller's batch (the `CopyHandoffBooks` seam,
 // verbatim).
 
+import type { CopyHandoffRegexScriptsArgs } from "@orb/contracts/regex";
 import type { StatementToken } from "@orb/db/wiring";
-import type { ChatId, UserId } from "@orb/kit/ids";
 
 /** Copy the room's chat-tier scripts from `fromOwnerId` into `toOwnerId` and return the UNEXECUTED
  *  `chat_regex_scripts` re-point.
@@ -42,19 +42,4 @@ import type { ChatId, UserId } from "@orb/kit/ids";
  *  returned pair detaches the source and attaches the target AT THE SOURCE'S `position` — execution order is
  *  data, so the room's transform chain is byte-identical across the handoff. The attach is conflict-safe on
  *  the `(chatId, regexScriptId)` PK, which is what makes a retry idempotent. */
-export type CopyHandoffRegexScripts = (args: {
-  readonly fromOwnerId: UserId;
-  readonly toOwnerId: UserId;
-  readonly chatId: ChatId;
-}) => Promise<readonly StatementToken[]>;
-
-/** How many script rows {@link CopyHandoffRegexScripts} would MINT for `toOwnerId` — the NOMINATE-side
- *  disclosure the `handoff-nominated` notification carries (#1762). A regex is the one class in the offer
- *  that EXECUTES on the recipient's own text, so it is also the one the nominee most needs counted before
- *  they press Accept.
- *
- *  READ-ONLY BY CONSTRUCTION (a second op, never a `dryRun` flag on the copy): it answers at NOMINATE, where
- *  nobody has consented yet, and it shares the copy's own plan resolver — so the dedup rule that turns three
- *  attachments into one new row decides the disclosed number and the landed rows identically. An attachment
- *  that converges on a row the nominee already owns is NOT counted: nothing new enters their library. */
-export type CountHandoffRegexScripts = (args: { readonly fromOwnerId: UserId; readonly toOwnerId: UserId; readonly chatId: ChatId }) => Promise<number>;
+export type CopyHandoffRegexScripts = (args: CopyHandoffRegexScriptsArgs) => Promise<readonly StatementToken[]>;

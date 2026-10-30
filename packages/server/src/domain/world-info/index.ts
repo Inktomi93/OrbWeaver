@@ -2,15 +2,8 @@
 // per-turn pool builder (chat-assembly) reads these tables directly as a db-layer consumer, NOT through
 // this front door (invariant #8).
 
-export type { ExportWorldBook, ListOwnedBookIds, WorldInfoExportAssemblyContext as WorldInfoExportContext } from "./contract/export.ts";
+export type { WorldInfoExportAssemblyContext as WorldInfoExportContext } from "./contract/export.ts";
 
-export type {
-  AttachOwnedBooksByName,
-  BulkImportLorebook,
-  HasPrimaryBook,
-  ImportStandaloneLorebook,
-  ImportWorldInfoPort,
-} from "./contract/import.ts";
 export type { WorldInfoService } from "./contract/service.ts";
 export { createCopyCharacterBooks } from "./persistence/duplicate-carry.ts";
 export { createCopyHandoffBooks, createCountHandoffBooks } from "./persistence/handoff-copy-write.ts";

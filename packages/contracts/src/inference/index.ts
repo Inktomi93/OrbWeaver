@@ -23,6 +23,7 @@ export * from "./model-schema.ts";
 export type {
   CredentialOwned,
   GetBoundConnectionOp,
+  ResolveChatCapabilityOp,
   ResolveTaskParams,
   RuleOwnedBy,
   TaskAvailabilityOp,

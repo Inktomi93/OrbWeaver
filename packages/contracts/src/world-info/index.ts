@@ -353,3 +353,18 @@ export const worldInfoCharacterInputSchema = z.object({ characterId: typeIdSchem
 export const worldInfoPersonaInputSchema = z.object({ personaId: typeIdSchema(ID_PREFIX.persona) });
 
 export const worldInfoChatInputSchema = z.object({ chatId: typeIdSchema(ID_PREFIX.chat), includeInherited: z.boolean().optional() });
+
+export type {
+  AttachOwnedBooksByName,
+  BulkImportLorebook,
+  CopyCharacterBooks,
+  CopyHandoffBooksArgs,
+  CountHandoffBooks,
+  ExportWorldBook,
+  HasPrimaryBook,
+  ImportStandaloneLorebook,
+  ImportWorldInfoPort,
+  LinkCarriedBooks,
+  LinkCarriedBooksResult,
+  ListOwnedBookIds,
+} from "./owner-ops.ts";

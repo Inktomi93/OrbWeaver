@@ -5,9 +5,8 @@
 import type { CharacterCard, CreateCharacterInput, UpdateCharacterInput } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import type { ResolveSeededPlateOp } from "@orb/contracts/settings";
-import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
+import type { BulkImportLorebook, BulkImportLorebookInput, HasPrimaryBook } from "@orb/contracts/world-info";
 import type { AssetId, CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
-import type { BulkImportLorebook, HasPrimaryBook } from "#domain/world-info";
 import type { Logger } from "#foundation/observability";
 import type { CharacterService } from "./service.ts";
 

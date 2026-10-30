@@ -18,9 +18,8 @@
 // attachment is a room-state change and must commit with the role swap, so the `chat_books` statements come
 // back UNEXECUTED for the caller's batch (the `handoffHealStatements` co-statement seam).
 
-import type { HandoffCardPair } from "@orb/contracts/chat";
+import type { CopyHandoffBooksArgs } from "@orb/contracts/world-info";
 import type { StatementToken } from "@orb/db/wiring";
-import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 
 /** Copy the room's lore from `fromOwnerId` into `toOwnerId` and return the UNEXECUTED `chat_books` re-point.
  *
@@ -36,29 +35,4 @@ import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
  *  is left alone, and a chat-attached source book whose name `toOwnerId` already owns ON THIS CHAT resolves to
  *  that book instead of minting a second (the `(ownerId, name)` dedup key `importStandaloneLorebook` already
  *  uses). The returned attach is conflict-safe on the `(chatId, worldBookId)` PK. */
-export type CopyHandoffBooks = (args: {
-  readonly fromOwnerId: UserId;
-  readonly toOwnerId: UserId;
-  readonly chatId: ChatId;
-  readonly cardCopies: readonly HandoffCardPair[];
-}) => Promise<readonly StatementToken[]>;
-
-/** How many DISTINCT books {@link CopyHandoffBooks} would mint for `toOwnerId` — the NOMINATE-side
- *  disclosure the `handoff-nominated` notification carries (#1762), answered before anyone has consented to
- *  anything.
- *
- *  READ-ONLY BY CONSTRUCTION, and that is the whole reason it is a second op rather than a `dryRun` flag on
- *  the copy: it runs at NOMINATE, where the nominee has agreed to nothing, so the disclosure must be unable
- *  to write rather than merely choosing not to.
- *
- *  It shares the copy's OWN source reads and its OWN convergence rule (both owner-filtered halves; a
- *  chat-attached book whose name the recipient already owns on this chat is not a mint, exactly as the copy
- *  decides), so the number the nominee is shown and the rows the accept lands cannot come from two rules.
- *  `characterIds` are the SOURCE cards the offer would copy — the copy takes pairs because it already has
- *  them, this takes sources because at nominate no copy exists yet. */
-export type CountHandoffBooks = (args: {
-  readonly fromOwnerId: UserId;
-  readonly toOwnerId: UserId;
-  readonly chatId: ChatId;
-  readonly characterIds: readonly CharacterId[];
-}) => Promise<number>;
+export type CopyHandoffBooks = (args: CopyHandoffBooksArgs) => Promise<readonly StatementToken[]>;

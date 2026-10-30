@@ -39,9 +39,11 @@ import type { SendAvailability } from "@orb/contracts/inference";
 import type { NotificationEvent, PresenceView } from "@orb/contracts/notifications";
 import type { ResolveCurrentPersonaOp, ResolveDefaultPersonaOp } from "@orb/contracts/persona";
 import type { ChoiceBlockSpec, ResolveUtilityPresetParams, UserIntent } from "@orb/contracts/preset";
+import type { CopyHandoffRegexScriptsArgs, CountHandoffRegexScripts } from "@orb/contracts/regex";
 import type { CancelStateRoundsOp, RpgGameTemplate } from "@orb/contracts/rpg";
 import type { BlockKey, MemoryQueryOptions, ResolveCorpusSourceState, ScoredBlock } from "@orb/contracts/search";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
+import type { CopyHandoffBooksArgs, CountHandoffBooks } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import type { StatementToken } from "@orb/db/wiring";
@@ -121,38 +123,13 @@ type CopyHandoffCardsOp = (args: {
 
 /** The host-handoff LORE copy (world-info's `CopyHandoffBooks`, declared structurally). Copies the books and
  *  returns the UNEXECUTED `chat_books` detach-original/attach-copy statements for the swap batch. */
-type CopyHandoffBooksOp = (args: {
-  readonly fromOwnerId: UserId;
-  readonly toOwnerId: UserId;
-  readonly chatId: ChatId;
-  readonly cardCopies: readonly HandoffCardPair[];
-}) => Promise<readonly StatementToken[]>;
+type CopyHandoffBooksOp = (args: CopyHandoffBooksArgs) => Promise<readonly StatementToken[]>;
 
 /** The host-handoff REGEX copy (regex's `CopyHandoffRegexScripts`, declared structurally). Copies the
  *  departing host's CHAT-TIER scripts into the nominee's library and returns the UNEXECUTED
  *  `chat_regex_scripts` re-point. Takes no `cardCopies`: a room's script attachment is room state that stands
  *  on its own, so unlike the lore arm it is not derived from what the seats did. */
-type CopyHandoffRegexScriptsOp = (args: {
-  readonly fromOwnerId: UserId;
-  readonly toOwnerId: UserId;
-  readonly chatId: ChatId;
-}) => Promise<readonly StatementToken[]>;
-
-/** The host-handoff LORE copy's DISCLOSURE twin (world-info's `CountHandoffBooks`, declared structurally) —
- *  how many DISTINCT books the copy above would mint for `toOwnerId`, resolved by the same owner-filtered
- *  source reads and the same convergence rule, and writing nothing. `characterIds` are the SOURCE cards the
- *  offer would copy (the card half); the room half needs no input. */
-type CountHandoffBooksOp = (args: {
-  readonly fromOwnerId: UserId;
-  readonly toOwnerId: UserId;
-  readonly chatId: ChatId;
-  readonly characterIds: readonly CharacterId[];
-}) => Promise<number>;
-
-/** The host-handoff REGEX copy's DISCLOSURE twin (regex's `CountHandoffRegexScripts`, declared
- *  structurally) — how many scripts the copy above would MINT for `toOwnerId`, sharing the copy's own plan
- *  resolver so a script the nominee already owns content-identically is disclosed as what it is: nothing new. */
-type CountHandoffRegexScriptsOp = (args: { readonly fromOwnerId: UserId; readonly toOwnerId: UserId; readonly chatId: ChatId }) => Promise<number>;
+type CopyHandoffRegexScriptsOp = (args: CopyHandoffRegexScriptsArgs) => Promise<readonly StatementToken[]>;
 
 /** The host-handoff DIGEST re-key (embeddings' `HandoffRestampStatements`, declared structurally). Returns
  *  UNEXECUTED statements scoped to this chat; empty for an empty pair list. */
@@ -715,8 +692,8 @@ export interface ChatContext extends EngineContext, ChatAccountingContext {
    *  disclosure must be UNABLE to write: the nomination happens before consent, and an op that could mint is
    *  an op that eventually will. Each lives in its copy's own file over its copy's own plan resolver, so
    *  what the row promises and what the accept does cannot drift into two rules. */
-  readonly countHandoffBooks: CountHandoffBooksOp;
-  readonly countHandoffRegexScripts: CountHandoffRegexScriptsOp;
+  readonly countHandoffBooks: CountHandoffBooks;
+  readonly countHandoffRegexScripts: CountHandoffRegexScripts;
   /** HOST HANDOFF, the accepted offer's memory arm: the UNEXECUTED digest re-key (`chat_digests.scopedCharacterId`
    *  + `chat_digest_speakers.characterId`) for THIS chat. Injected because both tables are the embeddings
    *  domain's; without it the departed host's card DELETE would cascade the transferred room's memory away. */

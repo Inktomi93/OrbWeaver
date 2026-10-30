@@ -5,8 +5,8 @@
 
 import type { ResolveVisibleRoomsOp } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
-import type { CapabilityTarget, ResolvedCacheConnectionView } from "@orb/contracts/inference";
-import type { EffectivePreset, PresetDetail, PresetSummary, PresetUsageView } from "@orb/contracts/preset";
+import type { ResolveChatCapabilityOp } from "@orb/contracts/inference";
+import type { EffectivePreset, PresetDetail, PresetImportOutcome, PresetSummary, PresetUsageView } from "@orb/contracts/preset";
 import type { UserSettings } from "@orb/contracts/settings";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
@@ -25,15 +25,6 @@ import type {
   ResolveEffectiveParams,
   UpdatePresetParams,
 } from "./params.ts";
-import type { PresetImportOutcome } from "./portability.ts";
-
-/** The injected capability read — `connection.resolveChatCapability` at the composition root. Takes the acting
- *  Principal and an optional target (a role or a connection id, owner-checked by the connection domain), and no
- *  caller-supplied user id, so the injected op can only ever answer for the caller's own connections. */
-export type ResolveChatCapabilityOp = (params: {
-  readonly principal: Principal;
-  readonly target?: CapabilityTarget | undefined;
-}) => Promise<ResolvedCacheConnectionView>;
 
 /**
  * The injected BACKWARD-BINDINGS read (#279) — "where is this preset bound from outside the library".

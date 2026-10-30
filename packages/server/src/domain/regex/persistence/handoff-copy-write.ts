@@ -15,6 +15,7 @@
 // principal's library, and a corrupt source degrades to the same INERT script the resolver already sees for
 // it rather than to junk the nominee cannot explain.
 
+import type { CountHandoffRegexScripts } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
 import { chatRegexScripts, regexScripts } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
@@ -24,7 +25,7 @@ import { databaseForOwner, statementToken } from "@orb/db/wiring-owner";
 import type { ChatId, RegexScriptId, UserId } from "@orb/kit/ids";
 import { and, asc, eq } from "drizzle-orm";
 import type { SplitScript } from "../contract/dedup.ts";
-import type { CopyHandoffRegexScripts, CountHandoffRegexScripts } from "../contract/handoff-copy.ts";
+import type { CopyHandoffRegexScripts } from "../contract/handoff-copy.ts";
 import type { RegexPortabilityContext } from "../contract/portability.ts";
 import type { ScriptRecord } from "../contract/rows.ts";
 import { findDuplicate } from "../substrate/dedup.ts";

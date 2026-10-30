@@ -1,17 +1,18 @@
 // domain/import/contract/service — typed API surface: ImportContext (DI bundle) + ImportService
 // (verb interface) + the injected cross-feature op types the composition root wires at the root.
 
-import type { AttachedBookRef, CreateCharacterInput } from "@orb/contracts/character";
+import type { CreateCharacterInput } from "@orb/contracts/character";
 import type { BulkImportChatsOp } from "@orb/contracts/chat";
 import type { PersonaCollisionChoices } from "@orb/contracts/import";
 import type { BulkImportPersonaInput, BulkImportPersonasResult } from "@orb/contracts/persona";
 import type { PortableFile } from "@orb/contracts/portability";
+import type { ImportPreset } from "@orb/contracts/preset";
+import type { ImportCardScripts, ImportPresetScripts } from "@orb/contracts/regex";
 import type { ImportThemeOp } from "@orb/contracts/settings";
 import type { ThemeBackground } from "@orb/contracts/theme";
-import type { BulkImportLorebookInput, BulkImportLorebookResult } from "@orb/contracts/world-info";
+import type { BulkImportLorebook, HasPrimaryBook, LinkCarriedBooks } from "@orb/contracts/world-info";
 import type { AssetId, CharacterHandle, CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
-import type { ImportPreset } from "#domain/preset";
 import type { ImportRpgGame } from "#domain/rpg";
 import type { CollectedPreset, CollectedTheme } from "./collection.ts";
 import type {
@@ -22,7 +23,6 @@ import type {
   ImportPersonaInput,
   RestoreCharacterBookInput,
 } from "./params.ts";
-import type { ImportCardScripts, ImportPresetScripts } from "./regex-lift-ops.ts";
 import type {
   ImportCharacterResult,
   ImportChatFileOutcome,
@@ -64,31 +64,6 @@ export type StoreImportAsset = (args: { readonly ownerId: UserId; readonly bytes
 
 /** Applies one author-shipped card tag by name; idempotent, race-safe. */
 type AttachImportedCardTag = (args: { readonly ownerId: UserId; readonly characterId: CharacterId; readonly tagName: string }) => Promise<boolean>;
-
-/** World-info-owned lorebook bulk-import write op; optional (card-only upload path skips embedded books).
- *  DESTRUCTIVE on a character that already holds a primary book — it REPLACES that book's entries (#1598),
- *  which is why the card-import verb gates it behind {@link HasPrimaryBookOp} and only the explicit restore
- *  verb calls it into an occupied seat. */
-type BulkImportLorebookOp = (args: {
-  readonly ownerId: UserId;
-  readonly characterId: CharacterId;
-  readonly book: BulkImportLorebookInput;
-}) => Promise<BulkImportLorebookResult>;
-
-/** World-info-owned READ: does this character already hold a PRIMARY book? The non-destructiveness oracle
- *  for a card RE-UPLOAD (#1598, owner ruling 2026-09-05 — "re-uploading a card must not revert my edits").
- *  Wired from the SAME `ImportWorldInfoPort` as {@link BulkImportLorebookOp}, so a composition that can write
- *  the embedded book can always ask first; optional here on that op's own precedent, and an absent oracle
- *  keeps the pre-#1598 behavior of whatever `importLorebook` that same composition supplied. */
-type HasPrimaryBookOp = (args: { readonly ownerId: UserId; readonly characterId: CharacterId }) => Promise<boolean>;
-
-/** World-info-owned re-link op for a portable card's carried attached-book references; optional —
- *  the card-only upload path omits it. Links only ids the importer OWNS, returns linked/skipped counts. */
-type LinkCarriedBooksOp = (args: {
-  readonly ownerId: UserId;
-  readonly characterId: CharacterId;
-  readonly refs: readonly AttachedBookRef[];
-}) => Promise<{ readonly linked: number; readonly skipped: number }>;
 
 /** Character-owned: give the owner's character its art when it has NONE, re-keying the row's import identity
  *  to the with-art hash in the same write. False when the row already has art: the card is then an alt-art
@@ -179,10 +154,13 @@ export interface ImportContext {
   readonly storeAsset: StoreImportAsset;
   readonly attachImportedArt: AttachImportedArt;
   readonly attachCardTag: AttachImportedCardTag;
-  readonly importLorebook?: BulkImportLorebookOp;
-  /** The #1598 skip oracle — see {@link HasPrimaryBookOp}. Travels with `importLorebook`. */
-  readonly hasPrimaryBook?: HasPrimaryBookOp;
-  readonly linkCarriedBooks?: LinkCarriedBooksOp;
+  /** Optional: the card-only upload path skips embedded books. Destructive on a character that already holds a
+   *  primary book, so the card-import verb gates it behind `hasPrimaryBook`. */
+  readonly importLorebook?: BulkImportLorebook;
+  /** The skip oracle for a card re-upload; travels with `importLorebook`. */
+  readonly hasPrimaryBook?: HasPrimaryBook;
+  /** Optional re-link of a portable card's carried attached-book references; links only ids the importer owns. */
+  readonly linkCarriedBooks?: LinkCarriedBooks;
   /** D121-E: the card LIFT — a card's by-value ST scripts become library rows + a `character_regex_scripts`
    *  attachment, with carried references re-linked instead of cloned. Optional/absent ⇒ a card's scripts are
    *  simply not imported (the `importLorebook` optionality shape); the real composition root always wires it. */

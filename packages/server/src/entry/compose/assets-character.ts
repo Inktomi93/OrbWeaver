@@ -13,6 +13,7 @@
 
 import type { CharacterOwnedOp } from "@orb/contracts/character";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
+import type { BulkImportLorebook, HasPrimaryBook } from "@orb/contracts/world-info";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { readSeedBackground, SEED_BACKGROUND_PLATES } from "@orb/default-content";
 import type { IdSource } from "@orb/kit/ids";
@@ -52,7 +53,6 @@ import {
 import { createStatsBatchWiring } from "#domain/stats";
 import type { TagService } from "#domain/tag";
 import { createSeedCardTag } from "#domain/tag";
-import type { BulkImportLorebook, HasPrimaryBook } from "#domain/world-info";
 import { createCopyCharacterBooks } from "#domain/world-info";
 import type { Env } from "#foundation/env/record";
 import { personaAutoSeedAdmits } from "#foundation/env/record";
