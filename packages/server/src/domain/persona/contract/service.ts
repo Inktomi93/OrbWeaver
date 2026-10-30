@@ -5,7 +5,14 @@
 import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
 import type { PersonaCollision } from "@orb/contracts/import";
-import type { CapturePersonaRoomReachOp, ConnectedCharacterView, PersonaDetail } from "@orb/contracts/persona";
+import type {
+  CapturePersonaRoomReachOp,
+  ConnectedCharacterView,
+  ExportPersonaOp,
+  ImportPersonaOp,
+  ListPersonasOp,
+  PersonaDetail,
+} from "@orb/contracts/persona";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
@@ -18,18 +25,15 @@ import type {
   CreatePersonaParams,
   DisconnectParams,
   DuplicatePersonaParams,
-  ExportPersonaParams,
   GetPersonaParams,
-  ImportPersonaParams,
   ListConnectedCharactersParams,
   ListConnectedParams,
-  ListPersonasParams,
   RemovePersonaParams,
   ReviewPersonaImportParams,
   SetActivePersonaParams,
   UpdatePersonaParams,
 } from "./params.ts";
-import type { DisconnectResult, PersonaImportOutcome, PersonaPortableFile, PersonaSeedRepoint, RemovePersonaResult } from "./results.ts";
+import type { DisconnectResult, PersonaSeedRepoint, RemovePersonaResult } from "./results.ts";
 
 /** The DI bundle every persona verb closes over, wired at the composition root. */
 export interface PersonaContext {
@@ -72,7 +76,7 @@ export interface PersonaService {
   /** Create a persona owned by the caller; returns the full detail (with joined avatar hash). */
   readonly create: (params: CreatePersonaParams) => Promise<PersonaDetail>;
   /** The caller's personas, newest first. Empty array when they have none. */
-  readonly list: (params: ListPersonasParams) => Promise<PersonaDetail[]>;
+  readonly list: ListPersonasOp;
   /** One owned persona by id. Throws {@link PersonaNotFoundError} when it doesn't exist OR isn't the
    *  caller's (the two collapse into one answer — no foreign-existence leak). */
   readonly get: (params: GetPersonaParams) => Promise<PersonaDetail>;
@@ -105,11 +109,11 @@ export interface PersonaService {
   /** Read an owned persona as ONE portable file (excludes `avatarAssetId`). The bundle descriptor streams
    *  it and the single-entity export door serves the same bytes — one producer, no drift. Throws
    *  {@link PersonaNotFoundError} when not owned/found. */
-  readonly export: (params: ExportPersonaParams) => Promise<PersonaPortableFile>;
+  readonly export: ExportPersonaOp;
   /** Restore ONE portable persona file (the `export` round-trip twin). Idempotent: a same-named persona is
    *  merged in place. Never throws for a malformed file — the refusal is a typed outcome the calling door
    *  renders. Never carries an avatar (re-attaching one after restore is a separate, explicit action). */
-  readonly import: (params: ImportPersonaParams) => Promise<PersonaImportOutcome>;
+  readonly import: ImportPersonaOp;
   /** Read-only: the incoming personas that share a folded name with an owned persona but differ in content,
    *  one per name. The profile-import review lists these and asks per collision. */
   readonly reviewImport: (params: ReviewPersonaImportParams) => Promise<readonly PersonaCollision[]>;

@@ -1,10 +1,10 @@
 import type { Principal } from "@orb/contracts/identity";
+import type { ExportPersonaOp, ListPersonasOp } from "@orb/contracts/persona";
 import type { PortableEntity, PortableFile } from "@orb/contracts/portability";
 import type { ExportPresets } from "@orb/contracts/preset";
 import type { ExportWorldBook, ListOwnedBookIds } from "@orb/contracts/world-info";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { ExportDocument, ListOwnedDocumentIds } from "#domain/databank";
-import type { PersonaService } from "#domain/persona";
 import type { ExportService } from "./service.ts";
 
 type ExportOne = (ownerId: UserId) => Promise<PortableFile>;
@@ -19,7 +19,7 @@ export interface PortableExportDeps {
   readonly regex: (args: { readonly ownerId: UserId }) => Promise<readonly PortableFile[]>;
   readonly document: ExportDocument;
   readonly listDocumentIds: ListOwnedDocumentIds;
-  readonly persona: Pick<PersonaService, "list" | "export">;
+  readonly persona: { readonly list: ListPersonasOp; readonly export: ExportPersonaOp };
   readonly exportService: Pick<ExportService, "exportCharacter" | "exportChatBundle" | "listHostChats">;
   readonly listCharacterIds: (ownerId: UserId) => Promise<readonly CharacterId[]>;
   readonly resolveOwnerPrincipal: (ownerId: UserId) => Promise<Principal>;

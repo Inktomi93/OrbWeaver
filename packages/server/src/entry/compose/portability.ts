@@ -1,4 +1,5 @@
 import type { BulkImportChatsOp } from "@orb/contracts/chat";
+import type { BulkImportPersonas } from "@orb/contracts/persona";
 import type { PortabilityRegistry, PortableKind } from "@orb/contracts/portability";
 import { PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
 import type { ExportRegexScripts, ImportCardScripts, ImportRegexScript } from "@orb/contracts/regex";
@@ -17,7 +18,7 @@ import { createPortableExports } from "#domain/export";
 import type { ImageryPortabilityService } from "#domain/imagery";
 import type { ImportProfileDeps, ProfileDirImportDeps } from "#domain/import";
 import { createPortableImports } from "#domain/import";
-import type { BulkImportPersonas, PersonaService } from "#domain/persona";
+import type { PersonaService } from "#domain/persona";
 import type { PresetContext } from "#domain/preset";
 import { createExportPresets, createImportPresets } from "#domain/preset";
 import type { SettingsContext } from "#domain/settings";

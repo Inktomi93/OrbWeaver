@@ -4,7 +4,7 @@
 import type { CreateCharacterInput } from "@orb/contracts/character";
 import type { BulkImportChatsOp } from "@orb/contracts/chat";
 import type { PersonaCollisionChoices } from "@orb/contracts/import";
-import type { BulkImportPersonaInput, BulkImportPersonasResult } from "@orb/contracts/persona";
+import type { BulkImportPersonas } from "@orb/contracts/persona";
 import type { PortableFile } from "@orb/contracts/portability";
 import type { ImportPreset } from "@orb/contracts/preset";
 import type { ImportCardScripts, ImportPresetScripts } from "@orb/contracts/regex";
@@ -83,14 +83,6 @@ type EnqueueImportIndex = (args: { readonly ownerId: UserId }) => Promise<void>;
 /** Inline post-import stats rollup rebuild. */
 type ReconcileImportStats = ImportWorkloadDeps["reconcileImportStats"];
 
-/** Persona-owned bulk-import write op (content dedup, then the per-collision choice); returned idByName feeds
- *  chat attribution. */
-type BulkImportPersonasOp = (args: {
-  readonly ownerId: UserId;
-  readonly personas: readonly BulkImportPersonaInput[];
-  readonly collisions?: PersonaCollisionChoices | undefined;
-}) => Promise<BulkImportPersonasResult>;
-
 /** Persona-owned by-NAME lookup (R6). `personaByUserName` below is the PROFILE run's in-memory map, built by
  *  the persona wave in the same process; a BUNDLE gets one fresh `ImportContext` per file, so a chat that
  *  imports after the personas entity needs a durable read instead. `(ownerId, name)` is the persona domain's
@@ -116,7 +108,7 @@ export interface ImportProfileDeps {
   readonly stWallClockZone?: string;
   readonly personaByUserName: Map<string, PersonaId>;
   readonly bulkImportChats: BulkImportChatsOp;
-  readonly bulkImportPersonas: BulkImportPersonasOp;
+  readonly bulkImportPersonas: BulkImportPersonas;
   readonly enqueueImportIndex: EnqueueImportIndex;
   readonly reconcileStats: ReconcileImportStats;
   // ── R6: the orb-native chat bundle's three cross-domain re-links. All OPTIONAL, on the

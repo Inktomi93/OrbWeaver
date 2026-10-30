@@ -15,7 +15,7 @@ import type {
   TriggerFact,
 } from "@orb/contracts/automation";
 import type { RegisterPromptTransformOp, ResolveChatProseOp, ResolveViewerVisibility, UnregisterPromptTransformOp } from "@orb/contracts/chat";
-import type { Can, Principal } from "@orb/contracts/identity";
+import type { Can, ResolveHostPrincipalOp } from "@orb/contracts/identity";
 import type { GeneratePicturePrompt, SizePresetName } from "@orb/contracts/imagery";
 import type { NotificationEvent, NotificationRecipient } from "@orb/contracts/notifications";
 import type { ExecutePluginSuggestion, PluginBridge, PluginSuggestedAct } from "@orb/contracts/plugin";
@@ -340,10 +340,6 @@ export interface AutomationOps {
     readonly responseFormat?: ResponseFormat | undefined;
   }) => Promise<{ readonly text: string }>;
 }
-
-/** Resolve a rule AUTHOR's `Principal` for the dispatch-time authority re-check. Minted at the entry
- *  seam (the constitution: only entry constructs a Principal) and injected; `null` when the user is gone. */
-export type ResolveAuthorPrincipal = (userId: UserId) => Promise<Principal | null>;
 
 /** The domain rows a CHAT-LESS `TriggerFact` can reference — one per domain-bus event. Homed HERE (the
  *  domain's type home) rather than beside the read it drives, because TWO independent consumers ask about it:
@@ -719,7 +715,8 @@ export interface SuggestionStore {
 export interface AuthorityDeps {
   readonly db: Db;
   readonly can: Can;
-  readonly resolveAuthor: ResolveAuthorPrincipal;
+  /** The rule AUTHOR's `Principal` for the dispatch-time authority re-check, minted at the entry seam. */
+  readonly resolveAuthor: ResolveHostPrincipalOp;
   /** C5 — the OWNER-GLOBAL arm's standing read (see {@link IsAuthorEnabled}). */
   readonly isAuthorEnabled: IsAuthorEnabled;
 }

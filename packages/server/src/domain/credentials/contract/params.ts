@@ -2,7 +2,7 @@
 // table. Key/label strings are raw here (validated at the verb/transport boundary); ids are branded and
 // `provider` is the registry id string the domain validates against the registry.
 
-import type { CredentialHealth, ProviderMetadata } from "@orb/contracts/credentials";
+import type { ProviderMetadata } from "@orb/contracts/credentials";
 import type { Principal } from "@orb/contracts/identity";
 import type { ProviderId } from "@orb/contracts/inference";
 import type { InferenceDeps } from "@orb/inference";
@@ -28,15 +28,6 @@ export interface ResolveCredentialParams {
 /** The canonical executor callback carries only scoped, opaque dispatched-key evidence. */
 export type MaybeRevokeParams = Parameters<NonNullable<InferenceDeps["onAuthFailed"]>>[0];
 
-/** The ROW half of a connection probe. `result` is the diagnostic's verdict (the connection domain dialled);
- *  `localEndpoint` says the dialled host was loopback/LAN — an offline box there is a REACHABILITY fact, never
- *  a credential problem, so it must not feed the auto-revoke strike counter (owner ruling). */
-export interface RecordProbeOutcomeParams extends CredentialActorParams {
-  readonly credentialId: UserCredentialId;
-  readonly result: CredentialHealth;
-  readonly localEndpoint: boolean;
-}
-
 export interface ListCredentialsParams extends CredentialActorParams {}
 
 export interface AddCredentialParams extends CredentialActorParams {
@@ -55,13 +46,6 @@ export interface ReplaceCredentialParams extends CredentialActorParams {
   readonly credentialId: UserCredentialId;
   /** The new raw secret, sealed under the row's own provider. */
   readonly key: string;
-}
-
-/** Follow a connection's rename: the key labelled `from` takes `to`. A key carrying any other label keeps it. */
-export interface RelabelCredentialParams extends CredentialActorParams {
-  readonly credentialId: UserCredentialId;
-  readonly from: string;
-  readonly to: string;
 }
 
 export interface RemoveCredentialParams extends CredentialActorParams {

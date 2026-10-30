@@ -6,8 +6,8 @@
 // cross-feature dep arrives as an injected op, wired at the composition root; connection sideways-imports no
 // sibling runtime.
 
+import type { RecordProbeOutcomeParams, RelabelCredentialParams } from "@orb/contracts/credentials";
 import type { SyncTargetGenerationsOp, TargetWouldMoveOp, VectorScope } from "@orb/contracts/embeddings";
-import type { Principal } from "@orb/contracts/identity";
 import type {
   ConnectionBinding,
   ConnectionView,
@@ -28,7 +28,7 @@ import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { BindingStore, ConnectionStore, InferenceRuntime, ProviderRegistry, ProviderStore, ResolveOutcome, SnapshotStore } from "@orb/inference";
-import type { ConnectionBindingId, PluginId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
+import type { ConnectionBindingId, PluginId, UserConnectionId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { AuditEntry } from "#foundation/observability";
 import type { ScopedEgress } from "#infra/network";
@@ -70,12 +70,7 @@ export interface ConnectionContext {
   /** Does the caller hold this credential row? Bound to the credentials domain (only it reads its table). */
   readonly credentialOwned: CredentialOwned;
   /** Rename the caller's key from `from` to `to` when it still carries `from`. Bound to the credentials domain. */
-  readonly relabelCredential: (args: {
-    readonly principal: Principal;
-    readonly credentialId: UserCredentialId;
-    readonly from: string;
-    readonly to: string;
-  }) => Promise<void>;
+  readonly relabelCredential: (params: RelabelCredentialParams) => Promise<void>;
   /** Is this rule the caller's (its author)? Bound to the automation domain. */
   readonly ruleOwnedBy: RuleOwnedBy;
   /** The tasks this plugin routes through its own grant (`pluginGrantTasks` of its declared capabilities),
@@ -84,12 +79,7 @@ export interface ConnectionContext {
   /** The F12 write-time admission read (infra/network, over the published allowlist); a hostname is resolved. */
   readonly endpointAdmission: ScopedEgress["resolvedEndpointAdmission"];
   /** The ROW half of a probe (credentials domain): revoke / strike / clear + the throttle window. */
-  readonly recordProbeOutcome: (args: {
-    readonly principal: Principal;
-    readonly credentialId: UserCredentialId;
-    readonly result: CredentialHealth;
-    readonly localEndpoint: boolean;
-  }) => Promise<CredentialHealth>;
+  readonly recordProbeOutcome: (params: RecordProbeOutcomeParams) => Promise<CredentialHealth>;
   /** The embed-space trigger (§10-4): the caller's embed / imageEmbed space MAY have changed. Syncs the owner's stored
    *  targets against it, awaited by the write: a target that moves queues their rebuild, one that matches does not, and
    *  an encoder that does not make its stated width, or does not answer the probe, moves nothing and is returned for

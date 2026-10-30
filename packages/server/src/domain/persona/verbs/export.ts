@@ -6,13 +6,11 @@
 import { slugifyHandle } from "@orb/kit/slug";
 import { buildPersonaBackup } from "#primitives/serde/persona";
 import { PersonaNotFoundError } from "../contract/errors.ts";
-import type { ExportPersonaParams } from "../contract/params.ts";
-import type { PersonaPortableFile } from "../contract/results.ts";
 import type { PersonaContext, PersonaService } from "../contract/service.ts";
 import { detailOf, loadOwnedPersonaWithAvatar } from "../persistence/queries.ts";
 
 export function createExport(ctx: PersonaContext): PersonaService["export"] {
-  return async ({ principal, personaId }: ExportPersonaParams): Promise<PersonaPortableFile> => {
+  return async ({ principal, personaId }) => {
     const row = await loadOwnedPersonaWithAvatar(ctx.db, principal.userId, personaId);
     if (row === undefined) {
       throw new PersonaNotFoundError(personaId);

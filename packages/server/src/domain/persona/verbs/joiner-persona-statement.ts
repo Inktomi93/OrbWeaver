@@ -2,13 +2,16 @@
 // verb: its owner does not exist until that batch commits, so there is no Principal. The statement goes out
 // unexecuted with its minted id, because the seat later in the batch names the persona before it exists.
 
-import type { DbAssemblyInput } from "@orb/db/wiring";
+import type { JoinerPersonaStatementParams } from "@orb/contracts/persona";
+import type { AwaitableStatementToken, DbAssemblyInput } from "@orb/db/wiring";
 import { awaitableStatementToken, databaseForOwner } from "@orb/db/wiring-owner";
-import type { JoinerPersonaStatementOp } from "../contract/ops.ts";
+import type { PersonaId } from "@orb/kit/ids";
 import type { PersonaContext } from "../contract/service.ts";
 import { insertJoinerPersonaStatement } from "../persistence/joiner.ts";
 
-export function createJoinerPersonaStatement(ctx: DbAssemblyInput<Pick<PersonaContext, "db" | "newPersonaId">>): JoinerPersonaStatementOp {
+export function createJoinerPersonaStatement(
+  ctx: DbAssemblyInput<Pick<PersonaContext, "db" | "newPersonaId">>,
+): (params: JoinerPersonaStatementParams) => { readonly personaId: PersonaId; readonly statement: AwaitableStatementToken<{ id: PersonaId }[]> } {
   const db = databaseForOwner(ctx.db);
   return ({ ownerId, persona, at }) => {
     const personaId = ctx.newPersonaId();

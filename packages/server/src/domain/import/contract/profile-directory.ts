@@ -2,6 +2,7 @@ import type { StoredAsset, StoreParams } from "@orb/contracts/assets";
 import type { BulkImportChatsOp } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { ImportFsPort, PersonaCollisionChoices } from "@orb/contracts/import";
+import type { BulkImportPersonas } from "@orb/contracts/persona";
 import type { ImportPreset } from "@orb/contracts/preset";
 import type { ImportCardScripts, ImportGlobalScripts, ImportPresetScripts } from "@orb/contracts/regex";
 import type { ImportedAppearance, ImportedAppearanceOutcome, ImportThemeOp } from "@orb/contracts/settings";
@@ -10,7 +11,6 @@ import type { AttachOwnedBooksByName, ImportStandaloneLorebook, ImportWorldInfoP
 import type { IdSource, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { ImportAssetPort } from "#domain/assets";
-import type { BulkImportPersonas } from "#domain/persona";
 import type { ImportContextWiring } from "./build-context.ts";
 import type { CollectResult } from "./collection.ts";
 import type { ImportReport } from "./results.ts";

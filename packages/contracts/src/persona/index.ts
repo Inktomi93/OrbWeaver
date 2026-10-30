@@ -223,4 +223,17 @@ export interface IncomingPersona {
   readonly metadata: PersonaMetadata | null;
   readonly artHash: string | null;
 }
-export type { CapturePersonaRoomReachOp, CapturePersonaSeatsForDeleteOp } from "./owner-ops.ts";
+export type {
+  BulkImportPersonas,
+  CapturePersonaRoomReachOp,
+  CapturePersonaSeatsForDeleteOp,
+  ExportPersonaOp,
+  ExportPersonaParams,
+  ImportPersonaOp,
+  ImportPersonaParams,
+  JoinerPersonaStatementParams,
+  ListPersonasOp,
+  ListPersonasParams,
+  PersonaImportOutcome,
+  PersonaPortableFile,
+} from "./owner-ops.ts";

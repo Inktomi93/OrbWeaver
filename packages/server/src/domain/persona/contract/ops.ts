@@ -1,7 +1,5 @@
-import type { JoinerPersona } from "@orb/contracts/persona";
 import type { LoadUserSettings } from "@orb/contracts/settings";
-import type { AwaitableStatementToken } from "@orb/db/wiring";
-import type { Handle, PersonaId, UserId } from "@orb/kit/ids";
+import type { Handle, UserId } from "@orb/kit/ids";
 
 export type { ResolvePersonasForParticipants } from "@orb/contracts/persona";
 
@@ -28,13 +26,6 @@ export type { ResolvePersonasForParticipants } from "@orb/contracts/persona";
 // standing pin keeps resolving after its owner leaves or is disabled, so a card never re-resolves to someone
 // else on its own. It is read live through `chatId`, never copied, and clears when the owner deletes the
 // persona. The op takes the room, never a pin id, so no caller can name a persona past the consent gate.
-
-/** D259 — a sign-up joiner's persona insert, unexecuted, with the id it mints. It runs inside chat's signup batch
- *  and writes only where the statement before it changed a row. */
-export type JoinerPersonaStatementOp = (args: { readonly ownerId: UserId; readonly persona: JoinerPersona; readonly at: number }) => {
-  readonly personaId: PersonaId;
-  readonly statement: AwaitableStatementToken<{ id: PersonaId }[]>;
-};
 
 /** What the user-publics read needs from the domains that own the other two facts: the account handle
  *  (sessions owns the `users` read) and the user's settings (the profile avatar fallback). */
