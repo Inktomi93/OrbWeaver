@@ -206,7 +206,7 @@ export const CLIENT_SEAL_RESTRICTIONS = [
       {
         selector: `ImportSpecifier[imported.name=${REGISTRY_FACTORIES}], ${REGISTRY_FACTORY_NAMES.map((name) => `MemberExpression${memberNamed(name)}`).join(", ")}, ObjectPattern > Property[computed=false][key.name=${REGISTRY_FACTORIES}]`,
         message:
-          "createRegistry and createContributorRegistry are called only at the composition root (main.tsx) or in a compose/ module; any other call site is a private assembly outside the one registration door.",
+          "createRegistry and createContributorRegistry are called only in a module under packages/client/src/compose/; any other call site is a private assembly outside the one registration door.",
       },
     ],
   },

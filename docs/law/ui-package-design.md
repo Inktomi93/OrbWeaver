@@ -61,7 +61,7 @@ packages/ui/
       virtual-list/       ← TanStack Virtual, directDomUpdates (D54)
       message-list/       ← the chat seal (same lib)   media-grid/ ← lanes grid (same lib)
       icons/              ← lucide-react (the ONE icon set; dep-cruiser `ui-satellite-seals-*`)
-      + the Wave-3/carve-out set (checkbox · radio-group · toggle(-group) · textarea · autocomplete ·
+      + the carve-out set (the directory listing of `packages/ui/src/primitives/` is the truth; for example checkbox · radio-group · toggle(-group) · textarea · autocomplete ·
         combobox · separator · collapsible · accordion · scroll-area · alert-dialog · progress ·
         badge · skeleton · spinner · empty-state · card · list-row · selection-bar ·
         save-bar · compare-blocks · avatar-stack · file-dropzone · file-trigger ·
@@ -85,14 +85,16 @@ packages/ui/
                         #   Streamdown 2.5 dropped its bundled Shiki); no diagram plugin, so a mermaid
                         #   fence renders as code — Tier-A allowlist lives HERE (D294, UI-Theming-and-Content §12.2)
     stream/             # useSmoothText pacer + TTFT shimmer (§6.3.1 — pure string-math)
-    content/            # sandbox-frame/ · message-media/ · theme-scope/ · lightbox/ — each a sealed
-                        #   dir (D294 — the security trio + lightbox)
+    content/            # sandbox-frame/ · message-media/ · theme-scope/ · lightbox/ · immersive-card/ ·
+                        #   theme-swatch/ — each a sealed dir (D294 — the security trio + lightbox)
     code-editor/        # seals CodeMirror 6, token-themed (custom-CSS field · Tier-B card CSS · D46)
     diff/               # seals `diff` (jsdiff) — snapshot/edit-history diff views (D28/D54)
-    lib/                # cross-cutting seams: `cn` (tailwind-variants merge, re-exported) + the
-                        #   configured `tv` factory (§5) + focus-ring/overlay-motion/portal-container/
+    lib/                # cross-cutting seams: `cn` and the configured `tv` factory, both built in
+                        #   `class-merge.ts` on one tailwind-merge configuration (§5) + focus-ring/overlay-motion/portal-container/
                         #   reduced-motion/result-count helpers. Primitives import from here, never a raw lib.
-    styles/ { globals.css · theme.css (GENERATED @theme) }
+    styles/             # globals.css · layers.css · tiers.css · theme.css (GENERATED @theme) · the region
+                        #   sheets globals.css imports (see lockdown §4.2)
+    art/                # WebWeave glyph art (§12)
   (no root barrel — subpath exports only, one per group; see below)
 ```
 
@@ -109,13 +111,13 @@ packages/ui/
 Versions live in the pnpm **catalog** (`catalog:` in `package.json`), not this table — the catalog is
 the one home for the number. `@base-ui/react` v1 broke its RC-era APIs, so **every wrap is written
 against the live per-component docs (base-ui.com), never memory** (the DEAD rc-era package
-`@base-ui-components/react` must never be installed). The dep-cruiser `ui-satellite-seals-*` rules (§8)
-enforce the seal column: a lib may only be imported from its sealed dir.
+`@base-ui-components/react` must never be installed). The dep-cruiser `ui-satellite-seals-*` rules in `.dependency-cruiser.ts`
+seal the libs they name to the dir in the seal column. Package resolution protects the rest.
 
 | Dep(s) | Seals | Notes |
 | - | - | - |
 | `@base-ui/react` | every Base UI wrap (`primitives/`, `layout/toolbar`) | THE headless primitive (D42); react + react-dom peers ride it (§1) |
-| `tailwind-variants` (+ `tailwind-merge`) | `lib/` — the `cn` merge + configured `tv` (§5) | subsumes cva/clsx as the styling primitive; `tailwind-merge` is a direct dep only so `createTV`'s `twMergeConfig` can register the custom `--text-*` size classGroup (§5) |
+| `tailwind-variants` (+ `tailwind-merge`) | `packages/ui/src/lib/class-merge.ts` — the `cn` merge + configured `tv` (§5) | subsumes cva/clsx as the styling primitive; `tailwind-merge` is a direct dep so `class-merge.ts` can register the custom `--text-*` size classGroup (§5) |
 | `lucide-react` | `primitives/icons/` (dep-cruiser `ui-satellite-seals-*`) | the ONE icon set |
 | `@tanstack/react-virtual` | `primitives/virtual-list/` + `primitives/message-list/` + `primitives/media-grid/` | `directDomUpdates` + core chat APIs (D54) |
 | `streamdown` + `remark-gfm` | `markdown/` | two trust policies |
@@ -186,8 +188,8 @@ Node token-authoring homes and type-only reexports follow [Spine-TypeScript §7.
 - Class values reference THEME tokens only (`bg-primary`, `text-foreground`, `h-(--size-control-md)`,
   `gap-row`, `rounded-control`, `z-overlay`) — raw values (`bg-[#…]`, `gap-[13px]`, `z-50`,
   `bg-black/50`) are not custom-statically enforced in ui after D333 exactly as in features (D43: **no `components/ui/` exemption**).
-- `cn` = tailwind-variants' merge, re-exported from `@orb/ui/lib` — the one class-merge home.
-- `packages/ui/src/lib/index.ts` ALSO exports `tv` — a `createTV`-CONFIGURED factory (NOT the raw `tailwind-variants`
+- `cn` is built in `packages/ui/src/lib/class-merge.ts` on its own configured tailwind-merge and exported from `@orb/ui/lib` — the one class-merge home. Dep-cruiser `ui-class-merge-seal` and `ui-tailwind-variants-runtime-seal` seal both libs to that file.
+- `packages/ui/src/lib/index.ts` ALSO exports `tv` from `class-merge.ts` — a configured factory (NOT the raw `tailwind-variants`
   export). Every primitive MUST import `tv` from `@orb/ui/lib`, never straight from the package:
   the DTCG type-scale utilities (`text-display`…`text-micro`) are custom `--text-*` tokens
   tailwind-merge doesn't know about by default, so an unconfigured `tv()` silently drops the size
@@ -199,33 +201,33 @@ Node token-authoring homes and type-only reexports follow [Spine-TypeScript §7.
 ## 6. THE FACTORY INVENTORY (the reusable machines — home · signature · obligations · tests)
 
 The homing rule (one line): **a factory that touches tRPC/Query/Form/Zustand types is CLIENT-side
-(`packages/client`, Phase 6); a pure component/DOM/string-math factory is UI-side.** The client
+(`packages/client`); a pure component/DOM/string-math factory is UI-side.** The client
 factories are inventoried here because this package is their substrate and their contracts are law
-(UI-Primitives §13.1/§13.4) — a Phase-6 agent builds them against THIS table.
+(UI-Primitives §13.1/§13.4) — a client author builds them against this table.
 
 ### 6.1 UI-side (this package)
 
 | Factory / primitive | Signature (shape) | Obligations it bakes | Test story |
 | - | - | - | - |
 | `tv()` variant configs (per primitive) | `variants.ts` per §5 | tokens-only classes; union-typed variants; slots for multi-part | CT: variant renders; `tsc`: bad variant fails `test:types` |
-| the virtualizer seal `<VirtualList>` (`packages/ui/src/primitives/virtual-list/virtual-list.tsx`) | `{ count, getItemKey (REQUIRED, id-based), estimateSize, overscan?, lanes?, rangeExtractor?, renderItem }` | `directDomUpdates: true` + `containerRef` (Compiler fix, 3.14+); `useFlushSync: false` (React 19); the unbounded-window tripwire as a **thrown error** (not a warn); `measureElement` + `data-index` wiring; `directDomUpdatesMode: 'position'` for iframe/portal rows | CT: renders windowed; tripwire throws on unbounded parent; scroll updates ≤2 re-renders (the upstream E2E assertion) |
+| the virtualizer seal `<VirtualList>` (`packages/ui/src/primitives/virtual-list/virtual-list.tsx`) | `{ items, getItemKey(item, index) (REQUIRED, id-based), estimateSize, renderItem, overscan?, gapToken?, lanes?, rangeExtractor?, … }` — `VirtualListProps` in the source file is the full list | `directDomUpdates: true` + `containerRef` (Compiler fix, 3.14+); `useFlushSync: false` (React 19); the unbounded-window tripwire as a **thrown error** (not a warn); `measureElement` + `data-index` wiring; `directDomUpdatesMode: 'position'` for iframe/portal rows | CT: renders windowed; tripwire throws on unbounded parent; scroll updates ≤2 re-renders (the upstream E2E assertion) |
 | `<MessageList>` seal (chat) | adds `anchorTo:'end'`, `followOnAppend`, `isAtEnd`/`scrollToEnd` ("jump to latest"), no-recycle window for Tier-B iframe rows (the `keepMounted` predicate) | stick-to-bottom-without-yank; prepend stability (id keys); hoisted row state | CT: append-while-pinned follows; scrolled-up reader never yanked |
 | `<Meter kind>` + `<SegmentedClock>` | `Meter: { kind: 'linear'\|'arc'\|'bipolar', value, max?, milestones?: number[], dangerBelow?: number, label }` · `SegmentedClock: { segments: int ≥2, filled, size?, completed? }` | hand-rolled ARIA (`role="meter"` + value semantics) — ONE rendering mechanism across kinds (Base UI's Meter is linear-DOM-shaped; arc/bipolar need SVG); `dangerBelow` swaps the danger INTENT token (never a color calc); bipolar is center-origin −/+ | CT: 0/partial/full/completed clock; bipolar ticks; danger token swap; ARIA values (the fixtures are plain objects shaped like the HUD props, no contracts import) |
 | `@orb/ui/markdown` (Streamdown seal) | `<Markdown trust="trusted"\|"untrusted">` | the TWO trust policies (§11.6), built against the VERIFIED Streamdown 2.5 API — `allowedElements`/`disallowedElements` + `urlTransform` (the docs-assumed `allowedImagePrefixes`/`allowDataImages` API does NOT exist — recorded delta, §10): `trusted` = Streamdown's permissive defaults (rehype-sanitize + rehype-harden) plus the D294, UI-Theming-and-Content §12.2 Tier-A element allowlist; `untrusted` = the Tier-A allowlist MINUS `img` + the `untrustedUrlTransform` protocol/host gate (`http`/`https`/`mailto` only, `data:` blocked); `remark-gfm {singleTilde:false}`; the `shiki-plugin.ts` `CodeHighlighterPlugin` supplied via `plugins.code` (Streamdown 2.5 ships no bundled Shiki); no `plugins.mermaid`, so a mermaid block renders as inert code under both policies; an error boundary around the lazy CodeBlock; a large-block guard | CT: `<script>` stripped; `on*` stripped; data-URI image blocked under `untrusted`; `~10~20°C` not struck through |
 | `<ThemeScope>` | `{ tokens: ThemeScopeTokens, children }` — ui-local Zod-clamped subset (D294, UI-Theming-and-Content §12.1) | values parsed+clamped at the boundary (colors must parse as colors — reject `url()`/`expression()`; dims snap to token scale; font from allowlist); applies ONLY scoped CSS custom props on a wrapper; NEVER raw style passthrough (lint `orb/theme-override-only-via-scope`) | CT: hostile values (`url(//x)`, `expression(...)`, `;injection`) are rejected/dropped; legal overrides land as `--token` custom props on the scope node only |
-| `<MessageMedia>` | `{ src: { kind:'asset', url } \| { kind:'external', url }, media: 'image'\|'audio'\|'video', alt, dims?, allowExternal: boolean }` | asset-vs-external dispatch; `forbidExternalMedia`-style click-to-load placeholder when `!allowExternal`; **autoplay FORCED OFF + `controls` required on untrusted A/V (non-overridable)**; lazy-load; aspect reservation (no layout shift); broken-media fallback; lightbox hook | CT: external img does NOT hit the network un-gated (placeholder first); untrusted `<video>` has `controls` and never `autoplay`; aspect box reserved pre-load |
-| `<SandboxFrame>` | `{ html, css?, themeTokens?, title, complete?, heightPx? }` | `sandbox` = `CARD_FRAME_SANDBOX` (`@orb/kit/card-frame`), **never `allow-same-origin`**; card scripts run only under the `interactive` posture (D294, §12.2 of UI-Theming-and-Content.md); per-frame CSP from `buildCardFrameCsp` (no `connect-src`, gated `img-src`/`media-src`); render-on-complete; `heightPx` until the frame reports a clamped height; theme-token injection so `var(--accent)` tracks | CT: `sandbox`/`csp` attrs EXACT (string-asserted); a card script does not execute under the `static` posture |
+| `<MessageMedia>` | `{ src: { kind:'asset', url } \| { kind:'external', url }, media: 'image'\|'audio'\|'video', alt, dims?, allowExternal? }` | asset-vs-external dispatch; `forbidExternalMedia`-style click-to-load placeholder when `!allowExternal`; **autoplay FORCED OFF + `controls` required on untrusted A/V (non-overridable)**; lazy-load; aspect reservation (no layout shift); broken-media fallback; lightbox hook | CT: external img does NOT hit the network un-gated (placeholder first); untrusted `<video>` has `controls` and never `autoplay`; aspect box reserved pre-load |
+| `<SandboxFrame>` | `{ html, title, css?, themeTokens?, styleTokens?, fontFamily?, allowExternalMedia?, src?, complete?, heightPx?, fill?, … }` | `sandbox` = `CARD_FRAME_SANDBOX` (`@orb/kit/card-frame`), **never `allow-same-origin`**; card scripts run only under the `interactive` posture (D294, §12.2 of UI-Theming-and-Content.md); per-frame CSP from `buildCardFrameCsp` (no `connect-src`, gated `img-src`/`media-src`); render-on-complete; `heightPx` until the frame reports a clamped height; theme-token injection so `var(--accent)` tracks | CT: `sandbox`/`csp` attrs EXACT (string-asserted); a card script does not execute under the `static` posture |
 | `<Lightbox>` | hand-built over Dialog + MessageMedia (D54 — no lib) | zoom view for image/video; focus trap + Esc from Base UI Dialog | CT: opens/closes; media renders through MessageMedia (gates compose) |
-| `code-editor` seal | `<CodeEditor lang="css"\|…, value, onChange, readOnly?>` | CM6 behind the seam; token-themed via an editor theme built FROM the TS token map (one mapping site); no raw CodeMirror import outside the dir (dep-cruiser) | CT: mounts, edits, theme vars applied |
+| `code-editor` seal | `<CodeEditor lang="css"\|…, value, onChange, ariaLabel, readOnly?>` | CM6 behind the seam; token-themed via an editor theme built FROM the TS token map (one mapping site); no raw CodeMirror import outside the dir (dep-cruiser) | CT: mounts, edits, theme vars applied |
 | `diff` seal | `<DiffView before after mode="chars"\|"lines">` | jsdiff v9 behind the seam; add/remove intent tokens | CT: known before/after renders adds/dels |
 | `useSmoothText` pacer + shimmer (stream/) | `(text, opts) => paced` | grapheme-cluster safety; adaptive backlog drain; hidden-tab flush; reduced-motion passthrough (§6.3.1) | node tests (pure string-math) + CT compose check with Markdown fade |
 | `icons` seal | re-export of the lucide set actually used + `<Icon>` sizing wrapper | one icon lib (dep-cruiser `ui-satellite-seals-*`); token-driven sizes | CT smoke |
 | layout primitives | `<Stack> <Row> <Section> <Toolbar> <Container name size>` | `Container` owns `container-type/-name` (features never write raw containment); intent-token gaps/padding as variant unions; Toolbar = Base UI Toolbar (roving tabindex) + layout skin | CT: containment established (a `@container` child query resolves); gap variants map to intent tokens |
 
-### 6.2 Client-side (Phase 6 — inventoried so the homes are pre-decided; DO NOT build in ui)
+### 6.2 Client-side (inventoried so the homes are fixed; DO NOT build in ui)
 
-> Every factory below exists at its pre-decided home (`client/src/{forms,data,state,lib}` — the code
-> is now the doc for the built shapes). The table records the design contract for these client factories. D333 ends custom static enforcement; use the relevant application tests and review.
+> Every factory below lives at its home (`client/src/{forms,data,state,lib}` — the code
+> is the doc for the shapes). The table records the design contract for these client factories. D333 ends custom static enforcement; use the relevant application tests and review.
 
 | Factory | Home | Why client-side | Signature + the baked obligations (canonical spec cite) |
 | - | - | - | - |
@@ -237,10 +239,10 @@ factories are inventoried here because this package is their substrate and their
 | `useGatedQuery` | `client/data` | Query types | null id → `skipToken` (kills `castId("")` — ESLint `orb/no-fake-disabled-id`); documents the `refetch()`-with-skipToken caveat. |
 | `<QueryBoundary>` | `client/components` | Query + Suspense | the `QueryErrorResetBoundary` → `ErrorBoundary onReset={reset}` handshake (retry that actually refetches); `useSuspenseQueries` for parallel; `startTransition` around pane switches (pairs `<Activity>`). |
 | `invalidation.ts` (the seam) | `client/data` | tRPC queryFilters | ONE domain-event → `queryFilter()` map; mutations' `onSettled` + bus handlers call `invalidate(event)` (gate `orb/no-inline-invalidate-outside-seam`); keys are always `trpc.*.queryKey(args)` — the same key the reader uses. |
-| bus reducer (`applyChatBusEvent`) | `client/data/bus` | contracts DU + QueryClient | pure exhaustive switch over the server-authoritative event union; slot lifecycle owned by terminal turn events; `onData` = buffer-local + invalidate, NEVER a second store (gates `orb/bus-on-data-no-store-write`, `orb/chat-stream-writes-in-bus-only` (plan-time `no-inline-cache-surgery-in-stream`) — scoped to subscription bodies so `onMutate` doesn't trip). |
+| bus reducer (`applyChatBusEvent`) | `client/data/bus` | contracts DU + QueryClient | pure exhaustive switch over the server-authoritative event union; slot lifecycle owned by terminal turn events; `onData` = buffer-local + invalidate, NEVER a second store (`orb/bus-on-data-no-store-write` is scoped to `packages/client/src/data/bus/**`; `orb/chat-stream-writes-in-bus-only` refuses the `chatStream` name outside `packages/client/src/data/bus/chat-bus-writes.ts` and tests). |
 | `createEntityDraftStore` | `client/state` | Zustand persist | frozen `EMPTY` stable default (the v5 `?? CONSTANT` pattern) + `useShallow` for multi-field selectors (different jobs — keep both); `persist` requires `partialize: (s)=>({drafts:s.drafts})`, `version` and a total, crash-proof `migrate`; native types enforce key presence, not runtime totality; DU lifecycle transitions via `set(next, true)` replace. |
 | the panel-store shape | `client/state` | Zustand | one `create` per file · ≤10 authored fields · no exported `set`/`getState` · persisted device-local ONLY for device state (dock/collapse) — synced prefs go in the server `UserSettings` blob (D294, UI-Theming-and-Content §12.1). |
-| the registry pattern (sections/modals/panes/chrome via `createRegistry`/`createContributorRegistry` — D70/D73; the former `RAIL_SLOTS`/`MODAL_SLOTS` static maps and the `check:registry-pairing` script are DEAD) | `client` features + `main.tsx` | feature wiring | registry-as-data wired at the composition root; walls carried by the `*-registry-completeness` gates + total door Records so a missing member is a `tsc` error. |
+| the registry pattern (sections/modals/panes/chrome via `createRegistry`/`createContributorRegistry` — D70/D73; the former `RAIL_SLOTS`/`MODAL_SLOTS` static maps and the `check:registry-pairing` script are DEAD) | `client` features + `packages/client/src/compose/` | feature wiring | registry-as-data wired at the composition root; total door Records over the vocabulary tuples make a missing member a `tsc` error. |
 | `ChatHandle` | `client` | domain-shaped | the `{kind:'committed';id} \| {kind:'draft';id;meta}` discriminated handle threaded from the root — the typed `this_chid`/`isOptimistic` successor. |
 | `packages/client/src/lib/time.ts` seam | `client/lib` | Intl + injected now | epoch-UTC wire → browser-local display, memoized `Intl.*`, injected `now` (snapshot-testable). |
 

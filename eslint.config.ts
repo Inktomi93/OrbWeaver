@@ -1666,7 +1666,7 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
     },
     {
       files: ["packages/client/src/**/*.{ts,tsx}"],
-      ignores: ["packages/client/src/main.tsx", "packages/client/src/**/compose/**"],
+      ignores: ["packages/client/src/compose/**"],
       rules: { "orb/registry-assembly-at-door-only": "error" },
     },
     { files: ["packages/client/src/state/*.{ts,tsx}"], ignores: ["packages/client/src/state/index.ts"], rules: { "orb/state-files": "error" } },

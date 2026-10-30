@@ -422,11 +422,11 @@ for (const [name, rule, path, source, count] of [
     1,
   ],
   [
-    "registry-assembly-at-door-only the composition root is the door",
+    "registry-assembly-at-door-only the boot module main.tsx is not the door",
     ASSEMBLY,
     "packages/client/src/main.tsx",
     'import { createRegistry } from "./lib/registry.ts";\nexport const x = createRegistry("t", ["a"], { a: 1 });\n',
-    0,
+    1,
   ],
   [
     "registry-assembly-at-door-only a compose module is the door",
@@ -436,11 +436,18 @@ for (const [name, rule, path, source, count] of [
     0,
   ],
   [
-    "registry-assembly-at-door-only a nested compose module is the door",
+    "registry-assembly-at-door-only a nested compose module under compose/ is the door",
+    ASSEMBLY,
+    "packages/client/src/compose/chat/sections.ts",
+    'import { createRegistry } from "../../lib/registry.ts";\nexport const x = createRegistry("t", ["a"], { a: 1 });\n',
+    0,
+  ],
+  [
+    "registry-assembly-at-door-only a compose directory inside a feature is not the door",
     ASSEMBLY,
     "packages/client/src/features/x/compose/sections.ts",
     'import { createRegistry } from "../../../lib/registry.ts";\nexport const x = createRegistry("t", ["a"], { a: 1 });\n',
-    0,
+    1,
   ],
   [
     "registry-assembly-at-door-only server source is another law",
@@ -464,10 +471,10 @@ for (const [name, rule, path, source, count] of [
     1,
   ],
   [
-    "registry-assembly-at-door-only the same home-tile assembly at the composition root passes",
+    "registry-assembly-at-door-only the same home-tile assembly in compose passes",
     ASSEMBLY,
-    "packages/client/src/main.tsx",
-    'import { createContributorRegistry } from "./lib/registry.ts";\nexport const tiles = createContributorRegistry("home-tiles", []);\n',
+    "packages/client/src/compose/home-tiles.ts",
+    'import { createContributorRegistry } from "../lib/registry.ts";\nexport const tiles = createContributorRegistry("home-tiles", []);\n',
     0,
   ],
   [
