@@ -72,9 +72,10 @@ const styleTokenValue = (name: CardFrameStyleTokenName): z.ZodExactOptional<z.Zo
     .refine((value) => clampCardFrameStyleToken(name, value) !== undefined, { error: `${name} is outside its style grammar` })
     .exactOptional();
 
-// The closed non-color slice: only the `CARD_FRAME_STYLE_TOKEN` names, each optional because the client's own
-// clamp may already have dropped a value. Strict, so any other key is a refusal rather than a silent strip.
-const cardFrameStyleTokensSchema = z.strictObject({
+/** The closed non-color slice: only the `CARD_FRAME_STYLE_TOKEN` names, each optional because the client's own
+ *  clamp may already have dropped a value. Strict, so any other key is a refusal rather than a silent strip.
+ *  The one wire home for the slice: the card mint and the plugin-frame mint both parse with it. */
+export const cardFrameStyleTokensSchema = z.strictObject({
   [CARD_FRAME_STYLE_TOKEN.radius]: styleTokenValue(CARD_FRAME_STYLE_TOKEN.radius),
   [CARD_FRAME_STYLE_TOKEN.monoFamily]: styleTokenValue(CARD_FRAME_STYLE_TOKEN.monoFamily),
   [CARD_FRAME_STYLE_TOKEN.rootSize]: styleTokenValue(CARD_FRAME_STYLE_TOKEN.rootSize),

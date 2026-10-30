@@ -29,6 +29,7 @@
 
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
+import { cardFrameStyleTokensSchema } from "../chat/card-frame.ts";
 import { PLUGIN_SURFACE_ID_RE } from "./ui.ts";
 
 /** The route prefix — the mint POSTs here, the frame document is `${PLUGIN_FRAME_ROUTE}/<id>`. */
@@ -89,13 +90,10 @@ export const pluginFrameMintRequestSchema = z.strictObject({
     .record(z.string().max(MAX_TOKEN_NAME_CHARS), z.string().max(MAX_TOKEN_VALUE_CHARS))
     .refine((r) => Object.keys(r).length <= MAX_THEME_TOKENS, { error: `at most ${MAX_THEME_TOKENS} tokens` })
     .optional(),
-  /** The NON-COLOR `--*` slice (#799) — a radius, the mono family list. It is a SECOND record rather than
-   *  more keys in `themeTokens` because the server re-clamps the two with different grammars: `isSafeColor`
-   *  is color-only and would drop every value here. Same per-entry caps, same count bound. */
-  styleTokens: z
-    .record(z.string().max(MAX_TOKEN_NAME_CHARS), z.string().max(MAX_FONT_FAMILY_CHARS))
-    .refine((r) => Object.keys(r).length <= MAX_THEME_TOKENS, { error: `at most ${MAX_THEME_TOKENS} tokens` })
-    .optional(),
+  /** The card frame's closed NON-COLOR slice, parsed by the card mint's own schema: a key outside it or a value
+   *  outside its grammar is a 400, never a silent strip. A second field rather than more keys in `themeTokens`
+   *  because `isSafeColor` is color-only. The server still re-clamps, which bounds the root size. */
+  styleTokens: cardFrameStyleTokensSchema.optional(),
   /** The resolved UI font-family list. Re-validated server-side against the kit font-list grammar. */
   fontFamily: z.string().max(MAX_FONT_FAMILY_CHARS).optional(),
 });

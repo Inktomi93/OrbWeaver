@@ -22,4 +22,4 @@ The plugin mint reuses the closed slice from its one home, a mint with an extra 
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+`pluginFrameMintRequestSchema.styleTokens` is `cardFrameStyleTokensSchema` from `packages/contracts/src/chat/card-frame.ts`. [Plugin frame style tokens](../../tests/server/entry/http/plugin-frame-style-tokens.int.test.ts) installs a real guest that registers a frame and mints through the real HTTP entry. An extra key, a foreign key and a CSS-bearing value answer 400; the in-range slice reaches the served root; the clamped root size is served at its bound. The headers equal `cardFrameResponseHeaders` of the route's one policy on the served, unstyled and miss answers, and the styled document differs from the unstyled one only by its root block. Against the unmodified schema the refusal case failed with 200.
