@@ -1,5 +1,3 @@
-import type { AttachCardTagByNameParams } from "./params.ts";
-import type { TagService } from "./service.ts";
+import type { AttachCardTagByNameParams } from "@orb/contracts/tag";
 
-export type ImportTagPort = Pick<TagService, "attachCardTagByName">;
 export type AttachImportedCardTag = (params: Pick<AttachCardTagByNameParams, "characterId" | "tagName">) => Promise<boolean>;

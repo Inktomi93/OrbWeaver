@@ -1,14 +1,6 @@
 import type { ImageCaptionMeta } from "@orb/contracts/embeddings";
-import type { EffectiveAppConfig } from "@orb/contracts/settings";
 
 export type { StoreResult } from "@orb/contracts/embeddings";
-
-/** The live effective-config read both the reindex triggers and the indexer subscription close over. */
-export type EffectiveConfigRead = () => EffectiveAppConfig;
-
-export interface WriteHubScoresResult {
-  readonly rowsUpdated: number;
-}
 
 /** One owner's Utility analysis before persistence: caption and provenance/facets share one call.
  * An empty caption is the facetless skip signal. The indexer saves a successful annotation before
@@ -55,11 +47,6 @@ export interface PurgeMemoryVectorsResult {
  *  the consolidations that folded them). Zero on every ordinary build; non-zero exactly when the ingest set
  *  shrank, which makes it the observability signal for a leak that used to be silent. */
 export interface PruneMemoryBlocksResult {
-  readonly rowsDeleted: number;
-}
-
-/** rows deleted by the reindex-shrink prune (shrunk tail + retired-space rows). */
-export interface PruneDocumentChunksResult {
   readonly rowsDeleted: number;
 }
 

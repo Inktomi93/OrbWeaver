@@ -74,23 +74,8 @@ export type BulkAttachTagParams = TagActorParams &
     readonly status?: TagStatus;
   };
 
-/** The internal resolve-or-create-by-name card-tag attach. Deliberately not a {@link TagActorParams}: it
- *  carries the already-resolved `ownerId` directly, because the caller has already owner-verified the
- *  character. */
-export interface AttachCardTagByNameParams {
-  readonly ownerId: UserId;
-  readonly characterId: CharacterId;
-  readonly tagName: string;
-  /** Stamped on the tag at first create only. Default `manual`; import/seeded cards pass `card`;
-   *  corpus distillation passes `auto`. */
-  readonly source?: TagSource;
-  /** Default `accepted`; distillation passes `pending` to stage a suggestion. Never downgrades an
-   *  already-`accepted` row. */
-  readonly status?: TagStatus;
-}
-
 /** The internal resolve-or-create-by-name CHAT-tag attach (R6 — the orb-native chat bundle's tag overlay
- *  re-link). Same posture as {@link AttachCardTagByNameParams}: the caller has already resolved authority on
+ *  re-link). Same posture as `AttachCardTagByNameParams`: the caller has already resolved authority on
  *  the chat, so this carries the resolved `ownerId` and no principal.
  *
  *  NO `status`, and that is the D30 shape rather than an omission: `chat_tags` is a per-TAGGER overlay whose

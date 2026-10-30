@@ -4,6 +4,7 @@
 // collapse to first. A malformed file throws DomainOperationError; the portability core wraps it per-file so
 // one bad file never aborts a bundle.
 
+import type { TagLibraryImportResult } from "@orb/contracts/tag";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import { DomainOperationError } from "@orb/kit/errors";
@@ -11,7 +12,6 @@ import type { UserId } from "@orb/kit/ids";
 import { normalizeTagName } from "@orb/kit/tag";
 import { portableParseError } from "#primitives/serde/lib";
 import { parseTagLibrary, TAG_LIBRARY_SCHEMA_KIND } from "#primitives/serde/tag";
-import type { TagLibraryImportResult } from "../contract/results.ts";
 import type { TagContext } from "../contract/service.ts";
 import { restoreOwnedTags } from "../persistence/queries.ts";
 

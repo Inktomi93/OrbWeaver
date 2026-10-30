@@ -23,6 +23,7 @@ import type { SideGenKind } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ThemeBackground } from "@orb/contracts/theme";
+import type { IsToolDrivableByOp } from "@orb/contracts/tool-use";
 import type { UpsertEntriesResult, UpsertLoreEntryInput } from "@orb/contracts/world-info";
 import type { automationRules, Db } from "@orb/db";
 import type {
@@ -314,7 +315,7 @@ export interface AutomationOps {
      *    • the MINT gate (`substrate/validate.ts`) ⇒ a typed refusal; the rule is never stored.
      *    • the per-fire PAUSE gate (`engine/dispatch.ts::runGates`) ⇒ the rule pauses, spending nothing.
      *  Synchronous because the registry is an in-process Map — a per-fire gate must cost nothing. */
-    readonly isToolDrivableBy: (toolName: string, authorUserId: UserId) => boolean;
+    readonly isToolDrivableBy: IsToolDrivableByOp;
     /** Invoke one tool as the rule author. Re-checks reachability ITSELF (never trusting that a caller
      *  checked) and returns `unavailable` when it has gone — so the pause posture holds even when a plugin is
      *  deactivated in the window between the gate and this call. Never throws for a tool-level failure. */

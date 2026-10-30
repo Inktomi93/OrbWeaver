@@ -1057,9 +1057,6 @@ export type GetCharacterCardOp = (params: { readonly principal: Principal; reado
  *  null when the card is gone or synthetic. */
 export type LoadCharacterCardTextOp = (characterId: CharacterId) => Promise<string | null>;
 
-/** Detaches a tag by name from one owned character; returns whether anything was detached (idempotent). */
-export type DetachCardTagOp = (args: { readonly ownerId: UserId; readonly characterId: CharacterId; readonly tagName: string }) => Promise<boolean>;
-
 /** Every user-facing character verb carries the resolved principal; ownership scopes off `principal.userId`. */
 export interface CharacterActorParams {
   readonly principal: Principal;
