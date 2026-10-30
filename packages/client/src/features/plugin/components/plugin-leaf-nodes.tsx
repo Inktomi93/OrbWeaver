@@ -406,7 +406,8 @@ function FormLeaf({
         variant={buttonVariant(node, primaryButton)}
         loading={submitting}
         onClick={(): void => submit(node.actionId)}
-        size="wrap"
+        size="sm"
+        wrap={true}
       >
         {node.label}
       </Button>
@@ -442,7 +443,7 @@ function ConfirmButtonLeaf({
       onConfirm={(): void => submit(node.actionId)}
       title={node.confirmTitle}
       trigger={
-        <Button className="self-start wrap-anywhere max-inline-full" ref={confirmTrigger} tone="destructive" loading={submitting} size="wrap">
+        <Button className="self-start wrap-anywhere max-inline-full" ref={confirmTrigger} tone="destructive" loading={submitting} size="sm" wrap={true}>
           {node.label}
         </Button>
       }

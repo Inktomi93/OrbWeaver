@@ -40,9 +40,9 @@ export function SegmentField(props: SegmentFieldProps): ReactElement {
         aria-label={props.label}
       >
         {props.items.map((item) => (
-          // `intent="outline"` for the MultiToggleField reason verbatim: in a FORM an unselected option
+          // `variant="outline"` for the MultiToggleField reason verbatim: in a FORM an unselected option
           // must read as an option (a box), not a caption — one rail, stated once, both toggle fields.
-          <Toggle key={item.value} value={item.value} aria-label={item.label} intent="outline">
+          <Toggle key={item.value} value={item.value} aria-label={item.label} variant="outline">
             {item.label}
           </Toggle>
         ))}

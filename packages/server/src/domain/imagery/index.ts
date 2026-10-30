@@ -4,7 +4,7 @@
 
 export type { CaptionImageDeps } from "./contract/generation-ops.ts";
 export type { ImageryPortabilityService } from "./contract/portability.ts";
-export type { ImageryContext, ImageryService } from "./contract/service.ts";
+export type { ImageryService } from "./contract/service.ts";
 export { createImageryPortability, createImageryService } from "./service.ts";
 export { imageryToolDefinitions } from "./tool/index.ts";
 export { createCaptionImage } from "./verbs/caption-image.ts";

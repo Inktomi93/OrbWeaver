@@ -70,7 +70,8 @@ export function MessageChoicesBlock({ options }: MessageChoicesBlockProps): Reac
           <Button
             key={key}
             variant="outline"
-            size="wrap"
+            size="sm"
+            wrap={true}
             focusableWhenDisabled={true}
             disabled={disabled}
             aria-describedby={reason === undefined ? undefined : reasonId}

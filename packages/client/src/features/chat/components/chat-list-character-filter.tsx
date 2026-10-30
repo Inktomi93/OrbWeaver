@@ -147,7 +147,7 @@ export function ChatListFilterChip({ filter }: { readonly filter: ChatListCharac
       <Badge tone="primary" size="sm">
         {filter.name}
       </Badge>
-      <Button aria-label={`Clear the ${filter.name} filter`} variant="ghost" onClick={clearChatListCharacterFilter} size="icon" type="button">
+      <Button aria-label={`Clear the ${filter.name} filter`} variant="ghost" onClick={clearChatListCharacterFilter} square={true} type="button">
         <Icon icon={X} size="sm" />
       </Button>
     </Row>

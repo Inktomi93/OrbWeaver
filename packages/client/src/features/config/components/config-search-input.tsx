@@ -226,7 +226,12 @@ export function ConfigSearchInput({ groups }: ConfigSearchInputProps): ReactElem
           </Stack>
           {/* The FUNNEL — inserts `@` and the token menu opens, so the grammar teaches itself (§3.3). */}
           <Tip text="Add a search filter">
-            <CommandAuxiliaryButton aria-label="Add a search filter" onClick={(): void => setConfigSearchQuery(applyConfigToken(query, "@"))} size="icon-sm">
+            <CommandAuxiliaryButton
+              aria-label="Add a search filter"
+              onClick={(): void => setConfigSearchQuery(applyConfigToken(query, "@"))}
+              size="sm"
+              square={true}
+            >
               <Icon icon={SlidersHorizontal} size="sm" />
             </CommandAuxiliaryButton>
           </Tip>

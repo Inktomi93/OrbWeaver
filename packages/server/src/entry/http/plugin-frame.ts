@@ -191,9 +191,8 @@ export function registerPluginFrame(app: Hono<PrincipalEnv>, deps: PluginFrameDe
           html: `${assetUrlBootstrap(handleId)}${frame.html}`,
           css: frame.css,
           themeTokens: body.themeTokens,
-          // The NON-COLOR half of the widened slice (#799) — radius + the mono family. Clamped inside
-          // `buildCardFrameDocument` by its own grammar (a CSS length or a font-family list), on OUR side of the
-          // boundary, exactly as the color half is.
+          // The schema admitted only the card frame's closed slice, each value past its own grammar; this clamp
+          // still runs here and is the one that bounds the root size to the appearance range.
           styleTokens: body.styleTokens,
           fontFamily: body.fontFamily,
         }),

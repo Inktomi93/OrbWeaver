@@ -89,7 +89,7 @@ function BiasEntries({ bias, onChange }: { readonly bias: Bias | undefined; read
               aria-label={`Remove logit bias ${key}`}
               variant="ghost"
               onClick={(): void => onChange(Object.fromEntries(entries.filter(([other]) => other !== key)))}
-              size="icon"
+              square={true}
               type="button"
             >
               <Icon icon={X} size="xs" />

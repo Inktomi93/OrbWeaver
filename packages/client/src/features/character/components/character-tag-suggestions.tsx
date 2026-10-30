@@ -108,7 +108,7 @@ export function CharacterTagSuggestions({ characterId, trpc }: CharacterTagSugge
  *  already names the producer.
  *
  *  ONE CONTROL PER VERB, AND THE NAME IS THE ACCEPT TARGET (side-eye 2026-08-18 P2-5). The chip used to
- *  carry the name plus TWO `size="icon"` buttons, which at a coarse pointer are 44-48px boxes BY TOKEN
+ *  carry the name plus TWO `square` buttons, which at a coarse pointer are 44-48px boxes BY TOKEN
  *  (D62 P1, the touch floor — law, and not something a chip may shave). Two of them per chip ran the chips
  *  125-236px wide, so eleven of them could not pack a 382px phone column: measured row fills 164 · 330 ·
  *  211 · 193 · 236 · 372 · 333 · 177 of 382 — a median row ~55% full, 588px tall, 63% of the viewport,
@@ -146,7 +146,7 @@ function SuggestionChip({
         </Text>
       </Button>
       <EditableTagChip tag={tag} iconOnly={true} />
-      <Button type="button" size="icon" variant="ghost" aria-label={`Dismiss ${name}`} onClick={onReject}>
+      <Button type="button" square={true} variant="ghost" aria-label={`Dismiss ${name}`} onClick={onReject}>
         <Icon icon={X} size="xs" />
       </Button>
     </Badge>

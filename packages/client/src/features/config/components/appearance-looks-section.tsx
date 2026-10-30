@@ -200,7 +200,7 @@ function LooksBody(): ReactElement {
                   >
                     {({ open }): ReactElement => (
                       <Tip text="Import a theme file">
-                        <Button aria-label="Import a theme file" variant="ghost" onClick={open} size="icon">
+                        <Button aria-label="Import a theme file" variant="ghost" onClick={open} square={true}>
                           <Icon icon={Upload} size="sm" />
                         </Button>
                       </Tip>

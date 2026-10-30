@@ -182,7 +182,8 @@ function SuggestionCharacter({ suggestion, groupName }: { readonly suggestion: T
       <Button
         className="text-start min-inline-0"
         variant="ghost"
-        size="wrap"
+        size="sm"
+        wrap={true}
         type="button"
         onClick={(): void => {
           selectCharacter(suggestion.characterId);

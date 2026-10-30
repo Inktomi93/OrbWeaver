@@ -81,7 +81,7 @@ function LabelsOverflow(): ReactElement {
     <Menu>
       <MenuTrigger
         render={
-          <Button aria-label="More tag actions" variant="ghost" size="icon-sm">
+          <Button aria-label="More tag actions" variant="ghost" size="sm" square={true}>
             <Icon icon={MoreVertical} size="sm" />
           </Button>
         }

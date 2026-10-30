@@ -1,6 +1,6 @@
-import { DISABLED_STATE, DISABLED_STATE_NATIVE, FIELD_CONTROL, FIELD_CONTROL_BOX, FOCUS_RING, FOCUS_RING_DESTRUCTIVE, tv } from "#lib";
+import { CONTROL_BLOCK, DISABLED_STATE, DISABLED_STATE_NATIVE, FIELD_CONTROL, FIELD_CONTROL_BOX, FOCUS_RING, FOCUS_RING_DESTRUCTIVE, tv } from "#lib";
 
-// The text-input skin — the shared FIELD_CONTROL box + h-(--size-control-sm) floor (the ≥44px law, §4b axis 3).
+// The text-input skin — the shared FIELD_CONTROL box at a control-scale height (the ≥44px law, §4b axis 3).
 export const inputVariants = tv({
   base: [
     "placeholder:text-muted-foreground",
@@ -12,7 +12,10 @@ export const inputVariants = tv({
     FOCUS_RING_DESTRUCTIVE,
   ],
   variants: {
-    // THE INPUT'S SCALE — and with it the height rule. `field` is the form control (the default, unchanged).
+    // THE CONTROL SCALE (D336): the step's height, so a field sits level with the buttons and toggles of its row. The
+    // type stays the field's own pointer-conditional step at every size, because iOS zooms on a smaller focused field.
+    size: CONTROL_BLOCK,
+    // THE INPUT'S LAYOUT — declared after `size`, so the inline arm's text height wins the merge. `field` is the form control (the default, unchanged).
     // `inline` is the CLICK-TO-EDIT twin of Button's `size="inline"`: the input that replaces a datum in
     // place must occupy the SAME visual slot the display did (owner no-shift bar), so it is text-height with
     // the datum's own inset and type, keeping only the chrome that marks it editable (border + bg-input).
@@ -25,7 +28,7 @@ export const inputVariants = tv({
     // stronger reason for the arm to exist at all. The scale can only be chosen HERE (Button `media`/`wrap`,
     // TabsTab `stacked` precedent).
     layout: {
-      field: [FIELD_CONTROL, "block-(--size-control-sm)"],
+      field: FIELD_CONTROL,
       // `text-field-dense` IS THE DENSE STEP WITH THE PLATFORM FLOOR BAKED IN (#1868, §4b axis 3). This arm
       // was `text-label` (13px), two steps under iOS Safari's 16px focus-zoom threshold, so every
       // click-to-edit on a phone zoomed the whole viewport. The token carries the pointer arm
@@ -59,5 +62,5 @@ export const inputVariants = tv({
     // The edit twin of an italic line (a character's thought) keeps the slant.
     italic: { true: "italic", false: "" },
   },
-  defaultVariants: { layout: "field", width: "full", numeric: false, typeStep: "field", italic: false },
+  defaultVariants: { size: "sm", layout: "field", width: "full", numeric: false, typeStep: "field", italic: false },
 });

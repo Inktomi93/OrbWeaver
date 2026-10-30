@@ -2,12 +2,12 @@ import type { InputProps as BaseInputProps } from "@base-ui/react/input";
 import { Input as BaseInput } from "@base-ui/react/input";
 import type { ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
-import { cn } from "#lib";
+import { variantProps } from "#lib";
 import { useFieldIdentity } from "#primitives/field";
 import { inputVariants } from "./variants.ts";
 
-// The native `width` attribute (an image input's pixel width) gives way to the `width` variant.
-export interface InputProps extends Omit<BaseInputProps, "type" | "width">, VariantProps<typeof inputVariants> {
+// The native `width` and `size` attributes give way to the `width` variant and the control scale.
+export interface InputProps extends Omit<BaseInputProps, "type" | "width" | "size">, VariantProps<typeof inputVariants> {
   className?: string;
   /**
    * The native input mode — TEXT-SHAPED values only.
@@ -62,12 +62,12 @@ const UA_RENDERED_INTERIOR: Record<NonNullable<InputProps["type"]>, boolean> = {
  *
  * Usage: `<Input placeholder="Search…" value={query} onValueChange={setQuery} />`
  */
-export function Input({ className, layout, width, numeric, typeStep, italic, id, name, ...rest }: InputProps): ReactElement {
+export function Input({ className, size, layout, width, numeric, typeStep, italic, id, name, ...rest }: InputProps): ReactElement {
   const identity = useFieldIdentity(id, name);
   const uaInteriorUnset = rest.type !== undefined && UA_RENDERED_INTERIOR[rest.type] && rest.value === "";
   return (
     <BaseInput
-      className={cn(inputVariants({ layout, width, numeric, typeStep, italic }), className)}
+      {...variantProps(inputVariants, { size, layout, width, numeric, typeStep, italic }, className)}
       data-slot="input-root"
       // The tier rule sets a field's type step unlayered, so a title-step field says so for tiers.css to keep it.
       data-type-step={typeStep === "title" ? "title" : undefined}

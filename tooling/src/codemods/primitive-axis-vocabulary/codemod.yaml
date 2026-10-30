@@ -1,7 +1,7 @@
 schema_version: "1.0"
 name: "primitive-axis-vocabulary"
 version: "0.1.0"
-description: "Rewrite the literal colour and fill axes of the @orb/ui primitives into the D336 tone, variant and ink vocabulary."
+description: "Rewrite the literal colour, fill and size axes of the @orb/ui primitives into the D336 tone, variant, ink and size vocabulary."
 author: "Orbweaver"
 license: "MIT"
 targets:

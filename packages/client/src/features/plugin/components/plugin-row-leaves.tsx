@@ -158,7 +158,8 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
           // catching internally.
           void runCheck().catch(() => undefined);
         }}
-        size="wrap"
+        size="sm"
+        wrap={true}
       >
         {CHECK_FOR_UPDATES_LABEL}
       </Button>
@@ -173,7 +174,8 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
             // if applyUpgrade stops catching internally.
             void applyUpgrade().catch(() => undefined);
           }}
-          size="wrap"
+          size="sm"
+          wrap={true}
         >
           {verdict.label}
         </Button>

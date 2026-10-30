@@ -23,4 +23,15 @@ Each case is rebuilt through production with a planted-defect red, and the bridg
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The [bridge case map](../plans/test-foundation/design.md#bridge) and the [boot case map](../plans/test-foundation/design.md#selected-case-map-boot-migration-data-layout-and-env-floors) record each decision and its home. The bridge cases run real guests on the production host through the command door:
+
+- [Guest lore write](../../tests/server/domain/plugin/substrate/guest-lore-write.suite.int.test.ts)
+- [Guest installer scope](../../tests/server/domain/plugin/substrate/guest-installer-scope.suite.int.test.ts)
+- [Guest room reads](../../tests/server/domain/plugin/substrate/guest-room-reads.suite.int.test.ts)
+- [Guest call floors](../../tests/server/domain/plugin/substrate/guest-call-floors.suite.int.test.ts)
+
+The boot and env cases are in the data-layout move suite, the env file load suite and [host env allowlist](../../tests/server/foundation/env/host-env-allowlist.int.test.ts). Each guarded behavior was planted in production in a worktree, the named case failed for its reason, and the file was restored byte for byte.
+
+The lore case shows the bypass is real: with neutralization removed, a guest holding only `worldinfo.write` set a chat variable on the next turn. The asset scope has two layers, the owner filter and the per-owner storage key; only removing both let another owner's bytes through. The 64-entry ceiling moved to `PLUGIN_LORE_ENTRIES_PER_BOOK_MAX` in `@orb/contracts/plugin` so the case imports it from production.
+
+Open: the cross-owner `search.query` scope needs two indexed owner corpora; the bridge register row names it.

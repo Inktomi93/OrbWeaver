@@ -104,7 +104,8 @@ export function RpgChoiceEcho({ state }: RpgChoiceEchoProps): ReactElement | nul
             // message-choices-block keying precedent; a verbatim repeat is the same choice).
             key={option}
             variant="outline"
-            size="wrap"
+            size="sm"
+            wrap={true}
             focusableWhenDisabled={true}
             disabled={busy}
             {...(busy ? { "aria-describedby": reasonId } : {})}

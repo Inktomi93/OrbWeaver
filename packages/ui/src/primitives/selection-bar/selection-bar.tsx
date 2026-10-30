@@ -44,7 +44,7 @@ export function SelectionBar({ count, onClear, children, placement, className }:
       <div className={slots.actions()} data-slot="selection-bar-actions">
         {children}
       </div>
-      <Button aria-label="Clear selection" data-slot="selection-bar-clear" variant="ghost" onClick={onClear} size="icon" type="button">
+      <Button aria-label="Clear selection" data-slot="selection-bar-clear" variant="ghost" onClick={onClear} square={true} type="button">
         <Icon icon={X} size="sm" />
       </Button>
     </div>

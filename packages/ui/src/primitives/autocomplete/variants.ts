@@ -1,4 +1,15 @@
-import { ACCENT_HOVER, FOCUS_RING_BARE, FOCUS_RING_WITHIN, ITEM_ROW, OVERLAY_ARROW, OVERLAY_MOTION, POPUP_SURFACE, tv } from "#lib";
+import {
+  ACCENT_HOVER,
+  CONTROL_BLOCK,
+  CONTROL_INLINE,
+  FOCUS_RING_BARE,
+  FOCUS_RING_WITHIN,
+  ITEM_ROW,
+  OVERLAY_ARROW,
+  OVERLAY_MOTION,
+  POPUP_SURFACE,
+  tv,
+} from "#lib";
 
 // The autocomplete skin — the InputGroup carries the text-input token box (border/bg/height) so the
 // native Clear button can sit flush inside it; the input fills the box transparently. The popup rides
@@ -7,7 +18,7 @@ import { ACCENT_HOVER, FOCUS_RING_BARE, FOCUS_RING_WITHIN, ITEM_ROW, OVERLAY_ARR
 export const autocompleteVariants = tv({
   slots: {
     inputGroup: [
-      "relative flex items-center rounded-control border border-input-border bg-field-fill block-(--size-control-sm) inline-full min-inline-0",
+      "relative flex items-center rounded-control border border-input-border bg-field-fill inline-full min-inline-0",
       "transition-colors duration-(--motion-fast) ease-out-expo",
       FOCUS_RING_WITHIN,
       "has-data-disabled:pointer-events-none has-data-disabled:opacity-50",
@@ -18,10 +29,7 @@ export const autocompleteVariants = tv({
       "outline-none",
     ],
     clear: [
-      `
-        me-field flex shrink-0 items-center justify-center rounded-control text-muted-foreground outline-none block-(--size-control-sm)
-        inline-(--size-control-sm)
-      `,
+      "me-field flex shrink-0 items-center justify-center rounded-control text-muted-foreground outline-none",
       // Offset-less ring — the Clear sits INSIDE the input group, whose FOCUS_RING_WITHIN already
       // carries the offset ring; a second offset here would escape the box.
       `${ACCENT_HOVER} ${FOCUS_RING_BARE}`,
@@ -49,4 +57,16 @@ export const autocompleteVariants = tv({
     // politely; it must stay mounted (Base UI: never `hidden`/`display:none` the Status element).
     status: "sr-only",
   },
+  variants: {
+    // THE CONTROL SCALE (D336): the step's height, so a field sits level with the buttons and toggles of its row. The
+    // type stays the field's own pointer-conditional step at every size, because iOS zooms on a smaller focused field.
+    // The clear button is the step's square, so it keeps the tap floor inside the field.
+    size: {
+      chip: { inputGroup: CONTROL_BLOCK.chip, clear: [CONTROL_BLOCK.chip, CONTROL_INLINE.chip] },
+      sm: { inputGroup: CONTROL_BLOCK.sm, clear: [CONTROL_BLOCK.sm, CONTROL_INLINE.sm] },
+      md: { inputGroup: CONTROL_BLOCK.md, clear: [CONTROL_BLOCK.md, CONTROL_INLINE.md] },
+      lg: { inputGroup: CONTROL_BLOCK.lg, clear: [CONTROL_BLOCK.lg, CONTROL_INLINE.lg] },
+    },
+  },
+  defaultVariants: { size: "sm" },
 });

@@ -152,7 +152,8 @@ function RulePresetList({ presets, onPick }: RulePresetListProps): ReactElement 
           // and the height follows the wrapped text, floored at the `sm` control height (the tap floor).
           // A call-site `h-auto` would defeat the sealed box (`ui-size-via-variant`); the
           // `message-choices-block` chip is the same shape and spells it the same way.
-          size="wrap"
+          size="sm"
+          wrap={true}
           className="justify-start text-start"
           onClick={(): void => onPick(preset)}
         >

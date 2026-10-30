@@ -89,7 +89,8 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
               className="items-start justify-start text-start inline-full"
               variant="ghost"
               onClick={(): void => selectCorpusCharacter(gem.characterId)}
-              size="wrap"
+              size="sm"
+              wrap={true}
             >
               <Row align="center" className="inline-full min-inline-0" gap="row">
                 {/* THE RANK IS A DATUM, NOT AN IMPLICATION (side-eye populated arm, [P2-2] / #536). The

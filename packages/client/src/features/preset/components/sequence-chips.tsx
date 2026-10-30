@@ -119,7 +119,7 @@ function SequenceChips({ form, name, legend, hint, noun, unsetWhenEmpty }: Seque
                       aria-label={`Remove ${noun} ${shown}`}
                       variant="ghost"
                       onClick={(): void => write(sequences.filter((s) => s !== sequence))}
-                      size="icon"
+                      square={true}
                       type="button"
                     >
                       <Icon icon={X} size="xs" />

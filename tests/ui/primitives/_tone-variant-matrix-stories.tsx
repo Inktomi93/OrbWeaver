@@ -6,6 +6,7 @@ import { Circle, Icon } from "@orb/ui/icons";
 import { WebSpinner } from "@orb/ui/spinner";
 import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
+import { Toggle } from "@orb/ui/toggle";
 import type { ToneRole } from "@orb/ui/tokens";
 import { SEED_THEME_VALUE_SETS, TOKENS, TONE_ROLES, TONES } from "@orb/ui/tokens";
 import { WeaveGlyph } from "@orb/ui/web-weave";
@@ -14,6 +15,13 @@ import type { ReactElement } from "react";
 const BUTTON_VARIANTS = ["solid", "outline", "ghost", "link"] as const;
 const BADGE_VARIANTS = ["solid", "soft", "outline"] as const;
 const CARD_VARIANTS = ["surface", "soft", "outline"] as const;
+const TOGGLE_VARIANTS = ["ghost", "outline"] as const;
+// The named colours a case reads that are not a tone role: the neutral toggle's resting ink and the selected fill.
+const NAMED_PROBES = {
+  muted: "color.muted-foreground",
+  selection: "color.selection-quiet",
+  "selection-foreground": "color.selection-quiet-foreground",
+} as const satisfies Record<string, keyof typeof TOKENS>;
 
 function roleVar(role: ToneRole): string {
   return `var(${TOKENS[`color.tone-${role}`].cssVar})`;
@@ -40,6 +48,14 @@ function Matrix(): ReactElement {
               {`${tone} ${variant}`}
             </Card>
           ))}
+          {TOGGLE_VARIANTS.map((variant) => (
+            <Toggle key={variant} data-case={`toggle-${variant}`} tone={tone} variant={variant}>
+              {`${tone} ${variant}`}
+            </Toggle>
+          ))}
+          <Toggle data-case="toggle-pressed" defaultPressed={true} tone={tone} variant="outline">
+            {`${tone} pressed`}
+          </Toggle>
           <Text data-case="text" tone={tone}>{`${tone} text`}</Text>
           <Icon icon={Circle} label={`${tone} icon`} tone={tone} />
           <WebSpinner label={`${tone} wait`} tone={tone} />
@@ -48,6 +64,9 @@ function Matrix(): ReactElement {
             <span key={role} data-probe={role} data-tone={tone} style={{ color: roleVar(role) }} />
           ))}
           <span data-probe="card" style={{ color: "var(--color-card)" }} />
+          {Object.entries(NAMED_PROBES).map(([probe, token]) => (
+            <span key={probe} data-probe={probe} style={{ color: `var(${TOKENS[token].cssVar})` }} />
+          ))}
         </div>
       ))}
     </div>
@@ -67,7 +86,10 @@ export function ToneVariantMatrixStory({
 }): ReactElement {
   const ambient = theme === undefined ? undefined : SEED_THEME_VALUE_SETS[theme].vars;
   return (
-    <CtIsolation subject="The D336 tone and variant matrix" isolates="Button, Badge, Card, Text, Icon, WebSpinner and WeaveGlyph in every tone and style">
+    <CtIsolation
+      subject="The D336 tone and variant matrix"
+      isolates="Button, Badge, Card, Toggle, Text, Icon, WebSpinner and WeaveGlyph in every tone and style"
+    >
       <div data-theme={theme} style={{ backgroundColor: "var(--color-background)", padding: "1rem" }}>
         {background === undefined ? (
           <Matrix />

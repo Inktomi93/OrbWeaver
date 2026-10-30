@@ -126,7 +126,7 @@ export function DeliveryCluster({
                   min={TAIL_DEPTH}
                   onValueChange={onDepthChange}
                   placeholder={depthPlaceholder}
-                  size="inline"
+                  layout="inline"
                   step={1}
                   value={depth}
                 />

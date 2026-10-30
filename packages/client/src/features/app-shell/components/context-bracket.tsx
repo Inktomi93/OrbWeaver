@@ -114,7 +114,7 @@ export function ContextBracket({ view, headerRef, band, empty, railLabel, paneLa
             data-slot="context-bracket-dismiss"
             variant="ghost"
             onClick={onDismiss}
-            size="icon"
+            square={true}
             type="button"
             className="me-field shrink-0"
           >

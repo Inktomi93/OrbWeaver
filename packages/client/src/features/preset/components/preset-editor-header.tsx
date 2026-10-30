@@ -127,7 +127,7 @@ export function PresetEditorHeader({
                     Reset door beside it already speaks. */}
               {isSystemDefault ? null : (
                 <Tip text={RENAME_LABEL}>
-                  <Button aria-label={RENAME_LABEL} variant="ghost" onClick={(): void => setRenameOpen(true)} size="icon" type="button">
+                  <Button aria-label={RENAME_LABEL} variant="ghost" onClick={(): void => setRenameOpen(true)} square={true} type="button">
                     <Icon icon={Pencil} size="sm" />
                   </Button>
                 </Tip>
@@ -181,7 +181,7 @@ export function PresetEditorHeader({
                     second header command ever lands, the kebab comes back with two items in it. */}
               {isSystemDefault ? null : (
                 <Tip text={RESET_LABEL}>
-                  <Button aria-label={RESET_LABEL} variant="ghost" onClick={(): void => setResetOpen(true)} size="icon" type="button">
+                  <Button aria-label={RESET_LABEL} variant="ghost" onClick={(): void => setResetOpen(true)} square={true} type="button">
                     <Icon icon={RotateCcw} size="sm" />
                   </Button>
                 </Tip>

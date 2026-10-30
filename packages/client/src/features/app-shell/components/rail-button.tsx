@@ -62,7 +62,7 @@ export function RailButton({
             // The active cell stamps the shell accent, whose roles rail.css paints; a button's own stamp would
             // otherwise reset the rail's ancestor scope to neutral.
             tone={active ? SHELL_ACCENT_TONE : undefined}
-            size="icon"
+            square={true}
             aria-label={label}
             aria-describedby={describedById === undefined || describedById === "" ? undefined : describedById}
             aria-current={active ? "page" : undefined}

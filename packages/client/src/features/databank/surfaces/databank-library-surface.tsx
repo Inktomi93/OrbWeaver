@@ -337,7 +337,7 @@ function PhaseFilterChip({ phase }: { readonly phase: IngestPhase }): ReactEleme
       <Badge tone={badge.tone} size="sm">
         {badge.label}
       </Badge>
-      <Button aria-label={`Clear the ${badge.label} filter`} variant="ghost" onClick={clearDatabankPhaseFilter} size="icon" type="button">
+      <Button aria-label={`Clear the ${badge.label} filter`} variant="ghost" onClick={clearDatabankPhaseFilter} square={true} type="button">
         <Icon icon={X} size="sm" />
       </Button>
     </Row>

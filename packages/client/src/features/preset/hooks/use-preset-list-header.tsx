@@ -65,10 +65,10 @@ export function usePresetListHeader(): ListPaneHeaderView {
         id: "preset-import",
         inline: (
           // Icon-only, so the tooltip is the same string as the aria-label and the two can't drift.
-          // `size="icon"`, not `sm`: the `sm` box is width-fitted to a LABEL, so an icon-only trigger would miss the
-          // coarse touch floor; `size="icon"` is `size-control-md`, 34px fine / 48px coarse by token.
+          // `square`, not a plain `sm`: the `sm` box is width-fitted to a LABEL, so an icon-only trigger would miss the
+          // coarse touch floor; the `md` square is `size-control-md`, 34px fine / 48px coarse by token.
           <Tip text={IMPORT_LABEL}>
-            <Button aria-label={IMPORT_LABEL} variant="ghost" onClick={(): void => setImportOpen(true)} size="icon">
+            <Button aria-label={IMPORT_LABEL} variant="ghost" onClick={(): void => setImportOpen(true)} square={true}>
               <Icon icon={Upload} size="sm" />
             </Button>
           </Tip>

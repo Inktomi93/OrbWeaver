@@ -96,12 +96,12 @@ export function CharacterLibraryToolbar({ query, onQueryChange }: CharacterLibra
           pane: one re-folds the list, one re-modes it into a selection surface. They used to render in the
           identical muted 13px/500 box as the tag words below them, so the whole block read as one
           undifferentiated soup — the accessibility tree already carried the grouping (`role="group"`), and
-          only the pixels did not. `intent="command"` is the foreground register that separates a control
+          only the pixels did not. `ink="foreground"` is the command register that separates a control
           you operate from the vocabulary you skim. */}
       <Section aria-label="View" kicker="View" kickerLayout="inline" role="group">
         <Toggle
           aria-label="Group by tag"
-          intent="command"
+          ink="foreground"
           onPressedChange={(pressed): void => setCharacterViewMode(pressed ? "categorized" : "flat")}
           pressed={viewMode === "categorized"}
           size="sm"
@@ -112,7 +112,7 @@ export function CharacterLibraryToolbar({ query, onQueryChange }: CharacterLibra
         {/* Bulk mode joins the view controls now that the band owns the title row it used to sit in.
             IT CARRIES ITS WORD (side-eye leg-4 P3): beside the text toggle "Group", a bare pencil read as
             one phrase — "Group ✎" — which decodes as neither control. Two labelled toggles read as two. */}
-        <Toggle aria-label="Select multiple" intent="command" onPressedChange={(pressed): void => setBulkMode(pressed)} pressed={bulkMode} size="sm">
+        <Toggle aria-label="Select multiple" ink="foreground" onPressedChange={(pressed): void => setBulkMode(pressed)} pressed={bulkMode} size="sm">
           <Icon icon={Pencil} size="sm" />
           Select
         </Toggle>

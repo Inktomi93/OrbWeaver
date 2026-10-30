@@ -1,5 +1,6 @@
 import {
   ACCENT_HOVER,
+  CONTROL_MIN_BLOCK,
   DISABLED_STATE_NATIVE,
   FOCUS_RING,
   FOCUS_RING_BARE,
@@ -16,10 +17,7 @@ import {
 export const comboboxVariants = tv({
   slots: {
     inputGroup: [
-      `
-        relative flex flex-wrap items-center gap-field rounded-control border border-input-border bg-field-fill p-field inline-full
-        min-block-(--size-control-sm) min-inline-0
-      `,
+      "relative flex flex-wrap items-center gap-field rounded-control border border-input-border bg-field-fill px-field inline-full min-inline-0",
       "transition-colors duration-(--motion-fast) ease-out-expo",
       FOCUS_RING_WITHIN,
       "has-data-disabled:pointer-events-none has-data-disabled:opacity-50",
@@ -37,7 +35,7 @@ export const comboboxVariants = tv({
       DISABLED_STATE_NATIVE,
     ],
     input: [
-      "flex-1 bg-transparent p-field text-field leading-field text-foreground outline-none min-inline-(--width-title-floor)",
+      "flex-1 bg-transparent px-field text-field leading-field text-foreground outline-none min-inline-(--width-title-floor)",
       "placeholder:text-muted-foreground",
     ],
     positioner: "z-(--z-popover) outline-none",
@@ -53,4 +51,16 @@ export const comboboxVariants = tv({
     // Visually collapsed; must stay mounted — never hidden/display:none the Status element.
     status: "sr-only",
   },
+  variants: {
+    // THE CONTROL SCALE (D336): the step's height, so a field sits level with the buttons and toggles of its row. The
+    // type stays the field's own pointer-conditional step at every size, because iOS zooms on a smaller focused field.
+    // A floor, not a height: the chips wrap onto further lines inside the one box, which grows with them.
+    size: {
+      chip: { inputGroup: CONTROL_MIN_BLOCK.chip },
+      sm: { inputGroup: CONTROL_MIN_BLOCK.sm },
+      md: { inputGroup: CONTROL_MIN_BLOCK.md },
+      lg: { inputGroup: CONTROL_MIN_BLOCK.lg },
+    },
+  },
+  defaultVariants: { size: "sm" },
 });
