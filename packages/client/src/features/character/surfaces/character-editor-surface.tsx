@@ -299,7 +299,7 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
             }
           >
             {/* Autosave everywhere (§7): the live status takes the action slot, with no Save/Discard. */}
-            <AutosaveStatus state={session.saveState} onRetry={session.retrySave} />
+            <AutosaveStatus state={session.restored && session.saveState === "saved" ? "restored" : session.saveState} onRetry={session.retrySave} />
           </SaveBar>
 
           <CharacterHeroBand
