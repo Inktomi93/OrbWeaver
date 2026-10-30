@@ -23,6 +23,19 @@ Ruling for shapes that name runtime types (`AbortSignal`, `@orb/db` handles, `@o
 - The op's function signature stays with the consuming domain's `contract/` (Core-0 §4). The owner's verb satisfies it, and the composition root wires it. Once the data comes from contracts, the signature is not a restated concept, so `orb/derived-port-member` does not report a signature whose only non-contracts types come from a platform or a lower package. The unwired scan follows the composition-root flow.
 - A cross-domain op that passes `StatementToken`, `SQL` or a batch handle is checked against the ledger. A ruled joint batch moves its assembly to the composition root. An unruled one is a defect to redesign, each with its own item.
 
+Remaining work after legs B–F (ruled):
+
+- Never move a whole service interface. A consumer depends on the narrow op it calls, typed in its own `contract/` (Core-0 §4), with the data inside from `packages/contracts`. The service stays in its domain.
+- Never merge by shape alone. A shape-only match (for example a `{principal, chatId}` look-alike) stays separate unless a real flow or the same concept links it.
+- Tool registry: `ToolDefinition` data (name, description, schema) moves to contracts; a handler signature carrying `AbortSignal` stays with its consumer; `ResolvedToolSet` stays private to tool-use as an opaque type parameter.
+
+Order:
+
+1. Census tightening: `NonNullable<Owner["m"]>` counts as derived, shape-only matches become `review`, targets group by owning concept, and the known-bad targets are fixed.
+2. Cluster legs, each owning one concept end to end (owner plus every consumer), two at a time on disjoint contracts areas: character ops with platform (sessions, admin, workloads, connection), then retrieval (search, embeddings, stats, tag) with the tool registry. Remaining derives against contracts ops leg D added fold into the cluster that owns them.
+3. The cross-domain database handle cases are ruled one by one against the ledger (their own board item).
+4. Close-out: enable `orb/derived-port-member` at zero, narrow `domain-no-cross-feature` to the D117 door, delete the `ports.mjs` workaround, and write the full `pnpm unwired` report.
+
 ## Why
 
 AGENTS.md rules one home per concept: a second copy of a shape is a defect. A hand-restated port can drift from its owner unnoticed. It also breaks every reference search at the composition root, because structural assignability creates no symbol link. A type-aware scan found members that no production code reaches (`ChatService.editReasoning`, the `DiscoveryService` hub-score verbs, `ChatContext.getGroupConfig`), but restated ports hide which members are really reached.
