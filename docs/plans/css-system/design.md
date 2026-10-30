@@ -296,7 +296,7 @@ Preserve landscape access to the shell, room, composer and settings. Keep ultraw
 
 The root font size respects the browser default. Appearance font scale remains a multiplier; preserve the text-scale metadata and input zoom floor.
 
-An isolated card or plugin frame cannot inherit the host root. The host reads `--appearance-font-scale` and delivers it as the style token `--sandbox-root-size`, a percentage the frame document applies to its root. Rem and em text in the frame follows the viewer's scale. Authored px text stays at its authored size. The token rides the same clamp as the other frame style tokens. It reaches the srcdoc delivery and the plugin frame mint. The chat card mint carries no style tokens, so a routed card does not follow the scale until that mint accepts them. First-party frame bundles size text in rem.
+An isolated card or plugin frame cannot inherit the host root. The host reads `--appearance-font-scale` and delivers it as the style token `--sandbox-root-size`, a percentage the frame document applies to its root. Rem and em text in the frame follows the viewer's scale. Authored px text stays at its authored size. The token rides the same clamp as the other frame style tokens, which bounds it to the appearance font-scale range. It reaches the srcdoc delivery, the plugin frame mint and the chat card mint. First-party frame bundles size text in rem.
 
 Dynamic Type remains deferred. Adopting `-apple-system-body` changes the approved iPhone type hierarchy and requires an owner decision after device review.
 

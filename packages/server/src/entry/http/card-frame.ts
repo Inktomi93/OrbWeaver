@@ -5,10 +5,11 @@
 // (measured; the mechanism + the three browser facts it rests on are documented in `@orb/kit/card-frame`).
 //
 // ── THE TRUST BOUNDARY ───────────────────────────────────────────────────────────────────────────────────
-// The mint body carries card BYTES and a POLICY SELECTOR (`chatId` + `characterId`). It never carries a
-// policy. The server resolves the selector through the MEMBERSHIP-GATED roster read and takes that
-// participant's server-resolved `renderPolicy` — the same value `ParticipantView.renderPolicy` hands the
-// client, produced by `resolveRenderPolicy` at compose, which is tighten-only against the deployment floor.
+// The mint body carries card BYTES, the viewer's theme and style tokens, and a POLICY SELECTOR (`chatId` +
+// `characterId`). It never carries a policy: no token reaches the CSP, the sandbox or the script. The server
+// resolves the selector through the MEMBERSHIP-GATED roster read and takes that participant's server-resolved
+// `renderPolicy` — the same value `ParticipantView.renderPolicy` hands the client, produced by
+// `resolveRenderPolicy` at compose, which is tighten-only against the deployment floor.
 // Every SELECTOR failure resolves to `CARD_FRAME_SAFE_FLOOR`: not a member, roster read threw, character
 // absent from the room, `characterId: null`, `renderPolicy` absent on the row. A failed read of the viewer's
 // own settings (the script-consent input below) is not caught: it throws, the request errors, and no
@@ -208,10 +209,9 @@ export function registerCardFrame(app: Hono<PrincipalEnv>, deps: CardFrameDeps):
       html: body.html,
       css: body.css,
       themeTokens: body.themeTokens,
-      // `undefined`: the CHAT card mint carries no non-color slice (#799 widened the PLUGIN frame's
-      // injection, not the card's). Named rather than omitted — `CardFrameContent` has no optional fields,
-      // so a new slot is a decision every construction site is forced to take.
-      styleTokens: undefined,
+      // The schema admitted only the closed slice, each value past its own grammar; this clamp still runs
+      // here and is the one that bounds the root size to the appearance range.
+      styleTokens: body.styleTokens,
       fontFamily: body.fontFamily,
     });
     // A document minted for a named character keeps its selector and the grants it resolved beside it, so a
