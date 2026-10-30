@@ -22,7 +22,7 @@ Design (ruled):
 
 ## Why
 
-Item 1438 rules that these actions overflow into a menu at enlarged text, and item 0884 moves panel toggles into the panel headers. Neither can land without the mechanism. At 200% text on a phone, Import, New character and Show details already sit under the Search field.
+Item 1438 records the ruling that these actions overflow into a menu at enlarged text, and item 0884 moves panel toggles into the panel headers. Neither can land without the mechanism. At 200% text on a phone, Import, New character and Show details already sit under the Search field.
 
 ## Done when
 
