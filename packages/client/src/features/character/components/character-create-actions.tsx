@@ -25,11 +25,12 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement } from "react";
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { FormDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { selectCharacter } from "#state";
 import { useCreateCharacter } from "../hooks/use-character-mutations.ts";
+import { subscribeCharacterDoors } from "../lib/character-door-requests.ts";
 import { characterRefusalCopy } from "../lib/character-refusal-notice.ts";
 import { CharacterImportDialog } from "./character-import-dialog.tsx";
 
@@ -188,18 +189,16 @@ const CREATE_ICON_ARM = "@cq-20:hidden";
  *  block above). The narrow arm names itself `New character` because an icon-only `New` names nothing; the
  *  wide arm is named by the word it paints, and "New" is contained in "New character", so a voice-control
  *  user saying what they can see reaches the door in either arm (WCAG 2.5.3). */
-function CharacterCreateButton(): ReactElement {
-  const [createOpen, setCreateOpen] = useState(false);
+function CharacterCreateButton({ onOpen }: { readonly onOpen: () => void }): ReactElement {
   return (
     <>
-      <Button className={CREATE_LABELLED_ARM} intent="primary" onClick={(): void => setCreateOpen(true)} size="sm">
+      <Button className={CREATE_LABELLED_ARM} intent="primary" onClick={onOpen} size="sm">
         <Icon icon={Plus} size="sm" />
         New
       </Button>
-      <Button aria-label="New character" className={CREATE_ICON_ARM} intent="primary" onClick={(): void => setCreateOpen(true)} size="icon-sm" type="button">
+      <Button aria-label="New character" className={CREATE_ICON_ARM} intent="primary" onClick={onOpen} size="icon-sm" type="button">
         <Icon icon={Plus} size="sm" />
       </Button>
-      <NewCharacterDialog onOpenChange={setCreateOpen} open={createOpen} />
     </>
   );
 }
@@ -248,6 +247,19 @@ export function CharacterLandingDoors(): ReactElement {
 /** The band cluster: Import (ghost) + New (primary), each with its dialog. */
 export function CharacterCreateActions(): ReactElement {
   const [importOpen, setImportOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  // A row that moved this cluster out of reach opens its dialogs through the overflow menu's request.
+  useEffect(
+    () =>
+      subscribeCharacterDoors((door): void => {
+        if (door === "import") {
+          setImportOpen(true);
+        } else {
+          setCreateOpen(true);
+        }
+      }),
+    [],
+  );
   return (
     <>
       {/* ONE flex child, so the band's space-between keeps the cluster hard against the trailing edge. */}
@@ -265,8 +277,9 @@ export function CharacterCreateActions(): ReactElement {
         <Button aria-label="Import a character card" intent="ghost" onClick={(): void => setImportOpen(true)} size="icon-sm" tone="muted">
           <Icon icon={Upload} size="sm" />
         </Button>
-        <CharacterCreateButton />
+        <CharacterCreateButton onOpen={(): void => setCreateOpen(true)} />
       </Row>
+      <NewCharacterDialog onOpenChange={setCreateOpen} open={createOpen} />
       <CharacterImportDialog onOpenChange={setImportOpen} open={importOpen} />
     </>
   );

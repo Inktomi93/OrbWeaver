@@ -14,6 +14,7 @@ import type { ModalSlotId } from "./modal-slot-ids.ts";
 import type { SectionId } from "./section-ids.ts";
 import type { MobileCuration, RailZone, SectionGroup } from "./section-registry.ts";
 import { RAIL_ZONES, SECTION_GROUPS } from "./section-registry.ts";
+import { openModal } from "./shell-store.ts";
 
 // The rail's own zones DERIVE from `RAIL_ZONES` (its one home, beside `RailEntry.zone` in
 // section-registry.ts — `rail.nav`, `rail.brand`, `rail.end`) — re-spelling them here would be the
@@ -47,6 +48,29 @@ interface WidgetBehavior {
   readonly body: (presentation: ChromePresentation) => ReactNode;
 }
 
+/** What a trail action offers in the topbar's "More" menu when its row has no room: one entry with the same
+ *  handler its inline control calls. */
+export interface OverflowMenuForm {
+  readonly id: string;
+  readonly label: string;
+  readonly icon: LucideIcon;
+  readonly onSelect: () => void;
+}
+
+/** A `topbar.trail` widget. The trail row measures its room and moves the actions that do not fit into a menu,
+ *  so a widget that declares no menu form has no way to stay reachable and does not type-check. Called as a hook
+ *  over the door-frozen entry list, once per overflowed entry. */
+export interface TrailWidgetBehavior extends WidgetBehavior {
+  readonly useMenuForms: () => readonly OverflowMenuForm[];
+}
+
+/** The menu form of a trail widget whose real home is the You sheet (its `body("sheet")` lens): the entry opens
+ *  the sheet that projects it. */
+export function youSheetMenuForms(form: Omit<OverflowMenuForm, "onSelect">): () => readonly OverflowMenuForm[] {
+  const forms: readonly OverflowMenuForm[] = [{ ...form, onSelect: (): void => openModal("you") }];
+  return (): readonly OverflowMenuForm[] => forms;
+}
+
 /** A rail SECTION's entry. Its zone is a `RailZone`, so no section entry can reach `topbar.trail`. */
 interface SectionChromeEntry extends ChromeEntryAxes {
   readonly zone: RailZone;
@@ -58,7 +82,7 @@ interface SectionChromeEntry extends ChromeEntryAxes {
 export type ActionChromeEntry = ChromeEntryAxes &
   (
     | { readonly zone: RailZone; readonly mobile: MobileCuration; readonly behavior: ModalBehavior | WidgetBehavior }
-    | { readonly zone: Exclude<ChromeZone, RailZone>; readonly mobile?: MobileCuration; readonly behavior: ModalBehavior | WidgetBehavior }
+    | { readonly zone: Exclude<ChromeZone, RailZone>; readonly mobile?: MobileCuration; readonly behavior: ModalBehavior | TrailWidgetBehavior }
   );
 
 /** A shell chrome affordance as ONE definition: the presentation axes every source shares, plus where it

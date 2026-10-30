@@ -1036,7 +1036,8 @@ export const DOM_LOOKUP_HOMES = [
     function: "destinationSettled/check",
     method: "querySelector",
     receiver: "g.document",
-    selector: '.shell-content [data-slot="skeleton"], .shell-panel[data-panel-side="list"]:not([data-panel-mode="collapsed"]) [data-slot="skeleton"]',
+    selector:
+      '.shell-content [data-slot="skeleton"], .shell-content [data-ready="false"], .shell-panel[data-panel-side="list"]:not([data-panel-mode="collapsed"]) [data-slot="skeleton"], .shell-panel[data-panel-side="list"]:not([data-panel-mode="collapsed"]) [data-ready="false"]',
     reason: "The transition lifecycle adapter reads its destination-pending marker before releasing the transition.",
   },
   {

@@ -6,6 +6,7 @@
 import { PanelRightClose, PanelRightOpen } from "@orb/ui/icons";
 import type { ReactElement } from "react";
 import { useShellLayout } from "../hooks/use-shell-layout.ts";
+import { contextToggleLabel } from "../lib/context-toggle-label.ts";
 import { TopbarIconButton } from "./shell-topbar.tsx";
 
 /** ONE CONTROL, ONE NAME, AT EVERY WIDTH (#875 F19, side-eye 2026-08-30 — measured `Show detail panel` at
@@ -21,10 +22,6 @@ import { TopbarIconButton } from "./shell-topbar.tsx";
 /** The shell's handle on this one control: `shell.css` sheds it while the sheet is open, and the shell hands
  *  focus back to it when the sheet closes. */
 export const CONTEXT_TOGGLE_MARKER = "shell-context-toggle";
-
-function contextToggleLabel(collapsed: boolean): string {
-  return collapsed ? "Show details" : "Hide details";
-}
 
 export function ContextToggle(): ReactElement {
   const layout = useShellLayout();

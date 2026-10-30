@@ -25,6 +25,8 @@ export type { MemberDrillBack } from "./member-drill-header.tsx";
 export { MemberDrillHeader } from "./member-drill-header.tsx";
 export type { ModelRunConfirmDialogProps } from "./model-run-confirm-dialog.tsx";
 export { ModelRunConfirmDialog } from "./model-run-confirm-dialog.tsx";
+export type { OverflowAction } from "./overflow-actions.tsx";
+export { OVERFLOW_TRIGGER_LABEL, OverflowActions, OverflowMenuForms } from "./overflow-actions.tsx";
 export { PanelEdgeControl } from "./panel-edge-control.tsx";
 export { PickerDialog } from "./picker-dialog.tsx";
 export { QueryBoundary } from "./query-boundary.tsx";

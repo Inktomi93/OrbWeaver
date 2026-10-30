@@ -1,6 +1,7 @@
 // The shell's topbar on the production registry: the narrow screen name a phone reads, the ⌘K chip's name, the phone
 // row's geometry at the narrowest width, the Characters band's doors moving to the trail while the list is the screen,
 // and an open room's identity: its participants, its name, its chips and the context pane's header on the same horizon.
+import { OVERFLOW_TRIGGER_LABEL } from "@orb/client/components";
 import { censusTitle, chatRoomTitle } from "@orb/client/lib";
 import type { ChatId } from "@orb/kit/ids";
 import { pixel, resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
@@ -20,7 +21,9 @@ const ROOM_STORY = `${SHELL_STORIES}/AppShellRoomStory`;
 const LIST = '.shell-panel[data-panel-side="list"]';
 const NARROW_TITLE = '.shell-topbar-identity[data-identity="narrow"] .shell-topbar-title';
 const NARROWEST = { width: 320, height: 800 } as const;
-const PHONE_WIDTHS = [320, 390] as const;
+// The row holds the lead control, the title floor and the doors inline at 390; at 320 the doors ride its menu.
+const PHONE_WIDTHS = [390] as const;
+const NARROW_PHONE_WIDTH = 320;
 // The screen title's least share of a phone row beside the room's two chips: a regression floor for the name, not a
 // geometry token (no token sizes the title; it takes what the chips and the back control leave).
 const TITLE_SHARE_NARROWEST = 0.25;
@@ -116,6 +119,22 @@ test.describe("on a phone", () => {
       await expect(trail.getByRole("button", { name: "New", exact: true })).toHaveCount(0);
     });
   }
+
+  test("at 320 the Characters doors ride the trail's menu, not past the row's edge, until a character opens", async ({ corpus, mount, page }) => {
+    await page.setViewportSize({ width: NARROW_PHONE_WIDTH, height: 800 });
+    await routeSections(page, corpus);
+    await seedShellState(page, { activeSection: "characters" });
+    await mount<typeof AppShellStory>(STORY, {});
+    await expect(library(page).getByRole("button").first()).toBeVisible();
+    const trail = page.locator(".shell-topbar-trail");
+    await expect(trail.getByRole("button", { name: "New", exact: true })).toBeHidden();
+    await trail.getByRole("button", { name: OVERFLOW_TRIGGER_LABEL }).click();
+    await expect(page.getByRole("menuitem", { name: "New character", exact: true })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: "Import a character card", exact: true })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await library(page).getByRole("button").first().click();
+    await expect(trail.getByRole("button", { name: OVERFLOW_TRIGGER_LABEL })).toHaveCount(0);
+  });
 });
 
 test("on a desktop the Characters band keeps its own doors and the trail carries none", async ({ corpus, mount, page }) => {
@@ -203,9 +222,14 @@ test.describe("the phone topbar at 320, coarse pointer", () => {
     expect(controls.length).toBeGreaterThan(0);
     expect(controls.filter((control) => control.left < 0 || control.right > NARROWEST.width)).toEqual([]);
     const widest = Math.max(...controls.map((control) => control.width));
-    const roomForName = (lead?.width ?? 0) - widest;
-    expect(roomForName).toBeGreaterThan(widest);
-    expect(roomForName / NARROWEST.width).toBeGreaterThan(0.3);
+    // The trail row drops the doors the push retired a frame after the push, so the lead's room is read once it settles.
+    await expect
+      .poll(async () => {
+        const settled = await page.locator(".shell-topbar-lead").boundingBox();
+        const roomForName = (settled?.width ?? 0) - widest;
+        return roomForName > widest && roomForName / NARROWEST.width > 0.3;
+      })
+      .toBe(true);
   });
 
   test("the desktop-shaped ⌘K chip sheds on a phone and the palette keeps a row in the You sheet", async ({ mount, page }) => {

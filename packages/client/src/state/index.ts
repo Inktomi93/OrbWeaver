@@ -93,8 +93,8 @@ export {
   useTurnSlot,
   useTurnSpeakerCharacterId,
 } from "./chat-stream.ts";
-export type { ActionChromeEntry, ChromeEntry, ChromePresentation, MobileCuration } from "./chrome-registry.ts";
-export { mobileBarCuration, sheetOverflowChrome } from "./chrome-registry.ts";
+export type { ActionChromeEntry, ChromeEntry, ChromePresentation, MobileCuration, OverflowMenuForm, TrailWidgetBehavior } from "./chrome-registry.ts";
+export { mobileBarCuration, sheetOverflowChrome, youSheetMenuForms } from "./chrome-registry.ts";
 export { useChromeRegistry } from "./chrome-registry-context.ts";
 export { ChromeRegistryProvider } from "./chrome-registry-provider.tsx";
 export { CommandPaletteSourceRegistryContext } from "./command-palette-source-registry-context.ts";

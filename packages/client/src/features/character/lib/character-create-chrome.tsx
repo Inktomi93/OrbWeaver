@@ -29,10 +29,20 @@
 // New as the `sm` primary. Burying Import inside New would resurrect the "+ split menu" that file's header
 // records as killed for hiding both verbs one click deep.
 
+import { Plus, Upload } from "@orb/ui/icons";
 import type { ReactElement } from "react";
-import type { ChromeEntry } from "#state";
+import type { ChromeEntry, OverflowMenuForm } from "#state";
 import { useActiveSection, useMobileViewport, useSectionListMode } from "#state";
 import { CharacterCreateActions } from "../components/character-create-actions.tsx";
+import { requestCharacterDoor } from "./character-door-requests.ts";
+
+const IMPORT_DOOR_LABEL = "Import a character card";
+const CREATE_DOOR_LABEL = "New character";
+
+const MENU_FORMS: readonly OverflowMenuForm[] = [
+  { id: "character-import", label: IMPORT_DOOR_LABEL, icon: Upload, onSelect: (): void => requestCharacterDoor("import") },
+  { id: "character-create", label: CREATE_DOOR_LABEL, icon: Plus, onSelect: (): void => requestCharacterDoor("create") },
+];
 
 export const characterCreateChrome: ChromeEntry = {
   id: "character-create",
@@ -52,5 +62,5 @@ export const characterCreateChrome: ChromeEntry = {
   },
   // The same cluster in both lenses — this entry is never curated `mobile: "sheet"`, so `body("sheet")` is
   // unreachable and `presentation` has nothing to branch on.
-  behavior: { kind: "widget", body: (): ReactElement => <CharacterCreateActions /> },
+  behavior: { kind: "widget", body: (): ReactElement => <CharacterCreateActions />, useMenuForms: (): readonly OverflowMenuForm[] => MENU_FORMS },
 };

@@ -105,10 +105,12 @@ export function runAfterViewTransition(effect: () => void): void {
   runWhenTransitionsSettle(current, effect);
 }
 
-/** Skeleton rows in the two regions a swap changes: the content pane (the captured region) and an open list
- *  pane. A collapsed pane is off screen, so its loading state is not part of what the user sees arrive. */
+/** What a swap waits on in the two regions it changes: the content pane (the captured region) and an open list
+ *  pane. Skeleton rows are a pending read the destination already paints; `data-ready="false"` is the same fact
+ *  for a surface with no skeleton to paint (a teaching pane over a first read). A collapsed pane is off screen,
+ *  so its loading state is not part of what the user sees arrive. */
 const DESTINATION_PENDING =
-  '.shell-content [data-slot="skeleton"], .shell-panel[data-panel-side="list"]:not([data-panel-mode="collapsed"]) [data-slot="skeleton"]';
+  '.shell-content [data-slot="skeleton"], .shell-content [data-ready="false"], .shell-panel[data-panel-side="list"]:not([data-panel-mode="collapsed"]) [data-slot="skeleton"], .shell-panel[data-panel-side="list"]:not([data-panel-mode="collapsed"]) [data-ready="false"]';
 /** How long the old frame may be held for the destination's first real paint, in elapsed time. */
 const DESTINATION_DEADLINE_MS = 150;
 const DESTINATION_POLL_MS = 16;
@@ -122,7 +124,7 @@ interface VtMutationObserverConstructor {
   new (callback: () => void): VtMutationObserver;
 }
 
-/** Resolve once the swap has COMMITTED and the destination shows no skeleton, or at the deadline. Returned from
+/** Resolve once the swap has COMMITTED and the destination shows no skeleton and no unsettled surface, or at the deadline. Returned from
  *  the update callback, it keeps the old frame up until then, so the crossfade lands on content and the skeleton
  *  never paints as a second, unanimated step. A clean DOM before the commit is not readiness (the old page has
  *  no skeleton), so a DOM mutation, or a quiet interval with none, must come first. */
