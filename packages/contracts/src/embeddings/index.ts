@@ -238,13 +238,13 @@ export type WriteHubScoresOp = (params: WriteHubScoresParams) => Promise<WriteHu
 export interface EmbedPassResult {
   readonly embedded: number;
   readonly skipped: number;
-  readonly failedAssets?: readonly AssetId[];
+  readonly failedAssets?: readonly AssetId[] | undefined;
 }
 
 export const embedPassResultSchema = z.strictObject({
   embedded: z.number(),
   skipped: z.number(),
-  failedAssets: z.array(assetIdSchema).optional(),
+  failedAssets: z.array(assetIdSchema).readonly().optional(),
 }) satisfies z.ZodType<EmbedPassResult>;
 
 export type { EmbeddingConnectionFacts } from "./connection.ts";

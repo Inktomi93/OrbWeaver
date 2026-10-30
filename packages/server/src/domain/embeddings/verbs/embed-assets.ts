@@ -16,7 +16,8 @@ function isMissingFile(error: unknown): boolean {
   return typeof error === "object" && error !== null && "code" in error && error.code === MISSING_FILE_CODE;
 }
 
-type AssetOutcome = "written" | "skipped" | "failed";
+const ASSET_OUTCOMES = ["written", "skipped", "failed"] as const;
+type AssetOutcome = (typeof ASSET_OUTCOMES)[number];
 
 interface Sweep {
   readonly ctx: EmbeddingsContext;
