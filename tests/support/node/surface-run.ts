@@ -75,9 +75,24 @@ export type SurfaceRunConfig = z.output<typeof surfaceRunConfigSchema>;
 /** What a production client build reads. Journey, testkit and documentation edits outside these paths reuse a build. */
 const SURFACE_CLIENT_BUILD_INPUTS = ["packages", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", "tsconfig.base.json"] as const;
 
-/** The working-tree source state a client build comes from: every input path with the git blob id of its current
- *  bytes, so staging or committing unchanged bytes keeps a build current and any edit, addition or deletion does not. */
-export function surfaceClientBuildKey(root: string): string {
+/** The surface client build is a production build; Vite reads the mode for its `.env.<mode>` files. */
+export const SURFACE_CLIENT_BUILD_MODE = "production";
+/** Vite reads these env files from the client package root even when git ignores them. */
+const SURFACE_CLIENT_ENV_FILES = [".env", ".env.local", `.env.${SURFACE_CLIENT_BUILD_MODE}`, `.env.${SURFACE_CLIENT_BUILD_MODE}.local`].map((name) =>
+  join("packages", "client", name),
+);
+/** Vite exposes process variables with this default prefix to client code. */
+const CLIENT_ENV_PREFIX = "VITE_";
+
+/** The build's environment. Vite derives its development flags from `NODE_ENV`, so an ambient value cannot leak in. */
+export function surfaceClientBuildEnvironment(overrides: NodeJS.ProcessEnv, environment: NodeJS.ProcessEnv = inheritedProcessEnv()): NodeJS.ProcessEnv {
+  return { ...environment, ...overrides, ["NODE_ENV"]: SURFACE_CLIENT_BUILD_MODE };
+}
+
+/** Everything a client build reads: every input path with the git blob id of its current bytes, Vite's env files
+ *  whether or not git tracks them, and the client-exposed process variables. Staging or committing unchanged bytes
+ *  keeps a build current; any edit, addition, deletion or variable change does not. */
+export function surfaceClientBuildKey(root: string, environment: NodeJS.ProcessEnv = inheritedProcessEnv()): string {
   const blobs = new Map<string, string>();
   for (const line of execGit(root, ["ls-files", "--stage", "-z", "--", ...SURFACE_CLIENT_BUILD_INPUTS]).split("\0")) {
     const match = /^\d+ ([0-9a-f]+) \d+\t(.+)$/u.exec(line);
@@ -101,6 +116,15 @@ export function surfaceClientBuildKey(root: string): string {
   present.forEach((path, index) => {
     blobs.set(path, ids[index] ?? "");
   });
+  for (const path of SURFACE_CLIENT_ENV_FILES) {
+    const file = join(root, path);
+    blobs.set(path, existsSync(file) ? createHash("sha256").update(readFileSync(file)).digest("hex") : "absent");
+  }
+  for (const [name, value] of Object.entries(environment)) {
+    if (name.startsWith(CLIENT_ENV_PREFIX) && value !== undefined) {
+      blobs.set(`environment:${name}`, value);
+    }
+  }
   const hash = createHash("sha256");
   for (const [path, id] of [...blobs].toSorted(([left], [right]) => (left < right ? -1 : 1))) {
     hash.update(`${path}\0${id}\0`);

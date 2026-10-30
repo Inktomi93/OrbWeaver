@@ -6,8 +6,10 @@ import {
   readSurfaceCaseAdmission,
   readSurfaceOutputRoot,
   readSurfaceRunConfig,
+  SURFACE_CLIENT_BUILD_MODE,
   surfaceArtifactModes,
   surfaceCaseDelayMs,
+  surfaceClientBuildEnvironment,
   surfaceClientBuildKey,
   surfaceNativeTimeout,
   writeSurfaceCaseAdmission,
@@ -96,4 +98,23 @@ test("a client build is current exactly while its build inputs are unchanged", (
   expect(added, "an untracked source file makes the build stale").not.toBe(edited);
   rmSync(join(root, "packages", "client", "app.ts"));
   expect(surfaceClientBuildKey(root), "a deleted source file makes the build stale").not.toBe(added);
+});
+
+test("a client build cannot be reused across a different Vite environment", ({ importStagingDir: root }) => {
+  execFixtureGit(root, ["init", "--quiet"]);
+  configureFixtureGitIdentity(root);
+  mkdirSync(join(root, "packages", "client"), { recursive: true });
+  writeFileSync(join(root, ".gitignore"), ".env*\n");
+  writeFileSync(join(root, "packages", "client", "app.ts"), "export const label = 1;\n");
+  execFixtureGit(root, ["add", "-A"]);
+  execFixtureGit(root, ["commit", "--quiet", "-m", "fixture"]);
+  const ambient = { ["PATH"]: "/usr/bin" };
+  const built = surfaceClientBuildKey(root, ambient);
+  writeFileSync(join(root, "packages", "client", ".env.local"), "VITE_AGENT_BRIDGE=on\n");
+  const ignoredFile = surfaceClientBuildKey(root, ambient);
+  expect(ignoredFile, "a git-ignored Vite env file makes the build stale").not.toBe(built);
+  expect(surfaceClientBuildKey(root, { ...ambient, ["VITE_AGENT_BRIDGE"]: "on" }), "a client-exposed variable makes the build stale").not.toBe(ignoredFile);
+  const development = { ...ambient, ["NODE_ENV"]: "development" };
+  expect(surfaceClientBuildKey(root, development), "the ambient NODE_ENV never reaches the build").toBe(ignoredFile);
+  expect(surfaceClientBuildEnvironment({}, development)["NODE_ENV"]).toBe(SURFACE_CLIENT_BUILD_MODE);
 });

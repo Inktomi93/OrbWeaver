@@ -219,7 +219,7 @@ for (const pointer of ["fine", "coarse"] as const) {
   test.describe(`${pointer} typography scaling`, () => {
     test.use({ hasTouch: pointer === "coarse", isMobile: pointer === "coarse" });
     for (const width of pointer === "coarse" ? [390] : [390, 1280]) {
-      test(`governed text and heading steps follow the root font-scale channel at ${width}px`, async ({ mount, page }, info) => {
+      test(`governed text and heading steps follow the root font-scale channel at ${width}px`, async ({ mount, page }) => {
         await page.setViewportSize({ width, height: 900 });
         const component = await mount<typeof RampTypographyStory>(`${STORIES}/RampTypographyStory`, { fontScale: 1 });
         for (const scale of [1, 1.5, SHRUNK_SCALE]) {
@@ -247,28 +247,25 @@ for (const pointer of ["fine", "coarse"] as const) {
           await expect(component.getByRole("textbox", { name: "Form typography", exact: true })).toHaveCSS("font-size", `${Number(formSize.toFixed(4))}px`);
           await expect(component.getByRole("textbox", { name: "Dense typography", exact: true })).toHaveCSS("font-size", `${Number(denseSize.toFixed(4))}px`);
           expect(await component.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
-          await info.attach(`typography-${width}-${scale}`, { body: await page.screenshot({ scale: "css" }), contentType: "image/png" });
         }
       });
     }
   });
 }
 
-test("the typography audit uses the scaled local micro step and still detects text below it", async ({ mount, page }, info) => {
+test("the typography audit uses the scaled local micro step and still detects text below it", async ({ mount, page }) => {
   const component = await mount<typeof RampTypographyStory>(`${STORIES}/RampTypographyStory`, { fontScale: SHRUNK_SCALE });
   const gloss = component.getByText("Gloss sample", { exact: true });
   await expect(gloss).toHaveCSS("font-size", `${LENGTH_BASE_PX["text.micro"] * SHRUNK_SCALE}px`);
   const healthy = await readSurfaceDesignAudit(page);
-  await info.attach("scaled-micro-healthy", { body: JSON.stringify(healthy, null, 2), contentType: "application/json" });
   expect(healthy.audit.findings.filter(({ rule }) => rule === "text-below-ramp")).toEqual([]);
   await page.addStyleTag({ content: `[data-voice="gloss"] { font-size: ${LENGTH_BASE_PX["text.micro"] * SHRUNK_SCALE - 1}px; }` });
   const broken = await readSurfaceDesignAudit(page);
-  await info.attach("scaled-micro-below-ramp", { body: JSON.stringify(broken, null, 2), contentType: "application/json" });
   expect(broken.audit.findings.some(({ rule }) => rule === "text-below-ramp")).toBe(true);
 });
 
 for (const inline of [false, true]) {
-  test(`an important typography override remains a finding with ${inline ? "present" : "absent"} inline style`, async ({ mount, page }, info) => {
+  test(`an important typography override remains a finding with ${inline ? "present" : "absent"} inline style`, async ({ mount, page }) => {
     const component = await mount<typeof RampTypographyStory>(`${STORIES}/RampTypographyStory`, { fontScale: SHRUNK_SCALE });
     const gloss = component.getByText("Gloss sample", { exact: true });
     const size = LENGTH_BASE_PX["text.micro"] * SHRUNK_SCALE - 1;
@@ -282,7 +279,6 @@ for (const inline of [false, true]) {
     const priority = await gloss.evaluate((element: HTMLElement) => element.style.getPropertyPriority("font-size"));
     await expect(gloss).toHaveCSS("font-size", `${size}px`);
     const audited = await readSurfaceDesignAudit(page);
-    await info.attach(`important-override-${inline ? "inline" : "stylesheet"}`, { body: JSON.stringify(audited, null, 2), contentType: "application/json" });
     expect(audited.audit.findings.some(({ rule }) => rule === "text-below-ramp")).toBe(true);
     const sampled = audited.samples.textStyles.find(({ ownVoice }) => ownVoice === "gloss");
     expect(sampled?.fontSizePx).toBe(size);

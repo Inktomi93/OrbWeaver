@@ -155,6 +155,8 @@ The launcher reuses the production client build while the source state of `packa
 
 A one-case measurement run takes about 45 seconds. The synthetic dataset production and the native case each take about 20 seconds of it. The showcase bundle build takes about 2 seconds and has no reuse.
 
+The per-surface journey status and the driver triage live in [work item 1401](../../work/1401-build-and-qualify-the-native-automated-surface-walkthrough.md#surface-status).
+
 ## Journey authoring method
 
 Coverage comes from the generic walker: tab bodies, disclosures, menus, scroll windows and the unvisited-control inventory over production registries and rendered controls.

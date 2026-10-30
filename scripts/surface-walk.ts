@@ -17,9 +17,11 @@ import {
   prepareSurfaceData,
   SURFACE_AGENT_ENTRY,
   SURFACE_AGENT_SUMMARY,
+  SURFACE_CLIENT_BUILD_MODE,
   SURFACE_NATIVE_TIMEOUT_MS,
   SURFACE_OUTPUT_ROOT_ENV,
   SURFACE_RUN_CONFIG_ENV,
+  surfaceClientBuildEnvironment,
   surfaceClientBuildKey,
   surfaceNativeTimeout,
   surfaceReadCommand,
@@ -129,18 +131,26 @@ async function currentClientBuild(privateRoot: string, runRoot: string, buildLog
   const key = surfaceClientBuildKey(process.cwd());
   const current = join(builds, key);
   if (existsSync(join(current, "index.html"))) {
-    await writeFile(buildLog, `Reused production client build ${key}; its build inputs match the working tree.\n`, { mode: 0o600 });
+    await writeFile(
+      buildLog,
+      `Reused client build ${key}: built with --mode ${SURFACE_CLIENT_BUILD_MODE} and NODE_ENV=${SURFACE_CLIENT_BUILD_MODE} from the same source, Vite env files and VITE_ variables as this run.\n`,
+      { mode: 0o600 },
+    );
     return current;
   }
   const buildTemporary = join(runRoot, "build-tmp");
   await mkdir(buildTemporary, { mode: 0o700 });
   const pending = join(builds, `${key}.pending-${String(process.pid)}`);
-  const build = await spawnNicedTranscript("pnpm", ["--filter", "@orb/client", "exec", "vite", "build", "--configLoader", "native", "--outDir", pending], {
-    cwd: process.cwd(),
-    env: inheritedProcessEnv({ ORB_ENV_NO_FILE: "1", TMPDIR: buildTemporary, TMP: buildTemporary, TEMP: buildTemporary }),
-    timeoutMs: budget(BUILD_TIMEOUT_MS),
-    onChunk: (chunk) => appendFileSync(buildLog, chunk, { mode: 0o600 }),
-  });
+  const build = await spawnNicedTranscript(
+    "pnpm",
+    ["--filter", "@orb/client", "exec", "vite", "build", "--configLoader", "native", "--mode", SURFACE_CLIENT_BUILD_MODE, "--outDir", pending],
+    {
+      cwd: process.cwd(),
+      env: surfaceClientBuildEnvironment({ ORB_ENV_NO_FILE: "1", TMPDIR: buildTemporary, TMP: buildTemporary, TEMP: buildTemporary }),
+      timeoutMs: budget(BUILD_TIMEOUT_MS),
+      onChunk: (chunk) => appendFileSync(buildLog, chunk, { mode: 0o600 }),
+    },
+  );
   await writeFile(buildLog, build.transcript, { mode: 0o600 });
   if (build.code !== 0 || surfaceClientBuildKey(process.cwd()) !== key) {
     await rm(pending, { recursive: true, force: true });
