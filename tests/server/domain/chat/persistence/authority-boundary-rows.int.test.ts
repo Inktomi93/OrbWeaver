@@ -17,6 +17,7 @@ import {
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
   createServerHarness,
+  SUMMARIZE_TRANSCRIPT_MARKER,
   seedCorpusActors,
 } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
@@ -96,7 +97,7 @@ async function memoryActors(root: ServerTestHarness): Promise<MemoryActors> {
 }
 
 function memoryReply(body: string): string {
-  if (!body.includes("Transcript block:")) {
+  if (!body.includes(SUMMARIZE_TRANSCRIPT_MARKER)) {
     return TURN_REPLY;
   }
   // Summary-only sentinels distinguish recalled memory from the same scene still present in raw canon.

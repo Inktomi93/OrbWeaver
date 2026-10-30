@@ -7,7 +7,7 @@
 // `@orb/contracts/chat`'s prose table, resolved against the ROOM HOST's `UserSettings.prose`; this module only
 // composes them with the transcript/facet data. An empty override record ⇒ byte-identical to pre-PROSE-1.
 //
-// Row 79 (`digestUserPrompt`'s `Transcript block:` lead) is deliberately NOT a slot: its only literal is a
+// Row 79 (`digestUserPrompt`'s `SUMMARIZE_TRANSCRIPT_MARKER` lead) is deliberately NOT a slot: its only literal is a
 // two-word structural LABEL (spec §2.11 — the reading grammar, not the voice, and a host edit buys nothing),
 // and homing it would need §4.5's template machinery. It rides to S4 with the rest of the template prose.
 
@@ -19,9 +19,12 @@ export function digestSystemPrompt(prose: ProseOverrides): string {
   return resolveProseText("chat.memory.digestSystem", prose);
 }
 
+/** The lead of a tier-0 digest request; a summarize call is recognised on the provider wire by it. */
+export const SUMMARIZE_TRANSCRIPT_MARKER = "Transcript block:";
+
 /** The user prompt for a tier-0 block digest — the verbatim transcript to distill. */
 export function digestUserPrompt(transcript: string): string {
-  return `Transcript block:\n\n${transcript}`;
+  return `${SUMMARIZE_TRANSCRIPT_MARKER}\n\n${transcript}`;
 }
 
 /** The system prompt for a tier-(k+1) consolidation — synthesize the arc across child digests, never repeat. */

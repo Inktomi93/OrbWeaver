@@ -1,5 +1,6 @@
 // Physical prose and finite swipe replies only; memory parsing, tier math and generation stay in production.
 
+import { SUMMARIZE_TRANSCRIPT_MARKER } from "@orb/server/domain/chat";
 import { corpusKnowledgeText } from "./corpus-knowledge.ts";
 import type { CorpusProviderCompletion } from "./corpus-provider.ts";
 
@@ -35,7 +36,7 @@ export function createKnowledgeSwipeWire(): KnowledgeSwipeWire {
     completion: (body): CorpusProviderCompletion | undefined => {
       if (
         !body.includes(CORPUS_KNOWLEDGE_SWIPE_CUE) ||
-        body.includes("Transcript block:") ||
+        body.includes(SUMMARIZE_TRANSCRIPT_MARKER) ||
         body.includes(CONSOLIDATION_LEAD) ||
         body.includes('"response_format":')
       ) {
