@@ -35,29 +35,38 @@ test("an empty DATA_DIR counts as unset", () => {
   expect(resolveDataLayout({ ["DATA_DIR"]: "" })).toEqual(resolveDataLayout({}));
 });
 
-test("each explicit slot key replaces its own slot and lands in the explicit set; an empty value counts as unset", () => {
-  const keys = [
-    "DATABASE_URL",
-    "ASSETS_DIR",
-    "LOCAL_LIGHT_CACHE_DIR",
-    "USER_RUNTIME_DIR",
-    "IMPORT_STAGING_DIR",
-  ] as const satisfies readonly (keyof DataLayoutInput)[];
+// Every input key has a row, so a key added to the resolver's input fails tsc here until a case names how it behaves.
+const INPUT_KIND: Readonly<Record<keyof DataLayoutInput, "root" | "slot" | "secret" | "skip">> = {
+  ["DATA_DIR"]: "root",
+  ["DATABASE_URL"]: "slot",
+  ["ASSETS_DIR"]: "slot",
+  ["LOCAL_LIGHT_CACHE_DIR"]: "slot",
+  ["USER_RUNTIME_DIR"]: "slot",
+  ["IMPORT_STAGING_DIR"]: "slot",
+  ["CREDENTIALS_KEY"]: "secret",
+  ["SESSION_SECRET"]: "secret",
+  ["DATA_LAYOUT_SKIP"]: "skip",
+};
+const INPUT_KEYS = Object.keys(INPUT_KIND).filter((key): key is keyof DataLayoutInput => Object.hasOwn(INPUT_KIND, key));
+const keysOfKind = (kind: (typeof INPUT_KIND)[keyof DataLayoutInput]): readonly (keyof DataLayoutInput)[] =>
+  INPUT_KEYS.filter((key) => INPUT_KIND[key] === kind);
+
+test.for(keysOfKind("slot"))("an explicit %s replaces its own slot and lands in the explicit set; an empty value counts as unset", (key) => {
   const base = resolveDataLayout({ ["DATA_DIR"]: "/srv/orb" });
-  for (const key of keys) {
-    const layout = resolveDataLayout({ ["DATA_DIR"]: "/srv/orb", [key]: `/explicit/${key}` });
-    expect([...layout.explicit]).toEqual([key]);
-    // Exactly one slot differs from the derived tree, and it is the one the key names.
-    const differing = Object.entries(layout).filter(([field, value]) => field !== "explicit" && field !== "skip" && value !== Reflect.get(base, field));
-    expect(
-      differing.map(([, value]) => value),
-      key,
-    ).toEqual([`/explicit/${key}`]);
-    const empty = resolveDataLayout({ ["DATA_DIR"]: "/srv/orb", [key]: "" });
-    expect(empty).toEqual(base);
-  }
-  const secrets = resolveDataLayout({ ["CREDENTIALS_KEY"]: "ab".repeat(32), ["SESSION_SECRET"]: "" });
-  expect([...secrets.explicit]).toEqual(["CREDENTIALS_KEY"]);
+  const layout = resolveDataLayout({ ["DATA_DIR"]: "/srv/orb", [key]: `/explicit/${key}` });
+  expect([...layout.explicit]).toEqual([key]);
+  // Exactly one slot differs from the derived tree, and it is the one the key names.
+  const differing = Object.entries(layout).filter(([field, value]) => field !== "explicit" && field !== "skip" && value !== Reflect.get(base, field));
+  expect(differing.map(([, value]) => value)).toEqual([`/explicit/${key}`]);
+  expect(resolveDataLayout({ ["DATA_DIR"]: "/srv/orb", [key]: "" })).toEqual(base);
+});
+
+test.for(keysOfKind("secret"))("an explicit %s lands in the explicit set without moving any slot; an empty value counts as unset", (key) => {
+  const base = resolveDataLayout({});
+  const layout = resolveDataLayout({ [key]: "ab".repeat(32) });
+  expect([...layout.explicit]).toEqual([key]);
+  expect({ ...layout, explicit: base.explicit }).toEqual(base);
+  expect(resolveDataLayout({ [key]: "" })).toEqual(base);
 });
 
 test("a remote DATABASE_URL is carried through untouched", () => {

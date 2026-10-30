@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { Db } from "@orb/db";
 import { backupBeforeMigrate, checkBaseline, closeDb, createDb, hasPendingMigrations, listBackupFiles, messageVariants, runMigrations } from "@orb/db";
-import { DB_LAUNCHED, runBootMigrations } from "@orb/server/entry/boot";
+import { runBootMigrations } from "@orb/server/entry/boot";
 import { expect, test } from "@orb/testkit/node";
 import { createTestLogger, migrationsBefore, SHIPPED_MIGRATIONS } from "@orb/testkit/node/composed";
 import { seedMessageRow } from "@orb/testkit/node/rows";
@@ -27,14 +27,8 @@ function layoutIn(dir: string): Layout {
   return { path, url: pathToFileURL(path).href, backupDir: join(dir, "backups"), dir };
 }
 
-function boot(db: Db, where: Layout, over: { readonly backupDir?: string; readonly launched?: boolean } = {}): Promise<void> {
-  return runBootMigrations({
-    db,
-    logger: createTestLogger(),
-    databaseUrl: where.url,
-    backupDir: over.backupDir ?? where.backupDir,
-    launched: over.launched ?? DB_LAUNCHED,
-  });
+function boot(db: Db, where: Layout, over: { readonly backupDir?: string } = {}): Promise<void> {
+  return runBootMigrations({ db, logger: createTestLogger(), databaseUrl: where.url, backupDir: over.backupDir ?? where.backupDir });
 }
 
 const backupsIn = (dir: string): readonly string[] => (statSync(dir, { throwIfNoEntry: false }) === undefined ? [] : listBackupFiles(dir, DB_NAME));
@@ -190,11 +184,6 @@ test("a database that recorded a migration the shipped chain does not hold refus
     await db.run(sql`UPDATE __drizzle_migrations SET created_at = 0`);
     expect((await checkBaseline(db, SHIPPED_MIGRATIONS)).status).toBe("regenerated");
     await expect(boot(db, where)).rejects.toThrow();
-    // An untyped caller that omits the posture is refused the same way: only an explicit `false` could buy a reset.
-    // The key is required by type, so the omission is made at runtime on a real deps object.
-    const untyped = { db, logger: createTestLogger(), databaseUrl: where.url, backupDir: where.backupDir, launched: false };
-    Reflect.deleteProperty(untyped, "launched");
-    await expect(runBootMigrations(untyped)).rejects.toThrow();
 
     expect(await contents(db)).toEqual([CONTENT]);
     expect(backupsIn(where.backupDir)).toEqual(copies);

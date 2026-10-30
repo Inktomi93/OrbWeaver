@@ -417,20 +417,16 @@ const SERVER_TEST_REACHES = {
   "tests/server/entry/boot/boot-secrets.int.test.ts": {
     "foundation/data-layout": "SECRET_FILE_NAMES: the suite plants and removes the boot secret files by their production names",
   },
-  "tests/server/domain/import/substrate/staging-default.test.ts": {
-    "foundation/data-layout": "resolveDataLayout: the import domain's fallback staging root must equal the slot the layout derives",
-  },
   "tests/server/entry/boot/disclaimer.test.ts": {
     "foundation/env":
-      "resolveBindPosture, resolveOwnerFallbackPeers and the posture inputs: the block's bind and owner-peer facts come from a parsed record, not spelled values",
+      "resolveBindPosture, resolveOwnerFallbackPeers and the posture inputs: no testkit door resolves a bind or owner-peer posture, and the block takes those resolved values",
   },
   "tests/server/entry/boot/persistence/migrate-data-layout.int.test.ts": {
-    "foundation/data-layout":
-      "LEGACY_ENTRIES, DB_FILE_NAME, DATA_LAYOUT_SKIP_KEY, fileDatabaseUrl and resolveDataLayout: the suite plants the legacy tree and derives every moved name from the layout's own table",
+    "foundation/data-layout": "LEGACY_ENTRIES and DB_FILE_NAME: the legacy names and their targets exist only in this table, and no testkit door supplies them",
   },
   "tests/server/foundation/env/record/floor-defaults.test.ts": {
     "foundation/data-layout":
-      "resolveDataLayout and LEGACY_ENTRIES: the record's data slots must equal the layout's own resolution, and its skip refusal names a keyed entry",
+      "resolveDataLayout and LEGACY_ENTRIES: the record's slots are compared with an independent resolution, which no testkit door offers, and a keyed legacy entry exists only in the table",
   },
   "tests/server/entry/boot/identity-ownership.int.test.ts": {
     "foundation/data-layout": "SECRET_FILE_NAMES: the suite plants the boot secret files by their production names",

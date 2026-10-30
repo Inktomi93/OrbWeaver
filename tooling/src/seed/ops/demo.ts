@@ -53,7 +53,6 @@ import { createSessionsRolePolicy, createSessionsService } from "@orb/server/dom
 import { createHostPrincipalResolver } from "@orb/server/entry/auth";
 import {
   createLocalLightUserSeed,
-  DB_LAUNCHED,
   migrateDataLayout,
   runBootMigrations,
   seedDefaultPreset,
@@ -430,7 +429,6 @@ export async function runDemoSeed(argv: readonly string[]): Promise<ExitCode> {
     logger: createLogger(env.LOG_LEVEL, null),
     databaseUrl: env.DATABASE_URL,
     backupDir: env.DATA_LAYOUT.backups,
-    launched: DB_LAUNCHED,
   });
   log("db migrated from the baseline");
 

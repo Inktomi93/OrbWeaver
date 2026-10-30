@@ -178,10 +178,10 @@ Legacy paths are relative to the external source named in [Spine-Testing](../../
 
 | Home | Layer and production entry |
 | - | - |
-| [Boot migration](../../../tests/server/entry/boot/persistence/migrate.int.test.ts) | Integration on a real file database, `runBootMigrations` with the shipped `DB_LAUNCHED`; pre-migration databases come from the shipped chain cut before its last migration |
+| [Boot migration](../../../tests/server/entry/boot/persistence/migrate.int.test.ts) | Integration on a real file database, `runBootMigrations`; pre-migration databases come from the shipped chain cut before its last migration |
 | [Data-layout move](../../../tests/server/entry/boot/persistence/migrate-data-layout.int.test.ts) | Integration on a real filesystem and database, `migrateDataLayout`; the legacy flat tree is the historic state the move exists for; every crash state is a real failed rename; the idle-holder case runs two real processes through [the holder](../../../tests/support/node/db-holder.ts) and [the migration script](../../../tests/support/node/migrate-data-layout.ts) |
-| [Layout resolver](../../../tests/server/foundation/data-layout/index.test.ts) | Unit, `resolveDataLayout`; expectations derive from the layout's own `LEGACY_ENTRIES` |
-| [Import staging default](../../../tests/server/domain/import/substrate/staging-default.test.ts) | Unit, the import domain's `DEFAULT_IMPORT_STAGING_DIR` against the layout slot |
+| [Layout resolver](../../../tests/server/foundation/data-layout/index.test.ts) | Unit, `resolveDataLayout`; expectations derive from the layout's own `LEGACY_ENTRIES`, and a mapped record over `DataLayoutInput` fails `tsc` when a key is added |
+| [Boot migration deps](../../../tests/server/entry/boot/migrate.test-d.ts) | Type, `runBootMigrations` accepts no posture or reset option |
 | [Env floor](../../../tests/server/foundation/env/record/floor-defaults.test.ts) | Unit, the production `parseEnv` through `createTestEnv` |
 | [Env file load](../../../tests/server/foundation/env/env-file-load.int.test.ts) | Integration, the production process env module in a fresh node process per case ([child](../../../tests/support/node/env-file-child.ts)); the load runs once at import from the working directory and process environment, so one process cannot vary it |
 | [Boot disclaimer](../../../tests/server/entry/boot/disclaimer.test.ts) | Unit, `composeBootDisclaimer` with posture values derived from a parsed record |
@@ -190,20 +190,20 @@ Decisions for `server/entry/boot/migrate.int.test.ts`:
 
 | Case | Decision | Evidence |
 | - | - | - |
-| Forward migration over a populated baseline keeps prior bytes | Keep | [Provenance migration](../../../tests/db/schema/chat-freeze-provenance.repo.int.test.ts) runs a launched boot over a copied file database and compares rows and the pre-migration backup. The boot suite adds the second boot that takes no copy. |
+| Forward migration over a populated baseline keeps prior bytes | Keep | [Provenance migration](../../../tests/db/schema/chat-freeze-provenance.repo.int.test.ts) runs a boot over a copied file database and compares rows and the pre-migration backup. The boot suite adds the second boot that takes no copy. |
 | `resolveMigrationsFolder` ends in `migrations` | Drop | Private helper; every default-folder boot in the boot suite resolves it. |
 | Baseline applied on a fresh database, integrity gate, foreign keys on | Rebuild | Boot suite, first case, on a file database with the default folder. |
 | Second boot is a no-op | Rebuild | Same case, with the backup listing unchanged and the baseline `current`. |
-| Raw `runMigrations` crashes on a stale record | Drop | Asserts drizzle's behavior. The product refusal is the launched-refusal case. |
-| Regenerated-baseline dev database auto-resets | Drop, flagged | The `launched: false` arm has no production caller and ADR 0163 states that drift never authorizes an automatic reset. Flagged for deletion with its arm, not restored. |
+| Raw `runMigrations` crashes on a stale record | Drop | Asserts drizzle's behavior. The product refusal is the drifted-chain case. |
+| Regenerated-baseline dev database auto-resets | Drop: the reset arm is deleted under D163 | The `launched` option, `DB_LAUNCHED`, the boot reset branch and the database reset function are deleted, so `tsc` refuses a caller that passes the option ([type case](../../../tests/server/entry/boot/migrate.test-d.ts)). |
 | Backup taken on a migrating boot into the passed dir, skipped on a no-op boot | Rebuild | Boot suite, first case. |
 | Backup restores a commit still in the WAL | Rebuild | Boot suite on a database one migration behind, in place of the reset trigger. It also proves the copy predates the migration. |
 | Backup failure aborts before the reset | Rebuild | Boot suite: an unwritable backup dir aborts before the forward migration, and the retry migrates. The proxy that forced a transaction failure is dropped as fabricated. |
 | Debris at the stamped backup path is replaced | Rebuild | Boot suite. The name comes from `backupBeforeMigrate`, not a copy of its rule. |
-| A reset boot backs up first, then prunes to the cap | Rebuild, narrowed | Boot suite asserts the migrating boot prunes the oldest copy and keeps the newest, and a no-op boot prunes nothing. Retention counts, pins and daily rollup stay with the database client batch. |
-| Shipped `DB_LAUNCHED` refuses a diverged chain on a file database before any backup | Rebuild | Boot suite, last case: the database, the rows and the copies are unchanged. |
+| A reset boot backs up first, then prunes to the cap | Rebuild, narrowed; the reset trigger is deleted | Boot suite asserts the migrating boot prunes the oldest copy and keeps the newest, and a no-op boot prunes nothing. Retention counts, pins and daily rollup stay with the database client batch. |
+| Shipped posture refuses a diverged chain on a file database before any backup | Rebuild | Boot suite, last case: the database, the rows and the copies are unchanged. |
 | A launched memory database refuses to auto-wipe | Keep | Covered by the file-database case above. |
-| Omitting `launched` fails closed | Rebuild | Same last case; the key is removed at runtime from a real deps object. |
+| Omitting `launched` fails closed | Drop: the reset arm is deleted under D163 | No posture option remains to omit; the type case guards it. |
 
 Decisions for `server/entry/boot/migrate-data-layout.int.test.ts`:
 
@@ -239,13 +239,13 @@ Decisions for `server/foundation/data-layout/index.test.ts`:
 | Slots derive from the default root, relative | Rebuild | Layout resolver, by relation to the root. |
 | `DATA_DIR` re-roots every slot | Rebuild | Same, for an absolute and a relative root. |
 | Explicit slot wins and lands in the explicit set | Rebuild | Same, one key at a time against the derived tree. |
-| Every slot key honoured, empty counts as unset | Rebuild | Same. |
+| Every slot key honoured, empty counts as unset | Rebuild | Same, over a record that lists every `DataLayoutInput` key by kind. |
 | Non-file `DATABASE_URL` carried through | Keep | [Native file identity](../../../tests/server/foundation/data-layout/persistence/file-identity.int.test.ts) covers the explicit URL inputs; the resolver suite adds the remote case. |
 | `DATA_LAYOUT_SKIP` parsing | Rebuild | Same. |
 | `DATA_LAYOUT_SKIP` refuses the database, keyfiles and keyed slots, and an unknown name | Rebuild, narrowed | Same, one case per keyed entry plus a control. The naming of the key in the message is not asserted. |
 | Database remedy carries the `DATABASE_URL` value | Drop | Message wording; the working value is run by the move suite. |
 | Explicit secrets land in the explicit set | Rebuild | Same. |
-| Import domain default equals the resolver | Rebuild | Import staging default. |
+| Import domain default equals the resolver | Drop | The import domain derives `DEFAULT_IMPORT_STAGING_DIR` from `resolveDataLayout`, so the two cannot differ. |
 
 Decisions for `server/foundation/env/floor-defaults.test.ts`:
 
@@ -291,9 +291,7 @@ Decisions for `server/entry/boot/disclaimer.test.ts`:
 | Every security line is a warning | Rebuild | Folded into the exposure case. |
 | Break-glass line | Rebuild | Same, with a control per ingredient. |
 
-Defect controls: each guarded production behavior was planted in a worktree and the named case failed for its intended reason. The planted behaviors are the launched refusal, the omitted-flag runtime floor, the backup gate, the abort on a failed backup, the retention sweep and its boot gating, debris replacement, the target-conflict check, the cross-device pre-flight, the sole-holder claim, the first-boot snapshot, own-pid and live-pid journal handling, keeper and skip-list planning, zero-byte handling, the resume snapshot rule, the skip validation, explicit-set recording, the boolean vocabulary, the gate defaults, the parse-time skip check, the override direction, the byte-order mark, `ORB_ENV_NO_FILE`, the import default and each disclaimer gate.
-
-Product flag: `DEFAULT_IMPORT_STAGING_DIR` in the import domain is a second spelling of the layout's `importStaging` slot, equal only by the case above.
+Defect controls: each guarded production behavior was planted in a worktree and the named case failed for its intended reason. The planted behaviors are the drifted-chain refusal, the posture option type, the backup gate, the abort on a failed backup, the retention sweep and its boot gating, debris replacement, the target-conflict check, the cross-device pre-flight, the sole-holder claim, the first-boot snapshot, own-pid and live-pid journal handling, keeper and skip-list planning, zero-byte handling, the resume snapshot rule, the skip validation, explicit-set recording, the boolean vocabulary, the gate defaults, the parse-time skip check, the override direction, the byte-order mark, `ORB_ENV_NO_FILE` and each disclaimer gate.
 
 ### Server composition
 

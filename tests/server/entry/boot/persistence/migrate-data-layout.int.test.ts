@@ -9,15 +9,16 @@ import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createDb, listBackupFiles, preCloseHousekeeping } from "@orb/db";
 import { migrateDataLayout } from "@orb/server/entry/boot";
-import type { DataLayout, DataLayoutInput } from "@orb/server/foundation/data-layout";
-import { DATA_LAYOUT_SKIP_KEY, DB_FILE_NAME, fileDatabaseUrl, LEGACY_ENTRIES, resolveDataLayout } from "@orb/server/foundation/data-layout";
+import { DB_FILE_NAME, LEGACY_ENTRIES } from "@orb/server/foundation/data-layout";
 import { expect, test } from "@orb/testkit/node";
-import { createTestLogger } from "@orb/testkit/node/composed";
+import { createTestEnv, createTestLogger } from "@orb/testkit/node/composed";
 import { sql } from "drizzle-orm";
 import { onTestFinished } from "vitest";
 import { z } from "zod";
 
 type DataLayoutMigrationReport = Awaited<ReturnType<typeof migrateDataLayout>>;
+type DataLayout = Parameters<typeof migrateDataLayout>[0]["layout"];
+type EnvInput = Parameters<typeof createTestEnv>[0];
 
 // What the child migration wrote: the fields this file reads, parsed at the process boundary.
 const childOutcomeSchema = z.object({ report: z.object({ moved: z.array(z.object({ from: z.string() })) }).optional(), error: z.string().optional() });
@@ -48,8 +49,9 @@ function freshRoot(parent: string): string {
   return join(mkdtempSync(join(parent, "layout-")), "data");
 }
 
-function layoutFor(root: string, over: DataLayoutInput = {}): DataLayout {
-  return resolveDataLayout({ ["DATA_DIR"]: root, ...over });
+// The layout a boot resolves: the parsed record's own, so a key the parse refuses is refused here.
+function layoutFor(root: string, over: EnvInput = {}): DataLayout {
+  return createTestEnv({ ["DATA_DIR"]: root, ...over }).DATA_LAYOUT;
 }
 
 function migrate(layout: DataLayout, deps: Partial<Parameters<typeof migrateDataLayout>[0]> = {}): Promise<DataLayoutMigrationReport> {
@@ -183,14 +185,18 @@ test.for(KEYED)(
   async ({ name, keptBy }, { importStagingDir }) => {
     const root = freshRoot(importStagingDir);
     await plantLegacyTree(root, importStagingDir);
-    const kept: Record<string, string> = {
+    const kept: Partial<Record<typeof keptBy, string>> = {
       ["CREDENTIALS_KEY"]: "cd".repeat(32),
       ["SESSION_SECRET"]: "ef".repeat(32),
-      ["DATABASE_URL"]: fileDatabaseUrl(join(root, DB_FILE_NAME)),
+      ["DATABASE_URL"]: pathToFileURL(join(root, DB_FILE_NAME)).href,
       ["LOCAL_LIGHT_CACHE_DIR"]: join(root, name, "transformers"),
       ["IMPORT_STAGING_DIR"]: join(root, name),
     };
-    const layout = layoutFor(root, { [keptBy]: kept[keptBy] });
+    const value = kept[keptBy];
+    if (value === undefined) {
+      throw new Error(`a legacy entry is kept by ${keptBy}, which this case has no value for`);
+    }
+    const layout = layoutFor(root, { [keptBy]: value });
 
     const report = await migrate(layout);
 
@@ -307,7 +313,7 @@ test("an empty mount point at a target refuses before any write; the keyed entry
   expect(existsSync(join(root, DB_FILE_NAME))).toBe(true);
   expect(rootListing(root)).toEqual(before);
 
-  const remedied = layoutFor(root, { [keyedName.keptBy]: join(root, keyedName.name, "transformers"), [DATA_LAYOUT_SKIP_KEY]: keylessName });
+  const remedied = layoutFor(root, { [keyedName.keptBy]: join(root, keyedName.name, "transformers"), ["DATA_LAYOUT_SKIP"]: keylessName });
   const report = await migrate(remedied, { deviceOf });
   expect(report.leftInPlace).toEqual([keyedName.name, keylessName, OPERATOR_FILE].sort());
   expect(movedFrom(report)).toContain(DB_FILE_NAME);
