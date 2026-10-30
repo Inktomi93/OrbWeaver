@@ -11,7 +11,7 @@
 
 import type { ContributorRegistry } from "#lib";
 import type { ConfigGroupId, ConfigSectionContribution } from "#state";
-import type { NavResult } from "../lib/agent-bridge.ts";
+import type { NavResult } from "../../lib/agent-bridge.ts";
 
 const OK: NavResult = { ok: true };
 

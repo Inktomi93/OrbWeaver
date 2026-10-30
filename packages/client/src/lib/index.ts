@@ -1,6 +1,4 @@
-// lib/ front door — the cross-cutting display/util seams. Deliberately NOT exported here (dev-only
-// modules never ride a shared barrel): ./dev-tools (main.tsx lazy-mounts it), ./long-task-tracer
-// (main.tsx dynamic-imports it).
+// lib/ front door — the cross-cutting display/util seams. Dev-only modules never ride this barrel.
 
 // `cn` and the item-action name grammars are @orb/ui's: a `@orb/ui` primitive spells `Remove <x>`
 // (combobox chips), `Select <x>` (table rows) and `Copy <x>` (copy-button), and `ui` cannot import `client` (the cake, §2), so the
@@ -152,7 +150,6 @@ export {
   sendUnavailableReason,
 } from "./injection-copy.ts";
 export { DEAD_INVITE_SENTENCE, inviteRoomSentence } from "./invite-copy.ts";
-export { LEADERBOARD_ROW_ATTR } from "./leaderboard-row-attr.ts";
 export type { ListPaneHeaderProps, ListPaneHeaderView, ListSearchPolicy } from "./list-pane-header-view.ts";
 export { LIST_PANE_TITLE_ID } from "./list-pane-title-id.ts";
 export {} from "./log-clock.ts";

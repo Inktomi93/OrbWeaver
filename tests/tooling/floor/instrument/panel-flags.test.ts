@@ -2,7 +2,7 @@
 // Spine-Testing §2: a test of a tooling module lives in tests/tooling/.
 //
 // The COMMITTED ROWS are pinned here against the vocabulary the app itself owns
-// (packages/client/src/agent-nav/panel-request.ts: names list|context, writable modes docked|collapsed). That vocabulary deliberately has no second home in tooling — the bridge refuses an unknown
+// (packages/client/src/dev/agent-nav/panel-request.ts: names list|context, writable modes docked|collapsed). That vocabulary deliberately has no second home in tooling — the bridge refuses an unknown
 // value loudly at run time — so this suite is what stops a typo in the committed JSON from reaching a live
 // run as a nav error nobody expected.
 

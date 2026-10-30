@@ -1,5 +1,5 @@
 import type { ChatId } from "@orb/kit/ids";
-import type { SeedProfile } from "../lib/agent-bridge.ts";
+import type { SeedProfile } from "../../lib/agent-bridge.ts";
 
 type SeedStep = () => Promise<void>;
 interface GameSeedResult {

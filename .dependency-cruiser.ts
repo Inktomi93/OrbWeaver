@@ -339,6 +339,8 @@ const TEST_CONSTANT_HOMES = {
     "PLUGIN_MODEL_HEADING: the production model disclosure name used by plugin presentation assertions",
   "packages/client/src/features/plugin/lib/plugin-panel-copy.ts":
     "CHAT_PLUGINS_* and movePluginPanelLabel: production panel navigation, empty-state and placement action names",
+  "packages/client/src/features/stats/lib/leaderboard-row-attr.ts":
+    "LEADERBOARD_ROW_ATTR: the attribute a leaderboard row wears, which the corpus workbench e2e addresses rows by",
   "packages/client/src/features/tag/lib/tag-list-name.ts": "TAG_LIST_NAME: the Labels finder's tag list name",
   "packages/client/src/state/create-persisted-store.ts": "createPersistedStore: the persisted-store factory a type contract reads",
   "packages/client/src/compose/contributors.ts": "chromeWidgets: the shipped chrome widget registry",
@@ -970,8 +972,8 @@ const CLIENT_BOUNDARIES = [
     name: "client-composition-tier-door-only",
     comment: "A composition helper must not launder cross-feature runtime access into a lower tier.",
     severity: "error",
-    from: { path: CLIENT, pathNot: [`${CLIENT}main\\.tsx$`, `${CLIENT}(agent-handles|agent-nav|agent-plugin|agent-rpg|agent-seed)/`] },
-    to: { path: `${CLIENT}(agent-handles|agent-nav|agent-plugin|agent-rpg|agent-seed)/` },
+    from: { path: CLIENT, pathNot: [`${CLIENT}main\\.tsx$`, `${CLIENT}dev/`] },
+    to: { path: `${CLIENT}dev/` },
   },
   {
     name: "client-compose-door-only",

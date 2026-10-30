@@ -1,5 +1,5 @@
 import { expectTypeOf, test } from "vitest";
-import type { HandWriteResult } from "#client/agent-seed/index.ts";
+import type { HandWriteResult } from "#client/dev/agent-seed/index.ts";
 
 test("the seeder cannot erase a hand-write refusal reason", () => {
   expectTypeOf<{ ok: false }>().not.toExtend<HandWriteResult>();

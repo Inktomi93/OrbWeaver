@@ -22,7 +22,7 @@ export type OrbPluginLogResult =
 
 /** Dev-only plugin-log reader: the owner's installed-plugin list and, per plugin, the RUNTIME host.log ring
  *  `plugin.getLog` serves — which (#806) now includes what a floated guest continuation logged between
- *  invocations. Built at the composition tier (`client/src/agent-plugin/`) over the production tRPC reads. */
+ *  invocations. Built at the composition tier (`client/src/dev/agent-plugin/`) over the production tRPC reads. */
 export type OrbPluginLogReader = (ref?: string) => Promise<OrbPluginLogResult>;
 
 /** Cache evidence is not an eligibility verdict; an unread scope has no publication evidence. */

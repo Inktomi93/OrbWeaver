@@ -1014,7 +1014,7 @@ export const DOM_LOOKUP_HOMES = [
     reason: "the finder and the library are sibling panes with no shared ancestor; each is addressed by its stamped data-slot",
   },
   {
-    file: "packages/client/src/agent-nav/panel-request.ts",
+    file: "packages/client/src/dev/agent-nav/panel-request.ts",
     function: "readPanelElement",
     method: "querySelector",
     receiver: "document",
@@ -1022,7 +1022,7 @@ export const DOM_LOOKUP_HOMES = [
     reason: "The development navigation adapter addresses shell-owned panel markers to drive the requested panel.",
   },
   {
-    file: "packages/client/src/agent-nav/panel-request.ts",
+    file: "packages/client/src/dev/agent-nav/panel-request.ts",
     function: "resolvePanelRequest",
     method: "querySelector",
     receiver: "document",
@@ -1110,7 +1110,7 @@ export const DOM_LOOKUP_HOMES = [
     reason: "Development motion diagnostics identify virtualized scroll viewports before judging layout shifts.",
   },
   {
-    file: "packages/client/src/agent-plugin/ui.ts",
+    file: "packages/client/src/dev/agent-plugin/ui.ts",
     function: "hostObservation",
     method: "closest",
     receiver: "element",
@@ -1118,7 +1118,7 @@ export const DOM_LOOKUP_HOMES = [
     reason: "The read-only development plugin inventory observes existing host ancestry without changing eligibility or mounting UI.",
   },
   {
-    file: "packages/client/src/agent-plugin/ui.ts",
+    file: "packages/client/src/dev/agent-plugin/ui.ts",
     function: "surfaceHosts",
     method: "querySelectorAll",
     receiver: "document",
@@ -1126,7 +1126,7 @@ export const DOM_LOOKUP_HOMES = [
     reason: "The read-only development plugin inventory addresses private DEV identity attributes on existing plugin attribution shells.",
   },
   {
-    file: "packages/client/src/agent-plugin/ui.ts",
+    file: "packages/client/src/dev/agent-plugin/ui.ts",
     function: "commandHosts",
     method: "querySelectorAll",
     receiver: "document",
@@ -1134,7 +1134,7 @@ export const DOM_LOOKUP_HOMES = [
     reason: "The read-only development plugin inventory addresses private DEV identity attributes on existing composer controls.",
   },
   {
-    file: "packages/client/src/agent-plugin/ui.ts",
+    file: "packages/client/src/dev/agent-plugin/ui.ts",
     function: "menuHosts",
     method: "querySelectorAll",
     receiver: "document",

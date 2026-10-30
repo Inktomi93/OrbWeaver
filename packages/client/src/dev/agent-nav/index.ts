@@ -37,8 +37,8 @@ import {
   setActiveSection,
   setCorpusMode,
 } from "#state";
-import type { NavResult, OrbNavCapabilities, OrbNavHandle } from "../lib/agent-bridge.ts";
-import { markAgentNavigation } from "../lib/motion-stats.ts";
+import type { NavResult, OrbNavCapabilities, OrbNavHandle } from "../../lib/agent-bridge.ts";
+import { markAgentNavigation } from "../../lib/motion-stats.ts";
 import { resolvePanelRequest } from "./panel-request.ts";
 import { resolveConfigTarget } from "./resolve-config-target.ts";
 import { resolveContextTab } from "./resolve-context-tab.ts";

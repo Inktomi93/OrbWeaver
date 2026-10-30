@@ -1,12 +1,10 @@
 // Button-gated editor form factory. Seeds defaultValues once from serverValues at mount, re-baselines
 // via reset(saved) in an effect after submit (never inside onSubmit), and reseeds an untouched form on
-// a fresh serverValues identity. Optional `draft` param mirrors edits to a crash-survival store.
+// a fresh serverValues identity. It persists nothing: a half-typed create or credential never reaches storage.
 
 import type { UpdateMetaOptions } from "@tanstack/react-form";
 import { revalidateLogic } from "@tanstack/react-form";
 import { useEffect, useRef, useState } from "react";
-import type { EntityDraftStore } from "#state";
-import { DEFAULT_DEBOUNCE_MS, mirrorDraft, readDraftSeed } from "../entity-form-base.ts";
 import { focusFirstInvalidField } from "./focus-invalid-field.ts";
 import type { AppFormOptions } from "./use-app-form.ts";
 import { useAppForm } from "./use-app-form.ts";
@@ -24,13 +22,6 @@ export interface SavedEntityFormConfig<TValues extends object> {
    * per-field clear semantics must project at its own save seam (see `characterUpdateDiff`).
    */
   readonly save?: (values: TValues) => Promise<TValues>;
-  /**
-   * Crash-survival mirror, for long-form editors whose fields carry authored text a crash/reload
-   * must not lose. The draft never seeds `defaultValues` (mount seed stays server-only); a surviving
-   * draft is promoted after mount as a user-intent write so the dirty pill lights honestly. Cleared
-   * on confirmed save and on `discard()`. Omit = original behavior (no listener, no mirror).
-   */
-  readonly draft?: EntityDraftStore<TValues>;
   /** Extra `useAppForm` options (validators etc.) spread verbatim. */
   readonly options?: Partial<Omit<AppFormOptions<TValues>, "defaultValues" | "onSubmit">>;
 }
@@ -52,10 +43,6 @@ export function createSavedEntityForm<TValues extends object>(config: SavedEntit
   return function useSavedEntityForm({ entityId, serverValues, save: callTimeSave }: SavedEntityFormArgs<TValues>) {
     const save = callTimeSave ?? config.save;
 
-    // Draft read is a plain store read (not a subscription), promoted after mount, never merged into
-    // the seed — the mount seed stays server-only so isDefaultValue tracks server truth.
-    const draftSeed = readDraftSeed(config.draft, entityId);
-
     // onSubmit stores the saved row + bumps the tick; the effect below re-baselines outside the submit
     // path (isSubmitSuccessful alone can't carry the saved value).
     const savedRef = useRef<TValues | null>(null);
@@ -69,7 +56,7 @@ export function createSavedEntityForm<TValues extends object>(config: SavedEntit
      * over a slow first attempt) resolve in network order, so an OLDER row could land last and reset the
      * form back onto values the user had already replaced — silent, and indistinguishable from the save
      * having worked. The epoch makes the rule explicit: a submission that has been superseded resolves
-     * quietly, writes nothing, and leaves the draft alone for the later one to clear.
+     * quietly and writes nothing.
      */
     const submitEpoch = useRef(0);
 
@@ -91,21 +78,8 @@ export function createSavedEntityForm<TValues extends object>(config: SavedEntit
         }
         savedRef.current = saved;
         setSaveTick((t) => t + 1);
-        config.draft?.clearDraft(entityId);
       },
       onSubmitInvalid: focusFirstInvalidField,
-      ...(config.draft === undefined
-        ? {}
-        : {
-            listeners: {
-              onChange: ({ formApi }: { formApi: { state: { values: TValues; isDefaultValue: boolean } } }): void => {
-                if (!formApi.state.isDefaultValue) {
-                  mirrorDraft(config.draft, entityId, formApi.state.values);
-                }
-              },
-              onChangeDebounceMs: DEFAULT_DEBOUNCE_MS,
-            },
-          }),
     });
 
     useEffect(() => {
@@ -113,39 +87,6 @@ export function createSavedEntityForm<TValues extends object>(config: SavedEntit
         form.reset(savedRef.current);
       }
     }, [saveTick, form]);
-
-    // Promote a surviving draft after mount as a user-intent write so isDefaultValue flips and the
-    // pill lights. draftSeededRef makes this mount-once: draftSeed's identity flips the moment the
-    // debounced listener mirrors an edit, which would otherwise re-trigger this effect and clobber the
-    // live edit with the original draft on the next host re-render.
-    const draftSeedRef = useRef(draftSeed);
-    const draftSeededRef = useRef(false);
-    useEffect(() => {
-      if (draftSeededRef.current) {
-        return;
-      }
-      draftSeededRef.current = true;
-      if (draftSeed !== undefined && draftSeedRef.current !== undefined) {
-        for (const [name, value] of Object.entries(draftSeedRef.current)) {
-          // Not a branded-id cast: the draft field key and value are erased to `never` to satisfy setFieldValue's `TField extends DeepKeys<TFormData>` generic, which Object.entries cannot narrow to. Ends when draftSeed is typed as a partial of TValues instead of an entries loop.
-          form.setFieldValue(name as never, value as never);
-        }
-      }
-    }, [draftSeed, form]);
-
-    // Flush the debounced mirror synchronously on unmount so a fast entity-switch (key={mountKey})
-    // can't drop an in-flight edit before the debounce fires. Guarded on !isDefaultValue so a clean
-    // form flushes nothing.
-    useEffect(() => {
-      if (config.draft === undefined) {
-        return;
-      }
-      return (): void => {
-        if (!form.state.isDefaultValue) {
-          mirrorDraft(config.draft, entityId, form.state.values);
-        }
-      };
-    }, [entityId, form]);
 
     // Reseed guard: a fresh serverValues identity reseeds only an untouched form.
     const seededRef = useRef<TValues | undefined>(serverValues);
@@ -167,7 +108,6 @@ export function createSavedEntityForm<TValues extends object>(config: SavedEntit
       },
       discard: (): void => {
         form.reset();
-        config.draft?.clearDraft(entityId);
       },
     };
   };

@@ -56,7 +56,7 @@ export function panelPresetNames(): readonly string[] {
 }
 
 /** Validate ONE committed row into its action. The vocabulary of panel NAMES and MODES is not re-homed here
- *  (packages/client/src/agent-nav/panel-request.ts owns it and refuses loudly on an unknown one); what is
+ *  (packages/client/src/dev/agent-nav/panel-request.ts owns it and refuses loudly on an unknown one); what is
  *  checked is the SHAPE the flags themselves check — `<name>=<mode>` with both halves present — so a malformed committed row is misuse at parse time rather than a mid-run refusal. */
 function readPresetAction(name: string, raw: unknown): PanelPresetAction | string {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {

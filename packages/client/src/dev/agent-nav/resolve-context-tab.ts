@@ -1,6 +1,6 @@
 // THE CONTEXT-TAB ARM (issue #656 — the false `ok:true` that poisoned every one-call probe chain), split
 // out of agent-nav/index.ts (component-size, 2026-09-06) — no behavior change, same module graph
-// (`#state`, `../lib/motion-stats.ts`, `../lib/agent-bridge.ts`), just its own file.
+// (`#state`, `../../lib/motion-stats.ts`, `../../lib/agent-bridge.ts`), just its own file.
 //
 // A VOCABULARY THAT MAY BE EMPTY IS NOT A VOCABULARY. The context-tab set is PUBLISHED BY A MOUNT EFFECT
 // and is empty for a beat after every navigation. Validating against it while empty validated vacuously —
@@ -10,8 +10,8 @@
 
 import type { PublishedContextTab } from "#state";
 import { getAvailableContextTabIds, getAvailableContextTabs, getContextTab, revealContextPanel, subscribeShellState } from "#state";
-import type { NavResult } from "../lib/agent-bridge.ts";
-import { markAgentNavigation } from "../lib/motion-stats.ts";
+import type { NavResult } from "../../lib/agent-bridge.ts";
+import { markAgentNavigation } from "../../lib/motion-stats.ts";
 
 // How long `contextTab` waits for the CONTEXT panel to publish a vocabulary that RESOLVES the request
 // (issue #656). It is a deadline on the panel's OWN mount signal, never a sleep: the common case returns on

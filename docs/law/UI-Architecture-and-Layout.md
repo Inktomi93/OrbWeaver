@@ -112,9 +112,9 @@ packages/client/
                         #   `authed-providers.tsx` provides them; `client-runtime.ts` mints the QueryClient, the
                         #   tRPC client and `createTrpcProxy`. Only `packages/client/src/main.tsx`, `packages/client/src/routes/router.tsx` and compose/
                         #   itself import it (dep-cruiser client-compose-door-only)
-    agent-handles/ agent-nav/ agent-seed/ agent-plugin/ agent-rpg/
+    dev/                # dev-only: agent-handles/ agent-nav/ agent-seed/ agent-plugin/ agent-rpg/
                         # dev-only agent-bridge impls that compose feature FRONT DOORS + #state actions.
-                        #   main.tsx imports only agent-handles, behind import.meta.env.DEV; agent-handles
+                        #   main.tsx imports only dev/agent-handles, behind import.meta.env.DEV; agent-handles
                         #   composes the others (dep-cruiser client-composition-tier-door-only)
     routes/             # HAND-WRITTEN routes: / (app-root.tsx) · /$section · /login — no file-based codegen; admin
                         #   is a group in the Settings SECTION at /, NOT a standalone route (§6.1)
