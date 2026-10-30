@@ -25,29 +25,41 @@ const INPUT_HOSTS = ["background", "card", "popover"] as const;
 const GRID_COLUMNS = "repeat(auto-fill, minmax(10rem, 1fr))";
 const SAMPLE_STYLE: CSSProperties = { margin: 0, padding: "1rem", minHeight: "3rem" };
 
-export function SemanticContrastStory({ background }: { readonly background: string }): ReactElement {
+/** Every neutral ink on the hosts it is painted on: under a shipped palette (`theme`, Hearth when absent), or under a custom scope on `background`. */
+export function SemanticContrastStory({
+  background,
+  theme,
+}: {
+  readonly background?: string;
+  readonly theme?: keyof typeof SEED_THEME_VALUE_SETS;
+}): ReactElement {
+  const pairs = <SemanticPairs />;
   return (
     <CtIsolation subject="ThemeScope" isolates="Domain-free emitted theme tokens and browser color composition">
-      <ThemeScope tokens={{ background }}>
-        <div style={{ display: "grid", gridTemplateColumns: GRID_COLUMNS }}>
-          {SEMANTIC_PAIRS.map(([surface, ink]) => (
-            <p key={`${surface}-${ink}`} style={{ ...SAMPLE_STYLE, backgroundColor: `var(--color-${surface})`, color: `var(--color-${ink})` }}>
-              {`${ink} on ${surface}`}
-            </p>
-          ))}
-          {MUTED_HOSTS.map((surface) => (
-            <p key={`muted-${surface}`} style={{ ...SAMPLE_STYLE, backgroundColor: `var(--color-${surface})`, color: "var(--color-muted-foreground)" }}>
-              {`muted on ${surface}`}
-            </p>
-          ))}
-          {INPUT_HOSTS.map((surface) => (
-            <div key={`input-${surface}`} style={{ backgroundColor: `var(--color-${surface})` }}>
-              <p style={{ ...SAMPLE_STYLE, backgroundColor: "var(--color-input)", color: "var(--color-muted-foreground)" }}>{`input on ${surface}`}</p>
-            </div>
-          ))}
-        </div>
-      </ThemeScope>
+      {background === undefined ? <div data-theme={theme}>{pairs}</div> : <ThemeScope tokens={{ background }}>{pairs}</ThemeScope>}
     </CtIsolation>
+  );
+}
+
+function SemanticPairs(): ReactElement {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: GRID_COLUMNS }}>
+      {SEMANTIC_PAIRS.map(([surface, ink]) => (
+        <p key={`${surface}-${ink}`} style={{ ...SAMPLE_STYLE, backgroundColor: `var(--color-${surface})`, color: `var(--color-${ink})` }}>
+          {`${ink} on ${surface}`}
+        </p>
+      ))}
+      {MUTED_HOSTS.map((surface) => (
+        <p key={`muted-${surface}`} style={{ ...SAMPLE_STYLE, backgroundColor: `var(--color-${surface})`, color: "var(--color-muted-foreground)" }}>
+          {`muted on ${surface}`}
+        </p>
+      ))}
+      {INPUT_HOSTS.map((surface) => (
+        <div key={`input-${surface}`} style={{ backgroundColor: `var(--color-${surface})` }}>
+          <p style={{ ...SAMPLE_STYLE, backgroundColor: "var(--color-input)", color: "var(--color-muted-foreground)" }}>{`input on ${surface}`}</p>
+        </div>
+      ))}
+    </div>
   );
 }
 

@@ -17,9 +17,18 @@ import type {
 
 import { BASES, keepsHue, MID_GREY } from "./contrast-cases.ts";
 
-for (const { name, background } of BASES) {
-  test(`${name}: emitted semantic and muted/input tokens clear their painted backings`, async ({ mount, page }, testInfo) => {
-    const component = await mount<typeof SemanticContrastStory>("tests/ui/content/theme-scope/_contrast-stories/SemanticContrastStory", { background });
+const SEED_THEMES = Object.keys(SEED_THEME_VALUE_SETS) as (keyof typeof SEED_THEME_VALUE_SETS)[];
+
+/** Every shipped palette, then a custom scope on each contrast-case base: the per-palette sweep of the neutral ink pairs. */
+const SEMANTIC_CASES = [
+  { name: "hearth seed" },
+  ...SEED_THEMES.map((theme) => ({ name: `${theme} seed`, theme })),
+  ...BASES.map(({ name, background }) => ({ name, background })),
+] as const;
+
+for (const { name, ...props } of SEMANTIC_CASES) {
+  test(`${name}: semantic and muted/input inks clear their painted backings`, async ({ mount, page }, testInfo) => {
+    const component = await mount<typeof SemanticContrastStory>("tests/ui/content/theme-scope/_contrast-stories/SemanticContrastStory", props);
     const subjects = component.locator("p");
     await expect(subjects).toHaveCount(18);
     for (const subject of await subjects.all()) {
@@ -36,7 +45,7 @@ for (const { name, background } of BASES) {
 
 const TONE_CASES = [
   { name: "hearth seed" },
-  ...(Object.keys(SEED_THEME_VALUE_SETS) as (keyof typeof SEED_THEME_VALUE_SETS)[]).map((theme) => ({ name: `${theme} seed`, theme })),
+  ...SEED_THEMES.map((theme) => ({ name: `${theme} seed`, theme })),
   ...BASES.map(({ name, background }) => ({ name: `custom ${name} nested in the light seed`, theme: "light" as const, background })),
 ] as const;
 
@@ -153,7 +162,7 @@ test("a seed palette nested inside a carried scope resolves its own value for ev
   expect(await resolved("carried")).toEqual(await resolved("page"));
 });
 
-for (const theme of [undefined, ...(Object.keys(SEED_THEME_VALUE_SETS) as (keyof typeof SEED_THEME_VALUE_SETS)[])]) {
+for (const theme of [undefined, ...SEED_THEMES]) {
   test(`${theme ?? "hearth"}: a meter zone fill and a status Card edge hold the 3:1 non-text floor`, async ({ mount, page }) => {
     const component = await mount<typeof ToneMarkStory>("tests/ui/content/theme-scope/_contrast-stories/ToneMarkStory", theme === undefined ? {} : { theme });
     for (const accent of ["info", "warning"]) {
