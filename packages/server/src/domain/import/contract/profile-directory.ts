@@ -2,17 +2,19 @@ import type { StoredAsset, StoreParams } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
 import type { ImportFsPort, PersonaCollisionChoices } from "@orb/contracts/import";
 import type { ImportedAppearance, ImportedAppearanceOutcome, SettingsImportOutcome } from "@orb/contracts/settings";
-import type { UserId } from "@orb/kit/ids";
+import type { IdSource, UserId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { ImportAssetPort } from "#domain/assets";
 import type { BulkImportChats } from "#domain/chat";
 import type { BulkImportPersonas } from "#domain/persona";
 import type { ImportPreset } from "#domain/preset";
-import type { ImportCardScripts, ImportGlobalScripts, ImportPresetScripts } from "#domain/regex";
 import type { ImportTagPort } from "#domain/tag";
 import type { AttachOwnedBooksByName, ImportStandaloneLorebook, ImportWorldInfoPort } from "#domain/world-info";
 import type { ImportContextWiring } from "./build-context.ts";
 import type { CollectResult } from "./collection.ts";
+import type { ImportCardScripts, ImportGlobalScripts, ImportPresetScripts } from "./regex-lift-ops.ts";
 import type { ImportReport } from "./results.ts";
+import type { ImportWorkloadDeps } from "./workloads.ts";
 
 /** The settings-owned theme-import op (`createImportTheme`) as the driver consumes it. */
 type ImportTheme = (ownerId: UserId, bytes: Uint8Array, fallbackName?: string) => Promise<SettingsImportOutcome>;
@@ -66,12 +68,12 @@ export interface ProfileDirImportDeps {
    *  serialized settings write. Optional alongside `storeBackground` — both come from the same composition. */
   readonly applyImportedAppearance?: ApplyImportedAppearance;
   /** Mints a `BackgroundLibraryEntry`'s stable per-row id (crypto uuid in prod; deterministic in tests). */
-  readonly newBackgroundEntryId?: () => string;
+  readonly newBackgroundEntryId?: IdSource["uuid"];
   readonly bulkImportChats: BulkImportChats;
   readonly bulkImportPersonas: BulkImportPersonas;
   readonly enqueueImportIndex: (args: { readonly ownerId: UserId }) => Promise<void>;
-  readonly reconcileImportStats: (args: { readonly ownerId: UserId }) => Promise<void>;
-  readonly now: () => number;
+  readonly reconcileImportStats: ImportWorkloadDeps["reconcileImportStats"];
+  readonly now: Clock;
   /** The zone the staged ST snapshot's wall-clock dates were written in. Omitted uses the importing host's zone — a
    *  profile snapshot is imported on the box that produced it in the ordinary case, and ST built those
    *  strings off that box's local `Date`. Explicit here so a test pins it instead of inheriting the host's. */

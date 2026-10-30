@@ -26,11 +26,6 @@ export interface AssetMetadata {
   readonly ownerId?: UserId;
 }
 
-export interface GalleryPortableFile {
-  readonly filename: string;
-  readonly bytes: Uint8Array;
-}
-
 /** ok:false + error for an unparseable file (never thrown); created reflects whether any row was newly written. */
 export type GalleryImportOutcome =
   | (Extract<PortableImportOutcome, { readonly ok: true }> & { readonly created: boolean })

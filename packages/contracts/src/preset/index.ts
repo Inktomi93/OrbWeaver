@@ -583,9 +583,8 @@ export interface ReasoningTagPair {
   readonly suffix: string;
 }
 export type RolePresetParams = Pick<UserIntent, RolePresetField> & { readonly reasoningTags?: ReasoningTagPair | undefined };
-
-/** A user's Utility-role preset params, `undefined` under task defaults — resolved at the composition root so a
- *  domain never reads the preset domain. */
+/** A user's Utility-role preset params, `undefined` under task defaults. The preset domain owns the verb; every domain that
+ *  runs a background summarize or structured call takes it as an injected op. */
 export type ResolveUtilityPresetParams = (userId: UserId) => Promise<RolePresetParams | undefined>;
 
 const XML_OPEN_TAG_RE = /^<(?<name>[A-Za-z][\w:-]*)>$/u;

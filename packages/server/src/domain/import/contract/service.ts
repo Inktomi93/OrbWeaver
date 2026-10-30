@@ -5,23 +5,24 @@ import type { AttachedBookRef, CreateCharacterInput } from "@orb/contracts/chara
 import type { BulkImportChatInput, BulkImportChatsResult } from "@orb/contracts/chat";
 import type { PersonaCollisionChoices } from "@orb/contracts/import";
 import type { BulkImportPersonaInput, BulkImportPersonasResult } from "@orb/contracts/persona";
+import type { PortableFile } from "@orb/contracts/portability";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { BulkImportLorebookInput, BulkImportLorebookResult } from "@orb/contracts/world-info";
 import type { AssetId, CharacterHandle, CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { ImportPreset } from "#domain/preset";
-import type { ImportCardScripts, ImportPresetScripts } from "#domain/regex";
 import type { ImportRpgGame } from "#domain/rpg";
 import type { SettingsImportOutcome } from "#domain/settings";
 import type { CollectedPreset, CollectedTheme } from "./collection.ts";
 import type {
   ImportCharacterInput,
-  ImportChatFileInput,
   ImportChatsInput,
   ImportGroupsInput,
   ImportOrphanCharacterInput,
   ImportPersonaInput,
   RestoreCharacterBookInput,
 } from "./params.ts";
+import type { ImportCardScripts, ImportPresetScripts } from "./regex-lift-ops.ts";
 import type {
   ImportCharacterResult,
   ImportChatFileOutcome,
@@ -34,6 +35,7 @@ import type {
   ImportThemesResult,
   RestoreCharacterBookResult,
 } from "./results.ts";
+import type { ImportWorkloadDeps } from "./workloads.ts";
 
 export type CreateImportedCharacter = (args: {
   readonly ownerId: UserId;
@@ -104,7 +106,7 @@ type AttachImportedArt = (args: {
 type EnqueueImportIndex = (args: { readonly ownerId: UserId }) => Promise<void>;
 
 /** Inline post-import stats rollup rebuild. */
-type ReconcileImportStats = (args: { readonly ownerId: UserId }) => Promise<void>;
+type ReconcileImportStats = ImportWorkloadDeps["reconcileImportStats"];
 
 /** Chat-owned bulk-import write op; import maps its ST parse to the canonical input and never touches \@orb/db. */
 type BulkImportChatsOp = (args: {
@@ -137,7 +139,7 @@ type FindOwnedAssetIdsByHashOp = (ownerId: UserId, hashes: readonly string[]) =>
 
 /** Profile-wave deps: no db handle or id minters here — each entity write is an injected owning-domain op. */
 export interface ImportProfileDeps {
-  readonly now: () => number;
+  readonly now: Clock;
   /** The IANA zone SillyTavern's zone-less wall-clock timestamps (`send_date`'s human forms, the filename /
    *  header `create_date`) were written against — ST builds them off the local `Date` of the box it ran on.
    *  INJECTED, never read ambiently down in the parser: the composition root resolves it (`hostTimeZone()`,
@@ -223,12 +225,12 @@ export interface ImportService {
   /** Imports ONE bundle-shaped chat file — the single-chat door AND the bundle descriptor's one path.
    *  Routes an ST `<handle>/<leaf>.jsonl` to the interchange arm and anything else to
    *  {@link ImportService.importChatBundle}. Requires ctx.profile. Never throws for a malformed file. */
-  readonly importChatFile: (input: ImportChatFileInput) => Promise<ImportChatFileOutcome>;
+  readonly importChatFile: (input: PortableFile) => Promise<ImportChatFileOutcome>;
   /** R6 — imports ONE orb-native `<handle>/<id>.orb.json`: the room WHOLE (canon + injections + the tag
    *  overlay + the room blob + the variable/macro picks + the rpg campaign). REFUSES when the file names no
    *  character this account holds (owner ruling — a transcript may not be imported without a
    *  character). Requires ctx.profile. Never throws for a malformed file. */
-  readonly importChatBundle: (input: ImportChatFileInput) => Promise<ImportChatFileOutcome>;
+  readonly importChatBundle: (input: PortableFile) => Promise<ImportChatFileOutcome>;
   /** Imports a profile's personas; must run before the chat importers (populates personaByUserName). */
   readonly importPersonas: (input: {
     readonly personas: readonly ImportPersonaInput[];

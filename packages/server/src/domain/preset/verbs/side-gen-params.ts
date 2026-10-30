@@ -2,14 +2,14 @@
 // params, projected through `ROLE_PRESET_FIELDS`, and the preset's inline reasoning tag pair: never other prompt
 // structure (templates, macros, message handling, regex, guided actions) and never chat-only intent.
 
-import type { PromptConfig } from "@orb/contracts/preset";
+import type { PromptConfig, ResolveUtilityPresetParams } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG, rolePresetParamsOf } from "@orb/contracts/preset";
 import type { RolePresetChoice } from "@orb/contracts/settings";
 import { ROLE_PRESET_CHOICE_KINDS } from "@orb/contracts/settings";
 import type { SideGenSampling } from "@orb/inference";
 import type { PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { ResolveUtilityPresetParams, SideGenParams, SideGenParamsDeps } from "../contract/side-gen-params.ts";
+import type { SideGenParams, SideGenParamsDeps } from "../contract/side-gen-params.ts";
 import { createLoadOptionalPreset } from "../substrate/optional-read.ts";
 
 /** A preset's role params, with its `reasoningParse` pair where auto-parse is on: an off pair is inert in chat, so a

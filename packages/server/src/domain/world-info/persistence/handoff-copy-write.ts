@@ -31,7 +31,8 @@ import type { DatabaseHandle, DbAssemblyInput, StatementToken } from "@orb/db/wi
 import { databaseForOwner, statementToken } from "@orb/db/wiring-owner";
 import type { CharacterId, ChatId, UserId, WorldBookId } from "@orb/kit/ids";
 import { and, eq, inArray } from "drizzle-orm";
-import type { CopyHandoffBooks, CountHandoffBooks, WorldInfoHandoffCopyContext } from "../contract/handoff-copy.ts";
+import type { CopyHandoffBooks, CountHandoffBooks } from "../contract/handoff-copy.ts";
+import type { WorldInfoImportContext } from "../contract/import.ts";
 
 type BookRow = typeof worldBooks.$inferSelect;
 
@@ -62,8 +63,8 @@ async function ownedChatAttachments(db: Db, fromOwnerId: UserId, chatId: ChatId)
   return rows.map((r) => r.book);
 }
 
-export function createCopyHandoffBooks(input: DbAssemblyInput<WorldInfoHandoffCopyContext>): CopyHandoffBooks {
-  const ctx: WorldInfoHandoffCopyContext = { ...input, db: databaseForOwner(input.db) };
+export function createCopyHandoffBooks(input: DbAssemblyInput<WorldInfoImportContext>): CopyHandoffBooks {
+  const ctx: WorldInfoImportContext = { ...input, db: databaseForOwner(input.db) };
   return async ({ fromOwnerId, toOwnerId, chatId, cardCopies }): Promise<readonly StatementToken[]> => {
     const { db } = ctx;
     const at = ctx.now();
@@ -201,7 +202,7 @@ async function recipientBookNamesOnChat(db: Db, toOwnerId: UserId, chatId: ChatI
 }
 
 /** Every source book's entries, re-keyed onto its copy. One read for the whole set. */
-async function entryMints(ctx: WorldInfoHandoffCopyContext, copyOf: ReadonlyMap<WorldBookId, WorldBookId>, at: number): Promise<BatchStmt[]> {
+async function entryMints(ctx: WorldInfoImportContext, copyOf: ReadonlyMap<WorldBookId, WorldBookId>, at: number): Promise<BatchStmt[]> {
   if (copyOf.size === 0) {
     return [];
   }

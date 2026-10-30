@@ -5,8 +5,7 @@
 // `storeBlob` coherence primitive + GC/reap policy) is the domain's; storage owns the bytes.
 
 export { createCas } from "./cas.ts";
-export type { Cas, ExtractOptions, StagedArchive, VariantCache, ZipEntry, ZipSource } from "./contract.ts";
-
+export type { Cas, ExtractOptions, StagedArchive, StagedEntry, VariantCache, ZipEntry, ZipSource } from "./contract.ts";
 export { createNodeFsImportPort } from "./profile-fs.ts";
 export { writeImportReportFile } from "./report.ts";
 export { stageDirectory } from "./stage-dir.ts";

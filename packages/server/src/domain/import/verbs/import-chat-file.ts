@@ -18,10 +18,10 @@
 // Names are not unique; two matches refuse rather than guess. (The orb-native arm prefers the seat list the
 // file itself carries, and falls back to the directory handle.)
 
+import type { PortableFile } from "@orb/contracts/portability";
 import type { CharacterId } from "@orb/kit/ids";
 import { sha256Hex } from "#primitives/content-hash";
 import { chatContentHash, parseChatJsonl } from "#primitives/serde/chat";
-import type { ImportChatFileInput } from "../contract/params.ts";
 import type { ImportChatFileOutcome } from "../contract/results.ts";
 import type { ImportContext, ImportService } from "../contract/service.ts";
 import { carriedHandle, requestedHandle } from "../substrate/handle.ts";
@@ -74,7 +74,7 @@ export function createImportChatFile(
   importChats: ImportService["importChats"],
   importChatBundle: ImportService["importChatBundle"],
 ): ImportService["importChatFile"] {
-  return async ({ filename, bytes }: ImportChatFileInput): Promise<ImportChatFileOutcome> => {
+  return async ({ filename, bytes }: PortableFile): Promise<ImportChatFileOutcome> => {
     if (!ST_TRANSCRIPT_EXT.test(filename)) {
       // Everything that is not an ST transcript is offered to the orb-native parser, which refuses by NAME
       // (`foreign-kind` / `newer-version`) rather than guessing. The check is deliberately the jsonl

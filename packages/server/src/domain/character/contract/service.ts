@@ -2,7 +2,7 @@
 // (verb interface) + cross-feature injected-op types (character never sideways-imports assets or tag).
 
 import type { CharacterBulkTagResult, CharacterCard, CharacterDetail } from "@orb/contracts/character";
-import type { DomainEvent } from "@orb/contracts/events";
+import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { BumpStatsCanonVersion } from "@orb/contracts/stats";
@@ -12,6 +12,7 @@ import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import type { BatchHandle, DatabaseHandle, DbAssemblyInput } from "@orb/db/wiring";
 import type { AssetId, CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { AuditEntry, Logger } from "#foundation/observability";
 import type {
   AttachImportedArtParams,
@@ -93,11 +94,11 @@ export interface CharacterContext {
   readonly logger: Logger;
   readonly db: Db;
   readonly bumpStatsCanonVersion: BumpStatsCanonVersion<BatchStmt[], Db>;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly newCharacterId: () => CharacterId;
   readonly newSnapshotId: () => CharacterSnapshotId;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
-  readonly emit: (event: DomainEvent) => void;
+  readonly emit: EmitDomainEvent;
   readonly reapAssets: ReapAssetsOp;
   readonly attachCardTag: AttachCardTagOp;
   readonly detachCardTag: DetachCardTagOp;

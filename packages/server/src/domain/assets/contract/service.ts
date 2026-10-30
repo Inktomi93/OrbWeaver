@@ -8,7 +8,8 @@ import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { AssetId, CharacterHandle, CharacterId, ChatId, GalleryItemId, UserId } from "@orb/kit/ids";
-import type { ImageInfo, ImageTransformOptions } from "#infra/image";
+import type { Clock } from "@orb/kit/time";
+import type { ImageAdapter } from "#infra/image";
 import type { Cas, VariantCache } from "#infra/storage";
 import type { BackfillParams, BackfillResult, FsckOptions, FsckResult, GcOptions, GcResult, ReapResult, RebuildOptions, RebuildResult } from "./maintenance.ts";
 import type {
@@ -27,19 +28,19 @@ export interface AssetsContext {
   readonly db: Db;
   readonly cas: Cas;
   readonly variants?: VariantCache;
-  readonly imageTransform: (bytes: Uint8Array, opts?: ImageTransformOptions) => Promise<Uint8Array>;
+  readonly imageTransform: ImageAdapter["transform"];
   /** Live getter for the admin-tunable lossy-encoder quality (item 6 — AppSettings.imageVariantQuality). Read
    *  per resolve so a retune applies without a restart; FOLDED INTO the variant cache key so a quality change
    *  yields a fresh encode. Optional (tests / cache-less contexts) ⇒ the resolver's fallback. */
   readonly imageVariantQuality?: () => number;
   readonly emit: EmitDomainEvent;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly newAssetId: () => AssetId;
   readonly newGalleryItemId: () => GalleryItemId;
 
   /** Decode an image to its dims/format (the sealed sharp adapter's `probe`) — the BYO pose import computes a
    *  skeleton's orientation from its dimensions (C6c). Rejects non-image bytes (sharp throws). */
-  readonly imageProbe: (bytes: Uint8Array) => Promise<ImageInfo>;
+  readonly imageProbe: ImageAdapter["probe"];
   /** Roster-avatar reference-check (NOT a hash→any-owner oracle): returns the asset's owner only if the
    *  hash is an avatar/attachment the caller may render in a shared chat; `undefined` otherwise. Optional. */
   readonly loadCoParticipantOwner?: (callerId: UserId, hash: string) => Promise<UserId | undefined>;

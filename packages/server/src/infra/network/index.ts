@@ -17,7 +17,7 @@ export {
   EgressBlockedError,
   ENDPOINT_ADMISSIONS,
   installEgressFirewall,
-  type SafeFetchOptions,
+  type SafeFetch,
   type SafeFetchResult,
   systemConnector,
   systemFetch,

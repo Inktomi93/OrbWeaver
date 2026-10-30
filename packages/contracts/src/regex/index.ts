@@ -32,7 +32,7 @@
 // scope" are equally unrepresentable, and the client derives the pair at its ONE save boundary (the
 // `withDerivedTierFlags` precedent) rather than validating it in a form.
 
-import type { CharacterId, ChatId, PresetId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, PresetId, RegexScriptId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { RegexHistoryDepth, RegexPlacement } from "@orb/kit/regex";
 import { HISTORY_DEPTH_PLACEMENT, MAX_FIND_REGEX_LENGTH, REGEX_PLACEMENTS, SubstituteFindRegex } from "@orb/kit/regex";
@@ -223,6 +223,46 @@ export const regexScriptCardSchema = z.preprocess(
 );
 
 export type RegexScriptCard = z.output<typeof regexScriptCardSchema>;
+
+/** What one card hands the regex lift. `carried` are the orbweaver-namespaced references (the attached-book twin) - each is
+ *  attached DIRECTLY when it names a row this owner already has, and ignored otherwise. `scripts` is the
+ *  ST by-value payload, lifted for everything `carried` did not cover. */
+export interface ImportCardScriptsArgs {
+  readonly ownerId: UserId;
+  readonly characterId: CharacterId;
+  readonly scripts: readonly RegexScriptCard[];
+  readonly carried: readonly RegexScriptId[];
+}
+
+/** The preset lift's input: ST's preset-scoped scripts. The ST preset wire has no carried-reference channel, so the
+ *  by-value payload always content-dedups. */
+export interface ImportPresetScriptsArgs {
+  readonly ownerId: UserId;
+  readonly presetId: PresetId;
+  readonly scripts: readonly RegexScriptCard[];
+}
+
+/** The global lift's input: ST's `extension_settings.regex` array onto the owner's library. */
+export interface ImportGlobalScriptsArgs {
+  readonly ownerId: UserId;
+  readonly scripts: readonly RegexScriptCard[];
+}
+
+/** What a regex lift did - the counts the import report surfaces. */
+export interface ImportCardScriptsResult {
+  /** Fresh library rows minted from the by-value payload. */
+  readonly created: number;
+  /** Candidates that matched an existing owned row (carried reference OR content-equal) and were attached
+   *  rather than cloned. */
+  readonly reused: number;
+}
+
+/** The card RE-EMBED: the character's attached library rows projected back onto the ST card-wire shape, in junction
+ *  `position` order, plus the reference list the same-install re-import re-links by. */
+export interface ExportedCardScripts {
+  readonly scripts: readonly RegexScriptCard[];
+  readonly carried: readonly RegexScriptId[];
+}
 
 // The wire output is normalized already: foreign aliases/polarity are input-only, not output fields.
 export const regexScriptCardViewSchema = regexScriptBehaviorFields

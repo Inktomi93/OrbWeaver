@@ -8,6 +8,7 @@ import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { ChatId, TagId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { AuditEntry } from "#foundation/observability";
 import type {
   AttachCardTagByNameParams,
@@ -37,7 +38,7 @@ export type RequireParticipant = (principal: Principal, chatId: ChatId) => Promi
 /** The DI bundle the tag verbs close over; row births use the injected product clock. */
 export interface TagContext {
   readonly db: Db;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly readAttachedEntity: (caller: Principal, target: TagTargetRef) => Promise<TagAttachedEntity>;
   readonly newTagId: () => TagId;
   readonly requireParticipant: RequireParticipant;

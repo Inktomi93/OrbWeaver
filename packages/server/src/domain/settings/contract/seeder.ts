@@ -14,28 +14,21 @@ import type { SeededPlateAsset } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
 import type { BackgroundLibraryEntry } from "@orb/contracts/settings";
 import type { ThemeBackground } from "@orb/contracts/theme";
-import type { UserId } from "@orb/kit/ids";
+import type { SeedBackgroundPlate } from "@orb/default-content";
+import type { IdSource, UserId } from "@orb/kit/ids";
 import type { Logger } from "#foundation/observability";
 
 export type { SeededPlateAsset } from "@orb/contracts/assets";
 
-/** One shipped plate's identity in the pack: the content `slug` (`<handle>-bg`) and the display NAME its
- *  `appearance.backgroundLibrary` entry wears. Structurally the `@orb/default-content` manifest row; spelled
- *  here so this domain declares the shape it consumes rather than importing a node-only package. */
-export interface SeedBackgroundPlateRef {
-  readonly slug: string;
-  readonly label: string;
-}
-
 export interface DefaultBackgroundSeederDeps {
   readonly logger: Logger;
   /** The shipped pack, in the order the library entries are appended. */
-  readonly plates: readonly SeedBackgroundPlateRef[];
+  readonly plates: readonly SeedBackgroundPlate[];
   /** Lift ONE plate's shipped bytes into an owned `background` asset (CAS-deduped). `null` ⇒ the pack ships
    *  no such plate / the store refused it, so the caller skips ONE plate instead of failing the seed. */
   readonly storePlate: (principal: Principal, slug: string) => Promise<SeededPlateAsset | null>;
   /** Mint one `backgroundLibrary` row id (the settings service's own `newBackgroundEntryId`). */
-  readonly newEntryId: () => string;
+  readonly newEntryId: IdSource["uuid"];
   /** The caller's own settings — the latch, the pack stamp and the current library. */
   readonly readOnboarding: (principal: Principal) => Promise<{ readonly seeded: boolean }>;
   readonly readLibrary: (principal: Principal) => Promise<readonly SeededLibraryEntry[]>;

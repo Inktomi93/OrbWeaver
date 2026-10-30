@@ -1,7 +1,8 @@
-import type { StoreAsset, StoredAsset, StoreParams } from "@orb/contracts/assets";
+import type { StoredAsset, StoreParams } from "@orb/contracts/assets";
+import type { AssetsService } from "./service.ts";
 
 export interface BackgroundStoreDeps {
-  readonly store: StoreAsset;
+  readonly store: AssetsService["store"];
   readonly maxBytes?: () => number;
 }
 

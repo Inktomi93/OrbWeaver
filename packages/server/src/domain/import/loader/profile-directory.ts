@@ -7,7 +7,6 @@ import type { AssetId, CharacterId, ChatId, UserId, WorldBookId } from "@orb/kit
 import { hostTimeZone } from "@orb/kit/time";
 import { inertActivationFields } from "@orb/kit/world-info";
 import type { ImportAssetPort } from "#domain/assets";
-import type { ImportGlobalScripts } from "#domain/regex";
 import type { AttachOwnedBooksByName } from "#domain/world-info";
 import type {
   CollectedBackground,
@@ -22,6 +21,7 @@ import type {
 import { ProfileImportLimitError } from "../contract/errors.ts";
 import type { ImportPersonaInput } from "../contract/params.ts";
 import type { ProfileCollected, ProfileCollectRecords, ProfileDirImportDeps, ProfileWaveOutcomes } from "../contract/profile-directory.ts";
+import type { ImportGlobalScripts } from "../contract/regex-lift-ops.ts";
 import type {
   ImportDryRunCensus,
   ImportReport,
