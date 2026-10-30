@@ -150,6 +150,100 @@ The controlled invite-component replacements are maintained under [client regres
 
 Keep the server coverage above. Legacy `server/domain/chat/substrate/wire-history.test.ts` and `db/query/chat-visibility.int.test.ts` still need case-by-case comparison with their current owners. This map does not classify those files as missing or obsolete.
 
+### Selected case map: plugin distribution, provider contributions, bridge and RPG authority
+
+This is a bounded case map for seven reference files. It is not an audit of the plugin or RPG domains. Legacy paths are relative to the external source named in [Spine-Testing](../../law/Spine-Testing.md#2-the-tree). The plugin-host sandbox and membrane belong to the security batch. A case that needs a guest to reach the bridge is recorded as "Move to security batch".
+
+#### Distributed plugins
+
+| Behavior | Primary home and maintained evidence | Decision |
+| - | - | - |
+| A re-publish replaces the record and keeps the first publication instant | Integration, storage subject: [distributed plugins](../../../tests/server/domain/plugin/persistence/distributed-plugins.int.test.ts) runs `installForAllUsers` twice on the injected clock and reads `listDistributedPlugins`. | Rebuild. |
+| The view carries policy only, never the asset or the publisher | Contract: [view contract](../../../tests/contracts/plugin/view.contract.test.ts) refuses private fields. [Corpus plugin](../../../tests/support/node/corpus-plugin.int.test.ts) compares the real `listDistributed` output with the five-key view. | Keep. |
+| Withdrawing the record leaves the publisher's asset | Integration: the same distributed plugins file runs `uninstallForAllUsers` and reads the asset. [Garbage collection](../../../tests/server/domain/assets/verbs/collect-garbage.int.test.ts) owns reference-protected assets. | Rebuild. |
+| Deleting the asset removes the record | The publisher's own install references the same asset with a restrict key, so the delete is refused. Garbage collection never deletes a referenced asset. | Drop. No product path produces this delete. |
+| Deleting the publishing admin's account removes their distributions | Integration, storage subject: the distributed plugins file deletes the admin row. No product verb deletes an account, so the row delete is the subject. | Rebuild. |
+
+#### Provider contributions
+
+| Behavior | Primary home and maintained evidence | Decision |
+| - | - | - |
+| A provider is offered after activation and after a restart. Disable and uninstall withdraw it. The owner's claim outlives the install | Integration with real guests: [provider contributions](../../../tests/server/domain/plugin/activation/provider-contributions.suite.int.test.ts). The tombstone is proven by behavior: the same definition serves again and a changed one is refused. [Plugin factories](../../../tests/support/node/factories/plugin.int.test.ts) hold only the disable tombstone rows. | Rebuild. Drop the row counts. |
+| Identical definitions are served to each owner. A changed definition is refused only for its own owner | The same provider contributions file. | Rebuild. Drop the shared-row count, which is storage trivia. |
+| A squatted provider id blocks and shadows nobody, before or after a restart | The same provider contributions file. | Rebuild both squat cases as one. |
+| An invalid provider row is refused before anything is stored | Contract: [manifest providers](../../../tests/contracts/plugin/manifest-providers.contract.test.ts) owns namespace, duplicate, host declaration and wire refusal. Integration: the provider contributions file owns the install refusal and the empty list. | Rebuild. |
+| A stranger is not offered the provider and is refused at every provider door | The same provider contributions file refuses `create`, `draftCatalogModels` and a provider switch with the unknown-provider code. | Rebuild. |
+| An admin-distributed provider plugin serves each recipient once they enable their own copy | The same provider contributions file. | Rebuild. |
+| A retained connection never follows its provider id to another definition | The same provider contributions file seals a real credential, then checks `catalogModels`, the claim and the reinstall. | Rebuild. |
+| A connection saved before the scope existed stops resolving at every read | The legacy state came from a direct row insert that no product path produces. The retained-connection case reaches the same refusal through a real uninstall, for `catalogModels` only. | Rebuild in part. Open: `capabilities`, `resolve`, `probe` and role clients on that connection. |
+| The installer lists models, saves a connection and generates through the relay | The provider contributions file proves the installer is offered the row and saves a connection that names its plugin. Model listing and generation need a scripted egress resolver and provider transport. | Open. Rebuild through the corpus provider execution. |
+| No request leaves the box for a refused stranger | Not asserted. The refusal codes are. | Open, with the relay case above. |
+| Restart reconciliation removes a crash-window contribution from an errored plugin | No production seam drives a teardown fault after the errored commit. The crash policy has no maintained test. | Open. |
+| Uninstall waits for an in-flight enable | Integration: the provider contributions file issues `setEnabled` and `uninstall` back to back on a real guest and reads the empty list and the empty offer. The lane set has no door, and a test adds none. | Rebuild without the held hook. |
+
+#### Bridge
+
+The legacy file drove `buildPluginBridge` over a bundle of fake host operations and asserted what they recorded. The root does not expose those operations, so a maintained case reaches the bridge only through a guest. The fake bundle is dropped.
+
+| Behavior | Primary home and maintained evidence | Decision |
+| - | - | - |
+| Hourly floors for `net.fetch`, `llm.quiet`, search and notices: ceiling, window release and per-plugin keys | Unit: [call floors](../../../tests/server/domain/plugin/substrate/call-floors.test.ts) calls the production floors on the injected clock. | Move. |
+| The synchronous-claim burst on the floors | Each floor is one synchronous step by construction. The ordering that matters is the bridge claiming before it awaits the operation. | Drop the floor-only burst. The bridge ordering moves to the security batch. |
+| A snippet with no plugin identity cannot egress or spend | Needs a guest invocation. | Move to security batch. |
+| `llm.quiet` closes the installer and shares one hourly lane with its options. The paid call never starts over the ceiling. Liveness becomes the provider abort signal | Needs a guest invocation. | Move to security batch. |
+| `turn.trigger` attributes the installer and threads the depth | Needs a guest invocation. | Move to security batch. |
+| Canon reads carry the installer's history floor and hidden-content verdict, and a non-member reads nothing. Roster, book and entry reads are member-gated and attachment-gated | Needs a guest invocation. The viewer decision itself is owned by [role authority](../../../tests/server/domain/chat/verbs/role-authority.int.test.ts) and [member visibility](../../../tests/server/domain/chat/substrate/member-visibility.int.test.ts). | Move to security batch. |
+| A guest lore write has macros neutralized, needs an attached book, is title-namespaced per plugin and capped at the entry ceiling | Needs a guest invocation. This is the capability-bypass pin: a stored live macro is a deferred variable write. | Move to security batch. Priority case. |
+| Variable, asset, search, databank and character ingest operations close over the installer | Needs a guest invocation. | Move to security batch. |
+| Card-state operations stamp the plugin's own slug and the installer | The storage walls are rebuilt below. The guest-side stamping needs a guest invocation. | Move to security batch. |
+| Imagery returns the asset id and never the cost | Needs a guest invocation. | Move to security batch. |
+
+#### Plugin card data
+
+| Behavior | Primary home and maintained evidence | Decision |
+| - | - | - |
+| Round trip under the reserved plugin key, empty state reads found-with-null, a first write coalesces a null column | Integration, storage subject: [plugin card data](../../../tests/server/domain/character/persistence/plugin-card-data.int.test.ts) calls the production read and write on cards made by `character.create`. | Rebuild. |
+| A foreign card writes nothing and reads like an absent card | The same file, with the owner's read as the positive control. | Rebuild. |
+| One slug touches only its own key. Sibling plugin and vendor keys stay byte-identical | The same file. | Rebuild. |
+| A state write never changes the content hash | The same file. | Rebuild. |
+| A non-object under a plugin key reads as empty state | The same file. | Rebuild. |
+
+#### RPG authority
+
+| Behavior | Primary home and maintained evidence | Decision |
+| - | - | - |
+| Host-gated verbs refuse a member as forbidden and a non-member as not-found | Integration: [authority grid](../../../tests/server/domain/rpg/verbs/authority.suite.int.test.ts) calls each verb as host, member and non-member. [Role authority](../../../tests/server/domain/chat/verbs/role-authority.int.test.ts) keeps the `updateConfig` and `getGame` refusals for its chat role subject. | Rebuild as one grid. Keep the chat case. |
+| A refused write leaves the plane untouched, and promotion mints no seat | The same grid, with the host's write as the positive control. | Rebuild. |
+| Member-gated reads and dice admit a member and refuse a non-member | The same grid. | Rebuild. |
+| Game birth and the dangling-pointer heal gate before a game exists | The same grid. | Rebuild. |
+| A member writes only their own sheet row. The tracker exceptions need the host | The same grid. | Rebuild. |
+| A host cannot reach another game's journal entry by id | The same grid. The victim entry is read back through `listJournal`. | Rebuild. |
+| Each host-gated verb keeps its own refusal sentence | The sentence is copy. The error class and the gate are asserted. | Drop. |
+
+#### RPG update config
+
+| Behavior | Primary home and maintained evidence | Decision |
+| - | - | - |
+| An unrelated write keeps every tuned knob, including the falsy `reconcileEveryBeats: 0` | Integration: [update config](../../../tests/server/domain/rpg/verbs/update-config.int.test.ts) writes a value that differs from the born value, reads it, then writes an unrelated field. It covers the hint maps, hidden-channel, card, play-style, extraction, date, capture-vehicle, tracker and macro knobs. | Rebuild as one matrix. |
+| Born defaults of each knob | The matrix derives the changed value from the born value and does not copy defaults. | Drop. |
+| A passed tracker or macro list replaces the whole set | The same file. | Rebuild. |
+| A ruleset change merges additively, switching back hides nothing, and re-sending the ruleset resurrects nothing | The same file. | Rebuild. |
+| The preset override sets, survives, and clears on an explicit null | The same file. | Rebuild. |
+| An unknown extraction mode is refused | The same file. | Rebuild. |
+| Profile add is legal and a referenced remove is refused | The same file. | Rebuild. |
+| Duplicate attribute, inverted range, dangling default, duplicate tracker and tracker cap refusals | The same file asserts the refusal code and an unchanged config. The cap and the unset spelling are the positive controls. | Rebuild. |
+| The engaged flip survives an unrelated write. A retry repairs an interrupted pointer mirror | The same file arms a real SQLite refusal on the chat metadata write instead of a fake pointer. | Rebuild. |
+| A wire-level prose patch writes nothing | Contract: [update config input](../../../tests/contracts/rpg/update-config-input.contract.test.ts). | Move. |
+| A non-member cannot update the config | The authority grid. | Keep. |
+
+#### RPG stale actor key
+
+| Behavior | Primary home and maintained evidence | Decision |
+| - | - | - |
+| A snapshot actor row under the retired `cast` arm fails the whole read loudly | Contract: [actor ref](../../../tests/contracts/rpg/actor-ref.contract.test.ts) refuses the arm and projects the live keys. Integration, storage subject: [stale actor key](../../../tests/server/domain/rpg/persistence/stale-actor-key.int.test.ts) reads the corrupt row through `getTrackerView`. | Rebuild. |
+| A stale presence key silently reads the NPC as offstage | The owner ruled a wipe, not a migration ([vocabulary map](../../law/vocabulary-map.md)). No product path writes the old spelling. The case pins a known silent orphan. | Drop. |
+| A stale lock path silently detaches the manual-edit pin | The same ruling and reason. | Drop. |
+
 ### Selected case map: chat teaching, identity, read, backfill and persona resolution
 
 This is a bounded case map. Legacy paths are relative to the external source named in [Spine-Testing](../../law/Spine-Testing.md#2-the-tree). Every rebuilt case runs the composed server root and reads native provider bytes or a public service read. Each rebuilt guard was checked against a planted production defect that made it fail for its stated reason. Open rows are unresolved and keep their register row Partial.
