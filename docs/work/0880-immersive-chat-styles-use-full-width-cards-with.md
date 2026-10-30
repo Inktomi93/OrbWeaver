@@ -22,4 +22,17 @@ Each listed property matches the report's Moonlit column at 1280, 1920 and phone
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Not changed. The parity report with the Moonlit column is not readable from the lane, and two listed properties collide with recorded rulings.
+
+Measured card widths per row (short user reply, long reply, short assistant reply):
+
+| Style | 390 | 1280 | 1920 |
+| - | - | - | - |
+| echo | 374, 374, 374 | 477, 630, 512 | 477, 630, 512 |
+| ripple | 374, 374, 374 | 477, 630, 512 | 477, 630, 512 |
+| whisper | 297, 374, 332 | 297, 450, 332 | 297, 450, 332 |
+| hush | 344 each | 736 each | 750 each |
+
+So echo and ripple fill the column on a phone but hug their text on desktop, and whisper hugs at every width. Echo's short cards are 87 to 119px tall (no min-height). Whisper's band is centred and opaque at 50% of the card (55% on a phone). Hush's card paints no fill.
+
+Forks: the adopted whisper preset is a centred 50% banner (Moonlit Glimmer values), which the item asks to move to the top right at 0.8 opacity; hush is a plate by the skin table, which the item asks to make a filled card. Default: keep both until the owner rules. Width and echo min-height are unblocked once the Moonlit values are supplied: the change is a card-fill axis on the `MESSAGE_ROW_SKINS` row, with a test across the three viewports.

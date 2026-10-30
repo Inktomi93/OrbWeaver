@@ -53,8 +53,9 @@ export function MessageRowBody({ skin, ...props }: ComponentProps<typeof Row> & 
 
 // The centred skins' column is ONE width for every row: the reading measure, less the two identity rails where the row
 // is too narrow for it. It is placed in the centred rail explicitly at every width, because a row with no chip (system,
-// avatars off, document) would otherwise auto-place into the content-sized gutter track.
-const CENTRED_COLUMN = "col-start-2 min-inline-0 flex-1 @cq-56:inline-(--centred-column-width)";
+// avatars off, document) would otherwise auto-place into the content-sized gutter track. From the `cq-56` step up its
+// width is `--centred-column-width`, spelled in client globals.css beside the code-row rule it must outrank.
+const CENTRED_COLUMN = "col-start-2 min-inline-0 flex-1";
 const ANCHORED_COLUMN = "min-inline-0 flex-1";
 // A train's column hugs its widest pill, so the speaker row above it and the pager under it share the train's edges;
 // the phone cap (nine tenths, owner ruling) sits on the column for the same reason. A mirrored train packs to the
@@ -71,7 +72,17 @@ export function MessageContentColumn({
 }: ComponentProps<typeof Stack> & { readonly skin: RowSkin; readonly mirrored: boolean }): ReactElement {
   const align = mirrored ? "end" : undefined;
   if (skin.columnPlacement === "gutterCentred") {
-    return <Stack {...props} gap="row" data-slot="message-content-column" columnMeasure={skin.columnMeasure} align={align} className={CENTRED_COLUMN} />;
+    return (
+      <Stack
+        {...props}
+        gap="row"
+        data-slot="message-content-column"
+        data-column="centred"
+        columnMeasure={skin.columnMeasure}
+        align={align}
+        className={CENTRED_COLUMN}
+      />
+    );
   }
   if (skin.bubbleLayout !== "trains") {
     return <Stack {...props} gap="row" data-slot="message-content-column" columnMeasure={skin.columnMeasure} align={align} className={ANCHORED_COLUMN} />;
