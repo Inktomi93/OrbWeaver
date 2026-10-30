@@ -1,7 +1,6 @@
 import type { FilterOwnedAssetIdsOp, ResolveAssetHashOp } from "@orb/contracts/assets";
 import type { CharacterCard, FindSyntheticGroupCharacterOp, MintSyntheticGroupCharacterOp } from "@orb/contracts/character";
 import type {
-  ChatRpgGatherData,
   ClaimChatOp,
   DurableChatBusEvent,
   ForkGameOp,
@@ -32,6 +31,7 @@ import type {
   ResolveSeatDecoOp,
   ResolveSeatDecosOp,
   RoomOverrides,
+  RpgGatherWithTools,
   RpgUserCommitOp,
   StoreSegmentParams,
   TeachingContribution,
@@ -335,17 +335,7 @@ export interface PromptTransformRegistry {
  *  (D58). STRUCTURAL — chat names NO rpg type: it merges `macros` generically into the turn's
  *  macro values (never learning a specific rpg macro name), `injections` into its single Injection[] list, and
  *  `tools` into `attachedToolNames`. The preset override rides a SEPARATE early hop (see {@link ChatRpgOps}). */
-export interface ChatRpgGatherResult extends ChatRpgGatherData {
-  /** TERMINAL tools the contributor mounts on THIS turn (the R1 folded-extraction seam). STRUCTURAL — these
-   *  are plain {@link WireTool}s; chat never learns what they mean. They differ from `tools` (registry names)
-   *  in exactly one way, and it is the whole point: chat attaches them with `tool_choice:"auto"`, NEVER
-   *  RESOLVES, EXECUTES, OR RECURSES on them, and never persists their calls as `ToolCallRecord`s — the
-   *  co-emitted `tool_calls` are handed straight back to the contributor on
-   *  {@link RpgTurnContext.terminalToolCalls}. So the model answers in prose AND emits structured state in ONE
-   *  completion, and the tool traffic stays server-internal exactly as the separate round's did.
-   *  Absent/empty ⇒ byte-identical to a tool-less turn (every non-folded turn). */
-  readonly terminalTools?: readonly WireTool[] | undefined;
-}
+export type ChatRpgGatherResult = RpgGatherWithTools<WireTool>;
 
 export interface ChatRpgOps extends RpgTurnOps {
   /** The #40 DRAFT-TIME game birth plan. RPG constructs its own table statements and minted id; chat folds

@@ -135,7 +135,7 @@ export { contentSpansToBlocks, messageContentBlockSchema } from "./content-block
 
 export type { AnchorState, ChatDetail, RedeemInviteResult } from "./detail.ts";
 export { chatDetailSchema, redeemInviteResultSchema, viewerGalleryCharacter } from "./detail.ts";
-export type { GenerationObservationParent } from "./generation-observation.ts";
+export type { BeginGenerationObservationOp, GenerationObservationParent } from "./generation-observation.ts";
 export type { HandoffCardCopy, HandoffCardPair, HandoffHealArgs } from "./handoff-context.ts";
 export type { ImpersonateStreamDelta } from "./impersonation.ts";
 export { chatIdInputSchema, chatListInputSchema, listMessagesInputSchema } from "./inputs.ts";
@@ -419,9 +419,11 @@ export type {
   ResolveRpgCardCorpus,
   ResolveRpgParticipants,
   RpgCardCorpus,
+  RpgGatherWithTools,
   RpgTurnAbortedOp,
   RpgTurnCompletedOp,
   RpgTurnFacts,
+  RpgTurnRuntime,
   RpgTurnTranscriptMessage,
   RpgUserCommitOp,
   SetRpgPointer,

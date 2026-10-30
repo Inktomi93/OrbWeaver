@@ -147,6 +147,24 @@ export type ResolveChatProseOp = (chatId: ChatId) => Promise<ProseOverrides>;
 // the owner's verb and the consumer's slot name one op. A runtime type (a statement handle, a resolved turn, a tool
 // wire) is a type parameter each side fills from its own imports.
 
+/** A completed turn's facts plus the runtime values contracts cannot name: the resolved connection the post-commit
+ *  round runs on, the folded terminal tool calls and the turn's cancellation signal. A completed turn's captured
+ *  inputs are never re-resolved against a later host or preset. */
+export interface RpgTurnRuntime<Connection, ToolCall, Signal> extends RpgTurnFacts {
+  readonly connection: Connection;
+  /** Null means no usable folded channel; an empty array means it ran and recorded no calls. */
+  readonly terminalToolCalls: readonly ToolCall[] | null;
+  readonly signal: Signal | undefined;
+}
+
+/** A game turn's gather contribution plus the TERMINAL tools the contributor mounts on this turn. Chat attaches them
+ *  with `tool_choice:"auto"` and never resolves, executes, recurses on or persists them; their calls return to the
+ *  contributor on {@link RpgTurnRuntime.terminalToolCalls}, so the model answers in prose and emits structured state
+ *  in one completion. Absent or empty means the turn is byte-identical to a tool-less one. */
+export interface RpgGatherWithTools<Tool> extends ChatRpgGatherData {
+  readonly terminalTools?: readonly Tool[] | undefined;
+}
+
 /** Post-commit notice that a game birth plan committed with its room. */
 export type GameBirthCommittedOp = (chatId: ChatId) => void;
 

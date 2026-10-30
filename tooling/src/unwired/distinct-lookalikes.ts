@@ -297,11 +297,6 @@ export const DISTINCT_LOOKALIKES = [
     reason: "Chat's quiet extraction result for imagery and character's greeting result: different producers.",
   },
   {
-    shape: "packages/server/src/domain/chat/contract/context.ts#ChatRpgGatherResult",
-    distinctFrom: ["packages/server/src/domain/rpg/contract/chat-turn.ts#RpgGatherResult"],
-    reason: "Chat's and rpg's runtime halves of one turn shape; the data half lives once in contracts and runtime types stay with each consumer.",
-  },
-  {
     shape: "packages/server/src/domain/chat/contract/context.ts#EmbeddingsStoreSegmentsOp",
     distinctFrom: ["packages/server/src/domain/embeddings/contract/memory-ops.ts#embeddingsStoreSegments"],
     reason: "Chat's consumer signature carries AbortSignal and embeddings' factory cannot import chat; its data is contracts'.",
@@ -315,11 +310,6 @@ export const DISTINCT_LOOKALIKES = [
     shape: "packages/server/src/domain/chat/contract/params.ts#RemoveCharacterFromChatParams",
     distinctFrom: ["packages/contracts/src/chat/seat-ops.ts#AddCharacterToChatParams"],
     reason: "The remove and add roster verbs' inputs: two verbs, not one concept.",
-  },
-  {
-    shape: "packages/server/src/domain/chat/contract/rpg-turn.ts#RpgTurnContext",
-    distinctFrom: ["packages/server/src/domain/rpg/contract/chat-turn.ts#RpgTurnContext"],
-    reason: "Chat's and rpg's runtime halves of one turn shape; the data half lives once in contracts and runtime types stay with each consumer.",
   },
   {
     shape: "packages/server/src/domain/chat/contract/signup.ts#HashTokenOp",
@@ -434,11 +424,6 @@ export const DISTINCT_LOOKALIKES = [
     shape: "packages/server/src/domain/roster-preset/contract/service.ts#PresentCharacterSeat",
     distinctFrom: ["packages/contracts/src/chat/owner-ops.ts#OfferedSeat"],
     reason: "Every present seat of a chat versus the handoff's offered subset: different sets and consumers.",
-  },
-  {
-    shape: "packages/server/src/domain/rpg/contract/chat-turn.ts#BeginGenerationObservation",
-    distinctFrom: ["packages/server/src/domain/chat/contract/generation-observation.ts#BeginGenerationObservation"],
-    reason: "Chat's and rpg's runtime halves of one turn shape; the data half lives once in contracts and runtime types stay with each consumer.",
   },
   {
     shape: "packages/server/src/domain/rpg/contract/params.ts#ListCheckpointsParams",

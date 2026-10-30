@@ -47,7 +47,7 @@ import type { ReactElement, ReactNode } from "react";
 import { useGatedQuery, useTRPC } from "#data";
 import { IMPERSONATE_IN_FLIGHT, IMPERSONATE_WAIT_FOR_TURN, STEER_CUE_CONTINUE, STEER_CUE_SWIPE, SWIPE_NEEDS_REPLY } from "#lib";
 import { useComposerUtilities } from "../hooks/use-composer-utilities.ts";
-import type { ComposerDraftWrite } from "../hooks/use-guided-actions.ts";
+import type { UseGuidedActionsOptions } from "../hooks/use-guided-actions.ts";
 import { useGuidedActions } from "../hooks/use-guided-actions.ts";
 import type { SendRefusal } from "../hooks/use-send-availability.ts";
 import { filterCharacters } from "../lib/roster.ts";
@@ -60,7 +60,8 @@ import { useRewriteModal } from "./use-rewrite-modal.ts";
 export interface ComposerGuidedClusterProps {
   readonly chatId: ChatId;
   readonly value: string;
-  readonly onChange: ComposerDraftWrite;
+  /** Writes the composer draft; the guided hook restores a failed fire's text through this same write. */
+  readonly onChange: NonNullable<UseGuidedActionsOptions["onFireError"]>;
   /** True while the composer's own Send is in flight — the whole cluster idles (one action at a time). */
   readonly busy?: boolean | undefined;
   /** The tail canon row's role is assistant — gates Swipe/Continue and drives the Response `afterAssistant`
