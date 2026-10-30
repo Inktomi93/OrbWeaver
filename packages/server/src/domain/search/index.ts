@@ -5,8 +5,7 @@
 // the `SearchScope`/`SearchTarget` axes.
 
 export type { FieldIndexCache } from "./contract/field-index.ts";
-export type { DocumentChunkHit } from "./contract/results.ts";
-export type { ResolveActiveDocumentIdsOp, SearchService } from "./contract/service.ts";
+export type { SearchService } from "./contract/service.ts";
 
 export { createSearchService } from "./service.ts";
 export { createFieldIndexCache } from "./substrate/field-index.ts";

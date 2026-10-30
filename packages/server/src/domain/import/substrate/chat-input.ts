@@ -13,6 +13,7 @@ import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { messageRoleFromSt } from "@orb/kit/message-role";
+import type { Clock } from "@orb/kit/time";
 import { msToWallClock } from "@orb/kit/time";
 import type { ParsedChat, ParsedChatMessage, ParsedNotePlacement, ParsedScriptInject } from "#primitives/serde/chat";
 import { ST_DEFAULT_WALL_CLOCK_ZONE } from "#primitives/serde/chat";
@@ -341,7 +342,7 @@ export function unresolvedPinnedPersonas(chats: readonly CollectedChat[], person
 function chatShell(
   ci: CollectedChat,
   displayName: string,
-  deps: { readonly now: () => number; readonly personaByUserName: Map<string, PersonaId>; readonly wallClockZone?: string },
+  deps: { readonly now: Clock; readonly personaByUserName: Map<string, PersonaId>; readonly wallClockZone?: string },
 ): BulkImportChatInput {
   const pc: ParsedChat = ci.parsed;
   const created = pc.createDate ?? pc.messages.find((m) => m.sendDate !== null)?.sendDate ?? deps.now();
@@ -378,7 +379,7 @@ function chatShell(
 export function buildBulkImportChatInput(
   ci: CollectedChat,
   deps: {
-    readonly now: () => number;
+    readonly now: Clock;
     readonly personaByUserName: Map<string, PersonaId>;
     /** The zone ST's wall-clock dates were written in — the title's date is rendered in the SAME one. */
     readonly wallClockZone?: string;

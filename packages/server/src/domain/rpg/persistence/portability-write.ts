@@ -14,6 +14,7 @@
 // therefore cannot make export pair checkpoint rows with a different snapshot set, and a kill mid-import
 // leaves the chat with no game rather than half a campaign.
 
+import type { RpgPortableCheckpoint } from "@orb/contracts/rpg";
 import { rpgGameConfigSchema, rpgRecordedToolCallSchema, rpgSheetSchema, rpgSnapshotStateSchema } from "@orb/contracts/rpg";
 import { rpgCheckpoints, rpgGames, rpgJournal, rpgSheets, rpgSnapshots, rpgTurnToolCalls } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
@@ -27,7 +28,6 @@ import type {
   ImportRpgGame,
   RpgImportOutcome,
   RpgPortabilityContext,
-  RpgPortableCheckpoint,
   RpgPortableGame,
   RpgPortableJournalEntry,
   RpgPortableSheet,

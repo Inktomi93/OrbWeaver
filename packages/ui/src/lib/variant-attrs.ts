@@ -27,13 +27,16 @@
 // authored choice indistinguishable from a live state. None of the four members below appears anywhere in
 // that package.
 //
-// THE DOM COST IS ATTRIBUTES ONLY. Nothing styles or selects on these outside the audit instrument; adding
-// a rule that paints off a `data-variant`/`data-size`/`data-intent`/`data-tone` selector would turn a
-// census channel into a skin and is not what this is for.
+// THE DOM COST IS ATTRIBUTES ONLY, WITH ONE PAINT CHANNEL. `data-tone` is also the D336 paint scope: the generated
+// `[data-tone="<tone>"]` blocks resolve the `--color-tone-*` roles on the stamped element. A primitive that reads a
+// tone utility passes its D336 tone to the door below, which writes it over the recipe arm; when that displaces an
+// arm the tone tuple does not name (a fill style such as Badge's `soft`), the arm moves to `data-variant`, so
+// the audit walker keeps the authored decision. No other stamped attribute may become a paint selector.
 //
 // ENFORCER (a prose-only boundary is a wish, constitution §2): the `ui-variant-axes-stamped` gate — a `tv()`
 // recipe in `packages/ui/src` declaring a stamped axis must reach the DOM through one of these two doors,
 // with the not-yet-stamped remainder carried as a shrink-only committed ratchet.
+import type { Tone } from "#tokens";
 import { cn } from "./class-merge.ts";
 
 /** The axis names the ui primitives stamp. Closed on purpose — see the header's Base UI collision note. */
@@ -79,12 +82,16 @@ function resolvedArm<Selection>(recipe: VariantAxisSource<Selection>, axis: stri
   return key in arms ? key : undefined;
 }
 
+/** A D336 paint scope for the stamped element: the tone its role utilities resolve against, or `null` for an arm
+ *  that reads no tone role and so opens no scope (its descendants keep the enclosing one). */
+export type ToneStamp = Tone | null;
+
 /**
  * The stamp for a recipe whose classes the caller applies itself — the SLOT-recipe door, and the escape
  * hatch for a primitive that composes its className in some other shape. Prefer `variantProps`, which
- * cannot drift because one argument object feeds both halves.
+ * cannot drift because one argument object feeds both halves. `tone` is the D336 paint scope (see the header).
  */
-export function variantAttrs<Selection>(recipe: VariantAxisSource<Selection>, selection: Selection): VariantAxisAttrs {
+export function variantAttrs<Selection>(recipe: VariantAxisSource<Selection>, selection: Selection, tone?: ToneStamp): VariantAxisAttrs {
   const attrs: Record<string, string> = {};
   for (const axis of STAMPED_VARIANT_AXES) {
     const arm = resolvedArm(recipe, axis, selection);
@@ -92,7 +99,15 @@ export function variantAttrs<Selection>(recipe: VariantAxisSource<Selection>, se
       attrs[`data-${axis}`] = arm;
     }
   }
-  return attrs;
+  if (tone === undefined) {
+    return attrs;
+  }
+  const displaced = attrs["data-tone"];
+  if (displaced !== undefined && displaced !== tone && attrs["data-variant"] === undefined) {
+    attrs["data-variant"] = displaced;
+  }
+  const { "data-tone": _recipeArm, ...rest } = attrs;
+  return tone === null ? rest : { ...rest, "data-tone": tone };
 }
 
 /**
@@ -102,6 +117,6 @@ export function variantAttrs<Selection>(recipe: VariantAxisSource<Selection>, se
  *
  * `<span data-slot="badge" {...props} {...variantProps(badgeVariants, { intent, tone, size }, className)} />`
  */
-export function variantProps<Selection>(recipe: VariantClassRecipe<Selection>, selection: Selection, className?: string): VariantStampProps {
-  return { className: cn(recipe(selection), className), ...variantAttrs(recipe, selection) };
+export function variantProps<Selection>(recipe: VariantClassRecipe<Selection>, selection: Selection, className?: string, tone?: ToneStamp): VariantStampProps {
+  return { className: cn(recipe(selection), className), ...variantAttrs(recipe, selection, tone) };
 }

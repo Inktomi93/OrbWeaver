@@ -10,6 +10,7 @@
 import { Button } from "@orb/ui/button";
 import type { LucideIcon } from "@orb/ui/icons";
 import { Icon } from "@orb/ui/icons";
+import { GRADIENT_RING_PIGMENT } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode } from "react";
@@ -66,6 +67,7 @@ export function RailButton({
             data-modal-trigger={modalId}
             data-rail-mobile-only={mobileOnly ? "" : undefined}
             className="shell-rail-button"
+            data-pigment={GRADIENT_RING_PIGMENT}
             focusRing="inset"
             onClick={onClick}
           >

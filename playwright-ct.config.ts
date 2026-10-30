@@ -73,7 +73,7 @@ export default defineConfig<CtCorpusOptions>({
     // layout and parsing only. The run-marker args are Chromium flags and would stop WebKit launching.
     {
       name: "webkit-iphone",
-      testMatch: ["**/platform-*.suite.ct.tsx", "**/features/chat/components/composer-two-rows.ct.tsx"],
+      testMatch: ["**/platform-*.suite.ct.tsx", "**/features/chat/components/composer-two-rows.ct.tsx", "**/content/theme-scope/emitted-contrast.ct.tsx"],
       use: { ...devices["iPhone 15"], launchOptions: nativeBrowserLaunchOptions("webkit") },
     },
     { name: "tooling", testDir: "tests/tooling" },

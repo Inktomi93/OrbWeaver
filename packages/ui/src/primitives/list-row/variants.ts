@@ -29,7 +29,7 @@ export const listRowVariants = tv({
     // Keeps `min-w-0` so it can shrink and let `title`'s `truncate` engage — starvation is prevented by
     // `content`'s own `min-w-(--width-title-floor)` floor below (a floor RAISES a min-content contribution, so if it lived
     // here on `body` it would pin `body` to the title's full width and force a horizontal scrollbar in a
-    // narrow panel; north-star N2). Selected reads as a 2px left ember bar + a 10% `--color-primary` tint
+    // narrow panel; north-star N2). Selected reads as a 2px left ember bar + the primary tone's tint
     // (rides the accent, so custom themes retint it), not a flat `--color-accent` fill (north-star §4 N2).
     //
     // THE LEFT EMBER BAR IS OWNER-RATIFIED (2026-08-22, issue #485) AND ITS SPELLING LEFT THIS FILE (#1823).

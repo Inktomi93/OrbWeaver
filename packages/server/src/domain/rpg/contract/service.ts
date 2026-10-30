@@ -60,7 +60,7 @@ import type {
   RpgTurnToolCallsId,
   UserId,
 } from "@orb/kit/ids";
-import type { ScheduleOp } from "@orb/kit/time";
+import type { Clock, ScheduleOp } from "@orb/kit/time";
 import type { ResolveRpgCardCorpus, RpgCardCorpus, RpgTurnContext } from "#domain/chat";
 import type {
   AddJournalEntryParams,
@@ -635,11 +635,11 @@ export interface RpgIdMints {
   readonly checkpoint: () => RpgCheckpointId;
   /** The per-variant folded-turn tool-call record (TOOLCALLS-INVISIBLE, arm A). */
   readonly turnToolCalls: () => RpgTurnToolCallsId;
-  readonly quest: () => RpgQuestId;
+  readonly quest: IdSource["rpgQuestId"];
   /** An inventory item's blob-internal id (no table, no FK — the `quest` posture). The HAND door mints through
    *  here for the same reason the model path does (`applyUpdateInventory`'s injected `mintItemId`): a test
    *  supplies stable ids, and an item's identity is never client-named. */
-  readonly item: () => string;
+  readonly item: IdSource["unprefixed"];
 }
 
 /** The DI bundle every rpg verb closes over, assembled at the composition root (`context.ts` builds it; its
@@ -648,7 +648,7 @@ export interface RpgIdMints {
 export interface RpgContext {
   readonly db: Db;
   readonly idSource: IdSource;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly ids: RpgIdMints;
   readonly staging: RpgStagingStore;
   readonly handWrites: RpgHandWrites;

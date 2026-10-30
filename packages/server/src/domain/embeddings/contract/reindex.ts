@@ -1,9 +1,10 @@
 import type { MemoryEmbedSpace } from "@orb/contracts/embeddings";
-import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { StartWorkloadOp } from "@orb/contracts/workloads";
 import type { UserId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { SQL } from "drizzle-orm";
 import type { DetachedSupervision, Logger, TraceRing } from "#foundation/observability";
+import type { EffectiveConfigRead } from "./results.ts";
 import type { EmbeddingsService } from "./service.ts";
 
 export interface VacuousMemoryReceipt extends MemoryEmbedSpace {
@@ -15,8 +16,8 @@ export interface EmbeddingReindexDeps {
   /** The root's trace ring each supervised sweep seals into. */
   readonly traces: TraceRing;
   readonly supervise?: DetachedSupervision["superviseDetached"] | undefined;
-  readonly now: () => number;
-  readonly getEffectiveConfig: () => EffectiveAppConfig;
+  readonly now: Clock;
+  readonly getEffectiveConfig: EffectiveConfigRead;
   readonly startWorkload: StartWorkloadOp;
   readonly vacuousMemoryReceipt: (ownerId: UserId) => Promise<VacuousMemoryReceipt | null>;
   readonly purgeMemoryVectors: EmbeddingsService["purgeMemoryVectors"];

@@ -74,7 +74,7 @@ import { estimateTokens } from "@orb/kit/tokens";
 import { getLog } from "#foundation/observability";
 import { captureParticipantRole } from "#primitives/role-data";
 import type { MacroRenderEnv } from "../contract/assembly-macros.ts";
-import type { ChatContext, TeachingIdentity, TeachingKnobs } from "../contract/context.ts";
+import type { ChatContext, ChatServiceDeps, LoadParticipantViewsOp, TeachingIdentity, TeachingKnobs } from "../contract/context.ts";
 import { ChatNotFoundError } from "../contract/errors.ts";
 import type { ForeignInputs, HumanSeatPersona, ResolveForeignInputsOp } from "../contract/foreign.ts";
 import { DEFAULT_CHAT_BEHAVIOR } from "../contract/foreign.ts";
@@ -194,12 +194,12 @@ async function resolveReasoningHostOnly(ctx: ChatContext, chatId: ChatId): Promi
 /** The collaborators not on `ChatContext` (see the file header). */
 interface ReadDeps {
   readonly loadParticipantViewsBatch: (chatIds: readonly ChatId[]) => Promise<ReadonlyMap<ChatId, readonly ParticipantData[]>>;
-  readonly loadParticipantViews: (chatId: ChatId) => Promise<readonly ParticipantData[]>;
-  readonly resolveConnection: (args: { readonly funderUserId: UserId; readonly chatId: ChatId }) => Promise<Resolved<"chat">>;
+  readonly loadParticipantViews: LoadParticipantViewsOp;
+  readonly resolveConnection: ChatServiceDeps["resolveConnection"];
   /** The deterministic pre-send serveability verdict for the chat's own resolved connection (#54). Reads the
    *  SAME chat-row routing overlay `resolveConnection` reads; fires no turn/API call. Wired at compose. */
-  readonly checkSendAvailability: (args: { readonly funderUserId: UserId; readonly chatId: ChatId }) => Promise<SendAvailability>;
-  readonly getNextTurnConnection: (args: { readonly funderUserId: UserId }) => Promise<NextTurnConnectionView>;
+  readonly checkSendAvailability: ChatServiceDeps["checkSendAvailability"];
+  readonly getNextTurnConnection: ChatServiceDeps["getNextTurnConnection"];
   /** The foreign half of the assemble ctx (preset/persona/settings). The chat-internal half is gathered
    *  by `gatherAssembleContext`. */
   readonly resolveForeignInputs: ResolveForeignInputsOp;
@@ -1216,7 +1216,7 @@ async function shapeNextTurn(
 ): Promise<{
   canon: readonly MessageView[];
   rows: ReturnType<typeof toShapeCanon>;
-  shape: (rows: ReturnType<typeof toShapeCanon>) => ReturnType<typeof shapeTurn>;
+  shape: Parameters<typeof shapeConvertFit>[0]["shape"];
 }> {
   const { chatId, inputs, assembleContext, assembled } = args;
   // The per-chat macro name producer over the full canon — resolves each history row's own macro stamps

@@ -167,7 +167,7 @@ export {
   rpgUpdateConfigInputSchema,
   rpgUpsertQuestInputSchema,
 } from "./inputs.ts";
-
+export type { CancelStateRoundsOp } from "./owner-ops.ts";
 export type { ChatRpgPointer } from "./pointer.ts";
 export { chatRpgPointerSchema, isRpgEngaged } from "./pointer.ts";
 export type { RpgStatAttributeDef, RpgStatProfile } from "./profile.ts";
@@ -208,7 +208,14 @@ export {
 } from "./ruleset.ts";
 export type { RpgSheet } from "./sheet.ts";
 export { rpgSheetSchema } from "./sheet.ts";
-export type { RpgFieldLocks, RpgPlot, RpgQuest, RpgQuestObjective, RpgSnapshotState } from "./snapshot.ts";
+export type {
+  RpgFieldLocks,
+  RpgPlot,
+  RpgPortableCheckpoint,
+  RpgQuest,
+  RpgQuestObjective,
+  RpgSnapshotState,
+} from "./snapshot.ts";
 export {
   RPG_HAND_PATCH_PLANES,
   RPG_OP_SHAPED_PLANES,

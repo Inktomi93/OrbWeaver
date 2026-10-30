@@ -1,3 +1,4 @@
+import type { ToneStamp } from "#lib";
 import { tv } from "#lib";
 
 // A decorative mark that IS its colour: a palette sample, a presence dot, a preview's pane, a running hairline. The
@@ -12,7 +13,7 @@ export const swatchVariants = tv({
       muted: "bg-muted-foreground",
       primary: "bg-primary",
       // The primary fill held back, for a mark that runs (an indeterminate hairline) rather than one you read.
-      primaryFaint: "bg-primary/30",
+      primaryFaint: "bg-tone-edge",
       success: "bg-success",
       // A brightness ladder in the foreground over whatever ground the swatch sits on, for a preview that shows
       // surfaces stepping apart by shade. Each step clears the 1.5:1 separation floor against the one below it.
@@ -36,3 +37,16 @@ export const swatchVariants = tv({
   },
   defaultVariants: { fill: "none", shape: "square", edge: "none" },
 });
+
+/** The D336 tone each fill stamps; only the held-back primary reads a tone role. */
+export const SWATCH_FILL_TONE = {
+  none: null,
+  foreground: null,
+  muted: null,
+  primary: null,
+  primaryFaint: "primary",
+  success: null,
+  step1: null,
+  step2: null,
+  step3: null,
+} as const satisfies Record<keyof typeof swatchVariants.variants.fill, ToneStamp>;

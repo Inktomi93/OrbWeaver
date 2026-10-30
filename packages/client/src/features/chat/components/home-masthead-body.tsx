@@ -53,22 +53,21 @@ function roomCountPhrase(count: number): string {
   return `${word} ${count === 1 ? "room" : "rooms"}`;
 }
 
-// The house the viewer walks into: empty, new to them, or theirs.
+// The house the viewer walks into: empty, new to them, or theirs. An empty house greets and says no more: the recents
+// tile below owns the one empty-state text and its action.
 function mastheadTitle(totalCount: number, firstRun: boolean): string {
-  if (totalCount === 0) {
-    return "No chats yet.";
-  }
-  return firstRun ? "Welcome" : `You have ${roomCountPhrase(totalCount).toLowerCase()}.`;
+  return totalCount === 0 || firstRun ? "Welcome" : `You have ${roomCountPhrase(totalCount).toLowerCase()}.`;
 }
 
 // IT DATES THE VIEWER'S OWN LAST TURN, never a room's activity: a friend who has just joined has left off nowhere,
 // and an account that spoke last week has not "left off" a minute ago because someone else posted.
-function mastheadLine(viewerLastTurnAt: number | null, firstRun: boolean): string {
-  if (firstRun) {
-    return "Choose a room to begin";
+function mastheadLine(args: { readonly totalCount: number; readonly viewerLastTurnAt: number | null }): string | null {
+  const { totalCount, viewerLastTurnAt } = args;
+  if (totalCount === 0) {
+    return null;
   }
   if (viewerLastTurnAt === null) {
-    return "Start a room and it will show up here.";
+    return "Choose a room to begin";
   }
   return `You left off ${timeLib.formatRelativeAgo(viewerLastTurnAt)}.`;
 }
@@ -82,9 +81,6 @@ export function HomeMastheadSkeleton(): ReactElement {
       <Heading aria-hidden={true} className="invisible" level={1} voice="masthead">
         {mastheadTitle(0, false)}
       </Heading>
-      <Text aria-hidden={true} className="invisible" voice="reading">
-        {mastheadLine(null, false)}
-      </Text>
       <Skeleton className="absolute inset-0" />
     </Stack>
   );
@@ -94,6 +90,7 @@ export function HomeMastheadBody(): ReactElement {
   const trpc = useTRPC();
   const { data: page } = useSuspenseQuery(trpc.chat.listChats.queryOptions({ limit: HOME_RECENT_CHATS_LIMIT }));
   const firstRun = isFirstRun(page);
+  const line = mastheadLine({ totalCount: page.totalCount, viewerLastTurnAt: page.viewerLastTurnAt });
   return (
     <Stack gap="tight">
       <Heading level={1} voice="masthead">
@@ -105,7 +102,7 @@ export function HomeMastheadBody(): ReactElement {
           twice, inside 90px. The split is by ownership: the HERO is the room (it is the control you press
           to go back into it), and this sentence is the one whose whole job is "how long has it been", so
           it keeps the recency and drops the name. The hero dropped the stamp in the same pass. */}
-      <Text voice="reading">{mastheadLine(page.viewerLastTurnAt, firstRun)}</Text>
+      {line === null ? null : <Text voice="reading">{line}</Text>}
     </Stack>
   );
 }

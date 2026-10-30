@@ -21,7 +21,7 @@
 
 import type { CSSProperties, ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
-import { usePrefersReducedMotion } from "#lib";
+import { INK_TONE, usePrefersReducedMotion, variantAttrs } from "#lib";
 import { ORB_WEB_GLYPH, ORB_WEB_GLYPH_COMPACT, OrbWeb, OrbWebCompact } from "#primitives/icons";
 import { spinnerVariants } from "./variants.ts";
 
@@ -52,7 +52,14 @@ export function WebSpinner({ size = "md", label, tone, className }: WebSpinnerPr
     "--orb-web-spiral-length": `${spiralLength.toFixed(SPIRAL_LENGTH_PRECISION)}px`,
   } as CSSProperties;
   return (
-    <span data-slot="web-spinner" role="status" data-animate={reduced ? undefined : ""} className={slots.root({ className })} style={dashVars}>
+    <span
+      data-slot="web-spinner"
+      role="status"
+      data-animate={reduced ? undefined : ""}
+      className={slots.root({ className })}
+      style={dashVars}
+      {...variantAttrs(spinnerVariants, { tone, size }, INK_TONE[tone ?? "default"])}
+    >
       <Glyph className={slots.glyph()} aria-hidden={true} />
       <span className={slots.label()}>{label}</span>
     </span>

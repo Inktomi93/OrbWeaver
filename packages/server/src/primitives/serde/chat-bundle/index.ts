@@ -53,11 +53,11 @@ import { generationUsageSchema } from "@orb/contracts/inference";
 import type { PortableParse } from "@orb/contracts/portability";
 import { userMacroValuesSchema } from "@orb/contracts/preset";
 import type {
-  RPG_CHECKPOINT_TRIGGERS,
   RPG_GAME_MODES,
   RPG_GAME_STATUSES,
   RPG_JOURNAL_TYPES,
   RpgGameConfig,
+  RpgPortableCheckpoint,
   RpgRecordedToolCall,
   RpgSheet,
   RpgSnapshotState,
@@ -157,14 +157,6 @@ export interface PortableRpgTurnToolCalls {
   readonly createdAt: number;
 }
 
-/** One `rpg_checkpoints` row, pointing at `snapshots[snapshotIndex]`. */
-export interface PortableRpgCheckpoint {
-  readonly snapshotIndex: number;
-  readonly label: string;
-  readonly trigger: (typeof RPG_CHECKPOINT_TRIGGERS)[number];
-  readonly createdAt: number;
-}
-
 /** The whole chat-anchored rpg campaign. Null on a chat with no game (the overwhelmingly common case — a
  *  gameless chat's bundle is byte-identical to one written before this plane existed). */
 export interface PortableRpgGame {
@@ -177,7 +169,7 @@ export interface PortableRpgGame {
   readonly snapshots: readonly PortableRpgSnapshot[];
   readonly journal: readonly PortableRpgJournalEntry[];
   readonly turnToolCalls: readonly PortableRpgTurnToolCalls[];
-  readonly checkpoints: readonly PortableRpgCheckpoint[];
+  readonly checkpoints: readonly RpgPortableCheckpoint[];
 }
 
 /** The import identity of the card exported beside one seat (`characterHandles` entry `handle`): the three
@@ -546,7 +538,7 @@ function rpgFromWire(rpg: NonNullable<WireChat["rpg"]>): PortableRpgGame {
       (t): PortableRpgTurnToolCalls => ({ messageIndex: t.messageIndex, variantIdx: t.variantIdx, calls: t.calls, createdAt: t.createdAt }),
     ),
     checkpoints: rpg.checkpoints.map(
-      (c): PortableRpgCheckpoint => ({ snapshotIndex: c.snapshotIndex, label: c.label, trigger: c.trigger, createdAt: c.createdAt }),
+      (c): RpgPortableCheckpoint => ({ snapshotIndex: c.snapshotIndex, label: c.label, trigger: c.trigger, createdAt: c.createdAt }),
     ),
   };
 }

@@ -10,19 +10,20 @@
 // Light — and a duplicated-or-imported owner theme (D71) lands in ITS band with no extra work, because
 // the derivation never names a hue at all.
 //
-// WHY A RELATIVE-COLOR EXPRESSION AND NOT FIVE TOKENS (the mechanism, so nobody "simplifies" it back).
-// `oklch(from var(--color-primary) …)` is substituted at COMPUTED-VALUE TIME on the element that uses it,
-// so it picks up whichever `--color-primary` is in scope THERE. Five `--color-avatar-N` tokens in
-// tokens.json would be substituted on `:root` instead (Tailwind's `@theme` emits there), which resolves
-// the BASE palette and silently ignores the app-shell's own `<ThemeScope>` — i.e. exactly the
-// custom/imported-theme case the ruling names. The theme law's derive-from-one-picked-value principle is
-// the same one the ThemeScope clamp uses for the whole neutral ramp (UI-Theming-and-Content.md §12.1).
+// WHY A SCOPED PIGMENT AND NOT FIVE ROOT TOKENS (the mechanism, so nobody "simplifies" it back). A token on
+// `:root` would substitute `--color-primary` once, at the root, and ignore the app-shell's own `<ThemeScope>`.
+// The five recipes are generated `avatar` pigments (D336, `orb.pigments` in tokens.json): the token build
+// declares them on `[data-pigment="avatar"]`, so they resolve on the stamped element against the ThemeScope in
+// effect there. A consumer painting this fill stamps {@link AVATAR_PIGMENT} on the element or an ancestor.
 //
 // DIFFERENTIATION IS LIGHTNESS × CHROMA, NEVER HUE (the ruling, verbatim: "vary lightness/chroma within
 // the band, not hue across the wheel, so entities stay tellable-apart without leaving register"). The
-// deltas are RELATIVE (`calc(l + Δ)`, `calc(c * k)`) and a bucket is never pinned to an absolute
+// deltas are RELATIVE (a mix share, `calc(c * k)`) and a bucket is never pinned to an absolute
 // lightness, so no palette can be pushed out of its own contrast pairing. The window's measured shape —
-// and why it is darken-only rather than symmetric — is on `AVATAR_HUE_STEPS` below.
+// and why it moves away from the ink rather than always down — is stated below.
+
+import type { PigmentScope } from "#tokens";
+import { PIGMENTS } from "#tokens";
 
 const AVATAR_HUES = ["1", "2", "3", "4", "5"] as const;
 export type AvatarFallbackHue = (typeof AVATAR_HUES)[number];
@@ -32,29 +33,16 @@ const DJB2_MULT = 33;
 // Reduce mod (2^31 - 1) so the running hash stays a bounded, exact integer (no float-precision drift).
 const HASH_MOD = 2_147_483_647;
 
-/** The five in-band steps: a lightness offset and a chroma multiplier applied to the theme's own primary.
- *
- *  THE WINDOW IS DARKEN-ONLY (−0.085 … 0), and that is measured, not taste. `--color-primary-foreground`
- *  is the ink on every bucket, and its polarity flips per palette: on Light the ink is near-white, so
- *  LIGHTENING the fill walks it toward the text (a +0.06 step measured 3.78:1, a +0.09 step 3.45:1 — both
- *  under WCAG AA). Darkening is the one direction that is safe on a light palette and merely costs margin
- *  on a dark one (Hearth's deepest bucket measures 4.73:1). Every bucket therefore sits between the theme's
- *  primary and 0.085 below it, which is also what keeps an IMPORTED owner theme safe by construction: the
- *  ThemeScope clamp already AA-sweeps primary↔primary-foreground, and no bucket strays further than that
- *  from the pairing it guarantees.
- *
- *  DIFFERENTIATION THEN RIDES CHROMA (0.5× … 1.1×), alternating rich/washed down the lightness ramp so two
- *  neighbouring buckets never differ on one axis alone — five shades separated by lightness only, inside a
- *  window this narrow, are not tellable apart at 32px. Bucket 5 is the primary itself, so the commonest
- *  fallback is exactly the theme's accent.
- */
-const AVATAR_HUE_STEPS: Readonly<Record<AvatarFallbackHue, { readonly l: number; readonly c: number }>> = {
-  "1": { l: -0.085, c: 1.1 },
-  "2": { l: -0.065, c: 0.5 },
-  "3": { l: -0.042, c: 0.95 },
-  "4": { l: -0.02, c: 0.62 },
-  "5": { l: 0.0, c: 1.0 },
-};
+// THE FIVE IN-BAND STEPS (their shares and chroma multipliers live in the pigment recipes): each mixes a share of the
+// theme's primary toward the lightness extreme opposite `--color-primary-foreground`. THE WINDOW MOVES AWAY FROM THE
+// INK, never in a fixed direction: the ink's polarity flips per palette, a fixed darkening cost contrast under a dark
+// ink (a mid primary measured 3.5:1) and a fixed lightening under a light one (a +0.06 step measured 3.78:1). Moving
+// away from the ink can only raise the pair's contrast, so every bucket keeps at least the primary↔ink contrast the
+// ThemeScope clamp already sweeps. DIFFERENTIATION ALSO RIDES CHROMA (0.5× … 1.1×), alternating rich/washed down the
+// ramp so two neighbouring buckets never differ on one axis alone. Bucket 5 is the primary itself.
+
+/** The pigment scope a consumer of {@link avatarFallbackHueColor} stamps as `data-pigment`. */
+export const AVATAR_PIGMENT = "avatar" satisfies PigmentScope;
 
 /** Hashes the stable seed to one of the 5 in-band steps, so a given entity always resolves the same color. */
 export function avatarFallbackHue(seed: string): AvatarFallbackHue {
@@ -65,10 +53,8 @@ export function avatarFallbackHue(seed: string): AvatarFallbackHue {
   return String((h % HUE_BUCKETS) + 1) as AvatarFallbackHue;
 }
 
-/** The resolved CSS color for a seed's fallback step — the same value the Avatar fallback slot fills with.
- *  A relative-color expression, not a `var()`: see the header (it must resolve against the ThemeScope in
- *  effect at the USE site, which a `:root` token cannot do). */
+/** The CSS color for a seed's fallback step — the same value the Avatar fallback slot fills with. It reads the
+ *  generated `avatar` pigment, so the element or an ancestor carries `data-pigment={AVATAR_PIGMENT}` (see the header). */
 export function avatarFallbackHueColor(seed: string): string {
-  const step = AVATAR_HUE_STEPS[avatarFallbackHue(seed)];
-  return `oklch(from var(--color-primary) calc(l + ${step.l}) calc(c * ${step.c}) h)`;
+  return `var(${PIGMENTS[AVATAR_PIGMENT][avatarFallbackHue(seed)]})`;
 }

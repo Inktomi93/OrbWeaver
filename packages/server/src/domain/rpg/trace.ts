@@ -13,6 +13,7 @@
 
 import type { RpgTraceEvent, RpgTraceRecord } from "@orb/contracts/rpg";
 import type { ChatId, ChatTurnId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { RpgTraceFilter, RpgTraceRecorder } from "./contract/trace.ts";
 
 /** The default ring depth — a few turns' worth of a chatty tool loop; the oldest record drops past it. */
@@ -31,7 +32,7 @@ function matchesTurn(event: RpgTraceEvent, wanted: ChatTurnId): boolean {
 }
 
 /** Build the per-process trace recorder (ONE, wired at the composition root when tracing is enabled). */
-export function createRpgTraceRecorder(deps: { readonly now: () => number; readonly limit?: number }): RpgTraceRecorder {
+export function createRpgTraceRecorder(deps: { readonly now: Clock; readonly limit?: number }): RpgTraceRecorder {
   const limit = deps.limit ?? DEFAULT_LIMIT;
   const ring: RpgTraceRecord[] = [];
   let seq = 0;

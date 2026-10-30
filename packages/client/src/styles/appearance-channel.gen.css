@@ -118,3 +118,14 @@
 
 @custom-variant appearance-justify-body-text-false (&:where(:root[data-appearance-justify-body-text="false"], :root[data-appearance-justify-body-text="false"] *));
 @custom-variant appearance-justify-body-text-true (&:where(:root[data-appearance-justify-body-text="true"], :root[data-appearance-justify-body-text="true"] *));
+
+@layer appearance {
+  :root,
+  .shell-grid,
+  [data-slot="portal-root"] {
+    @variant appearance-enable-theme-colorization-true {
+      --color-border: color-mix(in oklab, var(--color-primary) 22%, var(--color-foreground) 6%);
+      --color-sidebar-border: color-mix(in oklab, var(--color-primary) 22%, var(--color-sidebar-foreground) 6%);
+    }
+  }
+}

@@ -4,7 +4,7 @@
 // no-op before the expensive embed.
 
 import { EMBEDDABLE_ASSET_KINDS } from "@orb/contracts/assets";
-import type { ImageLens, ImageSkipReason } from "@orb/contracts/embeddings";
+import type { HubScoreUpdate, ImageLens, ImageSkipReason, VectorTable } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";
 // `documents` is databank's table, read here (and only here) to derive the OWNER scope of a chunk row — the
 // vector tables carry no ownerId (D20: scope derives through the FK to the producer). A cross-domain READ
@@ -43,7 +43,6 @@ import type { SQL } from "drizzle-orm";
 import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
-import type { HubScoreUpdate, VectorTable } from "../contract/params.ts";
 import type { ExistingCaptionedRow } from "../contract/results.ts";
 
 /** Reclaim derived vectors only; original assets remain available in their owning features. */

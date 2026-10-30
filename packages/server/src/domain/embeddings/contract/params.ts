@@ -1,16 +1,10 @@
 // The verb input shapes and vector-table registry for the embeddings write surface.
 
-import type { CardTextStoreInput, EmbeddingTask } from "@orb/contracts/embeddings";
+import type { CardTextStoreInput, EmbeddingTask, HubScoreUpdate, VectorTable } from "@orb/contracts/embeddings";
 
 import type { AssetId, CharacterId, ChatId, DocumentId, UserId } from "@orb/kit/ids";
 
 export type { PruneMemoryBlocksParams } from "@orb/contracts/embeddings";
-
-/** The primary vector tables `embeddings` owns — the single registry all callers derive from. `document_chunks`
- *  is the 5th table (the runtime tuple gains it so the model-change purge
- *  and hub-score seams cover it uniformly). */
-export const VECTOR_TABLES = ["character_embeddings", "image_embeddings", "chat_digests", "chat_segments", "document_chunks"] as const;
-export type VectorTable = (typeof VECTOR_TABLES)[number];
 
 // Store params: a discriminated union on `lens`. `ownerId` is the entity OWNER — the FUNDER whose embed
 // connection produces the vector and whose binding defines the space (inference program §7.5-2, a vector task
@@ -180,12 +174,6 @@ export interface EmbedPassParams {
    *  enumerated total are done. Absent = a silent pass (every non-workload caller). The pass is the ONLY
    *  place that knows its denominator — the workload wrapper enumerates nothing (issue #166 rider 3). */
   readonly onProgress?: ((done: number, total: number) => void) | undefined;
-}
-
-export interface HubScoreUpdate {
-  readonly id: string;
-  readonly model: string;
-  readonly hubScore: number;
 }
 
 /** `writeHubScores` input — the only non-`store` UPDATE surface (the chunk-reclaim DELETEs are the

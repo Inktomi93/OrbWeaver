@@ -23,6 +23,7 @@ import { WeaveGlyph } from "@orb/ui/web-weave";
 import type { ReactElement, ReactNode } from "react";
 import type { ChromeEntry, MobileCuration, ModalSlotId, SectionId } from "#state";
 import { mobileBarCuration, SECTION_GROUPS, sheetOverflowChrome, useChromeRegistry, useModalRegistry } from "#state";
+import { SHELL_ACCENT_TONE } from "../lib/shell-accent.ts";
 import { RailButton } from "./rail-button.tsx";
 
 export interface RailProps {
@@ -222,7 +223,7 @@ export function Rail({ activeSection, onSelectSection, onOpenModal, inert }: Rai
   // tab right now. Desktop is untouched — the rail column renders every entry regardless of `data-mobile`.
   const curation = mobileBarCuration(entries, activeSection);
   return (
-    <nav className="shell-rail" aria-label="Primary" inert={inert}>
+    <nav className="shell-rail" aria-label="Primary" data-tone={SHELL_ACCENT_TONE} inert={inert}>
       {brandEntry === undefined ? (
         <div className="shell-rail-brand" aria-hidden="true">
           <WeaveGlyph size="lg" />

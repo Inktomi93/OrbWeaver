@@ -45,13 +45,13 @@ import { DEFAULT_NAMES_BEHAVIOR } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ChatToolExecution, ChatToolOffer, GenerationObservationCallback, Resolved, ResolvedWarning, ToolCallInput, WireTool } from "@orb/inference";
 import { generationOf, preservesCacheBlockEnds, resolveCarryReasoning, supportsManagedCompaction, withPresetWindow } from "@orb/inference";
-import type { ContentImageRef } from "@orb/kit/content";
-import type { AssetId, CharacterId, ChatId, MessageId, PersonaId, WorldEntryId } from "@orb/kit/ids";
-import type { MacroRegistry, RowCharacterName, RowPersonaName } from "@orb/kit/macro";
+import type { CharacterId, ChatId, MessageId, PersonaId, WorldEntryId } from "@orb/kit/ids";
+import type { MacroRegistry, RandomSource, RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { globalMacroRegistry } from "@orb/kit/macro";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { executeRegexScripts } from "@orb/kit/regex";
 import { cleanPerSpeakerReply } from "@orb/kit/speaker-label";
+import type { Clock } from "@orb/kit/time";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
@@ -63,6 +63,9 @@ import type {
   BoundToolExecution,
   ChatToolExecFrame,
   ChatToolOps,
+  LoadInlineReplyAssetIdsOp,
+  ReserveReceiptEventsOp,
+  ResolveTurnImageUrlOp,
   RunChatTurnOp,
 } from "../contract/engine-context.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
@@ -72,7 +75,6 @@ import type {
   HistoryMacroNames,
   OrderedReplyImage,
   ReplyPartReceipt,
-  ResolvedMediaRef,
   TurnEconomics,
   TurnKind,
   TurnRequest,
@@ -113,12 +115,12 @@ interface RunTurnPipelineArgs {
   readonly runChatTurn: RunChatTurnOp;
   /** The turn's clock (`ChatContext.now`) — the pipeline's ONE time source, used to measure the reasoning
    *  stream window. Injected, never ambient: no `Date.now()` in a verb (determinism law). */
-  readonly now: () => number;
+  readonly now: Clock;
   /** The turn PRNG (`ChatContext.prng`) the turn-stage macro context draws from. */
-  readonly random: () => number;
+  readonly random: RandomSource;
   readonly applyRegexReplace: ApplyRegexReplaceOp;
   /** Resolves a parsed message-image ref → a model-fetchable URL + its media kind, or null to drop it. */
-  readonly resolveImageUrl: (ref: ContentImageRef) => Promise<ResolvedMediaRef | null>;
+  readonly resolveImageUrl: ResolveTurnImageUrlOp;
   readonly loadContentSignatures?: () => Promise<ReadonlyMap<MessageId, ContentSignatures>>;
   /** §8.8's `conversation` carry source: this chat's persisted replayable thinking, keyed by canon slot id.
    *  Injected (the domain holds no db handle) and LAZY — called only when the resolved rung is
@@ -133,7 +135,7 @@ interface RunTurnPipelineArgs {
    *  illustration on the same row class is stamped `illustration` and stays display-only. Injected (the
    *  domain holds no db handle) and LAZY, exactly like the carry source: CONVERT asks only when some
    *  assistant row actually carries an `asset:` span. */
-  readonly loadInlineReplyAssetIds: () => Promise<ReadonlyMap<MessageId, ReadonlySet<AssetId>>>;
+  readonly loadInlineReplyAssetIds: LoadInlineReplyAssetIdsOp;
   /** The immutable assemble ctx (never mutated here). */
   readonly assembleContext: AssembleContext;
   readonly canon: readonly MessageView[];
@@ -1095,7 +1097,7 @@ async function runRecurseLoop(input: {
    *  in it are collected for the terminal channel and are structurally unreachable from the executor below. */
   readonly terminalNames: ReadonlySet<string>;
   readonly reserveToolOrdinals: (count: number, events?: readonly number[], endEvent?: number) => number;
-  readonly reserveReceiptEvents: (count: number) => number;
+  readonly reserveReceiptEvents: ReserveReceiptEventsOp;
   /** §8.8's RESOLVED carry rung. Above `off`, each depth's reasoning parts ride back on the NEXT leg's
    *  assistant row — the ST `promptIdx > lastUserIdx` fence made structural, because this loop IS the active
    *  tool chain and nothing older is reachable from here. BOTH live rungs behave identically in-loop: the
@@ -1225,7 +1227,7 @@ function captureReplyParts(input: {
   readonly calls: readonly ToolCallInput[] | null;
   readonly length: number;
   readonly prefix: number;
-  readonly reserveEvents: (count: number) => number;
+  readonly reserveEvents: ReserveReceiptEventsOp;
 }): ReplyPartReceipt {
   const { length, prefix, reserveEvents } = input;
   const images = input.economics?.replyImages ?? [];

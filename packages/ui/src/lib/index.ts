@@ -46,6 +46,7 @@ export {
 export { MESSAGE_BUBBLE_BOX, MESSAGE_BUBBLE_FILL } from "./message-bubble.ts";
 export { OVERLAY_ARROW } from "./overlay-arrow.ts";
 export { OVERLAY_MOTION } from "./overlay-motion.ts";
+export { ACCENT_AURA_PIGMENT, GRADIENT_RING_PIGMENT } from "./pigment-scopes.ts";
 export { HIDDEN_AT, SR_ONLY_AT } from "./pointer-visibility.ts";
 export { ITEM_ROW, MODAL_SURFACE, POPUP_SURFACE } from "./popup-surface.ts";
 export {
@@ -60,16 +61,13 @@ export { BACKDROP_FILL, SCRIM, SCRIM_BASE } from "./scrim.ts";
 export { SCROLL_FADE_X_CLASS, SCROLL_FADE_Y_CLASS } from "./scroll-fade.ts";
 export { SELECTED_FILL, SELECTED_FILL_PRESSED } from "./selected-fill.ts";
 export { SELECTION_CONTROL, TOUCH_TARGET_PSEUDO, TOUCH_TARGET_PSEUDO_STRETCH } from "./selection-control.ts";
-export { SELECTION_RAIL } from "./selection-rail.ts";
+export { SELECTION_RAIL, SELECTION_RAIL_TONE } from "./selection-rail.ts";
 export { SELECTION_RING_CHECKED, SELECTION_RING_SELECTED } from "./selection-ring.ts";
 export { sinHash } from "./sin-hash.ts";
 export { ARRIVAL, OPEN_TURN, PULSE, SPOILER } from "./state-motion.ts";
-export { TONE_INK } from "./tone-ink.ts";
+export { INK_TONE, TONE_INK } from "./tone-ink.ts";
 export { TOUCH_FLOOR_AT_COARSE } from "./touch-floor.ts";
 export { usePrefersLightColorScheme } from "./use-prefers-light-color-scheme.ts";
 export { usePrefersReducedMotion } from "./use-prefers-reduced-motion.ts";
-export {
-  variantAttrs,
-  variantProps,
-} from "./variant-attrs.ts";
+export { type ToneStamp, variantAttrs, variantProps } from "./variant-attrs.ts";
 export { assertBoundedScrollHeight, type GapToken, gapPxFor } from "./virtual-gap.ts";

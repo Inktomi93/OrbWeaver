@@ -11,7 +11,9 @@ import type {
   PluginLogView,
   SnippetResult,
 } from "@orb/contracts/plugin";
-import type { TimerScheduler } from "@orb/kit/time";
+import type { IdSource } from "@orb/kit/ids";
+import type { RandomSource } from "@orb/kit/macro";
+import type { Clock, TimerScheduler } from "@orb/kit/time";
 // pino's own type, not the observability barrel's alias: that barrel reaches the DB, which the plugin Worker graph must not load.
 import type pino from "pino";
 import type { Env } from "#foundation/env/record";
@@ -29,9 +31,9 @@ export interface PluginHostSeamDeps {
   readonly monotonicNow: () => number;
   /** The graph's scoped egress; every guest `net.fetch` the app performs runs through it. */
   readonly safeFetch: ScopedEgress["safeFetch"];
-  readonly nowEpochMs: () => number;
-  readonly nextRandom: () => number;
-  readonly mintId: () => string;
+  readonly nowEpochMs: Clock;
+  readonly nextRandom: RandomSource;
+  readonly mintId: IdSource["uuid"];
   readonly mirrorLog?: (label: string, level: PluginLogLevel, message: string) => void;
   /** The app root's logger a guest line and a settlement failure land in outside a request. */
   readonly log: pino.Logger;

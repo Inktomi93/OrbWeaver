@@ -1,4 +1,4 @@
-import type { CorpusHit, CorpusParams, DigestSearchEvents, DigestSearchHit, MemoryQueryOptions, RetrievalFallback } from "@orb/contracts/search";
+import type { RetrievalFallback, SearchCorpusHitsOp, SearchDigestHitsOp } from "@orb/contracts/search";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { ChatContext } from "./context.ts";
 
@@ -6,8 +6,8 @@ import type { ChatContext } from "./context.ts";
 
 export interface ChatMemorySearchDeps {
   readonly resolveHostUserId: (chatId: ChatId) => Promise<UserId | null>;
-  readonly digests: (params: MemoryQueryOptions, events?: DigestSearchEvents | undefined) => Promise<DigestSearchHit[]>;
-  readonly corpus: (params: CorpusParams) => Promise<CorpusHit[]>;
+  readonly digests: SearchDigestHitsOp;
+  readonly corpus: SearchCorpusHitsOp;
   readonly withRetrievalDegrade: <T>(run: () => Promise<T>, degraded: RetrievalFallback<T>) => Promise<T>;
 }
 export type ChatMemorySearchOps = Pick<ChatContext, "searchDigests" | "searchCorpus">;

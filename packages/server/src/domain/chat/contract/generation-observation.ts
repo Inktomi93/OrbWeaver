@@ -6,12 +6,13 @@ import type { BatchStmt } from "@orb/db/query";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { GenerationObservationCallback } from "@orb/inference";
 import type { ChatId, ChatTurnId, MessageId, MessageVariantId, UserConnectionId, UserId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { SQL } from "drizzle-orm";
 import type { StatsBatchWiring } from "#domain/stats";
 
 export interface GenerationObservationContext {
   readonly db: Db;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db>;
 }
 

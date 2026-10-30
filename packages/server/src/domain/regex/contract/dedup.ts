@@ -4,6 +4,7 @@
 
 import type { RegexScriptBehavior, RegexScriptCard, RegexScriptRow } from "@orb/contracts/regex";
 import type { RegexScriptId } from "@orb/kit/ids";
+import type { RegexContext } from "./service.ts";
 
 /** A wire script split into the row's promoted columns + its behavior blob (the shape a row is built from). */
 export interface SplitScript {
@@ -34,5 +35,5 @@ export interface CardLiftInput {
   /** Carried reference ids the caller ALREADY gated to this owner (a foreign id never reaches here). */
   readonly carriedIds: readonly RegexScriptId[];
   readonly scripts: readonly RegexScriptCard[];
-  readonly mintId: () => RegexScriptId;
+  readonly mintId: RegexContext["newScriptId"];
 }

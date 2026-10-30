@@ -9,6 +9,7 @@ import type { SpeakerRef } from "@orb/contracts/chat";
 import { speakerKey } from "@orb/contracts/chat";
 import type { RerankDocument } from "@orb/contracts/role-clients";
 import type { CharacterId } from "@orb/kit/ids";
+import type { RandomSource } from "@orb/kit/macro";
 import { clampToTokenBudget, estimateTokens, safeTokenWindow } from "@orb/kit/tokens";
 import type { ArbiterCandidate, SmartArbitrationResult, SpeakerCandidate, SpeakerReranker, TranscriptLine } from "../contract/arbitration.ts";
 import { isArbiterEligible } from "../persistence/participant.ts";
@@ -38,13 +39,8 @@ interface RerankPickParams {
   readonly banLast?: boolean | undefined;
   /** Forwarded to the `natural` fallback only. */
   readonly mentionedIds?: readonly CharacterId[] | undefined;
-  readonly rng: () => number;
+  readonly rng: RandomSource;
   readonly signal?: AbortSignal | undefined;
-}
-
-interface NamedCandidate {
-  readonly ref: SpeakerRef;
-  readonly name: string;
 }
 
 /** The query and one `Name: line` document per candidate, each cut to the bound model's window. The query
@@ -70,7 +66,7 @@ function fitRerankPair(
 /** The `speakerKey`s of `named`, best-ranked first. Scores are compared only against each other within this
  *  one result, never against a constant, so any family's scale (logits, [0,1]) ranks the same way. Null when
  *  no role is bound; a failing role throws to the caller. */
-async function rankKeys(params: RerankPickParams, line: TranscriptLine, named: readonly NamedCandidate[]): Promise<readonly string[] | null> {
+async function rankKeys(params: RerankPickParams, line: TranscriptLine, named: readonly SpeakerCandidate[]): Promise<readonly string[] | null> {
   const reranker = await params.reranker();
   if (reranker === null) {
     return null;
@@ -112,7 +108,9 @@ export async function rerankPick(params: RerankPickParams): Promise<SmartArbitra
   const eligible = params.candidates.filter((c) => isArbiterEligible({ leftSeq: c.leftSeq, disabled: c.disabled }));
   const nameByKey = new Map(params.speakerCandidates.map((n) => [speakerKey(n.ref), n.name] as const));
   // A blank name cannot be described or addressed, so that seat is never ranked; it still speaks through `natural`.
-  const named: NamedCandidate[] = eligible.map((c) => ({ ref: c.ref, name: (nameByKey.get(speakerKey(c.ref)) ?? "").trim() })).filter((c) => c.name.length > 0);
+  const named: SpeakerCandidate[] = eligible
+    .map((c) => ({ ref: c.ref, name: (nameByKey.get(speakerKey(c.ref)) ?? "").trim() }))
+    .filter((c) => c.name.length > 0);
   const natural = (degraded: boolean): SmartArbitrationResult => ({
     speakers: selectSpeakers({
       candidates: params.candidates,
@@ -177,8 +175,8 @@ export async function rerankPick(params: RerankPickParams): Promise<SmartArbitra
 function fieldOf(
   params: RerankPickParams,
   line: TranscriptLine,
-  named: readonly NamedCandidate[],
-): { readonly addressed: readonly CharacterId[]; readonly pool: readonly NamedCandidate[] } {
+  named: readonly SpeakerCandidate[],
+): { readonly addressed: readonly CharacterId[]; readonly pool: readonly SpeakerCandidate[] } {
   const { groups, humanAmbiguous } = addressedGroups(line, params.candidates, params.speakerCandidates, params.humanNames);
   if (humanAmbiguous) {
     return { addressed: [], pool: named };
@@ -191,7 +189,7 @@ function fieldOf(
 /** The best-ranked character, the last speaker out when the round bans it and the line is that speaker's own
  *  (restored if that empties it). Once a human or another character has spoken, the last speaker is often exactly
  *  who was asked, so the ban holds only on a self-response, as it does for the Utility arbiter. */
-function topAllowed(params: RerankPickParams, named: readonly NamedCandidate[], ranked: readonly string[]): SpeakerRef | undefined {
+function topAllowed(params: RerankPickParams, named: readonly SpeakerCandidate[], ranked: readonly string[]): SpeakerRef | undefined {
   const last = params.lastSpeaker;
   const selfResponse = last !== null && params.banLast !== false && params.lastLine?.characterId === last.characterId;
   const lastKey = selfResponse ? speakerKey(last) : null;

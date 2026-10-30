@@ -149,7 +149,7 @@ export function ImportLibrarySection(): ReactElement {
         accept=".zip,.png,.json"
         aria-label="Import a backup or card file"
         data-testid={testId("backupImportDropzone")}
-        instructions="Drop a .zip backup or a character card"
+        subject="a .zip backup or a character card"
         hint="A .zip carries your whole library; a .png / .json is a single card"
         loading={busy}
         success={succeeded}

@@ -23,6 +23,7 @@ import { AUTOMATION_SUGGESTION_SUMMARY_MAX, SPEND_ARM_TYPES } from "@orb/contrac
 import type { PluginSuggestedAct } from "@orb/contracts/plugin";
 import { summarizePluginAct } from "@orb/contracts/plugin";
 import type { AutomationSuggestionId, ChatId, PluginId, UserId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { EmitAutomationEvent, PendingSuggestion, SuggestionSource, SuggestionStore } from "../contract/ops.ts";
 
 /** How long a pending ask lives before it is swept. A host who has not answered in half an hour is not
@@ -179,7 +180,7 @@ export function createPluginSuggestionRaiser(deps: {
   readonly suggestions: SuggestionStore;
   readonly notify: EmitAutomationEvent;
   readonly newSuggestionId: () => AutomationSuggestionId;
-  readonly now: () => number;
+  readonly now: Clock;
 }): (req: {
   readonly plugin: { readonly id: PluginId; readonly name: string };
   readonly installerUserId: UserId;

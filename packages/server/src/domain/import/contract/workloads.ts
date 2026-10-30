@@ -10,7 +10,7 @@ import type { Logger } from "#foundation/observability";
 export interface ImportTokenUsageBackfillDeps {
   readonly listTokenUsageCandidates: ListImportedTokenUsageCandidates;
   readonly compareAndSetTokenUsage: CompareAndSetImportedTokenUsage;
-  readonly reconcileImportStats: (args: { readonly ownerId: UserId }) => Promise<void>;
+  readonly reconcileImportStats: ImportWorkloadDeps["reconcileImportStats"];
 }
 
 /** The import-owned catch-up verb after its cross-domain persistence dependencies are composed. */

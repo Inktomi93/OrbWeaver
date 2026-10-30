@@ -1,6 +1,7 @@
 // domain/import — FRONT DOOR: the only legal external import; re-exports the public surface.
 
 export type { ImportFile } from "./contract/cards.ts";
+export type { UploadedFile } from "./contract/collection.ts";
 export type { ImportDriverDeps } from "./contract/drivers.ts";
 export type { ProfileDirImportDeps } from "./contract/profile-directory.ts";
 export type {

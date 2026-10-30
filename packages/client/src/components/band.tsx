@@ -46,8 +46,8 @@
 // `data-selected` the ruled idiom keys on. One statement, one home, and a call site cannot get the two
 // halves out of step by passing one and forgetting the other.
 //
-// The skin is `SELECTION_RAIL` — the OWNER-RATIFIED list-row idiom (#485: 2px left ember rail + a 10%
-// primary tint), composed from `@orb/ui/lib` rather than re-spelled, because the E2 idiom collapse ("ring
+// The skin is `SELECTION_RAIL` — the OWNER-RATIFIED list-row idiom (#485: 2px left ember rail + the primary
+// tone's tint), composed from `@orb/ui/lib` rather than re-spelled, because the E2 idiom collapse ("ring
 // for a selected grid cell; left rail plus tint for a selected list row") is only true while every carrier
 // paints the identical pair. A band is a row-shaped door in a list pane, so it takes the ROW reading.
 //

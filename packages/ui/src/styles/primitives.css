@@ -10,14 +10,14 @@
 
 /* The gradient border ring (the CTA, the active tab, the active rail button): a `::after` overlay whose transparent
  * padding-box fill composes over the element's own fill while the border-box gradient paints the ring, a primary
- * head over the polarity-fixed sheen foot. The two knobs are each site's tuned weight; the colours are the tokens'. */
+ * head over the polarity-fixed sheen foot. The head is the generated `gradient-ring` pigment, so the host stamps
+ * `data-pigment` and sets its `--ring-head` weight on itself, where the pigment resolves; `--ring-foot` too. */
 @utility orb-gradient-ring {
   @apply orb-paint-carrier;
   border: var(--border-width-control) solid transparent;
   background:
     linear-gradient(transparent, transparent) padding-box,
-    linear-gradient(180deg, oklch(from var(--color-primary) l c h / var(--ring-head, 0.55)), oklch(from var(--color-sheen) l c h / var(--ring-foot, 0.04)))
-    border-box;
+    linear-gradient(180deg, var(--pigment-gradient-ring-head), oklch(from var(--color-sheen) l c h / var(--ring-foot, 0.04))) border-box;
 }
 
 /* Two reserved lines (`Text lines={2}`): `line-clamp-2` caps a run, it never reserves the second line, so captions in
@@ -110,7 +110,7 @@
     z-index: -1;
     inset: -60% -40%;
     pointer-events: none;
-    background: radial-gradient(closest-side at 50% 50%, oklch(from var(--color-primary) l c h / 0.14), transparent);
+    background: radial-gradient(closest-side at 50% 50%, var(--pigment-accent-aura-empty-state), transparent);
   }
 
   /* A `focal` empty-state title holds the display step at every width: in the `ui` layer it beats the slot's own
@@ -139,9 +139,11 @@
 
   /* The active tab's ring at a lower weight. `TabsIndicator` is opt-in and most tab lists render none, so this is
    * the only geometric mark most active tabs carry. */
-  [data-slot="tabs-tab"][data-active]::after {
+  [data-slot="tabs-tab"][data-active] {
     --ring-head: 0.3;
     --ring-foot: 0.02;
+  }
+  [data-slot="tabs-tab"][data-active]::after {
     @apply orb-gradient-ring;
     z-index: 0;
     border-radius: var(--radius-control);
@@ -363,7 +365,7 @@
       border-radius: inherit;
       opacity: 0;
       transition: opacity var(--motion-fast) var(--ease-out-expo);
-      background: radial-gradient(6rem 6rem at var(--orb-media-x, 50%) var(--orb-media-y, 50%), oklch(from var(--color-primary) l c h / 0.18), transparent 70%);
+      background: radial-gradient(6rem 6rem at var(--orb-media-x, 50%) var(--orb-media-y, 50%), var(--pigment-accent-aura-media-spotlight), transparent 70%);
     }
     [data-slot="media-grid-cell"]:hover::before {
       opacity: 1;

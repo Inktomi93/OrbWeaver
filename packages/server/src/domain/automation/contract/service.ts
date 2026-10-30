@@ -20,8 +20,10 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Can } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import type { AutomationFireId, AutomationRuleId, AutomationSuggestionId } from "@orb/kit/ids";
+import type { AutomationFireId, AutomationRuleId } from "@orb/kit/ids";
+import type { RandomSource } from "@orb/kit/macro";
 import type { SerialLanes } from "@orb/kit/serial-lanes";
+import type { Clock } from "@orb/kit/time";
 import type { DetachedSupervision, Logger } from "#foundation/observability";
 import type {
   ApplyProseRewrite,
@@ -63,6 +65,7 @@ import type {
   UpdateRuleParams,
 } from "./params.ts";
 import type { StreamAuthority } from "./results.ts";
+import type { NewSuggestionId } from "./suggestion-id.ts";
 
 /** The DI bundle the automation verbs close over. Assembled at the entry composition root and handed to
  *  `createAutomationService`. `now` is the injected clock; `prng` is the injected [0,1) source the dry-run
@@ -72,12 +75,12 @@ export interface AutomationContext {
   readonly logger: Logger;
   readonly serialLanes: SerialLanes;
   readonly db: Db;
-  readonly now: () => number;
-  readonly prng: () => number;
+  readonly now: Clock;
+  readonly prng: RandomSource;
   readonly newRuleId: () => AutomationRuleId;
   readonly newFireId: () => AutomationFireId;
   /** S4 — the pending-ask id minter (an EPHEMERAL TypeID: no table, the id is the claim handle). */
-  readonly newSuggestionId: () => AutomationSuggestionId;
+  readonly newSuggestionId: NewSuggestionId;
   readonly can: Can;
   /** The injected cross-feature READ ops (chat projections) the fact resolver + CEL env consume. */
   readonly ops: AutomationOps;

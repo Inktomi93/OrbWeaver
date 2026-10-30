@@ -11,6 +11,7 @@
 
 import type { MessageView, SpeakerRef } from "@orb/contracts/chat";
 import type { AutoModeResult, AutoModeStopReason, SpeakerCandidate } from "../contract/arbitration.ts";
+import type { DelayOp } from "../contract/engine-context.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import type { TurnOutcome } from "../contract/results.ts";
 
@@ -18,7 +19,7 @@ interface AutoModeParams {
   readonly maxTurns: number;
   readonly delayMs: number;
   /** Sleep, injected (tests pass a no-op; prod a real timer). */
-  readonly delay: (ms: number) => Promise<void>;
+  readonly delay: DelayOp;
   readonly signal?: AbortSignal | undefined;
   /** Resolve the next single speaker given the previous one. `null` ⇒ no eligible speaker → stop. */
   readonly nextSpeaker: (lastSpeaker: SpeakerRef | null) => Promise<SpeakerCandidate | null>;

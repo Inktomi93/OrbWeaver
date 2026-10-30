@@ -23,17 +23,18 @@ import { composeProse, legacyProseOverrides, resolveProseText, resolveSteerFragm
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import { composeRewriteSteer, GUIDED_GAME_STEERS } from "@orb/kit/guided";
 import type { CharacterId, ChatId, PersonaId, UserId, WorldEntryId } from "@orb/kit/ids";
-import type { MacroContext, MacroFreeze, MacroRegistry } from "@orb/kit/macro";
+import type { MacroContext, MacroFreeze, MacroRegistry, RandomSource } from "@orb/kit/macro";
 import { globalMacroRegistry } from "@orb/kit/macro";
 import type { RegexScriptInput } from "@orb/kit/regex";
 import { executeRegexScripts } from "@orb/kit/regex";
 import { estimateTokens } from "@orb/kit/tokens";
-import type { EntryPosition, MatchEntryKeysOptions } from "@orb/kit/world-info";
+import type { EntryPosition, MatchEntryKeysOptions, TestKeyRegex } from "@orb/kit/world-info";
 import { buildKeywordHaystack, matchEntryKeys } from "@orb/kit/world-info";
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import type { MacroRenderEnv } from "../contract/assembly-macros.ts";
-import type { ApplyRegexReplaceOp, ChatContext, TestRegexKeyOp } from "../contract/context.ts";
+import type { ChatContext } from "../contract/context.ts";
+import type { ApplyRegexReplaceOp } from "../contract/engine-context.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import type { ResolvedPersonas } from "../contract/foreign.ts";
 import type { GuidedSteer } from "../contract/params.ts";
@@ -139,7 +140,7 @@ interface WiConversionArgs {
   readonly applyReplace: ApplyRegexReplaceOp;
   /** The injected node:vm ReDoS watchdog for a `use_regex` entry's key `.test` (#710) — a catastrophic
    *  user-authored key is interrupted instead of hanging the keyword scan. */
-  readonly testRegexKey: TestRegexKeyOp;
+  readonly testRegexKey: TestKeyRegex;
   readonly wiFormat: string;
   readonly recentMessages: readonly string[];
   readonly names: readonly string[];
@@ -213,7 +214,7 @@ function wiCandidate(entry: AssembleWorldEntry, content: string, args: WiConvers
 /** The per-entry key-compile options: a V3 `use_regex` entry's keys compile as PATTERNS, and a bad pattern
  *  warns + falls back to a literal compare rather than failing the turn. `testRegex` is the injected node:vm
  *  ReDoS watchdog so a catastrophic user-authored key `.test` is interrupted, not run unbounded (#710). */
-function keyMatchOptions(entry: AssembleWorldEntry, testRegex: TestRegexKeyOp, logger: Logger): MatchEntryKeysOptions {
+function keyMatchOptions(entry: AssembleWorldEntry, testRegex: TestKeyRegex, logger: Logger): MatchEntryKeysOptions {
   return { keyMode: entry.keyMode ?? "literal", onKeyCompileFailure: onWorldInfoKeyCompileFailure(logger), testRegex };
 }
 
@@ -389,7 +390,7 @@ interface BuildAssembleContextInput {
   readonly nowMs?: number | undefined;
   /** Seeded turn PRNG — never ambient Math.random; drives the SEND volatile-macro freeze so a committed
    *  row's baked value is deterministic + replayable. */
-  readonly prng: () => number;
+  readonly prng: RandomSource;
   readonly model: string;
   /** Per-turn injection token budget (0 = unbudgeted). */
   readonly injectionTokenBudget: number;

@@ -226,16 +226,23 @@ export type { NextTurnConnectionView } from "./next-turn-connection.ts";
 export { nextTurnConnectionViewSchema } from "./next-turn-connection.ts";
 export type {
   ChatLivePublish,
+  ChatScopedParams,
   MemoryDigestInput,
+  OfferedSeat,
+  PublishChatChangedOp,
+  ReadChatUserMacrosOp,
+  RegisterPromptTransformOp,
   RequestTurnOp,
   RequestTurnParams,
   ResolveCharacterTagsOp,
+  ResolveRegexSources,
   ResolveSeatDecoOp,
   ResolveSeatDecosOp,
   ResolveViewerVisibility,
   SignupMinterCheckOp,
   StoreSegmentParams,
   TurnRetrievalEvents,
+  UnregisterPromptTransformOp,
   ViewerVisibility,
 } from "./owner-ops.ts";
 export type { MessageKind, MessageKindPolicy, ParticipantKind, SpeakerRef } from "./participants.ts";

@@ -7,10 +7,11 @@ import type { PortableImportOutcome } from "@orb/contracts/portability";
 import type { BulkImportLorebookInput, BulkImportLorebookResult, WorldBookRole } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import type { CharacterId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 
 export interface WorldInfoImportContext {
   readonly db: Db;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly newBookId: () => WorldBookId;
   readonly newEntryId: () => WorldEntryId;
 }
@@ -60,7 +61,7 @@ export type ImportWorldBook = (args: { readonly ownerId: UserId; readonly bytes:
 /** db + clock only: the carry copies character_books rows verbatim, no id-minting or audit. */
 export interface WorldInfoDuplicateCarryContext {
   readonly db: Db;
-  readonly now: () => number;
+  readonly now: Clock;
 }
 
 /** Re-points the source character's attached books at the new character id (fresh character_books rows,

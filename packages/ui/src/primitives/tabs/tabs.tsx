@@ -10,8 +10,8 @@ import { Tabs as BaseTabs } from "@base-ui/react/tabs";
 import type { ReactElement } from "react";
 import { useLayoutEffect, useRef } from "react";
 import type { VariantProps } from "tailwind-variants";
-import { cn } from "#lib";
-import { tabsVariants } from "./variants.ts";
+import { cn, GRADIENT_RING_PIGMENT } from "#lib";
+import { TABS_ACCENT_TONE, tabsVariants } from "./variants.ts";
 
 type TabsAxes = VariantProps<typeof tabsVariants>;
 
@@ -44,7 +44,14 @@ export interface TabsPanelProps extends BaseTabsPanelProps {
 }
 
 export function Tabs({ className, topRule, ...rest }: TabsProps): ReactElement {
-  return <BaseTabs.Root className={cn(tabsVariants({ topRule }).root(), className)} data-slot="tabs-root" {...rest} />;
+  return (
+    <BaseTabs.Root
+      className={cn(tabsVariants({ topRule }).root(), className)}
+      data-slot="tabs-root"
+      data-tone={topRule === "primary" ? TABS_ACCENT_TONE : undefined}
+      {...rest}
+    />
+  );
 }
 
 // Seal default: arrow keys ACTIVATE as they move (Base UI defaults activateOnFocus to false).
@@ -59,6 +66,8 @@ export function TabsTab({ className, layout, quiet, ...rest }: TabsTabProps): Re
     <BaseTabs.Tab
       className={cn(tabsVariants({ layout, quiet }).tab(), className)}
       data-slot="tabs-tab"
+      data-tone={TABS_ACCENT_TONE}
+      data-pigment={GRADIENT_RING_PIGMENT}
       {...mergeProps<typeof BaseTabs.Tab>({ value: rest.value, onFocus: (event): void => revealHorizontalTab(event.currentTarget) }, rest)}
     />
   );

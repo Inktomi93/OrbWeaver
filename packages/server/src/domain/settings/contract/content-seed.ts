@@ -2,8 +2,9 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { UserId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { Logger } from "#foundation/observability";
-import type { LegacySeedLatches, ReadSeededKeys } from "./composed-ops.ts";
+import type { LegacySeedLatches, ReadSeededKeys, SettingsComposedOps } from "./composed-ops.ts";
 
 export interface ContentSeedStep {
   readonly key: string;
@@ -14,10 +15,10 @@ export interface ContentSeedPolicyDeps {
   readonly logger: Logger;
   readonly enabled: () => boolean;
   readonly steps: readonly ContentSeedStep[];
-  readonly now: () => number;
+  readonly now: Clock;
   readonly seededKeys: ReadSeededKeys;
   readonly recordSeeded: (userId: UserId, keys: readonly string[], at: number) => Promise<void>;
-  readonly legacyLatches: (principal: Principal) => Promise<LegacySeedLatches>;
+  readonly legacyLatches: SettingsComposedOps["legacyLatches"];
 }
 export interface UserContentSeeder {
   readonly ensureSeeded: (principal: Principal) => Promise<void>;

@@ -1,4 +1,5 @@
 import type { ReactElement, ReactNode } from "react";
+import { ACCENT_AURA_PIGMENT } from "#lib";
 import { emptyStateVariants } from "./variants.ts";
 
 export interface EmptyStateProps {
@@ -45,7 +46,7 @@ export function EmptyState({
   let head: ReactElement | null = null;
   if (decoration !== undefined) {
     head = (
-      <div className={slots.decoration()} data-slot="empty-state-decoration">
+      <div className={slots.decoration()} data-slot="empty-state-decoration" data-pigment={ACCENT_AURA_PIGMENT}>
         {decoration}
       </div>
     );

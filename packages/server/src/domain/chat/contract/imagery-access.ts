@@ -1,6 +1,6 @@
-import type { CharacterCard } from "@orb/contracts/character";
+import type { GetCharacterCardOp } from "@orb/contracts/character";
 import type { ResolveViewerVisibility } from "@orb/contracts/chat";
-import type { Principal } from "@orb/contracts/identity";
+import type { Principal, ResolveHostPrincipalOp } from "@orb/contracts/identity";
 import type { RoleClientsWithSignal } from "@orb/inference";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import type { ExtractQuiet, ExtractQuietDeps, ExtractQuietParams } from "./context.ts";
@@ -9,7 +9,7 @@ export interface ImageryRoomAccessDeps {
   readonly resolveViewerVisibility: ResolveViewerVisibility;
   readonly resolveChatHostUserId: (chatId: ChatId) => Promise<UserId | null>;
   readonly isCharacterSeated: (chatId: ChatId, characterId: CharacterId) => Promise<boolean>;
-  readonly resolveHostPrincipal: (userId: UserId) => Promise<Principal>;
+  readonly resolveHostPrincipal: ResolveHostPrincipalOp;
 }
 
 export interface ImageryRoomAccess {
@@ -25,8 +25,8 @@ export type VisibleExtractQuiet = (params: VisibleExtractQuietParams) => ReturnT
 
 export interface VisibleExtractQuietDeps extends Pick<ExtractQuietDeps, "db" | "now" | "resolveUtilityPresetParams" | "resolveUserMacroDefs"> {
   readonly roleClientsFor: (userId: UserId) => Promise<Pick<RoleClientsWithSignal, "summarize">>;
-  readonly getCard: (params: { readonly principal: Principal; readonly characterId: CharacterId }) => Promise<CharacterCard | null>;
-  readonly resolveHostPrincipal: (userId: UserId) => Promise<Principal>;
+  readonly getCard: GetCharacterCardOp;
+  readonly resolveHostPrincipal: ImageryRoomAccessDeps["resolveHostPrincipal"];
   readonly resolveViewerVisibility: ResolveViewerVisibility;
 }
 

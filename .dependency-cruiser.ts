@@ -529,6 +529,24 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/chat/lib/message-action-names.ts": "MESSAGE_EDIT_NAME: the row edit action and editor accessible name",
     "packages/client/src/features/chat/lib/message-row-variants.ts": "MESSAGE_ROW_SKINS: the skin rows each chat style's measured paint is held to",
   },
+  "tests/client/features/chat/lib/move-neighbours.test.ts": {
+    "packages/client/src/features/chat/lib/move-neighbours.ts": "moveNeighboursAt and moveReasons: the pure edge and generating gates the move arrows read",
+  },
+  "tests/client/features/chat/components/platform-pinned-band-height.suite.ct.tsx": {
+    "packages/client/src/features/chat/lib/message-row-variants.ts": "MESSAGE_ROW_SKINS: the styles whose pinned band height the suite holds",
+  },
+  "tests/client/features/chat/components/platform-centred-column-width.suite.ct.tsx": {
+    "packages/client/src/features/chat/lib/message-row-variants.ts": "MESSAGE_ROW_SKINS: the centred styles whose column width the suite holds",
+  },
+  "tests/client/features/chat/components/platform-art-fallback-initial.suite.ct.tsx": {
+    "packages/client/src/features/chat/lib/message-row-variants.ts": "MESSAGE_ROW_SKINS: the art styles whose fallback initial the suite holds",
+  },
+  "tests/client/features/chat/components/platform-immersive-card-width.suite.ct.tsx": {
+    "packages/client/src/features/chat/lib/message-row-variants.ts": "MESSAGE_ROW_SKINS: the immersive styles whose card width and fill the suite holds",
+  },
+  "tests/client/features/chat/components/message-reasoning-and-move.ct.tsx": {
+    "packages/client/src/features/chat/lib/message-action-names.ts": "the reasoning and move action names and refusal copy the suite addresses",
+  },
   "tests/client/features/chat/components/platform-appearance-chat-style-picker.suite.ct.tsx": {
     "packages/client/src/features/chat/lib/message-row-variants.ts": "MESSAGE_ROW_SKINS: the production identity policy the picker diagram must represent",
   },
@@ -1493,6 +1511,8 @@ const config = {
     skipAnalysisNotInRules: true,
     // Host builtin lookups acquire the same capability as an import.
     detectProcessBuiltinModuleCalls: true,
+    // The source is ESM with CJS only in spawned helper strings; no AMD exists, and the native compiler drops it.
+    moduleSystems: ["es6", "cjs"],
     enhancedResolveOptions: {
       extensions: [".ts", ".tsx", ".d.ts", ".js", ".jsx", ".json"],
       exportsFields: ["exports"],

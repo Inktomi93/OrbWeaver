@@ -228,7 +228,7 @@ export function isDelimitedKeyPattern(key: string): boolean {
  *  version with a per-call budget so a catastrophic-backtracking USER key throws (→ treated as a non-match +
  *  reported) instead of hanging the event loop for every user on the process (#710 ReDoS). Isomorphic —
  *  RegExp+string in, boolean out, no `node:*` — so kit stays browser-safe and the timeout lives server-side. */
-type TestKeyRegex = (regex: RegExp, haystack: string) => boolean;
+export type TestKeyRegex = (regex: RegExp, haystack: string) => boolean;
 
 /** The default {@link TestKeyRegex}: a bare native `.test`, no runtime budget. This is all the browser can do;
  *  the server overrides it with its node:vm watchdog. */

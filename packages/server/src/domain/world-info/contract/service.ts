@@ -7,6 +7,7 @@
 
 import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
+import type { PortableFile } from "@orb/contracts/portability";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type {
   BackfillResult,
@@ -25,10 +26,10 @@ import type {
   WiBusEvent,
 } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
-import type { ChatId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
+import type { ChatId, WorldBookId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { AuditEntry } from "#foundation/observability";
-import type { ExportedWorldBook } from "./export.ts";
-import type { ImportWorldBookOutcome } from "./import.ts";
+import type { ImportWorldBookOutcome, WorldInfoImportContext } from "./import.ts";
 import type {
   ApplyEntryOrderParams,
   AttachGlobalParams,
@@ -66,9 +67,9 @@ import type {
 /** DI bundle every world-info verb closes over. Chat-scope guards/emit are injected from chat itself. */
 export interface WorldInfoContext {
   readonly db: Db;
-  readonly now: () => number;
-  readonly newBookId: () => WorldBookId;
-  readonly newEntryId: () => WorldEntryId;
+  readonly now: Clock;
+  readonly newBookId: WorldInfoImportContext["newBookId"];
+  readonly newEntryId: WorldInfoImportContext["newEntryId"];
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly requireChatHost: (principal: Principal, chatId: ChatId) => Promise<void>;
   readonly requireChatMember: (principal: Principal, chatId: ChatId) => Promise<void>;
@@ -111,7 +112,7 @@ export interface WorldInfoService {
   /** THE single-book export door (F2 — the verbs were built and had ZERO doors, so sharing one lorebook
    *  meant a full library-zip round-trip). A thin arm over the SAME `ExportWorldBook` the bundle descriptor
    *  streams, so a shared book is byte-identical to the one inside a backup. `null` = not the caller's. */
-  readonly exportBook: (params: ExportBookParams) => Promise<ExportedWorldBook | null>;
+  readonly exportBook: (params: ExportBookParams) => Promise<PortableFile | null>;
   /** THE single-book import door — a thin arm over the SAME `ImportWorldBook` the bundle descriptor calls,
    *  so the dedupe-by-name semantics are the bundle's by construction. Never throws for a malformed file;
    *  the refusal reason is what the import dialog renders. */

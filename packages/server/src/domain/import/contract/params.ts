@@ -3,6 +3,7 @@
 
 import type { ChatMetadata } from "@orb/contracts/chat";
 import type { AssetId, CharacterHandle, CharacterId, PersonaId, PluginId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { CollectedChat, CollectedGroup, ParsedPersona } from "./collection.ts";
 
 /** One card to import: the raw bytes (a PNG with an embedded ccv3/chara chunk, or a bare V2/V3 JSON card)
@@ -50,7 +51,7 @@ export interface ImportOrphanCharacterInput {
  *  scoped by the caller to the room's own cast, so neither can reach a character the room does not seat —
  *  which is also what the chat write op's `assertSeatedSpeakers` gate would refuse. */
 export interface GroupChatInputDeps {
-  readonly now: () => number;
+  readonly now: Clock;
   /** The zone SillyTavern's zone-less wall-clock dates were written in (`ImportProfileDeps.stWallClockZone`).
    *  The imported room's TITLE renders its date in this same zone, so the title says the day the ST filename
    *  spelled. Absent ⇒ the serde's `"UTC"` default. */
@@ -76,13 +77,6 @@ export interface GroupChatInputDeps {
 export interface ImportPersonaInput {
   readonly parsed: ParsedPersona;
   readonly avatarAssetId?: AssetId | null;
-}
-
-/** ONE bundle-shaped chat file: `filename` is `<character-handle>/<leaf>.jsonl` (the directory IS the
- *  re-link key — chat ids are not preserved across a box). */
-export interface ImportChatFileInput {
-  readonly filename: string;
-  readonly bytes: Uint8Array;
 }
 
 /** ST chat headers don't reliably carry the character name, so there's no safe auto-match. */

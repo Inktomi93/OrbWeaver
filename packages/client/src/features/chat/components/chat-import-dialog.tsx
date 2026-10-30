@@ -123,12 +123,7 @@ export function ChatImportDialog({ open, onOpenChange }: ChatImportDialogProps):
       open={open}
       title="Import chats"
     >
-      <FileDropzone
-        accept={TRANSCRIPT_ACCEPT}
-        instructions="Drop files here or click to browse"
-        multiple={true}
-        onFilesSelected={({ accepted }): void => onFiles(accepted)}
-      />
+      <FileDropzone accept={TRANSCRIPT_ACCEPT} subject="files" multiple={true} onFilesSelected={({ accepted }): void => onFiles(accepted)} />
       <ImportedChatsMemoryOffer
         nested={true}
         onStarted={(): void => setOffer((prev) => (prev === null ? null : { ...prev, started: true }))}

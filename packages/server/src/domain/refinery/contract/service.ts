@@ -6,6 +6,7 @@
 // column to scope by).
 
 import type { Principal } from "@orb/contracts/identity";
+import type { ResolveUtilityPresetParams } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type {
   ApplyAsCopyResult,
@@ -22,13 +23,13 @@ import type {
   RefineryTestResult,
   SchemaForgeResult,
 } from "@orb/contracts/refinery";
-import type { RoleClients } from "@orb/contracts/role-clients";
+import type { RoleClientsFor } from "@orb/contracts/role-clients";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
-import type { SideGenSampling } from "@orb/inference";
 import type { RefineryRunId, RefinerySchemaId, RefinerySessionId, UserId } from "@orb/kit/ids";
 import type { WireReady } from "@orb/kit/json-schema";
+import type { Clock } from "@orb/kit/time";
 // Type-only cross-feature SHAPE imports (depcruise domain-no-cross-feature: type-only across features is
 // allowed; the runtime ops are wired at the entry composition root).
 import type {
@@ -65,15 +66,6 @@ import type {
   UpdateSessionParams,
 } from "./params.ts";
 
-/** The per-OWNER role-client bundle — refinery's only inference surface. Every refinery caller IS the card
- *  owner, so the bundle is theirs; the stages name their task (`structured` for the schema-constrained
- *  passes, `summarize` for prose — inference program §7.5-1). */
-type RoleClientsFor = (ownerId: UserId) => Promise<RoleClients>;
-
-/** The card owner's Utility-role preset params (D299), `undefined` under task defaults. The caller of every
- *  refinery verb IS the card owner (no mixed-owner batch arm here, unlike distill's library sweep). */
-type ResolveUtilityPresetParams = (userId: UserId) => Promise<SideGenSampling | undefined>;
-
 /** The card owner's model-facing PROSE overrides — the 12 refinery slots resolve against these
  *  (PROSE-1 §4.3; the discovery caller-scoped precedent). */
 type ResolveUserProse = (userId: UserId) => Promise<ProseOverrides>;
@@ -83,7 +75,7 @@ type ResolveUserProse = (userId: UserId) => Promise<ProseOverrides>;
 export interface RefineryContext {
   readonly logger: Logger;
   readonly db: Db;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly newRefinerySessionId: () => RefinerySessionId;
   readonly newRefineryRunId: () => RefineryRunId;
   readonly newRefinerySchemaId: () => RefinerySchemaId;

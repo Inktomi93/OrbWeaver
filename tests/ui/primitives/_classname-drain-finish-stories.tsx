@@ -17,12 +17,19 @@ import { Swatch } from "@orb/ui/swatch";
 import { Tabs, TabsList, TabsPanel, TabsTab } from "@orb/ui/tabs";
 import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
+import type { Tone, ToneRole } from "@orb/ui/tokens";
+import { TOKENS } from "@orb/ui/tokens";
 import { WeaveGlyph } from "@orb/ui/web-weave";
 import type { CSSProperties, ReactElement } from "react";
 
-// A probe is a bare span painted straight from the token a case should resolve to, so the CT compares like with like.
-function Probe({ name, style }: { readonly name: string; readonly style: CSSProperties }): ReactElement {
-  return <span data-probe={name} style={{ display: "block", ...style }} />;
+// A probe is a bare span painted straight from the token a case should resolve to, so the CT compares like with like. A
+// probe that reads a D336 tone role stamps the tone the case stamps.
+function Probe({ name, style, tone }: { readonly name: string; readonly style: CSSProperties; readonly tone?: Tone }): ReactElement {
+  return <span data-probe={name} data-tone={tone} style={{ display: "block", ...style }} />;
+}
+
+function role(name: ToneRole): string {
+  return `var(${TOKENS[`color.tone-${name}`].cssVar})`;
 }
 
 function mix(token: string, percent: number): string {
@@ -227,10 +234,10 @@ export function CardFinishStory(): ReactElement {
       <Probe name="radius-full" style={{ borderRadius: "var(--radius-full)" }} />
       <Probe name="bubble" style={{ backgroundColor: "var(--color-user-bubble)", paddingBlock: "var(--spacing-row)", paddingInline: "var(--spacing-block)" }} />
       {TINTS.map((tint) => (
-        <Probe key={tint} name={`${tint}Tint`} style={{ backgroundColor: mix(`--color-${tint}`, 10), borderColor: mix(`--color-${tint}`, 40) }} />
+        <Probe key={tint} name={`${tint}Tint`} tone={tint} style={{ backgroundColor: role("tint"), borderColor: role("edge") }} />
       ))}
-      <Probe name="primaryEdge" style={{ borderColor: mix("--color-primary", 40) }} />
-      <Probe name="primary" style={{ borderColor: "var(--color-primary)", backgroundColor: "transparent" }} />
+      <Probe name="primaryEdge" tone="primary" style={{ borderColor: role("edge") }} />
+      <Probe name="primary" tone="primary" style={{ borderColor: role("solid"), backgroundColor: "transparent" }} />
       <Probe name="raised" style={{ backgroundColor: "var(--color-surface-raised)" }} />
       <Probe name="sidebarEdge" style={{ borderColor: "var(--color-sidebar-border)" }} />
       <Probe name="popover" style={{ backgroundColor: "var(--color-popover)", color: "var(--color-popover-foreground)" }} />
@@ -416,11 +423,12 @@ export function PartsFinishStory(): ReactElement {
         </MenuPopup>
       </Menu>
       <Probe name="foreground" style={{ color: "var(--color-foreground)" }} />
-      <Probe name="separator" style={{ backgroundColor: mix("--color-primary", 35) }} />
+      <Probe name="separator" tone="primary" style={{ backgroundColor: role("edge") }} />
       <Probe name="radius-base" style={{ borderRadius: "var(--radius-base)" }} />
       <Probe name="mono" style={{ fontFamily: "var(--font-mono)" }} />
       <Probe name="accent" style={{ backgroundColor: "var(--color-accent)" }} />
-      <Probe name="primary" style={{ color: "var(--color-primary)", borderColor: mix("--color-primary", 55) }} />
+      <Probe name="primary" tone="primary" style={{ color: role("text"), borderColor: role("edge") }} />
+      <Probe name="primary-solid" tone="primary" style={{ color: role("solid") }} />
       <Probe name="title" style={{ fontSize: "var(--text-title)" }} />
       <Probe name="sidebar" style={{ backgroundColor: "var(--color-sidebar)" }} />
       <Probe name="success" style={{ backgroundColor: "var(--color-success)" }} />

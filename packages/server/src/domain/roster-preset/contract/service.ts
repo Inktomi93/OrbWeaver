@@ -12,6 +12,7 @@ import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { CharacterId, ChatId, ChatParticipantId, PersonaId, RosterPresetId, UserId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { AutomationService, RulePresetKnobOverrides } from "#domain/automation";
 import type { ChatService } from "#domain/chat";
 import type { AuditEntry } from "#foundation/observability";
@@ -92,7 +93,7 @@ export interface RosterPresetAutomationOps
 /** The DI bundle every roster-preset verb closes over, wired at the composition root. */
 export interface RosterPresetContext {
   readonly db: Db;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly newRosterPresetId: () => RosterPresetId;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   /** Fires `rosterPresetsChanged` with the acting owner's userId after every library write commits, so a

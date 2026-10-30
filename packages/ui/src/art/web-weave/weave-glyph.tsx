@@ -3,6 +3,7 @@
 
 import type { ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
+import { INK_TONE, variantAttrs } from "#lib";
 import { weaveGlyphVariants } from "./variants.ts";
 import { WEB_GLYPH_DISPLAY } from "./web-glyph.ts";
 
@@ -42,6 +43,7 @@ export function WeaveGlyph({ size, className, anim = false, decorative = false, 
       stroke="currentColor"
       strokeLinecap="round"
       className={weaveGlyphVariants({ size, tone, anim, className })}
+      {...variantAttrs(weaveGlyphVariants, { size, tone }, INK_TONE[tone ?? "default"])}
       // The two arms are mutually exclusive: a NAMED image, or a decoration inside an already-named
       // control. Written as literal attributes (not a spread) so the a11y lint can see the aria-hidden.
       aria-hidden={decorative ? true : undefined}

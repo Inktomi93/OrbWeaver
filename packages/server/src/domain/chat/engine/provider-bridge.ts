@@ -1,5 +1,5 @@
 // Preserve streamed text and provider refusal identity while adapting push delivery to chat's pull stream.
-import type { ChatDeltaEvent, ChatEvent, ChatRequest, ChatResult, ChatTurnInput } from "@orb/inference";
+import type { ChatDeltaEvent, ChatEvent, ChatRequest, ChatResult, ChatTurnInput, ProviderExecutor } from "@orb/inference";
 import { toChatRequest } from "@orb/inference";
 import type { TurnRequest, TurnStreamChunk } from "../contract/results.ts";
 
@@ -212,7 +212,7 @@ function createChunkPump<T>(): {
  *  Promise+onDelta shape back onto the chat role's streaming AsyncIterable. Extracted so the four-layer
  *  fidelity harness drives THIS real mapping (injecting only the leaf infra surface), not a facsimile. */
 export function createRunChatTurnBridge(deps: {
-  readonly runChatTurn: (req: ChatRequest) => Promise<ChatResult>;
+  readonly runChatTurn: ProviderExecutor["runChatTurn"];
   /** The deployment's prompt-cache depth FLOOR (`AppSettings.promptCacheMinDepth`, Settings › Admin › System
    *  tuning) — read PER TURN so an admin flip governs the next request with no restart (the D126 thunk
    *  precedent). Optional: absent reads as the born-in-DB floor 0, which is `Math.max`'s identity, so a

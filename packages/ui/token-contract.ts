@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, realpathSync } from "node:fs";
 import { relative, resolve as resolvePath, sep } from "node:path";
 import { isWithinRoot } from "@orb/kit/path-containment";
+import { CARRIED_TONE_HOSTS, COLORED_TONE_ORIGINS, TONE_MIX_TARGETS } from "@orb/kit/theme-derivation";
 import type { ErrorObject, ValidateFunction } from "ajv";
 import { Ajv } from "ajv";
 // biome-ignore lint/performance/noNamespaceImport: ajv-formats is CommonJS; this module is compiled under both Bundler and NodeNext resolution.
@@ -101,6 +102,7 @@ const TOKEN_TYPE_SET: ReadonlySet<string> = new Set(TOKEN_TYPES);
 const ALIAS_RE = /^\{([^{}]+)\}$/u;
 const EMBEDDED_ALIAS_RE = /\{([^{}]+)\}/gu;
 const CSS_VAR_RE = /var\((--[a-z0-9-]+)(?:\s*,[^)]*)?\)/gu;
+const PIGMENT_VAR_RE = /var\((--[a-z0-9-]+)(\s*,[^)]*)?\)/gu;
 /** The group that holds the ramps; every token under it is a raw dimension and nothing else may be. */
 const PRIMITIVE_GROUP = "primitive";
 /** Semantic group → the ramp its dimension tokens must alias, one hop, never another semantic. */
@@ -110,15 +112,24 @@ const RAMPS: ReadonlySet<string> = new Set(Object.values(RAMP_OF_GROUP));
 type JsonObject = Record<string, unknown>;
 type AddFormats = (ajv: Ajv) => Ajv;
 type TokenType = (typeof TOKEN_TYPES)[number];
-const TOKEN_OUTPUT_ROLES = ["input", "light-dark", "percentage", "snapped"] as const;
+const TOKEN_OUTPUT_ROLES = ["input", "light-dark", "percentage", "snapped", "derived"] as const;
 type OutputRole = (typeof TOKEN_OUTPUT_ROLES)[number];
+/** A derived token's CSS name prefix: `color.tone-<role>` resolves on a `[data-tone]` element, never on `:root` (D336). */
+export const TONE_ROLE_PREFIX = "tone-";
+/** The percentage group whose members are the `--tone-mix-*` knobs a tone recipe names. */
+export const TONE_MIX_GROUP = "tone-mix";
+/** The tone that binds the derived ramp instead of an intent base pair (D336). */
+export const NEUTRAL_TONE = "neutral";
 const CSS_VALUE_PLACEMENTS = ["theme", "root"] as const;
 export type CssValuePlacement = (typeof CSS_VALUE_PLACEMENTS)[number];
+
+/** `reference` registers a derived tone role with Tailwind for its utilities and serves no variable (D336). */
+export type GeneratedCssPlacement = CssValuePlacement | "reference";
 
 export interface GeneratedCssValue {
   readonly path: readonly string[];
   readonly value: string;
-  readonly placement: CssValuePlacement;
+  readonly placement: GeneratedCssPlacement;
 }
 
 interface TokenContractDiagnostic {
@@ -134,6 +145,8 @@ export interface ContractToken {
   readonly type: TokenType | null;
   readonly value: unknown;
   readonly outputRole: OutputRole | null;
+  /** A `derived` token's recipe, with its operands still DTCG aliases. */
+  readonly derived: DerivedOutput | null;
   /** `$extensions["orb.rootFloor"]` — the emitted value never resolves BELOW its authored 16px-root size
    *  (`--appearance-font-scale` may enlarge it, never shrink it). See `rootFloorFlag` for the whole ruling. */
   readonly rootFloor: boolean;
@@ -161,6 +174,10 @@ export interface TokenContractResult {
   readonly cssValues: Readonly<Record<string, CssValueEntry>>;
   /** Named media conditions, with `{breakpoint.*}` references still unresolved. */
   readonly conditions: Readonly<Record<string, string>>;
+  /** The D336 tone tuple (`orb.tones`), in emit order. */
+  readonly tones: readonly string[];
+  /** The scoped art pigments (`orb.pigments`), keyed by scope then name. */
+  readonly pigments: PigmentRecipes;
   readonly cssTargets: ReadonlySet<string>;
   readonly themes: readonly ThemeSet[];
 }
@@ -177,7 +194,27 @@ export interface TokenContractTexts {
 const aliasSchema = z.string().regex(ALIAS_RE);
 /** The fine-pointer arm is a semantic value, so it aliases a ramp step like the token's own `$value`. */
 const pointerFineSchema = aliasSchema;
-const outputSchema = z.object({ kind: z.enum(TOKEN_OUTPUT_ROLES) }).strict();
+const mixStepSchema = z.object({ mix: aliasSchema, toward: z.enum(TONE_MIX_TARGETS) }).strict();
+/** `orb.output` kind `derived`: a D336 tone role. `$value` aliases the neutral tone's ramp host; `colored` is the recipe every intent tone shares. */
+const derivedOutputSchema = z
+  .object({
+    kind: z.literal("derived"),
+    colored: z.union([z.enum(COLORED_TONE_ORIGINS), mixStepSchema]),
+    neutral: mixStepSchema.optional(),
+    floor: z.array(aliasSchema).optional(),
+  })
+  .strict();
+export type DerivedOutput = z.infer<typeof derivedOutputSchema>;
+const outputSchema = z.union([z.object({ kind: z.enum(TOKEN_OUTPUT_ROLES).exclude(["derived"]) }).strict(), derivedOutputSchema]);
+/** `orb.pigments`: art recipes that mix an intent hue, each emitted as one custom property on its `[data-pigment]` scope. */
+const pigmentsSchema = z.record(z.string().regex(/^[a-z][a-z0-9-]*$/u), z.record(z.string().regex(/^[a-z0-9][a-z0-9-]*$/u), z.string().min(1)));
+export type PigmentRecipes = z.infer<typeof pigmentsSchema>;
+/** `orb.tones`: the tone tuple, in the order the `[data-tone]` blocks emit. */
+const tonesSchema = z
+  .array(z.string().regex(/^[a-z][a-z-]*$/u))
+  .min(1)
+  .refine((tones) => new Set(tones).size === tones.length, "tones are unique")
+  .refine((tones) => tones.includes(NEUTRAL_TONE), `tones include ${NEUTRAL_TONE}`);
 /** `orb.rootFloor` carries no operand — the floor IS the token's own authored value at the 16px root. */
 const rootFloorSchema = z.literal(true);
 const llmSchema = z
@@ -246,14 +283,22 @@ function tokenType(value: unknown): TokenType | null {
   return typeof value === "string" && TOKEN_TYPE_SET.has(value) ? (value as TokenType) : null;
 }
 
-function outputRole(node: JsonObject, path: string, diagnostics: TokenContractDiagnostic[]): OutputRole | null {
+interface ParsedOutput {
+  readonly role: OutputRole | null;
+  readonly derived: DerivedOutput | null;
+}
+
+function outputRole(node: JsonObject, path: string, diagnostics: TokenContractDiagnostic[]): ParsedOutput {
   const extensions = node["$extensions"];
   if (!isObject(extensions) || extensions["orb.output"] === undefined) {
-    return null;
+    return { role: null, derived: null };
   }
   const parsed = outputSchema.safeParse(extensions["orb.output"]);
   diagnostics.push(...zodDiagnostics(`${path}/$extensions/orb.output`, "orb.output", parsed));
-  return parsed.success ? parsed.data.kind : null;
+  if (!parsed.success) {
+    return { role: null, derived: null };
+  }
+  return { role: parsed.data.kind, derived: parsed.data.kind === "derived" ? parsed.data : null };
 }
 
 /**
@@ -315,6 +360,28 @@ function effectiveTokenType(
   return ownType ?? inheritedType;
 }
 
+/** The type an output kind requires, or `null` when the token satisfies it. */
+function outputTypeDiagnostic(role: OutputRole, effectiveType: TokenType | null, path: readonly string[]): string | null {
+  switch (role) {
+    case "input":
+      return null;
+    case "snapped":
+      return effectiveType === "dimension" ? null : "snapped output requires a dimension token";
+    case "percentage":
+      return effectiveType === "number" ? null : "percentage output requires a number token";
+    case "light-dark":
+      return effectiveType === "color" ? null : "light-dark output requires a color token";
+    case "derived":
+      return effectiveType === "color" && path.length === 2 && path[0] === "color" && path[1]?.startsWith(TONE_ROLE_PREFIX) === true
+        ? null
+        : `derived output is a color token at color.${TONE_ROLE_PREFIX}<role>`;
+    default: {
+      const exhaustive: never = role;
+      throw new Error(`unhandled output role ${String(exhaustive)}`);
+    }
+  }
+}
+
 function collectTokenNode(node: JsonObject, path: readonly string[], effectiveType: TokenType | null, collector: TokenCollector): void {
   const pathString = path.join(".");
   const jsonPath = `/${path.join("/")}`;
@@ -322,7 +389,7 @@ function collectTokenNode(node: JsonObject, path: readonly string[], effectiveTy
   if (isObject(extensions)) {
     validateOrbExtensionNames(extensions, new Set(["orb.pointerFine", "orb.output", "orb.rootFloor"]), `${jsonPath}/$extensions`, collector.diagnostics);
   }
-  const role = outputRole(node, jsonPath, collector.diagnostics);
+  const { role, derived } = outputRole(node, jsonPath, collector.diagnostics);
   const rootFloor = rootFloorFlag(node, jsonPath, collector.diagnostics);
   if (effectiveType === null) {
     collector.diagnostics.push(diagnostic(jsonPath, "token.type.missing", "token has no declared or inherited standard $type"));
@@ -335,20 +402,15 @@ function collectTokenNode(node: JsonObject, path: readonly string[], effectiveTy
       collector.diagnostics.push(diagnostic(jsonPath, "orb.pointerFine.type", "orb.pointerFine is valid only on a dimension token"));
     }
   }
-  if (role === "snapped" && effectiveType !== "dimension") {
-    collector.diagnostics.push(diagnostic(jsonPath, "orb.output.type", "snapped output requires a dimension token"));
-  }
-  if (role === "percentage" && effectiveType !== "number") {
-    collector.diagnostics.push(diagnostic(jsonPath, "orb.output.type", "percentage output requires a number token"));
-  }
-  if (role === "light-dark" && effectiveType !== "color") {
-    collector.diagnostics.push(diagnostic(jsonPath, "orb.output.type", "light-dark output requires a color token"));
+  const outputTypeMiss = role === null ? null : outputTypeDiagnostic(role, effectiveType, path);
+  if (outputTypeMiss !== null) {
+    collector.diagnostics.push(diagnostic(jsonPath, "orb.output.type", outputTypeMiss));
   }
   // An aliased value is judged at its terminal in validateAliases.
   if (rootFloor && typeof node["$value"] !== "string" && !isRemDimension(node["$value"], effectiveType)) {
     collector.diagnostics.push(diagnostic(jsonPath, "orb.rootFloor.type", "orb.rootFloor is valid only on a dimension token authored in rem"));
   }
-  collector.tokens.push({ path, pathString, node, type: effectiveType, value: node["$value"] ?? node["$ref"], outputRole: role, rootFloor });
+  collector.tokens.push({ path, pathString, node, type: effectiveType, value: node["$value"] ?? node["$ref"], outputRole: role, derived, rootFloor });
 }
 
 function collectTokens(node: JsonObject, path: readonly string[], inheritedType: TokenType | null, collector: TokenCollector): void {
@@ -573,9 +635,68 @@ function validateInheritedValues(tokens: readonly ContractToken[], formatValidat
 interface RootExtensions {
   readonly cssValues: Readonly<Record<string, CssValueEntry>>;
   readonly conditions: Readonly<Record<string, string>>;
+  readonly tones: readonly string[];
+  readonly pigments: PigmentRecipes;
 }
 
-const NO_ROOT_EXTENSIONS: RootExtensions = { cssValues: {}, conditions: {} };
+const NO_ROOT_EXTENSIONS: RootExtensions = { cssValues: {}, conditions: {}, tones: [], pigments: {} };
+const CARRIED_HOST_SET: ReadonlySet<string> = new Set(CARRIED_TONE_HOSTS);
+
+function aliasPath(value: string): string | undefined {
+  return ALIAS_RE.exec(value)?.[1];
+}
+
+/** A tone role's host operand: a non-derived color token the carried palette derives (`CARRIED_TONE_HOSTS`). */
+function hostMiss(alias: string, byPath: ReadonlyMap<string, ContractToken>): string | null {
+  const target = byPath.get(aliasPath(alias) ?? "");
+  if (target === undefined || target.type !== "color" || target.path[0] !== "color" || target.outputRole === "derived") {
+    return `${alias} is not a color token`;
+  }
+  return CARRIED_HOST_SET.has(target.path[1] ?? "") ? null : `${alias} is not a host a carried palette derives (${CARRIED_TONE_HOSTS.join(", ")})`;
+}
+
+function mixMiss(alias: string, byPath: ReadonlyMap<string, ContractToken>): string | null {
+  const target = byPath.get(aliasPath(alias) ?? "");
+  return target?.path[0] === TONE_MIX_GROUP && target.outputRole === "percentage" ? null : `${alias} is not a ${TONE_MIX_GROUP} percentage token`;
+}
+
+function floorMiss(alias: string, byPath: ReadonlyMap<string, ContractToken>): string | null {
+  return byPath.get(aliasPath(alias) ?? "")?.outputRole === "derived" ? null : hostMiss(alias, byPath);
+}
+
+function roleOperandMisses(token: ContractToken, byPath: ReadonlyMap<string, ContractToken>): readonly string[] {
+  const recipe = token.derived;
+  if (recipe === null) {
+    return [];
+  }
+  return [
+    typeof token.value === "string" ? hostMiss(token.value, byPath) : "$value must alias the neutral tone's ramp host",
+    typeof recipe.colored === "object" ? mixMiss(recipe.colored.mix, byPath) : null,
+    recipe.neutral === undefined ? null : mixMiss(recipe.neutral.mix, byPath),
+    ...(recipe.floor ?? []).map((alias) => floorMiss(alias, byPath)),
+  ].filter((miss): miss is string => miss !== null);
+}
+
+/** D336: every derived role names real operands, and every colored tone has its base and foreground pair. */
+function validateToneRoles(tokens: readonly ContractToken[], tones: readonly string[], diagnostics: TokenContractDiagnostic[]): void {
+  const byPath = asTokenMap(tokens);
+  const roles = tokens.filter((token) => token.derived !== null);
+  if ((roles.length === 0) !== (tones.length === 0)) {
+    diagnostics.push(diagnostic("/$extensions/orb.tones", "tone.roles", "orb.tones and the derived tone roles are declared together"));
+  }
+  for (const token of roles) {
+    for (const miss of roleOperandMisses(token, byPath)) {
+      diagnostics.push(diagnostic(`/${token.path.join("/")}`, "tone.operand", miss));
+    }
+  }
+  for (const tone of tones.filter((name) => name !== NEUTRAL_TONE)) {
+    for (const path of [`color.${tone}`, `color.${tone}-foreground`]) {
+      if (byPath.get(path)?.type !== "color") {
+        diagnostics.push(diagnostic("/$extensions/orb.tones", "tone.pair", `tone ${tone} has no ${path} color token`));
+      }
+    }
+  }
+}
 
 /** `orb.conditions`: a `{breakpoint.*}` reference inside a query must name a dimension token. */
 function parseConditions(
@@ -600,20 +721,32 @@ function parseConditions(
   return conditions.data;
 }
 
+/** `orb.tones` and `orb.pigments`: the D336 tone tuple and the scoped art recipes. */
+function parseArtExtensions(extensions: JsonObject, diagnostics: TokenContractDiagnostic[]): Pick<RootExtensions, "tones" | "pigments"> {
+  const parsedTones = extensions["orb.tones"] === undefined ? null : tonesSchema.safeParse(extensions["orb.tones"]);
+  if (parsedTones !== null) {
+    diagnostics.push(...zodDiagnostics("/$extensions/orb.tones", "orb.tones", parsedTones));
+  }
+  const parsedPigments = pigmentsSchema.safeParse(extensions["orb.pigments"] ?? {});
+  diagnostics.push(...zodDiagnostics("/$extensions/orb.pigments", "orb.pigments", parsedPigments));
+  return { tones: parsedTones?.success === true ? parsedTones.data : [], pigments: parsedPigments.success ? parsedPigments.data : {} };
+}
+
 function parseRootExtensions(base: JsonObject, byPath: ReadonlyMap<string, ContractToken>, diagnostics: TokenContractDiagnostic[]): RootExtensions {
   const extensions = base["$extensions"];
   if (!isObject(extensions)) {
     diagnostics.push(diagnostic("/$extensions", "orb.extensions.missing", "root $extensions must declare orb.llm, orb.cssValues and orb.conditions"));
     return NO_ROOT_EXTENSIONS;
   }
-  validateOrbExtensionNames(extensions, new Set(["orb.llm", "orb.cssValues", "orb.conditions"]), "/$extensions", diagnostics);
+  validateOrbExtensionNames(extensions, new Set(["orb.llm", "orb.cssValues", "orb.conditions", "orb.tones", "orb.pigments"]), "/$extensions", diagnostics);
   const llm = llmSchema.safeParse(extensions["orb.llm"]);
   diagnostics.push(...zodDiagnostics("/$extensions/orb.llm", "orb.llm", llm));
   const conditions = parseConditions(extensions, byPath, diagnostics);
+  const { tones, pigments } = parseArtExtensions(extensions, diagnostics);
   const cssValues = cssValuesSchema.safeParse(extensions["orb.cssValues"]);
   diagnostics.push(...zodDiagnostics("/$extensions/orb.cssValues", "orb.cssValues", cssValues));
   if (!cssValues.success) {
-    return { cssValues: {}, conditions };
+    return { cssValues: {}, conditions, tones, pigments };
   }
   for (const [target, entry] of Object.entries(cssValues.data)) {
     // ADR 0200: a shadow recipe resolves every colour through a served variable, or Tailwind's build-time inlining freezes it.
@@ -638,7 +771,7 @@ function parseRootExtensions(base: JsonObject, byPath: ReadonlyMap<string, Contr
       }
     }
   }
-  return { cssValues: cssValues.data, conditions };
+  return { cssValues: cssValues.data, conditions, tones, pigments };
 }
 
 function cssVarFor(token: ContractToken): string {
@@ -713,6 +846,22 @@ function validateCssValueOperands(
       diagnostics.push(
         diagnostic(`/$extensions/orb.cssValues/${target}/value`, "orb.cssValues.var", `custom-property operand ${operand} is not a generated target`),
       );
+    }
+  }
+}
+
+/** A pigment recipe reads only generated variables (the scope's own runtime knobs, such as `--ring-head`, carry a fallback). */
+function validatePigmentOperands(pigments: PigmentRecipes, targets: ReadonlySet<string>, diagnostics: TokenContractDiagnostic[]): void {
+  for (const [scope, recipes] of Object.entries(pigments)) {
+    for (const [name, value] of Object.entries(recipes)) {
+      for (const match of value.matchAll(PIGMENT_VAR_RE)) {
+        const [, operand, fallback] = match;
+        if (operand !== undefined && fallback === undefined && !targets.has(operand)) {
+          diagnostics.push(
+            diagnostic(`/$extensions/orb.pigments/${scope}/${name}`, "orb.pigments.var", `custom-property operand ${operand} is not a generated target`),
+          );
+        }
+      }
     }
   }
 }
@@ -850,6 +999,8 @@ const EMPTY_RESULT: Omit<TokenContractResult, "diagnostics"> = {
   mochaTokens: new Map(),
   cssValues: {},
   conditions: {},
+  tones: [],
+  pigments: {},
   cssTargets: new Set(),
   themes: [],
 };
@@ -918,10 +1069,12 @@ export function validateTokenContractTexts(texts: TokenContractTexts): TokenCont
   ]);
   validateSeedTokens({ name: "Light", tokens: lightTokenList, basePaths, requiredPaths: requiredLightPaths, diagnostics });
   validateSeedTokens({ name: "Mocha", tokens: mochaTokenList, basePaths, requiredPaths: requiredSeedPaths, diagnostics });
-  const { cssValues, conditions } = isObject(base) ? parseRootExtensions(base, asTokenMap(baseTokens), diagnostics) : NO_ROOT_EXTENSIONS;
+  const { cssValues, conditions, tones, pigments } = isObject(base) ? parseRootExtensions(base, asTokenMap(baseTokens), diagnostics) : NO_ROOT_EXTENSIONS;
+  validateToneRoles(baseTokens, tones, diagnostics);
   const lightTokens = asTokenMap(lightTokenList);
   const mochaTokens = asTokenMap(mochaTokenList);
   const cssTargets = validateOutputTargets(baseTokens, lightTokens, cssValues, diagnostics);
+  validatePigmentOperands(pigments, cssTargets, diagnostics);
   const themes = isObject(resolver) ? validateResolverSubset(resolver, diagnostics) : [];
   return {
     diagnostics,
@@ -931,6 +1084,8 @@ export function validateTokenContractTexts(texts: TokenContractTexts): TokenCont
     mochaTokens,
     cssValues,
     conditions,
+    tones,
+    pigments,
     cssTargets,
     themes,
   };

@@ -3,6 +3,7 @@ import type { MemoryEmbedSpace } from "@orb/contracts/embeddings";
 import type { MemoryRetrievalMode } from "@orb/contracts/search";
 import type { CharacterId, ChatDigestId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
+import type { RecorderFilter } from "#foundation/observability";
 
 export type { MemoryEmbedSpace } from "@orb/contracts/embeddings";
 
@@ -136,7 +137,7 @@ export interface TurnRetrievalWarningEpisode {
   readonly takeRerankUnavailable: () => boolean;
   /** The owner's vector space refused the query — mid-move, or no embed connection bound. */
   readonly reportIndexUnavailable: () => void;
-  readonly takeIndexUnavailable: () => boolean;
+  readonly takeIndexUnavailable: TurnRetrievalWarningEpisode["takeRerankUnavailable"];
 }
 
 /** A complete, aged-out block of canon (the `blockSize`-message digest/segment unit). `blockIdx` is the
@@ -234,10 +235,7 @@ export interface MemoryRecallRecord {
 }
 
 /** The read filter for the ring: narrow to one chat's recalls, and/or the most-recent N. */
-export interface MemoryRecallFilter {
-  readonly chatId?: ChatId;
-  readonly limit?: number;
-}
+export type MemoryRecallFilter = RecorderFilter;
 
 /** The injected recall-trace sink (`ChatContext.recordRecall`) — synchronous, side-effect-only, and it must
  *  never throw into the turn path. Absent ⇒ nothing records (a hand-built ctx / a unit test), and recall is

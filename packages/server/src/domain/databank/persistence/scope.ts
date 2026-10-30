@@ -21,6 +21,7 @@
 import type { DocumentDestination, DocumentScopeSource } from "@orb/contracts/databank";
 import type { Principal } from "@orb/contracts/identity";
 import { PARTICIPANT_ROLES } from "@orb/contracts/identity";
+import type { ResolveActiveDocumentIdsOp } from "@orb/contracts/search";
 import type { Db } from "@orb/db";
 import { characterDocuments, characters, chatDocuments, chatParticipants, chats, documents, globalDocuments } from "@orb/db";
 import type { AwaitableBatchStmt } from "@orb/db/query";
@@ -31,7 +32,6 @@ import type { CharacterId, ChatId, DocumentId, UserId } from "@orb/kit/ids";
 import type { SQL, SQLWrapper } from "drizzle-orm";
 import { and, eq, inArray, isNull, notInArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
-import type { ResolveActiveDocumentIdsOp } from "#domain/search";
 import { captureParticipantRole } from "#primitives/role-data";
 import type { DatabankContext } from "../contract/service.ts";
 import { ensureCharacterOwned } from "./queries.ts";

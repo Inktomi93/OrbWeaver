@@ -2,8 +2,8 @@ import type { ButtonProps as BaseButtonProps } from "@base-ui/react/button";
 import { Button as BaseButton } from "@base-ui/react/button";
 import type { ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
-import { variantProps } from "#lib";
-import { buttonVariants } from "./variants.ts";
+import { GRADIENT_RING_PIGMENT, variantProps } from "#lib";
+import { buttonTone, buttonVariants } from "./variants.ts";
 
 /** Every Button prop EXCEPT the accessible-name requirement — the shape a wrapper seal extends. */
 export interface ButtonBaseProps extends BaseButtonProps, VariantProps<typeof buttonVariants> {
@@ -67,11 +67,12 @@ export function Button(props: ButtonProps): ReactElement {
     focusableWhenDisabled,
     ...rest
   } = props;
-  // The className AND the `data-intent`/`data-size` axis stamp, from ONE selection object (#1080).
+  // The className, the axis stamp (#1080) and the D336 tone scope, from ONE selection object.
   const stamp = variantProps(
     buttonVariants,
     { intent, size, shape, cardCorners, selection, hiddenAt, reveal, touchFloor, tone, underline, reserveEdge, confirming, quietDisabled, focusRing },
     className,
+    buttonTone(intent, tone, selection),
   );
   return (
     <BaseButton
@@ -83,6 +84,7 @@ export function Button(props: ButtonProps): ReactElement {
       // look like one. The stamp is the same `defaultVariants` lookup that picked the classes, so paint
       // and ring cannot disagree about which arm rendered.
       data-cta={stamp["data-intent"] === "primary" ? "" : undefined}
+      data-pigment={stamp["data-intent"] === "primary" ? GRADIENT_RING_PIGMENT : undefined}
       aria-busy={loading ? true : undefined}
       {...stamp}
       disabled={disabled || loading}

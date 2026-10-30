@@ -4,23 +4,25 @@
 // class — the HTTP layer maps null → 404). Export reads `@orb/db` schema directly (no `persistence/`
 // indirection); jpg/webp→png transcode is the injected `infra/image` op, so export never imports `sharp`.
 
+import type { PortableFile } from "@orb/contracts/portability";
+import type { ExportedCardScripts } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
-import type { ExportCardScripts } from "#domain/regex";
+import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { ExportRpgGame } from "#domain/rpg";
-import type { ImageTransformOptions } from "#infra/image";
+import type { ImageAdapter } from "#infra/image";
 import type { Cas } from "#infra/storage";
 import type { ExportCharacterParams, ExportChatBundleParams, ExportChatParams, ListHostChatsParams, SeatCardIdentity } from "./params.ts";
-import type { ExportedCard, ExportedFile, ExportedText, HostChatRef } from "./results.ts";
+import type { ExportedCard, ExportedText, HostChatRef } from "./results.ts";
 
 /** The DI bundle every export verb closes over, wired at the composition root. */
 export interface ExportContext {
   readonly db: Db;
   readonly cas: Cas;
-  readonly imageTransform: (bytes: Uint8Array, opts?: ImageTransformOptions) => Promise<Uint8Array>;
+  readonly imageTransform: ImageAdapter["transform"];
   /** D121-E: the card RE-EMBED — the character's attached regex library rows projected back onto the ST card
    *  wire + the reference list a same-install re-import re-links by. Injected (cross-domain), because a
    *  card's scripts are no longer a column export could read off the flat row. */
-  readonly exportCardScripts: ExportCardScripts;
+  readonly exportCardScripts: (args: { readonly ownerId: UserId; readonly characterId: CharacterId }) => Promise<ExportedCardScripts>;
   /** R6: the chat-anchored rpg CAMPAIGN, read whole. Injected (cross-domain) for exactly the reason
    *  `exportCardScripts` is: a game is six tables `export` does not own, and reaching into them directly
    *  would be a sideways read. Null for the overwhelmingly common gameless chat. */
@@ -48,7 +50,7 @@ export interface ExportService {
    *  room blob + the per-chat variable/macro picks + the rpg campaign), not the ST interchange subset. This
    *  is what an ACCOUNT BACKUP carries; `exportChat` stays the ST/share door. Same host gate, same null-for-
    *  not-yours posture. */
-  readonly exportChatBundle: (params: ExportChatBundleParams) => Promise<ExportedFile | null>;
+  readonly exportChatBundle: (params: ExportChatBundleParams) => Promise<PortableFile | null>;
   /** Every chat the caller hosts + the handle of its primary seated character — the enumeration the bundle
    *  descriptor streams transcripts over. */
   readonly listHostChats: (params: ListHostChatsParams) => Promise<readonly HostChatRef[]>;

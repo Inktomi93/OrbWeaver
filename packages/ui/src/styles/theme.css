@@ -143,6 +143,15 @@
   --color-narration: oklch(0.78 0.02 70);
   --color-prose-body: oklch(0.9 0.008 72);
   --color-speaker: oklch(0.72 0.175 52);
+  --tone-mix-hover: 90%;
+  --tone-mix-active: 80%;
+  --tone-mix-neutral-hover: 90%;
+  --tone-mix-neutral-active: 80%;
+  --tone-mix-text: 80%;
+  --tone-mix-text-on-tint: 62%;
+  --tone-mix-tint: 14%;
+  --tone-mix-tint-active: 22%;
+  --tone-mix-edge: 30%;
   --spacing-tight: round(up, 0.25rem, 1px);
   --spacing-field: round(up, 0.375rem, 1px);
   --spacing-row: round(up, 0.5rem, 1px);
@@ -342,6 +351,18 @@
   --text-band-initial: calc(var(--immersive-band-initial-cqmin) * 1cqmin);
 }
 
+@theme reference {
+  --color-tone-solid: var(--color-foreground);
+  --color-tone-solid-hover: color-mix(in oklab, var(--color-foreground) var(--tone-mix-neutral-hover), var(--color-background));
+  --color-tone-solid-active: color-mix(in oklab, var(--color-foreground) var(--tone-mix-neutral-active), var(--color-background));
+  --color-tone-text: var(--color-foreground);
+  --color-tone-text-on-tint: var(--color-accent-foreground);
+  --color-tone-tint: var(--color-muted);
+  --color-tone-tint-active: var(--color-accent);
+  --color-tone-edge: var(--color-border);
+  --color-tone-foreground: var(--color-background);
+}
+
 @custom-variant pointer-coarse (@media (pointer: coarse));
 @custom-variant pointer-fine (@media (pointer: fine));
 @custom-variant hover-capable (@media (hover: hover));
@@ -370,6 +391,16 @@
     --orb-density-compact-cell-fixed: 7.5rem;
     --immersive-whisper-banner-inline-cap: calc(var(--immersive-whisper-banner-cap) * var(--aspect-banner));
     --immersive-whisper-banner-cap: calc(var(--immersive-whisper-banner-viewport-cap) * 1svh);
+    --tone-mix-primary-hover: var(--tone-mix-hover);
+    --tone-mix-primary-active: var(--tone-mix-active);
+    --tone-mix-destructive-hover: var(--tone-mix-hover);
+    --tone-mix-destructive-active: var(--tone-mix-active);
+    --tone-mix-warning-hover: var(--tone-mix-hover);
+    --tone-mix-warning-active: var(--tone-mix-active);
+    --tone-mix-success-hover: var(--tone-mix-hover);
+    --tone-mix-success-active: var(--tone-mix-active);
+    --tone-mix-info-hover: var(--tone-mix-hover);
+    --tone-mix-info-active: var(--tone-mix-active);
   }
 
   @media (pointer: fine) {
@@ -527,5 +558,105 @@
     --color-narration: oklch(0.78 0.02 70);
     --color-prose-body: oklch(0.9 0.008 72);
     --color-speaker: oklch(0.72 0.175 52);
+  }
+
+  [data-tone="primary"] {
+    --color-tone-solid: var(--color-primary);
+    --color-tone-solid-hover: color-mix(in oklab, var(--color-primary) var(--tone-mix-primary-hover), light-dark(black, white));
+    --color-tone-solid-active: color-mix(in oklab, var(--color-primary) var(--tone-mix-primary-active), light-dark(black, white));
+    --color-tone-text: color-mix(in oklab, var(--color-primary) var(--tone-mix-text), var(--color-foreground));
+    --color-tone-text-on-tint: color-mix(in oklab, var(--color-primary) var(--tone-mix-text-on-tint), var(--color-foreground));
+    --color-tone-tint: color-mix(in oklab, var(--color-primary) var(--tone-mix-tint), var(--color-background));
+    --color-tone-tint-active: color-mix(in oklab, var(--color-primary) var(--tone-mix-tint-active), var(--color-background));
+    --color-tone-edge: color-mix(in oklab, var(--color-primary) var(--tone-mix-edge), var(--color-background));
+    --color-tone-foreground: var(--color-primary-foreground);
+  }
+
+  [data-tone="neutral"] {
+    --color-tone-solid: var(--color-foreground);
+    --color-tone-solid-hover: color-mix(in oklab, var(--color-foreground) var(--tone-mix-neutral-hover), var(--color-background));
+    --color-tone-solid-active: color-mix(in oklab, var(--color-foreground) var(--tone-mix-neutral-active), var(--color-background));
+    --color-tone-text: var(--color-foreground);
+    --color-tone-text-on-tint: var(--color-accent-foreground);
+    --color-tone-tint: var(--color-muted);
+    --color-tone-tint-active: var(--color-accent);
+    --color-tone-edge: var(--color-border);
+    --color-tone-foreground: var(--color-background);
+  }
+
+  [data-tone="destructive"] {
+    --color-tone-solid: var(--color-destructive);
+    --color-tone-solid-hover: color-mix(in oklab, var(--color-destructive) var(--tone-mix-destructive-hover), light-dark(black, white));
+    --color-tone-solid-active: color-mix(in oklab, var(--color-destructive) var(--tone-mix-destructive-active), light-dark(black, white));
+    --color-tone-text: color-mix(in oklab, var(--color-destructive) var(--tone-mix-text), var(--color-foreground));
+    --color-tone-text-on-tint: color-mix(in oklab, var(--color-destructive) var(--tone-mix-text-on-tint), var(--color-foreground));
+    --color-tone-tint: color-mix(in oklab, var(--color-destructive) var(--tone-mix-tint), var(--color-background));
+    --color-tone-tint-active: color-mix(in oklab, var(--color-destructive) var(--tone-mix-tint-active), var(--color-background));
+    --color-tone-edge: color-mix(in oklab, var(--color-destructive) var(--tone-mix-edge), var(--color-background));
+    --color-tone-foreground: var(--color-destructive-foreground);
+  }
+
+  [data-tone="warning"] {
+    --color-tone-solid: var(--color-warning);
+    --color-tone-solid-hover: color-mix(in oklab, var(--color-warning) var(--tone-mix-warning-hover), light-dark(black, white));
+    --color-tone-solid-active: color-mix(in oklab, var(--color-warning) var(--tone-mix-warning-active), light-dark(black, white));
+    --color-tone-text: color-mix(in oklab, var(--color-warning) var(--tone-mix-text), var(--color-foreground));
+    --color-tone-text-on-tint: color-mix(in oklab, var(--color-warning) var(--tone-mix-text-on-tint), var(--color-foreground));
+    --color-tone-tint: color-mix(in oklab, var(--color-warning) var(--tone-mix-tint), var(--color-background));
+    --color-tone-tint-active: color-mix(in oklab, var(--color-warning) var(--tone-mix-tint-active), var(--color-background));
+    --color-tone-edge: color-mix(in oklab, var(--color-warning) var(--tone-mix-edge), var(--color-background));
+    --color-tone-foreground: var(--color-warning-foreground);
+  }
+
+  [data-tone="success"] {
+    --color-tone-solid: var(--color-success);
+    --color-tone-solid-hover: color-mix(in oklab, var(--color-success) var(--tone-mix-success-hover), light-dark(black, white));
+    --color-tone-solid-active: color-mix(in oklab, var(--color-success) var(--tone-mix-success-active), light-dark(black, white));
+    --color-tone-text: color-mix(in oklab, var(--color-success) var(--tone-mix-text), var(--color-foreground));
+    --color-tone-text-on-tint: color-mix(in oklab, var(--color-success) var(--tone-mix-text-on-tint), var(--color-foreground));
+    --color-tone-tint: color-mix(in oklab, var(--color-success) var(--tone-mix-tint), var(--color-background));
+    --color-tone-tint-active: color-mix(in oklab, var(--color-success) var(--tone-mix-tint-active), var(--color-background));
+    --color-tone-edge: color-mix(in oklab, var(--color-success) var(--tone-mix-edge), var(--color-background));
+    --color-tone-foreground: var(--color-success-foreground);
+  }
+
+  [data-tone="info"] {
+    --color-tone-solid: var(--color-info);
+    --color-tone-solid-hover: color-mix(in oklab, var(--color-info) var(--tone-mix-info-hover), light-dark(black, white));
+    --color-tone-solid-active: color-mix(in oklab, var(--color-info) var(--tone-mix-info-active), light-dark(black, white));
+    --color-tone-text: color-mix(in oklab, var(--color-info) var(--tone-mix-text), var(--color-foreground));
+    --color-tone-text-on-tint: color-mix(in oklab, var(--color-info) var(--tone-mix-text-on-tint), var(--color-foreground));
+    --color-tone-tint: color-mix(in oklab, var(--color-info) var(--tone-mix-tint), var(--color-background));
+    --color-tone-tint-active: color-mix(in oklab, var(--color-info) var(--tone-mix-tint-active), var(--color-background));
+    --color-tone-edge: color-mix(in oklab, var(--color-info) var(--tone-mix-edge), var(--color-background));
+    --color-tone-foreground: var(--color-info-foreground);
+  }
+
+  [data-pigment="web-weave"] {
+    --pigment-web-weave-silk-bright: color-mix(in oklab, var(--color-primary) 55%, var(--color-foreground));
+    --pigment-web-weave-dew: color-mix(in oklab, var(--color-sky-star) 70%, var(--color-primary));
+    --pigment-web-weave-spider-body: color-mix(in oklab, var(--color-foreground) 55%, var(--color-primary));
+    --pigment-web-weave-glow: color-mix(in oklab, var(--color-primary) 13%, transparent);
+  }
+
+  [data-pigment="gradient-ring"] {
+    --pigment-gradient-ring-head: oklch(from var(--color-primary) l c h / var(--ring-head, 0.55));
+  }
+
+  [data-pigment="accent-aura"] {
+    --pigment-accent-aura-empty-state: oklch(from var(--color-primary) l c h / 0.14);
+    --pigment-accent-aura-media-spotlight: oklch(from var(--color-primary) l c h / 0.18);
+  }
+
+  [data-pigment="avatar"] {
+    --pigment-avatar-1: oklch(from color-mix(in oklab, var(--color-primary) 86%, oklch(from var(--color-primary-foreground) clamp(0, calc((0.5 - l) * 1000), 1) 0 0) 14%) l calc(c * 1.1) h);
+    --pigment-avatar-2: oklch(from color-mix(in oklab, var(--color-primary) 89%, oklch(from var(--color-primary-foreground) clamp(0, calc((0.5 - l) * 1000), 1) 0 0) 11%) l calc(c * 0.5) h);
+    --pigment-avatar-3: oklch(from color-mix(in oklab, var(--color-primary) 93%, oklch(from var(--color-primary-foreground) clamp(0, calc((0.5 - l) * 1000), 1) 0 0) 7%) l calc(c * 0.95) h);
+    --pigment-avatar-4: oklch(from color-mix(in oklab, var(--color-primary) 96.5%, oklch(from var(--color-primary-foreground) clamp(0, calc((0.5 - l) * 1000), 1) 0 0) 3.5%) l calc(c * 0.62) h);
+    --pigment-avatar-5: oklch(from color-mix(in oklab, var(--color-primary) 100%, oklch(from var(--color-primary-foreground) clamp(0, calc((0.5 - l) * 1000), 1) 0 0) 0%) l calc(c * 1) h);
+  }
+
+  [data-pigment="waystone"] {
+    --pigment-waystone-flash: color-mix(in oklab, var(--color-highlight) 55%, var(--color-sky-star));
   }
 }

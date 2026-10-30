@@ -202,6 +202,18 @@ export const imageCaptionMetaSchema = imageBreakdownSchema.omit({ caption: true 
 /** Canonical reader fields; parsing still preserves unknown stored keys without exposing them as application fields. */
 export type ImageCaptionMeta = z.infer<z.ZodObject<typeof imageCaptionMetaSchema.shape>>;
 
+/** The primary vector tables the embeddings domain owns — the single registry all callers derive from.
+ *  `document_chunks` is the 5th table, so the model-change purge and hub-score seams cover it uniformly. */
+export const VECTOR_TABLES = ["character_embeddings", "image_embeddings", "chat_digests", "chat_segments", "document_chunks"] as const;
+export type VectorTable = (typeof VECTOR_TABLES)[number];
+
+/** One row's CSLS hub score to persist, keyed by the vector row id and its model. */
+export interface HubScoreUpdate {
+  readonly id: string;
+  readonly model: string;
+  readonly hubScore: number;
+}
+
 // ── The `index` workload's terminal result (the workloads junk-drawer exit: a workload's result shape is
 //    domain↔domain wire, authored by the OWNING domain — embeddings owns the ONE vector write path). ──
 

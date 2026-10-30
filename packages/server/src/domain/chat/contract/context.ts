@@ -1,5 +1,5 @@
 import type { FilterOwnedAssetIdsOp, ResolveAssetHashOp } from "@orb/contracts/assets";
-import type { CharacterCard } from "@orb/contracts/character";
+import type { CharacterCard, FindSyntheticGroupCharacterOp, MintSyntheticGroupCharacterOp } from "@orb/contracts/character";
 import type {
   ChatInjection,
   DurableChatBusEvent,
@@ -12,23 +12,27 @@ import type {
   MemoryDigestInput,
   NextTurnConnectionView,
   PromptTransform,
+  ReadChatUserMacrosOp,
+  RegisterPromptTransformOp,
   ResolveCharacterTagsOp,
+  ResolveRegexSources,
   ResolveSeatDecoOp,
   ResolveSeatDecosOp,
   RoomOverrides,
   StoreSegmentParams,
   TurnInitiator,
   TurnRetrievalEvents,
+  UnregisterPromptTransformOp,
 } from "@orb/contracts/chat";
 import type { MemoryEmbedSpace, PruneMemoryBlocksParams } from "@orb/contracts/embeddings";
-import type { Can, ChatMembership, Principal } from "@orb/contracts/identity";
+import type { Can, ChatMembership, Principal, ResolveHandleOp } from "@orb/contracts/identity";
 import type { GeneratePicturePrompt, SizePresetName } from "@orb/contracts/imagery";
 import type { SendAvailability } from "@orb/contracts/inference";
 import type { NotificationEvent, PresenceView } from "@orb/contracts/notifications";
 import type { ResolveCurrentPersonaOp, ResolveDefaultPersonaOp } from "@orb/contracts/persona";
-import type { ChoiceBlockSpec, UserIntent, UserMacroSpec } from "@orb/contracts/preset";
+import type { ChoiceBlockSpec, UserIntent } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
-import type { ChatRpgPointer, RpgGameTemplate, RpgParticipantActor } from "@orb/contracts/rpg";
+import type { CancelStateRoundsOp, ChatRpgPointer, RpgGameTemplate, RpgParticipantActor } from "@orb/contracts/rpg";
 import type { BlockKey, MemoryQueryOptions, ResolveCorpusSourceState, ScoredBlock } from "@orb/contracts/search";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
@@ -54,24 +58,24 @@ import type {
   RpgGameId,
   UserId,
 } from "@orb/kit/ids";
-import type { UserMacroDef } from "@orb/kit/macro";
-import type { IanaTimeZone } from "@orb/kit/time";
-import type { ResolveRegexSources } from "#domain/regex";
-import type { AuditEntry } from "#foundation/observability";
+import type { RandomSource, UserMacroDef } from "@orb/kit/macro";
+import type { Clock, IanaTimeZone } from "@orb/kit/time";
+import type { TestKeyRegex } from "@orb/kit/world-info";
+import type { AuditEntry, AuditWiring } from "#foundation/observability";
 import type { ChatAccountingContext } from "./accounting-context.ts";
 import type { ActiveTurns } from "./active-turns.ts";
 import type { CharacterDistillate, SpeakerArbiter, SpeakerReranker } from "./arbitration.ts";
-import type { ApplyPromptTransformsOp, EngineContext, RunChatTurnOp } from "./engine-context.ts";
+import type { ApplyPromptTransformsOp, DelayOp, EmitDurableChatEventOp, EngineContext, RunChatTurnOp } from "./engine-context.ts";
 import type { ChatBehaviorInputs, ResolveForeignInputsOp } from "./foreign.ts";
+import type { ResolveChatUserMacroDefs } from "./macro-readers.ts";
 import type { MemoryLog, MemoryRecallPhaseEmitter, MemoryRecallSink } from "./memory.ts";
 import type { RpgTurnOps, RpgTurnTranscriptMessage } from "./rpg-turn.ts";
-import type { SignupInviteCapability, SignupInviteDeps } from "./signup.ts";
+import type { HashTokenOp, SignupInviteCapability, SignupInviteDeps } from "./signup.ts";
 import type { ParticipantData } from "./views.ts";
 
 export type { ResolveViewerVisibility, StoreSegmentParams } from "@orb/contracts/chat";
 
 export type {
-  ApplyRegexReplaceOp,
   BoundToolExecution,
   ChatToolExecFrame,
   ChatToolOps,
@@ -85,15 +89,6 @@ export type { RpgTurnContext, RpgTurnTranscriptMessage } from "./rpg-turn.ts";
 // the exported-type gate forbids it in the conventional context.ts slot; the top-level context.ts re-exports
 // this. Every cross-feature/infra dependency is an injected op — chat never sideways-imports a sibling domain.
 
-/** The node:vm ReDoS watchdog for a world-info regex-KEY `.test` (#710) — a user-authored `use_regex` key is
- *  matched against the chat-history haystack every turn, so its `.test` runs under a per-call timeout and
- *  throws on catastrophic backtracking instead of hanging the event loop. Injected as the kit matcher's
- *  `testRegex` seam. */
-export type TestRegexKeyOp = (regex: RegExp, haystack: string) => boolean;
-
-/** Publish one `chatsChanged` to one user's bus channel; `chatId` present ⇒ the event names the chat. The user
- *  bus is transport's, so compose injects it into {@link EmitChatChanged}'s factory. */
-export type PublishChatChangedOp = (userId: UserId, chatId: ChatId | undefined) => void;
 /** The account handles of `userIds`; a gone id is absent. Sessions owns the `users` read. */
 export type LoadUserHandlesOp = (userIds: readonly UserId[]) => Promise<readonly { readonly id: UserId; readonly handle: Handle }[]>;
 
@@ -177,19 +172,6 @@ type ResolveUserPublicsOp = (
   avatarAssetId: AssetId | null;
 } | null>;
 
-/** A handle to a synthetic group-character identity row, declared structurally so chat takes no cross-domain edge. */
-interface GroupCharacterRef {
-  readonly characterId: CharacterId;
-}
-
-/** Find-or-mint the hidden group-narrator identity for a room (idempotent, never null). EXPORTED because the
- *  bulk-import context (`contract/import.ts`) wires the SAME op: a narrator slot written by the import path
- *  must be authored by the identical `__group__<chatId>` row a live narrator round would mint. */
-export type MintSyntheticGroupCharacterOp = (params: { readonly ownerId: UserId; readonly chatId: ChatId }) => Promise<GroupCharacterRef>;
-
-/** The group identity for a room, or null if not yet minted. */
-type FindSyntheticGroupCharacterOp = (params: { readonly ownerId: UserId; readonly chatId: ChatId }) => Promise<GroupCharacterRef | null>;
-
 /** The memory summarizer + the smart-arbitrate side-LLM. The SIGNAL-BEARING variant of the isomorphic
  *  `RoleClients["summarize"]` (`RoleClientsWithSignal`): chat is the one caller that already owns a
  *  cancellation — the turn's active-turn `AbortSignal` — and a side-LLM call that cannot be cancelled hangs
@@ -247,22 +229,11 @@ export interface ExtractQuietResult {
 }
 export type ExtractQuiet = (p: ExtractQuietParams) => Promise<ExtractQuietResult>;
 
-/** IMGMAC — the chat's authored USER-MACRO defs from BOTH homes (owner ruling #20's two authoring homes): the
- *  active preset's `promptConfig.userMacros` and the game's `rpg_games.config.userMacros`. Handed to
- *  `extractQuiet` UNMERGED because the merge policy (the game shadows the preset by name) is chat's law, not
- *  the wirer's — `shadowPresetUserMacros` inside `buildTurnUserMacros` is its ONE home. A chat with no host /
- *  no game yields two empty arrays (the byte-identical no-plane path). */
-export interface ChatUserMacroDefs {
-  readonly preset: readonly UserMacroSpec[];
-  readonly game: readonly UserMacroSpec[];
-}
-type ResolveChatUserMacroDefsOp = (chatId: ChatId) => Promise<ChatUserMacroDefs>;
-
 /** The deps `createExtractQuiet` closes over, assembled at the composition root. */
 export interface ExtractQuietDeps {
   readonly db: Db;
   /** The clock the template's time macros read (the injected determinism seam, never the ambient wall clock). */
-  readonly now: () => number;
+  readonly now: Clock;
   readonly summarize: SummarizeOp;
   readonly getCard: GetCardOp;
   /** The funder's Utility-role preset params: extract-quiet runs on the summarize connection. */
@@ -270,7 +241,7 @@ export interface ExtractQuietDeps {
   /** IMGMAC (owner ruling: YES) — the two authoring homes' user-macro DEFS, so an imagery mode template
    *  resolves `{{house_style}}` exactly as a turn would. REQUIRED, not optional: an unwired composition root
    *  would silently re-open the "the settings UI offers a macro that never substitutes" hole this closed. */
-  readonly resolveUserMacroDefs: ResolveChatUserMacroDefsOp;
+  readonly resolveUserMacroDefs: ResolveChatUserMacroDefs;
 }
 
 /** A QUIET, non-canon generation through the chat's OWN resolved connection/model — NOT the summarizer rail
@@ -346,7 +317,7 @@ export type PostNarratorMessage = (
 /** The chat-bus emit the narrator-post op needs (durable-first) — chat's own collaborator, wired at the root
  *  (the `GenerateImageDeps` shape; not on `ChatContext`). */
 export interface PostNarratorMessageDeps {
-  readonly emit: (event: DurableChatBusEvent) => Promise<void>;
+  readonly emit: EmitDurableChatEventOp;
   /** The husk→real transition (R0) -- a narrator post is canon, so it claims. */
   readonly claimChat: ClaimChatOp;
 }
@@ -422,14 +393,10 @@ export type GetPendingUserText = (chatId: ChatId) => Promise<string | null>;
  *  carries the producer's membership-transition statements, committed in the same batch as the notification row. */
 type NotificationsEmitOp = (event: NotificationEvent, coStatements?: readonly StatementToken[]) => Promise<void>;
 
-/** The exact handle→userId lookup for targeted invites; unknown/disabled collapses to null. Chat never
- *  reads `users` itself. */
-type ResolveHandleOp = (handle: Handle) => Promise<UserId | null>;
-
 /** The disabled-account containment gate (owner-ruled 2026-08-15): whether a human's backing `users` row
  *  is enabled. Read fresh per call (never cached), mirroring `sessions.validate`'s per-request re-check, so
  *  an admin disable propagates the very next round. Chat never reads `users` itself — see
- *  {@link ResolveHandleOp}. Feeds {@link isBackingUserEnabled} (`persistence/participant.ts`) at the ONE
+ *  `resolveHandle`. Feeds {@link isBackingUserEnabled} (`persistence/participant.ts`) at the ONE
  *  consumer that already gates a human's identity on presence (`presentHumanUserIdsOf`,
  *  `substrate/participants-humans.ts`) — a disabled human's PERSONA drops from the room's foreign-input consent
  *  set the same way a departed member's already does. */
@@ -447,7 +414,7 @@ export type PresenceReadOp = (userId: UserId) => Promise<PresenceView>;
  *  IT IS AN INJECTED OP AND THAT IS THE WHOLE POINT: chat never imports `domain/plugin`, and the plugin domain
  *  never imports chat. Chat asks "what macros does this author have this turn?" and receives DATA; whose plugin,
  *  which guest, and what budget it ran under are all the other side's business. */
-// Not exported (the `ResolveChatUserMacroDefsOp` precedent above): its only consumers are `ChatContext` here
+// Not exported (the `ResolvePromptVariablesOp` precedent): its only consumers are `ChatContext` here
 // and compose, which reaches it as `ChatContext["pluginMacros"]` — an export nothing imports is a false public.
 type ResolvePluginMacrosOp = (authorUserId: UserId, chatId: ChatId) => Promise<readonly UserMacroDef[]>;
 
@@ -458,9 +425,9 @@ type ResolvePluginMacrosOp = (authorUserId: UserId, chatId: ChatId) => Promise<r
 export interface PromptTransformRegistry {
   readonly apply: ApplyPromptTransformsOp;
   /** Register a transform (idempotent by `id` — a re-register replaces the prior, e.g. an automation rule edit). */
-  readonly register: (transform: PromptTransform) => void;
+  readonly register: RegisterPromptTransformOp;
   /** Deregister by id (an automation rule disable / a plugin teardown). A no-op for an unknown id. */
-  readonly unregister: (id: string) => void;
+  readonly unregister: UnregisterPromptTransformOp;
   /** The currently registered transforms (compose/debug read). */
   readonly list: () => readonly PromptTransform[];
 }
@@ -504,7 +471,7 @@ export interface ChatRpgOps extends RpgTurnOps {
    *  before preset resolution so the turn assembles THAT preset instead of the host default. */
   readonly resolvePresetOverride: (chatId: ChatId) => Promise<PresetId | null>;
   /** The GAME's authored user macros (`rpg_games.config.userMacros`) — the game half of the two-home
-   *  definition rule (owner ruling #20; the preset half is {@link ResolvePromptUserMacrosOp}). Empty for a
+   *  definition rule (owner ruling #20; the preset half is {@link ChatContext.resolvePromptUserMacros}). Empty for a
    *  non-game / DISENGAGED chat (#40 ⇒ byte-identical to a non-game turn). Chat learns no rpg type: the
    *  return is contracts' own `UserMacroSpec`, the SAME shape the preset half returns, and chat merges the
    *  two under the ruled collision policy (`shadowPresetUserMacros` — the game shadows the preset).
@@ -513,7 +480,7 @@ export interface ChatRpgOps extends RpgTurnOps {
    *  with different shapes of work: the turn build (which runs the gather anyway) and the picks-pane read
    *  `getUserMacroPicks` (a cheap member read that must NOT drive a whole turn gather). One op, both
    *  callers — the alternative was two homes for one fact. */
-  readonly resolveUserMacros: (chatId: ChatId) => Promise<readonly UserMacroSpec[]>;
+  readonly resolveUserMacros: ReadChatUserMacrosOp;
   /** GATHER (after the WI pool): a game turn's contribution, or `null` for a non-game chat (byte-identical).
    *  Args shape: {@link GatherTurnContextArgs}.
    *  `respondsToLatestUserTurn` is chat's slot-adjacency verdict (D58): is THIS turn (re)generating
@@ -555,7 +522,7 @@ export interface ChatRpgOps extends RpgTurnOps {
    *  registration's owner (D19: the round's owner is the turn's `triggeredBy`; `principalUserId` is the caller
    *  asking). The rollback-theft defense: a host cannot cancel a member's round. A no-round chat returns 0 (the
    *  idempotent no-op); a non-game chat is byte-identical. Synchronous — cancelling is in-memory. */
-  readonly cancelStateRounds: (chatId: ChatId, principalUserId: UserId) => number;
+  readonly cancelStateRounds: CancelStateRoundsOp;
   /** The GM seat holder's FK-derived KIND for the game rooted at this chat (D60 AP4a),
    *  or `null` = not a game / NULL AI-narrator seat / holder vanished. `setGroupConfig` reads it to SEAL the
    *  narrator+merged invariant (F5): a game whose GM seat is AGENT-held may not be flipped to `per-speaker`
@@ -628,12 +595,6 @@ export interface HandoffResumption {
   readonly chatId: ChatId;
   readonly acceptedByUserId: UserId;
   readonly actorRekeys: readonly HandoffCardPair[];
-}
-
-/** One present character seat the accepted offer considered — the participant row and the card it seats. */
-export interface OfferedSeat {
-  readonly participantId: ChatParticipantId;
-  readonly characterId: CharacterId;
 }
 
 /** What an accepted offer actually landed — the copy plan the swap batch re-points the room onto. Empty in
@@ -756,7 +717,8 @@ export type EmbeddingsStoreOp = (params: StoreDigestParams) => Promise<MemoryEmb
  * owner batching ruling: derived-data sweeps batch BY PHASE, never per-item interleaved). The corpus sweep
  * collects every chat's pending chunks, hands them over in ONE call, and the embeddings side submits them to
  * the engine as a single flood with no client-side throttle; the live post-turn build calls the same op with
- * one chat's chunks. Nothing here decides concurrency — that is the provider surface's. */
+ * one chat's chunks. Nothing here decides concurrency — that is the provider surface's. The signature stays here
+ * because `AbortSignal` is not declared in the contracts program. */
 export type EmbeddingsStoreSegmentsOp = (params: readonly StoreSegmentParams[], signal?: AbortSignal) => Promise<readonly MemoryEmbedSpace[]>;
 
 type EmbeddingsPruneBlocksOp = (params: PruneMemoryBlocksParams) => Promise<void>;
@@ -805,13 +767,6 @@ type GatherDatabankOp = (
 /** The chat's active preset's declared ChoiceBlock variables, resolved under the host's settings. Empty
  *  means no declared variables (or a hostless/stale room). */
 type ResolvePromptVariablesOp = (chatId: ChatId) => Promise<readonly ChoiceBlockSpec[]>;
-
-/** The chat's active preset's authored USER MACROS (#24), resolved under the host's settings — the
- *  DECLARATION half of the picks pane (`getUserMacroPicks`); the picks themselves live on the chat row.
- *  The `resolvePromptVariables` sibling, and the same resolution the turn build reads
- *  (`foreign.promptConfig.userMacros`) minus a feature preset OVERRIDE, which is a per-turn decision no
- *  read can anticipate. Empty means no authored macros (or a hostless/stale room). */
-type ResolvePromptUserMacrosOp = (chatId: ChatId) => Promise<readonly UserMacroSpec[]>;
 
 /** Parses a chat's raw metadata blob → its effective {@link GroupConfig} (default-applied). */
 type GetGroupConfigOp = (rawMetadata: unknown) => GroupConfig;
@@ -916,15 +871,15 @@ export interface ChatContext extends EngineContext, ChatAccountingContext {
   readonly newPendingTurnId: () => PendingTurnId;
   readonly newCompactionSpendId: () => CompactionSpendId;
   /** Hashes an invite token before persistence — never stored raw. */
-  readonly hashToken: (token: string) => string;
+  readonly hashToken: HashTokenOp;
   /** D259 — whether this mode mints signup invites, and the mode every invite is stamped with. */
   readonly signupInvites: SignupInviteCapability;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   /** Unexecuted audit insert for the host-handoff swap's all-or-nothing forensic record. */
-  readonly auditStatement: (entry: AuditEntry, at: number) => StatementToken;
+  readonly auditStatement: AuditWiring["statement"];
   /** The world-info regex-KEY ReDoS watchdog (#710) — the assembler `.test`s a `use_regex` entry's user-authored
    *  key against the chat-history haystack under this per-call budget so a catastrophic key can't hang the turn. */
-  readonly testRegexKey: TestRegexKeyOp;
+  readonly testRegexKey: TestKeyRegex;
   /** D121-E: dereference the FOUR regex scope junctions (global / preset / character / chat) into the host-tier
    *  sources. Injected from `domain/regex` at compose — chat owns the UNION (`substrate/regex-tier`), never
    *  the storage. Replaced the three embed-by-value carriers chat used to read off settings/preset/card
@@ -1051,8 +1006,8 @@ export interface ChatContext extends EngineContext, ChatAccountingContext {
   readonly getGroupConfig: GetGroupConfigOp;
   readonly getRoomOverrides: GetRoomOverridesOp;
   readonly resolvePromptVariables: ResolvePromptVariablesOp;
-  /** The chat's active preset's authored user macros (#24) — the picks pane's declaration half. */
-  readonly resolvePromptUserMacros: ResolvePromptUserMacrosOp;
+  /** The chat's active preset's authored user macros (#24), resolved under the host's settings — the picks pane's declaration half. Empty means no authored macros (or a hostless/stale room). */
+  readonly resolvePromptUserMacros: ReadChatUserMacrosOp;
   /** ⑧(a) — the caller's `UserSettings.chat.tempChatTtlHours`, the per-user temporary-chat reap TTL (the
    *  FOREIGN-inputs seam: chat never reads the settings domain; wired at compose from `loadUserSettings`).
    *  Always resolves (the setting is `.default`ed); `reapTemporaryChats` converts hours→ms for its cutoff. */
@@ -1072,7 +1027,7 @@ type ResolveWelcomeAssistantIdOp = (userId: UserId) => Promise<CharacterId | nul
  *  built inside the composition root. */
 export interface ChatServiceDeps {
   /** The chat bus emit (durable-first). */
-  readonly emit: (event: DurableChatBusEvent) => Promise<void>;
+  readonly emit: EmitDurableChatEventOp;
   /** The same durable-first emit with its append verdict preserved. Roster handoff alone supplies a claim:
    * its marker owns one append, a losing retry converges, and an append failure rolls the claim back. */
   readonly emitChecked: (event: DurableChatBusEvent, claimStatement?: StatementToken) => Promise<boolean>;
@@ -1089,9 +1044,9 @@ export interface ChatServiceDeps {
   /** The in-flight lock-free turn registry (abort + concurrency). */
   readonly activeTurns: ActiveTurns;
   /** The seeded PRNG for arbitration sampling. */
-  readonly prng: () => number;
+  readonly prng: RandomSource;
   /** The inter-turn delay for the auto-mode chain. */
-  readonly delay: (ms: number) => Promise<void>;
+  readonly delay: DelayOp;
   /** The frozen room HOST's chat connection for a turn. The room binds nothing (F20), so `chatId` is provenance
    *  only; `actor` (a rule's requested turn) folds that actor's own binding first. */
   readonly resolveConnection: (args: {

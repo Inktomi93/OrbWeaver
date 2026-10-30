@@ -77,6 +77,7 @@ export function TrackBar({
       <div
         className={cn(slots.fill(), ramped ? TRACK_FILL[color] : undefined)}
         data-slot="track-bar-fill"
+        data-tone={accent === "ramp" ? undefined : accent}
         style={custom === undefined ? { width: fillWidth } : { width: fillWidth, backgroundColor: custom }}
       />
     </div>

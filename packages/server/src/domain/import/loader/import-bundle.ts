@@ -1,7 +1,7 @@
 import type { PortabilityRegistry, PortableEntity, PortableImportOutcome, PortableKind } from "@orb/contracts/portability";
 import { PORTABLE_IMPORT_ORDER } from "@orb/contracts/portability";
 import type { UserId } from "@orb/kit/ids";
-import type { StagedArchive } from "#infra/storage";
+import type { StagedArchive, StagedEntry } from "#infra/storage";
 
 import type { BundleImportDeps, BundleImportFileOutcome, BundleImportReport, StagedBundleImportDeps } from "../contract/bundle.ts";
 
@@ -14,7 +14,7 @@ function leadingDir(path: string): string | null {
 /** One staged file routed to an entity: its dir-relative name + a lazy reader over the staging disk. */
 interface StagedFile {
   readonly filename: string;
-  readonly read: () => Promise<Uint8Array>;
+  readonly read: StagedEntry["read"];
 }
 
 /** Group the staged entries by their leading directory. Files with no directory are unroutable skips. */

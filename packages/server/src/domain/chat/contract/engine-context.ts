@@ -16,7 +16,8 @@ import type {
   MessageVariantId,
   UserId,
 } from "@orb/kit/ids";
-import type { RegexReplacer } from "@orb/kit/regex";
+import type { RandomSource } from "@orb/kit/macro";
+import type { RegexExecuteOptions } from "@orb/kit/regex";
 import type { TimerScheduler } from "@orb/kit/time";
 import type { Logger, TraceRing, WireOutcome } from "#foundation/observability";
 import type { ChatAccountingContext } from "./accounting-context.ts";
@@ -25,7 +26,22 @@ import type { CompactResult, ResolvedMediaRef, TurnRequest, TurnStreamChunk } fr
 import type { RpgTurnOps } from "./rpg-turn.ts";
 
 /** The Node regex watchdog owns execution time outside the pure regex library. */
-export type ApplyRegexReplaceOp = (text: string, regex: RegExp, replacer: RegexReplacer) => string;
+export type ApplyRegexReplaceOp = NonNullable<RegexExecuteOptions["applyReplace"]>;
+
+/** The turn-bound image resolver: owner, room and quality are already closed over. */
+export type ResolveTurnImageUrlOp = (ref: ContentImageRef) => Promise<ResolvedMediaRef | null>;
+
+/** Per canon slot, the asset ids the model emitted inside that slot's own generation. Lazy: a history with no `asset:` span never awaits it. */
+export type LoadInlineReplyAssetIdsOp = () => Promise<ReadonlyMap<MessageId, ReadonlySet<AssetId>>>;
+
+/** Reserves `count` consecutive receipt event ordinals and returns the first. */
+export type ReserveReceiptEventsOp = (count: number) => number;
+
+/** The inter-turn delay the auto-mode chain waits on. */
+export type DelayOp = (ms: number) => Promise<void>;
+
+/** Durable-first chat-bus append; every collaborator that emits canon events takes this one shape. */
+export type EmitDurableChatEventOp = (event: DurableChatBusEvent) => Promise<void>;
 
 // Detail changes the room row; extra recipients include members just removed from its roster.
 interface EmitChatChangedOptions {
@@ -70,7 +86,7 @@ export type ApplyPromptTransformsOp = (
 ) => Promise<PromptTransformResult>;
 
 // Null omits a gone or policy-blocked attachment instead of sending an unauthorized reference.
-type ResolveImageUrlOp = (params: {
+export type ResolveImageUrlOp = (params: {
   readonly ownerId: UserId;
   readonly chatId: ChatId;
   readonly ref: ContentImageRef;
@@ -100,7 +116,7 @@ export interface EngineContext extends Pick<ChatAccountingContext, "db" | "now" 
   readonly emitChatChanged: EmitChatChanged;
   readonly applyRegexReplace: ApplyRegexReplaceOp;
   /** The service PRNG the turn-stage macro context draws `{{random}}`/`{{roll}}`/`{{pick}}` from. */
-  readonly prng: () => number;
+  readonly prng: RandomSource;
   readonly runChatTurn: RunChatTurnOp;
   readonly tools: ChatToolOps | null;
   readonly resolveImageUrl: ResolveImageUrlOp;
@@ -121,7 +137,7 @@ export type EngineContextInput<Context extends EngineContext> = Context &
 
 /** Composition binds memory and compaction outside the engine; no callback accepts a chat context. */
 export interface EngineDeps {
-  readonly emit: (event: DurableChatBusEvent) => Promise<void>;
+  readonly emit: EmitDurableChatEventOp;
   readonly holder: string;
   readonly lockTtlMs: number;
   readonly generateMemory: (args: BuildTurnMemoryArgs) => Promise<void>;

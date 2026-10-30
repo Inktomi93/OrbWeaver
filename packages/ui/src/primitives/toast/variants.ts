@@ -1,4 +1,5 @@
 import { ACCENT_HOVER, FOCUS_RING_ON_POPOVER, FOCUS_RING_OUTLINE, tv } from "#lib";
+import type { Tone } from "#tokens";
 
 export const toastVariants = tv({
   slots: {
@@ -71,11 +72,14 @@ export const toastVariants = tv({
     // only actionable thing in the toast read as stray text. No border token fixes it — `--color-border` is
     // 8%-alpha white over the same fill (~1.1:1); the boundary has to come from the fill.
     action: `
-      mbs-field inline-flex items-center justify-center gap-field rounded-control bg-primary px-block text-label leading-label font-medium whitespace-nowrap
-      text-primary-foreground transition-colors duration-(--motion-fast) ease-out-expo outline-none block-(--size-control-sm) inline-fit
-      hover:bg-primary/90
-      active:bg-primary/80
+      mbs-field inline-flex items-center justify-center gap-field rounded-control bg-tone-solid px-block text-label leading-label font-medium whitespace-nowrap
+      text-tone-foreground transition-colors duration-(--motion-fast) ease-out-expo outline-none block-(--size-control-sm) inline-fit
+      hover:bg-tone-solid-hover
+      active:bg-tone-solid-active
       ${FOCUS_RING_ON_POPOVER}
     `,
   },
 });
+
+/** The D336 tone the action button's solid paints. */
+export const TOAST_ACTION_TONE = "primary" satisfies Tone;

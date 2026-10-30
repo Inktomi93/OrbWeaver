@@ -13,8 +13,10 @@
 
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
-import type { DocumentId, UserId, WorkloadId } from "@orb/kit/ids";
+import type { DocumentId, UserId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { Logger } from "#foundation/observability";
+import type { DatabankContext } from "./service.ts";
 
 /** The DI bundle every databank portability op closes over (assembled at the entry composition root).
  *  Principal-less by design: the delivery core knows only `ownerId`, so these are standalone factories, not
@@ -22,11 +24,11 @@ import type { Logger } from "#foundation/observability";
 export interface DatabankPortabilityContext {
   readonly logger: Logger;
   readonly db: Db;
-  readonly now: () => number;
-  readonly newDocumentId: () => DocumentId;
+  readonly now: Clock;
+  readonly newDocumentId: DatabankContext["newDocumentId"];
   /** Re-runs the DERIVED layer for a restored document. Nothing derived travels in a bundle (chunks +
    *  embeddings are re-runnable by construction), so a restored document is retrieval-dead until this runs. */
-  readonly enqueueIngest: (args: { readonly documentId: DocumentId; readonly ownerId: UserId }) => Promise<{ readonly workloadId: WorkloadId }>;
+  readonly enqueueIngest: DatabankContext["enqueueIngest"];
 }
 
 export type DatabankPortabilityAssemblyContext = DbAssemblyInput<DatabankPortabilityContext>;

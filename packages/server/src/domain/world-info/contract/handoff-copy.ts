@@ -19,18 +19,8 @@
 // back UNEXECUTED for the caller's batch (the `handoffHealStatements` co-statement seam).
 
 import type { HandoffCardPair } from "@orb/contracts/chat";
-import type { Db } from "@orb/db";
 import type { StatementToken } from "@orb/db/wiring";
-import type { CharacterId, ChatId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
-
-/** db + clock + the two id minters. Purpose-built (NOT the full `WorldInfoContext`): a lore copy writes rows
- *  and emits nothing — the same silence the bulk-import writes keep. */
-export interface WorldInfoHandoffCopyContext {
-  readonly db: Db;
-  readonly now: () => number;
-  readonly newBookId: () => WorldBookId;
-  readonly newEntryId: () => WorldEntryId;
-}
+import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 
 /** Copy the room's lore from `fromOwnerId` into `toOwnerId` and return the UNEXECUTED `chat_books` re-point.
  *

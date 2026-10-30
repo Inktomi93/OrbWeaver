@@ -10,7 +10,7 @@
 import type { TurnRetrievalWarningEpisode } from "../contract/memory.ts";
 
 /** One report/take latch: `take` answers true exactly once, and only after a report. */
-function latch(): { readonly report: () => void; readonly take: () => boolean } {
+function latch(): { readonly report: () => void; readonly take: TurnRetrievalWarningEpisode["takeRerankUnavailable"] } {
   let reported = false;
   let taken = false;
   return {

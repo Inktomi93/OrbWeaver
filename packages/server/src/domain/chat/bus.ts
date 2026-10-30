@@ -70,6 +70,7 @@ import type { ChatEventId, ChatId } from "@orb/kit/ids";
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "./contract/context.ts";
+import type { ChatBusReplayEvent } from "./contract/views.ts";
 import { appendChatEvent, appendChatEventAfterClaimStatement, insertChatEventStatement } from "./persistence/events.ts";
 import { loadChatEventById, loadChatRow } from "./persistence/queries.ts";
 import { createMemberDeltaStamper } from "./substrate/member-visibility.ts";
@@ -92,11 +93,6 @@ type EmitChatEvent = (event: DurableChatBusEvent) => Promise<ChatEmitted | null>
 /** `false` means another caller already consumed the claim: converged success, with nothing to publish. */
 type EmitChatEventAfterClaim = (event: DurableChatBusEvent, claimStatement: StatementToken) => Promise<ChatEmitted | false | null>;
 
-interface ChatRingEntry {
-  readonly seq: number;
-  readonly event: ChatBusEvent;
-}
-
 interface ChatBus {
   readonly emit: EmitChatEvent;
   /** Claim state first, then append only if that exact statement changed a row, in one SQLite batch. */
@@ -108,7 +104,7 @@ interface ChatBus {
     readonly publishCommitted: () => ChatEmitted;
   };
   /** Entries strictly after `afterSeq` (absent ⇒ the whole retained window), oldest-first. */
-  readonly readRing: (chatId: ChatId, afterSeq?: number) => ChatRingEntry[];
+  readonly readRing: (chatId: ChatId, afterSeq?: number) => ChatBusReplayEvent[];
 }
 
 type ChatBusDeps = Pick<ChatContext, "db" | "now" | "newEventId" | "logger">;
@@ -267,7 +263,7 @@ async function reportTerminalDrop(db: Db, drop: TerminalDrop, logger: Logger): P
 /** Build the per-process chat bus (ONE instance, wired at the composition root). */
 export function createChatBus(input: DbAssemblyInput<ChatBusDeps>): ChatBus {
   const deps: ChatBusDeps = { ...input, db: databaseForOwner(input.db) };
-  const rings = new Map<ChatId, ChatRingEntry[]>();
+  const rings = new Map<ChatId, ChatBusReplayEvent[]>();
   // The §3.6 producer stamper (see the file header) — ONE per bus, so a slot's scrub state spans its whole
   // token stream regardless of who is (or is not) subscribed at any moment.
   const stamper = createMemberDeltaStamper();
@@ -352,7 +348,7 @@ export function createChatBus(input: DbAssemblyInput<ChatBusDeps>): ChatBus {
     }
   };
 
-  const readRing = (chatId: ChatId, afterSeq?: number): ChatRingEntry[] => {
+  const readRing = (chatId: ChatId, afterSeq?: number): ChatBusReplayEvent[] => {
     const ring = rings.get(chatId) ?? [];
     return afterSeq === undefined ? [...ring] : ring.filter((e) => e.seq > afterSeq);
   };

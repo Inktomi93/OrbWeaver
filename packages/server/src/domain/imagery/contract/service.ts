@@ -14,7 +14,7 @@ import type { BatchStmt } from "@orb/db/query";
 import type { BatchHandle, DatabaseHandle, DbAssemblyInput } from "@orb/db/wiring";
 import type { BindingActor, GeneratedImage, ImageGenerateRequest as InferenceImageGenerateRequest, Resolved } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, ImageryCallId, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
-import type { IanaTimeZone } from "@orb/kit/time";
+import type { Clock, IanaTimeZone } from "@orb/kit/time";
 import type { EditImageParams, ExtractionMode, ExtractPromptParams, GeneratePictureParams, MultimodalMode, ReadProvenanceParams } from "./params.ts";
 import type { ExtractedPrompt, GeneratedPicture, GenerationProvenance, ImageryWarning } from "./results.ts";
 
@@ -115,7 +115,7 @@ export interface ResolvedGenerateImage {
 /** The injected-op bundle every imagery verb closes over, assembled at the composition root. */
 export interface ImageryContext {
   readonly db: Db;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly newGenerationId: () => ImageryGenerationId;
   readonly newCallId: () => ImageryCallId;
   /** The `generateImage` connection of the run-as principal (the funder). */

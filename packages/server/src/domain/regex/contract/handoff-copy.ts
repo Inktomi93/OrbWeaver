@@ -27,17 +27,8 @@
 // `chat_regex_scripts` statements come back UNEXECUTED for the caller's batch (the `CopyHandoffBooks` seam,
 // verbatim).
 
-import type { Db } from "@orb/db";
 import type { StatementToken } from "@orb/db/wiring";
-import type { ChatId, RegexScriptId, UserId } from "@orb/kit/ids";
-
-/** db + clock + the id minter. Purpose-built (NOT the full `RegexContext`): a handoff copy writes rows and
- *  emits nothing — the same silence the portability writes keep. */
-export interface RegexHandoffCopyContext {
-  readonly db: Db;
-  readonly now: () => number;
-  readonly newScriptId: () => RegexScriptId;
-}
+import type { ChatId, UserId } from "@orb/kit/ids";
 
 /** Copy the room's chat-tier scripts from `fromOwnerId` into `toOwnerId` and return the UNEXECUTED
  *  `chat_regex_scripts` re-point.

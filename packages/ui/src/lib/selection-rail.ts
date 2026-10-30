@@ -1,5 +1,7 @@
-// SELECTION_RAIL — the app-wide SELECTED-ROW idiom, in ONE spelling: a 2px left ember rail plus a 10%
-// `--color-primary` tint, keyed on `data-selected`, over a rail box that is always reserved (transparent at
+import type { Tone } from "#tokens";
+
+// SELECTION_RAIL — the app-wide SELECTED-ROW idiom, in ONE spelling: a 2px left ember rail plus the primary
+// tone's tint, keyed on `data-selected`, over a rail box that is always reserved (transparent at
 // rest, so selecting a row never shifts its content by 2px and an unselected sibling holds the same column).
 //
 // OWNER-RATIFIED (2026-08-22, issue #485). The pair is the textbook shape of design-audit's two §6 absolute
@@ -18,4 +20,10 @@
 // CONSEQUENCE FOR ANYONE ADDING A CARRIER: the accent's carrier is part of the ratified exemption. A new
 // element wearing this fragment owes a matching selector in `SELECTION_RAIL_SEL`, or the audit reports the
 // idiom as a generated-UI tell on that element alone — a false positive against an owner ruling.
-export const SELECTION_RAIL = "border-s-2 border-s-transparent data-selected:border-s-primary data-selected:bg-primary/10";
+//
+// THE RAIL PAINTS D336 ROLES: the primary solid as the rail and the primary tint as the fill, so every carrier
+// stamps `SELECTION_RAIL_TONE` on the element that wears the fragment.
+export const SELECTION_RAIL = "border-s-2 border-s-transparent data-selected:border-s-tone-solid data-selected:bg-tone-tint";
+
+/** The D336 tone a selection-rail carrier stamps. */
+export const SELECTION_RAIL_TONE = "primary" satisfies Tone;

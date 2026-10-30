@@ -4,7 +4,6 @@ import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { ExportDocument, ListOwnedDocumentIds } from "#domain/databank";
 import type { PersonaService } from "#domain/persona";
 import type { ExportPresets } from "#domain/preset";
-import type { ExportRegexScripts } from "#domain/regex";
 import type { ExportWorldBook, ListOwnedBookIds } from "#domain/world-info";
 import type { ExportService } from "./service.ts";
 
@@ -17,7 +16,7 @@ export interface PortableExportDeps {
   readonly presets: ExportPresets;
   readonly worldBook: ExportWorldBook;
   readonly listBookIds: ListOwnedBookIds;
-  readonly regex: ExportRegexScripts;
+  readonly regex: (args: { readonly ownerId: UserId }) => Promise<readonly PortableFile[]>;
   readonly document: ExportDocument;
   readonly listDocumentIds: ListOwnedDocumentIds;
   readonly persona: Pick<PersonaService, "list" | "export">;

@@ -3,14 +3,15 @@
 // is no image or the image fails to load.
 
 import type { AvatarProps } from "@orb/ui/avatar";
-import { Avatar } from "@orb/ui/avatar";
+import { AVATAR_PIGMENT, Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ComponentProps, CSSProperties, ReactElement } from "react";
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState, useSyncExternalStore } from "react";
 import { cn } from "#lib";
 import type { BubbleDecoration } from "../lib/art-decorations.ts";
+import { isFailedArt, rememberFailedArt, subscribeFailedArt } from "../lib/failed-art.ts";
 
 /** A speaker's art as the tap target that opens it full size: `open` receives the button so focus can return to it. */
 export interface ArtView {
@@ -34,7 +35,6 @@ function useSlotImage(urlAt: ((cssWidth: number) => string) | undefined): {
 } {
   const [element, setElement] = useState<HTMLDivElement | null>(null);
   const [width, setWidth] = useState(0);
-  const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const wantsImage = urlAt !== undefined;
   useLayoutEffect(() => {
     if (!wantsImage || element === null) {
@@ -47,18 +47,21 @@ function useSlotImage(urlAt: ((cssWidth: number) => string) | undefined): {
     return (): void => observer.disconnect();
   }, [wantsImage, element]);
   const url = urlAt === undefined || width <= 0 ? undefined : urlAt(width);
+  // A URL that failed on an earlier mount reads as failed on the first render that knows the URL, so the row never
+  // shows the chip it would drop a moment later. The store clears when the network returns, and the probe asks again.
+  const failed = useSyncExternalStore(subscribeFailedArt, () => url !== undefined && isFailedArt(url));
   useEffect(() => {
-    if (url === undefined) {
+    if (url === undefined || failed) {
       return;
     }
     const probe = new Image();
-    probe.onerror = (): void => setFailedUrl(url);
+    probe.onerror = (): void => rememberFailedArt(url);
     probe.src = url;
     return (): void => {
       probe.onerror = null;
     };
-  }, [url]);
-  return { attach: setElement, url, failed: url !== undefined && failedUrl === url };
+  }, [url, failed]);
+  return { attach: setElement, url, failed };
 }
 
 /** A speaker's art as the control that opens it full size. The bare intent: a tint over the art would read as a smudge,
@@ -135,6 +138,7 @@ export function WhisperBand({
     <Stack
       aria-hidden={tappable ? undefined : "true"}
       data-slot="message-band"
+      data-pigment={AVATAR_PIGMENT}
       cardCorners="top"
       hoverDim={tappable ? "self" : undefined}
       imageFit="underFeather"
@@ -184,6 +188,7 @@ export function EchoArtTile({
       {/* The tile dims with its pane's hover: the button over it takes the pointer, so the tile is never hovered itself. */}
       <Stack
         data-slot="message-echo-art"
+        data-pigment={AVATAR_PIGMENT}
         cardCorners={corner}
         hoverDim={tappable ? "parent" : undefined}
         imageFit="cover"
@@ -199,8 +204,9 @@ export function EchoArtTile({
 }
 
 // Tells the row whether its art failed to load, so the row can drop the letter chip that would repeat the fallback.
+// Before paint: as a passive effect WebKit paints one frame with the chip before the row drops it.
 function useFailedReport(failed: boolean, onFailedChange: ((failed: boolean) => void) | undefined): void {
-  useEffect(() => {
+  useLayoutEffect(() => {
     onFailedChange?.(failed);
   }, [failed, onFailedChange]);
 }

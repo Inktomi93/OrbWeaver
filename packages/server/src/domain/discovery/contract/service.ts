@@ -4,15 +4,15 @@
 // the root — type-only here). analyze/swipes read the SEMANTIC messages projection (content, never economics).
 
 import type { DuplicateRelation } from "@orb/contracts/discovery";
+import type { ResolveUtilityPresetParams } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
-import type { RoleClients } from "@orb/contracts/role-clients";
-import type { CorpusDigestSource } from "@orb/contracts/search";
-import type { UserSettings } from "@orb/contracts/settings";
+import type { RoleClientsFor } from "@orb/contracts/role-clients";
+import type { CorpusDigestSource, Tier0RangeOp } from "@orb/contracts/search";
+import type { LoadUserSettings } from "@orb/contracts/settings";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { EveryOwnerRun, WorkloadEstimateScope, WorkloadRunScope } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
-import type { SideGenSampling } from "@orb/inference";
 import type {
   CharacterId,
   CharacterKeywordProfileId,
@@ -24,6 +24,7 @@ import type {
   ThemeClusterId,
   UserId,
 } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 // Type-only cross-feature SHAPE imports (depcruise domain-no-cross-feature: type-only across features is
 // allowed; the runtime op is wired at the entry composition root). discovery imports no embeddings/tag/stats
 // runtime — only the SHAPE of the injected ops it composes.
@@ -89,15 +90,6 @@ import type {
 /** The `hub_score` write seam — the embeddings domain's `writeHubScores` verb, bound at the entry root. */
 type WriteHubScores = EmbeddingsService["writeHubScores"];
 
-/** The per-FUNDER role-client bundle — discovery's only inference surface. Distill, compare and ask are
- *  `structured`; theme naming is `summarize`. The funder is the caller (a per-user pass) or the workload's
- *  acting user (a bulk pass), never a box owner (inference program §7.5-2). */
-type RoleClientsFor = (funderUserId: UserId) => Promise<RoleClients>;
-
-/** A user's Utility-role preset params (D299), `undefined` under task defaults, resolved at the entry root
- *  (the caller of distill/analyze is the card owner). Discovery never reads the preset domain. */
-type ResolveUtilityPresetParams = (userId: UserId) => Promise<SideGenSampling | undefined>;
-
 /** The card owner's model-facing PROSE overrides (PROSE-1 §4.3) — `UserSettings.prose`, resolved at the entry
  *  root off the SAME `loadUserSettings` seam the sampling rung reads. CALLER-scoped, not room-host-scoped
  *  (the imagery `resolvePromptTemplate` precedent): a distill / compare / ask is one human's request about
@@ -116,24 +108,19 @@ type CharacterModelEconomicsOp = StatsService["characterModelEconomics"];
 
 /** Deps for the standalone `computeDuplicatePairs`. */
 export interface ComputeDuplicatesDeps {
-  readonly now: () => number;
+  readonly now: Clock;
   readonly newDuplicateCharacterPairId: () => DuplicateCharacterPairId;
 }
 
 /** Deps for the standalone `computeChatDuplicatePairs`. */
 export interface ComputeChatDuplicatesDeps {
-  readonly now: () => number;
+  readonly now: Clock;
   readonly newDuplicateChatPairId: () => DuplicateChatPairId;
 }
 
-/** The tier-0 blockIdx range a tier-`k` digest covers — the memory tier-grid seam. The fanOut math
- *  stays ONE-HOMED in chat/memory (`resolveTier0Range`); discovery receives the resolver bound over the live
- *  memory config at the entry root and never spells `fanOut` itself. Tier 0 is the identity range. */
-export type Tier0RangeOp = (tier: number, blockIdx: number) => { readonly startIdx: number; readonly endIdx: number };
-
 /** Deps for the standalone `computeThemes`. */
 export interface ComputeThemesDeps {
-  readonly now: () => number;
+  readonly now: Clock;
   readonly newThemeClusterId: () => ThemeClusterId;
   readonly roleClientsFor: RoleClientsFor;
   /** The funder's Utility-role preset params, folded over the `theme_name` posture (§7.5-3 arm ii). */
@@ -155,14 +142,14 @@ export interface ViewsDeps {
   readonly themes: (userId: UserId, level?: ThemeLevel) => Promise<ThemeRow[]>;
   readonly duplicateCharacters: (userId: UserId) => Promise<DuplicateCharacterPair[]>;
   readonly duplicateChats: (userId: UserId, opts?: { relation?: DuplicateRelation }) => Promise<DuplicateChatPair[]>;
-  readonly similar: (userId: UserId, characterId: CharacterId, topN: number) => Promise<DossierNeighbor[]>;
+  readonly similar: DiscoveryContext["similar"];
 }
 
 export type DiscoveryAssemblyContext = DbAssemblyInput<DiscoveryContext>;
 
 /** Deps for the standalone `computeCooccurrence` pass. */
 export interface ComputeCooccurrenceDeps {
-  readonly now: () => number;
+  readonly now: Clock;
   readonly newKeywordCooccurrenceId: () => KeywordCooccurrenceId;
   readonly newCharacterKeywordProfileId: () => CharacterKeywordProfileId;
 }
@@ -176,7 +163,7 @@ export interface AnalyzeDeps {
 
 /** Deps for the standalone `distillCharacters` pass. */
 export interface DistillCharactersDeps {
-  readonly now: () => number;
+  readonly now: Clock;
   /** A distilled summary row stamps the model `rc.resolved("structured")` reports at call time — read per
    *  pass, never a boot-frozen string, so a row is labelled with the model that actually wrote it. */
   readonly roleClientsFor: RoleClientsFor;
@@ -194,7 +181,7 @@ export interface DistillCharactersDeps {
 export interface DiscoveryContext {
   readonly resolveDigestSources: ViewsDeps["resolveDigestSources"];
   readonly db: Db;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly newDuplicateCharacterPairId: () => DuplicateCharacterPairId;
   readonly newThemeClusterId: () => ThemeClusterId;
   readonly roleClientsFor: RoleClientsFor;
@@ -364,7 +351,7 @@ export interface DiscoveryWorkloadDeps {
     | "computeChatDuplicatePairs"
     | "computeCharacterHubScores"
   >;
-  readonly loadUserSettings: (userId: UserId) => Promise<UserSettings>;
+  readonly loadUserSettings: LoadUserSettings;
   /**
    * The per-user freshness plane (`corpusRecomputed`) — injected, never a sideways reach at the bus (D38).
    * Every analytics pass fans it at its TERMINAL, once per owner in scope. This is the freshness half no

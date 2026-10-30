@@ -25,12 +25,13 @@ import type {
 import type { Db } from "@orb/db";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { CharacterId, IdSource, UserId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { ByModelOpts, LeaderboardOpts, PersonaUsageOpts, TimeseriesOpts } from "./params.ts";
 
 /** The DI bundle every verb closes over: the libSQL handle + the injected clock the rebuild stamps with. */
 export interface StatsContext {
   db: Db;
-  now: () => number;
+  now: Clock;
   readonly idSource: IdSource;
 }
 
@@ -82,6 +83,6 @@ export interface StatsService {
 /** What the domain's `WorkloadContribution` factory needs from the composition root (`reconcile-stats`). */
 export interface StatsWorkloadDeps {
   readonly db: DatabaseHandle;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly idSource: IdSource;
 }

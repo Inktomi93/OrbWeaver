@@ -8,9 +8,10 @@
 // solved in node instead: the reading plate's polarity-derived alpha (#217) and the elevation arm (#243).
 import type { Oklch, RampDeltas, ShadowIngredients } from "@orb/kit/theme-derivation";
 import {
+  carriedAccentInkLightness,
+  carriedForegroundLightness,
   chartRampForSurface,
   derivedForegroundLightness,
-  derivedForegroundLightnessForSurfaces,
   derivedMutedForegroundPair,
   READING_BAND_ALPHA,
   rampDeltas,
@@ -176,8 +177,9 @@ export function surfaceVarsOn(background: string, base: ParsedOklch | null, deri
     secondary: rampSurface(opaqueBase, deltas.secondary),
     muted: rampSurface(opaqueBase, deltas.muted),
   };
-  vars["--color-accent-foreground"] = foregroundAt(origin, derivedForegroundLightness(surfaces.accent));
-  vars["--color-foreground"] = foregroundAt(origin, derivedForegroundLightnessForSurfaces([opaqueBase, surfaces.raised, surfaces.card]));
+  // The accent ink covers muted too: they are the neutral tone's two tints, and its text-on-tint is this ink (D336).
+  vars["--color-accent-foreground"] = foregroundAt(origin, carriedAccentInkLightness(opaqueBase));
+  vars["--color-foreground"] = foregroundAt(origin, carriedForegroundLightness(opaqueBase));
   vars["--color-card-foreground"] = foregroundAt(origin, derivedForegroundLightness(surfaces.card));
   vars["--color-popover-foreground"] = foregroundAt(origin, derivedForegroundLightness(surfaces.popover));
   vars["--color-sidebar-foreground"] = foregroundAt(origin, derivedForegroundLightness(surfaces.sidebar));

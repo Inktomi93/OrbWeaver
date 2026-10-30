@@ -22,7 +22,7 @@ Current defects:
 
 [D336](../adr/0336-tone-roles-and-one-variant-vocabulary.md) owns the ruling: the tone tuple, the derived roles and their recipes, the contrast floors, `data-tone` scoping, the `tone`/`variant`/`size` vocabulary and the lint constraint. The [css-system plan](../plans/css-system/design.md) section "Tone roles and one variant vocabulary" owns the four steps, the codemods per step, the mapping tables and the flagged sites.
 
-- [ ] Step 1: role tokens, tone scoping and contrast checks.
+- [x] Step 1: role tokens, tone scoping and contrast checks.
 - [ ] Step 2: axis vocabulary and lint at zero.
 - [ ] Step 3: control scale.
 - [ ] Step 4: use-specific extraction.
@@ -39,4 +39,9 @@ Each plan step meets its own done line in the css-system plan. Every tone has it
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Step 1:
+
+- The token build fails a shipped palette under a D336 floor; `tests/ui/token-contract.test.ts` plants a recipe under a floor and the build refuses it. `tests/tooling/generated-css-drift.repo.int.test.ts` holds the regenerated theme, token map and appearance channel.
+- `tests/ui/content/theme-scope/tone-knobs.test.ts` reads back what the clamp emits and clears every floor of every tone, neutral and primary included, over the accepted-base matrix and over picked and inherited accents on each contrast-case base. `tests/kit/theme-derivation/tone-roles.test.ts` holds the kit half.
+- `tests/ui/content/theme-scope/clamp.test.ts` pins the emitted knobs against `THEME_SCOPE_EMIT_VARS` and the reported primary fallback.
+- `tests/ui/content/theme-scope/emitted-contrast.ct.tsx` reads painted role pairs under each seed and a nested custom ThemeScope in the Chromium and WebKit CT projects. No CT project runs Firefox, so Firefox is unchecked.

@@ -8,6 +8,7 @@ import { injectionDirectiveSchema } from "@orb/kit/injection";
 import { SLUG_HANDLE_PATTERN, slugifyHandle } from "@orb/kit/slug";
 import { z } from "zod";
 import { cardFaceFields } from "#card-face";
+import type { Principal } from "#identity";
 import { regexScriptCardSchema, regexScriptCardViewSchema } from "#regex";
 import type { TagFolderType, TagView } from "#tag";
 import { tagFolderTypeSchema, tagViewSchema } from "#tag";
@@ -1023,3 +1024,17 @@ export const characterListInputSchema = characterCensusInputSchema
     limit: z.int().min(1).max(CHARACTER_LIST_MAX_LIMIT).optional(),
   })
   .optional();
+
+/** A handle to a synthetic group-character identity row. */
+export interface GroupCharacterRef {
+  readonly characterId: CharacterId;
+}
+
+/** Find-or-mint the hidden group-narrator identity for a room. Idempotent, never null. */
+export type MintSyntheticGroupCharacterOp = (params: { readonly ownerId: UserId; readonly chatId: ChatId }) => Promise<GroupCharacterRef>;
+
+/** The group identity for a room, or null if it is not yet minted. */
+export type FindSyntheticGroupCharacterOp = (params: { readonly ownerId: UserId; readonly chatId: ChatId }) => Promise<GroupCharacterRef | null>;
+
+/** One card the principal may read, or null when it is gone or not theirs. */
+export type GetCharacterCardOp = (params: { readonly principal: Principal; readonly characterId: CharacterId }) => Promise<CharacterCard | null>;

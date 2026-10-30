@@ -49,6 +49,9 @@ export interface SafeFetchOptions {
   readonly signal?: AbortSignal;
 }
 
+/** The guarded fetch signature a caller takes as an injected op; the composition root binds the scoped egress. */
+export type SafeFetch = (url: string, options: SafeFetchOptions) => Promise<SafeFetchResult>;
+
 export interface SafeFetchResult {
   /** Final response URL after safeFetch's validated redirect chain. Optional only for injected test doubles. */
   readonly url?: string;

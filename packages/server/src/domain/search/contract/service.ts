@@ -1,9 +1,17 @@
 import type { HistoryFloorSeq, ResolveViewerVisibility } from "@orb/contracts/chat";
 import type { EmbeddingTask } from "@orb/contracts/embeddings";
-import type { RoleClients } from "@orb/contracts/role-clients";
-import type { CorpusSource, DigestSearchEvents, ResolveCorpusSourceState, SearchSpaceStatus } from "@orb/contracts/search";
+import type { RoleClientsFor } from "@orb/contracts/role-clients";
+import type {
+  CorpusSource,
+  DigestSearchEvents,
+  ResolveActiveDocumentIdsOp,
+  ResolveCorpusSourceState,
+  SearchSpaceStatus,
+  Tier0RangeOp,
+} from "@orb/contracts/search";
 import type { ReadOnlyDb } from "@orb/db";
-import type { DocumentId, EmbedGenerationId, UserId } from "@orb/kit/ids";
+import type { EmbedGenerationId, UserId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { SQL } from "drizzle-orm";
 import type { EmbeddingConnectionSnapshot, ResolveEmbeddingConnection } from "#domain/embeddings";
 import type { Logger } from "#foundation/observability";
@@ -51,11 +59,6 @@ export type { DigestSearchEvents } from "@orb/contracts/search";
 // it adds one genuinely new capability — the by-character cross-chat digest scan via the
 // chat_digest_speakers OR-branch — and otherwise delegates.
 
-/** The databank scope-junction resolver, INJECTED into search at compose.
- *  The union SQL has ONE home in `domain/databank` (`persistence/scope.ts`) — search never re-implements
- *  it, so when host-only widens to membership-gated ONE file changes and search is untouched. */
-export type ResolveActiveDocumentIdsOp = (scope: DocumentSearchParams["scope"]) => Promise<readonly DocumentId[]>;
-
 /** Databank's current retrieval predicate, resolved after external query embedding and applied before ranking. */
 export type ResolveActiveDocumentScopeOp = (scope: DocumentSearchParams["scope"]) => Promise<SQL>;
 
@@ -79,12 +82,12 @@ export interface SearchContext {
   readonly db: ReadOnlyDb;
   /** The per-OWNER role-client bundle (inference program §7.5-2): every retrieval embeds the query in the
    *  OWNER's space (their `embed`/`imageEmbed` binding) and reranks on their `rerank` row. */
-  readonly roleClientsFor: (ownerId: UserId) => Promise<RoleClients>;
+  readonly roleClientsFor: RoleClientsFor;
   readonly resolveEmbeddingConnection: ResolveEmbeddingConnection;
   /** Consumed only by the lexical fields/suggest engine's per-owner BM25 index cache (TTL freshness). */
-  readonly now: () => number;
+  readonly now: Clock;
   readonly digestConsolidationHash: (prefix: string, childHashes: readonly string[]) => string;
-  readonly tier0RangeOf: (tier: number, blockIdx: number) => { readonly startIdx: number; readonly endIdx: number };
+  readonly tier0RangeOf: Tier0RangeOp;
   /** The databank scope resolver (DB5) — injected by `domain/databank` at compose; consumed ONLY by the
    *  `documents` lens. The union SQL lives in databank, so search stays free of databank's authority model. */
   readonly resolveActiveDocumentIds: ResolveActiveDocumentIdsOp;

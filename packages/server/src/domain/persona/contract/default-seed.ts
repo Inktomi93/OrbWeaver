@@ -12,7 +12,7 @@ export interface DefaultPersonaSeederDeps {
    *  user names their own `{{user}}`. REQUIRED (never defaulted): a composer that has not decided which kind
    *  of stack it is wiring must not silently get the automation arm. */
   readonly autoSeedEnabled: (principal: Principal) => boolean;
-  readonly createPersona: (args: Parameters<PersonaService["create"]>[0]) => Promise<Pick<Awaited<ReturnType<PersonaService["create"]>>, "id">>;
+  readonly createPersona: (...args: Parameters<PersonaService["create"]>) => Promise<Pick<Awaited<ReturnType<PersonaService["create"]>>, "id">>;
   /** Store the bundled "You" avatar art → its asset id, or `null` when the pack ships none / the store fails. */
   readonly storeAvatar: (principal: Principal) => Promise<AssetId | null>;
   readonly isSeeded: (principal: Principal) => Promise<boolean>;

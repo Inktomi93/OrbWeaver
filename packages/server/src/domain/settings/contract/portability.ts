@@ -1,15 +1,7 @@
-// domain/settings/contract/portability — return shapes for the settings-domain portable entities (theme +
-// user-settings) export/import verbs. These structurally match @orb/contracts/portability's PortableFile/
-// PortableImportOutcome but this file deliberately does not import that contract — the entity-agnostic
-// registry is composed at the entry root.
+// domain/settings/contract/portability — return shapes for the settings-domain theme import door.
 
 import type { SettingsImportOutcome } from "@orb/contracts/settings";
 import type { UserId } from "@orb/kit/ids";
-
-export interface SettingsPortableFile {
-  readonly filename: string;
-  readonly bytes: Uint8Array;
-}
 
 /** The theme import op every door calls: the bundle descriptor, the profile import and the single-file door.
  *  `fallbackName` names a raw SillyTavern theme that carries no `name` (the picked file's stem). */

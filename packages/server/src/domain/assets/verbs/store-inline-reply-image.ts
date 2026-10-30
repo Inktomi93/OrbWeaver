@@ -3,8 +3,9 @@ import type { GeneratedImage } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
+import type { SafeFetch } from "#infra/network";
 import { ANY_HOST, isAllowedImageBuffer } from "#infra/network";
-import type { AssetEgressFetch, InlineReplyImageDeps, StoreInlineReplyImage } from "../contract/materialize.ts";
+import type { InlineReplyImageDeps, StoreInlineReplyImage } from "../contract/materialize.ts";
 
 const OK_STATUS_MIN = 200;
 const OK_STATUS_MAX = 300;
@@ -13,7 +14,7 @@ const BASE64 = "base64";
 /** The provider's payload → raw bytes. Inline base64 decodes; a URL is DOWNLOADED THROUGH THE BELT. `null`
  *  on any refusal — including a payload that carries neither, which is a provider shape we do not model
  *  rather than an empty picture. */
-async function materialize(image: GeneratedImage, maxBytes: number, fetchImpl: AssetEgressFetch, logger: Logger): Promise<Uint8Array | null> {
+async function materialize(image: GeneratedImage, maxBytes: number, fetchImpl: SafeFetch, logger: Logger): Promise<Uint8Array | null> {
   if (image.base64 !== undefined && image.base64.length > 0) {
     return new Uint8Array(Buffer.from(image.base64, BASE64));
   }

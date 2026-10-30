@@ -1,5 +1,6 @@
 // domain/regex/persistence/portability-write — the four portability factories (contract/portability.ts):
 // the card LIFT, the card RE-EMBED, and the backup-bundle export/import pair. Standalone factories (db +
+
 // clock + id minter only) so the import path can be wired at compose without dragging the whole service.
 //
 // QUERIES-ONLY, by the rule the `persistence-no-in-memory-state` gate enforces: every file here reads and
@@ -7,7 +8,8 @@
 // the in-memory index it needs). The shape is read → plan → ONE batch: a lift that half-minted its rows
 // before failing to attach them would leave the library with orphan scripts and the card with none.
 
-import type { PortableRegexScript, RegexScriptRow } from "@orb/contracts/regex";
+import type { PortableFile } from "@orb/contracts/portability";
+import type { ImportCardScriptsResult, PortableRegexScript, RegexScriptRow } from "@orb/contracts/regex";
 import { characterRegexScripts, characters, globalRegexScripts, presetRegexScripts, regexScripts } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
@@ -21,11 +23,9 @@ import { portableParseError } from "#primitives/serde/lib";
 import { buildRegexScriptFile, parseRegexScriptFile, REGEX_SCRIPT_SCHEMA_KIND } from "#primitives/serde/regex";
 import type {
   ExportCardScripts,
-  ExportedRegexScriptFile,
   ExportRegexScript,
   ExportRegexScripts,
   ImportCardScripts,
-  ImportCardScriptsResult,
   ImportGlobalScripts,
   ImportPresetScripts,
   ImportRegexScript,
@@ -157,7 +157,7 @@ export function createExportCardScripts(input: DbAssemblyInput<Pick<RegexPortabi
 /** ONE row → its portable file. THE single projection both export halves run through (REGX2): the bundle
  *  streams it per owned script, the single-entity door calls it once, so a shared script and a restored one
  *  can never diverge — which is the property D121-D's thin-arm clause exists to hold. */
-function toPortableFile(row: RegexScriptRow, isGlobal: boolean): ExportedRegexScriptFile {
+function toPortableFile(row: RegexScriptRow, isGlobal: boolean): PortableFile {
   const { id, name, enabled, ...behavior } = row;
   const payload: PortableRegexScript = { name, enabled, ...behavior, global: isGlobal };
   return { filename: `${slugifyHandle(name)}-${id}.json`, bytes: buildRegexScriptFile(payload) };
@@ -181,10 +181,10 @@ async function ownedGlobalIds(ctx: Pick<RegexPortabilityContext, "db">, ownerId:
  *  guarantee and are therefore not carried. */
 export function createExportRegexScripts(input: DbAssemblyInput<Pick<RegexPortabilityContext, "db">>): ExportRegexScripts {
   const ctx: Pick<RegexPortabilityContext, "db"> = { ...input, db: databaseForOwner(input.db) };
-  return async ({ ownerId }): Promise<readonly ExportedRegexScriptFile[]> => {
+  return async ({ ownerId }): Promise<readonly PortableFile[]> => {
     const records = await listOwnedScripts(ctx.db, ownerId);
     const globalIds = await ownedGlobalIds(ctx, ownerId);
-    return records.map((record): ExportedRegexScriptFile => {
+    return records.map((record): PortableFile => {
       const row = toRow(record);
       return toPortableFile(row, globalIds.includes(row.id));
     });
@@ -196,7 +196,7 @@ export function createExportRegexScripts(input: DbAssemblyInput<Pick<RegexPortab
  *  one answer, the `exportBook` posture). */
 export function createExportRegexScript(input: DbAssemblyInput<Pick<RegexPortabilityContext, "db">>): ExportRegexScript {
   const ctx: Pick<RegexPortabilityContext, "db"> = { ...input, db: databaseForOwner(input.db) };
-  return async ({ ownerId, scriptId }): Promise<ExportedRegexScriptFile | null> => {
+  return async ({ ownerId, scriptId }): Promise<PortableFile | null> => {
     const record = await loadOwnedScript(ctx.db, ownerId, scriptId);
     if (record === undefined) {
       return null;

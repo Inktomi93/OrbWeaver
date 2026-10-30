@@ -1,9 +1,10 @@
-import type { AssetKind, StoreAsset, StoredAsset } from "@orb/contracts/assets";
+import type { AssetKind, StoredAsset } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
 import type { UserId } from "@orb/kit/ids";
+import type { AssetsService } from "./service.ts";
 
 export interface GeneratedStoreDeps {
-  readonly store: StoreAsset;
+  readonly store: AssetsService["store"];
   readonly resolvePrincipal: (ownerId: UserId) => Promise<Principal>;
   readonly maxBytes: () => number;
 }

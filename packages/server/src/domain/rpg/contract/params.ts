@@ -27,7 +27,18 @@ import type {
   RpgTrackerView,
 } from "@orb/contracts/rpg";
 import type { CelValue } from "@orb/kit/cel";
-import type { ChatId, MessageId, MessageVariantId, PresetId, RpgCheckpointId, RpgGameId, RpgJournalId, RpgQuestId, RpgSnapshotId } from "@orb/kit/ids";
+import type {
+  ChatId,
+  IdSource,
+  MessageId,
+  MessageVariantId,
+  PresetId,
+  RpgCheckpointId,
+  RpgGameId,
+  RpgJournalId,
+  RpgQuestId,
+  RpgSnapshotId,
+} from "@orb/kit/ids";
 
 // ── persistence-layer params (W1a) ──────────────────────────────────────────────────────────────────────
 
@@ -142,9 +153,9 @@ export interface ScenePatch {
 /** The id mints the extraction fold needs (inventory item ids + quest/objective ids) — injected for
  *  determinism (the impl passes `newId`/`ctx.ids.quest`, a test passes stable counters). */
 export interface ExtractionMints {
-  readonly item: () => string;
-  readonly quest: () => RpgQuestId;
-  readonly objective: () => string;
+  readonly item: IdSource["unprefixed"];
+  readonly quest: IdSource["rpgQuestId"];
+  readonly objective: IdSource["unprefixed"];
 }
 
 /** A journal entry a tool staged mid-turn — flushed at commit stamped with the COMMITTED variant's id

@@ -235,7 +235,7 @@ async function buildDistillWrites(
     readonly now: number;
     readonly sampleOpts: StructuredOptions;
     readonly system: string;
-    readonly onProgress?: ((done: number, total: number) => void) | undefined;
+    readonly onProgress?: DistillCharactersOptions["onProgress"];
   },
 ): Promise<{ stmts: BatchStmt[]; stagedLabels: StagedLabel[]; failed: number }> {
   // The RESOLVED PASS — the sampling posture + the resolved system prose, carried together so a retry can

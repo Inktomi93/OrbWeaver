@@ -4,12 +4,13 @@
 // their own ownerId unless admin; a bulk schedule requires the box owner.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { ScheduleCadence, StartWorkloadInput, WorkloadKind, WorkloadMode, WorkloadRef, WorkloadScheduleRef } from "@orb/contracts/workloads";
+import type { ScheduleCadence, StartWorkloadInput, WorkloadKind, WorkloadMode, WorkloadScheduleRef } from "@orb/contracts/workloads";
 import type { Db, workloadSchedules } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { UserId, WorkloadScheduleId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { Logger } from "#foundation/observability";
-import type { StartWorkloadParams } from "./params.ts";
+import type { StartWorkload } from "./start-op.ts";
 
 /** The `workload_schedules` row, DERIVED — never re-spelled (AGENTS.md "Type homes and unions": a DB row shape's one home is `db`,
  *  via `$inferSelect`). It was a hand-written interface listing the same eleven columns; a column added to the
@@ -63,8 +64,8 @@ export interface WorkloadScheduleService {
 export interface ScheduleTickDeps {
   readonly logger: Logger;
   readonly db: Db;
-  readonly now: () => number;
-  readonly start: (params: StartWorkloadParams) => Promise<WorkloadRef>;
+  readonly now: Clock;
+  readonly start: StartWorkload;
 }
 
 /** The stored columns a schedule update can change; persistence and its mutable draft derive this home. */

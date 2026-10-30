@@ -2,20 +2,21 @@
 // never sideways-imports character domain) since character ids don't survive a fresh box; missing/deleted
 // subject degrades to null handle. Each image carries its content hash, which the import re-links by.
 
+import type { PortableFile } from "@orb/contracts/portability";
 import type { DbAssemblyInput } from "@orb/db/wiring";
+
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { CanonicalGalleryItem } from "#primitives/serde/gallery";
 import { buildGallery } from "#primitives/serde/gallery";
-import type { GalleryPortableFile } from "../contract/results.ts";
 import type { AssetsContext } from "../contract/service.ts";
 import { listGalleryItemsForExport } from "../persistence/queries.ts";
 
 const GALLERY_FILENAME = "gallery.json";
 
-export function createExportGallery(input: DbAssemblyInput<AssetsContext>): (ownerId: UserId) => Promise<GalleryPortableFile> {
+export function createExportGallery(input: DbAssemblyInput<AssetsContext>): (ownerId: UserId) => Promise<PortableFile> {
   const ctx: AssetsContext = { ...input, db: databaseForOwner(input.db) };
-  return async (ownerId: UserId): Promise<GalleryPortableFile> => {
+  return async (ownerId: UserId): Promise<PortableFile> => {
     const rows = await listGalleryItemsForExport(ctx.db, ownerId);
 
     // Resolve id → handle once per distinct subject character (bounded parallelism, no await-in-loop).

@@ -10,6 +10,7 @@
 // rule here without reopening #512's ruling.
 import type { MouseEventHandler, ReactElement, ReactNode, Ref } from "react";
 import { useId } from "react";
+import { SELECTION_RAIL_TONE } from "#lib";
 import type { Slots } from "./parts.tsx";
 import { ListRowContent } from "./parts.tsx";
 import { listRowVariants } from "./variants.ts";
@@ -224,7 +225,13 @@ function ListRowBody({
     // Non-clickable rows are a static <div> body — no role, no tab stop, no name/description (the visible
     // title/subtitle text stands on its own); onClick is honored only when clickable.
     return (
-      <div aria-current={ariaCurrent} className={slots.body()} data-selected={selected ? "" : undefined} data-slot="list-row-body">
+      <div
+        aria-current={ariaCurrent}
+        className={slots.body()}
+        data-selected={selected ? "" : undefined}
+        data-tone={SELECTION_RAIL_TONE}
+        data-slot="list-row-body"
+      >
         {children}
       </div>
     );
@@ -243,6 +250,7 @@ function ListRowBody({
       className={slots.body()}
       data-disabled={disabled ? "" : undefined}
       data-selected={selected ? "" : undefined}
+      data-tone={SELECTION_RAIL_TONE}
       data-slot="list-row-body"
       onClick={disabled ? undefined : onClick}
       ref={bodyRef}
@@ -310,7 +318,7 @@ export function ListRow({
   return (
     // `data-selected` rides the ROOT as well as the body: the `rowTint="row"` arm paints the selected skin
     // here, and an attribute the default arm simply doesn't style costs nothing.
-    <div className={slots.root({ className })} data-selected={selected ? "" : undefined} data-slot="list-row-root">
+    <div className={slots.root({ className })} data-selected={selected ? "" : undefined} data-tone={SELECTION_RAIL_TONE} data-slot="list-row-root">
       <ListRowBody
         ariaDescribedBy={describedBy}
         ariaLabel={titleQualifier === undefined ? title : `${title} · ${titleQualifier}`}

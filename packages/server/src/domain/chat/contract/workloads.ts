@@ -4,7 +4,7 @@
 // never a sideways import, and never a shared cross-feature hub.
 
 import type { BackfillPassResult, ImportWindow } from "@orb/contracts/chat";
-import type { WorkloadRunScope } from "@orb/contracts/workloads";
+import type { TargetSnapshotOp, WorkloadRunScope } from "@orb/contracts/workloads";
 import type { UserId } from "@orb/kit/ids";
 import type { MemoryBackfillSweepCounts, MemoryEmbedSpace } from "./memory.ts";
 
@@ -48,5 +48,5 @@ export interface ChatWorkloadDeps {
    *  because settings is not chat's to read — the same seam shape `ResolveBackfillMemoryConfig` uses. */
   readonly isMemoryEnabled: (hostUserId: UserId) => Promise<boolean>;
   /** Every stored embedding target in the enumeration scope as one comparable string; any target move changes it. */
-  readonly targetSnapshot: (enumerationScope: UserId | null) => Promise<string>;
+  readonly targetSnapshot: TargetSnapshotOp;
 }

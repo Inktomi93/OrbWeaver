@@ -1,8 +1,8 @@
 import type { MemoryEmbedSpace } from "@orb/contracts/embeddings";
 import type { RoleClients } from "@orb/contracts/role-clients";
-import type { UserId } from "@orb/kit/ids";
+import type { EmbeddingsIndexerContext } from "./service.ts";
 
 export type LiveEmbedSpace = Pick<MemoryEmbedSpace, "model">;
 export interface LiveEmbedSpaceDeps {
-  readonly roleClientsFor: (ownerId: UserId) => Promise<Pick<RoleClients, "resolved">>;
+  readonly roleClientsFor: (...args: Parameters<EmbeddingsIndexerContext["roleClientsFor"]>) => Promise<Pick<RoleClients, "resolved">>;
 }

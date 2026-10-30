@@ -4,6 +4,7 @@ import { Field as BaseField } from "@base-ui/react/field";
 import { formatBytes } from "@orb/kit/strings";
 import type { ChangeEvent, ComponentPropsWithRef, DragEvent, MouseEvent, ReactElement } from "react";
 import { useId, useState } from "react";
+import { HIDDEN_AT } from "#lib";
 import { useFieldIdentity, useFieldLabelled } from "#primitives/field";
 import { AlertTriangle, Check, Icon, Upload } from "#primitives/icons";
 import { WebSpinner } from "#primitives/spinner";
@@ -49,7 +50,12 @@ export interface FileDropzoneProps extends Omit<ComponentPropsWithRef<"input">, 
   maxSizeBytes?: number;
   /** Fires with every processed batch, from either the native picker or a drop. */
   onFilesSelected?: (result: FileDropzoneResult) => void;
-  /** Instructional copy inside the box. @defaultValue "Drag and drop, or click to browse" */
+  /**
+   * What the zone takes, as a noun phrase ("a preset .json"). The instruction line follows the pointer: a fine
+   * pointer is told to drop it or click, a coarse one to tap to choose it. Omit for "a file".
+   */
+  subject?: string;
+  /** Instructional copy inside the box, for a zone whose line is not "drop or choose a thing" (a state message, or "" for none). It does not follow the pointer. */
   instructions?: string;
   /**
    * Supplementary line under the instructions (e.g. accepted types). When omitted and
@@ -92,13 +98,21 @@ function rejectionMessage(rejected: FileDropzoneRejection[], maxSizeBytes: numbe
   return parts.length === 0 ? undefined : parts.join(" · ");
 }
 
+/** The two spellings of the default instruction line: the fine pointer's and the coarse pointer's. */
+function pointerInstructions(subject: string | undefined): { readonly fine: string; readonly coarse: string } {
+  return subject === undefined
+    ? { fine: "Drag and drop, or click to browse", coarse: "Tap to choose a file" }
+    : { fine: `Drop ${subject}, or click to browse`, coarse: `Tap to choose ${subject}` };
+}
+
 /** The three sources that can name the real file input, most specific first — see {@link nameAttributes}. */
 interface FileDropzoneNameSources {
   readonly ariaLabel: string | undefined;
   readonly ariaLabelledBy: string | undefined;
   /** An ancestor `<Field>` has already wired `aria-labelledby` to its label (`useFieldLabelled`). */
   readonly fieldLabelled: boolean;
-  readonly instructions: string;
+  /** The caller's own line; undefined takes the default line, which is never empty. */
+  readonly instructions: string | undefined;
   readonly instructionsId: string;
 }
 
@@ -157,6 +171,33 @@ interface FileDropzoneGlyphProps {
   readonly slots: ReturnType<typeof fileDropzoneVariants>;
 }
 
+interface FileDropzoneInstructionsProps {
+  readonly className: string;
+  readonly id: string;
+  readonly instructions: string | undefined;
+  readonly lines: ReturnType<typeof pointerInstructions>;
+}
+
+/** The instruction line: the caller's own text, or both pointer spellings with the other class's hidden. */
+function FileDropzoneInstructions({ className, id, instructions, lines }: FileDropzoneInstructionsProps): ReactElement {
+  return (
+    <p className={className} id={id}>
+      {instructions === undefined ? (
+        <>
+          <span className={HIDDEN_AT.coarse} data-pointer="fine">
+            {lines.fine}
+          </span>
+          <span className={HIDDEN_AT.fine} data-pointer="coarse">
+            {lines.coarse}
+          </span>
+        </>
+      ) : (
+        instructions
+      )}
+    </p>
+  );
+}
+
 /** The content-stack glyph dispatch, split out to avoid a 3-way nested ternary in the render tree. */
 function FileDropzoneGlyph({ loading, success, slots }: FileDropzoneGlyphProps): ReactElement {
   if (loading) {
@@ -193,7 +234,8 @@ export function FileDropzone({
   maxSizeBytes,
   error,
   onFilesSelected,
-  instructions = "Drag and drop, or click to browse",
+  subject,
+  instructions,
   hint,
   className,
   // BOTH name attributes are destructured OUT of `rest` ON PURPOSE — `nameAttributes` composes them
@@ -280,6 +322,7 @@ export function FileDropzone({
 
   const resolvedHint = hint ?? (maxSizeBytes === undefined ? undefined : `Up to ${formatBytes(maxSizeBytes)} per file`);
 
+  const pointerLines = pointerInstructions(subject);
   const nameProps = nameAttributes({ ariaLabel, ariaLabelledBy, fieldLabelled, instructions, instructionsId });
 
   const errorMessage = rejectionMessage(rejected, maxSizeBytes, error);
@@ -322,9 +365,7 @@ export function FileDropzone({
       />
       <div className={slots.content()} data-slot="file-dropzone-content">
         <FileDropzoneGlyph loading={loading} slots={slots} success={success} />
-        <p className={slots.instructions()} id={instructionsId}>
-          {instructions}
-        </p>
+        <FileDropzoneInstructions className={slots.instructions()} id={instructionsId} instructions={instructions} lines={pointerLines} />
         {resolvedHint === undefined ? null : <p className={slots.hint()}>{resolvedHint}</p>}
       </div>
       {errorMessage === undefined ? null : (

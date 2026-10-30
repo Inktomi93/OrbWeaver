@@ -1,6 +1,7 @@
 import type { InboxView, ListInboxResult, MarkAllReadResult } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
 import type { IdSource } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { ResolveStandingAsks } from "./ops.ts";
 import type { DismissParams, ListInboxParams, MarkAllReadParams, RecordParams, RefreshStandingParams, ReplaySinceParams, RetractParams } from "./params.ts";
 
@@ -11,7 +12,7 @@ import type { DismissParams, ListInboxParams, MarkAllReadParams, RecordParams, R
 /** The DI bundle every verb closes over, wired at the composition root. */
 export interface NotificationsContext {
   db: Db;
-  now: () => number;
+  now: Clock;
   readonly idSource: IdSource;
   /** The ONE cross-feature read this domain consumes (#1799) — which of a page's chat-owned decisions are
    *  still standing, so `list`/`replaySince` can stamp `InboxView.actionable`. Declared in `./ops.ts` (the

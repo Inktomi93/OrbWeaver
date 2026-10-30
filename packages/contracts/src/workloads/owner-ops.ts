@@ -33,3 +33,6 @@ export type StartWorkloadParams = StartWorkloadBase &
   ({ readonly caller: Principal; readonly funderUserId?: never } | { readonly caller: null; readonly funderUserId: UserId | null });
 
 export type StartWorkloadOp = (params: StartWorkloadParams) => Promise<WorkloadRef>;
+
+/** Every stored embedding target in the enumeration scope as one comparable string; any target move changes it. */
+export type TargetSnapshotOp = (enumerationScope: UserId | null) => Promise<string>;

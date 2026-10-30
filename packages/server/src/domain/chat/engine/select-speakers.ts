@@ -25,6 +25,7 @@
 import type { GroupConfig, SpeakerRef } from "@orb/contracts/chat";
 import { speakerKey } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
+import type { RandomSource } from "@orb/kit/macro";
 import { NAME_END_BOUNDARY } from "@orb/kit/speaker-label";
 import { UNICODE_WORD_CHARS } from "@orb/kit/strings";
 import type { ArbiterCandidate, LineAddress, NameMention, SpeakerCandidate, TranscriptLine } from "../contract/arbitration.ts";
@@ -54,7 +55,7 @@ interface SelectSpeakersParams {
    *  ban-last and the eligible set still apply and the talkativeness rolls still add speakers after them. */
   readonly mentionedIds?: readonly CharacterId[] | undefined;
   /** The injected PRNG — `() => number` in [0,1). Drives `natural`'s shuffle, rolls and fallback pick. */
-  readonly rng: () => number;
+  readonly rng: RandomSource;
   /** Optional per-round speaker cap. Undefined ⇒ all activated. */
   readonly maxSpeakers?: number | undefined;
 }

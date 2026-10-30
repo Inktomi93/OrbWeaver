@@ -9,15 +9,11 @@ import { APP_SETTINGS_SCHEMA_VERSION, parseAppSettings } from "@orb/contracts/se
 import type { JsonValue } from "@orb/kit/json";
 import { APP_SETTINGS_KEY } from "../contract/keys.ts";
 import type { GetAppSettingsParams, UpdateAppSettingsParams } from "../contract/params.ts";
-import type { SettingsContext } from "../contract/service.ts";
+import type { SettingsContext, SettingsService } from "../contract/service.ts";
 import { readAppOverrideRaw, writeAppOverride } from "../persistence/queries.ts";
 import { deepMergeAppSettings } from "../substrate/merge.ts";
 
-interface AppSettingsVerbs {
-  readonly getAppSettings: (params: GetAppSettingsParams) => Promise<EffectiveAppConfig>;
-  readonly getAppSettingsWithOverrides: (params: GetAppSettingsParams) => Promise<AppSettingsView>;
-  readonly updateAppSettings: (params: UpdateAppSettingsParams) => Promise<EffectiveAppConfig>;
-}
+interface AppSettingsVerbs extends Readonly<Pick<SettingsService, "getAppSettings" | "getAppSettingsWithOverrides" | "updateAppSettings">> {}
 
 // The owner-box governance fields — flipping any of these requires the box owner, not a delegated admin.
 const OWNER_GATED_FIELDS = ["privateEndpointAllowlist", "localMultiUser", "ipCertificate"] as const satisfies readonly (keyof AppSettings)[];

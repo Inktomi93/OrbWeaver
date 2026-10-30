@@ -14,11 +14,11 @@ import type {
   SuggestibleAction,
   TriggerFact,
 } from "@orb/contracts/automation";
-import type { PromptTransform, ResolveViewerVisibility, VariablePrecondition, VariableWriteResult } from "@orb/contracts/chat";
+import type { PromptTransform, ResolveViewerVisibility } from "@orb/contracts/chat";
 import type { Can, Principal } from "@orb/contracts/identity";
 import type { GeneratePicturePrompt, SizePresetName } from "@orb/contracts/imagery";
 import type { NotificationEvent, NotificationRecipient } from "@orb/contracts/notifications";
-import type { ExecutePluginSuggestion, PluginSuggestedAct } from "@orb/contracts/plugin";
+import type { ExecutePluginSuggestion, PluginBridge, PluginSuggestedAct } from "@orb/contracts/plugin";
 import type { SideGenKind } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
@@ -37,12 +37,13 @@ import type {
   UserId,
   WorldBookId,
 } from "@orb/kit/ids";
-import type { VarOp } from "@orb/kit/macro";
+import type { RandomSource } from "@orb/kit/macro";
 import type { SerialLanes } from "@orb/kit/serial-lanes";
-import type { IanaTimeZone } from "@orb/kit/time";
+import type { Clock, IanaTimeZone } from "@orb/kit/time";
 import type { Logger } from "#foundation/observability";
 import type { AnalysisConfirmAct } from "./analysis.ts";
 import type { CreateRuleParams } from "./params.ts";
+import type { NewSuggestionId } from "./suggestion-id.ts";
 
 export type { ExecutePluginSuggestion } from "@orb/contracts/plugin";
 
@@ -263,7 +264,7 @@ export interface AutomationOps {
      *  one still holds against the live fold, and otherwise refuses AS DATA having written nothing. The
      *  automation arms pass none (a rule's `set_variable` is an unconditional assignment) and read `applied`;
      *  the plugin membrane aliases this exact op and is the caller that uses it. */
-    readonly applyVariableOps: (chatId: ChatId, ops: readonly VarOp[], expect?: readonly VariablePrecondition[]) => Promise<VariableWriteResult>;
+    readonly applyVariableOps: PluginBridge["chat"]["applyVariableOps"];
     /** BG-F — the `set_chat_background` arm's CANDIDATE set: the author's owned background library projected
      *  to `(name, source)` pairs (compose reads the author's `appearance.backgroundLibrary`). Empty ⇒ the
      *  arm no-ops (nothing to pick). Author-scoped; the picked source is the author's own asset, so BG-C's
@@ -417,7 +418,7 @@ export interface ArmTemplateRender {
    *  site instead. */
   readonly chatScoped: boolean;
   readonly nowMs: number;
-  readonly prng: () => number;
+  readonly prng: RandomSource;
   readonly template: string;
   readonly macroEnv?: Record<string, string>;
 }
@@ -429,8 +430,8 @@ export interface ArmTemplateRender {
 export interface PromptTransformIndexDeps {
   readonly db: Db;
   readonly ops: AutomationOps;
-  readonly prng: () => number;
-  readonly now: () => number;
+  readonly prng: RandomSource;
+  readonly now: Clock;
   readonly register: (transform: PromptTransform) => void;
   readonly unregister: (id: string) => void;
 }
@@ -749,10 +750,10 @@ export interface ArmExecutorDeps {
   readonly serialLanes: SerialLanes;
   readonly db: Db;
   readonly ops: AutomationOps;
-  readonly prng: () => number;
+  readonly prng: RandomSource;
   readonly notify: EmitAutomationEvent;
   /** S4 — the in-RAM pending-ask map a confirm-first arm STASHES into instead of executing (RULED F1). */
   readonly suggestions: SuggestionStore;
   /** S4 — the pending ask's claim handle. */
-  readonly newSuggestionId: () => AutomationSuggestionId;
+  readonly newSuggestionId: NewSuggestionId;
 }

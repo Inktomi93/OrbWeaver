@@ -3,10 +3,10 @@
 // (its return type PortableUserSettings structurally excludes secret fields) — the verb literally cannot
 // hand a credential field to build. Pure read + serde, no write, no audit.
 
+import type { PortableFile } from "@orb/contracts/portability";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { UserId } from "@orb/kit/ids";
 import { buildUserSettingsBackup, projectShareSafe } from "#primitives/serde/user-settings";
-import type { SettingsPortableFile } from "../contract/portability.ts";
 import type { SettingsAssemblyContext, SettingsContext } from "../contract/service.ts";
 import { readUserSettings } from "../persistence/queries.ts";
 
@@ -14,9 +14,9 @@ import { readUserSettings } from "../persistence/queries.ts";
 const USER_SETTINGS_BACKUP_FILENAME = "user-settings.json";
 
 /** Read the owner's settings, project to the share-safe allowlist, and serialize to a portable file. */
-export function createExportUserSettings(input: SettingsAssemblyContext): (ownerId: UserId) => Promise<SettingsPortableFile> {
+export function createExportUserSettings(input: SettingsAssemblyContext): (ownerId: UserId) => Promise<PortableFile> {
   const ctx: SettingsContext = { ...input, db: databaseForOwner(input.db) };
-  return async (ownerId: UserId): Promise<SettingsPortableFile> => {
+  return async (ownerId: UserId): Promise<PortableFile> => {
     const { config } = await readUserSettings(ctx.db, ownerId);
     const bytes = buildUserSettingsBackup(projectShareSafe(config));
     return { filename: USER_SETTINGS_BACKUP_FILENAME, bytes };

@@ -303,7 +303,7 @@ interface DeliveryOptions {
   readonly groupNudge: string | null;
   readonly assistantPrefill: boolean;
   readonly prose: ProseOverrides | undefined;
-  readonly convertsToEmptyWireRow: (content: string) => boolean;
+  readonly convertsToEmptyWireRow: ShapeInput["convertsToEmptyWireRow"];
   readonly cueReplay: CueReplay | undefined;
 }
 

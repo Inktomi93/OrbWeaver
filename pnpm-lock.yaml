@@ -372,8 +372,8 @@ catalogs:
       specifier: 7.0.6
       version: 7.0.6
     dependency-cruiser:
-      specifier: ^18.7.0
-      version: 18.7.0
+      specifier: 18.8.0-beta-1
+      version: 18.8.0-beta-1
     diff:
       specifier: ^9.0.0
       version: 9.0.0
@@ -582,7 +582,7 @@ overrides:
   dompurify: '>=3.4.13'
   katex: ^0.19.0
 
-packageExtensionsChecksum: sha256-r1WjEB5UWyKCkVm13nSBzdgcXnOnuuTI2Y5A+hGn38Y=
+packageExtensionsChecksum: sha256-nUkiipNI40H6bpAmOhTbiVPoDfUiQQfy8kpKoN+vXcY=
 
 patchedDependencies:
   '@anthropic-ai/claude-agent-sdk@0.3.306': d8e5d2e1eeaf93db398559693a24f1de0256b5e80d55597f23b65101bc31b5f4
@@ -694,7 +694,7 @@ importers:
         version: 1.18.6
       dependency-cruiser:
         specifier: 'catalog:'
-        version: 18.7.0
+        version: 18.8.0-beta-1
       drizzle-orm:
         specifier: 'catalog:'
         version: 0.45.4(@libsql/client@0.18.0)(@opentelemetry/api@1.10.0)
@@ -4900,8 +4900,8 @@ packages:
     resolution: {integrity: sha512-g7nH6P6dyDioJogAAGprGpCtVImJhpPk/roCzdb3fIh61/s/nPsfR6onyMwkCAR/OlC3yBC0lESvUoQEAssIrw==}
     engines: {node: '>= 0.8'}
 
-  dependency-cruiser@18.7.0:
-    resolution: {integrity: sha512-WexT4OswA6Gy86ms2J7SJ4FJscN43dyS+i5skpbtXlPTFQW4yWbontjFip1TOBAVnc+U+9zdH0a56YTRZX/IGw==}
+  dependency-cruiser@18.8.0-beta-1:
+    resolution: {integrity: sha512-/TfOw5w62CQRWEcnErXMTSSCWKTBg5NOLnlCsxOFkiU6Es+b3C/J+1Qs7AUg1/2VTscL/nXZ0bTQaEIrY1Buew==}
     engines: {node: ^22||^24||>=26}
     hasBin: true
 
@@ -11332,7 +11332,7 @@ snapshots:
 
   depd@2.0.0: {}
 
-  dependency-cruiser@18.7.0:
+  dependency-cruiser@18.8.0-beta-1:
     dependencies:
       acorn: 8.19.0
       acorn-jsx: 5.3.2(acorn@8.19.0)
@@ -11351,6 +11351,7 @@ snapshots:
       safe-regex: 2.1.1
       semver: 7.8.5
       tsconfig-paths-webpack-plugin: 4.2.0
+      typescript: 7.1.0-beta
       watskeburt: 6.0.0
 
   dequal@2.0.3: {}

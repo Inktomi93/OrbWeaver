@@ -191,7 +191,7 @@ export function PresetImportDialog({ open, onOpenChange, onImportSt, onImportOrb
             was the dialog description's first clause, printed a second time two lines below it. */}
         <FileDropzone
           accept="application/json,.json"
-          instructions="Drop a preset .json, or click to browse"
+          subject="a preset .json"
           onFilesSelected={(result): void => {
             const first = result.accepted[0];
             if (first !== undefined) {

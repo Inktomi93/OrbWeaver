@@ -4,7 +4,7 @@ import type { JoinerPersona } from "@orb/contracts/persona";
 import type { AwaitableStatementToken, StatementToken } from "@orb/db/wiring";
 import type { ChatId, ChatInviteId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
-import type { AuditEntry } from "#foundation/observability";
+import type { AuditWiring } from "#foundation/observability";
 
 // domain/chat/contract/signup — the signup-invite ops (D259). The entry signup route calls them with no
 // Principal: the route is the signed-out door, and the authority is the invite plus its minter's standing.
@@ -41,6 +41,9 @@ export type SignupPersonaPointersStatementOp = (args: {
   readonly at: number;
 }) => AwaitableStatementToken<{ userId: UserId }[]>;
 
+/** Hashes an invite token before persistence; the raw token is never stored. */
+export type HashTokenOp = (token: string) => string;
+
 /** The foreign halves of the signup ops, wired at the composition root. */
 export interface SignupInviteDeps {
   readonly signupUserStatement: SignupUserStatementOp;
@@ -48,7 +51,7 @@ export interface SignupInviteDeps {
   readonly signupPersonaPointersStatement: SignupPersonaPointersStatementOp;
   readonly minterMayMintSignup: SignupMinterCheckOp;
   /** The `changes()`-guarded audit insert (`buildAuditStatementIfPrecedingWrote`). */
-  readonly auditStatementAfterWrite: (entry: AuditEntry, at: number) => StatementToken;
+  readonly auditStatementAfterWrite: AuditWiring["statementAfterWrite"];
 }
 
 /** D259 — the sessions half of an OIDC pending join: its first two batch statements around chat's opaque
@@ -80,7 +83,7 @@ export interface SignupInviteOps {
     readonly persona: JoinerPersona;
   }) => Promise<SignupRedeemOutcome>;
   /** The peppered hash chat keys invites by. The OIDC login stores only this, never the raw token. */
-  readonly tokenHashOf: (token: string) => string;
+  readonly tokenHashOf: HashTokenOp;
   /** `admits` for an invite already hashed (the OIDC transaction carries only the hash). */
   readonly admitsHash: (tokenHash: string) => Promise<boolean>;
   /** The preview of a signup invite that still admits, or null. The signed-out pending join reads this. */

@@ -76,7 +76,7 @@ const COLUMN_PLACEMENTS = ["anchored", "gutterCentred"] as const;
 type ColumnPlacement = (typeof COLUMN_PLACEMENTS)[number];
 
 const MESSAGE_BOXES = ["bubble", "plate", "page"] as const;
-/** The box the prose renders in. `bubble` is the role's filled card. `plate` (flat, hush) has no fill at rest and takes
+/** The box the prose renders in. `bubble` is the role's filled card. `plate` (flat) has no fill at rest and takes
  *  the reading plate over a wallpaper, inset a section from its gutter. `page` (stock document) is a full-track page with
  *  the gutter inset, the reading ink and the same plate. */
 type MessageBox = (typeof MESSAGE_BOXES)[number];
@@ -219,7 +219,7 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     track: "chat",
     rowAlign: "center",
     columnPlacement: "gutterCentred",
-    box: "plate",
+    box: "bubble",
     phoneCap: false,
     lastRowFloor: false,
     avatarTreatment: iconLeftTreatment,
@@ -228,7 +228,7 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     // Inside puts the header beside the speaker stripe, not under it.
     headerPlacement: "inside",
     swipeFoot: SWIPE_FOOT_INSIDE,
-    pinnedHeader: PINNED_BAND,
+    pinnedHeader: PINNED_CARD,
     actionsRow: ACTIONS_WITH_IDENTITY,
     mirrorUser: false,
   },

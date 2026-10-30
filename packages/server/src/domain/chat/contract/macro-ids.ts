@@ -6,6 +6,7 @@
 // here rather than declaring them file-local in `persistence/macro-names.ts`.
 
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
+import type { RowMacroStamps } from "@orb/kit/macro";
 
 /** A roster projection carrying the two participant-scoped macro ids — satisfied by `ParticipantData` and
  *  by a raw `chat_participants` row alike. */
@@ -16,7 +17,4 @@ export interface ParticipantMacroIdSource {
 
 /** A message-row projection carrying the two per-row macro STAMPS — satisfied by `MessageView` and by a
  *  raw `messages` row alike. */
-export interface MessageMacroIdSource {
-  readonly characterId: CharacterId | null;
-  readonly personaId: PersonaId | null;
-}
+export type MessageMacroIdSource = RowMacroStamps;

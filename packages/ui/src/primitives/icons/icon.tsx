@@ -18,7 +18,7 @@ import type { LucideIcon } from "lucide-react";
 import type { ReactElement } from "react";
 import { useId } from "react";
 import type { VariantProps } from "tailwind-variants";
-import { variantProps } from "#lib";
+import { INK_TONE, variantProps } from "#lib";
 import type { FillableIcon } from "./fillable.ts";
 import { iconVariants } from "./variants.ts";
 
@@ -87,7 +87,7 @@ export function Icon({
       nonScalingStroke={true}
       aria-hidden={label === undefined}
       aria-label={label}
-      {...variantProps(iconVariants, { size, weight, tone, shadow, receded, pulse, openTurn, yieldOnHover }, className)}
+      {...variantProps(iconVariants, { size, weight, tone, shadow, receded, pulse, openTurn, yieldOnHover }, className, INK_TONE[tone ?? "default"])}
       {...(fraction === NO_FILL ? {} : { fill: isPartial ? `url(#${gradientId})` : "currentColor" })}
     >
       {isPartial ? (

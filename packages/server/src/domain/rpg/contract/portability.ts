@@ -19,23 +19,24 @@
 // the serde never learns what a `MessageVariantId` is.
 
 import type {
-  RPG_CHECKPOINT_TRIGGERS,
   RPG_GAME_MODES,
   RPG_GAME_STATUSES,
   RPG_JOURNAL_TYPES,
   RpgGameConfig,
+  RpgPortableCheckpoint,
   RpgRecordedToolCall,
   RpgSheet,
   RpgSnapshotState,
 } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import type { CharacterId, ChatId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { RpgIdMints } from "./service.ts";
 
 /** The DI bundle both rpg portability ops close over. */
 export interface RpgPortabilityContext {
   readonly db: Db;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly ids: RpgIdMints;
 }
 
@@ -74,17 +75,6 @@ export interface RpgPortableTurnToolCalls {
   readonly messageId: MessageId;
   readonly variantId: MessageVariantId;
   readonly calls: readonly RpgRecordedToolCall[];
-  readonly createdAt: number;
-}
-
-/** One `rpg_checkpoints` row, pointing at its snapshot by POSITION in {@link RpgPortableGame.snapshots} —
- *  the one place a position appears in this contract, because a checkpoint's target is an rpg row this same
- *  payload mints, not a chat row the caller remaps. RESTRICT at the db makes a dangling target a hard error,
- *  so the serde prunes an unresolvable one rather than letting it abort the restore. */
-export interface RpgPortableCheckpoint {
-  readonly snapshotIndex: number;
-  readonly label: string;
-  readonly trigger: (typeof RPG_CHECKPOINT_TRIGGERS)[number];
   readonly createdAt: number;
 }
 

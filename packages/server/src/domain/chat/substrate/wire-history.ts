@@ -32,6 +32,7 @@ import { cacheDepthCovering, rowIndexAtCacheDepth } from "@orb/inference";
 import type { ContentImageRef, ContentSpan, ContentSpanKind } from "@orb/kit/content";
 import { cardWireStub, contentSpanRaw, tokenizeContent } from "@orb/kit/content";
 import type { AssetId, MessageId } from "@orb/kit/ids";
+import type { LoadInlineReplyAssetIdsOp, ResolveTurnImageUrlOp } from "../contract/engine-context.ts";
 import type { ResolvedMediaRef, TurnEconomics } from "../contract/results.ts";
 import type { shapeTurn, toShapeCanon } from "./assembly-access.ts";
 import { fitHistory, historyTurnTokens } from "./assembly-access.ts";
@@ -125,7 +126,7 @@ interface WirePartsEnv {
   readonly visionOk: boolean;
   /** The video twin (#317): `capability.input.video === true` — gates video parts as `visionOk` gates images. */
   readonly videoOk: boolean;
-  readonly resolveImageUrl: (ref: ContentImageRef) => Promise<ResolvedMediaRef | null>;
+  readonly resolveImageUrl: ResolveTurnImageUrlOp;
   /** The card spans riding FULL this assembly (the M2 keep-last-X window; empty = every card stubs). */
   readonly fullCards: ReadonlySet<ContentSpan>;
   /** §6.7's per-(slot, asset) inline-reply set — see {@link ridesAsModelMedia}. */
@@ -658,7 +659,7 @@ export async function buildWireHistory(
     readonly visionOk: boolean;
     /** The video twin (#317): `capability.input.video === true`. */
     readonly videoOk: boolean;
-    readonly resolveImageUrl: (ref: ContentImageRef) => Promise<ResolvedMediaRef | null>;
+    readonly resolveImageUrl: ResolveTurnImageUrlOp;
     /** The M2 keep-last-X card window. ABSENT ≠ ZERO — see {@link resolveFullCards}; contributed only by an
      *  rpg game's gather, so a chat with no game passes `undefined` (no window) on BOTH paths. */
     readonly cardKeepLastX: number | undefined;
@@ -678,7 +679,7 @@ export async function buildWireHistory(
      *  posture the §8.8 carry takes. Both callers close it over their own chat id; the query is the ONE home
      *  (`persistence/message-asset-links.loadInlineReplyAssetIds`) so the fence cannot be re-derived differently on the
      *  turn path and the preview path. */
-    readonly loadInlineReplyAssetIds: () => Promise<InlineReplyAssets>;
+    readonly loadInlineReplyAssetIds: LoadInlineReplyAssetIdsOp;
   },
   shapedHistory: readonly ShapedHistoryRow[],
 ): Promise<WireRow[]> {

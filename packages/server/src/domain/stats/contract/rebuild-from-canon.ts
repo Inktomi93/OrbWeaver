@@ -2,6 +2,7 @@ import type { TokenProvenance } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";
 import type { characterStats, dailyStats, modelStats, ownerStats } from "@orb/db";
 import type { CharacterId, IdSource, ModelId, UserId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 
 export interface TokenSampleAccum {
   tokensInMeasuredSamples: number;
@@ -115,7 +116,7 @@ export interface ReconcileOpts {
   /** Scope to one owner; omit to rebuild every owner that owns a character. */
   ownerId?: string;
   /** INJECTED clock (epoch-ms) — the determinism seam (no-raw-clock). Stamped as every row's computedAt. */
-  now: () => number;
+  now: Clock;
   /** Cooperative abort between owners. */
   signal?: AbortSignal;
 }

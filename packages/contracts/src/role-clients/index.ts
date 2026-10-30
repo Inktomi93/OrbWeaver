@@ -12,7 +12,7 @@
 // FLAG: only the four DERIVE roles below are buildable — chat/agent/generateImage join when their
 // result contracts land (confirm with lead before wiring a chat member here).
 
-import type { ModelId, UserConnectionId } from "@orb/kit/ids";
+import type { ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
 import type { WireReady } from "@orb/kit/json-schema";
 import { z } from "zod";
 import type { Capability, ProviderId } from "#inference";
@@ -134,3 +134,7 @@ export interface RoleClients {
   /** What `task` resolves to for this bundle's funder right now, or `null` (`no-connection`). */
   resolved: (task: RoleClientTask) => Promise<ResolvedTaskView | null>;
 }
+
+/** The per-owner role-client bundle read: every domain that embeds, reranks or summarizes on a user's behalf asks
+ *  for the bundle bound to that user's connections. */
+export type RoleClientsFor = (ownerId: UserId) => Promise<RoleClients>;

@@ -1,6 +1,7 @@
 // The plugin membrane consumes typed owner-domain effects and disposable registration operations.
 // Composition wires the bodies; ownership, consent and reduced guest projections stay with their domains.
 
+import type { ChatAutomationReads } from "@orb/contracts/automation";
 import type { ResolveViewerVisibility } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { GenerateImageActionArgs } from "@orb/contracts/imagery";
@@ -108,7 +109,7 @@ export interface PluginHostOps {
     /** The chat's current runtime variable fold cache (read) — `capability: chat.read`. The CURRENT fold is
      *  room-state, not transcript (every member plays against it and post-join turns render it into text via
      *  `{{getvar}}`), so it is NOT floor-clamped — the read-visibility ruling's activity plane. */
-    readonly getVariables: (chatId: ChatId) => Promise<Record<string, string>>;
+    readonly getVariables: ChatAutomationReads["readVariables"];
     /** The invocation chat's PRESENT CHARACTER roster, projected to the reduced `PluginCharacterView`
      *  (`chat.listCharacters`, capability `chat.read` — #788 F11). PRINCIPAL-FREE, the `listMessages` posture: the
      *  bridge resolves the installer's membership via `resolveViewerVisibility` FIRST and short-circuits a

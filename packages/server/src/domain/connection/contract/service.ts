@@ -11,12 +11,14 @@ import type { Principal } from "@orb/contracts/identity";
 import type {
   ConnectionBinding,
   ConnectionView,
+  CredentialOwned,
   EmbedSpaceChangePreview,
   EmbedTargetRefusal,
   ModelListing,
   ResolvedCacheConnectionView,
   ResolvedConnectionView,
   RoutableTask,
+  RuleOwnedBy,
   SendAvailability,
   TokenizeResult,
 } from "@orb/contracts/inference";
@@ -26,9 +28,10 @@ import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { BindingStore, ConnectionStore, InferenceRuntime, ProviderRegistry, ProviderStore, ResolveOutcome, SnapshotStore } from "@orb/inference";
-import type { AutomationRuleId, ConnectionBindingId, PluginId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
+import type { ConnectionBindingId, PluginId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { AuditEntry } from "#foundation/observability";
-import type { ENDPOINT_ADMISSIONS } from "#infra/network";
+import type { ScopedEgress } from "#infra/network";
 import type {
   CatalogModelsParams,
   ConnectionDiagnosticParams,
@@ -56,23 +59,17 @@ import type {
 } from "./params.ts";
 import type { BindingView, CatalogRefreshOutcome, ConnectionCapabilityView, CredentialHealth, ProviderAvailability } from "./results.ts";
 
-/** The F12 admission verdict for an endpoint `baseUrl` at WRITE time (the fetch guard re-judges at connect):
- *  `public` = not a private address, a hostname resolved (one that does not resolve yet is judged at connect); `admitted` = private and on the
- *  deployment allowlist; `refused` = private and NOT admitted (the pane's inline "Admit `<host>`" affordance);
- *  `invalid` = not an http(s) URL. */
-export type EndpointAdmission = (typeof ENDPOINT_ADMISSIONS)[number];
-
 /** The DI bundle the connection verbs close over (wired at the entry composition root). */
 export interface ConnectionContext {
   readonly db: Db;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly newConnectionId: () => UserConnectionId;
   readonly newBindingId: () => ConnectionBindingId;
   /** THE runtime (`createInferenceRuntime`) — resolution, catalogs, diagnostics and the registry execute there. */
   readonly runtime: InferenceRuntime;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   /** Does the caller hold this credential row? Bound to the credentials domain (only it reads its table). */
-  readonly credentialOwned: (ownerId: UserId, credentialId: UserCredentialId) => Promise<boolean>;
+  readonly credentialOwned: CredentialOwned;
   /** Rename the caller's key from `from` to `to` when it still carries `from`. Bound to the credentials domain. */
   readonly relabelCredential: (args: {
     readonly principal: Principal;
@@ -81,12 +78,12 @@ export interface ConnectionContext {
     readonly to: string;
   }) => Promise<void>;
   /** Is this rule the caller's (its author)? Bound to the automation domain. */
-  readonly ruleOwnedBy: (ruleId: AutomationRuleId, userId: UserId) => Promise<boolean>;
+  readonly ruleOwnedBy: RuleOwnedBy;
   /** The tasks this plugin routes through its own grant (`pluginGrantTasks` of its declared capabilities),
    *  or `null` when the plugin is not the caller's or does not exist (collapsed). Bound to the plugin row. */
   readonly pluginGrantTasksOf: (pluginId: PluginId, userId: UserId) => Promise<readonly RoutableTask[] | null>;
   /** The F12 write-time admission read (infra/network, over the published allowlist); a hostname is resolved. */
-  readonly endpointAdmission: (baseUrl: string) => Promise<EndpointAdmission>;
+  readonly endpointAdmission: ScopedEgress["resolvedEndpointAdmission"];
   /** The ROW half of a probe (credentials domain): revoke / strike / clear + the throttle window. */
   readonly recordProbeOutcome: (args: {
     readonly principal: Principal;
@@ -182,7 +179,7 @@ export interface ConnectionPorts {
 
 export interface ConnectionPortsDeps {
   readonly db: Db;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly catalogSettings: SettingsKvPort;
 }
 

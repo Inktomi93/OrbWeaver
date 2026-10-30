@@ -8,13 +8,14 @@ import type {
 } from "@orb/contracts/stats";
 import type { chats, Db, messages, messageVariants } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
+import type { Clock } from "@orb/kit/time";
 import type { SQL } from "drizzle-orm";
 
 type ApplyStatsDeltaOp = ApplyStatsDelta<BatchStmt[], Db>;
 
 export interface ChatAccountingContext {
   readonly db: Db;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly applyStatsDelta: ApplyStatsDeltaOp;
   readonly applyCharacterStatsDelta: ApplyStatsDeltaOp;
   readonly resolveRetainedChatAccountingScope: ResolveRetainedChatAccountingScope<SQL>;

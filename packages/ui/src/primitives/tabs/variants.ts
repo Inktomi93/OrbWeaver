@@ -1,4 +1,5 @@
 import { DISABLED_STATE, FOCUS_RING, FOCUS_RING_INSET, GROUND, tv } from "#lib";
+import type { Tone } from "#tokens";
 
 // The tabs skin (D62 UIP-307) — an UNDERLINE strip, not a segmented pill: the list is a plain row
 // with a hairline `--color-border` track along its bottom edge; the active marker is a 2px `--primary`
@@ -100,7 +101,7 @@ export const tabsVariants = tv({
       cell: {
         tab: [
           `flex-col gap-0 p-field block-auto min-block-(--size-control-sm) min-inline-(--size-touch-target) ${FOCUS_RING_INSET}`,
-          "border-be-2 border-transparent data-active:border-primary data-active:bg-primary/15 data-active:text-foreground",
+          "border-be-2 border-transparent data-active:border-tone-solid data-active:bg-tone-tint data-active:text-foreground",
           "pointer-coarse:min-block-(--size-control-lg) pointer-fine:@max-cq-20:data-active:border-transparent",
         ],
       },
@@ -113,7 +114,7 @@ export const tabsVariants = tv({
     // clips; a phone keeps one row and scrolls.
     fold: { true: { list: "pointer-fine:@max-cq-20:grid-flow-row pointer-fine:@max-cq-20:grid-cols-3" }, false: {} },
     // A tab column topped by the accent rule: the context pane's bracket, which says the pane belongs to the view.
-    topRule: { none: {}, primary: { root: "border-bs-2 border-primary/55" } },
+    topRule: { none: {}, primary: { root: "border-bs-2 border-tone-edge" } },
     panelGround: {
       none: {},
       sidebar: { panel: GROUND.sidebar },
@@ -121,3 +122,6 @@ export const tabsVariants = tv({
   },
   defaultVariants: { layout: "inline" },
 });
+
+/** The D336 tone the active cell and the top rule paint. */
+export const TABS_ACCENT_TONE = "primary" satisfies Tone;

@@ -1,10 +1,10 @@
-import type { OwnedAssetBytes } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
 import type { AssetId, PluginId, SandboxWireId, UserId } from "@orb/kit/ids";
+import type { AssetsService } from "./service.ts";
 
 export interface OwnedAssetImportDeps<T> {
   readonly resolvePrincipal: (userId: UserId) => Promise<Principal>;
-  readonly readOwnedAssetBytes: (principal: Principal, assetId: AssetId) => Promise<OwnedAssetBytes>;
+  readonly readOwnedAssetBytes: AssetsService["readOwnedAssetBytes"];
   readonly importBytes: (installerUserId: UserId, bytes: Uint8Array, pluginId: PluginId | null) => Promise<T>;
 }
 export interface OwnedAssetImportRequest {

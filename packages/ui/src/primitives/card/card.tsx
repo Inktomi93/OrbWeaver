@@ -1,7 +1,7 @@
 import type { ComponentProps, KeyboardEvent, ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
-import { cn } from "#lib";
-import { cardVariants } from "./variants.ts";
+import { cn, variantAttrs } from "#lib";
+import { CARD_TONE, cardVariants } from "./variants.ts";
 
 /** The card's own axes, shared by both element arms below. */
 type CardOwnProps = VariantProps<typeof cardVariants> & {
@@ -91,7 +91,7 @@ export function Card(props: CardProps): ReactElement {
     className,
   );
   const slot = ownSlot ?? "card-root";
-  // The attributes the unlayered elevated-/nested-radius rules key on: inside a Surface the tier rule
+  // The attributes the unlayered elevated-/nested-radius rules key on, plus the D336 tone scope: inside a Surface the tier rule
   // outranks any `rounded-*` utility the variant emits. `data-slot` is set after the caller's props on each arm, so a
   // stray `data-slot` cannot drop a card out of the tier map; only `ownSlot` does, on purpose.
   const marks = {
@@ -99,6 +99,7 @@ export function Card(props: CardProps): ReactElement {
     "data-nested": nested === true ? "" : undefined,
     "data-padding": padding === "none" ? "none" : undefined,
     "data-shape": shape === undefined || shape === "island" ? undefined : shape,
+    ...variantAttrs(cardVariants, { tone }, CARD_TONE[tone ?? "neutral"]),
   } as const;
   if (props.as === "button") {
     const {

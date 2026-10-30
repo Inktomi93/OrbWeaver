@@ -3,6 +3,7 @@
 // `findCharacterByHandle`, and an unresolved/null handle writes the row un-charactered. Gates on asset
 // ownership and dedups on `(assetId, subjectCharacterId)`. Never throws for a bad file — `{ok:false, error}`.
 
+import type { PortableFile } from "@orb/contracts/portability";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
@@ -10,7 +11,7 @@ import { castId } from "@orb/kit/ids";
 import type { CanonicalGalleryItem } from "#primitives/serde/gallery";
 import { GALLERY_SCHEMA_KIND, parseGallery } from "#primitives/serde/gallery";
 import { portableParseError } from "#primitives/serde/lib";
-import type { GalleryImportOutcome, GalleryPortableFile } from "../contract/results.ts";
+import type { GalleryImportOutcome } from "../contract/results.ts";
 import type { AssetsContext } from "../contract/service.ts";
 import { assetIdForHash, importGalleryItem, ownedAssetForGallery } from "../persistence/queries.ts";
 
@@ -40,9 +41,9 @@ async function restoreItem(ctx: AssetsContext, ownerId: UserId, item: CanonicalG
   return result.created;
 }
 
-export function createImportGallery(input: DbAssemblyInput<AssetsContext>): (ownerId: UserId, file: GalleryPortableFile) => Promise<GalleryImportOutcome> {
+export function createImportGallery(input: DbAssemblyInput<AssetsContext>): (ownerId: UserId, file: PortableFile) => Promise<GalleryImportOutcome> {
   const ctx: AssetsContext = { ...input, db: databaseForOwner(input.db) };
-  return async (ownerId: UserId, file: GalleryPortableFile): Promise<GalleryImportOutcome> => {
+  return async (ownerId: UserId, file: PortableFile): Promise<GalleryImportOutcome> => {
     const parsed = parseGallery(file.bytes);
     if (!parsed.ok) {
       return { ok: false, error: `${portableParseError(GALLERY_SCHEMA_KIND, parsed.reason)} (${file.filename})` };
