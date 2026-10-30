@@ -296,15 +296,17 @@ Preserve landscape access to the shell, room, composer and settings. Keep ultraw
 
 The root font size respects the browser default. Appearance font scale remains a multiplier; preserve the text-scale metadata and input zoom floor.
 
+An isolated card or plugin frame cannot inherit the host root. The host reads `--appearance-font-scale` and delivers it as the style token `--sandbox-root-size`, a percentage the frame document applies to its root. Rem and em text in the frame follows the viewer's scale. Authored px text stays at its authored size. The token rides the same clamp as the other frame style tokens. It reaches the srcdoc delivery and the plugin frame mint. The chat card mint carries no style tokens, so a routed card does not follow the scale until that mint accepts them. First-party frame bundles size text in rem.
+
 Dynamic Type remains deferred. Adopting `-apple-system-body` changes the approved iPhone type hierarchy and requires an owner decision after device review.
 
 ### Remaining acceptance
 
 - Keep item 1299 open until its explicit current-tree native lint and dependency requirements are satisfied.
 - Preserve the distinction between source delivery, selected rendered acceptance and full application CI.
-- Qualify the unreached Import FormDialog before claiming its visual acceptance.
+- The Import FormDialog is qualified on Chromium and WebKit at 200% text on the phone and desktop and at 300% layout on desktop. At 300% on a 390px phone the dialog gutter leaves a sliver; item 1299 holds it.
 - Keep fine-pointer finder reveal-transition imagery unqualified. A recent-shelf focus image does not establish that behavior.
-- Qualify topbar, panels and room at 200% text scale. Ambient-shell evidence does not cover them.
+- The desktop topbar and the desktop room at 200% text are qualified on Chromium and WebKit. The phone topbar, the panels, the phone room and every 300% case other than the Import dialog on desktop are open defects on item 1299.
 - Qualify 300% layout separately. Room measurements at the base scale do not cover enlarged text.
 - Keep broader user text-spacing and zoom qualification separate from the scoped component evidence.
 - Perform independent rendered review over the actual changed population. Main owns integration and shared verification.
