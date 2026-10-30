@@ -53,8 +53,9 @@ import { availableClaudeExecutable, createInferenceRuntime } from "@orb/inferenc
 import { createBinding } from "@orb/kit/binding";
 import type { ChatId, IdSource, UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
+import type { RandomSource } from "@orb/kit/macro";
 import type { PubSub } from "@orb/kit/pubsub";
-import type { TimerScheduler } from "@orb/kit/time";
+import type { Clock, TimerScheduler } from "@orb/kit/time";
 import { packShowcaseBundle, readShowcaseManifest } from "@orb/showcase-plugins";
 import type { ServerRestartPort } from "#domain/admin";
 import { can, requireAdmin, requireOwner } from "#domain/admin";
@@ -86,7 +87,7 @@ import { createConnectionPorts, createConnectionService, createSessionEntryWrite
 import { createCredentialHealthThrottle, createCredentialOwned, createCredentialsService } from "#domain/credentials";
 import type { DatabankIngest } from "#domain/databank";
 import { createGatherDatabankForTurn } from "#domain/databank";
-import type { EmbeddingsIndexer, EmbeddingsService } from "#domain/embeddings";
+import type { EmbeddingReindexTriggers, EmbeddingsIndexer, EmbeddingsService } from "#domain/embeddings";
 import { createRecordUsage, createResolveEmbeddingConnection, createVectorSweepOps } from "#domain/embeddings";
 import type { ExportService } from "#domain/export";
 import { createImageryPortability } from "#domain/imagery";
@@ -121,7 +122,7 @@ import {
   createSettingsService,
   recordSeededItemKeys,
 } from "#domain/settings";
-import type { CertificateController, RelayController } from "#domain/share";
+import type { CertificateController, RelayController, ShareFacts, ShareGraphOptions } from "#domain/share";
 import { createEnableShareSeating, createShareService } from "#domain/share";
 import { createStatsBatchWiring } from "#domain/stats";
 import type { TagContext } from "#domain/tag";
@@ -249,14 +250,14 @@ export interface ServicesDeps {
   readonly userRuntimeDir?: string;
   readonly authConfig?: Pick<AuthConfig, "mode">;
   readonly rolePolicy?: SessionsRolePolicy;
-  readonly random: () => number;
+  readonly random: RandomSource;
   readonly randomInt: RpgContext["randomInt"];
   readonly idSource: IdSource;
   readonly newOpaqueId: () => string;
   /** This root's identity, minted once from its id source; the live transport publishes it so a client sees a restart. */
   readonly serverInstanceId: string;
   readonly db: DatabaseHandle;
-  readonly now: () => number;
+  readonly now: Clock;
   /** The boot-time owner id. `undefined` in OIDC mode when no owner row exists yet (the first
    *  owner-policy OIDC login will create it). When absent, role-client binding is deferred and every
    *  provider call fails closed until the owner provisions. */
@@ -292,8 +293,8 @@ export interface ServicesDeps {
 export interface ShareComposeDeps {
   readonly relay: RelayController;
   readonly certificate: CertificateController;
-  readonly localSetupUrl: () => string;
-  readonly appPort: () => number;
+  readonly localSetupUrl: ShareFacts["localSetupUrl"];
+  readonly appPort: ShareGraphOptions["appPort"];
   /** True when the app listener admits connections from beyond loopback (`BindPosture.publicBind`). */
   readonly publicBind: boolean;
 }
@@ -431,7 +432,7 @@ export interface ServicesResult extends AsyncDisposable {
   readonly seedUserConnections: (userId: UserId) => Promise<void>;
   /** The embed-space sweep enqueue (`search-discovery.ts`), surfaced for boot and the seed tools, whose owner seed
    *  and local-light sweep run outside the compose-built seed. Never rejects. */
-  readonly enqueueEmbedReindex: (scope: UserId | null) => Promise<void>;
+  readonly enqueueEmbedReindex: EmbeddingReindexTriggers["enqueueEmbedReindex"];
   /** The same sweeps started detached, for a boot seed that must not wait on them. */
   readonly detachEmbedReindex: (scope: UserId | null) => void;
   /** Boot's re-index of every owner whose stored generation went stale without a user action, detached. */

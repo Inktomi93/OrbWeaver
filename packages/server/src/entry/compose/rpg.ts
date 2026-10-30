@@ -13,7 +13,7 @@
 
 import type { IdSource } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
-import type { ScheduleOp } from "@orb/kit/time";
+import type { Clock, ScheduleOp } from "@orb/kit/time";
 import { can } from "#domain/admin";
 import { isCharacterHandleConflict } from "#domain/character";
 import type { PostNarratorMessage } from "#domain/chat";
@@ -55,7 +55,7 @@ export interface RpgComposeDeps extends Omit<RpgRoundsDeps, "rpgChatOps" | "isHa
   readonly idSource: IdSource;
   readonly scheduleTimeout: ScheduleOp;
   readonly randomInt: RpgContext["randomInt"];
-  readonly now: () => number;
+  readonly now: Clock;
   /** chat's rpg-facing ops (getMembership/postNarratorMessage/setRpgPointer/resolveRpgParticipants) — off chat's
    *  compose result (chat composes first). rpg closes over these; chat learns nothing rpg-shaped. */
   readonly rpgChatOps: ChatComposeResult["rpgChatOps"];

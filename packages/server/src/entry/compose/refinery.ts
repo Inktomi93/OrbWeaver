@@ -1,9 +1,9 @@
 // Compose service and workload authority separately; both share live bindings and one prose resolver.
 
 import type { DatabaseHandle } from "@orb/db/wiring";
-import type { RoleClientsWithSignal } from "@orb/inference";
-import type { IdSource, UserId } from "@orb/kit/ids";
+import type { IdSource } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { CharacterService } from "#domain/character";
 import {
   createCountRefineryScoreTargets,
@@ -27,8 +27,8 @@ export interface RefineryComposeDeps {
 
   readonly idSource: IdSource;
   readonly db: DatabaseHandle;
-  readonly now: () => number;
-  readonly roleClientsFor: (funderUserId: UserId) => Promise<RoleClientsWithSignal>;
+  readonly now: Clock;
+  readonly roleClientsFor: RefineryContext["roleClientsFor"];
   readonly resolveStructuredBinding: ResolveStructuredBinding;
   readonly character: Pick<CharacterService, "snapshot" | "update" | "get" | "duplicate">;
   readonly resolveUtilityPresetParams: RefineryContext["resolveUtilityPresetParams"];

@@ -9,6 +9,7 @@
 // and the timer are ALL injected at entry/ — the driver constructs nothing.
 
 import type { DatabaseHandle } from "@orb/db/wiring";
+import type { Clock } from "@orb/kit/time";
 import { MS_PER_MINUTE } from "@orb/kit/time";
 import type { ScheduleTickDeps } from "#domain/workloads";
 import type { Logger } from "#foundation/observability";
@@ -33,7 +34,7 @@ export interface WorkloadScheduleSchedulerDeps {
   readonly track?: BackgroundWork["track"];
   readonly tick: TickSchedulesOp;
   readonly db: DatabaseHandle;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly start: ScheduleTickDeps["start"];
   readonly scheduleInterval: ScheduleOp;
   readonly checkIntervalMs?: number;

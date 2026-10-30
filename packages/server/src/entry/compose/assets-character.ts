@@ -14,12 +14,13 @@
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { readSeedBackground, SEED_BACKGROUND_PLATES } from "@orb/default-content";
-import type { RoleClientsWithSignal, SideGenSampling } from "@orb/inference";
+import type { RoleClientsWithSignal } from "@orb/inference";
 import type { CharacterId, IdSource, UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
-import type { AssetsContext, AssetsService, MaterializeBackgroundDeps } from "#domain/assets";
+import type { Clock } from "@orb/kit/time";
+import type { AssetsContext, AssetsService, BackgroundStoreDeps, MaterializeBackgroundDeps } from "#domain/assets";
 import { createAssetsService, createBackgroundStore, createMaterializeBackground, createSeedPlateStore } from "#domain/assets";
-import type { CharacterService, DefaultCharacterSeeder } from "#domain/character";
+import type { CharacterContext, CharacterService, DefaultCharacterSeeder, GreetingCompletionDeps } from "#domain/character";
 import {
   createCharacterOwned,
   createCharacterService,
@@ -55,7 +56,7 @@ import type { BulkImportLorebook, HasPrimaryBook } from "#domain/world-info";
 import { createCopyCharacterBooks } from "#domain/world-info";
 import type { Env } from "#foundation/env/record";
 import { personaAutoSeedAdmits } from "#foundation/env/record";
-import type { AuditEntry, Logger } from "#foundation/observability";
+import type { Logger } from "#foundation/observability";
 import type { ImageAdapter } from "#infra/image";
 import type { Cas, VariantCache } from "#infra/storage";
 import type { LiveBuses } from "#transport/trpc";
@@ -75,29 +76,29 @@ export interface AssetsCharacterComposeDeps {
   readonly fetchImpl: MaterializeBackgroundDeps["fetchImpl"];
   readonly idSource: IdSource;
   readonly db: DatabaseHandle;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly cas: Cas;
   readonly variants: VariantCache;
   readonly imageAdapter: ImageAdapter;
   readonly emit: AssetsContext["emit"];
-  readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
+  readonly audit: CharacterContext["audit"];
   readonly tag: Pick<TagService, "attachCardTagByName" | "detachCardTagByName">;
   /** The per-FUNDER role-client binder (§8.5b) — the greeting studio spends the CALLER's own `summarize` row. */
   readonly roleClientsFor: (funderUserId: UserId) => Promise<Pick<RoleClientsWithSignal, "summarize">>;
   /** The keystone's late-bound materializeBackground holder (character + seeders reference it at request time). */
   readonly materializeBackground: MaterializeBackgroundOp;
   /** LIVE effective per-image byte cap (the background materialize belt reads it per download). */
-  readonly maxImageBytes: () => number;
+  readonly maxImageBytes: NonNullable<BackgroundStoreDeps["maxBytes"]>;
   /** LIVE effective image-variant quality (item 6) — folded into the variant cache key so a retune regenerates. */
-  readonly imageVariantQuality: () => number;
+  readonly imageVariantQuality: NonNullable<AssetsContext["imageVariantQuality"]>;
   readonly settings: Pick<SettingsService, "getUserSettings" | "updateUserSettingsSection">;
   /** Mints one `appearance.backgroundLibrary` row id — the SAME minter the settings service uses for an
    *  upload/`addExternalBackground` entry, so a seeded plate's row is indistinguishable from a user's own. */
-  readonly newBackgroundEntryId: () => string;
+  readonly newBackgroundEntryId: IdSource["uuid"];
   /** Request-time forward-ref: the preset service (composes after this seam) — the greeting-template resolver. */
   readonly getPreset: () => Pick<PresetService, "get">;
   /** The caller's Utility-role preset params (D299). */
-  readonly resolveUtilityPresetParams: (userId: UserId) => Promise<SideGenSampling | undefined>;
+  readonly resolveUtilityPresetParams: GreetingCompletionDeps["resolveUtilityPresetParams"];
   /** Request-time forward-ref: the persona service (composes after this seam) — the persona seeder's create
    *  plus the `list` its layer-2 artifact probe reads (`createPersonaSeedLatch`). */
   readonly getPersona: () => Pick<PersonaService, "create" | "list">;
@@ -129,6 +130,7 @@ export interface AssetsCharacterComposeResult {
 /** Bind each canonical owner; persona identifies its artifact, settings repairs picks and completes the latch. */
 function createPersonaSeedLatch(deps: {
   readonly settings: Pick<SettingsService, "getUserSettings" | "updateUserSettingsSection">;
+  // Deliberately only `list`: the latch never creates a persona, so it cannot reach the seeder's `create`.
   readonly getPersona: () => Pick<PersonaService, "list">;
 }): Pick<DefaultPersonaSeederDeps, "isSeeded" | "findSeededDefault" | "markSeeded"> {
   return {

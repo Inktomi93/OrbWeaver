@@ -1,8 +1,10 @@
 import type { AutomationBusEvent } from "@orb/contracts/automation";
-import type { ChatBusEvent, ChatLivePublish } from "@orb/contracts/chat";
+import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { ChatId, UserId } from "@orb/kit/ids";
-import type { InboxView } from "#domain/notifications";
+import type { AdminContext } from "#domain/admin";
+import type { ChatPublicationDeps } from "#domain/chat";
+import type { InboxView, PluginNotificationDeliveryDeps } from "#domain/notifications";
 import type { RpgEventBus } from "#domain/rpg";
 import type { WorkloadProgressBus } from "#domain/workloads";
 import type { QuietFanout } from "./quiet-fanout.ts";
@@ -18,13 +20,13 @@ export interface ChatLiveEvent {
 }
 
 export interface UserEventsBus extends Disposable {
-  readonly publishUserEvent: (userId: UserId, event: UserBusEvent) => void;
+  readonly publishUserEvent: AdminContext["emitUserEvent"];
   readonly publishChatChanged: (userId: UserId, chatId: ChatId | undefined) => void;
   readonly subscribeUserEvents: (userId: UserId, signal: AbortSignal) => AsyncIterable<UserBusEvent>;
 }
 
 export interface NotificationsBus extends Disposable {
-  readonly publishNotification: (view: InboxView, inPlace?: boolean) => void;
+  readonly publishNotification: PluginNotificationDeliveryDeps["publish"];
   readonly subscribeNotifications: (userId: UserId, signal: AbortSignal) => AsyncIterable<NotificationPublication>;
 }
 
@@ -34,7 +36,7 @@ export interface AutomationBus extends Disposable {
 }
 
 export interface ChatEventsBus extends Disposable {
-  readonly publishChatEvent: (entry: ChatLivePublish) => void;
+  readonly publishChatEvent: ChatPublicationDeps["publish"];
   readonly subscribeAllChatEvents: (listener: (entry: ChatLiveEvent) => void) => () => void;
   readonly subscribeChatEvents: (chatId: ChatId, signal: AbortSignal) => AsyncIterable<ChatLiveEvent>;
 }

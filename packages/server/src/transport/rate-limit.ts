@@ -20,6 +20,7 @@ import { rateLimitBuckets } from "@orb/db";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import { DomainRateLimitError } from "@orb/kit/errors";
+import type { Clock } from "@orb/kit/time";
 import { and, like, lt, sql } from "drizzle-orm";
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
@@ -32,7 +33,7 @@ export interface RateLimitConfig {
   readonly points: number | (() => number);
   /** Window size in ms. Fixed-window: a request at second 0 and one at second 59 share a bucket. */
   readonly windowMs: number;
-  readonly now: () => number;
+  readonly now: Clock;
   /** The root's logger; a failed expiry sweep is reported through it. */
   readonly logger: Logger;
 }
