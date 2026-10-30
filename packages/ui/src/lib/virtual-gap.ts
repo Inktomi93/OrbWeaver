@@ -31,6 +31,17 @@ interface ScrollElement {
   readonly getBoundingClientRect: () => { readonly height: number };
 }
 
+/** The unbounded-window tripwire's error: a caller (or a test) tells it from any other mount failure by type, not by message. */
+export class UnboundedScrollHeightError extends Error {
+  readonly seal: string;
+
+  constructor(seal: string, message: string) {
+    super(message);
+    this.name = "UnboundedScrollHeightError";
+    this.seal = seal;
+  }
+}
+
 // The unbounded-window tripwire — thrown, not warned. `seal` names the primitive and `noun` its unit
 // ("list"/"grid") so the message reads naturally; no-op when the ref is not yet attached.
 export function assertBoundedScrollHeight(el: ScrollElement | null, seal: string, noun = "list"): void {
@@ -46,7 +57,8 @@ export function assertBoundedScrollHeight(el: ScrollElement | null, seal: string
   const maxHeightPx = innerHeight * UNBOUNDED_HEIGHT_VIEWPORT_MULTIPLIER;
   const measuredPx = el.getBoundingClientRect().height;
   if (measuredPx > maxHeightPx) {
-    throw new Error(
+    throw new UnboundedScrollHeightError(
+      seal,
       `${seal}: the scroll container measured ${Math.round(measuredPx)}px tall — over ` +
         `${UNBOUNDED_HEIGHT_VIEWPORT_MULTIPLIER}× the viewport (${Math.round(maxHeightPx)}px). ` +
         `The parent gave the ${noun} no bounded height, so every row is 'visible' and ` +
