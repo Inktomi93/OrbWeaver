@@ -724,6 +724,9 @@ export const userSettingsSchema = z.object({
 
 export type UserSettings = z.infer<typeof userSettingsSchema>;
 
+/** Read one user's stored settings, defaults filled. */
+export type LoadUserSettings = (userId: UserId) => Promise<UserSettings>;
+
 /** The object-valued namespaces a section-patch can target (`updateUserSettingsSection`). */
 export const USER_SETTINGS_SECTIONS = [
   "seeds",

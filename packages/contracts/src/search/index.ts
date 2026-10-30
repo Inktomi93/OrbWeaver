@@ -241,6 +241,18 @@ export interface SimilarArtHit {
   readonly lens: ImageLens;
 }
 
+/** The scope a document search runs over: one chat's active documents, or an owner's whole bank. */
+export type DocumentSearchScope = { readonly chatId: ChatId } | { readonly ownerId: UserId };
+
+/** The databank scope-junction resolver, injected into search at the composition root. The union SQL has one
+ *  home in the databank domain, so search never re-implements it. */
+export type ResolveActiveDocumentIdsOp = (scope: DocumentSearchScope) => Promise<readonly DocumentId[]>;
+
+/** The memory tier grid: the message-index span one digest block `(tier, blockIdx)` covers. The fanOut math
+ *  stays one-homed in chat/memory (`resolveTier0Range`); consumers receive the resolver bound over the live
+ *  memory config at the entry root and never spell `fanOut` themselves. Tier 0 is the identity range. */
+export type Tier0RangeOp = (tier: number, blockIdx: number) => { readonly startIdx: number; readonly endIdx: number };
+
 /** One databank chunk hit. `score` is the CSLS-adjusted retrieval score
  *  (LOWER = closer), preserved even when rerank reordered the list. `documentName` is joined from
  *  `documents` for the `# {name}` provenance header the slot renders; `contentHash` is the collapse key. */

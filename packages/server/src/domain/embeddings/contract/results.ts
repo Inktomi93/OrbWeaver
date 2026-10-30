@@ -1,6 +1,10 @@
 import type { ImageCaptionMeta } from "@orb/contracts/embeddings";
+import type { EffectiveAppConfig } from "@orb/contracts/settings";
 
 export type { StoreResult } from "@orb/contracts/embeddings";
+
+/** The live effective-config read both the reindex triggers and the indexer subscription close over. */
+export type EffectiveConfigRead = () => EffectiveAppConfig;
 
 export interface WriteHubScoresResult {
   readonly rowsUpdated: number;
@@ -27,12 +31,6 @@ export interface StoredImageAnalysis extends AvatarAnalysis {
 export interface ExistingCaptionedRow {
   readonly hash: string;
   readonly hasFacets: boolean;
-}
-
-/** Resumable: embedded = items with at least one fresh vector row this run; skipped = already embedded or vanished. */
-export interface BulkEmbedResult {
-  readonly embedded: number;
-  readonly skipped: number;
 }
 
 /** The image ADMISSION-FLOOR verdict (`substrate/image-admission`): whether an asset's header-parsed

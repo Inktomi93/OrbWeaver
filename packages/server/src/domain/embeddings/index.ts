@@ -4,8 +4,6 @@
 // `@orb/contracts/role-clients` — callers import those from contracts, not through this door.
 
 export type { LiveEmbedSpaceDeps } from "./contract/live-embed-space.ts";
-// Consumed by `discovery` + `search` + tests, not just this domain.
-export type { VectorTable } from "./contract/params.ts";
 export type { EmbeddingReindexTriggers, VacuousMemoryReceiptDeps } from "./contract/reindex.ts";
 // The entry root wires these; transport/tests reference them directly.
 export type {

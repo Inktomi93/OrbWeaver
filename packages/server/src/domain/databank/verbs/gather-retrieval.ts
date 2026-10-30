@@ -8,9 +8,9 @@
 // byte-equals the non-databank build. Scope resolves ONCE inside `search.documents` (the empty-allowlist
 // short-circuit does zero embed work on a bankless chat), so there is no pre-check here.
 
+import type { DocumentChunkHit } from "@orb/contracts/search";
 import type { DocumentId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
-import type { DocumentChunkHit } from "#domain/search";
 import type { DatabankGatherParams } from "../contract/params.ts";
 import type { DatabankGatherResult } from "../contract/results.ts";
 import type { DatabankContext, DatabankService } from "../contract/service.ts";

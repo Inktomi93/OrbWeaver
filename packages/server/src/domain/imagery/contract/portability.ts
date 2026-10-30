@@ -2,12 +2,12 @@
 // from the trusted bundle runner; carried context and ids are never an admission predicate.
 
 import type { PortableImageryCall, PortableImageryImage } from "@orb/contracts/imagery";
-import type { PortableFile, PortableImportOutcome } from "@orb/contracts/portability";
+import type { PortableEntity } from "@orb/contracts/portability";
 import type { BumpStatsCanonVersion } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import type { BatchHandle, DatabaseHandle, DbAssemblyInput } from "@orb/db/wiring";
-import type { ImageryCallId, ImageryGenerationId, UserId } from "@orb/kit/ids";
+import type { ImageryCallId, ImageryGenerationId } from "@orb/kit/ids";
 
 export interface ImageryPortabilityContext {
   readonly db: Db;
@@ -20,10 +20,7 @@ export type ImageryPortabilityAssemblyContext = Omit<DbAssemblyInput<ImageryPort
   readonly bumpStatsCanonVersion: BumpStatsCanonVersion<BatchHandle, DatabaseHandle>;
 };
 
-export interface ImageryPortabilityService {
-  readonly exportAll: (ownerId: UserId) => AsyncIterable<PortableFile>;
-  readonly importFile: (ownerId: UserId, file: PortableFile) => Promise<PortableImportOutcome>;
-}
+export interface ImageryPortabilityService extends Readonly<Pick<PortableEntity, "exportAll" | "importFile">> {}
 
 export interface ImageryImportWriteResult {
   readonly admitted: boolean;

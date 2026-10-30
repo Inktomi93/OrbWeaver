@@ -6,6 +6,7 @@
 // within the span (NOT the time-interval midpoint — schema/discovery.ts column comment). Idempotent plain
 // UPDATE, no id/clock.
 
+import type { Tier0RangeOp } from "@orb/contracts/search";
 import type { WorkloadRunScope } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import { digestThemeAssignments, messages } from "@orb/db";
@@ -13,7 +14,6 @@ import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
 import type { ChatDigestId, ChatId } from "@orb/kit/ids";
 import { asc, eq, inArray } from "drizzle-orm";
-import type { Tier0RangeOp } from "../contract/service.ts";
 import { readSegmentBlockSpans, readTier0DigestSpans, readTierKDigestSpans } from "../persistence/embed-store-reads.ts";
 
 interface SeqSpan {

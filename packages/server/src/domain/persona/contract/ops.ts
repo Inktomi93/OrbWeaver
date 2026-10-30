@@ -1,5 +1,5 @@
 import type { JoinerPersona } from "@orb/contracts/persona";
-import type { UserSettings } from "@orb/contracts/settings";
+import type { LoadUserSettings } from "@orb/contracts/settings";
 import type { AwaitableStatementToken } from "@orb/db/wiring";
 import type { Handle, PersonaId, UserId } from "@orb/kit/ids";
 
@@ -40,5 +40,5 @@ export type JoinerPersonaStatementOp = (args: { readonly ownerId: UserId; readon
  *  (sessions owns the `users` read) and the user's settings (the profile avatar fallback). */
 export interface UserPublicsDeps {
   readonly loadUserHandle: (userId: UserId) => Promise<Handle | null>;
-  readonly loadUserSettings: (userId: UserId) => Promise<UserSettings>;
+  readonly loadUserSettings: LoadUserSettings;
 }

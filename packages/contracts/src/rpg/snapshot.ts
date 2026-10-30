@@ -13,6 +13,7 @@ import { z } from "zod";
 import type { RpgActorRef } from "./actor.ts";
 import { actorRefKey, rpgActorEntrySchema } from "./actor.ts";
 import { rpgClockTimeSchema, rpgWeatherSchema } from "./ambient.ts";
+import type { RPG_CHECKPOINT_TRIGGERS } from "./enums.ts";
 import { rpgQuestStatusSchema } from "./enums.ts";
 import { rpgTrackerValuesSchema } from "./tracker.ts";
 
@@ -148,4 +149,16 @@ export function rpgActorVolatileLockBase(ref: RpgActorRef): string {
  *  plane-wide, so pinning one NPC's mood froze every npc. */
 export function rpgActorIdentityLockBase(ref: RpgActorRef): string {
   return `${rpgActorLockBase(ref)}.identity`;
+}
+
+/** One `rpg_checkpoints` row as a portable campaign carries it, pointing at its snapshot by POSITION in the
+ *  campaign's snapshot list. The position is the one place an index appears in the portable contract: a
+ *  checkpoint's target is an rpg row the same payload mints, not a chat row the caller remaps. RESTRICT at the
+ *  db makes a dangling target a hard error, so the serde prunes an unresolvable one rather than letting it
+ *  abort the restore. */
+export interface RpgPortableCheckpoint {
+  readonly snapshotIndex: number;
+  readonly label: string;
+  readonly trigger: (typeof RPG_CHECKPOINT_TRIGGERS)[number];
+  readonly createdAt: number;
 }

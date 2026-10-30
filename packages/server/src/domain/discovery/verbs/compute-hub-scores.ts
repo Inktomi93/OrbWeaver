@@ -3,10 +3,10 @@
 // the injected `embeddings.writeHubScores` seam — discovery computes the values, embeddings owns the write.
 // OWNER-SCOPED always: csls never compares one owner's vectors against another's.
 
+import type { HubScoreUpdate, VectorTable } from "@orb/contracts/embeddings";
 import type { EveryOwnerRun, WorkloadRunScope } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
-import type { VectorTable } from "#domain/embeddings";
 import type { ComputeHubScoresOptions } from "../contract/params.ts";
 import type { HubStats } from "../contract/results.ts";
 import type { ComputeHubScoresDeps, DiscoveryContext, DiscoveryService } from "../contract/service.ts";
@@ -28,12 +28,6 @@ interface HubRow {
   readonly model: string;
   readonly embedding: Float32Array;
   readonly contentHash: string;
-}
-
-interface HubUpdate {
-  readonly id: string;
-  readonly model: string;
-  readonly hubScore: number;
 }
 
 function groupBy<T>(rows: readonly T[], keyOf: (row: T) => string): Map<string, T[]> {
@@ -87,7 +81,7 @@ async function runHubPass<T extends HubRow>(
   },
 ): Promise<HubStats> {
   const { table, groupKeyOf, deps, opts } = cfg;
-  const updates: HubUpdate[] = [];
+  const updates: HubScoreUpdate[] = [];
   const groups = groupBy(rows, groupKeyOf);
   for (const [, group] of groups) {
     const { reps, repOf } = collapseByHash(

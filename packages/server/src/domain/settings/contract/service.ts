@@ -6,8 +6,8 @@ import type {
   BackgroundLibraryEntry,
   EffectiveAppConfig,
   GlobalSettingView,
+  LoadUserSettings,
   ThemeView,
-  UserSettings,
   UserSettingsView,
 } from "@orb/contracts/settings";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
@@ -126,7 +126,7 @@ export interface SettingsService {
    *  `DomainOperationError(background_unavailable)` on an unreachable / non-image / too-large URL. */
   readonly addExternalBackground: (params: AddExternalBackgroundParams) => Promise<BackgroundLibraryEntry>;
   /** The lenient typed-blob loader for cross-feature callers (raw `userId`, not a gated user-facing verb). */
-  readonly loadUserSettings: (userId: UserId) => Promise<UserSettings>;
+  readonly loadUserSettings: LoadUserSettings;
 
   /** WHAT THIS BOX IS — version + commit + channel + where the answer came from, frozen at boot. Deployment-global and
    *  principal-less by construction: every authed caller reads the same block, and there is no id to accept. */

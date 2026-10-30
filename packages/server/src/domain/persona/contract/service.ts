@@ -10,6 +10,7 @@ import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { AuditEntry } from "#foundation/observability";
 import type {
   ConnectParams,
@@ -33,7 +34,7 @@ import type { DisconnectResult, PersonaImportOutcome, PersonaPortableFile, Perso
 /** The DI bundle every persona verb closes over, wired at the composition root. */
 export interface PersonaContext {
   readonly db: Db;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly newPersonaId: () => PersonaId;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   /** Fires `personasChanged` with the acting owner's `userId` after every persona-CRUD write commits, so a

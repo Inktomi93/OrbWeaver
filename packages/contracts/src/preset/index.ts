@@ -584,6 +584,10 @@ export interface ReasoningTagPair {
 }
 export type RolePresetParams = Pick<UserIntent, RolePresetField> & { readonly reasoningTags?: ReasoningTagPair | undefined };
 
+/** A user's Utility-role preset params, `undefined` under task defaults — resolved at the composition root so a
+ *  domain never reads the preset domain. */
+export type ResolveUtilityPresetParams = (userId: UserId) => Promise<RolePresetParams | undefined>;
+
 const XML_OPEN_TAG_RE = /^<(?<name>[A-Za-z][\w:-]*)>$/u;
 
 /** A tag pair as the stream splitter carries it: trimmed (SillyTavern's default pair wraps the tags in newlines), and
