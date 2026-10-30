@@ -10,15 +10,15 @@ area: ui
 
 ## What
 
-The change, in a sentence.
+On desktop, the Characters bulk bar shows "2 selected" overlapping the Tag button.
 
 ## Why
 
-The symptom or the ruling behind it.
+Pre-existing; side-eye found it during the tone review (`reports/side-eye/tone-step1/`).
 
 ## Done when
 
-The observable bar a verifier can check.
+The count and every bulk action are visible and hit-testable at desktop widths, pinned by a CT.
 
 ## Evidence
 

@@ -10,15 +10,15 @@ area: ui
 
 ## What
 
-The change, in a sentence.
+On a mid-grey custom theme, an unchecked checkbox's border is nearly invisible.
 
 ## Why
 
-The symptom or the ruling behind it.
+Pre-existing; side-eye found it during the tone review. An unchecked control must show its boundary (WCAG 1.4.11).
 
 ## Done when
 
-The observable bar a verifier can check.
+The unchecked checkbox border clears 3:1 against its host in each seed and on `oklch(0.6 0 0)`, pinned by a CT.
 
 ## Evidence
 
