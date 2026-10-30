@@ -3,6 +3,7 @@
 // @subject packages/server/src/domain/embeddings/verbs/embed-assets.ts
 // @subject packages/server/src/domain/embeddings/indexer/image.ts
 
+import { rm } from "node:fs/promises";
 import { embedGenerations, embedSpaceState, imageAnalyses, imageEmbeddings } from "@orb/db";
 import { readSeedAvatar, SEED_MANIFEST } from "@orb/default-content";
 import type { AssetId } from "@orb/kit/ids";
@@ -157,4 +158,34 @@ test("an avatar already indexed by its own event still promotes its generation i
   expect(await root.app.embeddings.embedAssets({ ownerId: null, force: false, signal: signal() })).toEqual({ embedded: 0, skipped: 1 });
   expect(wire.requests).toHaveLength(spent);
   expect(await root.db.select().from(embedSpaceState).where(eq(embedSpaceState.scope, "images"))).toEqual([expect.objectContaining({ ownerId: owner.userId })]);
+});
+
+test("an avatar whose stored file is gone fails alone: the rest embed and the run names the failed asset", async () => {
+  await using lifetime = new AsyncDisposableStack();
+  const { root, assetIds } = await unindexedAvatars(2, lifetime);
+  const [vanished, kept] = assetIds;
+  if (vanished === undefined || kept === undefined) {
+    throw new Error("the case stores two avatars");
+  }
+  const ref = await root.services.assets.assetCasRefById(vanished);
+  if (ref === undefined) {
+    throw new Error("the stored avatar must have a CAS reference");
+  }
+  await rm(root.app.cas.blobPath(ref.ownerId, ref.hash));
+  const positions: [number, number][] = [];
+
+  const result = await root.app.embeddings.embedAssets({
+    ownerId: null,
+    force: false,
+    signal: signal(),
+    onProgress: (done, total) => positions.push([done, total]),
+  });
+
+  expect(result).toEqual({ embedded: 1, skipped: 0, failedAssets: [vanished] });
+  expect(new Set((await root.db.select().from(imageEmbeddings)).map((row) => row.assetId))).toEqual(new Set([kept]));
+  // The failed asset still counts as a visited position, so the progress bar reaches its denominator.
+  expect(positions).toEqual([
+    [1, 2],
+    [2, 2],
+  ]);
 });
