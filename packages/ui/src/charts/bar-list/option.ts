@@ -11,7 +11,7 @@
 // ellipsized inside it (the untruncated name survives in the tooltip).
 import type { OrbChartOption } from "../chart/echarts-setup.ts";
 import { widestChartLabelPx } from "../chart/label-metrics.ts";
-import { AXIS_LABEL_OUTER_BOUNDS } from "../chart/merge-option.ts";
+import { AXIS_LABEL_OUTER_BOUNDS, chartTooltipChrome } from "../chart/merge-option.ts";
 import type { ChartColors } from "../chart/use-chart-theme.ts";
 
 export interface BarListItem {
@@ -99,6 +99,7 @@ export function buildBarListOption(
       // once the axis label is ellipsized to its budget.
       trigger: "item",
       valueFormatter: (value) => valueFormatter(Number(value)),
+      ...chartTooltipChrome(colors),
     },
     xAxis: { type: "value", show: false, ...(layout.valueMax === undefined ? {} : { max: layout.valueMax }) },
     yAxis: {

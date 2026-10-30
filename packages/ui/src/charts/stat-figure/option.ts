@@ -9,6 +9,7 @@
 // live via `useChartTheme` (§11.3) and passes it in; this builder never touches tokens. (The bare
 // number+delta tile mounts no chart, so it never reaches here.)
 import type { OrbChartOption } from "../chart/echarts-setup.ts";
+import { chartTooltipChrome } from "../chart/merge-option.ts";
 import type { ChartColors } from "../chart/use-chart-theme.ts";
 
 export function buildSparklineOption(trend: readonly number[], colors: ChartColors): OrbChartOption {
@@ -16,7 +17,7 @@ export function buildSparklineOption(trend: readonly number[], colors: ChartColo
     grid: { left: 0, right: 0, top: colors.metrics.tight, bottom: 0 },
     xAxis: { type: "category", show: false, data: trend.map((_, index) => String(index)) },
     yAxis: { type: "value", show: false, min: "dataMin", max: "dataMax" },
-    tooltip: { trigger: "axis" },
+    tooltip: { trigger: "axis", axisPointer: { lineStyle: { color: colors.axisLine } }, ...chartTooltipChrome(colors) },
     series: [
       {
         type: "line",

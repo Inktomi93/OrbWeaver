@@ -13,6 +13,10 @@ const NATIVE = z.object({ css: z.string(), pixel: RGBA });
 const PAINT = z.object({
   series: NATIVE,
   border: NATIVE,
+  muted: NATIVE,
+  popover: NATIVE,
+  popoverText: NATIVE,
+  tooltip: z.object({ background: NATIVE, text: NATIVE }).nullable(),
   cells: z.tuple([POINT, POINT, POINT]),
   stops: z.tuple([POINT, POINT, POINT]),
   layers: z.array(z.object({ cells: TRIPLE_RGBA, stops: TRIPLE_RGBA })),
@@ -47,6 +51,20 @@ async function readPaint(page: Page): Promise<Paint> {
   return PAINT.parse(JSON.parse((await page.getByLabel("Heatmap paint", { exact: true }).textContent()) ?? ""));
 }
 
+// The live-token store repaints after its observer fires; wait for the cell layer to carry both ramp ends.
+async function untilRethemed(page: Page): Promise<void> {
+  await expect
+    .poll(async () => {
+      const current = await readPaint(page);
+      return Math.min(
+        ...current.layers.map((candidate) =>
+          Math.max(channelGap(candidate.cells[2], current.series.pixel), channelGap(candidate.cells[0], current.border.pixel)),
+        ),
+      );
+    })
+    .toBeLessThanOrEqual(CHANNEL_TOLERANCE);
+}
+
 /** The engine's composited screen pixels at chart-local points. */
 async function composited(page: Page, points: readonly (readonly [number, number])[]): Promise<{ readonly png: Buffer; readonly pixels: Rgba[] }> {
   const png = await page.locator('[data-slot="heatmap"] [data-slot="chart"]').screenshot({ scale: "css", animations: "disabled" });
@@ -67,17 +85,7 @@ test("Heatmap cells and legend stops paint distinct live token colors across the
     await test.step(theme.name, async () => {
       await page.evaluate((mode) => document.documentElement.setAttribute("data-theme", mode), theme.mode);
       await story.update({ width: WIDTH, tokens: theme.tokens, overrides: theme.overrides });
-      // The live-token store repaints after its observer fires; wait for the cell layer to carry both ramp ends.
-      await expect
-        .poll(async () => {
-          const current = await readPaint(page);
-          return Math.min(
-            ...current.layers.map((candidate) =>
-              Math.max(channelGap(candidate.cells[2], current.series.pixel), channelGap(candidate.cells[0], current.border.pixel)),
-            ),
-          );
-        })
-        .toBeLessThanOrEqual(CHANNEL_TOLERANCE);
+      await untilRethemed(page);
       const paint = await readPaint(page);
       // Cell composites are evidence only: under mobile emulation Playwright's WebKit can paint the root
       // background into an upper canvas layer's transparent pixels, which covers the cells beneath it.
@@ -115,4 +123,43 @@ test("Heatmap cells and legend stops paint distinct live token colors across the
     });
   }
   expect(paints.size).toBe(THEMES.length);
+});
+
+test("Heatmap split areas, legend track and tooltip paint their theme tokens, not ECharts' light defaults", async ({ mount, page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark", forcedColors: "none" });
+  const story = await mount<typeof HeatmapPaintStory>("tests/ui/charts/heatmap/_heatmap-paint-stories/HeatmapPaintStory", { width: WIDTH });
+  for (const theme of THEMES) {
+    await test.step(theme.name, async () => {
+      await page.evaluate((mode) => document.documentElement.setAttribute("data-theme", mode), theme.mode);
+      await story.update({ width: WIDTH, tokens: theme.tokens, overrides: theme.overrides });
+      await untilRethemed(page);
+
+      // The middle column is the one cell whose x split band is the transparent one, so a split-area pixel there
+      // is the single muted band of the y axis. The series paints on a layer above it.
+      const paint = await readPaint(page);
+      expect(
+        paint.layers.some((layer) => near(layer.cells[1], paint.muted.pixel)),
+        `a renderer layer must paint the split area as ${paint.muted.css}; layers read ${paint.layers.map((layer) => layer.cells[1].join()).join(" | ")}`,
+      ).toBe(true);
+
+      // Narrowed to its minimum the legend's in-range ramp collapses, leaving the inactive track across the bar.
+      await page.getByRole("button", { name: "Narrow heatmap legend", exact: true }).click();
+      await expect
+        .poll(async () => {
+          const narrowed = await readPaint(page);
+          return narrowed.layers.some((layer) => near(layer.stops[2], narrowed.muted.pixel));
+        }, `the legend track must paint ${paint.muted.css}`)
+        .toBe(true);
+
+      const cell = paint.cells[1];
+      await page.locator('[data-slot="heatmap"] [data-slot="chart"]').hover({ position: { x: cell[0], y: cell[1] } });
+      await expect.poll(async () => (await readPaint(page)).tooltip !== null, "the hovered cell opens the chart tooltip").toBe(true);
+      const { tooltip } = await readPaint(page);
+      if (tooltip === null) {
+        throw new Error("The tooltip closed before it was read");
+      }
+      expect(near(tooltip.background.pixel, paint.popover.pixel), `tooltip background ${tooltip.background.css} must paint ${paint.popover.css}`).toBe(true);
+      expect(near(tooltip.text.pixel, paint.popoverText.pixel), `tooltip text ${tooltip.text.css} must paint ${paint.popoverText.css}`).toBe(true);
+    });
+  }
 });
