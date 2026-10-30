@@ -1,4 +1,5 @@
 import { CARD_CORNERS, tv } from "#lib";
+import type { Tone } from "#tokens";
 
 // Avatar sizes ride display tokens, decoupled from control-height/touch-target tokens — an avatar that
 // IS a button composes inside `Button` and inherits its own hit area.
@@ -6,7 +7,7 @@ export const avatarVariants = tv({
   slots: {
     root: `
       relative inline-flex shrink-0 items-center justify-center overflow-hidden bg-muted align-middle select-none
-      in-data-has-bg-image:border-hairline in-data-has-bg-image:border-solid in-data-has-bg-image:border-primary/50
+      in-data-has-bg-image:border-hairline in-data-has-bg-image:border-solid in-data-has-bg-image:border-tone-edge
     `,
     // Retained native images need a box for lazy loading, but must neither paint nor share the fallback's flex space.
     image: "object-cover block-full inline-full data-error:invisible data-error:absolute data-loading:invisible data-loading:absolute",
@@ -68,3 +69,6 @@ export const avatarVariants = tv({
     ring: "none",
   },
 });
+
+/** The D336 tone of the portrait edge drawn over a wallpaper. */
+export const AVATAR_EDGE_TONE = "primary" satisfies Tone;

@@ -3,6 +3,7 @@ import { cpSync, lstatSync, mkdirSync, readFileSync, renameSync, rmSync, symlink
 import { dirname, join } from "node:path";
 import { isPlainObject } from "@orb/kit/guards";
 import { expect, test } from "@orb/testkit/node";
+import { generateArtifacts } from "@orb/ui/tokens-build";
 import { describe } from "vitest";
 import type { TokenContractTexts } from "../../packages/ui/token-contract.ts";
 import {
@@ -416,6 +417,56 @@ describe("Orb semantic controls", () => {
     };
     expect(codes(texts)).toContain("token.scan.empty");
   });
+});
+
+describe("D336 tone role controls", () => {
+  const vault = (): TokenContractTexts => readTokenContractTexts(UI_ROOT);
+  const role = (base: Record<string, unknown>, name: string): Record<string, unknown> => descend(descend(base, "color"), name);
+  const recipe = (base: Record<string, unknown>, name: string): Record<string, unknown> => descend(descend(role(base, name), "$extensions"), "orb.output");
+
+  test("a role operand that is not a carried host, a tone-mix knob or a role is refused", () => {
+    const host = mutate(vault(), "base", (base) => {
+      role(base, "tone-tint")["$value"] = "{color.sidebar}";
+    });
+    expect(codes(host)).toContain("tone.operand");
+    const knob = mutate(vault(), "base", (base) => {
+      recipe(base, "tone-text")["colored"] = { mix: "{opacity.receded}", toward: "foreground" };
+    });
+    expect(codes(knob)).toContain("tone.operand");
+    const floor = mutate(vault(), "base", (base) => {
+      recipe(base, "tone-text")["floor"] = ["{color.highlight}"];
+    });
+    expect(codes(floor)).toContain("tone.operand");
+  });
+
+  test("a colored tone without its intent pair, a tuple without neutral, and a role outside color.tone-* are refused", () => {
+    const pair = mutate(vault(), "base", (base) => {
+      descend(base, "$extensions")["orb.tones"] = ["primary", "neutral", "accolade"];
+    });
+    expect(codes(pair)).toContain("tone.pair");
+    const neutral = mutate(vault(), "base", (base) => {
+      descend(base, "$extensions")["orb.tones"] = ["primary", "destructive"];
+    });
+    expect(codes(neutral)).toContain("orb.tones");
+    const placement = mutate(vault(), "base", (base) => {
+      const colors = descend(base, "color");
+      colors["edge-tone"] = colors["tone-edge"];
+    });
+    expect(codes(placement)).toContain("orb.output.type");
+  });
+});
+
+test("a planted recipe under a floor fails the token build", async ({ importStagingDir }) => {
+  const root = join(importStagingDir, "repository");
+  const ui = join(root, "packages/ui");
+  cpSync(join(UI_ROOT, "src/tokens"), join(ui, "src/tokens"), { recursive: true });
+  await expect(generateArtifacts(ui)).resolves.toBeDefined();
+  const tokens = join(ui, "src/tokens/tokens.json");
+  const planted = mutate(readTokenContractTexts(ui, root), "base", (base) => {
+    descend(descend(base, "tone-mix"), "text-on-tint")["$value"] = 100;
+  });
+  writeFileSync(tokens, planted.base);
+  await expect(generateArtifacts(ui)).rejects.toThrow(/D336 tone floors missed on a shipped palette[\s\S]*tone-text-on-tint on tone-tint/);
 });
 
 describe("bounded Resolver controls", () => {

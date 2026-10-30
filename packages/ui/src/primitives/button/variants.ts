@@ -1,4 +1,5 @@
-import type { ClassValue } from "tailwind-variants";
+import type { ClassValue, VariantProps } from "tailwind-variants";
+import type { ToneStamp } from "#lib";
 import {
   ACCENT_HOVER,
   CARD_CORNERS,
@@ -15,6 +16,7 @@ import {
   HOVER_REVEAL,
   SELECTED_FILL,
   SELECTION_RAIL,
+  SELECTION_RAIL_TONE,
   TONE_INK,
   TOUCH_FLOOR_AT_COARSE,
   TOUCH_TARGET_PSEUDO,
@@ -56,6 +58,9 @@ function inlineBox(typeStep: string): string[] {
   return ["relative block-auto min-block-0 justify-start font-normal", typeStep, TOUCH_TARGET_PSEUDO_STRETCH];
 }
 
+// The D336 solid and its pressed steps, in the tone `buttonTone` stamps.
+const TONE_SOLID_PRESSABLE = "bg-tone-solid text-tone-foreground hover:bg-tone-solid-hover active:bg-tone-solid-active";
+
 export const buttonVariants = tv({
   base: [
     "inline-flex items-center justify-center gap-field font-sans font-medium whitespace-nowrap select-none",
@@ -73,13 +78,13 @@ export const buttonVariants = tv({
       // A disabled primary drops the accent fill for the neutral muted pair (a half-opacity accent read as nearly enabled).
       // A busy (`loading`) button is disabled too but is working, so it keeps its fill; `globals.css` quiets its ring to match.
       primary: [
-        "bg-primary text-primary-foreground shadow-cta hover:bg-primary/90 hover:shadow-cta-glow active:bg-primary/80",
+        `${TONE_SOLID_PRESSABLE} shadow-cta hover:shadow-cta-glow`,
         "disabled:not-aria-busy:bg-muted disabled:not-aria-busy:text-muted-foreground disabled:not-aria-busy:shadow-none",
         "data-disabled:not-aria-busy:bg-muted data-disabled:not-aria-busy:text-muted-foreground data-disabled:not-aria-busy:shadow-none",
       ],
       secondary: `border border-border bg-transparent text-current ${ACCENT_HOVER} active:bg-accent/80`,
       ghost: `text-current ${ACCENT_HOVER} active:bg-accent/80`,
-      destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/80",
+      destructive: TONE_SOLID_PRESSABLE,
       // THE RESTING HAIRLINE (added 2026-08-17, program #102 variant B) — `ghost`'s ink with `secondary`'s
       // edge, which is the one combination the intent axis could not spell and the one a FILTER CHIP needs.
       //
@@ -94,10 +99,11 @@ export const buttonVariants = tv({
       // An ACTION SPELLED AS A LINK: an underlined run inside prose or a gloss line that
       // does something in place. Navigation is an anchor, not this. No fill at any state, because a link-shaped
       // control that grows a box on hover is a button pretending; the hover is the ink, the press the scale.
-      link: "bg-transparent text-primary underline hover:text-primary/80 active:text-primary/70",
+      // The hover and press steps take the on-tint ink, one step nearer the page ink, so the link brightens against the page.
+      link: "bg-transparent text-tone-text underline hover:text-tone-text-on-tint active:text-tone-text-on-tint",
       // The primary fill without the CTA lift (no `shadow-cta`, no `data-cta` ring): a glyph disc that turns on
       // when its action is ready, such as Send with a draft waiting. The region's one CTA stays `primary`.
-      solid: "bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80",
+      solid: TONE_SOLID_PRESSABLE,
       // A button that wraps a picture (a portrait, a band of art) and draws nothing of its own: no fill at any
       // state, so the art stays the affordance; it dims a step on hover instead of gaining an accent box.
       bare: "cursor-pointer bg-transparent text-current hover:opacity-80",
@@ -273,3 +279,37 @@ export const buttonVariants = tv({
     focusRing: "surface",
   },
 });
+
+const INTENT_TONE = {
+  primary: "primary",
+  secondary: null,
+  ghost: null,
+  destructive: "destructive",
+  outline: null,
+  link: "primary",
+  solid: "primary",
+  bare: null,
+} as const satisfies Record<keyof typeof buttonVariants.variants.intent, ToneStamp>;
+
+const INK_TONE_OF = {
+  default: null,
+  primary: "primary",
+  destructive: "destructive",
+  warning: "warning",
+  muted: null,
+  foreground: null,
+} as const satisfies Record<keyof typeof buttonVariants.variants.tone, ToneStamp>;
+
+type ButtonVariantProps = VariantProps<typeof buttonVariants>;
+
+/**
+ * The D336 tone a button's roles resolve against. A filled intent names its own; a fill-less intent takes its
+ * `tone` ink, and a selection rail takes the primary rail it paints.
+ */
+export function buttonTone(intent: ButtonVariantProps["intent"], tone: ButtonVariantProps["tone"], selection: ButtonVariantProps["selection"]): ToneStamp {
+  const resolved = intent ?? "primary";
+  if (!(FILL_LESS_INTENTS as readonly string[]).includes(resolved)) {
+    return INTENT_TONE[resolved];
+  }
+  return INK_TONE_OF[tone ?? "default"] ?? (selection === "rail" ? SELECTION_RAIL_TONE : INTENT_TONE[resolved]);
+}

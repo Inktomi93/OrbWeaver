@@ -166,11 +166,12 @@ export const trackBarVariants = tv({
     // inherit the rack's steel-blue setup / warm-amber zone accent, and the ramp's step 1 (vitality
     // GREEN) is a hue the surface language does not otherwise contain (side-eye 2026-08-02, the
     // mock-vs-rendered classification). Held at 55% so a column of bars stays quieter than the value
-    // text beside it, which is the accessible datum (§3.2 — the bar itself is aria-hidden).
+    // text beside it, which is the accessible datum (§3.2 — the bar itself is aria-hidden). The fill is the
+    // zone tone's held-back edge, stamped on the fill element.
     accent: {
       ramp: {},
-      info: { fill: "bg-info/55" },
-      warning: { fill: "bg-warning/55" },
+      info: { fill: "bg-tone-edge" },
+      warning: { fill: "bg-tone-edge" },
     },
   },
   defaultVariants: { accent: "ramp", width: "full" },

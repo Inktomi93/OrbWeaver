@@ -643,7 +643,8 @@ export interface RampDeltas {
  * polarity returns the pre-#682 number exactly. If an arbitrary accepted base would let a proposed member
  * cross that boundary, only that DERIVED delta retracts toward zero on a 0.001 grid until the base's
  * black/white endpoint clears it. Accent and sidebar-accent are exempt because each owns a dedicated
- * surface foreground; projecting those would erase authored ramp intent for no shared-ink obligation. The
+ * surface foreground, with one D336 exception: accent shares its ink with muted (the neutral tone's two tints), so
+ * where that family has no ink the accent delta retracts toward the base ({@link accentFamilyDelta}). The
  * authored base is never projected; the three seeds never trigger the retraction; and every semantic
  * foreground therefore has a clearing endpoint without an importer-only refusal band.
  *
@@ -671,18 +672,37 @@ function contrastSafeRampDelta(base: Oklch, desired: number, polarity: SurfacePo
   return Number((sign * safeSteps * FOREGROUND_L_STEP).toFixed(FOREGROUND_L_DECIMALS));
 }
 
+/**
+ * The accent delta, retracted toward the base only when the D336 accent ink could not cover both neutral tints
+ * (accent and muted). Near the crossover the unprojected accent lands on the other polarity from muted, and no
+ * one ink clears both; at delta zero the accent is the base, which shares muted's endpoint by projection.
+ */
+function accentFamilyDelta(base: Oklch, desired: number, muted: number): number {
+  const mutedSurface = rampSurface(base, muted);
+  const clears = (delta: number): boolean => familyForegroundLightness([rampSurface(base, delta), mutedSurface]) !== null;
+  const sign = Math.sign(desired);
+  for (let steps = Math.round(Math.abs(desired) / FOREGROUND_L_STEP); steps > 0; steps -= 1) {
+    const delta = Number((sign * steps * FOREGROUND_L_STEP).toFixed(FOREGROUND_L_DECIMALS));
+    if (clears(delta)) {
+      return steps === Math.round(Math.abs(desired) / FOREGROUND_L_STEP) ? desired : delta;
+    }
+  }
+  return 0;
+}
+
 export function rampDeltas(base: Oklch): RampDeltas {
   const polarity = surfacePolarity(base);
   const arm = polarity === "light" ? THEME_DERIVATION.ramp.light : THEME_DERIVATION.ramp.dark;
+  const muted = contrastSafeRampDelta(base, arm.muted, polarity);
   const projected: RampDeltas = {
     sidebar: contrastSafeRampDelta(base, arm.sidebar, polarity),
     surfaceRaised: contrastSafeRampDelta(base, arm.surfaceRaised, polarity),
     card: contrastSafeRampDelta(base, arm.card, polarity),
     popover: contrastSafeRampDelta(base, arm.popover, polarity),
-    accent: arm.accent,
+    accent: accentFamilyDelta(base, arm.accent, muted),
     sidebarAccent: arm.sidebarAccent,
     secondary: contrastSafeRampDelta(base, arm.secondary, polarity),
-    muted: contrastSafeRampDelta(base, arm.muted, polarity),
+    muted,
   };
   return Object.entries(projected).every(([role, delta]) => delta === arm[role as keyof RampDeltas]) ? arm : projected;
 }
@@ -857,17 +877,26 @@ function fillVsCardRatio(fill: Rgb, card: Rgb): number {
  * is nudged rather than replaced. A translucent accent is composited over the card before judging (a naive
  * ratio on a translucent fill lies, `proseInkLightness`'s own trap) and the caller re-emits it OPAQUE.
  *
+ * D336 extends the judge to the solid steps: `solidSteps` maps a fill to its hover and active colours, and a
+ * lightness clears only when one ink also covers the fill and both steps ({@link familyForegroundLightness}).
+ * The steps move away from the page ink, the same direction this search walks, so the walk leaves the
+ * black/white crossover behind.
+ *
  * Returns `null` rather than a bound when NO lightness in `[fgLMin, fgLMax]` clears — a base whose card
  * cannot carry this hue at all. Failing open is the pre-#692 behaviour, and inventing a colour is what
  * this whole file exists not to do.
  */
-export function accentFillLightness(accent: Oklch, accentAlpha: number, base: Oklch): number | null {
+export function accentFillLightness(accent: Oklch, accentAlpha: number, base: Oklch, solidSteps: (fill: Oklch) => readonly Oklch[]): number | null {
   const card = oklchToSrgb(rampSurface(base, rampDeltas(base).card));
   const at = (l: number): Rgb => {
     const opaque = oklchToSrgb({ l, c: accent.c, h: accent.h });
     return accentAlpha < 1 ? compositeSrgb(opaque, accentAlpha, card) : opaque;
   };
-  if (fillVsCardRatio(at(accent.l), card) >= AA_NON_TEXT_RATIO) {
+  const clears = (fill: Rgb): boolean => {
+    const painted = srgbToOklch(fill);
+    return fillVsCardRatio(fill, card) >= AA_NON_TEXT_RATIO && familyForegroundLightness([painted, ...solidSteps(painted)]) !== null;
+  };
+  if (clears(at(accent.l))) {
     return null;
   }
   const towardDark = surfacePolarity(base) === "light";
@@ -877,10 +906,370 @@ export function accentFillLightness(accent: Oklch, accentAlpha: number, base: Ok
     const l = accent.l + (towardDark ? -step : step) * ACCENT_L_STEP;
     // Judged OPAQUE at the re-derived lightness: the caller emits it opaque for the same reason the ink
     // clamp does — a minimal alpha sits on the boundary and re-judging it is a fixed point that never passes.
-    if (fillVsCardRatio(oklchToSrgb({ l, c: accent.c, h: accent.h }), card) >= AA_NON_TEXT_RATIO) {
+    if (clears(oklchToSrgb({ l, c: accent.c, h: accent.h }))) {
       // Re-round: accent.l + n×0.001 accumulates binary-float dust that would reach the CSS literal.
       return Math.round(l / ACCENT_L_STEP) * ACCENT_L_STEP;
     }
   }
   return null;
+}
+
+/** The operands a D336 tone-role mix moves toward. `away` is `light-dark(black, white)`: the solid steps move away from the page ink. */
+export const TONE_MIX_TARGETS = ["foreground", "background", "away"] as const;
+export type ToneMixTarget = (typeof TONE_MIX_TARGETS)[number];
+
+/** What a colored tone's role starts from: its intent base or the base's paired foreground token. */
+export const COLORED_TONE_ORIGINS = ["base", "base-foreground"] as const;
+export type ColoredToneOrigin = (typeof COLORED_TONE_ORIGINS)[number];
+
+/** One `color-mix(in oklab, <origin> var(--tone-mix-<mix>), <toward>)` step. */
+export interface ToneMixStep<Knob extends string> {
+  readonly mix: Knob;
+  readonly toward: ToneMixTarget;
+}
+
+/** A surface a role's ink must clear AA on: a sibling role of the same tone, or a palette host. */
+export type ToneFloorSurface<Role extends string, Host extends string> = { readonly role: Role } | { readonly host: Host };
+
+/**
+ * One D336 role, as data: the token vault authors it and the generated token map carries it, so the build, the
+ * ThemeScope clamp and the tests evaluate the same recipe the `[data-tone]` blocks spell.
+ */
+export interface ToneRoleRecipe<Role extends string, Knob extends string, Host extends string> {
+  readonly colored: ColoredToneOrigin | ToneMixStep<Knob>;
+  /** The neutral tone binds the derived ramp (D202 keeps its inks solved); a step mixes that host further. */
+  readonly neutral: { readonly bind: Host; readonly step?: ToneMixStep<Knob> };
+  readonly floor: readonly ToneFloorSurface<Role, Host>[];
+}
+
+export type ToneRoleRecipes<Role extends string, Knob extends string, Host extends string> = Readonly<Record<Role, ToneRoleRecipe<Role, Knob, Host>>>;
+
+/** The scope colours a tone resolves against: its polarity (the arm `light-dark()` takes) and its ramp hosts. */
+export interface TonePalette<Host extends string> {
+  readonly polarity: SurfacePolarity;
+  readonly foreground: Oklch;
+  readonly background: Oklch;
+  readonly hosts: Readonly<Record<Host, Oklch>>;
+}
+
+/** The ramp hosts a carried palette derives and a tone recipe may bind or floor over. */
+export const CARRIED_TONE_HOSTS = ["background", "foreground", "surface-raised", "card", "muted", "accent", "accent-foreground", "border"] as const;
+export type CarriedToneHost = (typeof CARRIED_TONE_HOSTS)[number];
+
+function opaquePixel(color: Oklch): Oklch {
+  return srgbToOklch(oklchToSrgb(color));
+}
+
+/** The shared ink of the background, raised and card host family. */
+export function carriedForegroundLightness(base: Oklch): number {
+  const deltas = rampDeltas(base);
+  return derivedForegroundLightnessForSurfaces([base, rampSurface(base, deltas.surfaceRaised), rampSurface(base, deltas.card)]);
+}
+
+/** The accent ink covers the accent and muted host family: it is the neutral tone's text on both of its tints (D336). */
+export function carriedAccentInkLightness(base: Oklch): number {
+  const deltas = rampDeltas(base);
+  const lightness = familyForegroundLightness([rampSurface(base, deltas.accent), rampSurface(base, deltas.muted)]);
+  if (lightness === null) {
+    // rampDeltas retracts the accent until this family clears, so a miss here is a derivation defect.
+    throw new Error("unable to derive a contrast-safe accent foreground for the accent and muted family");
+  }
+  return lightness;
+}
+
+/**
+ * One neutral ink for a host family whose members can straddle the black/white crossover (a fill and its hover
+ * steps, or an unprojected accent beside muted). The anchor's endpoint is tried first, then the other; `null`
+ * when neither endpoint clears every member, which near the crossover is physics rather than a search miss.
+ */
+export function familyForegroundLightness(family: readonly Oklch[]): number | null {
+  const [anchor] = family;
+  if (anchor === undefined) {
+    throw new Error("a foreground family needs at least one surface");
+  }
+  const surfaces = family.map((surface) => oklchToSrgb(surface));
+  const first = surfacePolarity(anchor);
+  for (const polarity of [first, first === "light" ? "dark" : "light"] as const) {
+    const endpoint = oklchToSrgb({ l: polarity === "light" ? 0 : 1, c: 0, h: anchor.h });
+    const target = Math.max(AA_NORMAL_RATIO, Math.min(AA_NORMAL_DERIVATION_RATIO, worstTextContrast(endpoint, surfaces)));
+    const lightness = tryNeutralInkLightness(polarity, surfaces, polarity === "light" ? THEME_DERIVATION.fgLMin : THEME_DERIVATION.fgLMax, target);
+    if (lightness !== null) {
+      return lightness;
+    }
+  }
+  return null;
+}
+
+/** The painted pixels of a carried base's ramp hosts, the palette its tone roles resolve against. */
+export function carriedTonePalette(base: Oklch): TonePalette<CarriedToneHost> {
+  const deltas = rampDeltas(base);
+  const polarity = surfacePolarity(base);
+  const background = opaquePixel(base);
+  const foreground = opaquePixel({ l: carriedForegroundLightness(base), c: 0, h: base.h });
+  const borderInk = oklchToSrgb({ l: derivedForegroundLightness(base), c: 0, h: base.h });
+  return {
+    polarity,
+    foreground,
+    background,
+    hosts: {
+      background,
+      foreground,
+      "surface-raised": opaquePixel(rampSurface(base, deltas.surfaceRaised)),
+      card: opaquePixel(rampSurface(base, deltas.card)),
+      muted: opaquePixel(rampSurface(base, deltas.muted)),
+      accent: opaquePixel(rampSurface(base, deltas.accent)),
+      "accent-foreground": opaquePixel({ l: carriedAccentInkLightness(base), c: 0, h: base.h }),
+      border: srgbToOklch(compositeSrgb(borderInk, THEME_DERIVATION.borderAlpha, oklchToSrgb(base))),
+    },
+  };
+}
+
+/** A colored tone's two authored colours: the intent base and its `-foreground` token, at the palette's polarity. */
+export interface ToneColors {
+  readonly base: Oklch;
+  readonly foreground: Oklch;
+}
+
+/** The neutral tone has no colours of its own: it binds the palette's ramp. */
+export type ToneSource = ToneColors | "neutral";
+
+const PERCENT = 100;
+
+function toOklab({ l, c, h }: Oklch): readonly [number, number, number] {
+  const radians = h / DEGREES_PER_RADIAN;
+  return [l, c * Math.cos(radians), c * Math.sin(radians)];
+}
+
+/** `color-mix(in oklab, origin <percent>%, toward)` for two opaque colours, returned in OKLCH. */
+export function mixOklab(origin: Oklch, percent: number, toward: Oklch): Oklch {
+  const weight = percent / PERCENT;
+  const [l1, a1, b1] = toOklab(origin);
+  const [l2, a2, b2] = toOklab(toward);
+  const a = a1 * weight + a2 * (1 - weight);
+  const b = b1 * weight + b2 * (1 - weight);
+  const hue = (((Math.atan2(b, a) * DEGREES_PER_RADIAN) % HUE_WHEEL_DEGREES) + HUE_WHEEL_DEGREES) % HUE_WHEEL_DEGREES;
+  return { l: l1 * weight + l2 * (1 - weight), c: Math.hypot(a, b), h: hue };
+}
+
+const BLACK: Oklch = { l: 0, c: 0, h: 0 };
+const WHITE: Oklch = { l: 1, c: 0, h: 0 };
+
+function mixTarget<Host extends string>(target: ToneMixTarget, palette: TonePalette<Host>): Oklch {
+  switch (target) {
+    case "foreground":
+      return palette.foreground;
+    case "background":
+      return palette.background;
+    case "away":
+      return palette.polarity === "light" ? BLACK : WHITE;
+    default: {
+      const exhaustive: never = target;
+      throw new Error(`unknown tone mix target ${String(exhaustive)}`);
+    }
+  }
+}
+
+function mixStep<Knob extends string, Host extends string>(
+  origin: Oklch,
+  step: ToneMixStep<Knob>,
+  palette: TonePalette<Host>,
+  mix: Readonly<Record<Knob, number>>,
+): Oklch {
+  return mixOklab(origin, mix[step.mix], mixTarget(step.toward, palette));
+}
+
+/** A tone recipe set and the palette it resolves against: what every evaluation below reads. */
+export interface ToneScheme<Role extends string, Knob extends string, Host extends string> {
+  readonly recipes: ToneRoleRecipes<Role, Knob, Host>;
+  readonly palette: TonePalette<Host>;
+}
+
+function roleColor<Role extends string, Knob extends string, Host extends string>(
+  { palette }: ToneScheme<Role, Knob, Host>,
+  recipe: ToneRoleRecipe<Role, Knob, Host>,
+  tone: ToneSource,
+  mix: Readonly<Record<Knob, number>>,
+): Oklch {
+  if (tone === "neutral") {
+    const bound = palette.hosts[recipe.neutral.bind];
+    return recipe.neutral.step === undefined ? bound : mixStep(bound, recipe.neutral.step, palette, mix);
+  }
+  if (recipe.colored === "base") {
+    return tone.base;
+  }
+  if (recipe.colored === "base-foreground") {
+    return tone.foreground;
+  }
+  return mixStep(tone.base, recipe.colored, palette, mix);
+}
+
+/** Every role of one tone, evaluated the way the generated `[data-tone]` block spells it. */
+export function toneRoleColors<Role extends string, Knob extends string, Host extends string>(
+  scheme: ToneScheme<Role, Knob, Host>,
+  tone: ToneSource,
+  mix: Readonly<Record<Knob, number>>,
+): Readonly<Record<Role, Oklch>> {
+  const roles = Object.keys(scheme.recipes) as Role[];
+  return Object.fromEntries(roles.map((role) => [role, roleColor(scheme, scheme.recipes[role], tone, mix)])) as Record<Role, Oklch>;
+}
+
+/** The WCAG ratio a role pair paints: the worse of the float colour and the 8-bit framebuffer pixel. */
+export function toneContrast(ink: Oklch, surface: Oklch): number {
+  return worstTextContrast(oklchToSrgb(ink), [oklchToSrgb(surface)]);
+}
+
+/** One D336 floor a role pair misses. */
+export interface ToneFloorMiss<Role extends string, Host extends string> {
+  readonly role: Role;
+  readonly over: ToneFloorSurface<Role, Host>;
+  readonly ratio: number;
+}
+
+function stepKnob<Role extends string, Knob extends string, Host extends string>(recipe: ToneRoleRecipe<Role, Knob, Host>, tone: ToneSource): Knob | undefined {
+  if (tone === "neutral") {
+    return recipe.neutral.step?.mix;
+  }
+  return typeof recipe.colored === "string" ? undefined : recipe.colored.mix;
+}
+
+/** The knobs a floor's pair reads: its ink role's and, when the surface is a role, the surface's. */
+function floorKnobs<Role extends string, Knob extends string, Host extends string>(
+  recipes: ToneRoleRecipes<Role, Knob, Host>,
+  role: Role,
+  over: ToneFloorSurface<Role, Host>,
+  tone: ToneSource,
+): readonly Knob[] {
+  const surfaceKnob = "role" in over ? stepKnob(recipes[over.role], tone) : undefined;
+  return [stepKnob(recipes[role], tone), surfaceKnob].filter((knob): knob is Knob => knob !== undefined);
+}
+
+/** Narrows a floor check: `knobs` keeps the floors whose pair reads one of them; `ratio` replaces the legal floor. */
+export interface ToneFloorFilter<Knob extends string> {
+  readonly knobs?: ReadonlySet<Knob>;
+  readonly ratio?: number;
+}
+
+/**
+ * Every D336 floor one tone misses under `mix`, at {@link AA_NORMAL_RATIO} unless the filter names another ratio.
+ * {@link solveToneMix} judges one knob group alone through the filter's `knobs`.
+ */
+export function toneFloorMisses<Role extends string, Knob extends string, Host extends string>(
+  scheme: ToneScheme<Role, Knob, Host>,
+  tone: ToneSource,
+  mix: Readonly<Record<Knob, number>>,
+  { knobs, ratio: floor = AA_NORMAL_RATIO }: ToneFloorFilter<Knob> = {},
+): readonly ToneFloorMiss<Role, Host>[] {
+  const colors = toneRoleColors(scheme, tone, mix);
+  const misses: ToneFloorMiss<Role, Host>[] = [];
+  for (const role of Object.keys(scheme.recipes) as Role[]) {
+    for (const over of scheme.recipes[role].floor) {
+      if (knobs !== undefined && !floorKnobs(scheme.recipes, role, over, tone).some((knob) => knobs.has(knob))) {
+        continue;
+      }
+      const ratio = toneContrast(colors[role], "role" in over ? colors[over.role] : scheme.palette.hosts[over.host]);
+      if (ratio < floor) {
+        misses.push({ role, over, ratio });
+      }
+    }
+  }
+  return misses;
+}
+
+/**
+ * Knobs the clamp solves together. A `lower` group's `scaled` knobs step down as one, each in proportion to its
+ * default, so a tint keeps its step to its active twin; for each scaled candidate the `inner` knob takes the
+ * largest percent at most its default that clears. A `raise` group moves its one knob up toward 100, the origin
+ * itself, and takes the smallest percent that clears: the neutral solid steps mix toward the page, so only a
+ * larger share of the solid restores its ink's contrast.
+ */
+export type ToneMixGroup<Knob extends string> =
+  | { readonly direction: "lower"; readonly scaled: readonly Knob[]; readonly inner: Knob }
+  | { readonly direction: "raise"; readonly inner: Knob };
+
+/** The knob defaults and the groups the clamp solves them in. */
+export interface ToneMixSolve<Knob extends string> {
+  readonly defaults: Readonly<Record<Knob, number>>;
+  readonly groups: readonly ToneMixGroup<Knob>[];
+}
+
+/** What one group search judges: the scheme, every tone it paints, and the contrast the search aims at. */
+interface GroupSearch<Role extends string, Knob extends string, Host extends string> {
+  readonly scheme: ToneScheme<Role, Knob, Host>;
+  readonly tones: readonly ToneSource[];
+  readonly ratio: number;
+}
+
+function groupClears<Role extends string, Knob extends string, Host extends string>(
+  search: GroupSearch<Role, Knob, Host>,
+  mix: Readonly<Record<Knob, number>>,
+  knobs: ReadonlySet<Knob>,
+): boolean {
+  return search.tones.every((tone) => toneFloorMisses(search.scheme, tone, mix, { knobs, ratio: search.ratio }).length === 0);
+}
+
+function raiseGroup<Role extends string, Knob extends string, Host extends string>(
+  search: GroupSearch<Role, Knob, Host>,
+  inner: Knob,
+  solved: Record<Knob, number>,
+): boolean {
+  const knobs = new Set<Knob>([inner]);
+  for (let percent = solved[inner]; percent <= PERCENT; percent += 1) {
+    solved[inner] = percent;
+    if (groupClears(search, solved, knobs)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function lowerGroup<Role extends string, Knob extends string, Host extends string>(
+  search: GroupSearch<Role, Knob, Host>,
+  { scaled, inner }: { readonly scaled: readonly Knob[]; readonly inner: Knob },
+  solved: Record<Knob, number>,
+): boolean {
+  const knobs = new Set<Knob>([...scaled, inner]);
+  const defaults = { ...solved };
+  const [lead] = scaled;
+  for (let leadPercent = lead === undefined ? 0 : defaults[lead]; leadPercent >= 0; leadPercent -= 1) {
+    for (const knob of scaled) {
+      solved[knob] = lead === undefined ? defaults[knob] : Math.round((defaults[knob] * leadPercent) / defaults[lead]);
+    }
+    for (let percent = defaults[inner]; percent >= 0; percent -= 1) {
+      solved[inner] = percent;
+      if (groupClears(search, solved, knobs)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * The `--tone-mix-*` percents nearest each default that clear every floor of every tone over a carried palette
+ * (D336). Amounts are whole percents. Each group first aims at the D202 derivation ratio, the margin the browser's
+ * own colour arithmetic spends below the analytic pair; where the palette cannot reach that, it settles for the
+ * legal floor. A lowered group ends at zero, where `text` is the scope's own foreground and a tint its background;
+ * a raised group ends at 100, the solid itself; D202 solves both ends, so a palette that misses even there throws.
+ */
+export function solveToneMix<Role extends string, Knob extends string, Host extends string>(
+  scheme: ToneScheme<Role, Knob, Host>,
+  tones: readonly ToneSource[],
+  { defaults, groups }: ToneMixSolve<Knob>,
+): Readonly<Record<Knob, number>> {
+  const solved: Record<Knob, number> = { ...defaults };
+  for (const group of groups) {
+    const settled = [AA_NORMAL_DERIVATION_RATIO, AA_NORMAL_RATIO].some((ratio) => {
+      const attempt = { ...solved };
+      const search = { scheme, tones, ratio };
+      const cleared = group.direction === "raise" ? raiseGroup(search, group.inner, attempt) : lowerGroup(search, group, attempt);
+      if (cleared) {
+        Object.assign(solved, attempt);
+      }
+      return cleared;
+    });
+    if (!settled) {
+      throw new Error(`no tone mix clears the D336 floors for knob ${group.inner}`);
+    }
+  }
+  return solved;
 }

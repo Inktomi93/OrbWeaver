@@ -41,9 +41,10 @@
     background: var(--color-sidebar-accent);
     color: var(--color-sidebar-accent-foreground);
   }
+  /* The active cells paint the primary tone's roles; the rail stamps that tone (`SHELL_ACCENT_TONE`). */
   .shell-rail-brand-button[data-active] {
-    background: color-mix(in oklab, var(--color-primary) 14%, transparent);
-    color: var(--color-primary);
+    background: var(--color-tone-tint);
+    color: var(--color-tone-text-on-tint);
   }
   .shell-rail-brand-button[data-active]::before {
     content: "";
@@ -54,7 +55,7 @@
     inline-size: var(--border-width-accent);
     border-start-end-radius: var(--border-width-accent);
     border-end-end-radius: var(--border-width-accent);
-    background: var(--color-primary);
+    background: var(--color-tone-solid);
   }
   .shell-rail-sections {
     display: flex;
@@ -98,9 +99,12 @@
     background: var(--color-sidebar-accent);
     color: var(--color-sidebar-accent-foreground);
   }
+  /* The ring weights sit on the host, where the gradient-ring pigment the button stamps resolves. */
   .shell-rail .shell-rail-button[data-active] {
-    background: color-mix(in oklab, var(--color-primary) 14%, transparent);
-    color: var(--color-primary);
+    --ring-head: 0.45;
+    --ring-foot: 0.03;
+    background: var(--color-tone-tint);
+    color: var(--color-tone-text-on-tint);
     position: relative;
   }
   /* On a `::before` layer: the Button's focus ring is also a box-shadow and would overwrite a direct one. */
@@ -115,8 +119,6 @@
   }
   /* The active rail button wears the gradient ring (`orb-gradient-ring`, @orb/ui primitives.css) at this site's weight. */
   .shell-rail .shell-rail-button[data-active]::after {
-    --ring-head: 0.45;
-    --ring-foot: 0.03;
     @apply orb-gradient-ring;
     z-index: 1;
     border-radius: inherit;

@@ -22,7 +22,7 @@ export const tableVariants = tv({
     // `data-selected:bg-accent` — the SAME fill `ACCENT_HOVER` paints on every hovered row, menu item,
     // card and button in the app — so "the row you are pointing at" and "the row you have chosen" were one
     // colour, and the census counted accent-fill as a fifth idiom for exactly that reason. `SELECTION_RAIL`
-    // is the app-wide selected-ROW spelling (2px left ember rail + a 10% tint, owner-ratified #485) and a
+    // is the app-wide selected-ROW spelling (2px left ember rail + the primary tone's tint, owner-ratified #485) and a
     // table row is a row; taking it collapses this carrier onto the ruled pair instead of inventing a sixth
     // spelling. The rail box is reserved transparent at rest, so selecting a row shifts no cell.
     tr: SELECTION_RAIL,

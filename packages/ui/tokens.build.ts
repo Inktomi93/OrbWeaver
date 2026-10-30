@@ -11,6 +11,9 @@ import { THEME_SCOPE_EMIT_VARS, THEME_SCOPE_STATIC_SEED_VARS } from "./src/conte
 import type { ContractToken, GeneratedCssValue, TokenContractResult } from "./token-contract.ts";
 import { assertTokenContract, REQUIRED_SEED_VALUE_SET_PATHS, TOKEN_ARTIFACT_PATHS, TOKEN_ARTIFACT_SOURCE_PATHS } from "./token-contract.ts";
 import { assertNoNearDuplicateColors } from "./tokens.near-duplicate.ts";
+import { renderPigmentBlocks, renderPigmentTs } from "./tokens.pigments.ts";
+import type { ToneModel } from "./tokens.tones.ts";
+import { assertShippedToneFloors, renderToneBlocks, renderToneTs, toneModel, toneReferenceValues } from "./tokens.tones.ts";
 
 export type { GeneratedCssValue } from "./token-contract.ts";
 
@@ -196,7 +199,9 @@ function renderPortableDimension(token: TransformedToken, contractToken: Contrac
 function renderPortableToken(token: TransformedToken, contractToken: ContractToken, lightToken: ContractToken | undefined): string | null {
   const path = contractToken.pathString;
   switch (contractToken.outputRole) {
+    // A derived tone role is emitted by tokens.tones.ts: scoped blocks plus a reference registration.
     case "input":
+    case "derived":
       return null;
     case "percentage":
       return `${finiteNumber(resolvedValue(token), path)}%`;
@@ -301,13 +306,14 @@ const STRUCTURAL_SPACING = ["  --spacing-0: 0;", "  --spacing-px: 1px;"];
 /** The ramp primitives are private: the plain `@theme` block drops an unreferenced variable, so they are never served. */
 const PRIMITIVE_GROUP = "primitive";
 
-/** Resets and primitives in `@theme`; every semantic token in `@theme static`, so owner CSS can read any of them. */
-function renderThemeCss(tokens: readonly GeneratedCssValue[]): string {
+/** Resets and primitives in `@theme`; every semantic token in `@theme static`, so owner CSS can read any of them; the
+ *  D336 tone roles in `@theme reference`, which mints their utilities and serves no `:root` variable. */
+function renderThemeCss(tokens: readonly GeneratedCssValue[], reference: readonly GeneratedCssValue[]): string {
   const resets = RESET_NAMESPACES.map((namespace) => `  --${namespace}-*: initial;`);
   const line = (t: GeneratedCssValue): string => `  ${cssVarName(t.path)}: ${t.value};`;
   const primitives = tokens.filter((t) => t.path[0] === PRIMITIVE_GROUP).map(line);
   const served = tokens.filter((t) => t.path[0] !== PRIMITIVE_GROUP).map(line);
-  return `/* ${HEADER}\n */\n@theme {\n${[...resets, ...primitives].join("\n")}\n}\n\n@theme static {\n${[...STRUCTURAL_SPACING, ...served].join("\n")}\n}\n`;
+  return `/* ${HEADER}\n */\n@theme {\n${[...resets, ...primitives].join("\n")}\n}\n\n@theme static {\n${[...STRUCTURAL_SPACING, ...served].join("\n")}\n}\n\n@theme reference {\n${reference.map(line).join("\n")}\n}\n`;
 }
 
 /** One `@custom-variant` per named condition; a built-in of the same name is replaced, so the query has one home.
@@ -333,7 +339,10 @@ function themeLayer(css: string): string {
 
 export function renderGeneratedCss(tokens: readonly GeneratedCssValue[], conditions: Readonly<Record<string, string>>, themeCss: string): string {
   return (
-    renderThemeCss(tokens.filter((token) => token.placement === "theme")) +
+    renderThemeCss(
+      tokens.filter((token) => token.placement === "theme"),
+      tokens.filter((token) => token.placement === "reference"),
+    ) +
     renderConditionVariants(conditions) +
     themeLayer(renderRootCss(tokens.filter((token) => token.placement === "root")) + themeCss)
   );
@@ -397,9 +406,11 @@ interface TokensTsInput {
   readonly polarityArms: readonly GeneratedPolarityArms[];
   readonly lengths: readonly LengthBasePx[];
   readonly conditions: Readonly<Record<string, string>>;
+  readonly tones: ToneModel;
+  readonly pigments: TokenContractResult["pigments"];
 }
 
-function renderTokensTs({ tokens, polarityArms, lengths, conditions }: TokensTsInput): string {
+function renderTokensTs({ tokens, polarityArms, lengths, conditions, tones, pigments }: TokensTsInput): string {
   const entries = tokens.map((t) => {
     const key = t.path.join(".");
     return `  "${key}": { cssVar: "${cssVarName(t.path)}", value: ${JSON.stringify(t.value)} },`;
@@ -411,6 +422,8 @@ function renderTokensTs({ tokens, polarityArms, lengths, conditions }: TokensTsI
   );
   return [
     `/** ${HEADER} */`,
+    "",
+    'import type { CarriedToneHost, ToneRoleRecipes } from "@orb/kit/theme-derivation";',
     "",
     "/** Token → `{ cssVar, value }`: `cssVar` for CSS (theme-overridable); `value` is the static literal, for consumers that can't resolve `var()` (canvas chart libs, `parseFloat`). */",
     "export const TOKENS = {",
@@ -434,6 +447,8 @@ function renderTokensTs({ tokens, polarityArms, lengths, conditions }: TokensTsI
     ...Object.entries(conditions).map(([name, query]) => `  ${JSON.stringify(name)}: ${JSON.stringify(query)},`),
     "} as const;",
     "",
+    ...renderToneTs(tones),
+    ...renderPigmentTs(pigments),
     "",
     "/** `var(--…)` reference for a token — the ONE way runtime code names a token. */",
     "export function cssVar(path: TokenPath): string {",
@@ -588,6 +603,9 @@ export async function generateArtifacts(uiRoot = HERE): Promise<{ themeCss: stri
     throw new Error(`Style Dictionary token coverage ${dictionary.allTokens.length} != contract ${contract.baseTokens.length}`);
   }
   const portableByPath = new Map(flat.map((token) => [token.path.join("."), token.value]));
+  const tones = toneModel(contract);
+  assertShippedToneFloors(contract, tones);
+  flat.push(...toneReferenceValues(tones));
   for (const [target, entry] of Object.entries(contract.cssValues)) {
     flat.push({ path: outputPath(target), value: resolveCssValue(entry.value, portableByPath), placement: entry.placement });
   }
@@ -608,9 +626,13 @@ export async function generateArtifacts(uiRoot = HERE): Promise<{ themeCss: stri
     themeCss: renderGeneratedCss(
       flat,
       conditions,
-      renderPointerFineBlock(fine, conditions[POINTER_FINE_CONDITION]) + renderSeedThemesBlock(seedThemes) + renderBasePaletteBlock(seedThemes, portableByPath),
+      renderPointerFineBlock(fine, conditions[POINTER_FINE_CONDITION]) +
+        renderSeedThemesBlock(seedThemes) +
+        renderBasePaletteBlock(seedThemes, portableByPath) +
+        renderToneBlocks(tones) +
+        renderPigmentBlocks(contract.pigments),
     ),
-    tokensTs: renderTokensTs({ tokens: flat, polarityArms, lengths, conditions }),
+    tokensTs: renderTokensTs({ tokens: flat, polarityArms, lengths, conditions, tones, pigments: contract.pigments }),
     themesTs: renderSeedThemesTs(seedThemes),
   };
 }

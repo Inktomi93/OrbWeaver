@@ -2,7 +2,7 @@ import type { ToastPortalProps as BasePortalProps, ToastProviderProps as BasePro
 import { Toast as BaseToast } from "@base-ui/react/toast";
 import type { ReactElement } from "react";
 import { AlertTriangle, Check, CircleAlert, Icon, X } from "#primitives/icons";
-import { toastVariants } from "./variants.ts";
+import { TOAST_ACTION_TONE, toastVariants } from "./variants.ts";
 
 const slots = toastVariants();
 
@@ -101,7 +101,7 @@ function ToastItems({ swipeDirection = TOP_ANCHORED_SWIPE }: ToastItemsProps): R
             <BaseToast.Title className={slots.title()} data-slot="toast-title" render={<div />} />
             <BaseToast.Description className={slots.description()} />
             {/* Renders null unless the toast carries `actionProps`; do NOT hand-roll a <button>. */}
-            <BaseToast.Action className={slots.action()} data-slot="toast-action" />
+            <BaseToast.Action className={slots.action()} data-slot="toast-action" data-tone={TOAST_ACTION_TONE} />
           </BaseToast.Content>
           {/* Same override, same reason (`ToastClose.mjs`: `aria-hidden: !expanded && !hasFocus`) — the only
               dismiss affordance was outside the accessibility tree until it already had focus, so a screen

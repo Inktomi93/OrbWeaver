@@ -1,7 +1,7 @@
 import type { ComponentProps, ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { variantProps } from "#lib";
-import { badgeVariants } from "./variants.ts";
+import { BADGE_TONE, badgeVariants } from "./variants.ts";
 
 export interface BadgeProps extends ComponentProps<"span">, VariantProps<typeof badgeVariants> {}
 
@@ -11,7 +11,7 @@ export interface BadgeProps extends ComponentProps<"span">, VariantProps<typeof 
  * `@orb/ui/icons` as the first child for an icon+label chip (ui-package-design §6.1).
  *
  * Usage: `<Badge intent="success" size="sm">Active</Badge>`. `tone="soft"` swaps the filled pill for a
- * tinted variant (15% background + intent-colored text + hairline border) — the status-chip look;
+ * tinted variant (the tone's tint, its edge and its on-tint ink) — the status-chip look;
  * `tone="ghost"` drops the fill entirely (hairline outline + intent text) for chips that must stay
  * quieter than the surface's focal element no matter how many of them render.
  *
@@ -23,6 +23,12 @@ export interface BadgeProps extends ComponentProps<"span">, VariantProps<typeof 
  * control's accessible name, and its POSITION belongs to the call site. See the variant's own note.
  */
 export function Badge({ className, intent, tone, edge, size, touchFloor, face, sentenceCase, ...props }: BadgeProps): ReactElement {
-  // The className AND the `data-intent`/`data-tone`/`data-size` axis stamp, from ONE selection object (#1080).
-  return <span data-slot="badge" {...props} {...variantProps(badgeVariants, { intent, tone, edge, size, touchFloor, face, sentenceCase }, className)} />;
+  // The className, the axis stamp (#1080) and the D336 tone scope, from ONE selection object.
+  return (
+    <span
+      data-slot="badge"
+      {...props}
+      {...variantProps(badgeVariants, { intent, tone, edge, size, touchFloor, face, sentenceCase }, className, BADGE_TONE[intent ?? "neutral"])}
+    />
+  );
 }

@@ -6,6 +6,8 @@
 // Every color here is a theme token or a `color-mix()` over tokens — zero raw literals, so any seed theme
 // restyles the stone for free (D71).
 import { sinHash } from "#lib";
+import type { PigmentScope } from "#tokens";
+import { PIGMENTS } from "#tokens";
 import type { WaystoneCloudLayer, WaystoneParticleLayer, WaystonePhase } from "./waystone-treatment.ts";
 import { waystoneBandTint } from "./waystone-treatment.ts";
 
@@ -151,7 +153,9 @@ export const WIND_FILL = "var(--color-sky-cloud)";
 export const CLOUD_LIGHT = "var(--color-sky-cloud)";
 export const CLOUD_DARK = "var(--color-sky-cloud-dark)";
 export const BOLT_STROKE = "var(--color-highlight)";
-export const FLASH_FILL = "color-mix(in oklab, var(--color-highlight) 55%, var(--color-sky-star))";
+/** The pigment scope the waystone root stamps: the generated recipe that mixes the highlight intent for the lightning flash (D336). */
+export const WAYSTONE_PIGMENT = "waystone" satisfies PigmentScope;
+export const FLASH_FILL = `var(${PIGMENTS[WAYSTONE_PIGMENT].flash})`;
 export const STAR_FILL = "var(--color-sky-star)";
 export const MOON_GLINT = "color-mix(in oklab, var(--color-sky-night-horizon) 60%, transparent)";
 

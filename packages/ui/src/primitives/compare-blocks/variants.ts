@@ -1,4 +1,5 @@
 import { tv } from "#lib";
+import type { Tone } from "#tokens";
 
 /**
  * The compare-blocks skin (work order item 8 + the R3 review widening). Tint alone is never the only
@@ -18,12 +19,9 @@ import { tv } from "#lib";
  *     louder than the island's own rationed stripe+glow — the loudest thing on the canvas was a diff
  *     backdrop. The owner-approved mockup draws this diff as plain prose columns under ORIGINAL/REWRITE
  *     kickers with no fill at all, and ruled the solid pair a register break.
- *   • WHAT SURVIVES (the old mechanism, intact): "never a bare opacity calc over a RAW COLOR" is still law
- *     here, and is still obeyed — `bg-destructive/10` is an opacity modifier over the intent TOKEN, which
- *     is what the token gates exist to require; there is no raw color and no hand-mixed literal anywhere
- *     below. The register is the one already shipped one file over for exactly this job
- *     (`features/refinery/components/payload-view.tsx`'s verdict-banner tones): `border-<intent>/40` +
- *     `bg-<intent>/10` + readable `text-foreground`, which is also what the `state` arm already used.
+ *   • WHAT SURVIVES: no raw color and no hand-mixed literal. Each pane paints the D336 tint and edge of the
+ *     tone `COMPARE_SIDE_TONE` stamps on it, with readable `text-foreground`, the register the `state` arm
+ *     already used.
  *   • WHAT IS NOW DIVERGENT, deliberately and reported rather than silently: the `diff` seal
  *     (`ui/src/diff/variants.ts` — `added: "bg-success text-success-foreground"`) still paints solid, so
  *     the cross-reference above no longer holds. A word-level ins/del MARK inside a sentence is a
@@ -56,8 +54,8 @@ export const compareBlocksVariants = tv({
   },
   variants: {
     side: {
-      before: { panel: "border border-destructive/40 bg-destructive/10 text-foreground" },
-      after: { panel: "border border-success/40 bg-success/10 text-foreground" },
+      before: { panel: "border border-tone-edge bg-tone-tint text-foreground" },
+      after: { panel: "border border-tone-edge bg-tone-tint text-foreground" },
       /** The absent-side STATE panel (Added / Cleared) — a designed state word, never an empty tinted pane. */
       state: { panel: "border border-border bg-muted text-foreground" },
     },
@@ -69,3 +67,6 @@ export const compareBlocksVariants = tv({
     },
   },
 });
+
+/** The D336 tone each side panel stamps: the removed text in destructive, the replacement in success. */
+export const COMPARE_SIDE_TONE = { before: "destructive", after: "success" } as const satisfies Record<"before" | "after", Tone>;

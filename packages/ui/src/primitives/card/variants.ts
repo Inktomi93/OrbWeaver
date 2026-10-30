@@ -1,3 +1,4 @@
+import type { ToneStamp } from "#lib";
 import { FOCUS_RING, MESSAGE_BUBBLE_BOX, MESSAGE_BUBBLE_FILL, RECEDED, SPOILER, tv } from "#lib";
 import { ART_DECORATION } from "../../lib/art-decoration.ts";
 
@@ -8,6 +9,9 @@ import { ART_DECORATION } from "../../lib/art-decoration.ts";
 // unlayered `styles/tiers.css` map resolves both from the surface's tier (UI-Density-Law.md §4.2), so a
 // feature never picks island padding or radius. `rounded-base` (grouped content), never `rounded-card` —
 // D6 demoted `--radius-card` to ELEVATED/floating islands only, which is what `elevated` opts into.
+const TONE_SOFT = "border-tone-edge bg-tone-tint";
+const TONE_SOFT_INKED = `${TONE_SOFT} text-tone-text-on-tint`;
+
 export const cardVariants = tv({
   base: "rounded-base border border-border bg-card p-block text-card-foreground",
   variants: {
@@ -51,19 +55,20 @@ export const cardVariants = tv({
       userBubble: MESSAGE_BUBBLE_FILL.user,
       systemBubble: MESSAGE_BUBBLE_FILL.system,
       muted: "bg-muted",
-      warning: "border-warning bg-warning/10 text-warning",
-      info: "border-info bg-info/10 text-info",
+      // A status box: the tone's tint, its held-back edge and its on-tint ink for content that sets no ink of its own.
+      warning: TONE_SOFT_INKED,
+      info: TONE_SOFT_INKED,
       highlight: "border-highlight",
-      // The status tints without the status ink: a verdict banner or a choices island whose own text and controls
-      // keep their inks. The edge is held back so the tint carries the meaning.
-      successTint: "border-success/40 bg-success/10",
-      warningTint: "border-warning/40 bg-warning/10",
-      destructiveTint: "border-destructive/40 bg-destructive/10",
-      infoTint: "border-info/40 bg-info/10",
+      // The status tint and edge without the status ink: a verdict banner or a choices island whose own text and
+      // controls keep their inks and carry the meaning.
+      successTint: TONE_SOFT,
+      warningTint: TONE_SOFT,
+      destructiveTint: TONE_SOFT,
+      infoTint: TONE_SOFT,
       // A card's one claim on attention spent as its edge, never a fill: the room's composer stays the one primary.
-      primaryEdge: "border-primary/40",
+      primaryEdge: "border-tone-edge",
       // A drop zone's outline in the primary ink, with no fill, so it reads as a place and not a second card.
-      primaryOutline: "border-primary bg-transparent",
+      primaryOutline: "border-tone-solid bg-transparent",
       // The muted fill held back: a block that quotes wire text inside a panel, so it reads as an artifact.
       mutedWash: "bg-muted/40",
       // The raised step, for a nested card that must lift off a card fill.
@@ -168,3 +173,32 @@ export const cardVariants = tv({
     focusable: false,
   },
 });
+
+/** The D336 tone each `tone` arm stamps; an arm that reads no tone role opens no scope. */
+export const CARD_TONE = {
+  neutral: null,
+  clear: null,
+  background: null,
+  accent: null,
+  sidebar: null,
+  translucent: null,
+  backdrop: null,
+  input: null,
+  bubble: null,
+  userBubble: null,
+  systemBubble: null,
+  muted: null,
+  warning: "warning",
+  info: "info",
+  highlight: null,
+  successTint: "success",
+  warningTint: "warning",
+  destructiveTint: "destructive",
+  infoTint: "info",
+  primaryEdge: "primary",
+  primaryOutline: "primary",
+  mutedWash: null,
+  raised: null,
+  sidebarEdge: null,
+  popover: null,
+} as const satisfies Record<keyof typeof cardVariants.variants.tone, ToneStamp>;

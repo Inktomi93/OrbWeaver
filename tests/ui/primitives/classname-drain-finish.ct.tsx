@@ -270,7 +270,7 @@ test("the other primitives' arms take their properties", async ({ mount, page })
   expect(await style(kase(root, "tabs"), "border-block-start-width")).toBe("2px");
   expect(await style(kase(root, "tabs"), "border-block-start-color")).toBe(await probe(root, "primary", "border-block-start-color"));
   expect(await style(kase(root, "tabs-list"), "border-block-end-width")).toBe("0px");
-  expect(await style(kase(root, "tab-cell"), "border-block-end-color")).toBe(await probe(root, "primary", "color"));
+  expect(await style(kase(root, "tab-cell"), "border-block-end-color")).toBe(await probe(root, "primary-solid", "color"));
   expect(await style(kase(root, "tab-quiet"), "color")).not.toBe(await style(kase(root, "tab-cell"), "color"));
   expect(await style(kase(root, "tabs-panel"), "background-color")).toBe(await probe(root, "sidebar", "background-color"));
   expect(await style(kase(root, "dialog-header"), "position")).toBe("sticky");

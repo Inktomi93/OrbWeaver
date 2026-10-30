@@ -98,9 +98,10 @@
     padding-inline: var(--spacing-block);
     box-shadow: var(--shell-band-ember), var(--shell-band-rule);
   }
-  /* The content-to-context binding: an ember top edge on the primary token, so a theme retints it. */
+  /* The content-to-context binding: an ember top edge in the primary tone's edge role, so a theme retints it. The
+   * header stamps that tone (`SHELL_ACCENT_TONE`). */
   .shell-panel[data-panel-side="context"] .shell-panel-header {
-    --shell-band-ember: inset 0 var(--border-width-accent) 0 color-mix(in oklab, var(--color-primary) 55%, transparent);
+    --shell-band-ember: inset 0 var(--border-width-accent) 0 var(--color-tone-edge);
   }
   /* A floating context pane binds to nothing, so its ember edge would be an orphan stripe under the topbar. */
   .shell-panel[data-panel-side="context"][data-panel-mode="overlay"] .shell-panel-header {

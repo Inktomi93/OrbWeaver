@@ -1,4 +1,5 @@
 import { DISABLED_STATE, FOCUS_RING_HAS, TOUCH_TARGET_PSEUDO, tv } from "#lib";
+import type { Tone } from "#tokens";
 
 // The slider skin. The control row is h-(--size-control-sm) so the drag surface meets the ≥44px touch
 // floor (§4b axis 3); the visible track stays h-field. Base UI positions Indicator/Thumb inline.
@@ -25,7 +26,7 @@ export const sliderVariants = tv({
     control: "relative mx-(--size-slider-inset) flex touch-none items-center select-none block-(--size-control-sm)",
     // Base UI sets data-invalid on Track (and Control/Thumb) when wrapped in an invalid <Field>
     // (FieldRootState) — the track fill is the visible surface, so it carries the destructive skin.
-    track: "relative grow overflow-hidden rounded-full bg-input block-field inline-full data-invalid:bg-destructive/20",
+    track: "relative grow overflow-hidden rounded-full bg-input block-field inline-full data-invalid:bg-tone-tint-active",
     indicator: "rounded-full data-invalid:bg-destructive",
     thumb: [
       // Base UI's Thumb is a decorative div wrapping the real (visually-clipped) native range input and
@@ -99,3 +100,6 @@ export const sliderVariants = tv({
   },
   defaultVariants: { tone: "default" },
 });
+
+/** The D336 tone the track's invalid tint paints; the valid track reads no tone role. */
+export const SLIDER_INVALID_TONE = "destructive" satisfies Tone;

@@ -6,13 +6,15 @@ import { Collapsible, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Circle, Icon } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack, Surface } from "@orb/ui/layout";
+import { INK_TONE } from "@orb/ui/lib";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
+import { TOKENS } from "@orb/ui/tokens";
 import type { ReactElement } from "react";
 
 const TONES = ["info", "accolade", "speaker", "dialogue", "narration"] as const;
 const PROBE_INKS = {
-  info: "--color-info",
+  info: TOKENS["color.tone-text"].cssVar,
   accolade: "--color-accolade",
   speaker: "--color-speaker",
   dialogue: "--color-dialogue",
@@ -27,7 +29,7 @@ export function ToneStory(): ReactElement {
         <Row key={tone} gap="field" data-tone-case={tone}>
           <Text tone={tone}>{tone} text</Text>
           <Icon icon={Circle} tone={tone} label={`${tone} icon`} />
-          <span data-probe={tone} style={{ color: `var(${PROBE_INKS[tone]})` }}>
+          <span data-probe={tone} data-tone={INK_TONE[tone] ?? undefined} style={{ color: `var(${PROBE_INKS[tone]})` }}>
             probe
           </span>
         </Row>
@@ -60,7 +62,7 @@ export function LinkStory(): ReactElement {
       <Button intent="link" size="inline">
         Show more
       </Button>
-      <span data-probe="primary" style={{ color: "var(--color-primary)", backgroundColor: "transparent" }}>
+      <span data-probe="primary" data-tone="primary" style={{ color: `var(${TOKENS["color.tone-text"].cssVar})`, backgroundColor: "transparent" }}>
         probe
       </span>
     </CtIsolation>
@@ -233,10 +235,10 @@ export function ButtonToneStory(): ReactElement {
         primary muted
       </Button>
       <Button intent="primary">primary plain</Button>
-      <span data-probe="primary" style={{ color: "var(--color-primary)" }}>
+      <span data-probe="primary" data-tone="primary" style={{ color: `var(${TOKENS["color.tone-text"].cssVar})` }}>
         p
       </span>
-      <span data-probe="destructive" style={{ color: "var(--color-destructive)" }}>
+      <span data-probe="destructive" data-tone="destructive" style={{ color: `var(${TOKENS["color.tone-text"].cssVar})` }}>
         d
       </span>
       <span data-probe="muted" style={{ color: "var(--color-muted-foreground)" }}>

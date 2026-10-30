@@ -74,6 +74,14 @@ export const THEME_SCOPE_EMIT_VARS = [
   "--color-shadow-ambient-near",
   "--color-shadow-ambient-far",
   "--color-shadow-cta-highlight",
+  // The D336 tone knobs a carried palette re-solves (`tone-knobs.ts`), so the `[data-tone]` roles under it clear
+  // their floors over its own ramp and intent arms.
+  "--tone-mix-text",
+  "--tone-mix-tint",
+  "--tone-mix-tint-active",
+  "--tone-mix-text-on-tint",
+  "--tone-mix-neutral-hover",
+  "--tone-mix-neutral-active",
   "--font-sans",
   "--radius-card",
 ] as const;

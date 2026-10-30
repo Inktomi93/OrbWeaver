@@ -32,6 +32,8 @@
 import type { CSSProperties, ReactElement } from "react";
 import { useEffect, useRef } from "react";
 import { cn, usePrefersReducedMotion } from "#lib";
+import type { PigmentScope } from "#tokens";
+import { PIGMENTS } from "#tokens";
 import { webWeaveVariants } from "./variants.ts";
 import { AMBIENT_FRAME_MS, PREY_SETTLE_TAIL_MS, weaveIsQuiet } from "./web-weave-cadence.ts";
 import type { CharacterPreset, WeaveCharacter } from "./web-weave-character.ts";
@@ -121,13 +123,16 @@ const CALM_WEATHER: WeaveWeather = { wind: 0, shiver: 0 };
  *  weaver across the web on the first frame back. */
 const MAX_FRAME_MS = 50;
 
+/** The pigment scope the host stamps: the generated recipes that mix the primary for the web's art (D336). */
+const WEB_WEAVE_PIGMENT = "web-weave" satisfies PigmentScope;
+
 /** The §1.3 palette — token derivations ONLY (resolved via computed style; no raw colors). */
 const PALETTE_EXPRESSIONS: Readonly<Record<keyof WeavePalette, string>> = {
   silk: "color-mix(in oklab, var(--color-foreground) 62%, transparent)",
-  silkBright: "color-mix(in oklab, var(--color-primary) 55%, var(--color-foreground))",
+  silkBright: `var(${PIGMENTS[WEB_WEAVE_PIGMENT]["silk-bright"]})`,
   glow: "var(--color-primary)",
-  dew: "color-mix(in oklab, var(--color-sky-star) 70%, var(--color-primary))",
-  spiderBody: "color-mix(in oklab, var(--color-foreground) 55%, var(--color-primary))",
+  dew: `var(${PIGMENTS[WEB_WEAVE_PIGMENT].dew})`,
+  spiderBody: `var(${PIGMENTS[WEB_WEAVE_PIGMENT]["spider-body"]})`,
   spiderBand: "var(--color-primary)",
 };
 
@@ -436,7 +441,14 @@ export function WebWeave({
 
   const glowPosition = { "--orb-weave-hub-x": `${hubX * PERCENT}%`, "--orb-weave-hub-y": `${hubY * PERCENT}%` } as CSSProperties;
   return (
-    <div ref={wrapperRef} aria-hidden={true} data-slot="web-weave" data-weave-state={state} className={cn(slots.root(), className)}>
+    <div
+      ref={wrapperRef}
+      aria-hidden={true}
+      data-slot="web-weave"
+      data-pigment={WEB_WEAVE_PIGMENT}
+      data-weave-state={state}
+      className={cn(slots.root(), className)}
+    >
       {glow ? <div data-slot="web-weave-glow" className={slots.glow()} style={glowPosition} /> : null}
       <canvas ref={canvasRef} data-slot="web-weave-canvas" className={slots.canvas()} />
     </div>

@@ -12,7 +12,7 @@ Each primitive hand-mixes its own intent tints with opacity modifiers, so one me
 
 ## Decision
 
-This ruling is not yet built; [item 1421](../work/1421-build-the-tone-role-tier-and-one-variant.md) and the [css-system plan](../plans/css-system/design.md) carry it.
+The roles, scoping, floors and pigments are built; the vocabulary is not yet built. [Item 1421](../work/1421-build-the-tone-role-tier-and-one-variant.md) and the [css-system plan](../plans/css-system/design.md) carry it.
 
 Tones. A tone is an intent color: `primary`, `neutral`, `destructive`, `warning`, `success`, `info`. The intent tokens keep their names and stay hand-tuned `light-dark()` bases under D71. `secondary` is not a tone, because its fill is the neutral ramp.
 
@@ -28,13 +28,13 @@ Roles. Every tone has the roles `solid`, `solid-hover`, `solid-active`, `text`, 
 | `edge` | `color-mix(in oklab, B 30%, var(--color-background))` |
 | `foreground` | the intent's `-foreground` token |
 
-`neutral` binds the derived ramp instead: `solid` is `foreground`, its foreground is `background`, `text` is `foreground`, `tint` is `muted`, `tint-active` is `accent`, `text-on-tint` is `accent-foreground` and `edge` is `border`. Its hover and active steps mix toward `background`. The ramp's inks stay solved by D202.
+`neutral` binds the derived ramp instead: `solid` is `foreground`, its foreground is `background`, `text` is `foreground`, `tint` is `muted`, `tint-active` is `accent`, `text-on-tint` is `accent-foreground` and `edge` is `border`. Its hover and active steps mix toward `background` by their own knobs. The ramp's inks stay solved by D202, and `accent-foreground` covers both neutral tints.
 
 The mix space is OKLab, because OKLCH interpolates hue toward the background's hue. A tint is opaque, so its contrast is one fixed pair. Roles use `color-mix()` only: a mix over a `light-dark()` intent already ships on every supported browser through Tailwind's opacity modifier.
 
-Scope. `tokens.build.ts` emits one `[data-tone="<tone>"]` block per tone that declares each `--color-tone-<role>` with its formula. The role resolves on the stamped element, so it follows the nearest ThemeScope or seed palette. A role is never a `:root` variable, because a root formula freezes to the root palette. The mix amounts are percentage tokens, `--tone-mix-<role>`. `--color-tone-*` is registered in `@theme` for the `*-tone-*` utilities. A primitive that reads a tone utility stamps `data-tone` on its root, `neutral` by default.
+Scope. `tokens.build.ts` emits one `[data-tone="<tone>"]` block per tone that declares each `--color-tone-<role>` with its formula. The role resolves on the stamped element, so it follows the nearest ThemeScope or seed palette. A role is never a `:root` variable, because a root formula freezes to the root palette. The mix amounts are percentage tokens, `--tone-mix-<role>`. `--color-tone-*` is registered in `@theme reference`, which mints the `*-tone-*` utilities and serves no root variable. A primitive that reads a tone utility stamps `data-tone` on its root, `neutral` by default. The stamp overrides the variant-axis stamp; a displaced axis value moves to `data-variant`.
 
-Contrast. Foreground on `solid`, `solid-hover` and `solid-active` clears 4.5:1. `text` clears 4.5:1 on `background`, `surface-raised` and `card`, the hosts `--color-foreground` covers under D202. `text-on-tint` clears 4.5:1 on `tint` and `tint-active`. A tint or an edge never carries meaning alone, so neither has a floor. The token build fails a shipped palette under a floor. For a carried background, the clamp solves the largest `text`, `text-on-tint`, `tint` and `tint-active` mix amounts that clear and emits them as `--tone-mix-*` on the scope. The accent correction also holds foreground on `solid-hover` and `solid-active`. One numeric twin in `@orb/kit/theme-derivation` serves the build, the clamp and the tests.
+Contrast. Foreground on `solid`, `solid-hover` and `solid-active` clears 4.5:1. `text` clears 4.5:1 on `background`, `surface-raised` and `card`, the hosts `--color-foreground` covers under D202. `text-on-tint` clears 4.5:1 on `tint` and `tint-active`. A tint or an edge never carries meaning alone, so neither has a floor. The token build fails a shipped palette under a floor. For a carried background, the clamp lowers the `text`, `text-on-tint`, `tint` and `tint-active` amounts and raises the neutral solid steps, nearest each default, and emits them as `--tone-mix-*` on the scope. It aims at the D202 derivation ratio and settles for the floor. The accent correction also holds foreground on `solid-hover` and `solid-active`. One numeric twin in `@orb/kit/theme-derivation` serves the build, the clamp and the tests.
 
 Vocabulary. Every primitive spells color as `tone`, fill style as `variant` and control scale as `size`.
 
@@ -48,7 +48,7 @@ Vocabulary. Every primitive spells color as `tone`, fill style as `variant` and 
 
 This amends D62 P5. A bordered secondary action is `variant="outline" tone="neutral"`. `outline` is a variant of every pressable primitive. `ghost` inherits its host ink unless the call site names an `ink`. It also amends the primitive axis table in [UI-Density-Law](../law/UI-Density-Law.md) §4.3 for these primitives.
 
-Constraint. `RESTRICTED_CLASSES` in `eslint.config.ts` refuses an opacity modifier on an intent or tone color in any class string. An ESLint rule refuses `color-mix()` or relative color naming an intent or tone color in TypeScript. A Stylelint `orb/` rule refuses the same in authored sheets. Generated CSS is exempt. A pigment recipe that uses an intent hue for art moves into the generator as a scoped block. Neutral glass mixes over appearance channels stay under D144.
+Constraint. `RESTRICTED_CLASSES` in `eslint.config.ts` refuses an opacity modifier on an intent or tone color in any class string. An ESLint rule refuses `color-mix()` or relative color naming an intent or tone color in TypeScript. A Stylelint `orb/` rule refuses the same in authored sheets. Generated CSS is exempt. A pigment recipe that uses an intent hue for art moves into `orb.pigments` in tokens.json, emitted on a `[data-pigment]` block its art root stamps. Neutral glass mixes over appearance channels stay under D144.
 
 Homes: `packages/ui/src/tokens/tokens.json` (the tone tuple, role recipes and mix tokens), `packages/ui/tokens.build.ts` (the scoped blocks and the build contrast check), `packages/ui/src/content/theme-scope/` (the clamp knobs), `@orb/kit/theme-derivation` (the numeric twin), `packages/ui/src/lib/control-size.ts` (the scale), each primitive's `variants.ts` (the subset).
 

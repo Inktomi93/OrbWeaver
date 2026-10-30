@@ -3,8 +3,8 @@ import { Avatar as BaseAvatar } from "@base-ui/react/avatar";
 import type { ReactElement, ReactNode } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { variantAttrs } from "#lib";
-import { avatarFallbackHue, avatarFallbackHueColor } from "./hue.ts";
-import { avatarVariants } from "./variants.ts";
+import { AVATAR_PIGMENT, avatarFallbackHue, avatarFallbackHueColor } from "./hue.ts";
+import { AVATAR_EDGE_TONE, avatarVariants } from "./variants.ts";
 
 export interface AvatarProps extends Omit<BaseRootProps, "className">, VariantProps<typeof avatarVariants> {
   className?: string;
@@ -45,7 +45,13 @@ export function Avatar(props: AvatarProps): ReactElement {
   return (
     // STAMP SITE (#1097): the ROOT. `size` is the only stamped axis this recipe declares and the root is
     // the box it sizes — the element a contrast/geometry census targets; image and fallback are its fill.
-    <BaseAvatar.Root className={slots.root({ className })} data-slot="avatar-root" {...variantAttrs(avatarVariants, { size })} {...rest}>
+    <BaseAvatar.Root
+      className={slots.root({ className })}
+      data-slot="avatar-root"
+      data-pigment={AVATAR_PIGMENT}
+      {...variantAttrs(avatarVariants, { size }, AVATAR_EDGE_TONE)}
+      {...rest}
+    >
       {src === undefined ? null : (
         // `decoding="async"` is not polish (side-eye corpus re-pass 2026-08-19, C6): a surface that mounts
         // sixty avatars in one frame pays every image decode INSIDE that frame by default, which is part of
@@ -64,9 +70,8 @@ export function Avatar(props: AvatarProps): ReactElement {
         />
       )}
       {/* Decorative visual stand-in for a missing image — aria-hidden so its letters never leak into an accessible name.
-          `data-hue` is the bucket as a DOM datum (what a CT/snap asserts on); the fill itself is the derived
-          relative-color expression, which is on-token by construction (it names `--color-primary` and nothing
-          else) and must be inline so it resolves against the ThemeScope in effect HERE (hue.ts header). */}
+          `data-hue` is the bucket as a DOM datum (what a CT/snap asserts on); the fill is the generated `avatar`
+          pigment the root's `data-pigment` scopes, so it resolves against the ThemeScope in effect HERE (hue.ts header). */}
       <BaseAvatar.Fallback
         className={slots.fallback()}
         data-slot="avatar-fallback"

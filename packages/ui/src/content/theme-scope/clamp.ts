@@ -29,12 +29,15 @@
 // dark smoke. A token names ONE polarity semantic.
 
 import { isDeterministicColor, isSafeColor } from "@orb/kit/safe-color";
-import { accentFillLightness, derivedForegroundLightness, proseInkLightness, surfacePolarity } from "@orb/kit/theme-derivation";
+import type { Oklch } from "@orb/kit/theme-derivation";
+import { derivedForegroundLightness, proseInkLightness, surfacePolarity } from "@orb/kit/theme-derivation";
 import { z } from "zod";
 import { TOKENS } from "#tokens";
 import type { ParsedOklch } from "./color-parse.ts";
 import { compositedBase, serializeOpaqueOklch, toOklch } from "./color-parse.ts";
 import { foregroundOn, surfaceVarsOn } from "./derive-vars.ts";
+import type { CarriedToneScheme } from "./tone-knobs.ts";
+import { accentInkLightness, carriedToneScheme, carriedToneSources, correctedAccentFill, solveCarriedToneMix, toneMixVars } from "./tone-knobs.ts";
 
 // Fonts a user may pick — an allowlist; anything else is dropped.
 const THEME_FONT_ALLOWLIST = ["Geist", "ui-sans-serif", "ui-serif", "ui-monospace", "Georgia", "Times New Roman", "Iowan Old Style"] as const;
@@ -176,6 +179,8 @@ function proseInkOn(picked: string | undefined, base: ParsedOklch | null, absent
 interface AccentEmission {
   readonly fill: string;
   readonly foreground: string;
+  /** The fill's opaque pixel, the primary tone's base for the D336 knob solve. */
+  readonly painted: Oklch;
 }
 
 /**
@@ -200,28 +205,47 @@ interface AccentEmission {
  * inherits the ORIGIN's alpha, and re-judging a translucent output is a fixed point that never passes.
  * The foreground is computed SINGLE-LEVEL off the same origin at the corrected lightness rather than
  * nested off the emitted fill — the shape every derived token in `derive-vars.ts` keeps.
+ *
+ * D336: with a carried palette the correction also holds the foreground on the fill's hover and active steps,
+ * and the foreground is the one ink that covers all three (`accentInkLightness`).
  */
-function accentEmissionOn(picked: string | undefined, ambient: string | undefined, base: ParsedOklch | null): AccentEmission | undefined {
+function accentEmissionOn(picked: string | undefined, ambient: string | undefined, scheme: CarriedToneScheme | null): AccentEmission | undefined {
   const source = picked ?? ambient;
   if (source === undefined) {
     return;
   }
   const accent = toOklch(source);
-  const passThrough = picked === undefined || accent === null ? undefined : { fill: picked, foreground: foregroundOn(picked, accent) };
-  if (base === null) {
+  const inkOn = (fill: Oklch): number => (scheme === null ? derivedForegroundLightness(fill) : accentInkLightness(scheme, fill));
+  const passThrough =
+    picked === undefined || accent === null ? undefined : { fill: picked, foreground: `oklch(from ${picked} ${inkOn(accent)} 0 h / 1)`, painted: accent };
+  if (scheme === null || accent === null) {
     return passThrough;
   }
-  if (accent === null) {
+  const painted = correctedAccentFill(scheme, accent);
+  if (painted === null) {
     return passThrough;
   }
-  const clampedL = accentFillLightness({ l: accent.l, c: accent.c, h: accent.h }, accent.alpha, { l: base.l, c: base.c, h: base.h });
-  if (clampedL === null) {
-    return passThrough;
+  return { fill: `oklch(from ${source} ${painted.l} c h / 1)`, foreground: `oklch(from ${source} ${inkOn(painted)} 0 h / 1)`, painted };
+}
+
+interface AccentAndTones {
+  readonly accent: AccentEmission | undefined;
+  readonly toneVars: Readonly<Record<string, string>>;
+}
+
+/**
+ * The accent emission and, under a carried palette, the D336 knobs its `[data-tone]` roles read, solved over its
+ * ramp, its intent arms and the primary it paints: the emitted fill, else the accent it inherits; with neither,
+ * primary is left out of the solve.
+ */
+function accentAndTonesOn(picked: string | undefined, ambientAccent: string | undefined, carriedBase: ParsedOklch | null): AccentAndTones {
+  const scheme = carriedBase === null ? null : carriedToneScheme(carriedBase);
+  const accent = accentEmissionOn(picked, ambientAccent, scheme);
+  if (scheme === null) {
+    return { accent, toneVars: {} };
   }
-  return {
-    fill: `oklch(from ${source} ${clampedL} c h / 1)`,
-    foreground: `oklch(from ${source} ${derivedForegroundLightness({ l: clampedL, c: accent.c, h: accent.h })} 0 h / 1)`,
-  };
+  const inherited = picked === undefined && ambientAccent !== undefined ? toOklch(ambientAccent) : null;
+  return { accent, toneVars: toneMixVars(solveCarriedToneMix(scheme, carriedToneSources(scheme, accent?.painted ?? inherited))) };
 }
 
 /** The base the §7a ink clamp judges against: the CARRIED background, else the AMBIENT one (#236). */
@@ -304,7 +328,7 @@ export function clampThemeTokens(raw: unknown, ambientBackground?: string, ambie
   // The accent is judged against the CARD a carried base derives (#692) — see `accentEmissionOn`. With no
   // carried background, or when the accent already clears, this is the pre-#692 pass-through: the picked
   // value byte-identical, or nothing at all.
-  const accent = accentEmissionOn(t.accent, ambientAccent, carriedBase);
+  const { accent, toneVars } = accentAndTonesOn(t.accent, ambientAccent, carriedBase);
   put("--color-primary", accent?.fill);
   put("--color-ring", accent?.fill);
   // The accent's readable foreground derives off the accent this scope actually PAINTS with, so a dark
@@ -355,6 +379,7 @@ export function clampThemeTokens(raw: unknown, ambientBackground?: string, ambie
     const derivedOrigin = derivedOriginFor(t.background, authoredBase, carriedBase);
     Object.assign(vars, surfaceVarsOn(t.background, carriedBase, derivedOrigin));
   }
+  Object.assign(vars, toneVars);
   // An explicit border color wins over the derived hairline, for both border scopes.
   put("--color-border", t.borderColor);
   put("--color-sidebar-border", t.borderColor);

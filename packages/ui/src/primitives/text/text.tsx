@@ -1,6 +1,6 @@
 import type { ComponentProps, ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
-import { variantProps } from "#lib";
+import { INK_TONE, variantProps } from "#lib";
 import { textVariants } from "./variants.ts";
 
 // <Text> paints body prose, never a heading — heading semantics belong to <Heading>.
@@ -102,6 +102,7 @@ export function Text({
           hoverCue,
         },
         className,
+        INK_TONE[tone ?? "default"],
       )}
     />
   );
@@ -171,6 +172,7 @@ export function Heading({
           hoverCue,
         },
         className,
+        INK_TONE[tone ?? "default"],
       )}
     />
   );
