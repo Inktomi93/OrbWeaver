@@ -31,7 +31,7 @@ paths:
 - A byte counter built on `encodeURIComponent` throws on an unpaired UTF-16 surrogate. Count by
   code-point width, refuse `!isWellFormed()` input, and slice by code point.
 - Adding a plugin UI node kind lands at every site named by `SurfaceLeaf`'s prop union
-  (`plugin-leaf-nodes.tsx`) and `PLUGIN_FOOTER_NODE_KIND_ALLOWED` (`contracts/plugin/ui.ts`),
+  (`plugin-leaf-nodes.tsx`) and `PLUGIN_FOOTER_NODE_KIND_ALLOWED` (`packages/contracts/src/plugin/ui.ts`),
   including `packages/plugin-sdk/shared.d.ts`.
 - A guest-facing subset of a shared union is a sibling subset tuple plus a derived type applied
   at every call site, never a runtime ternary. Resolve admission against the tuple.

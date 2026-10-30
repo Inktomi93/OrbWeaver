@@ -14,7 +14,7 @@ Split off [client-architecture-lockdown.md](client-architecture-lockdown.md) for
   doors (plus `create-drill-selection-store.ts`, itself minted through a store factory), `chat-handle.ts`,
   `assemble-chrome.ts` (D73), and the registry tier. Registry definitions are assembled at the composition door. A registry delivered through React context
   carries a `*-registry-context.ts` + `*-registry-provider.tsx` pair (minted via
-  `lib/create-registry-context.tsx`, lint rule `orb/registry-context-via-mint`); one whose Def type is state-owned
+  `packages/client/src/lib/create-registry-context.tsx`, lint rule `orb/registry-context-via-mint`); one whose Def type is state-owned
   adds the `*-registry.ts` contract module beside it. Every store is minted through exactly one of the
   three doors — bare zustand `create(`/`createStore(` exists only inside them: `createGatedStore`
   (devtools, required action labels, unique-name throw), `createPersistedStore` (version, partialize,
@@ -52,11 +52,11 @@ Every piece of client state is exactly one of three classes — the blunt "cross
 - **Client-ephemeral** state dies with the tab; needs no invalidation. Home: §12 row 1 (`state/*`).
 - **Durable-local** state is device-scoped VIEW/DRAFT state and MUST satisfy the durable-local contract:
   1. **Per-user namespacing.** Every persisted key is `orb:u/<userId>/<name>` (drafts
-     `orb-draft:u/<userId>/<name>`); `state/create-persisted-store.ts` mints against a boot pointer
+     `orb-draft:u/<userId>/<name>`); `packages/client/src/state/create-persisted-store.ts` mints against a boot pointer
      (`orb:active-user`) and `bindDurableLocalToUser(userId)` rebinds once the viewer resolves, adopting
      any legacy un-namespaced blob into the first bound user then deleting it. A genuine identity CHANGE
      keeps the existing hard-reload boundary; a merely STALE session recovers in place instead
-     (`data/stale-session.ts`).
+     (`packages/client/src/data/stale-session.ts`).
   2. **Referential integrity for any server row id a persisted field carries** — two pure-render rules
      (no effects; `orb/no-effect-on-shared-selection` stays intact): an id unknown to its authority read is
      EXCLUDED from filtering (a dead reference can never veto rows), and an ACTIVE entry always renders
@@ -74,10 +74,10 @@ storage): D138.
 
 Raw browser storage has four sanctioned homes. `RAW_STORAGE_HOMES` in `eslint.config.ts` lists them and cites this section.
 
-- `state/durable-local.ts` holds the active-user pointer and the adoption hints. The store doors mint against them.
-- `data/session-resume.ts` keeps the chat to reopen and an invite token in `sessionStorage` across the sign-in redirect. The data is tab-scoped and written while no verified user exists, so no per-user namespace applies.
+- `packages/client/src/state/durable-local.ts` holds the active-user pointer and the adoption hints. The store doors mint against them.
+- `packages/client/src/data/session-resume.ts` keeps the chat to reopen and an invite token in `sessionStorage` across the sign-in redirect. The data is tab-scoped and written while no verified user exists, so no per-user namespace applies.
 - `main.tsx` keeps one `sessionStorage` flag that stops a reload loop after a stale chunk hash. It runs before any store exists and holds no user data.
-- `lib/probe-mode.ts` reads one `localStorage` flag that `pnpm snap --probe` seeds before navigation. The app never writes it.
+- `packages/client/src/lib/probe-mode.ts` reads one `localStorage` flag that `pnpm snap --probe` seeds before navigation. The app never writes it.
 
 A new home needs a line here with its reason first.
 
@@ -85,10 +85,10 @@ A new home needs a line here with its reason first.
 
 The stack, outermost-in:
 
-1. **`AppErrorBoundary`** (`lib/error-boundary.tsx`) — the app-level render-throw catch. No retry (a stale state that threw once will throw again); fallback offers reload only. Wired once in `main.tsx` with `onError: reportClientError`.
-2. **`reportClientError`** (`lib/client-error-report.ts`) — fire-and-forget telemetry via `trpcClient.clientError.mutate`; a failed report must never itself throw.
-3. **`QueryBoundary`** (`components/query-boundary.tsx`) — the per-surface suspense + error battery. It bakes the `QueryErrorResetBoundary` → error-boundary `onReset` handshake: without it, "Try again" re-renders while the query is still errored and throws again; `retry` resets both so the refetch is real. Every suspending read mounts inside one. Import `useSuspenseQuery`, `useSuspenseQueries` and `useSuspenseInfiniteQuery` from `#data`, not TanStack: each checks that a `QueryBoundary` sits above it. The check throws once `requireQueryBoundary()` has run, which the dev bootstrap in `main.tsx` and the surface census (`tests/client/features/app-shell/surface-census.suite.ct.tsx`) both do. A production build never throws for a missing boundary. A direct TanStack import is refused by `no-restricted-imports` in `eslint.config.ts`.
-4. **`QueryErrorState`** (`data/query-error-state.tsx`) — the one read-error block (muted label + Retry wired to the handshake's `retry`).
+1. **`AppErrorBoundary`** (`packages/client/src/lib/error-boundary.tsx`) — the app-level render-throw catch. No retry (a stale state that threw once will throw again); fallback offers reload only. Wired once in `main.tsx` with `onError: reportClientError`.
+2. **`reportClientError`** (`packages/client/src/lib/client-error-report.ts`) — fire-and-forget telemetry via `trpcClient.clientError.mutate`; a failed report must never itself throw.
+3. **`QueryBoundary`** (`packages/client/src/components/query-boundary.tsx`) — the per-surface suspense + error battery. It bakes the `QueryErrorResetBoundary` → error-boundary `onReset` handshake: without it, "Try again" re-renders while the query is still errored and throws again; `retry` resets both so the refetch is real. Every suspending read mounts inside one. Import `useSuspenseQuery`, `useSuspenseQueries` and `useSuspenseInfiniteQuery` from `#data`, not TanStack: each checks that a `QueryBoundary` sits above it. The check throws once `requireQueryBoundary()` has run, which the dev bootstrap in `main.tsx` and the surface census (`tests/client/features/app-shell/surface-census.suite.ct.tsx`) both do. A production build never throws for a missing boundary. A direct TanStack import is refused by `no-restricted-imports` in `eslint.config.ts`.
+4. **`QueryErrorState`** (`packages/client/src/data/query-error-state.tsx`) — the one read-error block (muted label + Retry wired to the handshake's `retry`).
 5. **Toasts** — mutation failures surface via `meta.errorToast` → the global `MutationCache.onError` → `notify`. One error slot per mutation: `useMutation` lives only in `createEntityMutation` (`orb/mutation-only-in-factory`), which returns the one sticky `error`.
 
 **The three-states law:** every surface ships all three designed states — empty teaches (an `EmptyState`
@@ -105,18 +105,18 @@ Each row names a channel, its home, and the question that selects it.
 | - | - | - | - |
 | 1 | state commons — narrow hooks + intent-named module actions | `state/*` | client-ephemeral cross-cutting state: selection, panel modes, drafts, filters |
 | 2 | tRPC query cache, cache-first | `trpc.*` queryOptions; `staleTime: Infinity` + bus freshness | another feature's server-persisted entity — the router IS the cross-feature contract (D43(3)) |
-| 2b | `peekQueryData` — hookless sync cache peek | `data/peek-query.ts` | hookless cache checks for resolution, action decisions or warming; reactive reads and freshness remain query-owned |
+| 2b | `peekQueryData` — hookless sync cache peek | `packages/client/src/data/peek-query.ts` | hookless cache checks for resolution, action decisions or warming; reactive reads and freshness remain query-owned |
 | 2c | door-injected `trpcProxy` into a contributor factory | `main.tsx` `createTrpcProxy(trpcClient, queryClient)` | a contributor whose `when`/resolve logic needs the cache outside render |
 | 3 | total registries (closed vocabulary, tsc-total) | sections · modals · config-groups | a member of a closed shell vocabulary |
 | 4 | contributor registries (open) | chrome · settings-sections · chat-context tabs · chat-context regions · chat-surface anchors · tool-renderers · message-tools-renderers · slash-commands · character-detail · home-tiles, assembled in `main.tsx` | a foreign feature extending a host surface — the contributor channel |
 | 5 | door-threaded render-prop projection | `makeCharactersSection(characterDetailContributors, (view) => …)` | one foreign pane projected into a host, host controls placement; multiple foreign panes use a contribution seam |
 | 6 | shared derivations at tier 4 | a pure predicate/vocabulary module in `lib/` | one pure predicate/vocabulary both sides must agree on |
 | 7 | tier-2 composites | `components/` | domain-aware UI shared by multiple features |
-| 8 | event/sync spine → one invalidation seam | `data/bus/*` + `data/invalidation.ts` | server truth changed; freshness fan-out (§13) |
-| 9 | editor-bridge | `forms/create-form-handle-bridge.ts` | a feature's own content ↔ its own context inspector — not an inter-feature channel |
+| 8 | event/sync spine → one invalidation seam | `data/bus/*` + `packages/client/src/data/invalidation.ts` | server truth changed; freshness fan-out (§13) |
+| 9 | editor-bridge | `packages/client/src/forms/create-form-handle-bridge.ts` | a feature's own content ↔ its own context inspector — not an inter-feature channel |
 | 10 | type-only cross-feature imports | `@orb/contracts` shapes | a shape wired at the composition root |
-| 11 | readiness + agent observer split | `lib/app-ready-signal.ts` + dev-only `lib/agent-bridge.ts` and composition-tier handles (§3) | one shared readiness state; dev tooling stays out of the production boot graph |
-| 12 | session channel — typed cross-tab BroadcastChannel + Web Locks single-flight | `lib/session-channel.ts` | session lifecycle coordination across tabs/devices, or a durable-local rehydrate poke — never a server-truth payload |
+| 11 | readiness + agent observer split | `packages/client/src/lib/app-ready-signal.ts` + dev-only `packages/client/src/lib/agent-bridge.ts` and composition-tier handles (§3) | one shared readiness state; dev tooling stays out of the production boot graph |
+| 12 | session channel — typed cross-tab BroadcastChannel + Web Locks single-flight | `packages/client/src/lib/session-channel.ts` | session lifecycle coordination across tabs/devices, or a durable-local rehydrate poke — never a server-truth payload |
 
 Cross-section navigation is row 1; shared domain-agnostic parts are `@orb/ui` (§3), not a cross-feature
 seam.
@@ -138,7 +138,7 @@ The same disease-class as the slot registries, highest stakes: a mis-wired or un
 | user | per-person, all devices | **live-only, fire-and-forget by design** — gap-heal = `invalidateAllUserRoots()` on every connect/reconnect |
 | notifications | per-person durable inbox | **durable-first**: entry composes the INSERT before `publishNotification` |
 | rpg | per-chat game state | **live-only, self-healing** — a domain-minted `EventEmitter` singleton; a verb publishes AFTER its durable write; the client blanket-invalidates on every (re)connect |
-| automation | per-chat, over the `domain/automation` `notify` sink | **transient by design** — rides `defineBusChannel`; the `automation` room (`transport/trpc/stream/sources/automation.ts`) tails it rather than a standalone subscription |
+| automation | per-chat, over the `domain/automation` `notify` sink | **transient by design** — rides `defineBusChannel`; the `automation` room (`packages/server/src/transport/trpc/stream/sources/automation.ts`) tails it rather than a standalone subscription |
 
 Presence rides none of these buses: it is process-local, and single-replica is the current stance.
 
@@ -152,14 +152,14 @@ connections plus a 15s grace window — server-derived, never a client-asserted 
 2. **Fan scope follows visibility.** A shared-chat event fans to every present member's every device; a per-person event fans to all that person's connected devices. An event mutating state visible to others must fan beyond the actor. `packages/server/src/domain/chat/verbs/emit-chat-changed.ts` derives its recipients from the live roster (present, kind `human`, not yet left) plus any pre-captured `extraUserIds` (a member removed in the same request) — never a non-member. Use the live roster and current visibility rules to derive event recipients.
 3. **Consumer exhaustiveness is compile-time.** Every bus union ends in `assertNever` or a mapped-type-total Record on the client.
 4. **Every declared event type has a server emit site.** Keep the event union and producers aligned.
-5. **One client-side event→cache router.** `data/invalidation.ts` is the one seam for every client-consumed bus; a new bus's client half must land in this same file, and keep cache invalidation within that seam.
-6. **Presence is server-derived only.** A client-asserted presence write is banned — the contract declares no inbound presence schema. The read discloses one bit per asked user id through the single gating seam `transport/trpc/presence-disclosure.ts` — any authenticated caller may ask about any user id in v1, with no per-room membership filter; tightening the audience touches that file plus its one call site. A client read exists at `trpc.notifications.presence`.
+5. **One client-side event→cache router.** `packages/client/src/data/invalidation.ts` is the one seam for every client-consumed bus; a new bus's client half must land in this same file, and keep cache invalidation within that seam.
+6. **Presence is server-derived only.** A client-asserted presence write is banned — the contract declares no inbound presence schema. The read discloses one bit per asked user id through the single gating seam `packages/server/src/transport/trpc/presence-disclosure.ts` — any authenticated caller may ask about any user id in v1, with no per-room membership filter; tightening the audience touches that file plus its one call site. A client read exists at `trpc.notifications.presence`.
 7. **Server truth never rides BroadcastChannel (D138).** The session channel (§12 row 12) carries session lifecycle plus durable-local rehydration pokes only. Enforcer: ESLint `orb/session-channel-boundary`.
-8. **A delete announces after the row is gone.** Pick the order by the plane the event rides: live-only (run `DELETE … RETURNING` first, then emit once per returned row — an emit before a conditional delete can announce a row that survives); durable (write an event row that has an FK to the deleted row before the delete, because the cascade removes it); a junction the delete cascades or nulls (resolve the audience before the delete, then fan after — `entry/compose/room-reach.ts` gives this snapshot-then-fan op). Read any value the emit needs before the delete, and do not nest that read in a later branch the delete's own result can skip. Keep the fan unconditional over the returned rows. Homes: `packages/server/src/domain/chat/verbs/chat-lifecycle.ts`, `packages/server/src/domain/refinery/verbs/delete-session.ts`.
+8. **A delete announces after the row is gone.** Pick the order by the plane the event rides: live-only (run `DELETE … RETURNING` first, then emit once per returned row — an emit before a conditional delete can announce a row that survives); durable (write an event row that has an FK to the deleted row before the delete, because the cascade removes it); a junction the delete cascades or nulls (resolve the audience before the delete, then fan after — `packages/server/src/entry/compose/room-reach.ts` gives this snapshot-then-fan op). Read any value the emit needs before the delete, and do not nest that read in a later branch the delete's own result can skip. Keep the fan unconditional over the returned rows. Homes: `packages/server/src/domain/chat/verbs/chat-lifecycle.ts`, `packages/server/src/domain/refinery/verbs/delete-session.ts`.
 
 **The transport unification.** `chat-events-bus.ts`, `user-events-bus.ts`, `notifications-bus.ts` each
 compose the one `defineBusChannel` primitive: `defineBusChannel<Key, Event>(channelFor, opts?: {
-firehose: true })` (home `server/src/transport/trpc/bus-channel.ts`) rather than hand-rolling an
+firehose: true })` (home `packages/server/src/transport/trpc/bus-channel.ts`) rather than hand-rolling an
 `EventEmitter`; durability stays per-bus policy composed in front of `publish`. The `{firehose: true}`
 overload returns a bus with an extra `subscribeAll` — only chat declares it; calling it on user or
 notifications is a compile error. Keep the shared bus channel primitive as the transport-level event seam.
@@ -168,7 +168,7 @@ notifications is a compile error. Keep the shared bus channel primitive as the t
 
 - **Rows.** An entity-in-a-list row is `@orb/ui/list-row` or the tier-2 `LibraryRow`. In list-region surface files, a `.map()` callback returning interactive JSX not rooted in one of these or an allowlisted composite is not the chosen product pattern. Filename `*-row.tsx` is not the predicate — message anatomy, facet rows, and `setting-row`/`Field` rows are different species; residual anatomy judgment is R1.
 - **Destructive confirms.** `ConfirmDialog` is the only feature-tier confirm. `features/**` importing `@orb/ui/alert-dialog` is RED.
-- **Mutations.** A named `useMutation` import from `@tanstack/react-query` belongs only in `data/create-entity-mutation.ts` (`orb/mutation-only-in-factory`).
+- **Mutations.** A named `useMutation` import from `@tanstack/react-query` belongs only in `packages/client/src/data/create-entity-mutation.ts` (`orb/mutation-only-in-factory`).
 - **Browse.** `createCollectionSurface` owns unbounded/paginated browse; `useInfiniteQuery` appears only inside the factory (`no-restricted-imports` in `eslint.config.ts` refuses the import elsewhere). A paged suspending read (`useSuspenseInfiniteQuery`) is refused outside `SUSPENSE_INFINITE_HOMES` in the same file, which names each home and why the factory cannot carry it. A small bounded owner list fetched whole in one `useSuspenseQuery` legally uses `LibrarySurfaceShell` + `LibraryListLayout` (tier 2) instead — the boundary is the query shape, paginated implies the factory.
 - **Forms / virtualization / charts / markdown** — `orb/no-direct-useform`, dependency-cruiser `client-tanstack-form-only-in-forms-editor` and `client-forms-editor-front-door`, resolver physics, `ui-satellite-seals-*`. The autosave form type omits `reset` (`tests/client/forms/editor/autosave-reset-strip.dom.test-d.ts`).
 
@@ -179,9 +179,9 @@ illustrative, not exhaustive — read the current, complete shape off its code h
 
 | Shape | The law lives at |
 | - | - |
-| `SectionDefinition` · `RailEntry` · `SectionPlaceholderCopy` | `client/src/state/section-registry.ts` |
-| `ContextDefinition` · `ContextTabDef<S>` · `ResolvedContextTab(s)` · `ContextRegionDef<S>` · `ContextRegionView` · every published `S` projection | `client/src/lib/registry-contracts.ts` |
-| `ConfigGroupDefinition` · `SettingsViewerView` | `client/src/state/config-group-registry.ts` |
+| `SectionDefinition` · `RailEntry` · `SectionPlaceholderCopy` | `packages/client/src/state/section-registry.ts` |
+| `ContextDefinition` · `ContextTabDef<S>` · `ResolvedContextTab(s)` · `ContextRegionDef<S>` · `ContextRegionView` · every published `S` projection | `packages/client/src/lib/registry-contracts.ts` |
+| `ConfigGroupDefinition` · `SettingsViewerView` | `packages/client/src/state/config-group-registry.ts` |
 
 What is fixed law regardless of the sketch's exact fields: the non-generic shell seam, the
 `defineContextTabs<S>` mint as the only tabs minter, `S` contravariant-only, and `{kind:"none"}` /

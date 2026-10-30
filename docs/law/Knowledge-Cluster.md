@@ -19,18 +19,18 @@ of truth), and **building it never blocks a reply** (post-commit fire-and-forget
 
 | Concern | Owner | Home |
 | - | - | - |
-| vector tables + the ONE write path + `content_hash` + the `(model, dim)` space tag + the `hub_score` column | `embeddings` | `domain/embeddings` · `db/schema/embeddings.ts` |
+| vector tables + the ONE write path + `content_hash` + the `(model, dim)` space tag + the `hub_score` column | `embeddings` | `domain/embeddings` · `packages/db/src/schema/embeddings.ts` |
 | top-k retrieval (cosine scan × scope × rerank; owner-scope DERIVED, D20) | `search` (read-only) | `domain/search` |
 | digest/segment GENERATION + the `{{memory}}` recall policy (chat-scoped) | `chat/memory` (a `chat/` subsystem, sealed behind `chat`) | `domain/chat/memory` |
-| library semantics: themes/hubness/duplicates; COMPUTES `hub_score` | `discovery` | `domain/discovery` · `db/schema/discovery.ts` |
-| turn economics (zero vector tables) | `stats` | `domain/stats` · `db/schema/stats.ts` |
+| library semantics: themes/hubness/duplicates; COMPUTES `hub_score` | `discovery` | `domain/discovery` · `packages/db/src/schema/discovery.ts` |
+| turn economics (zero vector tables) | `stats` | `domain/stats` · `packages/db/src/schema/stats.ts` |
 
 ## Invariants (cross-domain — gate-protected)
 
 1. **ONE vector write path.** Every insert/update on the six vector tables (`character_embeddings` ·
    `image_embeddings` · `chat_digests` · `chat_segments` · `chat_digest_speakers` · `document_chunks` —
    the set the `orb/vector-scope-derived` lint rules pin) lives in
-   `embeddings/persistence/queries.ts`, reached only via `embeddings.store` / `embeddings.storeSegments`
+   `packages/server/src/domain/embeddings/persistence/queries.ts`, reached only via `embeddings.store` / `embeddings.storeSegments`
    (+ `writeHubScores`, inv 3). Producers (card/avatar/digest) call `store`; they never insert directly.
    `store`'s params are discriminated by kind, and `segment` is deliberately not one of its cases:
    `storeSegments` is the one batch path, for the verbatim segment producer, because that producer holds
@@ -41,14 +41,13 @@ of truth), and **building it never blocks a reply** (post-commit fire-and-forget
 2. **Two cosine access patterns, two owners — never mixed.** Top-k retrieval = `search` only (the
    `vector_distance_cos` SQL appears solely in `search/persistence/`). All-pairs in-RAM analytics =
    `discovery` only (`pairwiseCosine` in `@orb/kit/vector-math`). `memory` holds ZERO cosine of either kind —
-   it delegates the scan to the injected `searchDigests` op (wired at `entry/compose/chat.ts`). Note:
+   it delegates the scan to the injected `searchDigests` op (wired at `packages/server/src/entry/compose/chat.ts`). Note:
    discovery does NOT call `search` in the built slice — analytics is not retrieval.
-3. **The `hub_score` seam:** `discovery` computes the values (`verbs/compute-hub-scores.ts`) →
+3. **The `hub_score` seam:** `discovery` computes the values (`packages/server/src/domain/discovery/verbs/compute-hub-scores.ts`) →
    `embeddings.writeHubScores` performs the write (the ONLY non-`store` vector-table write) → `search`
    reads it (`cslsAdjust`). A vector write (`store`) NEVER sets or nulls `hub_score` — the column is
    nullable, never defaulted, advisory-stale by design.
-4. **Schema is named for its producer.** Vector tables live in `db/schema/embeddings.ts` (moved out of
-   the neo `schema/search.ts` lie); discovery's rollups in `schema/discovery.ts`. The consumer never
+4. **Schema is named for its producer.** Vector tables live in `packages/db/src/schema/embeddings.ts`; discovery's rollups in `packages/db/src/schema/discovery.ts`. The consumer never
    names the file.
 5. **`discovery` (semantics) and `stats` (economics) share no tables.** Stats has zero vector columns
    (the `stats-no-vector-tables` dep-cruiser rule); discovery computes no usage rollup.
@@ -58,11 +57,11 @@ of truth), and **building it never blocks a reply** (post-commit fire-and-forget
 
 Recall semantics (the 5 modes, tiered bridge, witnessing, egocentric scoping, the two windows, host-only
 execution, trigger discipline) are carried in full by the `chat/memory` code headers
-(`recall/recall.ts` et al.) + ledger D55 — not restated here.
+(`packages/server/src/domain/chat/memory/recall/recall.ts` et al.) + ledger D55 — not restated here.
 
 `document_chunks` (the databank RAG table) is written: `domain/databank/ingest` (D107 Phase B) stores each
 chunk via the injected `embeddingsStore` op, and the physical insert lives in
-`embeddings/persistence/queries.ts` — the single write path holds, no carve-out needed.
+`packages/server/src/domain/embeddings/persistence/queries.ts` — the single write path holds, no carve-out needed.
 
 ## Local native CPU budget
 

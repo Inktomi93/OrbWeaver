@@ -26,13 +26,13 @@ paths:
 ## automation (`domain/automation/**`)
 
 - Rule dispatch runs in mint position order over one shared CEL env
-  (`substrate/cel-env.ts`); a preset that stamps then reads a var mints a private key.
+  (`packages/server/src/domain/automation/substrate/cel-env.ts`); a preset that stamps then reads a var mints a private key.
 - `update-rule`'s PUT clears `rule_preset` provenance on purpose; a new per-rule
   preference gets its own verb, never the PUT.
 
 ## settings (`domain/settings/**`)
 
-- `substrate/merge.ts`'s `deepMergePlain` recurses on plain objects, so `{}` is a
+- `packages/server/src/domain/settings/substrate/merge.ts`'s `deepMergePlain` recurses on plain objects, so `{}` is a
   no-op; `null` is the only merge-expressible clear. Test a clear-via-patch end to end.
 - Stamp `USER_SETTINGS_SCHEMA_VERSION` (`@orb/contracts/settings`) on a versioned
   fixture, never a version literal, or the v1→v2 lift drops the override.

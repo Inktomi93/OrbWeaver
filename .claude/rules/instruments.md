@@ -44,7 +44,7 @@ that identity; await child exit instead of polling `kill(pid, 0)`.
 
 ## `--eval` and help text
 
-`--eval` and `page.evaluate` argument rules live in `snap-driving` and `rules/browser-tests.md`; this
+`--eval` and `page.evaluate` argument rules live in `snap-driving` and `.claude/rules/browser-tests.md`; this
 file does not restate them. Write help prose in `tooling/src/snap/contract/help.ts` with single
 quotes, never backticks (a backtick ends the template literal at runtime); a flag summary must not
 contain `|`.
@@ -55,7 +55,7 @@ contain `|`.
 round-trip, never an rgb-only regex. A fill-only element (switch thumb, swatch, indicator) may inherit
 ink unrelated to its painted fill (`tooling/src/snap/lib/contrast-script.ts`). Use a pixel-surface or
 design-audit probe for fill-polarity claims. Axe text-contrast checks composite ancestor and stacking-context
-opacity; they do not establish fill-only glyph or switch-state polarity. Accessible-name order is `rules/browser-tests.md`'s rule; use
+opacity; they do not establish fill-only glyph or switch-state polarity. Accessible-name order is `.claude/rules/browser-tests.md`'s rule; use
 `snap --aria` as the spec-correct source to cross-check against.
 
 ## ui-audit walker

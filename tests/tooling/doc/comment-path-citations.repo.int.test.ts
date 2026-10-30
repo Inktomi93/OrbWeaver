@@ -1,6 +1,7 @@
-// A code comment that names a repo path, a Markdown doc or a test file, must name a tracked file. Comments are read by
-// each language's own parser: the TypeScript scanner's comment ranges for scripts, PostCSS comment nodes (through
-// stylelint) for sheets. A path inside a string literal or JSX text is a fixture or copy, never a citation.
+// A code comment or a law document that names a repo path, a Markdown doc or a test file, must name a tracked file. Comments
+// are read by each language's own parser: the TypeScript scanner's comment ranges for scripts, PostCSS comment nodes (through
+// stylelint) for sheets. A path inside a string literal or JSX text is a fixture or copy, never a citation. A law document
+// also cites a directory-qualified path from the repo root, so a moved file turns its citation red.
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { basename, dirname, extname, join, posix } from "node:path";
@@ -13,6 +14,9 @@ import { describe } from "vitest";
 
 const REPO_ROOT = fileURLToPath(new URL("../../..", import.meta.url));
 const SCANNED_ROOTS = ["packages", "tooling", "tests"] as const;
+// Law that agents act on: the always-on core, the path rules and the law tree.
+const LAW_DOC = /^(?:AGENTS\.md|\.claude\/rules\/[^/]+\.md|docs\/law\/[^/]+\.md)$/u;
+const MARKDOWN = ".md";
 // The vendored DevTools frontend is a third-party bundle whose comments cite its own source tree.
 const VENDORED = "tooling/src/snap/lib/devtools-frontend/assets/";
 const SCRIPT_KINDS: Readonly<Record<string, ts.ScriptKind>> = {
@@ -27,9 +31,19 @@ const HASH_COMMENT_EXTS = new Set([".sh", ".yaml", ".yml"]);
 const CITED_EXT = "(?:md|tsx?|[cm]?js|css|json|ya?ml|sh)";
 // A repo-rooted path. The lookbehind keeps a URL's own segment and a relative path's tail out; the lookahead drops a
 // directory or a glob, whose next character continues the path.
-const ROOTED = new RegExp(String.raw`(?<![\w./*@-])(?:docs|packages|tooling|tests|scripts|\.claude|\.github)\/[\w./+@-]*\w\.${CITED_EXT}(?![\w*{/-])`, "gu");
+const ROOTED = new RegExp(
+  String.raw`(?<![\w./*@-])(?:docs|packages|tooling|tests|scripts|docker|\.claude|\.github)\/[\w./+@-]*\w\.${CITED_EXT}(?![\w*{/-])`,
+  "gu",
+);
 // A relative path, resolved against the citing file.
 const RELATIVE = new RegExp(String.raw`(?<![\w./*@-])\.{1,2}\/[\w./+@-]*\w\.${CITED_EXT}(?![\w*{/-])`, "gu");
+// A path with a directory that is neither rooted nor relative: in a law document it must be written from the repo root.
+const UNROOTED = new RegExp(
+  String.raw`(?<![\w./*@-])(?!(?:docs|packages|tooling|tests|scripts|docker|\.claude|\.github|legacy-source)\/)[\w+-][\w.+-]*\/[\w./+@-]*\w\.${CITED_EXT}(?![\w*{/-])`,
+  "gu",
+);
+// A quoted literal in a law document is a code or config sample (an export map, an import call), resolved by its own package.
+const QUOTED = /"[^"\n]*"/gu;
 // A bare doc or test file name: the house idiom for citing one without its directory.
 const BARE = /(?<![\w./*@-])[\w-]+(?:\.[\w-]+)*\.(?:md|(?:test|spec|ct|test-d)\.tsx?)(?![\w*{/-])/gu;
 // Any of the three, to skip a file that names no path outside its module specifiers before parsing it.
@@ -108,6 +122,9 @@ function hashComments(source: Source): Comment[] {
 
 function commentsOf(source: Source): Promise<Comment[]> {
   const ext = extname(source.path);
+  if (ext === MARKDOWN) {
+    return Promise.resolve([{ line: 1, text: source.text.replaceAll(QUOTED, " ") }]);
+  }
   const kind = SCRIPT_KINDS[ext];
   if (ext === CSS_EXT) {
     return sheetComments(source);
@@ -129,6 +146,7 @@ async function staleCitations(sources: readonly Source[], tracked: Tracked): Pro
           ...[...line.matchAll(ROOTED)].map(([token]) => ({ token, present: tracked.paths.has(token) })),
           ...[...line.matchAll(RELATIVE)].map(([token]) => ({ token, present: tracked.paths.has(posix.join(dirname(source.path), token)) })),
           ...[...line.matchAll(BARE)].map(([token]) => ({ token, present: tracked.basenames.has(token) })),
+          ...(extname(source.path) === MARKDOWN ? [...line.matchAll(UNROOTED)].map(([token]) => ({ token, present: tracked.paths.has(token) })) : []),
         ];
         for (const hit of hits.filter(({ token, present }) => !(present || NON_LITERAL.test(token)))) {
           findings.push(`${source.path}:${String(comment.line + offset)} ${hit.token}`);
@@ -149,9 +167,10 @@ function trackedFiles(): Tracked {
 /** Every tracked source under the scanned roots in a language this reads, that names a path anywhere in its text. */
 function candidateSources(tracked: Tracked): Source[] {
   const readable = (path: string): boolean =>
-    SCANNED_ROOTS.some((root) => path.startsWith(`${root}/`)) &&
-    !path.startsWith(VENDORED) &&
-    (SCRIPT_KINDS[extname(path)] !== undefined || extname(path) === CSS_EXT || HASH_COMMENT_EXTS.has(extname(path)));
+    LAW_DOC.test(path) ||
+    (SCANNED_ROOTS.some((root) => path.startsWith(`${root}/`)) &&
+      !path.startsWith(VENDORED) &&
+      (SCRIPT_KINDS[extname(path)] !== undefined || extname(path) === CSS_EXT || HASH_COMMENT_EXTS.has(extname(path))));
   return [...tracked.paths]
     .filter(readable)
     .map((path) => ({ path, text: readFileSync(join(REPO_ROOT, path), "utf8") }))
@@ -159,12 +178,12 @@ function candidateSources(tracked: Tracked): Source[] {
 }
 
 describe("the real tree", () => {
-  test("every path a code comment names is a tracked file", async () => {
+  test("every path a code comment or law document names is a tracked file", async () => {
     const tracked = trackedFiles();
     const sources = candidateSources(tracked);
     // A read that missed a root or a language would pass every citation in it.
     expect(SCANNED_ROOTS.filter((root) => !sources.some((source) => source.path.startsWith(`${root}/`)))).toStrictEqual([]);
-    expect([".ts", ".tsx", CSS_EXT].filter((ext) => !sources.some((source) => source.path.endsWith(ext)))).toStrictEqual([]);
+    expect([".ts", ".tsx", CSS_EXT, MARKDOWN].filter((ext) => !sources.some((source) => source.path.endsWith(ext)))).toStrictEqual([]);
     expect(await staleCitations(sources, tracked)).toStrictEqual([]);
   });
 });
@@ -185,6 +204,7 @@ describe("the reader", () => {
       { path: "packages/x/src/f.tsx", text: "export const f = (\n  <p>\n    Don't stop. {/* jsx-gone.ct.tsx */}\n  </p>\n);\n" },
       { path: "packages/x/src/g.css", text: ".a {\n  /* first line\n     ../gone.ts */\n  opacity: 1;\n}\n" },
       { path: "tooling/run.sh", text: "echo hi\n# packages/x/src/gone.ts\n" },
+      { path: "docs/law/Law.md", text: "# Law\n\nThe slot lives in `app-shell/lib/moved.ts` and `packages/x/src/gone.ts`.\n" },
     ];
     expect(await staleCitations(sources, tracked)).toStrictEqual([
       "packages/x/src/a.ts:1 docs/law/Gone.md",
@@ -196,6 +216,8 @@ describe("the reader", () => {
       "packages/x/src/f.tsx:3 jsx-gone.ct.tsx",
       "packages/x/src/g.css:3 ../gone.ts",
       "tooling/run.sh:2 packages/x/src/gone.ts",
+      "docs/law/Law.md:3 packages/x/src/gone.ts",
+      "docs/law/Law.md:3 app-shell/lib/moved.ts",
     ]);
   });
 
@@ -206,6 +228,10 @@ describe("the reader", () => {
       { path: "packages/x/src/c.tsx", text: "export const c = <p>See https://example.com and copy.ct.tsx // not a comment</p>;\n" },
       { path: "packages/x/src/d.ts", text: "// https://example.com/docs/law/Gone.md\n// every tests/**/*.ct.tsx and tests/a/ directory\n" },
       { path: "packages/x/src/e.css", text: '.a { content: "/* gone.ct.tsx */"; }\n' },
+      {
+        path: "docs/law/Law.md",
+        text: '# Law\n\nSee `packages/x/src/real.ts`, [the spine](./Spine-Testing.md), `<domain>/verbs/<action>.ts`, `legacy-source/ui/gone.ct.tsx` and `"./button": "./src/button/index.ts"`.\n',
+      },
     ];
     expect(await staleCitations(sources, tracked)).toStrictEqual([]);
   });

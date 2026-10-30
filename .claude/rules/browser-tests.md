@@ -66,7 +66,7 @@ Run `pnpm test:ct:webkit <paths>` for the platform suites (`platform-*.suite.ct.
 - `__orb.renders()` counts Profiler subtree commits, not component re-renders; compare `avgMs` to `maxMs`
   against mount cost before filing a render-count finding.
 - `@orb/ui` primitives carry no `data-testid`; ECharts is canvas. Assert on the surrounding text instead.
-- Stage db provenance rules live in `rules/instruments.md`.
+- Stage db provenance rules live in `.claude/rules/instruments.md`.
 - `pnpm bug:reports` lists owner bug reports; the underlying files are gitignored.
 - CDP media emulation leaks across tests in a file. `emulateMedia` does not clear a feature it
   never set, so state the full media-emulation state in one call, including `no-preference` for

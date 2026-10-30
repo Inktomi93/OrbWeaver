@@ -19,18 +19,18 @@ down unchanged. Three tiers, one direction:
 | - | - | - | - |
 | VERIFICATION | `infra/auth` (sealed, db-free) | headers → pre-row `ResolvedIdentity` + signals (`via`, `hasCsrfHeader`) | upsert, derive role, mint `Principal` |
 | RESOLUTION | `domain/sessions` | users-row upsert, `determineRole`, cookie `validate` | construct `Principal` |
-| CONSTRUCTION | `entry/auth/seam.ts` | the one `Principal` mint | re-verify |
+| CONSTRUCTION | `packages/server/src/entry/auth/seam.ts` | the one `Principal` mint | re-verify |
 
 Code comments cite the numbered invariants below as "invariant N":
 
-1. **One mint.** `entry/auth/seam.ts` is the only module that mints a `Principal` from a request; no
+1. **One mint.** `packages/server/src/entry/auth/seam.ts` is the only module that mints a `Principal` from a request; no
    `domain/` code constructs one. Entry-tier composition and lifecycle code also build Principals, split
    into two classes: **row-derived** (`createHostPrincipalResolver` reads `users.role` in
-   `entry/compose/services.ts`, which also carries the role-clients binder `roleClientsFor` —
-   `entry/compose/world-info.ts`, which builds its own `resolveOwnerPrincipal =
-   createHostPrincipalResolver(deps.sessions)` (world-info.ts:125) — `entry/lifecycle.ts`'s boot seed)
+   `packages/server/src/entry/compose/services.ts`, which also carries the role-clients binder `roleClientsFor` —
+   `packages/server/src/entry/compose/world-info.ts`, which builds its own `resolveOwnerPrincipal =
+   createHostPrincipalResolver(deps.sessions)` (world-info.ts:125) — `packages/server/src/entry/lifecycle.ts`'s boot seed)
    and **the fail-closed floor** (a synthetic `role:"user"` for role-irrelevant host-ops in
-   `entry/compose/chat.ts`, `entry/compose/search-discovery.ts`). No entry
+   `packages/server/src/entry/compose/chat.ts`, `packages/server/src/entry/compose/search-discovery.ts`). No entry
    site stamps a role that grants authority. A new synthetic-Principal site must land in one of these
    two classes and name which; a third class is a defect.
 2. **Resolve once.** Everything below the seam reads `Principal.userId`. Nothing re-resolves or
@@ -43,9 +43,9 @@ Code comments cite the numbered invariants below as "invariant N":
 5. **JWKS/JWT verification fails closed.** Every reject path returns `null` (fallback or 401), never a
    500 and never a fall-through to unsigned.
 6. **`can()` is the only privilege-comparison site.** No `role === 'admin'` or `role === 'host'` compare
-   exists outside `domain/admin/guard.ts`; chat feeds its loaded roster into
+   exists outside `packages/server/src/domain/admin/guard.ts`; chat feeds its loaded roster into
    `can(principal, action, {kind:'chat', roster})`. `roster` in this doc names the code-level
-   `chat_participants` membership (`verbs/participants.ts`, `substrate/participants-host.ts`,
+   `chat_participants` membership (`packages/server/src/domain/chat/verbs/participants.ts`, `packages/server/src/domain/chat/substrate/participants-host.ts`,
    `participants-humans.ts`). It is not the user-facing Roster, which names the saved
    seats-knobs-rules template (`domain/roster-preset`). The room's seated characters are Characters.
    Never carry this doc's `roster` into user-facing copy.
@@ -61,7 +61,7 @@ Code comments cite the numbered invariants below as "invariant N":
    launder a LAN request into a loopback-looking `Host` header. Gating on the peer closes both routes,
    so every proxied or LAN request must authenticate, and SSO is mandatory everywhere Caddy fronts. A
    same-host proxy or tunnel still arrives on a loopback socket, so the gate also refuses any request
-   that carries a relay tell (`infra/auth/forwarded.ts`), on every peer and in every mode. The local
+   that carries a relay tell (`packages/server/src/infra/auth/forwarded.ts`), on every peer and in every mode. The local
    first-run owner-password claim and its `localFirstRun` flag use the same gate. The role is read, not stamped, so a request Principal and the frozen-host Principal for
    the same caller cannot disagree.
 8. **Sessions: the raw cookie token is never stored** (a peppered HMAC-SHA-256 `token_hash` is the
@@ -75,13 +75,13 @@ Code comments cite the numbered invariants below as "invariant N":
    trusted proxy asserts the identity; a browser cannot forge the proxy's headers) is CSRF-immune by
    construction. The cookie path and the loopback owner fallback path are both ambient — the browser
    auto-attaches the cookie, and the fallback rides the loopback socket — so a cross-site page can drive
-   either. The gate splits by content-type: the byte-ingest routes (`entry/http/upload.ts`, which
+   either. The gate splits by content-type: the byte-ingest routes (`packages/server/src/entry/http/upload.ts`, which
    registers `/api/assets/upload`, `/api/databank/upload` and `/api/import`, plus `import-tree.ts`,
    `import-chat.ts`, and `import.ts`'s `/api/import/bundle`) accept a CORS-simple content-type, so they
    gate on `via !== "header"` — cookie and fallback both need the `x-orb-csrf` header. tRPC
-   (`transport/trpc/trpc.ts`) keys on `cookie` only, which the un-cookied loopback dev tooling relies on.
+   (`packages/server/src/transport/trpc/trpc.ts`) keys on `cookie` only, which the un-cookied loopback dev tooling relies on.
 
-   That tRPC exemption holds only because of the content-type guard at the mount (`entry/app.ts`); the
+   That tRPC exemption holds only because of the content-type guard at the mount (`packages/server/src/entry/app.ts`); the
    guard is required, not defense in depth. `@trpc/server`'s `getContentTypeHandler` also matches
    `multipart/form-data` and `application/octet-stream` as mutations, and `multipart/form-data` is
    CORS-simple — so without the guard, a plain cross-site `<form>` could reach the mount with no
@@ -95,20 +95,20 @@ Code comments cite the numbered invariants below as "invariant N":
    tRPC's method map admits GET for queries and subscriptions only. The external legacy source contains a test of the non-JSON refusal through the real mount. It is reference-only. The runtime content-type guard remains required because `application/json` is not a CORS-simple content-type and this app mounts no CORS middleware.
 10. **One chokepoint for external identity.** Every SSO mode reaches `users` through the
     `provisionIdentity` verb (`domain/sessions`); a new mode adds a caller, never a second upsert. The
-    production census is two: the `oidc` callback (`entry/http/auth-routes.ts`: verified claims through
-    `identityFromClaims` to the verb) and the `forward-header` request path (`entry/auth/seam.ts`:
+    production census is two: the `oidc` callback (`packages/server/src/entry/http/auth-routes.ts`: verified claims through
+    `identityFromClaims` to the verb) and the `forward-header` request path (`packages/server/src/entry/auth/seam.ts`:
     `resolve` in `infra/auth` to the verb); `local` and `single-user` carry no external identity
     (password verify, or peer-gated `ensureUser`). The verb owns bind-once: the handle fallback may bind
     an unbound row and may never rebind a bound one (`isSubjectMismatch`,
-    `domain/sessions/substrate/role-policy.ts`, shared with the admin link capability rather than
+    `packages/server/src/domain/sessions/substrate/role-policy.ts`, shared with the admin link capability rather than
     re-spelled), together with the access gate, the collision hard-deny, the JIT gate and the owner
     singleton, in one ruled precedence. That precedence is the pure
-    `decideProvision(existing, identity, ownerId, options)` (`domain/sessions/substrate/decide-provision.ts`, D259): the verb interprets its decision and runs the
+    `decideProvision(existing, identity, ownerId, options)` (`packages/server/src/domain/sessions/substrate/decide-provision.ts`, D259): the verb interprets its decision and runs the
     two reads the decision names, the owner row for owner adoption and the email for the collision deny. A
     batch-shaped signup statement that decides through the same function is not a second upsert. Such a
     statement carries only the race-relevant checks in SQL: the unique indexes on handle, the handle key
     (`users_handle_key_unique`, D257), `external_id` and the single owner, and a `NOT EXISTS` on the handle key (D257) and on email.
-    The one such statement is the `oidc` pending-join confirm (`domain/sessions/verbs/pending-signup.ts`).
+    The one such statement is the `oidc` pending-join confirm (`packages/server/src/domain/sessions/verbs/pending-signup.ts`).
     A mode with its own upsert would carry its own, weaker, takeover
     posture. Enforcers: `infra/auth` is db-free and may not import a domain, so a mode resolver
     structurally cannot write; the `orb/no-direct-users-read` lint rule (`eslint.config.ts`) reds any domain
@@ -127,7 +127,7 @@ Code comments cite the numbered invariants below as "invariant N":
   fail-closed login gate. The owner row is never group-derived, gated, or downgraded (D65).
 - **Resource:** `chat_participants.role: host|member` is chat authority (D18); there is no
   `chats.ownerId`. Membership derives "my chats"; host-handoff (`nominateHostHandoff`/
-  `acceptHostHandoff`, `domain/chat/verbs/participants.ts`) moves authority. A non-member gets
+  `acceptHostHandoff`, `packages/server/src/domain/chat/verbs/participants.ts`) moves authority. A non-member gets
   `ChatNotFoundError`, not `FORBIDDEN`, so membership leaks nothing.
 - **Capability:** the kind-keyed third factor, the agent ceiling. Not built (see §4): the axis exists in
   the type system (`ToolCapability` is `can()`-shaped: `{scope:"chat", action: ChatAction} |
@@ -176,7 +176,7 @@ finding that confuses two tiers is not a finding.
 | - | - | - | - |
 | APP | `user \| admin \| owner` over `GlobalAction` | `users.role` (D17/D65) → `can(principal, "admin"\|"owner", …)` | A global admin grants zero host power inside a room. The lattice `owner ⊇ admin` governs APP surfaces only; `decideChat` never consults `UserRole`. An admin who is not a member of a chat gets `ChatNotFoundError` like any stranger. |
 | ROOM | `host \| member` over `ChatAction` (`read \| host`) | `chat_participants.role` (D18) → `can(principal, "host", {kind:"chat", roster})` | Chats are ownerless. The creator becomes the host, and the room is functionally theirs, but structurally there is no `chats.ownerId`: host is a transferable roster role (`nominateHostHandoff`/`acceptHostHandoff` via `chats.pendingHostUserId`), and membership is the scope. "Who owns this chat" has no answer; "who is its host, and who is in it" have exact ones. |
-| VISIBILITY | per-member / per-span policy values | `substrate/auth/clamp.ts` + `substrate/member-visibility.ts` | The default is visible. A room is a shared document; members see it; the host may limit. Limits are options the host sets, never defaults, and each is a policy value the projection class resolves, not an authority gate. |
+| VISIBILITY | per-member / per-span policy values | `packages/server/src/domain/chat/substrate/auth/clamp.ts` + `packages/server/src/domain/chat/substrate/member-visibility.ts` | The default is visible. A room is a shared document; members see it; the host may limit. Limits are options the host sets, never defaults, and each is a policy value the projection class resolves, not an authority gate. |
 
 The host's three options to limit (a visibility finding must name which one it bypasses):
 
@@ -193,8 +193,8 @@ The host's three options to limit (a visibility finding must name which one it b
 A role read answers exactly one of three questions, and each has one home:
 
 - **"May this caller act?"** is the enforcement class. The comparison lives in the kernel (`can()`),
-  reached through the domain's cited chokepoint (`chat/substrate/auth/decide.ts::assertHost`/
-  `permitsHost`; `rpg/guard.ts::assertHostRole`), which owns the leak-free refusal shape and nothing
+  reached through the domain's cited chokepoint (`packages/server/src/domain/chat/substrate/auth/decide.ts::assertHost`/
+  `permitsHost`; `packages/server/src/domain/rpg/guard.ts::assertHostRole`), which owns the leak-free refusal shape and nothing
   else.
 - **"May this viewer read the hidden bytes?"** is the data-projection class. `member-visibility.ts::
   viewerHoldsHost` is the host bit; `viewerReadsHidden` is the named check the payload boundary calls;
@@ -202,7 +202,7 @@ A role read answers exactly one of three questions, and each has one home:
   into pure code for no behavior change. It has its own home so it can legitimately diverge later, such
   as a co-GM who commands the room but must not read deception truth.
 - **"Which seat is the host?"** is a roster lookup (role to identity, D19), homed at
-  `substrate/participants-host.ts::hostSeatOf`/`hostUserIdOf`, whose consumers want an owner for a
+  `packages/server/src/domain/chat/substrate/participants-host.ts::hostSeatOf`/`hostUserIdOf`, whose consumers want an owner for a
   downstream read (card/preset/connection ownership, the stats delta's owner, the notification
   recipient) and whose `userId` guard is the one answer for that class.
 
@@ -236,7 +236,7 @@ review re-flags something already ruled.
 
 The sanctioned `Principal`/credential construction and cookie sites; everything else consumes.
 
-- `entry/auth/seam.ts` — the mint, across all three request paths (cookie via `sessions.validate`,
+- `packages/server/src/entry/auth/seam.ts` — the mint, across all three request paths (cookie via `sessions.validate`,
   header SSO upsert, loopback-peer-gated owner fallback), plus the frozen-host bridge. The fallback path
   and the frozen-host bridge share one row-to-`Principal` mapper (D135): both read `users.role`, so no
   path in this file invents a role. They differ only on admission: the fallback path adds the `enabled`
@@ -245,9 +245,9 @@ The sanctioned `Principal`/credential construction and cookie sites; everything 
   un-credentialed `via:"fallback"` principal is not a debug-route curiosity: under `single-user` it is
   what reaches every owner- and admin-gated tRPC surface (admin-gated meaning owner ∪ admin,
   `ROLES_FOR_GLOBAL_ACTION.admin`). `ownerFallbackAllowed` is what defends that boundary.
-- `entry/auth/principal-mint.ts` — `mintPrincipal`, the one constructor of the branded `Principal`. A
+- `packages/server/src/entry/auth/principal-mint.ts` — `mintPrincipal`, the one constructor of the branded `Principal`. A
   literal, a spread or a `satisfies` check fails `tsc`. dependency-cruiser `principal-mint-owners` limits its
-  importers to `seam.ts` and `compose/chat.ts`. The HARD `orb/principal-*` rules in `eslint.config.ts` name the
+  importers to `seam.ts` and `packages/server/src/entry/compose/chat.ts`. The HARD `orb/principal-*` rules in `eslint.config.ts` name the
   functions that may call it or return a bare `Principal`, and refuse the assertion and literal spellings `tsc`
   accepts. Those rules key on the name `Principal`, so `orb/principal-alias` refuses every rename of it:
 
@@ -262,32 +262,32 @@ The sanctioned `Principal`/credential construction and cookie sites; everything 
   - `typeof` of a binding whose `Principal` type is inferred or imported;
   - an assertion to a named object, function or interface type that contains a `Principal`;
   - in the engine, a type derived from a `Principal`-taking signature that a module outside the verb layer exports.
-- `entry/http/auth-routes.ts` — the session cookie write side, under the request transport's name
-  (`infra/auth/transport.ts`); mints session tokens via `domain/sessions` and never re-implements resolution.
+- `packages/server/src/entry/http/auth-routes.ts` — the session cookie write side, under the request transport's name
+  (`packages/server/src/infra/auth/transport.ts`); mints session tokens via `domain/sessions` and never re-implements resolution.
   Its cookie sites are login, first-run, the local signup-through-invite route, and the `oidc` callback
   and pending-join confirm routes. A signup or confirm mints through `sessions.create` only after its one
   gated batch commits with every `RETURNING` non-empty, and a confirm mints only for an enabled account
-  (D259). The pending-join cookie (`infra/auth/modes/oidc.ts`) is `__Host-orb_join_pending` over https and
+  (D259). The pending-join cookie (`packages/server/src/infra/auth/modes/oidc.ts`) is `__Host-orb_join_pending` over https and
   `orb_join_pending_insecure` over http, both `HttpOnly` and `SameSite=Strict`. It carries a fresh secret that
   the server stores only as a peppered hash, and it is never a session.
-- `entry/app.ts` — the `Set-Cookie` writer: the per-request auth middleware re-issues the same token
+- `packages/server/src/entry/app.ts` — the `Set-Cookie` writer: the per-request auth middleware re-issues the same token
   `sessions.validate` just accepted, with a fresh max-age. It never mints; re-issuing a second copy read
   independently would silently log the caller out, so the token it writes must be the one the seam
   authenticated.
-- `entry/boot/seed-owner.ts` — the one-time boot-only `role=owner` backfill for `OWNER_HANDLES`: no
+- `packages/server/src/entry/boot/seed-owner.ts` — the one-time boot-only `role=owner` backfill for `OWNER_HANDLES`: no
   owner `Principal` exists at boot to call the guarded `admin.setRole`.
-- The role-clients binder, folded into `entry/compose/services.ts`, constructs no `Principal` (D135
+- The role-clients binder, folded into `packages/server/src/entry/compose/services.ts`, constructs no `Principal` (D135
   clause G). It takes the row-to-`Principal` resolver as a dependency because
-  `entry/compose/automation-plugin.ts`'s `/autobg` path binds a bundle for an automation rule's author
+  `packages/server/src/entry/compose/automation-plugin.ts`'s `/autobg` path binds a bundle for an automation rule's author
   at request time, and a rule author holds only D18 room-host authority. A stamped role here would grant
   authority downstream at the `mintMaxProSub` owner gate, which keys on `principal.role`.
-- `entry/lifecycle.ts` — the boot-seed `Principal` for the default preset, characters and persona, plus
+- `packages/server/src/entry/lifecycle.ts` — the boot-seed `Principal` for the default preset, characters and persona, plus
   the env credential seed. Row-derived, not stamped (clause G): `seedOwner` writes `role=owner` onto that
   row a few lines earlier, and the Principal reads it back, so a box whose owner row is somehow below
   `owner` seeds at its honest role instead of overriding the table from memory.
-- `entry/compose/chat.ts` — the frozen-host bridge (`resolveHostPrincipal`/`hostPrincipal`); mints
+- `packages/server/src/entry/compose/chat.ts` — the frozen-host bridge (`resolveHostPrincipal`/`hostPrincipal`); mints
   synthetic Principals for role-irrelevant and owner-gated host-ops when no request `Principal` exists.
-- `entry/compose/services.ts` — wires `createHostPrincipalResolver`, minting synthetic Principals for
+- `packages/server/src/entry/compose/services.ts` — wires `createHostPrincipalResolver`, minting synthetic Principals for
   the same offline host-ops seam. It does not wire agent-principal provisioning; the only `agent`
   identifiers here are agent-SDK backend config (see §4).
 
@@ -302,11 +302,11 @@ suite. The only live agent surface is dormant DDL, kept so the re-land needs no 
   and owned by DDL (`packages/db/src/schema/users.ts`); `chat_participants_kind_shape` carries the
   dormant `agent` (userId-backed) and `observer` (both-null) branches (`packages/db/src/schema/chat.ts`);
   the deny seam is pre-named in
-  `admin/guard.ts` and `chat/guard.ts`. Every live `Principal` is human.
+  `packages/server/src/domain/admin/guard.ts` and `packages/server/src/domain/chat/guard.ts`. Every live `Principal` is human.
 - **Committed, not yet built — the capability factor re-lands with the seat wave:** the agent ceiling
   (a `canAgent` successor over a closed action union, decided at the kernel), its containment suite, and
   `ChatMembership` widening to carry `kind` (the construction sites are the compile-forced update set:
-  `decide.ts`, `chat/guard.ts`, `resolve-stream-authority.ts`, the tool-use ceiling check). Until then,
+  `decide.ts`, `packages/server/src/domain/chat/guard.ts`, `resolve-stream-authority.ts`, the tool-use ceiling check). Until then,
   buddy's borrowed-owner posture (D17) is the shipping posture.
 - **The constraint the seat wave inherits** (D121 clause A, the agents rider): chat tools execute under
   the host principal, so an agent initiator would otherwise inherit the host's full tool ceiling. It
@@ -344,7 +344,7 @@ The chat-level table above has two user-level partners in settings `seeds`:
 | current | `seeds.currentPersonaId` | the user's last-played persona |
 
 Neither user-level pointer is read live inside a chat. `startChat` resolves the founding anchor once, in
-this order (`domain/chat/verbs/start-chat.ts::resolveFoundingAnchor`):
+this order (`packages/server/src/domain/chat/verbs/start-chat.ts::resolveFoundingAnchor`):
 
 1. The explicit `anchorPersonaId`, which the caller must own.
 2. The one persona connected to a solo founding character.
@@ -365,8 +365,8 @@ may change this resolution order.
 
 → [`client-architecture-lockdown.md`](client-architecture-lockdown.md) §10a/§12 row 12/§13 rule 7 —
 the three-class data contract, the durable-local per-user-namespacing + referential-integrity contract,
-the session channel (`lib/session-channel.ts`, ESLint `orb/session-channel-boundary`), and the recovery ladder
-(`data/stale-session.ts`). D138. This spine states identity resolution; the lockdown doc owns what the
+the session channel (`packages/client/src/lib/session-channel.ts`, ESLint `orb/session-channel-boundary`), and the recovery ladder
+(`packages/client/src/data/stale-session.ts`). D138. This spine states identity resolution; the lockdown doc owns what the
 client does when a resolved session goes stale.
 
 ## Esoterica
@@ -378,7 +378,7 @@ client does when a resolved session goes stale.
   bidi control character; the displayed handle is
   never folded (D257, `@orb/kit/handle-key`).
 - Credential AAD binds `${userId}|${provider}` — single production site
-  `domain/credentials/persistence/aad.ts`; `SecretBox` carries the AAD, never derives it.
+  `packages/server/src/domain/credentials/persistence/aad.ts`; `SecretBox` carries the AAD, never derives it.
 - A connection's `transport.headers`, `transport.includeBody` and `extras` are the owner's own typed values,
   stored as plain text in `user_connections` and returned only to that owner. They are not credentials:
   `SecretBox` holds the provider key, and log scrubbing still treats these values as secrets. A new header

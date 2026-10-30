@@ -82,7 +82,7 @@ fine override, and integer at the 16px root) and
 the switch CT (the four rows above, measured from the rendered boxes,
 plus the rest landing in whole DEVICE px at both pointer classes and both rest positions).
 Both are unreviewed [restoration register](../plans/restoration-register/design.md) entries
-(`ui/tokens/index.test.ts`, `ui/primitives/switch/switch.ct.tsx`).
+(`legacy-source/ui/tokens/index.test.ts`, `legacy-source/ui/primitives/switch/switch.ct.tsx`).
 
 ## 3. The chosen architecture
 
@@ -140,7 +140,7 @@ Mechanism: a new `orb.output` role **`snapped`** in the vault contract
 pattern for serialization directives (the `percentage`/`light-dark` precedent) — the design value
 stays a portable DTCG dimension; only the CSS serialization is vendor-shaped.
 
-Because `TOKENS[path].value` becomes the CSS string, `tokens/index.ts` generation adds a numeric
+Because `TOKENS[path].value` becomes the CSS string, `packages/ui/src/tokens/index.ts` generation adds a numeric
 companion surface for build-time consumers (the `TOKEN_POLARITY_ARMS` precedent — "consumers never
 parse the serialization"): `LENGTH_BASE_PX` maps served dimension tokens, including snapped dimensions, to resolved px
 at the 16px root (e.g. `"leading.label": 16`).
@@ -151,7 +151,7 @@ Fixed boxes make three classes of site wrong-by-vocabulary; each is re-paired to
 its CURRENT resolved value:
 
 1. **Tailwind default-scale leadings** (banned by the gate): `leading-tight` on micro voices →
-   `leading-micro` (`text/variants.ts` micro/kicker/gloss, `charts/scatter` count,
+   `leading-micro` (`packages/ui/src/primitives/text/variants.ts` micro/kicker/gloss, `charts/scatter` count,
    `compare-blocks` stateChip).
 2. **Cross-pairs whose intent was a ratio:** `text-code leading-body` → `leading-label-relaxed`
    (Text `code` voice, `datumMono`, number-field `inline`); `text-label leading-body` →

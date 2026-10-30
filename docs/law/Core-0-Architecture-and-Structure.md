@@ -125,7 +125,7 @@ packages/server/src/
 
 ## 4. The per-feature template — the legibility engine
 
-Use the same role-based layout across domains. Create `contract/views.ts` only for definitions the domain owns.
+Use the same role-based layout across domains. Create `<domain>/contract/views.ts` only for definitions the domain owns.
 Import shared view shapes directly from `@orb/contracts`; do not create forwarding-only view files.
 Define context types in the domain's `contract/`. Add `context.ts` only for dependency adaptation, operation binding or shared-state construction.
 Use direct context construction in `service.ts` when no adaptation or shared state needs a separate builder.
@@ -158,9 +158,9 @@ domain/<feature>/
 
 | Question | Answer (mechanical) |
 | - | - |
-| What does this feature *do*? | `contract/service.ts` (the interface) |
-| Where's the `X` action? | `verbs/X.ts` |
-| What shape does the client get? | `@orb/contracts`; domain-owned read models stay in `contract/views.ts` |
+| What does this feature *do*? | `<domain>/contract/service.ts` (the interface) |
+| Where's the `X` action? | `<domain>/verbs/<action>.ts` |
+| What shape does the client get? | `@orb/contracts`; domain-owned read models stay in `<domain>/contract/views.ts` |
 | Where's the DB? | `persistence/` |
 | Where's the pure logic? | `substrate/` or the named `<subsystem>/` |
 | How do I enter from outside? | `index.ts` (only) |
@@ -247,11 +247,11 @@ Promoted here from code comments so they are discoverable; the code stays the so
 
 | Invariant | Home / detail |
 | - | - |
-| **ONE credential-mint site** — the brand-protected `ResolvedSecret` is constructed ONLY in the credentials substrate's mint; the brand is otherwise unforgeable. | `domain/credentials/substrate/mint-secret.ts` |
+| **ONE credential-mint site** — the brand-protected `ResolvedSecret` is constructed ONLY in the credentials substrate's mint; the brand is otherwise unforgeable. | `packages/server/src/domain/credentials/substrate/mint-secret.ts` |
 | **Notifications are durable-first** — INSERT the inbox row, THEN publish to the bus; a crash between the two never loses a delivered notification (the inbox is truth, the bus is best-effort). | `domain/notifications` |
 | **`notifications.record` is the ONE recipient chokepoint** — every producer routes through it, and it REFUSES an agent-principal recipient (agents never hold an inbox). Enforced once, inherited by all producers. | `domain/notifications` |
 | **Wire event unions are secret-unrepresentable** — the chat/notification event unions are closed discriminated unions of strict objects carrying only ids + literals; a secret/credential field is not expressible, so it cannot leak onto the bus. | `@orb/contracts/{chat,notifications}` |
-| **Settings has one writer.** `domain/settings` owns its KV table and exposes an opaque, registered-prefix port; each tenant owns its values' meaning. | `domain/settings/persistence/kv.ts`; `SETTINGS_TENANT_PREFIXES` in `@orb/contracts/settings` |
+| **Settings has one writer.** `domain/settings` owns its KV table and exposes an opaque, registered-prefix port; each tenant owns its values' meaning. | `packages/server/src/domain/settings/persistence/kv.ts`; `SETTINGS_TENANT_PREFIXES` in `@orb/contracts/settings` |
 | **`users`-read chokepoint + audit-ordering** — only `admin` + `sessions` read the `users` table (every admin read checks authorization first); audit ordering is check→write→audit, so a refused write leaves NO phantom audit row. | `domain/admin` |
 
 ## 9. Retained tooling

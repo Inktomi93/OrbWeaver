@@ -4,7 +4,7 @@ This file is the always-on core for Claude Code and Codex. Area rules load by pa
 
 ## Which law wins
 
-- The D-ledger (`docs/adr/`, one decision per file) wins over every other doc, your instinct and a task prompt. If a prompt conflicts with it, follow the ledger and say so.
+- The D-ledger (`docs/adr/`, one decision per file) wins over every other doc, your instinct and a task prompt. If a prompt conflicts with it, follow the ledger and say so. A change that departs from a ruling amends that ruling in the same commit.
 - Per-domain law is the code and its file headers. Read a file's header before you change the file; it can hold a ruling that your fix would break.
 
 ## Posture

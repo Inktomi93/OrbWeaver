@@ -93,7 +93,7 @@ packages/ui/
                         #   configured `tv` factory (§5) + focus-ring/overlay-motion/portal-container/
                         #   reduced-motion/result-count helpers. Primitives import from here, never a raw lib.
     styles/ { globals.css · theme.css (GENERATED @theme) }
-  (no src/index.ts barrel — subpath exports only, one per group; see below)
+  (no root barrel — subpath exports only, one per group; see below)
 ```
 
 - **Subpath exports, explicit map.** The sibling `"./*": "./src/*/index.ts"` pattern would force
@@ -119,8 +119,8 @@ enforce the seal column: a lib may only be imported from its sealed dir.
 | `lucide-react` | `primitives/icons/` (dep-cruiser `ui-satellite-seals-*`) | the ONE icon set |
 | `@tanstack/react-virtual` | `primitives/virtual-list/` + `primitives/message-list/` + `primitives/media-grid/` | `directDomUpdates` + core chat APIs (D54) |
 | `streamdown` + `remark-gfm` | `markdown/` | two trust policies |
-| `katex` + `rehype-katex` + `remark-math` | `markdown/math.ts` | Streamdown bundles no math renderer — this seal supplies the whole `$…$`/`$$…$$` stack + stylesheet |
-| `@shikijs/core` + `@shikijs/engine-javascript` + `@shikijs/langs` | `markdown/shiki-plugin.ts` | Streamdown 2.5 dropped its bundled Shiki — the seal re-supplies code highlighting via `plugins.code` (lazy JS-regex engine, both mode literals baked) |
+| `katex` + `rehype-katex` + `remark-math` | `packages/ui/src/markdown/math.ts` | Streamdown bundles no math renderer — this seal supplies the whole `$…$`/`$$…$$` stack + stylesheet |
+| `@shikijs/core` + `@shikijs/engine-javascript` + `@shikijs/langs` | `packages/ui/src/markdown/shiki-plugin.ts` | Streamdown 2.5 dropped its bundled Shiki — the seal re-supplies code highlighting via `plugins.code` (lazy JS-regex engine, both mode literals baked) |
 | `codemirror` + `@codemirror/{lang-css,autocomplete,lint,state}` | `code-editor/` | CM6 |
 | `diff` (jsdiff) | `diff/` | snapshot/edit-history diff views (D28/D54) |
 | `cmdk` | `primitives/command/` | — |
@@ -138,8 +138,8 @@ enforce the seal column: a lib may only be imported from its sealed dir.
 
 Node token-authoring homes and type-only reexports follow [Spine-TypeScript §7.4](Spine-TypeScript-and-Patterns.md#types--schemas--one-home-one-direction-no-inline-spine-74). The token-contract and tokens-build entries remain supported Node doors.
 
-- **Source:** `src/tokens/tokens.json` — W3C DTCG (`$value`/`$type`). Seeded from the design seed
-  (the DESIGN.md OKLCH Hearth ramp + Ember accent + Geist + the radius/spacing/motion scales —
+- **Source:** `packages/ui/src/tokens/tokens.json` — W3C DTCG (`$value`/`$type`). Seeded from the design seed
+  (the OKLCH Hearth ramp + Ember accent + Geist + the radius/spacing/motion scales —
   UI-Arch §4.1 keeps ONLY the palette from that seed) plus the scales the law mandates:
   - **color** — the Hearth ramp + intents (`background`/`foreground`/`card`/`surface-raised`/`popover`/
     `primary`(Ember)/`secondary`/`muted`/`accent`/`destructive`/`success`/`warning`/`info`/`highlight`/
@@ -164,8 +164,8 @@ Node token-authoring homes and type-only reexports follow [Spine-TypeScript §7.
     **radius** (`base/control/card/full`); **z** scale; **motion** (`--motion-fast/base/layout` +
     `--ease-out-expo`, reduced-motion floor unlayered in globals.css per D43 §11.4e).
 - **Codegen:** `tokens.build.ts` (style-dictionary **v5** — recorded delta from the doc's v4; ESM
-  API) emits BOTH `src/styles/theme.css` (the Tailwind v4 `@theme` block → utility namespaces) and
-  `src/tokens/index.ts` (the typed TS map). Both are **committed, generated artifacts** with a
+  API) emits BOTH `packages/ui/src/styles/theme.css` (the Tailwind v4 `@theme` block → utility namespaces) and
+  `packages/ui/src/tokens/index.ts` (the typed TS map). Both are **committed, generated artifacts** with a
   DO-NOT-EDIT header.
 - **Freshness is machine-enforced:** the external legacy source (`/home/inktomi/inktomi-stack/development/orbweaver-legacy-tests-2026-10-21/ui/tokens/index.test.ts`) re-runs the codegen
   in-memory and diffs against the committed artifacts — hand-editing the theme or letting it drift
@@ -173,7 +173,7 @@ Node token-authoring homes and type-only reexports follow [Spine-TypeScript §7.
 - **Themes are value-sets over these names** (D44 §12.1): Hearth is `:root`. NO structural mode exists.
   FLAG\[registry]: the shipped theme SET is **Hearth · Mocha · Light** (D62's placement rulings
   are the authority; never the seed mockup's Catppuccin/Loom names) — built as `owner_id IS NULL` seed
-  rows (`server/domain/settings/seed-themes.ts`) AND generated `[data-theme]` value-sets in `theme.css`.
+  rows (`packages/server/src/domain/settings/seed-themes.ts`) AND generated `[data-theme]` value-sets in `theme.css`.
   Custom themes ride the `<ThemeScope>` override API.
 
 ## 5. Variants — the tailwind-variants conventions
@@ -187,7 +187,7 @@ Node token-authoring homes and type-only reexports follow [Spine-TypeScript §7.
   `gap-row`, `rounded-control`, `z-overlay`) — raw values (`bg-[#…]`, `gap-[13px]`, `z-50`,
   `bg-black/50`) are not custom-statically enforced in ui after D333 exactly as in features (D43: **no `components/ui/` exemption**).
 - `cn` = tailwind-variants' merge, re-exported from `@orb/ui/lib` — the one class-merge home.
-- `lib/index.ts` ALSO exports `tv` — a `createTV`-CONFIGURED factory (NOT the raw `tailwind-variants`
+- `packages/ui/src/lib/index.ts` ALSO exports `tv` — a `createTV`-CONFIGURED factory (NOT the raw `tailwind-variants`
   export). Every primitive MUST import `tv` from `@orb/ui/lib`, never straight from the package:
   the DTCG type-scale utilities (`text-display`…`text-micro`) are custom `--text-*` tokens
   tailwind-merge doesn't know about by default, so an unconfigured `tv()` silently drops the size
@@ -242,7 +242,7 @@ factories are inventoried here because this package is their substrate and their
 | the panel-store shape | `client/state` | Zustand | one `create` per file · ≤10 authored fields · no exported `set`/`getState` · persisted device-local ONLY for device state (dock/collapse) — synced prefs go in the server `UserSettings` blob (D44 §12.1). |
 | the registry pattern (sections/modals/panes/chrome via `createRegistry`/`createContributorRegistry` — D70/D73; the former `RAIL_SLOTS`/`MODAL_SLOTS` static maps and the `check:registry-pairing` script are DEAD) | `client` features + `main.tsx` | feature wiring | registry-as-data wired at the composition root; walls carried by the `*-registry-completeness` gates + total door Records so a missing member is a `tsc` error. |
 | `ChatHandle` | `client` | domain-shaped | the `{kind:'committed';id} \| {kind:'draft';id;meta}` discriminated handle threaded from the root — the typed `this_chid`/`isOptimistic` successor. |
-| `lib/time.ts` seam | `client/lib` | Intl + injected now | epoch-UTC wire → browser-local display, memoized `Intl.*`, injected `now` (snapshot-testable). |
+| `packages/client/src/lib/time.ts` seam | `client/lib` | Intl + injected now | epoch-UTC wire → browser-local display, memoized `Intl.*`, injected `now` (snapshot-testable). |
 
 The as-built shapes are the code (`client/src/{forms,data}`).
 
@@ -286,7 +286,7 @@ Two WHYs stay live because they still constrain the code:
 
 The Streamdown security-API gotcha (the real surface is `allowedElements`/`disallowedElements` +
 `urlTransform`, not the assumed `allowedImagePrefixes`/`allowDataImages`) now self-documents at the top
-of `markdown/policy.ts` — no doc copy needed.
+of `packages/ui/src/markdown/policy.ts` — no doc copy needed.
 
 ## 11. Static enforcement
 
@@ -435,7 +435,7 @@ because it derives (`BaseDrawer.Handle<Payload>`).
 
 ## 15. `className` and `style` — the seal narrows one and passes the other (PENDING RATIFICATION)
 
-Base UI documents both props as `T | ((state) => T)` (handbook `styling.md` §"CSS classes" /
+Base UI documents both props as `T | ((state) => T)` (Base UI's styling handbook, "CSS classes" /
 §"Style prop"). This package resolves them differently, on purpose:
 
 - **`className` is narrowed to `string`** on every seal (`Omit<BaseXProps, "className"> & { className?: string }`).
@@ -463,7 +463,7 @@ Recorded because it looks like an oversight and is not.
   `Menu`. It lacks two capabilities of a real `ContextMenu.Root`: pointer-position anchoring (the
   menu opens against the row, not the click point) and long-press (no context-menu gesture on touch,
   so the affordance is desktop-only). Base UI's own guidance says a context menu must only ever
-  SUPPLEMENT a visible control (`components/context-menu.md` §"Usage guidelines"), which this site
+  SUPPLEMENT a visible control (Base UI's context menu docs, "Usage guidelines"), which this site
   satisfies, so the shim is a reduced enhancement, not a broken requirement. A proper seal
   (`primitives/context-menu/`: Root/Trigger/Backdrop/Portal/Positioner/Popup/Arrow/Item/LinkItem/
   Separator/Group/GroupLabel/Submenu\*/Checkbox\*/Radio\* plus a trigger area, reusing

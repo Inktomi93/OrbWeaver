@@ -96,7 +96,7 @@ Each domain lives at `packages/server/src/domain/<name>/` and follows the folder
 - `/api/_debug` is observability in `packages/server/src/foundation/`, not a domain.
 - The agent-sdk session cache is internal to the backend (`packages/inference/src/backends/agent-sdk/session/`), not a chat concern.
 - Each domain raises its own jobs in `domain/<x>/workload-contributions.ts`.
-- `entry/compose/workload-contributions.ts` assembles them into one registry.
+- `packages/server/src/entry/compose/workload-contributions.ts` assembles them into one registry.
 - `connection` resolves per task. The task list is `TASKS` in `packages/contracts/src/inference/tasks.ts`.
 - `tag` holds labels only. Analytics facets belong to `discovery`.
 - Game words (`party`, `npcs`, `quest`, `encounter`) name only `rpg` concepts. An rpg surface names a chat concept with the chat word.

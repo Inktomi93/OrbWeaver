@@ -140,12 +140,12 @@ From the handbook's `.d.ts` do's-and-don'ts — worth enforcing even though we a
 
 **AVOID.**
 
-- `node:sqlite` — sync-only, and the libSQL PRAGMA/transaction knowledge in `db/client/index.ts` is driver-specific and hard-won; a swap re-derives it for a worse concurrency model.
+- `node:sqlite` — sync-only, and the libSQL PRAGMA/transaction knowledge in `packages/db/src/client/index.ts` is driver-specific and hard-won; a swap re-derives it for a worse concurrency model.
 - Web Storage APIs in node.
 - Hand-rolled sleeps, regex escapes, deferred-promise captures, and set algebra — the modern spelling exists for each, above.
 - `Date.parse` hand-rolls where the `kit/time` seam exists. (luxon still backs that seam; Temporal is blocked on Safari, the ONE deferral, and it carries its trigger.)
 
-**Abort rubric** (per site, not blanket): a pure timeout race → `AbortSignal.timeout` on the operation · merging an external signal with an internal one → `AbortSignal.any([...])` · a forward that runs real CLEANUP on abort → keep the listener and say why inline · a deadline that must not hold the process open → keep a manual `setTimeout(...).unref()` composed via `AbortSignal.any` (`infra/network/egress.ts` is the sanctioned archetype — `AbortSignal.timeout` cannot unref; a declared platform limitation, not our debt).
+**Abort rubric** (per site, not blanket): a pure timeout race → `AbortSignal.timeout` on the operation · merging an external signal with an internal one → `AbortSignal.any([...])` · a forward that runs real CLEANUP on abort → keep the listener and say why inline · a deadline that must not hold the process open → keep a manual `setTimeout(...).unref()` composed via `AbortSignal.any` (`packages/server/src/infra/network/egress.ts` is the sanctioned archetype — `AbortSignal.timeout` cannot unref; a declared platform limitation, not our debt).
 
 **Not our realm:** the QuickJS membrane's guest values are `ctx.dump()` products, not `Error` instances of any realm — `Error.isError` is WRONG there, and its deferreds are `ctx.newPromise()`, not `Promise.withResolvers` candidates.
 
@@ -161,7 +161,7 @@ and updating every dispatch site by hand.
 
 **The pattern to copy:** `workloads.kind` dispatches through `WorkloadContributions:
 { readonly [K in WorkloadKind]: WorkloadContribution<K> }`, asserted exhaustive and duplicate-free by
-`keyByKind` at the compose door (`entry/compose/workload-contributions.ts`, D117) — a **mapped-type
+`keyByKind` at the compose door (`packages/server/src/entry/compose/workload-contributions.ts`, D117) — a **mapped-type
 Record**, so a missing kind is a hard compile error. `routing.api`/`source` runner switches use
 typed-return / `assertNever`.
 

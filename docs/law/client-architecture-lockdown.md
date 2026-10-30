@@ -47,14 +47,14 @@ updated: 2026-10-17
 | cross-section navigation | An action from `#state` (§5.1) | Prop-drilling or importing the target feature |
 | feature content and its context inspector | The feature's `createFormHandleBridge` (§12 row 6) | A cross-feature bridge or global event emitter |
 | a domain event | Add the event to its union, emit after durable commit and map it in `invalidation.ts` (§13) | An ad-hoc event emitter for shared state |
-| readiness or dev state | `lib/app-ready-signal.ts` or `lib/agent-bridge.ts` (§12 row 11) | Importing dev instrumentation into production |
+| readiness or dev state | `packages/client/src/lib/app-ready-signal.ts` or `packages/client/src/lib/agent-bridge.ts` (§12 row 11) | Importing dev instrumentation into production |
 | styling | Follow §4: tokens, `tv()` skins and UI layout primitives | Raw values or new feature stylesheets |
 | a shared domain-aware composite | `components/` (tier 2) | Copying it across features or placing it in `@orb/ui` |
 | a client store | A store factory in `state/` | Bare Zustand stores or adding fields to an unrelated store |
 
 ## 3. The five-tier reuse ladder (the canonical client layering)
 
-The client is FIVE tiers, not "ui + features". A builder reaches DOWN this ladder before hand-rolling anything. `packages/client/src/components/` is tier 2 — domain-aware composites with no single feature owner (`confirm-dialog` · `row-actions-menu` · `library-row` · `library-surface` · `entry-list-editor` · `character-picker` · `regex-editor-dialog`; barrel `components/index.ts`).
+The client is FIVE tiers, not "ui + features". A builder reaches DOWN this ladder before hand-rolling anything. `packages/client/src/components/` is tier 2 — domain-aware composites with no single feature owner (`confirm-dialog` · `row-actions-menu` · `library-row` · `library-surface` · `entry-list-editor` · `character-picker` · `regex-editor-dialog`; barrel `packages/client/src/components/index.ts`).
 
 | Tier | Home | What belongs | May import | Enforcer |
 | - | - | - | - | - |
@@ -62,7 +62,7 @@ The client is FIVE tiers, not "ui + features". A builder reaches DOWN this ladde
 | 2 composites | `client/src/components/` | domain-aware cross-feature composites and app-level components with no single feature owner (ConfirmDialog, LibraryRow, CharacterPicker, QueryBoundary) | ui · kit · contracts · `#data` · `#forms` · `#state` · `#lib` · siblings — never `features/`/`routes/` | dep-cruiser `client-components-tier` — three rules in `.dependency-cruiser.ts`: `client-components-tier` + `client-lib-below-components` + `client-state-below-components` |
 | 3 factories/seams | `client/src/{data,forms,state}/` | the wiring machines: `createEntityMutation`, `createCollectionSurface`, form factories, the invalidation seam, the state commons + 3 store doors | per the existing direction rules | `client-data-direction` · `client-forms-direction` · `client-state-below-data` |
 | 4 util floor | `client/src/lib/` | cross-cutting display/util seams (time, notify, test-ids, message-render, message-role-labels, theme-override-form, agent-bridge) + the registry primitive | ui/kit/contracts only — reaches up to nothing in-client | `client-lib-floor` |
-| 5 features | `client/src/features/` | the slices (per-slice shape: `features/README.md` — surfaces/anchors/components/hooks/lib/index.ts); compose tiers 1–4, never each other | everything below + type-only cross-feature | `client-features-no-cross` · `client-feature-front-door` |
+| 5 features | `client/src/features/` | the slices (per-slice shape: `packages/client/src/features/README.md` — `surfaces/`, `anchors/`, `components/`, `hooks/`, `lib/`, `index.ts`); compose tiers 1–4, never each other | everything below + type-only cross-feature | `client-features-no-cross` · `client-feature-front-door` |
 
 Above the tiers: `routes/` composes features, never the reverse (`client-features-below-routes`), and
 `main.tsx` is the top nothing imports (`client-nothing-imports-main`). Their jobs are §7.
@@ -213,7 +213,7 @@ auto-closes while narrow.
 
 ## 5. The registry primitive — ONE mechanism, three applications
 
-`createRegistry<Id, Def>` (home `client/src/lib/registry.ts`) replaces every parallel static map: it takes
+`createRegistry<Id, Def>` (home `packages/client/src/lib/registry.ts`) replaces every parallel static map: it takes
 a name, the vocabulary tuple (`ids`, imported from its one home), and a `Record<Id, Def>` total by tsc — a
 missing or extra member is a compile error — and returns a read-only `Registry` (`get(id)` · `list()` ·
 `has(id)`), throwing on an unknown-id get. `createContributorRegistry<Def extends {id: string}>` is the
@@ -226,8 +226,8 @@ Binding rules:
 2. **Assemble each registry at the registration door (§7).**
 3. **Completeness is typed.** The `Record<Id, Def>` assembly is total over its vocabulary tuple.
 4. **Derive, do not re-declare.** Do not add a second hand-typed map for a subset of the vocabulary tuple.
-5. **Vocabulary tuples keep their one home:** each shell vocabulary tuple has its own two-reader module in `state/` (`SECTION_IDS` in `state/section-ids.ts`, `MODAL_SLOT_IDS` in `state/modal-slot-ids.ts`, `PanelMode` in `state/panel-resolve.ts`, `CONFIG_GROUP_IDS` in `state/config-group-ids.ts`). State owns the shell vocabulary so features import from state, never the reverse; `client-state-below-data` makes the reverse impossible. An id union is shell vocabulary iff it keys a door-assembled total registry whose definitions span features, or appears in `ShellState`/a shell action. An open-ended id a single host interprets (`contextTab`) is not vocabulary — it stays an opaque `string` by design.
-6. **A Def's higher-tier need inverts to a projection; the Def never moves up.** Every registry `*Definition` homes in `state/`, and `client-state-below-data` stays exemption-free — even `import type` from `data/` is RED. When a Def member needs a `data/`-tier value type (viewer gating), the Def declares a named state-owned projection consumed contravariantly (`when: (v: SettingsViewerView) => boolean`), and the host — a feature, which may import `#data` — computes and supplies it at filter/render time. The projection homes beside its Def; hoist to `lib/registry-contracts.ts` only when a second party needs it without importing state.
+5. **Vocabulary tuples keep their one home:** each shell vocabulary tuple has its own two-reader module in `state/` (`SECTION_IDS` in `packages/client/src/state/section-ids.ts`, `MODAL_SLOT_IDS` in `packages/client/src/state/modal-slot-ids.ts`, `PanelMode` in `packages/client/src/state/panel-resolve.ts`, `CONFIG_GROUP_IDS` in `packages/client/src/state/config-group-ids.ts`). State owns the shell vocabulary so features import from state, never the reverse; `client-state-below-data` makes the reverse impossible. An id union is shell vocabulary iff it keys a door-assembled total registry whose definitions span features, or appears in `ShellState`/a shell action. An open-ended id a single host interprets (`contextTab`) is not vocabulary — it stays an opaque `string` by design.
+6. **A Def's higher-tier need inverts to a projection; the Def never moves up.** Every registry `*Definition` homes in `state/`, and `client-state-below-data` stays exemption-free — even `import type` from `data/` is RED. When a Def member needs a `data/`-tier value type (viewer gating), the Def declares a named state-owned projection consumed contravariantly (`when: (v: SettingsViewerView) => boolean`), and the host — a feature, which may import `#data` — computes and supplies it at filter/render time. The projection homes beside its Def; hoist to `packages/client/src/lib/registry-contracts.ts` only when a second party needs it without importing state.
 
 Applications: sections (§6) · settings panes (§8) · contributors (§6c) · modals (§6d) — one primitive, all completeness-checked, zero god-maps.
 
@@ -241,14 +241,14 @@ Pane availability derives from the list body and context kind. A section cannot 
 The shell applies `--spacing-section` as the CONTENT inline inset. A full-bleed surface declares a reason through `{ planned: "<reason>" }`.
 Every roster search uses `ListSearch`. Review enforces this; no census test walks the section lists or Corpus modes.
 A no-search declaration carries a nonempty reason. Type tests reject omitted band, inset, and search declarations.
-The shape's law is the header of `client/src/state/section-registry.ts` (§15).
+The shape's law is the header of `packages/client/src/state/section-registry.ts` (§15).
 
 - One definition per section, co-located `features/<owner>/lib/<id>-section.ts`, exported on the front door. Section-id↔feature-name is not a mechanical mirror — ownership is declared by where the definition lives; Ownership follows the definition location, not the section name.
 - Definitions are self-contained: they read `#state` (selection pointers), `#data` (trpc/Query, `useInvalidation`), `#components`/`@orb/ui` directly, calling `#state` module actions themselves rather than receiving them as props.
 - `AppShell` stays domain-agnostic: it consumes the registry (`sections.get(active)`) instead of a `Partial<Record<…>>` prop; `panelDefaults` arrives from the registry.
 - **`SectionDefinition` is non-generic.** `context` is a `ContextDefinition` that has already applied its section's context-state type `S` (§6b) — `S` never crosses the shell seam.
 
-**The planned state.** A real, planned-but-unbuilt section registers fully with `content: { planned: "<the tracked reason>" }` — the shell renders the definition's own `placeholder` copy for its content. The `SectionDefinition` union in `state/section-registry.ts` excludes list, header and tab context in this case. Keep the reason, declaration and rail membership together. The planned marker and the real body are the same field, so building the section removes the marker in the same edit. A section id is full, declared-planned with a reason, or absent from the tuple.
+**The planned state.** A real, planned-but-unbuilt section registers fully with `content: { planned: "<the tracked reason>" }` — the shell renders the definition's own `placeholder` copy for its content. The `SectionDefinition` union in `packages/client/src/state/section-registry.ts` excludes list, header and tab context in this case. Keep the reason, declaration and rail membership together. The planned marker and the real body are the same field, so building the section removes the marker in the same edit. A section id is full, declared-planned with a reason, or absent from the tuple.
 
 Register a section by exporting its `SectionDefinition` from the owning feature's `lib/`, then adding it to
 the `main.tsx` door assembly, total over `SECTION_IDS`. Never add an entry to a parallel rail, panel-default or placeholder-copy map, or a `sections={{…}}` branch in a
@@ -258,13 +258,13 @@ route — those structures do not exist.
 re-homing a surface between the rail and settings) touches a fixed set of sites; tsc only carries some of
 them:
 
-1. **`state/section-ids.ts`'s `SECTION_IDS` tuple** — the one home (§5 rule 5). Tuple order is rail order.
+1. **`packages/client/src/state/section-ids.ts`'s `SECTION_IDS` tuple** — the one home (§5 rule 5). Tuple order is rail order.
 2. **The persisted-state sanitizers in the same file** — `isSectionId` (the `migrate()` guard) and the per-section `panelOverrides` sanitize; a removed id must fall back cleanly, an added one needs its `panelDefaults`.
 3. **The definition, its factory, and the feature front-door export** — co-located `features/<owner>/lib/<id>-section.tsx`, and the `main.tsx` door row.
 4. **Per-section selection stores** — the pointer is a `createDrillSelectionStore` mint in `state/`, centrally homed so a sibling can read it (§9).
 5. **`agent-nav/`'s vocabulary validation** — `__orb.nav` validates against `SECTION_IDS`.
 6. **`tests/support/browser/ct-door.ts`** — forwards production composition; isolated variants derive from its registries without a second table.
-7. **Mobile fate** — `RailEntry.mobile` is required by the `state/section-registry.ts` contract. Rail chrome actions also require mobile curation; topbar actions may omit it and default to `"tab"`. The door preserves the rail-modal `"sheet"` default.
+7. **Mobile fate** — `RailEntry.mobile` is required by the `packages/client/src/state/section-registry.ts` contract. Rail chrome actions also require mobile curation; topbar actions may omit it and default to `"tab"`. The door preserves the rail-modal `"sheet"` default.
 8. **Chrome derivation** — `assembleChrome` reads `sections.list()`; an entry you had to hand-add is a a parallel map.
 9. **Placeholder copy** — the real-registry test requires a distinct (title, description) per section.
 10. **The rail prose** — `UI-Architecture-and-Layout.md` §4.1's section list.
@@ -287,7 +287,7 @@ ResolvedContextTabs | null}` where `useResolved` is minted only by `defineContex
 `railLabel`, `empty`, `contributors: ContributorRegistry<ContextTabDef<S>>` (§6c), and
 `regions: ContributorRegistry<ContextRegionDef<S>>` (band claims, below). The mint,
 `defineContextTabs<S>(spec): ContextDefinition`, throws at construction on a duplicate tab id. Shapes'
-law is the header of `client/src/lib/registry-contracts.ts` (§15).
+law is the header of `packages/client/src/lib/registry-contracts.ts` (§15).
 
 - `S` is spelled once, at the mint call, checked against the published projection; the spec's `contributors` typechecks against the host's `S`, so a contributor reading a field the projection lacks is a compile error; the shell only ever sees the non-generic `ContextDefinition`. A consumer-side cast is a lie tsc can't check; a typed per-key `get` accessor reintroduces an id→S map and per-section recipes in app-shell.
 - Tab id, label, `when`, and body are one object — the object keeps the tab id, label, predicate and body together.
@@ -318,7 +318,7 @@ a `@container` query on the chat-content region's own inline size stacks the fla
 beneath `lg` (512px) so no consumer can crush the reading column. Zero flank contributions ⇒ the thread
 renders alone with no wrapper.
 
-Contributor contract types home in `client/src/lib/registry-contracts.ts` (tier 4 — importable by chat and
+Contributor contract types home in `packages/client/src/lib/registry-contracts.ts` (tier 4 — importable by chat and
 contributors without either importing the other).
 
 **Region claims are a third contributor case.** One claimant may take a host's context pane's head band
@@ -343,27 +343,27 @@ Delivered via `ModalRegistryContext`, consumed blind by `ModalHost`.
 ## 7. The composition root — `main.tsx` (the registration door) + thin routes
 
 **The registration door is `main.tsx` + `client/src/compose/`.** `main.tsx` is the boot half: it binds the
-singletons (QueryClient → tRPC client → toast manager, minted once in `compose/app-singletons.ts`), binds
+singletons (QueryClient → tRPC client → toast manager, minted once in `packages/client/src/compose/app-singletons.ts`), binds
 `notify`, installs the error-report hook, installs the production readiness signal from
-`lib/app-ready-signal.ts` — the readiness module owns the one Promise/DOM marker, and
+`packages/client/src/lib/app-ready-signal.ts` — the readiness module owns the one Promise/DOM marker, and
 `globalThis.__orb.ready` imports that same Promise rather than forking state — reaches the dev
 `agent-bridge.ts` observer only through the literal
-`import.meta.env.DEV` dynamic `agent-handles/index.ts` door, stacks providers (`QueryClientProvider` →
+`import.meta.env.DEV` dynamic `packages/client/src/agent-handles/index.ts` door, stacks providers (`QueryClientProvider` →
 `TRPCProvider` → `ToastProvider` → `AppErrorBoundary` → `RouterProvider`), and raises the `BootVeil`;
-nothing imports `main.tsx` (`client-nothing-imports-main`). `compose/authed-app.tsx` mounts the lazy authenticated route.
-`compose/authed-composition.tsx` owns its injected factory: feature definitions and contributors are imported and assembled
+nothing imports `main.tsx` (`client-nothing-imports-main`). `packages/client/src/compose/authed-app.tsx` mounts the lazy authenticated route.
+`packages/client/src/compose/authed-composition.tsx` owns its injected factory: feature definitions and contributors are imported and assembled
 (`createRegistry`/`createContributorRegistry` call sites live in `main.tsx` or a `compose/` module).
-`compose/authed-providers.tsx` delivers the assembled registries to the `/` route's `AppRoot` and isolated component mounts. This is critical for
+`packages/client/src/compose/authed-providers.tsx` delivers the assembled registries to the `/` route's `AppRoot` and isolated component mounts. This is critical for
 one-directional flow: a contributor "registers" by being imported at the door, never by importing its
 host feature.
 
 **Boot and authenticated composition stay separate because assembly imports the feature graph,**
 which would parse the whole feature graph before the login form paints for a client that has not
-authenticated yet. `routes/router.tsx` mounts the `/` component via `lazyRouteComponent`, so the
+authenticated yet. `packages/client/src/routes/router.tsx` mounts the `/` component via `lazyRouteComponent`, so the
 assemblies and the feature graph under them are a separate chunk fetched during the route's load phase,
 after `requireAuthed()` passes. `client-compose-door-only` (dep-cruiser — only `main.tsx`,
-`routes/router.tsx`, and a `compose/` sibling may import `compose/`) and's one-assembly rule keep this
-from becoming a backdoor. The singletons live in `compose/app-singletons.ts` because both halves need the
+`packages/client/src/routes/router.tsx`, and a `compose/` sibling may import `compose/`) and's one-assembly rule keep this
+from becoming a backdoor. The singletons live in `packages/client/src/compose/app-singletons.ts` because both halves need the
 same QueryClient/tRPC client.
 
 **The door's third job: the composition-tier dir modules (§3).** `main.tsx` installs the agent-bridge
@@ -387,30 +387,30 @@ state, not a page; a `home` section also exists (a rail entry and the persisted 
 assembled at the door, D121/D211), but a route that hand-assembles other features is still forbidden. `app-root.tsx` reads the section registry and
 stays trivial. What legitimately stays on it: the `useUserBus` mount (mounted at the root so no feature
 unmount can drop it), `AriaAnnouncer`, the `?join=` token capture plus `JoinInviteDialog`,
-`FirstRunPersonaDialog`, and `CharacterGalleryAnchor` (the one gallery dialog every surface opens through `openCharacterGallery`). Door-assembled home tiles use `HomeTileContribution` in `state/home-tile-contracts.ts`: dormant bodies have no action; live bodies may declare one. Keep route feature imports within the auth route and app-root composition seams.
+`FirstRunPersonaDialog`, and `CharacterGalleryAnchor` (the one gallery dialog every surface opens through `openCharacterGallery`). Door-assembled home tiles use `HomeTileContribution` in `packages/client/src/state/home-tile-contracts.ts`: dormant bodies have no action; live bodies may declare one. Keep route feature imports within the auth route and app-root composition seams.
 
 ## 8. The settings host + pane registry
 
-The settings host is a config-GROUP registry: `state/config-group-registry.ts`
-(`ConfigGroupDefinition`, total over `CONFIG_GROUP_IDS` in `state/config-group-ids.ts`, four shelves
+The settings host is a config-GROUP registry: `packages/client/src/state/config-group-registry.ts`
+(`ConfigGroupDefinition`, total over `CONFIG_GROUP_IDS` in `packages/client/src/state/config-group-ids.ts`, four shelves
 `CONFIG_SHELVES` = User · App · Collections · Plugins), host `features/config` (list + content, rail
 foot). The body union is `sections | collection | placeholder`: every non-collection group is a `sections`
-skimmer over the contribution seam in `state/config-section-registry.ts`, assembled at the door in
-`compose/config-sections.ts` — the one section registry every group's LIST rows derive from (no `surface` case, no
+skimmer over the contribution seam in `packages/client/src/state/config-section-registry.ts`, assembled at the door in
+`packages/client/src/compose/config-sections.ts` — the one section registry every group's LIST rows derive from (no `surface` case, no
 group-owned `subcategories` — persona, plugins, connections, automation and backup surfaces decompose
 into `ConfigSectionContribution`s, D120); the four collections are `collection` groups whose body is their
-`CollectionContribution`. `openConfigTo(group, sub?, setting?)` (`state/config-nav-store.ts`) is the one
+`CollectionContribution`. `openConfigTo(group, sub?, setting?)` (`packages/client/src/state/config-nav-store.ts`) is the one
 navigation verb. `orb/config-group-definition-home` keeps a `ConfigGroupDefinition` declaration in its feature's `lib/`.
 
-`CONFIG_GROUP_IDS`/`ConfigGroupId` live in `state/config-group-ids.ts`, its own two-reader vocabulary
+`CONFIG_GROUP_IDS`/`ConfigGroupId` live in `packages/client/src/state/config-group-ids.ts`, its own two-reader vocabulary
 module (§5 rule 5); `ConfigGroupDefinition`, `SettingsViewerView` (the state-owned viewer projection `when`
 consumes — plain derived values only, no `data/` import, §5 rule 6), `CONFIG_SHELVES` and
-`SettingsSubcategory` home in `state/config-group-registry.ts`. The Context+hook/Provider pair mirrors
+`SettingsSubcategory` home in `packages/client/src/state/config-group-registry.ts`. The Context+hook/Provider pair mirrors
 `modal-registry-context.ts`/`-provider.tsx`. The host computes `SettingsViewerView` from its non-suspense
 `sessions.me` probe (§10's sanctioned non-suspense exception) and supplies it at nav/search/pane filter
 time.
 
-`state/config-section-registry.ts` derives each `anchorId` from its contribution's `anchor` and `nav.id`;
+`packages/client/src/state/config-section-registry.ts` derives each `anchorId` from its contribution's `anchor` and `nav.id`;
 keep the formatter unexported. `body(anchorId)` forwards this required value through component props to the
 existing DOM root. The viewer-aware resolver returns unavailable for missing or hidden targets; the prefix
 resolver does so for empty groups, and the scroll-spy reads that prefix. Jumps wait up to five seconds for
@@ -433,7 +433,7 @@ registered targets. Supersede or unmount cancels observer, timer, suppression, q
 
 Add a settings group by exporting a `ConfigGroupDefinition` (a skimmer, nothing else) from the owning
 feature's `lib/`, exporting one `ConfigSectionContribution` per anchored section, and registering both at
-the door (`compose/authed-composition.tsx`'s group registry, total over `CONFIG_GROUP_IDS`). Keep each
+the door (`packages/client/src/compose/authed-composition.tsx`'s group registry, total over `CONFIG_GROUP_IDS`). Keep each
 surface in its owning feature's `lib/`; forward the registry-supplied address instead of minting one at the
 component.
 

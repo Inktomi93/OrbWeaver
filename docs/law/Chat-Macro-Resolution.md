@@ -25,7 +25,7 @@ updated: 2026-10-05
   inert. **Commit points:** a **user message** freezes at SEND (composer text, macro-before-regex — the
   freeze runs, then the D53 USER_INPUT regex sees the baked value; both the WI haystack and the persisted row
   are the one post-transform text); a **greeting** freezes at the FIRST USER TURN (malleable/swipeable until
-  then) — `freezeGreetingVolatiles` (`verbs/turn.ts`) bakes each pre-first-turn assistant row's SELECTED
+  then) — `freezeGreetingVolatiles` (`packages/server/src/domain/chat/verbs/turn.ts`) bakes each pre-first-turn assistant row's SELECTED
   variant, idempotent → concurrent-retry-safe. **Known gap:** a POST-first-turn swipe to a different
   (unfrozen) greeting variant is not re-frozen, and the freeze is not re-emitted on the bus — a client sees
   the baked value on its next refetch. **Mechanism:** the freeze is the exact inverse of the §2 names-only
@@ -53,7 +53,7 @@ updated: 2026-10-05
 A chat read yields the identity-directory producer (`ChatIdentity[]`,
 `@orb/contracts/chat/producers.ts`) — ONE
 kind-discriminated entry per identity the chat references, **member-gated** (any member may read it),
-loaded via `loadChatIdentityProducer` (`domain/chat/persistence/identity.ts`):
+loaded via `loadChatIdentityProducer` (`packages/server/src/domain/chat/persistence/identity.ts`):
 
 - `{ kind: "persona"; id; name; description; avatarHash }` — description backs `{{persona}}`
 - `{ kind: "character"; id; name; avatarHash }` — deliberately NO description (a card's description is not
@@ -108,13 +108,13 @@ resolveRowMacros(
 | Context | Home | `{{user}}` subject | `{{char}}` subject |
 | - | - | - | - |
 | **DISPLAY** (viewer) | client `message-render` → the atom | row `personaId`; null-stamp → the ANCHOR | row `characterId`; null (human/narrator) → the CHARACTERS |
-| Summary previews: Home, Chats, forks and lineage | server `verbs/read.ts` → the atom | row `personaId`; null-stamp → the room ANCHOR (D250) | row `characterId`; null → the room CHARACTERS |
+| Summary previews: Home, Chats, forks and lineage | server `packages/server/src/domain/chat/verbs/read.ts` → the atom | row `personaId`; null-stamp → the room ANCHOR (D250) | row `characterId`; null → the room CHARACTERS |
 | **ASSEMBLE** (model) | server `toShapeCanon` → the atom | row `personaId`; null-stamp → the ANCHOR | row `characterId`; null (human/narrator) → the CHARACTERS |
 | **SEND** | stores RAW; stamps `personaId` (PD-100) | — | — |
 | CARD sections | server `assemble.ts` | `ctx.pinnedPersona` (anchor, FROZEN at open) | the section's character |
 | prompt-config sections | server `assemble.ts` | `ctx.activePersona` = the anchor human's current seat persona (the presser's on an impersonate draft, D122) | the section's character |
 | people block (the `persona` marker's headed entries, one per other present human) | server `assemble.ts` | that entry's own persona (`ctx.people`) | the turn's speaker |
-| world-info entries | server `assembly/context.ts` `macroPersonaOf` | character book: `ctx.pinnedPersona`; chat and global book: `ctx.activePersona`; persona book: that book's own persona | the turn's speaker |
+| world-info entries | server `packages/server/src/domain/chat/assembly/context.ts` `macroPersonaOf` | character book: `ctx.pinnedPersona`; chat and global book: `ctx.activePersona`; persona book: that book's own persona | the turn's speaker |
 
 Summary previews apply the viewer's history floor, then resolve identity macros, then strip hidden content and project plain text. Stored content stays raw. A host re-pinning the anchor changes the next preview read.
 
@@ -134,7 +134,7 @@ are NOT history — they keep the two-persona doctrine (`context.ts`: `pinnedPer
   AND the null-stamp fallback for history rows (a greeting / AI line / legacy row — ruling A: the anchor is a
   chat invariant, so the model and every human agree; never the per-viewer active persona).
 - **activePersona** — the anchor human's current seat persona on every turn but impersonate; the presser's
-  on an impersonate draft (D122; `voicePersonaFor` in `entry/compose/chat.ts` — never `personaIds[0]`).
+  on an impersonate draft (D122; `voicePersonaFor` in `packages/server/src/entry/compose/chat.ts` — never `personaIds[0]`).
   Prompt-config-section `{{user}}` only. Every other present human's persona rides the people block
   (`ctx.people`) under its own heading.
 - **row `personaId`** — the per-message author stamp. HISTORY/message `{{user}}` when set. Changed ONLY by
@@ -205,7 +205,7 @@ The block changes only on a join, a leave (`leftSeq`), a persona swap, a descrip
 
 - `reattributeMessages` (host) — re-stamps a slot's `characterId` (the `{{char}}`/speaker axis). BUILT.
 - **persona reattribution** (author-or-host; re-stamp user messages' `personaId`, per-row) — BUILT
-  (`createReattributePersona`, `domain/chat/verbs/edit.ts`; `chat.reattributePersona` route). Its scope
+  (`createReattributePersona`, `packages/server/src/domain/chat/verbs/edit.ts`; `chat.reattributePersona` route). Its scope
   is either an explicit `messageIds` selection or the server-resolved `mine` case: every user row the
   caller authored in the chat, optionally floored at an inclusive `fromSeq`. Every targeted row is gated
   (author-or-host + persona-ownership per author). Clients: the persona panel and the game tab restamp

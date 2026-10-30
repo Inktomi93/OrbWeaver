@@ -130,7 +130,7 @@ packages/client/
                         #     the clamp-width overlay (§11.1); the chrome registry over CHROME_ZONES (typed `ChromeEntry`)
                         # THE ROSTER IS THE TREE — `ls packages/client/src/features`. A list here rots.
                         #   A section id is not its owner's dir name — `corpus` →
-                        #   `discovery/lib/corpus-section.tsx`, `chats` → `chat`
+                        #   `packages/client/src/features/discovery/lib/corpus-section.tsx`, `chats` → `chat`
         <feature>/      #   { surfaces/ (REGION bodies, containment CONSUMERS, @container) · anchors/
                         #     (containment PROVIDERS) · components/ (everything mounted INSIDE a region) ·
                         #     hooks/ · lib/ (helpers, view-models, the registered DEFINITIONS) · index.ts }
@@ -151,7 +151,7 @@ packages/client/
 BUILT. The highest-leverage enforcement move, engine-agnostic:
 
 - Design values live ONCE in **W3C DTCG `packages/ui/src/tokens/tokens.json`** (`$value`/`$type`).
-- **Style Dictionary v5** codegen (`packages/ui/tokens.build.ts`) emits BOTH the Tailwind v4 `@theme` block (`src/styles/theme.css`) AND the typed TS map (`src/tokens/index.ts`) — committed, generated, DO-NOT-EDIT artifacts.
+- **Style Dictionary v5** codegen (`packages/ui/tokens.build.ts`) emits BOTH the Tailwind v4 `@theme` block (`packages/ui/src/styles/theme.css`) AND the typed TS map (`packages/ui/src/tokens/index.ts`) — committed, generated, DO-NOT-EDIT artifacts.
 - The Tailwind theme is therefore **DERIVED, never hand-authored**; "add a token" has one home. D333 ends custom token-freshness certification. The external legacy source contains the former token test as reference-only; checked-in output has no custom freshness guarantee.
 - The scale includes a **container-breakpoint scale** (`--container-cq-<rem>`, §4), the **`--scrim`** token (§11.4), **control heights** with the ≥44px touch floor (§4b axis 3), and the D44 prose/bubble semantics (§12.1 ThemeScope targets) — the full set is `tokens.json` itself.
 - **STACKING ORDER lives in the `z` block of `tokens.json` and NOWHERE ELSE.** No other doc defines an ordering; the values are the law — `base 0 < raised 10 < overlay 40 < modal 50 < popover 65 < toast 68 < tooltip 70` — with each non-obvious rank carrying its reason in that token's own `$description` (see `z.toast`). Re-ranking a tier is a `tokens.json` edit + `pnpm --filter @orb/ui tokens:build`, never a per-component z override.
@@ -188,7 +188,7 @@ The macro layout is the **four-region shell**, realized THROUGH the §11.1 clamp
 ```
 DESKTOP (wide):   [ RAIL | LIST | CONTENT | CONTEXT ]
   RAIL    — persistent thin icon column (~56px, `--dimension-rail`).
-            `SECTION_IDS` (`client/src/state/section-ids.ts`, re-exported by `shell-store.ts`) is the
+            `SECTION_IDS` (`packages/client/src/state/section-ids.ts`, re-exported by `shell-store.ts`) is the
             truth for which sections exist, and its ORDER is the rail's:
             Home (the Weave glyph IS its affordance — the brand cell is a real named button; below
             48rem the cell hides and home rides the mobile bar as its FIRST tab) | grouped by
@@ -202,7 +202,7 @@ DESKTOP (wide):   [ RAIL | LIST | CONTENT | CONTEXT ]
             per-plugin promotion is a recorded owner knob, not built (the impersonation surface); Databank
             is the other library you author INTO — files/pages/pasted text, indexed for retrieval; the
             section↔collection question that R2's demotion reopens is recorded, unclosed, in
-            `features/databank/lib/databank-section.tsx`) → spacer →
+            `packages/client/src/features/databank/lib/databank-section.tsx`) → spacer →
             Theme · Settings · persona Identity. The CEILING is a rule about KIND, not a count (D121): a
             rail section owns a top-level workspace with its own LIST/CONTENT/CONTEXT grid; dialogs,
             preferences and one-shots go to modals/settings.
@@ -334,7 +334,7 @@ These are product rules. D333 ends custom static UI enforcement; native tests an
 9. **Chrome is quiet; content is loud.** Micro-caps muted section labels; mono data accents; the accent color on ≤10% of any viewport. If a screenshot's loudest element is chrome, the hierarchy is inverted.
 10. **Same action, same home** — this rule is the ONE HOME of the more-than-one-door IA class. One store action / verb per action regardless of entry point; identical label + icon everywhere (icon home = the registry). The structural half: one tRPC mutation invoked from more than one component inside a SINGLE rail section is the same verb wearing N doors on a plane the user sees whole — D333 ends custom multi-door enforcement and reviewed grants; keep the action and label consistent across controls. Cite THIS rule for the class; `client-architecture-state-and-gates.md` §13 is the event/sync spine, not this rule's home.
 
-**Voice table:** section labels = `Text` micro-caps (10.5px equiv token, weight 600, tracked) · data accents (scores, counts, timestamps, kbd) = mono · labels sentence-case · placeholder copy per-section from the ONE registry map (distinct per `SectionId`, asserted over the real registry). The Weave glyph appears at most ONCE per screen (DESIGN.md restraint rule), only in empty states / loading / corpus.
+**Voice table:** section labels = `Text` micro-caps (10.5px equiv token, weight 600, tracked) · data accents (scores, counts, timestamps, kbd) = mono · labels sentence-case · placeholder copy per-section from the ONE registry map (distinct per `SectionId`, asserted over the real registry). The Weave glyph appears at most ONCE per screen, only in empty states / loading / corpus.
 
 ### 4a. React 19 / 19.2 — platform leverage (use these, skip those)
 
@@ -353,8 +353,8 @@ The client targets **React 19 + the React Compiler** (the compiler runs full-com
 
 **The View-Transition CONTRACT — what is captured, what stays live, and how long a float lives.**
 
-- **CONTENT-ONLY CAPTURE.** The document root opts OUT and `.shell-content` is the single named region (`features/app-shell/surfaces/shell.css`'s `THE VIEW TRANSITION IS SCOPED TO THE CONTENT PANE` block is that ruling's one home). During a swap the rail, the topbar, the panels and **every portalled float** — dialogs, drawers, popovers, menus, tooltips, toasts — are neither snapshotted nor hidden: they paint LIVE and stay hit-testable, because the shell's portal root is a SIBLING of `.shell-grid`, not a child of the captured region.
-- **THE LIFETIME RULE.** A float whose SUBJECT is the content being left (an image lightbox for a message in this room) is CONTENT-SCOPED and does not outlive the swap. A float reachable from — and about — anywhere (the ⌘K palette, the You sheet, an ingest or creation ceremony, a plugin round-trip's outcome, a session-recovery prompt) is GLOBAL and survives it. For the shell's modal slots this is DECLARED, never remembered: `MODAL_CONTENT_LIFETIME` (`packages/client/src/state/modal-slot-ids.ts`) is a `Record<ModalSlotId, …>`, so a new slot fails `tsc` until it says which it is, and it is APPLIED in exactly one place, `withContentSwap` (`state/shell-store.ts`) — every content-swapping action (`setActiveSection` · `selectChat`/`enterCreatedChat`/`goToLanding` · `selectCharacter`/`clearCharacterSelection`) runs its write through it instead of calling `withViewTransition` itself, so the float's removal and the new content land in one commit.
+- **CONTENT-ONLY CAPTURE.** The document root opts OUT and `.shell-content` is the single named region (`packages/client/src/features/app-shell/surfaces/shell.css`'s `THE VIEW TRANSITION IS SCOPED TO THE CONTENT PANE` block is that ruling's one home). During a swap the rail, the topbar, the panels and **every portalled float** — dialogs, drawers, popovers, menus, tooltips, toasts — are neither snapshotted nor hidden: they paint LIVE and stay hit-testable, because the shell's portal root is a SIBLING of `.shell-grid`, not a child of the captured region.
+- **THE LIFETIME RULE.** A float whose SUBJECT is the content being left (an image lightbox for a message in this room) is CONTENT-SCOPED and does not outlive the swap. A float reachable from — and about — anywhere (the ⌘K palette, the You sheet, an ingest or creation ceremony, a plugin round-trip's outcome, a session-recovery prompt) is GLOBAL and survives it. For the shell's modal slots this is DECLARED, never remembered: `MODAL_CONTENT_LIFETIME` (`packages/client/src/state/modal-slot-ids.ts`) is a `Record<ModalSlotId, …>`, so a new slot fails `tsc` until it says which it is, and it is APPLIED in exactly one place, `withContentSwap` (`packages/client/src/state/shell-store.ts`) — every content-swapping action (`setActiveSection` · `selectChat`/`enterCreatedChat`/`goToLanding` · `selectCharacter`/`clearCharacterSelection`) runs its write through it instead of calling `withViewTransition` itself, so the float's removal and the new content land in one commit.
 - **WHO ACTUALLY STRANDS A FLOAT.** A house modal inerts and `aria-hidden`s the whole background, so the swap that strands a float is always a PROGRAMMATIC one — the `__orb.nav` bridge, an async mutation completion, a slash/plugin command runner, the session-recovery resume.
 - **A FEATURE-OWNED FLOAT CLOSES ITSELF.** A popover/menu is not a modal slot, so `withContentSwap` does not reach it, and Base UI's outside-press close does not fire when the navigation was raised by a control INSIDE the float. It closes in the same handler that navigates. A hidden `<Activity>` pane stays MOUNTED, so a float anchored in it keeps painting from the portal root while its anchor is `display:none`.
 - The external legacy source contains rendered dialog checks for rail and room changes. It is reference-only.
@@ -375,7 +375,7 @@ The client targets **React 19 + the React Compiler** (the compiler runs full-com
 | Axis | What varies | Tool | Where it's written |
 | - | - | - | - |
 | **1 — component layout** | a surface in a wide pane vs a narrow drawer | container utilities and variants (`@container` at the `@orb/ui` primitive boundary) + container-query units (`cqi`) + `clamp()` | **`@orb/ui` primitives**; features compose their variants and never author CSS ([paint law §4](client-architecture-lockdown.md#4-the-paint-law--who-may-write-css-and-why)) |
-| **2 — macro structure** | rail+list+content+context desktop ⇄ single-column mobile; panels dock⇄overlay (the §11.1 clamp) | **`@media`** (viewport) | **the shell tier + the styles tier's exact complement** — `shell.css`'s `@variant shell-mobile` and `client/styles/globals.css`'s `@variant shell-desktop` glass block (both generated from `breakpoint.shell`) are one ruling in two order-proof halves, kept as a product stylesheet rule; never a feature ([paint law §4](client-architecture-lockdown.md#4-the-paint-law--who-may-write-css-and-why)) |
+| **2 — macro structure** | rail+list+content+context desktop ⇄ single-column mobile; panels dock⇄overlay (the §11.1 clamp) | **`@media`** (viewport) | **the shell tier + the styles tier's exact complement** — `shell.css`'s `@variant shell-mobile` and `packages/client/src/styles/globals.css`'s `@variant shell-desktop` glass block (both generated from `breakpoint.shell`) are one ruling in two order-proof halves, kept as a product stylesheet rule; never a feature ([paint law §4](client-architecture-lockdown.md#4-the-paint-law--who-may-write-css-and-why)) |
 | **3 — device capability** | touch targets; hover affordances | **`@media (pointer/hover)`** + token sizing | **token/shell layer** (never features) |
 | **4 — mobile platform** | keyboard, safe-area, overscroll, viewport height | **CSS primitives** (`dvh`/`svh`, `env()`, viewport meta) | **shell + composer/scroll primitives** (once) |
 

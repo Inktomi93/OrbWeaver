@@ -20,7 +20,7 @@ paths:
 - An op-shaped write against rpg hand state derives its next state inside the same head resolve in
   `snapshot-edit.ts` (`writeHandState`). Never build a patch or image outside that resolve.
 - RPG lock suppression fires at both the staging accumulator and the flush fold in
-  `substrate/merge.ts`. Test any lock-behavior change at both sites, not only the fold.
+  `packages/server/src/domain/rpg/substrate/merge.ts`. Test any lock-behavior change at both sites, not only the fold.
 - In `packages/client/src/features/rpg/**`, when the client re-derives a dotted lock or state path
   the server also mints, treat both as one coupled value. Assert the rendered chip in a test, not
   only the store.

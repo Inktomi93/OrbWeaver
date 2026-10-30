@@ -108,7 +108,7 @@ restarts or snaps. This is the same "interruptibility" property Emil Kowalski ca
 the single biggest tell of premium vs. amateur motion (§3). **Default to transitions.**
 Reach for `@keyframes` only for effects a transition literally cannot express — multi-step
 sequences, shimmer sweeps, spinner rotation, attention-getters (shake). The only `@keyframes`
-in the app today is the skeleton shimmer (`ui/src/styles/globals.css`).
+in the app today is the skeleton shimmer (`packages/ui/src/styles/globals.css`).
 
 This app's existing `OVERLAY_MOTION` fragments already made this exact call — they're
 transitions + `data-starting-style:`/`data-ending-style:` Tailwind arbitrary-variant classes,
@@ -349,7 +349,7 @@ in order.
 9. **`prefers-reduced-motion` is REMOVE, not shorten.** Parallax, auto-playing motion, and
    large-scale transforms are removed outright, not sped up. The CSS floor does this
    (`animation-duration: 0.01ms !important` + `transition-property: none !important`, in the last cascade
-   layer, `ui/src/styles/motion-floor.css`). It keys on the resolved state of the app's `system | on | off`
+   layer, `packages/ui/src/styles/motion-floor.css`). It keys on the resolved state of the app's `system | on | off`
    setting (`data-appearance-reduced-motion` on the root): `on` always, the OS query unless `off`. The JS hook `usePrefersReducedMotion` resolves the same way and
    degrades `useSmoothText` to full passthrough. New
    motion replicates this — no "reduced but still animated" middle ground. **Transitions are
@@ -459,15 +459,15 @@ resting transition contract, and the settled landing on the new tab's box).
 **3. Accordion / Collapsible height.** BUILT. Both panels transition
 `h-(--accordion-panel-height)` / `h-(--collapsible-panel-height)` from/to
 `data-starting-style:h-0`/`data-ending-style:h-0` at `--motion-layout`
-(`packages/ui/src/primitives/accordion/variants.ts`, `collapsible/variants.ts`).
+(`packages/ui/src/primitives/accordion/variants.ts`, `packages/ui/src/primitives/collapsible/variants.ts`).
 
 **4. Button press feedback.** BUILT. `packages/ui/src/primitives/button/variants.ts` —
 `active:scale-95`, with the transition explicitly NAMING `scale` (a Tailwind v4 standalone
 property, not the `transform` matrix) at `--motion-fast`.
 
 **5. Loading → content cross-fade.** DECIDED-AGAINST. `<Activity>` keeps visited panes warm
-so a revisit never flashes a fallback (`features/app-shell/surfaces/app-shell.tsx`,
-`components/section-content.tsx`); a first-visit mount legitimately shows its skeleton (the
+so a revisit never flashes a fallback (`packages/client/src/features/app-shell/surfaces/app-shell.tsx`,
+`packages/client/src/features/app-shell/components/section-content.tsx`); a first-visit mount legitimately shows its skeleton (the
 suspense fallback IS a skeleton, never a spinner flash —
 `packages/client/src/components/query-boundary.tsx`), and React's `startTransition` can't suppress
 an initial-mount fallback anyway. No cross-fade to wire.
@@ -486,14 +486,14 @@ the Base UI swipe vars with `data-swiping:transition-none`.
 transform-only reorder, reduced-motion gated (`usePrefersReducedMotion` →
 `Feedback.configure({ dropAnimation: null })`).
 
-**9. Selection/checked state.** BUILT. `checkbox/variants.ts`, `radio-group/variants.ts` (and
+**9. Selection/checked state.** BUILT. `packages/ui/src/primitives/checkbox/variants.ts`, `packages/ui/src/primitives/radio-group/variants.ts` (and
 siblings) carry `transition-colors duration-(--motion-fast) ease-out-expo`.
 
 **10. Streamed-word reveal fade (chat ghost row).** BUILT (design + measurements: D168). Each
 newly revealed word of a streaming message fades in
 (opacity-only keyframe `orb-word-reveal`, `--motion-base` + `--ease-out-expo`, `fill both`) via the
-markdown seal's own rehype plugin (`ui/src/markdown/reveal-plugin.ts` → `[data-orb-reveal]` spans in
-`ui/src/styles/globals.css`). Fade progress is anchored to the word's REVEAL TIME through a negative
+markdown seal's own rehype plugin (`packages/ui/src/markdown/reveal-plugin.ts` → `[data-orb-reveal]` spans in
+`packages/ui/src/styles/globals.css`). Fade progress is anchored to the word's REVEAL TIME through a negative
 `animation-delay`, so the hot-loop re-renders of a streaming block resume a mid-flight fade instead
 of restarting or snapping it — that anchoring is what makes a per-word fade safe on a
 high-frequency surface. Reduced-motion is REMOVE per §3.9 (no spans injected under the OS query;

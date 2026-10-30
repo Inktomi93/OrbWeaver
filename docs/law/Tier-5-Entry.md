@@ -25,9 +25,9 @@ packages/server/src/entry/
 ├── app.ts                    the Hono builder (middleware order, ingress-allowlist, mount tRPC + http)
 ├── rate-limit-gate.ts        builds the RateLimitGate impl (limiter instances need db; bucket POLICY lives here;
 │                             transport declares only the port — docs/law/Tier-4-Transport.md §"rate-limit").
-│                             Second policy site: http/auth-routes.ts owns its own login-IP throttle,
+│                             Second policy site: packages/server/src/entry/http/auth-routes.ts owns its own login-IP throttle,
 │                             adjacent to the route it guards.
-├── auth/seam.ts              THE AUTH SEAM — the ONE Principal construction site: wires infra/auth (verify)
+├── packages/server/src/entry/auth/seam.ts              THE AUTH SEAM — the ONE Principal construction site: wires infra/auth (verify)
 │                             + domain/sessions (resolve/validate/upsert) (per §7 D1)
 ├── boot/                     migrate.ts (backup → FK-off migrations → foreign_key_check) · seed-owner.ts ·
 │                             seed-credential.ts (env→DB-once) · seed-default-preset.ts ·
@@ -70,20 +70,20 @@ Inventory lists are illustrative — the tree on disk is the truth.
 Versions live in the pnpm catalog (`packages/server/package.json`). Two dependencies need a reason:
 
 - `@hono/node-server` — the Node HTTP listener; the `httpServer` object `lifecycle.ts` takes injected IS this lib's `serve()` return.
-- `openid-client` v6 — the OIDC **mint** flow only (discovery, PKCE, code exchange) at `http/auth-routes.ts`. The **verify** side (JWKS) is `infra/auth`'s `jose` (`docs/law/Tier-3-Infra.md`) — client-side mint lands at entry, never infra.
+- `openid-client` v6 — the OIDC **mint** flow only (discovery, PKCE, code exchange) at `packages/server/src/entry/http/auth-routes.ts`. The **verify** side (JWKS) is `infra/auth`'s `jose` (`docs/law/Tier-3-Infra.md`) — client-side mint lands at entry, never infra.
 
 ## The injection model (how the cake stays clean without sideways imports)
 
-Every cross-feature dependency is a **typed op declared in the consumer domain's `contract/` + wired here**. `entry/compose/services.ts` is the graph. The rule: if two domains must interact, the consumer declares the op TYPE in its `contract/`; `entry` supplies the runtime fn. A domain importing another domain's `index.ts` for a runtime value (outside the sanctioned `@orb/db` bulk-read pattern) is a `domain-no-cross-feature` violation.
+Every cross-feature dependency is a **typed op declared in the consumer domain's `contract/` + wired here**. `packages/server/src/entry/compose/services.ts` is the graph. The rule: if two domains must interact, the consumer declares the op TYPE in its `contract/`; `entry` supplies the runtime fn. A domain importing another domain's `index.ts` for a runtime value (outside the sanctioned `@orb/db` bulk-read pattern) is a `domain-no-cross-feature` violation.
 
 ## Boot order
 
-Keep the split: **only `seedOwner` runs pre-compose**, because compose binds the owner role-clients against the owner id. **Every other seed runs post-compose**, because it consumes a composed service or seeder. `entry/lifecycle.ts` is the truth.
+Keep the split: **only `seedOwner` runs pre-compose**, because compose binds the owner role-clients against the owner id. **Every other seed runs post-compose**, because it consumes a composed service or seeder. `packages/server/src/entry/lifecycle.ts` is the truth.
 
 1. **`installEgressFirewall()`** — the FIRST boot step (swaps undici's global dispatcher before anything else can open a socket; `docs/law/Tier-3-Infra.md`).
 2. **env** (`foundation/env`) — the one `process.env` read (at module load); `superRefine` boot-fatality per `AUTH_MODE`; the data slots resolve from `DATA_DIR` through `foundation/data-layout` and ride the frozen env as `DATA_LAYOUT`.
-3. **data layout** (`entry/boot/migrate-data-layout.ts`) — before any file under the data root opens: a legacy flat data dir is renamed into the layout's tree under a journal (a snapshot of the db into `backups/` first; a legacy path whose target holds data is a refusal). Then the boot secrets' pre-db phase (`infra/crypto`): an explicit value or an existing keyfile; a missing keyfile stays `absent`; a cookie mode with an unusable pepper refuses here.
-4. **migrate** — `backupBeforeMigrate` into the layout's `backups/` → chain-aware baseline drift check (boot-FATAL on a db whose applied migration is in no shipped journal entry — D163; `pnpm seed:demo --fresh` is the only wipe) → migrations → `assertReferentialIntegrity`. Then the boot secrets settle (`entry/boot/boot-secrets.ts`): an `absent` keyfile is generated only when no row depends on it, else the boot refuses and names the file.
+3. **data layout** (`packages/server/src/entry/boot/migrate-data-layout.ts`) — before any file under the data root opens: a legacy flat data dir is renamed into the layout's tree under a journal (a snapshot of the db into `backups/` first; a legacy path whose target holds data is a refusal). Then the boot secrets' pre-db phase (`infra/crypto`): an explicit value or an existing keyfile; a missing keyfile stays `absent`; a cookie mode with an unusable pepper refuses here.
+4. **migrate** — `backupBeforeMigrate` into the layout's `backups/` → chain-aware baseline drift check (boot-FATAL on a db whose applied migration is in no shipped journal entry — D163; `pnpm seed:demo --fresh` is the only wipe) → migrations → `assertReferentialIntegrity`. Then the boot secrets settle (`packages/server/src/entry/boot/boot-secrets.ts`): an `absent` keyfile is generated only when no row depends on it, else the boot refuses and names the file.
 5. **seed-owner (pre-compose)** — resolves the owner id the compose graph binds against, via a TRANSIENT sessions service (compose owns the real one). The ONLY pre-compose seed.
 6. **compose** — event bus + subscriptions, role clients, every domain service + injected ops, the auth seam, the effective-config getter.
 7. **crypto decrypt-probe** — `built.services.credentials.probeKeyDecrypt()`, immediately after compose (a failure flips healthz to `credentials_key_mismatch`; boot continues).

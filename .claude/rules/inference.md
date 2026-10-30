@@ -17,7 +17,7 @@ quirk as a curated row, not a special case in `synthesize.ts`'s fold.
 
 ## Structured output and tool calls
 
-A backend sends the plan from `structured/plan.ts` and spells no schema, vehicle or tool choice of
+A backend sends the plan from `packages/inference/src/structured/plan.ts` and spells no schema, vehicle or tool choice of
 its own. A vendor's schema subset or ceiling is a mode row in
 `packages/contracts/src/inference/wire-subset.ts` or a capability row, never a backend branch.
 
@@ -31,7 +31,7 @@ its own. A vendor's schema subset or ceiling is a mode row in
 - Audit a vendor SDK's own default retry config, not only the wrapper code
   (`packages/inference/src/backends/http/retry.ts`). An unset retry config can leave a silent
   long-running retry loop active.
-- `openai-compat/body.ts`: scrub secret literals from a response you display from a
+- `packages/inference/src/backends/openai-compat/body.ts`: scrub secret literals from a response you display from a
   user-controlled endpoint, not just the outbound request; test against an endpoint that echoes
   its input.
 

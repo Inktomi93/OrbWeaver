@@ -22,14 +22,14 @@ paths:
 - A `__Host-` cookie cannot be cleared over plain HTTP. The clearing Set-Cookie needs its own `Secure`
   attribute string. Give each cookie name its own attribute string, and read only the request transport's name.
 - Never send `post_logout_redirect_uri` to the OIDC end-session endpoint without `id_token_hint`
-  (`entry/http/auth-routes.ts`). Authentik 400s before invalidating the session.
+  (`packages/server/src/entry/http/auth-routes.ts`). Authentik 400s before invalidating the session.
 - CSRF protection must cover every mutating route, including requests authenticated by ambient sessions.
 - A route serving a document with its own response CSP adds its path prefix to `servesOwnPolicy`
-  (`entry/http/security-headers.ts`), gated on the actual response header, never a context flag.
-- In `entry/rate-limit-gate.ts`, guards run in order and each later guard only fires if the earlier ones
+  (`packages/server/src/entry/http/security-headers.ts`), gated on the actual response header, never a context flag.
+- In `packages/server/src/entry/rate-limit-gate.ts`, guards run in order and each later guard only fires if the earlier ones
   did not throw. A test on guard N is vacuous unless every earlier guard passes. Drive a path where the
   earlier buckets succeed so guard N is the one that actually refuses.
-- Derive the SSRF egress control (`infra/network/egress.ts`) from owner-scoped rows resolved
+- Derive the SSRF egress control (`packages/server/src/infra/network/egress.ts`) from owner-scoped rows resolved
   server-side, never a caller role check. Check the never-admissible range set both at the allowlist
   entry and again on the resolved address; a resolved address can only subtract admission, never add it.
 - Cross-domain ops carry the caller scope in their contract. Verify changed scope behavior through native application tests.

@@ -12,6 +12,8 @@ Assume the claim is false. Try to refute it with evidence you produce yourself.
 Read the implementer's completed test results. Run a test when it answers a specific unresolved correctness question. Read every touched file in full, header included. For an
 oversized file, outline it and say which regions you did not read.
 
+Check the change against the ledger and the law it touches. A change that departs from a D-row or a law rule without amending it in the same change is a finding.
+
 Never fix anything. Report only confirmed findings. Put suspicions in a separate list. Zero
 findings is a valid result. If later evidence overturns a finding, publish a retraction.
 

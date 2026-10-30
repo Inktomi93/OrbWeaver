@@ -7,13 +7,13 @@ paths:
 
 - A prose slot whose rendered bytes must match a legacy constant needs a no-trim path through
   `processMacros`. `resolveGuidedInstruction` (`packages/kit/src/guided`) trims its template.
-- Add a `ChatService` verb through the service composition root and `contract/params.ts`.
+- Add a `ChatService` verb through the service composition root and `packages/server/src/domain/chat/contract/params.ts`.
   Update automation's trigger-label switch for a client-visible verb.
 - Changing how a content class projects to the model wire needs two edits: the
-  `CONTENT_CLASS_POLICY` table and the dispatch in `spanToWirePart` (`substrate/wire-history.ts`).
+  `CONTENT_CLASS_POLICY` table and the dispatch in `spanToWirePart` (`packages/server/src/domain/chat/substrate/wire-history.ts`).
   Add a pipeline behavior test, not just a table test.
 - History-floor policy changes go in `resolveHistoryFloorSeq`
-  (`substrate/auth/clamp.ts`), never in `resolveViewerVisibility` alone. Both read paths delegate
+  (`packages/server/src/domain/chat/substrate/auth/clamp.ts`), never in `resolveViewerVisibility` alone. Both read paths delegate
   to it; patching only one misses `listMessages`.
 - Before treating a bus payload as id-only and unclamped, check whether the direct read of the
   same plane floors on its own. This is per-plane, not global.
@@ -36,12 +36,12 @@ paths:
   threads chat's already-resolved values in as opaque strings and never re-derives them from its
   own roster.
 - A new per-user chat turn knob is an optional, all-off-default field on `ForeignInputs`
-  (`contract/foreign.ts`), populated at compose. Chat never imports `domain/settings` sideways.
+  (`packages/server/src/domain/chat/contract/foreign.ts`), populated at compose. Chat never imports `domain/settings` sideways.
 - The chat engine's only in-turn stop is the provider `AbortSignal`. Compose a new kill path onto
   `prep.signal` via `AbortSignal.any`, and surface the abort reason above the provider layer,
   never through it (`engine/`).
 - In the engine pipeline, run the lossy wire conversion before the token budget that prices it:
-  build, shape, convert, then fit. Never fit pre-conversion content (`engine/pipeline.ts`).
+  build, shape, convert, then fit. Never fit pre-conversion content (`packages/server/src/domain/chat/engine/pipeline.ts`).
 - A position-keyed derived store, such as memory digests, needs a separate shrink-reclaim path.
   A content-hash self-heal only fixes rows still produced, never ones that vanished (`memory/`).
 - For the open JSON column in `chat-metadata-write.ts`, use `json_set`/`json_remove` on one path

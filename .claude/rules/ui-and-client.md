@@ -36,7 +36,7 @@ paths:
 
 ## Layout and CSS
 
-- `orb/browser-support` (ESLint) and `orb/browser-support-css` (Stylelint) refuse an API, property, value keyword or at-rule that a browser in `packages/client/browser-targets.ts` lacks. Guard a script use with `"x" in el` or `typeof X` on the same receiver, and a style with an `@supports` that names it. A polyfilled builtin (`POLYFILLED_BUILTINS`) needs no guard: `src/entry.ts` awaits its install before it loads the app graph. The guard forms are in each rule's header.
+- `orb/browser-support` (ESLint) and `orb/browser-support-css` (Stylelint) refuse an API, property, value keyword or at-rule that a browser in `packages/client/browser-targets.ts` lacks. Guard a script use with `"x" in el` or `typeof X` on the same receiver, and a style with an `@supports` that names it. A polyfilled builtin (`POLYFILLED_BUILTINS`) needs no guard: `packages/client/src/entry.ts` awaits its install before it loads the app graph. The guard forms are in each rule's header.
 - A layout or balance fix measures both width ends, any crossover, and every appearance variant.
 - A child carrying `flex:*` under a non-flex parent means the parent needs `display:flex`.
 - In a row of truncating text plus a must-not-shrink cluster, floor the cluster with `min-content`/`shrink-0` and give the text `min-width:0` plus truncate. Never do the reverse.
@@ -69,7 +69,7 @@ paths:
 
 - If a stale render survives reload, the in-memory query cache is exonerated; sweep `localStorage` and cookies instead.
 - Before moving a shared className's threshold, grep every element wearing that class; a shared name can hide an unrelated control.
-- `window.__orb.queries()` semantics live in `rules/browser-tests.md`.
+- `window.__orb.queries()` semantics live in `.claude/rules/browser-tests.md`.
 - Chrome's missing id/name warning is invisible to console and to Playwright's bundled Chromium, and `aria-label` does not satisfy it.
 
 ## Dev instrumentation
