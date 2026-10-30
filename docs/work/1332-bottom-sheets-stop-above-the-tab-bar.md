@@ -26,4 +26,4 @@ The Drawer primitive's bottom presentation takes the tab-bar inset from a token 
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+- Not started: the done line needs the Drawer primitive's bottom presentation and a phone-shell token, plus deleting `DrawerTapGuard` from `packages/ui/src/primitives/drawer/drawer.tsx` and `index.ts` and its slot name from `packages/client/owner-css-surface.ts`. The primitives and tokens trees belong to the tone-role lane. The client half (the You tab toggling the sheet in `rail.tsx` and `you-sheet.tsx`) has no meaning without the inset token.

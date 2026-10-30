@@ -58,6 +58,8 @@ export interface PanelChromeProps {
    *  target, because on the phone landing the content column it would otherwise defer to is
    *  `display:none` behind this pane. The shell decides; this component only renders the decision. */
   readonly primaryContent?: boolean;
+  /** A full-screen sheet is open over this pane: it stays painted beneath but takes no focus or press. */
+  readonly covered?: boolean;
   /** The pane element itself — the skip link needs to move focus onto it in the `primaryContent` state. */
   readonly ref?: Ref<HTMLElement>;
   /** Is this pane a SHEET over a desktop-shaped layout in the current regime (narrow viewport, or a constrained
@@ -76,6 +78,7 @@ export function PanelChrome({
   available,
   onDismiss,
   primaryContent = false,
+  covered = false,
   ref,
   sheet = false,
   children,
@@ -137,7 +140,7 @@ export function PanelChrome({
       {...(sheet ? { "data-panel-sheet": "" } : {})}
       data-panel-side={panel}
       aria-hidden={mode === "collapsed" ? "true" : undefined}
-      inert={mode === "collapsed" ? true : undefined}
+      inert={mode === "collapsed" || covered ? true : undefined}
     >
       {/* The overlay arm GROUPS the slot content so the band stays a two-child `space-between` box: the
           section's own header keeps its internal start/end split, and the dismiss owns the trailing edge.

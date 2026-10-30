@@ -22,4 +22,4 @@ First visits to Presets, Chats, Characters and Refinery on owner data crossfade 
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+- Not started: the fix needs a destination-ready signal for a blank fallback (the Presets welcome pane has no skeleton to wait on), which means each surface declares readiness or the swap reads a new marker. That contract is a design decision. The reveal fade then belongs in `shell/motion.css` with the section motion tokens.

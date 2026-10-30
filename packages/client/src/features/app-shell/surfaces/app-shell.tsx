@@ -127,11 +127,11 @@ function ContextPaneBody({
  *  On the desktop it is the leftmost column and must read FIRST; on a phone the SAME rail is the bottom tab
  *  bar, and hearing global navigation before "where am I" is exactly backwards. ONE definition, rendered
  *  from one of two slots — a component rather than a variable so each slot is a literal JSX branch. */
-function RailSlot({ show, activeSection }: { readonly show: boolean; readonly activeSection: SectionId }): ReactNode {
+function RailSlot({ show, activeSection, inert = false }: { readonly show: boolean; readonly activeSection: SectionId; readonly inert?: boolean }): ReactNode {
   if (!show) {
     return null;
   }
-  return <Rail activeSection={activeSection} onSelectSection={setActiveSection} onOpenModal={openModal} />;
+  return <Rail activeSection={activeSection} onSelectSection={setActiveSection} onOpenModal={openModal} inert={inert} />;
 }
 
 export function AppShell(): ReactElement {
@@ -339,6 +339,7 @@ export function AppShell(): ReactElement {
               header={activeDef.useListHeader === undefined ? null : <ListPaneHeaderHost key={layout.activeSection} useView={activeDef.useListHeader} />}
               mode={layout.listMode}
               onDismiss={(): void => layout.collapsePanel("list")}
+              covered={layout.underSheet}
               primaryContent={layout.listIsPrimaryContent}
               ref={listPaneRef}
               sheet={layout.listIsSheet}
@@ -411,7 +412,7 @@ export function AppShell(): ReactElement {
               {contextPane.body}
             </PanelChrome>
 
-            <RailSlot activeSection={layout.activeSection} show={roomScreen.showMobileRail} />
+            <RailSlot activeSection={layout.activeSection} show={roomScreen.showMobileRail} inert={layout.underSheet} />
 
             {/* Stays mounted and fades via data-visible so it fades WITH the panel instead of hard-cutting on close. */}
             <button

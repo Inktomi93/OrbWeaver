@@ -29,4 +29,4 @@ Each listed case is added to the text-scale suite and passes on Chromium and Web
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+- Not built. The probe case for the phone Characters list band at 200% was run on Chromium and is red on the current tree: Import, New character and Show details (88x88 and 96x96 boxes) are covered at their centres by the Search field. Cause: below `32rem` the topbar wraps (`shell/chrome.css`), and its trail row falls under the list pane. The ruling moves actions that do not fit into an overflow menu. That needs one measured overflow mechanism over the registry-driven topbar trail widgets (each needs a menu form), the Context header and the band; none exists, and it is a design decision. The Jump to latest case is in `message-list-surface.tsx` and the dialog gutter token is in the tokens tree, both owned by sibling lanes.

@@ -22,4 +22,4 @@ Each side panel's collapse control sits in the panel's own header at the edge be
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+- Not started: it moves the topbar's list and context toggles into the panel headers, and 1438 moves the topbar's actions into an overflow menu. The two change the same topbar chrome and need one order, with the overflow mechanism first.

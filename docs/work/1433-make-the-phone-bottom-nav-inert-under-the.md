@@ -22,4 +22,6 @@ While a full-screen sheet is open, the covered shell regions are inert and focus
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+- Cause: the open Context sheet on a phone runs over the tab bar's row (`shell/mobile.css`) and over the LIST pane, but only `.shell-content` was inert.
+- Fix: `ShellLayout.underSheet` (`use-shell-layout.ts`) is true on a phone while the Context sheet is open. `app-shell.tsx` passes it to the tab bar (`Rail` `inert`) and to the LIST pane (`PanelChrome` `covered`).
+- Red first: `tests/client/features/app-shell/surfaces/platform-sheet-inert.suite.ct.tsx` (coarse portrait 390x844 and landscape 667x375) failed on the old source at the tab bar `inert` assertion. A 40-stop Tab walk reaches the sheet, never the bar or the roster, and the sheet's own close restores both. Green on Chromium and on `pnpm test:ct:webkit` (2 of 2 each).

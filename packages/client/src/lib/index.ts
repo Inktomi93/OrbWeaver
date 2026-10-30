@@ -258,6 +258,6 @@ export { isSilencedTurnAbort, turnAbortNotice, turnMutationToast } from "./turn-
 export { oversizeUploadMessage } from "./upload-cap-check.ts";
 export { withoutUrlSearchParam } from "./url-search.ts";
 export { useDebouncedValue } from "./use-debounced-value.ts";
-export { useFocusOnMount, useFocusOnSwap } from "./use-focus-on-mount.ts";
+export { useFocusListArrival, useFocusOnMount, useFocusOnSwap } from "./use-focus-on-mount.ts";
 export { useRouterUrlReplace } from "./use-router-url-replace.ts";
 export { motionIsReduced, runAfterViewTransition, surfaceDeferredFailure } from "./view-transition.ts";
