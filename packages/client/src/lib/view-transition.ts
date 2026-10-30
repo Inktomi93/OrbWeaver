@@ -105,12 +105,16 @@ export function runAfterViewTransition(effect: () => void): void {
   runWhenTransitionsSettle(current, effect);
 }
 
-/** Skeleton rows in the two regions a swap changes: the content pane (the captured region) and an open list
- *  pane. A collapsed pane is off screen, so its loading state is not part of what the user sees arrive. */
+/** What a swap waits on in the two regions it changes: the content pane (the captured region) and an open list
+ *  pane. Skeleton rows are a pending read the destination already paints; `data-ready="false"` is the same fact
+ *  for a surface with no skeleton to paint (a teaching pane over a first read). A collapsed pane is off screen,
+ *  so its loading state is not part of what the user sees arrive. */
 const DESTINATION_PENDING =
-  '.shell-content [data-slot="skeleton"], .shell-panel[data-panel-side="list"]:not([data-panel-mode="collapsed"]) [data-slot="skeleton"]';
-/** How long the old frame may be held for the destination's first real paint, in elapsed time. */
+  '.shell-content [data-slot="skeleton"], .shell-content [data-ready="false"], .shell-panel[data-panel-side="list"]:not([data-panel-mode="collapsed"]) [data-slot="skeleton"], .shell-panel[data-panel-side="list"]:not([data-panel-mode="collapsed"]) [data-ready="false"]';
+/** How long the old frame may be held for the destination's first real paint, in elapsed time: the frame's
+ *  `--shell-swap-deadline` (shell/grid.css), and this value where the frame has none. */
 const DESTINATION_DEADLINE_MS = 150;
+const MS_PER_SECOND = 1000;
 const DESTINATION_POLL_MS = 16;
 /** With no DOM change at all in this long, the swap committed nothing new and there is nothing to wait for. */
 const DESTINATION_QUIET_MS = 48;
@@ -122,7 +126,23 @@ interface VtMutationObserverConstructor {
   new (callback: () => void): VtMutationObserver;
 }
 
-/** Resolve once the swap has COMMITTED and the destination shows no skeleton, or at the deadline. Returned from
+interface VtComputedStyle {
+  readonly getPropertyValue: (name: string) => string;
+}
+
+/** The deadline the frame declares: a CSS time on the grid, so the motion budget has one home and a test can state it. */
+function destinationDeadline(g: VtGlobals): number {
+  const grid = g.document?.querySelector?.(".shell-grid");
+  const readStyle = Reflect.get(globalThis, "getComputedStyle") as ((element: unknown) => VtComputedStyle) | undefined;
+  const raw = grid === null || grid === undefined || readStyle === undefined ? "" : readStyle(grid).getPropertyValue("--shell-swap-deadline").trim();
+  const value = Number.parseFloat(raw);
+  if (Number.isNaN(value)) {
+    return DESTINATION_DEADLINE_MS;
+  }
+  return raw.endsWith("ms") ? value : value * MS_PER_SECOND;
+}
+
+/** Resolve once the swap has COMMITTED and the destination shows no skeleton and no unsettled surface, or at the deadline. Returned from
  *  the update callback, it keeps the old frame up until then, so the crossfade lands on content and the skeleton
  *  never paints as a second, unanimated step. A clean DOM before the commit is not readiness (the old page has
  *  no skeleton), so a DOM mutation, or a quiet interval with none, must come first. */
@@ -130,6 +150,7 @@ function destinationSettled(): Promise<void> {
   const g = globalThis as VtGlobals;
   const Observer = Reflect.get(globalThis, "MutationObserver") as VtMutationObserverConstructor | undefined;
   const root = g.document?.documentElement;
+  const deadline = destinationDeadline(g);
   return new Promise((resolve) => {
     const started = performance.now();
     let committed = Observer === undefined || root === undefined;
@@ -143,7 +164,7 @@ function destinationSettled(): Promise<void> {
     const check = (): void => {
       const elapsed = performance.now() - started;
       const clear = (g.document?.querySelector?.(DESTINATION_PENDING) ?? null) === null;
-      if (elapsed >= DESTINATION_DEADLINE_MS || (clear && (committed || elapsed >= DESTINATION_QUIET_MS))) {
+      if (elapsed >= deadline || (clear && (committed || elapsed >= DESTINATION_QUIET_MS))) {
         observer?.disconnect();
         resolve();
         return;

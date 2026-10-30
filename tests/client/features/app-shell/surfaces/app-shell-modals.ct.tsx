@@ -299,7 +299,13 @@ for (const modalId of ["command", "you"] as const satisfies readonly ModalSlotId
     const popup = page.locator(POPUP);
     const header = page.locator('[data-slot="dialog-header"]');
     await expect(popup).toBeVisible();
-    await expect.poll(() => cssValue(page.locator('[data-slot="theme-scope"]:has(.shell-grid)'), "--color-primary")).toBe(CUSTOM_DARK.accent);
+    // The scope emits the primary pixel it judged (D336), which is the authored colour only when that pixel is the same;
+    // the portal and the popup carry what the shell's scope emitted, whatever the clamp made of the authored accent.
+    const scope = page.locator('[data-slot="theme-scope"]:has(.shell-grid)');
+    await expect.poll(() => cssValue(scope, "--color-primary")).not.toBe("");
+    const emittedPrimary = await cssValue(scope, "--color-primary");
+    await expect.poll(() => cssValue(portal, "--color-primary")).toBe(emittedPrimary);
+    await expect.poll(() => cssValue(popup, "--color-primary")).toBe(emittedPrimary);
     await popup.evaluate((element) => element.setAttribute("data-colorization-node", "same-node"));
     const borders = (): Promise<string[]> =>
       Promise.all([cssValue(grid, "--color-border"), cssValue(portal, "--color-border"), cssValue(popup, "--color-border")]);

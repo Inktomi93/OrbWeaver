@@ -30,9 +30,11 @@
 // records as killed for hiding both verbs one click deep.
 
 import type { ReactElement } from "react";
+import type { OverflowMenuForm } from "#lib";
 import type { ChromeEntry } from "#state";
 import { useActiveSection, useMobileViewport, useSectionListMode } from "#state";
 import { CharacterCreateActions } from "../components/character-create-actions.tsx";
+import { CHARACTER_DOOR_FORMS } from "./character-door-forms.ts";
 
 export const characterCreateChrome: ChromeEntry = {
   id: "character-create",
@@ -52,5 +54,5 @@ export const characterCreateChrome: ChromeEntry = {
   },
   // The same cluster in both lenses — this entry is never curated `mobile: "sheet"`, so `body("sheet")` is
   // unreachable and `presentation` has nothing to branch on.
-  behavior: { kind: "widget", body: (): ReactElement => <CharacterCreateActions /> },
+  behavior: { kind: "widget", body: (): ReactElement => <CharacterCreateActions />, useMenuForms: (): readonly OverflowMenuForm[] => CHARACTER_DOOR_FORMS },
 };

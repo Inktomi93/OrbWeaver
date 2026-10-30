@@ -16,8 +16,14 @@ interface FocusTarget {
 interface MinimalDocument {
   readonly activeElement: MinimalElement | null;
   readonly body: MinimalElement;
+  readonly querySelector: (selector: string) => FocusTarget | null;
 }
 const DIALOG_FOCUS_SCOPE = '[role="dialog"], [role="alertdialog"]';
+// The LIST band's controls in tab order: the back chevron, then the pane's primary action. The band is a
+// sibling region of the surface, so the surface finds it through the slots `ListPaneHeader` stamps.
+// An action that moved into the menu is inert, so the first VISIBLE control is the next action, or the menu trigger.
+const LIST_BAND_FIRST_CONTROL =
+  '[data-panel-side="list"] :is([data-slot="list-pane-back"], [data-slot="list-pane-action"] :is(button, a[href], input, select, textarea)):not(:disabled):not([inert] *):not([data-overflowed] *)';
 const browserDocument = (globalThis as { document?: MinimalDocument }).document;
 
 /** Focus a freshly-mounted surface — keyboard/SR focus management for when the user NAVIGATES to it.
@@ -35,6 +41,25 @@ const browserDocument = (globalThis as { document?: MinimalDocument }).document;
  *  focuses the pane the user just transformed, so the CONTENT editor mounting beside it must not take it
  *  back). Defaults to `true`, so every other caller is unchanged. */
 export function useFocusOnMount(ref: RefObject<FocusTarget | null>, enabled = true, repeatOnReveal = true, preserveFocus?: () => boolean): void {
+  useArrivalFocus(ref, { enabled, repeatOnReveal, preserveFocus, bandFirst: false });
+}
+
+/** {@link useFocusOnMount} for a LIST surface under a band: arrival lands on the band's first control, so a
+ *  forward Tab runs New, search, rows instead of starting past the band. A band with no control (the phone
+ *  sheds its action) keeps the surface root as the target. */
+export function useFocusListArrival(ref: RefObject<FocusTarget | null>, enabled = true): void {
+  useArrivalFocus(ref, { enabled, repeatOnReveal: true, preserveFocus: undefined, bandFirst: true });
+}
+
+interface ArrivalOptions {
+  readonly enabled: boolean;
+  readonly repeatOnReveal: boolean;
+  readonly preserveFocus: (() => boolean) | undefined;
+  /** Land on the LIST band's first control when it has one, else on `ref`. */
+  readonly bandFirst: boolean;
+}
+
+function useArrivalFocus(ref: RefObject<FocusTarget | null>, { enabled, repeatOnReveal, preserveFocus, bandFirst }: ArrivalOptions): void {
   const handled = useRef(false);
   useEffect(() => {
     if (!enabled || preserveFocus?.() === true || (!repeatOnReveal && handled.current)) {
@@ -49,8 +74,9 @@ export function useFocusOnMount(ref: RefObject<FocusTarget | null>, enabled = tr
     if (active.closest(DIALOG_FOCUS_SCOPE) !== null && (ref.current?.closest?.(DIALOG_FOCUS_SCOPE) ?? null) === null) {
       return;
     }
-    ref.current?.focus();
-  }, [ref, enabled, repeatOnReveal, preserveFocus]);
+    const band = bandFirst ? (browserDocument?.querySelector(LIST_BAND_FIRST_CONTROL) ?? null) : null;
+    (band ?? ref.current)?.focus();
+  }, [ref, enabled, repeatOnReveal, preserveFocus, bandFirst]);
 }
 
 /** Focus a freshly-mounted surface UNCONDITIONALLY — for an IN-PLACE swap, where the control the user just

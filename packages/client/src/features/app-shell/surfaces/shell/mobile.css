@@ -163,6 +163,14 @@
       display: none;
     }
 
+    /* The title the rule below sheds holds no floor either, so the actions get the band back. */
+    .shell-grid[data-list-mode="docked"]
+      .shell-panel[data-panel-side="list"]
+      [data-slot="list-pane-identity"]:not(:has([data-slot="list-pane-title"][data-scoped])) {
+      flex: 0 1 auto;
+      min-inline-size: 0;
+    }
+
     /* One name per screen: the topbar prints the section's name, so the band's unscoped title would repeat it;
      * a scoped band names a swapped pane and survives. */
     .shell-grid[data-list-mode="docked"] .shell-panel[data-panel-side="list"] [data-slot="list-pane-title"]:not([data-scoped]) {

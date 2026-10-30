@@ -26,4 +26,6 @@ Every list surface with a band follows the ruling through one shared arrival-foc
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+- Mechanism: `useFocusListArrival` in `packages/client/src/lib/use-focus-on-mount.ts` shares the arrival guard with `useFocusOnMount` and lands focus on the LIST band's first control (the back chevron, then the pane's action), found through the `list-pane-back` and `list-pane-action` slots. A band with no control keeps the surface root. The Chats, Presets and Characters list surfaces use it.
+- Red first: `tests/client/features/app-shell/surfaces/list-arrival-focus.ct.tsx` arrives from the rail by keyboard in each of the three sections and failed on the old source with focus in the pane body, not the band. Green after, and the next Tab leaves the band into the body.
+- Not changed, because the band holds no control at arrival or the surface is not a shell list on a desktop arrival: Refinery (the action renders only with a session open), Extensions, Insights, Corpus Explore (omnibox ruling), Databank and Labels. Databank and Labels have a band action; each needs its own case and is open.

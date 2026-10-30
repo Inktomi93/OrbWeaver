@@ -3,9 +3,12 @@
 // feature — no self-privilege. This is now the ONE detail-panel close/open affordance (the panel-header's
 // own redundant collapse button is deleted).
 
+import { PanelRightClose, PanelRightOpen } from "@orb/ui/icons";
+import type { OverflowMenuForm } from "#lib";
 import type { ChromeEntry } from "#state";
 import { ContextToggle } from "../components/context-toggle.tsx";
 import { useShellLayout } from "../hooks/use-shell-layout.ts";
+import { contextToggleLabel } from "./context-toggle-label.ts";
 
 export const contextToggleChrome: ChromeEntry = {
   id: "context-toggle",
@@ -17,5 +20,21 @@ export const contextToggleChrome: ChromeEntry = {
   // registry list, so this hook call is legal here.
   useVisible: (): boolean => useShellLayout().contextAvailable,
   // A topbar toggle — the same affordance in bar and sheet lenses; `presentation` is unused today.
-  behavior: { kind: "widget", body: (_presentation): ReturnType<typeof ContextToggle> => <ContextToggle /> },
+  behavior: {
+    kind: "widget",
+    body: (_presentation): ReturnType<typeof ContextToggle> => <ContextToggle />,
+    // The toggle's own handler and state-keyed name, so the menu entry is the same control.
+    useMenuForms: (): readonly OverflowMenuForm[] => {
+      const layout = useShellLayout();
+      const collapsed = layout.contextMode === "collapsed";
+      return [
+        {
+          id: "context-toggle",
+          label: contextToggleLabel(collapsed),
+          icon: collapsed ? PanelRightOpen : PanelRightClose,
+          onSelect: (): void => layout.togglePanel("context"),
+        },
+      ];
+    },
+  },
 };
