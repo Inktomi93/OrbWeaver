@@ -768,6 +768,7 @@ export const OWNER_CSS_SLOTS = [
   "theme-background-scrim",
   "theme-background-video-layer",
   "theme-collection",
+  "theme-fallback-notice",
   "theme-mini-room",
   "theme-mini-surface",
   "theme-scope",
