@@ -3,6 +3,7 @@
 // `principal.userId`; maintenance verbs are un-principal (CLI/workload/DR callers only).
 
 import type { AssetBlobRef, AssetListItem, GalleryItemView } from "@orb/contracts/assets";
+import type { ListImageAssetIds } from "@orb/contracts/embeddings";
 import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
@@ -84,7 +85,7 @@ export interface AssetsService {
   /** Resolve an asset's `(ownerId, hash, mime)` from its row id alone — un-principal, pure row lookup. */
   readonly assetCasRefById: (assetId: AssetId) => Promise<AssetCasRef | undefined>;
   /** Every image asset id; `ownerId` scopes to one owner, omitted/null = all owners. Un-principal sweep. */
-  readonly listImageAssetIds: (ownerId?: UserId | null) => Promise<readonly AssetId[]>;
+  readonly listImageAssetIds: ListImageAssetIds;
   /** Gallery v1: the caller's own assets, newest-first, keyset-paged; optional `kind` filter. */
   readonly listOwned: (params: ListOwnedParams) => Promise<AssetListItem[]>;
   /** Gallery v2: curate an owned asset into the gallery (optionally as a character's subject). Idempotent

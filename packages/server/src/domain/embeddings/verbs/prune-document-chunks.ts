@@ -7,8 +7,7 @@
 // never touches `document_chunks` directly (the single-write-path invariant, dep-cruiser-enforced). This
 // mirrors `writeHubScores` as a narrow, named, non-`store` write seam.
 
-import type { PruneDocumentChunksParams } from "../contract/params.ts";
-import type { PruneDocumentChunksResult } from "../contract/results.ts";
+import type { PruneDocumentChunksParams, PruneDocumentChunksResult } from "@orb/contracts/embeddings";
 import type { EmbeddingsContext, EmbeddingsService } from "../contract/service.ts";
 import { pruneDocumentChunks } from "../persistence/clear.ts";
 import { loadDocumentOwnerForPrune } from "../persistence/queries.ts";

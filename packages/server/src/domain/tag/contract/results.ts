@@ -2,11 +2,3 @@
 // `TagView` / `TagWithUsage` (@orb/contracts/tag) or `void`; `pruneUnusedTags` returns a count.
 
 export type { PruneUnusedResult } from "@orb/contracts/tag";
-
-/** `importTagLibrary` — the outcome of restoring a tag-library file. `total` is the tag count the file
- *  carried (post-parse, malformed rows already dropped); `created` is how many were NEWLY minted into the
- *  owner's namespace (the rest deduped against existing tags — the import merges, idempotently). */
-export interface TagLibraryImportResult {
-  readonly total: number;
-  readonly created: number;
-}

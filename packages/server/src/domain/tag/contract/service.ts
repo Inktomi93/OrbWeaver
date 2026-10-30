@@ -3,7 +3,16 @@
 // chat-tag junction additionally routes through the injected `requireParticipant` since chats have no owner.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { TagAttachedEntity, TagFilterVocabularyEntry, TagReachView, TagSuggestionView, TagTargetRef, TagView, TagWithUsage } from "@orb/contracts/tag";
+import type {
+  AttachCardTagByNameOp,
+  TagAttachedEntity,
+  TagFilterVocabularyEntry,
+  TagReachView,
+  TagSuggestionView,
+  TagTargetRef,
+  TagView,
+  TagWithUsage,
+} from "@orb/contracts/tag";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
@@ -11,7 +20,6 @@ import type { ChatId, TagId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { AuditEntry } from "#foundation/observability";
 import type {
-  AttachCardTagByNameParams,
   AttachChatTagByNameParams,
   AttachTagParams,
   BulkAttachTagParams,
@@ -79,7 +87,7 @@ export interface TagService {
   /** Resolve-or-create the owner's tag by name (race-safe), then attach it to the character, idempotently.
    *  `source`/`status` default to `manual`/`accepted`; author-shipped imports use `card`/`accepted`, while
    *  model suggestions use `auto`/`pending`. Not principal-gated — trusts the caller-resolved `ownerId`. */
-  readonly attachCardTagByName: (params: AttachCardTagByNameParams) => Promise<boolean>;
+  readonly attachCardTagByName: AttachCardTagByNameOp;
   /** R6 — the CHAT arm of the same by-name attach: resolve-or-create the owner's tag, then place the D30
    *  per-tagger overlay row. No `status` (the junction has no such column). Not principal-gated. */
   readonly attachChatTagByName: (params: AttachChatTagByNameParams) => Promise<boolean>;

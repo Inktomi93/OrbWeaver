@@ -3,8 +3,9 @@
 // DomainForbiddenError on deny — the caller (execute) catches and converts to errors-as-data.
 
 import type { Can } from "@orb/contracts/identity";
+import type { ToolCapability } from "@orb/contracts/tool-use";
 import { DomainForbiddenError } from "@orb/kit/errors";
-import type { ToolCapability, ToolExecutionContext } from "../contract/params.ts";
+import type { ToolExecutionContext } from "../contract/params.ts";
 
 /** null capability = the member floor — passes. A scope:"chat" ceiling with a null membership is a denial. */
 export function checkToolCapability(capability: ToolCapability | null, exec: ToolExecutionContext, can: Can): void {

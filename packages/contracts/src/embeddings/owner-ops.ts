@@ -1,7 +1,8 @@
 // Shared owner data and injected operations; implementations and authority resolution stay in server domains.
 
-import type { CharacterId, ChatId, EmbedGenerationId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, DocumentId, EmbedGenerationId, UserConnectionId, UserId } from "@orb/kit/ids";
 import type { EmbeddingTask } from "./accounting.ts";
+import type { CountDocumentChunksParams, OwnerChunkCountsParams, PruneDocumentChunksParams } from "./document-vectors.ts";
 
 /** The owner and concrete vector-space receipt shared by chat memory and embedding reindex.
  *  Both consume this immutable identity; neither imports the other domain's context. */
@@ -76,3 +77,62 @@ interface PruneStaleDigestsParams {
 }
 
 export type PruneMemoryBlocksParams = PruneDigestBlocksParams | PruneSegmentBlocksParams | PruneStaleDigestsParams;
+
+/** Enumerate non-synthetic character ids; `ownerId` scopes to one owner, omitted/null = all owners. */
+export type ListCharacterIds = (ownerId?: UserId | null) => Promise<readonly CharacterId[]>;
+
+/** Enumerate image asset ids; `ownerId` scopes to one owner, omitted/null = all owners. */
+export type ListImageAssetIds = (ownerId?: UserId | null) => Promise<readonly AssetId[]>;
+
+/** A target move refused before it purged anything: the new encoder does not make the width its connection states, did
+ *  not answer the probe that would tell, or refused the row's key. `assumed`: no width was stated, so `stated` is the
+ *  one assumed for the model. */
+export type EmbedMoveRefusal =
+  | {
+      readonly kind: "width";
+      readonly task: EmbeddingTask;
+      readonly stated: number;
+      readonly measured: number;
+      readonly truncatable: boolean;
+      readonly assumed: boolean;
+    }
+  | { readonly kind: "unreachable"; readonly task: EmbeddingTask }
+  | { readonly kind: "auth"; readonly task: EmbeddingTask };
+
+/** rows deleted by the reindex-shrink prune (shrunk tail + retired-space rows). */
+export interface PruneDocumentChunksResult {
+  readonly rowsDeleted: number;
+}
+
+/** Would the owner's stored target for `task` move if `via` resolved through `connectionId`? */
+export interface TargetWouldMoveArgs {
+  readonly ownerId: UserId;
+  readonly task: EmbeddingTask;
+  readonly via: EmbeddingTask;
+  readonly connectionId: UserConnectionId;
+}
+
+/** The reindex-shrink seam: deletes a document's stray chunks. */
+export type PruneDocumentChunksOp = (params: PruneDocumentChunksParams) => Promise<PruneDocumentChunksResult>;
+
+/** The DocumentView chunk-count read (per document, active model). */
+export type CountDocumentChunksOp = (params: CountDocumentChunksParams) => Promise<ReadonlyMap<DocumentId, number>>;
+
+/** Every chunk count in an owner's bank. */
+export type CountDocumentChunksByOwnerOp = (params: OwnerChunkCountsParams) => Promise<ReadonlyMap<DocumentId, number>>;
+
+/** Bring the owner's stored targets in line with what their vector bindings resolve to now. */
+export type SyncTargetGenerationsOp = (ownerId: UserId) => Promise<EmbedMoveRefusal | null>;
+
+/** Read-only preview of a target move; `null` when that row cannot resolve. */
+export type TargetWouldMoveOp = (args: TargetWouldMoveArgs) => Promise<boolean | null>;
+
+/** Resolve the owner's encoder for `task` into a connection snapshot; `null` when an explicit `connectionId` no
+ *  longer resolves. `cachedFacts`: read only the server facts already cached, dialing nothing (a read-only
+ *  preview). The snapshot's call closures take an AbortSignal, so each domain types its own connection. */
+export type ResolveEmbeddingConnectionOp<TConnection> = (
+  ownerId: UserId,
+  task: EmbeddingTask,
+  connectionId?: UserConnectionId | undefined,
+  opts?: { readonly cachedFacts?: boolean | undefined },
+) => Promise<TConnection | null>;

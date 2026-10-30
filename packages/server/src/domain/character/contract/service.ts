@@ -2,6 +2,7 @@
 // (verb interface) + cross-feature injected-op types (character never sideways-imports assets or tag).
 
 import type { CharacterBulkTagResult, CharacterCard, CharacterDetail } from "@orb/contracts/character";
+import type { ListCharacterIds } from "@orb/contracts/embeddings";
 import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
 import type { ProseOverrides } from "@orb/contracts/prose";
@@ -154,7 +155,7 @@ export interface CharacterService {
   readonly loadCardText: (characterId: CharacterId) => Promise<string | null>;
 
   /** ownerId scopes to one owner, omitted/null = all owners. */
-  readonly listEmbeddableCharacterIds: (ownerId?: UserId | null) => Promise<readonly CharacterId[]>;
+  readonly listEmbeddableCharacterIds: ListCharacterIds;
 
   readonly findByImportHash: (params: FindByImportHashParams) => Promise<CharacterRef | null>;
   /** Give an art-less owned character its avatar and re-key its import identity, in one conditional write.
