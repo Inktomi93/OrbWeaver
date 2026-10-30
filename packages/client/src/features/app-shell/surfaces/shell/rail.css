@@ -44,7 +44,8 @@
   /* The active cells paint the primary tone's roles; the rail stamps that tone (`SHELL_ACCENT_TONE`). */
   .shell-rail-brand-button[data-active] {
     background: var(--color-tone-tint);
-    color: var(--color-tone-text-on-tint);
+    /* The brand cell holds a glyph, not text: it keeps the pigment rather than the on-tint ink. */
+    color: var(--color-tone-solid);
   }
   .shell-rail-brand-button[data-active]::before {
     content: "";

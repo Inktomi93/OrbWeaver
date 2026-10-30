@@ -1,4 +1,6 @@
 import { CtIsolation } from "@orb/testkit/browser";
+import { Card } from "@orb/ui/card";
+import { TrackBar } from "@orb/ui/meter";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ToneRole } from "@orb/ui/tokens";
 import { SEED_THEME_VALUE_SETS, TOKENS, TONE_ROLE_RECIPES, TONE_ROLES, TONES } from "@orb/ui/tokens";
@@ -102,6 +104,26 @@ export function ToneRoleContrastStory({
             <ToneFloorPairs />
           </ThemeScope>
         )}
+      </div>
+    </CtIsolation>
+  );
+}
+
+/** The tone marks that carry meaning on their own: a zone meter's fill on its track, and a status Card's edge on the page. */
+export function ToneMarkStory({ theme }: { readonly theme?: keyof typeof SEED_THEME_VALUE_SETS }): ReactElement {
+  return (
+    <CtIsolation subject="Tone marks" isolates="The meter zone fills and the status Card edges over a seed palette">
+      <div data-theme={theme} data-mark="ground" style={{ backgroundColor: "var(--color-background)", padding: "1rem", display: "grid", gap: "1rem" }}>
+        {(["info", "warning"] as const).map((accent) => (
+          <div key={accent} data-mark={`meter-${accent}`}>
+            <TrackBar value={50} max={100} accent={accent} />
+          </div>
+        ))}
+        {(["warning", "info"] as const).map((tone) => (
+          <Card key={tone} tone={tone} data-mark={`card-${tone}`}>
+            {tone} box
+          </Card>
+        ))}
       </div>
     </CtIsolation>
   );

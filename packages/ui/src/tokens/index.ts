@@ -552,6 +552,11 @@ export const TONE_MIX_KNOBS = ["hover", "active", "neutral-hover", "neutral-acti
 export type ToneMixKnob = (typeof TONE_MIX_KNOBS)[number];
 export const TONE_MIX_DEFAULTS = {"hover":90,"active":80,"neutral-hover":90,"neutral-active":80,"text":80,"text-on-tint":62,"tint":14,"tint-active":22,"edge":30} as const satisfies Readonly<Record<ToneMixKnob, number>>;
 
+/** A tone's own override of a scope knob, read first by that tone's colored steps. */
+export function toneKnobVar(tone: Tone, knob: ToneMixKnob): string {
+  return ["--tone-mix", tone, knob].join("-");
+}
+
 /** Each role's recipe as data, for the numeric twin in `@orb/kit/theme-derivation`. */
 export const TONE_ROLE_RECIPES = {
   "solid": {"colored":"base","neutral":{"bind":"foreground"},"floor":[]},

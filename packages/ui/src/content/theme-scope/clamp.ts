@@ -37,7 +37,7 @@ import type { ParsedOklch } from "./color-parse.ts";
 import { compositedBase, serializeOpaqueOklch, toOklch } from "./color-parse.ts";
 import { foregroundOn, surfaceVarsOn } from "./derive-vars.ts";
 import type { CarriedToneScheme } from "./tone-knobs.ts";
-import { accentInk, carriedToneScheme, carriedToneSources, paintedAccentFill, solveCarriedToneMix, toneMixVars } from "./tone-knobs.ts";
+import { accentInk, carriedToneScheme, carriedToneSources, paintedAccentFill, solveCarriedToneMix, toneMixOf, toneMixVars } from "./tone-knobs.ts";
 
 // Fonts a user may pick — an allowlist; anything else is dropped.
 const THEME_FONT_ALLOWLIST = ["Geist", "ui-sans-serif", "ui-serif", "ui-monospace", "Georgia", "Times New Roman", "Iowan Old Style"] as const;
@@ -256,7 +256,8 @@ function accentAndTonesOn(picked: string | undefined, ambientAccent: string | un
     return { accent, toneVars: {}, fallback: undefined };
   }
   const mix = solveCarriedToneMix(scheme, carriedToneSources(scheme, accent?.painted ?? null));
-  const fallback = accent === undefined || accent.coversSteps ? undefined : { accent: accent.fill, hover: mix.hover, active: mix.active };
+  const primary = toneMixOf(mix, "primary");
+  const fallback = accent === undefined || accent.coversSteps ? undefined : { accent: accent.fill, hover: primary.hover, active: primary.active };
   return { accent, toneVars: toneMixVars(mix), fallback };
 }
 

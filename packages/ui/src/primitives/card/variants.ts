@@ -10,7 +10,8 @@ import { ART_DECORATION } from "../../lib/art-decoration.ts";
 // feature never picks island padding or radius. `rounded-base` (grouped content), never `rounded-card` —
 // D6 demoted `--radius-card` to ELEVATED/floating islands only, which is what `elevated` opts into.
 const TONE_SOFT = "border-tone-edge bg-tone-tint";
-const TONE_SOFT_INKED = `${TONE_SOFT} text-tone-text-on-tint`;
+// A status box keeps a solid hairline: the edge is its boundary signal, so it holds the 3:1 non-text floor (WCAG 1.4.11).
+const TONE_STATUS = "border-tone-solid bg-tone-tint text-tone-text-on-tint";
 
 export const cardVariants = tv({
   base: "rounded-base border border-border bg-card p-block text-card-foreground",
@@ -55,9 +56,9 @@ export const cardVariants = tv({
       userBubble: MESSAGE_BUBBLE_FILL.user,
       systemBubble: MESSAGE_BUBBLE_FILL.system,
       muted: "bg-muted",
-      // A status box: the tone's tint, its held-back edge and its on-tint ink for content that sets no ink of its own.
-      warning: TONE_SOFT_INKED,
-      info: TONE_SOFT_INKED,
+      // A status box: the tone's tint, its solid hairline and its on-tint ink for content that sets no ink of its own.
+      warning: TONE_STATUS,
+      info: TONE_STATUS,
       highlight: "border-highlight",
       // The status tint and edge without the status ink: a verdict banner or a choices island whose own text and
       // controls keep their inks and carry the meaning.

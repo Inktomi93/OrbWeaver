@@ -13,7 +13,7 @@ import { assertTokenContract, REQUIRED_SEED_VALUE_SET_PATHS, TOKEN_ARTIFACT_PATH
 import { assertNoNearDuplicateColors } from "./tokens.near-duplicate.ts";
 import { renderPigmentBlocks, renderPigmentTs } from "./tokens.pigments.ts";
 import type { ToneModel } from "./tokens.tones.ts";
-import { assertShippedToneFloors, renderToneBlocks, renderToneTs, toneModel, toneReferenceValues } from "./tokens.tones.ts";
+import { assertShippedToneFloors, renderToneBlocks, renderToneTs, toneKnobDefaults, toneModel, toneReferenceValues } from "./tokens.tones.ts";
 
 export type { GeneratedCssValue } from "./token-contract.ts";
 
@@ -326,8 +326,8 @@ function renderConditionVariants(conditions: Readonly<Record<string, string>>): 
     .join("\n")}\n`;
 }
 
-function renderRootCss(tokens: readonly GeneratedCssValue[]): string {
-  const lines = ["  color-scheme: dark;", ...tokens.map((token) => `  ${cssVarName(token.path)}: ${token.value};`)];
+function renderRootCss(tokens: readonly GeneratedCssValue[], declarations: readonly string[]): string {
+  const lines = ["  color-scheme: dark;", ...tokens.map((token) => `  ${cssVarName(token.path)}: ${token.value};`), ...declarations.map((line) => `  ${line}`)];
   return `\n:root {\n${lines.join("\n")}\n}\n`;
 }
 
@@ -337,14 +337,25 @@ function themeLayer(css: string): string {
   return body === "" ? "" : `\n@layer theme {\n${body.replace(/^(?=.)/gmu, "  ")}\n}\n`;
 }
 
-export function renderGeneratedCss(tokens: readonly GeneratedCssValue[], conditions: Readonly<Record<string, string>>, themeCss: string): string {
+/** `rootDeclarations` join the one `:root` block, so the theme layer never declares `:root` twice. */
+export function renderGeneratedCss(
+  tokens: readonly GeneratedCssValue[],
+  conditions: Readonly<Record<string, string>>,
+  themeCss: string,
+  rootDeclarations: readonly string[],
+): string {
   return (
     renderThemeCss(
       tokens.filter((token) => token.placement === "theme"),
       tokens.filter((token) => token.placement === "reference"),
     ) +
     renderConditionVariants(conditions) +
-    themeLayer(renderRootCss(tokens.filter((token) => token.placement === "root")) + themeCss)
+    themeLayer(
+      renderRootCss(
+        tokens.filter((token) => token.placement === "root"),
+        rootDeclarations,
+      ) + themeCss,
+    )
   );
 }
 
@@ -631,6 +642,7 @@ export async function generateArtifacts(uiRoot = HERE): Promise<{ themeCss: stri
         renderBasePaletteBlock(seedThemes, portableByPath) +
         renderToneBlocks(tones) +
         renderPigmentBlocks(contract.pigments),
+      toneKnobDefaults(tones),
     ),
     tokensTs: renderTokensTs({ tokens: flat, polarityArms, lengths, conditions, tones, pigments: contract.pigments }),
     themesTs: renderSeedThemesTs(seedThemes),

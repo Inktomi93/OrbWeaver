@@ -50,7 +50,7 @@ test("a mid-tone carried base emits the solved knobs, and the roles they spell c
   const scheme = carriedToneScheme(parsed(MID_BASE));
   const sources = carriedToneSources(scheme, parsed(vars["--color-primary"] ?? ""));
   expect(knobs).toEqual(
-    Object.fromEntries(Object.keys(knobs).map((knob) => [knob, solveCarriedToneMix(scheme, sources)[knob as keyof typeof TONE_MIX_DEFAULTS]])),
+    Object.fromEntries(Object.keys(knobs).map((knob) => [knob, solveCarriedToneMix(scheme, sources).scope[knob as keyof typeof TONE_MIX_DEFAULTS]])),
   );
   expect(knobs["text"]).toBeLessThan(TONE_MIX_DEFAULTS.text);
   expect(knobs["neutral-active"]).toBeGreaterThan(TONE_MIX_DEFAULTS["neutral-active"]);

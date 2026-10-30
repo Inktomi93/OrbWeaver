@@ -391,6 +391,16 @@
     --orb-density-compact-cell-fixed: 7.5rem;
     --immersive-whisper-banner-inline-cap: calc(var(--immersive-whisper-banner-cap) * var(--aspect-banner));
     --immersive-whisper-banner-cap: calc(var(--immersive-whisper-banner-viewport-cap) * 1svh);
+    --tone-mix-primary-hover: var(--tone-mix-hover);
+    --tone-mix-primary-active: var(--tone-mix-active);
+    --tone-mix-destructive-hover: var(--tone-mix-hover);
+    --tone-mix-destructive-active: var(--tone-mix-active);
+    --tone-mix-warning-hover: var(--tone-mix-hover);
+    --tone-mix-warning-active: var(--tone-mix-active);
+    --tone-mix-success-hover: var(--tone-mix-hover);
+    --tone-mix-success-active: var(--tone-mix-active);
+    --tone-mix-info-hover: var(--tone-mix-hover);
+    --tone-mix-info-active: var(--tone-mix-active);
   }
 
   @media (pointer: fine) {
@@ -552,8 +562,8 @@
 
   [data-tone="primary"] {
     --color-tone-solid: var(--color-primary);
-    --color-tone-solid-hover: color-mix(in oklab, var(--color-primary) var(--tone-mix-hover), light-dark(black, white));
-    --color-tone-solid-active: color-mix(in oklab, var(--color-primary) var(--tone-mix-active), light-dark(black, white));
+    --color-tone-solid-hover: color-mix(in oklab, var(--color-primary) var(--tone-mix-primary-hover), light-dark(black, white));
+    --color-tone-solid-active: color-mix(in oklab, var(--color-primary) var(--tone-mix-primary-active), light-dark(black, white));
     --color-tone-text: color-mix(in oklab, var(--color-primary) var(--tone-mix-text), var(--color-foreground));
     --color-tone-text-on-tint: color-mix(in oklab, var(--color-primary) var(--tone-mix-text-on-tint), var(--color-foreground));
     --color-tone-tint: color-mix(in oklab, var(--color-primary) var(--tone-mix-tint), var(--color-background));
@@ -576,8 +586,8 @@
 
   [data-tone="destructive"] {
     --color-tone-solid: var(--color-destructive);
-    --color-tone-solid-hover: color-mix(in oklab, var(--color-destructive) var(--tone-mix-hover), light-dark(black, white));
-    --color-tone-solid-active: color-mix(in oklab, var(--color-destructive) var(--tone-mix-active), light-dark(black, white));
+    --color-tone-solid-hover: color-mix(in oklab, var(--color-destructive) var(--tone-mix-destructive-hover), light-dark(black, white));
+    --color-tone-solid-active: color-mix(in oklab, var(--color-destructive) var(--tone-mix-destructive-active), light-dark(black, white));
     --color-tone-text: color-mix(in oklab, var(--color-destructive) var(--tone-mix-text), var(--color-foreground));
     --color-tone-text-on-tint: color-mix(in oklab, var(--color-destructive) var(--tone-mix-text-on-tint), var(--color-foreground));
     --color-tone-tint: color-mix(in oklab, var(--color-destructive) var(--tone-mix-tint), var(--color-background));
@@ -588,8 +598,8 @@
 
   [data-tone="warning"] {
     --color-tone-solid: var(--color-warning);
-    --color-tone-solid-hover: color-mix(in oklab, var(--color-warning) var(--tone-mix-hover), light-dark(black, white));
-    --color-tone-solid-active: color-mix(in oklab, var(--color-warning) var(--tone-mix-active), light-dark(black, white));
+    --color-tone-solid-hover: color-mix(in oklab, var(--color-warning) var(--tone-mix-warning-hover), light-dark(black, white));
+    --color-tone-solid-active: color-mix(in oklab, var(--color-warning) var(--tone-mix-warning-active), light-dark(black, white));
     --color-tone-text: color-mix(in oklab, var(--color-warning) var(--tone-mix-text), var(--color-foreground));
     --color-tone-text-on-tint: color-mix(in oklab, var(--color-warning) var(--tone-mix-text-on-tint), var(--color-foreground));
     --color-tone-tint: color-mix(in oklab, var(--color-warning) var(--tone-mix-tint), var(--color-background));
@@ -600,8 +610,8 @@
 
   [data-tone="success"] {
     --color-tone-solid: var(--color-success);
-    --color-tone-solid-hover: color-mix(in oklab, var(--color-success) var(--tone-mix-hover), light-dark(black, white));
-    --color-tone-solid-active: color-mix(in oklab, var(--color-success) var(--tone-mix-active), light-dark(black, white));
+    --color-tone-solid-hover: color-mix(in oklab, var(--color-success) var(--tone-mix-success-hover), light-dark(black, white));
+    --color-tone-solid-active: color-mix(in oklab, var(--color-success) var(--tone-mix-success-active), light-dark(black, white));
     --color-tone-text: color-mix(in oklab, var(--color-success) var(--tone-mix-text), var(--color-foreground));
     --color-tone-text-on-tint: color-mix(in oklab, var(--color-success) var(--tone-mix-text-on-tint), var(--color-foreground));
     --color-tone-tint: color-mix(in oklab, var(--color-success) var(--tone-mix-tint), var(--color-background));
@@ -612,8 +622,8 @@
 
   [data-tone="info"] {
     --color-tone-solid: var(--color-info);
-    --color-tone-solid-hover: color-mix(in oklab, var(--color-info) var(--tone-mix-hover), light-dark(black, white));
-    --color-tone-solid-active: color-mix(in oklab, var(--color-info) var(--tone-mix-active), light-dark(black, white));
+    --color-tone-solid-hover: color-mix(in oklab, var(--color-info) var(--tone-mix-info-hover), light-dark(black, white));
+    --color-tone-solid-active: color-mix(in oklab, var(--color-info) var(--tone-mix-info-active), light-dark(black, white));
     --color-tone-text: color-mix(in oklab, var(--color-info) var(--tone-mix-text), var(--color-foreground));
     --color-tone-text-on-tint: color-mix(in oklab, var(--color-info) var(--tone-mix-text-on-tint), var(--color-foreground));
     --color-tone-tint: color-mix(in oklab, var(--color-info) var(--tone-mix-tint), var(--color-background));

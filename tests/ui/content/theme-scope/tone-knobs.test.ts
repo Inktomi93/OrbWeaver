@@ -1,13 +1,14 @@
 // D336: what the ThemeScope clamp emits for a carried background clears every tone's floors, primary included, for
 // picked and inherited accents. Each case reads the emitted variables back and judges the pixels they spell.
-import type { Oklch, ToneSource } from "@orb/kit/theme-derivation";
+import type { Oklch } from "@orb/kit/theme-derivation";
 import { toneFloorMisses } from "@orb/kit/theme-derivation";
 import { ACCEPTED_BASES } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
-import type { ToneMixKnob } from "@orb/ui/tokens";
-import { TOKENS, TONE_MIX_DEFAULTS, TONE_MIX_KNOBS } from "@orb/ui/tokens";
+import type { Tone, ToneMixKnob } from "@orb/ui/tokens";
+import { TOKENS, TONE_MIX_DEFAULTS, TONE_MIX_KNOBS, toneKnobVar } from "@orb/ui/tokens";
 import { clampThemeTokens } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
 import { serializeOpaqueOklch, toOklch } from "../../../../packages/ui/src/content/theme-scope/color-parse.ts";
+import type { CarriedTone } from "../../../../packages/ui/src/content/theme-scope/tone-knobs.ts";
 import { carriedToneScheme, carriedToneSources } from "../../../../packages/ui/src/content/theme-scope/tone-knobs.ts";
 import { BASES } from "./contrast-cases.ts";
 
@@ -36,25 +37,40 @@ function emittedInk(spelling: string | undefined): Oklch {
   return { l: Number(lightness), c: 0, h: 0 };
 }
 
+/** The mix one tone reads from a scope's emitted variables: its own step knob when set, else the scope's knob. */
+function emittedMix(vars: Readonly<Record<string, string>>, tone: Tone): Readonly<Record<ToneMixKnob, number>> {
+  const knob = (name: ToneMixKnob): number => {
+    const own = vars[toneKnobVar(tone, name)];
+    const scope = vars[TOKENS[`tone-mix.${name}`].cssVar];
+    const emitted = own ?? scope;
+    return emitted === undefined ? TONE_MIX_DEFAULTS[name] : Number.parseFloat(emitted);
+  };
+  return Object.fromEntries(TONE_MIX_KNOBS.map((name) => [name, knob(name)])) as Record<ToneMixKnob, number>;
+}
+
 /** Every D336 floor the emitted scope misses: its intents and neutral from the carried palette, its primary and knobs as emitted. */
 function emittedMisses(background: string, tokens: { readonly accent?: string }, ambientAccent?: string): readonly string[] {
   const { vars } = clampThemeTokens({ background, ...tokens }, undefined, ambientAccent);
   const scheme = carriedToneScheme(parsed(background));
-  const knob = (name: ToneMixKnob): number => {
-    const emitted = vars[TOKENS[`tone-mix.${name}`].cssVar];
-    return emitted === undefined ? TONE_MIX_DEFAULTS[name] : Number.parseFloat(emitted);
-  };
-  const mix = Object.fromEntries(TONE_MIX_KNOBS.map((name) => [name, knob(name)])) as Record<ToneMixKnob, number>;
   const fill = vars["--color-primary"];
-  const primary: ToneSource[] = fill === undefined ? [] : [{ base: parsed(fill), foreground: emittedInk(vars["--color-primary-foreground"]) }];
-  const sources = [...carriedToneSources(scheme, null), ...primary];
-  return sources.flatMap((source) =>
-    toneFloorMisses(scheme, source, mix).map(
-      (miss) =>
-        `${background} ${JSON.stringify(tokens)} ${ambientAccent ?? ""} ${source === "neutral" ? "neutral" : serializeOpaqueOklch(source.base)} ${JSON.stringify(miss)}`,
+  const primary: CarriedTone[] =
+    fill === undefined ? [] : [{ tone: "primary", source: { base: parsed(fill), foreground: emittedInk(vars["--color-primary-foreground"]) } }];
+  return [...carriedToneSources(scheme, null), ...primary].flatMap(({ tone, source }) =>
+    toneFloorMisses(scheme, source, emittedMix(vars, tone)).map(
+      (miss) => `${background} ${JSON.stringify(tokens)} ${ambientAccent ?? ""} ${tone} ${JSON.stringify(miss)}`,
     ),
   );
 }
+
+test("a fallback raises only the tone that needs it: primary's steps rise while destructive keeps the default", () => {
+  const { vars } = clampThemeTokens({ background: "oklch(0.158 0.006 60)", accent: "oklch(0.3 0.1 260)" });
+  const primary = emittedMix(vars, "primary");
+  const destructive = emittedMix(vars, "destructive");
+  expect(primary.hover).toBeGreaterThan(TONE_MIX_DEFAULTS.hover);
+  expect(primary.active).toBeGreaterThan(TONE_MIX_DEFAULTS.active);
+  expect(destructive.hover).toBe(TONE_MIX_DEFAULTS.hover);
+  expect(destructive.active).toBe(TONE_MIX_DEFAULTS.active);
+});
 
 test("a picked accent whose fill and solid steps share no ink still clears its hover and active floors", () => {
   expect(emittedMisses("oklch(0.5 0 0)", { accent: "oklch(0.53 0.2 30)" })).toEqual([]);
@@ -92,7 +108,7 @@ test(
   () => {
     const missing = ACCEPTED_BASES.filter((base) => {
       const scheme = carriedToneScheme(base);
-      return carriedToneSources(scheme, parsed(HEARTH_ACCENT)).some((source) => toneFloorMisses(scheme, source, TONE_MIX_DEFAULTS).length > 0);
+      return carriedToneSources(scheme, parsed(HEARTH_ACCENT)).some(({ source }) => toneFloorMisses(scheme, source, TONE_MIX_DEFAULTS).length > 0);
     });
     expect(missing.length).toBeGreaterThan(0);
     expect(missing.length).toBeLessThan(ACCEPTED_BASES.length);

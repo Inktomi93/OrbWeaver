@@ -72,8 +72,33 @@ export function toneModel(contract: TokenContractResult): ToneModel {
   return { tones: contract.tones, roles, knobs: Object.keys(defaults), defaults };
 }
 
-function mixCss(origin: string, step: MixStep): string {
-  return `color-mix(in oklab, ${origin} var(--${TONE_MIX_GROUP}-${aliasTail(step.mix, TONE_MIX_GROUP)}), ${MIX_TARGET_CSS[step.toward]})`;
+/** A tone's own step knob, `--tone-mix-<tone>-<knob>`; the generated `toneKnobVar` spells the same name. */
+const TONE_KNOB_PREFIX = `--${TONE_MIX_GROUP}`;
+
+function toneKnobVar(tone: string, knob: string): string {
+  return [TONE_KNOB_PREFIX, tone, knob].join("-");
+}
+
+/** The knobs of the colored steps that mix away from the page ink: the solid steps, which each tone owns. */
+function stepKnobs(model: ToneModel): readonly string[] {
+  const steps = model.roles.flatMap(({ derived: { colored } }) =>
+    typeof colored === "object" && colored.toward === "away" ? [aliasTail(colored.mix, TONE_MIX_GROUP)] : [],
+  );
+  return [...new Set(steps)];
+}
+
+/** A colored solid step reads its tone's own knob, so a clamp can raise one tone's steps and leave the others. */
+function mixCss(origin: string, step: MixStep, tone?: string): string {
+  const knob = aliasTail(step.mix, TONE_MIX_GROUP);
+  const amount = tone !== undefined && step.toward === "away" ? `var(${toneKnobVar(tone, knob)})` : `var(--${TONE_MIX_GROUP}-${knob})`;
+  return `color-mix(in oklab, ${origin} ${amount}, ${MIX_TARGET_CSS[step.toward]})`;
+}
+
+/** Each colored tone's step knobs default to the scope's on the root; a carried scope re-declares every one. */
+export function toneKnobDefaults(model: ToneModel): readonly string[] {
+  return model.tones
+    .filter((tone) => tone !== NEUTRAL_TONE)
+    .flatMap((tone) => stepKnobs(model).map((knob) => `${toneKnobVar(tone, knob)}: var(--${TONE_MIX_GROUP}-${knob});`));
 }
 
 function neutralCss(role: ToneRole): string {
@@ -89,7 +114,7 @@ function coloredCss(role: ToneRole, tone: string): string {
   if (colored === "base-foreground") {
     return `var(--color-${tone}-foreground)`;
   }
-  return mixCss(`var(--color-${tone})`, colored);
+  return mixCss(`var(--color-${tone})`, colored, tone);
 }
 
 /** One `[data-tone="<tone>"]` block per tone, each declaring every role with its formula. */
@@ -126,6 +151,11 @@ export function renderToneTs(model: ToneModel): readonly string[] {
     `export const TONE_MIX_KNOBS = ${tuple(model.knobs)} as const;`,
     "export type ToneMixKnob = (typeof TONE_MIX_KNOBS)[number];",
     `export const TONE_MIX_DEFAULTS = ${JSON.stringify(model.defaults)} as const satisfies Readonly<Record<ToneMixKnob, number>>;`,
+    "",
+    "/** A tone's own override of a scope knob, read first by that tone's colored steps. */",
+    "export function toneKnobVar(tone: Tone, knob: ToneMixKnob): string {",
+    `  return [${JSON.stringify(TONE_KNOB_PREFIX)}, tone, knob].join("-");`,
+    "}",
     "",
     "/** Each role's recipe as data, for the numeric twin in `@orb/kit/theme-derivation`. */",
     "export const TONE_ROLE_RECIPES = {",
