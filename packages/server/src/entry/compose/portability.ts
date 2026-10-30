@@ -1,7 +1,6 @@
-import type { Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry, PortableKind } from "@orb/contracts/portability";
 import { PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
-import type { CharacterId, UserId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import { hostTimeZone } from "@orb/kit/time";
 import type { AssetsContext, ImportAssetPort } from "#domain/assets";
 import { createExportAssets, createExportGallery, createImportAsset, createImportAvatarStore, createImportGallery } from "#domain/assets";
@@ -10,10 +9,10 @@ import { createCharacterImportOps } from "#domain/character";
 import type { BulkImportChats } from "#domain/chat";
 import type { DatabankPortabilityContext } from "#domain/databank";
 import { createExportDocument, createImportDocument, createListOwnedDocumentIds } from "#domain/databank";
-import type { ExportService } from "#domain/export";
+import type { ExportService, PortableExportDeps } from "#domain/export";
 import { createPortableExports } from "#domain/export";
 import type { ImageryPortabilityService } from "#domain/imagery";
-import type { ImportProfileDeps } from "#domain/import";
+import type { ImportProfileDeps, ProfileDirImportDeps } from "#domain/import";
 import { createPortableImports } from "#domain/import";
 import type { BulkImportPersonas, PersonaService } from "#domain/persona";
 import type { PresetContext } from "#domain/preset";
@@ -30,7 +29,7 @@ import type { LifecycleDoors, NonPortableCanon, PortabilityTableName } from "../
 
 /** What the registry builder needs from the composition root to compose each descriptor. */
 export interface PortabilityDeps {
-  readonly now: () => number;
+  readonly now: Clock;
   readonly tagCtx: TagContext;
   readonly settingsCtx: SettingsContext;
   readonly presetCtx: PresetContext;
@@ -42,7 +41,7 @@ export interface PortabilityDeps {
   readonly persona: Pick<PersonaService, "export" | "import" | "list">;
   readonly exportService: Pick<ExportService, "exportCharacter" | "exportChatBundle" | "listHostChats">;
   readonly character: ImportCharacterPort;
-  readonly listOwnedCharacterIds: (ownerId: UserId) => Promise<readonly CharacterId[]>;
+  readonly listOwnedCharacterIds: PortableExportDeps["listCharacterIds"];
   readonly storeAvatar: ImportAssetPort["store"];
   readonly attachCardTag: ImportTagPort["attachCardTagByName"];
   readonly importLorebook: ImportWorldInfoPort["importLorebook"];
@@ -62,9 +61,9 @@ export interface PortabilityDeps {
   readonly attachChatTagByName: NonNullable<ImportProfileDeps["attachChatTagByName"]>;
   readonly importRpgGame: NonNullable<ImportProfileDeps["importRpgGame"]>;
   readonly findOwnedAssetIdsByHash: NonNullable<ImportProfileDeps["findOwnedAssetIdsByHash"]>;
-  readonly enqueueImportIndex: (args: { readonly ownerId: UserId }) => Promise<void>;
-  readonly reconcileImportStats: (args: { readonly ownerId: UserId }) => Promise<void>;
-  readonly resolveOwnerPrincipal: (userId: UserId) => Promise<Principal>;
+  readonly enqueueImportIndex: ImportProfileDeps["enqueueImportIndex"];
+  readonly reconcileImportStats: ProfileDirImportDeps["reconcileImportStats"];
+  readonly resolveOwnerPrincipal: PortableExportDeps["resolveOwnerPrincipal"];
 }
 
 export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegistry {

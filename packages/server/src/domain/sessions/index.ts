@@ -13,6 +13,7 @@ export { OIDC_PENDING_JOIN_TTL_MS, OIDC_TRANSACTION_TTL_MS } from "./contract/po
 export type { RevokedSessionsSummary, UserPrincipalFields } from "./contract/results.ts";
 export type { SessionsRolePolicy, SessionsRolePolicyConfig } from "./contract/role-policy.ts";
 export type { SessionsCryptoOps, SessionsService } from "./contract/service.ts";
+export type { DomainOidcStore } from "./persistence/oidc-store.ts";
 export { createOidcStore } from "./persistence/oidc-store.ts";
 // `createListSeedAccountIds` enumerates every account, so it takes `BootDatabaseHandle`, which only boot mints (D335).
 export { createListSeedAccountIds, selectHandleById, selectHandlesByIds } from "./persistence/users.ts";

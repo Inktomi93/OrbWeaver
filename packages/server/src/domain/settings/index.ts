@@ -13,7 +13,6 @@ export type {
   SettingsService,
   SettingsServiceDeps,
 } from "./contract/service.ts";
-
 export { createEffectiveConfigCache } from "./effective-config/cache.ts";
 // A boot verb that reads or writes rows of every owner takes `BootDatabaseHandle`, which only boot mints (D335).
 export { healLegacyBackgroundPins } from "./persistence/heal-legacy-background-pins.ts";

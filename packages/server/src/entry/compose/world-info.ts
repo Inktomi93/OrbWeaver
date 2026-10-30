@@ -14,6 +14,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { IdSource, UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import { can } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
@@ -39,10 +40,11 @@ export interface WorldInfoComposeDeps {
 
   readonly idSource: IdSource;
   readonly db: DatabaseHandle;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly sessions: SessionsService;
-  /** chat's bus durable-first emit (`ChatComposeResult.emitBusEvent`) — world-info publishes WI events onto it. */
+  /** chat's bus durable-first emit (`ChatComposeResult.emitBusEvent`) — world-info publishes WI events onto it.
+   *  Deliberately wider than `WorldInfoContext.emitWiEvent`: chat's emit takes every durable event, world-info sends the WI subset. */
   readonly emitChatBusEvent: (event: DurableChatBusEvent) => Promise<void>;
   /** The in-process domain-event emit. World-info's CONTENT writes raise `world-info.updated`, which the
    *  entity→room reach engine (`room-reach.ts`, subscribed at the search-discovery seam) fans to every room

@@ -50,7 +50,7 @@ export type {
   PluginHostOps,
   PluginMacroRegistry,
 } from "./contract/ops.ts";
-
+export type { PluginQuietLlmDeps } from "./contract/quiet-llm.ts";
 export {
   pluginDisplayTransformResultSchema,
   pluginGitPreviewSchema,
@@ -91,7 +91,6 @@ export {
   PLUGIN_QUIET_LLM_PER_HOUR,
   PLUGIN_SEARCH_QUERY_PER_HOUR,
 } from "./substrate/rate-floor.ts";
-
 export { createShowcaseVersionReader } from "./substrate/showcase-version.ts";
 export { createSnippetGate } from "./substrate/snippet-gate.ts";
 export { buildPluginStorage } from "./substrate/storage.ts";

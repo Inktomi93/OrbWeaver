@@ -5,33 +5,33 @@
 // offline, so no request Principal exists). Two bridges: role-irrelevant ops use the cheap synthetic
 // `hostPrincipal`; role-sensitive ops (owner-gates) use the injected `resolveHostPrincipal`.
 
-import type { DurableChatBusEvent, LiveOnlyChatBusEvent, VariablePrecondition, VariableWriteResult } from "@orb/contracts/chat";
+import type { DurableChatBusEvent } from "@orb/contracts/chat";
 import { SIGNUP_INVITES_MINTABLE } from "@orb/contracts/chat";
 import type { AuthMode, Can, Principal } from "@orb/contracts/identity";
-import type { UserIntent, UserMacroSpec } from "@orb/contracts/preset";
+import type { UserIntent } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { DatabaseHandle } from "@orb/db/wiring";
-import type { ChatRequest, ChatResult, RoleClientsWithSignal } from "@orb/inference";
+import type { ChatRequest, ChatResult } from "@orb/inference";
 import type { ChatId, Handle, IdSource, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
-import type { VarOp } from "@orb/kit/macro";
-import type { TimerScheduler } from "@orb/kit/time";
+import type { RandomSource } from "@orb/kit/macro";
+import type { Clock, TimerScheduler } from "@orb/kit/time";
 import { createSignupMinterCheck as createAdminSignupMinterCheck } from "#domain/admin";
-import type { AssetsService } from "#domain/assets";
+import type { AssetsService, ChatAssetOpsDeps } from "#domain/assets";
 import { createChatAssetOps } from "#domain/assets";
+import type { AutomationOps } from "#domain/automation";
 import type { CharacterService } from "#domain/character";
 import { createCharacterRoomProjections, createCopyHandoffCards, createLoadSeatCards } from "#domain/character";
 import type {
   BeginGenerationObservation,
-  backfillGroupCharacters,
-  backfillMemory,
   ChatBoundBackfillOps,
   ChatContext,
+  ChatInferenceDeps,
   ChatService,
   ChatServiceDeps,
+  ChatWorkloadDeps,
   ClaimChatOp,
-  estimateMemoryBackfillCalls,
   GetMembership,
   GetPendingUserText,
   ImageRefAssets,
@@ -85,18 +85,21 @@ import type { NotificationsService } from "#domain/notifications";
 import { createRecordAndPublishNotification } from "#domain/notifications";
 import type { PersonaService, ResolvePersonasForParticipants } from "#domain/persona";
 import { createPersonaOwned, createResolveConnectedPersona, createResolvePersonaSeedPointers, createResolveUserPublics } from "#domain/persona";
+import type { PluginMacroRegistry } from "#domain/plugin";
 import type { PresetService } from "#domain/preset";
 import { createLoadOptionalPreset } from "#domain/preset";
 import type { ResolveRegexSources } from "#domain/regex";
 import { createCopyHandoffRegexScripts, createCountHandoffRegexScripts } from "#domain/regex";
+import type { RpgContext } from "#domain/rpg";
 import type { SearchService } from "#domain/search";
 import { withRetrievalDegrade } from "#domain/search";
+import type { SessionsService } from "#domain/sessions";
 import { createTokenHasher, selectHandleById } from "#domain/sessions";
 import type { SettingsService } from "#domain/settings";
 import { createResolveRetainedChatAccountingScope, createResolveRetainedChatRebase, createStatsBatchWiring } from "#domain/stats";
 import type { ResolvedToolSet, ToolUseService } from "#domain/tool-use";
 import { createCopyHandoffBooks, createCountHandoffBooks } from "#domain/world-info";
-import type { AuditEntry, AuditWiring, Logger, TraceRing } from "#foundation/observability";
+import type { AuditWiring, Logger, TraceRing } from "#foundation/observability";
 import { recordMemoryLog } from "#foundation/observability";
 import { waitForTimer } from "#infra/timers";
 import { createRegexApplyReplace, createRegexTest } from "#primitives/regex";
@@ -125,7 +128,7 @@ export interface ChatComposeInput {
   readonly backgroundSignal?: AbortSignal;
   readonly trackBackground?: ChatContext["trackBackground"];
   readonly recordTurnOutcome?: ChatContext["recordTurnOutcome"];
-  readonly random: () => number;
+  readonly random: RandomSource;
   readonly idSource: IdSource;
   /** The root's logger; the memory log and the best-effort audit write go through it. */
   readonly logger: Logger;
@@ -135,7 +138,7 @@ export interface ChatComposeInput {
   /** Optional — absent wires `ChatContext.tools` to null (byte-identical no-op). */
   readonly toolUse?: ToolUseService | undefined;
   readonly db: DatabaseHandle;
-  readonly now: () => number;
+  readonly now: Clock;
   /** The one chat bus's durable-first emit, built at the composition root and injected so chat doesn't
    *  construct a second bus. The same wrapper backs persona's active-persona write. */
   readonly emitChatEvent: (event: DurableChatBusEvent) => Promise<void>;
@@ -145,13 +148,13 @@ export interface ChatComposeInput {
   readonly prepareChatCreationEvent: ChatServiceDeps["prepareCreationEvent"];
   /** The same bus's LIVE-ONLY fan (no `chat_events` append). Chat's one consumer is `chatDeleted`, whose
    *  durable row cascades away with the chat it announces — see the lifecycle verbs' DELETE-FIRST header. */
-  readonly emitChatEventLive: (event: LiveOnlyChatBusEvent) => void;
+  readonly emitChatEventLive: ChatServiceDeps["emitLive"];
   /** The lock-holder tag for this replica (also used by the boot lock reclaim). */
   readonly holder: string;
   readonly sessionSecret: string | null;
   /** The frozen-host → `Principal` bridge for role-sensitive ops. */
-  readonly resolveHostPrincipal: (userId: UserId) => Promise<Principal>;
-  readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
+  readonly resolveHostPrincipal: ChatAssetOpsDeps["resolvePrincipal"];
+  readonly audit: ChatContext["audit"];
   /** The root's audit wiring, for the statements that must commit with their primary write. */
   readonly auditStatements: AuditWiring;
   readonly traces: TraceRing;
@@ -160,7 +163,7 @@ export interface ChatComposeInput {
   readonly resolveRegexSources: ResolveRegexSources;
   /** The per-FUNDER role-client binder (§8.5b): every chat-side side call — arbiter, digests, extract-quiet —
    *  spends the TRIGGER's rows; the vector writes and reads use the room HOST's (vector tasks are owner-scoped). */
-  readonly roleClientsFor: (funderUserId: UserId) => Promise<RoleClientsWithSignal>;
+  readonly roleClientsFor: ChatInferenceDeps["roleClientsFor"];
   readonly connection: Pick<ConnectionService, "resolve" | "availability" | "getBoundConnection">;
   readonly character: CharacterService;
   readonly persona: PersonaService;
@@ -171,7 +174,7 @@ export interface ChatComposeInput {
   readonly preset: PresetService;
   readonly settings: SettingsService;
   readonly notifications: NotificationsService;
-  readonly resolveHandle: (handle: Handle) => Promise<UserId | null>;
+  readonly resolveHandle: SessionsService["resolveHandle"];
   /** The disabled-account containment read (`createResolveUserEnabled` over sessions). */
   readonly resolveUserEnabled: ChatContext["resolveUserEnabled"];
   /** D259 — the live `AUTH_MODE`: it picks whether invites may create accounts and stamps every invite. */
@@ -217,7 +220,7 @@ export interface ChatComposeInput {
    *  `ChatContext.pluginMacros` to null (byte-identical no-op, the `rpg` precedent). Minted at the
    *  composition root as the plugin-macro registry's `resolveForTurn`, so chat and the plugin plane share ONE
    *  registry without either importing the other. */
-  readonly pluginMacros?: ChatContext["pluginMacros"] | undefined;
+  readonly pluginMacros?: PluginMacroRegistry["resolveForTurn"];
 }
 
 /** The chat compose product: the service + the bus's durable-first emit, surfaced for other producers that
@@ -241,7 +244,7 @@ export interface ChatComposeResult extends AsyncDisposable {
     /** The chat's PRESENT host userId (role='host', D19) — the human the rpg resync resolves its
      *  connection/creds under + the capability verdict keys on. Resolved by ROLE, never join order (a handoff
      *  swaps roles in place — the first-joined human is NOT the host). `null` = a hostless/stale room. */
-    readonly resolveHostUserId: (chatId: ChatId) => Promise<UserId | null>;
+    readonly resolveHostUserId: RpgContext["resolveRoomFunder"];
     /** The DEEP canon-window read (crunchy-cluster §1.3) — the `resyncFromStory` host verb's story feed, sharing
      *  the engine's transcript projection (chat owns canon reads; rpg reads no chat table). */
     readonly resolveCanonWindow: ResolveCanonWindow;
@@ -251,7 +254,7 @@ export interface ChatComposeResult extends AsyncDisposable {
     /** The chat's ACTIVE-preset user macros (WAVE MU) — the same resolution the picks pane reads, so the GM
      *  console's shadow gloss names the exact defs a game macro would shadow (chat owns preset resolution for
      *  a chat; rpg re-deriving it would be a second home for the rule). */
-    readonly resolvePromptUserMacros: (chatId: ChatId) => Promise<readonly UserMacroSpec[]>;
+    readonly resolvePromptUserMacros: RpgContext["resolvePresetUserMacros"];
     /** The chat's GM-PRESET prose overrides (PROSE-1 S4) — what the two rpg HOST DOORS (`resyncFromStory`,
      *  `populateFromCharacter`) resolve their extraction prose through. Chat owns preset resolution AND the
      *  GM-voice redirect; rpg reads no preset table, and re-deriving either here would be a second home for
@@ -275,11 +278,11 @@ export interface ChatComposeResult extends AsyncDisposable {
   /** The standalone (out-of-turn) runtime-variable write, bound over chat's own
    *  ctx — automation's `set_variable` chat-scope arm injects this at the composition root (chat learns
    *  nothing automation-shaped; principal-free — the author's authority was gated upstream). */
-  readonly applyVariableOps: (chatId: ChatId, ops: readonly VarOp[], expect?: readonly VariablePrecondition[]) => Promise<VariableWriteResult>;
+  readonly applyVariableOps: AutomationOps["chat"]["applyVariableOps"];
   /** The room HOST's app-tier prose overrides for a chat (PROSE-1 §4.3, owner-decision 8 option (a)) —
    *  surfaced so automation's `set_chat_background` quiet pick reads the SAME host prose the room's other
    *  side generations do, instead of re-deriving the host itself. */
-  readonly resolveChatProse: (chatId: ChatId) => Promise<ProseOverrides>;
+  readonly resolveChatProse: AutomationOps["chat"]["resolveChatProse"];
   /** The NON-HUMAN turn seam — automation's `trigger_turn` arm + the
    *  Tier-2 plugin membrane's `turn.trigger` inject this at the composition root. Principal-free: the funding
    *  host is resolved from the room, and the four walls (depth/authority/budget/consent) enforce inside the verb
@@ -288,15 +291,15 @@ export interface ChatComposeResult extends AsyncDisposable {
   /** Is memory ON for this host (#156)? The admission gate's read, resolved through the SAME
    *  `resolveMemoryConfig` merge the live turn and the corpus sweep use, so the gate cannot drift from the
    *  per-host skip it exists to pre-empt. */
-  readonly isMemoryEnabled: (hostUserId: UserId) => Promise<boolean>;
+  readonly isMemoryEnabled: ChatWorkloadDeps["isMemoryEnabled"];
   readonly emptyMemoryScope: ChatBoundBackfillOps["emptyMemoryScope"];
   /** D259 — the signup-invite ops the entry signup route runs, built over chat's own ctx. */
   readonly signupInvites: SignupInviteOps;
   /** Chat's corpus sweeps, bound over the chat ctx. */
   readonly backfill: {
-    readonly memory: (args: Parameters<typeof backfillMemory>[1]) => ReturnType<typeof backfillMemory>;
-    readonly groupCharacters: (args: Parameters<typeof backfillGroupCharacters>[1]) => ReturnType<typeof backfillGroupCharacters>;
-    readonly estimateMemory: (args: Parameters<typeof estimateMemoryBackfillCalls>[1]) => ReturnType<typeof estimateMemoryBackfillCalls>;
+    readonly memory: ChatWorkloadDeps["backfillMemory"];
+    readonly groupCharacters: ChatWorkloadDeps["backfillGroupCharacters"];
+    readonly estimateMemory: ChatWorkloadDeps["estimateMemoryBackfill"];
   };
 }
 

@@ -10,6 +10,7 @@ import type { StartWorkloadInput, WorkloadStatus } from "@orb/contracts/workload
 import { ACTIVE_WORKLOAD_STATUSES } from "@orb/contracts/workloads";
 import { DomainConflictError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import { MS_PER_DAY, MS_PER_HOUR } from "@orb/kit/time";
 import type { WorkloadService } from "#domain/workloads";
 import type { Logger } from "#foundation/observability";
@@ -42,7 +43,7 @@ export interface CatalogRefreshSchedulerDeps {
   readonly service: WorkloadService;
   /** Workload rows are enqueued with this owner (provenance; null = a pure system trigger). */
   readonly ownerId: UserId | null;
-  readonly now: () => number;
+  readonly now: Clock;
   readonly scheduleInterval: ScheduleOp;
   readonly checkIntervalMs?: number;
   /** Live getter for the success-refresh cadence (item 5 — AppSettings.catalogRefreshIntervalMs). Read per

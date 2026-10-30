@@ -1,26 +1,10 @@
 // Bind chat-owned fact readers and action ports, then wire the watcher's detachable event sources.
 
-import type { VariablePrecondition, VariableWriteResult } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
-import type { ProseOverrides } from "@orb/contracts/prose";
-import type { ThemeBackground } from "@orb/contracts/theme";
-import type { UpsertEntriesResult, UpsertLoreEntryInput } from "@orb/contracts/world-info";
 import type { DatabaseHandle } from "@orb/db/wiring";
-import type { ChatId, UserId, WorldBookId } from "@orb/kit/ids";
-import type { VarOp } from "@orb/kit/macro";
 import type { PubSub } from "@orb/kit/pubsub";
-import type {
-  AutomationImageRequest,
-  AutomationImageResult,
-  AutomationOps,
-  AutomationService,
-  AutomationTurnRequest,
-  AutomationTurnResult,
-  AutomationWatcherEnv,
-  BackgroundChoice,
-} from "#domain/automation";
+import type { AutomationOps, AutomationService, AutomationWatcherEnv } from "#domain/automation";
 import { createChatAutomationReads } from "#domain/chat";
-import type { EmitNotification } from "#domain/notifications";
 import type { LiveBuses } from "#transport/trpc";
 
 /** The action WRITE ops, pre-bound at `entry/compose` (the automation domain declares only the TYPE —
@@ -34,26 +18,22 @@ export interface AutomationActionOpsDeps {
    *  half (no membership select of its own, no second clamp home). */
   readonly resolveViewerVisibility: AutomationOps["chat"]["resolveViewerVisibility"];
   /** chat's standalone (out-of-turn) variable write — `ChatComposeResult.applyVariableOps`. */
-  readonly applyVariableOps: (chatId: ChatId, ops: readonly VarOp[], expect?: readonly VariablePrecondition[]) => Promise<VariableWriteResult>;
+  readonly applyVariableOps: AutomationOps["chat"]["applyVariableOps"];
   /** the SHARED hand-edit-safe world-info writer (CC-D), resolving the book owner's Principal at compose. */
-  readonly upsertEntries: (args: {
-    readonly authorUserId: UserId;
-    readonly bookId: WorldBookId;
-    readonly entries: readonly UpsertLoreEntryInput[];
-  }) => Promise<UpsertEntriesResult>;
+  readonly upsertEntries: AutomationOps["worldInfo"]["upsertEntries"];
   /** the durable-first unified-inbox delivery (the `automation-notice` member). */
-  readonly emitNotification: EmitNotification;
+  readonly emitNotification: AutomationOps["notifications"]["emit"];
   /** the `/imagine` engine — `imagery.generatePicture` narrowed to automation's request/result. */
-  readonly generatePicture: (req: AutomationImageRequest) => Promise<AutomationImageResult>;
+  readonly generatePicture: AutomationOps["imagery"]["generatePicture"];
   /** the `trigger_turn` arm's autonomous chat turn — chat's `requestTurn` bound with
    *  `initiator:"automation"` + the funder resolved from the rule author, narrowed to automation's request/result. */
-  readonly requestTurn: (req: AutomationTurnRequest) => Promise<AutomationTurnResult>;
+  readonly requestTurn: AutomationOps["chat"]["requestTurn"];
   /** BG-F — the author's owned background library projected to `(name, source)` pairs (settings read). */
-  readonly listBackgroundChoices: (authorUserId: UserId) => Promise<readonly BackgroundChoice[]>;
+  readonly listBackgroundChoices: AutomationOps["chat"]["listBackgroundChoices"];
   /** BG-F — chat's host-gated `setChatBackground` bound under the author's resolved Principal. */
-  readonly setChatBackground: (args: { readonly authorUserId: UserId; readonly chatId: ChatId; readonly background: ThemeBackground }) => Promise<void>;
+  readonly setChatBackground: AutomationOps["chat"]["setChatBackground"];
   /** PROSE-1 census 91 — the room HOST's prose overrides for a chat (chat's `resolveChatProse`). */
-  readonly resolveChatProse: (chatId: ChatId) => Promise<ProseOverrides>;
+  readonly resolveChatProse: AutomationOps["chat"]["resolveChatProse"];
   /** The generic quiet-LLM op (the /autobg pick + the `run_analysis` structured pass) — the ONE lane;
    *  `contract/ops.ts` states the variant split. Same signature as the op (a pure passthrough here). */
   readonly summarizeQuiet: AutomationOps["summarizeQuiet"];

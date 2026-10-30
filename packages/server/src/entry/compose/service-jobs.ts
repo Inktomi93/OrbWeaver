@@ -1,6 +1,6 @@
 // Bind the existing production job drivers; their scheduling, admission and workload decisions stay with their owners.
 
-import type { UserId } from "@orb/kit/ids";
+import type { IdSource, UserId } from "@orb/kit/ids";
 import type { TimerScheduler } from "@orb/kit/time";
 import type { WorkloadProgressBus, WorkloadRunnerDeps } from "#domain/workloads";
 import { createNextRunnableWorkload, loadWorkload, reapOrphanedWorkloads, runWorkload, tickWorkloadSchedules } from "#domain/workloads";
@@ -14,7 +14,7 @@ type ServiceJobDeps = Pick<WorkloadRunnerDeps, "db" | "now" | "contributions" | 
     readonly services: Pick<Services, "workloads" | "settings">;
     readonly ownerId: UserId | null;
     readonly timers: TimerScheduler;
-    readonly newOpaqueId: () => string;
+    readonly newOpaqueId: IdSource["uuid"];
     readonly progress: WorkloadProgressBus;
   };
 
