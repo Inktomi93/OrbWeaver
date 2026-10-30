@@ -24,7 +24,7 @@ Current defects:
 
 - [x] Step 1: role tokens, tone scoping and contrast checks.
 - [ ] Step 2: axis vocabulary and lint at zero.
-- [ ] Step 3: control scale.
+- [ ] Step 3: control scale. Toggle also moves from `intent` to the D336 `tone`/`variant` vocabulary here, since step 3 already gives it `size`.
 - [ ] Step 4: use-specific extraction.
 
 Each step lands alone and leaves the app working.
