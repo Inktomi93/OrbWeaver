@@ -32,7 +32,7 @@ const isResponder = (node: TSESTree.Node): node is Responder =>
 const isTrpcErrorCall = (node: TSESTree.Node): boolean =>
   node.type === "CallExpression" && node.callee.type === "Identifier" && node.callee.name === "trpcError";
 
-interface Native {
+export interface Native {
   readonly checker: ts.TypeChecker;
   readonly program: ts.Program;
   readonly toTs: (node: TSESTree.Node) => ts.Node;
@@ -40,7 +40,7 @@ interface Native {
 }
 
 // A file outside every type-aware program (a declaration file) has no route map to judge.
-function nativeOf(context: OrbRuleContext): Native | undefined {
+export function nativeOf(context: OrbRuleContext): Native | undefined {
   const services = context.sourceCode.parserServices;
   if (
     services?.program === undefined ||

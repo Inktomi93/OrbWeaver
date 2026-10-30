@@ -36,6 +36,7 @@ import { ESLint } from "eslint";
 const LABEL_RULE = "jsx-a11y/control-has-associated-label";
 const ARIA_PROPS_RULE = "jsx-a11y/role-supports-aria-props";
 const NONINTERACTIVE_ROLE_RULE = "jsx-a11y/no-interactive-element-to-noninteractive-role";
+const HIDDEN_FOCUSABLE_RULE = "jsx-a11y/no-aria-hidden-on-focusable";
 
 /** Each arm is one fixture file; the body is the JSX the arm is about. */
 const ARMS = {
@@ -51,6 +52,19 @@ const ARMS = {
   // THE COVERAGE THE DROP-THE-MAP-ENTRY ARM WOULD HAVE SOLD — both need `Switch` to resolve to SOME element.
   switchAriaProp: '<Switch aria-checked={true} aria-label="probe" />',
   switchNoninteractiveRole: '<Switch aria-label="probe" role="presentation" />',
+  // `no-aria-hidden-on-focusable` resolves the element through the same components map, so a hidden mapped
+  // control is reported exactly as a hidden native one. Biome's rule sees only the native element.
+  hiddenMappedButton: "<Button aria-hidden={true} onClick={go} />",
+  hiddenNativeButton: '<button aria-hidden={true} onClick={go} type="button" />',
+  // Controls: out of the tab order and a plain element are not focusable. The file-trigger input is the one
+  // legitimate hidden native control in the tree: aria-hidden with tabIndex -1.
+  hiddenMappedButtonOutOfTabOrder: "<Button aria-hidden={true} onClick={go} tabIndex={-1} />",
+  hiddenDecoration: "<span aria-hidden={true} />",
+  hiddenFileTriggerInput: '<input aria-hidden={true} tabIndex={-1} type="file" />',
+  // Verified plugin false positive: `type="hidden"` is not focusable, yet the rule reports it. No source
+  // site spells it (Base UI renders its own hidden inputs inside the library), so it is pinned here and
+  // adjudicated at the site if one ever appears, never suppressed in config.
+  hiddenTypeHiddenInput: '<input aria-hidden={true} type="hidden" />',
 } as const;
 
 type ArmName = keyof typeof ARMS;
@@ -62,9 +76,15 @@ const EXPECTED: Readonly<Record<ArmName, readonly string[]>> = {
   iconOnlyButton: [LABEL_RULE],
   switchAriaProp: [ARIA_PROPS_RULE],
   switchNoninteractiveRole: [NONINTERACTIVE_ROLE_RULE],
+  hiddenMappedButton: [HIDDEN_FOCUSABLE_RULE],
+  hiddenNativeButton: [HIDDEN_FOCUSABLE_RULE],
+  hiddenMappedButtonOutOfTabOrder: [],
+  hiddenDecoration: [],
+  hiddenFileTriggerInput: [],
+  hiddenTypeHiddenInput: [HIDDEN_FOCUSABLE_RULE],
 };
 
-const WATCHED = new Set<string>([LABEL_RULE, ARIA_PROPS_RULE, NONINTERACTIVE_ROLE_RULE]);
+const WATCHED = new Set<string>([LABEL_RULE, ARIA_PROPS_RULE, NONINTERACTIVE_ROLE_RULE, HIDDEN_FOCUSABLE_RULE]);
 
 test("jsx-a11y: the components map and control-has-associated-label's ignoreElements decide together", async ({ scratch }: { readonly scratch: string }) => {
   const repoRoot = process.cwd();
