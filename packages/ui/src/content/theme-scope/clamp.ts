@@ -44,6 +44,7 @@ import {
   carriedToneSources,
   paintedAccentFill,
   primaryLiteralResets,
+  primaryToneVars,
   solveCarriedToneMix,
   toneLiteralVars,
   toneMixOf,
@@ -137,6 +138,14 @@ export interface ClampedTheme {
   /** Set when the carried scope's form-control edge could not hold both D159 bounds; the 3:1 floor wins over the focus-ring ceiling. */
   readonly inputBorderFallback?: InputBorderFallback;
 }
+
+const AMBIENT_PALETTES = ["seed", "carried"] as const;
+
+/**
+ * What painted a scope's ambient background: a seed palette's static block, or an outer scope that carried its own
+ * background and solved its tone roles there (D336). Only the second gives an accent-only scope a palette to solve on.
+ */
+export type AmbientPalette = (typeof AMBIENT_PALETTES)[number];
 
 /** The D336 primary fallback a scope took: the fill it paints and the hover and active percents the solve raised to. */
 export interface ToneFallback {
@@ -261,9 +270,18 @@ interface AccentAndTones {
 /**
  * The accent emission and, under a carried palette, what its `[data-tone]` roles read (D336): the knobs, solved over
  * its ramp, its intent arms and the primary it paints, and each colored tone's literal roles; with no accent at all,
- * primary is left out of both. A scope that paints its own accent over an outer palette resets the primary literals.
+ * primary is left out of both. A scope that paints its own accent over a carried ambient palette solves its primary on
+ * that palette; over a seed palette it resets the primary literals.
  */
-function accentAndTonesOn(picked: string | undefined, ambientAccent: string | undefined, carriedBase: ParsedOklch | null): AccentAndTones {
+function accentAndTonesOn(
+  picked: string | undefined,
+  ambientAccent: string | undefined,
+  carriedBase: ParsedOklch | null,
+  carriedAmbient: ParsedOklch | null,
+): AccentAndTones {
+  if (carriedBase === null && picked !== undefined && carriedAmbient !== null) {
+    return nestedAccentOn(picked, carriedToneScheme(carriedAmbient));
+  }
   const scheme = carriedBase === null ? null : carriedToneScheme(carriedBase);
   const accent = accentEmissionOn(picked, ambientAccent, scheme);
   if (scheme === null) {
@@ -274,6 +292,27 @@ function accentAndTonesOn(picked: string | undefined, ambientAccent: string | un
   const primary = toneMixOf(mix, "primary");
   const fallback = accent === undefined || accent.coversSteps ? undefined : { accent: accent.fill, hover: primary.hover, active: primary.active };
   return { accent, toneVars: { ...toneMixVars(mix), ...toneLiteralVars(scheme, sources) }, fallback };
+}
+
+/**
+ * An accent-only scope over a carried palette (D336): its primary lands on that palette's ramp, which the outer scope
+ * solved for a different accent, so it judges and solves the primary's fill, ink, steps and literals there.
+ */
+function nestedAccentOn(picked: string, scheme: CarriedToneScheme): AccentAndTones {
+  const accent = accentEmissionOn(picked, undefined, scheme);
+  if (accent === undefined) {
+    return { accent, toneVars: primaryLiteralResets(), fallback: undefined };
+  }
+  const primary = carriedToneSources(scheme, accent.painted).filter(({ tone }) => tone === "primary");
+  const mix = solveCarriedToneMix(scheme, primary);
+  const steps = toneMixOf(mix, "primary");
+  const fallback = accent.coversSteps ? undefined : { accent: accent.fill, hover: steps.hover, active: steps.active };
+  return { accent, toneVars: primaryToneVars(scheme, mix, primary), fallback };
+}
+
+/** The ambient base pixel when an outer carried scope painted it, the palette an accent-only scope solves its primary on. */
+function carriedAmbientOf(ambientBackground: string | undefined, ambientPalette: AmbientPalette): ParsedOklch | null {
+  return ambientPalette === "carried" && ambientBackground !== undefined ? toOklch(ambientBackground) : null;
 }
 
 /** The base the §7a ink clamp judges against: the CARRIED background, else the AMBIENT one (#236). */
@@ -359,7 +398,7 @@ function carriedSurfaceOn(background: string, carriedBase: ParsedOklch | null, r
  * composited over ambient for judging/derivation. An invalid safe bare word paints nothing and therefore
  * resolves to the ambient surface the browser actually leaves visible.
  */
-export function clampThemeTokens(raw: unknown, ambientBackground?: string, ambientAccent?: string): ClampedTheme {
+export function clampThemeTokens(raw: unknown, ambientBackground?: string, ambientAccent?: string, ambientPalette: AmbientPalette = "seed"): ClampedTheme {
   const parsed = themeScopeTokensSchema.safeParse(raw);
   const t: ThemeScopeTokens = parsed.success ? parsed.data : {};
   const vars: Record<string, string> = {};
@@ -369,10 +408,11 @@ export function clampThemeTokens(raw: unknown, ambientBackground?: string, ambie
     }
   };
   const carriedBase = t.background === undefined ? null : compositedBase(t.background, ambientBackground);
+  const carriedAmbient = carriedAmbientOf(ambientBackground, ambientPalette);
   // The accent is judged against the CARD a carried base derives (#692) — see `accentEmissionOn`. With no
   // carried background, or when the accent already clears, this is the pre-#692 pass-through: the picked
   // value byte-identical, or nothing at all.
-  const { accent, toneVars, fallback } = accentAndTonesOn(t.accent, ambientAccent, carriedBase);
+  const { accent, toneVars, fallback } = accentAndTonesOn(t.accent, ambientAccent, carriedBase, carriedAmbient);
   put("--color-primary", accent?.fill);
   put("--color-ring", accent?.fill);
   // The accent's readable foreground derives off the accent this scope actually PAINTS with, so a dark

@@ -106,10 +106,28 @@ function emittedScope(background: string, tokens: { readonly accent?: string }, 
   return { scheme, vars, tones: [...carriedToneSources(scheme, null), ...primary] };
 }
 
+/**
+ * An accent-only scope nested in a carried palette on `background`, as the cascade resolves it: the outer scope's variables
+ * with the nested scope's over them, and the outer palette's tones with the primary the nested scope paints.
+ */
+function nestedAccentScope(background: string, accent: string): EmittedScope {
+  const outer = clampThemeTokens({ background }, undefined, HEARTH_ACCENT);
+  const nested = clampThemeTokens({ accent }, outer.resolvedBackground, outer.accentSource, "carried");
+  const vars = { ...outer.vars, ...nested.vars };
+  const scheme = carriedToneScheme(parsed(background));
+  const primary: CarriedTone = {
+    tone: "primary",
+    source: { base: parsed(vars["--color-primary"] ?? ""), foreground: emittedInk(vars["--color-primary-foreground"]) },
+  };
+  return { scheme, vars, tones: [...carriedToneSources(scheme, null), primary] };
+}
+
 /** Every D336 floor the emitted scope misses, and every tint closer than the separation to the page or to a non-adjacent tone's tint. */
 function emittedMisses(background: string, tokens: { readonly accent?: string }, ambientAccent?: string): readonly string[] {
-  const { scheme, vars, tones } = emittedScope(background, tokens, ambientAccent);
-  const label = `${background} ${JSON.stringify(tokens)} ${ambientAccent ?? ""}`;
+  return scopeMisses(emittedScope(background, tokens, ambientAccent), `${background} ${JSON.stringify(tokens)} ${ambientAccent ?? ""}`);
+}
+
+function scopeMisses({ scheme, vars, tones }: EmittedScope, label: string): readonly string[] {
   const colored = tones.flatMap((carried) =>
     carried.source === "neutral" ? [] : [{ ...carried, base: carried.source.base, roles: paintedRoles(scheme, vars, carried) }],
   );
@@ -208,6 +226,21 @@ test(
     const misses = BASES.flatMap(({ background }) =>
       ACCENTS.flatMap((accent) => [...emittedMisses(background, { accent }), ...emittedMisses(background, {}, accent)]),
     );
+    expect(misses).toEqual([]);
+  },
+  SWEEP_TIMEOUT_MS,
+);
+
+/** A dark accent no one ink covers with its solid steps, and a saturated one past the gamut. */
+const NESTED_ACCENTS = ["oklch(0.3 0.1 260)", "oklch(0.55 0.37 300)"] as const;
+
+test(
+  "an accent-only scope inside a carried palette paints primary roles that clear every D336 floor over the accepted-base matrix",
+  () => {
+    const misses = ACCEPTED_BASES.flatMap((base) => {
+      const background = serializeOpaqueOklch(base);
+      return NESTED_ACCENTS.flatMap((accent) => scopeMisses(nestedAccentScope(background, accent), `${background} nested accent ${accent}`));
+    });
     expect(misses).toEqual([]);
   },
   SWEEP_TIMEOUT_MS,

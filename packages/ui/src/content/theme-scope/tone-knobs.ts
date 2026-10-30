@@ -178,27 +178,39 @@ export function toneMixVars(mix: CarriedToneMix): Readonly<Record<string, string
  * accent, declares the mix fallback, so a nested scope never paints an outer palette's literal.
  */
 export function toneLiteralVars(scheme: CarriedToneScheme, tones: readonly CarriedTone[]): Readonly<Record<string, string>> {
-  return Object.fromEntries(
-    COLORED_TONES.flatMap((tone) => {
-      const source = tones.find((carried) => carried.tone === tone)?.source;
-      const literals = source === undefined || source === "neutral" ? undefined : solveCarriedToneRoles(scheme, source, TONE_MIX_DEFAULTS);
-      return LITERAL_ROLES.map((role) => {
-        if (literals === undefined) {
-          return [toneLiteralVar(tone, role), MIX_FALLBACK] as const;
-        }
-        const color = literals[role];
-        if (color === undefined) {
-          throw new Error(`the kit solved no literal for ${tone} ${role}, which it classed as literal`);
-        }
-        return [toneLiteralVar(tone, role), serializeOpaqueOklch(color)] as const;
-      });
-    }),
-  );
+  return Object.fromEntries(COLORED_TONES.flatMap((tone) => toneLiteralEntries(scheme, tone, tones)));
+}
+
+function toneLiteralEntries(scheme: CarriedToneScheme, tone: ColoredTone, tones: readonly CarriedTone[]): readonly (readonly [string, string])[] {
+  const source = tones.find((carried) => carried.tone === tone)?.source;
+  const literals = source === undefined || source === "neutral" ? undefined : solveCarriedToneRoles(scheme, source, TONE_MIX_DEFAULTS);
+  return LITERAL_ROLES.map((role) => {
+    if (literals === undefined) {
+      return [toneLiteralVar(tone, role), MIX_FALLBACK] as const;
+    }
+    const color = literals[role];
+    if (color === undefined) {
+      throw new Error(`the kit solved no literal for ${tone} ${role}, which it classed as literal`);
+    }
+    return [toneLiteralVar(tone, role), serializeOpaqueOklch(color)] as const;
+  });
 }
 
 /**
- * The primary literals a scope that paints its own accent over an outer palette resets to the mix fallback: an outer
- * carried scope's literals were solved for its own accent, and the mix follows this scope's `--color-primary`.
+ * The primary roles a scope emits when it paints its own accent over a carried palette (D336): the primary's literals
+ * and solid steps solved on that palette. Every other knob and literal stays the outer scope's solve through the cascade.
+ */
+export function primaryToneVars(scheme: CarriedToneScheme, mix: CarriedToneMix, tones: readonly CarriedTone[]): Readonly<Record<string, string>> {
+  const steps = toneMixOf(mix, "primary");
+  return Object.fromEntries([
+    ...STEP_KNOBS.map((knob) => [toneKnobVar("primary", knob), `${steps[knob]}%`] as const),
+    ...toneLiteralEntries(scheme, "primary", tones),
+  ]);
+}
+
+/**
+ * The primary literals a scope that paints its own accent over a seed palette resets to the mix fallback: the mix
+ * follows this scope's `--color-primary` over the seed's own ramp, which the token build holds to the floors.
  */
 export function primaryLiteralResets(): Readonly<Record<string, string>> {
   return Object.fromEntries(LITERAL_ROLES.map((role) => [toneLiteralVar("primary", role), MIX_FALLBACK]));

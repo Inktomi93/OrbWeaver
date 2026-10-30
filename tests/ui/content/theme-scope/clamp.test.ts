@@ -3,7 +3,7 @@ import type { Oklch } from "@orb/kit/theme-derivation";
 import { carriedLiteralRoles } from "@orb/kit/theme-derivation";
 import { expect, test } from "@orb/testkit/node";
 import type { ToneMixKnob } from "@orb/ui/tokens";
-import { TOKENS, TONE_MIX_DEFAULTS, TONE_MIX_KNOBS, TONE_ROLE_RECIPES, TONES, toneLiteralVar } from "@orb/ui/tokens";
+import { TOKENS, TONE_MIX_DEFAULTS, TONE_MIX_KNOBS, TONE_ROLE_RECIPES, TONES, toneKnobVar, toneLiteralVar } from "@orb/ui/tokens";
 import { clampThemeTokens } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
 import { toOklch } from "../../../../packages/ui/src/content/theme-scope/color-parse.ts";
 import { THEME_SCOPE_EMIT_VARS } from "../../../../packages/ui/src/content/theme-scope/emit-vars.ts";
@@ -77,10 +77,26 @@ test("a carried scope emits every tone literal: a colour for each tone it judges
   }
 });
 
-test("a scope that paints its own accent over an outer palette resets the primary literals, and an ink-only scope emits none", () => {
+test("a scope that paints its own accent over a seed palette resets the primary literals, and an ink-only scope emits none", () => {
   const accentOnly = literalVars(clampThemeTokens({ accent: "oklch(0.6 0.2 300)" }, MID_BASE, HEARTH_ACCENT).vars);
   expect(accentOnly).toEqual(Object.fromEntries(LITERAL_ROLES.map((role) => [toneLiteralVar("primary", role), "initial"])));
   expect(literalVars(clampThemeTokens({ dialogueColor: "oklch(0.8 0.1 90)" }, MID_BASE, HEARTH_ACCENT).vars)).toEqual({});
+});
+
+test("an accent-only scope over a carried palette emits its primary alone, so every other tone keeps the outer solve", () => {
+  const { vars } = clampThemeTokens({ accent: "oklch(0.6 0.2 300)" }, MID_BASE, HEARTH_ACCENT, "carried");
+  const primaryLiterals = LITERAL_ROLES.map((role) => toneLiteralVar("primary", role));
+  const primarySteps = ["hover", "active"] as const satisfies readonly ToneMixKnob[];
+  expect(Object.keys(vars).toSorted()).toEqual(
+    [
+      "--color-primary",
+      "--color-ring",
+      "--color-primary-foreground",
+      ...primaryLiterals,
+      ...primarySteps.map((knob) => toneKnobVar("primary", knob)),
+    ].toSorted(),
+  );
+  expect(primaryLiterals.filter((name) => toOklch(vars[name] ?? "") === null)).toEqual([]);
 });
 
 test("a carried scope paints the primary it judged, and reports when the solid steps needed the fallback", () => {
