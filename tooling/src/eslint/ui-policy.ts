@@ -31,7 +31,7 @@ const CLASS_SPAN_END = String.raw`(?=\s|$)`;
 // `[container-type:…]` / `[container-name:…]` properties.
 const CONTAINER_UTILITY = String.raw`(?:[^\s]*:)?(?:@container(?:[-\/][^\s]*)?|\[container-(?:type|name):[^\s]*)`;
 
-const CONTAINER_STYLE_KEYS = String.raw`^container(?:Type|Name|-type|-name)$`;
+const CONTAINER_STYLE_KEYS = "^container(?:Type|Name|-type|-name)$";
 
 // The `container: name / type` shorthand. A `container` property is also a legitimate option (a portal target, a
 // dialog body flag), so the shorthand is recognised by where it sits (a `style` prop) or by its string value.

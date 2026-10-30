@@ -1,11 +1,10 @@
 // The production rail keeps its brand/footer fixed while short desktop layouts scroll section navigation.
 import { DEFAULT_APPEARANCE_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { resolvedLength, seedShellState, settledBox } from "@orb/testkit/browser/spec";
-import { createShellAmbientReads, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
+import { createShellAmbientReads, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page, TestInfo } from "@playwright/test";
-import { CONFIG_SECTION_LABEL } from "../../../../../packages/client/src/features/config/lib/config-copy.ts";
 import { channelName } from "../../../lib/appearance-channel-names.ts";
 import type { SectionShellStory } from "../_surface-stories.tsx";
 
@@ -98,7 +97,7 @@ async function columnPointer(page: Page, rail: Locator, home: Locator, info: Tes
   const chromeRow = await resolvedLength(page, "var(--dimension-chrome-row)");
   expect((await settledBox(refinery)).height).toBeGreaterThanOrEqual(controlSize - GEOMETRY_EPSILON);
   expect((await settledBox(home)).height).toBeGreaterThanOrEqual(chromeRow - GEOMETRY_EPSILON);
-  const settings = rail.getByRole("button", { name: CONFIG_SECTION_LABEL, exact: true });
+  const settings = rail.getByRole("button", { name: SECTION_LABELS.settings, exact: true });
   await withinViewport(settings);
   expect((await settledBox(settings)).height).toBeGreaterThanOrEqual(controlSize - GEOMETRY_EPSILON);
   const geometry = await rail

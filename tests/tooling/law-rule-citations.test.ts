@@ -13,7 +13,7 @@ const LAW_FILES = [...globSync("docs/law/**/*.md", { cwd: ROOT }), ...globSync("
 const CLIENT_PROBE = "packages/client/src/features/app-shell/probe.tsx";
 
 // A rule name a doc cites, with `*` for a family (`orb/principal-*`) and `<x>` for a templated segment.
-const NAME = String.raw`[a-z0-9<>*]+(?:-[a-z0-9<>*]+)*`;
+const NAME = "[a-z0-9<>*]+(?:-[a-z0-9<>*]+)*";
 // An `orb/` rule id: not the `@orb/` package scope, and not the tail of a longer path or word.
 const ORB_RULE = new RegExp(String.raw`(?<![\w@/.-])orb\/${NAME}`, "gu");
 const DEPENDENCY_CRUISER = /dep(?:endency)?-cruiser/giu;
