@@ -46,23 +46,19 @@
     gap: var(--spacing-row);
     min-inline-size: 0;
   }
-  /* The lead owns the fluid remainder and is the row's shrinker; the trail never shrinks, so its icon cluster
-   * keeps full tap targets on a narrow row. */
+  /* The lead owns the fluid remainder and shrinks first, down to its own content floor; only then does the
+   * trail row give up room, by moving actions into its menu. The trail's flex-basis is the width of
+   * all its actions inline (set by the row), so it asks for that much and no more. */
   .shell-topbar-lead {
-    flex: 1 1 auto;
+    flex: 1 10000 auto;
   }
   .shell-topbar-trail {
-    flex: none;
+    flex: 0 1 auto;
+    min-inline-size: var(--size-control-md);
   }
-  /* The trail's icon actions read as one cluster; a cluster whose members are all hidden paints nothing. */
-  .shell-topbar-cluster {
-    flex: none;
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-field);
-  }
-  .shell-topbar-cluster:empty {
-    display: none;
+  /* A trail with no visible action claims no room at all. */
+  .shell-topbar-trail[data-empty] {
+    min-inline-size: 0;
   }
   /* The one seam in the trail, between the command chip and the icon cluster. */
   .shell-topbar-divider {
@@ -84,7 +80,12 @@
   /* A floor keeps the narrow title from collapsing to nothing when the chrome claims the row; the wide identity
    * floors its title group instead, since a floor on text inside a shrinkable box spills over its neighbours. */
   .shell-topbar-identity[data-identity="narrow"] .shell-topbar-title {
-    min-inline-size: var(--dimension-shell-title-floor);
+    /* A column too narrow for the lead control, this floor and the menu trigger lets the floor shrink with it, so
+     * nothing sits past the row's edge: both controls are one icon-button step, and the gaps and padding are the row's. */
+    min-inline-size: min(
+      var(--dimension-shell-title-floor),
+      max(0px, calc(100cqi - 2 * var(--size-control-md) - 3 * var(--spacing-row) - 2 * var(--spacing-block)))
+    );
   }
 
   /* The chat identity's shrink order: the title group owns the floor and clips its overflow, the room name yields
@@ -157,18 +158,6 @@
 
   /* On a narrow content column the identity and the trail cannot share the row without starving the title. */
   @container shell-main (max-width: 32rem) {
-    /* The trail wraps rather than spending the title's minimum on overlapping controls. */
-    .shell-topbar {
-      flex-wrap: wrap;
-      block-size: auto;
-      min-block-size: var(--dimension-chrome-row);
-      row-gap: 0;
-    }
-    .shell-topbar-lead,
-    .shell-topbar-trail {
-      min-block-size: var(--dimension-chrome-row);
-    }
-
     /* The row seats one lead control, one name and the trail's icons, so the rich header cluster steps aside. */
     .shell-topbar-identity[data-identity="wide"] {
       display: none;
@@ -203,15 +192,9 @@
     [data-shell-identity="defer"] {
       display: none;
     }
-    /* The lead's minimum is the title floor plus its control; excess trail chrome wraps. */
+    /* The lead's minimum is the title floor plus its control; the trail's excess moves into its menu. */
     .shell-topbar-lead {
       flex-basis: 0;
-      min-inline-size: min-content;
-    }
-    /* The trail gives only down to its own content: with no floor its `flex: none` icons overflow past the
-     * viewport edge and the room's options menu is unreachable. */
-    .shell-topbar-trail {
-      flex: 0 1 auto;
       min-inline-size: min-content;
     }
   }

@@ -20,7 +20,7 @@ import { Menu as BaseMenu } from "@base-ui/react/menu";
 import type { ComponentProps, ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
 import type { PortalContainer } from "#lib";
-import { ANCHOR_GAP_TRIGGER, cn, HIDDEN_AT, usePortalContainer } from "#lib";
+import { ANCHOR_GAP_TRIGGER, cn, HIDDEN_AT, resolveCssLength, usePortalContainer } from "#lib";
 import { Check, ChevronRight, Icon } from "#primitives/icons";
 import { menuVariants } from "./variants.ts";
 
@@ -28,6 +28,8 @@ const slots = menuVariants();
 
 // = --spacing-row (0.5rem); Base UI Positioner offsets are px numbers, not classes.
 const DEFAULT_SIDE_OFFSET = ANCHOR_GAP_TRIGGER;
+// The popup keeps this token's distance from every screen edge, resolved at open so it follows the text scale.
+const EDGE_GAP_VAR = "--spacing-row";
 
 /**
  * Menu root — seals Base UI Menu (roving highlight, typeahead, dismiss come free). State-only.
@@ -67,7 +69,14 @@ export function MenuPopup(props: MenuPopupProps): ReactElement {
   const portalContainer = usePortalContainer();
   return (
     <BaseMenu.Portal container={container ?? portalContainer}>
-      <BaseMenu.Positioner align={align} className={slots.positioner()} data-slot="menu-positioner" side={side} sideOffset={sideOffset}>
+      <BaseMenu.Positioner
+        align={align}
+        className={slots.positioner()}
+        collisionPadding={resolveCssLength(EDGE_GAP_VAR, ANCHOR_GAP_TRIGGER)}
+        data-slot="menu-positioner"
+        side={side}
+        sideOffset={sideOffset}
+      >
         <BaseMenu.Popup className={menuVariants({ clamp }).popup({ className })} data-slot="menu-popup" {...rest}>
           {children}
         </BaseMenu.Popup>

@@ -27,3 +27,4 @@ The row and composer hold within 2px on the first painted frame of all three doo
 - Red first: with the carriers added to the CONTEXT door, the both-docked LIST door and the 20rem dock, `app-shell-motion.ct.tsx` failed on the old CSS with the item's numbers (row 449.5 against rest 437, row 328 against 340, row 223.8 against 208, and the composer uncountered). Green after the fix: 13 of 14 pass.
 - The case named `with motion off the swap to Home arms no FLIP…` times out in `waitForShellIdle` with and without this change and with and without the 1321 commit; it is not a carrier case.
 - A room with a mounted flank column narrows the row's parent by the column; that case is not covered here.
+- Guard on the current tree: `tests/client/features/app-shell/surfaces/app-shell-motion.ct.tsx` passes whole (18 of 18, Chromium), including the section-swap case recorded above as timing out. No source change in this lane.

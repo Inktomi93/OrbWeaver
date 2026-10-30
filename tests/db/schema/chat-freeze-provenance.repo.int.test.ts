@@ -122,7 +122,6 @@ test("production boot backs up a copied file database before the provenance rebu
       databaseUrl,
       backupDir,
       migrationsFolder: SHIPPED_MIGRATIONS,
-      launched: true,
     });
     expect(await db.select().from(messageVariants)).toEqual(before);
     await expect(assertReferentialIntegrity(db)).resolves.toBeUndefined();

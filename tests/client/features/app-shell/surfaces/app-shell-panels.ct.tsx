@@ -753,6 +753,29 @@ test.describe("the context carry across a list flip", () => {
     await expect(context).toHaveAttribute("data-panel-mode", "collapsed");
   });
 
+  test("constrained, a sheet closed after a list hide and show stays closed through the next list hide", async ({ mount, page }) => {
+    await page.setViewportSize(WIDE);
+    await mount<typeof AppShellStory>(STORY, {});
+    const list = page.locator(LIST);
+    const context = page.locator(CONTEXT);
+    const listToggle = page.getByRole("button", { name: LIST_TOGGLE });
+    const contextToggle = page.getByRole("button", { name: CONTEXT_TOGGLE });
+    await forceConstrained(page);
+    await contextToggle.click();
+    await expect(context).toHaveAttribute("data-panel-mode", "overlay");
+    await listToggle.click();
+    await expect(list).toHaveAttribute("data-panel-mode", "collapsed");
+    await expect(context).toHaveAttribute("data-panel-mode", "docked");
+    await listToggle.click();
+    await expect(list).toHaveAttribute("data-panel-mode", "docked");
+    await expect(context).toHaveAttribute("data-panel-mode", "overlay");
+    await contextToggle.click();
+    await expect(context).toHaveAttribute("data-panel-mode", "collapsed");
+    await listToggle.click();
+    await expect(list).toHaveAttribute("data-panel-mode", "collapsed");
+    await expect(context).toHaveAttribute("data-panel-mode", "collapsed");
+  });
+
   test("unconstrained the same clicks stay a plain wide dock, and a list docked from outside the shell carries the context too", async ({ mount, page }) => {
     await page.setViewportSize({ width: 1800, height: 900 });
     await mount<typeof AppShellListDockStory>(`${SHELL_STORIES}/AppShellListDockStory`, {});

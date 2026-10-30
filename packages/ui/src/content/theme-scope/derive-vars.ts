@@ -178,9 +178,9 @@ export interface InputBorderEmission {
 /**
  * `--color-input-border` for a carried base (D159). The seeds keep the static light-dark token; a carried palette owns its
  * panels, so it solves the edge over them (`solveInputBorder` states the bounds). `ring` is the focus ring the scope
- * would paint, `null` when the scope has no known accent, which leaves only the floor to judge. When the edge does not sit
- * below it, the emission raises `--color-ring` along its hue (`solveFocusRing`); only a hue no lightness of which clears
- * the edge leaves a reported fallback.
+ * would paint, `null` when the scope has no known accent, which leaves only the floor to judge. The emission raises
+ * `--color-ring` along its hue toward a margin above the edge (`solveFocusRing`); only a hue with no ring above the edge
+ * leaves a reported fallback.
  */
 export function inputBorderOn(origin: string, base: ParsedOklch, ring: Oklch | null): InputBorderEmission {
   const opaqueBase: Oklch = { l: base.l, c: base.c, h: base.h };
@@ -193,20 +193,15 @@ export function inputBorderOn(origin: string, base: ParsedOklch, ring: Oklch | n
       fillInk: { l: derivedForegroundLightness(opaqueBase), c: 0, h: base.h },
       fillAlpha: carriedMutedPair(opaqueBase, surfaces).inputAlpha,
     },
-    card: surfaces.card,
-    ring,
   });
   const edge = foregroundAt(origin, solve.edge.l);
   const vars: Record<string, string> = { "--color-input-border": edge };
-  let ringHeld = solve.belowRing !== false;
-  if (!ringHeld && ring !== null) {
-    // Focus must out-shout rest: raise the ring along its own hue, leaving the accent fill (`--color-primary`) alone.
-    const raised = solveFocusRing({ ring, edge: solve.edge, card: surfaces.card });
-    if (raised !== null) {
-      vars["--color-ring"] = serializeOpaqueOklch(raised);
-      ringHeld = true;
-    }
+  // Focus must out-shout rest: hold the ring above the edge along its own hue, leaving the accent fill (`--color-primary`) alone.
+  const held = ring === null ? null : solveFocusRing({ ring, edge: solve.edge, card: surfaces.card });
+  if (ring !== null && held !== null && held !== ring) {
+    vars["--color-ring"] = serializeOpaqueOklch(held);
   }
+  const ringHeld = ring === null || held !== null;
   return { vars, fallback: solve.floorMet && ringHeld ? undefined : { edge, floorMet: solve.floorMet } };
 }
 

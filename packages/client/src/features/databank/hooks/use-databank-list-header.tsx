@@ -35,8 +35,7 @@
 // The hook supplies view data; the shell owns the band renderer. Actions and overlays retain their existing behavior.
 
 import { Button } from "@orb/ui/button";
-import { Icon, Plus, RefreshCw } from "@orb/ui/icons";
-import { Row } from "@orb/ui/layout";
+import { Icon, Info, Plus, RefreshCw } from "@orb/ui/icons";
 import { MenuGroup, MenuGroupLabel, MenuItem } from "@orb/ui/menu";
 import { RowActionsMenu } from "#components";
 import type { ListPaneHeaderView } from "#lib";
@@ -45,6 +44,9 @@ import { useDatabankBankHealth, useDatabankCensus } from "../hooks/use-databank-
 import { DATABANK_SWEEPS_CHECK_FAILED, DATABANK_SWEEPS_NEED_DOCUMENT } from "../lib/databank-copy.ts";
 import { DATABANK_SECTION_LABEL } from "../lib/databank-section-label.ts";
 import { useOwnerSweep } from "./use-owner-sweep.tsx";
+
+const MAINTENANCE_LABEL = "Databank maintenance";
+const ADD_DOCUMENT_LABEL = "Add a document";
 
 export function useDatabankListHeader(): ListPaneHeaderView {
   const health = useDatabankBankHealth();
@@ -79,45 +81,90 @@ export function useDatabankListHeader(): ListPaneHeaderView {
   const countProp = census === undefined ? {} : { count: census };
 
   return {
-    action: (
-      <Row align="center" gap="field">
-        <RowActionsMenu label="Databank maintenance">
-          {/* A DISABLED CONTROL OWES ITS REASON (side-eye 2026-08-19 N-6). Both items grey out over an
+    actions: [
+      {
+        id: "databank-maintenance",
+        inline: (
+          <RowActionsMenu label={MAINTENANCE_LABEL}>
+            {/* A DISABLED CONTROL OWES ITS REASON (side-eye 2026-08-19 N-6). Both items grey out over an
                   empty bank and said nothing about why, which reads as a broken menu rather than a closed
                   door. The reason rides a GROUP LABEL, not a `title=` on the items: a disabled MenuItem
                   takes no pointer events and no focus, so a tooltip on it is a sentence the one reader who
                   needs it can never reach. The group's label is announced with the items it labels. */}
-          <MenuGroup>
-            {/* ONE label, whose text is the current reason. Two sibling labels mount together when a failed
+            <MenuGroup>
+              {/* ONE label, whose text is the current reason. Two sibling labels mount together when a failed
                     re-read keeps an empty census, and the group's `aria-labelledby` is a single slot: the
                     later label unmounting clears it and the survivor never re-registers, leaving the group
                     unnamed. A failed read outranks "empty" — the census it kept may be stale. */}
-            {closedReason === null ? null : <MenuGroupLabel>{closedReason}</MenuGroupLabel>}
-            {/* The failed arm's way out. A group label cannot be actioned and a disabled item cannot be
+              {closedReason === null ? null : <MenuGroupLabel>{closedReason}</MenuGroupLabel>}
+              {/* The failed arm's way out. A group label cannot be actioned and a disabled item cannot be
                     hovered, so the re-read is its own item — the same "a read failure is never a dead end"
                     rule `QueryErrorState` carries, spelled in the one grammar a menu has. */}
-            {health.isError ? (
-              <MenuItem onClick={(): void => void health.refetch().catch(globalThis.reportError)}>
+              {health.isError ? (
+                <MenuItem onClick={(): void => void health.refetch().catch(globalThis.reportError)}>
+                  <Icon icon={RefreshCw} size="sm" />
+                  Check the bank again
+                </MenuItem>
+              ) : null}
+              <MenuItem disabled={sweep.pending || bankIsEmpty || countUnknown} onClick={(): void => sweep.ask("chunk-embed")}>
                 <Icon icon={RefreshCw} size="sm" />
-                Check the bank again
+                Rebuild all documents
               </MenuItem>
-            ) : null}
-            <MenuItem disabled={sweep.pending || bankIsEmpty || countUnknown} onClick={(): void => sweep.ask("chunk-embed")}>
-              <Icon icon={RefreshCw} size="sm" />
-              Rebuild all documents
-            </MenuItem>
-            <MenuItem disabled={sweep.pending || bankIsEmpty || countUnknown} onClick={(): void => sweep.ask("re-extract")}>
-              <Icon icon={RefreshCw} size="sm" />
-              Re-read all documents
-            </MenuItem>
-          </MenuGroup>
-        </RowActionsMenu>
-        <Button intent="primary" onClick={(): void => openModal("addDocument")} size="sm">
-          <Icon icon={Plus} size="sm" />
-          Add
-        </Button>
-      </Row>
-    ),
+              <MenuItem disabled={sweep.pending || bankIsEmpty || countUnknown} onClick={(): void => sweep.ask("re-extract")}>
+                <Icon icon={RefreshCw} size="sm" />
+                Re-read all documents
+              </MenuItem>
+            </MenuGroup>
+          </RowActionsMenu>
+        ),
+        menu: [
+          {
+            id: "databank-maintenance",
+            label: MAINTENANCE_LABEL,
+            icon: RefreshCw,
+            items: [
+              ...(closedReason === null
+                ? []
+                : [{ id: "databank-closed-reason", label: closedReason, icon: Info, disabled: true, onSelect: (): void => undefined }]),
+              ...(health.isError
+                ? [
+                    {
+                      id: "databank-recheck",
+                      label: "Check the bank again",
+                      icon: RefreshCw,
+                      onSelect: (): void => void health.refetch().catch(globalThis.reportError),
+                    },
+                  ]
+                : []),
+              {
+                id: "databank-rebuild",
+                label: "Rebuild all documents",
+                icon: RefreshCw,
+                disabled: sweep.pending || bankIsEmpty || countUnknown,
+                onSelect: (): void => sweep.ask("chunk-embed"),
+              },
+              {
+                id: "databank-reread",
+                label: "Re-read all documents",
+                icon: RefreshCw,
+                disabled: sweep.pending || bankIsEmpty || countUnknown,
+                onSelect: (): void => sweep.ask("re-extract"),
+              },
+            ],
+          },
+        ],
+      },
+      {
+        id: "databank-add",
+        inline: (
+          <Button intent="primary" onClick={(): void => openModal("addDocument")} size="sm">
+            <Icon icon={Plus} size="sm" />
+            Add
+          </Button>
+        ),
+        menu: [{ id: "databank-add", label: ADD_DOCUMENT_LABEL, icon: Plus, onSelect: (): void => openModal("addDocument") }],
+      },
+    ],
     ...countProp,
     title: DATABANK_SECTION_LABEL,
     // Both sweeps confirm: the owner-wide scope is what earns the dialog, not the runtime.

@@ -3,9 +3,11 @@
 // background where the 3:1 floor or the focus-ring ceiling could not hold. The paint holds the floor either way; the
 // logs say which theme cost depth.
 import type { InputBorderFallback, ToneFallback } from "@orb/ui/theme-scope";
-import { CONSOLE_STYLES, IS_DEV } from "#lib";
+import { CONSOLE_STYLES, IS_DEV, recordInputBorderFallback, recordToneFallback } from "#lib";
 
-function logToneFallback({ accent, hover, active }: ToneFallback): void {
+function logToneFallback(fallback: ToneFallback): void {
+  recordToneFallback(fallback);
+  const { accent, hover, active } = fallback;
   console.warn(
     `%c[theme]%c accent ${accent} shares no ink with its solid steps; hover ${hover}%, active ${active}%`,
     CONSOLE_STYLES.warning,
@@ -13,7 +15,9 @@ function logToneFallback({ accent, hover, active }: ToneFallback): void {
   );
 }
 
-function logInputBorderFallback({ edge, floorMet }: InputBorderFallback): void {
+function logInputBorderFallback(fallback: InputBorderFallback): void {
+  recordInputBorderFallback(fallback);
+  const { edge, floorMet } = fallback;
   console.warn(
     `%c[theme]%c form-control edge ${edge} ${floorMet ? "holds 3:1 but sits at or above the focus ring" : "could not reach 3:1 on every panel"}`,
     CONSOLE_STYLES.warning,

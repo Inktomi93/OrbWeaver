@@ -46,7 +46,7 @@ import { useRef } from "react";
 import { FaceStrip, SkipToFirstRow } from "#components";
 import type { Trpc } from "#data";
 import { createCollectionSurface, useInvalidation, useStartChat, useTRPC } from "#data";
-import { useDebouncedValue, useFocusOnMount } from "#lib";
+import { useDebouncedValue, useFocusListArrival } from "#lib";
 import {
   clearCharacterFilters,
   clearCharacterSelection,
@@ -242,7 +242,7 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library" }: Cha
     />
   );
 
-  useFocusOnMount(surfaceRef);
+  useFocusListArrival(surfaceRef);
   const selectedCount = collection.selection.selected.size;
 
   return (

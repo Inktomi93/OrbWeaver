@@ -68,6 +68,7 @@ export const config = {
         "node/refuse-model-kernel.ts!",
         "node/reference-head-kernel.ts!",
         "node/db-holder.ts!",
+        "node/env-file-child.ts!",
         "node/migrate-data-layout.ts!",
         "node/sdk-private-diagnostic-root.ts!",
         // Gallery fixtures, discovered by the same glob as the story modules.

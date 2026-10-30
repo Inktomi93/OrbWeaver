@@ -367,7 +367,6 @@ const TEST_CONSTANT_HOMES = {
   "packages/contracts/src/rpg/trace.ts": "rpgTraceEventSchema: the trace event parser",
   "packages/contracts/src/rpg/tracker.ts": "rpgTrackerValueSchema: the tracker value parser",
   "packages/contracts/src/workloads/admission.ts": "WORKLOAD_UNFUNDED: the unfunded refusal code",
-  "packages/db/src/client/index.ts": "buildResetDropScript: the reset script builder",
   "packages/db/src/query/check-list.ts": "checkList: the SQL literal-list formatter",
   "packages/inference/src/contract/errors.ts": "PROVIDER_ERROR_KINDS: the provider error vocabulary",
   "packages/ui/src/content/immersive-card/control-labels.ts": "IMMERSIVE_CARD_LABELS: the card header's control names",
@@ -416,6 +415,17 @@ const SERVER_TEST_REACHES = {
   },
   "tests/server/entry/boot/boot-secrets.int.test.ts": {
     "foundation/data-layout": "SECRET_FILE_NAMES: the suite plants and removes the boot secret files by their production names",
+  },
+  "tests/server/entry/boot/disclaimer.test.ts": {
+    "foundation/env":
+      "resolveBindPosture, resolveOwnerFallbackPeers and the posture inputs: no testkit door resolves a bind or owner-peer posture, and the block takes those resolved values",
+  },
+  "tests/server/entry/boot/persistence/migrate-data-layout.int.test.ts": {
+    "foundation/data-layout": "LEGACY_ENTRIES and DB_FILE_NAME: the legacy names and their targets exist only in this table, and no testkit door supplies them",
+  },
+  "tests/server/foundation/env/record/floor-defaults.test.ts": {
+    "foundation/data-layout":
+      "resolveDataLayout and LEGACY_ENTRIES: the record's slots are compared with an independent resolution, which no testkit door offers, and a keyed legacy entry exists only in the table",
   },
   "tests/server/entry/boot/identity-ownership.int.test.ts": {
     "foundation/data-layout": "SECRET_FILE_NAMES: the suite plants the boot secret files by their production names",

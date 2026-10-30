@@ -58,6 +58,9 @@ export interface ShellLayout {
    *  something, it IS the screen), yet the content behind it must still go `inert`, so the keyboard agrees
    *  with the pointer (item 22). ONE flag, so the shell renders the fact instead of re-deriving it. */
   readonly contentInert: boolean;
+  /** The phone's open context sheet is full-screen and runs over the tab bar's row (shell/mobile.css), so the
+   *  bar and the LIST pane behind it are unreachable to the pointer and must be to the keyboard too. */
+  readonly underSheet: boolean;
   /** THE ONE-SHELL RULE'S OTHER HALF, AS A LANDMARK FACT (#1349). On a phone with the roster showing as
    *  the screen, shell.css `display:none`s `.shell-content` behind it — so the document's only `main`
    *  landmark was an unrendered node, the skip link's target was inert and zero-wide, and design-audit
@@ -95,6 +98,10 @@ function backAction(sheetOpen: boolean, closeSheet: () => void, popMember: () =>
 
 function closesSheet(back: (() => void) | null, contextMode: PanelMode): boolean {
   return back !== null && contextMode === "overlay";
+}
+
+function sheetCoversShell(isMobile: boolean, contextMode: PanelMode): boolean {
+  return isMobile && contextMode === "overlay";
 }
 
 export function useShellLayout(): ShellLayout {
@@ -189,6 +196,7 @@ export function useShellLayout(): ShellLayout {
   // roster IS the screen" means.
   const listIsPrimaryContent = isMobile && listMode === "docked";
   const contentInert = scrimVisible || listIsPrimaryContent;
+  const underSheet = sheetCoversShell(isMobile, contextMode);
 
   // Closing a panel in an overlay regime RELEASES the request (`null`) unless it is the LIST, which is the
   // one panel with a regime DEFAULT to suppress: on mobile with nothing selected the roster is the screen,
@@ -218,6 +226,9 @@ export function useShellLayout(): ShellLayout {
       // request left over from this one.
       if (nextAutoOverlay) {
         setOpenOverlayPanel("context");
+        // The wide dock written when this pane last left the sheet would outlive the sheet's close and
+        // re-dock it on the next flip, so release it with the request.
+        setPanelMode("context", "collapsed");
         return;
       }
       setPanelMode("context", "docked");
@@ -295,6 +306,7 @@ export function useShellLayout(): ShellLayout {
     openModalId,
     scrimVisible,
     contentInert,
+    underSheet,
     listIsPrimaryContent,
     mobileViewport: isMobile,
     togglePanel,

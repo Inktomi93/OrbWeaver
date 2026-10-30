@@ -1,7 +1,7 @@
 // D159 under a carried background: the ThemeScope clamp emits the form-control edge, solved over the scope's own panels.
 // Each case reads the emitted variables back and judges the pixels they spell, never the solver's own return.
 import type { Oklch } from "@orb/kit/theme-derivation";
-import { AA_NON_TEXT_RATIO, compositeSrgb, oklchToSrgb, rampDeltas, rampSurface, wcagContrastRatio } from "@orb/kit/theme-derivation";
+import { AA_NON_TEXT_RATIO, compositeSrgb, oklchToSrgb, RING_OVER_EDGE_MARGIN, rampDeltas, rampSurface, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { ACCEPTED_BASES } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { TOKENS } from "@orb/ui/tokens";
@@ -108,7 +108,7 @@ test("a mid-grey scope whose inherited accent is corrected only to 3:1 raises th
   const { worst, edgeOnCard, ringOnCard, reported } = judged(MID_GREY, HEARTH_ACCENT);
   const { vars } = clampThemeTokens({ background: MID_GREY }, undefined, HEARTH_ACCENT);
   expect(worst).toBeGreaterThanOrEqual(AA_NON_TEXT_RATIO);
-  expect(ringOnCard).toBeGreaterThan(edgeOnCard);
+  expect(ringOnCard).toBeGreaterThanOrEqual(edgeOnCard + RING_OVER_EDGE_MARGIN);
   expect(ringOnCard).toBeGreaterThanOrEqual(AA_NON_TEXT_RATIO);
   expect(reported).toBe(false);
   // The accent fill itself is not moved: only the ring is raised.
@@ -139,24 +139,36 @@ test(
   SWEEP_TIMEOUT_MS,
 );
 
+/** The highest ratio on the card any lightness of the scope's accent hue reaches, on a 0.01 grid. */
+function bestRingOnCard(background: string): number {
+  const base = parsed(background);
+  const card = pixel(rampSurface(base, rampDeltas(base).card));
+  const accent = parsed(clampThemeTokens({ background }, undefined, HEARTH_ACCENT).vars["--color-primary"] ?? "");
+  const grid = Array.from({ length: 101 }, (_unused, index) => index / 100);
+  return Math.max(...grid.map((l) => wcagContrastRatio(pixel({ l, c: accent.c, h: accent.h }), card)));
+}
+
 test(
-  "a base reports only when no lightness of the accent's hue puts a ring above its edge on the card",
+  "a base reports only when no lightness of the accent's hue puts any ring above its edge on the card",
   () => {
-    const margin = 0.25;
     const unprovenReports = ACCEPTED_BASES.map((base) => serializeOpaqueOklch(base)).filter((background) => {
       const { edgeOnCard, reported } = judged(background, HEARTH_ACCENT);
-      if (!reported) {
-        return false;
-      }
-      const base = parsed(background);
-      const card = pixel(rampSurface(base, rampDeltas(base).card));
-      const accent = parsed(clampThemeTokens({ background }, undefined, HEARTH_ACCENT).vars["--color-primary"] ?? "");
-      const grid = Array.from({ length: 101 }, (_unused, index) => index / 100);
-      const best = Math.max(...grid.map((l) => wcagContrastRatio(pixel({ l, c: accent.c, h: accent.h }), card)));
-      // A grid ring that clears the edge by the margin would contradict the report.
-      return best >= edgeOnCard + margin;
+      return reported && bestRingOnCard(background) > edgeOnCard;
     });
     expect(unprovenReports).toEqual([]);
+  },
+  SWEEP_TIMEOUT_MS,
+);
+
+test(
+  "a ring short of the margin is the best ring its hue offers",
+  () => {
+    const slack = 0.1;
+    const wasted = ACCEPTED_BASES.map((base) => serializeOpaqueOklch(base)).filter((background) => {
+      const { edgeOnCard, ringOnCard, reported } = judged(background, HEARTH_ACCENT);
+      return !reported && (ringOnCard ?? 0) < edgeOnCard + RING_OVER_EDGE_MARGIN && bestRingOnCard(background) > (ringOnCard ?? 0) + slack;
+    });
+    expect(wasted).toEqual([]);
   },
   SWEEP_TIMEOUT_MS,
 );

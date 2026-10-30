@@ -22,11 +22,12 @@ import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import { readFresh, useTRPC } from "#data";
 import type { BugReportServerFacts, PublicBugReport } from "#lib";
-import { buildPublicBugReport, copyWithNotice, downloadJson, IS_DEV, publicBugReportIssueUrl } from "#lib";
+import { buildPublicBugReport, copyWithNotice, downloadJson, IS_DEV, publicBugReportIssueUrl, useOpenRequests } from "#lib";
 import type { ChromePresentation } from "#state";
 import { captureBugReportBundle, submitBugReport } from "../lib/bug-report-capture.ts";
 import type { PreparedBugReport } from "../lib/bug-report-public-capture.ts";
 import { preparePublicBugReport } from "../lib/bug-report-public-capture.ts";
+import { bugReportRequests } from "../lib/bug-report-requests.ts";
 
 /** The offered "when did it happen" answers. `null` is "right now / no window" — everything the rings still
  *  hold. The set is coarse on purpose: the ask is a human estimate, and the capture pads it by a minute
@@ -106,6 +107,12 @@ function BugReportButton({ devCapture, loadServerFacts, presentation = "bar" }: 
       setStatus({ kind: "idle" });
     }
   };
+
+  useOpenRequests(bugReportRequests, (): void => {
+    if (presentation === "bar") {
+      changeOpen(true);
+    }
+  });
 
   const prepare = (): void => {
     if (!hasNote || busy) {
