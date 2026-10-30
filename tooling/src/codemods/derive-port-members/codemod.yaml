@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "derive-port-members"
+version: "0.1.0"
+description: "Rewrite hand-typed port members to derive from their owner, from the targets pnpm unwired ports writes."
+author: "Orbweaver"
+license: "MIT"
+targets:
+  languages: ["typescript"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml
