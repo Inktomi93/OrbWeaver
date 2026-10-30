@@ -26,8 +26,11 @@ export interface Deps {
   readonly sessions: { revoke: SessionsService["revoke"] };
 }
 
-// The same shape, not a target: it stays hand-typed.
+// The same shape with no flow: a review target, which the codemod never applies.
 export interface Untouched {
   readonly create: (input: string) => Promise<number>;
   readonly present: Present;
 }
+
+// An alias that restates the owner's shape takes the owner's type.
+export type LocalLookup = SessionsService["lookup"];
