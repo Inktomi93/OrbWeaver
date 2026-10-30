@@ -12,6 +12,8 @@
 // Contract: `onEdit()` on every user-originated store change, `shouldTrip()` immediately before each
 // driver submit — if it returns true, the driver stops and the session goes to `error`.
 
+import type { Clock } from "@orb/kit/time";
+
 /** Tunables — chosen honest for a human editor: 5 edit-free submits inside 10s is not a person typing. */
 export interface SaveCircuitBreakerConfig {
   /** Max edit-free submits allowed inside the window before the breaker trips. */
@@ -19,7 +21,7 @@ export interface SaveCircuitBreakerConfig {
   /** The sliding window (ms) the `limit` count applies over. */
   readonly windowMs: number;
   /** Injected clock (tests). @defaultValue Date.now */
-  readonly now?: () => number;
+  readonly now?: Clock;
 }
 
 export interface SaveCircuitBreaker {

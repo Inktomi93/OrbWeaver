@@ -52,6 +52,7 @@ import type { IanaTimeZone } from "@orb/kit/time";
 import { getLog } from "#foundation/observability";
 import { sha256Hex } from "#primitives/content-hash";
 import { captureParticipantRole } from "#primitives/role-data";
+import type { ActiveTurns } from "../contract/active-turns.ts";
 import type { ChatContext, ClaimChatOp } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type { ResolveForeignInputsOp } from "../contract/foreign.ts";
@@ -144,6 +145,8 @@ interface EditDeps {
   readonly resolveForeignInputs: ResolveForeignInputsOp;
   /** The husk→real transition (R0). Applied to the WHOLE bundle by {@link claiming}, not per verb. */
   readonly claimChat: ClaimChatOp;
+  /** The room's in-flight turn registry: `moveMessage` refuses while it holds a turn for the chat. */
+  readonly activeTurns: ActiveTurns;
   /** The service PRNG, threaded to the D129-F freeze-at-selection bake ({@link freezeSelectedVariant}) and the
    *  runOnEdit regex macro context. A selection that has a stored freeze record consumes NO draw at all (it
    *  replays), so the bake draws only for the first freeze of a never-frozen alternate. */
@@ -1046,10 +1049,14 @@ function planResequence(ordered: readonly { readonly id: MessageId; readonly seq
 }
 
 /** `moveMessage` — host-only. Reorders a slot to a new seq position via a parked, collision-free
- *  re-sequence. Emits messagesReordered. A no-op move emits nothing. */
-function createMoveMessage(ctx: ChatContext, emit: EmitChatEvent): ChatService["moveMessage"] {
+ *  re-sequence. Refused (`locked`) while a turn is in flight: a running turn reads and appends canon by seq, so a
+ *  reorder under it would land mid-generation. Emits messagesReordered. A no-op move emits nothing. */
+function createMoveMessage(ctx: ChatContext, emit: EmitChatEvent, activeTurns: ActiveTurns): ChatService["moveMessage"] {
   return async ({ principal, chatId, messageId, toSeq }: MoveMessageParams): Promise<void> => {
     await requireHost(ctx, principal, chatId);
+    if (activeTurns.countActive(chatId) > 0) {
+      throw new ChatOperationError(CHAT_OP_CODES.locked, `chat ${chatId}: a turn is in flight; wait for it to finish before reordering`);
+    }
     await loadSlotInChat(ctx, chatId, messageId);
     const ordered = await loadMessageSeqs(ctx.db, chatId);
     const plan = planResequence(ordered, messageId, toSeq);
@@ -1304,7 +1311,7 @@ export function createEdit(ctx: ChatContext, deps: EditDeps): EditVerbs {
     deleteMessages: claim(createDeleteMessages(ctx, emit)),
     editReasoning: claim(createEditReasoning(ctx, emit)),
     clearReasoning: claim(createClearReasoning(ctx, emit)),
-    moveMessage: claim(createMoveMessage(ctx, emit)),
+    moveMessage: claim(createMoveMessage(ctx, emit, deps.activeTurns)),
     duplicateMessage: claim(createDuplicateMessage(ctx, emit)),
     reattributeMessages: claim(createReattributeMessages(ctx, emit)),
     reattributePersona: claim(createReattributePersona(ctx, emit)),

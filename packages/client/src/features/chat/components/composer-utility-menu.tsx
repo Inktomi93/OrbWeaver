@@ -35,7 +35,7 @@ import { DescribedMenuItem } from "#components";
 import { OFFER_CHOICES_ONE_SHOT, REGENERATE_PLAIN_HELPER, SWIPE_NEEDS_REPLY, testId } from "#lib";
 import { useRecentSteers } from "#state";
 import type { useComposerUtilities } from "../hooks/use-composer-utilities.ts";
-import type { useGuidedActions } from "../hooks/use-guided-actions.ts";
+import type { UseGuidedActionsResult, useGuidedActions } from "../hooks/use-guided-actions.ts";
 import type { ComposerImageControls } from "./composer-media-group.tsx";
 import { ComposerMediaGroup } from "./composer-media-group.tsx";
 
@@ -56,7 +56,7 @@ interface UtilityMenuProps {
   /** Plain reroll of the tail assistant (no steer) — disabled-with-reason unless a tail assistant reply exists. */
   readonly onRegenerate: (() => void) | undefined;
   /** The P5 game steers — present only when the chat is a live game (game-only, D110-4). */
-  readonly game: { readonly plotAvailable: boolean; readonly onSteer: (kind: GuidedGameSteerKind) => void } | undefined;
+  readonly game: { readonly plotAvailable: boolean; readonly onSteer: UseGuidedActionsResult["fireGameSteer"] } | undefined;
   /** R3 (B1) — the ONE-SHOT "offer choices" ask for the next reply. ALWAYS present: the fence renders and the
    *  chips compose in any room, so the ask is not a game affordance. Its standing sibling is the "This chat"
    *  toggle. Separate from `game` on purpose — a prop that only existed on the game bundle is exactly how it

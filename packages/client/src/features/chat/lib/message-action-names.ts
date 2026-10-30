@@ -49,6 +49,32 @@ export const MESSAGE_ACTIONS_MENU_NAME = "More message actions";
  */
 export const MESSAGE_REASONING_NAME = "Reasoning";
 
+/** The host's reorder arrows in the message edit toolbar (`message-move-arrows.tsx`). */
+export const MESSAGE_MOVE_UP_NAME = "Move up";
+export const MESSAGE_MOVE_DOWN_NAME = "Move down";
+
+/** The disabled reasons, shown beside the arrows (never `title` alone). */
+export const MESSAGE_MOVE_UP_UNAVAILABLE = "No message above this one.";
+export const MESSAGE_MOVE_DOWN_UNAVAILABLE = "No message below this one.";
+export const MESSAGE_MOVE_GENERATING = "Wait for the reply to finish.";
+export const MESSAGE_MOVE_LOADING = "Loading the conversation…";
+
+/** The toasts a move that stopped before it reached the server raises, and the one its server refusal shares. */
+export const MESSAGE_MOVE_FAILED = "Couldn't move that message.";
+export const MESSAGE_MOVE_NEIGHBOUR_GONE = "That message moved. Try again.";
+
+/** The settled reasoning block's author-or-host controls (`message-reasoning.tsx`). The field and its door share
+ *  one name for the reason `MESSAGE_EDIT_NAME` gives: the door is hidden while the field is open. */
+export const MESSAGE_REASONING_EDIT_NAME = "Edit reasoning";
+export const MESSAGE_REASONING_SAVE_NAME = "Save reasoning";
+export const MESSAGE_REASONING_CANCEL_NAME = "Cancel reasoning edit";
+export const MESSAGE_REASONING_CLEAR_NAME = "Clear reasoning";
+
+/** The clear confirm's copy; the confirm button carries the verb alone. */
+export const MESSAGE_REASONING_CLEAR_TITLE = "Clear this reasoning?";
+export const MESSAGE_REASONING_CLEAR_DESCRIPTION = "This removes the saved reasoning from the message. This can't be undone.";
+export const MESSAGE_REASONING_CLEAR_CONFIRM = "Clear";
+
 /** The variant pager's back chevron (`swipe-strip.tsx`), disabled until a sibling variant exists. */
 export const VARIANT_PREV_NAME = "Previous variant";
 

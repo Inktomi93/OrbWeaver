@@ -64,6 +64,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { CardFrameMediaPolicy, CardFramePosture } from "@orb/kit/card-frame";
 import { buildCardFrameCsp, buildCardFrameDocument, CARD_FRAME_SAFE_FLOOR, cardFrameResponseHeaders } from "@orb/kit/card-frame";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { hasCsrfHeader } from "#infra/auth";
@@ -80,6 +81,7 @@ const PAYLOAD_TOO_LARGE = 413;
 /** The membership-gated participant read — the ONE authority for a card's render policy. Structural port
  *  so `entry/http` states exactly the slice it consumes (the `BlobAssetsPort` precedent). */
 export interface CardFrameParticipantsPort {
+  /** Narrowed on purpose: the frame reads only each participant's `characterId` and `renderPolicy`. */
   readonly listParticipants: (params: {
     readonly principal: Principal;
     readonly chatId: ChatId;
@@ -101,7 +103,7 @@ export interface CardFrameDeps {
    *  browser? Read per mint and per serve of an interactive document, so turning it off reaches a handle
    *  minted before the switch, exactly as the deployment ceiling does. */
   readonly viewerRunsCardScripts: (viewer: Principal) => Promise<boolean>;
-  readonly now: () => number;
+  readonly now: Clock;
 }
 
 /** The floor policy, used for every non-serving response so no card-frame reply is ever un-policied. Static

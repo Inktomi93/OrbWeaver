@@ -24,7 +24,7 @@ import type { LocalLightBackend } from "./local-light.ts";
 import type { ProviderRegistry } from "./registry.ts";
 import type { ResolvedChatKnobs, ResolvedEmbedKnobs } from "./resolve.ts";
 import type { EmbeddingExecution } from "./roles.ts";
-import type { CatalogDraft, ProviderOrigin, RoleClientsFor } from "./runtime.ts";
+import type { CatalogDraft, RoleClientsFor } from "./runtime.ts";
 import type { ResolveArgs, ResolveOutcome } from "./task-resolution.ts";
 
 export interface CapabilityRead extends SynthesizedCapability {
@@ -96,8 +96,8 @@ export interface InferenceRuntime {
      *  `claude-sub` renders disabled with `runtime-missing`). A row on an unbuilt wire is LISTED, never hidden;
      *  a plugin row none of the principal's enabled installs contributes is absent (D147). */
     readonly available: (principal: Principal) => readonly ProviderAvailability[];
-    readonly register: (row: unknown, origin: ProviderOrigin) => Promise<ProviderDef>;
-    readonly drop: (id: ProviderDef["id"]) => Promise<void>;
+    readonly register: ProviderRegistry["register"];
+    readonly drop: ProviderRegistry["drop"];
     readonly registerPlugin: ProviderRegistry["registerPlugin"];
     readonly dropPlugin: ProviderRegistry["dropPlugin"];
   };

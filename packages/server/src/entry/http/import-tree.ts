@@ -35,6 +35,7 @@ import type { PortabilityRegistry } from "@orb/contracts/portability";
 import { IMPORT_TREE_MAX_FILE_BYTES, IMPORT_TREE_MAX_FILES, IMPORT_TREE_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import type { StartWorkloadInput } from "@orb/contracts/workloads";
 import { DomainConflictError } from "@orb/kit/errors";
+import type { IdSource } from "@orb/kit/ids";
 import type { Hono, MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { DEFAULT_IMPORT_STAGING_DIR, incomingPersonasOf, stagedOwnerRoot } from "#domain/import";
@@ -76,7 +77,7 @@ export interface ImportTreeDeps {
   readonly registry: PortabilityRegistry;
   readonly stagingDir?: string;
   /** The root's opaque nonce; it keeps each staged tree's directory unique. */
-  readonly newOpaqueId: () => string;
+  readonly newOpaqueId: IdSource["uuid"];
 }
 
 /** One accepted multipart part: its browser-supplied relative path + the bytes. */
