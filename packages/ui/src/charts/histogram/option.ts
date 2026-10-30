@@ -1,7 +1,7 @@
 // Pure ECharts option builder behind <Histogram> — split out (no React/echarts-for-react import) so
 // it's cheaply unit-testable. Chrome colors arrive as concrete resolved values, never var() literals.
 import type { OrbChartOption } from "../chart/echarts-setup.ts";
-import { AXIS_LABEL_OUTER_BOUNDS } from "../chart/merge-option.ts";
+import { AXIS_LABEL_OUTER_BOUNDS, chartTooltipChrome } from "../chart/merge-option.ts";
 import type { ChartColors } from "../chart/use-chart-theme.ts";
 
 export interface HistogramBucket {
@@ -19,7 +19,12 @@ export function buildHistogramOption(buckets: readonly HistogramBucket[], colors
       bottom: colors.metrics.padding,
       ...AXIS_LABEL_OUTER_BOUNDS,
     },
-    tooltip: { trigger: "axis", valueFormatter: (value) => countFormatter(Number(value)) },
+    tooltip: {
+      trigger: "axis",
+      axisPointer: { lineStyle: { color: colors.axisLine } },
+      valueFormatter: (value) => countFormatter(Number(value)),
+      ...chartTooltipChrome(colors),
+    },
     xAxis: {
       type: "category",
       data: buckets.map((bucket) => bucket.label),

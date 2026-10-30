@@ -2,9 +2,19 @@
 // live ECharts instance — CT can't read a mounted instance's methods back across the Playwright
 // component-test RPC boundary, so the reduced-motion/aria wiring is proven here instead).
 import type { OrbChartOption } from "./echarts-setup.ts";
+import type { ChartColors } from "./use-chart-theme.ts";
 
 /** Shared axis-label bounds, independent from ECharts runtime registration. */
 export const AXIS_LABEL_OUTER_BOUNDS = { outerBoundsMode: "same", outerBoundsContain: "axisLabel" } as const;
+
+/** The tooltip's own surface; ECharts' default is a white box with gray text in every theme. */
+export function chartTooltipChrome(colors: ChartColors): {
+  readonly backgroundColor: string;
+  readonly borderColor: string;
+  readonly textStyle: { readonly color: string };
+} {
+  return { backgroundColor: colors.surface, borderColor: colors.axisLine, textStyle: { color: colors.surfaceText } };
+}
 
 export interface MergeChartOptionParams {
   readonly label: string;

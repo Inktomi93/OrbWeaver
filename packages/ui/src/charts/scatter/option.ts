@@ -7,7 +7,7 @@
 // `onPointClick` (that click→id resolution is why this primitive exists: raw SVG scatters can't be made
 // interactive under the feature belt).
 import type { OrbChartOption } from "../chart/echarts-setup.ts";
-import { AXIS_LABEL_OUTER_BOUNDS } from "../chart/merge-option.ts";
+import { AXIS_LABEL_OUTER_BOUNDS, chartTooltipChrome } from "../chart/merge-option.ts";
 import type { ChartColors } from "../chart/use-chart-theme.ts";
 
 export interface ScatterPoint {
@@ -55,6 +55,7 @@ export function buildScatterOption(series: readonly ScatterSeries[], colors: Cha
     },
     tooltip: {
       trigger: "item",
+      ...chartTooltipChrome(colors),
       // params.value is `[x, y, id]`; params.name is the point label (set per-datum below).
       formatter: (params) => (params as { name: string }).name,
     },

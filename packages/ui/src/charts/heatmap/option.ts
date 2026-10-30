@@ -4,7 +4,7 @@
 // can't resolve. The gradient runs `background` → `series` (chart-1), a single-hue sequential ramp that
 // retints with a custom theme.
 import type { OrbChartOption } from "../chart/echarts-setup.ts";
-import { AXIS_LABEL_OUTER_BOUNDS } from "../chart/merge-option.ts";
+import { AXIS_LABEL_OUTER_BOUNDS, chartTooltipChrome } from "../chart/merge-option.ts";
 import type { ChartColors } from "../chart/use-chart-theme.ts";
 
 export interface HeatmapMatrix {
@@ -17,6 +17,11 @@ export interface HeatmapMatrix {
 }
 
 const AXIS_LABEL_INTERVAL = 2;
+
+// Alternating bands: the track token, then clear so the host surface shows between them.
+function splitArea(colors: ChartColors): { readonly show: true; readonly areaStyle: { readonly color: string[] } } {
+  return { show: true, areaStyle: { color: [colors.track, "transparent"] } };
+}
 
 function maxValue(values: readonly (readonly number[])[]): number {
   let max = 0;
@@ -46,11 +51,11 @@ export function buildHeatmapOption(matrix: HeatmapMatrix, colors: ChartColors): 
       bottom: legendBlock + colors.metrics.lineHeight + colors.metrics.padding,
       ...AXIS_LABEL_OUTER_BOUNDS,
     },
-    tooltip: { trigger: "item" },
+    tooltip: { trigger: "item", ...chartTooltipChrome(colors) },
     xAxis: {
       type: "category",
       data: [...matrix.cols],
-      splitArea: { show: true },
+      splitArea: splitArea(colors),
       axisLine: { lineStyle: { color: colors.axisLine } },
       axisTick: { show: false },
       axisLabel: { color: colors.axisLabelMuted, interval: AXIS_LABEL_INTERVAL },
@@ -59,7 +64,7 @@ export function buildHeatmapOption(matrix: HeatmapMatrix, colors: ChartColors): 
       type: "category",
       inverse: true,
       data: [...matrix.rows],
-      splitArea: { show: true },
+      splitArea: splitArea(colors),
       axisLine: { lineStyle: { color: colors.axisLine } },
       axisTick: { show: false },
       axisLabel: { color: colors.axisLabel },
@@ -77,6 +82,8 @@ export function buildHeatmapOption(matrix: HeatmapMatrix, colors: ChartColors): 
       textGap: colors.metrics.tight,
       textStyle: { color: colors.axisLabelMuted, fontSize: colors.metrics.fontSize, lineHeight: colors.metrics.lineHeight },
       inRange: { color: [colors.axisLine, colors.series] },
+      inactiveColor: colors.track,
+      handleStyle: { borderColor: colors.surface },
     },
     series: [
       {

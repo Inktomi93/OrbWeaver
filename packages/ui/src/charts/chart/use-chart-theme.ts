@@ -56,6 +56,11 @@ export interface ChartColors {
   readonly axisLabelMuted: string;
   /** Axis lines + grid split lines. */
   readonly axisLine: string;
+  /** Recessed fill behind plotted data — heatmap split-area bands and the legend's inactive track. */
+  readonly track: string;
+  /** Floating readout surface and its text — the tooltip, and the ring around a legend handle. */
+  readonly surface: string;
+  readonly surfaceText: string;
   /** The 5-stop categorical ramp (`color.chart-1..5`) — scatter series color-by-category; the heatmap's
    * VisualMap uses stop 0 as its high-intensity end. All resolve live, so a custom theme's derived
    * color-scheme selects the correct arm without retinting the categorical hues. */
@@ -71,6 +76,9 @@ const CHROME_TOKENS = {
   axisLabel: TOKENS["color.foreground"],
   axisLabelMuted: TOKENS["color.muted-foreground"],
   axisLine: TOKENS["color.border"],
+  track: TOKENS["color.muted"],
+  surface: TOKENS["color.popover"],
+  surfaceText: TOKENS["color.popover-foreground"],
 } as const;
 
 function resolveRamp(resolve: (token: { readonly cssVar: string; readonly value: string }) => string): ChartColors["palette"] {
@@ -93,6 +101,9 @@ function resolveChartColors(): ChartColors {
     axisLabel: resolveColor(CHROME_TOKENS.axisLabel),
     axisLabelMuted: resolveColor(CHROME_TOKENS.axisLabelMuted),
     axisLine: resolveColor(CHROME_TOKENS.axisLine),
+    track: resolveColor(CHROME_TOKENS.track),
+    surface: resolveColor(CHROME_TOKENS.surface),
+    surfaceText: resolveColor(CHROME_TOKENS.surfaceText),
     palette: resolveRamp(resolveColor),
   };
 }
@@ -109,6 +120,9 @@ const DEFAULT_CHART_THEME: ChartColors = {
   axisLabel: CHROME_TOKENS.axisLabel.value,
   axisLabelMuted: CHROME_TOKENS.axisLabelMuted.value,
   axisLine: CHROME_TOKENS.axisLine.value,
+  track: CHROME_TOKENS.track.value,
+  surface: CHROME_TOKENS.surface.value,
+  surfaceText: CHROME_TOKENS.surfaceText.value,
   palette: [
     TOKEN_POLARITY_ARMS["color.chart-1"].dark,
     TOKEN_POLARITY_ARMS["color.chart-2"].dark,
