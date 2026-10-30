@@ -7,6 +7,7 @@
 import type { CredentialHealth } from "@orb/contracts/credentials";
 import type { ModelListing } from "@orb/contracts/inference";
 import type { AccountCredits, EndpointInspection, GenerationCost, VerifyAuthResult } from "@orb/contracts/providers";
+import type { ProviderScrubSet } from "./errors.ts";
 import type { Resolved } from "./resolved.ts";
 
 interface DiagnosticRequestCommon {
@@ -40,6 +41,16 @@ type CatalogTarget = Pick<Resolved, "wire" | "ownerId" | "providerId" | "provide
  *  list is `{ listed: false, reason }` — the pane offers a typed id and says why. */
 export interface ListModelsRequest {
   readonly connection: CatalogTarget;
+  readonly signal?: AbortSignal | undefined;
+}
+
+/** One model-list dial. The key is a plain string: a saved connection's decrypted key, or a key typed into a
+ *  draft that has nothing saved yet. `secrets` is what the dial's error text is scrubbed of. */
+export interface ModelsDial {
+  readonly baseUrl: string | null;
+  readonly secret: string | null;
+  readonly secrets: ProviderScrubSet;
+  readonly label: string;
   readonly signal?: AbortSignal | undefined;
 }
 

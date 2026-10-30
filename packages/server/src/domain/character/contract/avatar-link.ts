@@ -14,7 +14,6 @@
 // and snapshots nothing (the same silence persona's bulk-import write keeps).
 
 import type { Db } from "@orb/db";
-import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 
 /** The DI bundle `createLinkCharacterAvatars` closes over (assembled at the entry composition root). */
@@ -24,13 +23,3 @@ export interface CharacterAvatarLinkContext {
    *  `Date.now()` — the determinism gate, and the same seam every other character writer takes. */
   readonly now: Clock;
 }
-
-/** One character→avatar pairing the backfill proved (the stored blob's hash matched the card's `importHash`). */
-export interface CharacterAvatarLink {
-  readonly characterId: CharacterId;
-  readonly assetId: AssetId;
-}
-
-/** The character-owned avatar-relink op the entry root wires into `AssetsContext.linkCharacterAvatars`.
- *  Owner-scoped per row (`ownerId` is in every WHERE), one `db.batch`; a no-op on an empty list. */
-export type LinkCharacterAvatars = (args: { readonly ownerId: UserId; readonly links: readonly CharacterAvatarLink[] }) => Promise<void>;

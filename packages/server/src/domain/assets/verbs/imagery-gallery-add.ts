@@ -1,4 +1,4 @@
-import type { ImageryGalleryAdd } from "../contract/materialize.ts";
+import type { ImageryGalleryAdd } from "@orb/contracts/assets";
 import type { AssetsService } from "../contract/service.ts";
 
 export function createImageryGalleryAdd(addToGallery: AssetsService["addToGallery"]): ImageryGalleryAdd {

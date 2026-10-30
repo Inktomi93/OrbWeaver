@@ -8,7 +8,7 @@
 // this document.
 
 import { portableCharacterHandle } from "@orb/contracts/character";
-import type { DatabankImportOutcome, ExportDocument, ExportedDocumentFile, ImportDocument, ListOwnedDocumentIds } from "@orb/contracts/databank";
+import type { DatabankImportOutcome, ExportDocument, ImportDocument, ListOwnedDocumentIds } from "@orb/contracts/databank";
 import { assets, characterDocuments, characters, documents, globalDocuments } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
@@ -49,7 +49,7 @@ async function attachedHandles(ctx: Pick<DatabankPortabilityContext, "db">, owne
 
 export function createExportDocument(input: DbAssemblyInput<Pick<DatabankPortabilityContext, "db">>): ExportDocument {
   const ctx: Pick<DatabankPortabilityContext, "db"> = { ...input, db: databaseForOwner(input.db) };
-  return async ({ ownerId, documentId }): Promise<ExportedDocumentFile | null> => {
+  return async ({ ownerId, documentId }): Promise<PortableFile | null> => {
     const row = await loadOwnedDocument(ctx.db, ownerId, documentId);
     if (row === undefined) {
       return null;

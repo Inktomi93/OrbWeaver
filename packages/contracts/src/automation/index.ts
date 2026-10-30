@@ -1366,3 +1366,7 @@ export const confirmSuggestionResultSchema = z.strictObject({
 }) satisfies z.ZodType<ConfirmSuggestionResult>;
 
 export const automationChatInputSchema = z.object({ chatId: typeIdSchema(ID_PREFIX.chat) });
+
+/** The automation feedback-bus sink: fans one bus event to its chat's `automation.stream` subscribers. The
+ *  `surface_quick_reply` arm's `quickReplySurfaced` is the one MEMBER-visible event; the rest are host-only. */
+export type EmitAutomationEvent = (event: AutomationBusEvent) => void;

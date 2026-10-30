@@ -11,7 +11,8 @@
 // links land through the injected `ctx.linkCharacterAvatars` op (character's own persistence helper, wired at
 // `entry/compose/assets-character.ts`) — the same shape `domain/import` uses for six domains' canon.
 
-import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
+import type { CharacterAvatarLink } from "@orb/contracts/character";
+import type { UserId } from "@orb/kit/ids";
 import { isAborted } from "#primitives/abort";
 import { sha256Hex } from "#primitives/content-hash";
 import type { BackfillCard } from "../contract/maintenance.ts";
@@ -23,11 +24,6 @@ import { storeBlob } from "../persistence/queries.ts";
 const CONCURRENCY = 8;
 const CARD_MIME = "image/png";
 
-interface LinkCandidate {
-  readonly characterId: CharacterId;
-  readonly assetId: AssetId;
-}
-
 /** Does this staging file's content hash match the flat row's recorded `importHash`? The whole integrity
  *  verdict, computed from the BYTES — no store required, which is what lets both the real pass reject before
  *  writing and the dry run forecast honestly. Same digest the CAS keys on (`sha256Hex`, D21). */
@@ -35,7 +31,7 @@ function matchesImportHash(card: BackfillCard): boolean {
   return sha256Hex(card.bytes) === card.importHash;
 }
 
-async function storeCard(ctx: AssetsContext, ownerId: UserId, card: BackfillCard): Promise<LinkCandidate | undefined> {
+async function storeCard(ctx: AssetsContext, ownerId: UserId, card: BackfillCard): Promise<CharacterAvatarLink | undefined> {
   // Integrity guard FIRST: the bytes must be the SAME file the flat row recorded (`importHash`), else this
   // staging blob is the wrong/corrupt card — record the mismatch and never store it. Storing before judging
   // left a freshly indexed, unreferenced asset behind on every rejection, for GC to reclaim a grace window
@@ -55,9 +51,9 @@ async function storeCard(ctx: AssetsContext, ownerId: UserId, card: BackfillCard
   return { characterId: card.characterId, assetId: stored.assetId };
 }
 
-async function storeWave(ctx: AssetsContext, ownerId: UserId, cards: readonly BackfillCard[]): Promise<{ links: LinkCandidate[]; mismatched: number }> {
+async function storeWave(ctx: AssetsContext, ownerId: UserId, cards: readonly BackfillCard[]): Promise<{ links: CharacterAvatarLink[]; mismatched: number }> {
   const results = await Promise.all(cards.map((card) => storeCard(ctx, ownerId, card)));
-  const links: LinkCandidate[] = [];
+  const links: CharacterAvatarLink[] = [];
   let mismatched = 0;
   for (const result of results) {
     if (result === undefined) {
@@ -82,7 +78,7 @@ export function createBackfillAvatars(ctx: AssetsContext): AssetsService["backfi
       return { scanned: cards.length, linked: cards.length - mismatchedCards, mismatched: mismatchedCards, dryRun: true };
     }
 
-    const links: LinkCandidate[] = [];
+    const links: CharacterAvatarLink[] = [];
     let scanned = 0;
     let mismatched = 0;
     for (let i = 0; i < cards.length; i += CONCURRENCY) {

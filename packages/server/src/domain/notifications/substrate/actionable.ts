@@ -1,7 +1,7 @@
 // domain/notifications/substrate/actionable — the PURE half of `InboxView.actionable` (#1799): which
 // notification TYPES carry a decision at all, what each such row is waiting on, and how a resolved
 // still-standing set becomes the stamped view. Zero I/O — the one external read is the injected
-// `ResolveStandingAsks` op (contract/ops.ts), which the two read verbs call around these functions.
+// `ResolveStandingAsks` op (`@orb/contracts/notifications`), which the two read verbs call around these functions.
 //
 // IT IS ONE HOME BECAUSE THERE ARE TWO WIRES. `notifications.list` and the socket's `notifications` room
 // frame both carry `InboxView`, and a reader that computed the indicator differently on a live arrival than
@@ -13,10 +13,9 @@
 // That is the whole point — the failure mode this replaces is a new actionable member shipping as
 // informational and silently never raising the dot.
 
-import type { InboxView, NotificationEvent, NotificationType } from "@orb/contracts/notifications";
+import type { InboxView, NotificationEvent, NotificationType, StandingAsksParams, StandingAsksResult } from "@orb/contracts/notifications";
 import { inboxViewSchema } from "@orb/contracts/notifications";
 import type { ChatId, ChatInviteId } from "@orb/kit/ids";
-import type { StandingAsksParams, StandingAsksResult } from "../contract/ops.ts";
 
 /** The stored-row projection the persistence layer returns, minus the field this module adds. */
 type UnstampedRow = Omit<InboxView, "actionable">;

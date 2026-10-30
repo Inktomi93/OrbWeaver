@@ -6,7 +6,7 @@
 // The chat scope is membership-scoped (D18 — no chats.ownerId); its guards (requireChatHost/Member) arrive
 // as injected ops from chat's own guards, wired at the composition root (the world-info shape).
 
-import type { ResolveVisibleRoomsOp } from "@orb/contracts/chat";
+import type { RequireParticipantOp, ResolveVisibleRoomsOp } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { PortableFile } from "@orb/contracts/portability";
 import type {
@@ -18,6 +18,7 @@ import type {
   RegexScriptUsage,
   RemoveResult,
   ReorderResult,
+  ResolveRoomDisplayPolicyOp,
 } from "@orb/contracts/regex";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
@@ -55,7 +56,6 @@ import type {
   UpdateScriptParams,
 } from "./params.ts";
 import type { RegexPortabilityContext } from "./portability.ts";
-import type { RoomDisplayPolicy } from "./resolve.ts";
 
 /** DI bundle every regex verb closes over. Chat-scope guards are injected from chat itself. */
 export interface RegexContext {
@@ -64,13 +64,13 @@ export interface RegexContext {
   readonly newScriptId: RegexPortabilityContext["newScriptId"];
   readonly audit: AuditWiring["log"];
   readonly requireChatHost: (principal: Principal, chatId: ChatId) => Promise<void>;
-  readonly requireChatMember: (principal: Principal, chatId: ChatId) => Promise<void>;
+  readonly requireChatMember: RequireParticipantOp;
   /** D121-E display-tier room OPTION (owner ruling 2026-08-02): resolve WHOSE display scripts this room
    *  broadcasts. Injected from chat because both halves are chat's data — the room's host seat and the
    *  `chatMetadata.hostDisplayScripts` flag. Regex reads neither the roster nor chat metadata itself (the
    *  same posture as the guards above). `enabled:false` ⇒ the per-user default, and `listRoomDisplayScripts`
    *  returns nothing at all. */
-  readonly resolveRoomDisplayPolicy: (chatId: ChatId) => Promise<RoomDisplayPolicy>;
+  readonly resolveRoomDisplayPolicy: ResolveRoomDisplayPolicyOp;
   /** The REVERSE-roster room filter (`listScriptUsage`) — chat's answer to "of these rooms, which may this
    *  caller see, and what are they called". Injected for the same reason the guards are: D18 rooms scope on
    *  `chat_participants`, and regex reads neither the roster nor `chats`. The TYPE is chat's (shared with

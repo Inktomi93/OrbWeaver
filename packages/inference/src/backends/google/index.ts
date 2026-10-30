@@ -7,6 +7,7 @@ import type {
   GoogleBackendDeps,
   GoogleChatRequest,
   ListModelsRequest,
+  ModelsDial,
   ProbeRequest,
   StructuredRequest,
   SummarizeRequest,
@@ -21,7 +22,7 @@ import { runGoogleEmbed, runGoogleImageEmbed } from "./embed.ts";
 import { runGoogleGenerateImage } from "./images.ts";
 
 const AUTH_FAILURE = /\b401\b|\b403\b|unauthor|forbidden|api.key.not.valid/iu;
-function dialOf(req: ListModelsRequest): Parameters<typeof listGoogleModels>[0] {
+function dialOf(req: ListModelsRequest): ModelsDial {
   return {
     baseUrl: req.connection.baseUrl,
     secret: req.connection.credential.secret,

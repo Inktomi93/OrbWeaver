@@ -39,3 +39,13 @@ export interface CopyHandoffRegexScriptsArgs {
 
 /** How many script rows the handoff regex copy would mint for `toOwnerId`. Read-only. */
 export type CountHandoffRegexScripts = (args: CopyHandoffRegexScriptsArgs) => Promise<number>;
+
+/** WHOSE display scripts a room broadcasts (the host option): `enabled:false` is the default and the
+ *  byte-identical arm; `hostUserId` is null for a hostless (archived orphan) room, which broadcasts nothing. */
+export interface RoomDisplayPolicy {
+  readonly enabled: boolean;
+  readonly hostUserId: UserId | null;
+}
+
+/** Chat's answer to a room's display policy: both halves (the host flag and the host seat) are chat's data. */
+export type ResolveRoomDisplayPolicyOp = (chatId: ChatId) => Promise<RoomDisplayPolicy>;

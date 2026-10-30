@@ -1,7 +1,7 @@
+import type { EmitAutomationEvent } from "@orb/contracts/automation";
 import type { EmitNotification } from "@orb/contracts/notifications";
 import type { PluginNotificationPost, PluginQuickReplySurface } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
-import type { EmitAutomationEvent } from "./ops.ts";
 
 export interface PluginFeedbackDeps {
   readonly db: Db;

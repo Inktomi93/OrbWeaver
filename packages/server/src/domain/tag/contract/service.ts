@@ -1,7 +1,7 @@
-// The typed API surface: RequireParticipant (the DI port into domain/chat's membership gate), TagContext
-// (the DI bundle), and TagService (the verb interface). Tag verbs gate on owner-equality scoping; the
+// The typed API surface: TagContext (the DI bundle), and TagService (the verb interface). Tag verbs gate on owner-equality scoping; the
 // chat-tag junction additionally routes through the injected `requireParticipant` since chats have no owner.
 
+import type { RequireParticipantOp } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type {
   AttachCardTagByNameOp,
@@ -17,7 +17,7 @@ import type {
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
-import type { ChatId, TagId } from "@orb/kit/ids";
+import type { TagId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { AuditEntry } from "#foundation/observability";
 import type {
@@ -39,17 +39,13 @@ import type {
 } from "./params.ts";
 import type { PruneUnusedResult } from "./results.ts";
 
-/** The chat-tag membership gate injected from `domain/chat`. Throws for a non-member, resolves for a
- *  member. Wired at the composition root with chat's real guard; never sideways-imported. */
-export type RequireParticipant = (principal: Principal, chatId: ChatId) => Promise<void>;
-
 /** The DI bundle the tag verbs close over; row births use the injected product clock. */
 export interface TagContext {
   readonly db: Db;
   readonly now: Clock;
   readonly readAttachedEntity: (caller: Principal, target: TagTargetRef) => Promise<TagAttachedEntity>;
   readonly newTagId: () => TagId;
-  readonly requireParticipant: RequireParticipant;
+  readonly requireParticipant: RequireParticipantOp;
   readonly audit: (entry: AuditEntry) => Promise<void>;
   /** Fires `tagsChanged` after every tag mutation's durable write, fire-and-forget. */
   readonly emitUserEvent: EmitUserEvent;

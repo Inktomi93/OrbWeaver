@@ -15,6 +15,7 @@
 // Gating the float on "no marker is showing" was inert on a real chats list, where nearly every row is a
 // game / starred / archived one.
 import { blobUrl } from "@orb/contracts/assets";
+import type { ChatSeatPortrait } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
@@ -27,7 +28,6 @@ import type { ReactElement, ReactNode } from "react";
 import { RowToggleAction } from "#components";
 import { timeLib } from "#lib";
 import { useReturnedRow } from "../hooks/use-returned-row.ts";
-import type { ChatRowPortrait } from "../lib/chat-summary-row.ts";
 import { chatRowActionName, chatSummaryRowView } from "../lib/chat-summary-row.ts";
 
 type ChatSummaryItem = Parameters<typeof chatSummaryRowView>[0];
@@ -40,7 +40,7 @@ interface ChatSummaryRowProps {
    *  portrait, two or more paint an `AvatarStack` (D3: a shared room must read SHARED at rest). Empty/omitted
    *  falls back to the hue-seeded initials blob. Carried BY THE ROW since #192; the surface no longer
    *  resolves it against a whole-library character read. */
-  readonly portraits?: readonly ChatRowPortrait[];
+  readonly portraits?: readonly ChatSeatPortrait[];
   /** Extra trailing controls (the chats-list kebab menu), rendered after the relative-time stamp. */
   readonly menu?: ReactNode;
   /** Supplied by a LIST PANE (which owns the star mutation) — the row grows the §12 state TOGGLE in its
@@ -85,7 +85,7 @@ function RowLeading({
   title,
 }: {
   readonly chatId: ChatId;
-  readonly portraits: readonly ChatRowPortrait[];
+  readonly portraits: readonly ChatSeatPortrait[];
   readonly title: string;
 }): ReactElement {
   // At least one slot: a character-less room still paints the hue-seeded initials blob below.
@@ -113,7 +113,7 @@ function RowLeadingSingle({
   title,
 }: {
   readonly chatId: ChatId;
-  readonly portraits: readonly ChatRowPortrait[];
+  readonly portraits: readonly ChatSeatPortrait[];
   readonly title: string;
 }): ReactElement {
   const hash = portraits[0]?.avatarHash ?? null;

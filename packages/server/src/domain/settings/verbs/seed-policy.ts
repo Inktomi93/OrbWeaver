@@ -1,7 +1,8 @@
 // Null-only seed picks retain explicit choices; the completion latch lands after the pointers.
 
+import type { MarkWelcomeAssistant, ReadDefaultPresetId } from "@orb/contracts/settings";
 import type { PersonaId } from "@orb/kit/ids";
-import type { MarkWelcomeAssistant, PersonaSeedSettings, ReadDefaultPresetId, SeedSettingsSource } from "../contract/seed-policy.ts";
+import type { PersonaSeedSettings, SeedSettingsSource } from "../contract/seed-policy.ts";
 
 export function createPersonaSeedSettings(settings: SeedSettingsSource): PersonaSeedSettings {
   return {

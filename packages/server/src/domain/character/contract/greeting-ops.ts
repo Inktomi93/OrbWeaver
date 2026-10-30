@@ -1,14 +1,13 @@
 // Character owns greeting selection and completion; settings and preset supply only their canonical values.
 
-import type { Principal } from "@orb/contracts/identity";
-import type { PromptConfig, ResolveUtilityPresetParams } from "@orb/contracts/preset";
-import type { UserSettings } from "@orb/contracts/settings";
+import type { ReadOptionalPresetConfig, ResolveUtilityPresetParams } from "@orb/contracts/preset";
+import type { ReadDefaultPresetId } from "@orb/contracts/settings";
 import type { RoleClientsWithSignal } from "@orb/inference";
-import type { PresetId, UserId } from "@orb/kit/ids";
+import type { UserId } from "@orb/kit/ids";
 
 export interface GreetingTemplateDeps {
-  readonly readDefaultPresetId: (caller: Principal) => Promise<UserSettings["seeds"]["defaultPresetId"]>;
-  readonly readPresetConfig: (userId: UserId, id: PresetId) => Promise<PromptConfig | null>;
+  readonly readDefaultPresetId: ReadDefaultPresetId;
+  readonly readPresetConfig: ReadOptionalPresetConfig;
 }
 export interface GreetingCompletionDeps {
   readonly roleClientsFor: (userId: UserId) => Promise<Pick<RoleClientsWithSignal, "summarize">>;

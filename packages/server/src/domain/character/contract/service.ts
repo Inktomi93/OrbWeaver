@@ -1,6 +1,7 @@
 // domain/character/contract/service — typed API surface: CharacterContext (DI bundle) + CharacterService
 // (verb interface) + cross-feature injected-op types (character never sideways-imports assets or tag).
 
+import type { ReapAssetsOp } from "@orb/contracts/assets";
 import type {
   CharacterBulkTagResult,
   CharacterDetail,
@@ -22,14 +23,14 @@ import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { BumpStatsCanonVersion } from "@orb/contracts/stats";
-import type { DetachCardTagOp } from "@orb/contracts/tag";
+import type { AttachCardTagByNameOp, DetachCardTagOp } from "@orb/contracts/tag";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { CopyCharacterBooks } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import type { BatchHandle, DatabaseHandle, DbAssemblyInput } from "@orb/db/wiring";
-import type { AssetId, CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
+import type { CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { AuditWiring, Logger } from "#foundation/observability";
 import type {
@@ -51,12 +52,6 @@ import type {
   StampImportIdentityParams,
 } from "./params.ts";
 import type { GeneratedGreeting, ImportedFromMatch, ListCharactersResult, ListCharacterTagGroupsResult, SnapshotSummary, SnapshotView } from "./results.ts";
-
-/** Best-effort reap of avatar assets a deleted character may have orphaned (FK is onDelete: set null). */
-export type ReapAssetsOp = (assetIds: readonly AssetId[]) => Promise<void>;
-
-/** Attaches a tag by name to one owned character; returns whether it was newly attached (idempotent). */
-export type AttachCardTagOp = (args: { readonly ownerId: UserId; readonly characterId: CharacterId; readonly tagName: string }) => Promise<boolean>;
 
 /** The editable greeting-studio prompt material resolved from the CALLER's preset (audit §3): the
  *  `greeting_rewrite`/`greeting_new` `guidedActions` template PLUS that preset's `prose` overrides. Wired at
@@ -91,7 +86,7 @@ export interface CharacterContext {
   readonly audit: AuditWiring["log"];
   readonly emit: EmitDomainEvent;
   readonly reapAssets: ReapAssetsOp;
-  readonly attachCardTag: AttachCardTagOp;
+  readonly attachCardTag: AttachCardTagByNameOp;
   readonly detachCardTag: DetachCardTagOp;
   /** Carries attached world-info book references onto a duplicate (world-info owns the junction, D28). */
   /** Carries the source character's attached book references onto a duplicate; wired at compose. */

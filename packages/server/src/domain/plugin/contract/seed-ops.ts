@@ -4,7 +4,6 @@ import type { InstallPluginParams, UpgradePluginParams } from "./params.ts";
 import type { PluginRuntimeDeps } from "./runtime-ports.ts";
 import type { PluginService } from "./service.ts";
 
-export type ShowcaseVersionReader = (slug: string) => Promise<string | null>;
 export type ReadShowcaseVersionSource = PluginRuntimeDeps["readShowcaseManifest"];
 export interface HeldSeedPlugin {
   readonly slug: string;

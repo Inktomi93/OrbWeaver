@@ -227,6 +227,7 @@ export {
 export type { NextTurnConnectionView } from "./next-turn-connection.ts";
 export { nextTurnConnectionViewSchema } from "./next-turn-connection.ts";
 export type {
+  CharacterDistillate,
   ChatLivePublish,
   ChatScopedParams,
   MemoryDigestInput,
@@ -236,10 +237,14 @@ export type {
   RegisterPromptTransformOp,
   RequestTurnOp,
   RequestTurnParams,
+  RequireParticipantOp,
+  ResolveCharacterDistillatesOp,
   ResolveCharacterTagsOp,
+  ResolveConnectedPersonaOp,
   ResolveRegexSources,
   ResolveSeatDecoOp,
   ResolveSeatDecosOp,
+  ResolveUserPublicsOp,
   ResolveViewerVisibility,
   SignupMinterCheckOp,
   StoreSegmentParams,

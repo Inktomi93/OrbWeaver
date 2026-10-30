@@ -8,7 +8,7 @@ import type { GenerationObservationCallback } from "@orb/inference";
 import type { ChatId, MessageId, MessageVariantId, UserConnectionId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { SQL } from "drizzle-orm";
-import type { StatsBatchWiring } from "#domain/stats";
+import type { ChatStatsBatchWiring } from "./stats-batch.ts";
 
 export interface GenerationObservationContext {
   readonly db: Db;
@@ -17,7 +17,7 @@ export interface GenerationObservationContext {
 }
 
 export type GenerationObservationAssemblyContext = Omit<DbAssemblyInput<GenerationObservationContext>, "applyStatsDelta"> &
-  Pick<StatsBatchWiring, "applyStatsDelta">;
+  Pick<ChatStatsBatchWiring, "applyStatsDelta">;
 
 export interface GenerationObservationFact {
   readonly ordinal: number;

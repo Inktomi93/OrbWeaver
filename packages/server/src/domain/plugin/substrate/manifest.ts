@@ -63,6 +63,7 @@ import type { UnzipFileInfo } from "fflate";
 import { unzipSync } from "fflate";
 import { z } from "zod";
 import { sha256Hex } from "#primitives/content-hash";
+import type { PluginBundleAssetBytes } from "../contract/bundle-assets.ts";
 import { HostVersionUnservedError, ManifestInvalidError, PluginBundleFetchError } from "../contract/errors.ts";
 
 /** The stored bundle is the whole zip (re-parsed + re-validated on activation load); the CAS row's
@@ -106,16 +107,6 @@ const MAX_MAIN_JS_BYTES = PLUGIN_SCRIPT_ENTRY_MAX_BYTES;
 /** The DECOMPRESSED `manifest.json` cap — a tiny metadata doc; 64 KiB is generous for the manifest shape. */
 const MAX_MANIFEST_JSON_BYTES = PLUGIN_MANIFEST_ENTRY_MAX_BYTES;
 
-/** ONE validated bundle-shipped image (#820): its zip path, its bytes, and the mime the MAGIC BYTES proved.
- *  The install/upgrade verbs turn each of these into a CAS asset + a `plugin_assets` link keyed by `path`. */
-interface PluginBundleAsset {
-  /** The full zip entry path (`ui/assets/<name>`) — the key a UI node names and the junction row stores. */
-  readonly path: string;
-  readonly bytes: Uint8Array;
-  /** The SNIFFED mime, never a claimed one — the entry's filename extension is untrusted and unconsulted. */
-  readonly mime: string;
-}
-
 /** The validated bundle: the parsed manifest + the guest entry sources + the bundle-shipped images. `uiJs` is
  *  present iff the manifest declares `uiEntry` AND the zip carried `ui.js` (the biconditional is enforced
  *  below); `uiAssets` is simply whatever admitted `ui/assets/` entries the zip carried (empty for every
@@ -125,7 +116,7 @@ interface PluginBundle {
   readonly manifest: PluginManifest;
   readonly mainJs: string;
   readonly uiJs?: string;
-  readonly uiAssets: readonly PluginBundleAsset[];
+  readonly uiAssets: readonly PluginBundleAssetBytes[];
 }
 
 function capFor(entryName: string): number {
@@ -146,15 +137,15 @@ function isAllowedEntry(name: string): boolean {
   return ALLOWED_ENTRIES.includes(name) || isBundleAssetEntry(name);
 }
 
-/** The `ui/assets/` entries as validated {@link PluginBundleAsset}s. The size checks here are BELTS, not the
+/** The `ui/assets/` entries as validated {@link PluginBundleAssetBytes}s. The size checks here are BELTS, not the
  *  control: the count, the per-entry cap and the aggregate budget were all enforced from the zip HEADERS in
  *  the filter, before fflate allocated anything — these re-sum the ACTUAL decompressed lengths so a lying
  *  header cannot slip a bomb past the pre-alloc guard. The FORMAT wall is not a belt: this is the only place
  *  the magic bytes are read, and it is what decides each entry's stored mime.
  *  Order is a path sort, so two installs of the same bundle mint their links in the same order. */
-function collectBundleAssets(files: Record<string, Uint8Array>): PluginBundleAsset[] {
+function collectBundleAssets(files: Record<string, Uint8Array>): PluginBundleAssetBytes[] {
   const paths = Object.keys(files).filter(isBundleAssetEntry).sort();
-  const assets: PluginBundleAsset[] = [];
+  const assets: PluginBundleAssetBytes[] = [];
   let totalBytes = 0;
   for (const path of paths) {
     const bytes = files[path];
@@ -192,7 +183,7 @@ function unzipHardened(bundle: Uint8Array): {
   manifestBytes: Uint8Array;
   mainBytes: Uint8Array;
   uiBytes?: Uint8Array;
-  uiAssets: readonly PluginBundleAsset[];
+  uiAssets: readonly PluginBundleAssetBytes[];
 } {
   if (bundle.byteLength === 0) {
     throw new ManifestInvalidError("empty bundle");

@@ -1,6 +1,5 @@
 import type {
   AutomationAction,
-  AutomationBusEvent,
   AutomationCelEnv,
   AutomationEmitSource,
   AutomationOrigin,
@@ -9,13 +8,14 @@ import type {
   AutomationSuggestionKind,
   AutomationTrigger,
   ChatAutomationReads,
+  EmitAutomationEvent,
   RulePresetId,
   RulePresetKnobValues,
   SuggestibleAction,
   TriggerFact,
 } from "@orb/contracts/automation";
 import type { RegisterPromptTransformOp, ResolveChatProseOp, ResolveViewerVisibility, UnregisterPromptTransformOp } from "@orb/contracts/chat";
-import type { Can, ResolveHostPrincipalOp } from "@orb/contracts/identity";
+import type { Can, ResolveHostPrincipalOp, ResolveUserEnabled } from "@orb/contracts/identity";
 import type { GeneratePicturePrompt, SizePresetName } from "@orb/contracts/imagery";
 import type { NotificationEvent, NotificationRecipient } from "@orb/contracts/notifications";
 import type { ExecutePluginSuggestion, PluginBridge, PluginSuggestedAct } from "@orb/contracts/plugin";
@@ -362,23 +362,6 @@ export interface FactSubject {
   readonly id: string;
 }
 
-/** C5 — is a rule AUTHOR still a live, ENABLED account? The owner-GLOBAL lane's standing-authority read
- *  (`substrate/authority.ts::holdsOwnerAuthority` states what it substitutes for and why).
- *
- *  IT IS AN INJECTED OP AND NOT A LOCAL SELECT, and the reason is the identity spine rather than taste: the
- *  `users` table is read and written by `domain/sessions` + `domain/admin` ONLY (the no-direct-users-read
- *  chokepoint, `Spine-Identity-and-Auth.md`), so every other domain takes what it needs about a user through
- *  the resolved Principal or an op wired at compose. A chat rule's authority needs no such read — its
- *  answer comes from the roster — which is exactly why this arrived with the lane that has no roster.
- *
- *  Fail-CLOSED at the wiring: a vanished row answers `false`, never "assume enabled". */
-export type IsAuthorEnabled = (userId: UserId) => Promise<boolean>;
-
-/** The automation feedback-bus sink. Injected; wired at compose to `publishAutomationEvent` —
- *  fans the event to the chat's `automation.stream` subscribers (the transport-owned per-chat live bus). The
- *  `surface_quick_reply` arm's `quickReplySurfaced` is the one MEMBER-visible event; the rest are host-only. */
-export type EmitAutomationEvent = (event: AutomationBusEvent) => void;
-
 /** The in-process pre-check index — chats with ≥1 enabled rule + whether any enabled DOMAIN-trigger
  *  rule exists. `ASSUMES(single-replica)`: the sets are per-process, reloaded at boot + on every lifecycle
  *  mutation. The watcher's handler returns without a DB read when the event's chat is unwatched. */
@@ -717,8 +700,9 @@ export interface AuthorityDeps {
   readonly can: Can;
   /** The rule AUTHOR's `Principal` for the dispatch-time authority re-check, minted at the entry seam. */
   readonly resolveAuthor: ResolveHostPrincipalOp;
-  /** C5 — the OWNER-GLOBAL arm's standing read (see {@link IsAuthorEnabled}). */
-  readonly isAuthorEnabled: IsAuthorEnabled;
+  /** C5 — the OWNER-GLOBAL arm's standing read: is a rule AUTHOR still a live, ENABLED account? Injected because
+   *  `users` belongs to `domain/sessions` + `domain/admin` alone (`Spine-Identity-and-Auth.md`). */
+  readonly isAuthorEnabled: ResolveUserEnabled;
 }
 
 /** What ONE dispatch batch did: whether any rule disabled itself (the caller reloads the enabled index)

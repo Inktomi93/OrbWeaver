@@ -23,14 +23,14 @@
 //     silently strip nothing while claiming the channel was handled.
 // The preset stays the user control either way (`reasoningParse.autoParse` gates both halves).
 
+import type { ReasoningTagPair } from "@orb/contracts/preset";
 import type { LanguageModelMiddleware } from "ai";
 import { extractReasoningMiddleware } from "ai";
-import type { ReasoningTags } from "../../contract/openai-backend.ts";
 
 const XML_OPEN_RE = /^<(?<name>[A-Za-z][\w:-]*)>$/u;
 
 /** `<think>` + `</think>` → `think`; anything else → undefined (the post-hoc split keeps that case). */
-function tagNameOf(tags: ReasoningTags | undefined): string | undefined {
+function tagNameOf(tags: ReasoningTagPair | undefined): string | undefined {
   const name = tags === undefined ? undefined : XML_OPEN_RE.exec(tags.prefix)?.groups?.["name"];
   return name !== undefined && tags?.suffix === `</${name}>` ? name : undefined;
 }
@@ -40,7 +40,7 @@ function tagNameOf(tags: ReasoningTags | undefined): string | undefined {
  *  a pointless extra layer over every turn on every other row). */
 export function thinkTagMiddleware(args: {
   readonly reasoningKeys: readonly string[] | undefined;
-  readonly tags: ReasoningTags | undefined;
+  readonly tags: ReasoningTagPair | undefined;
 }): LanguageModelMiddleware[] {
   if (args.reasoningKeys !== undefined) {
     return [];
@@ -48,5 +48,3 @@ export function thinkTagMiddleware(args: {
   const tagName = tagNameOf(args.tags);
   return tagName === undefined ? [] : [extractReasoningMiddleware({ tagName })];
 }
-
-export type { ReasoningTags } from "../../contract/openai-backend.ts";

@@ -70,7 +70,8 @@ const SEATING_WHY: Record<SeatingSetting, string> = {
   discreetLogin: "Discreet login shows a blank sign-in form, so a stranger has to guess the handle as well as the password.",
 };
 
-interface SeatingFacts {
+/** The seating settings the share card reads, and the one confirmed write that turns the missing ones on. */
+export interface SeatingFacts {
   readonly localMultiUser: boolean;
   readonly discreetLogin: boolean;
   readonly onEnableSeating: () => Promise<void>;

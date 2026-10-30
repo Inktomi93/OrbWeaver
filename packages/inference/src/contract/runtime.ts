@@ -23,6 +23,7 @@ import type { WireCaptureSink } from "./backend.ts";
 import type { ProviderErrorKind } from "./errors.ts";
 import type { Resolved } from "./resolved.ts";
 import type { RoleClientsWithSignal } from "./roles.ts";
+import type { ImageToPng } from "./wire.ts";
 
 export type { BindingActor } from "@orb/contracts/inference";
 
@@ -240,7 +241,7 @@ export interface InferenceDeps {
   readonly providerStore: ProviderStore;
   readonly captureWire?: WireCaptureSink | undefined;
   readonly captureWireReply?: boolean | undefined;
-  readonly imageToPng?: ((bytes: Uint8Array) => Promise<Uint8Array>) | undefined;
+  readonly imageToPng?: ImageToPng | undefined;
   readonly agentSdk: {
     readonly query?: AgentSdkQuery;
     readonly spawnClaudeCodeProcess?: AgentSdkSpawn;

@@ -461,4 +461,6 @@ export type {
   ImportPresetScripts,
   ImportRegexScript,
   ResolveRegexScriptRoomsOp,
+  ResolveRoomDisplayPolicyOp,
+  RoomDisplayPolicy,
 } from "./owner-ops.ts";

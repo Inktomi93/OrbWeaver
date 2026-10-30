@@ -19,12 +19,15 @@ import type {
   PromptTransform,
   ReadChatUserMacrosOp,
   RegisterPromptTransformOp,
+  ResolveCharacterDistillatesOp,
   ResolveCharacterTagsOp,
   ResolveChatProseOp,
+  ResolveConnectedPersonaOp,
   ResolveGmSeatHolderKindOp,
   ResolveRegexSources,
   ResolveSeatDecoOp,
   ResolveSeatDecosOp,
+  ResolveUserPublicsOp,
   RoomOverrides,
   StoreSegmentParams,
   TeachingCollection,
@@ -34,7 +37,7 @@ import type {
   UnregisterPromptTransformOp,
 } from "@orb/contracts/chat";
 import type { MemoryEmbedSpace, PruneMemoryBlocksParams } from "@orb/contracts/embeddings";
-import type { Can, Principal, ResolveHandleOp } from "@orb/contracts/identity";
+import type { Can, Principal, ResolveHandleOp, ResolveUserEnabled } from "@orb/contracts/identity";
 import type { GeneratePicturePrompt, SizePresetName } from "@orb/contracts/imagery";
 import type { SendAvailability } from "@orb/contracts/inference";
 import type { NotificationEvent, PresenceView } from "@orb/contracts/notifications";
@@ -73,7 +76,7 @@ import type { TestKeyRegex } from "@orb/kit/world-info";
 import type { AuditWiring } from "#foundation/observability";
 import type { ChatAccountingContext } from "./accounting-context.ts";
 import type { ActiveTurns } from "./active-turns.ts";
-import type { CharacterDistillate, SpeakerArbiter, SpeakerReranker } from "./arbitration.ts";
+import type { SpeakerArbiter, SpeakerReranker } from "./arbitration.ts";
 import type { ApplyPromptTransformsOp, DelayOp, EmitDurableChatEventOp, EngineContext, RunChatTurnOp } from "./engine-context.ts";
 import type { ChatBehaviorInputs, ResolveForeignInputsOp } from "./foreign.ts";
 import type { ResolveChatUserMacroDefs } from "./macro-readers.ts";
@@ -136,16 +139,6 @@ type CopyHandoffRegexScriptsOp = (args: CopyHandoffRegexScriptsArgs) => Promise<
 /** The host-handoff DIGEST re-key (embeddings' `HandoffRestampStatements`, declared structurally). Returns
  *  UNEXECUTED statements scoped to this chat; empty for an empty pair list. */
 type RestampHandoffDigestsOp = (args: { readonly chatId: ChatId; readonly pairs: readonly HandoffCardPair[] }) => Promise<readonly StatementToken[]>;
-
-/** Resolves a human participant's display fields. */
-type ResolveUserPublicsOp = (
-  userId: UserId,
-  personaId: PersonaId | null,
-) => Promise<{
-  displayName: string | null;
-  handle: Handle | null;
-  avatarAssetId: AssetId | null;
-} | null>;
 
 /** The memory summarizer + the smart-arbitrate side-LLM. The SIGNAL-BEARING variant of the isomorphic
  *  `RoleClients["summarize"]` (`RoleClientsWithSignal`): chat is the one caller that already owns a
@@ -304,15 +297,6 @@ export type GetPendingUserText = (chatId: ChatId) => Promise<string | null>;
 /** Delivers an invite/kick/handoff to a non-member the per-chat bus can't reach. Durable-first; `coStatements`
  *  carries the producer's membership-transition statements, committed in the same batch as the notification row. */
 type NotificationsEmitOp = (event: NotificationEvent, coStatements?: readonly StatementToken[]) => Promise<void>;
-
-/** The disabled-account containment gate (owner-ruled 2026-08-15): whether a human's backing `users` row
- *  is enabled. Read fresh per call (never cached), mirroring `sessions.validate`'s per-request re-check, so
- *  an admin disable propagates the very next round. Chat never reads `users` itself — see
- *  `resolveHandle`. Feeds {@link isBackingUserEnabled} (`persistence/participant.ts`) at the ONE
- *  consumer that already gates a human's identity on presence (`presentHumanUserIdsOf`,
- *  `substrate/participants-humans.ts`) — a disabled human's PERSONA drops from the room's foreign-input consent
- *  set the same way a departed member's already does. */
-type ResolveUserEnabledOp = (userId: UserId) => Promise<boolean>;
 
 /** Server-derived SSE liveness for a userId (never client-asserted — a spoofable presence is a
  *  prompt-composition attack). Read once per round for seated-character-gating. */
@@ -531,10 +515,6 @@ export type GeneratePictureOp = (
   readonly warnings: readonly { readonly code: string; readonly detail: string }[];
 }>;
 
-/** The persona to auto-anchor a new chat founded on exactly one character with exactly one connection.
- *  Ambiguity or a group founding falls through to {@link ResolveDefaultPersonaOp}. */
-type ResolveConnectedPersonaOp = (userId: UserId, characterIds: readonly CharacterId[]) => Promise<PersonaId | null>;
-
 /** Does `personaId` belong to `ownerId`? The persona-reattribution ownership belt: a line may be re-stamped
  *  only to a persona the acting user owns. */
 type VerifyPersonaOwnedOp = (params: { readonly ownerId: UserId; readonly personaId: PersonaId }) => Promise<boolean>;
@@ -665,7 +645,7 @@ export interface ChatContext extends EngineContext, ChatAccountingContext {
   readonly getCard: GetCardOp;
   /** Discovery's distillates for the owner's characters, keyed by id; an undistilled or foreign id is absent.
    *  Injected because `character_summaries` is discovery's table. */
-  readonly resolveCharacterDistillates: (ownerId: UserId, characterIds: readonly CharacterId[]) => Promise<ReadonlyMap<CharacterId, CharacterDistillate>>;
+  readonly resolveCharacterDistillates: ResolveCharacterDistillatesOp;
   /** HOST HANDOFF, the accepted offer's card arm: copy the DEPARTING host's seated cards into the NOMINEE's
    *  library, point-in-time. Injected because `characters` is the character domain's table; find-before-mint by
    *  provenance, so a retried accept converges on the copies it already made. A source id that no longer
@@ -729,7 +709,14 @@ export interface ChatContext extends EngineContext, ChatAccountingContext {
   readonly resolveUtilityPresetParams: ResolveUtilityPresetParams;
   readonly emitNotification: NotificationsEmitOp;
   readonly resolveHandle: ResolveHandleOp;
-  readonly resolveUserEnabled: ResolveUserEnabledOp;
+  /** The disabled-account containment gate (owner-ruled 2026-08-15): whether a human's backing `users` row
+   *  is enabled. Read fresh per call (never cached), mirroring `sessions.validate`'s per-request re-check, so
+   *  an admin disable propagates the very next round. Chat never reads `users` itself — see
+   *  `resolveHandle`. Feeds {@link isBackingUserEnabled} (`persistence/participant.ts`) at the ONE
+   *  consumer that already gates a human's identity on presence (`presentHumanUserIdsOf`,
+   *  `substrate/participants-humans.ts`) — a disabled human's PERSONA drops from the room's foreign-input consent
+   *  set the same way a departed member's already does. */
+  readonly resolveUserEnabled: ResolveUserEnabled;
 
   readonly readPresence: PresenceReadOp;
   readonly generatePicture: GeneratePictureOp;

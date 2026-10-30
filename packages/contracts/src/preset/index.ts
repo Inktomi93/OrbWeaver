@@ -587,6 +587,9 @@ export type RolePresetParams = Pick<UserIntent, RolePresetField> & { readonly re
  *  runs a background summarize or structured call takes it as an injected op. */
 export type ResolveUtilityPresetParams = (userId: UserId) => Promise<RolePresetParams | undefined>;
 
+/** A user's preset prompt config by id, or `null` when the preset is absent. */
+export type ReadOptionalPresetConfig = (userId: UserId, id: PresetId) => Promise<PromptConfig | null>;
+
 const XML_OPEN_TAG_RE = /^<(?<name>[A-Za-z][\w:-]*)>$/u;
 
 /** A tag pair as the stream splitter carries it: trimmed (SillyTavern's default pair wraps the tags in newlines), and
