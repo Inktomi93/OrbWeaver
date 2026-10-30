@@ -1,5 +1,5 @@
 // The Message-style appearance settings-SECTION CONTRIBUTION (SET-SEAMS stage 1) — the co-located
-// definition the chat feature exports on its front door; the composition root (main.tsx) assembles it into
+// definition the chat feature exports on its front door; the composition root (compose/authed-composition.tsx) assembles it into
 // the ONE settings-section registry, and the appearance pane (a `{kind:"sections"}` skimmer now) renders it
 // at its anchor. Chat OWNS these knobs because chat READS them (§6).
 

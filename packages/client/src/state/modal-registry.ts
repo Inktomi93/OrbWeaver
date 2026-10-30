@@ -1,6 +1,6 @@
 // The modal-registry contract (client-architecture-lockdown.md §6d) — the section-registry move applied
 // to modals: ONE co-located definition per modal that SELF-DECLARES its trigger, assembled at the door
-// (main.tsx). The rail/topbar/mobile-bar DERIVE their modal affordances from `trigger` (no parallel map).
+// (compose/authed-composition.tsx). The rail/topbar/mobile-bar DERIVE their modal affordances from `trigger` (no parallel map).
 
 import type { DialogPopupProps } from "@orb/ui/dialog";
 import type { LucideIcon } from "@orb/ui/icons";

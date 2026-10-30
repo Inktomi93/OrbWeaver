@@ -4,7 +4,7 @@
 // a fixed identity, so a switch is a boundary-driven remount, no manual `key` to place wrong
 // (D78 L4). `save` = the `persona.update` PARTIAL-patch mutation, supplied
 // at CALL time (the persona-editor.tsx seam — it closes over the live tRPC client + the row id, neither
-// reachable at this module scope; mirrors use-appearance-form.ts). No draft mirror: the server row IS the
+// reachable at this module scope). No draft mirror: the server row IS the
 // durable store and autosaves within the debounce window (the appearance/injection-row precedent — a local
 // crash-mirror would duplicate synced truth for a field set this light).
 

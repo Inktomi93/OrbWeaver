@@ -2,7 +2,7 @@
 // co-located definition that absorbs the six parallel maps (rail entry · panel defaults · placeholder
 // copy · CONTEXT model · list/content/header render). Homed here in state/ because it binds the shell
 // vocabulary state owns (SectionId/PanelName/PanelMode — §5 rule 5) to the render + context shapes; a
-// feature imports it DOWN, the composition root (main.tsx) assembles the registry. Not a store (no mint)
+// feature imports it DOWN, the composition root (compose/authed-composition.tsx) assembles the registry. Not a store (no mint)
 // — a pure contract module, the `chat-handle.ts` precedent for a types-and-shapes file in the state tier.
 
 import type { LucideIcon } from "@orb/ui/icons";
