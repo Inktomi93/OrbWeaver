@@ -24,6 +24,9 @@ export interface AutosaveSession<TValues extends object> {
   /** The session seeded a surviving draft that differs from the server values, and no save has confirmed it yet.
    *  The clean server echo is held off while this is true, so a surface that says "Saved" over it would be false. */
   readonly restored: boolean;
+  /** What `AutosaveStatus` renders: `saveState`, except a restored draft that no save has confirmed reads `restored`
+   *  instead of `saved`. The one fold every editor status line takes, so none re-derives it. */
+  readonly status: AutosaveSaveState | "restored";
   /** Explicit user retry (the AutosaveStatus affordance) — submits the current values unconditionally. */
   readonly retrySave: () => void;
   /**

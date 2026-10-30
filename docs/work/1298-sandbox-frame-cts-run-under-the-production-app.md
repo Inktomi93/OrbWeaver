@@ -23,4 +23,7 @@ The sandbox-frame navigation CTs run with the production variant of the app poli
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+`tests/ui/content/sandbox-frame/_served-frame.ts` opens its corpus root with `NODE_ENV=production`, so the app policy read from the served response is the production variant.
+
+- Before: a production-only `frameSrc` widening planted in `packages/server/src/entry/http/security-headers.ts` passed every case in `sandbox-frame-navigation.ct.tsx`.
+- After: the same plant fails four navigation cases. With the plant reverted, `sandbox-frame-navigation.ct.tsx` and `sandbox-frame.ct.tsx` pass.
