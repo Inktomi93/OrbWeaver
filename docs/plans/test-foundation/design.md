@@ -150,6 +150,94 @@ The controlled invite-component replacements are maintained under [client regres
 
 Keep the server coverage above. Legacy `server/domain/chat/substrate/wire-history.test.ts` and `db/query/chat-visibility.int.test.ts` still need case-by-case comparison with their current owners. This map does not classify those files as missing or obsolete.
 
+### Selected case map: chat teaching, identity, read, backfill and persona resolution
+
+This is a bounded case map. Legacy paths are relative to the external source named in [Spine-Testing](../../law/Spine-Testing.md#2-the-tree). Every rebuilt case runs the composed server root and reads native provider bytes or a public service read. Each rebuilt guard was checked against a planted production defect that made it fail for its stated reason. Open rows are unresolved and keep their register row Partial.
+
+The legacy collector and contribution cases exercised `collectTeaching` and the contributions with a synthetic registry or a synthetic game gather. The chat door exports neither the collector nor a registry seam, and no test-only door is added. The production registry never emits two identical injections, never throws, and registers in ascending order, so those laws have no production observable beyond the cases rebuilt below.
+
+#### Teaching (`substrate/teaching.int.test.ts`, `substrate/teaching.test.ts`, `teaching-contribution.test.ts`)
+
+| Reference case | Decision | Maintained home or reason |
+| - | - | - |
+| Zero-contribution chat: host rows reach the model | Rebuild | [Turn teaching](../../../tests/server/domain/chat/verbs/turn-teaching.suite.int.test.ts): two identical host rows both reach the model. |
+| Host rows ordered before the state block at one depth | Open | The order is the candidate walk's entry-id tie-break; no ruling names it. A swap in the merge changed no maintained output, so no guard was written. |
+| Game state block keeps its content and `game-state` stamp, cyoa off and on | Rebuild | [Turn teaching](../../../tests/server/domain/chat/verbs/turn-teaching.suite.int.test.ts): the budget source `game-state` exists for a game turn, its opening line reaches the provider, and a plain chat has none. |
+| Game cyoa on and room knob on: exactly one teach | Rebuild | [Turn teaching](../../../tests/server/domain/chat/verbs/turn-teaching.suite.int.test.ts): game and knob combinations through a real game turn, including the host's rewrite of the slot. |
+| Game cyoa off and room knob on: chat teaches; non-game room with the knob on: chat teaches | Rebuild | [Turn teaching](../../../tests/server/domain/chat/verbs/turn-teaching.suite.int.test.ts) and [offer choices](../../../tests/server/domain/chat/verbs/turn-offer-choices.suite.int.test.ts). |
+| Host override of the teach slot; `{{user}}` and `{{char}}` render as names; no persona floors to the default persona name | Rebuild | [Turn teaching](../../../tests/server/domain/chat/verbs/turn-teaching.suite.int.test.ts) on the native Anthropic wire. |
+| Teach is delimited from a player's line; the frame slot is the host's to replace | Rebuild | [Turn teaching](../../../tests/server/domain/chat/verbs/turn-teaching.suite.int.test.ts). The production shape sends the framed teach as its own row after the player's line; the case asserts the invariant, that the teach never sits inside the player's text. |
+| Game reminder that already carries the framed teach suppresses the room's teach | Drop | Needs a synthetic gather. The shipped reminder carries the bare teach, which the game combinations exercise. |
+| Exact-duplicate guard, identity-keyed guard, first survivor, ascending order, stable tie, toolNames union, throwing contribution, shared context instance | Drop | Collector internals reachable only with a synthetic registry. The production registry cannot produce them; a planted removal of the guard changes no production output. |
+| Registry ids and orders | Drop | Implementation listing; its observable effects are the cases above. |
+| Gather injections keep their order; gather `tools` become tool names | Drop | The production gather emits one injection and no registry tools. Both need a synthetic gather. |
+| Non-game chat and knob off contribute nothing | Keep | [Offer choices](../../../tests/server/domain/chat/verbs/turn-offer-choices.suite.int.test.ts) and the react-tool combinations in [turn teaching](../../../tests/server/domain/chat/verbs/turn-teaching.suite.int.test.ts). |
+| Offer-choices precedence: room value wins, absent inherits the host default | Keep | [Offer choices](../../../tests/server/domain/chat/verbs/turn-offer-choices.suite.int.test.ts). |
+| Reaction knob precedence; react tool attaches only when both knobs resolve on | Rebuild | [Turn teaching](../../../tests/server/domain/chat/verbs/turn-teaching.suite.int.test.ts): host and room combinations read the provider's tool declarations. |
+
+#### Identity (`persistence/identity.int.test.ts`)
+
+| Reference case | Decision | Maintained home or reason |
+| - | - | - |
+| Seated character and active persona resolve with their kind; avatar-less entities keep a null hash | Rebuild | [Identity](../../../tests/server/domain/chat/persistence/identity.int.test.ts) through `getChat`. |
+| Pin names an identity no seat or line names; anchor state follows the pin's owner | Rebuild | [Identity](../../../tests/server/domain/chat/persistence/identity.int.test.ts): a host handoff and the founder's leave. |
+| Persona stamped on a line but not seated | Rebuild | [Identity](../../../tests/server/domain/chat/persistence/identity.int.test.ts) through `listMessages`. |
+| Removed character keeps its portrait | Rebuild | [Identity](../../../tests/server/domain/chat/persistence/identity.int.test.ts). |
+| Empty room, null ids, omitted arguments | Rebuild | [Identity](../../../tests/server/domain/chat/persistence/identity.int.test.ts): an empty room has an empty set. |
+| Dedupe of an id named by a seat and a line | Drop | The loader selects by id, so a duplicate row cannot exist; no planted change reaches it. |
+| Coverage is member-gated, not owner-gated | Rebuild | [Identity](../../../tests/server/domain/chat/persistence/identity.int.test.ts): a member's persona resolves for the host and the member reads the same set. |
+| Each row resolves `{{user}}` to its own stamp | Keep | [Persona resolution](../../../tests/server/domain/chat/persona-resolution.suite.int.test.ts) and [canon input writers](../../../tests/server/domain/chat/persistence/canon-input-writers.suite.int.test.ts). |
+
+#### Persona resolution (`persona-resolution.suite.int.test.ts`)
+
+| Reference case | Decision | Maintained home or reason |
+| - | - | - |
+| Worked examples: anchor and seat the same; swap; re-pin; description follows the anchor | Rebuild | [Persona resolution](../../../tests/server/domain/chat/persona-resolution.suite.int.test.ts) on the native Anthropic wire. |
+| Card `{{persona}}` resolves the anchor's description | Rebuild | Same suite. |
+| Seat swap and re-pin never rewrite a stored persona stamp | Rebuild | Same suite, with the next send as the positive control. |
+| Cases the reference file defers to other files: resolver binding, held pin, trigger without a seat persona | Keep | [Turn personas](../../../tests/server/domain/chat/assembly/turn-personas.int.test.ts) and [prompt config triggerer](../../../tests/server/domain/chat/verbs/prompt-config-triggerer.suite.int.test.ts). |
+
+#### Backfill estimate (`substrate/backfill-estimate.int.test.ts`)
+
+| Reference case | Decision | Maintained home or reason |
+| - | - | - |
+| Estimate equals the sweep's summarize calls and falls to zero once built | Rebuild | [Backfill estimate](../../../tests/server/domain/chat/substrate/backfill-estimate.int.test.ts) through `workloads.estimateModelCalls` and the admitted workload. |
+| Character seated mid-chat is counted for the blocks it witnessed | Rebuild | Same suite. A late `addCharacterToChat` replaces the forced join sequence, which production cannot produce. |
+| Edited block is counted again | Rebuild | Same suite. |
+| Group room counts its unminted shared bucket and mints nothing; memory off costs nothing | Rebuild | Same suite. |
+| Import window counts and sweeps only the span's chats | Rebuild | Same suite, with a later import as the out-of-span room. A second owner's import in the same span is not exercised. |
+| Consolidation parents above tier zero | Open | The suite runs tier zero only. |
+| Import window over a very large chat set | Open | Needs bulk persistence seeding in a persistence suite. |
+
+#### Read (`verbs/read.int.test.ts`)
+
+| Reference case group | Decision | Maintained home or reason |
+| - | - | - |
+| Inspector gates: `peekPrompt`, `previewAssembly`, `previewSection`, `previewActionTemplates`, `getShapeTrace`, `getVariantWire` are host-only; outsiders get not-found; member reads carry no full-only card bytes | Rebuild | [Read gates](../../../tests/server/domain/chat/verbs/read-gates.int.test.ts), with the host read of the same call as the positive control. |
+| Cross-room variant read: refusal matches an unknown id; sibling list is room-scoped | Rebuild | [Read gates](../../../tests/server/domain/chat/verbs/read-gates.int.test.ts). |
+| Non-participant gets not-found on every room read | Rebuild | [Read gates](../../../tests/server/domain/chat/verbs/read-gates.int.test.ts): a table of reads with a host and a member as controls. |
+| Library lists only the caller's rooms; archived and temporary rooms; viewer role | Rebuild | [Read gates](../../../tests/server/domain/chat/verbs/read-gates.int.test.ts). |
+| Search and count never reveal a hidden span, pre-join text or the body of a tail carrying a hidden tag | Rebuild | [Read gates](../../../tests/server/domain/chat/verbs/read-gates.int.test.ts); the floor on the tail search is also in [history floor reads](../../../tests/server/domain/chat/verbs/history-floor-reads-agree.int.test.ts). |
+| Join-history floor on message lists, pagination at the floor, picture render | Keep | [Role authority](../../../tests/server/domain/chat/verbs/role-authority.int.test.ts), [message cursors](../../../tests/server/transport/trpc/message-history-cursor.int.test.ts), [history floor reads](../../../tests/server/domain/chat/verbs/history-floor-reads-agree.int.test.ts), [co-participant render](../../../tests/server/domain/chat/verbs/co-participant-render-floor.int.test.ts). |
+| Column default `full`, promoted host unclamped, re-join floors at the latest join, host restricts and restores | Rebuild | [Read gates](../../../tests/server/domain/chat/verbs/read-gates.int.test.ts). |
+| Sibling-variant list refuses a pre-join slot | Rebuild | [Read gates](../../../tests/server/domain/chat/verbs/read-gates.int.test.ts). |
+| Durable replay and live delivery withhold pre-join bytes, including a later edit of a pre-join row | Keep | [Recipient isolation](../../../tests/server/transport/trpc/stream/recipient-isolation.int.test.ts). |
+| Replay clamps by delta slot; attach bounds carry the caller's floor | Open | Neither value is asserted on its own; [recipient isolation](../../../tests/server/transport/trpc/stream/recipient-isolation.int.test.ts) exercises both through the transport. |
+| Hidden-span stripping for members across resume cursors | Keep | [Member visibility](../../../tests/server/domain/chat/substrate/member-visibility.int.test.ts) and [role authority](../../../tests/server/domain/chat/verbs/role-authority.int.test.ts). |
+| Strip inside a closed card, tool-call offsets, durable reasoning channel, deception handoff, replayed committed view | Open | [Content policy](../../../tests/server/domain/chat/substrate/content-policy.suite.int.test.ts) covers the class table; the member payload cases need a deception-active game. |
+| Member card clamp by visibility level | Keep | [Member card clamp](../../../tests/server/domain/chat/verbs/member-card-clamp.int.test.ts) and [corpus chat outputs](../../../tests/support/node/corpus-chat-outputs.int.test.ts). |
+| Macro render of surviving card fields; bypass through full-only macros; hidden spans on card fields; lore level | Open | [Section render PRNG](../../../tests/server/domain/chat/assembly/section-render-prng.int.test.ts) covers stable random picks only. |
+| Chat detail, connection read with label hiding, send availability, unbound fit, variants, windows, lineage, pages | Keep | [Corpus chat outputs](../../../tests/support/node/corpus-chat-outputs.int.test.ts). |
+| Fork list is membership-scoped | Rebuild | [Read gates](../../../tests/server/domain/chat/verbs/read-gates.int.test.ts). |
+| Preview honesty: budget partition, per-member card cost, preset override, GM preset redirect, window ceiling, persona-swap leak, consent set, narrator shape, viewer time zone, no persist | Open | One group of preview cases through a bound connection and a game; not compared case by case. |
+| Fit preview: boundary, blown budget, compaction marker, card and choices pricing | Open | [Managed compaction trim](../../../tests/server/domain/chat/engine/managed-compaction-trim.suite.int.test.ts) reads the fit; boundary and wire-pricing cases are not compared. |
+| Effective regex: tiers, run order, levers, preset tier label | Open | Only the disabled-room read is asserted, in corpus chat outputs. |
+| Library detail: preview text projection, viewer last turn, participant names, portraits, game flags, keyset ties, page ceiling, character projection, search predicates, recency order | Open | Page and cursor basics are in corpus chat outputs; the remaining projections are not compared. |
+| Owned-character fields: gallery subject and owned ids | Open | Not asserted by a maintained case. |
+| Compaction checkpoint withheld from a clamped member; preview image quality; Ollama window; connection attribution after deletion; malformed stored blobs degrade to null; plugin provider identity | Open | No maintained runtime case; each needs its own fixture. |
+| Stream ring resume | Keep | [Stream event rows](../../../tests/server/domain/chat/persistence/stream-event-rows.int.test.ts). |
+| Durable bus log resume and first-turn head deltas | Keep | [Bus golden](../../../tests/server/domain/chat/bus-golden.suite.int.test.ts) and [composed root](../../../tests/server/domain/chat/composed-root.suite.int.test.ts). |
+
 ### E2E runtime qualification
 
 The combined native selection boots and warms single-user, local, forward-header and OIDC modes. It passes the selected smoke, authentication, CSRF, debug-admission and pending-join cases without changing readiness or timeout budgets.
