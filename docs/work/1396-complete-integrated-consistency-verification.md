@@ -1,10 +1,9 @@
 ---
 kind: work
-status: doing
-updated: 2026-10-28
+status: open
+updated: 2026-10-30
 priority: P2
 area: testing
-lane: main
 plan: cross-surface-consistency
 ---
 
