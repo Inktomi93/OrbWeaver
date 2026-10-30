@@ -109,6 +109,7 @@ test("the Windows watch plan ignores directory and cache churn but restarts on l
     nodePath: process.execPath,
     server: { name: "@orb/server", dir: serverDir, workspaceDeps: [] },
     watchRoots: [join(serverDir, "src"), dependencyDir],
+    watch: true,
     cwd: scratch,
     env: {},
   });
