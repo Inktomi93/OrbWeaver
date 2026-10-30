@@ -166,11 +166,11 @@ function PersonaHeader({
       {/* A caps-micro band name: `kicker`. */}
       <Text voice="kicker">Your personas</Text>
       {/* Exactly ONE primary (New); Import and From-character sit beside it as ghost icons — the preset
-          band's grammar. `size="icon"` (not `sm`) so the icon-only triggers keep the token-driven coarse
+          band's grammar. `square` (not `sm`) so the icon-only triggers keep the token-driven coarse
           floor, and each tooltip is the SAME string as the aria-label so the two can't drift. */}
       <Row gap="field" align="center" className="flex-wrap justify-end">
         <Tip text={FROM_CHARACTER_LABEL}>
-          <Button aria-label={FROM_CHARACTER_LABEL} variant="ghost" onClick={onFromCharacter} size="icon">
+          <Button aria-label={FROM_CHARACTER_LABEL} variant="ghost" onClick={onFromCharacter} square={true}>
             <Icon icon={Drama} size="sm" />
           </Button>
         </Tip>
@@ -184,7 +184,7 @@ function PersonaHeader({
         >
           {({ open }): ReactElement => (
             <Tip text={IMPORT_LABEL}>
-              <Button aria-label={IMPORT_LABEL} variant="ghost" onClick={open} size="icon">
+              <Button aria-label={IMPORT_LABEL} variant="ghost" onClick={open} square={true}>
                 <Icon icon={Upload} size="sm" />
               </Button>
             </Tip>

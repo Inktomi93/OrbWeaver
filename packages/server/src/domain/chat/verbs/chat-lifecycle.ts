@@ -34,7 +34,7 @@
 // `getVariables` returns the effective config-plane view: stored ChoiceBlock picks merged over the active
 // preset's declared defaults, resolved with the `stable` pick mode so the read is stable.
 
-import type { ChatInjectionView, LiveOnlyChatBusEvent, UserMacroPicksView, VariablePicksView } from "@orb/contracts/chat";
+import type { ChatInjectionView, ClaimChatOp, LiveOnlyChatBusEvent, UserMacroPicksView, VariablePicksView } from "@orb/contracts/chat";
 import type { UserMacroSpec, UserMacroValues } from "@orb/contracts/preset";
 import { userMacroValuesSchema } from "@orb/contracts/preset";
 import { chatInjections, chatParticipants, chats } from "@orb/db";
@@ -47,7 +47,7 @@ import { MS_PER_HOUR } from "@orb/kit/time";
 import type { SQL } from "drizzle-orm";
 import { and, eq, exists, isNotNull, isNull, lt, ne, not, or, sql } from "drizzle-orm";
 import type { ActiveTurns } from "../contract/active-turns.ts";
-import type { ChatContext, ChatServiceDeps, ClaimChatOp } from "../contract/context.ts";
+import type { ChatContext, ChatServiceDeps } from "../contract/context.ts";
 import type { EmitDurableChatEventOp } from "../contract/engine-context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type { PreparedRetainedCanonStats } from "../contract/generation-observation.ts";

@@ -10,7 +10,7 @@ import type { StartWorkloadInput, WorkloadStatus } from "@orb/contracts/workload
 import { ACTIVE_WORKLOAD_STATUSES } from "@orb/contracts/workloads";
 import { DomainConflictError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
-import type { Clock } from "@orb/kit/time";
+import type { Clock, ScheduleOp } from "@orb/kit/time";
 import { MS_PER_DAY, MS_PER_HOUR } from "@orb/kit/time";
 import type { WorkloadService } from "#domain/workloads";
 import type { Logger } from "#foundation/observability";
@@ -33,9 +33,6 @@ function isActiveStatus(status: WorkloadStatus): boolean {
 }
 
 const REFRESH_INPUT: StartWorkloadInput = { kind: "refresh-model-catalog", params: {} };
-
-/** A timer seam (entry wires setInterval; tests pass a synchronous fake). */
-type ScheduleOp = (fn: () => void, ms: number) => () => void;
 
 export interface CatalogRefreshSchedulerDeps {
   readonly logger: Logger;

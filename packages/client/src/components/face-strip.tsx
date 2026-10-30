@@ -435,7 +435,7 @@ export function FaceStrip({
           <Popover onOpenChange={setPickerOpen} open={pickerOpen}>
             <PopoverTrigger
               render={
-                // `size="icon"` IS the control-md square this used to spell as min-h/min-w classes
+                // `square` IS the control-md square this used to spell as min-h/min-w classes
                 // (#169 — the multi-segment token was invisible to `ui-size-via-variant` until its value
                 // class learned hyphens); the captioned strip keeps a uniform cell pitch.
                 <Button
@@ -444,7 +444,7 @@ export function FaceStrip({
                   data-face-overflow=""
                   ref={overflowRef}
                   variant="ghost"
-                  size="icon"
+                  square={true}
                 >
                   <Stack align="center" gap="tight">
                     {/* The tile takes the AVATAR TOKEN'S BOX so the row keeps one rhythm, and prints the count

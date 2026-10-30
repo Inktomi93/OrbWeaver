@@ -6,6 +6,7 @@ import { BUTTON_SIZE_OVERFLOW } from "@orb/ui/button/size-hit-area";
 import { Checkbox } from "@orb/ui/checkbox";
 import { Icon, Plus } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
+import { CONTROL_SIZES } from "@orb/ui/lib";
 import { NumberField } from "@orb/ui/number-field";
 import { RadioGroup, RadioGroupItem } from "@orb/ui/radio-group";
 import { Select } from "@orb/ui/select";
@@ -21,7 +22,7 @@ const BUTTON_SIZES = Object.keys(BUTTON_SIZE_OVERFLOW) as (keyof typeof BUTTON_S
 
 /** A glyph-sized button holds an icon, a `media` button holds the portrait that owns its floor, the rest hold a label. */
 function buttonContent(size: keyof typeof BUTTON_SIZE_OVERFLOW): ReactElement {
-  if (size.startsWith("icon") || size.startsWith("glyph")) {
+  if (size.startsWith("glyph")) {
     return <Icon icon={Plus} size="xs" />;
   }
   if (size === "media") {
@@ -30,7 +31,7 @@ function buttonContent(size: keyof typeof BUTTON_SIZE_OVERFLOW): ReactElement {
   return <>Edit title</>;
 }
 
-/** Every interactive `@orb/ui` primitive, one of each Button size, spaced so a neighbour never answers another control's hit test. */
+/** Every interactive `@orb/ui` primitive, one of each Button box, spaced so a neighbour never answers another control's hit test. */
 export function InteractivePrimitivesStory(): ReactElement {
   return (
     <CtIsolation subject="Interactive primitives" isolates="isolates each primitive from feature layout so its own touch target is measured">
@@ -39,6 +40,21 @@ export function InteractivePrimitivesStory(): ReactElement {
           <Button aria-label={`Size ${size}`} key={size} size={size}>
             {buttonContent(size)}
           </Button>
+        ))}
+        {CONTROL_SIZES.map((size) => (
+          <Button aria-label={`Square ${size}`} key={`square-${size}`} size={size} square={true} variant="ghost">
+            <Icon icon={Plus} size="xs" />
+          </Button>
+        ))}
+        {CONTROL_SIZES.map((size) => (
+          <Button key={`wrap-${size}`} size={size} variant="outline" wrap={true}>
+            {`Wrap ${size}`}
+          </Button>
+        ))}
+        {CONTROL_SIZES.map((size) => (
+          <Toggle key={`toggle-${size}`} size={size} variant="outline">
+            {`Toggle ${size}`}
+          </Toggle>
         ))}
         <Toggle>Bold</Toggle>
         <ToggleGroup aria-label="Alignment" defaultValue={["left"]}>
@@ -53,7 +69,9 @@ export function InteractivePrimitivesStory(): ReactElement {
         </RadioGroup>
         <Slider defaultValue={2} max={5} thumbLabels={["Level"]} />
         <Select aria-label="Pick one" defaultValue="a" items={[{ value: "a", label: "A" }]} />
-        <NumberField aria-label="Count" defaultValue={3} />
+        {CONTROL_SIZES.map((size) => (
+          <NumberField aria-label={`Count ${size}`} defaultValue={3} key={`number-${size}`} size={size} />
+        ))}
         <Input aria-label="Plain text" />
         <Textarea aria-label="Long text" />
         <Tabs defaultValue="one">

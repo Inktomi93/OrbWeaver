@@ -1,14 +1,15 @@
 import type { RequestTurnOp, ToolCallRecord, TurnInitiator } from "@orb/contracts/chat";
-import type { Principal } from "@orb/contracts/identity";
+import type { Principal, ResolveHostPrincipalOp } from "@orb/contracts/identity";
 import type { GeneratePicture } from "@orb/contracts/imagery";
-import type { UserSettingsView } from "@orb/contracts/settings";
+import type { ResolveUtilityPresetParams } from "@orb/contracts/preset";
+import type { GetUserSettingsOp } from "@orb/contracts/settings";
 import type { IsToolDrivableByOp, ListDrivableToolNamesOp, ResolveToolsOp } from "@orb/contracts/tool-use";
-import type { BindingActor, ChatToolDefinition, RoleClientsWithSignal, SideGenSampling, ToolCallInput } from "@orb/inference";
+import type { BindingActor, ChatToolDefinition, RoleClientsWithSignal, ToolCallInput } from "@orb/inference";
 import type { AssetId, ChatId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import type { AutomationOps, ListRuleTools } from "./ops.ts";
 
 export interface AutomationRuntimeDeps<TSet> {
-  readonly resolveOwnerPrincipal: (userId: UserId) => Promise<Principal>;
+  readonly resolveOwnerPrincipal: ResolveHostPrincipalOp;
   readonly requestTurn: RequestTurnOp;
   readonly postNarratorMessage: (
     chatId: ChatId,
@@ -17,7 +18,7 @@ export interface AutomationRuntimeDeps<TSet> {
     options?: { readonly initiator: TurnInitiator; readonly automationDepth: number } | undefined,
   ) => Promise<{ readonly messageId: MessageId; readonly variantId: MessageVariantId }>;
   readonly imagery: { readonly generatePicture: GeneratePicture };
-  readonly settings: { readonly getUserSettings: (params: { readonly principal: Principal }) => Promise<UserSettingsView> };
+  readonly settings: { readonly getUserSettings: GetUserSettingsOp };
   readonly toolUse: {
     readonly isToolDrivableBy: IsToolDrivableByOp;
     readonly listDrivableToolNames: ListDrivableToolNamesOp;
@@ -30,7 +31,7 @@ export interface AutomationRuntimeDeps<TSet> {
     ) => Promise<readonly ToolCallRecord[]>;
   };
   readonly roleClientsFor: (funderUserId: UserId, actor?: BindingActor) => Promise<RoleClientsWithSignal>;
-  readonly resolveUtilityPresetParams: (userId: UserId) => Promise<SideGenSampling | undefined>;
+  readonly resolveUtilityPresetParams: ResolveUtilityPresetParams;
   readonly newToolCallId: () => string;
 }
 export interface AutomationRuntimeOps {

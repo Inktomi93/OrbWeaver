@@ -2,13 +2,13 @@ import type { ButtonProps as BaseButtonProps } from "@base-ui/react/button";
 import { Button as BaseButton } from "@base-ui/react/button";
 import type { ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
-import type { ToneInkSelection } from "#lib";
+import type { ControlSize, ToneInkSelection } from "#lib";
 import { GRADIENT_RING_PIGMENT, variantProps } from "#lib";
 import type { ButtonVariant } from "./variants.ts";
 import { BUTTON_DEFAULT_TONE, buttonTone, buttonVariants } from "./variants.ts";
 
-/** Every Button prop EXCEPT the accessible-name requirement — the shape a wrapper seal extends. */
-export interface ButtonBaseProps extends BaseButtonProps, VariantProps<typeof buttonVariants> {
+/** Every Button prop EXCEPT the accessible-name requirement and the box reshapes — the shape a wrapper seal extends. */
+export interface ButtonBaseProps extends BaseButtonProps, Omit<VariantProps<typeof buttonVariants>, "square" | "wrap"> {
   className?: string;
   /** Busy state: sets `aria-busy` and disables the button (a state, not a variant). */
   loading?: boolean;
@@ -17,27 +17,35 @@ export interface ButtonBaseProps extends BaseButtonProps, VariantProps<typeof bu
 type ButtonSize = NonNullable<ButtonBaseProps["size"]>;
 
 /**
- * The size arms that are ICON-ONLY BY CONTRACT: a square glyph box with no room for a text run, so
- * nothing the caller nests inside can supply the accessible name (§13.10 N1 — with no visible text,
- * `aria-label` is the name). DERIVED from the tv() size axis with `Extract`, never re-spelled, so a new
- * `glyph-*` step joins the requirement the day it is added (the `.test-d` pins that each member still
- * resolves — a renamed arm would otherwise silently `Extract` to `never` and disarm the whole rule).
+ * The size arms that are ICON-ONLY BY CONTRACT: a square glyph box with no room for a text run, so nothing the caller
+ * nests inside can supply the accessible name (§13.10 N1 — with no visible text, `aria-label` is the name). DERIVED from
+ * the tv() size axis with `Extract`, never re-spelled, so a new `glyph-*` step joins the requirement the day it is added.
+ * A `square` scale step is icon-only too; {@link TextButtonProps} refuses it.
  *
  * `media` is deliberately NOT here: that arm is content-sized around a portrait/avatar child, whose own
  * `alt`/`Icon label` IS the name — requiring a second one would override the pixels, the exact N1
  * liability this rule exists to prevent.
  */
-export type IconOnlyButtonSize = Extract<ButtonSize, "icon" | "icon-sm" | `glyph-${string}`>;
+export type IconOnlyButtonSize = Extract<ButtonSize, `glyph-${string}`>;
 
 /** A button that carries its own name as an attribute — free to take ANY size, including the icon-only
  *  arms. Two members rather than one optional pair: `aria-label?: string | undefined` would be satisfied
  *  by omitting it, which is the hole this type exists to close (#1021). */
 type NamedButtonProps = ButtonBaseProps & ({ "aria-label": string } | { "aria-labelledby": string });
 
-/** Or the size leaves room for a text child, which names the button the way N1 prefers. A size the caller
- *  computes (`size={dense ? "icon" : "sm"}`) is NOT assignable here — a union that MIGHT be icon-only is
- *  treated as icon-only, so such a call site states its name. */
-type TextButtonProps = ButtonBaseProps & { size?: Exclude<ButtonSize, IconOnlyButtonSize> };
+/** Or the box leaves room for a text child, which names the button the way N1 prefers. A shape the caller computes
+ *  (`square={dense}`) is NOT assignable here — a box that MIGHT be icon-only is treated as icon-only, so such a call
+ *  site states its name. */
+type TextButtonProps = ButtonBaseProps & { size?: Exclude<ButtonSize, IconOnlyButtonSize>; square?: false | undefined };
+
+/**
+ * A box that is not a scale step leaves `size` (D336): `square` for icon-only and `wrap` for multiline reshape a scale
+ * step, so neither combines with the other or with a box that is not on the scale.
+ */
+type ButtonBox =
+  | { size?: ButtonSize | undefined; square?: false | undefined; wrap?: false | undefined }
+  | { size?: ControlSize | undefined; square: boolean; wrap?: false | undefined }
+  | { size?: ControlSize | undefined; wrap: boolean; square?: false | undefined };
 
 /**
  * The D336 colour pair. An ink belongs to a fill-less style and excludes a non-neutral tone; `focal` belongs to the
@@ -56,7 +64,7 @@ type ButtonPaint = (
  * mirroring `OptionStrip`, which has required its `aria-label` since it landed. The runtime half
  * (`ui-audit`'s `checkAccessibleName`) still catches the shapes a type cannot see, e.g. an empty string.
  */
-export type ButtonProps = (NamedButtonProps | TextButtonProps) & ButtonPaint;
+export type ButtonProps = (NamedButtonProps | TextButtonProps) & ButtonPaint & ButtonBox;
 
 export function Button(props: ButtonProps): ReactElement {
   const {
@@ -66,6 +74,8 @@ export function Button(props: ButtonProps): ReactElement {
     ink,
     focal,
     size,
+    square,
+    wrap,
     shape,
     cardCorners,
     selection,
@@ -98,6 +108,8 @@ export function Button(props: ButtonProps): ReactElement {
       ink: resolvedInk,
       focal: resolvedFocal,
       size,
+      square,
+      wrap,
       shape,
       cardCorners,
       selection,

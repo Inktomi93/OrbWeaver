@@ -21,7 +21,7 @@ import type { ConfirmDialogProps } from "./confirm-dialog.tsx";
 import { ConfirmDialog } from "./confirm-dialog.tsx";
 
 // The optional destructive menu item + its ConfirmDialog (state owned by RowActionsMenu).
-interface RowDestructiveAction {
+export interface RowDestructiveAction {
   /** The menu item label. @defaultValue "Delete" */
   readonly label?: string;
   /** The menu item glyph. @defaultValue Trash2 */
@@ -37,7 +37,7 @@ interface RowDestructiveAction {
    *  success, and stays open with the reason on rejection. Declaring `() => void` still ACCEPTED an async
    *  handler (a `Promise` return is assignable to `void`), so the hold-and-retry was reached by accident
    *  rather than by contract, and this type told a reader the opposite of what happens. */
-  readonly onConfirm: () => void | Promise<void>;
+  readonly onConfirm: ConfirmDialogProps["onConfirm"];
   /** Where focus goes when the confirm closes (see ConfirmDialog). Give one when the act removes the row. */
   readonly finalFocus?: ConfirmDialogProps["finalFocus"];
   /** Render a MenuSeparator before the destructive item. @defaultValue true */
@@ -53,8 +53,8 @@ export interface RowActionsMenuProps {
   readonly icon?: LucideIcon;
   /** Popup alignment. @defaultValue "end" */
   readonly align?: "center" | "end" | "start";
-  /** Trigger button size — this composite's OWN vocabulary, resolved to a Button size arm by
-   *  `TRIGGER_BUTTON_SIZE` below, never a passthrough. `"inline"` is the HintTrigger-parity box (the
+  /** Trigger button size — this composite's OWN vocabulary, resolved to a Button box by
+   *  `TRIGGER_BUTTON_BOX` below, never a passthrough. `"inline"` is the HintTrigger-parity box (the
    *  config setting row pairs the ⋯ with the tiny `i` and must not inflate the row); `"sm"` is the
    *  small SQUARE trigger for a row whose scale is the `sm` control step; `"glyph"` is the glyph-button box
    *  for a compact tool column (the composer's ☰), its touch floor carried by the glyph arm. @defaultValue "icon" */
@@ -88,7 +88,7 @@ export interface RowActionsMenuProps {
 }
 
 /**
- * THIS COMPOSITE'S TRIGGER VOCABULARY → the `Button` size arm that carries it (#1613).
+ * THIS COMPOSITE'S TRIGGER VOCABULARY → the `Button` box that carries it (#1613).
  *
  * The trigger is ICON-ONLY at every arm — a glyph with an `aria-label` and no text run — so it must be
  * sized on an axis that floors BOTH sides. `triggerSize` used to be a raw passthrough, and its `"sm"`
@@ -98,9 +98,9 @@ export interface RowActionsMenuProps {
  * Looks rows (`[aria-label="Actions for Hearth"]` / "Light" / "Mocha" — 3 affected of 3 judged, short
  * side 40px, settings:appearance --mobile 2026-09-05).
  *
- * `icon-sm` is the SAME `--size-control-sm` box on both axes (44px coarse / 32px fine — the token is
+ * The `sm` square is the SAME `--size-control-sm` box on both axes (44px coarse / 32px fine — the token is
  * pointer-conditional, so the box IS the tap floor and needs none of the `glyph-*` ramp's hit-area
- * pseudo; button/variants.ts states that arm's contract). Row HEIGHT is unchanged at both pointer
+ * pseudo; button/variants.ts states the `square` contract). Row HEIGHT is unchanged at both pointer
  * classes; the trigger gains 4px of width at a coarse pointer and sheds 8 at a fine one, which is the
  * square an icon-only control should always have been.
  *
@@ -108,10 +108,12 @@ export interface RowActionsMenuProps {
  * through to a text step — the same one-union-plus-mapped-Record discipline the spine asks of every
  * dispatch axis.
  */
-const TRIGGER_BUTTON_SIZE = { glyph: "glyph-lg", icon: "icon", inline: "inline", sm: "icon-sm" } as const satisfies Record<
-  NonNullable<RowActionsMenuProps["triggerSize"]>,
-  "glyph-lg" | "icon" | "icon-sm" | "inline"
->;
+const TRIGGER_BUTTON_BOX = {
+  glyph: { size: "glyph-lg" },
+  icon: { square: true },
+  inline: { size: "inline" },
+  sm: { size: "sm", square: true },
+} as const satisfies Record<NonNullable<RowActionsMenuProps["triggerSize"]>, Readonly<{ size: "glyph-lg" | "inline" } | { size?: "sm"; square: true }>>;
 
 function actionsTrigger({
   label,
@@ -140,7 +142,7 @@ function actionsTrigger({
       variant="ghost"
       ref={triggerRef}
       shape={shape}
-      size={TRIGGER_BUTTON_SIZE[size]}
+      {...TRIGGER_BUTTON_BOX[size]}
       {...(tabIndex === undefined ? {} : { tabIndex })}
     >
       <Icon icon={icon} size="sm" />

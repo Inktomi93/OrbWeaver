@@ -1,6 +1,7 @@
 // The kit's subject-qualification grammar (#1383) — a `.ts` module so it may export non-components.
 export { trackerActionName, trackerFieldName } from "../../lib/tracker-names.ts";
 
+export type { AddRowAction } from "./add-row.tsx";
 export { AddRow } from "./add-row.tsx";
 export type { AmbientStripProps } from "./ambient-strip.tsx";
 export { AmbientStrip } from "./ambient-strip.tsx";

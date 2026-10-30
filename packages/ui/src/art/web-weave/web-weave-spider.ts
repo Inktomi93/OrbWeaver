@@ -11,7 +11,8 @@
 
 import type { CharacterPreset, SpiderPose } from "./web-weave-character.ts";
 import { burstEase, HEAD_DOWN } from "./web-weave-character.ts";
-import type { SpiderLeg, WeavePoint, WeaveState, WeaveStrand, WovenWeb } from "./web-weave-geometry.ts";
+import type { SpiderLeg, WeaveState, WeaveStrand, WovenWeb } from "./web-weave-geometry.ts";
+import type { WeavePoint } from "./web-weave-math.ts";
 import { clamp01, easeInOutQuad, easeOutCubic, pointAtFraction, weaveJitter, wrapToPi } from "./web-weave-math.ts";
 import type { PreyState } from "./web-weave-prey.ts";
 import { preyPose } from "./web-weave-prey.ts";

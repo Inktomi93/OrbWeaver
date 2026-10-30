@@ -1,6 +1,7 @@
 // Showcase seeding consumes settings completion/provenance ports; plugin owns install and upgrade policy.
 
 import type { Principal } from "@orb/contracts/identity";
+import type { ExamplePluginSeededOp, MarkExamplePluginSeededOp, ReadSeededPluginVersionsOp, WriteSeededPluginVersionsOp } from "@orb/contracts/settings";
 import type { Logger } from "#foundation/observability";
 import type { PluginSeedOps, ShowcaseVersionReader } from "./seed-ops.ts";
 
@@ -26,12 +27,12 @@ export interface ExamplePluginSeederDeps {
   /** Every SHOWCASE row the caller holds right now — one read per pass, which is also the collision check the
    *  install half needs (`install` refuses a slug the user already holds). */
   readonly listHeld: PluginSeedOps["listHeld"];
-  readonly isSeeded: (principal: Principal) => Promise<boolean>;
-  readonly markSeeded: (principal: Principal) => Promise<void>;
+  readonly isSeeded: ExamplePluginSeededOp;
+  readonly markSeeded: MarkExamplePluginSeededOp;
   /** `onboarding.seededPluginVersions` — what this system last wrote per slug (the divergence oracle). */
-  readonly readSeededVersions: (principal: Principal) => Promise<Readonly<Record<string, string>>>;
+  readonly readSeededVersions: ReadSeededPluginVersionsOp;
   /** Persist the whole map. Called ONLY when it actually changed, so a settled boot writes nothing. */
-  readonly writeSeededVersions: (principal: Principal, versions: Readonly<Record<string, string>>) => Promise<void>;
+  readonly writeSeededVersions: WriteSeededPluginVersionsOp;
 }
 
 export interface ExamplePluginSeeder {

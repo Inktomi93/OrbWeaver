@@ -38,7 +38,7 @@ export function PersonaCrown({ isDefault, subject, onSet, onClear, tabIndex }: P
                 data-slot="persona-crown"
                 variant="ghost"
                 onClick={isDefault ? onClear : onSet}
-                size={isDefault ? "inline" : "icon"}
+                {...(isDefault ? { size: "inline" } : { square: true })}
                 tone={isDefault ? "primary" : undefined}
                 {...(tabIndex === undefined ? {} : { tabIndex })}
               >

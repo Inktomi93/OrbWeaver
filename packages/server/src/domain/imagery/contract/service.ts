@@ -4,9 +4,9 @@
 // the composition root.
 
 import type { AssetKind, StoredAsset } from "@orb/contracts/assets";
-import type { CharacterCard } from "@orb/contracts/character";
-import type { Principal } from "@orb/contracts/identity";
-import type { PromptTemplateMode } from "@orb/contracts/imagery";
+import type { CharacterCard, CharacterOwnedOp } from "@orb/contracts/character";
+import type { Principal, ResolveHostPrincipalOp } from "@orb/contracts/identity";
+import type { GeneratePicture, PromptTemplateMode } from "@orb/contracts/imagery";
 import type { GenerationCapability, GenerationUsage } from "@orb/contracts/inference";
 import type { ApplyStatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
@@ -15,7 +15,7 @@ import type { BatchHandle, DatabaseHandle, DbAssemblyInput } from "@orb/db/wirin
 import type { BindingActor, GeneratedImage, ImageGenerateRequest as InferenceImageGenerateRequest, Resolved } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, ImageryCallId, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
 import type { Clock, IanaTimeZone } from "@orb/kit/time";
-import type { EditImageParams, ExtractionMode, ExtractPromptParams, GeneratePictureParams, MultimodalMode, ReadProvenanceParams } from "./params.ts";
+import type { EditImageParams, ExtractionMode, ExtractPromptParams, MultimodalMode, ReadProvenanceParams } from "./params.ts";
 import type { ExtractedPrompt, GeneratedPicture, GenerationProvenance, ImageryWarning } from "./results.ts";
 
 // ── Internal verb-wiring op types (verb-to-verb factory injection, wired at service.ts) ──
@@ -122,7 +122,7 @@ export interface ImageryContext {
   readonly resolveGenerateImage: (runAs: Principal, actor?: BindingActor) => Promise<ResolvedGenerateImage>;
   /** The run-as Principal for a room picture's `runAsUserId`, read from its row so the role is real. Chat
    *  resolved the id; this op only loads it. */
-  readonly resolveRunAs: (runAsUserId: UserId) => Promise<Principal>;
+  readonly resolveRunAs: ResolveHostPrincipalOp;
   /** The principal a chat-scoped preview runs as: the room host (D298). Refuses a caller the room does
    *  not admit, and a subject that is not a present character seat of the room, with the leak-free
    *  not-found BEFORE any host read, card read or spend. */
@@ -182,7 +182,7 @@ export interface ImageryContext {
   /** Does `ownerId` own `characterId`? The auto-curation gate, read before any spend so a picture never
    *  targets a character its owner does not hold. Wired to the same owner-scoped `characters` read the
    *  gallery add verb gates on. */
-  readonly ownsCharacter: (ownerId: UserId, characterId: CharacterId) => Promise<boolean>;
+  readonly ownsCharacter: CharacterOwnedOp;
   /** `assets.addToGallery` under the picture owner's principal: join an owned picture to that owner's
    *  gallery as this character's. Idempotent on `(assetId, subjectCharacterId)`. */
   readonly addToGallery: (owner: Principal, assetId: AssetId, subjectCharacterId: CharacterId) => Promise<void>;
@@ -197,7 +197,7 @@ export type ImageryAssemblyInput = Omit<DbAssemblyInput<ImageryContext>, "applyS
 export interface ImageryService {
   /** The orchestrator: resolve prompt (user | caption | extract) → resolve role → generate → store →
    *  provenance → blocks. Never posts to chat — the caller owns message authorship. */
-  readonly generatePicture: (p: GeneratePictureParams) => Promise<GeneratedPicture>;
+  readonly generatePicture: GeneratePicture;
   /** Step-1 standalone: the preview-before-spend surface (review the prompt, then generate with it). */
   readonly extractPrompt: (p: ExtractPromptParams) => Promise<ExtractedPrompt>;
   /** Read the durable provenance of a generated image (prompt/model/cost/mode/subject) — the gallery detail +

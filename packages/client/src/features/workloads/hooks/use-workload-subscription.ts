@@ -24,7 +24,7 @@ import { toProgressView } from "../lib/workloads-model.ts";
 /** Every NON-progress lifecycle event — the `progress` arm is split off into `onProgress` below. */
 type WorkloadLifecycleEvent = Exclude<WorkloadEvent, { readonly type: "progress" }>;
 
-interface WorkloadSubscriptionHandlers {
+export interface WorkloadSubscriptionHandlers {
   readonly workloadId: WorkloadId;
   /** A `progress` event, mapped to the row view (transient — a row buffer, never the cache). */
   readonly onProgress: (progress: WorkloadProgressView) => void;

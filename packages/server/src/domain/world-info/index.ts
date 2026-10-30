@@ -11,9 +11,7 @@ export type {
   ImportStandaloneLorebook,
   ImportWorldInfoPort,
 } from "./contract/import.ts";
-
 export type { WorldInfoService } from "./contract/service.ts";
-
 export { createCopyCharacterBooks } from "./persistence/duplicate-carry.ts";
 export { createCopyHandoffBooks, createCountHandoffBooks } from "./persistence/handoff-copy-write.ts";
 export {

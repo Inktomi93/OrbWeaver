@@ -79,7 +79,7 @@ export function createAutosaveEntityForm<TValues extends object>(
      * by construction, so the teardown effect can depend on it honestly. Read-and-clear via `takeDiscard`.
      */
     readonly discardRef: RefObject<boolean>;
-    readonly reseed: (next: TValues) => void;
+    readonly reseed: AutosaveSession<TValues>["reseed"];
     readonly children: (session: AutosaveSession<TValues>) => ReactNode;
   }
 

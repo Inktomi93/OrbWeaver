@@ -25,7 +25,7 @@
 //
 // ONE ENTRY, TWO BUTTONS — deliberately, and it is not the split menu `character-create-actions.tsx`
 // retired. The registry entry is a WIDGET whose body is the BAND'S OWN cluster, so the phone's topbar and
-// the desktop's band are the same two affordances rendered from one component: Import as an `icon-sm` ghost,
+// the desktop's band are the same two affordances rendered from one component: Import as an `sm` square ghost,
 // New as the `sm` primary. Burying Import inside New would resurrect the "+ split menu" that file's header
 // records as killed for hiding both verbs one click deep.
 

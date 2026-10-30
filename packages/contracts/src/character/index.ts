@@ -1146,6 +1146,10 @@ export type FindCharacterByImportHashOp = (params: FindByImportHashParams) => Pr
  *  live array, never the snapshot). */
 export type LoadOwnedCardOp = (args: { readonly ownerId: UserId; readonly characterId: CharacterId }) => Promise<CharacterCard | undefined>;
 
+/** Does `ownerId` own `characterId`? Absent and foreign both answer `false`. Character implements it; assets' gallery
+ *  subject gate and imagery's auto-add gate consume it. */
+export type CharacterOwnedOp = (ownerId: UserId, characterId: CharacterId) => Promise<boolean>;
+
 /** ONE card the score sweep may work on — the card itself plus the owner the stamp must be scoped to (a
  *  bulk sweep spans owners, so the row's own owner rides with it; the stamp op re-asserts it in the WHERE). */
 export interface RefineryScoreTarget {

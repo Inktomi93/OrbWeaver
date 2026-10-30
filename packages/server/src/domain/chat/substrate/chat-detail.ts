@@ -5,10 +5,10 @@
 // `viewerActivePersonaId`) derive from the roster ⋈ `viewerUserId`; `viewerOwnedCharacterIds` needs an
 // ownership read, so the verb resolves it (`substrate/viewer-gallery.ts`), and the gallery subject derives here.
 
-import type { AnchorState, ChatIdentity, ChatMetadata, HistoryFloorSeq } from "@orb/contracts/chat";
+import type { AnchorState, ChatIdentity, ChatMetadata, HistoryFloorSeq, ParticipantData } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
-import type { ChatDetailData, ParticipantData } from "../contract/views.ts";
+import type { ChatDetailData } from "../contract/views.ts";
 import { NO_HISTORY_FLOOR } from "./auth/index.ts";
 import { viewerHoldsHost } from "./member-visibility.ts";
 import { viewerGalleryCharacterIdOf } from "./viewer-gallery.ts";

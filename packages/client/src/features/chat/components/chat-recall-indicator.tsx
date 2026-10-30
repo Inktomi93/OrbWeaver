@@ -104,7 +104,7 @@ function RecallIndicatorBody({ chatId, viewerIsHost, memory }: ChatRecallIndicat
             // THE ACTIONABLE CHIP LIFTS ITS INK (#878 F12, side-eye 2026-08-30). Both bands' chip
             // rows had the grammar INVERTED: the pill shape marked the items you cannot click and the bare
             // ghost marked the one you can. MEASURED before choosing the axis — and the first attempt was
-            // WRONG: `intent="outline"` looked like "an edge means pressable", but a `soft` Badge draws the
+            // WRONG: an outline style looked like "an edge means pressable", but a `soft` Badge draws the
             // SAME 1px hairline (`bw:"1px"`, identical `borderTopColor` on all three chips), so the border
             // could never be the distinction. The FILL/INK pair is: an inert datum holds the muted step on
             // a tint, and the actionable chip lifts to the FOREGROUND on bare ground, with the hover/active

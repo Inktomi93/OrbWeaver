@@ -5,8 +5,8 @@
 
 import { sinHash } from "#lib";
 
-/** A 2D point, structurally compatible with the geometry module's WeavePoint. */
-export interface WeaveXY {
+/** A 2D point; the one point shape the web-weave family shares. */
+export interface WeavePoint {
   readonly x: number;
   readonly y: number;
 }
@@ -33,8 +33,8 @@ export function weaveJitter(a: number, b: number, seed: number): number {
 }
 
 /** A sagging strand: quadratic curve toward +y, sampled. */
-export function sagLine(a: WeaveXY, b: WeaveXY, sag: number, samples: number): WeaveXY[] {
-  const pts: WeaveXY[] = [];
+export function sagLine(a: WeavePoint, b: WeavePoint, sag: number, samples: number): WeavePoint[] {
+  const pts: WeavePoint[] = [];
   const mx = (a.x + b.x) / 2;
   const my = (a.y + b.y) / 2 + sag;
   for (let i = 0; i <= samples; i++) {
@@ -47,15 +47,15 @@ export function sagLine(a: WeaveXY, b: WeaveXY, sag: number, samples: number): W
 
 /** One boundary segment for the ray caster. */
 export interface WeaveSegment {
-  readonly a: WeaveXY;
-  readonly b: WeaveXY;
+  readonly a: WeavePoint;
+  readonly b: WeavePoint;
 }
 
 /** Ray/segment parallelism epsilon. */
 const EPSILON = 1e-9;
 
 /** Ray (from `p` along `d`) vs segment `ab` → the ray parameter, or null when they miss. */
-function raySegment(p: WeaveXY, d: WeaveXY, a: WeaveXY, b: WeaveXY): number | null {
+function raySegment(p: WeavePoint, d: WeavePoint, a: WeavePoint, b: WeavePoint): number | null {
   const den = d.x * (b.y - a.y) - d.y * (b.x - a.x);
   if (Math.abs(den) < EPSILON) {
     return null;
@@ -68,18 +68,18 @@ function raySegment(p: WeaveXY, d: WeaveXY, a: WeaveXY, b: WeaveXY): number | nu
 }
 
 /** A polyline's segments — `closed` wraps the last point back to the first (a polygon). */
-export function toSegments(pts: readonly WeaveXY[], closed = false): WeaveSegment[] {
+export function toSegments(pts: readonly WeavePoint[], closed = false): WeaveSegment[] {
   const segments: WeaveSegment[] = [];
   const last = closed ? pts.length : pts.length - 1;
   for (let i = 0; i < last; i++) {
-    segments.push({ a: pts[i] as WeaveXY, b: pts[(i + 1) % pts.length] as WeaveXY });
+    segments.push({ a: pts[i] as WeavePoint, b: pts[(i + 1) % pts.length] as WeavePoint });
   }
   return segments;
 }
 
 /** Distance from `origin` along unit direction `d` to the NEAREST of `segments` — Infinity if it
  *  crosses none. (The web's radii and spirals are sized by casting against the drawn silk this way.) */
-export function nearestRayHit(origin: WeaveXY, d: WeaveXY, segments: readonly WeaveSegment[]): number {
+export function nearestRayHit(origin: WeavePoint, d: WeavePoint, segments: readonly WeaveSegment[]): number {
   let best = Number.POSITIVE_INFINITY;
   for (const { a, b } of segments) {
     const t = raySegment(origin, d, a, b);
@@ -91,20 +91,20 @@ export function nearestRayHit(origin: WeaveXY, d: WeaveXY, segments: readonly We
 }
 
 /** Total arc length of a polyline (px). */
-export function polylineLength(pts: readonly WeaveXY[]): number {
+export function polylineLength(pts: readonly WeavePoint[]): number {
   let total = 0;
   for (let i = 0; i < pts.length - 1; i++) {
-    total += Math.hypot((pts[i + 1] as WeaveXY).x - (pts[i] as WeaveXY).x, (pts[i + 1] as WeaveXY).y - (pts[i] as WeaveXY).y);
+    total += Math.hypot((pts[i + 1] as WeavePoint).x - (pts[i] as WeavePoint).x, (pts[i + 1] as WeavePoint).y - (pts[i] as WeavePoint).y);
   }
   return total;
 }
 
 /** Linear interpolation along a polyline at fraction `f` of its INDEX space. */
-export function pointAtFraction(pts: readonly WeaveXY[], f: number): WeaveXY {
+export function pointAtFraction(pts: readonly WeavePoint[], f: number): WeavePoint {
   const x = f * (pts.length - 1);
   const i = Math.min(Math.floor(x), pts.length - 2);
   const r = x - i;
-  const a = pts[i] as WeaveXY;
-  const b = pts[i + 1] as WeaveXY;
+  const a = pts[i] as WeavePoint;
+  const b = pts[i + 1] as WeavePoint;
   return { x: a.x + (b.x - a.x) * r, y: a.y + (b.y - a.y) * r };
 }

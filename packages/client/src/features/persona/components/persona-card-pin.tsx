@@ -49,7 +49,7 @@ export function PersonaCardPin({ isPinned, isHost, name, subject, onPin, onUnpin
               data-slot="persona-card-pin"
               variant="ghost"
               onClick={isPinned ? onUnpin : onPin}
-              size={isPinned ? "inline" : "icon"}
+              {...(isPinned ? { size: "inline" } : { square: true })}
               tone={isPinned ? "primary" : undefined}
               {...(tabIndex === undefined ? {} : { tabIndex })}
             >

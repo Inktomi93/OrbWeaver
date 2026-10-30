@@ -35,15 +35,11 @@
 // check-then-await-then-record would let a burst of 32 all observe the pre-burst count and pass.
 
 import type { PluginBridge, PluginCharacterView, PluginMessageView, PluginSearchHit, PluginWorldBookView, PluginWorldEntryView } from "@orb/contracts/plugin";
+import { PLUGIN_LORE_ENTRIES_PER_BOOK_MAX } from "@orb/contracts/plugin";
 import type { AssetId, PluginId, SandboxWireId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { neutralizeMacros } from "@orb/kit/macro";
 import type { PluginBelts, PluginHostOps, PluginIdentity } from "../contract/ops.ts";
-
-/** The per-plugin ≤64-entries-per-book ceiling — the plugin mirror of automation's `RULE_MAX_ENTRIES_PER_BOOK`
- *  (a looping inserter fills a book otherwise). Counted over the plugin's OWN title namespace, so one plugin's
- *  entries never consume another's budget and a human's entries are never counted or clobbered. */
-const PLUGIN_MAX_ENTRIES_PER_BOOK = 64;
 
 /** The title prefix a plugin's lore entries live under — the idempotency + cap key, mirroring the rule path's
  *  `auto/<ruleId>:`. A transient snippet has no pluginId and no `worldinfo.write` grant, so `null` cannot
@@ -180,8 +176,8 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
         // it makes "how many entries does this plugin own here" answerable — which is what the cap counts.
         const title = pluginEntryTitle(pluginId, entry.entryKey);
         const owned = (await ops.worldInfo.listEntryTitles(installerUserId, bookId)).filter((t) => t.startsWith(pluginEntryPrefix(pluginId)));
-        if (!owned.includes(title) && owned.length >= PLUGIN_MAX_ENTRIES_PER_BOOK) {
-          throw new Error(`plugin host: this plugin already owns ${PLUGIN_MAX_ENTRIES_PER_BOOK} entries in book ${bookId}`);
+        if (!owned.includes(title) && owned.length >= PLUGIN_LORE_ENTRIES_PER_BOOK_MAX) {
+          throw new Error(`plugin host: this plugin already owns ${PLUGIN_LORE_ENTRIES_PER_BOOK_MAX} entries in book ${bookId}`);
         }
         await ops.worldInfo.upsertEntries({
           authorUserId: installerUserId,

@@ -1,13 +1,14 @@
-import { ACCENT_HOVER, CHIP_BOX, CONTROL_SIZE, DISABLED_STATE, DISABLED_STATE_NATIVE, FOCUS_RING, SELECTED_FILL_PRESSED, tv } from "#lib";
+import { CONTROL_SIZE, DISABLED_STATE, DISABLED_STATE_NATIVE, FOCUS_RING, INKS, SELECTED_FILL_PRESSED, TONE_ARMS, tv } from "#lib";
 
-// The toggle skin — a pressable on/off button (bold/italic-style controls). Muted at rest; the
-// pressed state (data-pressed) paints SELECTED_FILL_PRESSED (or bg-primary for the primary intent) and no
-// ring, so a pressed toggle never reads as the focused one. Sizes ride the CONTROL_SIZE ramp (shared with
-// Button) so the ≥44px touch floor holds by construction (§4b axis 3).
+// The toggle skin — a pressable on/off button (bold/italic-style controls). At rest it paints only the roles of its
+// stamped D336 tone, so every tone works with every style. Pressed (data-pressed), it wears the one selected fill the app
+// uses for a set state, whatever the tone, and no ring, so a pressed toggle never reads as the focused one.
+const TONE_TINT_HOVER = "hover:bg-tone-tint-active hover:text-tone-text-on-tint";
+
 export const toggleVariants = tv({
   base: [
-    "inline-flex items-center justify-center gap-field font-sans font-medium whitespace-nowrap text-muted-foreground select-none",
-    `transition-colors duration-(--motion-fast) ease-out-expo ${ACCENT_HOVER}`,
+    "inline-flex items-center justify-center gap-field font-sans font-medium whitespace-nowrap select-none",
+    "transition-colors duration-(--motion-fast) ease-out-expo",
     "outline-none",
     FOCUS_RING,
     SELECTED_FILL_PRESSED,
@@ -15,31 +16,22 @@ export const toggleVariants = tv({
     DISABLED_STATE_NATIVE,
   ],
   variants: {
-    intent: {
-      neutral: "",
-      primary: "data-pressed:bg-primary data-pressed:text-primary-foreground",
-      // THE VIEW-COMMAND REGISTER (added 2026-08-17, program #102 variant B). A toggle that REDRAWS the
-      // pane it sits above (group-by-tag, bulk select) is not one of the filter words beside it, and the
-      // characters pane measured both at the identical muted 13px/500 — twelve controls, four semantic
-      // classes, ONE rendered treatment. Foreground ink is the whole delta: it keeps the ghost box (no
-      // edge, `--radius-control`), because it is a control you operate, not a chip you skim.
-      command: "text-foreground",
-      // THE RESTING HAIRLINE — the scope half of the filter rail (Favorites / Archived), which must read
-      // as the same class of thing as the tag chips beside it. Twin of `Button`'s `outline` intent, and
-      // the reason it is a real arm rather than a call-site className: the two live in one rail and a
-      // skin decided per call site is how one rail becomes two. `data-pressed` drops the resting edge so
-      // the selected pill is a FILL, not a fill wearing a spare outline.
-      outline: "border border-border bg-transparent data-pressed:border-transparent",
+    // THE FILL STYLE (D336).
+    variant: {
+      // No edge: a text-formatting toggle, or a view command over the pane it redraws.
+      ghost: `text-tone-text ${TONE_TINT_HOVER}`,
+      // THE RESTING HAIRLINE — the scope half of a filter rail (Favorites / Archived), which must read as the same
+      // class of thing as the outline tag chips beside it. Pressed, it drops the edge, so the selected pill is a FILL,
+      // not a fill wearing a spare outline.
+      outline: `border border-tone-edge bg-transparent text-tone-text ${TONE_TINT_HOVER} data-pressed:border-transparent`,
     },
-    size: {
-      ...CONTROL_SIZE,
-      // The wrapping-rail cell — ONE home with Button's `chip` size (`CHIP_BOX`, lib/control-size.ts).
-      chip: CHIP_BOX,
-    },
-    // THE RADIUS AXIS — Button's own (added there in #102), for the same reason and with the same
-    // mechanics: `rounded-control` used to sit in `base`, and it is a custom `--radius-*` token that
-    // tailwind-merge cannot classify, so `cn("rounded-control", "rounded-full")` kept BOTH and the winner
-    // was decided by stylesheet order. The `control` default is byte-identical to what `base` emitted.
+    tone: TONE_ARMS,
+    // A named ink at rest; `Toggle` resolves `muted` for a neutral toggle, which recedes until pressed. A view COMMAND
+    // that redraws the pane it sits above takes `foreground`: it is a control you operate, not a filter word you skim.
+    ink: INKS,
+    size: CONTROL_SIZE,
+    // THE RADIUS AXIS — Button's own. `rounded-control` is a custom `--radius-*` token, so the radius is a declared
+    // choice rather than a call-site class that tailwind-merge would resolve by order.
     shape: {
       /** The standard control box — every toggle that is a toggle. */
       control: "rounded-control",
@@ -47,5 +39,5 @@ export const toggleVariants = tv({
       pill: "rounded-full",
     },
   },
-  defaultVariants: { intent: "neutral", size: "md", shape: "control" },
+  defaultVariants: { variant: "ghost", size: "md", shape: "control" },
 });

@@ -12,12 +12,13 @@
 // scrapers. DB6's injected `{{databank}}` chat GATHER op and DB5's `search.documents` lens on the unified
 // `search()` are both BUILT (databank graduated D91).
 
-import type { StoredAsset } from "@orb/contracts/assets";
+import type { LoadAssetBytes, StoredAsset } from "@orb/contracts/assets";
 import type { ResolveVisibleRoomsOp } from "@orb/contracts/chat";
 import type {
   ActiveChatDocumentView,
   BankHealthView,
-  DatabankSettings,
+  CaptureDatabankRoomReachOp,
+  CreateDocumentFromText,
   DocumentAttachmentsView,
   DocumentDetailView,
   DocumentView,
@@ -38,11 +39,12 @@ import type {
 import type { ExtractTextOp } from "@orb/contracts/extraction";
 import type { Can, Principal } from "@orb/contracts/identity";
 import type { SearchDocumentsOp } from "@orb/contracts/search";
+import type { GetDatabankSettingsOp } from "@orb/contracts/settings";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { TargetSnapshotOp, WorkloadRunScope } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
-import type { AssetId, CharacterId, ChatId, DocumentId, UserId, WorkloadId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, DocumentId, UserId, WorkloadId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { AuditEntry, Logger } from "#foundation/observability";
 import type { ScopedEgress } from "#infra/network";
@@ -50,7 +52,6 @@ import type {
   BankHealthParams,
   CharacterAttachParams,
   ChatAttachParams,
-  CreateFromTextParams,
   DatabankGatherParams,
   GetDocumentParams,
   GlobalAttachParams,
@@ -77,10 +78,6 @@ type AssetsStoreOp = (args: {
   readonly enforceMagic?: boolean;
   readonly maxBytes?: number;
 }) => Promise<StoredAsset>;
-
-/** Re-read a document's original CAS bytes by asset id (the re-extract path). `undefined` when the blob was
- *  purged (a degraded doc that can no longer re-extract — never a block). */
-type LoadAssetBytesOp = (assetId: AssetId) => Promise<Uint8Array | undefined>;
 
 /** Enqueue the post-upload `databank-ingest` workload for one freshly written document. */
 type EnqueueIngestOp = (args: { documentId: DocumentId; ownerId: UserId }) => Promise<{ readonly workloadId: WorkloadId }>;
@@ -111,10 +108,6 @@ export const NO_EMBED_SPACE_MODEL = "";
 
 /** The `store` op databank drives: one document chunk, with the ingest pass's abort. */
 type EmbedDocumentChunkOp = (params: DocumentChunkStoreInput & { readonly signal?: AbortSignal | undefined }) => Promise<StoreResult>;
-
-/** Read a user's databank settings (chunk params + retrieval knobs). v1 returns the schema defaults (ST's
- *  bank-wide values); the per-user override lands with the Phase-6 panel. */
-type GetDatabankSettingsOp = (ownerId: UserId) => Promise<DatabankSettings>;
 
 /** The DI bundle every databank verb + the ingest subsystem close over (assembled at `entry/compose`). */
 export interface DatabankContext {
@@ -176,10 +169,12 @@ export interface DatabankContext {
   /** @see emitRoomDatabankChanged — the global-scope attach/detach arm. */
   readonly fanDatabankRoomsForMember: (ownerId: UserId) => Promise<void>;
   /** @see emitRoomDatabankChanged — the `remove` arm: call BEFORE the delete, fan the thunk after. */
-  readonly captureRoomReachForDelete: (documentId: DocumentId) => Promise<() => void>;
+  readonly captureRoomReachForDelete: CaptureDatabankRoomReachOp;
   // injected cross-feature ops (types from the owning contracts; wired at compose)
   readonly assetsStore: AssetsStoreOp;
-  readonly loadAssetBytes: LoadAssetBytesOp;
+  /** Re-read a document's original CAS bytes by asset id (the re-extract path). `undefined` when the blob was
+   *  purged (a degraded doc that can no longer re-extract — never a block). */
+  readonly loadAssetBytes: LoadAssetBytes;
   readonly embeddingsStore: EmbedDocumentChunkOp;
   readonly pruneDocumentChunks: PruneDocumentChunksOp;
   /** The DocumentView chunk-count read — embeddings owns `document_chunks`, so databank never imports the
@@ -225,7 +220,7 @@ export interface DatabankService {
    *  extraction fails the upload atomically (nothing persisted — `extractedText` is NOT NULL canon). */
   readonly upload: (params: UploadDocumentParams) => Promise<UploadResult>;
   /** origin 'text' — no bytes, no extraction; straight to canon + enqueue ingest. */
-  readonly createFromText: (params: CreateFromTextParams) => Promise<UploadResult>;
+  readonly createFromText: CreateDocumentFromText;
   /** origin 'web' (DB7): fetch the page over the ANY_HOST safeFetch guard → html extraction → the §2 canon
    *  pipeline. A refused/failed fetch throws a leak-free `ScrapeFailedError` (BAD_REQUEST); never retried. */
   readonly scrapeWeb: (params: ScrapeWebParams) => Promise<UploadResult>;

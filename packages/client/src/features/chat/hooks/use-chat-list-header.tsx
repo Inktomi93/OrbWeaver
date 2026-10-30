@@ -54,7 +54,7 @@ export function useChatListHeader(): ListPaneHeaderView {
           <Tooltip>
             <TooltipTrigger
               render={
-                <Button aria-label={IMPORT_CHAT_LABEL} variant="ghost" onClick={(): void => setImportOpen(true)} size="icon-sm">
+                <Button aria-label={IMPORT_CHAT_LABEL} variant="ghost" onClick={(): void => setImportOpen(true)} size="sm" square={true}>
                   <Icon icon={Upload} size="sm" />
                 </Button>
               }

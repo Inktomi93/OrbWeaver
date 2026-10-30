@@ -87,7 +87,7 @@ export interface NumberFieldProps extends NumberFieldRootProps, VariantProps<typ
  * `numeric` and narrows it per-platform (iOS drops to `text` when `min` allows negatives, whose soft
  * keyboard has no minus key), so an override would break negative entry on iOS.
  *
- * `size="inline"` is the slider's number twin: a compact mono cell that
+ * `layout="inline"` is the slider's number twin: a compact mono cell that
  * OMITS the Increment/Decrement parts (R2's sanctioned omission — a knob row's coarse steps are the slider
  * beside it, and two stepper buttons per row would triple a seven-row deck's control count). Nothing is
  * lost: ArrowUp/ArrowDown on the input still step, `scrubLabel` still drags, and the derived bounds
@@ -95,12 +95,22 @@ export interface NumberFieldProps extends NumberFieldRootProps, VariantProps<typ
  * signals through the input's own `readonly` semantics alone.
  */
 export function NumberField(props: NumberFieldProps): ReactElement {
-  const { className, scrubLabel, scrubDirection = "horizontal", placeholder, "aria-describedby": describedBy, "aria-label": ariaLabel, size, ...rest } = props;
-  const slots = numberFieldVariants({ size });
+  const {
+    className,
+    scrubLabel,
+    scrubDirection = "horizontal",
+    placeholder,
+    "aria-describedby": describedBy,
+    "aria-label": ariaLabel,
+    size,
+    layout,
+    ...rest
+  } = props;
+  const slots = numberFieldVariants({ size, layout });
   const identity = useFieldIdentity(rest.id, rest.name);
   // Base UI mirrors the name onto a hidden number input only; the visible input a user fills carries it too.
   const nameProp = identity.name === undefined ? {} : { name: identity.name };
-  const hasSteppers = size !== "inline";
+  const hasSteppers = layout !== "inline";
   const hasScrub = scrubLabel !== undefined && scrubLabel !== null;
   const boundsId = useId();
   const bounds = boundsDescription(rest.min, rest.max, rest.locale, rest.format);
@@ -130,9 +140,8 @@ export function NumberField(props: NumberFieldProps): ReactElement {
             <Icon className={slots.stepReadOnlyIcon()} icon={Lock} size="xs" />
           </BaseNumberField.Decrement>
         ) : null}
-        {/* STAMP SITE (#1097): the INPUT. `size` sets the input's own control height (and whether the
-            steppers exist at all), and the input is the interactive element the tap-target census keys
-            on — a stamp on the outer root would be invisible to it (identity never walks ancestors). */}
+        {/* STAMP SITE: the INPUT. It is the interactive element the tap-target census keys on — a stamp on
+            the outer root would be invisible to it (identity never walks ancestors). */}
         <BaseNumberField.Input
           aria-describedby={inputDescribedBy === "" ? undefined : inputDescribedBy}
           aria-label={ariaLabel}
@@ -140,7 +149,7 @@ export function NumberField(props: NumberFieldProps): ReactElement {
           data-slot="number-field-input"
           {...nameProp}
           placeholder={placeholder}
-          {...variantAttrs(numberFieldVariants, { size })}
+          {...variantAttrs(numberFieldVariants, { size, layout })}
         />
         {hasSteppers ? (
           <BaseNumberField.Increment aria-label={stepperLabel(INCREMENT_LABEL, ariaLabel)} className={slots.increment()} data-slot="number-field-increment">

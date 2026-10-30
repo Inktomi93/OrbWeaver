@@ -10,7 +10,7 @@
 // (`rosterPreset`, "Rosters" — row 48); the `SeatKnobs` import below still comes from `./roster.ts`, which
 // is separate row-44 residue and moves under its own row.
 
-import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import { z } from "zod";
@@ -260,3 +260,10 @@ export interface BulkImportChatsResult {
    *  zero on a run that healed nothing (including every fresh import). */
   readonly chatsPersonaHealed: number;
 }
+
+/** The chat-owned bulk-import write op. Throws `DomainNotFoundError` when the target character is not the owner's. */
+export type BulkImportChatsOp = (args: {
+  readonly ownerId: UserId;
+  readonly characterId: CharacterId;
+  readonly chats: readonly BulkImportChatInput[];
+}) => Promise<BulkImportChatsResult>;

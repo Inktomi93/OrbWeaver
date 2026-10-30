@@ -14,12 +14,20 @@
 // and WIRED at the composition root (W1b-integration/W1c) — a verb closes over the DECLARED op, never reaches
 // sideways into chat (§2 one-directional flow). The runtime impls are chat/connection's, not this wave's.
 
-import type { ViewerVisibility } from "@orb/contracts/chat";
-import type { Can, ChatMembership, ParticipantRoleState } from "@orb/contracts/identity";
+import type {
+  ClaimChatOp,
+  GetMembership,
+  ResolveRpgCardCorpus,
+  ResolveRpgParticipants,
+  RpgCardCorpus,
+  SetRpgPointer,
+  ViewerVisibility,
+} from "@orb/contracts/chat";
+import type { Can, ParticipantRoleState } from "@orb/contracts/identity";
 import type { UserMacroSpec } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type {
-  ChatRpgPointer,
+  CancelStateRoundsOp,
   EmitRpgEvent,
   RpgConfigView,
   RpgDeliveryPath,
@@ -60,8 +68,8 @@ import type {
   RpgTurnToolCallsId,
   UserId,
 } from "@orb/kit/ids";
-import type { Clock, ScheduleOp } from "@orb/kit/time";
-import type { ResolveRpgCardCorpus, RpgCardCorpus, RpgTurnContext } from "#domain/chat";
+import type { Clock } from "@orb/kit/time";
+import type { RpgTurnContext } from "./chat-turn.ts";
 import type {
   AddJournalEntryParams,
   CreateCheckpointParams,
@@ -224,13 +232,6 @@ export interface RpgStagingStore {
  *  settle within the bound and the next turn proceeded on last-known state. Homed here (substrate-not-a-type-home). */
 export type FlushBarrierOnTimeout = (info: { readonly chatId: ChatId }) => void;
 
-/** The flush barrier's injected TIMER seam: schedule `fn` after `ms`, returning its cancel. The house
- *  `ScheduleOp` shape (`transport/jobs/workloads-worker.ts`), so the handle type never leaks. Injected for
- *  the same reason the clock is: the bound is then drivable from a test WITHOUT replacing the global clock
- *  (Spine-Testing.md §3 — the `test-determinism` gate bans `vi.useFakeTimers`). Required: production passes
- *  the root's `timers.timeout`. */
-export type FlushBarrierScheduleTimeout = ScheduleOp;
-
 /** The per-chat FLUSH BARRIER's public interface (impl: `flush-barrier.ts`). `onTurnCompleted` REGISTERS its
  *  in-flight flush; the gather AWAITS it before assembling the reminder, so a fast re-send reads the
  *  just-committed state, not stale state (the "one-beat-behind but GUARANTEED" contract). Bounded — a hung
@@ -256,7 +257,7 @@ export interface RpgFlushBarrier {
    *  barrier's job is to gate the next turn's assembly on SETTLEMENT, and a cancelled round still has to unwind
    *  (and clear its staging) before the next gather may read; dropping it here would re-open the stale-read race
    *  the barrier exists to close. */
-  readonly cancel: (chatId: ChatId, ownerUserId: UserId) => number;
+  readonly cancel: CancelStateRoundsOp;
 }
 
 export interface OwnedRpgFlushBarrier extends RpgFlushBarrier, AsyncDisposable {}
@@ -286,11 +287,6 @@ interface RpgFlushRegistration {
 
 // ── the injected cross-feature ops (§0/§3 — wired at compose, W1b-integration/W1c) ───────────────────────
 
-/** The narrow membership read (chat's `GetMembership` op, `domain/chat/contract/context.ts`). rpg gates EVERY
- *  verb through it — never a chat-table read (§4.4). `null` = not a present member / no such chat (ONE
- *  leak-free answer — the not-a-member and no-game cases are indistinguishable to the caller). */
-export type RpgGetMembership = (chatId: ChatId, userId: UserId) => Promise<ChatMembership | null>;
-
 /** THE viewer-visibility verdict for rpg's MEMBER-FACING READS (#1528), consumed from chat's ONE
  *  `resolveViewerVisibility` op — never re-derived here. Two halves, both DATA (D106-F1):
  *
@@ -302,21 +298,9 @@ export type RpgGetMembership = (chatId: ChatId, userId: UserId) => Promise<ChatM
  *     rpg plane that keeps PER-TURN rows, so a `from-join` member must not read entries distilled from turns
  *     below their floor.
  *
- *  `null` = not a present member / no such chat — the same leak-free answer {@link RpgGetMembership} gives,
+ *  `null` = not a present member / no such chat — the same leak-free answer {@link GetMembership} gives,
  *  and the fail-CLOSED sentinel: an absent member must never surface as floor 0, which reads as UNCLAMPED. */
 export type RpgResolveViewerVisibility = (chatId: ChatId, userId: UserId) => Promise<ViewerVisibility | null>;
-
-/** The opaque pointer write (chat's `setRpgPointer`, §3.1). `createGame`, the `updateConfig` engaged toggle and the
- *  game fork call it so the client's takeover gate is a sync read off `ChatDetail` — rpg never reads it back.
- *  `null` DELETES the pointer (the dangling-pointer heal §3.3 — `detachDanglingPointer` nulls a pointer at a
- *  vanished game). */
-export type RpgSetPointer = (chatId: ChatId, pointer: ChatRpgPointer | null) => Promise<void>;
-
-/** Chat's husk→real transition (R0 F4(a)). Every host write verb calls it right after its authority gate, so a
- *  room whose game the host authored is listed and never reaped. Idempotent; a claimed room is a no-op. */
-type RpgClaimChat = (chatId: ChatId) => Promise<void>;
-/** Chat resolves participant names and avatars; RPG consumes the shared projection without reading chat tables. */
-export type RpgResolveParticipants = (chatId: ChatId) => Promise<readonly RpgParticipantActor[]>;
 
 /** R4 — PROMOTION's durable half: resolve-or-mint a marked character CARD from a promoted NPC and ensure its
  *  chat participant seat, returning the stable `CharacterId` the actor row is re-keyed onto. The one rpg write that
@@ -659,15 +643,21 @@ export interface RpgContext {
    *  remains the domain's ONE cited chokepoint: it owns the leak-free refusal SHAPE (not-found vs forbidden) and
    *  the verb-specific refusal sentence; the kernel owns the comparison. */
   readonly can: Can;
-  readonly getMembership: RpgGetMembership;
+  /** rpg gates every verb through the membership read, never a chat-table read. `null` is one leak-free answer for
+   *  not a present member and no such chat. */
+  readonly getMembership: GetMembership;
   /** #1528 — the member-facing reads' PROJECTION verdict (hidden-span posture + the D16 floor), resolved by
    *  chat's one cross-domain op. Distinct from `getMembership` on purpose: that answers "may this caller ACT"
    *  (the ENFORCEMENT class `guard.ts` gates on), this answers "what may this viewer SEE" (the DATA-PROJECTION
    *  class). Collapsing the two is the defect the spine's three-questions clause names. */
   readonly resolveViewerVisibility: RpgResolveViewerVisibility;
-  readonly setPointer: RpgSetPointer;
-  readonly claimChat: RpgClaimChat;
-  readonly resolveParticipants: RpgResolveParticipants;
+  /** The opaque pointer write: `createGame`, the `updateConfig` engaged toggle and the game fork call it so the
+   *  client's takeover gate is a sync read off `ChatDetail`. `null` deletes the pointer. */
+  readonly setPointer: SetRpgPointer;
+  /** Every host write verb claims the room right after its authority gate, so a room whose game the host authored is
+   *  listed and never reaped. Idempotent. */
+  readonly claimChat: ClaimChatOp;
+  readonly resolveParticipants: ResolveRpgParticipants;
   /** R4 — promotion's DURABLE half (mint the card + seat it among the participants), wired at compose over the
    *  character + chat front doors. rpg owns neither table; the verb owns the snapshot re-key alone. */
   readonly promoteToCharacter: RpgPromoteToCharacter;

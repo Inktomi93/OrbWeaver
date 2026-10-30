@@ -1,5 +1,6 @@
 // Imagery graph wiring; late-bound chat ops are dereferenced only when a request runs.
 
+import type { CharacterOwnedOp } from "@orb/contracts/character";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { ProviderExecutor } from "@orb/inference";
 import type { IdSource } from "@orb/kit/ids";
@@ -11,7 +12,7 @@ import type { CharacterService } from "#domain/character";
 import type { ExtractQuietDeps, ImageryRoomAccessDeps, ResolveViewerVisibility } from "#domain/chat";
 import { createImageryRoomAccess, createVisibleExtractQuiet } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
-import type { CaptionImageDeps, ImageryContext, ImageryService } from "#domain/imagery";
+import type { CaptionImageDeps, ImageryService } from "#domain/imagery";
 import { createCaptionImage, createImageProviderOps, createImageryInstructions, createImageryService, imageryToolDefinitions } from "#domain/imagery";
 import type { SettingsService } from "#domain/settings";
 import { createStatsBatchWiring } from "#domain/stats";
@@ -29,7 +30,7 @@ export interface ImageryComposeDeps {
   readonly executor: Pick<ProviderExecutor, "generateImage">;
   readonly assets: Pick<AssetsService, "store" | "readOwnedAssetBytes" | "addToGallery">;
   /** The owner-scoped character read the gallery add verb gates on — imagery's auto-add gate reads the same one. */
-  readonly characterOwned: ImageryContext["ownsCharacter"];
+  readonly characterOwned: CharacterOwnedOp;
   readonly character: Pick<CharacterService, "getCard" | "get">;
   /** The per-FUNDER role-client binder (§8.5b): the caption + extract-quiet side calls spend the run-as
    *  principal's own `summarize` row. */

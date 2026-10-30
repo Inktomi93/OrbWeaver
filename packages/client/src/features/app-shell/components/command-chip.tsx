@@ -29,7 +29,7 @@ export function CommandChip({ modalId, label, icon }: CommandChipProps): ReactNo
           render={
             <Button
               variant="ghost"
-              size="icon"
+              square={true}
               className="shell-topbar-icon-btn"
               // The DURABLE focus return for this modal: ModalHost reads it when a keyboard-opened palette
               // captured nobody (modal-host.tsx).

@@ -39,7 +39,8 @@
 // injection that re-states it would spend the prompt budget twice to say one thing and would put
 // contributor-authored text into the prompt body, which the wire channel does not do.
 
-import type { TeachingCollection, TeachingContext, TeachingContribution } from "#domain/chat";
+import type { TeachingCollection, TeachingContext } from "@orb/contracts/chat";
+import type { TeachingContribution } from "#domain/chat";
 import type { ToolUseService } from "./contract/service.ts";
 
 /** The contribution's ORDER. After chat's own rpg-gather projection (order 0) so a game's state block always

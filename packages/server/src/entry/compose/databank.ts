@@ -20,7 +20,7 @@ import type { SearchService } from "#domain/search";
 import type { SettingsService } from "#domain/settings";
 import { createGetDatabankSettings } from "#domain/settings";
 import type { WorkloadService } from "#domain/workloads";
-import type { AuditEntry, Logger } from "#foundation/observability";
+import type { AuditWiring, Logger } from "#foundation/observability";
 import { EXTRACTOR_VERSION } from "#infra/extraction";
 import type { ScopedEgress } from "#infra/network";
 import type { LiveBuses } from "#transport/trpc";
@@ -44,7 +44,7 @@ export interface DatabankComposeDeps {
   readonly idSource: IdSource;
   readonly db: DatabaseHandle;
   readonly now: Clock;
-  readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
+  readonly audit: AuditWiring["log"];
   readonly assetsStore: DatabankContext["assetsStore"];
   readonly loadAssetBytes: DatabankContext["loadAssetBytes"];
   readonly embeddings: Pick<EmbeddingsService, "store" | "pruneDocumentChunks" | "countDocumentChunks" | "countDocumentChunksByOwner">;

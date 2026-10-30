@@ -144,8 +144,8 @@ export function CharacterHeroBand({
 /** The click-to-replace portrait — immediate commit (upload-complete = commit). A confirmation ring
  *  flashes on the portrait (no toast).
  *
- *  The trigger is `size="media"`, never `size="icon"`: media sizes the button from its child, so the
- *  button box IS the portrait box. Under `size="icon"` the button stayed a 34px control while the 64px
+ *  The trigger is `size="media"`, never a `square`: media sizes the button from its child, so the
+ *  button box IS the portrait box. As a `square` the button stayed a 34px control while the 64px
  *  avatar would paint outside it — over the "Name" label — and the real click target would be the
  *  invisible control square. */
 function HeroPortrait({ detail, trpc }: { readonly detail: CharacterHeroDetail; readonly trpc: Trpc }): ReactElement {
@@ -319,7 +319,7 @@ function HeroActions({
           ACTION, `aria-pressed` describes the current STATE, and a control doing both inverts its meaning
           in exactly one of its two states. `Select multiple` on this same surface is the correct model
           (static name, `aria-pressed` false→true), which is what makes this a defect and not a style. */}
-      <Button type="button" variant="ghost" size="icon" aria-label="Hide spoilers" aria-pressed={spoilerBlur} onClick={toggleSpoilerBlur}>
+      <Button type="button" variant="ghost" square={true} aria-label="Hide spoilers" aria-pressed={spoilerBlur} onClick={toggleSpoilerBlur}>
         <Icon icon={spoilerBlur ? EyeOff : Eye} size="sm" />
       </Button>
     </Row>

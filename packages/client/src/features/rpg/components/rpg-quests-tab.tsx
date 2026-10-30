@@ -35,6 +35,7 @@ import { useDeleteQuest, useEditQuestObjective, useEditSnapshot, useUpsertQuest 
 import { buildPlotEdit } from "../lib/plot-edit.ts";
 import { RpgActRail } from "./rpg-act-rail.tsx";
 import { Kicker } from "./rpg-kicker.tsx";
+import type { AddRowAction } from "./tracker-blocks/index.ts";
 import { AddRow, TrackerValue } from "./tracker-blocks/index.ts";
 
 const MIN_CLOCK_SEGMENTS = 2;
@@ -231,7 +232,7 @@ export interface RpgQuestsTabProps {
 
 /** The host "New quest" affordance (no dead ends): the shared `AddRow` firing
  *  `upsertQuest` with NO `questId` (⇒ create). Tier-2 refusal + Enter-to-commit come with the primitive. */
-function NewQuest({ onCreate }: { readonly onCreate: (name: string) => void }): ReactElement {
+function NewQuest({ onCreate }: { readonly onCreate: AddRowAction["onAdd"] }): ReactElement {
   return <AddRow ariaLabel="New quest name" placeholder="Start a quest…" actions={[{ key: "quest", label: "New quest", icon: Plus, onAdd: onCreate }]} />;
 }
 

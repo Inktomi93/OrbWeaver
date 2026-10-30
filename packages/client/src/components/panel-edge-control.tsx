@@ -46,7 +46,8 @@ export function PanelEdgeControl({ expanded, noun, edge, controls, onToggle, foc
             variant={expanded ? "ghost" : "outline"}
             onClick={onToggle}
             ref={ref}
-            size="icon-sm"
+            size="sm"
+            square={true}
             type="button"
           >
             <Icon icon={expanded ? GLYPHS[edge].hide : GLYPHS[edge].show} size="sm" />

@@ -159,7 +159,7 @@ export function SectionRow({ form, section, index, zone, selected, onSelect, onD
               <Switch aria-label={`${name} enabled`} checked={field.state.value} onCheckedChange={(next): void => field.handleChange(next)} />
             )}
           </form.AppField>
-          <Button aria-label={`Edit ${name}`} variant="ghost" onClick={(): void => onDrill(section.id)} ref={chevronRef} size="icon" type="button">
+          <Button aria-label={`Edit ${name}`} variant="ghost" onClick={(): void => onDrill(section.id)} ref={chevronRef} square={true} type="button">
             <Icon icon={ChevronRight} size="sm" />
           </Button>
         </Row>

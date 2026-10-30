@@ -40,10 +40,20 @@ import { RpgPopulateControl } from "./rpg-populate-control.tsx";
 import { TrackerGrantsEditor } from "./rpg-tracker-grants.tsx";
 import { TrackerValue } from "./tracker-blocks/index.ts";
 
+/** The identity plane's write handlers. An absent handler means the viewer may not write that field, and the field
+ *  renders read-only or not at all. */
+interface IdentityEdits {
+  readonly onEditTitle?: (next: string) => void;
+  readonly onEditFlavor?: (next: string) => void;
+  readonly onEditLevel?: (next: number | null) => void;
+  readonly onEditCoin?: (name: string, next: number) => void;
+  readonly onReleaseCoin?: (name: string) => void;
+}
+
 /** The hand-only progression LEVEL (§2.6) — `Level N`, editable-in-place for the sheet owner/host. A null level
  *  is omitted from a READ-ONLY view (nullable-honesty: no phantom "Level 0"); an editable view shows an empty
  *  field so the owner can SET it. A blank/non-numeric commit clears the level (null). */
-function SheetLevel({ level, onEditLevel }: { readonly level: number | null; readonly onEditLevel?: (next: number | null) => void }): ReactElement | null {
+function SheetLevel({ level, onEditLevel }: { readonly level: number | null; readonly onEditLevel?: IdentityEdits["onEditLevel"] }): ReactElement | null {
   if (level === null && onEditLevel === undefined) {
     return null;
   }
@@ -85,7 +95,7 @@ function SheetLevel({ level, onEditLevel }: { readonly level: number | null; rea
  *  host's own words. `patchSheet` has always written it and nothing ever read it back. Click-to-edit for
  *  whoever may write the sheet; read-only + empty ⇒ nothing at all (a per-character line nobody wrote is not
  *  a missing feature, so it gets no "none yet" placeholder). Wraps — it is free prose, not a reading. */
-function SheetFlavor({ actor, onEditFlavor }: { readonly actor: RpgActorView; readonly onEditFlavor?: (next: string) => void }): ReactElement | null {
+function SheetFlavor({ actor, onEditFlavor }: { readonly actor: RpgActorView; readonly onEditFlavor?: IdentityEdits["onEditFlavor"] }): ReactElement | null {
   if (onEditFlavor === undefined) {
     if (actor.sheet.flavor === "") {
       return null;
@@ -174,8 +184,8 @@ function WalletChips({
   readonly wallet: readonly { readonly name: string; readonly amount: number }[];
   readonly lockBase: string;
   readonly lockedPaths: readonly string[];
-  readonly onEditAmount?: (name: string, next: number) => void;
-  readonly onRelease?: (name: string) => void;
+  readonly onEditAmount?: IdentityEdits["onEditCoin"];
+  readonly onRelease?: IdentityEdits["onReleaseCoin"];
 }): ReactElement {
   if (wallet.length === 0) {
     return (
@@ -213,16 +223,11 @@ function IdentityBlock({
   onEditLevel,
   onEditCoin,
   onReleaseCoin,
-}: {
+}: IdentityEdits & {
   readonly actor: RpgActorView;
   readonly lockBase: string;
   readonly lockedPaths: readonly string[];
   readonly edit?: ActorEdit;
-  readonly onEditTitle?: (next: string) => void;
-  readonly onEditFlavor?: (next: string) => void;
-  readonly onEditLevel?: (next: number | null) => void;
-  readonly onEditCoin?: (name: string, next: number) => void;
-  readonly onReleaseCoin?: (name: string) => void;
 }): ReactElement {
   return (
     <Row gap="block" align="start" data-slot="rpg-character-identity">
@@ -413,7 +418,7 @@ export function RpgCharacterDetail({ state, actor, edit, onBack }: RpgCharacterD
 
 /** The sheet TITLE beside the name ("Warden of House Vane") — the `className` field as a first-class datum,
  *  click-to-edit like everything else (patchSheet). Read-only + empty ⇒ nothing. */
-function SheetTitle({ actor, onEditTitle }: { readonly actor: RpgActorView; readonly onEditTitle?: (next: string) => void }): ReactElement | null {
+function SheetTitle({ actor, onEditTitle }: { readonly actor: RpgActorView; readonly onEditTitle?: IdentityEdits["onEditTitle"] }): ReactElement | null {
   if (onEditTitle === undefined) {
     if (actor.sheet.className === "") {
       return null;

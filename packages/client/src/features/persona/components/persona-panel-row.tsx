@@ -108,7 +108,7 @@ export function PersonaPanelRow({
                 className="relative shrink-0"
                 variant="ghost"
                 onClick={onToggleExpand}
-                size="icon"
+                square={true}
               >
                 <Icon icon={expanded ? ChevronDown : ChevronRight} size="sm" />
               </Button>
@@ -164,7 +164,7 @@ function FavoriteToggle({ starred, subject, onToggle }: { readonly starred: bool
                 aria-pressed={starred}
                 variant="ghost"
                 onClick={onToggle}
-                size={starred ? "inline" : "icon"}
+                {...(starred ? { size: "inline" } : { square: true })}
                 tone={starred ? "destructive" : undefined}
               >
                 <Icon icon={Heart} size="sm" />

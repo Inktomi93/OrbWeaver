@@ -9,7 +9,7 @@ import { rowLiveness } from "./announce.ts";
 import { useScrollportSync, useTailRepin } from "./content-growth.ts";
 import { attachUserScrollInput, shouldAdjustForResizedItem, USER_SCROLL_YIELD_MS } from "./follow-yield.ts";
 import { composeRangeExtractor, updateEdgeFades } from "./list-window.ts";
-import type { MessageListRowNavigation } from "./row-roving.ts";
+import type { MessageListRowNavigation, RowRovingOptions } from "./row-roving.ts";
 import { MESSAGE_LIST_ROW_SLOT, useRowRoving } from "./row-roving.ts";
 
 // Chat rows are tall and expensive Markdown trees. Two rows covers a fast scroll gesture without parsing
@@ -44,8 +44,7 @@ export interface MessageListProps<T> {
   /** Accessible name for the live log region (for example, "Conversation messages" or "Log entries"). */
   readonly ariaLabel?: string;
   readonly items: readonly T[];
-  /** Stable per-item key — must be id-based, not index (the list both appends and prepends). */
-  readonly getItemKey: (item: T, index: number) => string | number;
+  readonly getItemKey: RowRovingOptions<T>["getItemKey"];
   /** Initial size guess per row (px, main axis) — rows re-measure themselves after mount. */
   readonly estimateSize: (index: number) => number;
   /** Rows rendered beyond the visible window on each side; default is deeper than virtual-list's. */

@@ -122,7 +122,7 @@ interface OrbDebugHandle {
   /** The durable-local namespace's bound identity (`state/durable-local.ts`) — `null` before the viewer
    *  read binds it (the pre-adoption legacy world). The lens a test or this bridge asserts the
    *  per-user localStorage scoping through, without reaching into `localStorage` by hand. */
-  readonly durableLocalUserId: () => string | null;
+  readonly durableLocalUserId: OrbAgentHandles["durableLocalUserId"];
   /** Exhaustive, typed inventory of this top-level handle. */
   readonly capabilities: () => Readonly<Record<keyof OrbDebugHandle, string>>;
   /** Evidence-source index: read surface, lifetime, and whether this client owns a safe reset. */

@@ -23,7 +23,9 @@ import type {
   ChatWarning,
   ContentSignatures,
   DurableChatBusEvent,
+  GenerationObservationParent,
   MessageView,
+  RpgTurnTranscriptMessage,
   TokenProvenance,
   TurnAbortReason,
   VariantMetadata,
@@ -53,7 +55,7 @@ import type { Logger } from "#foundation/observability";
 import { getLog, withRequestSpan } from "#foundation/observability";
 import type { EngineContext, EngineContextInput, EngineDeps } from "../contract/engine-context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
-import type { GenerationObservationParent, GenerationObservationSession, RetainedTurnStats } from "../contract/generation-observation.ts";
+import type { GenerationObservationSession, RetainedTurnStats } from "../contract/generation-observation.ts";
 import type { TurnRetrievalWarningEpisode } from "../contract/memory.ts";
 import { resolveToolRecurseLimit } from "../contract/metadata.ts";
 import type {
@@ -69,7 +71,7 @@ import type {
   TurnPrep,
 } from "../contract/results.ts";
 import { KIND_TO_INTENT } from "../contract/results.ts";
-import type { RpgTurnContext, RpgTurnTranscriptMessage } from "../contract/rpg-turn.ts";
+import type { RpgTurnContext } from "../contract/rpg-turn.ts";
 import {
   appendVariantStatements,
   buildCommittedMessageView,

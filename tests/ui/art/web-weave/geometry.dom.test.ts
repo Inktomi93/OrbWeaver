@@ -1,7 +1,8 @@
 import { expect, test } from "@orb/testkit/node";
 import { webGlyph } from "#ui/art/web-weave/web-glyph.ts";
-import type { BuildWebInput, WeavePoint } from "#ui/art/web-weave/web-weave-geometry.ts";
+import type { BuildWebInput } from "#ui/art/web-weave/web-weave-geometry.ts";
 import { buildStrandOut, buildWeb } from "#ui/art/web-weave/web-weave-geometry.ts";
+import type { WeavePoint } from "#ui/art/web-weave/web-weave-math.ts";
 import { weaveJitter, wrapToPi } from "#ui/art/web-weave/web-weave-math.ts";
 import { WEAVE_TIMELINE, weavePhaseAt } from "#ui/art/web-weave/web-weave-timeline.ts";
 

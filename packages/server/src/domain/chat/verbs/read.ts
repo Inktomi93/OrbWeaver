@@ -41,8 +41,11 @@ import type {
   MessageVariantSummary,
   MessageView,
   NextTurnConnectionView,
+  ParticipantData,
   SectionPreview,
   ShapeTrace,
+  TeachingIdentity,
+  TeachingKnobs,
   VariantWireView,
 } from "@orb/contracts/chat";
 import { buildIdentityNameContext, CHAT_LIST_MAX_LIMIT, CHAT_MESSAGE_LIST_MAX_LIMIT, DEFAULT_GROUP_CONFIG, projectViewForMember } from "@orb/contracts/chat";
@@ -74,7 +77,7 @@ import { estimateTokens } from "@orb/kit/tokens";
 import { getLog } from "#foundation/observability";
 import { captureParticipantRole } from "#primitives/role-data";
 import type { MacroRenderEnv } from "../contract/assembly-macros.ts";
-import type { ChatContext, ChatServiceDeps, LoadParticipantViewsOp, TeachingIdentity, TeachingKnobs } from "../contract/context.ts";
+import type { ChatContext, ChatServiceDeps, LoadParticipantViewsOp } from "../contract/context.ts";
 import { ChatNotFoundError } from "../contract/errors.ts";
 import type { ForeignInputs, HumanSeatPersona, ResolveForeignInputsOp } from "../contract/foreign.ts";
 import { DEFAULT_CHAT_BEHAVIOR } from "../contract/foreign.ts";
@@ -114,7 +117,6 @@ import type {
   ChatListPageData,
   ChatStreamReplayEvent,
   ChatSummaryData,
-  ParticipantData,
   StreamEventBounds,
 } from "../contract/views.ts";
 import { gateLineagePerAncestor, requireHost, requireParticipant } from "../guard.ts";

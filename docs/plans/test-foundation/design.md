@@ -183,23 +183,23 @@ This is a bounded case map for seven reference files. It is not an audit of the 
 
 #### Bridge
 
-The legacy file drove `buildPluginBridge` over a bundle of fake host operations and asserted what they recorded. The root does not expose those operations, so the fake bundle is dropped. The Tier-C relay `uiHostCall` reaches the real bridge without a guest, and its proxy tuple admits the canon reads and the variable operations. Those cases are rebuilt there. The other cases test plugin capability enforcement, which is security-role work. The security batch rebuilds them through a real built guest on the production host: a showcase plugin, or a test guest built by the plugin toolchain.
+The legacy file drove `buildPluginBridge` over a bundle of fake host operations and asserted what they recorded. The root does not expose those operations, so the fake bundle is dropped. The Tier-C relay `uiHostCall` reaches the real bridge without a guest, and its proxy tuple admits the canon reads and the variable operations. Those cases are rebuilt there. The other cases test plugin capability enforcement. They are rebuilt through a real guest on the production host: a guest whose one command runs a named host call in the invoking room and logs what it saw ([guest command](../../../tests/server/domain/plugin/substrate/_guest-command.ts)). Each suite reads the outcome through the owner's plugin log and the product's own read verbs.
 
 | Behavior | Primary home and maintained evidence | Decision |
 | - | - | - |
 | Floor mechanics: ceiling, window release, per-plugin keys and per-room notice keys | Unit: [call floors](../../../tests/server/domain/plugin/substrate/call-floors.test.ts) calls the production floor factories with test limits on the injected clock. | Move. |
-| The pairing of each capability with its production limit as composed in `entry/compose/automation-plugin.ts`, including `search.query` | The pairing is built inline in the composition root and no door exposes it. Enforcing it is capability enforcement. | Move to security batch. |
-| The synchronous-claim burst on the floors | Each floor is one synchronous step by construction. The ordering that matters is the bridge claiming before it awaits the operation. | Drop the floor-only burst. The bridge ordering moves to the security batch. |
-| A snippet with no plugin identity cannot egress or spend | Capability enforcement. | Move to security batch. |
-| `llm.quiet` closes the installer and shares one hourly lane with its options. The paid call never starts over the ceiling. Liveness becomes the provider abort signal | Capability enforcement. | Move to security batch. |
-| `turn.trigger` attributes the installer and threads the depth | Capability enforcement. | Move to security batch. |
+| The pairing of each capability with its production limit as composed in `entry/compose/automation-plugin.ts`, including `search.query` | Integration with a real guest: [guest call floors](../../../tests/server/domain/plugin/substrate/guest-call-floors.suite.int.test.ts) drives `llm.quiet`, `search.query`, `net.fetch` and `net.fetchAsset` to their production ceilings, counts the requests that leave the box, and checks a second plugin's budget and the hour roll. It also owns the notice cooldown on the root's clock. | Rebuild. |
+| The synchronous-claim burst on the floors | Each floor is one synchronous step by construction. The ordering that matters is the bridge claiming before it awaits the operation: in [guest call floors](../../../tests/server/domain/plugin/substrate/guest-call-floors.suite.int.test.ts), a quiet claim taken after the paid call lets one request leave past the ceiling. | Drop the floor-only burst. Rebuild the ordering. |
+| A snippet with no plugin identity cannot egress or spend | Integration: [guest installer scope](../../../tests/server/domain/plugin/substrate/guest-installer-scope.suite.int.test.ts) runs a real snippet. `llm.quiet`, `net.fetch` and `search.query` refuse with the capability error and no request leaves, while its own `chat.read` grant reads. The bridge's identity check is the second layer: a widened snippet grant reaches it and is refused with another error. | Rebuild. |
+| `llm.quiet` closes the installer and shares one hourly lane with its options. The paid call never starts over the ceiling. Liveness becomes the provider abort signal | [Guest installer scope](../../../tests/server/domain/plugin/substrate/guest-installer-scope.suite.int.test.ts): another owner's image id is refused before any request, the installer's own image is attached, and disabling the plugin aborts the in-flight provider request. [guest call floors](../../../tests/server/domain/plugin/substrate/guest-call-floors.suite.int.test.ts): plain and structured calls share one lane, and no request leaves past the ceiling. | Rebuild. |
+| `turn.trigger` attributes the installer and threads the depth | [Guest room reads](../../../tests/server/domain/plugin/substrate/guest-room-reads.suite.int.test.ts): a member's request becomes the host's to confirm and runs no turn, and a host who hands the seat off mid-invocation runs no further turn. [Plugin origin stamps](../../../tests/server/domain/chat/persistence/plugin-origin-stamps.int.test.ts) owns the depth and the invoking room. | Rebuild. |
 | Canon reads carry the installer's history floor and hidden-content verdict | Integration: [relay bridge](../../../tests/server/domain/plugin/verbs/ui-host-call-bridge.int.test.ts) reads through `uiHostCall` as a from-join member and as a host. The host read is the positive control. | Rebuild. |
 | Variable operations close over the installer | Integration: the same relay bridge file sets, reads and deletes as two users and checks that neither sees the other's values. | Rebuild. |
-| A non-member installer reads nothing. Roster, book and entry reads are member-gated and attachment-gated | The relay refuses a non-member at the room gate, and the roster, book and entry reads are outside its proxy tuple. The viewer decision is owned by [role authority](../../../tests/server/domain/chat/verbs/role-authority.int.test.ts) and [member visibility](../../../tests/server/domain/chat/substrate/member-visibility.int.test.ts). | Move to security batch. |
-| A guest lore write has macros neutralized, needs an attached book, is title-namespaced per plugin and capped at the entry ceiling | Capability enforcement. This is the capability-bypass pin: a stored live macro is a deferred variable write. | Move to security batch. Priority case. |
-| Asset, search, databank and character ingest operations close over the installer | Capability enforcement. | Move to security batch. |
-| Card-state operations stamp the plugin's own slug and the installer | The storage walls are rebuilt below. The guest-side stamping is capability enforcement. | Move to security batch. |
-| Imagery returns the asset id and never the cost | Capability enforcement. | Move to security batch. |
+| A non-member installer reads nothing. Roster, book and entry reads are member-gated and attachment-gated | [Guest room reads](../../../tests/server/domain/plugin/substrate/guest-room-reads.suite.int.test.ts): an installer kicked while the guest waits mid-invocation reads no canon, roster, variables or books, and entries come only from a book attached to the invoking room. The viewer decision is owned by [role authority](../../../tests/server/domain/chat/verbs/role-authority.int.test.ts) and [member visibility](../../../tests/server/domain/chat/substrate/member-visibility.int.test.ts). | Rebuild. |
+| A guest lore write has macros neutralized, needs an attached book, is title-namespaced per plugin and capped at the entry ceiling | [Guest lore write](../../../tests/server/domain/plugin/substrate/guest-lore-write.suite.int.test.ts): the turn that renders a guest's live `{{setvar}}` entry changes no variable, while a human entry's macro on the same key runs. An unattached book is refused, each plugin keeps its own entry per key, and the ceiling is `PLUGIN_LORE_ENTRIES_PER_BOOK_MAX` in `@orb/contracts/plugin`. | Rebuild. |
+| Asset, search, databank and character ingest operations close over the installer | [Guest installer scope](../../../tests/server/domain/plugin/substrate/guest-installer-scope.suite.int.test.ts): an asset read resolves only the installer's own storage, and a databank document and a character ingest land in the installer's library with the calling plugin's provenance. [guest call floors](../../../tests/server/domain/plugin/substrate/guest-call-floors.suite.int.test.ts) owns the search ceiling. | Rebuild in part. Open: the cross-owner `search.query` scope needs two indexed owner corpora. |
+| Card-state operations stamp the plugin's own slug and the installer | The storage walls are rebuilt below. [guest installer scope](../../../tests/server/domain/plugin/substrate/guest-installer-scope.suite.int.test.ts): a sibling plugin of the same installer reads nothing and does not overwrite, a foreign character is refused, and another installer's plugin with the same slug cannot read. | Rebuild. |
+| Imagery returns the asset id and never the cost | [Corpus plugin host](../../../tests/support/node/corpus-plugin-host.int.test.ts) generates through a real guest and reads the asset bytes and its generation's room and connection. The `imagery.generatePicture` op in the plugin domain's contract returns `{ assetId }` only, so a cost field fails `tsc`. | Keep. |
 
 #### Plugin card data
 
@@ -471,6 +471,7 @@ Legacy paths are relative to the external source named in [Spine-Testing](../../
 | [Boot migration deps](../../../tests/server/entry/boot/migrate.test-d.ts) | Type, `runBootMigrations` accepts no posture or reset option |
 | [Env floor](../../../tests/server/foundation/env/record/floor-defaults.test.ts) | Unit, the production `parseEnv` through `createTestEnv` |
 | [Env file load](../../../tests/server/foundation/env/env-file-load.int.test.ts) | Integration, the production process env module in a fresh node process per case ([child](../../../tests/support/node/env-file-child.ts)); the load runs once at import from the working directory and process environment, so one process cannot vary it |
+| [Host env allowlist](../../../tests/server/foundation/env/host-env-allowlist.int.test.ts) | Integration, `hostEnvAllowlist` and the boot secret scrub in a fresh node process ([child](../../../tests/support/node/host-env-child.ts)), because the scrub deletes from the process environment |
 | [Boot disclaimer](../../../tests/server/entry/boot/disclaimer.test.ts) | Unit, `composeBootDisclaimer` with posture values derived from a parsed record |
 
 Decisions for `server/entry/boot/migrate.int.test.ts`:
@@ -516,8 +517,8 @@ Decisions for `server/entry/boot/migrate-data-layout.int.test.ts`:
 | Failing resume boots leave one snapshot | Rebuild | Apply-time failure case. |
 | Apply-time rename failure keeps the journal until the env names the remedy | Rebuild | Same case, with the no-op boot after the remedy. |
 | Legacy database on another filesystem refuses with the `DATABASE_URL` value that keeps it | Rebuild, narrowed | The keeper table runs the working value from `fileDatabaseUrl`. The refusal wording and the value parsed from it are not asserted. |
-| Kept keyfile is warned with its keeper | Move to security batch | A secrets warning. |
-| Stranded session secret is warned on every boot | Move to security batch | A session pepper warning. |
+| Kept keyfile is warned with its keeper | Rebuild | Layout move suite, through the migration script in a child process whose production logger's warnings ride the outcome. A control boot without the key moves the keyfile and warns nothing. |
+| Stranded session secret is warned on every boot | Rebuild | Same suite: two boots with a different `SESSION_SECRET` each warn with the file and its keeper; the same pepper and no explicit secret are silent. |
 
 Decisions for `server/foundation/data-layout/index.test.ts`:
 
@@ -548,7 +549,7 @@ Decisions for `server/foundation/env/floor-defaults.test.ts`:
 | Boolean toggles transform | Rebuild | Env floor, on a non-security knob. |
 | Boolean knobs refuse widened spellings | Rebuild | Same. |
 | Boolean knobs accept exactly `true` and `false` | Rebuild | Same. |
-| `processEnvSnapshot` is a copy | Move to security batch | The agent child-env baseline; the function is now `hostEnvAllowlist`. |
+| `processEnvSnapshot` is a copy | Rebuild | Host env allowlist: an edit to a returned baseline never reaches the next read, and after the boot scrub the app secret is gone while the host's own variable stays. |
 
 Decisions for `server/foundation/env/env-file-load.test.ts`:
 
@@ -562,8 +563,8 @@ Decisions for `server/foundation/env/env-file-load.test.ts`:
 | `KEY: value` lines ignored | Drop | Behavior of the platform parser. |
 | `ORB_ENV_NO_FILE` skips the load | Rebuild | Same, with a control. |
 | The test config sets `ORB_ENV_NO_FILE` | Drop | A runner configuration literal; the tooling mirror owns runner configuration. |
-| `AUTH_FALLBACK` in `.env` is boot-fatal, and absent boots clean | Move to security batch | Auth posture. The child-process reader above is the way to drive the load. |
-| Deleted `SESSION_COOKIE_INSECURE` stays inert | Move to security batch | Cookie transport. |
+| `AUTH_FALLBACK` in `.env` is boot-fatal, and absent boots clean | Rebuild | Env file load, for `AUTH_FALLBACK` and `AUTH_FALLBACK_TRUSTED_PEERS`: the line in `.env` refuses the boot, while the same file without it boots at the mode's default and the launch environment may set it. The refusal text is not asserted. |
+| Deleted `SESSION_COOKIE_INSECURE` stays inert | Rebuild | Env file load, for each spelling from the launch environment and from `.env`: the boot proceeds and the record has no such field. |
 
 Decisions for `server/entry/boot/disclaimer.test.ts`:
 
@@ -578,7 +579,7 @@ Decisions for `server/entry/boot/disclaimer.test.ts`:
 | Every security line is a warning | Rebuild | Folded into the exposure case, asserted for each kind. |
 | Break-glass line | Rebuild | Same, with a control per ingredient. |
 
-Defect controls: each guarded production behavior was planted in a worktree and the named case failed for its intended reason. The planted behaviors are the drifted-chain refusal, the posture option type, the backup gate, the abort on a failed backup, the retention sweep and its boot gating, debris replacement, the target-conflict check, the cross-device pre-flight, the sole-holder claim, the first-boot snapshot, own-pid and live-pid journal handling, keeper and skip-list planning, zero-byte handling, the resume snapshot rule, the skip validation, explicit-set recording, the boolean vocabulary, the gate defaults, the parse-time skip check, the override direction, the byte-order mark, `ORB_ENV_NO_FILE` and each disclaimer gate.
+Defect controls: each guarded production behavior was planted in a worktree and the named case failed for its intended reason. The planted behaviors are the drifted-chain refusal, the posture option type, the backup gate, the abort on a failed backup, the retention sweep and its boot gating, debris replacement, the target-conflict check, the cross-device pre-flight, the sole-holder claim, the first-boot snapshot, own-pid and live-pid journal handling, keeper and skip-list planning, zero-byte handling, the resume snapshot rule, the skip validation, explicit-set recording, the boolean vocabulary, the gate defaults, the parse-time skip check, the override direction, the byte-order mark, `ORB_ENV_NO_FILE`, each disclaimer gate, the kept-keyfile and stranded-secret warnings, the launch-only `.env` refusal, the dropped cookie knob, and the baseline's copy and fresh read.
 
 ### Server composition
 

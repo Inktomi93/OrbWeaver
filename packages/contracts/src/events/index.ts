@@ -9,6 +9,7 @@
 // typed against `DomainEvent`. CLOSED union: credentials/secrets are type-level unrepresentable here (a
 // payload is only a branded id — the subscriber re-reads canon by id, never trusting event-carried data).
 import type { AssetId, CharacterId, PersonaId, WorldBookId } from "@orb/kit/ids";
+import type { PubSub } from "@orb/kit/pubsub";
 
 // The discriminant axis (§7.5 one-union; a new event = a member here + a handler, nowhere else). The
 // agents/rpg domain-event mirrors (curated, id-only subsets
@@ -87,4 +88,4 @@ interface WorldInfoUpdatedEvent {
 export type DomainEvent = CharacterUpdatedEvent | AssetCreatedEvent | PersonaUpdatedEvent | WorldInfoUpdatedEvent;
 
 /** The injected op an emitting domain calls; the composition root binds it to the bus. */
-export type EmitDomainEvent = (event: DomainEvent) => void;
+export type EmitDomainEvent = PubSub<DomainEvent>["emit"];

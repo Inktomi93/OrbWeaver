@@ -1,17 +1,19 @@
-import { DISABLED_STATE, DISABLED_STATE_NATIVE, FOCUS_RING_INSET, tv } from "#lib";
+import { CONTROL_BLOCK, CONTROL_INLINE, DISABLED_STATE, DISABLED_STATE_NATIVE, FOCUS_RING_INSET, TOUCH_TARGET_PSEUDO, tv } from "#lib";
 
-// Steppers are full size-(--size-touch-target) squares; rings go inset because the group clips overflow for
-// the rounded border.
+// The group is the field's box at the step's height; the steppers are the step's width and fill its height, and rings go
+// inset because a stepper sits flush against the group's edge. Inside the group's 1px edge a child is 2px short of the
+// step, which at the `sm` step under a finger is under the tap floor. So the transparent input spans the edge itself, and
+// a stepper, whose hover fill would cover the edge, carries the touch-target hit area across it instead. The group does
+// not clip its children for that reason: the steppers and the stepper-less input round their own outer corners.
+
 export const numberFieldVariants = tv({
   slots: {
     root: `flex flex-col gap-field ${DISABLED_STATE}`,
     scrubArea: "flex cursor-ew-resize items-center gap-row text-label leading-label font-medium text-muted-foreground select-none inline-fit",
     scrubCursor: "flex text-foreground",
-    group: ["flex items-stretch overflow-hidden rounded-control border border-input-border bg-field-fill inline-full", "data-invalid:border-destructive"],
+    group: ["flex items-stretch rounded-control border border-input-border bg-field-fill inline-full", "data-invalid:border-destructive"],
     decrement: [
-      `
-        group flex shrink-0 cursor-pointer items-center justify-center border-e border-input-border text-foreground select-none block-(--size-touch-target)
-        inline-(--size-touch-target)
+      `group relative flex shrink-0 cursor-pointer items-center justify-center rounded-s-control border-e border-input-border text-foreground select-none ${TOUCH_TARGET_PSEUDO}
       `,
       "transition-colors duration-(--motion-fast) ease-out-expo hover:bg-accent active:bg-accent/80",
       `outline-none ${FOCUS_RING_INSET}`,
@@ -19,16 +21,14 @@ export const numberFieldVariants = tv({
       "data-readonly:cursor-default",
     ],
     input: [
-      "bg-transparent text-foreground tabular-nums inline-full min-inline-0",
+      "-my-(--border-width-control) bg-transparent text-foreground tabular-nums inline-full min-inline-0",
       "placeholder:text-muted-foreground",
       `outline-none ${FOCUS_RING_INSET}`,
       DISABLED_STATE,
       "data-invalid:text-destructive",
     ],
     increment: [
-      `
-        group flex shrink-0 cursor-pointer items-center justify-center border-s border-input-border text-foreground select-none block-(--size-touch-target)
-        inline-(--size-touch-target)
+      `group relative flex shrink-0 cursor-pointer items-center justify-center rounded-e-control border-s border-input-border text-foreground select-none ${TOUCH_TARGET_PSEUDO}
       `,
       "transition-colors duration-(--motion-fast) ease-out-expo hover:bg-accent active:bg-accent/80",
       `outline-none ${FOCUS_RING_INSET}`,
@@ -41,24 +41,23 @@ export const numberFieldVariants = tv({
     stepIcon: "group-data-readonly:hidden",
     stepReadOnlyIcon: "hidden group-data-readonly:block",
   },
-  // The SIZE axis owns the whole box — the field's width and the input's height/type step — because a
-  // control height must not be settable from outside (the Button `size="wrap"` / TabsTab `layout="stacked"`
-  // precedent). Pre-#146 the reason was that tailwind-merge could not classify the custom token, so a
-  // call-site override resolved by stylesheet order; with the spacing scale registered it resolves
-  // last-wins, i.e. the call site silently beats the seal. Either way the axis owns the box and nothing
-  // else here may set a height.
-  //
-  // `md` is the default full-width form field, byte-identical to the pre-axis skin (a 44px stepper-flanked
-  // input with centered body type). `inline` is the knob-row twin: a
-  // stepper-less mono cell in `--width-number-inline`, right-aligned so a column of knob values reads down
-  // one number edge, at the `code` type step because a slider's number twin is a datum, not prose. Its
-  // input keeps `h-(--size-control-sm)` — the per-pointer control height (32px fine / 44px coarse), so an
-  // instrument-density knob row still meets the coarse tap floor.
   variants: {
+    // THE CONTROL SCALE (D336): the group's height and each stepper's width, so the field sits level with the buttons,
+    // toggles and fields of its row. The input stretches to the group, so nothing else here may set a height.
     size: {
-      md: { root: "inline-full", input: "text-center text-field leading-field block-(--size-touch-target)" },
-      inline: { root: "inline-(--width-number-inline)", input: "px-field text-end font-mono text-code-field leading-code-field block-(--size-control-sm)" },
+      chip: { group: CONTROL_BLOCK.chip, decrement: CONTROL_INLINE.chip, increment: CONTROL_INLINE.chip },
+      sm: { group: CONTROL_BLOCK.sm, decrement: CONTROL_INLINE.sm, increment: CONTROL_INLINE.sm },
+      md: { group: CONTROL_BLOCK.md, decrement: CONTROL_INLINE.md, increment: CONTROL_INLINE.md },
+      lg: { group: CONTROL_BLOCK.lg, decrement: CONTROL_INLINE.lg, increment: CONTROL_INLINE.lg },
+    },
+    // THE FIELD'S LAYOUT (the Input and Select `layout` twin). `field` is the full-width form field: a stepper-flanked
+    // input with centered field type. `inline` is the knob-row twin: a stepper-less mono cell in `--width-number-inline`,
+    // right-aligned so a column of knob values reads down one number edge, at the `code` type step because a slider's
+    // number twin is a datum, not prose.
+    layout: {
+      field: { root: "inline-full", input: "text-center text-field leading-field" },
+      inline: { root: "inline-(--width-number-inline)", input: "rounded-control px-field text-end font-mono text-code-field leading-code-field" },
     },
   },
-  defaultVariants: { size: "md" },
+  defaultVariants: { size: "sm", layout: "field" },
 });

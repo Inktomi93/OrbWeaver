@@ -1,8 +1,10 @@
 import type { ClassValue, VariantProps } from "tailwind-variants";
 import {
   CARD_CORNERS,
-  CHIP_BOX,
+  CONTROL_INLINE,
+  CONTROL_MIN_BLOCK,
   CONTROL_SIZE,
+  CONTROL_SIZES,
   DISABLED_STATE,
   DISABLED_STATE_NATIVE,
   FOCUS_RING,
@@ -25,15 +27,12 @@ import {
 import type { Tone } from "#tokens";
 import type { BUTTON_SIZE_OVERFLOW } from "./size-hit-area.ts";
 
-// Sizes ride the control-height tokens (CONTROL_SIZE, shared with Toggle) so the ≥44px touch floor
-// holds by construction; button adds `icon`, `media`, `wrap`, `wrap-md`, `inline` and the four-step `glyph-*` ramp on
-// top. The size axis is the SOLE owner of the box: no other variant (and no call-site class) may set a
-// height. The reason INVERTED at #146 and the rule is unchanged either way: the control-height tokens used
-// to be opaque to tailwind-merge, so a second height resolved by stylesheet order; now the spacing scale is
-// registered, so a second height resolves LAST-WINS and a call-site class silently beats the sealed box.
-// Unresolvable then, silently overridable now — a size still belongs on this axis, with the
-// `ui-size-via-variant` gate as the enforcer. The two arms that step OUTSIDE the control ramp (`inline`, `glyph-*`)
-// therefore owe their own hit-area ::before — the box shrinks, the touch target does not.
+// The size axis is the D336 control scale (CONTROL_SIZE, shared with Toggle), plus the boxes that are not a scale step
+// until step four of the css-system plan names their components: `media`, `inline` and the `glyph-*` ramp. The size
+// axis is the SOLE owner of the box: no other variant and no call-site class may set a height, because a second height
+// resolves last-wins and a call-site class would silently beat the sealed box. `square` and `wrap` reshape a scale step
+// from that step's own height. The arms that step OUTSIDE the scale (`inline`, `glyph-*`) owe their own hit-area
+// ::before — the box shrinks, the touch target does not.
 /** One step of the `glyph-*` ramp: a square display box (never a control height, never pointer-narrowed)
  *  plus the hit-area ::before that carries the pointer-conditional touch floor the box itself is under.
  *  `shrink-0` is part of the SIZE promise, not a call-site layout choice — every one of these lives in a
@@ -100,40 +99,11 @@ export const buttonVariants = tv({
     focal: { true: "shadow-cta hover:shadow-cta-glow", false: "" },
     size: {
       ...CONTROL_SIZE,
-      // `shrink-0` on both square arms, for the `glyphBox` reason: a square that shrinks in a crowded row is no
-      // longer its control box, and at a coarse pointer it falls under the tap floor.
-      icon: "shrink-0 p-0 block-(--size-control-md) inline-(--size-control-md)",
-      // The `icon` arm's SMALLER step — the `sm` control height as a SQUARE, for an icon-only control that
-      // sits in an `sm`-scaled row (the credentials role-status dot) and would otherwise be a control-height
-      // box with `px-block` of dead width on each side of an 8px dot. It is a CONTROL step, not a `glyph-*`
-      // one: `--size-control-sm` is POINTER-CONDITIONAL (44px coarse / 32px fine), so the box IS the tap
-      // floor and needs none of the `glyph-*` ramp's hit-area pseudo — which is exactly why the one live
-      // site could not use `glyph-lg` (a pointer-INDEPENDENT 32px display box) without shrinking its visible
-      // target at a coarse pointer by 12px. Added at #169, geometry-PRESERVING: byte-identical to the
-      // `size-(--size-control-sm) p-0` className it replaces, which was invisible to `ui-size-via-variant` for as
-      // long as that gate's value class rejected hyphens.
-      "icon-sm": "shrink-0 p-0 block-(--size-control-sm) inline-(--size-control-sm)",
-      // CONTENT-SIZED: the child IS the control (a portrait/media trigger). Every other size pins a
-      // control height, so a display-token child larger than it (`size-(--size-avatar-hero)`, 64px) paints OUTSIDE
-      // its own button and the real hit target stays the `--size-control-md` box — the stickler 2026-08-01 F2
-      // defect. A `className` did not fix that from a feature: `size-*` on custom tokens was opaque to
-      // tailwind-merge, so the variant's `size-(--size-control-md)` survived the override and won on cascade order.
-      // Post-#146 the override would win instead — which makes this arm MORE necessary, not less: the fix
-      // for "my button is the wrong box" is a named size, never a call-site class that silently defeats the
-      // seal (`ui-size-via-variant` reds it). The child owns the touch floor here (an avatar-hero portrait
-      // clears it by 20px).
+      // CONTENT-SIZED: the child IS the control (a portrait/media trigger). Every scale step pins a control height, so a
+      // display-token child larger than it (`size-(--size-avatar-hero)`, 64px) would paint OUTSIDE its own button while
+      // the real hit target stayed the step's box. The child owns the touch floor here (an avatar-hero portrait clears it
+      // by 20px). Step four of the css-system plan moves it to `PictureButton`.
       media: "p-0 block-auto inline-auto",
-      // MULTILINE: the `sm` step's WRAPPING twin — a choice/option affordance carrying a model-authored
-      // sentence, so the label wraps (`whitespace-normal` over the base's nowrap) and the height FOLLOWS
-      // the wrapped text, floored at the `sm` control height (D62: ≥ the pointer's tap floor at both
-      // pointer classes — `--size-control-sm` is 44px coarse / 32px fine, ≥ `--size-touch-target`).
-      // A call-site `h-auto` did not express this: a custom-token height (`h-(--size-control-sm)`) was opaque to
-      // tailwind-merge, so both heights survived the merge and stylesheet order picked the winner (post-#146
-      // it resolves last-wins, i.e. the call site silently beats the seal) — the `media` (F2) and TabsTab
-      // `layout="stacked"` precedent. The arm is where the wrapping box is NAMED.
-      wrap: "px-block py-field text-label leading-label whitespace-normal block-auto min-block-(--size-control-sm)",
-      // Long form actions retain the md typography and hit floor when their label needs another line.
-      "wrap-md": "px-block py-field text-body leading-body whitespace-normal block-auto min-block-(--size-control-md)",
       // INLINE: the DISPLAY-AT-REST arm — a datum/line of prose that is also the click target (a tracker
       // value, a beat line, a card row, a roster name). It wears NO control box: text-height, start-aligned,
       // regular weight, so it reads as the text it stands in for and the click-to-edit swap is pixel-stable.
@@ -141,7 +111,7 @@ export const buttonVariants = tv({
       // control height, which is also how they escaped the `ui-size-via-variant` gate (it reads `h-auto`,
       // not `!h-auto`). MEASURED, not assumed (twMerge 3.6, PRE-#146): custom-token spacing/height utilities
       // were unclassifiable — `twMerge("h-(--size-control-sm)","h-auto")` kept BOTH, so those call sites resolved by
-      // stylesheet order, i.e. luck (the `media`/`wrap`/TabsTab-`stacked` precedent). #146 registered the
+      // stylesheet order, i.e. luck (the `media`/TabsTab-`stacked` precedent). #146 registered the
       // spacing scale; that pair now resolves last-wins, and the `!` on the surviving escapes is inert.
       // The arm still sets NO padding at all: preflight already zeroes it, and the call site is the only
       // place that knows what the datum sits in.
@@ -156,8 +126,8 @@ export const buttonVariants = tv({
       inline: inlineBox("text-label leading-label"),
       // A recovery action inside body prose must keep that sentence's type step and the same touch target.
       "inline-body": inlineBox("text-body leading-body"),
-      // GLYPH: the SQUARE ICON-ONLY MICRO-BUTTON ramp — the `icon` size's sub-control twin. `icon` is a full
-      // `control-md` box (a toolbar button that happens to hold a glyph); a glyph button rides INSIDE a dense
+      // GLYPH: the SQUARE ICON-ONLY MICRO-BUTTON ramp — the `square` box's sub-control twin. A `square` button is a
+      // full scale step (a toolbar button that happens to hold a glyph); a glyph button rides INSIDE a dense
       // row — a badge's dismiss, a list row's trailing delete, an editor row's toggle strip — where a control
       // height would be taller than the thing it hangs off. It was 13 call sites of
       // `<Button variant="ghost" size="sm" className="!size-N !p-0">` at four scales, i.e. an `!important`
@@ -166,7 +136,7 @@ export const buttonVariants = tv({
       // was a custom token, opaque to tailwind-merge (`twMerge("size-(--size-control-sm)","size-6")` kept BOTH), so
       // those sites resolved by stylesheet order — with `!important` bolted on to force the coin flip (#146
       // registered the scale, so that pair now resolves last-wins and the `!` is inert). The
-      // `media` / `wrap` / `inline` precedent.
+      // `media` / `inline` precedent.
       //
       // The box is a POINTER-INDEPENDENT display size (`--spacing-glyph-*`, the avatar/checkbox/slider-thumb
       // family): it never narrows, because it is already below every control step. Which means it is below the
@@ -182,11 +152,16 @@ export const buttonVariants = tv({
       "glyph-sm": glyphBox("size-(--size-glyph-sm)"),
       "glyph-md": glyphBox("size-(--size-glyph-md)"),
       "glyph-lg": glyphBox("size-(--size-glyph-lg)"),
-      // THE WRAPPING-RAIL CELL — one home with Toggle's identical arm (`CHIP_BOX`, lib/control-size.ts),
-      // because a scope toggle and a tag button sit in the SAME rail and two boxes there is the defect,
-      // not the feature. Pair it with `shape="pill"` + `variant="outline"`.
-      chip: CHIP_BOX,
     } satisfies Record<keyof typeof BUTTON_SIZE_OVERFLOW, ClassValue>,
+    // ICON-ONLY: the step's height as its width too, with no inline padding beside the glyph. `shrink-0` for the
+    // `glyphBox` reason: a square that shrinks in a crowded row is no longer its step's box, and at a coarse pointer it
+    // falls under the tap floor. The width per step is a compound below.
+    square: { true: "shrink-0 p-0", false: "" },
+    // MULTILINE: a choice carrying a model-authored sentence. The label wraps over the base's nowrap and the height
+    // follows the wrapped text, floored at the step's height (a compound below) so it never drops under the tap floor.
+    // The tight inset keeps one line inside every step's height at a fine pointer, so a one-line wrap sits level with
+    // its row; a larger inset outgrows the `chip` and `md` steps by a pixel or two.
+    wrap: { true: "py-tight whitespace-normal block-auto", false: "" },
     // THE RADIUS AXIS (added 2026-08-16, program #102). It used to live in `base` as a bare
     // `rounded-control`, which made a pill button UNSPELLABLE from a call site: `rounded-control` is a
     // custom `--radius-*` token, so tailwind-merge cannot classify it and `cn("rounded-control",
@@ -251,9 +226,16 @@ export const buttonVariants = tv({
     // Scrollport-bound controls keep the ring inside their box instead of clipping an outer moat.
     focusRing: { surface: "", sidebar: FOCUS_RING_ON_SIDEBAR, inset: [FOCUS_RING_NONE, FOCUS_RING_INSET] },
   },
+  // A square's width and a wrap's floor are the scale step's own height; the other boxes take neither.
+  compoundVariants: CONTROL_SIZES.flatMap((size) => [
+    { size, square: true, class: CONTROL_INLINE[size] },
+    { size, wrap: true, class: CONTROL_MIN_BLOCK[size] },
+  ]),
   defaultVariants: {
     variant: "solid",
     size: "md",
+    square: false,
+    wrap: false,
     shape: "control",
     selection: "none",
     underline: "none",

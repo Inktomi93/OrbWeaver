@@ -1,6 +1,6 @@
-// Rewrites the literal colour and fill axes of the @orb/ui primitives into the D336 vocabulary by the css-system plan's
-// mapping tables. An element whose mapped axis is an expression or a spread value is left for a hand edit, and so is a
-// literal the tables do not map; tsc refuses what is left, so nothing is silently half-moved.
+// Rewrites the literal colour, fill and size axes of the @orb/ui primitives into the D336 vocabulary by the css-system
+// plan's mapping tables. An element whose mapped axis is an expression or a spread value is left for a hand edit, and so
+// is a literal the tables do not map; tsc refuses what is left, so nothing is silently half-moved.
 
 import type { Codemod, Edit, GetSelector, RuleConfig, SgNode } from "codemod:ast-grep";
 import type TSX from "codemod:ast-grep/langs/tsx";
@@ -15,6 +15,9 @@ interface PrimitiveRule {
   /** The attributes this rule reads and replaces. */
   readonly axes: readonly string[];
   readonly rewrite: (values: Values) => Rewrite;
+  /** True for a colour and fill rule: an element that already spells the D336 colour vocabulary is left alone. A size
+   *  or Toggle rule reads only values the old vocabulary spells, so a rerun finds nothing to map. */
+  readonly skipsMoved: boolean;
 }
 
 const BUTTON_FILLED: Readonly<Record<string, string>> = { primary: "primary", solid: "primary", destructive: "destructive" };
@@ -177,15 +180,60 @@ function rewriteInked(values: Values): Rewrite {
   return asInk === undefined ? null : [["ink", asInk]];
 }
 
-const RULES: ReadonlyMap<string, PrimitiveRule> = new Map([
-  ["Button", { door: "button", axes: ["intent", "tone"], rewrite: rewriteButton }],
-  ["Badge", { door: "badge", axes: ["intent", "tone"], rewrite: rewriteBadge }],
-  ["Card", { door: "card", axes: ["tone", "shape", "shadow", "outline"], rewrite: rewriteCard }],
-  ["Text", { door: "text", axes: ["tone", "ink"], rewrite: rewriteInked }],
-  ["Heading", { door: "text", axes: ["tone", "ink"], rewrite: rewriteInked }],
-  ["Icon", { door: "icons", axes: ["tone"], rewrite: rewriteInked }],
-  ["WeaveGlyph", { door: "web-weave", axes: ["tone"], rewrite: rewriteInked }],
-  ["WebSpinner", { door: "spinner", axes: ["tone"], rewrite: rewriteInked }],
+// The step-three size table: a box that is not a scale step leaves `size` for `square` or `wrap` on its scale step, and
+// the default step (`md`) is not written.
+const BUTTON_SIZE: Readonly<Record<string, readonly (readonly [string, string])[]>> = {
+  icon: [["square", "{true}"]],
+  "icon-sm": [
+    ["size", "sm"],
+    ["square", "{true}"],
+  ],
+  wrap: [
+    ["size", "sm"],
+    ["wrap", "{true}"],
+  ],
+  "wrap-md": [["wrap", "{true}"]],
+};
+
+function rewriteButtonSize(values: Values): Rewrite {
+  return BUTTON_SIZE[values.get("size") ?? ""] ?? null;
+}
+
+// Toggle `intent` → the D336 style, tone and ink. `neutral` is every default; `command` was the foreground ink on the
+// ghost box. `primary` took the primary fill when pressed; the pressed fill is now the one selected fill for every tone.
+const TOGGLE_INTENT: Readonly<Record<string, readonly (readonly [string, string])[]>> = {
+  neutral: [],
+  outline: [["variant", "outline"]],
+  command: [["ink", "foreground"]],
+  primary: [["tone", "primary"]],
+};
+
+function rewriteToggle(values: Values): Rewrite {
+  return TOGGLE_INTENT[values.get("intent") ?? ""] ?? null;
+}
+
+// NumberField `size="inline"` is not a scale step, so it leaves `size` for the Input and Select `layout` twin.
+function rewriteNumberField(values: Values): Rewrite {
+  return values.get("size") === "inline" ? [["layout", "inline"]] : null;
+}
+
+const RULES: ReadonlyMap<string, readonly PrimitiveRule[]> = new Map([
+  [
+    "Button",
+    [
+      { door: "button", axes: ["intent", "tone"], rewrite: rewriteButton, skipsMoved: true },
+      { door: "button", axes: ["size"], rewrite: rewriteButtonSize, skipsMoved: false },
+    ],
+  ],
+  ["Badge", [{ door: "badge", axes: ["intent", "tone"], rewrite: rewriteBadge, skipsMoved: true }]],
+  ["Card", [{ door: "card", axes: ["tone", "shape", "shadow", "outline"], rewrite: rewriteCard, skipsMoved: true }]],
+  ["Text", [{ door: "text", axes: ["tone", "ink"], rewrite: rewriteInked, skipsMoved: true }]],
+  ["Heading", [{ door: "text", axes: ["tone", "ink"], rewrite: rewriteInked, skipsMoved: true }]],
+  ["Icon", [{ door: "icons", axes: ["tone"], rewrite: rewriteInked, skipsMoved: true }]],
+  ["WeaveGlyph", [{ door: "web-weave", axes: ["tone"], rewrite: rewriteInked, skipsMoved: true }]],
+  ["WebSpinner", [{ door: "spinner", axes: ["tone"], rewrite: rewriteInked, skipsMoved: true }]],
+  ["Toggle", [{ door: "toggle", axes: ["intent"], rewrite: rewriteToggle, skipsMoved: false }]],
+  ["NumberField", [{ door: "number-field", axes: ["size"], rewrite: rewriteNumberField, skipsMoved: false }]],
 ]);
 
 const ELEMENT: RuleConfig<TSX> = { rule: { any: [{ kind: "jsx_opening_element" }, { kind: "jsx_self_closing_element" }] } };
@@ -201,7 +249,7 @@ function primitiveImports(rootNode: SgNode<TSX>): ReadonlySet<string> {
     const source = statement.field("source")?.text().slice(1, -1) ?? "";
     for (const specifier of statement.findAll(SPECIFIER)) {
       const name = specifier.field("name")?.text() ?? "";
-      const rule = RULES.get(name);
+      const rule = RULES.get(name)?.[0];
       const door = rule === undefined ? undefined : new RegExp(`(?:^@orb/ui/|#primitives/|/primitives/|/art/)${rule.door}(?:/index\\.ts)?$`, "u");
       if (specifier.field("alias") === null && door?.test(source) === true) {
         names.add(name);
@@ -229,7 +277,7 @@ function spellsNewVocabulary(attribute: SgNode<TSX>): boolean {
 
 function rewriteElement(element: SgNode<TSX>, rule: PrimitiveRule): readonly Edit[] {
   const named = element.children().filter((child) => child.kind() === "jsx_attribute");
-  if (named.some(spellsNewVocabulary)) {
+  if (rule.skipsMoved && named.some(spellsNewVocabulary)) {
     return [];
   }
   const attributes = named.filter((child) => rule.axes.includes(child.child(0)?.text() ?? ""));
@@ -274,8 +322,8 @@ const codemod: Codemod<TSX> = (root) => {
   }
   const edits = rootNode.findAll(ELEMENT).flatMap((element) => {
     const name = element.child(1)?.text() ?? "";
-    const rule = RULES.get(name);
-    return rule === undefined || !imported.has(name) ? [] : rewriteElement(element, rule);
+    const rules = RULES.get(name);
+    return rules === undefined || !imported.has(name) ? [] : rules.flatMap((rule) => rewriteElement(element, rule));
   });
   return Promise.resolve(edits.length === 0 ? null : rootNode.commitEdits(edits));
 };

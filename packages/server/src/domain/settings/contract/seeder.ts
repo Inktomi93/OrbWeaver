@@ -12,7 +12,7 @@
 
 import type { SeededPlateAsset } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
-import type { BackgroundLibraryEntry } from "@orb/contracts/settings";
+import type { BackgroundLibraryEntry, ResolveSeededPlateOp } from "@orb/contracts/settings";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { SeedBackgroundPlate } from "@orb/default-content";
 import type { IdSource, UserId } from "@orb/kit/ids";
@@ -54,5 +54,5 @@ export interface DefaultBackgroundSeeder {
    *  `seeded` reference this user owns is rewritten. Never throws (a failure retries on the next touch). */
   readonly ensureSeeded: (principal: Principal) => Promise<void>;
   /** The seed-time resolver the character/chat packs dress with: slug → this user's owned plate ref. */
-  readonly resolvePlate: (principal: Principal, slug: string) => Promise<ThemeBackground | null>;
+  readonly resolvePlate: ResolveSeededPlateOp;
 }

@@ -77,7 +77,7 @@ export function TopbarIconButton({ label, icon, pressed, expanded, onClick, mark
         render={
           <Button
             variant="ghost"
-            size="icon"
+            square={true}
             className={cn("shell-topbar-icon-btn", marker) ?? ""}
             aria-label={label}
             aria-pressed={pressed}

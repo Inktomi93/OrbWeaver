@@ -2,7 +2,7 @@
 version: "1"
 nodes:
   - id: primitive-axis-vocabulary
-    name: Rewrite primitive colour and fill axes
+    name: Rewrite primitive colour, fill and size axes
     type: automatic
     steps:
       - name: TSX files
