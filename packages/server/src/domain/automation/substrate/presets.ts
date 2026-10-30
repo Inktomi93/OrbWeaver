@@ -21,7 +21,7 @@ import type {
 } from "@orb/contracts/automation";
 import { RULE_PRESET_ENTITY_NOUNS, RULE_PRESET_ENTITY_REF_SCHEMAS, SPEND_ARM_TYPES } from "@orb/contracts/automation";
 import { RuleValidationError } from "../contract/errors.ts";
-import type { ErasedRulePresetDef, RulePresetKnobOverrides, RulePresetKnobSchema } from "../contract/presets.ts";
+import type { ErasedRulePresetDef, RulePresetKnobSchema } from "../contract/presets.ts";
 import { RULE_PRESETS } from "../contract/presets.ts";
 
 function refuse(key: string, reason: string): never {
@@ -141,7 +141,7 @@ function resolveKnob(key: string, descriptor: RulePresetKnobDescriptor, raw: Rul
 /** Resolve a caller's overrides into the COMPLETE, validated knob bag a preset's builder reads. An override
  *  naming a knob the preset does not declare is a refusal, not a silent drop — a typo'd knob key would
  *  otherwise mint a preset silently running its defaults. */
-export function resolveRulePresetKnobs(knobs: RulePresetKnobSchema, overrides: RulePresetKnobOverrides): Readonly<Record<string, RulePresetKnobValue>> {
+export function resolveRulePresetKnobs(knobs: RulePresetKnobSchema, overrides: RulePresetKnobValues): Readonly<Record<string, RulePresetKnobValue>> {
   const unknownKey = Object.keys(overrides).find((key) => !Object.hasOwn(knobs, key));
   if (unknownKey !== undefined) {
     throw new RuleValidationError("preset_knob", `knob '${unknownKey}' is not a knob of this rule preset`);
@@ -160,7 +160,7 @@ export function resolveRulePresetKnobs(knobs: RulePresetKnobSchema, overrides: R
  *  for the roster-preset compose seam (the `resolveNotificationRecipients` posture) — the VALIDATION
  *  stays automation's one home; the caller injects it, never re-derives it. Returns the COMPLETE
  *  resolved bag (what the cast stores, and what a later re-mint hands back as overrides). */
-export function resolveChatRulePresetKnobs(presetId: RulePresetId, overrides: RulePresetKnobOverrides): RulePresetKnobValues {
+export function resolveChatRulePresetKnobs(presetId: RulePresetId, overrides: RulePresetKnobValues): RulePresetKnobValues {
   const preset = RULE_PRESETS[presetId];
   if (preset.scope !== "chat") {
     throw new RuleValidationError("preset_scope", `"${preset.title}" is a library-wide rule preset — it cannot ride a saved cast`);

@@ -68,7 +68,7 @@ import type {
 import type { RandomSource, UserMacroDef } from "@orb/kit/macro";
 import type { Clock, IanaTimeZone } from "@orb/kit/time";
 import type { TestKeyRegex } from "@orb/kit/world-info";
-import type { AuditEntry, AuditWiring } from "#foundation/observability";
+import type { AuditWiring } from "#foundation/observability";
 import type { ChatAccountingContext } from "./accounting-context.ts";
 import type { ActiveTurns } from "./active-turns.ts";
 import type { CharacterDistillate, SpeakerArbiter, SpeakerReranker } from "./arbitration.ts";
@@ -665,7 +665,7 @@ export interface ChatContext extends EngineContext, ChatAccountingContext {
   readonly hashToken: HashTokenOp;
   /** D259 — whether this mode mints signup invites, and the mode every invite is stamped with. */
   readonly signupInvites: SignupInviteCapability;
-  readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
+  readonly audit: AuditWiring["log"];
   /** Unexecuted audit insert for the host-handoff swap's all-or-nothing forensic record. */
   readonly auditStatement: AuditWiring["statement"];
   /** The world-info regex-KEY ReDoS watchdog (#710) — the assembler `.test`s a `use_regex` entry's user-authored

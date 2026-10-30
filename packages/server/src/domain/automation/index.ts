@@ -3,13 +3,7 @@
 // never runtime-imports automation's internals sideways — the composition root injects the built
 // `AutomationService` + the watcher env. A6 wires the injected `runArm` dispatcher — through this same door.
 
-export type { RuleView } from "@orb/contracts/automation";
-
 export type { AutomationOps } from "./contract/ops.ts";
-
-// S3 — the preset catalogue's domain half. Only the shapes are exported; the registry and the CEL sources it
-// builds stay behind the mint verb.
-export type { RulePresetKnobOverrides } from "./contract/presets.ts";
 
 export type { AutomationService, AutomationWatcherEnv } from "./contract/service.ts";
 

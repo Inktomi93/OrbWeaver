@@ -24,7 +24,7 @@ import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { ChatId, RegexScriptId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
-import type { AuditEntry } from "#foundation/observability";
+import type { AuditWiring } from "#foundation/observability";
 import type {
   ApplyScopeOrderParams,
   AttachGlobalParams,
@@ -62,7 +62,7 @@ export interface RegexContext {
   readonly db: Db;
   readonly now: Clock;
   readonly newScriptId: RegexPortabilityContext["newScriptId"];
-  readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
+  readonly audit: AuditWiring["log"];
   readonly requireChatHost: (principal: Principal, chatId: ChatId) => Promise<void>;
   readonly requireChatMember: (principal: Principal, chatId: ChatId) => Promise<void>;
   /** D121-E display-tier room OPTION (owner ruling 2026-08-02): resolve WHOSE display scripts this room

@@ -11,7 +11,7 @@ import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
-import type { AuditEntry } from "#foundation/observability";
+import type { AuditWiring } from "#foundation/observability";
 import type {
   ConnectParams,
   CreateFromCharacterParams,
@@ -36,7 +36,7 @@ export interface PersonaContext {
   readonly db: Db;
   readonly now: Clock;
   readonly newPersonaId: () => PersonaId;
-  readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
+  readonly audit: AuditWiring["log"];
   /** Fires `personasChanged` with the acting owner's `userId` after every persona-CRUD write commits, so a
    *  second device's list refetches. Fire-and-forget. */
   readonly emitUserEvent: EmitUserEvent;

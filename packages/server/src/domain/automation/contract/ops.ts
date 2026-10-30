@@ -24,7 +24,7 @@ import type { ProseOverrides } from "@orb/contracts/prose";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { IsToolDrivableByOp } from "@orb/contracts/tool-use";
-import type { UpsertEntriesResult, UpsertLoreEntryInput } from "@orb/contracts/world-info";
+import type { UpsertEntriesOp } from "@orb/contracts/world-info";
 import type { automationRules, Db } from "@orb/db";
 import type {
   AutomationRuleCreationId,
@@ -36,7 +36,6 @@ import type {
   MessageVariantId,
   PluginId,
   UserId,
-  WorldBookId,
 } from "@orb/kit/ids";
 import type { RandomSource } from "@orb/kit/macro";
 import type { SerialLanes } from "@orb/kit/serial-lanes";
@@ -290,11 +289,7 @@ export interface AutomationOps {
   /** The SHARED, hand-edit-safe world-info writer (CC-D; the ONE write path — consumed, never forked).
    *  `authorUserId` resolves to the book owner's Principal at compose. */
   readonly worldInfo: {
-    readonly upsertEntries: (args: {
-      readonly authorUserId: UserId;
-      readonly bookId: WorldBookId;
-      readonly entries: readonly UpsertLoreEntryInput[];
-    }) => Promise<UpsertEntriesResult>;
+    readonly upsertEntries: UpsertEntriesOp;
   };
   /** The unified-inbox delivery for a `post_notification` arm (the `automation-notice` member);
    *  wired to the composed durable-first `notifications.emit` at compose (never a re-rolled inbox). */
