@@ -14,7 +14,7 @@ Rewrite the header comment in `packages/server/src/infra/plugin-host/worker-runt
 
 ## Why
 
-`docs/law/container-deployment-security.md` finding 4 rules that the WASM sandbox is the plugin boundary and OS-user separation is not planned. The comment contradicts the law. Route to `security-executor`.
+`docs/law/container-deployment-security.md` its fourth finding states that the WASM sandbox is the plugin boundary and OS-user separation is not planned. The comment contradicts the law. Route to `security-executor`.
 
 ## Done when
 
