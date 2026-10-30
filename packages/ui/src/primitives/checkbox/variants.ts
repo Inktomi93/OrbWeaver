@@ -45,7 +45,9 @@ import { SELECTION_CONTROL, tv } from "#lib";
 // not repaint a state it has no opinion about.
 export const checkboxVariants = tv({
   slots: {
-    root: [SELECTION_CONTROL, "rounded-control text-primary-foreground"],
+    // The unchecked edge rides `muted-foreground`, which a ThemeScope re-solves for its own background;
+    // `input-border` is a fixed pair a carried mid-grey background leaves at ~1.5:1 (WCAG 1.4.11).
+    root: [SELECTION_CONTROL, "rounded-control border-muted-foreground text-primary-foreground"],
     indicator: "group flex items-center justify-center",
     check: "hidden text-current group-data-checked:block group-data-readonly:hidden",
     dash: "hidden text-current group-data-indeterminate:block group-data-readonly:hidden",
