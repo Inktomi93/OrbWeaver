@@ -303,6 +303,12 @@ function ChatThread({
   // (The noun is COMPACTION, not memory — this is `chats.compactSummary`, not the Memory plane.)
   const contextBoundaryCompactSummary = fit?.compactSummary ?? null;
 
+  // The host's Move up / Move down target the loaded neighbour's seq; an end of the loaded transcript has none.
+  const neighbourSeqs = (id: (typeof messages)[number]["id"]): { readonly previousSeq: number | null; readonly nextSeq: number | null } => {
+    const at = messages.findIndex((message) => message.id === id);
+    return at < 0 ? { previousSeq: null, nextSeq: null } : { previousSeq: messages[at - 1]?.seq ?? null, nextSeq: messages[at + 1]?.seq ?? null };
+  };
+
   // Identity stays with its row even when a short turn crosses the transcript edge.
   const renderItem = (item: (typeof items)[number]): ReactNode =>
     item.kind === "ghost" ? (
@@ -330,6 +336,7 @@ function ChatThread({
     ) : (
       <MessageRow
         message={item.view}
+        {...neighbourSeqs(item.view.id)}
         chatStyle={chatStyle}
         stickyAttribution={true}
         {...((): { readonly greeting?: ReturnType<typeof resolveGreetingBinding> } => {

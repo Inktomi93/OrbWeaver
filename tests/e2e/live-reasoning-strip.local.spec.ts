@@ -5,9 +5,9 @@
 // durable replay must carry NO reasoning (deltas nulled, `view.reasoning` nulled, `reasoningStreamDone`
 // dropped), while the HOST's stream carries it verbatim.
 //
-// THE DETERMINISTIC INPUT (the legit way, no product backdoor): reasoning is MODEL-GENERATED — there is no
-// product surface to plant it (`chat.editReasoning` is deliberately unwired; `reasoningHostOnly` lives only in
-// the chat room source). So the deterministic source is a SCRIPTED OpenAI-compatible PROVIDER
+// THE DETERMINISTIC INPUT (the legit way, no product backdoor): reasoning is MODEL-GENERATED. `chat.editReasoning`
+// can rewrite a stored trace, but it cannot create the live reasoning channel this spec proves the strip on, and
+// `reasoningHostOnly` lives only in the chat room source. So the deterministic source is a SCRIPTED OpenAI-compatible PROVIDER
 // (support/fixture-provider.ts) the app talks to through a REAL `custom-openai` (BYO endpoint) connection — the same
 // product path a user gets pointing orbweaver at any OpenAI-compatible endpoint. The fixture streams a known
 // `reasoning` channel (spelling the lie's truth) + a `<lie>` body span, so a real `chat.send` turn produces

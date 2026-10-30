@@ -235,6 +235,27 @@ const deleteMessagesSchema = z.object({
   messageIds: z.array(typeIdSchema(ID_PREFIX.message)),
 });
 
+// The reasoning pair and `moveMessage` — thin pass-throughs like the cluster above; author-or-host (reasoning)
+// and host-only (move) authority live INSIDE the verbs, and the reasoning returns are already projected for the
+// viewer (§3.6). `toSeq` is a message's `seq`: the verb lands the slot before (moving up) or after (moving down)
+// the slot holding that seq.
+const editReasoningSchema = z.object({
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  messageId: typeIdSchema(ID_PREFIX.message),
+  reasoning: z.string(),
+});
+
+const clearReasoningSchema = z.object({
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  messageId: typeIdSchema(ID_PREFIX.message),
+});
+
+const moveMessageSchema = z.object({
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  messageId: typeIdSchema(ID_PREFIX.message),
+  toSeq: z.int().min(0),
+});
+
 // `reattributePersona` (task #60 — the persona-attribution / {{user}} history fix; neo `usePersonaReattribute`
 // / ST `#persona_sync_name`): re-stamp a set of USER rows' `personaId`. Author-or-host PER row + role/ownership
 // belts are enforced INSIDE the verb (no router-level authz — the sibling canon-edit shape). `scope` picks the
@@ -660,6 +681,15 @@ export const chatRouter = t.router({
     .input(editToolCallSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.editToolCall({ principal: ctx.auth, ...input })),
   deleteMessages: authedProcedure.input(deleteMessagesSchema).mutation(({ ctx, input }) => ctx.services.chat.deleteMessages({ principal: ctx.auth, ...input })),
+  editReasoning: authedProcedure
+    .output(messageViewSchema)
+    .input(editReasoningSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.editReasoning({ principal: ctx.auth, ...input })),
+  clearReasoning: authedProcedure
+    .output(messageViewSchema)
+    .input(clearReasoningSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.clearReasoning({ principal: ctx.auth, ...input })),
+  moveMessage: authedProcedure.input(moveMessageSchema).mutation(({ ctx, input }) => ctx.services.chat.moveMessage({ principal: ctx.auth, ...input })),
   reattributePersona: authedProcedure
     .input(reattributePersonaSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.reattributePersona({ principal: ctx.auth, ...input })),

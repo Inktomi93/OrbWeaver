@@ -109,6 +109,9 @@ export interface MessageRowProps {
    *  metadata row; that row is data-only now). Absent ⇒ not host (fail-closed). */
   readonly viewerIsHost?: boolean | undefined;
   readonly messageActions?: "expanded" | "hover" | undefined;
+  /** The loaded neighbours' `seq` (null at an end of the transcript) — the host's Move up / Move down targets. */
+  readonly previousSeq?: number | null | undefined;
+  readonly nextSeq?: number | null | undefined;
   /** True for the one row that is the "last-in-context" boundary; renders a quiet divider above it. */
   readonly contextBoundary?: boolean;
   /** The present-tense fit budget label ("N of M used · R reserved") shown on the boundary divider when the
@@ -173,6 +176,8 @@ export function MessageRow({
   metadataVisibility = NO_METADATA_VISIBLE,
   viewerIsHost = false,
   messageActions,
+  previousSeq = null,
+  nextSeq = null,
   contextBoundary = false,
   contextBoundaryLabel,
   contextBoundaryCompactSummary,
@@ -345,6 +350,8 @@ export function MessageRow({
             messageActions={actionsReveal}
             greetingBound={greeting !== undefined}
             viewerIsHost={viewerIsHost}
+            previousSeq={previousSeq}
+            nextSeq={nextSeq}
             generationCredit={generationCredit}
             characterNames={[...speakerThemes.keys()]}
             chip={skin.actionsRow.chip}
@@ -399,7 +406,7 @@ export function MessageRow({
                   footer: swipeInside,
                   lastRow,
                   content,
-                  reasoning: renderRowReasoning({ editing, message, renderContext, showLLMReasoningIcon }),
+                  reasoning: renderRowReasoning({ editing, message, renderContext, showLLMReasoningIcon, viewerIsHost, viewerUserId }),
                   trainParagraphs: trainParagraphsFor(displayedMessage, editing, skin.bubbleLayout === "trains"),
                   skin,
                   decoration,

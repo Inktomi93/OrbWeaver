@@ -14,7 +14,7 @@ area: chat
 
 ## Why
 
-`docs/law/client-architecture-state-and-gates.md` bus rule 4 requires every declared event type to have an emit site in a reached verb. Only `tests/server/domain/chat/bus-golden.suite.int.test.ts` calls these verbs; `tests/e2e/live-reasoning-strip.local.spec.ts` notes that `chat.editReasoning` is unwired on purpose, so decide the product intent first.
+`docs/law/client-architecture-state-and-gates.md` bus rule 4 requires every declared event type to have an emit site in a reached verb. Only `tests/server/domain/chat/bus-golden.suite.int.test.ts` called these verbs before the router and client wired them.
 
 ## Done when
 
@@ -22,4 +22,9 @@ Each of the three event types is emitted from a verb that a production procedure
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Wired, not deleted. `chat.editReasoning`, `chat.clearReasoning` and `chat.moveMessage` are router procedures in `packages/server/src/transport/trpc/routers/chat.ts`. The client controls are `packages/client/src/features/chat/components/message-reasoning.tsx` (Edit and Clear on the reasoning block, author or host) and `packages/client/src/features/chat/components/message-move-items.tsx` (Move up and Move down in the message menu, host only).
+
+- `pnpm test tests/server/transport/trpc/routers/chat-reasoning-and-move.int.test.ts`: red on the old router (no procedure `chat.editReasoning` or `chat.moveMessage`), green after (2 tests). It covers author and host writes, a refused non-author, a refused member move, the resulting order, and each of `reasoningEdited`, `reasoningCleared` and `messagesReordered` on the bus.
+- `pnpm test:ct tests/client/features/chat/components/message-reasoning-and-move.ct.tsx`: 4 tests green. With the controls disabled the three positive tests fail. With the gates opened to every viewer the two negative tests fail.
+- `pnpm typecheck` on `packages/client/tsconfig.json`, `packages/server/tsconfig.json`, `tsconfig.json` and `tsconfig.tests-dom.json`: clean.
+- Biome, ESLint and scoped dependency-cruiser on the changed files: clean.
