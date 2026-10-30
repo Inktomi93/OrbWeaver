@@ -4,7 +4,6 @@
 import { hueDistance } from "@orb/kit/safe-color";
 import type { Oklch } from "@orb/kit/theme-derivation";
 import {
-  AA_NORMAL_RATIO,
   carriedLiteralRoles,
   oklchToSrgb,
   paintedDistance,
@@ -12,7 +11,6 @@ import {
   srgbToOklch,
   TONE_HUE_ADJACENT_DEGREES,
   TONE_TINT_SEPARATION,
-  toneContrast,
   toneFloorMisses,
   toneRoleColors,
 } from "@orb/kit/theme-derivation";
@@ -132,19 +130,12 @@ function scopeMisses({ scheme, vars, tones }: EmittedScope, label: string): read
     carried.source === "neutral" ? [] : [{ ...carried, base: carried.source.base, roles: paintedRoles(scheme, vars, carried) }],
   );
   const floors = tones.flatMap((carried) =>
-    roleFloorMisses(scheme, paintedRoles(scheme, vars, carried)).map((miss) => `${label} ${carried.tone} ${JSON.stringify(miss)}`),
+    roleFloorMisses(scheme, carried.source, paintedRoles(scheme, vars, carried)).map((miss) => `${label} ${carried.tone} ${JSON.stringify(miss)}`),
   );
   const offPage = colored.flatMap(({ tone, roles }) =>
     TINT_ROLES.flatMap((role) => {
       const distance = paintedDistance(roles[role], scheme.palette.background);
       return distance >= TONE_TINT_SEPARATION ? [] : [`${label} ${tone} ${role} sits ${distance.toFixed(4)} off the page`];
-    }),
-  );
-  // A selected row, an active tab and a compare panel keep the page ink on a tint.
-  const pageInk = colored.flatMap(({ tone, roles }) =>
-    TINT_ROLES.flatMap((role) => {
-      const ratio = toneContrast(scheme.palette.foreground, roles[role]);
-      return ratio >= AA_NORMAL_RATIO ? [] : [`${label} ${tone} page ink on ${role} is ${ratio.toFixed(3)}:1`];
     }),
   );
   const pairs = colored.flatMap((a, index) =>
@@ -157,7 +148,7 @@ function scopeMisses({ scheme, vars, tones }: EmittedScope, label: string): read
           }),
     ),
   );
-  return [...floors, ...offPage, ...pageInk, ...pairs];
+  return [...floors, ...offPage, ...pairs];
 }
 
 // The hue and chroma a colour paints at in the 8-bit framebuffer. The kit's own twin stays private: only

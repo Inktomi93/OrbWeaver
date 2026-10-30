@@ -6,13 +6,14 @@
 // and any legal base format works — the numbers are `@orb/kit/theme-derivation`'s (the ONE home; the ST
 // theme importer predicts the same math in node). Two values cannot be spelled for the browser and are
 // solved in node instead: the reading plate's polarity-derived alpha (#217) and the elevation arm (#243).
-import type { MutedForegroundPair, Oklch, RampDeltas, ShadowIngredients } from "@orb/kit/theme-derivation";
+import type { Oklch, RampDeltas, ShadowIngredients } from "@orb/kit/theme-derivation";
 import {
   carriedAccentInkLightness,
+  carriedCardForegroundLightness,
   carriedForegroundLightness,
+  carriedMutedForegroundPair,
   chartRampForSurface,
   derivedForegroundLightness,
-  derivedMutedForegroundPair,
   READING_BAND_ALPHA,
   rampDeltas,
   rampSurface,
@@ -156,14 +157,6 @@ function carriedSurfaces(
   };
 }
 
-function carriedMutedPair(opaqueBase: Oklch, surfaces: ReturnType<typeof carriedSurfaces>): MutedForegroundPair {
-  return derivedMutedForegroundPair(
-    opaqueBase,
-    [opaqueBase, surfaces.card, surfaces.popover, surfaces.sidebar, surfaces.secondary, surfaces.muted],
-    [opaqueBase, surfaces.card, surfaces.popover],
-  );
-}
-
 /** What a scope reports when its form-control edge could not hold both bounds (D159): the edge it paints, and whether the 3:1 floor itself held. */
 export interface InputBorderFallback {
   readonly edge: string;
@@ -191,7 +184,7 @@ export function inputBorderOn(origin: string, base: ParsedOklch, ring: Oklch | n
     grounds: {
       panels: [opaqueBase, ...Object.values(surfaces)],
       fillInk: { l: derivedForegroundLightness(opaqueBase), c: 0, h: base.h },
-      fillAlpha: carriedMutedPair(opaqueBase, surfaces).inputAlpha,
+      fillAlpha: carriedMutedForegroundPair(opaqueBase).inputAlpha,
     },
   });
   const edge = foregroundAt(origin, solve.edge.l);
@@ -240,12 +233,12 @@ export function surfaceVarsOn(background: string, base: ParsedOklch | null, deri
   // The accent ink covers muted too: they are the neutral tone's two tints, and its text-on-tint is this ink (D336).
   vars["--color-accent-foreground"] = foregroundAt(origin, carriedAccentInkLightness(opaqueBase));
   vars["--color-foreground"] = foregroundAt(origin, carriedForegroundLightness(opaqueBase));
-  vars["--color-card-foreground"] = foregroundAt(origin, derivedForegroundLightness(surfaces.card));
+  vars["--color-card-foreground"] = foregroundAt(origin, carriedCardForegroundLightness(opaqueBase));
   vars["--color-popover-foreground"] = foregroundAt(origin, derivedForegroundLightness(surfaces.popover));
   vars["--color-sidebar-foreground"] = foregroundAt(origin, derivedForegroundLightness(surfaces.sidebar));
   vars["--color-sidebar-accent-foreground"] = foregroundAt(origin, derivedForegroundLightness(surfaces.sidebarAccent));
   vars["--color-secondary-foreground"] = foregroundAt(origin, derivedForegroundLightness(surfaces.secondary));
-  const mutedPair = carriedMutedPair(opaqueBase, surfaces);
+  const mutedPair = carriedMutedForegroundPair(opaqueBase);
   vars["--color-muted-foreground"] = foregroundAt(origin, mutedPair.lightness);
   vars["--color-reading-plate-foreground"] = foregroundAt(origin, readingPlateForeground(opaqueBase).l);
   vars["--color-border"] = borderOn(origin, opaqueBase);

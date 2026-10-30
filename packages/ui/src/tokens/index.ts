@@ -564,15 +564,15 @@ export function toneLiteralVar(tone: Exclude<Tone, "neutral">, role: ToneRole): 
 
 /** Each role's recipe as data, for the numeric twin in `@orb/kit/theme-derivation`. */
 export const TONE_ROLE_RECIPES = {
-  "solid": {"colored":"base","neutral":{"bind":"foreground"},"floor":[]},
-  "solid-hover": {"colored":{"mix":"hover","toward":"away"},"neutral":{"bind":"foreground","step":{"mix":"neutral-hover","toward":"background"}},"floor":[]},
-  "solid-active": {"colored":{"mix":"active","toward":"away"},"neutral":{"bind":"foreground","step":{"mix":"neutral-active","toward":"background"}},"floor":[]},
-  "text": {"colored":{"mix":"text","toward":"foreground"},"neutral":{"bind":"foreground"},"floor":[{"host":"background"},{"host":"surface-raised"},{"host":"card"}]},
-  "text-on-tint": {"colored":{"mix":"text-on-tint","toward":"foreground"},"neutral":{"bind":"accent-foreground"},"floor":[{"role":"tint"},{"role":"tint-active"}]},
-  "tint": {"colored":{"mix":"tint","toward":"background"},"neutral":{"bind":"muted"},"floor":[]},
-  "tint-active": {"colored":{"mix":"tint-active","toward":"background"},"neutral":{"bind":"accent"},"floor":[]},
-  "edge": {"colored":{"mix":"edge","toward":"background"},"neutral":{"bind":"border"},"floor":[]},
-  "foreground": {"colored":"base-foreground","neutral":{"bind":"background"},"floor":[{"role":"solid"},{"role":"solid-hover"},{"role":"solid-active"}]},
+  "solid": {"colored":"base","neutral":{"bind":"foreground"},"floor":[],"pageInks":[]},
+  "solid-hover": {"colored":{"mix":"hover","toward":"away"},"neutral":{"bind":"foreground","step":{"mix":"neutral-hover","toward":"background"}},"floor":[],"pageInks":[]},
+  "solid-active": {"colored":{"mix":"active","toward":"away"},"neutral":{"bind":"foreground","step":{"mix":"neutral-active","toward":"background"}},"floor":[],"pageInks":[]},
+  "text": {"colored":{"mix":"text","toward":"foreground"},"neutral":{"bind":"foreground"},"floor":[{"host":"background"},{"host":"surface-raised"},{"host":"card"}],"pageInks":[]},
+  "text-on-tint": {"colored":{"mix":"text-on-tint","toward":"foreground"},"neutral":{"bind":"accent-foreground"},"floor":[{"role":"tint"},{"role":"tint-active"}],"pageInks":[]},
+  "tint": {"colored":{"mix":"tint","toward":"background"},"neutral":{"bind":"muted"},"floor":[],"pageInks":["foreground","muted-foreground"]},
+  "tint-active": {"colored":{"mix":"tint-active","toward":"background"},"neutral":{"bind":"accent"},"floor":[],"pageInks":["foreground","muted-foreground"]},
+  "edge": {"colored":{"mix":"edge","toward":"background"},"neutral":{"bind":"border"},"floor":[],"pageInks":[]},
+  "foreground": {"colored":"base-foreground","neutral":{"bind":"background"},"floor":[{"role":"solid"},{"role":"solid-hover"},{"role":"solid-active"}],"pageInks":[]},
 } as const satisfies ToneRoleRecipes<ToneRole, ToneMixKnob, CarriedToneHost>;
 
 /** The D336 art pigments: each `[data-pigment]` scope's custom property names. Stamp the scope on the art's element. */
