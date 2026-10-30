@@ -93,6 +93,7 @@ export type {
   OidcTransaction,
   OidcTransactionStore,
   OwnerClaimCode,
+  PasswordHasher,
   PublicHttpMintNotice,
   RelayedFallbackNotice,
   RelayHostWriter,

@@ -3,7 +3,7 @@
 // cross-feature/infra dep arrives as an injected op — admin sideways-imports nothing.
 
 import type { Principal, UserRole } from "@orb/contracts/identity";
-import type { SessionAdminView } from "@orb/contracts/session";
+import type { SessionAdminView, SettleUnclaimedLink } from "@orb/contracts/session";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/query";
@@ -32,7 +32,6 @@ import type {
   RevokeUserSessionsResult,
   SetEnabledResult,
   SetRoleResult,
-  UnclaimedLinkOutcome,
 } from "./results.ts";
 
 /** The session-management slice admin needs — satisfied structurally by the real `SessionsService` at the
@@ -61,7 +60,7 @@ interface SessionAdminPort {
    *  identity refusal from SETTLED durable state, or RETHROWS the caller's `failure` when durable state does
    *  not explain it (so a broken audit insert surfaces as itself, never as a fake identity refusal). The
    *  identity invariant (bind-once, U1 one-linking-site) stays the sessions verb's. */
-  readonly settleUnclaimedLink: (userId: UserId, externalId: ExternalId, failure?: unknown) => Promise<UnclaimedLinkOutcome>;
+  readonly settleUnclaimedLink: SettleUnclaimedLink;
   /** D257 — the local-account mint, UNEXECUTED, so `createUser` commits it with its audit row as ONE batch.
    *  Canonical home domain/sessions, which derives the handle key; admin only orders the statements. */
   readonly localUserInsertStatement: (row: {

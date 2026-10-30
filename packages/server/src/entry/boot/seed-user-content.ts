@@ -3,11 +3,12 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { SeedManifestItem } from "@orb/default-content";
-import type { CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
+import type { DefaultCharacterSeeder } from "#domain/character";
 import { createCharacterSeedStep } from "#domain/character";
-import type { SeedRosterPreset } from "#domain/roster-preset";
+import type { RosterSeedStepDeps, SeedRosterPreset } from "#domain/roster-preset";
 import { createRosterSeedStep } from "#domain/roster-preset";
-import type { ContentSeedStep, LegacySeedLatches, UserContentSeeder } from "#domain/settings";
+import type { ContentSeedPolicyDeps, ContentSeedStep, SettingsComposedOps, UserContentSeeder } from "#domain/settings";
 import { createUserContentSeeder as createContentSeedPolicy } from "#domain/settings";
 import type { Logger } from "#foundation/observability";
 
@@ -16,18 +17,18 @@ export type { UserContentSeeder } from "#domain/settings";
 export interface UserContentSeederDeps {
   readonly logger: Logger;
   /** The operator switch (`SEED_CONTENT`); off ⇒ nothing is seeded and nothing is recorded. */
-  readonly enabled: () => boolean;
+  readonly enabled: ContentSeedPolicyDeps["enabled"];
   readonly manifest: readonly SeedManifestItem[];
-  readonly now: () => number;
-  readonly seededKeys: (userId: UserId) => Promise<ReadonlySet<string>>;
-  readonly recordSeeded: (userId: UserId, keys: readonly string[], at: number) => Promise<void>;
-  readonly legacyLatches: (principal: Principal) => Promise<LegacySeedLatches>;
+  readonly now: Clock;
+  readonly seededKeys: ContentSeedPolicyDeps["seededKeys"];
+  readonly recordSeeded: ContentSeedPolicyDeps["recordSeeded"];
+  readonly legacyLatches: SettingsComposedOps["legacyLatches"];
   /** Seeds one shipped card; throws on failure. */
-  readonly seedCharacter: (principal: Principal, handle: CharacterHandle) => Promise<CharacterId | null>;
+  readonly seedCharacter: DefaultCharacterSeeder["seedCard"];
   /** Runs the default-persona seeder and answers whether the account now holds its default persona (the persona
    *  seeder creates one only on an automation-started stack; a real first sign-in asks instead). */
-  readonly seedPersona: (principal: Principal) => Promise<boolean>;
-  readonly findCharacter: (principal: Principal, handle: CharacterHandle) => Promise<CharacterId | null>;
+  readonly seedPersona: ContentSeedStep["seed"];
+  readonly findCharacter: RosterSeedStepDeps["findCharacter"];
   readonly createRosterPreset: SeedRosterPreset;
 }
 

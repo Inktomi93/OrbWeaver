@@ -15,6 +15,7 @@ import type {
   ShareStatus,
   SignInModeView,
 } from "@orb/contracts/identity";
+import type { OwnerNeedsPassword } from "@orb/contracts/session";
 import type { UserId } from "@orb/kit/ids";
 import type { RequireAdmin, RequireOwner } from "#domain/admin";
 import type { AuditEntry, Logger } from "#foundation/observability";
@@ -111,7 +112,7 @@ export type CertificateBootOutcome =
 export interface ShareFacts {
   readonly authMode: AuthMode;
   /** Read only under `local`, the one mode with a first-run owner claim. */
-  readonly ownerNeedsPassword: () => Promise<boolean>;
+  readonly ownerNeedsPassword: OwnerNeedsPassword;
   /** Where the owner finishes setup: this machine's own origin. */
   readonly localSetupUrl: () => string;
   /** The addresses a stranger already reaches this server at (`publicAddresses` in `foundation/env`). */

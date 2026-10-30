@@ -1,11 +1,12 @@
 import type { DatabaseHandle } from "@orb/db/wiring";
+import type { Clock } from "@orb/kit/time";
 import { ensureSystemDefaultPreset } from "#domain/preset";
 import type { Logger } from "#foundation/observability";
 
 export interface SeedDefaultPresetDeps {
   readonly logger: Logger;
   readonly db: DatabaseHandle;
-  readonly now: () => number;
+  readonly now: Clock;
 }
 
 /** Ensure the system-default preset row exists (version-gated reseed). Idempotent. */

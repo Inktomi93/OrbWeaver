@@ -2,18 +2,15 @@
 // and every settings zod schema/parser live in @orb/contracts/settings — callers import those directly.
 
 export { createSettingsAssemblyContext as createSettingsContext } from "./context.ts";
-export type { LegacySeedLatches } from "./contract/composed-ops.ts";
-export type { ContentSeedStep, UserContentSeeder } from "./contract/content-seed.ts";
-
+export type { LegacySeedLatches, SettingsComposedOps } from "./contract/composed-ops.ts";
+export type { ContentSeedPolicyDeps, ContentSeedStep, UserContentSeeder } from "./contract/content-seed.ts";
 export type { SettingsImportOutcome } from "./contract/portability.ts";
-
 export type { DefaultBackgroundSeeder } from "./contract/seeder.ts";
 export type {
   SettingsAssemblyContext as SettingsContext,
   SettingsService,
   SettingsServiceDeps,
 } from "./contract/service.ts";
-
 export { createEffectiveConfigCache } from "./effective-config/cache.ts";
 // A boot verb that reads or writes rows of every owner takes `BootDatabaseHandle`, which only boot mints (D335).
 export { healLegacyBackgroundPins } from "./persistence/heal-legacy-background-pins.ts";

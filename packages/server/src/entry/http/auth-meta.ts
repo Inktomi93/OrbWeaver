@@ -8,6 +8,7 @@ import type { AuthConfigShare, AuthMe, AuthMode, RelayStatus } from "@orb/contra
 import { authConfigShareSchema, authMeSchema } from "@orb/contracts/identity";
 import { resolveUploadCaps } from "@orb/contracts/uploads";
 import type { Hono } from "hono";
+import type { RelayController } from "#domain/share";
 import { requestClientScope, requestTransport } from "#infra/auth";
 import { peerIp } from "#infra/network";
 import { userRoleValue } from "#primitives/role-data/decode";
@@ -53,7 +54,7 @@ export interface AuthMetaDeps {
    *  capability by itself — the frame policy is built server-side from the server's own read. */
   readonly allowInteractiveCards: () => boolean;
   /** The share relay's live state (`domain/share`'s controller). */
-  readonly share: () => RelayStatus;
+  readonly share: RelayController["status"];
   /** The deployment's trusted hops (`trustedProxiesOf`), the only peers whose forwarded headers decide the request facts below. */
   readonly trustedProxies: readonly string[];
 }
