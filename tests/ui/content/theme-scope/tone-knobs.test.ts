@@ -22,7 +22,7 @@ import { clampThemeTokens } from "../../../../packages/ui/src/content/theme-scop
 import { serializeOpaqueOklch, toOklch } from "../../../../packages/ui/src/content/theme-scope/color-parse.ts";
 import type { CarriedTone, CarriedToneScheme } from "../../../../packages/ui/src/content/theme-scope/tone-knobs.ts";
 import { carriedToneScheme, carriedToneSources } from "../../../../packages/ui/src/content/theme-scope/tone-knobs.ts";
-import { BASES, MID_GREY } from "./contrast-cases.ts";
+import { BASES, keepsHue, MID_GREY } from "./contrast-cases.ts";
 
 // The sweeps run the production clamp per case; they outrun the default per-test budget.
 const SWEEP_TIMEOUT_MS = 180_000;
@@ -133,7 +133,8 @@ function emittedMisses(background: string, tokens: { readonly accent?: string },
   return [...floors, ...offPage, ...pairs];
 }
 
-/** The hue and chroma a colour paints at in the 8-bit framebuffer. */
+// The hue and chroma a colour paints at in the 8-bit framebuffer. The kit's own twin stays private: only
+// `paintedDistance` reads it in production, and an export no production caller needs is a test-only door.
 function framebuffer(color: Oklch): Oklch {
   const { r, g, b } = oklchToSrgb(color);
   return srgbToOklch({ r: Math.round(r), g: Math.round(g), b: Math.round(b) });
@@ -155,9 +156,7 @@ test("on a mid-grey page every colored tone's text, tint and solid keeps its hue
     const roles = paintedRoles(scheme, vars, carried);
     return (["solid", "text", "tint", "tint-active"] as const satisfies readonly ToneRole[]).flatMap((role) => {
       const painted = framebuffer(roles[role]);
-      // A hue nearer its own tone than any adjacent one, at a chroma at least the separation off the grey axis.
-      const keeps = painted.c >= TONE_TINT_SEPARATION && hueDistance(painted.h, base.h) < TONE_HUE_ADJACENT_DEGREES / 2;
-      return keeps ? [] : [`${carried.tone} ${role} paints ${JSON.stringify(painted)} for a base at hue ${base.h.toFixed(1)}`];
+      return keepsHue(painted, base.h) ? [] : [`${carried.tone} ${role} paints ${JSON.stringify(painted)} for a base at hue ${base.h.toFixed(1)}`];
     });
   });
   expect(lost).toEqual([]);

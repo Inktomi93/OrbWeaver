@@ -1,20 +1,11 @@
-import { hueDistance } from "@orb/kit/safe-color";
 import type { Oklch } from "@orb/kit/theme-derivation";
-import {
-  AA_NON_TEXT_RATIO,
-  AA_NORMAL_RATIO,
-  oklabDistance,
-  srgbToOklch,
-  TONE_HUE_ADJACENT_DEGREES,
-  TONE_TINT_SEPARATION,
-  wcagContrastRatio,
-} from "@orb/kit/theme-derivation";
+import { AA_NON_TEXT_RATIO, AA_NORMAL_RATIO, oklabDistance, srgbToOklch, TONE_TINT_SEPARATION, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { pixelContrast, pixelSurface } from "@orb/testkit/browser/spec";
 import { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/test";
-import type { ReadingBandStory, SemanticContrastStory, ToneHueStory, ToneMarkStory, ToneRoleContrastStory } from "./_contrast-stories.tsx";
+import type { NestedSeedStory, ReadingBandStory, SemanticContrastStory, ToneHueStory, ToneMarkStory, ToneRoleContrastStory } from "./_contrast-stories.tsx";
 
-import { BASES, MID_GREY } from "./contrast-cases.ts";
+import { BASES, keepsHue, MID_GREY } from "./contrast-cases.ts";
 
 for (const { name, background } of BASES) {
   test(`${name}: emitted semantic and muted/input tokens clear their painted backings`, async ({ mount, page }, testInfo) => {
@@ -92,9 +83,8 @@ test("a custom mid-grey page keeps every colored tone's hue in its painted text,
     const solid = await fill("solid");
     const tints = { tint: await fill("tint"), "tint-active": await fill("tint-active") };
     const text = srgbToOklch((await pixelContrast(page, tone.locator('[data-sample="text"]'))).ink);
-    // A hue nearer its own tone's solid than any adjacent tone, at a chroma at least the separation off the grey axis.
     for (const [role, painted] of Object.entries({ solid, text, ...tints })) {
-      if (painted.c < TONE_TINT_SEPARATION || hueDistance(painted.h, solid.h) >= TONE_HUE_ADJACENT_DEGREES / 2) {
+      if (!keepsHue(painted, solid.h)) {
         lost.push(`${name} ${role} paints ${JSON.stringify(painted)} beside a solid at ${JSON.stringify(solid)}`);
       }
     }
@@ -105,6 +95,19 @@ test("a custom mid-grey page keeps every colored tone's hue in its painted text,
     }
   }
   expect(lost).toEqual([]);
+});
+
+test("a seed palette nested inside a custom mid-grey scope paints its own tone roles", async ({ mount, page }) => {
+  await mount<typeof NestedSeedStory>("tests/ui/content/theme-scope/_contrast-stories/NestedSeedStory", { background: MID_GREY });
+  const painted = (nest: string): Promise<Readonly<Record<string, string>>> =>
+    page
+      .locator(`[data-nest="${nest}"] [data-role-sample]`)
+      .evaluateAll((samples) =>
+        Object.fromEntries(samples.map((sample) => [sample.getAttribute("data-role-sample"), getComputedStyle(sample).backgroundColor])),
+      );
+  const onPage = await painted("page");
+  expect(Object.keys(onPage).length).toBeGreaterThan(0);
+  expect(await painted("carried")).toEqual(onPage);
 });
 
 for (const theme of [undefined, ...(Object.keys(SEED_THEME_VALUE_SETS) as (keyof typeof SEED_THEME_VALUE_SETS)[])]) {

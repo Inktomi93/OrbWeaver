@@ -13,7 +13,7 @@ import { assertTokenContract, REQUIRED_SEED_VALUE_SET_PATHS, TOKEN_ARTIFACT_PATH
 import { assertNoNearDuplicateColors } from "./tokens.near-duplicate.ts";
 import { renderPigmentBlocks, renderPigmentTs } from "./tokens.pigments.ts";
 import type { ToneModel } from "./tokens.tones.ts";
-import { assertShippedToneFloors, renderToneBlocks, renderToneTs, toneModel, toneReferenceValues, toneRootDefaults } from "./tokens.tones.ts";
+import { assertShippedToneFloors, renderToneBlocks, renderToneTs, toneModel, toneReferenceValues, toneRootDefaults, toneSeedResets } from "./tokens.tones.ts";
 
 export type { GeneratedCssValue } from "./token-contract.ts";
 
@@ -517,10 +517,10 @@ function loadSeedThemes(contract: TokenContractResult): SeedTheme[] {
  * Seed palettes follow the default root and pointer values in the theme layer, so Light's
  * color-scheme wins by source order. Each seed declares its complete palette.
  */
-function renderSeedThemesBlock(themes: readonly SeedTheme[]): string {
+function renderSeedThemesBlock(themes: readonly SeedTheme[], toneResets: readonly string[]): string {
   const parts: string[] = [];
   for (const theme of themes) {
-    const lines = theme.vars.map(([name, value]) => `  ${name}: ${value};`);
+    const lines = [...theme.vars.map(([name, value]) => `  ${name}: ${value};`), ...toneResets.map((line) => `  ${line}`)];
     parts.push(`\n[data-theme="${theme.name}"] {\n  color-scheme: ${theme.colorScheme};\n${lines.join("\n")}\n}\n`);
   }
   return parts.join("");
@@ -531,7 +531,7 @@ function renderSeedThemesBlock(themes: readonly SeedTheme[]): string {
  * `[data-theme]` block and the shell paints it by stamping nothing; a nested box that must show Hearth under another
  * palette's scope (a theme thumbnail) names this block instead. Same keys as a seed block, values from the base tokens.
  */
-function renderBasePaletteBlock(seeds: readonly SeedTheme[], portableByPath: ReadonlyMap<string, string>): string {
+function renderBasePaletteBlock(seeds: readonly SeedTheme[], portableByPath: ReadonlyMap<string, string>, toneResets: readonly string[]): string {
   const [seed] = seeds;
   if (seed === undefined) {
     throw new Error("no seed value-set to key the base palette block");
@@ -544,7 +544,7 @@ function renderBasePaletteBlock(seeds: readonly SeedTheme[], portableByPath: Rea
     }
     return `  ${name}: ${value};`;
   });
-  return `\n[data-palette="base"] {\n  color-scheme: dark;\n${lines.join("\n")}\n}\n`;
+  return `\n[data-palette="base"] {\n  color-scheme: dark;\n${[...lines, ...toneResets.map((line) => `  ${line}`)].join("\n")}\n}\n`;
 }
 
 /** The generated `themes.gen.ts` module — the seed palettes as a typed TS record (parallel to TOKENS),
@@ -638,8 +638,8 @@ export async function generateArtifacts(uiRoot = HERE): Promise<{ themeCss: stri
       flat,
       conditions,
       renderPointerFineBlock(fine, conditions[POINTER_FINE_CONDITION]) +
-        renderSeedThemesBlock(seedThemes) +
-        renderBasePaletteBlock(seedThemes, portableByPath) +
+        renderSeedThemesBlock(seedThemes, toneSeedResets(tones)) +
+        renderBasePaletteBlock(seedThemes, portableByPath, toneSeedResets(tones)) +
         renderToneBlocks(tones) +
         renderPigmentBlocks(contract.pigments),
       toneRootDefaults(tones),

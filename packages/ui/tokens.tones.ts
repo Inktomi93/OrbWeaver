@@ -148,6 +148,14 @@ export function renderToneBlocks(model: ToneModel): string {
     .join("");
 }
 
+/**
+ * A seed palette block's tone declarations: every knob at its default and the root's step knobs and invalid literals.
+ * A seed nested inside a carried scope (a theme thumbnail) would otherwise inherit that scope's solve and literals.
+ */
+export function toneSeedResets(model: ToneModel): readonly string[] {
+  return [...model.knobs.map((knob) => `--${TONE_MIX_GROUP}-${knob}: ${model.defaults[knob]}%;`), ...toneRootDefaults(model)];
+}
+
 /** The `@theme reference` registration: it mints the `*-tone-*` utilities, and its value is the neutral spelling the
  *  utility falls back to on an unstamped element. */
 export function toneReferenceValues(model: ToneModel): readonly GeneratedCssValue[] {
