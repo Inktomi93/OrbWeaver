@@ -462,8 +462,8 @@ stretched. Pinned by `tests/ui/primitives/tabs/indicator.ct.tsx` (the launched p
 resting transition contract, and the settled landing on the new tab's box).
 
 **3. Accordion / Collapsible height.** BUILT. Both panels transition
-`h-(--accordion-panel-height)` / `h-(--collapsible-panel-height)` from/to
-`data-starting-style:h-0`/`data-ending-style:h-0` at `--motion-layout`
+`block-(--accordion-panel-height)` / `block-(--collapsible-panel-height)` from/to
+`data-starting-style:block-0`/`data-ending-style:block-0` at `--motion-layout`
 (`packages/ui/src/primitives/accordion/variants.ts`, `packages/ui/src/primitives/collapsible/variants.ts`).
 
 **4. Button press feedback.** BUILT. `packages/ui/src/primitives/button/variants.ts` —
@@ -492,7 +492,7 @@ transform-only reorder, reduced-motion gated (`usePrefersReducedMotion` →
 `Feedback.configure({ dropAnimation: null })`).
 
 **9. Selection/checked state.** BUILT. `packages/ui/src/primitives/checkbox/variants.ts`, `packages/ui/src/primitives/radio-group/variants.ts` (and
-siblings) carry `transition-colors duration-(--motion-fast) ease-out-expo`.
+siblings) take `transition-colors duration-(--motion-fast) ease-out-expo` from `SELECTION_CONTROL` in `packages/ui/src/lib/selection-control.ts`.
 
 **10. Streamed-word reveal fade (chat ghost row).** BUILT (design + measurements: D168). Each
 newly revealed word of a streaming message fades in
@@ -528,7 +528,7 @@ per-block `dir` wrapper and drops to a new line).
 
 ### 4.4 Brand canvas drawing
 
-`packages/ui/src/art/web-weave/web-weave-glow.ts` owns the brand web's palette-baked glow and bounded capture-sprite retention. Warm capture segments composite assembled round caps without repeating slice assembly. Halo length quantization changes the blurred endpoint by at most 1/32 CSS pixel; crisp silk and physics coordinates stay exact. Oversized spans retain the uncached slice painter. Palette replacement discards the associated sprites; raster-byte limits exclude browser and GPU allocation overhead. The web-weave-glow CT compares native pixels, alpha, palette changes, retention and DPR behavior. Hardware comparisons must retain actual frame timing, native gestures and host-load evidence; fewer composites alone do not establish smoothness.
+`packages/ui/src/art/web-weave/web-weave-glow.ts` owns the brand web's palette-baked glow and bounded capture-sprite retention. Warm capture segments composite assembled round caps without repeating slice assembly. Halo length quantization changes the blurred endpoint by at most 1/32 CSS pixel; crisp silk and physics coordinates stay exact. Oversized spans retain the uncached slice painter. Palette replacement discards the associated sprites; raster-byte limits exclude browser and GPU allocation overhead. No test pins the sprite cache, palette replacement, retention or DPR behavior. Hardware comparisons must retain actual frame timing, native gestures and host-load evidence; fewer composites alone do not establish smoothness.
 
 ## 5. The Base UI animation/styling contract (house law)
 
@@ -573,7 +573,7 @@ a fade-out.
 **Practical consequence:** always put at least `opacity: 0` on `[data-ending-style]` of the popup root
 itself, even if most of the exit visual is on a child. `OVERLAY_MOTION.anchoredPopup` and
 `OVERLAY_MOTION.modalPopup` already do this — both apply `data-ending-style:opacity-0` plus
-`data-ending-style:scale-95`/`scale-98` on the popup root.
+`data-ending-style:scale-95` on the popup root.
 
 ### 5.3 Lifecycle data-attributes are the ONLY sanctioned styling hooks
 

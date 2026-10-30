@@ -11,7 +11,7 @@ Split off [client-architecture-lockdown.md](client-architecture-lockdown.md) for
 ## 9. The state model (partitioned commons)
 
 - **Partition, not scatter, is the anti-god move.** `state/` holds small stores, the three store factory
-  doors (plus `create-drill-selection-store.ts`, itself minted through a store factory), `chat-handle.ts`,
+  doors (plus `create-drill-selection-store.ts` and `create-kinded-selection-store.ts`, each minted through a store factory), `chat-handle.ts`,
   `assemble-chrome.ts` (D73), and the registry tier. Registry definitions are assembled at the composition door. A registry delivered through React context
   carries a `*-registry-context.ts` + `*-registry-provider.tsx` pair (minted via
   `packages/client/src/lib/create-registry-context.tsx`, lint rule `orb/registry-context-via-mint`); one whose Def type is state-owned
@@ -20,11 +20,10 @@ Split off [client-architecture-lockdown.md](client-architecture-lockdown.md) for
   (devtools, required action labels, unique-name throw), `createPersistedStore` (version, partialize,
   total migrate), `createEntityDraftStore` (frozen empty, `useShallow`, persist). Native persist options
   require version, partialize and migrate at compile time; this proves field presence, not that migration cannot throw.
-  `orb/no-raw-zustand-persist` keeps raw persist calls inside the factory implementations. Other guards:
+  `orb/no-raw-zustand-persist` refuses a named `persist` import from `zustand/middleware` outside the factory implementations. Other guards:
   `orb/state-files`, both selector-stability guards, the ESLint static-`setState` ban, and
   `orb/persistence-boundary` (raw browser storage outside the store doors).
-- **`shell-store` is one drawer for cross-cutting shell state** (activeSection, panelOverrides, openModal,
-  contextTab, openOverlayPanel) — features read via narrow hooks, write via intent-named module actions;
+- **`shell-store` is one drawer for cross-cutting shell state** (`ShellState` in `packages/client/src/state/shell-store.ts` is the full field list) — features read via narrow hooks, write via intent-named module actions;
   the handle never escapes the file. `openConfigTo` (§8) is the one settings navigation verb.
 - **Feature-transient stores are feature-owned but centrally homed** (`character-selection-store`,
   `corpus-selection-store`, …) so a pointer another feature must read is never trapped behind a feature
@@ -37,7 +36,7 @@ Split off [client-architecture-lockdown.md](client-architecture-lockdown.md) for
 
 - **`trpc.ts`** — the typed client + `useTRPC`; tRPC queryKeys are 100% proxy-derived (the `queryKey` selector of `no-restricted-syntax` in `eslint.config.ts` flags a hand-built array; the pre-auth HTTP reads in `auth-bootstrap.ts` and `auth-config.ts` keep named constant keys).
 - **`query-client.ts`** — the §6.1 QueryClient pins have ONE home here (verified header): `staleTime: Infinity` (the bus drives freshness — never `'static'`), `refetchOnReconnect: true` (SSE-gap catch-up), `refetchOnWindowFocus: false`, mutations `retry: 0`, global error toasts via `QueryCache`/`MutationCache` `onError` reading `meta.errorToast`. Do not re-tune these per-surface.
-- **The HTTP-route fetch-fn pattern:** endpoints that are Hono routes, not tRPC (multipart/binary), get ONE `data/` fetch fn each — `upload-asset.ts` (the one client seam for persisting a picked file), `import-tree.ts` (folder import → `202 {workloadId}`), `import-bundle.ts`, `import-characters.ts`, sharing `http-error.ts` (`throwHttpError`) + the `CSRF_HEADER`. Rule: tRPC for everything except multipart/binary/streaming-HTTP; an HTTP route consumed anywhere gets a `data/` fetch fn — a feature never hand-writes `fetch()` (R5).
+- **The HTTP-route fetch-fn pattern:** endpoints that are Hono routes, not tRPC (multipart/binary), get ONE `data/` fetch fn each — for example `upload-asset.ts` (the one client seam for persisting a picked file) and `import-tree.ts` (folder import → `202 {workloadId}`); `packages/client/src/data/` holds the full set. They share `http-error.ts` (`throwHttpError`) + the `CSRF_HEADER`. Rule: tRPC for everything except multipart/binary/streaming-HTTP; an HTTP route consumed anywhere gets a `data/` fetch fn — a feature never hand-writes `fetch()` (R5).
 - **One canonical "who am I" composer** owns identity: it composes the already-cached `sessions.me` + settings + persona-list reads so every caller dedupes on the shared cache. A scattered `trpc.sessions.me` read for identity is the wrong move (the settings host's plain role read is the sanctioned exception class: a non-suspense probe that must never block its shell).
 - **The rest:** `invalidation.ts` (§13.5) · `query-error-state.tsx` (§11) · `bus/` (§13) · `skeleton-rows.tsx` (shape-matched loading rows) · `use-gated-query.ts` (`skipToken` — kills `castId("")`).
 
@@ -106,9 +105,9 @@ Each row names a channel, its home, and the question that selects it.
 | 1 | state commons — narrow hooks + intent-named module actions | `state/*` | client-ephemeral cross-cutting state: selection, panel modes, drafts, filters |
 | 2 | tRPC query cache, cache-first | `trpc.*` queryOptions; `staleTime: Infinity` + bus freshness | another feature's server-persisted entity — the router IS the cross-feature contract (D43(3)) |
 | 2b | `peekQueryData` — hookless sync cache peek | `packages/client/src/data/peek-query.ts` | hookless cache checks for resolution, action decisions or warming; reactive reads and freshness remain query-owned |
-| 2c | door-injected `trpcProxy` into a contributor factory | `main.tsx` `createTrpcProxy(trpcClient, queryClient)` | a contributor whose `when`/resolve logic needs the cache outside render |
+| 2c | door-injected `trpcProxy` into a contributor factory | `createTrpcProxy(trpcClient, queryClient)` in `packages/client/src/compose/client-runtime.ts`, passed into `packages/client/src/compose/authed-composition.tsx` | a contributor whose `when`/resolve logic needs the cache outside render |
 | 3 | total registries (closed vocabulary, tsc-total) | sections · modals · config-groups | a member of a closed shell vocabulary |
-| 4 | contributor registries (open) | chrome · settings-sections · chat-context tabs · chat-context regions · chat-surface anchors · tool-renderers · message-tools-renderers · slash-commands · character-detail · home-tiles, assembled in `main.tsx` | a foreign feature extending a host surface — the contributor channel |
+| 4 | contributor registries (open) | chrome · settings-sections · chat-context tabs · chat-context regions · chat-surface anchors · tool-renderers · message-tools-renderers · slash-commands · character-detail · home-tiles, assembled in `packages/client/src/compose/authed-composition.tsx` | a foreign feature extending a host surface — the contributor channel |
 | 5 | door-threaded render-prop projection | `makeCharactersSection(characterDetailContributors, (view) => …)` | one foreign pane projected into a host, host controls placement; multiple foreign panes use a contribution seam |
 | 6 | shared derivations at tier 4 | a pure predicate/vocabulary module in `lib/` | one pure predicate/vocabulary both sides must agree on |
 | 7 | tier-2 composites | `components/` | domain-aware UI shared by multiple features |
@@ -130,7 +129,7 @@ pure. Keep shared utility modules free of feature imports.
 
 ## 13. The event/sync spine (multi-tab · multi-device · multi-human)
 
-The same disease-class as the slot registries, highest stakes: a mis-wired or under-fanned event means two humans (or two of one person's devices) seeing different truth. Inventory — chat · user · notifications · rpg · automation, on three deliberate durability tiers:
+The same disease-class as the slot registries, highest stakes: a mis-wired or under-fanned event means two humans (or two of one person's devices) seeing different truth. Inventory — chat · user · notifications · rpg · automation · workloads · plugin pub-sub, on deliberate durability tiers:
 
 | Bus | Scope | Durability |
 | - | - | - |
@@ -139,6 +138,8 @@ The same disease-class as the slot registries, highest stakes: a mis-wired or un
 | notifications | per-person durable inbox | **durable-first**: entry composes the INSERT before `publishNotification` |
 | rpg | per-chat game state | **live-only, self-healing** — a domain-minted `EventEmitter` singleton; a verb publishes AFTER its durable write; the client blanket-invalidates on every (re)connect |
 | automation | per-chat, over the `domain/automation` `notify` sink | **transient by design** — rides `defineBusChannel`; the `automation` room (`packages/server/src/transport/trpc/stream/sources/automation.ts`) tails it rather than a standalone subscription |
+| workloads | per-workload lifecycle and progress | **live-only** — a domain-minted `EventEmitter` plus a 60s replay ring in `packages/server/src/domain/workloads/engine/progress-bus.ts`; the `workloads` room (`packages/server/src/transport/trpc/stream/sources/workloads.ts`) is `resumable: false`, and the durable progress column is the reconnect truth |
+| plugin pub-sub | per-installer, between that installer's plugins | **transient, process-local** — `packages/server/src/domain/plugin/substrate/plugin-event-bus.ts` delivers to resident plugin handlers only; it reaches no client and no domain bus |
 
 Presence rides none of these buses: it is process-local, and single-replica is the current stance.
 
@@ -148,19 +149,19 @@ connections plus a 15s grace window — server-derived, never a client-asserted 
 
 **The product rules:**
 
-1. **Durable-first, fan-out-second** for any bus carrying truth someone can miss: the durable INSERT assigns `seq` before the live publish; resume/replay reads the durable log. `tests/server/domain/chat/bus-golden.suite.int.test.ts` pins it.
+1. **Durable-first, fan-out-second** for any bus carrying truth someone can miss: the durable INSERT assigns `seq` before the live publish; resume/replay reads the durable log. `emit` in `packages/server/src/domain/chat/bus.ts` holds the order. `tests/server/domain/chat/bus-golden.suite.int.test.ts` pins the live event order and that the durable replay matches the live commits. No test pins insert-before-publish or `seq` assignment.
 2. **Fan scope follows visibility.** A shared-chat event fans to every present member's every device; a per-person event fans to all that person's connected devices. An event mutating state visible to others must fan beyond the actor. `packages/server/src/domain/chat/verbs/emit-chat-changed.ts` derives its recipients from the live roster (present, kind `human`, not yet left) plus any pre-captured `extraUserIds` (a member removed in the same request) — never a non-member. Use the live roster and current visibility rules to derive event recipients.
 3. **Consumer exhaustiveness is compile-time.** Every bus union ends in `assertNever` or a mapped-type-total Record on the client.
 4. **Every declared event type has a server emit site.** Keep the event union and producers aligned.
-5. **One client-side event→cache router.** `packages/client/src/data/invalidation.ts` is the one seam for every client-consumed bus; a new bus's client half must land in this same file, and keep cache invalidation within that seam.
+5. **One client-side event→cache router.** `packages/client/src/data/invalidation.ts` is the one seam for every client-consumed bus: its `invalidateQueries` call is the single chokepoint. A new bus's event→filter map lives beside it in `packages/client/src/data/invalidation-*.ts` and routes through that chokepoint.
 6. **Presence is server-derived only.** A client-asserted presence write is banned — the contract declares no inbound presence schema. The read discloses one bit per asked user id through the single gating seam `packages/server/src/transport/trpc/presence-disclosure.ts` — any authenticated caller may ask about any user id in v1, with no per-room membership filter; tightening the audience touches that file plus its one call site. A client read exists at `trpc.notifications.presence`.
 7. **Server truth never rides BroadcastChannel (D138).** The session channel (§12 row 12) carries session lifecycle plus durable-local rehydration pokes only. Enforcer: ESLint `orb/session-channel-boundary`.
 8. **A delete announces after the row is gone.** Pick the order by the plane the event rides: live-only (run `DELETE … RETURNING` first, then emit once per returned row — an emit before a conditional delete can announce a row that survives); durable (write an event row that has an FK to the deleted row before the delete, because the cascade removes it); a junction the delete cascades or nulls (resolve the audience before the delete, then fan after — `packages/server/src/entry/compose/room-reach.ts` gives this snapshot-then-fan op). Read any value the emit needs before the delete, and do not nest that read in a later branch the delete's own result can skip. Keep the fan unconditional over the returned rows. Homes: `packages/server/src/domain/chat/verbs/chat-lifecycle.ts`, `packages/server/src/domain/refinery/verbs/delete-session.ts`.
 
 **The transport unification.** `chat-events-bus.ts`, `user-events-bus.ts`, `notifications-bus.ts` each
-compose the one `defineBusChannel` primitive: `defineBusChannel<Key, Event>(channelFor, opts?: {
+compose the one `defineBusChannel` primitive, as does `packages/server/src/transport/trpc/automation-bus.ts`: `defineBusChannel<Key, Event>(channelFor, opts?: {
 firehose: true })` (home `packages/server/src/transport/trpc/bus-channel.ts`) rather than hand-rolling an
-`EventEmitter`; durability stays per-bus policy composed in front of `publish`. The `{firehose: true}`
+`EventEmitter`. `orb/bus-channel-primitive` refuses a bespoke `EventEmitter` only under `packages/server/src/transport/**` (`eslint.config.ts`). Domain-minted emitters (rpg, workloads, plugin pub-sub) sit outside it; durability stays per-bus policy composed in front of `publish`. The `{firehose: true}`
 overload returns a bus with an extra `subscribeAll` — only chat declares it; calling it on user or
 notifications is a compile error. Keep the shared bus channel primitive as the transport-level event seam.
 
@@ -204,4 +205,4 @@ D333 ends custom static client certification. Current checks live in native conf
 | composite promotion (≥2-feature duplication → `components/`) | semantic near-duplicates (same anatomy, different fields) defeat textual clone detection; The hoist remains a design judgment. Checklist: same anatomy in 2+ features and changing together → tier 2; 3+ repeats of wiring → tier 3 factory; a genuine one-off → leave. |
 | fan-scope completeness for new multi-visibility features | Checklist at contract review: who can see this state? every seer's channel gets the event (member-fan for rooms, per-person for owned) · durable-first if a miss diverges canon (else document the heal path) · the event type joins the union and coverage-deferred before the emit lands. |
 | three-states completeness (§11) | Checklist: skeleton matches final shape (no layout shift) · error = `QueryErrorState` with real retry · empty names the next step. |
-| HTTP fetch-fn discipline (§10) | eslint rule `orb/fetch-fn-in-features` flags a client feature that hand-writes a global `fetch(`. Checklist: multipart/binary → a `data/` fetch fn beside the existing four; everything else → tRPC. |
+| HTTP fetch-fn discipline (§10) | eslint rule `orb/fetch-fn-in-features` flags a client feature that hand-writes a global `fetch(`. Checklist: multipart/binary → a `data/` fetch fn beside the existing ones; everything else → tRPC. |
