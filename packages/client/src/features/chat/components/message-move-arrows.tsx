@@ -2,7 +2,7 @@
 // seq: the verb lands the row before that slot when moving up and after it when moving down, so each arrow sends
 // its neighbour's seq. A neighbour outside the loaded rows is read from the paging query's own cursor at click
 // time, so an arrow is disabled only where no row exists in that direction. Both arrows disable, and refuse,
-// while a turn is generating in the room. The verb is host-only, and the caller mounts these for the host alone.
+// while a turn is generating in the room or the loaded pages are still catching up to the live tail. The verb is host-only, and the caller mounts these for the host alone.
 
 import type { MessageView } from "@orb/contracts/chat";
 import type { ChatId, MessageId } from "@orb/kit/ids";
@@ -78,7 +78,7 @@ export function MessageMoveArrows({ message, neighbours }: MessageMoveArrowsProp
   };
 
   const moveTo = async (direction: "before" | "after", loadedSeq: number | null): Promise<void> => {
-    if (generating || move.isPending) {
+    if (generating || neighbours.settling || move.isPending) {
       return;
     }
     const toSeq = loadedSeq ?? (await readUnloadedNeighbour(direction));

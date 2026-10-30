@@ -17,6 +17,8 @@ type AnchoredPage = inferOutput<Trpc["chat"]["getMessageWindow"]>;
 /** Whether canon exists beyond the loaded rows, from the paging query's own previous/next signal. */
 export interface TranscriptEdges {
   readonly earlier: boolean;
+  /** The loaded pages do not yet reach the live tail, so a row beside the gap has an unloaded neighbour. */
+  readonly settling: boolean;
   readonly later: boolean;
 }
 
@@ -94,7 +96,7 @@ function OrdinaryHistory({ tail, ...props }: TranscriptWindowProps & { readonly 
       {pages.isError ? <QueryErrorState label="conversation history" onRetry={pages.refetch} /> : null}
       {/* The merged list ends at the live tail, which wins every overlap: nothing exists after its last row. `hasNextPage`
           only describes the bridge from older pages up to that tail, and reads true while the tail is catching up. */}
-      {props.render(mergePages([...pages.data.pages, tail]), null, { earlier: pages.hasPreviousPage, later: false })}
+      {props.render(mergePages([...pages.data.pages, tail]), null, { earlier: pages.hasPreviousPage, later: false, settling: bridging })}
     </Stack>
   );
 }
@@ -148,8 +150,8 @@ function AnchoredThread({
   // The no-anchor fallback is the latest page of the ordinary read, so its edges are that page's own cursor.
   const edges: TranscriptEdges =
     initial.anchorMessageId === null && fallback.data !== undefined
-      ? { earlier: fallback.data.previousCursor !== null, later: false }
-      : { earlier: pages.hasPreviousPage, later: pages.hasNextPage };
+      ? { earlier: fallback.data.previousCursor !== null, later: false, settling: false }
+      : { earlier: pages.hasPreviousPage, later: pages.hasNextPage, settling: false };
   return (
     <Stack className="block-full min-block-0" gap="field">
       <Row className="flex-wrap" gap="field">

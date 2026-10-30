@@ -57,6 +57,7 @@ export const MESSAGE_MOVE_DOWN_NAME = "Move down";
 export const MESSAGE_MOVE_UP_UNAVAILABLE = "No message above this one.";
 export const MESSAGE_MOVE_DOWN_UNAVAILABLE = "No message below this one.";
 export const MESSAGE_MOVE_GENERATING = "Wait for the reply to finish.";
+export const MESSAGE_MOVE_LOADING = "Loading the conversation…";
 
 /** The toasts a move that stopped before it reached the server raises, and the one its server refusal shares. */
 export const MESSAGE_MOVE_FAILED = "Couldn't move that message.";
