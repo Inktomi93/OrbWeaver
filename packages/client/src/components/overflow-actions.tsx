@@ -14,11 +14,11 @@
 import { Button } from "@orb/ui/button";
 import { Icon, MoreHorizontal } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
-import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
+import { Menu, MenuItem, MenuPopup, MenuSubmenuRoot, MenuSubmenuTrigger, MenuTrigger } from "@orb/ui/menu";
 import type { ReactElement, ReactNode } from "react";
 import { Fragment, useLayoutEffect, useRef, useState } from "react";
+import type { OverflowMenuForm } from "#lib";
 import { cn } from "#lib";
-import type { OverflowMenuForm } from "#state";
 
 export const OVERFLOW_TRIGGER_LABEL = "More actions";
 
@@ -33,12 +33,24 @@ export interface OverflowAction {
 export function OverflowMenuForms({ forms }: { readonly forms: readonly OverflowMenuForm[] }): ReactElement {
   return (
     <>
-      {forms.map((form) => (
-        <MenuItem key={form.id} onClick={form.onSelect}>
-          <Icon icon={form.icon} size="sm" />
-          {form.label}
-        </MenuItem>
-      ))}
+      {forms.map((form) =>
+        "items" in form ? (
+          <MenuSubmenuRoot key={form.id}>
+            <MenuSubmenuTrigger>
+              <Icon icon={form.icon} size="sm" />
+              {form.label}
+            </MenuSubmenuTrigger>
+            <MenuPopup>
+              <OverflowMenuForms forms={form.items} />
+            </MenuPopup>
+          </MenuSubmenuRoot>
+        ) : (
+          <MenuItem disabled={form.disabled === true} key={form.id} onClick={form.onSelect}>
+            <Icon icon={form.icon} size="sm" />
+            {form.label}
+          </MenuItem>
+        ),
+      )}
     </>
   );
 }

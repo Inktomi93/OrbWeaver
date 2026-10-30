@@ -98,6 +98,17 @@
     padding-inline: var(--spacing-block);
     box-shadow: var(--shell-band-ember), var(--shell-band-rule);
   }
+  /* The identity shrinks first, down to the title floor; only then does the action row give up room, by moving
+   * actions into its menu. */
+  .shell-panel-header [data-slot="list-pane-identity"] {
+    flex: 1 10000 auto;
+    min-inline-size: var(--dimension-shell-title-floor);
+  }
+  .shell-panel-header [data-slot="list-pane-action"] {
+    display: flex;
+    flex: 0 1 auto;
+    min-inline-size: var(--size-touch-target);
+  }
   /* The content-to-context binding: an ember top edge on the primary token, so a theme retints it. */
   .shell-panel[data-panel-side="context"] .shell-panel-header {
     --shell-band-ember: inset 0 var(--border-width-accent) 0 color-mix(in oklab, var(--color-primary) 55%, transparent);

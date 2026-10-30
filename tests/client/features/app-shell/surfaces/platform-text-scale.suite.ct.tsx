@@ -11,9 +11,11 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import type { AppShellCharacterStory, AppShellStory } from "./_app-shell-stories.tsx";
+import type { PlantedControlsStory } from "./_text-scale-probe-stories.tsx";
 import { routeRoom, SHELL_STORIES } from "./app-shell-ct.ts";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;
+const PROBE_STORIES = "tests/client/features/app-shell/surfaces/_text-scale-probe-stories";
 const PHONE = { name: "phone", touch: true, size: { width: 390, height: 844 } } as const;
 const DESKTOP = { name: "desktop", touch: false, size: { width: 1440, height: 900 } } as const;
 const TEXT_200 = { name: "200% text", factor: 2 } as const;
@@ -271,3 +273,11 @@ for (const [viewport, scale] of QUALIFIED.importDialog) {
     });
   });
 }
+
+test("the probe fails a control clipped by an ancestor that does not scroll and passes one its own scroller reaches", async ({ mount, page }) => {
+  await mount<typeof PlantedControlsStory>(`${PROBE_STORIES}/PlantedControlsStory`, {});
+  const clipped = await findings(page.locator('[data-planted="clipped"]'));
+  expect(clipped).toHaveLength(1);
+  expect(clipped[0]).toContain("clipped on x");
+  expect(await findings(page.locator('[data-planted="scrolled"]'))).toEqual([]);
+});

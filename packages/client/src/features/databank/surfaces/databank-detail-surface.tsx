@@ -117,33 +117,31 @@ const EMPTY_BANK_COLLAPSED =
  *
  * AND NO SECOND ADD DOOR, nor an invitation to add with no affordance beside it.
  */
-function DatabankWelcome(): ReactElement | null {
+function welcomeCopy(total: number, listCollapsed: boolean): string {
+  if (total === 0) {
+    return listCollapsed ? EMPTY_BANK_COLLAPSED : EMPTY_BANK_DESCRIPTION;
+  }
+  return listCollapsed ? `${PICK_A_DOCUMENT}${LIST_OFF_SCREEN_HINT}` : PICK_A_DOCUMENT;
+}
+
+function DatabankWelcome(): ReactElement {
   const trpc = useTRPC();
   const listMode = useSectionListMode("databank");
   const census = useQuery(trpc.databank.bankHealth.queryOptions());
-
-  if (census.data === undefined) {
-    return null;
-  }
-  if (census.data.total === 0) {
-    return (
-      // action={null}: the Databank CONTENT landing for an EMPTY bank. It explains the Databank and points at the one Add door, which lives in the sibling list (the band's Add and the empty bank's own CTA); minting a second Add button here is the refused two-Add-doors arm. Ends if the library stops carrying a create door.
-      <EmptyState
-        action={null}
-        description={listMode === "collapsed" ? EMPTY_BANK_COLLAPSED : EMPTY_BANK_DESCRIPTION}
-        icon={<Icon icon={FileText} size="lg" />}
-        title="Your databank"
-      />
-    );
-  }
+  // `data-ready`: the pane has no skeleton, so its root declares when the first read has settled (data or error). The
+  // root persists across the read, so a section swap holds the outgoing view for it and shell/motion.css fades it in.
   return (
-    // action={null}: the Databank CONTENT pick-a-document nudge shown alongside the library list, which itself carries both create doors (the band's Add primary and the empty bank's own CTA). The next step lives in the sibling list — the preset-library-welcome precedent, same species. Ends if the library stops carrying a create door.
-    <EmptyState
-      action={null}
-      description={listMode === "collapsed" ? `${PICK_A_DOCUMENT}${LIST_OFF_SCREEN_HINT}` : PICK_A_DOCUMENT}
-      icon={<Icon icon={FileText} size="lg" />}
-      title="Your databank"
-    />
+    <Stack align="center" className="justify-center block-full min-block-0" data-ready={census.isPending ? "false" : "true"}>
+      {census.data === undefined ? null : (
+        // action={null}: the Databank CONTENT landing. It explains the Databank (empty bank) or nudges a pick (populated bank) and points at the one Add door, which lives in the sibling list (the band's Add and the empty bank's own CTA); minting a second Add button here is the refused two-Add-doors arm. Ends if the library stops carrying a create door.
+        <EmptyState
+          action={null}
+          description={welcomeCopy(census.data.total, listMode === "collapsed")}
+          icon={<Icon icon={FileText} size="lg" />}
+          title="Your databank"
+        />
+      )}
+    </Stack>
   );
 }
 

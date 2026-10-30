@@ -1,7 +1,8 @@
 // The production AppShell over a chrome registry the story assembles itself: the production sections and modals, and
 // one trail widget ordered against the command trigger, so the topbar trail's contents and order come off the registry.
 import { AppShell } from "@orb/client/features/app-shell";
-import type { ChromeEntry, OverflowMenuForm } from "@orb/client/state";
+import type { OverflowMenuForm } from "@orb/client/lib";
+import type { ChromeEntry } from "@orb/client/state";
 import { assembleChrome, ChromeRegistryProvider, useModalRegistry, useSectionRegistry } from "@orb/client/state";
 import { CtClientProviders, isolationRegistry } from "@orb/testkit/browser";
 import { Button } from "@orb/ui/button";

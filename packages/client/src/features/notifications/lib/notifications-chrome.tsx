@@ -19,10 +19,15 @@
 
 import { Bell } from "@orb/ui/icons";
 import type { ReactElement } from "react";
+import type { OverflowMenuForm } from "#lib";
 import type { ChromeEntry } from "#state";
-import { youSheetMenuForms } from "#state";
 import { NotificationBell } from "../components/notification-bell.tsx";
 import { useInbox } from "../hooks/use-inbox.ts";
+import { inboxRequests } from "./notifications-requests.ts";
+
+const MENU_FORMS: readonly OverflowMenuForm[] = [
+  { id: "notifications-bell", label: "Notifications", icon: Bell, onSelect: (): void => inboxRequests.request() },
+];
 
 export const notificationsChrome: ChromeEntry = {
   id: "notifications-bell",
@@ -53,7 +58,7 @@ export const notificationsChrome: ChromeEntry = {
   behavior: {
     kind: "widget",
     body: (presentation): ReactElement => <NotificationBell presentation={presentation} />,
-    // Curated into the You sheet, whose lens is the inbox.
-    useMenuForms: youSheetMenuForms({ id: "notifications-bell", label: "Notifications", icon: Bell }),
+    // The menu entry opens the bell's own popover.
+    useMenuForms: (): readonly OverflowMenuForm[] => MENU_FORMS,
   },
 };

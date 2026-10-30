@@ -25,12 +25,13 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement } from "react";
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 import { FormDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
+import { useOpenRequests } from "#lib";
 import { selectCharacter } from "#state";
 import { useCreateCharacter } from "../hooks/use-character-mutations.ts";
-import { subscribeCharacterDoors } from "../lib/character-door-requests.ts";
+import { characterDoors } from "../lib/character-door-requests.ts";
 import { characterRefusalCopy } from "../lib/character-refusal-notice.ts";
 import { CharacterImportDialog } from "./character-import-dialog.tsx";
 
@@ -249,17 +250,13 @@ export function CharacterCreateActions(): ReactElement {
   const [importOpen, setImportOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   // A row that moved this cluster out of reach opens its dialogs through the overflow menu's request.
-  useEffect(
-    () =>
-      subscribeCharacterDoors((door): void => {
-        if (door === "import") {
-          setImportOpen(true);
-        } else {
-          setCreateOpen(true);
-        }
-      }),
-    [],
-  );
+  useOpenRequests(characterDoors, (door): void => {
+    if (door === "import") {
+      setImportOpen(true);
+    } else {
+      setCreateOpen(true);
+    }
+  });
   return (
     <>
       {/* ONE flex child, so the band's space-between keeps the cluster hard against the trailing edge. */}

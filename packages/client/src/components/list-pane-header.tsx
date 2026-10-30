@@ -22,11 +22,12 @@ import type { ReactElement } from "react";
 import type { ListPaneHeaderProps } from "#lib";
 import { LIST_PANE_TITLE_ID } from "#lib";
 import { CountText } from "./count-text.tsx";
+import { OverflowActions, OverflowMenuForms } from "./overflow-actions.tsx";
 
 export type { ListPaneHeaderProps } from "#lib";
 
 /** One LIST chrome-band: `[‹] Title · accent  count … action`. */
-export function ListPaneHeader({ title, accent, count, back, action }: ListPaneHeaderProps): ReactElement {
+export function ListPaneHeader({ title, accent, count, back, actions }: ListPaneHeaderProps): ReactElement {
   return (
     <>
       {/* `data-slot="list-pane-identity"` names this cluster for the shell: on a phone the ONE-SHELL rule
@@ -127,7 +128,11 @@ export function ListPaneHeader({ title, accent, count, back, action }: ListPaneH
           the failure the topbar trail already recorded (#1316). The wrapper renders only WITH an action, so
           shell.css's mobile band-shed test (`:not(:has(> *:not([data-slot="list-pane-identity"])))`) reads
           exactly what it read before: one non-identity child iff the pane has a primary action. */}
-      {action === undefined ? null : <div data-slot="list-pane-action">{action}</div>}
+      {actions === undefined || actions.length === 0 ? null : (
+        <div data-slot="list-pane-action">
+          <OverflowActions actions={actions.map((action) => ({ id: action.id, inline: action.inline, menu: <OverflowMenuForms forms={action.menu} /> }))} />
+        </div>
+      )}
     </>
   );
 }

@@ -11,11 +11,10 @@
 // for exactly this reason), and a wand competing with the room's own name loses. The sheet lens renders the
 // commands as plain rows.
 
-import { WandSparkles } from "@orb/ui/icons";
 import type { ReactElement } from "react";
 import type { ChromeEntry } from "#state";
-import { youSheetMenuForms } from "#state";
 import { PluginCommandsMenu } from "../components/plugin-commands-menu.tsx";
+import { usePluginCommandForms } from "../hooks/use-plugin-command-forms.ts";
 import { useLauncherCommands } from "../hooks/use-plugin-commands.ts";
 
 export const pluginCommandsChrome: ChromeEntry = {
@@ -27,7 +26,7 @@ export const pluginCommandsChrome: ChromeEntry = {
   behavior: {
     kind: "widget",
     body: (presentation): ReactElement | null => <PluginCommandsMenu presentation={presentation} />,
-    // Curated into the You sheet, whose lens lists the commands.
-    useMenuForms: youSheetMenuForms({ id: "plugin-commands", label: "Plugin commands", icon: WandSparkles }),
+    // The menu entry is a submenu of the same commands.
+    useMenuForms: usePluginCommandForms,
   },
 };

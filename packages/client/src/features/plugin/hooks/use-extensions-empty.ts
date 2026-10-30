@@ -24,12 +24,15 @@ import { useTRPC } from "#data";
 import type { EXTENSIONS_EMPTY_COPY } from "../lib/extensions-copy.ts";
 
 export interface ExtensionsEmptyView {
+  /** Has the first read of the plugin list and the surface catalog settled (data or error)? */
+  readonly settled: boolean;
   readonly reason: keyof typeof EXTENSIONS_EMPTY_COPY | null;
   readonly awaitingPlugins: readonly PluginView[];
   readonly erroredCount: number;
 }
 
-const PENDING: ExtensionsEmptyView = { reason: null, awaitingPlugins: [], erroredCount: 0 };
+const PENDING: ExtensionsEmptyView = { settled: false, reason: null, awaitingPlugins: [], erroredCount: 0 };
+const UNREAD: ExtensionsEmptyView = { settled: true, reason: null, awaitingPlugins: [], erroredCount: 0 };
 
 /**
  * Resolve why the caller sees no extension pages. Ordered by what they must do next, most-blocking first:
@@ -47,25 +50,25 @@ const PENDING: ExtensionsEmptyView = { reason: null, awaitingPlugins: [], errore
  */
 export function useExtensionsEmpty(): ExtensionsEmptyView {
   const trpc = useTRPC();
-  const { data: plugins } = useQuery(trpc.plugin.list.queryOptions());
-  const { data: surfaces } = useQuery(trpc.plugin.listSurfaces.queryOptions());
+  const { data: plugins, isPending: pluginsPending } = useQuery(trpc.plugin.list.queryOptions());
+  const { data: surfaces, isPending: surfacesPending } = useQuery(trpc.plugin.listSurfaces.queryOptions());
   if (plugins === undefined || surfaces === undefined) {
-    return PENDING;
+    return pluginsPending || surfacesPending ? PENDING : UNREAD;
   }
   // By name, so the waiting group and the action that opens its first review read in one order.
   const awaitingPlugins = plugins.filter((plugin) => plugin.reconsentPending).toSorted((a, b) => a.name.localeCompare(b.name));
   if (plugins.length === 0) {
-    return { reason: "none-installed", awaitingPlugins, erroredCount: 0 };
+    return { settled: true, reason: "none-installed", awaitingPlugins, erroredCount: 0 };
   }
   if (awaitingPlugins.length > 0) {
-    return { reason: "awaiting-consent", awaitingPlugins, erroredCount: 0 };
+    return { settled: true, reason: "awaiting-consent", awaitingPlugins, erroredCount: 0 };
   }
   const errored = plugins.filter((plugin) => plugin.status === "errored");
   if (errored.length > 0) {
-    return { reason: "some-errored", awaitingPlugins, erroredCount: errored.length };
+    return { settled: true, reason: "some-errored", awaitingPlugins, erroredCount: errored.length };
   }
   if (plugins.every((plugin) => plugin.status !== "enabled")) {
-    return { reason: "all-off", awaitingPlugins, erroredCount: 0 };
+    return { settled: true, reason: "all-off", awaitingPlugins, erroredCount: 0 };
   }
-  return { reason: "no-pages", awaitingPlugins, erroredCount: 0 };
+  return { settled: true, reason: "no-pages", awaitingPlugins, erroredCount: 0 };
 }

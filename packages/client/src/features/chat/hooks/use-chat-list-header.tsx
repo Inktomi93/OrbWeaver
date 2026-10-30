@@ -31,7 +31,6 @@
 
 import { Button } from "@orb/ui/button";
 import { Icon, Plus, Upload } from "@orb/ui/icons";
-import { Row } from "@orb/ui/layout";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import { useState } from "react";
 import type { ListPaneHeaderView } from "#lib";
@@ -41,30 +40,41 @@ import { useChatCensus } from "../hooks/use-chat-census.ts";
 import { CHATS_SECTION_LABEL } from "../lib/chats-section-label.ts";
 
 const IMPORT_CHAT_LABEL = "Import a chat transcript";
+const NEW_CHAT_LABEL = "New chat";
 
 export function useChatListHeader(): ListPaneHeaderView {
   const count = useChatCensus();
   const [importOpen, setImportOpen] = useState(false);
 
   return {
-    action: (
-      <Row align="center" gap="field">
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button aria-label={IMPORT_CHAT_LABEL} intent="ghost" onClick={(): void => setImportOpen(true)} size="icon-sm">
-                <Icon icon={Upload} size="sm" />
-              </Button>
-            }
-          />
-          <TooltipPopup side="bottom">{IMPORT_CHAT_LABEL}</TooltipPopup>
-        </Tooltip>
-        <Button intent="primary" onClick={(): void => openNewChatPicker()} size="sm">
-          <Icon icon={Plus} size="sm" />
-          New
-        </Button>
-      </Row>
-    ),
+    actions: [
+      {
+        id: "chat-import",
+        inline: (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button aria-label={IMPORT_CHAT_LABEL} intent="ghost" onClick={(): void => setImportOpen(true)} size="icon-sm">
+                  <Icon icon={Upload} size="sm" />
+                </Button>
+              }
+            />
+            <TooltipPopup side="bottom">{IMPORT_CHAT_LABEL}</TooltipPopup>
+          </Tooltip>
+        ),
+        menu: [{ id: "chat-import", label: IMPORT_CHAT_LABEL, icon: Upload, onSelect: (): void => setImportOpen(true) }],
+      },
+      {
+        id: "chat-new",
+        inline: (
+          <Button intent="primary" onClick={(): void => openNewChatPicker()} size="sm">
+            <Icon icon={Plus} size="sm" />
+            New
+          </Button>
+        ),
+        menu: [{ id: "chat-new", label: NEW_CHAT_LABEL, icon: Plus, onSelect: (): void => openNewChatPicker() }],
+      },
+    ],
     count: count ?? 0,
     title: CHATS_SECTION_LABEL,
     overlay: (

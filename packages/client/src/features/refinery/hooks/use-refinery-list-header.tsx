@@ -4,6 +4,7 @@ import type { ReactElement } from "react";
 import type { ListPaneHeaderView } from "#lib";
 import { useMobileViewport, useSelectedRefinerySessionId } from "#state";
 import { StartSessionDoor } from "../components/start-session-door.tsx";
+import { startSessionRequests } from "../lib/start-session-requests.ts";
 import { useRefineryCensus } from "./use-refinery-sessions.ts";
 
 /**
@@ -33,6 +34,8 @@ import { useRefineryCensus } from "./use-refinery-sessions.ts";
  * the phone startable only from the empty state. Not `disabled`: a visible dead control is the defect the
  * owner ruled out.
  */
+const START_SESSION_LABEL = "Start a new session";
+
 export function useRefineryListHeader(): ListPaneHeaderView {
   // ONE census spelling, shared with the phone topbar's screen title — and non-suspending, like every
   // other section's band ("the title renders immediately and the count settles in place"). It is the SAME
@@ -43,15 +46,26 @@ export function useRefineryListHeader(): ListPaneHeaderView {
   const isMobile = useMobileViewport();
   const contentShowsPicker = selectedId === null && !isMobile;
   return {
-    action: contentShowsPicker ? undefined : (
-      <StartSessionDoor
-        trigger={(busy): ReactElement => (
-          <Button aria-busy={busy} aria-label="Start a new session" intent="ghost" size="glyph-md">
-            <Icon icon={Plus} size="sm" />
-          </Button>
-        )}
-      />
-    ),
+    ...(contentShowsPicker
+      ? {}
+      : {
+          actions: [
+            {
+              id: "refinery-start",
+              inline: (
+                <StartSessionDoor
+                  answersRequests={true}
+                  trigger={(busy): ReactElement => (
+                    <Button aria-busy={busy} aria-label={START_SESSION_LABEL} intent="ghost" size="glyph-md">
+                      <Icon icon={Plus} size="sm" />
+                    </Button>
+                  )}
+                />
+              ),
+              menu: [{ id: "refinery-start", label: START_SESSION_LABEL, icon: Plus, onSelect: (): void => startSessionRequests.request() }],
+            },
+          ],
+        }),
     count: census ?? 0,
     title: "Sessions",
   };

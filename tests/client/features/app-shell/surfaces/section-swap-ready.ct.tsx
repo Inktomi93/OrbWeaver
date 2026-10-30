@@ -54,51 +54,59 @@ async function recordSwaps(page: Page): Promise<void> {
   );
 }
 
-async function routeWithSlowPresets(
-  page: Page,
-  corpus: Parameters<typeof createShellAmbientReads>[0],
-): Promise<ReturnType<typeof holdCorpusProcedure<"preset.list">>> {
+type HeldPath = Parameters<typeof holdCorpusProcedure>[1];
+
+/** The surface families that can render blank before their first read: each declares `data-ready` on a root that persists. */
+const FAMILIES = [
+  { name: "the Presets welcome pane", label: SECTION_LABELS.presets, held: "preset.list" },
+  { name: "the Databank welcome pane", label: SECTION_LABELS.databank, held: "databank.bankHealth" },
+  { name: "the Plugin pages empty pane", label: SECTION_LABELS.extensions, held: "plugin.list" },
+] as const satisfies readonly { readonly name: string; readonly label: string; readonly held: HeldPath }[];
+
+async function routeHeld(page: Page, corpus: Parameters<typeof createShellAmbientReads>[0], path: HeldPath): Promise<ReturnType<typeof holdCorpusProcedure>> {
   const caller = await root.internalCallerFor(root.ownerId);
-  const held = holdCorpusProcedure(caller, "preset.list");
+  const held = holdCorpusProcedure(caller, path);
   await routeTrpc(page, { ...createShellAmbientReads(corpus, root.ownerId), ...serveCorpusProcedures(caller, SECTION_PROCEDURES), ...held.routes });
   return held;
 }
 
-test("the swap into Presets does not settle on an unsettled pane inside its deadline, and the pane shows once its read lands", async ({
-  corpus,
-  mount,
-  page,
-}) => {
-  await page.emulateMedia({ reducedMotion: "no-preference" });
-  await recordSwaps(page);
-  const held = await routeWithSlowPresets(page, corpus);
-  await seedShellState(page, { activeSection: "home" });
-  await mount<typeof AppShellStory>(STORY, {});
-  await page.locator(".shell-rail").getByRole("button", { name: SECTION_LABELS.presets, exact: true }).click();
-  await held.requested;
-  // While the read is out, the surface says so.
-  await expect(page.locator(".shell-content [data-ready]")).toHaveAttribute("data-ready", "false");
-  // The read stays out until the swap has given up waiting, so the swap's own bound is what ends it.
-  await expect.poll(() => page.evaluate((key) => Reflect.get(globalThis, key), SETTLED_KEY)).toBeDefined();
-  const settled = (await page.evaluate((key) => Reflect.get(globalThis, key), SETTLED_KEY)) as { readonly ready: string; readonly elapsed: number };
-  // It held well past the 48ms quiet interval that ended the wait while the pane was still unsettled.
-  expect(settled.elapsed).toBeGreaterThan(HELD_PAST_MS);
-  held.release();
-  await expect(page.locator(".shell-content [data-ready]")).toHaveAttribute("data-ready", "true");
-  await expect(page.locator(".shell-content [data-ready]")).toHaveCSS("opacity", "1");
-});
+for (const family of FAMILIES) {
+  test(`the swap into ${family.name} does not settle on an unsettled pane inside its deadline, and the pane shows once its read lands`, async ({
+    corpus,
+    mount,
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await recordSwaps(page);
+    const held = await routeHeld(page, corpus, family.held);
+    await seedShellState(page, { activeSection: "home" });
+    await mount<typeof AppShellStory>(STORY, {});
+    await page.locator(".shell-rail").getByRole("button", { name: family.label, exact: true }).click();
+    await held.requested;
+    // While the read is out, the surface says so.
+    await expect(page.locator(".shell-content [data-ready]")).toHaveAttribute("data-ready", "false");
+    // The read stays out until the swap has given up waiting, so the swap's own bound is what ends it.
+    await expect.poll(() => page.evaluate((key) => Reflect.get(globalThis, key), SETTLED_KEY)).toBeDefined();
+    const settled = (await page.evaluate((key) => Reflect.get(globalThis, key), SETTLED_KEY)) as { readonly ready: string; readonly elapsed: number };
+    // It held well past the 48ms quiet interval that ended the wait while the pane was still unsettled.
+    expect(settled.elapsed).toBeGreaterThan(HELD_PAST_MS);
+    held.release();
+    await expect(page.locator(".shell-content [data-ready]")).toHaveAttribute("data-ready", "true");
+    await expect(page.locator(".shell-content [data-ready]")).toHaveCSS("opacity", "1");
+  });
 
-test("with reduced motion no transition is raised and the pane still waits for its read before it shows", async ({ corpus, mount, page }) => {
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  await recordSwaps(page);
-  const held = await routeWithSlowPresets(page, corpus);
-  await seedShellState(page, { activeSection: "home" });
-  await mount<typeof AppShellStory>(STORY, {});
-  await page.locator(".shell-rail").getByRole("button", { name: SECTION_LABELS.presets, exact: true }).click();
-  await held.requested;
-  await expect(page.locator(".shell-content [data-ready]")).toHaveCSS("opacity", "0");
-  held.release();
-  await expect(page.locator(".shell-content [data-ready]")).toHaveAttribute("data-ready", "true");
-  await expect(page.locator(".shell-content [data-ready]")).toHaveCSS("opacity", "1");
-  expect(await page.evaluate((key) => Reflect.get(globalThis, key), STARTED_KEY)).toBe(0);
-});
+  test(`with reduced motion no transition is raised for ${family.name}, which still waits for its read before it shows`, async ({ corpus, mount, page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await recordSwaps(page);
+    const held = await routeHeld(page, corpus, family.held);
+    await seedShellState(page, { activeSection: "home" });
+    await mount<typeof AppShellStory>(STORY, {});
+    await page.locator(".shell-rail").getByRole("button", { name: family.label, exact: true }).click();
+    await held.requested;
+    await expect(page.locator(".shell-content [data-ready]")).toHaveCSS("opacity", "0");
+    held.release();
+    await expect(page.locator(".shell-content [data-ready]")).toHaveAttribute("data-ready", "true");
+    await expect(page.locator(".shell-content [data-ready]")).toHaveCSS("opacity", "1");
+    expect(await page.evaluate((key) => Reflect.get(globalThis, key), STARTED_KEY)).toBe(0);
+  });
+}
