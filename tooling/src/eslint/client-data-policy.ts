@@ -1,8 +1,9 @@
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESLint, TSESTree } from "@typescript-eslint/utils";
 import ts from "typescript";
+import { importedSymbol } from "./static-values.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
-import { alternation } from "./syntax.ts";
+import { alternation, wholeModule } from "./syntax.ts";
 
 // Gates for the client data, state and registry law (client-architecture-state-and-gates.md §9-§10,
 // ui-architecture-state-and-stack.md §5.1-§6.1, client-architecture-lockdown.md §6d/§8). Each entry is one
@@ -59,6 +60,15 @@ export const CLIENT_DATA_RESTRICTIONS = [
         selector: "ImportDeclaration[source.value='@tanstack/react-query'] > ImportSpecifier[imported.name='useMutation']",
         message:
           "`useMutation` belongs only in data/create-entity-mutation.ts; it bakes the one error slot, the optimistic recipe and the freshness XOR (client-architecture-state-and-gates.md §11, §14).",
+      },
+      {
+        selector: "ExportNamedDeclaration[source.value='@tanstack/react-query'] > ExportSpecifier[local.name='useMutation']",
+        message: "`useMutation` re-exported outside data/create-entity-mutation.ts (client-architecture-state-and-gates.md §11, §14).",
+      },
+      {
+        selector: wholeModule("@tanstack/react-query"),
+        message:
+          "The whole `@tanstack/react-query` module taken by namespace, `export *` or dynamic import outside data/create-entity-mutation.ts: import the hooks you need by name, so a raw `useMutation` stays visible (client-architecture-state-and-gates.md §11, §14).",
       },
     ],
   },
@@ -191,10 +201,26 @@ function readsSelectionPointer(variable: TSESLint.Scope.Variable, context: OrbRu
   return direct || (followParameters && pointerThroughParameter(variable, context));
 }
 
-function effectDependencies(node: TSESTree.CallExpression): readonly (TSESTree.Node | null)[] {
-  const callee = node.callee.type === "MemberExpression" && !node.callee.computed ? node.callee.property : node.callee;
+/** A React import is judged by the name it imports, so `import { useEffect as run }` is still an effect; any other callee by its own name. */
+function effectName(callee: TSESTree.CallExpression["callee"], context: OrbRuleContext): string | undefined {
+  if (callee.type === "MemberExpression") {
+    return !callee.computed && callee.property.type === "Identifier" ? callee.property.name : undefined;
+  }
+  if (callee.type !== "Identifier") {
+    return;
+  }
+  const imported = importedSymbol(context, callee);
+  return imported?.source === "react" ? imported.name : callee.name;
+}
+
+function effectDependencies(node: TSESTree.CallExpression, context: OrbRuleContext): readonly (TSESTree.Node | null)[] {
   const dependencies = node.arguments[1];
-  return callee.type === "Identifier" && EFFECT_HOOK.test(callee.name) && dependencies?.type === "ArrayExpression" ? dependencies.elements : [];
+  // The dependency list is the cheap test; the import lookup runs only for a call that has one.
+  if (dependencies?.type !== "ArrayExpression") {
+    return [];
+  }
+  const name = effectName(node.callee, context);
+  return name !== undefined && EFFECT_HOOK.test(name) ? dependencies.elements : [];
 }
 
 function selectionDependency(element: TSESTree.Node | null, context: OrbRuleContext): TSESTree.Identifier | undefined {
@@ -216,7 +242,7 @@ export const effectOnSharedSelectionRule: OrbRule = {
   create(context: OrbRuleContext): RuleVisitor {
     return {
       "CallExpression:exit"(node: TSESTree.CallExpression): void {
-        for (const element of effectDependencies(node)) {
+        for (const element of effectDependencies(node, context)) {
           const root = selectionDependency(element, context);
           if (root !== undefined) {
             context.report({

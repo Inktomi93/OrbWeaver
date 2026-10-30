@@ -284,7 +284,6 @@ test("a type size is a ramp step, and the root font-scale declaration is its one
     "font-size: var(--text-label);",
     "font-size: var(--orb-tier-row-title-size);",
     "font-size: calc(var(--text-body) * var(--appearance-reading-body-scale));",
-    "font-size: calc(100% * var(--appearance-font-scale));",
     "font-size: inherit;",
     "--orb-tier-row-title-size: var(--text-body);",
     "--orb-tier-row-title-leading: var(--leading-body);",
@@ -309,6 +308,33 @@ test("a type size is a ramp step, and the root font-scale declaration is its one
   ]) {
     expect(await rulesHit(declaration(body)), body).toEqual(["declaration-property-value-allowed-list"]);
   }
+});
+
+test("a property name's case does not escape the font-size allow-list", async () => {
+  expect(await rulesHit(declaration("FONT-SIZE: var(--text-label);"))).toEqual([]);
+  expect(await rulesHit(declaration("FONT-SIZE: 15px;"))).toEqual(["declaration-property-value-allowed-list"]);
+  expect(await rulesHit(declaration("Font-Size: small;"))).toEqual(["declaration-property-value-allowed-list"]);
+});
+
+test("the font-scale multiplier is the root size and nothing else", async () => {
+  const scaled = "font-size: calc(100% * var(--appearance-font-scale));";
+  expect(await rulesHit(layered(`:root { ${scaled} }`))).toEqual([]);
+  expect(await rulesHit(declaration(scaled))).toEqual(["orb/font-scale-on-root"]);
+  expect(await rulesHit(layered(`:root { .probe { ${scaled} } }`))).toEqual(["orb/font-scale-on-root"]);
+  expect(await rulesHit(layered(`:root, .probe { ${scaled} }`))).toEqual(["orb/font-scale-on-root"]);
+  expect(await rulesHit(layered(`.probe { :root & { ${scaled} } }`))).toEqual(["orb/font-scale-on-root"]);
+});
+
+test("an @apply utility spells no arbitrary design value", async () => {
+  const hit = ["orb/no-arbitrary-apply"];
+  expect(await rulesHit(declaration("@apply text-[13px];"))).toEqual(hit);
+  expect(await rulesHit(declaration("@apply hover:p-[0.375rem];"))).toEqual(hit);
+  expect(await rulesHit(declaration("@apply bg-[#fff] orb-gradient-ring;"))).toEqual(hit);
+  expect(await rulesHit(declaration("@apply w-[calc(100%-1rem)];"))).toEqual(hit);
+  expect(await rulesHit(declaration("@apply text-[length:var(--text-body)];"))).toEqual(hit);
+  expect(await rulesHit(declaration("@apply orb-gradient-ring;"))).toEqual([]);
+  expect(await rulesHit(declaration("@apply p-(--spacing-row) hover:bg-primary;"))).toEqual([]);
+  expect(await rulesHit(declaration("@apply w-[--spacing-row];"))).toEqual([]);
 });
 
 test("the generated theme is exempt from the authored-value rules, not from the structural ones", async () => {

@@ -1,4 +1,4 @@
-import { alternation, MATCH_MEDIA, TANSTACK_FORM_MINTS } from "./syntax.ts";
+import { alternation, MATCH_MEDIA, TANSTACK_FORM_MINTS, wholeModule } from "./syntax.ts";
 
 // Attributes that tell a component where it is placed. The container answers that question (UI-Architecture-and-Layout.md §4b axis 1).
 // No @orb/ui variant is keyed by these names: `compact` appears only as a value of `size`/`density`/`listSize`.
@@ -12,6 +12,18 @@ const CONTAINER_ON = "JSXAttribute[name.name='container']:not([value.expression.
 
 const CONTAINMENT_OWNER = `:matches(JSXOpeningElement[name.name='Container'], JSXOpeningElement[name.name=/^(Section|Stack)$/]:has(> ${CONTAINER_ON}))`;
 
+// A bare, string or boolean `container` is containment whatever the element is called; a Portal's `container` is an element or a ref.
+const CONTAINER_FLAG =
+  "JSXAttribute[name.name='container']:matches(:not([value]), [value.type='Literal'], [value.expression.type='Literal']):not([value.expression.value=false])";
+
+const CONTAINER_SPREAD = "JSXSpreadAttribute > ObjectExpression > Property:matches([key.name='container'], [key.value='container']):not([value.value=false])";
+
+// What a surface may not write: the Container element however it is reached, a container flag on any element, and a spread that carries one.
+const SURFACE_DECLARATION = `:matches(${CONTAINMENT_OWNER}, JSXOpeningElement[name.type='JSXMemberExpression'][name.property.name='Container'], JSXOpeningElement:has(> ${CONTAINER_FLAG}), JSXOpeningElement:has(${CONTAINER_SPREAD}))`;
+
+// Importing Container is how a surface would declare one under another name.
+const CONTAINER_IMPORT = "ImportDeclaration[source.value=/^@orb\\/ui\\/layout/] > ImportSpecifier[imported.name='Container']";
+
 // A dialog's `bodyProps` forwards its props to the body box, so `container` there declares one from the surface.
 const BODY_PROPS_CONTAINER =
   "JSXAttribute[name.name='bodyProps'] > JSXExpressionContainer > ObjectExpression > Property:matches([key.name='container'], [key.value='container']):not([value.value=false])";
@@ -19,8 +31,8 @@ const BODY_PROPS_CONTAINER =
 const BODY_PROPS_OPAQUE =
   "JSXAttribute[name.name='bodyProps'] > JSXExpressionContainer > :matches(:not(ObjectExpression), ObjectExpression:has(> SpreadElement))";
 
-// A dialog or drawer anchor provides its containment as the dialog box itself.
-const DIALOG_BOX = "JSXOpeningElement[name.name=/(?:Dialog|Drawer)$/]";
+// A dialog or drawer anchor provides its containment as the dialog box itself: the element it returns (beside its sibling dialogs in a fragment), not one nested in another element's children or props.
+const DIALOG_BOX = "JSXElement:not(JSXElement JSXElement) > JSXOpeningElement[name.name=/(?:Dialog|Drawer)$/]";
 
 export const UI_FEATURE_RESTRICTIONS = [
   {
@@ -28,8 +40,12 @@ export const UI_FEATURE_RESTRICTIONS = [
     id: "surface-consumes-container",
     selectors: [
       {
-        selector: CONTAINMENT_OWNER,
+        selector: SURFACE_DECLARATION,
         message: "A surface never declares its own container. Move the <Container> (or `container` prop) to the anchor that mounts it.",
+      },
+      {
+        selector: CONTAINER_IMPORT,
+        message: "A surface never imports Container, under any name: it declares no container. Move it to the anchor that mounts the surface.",
       },
       {
         selector: BODY_PROPS_OPAQUE,
@@ -71,6 +87,11 @@ export const UI_FEATURE_RESTRICTIONS = [
       {
         selector: "ExportNamedDeclaration[source.value='zustand/middleware'] > ExportSpecifier[local.name='persist']",
         message: "Raw zustand `persist` re-exported outside its sealed homes (UI-Gates-and-Lessons.md §11.5).",
+      },
+      {
+        selector: wholeModule("zustand/middleware"),
+        message:
+          "The whole `zustand/middleware` module taken by namespace, `export *` or dynamic import outside its sealed homes: import the middleware you need by name, so a raw `persist` stays visible (UI-Gates-and-Lessons.md §11.5).",
       },
       {
         selector:

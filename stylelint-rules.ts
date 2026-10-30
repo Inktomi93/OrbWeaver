@@ -706,6 +706,72 @@ const lifecycleKeyframesRule: Rule<true> = (primary) => (root, result) => {
 lifecycleKeyframesRule.ruleName = LIFECYCLE_KEYFRAMES;
 lifecycleKeyframesRule.messages = LIFECYCLE_KEYFRAMES_MESSAGES;
 
+// The font-scale multiplier is the root's own size. Every `--text-*` rem step multiplies it, so the same declaration on any
+// other element would compound the user's scale on that subtree.
+const FONT_SCALE_ROOT = "orb/font-scale-on-root";
+const FONT_SCALE_ROOT_MESSAGES = messagesOf(FONT_SCALE_ROOT, {
+  rejected: "The font-scale multiplier is declared on :root only; elsewhere it would compound the scale",
+});
+const ROOT_SELECTOR = ":root";
+
+interface FontScaleRootOptions {
+  /** The `font-size` value that carries the multiplier. */
+  readonly value: string;
+}
+
+/** True when the declaration sits directly in a rule whose every selector is `:root`, with no rule above it. */
+function declaredOnRoot(declaration: Declaration): boolean {
+  const owner = declaration.parent;
+  if (owner?.type !== "rule") {
+    return false;
+  }
+  const rule = owner as StyleRule;
+  let ancestor: unknown = rule.parent;
+  while (typeof ancestor === "object" && ancestor !== null) {
+    if ((ancestor as { type?: unknown }).type === "rule") {
+      return false;
+    }
+    ancestor = (ancestor as { parent?: unknown }).parent;
+  }
+  return rule.selectors.every((selector) => selector.trim() === ROOT_SELECTOR);
+}
+
+const fontScaleRootRule: Rule<true, FontScaleRootOptions> = (primary, secondary) => (root, result) => {
+  const options = { actual: secondary, possible: { value: [(value: unknown): boolean => typeof value === "string"] } };
+  if (!stylelint.utils.validateOptions(result, FONT_SCALE_ROOT, { actual: primary, possible: [true] }, options)) {
+    return;
+  }
+  root.walkDecls(/^font-size$/iu, (declaration) => {
+    if (declaration.value.trim() === secondary.value && !declaredOnRoot(declaration)) {
+      stylelint.utils.report({ result, ruleName: FONT_SCALE_ROOT, node: declaration, message: FONT_SCALE_ROOT_MESSAGES.rejected });
+    }
+  });
+};
+fontScaleRootRule.ruleName = FONT_SCALE_ROOT;
+fontScaleRootRule.messages = FONT_SCALE_ROOT_MESSAGES;
+
+// `@apply` carries Tailwind candidates into a sheet, so an arbitrary value with a design number there bypasses the token
+// scale as it does in a class string (`better-tailwindcss/no-restricted-classes` in eslint.config.ts reads the same shapes).
+const ARBITRARY_APPLY = "orb/no-arbitrary-apply";
+const ARBITRARY_APPLY_MESSAGES = messagesOf(ARBITRARY_APPLY, {
+  rejected: "An arbitrary value with a design number bypasses the token scale; use a token utility or add one in tokens.json",
+});
+const ARBITRARY_DESIGN_VALUE =
+  /-\[[^\]]*(?:\d+(?:\.\d+)?(?:px|rem|em|ch|cq[whib]|v[wh]|dvh|svh|lvh|ms|s|deg)\b|\d\.\d+|(?:[2-9]|\d{2,})fr\b|#[0-9a-fA-F]{3,8}\b|length:)[^\]]*\]/u;
+
+const arbitraryApplyRule: Rule<true> = (primary) => (root, result) => {
+  if (!stylelint.utils.validateOptions(result, ARBITRARY_APPLY, { actual: primary, possible: [true] })) {
+    return;
+  }
+  root.walkAtRules("apply", (atRule) => {
+    if (ARBITRARY_DESIGN_VALUE.test(atRule.params)) {
+      stylelint.utils.report({ result, ruleName: ARBITRARY_APPLY, node: atRule, message: ARBITRARY_APPLY_MESSAGES.rejected });
+    }
+  });
+};
+arbitraryApplyRule.ruleName = ARBITRARY_APPLY;
+arbitraryApplyRule.messages = ARBITRARY_APPLY_MESSAGES;
+
 /** Stylesheet-only rules consumed by the native Stylelint configuration. */
 export const CSS_RULES = [
   stylelint.createPlugin(SHELL, shellRule),
@@ -718,4 +784,6 @@ export const CSS_RULES = [
   stylelint.createPlugin(SHADOW, shadowRule),
   stylelint.createPlugin(APPEARANCE, appearanceRule),
   stylelint.createPlugin(LIFECYCLE_KEYFRAMES, lifecycleKeyframesRule),
+  stylelint.createPlugin(FONT_SCALE_ROOT, fontScaleRootRule),
+  stylelint.createPlugin(ARBITRARY_APPLY, arbitraryApplyRule),
 ];

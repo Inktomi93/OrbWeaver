@@ -136,8 +136,9 @@ const RESTRICTED_CLASSES = [
   },
   {
     // Lifecycle motion is a transition keyed off data-starting-style / data-ending-style, which a mid-flight close can
-    // retarget; a keyframe animation cannot. The stock infinite loops and the word-reveal fade are not lifecycle motion.
-    pattern: String.raw`^(?:[^\s]*:)?(?:(?:group|peer|has|in)-)*data-(?:open|closed|starting-style|ending-style|\[(?:open|closed|starting-style|ending-style)\])(?:\/[a-z0-9-]+)?:(?:[^\s:]+:)*!?animate-(?!(?:none|spin|ping|pulse|bounce)!?$|\[orb-word-reveal[_\]])`,
+    // retarget; a keyframe animation cannot. The stock infinite loops are not lifecycle motion. The word-reveal fade stays a
+    // stylesheet keyframe the markdown seal anchors with a negative delay, so no class string spells it.
+    pattern: String.raw`^(?:[^\s]*:)?(?:(?:group|peer|has|in)-)*data-(?:open|closed|starting-style|ending-style|\[(?:open|closed|starting-style|ending-style)\])(?:\/[a-z0-9-]+)?:(?:[^\s:]+:)*!?animate-(?!(?:none|spin|ping|pulse|bounce)!?$)`,
     message:
       "A keyframe animation keyed on a Base UI lifecycle attribute; use a transition off data-starting-style / data-ending-style (motion-and-animation-guide.md §5.1).",
   },
@@ -148,9 +149,9 @@ const RESTRICTED_CLASSES = [
   },
 ];
 
-/** Viewport breakpoints are the shell's; a feature adapts to its pane with a container query. */
+/** Viewport breakpoints, stock and shell-named, are the shell's; a feature adapts to its pane with a container query. */
 const VIEWPORT_CLASSES = {
-  pattern: String.raw`^(?:[^\s]*:)?(?:(?:max-|min-)?(?:sm|md|lg|xl|2xl)|(?:min|max)-\[[^\s\]]+\]):`,
+  pattern: String.raw`^(?:[^\s]*:)?(?:(?:max-|min-)?(?:sm|md|lg|xl|2xl)|shell-(?:mobile|desktop|narrow|short)|(?:min|max)-\[[^\s\]]+\]):`,
   message: "Viewport breakpoints belong to app-shell; adapt to the pane with a container query or Container size.",
 };
 /** Pointer and hover capability variants are the tokens' or the shell's, never a feature's. */
@@ -384,9 +385,20 @@ const EMPTY_ARIA_NAME_SYNTAX = {
 };
 // A literal font size in a style object, a chart option, an SVG attribute or a canvas font never meets the type ramp and
 // ignores the font-scale setting; a value resolved from a `--text-*` token, or a `text.*` token path naming one, stays legal.
+// A template with expressions is judged by its fixed text: a size spelled beside a hole is raw, a hole alone is resolved.
+const FONT_SIZE_SPELLING = String.raw`\d(?:\.\d+)?(?:px|rem|em|pt)\b`;
+// A style text that sets `font-size` or the `font` shorthand to anything but a token or `inherit`.
+const FONT_STYLE_TEXT = String.raw`font(?:-size)?\s*:(?!\s*(?:var\(|inherit))`;
 const RAW_FONT_SIZE_SYNTAX = {
   selector: [
-    'Property:matches([key.name="fontSize"], [key.value="font-size"]):matches([value.type="Literal"]:not([value.value=/^text\\.[a-z-]+$/]), [value.type="TemplateLiteral"][value.expressions.length=0])',
+    String.raw`Property:matches([key.name="fontSize"], [key.value="font-size"]):matches([value.type="Literal"]:not([value.value=/^(?:text\.[a-z-]+|var\(--text-[a-z-]+\))$/]), [value.type="TemplateLiteral"][value.expressions.length=0])`,
+    `Property:matches([key.name="font"], [key.value="font"]):matches([value.type="Literal"][value.value=/${FONT_SIZE_SPELLING}/], [value.type="TemplateLiteral"][value.expressions.length=0][value.quasis.0.value.raw=/${FONT_SIZE_SPELLING}/])`,
+    `Property:matches([key.name="font"], [key.value="font"]) > TemplateLiteral.value[expressions.length>0] > TemplateElement[value.raw=/${FONT_SIZE_SPELLING}/]`,
+    `AssignmentExpression[left.property.name="font"] > TemplateLiteral.right[expressions.length>0] > TemplateElement[value.raw=/${FONT_SIZE_SPELLING}/]`,
+    `AssignmentExpression[left.property.name="cssText"][right.value=/${FONT_STYLE_TEXT}/]`,
+    `AssignmentExpression[left.property.name="cssText"] TemplateElement[value.raw=/${FONT_STYLE_TEXT}/]`,
+    `CallExpression[callee.property.name="setAttribute"][arguments.0.value="style"][arguments.1.value=/${FONT_STYLE_TEXT}/]`,
+    `CallExpression[callee.property.name="setAttribute"][arguments.0.value="style"] TemplateElement[value.raw=/${FONT_STYLE_TEXT}/]`,
     'JSXAttribute:matches([name.name="fontSize"], [name.name="font-size"]):matches([value.type="Literal"], [value.expression.type="Literal"], [value.expression.type="TemplateLiteral"][value.expression.expressions.length=0])',
     'AssignmentExpression:matches([left.property.name="fontSize"], [left.property.name="font"]):matches([right.type="Literal"], [right.type="TemplateLiteral"][right.expressions.length=0])',
     'CallExpression[callee.property.name="setProperty"][arguments.0.value="font-size"]:matches([arguments.1.type="Literal"], [arguments.1.type="TemplateLiteral"][arguments.1.expressions.length=0])',
