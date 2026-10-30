@@ -3,7 +3,7 @@
 // Chat/roster/memory inject this and call it per roster member; a `null` is "skip, not an error" (a throw
 // would break the roster loop). A read: no audit, no emit.
 
-import type { GetCardParams } from "../contract/params.ts";
+import type { GetCardParams } from "@orb/contracts/character";
 import type { CharacterContext, CharacterService } from "../contract/service.ts";
 import { cardOf, loadOwnedCharacterRow } from "../persistence/queries.ts";
 
