@@ -10,7 +10,7 @@ area: chat
 
 ## What
 
-`editReasoning`, `clearReasoning` and `moveMessage` in `packages/server/src/domain/chat/verbs/edit.ts` emit `reasoningEdited`, `reasoningCleared` and `messagesReordered`, but no router procedure, job or tap calls them. Wire each verb to a procedure and client control, or delete the verb and its event type together.
+`editReasoning`, `clearReasoning` and `moveMessage` in `packages/server/src/domain/chat/verbs/edit.ts` emit `reasoningEdited`, `reasoningCleared` and `messagesReordered`, but no router procedure, job or tap calls them. Wire each verb to a router procedure and a client control: reasoning edit and clear on the message reasoning block, and move up or down on the message actions, matching the SillyTavern features they mirror. Delete a verb only on an owner ruling.
 
 ## Why
 
