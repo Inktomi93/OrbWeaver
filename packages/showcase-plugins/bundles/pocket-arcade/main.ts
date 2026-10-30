@@ -21,8 +21,8 @@
 //     its own capability and its own consent sentence instead of riding `ui.surface`.)
 //   * NO HOST CALLS: there is no `orb` in a frame. A frame that needs host data does not exist yet — design
 //     your frame self-contained, or split the data half into a declarative surface beside it.
-//   * TWO THEME TOKENS, injected: `--sandbox-bg` and `--sandbox-fg` (plus the app's font), re-resolved when
-//     the person's theme changes. Everything below is mixed from those two with `color-mix`, so the game
+//   * TWO THEME TOKENS, injected: `--sandbox-bg` and `--sandbox-fg` (plus the app's font and text scale),
+//     re-resolved when the person's theme or font scale changes. Text sizes are rem so they follow the scale. Everything below is mixed from those two with `color-mix`, so the game
 //     lands in ANY theme — light, dark, custom — without shipping a palette.
 //
 // SIZE BOUNDS: html ≤ 64 000 chars, css ≤ 16 000, at most 8 frames per plugin. An invalid registration is
@@ -68,8 +68,8 @@ const GAME_CSS = `
   flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; padding: 4px 8px;
   border-radius: 8px; background: color-mix(in oklab, var(--sandbox-fg) 8%, var(--sandbox-bg));
 }
-#score-label { font-size: 10px; opacity: 0.65; text-transform: uppercase; letter-spacing: 0.08em; }
-#score, #best { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+#score-label { font-size: 0.625rem; opacity: 0.65; text-transform: uppercase; letter-spacing: 0.08em; }
+#score, #best { font-size: 1.125rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 #new {
   flex: 1 1 100%; white-space: nowrap; padding: 4px 12px; border-radius: 8px; border: 1px solid color-mix(in oklab, var(--sandbox-fg) 25%, var(--sandbox-bg));
   background: transparent; color: var(--sandbox-fg); font: inherit; cursor: pointer;
@@ -83,7 +83,7 @@ const GAME_CSS = `
 #board:focus-visible { box-shadow: 0 0 0 2px color-mix(in oklab, var(--sandbox-fg) 45%, var(--sandbox-bg)); }
 .cell {
   aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
-  border-radius: 6px; font-weight: 700; font-size: 16px; font-variant-numeric: tabular-nums;
+  border-radius: 6px; font-weight: 700; font-size: 1rem; font-variant-numeric: tabular-nums;
   background: color-mix(in oklab, var(--sandbox-fg) 5%, var(--sandbox-bg));
 }
 .t2    { background: color-mix(in oklab, var(--sandbox-fg) 14%, var(--sandbox-bg)); }
@@ -92,11 +92,11 @@ const GAME_CSS = `
 .t16   { background: color-mix(in oklab, var(--sandbox-fg) 36%, var(--sandbox-bg)); }
 .t32   { background: color-mix(in oklab, var(--sandbox-fg) 46%, var(--sandbox-bg)); color: var(--sandbox-bg); }
 .t64   { background: color-mix(in oklab, var(--sandbox-fg) 56%, var(--sandbox-bg)); color: var(--sandbox-bg); }
-.t128  { background: color-mix(in oklab, var(--sandbox-fg) 66%, var(--sandbox-bg)); color: var(--sandbox-bg); font-size: 14px; }
-.t256  { background: color-mix(in oklab, var(--sandbox-fg) 74%, var(--sandbox-bg)); color: var(--sandbox-bg); font-size: 14px; }
-.t512  { background: color-mix(in oklab, var(--sandbox-fg) 82%, var(--sandbox-bg)); color: var(--sandbox-bg); font-size: 14px; }
-.t1024 { background: color-mix(in oklab, var(--sandbox-fg) 90%, var(--sandbox-bg)); color: var(--sandbox-bg); font-size: 12px; }
-.t2048 { background: var(--sandbox-fg); color: var(--sandbox-bg); font-size: 12px; }
+.t128  { background: color-mix(in oklab, var(--sandbox-fg) 66%, var(--sandbox-bg)); color: var(--sandbox-bg); font-size: 0.875rem; }
+.t256  { background: color-mix(in oklab, var(--sandbox-fg) 74%, var(--sandbox-bg)); color: var(--sandbox-bg); font-size: 0.875rem; }
+.t512  { background: color-mix(in oklab, var(--sandbox-fg) 82%, var(--sandbox-bg)); color: var(--sandbox-bg); font-size: 0.875rem; }
+.t1024 { background: color-mix(in oklab, var(--sandbox-fg) 90%, var(--sandbox-bg)); color: var(--sandbox-bg); font-size: 0.75rem; }
+.t2048 { background: var(--sandbox-fg); color: var(--sandbox-bg); font-size: 0.75rem; }
 #board.over .cell { opacity: 0.4; }
 #over-note {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
@@ -105,11 +105,11 @@ const GAME_CSS = `
 #pad { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 #pad-mid { display: flex; gap: 4px; }
 #pad button {
-  width: 42px; height: 34px; border-radius: 8px; border: 1px solid color-mix(in oklab, var(--sandbox-fg) 25%, var(--sandbox-bg));
+  width: 2.625rem; height: 2.125rem; border-radius: 8px; border: 1px solid color-mix(in oklab, var(--sandbox-fg) 25%, var(--sandbox-bg));
   background: transparent; color: var(--sandbox-fg); font: inherit; cursor: pointer;
 }
 #pad button:hover { background: color-mix(in oklab, var(--sandbox-fg) 10%, var(--sandbox-bg)); }
-#hint { font-size: 11px; opacity: 0.6; margin: 0; }
+#hint { font-size: 0.6875rem; opacity: 0.6; margin: 0; }
 `;
 
 // ── the registration ───────────────────────────────────────────────────────────────────────────────────────

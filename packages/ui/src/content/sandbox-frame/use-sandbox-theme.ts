@@ -39,6 +39,16 @@ const STYLE_TOKENS = {
   "--sandbox-font-mono": TOKENS["font.mono"],
 } as const;
 
+/** The appearance channel that scales the host root, and the frame var it is delivered as (read by `@orb/kit/card-frame`). */
+const FONT_SCALE_CSS_VAR = "--appearance-font-scale";
+const ROOT_SIZE_VAR = "--sandbox-root-size";
+const PERCENT = 100;
+
+/** The frame root's font-size as a percent of the frame's own default, so the clamp's length grammar admits it. */
+function rootSizePercent(scale: number): string {
+  return `${Math.round(scale * PERCENT * PERCENT) / PERCENT}%`;
+}
+
 /** The concrete, theme-resolved tokens the sandbox base body rule needs. */
 export interface SandboxThemeTokens {
   /** Safe `--*` color vars, injected + re-clamped by `isSafeColor` at the frame boundary. */
@@ -58,6 +68,8 @@ function resolveTokens(): SandboxThemeTokens {
   for (const [name, token] of Object.entries(STYLE_TOKENS)) {
     styleTokens[name] = resolveCssVar(token.cssVar, token.value);
   }
+  // The user's text scale rides the same length clamp as a root percentage; a frame root cannot inherit the host's `:root` font-size.
+  styleTokens[ROOT_SIZE_VAR] = rootSizePercent(Number.parseFloat(resolveCssVar(FONT_SCALE_CSS_VAR, "1")));
   // Clamped HERE as well as at the frame boundary: the resolved value comes off a live cascade a custom theme
   // can write, so a hostile `--radius-base` must not travel as a mint payload at all.
   return {
@@ -69,7 +81,10 @@ function resolveTokens(): SandboxThemeTokens {
 
 const FALLBACK_TOKENS: SandboxThemeTokens = {
   themeTokens: Object.fromEntries(Object.entries(COLOR_TOKENS).map(([name, token]) => [name, token.value])),
-  styleTokens: clampCardFrameStyleTokens(Object.fromEntries(Object.entries(STYLE_TOKENS).map(([name, token]) => [name, token.value]))),
+  styleTokens: clampCardFrameStyleTokens({
+    ...Object.fromEntries(Object.entries(STYLE_TOKENS).map(([name, token]) => [name, token.value])),
+    [ROOT_SIZE_VAR]: rootSizePercent(1),
+  }),
   fontFamily: clampCardFrameFontFamily(FONT_TOKEN.value),
 };
 

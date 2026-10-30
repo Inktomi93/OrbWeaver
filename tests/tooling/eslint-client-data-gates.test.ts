@@ -176,6 +176,8 @@ const STATE_FILES = {
   "config-selection-store.ts": "export const useCollectionSelection = (): { kind: string } | null => null;",
   "config-nav-store.ts":
     "import { useCollectionSelection } from './config-selection-store.ts';\nexport function useActiveConfigGroup(): string | null { const member = useCollectionSelection(); return member === null ? null : member.kind; }\nexport function useActiveConfigSub(): string | null { return null; }",
+  "shell-store.ts":
+    "export function useActiveSection(): string { return 'home'; }\nexport function useOpenModal(): string | null { return null; }\nexport function useMobileViewport(): boolean { return false; }",
   "other-store.ts":
     "import { activeChatId } from './active-chat-store.ts';\nexport function useOther(): string | null { return null; }\nexport function useReadsNow(): string | null { return activeChatId(); }",
 } as const;
@@ -238,6 +240,9 @@ test.for([
   ["the plugin page pointer", imp("usePluginPageKey") + keyed("usePluginPageKey"), 1],
   ["the collection selection", imp("useCollectionSelection") + keyed("useCollectionSelection"), 1],
   ["a hook that wraps a pointer hook", imp("useActiveConfigGroup") + keyed("useActiveConfigGroup"), 1],
+  ["the shell store active section", imp("useActiveSection") + keyed("useActiveSection"), 1],
+  ["the shell store open modal", imp("useOpenModal") + keyed("useOpenModal"), 1],
+  ["a shell store device-state hook", imp("useMobileViewport") + keyed("useMobileViewport"), 0],
   ["a nav hook that reads no pointer", imp("useActiveConfigSub") + keyed("useActiveConfigSub"), 0],
   [
     "a parameter fed a pointer value at a call site",
