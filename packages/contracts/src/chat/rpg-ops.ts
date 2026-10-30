@@ -180,16 +180,18 @@ export type RpgUserCommitOp = (chatId: ChatId, messageId: MessageId) => Promise<
 /** Marks a turn that responds to the latest user slot, so only it may consume a queued die. */
 export type MarkDicePreRollEligibleOp = (turnId: ChatTurnId) => void;
 
-/** The post-commit flush of a turn's staged writes onto its committed variant. `Turn` adds the resolved route,
+/** A committed turn's slot and the captured turn the post-commit flush runs on. `Turn` adds the resolved route,
  *  terminal calls and signal to {@link RpgTurnFacts}. */
-// biome-ignore lint/complexity/useMaxParams: this names the existing positional `onTurnCompleted` op the engine calls; reshaping its call is not this type's to do.
-export type RpgTurnCompletedOp<Turn extends RpgTurnFacts> = (
-  chatId: ChatId,
-  messageId: MessageId,
-  variantId: MessageVariantId,
-  turnId: ChatTurnId,
-  turn: Turn,
-) => Promise<void>;
+export interface RpgTurnCompletedParams<Turn extends RpgTurnFacts> {
+  readonly chatId: ChatId;
+  readonly messageId: MessageId;
+  readonly variantId: MessageVariantId;
+  readonly turnId: ChatTurnId;
+  readonly turn: Turn;
+}
+
+/** The post-commit flush of a turn's staged writes onto its committed variant. */
+export type RpgTurnCompletedOp<Turn extends RpgTurnFacts> = (params: RpgTurnCompletedParams<Turn>) => Promise<void>;
 
 /** Clears a failed turn's staging so it never flushes into its successor. */
 export type RpgTurnAbortedOp = (chatId: ChatId, turnId: ChatTurnId, reason: TurnAbortReason) => Promise<void>;

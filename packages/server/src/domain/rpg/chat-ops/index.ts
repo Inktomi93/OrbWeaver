@@ -7,11 +7,11 @@
 // The delivery-mode branch (§4.6 amendment) lives in the gather (terminal tools vs none) + the flush (fold the
 // turn's own calls vs run the dedicated post-commit round). See `./gather` + `./flush`.
 
-import type { GatherTurnContextArgs } from "@orb/contracts/chat";
+import type { GatherTurnContextArgs, RpgTurnCompletedParams } from "@orb/contracts/chat";
 import type { RpgExtractionMode } from "@orb/contracts/rpg";
 import { isDeceptionActive } from "@orb/contracts/rpg";
 import { statementToken } from "@orb/db/wiring-owner";
-import type { ChatId, ChatTurnId, MessageId, MessageVariantId, PresetId } from "@orb/kit/ids";
+import type { ChatId, MessageId, PresetId } from "@orb/kit/ids";
 import { createRpgContext } from "../context.ts";
 import type { RpgChatOps, RpgGatherResult, RpgTurnContext } from "../contract/chat-turn.ts";
 import type { RpgAssemblyContext } from "../contract/service.ts";
@@ -75,8 +75,7 @@ export function createRpgChatOps(input: RpgAssemblyContext): RpgChatOps {
   // owns the owner-scoped `cancel` the chat `abort` verb reaches through). One registry, because "which rounds
   // are in flight" is the same question both answer — see `flush-barrier.ts` for why the turn's own signal
   // cannot serve here.
-  // biome-ignore lint/complexity/useMaxParams: the signature is the positional `RpgTurnCompletedOp` chat calls; it is not this impl's to reshape.
-  function onTurnCompleted(chatId: ChatId, messageId: MessageId, variantId: MessageVariantId, turnId: ChatTurnId, turn: RpgTurnContext): Promise<void> {
+  function onTurnCompleted({ chatId, messageId, variantId, turnId, turn }: RpgTurnCompletedParams<RpgTurnContext>): Promise<void> {
     const runFlush = async (signal: AbortSignal): Promise<void> => {
       const game = await findEngagedGame(chatId); // disengaged (#40) ⇒ no state round, no snapshot write
       if (game === undefined) {

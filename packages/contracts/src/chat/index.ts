@@ -421,6 +421,7 @@ export type {
   RpgGatherWithTools,
   RpgTurnAbortedOp,
   RpgTurnCompletedOp,
+  RpgTurnCompletedParams,
   RpgTurnRuntime,
   RpgTurnTranscriptMessage,
   RpgUserCommitOp,
