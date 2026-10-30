@@ -4,11 +4,14 @@
 // the root — type-only here). analyze/swipes read the SEMANTIC messages projection (content, never economics).
 
 import type { DuplicateRelation } from "@orb/contracts/discovery";
+import type { WriteHubScoresOp } from "@orb/contracts/embeddings";
 import type { ResolveUtilityPresetParams } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { RoleClientsFor } from "@orb/contracts/role-clients";
 import type { CorpusDigestSource, Tier0RangeOp } from "@orb/contracts/search";
 import type { LoadUserSettings } from "@orb/contracts/settings";
+import type { CharacterEconomicsOp, CharacterModelEconomicsOp } from "@orb/contracts/stats";
+import type { AttachCardTagByNameOp } from "@orb/contracts/tag";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { EveryOwnerRun, WorkloadEstimateScope, WorkloadRunScope } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
@@ -25,12 +28,6 @@ import type {
   UserId,
 } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
-// Type-only cross-feature SHAPE imports (depcruise domain-no-cross-feature: type-only across features is
-// allowed; the runtime op is wired at the entry composition root). discovery imports no embeddings/tag/stats
-// runtime — only the SHAPE of the injected ops it composes.
-import type { EmbeddingsService } from "#domain/embeddings";
-import type { StatsService } from "#domain/stats";
-import type { TagService } from "#domain/tag";
 import type {
   ArchetypesOptions,
   BrowseFilter,
@@ -87,22 +84,12 @@ import type {
 } from "./results.ts";
 
 // ── injected cross-feature ops (type-only; wired at the root) ─────────────────
-/** The `hub_score` write seam — the embeddings domain's `writeHubScores` verb, bound at the entry root. */
-type WriteHubScores = EmbeddingsService["writeHubScores"];
-
 /** The card owner's model-facing PROSE overrides (PROSE-1 §4.3) — `UserSettings.prose`, resolved at the entry
  *  root off the SAME `loadUserSettings` seam the sampling rung reads. CALLER-scoped, not room-host-scoped
  *  (the imagery `resolvePromptTemplate` precedent): a distill / compare / ask is one human's request about
  *  their OWN library, never a room-level side generation. Bound type-only here (discovery never reads the
  *  settings domain); an empty record ⇒ every slot falls to its shipped default, byte-identical. */
 type ResolveUserProse = (userId: UserId) => Promise<ProseOverrides>;
-
-/** The tag-staging seam — tag's `attachCardTagByName` verb, bound at the entry root; distill's only tag write. */
-type AttachCardTagByName = TagService["attachCardTagByName"];
-
-/** The stats↔discovery economics seam — bound at the entry root to stats' economics-projection ops. */
-type CharacterEconomicsOp = StatsService["characterEconomics"];
-type CharacterModelEconomicsOp = StatsService["characterModelEconomics"];
 
 // Domain-owned compute dependencies, bound by discovery's service.
 
@@ -131,7 +118,7 @@ export interface ComputeThemesDeps {
 
 /** Deps for the standalone `compute*HubScores` passes. */
 export interface ComputeHubScoresDeps {
-  readonly writeHubScores: WriteHubScores;
+  readonly writeHubScores: WriteHubScoresOp;
 }
 
 /** Sibling-subsystem reads the composed views (`home`/`themeDetail`/`characterDossier`) depend on, injected
@@ -167,7 +154,7 @@ export interface DistillCharactersDeps {
   /** A distilled summary row stamps the model `rc.resolved("structured")` reports at call time — read per
    *  pass, never a boot-frozen string, so a row is labelled with the model that actually wrote it. */
   readonly roleClientsFor: RoleClientsFor;
-  readonly attachCardTagByName: AttachCardTagByName;
+  readonly attachCardTagByName: AttachCardTagByNameOp;
   /** The card owner's Utility-role preset params. The whole-library batch has no single owner ⇒ the posture
    *  stands; the on-demand single-card pass folds `opts.ownerId`'s. */
   readonly resolveUtilityPresetParams: ResolveUtilityPresetParams;
@@ -185,12 +172,12 @@ export interface DiscoveryContext {
   readonly newDuplicateCharacterPairId: () => DuplicateCharacterPairId;
   readonly newThemeClusterId: () => ThemeClusterId;
   readonly roleClientsFor: RoleClientsFor;
-  readonly attachCardTagByName: AttachCardTagByName;
+  readonly attachCardTagByName: AttachCardTagByNameOp;
   /** The card owner's Utility-role preset params (distill + analyze). */
   readonly resolveUtilityPresetParams: ResolveUtilityPresetParams;
   /** The card owner's PROSE-1 overrides — the compare / ask / distill system prompts (distill + analyze). */
   readonly resolveUserProse: ResolveUserProse;
-  readonly writeHubScores: WriteHubScores;
+  readonly writeHubScores: WriteHubScoresOp;
   readonly characterEconomics: CharacterEconomicsOp;
   readonly characterModelEconomics: CharacterModelEconomicsOp;
   readonly newKeywordCooccurrenceId: () => KeywordCooccurrenceId;

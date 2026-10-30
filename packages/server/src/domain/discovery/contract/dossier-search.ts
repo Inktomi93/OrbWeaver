@@ -1,5 +1,5 @@
-import type { SearchService } from "#domain/search";
+import type { SimilarCharactersOp } from "@orb/contracts/search";
 
 export interface DossierSearchDeps {
-  readonly similarCharacters: SearchService["similarCharacters"];
+  readonly similarCharacters: SimilarCharactersOp;
 }

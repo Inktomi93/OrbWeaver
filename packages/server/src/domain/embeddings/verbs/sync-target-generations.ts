@@ -2,12 +2,13 @@
 // stored target, not the previous binding, is what a re-point is measured against: re-binding the encoder the
 // target already names moves nothing, and a move queues its rebuild through the resolver's own trigger.
 
+import type { EmbedMoveRefusal } from "@orb/contracts/embeddings";
 import { NoConnectionError, ProviderError } from "@orb/inference";
 import { DomainNoCredentialError } from "@orb/kit/errors";
 import type { EmbedGenerationId, UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import { EmbedFailedError } from "../contract/errors.ts";
-import type { EmbedMoveRefusal, GenerationTask } from "../contract/generation.ts";
+import type { GenerationTask } from "../contract/generation.ts";
 import type { EmbeddingsContext, EmbeddingsService } from "../contract/service.ts";
 import { landProvenTarget, pendingTargetMove, probeWidth, widthMismatchOf } from "../substrate/generation.ts";
 import { resolveImageSpace } from "../substrate/task-model.ts";

@@ -1050,15 +1050,16 @@ export type MintSyntheticGroupCharacterOp = (params: MintGroupCharParams) => Pro
 /** The group identity for a room, or null if it is not yet minted. */
 export type FindSyntheticGroupCharacterOp = (params: FindGroupCharParams) => Promise<CharacterRef | null>;
 
+export interface GetCardParams extends CharacterActorParams {
+  readonly characterId: CharacterId;
+}
+
 /** One card the principal may read, or null when it is gone or not theirs. */
-export type GetCharacterCardOp = (params: { readonly principal: Principal; readonly characterId: CharacterId }) => Promise<CharacterCard | null>;
+export type GetCharacterCardOp = (params: GetCardParams) => Promise<CharacterCard | null>;
 
 /** Card text for the embeddings indexer, keyed by id alone with no owner scope (a trusted system re-reader);
  *  null when the card is gone or synthetic. */
 export type LoadCharacterCardTextOp = (characterId: CharacterId) => Promise<string | null>;
-
-/** Detaches a tag by name from one owned character; returns whether anything was detached (idempotent). */
-export type DetachCardTagOp = (args: { readonly ownerId: UserId; readonly characterId: CharacterId; readonly tagName: string }) => Promise<boolean>;
 
 /** Every user-facing character verb carries the resolved principal; ownership scopes off `principal.userId`. */
 export interface CharacterActorParams {

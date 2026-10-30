@@ -2,12 +2,12 @@
 
 import type { ToolCallRecord } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
+import type { ResolveToolsOp } from "@orb/contracts/tool-use";
 import type { ChatToolDefinition, ToolCallInput } from "@orb/inference";
-import type { UserId } from "@orb/kit/ids";
 import type { ChatToolExecFrame } from "./context.ts";
 
 export interface ChatToolAdapter<TSet> {
-  readonly resolveTools: (driverUserId: UserId, names: readonly string[]) => TSet;
+  readonly resolveTools: ResolveToolsOp<TSet>;
   readonly toToolDefinitions: (set: TSet) => readonly ChatToolDefinition[];
   readonly executeToolCalls: (
     set: TSet,

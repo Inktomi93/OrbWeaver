@@ -5,11 +5,7 @@
 // Every invocation funnels through the same executeToolCalls, producing the same ToolCallRecord[] that chat
 // persistence stores on the variant.
 
-export type {
-  ToolDefinition,
-  ToolExecutionContext,
-  ToolHandlerResult,
-} from "./contract/params.ts";
+export type { ToolDefinition } from "./contract/params.ts";
 
 export type { ResolvedToolSet } from "./contract/results.ts";
 export type { ToolUseService } from "./contract/service.ts";

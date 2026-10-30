@@ -48,6 +48,7 @@
     "./stream": "./src/stream/index.ts",
     "./tag": "./src/tag/index.ts",
     "./theme": "./src/theme/index.ts",
+    "./tool-use": "./src/tool-use/index.ts",
     "./uploads": "./src/uploads/index.ts",
     "./user-bus": "./src/user-bus/index.ts",
     "./versioned-config": "./src/versioned-config/index.ts",

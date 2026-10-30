@@ -1,5 +1,5 @@
 import type { ImageLens } from "@orb/contracts/embeddings";
-import type { DocumentSearchScope, MemoryQueryOptions, SearchScope, SearchTarget } from "@orb/contracts/search";
+import type { MemoryQueryOptions, SearchScope, SearchTarget } from "@orb/contracts/search";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 
 export type { CorpusParams } from "@orb/contracts/search";
@@ -32,21 +32,6 @@ export type DigestsParams = MemoryQueryOptions;
 /** Requires scopedCharacterId (the verbatim lens has no character column) — else SearchError(SCOPE_REQUIRED). */
 export type SegmentsParams = MemoryQueryOptions;
 
-/** The databank RAG lens. `scope` is the injected-resolver argument shape: a
- *  chat turn resolves host-global ∪ chat-attached documents (host-only v1); an ad-hoc personal search is
- *  over the owner's whole bank. `k`/`minScore`/`rerank` default to ST's shipped values when the caller
- *  omits them (the verb stays total; the real caller — chat's gather, the panel — passes settings values). */
-export interface DocumentSearchParams {
-  readonly scope: DocumentSearchScope;
-  /** The OWNER of the document space (the chat host on a chat scope, the caller on a personal one) — their
-   *  `embed`/`rerank` bindings define the space and fund the query (inference program §7.5). */
-  readonly ownerId: UserId;
-  readonly queryText: string;
-  readonly k?: number | undefined;
-  readonly minScore?: number | undefined;
-  readonly rerank?: boolean | undefined;
-}
-
 /** Ranking is raw cosine distance — hub_score is deliberately not CSLS-applied on this cross-modal path. */
 export interface ImagesParams {
   readonly ownerId: UserId;
@@ -61,13 +46,6 @@ export interface DiscoverParams {
   readonly queryText: string;
   readonly topN: number;
   readonly rerank?: boolean | undefined;
-}
-
-/** Seed-vector top-k over the card space, seeded from the stored embedding (not a re-embed). */
-export interface SimilarCharactersParams {
-  readonly ownerId: UserId;
-  readonly characterId: CharacterId;
-  readonly topN: number;
 }
 
 export interface SimilarArtParams {
