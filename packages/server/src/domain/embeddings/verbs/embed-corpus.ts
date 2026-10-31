@@ -8,11 +8,10 @@
 // cards. A complete sweep records the `cards` scope's completion per owner (vector tasks are owner-scoped,
 // §7.5); an aborted one records nothing, leaves a partial new-generation index, and the rerun finishes it.
 
-import type { EmbedPassResult } from "@orb/contracts/embeddings";
+import type { EmbedPassResult, StoreResult } from "@orb/contracts/embeddings";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { GenerationSupersededError } from "#primitives/embedding-generation";
 import type { EmbedPassParams } from "../contract/params.ts";
-import type { StoreResult } from "../contract/results.ts";
 import type { EmbeddingsContext, EmbeddingsService } from "../contract/service.ts";
 import { completeGenerationScope, resolveTargetGeneration } from "../substrate/generation.ts";
 import { requireTaskModel } from "../substrate/task-model.ts";

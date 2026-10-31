@@ -29,7 +29,7 @@ import type { DiscoveryAssemblyContext, DiscoveryService, DiscoveryWorkloadDeps 
 import { createDiscoveryService, createDossierNeighbors, distinctCorpusOwners } from "#domain/discovery";
 import type {
   EmbeddingReindexTriggers,
-  EmbeddingsContext,
+  EmbeddingsAssemblyContext,
   EmbeddingsIndexer,
   EmbeddingsService,
   ResolveEmbeddingConnection,
@@ -81,7 +81,7 @@ export interface SearchDiscoveryComposeDeps {
   readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
 
   readonly supervise?: DetachedSupervision["superviseDetached"];
-  readonly scheduleTimeout: EmbeddingsContext["scheduleTimeout"];
+  readonly scheduleTimeout: EmbeddingsAssemblyContext["scheduleTimeout"];
   readonly idSource: IdSource;
   readonly db: DatabaseHandle;
   readonly now: Clock;
@@ -90,7 +90,7 @@ export interface SearchDiscoveryComposeDeps {
    *  (vector tasks are owner-scoped, §7.5) and the workload's acting user for the summarize passes. */
   readonly roleClientsFor: (funderUserId: UserId) => Promise<RoleClientsWithSignal>;
   readonly resolveEmbeddingConnection: ResolveEmbeddingConnection;
-  readonly withStableEmbeddingBinding: EmbeddingsContext["withStableEmbeddingBinding"];
+  readonly withStableEmbeddingBinding: EmbeddingsAssemblyContext["withStableEmbeddingBinding"];
   readonly eventBus: PubSub<DomainEvent>;
   readonly attachCardTagByName: TagService["attachCardTagByName"];
   /** The card owner's Utility-role preset params (D299) — distill + analyze. */
