@@ -6,6 +6,7 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { MemoryRecallCandidate, MemoryRecallSlice, MemoryRecallVerdict } from "@orb/contracts/chat";
 import { resolveProseText } from "@orb/contracts/prose";
+import { streamConnectInputSchema } from "@orb/contracts/stream";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import {
@@ -14,8 +15,11 @@ import {
   CORPUS_PROVIDER_ENDPOINT,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
+  captureCookieAuth,
   createChatRoot,
   createCorpusProviderExecution,
+  readRoomCanon,
+  SECRET_BOX_TEST_KEY,
   SUMMARIZE_TRANSCRIPT_MARKER,
   summaryReply,
 } from "@orb/testkit/node/composed";
@@ -31,6 +35,11 @@ const ARCS = ["bath", "market", "duel", "shrine", "storm", "farewell"] as const;
 type Arc = (typeof ARCS)[number];
 const OFF_CORPUS = "elsewhere";
 const FILLER_LINES = 10;
+const RECALL_STREAM_PASSWORD = "recall-phase-stream-password";
+const BLOCK_SIZE = 2;
+const FAN_OUT = 2;
+const STRADDLE_SCAN_STEP = 300;
+const STRADDLE_SCAN_FLOOR = 1200;
 const FILLER = "The caravan creaked on through the grey morning while the drivers argued about the weather and the oxen. ".repeat(18);
 const VECTOR_WIDTH = CORPUS_EMBEDDING_VECTOR.length;
 const EARLIER_PROBE_WEIGHT = 0.4;
@@ -89,6 +98,8 @@ interface World {
     readonly mode: "off" | "mixA" | "mixB" | "mixC" | "tiered";
     readonly maxTier: number;
     readonly scout?: boolean;
+    /** Serve the transport with its local sign-in, so a test can open the owner's event stream. */
+    readonly signIn?: boolean;
   }) => Promise<RecallWorld>;
 }
 
@@ -128,8 +139,9 @@ const world: World = {
           const results = body.documents.map((document, index) => ({ index, ["relevance_score"]: document.includes(`arc-${preferred}.`) ? 1 : 0 }));
           return Response.json({ results });
         },
+        ...(config.signIn === true ? { server: { env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" }, secretBoxKey: SECRET_BOX_TEST_KEY } } : {}),
         memoryEnabled: true,
-        memoryDefaults: { mode: "mixB", blockSize: 2, verbatimWindow: 0, fanOut: 2, maxTier: config.maxTier },
+        memoryDefaults: { mode: "mixB", blockSize: BLOCK_SIZE, verbatimWindow: 0, fanOut: FAN_OUT, maxTier: config.maxTier },
         characters: [
           createCharacterSchema.parse({ handle: "keeper", name: "Keeper", description: "The keeper of the caravan ledger." }),
           ...(config.scout === true ? [createCharacterSchema.parse({ handle: "scout", name: "Scout", description: "The scout who rides ahead." })] : []),
@@ -265,7 +277,7 @@ test("a room with no digests embeds no query, even for a retrieval mode", async 
         chatText: generatedText,
       }).execute(new Request(input, init)),
     memoryEnabled: true,
-    memoryDefaults: { mode: "mixB", blockSize: 2, verbatimWindow: 0, fanOut: 2, maxTier: 0 },
+    memoryDefaults: { mode: "mixB", blockSize: BLOCK_SIZE, verbatimWindow: 0, fanOut: FAN_OUT, maxTier: 0 },
   });
   const run = await recallTurn(h, ask("bath"));
   expect(run.trace.poolSize).toBe(0);
@@ -457,4 +469,95 @@ test("a scoped speaker recalls the shared era and its own era, never another spe
   const merged = await bucketsRead(keeper.id);
   expect([...merged.keys()]).toEqual([shared]);
   expect(merged.get(shared)).toEqual(new Set([shared]));
+});
+
+const recallPhaseFrameSchema = z.object({
+  event: z.object({ type: z.literal("memoryRecall"), phase: z.string(), count: z.number().nullable() }),
+});
+
+/** The owner's multiplexed event stream attached live to the room, read as the browser reads it. */
+async function openRoomStream(h: ChatRoot): Promise<{ readonly readThrough: (needle: string) => Promise<string>; readonly close: () => Promise<void> }> {
+  const session = await captureCookieAuth(h.root, await h.root.principalFor(h.root.ownerId), RECALL_STREAM_PASSWORD);
+  const { socketId } = streamConnectInputSchema.parse({ socketId: h.root.ids.uuid() });
+  const address = new URL("http://localhost/api/trpc/stream.connect");
+  address.searchParams.set("input", JSON.stringify({ socketId }));
+  const stop = new AbortController();
+  const response = await h.root.http.request(address, { headers: { cookie: session.cookie, accept: "text/event-stream" }, signal: stop.signal });
+  const reader = response.body?.getReader();
+  if (reader === undefined) {
+    throw new Error("the room stream omitted its body");
+  }
+  const decoder = new TextDecoder();
+  let bytes = "";
+  const readThrough = async (needle: string): Promise<string> => {
+    while (!bytes.includes(needle)) {
+      const next = await reader.read();
+      if (next.done) {
+        throw new Error("the room stream ended before its delivery barrier");
+      }
+      bytes += decoder.decode(next.value, { stream: true });
+    }
+    return bytes;
+  };
+  await readThrough("serverReady");
+  await h.caller.stream.attach({ socketId, ref: { channel: "chat", chatId: h.chatId } });
+  await readThrough('"type":"attached"');
+  return {
+    readThrough,
+    close: async (): Promise<void> => {
+      stop.abort();
+      await reader.cancel().catch(() => undefined);
+    },
+  };
+}
+
+test("recall announces its phases on the room stream only when memory is on, and the closing count is the surfaced count", async () => {
+  await using w = await world.build({ mode: "off", maxTier: 0, signIn: true });
+  const { h } = w;
+  const stream = await openRoomStream(h);
+  try {
+    const off = await recallTurn(h, ask("bath"));
+    expect(off.trace.mode).toBe("off");
+    await w.h.caller.settings.updateAppSettings({ partial: { memoryDefaults: { mode: "mixB" } } });
+    const on = await recallTurn(h, ask("bath"));
+    expect(on.trace.surfaced).toBeGreaterThan(0);
+    const wire = await stream.readThrough('"phase":"recalled"');
+    const phases = wire
+      .split("\n")
+      .filter((line) => line.includes('"type":"memoryRecall"'))
+      .map((line) => recallPhaseFrameSchema.parse(JSON.parse(line.slice("data: ".length))).event);
+    expect(phases).toEqual([
+      { type: "memoryRecall", phase: "recalling", count: null },
+      { type: "memoryRecall", phase: "recalled", count: on.trace.surfaced },
+    ]);
+  } finally {
+    await stream.close();
+  }
+});
+
+/** The canon position the next recall's live window starts at: where the newest reply's stored fit boundary sits. */
+async function cutoffPosition(h: ChatRoot): Promise<number> {
+  const canon = await readRoomCanon(h.root, h.owner, h.chatId);
+  const boundary = canon.findLast((message) => message.role === "assistant")?.contextBoundaryMessageId;
+  return canon.findIndex((message) => message.id === boundary);
+}
+
+test("a cutoff inside a tier-1 digest drops it, and a cutoff inside a tier-0 block keeps that block", async () => {
+  await using w = await world.build({ mode: "tiered", maxTier: 1 });
+  // The cutoff is a token fit boundary, so the window is walked down until a turn's boundary lands inside a block.
+  for (let window = TURN_INTENT.maxContextTokens; window > STRADDLE_SCAN_FLOOR; window -= STRADDLE_SCAN_STEP) {
+    const cut = await cutoffPosition(w.h);
+    const run = await recallTurn(w.h, ask("bath"), { maxContextTokens: window, maxOutputTokens: 64 });
+    const inTier0 = Math.floor(cut / BLOCK_SIZE);
+    const inTier1 = Math.floor(inTier0 / FAN_OUT);
+    const tier0 = run.trace.candidates.find((candidate) => candidate.tier === 0 && candidate.blockIdx === inTier0);
+    const tier1 = run.trace.candidates.find((candidate) => candidate.tier === 1 && candidate.blockIdx === inTier1);
+    if (cut % BLOCK_SIZE === 0 || tier0 === undefined || tier1 === undefined) {
+      continue;
+    }
+    expect(tier1.verdict).toBe("live-window");
+    expect(tier0.verdict).toBe("admitted");
+    return;
+  }
+  throw new Error("no turn's fit boundary fell inside a block");
 });
