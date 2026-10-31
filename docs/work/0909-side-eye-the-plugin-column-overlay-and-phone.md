@@ -1,9 +1,10 @@
 ---
 kind: work
 status: open
-updated: 2026-10-11
+updated: 2026-10-31
 priority: P2
 area: client
+plan: cross-surface-consistency
 ---
 
 # Side-eye the plugin column, overlay and phone plugin panels

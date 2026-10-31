@@ -1,9 +1,10 @@
 ---
 kind: bug
 status: open
-updated: 2026-10-11
+updated: 2026-10-31
 priority: P3
 area: client
+plan: cross-surface-consistency
 ---
 
 # Plugin column follow-ups: Escape reach, Undo focus, entry glide, exact-pixel CTs

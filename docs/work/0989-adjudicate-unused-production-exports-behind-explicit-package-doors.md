@@ -1,9 +1,10 @@
 ---
 kind: work
 status: open
-updated: 2026-10-24
+updated: 2026-10-31
 priority: P1
 area: packages
+plan: unwired-code
 ---
 
 # Adjudicate unused production exports behind explicit package doors

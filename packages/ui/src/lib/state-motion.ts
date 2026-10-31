@@ -17,6 +17,3 @@ export const ARRIVAL = {
   from: `${ARRIVAL_TRANSITION} opacity-0 translate-y-tight`,
   settle: ARRIVAL_TRANSITION,
 } as const;
-
-/** Content the reader asked not to see yet (a spoiler): blurred and not selectable until revealed. */
-export const SPOILER = "blur-md select-none";

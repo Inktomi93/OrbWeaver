@@ -1,0 +1,35 @@
+{
+  "defaults": {
+    "Badge": {
+      "variant": "soft"
+    },
+    "InlineToken": {
+      "variant": "soft"
+    },
+    "IndicatorDot": {
+      "variant": "solid"
+    }
+  },
+  "extractions": [
+    {
+      "element": "Badge",
+      "door": "badge",
+      "match": {
+        "size": "inline"
+      },
+      "to": "InlineToken",
+      "toDoor": "inline-token",
+      "attributes": []
+    },
+    {
+      "element": "Badge",
+      "door": "badge",
+      "match": {
+        "size": "dot"
+      },
+      "to": "IndicatorDot",
+      "toDoor": "indicator-dot",
+      "attributes": []
+    }
+  ]
+}

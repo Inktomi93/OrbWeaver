@@ -202,6 +202,8 @@ const derivedOutputSchema = z
     colored: z.union([z.enum(COLORED_TONE_ORIGINS), mixStepSchema]),
     neutral: mixStepSchema.optional(),
     floor: z.array(aliasSchema).optional(),
+    /** Page-family host inks a colored tone's role must carry at the text floor; the neutral tone's bound hosts keep D202's inks. */
+    pageInks: z.array(aliasSchema).optional(),
   })
   .strict();
 export type DerivedOutput = z.infer<typeof derivedOutputSchema>;
@@ -674,6 +676,7 @@ function roleOperandMisses(token: ContractToken, byPath: ReadonlyMap<string, Con
     typeof recipe.colored === "object" ? mixMiss(recipe.colored.mix, byPath) : null,
     recipe.neutral === undefined ? null : mixMiss(recipe.neutral.mix, byPath),
     ...(recipe.floor ?? []).map((alias) => floorMiss(alias, byPath)),
+    ...(recipe.pageInks ?? []).map((alias) => hostMiss(alias, byPath)),
   ].filter((miss): miss is string => miss !== null);
 }
 

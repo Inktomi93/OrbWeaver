@@ -1,9 +1,10 @@
 ---
 kind: tooling
 status: open
-updated: 2026-10-25
+updated: 2026-10-31
 priority: P2
 area: client
+plan: test-foundation
 ---
 
 # Feature ownership checks prove production registration

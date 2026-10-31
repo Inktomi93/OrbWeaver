@@ -45,7 +45,7 @@
 import type { RoomOverrides } from "@orb/contracts/chat";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { ChatId } from "@orb/kit/ids";
-import { Badge } from "@orb/ui/badge";
+import { InlineToken } from "@orb/ui/inline-token";
 import { Stack } from "@orb/ui/layout";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
@@ -78,11 +78,11 @@ const MACRO_PICKS_SKELETON_ROWS = 3;
 // its content lands INSIDE the <h3>; the count rides the heading's accessible name ("Injections 3"). Only
 // phrasing content here (a Badge is an inline span) — never a Row/div, which is illegal inside a heading.
 //
-// `size="inline"` (#829, not `sm`) — the count's arrival is a PAINT, not a layout: `sm` is `inline-flex`
-// with its own type axes, so on arrival it more than doubled the kicker's line box (13.125px → 30.25px,
-// #821), shoving every section below by that much on THREE kickers (Injections/Documents/World books). The
-// `inline` arm inherits the kicker's own font-size/line-height instead of establishing a flex box, so the
-// line box is identical whether the badge is absent or present.
+// `InlineToken`, not `Badge` — the count's arrival is a PAINT, not a layout: a `Badge` is `inline-flex` with its
+// own type axes, so on arrival it more than doubled the kicker's line box, shoving every section below by that
+// much on THREE kickers (Injections/Documents/World books). `InlineToken` inherits the kicker's own
+// font-size/line-height instead of establishing a flex box, so the line box is identical whether the chip is
+// absent or present.
 function HeadingWithCount({ label, count, unit }: { readonly label: string; readonly count: number; readonly unit?: string }): ReactNode {
   return (
     <>
@@ -90,10 +90,10 @@ function HeadingWithCount({ label, count, unit }: { readonly label: string; read
       {count > 0 ? (
         <>
           {" "}
-          <Badge size="inline">
+          <InlineToken>
             {count}
             {unit}
-          </Badge>
+          </InlineToken>
         </>
       ) : null}
     </>
@@ -130,9 +130,8 @@ function countSetOverrides(overrides: RoomOverrides): number {
 // and the rule's functional floor for INTERACTIVE text is 11px. `interactiveKicker` keeps the band's whole
 // instrument register (uppercase, tracked, muted) at the readable label step, so the pane's voice is
 // unchanged and the section names are legible as the controls they now are. The voice is spelled on a span
-// INSIDE the trigger rather than left to inherit, because the Badge's `size="inline"` arm deliberately
-// inherits its parent's type (#829) — an unspelled label would take `CollapsibleTrigger`'s own box type and
-// take the chip with it.
+// INSIDE the trigger rather than left to inherit, because `InlineToken` deliberately inherits its
+// parent's type — an unspelled label would take `CollapsibleTrigger`'s own box type and take the chip with it.
 //
 // WHICH SECTIONS OPEN THEMSELVES: exactly ONE — Field overrides. It is the pane's teaching opening (the
 // review's cold-read verdict: "Empty fields inherit from the character or preset. Saved automatically." is

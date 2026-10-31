@@ -27,9 +27,9 @@
 import type { RegexTierGroupView, RegexTierKey, RegexTierRowView } from "@orb/contracts/chat";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { ChatId, RegexScriptId } from "@orb/kit/ids";
-import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Icon, Plus } from "@orb/ui/icons";
+import { InlineToken } from "@orb/ui/inline-token";
 import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -123,11 +123,11 @@ export function RegexTierGroup({ chatId, isHost, tier, rows, tiers, labels, owne
 function TierKicker({ allowed, count, label }: { readonly allowed: boolean; readonly count: number; readonly label: string }): ReactElement {
   return (
     <>
-      {label} <Badge size="inline">{count}</Badge>
+      {label} <InlineToken>{count}</InlineToken>
       {allowed ? null : (
         <>
           {" "}
-          <Badge size="inline">off here</Badge>
+          <InlineToken>off here</InlineToken>
         </>
       )}
     </>

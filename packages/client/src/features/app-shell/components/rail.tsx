@@ -15,8 +15,8 @@
 // single node; brand does not, because its two presentations are genuinely different chrome-row contracts
 // (see below) rather than one control resized.
 
-import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
+import { IndicatorDot } from "@orb/ui/indicator-dot";
 import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import { WeaveGlyph } from "@orb/ui/web-weave";
@@ -174,7 +174,7 @@ function SheetBadgeCount({ entryId, label, useBadge }: { readonly entryId: strin
           unread) — which is a second reason the visible number had to go: "3" beside a door whose sheet
           marks everything read on open is a figure a reader can watch change for reasons they did not cause.
           The COUNT SURVIVES IN THE SPOKEN DESCRIPTION below; see its note for why that is not a mismatch. */}
-      <Badge tone="primary" variant="solid" size="dot" aria-hidden={true} />
+      <IndicatorDot tone="primary" variant="solid" aria-hidden={true} />
       {/* THE SPOKEN COUNT IS BOTH AN ANNOUNCEMENT AND A DURABLE FACT (#1129). `role="status"` says it the
           moment it lands; the tab's `aria-describedby` (RailButton) points HERE, so a reader who focuses the
           door a second later — or arrives after the read settled — still hears it. Before that, `aria-label`

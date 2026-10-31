@@ -32,8 +32,8 @@
 import type { DocumentView } from "@orb/contracts/databank";
 import { ingestPhase } from "@orb/contracts/databank";
 import type { DocumentId } from "@orb/kit/ids";
-import { Badge } from "@orb/ui/badge";
 import { Globe, Icon, RefreshCw } from "@orb/ui/icons";
+import { InlineToken } from "@orb/ui/inline-token";
 import { MenuItem } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { LibraryRow, RowToggleAction } from "#components";
@@ -134,19 +134,18 @@ export function DatabankLibraryRow({
       title={document.name}
       {...(showsPhaseChip(phase)
         ? {
-            // `size="inline"` is the IN-FLOW arm (side-eye F-6): the chip sits inside a run of text, so a
-            // padded `sm` box would build a 28px box inside a 20px line — it would shove the row's two
-            // lines apart and eat the scent text it precedes. Inline keeps the tone (the whole point of a
-            // chip over a word) at zero line-box cost.
+            // `InlineToken`, not a padded `Badge`: the chip sits inside a run of text, so a padded box would be
+            // taller than its line — it would shove the row's two lines apart and eat the scent text it precedes.
+            // It keeps the tone (the whole point of a chip over a word) at zero line-box cost.
             subtitleLead: (
               // The GLYPH is the third differentiator `Empty` needs (databank-model's INGEST_BADGES note):
               // `Empty` and `Queued`/`Indexing` are the same amber by ruling, so the act-now arm carries a
               // mark the wait arms do not. `aria-hidden` is Icon's own default — the chip's LABEL is what
               // the row announces, and a glyph that spoke would say the state twice.
-              <Badge className="me-field" tone={badge.tone} size="inline">
+              <InlineToken className="me-field" tone={badge.tone}>
                 {badge.glyph === null ? null : <Icon icon={badge.glyph} size="xs" />}
                 {badge.label}
-              </Badge>
+              </InlineToken>
             ),
           }
         : {})}

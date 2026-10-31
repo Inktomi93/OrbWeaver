@@ -61,11 +61,12 @@ export function toneModel(contract: TokenContractResult): ToneModel {
     if (token.derived === null || typeof token.value !== "string") {
       return [];
     }
-    const { colored, neutral, floor } = token.derived;
+    const { colored, neutral, floor, pageInks } = token.derived;
     const recipe: Recipe = {
       colored: typeof colored === "string" ? colored : stepOf(colored),
       neutral: neutral === undefined ? { bind: hostOf(token.value) } : { bind: hostOf(token.value), step: stepOf(neutral) },
       floor: (floor ?? []).map(floorSurface),
+      pageInks: (pageInks ?? []).map(hostOf),
     };
     return [{ name: (token.path[1] ?? "").slice(TONE_ROLE_PREFIX.length), token, derived: token.derived, recipe }];
   });

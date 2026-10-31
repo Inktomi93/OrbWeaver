@@ -174,8 +174,8 @@ Legacy paths below are relative to the external reference source named in [Spine
 | `ui/art/web-weave/web-weave-glow.ct.tsx` | Unreviewed | No maintained home; cited by motion-and-animation-guide. | Compare, then port or drop. |
 | `ui/content/sandbox-frame/sandbox-frame.ct.tsx` | Unreviewed | No maintained home; cited by UI-Theming-and-Content. | Compare, then port or drop. |
 | `ui/content/theme-scope/clamp.test.ts` | Unreviewed | No maintained home; cited by ADR 0144. | Compare, then port or drop. |
-| `ui/content/theme-scope/emit-surface.suite.test.ts` | Unreviewed | No maintained home; cited by UI-Theming-and-Content. | Compare, then port or drop. |
-| `ui/content/theme-scope/palette-contrast.suite.test.ts` | Unreviewed | No maintained home; cited by ADR 0071, ADR 0159. | Compare, then port or drop. |
+| `ui/content/theme-scope/emit-surface.suite.test.ts` | Accounted for | [Emit surface](../../../tests/ui/content/theme-scope/emit-surface.test.ts) runs the production clamp with every field set and asserts it writes exactly `THEME_SCOPE_EMIT_VARS`. It also asserts each member is a served token or a generated tone knob or literal. | None for these reference cases. |
+| `ui/content/theme-scope/palette-contrast.suite.test.ts` | Partial | The per-palette sweep is in the [ThemeScope CT](../../../tests/ui/content/theme-scope/emitted-contrast.ct.tsx). It paints every D336 tone pair and every neutral ink on its hosts, muted and input included, over Hearth, Light and Mocha, and judges the framebuffer. The token build fails a shipped palette under a D336 floor, pinned by the planted cases in [token contract](../../../tests/ui/token-contract.test.ts). The carried-base chrome, plate, band and edge guarantees run in the same CT and in [input border](../../../tests/ui/content/theme-scope/input-border.test.ts). | Compare the remaining reference cases: the D159 two-sided input-border pin per seed, chart and track 3:1 per seed, the reading plate, band and elevation literals per seed, and the seed prose inks. |
 | `ui/content/theme-scope/token-classification.suite.test.ts` | Unreviewed | No maintained home; cited by ADR 0159. | Compare, then port or drop. |
 | `ui/primitives/dialog/dialog.ct.tsx` | Unreviewed | No maintained home; cited by motion-and-animation-guide. | Compare, then port or drop. |
 | `ui/primitives/input/input.ct.tsx` | Unreviewed | No maintained home; cited by ADR 0159. | Compare, then port or drop. |
@@ -185,7 +185,7 @@ Legacy paths below are relative to the external reference source named in [Spine
 | `ui/primitives/toast/toast.ct.tsx` | Unreviewed | No maintained home; cited by motion-and-animation-guide. | Compare, then port or drop. |
 | `ui/styles/css-structure.suite.test.ts` | Unreviewed | No maintained home; cited by ADR 0071. | Compare, then port or drop. |
 | `ui/tokens/index.test.ts` | Unreviewed | No maintained home; cited by ADR 0071, integer-line-boxes. | Compare, then port or drop. |
-| `ui/tokens/theme-emit-pairing.suite.test.ts` | Unreviewed | No maintained home; cited by ADR 0159, UI-Theming-and-Content. | Compare, then port or drop. |
+| `ui/tokens/theme-emit-pairing.suite.test.ts` | Accounted for | The `--color-*` partition pairing case in [emit surface](../../../tests/ui/content/theme-scope/emit-surface.test.ts) pairs every served surface with its `-foreground` and `-border` token and asserts both are on the emit roster or both are off. The reference scan of consumed names and its hand allowlist are dropped: the served token surface is the pairing's own source, so the case needs no list of static exceptions. | None for these reference cases. |
 
 An unlisted area is unreviewed, not missing. Neither filenames nor test counts establish whether its behaviors need restoration.
 

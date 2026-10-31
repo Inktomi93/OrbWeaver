@@ -20,8 +20,7 @@ import type { Tone } from "#tokens";
  *     backdrop. The owner-approved mockup draws this diff as plain prose columns under ORIGINAL/REWRITE
  *     kickers with no fill at all, and ruled the solid pair a register break.
  *   • WHAT SURVIVES: no raw color and no hand-mixed literal. Each pane paints the D336 tint and edge of the
- *     tone `COMPARE_SIDE_TONE` stamps on it, with readable `text-foreground`, the register the `state` arm
- *     already used.
+ *     tone `COMPARE_SIDE_TONE` stamps on it, with the tone's `text-on-tint` ink, which clears its floor on the tint.
  *   • WHAT IS NOW DIVERGENT, deliberately and reported rather than silently: the `diff` seal
  *     (`ui/src/diff/variants.ts` — `added: "bg-success text-success-foreground"`) still paints solid, so
  *     the cross-reference above no longer holds. A word-level ins/del MARK inside a sentence is a
@@ -54,8 +53,8 @@ export const compareBlocksVariants = tv({
   },
   variants: {
     side: {
-      before: { panel: "border border-tone-edge bg-tone-tint text-foreground" },
-      after: { panel: "border border-tone-edge bg-tone-tint text-foreground" },
+      before: { panel: "border border-tone-edge bg-tone-tint text-tone-text-on-tint" },
+      after: { panel: "border border-tone-edge bg-tone-tint text-tone-text-on-tint" },
       /** The absent-side STATE panel (Added / Cleared) — a designed state word, never an empty tinted pane. */
       state: { panel: "border border-border bg-muted text-foreground" },
     },

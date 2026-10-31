@@ -1,4 +1,4 @@
-import { FOCUS_RING, isTone, MESSAGE_BUBBLE_BOX, MESSAGE_BUBBLE_FILL, RECEDED, SPOILER, TONE_ARMS, tv } from "#lib";
+import { FOCUS_RING, isTone, MESSAGE_BUBBLE_BOX, MESSAGE_BUBBLE_FILL, RECEDED, TONE_ARMS, tv } from "#lib";
 import type { Tone } from "#tokens";
 import { ART_DECORATION } from "../../lib/art-decoration.ts";
 
@@ -98,7 +98,6 @@ export const cardVariants = tv({
       shown: "pointer-events-auto translate-y-0 opacity-100 transition-[opacity,translate] duration-(--motion-base) ease-out-expo",
       hidden: "pointer-events-none translate-y-row opacity-0 transition-[opacity,translate] duration-(--motion-base) ease-out-expo",
     },
-    spoiler: { true: SPOILER, false: "" },
     // The whole box at the receded step, fill and ink together: a box that stays readable but stands behind its siblings.
     receded: { true: RECEDED, false: "" },
     // A region that takes programmatic focus (a `tabIndex={-1}` editor a list hands focus to) draws the focus ring.
@@ -146,9 +145,9 @@ export const cardVariants = tv({
     interactive: {
       true: `
         cursor-pointer transition-colors duration-(--motion-fast) ease-out-expo
-        hover:bg-tone-tint-active
+        hover:bg-tone-tint-active hover:text-tone-text-on-tint
         focus-visible:outline-none
-        active:bg-tone-tint-active
+        active:bg-tone-tint-active active:text-tone-text-on-tint
         in-data-[elevation=glow]:shadow-overlay
         ${FOCUS_RING}
       `,
@@ -169,7 +168,6 @@ export const cardVariants = tv({
     glow: "none",
     rail: "none",
     presence: "always",
-    spoiler: false,
     receded: false,
     focusable: false,
   },

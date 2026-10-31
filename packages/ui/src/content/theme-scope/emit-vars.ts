@@ -139,3 +139,10 @@ export const THEME_SCOPE_STATIC_SEED_VARS = [
   "--color-chart-5",
   "--color-input-border",
 ] as const;
+
+/**
+ * ThemeScope-emitted variables a seed palette block does not restate: a theme is a colour palette (D71), so a seed
+ * nested inside a scope keeps that scope's font and card radius. The token build fails a seed block that leaves any
+ * other member of {@link THEME_SCOPE_EMIT_VARS} to the cascade.
+ */
+export const THEME_SCOPE_NON_PALETTE_VARS = ["--font-sans", "--radius-card"] as const;
