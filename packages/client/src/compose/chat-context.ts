@@ -5,7 +5,7 @@
 import { automationActivityTab } from "#features/automation";
 import { pluginContextTab } from "#features/plugin";
 import { makeRpgContextTabs, makeRpgHudRegion } from "#features/rpg";
-import type { CharacterDetailContribution, ChatContextState, ContextRegionDef, ContextTabDef, ContributorRegistry, MessageToolsRenderer } from "#lib";
+import type { CharacterDetailContribution, CommittedChatContext, ContextRegionDef, ContextTabDef, ContributorRegistry, MessageToolsRenderer } from "#lib";
 import { createContributorRegistry } from "#lib";
 
 type ReadChannel = Parameters<typeof makeRpgContextTabs>[0];
@@ -17,8 +17,8 @@ type ReadChannel = Parameters<typeof makeRpgContextTabs>[0];
 // cache-first getChat.rpg read) drives the §4.2 bracket.
 // (B2's host-only "Rules" TAB used to ride here too. It was RETIRED at #616 — the owner ruled the surface
 // belongs as a SECTION inside "This chat", and it now grafts through `chatSettingsSections` in `contributors.ts`.)
-export function makeChatContextContributors(channel: ReadChannel): ContributorRegistry<ContextTabDef<ChatContextState>> {
-  return createContributorRegistry<ContextTabDef<ChatContextState>>("chat-context", [
+export function makeChatContextContributors(channel: ReadChannel): ContributorRegistry<ContextTabDef<CommittedChatContext>> {
+  return createContributorRegistry<ContextTabDef<CommittedChatContext>>("chat-context", [
     pluginContextTab,
     ...makeRpgContextTabs(channel),
     // B11 — the room ACTIVITY tab (host-only), automation's second CONTEXT-strip graft: a ready def (no injected
@@ -31,8 +31,8 @@ export function makeChatContextContributors(channel: ReadChannel): ContributorRe
 // The chat-context REGION-CLAIM seam (§6c / HUD-1 §3.2): the rpg HUD claims the WHOLE CONTEXT pane on an
 // engaged game chat — same door, same injected read channel, same one-directional flow as the tabs above.
 // Every other chat (and every other section) has no claimant and renders the generic panel.
-export function makeChatContextRegions(channel: ReadChannel): ContributorRegistry<ContextRegionDef<ChatContextState>> {
-  return createContributorRegistry<ContextRegionDef<ChatContextState>>("chat-context-regions", [makeRpgHudRegion(channel)]);
+export function makeChatContextRegions(channel: ReadChannel): ContributorRegistry<ContextRegionDef<CommittedChatContext>> {
+  return createContributorRegistry<ContextRegionDef<CommittedChatContext>>("chat-context-regions", [makeRpgHudRegion(channel)]);
 }
 
 // The WHOLE-MESSAGE tool-renderer seam (§6c): the per-message override that renders ALL of a message's tool

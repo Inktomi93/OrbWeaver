@@ -40,9 +40,6 @@ type SuperviseDetached = (name: string, attrs: SpanAttrs, operation: () => Promi
 
 export type AddSpanEvent = (name: string, attrs: Readonly<Record<string, string | number | boolean>>) => void;
 
-/** Arm one timeout and return the cancellation operation for that exact window. */
-export type ScheduleTimeout = ScheduleOp;
-
 export const ANTH_IMAGE_MEDIA_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"] as const;
 export type AnthImageMediaType = (typeof ANTH_IMAGE_MEDIA_TYPES)[number];
 export type AnthImageBlock =
@@ -206,8 +203,8 @@ export interface ProviderStore {
 }
 
 export interface InferenceDeps {
-  readonly scheduleTimeout: ScheduleTimeout;
-  readonly scheduleTimeoutUnref: ScheduleTimeout;
+  readonly scheduleTimeout: ScheduleOp;
+  readonly scheduleTimeoutUnref: ScheduleOp;
   readonly beginEmbeddingAccounting: BeginEmbeddingAccounting;
   readonly now: Clock;
   readonly log: InferenceLog;

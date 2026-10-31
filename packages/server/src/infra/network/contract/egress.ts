@@ -1,10 +1,9 @@
 // Scoped network execution keeps all admission in the infra owner; only physical edges vary.
 
 import type { TimerScheduler } from "@orb/kit/time";
-// pino's own type, not the observability barrel's alias: that barrel reaches the DB, which the plugin Worker graph must not load.
-import type pino from "pino";
 import type { buildConnector } from "undici";
 import type { Env } from "#foundation/env/record";
+import type { Logger } from "#src/foundation/observability/contract/logging.ts";
 import type { TraceRing } from "#src/foundation/observability/contract/tracing.ts";
 
 export const ENDPOINT_ADMISSIONS = ["public", "admitted", "refused", "invalid"] as const;
@@ -89,7 +88,7 @@ export interface ScopedEgressOptions {
   /** The parsed env record: `EGRESS_FIREWALL`, `EGRESS_ALLOWLIST`, `TRUSTED_PRIVATE_RANGES` and the OIDC issuer host. */
   readonly env: Env;
   /** The root's logger every egress line falls back to outside a request. */
-  readonly log: pino.Logger;
+  readonly log: Logger;
   /** The root's trace ring a supervised egress cleanup seals into; `null` where no debug surface reads one. */
   readonly traces: TraceRing | null;
 }

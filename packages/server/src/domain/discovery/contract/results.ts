@@ -118,6 +118,5 @@ export type {
   ThemeDriftBucket,
   ThemeDriftTheme,
   ThemeRow,
-  UnusedCharacter,
   VisualArchetype,
 } from "@orb/contracts/discovery";

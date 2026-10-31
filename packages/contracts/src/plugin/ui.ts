@@ -845,10 +845,6 @@ export type PluginSurfaceNode =
   | PluginIconNode
   | PluginTabsNode;
 
-/** A registered surface's spec: the root node of its declarative tree (the whole tree is bounded by the
- *  global caps below). */
-export type PluginSurfaceSpec = PluginSurfaceNode;
-
 // ── The zod gate (host-side at registration + client-side before mount) ──────────────────────────────────────
 
 const stateBindingSchema = z.object({ $state: z.string().min(1).max(STATE_PATH_MAX) });
@@ -1200,7 +1196,7 @@ function collectArmViolations(node: PluginSurfaceNode, out: string[]): void {
 /** The SPEC schema: a node tree plus the whole-tree global bounds (node count, nesting depth, serialized
  *  size). This is the schema a registration/mount validates against — the per-node schema alone bounds each
  *  node but never the aggregate, which is exactly the DoS surface the caps close. */
-export const pluginSurfaceSpecSchema: z.ZodType<PluginSurfaceSpec> = pluginSurfaceNodeSchema.superRefine((spec, ctx) => {
+export const pluginSurfaceSpecSchema: z.ZodType<PluginSurfaceNode> = pluginSurfaceNodeSchema.superRefine((spec, ctx) => {
   const { nodes, maxDepth } = surfaceStats(spec, 1);
   if (nodes > PLUGIN_SPEC_MAX_NODES) {
     ctx.addIssue({ code: "custom", message: `surface spec exceeds ${PLUGIN_SPEC_MAX_NODES} nodes` });
@@ -1785,7 +1781,7 @@ export const pluginUiOutcomeSchema = z.strictObject({
 
 /** Every DISTINCT node kind in `spec` that {@link PLUGIN_FOOTER_NODE_KIND_ALLOWED} refuses, in first-seen
  *  order — one issue per offending KIND (not per occurrence), so a spec of forty buttons reports once. */
-function unallowedFooterKinds(spec: PluginSurfaceSpec): readonly PluginNodeKind[] {
+function unallowedFooterKinds(spec: PluginSurfaceNode): readonly PluginNodeKind[] {
   const offenders = new Set<PluginNodeKind>();
   const walk = (node: PluginSurfaceNode): void => {
     if (!PLUGIN_FOOTER_NODE_KIND_ALLOWED[node.kind]) {
@@ -1825,7 +1821,7 @@ export interface PluginPrimaryArbitration {
  *  outcome, a refused registration is a dead surface. First-in-document-order wins because that is the order a
  *  person reads the surface in, and it makes the outcome deterministic rather than dependent on which subtree
  *  React commits first. */
-export function resolvePluginPrimaryButton(spec: PluginSurfaceSpec, anchor: PluginSurfaceAnchor): PluginPrimaryArbitration {
+export function resolvePluginPrimaryButton(spec: PluginSurfaceNode, anchor: PluginSurfaceAnchor): PluginPrimaryArbitration {
   const claimants: PluginButtonNode[] = [];
   const walk = (node: PluginSurfaceNode): void => {
     if (node.kind === "button" && node.variant === "primary") {

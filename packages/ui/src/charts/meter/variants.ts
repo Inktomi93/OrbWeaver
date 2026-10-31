@@ -107,7 +107,7 @@ export const segmentedClockVariants = tv({
 // aria-hidden geometry whose fill/stroke rides the D71 track ramp; the value TEXT is the datum (§4.9).
 // tailwind-variants can't build a class from a runtime number, so each ramp is a static Record of literal
 // utilities (Tailwind must SEE each class whole to emit it). These maps are INTERNAL — the index never
-// re-exports them (§13.7); the public `TrackColor`/`RingColor` types live on the component files.
+// re-exports them (§13.7); the public `TrackColor` type lives on the component file.
 
 /** The 6-step track ramp as literal FILL utilities — one per `--color-track-N` (TrackBar). */
 export const TRACK_FILL = {

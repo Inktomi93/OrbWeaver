@@ -6,6 +6,7 @@ import { Worker } from "node:worker_threads";
 import { isHubModelId } from "@orb/contracts/inference";
 import type { ImageInput } from "@orb/contracts/role-clients";
 import type { ModelId } from "@orb/kit/ids";
+import type { ScheduleOp } from "@orb/kit/time";
 import type { ProviderErrorInit } from "#src/contract/errors.ts";
 import { ProviderError } from "#src/contract/errors.ts";
 import type {
@@ -16,7 +17,6 @@ import type {
   LocalLightWorkerOptions,
   LocalLightWorkerValue,
 } from "#src/contract/local-light-worker.ts";
-import type { ScheduleTimeout } from "#src/contract/runtime.ts";
 import type { InferenceLog } from "#src/deps.ts";
 import type { LocalLightPrefetchHandle, WorkerModelCache } from "../../contract/local-light.ts";
 
@@ -28,7 +28,7 @@ const LOCAL_LIGHT_WORKER_CLOSE_MS = 10_000;
 const LOCAL_LIGHT_WORKER_MAX_PENDING = 64;
 
 interface WorkerModelCacheConfig extends LocalLightWorkerOptions {
-  readonly scheduleTimeout: ScheduleTimeout;
+  readonly scheduleTimeout: ScheduleOp;
   readonly closeWaitMs?: number | undefined;
   readonly maxPending?: number | undefined;
   readonly onProgress?: LocalLightPrefetchHandle["onProgress"];
