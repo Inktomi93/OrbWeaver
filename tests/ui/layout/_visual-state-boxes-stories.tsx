@@ -3,7 +3,7 @@ import { CurrentGrid, CurrentStack } from "@orb/ui/current";
 import { FocalSection } from "@orb/ui/focal-section";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { ThemeScope } from "@orb/ui/theme-scope";
-import { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
+import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
 import type { ReactElement, ReactNode } from "react";
 
 interface StoryProps {
@@ -83,6 +83,12 @@ export function CurrentBoxesStory(props: StoryProps): ReactElement {
           <Stack data-probe="tint" data-tone="neutral" style={{ backgroundColor: "var(--color-tone-tint-active)" }}>
             tint
           </Stack>
+          <span data-probe="tight" style={{ display: "block", inlineSize: `var(${TOKENS["spacing.tight"].cssVar})` }} />
+          <span
+            data-probe="ring"
+            style={{ display: "block", blockSize: "1rem", inlineSize: "2rem", backgroundColor: `var(${TOKENS["color.input-border"].cssVar})` }}
+          />
+          <span data-probe="ground" style={{ display: "block", blockSize: "1rem", inlineSize: "2rem", backgroundColor: "var(--color-background)" }} />
         </Stack>
       </Ground>
     </CtIsolation>

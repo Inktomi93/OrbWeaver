@@ -20,7 +20,7 @@ export function renderContextBoundaryDivider(show: boolean, budgetLabel?: string
       {/* On the reading plate (D144(b)): the line crosses the room's background art, and the numbers on it must read
           at AA whatever part of the photo sits behind them. The hairlines meet the plate, not the text. */}
       <Row gap="field" align="center" plate="island" className="px-tight">
-        <Text voice="kicker">
+        <Text voice="kicker" ink="inherit">
           {compacted ? "Older messages compacted into a summary" : "In context from here"}
           {budgetLabel !== undefined ? ` · ${budgetLabel}` : ""}
         </Text>

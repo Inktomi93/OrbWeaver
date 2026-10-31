@@ -124,6 +124,11 @@
     z-index: 1;
     border-radius: inherit;
   }
+  @supports (mask-clip: padding-box) {
+    .shell-rail .shell-rail-button[data-active]::after {
+      @apply orb-gradient-ring-masked;
+    }
+  }
 
   /* On the desktop column the tooltip carries the label; it stays the accessible name through `aria-label`. */
   .shell-rail-button-label {

@@ -610,6 +610,19 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/chat/lib/message-row-variants.ts":
       "MESSAGE_ROW_SKINS: the styles that name their speaker and the skins that carry a header rule",
   },
+  "tests/client/features/chat/components/_context-divider-stories.tsx": {
+    "packages/client/src/features/chat/components/message-row-divider.tsx":
+      "renderContextBoundaryDivider: the divider label's own composition, which only the message row renders and no door forwards",
+  },
+  "tests/client/features/chat/components/_flank-column-stories.tsx": {
+    "packages/client/src/features/chat/components/room-flank.tsx":
+      "FlankColumn: the room's plugin column and its sheet stamps, which only the room renders and no door forwards",
+    "packages/client/src/features/chat/hooks/use-flank-presentation.ts": "FlankPresentation: the type of the presentation state the column renders",
+  },
+  "tests/client/features/preset/components/_macro-text-stories.tsx": {
+    "packages/client/src/features/preset/components/macro-text.tsx":
+      "MacroText: the preset surface's one template printer, which its two readouts import and no door forwards",
+  },
   "tests/client/features/chat/components/message-reasoning-and-move.ct.tsx": {
     "packages/client/src/features/chat/lib/message-action-names.ts": "the reasoning and move action names and refusal copy the suite addresses",
   },

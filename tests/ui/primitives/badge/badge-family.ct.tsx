@@ -41,7 +41,8 @@ function readRow(row: Locator): Promise<readonly Reading[]> {
       { label: "token ink", actual: read(token, "color"), expected: role("text-on-tint") },
       { label: "token flows in the line", actual: read(token, "display"), expected: "inline" },
       { label: "token draws no border", actual: read(token, "border-block-start-width"), expected: "0px" },
-      { label: "token pads nothing", actual: read(token, "padding-inline-start"), expected: "0px" },
+      { label: "token pads its sides at the tight step", actual: read(token, "padding-inline-start"), expected: read('[data-probe="tight"]', "inline-size") },
+      { label: "token adds no block padding", actual: read(token, "padding-block-start"), expected: "0px" },
       { label: "token stays selectable", actual: read(token, "user-select"), expected: "text" },
       {
         label: "token leaves its line box alone",

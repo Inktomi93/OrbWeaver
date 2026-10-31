@@ -10,22 +10,22 @@
 
 /* The gradient border ring (the CTA, the active tab, the active rail button): a `::after` overlay whose gradient is
  * masked to the border box minus the padding box, so only the border paints and the element's own fill and ink keep
- * their contrast. The gradient is a primary head over the polarity-fixed sheen foot. A browser without the padding-box
- * mask clip keeps a plain border in the head colour, never a fill. The head is the generated `gradient-ring` pigment, so
- * the host stamps `data-pigment` and sets its `--ring-head` weight on itself, where the pigment resolves; `--ring-foot`
- * too. */
+ * their contrast. The gradient is a primary head over the polarity-fixed sheen foot. `orb-gradient-ring` is the plain
+ * border in the head colour that stays where the padding-box mask clip is unsupported, never a fill. Each carrier applies
+ * `orb-gradient-ring-masked` in its own top-level `@supports` block: a `&` nested under a pseudo-element matches nothing,
+ * so the masked paint cannot live inside the utility. The head is the generated `gradient-ring` pigment, so the host
+ * stamps `data-pigment` and sets its `--ring-head` weight on itself, where the pigment resolves; `--ring-foot` too. */
 @utility orb-gradient-ring {
   @apply orb-paint-carrier;
   border: var(--border-width-control) solid var(--pigment-gradient-ring-head);
-  @supports (mask-clip: padding-box) {
-    & {
-      border-color: transparent;
-      background: linear-gradient(180deg, var(--pigment-gradient-ring-head), oklch(from var(--color-sheen) l c h / var(--ring-foot, 0.04))) border-box;
-      mask-image: linear-gradient(black 0 0), linear-gradient(black 0 0);
-      mask-clip: padding-box, border-box;
-      mask-composite: exclude;
-    }
-  }
+}
+@utility orb-gradient-ring-masked {
+  border-color: transparent;
+  background: linear-gradient(180deg, var(--pigment-gradient-ring-head), oklch(from var(--color-sheen) l c h / var(--ring-foot, 0.04))) border-box;
+  mask-image: linear-gradient(black 0 0), linear-gradient(black 0 0);
+  /* stylelint-disable-next-line orb/browser-support-css -- every carrier applies this utility inside its own `@supports (mask-clip: padding-box)` */
+  mask-clip: padding-box, border-box;
+  mask-composite: exclude;
 }
 
 /* Two reserved lines (`Text lines={2}`): `line-clamp-2` caps a run, it never reserves the second line, so captions in
@@ -144,6 +144,11 @@
     z-index: 1;
     border-radius: inherit;
   }
+  @supports (mask-clip: padding-box) {
+    [data-slot="button"][data-cta]::after {
+      @apply orb-gradient-ring-masked;
+    }
+  }
   /* A disabled primary is neutral, so its ring goes neutral too; an accent hairline would still read as live. */
   [data-slot="button"][data-cta]:is(:disabled, [data-disabled]):not([aria-busy="true"])::after {
     background: none;
@@ -164,6 +169,11 @@
     @apply orb-gradient-ring;
     z-index: 0;
     border-radius: var(--radius-control);
+  }
+  @supports (mask-clip: padding-box) {
+    [data-slot="tabs-tab"][data-active]::after {
+      @apply orb-gradient-ring-masked;
+    }
   }
 
   /* A long separator dissolves at its ends; a short vertical one is left alone, where a fade reads as a bug. */

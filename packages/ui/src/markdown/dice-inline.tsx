@@ -159,7 +159,8 @@ function DiceSpan({ node, children, ...rest }: DiceSpanProps): ReactElement {
   return dice === undefined ? (
     <span {...rest}>{children}</span>
   ) : (
-    <InlineToken data-slot="message-dice-chip">
+    // A colored tone: the neutral tint is the ramp's `muted` and cannot mix over a bubble (D336), so a neutral chip merges with a user or system bubble.
+    <InlineToken data-slot="message-dice-chip" tone="info">
       <Icon icon={Dices} size="xs" />
       {dice.label} → {dice.total}
     </InlineToken>

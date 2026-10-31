@@ -5,8 +5,8 @@ import { TONE_ARMS, tv } from "#lib";
 //
 // Four properties keep it a word, not a lozenge:
 // - `inline` joins the line box. A flex box taller than its line shoves the neighbouring lines apart.
-// - No padding and no border on either axis. The braces the token prints are its own optical padding, and an inline box's
-//   side padding or border is real advance that detaches the next punctuation (`{{user}} 's voice`).
+// - Side padding at the `tight` spacing token, and no border or block padding. A dice stamp prints no braces, so its text
+//   would touch the tint edge; an inline box's block padding or border would change the line box.
 // - No type axes. Font size and line height inherit from the run, so the line rhythm is unchanged.
 // - It stays selectable. A token inside quoted wire text must survive a copy, so the pill's `select-none` does not apply.
 //
@@ -15,7 +15,7 @@ import { TONE_ARMS, tv } from "#lib";
 // the x-height and takes its gap as a margin (`gap` is a flex property).
 export const inlineTokenVariants = tv({
   base: `
-    inline rounded-inset bg-tone-tint font-medium whitespace-nowrap text-tone-text-on-tint select-text
+    inline rounded-inset bg-tone-tint px-tight font-medium whitespace-nowrap text-tone-text-on-tint select-text
     [&>svg]:me-field [&>svg]:inline-block [&>svg]:align-middle
   `,
   variants: { tone: TONE_ARMS },

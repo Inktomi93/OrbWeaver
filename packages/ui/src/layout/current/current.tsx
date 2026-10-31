@@ -3,7 +3,7 @@ import type { GridProps } from "../grid.tsx";
 import { Grid } from "../grid.tsx";
 import type { StackProps } from "../stack.tsx";
 import { Stack } from "../stack.tsx";
-import { currentVariants } from "./variants.ts";
+import { currentGridVariants, currentVariants } from "./variants.ts";
 
 /**
  * A Stack that marks itself while it is the item a search or a citation points at. The call site sets
@@ -15,5 +15,5 @@ export function CurrentStack({ className, ...rest }: StackProps): ReactElement {
 
 /** A Grid that marks itself while it is the item a search points at; `aria-current` is the state, as on {@link CurrentStack}. */
 export function CurrentGrid({ className, ...rest }: GridProps): ReactElement {
-  return <Grid {...rest} className={currentVariants({ className })} data-tone="neutral" />;
+  return <Grid {...rest} className={currentGridVariants({ className })} data-tone="neutral" />;
 }

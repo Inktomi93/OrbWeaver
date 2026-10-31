@@ -30,7 +30,8 @@
 // THE CHIP IS AN `InlineToken`: a run of prose is a LINE BOX, and an `inline-flex` chip with vertical padding and its
 // own line-height builds a box taller than its line — every line carrying a macro shoved its neighbours apart, and the
 // chip's side padding detached the following punctuation (`{{user}} 's voice`). `InlineToken` inherits the run's type
-// metrics and prints no padding, so the rhythm of a paragraph is arithmetically identical with and without macros in it.
+// metrics and pads only its sides, at the tight step, so the line boxes of a paragraph are identical with and without
+// macros in it.
 
 import type { MacroRun } from "@orb/kit/macro";
 import { Card } from "@orb/ui/card";
