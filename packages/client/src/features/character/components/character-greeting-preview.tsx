@@ -25,6 +25,13 @@ import type { AppFormInstance } from "#forms/editor";
 import { notify } from "#lib";
 import { useRovingChipFocus } from "../hooks/use-roving-chip-focus.ts";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model.ts";
+import {
+  ADD_GREETING_NAME,
+  FIRST_GREETING_ALWAYS_SHOWN_NOTE,
+  GREETINGS_STRIP_LABEL,
+  greetingOrdinalLabel,
+  REMOVE_GREETING_NAME,
+} from "../lib/greeting-copy.ts";
 import { GreetingStudio } from "./greeting-studio.tsx";
 
 type CardForm = AppFormInstance<CharacterCardFormValues>;
@@ -108,7 +115,7 @@ const OPENING_PILL_SELECTOR = '[data-slot="greeting-opening"]';
  * arrow arm) — and the ONLY paint separating the active pill from the other three was `secondary`'s 1px
  * border, which composites to **1.189:1** over the bubble's backdrop against WCAG 1.4.11's 3:1 floor for a
  * state indicator. Neither a sighted nor a screen-reader user could tell which opening was showing.
- *   · the STRIP is `role="toolbar"` + `aria-label="Openings"` — a named set of related controls, ONE tab
+ *   · the STRIP is `role="toolbar"` + `aria-label="Greetings"` — a named set of related controls, ONE tab
  *     stop, arrows inside it (`useRovingChipFocus`, the same model the tag cloud takes).
  *   · the ACTIVE pill carries `aria-current="true"`, so a strip's state is a claim, not a colour; the other
  *     three claim nothing.
@@ -136,7 +143,15 @@ function GreetingPills({
   return (
     // The strip WRAPS at a narrow pane, so both axes walk the same linear order — APG's own allowance for a
     // wrapping toolbar (the hook's header carries the reasoning).
-    <Row aria-label="Openings" className="flex-wrap" gap="field" onFocus={roving.onFocus} onKeyDown={roving.onKeyDown} role="toolbar" align="center">
+    <Row
+      aria-label={GREETINGS_STRIP_LABEL}
+      className="flex-wrap"
+      gap="field"
+      onFocus={roving.onFocus}
+      onKeyDown={roving.onKeyDown}
+      role="toolbar"
+      align="center"
+    >
       {Array.from({ length: count }, (_, i) => (
         <Button
           aria-current={i === activeIndex ? "true" : undefined}
@@ -150,7 +165,7 @@ function GreetingPills({
           tabIndex={i === roving.activeIndex ? 0 : -1}
           type="button"
         >
-          Opening {i + 1}
+          {greetingOrdinalLabel(i + 1)}
         </Button>
       ))}
     </Row>
@@ -183,7 +198,7 @@ function GreetingBody({
         <form.Field name={greetingName(index)}>
           {(field): ReactElement => (
             <MacroTextarea
-              aria-label={`Opening ${index + 1}`}
+              aria-label={greetingOrdinalLabel(index + 1)}
               value={field.state.value}
               onChange={(next): void => field.handleChange(next)}
               onBlur={field.handleBlur}
@@ -270,7 +285,7 @@ function GreetingActions({
             }}
           >
             <Icon icon={Trash2} size="sm" />
-            Remove opening
+            {REMOVE_GREETING_NAME}
           </Button>
         ) : null}
         <Button
@@ -287,7 +302,7 @@ function GreetingActions({
           }}
         >
           <Icon icon={Plus} size="sm" />
-          Add opening
+          {ADD_GREETING_NAME}
         </Button>
         <Toggle size="sm" pressed={editing} onPressedChange={onToggleEdit}>
           <Icon icon={Pencil} size="sm" />
@@ -347,7 +362,7 @@ function GreetingAttributeRow({
     // alternates group-chats-only." — a second clause with no subject and no referent a reader could act on.
     // The fact it is trying to state is that THIS row has no toggle because the first opening is not
     // optional, and that the toggle lives on the alternates.
-    return <Text voice="gloss">The first opening is always shown, so it has no toggle. Open an alternate to limit it to group chats.</Text>;
+    return <Text voice="gloss">{FIRST_GREETING_ALWAYS_SHOWN_NOTE}</Text>;
   }
   return null;
 }

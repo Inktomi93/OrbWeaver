@@ -1129,8 +1129,7 @@ async function runChain(
         maxSpeakers: 1,
         signal: args.signal,
       });
-      // A cancelled arbitration yields no speaker, which stops the chain — `runAutoMode` reports it as
-      // `interrupt` (not `no-eligible`) because the signal it already holds is settled. CLOSE the slot this
+      // A cancelled arbitration yields no speaker, which stops the chain. CLOSE the slot this
       // iteration opened with `turnAborted` (the user's Stop mid-chain-arbitration), mirroring the primary window.
       if (arbitration.aborted) {
         await deps.emit({

@@ -77,9 +77,7 @@ export function createCapabilities(ctx: ConnectionContext): ConnectionService["c
       cache: cache.plan,
       cacheWarnings: cache.warnings,
       capability: read.capability,
-      cacheContext: read.cacheContext,
       baseline: read.baseline,
-      warnings: read.warnings,
       tasks: read.tasks,
       ...(read.detectedProviderId === undefined ? {} : { detectedProviderId: read.detectedProviderId }),
     };

@@ -10,7 +10,7 @@ updated: 2026-10-30
 
 Use one token vocabulary for application layout, primitive skins and appearance. Preserve supported owner styling and theme-relative paint.
 
-The [implementation work](../../work/1299-build-the-css-system-ramps-conditions-locked-tsx.md) remains open. Source delivery and scoped acceptance do not complete its current-tree checks.
+The implementation work remains open. Source delivery and scoped acceptance do not complete its current-tree checks.
 
 ## Shape
 

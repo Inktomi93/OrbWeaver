@@ -70,17 +70,13 @@ async function attachCardTags(ctx: ImportContext, characterId: CharacterId, tags
   }
 }
 
-/** Re-link the carried attached-book references (owned-source gated in the op). No-op — 0/0 — when
- *  the op is unwired (card-only slice) or the card carries none. */
-function relinkCarriedBooks(
-  ctx: ImportContext,
-  characterId: CharacterId,
-  refs: readonly AttachedBookRef[],
-): Promise<{ readonly linked: number; readonly skipped: number }> {
+/** Re-link the carried attached-book references (owned-source gated in the op) and return how many linked.
+ *  Zero when the op is unwired (card-only slice) or the card carries none. */
+async function relinkCarriedBooks(ctx: ImportContext, characterId: CharacterId, refs: readonly AttachedBookRef[]): Promise<number> {
   if (ctx.linkCarriedBooks === undefined || refs.length === 0) {
-    return Promise.resolve({ linked: 0, skipped: 0 });
+    return 0;
   }
-  return ctx.linkCarriedBooks({ ownerId: ctx.ownerId, characterId, refs });
+  return (await ctx.linkCarriedBooks({ ownerId: ctx.ownerId, characterId, refs })).linked;
 }
 
 /** The content a card CARRIES beyond its own fields: its lorebook (embedded and/or by reference) and its
@@ -132,7 +128,7 @@ async function attachCarriedContent(
   characterId: CharacterId,
   carried: CarriedContent,
 ): Promise<Pick<ImportCharacterResult, "regexScriptsLifted" | "regexScriptsReused" | "skippedOverlays">> {
-  const { linked: attachedBooksLinked } = await relinkCarriedBooks(ctx, characterId, carried.attachedBooks);
+  const attachedBooksLinked = await relinkCarriedBooks(ctx, characterId, carried.attachedBooks);
   const skippedOverlays: string[] = [];
 
   if (ctx.importLorebook !== undefined && carried.book !== null && attachedBooksLinked === 0) {

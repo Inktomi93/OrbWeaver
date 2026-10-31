@@ -41,6 +41,6 @@ export function createSnapshot(ctx: CharacterContext): CharacterService["snapsho
     );
     ctx.emitUserEvent(ownerId, { type: "charactersChanged", characterId });
 
-    return { id, characterId, createdAt: at };
+    return { id };
   };
 }

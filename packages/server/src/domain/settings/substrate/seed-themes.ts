@@ -36,7 +36,7 @@ const MOCHA_OVERRIDE: ThemeOverride = {
 const LIGHT_OVERRIDE: ThemeOverride = {
   accent: "oklch(0.5 0.16 50)",
   userBubble: { bg: "oklch(0.93 0.02 60)", fg: "oklch(0.25 0.02 60)" },
-  aiBubble: { bg: "oklch(0.97 0.006 60)", fg: "oklch(0.22 0.02 60)" },
+  aiBubble: { bg: "oklch(0.95 0.006 60)", fg: "oklch(0.22 0.02 60)" },
   systemBubble: { bg: "oklch(0.93 0.015 60)", fg: "oklch(0.45 0.02 60)" },
   speaker: "oklch(0.5 0.17 50)",
   dialogueColor: "oklch(0.4 0.1 240)",

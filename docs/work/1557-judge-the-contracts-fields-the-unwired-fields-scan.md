@@ -204,4 +204,13 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Not started. Judging method learned on 1556, for the lane that takes this item after the scanner links structurally equivalent twin types:
+
+1. A field in a CEL fact or env, in stored rule JSON, in a card-spec schema, or in a schema parsed then handed on whole stays, with the handoff site as its reader.
+2. A field read only by test files goes on the handed-off list with its readers.
+3. A field on a tRPC output that no client, server or `tests/support` code reads is deleted, and the corpus is republished in the same commit.
+4. A plugin API row stays and is listed.
+5. A K-indexed or restated twin type is derived from its owner: `Pick<CharacterDetail, ...>` in `character-hero-band.tsx:46` and `character-card.tsx:47` read fields the scan reports as unreferenced. Find these by removing the field and running the typecheck on every world.
+6. A deletion needs the typecheck across `packages/contracts`, `packages/server`, `packages/client`, `tsconfig.node.json` and `tsconfig.tests-dom.json`, then a suite on the path.
+
+A leaf-name match against `corpus.json` is only a first filter: `size`, `kind` and `name` match many unrelated schemas. Check the list or detail path.
