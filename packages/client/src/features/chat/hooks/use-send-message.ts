@@ -83,7 +83,7 @@ export function useSendMessage(opts: UseSendMessageOptions): UseSendMessageResul
       return;
     }
     setIsPending(true);
-    // The failure is toasted by the mutation's errorToast; this catch only keeps the rejection from escaping.
+    // Only a send failure reaches the mutation's errorToast; an upload rejection is dropped here with no notice.
     runSend(trimmed, attachments)
       .catch(() => undefined)
       .finally(() => setIsPending(false));

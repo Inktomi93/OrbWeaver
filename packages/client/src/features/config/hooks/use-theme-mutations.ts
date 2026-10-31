@@ -5,7 +5,7 @@
 
 import type { CreateThemeInput, Theme } from "@orb/contracts/theme";
 import type { inferInput } from "@trpc/tanstack-react-query";
-import type { Trpc } from "#data";
+import type { SectionPatchVars, Trpc } from "#data";
 import { createEntityMutation } from "#data";
 
 export const useCreateTheme = createEntityMutation<CreateThemeInput, Theme>({
@@ -45,7 +45,7 @@ export const useRemoveTheme = createEntityMutation<inferInput<Trpc["settings"]["
 });
 
 /** Writes `theme.selectedThemeId`; `null` selects the Hearth default (the anti-brick reset). */
-export const useSelectTheme = createEntityMutation<inferInput<Trpc["settings"]["updateUserSettingsSection"]>, unknown>({
+export const useSelectTheme = createEntityMutation<SectionPatchVars<"theme">, unknown>({
   options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't switch the theme.",

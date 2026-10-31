@@ -17,8 +17,7 @@ import type { inferInput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
 
-/** `worldInfo.attachToChat` / `detachFromChat` vars — the book and the room. Host-gated INSIDE the verb. */
-
+/** `worldInfo.attachToChat` / `detachFromChat` — the book and the room. Host-gated INSIDE the verb. */
 export const useAttachBookToChat = createEntityMutation<inferInput<Trpc["worldInfo"]["attachToChat"]>, unknown>({
   options: (trpc) => trpc.worldInfo.attachToChat.mutationOptions(),
   busDriven: true,

@@ -5,14 +5,13 @@
 // beside it.
 
 import { Section } from "@orb/ui/layout";
-import type { inferInput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup, SettingSwitchRow } from "#components";
-import type { Trpc } from "#data";
+import type { SectionPatchVars } from "#data";
 import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { PERSONA_NOTIFICATIONS_SUBCATEGORY } from "../lib/personas-nav.ts";
 
-const useSetPersonaPrefs = createEntityMutation<inferInput<Trpc["settings"]["updateUserSettingsSection"]>, unknown>({
+const useSetPersonaPrefs = createEntityMutation<SectionPatchVars<"persona">, unknown>({
   options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't save your persona settings.",

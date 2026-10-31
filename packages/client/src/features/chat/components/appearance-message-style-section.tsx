@@ -19,10 +19,9 @@ import type { AppearanceSettings } from "@orb/contracts/settings";
 import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
 import { pickKeys } from "@orb/kit/objects";
 import { Row, Section } from "@orb/ui/layout";
-import type { inferInput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#components";
-import type { Trpc } from "#data";
+import type { SectionPatchVars } from "#data";
 import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
@@ -31,7 +30,7 @@ import { ChatStyleCards } from "./appearance-chat-style-cards.tsx";
 
 type MessageStyleForm = Pick<AppearanceSettings, (typeof APPEARANCE_MESSAGE_STYLE_KEYS)[number]>;
 
-const useUpdateMessageStyle = createEntityMutation<inferInput<Trpc["settings"]["updateUserSettingsSection"]>, unknown>({
+const useUpdateMessageStyle = createEntityMutation<SectionPatchVars<"appearance">, unknown>({
   options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
   busDriven: true, // updateUserSettingsSection emits settingsChanged → USER_BUS covers getUserSettings.
   errorToast: "Couldn't save your message-style settings.",

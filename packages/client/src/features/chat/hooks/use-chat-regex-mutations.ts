@@ -31,11 +31,6 @@ import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
 
-/** ONE lever of the room's regex, spelled from the CONTRACT's tier key rather than inferred from the proc:
- *  the router validates `tier` through `regexTierKeySchema` (a `z.custom` over a branded template literal),
- *  whose inferred input erases the very union the section's dispatch is built on. The stricter shape stays
- *  assignable to the proc's input, so nothing is cast. */
-
 export const useSetRegexAllow = createEntityMutation<inferInput<Trpc["chat"]["setRegexAllow"]>, inferOutput<Trpc["chat"]["setRegexAllow"]>>({
   options: (trpc) => trpc.chat.setRegexAllow.mutationOptions(),
   busDriven: true, // setRegexAllow emits chatUpdated → the invalidation map re-reads listEffectiveRegex.

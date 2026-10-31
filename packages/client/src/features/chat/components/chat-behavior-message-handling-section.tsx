@@ -13,10 +13,9 @@
 
 import { DEFAULT_CHAT_SETTINGS } from "@orb/contracts/settings";
 import { Row, Section } from "@orb/ui/layout";
-import type { inferInput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#components";
-import type { Trpc } from "#data";
+import type { SectionPatchVars } from "#data";
 import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
@@ -32,7 +31,7 @@ import {
   toMessageHandlingPatch,
 } from "../lib/chat-behavior-message-handling-model.ts";
 
-const useUpdateMessageHandling = createEntityMutation<inferInput<Trpc["settings"]["updateUserSettingsSection"]>, unknown>({
+const useUpdateMessageHandling = createEntityMutation<SectionPatchVars<"chat">, unknown>({
   options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
   busDriven: true, // updateUserSettingsSection emits settingsChanged → USER_BUS covers getUserSettings.
   errorToast: "Couldn't save your chat behavior settings.",

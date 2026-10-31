@@ -4,10 +4,10 @@
 
 import type { WorkloadRef } from "@orb/contracts/workloads";
 import type { inferInput } from "@trpc/tanstack-react-query";
-import type { Trpc } from "#data";
+import type { SectionPatchVars, Trpc } from "#data";
 import { createEntityMutation } from "#data";
 
-export const useSetMemoryEnabled = createEntityMutation<inferInput<Trpc["settings"]["updateUserSettingsSection"]>, unknown>({
+export const useSetMemoryEnabled = createEntityMutation<SectionPatchVars<"memory">, unknown>({
   options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
   busDriven: true, // updateUserSettingsSection emits settingsChanged → USER_BUS covers getUserSettings.
   errorToast: "Couldn't save your memory settings.",

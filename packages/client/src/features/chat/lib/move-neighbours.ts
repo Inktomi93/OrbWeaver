@@ -1,7 +1,14 @@
 // What lies above and below one transcript row, for the host's Move up / Move down arrows.
 
-import type { TranscriptEdges } from "../components/transcript-window.tsx";
 import { MESSAGE_MOVE_DOWN_UNAVAILABLE, MESSAGE_MOVE_GENERATING, MESSAGE_MOVE_LOADING, MESSAGE_MOVE_UP_UNAVAILABLE } from "./message-action-names.ts";
+
+/** Whether canon exists beyond the loaded rows, from the paging query's own previous/next signal. */
+export interface TranscriptEdges {
+  readonly earlier: boolean;
+  /** The loaded pages do not yet reach the live tail, so a row beside the gap has an unloaded neighbour. */
+  readonly settling: boolean;
+  readonly later: boolean;
+}
 
 /** A seq is the loaded neighbour's; `beyond*` says canon continues past the loaded rows (the paging query's own
  *  `hasPreviousPage` / `hasNextPage`), so that neighbour is not loaded yet. `settling` says the loaded pages are

@@ -5,7 +5,7 @@
 // redacted view.
 
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
-import type { Trpc } from "#data";
+import type { SectionPatchVars, Trpc } from "#data";
 import { connectionWriteReads, createEntityMutation } from "#data";
 import { embedRefusalOf, embedRefusalText } from "#lib";
 
@@ -128,7 +128,7 @@ export const useAdmitPrivateEndpoint = createEntityMutation<
 });
 
 /** The Utility role's preset choice (D299) — a `seeds` section patch; `null` is task defaults. */
-export const useSetUtilityPreset = createEntityMutation<inferInput<Trpc["settings"]["updateUserSettingsSection"]>, unknown>({
+export const useSetUtilityPreset = createEntityMutation<SectionPatchVars<"seeds">, unknown>({
   options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
   busDriven: true, // emits `settingsChanged` → USER_BUS_FILTERS covers getUserSettings.
   echo: (trpc) => trpc.settings.getUserSettings.queryKey(),

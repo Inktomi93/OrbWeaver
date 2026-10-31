@@ -31,8 +31,7 @@ import { createEntityMutation } from "#data";
 /** The rack's own read — the chat's ACTIVE document union (D85), host-flagged. */
 type ActiveChatDocuments = inferOutput<Trpc["databank"]["listActiveForChat"]>;
 
-/** `databank.attachToChat` / `detachFromChat` vars — the document and the room. Host-gated INSIDE the verb. */
-
+/** `databank.attachToChat` / `detachFromChat` — the document and the room. Host-gated INSIDE the verb. */
 export const useAttachDocumentToChat = createEntityMutation<inferInput<Trpc["databank"]["attachToChat"]>, unknown>({
   options: (trpc) => trpc.databank.attachToChat.mutationOptions(),
   busDriven: true,
