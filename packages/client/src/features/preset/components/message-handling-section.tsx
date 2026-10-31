@@ -6,13 +6,14 @@
 import type { GenerationCapability, RoleHandling, UserRoleHandling } from "@orb/contracts/inference";
 import { isStricterRoleHandling, isTurnEstimated, ROLE_HANDLING, USER_ROLE_HANDLING, userRoleHandlingOptions } from "@orb/contracts/inference";
 import { Badge } from "@orb/ui/badge";
-import { Field, FieldLayout } from "@orb/ui/field";
+import { Field } from "@orb/ui/field";
 import { Row, Section } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Select } from "@orb/ui/select";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { SettingRowGroup, SettingTrackRow } from "#components";
 import type { AppFormInstance } from "#forms/editor";
 import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
 
@@ -91,54 +92,58 @@ export function MessageHandlingSection({
         Orbweaver can tidy your messages in two ways before sending them.
       </Text>
 
-      <FieldLayout orientation="horizontal">
-        <form.Subscribe selector={(state): UserRoleHandling | undefined => state.values.params.advanced?.roleHandling}>
-          {(roleHandling): ReactElement => (
-            <Field
-              hint="How back-to-back same-role messages and system notes are handled — your choice can only go stricter than the model's floor."
-              label="Adjacent-role merging"
-            >
-              <Select
-                aria-label="Adjacent-role merging"
-                items={roleHandlingItems(floor)}
-                onValueChange={(next): void => {
-                  form.setFieldValue("params.advanced.roleHandling", isUserRoleHandling(next) ? next : undefined);
-                }}
-                value={roleHandling ?? ""}
-              />
-              {floorConstrains(floor) ? (
-                <Row align="center" gap="field">
-                  <Text voice="gloss">This model needs at least {ROLE_HANDLING_LABELS[floor]}. A stricter choice still wins.</Text>
-                  {isBelowFloor(roleHandling, floor) ? (
-                    <Badge tone="warning" size="sm">
-                      Applies as {ROLE_HANDLING_LABELS[floor]}
-                    </Badge>
-                  ) : null}
-                </Row>
-              ) : null}
-              {estimated && guessedFloor !== undefined && isBelowFloor(roleHandling, guessedFloor) ? (
-                <Text data-slot="role-handling-unmeasured" voice="gloss">
-                  {UNMEASURED_FLOOR_NOTE}
-                </Text>
-              ) : null}
-            </Field>
-          )}
-        </form.Subscribe>
+      <SettingRowGroup>
+        <SettingTrackRow>
+          <form.Subscribe selector={(state): UserRoleHandling | undefined => state.values.params.advanced?.roleHandling}>
+            {(roleHandling): ReactElement => (
+              <Field
+                hint="How back-to-back same-role messages and system notes are handled — your choice can only go stricter than the model's floor."
+                label="Adjacent-role merging"
+              >
+                <Select
+                  aria-label="Adjacent-role merging"
+                  items={roleHandlingItems(floor)}
+                  onValueChange={(next): void => {
+                    form.setFieldValue("params.advanced.roleHandling", isUserRoleHandling(next) ? next : undefined);
+                  }}
+                  value={roleHandling ?? ""}
+                />
+                {floorConstrains(floor) ? (
+                  <Row align="center" gap="field">
+                    <Text voice="gloss">This model needs at least {ROLE_HANDLING_LABELS[floor]}. A stricter choice still wins.</Text>
+                    {isBelowFloor(roleHandling, floor) ? (
+                      <Badge tone="warning" size="sm">
+                        Applies as {ROLE_HANDLING_LABELS[floor]}
+                      </Badge>
+                    ) : null}
+                  </Row>
+                ) : null}
+                {estimated && guessedFloor !== undefined && isBelowFloor(roleHandling, guessedFloor) ? (
+                  <Text data-slot="role-handling-unmeasured" voice="gloss">
+                    {UNMEASURED_FLOOR_NOTE}
+                  </Text>
+                ) : null}
+              </Field>
+            )}
+          </form.Subscribe>
+        </SettingTrackRow>
 
-        <form.Subscribe selector={(state): boolean => state.values.params.advanced?.squashSystemMessages === true}>
-          {(squash): ReactElement => (
-            // The SAME label-left / control-right row as every other switch on the surface (F-22).
-            <Field hint="Merge consecutive system-note runs into one message. Never touches the transcript or examples." label="Squash system notes">
-              <Switch
-                checked={squash}
-                onCheckedChange={(on): void => {
-                  form.setFieldValue("params.advanced.squashSystemMessages", on ? true : undefined);
-                }}
-              />
-            </Field>
-          )}
-        </form.Subscribe>
-      </FieldLayout>
+        <SettingTrackRow>
+          <form.Subscribe selector={(state): boolean => state.values.params.advanced?.squashSystemMessages === true}>
+            {(squash): ReactElement => (
+              // The SAME label-left / control-right row as every other switch on the surface (F-22).
+              <Field hint="Merge consecutive system-note runs into one message. Never touches the transcript or examples." label="Squash system notes">
+                <Switch
+                  checked={squash}
+                  onCheckedChange={(on): void => {
+                    form.setFieldValue("params.advanced.squashSystemMessages", on ? true : undefined);
+                  }}
+                />
+              </Field>
+            )}
+          </form.Subscribe>
+        </SettingTrackRow>
+      </SettingRowGroup>
     </Section>
   );
 }

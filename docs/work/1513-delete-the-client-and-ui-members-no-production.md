@@ -44,4 +44,16 @@ Every member in the table is deleted with its implementation and the props or va
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Ran: `pnpm typecheck` for every program, `pnpm lint:eslint packages tooling tests`, `pnpm depcruise`, `pnpm knip:prod`, `pnpm unwired`, the CTs `tests/client/features/credentials/components/connection-prompt-cache.ct.tsx` and `tests/ui/primitives/message-list/scrollport-lifecycle.ct.tsx`, and `tests/client/state/registry-definitions.dom.test.ts`. All green.
+
+| Member | Result |
+| - | - |
+| `Registry.has`, `EntityDraftStore.setField`, `RoomRegistry.joined`, `CollectionSelection.selectAll`, `SaveCircuitBreaker.reset`, `FormHandleBridge.read`, `UseGenerateImageResult.clearError`, `UseSendMessageResult.clearError`, `MessageListHandle.isAtEnd`, `MessageListHandle.getDistanceFromEnd`, `PluginUiGuest.alive` | deleted with their implementations; no test read them |
+| `ConnectionPromptCacheProps.onReset` | wired: `PromptCacheBodyProps` extends `Pick<ConnectionPromptCacheProps, "onReset">`; the prop is live, the spread into the body hid it |
+| `FacetView.pick` | wired: `view` is typed `FacetView`, so the call lands on the member |
+
+### Owner calls
+
+- `AutosaveBoundaryProps.save` and `AutosaveBoundaryPropsPersisting.save` stay. They are the per-instance persistence seam: a surface passes `save={...}` as a JSX prop (`packages/client/src/features/chat/components/room-overrides-tab.tsx:35`) and `createAutosaveEntityForm` reads it. Deleting them removes autosave persistence. The member scan does not count a JSX attribute as a read.
+- `ExtensionsEmptyCopy.title` and `ExtensionsEmptyCopy.description` stay. They are the live empty-state copy (`extensions-page-surface.tsx`, `extensions-switcher-surface.tsx`). The `satisfies` check hides the call sites from the scan, and the call sites rely on the narrow arm types (`title()` with no argument), so typing them through the interface does not compile.
+

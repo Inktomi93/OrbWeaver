@@ -147,20 +147,23 @@ test("a definition row outlives a deleted owner only while another owner's claim
   await using root = await newRoot();
   const first = (await root.actor()).id;
   const second = (await root.actor()).id;
-  for (const owner of [first, second]) {
+  const installDisabled = async (owner: typeof first): Promise<Awaited<ReturnType<typeof installAcme>>["pluginId"]> => {
     const installed = await installAcme(root, owner, "Acme");
     expect(installed.status).toBe("enabled");
     await root.services.plugin.setEnabled({ caller: await root.principalFor(owner), pluginId: installed.pluginId, enabled: false });
-  }
+    return installed.pluginId;
+  };
+  const firstPlugin = await installDisabled(first);
+  const secondPlugin = await installDisabled(second);
   const definitionRows = async (): Promise<number> => (await root.db.select().from(providerRows)).filter((row) => row.id === PLUGIN_PROVIDER).length;
   expect(await definitionRows()).toBe(1);
 
   // A user's claims die with the user (D265), which leaves the claim table as the only reference to a definition.
   await root.db.delete(users).where(eq(users.id, first));
-  await root.services.connection.registry.refresh();
+  await root.services.connection.registry.dropPlugin(firstPlugin);
   expect(await definitionRows()).toBe(1);
 
   await root.db.delete(users).where(eq(users.id, second));
-  await root.services.connection.registry.refresh();
+  await root.services.connection.registry.dropPlugin(secondPlugin);
   expect(await definitionRows()).toBe(0);
 });

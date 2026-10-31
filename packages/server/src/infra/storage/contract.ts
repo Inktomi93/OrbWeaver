@@ -25,7 +25,6 @@ export interface PutResult {
 
 export interface Cas {
   putBytes: (ownerId: UserId, bytes: Uint8Array, now: number) => Promise<PutResult>;
-  blobPath: (ownerId: UserId, hash: string) => string;
   exists: (ownerId: UserId, hash: string) => Promise<boolean>;
   /** Read counterpart of putBytes's mtime bump — collectGarbage's grace window compares this to skip a just-put-but-not-yet-linked blob. */
   mtimeMs: (ownerId: UserId, hash: string) => Promise<number | undefined>;

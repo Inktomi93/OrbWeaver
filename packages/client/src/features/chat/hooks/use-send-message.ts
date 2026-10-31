@@ -40,7 +40,6 @@ export interface UseSendMessageResult {
   readonly send: (content: string, attachments?: readonly File[]) => void;
   readonly isPending: boolean;
   readonly error: unknown | null;
-  readonly clearError: () => void;
 }
 
 async function uploadAttachments(upload: ReturnType<typeof useUploadAsset>, attachments: readonly File[]): Promise<AssetId[]> {
@@ -96,6 +95,5 @@ export function useSendMessage(opts: UseSendMessageOptions): UseSendMessageResul
     send,
     isPending,
     error,
-    clearError: (): void => setError(null),
   };
 }

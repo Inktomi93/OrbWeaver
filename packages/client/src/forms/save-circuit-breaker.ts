@@ -33,8 +33,6 @@ export interface SaveCircuitBreaker {
    * surface `error`. Returns `false` on the normal path.
    */
   readonly shouldTrip: () => boolean;
-  /** Reset all state (a successful reseed / entity switch starts a fresh session with a clean breaker). */
-  readonly reset: () => void;
 }
 
 export function createSaveCircuitBreaker(config: SaveCircuitBreakerConfig): SaveCircuitBreaker {
@@ -52,9 +50,6 @@ export function createSaveCircuitBreaker(config: SaveCircuitBreakerConfig): Save
       const cutoff = t - config.windowMs;
       editFreeSubmits = editFreeSubmits.filter((ts) => ts > cutoff);
       return editFreeSubmits.length > config.limit;
-    },
-    reset: (): void => {
-      editFreeSubmits = [];
     },
   };
 }

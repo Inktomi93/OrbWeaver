@@ -64,7 +64,6 @@ export interface EntityDraftStore<TInput> {
   readonly readDraft: (id: string, baselineHash?: string) => Readonly<Partial<TInput>> | undefined;
   /** Read provenance only, without clearing/restamping or claiming freshness against a server row. */
   readonly readDraftBaseline: (id: string) => string | undefined;
-  readonly setField: <K extends keyof TInput>(id: string, key: K, value: TInput[K]) => void;
   /** Shallow-merge a patch into the id's draft, stamping the current schema version + `baselineHash`. */
   readonly setDraft: (id: string, patch: Partial<TInput>, baselineHash?: string) => void;
   readonly clearDraft: (id: string) => void;
@@ -201,11 +200,6 @@ export function createEntityDraftStore<TInput>(config: EntityDraftStoreConfig<TI
       }
       const envelope = rawEnvelope(id);
       return validateEnvelope(envelope) !== undefined && typeof envelope?.baselineHash === "string" ? envelope.baselineHash : undefined;
-    },
-    setField: (id, key, value): void => {
-      const patch: Partial<TInput> = {};
-      patch[key] = value;
-      setDraft(id, patch);
     },
     setDraft,
     clearDraft,

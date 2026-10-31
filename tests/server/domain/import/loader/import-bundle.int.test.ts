@@ -11,7 +11,6 @@
 // @subject packages/server/src/domain/assets/verbs/import-asset.ts
 // @subject packages/server/src/domain/assets/verbs/import-gallery.ts
 
-import { rm } from "node:fs/promises";
 import type { OwnedAssetCursor } from "@orb/contracts/assets";
 import { ASSET_LIST_LIMIT_MAX } from "@orb/contracts/assets";
 import { CHARACTER_HANDLE_WIRE_KEY, characterCardV3Schema, characterHandleSchema, createCharacterSchema } from "@orb/contracts/character";
@@ -827,7 +826,7 @@ test("restoring bytes the owner holds under another id repairs that asset when i
 
   await using target = await signedInBox();
   const held = await target.services.assets.store({ principal: await target.principalFor(target.ownerId), kind: "background", mime: PNG, bytes });
-  await rm(target.app.cas.blobPath(target.ownerId, held.hash));
+  await target.app.cas.remove(target.ownerId, held.hash);
   const outcome = await restore(target, bundle);
   const stored = await target.app.cas.exists(target.ownerId, held.hash);
   const restored = stored ? await target.services.assets.loadAssetBytes(held.assetId) : null;

@@ -65,8 +65,6 @@ export interface PluginUiGuest {
   ) => void;
   /** Terminate and release. Idempotent. */
   readonly dispose: () => void;
-  /** True until `dispose()` (or a crash) has torn the worker down. */
-  readonly alive: () => boolean;
 }
 
 /** Build the worker. A separate function so the CT can see exactly one construction site, and so the
@@ -254,6 +252,5 @@ export function startPluginUiGuest(options: PluginUiGuestOptions): PluginUiGuest
       clearWall();
       worker.terminate();
     },
-    alive: (): boolean => !disposed,
   };
 }

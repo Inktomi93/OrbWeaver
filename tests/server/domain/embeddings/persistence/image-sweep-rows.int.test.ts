@@ -3,7 +3,6 @@
 // @subject packages/server/src/domain/embeddings/verbs/embed-assets.ts
 // @subject packages/server/src/domain/embeddings/indexer/image.ts
 
-import { rm } from "node:fs/promises";
 import { IMAGE_LENSES } from "@orb/contracts/embeddings";
 import { embedGenerations, embedSpaceState, imageAnalyses, imageEmbeddings } from "@orb/db";
 import { readSeedAvatar, SEED_MANIFEST } from "@orb/default-content";
@@ -175,7 +174,7 @@ test("an avatar whose stored file is gone fails alone: the rest embed and the ru
   if (ref === undefined) {
     throw new Error("the stored avatar must have a CAS reference");
   }
-  await rm(root.app.cas.blobPath(ref.ownerId, ref.hash));
+  await root.app.cas.remove(ref.ownerId, ref.hash);
   const positions: [number, number][] = [];
 
   const result = await root.app.embeddings.embedAssets({

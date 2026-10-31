@@ -360,7 +360,7 @@ test("the installer lists models, saves a connection and generates through its o
 
   const { resolved } = await root.services.connection.resolve({ task: "chat", principal: installer });
   expect(resolved).toMatchObject({ providerId: relayId, baseUrl: RELAY_BASE_URL, model: RELAY_MODEL });
-  const summary = await (await root.app.roleClientsFor(installer.userId)).summarize([{ systemPrompt: "be brief", userPrompt: "hello" }]);
+  const summary = await (await root.roleClientsFor(installer.userId)).summarize([{ systemPrompt: "be brief", userPrompt: "hello" }]);
   expect(summary.items.map((item) => item.text)).toEqual([RELAY_REPLY]);
   expect(sent.some((request) => new URL(request.url).pathname.endsWith("/chat/completions"))).toBe(true);
 });
@@ -420,7 +420,7 @@ test("a retained connection stops resolving at every read and at turn time once 
   await expect(root.services.connection.capabilities({ principal: installer, connectionId: retained.id })).rejects.toBeInstanceOf(ProviderError);
   await expect(root.services.connection.resolve({ task: "chat", principal: installer })).rejects.toBeInstanceOf(NoConnectionError);
   await expect(root.services.connection.resolve({ task: "chat", principal: installer, connectionId: retained.id })).rejects.toBeInstanceOf(NoConnectionError);
-  await expect((await root.app.roleClientsFor(installer.userId)).summarize([{ systemPrompt: "s", userPrompt: "u" }])).rejects.toBeInstanceOf(ProviderError);
+  await expect((await root.roleClientsFor(installer.userId)).summarize([{ systemPrompt: "s", userPrompt: "u" }])).rejects.toBeInstanceOf(ProviderError);
   await expect(root.services.connection.probe({ principal: installer, connectionId: retained.id })).rejects.toBeInstanceOf(NoConnectionError);
   expect((await root.services.connection.get({ principal: installer, connectionId: retained.id })).tasks).toEqual([]);
   expect(sent).toHaveLength(spent);

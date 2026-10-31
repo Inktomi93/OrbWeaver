@@ -1,7 +1,7 @@
 // @subject tests/support/node/corpus-rpg-provider.ts
 // @subject tests/support/node/corpus-rpg-wire.ts
 import { declaredCapabilitySchema } from "@orb/contracts/inference";
-import { rpgSnapshotStateSchema } from "@orb/contracts/rpg";
+import { RPG_SNAPSHOT_KIND, rpgSnapshotStateSchema } from "@orb/contracts/rpg";
 import { assertReferentialIntegrity, rpgJournal, rpgSnapshots } from "@orb/db";
 import { eq } from "drizzle-orm";
 import { seedCorpusActors } from "./corpus-actors.ts";
@@ -75,7 +75,15 @@ test("native model population, structured and required-tool resync, and changed 
     throw new Error("native folded turn lost its original variant snapshot");
   }
   expect(result.snapshot.id).not.toBe(original.id);
-  expect(result.snapshot).toMatchObject({ gameId: result.game.id, messageId: null, variantId: null, asOfMessageId: assistant.id, committed: 1 });
+  // The checkpoint saves a bookmark copy of the folded turn: off the state ladder, so it carries no as-of slot.
+  expect(result.snapshot).toMatchObject({
+    gameId: result.game.id,
+    messageId: null,
+    variantId: null,
+    asOfMessageId: null,
+    committed: 1,
+    kind: RPG_SNAPSHOT_KIND.bookmark,
+  });
   expect(rpgSnapshotStateSchema.parse(result.snapshot)).toEqual(rpgSnapshotStateSchema.parse(original));
   expect(result.snapshot.fieldLocks).toEqual(original.fieldLocks);
   const retained = await captureRpgSnapshot(root.db, original.id);

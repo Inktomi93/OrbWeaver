@@ -23,7 +23,7 @@ Judge a surface only after every planned change to it has landed. Steps 2 to 6 r
 | 1 | Use-specific extraction and the tone-ink floors | [1470](../../work/1470-floor-the-remaining-page-family-inks-on-tone.md), then a rendered review of step 4 on the owner-data clone |
 | 3 | Enlarged text | with the push barrier, [1299](../../work/1299-build-the-css-system-ramps-conditions-locked-tsx.md) |
 | 4 | Chat styles match the Moonlit reference | [0913](../../work/0913-chat-art-polish-broken-image-chip-flash-initial.md) |
-| 5 | Page templates | [1519](../../work/1519-move-hand-built-horizontal-form-rows-onto-the.md) |
+| 5 | Page templates | the page-template tier |
 | 6 | Visible labels and accessible names | [1426](../../work/1426-import-ct-and-e2e-accessible-name-labels-from.md) |
 | Beside 2 to 6 | The automated walkthrough | [1401](../../work/1401-build-and-qualify-the-native-automated-surface-walkthrough.md) phase B |
 | 7 | Comparative acceptance | [1392](../../work/1392-complete-cross-surface-composition-acceptance.md), then [1397](../../work/1397-complete-characters-and-chat-comparative-acceptance.md); the persona and plugin reviews [0908](../../work/0908-side-eye-the-persona-switcher-room-block-and.md) and [0909](../../work/0909-side-eye-the-plugin-column-overlay-and-phone.md) run inside them |
@@ -62,7 +62,7 @@ Out of the survey: CONTEXT panel bodies, the chat room, the home and corpus dash
 
 ### Lint
 
-`orb/page-template-shapes` refuses, in `packages/client/src/features/**`, a `ListSearch` element, the `data-shell-identity` attribute, a class string or template quasi with `mx-auto` beside `max-inline-(--width-content-col)`, and a `Grid` with `role="list"`. Each signature is owned by exactly one template. A start-aligned cap without `mx-auto` is a measure, not the editor column, and passes. A column split across template quasis escapes the rule. The settings pane has no precise signature: its sections are legitimate feature code and its host exists once, so that shape has no rule.
+`orb/page-template-shapes` refuses, in `packages/client/src/features/**`, a `ListSearch` element, the `data-shell-identity` attribute, a class string or template quasi with `mx-auto` beside `max-inline-(--width-content-col)`, a `Grid` with `role="list"`, and a `FieldLayout` with `orientation="horizontal"`. Each signature is owned by exactly one template. A start-aligned cap without `mx-auto` is a measure, not the editor column, and passes. A column split across template quasis escapes the rule. The settings pane has no precise signature: its sections are legitimate feature code and its host exists once, so that shape has no rule. Its rows do: `SettingRowGroup` and `SettingTrackRow` own the only horizontal `FieldLayout`, so a feature that spells one has hand-built a settings row.
 
 ### Judgment sites
 

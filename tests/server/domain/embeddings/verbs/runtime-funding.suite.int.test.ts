@@ -5,11 +5,11 @@
 import { expect } from "@orb/testkit/node";
 import { EMBEDDING_PATH, fundingConnection, INPUTS, pinGeneration, REPOINTED_MODEL, test } from "./runtime-funding.fixtures.ts";
 
-test("the role bundle follows a repointed binding on its next call", async ({ app, harness, ownerCaller, fundingProvider }) => {
+test("the role bundle follows a repointed binding on its next call", async ({ harness, ownerCaller, fundingProvider }) => {
   const first = await fundingConnection({ ownerCaller, harness, task: "summarize" });
   const second = await fundingConnection({ ownerCaller, harness, task: "summarize" });
   await ownerCaller.connection.setBinding({ task: "summarize", connectionId: first.connectionId });
-  const roles = await app.roleClientsFor(harness.ownerId);
+  const roles = await harness.roleClientsFor(harness.ownerId);
   expect((await roles.resolved("summarize"))?.connectionId).toBe(first.connectionId);
   await roles.summarize(INPUTS);
   await ownerCaller.connection.setBinding({ task: "summarize", connectionId: second.connectionId });

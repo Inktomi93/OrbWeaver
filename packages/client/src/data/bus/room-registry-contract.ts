@@ -68,8 +68,6 @@ export interface RoomRegistry {
    *  `socketLive` uses on a RE-connect, for the same reason — `stream.attach` is idempotent, so a room that
    *  IS still attached costs one batched mutation and nothing else. */
   readonly reannounceAll: () => void;
-  /** Currently-joined room keys — the CT/probe lens. */
-  readonly joined: () => readonly string[];
   /**
    * How many times this room has entered LIVE DELIVERY in this page load, and therefore how much this
    * client can have missed: `0` = never attached (unknown — the caller must assume the worst), `1` = it is

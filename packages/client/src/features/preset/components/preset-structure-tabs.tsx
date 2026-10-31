@@ -35,11 +35,11 @@ import type { GenerationCapability } from "@orb/contracts/inference";
 import type { MarkerType, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_CONTINUE_POSTFIX, DEFAULT_NAMES_BEHAVIOR } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
-import { FieldLayout } from "@orb/ui/field";
 import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { SettingRowGroup, SettingTrackRow } from "#components";
 import { useIds } from "#data";
 import type { AppFormInstance } from "#forms/editor";
 import { closePresetSectionDrill, drillPresetSection, selectPresetSection, useDrilledPresetSectionId, useSelectedPresetSectionId } from "#state";
@@ -91,42 +91,41 @@ function DeliveryTab({ form, capability }: { readonly form: AppForm; readonly ca
   return (
     <Stack gap="section">
       <Section kicker="Delivery">
-        {/* ONE LAYOUT FOR THE WHOLE VIEW (side-eye 2026-08-19 P2). These two selects were the only Fields in
-            Transforms rendering VERTICAL — label over a full-width control — while COLLAPSING directly under
-            them (and every other settings row in the app) docks its control in the `--width-control-col`
-            track. Two grammars, one view, three inches apart. `FieldLayout` is the ambient seam that says it
-            once, and the horizontal arm carries its own narrow fold (`@max-cq-28` stacks back), so this costs
-            nothing at 568 — the control column is a fixed track that becomes full width when the pane cannot
-            seat it, which is also why no value clips there. */}
-        <FieldLayout orientation="horizontal">
+        {/* ONE LAYOUT FOR THE WHOLE VIEW: these selects sit in the same settings track as the Collapsing rows
+            directly under them and every other settings row in the app, so label and control share one edge. */}
+        <SettingRowGroup>
           {/* GHOSTED DEFAULTS, never blank (side-eye F-05): an unset select rendered an EMPTY combobox, so
               the one datum the row exists to state — what actually happens when you leave it alone — was
               the one thing missing. The placeholder is the wire's own default, read from the constant the
               assembler resolves through, and the explainer moves to the hover hint (§4.1). */}
-          <form.AppField name="namesBehavior">
-            {(field): ReactElement => (
-              <field.SelectField
-                // THE HINT CARRIES WHAT THE OPTION LABELS USED TO (side-eye 2026-08-22 P2-5 / owner ruling
-                // O-4): the labels are mode NAMES now, so the four behaviours are spelled once, here, where
-                // they cost no width in the 200px control column the trigger renders inside.
-                hint="How speaker names are attached to each message. None leaves them out unless several humans or characters share the room; Default prefixes on a persona switch and wherever several humans or characters share the room; Content always prefixes “Name: ”; Completion sends them in the API's own `name` field."
-                items={NAMES_BEHAVIOR_ITEMS}
-                label="Speaker names"
-                placeholder={namesBehaviorLabel(DEFAULT_NAMES_BEHAVIOR)}
-              />
-            )}
-          </form.AppField>
-          <form.AppField name="continuePostfix">
-            {(field): ReactElement => (
-              <field.SelectField
-                hint="What's inserted between the existing text and a continuation."
-                items={CONTINUE_POSTFIX_ITEMS}
-                label="Continue delimiter"
-                placeholder={continuePostfixLabel(DEFAULT_CONTINUE_POSTFIX)}
-              />
-            )}
-          </form.AppField>
-        </FieldLayout>
+          <SettingTrackRow>
+            <form.AppField name="namesBehavior">
+              {(field): ReactElement => (
+                <field.SelectField
+                  // THE HINT CARRIES WHAT THE OPTION LABELS USED TO (side-eye 2026-08-22 P2-5 / owner ruling
+                  // O-4): the labels are mode NAMES now, so the four behaviours are spelled once, here, where
+                  // they cost no width in the 200px control column the trigger renders inside.
+                  hint="How speaker names are attached to each message. None leaves them out unless several humans or characters share the room; Default prefixes on a persona switch and wherever several humans or characters share the room; Content always prefixes “Name: ”; Completion sends them in the API's own `name` field."
+                  items={NAMES_BEHAVIOR_ITEMS}
+                  label="Speaker names"
+                  placeholder={namesBehaviorLabel(DEFAULT_NAMES_BEHAVIOR)}
+                />
+              )}
+            </form.AppField>
+          </SettingTrackRow>
+          <SettingTrackRow>
+            <form.AppField name="continuePostfix">
+              {(field): ReactElement => (
+                <field.SelectField
+                  hint="What's inserted between the existing text and a continuation."
+                  items={CONTINUE_POSTFIX_ITEMS}
+                  label="Continue delimiter"
+                  placeholder={continuePostfixLabel(DEFAULT_CONTINUE_POSTFIX)}
+                />
+              )}
+            </form.AppField>
+          </SettingTrackRow>
+        </SettingRowGroup>
       </Section>
       <MessageHandlingSection capability={capability} form={form} />
     </Stack>
@@ -222,19 +221,25 @@ function TemplatesTab({ form }: { readonly form: AppForm }): ReactElement {
       <Text voice="gloss">
         A fallback that splits an inline reasoning block out of the reply when the model has no native reasoning channel. Native reasoning is always preferred.
       </Text>
-      <FieldLayout orientation="horizontal">
-        <form.AppField name="reasoningParse.autoParse">
-          {(field): ReactElement => (
-            <field.SwitchField hint="Split a `<think>…</think>`-style block into the reasoning channel." label="Parse inline reasoning tags" />
-          )}
-        </form.AppField>
-        <form.AppField name="reasoningParse.prefix">
-          {(field): ReactElement => <field.TextField hint="The block's start marker." label="Opening tag" />}
-        </form.AppField>
-        <form.AppField name="reasoningParse.suffix">
-          {(field): ReactElement => <field.TextField hint="The block's end marker." label="Closing tag" />}
-        </form.AppField>
-      </FieldLayout>
+      <SettingRowGroup>
+        <SettingTrackRow>
+          <form.AppField name="reasoningParse.autoParse">
+            {(field): ReactElement => (
+              <field.SwitchField hint="Split a `<think>…</think>`-style block into the reasoning channel." label="Parse inline reasoning tags" />
+            )}
+          </form.AppField>
+        </SettingTrackRow>
+        <SettingTrackRow>
+          <form.AppField name="reasoningParse.prefix">
+            {(field): ReactElement => <field.TextField hint="The block's start marker." label="Opening tag" />}
+          </form.AppField>
+        </SettingTrackRow>
+        <SettingTrackRow>
+          <form.AppField name="reasoningParse.suffix">
+            {(field): ReactElement => <field.TextField hint="The block's end marker." label="Closing tag" />}
+          </form.AppField>
+        </SettingTrackRow>
+      </SettingRowGroup>
     </Section>
   );
 }
@@ -248,20 +253,28 @@ function PostProcessTab({ form }: { readonly form: AppForm }): ReactElement {
   return (
     <Section kicker="Post-processing">
       <Text voice="gloss">Cleanup applied to the model's reply before it lands in the chat, in this order.</Text>
-      <FieldLayout orientation="horizontal">
-        <form.AppField name="postProcess.collapseNewlines">
-          {(field): ReactElement => <field.SwitchField hint="Merge runs of blank lines into one." label="Collapse blank lines" />}
-        </form.AppField>
-        <form.AppField name="postProcess.trimTrailingWhitespace">
-          {(field): ReactElement => <field.SwitchField hint="Strip line-end spaces." label="Trim trailing whitespace" />}
-        </form.AppField>
-        <form.AppField name="postProcess.dropIncompleteSentence">
-          {(field): ReactElement => <field.SwitchField hint="Remove a final sentence the model didn't finish." label="Drop a dangling sentence" />}
-        </form.AppField>
-        <form.AppField name="postProcess.singleLine">
-          {(field): ReactElement => <field.SwitchField hint="Flatten the whole reply to one line." label="Single line" />}
-        </form.AppField>
-      </FieldLayout>
+      <SettingRowGroup>
+        <SettingTrackRow>
+          <form.AppField name="postProcess.collapseNewlines">
+            {(field): ReactElement => <field.SwitchField hint="Merge runs of blank lines into one." label="Collapse blank lines" />}
+          </form.AppField>
+        </SettingTrackRow>
+        <SettingTrackRow>
+          <form.AppField name="postProcess.trimTrailingWhitespace">
+            {(field): ReactElement => <field.SwitchField hint="Strip line-end spaces." label="Trim trailing whitespace" />}
+          </form.AppField>
+        </SettingTrackRow>
+        <SettingTrackRow>
+          <form.AppField name="postProcess.dropIncompleteSentence">
+            {(field): ReactElement => <field.SwitchField hint="Remove a final sentence the model didn't finish." label="Drop a dangling sentence" />}
+          </form.AppField>
+        </SettingTrackRow>
+        <SettingTrackRow>
+          <form.AppField name="postProcess.singleLine">
+            {(field): ReactElement => <field.SwitchField hint="Flatten the whole reply to one line." label="Single line" />}
+          </form.AppField>
+        </SettingTrackRow>
+      </SettingRowGroup>
     </Section>
   );
 }
