@@ -11,6 +11,7 @@ import { ChevronLeft, Icon } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import type { MacroSuggestion } from "@orb/ui/macro-textarea";
 import { Markdown } from "@orb/ui/markdown";
+import { Spoiler } from "@orb/ui/spoiler";
 import { Text } from "@orb/ui/text";
 import { Toggle } from "@orb/ui/toggle";
 import type { ReactElement } from "react";
@@ -202,9 +203,9 @@ function SpoilerMacroField({
   readonly suggestions: readonly MacroSuggestion[];
 }): ReactElement {
   return (
-    <Stack gap="field" data-slot="character-spoiler-field" spoiler={spoilerBlur}>
+    <Spoiler gap="field" concealed={spoilerBlur}>
       <form.AppField name={name}>{(field): ReactElement => <field.MacroField label={label} hint={hint} suggestions={suggestions} rows={rows} />}</form.AppField>
-    </Stack>
+    </Spoiler>
   );
 }
 
@@ -276,7 +277,7 @@ function ExampleMessagesField({
   const [editing, setEditing] = useState(false);
   return (
     <Stack gap="field">
-      <Stack gap="field" data-slot="character-spoiler-field" spoiler={!editing && spoilerBlur}>
+      <Spoiler gap="field" concealed={!editing && spoilerBlur}>
         {editing ? (
           <form.AppField name="exampleMessages">
             {(field): ReactElement => (
@@ -293,7 +294,7 @@ function ExampleMessagesField({
             {(value): ReactElement => <ExampleTranscript value={value} trusted={trusted} allowExternalMedia={allowExternalMedia} />}
           </form.Subscribe>
         )}
-      </Stack>
+      </Spoiler>
       <Toggle size="sm" pressed={editing} onPressedChange={setEditing}>
         {editing ? "Done editing" : "Expand to edit"}
       </Toggle>

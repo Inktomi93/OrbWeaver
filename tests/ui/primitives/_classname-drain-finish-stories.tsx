@@ -179,9 +179,6 @@ export function CardFinishStory(): ReactElement {
       <Card data-case="rail" rail="primary">
         set
       </Card>
-      <Card data-case="spoiler" spoiler={true}>
-        hidden
-      </Card>
       <Card data-case="presence-hidden" presence="hidden">
         gone
       </Card>
@@ -279,9 +276,6 @@ export function LayoutFinishStory(): ReactElement {
       </Row>
       <Stack data-case="highlight" highlight={true}>
         anchor
-      </Stack>
-      <Stack data-case="spoiler" spoiler={true}>
-        spoiler
       </Stack>
       <Stack data-case="slide-parked" slide="parked">
         parked

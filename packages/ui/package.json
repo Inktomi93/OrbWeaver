@@ -76,6 +76,7 @@
     "./radio-group": "./src/primitives/radio-group/index.ts",
     "./reveal-gate": "./src/primitives/reveal-gate/index.ts",
     "./sandbox-frame": "./src/content/sandbox-frame/index.ts",
+    "./spoiler": "./src/layout/spoiler/index.ts",
     "./save-bar": "./src/primitives/save-bar/index.ts",
     "./scatter": "./src/charts/scatter/index.ts",
     "./scroll-area": "./src/primitives/scroll-area/index.ts",
