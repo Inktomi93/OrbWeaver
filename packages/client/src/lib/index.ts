@@ -1,9 +1,7 @@
 // lib/ front door — the cross-cutting display/util seams. Dev-only modules never ride this barrel.
 
-// `cn` and the item-action name grammars are @orb/ui's: a `@orb/ui` primitive spells `Remove <x>`
-// (combobox chips), `Select <x>` (table rows) and `Copy <x>` (copy-button), and `ui` cannot import `client` (the cake, §2), so the
-// grammar homes at the lowest package that spells it and rides this barrel for client callers + tests.
-export { cn, removeActionName, selectActionName } from "@orb/ui/lib";
+// `cn` is @orb/ui's, re-exported here for client callers (docs/law/UI-Architecture-and-Layout.md, lib/ entry).
+export { cn } from "@orb/ui/lib";
 export { AppFailureSurface } from "./app-failure-surface.tsx";
 export { APP_READY_ATTR } from "./app-ready-attribute.ts";
 export {

@@ -8,10 +8,10 @@ import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 import { CountText } from "#components";
+import type { CollectionInsight } from "#lib";
 import { CORPUS_MODE_LABELS, LABELS_BLURB, LABELS_EMPTY, useFocusOnMount, useFocusOnSwap } from "#lib";
 import { useMobileViewport, useSectionListMode } from "#state";
 import { LabelsSuggestions } from "../components/labels-suggestions.tsx";
-import type { TagLibraryFact } from "../hooks/use-tag-library.ts";
 import { useTagLibrarySummary } from "../hooks/use-tag-library.ts";
 import { LABELS_LIBRARY_SLOT } from "../lib/labels-focus-targets.ts";
 
@@ -54,7 +54,7 @@ function LibraryBody({ summary }: { readonly summary: ReturnType<typeof useTagLi
   return (
     <Section heading="Library">
       <Stack className="max-inline-(--width-content-col)" data-slot="labels-library-facts" gap="field">
-        {summary.facts.map((fact: TagLibraryFact) => (
+        {summary.facts.map((fact: CollectionInsight) => (
           <Row align="center" gap="field" key={fact.id}>
             <Text as="span" voice="kicker">
               {fact.label}

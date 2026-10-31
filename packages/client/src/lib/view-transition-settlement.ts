@@ -1,4 +1,4 @@
-interface ViewTransitionSettlement {
+export interface ViewTransitionSettlement {
   readonly ready?: Promise<unknown>;
   readonly finished?: Promise<unknown>;
   readonly updateCallbackDone?: Promise<unknown>;
