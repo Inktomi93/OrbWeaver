@@ -19,8 +19,6 @@ export interface ToolCallBlockRecord {
 
 export interface ToolCallBlockProps {
   readonly record: ToolCallBlockRecord;
-  /** Initial open state of the native `<details>` — the browser owns toggling after mount. */
-  readonly defaultOpen?: boolean;
   readonly className?: string;
 }
 
@@ -54,13 +52,13 @@ function prettyOrRaw(raw: string): string {
  * Generic tool-invocation block — the fallback every unregistered tool name falls back to. Three
  * states driven only by the record, never by parsing prose: error, unexecuted (`result === null`), success.
  */
-export function ToolCallBlock({ record, defaultOpen, className }: ToolCallBlockProps): ReactElement {
+export function ToolCallBlock({ record, className }: ToolCallBlockProps): ReactElement {
   const slots = toolCallBlockVariants();
   const state = stateOf(record);
   const argumentsText = prettyOrRaw(record.arguments);
 
   return (
-    <details className={cn(slots.root(), className)} data-slot="tool-call-block" open={defaultOpen}>
+    <details className={cn(slots.root(), className)} data-slot="tool-call-block">
       <summary className={slots.summary()} data-slot="tool-call-block-summary">
         <span className={slots.name()} data-slot="tool-call-block-name">
           {record.name}
