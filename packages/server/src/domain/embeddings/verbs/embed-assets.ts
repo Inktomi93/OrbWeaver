@@ -3,14 +3,40 @@
 import type { EmbedPassResult } from "@orb/contracts/embeddings";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import { GenerationSupersededError } from "#primitives/embedding-generation";
+import { AssetFileMissingError } from "../contract/errors.ts";
 import type { EmbedPassParams } from "../contract/params.ts";
 import type { StoreResult } from "../contract/results.ts";
 import type { EmbeddingsContext, EmbeddingsService } from "../contract/service.ts";
 import { completeGenerationScope, resolveImageTargetGeneration } from "../substrate/generation.ts";
+
+const ASSET_OUTCOMES = ["written", "skipped", "failed"] as const;
+type AssetOutcome = (typeof ASSET_OUTCOMES)[number];
+
+interface Sweep {
+  readonly ctx: EmbeddingsContext;
+  readonly deps: Pick<EmbeddingsService, "indexAsset">;
+  readonly receipts: Map<UserId, StoreResult>;
+}
+
+// A stored file gone while its asset row remains fails that asset alone; every other error still stops the sweep.
+async function indexOne(sweep: Sweep, assetId: AssetId, options: Pick<EmbedPassParams, "force" | "signal" | "embedderChanged">): Promise<AssetOutcome> {
+  try {
+    const result = await sweep.deps.indexAsset(assetId, options);
+    await recordReceipt(sweep.ctx, assetId, result, sweep.receipts);
+    return result?.outcome === "written" ? "written" : "skipped";
+  } catch (error) {
+    if (!(error instanceof AssetFileMissingError)) {
+      throw error;
+    }
+    return "failed";
+  }
+}
+
 export function createEmbedAssets(ctx: EmbeddingsContext, deps: Pick<EmbeddingsService, "indexAsset">): EmbeddingsService["embedAssets"] {
   return async ({ force, signal, ownerId, onProgress, embedderChanged }: EmbedPassParams): Promise<EmbedPassResult> => {
     let embedded = 0;
     let skipped = 0;
+    const failedAssets: AssetId[] = [];
     // `ownerId` scopes the sweep to one owner; `null` = every owner. The enumeration is materialised BEFORE
     // the loop because it is also the progress DENOMINATOR — the workload wrapper around this pass cannot
     // know it (issue #166: a sweep that only ever reported a sentence left the card an indeterminate bar
@@ -22,21 +48,22 @@ export function createEmbedAssets(ctx: EmbeddingsContext, deps: Pick<EmbeddingsS
       if (signal.aborted) {
         break; // cooperative abort between assets — every completed embed is durable + idempotent
       }
-      const result = await deps.indexAsset(assetId, { force, signal, embedderChanged });
-      await recordReceipt(ctx, assetId, result, receipts);
-      if (result?.outcome === "written") {
+      const outcome = await indexOne({ ctx, deps, receipts }, assetId, { force, signal, embedderChanged });
+      if (outcome === "failed") {
+        failedAssets.push(assetId);
+      } else if (outcome === "written") {
         embedded += 1;
       } else {
         skipped += 1;
       }
-      onProgress?.(embedded + skipped, assetIds.length);
+      onProgress?.(embedded + skipped + failedAssets.length, assetIds.length);
     }
     // Purge (reclaim each touched owner's old image space) — only after a complete sweep, never on
     // abort. A no-op for an owner whose imageEmbed binding did not change since the last index.
     if (!signal.aborted) {
       await completeImageSweep(ctx, ownerId, receipts);
     }
-    return { embedded, skipped };
+    return failedAssets.length === 0 ? { embedded, skipped } : { embedded, skipped, failedAssets };
   };
 }
 

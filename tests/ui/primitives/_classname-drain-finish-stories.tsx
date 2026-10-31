@@ -6,9 +6,11 @@ import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/colla
 import { Command } from "@orb/ui/command";
 import { DialogHeader } from "@orb/ui/dialog";
 import { ChevronDown, Circle, Icon } from "@orb/ui/icons";
+import { InlineAction } from "@orb/ui/inline-action";
 import { Input } from "@orb/ui/input";
 import { Container, Row, Stack, Surface } from "@orb/ui/layout";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
+import { PictureButton } from "@orb/ui/picture-button";
 import { Select } from "@orb/ui/select";
 import { Separator } from "@orb/ui/separator";
 import { Skeleton } from "@orb/ui/skeleton";
@@ -98,7 +100,7 @@ export function ButtonFinishStory(): ReactElement {
       isolates="solid, bare, the widened tone, underline, reserveEdge, confirming, quietDisabled, focusRing and the rail"
     >
       <Button focal={false}>solid</Button>
-      <Button variant="bare">bare</Button>
+      <PictureButton>bare</PictureButton>
       <Button variant="ghost" ink="foreground">
         ghost foreground
       </Button>
@@ -109,9 +111,9 @@ export function ButtonFinishStory(): ReactElement {
       <Button variant="ghost" underline="dotted">
         show all
       </Button>
-      <Button variant="ghost" reserveEdge={true} size="inline">
+      <InlineAction variant="ghost" reserveEdge={true} step="label">
         reserved
-      </Button>
+      </InlineAction>
       <Button confirming={true} variant="ghost">
         confirming
       </Button>
@@ -176,9 +178,6 @@ export function CardFinishStory(): ReactElement {
       </Card>
       <Card data-case="rail" rail="primary">
         set
-      </Card>
-      <Card data-case="spoiler" spoiler={true}>
-        hidden
       </Card>
       <Card data-case="presence-hidden" presence="hidden">
         gone
@@ -277,9 +276,6 @@ export function LayoutFinishStory(): ReactElement {
       </Row>
       <Stack data-case="highlight" highlight={true}>
         anchor
-      </Stack>
-      <Stack data-case="spoiler" spoiler={true}>
-        spoiler
       </Stack>
       <Stack data-case="slide-parked" slide="parked">
         parked

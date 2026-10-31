@@ -13,6 +13,7 @@ import {
   CORPUS_TEXT_MODEL,
   createChatRoot,
   createCorpusProviderExecution,
+  SUMMARIZE_TRANSCRIPT_MARKER,
 } from "@orb/testkit/node/composed";
 import { and, eq } from "drizzle-orm";
 
@@ -29,7 +30,7 @@ async function group(memoryEnabled: boolean): Promise<
     modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
     chatText: (body) => {
-      if (body.includes("Transcript block:")) {
+      if (body.includes(SUMMARIZE_TRANSCRIPT_MARKER)) {
         summaries.push(body);
         return "Group turn\nThe witnesses remember their conversation.\nKeywords: witnesses";
       }

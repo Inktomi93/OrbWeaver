@@ -64,6 +64,11 @@ function paints(tone: string): Readonly<Record<string, Paint>> {
     "button-outline": { "border-block-start-color": "edge", color: "text" },
     "button-ghost": { color: fillLessInk },
     "button-link": { color: fillLessInk },
+    "glyph-solid": { "background-color": "solid", color: "foreground" },
+    "glyph-outline": { "border-block-start-color": "edge", color: "text" },
+    "glyph-ghost": { color: fillLessInk },
+    "inline-ghost": { color: fillLessInk },
+    "inline-link": { color: fillLessInk },
     "badge-solid": { "background-color": "solid", color: "foreground" },
     "badge-soft": { "background-color": "tint", "border-block-start-color": "edge", color: "text-on-tint" },
     "badge-outline": { "border-block-start-color": "edge", color: "text" },
@@ -95,7 +100,7 @@ for (const { name, ...props } of CASES) {
     const component = await mount<typeof ToneVariantMatrixStory>(STORY, props);
     for (const tone of TONES) {
       const row = component.locator(`[data-matrix-tone="${tone}"]`);
-      for (const kase of ["button-solid", "badge-solid", "badge-soft", "card-soft"]) {
+      for (const kase of ["button-solid", "glyph-solid", "badge-solid", "badge-soft", "card-soft"]) {
         const subject = row.locator(`[data-case="${kase}"]`);
         await subject.scrollIntoViewIfNeeded();
         const receipt = await pixelContrast(page, subject);

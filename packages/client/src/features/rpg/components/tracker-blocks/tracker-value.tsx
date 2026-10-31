@@ -2,7 +2,7 @@
 // Commits compare with the opening value; concurrent changes require an explicit second commit.
 // Escape cancels without writing, and passive rerenders never replace an open draft.
 
-import { Button } from "@orb/ui/button";
+import { InlineAction } from "@orb/ui/inline-action";
 import { Input } from "@orb/ui/input";
 import type { ToneInkSelection } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
@@ -92,10 +92,10 @@ function TrackerValueRest({
   const restText = empty ? (placeholder ?? UNSET_DATUM) : display;
   return (
     <Tip text={editTitle}>
-      <Button
+      <InlineAction
         type="button"
         variant="ghost"
-        size="inline"
+        step="label"
         data-slot="tracker-value-rest"
         aria-label={ariaLabel}
         onClick={onOpen}
@@ -116,7 +116,7 @@ function TrackerValueRest({
         >
           {restText}
         </Text>
-      </Button>
+      </InlineAction>
     </Tip>
   );
 }

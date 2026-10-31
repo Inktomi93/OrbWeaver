@@ -9,6 +9,7 @@
 import type { EmbedPassResult } from "@orb/contracts/embeddings";
 import type { ReportProgress, WorkloadParamsByKind, WorkloadRunContext } from "@orb/contracts/workloads";
 import { indexWorkloadParams, REBUILD_ADMISSION_KEY_SUFFIX } from "@orb/contracts/workloads";
+import type { AssetId } from "@orb/kit/ids";
 import type { WorkloadContribution } from "#domain/workloads";
 import { runUntilSettled } from "#primitives/embedding-generation";
 import type { EmbeddingsWorkloadDeps } from "./contract/service.ts";
@@ -56,6 +57,7 @@ interface IndexRun {
 async function runPasses({ deps, ctx, params, report, signal }: IndexRun, force: boolean): Promise<EmbedPassResult> {
   let embedded = 0;
   let skipped = 0;
+  const failedAssets: AssetId[] = [];
   if (params.source === "text" || params.source === "all") {
     const label = corpusLabel({ ...params, force });
     report({ message: label });
@@ -88,8 +90,9 @@ async function runPasses({ deps, ctx, params, report, signal }: IndexRun, force:
     });
     embedded += result.embedded;
     skipped += result.skipped;
+    failedAssets.push(...(result.failedAssets ?? []));
   }
-  return { embedded, skipped };
+  return failedAssets.length === 0 ? { embedded, skipped } : { embedded, skipped, failedAssets };
 }
 
 /**

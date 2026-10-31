@@ -19,7 +19,9 @@
 import type { RpgInventoryItem } from "@orb/contracts/rpg";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
+import { GlyphButton } from "@orb/ui/glyph-button";
 import { Icon, Trash2 } from "@orb/ui/icons";
+import { InlineAction } from "@orb/ui/inline-action";
 import { Grid, Row, Stack } from "@orb/ui/layout";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Text } from "@orb/ui/text";
@@ -34,7 +36,7 @@ const QUEST_TYPE_RE = /quest/i;
 
 /** The icon-picker popover body — the curated `ITEM_ICON_CHOICES` grid; picking writes the name.
  *
- *  THE COARSE GAP IS THE TOUCH FLOOR (an owner ruling). A `size="glyph-lg"` Button is FLOORLESS — its coarse
+ *  THE COARSE GAP IS THE TOUCH FLOOR (an owner ruling). A `glyph="lg"` GlyphButton is FLOORLESS — its coarse
  *  hit area rides an OVERFLOWING `::after`, not its own box — so on a wrapped grid the pseudo is clipped by the
  *  gap it shares with the next cell and the effective hit box falls under the floor. `gap-block` makes the
  *  coarse pitch exactly the touch target, and the FINE picker is untouched (still `gap-field`). The cost is
@@ -44,15 +46,10 @@ function ItemIconPicker({ itemName, onPick }: { readonly itemName: string; reado
     <Row gap="field" touchFloor="gap" className="flex-wrap max-inline-(--width-control-col)">
       {Object.entries(ITEM_ICON_CHOICES).map(([name, glyph]) => (
         <Tip key={name} text={`${itemName}: use the ${name} icon`}>
-          <Button
-            aria-label={`${itemName}: use the ${name} icon`}
-            variant="ghost"
-            // eslint-disable-next-line orb/no-floorless-control-in-wrap -- touchFloor="gap" supplies the measured touch-target pitch without changing the fine picker; ends when this geometry or floorless size changes.
-            size="glyph-lg"
-            onClick={(): void => onPick(name)}
-          >
+          {/* eslint-disable-next-line orb/no-floorless-control-in-wrap -- touchFloor="gap" supplies the measured touch-target pitch without changing the fine picker; ends when this geometry or floorless size changes. */}
+          <GlyphButton aria-label={`${itemName}: use the ${name} icon`} variant="ghost" glyph="lg" onClick={(): void => onPick(name)}>
             <Icon icon={glyph} size="sm" />
-          </Button>
+          </GlyphButton>
         </Tip>
       ))}
     </Row>
@@ -70,9 +67,9 @@ function ItemGlyph({ item, onPickIcon }: { readonly item: RpgInventoryItem; read
     <Popover>
       <PopoverTrigger
         render={
-          <Button variant="ghost" size="inline" aria-label={`Pick an icon for ${item.name}`}>
+          <InlineAction variant="ghost" step="label" aria-label={`Pick an icon for ${item.name}`}>
             {glyph}
-          </Button>
+          </InlineAction>
         }
       />
       <PopoverPopup>
@@ -245,9 +242,9 @@ function PackListRow({ item, edit }: { readonly item: RpgInventoryItem; readonly
             confirmLabel="Drop"
             onConfirm={(): void => edit.onRemoveItem(item.id)}
             trigger={
-              <Button aria-label={`Drop item: ${item.name}`} variant="ghost" size="glyph-sm">
+              <GlyphButton aria-label={`Drop item: ${item.name}`} variant="ghost" glyph="sm">
                 <Icon icon={Trash2} size="xs" />
-              </Button>
+              </GlyphButton>
             }
           />
         )}

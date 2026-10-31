@@ -20,6 +20,7 @@ import { Button } from "@orb/ui/button";
 import { FileTrigger } from "@orb/ui/file-trigger";
 import { ChevronRight, Eye, EyeOff, Icon, MessagesSquare } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
+import { PictureButton } from "@orb/ui/picture-button";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Swatch } from "@orb/ui/swatch";
 import { Text } from "@orb/ui/text";
@@ -144,7 +145,7 @@ export function CharacterHeroBand({
 /** The click-to-replace portrait — immediate commit (upload-complete = commit). A confirmation ring
  *  flashes on the portrait (no toast).
  *
- *  The trigger is `size="media"`, never a `square`: media sizes the button from its child, so the
+ *  The trigger is a `PictureButton`, never a `square`: it sizes itself from its child, so the
  *  button box IS the portrait box. As a `square` the button stayed a 34px control while the 64px
  *  avatar would paint outside it — over the "Name" label — and the real click target would be the
  *  invisible control square. */
@@ -189,7 +190,7 @@ function HeroPortrait({ detail, trpc }: { readonly detail: CharacterHeroDetail; 
   };
 
   const avatarSrc = previewHash === null ? {} : { src: blobUrl(previewHash) };
-  // NO call-site radius. `size="media"` is `size-auto p-0`, so this button's border box IS the Avatar's: its
+  // NO call-site radius. A `PictureButton` is `size-auto p-0`, so this button's border box IS the Avatar's: its
   // confirm ring and hover fill trace the Avatar's own corner. The avatar is a circle (UI-Density-Law 2.1),
   // so the button takes `shape="pill"`, the same full radius, and no second radius class is written here.
   return (
@@ -202,11 +203,11 @@ function HeroPortrait({ detail, trpc }: { readonly detail: CharacterHeroDetail; 
       }}
     >
       {({ open }): ReactElement => (
-        <Button aria-label="Replace portrait" className="relative shrink-0" confirming={confirming} variant="ghost" onClick={open} shape="pill" size="media">
+        <PictureButton aria-label="Replace portrait" className="relative shrink-0" confirming={confirming} variant="ghost" onClick={open} shape="pill">
           <Avatar hueSeed={detail.id} size="hero" {...avatarSrc}>
             {initialsFor(detail.name)}
           </Avatar>
-        </Button>
+        </PictureButton>
       )}
     </FileTrigger>
   );
@@ -254,7 +255,7 @@ export function OwnLookMark({ themeOverride }: { readonly themeOverride: ThemeOv
                 // the same treatment the chat band's members and memory chips take, so ONE grammar reads across
                 // both bands — the live chip is at the foreground, a datum holds the muted step. (The axis is
                 // COLOUR, not the border: a `soft` Badge draws the same hairline — measured; the note in
-                // chat-recall-indicator.tsx carries it.) A `ghost`+`size="inline"` chip would draw nothing at
+                // chat-recall-indicator.tsx carries it.) A ghost `InlineAction` chip would draw nothing at
                 // rest and leave the unpressable datum chips as the row's only shaped items.
                 <Button variant="outline" shape="pill" size="sm" type="button">
                   <ThemeScope className="shrink-0 block-(--size-glyph-xs) inline-(--size-glyph-xs)" tokens={cardTheme}>

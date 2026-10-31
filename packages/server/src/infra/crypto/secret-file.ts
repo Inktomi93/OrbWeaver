@@ -7,6 +7,7 @@ import { randomBytes } from "node:crypto";
 import { constants } from "node:fs";
 import { mkdir, open, rename, rm } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
+import { isMissingFile } from "#primitives/errno";
 
 // Owner-only read and write; group and world get nothing.
 const SECRET_FILE_MODE = 0o600;
@@ -16,10 +17,6 @@ const TEMP_NAME_BYTES = 8;
 // O_NONBLOCK: a planted FIFO would block the open until a writer came; it opens at once and fails the regular-file check.
 // biome-ignore lint/suspicious/noBitwiseOperators: open(2) flags combine with a bitwise OR.
 const READ_NO_FOLLOW = constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK;
-
-function errorCode(err: unknown): string | undefined {
-  return err instanceof Error && "code" in err && typeof err.code === "string" ? err.code : undefined;
-}
 
 /** Replace `path` with `content` at mode 0600, creating its directory at 0700 when absent. The bytes are fsynced
  *  before the rename, so a crash leaves the old file or the new one. */
@@ -49,7 +46,7 @@ export async function readSecretFile(path: string): Promise<string | null> {
   try {
     handle = await open(path, READ_NO_FOLLOW);
   } catch (err) {
-    if (errorCode(err) === "ENOENT") {
+    if (isMissingFile(err)) {
       return null;
     }
     throw err;

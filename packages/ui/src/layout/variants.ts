@@ -12,7 +12,6 @@ import {
   RECEDED,
   SCROLL_FADE_X_CLASS,
   SCROLL_FADE_Y_CLASS,
-  SPOILER,
   SR_ONLY_AT,
   TOUCH_FLOOR_AT_COARSE,
   tv,
@@ -137,8 +136,6 @@ export const stackVariants = tv({
     plate: WALLPAPER_PLATE,
     // The rows a search or a citation points at: the muted fill and the ring, so the anchor reads in a long list.
     highlight: { true: "bg-muted ring-1 ring-ring", false: "" },
-    // Content the reader asked not to see yet (a spoiler): blurred and not selectable until revealed.
-    spoiler: { true: SPOILER, false: "" },
     // A side panel that slides in from its inline end and is invisible once parked, on the shell's motion tokens.
     slide: {
       shown: "visible translate-x-0 transition-[translate,visibility] duration-(--shell-motion) ease-(--shell-ease)",

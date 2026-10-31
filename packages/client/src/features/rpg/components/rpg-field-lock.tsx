@@ -8,7 +8,7 @@
 // METADATA, not a state leaf, so it clears via the lock-DELTA, not a [merge-clear] null. Host-only:
 // the caller renders this only when it already owns the edit affordance (a member never mounts it).
 
-import { Button } from "@orb/ui/button";
+import { GlyphButton } from "@orb/ui/glyph-button";
 import { Icon, Pin } from "@orb/ui/icons";
 import type { ReactElement } from "react";
 import { Tip } from "#components";
@@ -29,9 +29,9 @@ export interface RpgFieldLockProps {
 export function RpgFieldLock({ field, onRelease }: RpgFieldLockProps): ReactElement {
   return (
     <Tip text={`${field} is pinned by hand — the story won't change it. Click to release it back to the model.`}>
-      <Button type="button" variant="ghost" ink="muted" size="glyph-sm" aria-label={`Release ${field} to the model`} onClick={onRelease}>
+      <GlyphButton type="button" variant="ghost" ink="muted" glyph="sm" aria-label={`Release ${field} to the model`} onClick={onRelease}>
         <Icon icon={Pin} size="xs" />
-      </Button>
+      </GlyphButton>
     </Tip>
   );
 }

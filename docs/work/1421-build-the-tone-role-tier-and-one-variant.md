@@ -25,7 +25,15 @@ Current defects:
 - [x] Step 1: role tokens, tone scoping and contrast checks.
 - [x] Step 2: axis vocabulary and lint at zero.
 - [x] Step 3: control scale. Toggle also moves from `intent` to the D336 `tone`/`variant` vocabulary here, since step 3 already gives it `size`.
-- [ ] Step 4: use-specific extraction.
+- [ ] Step 4: use-specific extraction. The plan's "Step 4 sub-steps" table orders it.
+  - [x] 4a: the extraction codemod and the button family.
+  - [x] 4b: the Badge family.
+  - [ ] 4c: the Card family.
+    - [x] 4c-1: `Spoiler` and the ink fixes.
+    - [ ] 4c-2: `MessageBubble` and the plate.
+    - [ ] 4c-3: the preview parts, `FloatingChip`, `RoomIsland` and the map.
+  - [ ] 4d: the layout boxes.
+  - [ ] 4e: ListRow state.
 
 Each step lands alone and leaves the app working.
 
@@ -58,3 +66,21 @@ Step 3:
 - A `.dom.test-d.ts` per touched primitive under `tests/ui/primitives/` refuses every removed size value, NumberField `size="inline"` and Toggle `intent`. `tooling/src/codemods/primitive-axis-vocabulary` rewrote the literal call sites; its `sizes` and `rerun-sizes` fixtures hold the size table.
 - `tests/ui/primitives/platform-control-scale.suite.ct.tsx` measures one row of every control per step at both pointer classes, in the Chromium and WebKit CT projects, and finds one height, the step's token. A control planted at a foreign step reads as a second height.
 - `tests/ui/primitives/tone-variant-matrix.ct.tsx` reads Toggle's tone and style matrix and its pressed fill. `tests/client/features/app-shell/touch-target-floor.suite.ct.tsx` measures every scale step of the square, wrap, Toggle and NumberField boxes.
+
+Step 4a:
+
+- `GlyphButton`, `InlineAction` and `PictureButton` each own a box recipe behind their own door and render through `packages/ui/src/primitives/button/core.tsx`. Button no longer takes `size` `media`, `inline`, `inline-body` or `glyph-*`, or `variant="bare"`; `tests/ui/primitives/button/extracted-boxes.dom.test-d.ts` refuses each, and a `.dom.test-d.ts` per new component under `tests/ui/primitives/` pins its props.
+- `tooling/src/codemods/use-specific-extraction` moved the literal call sites by `maps/button-family.json`; its `moves`, `emptied`, `untouched`, `rerun` and `refused-default` fixtures hold the shapes, and it refuses a site whose unnamed style default differs between the two components. The spread and computed sites are hand edits the plan's step 4a record lists.
+- `tests/ui/primitives/button/button-family.ct.tsx` measures each glyph and inline step against its token, the picture box against its picture, and the core's focal, busy and disabled states. `tests/ui/primitives/tone-variant-matrix.ct.tsx` reads the glyph and inline paints in every tone under each seed and a nested custom scope. Both run in the Chromium and WebKit CT projects, and a planted wrong box or style fails them.
+- `tests/ui/primitives/button/box-hit-area.dom.test.ts` holds `BUTTON_BOX_OVERFLOW` against what each door renders; `tests/tooling/eslint-floor-and-fragment.test.ts` holds `orb/no-floorless-control-in-wrap` on the glyph and inline components.
+
+Step 4b:
+
+- `InlineToken` and `IndicatorDot` each own a skin behind their own door. Badge no longer takes `size` `inline` or `dot`, or `edge`; `tests/ui/primitives/badge/extracted-marks.dom.test-d.ts` refuses each, and a `.dom.test-d.ts` per new component under `tests/ui/primitives/` pins its props.
+- `tooling/src/codemods/use-specific-extraction` moved the literal call sites by `maps/badge-family.json`; its `badge-family` fixture holds the inline, dot, refused-default and untouched shapes. `DOT_SKIN` in `packages/client/src/components/connection-role-slot.tsx` is a hand edit.
+- `tests/ui/primitives/badge/badge-family.ct.tsx` reads each tone's inline token and dot against the role probes under each seed and a nested custom scope, and finds the inline token leaves its line box alone and the dot at the field diameter. It runs in the Chromium and WebKit CT projects, and a planted wrong skin fails it.
+
+Step 4c-1:
+
+- `Spoiler` renders Stack behind its own door, `@orb/ui/spoiler`, and Card and Stack refuse `spoiler`; `tests/ui/primitives/spoiler/extracted-spoiler.dom.test-d.ts` pins both. `tests/ui/primitives/spoiler/spoiler.ct.tsx` reads the blur, the selection and the forwarded layout under each seed and a nested custom scope, and inside a Card of every tone, in the Chromium and WebKit CT projects. A planted skin without the selection rule fails it.
+- `tests/ui/primitives/card/card-interactive.ct.tsx` reads the hovered and pressed Card ink against the tone roles and the hover pixels against AA, over a nested mid-grey scope and each seed. The hover test skips on a device that does not hover, so WebKit checks the pressed paint. Removing the new ink classes fails it.

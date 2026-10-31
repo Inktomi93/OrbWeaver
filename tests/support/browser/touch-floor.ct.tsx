@@ -22,7 +22,6 @@ import { hitExtent, measurePitch, touchFloorPx } from "./touch-floor.ts";
 import type {
   TouchFloorBoxCarriedIsolatedStory,
   TouchFloorCtaGlyphIsolatedStory,
-  TouchFloorInlinePrimaryStory,
   TouchFloorPreFixCtaGlyphStory,
   TouchFloorPseudoCarriedIsolatedStory,
 } from "./touch-floor-fixtures.tsx";
@@ -84,19 +83,6 @@ for (const pointer of [
       const height = await hitExtent(control, "y");
       expect(width, `a ring nobody can tap is not a hit area — measured ${width}x${height} against a floor of ${floor}`).toBeLessThan(floor);
       expect(height, `a ring nobody can tap is not a hit area — measured ${width}x${height} against a floor of ${floor}`).toBeLessThan(floor);
-    });
-
-    test("the `inline` arm at intent=primary answers a tap over its whole hit-area ::before", async ({ mount, page }) => {
-      await mount<typeof TouchFloorInlinePrimaryStory>("tests/support/browser/touch-floor-fixtures/TouchFloorInlinePrimaryStory", {});
-      const floor = await touchFloorPx(page);
-      const control = page.getByTestId("inline-primary");
-
-      // The `inline` arm's box is text-height (~18px), so the vertical answer is entirely the pseudo's —
-      // and on the focal solid primary that pseudo sits under the CTA ring, the overlap this arm
-      // exists to cover. The horizontal arm is the button's own width, which already exceeds the floor: it is
-      // asserted anyway because a credit bug that collapses the walk shows up there first.
-      expect(await hitExtent(control, "y"), "an inline datum's floor is carried by its ::before, ring or no ring").toBeGreaterThanOrEqual(floor);
-      expect(await hitExtent(control, "x"), "the inline arm's hit area spans its own width").toBeGreaterThanOrEqual(floor);
     });
   });
 }

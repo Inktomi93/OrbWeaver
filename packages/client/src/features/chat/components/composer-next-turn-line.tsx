@@ -4,7 +4,7 @@
 // connection, and the member's own chat binding would name the wrong row.
 
 import type { ChatId } from "@orb/kit/ids";
-import { Button } from "@orb/ui/button";
+import { InlineAction } from "@orb/ui/inline-action";
 import { Container } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { skipToken, useQuery } from "@tanstack/react-query";
@@ -76,9 +76,9 @@ export function ComposerNextTurnLine({ chatId, availability, id }: ComposerNextT
         {door === undefined ? null : (
           <>
             {` ${door.lead} `}
-            <Button variant="link" onClick={(): void => openConfigTo("connections", door.sub, door.setting)} size="inline-body" type="button">
+            <InlineAction variant="link" onClick={(): void => openConfigTo("connections", door.sub, door.setting)} step="body" type="button">
               {door.label}
-            </Button>
+            </InlineAction>
           </>
         )}
       </Text>

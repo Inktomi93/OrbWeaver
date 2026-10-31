@@ -138,7 +138,7 @@ export const trackBarVariants = tv({
     // `pointer-events-none` IS THE A11Y CONTRACT, NOT A TWEAK (side-eye 2026-08-16 #93). The whole part is
     // `aria-hidden` decoration, and a decoration that is not in the a11y tree must not be in the HIT tree
     // either. MEASURED at 430×740 DPR3 `pointer:coarse`: `MeterRow` stacks this rail directly UNDER the
-    // value row, and `Button size="inline"`'s ≥44px touch floor rides an OVERFLOWING `::after` — so this
+    // value row, and `InlineAction`'s ≥44px touch floor rides an OVERFLOWING `::after` — so this
     // 6px rail, painting later in DOM order with no z-index, ate the bottom of it and `HP value`/`HP max`
     // resolved a 45×37 effective hit area (`elementFromPoint` at cy+20 returned `div[data-slot=track-bar]`).
     // Flooring the value would not have fixed it; the occluder had to stop being one. Now 45×45.

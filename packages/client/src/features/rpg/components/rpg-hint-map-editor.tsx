@@ -10,7 +10,7 @@
 
 import { RPG_HINT_MAX } from "@orb/contracts/rpg";
 import { Badge } from "@orb/ui/badge";
-import { Button } from "@orb/ui/button";
+import { GlyphButton } from "@orb/ui/glyph-button";
 import { Icon, Plus, Trash2 } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import type { ReactElement, ReactNode } from "react";
@@ -58,17 +58,17 @@ export function RpgHintMapEditor({ kicker, emptyLine, labelNoun, addPlaceholder,
               onEdit={(next): void => onCommit({ ...hints, [label]: next })}
             />
             <Tip text={removeActionName(label)}>
-              <Button
+              <GlyphButton
                 aria-label={removeActionName(label)}
                 variant="ghost"
-                size="glyph-md"
+                glyph="md"
                 onClick={(): void => {
                   const { [label]: _removed, ...rest } = hints;
                   onCommit(rest);
                 }}
               >
                 <Icon icon={Trash2} size="xs" />
-              </Button>
+              </GlyphButton>
             </Tip>
           </Row>
         ))}

@@ -37,6 +37,7 @@ export type { ChatAssemblyContext as ChatContext } from "./contract/wiring.ts";
 export type { ChatWorkloadDeps } from "./contract/workloads.ts";
 export { createRunChatTurnBridge } from "./engine/provider-bridge.ts";
 export { requireWiredAuthorOrHost as requireAuthorOrHost, requireWiredHost as requireHost, requireWiredParticipant as requireParticipant } from "./guard.ts";
+export { SUMMARIZE_TRANSCRIPT_MARKER } from "./memory/generate/substrate/prompts.ts";
 export { consolidationHash } from "./memory/generate/substrate/transcript.ts";
 export { createLiveTier0Range } from "./memory/recall/live-tier-range.ts";
 // The recall flight recorder (#250) — the composition root builds ONE and wires its sink onto `ChatContext`.

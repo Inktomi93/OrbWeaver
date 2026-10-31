@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/codemod/codemod/refs/heads/main/schemas/workflow.json
+version: "1"
+params:
+  schema:
+    map:
+      name: "Map file"
+      description: "Path, relative to the target directory, of the { extractions: [...] } map; maps/ holds one per primitive family"
+      type: string
+      default: "codemod-extractions.json"
+nodes:
+  - id: use-specific-extraction
+    name: Move use-specific elements to their named components
+    type: automatic
+    steps:
+      - name: TSX files
+        js-ast-grep:
+          js_file: scripts/codemod.ts
+          base_path: "."
+          language: "tsx"
+          include: ["packages/**/*.tsx", "tests/**/*.tsx"]
+          exclude: ["**/node_modules/**", "**/codemods/*/tests*/**"]

@@ -1,9 +1,10 @@
 ---
 kind: tooling
 status: open
-updated: 2026-10-30
+updated: 2026-10-31
 priority: P2
 area: architecture
+plan: unwired-code
 ---
 
 # Enforce domain contract purity with a dependency-cruiser rule

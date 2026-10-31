@@ -1,7 +1,9 @@
 // The image-lens vocabulary owns the DB `image_embeddings.lens` column.
 // Text embeddings use distinct tables and do not contribute values to this column.
 
+import type { AssetId } from "@orb/kit/ids";
 import { z } from "zod";
+import { assetIdSchema } from "../assets/index.ts";
 import type { EmbeddingTask } from "./accounting.ts";
 
 export * from "./accounting.ts";
@@ -232,13 +234,18 @@ export type WriteHubScoresOp = (params: WriteHubScoresParams) => Promise<WriteHu
 //    domain↔domain wire, authored by the OWNING domain — embeddings owns the ONE vector write path). ──
 
 /** An embed pass's counts. `skipped` = rows already embedded in the active space (the resumable-by-skip
- *  arm a non-`force` run takes). */
+ *  arm a non-`force` run takes). `failedAssets` names each image whose stored file was gone; absent when none. */
 export interface EmbedPassResult {
   readonly embedded: number;
   readonly skipped: number;
+  readonly failedAssets?: readonly AssetId[] | undefined;
 }
 
-export const embedPassResultSchema = z.strictObject({ embedded: z.number(), skipped: z.number() }) satisfies z.ZodType<EmbedPassResult>;
+export const embedPassResultSchema = z.strictObject({
+  embedded: z.number(),
+  skipped: z.number(),
+  failedAssets: z.array(assetIdSchema).readonly().optional(),
+}) satisfies z.ZodType<EmbedPassResult>;
 
 export type { EmbeddingConnectionFacts } from "./connection.ts";
 export type { CountDocumentChunksParams, DocumentChunkStoreInput, OwnerChunkCountsParams, PruneDocumentChunksParams } from "./document-vectors.ts";

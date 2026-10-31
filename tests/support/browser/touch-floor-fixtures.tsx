@@ -10,7 +10,7 @@
 // paints the CTA gradient ring — so a stage without an intent would silently measure the RINGED
 // arm while claiming to measure the plain one. Both arms are stages of their own.
 
-import { Button } from "@orb/ui/button";
+import { GlyphButton } from "@orb/ui/glyph-button";
 import type { ReactElement } from "react";
 
 /** The BOX-CARRIED regression stage: a plain, undersized, non-pseudo button ALONE in a huge, STATIC
@@ -40,7 +40,7 @@ export function TouchFloorPseudoCarriedIsolatedStory(): ReactElement {
   return (
     <div style={{ padding: 120, position: "static", width: 400 }}>
       <div style={{ marginInlineStart: 48 }}>
-        <Button aria-label="Regenerate" data-testid="pseudo-carried-isolated" variant="ghost" size="glyph-sm" />
+        <GlyphButton aria-label="Regenerate" data-testid="pseudo-carried-isolated" variant="ghost" glyph="sm" />
       </div>
     </div>
   );
@@ -55,7 +55,7 @@ export function TouchFloorCtaGlyphIsolatedStory(): ReactElement {
   return (
     <div style={{ padding: 120, position: "static", width: 400 }}>
       <div style={{ marginInlineStart: 48 }}>
-        <Button aria-label="Regenerate" data-testid="cta-glyph-isolated" size="glyph-sm" />
+        <GlyphButton aria-label="Regenerate" data-testid="cta-glyph-isolated" glyph="sm" />
       </div>
     </div>
   );
@@ -87,23 +87,6 @@ export function TouchFloorPreFixCtaGlyphStory(): ReactElement {
       </style>
       <div style={{ marginInlineStart: 48 }}>
         <button aria-label="Regenerate" className="cbxh-prefix" data-testid="pre-fix-cta-glyph" type="button" />
-      </div>
-    </div>
-  );
-}
-
-/** The `inline` arm as the focal solid primary — the OTHER arm whose hit area shares a surface with the ring. Its visible box is text-height, its floor rides a full-width
- *  `::before` sized on `--size-touch-target`, and at this intent the CTA ring sits on the `::after`
- *  directly over it. Isolated in a padded wrapper on purpose: this is simultaneously the positive control
- *  for the ring-overlap case AND a stage where a fabricated wrapper credit would be indistinguishable from
- *  a real hit area unless the credit is measured. */
-export function TouchFloorInlinePrimaryStory(): ReactElement {
-  return (
-    <div style={{ padding: 120, position: "static", width: 400 }}>
-      <div style={{ marginInlineStart: 48 }}>
-        <Button data-testid="inline-primary" size="inline">
-          Bruised knuckles
-        </Button>
       </div>
     </div>
   );

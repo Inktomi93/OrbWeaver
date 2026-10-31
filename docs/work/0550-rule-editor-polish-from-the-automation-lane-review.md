@@ -1,9 +1,10 @@
 ---
 kind: work
 status: open
-updated: 2026-10-04
+updated: 2026-10-31
 priority: P3
 area: automation
+plan: cross-surface-consistency
 ---
 
 # Rule editor polish from the automation lane review

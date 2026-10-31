@@ -4,9 +4,9 @@
 
 import type { AvatarProps } from "@orb/ui/avatar";
 import { AVATAR_PIGMENT, Avatar } from "@orb/ui/avatar";
-import type { ButtonBaseProps } from "@orb/ui/button";
-import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
+import type { PictureButtonProps } from "@orb/ui/picture-button";
+import { PictureButton } from "@orb/ui/picture-button";
 import { Text } from "@orb/ui/text";
 import type { ComponentProps, CSSProperties, ReactElement } from "react";
 import { useEffect, useLayoutEffect, useState, useSyncExternalStore } from "react";
@@ -69,19 +69,17 @@ function useSlotImage(urlAt: ((cssWidth: number) => string) | undefined): {
 }
 
 /** A speaker's art as the control that opens it full size. The bare style: a tint over the art would read as a smudge,
- *  and the press scale already answers a tap. `media` sizes the button from its child, so wrapped art keeps its box. */
+ *  and the press scale already answers a tap. The picture button sizes itself from its child, so wrapped art keeps its box. */
 export function ArtButton({
   view,
   ...button
-}: Omit<ButtonBaseProps, "aria-label" | "onClick" | "ref" | "variant" | "tone" | "ink" | "focal"> & { readonly view: ArtView }): ReactElement {
+}: Omit<PictureButtonProps, "aria-label" | "onClick" | "ref" | "variant"> & { readonly view: ArtView }): ReactElement {
   return (
-    <Button
+    <PictureButton
       {...button}
       ref={(opener): void => view.control.attach(opener)}
       aria-label={view.label}
-      variant="bare"
       onClick={(event): void => view.open(event.currentTarget)}
-      size="media"
     />
   );
 }
@@ -89,12 +87,10 @@ export function ArtButton({
 // Pointer activation forwards to the chip: one accessible control and one visible focus-return target per row.
 function ArtViewButton({ view, corner }: { readonly view: ArtView; readonly corner?: "topStart" | "topEnd" | undefined }): ReactElement {
   return (
-    <Button
+    <PictureButton
       aria-hidden="true"
       className="absolute inset-0"
       cardCorners={corner}
-      variant="bare"
-      size="media"
       tabIndex={-1}
       onMouseDown={(event): void => event.preventDefault()}
       onClick={view.control.activate}

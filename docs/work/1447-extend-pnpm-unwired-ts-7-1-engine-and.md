@@ -1,10 +1,11 @@
 ---
 kind: tooling
 status: blocked
-updated: 2026-10-30
+updated: 2026-10-31
 priority: P2
 area: architecture
 blocked: on 1439
+plan: unwired-code
 ---
 
 # Extend pnpm unwired: TS 7.1 engine and dead-inside-live scans (fields, params, unions, shapes)

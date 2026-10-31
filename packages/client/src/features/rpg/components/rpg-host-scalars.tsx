@@ -80,7 +80,7 @@ export function HostConsoleScalars({
         <Stack gap="section">
           {/* gap="row" (8px), not the base `gap-field` (6px) — #850 fix-forward, measured LIVE (snap
               --eval on the isolated stage): each `SwitchField`'s hint-trigger sits ~2px from its field's
-              own top edge, and its `size="inline"` touch-target `::after` overflows 8px past the icon's
+              own top edge, and its `InlineAction` touch-target `::after` overflows 8px past the icon's
               own edge at a fine pointer (28px pseudo centred on a 12px icon). At the base 6px `gap-field`
               pitch — between the Kicker and the first row AND between every pair of rows — the pseudo's
               overflow landed EXACTLY on the neighbour's edge (the Kicker's own label text for the FIRST

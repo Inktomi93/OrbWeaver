@@ -20,39 +20,16 @@ import {
   SELECTION_RAIL_TONE,
   TONE_ARMS,
   TOUCH_FLOOR_AT_COARSE,
-  TOUCH_TARGET_PSEUDO,
-  TOUCH_TARGET_PSEUDO_STRETCH,
   tv,
 } from "#lib";
 import type { Tone } from "#tokens";
-import type { BUTTON_SIZE_OVERFLOW } from "./size-hit-area.ts";
+import type { BUTTON_BOX_OVERFLOW } from "./box-hit-area.ts";
 
-// The size axis is the D336 control scale (CONTROL_SIZE, shared with Toggle), plus the boxes that are not a scale step
-// until step four of the css-system plan names their components: `media`, `inline` and the `glyph-*` ramp. The size
-// axis is the SOLE owner of the box: no other variant and no call-site class may set a height, because a second height
-// resolves last-wins and a call-site class would silently beat the sealed box. `square` and `wrap` reshape a scale step
-// from that step's own height. The arms that step OUTSIDE the scale (`inline`, `glyph-*`) owe their own hit-area
-// ::before — the box shrinks, the touch target does not.
-/** One step of the `glyph-*` ramp: a square display box (never a control height, never pointer-narrowed)
- *  plus the hit-area ::before that carries the pointer-conditional touch floor the box itself is under.
- *  `shrink-0` is part of the SIZE promise, not a call-site layout choice — every one of these lives in a
- *  flex row, and a square that shrinks is no longer the box the token names. The step class is passed as a
- *  WHOLE literal from each arm below so Tailwind's scanner still sees it (it never assembles class names).
- *
- *  THE HIT AREA IS `::before`, AND IT HAD TO MOVE (#1843). It was an `::after`, and so is the primary CTA's
- *  gradient ring (`globals.css [data-slot="button"][data-cta]::after`) — which is UNLAYERED, so it beat
- *  these utilities outright: on a `data-cta` glyph button the one `::after` painted the ring at `inset: 0`
- *  with `pointer-events: none`, and the touch target vanished entirely (measured: a 16px hit at a fine
- *  pointer where the ghost twin kept 28). One pseudo cannot be both a brand mark and a tap surface.
- *  `::before` is the house home for this anyway — `TOUCH_TARGET_PSEUDO` (lib/selection-control.ts) has
- *  always lifted checkbox/radio/switch there, and Button was the outlier. */
-function glyphBox(box: string): string[] {
-  return [box, "relative shrink-0 p-0", TOUCH_TARGET_PSEUDO];
-}
-
-function inlineBox(typeStep: string): string[] {
-  return ["relative block-auto min-block-0 justify-start font-normal", typeStep, TOUCH_TARGET_PSEUDO_STRETCH];
-}
+// The button family's one recipe: the fill style, tone and state axes every button paints through `ButtonCore`, plus
+// Button's own box, the D336 control scale. A box that is not a scale step is a named component with its own recipe
+// (`GlyphButton`, `InlineAction`, `PictureButton`), so neither `size` nor `variant` has a default here: a named
+// component that passes neither draws no Button box and no Button style. `Button` resolves both defaults itself.
+// The size axis is the sole owner of Button's box: a call-site class cannot reliably beat a custom-token height.
 
 // The pressed tint of a fill-less style: the tone's tint-active fill under its on-tint ink.
 const TONE_TINT_HOVER = "hover:bg-tone-tint-active hover:text-tone-text-on-tint";
@@ -88,87 +65,24 @@ export const buttonVariants = tv({
       // control that grows a box on hover is a button pretending; the hover is the ink, the press the scale.
       // The hover and press steps take the on-tint ink, one step nearer the page ink, so the link brightens against the page.
       link: "bg-transparent text-tone-text underline hover:text-tone-text-on-tint active:text-tone-text-on-tint",
-      // A button that wraps a picture (a portrait, a band of art) and draws nothing of its own: no fill at any
-      // state, so the art stays the affordance; it dims a step on hover instead of gaining a tint. Step four of the
-      // css-system plan moves it to `PictureButton` (`docs/work/1421-build-the-tone-role-tier-and-one-variant.md`).
-      bare: "cursor-pointer bg-transparent text-current hover:opacity-80",
     },
     tone: TONE_ARMS,
-    // The focal action under CD3: the CTA lift and, through `data-cta`, the gradient ring. `Button` resolves it on for
-    // a solid primary unless the call site passes `focal={false}`.
+    // The focal action under CD3: the CTA lift and, through `data-cta`, the gradient ring. `ButtonCore` resolves it on
+    // for a solid primary unless the call site passes `focal={false}`.
     focal: { true: "shadow-cta hover:shadow-cta-glow", false: "" },
-    size: {
-      ...CONTROL_SIZE,
-      // CONTENT-SIZED: the child IS the control (a portrait/media trigger). Every scale step pins a control height, so a
-      // display-token child larger than it (`size-(--size-avatar-hero)`, 64px) would paint OUTSIDE its own button while
-      // the real hit target stayed the step's box. The child owns the touch floor here (an avatar-hero portrait clears it
-      // by 20px). Step four of the css-system plan moves it to `PictureButton`.
-      media: "p-0 block-auto inline-auto",
-      // INLINE: the DISPLAY-AT-REST arm — a datum/line of prose that is also the click target (a tracker
-      // value, a beat line, a card row, a roster name). It wears NO control box: text-height, start-aligned,
-      // regular weight, so it reads as the text it stands in for and the click-to-edit swap is pixel-stable.
-      // It was 13 call sites of `!h-auto min-h-0 !py-0 font-normal` — an `!important` escape from the sealed
-      // control height, which is also how they escaped the `ui-size-via-variant` gate (it reads `h-auto`,
-      // not `!h-auto`). MEASURED, not assumed (twMerge 3.6, PRE-#146): custom-token spacing/height utilities
-      // were unclassifiable — `twMerge("h-(--size-control-sm)","h-auto")` kept BOTH, so those call sites resolved by
-      // stylesheet order, i.e. luck (the `media`/TabsTab-`stacked` precedent). #146 registered the
-      // spacing scale; that pair now resolves last-wins, and the `!` on the surviving escapes is inert.
-      // The arm still sets NO padding at all: preflight already zeroes it, and the call site is the only
-      // place that knows what the datum sits in.
-      // Padding is the call site's — px-field/py-row/none — and needs no `!` because nothing fights it.
-      // TOUCH FLOOR BY CONSTRUCTION: a text-height button is ~18px tall, so the arm carries its own hit-area
-      // pseudo (the TOUCH_TARGET_PSEUDO idea on `::before`, stretched to the button's own width rather than
-      // square) sized on `--size-touch-target` — the POINTER-CONDITIONAL token: ≥44px on coarse/unknown
-      // pointers, 28px on fine. Layout-neutral (absolutely positioned), so the datum's box is unchanged.
-      // It is `::before` for the #1843 reason spelled out on `glyphBox` above: the CTA ring owns `::after`
-      // unlayered, so an `inline` PRIMARY button's hit area was being replaced by a ring that cannot be
-      // clicked.
-      inline: inlineBox("text-label leading-label"),
-      // A recovery action inside body prose must keep that sentence's type step and the same touch target.
-      "inline-body": inlineBox("text-body leading-body"),
-      // GLYPH: the SQUARE ICON-ONLY MICRO-BUTTON ramp — the `square` box's sub-control twin. A `square` button is a
-      // full scale step (a toolbar button that happens to hold a glyph); a glyph button rides INSIDE a dense
-      // row — a badge's dismiss, a list row's trailing delete, an editor row's toggle strip — where a control
-      // height would be taller than the thing it hangs off. It was 13 call sites of
-      // `<Button variant="ghost" size="sm" className="!size-N !p-0">` at four scales, i.e. an `!important`
-      // escape from the sealed `sm` control height, which is also how they escaped the `ui-size-via-variant`
-      // gate for a day (it read `size-6`, not `!size-6`). A className CANNOT express this: `size-(--size-control-sm)`
-      // was a custom token, opaque to tailwind-merge (`twMerge("size-(--size-control-sm)","size-6")` kept BOTH), so
-      // those sites resolved by stylesheet order — with `!important` bolted on to force the coin flip (#146
-      // registered the scale, so that pair now resolves last-wins and the `!` is inert). The
-      // `media` / `inline` precedent.
-      //
-      // The box is a POINTER-INDEPENDENT display size (`--spacing-glyph-*`, the avatar/checkbox/slider-thumb
-      // family): it never narrows, because it is already below every control step. Which means it is below the
-      // tap floor at three of its four steps, so EVERY arm carries the `inline` arm's hit-area pseudo — a
-      // square `size-(--size-touch-target)` ::before, centered and absolutely positioned, so the visible glyph box is
-      // unchanged while the real hit target is the pointer-conditional touch token. Before this arm those 13
-      // sites had NO hit area at all beyond their 16–24px box.
-      //
-      // Four steps, not one: the sweep is geometry-PRESERVING (`done ≠ rendered` — resizing 13 live controls
-      // is a design change, not a gate fix), and the four scales are four real roles the token descriptions
-      // name.
-      "glyph-xs": glyphBox("size-(--size-glyph-xs)"),
-      "glyph-sm": glyphBox("size-(--size-glyph-sm)"),
-      "glyph-md": glyphBox("size-(--size-glyph-md)"),
-      "glyph-lg": glyphBox("size-(--size-glyph-lg)"),
-    } satisfies Record<keyof typeof BUTTON_SIZE_OVERFLOW, ClassValue>,
-    // ICON-ONLY: the step's height as its width too, with no inline padding beside the glyph. `shrink-0` for the
-    // `glyphBox` reason: a square that shrinks in a crowded row is no longer its step's box, and at a coarse pointer it
-    // falls under the tap floor. The width per step is a compound below.
+    size: CONTROL_SIZE satisfies Record<keyof typeof BUTTON_BOX_OVERFLOW.button, ClassValue>,
+    // ICON-ONLY: the step's height as its width too, with no inline padding beside the glyph. `shrink-0` because a
+    // square that shrinks in a crowded row is no longer its step's box, and at a coarse pointer it falls under the tap
+    // floor. The width per step is a compound below.
     square: { true: "shrink-0 p-0", false: "" },
     // MULTILINE: a choice carrying a model-authored sentence. The label wraps over the base's nowrap and the height
     // follows the wrapped text, floored at the step's height (a compound below) so it never drops under the tap floor.
     // The tight inset keeps one line inside every step's height at a fine pointer, so a one-line wrap sits level with
     // its row; a larger inset outgrows the `chip` and `md` steps by a pixel or two.
     wrap: { true: "py-tight whitespace-normal block-auto", false: "" },
-    // THE RADIUS AXIS (added 2026-08-16, program #102). It used to live in `base` as a bare
-    // `rounded-control`, which made a pill button UNSPELLABLE from a call site: `rounded-control` is a
-    // custom `--radius-*` token, so tailwind-merge cannot classify it and `cn("rounded-control",
-    // "rounded-full")` keeps BOTH — the winner decided by stylesheet order, i.e. luck (the same
-    // unclassifiable-custom-token trap the `media`/`wrap`/`inline` size arms document). Moving it onto a
-    // variant makes the choice a declaration instead of a coin flip; the default is byte-identical to
-    // what `base` emitted.
+    // THE RADIUS AXIS. A radius on the base would make a pill unspellable from a call site: `rounded-control` is a
+    // custom `--radius-*` token tailwind-merge cannot classify, so a call-site `rounded-full` would keep both and win by
+    // stylesheet order.
     shape: {
       /** The standard control box — every button that is a button. */
       control: "rounded-control",
@@ -179,20 +93,15 @@ export const buttonVariants = tv({
     // A button that covers a part flush in a card's corners (art, a welded portrait) traces those corners, so its
     // focus ring follows the card. Declared after `shape`, whose control radius it refines corner by corner.
     cardCorners: CARD_CORNERS,
-    // A named ink for a fill-less style (D336); `Button` resolves `inherit` for a neutral ghost or link, which takes its
-    // host's ink. An outline draws its own box, so it keeps its tone's text role.
+    // A named ink for a fill-less style (D336); `ButtonCore` resolves `inherit` for a neutral ghost or link, which takes
+    // its host's ink. An outline draws its own box, so it keeps its tone's text role.
     // Declared before `selection`, so a selected arm's own ink wins the merge.
     ink: INKS,
-    // THE SELECTION STATE LAYER (added 2026-08-17, program #102 variant B). Toggle already owns this
-    // reading on `data-pressed` — but a TRI-STATE filter (off → include → exclude → off) cannot be a
-    // Toggle: `aria-pressed` has two values and a third state announced through it would be a lie. So the
-    // one control class that needs the reading most had no route to it, and the two live sites spelled it
-    // as call-site classNames (`inset-ring-2 inset-ring-ring` / `… inset-ring-destructive line-through`) —
-    // a skin decided in a feature, which is how two rails drift.
+    // THE SELECTION STATE LAYER. A tri-state filter (off → include → exclude → off) cannot be a Toggle: `aria-pressed`
+    // has two values, and a third state announced through it would be a lie.
     //
-    // DECLARED AFTER `variant` ON PURPOSE: tv() emits variant classes in key
-    // order, so these must come last for tailwind-merge to resolve `bg-*`/`border-*`/`text-*` in the
-    // state's favour over the resting style's.
+    // DECLARED AFTER `variant` ON PURPOSE: tv() emits variant classes in key order, so these must come last for
+    // tailwind-merge to resolve `bg-*`/`border-*`/`text-*` in the state's favour over the resting style's.
     //
     // The `on` arm is SELECTED_FILL, Toggle's `data-pressed` skin as a static arm, so a selected scope toggle
     // and a selected tag chip in one rail read the same. It is a fill, not a ring: keyboard focus owns the ring.
@@ -232,8 +141,6 @@ export const buttonVariants = tv({
     { size, wrap: true, class: CONTROL_MIN_BLOCK[size] },
   ]),
   defaultVariants: {
-    variant: "solid",
-    size: "md",
     square: false,
     wrap: false,
     shape: "control",
@@ -249,13 +156,13 @@ export const buttonVariants = tv({
 export type ButtonVariant = keyof typeof buttonVariants.variants.variant;
 
 /** The tone a style takes when the call site names none: the solid and the link are the primary action and its
- *  inline twin; an edge, a ghost and a picture stay neutral, so they read as quieter than the region's one CTA. */
+ *  inline twin; an edge and a ghost stay neutral, so they read as quieter than the region's one CTA. A button family
+ *  member that draws no style (a picture) is neutral too. */
 export const BUTTON_DEFAULT_TONE = {
   solid: "primary",
   outline: "neutral",
   ghost: "neutral",
   link: "primary",
-  bare: "neutral",
 } as const satisfies Record<ButtonVariant, Tone>;
 
 /**
@@ -263,6 +170,11 @@ export const BUTTON_DEFAULT_TONE = {
  * the owner-ratified selection idiom keeps one colour, so a fill-less rail row's tone yields to it while selected and
  * rests in its own tone.
  */
-export function buttonTone(variant: ButtonVariant, tone: Tone, selection: VariantProps<typeof buttonVariants>["selection"], selected: boolean): Tone {
+export function buttonTone(
+  variant: ButtonVariant | undefined,
+  tone: Tone,
+  selection: VariantProps<typeof buttonVariants>["selection"],
+  selected: boolean,
+): Tone {
   return selection === "rail" && selected && variant !== "solid" ? SELECTION_RAIL_TONE : tone;
 }

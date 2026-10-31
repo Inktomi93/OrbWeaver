@@ -17,6 +17,6 @@ export const toolCallBlockVariants = tv({
     body: "flex flex-col gap-block border-bs border-border p-block",
     section: "flex flex-col gap-field",
     sectionLabel: "text-label leading-label font-medium text-muted-foreground",
-    pre: "overflow-x-auto rounded-control bg-muted p-block font-mono text-code leading-label-relaxed whitespace-pre-wrap text-foreground",
+    pre: "overflow-x-auto rounded-control bg-muted p-block font-mono text-code leading-label-relaxed whitespace-pre-wrap text-accent-foreground",
   },
 });

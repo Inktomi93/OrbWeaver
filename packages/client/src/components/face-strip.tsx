@@ -6,7 +6,7 @@
 // NOT `@orb/ui/avatar-stack` — that primitive is display-only overlapping avatars with no per-item click.
 // These are real `Avatar`-in-`Button` controls, each with its own accessible name and `aria-current`.
 //
-// The active ring is the EXISTING `Avatar ring="accent"` variant; the face button is `size="media"`
+// The active ring is the EXISTING `Avatar ring="accent"` variant; the face button is a `PictureButton`
 // (CONTENT-sized), which is the F2-safe size for a display-token child — every other button size pins a
 // control height, so a 32px avatar inside one would paint outside its own hit box.
 //
@@ -58,6 +58,7 @@ import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import { InlineList, Row, Stack } from "@orb/ui/layout";
 import { cn } from "@orb/ui/lib";
+import { PictureButton } from "@orb/ui/picture-button";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Skeleton } from "@orb/ui/skeleton";
 import { Swatch } from "@orb/ui/swatch";
@@ -215,7 +216,7 @@ interface FaceButtonProps {
 
 function FaceButton({ ref, item, selected, verb, caption, squeezed, selectMode, onSelect }: FaceButtonProps): ReactElement {
   return (
-    <Button
+    <PictureButton
       ref={ref}
       // ONE state attribute, chosen by what the tap DOES (see `selectMode`) — never both: a control that is
       // simultaneously `aria-current` and `aria-pressed` states its one fact twice, in two vocabularies.
@@ -235,7 +236,6 @@ function FaceButton({ ref, item, selected, verb, caption, squeezed, selectMode, 
       data-face-squeezed={squeezed ? "" : undefined}
       variant="ghost"
       onClick={(): void => onSelect(item.id)}
-      size="media"
     >
       <Stack align="center" className="min-inline-0" gap="tight">
         <Avatar hueSeed={item.id} ring={selected ? "accent" : "none"} size="md" {...(item.avatarHash === null ? {} : { src: blobUrl(item.avatarHash) })}>
@@ -262,7 +262,7 @@ function FaceButton({ ref, item, selected, verb, caption, squeezed, selectMode, 
           </Text>
         ) : null}
       </Stack>
-    </Button>
+    </PictureButton>
   );
 }
 
@@ -311,7 +311,7 @@ function FaceStripPlaceholder({ caption, kicker, label }: { readonly caption: bo
     label,
     <Row aria-busy={true} className="overflow-hidden" data-face-pending="" gap="field">
       {PLACEHOLDER_SLOTS.map((slot) => (
-        // The settled face's own box: `FaceButton`'s per-pointer MIN box (`size="media"` is `p-0`, so the
+        // The settled face's own box: `FaceButton`'s per-pointer MIN box (a `PictureButton` is `p-0`, so the
         // button adds nothing else) around the avatar token and its caption line.
         <Stack
           align="center"

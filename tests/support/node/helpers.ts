@@ -1,6 +1,18 @@
 // The node helpers door: Node-side helpers that never load the server graph at import, importable outside vitest.
 
 export { loadAppearancePreset } from "@orb/tooling/floor/appearance/appearance-flags";
+export type { AnthropicInputUsage, AnthropicMessageEnd, AnthropicStreamEvent, ScriptedMessageDelta } from "./anthropic-stream.ts";
+export {
+  anthropicSse,
+  anthropicTextReply,
+  messageEnd,
+  messageStart,
+  redactedThinkingBlock,
+  textBlock,
+  textMessage,
+  thinkingBlock,
+  toolUseBlock,
+} from "./anthropic-stream.ts";
 export { bootGrantFor } from "./boot-grant.ts";
 export { assertEventSequence } from "./chat/assertions.ts";
 export type { ChromiumIdentity } from "./chromium-processes.ts";

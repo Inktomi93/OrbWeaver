@@ -12,6 +12,7 @@ import {
   createChatRoot,
   createCorpusProviderExecution,
   readRoomCanon,
+  SUMMARIZE_TRANSCRIPT_MARKER,
 } from "@orb/testkit/node/composed";
 
 const ids = createSeededIds();
@@ -33,7 +34,9 @@ export async function room(): Promise<
     modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
     chatText: (body) =>
-      body.includes("Transcript block:") ? "The remembered turn\nThe keeper remembers this conversation.\nKeywords: keeper" : "The real memory turn commits.",
+      body.includes(SUMMARIZE_TRANSCRIPT_MARKER)
+        ? "The remembered turn\nThe keeper remembers this conversation.\nKeywords: keeper"
+        : "The real memory turn commits.",
     structuredReplies: CORPUS_STRUCTURED_REPLIES,
     images: [],
   });

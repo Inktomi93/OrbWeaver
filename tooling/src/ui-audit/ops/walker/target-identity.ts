@@ -21,7 +21,7 @@ export const WALKER_TARGET_IDENTITY = `  // ── authored target identity (#98
   // list must stay a SUPERSET of the stamped vocabulary — pinned BOTH ways, with a planted control, by
   // tests/tooling/ui-audit/ops/walker/target-identity.test.ts (it cannot be interpolated: this is raw
   // browser JS in a template literal).
-  var TARGET_VARIANT_ATTRS = ["data-variant", "data-size", "data-intent", "data-tone", "data-orientation"];
+  var TARGET_VARIANT_ATTRS = ["data-variant", "data-size", "data-intent", "data-tone", "data-glyph", "data-step", "data-orientation"];
 
   function targetIdentity(el) {
     var at = targetIdentityEls.indexOf(el);

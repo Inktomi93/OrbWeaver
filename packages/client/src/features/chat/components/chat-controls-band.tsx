@@ -28,6 +28,7 @@
 import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
+import { GlyphButton } from "@orb/ui/glyph-button";
 import type { LucideIcon } from "@orb/ui/icons";
 import { Icon, Pencil, Play, Send, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
@@ -263,11 +264,11 @@ function ControlCards({ controls, consumer }: { readonly controls: readonly Chat
           <Row align="center" gap="row" justify="between">
             <Text voice="label">{newest.title}</Text>
             <Tip text={`Dismiss ${newest.title}`}>
-              <Button aria-label={`Dismiss ${newest.title}`} variant="ghost" onClick={newest.dismiss} size="glyph-sm">
+              <GlyphButton aria-label={`Dismiss ${newest.title}`} variant="ghost" onClick={newest.dismiss} glyph="sm">
                 {/* `glyph-sm` is a 20px box that holds a 12px `xs` Icon (the token's own description) — a bare
                     lucide glyph renders at 24px and overflows it. Same call-site sizing rule as the chip's. */}
                 <Icon icon={X} size="xs" />
-              </Button>
+              </GlyphButton>
             </Tip>
           </Row>
           {newest.detail}

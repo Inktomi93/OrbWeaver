@@ -1,9 +1,10 @@
 ---
 kind: bug
 status: open
-updated: 2026-10-05
+updated: 2026-10-31
 priority: P3
 area: client
+plan: cross-surface-consistency
 ---
 
 # Corpus readiness rows say why a pass did not run

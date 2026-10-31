@@ -1,9 +1,10 @@
 ---
 kind: bug
 status: open
-updated: 2026-10-30
+updated: 2026-10-31
 priority: P2
 area: ui
+plan: css-system
 ---
 
 # Presets welcome spills over the topbar at 300% text

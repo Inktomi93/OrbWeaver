@@ -175,10 +175,10 @@ This is a bounded case map for seven reference files. It is not an audit of the 
 | A stranger is not offered the provider and is refused at every provider door | The same provider contributions file refuses `create`, `draftCatalogModels` and a provider switch with the unknown-provider code. | Rebuild. |
 | An admin-distributed provider plugin serves each recipient once they enable their own copy | The same provider contributions file. | Rebuild. |
 | A retained connection never follows its provider id to another definition | The same provider contributions file seals a real credential, then checks `catalogModels`, the claim and the reinstall. | Rebuild. |
-| A connection saved before the scope existed stops resolving at every read | The legacy state came from a direct row insert that no product path produces. The retained-connection case reaches the same refusal through a real uninstall, for `catalogModels` only. | Rebuild in part. Open: `capabilities`, `resolve`, `probe` and role clients on that connection. |
-| The installer lists models, saves a connection and generates through the relay | The provider contributions file proves the installer is offered the row and saves a connection that names its plugin. Model listing and generation need a scripted egress resolver and provider transport. | Open. Rebuild through the corpus provider execution. |
-| No request leaves the box for a refused stranger | Not asserted. The refusal codes are. | Open, with the relay case above. |
-| Restart reconciliation removes a crash-window contribution from an errored plugin | No production seam drives a teardown fault after the errored commit. The crash policy has no maintained test. | Open. |
+| A connection saved before the scope existed stops resolving at every read | The legacy state came from a direct row insert that no product path produces. The retained-connection cases reach the same refusal through a real uninstall: `catalogModels` in the retained-definition case, and `capabilities`, `resolve`, `probe` and the summarize role client in [provider contributions](../../../tests/server/domain/plugin/activation/provider-contributions.suite.int.test.ts), which also holds the control that the same reads succeed while the install is enabled and counts no request leaving. | Rebuild. |
+| The installer lists models, saves a connection and generates through the relay | The provider contributions file lists models, saves a connection that names its plugin, resolves it and generates a summary through the corpus provider execution, with the harness resolver and provider fetch scripted for the relay host. It reads the credential each request carried and the host it reached. | Rebuild. |
+| No request leaves the box for a refused stranger | The provider contributions file records every request that reaches the scripted peer: a stranger refused at the listing, create and provider-switch doors sends none, and the installer's call is the control that the peer records. | Rebuild. |
+| Restart reconciliation removes a crash-window contribution from an errored plugin | Storage subject: [provider crash window](../../../tests/server/domain/plugin/persistence/provider-crash-window.int.test.ts) drives the third strike through `reportUiCrash` with a storage refusal armed on the claim unlink, so the install commits `errored` and teardown fails. A second root on the same database unlinks the claim and keeps the owner's definition. | Rebuild. |
 | Uninstall waits for an in-flight enable | Integration: the provider contributions file issues `setEnabled` and `uninstall` back to back on a real guest and reads the empty list and the empty offer. The lane set has no door, and a test adds none. | Rebuild without the held hook. |
 
 #### Bridge
@@ -580,6 +580,137 @@ Decisions for `server/entry/boot/disclaimer.test.ts`:
 | Break-glass line | Rebuild | Same, with a control per ingredient. |
 
 Defect controls: each guarded production behavior was planted in a worktree and the named case failed for its intended reason. The planted behaviors are the drifted-chain refusal, the posture option type, the backup gate, the abort on a failed backup, the retention sweep and its boot gating, debris replacement, the target-conflict check, the cross-device pre-flight, the sole-holder claim, the first-boot snapshot, own-pid and live-pid journal handling, keeper and skip-list planning, zero-byte handling, the resume snapshot rule, the skip validation, explicit-set recording, the boolean vocabulary, the gate defaults, the parse-time skip check, the override direction, the byte-order mark, `ORB_ENV_NO_FILE`, each disclaimer gate, the kept-keyfile and stranded-secret warnings, the launch-only `.env` refusal, the dropped cookie knob, and the baseline's copy and fresh read.
+
+### Selected case map: inference backends, import identity and composition
+
+This is a bounded case map for eight reference files. Legacy paths are relative to the external source named in [Spine-Testing](../../law/Spine-Testing.md#2-the-tree). Inference cases run the real executor on the composed root and read the bytes at the provider edge, because the body shaper, the Anthropic turn and the registry have no public door and none is added. Import and composition cases run the composed server root through its HTTP doors, its descriptors and its workload contributions. A case about a credential, a secret or authentication is recorded as "Move to security batch" and left. Open rows are unresolved and keep their register row Partial.
+
+#### OpenAI-compatible body (`inference/backends/openai-compat/body.test.ts`)
+
+Home: [body shaping](../../../tests/inference/backends/openai-compat/body-shaping.int.test.ts), integration through `runChatTurn` on a scripted endpoint.
+
+| Reference case | Decision | Maintained home or reason |
+| - | - | - |
+| Extras win over a preset knob and a computed key; a belt-owned key is dropped by name; a fresh key rides | Rebuild | Body shaping, with the unextended turn as the control. The SDK-object purity check is dropped as implementation detail. |
+| The OpenRouter transport takes only its modelled keys and names the rest | Rebuild | Body shaping reads the body and the warning events. The side-generation suite keeps the log case. |
+| Prototype-pollution keys never land | Rebuild | Body shaping, through the connection extras parser. |
+| `includeBody` replaces a modelled field and an extra whole; `excludeBody` wins | Rebuild | Body shaping. |
+| The cap rename and a cap the user's body states | Rebuild | Body shaping, for extras, `includeBody` and `excludeBody`. |
+| Template thinking switch beside the user's kwargs; the user's own switch outranks it; the budget at zero; a user budget key wins | Rebuild | Body shaping on the vLLM row. |
+| Prefill pair, thinking interlock and a user-decided prefill | Rebuild | Body shaping. A mandatory-reasoning model skipping the interlock stays Open. |
+| A messages array the user set takes no prefill pair and no interlock from the plan | Rebuild | Body shaping, with the unextended prefill turn as the control. |
+| A reasoning-on turn tells the template to think, never over an off the user already set | Rebuild | Body shaping. The interlock's own off outranking the switch is asserted by the prefill case. |
+| A messages array the user set keeps its cache marker, takes no name, media or detail stamp, and is not folded | Open | These rules need the assembly's cache plan on an OpenRouter row, or a named-speaker or image history. |
+| `preserve_reasoning`, and kwargs the user set to a non-object | Open | The switch is asserted; the preserve key and the non-object values are not. |
+| An effort the row cannot spell is dropped | Rebuild in part | The row-level drop and the user's effort surviving are asserted. The shaper's own strip is a possible dead guard: the SDK never writes the key on such a row. |
+| Re-attachment of assistant media and participant names; image detail; reply-image modalities | Open | Each needs an image or named-speaker history through the chat assembly. |
+| Cache-marker move onto the nearest text part; same-role fold | Open | Both need the assembly's cache plan on an OpenRouter row with a tool-call history. |
+
+#### Endpoint diagnostics (`inference/backends/openai-compat/diagnostics.test.ts`)
+
+Home: [endpoint inspection](../../../tests/inference/backends/openai-compat/endpoint-inspection.int.test.ts), through `diagnostics.inspect`.
+
+| Reference case | Decision | Maintained home or reason |
+| - | - | - |
+| 401 and 403 are revoked with the reason scrubbed of every credential literal; a 500 body is no classification evidence | Move to security batch | Credential health and secret redaction. |
+| Unreachable carries the status when the server answered and none when nothing did | Keep | [Corpus connection](../../../tests/support/node/corpus-connection.int.test.ts) asserts a 502 probe and a refused inspection. |
+| An Ollama row's test request takes the native route and shaping its chat turn takes | Rebuild | Endpoint inspection compares the recorded URL and options of both calls. |
+| A Custom row's test request takes the same route and body as its chat turn | Rebuild | Endpoint inspection, with the row's extras and cap spelling. |
+| A 2xx reply the chat path cannot read is not ok | Rebuild | Endpoint inspection. |
+| A hung endpoint fails at the row's request timeout | Rebuild | Endpoint inspection, on the root's observed timer. |
+
+#### Anthropic chat (`inference/backends/anthropic-messages/chat.test.ts`)
+
+Home: [chat wire](../../../tests/inference/backends/anthropic-messages/chat-wire.int.test.ts), integration through `runChatTurn` on a scripted SSE endpoint, on each model's curated capability.
+
+| Reference case | Decision | Maintained home or reason |
+| - | - | - |
+| Thinking and tool loop replays the signed block; redacted block; no reasoning is not redacted; the conversation rung's row shape and its control | Rebuild | Chat wire. |
+| Trailing assistant row on a model that refuses prefill | Rebuild | Chat wire: a typed refusal and no request. |
+| An SDK-dropped sampler warns | Keep | [Unsupported settings](../../../tests/inference/conformance/unsupported-settings.suite.int.test.ts). The applied receipt log line is dropped as log trivia. |
+| Mandatory clamp, Opus and Sonnet off spelling, an explicit level, the non-mandatory control | Rebuild | Chat wire, including the recorded applied effort. |
+| Forced tool choice downgraded to auto, with its controls; manual thinking refuses a forced choice | Rebuild | Chat wire. |
+| Parallel-tool switch | Rebuild | Chat wire. |
+| Tool cache marker on the last tool alone; strict and input examples; eager input streaming | Rebuild | Chat wire. The cache receipt count is dropped as log trivia. |
+| Rate-limit headers, generation id, classifier refusal | Rebuild | Chat wire, with a header-less and a plain-end control. |
+| Prefix-bound carry asks to drop a stale block, for both carry rungs, with controls; an unmeasured id fails closed | Rebuild | Chat wire. |
+| Every measured older id keeps its wire | Rebuild, narrowed | Chat wire keeps three controls. The full table copies curated rows and is dropped. |
+| A dropped thinking block is counted on the record and raised as an alarm | Rebuild | Chat wire, with a clean-turn control. |
+| Turn-scoped system cue with `clear_at` and its beta; per-turn system half stays in `system[]` | Rebuild | Chat wire. |
+| Full request body byte equality | Rebuild | Chat wire: one `toEqual` over the whole body of a minimal turn, with the owner digest matched as a string. Named-field assertions cover the rest. |
+| Turn span events | Open | The root exposes a span seam that no case scripts. |
+
+#### Provider registry (`inference/registry/providers.test.ts`)
+
+| Reference case | Decision | Maintained home or reason |
+| - | - | - |
+| A plugin row answers only its owners; admin and built-in rows answer everyone; widen and narrow on install and drop | Keep | [Provider rows](../../../tests/server/domain/connection/persistence/provider-rows.int.test.ts) and [provider contributions](../../../tests/server/domain/plugin/activation/provider-contributions.suite.int.test.ts). |
+| Two owners' definitions of one id; a changed definition refused | Keep | The same two suites. |
+| An older refresh cannot republish after a removal; failed activation compensation; a failed refresh does not poison later publication | Open | The cases hold a store read or fail one. The root's store is the real database and no door holds a read, so the publication-order guard is reached only by a synthetic store. |
+
+#### Library backup round trip (`server/entry/import/bundle-round-trip.suite.int.test.ts`)
+
+Homes: [library planes](../../../tests/server/domain/import/loader/library-planes.int.test.ts), [import bundle](../../../tests/server/domain/import/loader/import-bundle.int.test.ts), [portability routes](../../../tests/server/entry/http/portability-routes.int.test.ts).
+
+| Reference case | Decision | Maintained home or reason |
+| - | - | - |
+| Gallery, inline images, attachment link, background, signed replay provenance, seeded cards, star, databank and imagery onto owned bytes; zero failures and no dangling reference | Keep | Import bundle. |
+| Preset, tag and theme rows land for the uploader and a second import adds none | Keep | Portability routes. |
+| Persona, world book, global databank attachment and a settings value land; a second restore adds none | Rebuild | Library planes. |
+| Prose injections and the chat tag overlay restore by value | Rebuild | Library planes. |
+| Campaign: game, hand journal, checkpoint and its snapshot position | Rebuild | Library planes. The checkpoint restores only when its position resolved. |
+| Turn-anchored snapshot, journal and tool-call rows land on the restored variant of their own turn | Rebuild | Library planes, through a bundle written by the production writer, with the earlier assistant turn as the control. |
+| Second restore writes zero new rows | Rebuild | Library planes, for the room, injections, checkpoints and journal. |
+| A re-import after the room lost a later message keeps the game and reports nothing lost | Rebuild | Library planes. The campaign cannot be re-placed once the slots stop aligning, so only the existing-game check keeps the import from a false loss note. |
+| Avatar blob byte identity; derived runtime variables do not travel; room blob, compact summary and variable picks by value | Open | Not asserted end to end. The serde contract parses them. |
+
+#### Import identity (`server/entry/import/import-identity.suite.int.test.ts`)
+
+Home: [import identity](../../../tests/server/entry/http/import-identity.int.test.ts), through the Characters dialog upload and the tree upload.
+
+| Reference case | Decision | Maintained home or reason |
+| - | - | - |
+| Card tags apply at once through both doors; a model suggestion stays pending across a re-import | Rebuild | Import identity. |
+| A split folder mints each persona once, with its avatar, and every upload's chats attribute to it | Rebuild | Import identity, with uploads shaped as the identity ruling states. The client planner that splits the folder has no maintained test and is Open as a client unit case. |
+| JSON card, its PNG and the JSON again are one character; the same text under other art is a second | Rebuild | Import identity. The alternate art is a PNG with one extra ancillary chunk, because the fixture builder varies only the card chunk, which is not art. |
+| Two different embedded books under one name land as the name and its numbered twin | Rebuild | Import identity, with each card's own link. |
+| A world name-link binds the book its own import landed, including a renamed book | Rebuild | Import identity. |
+| Keep-both on a persona collision never copies an equal persona | Rebuild | Import identity. Not a reference case. The merge default hides the equal-content guard. |
+| Two profiles in one upload bind a repeated world name to the first profile's book | Open | The tree route's layout admission for two profile roots is not exercised. |
+
+#### Compose databank (`server/entry/compose/databank.int.test.ts`)
+
+| Reference case | Decision | Maintained home or reason |
+| - | - | - |
+| A databank settings write is what the composed read returns; owner isolation; the chat-only slot budget is excluded | Keep | [Databank settings](../../../tests/server/domain/settings/verbs/get-databank-settings.int.test.ts). |
+| Unwritten section reads the grounded defaults | Drop | Asserts copies of production defaults. The other owner's unchanged read is the control. |
+| The room's host sees a hidden document flagged and a member never receives it | Keep | [Corpus databank](../../../tests/support/node/corpus-databank.int.test.ts). |
+
+#### Compose services (`server/entry/compose/services.test.ts`)
+
+| Reference case | Decision | Maintained home or reason |
+| - | - | - |
+| The graph builds and yields every service key | Drop | Every composed suite builds the graph, and the services type is checked by `tsc`. |
+| Admin revoke evicts that user's live sockets | Keep | [Session policy](../../../tests/server/domain/admin/verbs/session-policy.int.test.ts). Also an auth case for the security batch. |
+| Bulk card tag attaches through the real tag wiring | Keep | [Tag row clocks](../../../tests/server/domain/tag/persistence/row-clocks.int.test.ts). |
+| Seed: manifest content and no rooms; a deleted seeded card stays deleted across a cold graph; an explicit welcome pick is kept; a campaign roster | Keep | [Corpus seed](../../../tests/support/node/corpus-seed.int.test.ts), [seed ledger](../../../tests/server/domain/settings/persistence/seed-ledger-tags.int.test.ts), [default persona seeder](../../../tests/server/domain/persona/seeder/default.int.test.ts) and [roster seed](../../../tests/server/domain/roster-preset/verbs/seed.int.test.ts). |
+| Indexer subscription with a stub store and a copied dispatcher | Drop | A copied assembly. The gate's observable outcome is rebuilt below. |
+| `corpusAutoindex` off writes nothing, saving it on indexes the next write, off again leaves an edit unindexed | Rebuild | [Autoindex gate](../../../tests/server/domain/embeddings/persistence/autoindex-gate.int.test.ts), storage subject. The once-only catch-up queue stays Open. |
+| `character.updated` stores the card-text projection; a flag-only update drives zero store work | Rebuild in part | Autoindex gate: a content edit re-embeds under a new content hash, and a star toggle spends no embedding request and keeps the hash. The handler's own skip is a possible dead guard, because the store's content-hash gate alone gives the same output. The stored text itself is not compared, because the scripted embedder returns one vector for every input. |
+| `asset.created` stores both image lenses from the real CAS bytes | Open | The event path needs a joint-encoder connection. The corpus embed connection is text only, and an avatar upload with indexing on writes no image row and sends no request. The sweep path keeps both lenses in [image sweep rows](../../../tests/server/domain/embeddings/persistence/image-sweep-rows.int.test.ts) and [corpus knowledge variants](../../../tests/support/node/corpus-knowledge-variants.int.test.ts). |
+| Fresh seeded content rebuilds text for its recipe while reusing unchanged raw-image seeds | Open | Needs the shipped local-light seed vectors and a scripted local-light cache, which no maintained root composes. Image sweep rows covers a seeded avatar sweep with its own spend, not the shipped raw vectors. |
+| Chat kick lands durably and on the recipient's live bus | Keep in part | [Recipient inbox](../../../tests/server/domain/notifications/verbs/recipient-inbox.int.test.ts) and [corpus notifications](../../../tests/support/node/corpus-notifications.int.test.ts) own the durable half and the live correction. |
+| Persona switch fans `personaSwitched` onto the live room channel | Open | Needs the live room stream through the transport. |
+| Persona remove re-points the current and default pointers, names the new default, and re-seats a worn seat | Rebuild | [Remove re-point](../../../tests/server/domain/persona/verbs/remove-repoint.int.test.ts). A seat its owner already left stays Open. |
+| Embed-space rebuild trigger: unbind and re-bind queue nothing, a move queues forced sweeps, two triggers queue one, boot sweeps stale owners, an enqueue failure is logged | Open | The legacy state was a raw generation row. A production move needs two real encoders. |
+| Generated-image rule forwards its diffusion knobs through the composed graph | Open | [Automation dispatch](../../../tests/server/domain/automation/engine/dispatch.int.test.ts) fires the action; the forwarded parameters are not asserted. |
+| Search completes when memory is off or has no summarizer | Keep in part | [Empty-owner completion](../../../tests/server/domain/embeddings/persistence/empty-owner-completion.suite.int.test.ts) owns the owner with no hosted room. Old-model memory vectors and memory on without a summarizer stay Open. |
+
+Defect controls: each rebuilt guard was checked against a planted production defect that made it fail for its stated reason. The planted behaviors are in the shaper the belt drop, the OpenRouter key allowlist, the cap rename over a user cap, the budget and switch deferrals, the prefill pair over a user key, the prefill interlock, the effort deferral and the pollution-safe merge. In the inspector they are the cap, the native route, the extras and the idle bound. On the Anthropic wire they are the carry binding, the off spelling, the prefill belt, the drop alarm, the tool cache marker, the parallel switch, the rate-limit and id capture, the budget-thinking forced choice, the clear-at row, the applied effort, the refusal event and the downgrade. In import they are the text identity, the art re-key, the free-label mint, both world-link rules, the persona reuse, the card tag status, the injections, the tag overlay, the checkpoints, the hand journal, the variant anchor, the chat identity hash, the settings merge and the global attachment. In composition they are the persona fallbacks, the default-move report, the seat re-seat and the autoindex gate in both directions.
+
+Further planted behaviors: the whole-body reshape (the adaptive display), the existing-game check on a re-import whose campaign cannot be placed, the prefill pair over a user messages array, the switch over the interlock's off, the switch on a reasoning-on turn, and a character update that never flags its content change.
+
+Possible dead guards, each a plant that changed no output: the shaper's own effort strip on a row that spells no effort, because the SDK never writes the key there; the inspector's `failure === undefined` term in `ok`, because the catch arm already returns false; and the embeddings indexer's `contentChanged` skip, because the store's content-hash gate alone gives the same rows and requests. The rpg existing-game check is live: without it, a re-import whose campaign cannot be placed reports a loss while the room still has its game.
 
 ### Server composition
 
