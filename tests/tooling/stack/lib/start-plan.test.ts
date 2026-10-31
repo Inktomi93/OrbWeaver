@@ -9,8 +9,9 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseEnv } from "node:util";
-import { SETUP_COMMAND } from "@orb/contracts/identity";
-import { ENV_FROM_FILE_KEY } from "@orb/kit/env-file";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, SETUP_COMMAND } from "@orb/contracts/identity";
+import { ALLOWED_HOSTS_KEY } from "@orb/kit/allowed-hosts";
+import { ENV_FROM_FILE_KEY, ENV_NO_OVERRIDE_KEY } from "@orb/kit/env-file";
 import { expect, test } from "@orb/testkit/tooling";
 import { SERVER_ENTRY_REL, SERVER_NODE_FLAGS } from "@orb/tooling/floor/process/server-entry";
 import {
@@ -56,18 +57,18 @@ test("argv: --setup asks again, and --port takes one TCP port as the next word o
 });
 
 test("a --port override wins over .env for this launch only, and every other .env value still wins over the shell", () => {
-  const fileEnv = env(["PORT", "8788"], ["AUTH_MODE", "local"]);
-  const ambient = env(["AUTH_MODE", "single-user"], ["PATH", "/bin"]);
+  const fileEnv = env(["PORT", "8788"], [AUTH_MODE_KEY, "local"]);
+  const ambient = env([AUTH_MODE_KEY, "single-user"], ["PATH", "/bin"]);
   const overlay = restateFileEnv(fileEnv, env(["PORT", "9000"]));
   const plan = startSpawnPlan({ repoRoot: "/repo", nodePath: "/usr/bin/node", baseEnv: ambient, launchEnv: overlay, logPath: "/l" });
   // The server loads .env with override:true unless ORB_ENV_NO_OVERRIDE is set; the overlay turns that off
   // and restates the file's values on the child env, so the only value that changes is the port.
   expect(plan.env["PORT"]).toBe("9000");
-  expect(plan.env["AUTH_MODE"]).toBe("local");
-  expect(plan.env["ORB_ENV_NO_OVERRIDE"]).toBeDefined();
+  expect(plan.env[AUTH_MODE_KEY]).toBe("local");
+  expect(plan.env[ENV_NO_OVERRIDE_KEY]).toBeDefined();
   expect(plan.env["PATH"]).toBe("/bin");
   // The keys it restated from the file, and only those: an overridden key came from the flag, not the file.
-  expect(plan.env[ENV_FROM_FILE_KEY]).toBe("AUTH_MODE");
+  expect(plan.env[ENV_FROM_FILE_KEY]).toBe(AUTH_MODE_KEY);
 });
 
 test("the build decision: a missing or stale bundle builds itself, a fresh one is skipped, and the flags win both ways", () => {
@@ -90,22 +91,22 @@ test("single-user with no AUTH_FALLBACK gets `owner` on the CHILD env — the va
   // AUTH_MODE unset ⇒ the schema default is single-user, so the bare-metal default is filled too. Since
   // #2406 this RESTATES what the env schema resolves for the mode rather than rescuing a boot fatal; the
   // launcher keeps it so `startPostureLine` can name the posture from a value it can actually see.
-  expect(singleUserFallbackEnv({}, {})).toEqual(env(["AUTH_FALLBACK", "owner"]));
-  expect(singleUserFallbackEnv(env(["AUTH_MODE", "single-user"]), {})).toEqual(env(["AUTH_FALLBACK", "owner"]));
+  expect(singleUserFallbackEnv({}, {})).toEqual(env([AUTH_FALLBACK_KEY, "owner"]));
+  expect(singleUserFallbackEnv(env([AUTH_MODE_KEY, "single-user"]), {})).toEqual(env([AUTH_FALLBACK_KEY, "owner"]));
 });
 
 test("an EXPLICIT fallback is never overwritten — including `deny`, from either .env or the shell", () => {
-  expect(singleUserFallbackEnv(env(["AUTH_FALLBACK", "deny"]), {})).toEqual({});
-  expect(singleUserFallbackEnv({}, env(["AUTH_FALLBACK", "deny"]))).toEqual({});
-  expect(singleUserFallbackEnv({}, env(["AUTH_FALLBACK", "owner"]))).toEqual({});
+  expect(singleUserFallbackEnv(env([AUTH_FALLBACK_KEY, "deny"]), {})).toEqual({});
+  expect(singleUserFallbackEnv({}, env([AUTH_FALLBACK_KEY, "deny"]))).toEqual({});
+  expect(singleUserFallbackEnv({}, env([AUTH_FALLBACK_KEY, "owner"]))).toEqual({});
 });
 
 test("a non-single-user mode is left alone — local/oidc have their own credentials and the fallback is not theirs", () => {
-  expect(singleUserFallbackEnv(env(["AUTH_MODE", "local"]), {})).toEqual({});
-  expect(singleUserFallbackEnv({}, env(["AUTH_MODE", "oidc"]))).toEqual({});
+  expect(singleUserFallbackEnv(env([AUTH_MODE_KEY, "local"]), {})).toEqual({});
+  expect(singleUserFallbackEnv({}, env([AUTH_MODE_KEY, "oidc"]))).toEqual({});
   // `.env` wins over the shell — foundation/env loads the file with override:true.
-  expect(effectiveAuthMode(env(["AUTH_MODE", "local"]), env(["AUTH_MODE", "single-user"]))).toBe("local");
-  expect(singleUserFallbackEnv(env(["AUTH_MODE", "local"]), env(["AUTH_MODE", "single-user"]))).toEqual({});
+  expect(effectiveAuthMode(env([AUTH_MODE_KEY, "local"]), env([AUTH_MODE_KEY, "single-user"]))).toBe("local");
+  expect(singleUserFallbackEnv(env([AUTH_MODE_KEY, "local"]), env([AUTH_MODE_KEY, "single-user"]))).toEqual({});
 });
 
 test("the spawn is the SHARED prod plan — same argv and cwd, NODE_ENV=production, plus the fallback", () => {
@@ -113,7 +114,7 @@ test("the spawn is the SHARED prod plan — same argv and cwd, NODE_ENV=producti
     repoRoot: "/repo",
     nodePath: "/usr/bin/node",
     baseEnv: env(["PATH", "/bin"]),
-    launchEnv: env(["AUTH_FALLBACK", "owner"]),
+    launchEnv: env([AUTH_FALLBACK_KEY, "owner"]),
     logPath: "/repo/.cache/stack/prod.log",
   });
   // Asserted against the SHARED constant, never a second literal: a fork of the prod spawn is the defect
@@ -122,12 +123,12 @@ test("the spawn is the SHARED prod plan — same argv and cwd, NODE_ENV=producti
   expect(plan.command).toBe("/usr/bin/node");
   expect(plan.cwd).toBe("/repo");
   expect(plan.env["NODE_ENV"]).toBe("production");
-  expect(plan.env["AUTH_FALLBACK"]).toBe("owner");
+  expect(plan.env[AUTH_FALLBACK_KEY]).toBe("owner");
 });
 
 test("with no fallback to fill, the child env carries no AUTH_FALLBACK at all", () => {
   const plan = startSpawnPlan({ repoRoot: "/repo", nodePath: "/usr/bin/node", baseEnv: {}, launchEnv: {}, logPath: "/l" });
-  expect(plan.env["AUTH_FALLBACK"]).toBeUndefined();
+  expect(plan.env[AUTH_FALLBACK_KEY]).toBeUndefined();
 });
 
 test("the banner is five short lines: the URL, who can log in, how to let another device in, and Ctrl-C", () => {
@@ -173,7 +174,7 @@ test("a start over SSH opens no browser: the terminal is on another machine, and
 });
 
 /** `pnpm start --share`'s launch from a `.env` text, the way ops/start.ts builds each spawn. */
-function launchFrom(text: string, share: boolean, ambient = env(["PATH", "/bin"], ["AUTH_MODE", "oidc"])): ReturnType<typeof startLaunch> {
+function launchFrom(text: string, share: boolean, ambient = env(["PATH", "/bin"], [AUTH_MODE_KEY, "oidc"])): ReturnType<typeof startLaunch> {
   return startLaunch({
     repoRoot: "/repo",
     nodePath: "/usr/bin/node",
@@ -193,15 +194,15 @@ test("--share on a just-me file restates .env, switches to local with a quick re
   const file = "PORT=8788\nAUTH_MODE=single-user\nOPENROUTER_API_KEY=sk-or-abc\n";
   const launch = launchFrom(file, true);
   // Every .env value rides the child env with the file's override off, so the file still wins over the shell.
-  expect(launch.plan.env["ORB_ENV_NO_OVERRIDE"]).toBe("1");
+  expect(launch.plan.env[ENV_NO_OVERRIDE_KEY]).toBe("1");
   expect(launch.plan.env["PORT"]).toBe("8788");
   expect(launch.plan.env["OPENROUTER_API_KEY"]).toBe("sk-or-abc");
-  expect(launch.plan.env["AUTH_MODE"]).toBe("local");
+  expect(launch.plan.env[AUTH_MODE_KEY]).toBe("local");
   expect(launch.plan.env["SHARE_RELAY"]).toBe("quick");
   expect(launch.plan.env["BIND_HOST"]).toBe("127.0.0.1");
   // `local` refuses the single-user fill at boot, and a relay host never goes into ALLOWED_HOSTS.
-  expect(launch.plan.env["AUTH_FALLBACK"]).toBeUndefined();
-  expect(launch.plan.env["ALLOWED_HOSTS"]).toBeUndefined();
+  expect(launch.plan.env[AUTH_FALLBACK_KEY]).toBeUndefined();
+  expect(launch.plan.env[ALLOWED_HOSTS_KEY]).toBeUndefined();
   expect(launch.mode).toBe("local");
   expect(launch.fallbackFilled).toBe(false);
   // An empty file under a bare shell is just-me too: the schema default mode is single-user. A shell export of a login
@@ -213,8 +214,8 @@ test("--share on a just-me file restates .env, switches to local with a quick re
 test("--share on a network file keeps its own BIND_HOST and ALLOWED_HOSTS exactly as the file says", () => {
   const pinned = launchFrom("AUTH_MODE=local\nBIND_HOST=192.168.1.5\nALLOWED_HOSTS=orb.lan\n", true);
   expect(pinned.plan.env["BIND_HOST"]).toBe("192.168.1.5");
-  expect(pinned.plan.env["ALLOWED_HOSTS"]).toBe("orb.lan");
-  expect(pinned.plan.env["AUTH_MODE"]).toBe("local");
+  expect(pinned.plan.env[ALLOWED_HOSTS_KEY]).toBe("orb.lan");
+  expect(pinned.plan.env[AUTH_MODE_KEY]).toBe("local");
   expect(pinned.plan.env["SHARE_RELAY"]).toBe("quick");
   // A network file with no BIND_HOST keeps the server's own default bind.
   expect(launchFrom("AUTH_MODE=local\n", true).plan.env["BIND_HOST"]).toBeUndefined();
@@ -226,8 +227,8 @@ test("--share refuses an oidc or forward-header box, from the file or the shell,
   const bareShell = env(["PATH", "/bin"]);
   for (const mode of ["oidc", "forward-header"] as const) {
     expect(shareLaunchRefusal(parseEnv(`AUTH_MODE=${mode}\n`), bareShell), mode).toEqual(expect.stringContaining("--share"));
-    expect(shareLaunchRefusal(parseEnv(""), env(["PATH", "/bin"], ["AUTH_MODE", mode])), mode).not.toBeNull();
-    expect(launchFrom(`AUTH_MODE=${mode}\n`, true, bareShell).plan.env["AUTH_MODE"], mode).toBe(mode);
+    expect(shareLaunchRefusal(parseEnv(""), env(["PATH", "/bin"], [AUTH_MODE_KEY, mode])), mode).not.toBeNull();
+    expect(launchFrom(`AUTH_MODE=${mode}\n`, true, bareShell).plan.env[AUTH_MODE_KEY], mode).toBe(mode);
   }
 });
 
@@ -243,10 +244,10 @@ test("control: a plain start leaves the env to the file, and neither launch writ
   const file = "# mine\r\nPORT=8788\r\nAUTH_MODE=single-user\r\n";
   writeFileSync(envPath, file);
   const plain = launchFrom(readFileSync(envPath, "utf8"), false);
-  for (const key of ["ORB_ENV_NO_OVERRIDE", "SHARE_RELAY", "BIND_HOST", "PORT"]) {
+  for (const key of [ENV_NO_OVERRIDE_KEY, "SHARE_RELAY", "BIND_HOST", "PORT"]) {
     expect(plain.plan.env[key], key).toBeUndefined();
   }
-  expect(plain.plan.env["AUTH_MODE"]).toBe("oidc");
+  expect(plain.plan.env[AUTH_MODE_KEY]).toBe("oidc");
   expect(plain.mode).toBe("single-user");
   launchFrom(readFileSync(envPath, "utf8"), true);
   expect(readFileSync(envPath, "utf8")).toBe(file);

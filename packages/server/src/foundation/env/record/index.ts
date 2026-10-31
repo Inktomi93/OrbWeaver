@@ -3,7 +3,7 @@
 // file reader as inputs (dep-cruiser `env-record-reads-no-host`), so every tier may take a record from this module.
 
 import type { AUTH_MODES, InstallKind } from "@orb/contracts/identity";
-import { authModeSchema, MIN_PASSWORD_LENGTH, shareRelayKindSchema } from "@orb/contracts/identity";
+import { authModeSchema, MIN_PASSWORD_LENGTH, OIDC_CLIENT_SECRET_KEY, shareRelayKindSchema } from "@orb/contracts/identity";
 import { localLightCpuPercentSchema } from "@orb/contracts/inference";
 import { LOG_LEVELS } from "@orb/contracts/settings";
 import { ALLOWED_HOSTS_KEY, parseAllowedHosts } from "@orb/kit/allowed-hosts";
@@ -729,7 +729,7 @@ export function parseEnv({ source, envFileKeys, host, readFile }: EnvParseInput)
 export const APP_SECRET_ENV_KEYS = [
   "SESSION_SECRET",
   "CREDENTIALS_KEY",
-  "OIDC_CLIENT_SECRET",
+  OIDC_CLIENT_SECRET_KEY,
   "OPENROUTER_API_KEY",
   "DEBUG_TOKEN",
   "LOCAL_INITIAL_PASSWORD",

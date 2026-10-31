@@ -5,6 +5,8 @@
 // @subject packages/server/src/entry/http/upload.ts
 // @subject packages/server/src/entry/http/import-tree.ts
 // @subject packages/server/src/entry/import/run-profile-import.ts
+
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import type { PersonaCollisionChoices } from "@orb/contracts/import";
 import {
   cardImportResultSchema,
@@ -32,7 +34,7 @@ const ENCODER = new TextEncoder();
 
 function harness(): Promise<ServerTestHarness> {
   return createServerHarness({
-    env: { ["AUTH_MODE"]: "single-user", ["AUTH_FALLBACK"]: "owner" },
+    env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" },
     physicalPeer: () => "127.0.0.1",
     startJobs: false,
   });

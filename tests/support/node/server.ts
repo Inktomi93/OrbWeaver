@@ -8,6 +8,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { execPath } from "node:process";
 import type { AuthMode, UserRole } from "@orb/contracts/identity";
+import { AUTH_MODE_KEY } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { closeDb } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
@@ -103,7 +104,7 @@ export type NativeServerHarnessOptions = Omit<SuppliedIdHarnessOptions, "clock" 
 };
 
 /** Raw env keys whose record composes `mode`. */
-export type AuthModeEnv<Mode extends AuthMode> = NonNullable<ServerHarnessOptions["env"]> & { readonly ["AUTH_MODE"]: Mode };
+export type AuthModeEnv<Mode extends AuthMode> = NonNullable<ServerHarnessOptions["env"]> & { readonly [AUTH_MODE_KEY]: Mode };
 
 /** Only `oidc` boots with no owner, so an unclaimed root states that mode in its record or, for a pairing the parse
  *  refuses, in its overlay. */
@@ -284,7 +285,7 @@ const noHostEnv: ServicesDeps["hostEnvAllowlist"] = () => ({ ["PATH"]: dirname(e
 
 // The root's record is its whole environment, so a record that sets AUTH_MODE is the environment that supplied it.
 function authModeSourceOf(options: Pick<ServerHarnessOptions, "env">): ServicesDeps["authModeSource"] {
-  return options.env?.["AUTH_MODE"] === undefined ? "default" : "process-env";
+  return options.env?.[AUTH_MODE_KEY] === undefined ? "default" : "process-env";
 }
 
 function refusingProviderFetch(): typeof fetch {

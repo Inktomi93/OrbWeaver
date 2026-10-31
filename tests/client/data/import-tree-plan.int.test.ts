@@ -5,6 +5,7 @@
 import type { TreeImportCaps, TreeImportPlan } from "@orb/client/data";
 import { importTree, planServedFolderImport, relativePathOf } from "@orb/client/data";
 import { createCharacterSchema } from "@orb/contracts/character";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import type { PersonaCollisionChoices } from "@orb/contracts/import";
 import { admitTreeBatch, importStartedSchema, treeUploadFixedFramingBytes, treeUploadPartFramingBytes } from "@orb/contracts/import";
 import type { PortableKind } from "@orb/contracts/portability";
@@ -184,7 +185,7 @@ test("a served total the upload framing alone fills refuses the plan instead of 
 
 /** A single-user root whose loopback requests act as its owner, so the client's own fetches reach it unauthenticated. */
 const SINGLE_USER = {
-  env: { ["AUTH_MODE"]: "single-user", ["AUTH_FALLBACK"]: "owner" },
+  env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" },
   physicalPeer: () => "127.0.0.1",
   startJobs: false,
 } as const;

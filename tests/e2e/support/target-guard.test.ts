@@ -8,6 +8,8 @@
 
 import { join } from "node:path";
 import { HEALTH_STATUSES, healthResponseSchema } from "@orb/contracts/diagnostics";
+import { OWNER_HANDLES_KEY } from "@orb/contracts/identity";
+import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
 import { expect, test } from "@orb/testkit/node";
 import { describe, vi } from "vitest";
 import { E2E_RUN_ROOT, LOCAL_OWNER, MODE_PROJECTS, SINGLE_USER, selectedModeProjects } from "./modes.ts";
@@ -87,7 +89,7 @@ describe("mode projects (default, no override)", () => {
   // are invisible to every source-scoped tool and to a box with no `.env`.
   test("every mode PINS the box owner handle — an ambient OWNER_HANDLES cannot redefine the fixture's owner", () => {
     for (const mode of MODE_PROJECTS) {
-      expect(mode.webServerEnv["OWNER_HANDLES"], mode.name).toBe(LOCAL_OWNER.handle);
+      expect(mode.webServerEnv[OWNER_HANDLES_KEY], mode.name).toBe(LOCAL_OWNER.handle);
     }
   });
 
@@ -96,7 +98,7 @@ describe("mode projects (default, no override)", () => {
       // ORB_ENV_NO_OVERRIDE only decides who WINS for a key the harness also sets; every key it does NOT set
       // still gets filled from the file. ORB_ENV_NO_FILE is the same ambient-proofing vitest.config.ts applies
       // to the node lanes, for the same measured reason (a live box's AUTH_MODE/WIRE_CAPTURE reddening tests).
-      expect(mode.webServerEnv["ORB_ENV_NO_FILE"], mode.name).toBe("1");
+      expect(mode.webServerEnv[ENV_NO_FILE_KEY], mode.name).toBe("1");
     }
   });
 });

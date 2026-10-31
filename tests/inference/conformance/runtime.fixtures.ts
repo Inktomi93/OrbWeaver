@@ -1,6 +1,7 @@
 // Real owned resolution and execution; only raw provider protocols vary by wire.
 import type { ChatDeltaEvent } from "@orb/contracts/chat";
 import { wireCapturesResponseSchema } from "@orb/contracts/debug";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import type { Capability, GenerationCapability, Task, Wire } from "@orb/contracts/inference";
 import { BUILTIN_PROVIDERS, EMBEDDING_FLOOR, WIRE_DEFS, WIRES } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
@@ -295,7 +296,7 @@ async function chatRequestFor(root: ServerTestHarness, wire: Wire, options: Chat
 export function conformanceRoot(options: Parameters<typeof createRuntimeRoot>[0] = {}): Promise<ServerTestHarness> {
   return createRuntimeRoot({
     ids,
-    env: { ["AUTH_MODE"]: "single-user", ["AUTH_FALLBACK"]: "owner" },
+    env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" },
     physicalPeer: () => "127.0.0.1",
     wireCapture: true,
     ...options,

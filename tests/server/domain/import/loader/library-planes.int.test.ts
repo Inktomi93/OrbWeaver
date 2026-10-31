@@ -9,7 +9,7 @@
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
-import { CSRF_HEADER } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { importStartedSchema } from "@orb/contracts/import";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import type { PortableKind } from "@orb/contracts/portability";
@@ -41,7 +41,7 @@ async function signedInBox(ids?: ReturnType<typeof createSeededIds>): Promise<Se
   const root = await createServerHarness({
     physicalPeer: () => "127.0.0.1",
     startJobs: false,
-    env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" },
+    env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" },
     ...(ids === undefined ? {} : { ids }),
   });
   expect((await root.http.request(SIGNED_IN_ROUTE)).status).toBe(200);

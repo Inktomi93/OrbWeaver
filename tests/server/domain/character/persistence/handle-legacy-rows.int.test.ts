@@ -4,7 +4,7 @@
 // @subject packages/server/src/domain/export/verbs/portable-exports.ts
 // @subject packages/server/src/domain/export/verbs/export-chat-bundle.ts
 import { characterHandleSchema, createCharacterSchema } from "@orb/contracts/character";
-import { CSRF_HEADER } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { importStartedSchema } from "@orb/contracts/import";
 import { PORTABILITY_ROUTES, PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
 import { characters } from "@orb/db";
@@ -29,7 +29,7 @@ async function signedInBox(ids?: ReturnType<typeof createSeededIds>): Promise<Se
   const root = await createServerHarness({
     physicalPeer: () => "127.0.0.1",
     startJobs: false,
-    env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" },
+    env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" },
     ...(ids === undefined ? {} : { ids }),
   });
   expect((await root.http.request(SIGNED_IN_ROUTE)).status).toBe(200);

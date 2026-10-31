@@ -3,7 +3,8 @@ import { once } from "node:events";
 import { connect } from "node:net";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { CSRF_HEADER } from "@orb/contracts/identity";
+import { AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
+import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
 import { expect, test } from "@orb/testkit/node";
 import { freeLoopbackPort } from "@orb/testkit/node/helpers";
 import { processEnvValue } from "@orb/tooling/floor/process/process-env";
@@ -28,10 +29,10 @@ test("concurrent shutdown signals join the held native HTTP drain", { tags: "slo
       env: {
         ["PATH"]: processEnvValue("PATH"),
         ["HOME"]: processEnvValue("HOME"),
-        ["ORB_ENV_NO_FILE"]: "1",
+        [ENV_NO_FILE_KEY]: "1",
         ["DATA_DIR"]: importStagingDir,
         ["PORT"]: String(port),
-        ["AUTH_MODE"]: "single-user",
+        [AUTH_MODE_KEY]: "single-user",
         ["LOCAL_LIGHT_PREFETCH"]: "off",
         ["CORPUS_AUTOINDEX"]: "false",
         ["EGRESS_FIREWALL"]: "false",

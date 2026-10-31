@@ -9,7 +9,7 @@ import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createDb, listBackupFiles, preCloseHousekeeping } from "@orb/db";
 import { migrateDataLayout } from "@orb/server/entry/boot";
-import { DATA_LAYOUT_DIRS, DB_FILE_NAME, LEGACY_ENTRIES } from "@orb/server/foundation/data-layout";
+import { DATA_LAYOUT_DIRS, DATA_LAYOUT_SKIP_KEY, DB_FILE_NAME, LEGACY_ENTRIES } from "@orb/server/foundation/data-layout";
 import { expect, test } from "@orb/testkit/node";
 import { createTestEnv, createTestLogger } from "@orb/testkit/node/composed";
 import { sql } from "drizzle-orm";
@@ -356,7 +356,7 @@ test("an empty mount point at a target refuses before any write; the keyed entry
   expect(existsSync(join(root, DB_FILE_NAME))).toBe(true);
   expect(rootListing(root)).toEqual(before);
 
-  const remedied = layoutFor(root, { [keyedName.keptBy]: join(root, keyedName.name, MODELS_LEAF), ["DATA_LAYOUT_SKIP"]: keylessName });
+  const remedied = layoutFor(root, { [keyedName.keptBy]: join(root, keyedName.name, MODELS_LEAF), [DATA_LAYOUT_SKIP_KEY]: keylessName });
   const report = await migrate(remedied, { deviceOf });
   expect(report.leftInPlace).toEqual([keyedName.name, keylessName, OPERATOR_FILE].sort());
   expect(movedFrom(report)).toContain(DB_FILE_NAME);

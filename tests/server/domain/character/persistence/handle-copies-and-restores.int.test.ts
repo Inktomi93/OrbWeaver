@@ -9,7 +9,7 @@
 // @subject packages/server/src/domain/imagery/persistence/portability-read.ts
 // @subject packages/server/src/domain/imagery/persistence/portability-write.ts
 import { characterHandleSchema, createCharacterSchema } from "@orb/contracts/character";
-import { CSRF_HEADER } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { portableImageryCallSchema } from "@orb/contracts/imagery";
 import { importStartedSchema } from "@orb/contracts/import";
 import type { PortableFile, PortableImportOutcome, PortableKind } from "@orb/contracts/portability";
@@ -62,7 +62,7 @@ async function signedInBox(options: { readonly ids?: ReturnType<typeof createSee
   const root = await createServerHarness({
     physicalPeer: () => "127.0.0.1",
     startJobs: false,
-    env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" },
+    env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" },
     ...(options.ids === undefined ? {} : { ids: options.ids }),
     ...(options.pictures === undefined ? {} : { providerFetch: imageProvider(options.pictures) }),
   });

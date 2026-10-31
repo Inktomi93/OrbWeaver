@@ -12,6 +12,7 @@
 import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { OWNER_HANDLES_KEY } from "@orb/contracts/identity";
 import { expect, test } from "@orb/testkit/tooling";
 import { DEV_PORTS, STAGE_BAND_COUNT, stageBandPorts } from "../../../../tooling/src/floor/host/ports.ts";
 import type { StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
@@ -193,18 +194,18 @@ const DEV_ENV_SAMPLE = [
 
 test("stageInheritedEnv forwards the DB-BOUND keys — the owner handle, the credentials key and the session secret", () => {
   const inherited = stageInheritedEnv(DEV_ENV_SAMPLE);
-  expect(inherited["OWNER_HANDLES"]).toBe("owner@example.com");
+  expect(inherited[OWNER_HANDLES_KEY]).toBe("owner@example.com");
   expect(inherited["CREDENTIALS_KEY"]).toBe("3d0f1a2b3c4d5e6f");
   expect(inherited["SESSION_SECRET"]).toBe("hunter2hunter2hunter2");
   // The exact key SET, so a future addition has to come through the allowlist and its reason, not by accident.
-  expect(Object.keys(inherited)).toStrictEqual(["OWNER_HANDLES", "CREDENTIALS_KEY", "SESSION_SECRET"]);
+  expect(Object.keys(inherited)).toStrictEqual([OWNER_HANDLES_KEY, "CREDENTIALS_KEY", "SESSION_SECRET"]);
 });
 
 test("stageInheritedEnv forwards NOTHING else — the ORB_ENV_NO_FILE hatch stays narrow", () => {
   // The negative half of the same claim: an operator's real DEBUG_TOKEN / provider key / capture switch must
   // never arm a second, less-guarded surface on the stage port. That is the whole point of the hatch, so the
   // allowlist is pinned by NAME, not merely by the positives above.
-  expect([...STAGE_INHERITED_ENV_KEYS]).toStrictEqual(["OWNER_HANDLES", "CREDENTIALS_KEY", "SESSION_SECRET"]);
+  expect([...STAGE_INHERITED_ENV_KEYS]).toStrictEqual([OWNER_HANDLES_KEY, "CREDENTIALS_KEY", "SESSION_SECRET"]);
   const inherited = Object.keys(stageInheritedEnv(DEV_ENV_SAMPLE));
   for (const leaked of ["DEBUG_TOKEN", "OPENROUTER_API_KEY", "WIRE_CAPTURE"]) {
     expect(inherited).not.toContain(leaked);
@@ -215,8 +216,8 @@ test("stageInheritedEnv omits a key the dev .env does not declare (no empty-stri
   // An absent key must be ABSENT, not "" — the server's schema has its own unset fallback for each, and an
   // empty CREDENTIALS_KEY would be a different, worse failure than no key at all.
   const partial = stageInheritedEnv("OWNER_HANDLES=owner\n");
-  expect(Object.keys(partial)).toStrictEqual(["OWNER_HANDLES"]);
-  expect(partial["OWNER_HANDLES"]).toBe("owner");
+  expect(Object.keys(partial)).toStrictEqual([OWNER_HANDLES_KEY]);
+  expect(partial[OWNER_HANDLES_KEY]).toBe("owner");
   expect(Object.keys(stageInheritedEnv(""))).toStrictEqual([]);
 });
 

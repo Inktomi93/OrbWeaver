@@ -1,6 +1,8 @@
 // The two-human fixture's env recipe: its own port pair from the registry, its own data root and run dir
 // under the repo, the local sign-in mode, no `.env`, and the seed contract the seed tool reads.
 import { join } from "node:path";
+import { AUTH_MODE_KEY, OWNER_HANDLES_KEY } from "@orb/contracts/identity";
+import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
 import { expect, test } from "@orb/testkit/tooling";
 import { FIXTURE_PORTS } from "../../../../tooling/src/floor/host/ports.ts";
 import { FIXTURE_CREDENTIALS, FIXTURE_DIR_REL, fixtureEnv, fixtureIdentityEnv } from "../../../../tooling/src/stack/index.ts";
@@ -11,11 +13,11 @@ test("the recipe isolates ports, data and the run dir, and skips the operator's 
   expect(env["VITE_PORT"]).toBe(String(FIXTURE_PORTS.vite));
   expect(env["VITE_API_TARGET"]).toBe(`http://127.0.0.1:${String(FIXTURE_PORTS.server)}`);
   expect(env["STACK_RUN_DIR"]).toBe(join("/repo", FIXTURE_DIR_REL, "stack"));
-  expect(env["AUTH_MODE"]).toBe("local");
+  expect(env[AUTH_MODE_KEY]).toBe("local");
   expect(env["DATA_DIR"]).toBe("./.cache/multi-user-fixture");
   expect(env["DATABASE_URL"]).toBe("file:./.cache/multi-user-fixture/orb.db");
-  expect(env["ORB_ENV_NO_FILE"]).toBe("1");
-  expect(env["OWNER_HANDLES"]).toBe("owner");
+  expect(env[ENV_NO_FILE_KEY]).toBe("1");
+  expect(env[OWNER_HANDLES_KEY]).toBe("owner");
 });
 
 test("the seed contract names the credentials the roster seeds, so snap and the seed cannot drift", () => {
@@ -45,7 +47,7 @@ test("FIXTURE_PORT and FIXTURE_VITE_PORT move the pair, and the seed and proxy t
 
 test("the identity half carries sign-in and seed keys only, so a snap stage keeps its own band and data root", () => {
   const identity = fixtureIdentityEnv(8908);
-  expect(identity["AUTH_MODE"]).toBe("local");
+  expect(identity[AUTH_MODE_KEY]).toBe("local");
   expect(identity["SEED_BASE_URL"]).toBe("http://127.0.0.1:8908");
   for (const key of ["PORT", "VITE_PORT", "VITE_API_TARGET", "STACK_RUN_DIR", "DATA_DIR", "DATABASE_URL", "ASSETS_DIR"]) {
     expect(identity).not.toHaveProperty(key);

@@ -45,7 +45,7 @@ const INPUT_KIND: Readonly<Record<keyof DataLayoutInput, "root" | "slot" | "secr
   ["IMPORT_STAGING_DIR"]: "slot",
   ["CREDENTIALS_KEY"]: "secret",
   ["SESSION_SECRET"]: "secret",
-  ["DATA_LAYOUT_SKIP"]: "skip",
+  [DATA_LAYOUT_SKIP_KEY]: "skip",
 };
 const INPUT_KEYS = Object.keys(INPUT_KIND).filter((key): key is keyof DataLayoutInput => Object.hasOwn(INPUT_KIND, key));
 const keysOfKind = (kind: (typeof INPUT_KIND)[keyof DataLayoutInput]): readonly (keyof DataLayoutInput)[] =>

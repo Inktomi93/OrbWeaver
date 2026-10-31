@@ -2,7 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { testId } from "@orb/client/lib";
 import { createCharacterSchema } from "@orb/contracts/character";
-import { CSRF_HEADER } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { personaCollisionReviewSchema, ST_SETTINGS_FILE } from "@orb/contracts/import";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import { exportCharacterPath, PORTABILITY_ROUTES } from "@orb/contracts/portability";
@@ -19,7 +19,7 @@ import type { WorkloadActionGroupsStory } from "./_action-groups-stories.tsx";
 
 const STORY = "tests/client/features/workloads/components/_action-groups-stories/WorkloadActionGroupsStory";
 const ROOT_OPTIONS = {
-  env: { ["AUTH_MODE"]: "single-user", ["AUTH_FALLBACK"]: "owner" },
+  env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" },
   physicalPeer: () => "127.0.0.1",
   startJobs: false,
 } as const;

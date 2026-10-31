@@ -3,6 +3,7 @@
 import "@orb/tooling/snap";
 import { readFile } from "node:fs/promises";
 import { contextFitAnswerSchema } from "@orb/contracts/chat";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { localPath } from "@orb/db";
 import { z } from "zod";
 import { createCorpusHarness, loadCorpusFixture } from "./corpus.ts";
@@ -23,7 +24,7 @@ test("native corpus stage clone reaches preview retrieval without changing its p
   expect(prepared.fixture.wire).toEqual(source.wire);
   const transport = createCorpusProviderTransport(prepared.provider.baseUrl);
   await using root = await createCorpusHarness(prepared.fixture.layout.root, {
-    env: { ["AUTH_MODE"]: "single-user", ["AUTH_FALLBACK"]: "owner" },
+    env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" },
     providerFetch: transport.fetch,
     networkExecution: transport,
   });

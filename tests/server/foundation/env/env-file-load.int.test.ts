@@ -5,6 +5,8 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, DEFAULT_USER_HANDLE_KEY, OWNER_GROUP_KEY } from "@orb/contracts/identity";
+import { ENV_NO_FILE_KEY, ENV_NO_OVERRIDE_KEY } from "@orb/kit/env-file";
 import { AUTH_MODE_DEFAULT_FALLBACK } from "@orb/server/foundation/env";
 import { expect, test } from "@orb/testkit/node";
 import { z } from "zod";
@@ -50,11 +52,11 @@ function run(cwd: string, processEnv: Readonly<Record<string, string>>): Resolve
     throw new Error(outcome.error);
   }
   // The path-valued keys follow the working directory, so a case compares only the keys a `.env` line can set here.
-  return { handle: outcome.env["DEFAULT_USER_HANDLE"], port: outcome.env["PORT"], ownerGroup: outcome.env["OWNER_GROUP"] };
+  return { handle: outcome.env[DEFAULT_USER_HANDLE_KEY], port: outcome.env["PORT"], ownerGroup: outcome.env[OWNER_GROUP_KEY] };
 }
 
 const FILE = "DEFAULT_USER_HANDLE=from-dotfile\nPORT=9001\nOWNER_GROUP=admins\n";
-const SHELL = { ["DEFAULT_USER_HANDLE"]: "from-shell", ["PORT"]: "7777" };
+const SHELL = { [DEFAULT_USER_HANDLE_KEY]: "from-shell", ["PORT"]: "7777" };
 
 test("a launch's .env beats an already-set shell export, and fills keys the shell never set", ({ importStagingDir }) => {
   const env = load(importStagingDir, "override", FILE, SHELL);
@@ -63,7 +65,7 @@ test("a launch's .env beats an already-set shell export, and fills keys the shel
   expect(env.ownerGroup).toBe("admins");
 });
 
-test.for([{ ["VITEST"]: "1" }, { ["ORB_ENV_NO_OVERRIDE"]: "1" }])(
+test.for([{ ["VITEST"]: "1" }, { [ENV_NO_OVERRIDE_KEY]: "1" }])(
   "with the override escape hatch %j the shell wins and the file still fills unset keys",
   (hatch, { importStagingDir }) => {
     const env = load(importStagingDir, "hatch", FILE, { ...SHELL, ...hatch });
@@ -75,7 +77,7 @@ test.for([{ ["VITEST"]: "1" }, { ["ORB_ENV_NO_OVERRIDE"]: "1" }])(
 
 test("ORB_ENV_NO_FILE skips the file entirely, so the file's values never reach the record", ({ importStagingDir }) => {
   const baseline = load(importStagingDir, "baseline", undefined);
-  const skipped = load(importStagingDir, "skipped", FILE, { ["ORB_ENV_NO_FILE"]: "1" });
+  const skipped = load(importStagingDir, "skipped", FILE, { [ENV_NO_FILE_KEY]: "1" });
   expect(skipped).toEqual(baseline);
   // Control: without the flag the same file changes the record.
   expect(load(importStagingDir, "loaded", FILE)).not.toEqual(baseline);
@@ -105,7 +107,7 @@ test.for(["AUTH_FALLBACK=owner", "AUTH_FALLBACK_TRUSTED_PEERS=172.16.0.0/12"])(
 
     // Controls: the same file without the line boots at the mode's default, and the launch environment may set it.
     const unpinned = boot(importStagingDir, "unpinned", "AUTH_MODE=single-user\n");
-    expect(unpinned).toMatchObject({ env: { ["AUTH_FALLBACK"]: AUTH_MODE_DEFAULT_FALLBACK["single-user"] } });
+    expect(unpinned).toMatchObject({ env: { [AUTH_FALLBACK_KEY]: AUTH_MODE_DEFAULT_FALLBACK["single-user"] } });
     expect(boot(importStagingDir, "launched", "AUTH_MODE=single-user\n", { [key]: value })).toMatchObject({ env: { [key]: expect.anything() } });
   },
 );
@@ -113,11 +115,11 @@ test.for(["AUTH_FALLBACK=owner", "AUTH_FALLBACK_TRUSTED_PEERS=172.16.0.0/12"])(
 // The session cookie's transport is decided per request; the deleted knob must stay inert, never fatal and never
 // carried into the record, wherever an old line still sets it.
 test.for(["true", "false", "1", "TRUE"])("SESSION_COOKIE_INSECURE=%s boots and reaches no record field", (spelling, { importStagingDir }) => {
-  const launched = boot(importStagingDir, "launched", undefined, { ["AUTH_MODE"]: "local", ["SESSION_COOKIE_INSECURE"]: spelling });
-  expect(launched).toMatchObject({ env: { ["AUTH_MODE"]: "local" } });
+  const launched = boot(importStagingDir, "launched", undefined, { [AUTH_MODE_KEY]: "local", ["SESSION_COOKIE_INSECURE"]: spelling });
+  expect(launched).toMatchObject({ env: { [AUTH_MODE_KEY]: "local" } });
   expect("env" in launched && Object.hasOwn(launched.env, "SESSION_COOKIE_INSECURE")).toBe(false);
 
   const filed = boot(importStagingDir, "filed", `AUTH_MODE=local\nPORT=9001\nSESSION_COOKIE_INSECURE=${spelling}\n`);
-  expect(filed).toMatchObject({ env: { ["AUTH_MODE"]: "local", ["PORT"]: 9001 } });
+  expect(filed).toMatchObject({ env: { [AUTH_MODE_KEY]: "local", ["PORT"]: 9001 } });
   expect("env" in filed && Object.hasOwn(filed.env, "SESSION_COOKIE_INSECURE")).toBe(false);
 });

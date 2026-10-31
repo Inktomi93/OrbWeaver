@@ -265,3 +265,30 @@ By file, count then path:
 1 tests/tooling/stack/_dev-verbs.ts
 1 tests/tooling/stack/lib/leader-record.test.ts
 ```
+
+## Extended-rule sweep
+
+The sweep rewrote the census sites with the `literal-to-binding` codemod and by hand where the site is a template or a query. The rule at scope `all` now reports 93 findings in 31 files; the repository config stays at scope `named` until they reach zero.
+
+| Kind | Findings |
+| - | - |
+| route | 0 |
+| name | 0 |
+| code | 46 |
+| env | 47 |
+
+Done: every route reads `PORTABILITY_ROUTES`, `exportCharacterPath` or `exportChatPath`; every `*_OP_CODES` object member reads its code object; the autosave readout and the Add connection button read their copy module; `AUTH_MODE`, `AUTH_FALLBACK`, `AUTH_FALLBACK_TRUSTED_PEERS`, the role-policy keys, the sign-in keys, `ORB_ENV_NO_FILE`, `ORB_ENV_NO_OVERRIDE`, `ALLOWED_HOSTS` and `DATA_LAYOUT_SKIP` read a named key constant. The identity keys are new named constants in `packages/contracts/src/identity/index.ts`, and the arrays that held them (`CONTAINER_LOGIN_FALLBACK_ENV`, `SIGN_IN_MODE_KEYS`, `ROLE_POLICY_ENV_KEYS`) are built from them. The lighthouse fixture heading had matched `CHAT_PLUGINS_TAB_LABEL` by value only; the fixture now owns its heading.
+
+Open, and each needs a ruling because production exports the value only as a member of an array:
+
+| Owner | Findings | Default |
+| - | - | - |
+| `WARNING_CODES` | 37 | a `WARNING_CODE` object, with the tuple derived from it |
+| `DATA_LAYOUT_SLOT_KEYS` | 28 | named slot key constants beside the array |
+| `APP_SECRET_ENV_KEYS` | 16 | named key constants beside the array |
+| `CHAT_WARNING_CODES` | 5 | a named `settings_adjusted` constant |
+| `PENDING_JOIN_ERROR_CODES` | 3 | named code constants |
+| `AUTH_FALLBACK_TRUSTED_PEERS_KEY`, `OIDC_CLIENT_SECRET_KEY` | 3 | keep: `tests/tooling/container-security-config.int.test.ts` reads the shipped env file |
+| `SIGNUP_ERROR_CODES` | 1 | a named code constant |
+
+Pins: `tests/tooling/container-security-config.int.test.ts` keeps its literals, because its subject is the key spelling in the shipped env files. `tests/contracts/inference/warnings.contract.test.ts` asserts membership of a wire value in two vocabularies, so it is a pin too. Both need a precise rule exception when the scope turns on. `tests/support/node/env-seams.ts` derives: a rename already fails `tsc` there, so it pins nothing.
