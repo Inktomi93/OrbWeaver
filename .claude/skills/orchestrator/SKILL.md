@@ -257,7 +257,7 @@ format, numbering, and message kinds. Read it before you write a note.
 
 For Codex dispatch to Claude primary, use the full brief above: ownership, acceptance, scoped checks, hazards and explicit exclusions. Require source and caller surveys before edits. Main retains integration and shared-host scheduling. Read `~/.claude/bridge/SESSIONS.md` and verify the existing native inbox watcher; do not start a duplicate. Use a process, not a dedicated model lane, for inbox polling. Confirm the current session receives its alerts instead of assuming Claude plugin delivery reaches Codex.
 
-- Write each note in one shot. The bridge plugin delivers a `bridge: new note N` event for every write to your inbox.
-- Send with `claude-bridge send` (the bridge skill). It numbers the note under the lock.
-- Ack a note by moving it into its inbox's `done/`.
+- Write each note in one shot. The bridge mod wakes the session with a `[bridge, not the owner] new note N` turn for every note in your inbox.
+- Send with the bridge mod's `send` tool, answer with `reply` (it acks first), ack with `ack`. Scripts use `claude-bridge send`. Numbering happens under the lock either way.
+- Ack only after acting; the tool moves the note into its inbox's `done/`.
 - Keep lane-state notes in the session scratchpad, not in a bridge inbox.
