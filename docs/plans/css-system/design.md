@@ -466,7 +466,7 @@ Dynamic Type remains deferred. Adopting `-apple-system-body` changes the approve
 - Keep item 1299 open until its explicit current-tree native lint and dependency requirements are satisfied.
 - The enlarged-text repairs run before comparative acceptance, in the [cross-surface order](../cross-surface-consistency/design.md#order).
 - Preserve the distinction between source delivery, selected rendered acceptance and full application CI.
-- The Import FormDialog is qualified on Chromium and WebKit at 200% text on the phone and desktop and at 300% layout on desktop. At 300% on a 390px phone the dialog gutter leaves a sliver; item 1299 holds it.
+- The Import FormDialog is qualified on Chromium and WebKit at 200% text and 300% layout on the phone and desktop.
 - Keep fine-pointer finder reveal-transition imagery unqualified. A recent-shelf focus image does not establish that behavior.
 - The desktop topbar and the desktop room at 200% text are qualified on Chromium and WebKit. The phone topbar, the panels, the phone room and every 300% case other than the Import dialog on desktop are open defects on item 1299.
 - Qualify 300% layout separately. Room measurements at the base scale do not cover enlarged text.

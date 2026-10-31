@@ -27,6 +27,7 @@ import { useId, useRef, useState } from "react";
 import { RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
 import { createEntityMutation, useGatedQuery, useInvalidation, useStartChat, useTRPC } from "#data";
+import { ROW_RENAME_NAME } from "#lib";
 import {
   enterSelectionMode,
   GAME_MODE_KEPT_LINE,
@@ -39,7 +40,7 @@ import {
   selectChat,
 } from "#state";
 import { useDeleteChat, useUpdateChatTitle } from "../hooks/use-chat-row-mutations.ts";
-import { BACK_TO_PARENT_CHAT_LABEL } from "../lib/chat-options-names.ts";
+import { BACK_TO_PARENT_CHAT_LABEL, CHAT_DELETE_NAME, CHAT_SELECT_MESSAGES_NAME } from "../lib/chat-options-names.ts";
 import { RenameChatDialog } from "./rename-chat-dialog.tsx";
 
 // The #40 GAME front-door mutations — the ⋯ menu's start/stop rides the rpg procs DIRECTLY
@@ -251,7 +252,7 @@ export function ChatOptionsMenu({ chatId, title, characters, galleryCharacters, 
         // only game door. `tooltip` is a boolean now; the divergence is unrepresentable.
         tooltip={true}
         destructive={{
-          label: "Delete chat",
+          label: CHAT_DELETE_NAME,
           separator: false,
           title: "Delete this chat?",
           description: "This permanently deletes the chat and its messages for everyone. This can't be undone.",
@@ -312,7 +313,7 @@ export function ChatOptionsMenu({ chatId, title, characters, galleryCharacters, 
             row, which is where the eye lands after it. */}
         <MenuItem onClick={enterSelectionMode}>
           <Icon icon={ListChecks} size="sm" />
-          Select messages…
+          {CHAT_SELECT_MESSAGES_NAME}
         </MenuItem>
 
         <MenuSeparator />
@@ -334,7 +335,7 @@ function TrailingItems({ onRename }: { readonly onRename: () => void }): ReactEl
     <>
       <MenuItem onClick={onRename}>
         <Icon icon={Pencil} size="sm" />
-        Rename
+        {ROW_RENAME_NAME}
       </MenuItem>
       <MenuItem onClick={goToLanding}>
         <Icon icon={X} size="sm" />

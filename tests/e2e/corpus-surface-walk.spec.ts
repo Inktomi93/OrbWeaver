@@ -4,7 +4,8 @@ import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import { observeSurfaceSession } from "@orb/testkit/browser/spec";
 import { attachNativeFile, SURFACE_BOOT_DIAGNOSTIC_TITLE } from "@orb/testkit/node/helpers";
 import { budget } from "@orb/tooling/floor/host/load-budget";
-import { authenticateBrowserActor } from "./support/browser-actors.ts";
+import type { Page } from "@playwright/test";
+import { authenticateBrowserActor, LOGIN_FAILED } from "./support/browser-actors.ts";
 import { waitForAppReady } from "./support/chat-room.ts";
 import { CHARACTER_WALK_AREAS, walkCharacterArea } from "./support/surface-character.ts";
 import {
@@ -25,6 +26,13 @@ import {
 import { walkConfigCategory, walkConfigMap, walkConfigRecovery, walkConfigSettings } from "./support/surface-config.ts";
 import { SURFACE_SECTION_IDS, walkRefineryExecution, walkSection } from "./support/surface-sections.ts";
 import { expect, test } from "./support/surface-test.ts";
+
+const NO_DEV_BRIDGE = "The real production client has no development bridge";
+
+/** Whether the page carries the `__orb` development bridge, which a production build never ships. */
+async function hasDevBridge(page: Page): Promise<boolean> {
+  return await page.evaluate(() => "__orb" in globalThis);
+}
 
 const JOURNEY_OWNER = {
   home: "sections",
@@ -60,7 +68,7 @@ test.describe("production surface walk @surface-walk", () => {
       ],
     }, async ({ flow, page }) => {
       await walkCharacterArea(flow, area);
-      expect(await page.evaluate(() => "__orb" in globalThis), "The real production client has no development bridge").toBe(false);
+      expect(await hasDevBridge(page), NO_DEV_BRIDGE).toBe(false);
     });
   }
   for (const journey of [
@@ -83,7 +91,7 @@ test.describe("production surface walk @surface-walk", () => {
   ]) {
     test(journey.name, { annotation: { type: "surface-section", description: journey.section } }, async ({ flow, page }) => {
       await journey.walk(flow);
-      expect(await page.evaluate(() => "__orb" in globalThis), "The real production client has no development bridge").toBe(false);
+      expect(await hasDevBridge(page), NO_DEV_BRIDGE).toBe(false);
     });
   }
   for (const category of CONFIG_GROUP_IDS) {
@@ -94,13 +102,13 @@ test.describe("production surface walk @surface-walk", () => {
       ],
     }, async ({ flow, page }) => {
       await walkConfigCategory(flow, category);
-      expect(await page.evaluate(() => "__orb" in globalThis), "The real production client has no development bridge").toBe(false);
+      expect(await hasDevBridge(page), NO_DEV_BRIDGE).toBe(false);
     });
   }
   for (const section of SURFACE_SECTION_IDS) {
     test(`Rail independent ${section}`, { annotation: { type: "surface-section", description: section } }, async ({ flow, page }) => {
       await walkSection(flow, section);
-      expect(await page.evaluate(() => "__orb" in globalThis), "The real production client has no development bridge").toBe(false);
+      expect(await hasDevBridge(page), NO_DEV_BRIDGE).toBe(false);
     });
   }
   for (const chatStyle of THEME_CHAT_STYLES) {
@@ -113,7 +121,7 @@ test.describe("production surface walk @surface-walk", () => {
         ],
       }, async ({ flow, page }) => {
         await walkChatReading(flow);
-        expect(await page.evaluate(() => "__orb" in globalThis), "The completed real production flow has no development bridge").toBe(false);
+        expect(await hasDevBridge(page), "The completed real production flow has no development bridge").toBe(false);
       });
     });
   }
@@ -128,7 +136,7 @@ test(SURFACE_BOOT_DIAGNOSTIC_TITLE, { annotation: { type: "surface-section", des
     await test.step("Production boot with official trace-engine receipts", async (step) => {
       await page.goto(run.origin);
       await waitForAppReady(page);
-      expect(await page.evaluate(() => "__orb" in globalThis)).toBe(false);
+      expect(await hasDevBridge(page), NO_DEV_BRIDGE).toBe(false);
       const rawPath = info.outputPath("boot.trace.json");
       const receipt = await trace.finish(rawPath, async (retained) => {
         await step.attach("boot-trace-events", { path: rawPath, contentType: "application/json" });
@@ -178,8 +186,8 @@ test("local humans keep isolated native sessions before production navigation @s
       await second.page.goto(run.origin);
       await waitForAppReady(first.page);
       await waitForAppReady(second.page);
-      expect(await first.page.evaluate(() => "__orb" in globalThis)).toBe(false);
-      expect(await second.page.evaluate(() => "__orb" in globalThis)).toBe(false);
+      expect(await hasDevBridge(first.page)).toBe(false);
+      expect(await hasDevBridge(second.page)).toBe(false);
     } finally {
       await second.close();
     }
@@ -188,7 +196,7 @@ test("local humans keep isolated native sessions before production navigation @s
   }
   const contextsBeforeFailure = browser.contexts().length;
   await expect(authenticateBrowserActor(browser, run.origin, { handle: member.viewer.handle, password: `${member.password}-invalid` })).rejects.toThrow(
-    "login failed",
+    LOGIN_FAILED,
   );
   expect(browser.contexts()).toHaveLength(contextsBeforeFailure);
 });

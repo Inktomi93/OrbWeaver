@@ -66,16 +66,14 @@ import type { WeavePhase } from "@orb/ui/web-weave";
 import { WeaveGlyph, WeaveVeil, WebWeave } from "@orb/ui/web-weave";
 import type { ReactElement } from "react";
 import { useEffect, useState, useSyncExternalStore } from "react";
-
-/** The readiness seam (app-ready-signal.ts — presence = stop waiting; value may be "degraded"). */
-const READY_ATTR = "data-app-ready";
+import { APP_READY_ATTR } from "#lib";
 
 function subscribeReady(onChange: () => void): () => void {
   const observer = new MutationObserver(onChange);
-  observer.observe(document.documentElement, { attributes: true, attributeFilter: [READY_ATTR] });
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: [APP_READY_ATTR] });
   return (): void => observer.disconnect();
 }
-const getReady = (): boolean => document.documentElement.hasAttribute(READY_ATTR);
+const getReady = (): boolean => document.documentElement.hasAttribute(APP_READY_ATTR);
 /** SSR/prerender: treat as ready — a server render must never emit a veil the client can't drive. */
 const getReadyServer = (): boolean => true;
 

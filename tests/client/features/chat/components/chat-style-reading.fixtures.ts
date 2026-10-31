@@ -21,6 +21,17 @@ export interface ReadingRoom {
   readonly longUserId: MessageId;
 }
 
+// The room the suite in this worker built last: its cases read it through `openReadingStyle` and `roomStoryProps`, so a
+// loop of cases never closes over the suite's own `let`.
+let activeRoom: ReadingRoom | undefined;
+
+function currentRoom(): ReadingRoom {
+  if (activeRoom === undefined) {
+    throw new Error("No reading room exists; call createReadingRoom in the suite's beforeAll first");
+  }
+  return activeRoom;
+}
+
 /** Extends actual room messages so the same speakers cross the sticky reading boundary in each suite. */
 export async function createReadingRoom(): Promise<ReadingRoom> {
   const root = await createCorpusHarness();
@@ -42,7 +53,8 @@ export async function createReadingRoom(): Promise<ReadingRoom> {
         const content = Array.from({ length: LONG_REPLY_PARAGRAPHS }, () => FILLER).join("\n\n");
         await caller.chat.editMessage({ chatId: row.id, messageId: user.id, content, timeZone: UTC_TIME_ZONE });
         await caller.chat.editMessage({ chatId: row.id, messageId: earlier.id, content, timeZone: UTC_TIME_ZONE });
-        return { root, roomId, longReplyId, longUserId };
+        activeRoom = { root, roomId, longReplyId, longUserId };
+        return activeRoom;
       }
     }
     throw new Error("No corpus room ends on a reply with an earlier reply and both roles in its tail");
@@ -95,4 +107,14 @@ export async function openReadingRoom(
     ...createShellAmbientReads(corpus, root.ownerId),
     ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...ROOM_PROCEDURES, ...GAME_PROCEDURES]),
   });
+}
+
+/** Open the reading room in `chatStyle`, without art; the caller seeds the Chats section from the browser world. */
+export async function openReadingStyle(page: Page, corpus: CorpusPlayback, chatStyle: ThemeChatStyle): Promise<void> {
+  await openReadingRoom(page, corpus, currentRoom().root, { chatStyle, art: false });
+}
+
+/** The props every reading-room shell story takes. */
+export function roomStoryProps(): { readonly chatId: ChatId } {
+  return { chatId: currentRoom().roomId };
 }

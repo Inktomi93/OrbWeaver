@@ -3,10 +3,10 @@
 // This module must not import development instrumentation.
 
 import type { QueryClient } from "@tanstack/react-query";
+import { APP_READY_ATTR } from "./app-ready-attribute.ts";
 import { bootReads } from "./boot-reads.ts";
 import { perfMeasureFromLoad } from "./perf-marks.ts";
 
-const READY_ATTR = "data-app-ready";
 // The grace before the first "no initial reads at all" check. An app that never fetches is ready here.
 const READY_GRACE_MS = 3000;
 // The hard ceiling. Past this the flag goes up REGARDLESS so no waiter ever hangs — but it goes up carrying
@@ -23,7 +23,7 @@ export const appReady: Promise<void> = appReadyState.promise;
 
 /** Read the same DOM marker `installAppReadySignal` owns. */
 export function isAppReady(): boolean {
-  return document.documentElement.hasAttribute(READY_ATTR);
+  return document.documentElement.hasAttribute(APP_READY_ATTR);
 }
 
 /** The readiness signal's view of ROUTE RESOLUTION — a narrow port, not the router itself: `lib/` is the
@@ -47,7 +47,7 @@ export function installAppReadySignal(queryClient: QueryClient, routeResolution:
     if (settled) {
       return;
     }
-    el.setAttribute(READY_ATTR, state);
+    el.setAttribute(APP_READY_ATTR, state);
     if (!announced) {
       announced = true;
       perfMeasureFromLoad("app-ready");

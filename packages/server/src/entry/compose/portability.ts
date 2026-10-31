@@ -2,7 +2,7 @@ import type { StoreAvatarAsset } from "@orb/contracts/assets";
 import type { BulkImportChatsOp } from "@orb/contracts/chat";
 import type { BulkImportPersonas } from "@orb/contracts/persona";
 import type { PortabilityRegistry, PortableKind } from "@orb/contracts/portability";
-import { PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
+import { PORTABILITY_ROUTES, PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
 import type { ExportRegexScripts, ImportCardScripts, ImportRegexScript } from "@orb/contracts/regex";
 import type { AttachCardTagByNameOp } from "@orb/contracts/tag";
 import type { ImportStandaloneLorebook, ImportWorldInfoPort } from "@orb/contracts/world-info";
@@ -302,13 +302,13 @@ export const NON_PORTABLE_CANON = {
 /** Single-entity doors or the explicit decision that the family has none. */
 export const LIFECYCLE_DOORS = {
   character: {
-    singleExport: { transport: "http", method: "GET", cite: "/api/export/character/:characterId" },
-    singleImport: { transport: "http", method: "POST", cite: "/api/import" },
+    singleExport: { transport: "http", method: "GET", cite: PORTABILITY_ROUTES.exportCharacter },
+    singleImport: { transport: "http", method: "POST", cite: PORTABILITY_ROUTES.importCards },
     chrome: "band+kebab",
   },
   chat: {
-    singleExport: { transport: "http", method: "GET", cite: "/api/export/chat/:chatId" },
-    singleImport: { transport: "http", method: "POST", cite: "/api/import/chat" },
+    singleExport: { transport: "http", method: "GET", cite: PORTABILITY_ROUTES.exportChat },
+    singleImport: { transport: "http", method: "POST", cite: PORTABILITY_ROUTES.importChat },
     chrome: "band+kebab",
   },
   persona: {

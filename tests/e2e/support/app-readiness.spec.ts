@@ -1,10 +1,11 @@
 import { expect, test } from "@playwright/test";
+import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
 import { waitForAppReady } from "./chat-room.ts";
 
 test("readiness requires settled reads, not the degraded fallback marker", async ({ page }) => {
-  await page.setContent('<html data-app-ready=""><body>Settled</body></html>');
+  await page.setContent(`<html ${APP_READY_ATTR}=""><body>Settled</body></html>`);
   await waitForAppReady(page);
-  await page.locator("html").evaluate((html) => html.setAttribute("data-app-ready", "degraded"));
+  await page.locator("html").evaluate((html, attribute) => html.setAttribute(attribute, "degraded"), APP_READY_ATTR);
   await expect(waitForAppReady(page, 100)).rejects.toThrow(/degraded/u);
 });
 
@@ -18,11 +19,11 @@ test("a failed boot names the Vite import error rather than only a missing marke
 });
 
 test("a degraded boot can recover when its actual reads settle", async ({ page }) => {
-  await page.setContent('<html data-app-ready="degraded"><body>Waiting for reads</body></html>');
+  await page.setContent(`<html ${APP_READY_ATTR}="degraded"><body>Waiting for reads</body></html>`);
   const ready = waitForAppReady(page, 1000);
-  await page.locator("html").evaluate((html) => html.setAttribute("data-app-ready", ""));
+  await page.locator("html").evaluate((html, attribute) => html.setAttribute(attribute, ""), APP_READY_ATTR);
   await ready;
-  await expect(page.locator("html")).toHaveAttribute("data-app-ready", "");
+  await expect(page.locator("html")).toHaveAttribute(APP_READY_ATTR, "");
 });
 
 test("an auth boundary is named and never mistaken for app readiness", async ({ page }) => {
@@ -31,7 +32,7 @@ test("an auth boundary is named and never mistaken for app readiness", async ({ 
 });
 
 test("diagnostic capture failure preserves the original readiness assertion", async ({ page }) => {
-  await page.setContent('<html data-app-ready=""><body>Settled</body></html>');
+  await page.setContent(`<html ${APP_READY_ATTR}=""><body>Settled</body></html>`);
   await waitForAppReady(page);
   await page.close();
   await expect(waitForAppReady(page, 100)).rejects.toMatchObject({

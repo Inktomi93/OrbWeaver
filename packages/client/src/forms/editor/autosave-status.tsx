@@ -5,6 +5,7 @@ import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { AutosaveSaveState } from "../create-autosave-entity-form-model.ts";
+import { AUTOSAVE_RESTORED_LEAD, AUTOSAVE_RESUME_NAME, AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVED_TEXT } from "./autosave-status-names.ts";
 
 export interface AutosaveStatusProps {
   /** `draft` is the caller-known pre-persistence arm: no row exists yet, so `saved` would be a lie. */
@@ -20,9 +21,9 @@ export function AutosaveStatus({ state, onRetry, retryable = true }: AutosaveSta
   if (state === "restored") {
     return (
       <Row gap="field" align="center" data-slot="autosave-status" role="status" aria-live="polite">
-        <Text voice="gloss">Restored draft — not saved</Text>
+        <Text voice="gloss">{AUTOSAVE_RESTORED_LEAD} — not saved</Text>
         <Button type="button" variant="ghost" size="sm" onClick={onRetry}>
-          Resume saving
+          {AUTOSAVE_RESUME_NAME}
         </Button>
       </Row>
     );
@@ -34,7 +35,8 @@ export function AutosaveStatus({ state, onRetry, retryable = true }: AutosaveSta
       <Row className="flex-wrap" gap="field" align="center" data-slot="autosave-status" role="alert">
         <Icon tone="destructive" icon={AlertTriangle} size="sm" />
         <Text tone="destructive" voice="reading">
-          {retryable ? "Save failed —" : "Save failed"}
+          {AUTOSAVE_SAVE_FAILED_TEXT}
+          {retryable ? " —" : ""}
         </Text>
         {retryable ? (
           <Button type="button" variant="ghost" size="sm" onClick={onRetry}>
@@ -81,9 +83,10 @@ export function AutosaveStatus({ state, onRetry, retryable = true }: AutosaveSta
   }
   // Saving…/Saved: polite so the transition is announced without interrupting (role="status" carries an
   // implicit aria-live="polite"; both are set so the intent reads plainly at the call site).
+  const settled = state === "saving" ? "Saving…" : AUTOSAVE_SAVED_TEXT;
   return (
     <Text data-slot="autosave-status" voice="gloss" role="status" aria-live="polite">
-      {state === "saving" ? "Saving…" : "Saved"}
+      {settled}
     </Text>
   );
 }

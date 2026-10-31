@@ -8,6 +8,10 @@ import { MODAL_SURFACE, OVERLAY_MOTION, SCRIM, tv } from "#lib";
 // correctly on the popup. The popup pairs that clamp with
 // `overflow-y-auto overscroll-contain` (matching drawer-content) so tall content — a FormDialog whose
 // body outgrows the viewport — actually scrolls to its submit button instead of overflowing off-screen.
+// The gutter is a rem token, so enlarged text grows it with the type; on a mobile shell it steps down to the field inset so
+// a phone keeps a readable dialog width at 300%.
+const VIEWPORT_GUTTER = "p-gutter shell-mobile:p-field";
+
 export const dialogVariants = tv({
   slots: {
     // The modal scrim + the dialog-only `backdrop-blur-sm` on top (alert-dialog shares the scrim, not the blur).
@@ -31,14 +35,14 @@ export const dialogVariants = tv({
     // scrolled rows do not show through.
     stickyHeader: { true: { header: "sticky inset-bs-0 z-(--z-raised) bg-card" }, false: {} },
     size: {
-      sm: { viewport: "p-gutter", popup: "max-inline-(--width-dialog-sm)" },
-      md: { viewport: "p-gutter", popup: "max-inline-(--width-dialog-md)" },
-      lg: { viewport: "p-gutter", popup: "max-inline-(--width-dialog-lg)" },
+      sm: { viewport: VIEWPORT_GUTTER, popup: "max-inline-(--width-dialog-sm)" },
+      md: { viewport: VIEWPORT_GUTTER, popup: "max-inline-(--width-dialog-md)" },
+      lg: { viewport: VIEWPORT_GUTTER, popup: "max-inline-(--width-dialog-lg)" },
       wide: { viewport: "p-field", popup: "max-inline-(--width-dialog-lg)" },
       // The large shell modal: fills most of the screen but stays a centered card, capped at xl width.
-      xl: { viewport: "p-gutter", popup: "block-full max-inline-(--width-dialog-xl)" },
+      xl: { viewport: VIEWPORT_GUTTER, popup: "block-full max-inline-(--width-dialog-xl)" },
       // Hugs its content on both axes, up to the xl width (a lightbox sized by the image it holds).
-      xlFit: { viewport: "p-gutter", popup: "inline-fit max-inline-(--width-dialog-xl)" },
+      xlFit: { viewport: VIEWPORT_GUTTER, popup: "inline-fit max-inline-(--width-dialog-xl)" },
       full: { viewport: "p-0", popup: "rounded-none border-0 block-full inline-full max-inline-none" },
     },
     // Where the popup sits on the block axis. `top` pins its top edge at the viewport gutter, so a dialog whose

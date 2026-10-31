@@ -10,6 +10,7 @@ import { PROSE_SLOTS, resolveProseText } from "@orb/contracts/prose";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
+import { REACTION_ANONYMOUS_REACTOR, REACTION_WHOLE_MESSAGE_TARGET, reactionNote } from "#server/domain/chat/reaction-note.ts";
 import { coreProse } from "../engine/core-physical.ts";
 import { inputMessages, invitePerson, messageText, personaInputs, personaRoom, seatPersona } from "../persona-cache-physical.ts";
 import { textRoom, wireBodies, wireText } from "../scenario-physical.ts";
@@ -188,10 +189,10 @@ test("two contributions that emit the identical injection reach the model once",
   // The host's frame turns the choices teach into exactly the note the reaction attribution writes for a reaction
   // to a line reading the same words: two contributions, one placement, one content.
   const line = "hello there";
-  const note = `[A member reacted with 👍 to the message: "${line}"]`;
+  const note = reactionNote(REACTION_ANONYMOUS_REACTOR, "👍", REACTION_WHOLE_MESSAGE_TARGET, line);
   const prose: ProseOverrides = {
     "rpg.reminder.cyoaTeach": { text: line, baseVersion: 1 },
-    "chat.teach.choicesFrame": { text: `[A member reacted with 👍 to the message: "{{teach}}"]`, baseVersion: 1 },
+    "chat.teach.choicesFrame": { text: reactionNote(REACTION_ANONYMOUS_REACTOR, "👍", REACTION_WHOLE_MESSAGE_TARGET, "{{teach}}"), baseVersion: 1 },
   };
   await using h = await textRoom(["ok", "ok"], { promptConfig: { ...DEFAULT_PROMPT_CONFIG, prose } });
   const said = (await h.root.services.chat.commitMessage({ principal: h.owner, chatId: h.chatId, content: line })).messages[0];

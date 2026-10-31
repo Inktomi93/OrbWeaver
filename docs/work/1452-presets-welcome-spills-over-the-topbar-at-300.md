@@ -23,4 +23,4 @@ At 300% text on desktop and phone, the Presets welcome stays inside the content 
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+`QUALIFIED.presetsWelcome` in `tests/client/features/app-shell/surfaces/platform-text-scale.suite.ct.tsx` covers the phone (390x844) and desktop (1440x900) at 300%; green on Chromium and WebKit. Red before on both: the welcome block started above the content pane. `PresetLibraryWelcome` now centres with `my-auto` in a scrolling pane instead of `justify-center`, which pushed an overflowing block above the topbar edge. The EmptyState title takes `wrap-anywhere`, so a long title word at 300% is not cut at the pane edges.

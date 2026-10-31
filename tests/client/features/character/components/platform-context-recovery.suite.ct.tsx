@@ -1,3 +1,4 @@
+import { contextToggleLabel } from "@orb/client/lib";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { DEFAULT_APPEARANCE_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { THEME_FONT_ALLOWLIST } from "@orb/contracts/theme";
@@ -9,6 +10,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
+import { AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
 const CARD_NAME = "The northern observatory archivist with a long working name";
@@ -85,7 +87,7 @@ async function expectFailedSheetExit(page: Page, context: Locator): Promise<void
   await page.getByRole("button", { name: /^(?:Close Characters details|Hide details)$/u }).click();
   await expect(context).toHaveAttribute("data-panel-mode", "collapsed");
   await expect(page.getByRole("alert", { name: "Couldn't save the character.", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Show details", exact: true }).click();
+  await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
   await expect(context).toHaveAttribute("data-panel-mode", "overlay");
 }
 
@@ -120,7 +122,7 @@ async function expectRetryContained(context: Locator, retry: Locator): Promise<v
 async function openCharacterContext(page: Page, tabName: "History" | "Look"): Promise<void> {
   await selectCharacter(page, CARD_NAME);
   if ((await page.locator('.shell-panel[data-panel-side="context"]').getAttribute("data-panel-mode")) === "collapsed") {
-    await page.getByRole("button", { name: "Show details", exact: true }).click();
+    await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
   }
   const context = page.locator('.shell-panel[data-panel-side="context"]');
   const tab = context.getByRole("tab", { name: tabName, exact: true });
@@ -168,13 +170,13 @@ test("History resets a failed read when selecting another character and retries 
   await expect(context.getByRole("button", { name: "Retry", exact: true })).toBeVisible();
   await selectCharacter(page, other.name);
   if ((await page.locator('.shell-panel[data-panel-side="context"]').getAttribute("data-panel-mode")) === "collapsed") {
-    await page.getByRole("button", { name: "Show details", exact: true }).click();
+    await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
   }
   await expect(context.getByText(otherLabel, { exact: true })).toBeVisible();
   await expect(context.getByRole("button", { name: "Retry", exact: true })).toHaveCount(0);
   await selectCharacter(page, CARD_NAME);
   if ((await page.locator('.shell-panel[data-panel-side="context"]').getAttribute("data-panel-mode")) === "collapsed") {
-    await page.getByRole("button", { name: "Show details", exact: true }).click();
+    await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
   }
   const retry = context.getByRole("button", { name: "Retry", exact: true });
   await expect(retry).toBeVisible();
@@ -211,17 +213,17 @@ test("Look isolates a failed character's draft on selection without leaking it i
   const status = context.locator('[data-slot="autosave-status"]');
   await font.click();
   await page.getByRole("option", { name: FONT, exact: true }).click();
-  await expect(status).toContainText("Save failed");
+  await expect(status).toContainText(AUTOSAVE_SAVE_FAILED_TEXT);
   await selectCharacter(page, other.name);
   if ((await page.locator('.shell-panel[data-panel-side="context"]').getAttribute("data-panel-mode")) === "collapsed") {
-    await page.getByRole("button", { name: "Show details", exact: true }).click();
+    await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
   }
   await expect(font).toHaveText(otherFont);
-  await expect(status).toHaveText("Saved");
+  await expect(status).toHaveText(AUTOSAVE_SAVED_TEXT);
   await font.click();
   await page.getByRole("option", { name: FONT, exact: true }).click();
   await expect.poll(async () => (await caller.character.get({ characterId: other.id })).themeOverride).toEqual({ font: FONT });
-  await expect(status).toHaveText("Saved");
+  await expect(status).toHaveText(AUTOSAVE_SAVED_TEXT);
   expect((await caller.character.get({ characterId: other.id })).themeOverride).toEqual({ font: FONT });
   expect((await caller.character.get({ characterId: card.id })).themeOverride).toBeNull();
 });
@@ -313,12 +315,12 @@ for (const regime of REGIMES) {
         await expect(page.getByRole("region", { name: "Alerts", exact: true }).getByText("Couldn't save the character.", { exact: true })).toBeVisible();
         await expect(font).toHaveText(FONT);
         await testInfo.attach("look-failed-save-before-retry", { body: await page.screenshot(), contentType: "image/png" });
-        await expect(status).toContainText("Save failed");
+        await expect(status).toContainText(AUTOSAVE_SAVE_FAILED_TEXT);
         if (regime.coarse) {
           await expectFailedSheetExit(page, context);
         }
         await expect(font).toHaveText(FONT);
-        await expect(status).toContainText("Save failed");
+        await expect(status).toContainText(AUTOSAVE_SAVE_FAILED_TEXT);
         const retry = status.getByRole("button", { name: "Retry", exact: true });
         await expectRetryContained(context, retry);
         await testInfo.attach("look-local-recovery", { body: await page.screenshot(), contentType: "image/png" });
@@ -326,7 +328,7 @@ for (const regime of REGIMES) {
         await retry.focus();
         await expect(retry).toBeFocused();
         await page.keyboard.press("Enter");
-        await expect(status).toHaveText("Saved");
+        await expect(status).toHaveText(AUTOSAVE_SAVED_TEXT);
         const after = await caller.character.get({ characterId: card.id });
         expect(after.themeOverride).toEqual({ font: FONT });
         expect({ name: after.name, description: after.description, greetings: after.greetings }).toEqual({

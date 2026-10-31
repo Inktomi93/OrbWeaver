@@ -5,14 +5,12 @@
 
 import type { ThemeChatStyle } from "@orb/contracts/theme";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
-import type { ChatId } from "@orb/kit/ids";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import type { CorpusPlayback } from "@orb/testkit/iso";
 import type { Page } from "@playwright/test";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 import type { ReadingRoom } from "./chat-style-reading.fixtures.ts";
-import { createReadingRoom, openReadingRoom } from "./chat-style-reading.fixtures.ts";
+import { createReadingRoom, openReadingStyle, roomStoryProps } from "./chat-style-reading.fixtures.ts";
 
 const ROOM_STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
 const PHONE = { width: 390, height: 844 } as const;
@@ -86,27 +84,17 @@ const MOONLIT_PORTRAIT: Record<ThemeChatStyle, Reference> = {
 };
 
 let root: ReadingRoom["root"];
-let roomId: ChatId;
 let longReplyId: string;
 
 test.use({ viewport: PHONE, hasTouch: true, isMobile: true });
 
 test.beforeAll(async () => {
-  ({ root, roomId, longReplyId } = await createReadingRoom());
+  ({ root, longReplyId } = await createReadingRoom());
 });
 
 test.afterAll(async () => {
   await root[Symbol.asyncDispose]();
 });
-
-async function openStyle(page: Page, corpus: CorpusPlayback, chatStyle: ThemeChatStyle): Promise<void> {
-  await openReadingRoom(page, corpus, root, { chatStyle, art: false });
-  await seedShellState(page, { activeSection: "chats" });
-}
-
-function roomStoryProps(): { readonly chatId: ChatId } {
-  return { chatId: roomId };
-}
 
 async function textColumnWidth(page: Page, measure: Reference["measure"]): Promise<number> {
   const row = page.locator(`[data-slot="message-row"][data-message-id="${longReplyId}"]`);
@@ -118,7 +106,8 @@ async function textColumnWidth(page: Page, measure: Reference["measure"]): Promi
 for (const chatStyle of THEME_CHAT_STYLES) {
   test(`${chatStyle} keeps its phone text column within a few pixels of Moonlit, or its recorded difference`, async ({ corpus, mount, page }) => {
     const reference = MOONLIT_PORTRAIT[chatStyle];
-    await openStyle(page, corpus, chatStyle);
+    await openReadingStyle(page, corpus, chatStyle);
+    await seedShellState(page, { activeSection: "chats" });
     await mount<typeof ChatRoomShellStory>(ROOM_STORY, roomStoryProps());
     const width = await textColumnWidth(page, reference.measure);
     const partsSum = reference.parts.reduce((sum, part) => sum + part.px, 0);

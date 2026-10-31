@@ -1,5 +1,6 @@
 import { stat } from "node:fs/promises";
 import { basename, join } from "node:path";
+import { LIBRARY_PAGE_SIZE_DEFAULT, LIBRARY_PAGE_SIZE_MIN } from "@orb/contracts/settings";
 import { controlledPanel, diagnosticTarget, publishSurfaceInventory } from "@orb/testkit/browser/spec";
 import type { SurfaceCoverageDisposition } from "@orb/testkit/iso";
 import { surfaceCoverageKey } from "@orb/testkit/iso";
@@ -11,7 +12,9 @@ import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { LIBRARY_SETTINGS_SUBCATEGORY } from "#client/features/character/lib/library-settings-nav.ts";
 import { CONFIG_SECTION_LABEL } from "#client/features/config/lib/config-copy.ts";
+import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { ADD_CONNECTION_PATH } from "#client/lib/injection-copy.ts";
+import { ROW_DELETE_NAME } from "#client/lib/row-menu-names.ts";
 import { rowActionsName } from "#client/lib/row-qualifiers.ts";
 import type { ConfigGroupId } from "#client/state/config-group-ids.ts";
 import { CONFIG_GROUP_IDS } from "#client/state/config-group-ids.ts";
@@ -565,7 +568,7 @@ async function aboutOnly(flow: SurfaceFlow, name: string, context: Locator, visi
 async function teacher(flow: SurfaceFlow, name: string, visits: Visit[]): Promise<void> {
   const context = flow.page.locator(CONTEXT);
   if ((await context.getAttribute("data-panel-mode")) === "collapsed") {
-    await flow.page.getByRole("button", { name: "Show details", exact: true }).click();
+    await flow.page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
   }
   await expect(context).toBeVisible();
   const tabs = context.getByRole("tab");
@@ -1005,7 +1008,7 @@ async function worldInfo(flow: SurfaceFlow, visits: Visit[]): Promise<void> {
     await editor.getByRole("button", { name: `Delete ${entryName}`, exact: true }).click();
     const confirmation = flow.page.getByRole("alertdialog");
     await checkpoint(flow, "world-info-delete-entry-confirmation", confirmation);
-    await confirmation.getByRole("button", { name: "Delete", exact: true }).click();
+    await confirmation.getByRole("button", { name: ROW_DELETE_NAME, exact: true }).click();
     await expect(editor.getByText("No entries yet", { exact: true })).toBeVisible();
     await expect.poll(async () => (await flow.client.worldInfo.listEntries.query({ bookId: book.id })).length).toBe(0);
     await category(flow, "worldInfo");
@@ -1044,7 +1047,7 @@ async function worldInfo(flow: SurfaceFlow, visits: Visit[]): Promise<void> {
 
 async function librarySetting(flow: SurfaceFlow, visits: Visit[]): Promise<void> {
   const original = (await flow.client.settings.getUserSettings.query()).config.library.pageSize;
-  const next = original === 10 ? 20 : 10;
+  const next = original === LIBRARY_PAGE_SIZE_MIN ? LIBRARY_PAGE_SIZE_DEFAULT : LIBRARY_PAGE_SIZE_MIN;
   const setting = LIBRARY_SETTINGS_SUBCATEGORY.settings?.find((candidate) => candidate.id === "rows-per-page");
   if (setting === undefined) {
     throw new Error("The production Library setting no longer exists; update its native journey disposition");

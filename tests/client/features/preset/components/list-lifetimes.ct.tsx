@@ -2,6 +2,7 @@ import { choiceBlockSchema, presetDetailSchema, userMacroSchema } from "@orb/con
 import { holdServed, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { AUTOSAVE_RESUME_NAME } from "#client/forms/editor/autosave-status-names.ts";
 import type { PresetListLifetimeStory } from "./_list-lifetime-stories.tsx";
 
 test.use({ trace: "on" });
@@ -181,7 +182,7 @@ test("native nested lists preserve typing and successor bindings, retain own ech
   await expect(page.getByText("Restored draft — not saved", { exact: true })).toBeVisible();
   await expect(page.getByText("Saved", { exact: true })).toHaveCount(0);
   await variable.getByRole("button", { name: "Done", exact: true }).click();
-  await page.getByRole("button", { name: "Resume saving", exact: true }).press("Enter");
+  await page.getByRole("button", { name: AUTOSAVE_RESUME_NAME, exact: true }).press("Enter");
   await expect(page.getByText("Save failed —", { exact: true })).toBeVisible();
   failSaves = false;
   await page.getByRole("button", { name: "Retry", exact: true }).press("Enter");

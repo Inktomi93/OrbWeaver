@@ -1,16 +1,28 @@
 // The app shell on the committed corpus: boot readiness and focus, the lazy route's failure surface, the census
 // each screen prints, and the phone's tab bar, You sheet and push-and-Back navigation.
-import { APPEARANCE_CHANNEL_ROWS, CORPUS_MODE_LABELS, dataThemeOf } from "@orb/client/lib";
-import { DATA_THEME_ATTR } from "@orb/client/state";
+import { CORPUS_MODE_LABELS, dataThemeOf } from "@orb/client/lib";
+import { APPEARANCE_BOOT_AXES, DATA_THEME_ATTR } from "@orb/client/state";
 import { HOME_QUICK_PICKS_LIMIT } from "@orb/contracts/character";
 import { OS_PREFERENCE_MODES } from "@orb/contracts/settings";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { FONT_SCALE } from "@orb/kit/font-scale";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { pickKeys } from "@orb/kit/objects";
 import { SECTION_LABELS } from "@orb/testkit/ct";
 import type { Locator, Page } from "@playwright/test";
 import { z } from "zod";
+import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
+import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
+import type { AppearanceBootHintState } from "#client/state/appearance-boot-hint.ts";
+import {
+  ACTIVE_USER_KEY,
+  APPEARANCE_BOOT_HINT_NAME,
+  APPEARANCE_BOOT_HINT_VERSION,
+  durableLocalStorageKey,
+  PERSISTED_STORE_PREFIX,
+} from "#client/state/durable-local-keys.ts";
+import { channelName } from "../client/lib/appearance-channel-names.ts";
 import type { ActorClient } from "./support/actors.ts";
 import { ownerActor } from "./support/actors.ts";
 import { waitForAppReady } from "./support/chat-room.ts";
@@ -53,65 +65,71 @@ function crashingAuthedAppChunk(real: string): string {
 
 // The schema's own defaults: what a device that was never told anything replays.
 const defaultAppearance = appearanceSettingsSchema.parse({});
-// The durable-local door's names (`state/durable-local.ts`, `state/appearance-boot-hint.ts`), none of them exported.
-const STORAGE_PREFIX = "orb:";
-const ACTIVE_USER_KEY = "orb:active-user";
-const BOOT_HINT_NAME = "appearance-boot";
-const BOOT_HINT_VERSION = 1;
-const BOOT_TRAIL = "__appearanceBootTrail";
+// The mount node `index.html` declares and `main.tsx` addresses by literal (its DOM home in eslint.config.ts is keyed on that literal).
 const ROOT_ID = "root";
-const APP_READY_ATTR = "data-app-ready";
+const BOOT_TRAIL = "__appearanceBootTrail";
 const STYLE_ATTR = "style";
+
+interface BootScriptArgs {
+  readonly stored: AppearanceBootHintState | null;
+  readonly name: string;
+  readonly version: number;
+  readonly rootId: string;
+  readonly trailName: string;
+  readonly activeUserKey: string;
+  readonly prefix: string;
+}
 
 const bootEventSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("html"), attr: z.string(), value: z.string().nullable() }),
   z.object({ kind: z.literal("mount") }),
 ]);
 
-/** The root channel name the production manifest declares for a setting. */
-function channelName(key: (typeof APPEARANCE_CHANNEL_ROWS)[number]["key"]): string {
-  const row = APPEARANCE_CHANNEL_ROWS.find((candidate) => candidate.key === key);
-  if (row === undefined) {
-    throw new Error(`appearance.${key} declares no CSS channel`);
+/** The value a serialized `style` attribute declares for one property, however the engine spaces it. */
+function declaredStyle(attribute: string | null | undefined, property: string): string | undefined {
+  for (const declaration of (attribute ?? "").split(";")) {
+    const [name, ...value] = declaration.split(":");
+    if (name?.trim() === property) {
+      return value.join(":").trim();
+    }
   }
-  return row.name;
+  return undefined;
 }
 
 /** Store (or clear) this device's appearance hint, and record every `<html>` attribute write and React's first write
  *  into `#root`, in order, from before the document's first script. Registered before the first navigation. */
-async function recordBoot(page: Page, hint: Readonly<Record<string, unknown>> | null): Promise<void> {
-  await page.addInitScript(
-    ({ stored, name, version, rootId, trailName, activeUserKey, prefix }) => {
-      // The store mints on the last-bound user's namespace when the device has met one (the fixture's earlier visit did).
-      const bound = localStorage.getItem(activeUserKey);
-      const key = bound === null ? `${prefix}${name}` : `${prefix}u/${bound}/${name}`;
-      if (stored === null) {
-        localStorage.removeItem(key);
-      } else {
-        localStorage.setItem(key, JSON.stringify({ state: stored, version }));
-      }
-      const trail: unknown[] = [];
-      Reflect.set(globalThis, trailName, trail);
-      new MutationObserver((records) => {
-        for (const record of records) {
-          if (record.type === "attributes" && record.target === document.documentElement && record.attributeName !== null) {
-            trail.push({ kind: "html", attr: record.attributeName, value: document.documentElement.getAttribute(record.attributeName) });
-          } else if (record.type === "childList" && record.target instanceof Element && record.target.id === rootId) {
-            trail.push({ kind: "mount" });
-          }
+async function recordBoot(page: Page, hint: AppearanceBootHintState | null): Promise<void> {
+  // The script runs in the page, so it cannot close over the production key builder; its source travels with it.
+  const install = ({ stored, name, version, rootId, trailName, activeUserKey, prefix }: BootScriptArgs, storageKey: typeof durableLocalStorageKey): void => {
+    // The store mints on the last-bound user's namespace when the device has met one (the fixture's earlier visit did).
+    const key = storageKey(prefix, localStorage.getItem(activeUserKey), name);
+    if (stored === null) {
+      localStorage.removeItem(key);
+    } else {
+      localStorage.setItem(key, JSON.stringify({ state: stored, version }));
+    }
+    const trail: unknown[] = [];
+    Reflect.set(globalThis, trailName, trail);
+    new MutationObserver((records) => {
+      for (const record of records) {
+        if (record.type === "attributes" && record.target === document.documentElement && record.attributeName !== null) {
+          trail.push({ kind: "html", attr: record.attributeName, value: document.documentElement.getAttribute(record.attributeName) });
+        } else if (record.type === "childList" && record.target instanceof Element && record.target.id === rootId) {
+          trail.push({ kind: "mount" });
         }
-      }).observe(document, { subtree: true, attributes: true, childList: true });
-    },
-    {
-      stored: hint,
-      name: BOOT_HINT_NAME,
-      version: BOOT_HINT_VERSION,
-      rootId: ROOT_ID,
-      trailName: BOOT_TRAIL,
-      activeUserKey: ACTIVE_USER_KEY,
-      prefix: STORAGE_PREFIX,
-    },
-  );
+      }
+    }).observe(document, { subtree: true, attributes: true, childList: true });
+  };
+  const args: BootScriptArgs = {
+    stored: hint,
+    name: APPEARANCE_BOOT_HINT_NAME,
+    version: APPEARANCE_BOOT_HINT_VERSION,
+    rootId: ROOT_ID,
+    trailName: BOOT_TRAIL,
+    activeUserKey: ACTIVE_USER_KEY,
+    prefix: PERSISTED_STORE_PREFIX,
+  };
+  await page.addInitScript({ content: `(${install.toString()})(${JSON.stringify(args)}, ${durableLocalStorageKey.toString()});` });
 }
 
 /** The last value each `<html>` attribute held before React first wrote into `#root`. */
@@ -314,11 +332,11 @@ test.describe("committed corpus shell", () => {
     if (theme === undefined || motion === undefined) {
       throw new Error("Corpus has no seed theme with a stamped palette");
     }
-    await recordBoot(page, { reducedMotion: motion, fontScale: FONT_SCALE.max, dataTheme: theme });
+    await recordBoot(page, { ...pickKeys(defaultAppearance, APPEARANCE_BOOT_AXES), reducedMotion: motion, fontScale: FONT_SCALE.max, dataTheme: theme });
     await openHome(page);
     const before = await htmlBeforeMount(page);
     expect(before.get(channelName("reducedMotion"))).toBe(motion);
-    expect(before.get(STYLE_ATTR)).toContain(`${channelName("fontScale")}: ${String(FONT_SCALE.max)}`);
+    expect(declaredStyle(before.get(STYLE_ATTR), channelName("fontScale"))).toBe(String(FONT_SCALE.max));
     expect(before.get(DATA_THEME_ATTR)).toBe(theme);
     expect(before.has(APP_READY_ATTR)).toBe(false);
   });
@@ -328,7 +346,7 @@ test.describe("committed corpus shell", () => {
     await openHome(page);
     const before = await htmlBeforeMount(page);
     expect(before.get(channelName("reducedMotion"))).toBe(defaultAppearance.reducedMotion);
-    expect(before.get(STYLE_ATTR)).toContain(`${channelName("fontScale")}: ${String(defaultAppearance.fontScale)}`);
+    expect(declaredStyle(before.get(STYLE_ATTR), channelName("fontScale"))).toBe(String(defaultAppearance.fontScale));
     expect(before.has(DATA_THEME_ATTR)).toBe(false);
   });
 
@@ -338,12 +356,12 @@ test.describe("committed corpus shell", () => {
     await chats.requested;
     // The shell is mounted and asking; the gate must still be shut while Home's own read is out.
     await expect(page.getByRole("navigation", { name: "Primary" })).toBeAttached();
-    await expect(page.locator("html")).not.toHaveAttribute("data-app-ready");
+    await expect(page.locator("html")).not.toHaveAttribute(APP_READY_ATTR);
     // The client batches Home's first reads into one request, and one HTTP response cannot answer part of a batch, so
     // the hold delays the chat read's whole batch. The gate's rule is "no read in flight", which every read in that
     // batch exercises the same way, so holding the batch tests the same rule as holding the chat read alone.
     await chats.release();
-    await expect(page.locator("html")).toHaveAttribute("data-app-ready", "");
+    await expect(page.locator("html")).toHaveAttribute(APP_READY_ATTR, "");
     await expect(page.locator('[data-home-tile="chat.masthead"] [aria-busy]')).toHaveCount(0);
   });
 
@@ -564,7 +582,7 @@ test.describe("committed corpus shell on a phone", () => {
     await expect(grid).toHaveAttribute("data-room-screen", "true");
     await expect(page.locator(".shell-rail")).toHaveCount(0);
 
-    await page.getByRole("button", { name: "Show details", exact: true }).click();
+    await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
     await expect(context).toHaveAttribute("data-panel-mode", "overlay");
     // With the sheet open the chevron only closes it, and says so.
     await page.getByRole("button", { name: "Close details", exact: true }).click();

@@ -1,7 +1,7 @@
 // The "jump to latest" pill — dumb chrome shown only while the reader has scrolled away from the tail
 // and >=1 message has landed below since (message-list-surface.tsx owns the visibility/count logic). A
 // centered pill pinned above the composer, anchored to the surface's own relative box, not fixed to the
-// viewport. The shadow lives on the pill Card, not the Button, because Base UI Button's ring
+// viewport. The shadow lives on the FloatingChip, not the Button, because Base UI Button's ring
 // utilities own box-shadow and eat it. Fully inert (tabIndex=-1, aria-hidden, pointer-events-none) while
 // hidden so it never becomes a phantom tab-stop.
 
@@ -33,12 +33,13 @@ export function JumpToLatestPill({ count, visible, onJump }: JumpToLatestPillPro
       className="pointer-events-none absolute inset-x-0 inset-be-block z-(--z-overlay)"
       data-slot="jump-to-latest"
     >
-      <FloatingChip className="flex items-center inline-fit" presence={visible ? "shown" : "hidden"}>
+      <FloatingChip className="flex items-center inline-fit max-inline-full" presence={visible ? "shown" : "hidden"}>
         <Button
           type="button"
           variant="ghost"
           ink="foreground"
           size="sm"
+          wrap={true}
           onClick={onJump}
           aria-label={`Jump to latest, ${label}`}
           tabIndex={visible ? 0 : -1}

@@ -1,5 +1,5 @@
 // Native wheel input must reach the production Context viewport through its Corpus body.
-import { CORPUS_MODE_LABELS } from "@orb/client/lib";
+import { CORPUS_MODE_LABELS, contextToggleLabel } from "@orb/client/lib";
 import { DEFAULT_APPEARANCE_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { controlledPanel, seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
@@ -33,7 +33,7 @@ for (const regime of [
       });
       await seedShellState(page, { activeSection: "corpus", panelOverrides: { corpus: { list: "collapsed", context: "collapsed" } } });
       await mount<typeof SectionShellStory>(STORY, { section: "corpus" });
-      await page.getByRole("button", { name: "Show details", exact: true }).click();
+      await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
       const context = page.locator('.shell-panel[data-panel-side="context"]');
       const visuals = context.getByRole("tab", { name: "Visuals", exact: true });
       await visuals.click();
@@ -58,7 +58,7 @@ for (const regime of [
       const mode = page.getByRole("radiogroup", { name: "Corpus mode", exact: true }).getByRole("radio", { name: CORPUS_MODE_LABELS.insights, exact: true });
       await mode.click();
       await expect(mode).toHaveAttribute("aria-checked", "true");
-      await page.getByRole("button", { name: "Show details", exact: true }).click();
+      await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
       const context = page.locator('.shell-panel[data-panel-side="context"]');
       const tabs = context.getByRole("tab");
       await expect(tabs).not.toHaveCount(0);

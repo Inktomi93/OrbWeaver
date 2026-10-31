@@ -35,8 +35,6 @@ Open defects found by the same probe, each unfixed because the repair is a layou
 - Topbar at 300%: Show details and Report a bug sit past the right edge on the desktop; Show details sits past it on the phone.
 - Context panel header at 200% on the desktop: Character actions, Close details and the token-count hint sit past the right edge.
 - Room composer at 200% on the phone, and at 300% on both viewports: the Try another reply, Generate reply and Continue the reply buttons sit past the right edge, because both composer clusters are `shrink-0` in one non-wrapping row. Wrapping them conflicts with the two-row composer ruling.
-- Room at 300%: the Jump to latest button is clipped by its flank row.
-- Import dialog at 300% on the phone: the viewport gutter token is 2rem, so a 390px phone keeps a 198px sliver, the title wraps per letter and Cancel is cut.
 - Character list panel at 200% and 300% on the phone, and the panel regimes on the desktop at 300%: the probe could not reach the library rows after the scale was applied. This is unqualified, not a confirmed defect.
 
 Device-only items stay open: real iOS keyboard with the dynamic viewport, notch insets including the bottom edge, standalone status bar, Dynamic Type and Safari punctuation and wrapping.

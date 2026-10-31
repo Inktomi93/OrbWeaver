@@ -3,6 +3,7 @@
 // leaves no ghost lock). Host-gated.
 
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
+import { RPG_OP_CODES } from "#src/domain/rpg/contract/op-codes.ts";
 import type { DeleteQuestParams } from "#src/domain/rpg/contract/params.ts";
 import type { RpgContext, RpgService } from "#src/domain/rpg/contract/service.ts";
 import { resolveHost } from "#src/domain/rpg/guard.ts";
@@ -21,7 +22,7 @@ export function createDeleteQuest(ctx: RpgContext): Pick<RpgService, "deleteQues
     if (!written.ok) {
       // The F1 write-boundary backstop refused — a removal cannot invalidate a valid base, so the base itself
       // is already contract-invalid. Surface it (no-swallow), never a silent no-op.
-      throw new DomainOperationError("rpg_snapshot_state_invalid", written.reason);
+      throw new DomainOperationError(RPG_OP_CODES.snapshotStateInvalid, written.reason);
     }
     const snapshotId = written.snapshotId;
 

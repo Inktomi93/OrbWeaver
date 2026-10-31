@@ -1,3 +1,4 @@
+import { ROW_DELETE_NAME } from "@orb/client/lib";
 import { AUTOMATION_RULE_NAME_MAX_CHARS, automationRuleEditableSchema } from "@orb/contracts/automation";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
@@ -100,7 +101,7 @@ for (const regime of REGIMES) {
       await more.focus();
       await page.keyboard.press("Enter");
       await expect(page.getByRole("menuitem", { name: "Run now", exact: true })).toBeVisible();
-      await expect(page.getByRole("menuitem", { name: "Delete", exact: true })).toBeVisible();
+      await expect(page.getByRole("menuitem", { name: ROW_DELETE_NAME, exact: true })).toBeVisible();
       await page.keyboard.press("Escape");
       await expect(more).toBeFocused();
       expect(calls.count("automation.runRuleNow")).toBe(0);

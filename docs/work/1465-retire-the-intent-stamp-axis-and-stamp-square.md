@@ -23,4 +23,8 @@ intent is gone from the stamp vocabulary and the walker list, a square control s
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+`intent` left `STAMPED_VARIANT_AXES` and `TARGET_VARIANT_ATTRS`; `square` joined both, so a Button stamps `data-square` beside `data-size`. The Base UI package has no `data-square`.
+
+- `tests/tooling/ui-audit/ops/walker/target-identity.test.ts` pins the vocabulary: no `intent`, `square` read by the walker. Red on the old source, green after.
+- `tests/tooling/ui-audit/ops/walker/target-identity.int.test.ts` builds the stamps from the production Button recipe: a square and a text Button at `md` are two populations (one on the old source), two squares stay one.
+- `tests/ui/primitives/platform-control-scale.suite.ct.tsx` reads `data-square` on the mounted Button at every step. Red on the old source; green on Chromium and WebKit.

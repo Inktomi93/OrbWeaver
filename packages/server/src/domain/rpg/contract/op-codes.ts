@@ -1,0 +1,28 @@
+// domain/rpg/contract/op-codes — the `DomainOperationError.code` strings rpg verbs throw. ONE home, zero imports,
+// so the verbs that throw them and the suites that assert them read the same literal.
+
+export const RPG_OP_CODES = {
+  badDiceNotation: "rpg_bad_dice_notation",
+  diceOutOfBounds: "rpg_dice_out_of_bounds",
+  badAbilityDice: "rpg_bad_ability_dice",
+  unknownAttribute: "rpg_unknown_attribute",
+  attributeOutOfRange: "rpg_attribute_out_of_range",
+  unsetAbility: "rpg_unset_ability",
+  actorHasNoCard: "rpg_actor_has_no_card",
+  cardUnreadable: "rpg_card_unreadable",
+  castHasNoSheet: "rpg_cast_has_no_sheet",
+  snapshotStateInvalid: "rpg_snapshot_state_invalid",
+  profileDuplicateAttribute: "rpg_profile_duplicate_attribute",
+  profileInvertedRange: "rpg_profile_inverted_range",
+  profileDanglingAttribute: "rpg_profile_dangling_attribute",
+  profileDanglingSkill: "rpg_profile_dangling_skill",
+  profileReferencedRemove: "rpg_profile_referenced_remove",
+  tooManyTrackers: "rpg_too_many_trackers",
+  duplicateTrackerKey: "rpg_duplicate_tracker_key",
+  invalidExtractionMode: "rpg_invalid_extraction_mode",
+  invalidMode: "rpg_invalid_mode",
+  alreadyAGame: "rpg_already_a_game",
+  pointerNotDangling: "rpg_pointer_not_dangling",
+  stateCorrupt: "rpg_state_corrupt",
+  modeUnbuilt: "rpg_mode_unbuilt",
+} as const;

@@ -25,6 +25,7 @@
 // What was measured as the cost of the old reading: with a character OPEN there was no on-screen path to
 // export her card at all, and the reviewer driving the surface concluded the app could not export.
 
+import { exportCharacterPath } from "@orb/contracts/portability";
 import type { CharacterId } from "@orb/kit/ids";
 import { Icon } from "@orb/ui/icons";
 import { MenuItem, MenuLinkItem, MenuPopup, MenuSubmenuRoot, MenuSubmenuTrigger } from "@orb/ui/menu";
@@ -37,7 +38,7 @@ import { clearCharacterSelection, openCharacterGallery, selectCharacter } from "
 import { useCreatePersonaFromCharacter, useDuplicateCharacter, useRemoveCharacter, useSetWelcomeGreeter } from "../hooks/use-character-context-mutations.ts";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
 import type { CHARACTER_ACTION_SCOPE_IDS } from "../lib/character-actions.ts";
-import { CHARACTER_ACTIONS, characterActionItemsForScope, characterActionLabel, EXPORT_CHARACTER_PATH } from "../lib/character-actions.ts";
+import { CHARACTER_ACTIONS, characterActionItemsForScope, characterActionLabel } from "../lib/character-actions.ts";
 
 /** File-local — exactly the verbs the `open` scope offers, so a verb added to that scope is a `tsc` error
  *  here until it is wired. */
@@ -123,7 +124,7 @@ export function CharacterActionsMenu({ characterId }: CharacterActionsMenuProps)
                 </MenuSubmenuTrigger>
                 <MenuPopup>
                   {action.formats.map((format) => (
-                    <MenuLinkItem download={true} href={`${EXPORT_CHARACTER_PATH}${characterId}${format.query}`} key={format.query}>
+                    <MenuLinkItem download={true} href={`${exportCharacterPath(characterId)}${format.query}`} key={format.query}>
                       {format.label}
                     </MenuLinkItem>
                   ))}
