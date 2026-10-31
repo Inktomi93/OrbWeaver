@@ -43,6 +43,10 @@ const QUALIFIED = {
     [PHONE, LAYOUT_300],
     [DESKTOP, LAYOUT_300],
   ],
+  presetsWelcome: [
+    [PHONE, LAYOUT_300],
+    [DESKTOP, LAYOUT_300],
+  ],
   importDialog: [
     [PHONE, TEXT_200],
     [DESKTOP, TEXT_200],
@@ -278,6 +282,35 @@ for (const [viewport, scale] of QUALIFIED.jumpToLatest) {
           return within !== null && button !== null && button.x >= within.x - SUBPIXEL && button.x + button.width <= within.x + within.width + SUBPIXEL;
         })
         .toBe(true);
+    });
+  });
+}
+
+for (const [viewport, scale] of QUALIFIED.presetsWelcome) {
+  test.describe(`Presets welcome at ${scale.name} on the ${viewport.name}`, () => {
+    test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });
+
+    test("stays inside the content pane and leaves the topbar reachable", async ({ mount, page }) => {
+      await seedShellState(page, { activeSection: "presets" });
+      await mount<typeof AppShellStory>(STORY, {});
+      if (viewport.touch) {
+        // A phone lands on the roster; the topbar door swaps it for the section's no-selection content.
+        await page.getByRole("button", { name: /^Show .+ overview$/u }).click();
+      }
+      const pane = page.locator(".shell-content");
+      const welcome = pane.locator('[data-slot="empty-state-root"]');
+      await expect(welcome).toBeVisible();
+      await scaleRoot(page, scale.factor);
+      await expect
+        .poll(async () => {
+          const [within, box] = await Promise.all([pane.boundingBox(), welcome.boundingBox()]);
+          return within !== null && box !== null && box.y >= within.y - SUBPIXEL;
+        })
+        .toBe(true);
+      // A topbar control holds focus here, and its open tooltip is a transient popup, not part of the layout under test.
+      await page.keyboard.press("Escape");
+      await expect.poll(() => findings(page.locator(".shell-grid"))).toEqual([]);
+      expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
     });
   });
 }
