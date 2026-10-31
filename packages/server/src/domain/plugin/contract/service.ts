@@ -83,7 +83,6 @@ import type {
   UpgradeFromShowcaseParams,
   UpgradeFromStoredGitParams,
   UpgradeFromStoredUrlParams,
-  UpgradeFromUrlParams,
   UpgradePluginParams,
 } from "./params.ts";
 import type {
@@ -418,10 +417,6 @@ export interface PluginService {
    *  run it through the SAME funnel + consent as a file install (delegates to {@link install}). SELF-authority
    *  — mints the caller's own row. */
   readonly installFromUrl: (params: InstallFromUrlParams) => Promise<PluginView>;
-  /** Fetch a NEW bundle at a URL through the egress guard, then upgrade the OWNED plugin through {@link upgrade}
-   *  — #615's re-consent wall applies (reach-widening ⇒ DISABLED). Owner-scoped: a foreign pluginId is a
-   *  leak-free NOT_FOUND checked BEFORE any fetch, so a stranger never triggers server egress. NEVER silent. */
-  readonly upgradeFromUrl: (params: UpgradeFromUrlParams) => Promise<PluginView>;
   /** AUTO UPDATE-CHECK (U8 2b — the thing ST's loader does): for the caller's OWN `url`-origin plugins, re-fetch
    *  each remote bundle through the same egress guard and return exact-byte identity with a newer version.
    *  BATCH + SELF-scoped (no id); a

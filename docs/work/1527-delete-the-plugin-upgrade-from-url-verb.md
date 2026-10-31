@@ -23,4 +23,4 @@ pnpm unwired no longer reports it; typecheck and the plugin suites pass.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Deleted `PluginService.upgradeFromUrl`, its verb `verbs/upgrade-from-url.ts`, `UpgradeFromUrlParams` and the service wiring. The verb had no router procedure and no wire member to delete. No guest reaches it: `rg` over `packages`, `tests`, `tooling` and `scripts` finds no name in `packages/contracts/src/plugin`, `packages/plugin-sdk` or `infra/plugin-host`, and `ast-grep` scanned 5871 ts and 1517 tsx files. Checks: `pnpm typecheck tsconfig.node.json tsconfig.world-browser.json` passes; `released-asset-reap.int.test.ts` and `provider-contributions.suite.int.test.ts` pass.

@@ -23,4 +23,4 @@ The admin surface runs the production verb with progress and result feedback; ho
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Not landed; it needs a schema change. Maintenance verbs reach admins as workload kinds (`assets-gc`, `assets-fsck` in `packages/server/src/domain/assets/workload-contributions.ts`), which give progress, result feedback and the owner-only maintenance gate. A new kind goes into `WORKLOAD_KINDS`, and `packages/db/src/schema/workloads.ts` mirrors that tuple in a CHECK on `workloads.kind` and `workload_schedules.kind`, so it needs a numbered migration. The verb also takes a `kind` (asset kind) param that no param control offers. The alternative, a one-shot admin mutation, drops the progress the item asks for. Owner call: migration plus workload kind, or a synchronous admin procedure.
