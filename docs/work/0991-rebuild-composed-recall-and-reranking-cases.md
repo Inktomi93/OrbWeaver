@@ -48,8 +48,8 @@ New maintained homes:
 | Seed upgrade: unslotted row under the earlier label | Seed upgrade: adopted and relabelled. | Rebuild |
 | The user's own earlier-model row | Seed upgrade: from a pre-slot state it is never adopted or moved and stays bound. | Rebuild |
 | User choice, then reboot | Seed upgrade: a later pick of the earlier model on the seeded row survives the next seed run, for a fresh and an upgraded account. | Rebuild |
-| Cold start with an empty model cache | Needs an opt-in `local-model-cache` case that downloads weights. | Deferred to [item 1304](1304-an-opt-in-cold-cache-reranker-case-downloads.md) |
-| Live sanity pair ("Which planet is known as the Red Planet?") | A served-model correctness check that needs real weights. | Deferred to item 1304, as the served-model check of the cold case |
+| Cold start with an empty model cache | [Cold cache](../../tests/server/domain/connection/local-light-cold-cache.suite.int.test.ts): a root with an empty model cache runs the boot seed, then the first rerank downloads the seeded model through the shipped loader. It runs only under the `local-model-cache` tag. | Rebuild, opt-in ([item 1304](1304-an-opt-in-cold-cache-reranker-case-downloads.md)) |
+| Live sanity pair ("Which planet is known as the Red Planet?") | The cold cache case ranks the answering document first after the download. | Rebuild, opt-in: the served-model check of the cold case |
 | Per-call latency, first-call time and RSS | Device measurements; no product assertion. | Drop |
 
 ### Recall references
