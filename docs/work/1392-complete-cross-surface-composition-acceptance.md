@@ -29,8 +29,6 @@ Record accepted states, defects, corrections and precise exclusions in the activ
 
 Qualify automatic active-tab reveal in Presets and retain the Insights presentation decision with pane-local accounting caveats.
 
-Run the comparison after the [page-template tier](1489-build-the-page-template-tier-and-move-features.md) has landed.
-
 ## Evidence
 
 The active plan owns the coverage matrix. The private promise audit maps original transcript commitments to this item and its linked work.

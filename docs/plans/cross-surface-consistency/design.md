@@ -32,7 +32,7 @@ Judge a surface only after every planned change to it has landed. Steps 2 to 6 r
 
 ## Page templates
 
-Step 5 gives each recurring page shape one composite in `packages/client/src/components/`. A template declares its tier, composes `@orb/ui` layout primitives and the step-4 named components, and overrides no primitive skin. Features pass content into its slots. [Item 1489](../../work/1489-build-the-page-template-tier-and-move-features.md) tracks the work.
+Step 5 gives each recurring page shape one composite in `packages/client/src/components/`. A template declares its tier, composes `@orb/ui` layout primitives and the step-4 named components, and overrides no primitive skin. Features pass content into its slots. Item 1489 tracks the work.
 
 ### Survey
 
