@@ -5,6 +5,7 @@ import { DomainForbiddenError } from "@orb/kit/errors";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect } from "@orb/testkit/node";
+import { ADMIN_OP_CODES } from "#server/domain/admin/contract/errors.ts";
 import { delegate, NEW_HANDLE, PASSWORD, test } from "./create-user.fixtures.ts";
 
 test("the minted account carries its local-light vector floor", async ({ root }) => {
@@ -16,7 +17,7 @@ test("the minted account carries its local-light vector floor", async ({ root })
 test("an empty handle is rejected (invalid_handle)", async ({ root }) => {
   const admin = await delegate(root);
   await expect(root.services.admin.createUser({ principal: admin.principal, handle: castId<Handle>("   "), password: PASSWORD })).rejects.toMatchObject({
-    code: "invalid_handle",
+    code: ADMIN_OP_CODES.invalidHandle,
   });
 });
 
@@ -30,7 +31,7 @@ test("a short password is rejected (weak_password)", async ({ root }) => {
 test("even the owner cannot mint a second owner (cannot_grant_owner)", async ({ root }) => {
   await expect(
     root.services.admin.createUser({ principal: await root.principalFor(root.ownerId), handle: NEW_HANDLE, password: PASSWORD, role: "owner" }),
-  ).rejects.toMatchObject({ code: "cannot_grant_owner" });
+  ).rejects.toMatchObject({ code: ADMIN_OP_CODES.cannotGrantOwner });
 });
 
 test("a delegated admin cannot mint an admin and writes no account", async ({ root }) => {
@@ -52,7 +53,7 @@ test("a duplicate handle is rejected (user_exists)", async ({ root }) => {
   const admin = await delegate(root);
   await admin.caller.admin.createUser({ handle: NEW_HANDLE, password: PASSWORD });
   await expect(root.services.admin.createUser({ principal: admin.principal, handle: NEW_HANDLE, password: PASSWORD })).rejects.toMatchObject({
-    code: "user_exists",
+    code: ADMIN_OP_CODES.userExists,
   });
 });
 
@@ -60,7 +61,7 @@ test("a held handle's look-alike is rejected, while a genuinely different handle
   const admin = await delegate(root);
   await admin.caller.admin.createUser({ handle: castId<Handle>("host"), password: PASSWORD });
   await expect(root.services.admin.createUser({ principal: admin.principal, handle: castId<Handle>("h0st"), password: PASSWORD })).rejects.toMatchObject({
-    code: "user_exists",
+    code: ADMIN_OP_CODES.userExists,
   });
   expect(await admin.caller.admin.createUser({ handle: castId<Handle>("hosts"), password: PASSWORD })).toMatchObject({ handle: "hosts" });
 });
@@ -68,7 +69,7 @@ test("a held handle's look-alike is rejected, while a genuinely different handle
 test("a mixed-script handle is rejected; a single-script non-Latin handle is minted", async ({ root }) => {
   const admin = await delegate(root);
   await expect(root.services.admin.createUser({ principal: admin.principal, handle: castId<Handle>("hσst"), password: PASSWORD })).rejects.toMatchObject({
-    code: "invalid_handle",
+    code: ADMIN_OP_CODES.invalidHandle,
   });
   expect(await admin.caller.admin.createUser({ handle: castId<Handle>("Дмитрий"), password: PASSWORD })).toMatchObject({ handle: "Дмитрий" });
 });
@@ -77,7 +78,7 @@ test("handles containing only zero-width or blank characters are rejected", asyn
   const admin = await delegate(root);
   for (const handle of ["\u200b\u200b", "\u2060", "\u3000"]) {
     await expect(root.services.admin.createUser({ principal: admin.principal, handle: castId<Handle>(handle), password: PASSWORD })).rejects.toMatchObject({
-      code: "invalid_handle",
+      code: ADMIN_OP_CODES.invalidHandle,
     });
   }
 });

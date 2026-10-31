@@ -335,6 +335,9 @@ const SERVER_DOORS = [`${SRV}[^/]+/[^/]+/index\\.ts$`, ...exportedDoors("server"
 const TEST_CONSTANT_HOMES = {
   "packages/server/src/domain/character/contract/errors.ts": "CharacterNotFoundError: the refusal class greeting suites assert",
   "packages/server/src/domain/chat/contract/errors.ts": "CHAT_OP_CODES and ChatNotFoundError: the refusal codes and class chat suites assert",
+  "packages/server/src/domain/admin/contract/errors.ts": "ADMIN_OP_CODES: the refusal codes admin and sessions suites assert",
+  "packages/server/src/domain/credentials/contract/errors.ts": "CREDENTIALS_OP_CODES: the refusal codes credentials suites assert",
+  "packages/server/src/domain/settings/contract/errors.ts": "SETTINGS_OP_CODES: the refusal codes settings suites assert",
   "packages/server/src/domain/chat/contract/metadata.ts": "TOOL_RECURSE_LIMIT_DEFAULT: the default the corpus writes back",
   "packages/server/src/domain/chat/persistence/participants-read.ts": "loadPresentRole: the production role read the authority suite compares against",
   "packages/server/src/domain/import/substrate/appearance.ts":
@@ -424,6 +427,15 @@ const SERVER_TEST_REACHES = {
     "domain/settings": "ensureSeedThemes and healLegacyBackgroundPins: cross-owner boot verbs",
     "domain/stats": "reconcileOwnersMissingTimeline: a cross-owner boot verb",
     "domain/workloads": "reclaimInFlightOnBoot: a cross-owner boot verb",
+  },
+  "tests/server/domain/sessions/persistence/users.int.test.ts": {
+    "domain/admin": "ADMIN_OP_CODES: the refusals of the admin SSO link claim, which binds a sessions-owned row",
+  },
+  "tests/server/domain/sessions/role-policy-config.int.test.ts": {
+    "domain/admin": "ADMIN_OP_CODES: the handle refusal the admin create verb raises under the sessions role policy",
+  },
+  "tests/server/domain/assets/persistence/materialization-boundaries.int.test.ts": {
+    "domain/chat": "CHAT_OP_CODES: the refusal the settings background materialization raises through the chat-owned code table",
   },
   "tests/server/domain/settings/persistence/seed-ledger-tags.int.test.ts": {
     "domain/character": "DEFAULT_CHARACTER_CARDS: the authored tag list is the expected set the seeded card's tag rows must equal",
