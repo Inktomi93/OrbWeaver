@@ -373,7 +373,7 @@ test.describe("an open named group room", () => {
       const room = await openNamedRoom(page, corpus, await ownerCaller());
       await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: room.id });
       await expectPrimaryRoomHeading(page, room.title);
-      const rename = page.getByRole("button", { name: `Rename chat — ${room.cast}, ${room.title}`, exact: true });
+      const rename = page.getByRole("button", { name: `Rename chat — ${room.cast}, ${room.title}` });
       await rename.click();
       await expect(page.getByRole("textbox", { name: "Chat name", exact: true })).toBeFocused();
       await expectPrimaryRoomHeading(page, room.title);
@@ -396,23 +396,23 @@ test.describe("an open named group room", () => {
     });
   });
 
-  test("the creation date describes the rename button and stays available after keyboard cancellation", async ({ corpus, mount, page }) => {
+  test("the creation date is in the rename button's name and stays there after keyboard cancellation", async ({ corpus, mount, page }) => {
     await page.setViewportSize({ width: 1920, height: 900 });
     await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "collapsed", context: "collapsed" } } });
     const room = await openNamedRoom(page, corpus, await ownerCaller());
     await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: room.id });
-    const rename = page.getByRole("button", { name: `Rename chat — ${room.cast}, ${room.title}`, exact: true });
+    const rename = page.getByRole("button", { name: `Rename chat — ${room.cast}, ${room.title}` });
     const date = rename.locator(".shell-topbar-date");
     await expect(date).toBeVisible();
     await expect(date).toHaveText(/^· .+/u);
-    const description = (await date.textContent()) ?? "";
-    await expect(rename).toHaveAccessibleDescription(description);
+    const stamp = ((await date.textContent()) ?? "").replace(/^· /u, "");
+    await expect(rename).toHaveAccessibleName(new RegExp(`, ${stamp}$`, "u"));
     await date.click();
     const input = page.getByRole("textbox", { name: "Chat name", exact: true });
     await expect(input).toBeFocused();
     await page.keyboard.press("Escape");
     await expect(rename).toBeFocused();
-    await expect(rename).toHaveAccessibleDescription(description);
+    await expect(rename).toHaveAccessibleName(new RegExp(`, ${stamp}$`, "u"));
   });
 
   test("at 1280 both docked the topbar names the cast, keeps the room name at its floor beside it, and the title renames; collapsed it still names them", async ({

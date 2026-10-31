@@ -615,6 +615,14 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/chat/components/message-row-divider.tsx":
       "renderContextBoundaryDivider: the divider label's own composition, which only the message row renders and no door forwards",
   },
+  "tests/client/features/chat/components/_chat-header-title-stories.tsx": {
+    "packages/client/src/features/chat/components/chat-header-title.tsx":
+      "ChatHeaderTitle: the topbar's rename button, which only the chat header renders and no door forwards",
+  },
+  "tests/client/features/character/components/_shelf-face-name-stories.tsx": {
+    "packages/client/src/features/character/components/character-shelf.tsx":
+      "CharacterShelf and ShelfFace: the landing's face buttons, which only the library landing renders and no door forwards",
+  },
   "tests/client/features/chat/components/_flank-column-stories.tsx": {
     "packages/client/src/features/chat/components/room-flank.tsx":
       "FlankColumn: the room's plugin column and its sheet stamps, which only the room renders and no door forwards",
