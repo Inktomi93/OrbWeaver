@@ -84,7 +84,7 @@ export function isHandTyped(member: PortMember): boolean {
 }
 
 /** `() => void`: a notification with no concept behind its shape, so two of them share nothing to derive. */
-export function isConceptFreeCallback(member: PortMember): boolean {
+function isConceptFreeCallback(member: PortMember): boolean {
   const fn = functionTypeNode(member);
   return fn !== null && fn.parameters.length === 0 && fn.type?.kind === ts.SyntaxKind.VoidKeyword;
 }
@@ -183,7 +183,7 @@ export function derivedMembers(checker: ts.TypeChecker, node: ts.Node): Readonly
 /** `identical`: each type fits the other. `params`: the parameters are identical and only the return narrows.
  *  `narrowed`: the owner's type fits the port's and the parameters differ too. */
 export const RELATION = { identical: "identical", params: "params", narrowed: "narrowed" } as const;
-export type Relation = (typeof RELATION)[keyof typeof RELATION];
+type Relation = (typeof RELATION)[keyof typeof RELATION];
 
 /** One hand-typed member restating another member's function type at a flow site. */
 export interface Restatement {

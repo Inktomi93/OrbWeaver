@@ -112,7 +112,7 @@ export interface PruneDocumentChunksResult {
 }
 
 /** Would the owner's stored target for `task` move if `via` resolved through `connectionId`? */
-export interface TargetWouldMoveArgs {
+interface TargetWouldMoveArgs {
   readonly ownerId: UserId;
   readonly task: EmbeddingTask;
   readonly via: EmbeddingTask;

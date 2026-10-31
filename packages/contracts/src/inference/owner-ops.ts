@@ -18,13 +18,13 @@ export interface ResolveTaskParams {
   readonly connectionId?: UserConnectionId | undefined;
 }
 /** Read the caller's persisted user-actor binding for one routable task. */
-export interface GetBoundConnectionParams {
+interface GetBoundConnectionParams {
   readonly principal: Principal;
   readonly task: RoutableTask;
 }
 
 /** The credential-free binding projection used by the next-turn readout. */
-export interface BoundConnectionView extends Pick<UserConnection, "label" | "providerId" | "model"> {
+interface BoundConnectionView extends Pick<UserConnection, "label" | "providerId" | "model"> {
   readonly providerLabel: string;
 }
 

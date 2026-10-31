@@ -91,7 +91,7 @@ interface UtilityMenuProps {
 }
 
 /** One of the cluster's reply buttons, spelled as a menu row while the button row cannot seat it. */
-export interface ComposerReplyAction {
+interface ComposerReplyAction {
   readonly label: string;
   readonly onAction: () => void;
   readonly enabled: boolean;

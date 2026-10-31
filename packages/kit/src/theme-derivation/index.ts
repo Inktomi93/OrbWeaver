@@ -991,20 +991,20 @@ export function solidInkLightness(fill: Oklch, steps: readonly Oklch[]): SolidIn
  * popover it sits on, so it stays apart from that surface rather than from the page.
  */
 export const TONE_MIX_TARGETS = ["foreground", "background", "host", "away"] as const;
-export type ToneMixTarget = (typeof TONE_MIX_TARGETS)[number];
+type ToneMixTarget = (typeof TONE_MIX_TARGETS)[number];
 
 /** What a colored tone's role starts from: its intent base or the base's paired foreground token. */
 export const COLORED_TONE_ORIGINS = ["base", "base-foreground"] as const;
-export type ColoredToneOrigin = (typeof COLORED_TONE_ORIGINS)[number];
+type ColoredToneOrigin = (typeof COLORED_TONE_ORIGINS)[number];
 
 /** One `color-mix(in oklab, <origin> var(--tone-mix-<mix>), <toward>)` step. */
-export interface ToneMixStep<Knob extends string> {
+interface ToneMixStep<Knob extends string> {
   readonly mix: Knob;
   readonly toward: ToneMixTarget;
 }
 
 /** A surface a role's ink must clear AA on: a sibling role of the same tone, or a palette host. */
-export type ToneFloorSurface<Role extends string, Host extends string> = { readonly role: Role } | { readonly host: Host };
+type ToneFloorSurface<Role extends string, Host extends string> = { readonly role: Role } | { readonly host: Host };
 
 /**
  * One D336 role, as data: the token vault authors it and the generated token map carries it, so the build, the
@@ -1223,7 +1223,7 @@ export function carriedTonePalette(base: Oklch, { foreground: foregroundLightnes
 const INPUT_BORDER_L_STEP = 0.005;
 
 /** What the scope paints a form-control edge over: its chrome panels, and the `bg-input` fill (an ink at an alpha) laid over each. */
-export interface InputBorderGrounds {
+interface InputBorderGrounds {
   readonly panels: readonly Oklch[];
   readonly fillInk: Oklch;
   readonly fillAlpha: number;
@@ -1419,7 +1419,7 @@ export function toneRoleColors<Role extends string, Knob extends string, Host ex
 }
 
 /** The WCAG ratio a role pair paints: the worse of the float colour and the 8-bit framebuffer pixel. */
-export function toneContrast(ink: Oklch, surface: Oklch): number {
+function toneContrast(ink: Oklch, surface: Oklch): number {
   return worstTextContrast(oklchToSrgb(ink), [oklchToSrgb(surface)]);
 }
 
@@ -1705,7 +1705,7 @@ const BUBBLE_DELTA_STEP = 0.005;
  * One bubble role's fill as an offset from the base: a lightness `delta`, at the base's chroma unless `neutral`. A base so
  * saturated that every lightness paints the same pixel can only be left through a neutral fill.
  */
-export interface BubbleFill {
+interface BubbleFill {
   readonly delta: number;
   readonly neutral: boolean;
 }
@@ -1718,7 +1718,7 @@ export interface BubbleFills {
 }
 
 /** The colour a {@link BubbleFill} paints on a base. */
-export function bubbleFillColor(base: Oklch, { delta, neutral }: BubbleFill): Oklch {
+function bubbleFillColor(base: Oklch, { delta, neutral }: BubbleFill): Oklch {
   const fill = rampSurface(base, delta);
   return opaquePixel(neutral ? { ...fill, c: 0 } : fill);
 }

@@ -1047,7 +1047,7 @@ export const themeViewSchema = z.strictObject({
 export type { ImportedAppearance, ImportedAppearanceOutcome, ImportedThemeLanding, SettingsImportOutcome } from "./import-results.ts";
 
 /** A signed-in actor reading their own settings; the verb scopes by `principal.userId`. */
-export interface GetUserSettingsParams {
+interface GetUserSettingsParams {
   readonly principal: Principal;
 }
 
@@ -1091,7 +1091,7 @@ export type ExamplePluginSeededOp = (principal: Principal) => Promise<boolean>;
 export type MarkExamplePluginSeededOp = (principal: Principal) => Promise<void>;
 
 /** The showcase plugin versions the seeder recorded for a user, by slug. */
-export type SeededPluginVersions = Readonly<Record<string, string>>;
+type SeededPluginVersions = Readonly<Record<string, string>>;
 
 export type ReadSeededPluginVersionsOp = (principal: Principal) => Promise<SeededPluginVersions>;
 
