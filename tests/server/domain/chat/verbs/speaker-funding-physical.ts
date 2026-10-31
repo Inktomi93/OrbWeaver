@@ -20,6 +20,7 @@ import { z } from "zod";
 export const B_CHAT_MODEL = "speaker-chat";
 export const B_UTILITY_MODEL = "speaker-utility";
 const B_RERANK_MODEL = "speaker-rerank";
+export const B_RERANK_WINDOW_TOKENS = 512;
 export const B_HOST_KEY = "owned-speaker-host-key";
 
 const completionSchema = z.object({
@@ -41,6 +42,7 @@ export interface SpeakerWirePlan {
   readonly utilityFailure?: boolean;
   readonly chatFailure?: boolean;
   readonly holdUtility?: boolean;
+  readonly holdRerank?: boolean;
   readonly holdChat?: boolean;
   readonly pitch?: string;
 }
@@ -77,6 +79,20 @@ async function speakerPeer(plan: SpeakerWirePlan, ownership: AsyncDisposableStac
   let chat = 0;
   let pick = 0;
   let execution: ReturnType<typeof createCorpusProviderExecution> | undefined;
+  async function hold(bindings: NativeHttpBindings): Promise<void> {
+    bindings.outgoing.once("close", () => closed.resolve());
+    reached.resolve();
+    await released.promise;
+  }
+  async function rerankReply(bindings: NativeHttpBindings): Promise<Response> {
+    if (plan.rerank === undefined) {
+      throw new Error("unplanned physical rerank request");
+    }
+    if (plan.holdRerank) {
+      await hold(bindings);
+    }
+    return Response.json({ results: plan.rerank });
+  }
   async function completion(request: Request, bindings: NativeHttpBindings): Promise<Response | undefined> {
     const body = completionSchema.parse(await request.clone().json());
     const utility = body.model === B_UTILITY_MODEL;
@@ -84,9 +100,7 @@ async function speakerPeer(plan: SpeakerWirePlan, ownership: AsyncDisposableStac
       return Response.json({ error: { message: "Controlled provider refusal", type: "invalid_request_error" } }, { status: 400 });
     }
     if ((utility && plan.holdUtility) || (!utility && plan.holdChat)) {
-      bindings.outgoing.once("close", () => closed.resolve());
-      reached.resolve();
-      await released.promise;
+      await hold(bindings);
     }
     const reply = plan.chat?.[chat];
     if (!utility && reply instanceof Response) {
@@ -101,10 +115,7 @@ async function speakerPeer(plan: SpeakerWirePlan, ownership: AsyncDisposableStac
       requests.push(request.clone());
       const path = new URL(request.url).pathname;
       if (path === "/v1/rerank") {
-        if (plan.rerank === undefined) {
-          throw new Error("unplanned physical rerank request");
-        }
-        return Response.json({ results: plan.rerank });
+        return await rerankReply(bindings);
       }
       if (path === "/v1/chat/completions") {
         const response = await completion(request, bindings);
@@ -202,7 +213,7 @@ export async function saveSpeakerConnection(
       task === "rerank"
         ? {
             kind: "rerank",
-            rerank: { maxInputTokens: 512, input: ["text"], instructionAware: false },
+            rerank: { maxInputTokens: B_RERANK_WINDOW_TOKENS, input: ["text"], instructionAware: false },
             features: { detectServer: false, rerankPath: "/rerank" },
           }
         : {
