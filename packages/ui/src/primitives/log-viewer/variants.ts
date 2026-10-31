@@ -8,7 +8,7 @@ import { FOCUS_RING_INSET, tv } from "#lib";
 // diff segments, badges).
 export const logViewerVariants = tv({
   slots: {
-    root: "flex flex-col overflow-hidden rounded-control border border-border bg-card font-mono text-code leading-label-relaxed",
+    root: "flex flex-col overflow-hidden rounded-control border border-border bg-card font-mono text-code leading-label-relaxed tone-host-card",
     toolbar: "flex shrink-0 items-center justify-end gap-field border-be border-border p-field",
     // The manual-copy field fills the body's place and never outgrows the root's own height.
     // `w-auto` over the field box's `w-full`, so the margin stays inside the root instead of adding to it.

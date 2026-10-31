@@ -14,7 +14,7 @@ export const tooltipVariants = tv({
     // viewport over the rows beside its trigger.
     popup: `
       rounded-control border border-border bg-popover px-row py-field text-label leading-label text-pretty text-popover-foreground shadow-overlay
-      max-inline-(--reading-measure-prose)
+      max-inline-(--reading-measure-prose) tone-host-popover
       ${OVERLAY_MOTION.anchoredPopup}
     `,
     arrow: OVERLAY_ARROW,

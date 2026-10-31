@@ -14,7 +14,7 @@ export const popoverVariants = tv({
     // bottom. Capped + scrollable is the same contract `POPUP_SURFACE` gives the list seals.
     popup: `
       relative overflow-y-auto overscroll-contain rounded-card border border-border bg-popover p-block text-popover-foreground shadow-overlay
-      max-block-(--available-height) max-inline-cq-24
+      max-block-(--available-height) max-inline-cq-24 tone-host-popover
       ${OVERLAY_MOTION.anchoredPopup}
     `,
     arrow: OVERLAY_ARROW,

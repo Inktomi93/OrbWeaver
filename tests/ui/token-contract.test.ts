@@ -456,12 +456,14 @@ describe("D336 tone role controls", () => {
   });
 });
 
-// A text-on-tint mixed to the bare base fails its own floor; a tint mixed most of the way to its base leaves the page inks under theirs.
+// A text-on-tint mixed to the bare base fails its own floor; a tint mixed most of the way to its base leaves the page inks
+// under theirs; a tint mixed almost all the way to its host merges with that host.
 for (const { knob, percent, miss } of [
   { knob: "text-on-tint", percent: 100, miss: /tone-text-on-tint on tone-tint/ },
   { knob: "tint", percent: 60, miss: /tone-tint on muted-foreground/ },
+  { knob: "tint", percent: 1, miss: /over card: tone-tint sits 0\.\d{4} off its host/ },
 ] as const) {
-  test(`a planted ${knob} mix under a floor fails the token build`, async ({ importStagingDir }) => {
+  test(`a planted ${knob} mix at ${percent}% under a floor fails the token build`, async ({ importStagingDir }) => {
     const root = join(importStagingDir, "repository");
     const ui = join(root, "packages/ui");
     cpSync(join(UI_ROOT, "src/tokens"), join(ui, "src/tokens"), { recursive: true });

@@ -15,7 +15,7 @@ import {
   toneRoleColors,
 } from "@orb/kit/theme-derivation";
 import type { Tone, ToneMixKnob, ToneRole } from "#tokens";
-import { TOKEN_POLARITY_ARMS, TOKENS, TONE_MIX_DEFAULTS, TONE_ROLE_RECIPES, TONES, toneKnobVar, toneLiteralVar } from "#tokens";
+import { TOKEN_POLARITY_ARMS, TOKENS, TONE_HOST_VAR, TONE_MIX_DEFAULTS, TONE_ROLE_RECIPES, TONES, toneKnobVar, toneLiteralVar } from "#tokens";
 import type { ParsedOklch } from "./color-parse.ts";
 import { serializeOpaqueOklch, toOklch } from "./color-parse.ts";
 import type { CarriedPalette } from "./derive-vars.ts";
@@ -145,7 +145,11 @@ export interface CarriedToneMix {
   readonly raised: Readonly<Partial<Record<Tone, Readonly<Partial<Record<ToneMixKnob, number>>>>>>;
 }
 
-/** The knob percents a carried scope emits, solved over every tone it paints, its solid steps per tone. */
+/**
+ * The knob percents a carried scope emits, solved on its page over every tone it paints, its solid steps per tone.
+ * Every tone it judges paints its tints and their inks as literals judged on every host (`solveCarriedToneRoles`), so
+ * the tint knobs reach only the mix fallback of a tone it cannot judge.
+ */
 export function solveCarriedToneMix(scheme: CarriedToneScheme, tones: readonly CarriedTone[]): CarriedToneMix {
   const scope = solveToneMix(
     scheme,
@@ -219,6 +223,14 @@ export function primaryToneVars(scheme: CarriedToneScheme, mix: CarriedToneMix, 
     ...STEP_KNOBS.map((knob) => [toneKnobVar("primary", knob), `${steps[knob]}%`] as const),
     ...toneLiteralEntries(scheme, "primary", tones),
   ]);
+}
+
+/**
+ * The host a scope that paints its own background resets to the page: a scope nested on a card must mix its washes over
+ * its own background, not the outer palette's card. A surface inside the scope names its own host again.
+ */
+export function toneHostReset(): Readonly<Record<string, string>> {
+  return { [TONE_HOST_VAR]: MIX_FALLBACK };
 }
 
 /**

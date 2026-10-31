@@ -963,8 +963,12 @@ export function solidInkLightness(fill: Oklch, steps: readonly Oklch[]): SolidIn
   }
   return { lightness: best.lightness, coversSteps: false };
 }
-/** The operands a D336 tone-role mix moves toward. `away` is `light-dark(black, white)`: the solid steps move away from the page ink. */
-export const TONE_MIX_TARGETS = ["foreground", "background", "away"] as const;
+/**
+ * The operands a D336 tone-role mix moves toward. `away` is `light-dark(black, white)`: the solid steps move away from the
+ * page ink. `host` is the surface under the role, `var(--tone-host, var(--color-background))`: a wash mixes over the card or
+ * popover it sits on, so it stays apart from that surface rather than from the page.
+ */
+export const TONE_MIX_TARGETS = ["foreground", "background", "host", "away"] as const;
 export type ToneMixTarget = (typeof TONE_MIX_TARGETS)[number];
 
 /** What a colored tone's role starts from: its intent base or the base's paired foreground token. */
@@ -996,12 +1000,16 @@ export interface ToneRoleRecipe<Role extends string, Knob extends string, Host e
   readonly pageInks: readonly Host[];
 }
 
-/** Every surface a role pairs with at the text floor for one tone: its floor, and its page inks when the tone is colored. */
+/**
+ * Every surface a role pairs with at the text floor for one tone: its floor, and its page inks when the tone is colored,
+ * each as the ink the palette's host paints it in.
+ */
 function roleFloors<Role extends string, Knob extends string, Host extends string>(
   recipe: ToneRoleRecipe<Role, Knob, Host>,
   tone: ToneSource,
+  palette: TonePalette<Host>,
 ): readonly ToneFloorSurface<Role, Host>[] {
-  return tone === "neutral" ? recipe.floor : [...recipe.floor, ...recipe.pageInks.map((host) => ({ host }))];
+  return tone === "neutral" ? recipe.floor : [...recipe.floor, ...recipe.pageInks.map((host) => ({ host: palette.hostInks?.[host] ?? host }))];
 }
 
 export type ToneRoleRecipes<Role extends string, Knob extends string, Host extends string> = Readonly<Record<Role, ToneRoleRecipe<Role, Knob, Host>>>;
@@ -1011,6 +1019,10 @@ export interface TonePalette<Host extends string> {
   readonly polarity: SurfacePolarity;
   readonly foreground: Oklch;
   readonly background: Oklch;
+  /** The surface a `host` mix moves toward: the page, unless a surface sets `--tone-host` ({@link tonePaletteOn}). */
+  readonly host: Oklch;
+  /** The ink a page ink becomes on the host: on a card the page's `foreground` is the card's own ink. Absent on the page. */
+  readonly hostInks?: Readonly<Partial<Record<Host, Host>>>;
   readonly hosts: Readonly<Record<Host, Oklch>>;
 }
 
@@ -1020,6 +1032,9 @@ export const CARRIED_TONE_HOSTS = [
   "foreground",
   "surface-raised",
   "card",
+  "card-foreground",
+  "popover",
+  "popover-foreground",
   "muted",
   "muted-foreground",
   "accent",
@@ -1027,6 +1042,29 @@ export const CARRIED_TONE_HOSTS = [
   "border",
 ] as const;
 export type CarriedToneHost = (typeof CARRIED_TONE_HOSTS)[number];
+
+/**
+ * The surfaces a tone wash sits over, each of which a surface primitive names through its `tone-host-<host>` utility.
+ * Every floor and every tint separation is judged over each, by the token build for a seed and by the clamp for a carried palette.
+ */
+export const TONE_HOSTS = ["background", "surface-raised", "card", "popover"] as const satisfies readonly CarriedToneHost[];
+export type ToneHost = (typeof TONE_HOSTS)[number];
+
+/** The ink each host paints its content in: a row on a card's tint keeps the card's ink, on a popover's the popover's. */
+const TONE_HOST_INKS = {
+  background: "foreground",
+  "surface-raised": "foreground",
+  card: "card-foreground",
+  popover: "popover-foreground",
+} as const satisfies Readonly<Record<ToneHost, CarriedToneHost>>;
+
+/**
+ * The palette on one host: its `host` operand on that surface, and its `foreground` page ink the ink that surface paints,
+ * so a tint's page-ink floor is judged as the pair that host actually draws.
+ */
+export function tonePaletteOn(palette: TonePalette<CarriedToneHost>, host: ToneHost): TonePalette<CarriedToneHost> {
+  return { ...palette, host: palette.hosts[host], hostInks: { foreground: TONE_HOST_INKS[host] } };
+}
 
 /** A carried palette's low-emphasis ink and the input-fill alpha it clears, judged over the hosts that ink is painted on. */
 function carriedMutedForegroundPair(base: Oklch): MutedForegroundPair {
@@ -1105,11 +1143,16 @@ export function carriedTonePalette(base: Oklch, { foreground: foregroundLightnes
     polarity,
     foreground,
     background,
+    host: background,
     hosts: {
       background,
       foreground,
       "surface-raised": opaquePixel(rampSurface(base, deltas.surfaceRaised)),
       card: opaquePixel(rampSurface(base, deltas.card)),
+      // Each surface's own ink, spelled as the scope emits `--color-card-foreground` and `--color-popover-foreground`.
+      "card-foreground": opaquePixel({ l: derivedForegroundLightness(rampSurface(base, deltas.card)), c: 0, h: base.h }),
+      popover: opaquePixel(rampSurface(base, deltas.popover)),
+      "popover-foreground": opaquePixel({ l: derivedForegroundLightness(rampSurface(base, deltas.popover)), c: 0, h: base.h }),
       muted: opaquePixel(rampSurface(base, deltas.muted)),
       "muted-foreground": opaquePixel({ l: muted.lightness, c: 0, h: base.h }),
       accent: opaquePixel(rampSurface(base, deltas.accent)),
@@ -1263,6 +1306,8 @@ function mixTarget<Host extends string>(target: ToneMixTarget, palette: TonePale
       return palette.foreground;
     case "background":
       return palette.background;
+    case "host":
+      return palette.host;
     case "away":
       return palette.polarity === "light" ? BLACK : WHITE;
     default: {
@@ -1413,7 +1458,7 @@ export function roleFloorMisses<Role extends string, Knob extends string, Host e
     return converted;
   };
   for (const role of Object.keys(scheme.recipes) as Role[]) {
-    for (const over of roleFloors(scheme.recipes[role], tone)) {
+    for (const over of roleFloors(scheme.recipes[role], tone, scheme.palette)) {
       if (!judged(role, over)) {
         continue;
       }
@@ -1504,7 +1549,7 @@ function lowerGroup<Role extends string, Knob extends string, Host extends strin
  * The `--tone-mix-*` percents nearest each default that clear every floor of every tone over a carried palette
  * (D336). Amounts are whole percents. Each group first aims at the D202 derivation ratio, the margin the browser's
  * own colour arithmetic spends below the analytic pair; where the palette cannot reach that, it settles for the
- * legal floor. A lowered group ends at zero, where `text` is the scope's own foreground and a tint its background;
+ * legal floor. A lowered group ends at zero, where `text` is the scope's own foreground and a tint its host;
  * a raised group ends at 100, the solid itself; D202 solves both ends, so a palette that misses even there throws.
  */
 export function solveToneMix<Role extends string, Knob extends string, Host extends string>(
@@ -1619,7 +1664,7 @@ interface LiteralRole<Role extends string, Knob extends string> {
   readonly step: ToneMixStep<Knob>;
 }
 
-/** The tints a carried scope emits literally: mixed toward the page and the ground of another role's floor, weakest first. */
+/** The tints: mixed toward the host and the ground of another role's floor, weakest first. A carried scope emits them literally. */
 function literalSurfaces<Role extends string, Knob extends string, Host extends string>(
   recipes: ToneRoleRecipes<Role, Knob, Host>,
   defaults: Readonly<Record<Knob, number>>,
@@ -1628,7 +1673,7 @@ function literalSurfaces<Role extends string, Knob extends string, Host extends 
   const grounds = new Set(roles.flatMap((role) => recipes[role].floor.flatMap((over) => ("role" in over ? [over.role] : []))));
   return roles
     .flatMap((role) => {
-      const step = mixStepToward(recipes[role].colored, "background");
+      const step = mixStepToward(recipes[role].colored, "host");
       return step !== undefined && grounds.has(role) ? [{ role, step }] : [];
     })
     .toSorted((a, b) => defaults[a.step.mix] - defaults[b.step.mix]);
@@ -1661,19 +1706,22 @@ interface TintSpec {
   readonly weakestPercent: number;
   /** The inks the tone's tint carries, each of which must clear the text floor on it. */
   readonly inks: readonly Oklch[];
+  /** The surfaces the tint may sit over ({@link TONE_HOSTS}), each of which it keeps the separation from. */
+  readonly hosts: readonly Oklch[];
 }
 
 /**
  * A tint on the tone's hue: the default mix's lightness and the tone's share of chroma, raised to the tint's least
  * chroma (scaled by its step over the weakest tint, so a stronger tint stays stronger). The nearest lightness, away
- * from the page ink first, that keeps that chroma, sits {@link TONE_TINT_SEPARATION} off the page and lets each ink of
- * its floor clear the text floor wins; where the gamut holds no such chroma, the nearest that keeps the rest.
+ * from the page ink first, that keeps that chroma, sits {@link TONE_TINT_SEPARATION} off every host and lets each ink of
+ * its floor clear the text floor wins; where the gamut holds no such chroma, the nearest that keeps the rest. One literal
+ * serves every host, so it is judged against each.
  *
  * The inks are the page-family inks a selected row, an active tab or a compare panel keep on a tint (D336). Each aims at
  * its own pair with the page, capped at the derivation ratio and never below the floor; the page ink's end point clears
  * whatever those inks clear, so `text-on-tint` always has a solution too.
  */
-function solveTint<Host extends string>(palette: TonePalette<Host>, base: Oklch, { percent, weakestPercent, inks }: TintSpec): Oklch {
+function solveTint<Host extends string>(palette: TonePalette<Host>, base: Oklch, { percent, weakestPercent, inks, hosts }: TintSpec): Oklch {
   const { background, foreground } = palette;
   const floorChroma = Math.min(base.c, (TONE_TINT_MIN_CHROMA * percent) / weakestPercent);
   const chroma = Math.max((base.c * percent) / PERCENT, floorChroma);
@@ -1684,7 +1732,7 @@ function solveTint<Host extends string>(palette: TonePalette<Host>, base: Oklch,
   let nearest: Oklch | undefined;
   for (const l of lightnessWalk(mixOklab(base, percent, background).l, foreground.l < background.l ? 1 : -1)) {
     const candidate = onHue(l, chroma, base.h);
-    if (paintedDistance(candidate, background) < TONE_TINT_SEPARATION) {
+    if (hosts.some((host) => paintedDistance(candidate, host) < TONE_TINT_SEPARATION)) {
       continue;
     }
     const candidatePixel = oklchToSrgb(candidate);
@@ -1697,8 +1745,8 @@ function solveTint<Host extends string>(palette: TonePalette<Host>, base: Oklch,
     nearest ??= candidate;
   }
   if (nearest === undefined) {
-    // Black and white sit at least the separation off any page and clear AA against each other's side.
-    throw new Error("unable to derive a tint that keeps its separation from the page");
+    // Black and white sit at least the separation off any host family and clear AA against each other's side.
+    throw new Error("unable to derive a tint that keeps its separation from every host");
   }
   return nearest;
 }
@@ -1748,22 +1796,26 @@ function nearestClearingLightness(start: number, direction: 1 | -1, clears: (l: 
 /**
  * The literal colours a carried scope emits for one colored tone ({@link carriedLiteralRoles}), solved from the role
  * defaults: its tints first, then each ink over the grounds its floor names, the solved tints included. Each keeps the
- * tone's hue; the other roles stay the mixes the `[data-tone]` block spells.
+ * tone's hue; the other roles stay the mixes the `[data-tone]` block spells. `scheme` is the page scheme: a tint is one
+ * literal over every {@link TONE_HOSTS} surface, so it starts from the page and keeps its separation from each.
  */
-export function solveCarriedToneRoles<Role extends string, Knob extends string, Host extends string>(
-  scheme: ToneScheme<Role, Knob, Host>,
+export function solveCarriedToneRoles<Role extends string, Knob extends string>(
+  scheme: ToneScheme<Role, Knob, CarriedToneHost>,
   tone: ToneColors,
   defaults: Readonly<Record<Knob, number>>,
 ): Readonly<Partial<Record<Role, Oklch>>> {
   const { recipes, palette } = scheme;
+  const hosts = TONE_HOSTS.map((host) => palette.hosts[host]);
   const colors: Record<Role, Oklch> = { ...toneRoleColors(scheme, tone, defaults) };
   const literals: Partial<Record<Role, Oklch>> = {};
   const surfaces = literalSurfaces(recipes, defaults);
   const [weakest] = surfaces;
   for (const { role, step } of surfaces) {
-    const inks = roleFloors(recipes[role], tone).map((over) => ("role" in over ? colors[over.role] : palette.hosts[over.host]));
+    // The one literal sits on every host, so it carries each host's page inks.
+    const floors = TONE_HOSTS.flatMap((host) => roleFloors(recipes[role], tone, tonePaletteOn(palette, host)));
+    const inks = [...new Set(floors.map((over) => ("role" in over ? colors[over.role] : palette.hosts[over.host])))];
     const weakestPercent = weakest === undefined ? defaults[step.mix] : defaults[weakest.step.mix];
-    const tint = solveTint(palette, tone.base, { percent: defaults[step.mix], weakestPercent, inks });
+    const tint = solveTint(palette, tone.base, { percent: defaults[step.mix], weakestPercent, inks, hosts });
     colors[role] = tint;
     literals[role] = tint;
   }

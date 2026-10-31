@@ -29,7 +29,7 @@ import { FOCUS_RING_WITHIN_INSET, tv } from "#lib";
  */
 export const commandVariants = tv({
   slots: {
-    root: `flex flex-col overflow-hidden rounded-card border border-border bg-popover text-popover-foreground ${FOCUS_RING_WITHIN_INSET}`,
+    root: `flex flex-col overflow-hidden rounded-card border border-border bg-popover text-popover-foreground tone-host-popover ${FOCUS_RING_WITHIN_INSET}`,
     // The coarse-pointer arm is the 44px tap floor (side-eye: the picker's input measured 43px on a
     // phone). `control-sm` already varies by pointer (2.75rem coarse / 2rem fine, theme.css) but only
     // via the `pointer: fine` media query, not Tailwind's `pointer-coarse:` variant — spelling the

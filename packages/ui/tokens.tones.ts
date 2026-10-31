@@ -1,8 +1,20 @@
 // D336 tone roles in the token build: the scoped `[data-tone]` blocks, their Tailwind registration, the recipe map
 // the clamp and tests read, and the floor check that fails a shipped palette under a role floor.
 // A role is never a :root variable: a root formula freezes to the root palette, so it resolves on the stamped element.
-import type { CarriedToneHost, Oklch, TonePalette, ToneRoleRecipe, ToneSource } from "@orb/kit/theme-derivation";
-import { CARRIED_TONE_HOSTS, carriedLiteralRoles, compositeSrgb, oklchToSrgb, srgbToOklch, toneFloorMisses } from "@orb/kit/theme-derivation";
+import type { CarriedToneHost, Oklch, TonePalette, ToneRoleRecipe, ToneScheme, ToneSource } from "@orb/kit/theme-derivation";
+import {
+  CARRIED_TONE_HOSTS,
+  carriedLiteralRoles,
+  compositeSrgb,
+  oklchToSrgb,
+  paintedDistance,
+  srgbToOklch,
+  TONE_HOSTS,
+  TONE_TINT_SEPARATION,
+  toneFloorMisses,
+  tonePaletteOn,
+  toneRoleColors,
+} from "@orb/kit/theme-derivation";
 import type { ContractToken, DerivedOutput, GeneratedCssValue, TokenContractResult } from "./token-contract.ts";
 import { NEUTRAL_TONE, TONE_MIX_GROUP, TONE_ROLE_PREFIX } from "./token-contract.ts";
 
@@ -28,7 +40,28 @@ export interface ToneModel {
 
 const DTCG_ALIAS_RE = /^\{([^{}]+)\}$/u;
 const OKLCH_COMPONENTS = 3;
-const MIX_TARGET_CSS = { foreground: "var(--color-foreground)", background: "var(--color-background)", away: "light-dark(black, white)" } as const;
+/** The surface under a tone wash. Unset, a wash mixes over the page; a surface sets it through its `tone-host-<host>` utility. */
+const TONE_HOST_VAR = "--tone-host";
+const TONE_HOST_UTILITY_PREFIX = "tone-host";
+
+const MIX_TARGET_CSS = {
+  foreground: "var(--color-foreground)",
+  background: "var(--color-background)",
+  host: `var(${TONE_HOST_VAR}, var(--color-background))`,
+  away: "light-dark(black, white)",
+} as const;
+
+function toneHostUtility(host: string): string {
+  return [TONE_HOST_UTILITY_PREFIX, host].join("-");
+}
+
+/**
+ * One `tone-host-<host>` utility per surface a wash sits over. It resolves the surface colour on the element that paints
+ * it, so every tone wash below mixes over that surface.
+ */
+export function renderToneHostUtilities(): string {
+  return TONE_HOSTS.map((host) => `\n@utility ${toneHostUtility(host)} {\n  ${TONE_HOST_VAR}: var(--color-${host});\n}\n`).join("");
+}
 
 function aliasTail(alias: string, group: string): string {
   const path = DTCG_ALIAS_RE.exec(alias)?.[1];
@@ -150,11 +183,12 @@ export function renderToneBlocks(model: ToneModel): string {
 }
 
 /**
- * A seed palette block's tone declarations: every knob at its default and the root's step knobs and invalid literals.
- * A seed nested inside a carried scope (a theme thumbnail) would otherwise inherit that scope's solve and literals.
+ * A seed palette block's tone declarations: every knob at its default, the root's step knobs and invalid literals, and an
+ * invalid host. A seed nested inside a carried scope (a theme thumbnail) would otherwise inherit that scope's solve and
+ * literals, and a seed nested on a card would mix its washes over the outer palette's card.
  */
 export function toneSeedResets(model: ToneModel): readonly string[] {
-  return [...model.knobs.map((knob) => `--${TONE_MIX_GROUP}-${knob}: ${model.defaults[knob]}%;`), ...toneRootDefaults(model)];
+  return [...model.knobs.map((knob) => `--${TONE_MIX_GROUP}-${knob}: ${model.defaults[knob]}%;`), ...toneRootDefaults(model), `${TONE_HOST_VAR}: initial;`];
 }
 
 /** The `@theme reference` registration: it mints the `*-tone-*` utilities, and its value is the neutral spelling the
@@ -189,6 +223,12 @@ export function renderToneTs(model: ToneModel): readonly string[] {
     `export function toneLiteralVar(tone: Exclude<Tone, ${JSON.stringify(NEUTRAL_TONE)}>, role: ToneRole): string {`,
     `  return [${JSON.stringify(TONE_LITERAL_PREFIX)}, tone, role].join("-");`,
     "}",
+    "",
+    "/** The surface under a tone wash, read by every `host` mix; unset, the wash mixes over the page. */",
+    `export const TONE_HOST_VAR = ${JSON.stringify(TONE_HOST_VAR)};`,
+    "",
+    "/** The utility a surface wears to make itself the host of the tone washes inside it. */",
+    `export const TONE_HOST_UTILITIES = ${JSON.stringify(Object.fromEntries(TONE_HOSTS.map((host) => [host, toneHostUtility(host)])))} as const satisfies Readonly<Record<ToneHost, string>>;`,
     "",
     "/** Each role's recipe as data, for the numeric twin in `@orb/kit/theme-derivation`. */",
     "export const TONE_ROLE_RECIPES = {",
@@ -232,23 +272,60 @@ function seedPalette(contract: TokenContractResult, theme: TokenContractResult["
   };
 }
 
-/** Fails the build when a shipped palette misses a D336 floor at the default mix amounts. */
+// A separation sits near 0.02, so its finding needs four digits to show how far under the floor it fell.
+const SEPARATION_DIGITS = 4;
+
+/** One tone's findings over one host: each floor its pairs miss and, for a colored tone, each tint that merges with the host. */
+/** The tints the separation floor holds off their host: the literal roles a carried scope solves that mix toward the host. */
+function tintRoles(model: ToneModel): readonly string[] {
+  return model.roles
+    .filter(({ name, recipe: { colored } }) => model.literalRoles.has(name) && typeof colored === "object" && colored.toward === "host")
+    .map(({ name }) => name);
+}
+
+/** One tone's findings over one host: each floor its pairs miss and, for a colored tone, each tint that merges with the host. */
+function toneFindings(scheme: ToneScheme<string, string, CarriedToneHost>, source: ToneSource, model: ToneModel): readonly string[] {
+  const floors = toneFloorMisses(scheme, source, model.defaults).map((miss) => {
+    const over = "role" in miss.over ? `tone-${miss.over.role}` : miss.over.host;
+    return `tone-${miss.role} on ${over} is ${miss.ratio.toFixed(2)}:1`;
+  });
+  if (source === "neutral") {
+    return floors;
+  }
+  const colors = toneRoleColors(scheme, source, model.defaults);
+  const separations = tintRoles(model).flatMap((role) => {
+    const color = colors[role];
+    if (color === undefined) {
+      throw new Error(`tone-${role} escaped the recipe map`);
+    }
+    const distance = paintedDistance(color, scheme.palette.host);
+    return distance < TONE_TINT_SEPARATION ? [`tone-${role} sits ${distance.toFixed(SEPARATION_DIGITS)} off its host`] : [];
+  });
+  return [...floors, ...separations];
+}
+
+/**
+ * Fails the build when a shipped palette misses a D336 floor at the default mix amounts, or a colored tone's tint
+ * merges with its host, over each surface a wash sits on.
+ */
 export function assertShippedToneFloors(contract: TokenContractResult, model: ToneModel): void {
   const recipes = Object.fromEntries(model.roles.map((role) => [role.name, role.recipe]));
   const findings: string[] = [];
   for (const theme of contract.themes) {
     const color = seedPalette(contract, theme);
-    const palette: TonePalette<CarriedToneHost> = {
+    const background = color("color.background");
+    const page: TonePalette<CarriedToneHost> = {
       polarity: theme.colorScheme,
       foreground: color("color.foreground"),
-      background: color("color.background"),
+      background,
+      host: background,
       hosts: Object.fromEntries(CARRIED_TONE_HOSTS.map((host) => [host, color(`color.${host}`)])) as Record<CarriedToneHost, Oklch>,
     };
-    for (const tone of model.tones) {
-      const source: ToneSource = tone === NEUTRAL_TONE ? "neutral" : { base: color(`color.${tone}`), foreground: color(`color.${tone}-foreground`) };
-      for (const miss of toneFloorMisses({ recipes, palette }, source, model.defaults)) {
-        const over = "role" in miss.over ? `tone-${miss.over.role}` : miss.over.host;
-        findings.push(`${theme.id} ${tone}: tone-${miss.role} on ${over} is ${miss.ratio.toFixed(2)}:1`);
+    for (const host of TONE_HOSTS) {
+      const scheme = { recipes, palette: tonePaletteOn(page, host) };
+      for (const tone of model.tones) {
+        const source: ToneSource = tone === NEUTRAL_TONE ? "neutral" : { base: color(`color.${tone}`), foreground: color(`color.${tone}-foreground`) };
+        findings.push(...toneFindings(scheme, source, model).map((finding) => `${theme.id} ${tone} over ${host}: ${finding}`));
       }
     }
   }

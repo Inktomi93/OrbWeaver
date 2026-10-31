@@ -29,7 +29,7 @@ export const macroTextareaVariants = tv({
     listbox: [
       `
         absolute inset-s-0 inset-e-0 inset-bs-full z-(--z-overlay) mbs-field overflow-y-auto overscroll-contain rounded-card border border-border bg-popover
-        py-field font-sans shadow-overlay max-block-(--height-scroll-md)
+        py-field font-sans shadow-overlay max-block-(--height-scroll-md) tone-host-popover
       `,
     ],
     groupLabel: "px-block py-field text-label leading-label font-semibold tracking-caps text-muted-foreground uppercase",
