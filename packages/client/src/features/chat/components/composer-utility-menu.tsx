@@ -24,7 +24,21 @@ import type { GuidedGameSteerKind } from "@orb/kit/guided";
 import { RPG_PLOT_STEER_KINDS, RPG_PLOT_STEERS } from "@orb/kit/guided";
 import { GlyphButton } from "@orb/ui/glyph-button";
 import type { LucideIcon } from "@orb/ui/icons";
-import { Compass, Eraser, History, Icon, ListOrdered, MessageSquarePlus, Pencil, Redo2, RefreshCw, Undo2, WandSparkles } from "@orb/ui/icons";
+import {
+  Compass,
+  Eraser,
+  FastForward,
+  History,
+  Icon,
+  ListOrdered,
+  MessageSquarePlus,
+  Pencil,
+  Redo2,
+  RefreshCw,
+  RotateCcw,
+  Undo2,
+  WandSparkles,
+} from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { Menu, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuSeparator, MenuSubmenuRoot, MenuSubmenuTrigger, MenuTrigger } from "@orb/ui/menu";
 import { Text } from "@orb/ui/text";
@@ -63,13 +77,29 @@ interface UtilityMenuProps {
    *  toggle. Separate from `game` on purpose — a prop that only existed on the game bundle is exactly how it
    *  ended up game-gated in the first place. */
   readonly onOfferChoices: () => void;
+  readonly moved: ComposerMovedReplyActions | undefined;
   /** The re-homed image controls (attach + generate-from-text). */
   readonly image: ComposerImageControls;
   readonly roomContributions: readonly ReactNode[];
   readonly mediaContributions: readonly ReactNode[];
 }
 
+/** One of the cluster's reply buttons, spelled as a menu row while the button row cannot seat it. */
+export interface ComposerReplyAction {
+  readonly label: string;
+  readonly onAction: () => void;
+  readonly enabled: boolean;
+  readonly disabledReason: string;
+}
+
+/** The reply buttons the cluster has moved into this menu; `undefined` while they fit beside the others. */
+export interface ComposerMovedReplyActions {
+  readonly swipe: ComposerReplyAction;
+  readonly continuation: ComposerReplyAction;
+}
+
 interface ComposerGuidedUtilityMenuProps {
+  readonly moved: ComposerMovedReplyActions | undefined;
   readonly hasText: boolean;
   readonly trimmed: string;
   readonly idle: boolean;
@@ -89,6 +119,7 @@ interface ComposerGuidedUtilityMenuProps {
  *  the menu's phase-specific wiring. */
 export function ComposerGuidedUtilityMenu(props: ComposerGuidedUtilityMenuProps): ReactElement {
   const {
+    moved,
     hasText,
     trimmed,
     idle,
@@ -106,6 +137,7 @@ export function ComposerGuidedUtilityMenu(props: ComposerGuidedUtilityMenuProps)
   const tailId = guided.tailAssistantMessageId;
   return (
     <UtilityMenu
+      moved={moved}
       hasText={hasText}
       generationEnabled={idle}
       generationUnavailableReason={generationUnavailableReason}
@@ -134,6 +166,7 @@ export function ComposerGuidedUtilityMenu(props: ComposerGuidedUtilityMenuProps)
 
 function UtilityMenu(props: UtilityMenuProps): ReactElement {
   const {
+    moved,
     hasText,
     generationEnabled,
     generationUnavailableReason,
@@ -238,6 +271,25 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
             there), so it stands as a real second door, not a duplicate to retire. */}
         <MenuGroup>
           <MenuGroupLabel>Reply</MenuGroupLabel>
+          {/* The button row's own Try another reply and Continue the reply, while it cannot seat them. */}
+          {moved === undefined ? null : (
+            <>
+              <UtilityActionItem
+                icon={RotateCcw}
+                label={moved.swipe.label}
+                onAction={moved.swipe.onAction}
+                enabled={moved.swipe.enabled}
+                disabledReason={moved.swipe.disabledReason}
+              />
+              <UtilityActionItem
+                icon={FastForward}
+                label={moved.continuation.label}
+                onAction={moved.continuation.onAction}
+                enabled={moved.continuation.enabled}
+                disabledReason={moved.continuation.disabledReason}
+              />
+            </>
+          )}
           <UtilityActionItem
             icon={RefreshCw}
             label="Regenerate"

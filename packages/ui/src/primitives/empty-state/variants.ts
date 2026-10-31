@@ -20,7 +20,7 @@ export const emptyStateVariants = tv({
     decoration: "",
     icon: "text-muted-foreground",
     // `wrap-anywhere`: a long title word at an enlarged root is wider than the pane and would be cut at its edges.
-    title: "text-title leading-title font-medium text-foreground wrap-anywhere @max-cq-24:text-body @max-cq-24:leading-body",
+    title: "text-title leading-title font-medium wrap-anywhere text-foreground @max-cq-24:text-body @max-cq-24:leading-body",
     // NO `max-w-*` IN THE BASE — the measure is the `measure` variant's alone. A base width plus a variant
     // width is the tailwind-merge custom-token trap (`twMerge("max-w-cq-24","max-w-cq-32")` cannot see
     // through the registered custom scale reliably, so the pair would resolve by stylesheet order); one

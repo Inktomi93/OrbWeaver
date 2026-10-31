@@ -202,6 +202,7 @@
   --breakpoint-shell: 48rem;
   --breakpoint-shell-dock: 64rem;
   --breakpoint-shell-short: 20rem;
+  --breakpoint-inline-narrow: 30rem;
   --dimension-rail: 3.5rem;
   --dimension-chrome-row: 3rem;
   --dimension-panel-floor: 17rem;
@@ -374,6 +375,7 @@
 @custom-variant shell-mobile (@media (width <= 48rem));
 @custom-variant shell-narrow (@media (width <= 64rem));
 @custom-variant shell-short (@media (height <= 20rem));
+@custom-variant inline-narrow (@media (width <= 30rem));
 
 @layer theme {
   :root {

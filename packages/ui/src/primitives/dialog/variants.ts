@@ -8,9 +8,9 @@ import { MODAL_SURFACE, OVERLAY_MOTION, SCRIM, tv } from "#lib";
 // correctly on the popup. The popup pairs that clamp with
 // `overflow-y-auto overscroll-contain` (matching drawer-content) so tall content — a FormDialog whose
 // body outgrows the viewport — actually scrolls to its submit button instead of overflowing off-screen.
-// The gutter is a rem token, so enlarged text grows it with the type; on a mobile shell it steps down to the field inset so
+// The gutter is a rem token, so enlarged text grows it with the type; at a narrow width it steps down to the field inset so
 // a phone keeps a readable dialog width at 300%.
-const VIEWPORT_GUTTER = "p-gutter shell-mobile:p-field";
+const VIEWPORT_GUTTER = "p-gutter inline-narrow:p-field";
 
 export const dialogVariants = tv({
   slots: {
