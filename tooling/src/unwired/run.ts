@@ -1,5 +1,5 @@
 // The `pnpm unwired` verbs. `ports` writes the restated-port targets the derive codemod reads; the bare verb runs
-// both reference engines over every world and writes the unwired members.
+// both engines over every world and writes the unwired members.
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import process from "node:process";
@@ -9,15 +9,40 @@ import { DELIBERATE } from "./deliberate.ts";
 import { portCensus } from "./port-census.ts";
 import type { ClusterGroup, Leg, PortTarget, TargetKind } from "./port-targets.ts";
 import { CLUSTER_GROUPS, LEGS } from "./port-targets.ts";
+import type { ScanOptions } from "./scan.ts";
 import { scanUnwired } from "./scan.ts";
 import { TEST_WORLDS } from "./worlds.ts";
 
+export const SCAN_VERBS = ["scan"] as const;
+/** `scan`, the bare verb, is the member scan. */
+export type ScanVerb = (typeof SCAN_VERBS)[number];
+const VERBS = [...SCAN_VERBS, "ports"] as const;
+type Verb = (typeof VERBS)[number];
+
 const USAGE = "usage: pnpm unwired [--root=<dir>] [--out=<file>] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>]";
 const DEFAULT_PORTS_OUT = "reports/unwired/port-targets.json";
-const DEFAULT_SCAN_OUT = "reports/unwired/unwired.json";
+
+interface Finding {
+  readonly kind: string;
+  readonly file: string;
+  readonly line: number;
+  readonly home: string;
+  readonly member: string;
+}
+
+interface Report {
+  readonly scanned: number;
+  readonly unwired: readonly Finding[];
+  readonly deliberate: readonly Finding[];
+  readonly disagreements: readonly (string | object)[];
+}
+
+const SCANS = {
+  scan: { out: "reports/unwired/unwired.json", run: scanUnwired },
+} as const satisfies Record<ScanVerb, { readonly out: string; readonly run: (options: ScanOptions) => Report }>;
 
 interface Args {
-  readonly verb: "scan" | "ports";
+  readonly verb: Verb;
   readonly root: string;
   readonly out: string | null;
   readonly leg: Leg | null;
@@ -34,9 +59,10 @@ function oneOf<T extends string>(flag: string, value: string | null, allowed: re
 
 function parseArgs(argv: readonly string[]): Args {
   const [first] = argv;
-  const verb = first === "ports" ? "ports" : "scan";
+  const named = VERBS.find((candidate) => candidate !== "scan" && candidate === first);
+  const verb = named ?? "scan";
   const flags = new Map<string, string>();
-  for (const arg of verb === "ports" ? argv.slice(1) : argv) {
+  for (const arg of named === undefined ? argv : argv.slice(1)) {
     const match = /^--(root|out|leg|cluster)=(.+)$/u.exec(arg);
     if (match === null) {
       throw new UsageError(`${arg}: unknown argument\n${USAGE}`);
@@ -120,7 +146,7 @@ const log = (line: string): void => {
   process.stderr.write(`${line}\n`);
 };
 
-export async function runUnwired(argv: readonly string[]): Promise<number> {
+export function runUnwired(argv: readonly string[]): number {
   const args = parseArgs(argv);
   if (args.verb === "ports") {
     const census = portCensus(args.root, log);
@@ -140,16 +166,16 @@ export async function runUnwired(argv: readonly string[]): Promise<number> {
     log(`targets=${targets.length} written to ${path}`);
     return EXIT.clean;
   }
-  const report = await scanUnwired({
+  const scan = SCANS[args.verb];
+  const report: Report = scan.run({
     root: args.root,
     testWorlds: TEST_WORLDS.filter((config) => existsSync(join(args.root, config))),
     deliberate: DELIBERATE,
     log,
   });
-  const path = write(args.root, args.out ?? DEFAULT_SCAN_OUT, report);
-  for (const member of report.unwired) {
-    process.stdout.write(`${member.kind}	${member.file}:${member.line}	${member.home}.${member.member}
-`);
+  const path = write(args.root, args.out ?? scan.out, report);
+  for (const finding of report.unwired) {
+    process.stdout.write(`${finding.kind}\t${finding.file}:${finding.line}\t${finding.home}.${finding.member}\n`);
   }
   log(
     `scanned=${report.scanned} unwired=${report.unwired.length} deliberate=${report.deliberate.length} disagreements=${report.disagreements.length} written to ${path}`,

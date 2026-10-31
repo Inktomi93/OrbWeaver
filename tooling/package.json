@@ -124,6 +124,7 @@
     "@orb/server": "workspace:*",
     "@orb/showcase-plugins": "workspace:*",
     "@playwright/test": "catalog:",
+    "@typescript/native": "catalog:",
     "chrome-devtools-mcp": "catalog:",
     "cross-spawn": "catalog:",
     "pino-pretty": "catalog:",
