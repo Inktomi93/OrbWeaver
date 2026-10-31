@@ -557,11 +557,6 @@ export type SuggestionPayload =
    *  without forking the belt. */
   | { readonly via: "analysis"; readonly act: AnalysisConfirmAct };
 
-/** WHO raised the ask. The SAME `AutomationEmitSource` union the bus already carries for `quickReplySurfaced`
- *  (one home — a plugin has no rule, so the source names the real origin id, never a synthetic one), plus the
- *  per-origin liveness anchor the confirm re-check needs. */
-export type SuggestionSource = AutomationEmitSource;
-
 /** One pending ask. */
 interface PendingSuggestionBase {
   readonly id: AutomationSuggestionId;
@@ -579,17 +574,17 @@ export type PendingSuggestion = PendingSuggestionBase &
   (
     | {
         readonly kind: Extract<AutomationSuggestionKind, "invitation">;
-        readonly source: Extract<SuggestionSource, { kind: "rule" }>;
+        readonly source: Extract<AutomationEmitSource, { kind: "rule" }>;
         readonly payload: null;
       }
     | {
         readonly kind: Extract<AutomationSuggestionKind, "confirm">;
-        readonly source: Extract<SuggestionSource, { kind: "rule" }>;
+        readonly source: Extract<AutomationEmitSource, { kind: "rule" }>;
         readonly payload: Exclude<SuggestionPayload, { via: "plugin-act" }>;
       }
     | {
         readonly kind: Extract<AutomationSuggestionKind, "confirm">;
-        readonly source: Extract<SuggestionSource, { kind: "plugin" }>;
+        readonly source: Extract<AutomationEmitSource, { kind: "plugin" }>;
         readonly payload: Extract<SuggestionPayload, { via: "plugin-act" }>;
       }
   );

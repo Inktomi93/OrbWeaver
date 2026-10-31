@@ -3,8 +3,9 @@
 // each name-worthy cluster LLM-named → `theme_clusters` + `digest_theme_assignments`. Group-room digests
 // are excluded (they belong to the synthetic group character, not an owner's solo theme space).
 
+import type { RolePresetParams } from "@orb/contracts/preset";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
-import type { RoleClients, SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clients";
+import type { RoleClients, SummarizeInput } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
 import { digestThemeAssignments, themeClusters } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
@@ -146,7 +147,7 @@ function nameWorthy(draft: ClusterDraft): boolean {
   return draft.memberDigestIds.length >= MIN_NAME_SIZE;
 }
 
-async function nameDrafts(drafts: readonly ClusterDraft[], rc: RoleClients, sampleOpts: SummarizeOptions): Promise<(string | null)[]> {
+async function nameDrafts(drafts: readonly ClusterDraft[], rc: RoleClients, sampleOpts: RolePresetParams): Promise<(string | null)[]> {
   const names = new Array<string | null>(drafts.length).fill(null);
   const targets: number[] = [];
   const inputs: SummarizeInput[] = [];

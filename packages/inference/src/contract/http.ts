@@ -1,7 +1,7 @@
 import type { WireSchemaMode } from "@orb/contracts/inference";
 import type { RandomSource } from "@orb/kit/macro";
-import type { Clock } from "@orb/kit/time";
-import type { AddSpanEvent, ConnectionTransport, ProviderErrorKind, ProviderScrubSet, ScheduleTimeout } from "#contract";
+import type { Clock, ScheduleOp } from "@orb/kit/time";
+import type { AddSpanEvent, ConnectionTransport, ProviderErrorKind, ProviderScrubSet } from "#contract";
 
 /** A caller signal flattened onto a signal we own — hand `signal` to the provider call, `dispose()` on
  *  settle so a long-lived caller signal doesn't accumulate listeners across calls. */
@@ -97,7 +97,7 @@ export interface ProviderLogger {
 
 /** Tuning + injected seams for the retry policy. */
 export interface RetryOptions {
-  readonly scheduleTimeout: ScheduleTimeout;
+  readonly scheduleTimeout: ScheduleOp;
   /** Total tries including the first. */
   readonly maxAttempts?: number;
   /** First backoff sleep (ms). */

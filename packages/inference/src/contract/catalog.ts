@@ -1,12 +1,12 @@
 import type { AgentSdkModel, ModelCatalogEntry, ModelInfoApi } from "@orb/contracts/inference";
-import type { Clock } from "@orb/kit/time";
+import type { Clock, ScheduleOp } from "@orb/kit/time";
 import type { ProviderDiagnostics } from "./diagnostics.ts";
 import type { ProviderScrubSet } from "./errors.ts";
 import type { ProviderRegistry } from "./registry.ts";
-import type { InferenceDeps, InferenceLog, MirrorWarm, ScheduleTimeout, SnapshotStore, SpawnIdentity } from "./runtime.ts";
+import type { InferenceDeps, InferenceLog, MirrorWarm, SnapshotStore, SpawnIdentity } from "./runtime.ts";
 
 export interface DetectArgs {
-  readonly scheduleTimeout: ScheduleTimeout;
+  readonly scheduleTimeout: ScheduleOp;
   readonly fetch: typeof fetch;
   readonly baseUrl: string;
   readonly secret: string | null;
@@ -15,7 +15,7 @@ export interface DetectArgs {
 }
 
 export interface EndpointFetchArgs {
-  readonly scheduleTimeout: ScheduleTimeout;
+  readonly scheduleTimeout: ScheduleOp;
   readonly fetch: typeof fetch;
   readonly baseUrl: string;
   readonly secret: string | null;

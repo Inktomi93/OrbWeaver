@@ -47,6 +47,7 @@ import type {
 } from "./params.ts";
 import type {
   Archetype,
+  ArchetypeMember,
   AskCardAnswer,
   BrowseCharactersPage,
   CatalogStats,
@@ -78,7 +79,6 @@ import type {
   ThemeDetail,
   ThemeDriftBucket,
   ThemeRow,
-  UnusedCharacter,
   VisualArchetype,
 } from "./results.ts";
 
@@ -265,7 +265,7 @@ export interface DiscoveryService {
   /** How the owner's themes shift over STORY time — per-month prevalence (drift), `level` default `scene`. */
   readonly themeDrift: (userId: UserId, level?: ThemeLevel) => Promise<ThemeDriftBucket[]>;
   /** The owner's characters collected but NEVER played (no `chat_participants` character seat). */
-  readonly unusedCharacters: (userId: UserId) => Promise<UnusedCharacter[]>;
+  readonly unusedCharacters: (userId: UserId) => Promise<ArchetypeMember[]>;
 
   // ── insights (economics-composed half — composes the injected `stats` economics op) ──────
   /** Revisit candidates — characters with real invested message volume gone quiet (default limit 20). */

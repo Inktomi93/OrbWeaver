@@ -33,19 +33,20 @@ import type { ChatIdentity, ChatIdentityKind } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { assets, characters, personas } from "@orb/db";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
+import type { RowMacroStamps } from "@orb/kit/macro";
 import { eq, inArray } from "drizzle-orm";
-import type { MessageMacroIdSource, ParticipantMacroIdSource } from "../contract/macro-ids.ts";
+import type { ParticipantMacroIdSource } from "../contract/macro-ids.ts";
 
 interface ChatIdentityLoadArgs {
   readonly participants?: readonly ParticipantMacroIdSource[];
-  readonly messages?: readonly MessageMacroIdSource[];
+  readonly messages?: readonly RowMacroStamps[];
   /** The room's stored pin. A pin whose owner left names no seat and maybe no line, yet the room still shows it. */
   readonly anchorPersonaId?: PersonaId | null;
 }
 
 interface ChatIdentityIdSource<Id extends string> {
   readonly participant: (p: ParticipantMacroIdSource) => Id | null;
-  readonly message: (m: MessageMacroIdSource) => Id | null;
+  readonly message: (m: RowMacroStamps) => Id | null;
 }
 
 // WHERE each kind's coverage comes from — the compile-forced per-kind source table: a new `ChatIdentityKind`
@@ -54,11 +55,11 @@ interface ChatIdentityIdSource<Id extends string> {
 const CHAT_IDENTITY_ID_SOURCES = {
   character: {
     participant: (p: ParticipantMacroIdSource): CharacterId | null => p.characterId,
-    message: (m: MessageMacroIdSource): CharacterId | null => m.characterId,
+    message: (m: RowMacroStamps): CharacterId | null => m.characterId,
   },
   persona: {
     participant: (p: ParticipantMacroIdSource): PersonaId | null => p.activePersonaId,
-    message: (m: MessageMacroIdSource): PersonaId | null => m.personaId,
+    message: (m: RowMacroStamps): PersonaId | null => m.personaId,
   },
 } as const satisfies Record<ChatIdentityKind, ChatIdentityIdSource<string>>;
 

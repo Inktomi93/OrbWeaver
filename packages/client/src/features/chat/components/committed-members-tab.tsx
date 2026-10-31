@@ -1,6 +1,6 @@
 // The committed chat's Members tab body — People (multi-human installs) + Character rows, with the host
 // membership gestures (invite/kick/nominate/leave) and the per-character roster controls. The `chat`
-// slice + gates arrive already-resolved from the section's `ChatContextState` projection (no re-fetch).
+// slice + gates arrive already-resolved from the section's `CommittedChatContext` projection (no re-fetch).
 
 import type { ChatDetail, SeatKnobs } from "@orb/contracts/chat";
 import type { CharacterId, ChatId } from "@orb/kit/ids";

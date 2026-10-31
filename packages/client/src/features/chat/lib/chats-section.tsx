@@ -1,6 +1,6 @@
 // The Chats rail section as ONE co-located definition (client-architecture-lockdown.md §6a) — rail
 // identity, panel defaults, placeholder copy, list, content, header, and CONTEXT model in one place.
-// CONTEXT is minted via `defineContextTabs<ChatContextState>` (§6b) over the room projection;
+// CONTEXT is minted via `defineContextTabs<CommittedChatContext>` (§6b) over the room projection;
 // `useChatContextState` pairs with the tabs so `S` never crosses the shell seam. The tabs used to carry a
 // DRAFT twin per body (a rowless room wrote a client draft-config store instead of the verbs) — gone with
 // draft mode (D166): one body per tab, one set of verbs. `makeChatsSection` takes its five contributor
@@ -11,7 +11,6 @@
 
 import { Eye, MessagesSquare, SlidersHorizontal, Users } from "@orb/ui/icons";
 import type {
-  ChatContextState,
   ChatContextTabId,
   ChatSettingsSectionContribution,
   ChatSurfaceContribution,
@@ -61,7 +60,7 @@ function toMembersTabProps(s: CommittedChatContext): CommittedMembersTabProps {
 // per `makeChatsSection` call (once per app), not per render.
 function chatContextTabs(
   settingsSections: ContributorRegistry<ChatSettingsSectionContribution>,
-): readonly (ContextTabDef<ChatContextState> & { readonly id: ChatContextTabId })[] {
+): readonly (ContextTabDef<CommittedChatContext> & { readonly id: ChatContextTabId })[] {
   return [
     {
       id: "members",
@@ -108,9 +107,9 @@ function chatContextTabs(
  *  parameter churned through the door and both CT overrides. */
 interface ChatsSectionContributors {
   /** §6c — the chat-context TAB contributors, merged after chat's own tabs at the `defineContextTabs` mint. */
-  readonly contextTabs: ContributorRegistry<ContextTabDef<ChatContextState>>;
+  readonly contextTabs: ContributorRegistry<ContextTabDef<CommittedChatContext>>;
   /** HUD-1 §3.2 — the whole-pane REGION-CLAIM contributors; zero claimants ⇒ the generic panel. */
-  readonly contextRegions: ContributorRegistry<ContextRegionDef<ChatContextState>>;
+  readonly contextRegions: ContributorRegistry<ContextRegionDef<CommittedChatContext>>;
   /** §6c/M8 — the CONTENT-surface anchor contributors (thread-flank / above-composer / message-footer). */
   readonly surfaces: ContributorRegistry<ChatSurfaceContribution>;
   /** §6c — the per-tool-name renderers; zero ⇒ every tool record renders through the generic fallback. */
@@ -147,7 +146,7 @@ export function makeChatsSection({ contextTabs, contextRegions, surfaces, toolRe
     content: () => <ChatContent surfaceContributors={surfaces} toolRenderers={toolRenderers} />,
     // Topbar identity: the open room's roster header, resolved from #state/#data inside the body.
     header: () => <ChatsTopbarHeader />,
-    context: defineContextTabs<ChatContextState>({
+    context: defineContextTabs<CommittedChatContext>({
       useContextState: useChatContextState,
       tabs: chatContextTabs(settingsSections),
       // The room's identity (participants, name, chips) lives in the center header, open pane or closed; the

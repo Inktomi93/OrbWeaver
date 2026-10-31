@@ -43,9 +43,6 @@ import { useActiveRosterChat, useRoomGameCapture, useRosterRuleCapture, useRuleP
 import { useStartRoster } from "../hooks/use-start-roster.ts";
 import { applyNotice, characterCountPhrase, rosterCountsSuffix, rosterRuleLine, rulesetLine } from "../lib/roster-copy.ts";
 
-/** Derived, not re-minted (no-inline-types): the hook's own return shape. */
-type SavedRosterSummary = RosterPresetSummary;
-
 /** One roster row: name + member preview + the row actions. `canAddToChat` = a room is open AND the
  *  viewer HOSTS it (program doc §6 — the add door is capability-driven and HIDDEN for a non-host, the
  *  D16 precedent; the server's own host gate stays the enforcement, this is just not offering a
@@ -68,12 +65,12 @@ type SavedRosterSummary = RosterPresetSummary;
  *  member count also moves into the subtitle beside the member NAMES, which is the one grammar the two
  *  badges never had: a bare digit read as decoration next to a labelled pill. */
 function RosterRow(props: {
-  readonly roster: SavedRosterSummary;
+  readonly roster: RosterPresetSummary;
   readonly canAddToChat: boolean;
   readonly busy: boolean;
-  readonly onStart: (roster: SavedRosterSummary) => void;
-  readonly onAddToChat: (roster: SavedRosterSummary) => void;
-  readonly onDelete: (roster: SavedRosterSummary) => void;
+  readonly onStart: (roster: RosterPresetSummary) => void;
+  readonly onAddToChat: (roster: RosterPresetSummary) => void;
+  readonly onDelete: (roster: RosterPresetSummary) => void;
 }): ReactElement {
   const { roster, canAddToChat, busy, onStart, onAddToChat, onDelete } = props;
   const memberNames = roster.members.map((m) => m.name).join(", ");
@@ -277,23 +274,23 @@ export function RosterPicker(): ReactElement {
   const apply = useApplyRosterPreset({ trpc, invalidation });
   // The room paints as soon as it exists; the start door's polish call and its report follow.
   const start = useStartRoster({ onEntered: closeModal });
-  const [confirmDelete, setConfirmDelete] = useState<SavedRosterSummary | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<RosterPresetSummary | null>(null);
   const busy = start.isPending || create.isPending || remove.isPending || apply.isPending;
 
   /** The ONE apply report, said by every door (side-eye P1-2: the Start door applied a roster's rules in
    *  total silence, discarding the `rulesSkipped` REASONS the build record §6.4 requires be reported —
    *  and that is the exact click B10's own acceptance test names). The start door reports through the
    *  same `applyNotice` inside `useStartRoster`. */
-  const reportApply = (roster: SavedRosterSummary, result: ApplyRosterPresetResult): void => {
+  const reportApply = (roster: RosterPresetSummary, result: ApplyRosterPresetResult): void => {
     const notice = applyNotice({ rosterName: roster.name, result, started: false, ruleTitleOf: catalogue.titleOf });
     notify[notice.channel](notice.line);
   };
 
-  const onStart = (roster: SavedRosterSummary): void => {
+  const onStart = (roster: RosterPresetSummary): void => {
     start.startRoster(roster);
   };
 
-  const onAddToChat = (roster: SavedRosterSummary): void => {
+  const onAddToChat = (roster: RosterPresetSummary): void => {
     if (active === null) {
       return;
     }

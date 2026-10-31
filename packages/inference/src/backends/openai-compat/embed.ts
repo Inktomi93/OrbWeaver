@@ -17,9 +17,10 @@ import type { EmbeddingModelV4, EmbeddingModelV4Result, JSONObject } from "@ai-s
 import type { EmbeddingBatchObservation } from "@orb/contracts/embeddings";
 import type { EmbeddingCapability } from "@orb/contracts/inference";
 import type { EmbedResult, EmbedUsage } from "@orb/contracts/providers";
+import type { ScheduleOp } from "@orb/kit/time";
 import { clampToTokenBudget, estimateTokens, safeTokenWindow } from "@orb/kit/tokens";
 import { z } from "zod";
-import type { EmbedRequest, Resolved, ScheduleTimeout } from "#contract";
+import type { EmbedRequest, Resolved } from "#contract";
 import { embedRequestTimeoutMs, ProviderError } from "#contract";
 import type { EmbedDeps, ModelCall } from "../../contract/openai-backend.ts";
 import type { VectorFit } from "../../contract/wire.ts";
@@ -134,7 +135,7 @@ function postDeadlineMs(tokens: number, baseMs: number, floorTokensPerSec: numbe
 }
 
 interface BatchRun {
-  readonly scheduleTimeout: ScheduleTimeout;
+  readonly scheduleTimeout: ScheduleOp;
   readonly req: EmbedRequest;
   readonly call: ModelCall;
   readonly model: EmbeddingModelV4;

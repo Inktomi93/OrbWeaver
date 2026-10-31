@@ -144,17 +144,13 @@ export function CommandList({ className, listSize, ...rest }: CommandListProps):
   return <BaseCommandList className={cn(commandVariants({ listSize }).list(), className)} data-slot="command-list" {...rest} />;
 }
 
-/** An ALIAS, not an `extends`: `ButtonProps` is the icon-only-name union (§13.10 N1, #1021), and an
- *  interface cannot extend a union — nor should this wrapper weaken the requirement it forwards. */
-export type CommandAuxiliaryButtonProps = ButtonProps;
-
 /**
  * A non-option action mounted inside a Command root. The focused button owns Enter through its native
  * keyboard contract; cmdk must not translate that same key into activation of its roving selected item.
  * Space already stays native because cmdk does not consume it, and Escape keeps bubbling so the containing
  * command surface/dialog can close normally.
  */
-export function CommandAuxiliaryButton(props: CommandAuxiliaryButtonProps): ReactElement {
+export function CommandAuxiliaryButton(props: ButtonProps): ReactElement {
   // Taken whole rather than destructured: a rest over the name union loses which arm the caller
   // satisfied, and the forwarded props would stop proving they carry a name.
   const handleKeyDown: NonNullable<ButtonBaseProps["onKeyDown"]> = (event): void => {

@@ -2,6 +2,7 @@
 // document on every arm/backend. Structured payload failures may retry; the final document refusal is
 // human-facing errors-as-data with the raw draft preserved for hand-fixing.
 
+import type { RolePresetParams } from "@orb/contracts/preset";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
@@ -15,7 +16,7 @@ import {
   refinerySchemaDocumentSchema,
   transpileForgeDesign,
 } from "@orb/contracts/refinery";
-import type { RoleClients, StructuredOptions, SummarizeOptions } from "@orb/contracts/role-clients";
+import type { RoleClients, StructuredOptions } from "@orb/contracts/role-clients";
 import { resolveSideGenSampling, runStructuredTurn, StructuredOutputError } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
@@ -61,7 +62,7 @@ const RESPONSE_FORMATS = {
 export async function resolveForgeCall(
   ctx: RefineryContext,
   ownerId: UserId,
-): Promise<{ overrides: ProseOverrides; sampleOpts: SummarizeOptions; rc: RoleClients }> {
+): Promise<{ overrides: ProseOverrides; sampleOpts: RolePresetParams; rc: RoleClients }> {
   const [overrides, presetParams, rc] = await Promise.all([
     ctx.resolveUserProse(ownerId),
     ctx.resolveUtilityPresetParams(ownerId),

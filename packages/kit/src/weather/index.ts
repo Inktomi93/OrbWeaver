@@ -4,7 +4,7 @@
 // This is THE single home for the axis. It lives in `kit` — not `contracts` — because BOTH consumers must
 // reach it and `ui` may import `kit` ONLY (never `contracts`, D54): homed in contracts, the Waystone would
 // have to re-spell the eight tokens and the `no-inline-union-redecl` reach-guard could only EXEMPT that
-// re-spell rather than kill it. Homed here, the Waystone's `WaystoneWeather` derives from `WeatherType` and the
+// re-spell rather than kill it. Homed here, the Waystone derives its weather from `WeatherType` and the
 // contracts `z.enum(WEATHER_TYPES)` wire schema imports the tuple DOWN (the kit↔contracts tuple rule, mirrors
 // `scroll-mode`/`message-role`).
 //
