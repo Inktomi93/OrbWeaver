@@ -127,6 +127,24 @@ test("a spread of the owner's ops reports the port that restates one and not the
   expect(members.filter(({ file }) => file === `${SERVER}/entry/http/routes.ts`)).toEqual([]);
 });
 
+const OVERRIDE_TREE = {
+  ...SPREAD_TREE,
+  [`${SERVER}/entry/http/routes.ts`]: [
+    'import { sessions } from "#domain/sessions";',
+    'import type { AdminSessionOps } from "#domain/admin";',
+    "declare const override: (token: string) => Promise<void>;",
+    "export const admin: AdminSessionOps = { ...sessions, revoke: override };",
+  ].join("\n"),
+};
+
+test("a property after a spread fills its slot, so the spread's member flow does not reach the census", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(OVERRIDE_TREE);
+  const { targets } = portCensus(root, () => undefined);
+  const admin = targets.filter(({ file, form }) => file === `${SERVER}/domain/admin/contract/ops.ts` && form === "member");
+  expect(admin.map(({ members }) => members[0])).toContain("drop");
+  expect(admin.map(({ members }) => members[0])).not.toContain("revoke");
+});
+
 // Contracts reaches only kit and zod, so a copy whose signature carries an @orb/db handle can never move there.
 const FORGOTTEN_HANDLE_TREE = {
   "packages/server/tsconfig.json": plantedTsconfig({ paths: { "#*": ["./src/*/index.ts"] } }),
