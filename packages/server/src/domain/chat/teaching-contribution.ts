@@ -30,8 +30,8 @@ import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { resolveSegmentAnchor, segmentSnippet } from "@orb/kit/speaker-label";
 import type { ChatTeachingRegistry } from "./contract/context.ts";
 import { listAttributionReactions, loadPresentCharacterNames } from "./persistence/reactions.ts";
-import { REACTION_ANONYMOUS_REACTOR, REACTION_WHOLE_MESSAGE_TARGET, reactionNote } from "./reaction-note.ts";
 import { NO_HISTORY_FLOOR } from "./substrate/auth/index.ts";
+import { REACTION_ANONYMOUS_REACTOR, REACTION_WHOLE_MESSAGE_TARGET, reactionNote } from "./substrate/reaction-note.ts";
 
 /** Contributor #0 — the rpg gather's injections + tool names, projected onto the teaching contract.
  *
