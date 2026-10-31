@@ -1705,7 +1705,7 @@ const BUBBLE_DELTA_STEP = 0.005;
  * One bubble role's fill as an offset from the base: a lightness `delta`, at the base's chroma unless `neutral`. A base so
  * saturated that every lightness paints the same pixel can only be left through a neutral fill.
  */
-export interface BubbleFill {
+interface BubbleFill {
   readonly delta: number;
   readonly neutral: boolean;
 }
@@ -1718,7 +1718,7 @@ export interface BubbleFills {
 }
 
 /** The colour a {@link BubbleFill} paints on a base. */
-export function bubbleFillColor(base: Oklch, { delta, neutral }: BubbleFill): Oklch {
+function bubbleFillColor(base: Oklch, { delta, neutral }: BubbleFill): Oklch {
   const fill = rampSurface(base, delta);
   return opaquePixel(neutral ? { ...fill, c: 0 } : fill);
 }
