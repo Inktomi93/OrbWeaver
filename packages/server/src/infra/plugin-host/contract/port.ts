@@ -14,10 +14,9 @@ import type {
 import type { IdSource } from "@orb/kit/ids";
 import type { RandomSource } from "@orb/kit/macro";
 import type { Clock, TimerScheduler } from "@orb/kit/time";
-// pino's own type, not the observability barrel's alias: that barrel reaches the DB, which the plugin Worker graph must not load.
-import type pino from "pino";
 import type { Env } from "#foundation/env/record";
 import type { ScopedEgress } from "#infra/network";
+import type { Logger } from "#src/foundation/observability/contract/logging.ts";
 import type { TraceRing } from "#src/foundation/observability/contract/tracing.ts";
 import type { PluginNetEgress } from "./net-egress.ts";
 
@@ -36,7 +35,7 @@ export interface PluginHostSeamDeps {
   readonly mintId: IdSource["uuid"];
   readonly mirrorLog?: (label: string, level: PluginLogLevel, message: string) => void;
   /** The app root's logger a guest line and a settlement failure land in outside a request. */
-  readonly log: pino.Logger;
+  readonly log: Logger;
   /** The app root's trace ring a supervised bridge settlement seals into. */
   readonly traces: TraceRing;
 }
