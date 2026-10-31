@@ -16,13 +16,13 @@ import type { PortableKind } from "@orb/contracts/portability";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { rpgGameConfigSchema, rpgSnapshotStateSchema } from "@orb/contracts/rpg";
 import type { CharacterHandle, ChatId, WorkloadId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX } from "@orb/kit/ids";
 import type { PortableChat } from "@orb/server/primitives/serde/chat-bundle";
-import { buildChatBundleFile, CHAT_BUNDLE_EXT } from "@orb/server/primitives/serde/chat-bundle";
+import { buildChatBundleFile, CHAT_BUNDLE_EXT, parseChatBundleFile } from "@orb/server/primitives/serde/chat-bundle";
 import { createSeededIds, FROZEN_AT_MS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness, seedRpgCheckpoint, seedRpgGame, seedTranscript } from "@orb/testkit/node/composed";
+import { createServerHarness, makeAssetBytes, seedRpgCheckpoint, seedRpgGame, seedTranscript } from "@orb/testkit/node/composed";
 
 const EXPORT_ROUTE = PORTABILITY_ROUTES.exportLibrary;
 const BUNDLE_ROUTE = PORTABILITY_ROUTES.importBundle;
@@ -444,6 +444,81 @@ test("importing a campaign bundle again after the room lost a later message keep
   // so that is not a loss and the import says nothing about one.
   expect(await chat.importFile(root.ownerId, file)).toEqual({ ok: true, created: false });
   expect((await root.services.rpg.listJournal(params)).map((entry) => entry.title)).toEqual([ANCHORED_JOURNAL]);
+});
+
+const COMPACT_SUMMARY = "Everything before the bridge collapse, in brief.";
+const COMPACTED_AT_SEQ = 1;
+const SCENARIO = "a rain-soaked frontier town";
+const VARIABLES = { mood: "grim" };
+
+test("a room's compact summary, room overrides and variable picks restore by value, and its character's card art restores byte for byte", async () => {
+  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
+  const owner = await source.principalFor(source.ownerId);
+  const art = await source.services.assets.store({
+    principal: owner,
+    bytes: new Uint8Array(makeAssetBytes(source.idSource.typeId(ID_PREFIX.asset))),
+    mime: "image/png",
+    kind: "avatar",
+    enforceMagic: true,
+  });
+  const made = await source.services.character.create({
+    principal: owner,
+    input: createCharacterSchema.parse({ handle: HANDLE, name: "Warden", description: "A warden guards the bridge.", avatarAssetId: art.assetId }),
+  });
+  const { chatId } = await seedTranscript(source, {
+    ownerId: source.ownerId,
+    characterHandles: [HANDLE],
+    lines: [{ role: "user", content: "Do we cross?" }],
+    chat: { title: TITLE },
+  });
+  await source.services.chat.setRoomOverrides({ principal: owner, chatId, overrides: { scenario: SCENARIO } });
+  await source.services.chat.setVariables({ principal: owner, chatId, values: VARIABLES });
+  const exported = await source.app.exportService.exportChatBundle({ principal: owner, chatId });
+  const sourceRoom = exported === null ? null : parseChatBundleFile(exported.bytes);
+  if (sourceRoom === null || !sourceRoom.ok) {
+    throw new Error("the source room produced no readable chat bundle");
+  }
+  // The compaction marker is written by a summarizer turn; the production writer carries one into the file the restore reads.
+  const withMarker = buildChatBundleFile({ ...sourceRoom.value, compactSummary: COMPACT_SUMMARY, compactedAtSeq: COMPACTED_AT_SEQ });
+  const sourceCard = await source.app.exportService.exportCharacter({ principal: owner, characterId: made.id });
+
+  await using target = await signedInBox();
+  const cardBundle = await exportLibrary(source, ["character"]);
+  expect(await restore(target, cardBundle)).toEqual({ status: "succeeded", failed: 0 });
+  const chat = target.app.portability.find((entity) => entity.kind === "chat");
+  if (chat === undefined) {
+    throw new Error("production composition has no chat portability descriptor");
+  }
+  expect(await chat.importFile(target.ownerId, { filename: `${HANDLE}/marked${CHAT_BUNDLE_EXT}`, bytes: withMarker })).toMatchObject({
+    ok: true,
+    created: true,
+  });
+  const [restoredRoom] = await roomsOf(target);
+  if (restoredRoom === undefined) {
+    throw new Error("the restore did not land the room");
+  }
+  const reexported = await target.app.exportService.exportChatBundle({ principal: await target.principalFor(target.ownerId), chatId: restoredRoom });
+  const restored = reexported === null ? null : parseChatBundleFile(reexported.bytes);
+  if (restored === null || !restored.ok) {
+    throw new Error("the restored room produced no readable chat bundle");
+  }
+  expect(restored.value).toMatchObject({
+    compactSummary: COMPACT_SUMMARY,
+    compactedAtSeq: COMPACTED_AT_SEQ,
+    metadata: { roomOverrides: { scenario: SCENARIO } },
+    variableValues: VARIABLES,
+  });
+
+  const targetCaller = await target.internalCallerFor(target.ownerId);
+  const [restoredCard] = (await targetCaller.character.list({})).items.filter((item) => item.name === "Warden");
+  if (restoredCard === undefined || sourceCard === null) {
+    throw new Error("the restore landed no card to compare");
+  }
+  const restoredCardBytes = await target.app.exportService.exportCharacter({
+    principal: await target.principalFor(target.ownerId),
+    characterId: restoredCard.id,
+  });
+  expect([...(restoredCardBytes?.bytes ?? [])]).toEqual([...sourceCard.bytes]);
 });
 
 test("an owner's persona, world book, global databank document and settings value restore into a fresh box, and a second restore adds none", async () => {

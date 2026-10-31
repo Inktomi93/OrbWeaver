@@ -28,6 +28,27 @@ portraitTest("contentChanged admits a real content write but not a flag-only cha
   expect((await root.services.automation.listFires({ principal, ruleId: rule.id })).map((fire) => fire.outcome)).toEqual(["fired"]);
 });
 
+portraitTest("a rule-fired free-mode generate_image reaches the image provider and keeps its prompt and negative prompt", async ({ portrait }) => {
+  const { root, character, physical } = portrait;
+  const prompt = "a lighthouse at dusk";
+  const negative = "blurry hands, extra fingers";
+  const { chat } = await root.services.chat.startChat({ principal: await root.principalFor(root.ownerId), characterIds: [character.id], opening: "none" });
+  await enabledRule(root, {
+    chatId: chat.id,
+    name: "Free-mode drawing",
+    trigger: { bus: "chat", type: "chatOpened" },
+    predicateCel: null,
+    actions: [{ type: "generate_image", mode: "free", prompt, negative, n: 1, useAvatarReference: false, reuse: "never", quiet: true }],
+  });
+  await root.services.automation.handleEvent({ type: "chatOpened", chatId: chat.id });
+  expect(physical.requests.filter((request) => request.startsWith("POST "))).toEqual(["POST /v1/images/generations"]);
+  const [provenance, ...rest] = await portraits(root);
+  expect(rest).toEqual([]);
+  expect(provenance).toMatchObject({ mode: "free", prompt });
+  // The provider's own default negatives stay; the rule's are added to them.
+  expect(provenance?.negativePrompt).toContain(negative);
+});
+
 async function prepareChain(
   root: ServerTestHarness,
   confirmFirst: boolean,
