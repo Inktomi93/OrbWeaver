@@ -23,6 +23,8 @@ import {
   createRefreshImportPlannerStats,
   createSettleImportMemory,
   DEFAULT_IMPORT_STAGING_DIR,
+  importStagedArchive,
+  runBundleImport,
 } from "#domain/import";
 import type { PersonaService } from "#domain/persona";
 import { createFindOwnedPersonaByName } from "#domain/persona";
@@ -35,9 +37,9 @@ import type { TagAssemblyContext, TagService } from "#domain/tag";
 import type { WorkloadService } from "#domain/workloads";
 import type { WorldInfoExportAssemblyContext } from "#domain/world-info";
 import type { Logger } from "#foundation/observability";
-import { extractZip, stageDirectory, writeImportReportFile } from "#infra/storage";
+import { createNodeFsImportPort, extractZip, stageDirectory, writeImportReportFile } from "#infra/storage";
 import type { LiveBuses } from "#transport/trpc";
-import { createNodeFsImportPort, importStagedArchive, runBundleImport, runProfileDirImport } from "../import/index.ts";
+import { runProfileDirImport } from "../import/index.ts";
 import { buildPortabilityRegistry } from "./portability.ts";
 
 const DEFAULT_ST_PROFILE_DIR = ".st-data";

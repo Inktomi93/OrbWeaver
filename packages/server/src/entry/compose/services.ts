@@ -98,7 +98,7 @@ import { createImageryPortability } from "#domain/imagery";
 import { buildImportContext, cardPngIdentity, createInstallerCharacterImport, serializeImportCard } from "#domain/import";
 import type { DefaultPersonaSeeder } from "#domain/persona";
 import { createSeedPersonaWithCompletion } from "#domain/persona";
-import type { DistributedPluginApplier } from "#domain/plugin";
+import type { DistributedPluginApplier, ExamplePluginSeeder } from "#domain/plugin";
 import {
   createDistributedPluginApplier,
   createPluginGrantTasksOf,
@@ -114,7 +114,7 @@ import { createExportRpgGame, createRpgEventBus, createRpgTraceRecorder } from "
 import { createFieldIndexCache, withRetrievalDegrade } from "#domain/search";
 import type { SessionsContext, SessionsRolePolicy, SessionsService } from "#domain/sessions";
 import { createResolveUserEnabled, createSessionsRolePolicy, createSessionsService } from "#domain/sessions";
-import type { DefaultBackgroundSeeder, SettingsAssemblyContext, SettingsServiceDeps } from "#domain/settings";
+import type { DefaultBackgroundSeeder, SettingsAssemblyContext, SettingsServiceDeps, UserContentSeeder } from "#domain/settings";
 import {
   createEffectiveConfigCache,
   createJoinerSettingsStatement,
@@ -169,10 +169,8 @@ import type { ServiceJobs } from "#transport/jobs";
 import type { ContextForRequest, LiveBuses, PresenceRegistry, Services, SocketRegistry } from "#transport/trpc";
 import { createContext, createLiveBuses, createPresenceRegistry, createSocketRegistry } from "#transport/trpc";
 import { createHostPrincipalResolver, createMultiHumanCapability } from "../auth/index.ts";
-import type { ExamplePluginSeeder } from "../boot/seed-example-plugins.ts";
 import { createExamplePluginSeeder } from "../boot/seed-example-plugins.ts";
 import { createLocalLightUserSeed } from "../boot/seed-local-light.ts";
-import type { UserContentSeeder } from "../boot/seed-user-content.ts";
 import { createUserContentSeeder } from "../boot/seed-user-content.ts";
 import { createRateLimitGate } from "../rate-limit-gate.ts";
 import { buildAdmin } from "./admin.ts";

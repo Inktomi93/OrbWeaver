@@ -6,6 +6,7 @@ import { PORTABILITY_ROUTES, PORTABLE_DIRECTORIES } from "@orb/contracts/portabi
 import type { ExportRegexScripts, ImportCardScripts, ImportRegexScript } from "@orb/contracts/regex";
 import type { AttachCardTagByNameOp } from "@orb/contracts/tag";
 import type { ImportStandaloneLorebook, ImportWorldInfoPort } from "@orb/contracts/world-info";
+import type { SchemaTableName } from "@orb/db/wiring";
 import type { Clock } from "@orb/kit/time";
 import { hostTimeZone } from "@orb/kit/time";
 import type { AssetsContext } from "#domain/assets";
@@ -29,7 +30,7 @@ import { createImportedCardTag, createTagLibraryExport, createTagLibraryImport }
 import type { WorldInfoExportAssemblyContext } from "#domain/world-info";
 import { createExportWorldBook, createImportWorldBook, createListOwnedBookIds } from "#domain/world-info";
 import { CHAT_BUNDLE_EXT } from "#primitives/serde/chat-bundle";
-import type { LifecycleDoors, NonPortableCanon, PortabilityTableName } from "../contract/portability.ts";
+import type { LifecycleDoors, NonPortableCanon } from "../contract/portability.ts";
 
 /** What the registry builder needs from the composition root to compose each descriptor. */
 export interface PortabilityDeps {
@@ -175,7 +176,7 @@ export const PORTABLE_CANON_TABLES = {
   gallery: ["galleryItems"],
   assets: ["assets"],
   imagery: ["imageryGenerations", "imageryImportCalls"],
-} as const satisfies Record<PortableKind, readonly PortabilityTableName[]>;
+} as const satisfies Record<PortableKind, readonly SchemaTableName[]>;
 
 /** Explicit omissions retain their portability reason and end condition. */
 export const NON_PORTABLE_CANON = {
@@ -295,7 +296,7 @@ export const NON_PORTABLE_CANON = {
       "state the table exists to prevent. Absent, the restored box reads as `unrecorded` and serves its live space " +
       "until its first sweep records one. Ends never.",
   },
-} as const satisfies Partial<Record<PortabilityTableName, NonPortableCanon>>;
+} as const satisfies Partial<Record<SchemaTableName, NonPortableCanon>>;
 
 /** Single-entity doors or the explicit decision that the family has none. */
 export const LIFECYCLE_DOORS = {
