@@ -7,34 +7,18 @@ import { CHAT_REACT_TOOL_NAME } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { PROSE_SLOTS, resolveProseText } from "@orb/contracts/prose";
-import type { JsonValue } from "@orb/kit/json";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { coreProse } from "../engine/core-physical.ts";
 import { inputMessages, invitePerson, messageText, personaInputs, personaRoom, seatPersona } from "../persona-cache-physical.ts";
-import { textRoom, wireBodies } from "../scenario-physical.ts";
+import { textRoom, wireBodies, wireText } from "../scenario-physical.ts";
 import { turnRpgReply, turnRpgRoom, turnToolsRoom, turnWireBody } from "./turn-rpg-physical.ts";
 
 const CHOICES_TEACH = PROSE_SLOTS["rpg.reminder.cyoaTeach"].text;
 
 function framed(teach: string, prose: ProseOverrides = {}): string {
   return resolveProseText("chat.teach.choicesFrame", prose, { teach });
-}
-
-function leaves(value: JsonValue): readonly string[] {
-  if (typeof value === "string") {
-    return [value];
-  }
-  if (value === null || typeof value !== "object") {
-    return [];
-  }
-  return (Array.isArray(value) ? value : Object.values(value)).flatMap(leaves);
-}
-
-/** Every string the provider received in one request, one per line. */
-function wireText(body: JsonValue): string {
-  return leaves(body).join("\n");
 }
 
 function occurrences(text: string, needle: string): number {

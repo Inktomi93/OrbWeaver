@@ -25,9 +25,10 @@ import { guestRunner, installGuest } from "./_guest-command.ts";
 
 const NET_HOST = "plugin.example.test";
 const HELD_URL = `https://${NET_HOST}/held`;
+const OPENING_LINE = "The host opens the room.";
 const ROOM_OPS = {
   reads:
-    "async (h, room) => ({ messages: (await h.chat.listMessages(room)).length, characters: (await h.chat.listCharacters(room)).length, variables: Object.keys(await h.chat.getVariables(room)).length, books: (await h.worldInfo.listBooks(room)).length })",
+    "async (h, room) => ({ messages: (await h.chat.listMessages(room)).map((m) => m.content), characters: (await h.chat.listCharacters(room)).length, variables: Object.keys(await h.chat.getVariables(room)).length, books: (await h.worldInfo.listBooks(room)).length })",
   heldReads: "async (h, room, a) => { await h.net.fetch(a.url); return await ops.reads(h, room, a); }",
   entries: "async (h, room, a) => (await h.worldInfo.listEntries(room, a.bookId)).map((entry) => entry.content)",
   setVariable: "(h, room, a) => h.chat.applyVariableOps(room, [{ op: 'set', key: a.key, value: a.value }])",
@@ -79,7 +80,7 @@ async function room(): Promise<Room> {
   await seedCorpusConnections(h.root, member);
   const invitation = await h.root.services.chat.createInvite({ principal: h.owner, chatId: h.chatId, input: { invitedHandle: member.handle } });
   await h.root.services.chat.acceptInvite({ principal: member, inviteId: invitation.invite.id });
-  await h.root.services.chat.commitMessage({ principal: h.owner, chatId: h.chatId, content: "The host opens the room." });
+  await h.root.services.chat.commitMessage({ principal: h.owner, chatId: h.chatId, content: OPENING_LINE });
   const book = (await h.caller.worldInfo.createBook({ input: { name: "Room lore" } })).id;
   await h.caller.worldInfo.attachToChat({ chatId: h.chatId, bookId: book });
   await h.caller.worldInfo.createEntry({ bookId: book, input: { title: "keeper", content: "The keeper guards the ledger." } });
@@ -110,17 +111,19 @@ async function room(): Promise<Room> {
   };
 }
 
+// The canon read's empty answer is the bridge's explicit non-member branch. A crash would log `ok: false`, and a
+// substituted floor would return the opening line, so each fails this case for its own reason.
 test("an installer who leaves while their guest is mid-invocation reads nothing more of the room", { tags: ["slow"] }, async () => {
   await using r = await room();
   expect(await r.host("setVariable", { key: "mood", value: "wary" })).toMatchObject({ ok: true });
   const whileMember = await r.memberGuest("reads");
-  expect(whileMember).toEqual({ ok: true, value: { messages: 1, characters: 1, variables: 1, books: 1 } });
+  expect(whileMember).toEqual({ ok: true, value: { messages: [OPENING_LINE], characters: 1, variables: 1, books: 1 } });
 
   const pending = r.memberGuest("heldReads", { url: HELD_URL });
   await r.held;
   await r.h.root.services.chat.kick({ principal: r.h.owner, chatId: r.h.chatId, userId: r.member.userId });
   r.release();
-  expect(await pending).toEqual({ ok: true, value: { messages: 0, characters: 0, variables: 0, books: 0 } });
+  expect(await pending).toEqual({ ok: true, value: { messages: [], characters: 0, variables: 0, books: 0 } });
 });
 
 test("a guest reads lore entries only from a book attached to the invoking room", { tags: ["slow"] }, async () => {

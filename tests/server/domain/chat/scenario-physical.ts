@@ -48,6 +48,21 @@ export async function wireBodies(h: ChatRoot): Promise<JsonValue[]> {
   );
 }
 
+function leaves(value: JsonValue): readonly string[] {
+  if (typeof value === "string") {
+    return [value];
+  }
+  if (value === null || typeof value !== "object") {
+    return [];
+  }
+  return (Array.isArray(value) ? value : Object.values(value)).flatMap(leaves);
+}
+
+/** Every string the provider received in one request, one per line. */
+export function wireText(body: JsonValue): string {
+  return leaves(body).join("\n");
+}
+
 /** The first non-system message text of a physical request: a seeded history's opening row, behind the new-chat marker. */
 export function openingText(body: JsonValue | undefined): string {
   if (body === undefined || body === null || typeof body !== "object" || Array.isArray(body) || !Array.isArray(body["messages"])) {
