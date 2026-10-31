@@ -8,12 +8,13 @@ import type { ProviderDef } from "@orb/contracts/inference";
 import { providerDefSchema } from "@orb/contracts/inference";
 import type { PluginManifest } from "@orb/contracts/plugin";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
-import { pluginProviderClaims, providerRows } from "@orb/db";
+import { pluginProviderClaims, providerRows, users } from "@orb/db";
 import { ProviderError } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, makePluginBundle } from "@orb/testkit/node/composed";
+import { eq } from "drizzle-orm";
 
 // Each enable starts the real sandbox child process, which outlasts the default test budget.
 const PLUGIN_LIFECYCLE_TIMEOUT_MS = 30_000;
@@ -153,4 +154,26 @@ test("an owner's claim refuses a changed definition before any write, even after
   await root.services.plugin.uninstall({ caller, pluginId: changed.pluginId });
   expect((await installAcme(root, owner, "Acme")).status).toBe("enabled");
   expect(servedLabel(root, owner)).toBe("Acme");
+});
+
+test("a definition row outlives a deleted owner only while another owner's claim still names it", { timeout: PLUGIN_LIFECYCLE_TIMEOUT_MS }, async () => {
+  await using root = await newRoot();
+  const first = (await root.actor()).id;
+  const second = (await root.actor()).id;
+  for (const owner of [first, second]) {
+    const installed = await installAcme(root, owner, "Acme");
+    expect(installed.status).toBe("enabled");
+    await root.services.plugin.setEnabled({ caller: await root.principalFor(owner), pluginId: installed.pluginId, enabled: false });
+  }
+  const definitionRows = async (): Promise<number> => (await root.db.select().from(providerRows)).filter((row) => row.id === PLUGIN_PROVIDER).length;
+  expect(await definitionRows()).toBe(1);
+
+  // A user's claims die with the user (D265), which leaves the claim table as the only reference to a definition.
+  await root.db.delete(users).where(eq(users.id, first));
+  await root.services.connection.registry.refresh();
+  expect(await definitionRows()).toBe(1);
+
+  await root.db.delete(users).where(eq(users.id, second));
+  await root.services.connection.registry.refresh();
+  expect(await definitionRows()).toBe(0);
 });

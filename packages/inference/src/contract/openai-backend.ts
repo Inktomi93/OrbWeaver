@@ -30,7 +30,7 @@ export interface ShapeArgs {
   readonly dialect: Dialect;
   /** The capability half of the prefill decision (`acceptsAssistantPrefill`); the array half is the plan's. */
   readonly prefillAllowed: boolean;
-  /** Rule 10 runs: the admitted prefix action preserves block ends at the effective merging role floor. */
+  /** Rule 9 runs: the admitted prefix action preserves block ends at the effective merging role floor. */
   readonly foldSameRole: boolean;
   readonly replyImages: boolean;
   /** What rule 5b tells the template's thinking switch (`templateThinkingFor`); `undefined` sends nothing. */
@@ -140,7 +140,7 @@ export interface ModelCall {
   readonly reasoningEffort?: EffortLevel | undefined;
   /** Sees each native body as it goes out (after the user's body), so a turn records what was sent. */
   readonly onNativeBody?: ((body: Readonly<Record<string, unknown>>) => void) | undefined;
-  /** Fold consecutive plain same-role rows into one message of parts (`body.ts` rule 10). */
+  /** Fold consecutive plain same-role rows into one message of parts (`body.ts` rule 9). */
   readonly foldSameRole: boolean;
   readonly replyImages: boolean;
   readonly warnings: ResolvedWarning[];

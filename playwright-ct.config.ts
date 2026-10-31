@@ -75,6 +75,7 @@ export default defineConfig<CtCorpusOptions>({
       name: "webkit-iphone",
       testMatch: [
         "**/platform-*.suite.ct.tsx",
+        "**/features/chat/components/appearance-message-style-section.ct.tsx",
         "**/features/chat/components/composer-two-rows.ct.tsx",
         "**/content/theme-scope/emitted-contrast.ct.tsx",
         "**/content/theme-scope/fallback-delivery.ct.tsx",
