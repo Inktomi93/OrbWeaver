@@ -229,7 +229,7 @@ function ListRowBody({
         aria-current={ariaCurrent}
         className={slots.body()}
         data-selected={selected ? "" : undefined}
-        data-tone={SELECTION_RAIL_TONE}
+        data-tone={selected ? SELECTION_RAIL_TONE : "neutral"}
         data-slot="list-row-body"
       >
         {children}
@@ -250,7 +250,7 @@ function ListRowBody({
       className={slots.body()}
       data-disabled={disabled ? "" : undefined}
       data-selected={selected ? "" : undefined}
-      data-tone={SELECTION_RAIL_TONE}
+      data-tone={selected ? SELECTION_RAIL_TONE : "neutral"}
       data-slot="list-row-body"
       onClick={disabled ? undefined : onClick}
       ref={bodyRef}
@@ -318,7 +318,12 @@ export function ListRow({
   return (
     // `data-selected` rides the ROOT as well as the body: the `rowTint="row"` arm paints the selected skin
     // here, and an attribute the default arm simply doesn't style costs nothing.
-    <div className={slots.root({ className })} data-selected={selected ? "" : undefined} data-tone={SELECTION_RAIL_TONE} data-slot="list-row-root">
+    <div
+      className={slots.root({ className })}
+      data-selected={selected ? "" : undefined}
+      data-tone={selected ? SELECTION_RAIL_TONE : "neutral"}
+      data-slot="list-row-root"
+    >
       <ListRowBody
         ariaDescribedBy={describedBy}
         ariaLabel={titleQualifier === undefined ? title : `${title} · ${titleQualifier}`}

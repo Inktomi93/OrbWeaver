@@ -25,8 +25,8 @@ export const tableVariants = tv({
     // is the app-wide selected-ROW spelling (2px left ember rail + the primary tone's tint, owner-ratified #485) and a
     // table row is a row; taking it collapses this carrier onto the ruled pair instead of inventing a sixth
     // spelling. The rail box is reserved transparent at rest, so selecting a row shifts no cell.
-    tr: SELECTION_RAIL,
-    td: "text-foreground",
+    tr: ["group/tr", SELECTION_RAIL],
+    td: "text-foreground group-data-selected/tr:text-tone-text-on-tint",
     emptyCell: "py-section text-center",
     pager: "flex flex-wrap items-center justify-between gap-row border-bs border-border px-row py-block",
     pagerInfo: "text-label leading-label text-muted-foreground",
