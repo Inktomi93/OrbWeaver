@@ -8,13 +8,12 @@
 // instead of dropping it — and clones the RAW params blob so the operator's original input survives verbatim
 // into a build that may have fixed the schema.
 
-import type { WorkloadRef } from "@orb/contracts/workloads";
+import type { WorkloadRef, WorkloadRowAnyKind } from "@orb/contracts/workloads";
 import { DEFAULT_ADMISSION_KEY } from "@orb/contracts/workloads";
 import { DomainConflictError, DomainNotFoundError } from "@orb/kit/errors";
 import type { WorkloadContributions } from "../contract/contribution.ts";
 import type { RetryWorkloadParams } from "../contract/params.ts";
 import type { WorkloadService, WorkloadServiceContext } from "../contract/service.ts";
-import type { WorkloadRowAnyKind } from "../contract/workload-row.ts";
 import { isActiveKindUniqueViolation, isWorkloadForeignKeyViolation } from "../persistence/constraints.ts";
 import { findUnavailableWorkloadDependency, insertWorkload, loadRawWorkloadParams, loadWorkload } from "../persistence/queries.ts";
 import { canCloneRow } from "../substrate/authorize.ts";

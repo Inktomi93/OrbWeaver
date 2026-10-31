@@ -7,11 +7,10 @@
 
 import type { IsAdmin, RequireOwner } from "@orb/contracts/admin";
 import type { Principal } from "@orb/contracts/identity";
-import type { WorkloadKind, WorkloadMode } from "@orb/contracts/workloads";
+import type { StartWorkloadParams, WorkloadKind, WorkloadMode } from "@orb/contracts/workloads";
 import { WORKLOAD_KIND_MODES } from "@orb/contracts/workloads";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
-import type { StartWorkloadParams } from "../contract/params.ts";
 import type { WorkloadServiceContext } from "../contract/service.ts";
 import type { WorkloadReadAccess } from "../contract/workload-row.ts";
 
