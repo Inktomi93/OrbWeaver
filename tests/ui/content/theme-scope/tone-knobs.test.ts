@@ -74,22 +74,50 @@ function hueAdjacent(a: Oklch, b: Oklch): boolean {
   return hueDistance(a.h, b.h) < TONE_HUE_ADJACENT_DEGREES;
 }
 
-/** The literal a scope emitted for one tone's role, or `undefined` where the role paints its mix. */
-function emittedLiteral(vars: Readonly<Record<string, string>>, tone: Tone, role: ToneRole): Oklch | undefined {
-  if (tone === "neutral" || !LITERAL_ROLES.includes(role)) {
-    return;
+/** The literals a scope emitted for one tone, parsed once: a literal paints the same on every host. */
+function emittedLiterals(vars: Readonly<Record<string, string>>, tone: Tone): Readonly<Partial<Record<ToneRole, Oklch>>> {
+  if (tone === "neutral") {
+    return {};
   }
-  const spelling = vars[toneLiteralVar(tone, role)];
-  return spelling === undefined || spelling === "initial" ? undefined : parsed(spelling);
+  return Object.fromEntries(
+    LITERAL_ROLES.flatMap((role) => {
+      const spelling = vars[toneLiteralVar(tone, role)];
+      return spelling === undefined || spelling === "initial" ? [] : [[role, parsed(spelling)] as const];
+    }),
+  );
 }
 
-/** Every role one tone paints under the emitted scope: its emitted literal where it has one, else its mix at the emitted knobs. */
-function paintedRoles(scheme: CarriedToneScheme, vars: Readonly<Record<string, string>>, { tone, source }: CarriedTone): Readonly<Record<ToneRole, Oklch>> {
-  const mixed = toneRoleColors(scheme, source, emittedMix(vars, tone));
-  return Object.fromEntries(Object.entries(mixed).map(([role, color]) => [role, emittedLiteral(vars, tone, role as ToneRole) ?? color])) as Record<
-    ToneRole,
-    Oklch
-  >;
+/** What one tone reads from the emitted scope on every host: its knobs and its literals. */
+interface EmittedTone {
+  readonly carried: CarriedTone;
+  readonly mix: Readonly<Record<ToneMixKnob, number>>;
+  readonly literals: Readonly<Partial<Record<ToneRole, Oklch>>>;
+}
+
+function emittedTone(vars: Readonly<Record<string, string>>, carried: CarriedTone): EmittedTone {
+  return { carried, mix: emittedMix(vars, carried.tone), literals: emittedLiterals(vars, carried.tone) };
+}
+
+/** Every role one tone paints on the scheme's host: its emitted literal where it has one, else its mix at the emitted knobs. */
+function rolesOn(scheme: CarriedToneScheme, { carried, mix, literals }: EmittedTone): Readonly<Record<ToneRole, Oklch>> {
+  return { ...toneRoleColors(scheme, carried.source, mix), ...literals };
+}
+
+function paintedRoles(scheme: CarriedToneScheme, vars: Readonly<Record<string, string>>, carried: CarriedTone): Readonly<Record<ToneRole, Oklch>> {
+  return rolesOn(scheme, emittedTone(vars, carried));
+}
+
+/** The carried scheme per background: every accent on one page reuses its palette, its solved inks and its host pixels. */
+const SCHEMES = new Map<string, CarriedToneScheme>();
+
+function schemeOf(background: string): CarriedToneScheme {
+  const known = SCHEMES.get(background);
+  if (known !== undefined) {
+    return known;
+  }
+  const scheme = carriedToneScheme(carriedPaletteOf(parsed(background)));
+  SCHEMES.set(background, scheme);
+  return scheme;
 }
 
 interface EmittedScope {
@@ -101,7 +129,7 @@ interface EmittedScope {
 /** A carried scope as the clamp emits it: its intents and neutral from the carried palette, its primary as emitted. */
 function emittedScope(background: string, tokens: { readonly accent?: string }, ambientAccent?: string): EmittedScope {
   const { vars } = clampThemeTokens({ background, ...tokens }, undefined, ambientAccent);
-  const scheme = carriedToneScheme(carriedPaletteOf(parsed(background)));
+  const scheme = schemeOf(background);
   const fill = vars["--color-primary"];
   const primary: CarriedTone[] =
     fill === undefined ? [] : [{ tone: "primary", source: { base: parsed(fill), foreground: emittedInk(vars["--color-primary-foreground"]) } }];
@@ -116,7 +144,7 @@ function nestedAccentScope(background: string, accent: string): EmittedScope {
   const outer = clampThemeTokens({ background }, undefined, HEARTH_ACCENT);
   const nested = clampThemeTokens({ accent }, outer.resolvedBackground, outer.accentSource, "carried");
   const vars = { ...outer.vars, ...nested.vars };
-  const scheme = carriedToneScheme(carriedPaletteOf(parsed(background)));
+  const scheme = schemeOf(background);
   const primary: CarriedTone = {
     tone: "primary",
     source: { base: parsed(vars["--color-primary"] ?? ""), foreground: emittedInk(vars["--color-primary-foreground"]) },
@@ -131,17 +159,16 @@ function emittedMisses(background: string, tokens: { readonly accent?: string },
 
 /** The scope's misses over every host a wash sits on: a mix that falls back reads the host, a literal serves them all. */
 function scopeMisses({ scheme, vars, tones }: EmittedScope, label: string): readonly string[] {
-  return TONE_HOSTS.flatMap((host) => hostMisses({ scheme: { ...scheme, palette: tonePaletteOn(scheme.palette, host) }, vars, tones }, label, host));
+  const emitted = tones.map((carried) => emittedTone(vars, carried));
+  return TONE_HOSTS.flatMap((host) => hostMisses({ ...scheme, palette: tonePaletteOn(scheme.palette, host) }, emitted, label, host));
 }
 
-function hostMisses({ scheme, vars, tones }: EmittedScope, label: string, host: ToneHost): readonly string[] {
-  const colored = tones.flatMap((carried) =>
-    carried.source === "neutral" ? [] : [{ ...carried, base: carried.source.base, roles: paintedRoles(scheme, vars, carried) }],
+function hostMisses(scheme: CarriedToneScheme, emitted: readonly EmittedTone[], label: string, host: ToneHost): readonly string[] {
+  const painted = emitted.map((tone) => ({ carried: tone.carried, roles: rolesOn(scheme, tone) }));
+  const colored = painted.flatMap(({ carried, roles }) => (carried.source === "neutral" ? [] : [{ tone: carried.tone, base: carried.source.base, roles }]));
+  const floors = painted.flatMap(({ carried, roles }) =>
+    roleFloorMisses(scheme, carried.source, (role) => roles[role]).map((miss) => `${label} ${carried.tone} over ${host} ${JSON.stringify(miss)}`),
   );
-  const floors = tones.flatMap((carried) => {
-    const roles = paintedRoles(scheme, vars, carried);
-    return roleFloorMisses(scheme, carried.source, (role) => roles[role]).map((miss) => `${label} ${carried.tone} over ${host} ${JSON.stringify(miss)}`);
-  });
   const offPage = colored.flatMap(({ tone, roles }) =>
     TINT_ROLES.flatMap((role) => {
       const distance = paintedDistance(roles[role], scheme.palette.host);
