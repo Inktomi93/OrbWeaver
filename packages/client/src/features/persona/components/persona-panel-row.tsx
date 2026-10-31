@@ -66,7 +66,7 @@ export function PersonaPanelRow({
   };
 
   return (
-    <Stack gap="field">
+    <Stack gap="field" data-persona-row="">
       {/* The body is ListRow's one button: it expands the editor, and the controls beside it are its own tab stops. */}
       <ListRow
         actions={
