@@ -262,6 +262,9 @@ for (const [viewport, scale] of QUALIFIED.charactersBand) {
       await scaleRoot(page, scale.factor);
       await expect.poll(() => findings(page.locator(".shell-grid"))).toEqual([]);
       expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
+      // The list is the band's reason to exist: a character row must be on screen, not only the band's controls.
+      const list = page.locator(".shell-panel[data-panel-side='list']");
+      await expect(list.getByRole("listitem").first()).toBeInViewport();
     });
   });
 }
