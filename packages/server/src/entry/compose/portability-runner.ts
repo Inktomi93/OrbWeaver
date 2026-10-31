@@ -12,7 +12,7 @@ import type { AssetsContext, AssetsService } from "#domain/assets";
 import { createBackgroundStore } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
 import { createCompareAndSetImportedTokenUsage, createListImportedTokenUsageCandidates } from "#domain/chat";
-import type { DatabankPortabilityContext } from "#domain/databank";
+import type { DatabankPortabilityAssemblyContext } from "#domain/databank";
 import type { ExportService } from "#domain/export";
 import type { ImageryPortabilityService } from "#domain/imagery";
 import type { ImportDriverDeps, ImportWorkloadDeps, SettleImportMemory } from "#domain/import";
@@ -61,7 +61,7 @@ export interface PortabilityRunnerComposeDeps {
   readonly galleryCtx: AssetsContext;
   readonly imageryPortability: ImageryPortabilityService;
   /** The databank portability bundle (db + clock + id minter + the ingest enqueue a restore re-runs). */
-  readonly databankCtx: DatabankPortabilityContext;
+  readonly databankCtx: DatabankPortabilityAssemblyContext;
   readonly persona: PersonaService;
   readonly exportService: ExportService;
   readonly character: CharacterService;

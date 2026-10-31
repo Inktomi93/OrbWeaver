@@ -12,7 +12,7 @@ import type { AssetsContext } from "#domain/assets";
 import { createExportAssets, createExportGallery, createImportAsset, createImportAvatarStore, createImportGallery } from "#domain/assets";
 import type { ImportCharacterPort } from "#domain/character";
 import { createCharacterImportOps } from "#domain/character";
-import type { DatabankPortabilityContext } from "#domain/databank";
+import type { DatabankPortabilityAssemblyContext } from "#domain/databank";
 import { createExportDocument, createImportDocument, createListOwnedDocumentIds } from "#domain/databank";
 import type { ExportService, PortableExportDeps } from "#domain/export";
 import { createPortableExports } from "#domain/export";
@@ -41,7 +41,7 @@ export interface PortabilityDeps {
   readonly importStandaloneLorebook: ImportStandaloneLorebook;
   readonly assetsCtx: AssetsContext;
   readonly imagery: ImageryPortabilityService;
-  readonly databankCtx: DatabankPortabilityContext;
+  readonly databankCtx: DatabankPortabilityAssemblyContext;
   readonly persona: Pick<PersonaService, "export" | "import" | "list">;
   readonly exportService: Pick<ExportService, "exportCharacter" | "exportChatBundle" | "listHostChats">;
   readonly character: ImportCharacterPort;

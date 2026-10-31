@@ -12,7 +12,7 @@ import type { Clock } from "@orb/kit/time";
 import { can } from "#domain/admin";
 import type { ChatServiceDeps } from "#domain/chat";
 import { loadPresentHostUserId, requireWiredHost, requireWiredParticipant } from "#domain/chat";
-import type { DatabankContext, DatabankIngest, DatabankPortabilityContext, DatabankService } from "#domain/databank";
+import type { DatabankAssemblyContext, DatabankIngest, DatabankPortabilityAssemblyContext, DatabankService } from "#domain/databank";
 import { createDatabankIngest, createDatabankService } from "#domain/databank";
 import type { EmbeddingsService, LiveEmbedSpaceDeps } from "#domain/embeddings";
 import { createGetLiveEmbedSpace } from "#domain/embeddings";
@@ -45,10 +45,10 @@ export interface DatabankComposeDeps {
   readonly db: DatabaseHandle;
   readonly now: Clock;
   readonly audit: AuditWiring["log"];
-  readonly assetsStore: DatabankContext["assetsStore"];
-  readonly loadAssetBytes: DatabankContext["loadAssetBytes"];
+  readonly assetsStore: DatabankAssemblyContext["assetsStore"];
+  readonly loadAssetBytes: DatabankAssemblyContext["loadAssetBytes"];
   readonly embeddings: Pick<EmbeddingsService, "store" | "pruneDocumentChunks" | "countDocumentChunks" | "countDocumentChunksByOwner">;
-  readonly extractText: DatabankContext["extractText"];
+  readonly extractText: DatabankAssemblyContext["extractText"];
   /** The per-FUNDER role-client binder: a bank's space is its OWNER's `embed` binding (vector tasks are
    *  owner-scoped, §7.5), read per call so a re-bound connection reaches the next ingest with no restart. */
   readonly roleClientsFor: LiveEmbedSpaceDeps["roleClientsFor"];
@@ -70,12 +70,12 @@ export interface DatabankComposeResult {
   readonly databankIngest: DatabankIngest;
   /** The PRINCIPAL-LESS slice the bundle descriptors close over (the delivery core knows only `ownerId`).
    *  It IS the same `DatabankContext` — narrowed here so the portability seam can't reach the rest of it. */
-  readonly databankPortability: DatabankPortabilityContext;
+  readonly databankPortability: DatabankPortabilityAssemblyContext;
 }
 
 export function buildDatabank(deps: DatabankComposeDeps): DatabankComposeResult {
   const { db, now, audit, embeddings, extractText, search, workloads, loadUserSettings } = deps;
-  const databankCtx: DatabankContext = {
+  const databankCtx: DatabankAssemblyContext = {
     logger: deps.logger,
     db,
     can,
