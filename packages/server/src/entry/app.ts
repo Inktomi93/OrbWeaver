@@ -220,8 +220,7 @@ export interface AppDeps {
    *  "recorder on, no traffic" (an honest zero). */
   readonly wireCapture: boolean;
 
-  /** The single assets handle serves the blob owner-gate + the upload `store` + the import avatar-store + the
-   *  BYO pose byte-ingest. */
+  /** The single assets handle serves the blob owner-gate, the upload `store` and the import avatar-store. */
   readonly assets: BlobAssetsPort & UploadAssetsPort & ImportAssetPort;
   readonly cas: BlobCasPort;
   readonly character: ImportCharacterPort;
