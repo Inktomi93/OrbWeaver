@@ -11,7 +11,6 @@ import type {
   DeleteRuleOp,
   EmitAutomationEvent,
   FireView,
-  GlobalVariableView,
   ListRulePresetsOp,
   ListRulesOp,
   OwnerBudgetView,
@@ -50,7 +49,6 @@ import type {
   GetOwnerBudgetsParams,
   ListChatActivityParams,
   ListFiresParams,
-  ListGlobalVariablesParams,
   ListOwnerRulesParams,
   ListRuleToolsParams,
   ReorderRulesParams,
@@ -133,9 +131,6 @@ export interface AutomationService {
   readonly setGlobalVariable: (params: SetGlobalVariableParams) => Promise<void>;
   /** Remove the caller's global by key. Idempotent on an absent key. */
   readonly deleteGlobalVariable: (params: DeleteGlobalVariableParams) => Promise<void>;
-  /** Owner-scoped, key-sorted projection over the global-variable persistence query; `prefix` narrows the
-   *  read. No tRPC procedure or client reads it; CEL and test-rule call the persistence query directly. */
-  readonly listGlobalVariables: (params: ListGlobalVariablesParams) => Promise<GlobalVariableView[]>;
 
   /** Create a rule in EITHER scope — a chat (host-gated) or the caller's owner-GLOBAL lane (`chatId: null`,
    *  C5). Validates trigger liveness, CEL parse, the action schemas + arm caps + reserved-arm refusal, the

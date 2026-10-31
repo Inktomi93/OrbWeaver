@@ -70,9 +70,6 @@ export function createRpgStagingStore(): RpgStagingStore {
       buckets.set(turnId, bucket);
       return bucket.state;
     },
-    peek(turnId: ChatTurnId): RpgSnapshotState | undefined {
-      return buckets.get(turnId)?.state;
-    },
     stage(turnId: ChatTurnId, patch: Record<string, unknown>): RpgSnapshotState {
       const bucket = buckets.get(turnId);
       if (!bucket) {

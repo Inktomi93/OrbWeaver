@@ -9,7 +9,6 @@ import type { CredentialContext, CredentialsService } from "./contract/service.t
 import { createAdd } from "./verbs/add.ts";
 import { createClearRevoked } from "./verbs/clear-revoked.ts";
 import { createList } from "./verbs/list.ts";
-import { createMarkRevoked } from "./verbs/mark-revoked.ts";
 import { createMarkRevokedByUser } from "./verbs/mark-revoked-by-user.ts";
 import { createMaybeRevokeOnAuthFailed } from "./verbs/maybe-revoke-on-auth-failed.ts";
 import { createProbeKeyDecrypt } from "./verbs/probe-key-decrypt.ts";
@@ -32,7 +31,6 @@ export function createCredentialsService(input: DbAssemblyInput<CredentialContex
     remove: createRemove(ctx),
     list: createList(ctx),
     storageStatus: createStorageStatus(ctx),
-    markRevoked: createMarkRevoked(ctx),
     markRevokedByUser: createMarkRevokedByUser(ctx),
     clearRevoked: createClearRevoked(ctx),
     probeKeyDecrypt: createProbeKeyDecrypt(ctx),
