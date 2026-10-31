@@ -1,9 +1,10 @@
 ---
 kind: work
 status: open
-updated: 2026-10-10
+updated: 2026-10-31
 priority: P3
 area: client
+plan: cross-surface-consistency
 ---
 
 # Phone pass P3 bundle

@@ -1,9 +1,10 @@
 ---
 kind: work
 status: open
-updated: 2026-10-26
+updated: 2026-10-31
 priority: P2
 area: client
+plan: test-foundation
 ---
 
 # Qualify the native-scrollend jump-pill CI symptom through production flows

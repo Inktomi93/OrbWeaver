@@ -22,4 +22,4 @@ Derive one complete surface and layout population without another runner or hand
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Superseded by [item 1401](1401-build-and-qualify-the-native-automated-surface-walkthrough.md) phase B, which runs the same population, both browsers and the design audits through production journeys.
