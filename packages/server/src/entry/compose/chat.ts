@@ -17,6 +17,7 @@ import type {
 } from "@orb/contracts/chat";
 import { SIGNUP_INVITES_MINTABLE } from "@orb/contracts/chat";
 import type { AuthMode, Can, Principal } from "@orb/contracts/identity";
+import type { ResolvePersonasForParticipants } from "@orb/contracts/persona";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { DatabaseHandle } from "@orb/db/wiring";
@@ -86,7 +87,7 @@ import { createHandoffRestampStatements, createMemoryEmbeddingOps } from "#domai
 import type { ImageryService } from "#domain/imagery";
 import type { NotificationsService } from "#domain/notifications";
 import { createRecordAndPublishNotification } from "#domain/notifications";
-import type { PersonaService, ResolvePersonasForParticipants } from "#domain/persona";
+import type { PersonaService } from "#domain/persona";
 import { createPersonaOwned, createResolveConnectedPersona, createResolvePersonaSeedPointers, createResolveUserPublics } from "#domain/persona";
 import type { PluginMacroRegistry } from "#domain/plugin";
 import type { PresetService } from "#domain/preset";

@@ -44,6 +44,7 @@ import { resolve } from "node:path";
 import type { IsMemoryEnabledOp } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { AuthModeSource, Principal } from "@orb/contracts/identity";
+import type { ResolvePersonasForParticipants } from "@orb/contracts/persona";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { ImportCardScripts } from "@orb/contracts/regex";
 import { CATALOG_SETTINGS_PREFIX } from "@orb/contracts/settings";
@@ -95,7 +96,7 @@ import { createRecordUsage, createResolveEmbeddingConnection, createVectorSweepO
 import type { ExportService } from "#domain/export";
 import { createImageryPortability } from "#domain/imagery";
 import { buildImportContext, cardPngIdentity, createInstallerCharacterImport, serializeImportCard } from "#domain/import";
-import type { DefaultPersonaSeeder, ResolvePersonasForParticipants } from "#domain/persona";
+import type { DefaultPersonaSeeder } from "#domain/persona";
 import { createSeedPersonaWithCompletion } from "#domain/persona";
 import type { DistributedPluginApplier } from "#domain/plugin";
 import {

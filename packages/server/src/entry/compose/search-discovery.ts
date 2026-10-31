@@ -2,6 +2,7 @@
 // Workload admission is late-bound because chat contributes runners after this graph is constructed.
 
 import type { DomainEvent } from "@orb/contracts/events";
+import type { ResolvePersonasForParticipants } from "@orb/contracts/persona";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { RoleClientsWithSignal } from "@orb/inference";
 import type { IdSource, UserId } from "@orb/kit/ids";
@@ -47,7 +48,7 @@ import {
 } from "#domain/embeddings";
 import type { NotificationsService } from "#domain/notifications";
 import { createNotificationsService } from "#domain/notifications";
-import type { PersonaContext, PersonaService, ResolvePersonasForParticipants } from "#domain/persona";
+import type { PersonaAssemblyContext, PersonaService } from "#domain/persona";
 import {
   createJoinerPersonaStatement,
   createPersonaService,
@@ -222,7 +223,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   // Named (not inlined into the service call) because TWO things are built from it: the Principal-scoped
   // `PersonaService` and the PRINCIPAL-LESS participants op (`domain/persona/contract/ops.ts`) the chat
   // FOREIGN-inputs resolver reads a room's personas through. One ctx, one home for the persona wiring.
-  const personaCtx: PersonaContext = {
+  const personaCtx: PersonaAssemblyContext = {
     db,
     now,
     newPersonaId: minter(ID_PREFIX.persona, deps.idSource),
