@@ -12,7 +12,7 @@ import { SEMVER_RE } from "@orb/kit/semver";
 import { z } from "zod";
 import { isPluginProviderId, pluginNameOfProviderId } from "../inference/provider-id.ts";
 import type { ProviderDef } from "../inference/provider-schema.ts";
-import { providerDefSchema } from "../inference/provider-schema.ts";
+import { providerDefSchema, withoutRetiredTasks } from "../inference/provider-schema.ts";
 
 /** The closed capability axis. A manifest declares a SUBSET; a new capability is a member here + a
  *  host-function row in `CAPABILITY_HOST_FUNCTIONS` (host-v1.ts) — a capability with no function (or a
@@ -415,3 +415,16 @@ export const pluginManifestSchema = z
     refineManifestProviders(m, ctx, declaresEgress);
   });
 export type PluginManifest = z.infer<typeof pluginManifestSchema>;
+
+function manifestWithoutRetiredTasks(raw: unknown): unknown {
+  if (typeof raw !== "object" || raw === null || !("providers" in raw) || !Array.isArray(raw.providers)) {
+    return raw;
+  }
+  const providers: readonly unknown[] = raw.providers;
+  return { ...raw, providers: providers.map(withoutRetiredTasks) };
+}
+
+/** The read-back parse of an installed manifest: a stored row or the stored bundle of an installed plugin. A
+ *  provider there may name a task retired since its install, which this drops; a new upload stays on
+ *  {@link pluginManifestSchema}, which refuses it. */
+export const storedPluginManifestSchema = z.preprocess(manifestWithoutRetiredTasks, pluginManifestSchema);

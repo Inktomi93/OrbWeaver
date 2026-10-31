@@ -1,6 +1,6 @@
 // @subject packages/server/src/entry/compose/portability.ts
 import { characterCardV3Schema, createCharacterSchema } from "@orb/contracts/character";
-import { CSRF_HEADER } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { cardImportResultSchema } from "@orb/contracts/import";
 import { PORTABLE_IMPORT_ORDER, PORTABLE_KINDS } from "@orb/contracts/portability";
 // biome-ignore lint/performance/noNamespaceImport: the census denominator is every native schema export, including future tables that named imports would omit.
@@ -97,7 +97,7 @@ test("every declared single-entity door is mounted on the native composed router
 
 test("the actual HTTP character doors download native owner bytes and isolate malformed reimports", async () => {
   await using root = await createServerHarness({
-    env: { ["AUTH_MODE"]: "single-user", ["AUTH_FALLBACK"]: "owner" },
+    env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" },
     physicalPeer: () => "127.0.0.1",
   });
   const owner = await root.internalCallerFor(root.ownerId);

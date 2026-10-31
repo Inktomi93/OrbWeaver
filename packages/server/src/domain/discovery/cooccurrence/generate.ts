@@ -172,7 +172,6 @@ export async function computeCooccurrence(db: Db, deps: ComputeCooccurrenceDeps,
 
   let pairsWritten = 0;
   let charKeywordsWritten = 0;
-  let hubTokensDropped = 0;
   for (const [ownerId, digests] of byOwner) {
     signal?.throwIfAborted();
     const { reps } = collapseByHash(
@@ -180,7 +179,7 @@ export async function computeCooccurrence(db: Db, deps: ComputeCooccurrenceDeps,
       (d) => d.contentHash,
       (d) => `${d.scopedCharacterId} ${d.contentHash}`,
     );
-    const { normalized, hubDropped } = normalizeOwner(reps, hubFraction);
+    const { normalized } = normalizeOwner(reps, hubFraction);
     const tally = tallyCooccurrence(normalized);
     // TOTAL ORDER, not just "by count": the tally is built from an unordered SELECT through two Maps, so a
     // count-only comparator left every tie to insertion order and two runs over an UNCHANGED corpus could
@@ -207,10 +206,8 @@ export async function computeCooccurrence(db: Db, deps: ComputeCooccurrenceDeps,
     await replaceOwner(db, ownerId, coocRows, profileRows);
     pairsWritten += coocRows.length;
     charKeywordsWritten += profileRows.length;
-    hubTokensDropped += hubDropped;
   }
   return {
-    ownersProcessed: byOwner.size,
     // The INPUT-PLANE census, reported even though every other counter is a write count: with no tier-0
     // digests all four are legitimately zero, and the caller cannot otherwise tell "the memory backfill has
     // not run" from "the tally changed nothing" (issue #558). The SOLO count is the second discriminator: a
@@ -220,6 +217,5 @@ export async function computeCooccurrence(db: Db, deps: ComputeCooccurrenceDeps,
     soloDigestsRead: solo.length,
     pairsWritten,
     charKeywordsWritten,
-    hubTokensDropped,
   };
 }

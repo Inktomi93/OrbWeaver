@@ -39,12 +39,10 @@ export interface BackfillParams {
   readonly signal?: AbortSignal;
 }
 
-/** `backfillAvatars` outcome: cards scanned, avatars actually (re)linked, and integrity mismatches skipped. */
+/** `backfillAvatars` outcome: cards scanned and avatars actually (re)linked; integrity mismatches are neither stored nor linked. */
 export interface BackfillResult {
   readonly scanned: number;
   readonly linked: number;
-  readonly mismatched: number;
-  readonly dryRun: boolean;
 }
 
 // ── collectGarbage (mark-sweep, grace-windowed) ──────────────────────────────────────────────────────────
@@ -62,16 +60,9 @@ export interface GcOptions {
 export interface GcResult {
   readonly scanned: number;
   readonly reclaimed: number;
-  readonly dryRun: boolean;
 }
 
 // ── reapIfOrphan (targeted, NO grace) ────────────────────────────────────────────────────────────────────
-
-/** `reapIfOrphan` outcome: ids checked vs assets actually reaped (row + blob + variants). */
-export interface ReapResult {
-  readonly checked: number;
-  readonly reaped: number;
-}
 
 // ── fsck (read-only integrity report) ────────────────────────────────────────────────────────────────────
 
@@ -98,11 +89,4 @@ export interface FsckResult {
 export interface RebuildOptions {
   readonly kind: AssetKind;
   readonly signal?: AbortSignal;
-}
-
-/** `rebuildFromTree` outcome: index rows re-derived for orphan blobs (`created`) vs blobs that already had a
- *  row (`existing`). */
-export interface RebuildResult {
-  readonly created: number;
-  readonly existing: number;
 }

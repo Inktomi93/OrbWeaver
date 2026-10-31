@@ -5,6 +5,7 @@ import { testId } from "@orb/client/lib";
 import type { ConfigGroupId } from "@orb/client/state";
 import { authConfigSchema } from "@orb/contracts/auth-config";
 import type { portableTextFileSchema } from "@orb/contracts/portability";
+import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import { IMPORT_TREE_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import { WORKLOAD_LIST_MAX_LIMIT } from "@orb/contracts/workloads";
@@ -19,7 +20,7 @@ import { expect, test } from "./support/corpus-test.ts";
 import { SELECTED_CORPUS_FIXTURE } from "./support/modes.ts";
 import { restoreAllowanceMs } from "./support/timeouts.ts";
 
-const BUNDLE_IMPORT_ROUTE = "/api/import/bundle";
+const BUNDLE_IMPORT_ROUTE = PORTABILITY_ROUTES.importBundle;
 const IMPORT_GROUP_NAME = /^Import /u;
 // Quiet-box bases for the corpus-sized Backup case; `budget` stretches them under measured contention.
 const BACKUP_CASE_BASE_MS = 120_000;
@@ -63,7 +64,7 @@ async function assertNativeRestore(
   const before = await host.trpc.workloads.list.query({ kind: "import-bundle", limit: WORKLOAD_LIST_MAX_LIMIT });
   expect(before.length).toBeLessThan(WORKLOAD_LIST_MAX_LIMIT);
   const beforeIds = new Set(before.map((row) => row.id));
-  const route = folder ? "/api/import/tree" : BUNDLE_IMPORT_ROUTE;
+  const route = folder ? PORTABILITY_ROUTES.importTree : BUNDLE_IMPORT_ROUTE;
   const matches = (response: Response): boolean => response.request().method() === "POST" && new URL(response.url()).pathname === route;
   const statuses: number[] = [];
   const record = (response: Response): void => {

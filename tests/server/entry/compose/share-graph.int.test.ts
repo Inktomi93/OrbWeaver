@@ -8,7 +8,7 @@
 import { stat } from "node:fs/promises";
 import process from "node:process";
 import { authConfigSchema } from "@orb/contracts/auth-config";
-import { CSRF_HEADER } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { claimShareOwner, createServerHarness, readRelayStarts, relayExecutable, relayProgram } from "@orb/testkit/node/composed";
@@ -21,7 +21,7 @@ test("the server root runs the pinned native relay and shares its live host with
   const { bytes, pin } = relayProgram(RELAY_URL);
   let downloads = 0;
   const options = {
-    env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" },
+    env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" },
     share: { relay: { pin } },
     networkExecution: {
       resolver: () => Promise.resolve([PUBLIC_PEER_ADDRESS]),
@@ -62,7 +62,7 @@ test("a bad pinned download restores real seating overrides and never reaches na
   const corrupt = new Uint8Array(bytes);
   corrupt[0] = 0;
   await using harness = await createServerHarness({
-    env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" },
+    env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" },
     share: { relay: { pin } },
     networkExecution: { resolver: () => Promise.resolve([PUBLIC_PEER_ADDRESS]), fetch: () => Promise.resolve(new Response(corrupt)) },
   });
@@ -79,7 +79,7 @@ test("a bad pinned download restores real seating overrides and never reaches na
 test("native child release is joined after immediate host invalidation, and the injected timer ends a child that ignores SIGINT", async () => {
   const { bytes, pin } = relayProgram(RELAY_URL, true);
   await using harness = await createServerHarness({
-    env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" },
+    env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" },
     share: { relay: { pin } },
     networkExecution: { resolver: () => Promise.resolve([PUBLIC_PEER_ADDRESS]), fetch: () => Promise.resolve(new Response(bytes)) },
   });
@@ -129,7 +129,7 @@ test("native child release is joined after immediate host invalidation, and the 
 test("unscripted roots refuse relay and ACME before raw network execution and preserve owner-only authority", async () => {
   let outbound = 0;
   await using harness = await createServerHarness({
-    env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" },
+    env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" },
     bindHost: "0.0.0.0",
     allowPublicBind: true,
     networkExecution: {
@@ -176,7 +176,7 @@ test("a held raw download keeps owned storage until physical execution acknowled
   const reached = Promise.withResolvers<AbortSignal>();
   const release = Promise.withResolvers<Response>();
   await using harness = await createServerHarness({
-    env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" },
+    env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" },
     share: { relay: { pin: program.pin } },
     networkExecution: {
       resolver: () => Promise.resolve([PUBLIC_PEER_ADDRESS]),
@@ -216,7 +216,7 @@ test("a named native interface shares through its real loopback companion and di
   const program = relayProgram(RELAY_URL);
   const host = lanAddress();
   await using harness = await createServerHarness({
-    env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" },
+    env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" },
     bindHost: host,
     allowPublicBind: true,
     share: { relay: { pin: program.pin } },

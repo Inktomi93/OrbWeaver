@@ -22,6 +22,7 @@ import { createListSeedAccountIds, createSettleSessionSecret } from "@orb/server
 import { ensureSeedThemes, healLegacyBackgroundPins } from "@orb/server/domain/settings";
 import { reconcileOwnersMissingTimeline } from "@orb/server/domain/stats";
 import { reclaimInFlightOnBoot } from "@orb/server/domain/workloads";
+import { rehashPluginProviderDefinitionsOnBoot } from "@orb/server/entry/boot";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { bootGrantFor } from "@orb/testkit/node/helpers";
@@ -59,6 +60,7 @@ const VERBS: readonly { readonly name: string; readonly run: (grant: BootDatabas
   { name: "hasRedeemableInvite", run: (grant, root) => hasRedeemableInvite(grant, root.clock.now()) },
   { name: "automation migratePluginToolWireNames", run: (grant) => migrateAutomationArms(grant, RENAMES) },
   { name: "hasSealedCredentials", run: (grant) => hasSealedCredentials(grant) },
+  { name: "rehashPluginProviderDefinitionsOnBoot", run: (grant, root) => rehashPluginProviderDefinitionsOnBoot({ db: grant, logger: root.logger }) },
   {
     name: "createSettleSessionSecret",
     run: async (grant, root) =>

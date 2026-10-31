@@ -64,7 +64,6 @@ test("the composed pruner resolves the present host's persisted generation and d
     const text = `[archive — hall]\nArchive block ${blockIdx} for ${scopedCharacterId}`;
     receipts.push(
       await root.app.embeddings.store({
-        kind: "chat-block",
         lens: "digest",
         ownerId: host.userId,
         chatId: chat.id,
@@ -96,9 +95,8 @@ test("the composed pruner resolves the present host's persisted generation and d
     [`${mine.id}:0`, `${mine.id}:1`, `${mine.id}:2`, `${sibling.id}:2`].toSorted(),
   );
 
-  const result = await root.app.embeddings.pruneMemoryBlocks({ lens: "digest", chatId: chat.id, scopedCharacterId: mine.id, keepPerTier: [1] });
+  await root.app.embeddings.pruneMemoryBlocks({ lens: "digest", chatId: chat.id, scopedCharacterId: mine.id, keepPerTier: [1] });
 
-  expect(result.rowsDeleted).toBe(2);
   const retained = before.filter((row) => row.scopedCharacterId === sibling.id || row.blockIdx === 0);
   const after = await root.db.select().from(chatDigests).where(eq(chatDigests.chatId, chat.id));
   expect(after.toSorted((a, b) => a.id.localeCompare(b.id))).toEqual(retained.toSorted((a, b) => a.id.localeCompare(b.id)));

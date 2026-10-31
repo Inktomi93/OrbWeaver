@@ -42,7 +42,7 @@ export type CountHandoffRegexScripts = (args: CopyHandoffRegexScriptsArgs) => Pr
 
 /** WHOSE display scripts a room broadcasts (the host option): `enabled:false` is the default and the
  *  byte-identical arm; `hostUserId` is null for a hostless (archived orphan) room, which broadcasts nothing. */
-export interface RoomDisplayPolicy {
+interface RoomDisplayPolicy {
   readonly enabled: boolean;
   readonly hostUserId: UserId | null;
 }

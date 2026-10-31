@@ -36,6 +36,7 @@ export type { PluginGrantTask } from "./grant-tasks.ts";
 export { pluginGrantTasks } from "./grant-tasks.ts";
 export type {
   HostFunctionRef,
+  PluginCardDataMatch,
   PluginCharacterView,
   PluginHostV1,
   PluginLogLevel,
@@ -52,6 +53,7 @@ export {
   HOST_FUNCTION_CAPABILITY,
   isUiProxyableHostFunction,
   PLUGIN_ASSET_READ_MAX_BYTES,
+  PLUGIN_CARD_DATA_FIND_MAX,
   PLUGIN_CONTINUATION_WINDOW_MS,
   PLUGIN_LOG_CHARS_MAX,
   PLUGIN_LOG_LEVELS,
@@ -84,6 +86,7 @@ export {
   pluginManifestSchema,
   pluginNetHostSchema,
   pluginSlugSchema,
+  storedPluginManifestSchema,
 } from "./manifest.ts";
 export type {
   ChatAuthority,

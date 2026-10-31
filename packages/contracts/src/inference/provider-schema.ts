@@ -8,7 +8,7 @@ import { CHAT_APIS } from "./apis.ts";
 import { endpointFeaturesSchema } from "./features.ts";
 import { pluginNameOfProviderId, providerIdSchema } from "./provider-id.ts";
 import type { Task } from "./tasks.ts";
-import { TASKS } from "./tasks.ts";
+import { RETIRED_TASKS, taskSchema } from "./tasks.ts";
 import type { Wire } from "./wires.ts";
 import { WIRE_DEFS, WIRES } from "./wires.ts";
 
@@ -102,7 +102,7 @@ export const providerDefSchema = z
     apis: z.array(z.enum(CHAT_APIS)),
     /** ⊆ `WIRE_DEFS[wire].serves`; ABSENT ⇒ the whole wire set. Hosted rows NARROW it (OpenAI has no
      *  `/rerank`). Never widens the wire — pinned. */
-    serves: z.array(z.enum(TASKS)).optional(),
+    serves: z.array(taskSchema).optional(),
     catalog: z.enum(CATALOG_STRATEGIES),
     metered: z.boolean(),
     docsUrl: z.url().optional(),
@@ -113,5 +113,20 @@ export const providerDefSchema = z
     }
   });
 export type ProviderDef = z.infer<typeof providerDefSchema>;
+
+const RETIRED: ReadonlySet<string> = new Set<string>(RETIRED_TASKS);
+
+/** A raw provider row with every retired task dropped from `serves`. Read-back only: an authored row or a
+ *  new upload that names a retired task is refused by {@link providerDefSchema}. */
+export function withoutRetiredTasks(raw: unknown): unknown {
+  if (typeof raw !== "object" || raw === null || !("serves" in raw) || !Array.isArray(raw.serves)) {
+    return raw;
+  }
+  const serves: readonly unknown[] = raw.serves;
+  return { ...raw, serves: serves.filter((task) => typeof task !== "string" || !RETIRED.has(task)) };
+}
+
+/** The read-back parse of a stored provider row, which may predate a task's retirement. */
+export const storedProviderDefSchema = z.preprocess(withoutRetiredTasks, providerDefSchema);
 /** The AUTHORING shape (`z.input`) the built-in row module `satisfies`. */
 export type ProviderDefInput = z.input<typeof providerDefSchema>;

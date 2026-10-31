@@ -1,3 +1,4 @@
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import type { InboxView } from "@orb/contracts/notifications";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import type { AppearanceSettings } from "@orb/contracts/settings/appearance";
@@ -141,7 +142,7 @@ for (const regime of REGIMES) {
       page,
     }, testInfo) => {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark", forcedColors: "none" });
-      await using root = await createServerHarness({ startJobs: false, env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" } });
+      await using root = await createServerHarness({ startJobs: false, env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" } });
       const { owner, caller, reader, inbox, invited, invitedRoom, handedRoom } = await seedInbox(root, regime.appearance);
       expect(inbox.items.map((item) => item.payload.type).sort()).toEqual(
         ["handoff-nominated", "invite", "kicked", "plugin-disabled", "plugins-awaiting-consent"].sort(),

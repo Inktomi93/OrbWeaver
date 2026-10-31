@@ -8,7 +8,7 @@ import type { ChatAuthority } from "../plugin/index.ts";
 
 /** Where a tool came from. `plugin` tools are registered at activation through `RegisterPluginToolOp`,
  *  namespaced `plugin_<slug>_<name>`; their ceiling resolves the INSTALLER's present role in the invocation chat. */
-export const TOOL_SOURCES = ["builtin", "plugin"] as const;
+const TOOL_SOURCES = ["builtin", "plugin"] as const;
 export type ToolSource = (typeof TOOL_SOURCES)[number];
 
 /** The declarative can() ceiling the execute path checks before invoking the handler; the owning domain's

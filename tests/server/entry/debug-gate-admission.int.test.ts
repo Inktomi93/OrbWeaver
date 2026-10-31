@@ -3,7 +3,15 @@
 // @subject packages/server/src/foundation/observability/debug/routes.ts
 import { readFile, rm } from "node:fs/promises";
 import type { AuthMode } from "@orb/contracts/identity";
-import { AUTH_MODES, CSRF_HEADER } from "@orb/contracts/identity";
+import {
+  AUTH_FALLBACK_KEY,
+  AUTH_FALLBACK_TRUSTED_PEERS_KEY,
+  AUTH_MODE_KEY,
+  AUTH_MODES,
+  CSRF_HEADER,
+  FORWARD_AUTH_TRUSTED_PROXIES_KEY,
+  OIDC_ADMIN_GROUPS_KEY,
+} from "@orb/contracts/identity";
 import { isPlainObject } from "@orb/kit/guards";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -58,7 +66,7 @@ function rootFor(
     // the record's, which the owner-fallback credential rule also reads. An unnamed fallback is the mode's own default.
     ...(mode === "single-user" && fallback === "deny"
       ? { env: { ...env }, authConfig: { mode, fallback } }
-      : { env: { ...env, ["AUTH_MODE"]: mode, ...(fallback === undefined ? {} : { ["AUTH_FALLBACK"]: fallback }) } }),
+      : { env: { ...env, [AUTH_MODE_KEY]: mode, ...(fallback === undefined ? {} : { [AUTH_FALLBACK_KEY]: fallback }) } }),
   });
 }
 
@@ -112,7 +120,7 @@ describe("un-credentialed callers, and a relayed single-user loopback caller, ne
   });
 
   test("no resolvable TCP peer is refused in every posture (the fallback arm cannot even mint)", async () => {
-    await using root = await createServerHarness({ env: { ["AUTH_MODE"]: "single-user", ["AUTH_FALLBACK"]: "owner" } });
+    await using root = await createServerHarness({ env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" } });
     expect(await outcomes(root, { host: LOOPBACK })).toEqual(ALL_REFUSED_TOKENLESS);
   });
 });
@@ -143,7 +151,7 @@ describe("the loopback owner fallback opens the door only where the posture says
   // The record's widened peer set makes the loopback owner no operator credential, whatever the mode.
   for (const mode of AUTH_MODES) {
     test(`${mode}: the STRICT posture refuses an un-relayed loopback owner over HTTP (a widened peer set)`, async () => {
-      await using root = await rootFor(mode, { fallback: "owner", env: { ["AUTH_FALLBACK_TRUSTED_PEERS"]: WIDENED_OWNER_PEERS } });
+      await using root = await rootFor(mode, { fallback: "owner", env: { [AUTH_FALLBACK_TRUSTED_PEERS_KEY]: WIDENED_OWNER_PEERS } });
       expect(await authMe(root)).toMatchObject({ authenticated: true, role: "owner" });
       expect(await outcomes(root)).toEqual(ALL_REFUSED_TOKENLESS);
     });
@@ -200,7 +208,7 @@ describe("the two real credentials still open the gate", () => {
   test("an UNSIGNED forward-header OWNER from a trusted proxy is refused (only a verified JWT is a credential)", async () => {
     await using root = await createServerHarness({
       physicalPeer: () => LOOPBACK,
-      env: { ["AUTH_MODE"]: "forward-header", ["AUTH_FALLBACK"]: "deny", ["FORWARD_AUTH_TRUSTED_PROXIES"]: "127.0.0.0/8" },
+      env: { [AUTH_MODE_KEY]: "forward-header", [AUTH_FALLBACK_KEY]: "deny", [FORWARD_AUTH_TRUSTED_PROXIES_KEY]: "127.0.0.0/8" },
     });
     const unsigned = { "x-authentik-username": (await root.principalFor(root.ownerId)).handle };
     expect((await authMe(root, unsigned)).role).toBe("owner");
@@ -289,7 +297,7 @@ describe("D17: a DELEGATED admin is not the box operator", () => {
   });
 
   test("a signed forward-header SSO ADMIN is refused too (the role gate binds every credential arm)", async () => {
-    const signed = await signedForwardRoot(policy({ ["OIDC_ADMIN_GROUPS"]: ADMIN_GROUP }));
+    const signed = await signedForwardRoot(policy({ [OIDC_ADMIN_GROUPS_KEY]: ADMIN_GROUP }));
     await using root = signed.root;
     const admin = await signed.signedHeaders({ [FORWARD_USERNAME_CLAIM]: "debug-gate-sso-admin", sub: "debug-gate-sso-admin", groups: [ADMIN_GROUP] });
     expect((await authMe(root, admin)).role).toBe("admin");

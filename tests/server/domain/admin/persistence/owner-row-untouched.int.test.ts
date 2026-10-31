@@ -7,7 +7,7 @@
 // @subject packages/server/src/domain/admin/verbs/set-enabled.ts
 // @subject packages/server/src/domain/admin/verbs/set-role.ts
 
-import { authMeSchema } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, authMeSchema } from "@orb/contracts/identity";
 import { users } from "@orb/db";
 import type { ExternalId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -15,11 +15,12 @@ import { expect, test } from "@orb/testkit/node";
 import { signInWithPassword } from "@orb/testkit/node/auth";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
+import { ADMIN_OP_CODES } from "#server/domain/admin/contract/errors.ts";
 
 const OWNER_PASSWORD = "native-owner-row-password";
 
 test("a delegate cannot disable, bind or reset the owner, while the owner can rotate the credential used by actual HTTP login", async () => {
-  await using root = await createServerHarness({ env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" } });
+  await using root = await createServerHarness({ env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" } });
   const owner = await root.principalFor(root.ownerId);
   const delegate = await root.actor({ role: "admin" });
   const admin = await root.principalFor(delegate.id);
@@ -27,13 +28,13 @@ test("a delegate cannot disable, bind or reset the owner, while the owner can ro
   const before = await root.db.select().from(users).where(eq(users.id, owner.userId)).get();
   expect(before).toMatchObject({ role: "owner", enabled: true });
   await expect(root.services.admin.setEnabled({ principal: admin, userId: owner.userId, enabled: false })).rejects.toMatchObject({
-    code: "cannot_modify_owner",
+    code: ADMIN_OP_CODES.cannotModifyOwner,
   });
   await expect(
     root.services.admin.linkSsoIdentity({ principal: admin, userId: owner.userId, externalId: castId<ExternalId>("delegate-controlled-subject") }),
-  ).rejects.toMatchObject({ code: "cannot_modify_owner" });
+  ).rejects.toMatchObject({ code: ADMIN_OP_CODES.cannotModifyOwner });
   await expect(root.services.admin.resetPassword({ principal: admin, userId: owner.userId, password: "delegate-controlled-password" })).rejects.toMatchObject({
-    code: "cannot_modify_owner",
+    code: ADMIN_OP_CODES.cannotModifyOwner,
   });
   expect(await root.db.select().from(users).where(eq(users.id, owner.userId)).get()).toEqual(before);
   const cookie = await signInWithPassword(root, owner.handle, OWNER_PASSWORD);

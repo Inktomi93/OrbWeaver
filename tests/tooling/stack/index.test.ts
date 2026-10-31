@@ -8,6 +8,7 @@
 // The launcher is proven by argv/env snapshots + the pure decision logic; the dev supervisor's live cycle
 // runs on a private run dir in index.int.test.ts.
 import { readFileSync } from "node:fs";
+import { DEBUG_TOKEN_ENV } from "@orb/server/foundation/env/record";
 import { expect, test } from "@orb/testkit/tooling";
 import { SERVER_ENTRY_REL, SERVER_NODE_FLAGS } from "@orb/tooling/floor/process/server-entry";
 import type { ObservedInstance, ProdRecord } from "../../../tooling/src/stack/index.ts";
@@ -138,11 +139,11 @@ test("an EMPTY .env value is a conflict, not absence — the exact placebo the r
     return;
   }
   expect(arming.conflicts).toHaveLength(1);
-  expect(arming.conflicts[0]?.key).toBe("DEBUG_TOKEN");
+  expect(arming.conflicts[0]?.key).toBe(DEBUG_TOKEN_ENV);
   expect(arming.conflicts[0]?.fileValue).toBe("");
   // The message names the file value and the line to delete, and must NOT echo the minted token.
   const message = debugConflictMessage(arming.conflicts);
-  expect(message).toContain("DEBUG_TOKEN");
+  expect(message).toContain(DEBUG_TOKEN_ENV);
   expect(message).not.toContain("s3cr3t-token-value");
 });
 

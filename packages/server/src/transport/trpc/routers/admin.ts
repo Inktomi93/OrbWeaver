@@ -9,7 +9,6 @@ import { withinHandleLength } from "@orb/kit/handle-key";
 
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
-import { revokeUserSessionsResultSchema } from "#domain/admin";
 import { adminUserViewSchema } from "../role-output.ts";
 import { adminProcedure, t } from "../trpc.ts";
 
@@ -80,13 +79,12 @@ export const adminRouter = t.router({
   // Owner-only at the verb; the confirm is the input, so a call without `confirm: true` never reaches it. The
   // restart bucket in `entry/rate-limit-gate.ts` is durable, so it still counts after the process it ended.
   restart: adminProcedure.input(z.object({ confirm: z.literal(true), expectedServerInstanceId: z.uuid() })).mutation(async ({ ctx, input }) => {
-    await ctx.services.admin.restart({ principal: ctx.auth, confirm: input.confirm, expectedServerInstanceId: input.expectedServerInstanceId });
+    await ctx.services.admin.restart({ principal: ctx.auth, expectedServerInstanceId: input.expectedServerInstanceId });
     return { restarting: true } as const;
   }),
 
   revokeUserSessions: adminProcedure
     .input(z.object({ userId: brandedId("UserId") }))
-    .output(revokeUserSessionsResultSchema)
     .mutation(({ ctx, input }) => ctx.services.admin.revokeUserSessions({ principal: ctx.auth, userId: input.userId })),
 
   // The inline single-card embed (adminProcedure, Tier-4 esoteric #10: only admins drive the GPU

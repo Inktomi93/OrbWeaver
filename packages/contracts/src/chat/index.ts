@@ -57,7 +57,6 @@ export type {
   MemoryRecallCandidate,
   MemoryRecallSlice,
   MemoryRecallVerdict,
-  SectionPreview,
   ShapeBreakpointDecision,
   ShapeFoldReason,
   ShapeRowSource,

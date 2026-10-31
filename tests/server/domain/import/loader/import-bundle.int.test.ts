@@ -229,7 +229,7 @@ test("a restored chat binds to the existing character its card deduped onto, und
     principal: owner,
     input: createCharacterSchema.parse({ handle: "warden", name: "Warden", description: "The warden counts the gates." }),
   });
-  const card = await source.http.request(`${exportCharacterPath(created.id)}`);
+  const card = await source.http.request(exportCharacterPath(created.id));
   expect(card.status).toBe(200);
   const firstCard = new Uint8Array(await card.arrayBuffer());
   // Renaming the handle is not a content edit, so the next export still dedups onto the first restore.
@@ -319,7 +319,7 @@ test("a seat's card identity resolves only inside the importing account", { tags
     principal: await source.principalFor(source.ownerId),
     input: createCharacterSchema.parse({ handle: CHOSEN_HANDLE, name: CHARACTER_NAME, description: "A keeper tends the orbital ledger." }),
   });
-  const card = await source.http.request(`${exportCharacterPath(made.id)}`);
+  const card = await source.http.request(exportCharacterPath(made.id));
   expect(card.status).toBe(200);
   const cardBytes = new Uint8Array(await card.arrayBuffer());
   await seedTranscript(source, { ownerId: source.ownerId, characterHandles: [CHOSEN_HANDLE], lines: [{ role: "user", content: "theirs" }] });
@@ -730,7 +730,7 @@ test("a card's background travels in its export and re-links by content, never o
   });
   const background = themeBackgroundSchema.parse({ kind: "asset", assetId: plate.assetId, assetHash: plate.assetHash, mime: plate.mime });
   await source.services.character.update({ principal: owner, characterId: keeper.id, input: { backgroundOverride: background } });
-  const card = await source.http.request(`${exportCharacterPath(keeper.id)}`);
+  const card = await source.http.request(exportCharacterPath(keeper.id));
   expect(card.status).toBe(200);
   const cardBytes = new Uint8Array(await card.arrayBuffer());
   const bundle = await exportLibrary(source);

@@ -6,7 +6,7 @@ import { homedir } from "node:os";
 import { dirname, isAbsolute, join, sep } from "node:path";
 import process from "node:process";
 import type { AuthMode } from "@orb/contracts/identity";
-import { AUTH_MODES, viewerViewSchema } from "@orb/contracts/identity";
+import { AUTH_MODE_KEY, AUTH_MODES, DEFAULT_USER_HANDLE_KEY, OWNER_HANDLES_KEY, viewerViewSchema } from "@orb/contracts/identity";
 import { connectionViewSchema } from "@orb/contracts/inference";
 import type {
   assets as assetTable,
@@ -381,8 +381,8 @@ function surfaceHarnessOptions(
     importStagingDir: prepared.layout.importStaging,
     relayDir: prepared.layout.relay,
     secretsDir: prepared.layout.secrets,
-    rolePolicyConfig: { ["DEFAULT_USER_HANDLE"]: prepared.owner.handle, ["OWNER_HANDLES"]: prepared.owner.handle },
-    env: { ["AUTH_MODE"]: mode },
+    rolePolicyConfig: { [DEFAULT_USER_HANDLE_KEY]: prepared.owner.handle, [OWNER_HANDLES_KEY]: prepared.owner.handle },
+    env: { [AUTH_MODE_KEY]: mode },
     ...execution,
   };
 }

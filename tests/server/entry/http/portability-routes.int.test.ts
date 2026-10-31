@@ -5,7 +5,7 @@
 
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
-import { CSRF_HEADER } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { importStartedSchema } from "@orb/contracts/import";
 import { PORTABILITY_ROUTES, PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
 import type { Handle, UserId, WorkloadId } from "@orb/kit/ids";
@@ -33,7 +33,7 @@ async function box(): Promise<Box> {
   const root = await createServerHarness({
     physicalPeer: () => "127.0.0.1",
     startJobs: false,
-    env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" },
+    env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" },
   });
   const member = await signedInMember(root, castId<Handle>("portability-member"));
   const run = root.runAdmittedWorkload;

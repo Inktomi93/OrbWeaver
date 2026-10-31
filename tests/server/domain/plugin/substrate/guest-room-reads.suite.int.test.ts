@@ -10,7 +10,7 @@ import { PluginSuggestedError } from "@orb/contracts/plugin";
 import type { WorldBookId } from "@orb/kit/ids";
 import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
-import type { ChatRoot } from "@orb/testkit/node/composed";
+import type { ChatRoot, GuestOps, GuestRun } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
@@ -18,11 +18,11 @@ import {
   CORPUS_TEXT_MODEL,
   createChatRoot,
   createCorpusProviderExecution,
+  guestRunner,
+  installGuest,
   readRoomCanon,
   seedCorpusConnections,
 } from "@orb/testkit/node/composed";
-import type { GuestOps, GuestRun } from "./_guest-command.ts";
-import { guestRunner, installGuest } from "./_guest-command.ts";
 
 const NET_HOST = "plugin.example.test";
 const HELD_URL = `https://${NET_HOST}/held`;

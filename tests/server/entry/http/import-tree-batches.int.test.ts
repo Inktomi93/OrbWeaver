@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { basename, join, relative } from "node:path";
 import { storedAssetSchema } from "@orb/contracts/assets";
 import { createCharacterSchema } from "@orb/contracts/character";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { importStartedSchema, ST_SECRETS_FILE, ST_SETTINGS_FILE, TREE_FILE_FIELD, TREE_LAYOUT_FIELD } from "@orb/contracts/import";
 import type { PortableKind } from "@orb/contracts/portability";
 import { PORTABILITY_ROUTES, PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
@@ -30,7 +31,7 @@ interface BackupEntry {
 
 function harness(): Promise<ServerTestHarness> {
   return createServerHarness({
-    env: { ["AUTH_MODE"]: "single-user", ["AUTH_FALLBACK"]: "owner" },
+    env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" },
     physicalPeer: () => "127.0.0.1",
     startJobs: false,
   });

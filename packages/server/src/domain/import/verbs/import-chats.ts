@@ -37,12 +37,7 @@ export function createImportChats(ctx: ImportContext): ImportService["importChat
     }
 
     return {
-      characterId: input.characterId,
       chatsImported: counts.chatsImported,
-      chatsSkipped: counts.chatsSkipped,
-      messagesImported: counts.messagesImported,
-      variantsImported: counts.variantsImported,
-      branchesLinked: counts.branchesLinked,
       memoryChatIds,
       chatsPersonaHealed: counts.chatsPersonaHealed,
       // §5.7: the chat-bound persona picks that named nothing on this install. Computed over the SAME batch

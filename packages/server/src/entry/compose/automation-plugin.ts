@@ -23,7 +23,7 @@ import {
   createPromptTransformIndex,
   createSuggestionStore,
 } from "#domain/automation";
-import { readPluginCardData, writePluginCardData } from "#domain/character";
+import { findPluginCardData, readPluginCardData, writePluginCardData } from "#domain/character";
 import { createPluginChatAuthority, requireHost } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
 import type { DatabankService } from "#domain/databank";
@@ -173,8 +173,6 @@ export interface AutomationPluginComposeDeps {
 export interface AutomationPluginComposeResult extends AsyncDisposable {
   readonly automation: AutomationService;
   readonly plugin: PluginService;
-  /** The host op a guest's `net.fetchAsset` reaches: store the bytes, then link them to the plugin. */
-  readonly storeFetchedAsset: PluginHostOps["assets"]["storeFetched"];
 }
 
 const buildPluginQuietLlm = domainBuildPluginQuietLlm;
@@ -216,6 +214,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     databankCreateFromText: (params) => deps.databankCreateFromText(params),
     readCardData: (target) => readPluginCardData(db, target),
     writeCardData: (target, data) => writePluginCardData(db, target, data),
+    findCardData: (lookup) => findPluginCardData(db, lookup),
     readShowcaseManifest,
   });
   const automationOps = createAutomationOps({
@@ -366,6 +365,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       ingestAsset: ({ installerUserId, assetId, pluginId }) => deps.ingestCharacterAsset({ installerUserId, assetId, pluginId }),
       setCardData: pluginRuntime.cardState.setCardData,
       getCardData: pluginRuntime.cardState.getCardData,
+      findCardData: pluginRuntime.cardState.findCardData,
     },
     pubsub: { emit: createPluginEventEmitter(pluginEventBus) },
     registrar: {
@@ -428,5 +428,5 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
   );
 
   const lifetime = construction.move();
-  return { automation, plugin, storeFetchedAsset: pluginRuntime.storeFetched, [Symbol.asyncDispose]: (): Promise<void> => lifetime.disposeAsync() };
+  return { automation, plugin, [Symbol.asyncDispose]: (): Promise<void> => lifetime.disposeAsync() };
 }

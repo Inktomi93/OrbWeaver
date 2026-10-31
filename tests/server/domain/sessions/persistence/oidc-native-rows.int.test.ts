@@ -4,9 +4,17 @@
 
 import { access, readFile } from "node:fs/promises";
 import { pendingJoinConfirmResultSchema, signedOutInvitePreviewSchema } from "@orb/contracts/chat";
-import { authLogoutResultSchema, authMeSchema, CSRF_HEADER } from "@orb/contracts/identity";
+import {
+  AUTH_FALLBACK_KEY,
+  AUTH_MODE_KEY,
+  authLogoutResultSchema,
+  authMeSchema,
+  CSRF_HEADER,
+  DEFAULT_USER_HANDLE_KEY,
+  OIDC_ALLOWED_GROUPS_KEY,
+  OWNER_HANDLES_KEY,
+} from "@orb/contracts/identity";
 import { closeDb, oidcPendingSignups, oidcTransactions, sessions, users } from "@orb/db";
-
 import { brandedId } from "@orb/kit/ids";
 import { MS_PER_HOUR } from "@orb/kit/time";
 import { createControlledTimers, createFrozenClock, PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
@@ -218,7 +226,7 @@ test.each([false, true])("a real JIT-closed pending join is consumed atomically 
 
 test("native OIDC group claims fail closed under the graph's configured allowed groups", async () => {
   const issuer = await createNativeIssuer();
-  await using root = await rootFor(issuer, {}, { rolePolicyConfig: { ["DEFAULT_USER_HANDLE"]: "owner", ["OIDC_ALLOWED_GROUPS"]: "friends" } });
+  await using root = await rootFor(issuer, {}, { rolePolicyConfig: { [DEFAULT_USER_HANDLE_KEY]: "owner", [OIDC_ALLOWED_GROUPS_KEY]: "friends" } });
   for (const groups of [undefined, null, 7, [], ["outsiders"], { value: "friends" }]) {
     const response = await finishOidcLogin(root, await beginOidcLogin(root, issuer, { ...MEMBER, groups }));
     expect(response.headers.get("location")).toBe("/login?authError=not_authorized");
@@ -236,7 +244,7 @@ test("a handle that became an owner seed-key look-alike after the callback is re
   resources.defer(() => closeDb(db));
   const issuer = await createNativeIssuer();
   const first = resources.use(
-    await rootFor(issuer, { ["OIDC_SIGNUP"]: false }, { db, rolePolicyConfig: { ["DEFAULT_USER_HANDLE"]: "owner", ["OWNER_HANDLES"]: "original-owner" } }),
+    await rootFor(issuer, { ["OIDC_SIGNUP"]: false }, { db, rolePolicyConfig: { [DEFAULT_USER_HANDLE_KEY]: "owner", [OWNER_HANDLES_KEY]: "original-owner" } }),
   );
   if (first.ownerClaimFile === undefined) {
     throw new Error("configured OIDC omitted its actual owner claim file");
@@ -265,7 +273,7 @@ test("a handle that became an owner seed-key look-alike after the callback is re
   await first[Symbol.asyncDispose]();
 
   const restarted = resources.use(
-    await rootFor(issuer, { ["OIDC_SIGNUP"]: false }, { db, rolePolicyConfig: { ["DEFAULT_USER_HANDLE"]: "owner", ["OWNER_HANDLES"]: "boss" } }),
+    await rootFor(issuer, { ["OIDC_SIGNUP"]: false }, { db, rolePolicyConfig: { [DEFAULT_USER_HANDLE_KEY]: "owner", [OWNER_HANDLES_KEY]: "boss" } }),
   );
   const confirmed = await restarted.http.request("/api/auth/oidc/pending/confirm", {
     method: "POST",
@@ -412,7 +420,7 @@ test("failed OIDC GC construction joins its held actual database sweep and retai
   let settled = false;
   const result = createServerHarness({
     ownerId: null,
-    env: { ["AUTH_MODE"]: "oidc", ["AUTH_FALLBACK"]: "deny" },
+    env: { [AUTH_MODE_KEY]: "oidc", [AUTH_FALLBACK_KEY]: "deny" } as const,
     db: held.db,
     clock,
     timers,
@@ -642,7 +650,7 @@ test("a grant with NO usable username is refused too (the pre-existing null-iden
 
 test("a DENIED provision (login gate refused) mints nothing — generic not_authorized", async () => {
   const issuer = await createNativeIssuer();
-  await using root = await rootFor(issuer, {}, { rolePolicyConfig: { ["DEFAULT_USER_HANDLE"]: "owner", ["OIDC_ALLOWED_GROUPS"]: "friends" } });
+  await using root = await rootFor(issuer, {}, { rolePolicyConfig: { [DEFAULT_USER_HANDLE_KEY]: "owner", [OIDC_ALLOWED_GROUPS_KEY]: "friends" } });
   await expectRefusedWithoutSession(
     root,
     await finishOidcLogin(root, await beginOidcLogin(root, issuer, { ...MEMBER, groups: ["outsiders"] })),

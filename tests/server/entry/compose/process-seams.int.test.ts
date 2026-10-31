@@ -2,7 +2,7 @@
 // The harness root's seeded nonce, not an ambient UUID, names the supervised work the composed graph starts.
 
 import { readdir } from "node:fs/promises";
-import { CSRF_HEADER } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { importStartedSchema } from "@orb/contracts/import";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { streamConnectInputSchema } from "@orb/contracts/stream";
@@ -78,7 +78,7 @@ test("a staged bundle upload is named with the root's seeded nonce", async () =>
   await using root = await createServerHarness({
     physicalPeer: () => "127.0.0.1",
     startJobs: false,
-    env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" },
+    env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" },
   });
   const minted = root.ids.snapshot();
   const response = await root.http.request(BUNDLE_ROUTE, { method: "POST", headers: { [CSRF_HEADER]: "1" }, body: new Uint8Array([1]) });

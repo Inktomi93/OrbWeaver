@@ -1,6 +1,7 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // Read outcomes through the authenticated debug door after real native execution and physical failures.
 import type { TurnOutcome } from "@orb/contracts/chat";
+import { WARNING_CODE } from "@orb/contracts/inference";
 import { messageVariants } from "@orb/db";
 import { ProviderError } from "@orb/inference";
 import type { JsonValue } from "@orb/kit/json";
@@ -19,6 +20,7 @@ import {
   createCorpusProviderExecution,
   refuseWrites,
 } from "@orb/testkit/node/composed";
+import { SETTINGS_ADJUSTED_CODE } from "#contracts/chat/bus.ts";
 import { sdkEngineRoom } from "./engine-physical.ts";
 import { ENGINE_SDK_MODEL } from "./engine-sdk-physical.mjs";
 
@@ -213,12 +215,12 @@ test("a completed native turn keeps raw warning code and operator prose while it
     expect((await routed()).aborted).toBe(false);
     const raw = "topK ignored: model does not expose a topK range";
     expect(await outcomes(h)).toEqual([
-      expect.objectContaining({ disposition: "completed", warnings: expect.arrayContaining([{ code: "sampling_knob_dropped", message: raw }]) }),
+      expect.objectContaining({ disposition: "completed", warnings: expect.arrayContaining([{ code: WARNING_CODE.samplingKnobDropped, message: raw }]) }),
     ]);
     const warnings = (await h.root.services.chat.replayChatEvents({ principal: h.owner, chatId: h.chatId })).flatMap(({ event }) =>
       event.type === "warning" ? [event] : [],
     );
-    expect(warnings).toContainEqual(expect.objectContaining({ code: "settings_adjusted" }));
+    expect(warnings).toContainEqual(expect.objectContaining({ code: SETTINGS_ADJUSTED_CODE }));
     expect(JSON.stringify(warnings)).not.toContain(raw);
   });
 });

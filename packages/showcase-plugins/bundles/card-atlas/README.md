@@ -200,15 +200,17 @@ native-V2 detail payload, BotBooru's downloaded card body, Pygmalion's `personal
 recovered `chara_card_v2_json`. A PNG-ONLY hub (Chub, AI Character Cards, CharaVault) whose PNG arm
 fails answers an honest error toast — never a lossy fabricated card.
 
-Then provenance, two planes, two jobs: `setCardData(characterId, {source, ref, importedAtMs})` stamps
+Then provenance: `setCardData(characterId, {source, ref, importedAtMs, keys})` stamps
 the origin onto the card itself under this plugin's own reserved `data.extensions.plugin_card-atlas` key
 — PORTABLE (survives export→import), unforgeable (the host stamps the namespace from the manifest slug),
-readable by this plugin alone. The private `storage.kv` `owned:` index is the fast lookup that badges
-results "in your library"; the card stamp is the durable truth.
+readable by this plugin alone. `keys` lists every `<source>:<ref>` the character answers for, because one
+card reached from two hubs dedupes to one character. `findCardData(values)` reads those stamps back to
+badge results "in your library". The stamp lives on the character, so deleting the character in the app
+clears the badge.
 
 Also note `session`, a plain module variable: a resident guest lives from activation to disable, so a
 browse session (query, filters, which page) is honestly MODULE state — gone on respawn, which is right
-for a session and wrong for the owned-index and the art cache (which is why THOSE are storage). Choose
+for a session and wrong for the art cache (which is why THAT is storage). Choose
 the plane by the data's lifetime.
 
 ## Honest gaps

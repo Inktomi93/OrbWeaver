@@ -3,7 +3,7 @@
 // registered frame: in-range tokens reach the served root, any other key or value is refused at the mint, and the
 // response policy and every script byte stay what they are without the slice.
 import { spawn } from "node:child_process";
-import { CSRF_HEADER } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import type { PluginFrameMintResponse } from "@orb/contracts/plugin";
 import { PLUGIN_FRAME_ROUTE, PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginFrameMintResponseSchema, pluginManifestSchema } from "@orb/contracts/plugin";
 import type { CardFrameStyleTokens } from "@orb/kit/card-frame";
@@ -28,7 +28,11 @@ interface Served {
 }
 
 async function openRoot(): Promise<ServerTestHarness> {
-  return await createServerHarness({ pluginSpawn: spawn, env: { ["AUTH_MODE"]: "single-user", ["AUTH_FALLBACK"]: "owner" }, physicalPeer: () => "127.0.0.1" });
+  return await createServerHarness({
+    pluginSpawn: spawn,
+    env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" },
+    physicalPeer: () => "127.0.0.1",
+  });
 }
 
 async function installFramePlugin(root: ServerTestHarness): Promise<PluginId> {

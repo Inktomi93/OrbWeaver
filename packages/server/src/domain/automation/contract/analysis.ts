@@ -314,15 +314,11 @@ export interface AnalysisPayload {
 }
 
 // ── the pure state merge (legacy semantics, property-tested) ──────────────────────────────────────────
-/** What one pass did to the banks — counts ride the fire row's detail (host debug surface). */
+/** What one pass did to the banks. */
 export interface AnalysisStateMerge {
   readonly arc: string;
   readonly twists: readonly string[];
   readonly retiredTwists: readonly string[];
-  readonly twistsAdded: number;
-  readonly twistsRetired: number;
-  /** Adds dropped at the bank cap — logged, never an error (the model over-planning is not a fault). */
-  readonly droppedAdds: number;
 }
 
 type TwistOps = AnalysisPayload["twistOps"];
@@ -330,8 +326,7 @@ type TwistOps = AnalysisPayload["twistOps"];
 /** RETIRES apply first — freeing the active bank before adds (an arc-completion pass retires the spent set
  *  AND seeds successors in ONE pass, the legacy D93 Finding-2 posture). Retired-bank dedup here; the FIFO
  *  age-out happens after adds (the cap bounds the DURABLE bank, not one pass's churn). */
-function applyRetires(twists: string[], retired: string[], ops: TwistOps): number {
-  let count = 0;
+function applyRetires(twists: string[], retired: string[], ops: TwistOps): void {
   for (const op of ops) {
     if (op.op !== "retire") {
       continue;
@@ -343,29 +338,21 @@ function applyRetires(twists: string[], retired: string[], ops: TwistOps): numbe
     if (!retired.includes(op.twist)) {
       retired.push(op.twist);
     }
-    count += 1;
   }
-  return count;
 }
 
 /** ADDS after retires: dedup against BOTH banks (a re-add of a retired twist is a RESURRECTION — the exact
- *  thing the retired bank bans — counted as dropped, never silently revived), fill to the cap, overflow
- *  dropped + counted. */
-function applyAdds(twists: string[], retired: readonly string[], ops: TwistOps): { added: number; dropped: number } {
-  let added = 0;
-  let dropped = 0;
+ *  thing the retired bank bans — dropped, never silently revived), fill to the cap, overflow dropped. */
+function applyAdds(twists: string[], retired: readonly string[], ops: TwistOps): void {
   for (const op of ops) {
     if (op.op !== "add") {
       continue;
     }
     if (twists.includes(op.twist) || retired.includes(op.twist) || twists.length >= ANALYSIS_TWIST_CAP) {
-      dropped += 1;
       continue;
     }
     twists.push(op.twist);
-    added += 1;
   }
-  return { added, dropped };
 }
 
 /** Merge a payload's plot ops over the current state. RETIRES FIRST, then ADDS dedup + fill to the cap;
@@ -374,8 +361,8 @@ function applyAdds(twists: string[], retired: readonly string[], ops: TwistOps):
 export function mergeAnalysisState(current: AnalysisState, payload: AnalysisPayload): AnalysisStateMerge {
   const twists = [...current.twists];
   const retired = [...current.retiredTwists];
-  const twistsRetired = applyRetires(twists, retired, payload.twistOps);
-  const { added: twistsAdded, dropped: droppedAdds } = applyAdds(twists, retired, payload.twistOps);
+  applyRetires(twists, retired, payload.twistOps);
+  applyAdds(twists, retired, payload.twistOps);
 
   const resolvedArc = payload.arcStatus === "completed" ? (payload.successorArc ?? payload.updatedArc) : payload.updatedArc;
   // THE CLAMP RUNS LAST AND UNCONDITIONALLY (#1480 item 3). `applyAdds` only declines to GROW a full bank,
@@ -388,9 +375,6 @@ export function mergeAnalysisState(current: AnalysisState, payload: AnalysisPayl
     arc: (resolvedArc ?? current.arc).slice(0, ANALYSIS_ARC_MAX),
     twists: clampTwists(twists),
     retiredTwists: clampRetiredTwists(retired),
-    twistsAdded,
-    twistsRetired,
-    droppedAdds,
   };
 }
 
@@ -445,7 +429,6 @@ export interface AnalysisAuditTarget {
  *  reads as the EMPTY state (a first pass is a cold start, not an error). */
 export interface RuleStateRead {
   readonly state: AnalysisState;
-  readonly guidance: string;
 }
 
 /** The pure user-prompt builder's inputs (`engine/analysis-arm.ts::buildAnalysisUserPrompt` — the golden

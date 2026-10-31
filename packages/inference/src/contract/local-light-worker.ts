@@ -6,13 +6,6 @@ import type { ModelId } from "@orb/kit/ids";
 import type { ProviderErrorInit } from "./errors.ts";
 import type { InferenceLog, LocalLightModelSlot } from "./runtime.ts";
 
-/** One download-progress tick for a model's weights. */
-export interface LocalLightLoadProgress {
-  readonly modelId: ModelId;
-  readonly loaded: number;
-  readonly total: number;
-}
-
 export type LocalLightLogLevel = keyof InferenceLog;
 
 /** How one rerank call is served, from the bound model's capability: the window every pair is cut to, and the
@@ -54,7 +47,6 @@ export type LocalLightHostMessage = { readonly type: "call"; readonly id: number
 export type LocalLightWorkerMessage =
   | ({ readonly type: "reply"; readonly id: number; readonly loadFailed: boolean } & LocalLightWorkerValue)
   | { readonly type: "failure"; readonly id: number; readonly loadFailed: boolean; readonly failure: LocalLightWorkerFailure }
-  | { readonly type: "progress"; readonly progress: LocalLightLoadProgress }
   | { readonly type: "log"; readonly level: LocalLightLogLevel; readonly fields: Record<string, unknown>; readonly message: string };
 
 /** What the worker is started with: the model-cache config minus the host-side callbacks. */

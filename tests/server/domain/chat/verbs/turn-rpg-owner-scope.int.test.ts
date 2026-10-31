@@ -2,6 +2,7 @@
 // @subject packages/server/src/domain/rpg/flush-barrier.ts
 import { expect, test } from "@orb/testkit/node";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
+import { CHAT_OP_CODES } from "#server/domain/chat/contract/errors.ts";
 import { coreFrame, coreHeldReply, coreSse } from "../engine/core-physical.ts";
 import { turnRpgReply, turnRpgRoom } from "./turn-rpg-physical.ts";
 
@@ -42,7 +43,7 @@ test("a caller cancels only its own post-generation state round while another ow
     expect(ownSignal.aborted).toBe(true);
     expect(foreignSignal.aborted).toBe(false);
     await h.root.settleBackground();
-    await expect(h.root.services.chat.abort(params)).rejects.toMatchObject({ code: "not_turn_owner" });
+    await expect(h.root.services.chat.abort(params)).rejects.toMatchObject({ code: CHAT_OP_CODES.notTurnOwner });
     expect(foreignSignal.aborted).toBe(false);
     expect((await h.root.services.rpg.getTrackerView(params)).ambient).toBeNull();
     foreign.release();

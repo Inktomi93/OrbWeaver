@@ -10,7 +10,7 @@ import { ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
-import { ChatNotFoundError } from "#server/domain/chat/contract/errors.ts";
+import { CHAT_OP_CODES, ChatNotFoundError } from "#server/domain/chat/contract/errors.ts";
 import { textRoom } from "../scenario-physical.ts";
 
 interface TwoRooms extends AsyncDisposable {
@@ -63,7 +63,7 @@ const VERIFY = {
     await expect(pending).rejects.toBeInstanceOf(ChatNotFoundError);
   },
   undoContinue: async (pending: ReturnType<ChatRoot["root"]["services"]["chat"]["undoContinue"]>): Promise<void> => {
-    await expect(pending).rejects.toMatchObject({ code: "no_continuation" });
+    await expect(pending).rejects.toMatchObject({ code: CHAT_OP_CODES.noContinuation });
   },
 };
 

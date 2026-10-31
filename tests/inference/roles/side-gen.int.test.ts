@@ -1,6 +1,7 @@
 // @subject packages/inference/src/roles/side-gen.ts
 // @subject packages/inference/src/roles/executor.ts
-import type { Capability, WarningCode } from "@orb/contracts/inference";
+import type { Capability } from "@orb/contracts/inference";
+import { WARNING_CODE } from "@orb/contracts/inference";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ProviderExecutor, Resolved } from "@orb/inference";
 import { ProviderError } from "@orb/inference";
@@ -86,7 +87,7 @@ test("(2) an extras key the OpenRouter transport cannot take is named on the ite
     effort: "none",
     maxTokens: 128,
   });
-  expect(warnedCodes(warning.mock.calls)).toContain<WarningCode>("custom_parameters_ignored");
+  expect(warnedCodes(warning.mock.calls)).toContain(WARNING_CODE.customParametersIgnored);
 });
 
 test("(3) a 429 on one item is retried before anything streamed, and the batch completes", async () => {
@@ -407,7 +408,7 @@ test("(7) agent-sdk summarize runs a preset's effort with thinking on, and drops
   expect(edge.args[0]).toContain("--thinking=adaptive");
   expect(edge.args[0]).toContain("--effort=high");
   expect(edge.environments[0]?.["CLAUDE_CODE_DISABLE_THINKING"]).toBeUndefined();
-  expect(warnedCodes(warning.mock.calls)).toContain("sampling_knob_dropped");
+  expect(warnedCodes(warning.mock.calls)).toContain(WARNING_CODE.samplingKnobDropped);
 });
 
 test("(7) agent-sdk structured still refuses a turn that produced no structured_output frame", async () => {

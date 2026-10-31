@@ -186,7 +186,7 @@ export async function importStagedArchive(deps: StagedBundleImportDeps): Promise
   try {
     const { byDir, unrouted } = groupByDir(staged);
     const outcomes = [...(await importInDepOrder(registry, byDir, ownerId, signal)), ...collectSkips(registry, byDir, unrouted)];
-    return { outcomes, ...tally(outcomes), aborted: signal?.aborted === true };
+    return { outcomes, ...tally(outcomes) };
   } finally {
     await staged.dispose();
   }

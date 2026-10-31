@@ -1,9 +1,8 @@
 import type { LocalLightCpuPercent, LocalTextEncoding, RerankOnnx } from "@orb/contracts/inference";
 import type { ImageInput } from "@orb/contracts/role-clients";
 import type { ModelId } from "@orb/kit/ids";
-import type { Clock } from "@orb/kit/time";
 import type { LoadTransformersKernel } from "#src/contract/local-light-kernel.ts";
-import type { LocalLightLoadProgress, LocalLightRerankServing } from "#src/contract/local-light-worker.ts";
+import type { LocalLightRerankServing } from "#src/contract/local-light-worker.ts";
 import type { EmbedRequest } from "#src/contract/roles.ts";
 import type { LocalLightModelSlot } from "#src/contract/runtime.ts";
 import type { ProviderBackend } from "./backend.ts";
@@ -11,7 +10,6 @@ import type { InferenceDeps, InferenceLog } from "./runtime.ts";
 
 export interface LocalLightBackendDeps {
   readonly scheduleTimeout: InferenceDeps["scheduleTimeout"];
-  readonly now: Clock;
   readonly log: InferenceDeps["log"];
   readonly superviseDetached: InferenceDeps["superviseDetached"];
   readonly config: NonNullable<InferenceDeps["localLight"]> | undefined;
@@ -54,7 +52,6 @@ export interface ModelCacheConfig {
   readonly embedDtype?: string | undefined;
   readonly cacheDir?: string | undefined;
   readonly allowRemoteModels?: boolean | undefined;
-  readonly onProgress?: ((progress: LocalLightLoadProgress) => void) | undefined;
   readonly log: InferenceLog;
   /** Owned fire-and-forget for a model disposal. */
   readonly detach: (name: string, fn: () => Promise<void>) => void;
@@ -64,12 +61,6 @@ export interface ModelCacheConfig {
 export interface PairTokenizer {
   readonly encode: (text: string, options?: { text_pair?: string | null; add_special_tokens?: boolean }) => number[];
   readonly decode: (ids: number[], options: { skip_special_tokens: boolean }) => string;
-}
-
-export interface LocalLightPrefetchRecord {
-  readonly status: LocalLightPrefetchStatus;
-  readonly detail: string;
-  readonly updatedAt: number;
 }
 
 export interface LocalLightPrefetchTarget {
@@ -82,16 +73,10 @@ export interface LocalLightPrefetchTarget {
 export interface LocalLightPrefetchHandle {
   /** Schedule the walk (detached — boot never awaits it). Returns the drain: stops BEFORE the next slot. */
   readonly start: (targets: readonly LocalLightPrefetchTarget[]) => () => void;
-  /** Re-attempt ONE slot; a slot already in flight joins it. Resolves with the record's detail line. */
-  readonly retry: (slot: LocalLightModelSlot) => Promise<string>;
-  readonly status: () => Readonly<Record<LocalLightModelSlot, LocalLightPrefetchRecord | undefined>>;
-  /** The download-progress sink the model cache is built with — routes a tick to the slot that registered the repo id. */
-  readonly onProgress: (progress: LocalLightLoadProgress) => void;
 }
 
 export interface LocalLightPrefetchDeps {
   readonly cache: () => Pick<LocalLightModelCache, "preload">;
-  readonly now: Clock;
   readonly log: InferenceLog;
   readonly detach: (name: string, fn: () => Promise<void>) => void;
 }
@@ -115,8 +100,6 @@ export interface WorkerModelCache extends LocalLightModelCache {
 
 export type TransformersModule = Awaited<ReturnType<LoadTransformersKernel>>;
 
-export type LocalLightPrefetchStatus = (typeof LOCAL_LIGHT_PREFETCH_STATUSES)[number];
-
 export interface DenseLayer {
   readonly weight: Float32Array;
   readonly bias: Float32Array | undefined;
@@ -124,5 +107,3 @@ export interface DenseLayer {
   readonly outDim: number;
   readonly activation: (x: number) => number;
 }
-
-export const LOCAL_LIGHT_PREFETCH_STATUSES = ["queued", "downloading", "ready", "failed"] as const;

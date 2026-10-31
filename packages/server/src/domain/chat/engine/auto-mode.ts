@@ -68,21 +68,17 @@ async function step(params: AutoModeParams, last: SpeakerRef | null): Promise<St
   }
 }
 
-/** Run the auto-mode AI→AI chain. Returns how many turns ran, why it stopped, and the committed messages. */
+/** Run the auto-mode AI→AI chain. Returns the committed messages. */
 export async function runAutoMode(params: AutoModeParams): Promise<AutoModeResult> {
   const messages: MessageView[] = [];
   let last: SpeakerRef | null = params.initialLastSpeaker ?? null;
   let turns = 0;
-  const stop = (stopReason: AutoModeStopReason): AutoModeResult => ({
-    turns,
-    stopReason,
-    messages,
-  });
+  const stop = (): AutoModeResult => ({ messages });
   const aborted = (): boolean => params.signal?.aborted === true;
 
   while (turns < params.maxTurns) {
     if (aborted()) {
-      return stop("interrupt");
+      return stop();
     }
     const r = await step(params, last);
     if ("done" in r) {
@@ -90,7 +86,7 @@ export async function runAutoMode(params: AutoModeParams): Promise<AutoModeResul
       // `messages`, so dropping them here would hide a landed reply behind the stop reason. `turns` is NOT
       // incremented: the turn did not complete.
       messages.push(...r.committed);
-      return stop(r.done);
+      return stop();
     }
     messages.push(...r.committed);
     last = r.speakerRef;
@@ -99,11 +95,11 @@ export async function runAutoMode(params: AutoModeParams): Promise<AutoModeResul
       break; // cap reached — exit before any trailing delay.
     }
     if (aborted()) {
-      return stop("interrupt");
+      return stop();
     }
     if (params.delayMs > 0) {
       await params.delay(params.delayMs);
     }
   }
-  return stop("max-turns");
+  return stop();
 }

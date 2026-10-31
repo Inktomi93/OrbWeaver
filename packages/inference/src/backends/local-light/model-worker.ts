@@ -81,9 +81,6 @@ async function main(port: MessagePort, options: LocalLightWorkerOptions): Promis
     cacheDir: options.cacheDir,
     allowRemoteModels: options.allowRemoteModels,
     log,
-    onProgress: (progress) => {
-      post({ type: "progress", progress });
-    },
     detach: (name, fn) => {
       // a detached disposal has no caller; the `log.warn` at model-worker.ts:93 posts a structured log message to the host logger. Ends if a disposal gains a caller.
       fn().catch((err: unknown) => {

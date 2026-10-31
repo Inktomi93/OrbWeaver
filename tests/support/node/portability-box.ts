@@ -1,6 +1,6 @@
 // A local box whose loopback requests act as its owner, and the library export and bundle restore it drives over the
 // product's own HTTP routes and workload runner, so a portability case sets up and restores through the real door.
-import { CSRF_HEADER } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { importStartedSchema } from "@orb/contracts/import";
 import type { PortableKind } from "@orb/contracts/portability";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
@@ -30,7 +30,7 @@ export async function signedInBox(options: SignedInBoxOptions = {}): Promise<Ser
   const root = await createServerHarness({
     physicalPeer: () => LOOPBACK,
     startJobs: false,
-    env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" },
+    env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" },
     ...(options.ids === undefined ? {} : { ids: options.ids }),
     ...(options.providerFetch === undefined ? {} : { providerFetch: options.providerFetch }),
   });

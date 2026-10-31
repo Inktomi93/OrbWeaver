@@ -20,7 +20,7 @@
 //
 // THE HASH IS THE ROW'S OWN `importHash`, never re-derived: it is the value the import minted when this card
 // landed, and the plugin marker (`pluginImportedFrom`) pairs with that same value, so reading the stored
-// column is the only mint `findByImportedFrom` can match — a hash recomputed from a reconstructed card could
+// column is the only mint that matches the row's own import identity — a hash recomputed from a reconstructed card could
 // never be verified as the one the live path produced.
 //
 // IDEMPOTENT BY PREDICATE, no marker column: every per-row UPDATE re-asserts `importedFrom IS NULL` (this

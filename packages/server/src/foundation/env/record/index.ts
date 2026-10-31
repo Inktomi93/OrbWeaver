@@ -3,7 +3,18 @@
 // file reader as inputs (dep-cruiser `env-record-reads-no-host`), so every tier may take a record from this module.
 
 import type { AUTH_MODES, InstallKind } from "@orb/contracts/identity";
-import { authModeSchema, MIN_PASSWORD_LENGTH, shareRelayKindSchema } from "@orb/contracts/identity";
+import {
+  AUTH_FALLBACK_KEY,
+  AUTH_FALLBACK_TRUSTED_PEERS_KEY,
+  authModeSchema,
+  MIN_PASSWORD_LENGTH,
+  OIDC_CLIENT_ID_KEY,
+  OIDC_CLIENT_SECRET_KEY,
+  OIDC_ISSUER_KEY,
+  OIDC_REDIRECT_URIS_KEY,
+  OWNER_HANDLES_KEY,
+  shareRelayKindSchema,
+} from "@orb/contracts/identity";
 import { localLightCpuPercentSchema } from "@orb/contracts/inference";
 import { LOG_LEVELS } from "@orb/contracts/settings";
 import { ALLOWED_HOSTS_KEY, parseAllowedHosts } from "@orb/kit/allowed-hosts";
@@ -57,16 +68,16 @@ const PLUGIN_BROKER_MEMORY_LIMIT_BYTES_DEFAULT = 1_073_741_824;
  *  copy of the first predicate. */
 const LAUNCH_ONLY_ENV_KEYS = [
   {
-    key: "AUTH_FALLBACK",
+    key: AUTH_FALLBACK_KEY,
     why: (): string =>
       ".env's override:true would force it into every mode including dev (lockout risk). Leave it unset and it resolves per AUTH_MODE — 'owner' for single-user, 'deny' for local/oidc/forward-header; to override that, set it in the launcher's environment (`stack up prod` / `docker run -e`), never here.",
   },
   {
-    key: "AUTH_FALLBACK_TRUSTED_PEERS",
+    key: AUTH_FALLBACK_TRUSTED_PEERS_KEY,
     why: (inContainer: boolean): string =>
       `it widens who is the un-credentialed OWNER, and .env's override:true would carry that widening into every launch from this directory, including a dev or prod run that never meant to open it. ${
         inContainer
-          ? `A container takes it from its own env file, never the app's .env: ${settingInstruction(true, [["AUTH_FALLBACK_TRUSTED_PEERS", "<CIDR list>"]])}`
+          ? `A container takes it from its own env file, never the app's .env: ${settingInstruction(true, [[AUTH_FALLBACK_TRUSTED_PEERS_KEY, "<CIDR list>"]])}`
           : "On bare metal, export it in the environment of the shell or service that starts the server, never in .env."
       }`,
   },
@@ -123,7 +134,7 @@ const AUTH_MODE_REQUIRED_ENV = {
   // generated beside the db (`infra/crypto/key.ts`), and `entry/lifecycle.ts` refuses a cookie mode only when
   // none could be read or generated. This tier owns no I/O, so the refusal cannot live here.
   local: [],
-  oidc: ["OIDC_ISSUER", "OIDC_CLIENT_ID", "OIDC_CLIENT_SECRET", "OIDC_REDIRECT_URIS"],
+  oidc: [OIDC_ISSUER_KEY, OIDC_CLIENT_ID_KEY, OIDC_CLIENT_SECRET_KEY, OIDC_REDIRECT_URIS_KEY],
   "forward-header": [],
 } as const satisfies Record<(typeof AUTH_MODES)[number], readonly string[]>;
 
@@ -527,7 +538,7 @@ function refineEnv(val: EnvObject, ctx: z.RefinementCtx, envFileKeys: ReadonlySe
   if (val.AUTH_MODE === "single-user" && val.AUTH_FALLBACK === "deny") {
     ctx.addIssue({
       code: "custom",
-      path: ["AUTH_FALLBACK"],
+      path: [AUTH_FALLBACK_KEY],
       message:
         "AUTH_FALLBACK=deny with AUTH_MODE=single-user leaves NO way to authenticate — single-user's only credential IS the owner fallback. UNSET AUTH_FALLBACK (single-user resolves it to owner on its own), set it to owner explicitly, or pick an SSO mode (local/oidc/forward-header), where an unset AUTH_FALLBACK already resolves to the secure deny.",
     });
@@ -571,7 +582,7 @@ function refineEnv(val: EnvObject, ctx: z.RefinementCtx, envFileKeys: ReadonlySe
   if (val.NODE_ENV === "production" && val.AUTH_MODE !== "single-user" && val.AUTH_FALLBACK === "owner" && !val.AUTH_BREAK_GLASS) {
     ctx.addIssue({
       code: "custom",
-      path: ["AUTH_FALLBACK"],
+      path: [AUTH_FALLBACK_KEY],
       message: `AUTH_FALLBACK=owner with AUTH_MODE=${val.AUTH_MODE} in production is a SSO BYPASS: behind a same-host reverse proxy every request arrives on a loopback socket and the owner fallback would mint owner for everyone, bypassing SSO. UNSET AUTH_FALLBACK — every SSO mode resolves it to deny, the secure prod value (the owner logs in via SSO, seeded at boot) — or set deny explicitly. For a deliberate on-box recovery session ONLY, set AUTH_BREAK_GLASS=true to acknowledge the risk.`,
     });
   }
@@ -608,7 +619,7 @@ function refineEnv(val: EnvObject, ctx: z.RefinementCtx, envFileKeys: ReadonlySe
   ) {
     ctx.addIssue({
       code: "custom",
-      path: ["AUTH_FALLBACK_TRUSTED_PEERS"],
+      path: [AUTH_FALLBACK_TRUSTED_PEERS_KEY],
       message:
         "AUTH_FALLBACK_TRUSTED_PEERS must not be combined with AUTH_BREAK_GLASS — break-glass is the brief ON-BOX recovery door (run it from a shell on the box, over the loopback listener, with the front proxy stopped). Widening its peer set hands every listed peer the owner of a production SSO deployment with no credential. Unset one of the two.",
     });
@@ -650,7 +661,7 @@ function refineEnv(val: EnvObject, ctx: z.RefinementCtx, envFileKeys: ReadonlySe
     if (handles.length > 1) {
       ctx.addIssue({
         code: "custom",
-        path: ["OWNER_HANDLES"],
+        path: [OWNER_HANDLES_KEY],
         message: `OWNER_HANDLES must name EXACTLY ONE owner (D17: the box has a single owner) — got ${handles.length}: ${handles.join(", ")}`,
       });
     }
@@ -724,15 +735,19 @@ export function parseEnv({ source, envFileKeys, host, readFile }: EnvParseInput)
   return Object.freeze(parsed.data);
 }
 
+export const OPENROUTER_API_KEY_ENV = "OPENROUTER_API_KEY";
+export const DEBUG_TOKEN_ENV = "DEBUG_TOKEN";
+export const LOCAL_INITIAL_PASSWORD_ENV = "LOCAL_INITIAL_PASSWORD";
+
 /** The app secrets the parse reads. Every child process inherits `process.env` unless its spawn passes an `env`, so
  *  the process loader deletes these once its record holds them. Nothing reads them from `process.env` after the parse. */
 export const APP_SECRET_ENV_KEYS = [
   "SESSION_SECRET",
   "CREDENTIALS_KEY",
-  "OIDC_CLIENT_SECRET",
-  "OPENROUTER_API_KEY",
-  "DEBUG_TOKEN",
-  "LOCAL_INITIAL_PASSWORD",
+  OIDC_CLIENT_SECRET_KEY,
+  OPENROUTER_API_KEY_ENV,
+  DEBUG_TOKEN_ENV,
+  LOCAL_INITIAL_PASSWORD_ENV,
 ] as const satisfies readonly EnvKey[];
 
 /** The three stamps the persona auto-create policy reads. */

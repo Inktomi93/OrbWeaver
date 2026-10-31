@@ -17,7 +17,7 @@ export { PUBLIC_PEER_ADDRESS } from "./network.ts";
 export { forEachNonEmpty } from "./non-empty.ts";
 export { makePromptConfig } from "./preset-config.ts";
 export { makePluginProviderRow, makeProviderRow, pluginProviderId } from "./provider-rows.ts";
-export { makeRpgActorEntry, makeRpgActorIdentity, makeRpgActorVolatile } from "./rpg-state.ts";
+export { makeRpgActorIdentity, makeRpgActorVolatile } from "./rpg-state.ts";
 export type { SurfaceCoverageDisposition, SurfaceCoverageInventory } from "./surface-coverage.ts";
 export { surfaceCoverageKey } from "./surface-coverage.ts";
 export type { SurfaceProviderEvidence } from "./surface-data.ts";

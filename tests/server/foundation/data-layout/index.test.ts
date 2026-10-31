@@ -3,6 +3,13 @@ import type { DataLayoutInput } from "@orb/server/foundation/data-layout";
 import { DATA_LAYOUT_SKIP_KEY, DB_FILE_NAME, DEFAULT_DATA_DIR, LEGACY_ENTRIES, resolveDataLayout } from "@orb/server/foundation/data-layout";
 import { forEachNonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
+import {
+  ASSETS_DIR_KEY,
+  DATABASE_URL_KEY,
+  IMPORT_STAGING_DIR_KEY,
+  LOCAL_LIGHT_CACHE_DIR_KEY,
+  USER_RUNTIME_DIR_KEY,
+} from "#server/foundation/data-layout/contract.ts";
 
 // Every derived path slot: the file URL and the two explicit-set/skip collections are not paths under the root.
 function pathSlots(layout: ReturnType<typeof resolveDataLayout>): readonly string[] {
@@ -39,14 +46,14 @@ test("an empty DATA_DIR counts as unset", () => {
 // Every input key has a row, so a key added to the resolver's input fails tsc here until a case names how it behaves.
 const INPUT_KIND: Readonly<Record<keyof DataLayoutInput, "root" | "slot" | "secret" | "skip">> = {
   ["DATA_DIR"]: "root",
-  ["DATABASE_URL"]: "slot",
-  ["ASSETS_DIR"]: "slot",
-  ["LOCAL_LIGHT_CACHE_DIR"]: "slot",
-  ["USER_RUNTIME_DIR"]: "slot",
-  ["IMPORT_STAGING_DIR"]: "slot",
+  [DATABASE_URL_KEY]: "slot",
+  [ASSETS_DIR_KEY]: "slot",
+  [LOCAL_LIGHT_CACHE_DIR_KEY]: "slot",
+  [USER_RUNTIME_DIR_KEY]: "slot",
+  [IMPORT_STAGING_DIR_KEY]: "slot",
   ["CREDENTIALS_KEY"]: "secret",
   ["SESSION_SECRET"]: "secret",
-  ["DATA_LAYOUT_SKIP"]: "skip",
+  [DATA_LAYOUT_SKIP_KEY]: "skip",
 };
 const INPUT_KEYS = Object.keys(INPUT_KIND).filter((key): key is keyof DataLayoutInput => Object.hasOwn(INPUT_KIND, key));
 const keysOfKind = (kind: (typeof INPUT_KIND)[keyof DataLayoutInput]): readonly (keyof DataLayoutInput)[] =>
@@ -75,9 +82,9 @@ forEachNonEmpty(keysOfKind("secret"), "secret keys", (key) => {
 });
 
 test("a remote DATABASE_URL is carried through untouched", () => {
-  const layout = resolveDataLayout({ ["DATABASE_URL"]: "libsql://example.invalid/db" });
+  const layout = resolveDataLayout({ [DATABASE_URL_KEY]: "libsql://example.invalid/db" });
   expect(layout.databaseUrl).toBe("libsql://example.invalid/db");
-  expect(layout.explicit.has("DATABASE_URL")).toBe(true);
+  expect(layout.explicit.has(DATABASE_URL_KEY)).toBe(true);
 });
 
 test("DATA_LAYOUT_SKIP is a trimmed set of legacy root entries with blanks dropped", () => {

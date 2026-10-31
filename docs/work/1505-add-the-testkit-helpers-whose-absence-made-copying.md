@@ -31,7 +31,7 @@ Built, each behind its door:
 | `forEachNonEmpty` | `tests/support/iso/non-empty.ts`, iso door |
 | `makePluginProviderRow`, `pluginProviderId` | `tests/support/iso/provider-rows.ts`, iso door |
 | `IN_RANGE_CARD_FRAME_STYLE` | `tests/support/iso/card-frame-style.ts`, iso door |
-| `makeRpgActorEntry`, `makeRpgActorIdentity` | already in `tests/support/iso/rpg-state.ts`; published on the iso door |
+| `makeRpgActorIdentity`, `makeRpgActorVolatile` | `tests/support/iso/rpg-state.ts`, iso door |
 | `PUBLIC_PEER_ADDRESS` | `tests/support/iso/network.ts`, iso door; used across `tests/support` |
 | `plantTrigger` | `tests/support/node/db-faults.ts`, composed door; `refuseWrites` is built on it; used by `tests/support/node/surface-data.int.test.ts` |
 

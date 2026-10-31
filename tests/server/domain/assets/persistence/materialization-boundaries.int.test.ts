@@ -8,6 +8,7 @@ import type { JsonValue } from "@orb/kit/json";
 import { createSeededIds, PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, makeAssetBytes } from "@orb/testkit/node/composed";
+import { CHAT_OP_CODES } from "#server/domain/chat/contract/errors.ts";
 import { IMAGE_PROSE, imageRoom, nativeText } from "../../chat/engine/inline-image-physical.ts";
 import { inlineImageRows } from "../../chat/persistence/inline-image-rows.ts";
 
@@ -55,7 +56,7 @@ test("public downloads sniff real bytes and store for the caller; a configured p
   await expect(root.services.assets.readOwnedAssetBytes(await root.principalFor(root.ownerId), background.assetId)).rejects.toThrow();
   const before = await root.db.select().from(assets).orderBy(assets.id);
   await expect(root.services.settings.addExternalBackground({ principal: owner, url: PRIVATE_URL })).rejects.toMatchObject({
-    code: "background_unavailable",
+    code: CHAT_OP_CODES.backgroundUnavailable,
     message: backgroundMaterializeMessage("unreachable"),
   });
   expect(requests).toEqual([PUBLIC_URL]);
@@ -168,7 +169,7 @@ test("failed downloads cancel unread bodies and conceal physical errors without 
   for (const failure of ["non-success", "throw"]) {
     mode = failure;
     await expect(root.services.settings.addExternalBackground({ principal, url: PUBLIC_URL })).rejects.toMatchObject({
-      code: "background_unavailable",
+      code: CHAT_OP_CODES.backgroundUnavailable,
       message: backgroundMaterializeMessage("unreachable"),
     });
     expect(await root.db.select().from(assets).orderBy(assets.id)).toEqual(before);

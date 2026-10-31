@@ -167,21 +167,16 @@ export interface SummarizerBudget {
 export interface DigestRow {
   readonly id: ChatDigestId;
   readonly scopedCharacterId: CharacterId;
-  readonly isGroup: boolean;
   readonly tier: number;
   readonly blockIdx: number;
   readonly text: string;
   readonly contentHash: string;
-  readonly topicAnchor: string | null;
-  readonly keywords: readonly string[];
 }
 
-/** The outcome of a build pass (digests or segments) — written = newly stored (or re-stored on a hash diff);
- *  skipped = the `content_hash` was unchanged (the self-heal no-op). Mirrors the workloads
+/** The outcome of a build pass (digests or segments) — written = newly stored (or re-stored on a hash diff). Mirrors the
  *  `MaintenancePassCounts` shape so the composition root can wire it into the `memory-backfill` runner. */
 export interface MemoryPassCounts {
   readonly written: number;
-  readonly skipped: number;
 }
 
 /** The SEGMENT pass's fold — {@link MemoryPassCounts} plus the blocks that could not be CHUNKED into the embed

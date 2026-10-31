@@ -29,7 +29,14 @@ export {
   rethrowPrivateCorpusFailure,
   writePrivateCorpusFixture,
 } from "./corpus.ts";
-export { seedCorpusActors, seedCorpusConnections, seedRecallCorpus, seedRecallRoom } from "./corpus-actors.ts";
+export {
+  CORPUS_ALTERNATE_EMBED_MODEL,
+  seedCorpusActors,
+  seedCorpusConnections,
+  seedEmbeddingConnection,
+  seedRecallCorpus,
+  seedRecallRoom,
+} from "./corpus-actors.ts";
 export { captureCookieAuth, seedCorpusAccount } from "./corpus-auth.ts";
 export { captureCorpusRead } from "./corpus-capture.ts";
 export { createFirstBootHarness } from "./corpus-first-boot.ts";
@@ -70,9 +77,10 @@ export {
   PLUGIN_ZIP_MTIME_SECONDS_RANGE,
   seedDistributedPlugin,
   seedInstalledPlugin,
-  seedPluginFetchedAsset,
   seedPluginGrant,
 } from "./factories/plugin.ts";
+export type { GuestOps, GuestRun } from "./factories/plugin-guest.ts";
+export { guestRunner, installGuest } from "./factories/plugin-guest.ts";
 export { seedPreset } from "./factories/preset.ts";
 export { seedAdminProvider } from "./factories/provider.ts";
 export { seedGlobalRegexScript, seedRegexScript } from "./factories/regex.ts";

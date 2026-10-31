@@ -210,9 +210,9 @@ export async function computeThemes(db: Db, deps: ComputeThemesDeps, opts: Compu
   // ran, `soloDigestsRead: 0` with digests present means it ran over group rooms only. Reporting one number
   // let the second case land as a bare `{scanned: 0, written: 0}` success (issue #558).
   if (solo.length === 0) {
-    return { ownersProcessed: 0, clustersWritten: 0, digestsAssigned: 0, digestsRead: all.length, soloDigestsRead: 0 };
+    return { clustersWritten: 0, digestsAssigned: 0, digestsRead: all.length, soloDigestsRead: 0 };
   }
-  const { drafts, owners } = buildDrafts(solo, opts, seed);
+  const { drafts } = buildDrafts(solo, opts, seed);
   // The funder's Utility-role preset over the `theme_name` posture (§7.5-3 arm ii); prose `summarize`.
   const rc = await deps.roleClientsFor(opts.funderUserId);
   const sampleOpts = resolveSideGenSampling(SIDE_GEN_POSTURES.theme_name, await deps.resolveUtilityPresetParams(opts.funderUserId));
@@ -247,7 +247,6 @@ export async function computeThemes(db: Db, deps: ComputeThemesDeps, opts: Compu
   // segment span, tier-k via the injected memory tier-grid (deps.tier0RangeOf).
   await backfillMsgMidAt(db, deps.tier0RangeOf, opts);
   return {
-    ownersProcessed: owners.size,
     clustersWritten: clusterRows.length,
     digestsAssigned: assignRows.length,
     digestsRead: all.length,

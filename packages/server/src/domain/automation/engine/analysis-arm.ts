@@ -181,7 +181,6 @@ function raiseAnalysisCard(
     chatId: frame.chatId,
     source,
     actorUserId: frame.authorUserId,
-    summary,
     expiresAt,
     payload: { via: "analysis", act },
   });

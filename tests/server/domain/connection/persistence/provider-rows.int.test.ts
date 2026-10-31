@@ -4,16 +4,18 @@
 // @subject packages/server/src/domain/connection/persistence/provider-rows.ts
 
 import { spawn } from "node:child_process";
+import type { Task } from "@orb/contracts/inference";
+import { providerTasks, RETIRED_TASKS } from "@orb/contracts/inference";
 import type { PluginManifest } from "@orb/contracts/plugin";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
-import { pluginProviderClaims, providerRows, users } from "@orb/db";
+import { closeDb, pluginProviderClaims, providerRows, users } from "@orb/db";
 import { ProviderError } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
 import { makeProviderRow, pluginProviderId } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness, makePluginBundle } from "@orb/testkit/node/composed";
-import { eq } from "drizzle-orm";
+import { createServerHarness, freshDb, makePluginBundle } from "@orb/testkit/node/composed";
+import { eq, sql } from "drizzle-orm";
 
 // Each enable starts the real sandbox child process, which outlasts the default test budget.
 const PLUGIN_LIFECYCLE_TIMEOUT_MS = 30_000;
@@ -59,11 +61,11 @@ async function installAcme(root: ServerTestHarness, owner: UserId, label: string
 }
 
 const ACME_PLUGIN_ID = PLUGIN_PROVIDER;
-const servedLabel = (root: ServerTestHarness, viewer: UserId): string | undefined => root.services.connection.registry.get(ACME_PLUGIN_ID, viewer)?.label;
+const servedLabel = (root: ServerTestHarness, viewer: UserId): string | undefined => root.app.runtime.providers.registry.get(ACME_PLUGIN_ID, viewer)?.label;
 
 test("an admin row is replaced in place, dropped once, and never takes a plugin id", async () => {
   await using root = await newRoot();
-  const registry = root.services.connection.registry;
+  const registry = root.app.runtime.providers.registry;
   const admin = { admin: root.ownerId };
   const acme = makeProviderRow("acme-endpoint", { label: "Acme" });
 
@@ -160,10 +162,28 @@ test("a definition row outlives a deleted owner only while another owner's claim
 
   // A user's claims die with the user (D265), which leaves the claim table as the only reference to a definition.
   await root.db.delete(users).where(eq(users.id, first));
-  await root.services.connection.registry.dropPlugin(firstPlugin);
+  await root.app.runtime.providers.registry.dropPlugin(firstPlugin);
   expect(await definitionRows()).toBe(1);
 
   await root.db.delete(users).where(eq(users.id, second));
-  await root.services.connection.registry.dropPlugin(secondPlugin);
+  await root.app.runtime.providers.registry.dropPlugin(secondPlugin);
   expect(await definitionRows()).toBe(0);
+});
+
+// A row stored before its wire stopped serving a task still names that task; the registry loads it without it.
+const RETIRED_SERVES = ["chat", ...RETIRED_TASKS, "summarize"] as const;
+const SDK_SERVES_AFTER: Task[] = ["chat", "summarize"];
+
+test("a stored admin row that names a retired task loads and serves the remaining tasks", async () => {
+  await using lifetime = new AsyncDisposableStack();
+  const db = await freshDb();
+  lifetime.defer(() => closeDb(db));
+  const id = "legacy-sdk";
+  await db.run(sql`insert into provider_rows (id, label, wire, auth, apis, serves, catalog, metered, definition_hash, origin_kind)
+    values (${id}, 'Legacy SDK', 'agent-sdk', 'oauthToken', '["agent-sdk"]', ${JSON.stringify(RETIRED_SERVES)}, 'url', 0, 'stored-hash', 'admin')`);
+
+  await using root = await createServerHarness({ db, startJobs: false });
+  const row = root.app.runtime.providers.registry.get(id, root.ownerId);
+  expect(row?.serves).toEqual(SDK_SERVES_AFTER);
+  expect(row === undefined ? [] : providerTasks(row)).toEqual(SDK_SERVES_AFTER);
 });

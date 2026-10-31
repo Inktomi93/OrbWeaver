@@ -45,6 +45,7 @@ import { clearConnectionEditorRequest, configSettingControlId, useRequestedConne
 import { useRemoveConnection, useUseForEverything } from "../hooks/use-connections-mutations.ts";
 import { CONNECTION_FORM_COPY } from "../lib/add-connection-form-model.ts";
 import { addModelActionGloss, addModelActionLabel, addModelScope } from "../lib/add-model-on-key-form-model.ts";
+import { ADD_CONNECTION_NAME } from "../lib/connections-copy.ts";
 import { boundRoleLabels, connectionRoleLabels, joinRoleLabels, sweepRebindsEmbedder, sweepRoleLabels } from "../lib/connections-model.ts";
 import { ADD_CONNECTION_SETTING, CONNECTIONS_LIST_SUBCATEGORY } from "../lib/connections-nav.ts";
 import { AddConnectionDialog } from "./add-connection-dialog.tsx";
@@ -170,7 +171,7 @@ function ConnectionsBody({ anchorId }: { readonly anchorId: string }): ReactElem
         {connections.length === 0 ? null : (
           <Button ref={addConnectionFocus} id={ADD_CONNECTION_CONTROL_ID} size="sm" onClick={(): void => setAddOpen(true)}>
             <Icon icon={Plus} size="sm" />
-            Add connection
+            {ADD_CONNECTION_NAME}
           </Button>
         )}
       </Row>
@@ -183,7 +184,7 @@ function ConnectionsBody({ anchorId }: { readonly anchorId: string }): ReactElem
           action={
             <Button ref={addConnectionFocus} id={ADD_CONNECTION_CONTROL_ID} size="sm" onClick={(): void => setAddOpen(true)}>
               <Icon icon={Plus} size="sm" />
-              Add connection
+              {ADD_CONNECTION_NAME}
             </Button>
           }
         />

@@ -142,7 +142,7 @@ test("a squatted provider id blocks and shadows nobody else", { tags: ["slow"] }
   await using root = await createServerHarness({ pluginSpawn: spawn });
   const squatter = await owner(root);
   const victim = await owner(root);
-  const registry = root.services.connection.registry;
+  const registry = root.app.runtime.providers.registry;
   const id = hostedProvider(GENUINE_HOST).id;
 
   await enable(root, squatter, hostedBundle(root, SQUAT_HOST), ["net.fetch"]);
@@ -158,7 +158,7 @@ test("a squatted provider id blocks and shadows nobody else", { tags: ["slow"] }
   await enable(root, latecomer, hostedBundle(root, SQUAT_HOST), ["net.fetch"]);
   expect(registry.get(id, victim.userId)?.baseUrl).toBe(`https://${GENUINE_HOST}/v1`);
   await using restarted = await createServerHarness({ db: root.db, ownerId: root.ownerId, clock: root.clock, ids: root.ids, pluginSpawn: spawn });
-  expect(restarted.services.connection.registry.get(id, victim.userId)?.baseUrl).toBe(`https://${GENUINE_HOST}/v1`);
+  expect(restarted.app.runtime.providers.registry.get(id, victim.userId)?.baseUrl).toBe(`https://${GENUINE_HOST}/v1`);
 });
 
 test("a stranger is neither offered the provider nor admitted at any provider door, and the installer is", { tags: ["slow"] }, async () => {
@@ -237,7 +237,7 @@ test("an owner's retained connection never follows its provider id to another de
   const victim = await owner(root);
   const other = await owner(root);
   const id = hostedProvider(GENUINE_HOST).id;
-  const registry = root.services.connection.registry;
+  const registry = root.app.runtime.providers.registry;
 
   const original = await enable(root, victim, hostedBundle(root, GENUINE_HOST), ["net.fetch"]);
   const credential = await root.services.credentials.add({ principal: victim, provider: id, key: "sealed-victim-key" });

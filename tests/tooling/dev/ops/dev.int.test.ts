@@ -9,6 +9,7 @@ import { connect, createServer } from "node:net";
 import { join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
+import { OIDC_ISSUER_KEY } from "@orb/contracts/identity";
 import { expect, test } from "@orb/testkit/tooling";
 import { killPidGroup } from "@orb/tooling/floor/process/proc";
 import { processEnvValue } from "@orb/tooling/floor/process/process-env";
@@ -156,7 +157,7 @@ test("a setting the server would refuse stops the launch before either child sta
   const { child, pid, output } = startLauncher(repoRoot, scratch);
   try {
     expect(await exitOf(child, REFUSAL_TIMEOUT_MS), output()).toBe(VIOLATIONS_EXIT);
-    expect(output()).toContain("OIDC_ISSUER");
+    expect(output()).toContain(OIDC_ISSUER_KEY);
     expect(output(), "a refusal is the named keys alone, never a stack").not.toMatch(STACK_FRAME_RE);
     expect(existsSync(join(scratch, "data")), "the server never booted, so it created no data dir").toBe(false);
     expect(await portRefuses(serverPort, SERVER_HOST)).toBe(true);

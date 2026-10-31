@@ -812,7 +812,7 @@ export async function readRetainedCanonContributions(db: Db, chatId: ChatId, mes
 }
 
 // The append-variant/continue write target — the slot's attribution + seq joined to its selected
-// variant's current content/idx.
+// variant's current content.
 const slotTargetSelection = {
   toolCalls: messageVariants.toolCalls,
   rawToolCalls: sql<string | null>`${messageVariants.toolCalls}`,
@@ -822,9 +822,7 @@ const slotTargetSelection = {
   role: messages.role,
   characterId: messages.characterId,
   authorUserId: messages.authorUserId,
-  personaId: messages.personaId,
   selectedVariantId: messageVariants.id,
-  selectedVariantIdx: messageVariants.idx,
   content: messageVariants.content,
   reasoning: messageVariants.reasoning,
   // Raw JSON — parsed (safeParse-degrade) into `SlotTarget.macroDraws` by `loadSlotTarget`, never surfaced raw.
@@ -844,9 +842,7 @@ interface SlotTarget {
   role: MessageRole;
   characterId: CharacterId | null;
   authorUserId: UserId | null;
-  personaId: PersonaId | null;
   selectedVariantId: MessageVariantId;
-  selectedVariantIdx: number;
   content: string;
   reasoning: string | null;
   /** The slot's selected variant's persisted user-macro draw record (WAVE MU) — the swipe/continue path
