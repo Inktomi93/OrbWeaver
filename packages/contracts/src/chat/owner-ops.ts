@@ -80,6 +80,16 @@ export interface ViewerVisibility {
  *  params drop the caller is a latent cross-tenant hole). */
 export type ResolveViewerVisibility = (chatId: ChatId, userId: UserId) => Promise<ViewerVisibility | null>;
 
+/** Is the caller a present participant of the chat? */
+export type CallerInChatOp = (caller: Principal, chatId: ChatId) => Promise<boolean>;
+
+/** The principal a chat-scoped preview runs as: the room host. Refuses a caller the room does not admit and a subject
+ *  that is not a present character seat, with the leak-free not-found. */
+export type ResolveRoomRunAsOp = (caller: Principal, chatId: ChatId, subjectCharacterId: CharacterId | undefined) => Promise<Principal>;
+
+/** Is the memory subsystem on for this host? */
+export type IsMemoryEnabledOp = (hostUserId: UserId) => Promise<boolean>;
+
 export type ResolveSeatDecosOp = (params: {
   readonly ownerId: UserId;
   readonly characterIds: readonly CharacterId[];
