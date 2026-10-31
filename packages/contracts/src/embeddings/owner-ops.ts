@@ -2,6 +2,7 @@
 
 import type { AssetId, CharacterId, ChatId, DocumentId, EmbedGenerationId, UserConnectionId, UserId } from "@orb/kit/ids";
 import type { EmbedTargetRefusal } from "../inference/connection.ts";
+import type { WorkloadRunScope } from "../workloads/execution.ts";
 import type { EmbeddingTask } from "./accounting.ts";
 import type { CountDocumentChunksParams, OwnerChunkCountsParams, PruneDocumentChunksParams } from "./document-vectors.ts";
 
@@ -78,6 +79,21 @@ interface PruneStaleDigestsParams {
 }
 
 export type PruneMemoryBlocksParams = PruneDigestBlocksParams | PruneSegmentBlocksParams | PruneStaleDigestsParams;
+
+/** Resolve the host's current concrete embed space for memory planning. */
+export type ResolveMemoryEmbedSpaceOp = (hostUserId: UserId) => Promise<MemoryEmbedSpace>;
+
+/** Reclaim the memory vector rows whose blocks stopped existing or were proven stale. */
+export type EmbeddingsPruneBlocksOp = (params: PruneMemoryBlocksParams) => Promise<void>;
+
+/** Pin the target generation of every owner the enumeration scope covers, before a document pass re-embeds anything. */
+export type BeginDocumentVectorSweepOp = (enumerationScope: WorkloadRunScope) => Promise<readonly DocumentVectorSweepReceipt[]>;
+
+/** Complete each owner's document scope and reclaim its old embed space. */
+export type PurgeDocumentVectorsOp = (receipts: readonly DocumentVectorSweepReceipt[]) => Promise<void>;
+
+/** Complete the memory sweep's scope for every space it brought current and reclaim the old embed space. */
+export type PurgeMemoryVectorsOp = (spaces: readonly MemoryEmbedSpace[], enumerationScope: WorkloadRunScope) => Promise<void>;
 
 /** Enumerate non-synthetic character ids; `ownerId` scopes to one owner, omitted/null = all owners. */
 export type ListCharacterIds = (ownerId?: UserId | null) => Promise<readonly CharacterId[]>;

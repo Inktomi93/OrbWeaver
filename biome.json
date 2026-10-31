@@ -1984,6 +1984,7 @@
         "tests/e2e/support/fixture-provider.ts",
         "tests/tooling/stack/index.test.ts",
         "tests/tooling/stack/index.int.test.ts",
+        "tooling/src/floor/testing/run-temp-root-setup.ts",
         "tooling/src/floor/testing/working-tree-guard.ts"
       ],
       "linter": {
@@ -2622,16 +2623,6 @@
                 }
               }
             }
-          }
-        }
-      }
-    },
-    {
-      "includes": [".claude/hooks/orchestrator-inject.mjs"],
-      "linter": {
-        "rules": {
-          "style": {
-            "noMagicNumbers": "off"
           }
         }
       }

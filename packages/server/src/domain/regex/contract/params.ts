@@ -14,10 +14,6 @@ interface RegexActorParams {
 
 export interface ListScriptsParams extends RegexActorParams {}
 
-export interface GetScriptParams extends RegexActorParams {
-  readonly scriptId: RegexScriptId;
-}
-
 export interface CreateScriptParams extends RegexActorParams {
   readonly input: CreateRegexScriptInput;
 }
@@ -83,7 +79,7 @@ export interface ImportScriptFileParams extends RegexActorParams {
   readonly fileText: string;
 }
 
-/** The REVERSE-roster read: which carriers attach ONE owned script. Same gate as `getScript` — a
+/** The REVERSE-roster read: which carriers attach ONE owned script. Owner-gated: a
  *  foreign/absent script is `RegexNotFoundError`, so the read can never enumerate someone else's shelf. */
 export interface ListScriptUsageParams extends RegexActorParams {
   readonly scriptId: RegexScriptId;

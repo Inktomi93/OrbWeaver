@@ -23,4 +23,10 @@ The cause is named (the touch pan, the scroll settle signal, or a product timing
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Reproduced on the old test: `pnpm test:ct platform-composer-terminal-action.suite.ct.tsx -g "by touch" --repeat-each=20 --workers=3` on Chromium failed 12 of 20; repeats at 12 failed 6 and 9.
+
+Cause (test defect, two parts). (1) Budget: the touch walk pans 75 px per gesture, 27 gestures across the two menus at 18 commands (about 0.65 s each, timed per pan), after 12 s of harness and mount, so a passing case already took 28 to 31 s against the 30 s budget and any load pushed it over; the timeout lands on whichever step is running (the `elementFromPoint` poll, the scrollend wait, `cdp.detach`). (2) Geometry: `revealByTouch` called the item visible against the menu's border box, but the scroll clip is the padding box, so an item flush with the border edge stopped the walk 1 px short and `toBeInViewport({ ratio: 1 })` read 0.977.
+
+Fix: the walk tests visibility against the scrollport (`clientTop`, `clientHeight`), resolves the menu and the action once as element handles instead of a role query per step, and drives 4 commands per menu (the short host makes the menu overflow, not the item count; `scrollHeight > clientHeight` is still asserted). No delay, retry or raised timeout.
+
+After: touch case `--repeat-each=30 --workers=3` on Chromium passed 30 of 30 (1-min load 24 to 28); the whole file on WebKit `--repeat-each=30 --workers=3` passed 30 of 30 (touch skips on WebKit by the case's own gate). The whole file on Chromium at 3 workers passed 56 of 60 and at 2 workers 59 of 60, all timeouts, on a box whose load stayed above 24 because sibling lanes held it there.

@@ -1,5 +1,5 @@
 import type { GetCharacterCardOp } from "@orb/contracts/character";
-import type { ResolveViewerVisibility } from "@orb/contracts/chat";
+import type { CallerInChatOp, ResolveRoomRunAsOp, ResolveViewerVisibility } from "@orb/contracts/chat";
 import type { Principal, ResolveHostPrincipalOp } from "@orb/contracts/identity";
 import type { RoleClientsWithSignal } from "@orb/inference";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
@@ -13,8 +13,8 @@ export interface ImageryRoomAccessDeps {
 }
 
 export interface ImageryRoomAccess {
-  readonly callerInChat: (caller: Principal, chatId: ChatId) => Promise<boolean>;
-  readonly resolveRoomRunAs: (caller: Principal, chatId: ChatId, subjectCharacterId: CharacterId | undefined) => Promise<Principal>;
+  readonly callerInChat: CallerInChatOp;
+  readonly resolveRoomRunAs: ResolveRoomRunAsOp;
 }
 
 export interface VisibleExtractQuietParams extends Pick<ExtractQuietParams, "chatId" | "funderUserId" | "instruction" | "subjectCharacterId" | "timeZone"> {

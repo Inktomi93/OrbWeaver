@@ -6,7 +6,6 @@ export { createBackfillTitles } from "./backfill-titles.ts";
 export { createCreate as createCreateEntry } from "./create.ts";
 export { createGet as createGetEntry } from "./get.ts";
 export { createList as createListEntries } from "./list.ts";
-export { createListConstantCanon } from "./list-constant-canon.ts";
 export { createListEntryIndex } from "./list-entry-index.ts";
 export { createRemove as createRemoveEntry } from "./remove.ts";
 export { createReorder } from "./reorder.ts";

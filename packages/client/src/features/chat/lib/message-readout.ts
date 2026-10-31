@@ -13,6 +13,11 @@
 import type { MessageView } from "@orb/contracts/chat";
 import { builtinProvider } from "@orb/contracts/inference";
 
+/** The server-counted #n of a row; null until a read numbers it, as with the rows `startChat` seeds into the cache. */
+export function messageNumberLabel(message: MessageView): string | null {
+  return message.position === undefined ? null : `#${message.position}`;
+}
+
 /** The per-turn CACHE economics beside the token count — `null` when the backend reported none (both
  *  columns absent, or both zero: a turn that neither read nor wrote cache has no economics to show).
  */

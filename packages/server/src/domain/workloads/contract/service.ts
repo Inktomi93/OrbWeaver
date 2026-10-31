@@ -51,9 +51,6 @@ export interface WorkloadServiceContext {
   readonly emitUserEvent: EmitUserEvent;
 }
 
-/** What entry supplies to bind the verbs to their application graph. */
-export type WorkloadServiceDeps = WorkloadServiceContext;
-
 /**
  * The base runner deps the entry root wires + the worker holds. Lease/heartbeat cadences are tunable and
  * `<= 0` disables the timers (deterministic test seam — a test drives cancel via `AbortSignal` instead).

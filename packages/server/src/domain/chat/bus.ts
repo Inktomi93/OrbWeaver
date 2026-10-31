@@ -1,8 +1,8 @@
-// domain/chat/bus — the chat bus emitter + the in-process replay ring. A feature-root collaborator: the
-// verbs/engine close over `emit`; the transport SSE fan-out reads the ring + the durable `chat_events` log.
+// domain/chat/bus — the chat bus emitter. A feature-root collaborator: the verbs/engine close over `emit`; the
+// transport SSE fan-out replays from the durable `chat_events` log.
 //
-// DURABLE-FIRST: `emit` awaits the `chat_events` INSERT before pushing to the in-process ring — so a late
-// subscriber always ramps up from the durable log even if the process dies between the write and the push.
+// DURABLE-FIRST: `emit` awaits the `chat_events` INSERT before it hands the event to the live fan — so a late
+// subscriber always ramps up from the durable log even if the process dies between the write and the fan.
 //
 // THE §3.6 MEMBER STAMP: `emit` is also where a `delta`'s member-visible bytes are computed
 // (`substrate/member-visibility::createMemberDeltaStamper` → `ChatBusEvent.memberText`). It belongs HERE, not
@@ -66,11 +66,10 @@ import type { Db } from "@orb/db";
 import { batchMany } from "@orb/db/query";
 import type { DbAssemblyInput, StatementToken } from "@orb/db/wiring";
 import { databaseForOwner, statementForOwner, statementToken } from "@orb/db/wiring-owner";
-import type { ChatEventId, ChatId } from "@orb/kit/ids";
+import type { ChatEventId } from "@orb/kit/ids";
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "./contract/context.ts";
-import type { ChatBusReplayEvent } from "./contract/views.ts";
 import { appendChatEvent, appendChatEventAfterClaimStatement, insertChatEventStatement } from "./persistence/events.ts";
 import { loadChatEventById, loadChatRow } from "./persistence/queries.ts";
 import { createMemberDeltaStamper } from "./substrate/member-visibility.ts";
@@ -103,14 +102,9 @@ interface ChatBus {
     readonly statement: StatementToken;
     readonly publishCommitted: () => ChatEmitted;
   };
-  /** Entries strictly after `afterSeq` (absent ⇒ the whole retained window), oldest-first. */
-  readonly readRing: (chatId: ChatId, afterSeq?: number) => ChatBusReplayEvent[];
 }
 
 type ChatBusDeps = Pick<ChatContext, "db" | "now" | "newEventId" | "logger">;
-
-/** How many recent events the in-process ring retains per chat; a deeper resume falls back to `chat_events`. */
-const RING_CAPACITY = 256;
 
 /** Classify a failed append (FLAG[emit-is-total]). The verdict is read off GROUND TRUTH — does the `chats` row
  *  still exist — never off the driver's error code: an FK violation is only ever a symptom, and a probe that
@@ -263,20 +257,11 @@ async function reportTerminalDrop(db: Db, drop: TerminalDrop, logger: Logger): P
 /** Build the per-process chat bus (ONE instance, wired at the composition root). */
 export function createChatBus(input: DbAssemblyInput<ChatBusDeps>): ChatBus {
   const deps: ChatBusDeps = { ...input, db: databaseForOwner(input.db) };
-  const rings = new Map<ChatId, ChatBusReplayEvent[]>();
   // The §3.6 producer stamper (see the file header) — ONE per bus, so a slot's scrub state spans its whole
   // token stream regardless of who is (or is not) subscribed at any moment.
   const stamper = createMemberDeltaStamper();
 
-  const publishCommitted = (seq: number, event: DurableChatBusEvent): ChatEmitted => {
-    const ring = rings.get(event.chatId) ?? [];
-    ring.push({ seq, event });
-    if (ring.length > RING_CAPACITY) {
-      ring.splice(0, ring.length - RING_CAPACITY);
-    }
-    rings.set(event.chatId, ring);
-    return { seq, event };
-  };
+  const publishCommitted = (seq: number, event: DurableChatBusEvent): ChatEmitted => ({ seq, event });
 
   const prepareCreation: ChatBus["prepareCreation"] = (raw) => {
     const event = stamper.stamp(raw);
@@ -295,10 +280,10 @@ export function createChatBus(input: DbAssemblyInput<ChatBusDeps>): ChatBus {
   };
 
   const emit: EmitChatEvent = async (raw) => {
-    // Stamped BEFORE the durable write and used for every downstream copy: the log row, the ring, and the
-    // composition root's live fan must all carry the identical member projection.
+    // Stamped BEFORE the durable write and used for every downstream copy: the log row and the
+    // composition root's live fan must both carry the identical member projection.
     const event = stamper.stamp(raw);
-    // Durable-first: commit the INSERT before the in-memory push so a crash can never leave a
+    // Durable-first: commit the INSERT before the live fan so a crash can never leave a
     // delivered-but-unlogged event.
     // FLAG[emit-is-total]: a failed durable write is classified, RETRIED on a live chat, and finally dropped —
     // never rethrown, because the engine's delta emits are fire-and-forget and a rejection here kills the
@@ -348,10 +333,5 @@ export function createChatBus(input: DbAssemblyInput<ChatBusDeps>): ChatBus {
     }
   };
 
-  const readRing = (chatId: ChatId, afterSeq?: number): ChatBusReplayEvent[] => {
-    const ring = rings.get(chatId) ?? [];
-    return afterSeq === undefined ? [...ring] : ring.filter((e) => e.seq > afterSeq);
-  };
-
-  return { emit, emitAfterClaim, prepareCreation, readRing };
+  return { emit, emitAfterClaim, prepareCreation };
 }

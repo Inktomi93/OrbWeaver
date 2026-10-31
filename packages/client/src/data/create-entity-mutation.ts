@@ -11,10 +11,10 @@
 // THREE outcome classes, not two (EDITSNAP-OK): resolved-and-committed · threw (`errorToast`) · RESOLVED AND
 // REFUSED (`refusal`). The third is the one that goes silently wrong — see the `refusal` doc below.
 
-import type { DefaultError, QueryClient, QueryKey, UseMutateFunction, UseMutationOptions } from "@tanstack/react-query";
+import type { DefaultError, InvalidateQueryFilters, QueryClient, QueryKey, UseMutateFunction, UseMutationOptions } from "@tanstack/react-query";
 import { hashKey, useMutation } from "@tanstack/react-query";
 import { notify } from "#lib";
-import type { InvalidateFilter, Invalidation } from "./invalidation.ts";
+import type { Invalidation } from "./invalidation.ts";
 import type { Trpc } from "./trpc.ts";
 
 /** What the tRPC proxy's `.mutationOptions()` provides — derived off the real `UseMutationOptions`
@@ -93,13 +93,13 @@ type FreshnessSource<TVars, TData> =
        * (issue #188 P2-12). The error arm keeps the conservative reconcile: `undefined` is not evidence of
        * a no-op. A filter list that does not depend on the answer simply ignores the third argument.
        */
-      readonly invalidates: (trpc: Trpc, vars: TVars, data: TData | undefined) => readonly InvalidateFilter[];
+      readonly invalidates: (trpc: Trpc, vars: TVars, data: TData | undefined) => readonly InvalidateQueryFilters[];
     };
 
 export type EntityMutationConfig<TVars, TData, TRead = unknown> = EntityMutationBase<TVars, TData, TRead> & FreshnessSource<TVars, TData>;
 
 /** A `busDriven` mutation reconciles via the bus, not itself — its settle invalidates nothing. */
-const NO_INVALIDATION = (): readonly InvalidateFilter[] => [];
+const NO_INVALIDATION = (): readonly InvalidateQueryFilters[] => [];
 
 /** The promise-returning arm of an entity mutation: callers that must await the settle (a delete that navigates away) type their port with it. */
 export type EntityMutateAsync<TVars, TData> = (vars: TVars) => Promise<TData>;

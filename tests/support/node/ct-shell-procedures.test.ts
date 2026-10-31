@@ -1,5 +1,7 @@
 // The shell's served-procedure lists each name a procedure once, and the mount list adds to the section list rather than
 // repeating it. The mount and room lists may share a name: an open room sends the same read the mount does.
+// These cases run no production code: a name the router no longer has fails `tsc` at each list's
+// `satisfies readonly TrpcProcedurePath[]`, not here.
 import { describe, expect, test } from "vitest";
 import { ROOM_PROCEDURES, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES } from "./ct-shell-procedures.ts";
 

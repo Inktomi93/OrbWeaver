@@ -1081,6 +1081,9 @@ export type ContentSeedOp = (principal: Principal) => Promise<boolean>;
 /** Has this user's default persona been seeded? */
 export type PersonaSeededOp = (principal: Principal) => Promise<boolean>;
 
+/** Points the still-unset default and current persona picks at the seeded persona, then latches the seed complete. */
+export type MarkPersonaSeededOp = (principal: Principal, seededPersonaId: PersonaId) => Promise<void>;
+
 /** Has the first-run example-plugin install pass latched for this user? */
 export type ExamplePluginSeededOp = (principal: Principal) => Promise<boolean>;
 

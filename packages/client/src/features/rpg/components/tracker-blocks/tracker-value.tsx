@@ -5,6 +5,7 @@
 import { InlineAction } from "@orb/ui/inline-action";
 import { Input } from "@orb/ui/input";
 import type { ToneInkSelection } from "@orb/ui/lib";
+import { NumberField } from "@orb/ui/number-field";
 import { Text } from "@orb/ui/text";
 import type { ComponentProps, ReactElement, Ref } from "react";
 import { useId, useRef, useState } from "react";
@@ -49,6 +50,9 @@ interface TrackerValueOwnProps {
    *  no length contract, and a truncated datum hides the datum (the text IS the value). Numerics and
    *  host-named values keep the default single-line truncate (their width is layout-owned). @defaultValue false */
   readonly wrap?: boolean;
+  /** Whole-number entry between `min` and `max`: the editor is a number field (arrow keys step by one, the bounds
+   *  are its description, and the range shows as the empty field's placeholder), not free text. */
+  readonly range?: { readonly min: number; readonly max: number };
   /** Tabular figures in every state (read-only, rest and edit), so a ticking count keeps its column. @defaultValue false */
   readonly numeric?: boolean;
   /** The slanted face in every state, for words that are not spoken (a character's thought). @defaultValue false */
@@ -140,6 +144,7 @@ export function TrackerValue({
   wrap = false,
   numeric = false,
   italic = false,
+  range,
 }: TrackerValueProps): ReactElement {
   const paint: ToneInkSelection = ink === undefined ? { tone } : { ink };
   const source = editValue ?? display;
@@ -195,6 +200,37 @@ export function TrackerValue({
     }
     setSession(next);
   };
+
+  if (range !== undefined) {
+    return (
+      <NumberField
+        // The editor exists only after an explicit click on the rest value, as the text arm's does.
+        // eslint-disable-next-line jsx-a11y/no-autofocus -- click-to-edit: the field exists only after an explicit click
+        autoFocus={true}
+        aria-label={ariaLabel}
+        format={{ maximumFractionDigits: 0 }}
+        layout="tile"
+        max={range.max}
+        min={range.min}
+        onBlur={commit}
+        onKeyDown={(e): void => {
+          if (e.key === "Enter" && e.target instanceof HTMLElement) {
+            e.target.blur();
+          }
+          if (e.key === "Escape") {
+            restoreAfterCancel.current = true;
+            setSession(null);
+          }
+        }}
+        onValueChange={(next): void => {
+          setSession({ draft: next === null ? "" : String(next), openedFrom, conflict });
+        }}
+        placeholder={`${range.min}–${range.max}`}
+        step={1}
+        value={draft === "" ? null : Number(draft)}
+      />
+    );
+  }
 
   return (
     <>

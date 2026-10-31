@@ -20,11 +20,12 @@
 //
 // A real git repo in a temp dir, because the subject IS the bytes git prints: a stubbed diff would be a
 // test of the stub's whitespace, not of the tool's.
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
+import { onTestFinished } from "vitest";
 import { snapDirtyIdentity } from "../../../../tooling/src/snap/lib/run-bundle-files.ts";
 
 const TRACKED = "tracked.txt";
@@ -36,6 +37,7 @@ function git(root: string, ...args: string[]): void {
 /** A committed repo whose one tracked file holds `x`. */
 function repo(): string {
   const root = mkdtempSync(join(tmpdir(), "snap-dirty-identity-"));
+  onTestFinished(() => rmSync(root, { recursive: true, force: true }));
   git(root, "init", "--quiet");
   git(root, "config", "user.email", "probe@example.invalid");
   git(root, "config", "user.name", "probe");

@@ -176,11 +176,6 @@ function rateLimitResponseMeta(errors: readonly TRPCError[]): ResponseMeta {
   return {};
 }
 
-/** The request-context surface the routes read — the SAME shape every principal-reading registrar types its
- *  `app` against (`PrincipalEnv`, whose docblock owns the vars), because Hono's env generic is invariant and
- *  a second spelling would make this app instance unassignable to half its own registrars. */
-type AppEnv = PrincipalEnv;
-
 /**
  * Everything `createApp` needs, all built upstream by `lifecycle.ts`.
  */
@@ -258,8 +253,8 @@ export interface AppDeps {
   readonly oidc?: OidcRoutesDeps;
 }
 
-export function createApp(deps: AppDeps): Hono<AppEnv> {
-  const app = new Hono<AppEnv>();
+export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
+  const app = new Hono<PrincipalEnv>();
   const authMode = deps.authConfig.mode;
   const { observability, observabilityErrorHandler } = createRequestObservability(deps.logger, deps.rings);
   // SECURITY: one list for every forwarded-header read below, so the client address, the Host check and the cookie
@@ -532,7 +527,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     // (#1193). `?? null` is the fail-closed read for a context this middleware never ran on.
     auth: {
       expectedToken: deps.env.DEBUG_TOKEN,
-      adminAuth: { isAdmin: (c: Context): boolean => deps.seam.debugGateAdmits((c as Context<AppEnv>).get("principal") ?? null, c.req.raw.headers) },
+      adminAuth: { isAdmin: (c: Context): boolean => deps.seam.debugGateAdmits((c as Context<PrincipalEnv>).get("principal") ?? null, c.req.raw.headers) },
     },
   });
 

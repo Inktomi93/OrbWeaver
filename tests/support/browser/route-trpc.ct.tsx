@@ -1,6 +1,8 @@
 /* eslint-disable orb/ct-responder-reads-input -- the subject is routeTrpc's own response semantics, so each responder is the scripted marker under test */
 // Native route failures must fail the owning CT even when the page handles the network error and keeps rendering.
+import { authConfigSchema } from "@orb/contracts/auth-config";
 import { presetDetailSchema, presetIdInputSchema } from "@orb/contracts/preset";
+import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import { serveCorpusProcedures } from "@orb/testkit/ct";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { expect, test } from "@playwright/test";
@@ -151,11 +153,30 @@ test("abortProcedure refuses a procedure alone or batched, leaves others served,
   expect(await probe("/api/trpc/preset.list")).toBe("served");
 });
 
-test("routeAuthConfig serves an object as JSON and a captured body verbatim", async ({ page }) => {
+test("routeAuthConfig serves a parsed config the client accepts, and a captured body verbatim", async ({ page }) => {
+  const config = authConfigSchema.parse({
+    mode: "local",
+    localEnabled: true,
+    oidcEnabled: false,
+    oidcProviderName: "",
+    localFirstRun: false,
+    discreetLogin: false,
+    defaultHandle: null,
+    multiHumanCapable: true,
+    forbidExternalMedia: false,
+    trustHtml: false,
+    allowInteractiveCards: false,
+    uploads: DEFAULT_UPLOAD_CAPS,
+    transport: "https",
+    clientScope: "private",
+    share: { state: "off", url: null },
+  });
   await page.route(`${ORIGIN}/**`, (route) => route.fulfill({ contentType: "text/html", body: "<p>auth</p>" }));
   await page.goto(ORIGIN);
-  await routeAuthConfig(page, { mode: "local", localEnabled: true });
-  expect(await page.evaluate(async () => (await fetch("/api/auth/config")).json())).toEqual({ mode: "local", localEnabled: true });
-  await routeAuthConfig(page, '{"mode":"oidc"}');
-  expect(await page.evaluate(async () => (await fetch("/api/auth/config")).text())).toBe('{"mode":"oidc"}');
+  await routeAuthConfig(page, config);
+  const served: unknown = await page.evaluate(async () => (await fetch("/api/auth/config")).json());
+  expect(authConfigSchema.parse(served)).toEqual(config);
+  const captured = JSON.stringify({ ...config, mode: "oidc", localEnabled: false, oidcEnabled: true });
+  await routeAuthConfig(page, captured);
+  expect(await page.evaluate(async () => (await fetch("/api/auth/config")).text())).toBe(captured);
 });

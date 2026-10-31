@@ -50,6 +50,13 @@
       "when": 1793416222552,
       "tag": "0006_bookmark-checkpoint-snapshots",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1793469178124,
+      "tag": "0007_retire-agent-task",
+      "breakpoints": true
     }
   ]
 }

@@ -19,7 +19,6 @@ import type {
   ChatBookView,
   DetachResult,
   EntryView,
-  LoreConstantCanonRow,
   LoreEntryIndexRow,
   RemoveResult,
   ReorderResult,
@@ -51,7 +50,6 @@ import type {
   ImportBookFileParams,
   ListAttachmentsForBookParams,
   ListBooksParams,
-  ListConstantCanonParams,
   ListEntriesParams,
   ListEntryIndexParams,
   ListForCharacterParams,
@@ -158,7 +156,4 @@ export interface WorldInfoService {
   readonly upsertEntries: (params: UpsertEntriesParams) => Promise<UpsertEntriesResult>;
   /** The lean per-book entry index a machine writer reads to build its merge prompt + count against a cap. */
   readonly listEntryIndex: (params: ListEntryIndexParams) => Promise<readonly LoreEntryIndexRow[]>;
-  /** A chat's CONSTANT ("always"-scope) lorebook canon (D58) — the pre-play world truth a
-   *  producer reads. Principal-less: room-public prompt content (the caller gated membership upstream). */
-  readonly listConstantCanon: (params: ListConstantCanonParams) => Promise<readonly LoreConstantCanonRow[]>;
 }

@@ -27,14 +27,13 @@ export type RpgRoundObservers = Pick<
 };
 
 /** The principal-free chat ops the rounds read: the roster projection, the canon window, the room's preset prose and
- *  params, the present host, and the generation-observation session a host-door call records into. */
+ *  params, and the generation-observation session a host-door call records into. */
 export interface RpgRoundsChatOps {
   readonly beginGenerationObservation: BeginGenerationObservationOp<GenerationObservationCallback>;
   readonly resolveRpgParticipants: ResolveRpgParticipants;
   readonly resolveCanonWindow: ResolveCanonWindow;
   readonly resolveChatPresetProse: (chatId: ChatId) => Promise<ProseOverrides>;
   readonly resolveChatPresetParams: (chatId: ChatId) => Promise<UserIntent>;
-  readonly resolveHostUserId: (chatId: ChatId) => Promise<UserId | null>;
 }
 
 export interface RpgRoundsDeps {

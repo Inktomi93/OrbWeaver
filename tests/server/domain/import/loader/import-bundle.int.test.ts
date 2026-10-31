@@ -91,7 +91,7 @@ async function restore(root: ServerTestHarness, bundle: Uint8Array): Promise<{ r
   return { status: row.status, failed: row.result?.failed };
 }
 
-test("a chat restores with its character when the character's handle is not the slug of its name", async () => {
+test("a chat restores with its character when the character's handle is not the slug of its name", { tags: ["slow"] }, async () => {
   await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
   const owner = await source.principalFor(source.ownerId);
   await source.services.character.create({
@@ -145,7 +145,7 @@ async function restoreCard(root: ServerTestHarness, filename: string, bytes: Uin
   return await descriptor.importFile(root.ownerId, { filename, bytes });
 }
 
-test("a carried handle that is not a minted slug restores under the name slug, and the next library export still succeeds", async () => {
+test("a carried handle that is not a minted slug restores under the name slug, and the next library export still succeeds", { tags: ["slow"] }, async () => {
   await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
   const card = await cardCarrying(source, { handle: "wanderer", name: "Wanderer", description: "A wanderer maps the outer rings." }, "..");
 
@@ -162,7 +162,7 @@ test("a carried handle that is not a minted slug restores under the name slug, a
   expect((await exportLibrary(target, ["character", "chat"])).byteLength).toBeGreaterThan(0);
 });
 
-test("two different cards carrying one over-long handle both restore inside the handle cap", async () => {
+test("two different cards carrying one over-long handle both restore inside the handle cap", { tags: ["slow"] }, async () => {
   const cap = characterHandleSchema.in.maxLength;
   if (cap === null) {
     throw new Error("the handle contract states no length cap");
@@ -231,7 +231,7 @@ test("a chat re-links to a character whose handle slugifyHandle minted, however 
   );
 });
 
-test("a restored chat binds to its own card when another character already holds that card's handle", async () => {
+test("a restored chat binds to its own card when another character already holds that card's handle", { tags: ["slow"] }, async () => {
   await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
   await source.services.character.create({
     principal: await source.principalFor(source.ownerId),
@@ -265,7 +265,7 @@ test("a restored chat binds to its own card when another character already holds
   expect(keepers).toHaveLength(2);
 });
 
-test("a restored chat binds to the existing character its card deduped onto, under that character's handle", async () => {
+test("a restored chat binds to the existing character its card deduped onto, under that character's handle", { tags: ["slow"] }, async () => {
   await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
   const owner = await source.principalFor(source.ownerId);
   const created = await source.services.character.create({
@@ -295,7 +295,7 @@ test("a restored chat binds to the existing character its card deduped onto, und
   });
 });
 
-test("a chat bundle written before seats carried their card still re-links by handle", async () => {
+test("a chat bundle written before seats carried their card still re-links by handle", { tags: ["slow"] }, async () => {
   await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
   const owner = await source.principalFor(source.ownerId);
   const keeperAtSource = await source.services.character.create({
@@ -356,7 +356,7 @@ test("a chat bundle naming a synthetic group character's handle never binds to t
   expect({ ok: outcome.ok, groupRooms: await transcriptsOf(root, group.characterId) }).toEqual({ ok: false, groupRooms: [] });
 });
 
-test("a seat's card identity resolves only inside the importing account", async () => {
+test("a seat's card identity resolves only inside the importing account", { tags: ["slow"] }, async () => {
   await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
   const made = await source.services.character.create({
     principal: await source.principalFor(source.ownerId),
@@ -429,7 +429,7 @@ async function ownedAssetHashes(root: ServerTestHarness): Promise<Set<string>> {
 
 // A restore into a box that already holds the card dedups onto it only when the two identities match, so one
 // character per box after every crossing is the identity holding across exports.
-test("a restored card keeps its import identity through the next export and restore, whatever its star", async () => {
+test("a restored card keeps its import identity through the next export and restore, whatever its star", { tags: ["slow"] }, async () => {
   await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
   expect(await restoreCard(source, "archivist.json", new TextEncoder().encode(STARRED_CARD))).toEqual({ ok: true, created: true });
   const sourceBundle = await exportLibrary(source);
@@ -461,7 +461,7 @@ test("a restored card keeps its import identity through the next export and rest
   }).toEqual({ charactersPerBox: [1, 1, 1], assetsLost: [[], []] });
 });
 
-test("user settings restore onto the background art the fresh box already seeded", async () => {
+test("user settings restore onto the background art the fresh box already seeded", { tags: ["slow"] }, async () => {
   await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
   const owner = await source.principalFor(source.ownerId);
   const seeded = (await source.services.settings.getUserSettings({ principal: owner })).config.appearance.backgroundLibrary;
@@ -542,7 +542,7 @@ async function galleryHashes(root: ServerTestHarness): Promise<string[]> {
 
 // The fresh box already holds the seeded plates and avatars under its own ids, so each one the source library
 // refers to restores onto those bytes and every referrer re-links by content.
-test("a full library restore into a fresh box reports no failures and leaves no reference dangling", async () => {
+test("a full library restore into a fresh box reports no failures and leaves no reference dangling", { tags: ["slow"] }, async () => {
   await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
   const owner = await source.principalFor(source.ownerId);
   const [plate] = (await source.services.settings.getUserSettings({ principal: owner })).config.appearance.backgroundLibrary;
@@ -608,7 +608,7 @@ async function characterNames(root: ServerTestHarness): Promise<string[]> {
   return (await (await root.internalCallerFor(root.ownerId)).character.list({})).items.map((item) => item.name).toSorted();
 }
 
-test("a seeded library restored into a fresh box keeps one copy of each starter card", async () => {
+test("a seeded library restored into a fresh box keeps one copy of each starter card", { tags: ["slow"] }, async () => {
   await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
   const sourceNames = await characterNames(source);
   const bundle = await exportLibrary(source);
@@ -619,7 +619,7 @@ test("a seeded library restored into a fresh box keeps one copy of each starter 
   expect({ outcome, names: await characterNames(target) }).toEqual({ outcome: { status: "succeeded", failed: 0 }, names: sourceNames });
 });
 
-test("an imported card keeps its star, alone and through a library restore", async () => {
+test("an imported card keeps its star, alone and through a library restore", { tags: ["slow"] }, async () => {
   await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
   expect(await restoreCard(source, "archivist.json", new TextEncoder().encode(STARRED_CARD))).toEqual({ ok: true, created: true });
   const bundle = await exportLibrary(source, ["character"]);
@@ -723,7 +723,7 @@ async function restoreReferrersOnly(root: ServerTestHarness, ownerId: UserId, bu
   }
 }
 
-test("databank documents and imagery history restore onto bytes the owner holds under another id, never another account's", async () => {
+test("databank documents and imagery history restore onto bytes the owner holds under another id, never another account's", { tags: ["slow"] }, async () => {
   const pictures: Uint8Array[] = [];
   await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR), imageProvider(pictures));
   pictures.push(makeAssetBytes(source.idSource.typeId(ID_PREFIX.asset)));
@@ -770,7 +770,7 @@ test("databank documents and imagery history restore onto bytes the owner holds 
   });
 });
 
-test("a card's background travels in its export and re-links by content, never onto another account's bytes", async () => {
+test("a card's background travels in its export and re-links by content, never onto another account's bytes", { tags: ["slow"] }, async () => {
   await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
   const owner = await source.principalFor(source.ownerId);
   const [plate] = (await source.services.settings.getUserSettings({ principal: owner })).config.appearance.backgroundLibrary;
@@ -815,7 +815,7 @@ test("a card's background travels in its export and re-links by content, never o
   });
 });
 
-test("restoring bytes the owner holds under another id repairs that asset when its stored file is gone", async () => {
+test("restoring bytes the owner holds under another id repairs that asset when its stored file is gone", { tags: ["slow"] }, async () => {
   await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
   const owner = await source.principalFor(source.ownerId);
   const bytes = makeAssetBytes(source.idSource.typeId(ID_PREFIX.asset));

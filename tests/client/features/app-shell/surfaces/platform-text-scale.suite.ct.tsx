@@ -7,7 +7,7 @@
 import { contextToggleLabel, testId } from "@orb/client/lib";
 import type { CharacterId } from "@orb/kit/ids";
 import { seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
-import { channelName, SECTION_LABELS } from "@orb/testkit/ct";
+import { channelName } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
@@ -210,7 +210,9 @@ async function firstCharacterId(): Promise<CharacterId> {
 async function openFirstRoom(mountShell: () => Promise<unknown>, page: Page): Promise<Locator> {
   await seedShellState(page, { activeSection: "chats" });
   await mountShell();
-  await page.locator(".shell-rail").getByRole("button", { name: SECTION_LABELS["chats"], exact: true }).click();
+  // The boot already lands in Chats. A rail press on the active section still raises a view transition, and a row press that
+  // lands inside it is released over the transition's overlay, so the pointer-up misses the row and no click reaches it.
+  await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", "chats");
   await page.getByRole("list", { name: "Chats list", exact: true }).getByRole("button").first().click();
   const input = page.getByRole("textbox", { name: "Message", exact: true });
   await expect(input).toBeVisible();

@@ -11,8 +11,7 @@
 // co-speaker's), `post_history` the postHistoryInstructions, `char_description`/`scenario`/`dialogue_examples`
 // the card text, and the `persona` marker another human's persona description — naming a section is not a
 // cheap way around the two host-gated doors above.
-// The two member-gated reads on this path build NO rendered bytes: `getActivePresetConfig` returns the bare
-// `PromptConfig` (preset templates, no assemble ctx), and `previewContextFit` returns only the boundary id +
+// The member-gated read on this path builds NO rendered bytes: `previewContextFit` returns only the boundary id +
 // budget numbers off a ctx it never serializes.
 //
 // Deps not on `ChatContext`: `loadParticipantViews` resolves the roster read-model; `resolveConnection`
@@ -85,7 +84,6 @@ import type { ChatMetadata } from "../contract/metadata.ts";
 import type {
   ChatEventBoundsParams,
   CountChatsParams,
-  GetActivePresetConfigParams,
   GetChatLineageParams,
   GetChatParams,
   GetMemberCardParams,
@@ -122,6 +120,7 @@ import type {
 import { gateLineagePerAncestor, requireHost, requireParticipant } from "../guard.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { loadInlineReplyAssetIds } from "../persistence/message-asset-links.ts";
+import { loadMessagePositions, positionCanonPage } from "../persistence/message-positions.ts";
 import { loadPageCursors } from "../persistence/page-cursors.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipants, loadPresentVisibilityRows } from "../persistence/participants-read.ts";
@@ -182,6 +181,7 @@ import {
 } from "../substrate/participants-humans.ts";
 import { regexAllowOf, resolveRegexTiers } from "../substrate/regex-tier.ts";
 import { collectTeaching, resolveTeachingKnobs } from "../substrate/teaching.ts";
+import { eventViewMessageId, withViewPosition } from "../substrate/view-position.ts";
 import { resolveViewerOwnedCharacterIds } from "../substrate/viewer-gallery.ts";
 import { buildWireHistory, convertsToEmptyWireRow, replayToolMessageIds, shapeConvertFit } from "../substrate/wire-history.ts";
 
@@ -220,7 +220,6 @@ type ReadVerbs = Pick<
   | "getMemberCard"
   | "previewAssembly"
   | "previewActionTemplates"
-  | "getActivePresetConfig"
   | "previewSection"
   | "peekPrompt"
   | "getShapeTrace"
@@ -243,7 +242,7 @@ type ReadVerbs = Pick<
 type ChatRowView = NonNullable<Awaited<ReturnType<typeof loadChatRow>>>;
 
 /** The resolved preview substrate: the host, the resolved seated characters/personas, the connection `model`, and the
- *  cross-domain assemble inputs. The previews + `getActivePresetConfig` share this resolution. */
+ *  cross-domain assemble inputs. The previews share this resolution. */
 interface PreviewInputs extends RoomInputs {
   /** The room host whose connection the preview resolved under (§8.4-3). */
   readonly funderUserId: UserId;
@@ -464,7 +463,7 @@ async function buildSummaries(ctx: ChatContext, deps: ReadDeps, rows: readonly C
  *
  *  It also runs the turn's GM-PRESET REDIRECT (see the block at the `resolveForeignInputs` call), so every
  *  surface built on these inputs — `previewAssembly`, `peekPrompt`, `getShapeTrace`, `previewContextFit`,
- *  `previewSection`, `previewActionTemplates`, `getActivePresetConfig` — answers about the preset the TURN
+ *  `previewSection`, `previewActionTemplates` — answers about the preset the TURN
  *  assembles on a game chat — the same preset-redirect hop as the turn, so a preview never renders a preset
  *  the turn wouldn't. */
 async function resolvePreviewInputs(ctx: ChatContext, deps: ReadDeps, chatId: ChatId, opts: PreviewInputsOpts): Promise<PreviewInputs> {
@@ -1098,7 +1097,8 @@ function createListMessages(ctx: ChatContext, deps: ReadDeps): ChatService["list
     const chronological = afterSeq === undefined ? page.reverse() : page;
     const readsHidden = viewerReadsHidden(membership);
     const reasoningHostOnly = readsHidden ? false : await resolveReasoningHostOnly(ctx, chatId);
-    const messages = readsHidden ? chronological : chronological.map((v) => projectViewForMember(v, reasoningHostOnly));
+    const projected = readsHidden ? chronological : chronological.map((v) => projectViewForMember(v, reasoningHostOnly));
+    const messages = await positionCanonPage(ctx.db, chatId, membership.historyFloorSeq, projected);
     const participants = await deps.loadParticipantViews(chatId);
     const identities = await loadChatIdentityProducer(ctx.db, { participants, messages, anchorPersonaId: membership.chat.anchorPersonaId });
     const firstSeq = messages[0]?.seq ?? (afterSeq === undefined ? beforeSeq : afterSeq + 1);
@@ -1606,18 +1606,6 @@ function createPreviewContextFit(ctx: ChatContext, deps: ReadDeps): ChatService[
   };
 }
 
-/** `getActivePresetConfig` — the resolved `PromptConfig` the chat assembles against. No assemble ctx is
- *  built (only the config is needed). */
-function createGetActivePresetConfig(ctx: ChatContext, deps: ReadDeps): ChatService["getActivePresetConfig"] {
-  return async ({ principal, chatId }: GetActivePresetConfigParams): Promise<PromptConfig> => {
-    const membership = await requireParticipant(ctx, principal, chatId);
-    const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
-      anchorPersonaId: membership.chat.anchorPersonaId,
-    });
-    return inputs.foreign.promptConfig;
-  };
-}
-
 /** `previewSection` — render ONE preset section against the live assemble ctx (the COMPOSER/editor preview).
  *  HOST/ADMIN (`requireHost`, matrix `previewSection: "host"`): a rendered section carries the roster's cards
  *  at FULL (`main_prompt` ← systemPrompt, `char_description` ← the card text, `persona` ← another human's
@@ -1769,11 +1757,14 @@ function createReplayChatEvents(ctx: ChatContext): ChatService["replayChatEvents
     const floored = rows
       .filter(({ payload }) => !isBelowHistoryFloor(payload, membership.historyFloorSeq))
       .map(({ seq, payload }) => ({ seq, event: payload }));
-    if (readsHidden) {
-      return floored;
-    }
-    const reasoningHostOnly = await resolveReasoningHostOnly(ctx, chatId);
-    return scrubChatEventReplayForMember(floored, membership, reasoningHostOnly);
+    const reasoningHostOnly = readsHidden ? false : await resolveReasoningHostOnly(ctx, chatId);
+    const delivered = readsHidden ? floored : scrubChatEventReplayForMember(floored, membership, reasoningHostOnly);
+    const named = new Set(delivered.flatMap(({ event }) => eventViewMessageId(event) ?? []));
+    const positions = await loadMessagePositions(ctx.db, chatId, membership.historyFloorSeq, [...named]);
+    return delivered.map(({ seq, event }) => {
+      const id = eventViewMessageId(event);
+      return { seq, event: withViewPosition(event, id === undefined ? undefined : positions.get(id)) };
+    });
   };
 }
 
@@ -1789,7 +1780,7 @@ function createReplayChatEvents(ctx: ChatContext): ChatService["replayChatEvents
  *  per-CALLER — the floor is resolved from the SUBSCRIBER's own participant row at the chokepoint, never
  *  from anything the client sends. */
 function createChatEventBounds(ctx: ChatContext): ChatService["chatEventBounds"] {
-  return async ({ principal, chatId }: ChatEventBoundsParams): Promise<ChatEventAttach> => {
+  return async ({ principal, chatId, positionOf }: ChatEventBoundsParams): Promise<ChatEventAttach> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     // `viewerIsHost` piggybacks on the same member-gated probe as the D16 floor (one read per yield): the
     // LIVE fan-out applies the §3.6 member-strip off it, exactly as the durable replay does per caller. P3:
@@ -1803,7 +1794,15 @@ function createChatEventBounds(ctx: ChatContext): ChatService["chatEventBounds"]
     // `ChatDetailData.viewerIsHost` field and the durable replay applies to the rows (D110; the F1 ruling).
     const readsHidden = viewerReadsHidden(membership);
     const reasoningHostOnly = readsHidden ? false : await resolveReasoningHostOnly(ctx, chatId);
-    return { ...(await loadChatEventBounds(ctx.db, chatId)), historyFloorSeq: membership.historyFloorSeq, viewerIsHost: readsHidden, reasoningHostOnly };
+    const messagePosition =
+      positionOf === undefined ? undefined : (await loadMessagePositions(ctx.db, chatId, membership.historyFloorSeq, [positionOf])).get(positionOf);
+    return {
+      ...(await loadChatEventBounds(ctx.db, chatId)),
+      historyFloorSeq: membership.historyFloorSeq,
+      viewerIsHost: readsHidden,
+      reasoningHostOnly,
+      ...(messagePosition === undefined ? {} : { messagePosition }),
+    };
   };
 }
 
@@ -1821,7 +1820,6 @@ export function createRead(ctx: ChatContext, deps: ReadDeps): ReadVerbs {
     getNextTurnConnection: createGetNextTurnConnection(ctx, deps),
     getMemberCard: createGetMemberCard(ctx, deps),
     previewAssembly: createPreviewAssembly(ctx, deps),
-    getActivePresetConfig: createGetActivePresetConfig(ctx, deps),
     previewSection: createPreviewSection(ctx, deps),
     previewActionTemplates: createPreviewActionTemplates(ctx, deps),
     peekPrompt: createPeekPrompt(ctx, deps),

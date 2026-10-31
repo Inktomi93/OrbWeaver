@@ -32,8 +32,6 @@ import type { WeatherType } from "@orb/kit/weather";
 const WAYSTONE_PHASES = ["dawn", "morning", "afternoon", "evening", "night", "midnight"] as const;
 export type WaystonePhase = (typeof WAYSTONE_PHASES)[number];
 
-export type WaystoneWeather = WeatherType;
-
 /** The identity of a weather's air-layer stack (`none` = the unveiled sky IS the treatment, not a fallback) —
  *  one member per weather plus `none`, declared as the axis tuple so the union derives rather than re-spells.
  *  `indoors` is its own identity rather than `none`: the stone is not showing an unveiled sky there, it is
@@ -268,7 +266,7 @@ function waystoneStarOpacityAt(hour: number): number {
 }
 
 // ─── The nine weathers (the DISCRETE axis) ────────────────────────────────────────────────────────
-const WEATHER_RECIPES: Readonly<Record<WaystoneWeather, WaystoneWeatherRecipe>> = {
+const WEATHER_RECIPES: Readonly<Record<WeatherType, WaystoneWeatherRecipe>> = {
   // `clear` means CLEAR: zero cloud slots (a lone 22%-opacity puff read as a smudge, not weather).
   clear: {
     overlay: "none",
@@ -364,12 +362,12 @@ const WEATHER_RECIPES: Readonly<Record<WaystoneWeather, WaystoneWeatherRecipe>> 
 
 // The air-layer recipe for a weather (`null` ⇒ clear). TOTAL by construction — an exhaustive Record over the
 //  union, so a new weather member fails tsc here rather than painting a silent default.
-function waystoneWeatherRecipe(weather: WaystoneWeather | null): WaystoneWeatherRecipe {
+function waystoneWeatherRecipe(weather: WeatherType | null): WaystoneWeatherRecipe {
   return WEATHER_RECIPES[weather ?? "clear"];
 }
 
 /** Resolve the full stack for an exact hour and a weather: the continuous backdrop + the discrete air layers. */
-export function resolveWaystoneTreatment(hour: number, weather: WaystoneWeather | null): WaystoneTreatment {
+export function resolveWaystoneTreatment(hour: number, weather: WeatherType | null): WaystoneTreatment {
   const recipe = waystoneWeatherRecipe(weather);
   return {
     ...recipe,

@@ -16,7 +16,7 @@ import type { TokenProvenance } from "../chat/token-provenance.ts";
 import { tokenProvenanceSchema } from "../chat/token-provenance.ts";
 import type { CorpusDigestSource } from "../search/source.ts";
 import { corpusDigestSourceSchema } from "../search/source.ts";
-import type { ArchetypeMember, ThemeRow } from "./artifacts.ts";
+import type { ThemeRow } from "./artifacts.ts";
 import { themeRowSchema } from "./artifacts.ts";
 import type { ThemeLevel } from "./vocabulary.ts";
 import { THEME_LEVELS } from "./vocabulary.ts";
@@ -565,9 +565,6 @@ export interface ImageFacetMember {
   readonly artStyle: string | null;
   readonly caption: string | null;
 }
-
-/** Character identity for the never-played filter; the producer decides eligibility. */
-export type UnusedCharacter = ArchetypeMember;
 
 export const duplicateCharacterPairSchema = z.strictObject({
   id: typeIdSchema(ID_PREFIX.duplicateCharacterPair),

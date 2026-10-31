@@ -3,6 +3,8 @@
 // A role is never a :root variable: a root formula freezes to the root palette, so it resolves on the stamped element.
 import type { CarriedToneHost, Oklch, TonePalette, ToneRoleRecipe, ToneScheme, ToneSource } from "@orb/kit/theme-derivation";
 import {
+  BUBBLE_HOSTS,
+  bubblePageMisses,
   CARRIED_TONE_HOSTS,
   carriedLiteralRoles,
   compositeSrgb,
@@ -94,10 +96,14 @@ export function toneModel(contract: TokenContractResult): ToneModel {
     if (token.derived === null || typeof token.value !== "string") {
       return [];
     }
-    const { colored, neutral, floor, pageInks } = token.derived;
+    const { colored, neutral, floor, pageInks, neutralPageInks } = token.derived;
     const recipe: Recipe = {
       colored: typeof colored === "string" ? colored : stepOf(colored),
-      neutral: neutral === undefined ? { bind: hostOf(token.value) } : { bind: hostOf(token.value), step: stepOf(neutral) },
+      neutral: {
+        bind: hostOf(token.value),
+        ...(neutral === undefined ? {} : { step: stepOf(neutral) }),
+        pageInks: (neutralPageInks ?? []).map(hostOf),
+      },
       floor: (floor ?? []).map(floorSurface),
       pageInks: (pageInks ?? []).map(hostOf),
     };
@@ -321,6 +327,11 @@ export function assertShippedToneFloors(contract: TokenContractResult, model: To
       host: background,
       hosts: Object.fromEntries(CARRIED_TONE_HOSTS.map((host) => [host, color(`color.${host}`)])) as Record<CarriedToneHost, Oklch>,
     };
+    findings.push(
+      ...bubblePageMisses(background, Object.fromEntries(BUBBLE_HOSTS.map((host) => [host, page.hosts[host]]))).map(
+        ({ host, distance }) => `${theme.id}: ${host} paints ${distance.toFixed(SEPARATION_DIGITS)} off the page`,
+      ),
+    );
     for (const host of TONE_HOSTS) {
       const scheme = { recipes, palette: tonePaletteOn(page, host) };
       for (const tone of model.tones) {

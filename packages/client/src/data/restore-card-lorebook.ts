@@ -18,16 +18,11 @@ import { throwHttpError } from "./http-error.ts";
 const RESTORE_FIELD = "file";
 const BAD_REQUEST = 400;
 
-/** The `POST /api/import/restore-card-lorebook` response body — the server's `RestoreCharacterBookResult`
- *  (`domain/import/contract/results.ts`), verbatim. `replaced:false` means the character held no primary
- *  book at all and the card's book landed fresh (a restore onto a character whose book was deleted is
- *  still a restore). */
-export type RestoreCardLorebookResult = CardLorebookRestoreResult;
-
-/** POST one card file's bytes to the #1598 restore route and return the server's verdict. The 400 "this
+/** POST one card file's bytes to the #1598 restore route and return the server's verdict (`replaced:false` means
+ *  the character held no primary book and the card's book landed fresh). The 400 "this
  *  card doesn't match anything of yours" arm still carries a real JSON body and is read as data, never
  *  thrown — only a whole-request rejection (a status the route never uses for its own refusal) throws. */
-export async function restoreCardLorebook(file: File): Promise<RestoreCardLorebookResult> {
+export async function restoreCardLorebook(file: File): Promise<CardLorebookRestoreResult> {
   const form = new FormData();
   form.append(RESTORE_FIELD, file);
   const response = await fetch(PORTABILITY_ROUTES.restoreCardLorebook, {

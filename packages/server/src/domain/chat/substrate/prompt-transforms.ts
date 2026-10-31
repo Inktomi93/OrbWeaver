@@ -160,6 +160,5 @@ export function createPromptTransformRegistry(
     unregister: (id): void => {
       byId.delete(id);
     },
-    list: (): readonly PromptTransform[] => [...byId.values()],
   };
 }

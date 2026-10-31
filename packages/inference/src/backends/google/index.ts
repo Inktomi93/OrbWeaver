@@ -3,12 +3,12 @@ import { fetchGoogleModels, listGoogleModels } from "#catalog";
 import type {
   ChatRequest,
   ChatResult,
+  DiagnosticRequestCommon,
   GoogleBackend,
   GoogleBackendDeps,
   GoogleChatRequest,
   ListModelsRequest,
   ModelsDial,
-  ProbeRequest,
   StructuredRequest,
   SummarizeRequest,
 } from "#contract";
@@ -32,7 +32,7 @@ function dialOf(req: ListModelsRequest): ModelsDial {
   };
 }
 
-async function probe(req: ProbeRequest, deps: GoogleBackendDeps): Promise<CredentialHealth> {
+async function probe(req: DiagnosticRequestCommon, deps: GoogleBackendDeps): Promise<CredentialHealth> {
   const checkedAt = deps.now();
   // the probe returns the failure as `revoked` or `unreachable` health with a scrubbed reason at google/index.ts:42. Ends if the returned health stops carrying that disposition.
   try {

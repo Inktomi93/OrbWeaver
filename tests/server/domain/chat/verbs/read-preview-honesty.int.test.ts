@@ -106,7 +106,7 @@ test("the budget partitions the next turn by source, prices each seated card by 
   expect(pivot?.tokens).toBe(history?.tokens);
   // One send is one user turn and its reply, so the fit keeps two rows.
   expect(pivot?.rows).toHaveLength(2);
-  const rack = (await h.root.services.chat.getActivePresetConfig({ principal: h.owner, chatId: h.chatId })).sections.map(({ id }) => id);
+  const rack = DEFAULT_PROMPT_CONFIG.sections.map(({ id }) => id);
   const priced = budget.sections.map(({ sectionId }) => sectionId);
   expect(priced.every((id) => rack.includes(id))).toBe(true);
   expect(priced).toEqual(priced.toSorted((a, b) => rack.indexOf(a) - rack.indexOf(b)));
@@ -199,7 +199,6 @@ test("a game room previews the GM preset its turn sends, and an explicit overrid
 
   const previewed = await previewText(h);
   expect(previewed).toContain("THE GM PRESET SPEAKS");
-  expect((await h.root.services.chat.getActivePresetConfig({ principal: h.owner, chatId: h.chatId })).sections.map(({ id }) => id)).toContain("gm-row");
   expect(previewed).not.toContain("THE HOST DEFAULT SPEAKS");
   await send(h);
   expect(await newestWire(h)).toContain("THE GM PRESET SPEAKS");
@@ -377,7 +376,7 @@ test("the template readout renders the inspected preset through the room's own i
   expect(impersonate).toContain("{{input}}");
 
   // One rack row renders on its own; a row the room's preset does not hold is not found.
-  const [first] = (await h.root.services.chat.getActivePresetConfig({ principal: h.owner, chatId: h.chatId })).sections;
+  const [first] = DEFAULT_PROMPT_CONFIG.sections;
   expect(first).toBeDefined();
   await h.root.services.chat.previewSection({ principal: h.owner, chatId: h.chatId, sectionId: first?.id ?? "<no section>" });
   await expect(h.root.services.chat.previewSection({ principal: h.owner, chatId: h.chatId, sectionId: "no-such-section" })).rejects.toBeInstanceOf(

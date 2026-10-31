@@ -11,7 +11,7 @@ test("releasing an aborted registration cannot hide the replacement turn from St
   using old = turns.register(chatId, ownerId);
   expect(turns.abort(chatId, ownerId)).toEqual({ aborted: 1, foreignInFlight: false });
   using replacement = turns.register(chatId, ownerId);
-  old.release();
+  old[Symbol.dispose]();
   expect(turns.abort(chatId, otherId)).toEqual({ aborted: 0, foreignInFlight: true });
   expect(replacement.signal.aborted).toBe(false);
   expect(turns.abort(chatId, ownerId)).toEqual({ aborted: 1, foreignInFlight: false });
@@ -32,7 +32,7 @@ test("owned turn teardown aborts and joins bodies even after they leave the publ
   await Promise.resolve();
   expect(running.signal.aborted).toBe(true);
   expect(settled).toBe(false);
-  running.release();
+  running[Symbol.dispose]();
   await closing;
   expect(settled).toBe(true);
   expect(() => turns.register(chatId, ownerId)).toThrow("closed active-turn registry");
