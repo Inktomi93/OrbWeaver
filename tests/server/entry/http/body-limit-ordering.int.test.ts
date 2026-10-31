@@ -10,6 +10,7 @@ import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, makeAssetBytes } from "@orb/testkit/node/composed";
 import { createNativeIssuer, ISSUER, NATIVE_OIDC_SETTINGS } from "@orb/testkit/node/helpers";
+import { JOIN_UNAVAILABLE_CODE } from "#contracts/chat/roster.ts";
 import {
   BACKCHANNEL_ROUTE,
   BUNDLE_ROUTE,
@@ -156,7 +157,7 @@ test("intentionally uncapped mutations remain bodyless and pending preview keeps
   await using oidc = await createServerHarness({ env: { [AUTH_MODE_KEY]: "oidc", [AUTH_FALLBACK_KEY]: "deny" }, oidc: NATIVE_OIDC_SETTINGS });
   const preview = await oidc.http.request(PENDING_ROUTES[0]?.path ?? "", { method: "POST", headers: CSRF_HEADERS, body: "not JSON" });
   expect(preview.status).toBe(404);
-  expect(await preview.json()).toEqual({ error: "join_unavailable" });
+  expect(await preview.json()).toEqual({ error: JOIN_UNAVAILABLE_CODE });
 });
 
 test("native debug authentication and media admission run before body intake", async () => {

@@ -150,7 +150,7 @@ const PLAIN_CHAT_WARNING_CODES = [
   "guided_placed_as_injection",
   // The preset's `customParameters` escape-hatch blob did NOT reach the wire: it is BYOK/custom-byo-only and
   // OpenRouter's own knobs are the modeled sampling surface (the anti-sprawl design), so both OR chat runners
-  // drop it. The INFRA runner raises this as its own `WARNING_CODES` member; the compose bridge re-maps it onto
+  // drop it. The INFRA runner raises this as its own `WARNING_CODE` member; the compose bridge re-maps it onto
   // this chat vocabulary — the same infra→chat hop the IMAGE role uses for `image_edit_dropped`
   // (`entry/compose/imagery.ts` narrows, `chat/verbs/generate-image.ts` re-maps). Spelled IDENTICALLY in both
   // tuples so the map is a MATCH, never a re-spell. Dropped-and-loud (D41), never silently swallowed.
@@ -174,7 +174,7 @@ const PLAIN_CHAT_WARNING_CODES = [
 export type PlainChatWarningCode = (typeof PLAIN_CHAT_WARNING_CODES)[number];
 
 /** Why the engine dropped content from a turn (the domain-originated `warning` bus event — distinct from the
- *  infra runner's `ResolvedWarning`/`WARNING_CODES`, which report resolve/wire drops). One home; the union is
+ *  infra runner's `ResolvedWarning`/`WARNING_CODE`, which report resolve/wire drops). One home; the union is
  *  derived from this tuple (no inline re-spell), and the tuple COMPOSES the plain codes above with the one
  *  detail-bearing carrier so neither list can drift from the other.
  *
@@ -185,11 +185,12 @@ export type PlainChatWarningCode = (typeof PLAIN_CHAT_WARNING_CODES)[number];
  *  single user sentence — "the provider did not do what you asked, here is what it did instead" — and the
  *  thing that differs is DATA (which knob, which value), not copy structure. The detail rides
  *  `adjustment` (+ `knob`/`appliedBudget`/`appliedEffort`); the client renders one notice per class. */
-export const CHAT_WARNING_CODES = [...PLAIN_CHAT_WARNING_CODES, "settings_adjusted"] as const;
+export const SETTINGS_ADJUSTED_CODE = "settings_adjusted";
+export const CHAT_WARNING_CODES = [...PLAIN_CHAT_WARNING_CODES, SETTINGS_ADJUSTED_CODE] as const;
 export type ChatWarningCode = (typeof CHAT_WARNING_CODES)[number];
 
 /** WHICH provider degradation a `settings_adjusted` warning reports — the chat-side vocabulary for the
- *  resolve/wire drop classes the infra runners raise (`infra/providers/contract/resolve.ts` `WARNING_CODES`).
+ *  resolve/wire drop classes the infra runners raise (`infra/providers/contract/resolve.ts` `WARNING_CODE`).
  *  Spelled IDENTICALLY to that tuple's degradation members so the domain map is a MATCH, never a
  *  re-spell — the `custom_parameters_ignored` precedent. It is a SEPARATE tuple by necessity and by design:
  *  `contracts` sits below `server`, so it cannot import infra's vocabulary, and chat must stay free to
