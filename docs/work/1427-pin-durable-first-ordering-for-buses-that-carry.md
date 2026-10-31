@@ -1,9 +1,10 @@
 ---
 kind: work
 status: open
-updated: 2026-10-30
+updated: 2026-10-31
 priority: P2
 area: server
+plan: test-foundation
 ---
 
 # Pin durable-first ordering for buses that carry truth

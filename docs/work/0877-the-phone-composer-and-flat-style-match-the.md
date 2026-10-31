@@ -1,9 +1,10 @@
 ---
 kind: work
 status: open
-updated: 2026-10-11
+updated: 2026-10-31
 priority: P2
 area: chat
+plan: cross-surface-consistency
 ---
 
 # Phone chat-style text columns match the Moonlit Echoes reference

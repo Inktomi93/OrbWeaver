@@ -1,9 +1,10 @@
 ---
 kind: tooling
 status: open
-updated: 2026-10-12
+updated: 2026-10-31
 priority: P2
 area: tooling
+plan: surface-walk
 ---
 
 # Design audit gives per-rule verdicts and samples contrast against the glyph, not the box edge

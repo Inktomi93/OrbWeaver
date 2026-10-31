@@ -1,9 +1,10 @@
 ---
 kind: work
 status: open
-updated: 2026-10-01
+updated: 2026-10-31
 priority: P3
 area: rpg
+plan: cross-surface-consistency
 ---
 
 # Resolve RPG rest-position and target-audit findings

@@ -1,9 +1,10 @@
 ---
 kind: bug
 status: open
-updated: 2026-10-04
+updated: 2026-10-31
 priority: P3
 area: plugin
+plan: cross-surface-consistency
 ---
 
 # Pocket Arcade fits its flank and its grant reads as a sentence
