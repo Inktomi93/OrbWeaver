@@ -30,8 +30,8 @@ export const PRESET_PROSE_SLOTS = {
     macros: "full",
     requiredMacros: ["{{input}}"],
     requiredTokens: [],
-    title: "Opening scene",
-    fires: "The wand's Opening action, on a chat with no messages yet.",
+    title: "Greeting",
+    fires: "The wand's Greeting action, on a chat with no messages yet.",
   },
   "preset.guided.continue": {
     id: "preset.guided.continue",

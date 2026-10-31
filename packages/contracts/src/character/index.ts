@@ -1,6 +1,7 @@
 // @orb/contracts/character — THE ONE canonical character card.
 // No versions: the card IS the flat `characters` row, edited in place. No `raw` blob — every known field
 // has a typed home, so an app-authored card round-trips identically to an imported one.
+// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs take the strict twin via `strictInput` (`@orb/kit/zod-schema`).
 
 import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, ChatId, PluginId, TagId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
@@ -10,6 +11,7 @@ import { z } from "zod";
 import { cardFaceFields } from "#card-face";
 import type { Principal } from "#identity";
 import { regexScriptCardSchema, regexScriptCardViewSchema } from "#regex";
+import { pageDirectionShape } from "#rpc";
 import type { TagFolderType, TagView } from "#tag";
 import { tagFolderTypeSchema, tagViewSchema } from "#tag";
 import type { ThemeBackground, ThemeOverride } from "#theme";
@@ -506,35 +508,35 @@ const characterListSortSchema = z.enum(CHARACTER_LIST_SORTS) satisfies z.ZodType
 
 // `sort` is carried in the payload so the server can reject a cursor minted under a different sort.
 const characterListCursorSchema = z.discriminatedUnion("sort", [
-  z.object({
+  z.strictObject({
     sort: z.literal("recent"),
     /** `null` = the boundary row has never been chatted (the NULLS-LAST tail). */
     lastChattedAt: z.int().nullable(),
     createdAt: z.int(),
     id: typeIdSchema(ID_PREFIX.character),
   }),
-  z.object({
+  z.strictObject({
     sort: z.literal("alpha"),
     name: z.string(),
     id: typeIdSchema(ID_PREFIX.character),
   }),
-  z.object({
+  z.strictObject({
     sort: z.literal("starred"),
     starred: z.boolean(),
     name: z.string(),
     id: typeIdSchema(ID_PREFIX.character),
   }),
-  z.object({
+  z.strictObject({
     sort: z.literal("newest"),
     createdAt: z.int(),
     id: typeIdSchema(ID_PREFIX.character),
   }),
-  z.object({
+  z.strictObject({
     sort: z.literal("oldest"),
     createdAt: z.int(),
     id: typeIdSchema(ID_PREFIX.character),
   }),
-  z.object({
+  z.strictObject({
     sort: z.literal("mostChats"),
     /** NOT NULLABLE (#1131): the count is a `COUNT` over the caller's visible rooms seated with this
      *  character, so a never-chatted boundary row is `0`, not absent. `0` is the tail in both directions —
@@ -543,32 +545,32 @@ const characterListCursorSchema = z.discriminatedUnion("sort", [
     chatCount: z.int(),
     id: typeIdSchema(ID_PREFIX.character),
   }),
-  z.object({
+  z.strictObject({
     sort: z.literal("fewestChats"),
     /** NOT NULLABLE — see the `mostChats` arm. */
     chatCount: z.int(),
     id: typeIdSchema(ID_PREFIX.character),
   }),
-  z.object({
+  z.strictObject({
     sort: z.literal("largestCards"),
     /** The `characters.token_size` denorm — notNull, so never null (no NULLS-LAST handling). */
     tokenSize: z.int(),
     id: typeIdSchema(ID_PREFIX.character),
   }),
-  z.object({
+  z.strictObject({
     sort: z.literal("smallestCards"),
     /** The `characters.token_size` denorm — notNull, so never null (no NULLS-LAST handling). */
     tokenSize: z.int(),
     id: typeIdSchema(ID_PREFIX.character),
   }),
-  z.object({
+  z.strictObject({
     sort: z.literal("bestScore"),
     /** `null` = the boundary row has no refinery score yet (the NULLS-LAST tail). Not an int: the refinery
      *  rubric is a weighted average (`refineryScorePayloadSchema.overallScore`). */
     score: z.number().nullable(),
     id: typeIdSchema(ID_PREFIX.character),
   }),
-  z.object({
+  z.strictObject({
     sort: z.literal("worstScore"),
     /** `null` = the boundary row has no refinery score yet (the NULLS-LAST tail) — see `bestScore`. */
     score: z.number().nullable(),
@@ -683,23 +685,11 @@ export const CHARACTER_STALE_BASIS_OP_CODE = "stale_basis" as const;
 // `bulkAddCardTag`/`bulkRemoveCardTag` used to `allSettled` the per-character writes, audit + announce the
 // siblings that committed, then RETHROW the first rejection unchanged — so the caller saw one typed error
 // for a batch that had, in fact, partially landed. The honest shape is a per-item result: which characters
-// kept the write, and which refused and why. `error` is a CLOSED, wire-safe union — derived from the two
-// domain classes `domain/tag`'s by-name attach/detach ops can actually raise, never a re-spelling of them
-// and never a raw `Error` serialized onto the wire:
-//   • `tag_resolve_failed` — `DomainOperationError`'s own code (`domain/tag/verbs/attach-card-tag-by-name`):
-//     the resolve-or-create found no row after a unique-insert conflict, an unreachable-in-practice race.
-//   • `unexpected` — anything else a per-item `Promise.allSettled` rejection could be (a raw driver/DB
-//     failure) — named honestly as "not one of the typed refusals" rather than fabricated into the code
-//     above.
-
-export const CHARACTER_BULK_TAG_RESOLVE_FAILED_OP_CODE = "tag_resolve_failed" as const;
-export const CHARACTER_BULK_TAG_UNEXPECTED_OP_CODE = "unexpected" as const;
-const CHARACTER_BULK_TAG_FAILURE_CODES = [CHARACTER_BULK_TAG_RESOLVE_FAILED_OP_CODE, CHARACTER_BULK_TAG_UNEXPECTED_OP_CODE] as const;
+// kept the write, and how many refused and why. `error.message` is wire-safe text, never a raw `Error`
+// serialized onto the wire.
 
 const characterBulkTagFailureSchema = z.strictObject({
-  id: typeIdSchema(ID_PREFIX.character),
   error: z.strictObject({
-    code: z.enum(CHARACTER_BULK_TAG_FAILURE_CODES),
     message: z.string(),
   }),
 });
@@ -726,7 +716,6 @@ export interface CharacterDetail extends CharacterCard {
   readonly handle: CharacterHandle;
   readonly starred: boolean;
   readonly archived: boolean;
-  readonly synthetic: boolean;
   /** Tri-state: null = inherit deployment default, true = forbid, false = allow. */
   readonly forbidExternalMedia: boolean | null;
   /** Tri-state: null = inherit deployment default, true = trusted, false = force untrusted. */
@@ -762,11 +751,7 @@ interface CharacterSummaryFields {
   readonly name: string;
   readonly starred: boolean;
   readonly archived: boolean;
-  readonly forbidExternalMedia: boolean | null;
-  readonly trustHtml: boolean | null;
   readonly themeOverride: ThemeOverride | null;
-  /** BG-C — the raw carried card BACKGROUND source (the `themeOverride` twin); null = no card background. */
-  readonly backgroundOverride: ThemeBackground | null;
   readonly avatarAssetId: CharacterCard["avatarAssetId"];
   readonly avatarHash: string | null;
   readonly createdAt: number;
@@ -837,18 +822,15 @@ export interface CharacterTagGroupCensus {
 }
 
 /** Returned by the greeting-studio verbs (`rewriteGreeting`/`generateGreeting`, audit §3): the generated
- *  greeting text + the side-LLM spend. The verb NEVER writes — the client previews `text` and appends it to
- *  `characters.greetings` via `character.update` on accept. `costUsd` is null when the provider didn't report it. */
+ *  greeting text. The verb NEVER writes — the client previews `text` and appends it to
+ *  `characters.greetings` via `character.update` on accept. */
 export interface GeneratedGreeting {
   readonly text: string;
-  readonly costUsd: number | null;
 }
 
 /** Returned by `snapshot`. */
 export interface SnapshotRef {
   readonly id: CharacterSnapshotId;
-  readonly characterId: CharacterId;
-  readonly createdAt: number;
 }
 
 /** A browse-history row (the git "commit log" entry); the opaque blob itself is read only on `restore`
@@ -913,7 +895,6 @@ export const characterDetailSchema = characterCardViewSchema.extend({
   handle: storedCharacterHandleSchema,
   starred: z.boolean(),
   archived: z.boolean(),
-  synthetic: z.boolean(),
   forbidExternalMedia: z.boolean().nullable(),
   trustHtml: z.boolean().nullable(),
   interactiveHtml: z.boolean().nullable(),
@@ -935,10 +916,7 @@ export const characterSummarySchema = characterDetailSchema
     name: true,
     starred: true,
     archived: true,
-    forbidExternalMedia: true,
-    trustHtml: true,
     themeOverride: true,
-    backgroundOverride: true,
     avatarAssetId: true,
     avatarHash: true,
     createdAt: true,
@@ -979,11 +957,9 @@ export const listCharacterTagGroupsResultSchema = z.strictObject({
   groups: z.array(characterTagGroupCensusSchema).readonly(),
   uncategorized: z.number(),
 }) satisfies z.ZodType<ListCharacterTagGroupsResult>;
-export const generatedGreetingSchema = z.strictObject({ text: z.string(), costUsd: z.number().nullable() }) satisfies z.ZodType<GeneratedGreeting>;
+export const generatedGreetingSchema = z.strictObject({ text: z.string() }) satisfies z.ZodType<GeneratedGreeting>;
 export const snapshotRefSchema = z.strictObject({
   id: typeIdSchema(ID_PREFIX.characterSnapshot),
-  characterId: typeIdSchema(ID_PREFIX.character),
-  createdAt: z.number(),
 }) satisfies z.ZodType<SnapshotRef>;
 export const snapshotSummarySchema = z.strictObject({
   id: typeIdSchema(ID_PREFIX.characterSnapshot),
@@ -993,7 +969,7 @@ export const snapshotSummarySchema = z.strictObject({
 export const snapshotViewSchema = snapshotSummarySchema.extend({ content: characterCardViewSchema }) satisfies z.ZodType<SnapshotView>;
 
 /** Shared census/page lens; paging and sort coordinates are separate from collection scope. */
-export const characterCensusInputSchema = z.object({
+export const characterCensusInputSchema = z.strictObject({
   search: z.string().optional(),
   starred: z.boolean().optional(),
   archived: z.boolean().optional(),
@@ -1036,6 +1012,7 @@ export const characterListInputSchema = characterCensusInputSchema
     sort: characterListSortSchema.optional(),
     cursor: characterListCursorSchema.optional(),
     limit: z.int().min(1).max(CHARACTER_LIST_MAX_LIMIT).optional(),
+    ...pageDirectionShape,
   })
   .optional();
 

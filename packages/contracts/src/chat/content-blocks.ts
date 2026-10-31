@@ -24,22 +24,22 @@ export type CardTrust = z.infer<typeof cardTrustSchema>;
 /** Where a media block's bytes come from: an owned asset (per-user CAS, D21) or an external URL (gated by
  *  `forbidExternalMedia` at render, D294, UI-Theming-and-Content §12.3 — never auto-loaded for untrusted content). */
 const messageMediaSrcSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("asset"), assetId: typeIdSchema(ID_PREFIX.asset) }),
-  z.object({ kind: z.literal("external"), url: z.string() }),
+  z.strictObject({ kind: z.literal("asset"), assetId: typeIdSchema(ID_PREFIX.asset) }),
+  z.strictObject({ kind: z.literal("external"), url: z.string() }),
 ]);
 
 /** The typed message-content block union. `html-card` carries its own trust tier; `media` covers image +
  *  native audio/video; `markdown` is the default text path. (D294, UI-Theming-and-Content §12.4 — born-compliant before Phase 5.) */
 export const messageContentBlockSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("markdown"), md: z.string() }),
-  z.object({
+  z.strictObject({ kind: z.literal("markdown"), md: z.string() }),
+  z.strictObject({
     kind: z.literal("media"),
     media: messageMediaKindSchema,
     src: messageMediaSrcSchema,
     alt: z.string(),
-    dims: z.object({ w: z.number(), h: z.number() }).optional(),
+    dims: z.strictObject({ w: z.number(), h: z.number() }).optional(),
   }),
-  z.object({
+  z.strictObject({
     kind: z.literal("html-card"),
     html: z.string(),
     css: z.string().optional(),
@@ -55,7 +55,7 @@ export const messageContentBlockSchema = z.discriminatedUnion("kind", [
   /** The CYOA choice set — the model's `:::choices` fence projected for the reading
    *  surface. The block ships rendered as an ordinary list; a later client arm upgrades it to
    *  clickable send-affordances without touching this contract. */
-  z.object({
+  z.strictObject({
     kind: z.literal("choices"),
     options: z.array(z.string()),
   }),

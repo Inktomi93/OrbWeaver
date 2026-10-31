@@ -29,7 +29,7 @@ export const assetsRouter = t.router({
     .input(galleryAddParamsSchema)
     .mutation(({ ctx, input }) => ctx.services.assets.addToGallery({ principal: ctx.auth, ...input })),
 
-  removeFromGallery: authedProcedure.input(z.object({ galleryItemId: galleryItemIdSchema })).mutation(({ ctx, input }) =>
+  removeFromGallery: authedProcedure.input(z.strictObject({ galleryItemId: galleryItemIdSchema })).mutation(({ ctx, input }) =>
     ctx.services.assets.removeFromGallery({
       principal: ctx.auth,
       galleryItemId: input.galleryItemId,

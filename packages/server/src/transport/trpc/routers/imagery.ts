@@ -34,7 +34,7 @@ export const imageryRouter = t.router({
   editImage: authedProcedure
     .output(generatedPictureSchema)
     .input(
-      z.object({
+      z.strictObject({
         sourceAssetId: assetIdSchema,
         instruction: z.string().trim().min(1).max(MAX_INSTRUCTION_CHARS),
         n: z.int().min(MIN_IMAGE_COUNT).max(MAX_IMAGE_COUNT).optional(),
@@ -56,7 +56,7 @@ export const imageryRouter = t.router({
   extractPrompt: authedProcedure
     .output(extractedPromptSchema)
     .input(
-      z.object({
+      z.strictObject({
         chatId: typeIdSchema(ID_PREFIX.chat),
         mode: extractionModeSchema,
         subjectCharacterId: typeIdSchema(ID_PREFIX.character).optional(),
@@ -78,6 +78,6 @@ export const imageryRouter = t.router({
   // no provenance row or isn't the caller's.
   readProvenance: authedProcedure
     .output(generationProvenanceSchema.nullable())
-    .input(z.object({ assetId: assetIdSchema }))
+    .input(z.strictObject({ assetId: assetIdSchema }))
     .query(({ ctx, input }) => ctx.services.imagery.readProvenance({ caller: ctx.auth, assetId: input.assetId })),
 });

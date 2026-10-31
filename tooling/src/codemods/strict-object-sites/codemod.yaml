@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "strict-object-sites"
+version: "0.1.0"
+description: "Rewrite z.object( to z.strictObject( at the call sites a JSON list in the target directory names."
+author: "Orbweaver"
+license: "MIT"
+targets:
+  languages: ["typescript", "tsx"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

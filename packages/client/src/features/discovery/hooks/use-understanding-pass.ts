@@ -81,7 +81,7 @@ const useStartUnderstandingRun = createEntityMutation<StartWorkloadWire, Workloa
 /** The pass's door, and the confirm's yes when it calls a model. */
 export const RUN_PASS_LABEL = "Sort my characters";
 
-function isActive(status: WorkloadStatus): boolean {
+export function isActive(status: WorkloadStatus): boolean {
   return (ACTIVE_WORKLOAD_STATUSES as readonly WorkloadStatus[]).includes(status);
 }
 
@@ -92,9 +92,14 @@ function isPassRow(row: WorkloadRow): row is PassRow {
   return (PASS_KINDS as readonly WorkloadKind[]).includes(row.kind);
 }
 
-/** The rows of THIS pass that this viewer's corpus is actually affected by (own rows + box-wide sweeps). */
+/** Whether a row touches this viewer's corpus: their own runs and the box-wide sweeps, never another user's. */
+export function affectsViewer(row: WorkloadRow, viewerId: WorkloadRow["ownerId"]): boolean {
+  return row.ownerId === viewerId || row.ownerId === null;
+}
+
+/** The rows of THIS pass that this viewer's corpus is actually affected by. */
 function passRowsFor(rows: readonly WorkloadRow[], viewerId: WorkloadRow["ownerId"]): PassRow[] {
-  return rows.filter(isPassRow).filter((row) => row.ownerId === viewerId || row.ownerId === null);
+  return rows.filter(isPassRow).filter((row) => affectsViewer(row, viewerId));
 }
 
 /**

@@ -30,7 +30,6 @@ export interface DeltaContext {
  *  independently-testable function of ITS plane — a per-actor plane's slice is the whole `actorState` array (the
  *  renderer correlates within it), a scalar plane's slice is that scalar. */
 export interface PlaneDiffRenderer<T> {
-  readonly plane: string;
   readonly select: (state: RpgSnapshotState) => T;
   readonly render: (prev: T, cur: T, ctx: DeltaContext) => readonly string[];
 }

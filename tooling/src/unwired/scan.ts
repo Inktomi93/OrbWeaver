@@ -44,6 +44,8 @@ export interface ScanOptions {
   readonly testWorlds?: readonly string[];
   readonly deliberate: readonly DeliberateEntry[];
   readonly log: (line: string) => void;
+  /** Engine two asks the TypeScript 6 language service instead of TypeScript 7.1, as an audit of the 7.1 answers. */
+  readonly crossCheck?: boolean;
 }
 
 /** One callable member and what engine one found pointing at it across one world. */
@@ -163,6 +165,7 @@ export function scanUnwired(options: ScanOptions): UnwiredReport {
     candidates.map((entry) => entry.first.member.site),
     {
       log: options.log,
+      crossCheck: options.crossCheck,
       visit: (world) => {
         // A test world's production files repeat the package worlds' flows; only those count.
         for (const [value, slots] of packages.has(world.config) ? world.flows() : []) {

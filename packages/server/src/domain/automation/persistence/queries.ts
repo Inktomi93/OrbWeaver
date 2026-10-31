@@ -14,7 +14,7 @@ const LIMIT_ONE = 1;
 type GlobalVariableRow = typeof globalVariables.$inferSelect;
 
 function toView(row: GlobalVariableRow): GlobalVariableView {
-  return { key: row.key, value: row.value, updatedAt: row.updatedAt };
+  return { key: row.key, value: row.value };
 }
 
 /** Read one owner-scoped global's value, or `null` (a foreign-owned/absent key reads as null — the owner

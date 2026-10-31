@@ -39,33 +39,34 @@ import {
 } from "@orb/contracts/chat";
 
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { strictInput } from "@orb/kit/zod-schema";
 import { z } from "zod";
 import { redeemInviteResultSchema } from "../role-output.ts";
 import { multiHumanProcedure, t } from "../trpc.ts";
 
-const createSchema = z.object({
+const createSchema = z.strictObject({
   chatId: typeIdSchema(ID_PREFIX.chat),
   input: createInviteSchema,
 });
 
-const revokeSchema = z.object({
+const revokeSchema = z.strictObject({
   chatId: typeIdSchema(ID_PREFIX.chat),
   inviteId: typeIdSchema(ID_PREFIX.chatInvite),
 });
 
-const declineSchema = z.object({ inviteId: typeIdSchema(ID_PREFIX.chatInvite) });
+const declineSchema = z.strictObject({ inviteId: typeIdSchema(ID_PREFIX.chatInvite) });
 
-const kickSchema = z.object({
+const kickSchema = z.strictObject({
   chatId: typeIdSchema(ID_PREFIX.chat),
   userId: brandedId("UserId"),
 });
 
-const chatScopedSchema = z.object({ chatId: typeIdSchema(ID_PREFIX.chat) });
+const chatScopedSchema = z.strictObject({ chatId: typeIdSchema(ID_PREFIX.chat) });
 
 // The nomination + the departing host's OPTIONAL property offer (stickler 2026-08-03 §5). `offer` absent =
 // no offer = the built D64 drop: the wire's DEFAULT is give-nothing, so a client that never learned about the
 // arm can never accidentally transfer someone's library.
-const nominateSchema = z.object({
+const nominateSchema = z.strictObject({
   chatId: typeIdSchema(ID_PREFIX.chat),
   userId: brandedId("UserId"),
   offer: handoffOfferSchema.optional(),
@@ -75,7 +76,7 @@ const nominateSchema = z.object({
 // ungated chat surface: it governs what a second HUMAN may read, so it is inert — and refused leak-free — in
 // a deployment that cannot seat one (the `kick`/`nominateHostHandoff` shape). The wire enum is the ONE-HOME
 // `joinHistoryVisibilitySchema` (`@orb/contracts/chat`), the same tuple the DB column's enum derives from.
-const setMemberHistoryVisibilitySchema = z.object({
+const setMemberHistoryVisibilitySchema = z.strictObject({
   chatId: typeIdSchema(ID_PREFIX.chat),
   userId: brandedId("UserId"),
   visibility: joinHistoryVisibilitySchema,
@@ -135,7 +136,7 @@ export const invitesRouter = t.router({
     .mutation(({ ctx, input }) => ctx.services.chat.selfLeave({ principal: ctx.auth, chatId: input.chatId })),
 
   nominateHostHandoff: multiHumanProcedure
-    .input(nominateSchema)
+    .input(strictInput(nominateSchema))
     .mutation(({ ctx, input }) => ctx.services.chat.nominateHostHandoff({ principal: ctx.auth, ...input })),
 
   acceptHostHandoff: multiHumanProcedure

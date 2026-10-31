@@ -71,7 +71,7 @@ export function ActiveInSection({ documentId, documentName }: { readonly documen
         {everywhere ? (
           <Row>
             <Badge tone="success" size="sm">
-              Every chat
+              Everywhere
             </Badge>
           </Row>
         ) : null}
