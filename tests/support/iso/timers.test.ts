@@ -1,7 +1,7 @@
 // The controlled timer seam: due-time order, interval repeat, cancellation and disposal.
 import { expect, test } from "vitest";
 import { createFrozenClock } from "./clock.ts";
-import { createControlledTimers } from "./timers.ts";
+import { createControlledTimers, createQuietTimers } from "./timers.ts";
 
 test("timeouts fire in due order, each at its own due instant, and only once the clock reaches them", () => {
   const clock = createFrozenClock(1000);
@@ -66,4 +66,14 @@ test("disposal drops every pending timer and refuses to arm another", () => {
   expect(fired).toEqual([]);
   expect(timers.pending()).toBe(0);
   expect(() => timers.timeout(() => undefined, 1)).toThrow("disposed");
+});
+
+test("a quiet scheduler is independent of every other: advancing one fires nothing on another", () => {
+  using first = createQuietTimers();
+  using second = createQuietTimers();
+  const fired: string[] = [];
+  first.timeout(() => fired.push("first"), 10);
+  second.timeout(() => fired.push("second"), 10);
+  first.advance(10);
+  expect(fired).toEqual(["first"]);
 });

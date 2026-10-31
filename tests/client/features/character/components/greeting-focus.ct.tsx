@@ -1,17 +1,18 @@
-import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { routeAuthConfig, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { ADD_GREETING_NAME, greetingOrdinalLabel, REMOVE_GREETING_NAME } from "#client/features/character/lib/greeting-copy.ts";
 import type { CharacterExampleLifetimeStory } from "./_example-lifetime-stories.tsx";
 
-test("removing an alternate opening returns focus to Add opening", async ({ corpus, mount, page }) => {
+test("removing an alternate greeting returns focus to Add greeting", async ({ corpus, mount, page }) => {
   await using root = await createCorpusHarness();
   const caller = await root.internalCallerFor(root.ownerId);
   const character = (await caller.character.list({ limit: 1 })).items[0];
   if (character === undefined) {
     throw new Error("The corpus has no character");
   }
-  await caller.character.update({ characterId: character.id, input: { greetings: [{ text: "First opening" }, { text: "Alternate opening" }] } });
-  await page.route("**/api/auth/config", (route) => route.fulfill({ json: corpus.auth.signedInConfig }));
+  await caller.character.update({ characterId: character.id, input: { greetings: [{ text: "First greeting" }, { text: "Alternate greeting" }] } });
+  await routeAuthConfig(page, corpus.auth.signedInConfig);
   await routeTrpc(
     page,
     serveCorpusProcedures(caller, [
@@ -29,10 +30,10 @@ test("removing an alternate opening returns focus to Add opening", async ({ corp
     characterId: character.id,
   });
   const greeting = page.locator('[data-slot="character-greeting"]');
-  await greeting.getByRole("button", { name: "Opening 2", exact: true }).click();
+  await greeting.getByRole("button", { name: greetingOrdinalLabel(2), exact: true }).click();
   await greeting.getByRole("button", { name: "Edit", exact: true }).click();
-  await expect(greeting.getByRole("textbox", { name: "Opening 2", exact: true })).toHaveValue("Alternate opening");
-  await greeting.getByRole("button", { name: "Remove opening", exact: true }).click();
-  await expect(greeting.getByRole("button", { name: "Add opening", exact: true })).toBeFocused();
-  await expect(greeting.getByRole("textbox", { name: "Opening 1", exact: true })).toHaveValue("First opening");
+  await expect(greeting.getByRole("textbox", { name: greetingOrdinalLabel(2), exact: true })).toHaveValue("Alternate greeting");
+  await greeting.getByRole("button", { name: REMOVE_GREETING_NAME, exact: true }).click();
+  await expect(greeting.getByRole("button", { name: ADD_GREETING_NAME, exact: true })).toBeFocused();
+  await expect(greeting.getByRole("textbox", { name: greetingOrdinalLabel(1), exact: true })).toHaveValue("First greeting");
 });

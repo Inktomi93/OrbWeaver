@@ -12,7 +12,7 @@ import { chatLocks, closeDb, pendingTurns, rpgSnapshots } from "@orb/db";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
-import { freshHeldDb, readRoomCanon, seedPeerLease } from "@orb/testkit/node/composed";
+import { freshHeldDb, readRoomCanon, SECRET_BOX_TEST_KEY, seedPeerLease } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 import { CHAT_OP_CODES, ChatNotFoundError } from "#server/domain/chat/contract/errors.ts";
 import { sdkEngineRoom } from "../engine/engine-physical.ts";
@@ -118,7 +118,7 @@ test("the real native engine lease refuses settlement without silently consuming
   if (voice === undefined) {
     throw new Error("the actual owed room has no voice for the peer replica");
   }
-  const peer = await seedPeerLease(h.root, { chatId: h.chatId, characterId: voice.id, hostUserId: h.owner.userId, holder, secretBoxKey: Buffer.alloc(32, 1) });
+  const peer = await seedPeerLease(h.root, { chatId: h.chatId, characterId: voice.id, hostUserId: h.owner.userId, holder, secretBoxKey: SECRET_BOX_TEST_KEY });
   try {
     await expect(h.root.services.chat.drainDeferredTurns({ all: true })).resolves.toEqual({ ran: 0, dropped: 0 });
     expect(await debt(room)).toEqual(before);
@@ -344,7 +344,7 @@ test("an early native lock-loss rejection cannot release handoff before the actu
       hostUserId: h.owner.userId,
       holder: replacement,
       aheadMs: lease.expiresAt - h.root.clock.now() + 1,
-      secretBoxKey: Buffer.alloc(32, 1),
+      secretBoxKey: SECRET_BOX_TEST_KEY,
     });
     h.root.timers.advance(Math.floor((lease.expiresAt - lease.acquiredAt) / 3));
     await expect(running).rejects.toMatchObject({ code: CHAT_OP_CODES.aborted });

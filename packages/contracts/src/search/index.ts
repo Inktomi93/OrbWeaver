@@ -483,21 +483,21 @@ const SEARCH_TARGETS = ["entities", "characters", "discover", "segments", "diges
 export type SearchTarget = (typeof SEARCH_TARGETS)[number];
 
 const searchScopeInputSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("owner") }),
-  z.object({
+  z.strictObject({ kind: z.literal("owner") }),
+  z.strictObject({
     kind: z.literal("chat"),
     chatId: typeIdSchema(ID_PREFIX.chat),
     scopedCharacterId: typeIdSchema(ID_PREFIX.character).optional(),
   }),
-  z.object({ kind: z.literal("character"), characterId: typeIdSchema(ID_PREFIX.character) }),
+  z.strictObject({ kind: z.literal("character"), characterId: typeIdSchema(ID_PREFIX.character) }),
 ]) satisfies z.ZodType<SearchScope>;
 
-const similarCharactersInput = z.object({
+const similarCharactersInput = z.strictObject({
   characterId: typeIdSchema(ID_PREFIX.character),
   topN: z.int().positive().max(SEARCH_TOP_N_MAX),
 });
 
-export const unifiedSearchInputSchema = z.object({
+export const unifiedSearchInputSchema = z.strictObject({
   query: z.string().min(1),
   topN: z.int().positive().max(SEARCH_TOP_N_MAX),
   over: z.enum(SEARCH_TARGETS),
@@ -506,9 +506,9 @@ export const unifiedSearchInputSchema = z.object({
   lens: imageLensSchema.optional(),
 });
 
-export const fieldSearchInputSchema = z.object({ query: z.string().min(1), topN: z.int().positive().max(SEARCH_TOP_N_MAX) });
+export const fieldSearchInputSchema = z.strictObject({ query: z.string().min(1), topN: z.int().positive().max(SEARCH_TOP_N_MAX) });
 
-export const searchSuggestInputSchema = z.object({ query: z.string().min(1), limit: z.int().positive().max(SEARCH_SUGGEST_MAX_LIMIT) });
+export const searchSuggestInputSchema = z.strictObject({ query: z.string().min(1), limit: z.int().positive().max(SEARCH_SUGGEST_MAX_LIMIT) });
 
 export const similarArtInputSchema = similarCharactersInput.extend({
   lens: imageLensSchema.optional(),

@@ -65,10 +65,10 @@ export function TalkativenessPopover({
                 BOTH halves sit at the `label` step, not `micro`: this is INTERACTIVE text (the chip is the
                 popover's trigger), and `design-audit` reds interactive type under the 11px functional floor
                 — "being on the type ramp does not exempt it". `micro` is 10.5px. */}
-            <Text as="span" voice="label">
+            <Text ink="inherit" as="span" voice="label">
               Talks
             </Text>
-            <Text as="span" voice="datum">
+            <Text ink="inherit" as="span" voice="datum">
               {talkativenessPercent(weight)}
             </Text>
           </Button>

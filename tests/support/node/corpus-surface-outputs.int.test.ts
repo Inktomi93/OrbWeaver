@@ -92,7 +92,7 @@ test("native surface suppliers preserve app override provenance, owner-only glob
   expect(characters.removed).toEqual({ applied: [first.id], failed: [] });
   expect(characters.removedAgain).toEqual({ applied: [], failed: [] });
   expect(await other.character.get({ characterId: characters.foreign.id })).toEqual(characters.foreign);
-  expect(characters.generated).toEqual({ text: SURFACE_GREETING_REPLY, costUsd: null });
+  expect(characters.generated).toEqual({ text: SURFACE_GREETING_REPLY });
   expect(characters.rewritten).toEqual(characters.generated);
   expect(characters.afterGreeting).toEqual(characters.beforeGreeting);
   const completionsBeforeRefusal = provider.requests.filter((request) => request === "POST /v1/chat/completions");

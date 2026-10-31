@@ -4,11 +4,10 @@
 // control opens.
 
 import { TRAIL_OVERFLOW_LABEL } from "@orb/client/components";
-import { enlargeUntilVisible, seedShellState, setRootProperty } from "@orb/testkit/browser/spec";
-import { SECTION_LABELS, SECTION_PROCEDURES } from "@orb/testkit/ct";
+import { enlargeUntilVisible, seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
+import { channelName, SECTION_LABELS, SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import { channelName } from "../../../lib/appearance-channel-names.ts";
 import type { AppShellStory } from "./_app-shell-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -51,7 +50,7 @@ test("an action leaves the topbar row for the menu as it narrows and returns as 
 
   // Focus on the action that is about to leave the row moves to the trigger instead of dropping to the page.
   await inline.focus();
-  await setRootProperty(page, FONT_SCALE_PROPERTY, ENLARGED);
+  await setRootFontScale(page, FONT_SCALE_PROPERTY, ENLARGED);
   await expect(trigger).toBeVisible();
   await expect(trigger).toBeFocused();
   await expect(inline).toBeHidden();
@@ -62,7 +61,7 @@ test("an action leaves the topbar row for the menu as it narrows and returns as 
   await expect(page.getByRole("textbox", { name: "What happened?", exact: true })).toBeVisible();
   await page.keyboard.press("Escape");
 
-  await setRootProperty(page, FONT_SCALE_PROPERTY, null);
+  await setRootFontScale(page, FONT_SCALE_PROPERTY, null);
   await expect(inline).toBeVisible();
   await expect(trigger).toBeHidden();
 });
@@ -75,7 +74,7 @@ for (const form of [
     await seedShellState(page, { activeSection: "chats" });
     await mount<typeof AppShellStory>(STORY, {});
     const trail = page.locator(".shell-topbar-trail");
-    await setRootProperty(page, FONT_SCALE_PROPERTY, ENLARGED);
+    await setRootFontScale(page, FONT_SCALE_PROPERTY, ENLARGED);
     await trail.getByRole("button", { name: TRAIL_OVERFLOW_LABEL }).click();
     await page.getByRole("menuitem", { name: form.label }).click();
     await expect(page.getByRole(form.surface.role, { name: form.surface.name, exact: true })).toBeVisible();

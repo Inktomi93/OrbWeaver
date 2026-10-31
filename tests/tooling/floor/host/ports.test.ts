@@ -145,8 +145,8 @@ test("two offset runs, and the base run, share no port", () => {
 
 test("an offset that is not a stride multiple, or that lands on a stage band, is refused", () => {
   for (const offset of [1, E2E_PORT_OFFSET_STRIDE + 5, -E2E_PORT_OFFSET_STRIDE, 1.5, Number.NaN]) {
-    expect(() => e2eRunPorts(offset)).toThrow(/non-negative multiple of 10/u);
+    expect(() => e2eRunPorts(offset)).toThrow(`non-negative multiple of ${E2E_PORT_OFFSET_STRIDE}`);
   }
   // Band 0's server is 8888: the offset that puts the forward-header server there is named in the refusal.
-  expect(() => e2eRunPorts(9 * E2E_PORT_OFFSET_STRIDE)).toThrow(/8888/u);
+  expect(() => e2eRunPorts(9 * E2E_PORT_OFFSET_STRIDE)).toThrow(String(stageBandPorts(0).server));
 });

@@ -13,6 +13,7 @@ import {
   CORPUS_TEXT_MODEL,
   createChatRoot,
   createCorpusProviderExecution,
+  SECRET_BOX_TEST_KEY,
   servePhysicalPeer,
 } from "@orb/testkit/node/composed";
 import { z } from "zod";
@@ -251,7 +252,7 @@ export async function speakerRoom(
       group: { output: "per-speaker", policy: "smart", smartPicker: "utility", allowSelfResponses: true },
       memoryEnabled: false,
       ...options,
-      server: { ids, secretBoxKey: Buffer.alloc(32, 1), ...options.server },
+      server: { ids, secretBoxKey: SECRET_BOX_TEST_KEY, ...options.server },
       providerFetch: async (input, init): Promise<Response> => {
         const request = new Request(input, init);
         return new URL(request.url).origin === new URL(baseUrl).origin ? await fetch(request) : await bootstrap.execute(request);

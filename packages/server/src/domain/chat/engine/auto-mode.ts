@@ -10,7 +10,7 @@
 // loop is policy-free orchestration.
 
 import type { MessageView, SpeakerRef } from "@orb/contracts/chat";
-import type { AutoModeResult, AutoModeStopReason, SpeakerCandidate } from "../contract/arbitration.ts";
+import type { AutoModeResult, SpeakerCandidate } from "../contract/arbitration.ts";
 import type { DelayOp } from "../contract/engine-context.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import type { TurnOutcome } from "../contract/results.ts";
@@ -37,16 +37,14 @@ function isLockedRefusal(err: unknown): boolean {
  *  step committed before it stopped — an ABORTED round returns its partial rows through the normal result
  *  channel (`driveRound`'s `{messages, aborted}`), and those rows are canon whether or not the chain goes on. */
 type StepResult =
-  | { readonly done: AutoModeStopReason; readonly committed: readonly MessageView[] }
+  | { readonly done: true; readonly committed: readonly MessageView[] }
   | { readonly committed: readonly MessageView[]; readonly speakerRef: SpeakerRef };
 
 async function step(params: AutoModeParams, last: SpeakerRef | null): Promise<StepResult> {
   const speaker = await params.nextSpeaker(last);
   if (speaker === null) {
-    // `nextSpeaker` is now CANCELLABLE (the `smart` side-LLM arbitration reads this same signal), and a
-    // cancelled arbitration yields no speaker. A settled signal means the caller interrupted — report that,
-    // not the "everyone is muted/left" story `no-eligible` tells.
-    return { done: params.signal?.aborted === true ? "interrupt" : "no-eligible", committed: [] };
+    // No speaker: everyone is muted or gone, or the cancellable `smart` arbitration was interrupted. Both end the chain.
+    return { done: true, committed: [] };
   }
   try {
     const outcome = await params.runTurn(speaker);
@@ -57,12 +55,12 @@ async function step(params: AutoModeParams, last: SpeakerRef | null): Promise<St
       // reading only `outcome.messages` fed a dead turn forward as if it had committed: the last speaker
       // advanced, the turn count grew, and the chain arbitrated and GENERATED the next speaker on top of a
       // turn the user had just cancelled. Keep the rows that genuinely landed; stop the chain.
-      return { done: "interrupt", committed: outcome.messages };
+      return { done: true, committed: outcome.messages };
     }
     return { committed: outcome.messages, speakerRef: speaker.ref };
   } catch (err) {
     if (isLockedRefusal(err)) {
-      return { done: "locked", committed: [] };
+      return { done: true, committed: [] };
     }
     throw err;
   }
@@ -83,7 +81,7 @@ export async function runAutoMode(params: AutoModeParams): Promise<AutoModeResul
     const r = await step(params, last);
     if ("done" in r) {
       // The rows a stopping step committed are canon and belong in the chain's report — the caller renders
-      // `messages`, so dropping them here would hide a landed reply behind the stop reason. `turns` is NOT
+      // `messages`, so dropping them here would hide a landed reply when the chain stops. `turns` is NOT
       // incremented: the turn did not complete.
       messages.push(...r.committed);
       return stop();

@@ -11,6 +11,8 @@ export type { AtlasBootOptions, CannedResponse } from "./atlas-guest.ts";
 export { bootAtlas, bootAtlasDates, lastAtlasState } from "./atlas-guest.ts";
 export { prepareBackupFolder } from "./backup-folder.ts";
 export { readRoomCanon } from "./chat/canon.ts";
+export type { StoredAvatar } from "./chat/cast.ts";
+export { addCharacter, addPersona, startRoom, storeAvatar } from "./chat/cast.ts";
 export type { ChatRoot, ChatRootOptions } from "./chat/composed.ts";
 export { createChatRoot } from "./chat/composed.ts";
 export {
@@ -48,7 +50,7 @@ export {
 } from "./corpus-provider.ts";
 export { createCorpusRecipe, prepareCorpusSnapFixture, runCorpusSnapConsumer } from "./corpus-recipe.ts";
 export type { HeldDb, HeldStatement } from "./db.ts";
-export { freshCountedDb, freshDb, freshHeldDb, migrationsBefore, SHIPPED_MIGRATIONS } from "./db.ts";
+export { freshCountedDb, freshDb, freshHeldDb, migrationsBefore, migrationsBeforeLatest, SHIPPED_MIGRATIONS } from "./db.ts";
 export type { DbFault } from "./db-faults.ts";
 export { plantTrigger, refuseWrites, withheldTable } from "./db-faults.ts";
 export { createTestEnv } from "./env.ts";
@@ -90,6 +92,7 @@ export { seedCreatedTag } from "./factories/tag.ts";
 export { createQueueScanner, seedWorkloadSchedule } from "./factories/workload.ts";
 export type { PhysicalPeer, PhysicalPeerFetch } from "./physical-peer.ts";
 export { servePhysicalPeer } from "./physical-peer.ts";
+export { exportLibrary, imageProvider, restoreBundle, SIGNED_IN_ROUTE, signedInBox, WORKLOAD_DEADLINE_MS } from "./portability-box.ts";
 export type {
   NativeServerHarnessOptions,
   NativeServerTestHarness,

@@ -1,5 +1,6 @@
 // A root whose MediaWiki endpoint answers with one scripted body.
 
+import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { createServerHarness } from "@orb/testkit/node/composed";
 
 export const ARTICLE = "https://wiki.example/wiki/Northern_Passes";
@@ -9,7 +10,7 @@ export async function rootFor(body: string): Promise<{ readonly root: Awaited<Re
   const requests: string[] = [];
   const root = await createServerHarness({
     networkExecution: {
-      resolver: () => Promise.resolve(["93.184.215.14"]),
+      resolver: () => Promise.resolve([PUBLIC_PEER_ADDRESS]),
       fetch: (input): Promise<Response> => {
         requests.push(input instanceof Request ? input.url : String(input));
         return Promise.resolve(new Response(body, { headers: { "content-type": "application/json" } }));

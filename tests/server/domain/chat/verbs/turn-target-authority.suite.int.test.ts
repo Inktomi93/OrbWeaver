@@ -2,7 +2,7 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 
 import { createCharacterSchema } from "@orb/contracts/character";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import { readRoomCanon } from "@orb/testkit/node/composed";
 import { ChatNotFoundError } from "#server/domain/chat/contract/errors.ts";
@@ -63,7 +63,7 @@ test("a forced first reply claims the unstarted room before its canon and accoun
     ChatNotFoundError,
   );
   await expect(
-    h.root.services.chat.forceCharacterTurn({ principal: h.owner, chatId: h.chatId, characterId: mintTypeId(ID_PREFIX.character) }),
+    h.root.services.chat.forceCharacterTurn({ principal: h.owner, chatId: h.chatId, characterId: h.root.ids.typeId(ID_PREFIX.character) }),
   ).rejects.toBeInstanceOf(ChatNotFoundError);
   expect(await listed()).toBe(false);
 

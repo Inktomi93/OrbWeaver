@@ -1,6 +1,6 @@
 import { blobUrl } from "@orb/contracts/assets";
 import { characterDetailSchema } from "@orb/contracts/character";
-import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { routeAuthConfig, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { CharacterExampleLifetimeStory } from "./_example-lifetime-stories.tsx";
@@ -24,7 +24,7 @@ test("example preview retains native link consent for identical reads and drops 
   const characterId = characterDetailSchema.shape.id.parse(character.id);
   const firstText = `<START>\n![Example witness](${blobUrl(hashes[0])})\n[Read image](${blobUrl(hashes[0])})`;
   await caller.character.update({ characterId, input: { exampleMessages: firstText } });
-  await page.route("**/api/auth/config", (route) => route.fulfill({ json: corpus.auth.signedInConfig }));
+  await routeAuthConfig(page, corpus.auth.signedInConfig);
   await routeTrpc(
     page,
     serveCorpusProcedures(caller, [

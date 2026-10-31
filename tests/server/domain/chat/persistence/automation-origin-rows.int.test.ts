@@ -6,7 +6,7 @@
 import { AUTOMATION_DEPTH_HARD_CAP } from "@orb/contracts/chat";
 import { automationFires, chatGenerationObservations, messages, messageVariants } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
-import { seedCorpusConnections } from "@orb/testkit/node/composed";
+import { SECRET_BOX_TEST_KEY, seedCorpusConnections } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 import { enabledRule } from "../../automation/runtime.fixtures.ts";
 import { invitePerson } from "../persona-cache-physical.ts";
@@ -17,7 +17,7 @@ const OWNER_KEY = "synthetic-tail-automation-owner-key";
 test("a real host-authored cascade stamps each bounded automation depth, records its cap refusal and loses authority when its author becomes a member", async () => {
   await using h = await textRoom([...Array.from({ length: AUTOMATION_DEPTH_HARD_CAP }, (_, index) => `Automatic beat ${index + 1}.`), "The human asks next."], {
     group: { output: "per-speaker", policy: "list", allowSelfResponses: true },
-    server: { secretBoxKey: Buffer.alloc(32, 1) },
+    server: { secretBoxKey: SECRET_BOX_TEST_KEY },
   });
   const connectionId = (await h.root.services.connection.listBindings({ principal: h.owner })).find(({ task }) => task === "chat")?.binding?.connectionId;
   if (connectionId === undefined || connectionId === null) {

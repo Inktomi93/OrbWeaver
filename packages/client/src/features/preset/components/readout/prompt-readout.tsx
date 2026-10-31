@@ -286,7 +286,7 @@ function BudgetBar({
   const off = !section.enabled;
   return (
     <Button variant="ghost" onClick={(): void => selectPresetSection(section.id)} size="sm" selection={selected ? "on" : "none"}>
-      <Text className="flex-1 truncate text-start min-inline-0" strike={off} voice="label">
+      <Text ink="inherit" className="flex-1 truncate text-start min-inline-0" strike={off} voice="label">
         {sectionName(section)}
       </Text>
       {/* ZONE-HUED, never the categorical ramp's step 1 (side-eye, the mock-vs-rendered table): the ramp's
@@ -306,7 +306,7 @@ function BudgetBar({
       )}
       {/* The GLYPH is decoration for the eye and the SENTENCE is the datum (side-eye F-27): `~—`
           announces as "tilde em dash", which is not a cost. */}
-      <Text aria-hidden={true} strike={off} voice="datum">
+      <Text ink="inherit" aria-hidden={true} strike={off} voice="datum">
         {tokens === null ? CARRIER_COST_GLYPH : formatEstimate(tokens)}
       </Text>
       <Text as="span" className="sr-only">

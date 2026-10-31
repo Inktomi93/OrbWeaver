@@ -339,12 +339,17 @@ const TEST_CONSTANT_HOMES = {
   "packages/server/src/domain/credentials/contract/errors.ts": "CREDENTIALS_OP_CODES: the refusal codes credentials suites assert",
   "packages/server/src/domain/settings/contract/errors.ts": "SETTINGS_OP_CODES: the refusal codes settings suites assert",
   "packages/client/src/features/credentials/lib/connections-copy.ts": "ADD_CONNECTION_NAME: the add-connection button's name",
+  "packages/client/src/features/character/lib/greeting-copy.ts":
+    "the greeting strip's control names: the add and remove buttons and the numbered greeting label",
   "packages/server/src/foundation/data-layout/contract.ts": "the data-layout slot key constants: the env keys that override one slot each",
   "packages/server/src/domain/chat/contract/metadata.ts": "TOOL_RECURSE_LIMIT_DEFAULT: the default the corpus writes back",
   "packages/server/src/domain/chat/persistence/participants-read.ts": "loadPresentRole: the production role read the authority suite compares against",
   "packages/server/src/domain/import/substrate/appearance.ts":
     "stAppearancePatch and ST_POWER_USER_KEY: the pure ST power_user mapping and the settings.json key it reads",
+  "packages/server/src/entry/boot/disclaimer.ts": "BOOT_DISCLAIMER_TOPICS: the topic order the disclaimer block follows",
   "packages/server/src/entry/boot/migrate-data-layout.ts": "DataLayoutRefusal: the refusal class and reason the layout migration suite asserts",
+  "packages/server/src/domain/refinery/substrate/stage-resolution.ts":
+    "REFINERY_RESPONSE_FORMATS: the wire schema names the scripted peer answers each refinery stage under",
   "packages/server/src/domain/plugin/contract/errors.ts": "PluginNotFoundError: the refusal class plugin seed cases assert",
   "packages/server/src/domain/plugin/substrate/plugin-macros.ts": "pluginMacroName: the token rule for a plugin's registered macro",
   "packages/server/src/domain/chat/substrate/reaction-note.ts":
@@ -357,6 +362,7 @@ const TEST_CONSTANT_HOMES = {
   "packages/server/src/domain/settings/substrate/seed-themes.ts": "SEED_THEMES: the seeded theme table",
   "packages/server/src/domain/settings/verbs/upstream-probes.ts": "UPSTREAM_ANSWER_TTL_MS: the probe answer lifetime",
   "packages/server/src/foundation/observability/tracing.ts": "getTraceByRequestId: the trace ring read the span suites assert through",
+  "packages/server/src/primitives/serde/databank/index.ts": "DATABANK_SCHEMA_KIND: the sibling envelope kind a chat bundle refuses as foreign",
   "packages/server/src/infra/plugin-host/process-argv.ts": "formatPluginBrokerArguments: the watchdog's broker launch the permission-drop suite repeats",
   "packages/server/src/infra/plugin-host/process-channel.ts":
     "parsePluginIpcMessage: the envelope parser the permission-drop suite reads a real broker through",
@@ -689,6 +695,15 @@ const PACKAGE_TEST_REACHES = {
   },
   "tests/client/features/discovery/lib/corpus-duplicate-groups.test.ts": {
     "packages/client/src/features/discovery/lib/corpus-duplicate-groups.ts": "groupIdenticalArt: the feature-private duplicate grouping",
+  },
+  "tests/client/features/discovery/lib/corpus-readiness-passes.int.test.ts": {
+    "packages/client/src/features/discovery/lib/corpus-readiness-passes.ts":
+      "enqueueReadinessPass and isReadinessRun: the feature-private per-pass doors the suite sends through the production start verb",
+    "packages/client/src/features/discovery/lib/corpus-analysis-state.ts": "CORPUS_READINESS_STAGE_IDS: the rail's rows, one door each",
+  },
+  "tests/client/features/discovery/components/corpus-readiness-rail.ct.tsx": {
+    "packages/client/src/features/discovery/lib/corpus-readiness-passes.ts":
+      "READINESS_PASSES: the prerequisite, door and confirm words each readiness row prints",
   },
   "tests/client/features/discovery/lib/corpus-vocabulary.test.ts": {
     "packages/client/src/features/discovery/lib/corpus-vocabulary.ts": "distilledCensus: the feature-private census phrasing both Corpus bands print",

@@ -480,6 +480,7 @@ export function scanFields(options: ScanOptions): FieldsReport {
   const reflectedTwo = new Set<string>();
   const second = serviceReferences(options.root, [...worlds, ...testWorlds], [...asked.values()].flatMap(namesOf), {
     log: options.log,
+    crossCheck: options.crossCheck,
     visit: (world) => {
       for (const site of serviceReflectedReads(world)) {
         reflectedTwo.add(site);

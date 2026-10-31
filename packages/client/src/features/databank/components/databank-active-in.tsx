@@ -71,7 +71,7 @@ export function ActiveInSection({ documentId, documentName }: { readonly documen
         {everywhere ? (
           <Row>
             <Badge tone="success" size="sm">
-              Every chat
+              Everywhere
             </Badge>
           </Row>
         ) : null}
@@ -111,10 +111,10 @@ function RoomDoor({ room, stamp }: { readonly room: VisibleRoomRef; readonly sta
   return (
     <Button className="justify-start inline-full" variant="ghost" onClick={(): void => openChat(room.id)} size="sm" type="button">
       <Icon icon={MessagesSquare} size="xs" />
-      <Text as="span" className="truncate min-inline-0" voice="label">
+      <Text ink="inherit" as="span" className="truncate min-inline-0" voice="label">
         {title}
       </Text>
-      <Text as="span" className="shrink-0" voice="datum">
+      <Text ink="inherit" as="span" className="shrink-0" voice="datum">
         {stamp}
       </Text>
     </Button>

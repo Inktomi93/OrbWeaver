@@ -8,7 +8,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import { messages, messageVariants } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import { makePluginBundle } from "@orb/testkit/node/composed";
 import { seedInstalledPluginRows, seedPluginGrantRows } from "@orb/testkit/node/rows";
@@ -65,7 +65,7 @@ test("a native command refuses foreign rooms before guest execution and cannot t
   const foreignRoom = await h.root.services.chat.startChat({ principal: foreign, characterIds: [character.id], opening: "none" });
   const command = await enableWitness(h);
   await expect(h.root.services.plugin.invokeUiCommand({ ...command, chatId: foreignRoom.chat.id })).rejects.toBeInstanceOf(DomainNotFoundError);
-  await expect(h.root.services.plugin.invokeUiCommand({ ...command, chatId: mintTypeId(ID_PREFIX.chat) })).rejects.toBeInstanceOf(DomainNotFoundError);
+  await expect(h.root.services.plugin.invokeUiCommand({ ...command, chatId: h.root.ids.typeId(ID_PREFIX.chat) })).rejects.toBeInstanceOf(DomainNotFoundError);
   expect((await h.root.services.plugin.getLog({ caller: h.owner, pluginId: command.pluginId })).filter(({ message }) => message === ENTERED)).toEqual([]);
   expect(h.requests.filter(({ method }) => method === "POST")).toEqual([]);
   expect(await h.root.db.select().from(messages)).toEqual([]);
@@ -108,7 +108,7 @@ test("a plugin-requested first reply claims the unstarted room before its canon 
 test("a plugin request naming a non-roster speaker is refused before it claims the unstarted room", async () => {
   await using h = await textRoom(["No reply is owed."], { server: { pluginSpawn: spawn } });
   const listed = async (): Promise<boolean> => (await h.root.services.chat.listChats({ principal: h.owner })).items.some(({ id }) => id === h.chatId);
-  const command = await enableWitness(h, requestingGuest({ speakerCharacterId: mintTypeId(ID_PREFIX.character) }));
+  const command = await enableWitness(h, requestingGuest({ speakerCharacterId: h.root.ids.typeId(ID_PREFIX.character) }));
 
   await expect(h.root.services.plugin.invokeUiCommand({ ...command, chatId: h.chatId })).rejects.toThrow();
   await h.root.settleBackground();

@@ -1,6 +1,6 @@
 // A Retry on the chat transcript boundary (which passes no reserveKey) must leave the transcript's scroller its
 // bounded height, so the settled thread still scrolls inside the room instead of growing past it.
-import { routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
+import { routeAuthConfig, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { TideMediaLifetimeStory } from "./_media-lifetime-stories.tsx";
@@ -31,7 +31,7 @@ test("a transcript that settles after Retry keeps a bounded scroller", async ({ 
   }
   const chatId = (await caller.chat.getChat({ chatId: captured.id })).id;
   let failing = true;
-  await page.route("**/api/auth/config", (route) => route.fulfill({ json: corpus.auth.signedInConfig }));
+  await routeAuthConfig(page, corpus.auth.signedInConfig);
   await routeTrpc(page, {
     ...serveCorpusProcedures(caller, ROOM_READS),
     ...serveCorpusProcedures(caller, ["chat.listMessages"], () => (failing ? trpcError({ code: "INTERNAL_SERVER_ERROR" }) : undefined)),

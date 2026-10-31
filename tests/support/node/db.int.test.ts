@@ -5,13 +5,17 @@
 // to the vitest timeout. Runs against the real proxied libSQL client — the same `LibSqlWrap` seam
 // production uses for OTel.
 
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import type { Db } from "@orb/db";
 import { closeDb, createDb, runMigrations, users } from "@orb/db";
 import { sql } from "drizzle-orm";
-import { freshCountedDb, freshDb, freshHeldDb, SHIPPED_MIGRATIONS } from "./db.ts";
+import { z } from "zod";
+import { freshCountedDb, freshDb, freshHeldDb, migrationsBeforeLatest, SHIPPED_MIGRATIONS } from "./db.ts";
 import { makeUser } from "./factories/rows.ts";
 import { expect, test } from "./fixtures.ts";
 
+const journalSchema = z.object({ entries: z.array(z.object({ tag: z.string() })) });
 const INSERT_SQL = /insert into/iu;
 const SELECT_SQL = /select/iu;
 
@@ -34,6 +38,16 @@ async function heldDb(resources: AsyncDisposableStack): Promise<Awaited<ReturnTy
   resources.defer(() => closeDb(held.db));
   return held;
 }
+
+test("the chain cut before the latest migration drops exactly the newest journal entry", async () => {
+  const tags = async (path: string): Promise<readonly string[]> => {
+    const journal = journalSchema.parse(JSON.parse(await readFile(join(path, "meta", "_journal.json"), "utf8")));
+    return journal.entries.map(({ tag }) => tag);
+  };
+  const shipped = await tags(SHIPPED_MIGRATIONS);
+  await using before = await migrationsBeforeLatest();
+  expect(await tags(before.path)).toEqual(shipped.slice(0, -1));
+});
 
 test("the handles a case opens close with its scope", async () => {
   const resources = new AsyncDisposableStack();

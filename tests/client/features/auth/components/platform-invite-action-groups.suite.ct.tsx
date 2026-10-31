@@ -2,6 +2,7 @@ import { SIGNUP_MAX_TTL_MS } from "@orb/contracts/chat";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { actionGroupGeometry } from "@orb/testkit/browser/spec";
+import { routeAuthConfig } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createServerHarness, readAccounts } from "@orb/testkit/node/composed";
@@ -31,7 +32,7 @@ for (const regime of REGIMES) {
     for (const confirming of [false, true]) {
       test(`pending join keeps ${confirming ? "Joining" : "Create account and join"} and Not now reachable`, async ({ mount, page }, testInfo) => {
         await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark", forcedColors: "none" });
-        await page.route("**/api/auth/config", (route) => route.fulfill({ json: PENDING_AUTH_CONFIG }));
+        await routeAuthConfig(page, PENDING_AUTH_CONFIG);
         await page.route(PENDING_PREVIEW_PATH, (route) => route.fulfill({ json: PENDING_ROOM }));
         const release = Promise.withResolvers<void>();
         const arrived = Promise.withResolvers<void>();

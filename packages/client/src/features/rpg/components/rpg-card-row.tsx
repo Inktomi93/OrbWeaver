@@ -37,7 +37,7 @@ export function RpgCardRow({ card, onOpen }: RpgCardRowProps): ReactElement {
       className="px-field text-start inline-full"
       data-slot="rpg-card-row"
     >
-      <Text as="span" voice="label" className="flex-1 truncate min-inline-0">
+      <Text ink="inherit" as="span" voice="label" className="flex-1 truncate min-inline-0">
         ✦ {label}
       </Text>
       {card.origin === "lenient" ? (

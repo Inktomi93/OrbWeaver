@@ -1,7 +1,7 @@
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { ChatId, MessageId, UserId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
+import { routeAuthConfig, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
@@ -128,7 +128,7 @@ async function memberRoom(
 async function serveAs(root: Harness, page: Page, viewer: Caller, neighbourRead?: () => unknown): Promise<void> {
   const auth = await root.http.request("/api/auth/config");
   const authBody = await auth.text();
-  await page.route("**/api/auth/config", (route) => route.fulfill({ contentType: "application/json", body: authBody }));
+  await routeAuthConfig(page, authBody);
   const served = serveCorpusProcedures(viewer, PROCEDURES);
   const listMessages = served["chat.listMessages"];
   if (typeof listMessages !== "function") {

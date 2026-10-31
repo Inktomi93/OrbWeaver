@@ -3,20 +3,30 @@
 //
 // Fixtures are real files under the production client glob, linted through the real `eslint.config.ts` with type
 // information; the `@orb/ui` doors map to the repository sources so a declaration resolves to its true file.
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint } from "eslint";
+import { z } from "zod";
 
 const SURFACE_RULE = "orb/surface-consumes-container";
 const ANCHOR_RULE = "orb/anchor-provides-container";
 const FEATURE = "packages/client/src/features/chat";
+// The doors map to the sources the ui package's own exports map names, so a moved door follows without an edit here.
+const UI_EXPORTS = z.object({ exports: z.record(z.string(), z.unknown()) }).parse(JSON.parse(readFileSync("packages/ui/package.json", "utf8"))).exports;
+const doorSource = (name: string): string => {
+  const target = UI_EXPORTS[`./${name}`];
+  if (typeof target !== "string") {
+    throw new Error(`@orb/ui exports no ./${name} door`);
+  }
+  return join("packages/ui", target);
+};
 const DOORS = {
-  "@orb/ui/dialog": "packages/ui/src/primitives/dialog/index.ts",
-  "@orb/ui/alert-dialog": "packages/ui/src/primitives/alert-dialog/index.ts",
-  "@orb/ui/layout": "packages/ui/src/layout/index.ts",
+  "@orb/ui/dialog": doorSource("dialog"),
+  "@orb/ui/alert-dialog": doorSource("alert-dialog"),
+  "@orb/ui/layout": doorSource("layout"),
 } as const;
 
 const SHARED = {

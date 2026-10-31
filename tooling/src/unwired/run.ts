@@ -23,7 +23,8 @@ type ScanVerb = (typeof SCAN_VERBS)[number];
 const VERBS = [...SCAN_VERBS, "ports"] as const;
 type Verb = (typeof VERBS)[number];
 
-const USAGE = `usage: pnpm unwired [${SCAN_VERBS.slice(1).join("|")}] [--root=<dir>] [--out=<file>] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>]`;
+const CROSS_CHECK_FLAG = "--cross-check";
+const USAGE = `usage: pnpm unwired [${SCAN_VERBS.slice(1).join("|")}] [--root=<dir>] [--out=<file>] [${CROSS_CHECK_FLAG}] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>]`;
 const DEFAULT_PORTS_OUT = "reports/unwired/port-targets.json";
 
 interface Finding {
@@ -71,6 +72,8 @@ interface Args {
   readonly out: string | null;
   readonly leg: Leg | null;
   readonly cluster: ClusterGroup | null;
+  /** Engine two asks the TypeScript 6 language service instead of TypeScript 7.1. */
+  readonly crossCheck: boolean;
 }
 
 function oneOf<T extends string>(flag: string, value: string | null, allowed: readonly T[]): T | null {
@@ -86,7 +89,8 @@ function parseArgs(argv: readonly string[]): Args {
   const named = VERBS.find((candidate) => candidate !== "scan" && candidate === first);
   const verb = named ?? "scan";
   const flags = new Map<string, string>();
-  for (const arg of named === undefined ? argv : argv.slice(1)) {
+  const rest = (named === undefined ? argv : argv.slice(1)).filter((arg) => arg !== CROSS_CHECK_FLAG);
+  for (const arg of rest) {
     const match = /^--(root|out|leg|cluster)=(.+)$/u.exec(arg);
     if (match === null) {
       throw new UsageError(`${arg}: unknown argument\n${USAGE}`);
@@ -99,6 +103,7 @@ function parseArgs(argv: readonly string[]): Args {
     out: flags.get("out") ?? null,
     leg: oneOf("leg", flags.get("leg") ?? null, LEGS),
     cluster: oneOf("cluster", flags.get("cluster") ?? null, CLUSTER_GROUPS),
+    crossCheck: argv.includes(CROSS_CHECK_FLAG),
   };
 }
 
@@ -197,6 +202,7 @@ export function runUnwired(argv: readonly string[]): number {
     testWorlds: TEST_WORLDS.filter((config) => existsSync(join(args.root, config))),
     deliberate: DELIBERATE,
     log,
+    crossCheck: args.crossCheck,
   });
   const path = write(args.root, args.out ?? chosen.out, report);
   for (const finding of report.unwired) {

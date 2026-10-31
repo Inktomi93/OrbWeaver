@@ -71,3 +71,17 @@ export const ROOM_PROCEDURES = [
   "regex.listRoomDisplayScripts",
   "plugin.listDisplayTransforms",
 ] as const satisfies readonly TrpcProcedurePath[];
+
+/** What the shell asks for on mount beyond the section set (the persona gate, the room header, the palette and the notice
+ *  band), each answered by the same root, never by a capture. */
+export const SHELL_MOUNT_PROCEDURES = [
+  "tag.listTagFilterVocabulary",
+  "persona.list",
+  "chat.getChat",
+  "chat.reapTemporaryChats",
+  "rosterPreset.count",
+  "databank.bankHealth",
+  "notifications.list",
+  "plugin.listCommands",
+  "automation.listRulePresets",
+] as const satisfies readonly TrpcProcedurePath[];

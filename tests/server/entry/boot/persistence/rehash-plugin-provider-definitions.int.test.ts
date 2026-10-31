@@ -73,12 +73,12 @@ test("a tombstone stored before its task retired still refuses a changed definit
 
   const changed = await installLabelled(root, "Other Acme SDK");
   expect(changed.status).not.toBe("enabled");
-  expect(root.services.connection.registry.get(PROVIDER, root.ownerId)).toBeUndefined();
+  expect(root.app.runtime.providers.registry.get(PROVIDER, root.ownerId)).toBeUndefined();
   expect(await db.select().from(pluginProviderClaims)).toEqual(claimsAfterBoot);
 
   await root.services.plugin.uninstall({ caller: await root.principalFor(root.ownerId), pluginId: changed.pluginId });
   expect((await installLabelled(root, "Acme SDK")).status).toBe("enabled");
-  expect(root.services.connection.registry.get(PROVIDER, root.ownerId)?.serves).toEqual(SERVES);
+  expect(root.app.runtime.providers.registry.get(PROVIDER, root.ownerId)?.serves).toEqual(SERVES);
 
   // The one stale definition moved once, with the owner's tombstone on it; a later boot moves nothing.
   expect(moved).toBe(1);

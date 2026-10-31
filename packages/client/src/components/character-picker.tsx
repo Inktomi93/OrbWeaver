@@ -278,7 +278,7 @@ function CharacterPickerRow({ character, onSelect, isSelected }: CharacterPicker
         <Avatar fallbackDelay={0} hueSeed={character.id} size="sm" {...avatarSrc}>
           {initialsFor(character.name)}
         </Avatar>
-        <Text as="span" className="flex-1 truncate min-inline-0">
+        <Text ink="inherit" as="span" className="flex-1 truncate min-inline-0">
           {character.name}
         </Text>
         {isSelected?.(id) === true ? <Icon icon={Check} size="sm" /> : null}
