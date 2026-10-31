@@ -92,6 +92,16 @@ const TREE = {
     "export const TreeSchema: Checked<Tree> = z.lazy(() => z.object({ kind: z.string(), leaf: z.string().optional() }));",
     "export const treeKind = (tree: Tree): string => tree.kind;",
   ].join("\n"),
+  // Each level redeclares `title`; production reads only the leaf's. The base and middle declarations are read through
+  // the leaf, while the unrelated `Stranger.title` beside them is not.
+  "packages/a/src/inherit.ts": [
+    "export interface BaseCfg { readonly title: string; readonly spare: string }",
+    "export interface MidCfg extends BaseCfg { readonly title: string }",
+    "export interface LeafCfg extends MidCfg { readonly title: string }",
+    "export interface Stranger { readonly title: string }",
+    'export const leaf: LeafCfg = { title: "t", spare: "s" };',
+    "export const shownLeaf = leaf.title;",
+  ].join("\n"),
   "tsconfig.json": plantedTsconfig({ lib: LIB, include: ["packages/*/src", "tests"] }),
   "tests/row.test.ts": 'import { makeRow } from "../packages/a/src/row.ts";\nexport const probed = makeRow().dead;',
 };
@@ -101,6 +111,7 @@ test("the fields scan reports never-read, never-written and unreferenced fields,
   const report = scanFields({ root, worlds: [WORLD], testWorlds: ["tsconfig.json"], deliberate: [], log: () => undefined });
   const found = report.unwired.map(({ home, member, kind, origin, tests }) => ({ field: `${home}.${member}`, kind, origin, tests }));
   expect(found.toSorted((a, b) => a.field.localeCompare(b.field))).toEqual([
+    { field: "BaseCfg.spare", kind: "never-read", origin: "type", tests: 0 },
     { field: "HealthSchema.detail", kind: "unreferenced", origin: "schema", tests: 0 },
     { field: "HostView.gone", kind: "unreferenced", origin: "type", tests: 0 },
     { field: "Keyed.unkeyed", kind: "never-read", origin: "type", tests: 0 },
@@ -110,6 +121,7 @@ test("the fields scan reports never-read, never-written and unreferenced fields,
     { field: "Schema.value", kind: "unreferenced", origin: "type", tests: 0 },
     { field: "Settings.extra", kind: "never-written", origin: "schema", tests: 0 },
     { field: "Shown.note", kind: "never-read", origin: "type", tests: 0 },
+    { field: "Stranger.title", kind: "unreferenced", origin: "type", tests: 0 },
     { field: "Tree.leaf", kind: "unreferenced", origin: "type", tests: 0 },
   ]);
   expect(report.disagreements).toEqual([]);

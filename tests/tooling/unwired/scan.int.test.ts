@@ -147,17 +147,16 @@ test("each engine finds the cross-package and derived-port uses on its own", { t
     { member: "viaPort", use: 1, builder: 1 },
     { member: "acrossPackages", use: 1, builder: 1 },
   ]);
-  const served = serviceReferences(
-    root,
-    WORLDS,
-    members.map(({ member }) => member.site),
-    { log: () => undefined },
-  );
-  const uses = members.map(({ member }) =>
-    (served.get(`${member.site.file}:${member.site.position}`) ?? []).map((site) => `${site.file}:${sources.line(site)}`),
-  );
-  expect(uses).toEqual([
+  const sites = members.map(({ member }) => member.site);
+  const usesFrom = (crossCheck: boolean): string[][] => {
+    const served = serviceReferences(root, WORLDS, sites, { log: () => undefined, crossCheck });
+    return sites.map((site) => (served.get(`${site.file}:${site.position}`) ?? []).map((found) => `${found.file}:${sources.line(found)}`).toSorted());
+  };
+  const expected = [
     ["packages/a/src/service.ts:22", "packages/b/src/port.ts:4"],
     ["packages/a/src/service.ts:23", "packages/b/src/use.ts:2"],
-  ]);
+  ];
+  expect(usesFrom(false)).toEqual(expected);
+  // `--cross-check` asks the TypeScript 6 language service, which must reach the same uses.
+  expect(usesFrom(true)).toEqual(expected);
 });
