@@ -39,6 +39,10 @@ Each scan ships fixtures for a found case and a false-positive control. Each del
 
 A deleted tRPC input key strips silently under `z.object`. [deleted-key-sweep.md](deleted-key-sweep.md) holds the sweep of every landed deletion and its result.
 
+## Engine disagreements
+
+[ts71-engine-disagreements.md](ts71-engine-disagreements.md) classifies the fields scan's disagreements, tests the tsconfig world question, shows where the scan's time goes, and recommends the engine design.
+
 ## Judging a finding
 
 Each item step 2 lists gives every finding of one scan in one domain a class (wire, delete, deliberate with a cited ruling, or unknown) and a decision. A class marked `(read)` was judged from the cited code. The others follow these rules:

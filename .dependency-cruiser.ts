@@ -339,6 +339,8 @@ const TEST_CONSTANT_HOMES = {
   "packages/server/src/domain/credentials/contract/errors.ts": "CREDENTIALS_OP_CODES: the refusal codes credentials suites assert",
   "packages/server/src/domain/settings/contract/errors.ts": "SETTINGS_OP_CODES: the refusal codes settings suites assert",
   "packages/client/src/features/credentials/lib/connections-copy.ts": "ADD_CONNECTION_NAME: the add-connection button's name",
+  "packages/client/src/features/character/lib/greeting-copy.ts":
+    "the greeting strip's control names: the add and remove buttons and the numbered greeting label",
   "packages/server/src/foundation/data-layout/contract.ts": "the data-layout slot key constants: the env keys that override one slot each",
   "packages/server/src/domain/chat/contract/metadata.ts": "TOOL_RECURSE_LIMIT_DEFAULT: the default the corpus writes back",
   "packages/server/src/domain/chat/persistence/participants-read.ts": "loadPresentRole: the production role read the authority suite compares against",
@@ -701,6 +703,15 @@ const PACKAGE_TEST_REACHES = {
   },
   "tests/client/features/discovery/lib/corpus-duplicate-groups.test.ts": {
     "packages/client/src/features/discovery/lib/corpus-duplicate-groups.ts": "groupIdenticalArt: the feature-private duplicate grouping",
+  },
+  "tests/client/features/discovery/lib/corpus-readiness-passes.int.test.ts": {
+    "packages/client/src/features/discovery/lib/corpus-readiness-passes.ts":
+      "enqueueReadinessPass and isReadinessRun: the feature-private per-pass doors the suite sends through the production start verb",
+    "packages/client/src/features/discovery/lib/corpus-analysis-state.ts": "CORPUS_READINESS_STAGE_IDS: the rail's rows, one door each",
+  },
+  "tests/client/features/discovery/components/corpus-readiness-rail.ct.tsx": {
+    "packages/client/src/features/discovery/lib/corpus-readiness-passes.ts":
+      "READINESS_PASSES: the prerequisite, door and confirm words each readiness row prints",
   },
   "tests/client/features/discovery/lib/corpus-vocabulary.test.ts": {
     "packages/client/src/features/discovery/lib/corpus-vocabulary.ts": "distilledCensus: the feature-private census phrasing both Corpus bands print",

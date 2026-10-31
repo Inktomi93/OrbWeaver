@@ -265,7 +265,7 @@ function GreetingsSection({ greetings }: { readonly greetings: readonly string[]
     return null;
   }
   return (
-    <SectionShell icon={Sparkles} title={present.length === 1 ? "Opening" : "Openings"}>
+    <SectionShell icon={Sparkles} title={present.length === 1 ? "Greeting" : "Greetings"}>
       <Stack gap="row">
         {keyedEntries(present).map(({ key, text }) => (
           <Bubble key={key}>
