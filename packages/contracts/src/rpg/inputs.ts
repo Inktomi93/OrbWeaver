@@ -42,7 +42,7 @@ const chatIdField = typeIdSchema(ID_PREFIX.chat);
  *  THE `profile` ARM IS GONE (#862, owner ruling 2026-08-30): a start-time statProfile pick was the door
  *  half of a choice that is now a SETTING — one start action, and the host retunes `ruleset` on the Game tab
  *  (additively). Pre-launch NO-LEGACY: replaced, not deprecated. */
-export const rpgCreateGameInputSchema = z.object({
+export const rpgCreateGameInputSchema = z.strictObject({
   chatId: chatIdField,
   mode: rpgGameModeSchema,
   ruleset: rpgRulesetSchema.optional(),
@@ -51,10 +51,10 @@ export const rpgCreateGameInputSchema = z.object({
 /** `updateConfig` — the ONE config write door (host). `patch` carries the profile + steering note; `gmPresetId`
  *  is the preset-override knob (a `PresetId` sets it, explicit `null` clears, omit keeps); `extractionMode` is
  *  the delivery-model knob. `steeringNote` is length-capped at the contract's `RPG_STEERING_NOTE_MAX`. */
-export const rpgUpdateConfigInputSchema = z.object({
+export const rpgUpdateConfigInputSchema = z.strictObject({
   chatId: chatIdField,
   patch: z
-    .object({
+    .strictObject({
       statProfile: rpgStatProfileSchema.optional(),
       // THE RULESET SETTING (#862) — omit keeps. A CHANGED value applies that ruleset's vocabulary
       // ADDITIVELY (owner ruling: adds attributes/skills/seeded trackers beside what exists, removes
@@ -114,10 +114,10 @@ export const rpgUpdateConfigInputSchema = z.object({
 /** `patchSheet` — write an actor's identity sheet (host any; a member their OWN `user` ref). MA-4 patch: every
  *  field optional, no defaults; `actorRef` rides the DERIVED discriminated union. Attribute VALUES ride the
  *  profile vocabulary + range INSIDE the verb (a wire int passes; the verb owns attribute legality). */
-export const rpgPatchSheetInputSchema = z.object({
+export const rpgPatchSheetInputSchema = z.strictObject({
   chatId: chatIdField,
   actorRef: rpgActorRefSchema,
-  patch: z.object({
+  patch: z.strictObject({
     className: z.string().optional(),
     // RPG-STAT-CLOBBER — the attributes record is itself a [merge-clear] PATCH (D108's grammar), not an image:
     // a named key is written, an OMITTED key is kept, and an explicit `null` CLEARS that key. The panel writes
@@ -144,7 +144,7 @@ export const rpgPatchSheetInputSchema = z.object({
  *  ruling 2026-08-01). Chat-scoped + actor-scoped; the verb resolves the HOST floor (a member can never trigger
  *  the host-principal model call) and refuses an actor with no card. No corpus/window args: the round reads the
  *  card + the opening message, both server-resolved — a caller cannot feed it prose. */
-export const rpgPopulateFromCharacterInputSchema = z.object({
+export const rpgPopulateFromCharacterInputSchema = z.strictObject({
   chatId: chatIdField,
   actorRef: rpgActorRefSchema,
 });
@@ -162,7 +162,7 @@ export const rpgPopulateFromCharacterInputSchema = z.object({
  *  [merge-clear] null. Omit/`[]` = no release. A release may accompany an empty `patch` (release-only).
  *  `lockPaths` (#10 per-field pin) names the FINE dotted paths this edit stamps (the client knows exactly
  *  which value it edited — `actorState.user:<id>.pools.<name>`); omit ⇒ the coarse top-level-key default. */
-export const rpgEditSnapshotInputSchema = z.object({
+export const rpgEditSnapshotInputSchema = z.strictObject({
   chatId: chatIdField,
   patch: z.record(z.string(), z.unknown()),
   releaseLocks: z.array(z.string().min(1)).optional(),
@@ -177,7 +177,7 @@ export const rpgEditSnapshotInputSchema = z.object({
  *  `autoLock:false` is the ONE honest opt-out: a write to a field the MODEL CANNOT REACH (an item's host-picked
  *  `icon`) has nothing to pin, and stamping a lock there would only hand the host a pin to release. Refusals
  *  (an op naming an item/condition that isn't there, a merged state the write boundary rejects) are DATA. */
-export const rpgPatchActorInputSchema = z.object({
+export const rpgPatchActorInputSchema = z.strictObject({
   chatId: chatIdField,
   targetRef: rpgActorRefSchema,
   ops: z.array(rpgActorOpSchema).min(1),
@@ -189,7 +189,7 @@ export const rpgPatchActorInputSchema = z.object({
  *  precedent). Until this verb existed nothing could remove an actor at all: the plane is ADDITIVE by policy
  *  (an unnamed row is ignorance, not intent), so a hallucinated NPC stayed reachable, targetRef-enumerated and
  *  clone-forwarded forever. This is the "real gesture" that policy always named and never had. */
-export const rpgDismissActorInputSchema = z.object({
+export const rpgDismissActorInputSchema = z.strictObject({
   chatId: chatIdField,
   targetRef: rpgActorRefSchema,
 });
@@ -207,7 +207,7 @@ export const rpgDismissActorInputSchema = z.object({
  *
  *  Refusals are DATA (`HandDoorResult`): an untracked target, an actor with no identity row, and — the ruled
  *  collision — a chat that already has a participant carrying that NAME. */
-export const rpgPromoteActorInputSchema = z.object({
+export const rpgPromoteActorInputSchema = z.strictObject({
   chatId: chatIdField,
   targetRef: rpgNpcRefSchema,
 });
@@ -248,13 +248,13 @@ export const rpgEditQuestObjectiveInputSchema = z.strictObject({
 });
 
 /** `deleteQuest` — remove a quest from the current resolved snapshot's array (host). */
-export const rpgDeleteQuestInputSchema = z.object({
+export const rpgDeleteQuestInputSchema = z.strictObject({
   chatId: chatIdField,
   questId: brandedId("RpgQuestId"),
 });
 
 /** `addJournalEntry` — a hand journal entry (host); `type` rides the DERIVED journal-type enum. */
-export const rpgAddJournalEntryInputSchema = z.object({
+export const rpgAddJournalEntryInputSchema = z.strictObject({
   chatId: chatIdField,
   type: rpgJournalTypeSchema,
   // R4c — the free gloss carried when `type === "custom"` (the relationship-kind shape). Omit ⇒ "".
@@ -264,10 +264,10 @@ export const rpgAddJournalEntryInputSchema = z.object({
 });
 
 /** `editJournalEntry` — patch an entry's mutable text (host; reaches model entries — the recovery path). */
-export const rpgEditJournalEntryInputSchema = z.object({
+export const rpgEditJournalEntryInputSchema = z.strictObject({
   chatId: chatIdField,
   entryId: typeIdSchema(ID_PREFIX.rpgJournal),
-  patch: z.object({
+  patch: z.strictObject({
     type: rpgJournalTypeSchema.optional(),
     label: z.string().optional(),
     title: z.string().min(1).optional(),
@@ -276,25 +276,25 @@ export const rpgEditJournalEntryInputSchema = z.object({
 });
 
 /** `deleteJournalEntry` — remove a journal entry (host). */
-export const rpgDeleteJournalEntryInputSchema = z.object({
+export const rpgDeleteJournalEntryInputSchema = z.strictObject({
   chatId: chatIdField,
   entryId: typeIdSchema(ID_PREFIX.rpgJournal),
 });
 
 /** `createCheckpoint` — label the current resolved snapshot (host). */
-export const rpgCreateCheckpointInputSchema = z.object({
+export const rpgCreateCheckpointInputSchema = z.strictObject({
   chatId: chatIdField,
   label: z.string().min(1),
 });
 
 /** `restoreCheckpoint` — clone a checkpointed snapshot forward BORN COMMITTED onto a fresh narrator slot (host). */
-export const rpgRestoreCheckpointInputSchema = z.object({
+export const rpgRestoreCheckpointInputSchema = z.strictObject({
   chatId: chatIdField,
   checkpointId: typeIdSchema(ID_PREFIX.rpgCheckpoint),
 });
 
 /** `rollDice` — server CSPRNG, bake-once (member). `notation` is the dice string the server rolls authoritatively. */
-export const rpgRollDiceInputSchema = z.object({
+export const rpgRollDiceInputSchema = z.strictObject({
   chatId: chatIdField,
   notation: z.string().min(1),
   ability: z.string().min(1).optional(),
@@ -302,7 +302,7 @@ export const rpgRollDiceInputSchema = z.object({
 
 /** A read scoped to a chat's game (member for getGame/getTrackerView; host for getConfigView; member for
  *  listCheckpoints). The chatId-only envelope — the verb's `getMembership` gate is the authority. */
-export const rpgReadGameInputSchema = z.object({
+export const rpgReadGameInputSchema = z.strictObject({
   chatId: chatIdField,
 });
 
@@ -318,7 +318,7 @@ const RPG_JOURNAL_LIST_MAX_LIMIT = 200;
 const RPG_TURN_TOOL_CALLS_LIST_MAX_LIMIT = 200;
 
 /** `listJournal` — the paged lineage-projected archive (member). */
-export const rpgListJournalInputSchema = z.object({
+export const rpgListJournalInputSchema = z.strictObject({
   chatId: chatIdField,
   limit: z.int().min(1).max(RPG_JOURNAL_LIST_MAX_LIMIT).optional(),
   offset: z.int().min(0).optional(),
@@ -331,7 +331,7 @@ export const rpgListJournalInputSchema = z.object({
  *  `turnLimit`, not `limit` — the field was RENAMED with its unit (2026-08-14) when the window stopped
  *  counting rows and started counting turns; a silently re-denominated `limit` would have left every caller
  *  asking for something other than what it says. */
-export const rpgListTurnToolCallsInputSchema = z.object({
+export const rpgListTurnToolCallsInputSchema = z.strictObject({
   chatId: chatIdField,
   turnLimit: z.int().min(1).max(RPG_TURN_TOOL_CALLS_LIST_MAX_LIMIT).optional(),
 });

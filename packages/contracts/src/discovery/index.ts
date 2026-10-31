@@ -64,12 +64,12 @@ export const BROWSE_DEFAULT_LIMIT = 60;
  *  shape comes from). `characterId` is the tie-break: `createdAt` and `name` are both non-unique, and a
  *  keyset on a non-unique column alone drops or repeats rows across the page boundary. */
 export const browseCursorSchema = z.discriminatedUnion("sort", [
-  z.object({
+  z.strictObject({
     sort: z.literal("recent"),
     createdAt: z.int(),
     characterId: typeIdSchema(ID_PREFIX.character),
   }),
-  z.object({
+  z.strictObject({
     sort: z.literal("name"),
     name: z.string(),
     characterId: typeIdSchema(ID_PREFIX.character),

@@ -5,6 +5,7 @@
 // simply ABSENT (no silent no-ops); the reasoning/sampling/verbosity/output/context/turns axes are kept
 // verbatim from the shape they replace. The axis tuples below are THE HOME — `@orb/contracts/connection`
 // re-exports them until it is deleted with the source axis.
+// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs take the strict twin via `strictInput` (`@orb/kit/zod-schema`).
 
 import { z } from "zod";
 import { modalitySchema } from "../modalities.ts";

@@ -46,6 +46,7 @@ import {
   themeDriftBucketSchema,
   visualArchetypeSchema,
 } from "@orb/contracts/discovery";
+import { pageDirectionShape } from "@orb/contracts/rpc";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { IMAGE_FACET_KEYS } from "#domain/discovery";
@@ -58,7 +59,7 @@ export const discoveryRouter = t.router({
   // The whole-library batch is the `distill-characters` workload (not tRPC). Returns the pass summary.
   suggestCharacterTags: authedProcedure
     .output(distillStatsSchema)
-    .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character) }))
+    .input(z.strictObject({ characterId: typeIdSchema(ID_PREFIX.character) }))
     .mutation(({ ctx, input }) =>
       ctx.services.discovery.distillCharacters({
         characterId: input.characterId,
@@ -71,7 +72,7 @@ export const discoveryRouter = t.router({
     .output(z.array(duplicateCharacterPairSchema))
     .input(
       z
-        .object({
+        .strictObject({
           limit: z.int().positive().max(DISCOVERY_LIST_MAX_LIMIT).optional(),
           minScore: z.number().optional(),
         })
@@ -89,7 +90,7 @@ export const discoveryRouter = t.router({
     .output(z.array(duplicateChatPairSchema))
     .input(
       z
-        .object({
+        .strictObject({
           limit: z.int().positive().max(DISCOVERY_LIST_MAX_LIMIT).optional(),
           minScore: z.number().optional(),
           relation: duplicateRelationSchema.optional(),
@@ -113,7 +114,7 @@ export const discoveryRouter = t.router({
     .output(browseCharactersPageSchema)
     .input(
       z
-        .object({
+        .strictObject({
           genre: z.string().optional(),
           tone: z.string().optional(),
           tag: z.string().optional(),
@@ -121,6 +122,7 @@ export const discoveryRouter = t.router({
           sort: browseSortSchema.optional(),
           limit: z.int().positive().max(DISCOVERY_LIST_MAX_LIMIT).optional(),
           cursor: browseCursorSchema.nullish(),
+          ...pageDirectionShape,
         })
         .optional(),
     )
@@ -144,33 +146,33 @@ export const discoveryRouter = t.router({
   // compareCharacters: a two-card facet diff. Both ids are owner-belted (a foreign id → null).
   compareCharacters: authedProcedure
     .output(characterComparisonSchema.nullable())
-    .input(z.object({ idA: typeIdSchema(ID_PREFIX.character), idB: typeIdSchema(ID_PREFIX.character) }))
+    .input(z.strictObject({ idA: typeIdSchema(ID_PREFIX.character), idB: typeIdSchema(ID_PREFIX.character) }))
     .query(({ ctx, input }) => ctx.services.discovery.compareCharacters(ctx.auth.userId, input.idA, input.idB)),
 
   // compareCharactersDeep: the facet diff PLUS a grounded LLM narrative. Both ids owner-belted (→ null).
   compareCharactersDeep: authedProcedure
     .output(characterComparisonDeepSchema.nullable())
-    .input(z.object({ idA: typeIdSchema(ID_PREFIX.character), idB: typeIdSchema(ID_PREFIX.character) }))
+    .input(z.strictObject({ idA: typeIdSchema(ID_PREFIX.character), idB: typeIdSchema(ID_PREFIX.character) }))
     .query(({ ctx, input }) => ctx.services.discovery.compareCharactersDeep(ctx.auth.userId, input.idA, input.idB)),
 
   // askCard: a grounded Q&A over ONE owned/distilled character's recent PLAYED scenes (CONTENT-only).
   // Owner-belted (a foreign/undistilled character → null). Owner = the resolved principal (audit #1).
   askCard: authedProcedure
     .output(askCardAnswerSchema.nullable())
-    .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character), question: z.string().min(1) }))
+    .input(z.strictObject({ characterId: typeIdSchema(ID_PREFIX.character), question: z.string().min(1) }))
     .query(({ ctx, input }) => ctx.services.discovery.askCard(ctx.auth.userId, input.characterId, input.question)),
 
   // swipeHotspots: one chat's most-re-rolled assistant slots. Owner-belted via characters.ownerId (a
   // foreign chat → [], proved by the cross-tenant sweep probe). Owner = the resolved principal (audit #1).
   swipeHotspots: authedProcedure
     .output(z.array(swipeHotspotSchema))
-    .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat), limit: z.int().positive().max(DISCOVERY_LIST_MAX_LIMIT).optional() }))
+    .input(z.strictObject({ chatId: typeIdSchema(ID_PREFIX.chat), limit: z.int().positive().max(DISCOVERY_LIST_MAX_LIMIT).optional() }))
     .query(({ ctx, input }) => ctx.services.discovery.swipeHotspots(ctx.auth.userId, input.chatId, input.limit)),
 
   // archetypes: k-means clusters of the owner's card embeddings, labelled from distilled facets.
   archetypes: authedProcedure
     .output(z.array(archetypeSchema))
-    .input(z.object({ k: z.int().positive().optional() }).optional())
+    .input(z.strictObject({ k: z.int().positive().optional() }).optional())
     .query(({ ctx, input }) =>
       ctx.services.discovery.archetypes(ctx.auth.userId, {
         ...(input?.k !== undefined ? { k: input.k } : {}),
@@ -183,7 +185,7 @@ export const discoveryRouter = t.router({
   // insights (pure-semantics half): story-time theme drift + never-played characters. Owner-scoped.
   themeDrift: authedProcedure
     .output(z.array(themeDriftBucketSchema))
-    .input(z.object({ level: z.enum(THEME_LEVELS).optional() }).optional())
+    .input(z.strictObject({ level: z.enum(THEME_LEVELS).optional() }).optional())
     .query(({ ctx, input }) => ctx.services.discovery.themeDrift(ctx.auth.userId, input?.level)),
 
   unusedCharacters: authedProcedure.output(z.array(archetypeMemberSchema)).query(({ ctx }) => ctx.services.discovery.unusedCharacters(ctx.auth.userId)),
@@ -192,7 +194,7 @@ export const discoveryRouter = t.router({
   // (audit #1); the economics arrive via the injected stats op (discovery reads no raw messages economics).
   forgottenGems: authedProcedure
     .output(z.array(forgottenGemSchema))
-    .input(z.object({ limit: z.int().positive().max(DISCOVERY_LIST_MAX_LIMIT).optional() }).optional())
+    .input(z.strictObject({ limit: z.int().positive().max(DISCOVERY_LIST_MAX_LIMIT).optional() }).optional())
     .query(({ ctx, input }) => ctx.services.discovery.forgottenGems(ctx.auth.userId, input?.limit)),
 
   modelRouting: authedProcedure.output(z.array(modelRoutingRowSchema)).query(({ ctx }) => ctx.services.discovery.modelRouting(ctx.auth.userId)),
@@ -200,12 +202,12 @@ export const discoveryRouter = t.router({
   // image analytics (avatar-lens reads). Owner = resolved principal.
   imageDuplicates: authedProcedure
     .output(z.array(imageDuplicatePairSchema))
-    .input(z.object({ threshold: z.number().optional() }).optional())
+    .input(z.strictObject({ threshold: z.number().optional() }).optional())
     .query(({ ctx, input }) => ctx.services.discovery.imageDuplicates(ctx.auth.userId, input?.threshold)),
 
   visualArchetypes: authedProcedure
     .output(z.array(visualArchetypeSchema))
-    .input(z.object({ k: z.int().positive().optional() }).optional())
+    .input(z.strictObject({ k: z.int().positive().optional() }).optional())
     .query(({ ctx, input }) => ctx.services.discovery.visualArchetypes(ctx.auth.userId, input?.k)),
 
   portraitAlignment: authedProcedure.output(portraitAlignmentReportSchema).query(({ ctx }) => ctx.services.discovery.portraitAlignment(ctx.auth.userId)),
@@ -214,7 +216,7 @@ export const discoveryRouter = t.router({
 
   charactersByImageFacet: authedProcedure
     .output(z.array(imageFacetMemberSchema))
-    .input(z.object({ facet: z.enum(IMAGE_FACET_KEYS), value: z.string() }))
+    .input(z.strictObject({ facet: z.enum(IMAGE_FACET_KEYS), value: z.string() }))
     .query(({ ctx, input }) => ctx.services.discovery.charactersByImageFacet(ctx.auth.userId, input.facet, input.value)),
 
   // similarity (DISCOVERY-NATIVE in-RAM analytics; ZERO search). Owner = resolved principal.
@@ -224,7 +226,7 @@ export const discoveryRouter = t.router({
     .output(similarityGraphSchema)
     .input(
       z
-        .object({
+        .strictObject({
           minSimilarity: z.number().optional(),
           maxNodes: z.int().positive().max(DISCOVERY_GRAPH_MAX_NODES).optional(),
         })
@@ -239,7 +241,7 @@ export const discoveryRouter = t.router({
 
   similarChats: authedProcedure
     .output(z.array(similarChatSchema))
-    .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat), limit: z.int().positive().max(DISCOVERY_LIST_MAX_LIMIT).optional() }))
+    .input(z.strictObject({ chatId: typeIdSchema(ID_PREFIX.chat), limit: z.int().positive().max(DISCOVERY_LIST_MAX_LIMIT).optional() }))
     .query(({ ctx, input }) => ctx.services.discovery.similarChats(ctx.auth.userId, input.chatId, input.limit)),
 
   // composed views (CONTENT-only). Owner = resolved principal.
@@ -247,14 +249,14 @@ export const discoveryRouter = t.router({
 
   themeDetail: authedProcedure
     .output(themeDetailSchema.nullable())
-    .input(z.object({ clusterIdx: z.int().nonnegative(), level: z.enum(THEME_LEVELS) }))
+    .input(z.strictObject({ clusterIdx: z.int().nonnegative(), level: z.enum(THEME_LEVELS) }))
     .query(({ ctx, input }) => ctx.services.discovery.themeDetail(ctx.auth.userId, input.clusterIdx, input.level)),
 
   // characterDossier: one character's composed dossier (facets + portrait alignment + injected `similar`
   // neighbours). Owner-belted (a foreign/undistilled character → null). Owner = the resolved principal.
   characterDossier: authedProcedure
     .output(characterDossierSchema.nullable())
-    .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character) }))
+    .input(z.strictObject({ characterId: typeIdSchema(ID_PREFIX.character) }))
     .query(({ ctx, input }) => ctx.services.discovery.characterDossier(ctx.auth.userId, input.characterId)),
 
   // cooccurrence reads (owner-scoped). The heavy recompute is the `compute-cooccurrence` workload.
@@ -262,7 +264,7 @@ export const discoveryRouter = t.router({
     .output(z.array(keywordCountSchema))
     .input(
       z
-        .object({
+        .strictObject({
           limit: z.int().positive().max(DISCOVERY_LIST_MAX_LIMIT).optional(),
           minCount: z.int().positive().optional(),
         })
@@ -277,13 +279,13 @@ export const discoveryRouter = t.router({
 
   cooccurringKeywords: authedProcedure
     .output(z.array(keywordCountSchema))
-    .input(z.object({ keyword: z.string(), limit: z.int().positive().max(DISCOVERY_LIST_MAX_LIMIT).optional() }))
+    .input(z.strictObject({ keyword: z.string(), limit: z.int().positive().max(DISCOVERY_LIST_MAX_LIMIT).optional() }))
     .query(({ ctx, input }) => ctx.services.discovery.cooccurringKeywords(ctx.auth.userId, input.keyword, input.limit)),
 
   characterKeywords: authedProcedure
     .output(z.array(keywordCountSchema))
     .input(
-      z.object({
+      z.strictObject({
         characterId: typeIdSchema(ID_PREFIX.character),
         limit: z.int().positive().max(DISCOVERY_LIST_MAX_LIMIT).optional(),
       }),

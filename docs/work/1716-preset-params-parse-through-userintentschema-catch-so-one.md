@@ -1,13 +1,12 @@
 ---
-kind: work
+kind: bug
 status: open
 updated: 2026-10-31
-priority: P3
-area: client
-plan: cross-surface-consistency
+priority: P2
+area: contracts
 ---
 
-# Rule editor audit leftovers: cohort-anatomy field-row heights and the caveat-outweighed autosave alert (keeps 0550 from its done line)
+# Preset params parse through userIntentSchema.catch({}), so one stray key resets the whole params blob on preset create and update
 
 ## What
 
