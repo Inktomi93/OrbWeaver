@@ -6,13 +6,13 @@ import ts from "typescript";
 import type { DistinctRegistry } from "./distinct-lookalikes.ts";
 import { DISTINCT_LOOKALIKES, isDistinctPair } from "./distinct-lookalikes.ts";
 import { ImportGraph } from "./doors.ts";
-import { aliased, foreignTypes, mergeForeignTypes, passesDbHandle } from "./foreign-types.ts";
+import { aliased, describeForeignTypes, foreignTypes, isSplitSignature, mergeForeignTypes, passesDbHandle } from "./foreign-types.ts";
 import type { ForgottenExport } from "./forgotten-exports.ts";
 import { forgottenDoorExports } from "./forgotten-exports.ts";
 import type { PlanContext } from "./port-plan.ts";
 import { collapse, doorExportTargets, planMember } from "./port-plan.ts";
-import type { Indexed, Pair, PlannedTarget, PortTarget, TargetKind } from "./port-targets.ts";
-import { clustered, conceptOf, crossDomainKind, crossDomainNote, keyOf, legOf, lineOf } from "./port-targets.ts";
+import type { Indexed, Pair, PlannedTarget, PortTarget, RulingKeys, TargetKind } from "./port-targets.ts";
+import { clustered, conceptOf, crossDomainKind, crossDomainNote, keyOf, legOf, lineOf, placementOfKey, SPLIT_RULING } from "./port-targets.ts";
 import type { Flow, PortMember, TypeFlow } from "./restated-port.ts";
 import {
   aliasChain,
@@ -363,7 +363,7 @@ function serviceTargets(checker: ts.TypeChecker, site: ImportSite, service: Decl
     }
     const foreign = foreignTypes(checker, member);
     const isOp = (ts.isPropertySignature(member) || ts.isMethodSignature(member)) && isHandTyped(member);
-    const keys = memberRulingKeys(checker, `${name}.${op}`, member);
+    const keys = { names: memberRulingKeys(checker, `${name}.${op}`, member), domains: [site.domain, site.from] };
     // A field whose type contracts already holds moves nothing: the consumer declares the slice it reads.
     const kind: TargetKind = !isOp && foreign.server.length === 0 && !passesDbHandle(foreign) ? "split" : crossDomainKind(foreign, keys);
     const plan =
@@ -396,8 +396,8 @@ const typedNames = (root: string, declarations: readonly ts.Declaration[], typed
 interface ImportedData {
   readonly name: string;
   readonly declarations: readonly ts.Declaration[];
-  /** The imported name and the op members it types, for a joint-batch ruling. */
-  readonly keys: readonly string[];
+  /** The imported name and the op members it types, with the two domains, for a joint-batch ruling. */
+  readonly keys: RulingKeys;
 }
 
 // A data shape another domain declares: it moves to contracts whole, or splits around its runtime types.
@@ -423,7 +423,8 @@ function nameTargets(checker: ts.TypeChecker, site: ImportSite, name: string, { 
   if (service !== undefined) {
     return serviceTargets(checker, site, service, reads);
   }
-  return [dataTarget(checker, site, { name, declarations, keys: [name, ...typedNames(site.root, declarations, typedBy)] })];
+  const keys = { names: [name, ...typedNames(site.root, declarations, typedBy)], domains: [site.domain, site.from] };
+  return [dataTarget(checker, site, { name, declarations, keys })];
 }
 
 function collectCrossImports(root: string, checker: ts.TypeChecker, source: ts.SourceFile, into: Collected): void {
@@ -521,13 +522,22 @@ function forgottenKind(entry: ForgottenExport, copies: Copies, ruled: boolean): 
   if (entry.crossDomain && passesDbHandle(entry.foreign) && ruled) {
     return "ruled";
   }
+  // A split signature (contracts data plus runtime types) is the consumer's own contract: the restatement matcher
+  // never reports one, so a cross-domain copy of it is settled the same way, linked or not.
+  const split = entry.crossDomain && isSplitSignature(entry.foreign);
   if (copies.linked.length === 0) {
-    return copies.open.length === 0 ? "distinct" : "review";
+    if (copies.open.length === 0) {
+      return "distinct";
+    }
+    return split ? "ruled" : "review";
   }
   if (!entry.crossDomain) {
     return "forgotten-door-export";
   }
-  return passesDbHandle(entry.foreign) ? "db-handle-review" : "move-to-contracts";
+  if (passesDbHandle(entry.foreign)) {
+    return "db-handle-review";
+  }
+  return split ? "ruled" : "move-to-contracts";
 }
 
 // `file:line:Name` to the registry's `file#Name`.
@@ -553,8 +563,13 @@ function copiesOf(entry: ForgottenExport, { links, distinct }: Judgments): Copie
 }
 
 // The names a ruling may know a forgotten type by: its own, its copies', and the op members each of them types.
-const forgottenRulingKeys = (entry: ForgottenExport, typedBy: Collected["typedBy"]): readonly string[] =>
-  [entry.key, ...entry.copyKeys].flatMap((key) => [key.slice(key.lastIndexOf(":") + 1), ...(typedBy.get(key) ?? [])]);
+const forgottenRulingKeys = (entry: ForgottenExport, typedBy: Collected["typedBy"]): RulingKeys => {
+  const keys = [entry.key, ...entry.copyKeys];
+  return {
+    names: keys.flatMap((key) => [key.slice(key.lastIndexOf(":") + 1), ...(typedBy.get(key) ?? [])]),
+    domains: keys.map((key) => placementOfKey(key)?.domain ?? null),
+  };
+};
 
 // A copy counts as the same concept only when a flow, a type reference or an alias links it to the declaration;
 // a copy that matches only by printed shape goes to review, never into a contracts move.
@@ -562,12 +577,13 @@ function forgottenTargets(found: Iterable<ForgottenExport>, judgments: Judgments
   return [...found].map((entry): PlannedTarget => {
     const copies = copiesOf(entry, judgments);
     const keys = forgottenRulingKeys(entry, judgments.typedBy);
-    const kind = forgottenKind(entry, copies, jointBatchRulingOf(keys) !== null);
+    const kind = forgottenKind(entry, copies, jointBatchRulingOf(keys.names, keys.domains) !== null);
     const exports =
       kind !== "forgotten-door-export" || entry.doorFile === null || entry.door === null
         ? []
         : [{ file: entry.doorFile, name: entry.name, from: `./${relative(entry.doorFile.replace(/[^/]+$/u, ""), entry.file)}` }];
-    const handle = passesDbHandle(entry.foreign) || kind === "split" ? crossDomainNote(kind, entry.foreign, keys) : "";
+    const split = kind === "ruled" && !passesDbHandle(entry.foreign) ? `${describeForeignTypes(entry.foreign)}; ruling: ${SPLIT_RULING}` : "";
+    const handle = passesDbHandle(entry.foreign) ? crossDomainNote(kind, entry.foreign, keys) : split;
     const note = [
       copies.linked.length > 0 ? `copies: ${copies.linked.join(", ")}` : "",
       copies.open.length > 0 ? `same shape, no flow: ${copies.open.join(", ")}` : "",

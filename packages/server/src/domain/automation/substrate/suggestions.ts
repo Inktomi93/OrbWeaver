@@ -105,7 +105,6 @@ export function createSuggestionStore(): SuggestionStore {
     // The plugin twin (deactivate / uninstall). The confirm-time liveness re-check is what makes a stale
     // plugin card SAFE; this is what makes it DISAPPEAR, so a host is never offered an answer that refuses.
     voidPlugin: (pluginId): number => voidWhere((entry) => entry.source.kind === "plugin" && entry.source.pluginId === pluginId),
-    voidChat: (chatId): number => voidWhere((entry) => entry.chatId === chatId),
     listForChat: (chatId, nowMs): readonly PendingSuggestion[] => {
       sweep(nowMs);
       return [...byId.values()].filter((entry) => entry.chatId === chatId);

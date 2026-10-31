@@ -297,11 +297,6 @@ export const DISTINCT_LOOKALIKES = [
     reason: "Chat's quiet extraction result for imagery and character's greeting result: different producers.",
   },
   {
-    shape: "packages/server/src/domain/chat/contract/context.ts#EmbeddingsStoreSegmentsOp",
-    distinctFrom: ["packages/server/src/domain/embeddings/contract/memory-ops.ts#embeddingsStoreSegments"],
-    reason: "Chat's consumer signature carries AbortSignal and embeddings' factory cannot import chat; its data is contracts'.",
-  },
-  {
     shape: "packages/server/src/domain/chat/contract/engine-context.ts#ReserveReceiptEventsOp",
     distinctFrom: ["packages/inference/src/contract/local-light.ts#activation", "packages/server/src/domain/rpg/contract/service.ts#randomInt"],
     reason: "Number-in, number-out functions with unrelated meanings; no flow.",
@@ -419,11 +414,6 @@ export const DISTINCT_LOOKALIKES = [
       "packages/server/src/domain/rpg/contract/params.ts#ResyncFromStoryParams",
     ],
     reason: "A shape-only {principal, chatId} look-alike: each verb owns its params, and no flow links them.",
-  },
-  {
-    shape: "packages/server/src/domain/roster-preset/contract/service.ts#PresentCharacterSeat",
-    distinctFrom: ["packages/contracts/src/chat/owner-ops.ts#OfferedSeat"],
-    reason: "Every present seat of a chat versus the handoff's offered subset: different sets and consumers.",
   },
   {
     shape: "packages/server/src/domain/rpg/contract/params.ts#ListCheckpointsParams",

@@ -37,5 +37,5 @@ export function createReconcileInFlight(): ReconcileInFlight {
     }
   }
 
-  return { run, isRunning: (ownerId): boolean => running.has(ownerId) };
+  return { run };
 }

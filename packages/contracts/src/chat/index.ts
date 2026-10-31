@@ -230,7 +230,7 @@ export type {
   ChatLivePublish,
   ChatScopedParams,
   MemoryDigestInput,
-  OfferedSeat,
+  PresentCharacterSeat,
   PublishChatChangedOp,
   ReadChatUserMacrosOp,
   RegisterPromptTransformOp,

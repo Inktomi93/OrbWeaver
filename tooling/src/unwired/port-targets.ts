@@ -158,7 +158,7 @@ function groupOf(area: string, ownerFile: string, file: string): ClusterGroup | 
 const GROUP_REASONS: Partial<Readonly<Record<TargetKind, string>>> = {
   "db-handle-review": "the ledger rules each cross-domain db handle case on its own board item",
   review: "a shape-only match: a leg confirms one concept before any move",
-  ruled: "a ledger-ruled joint batch: its handle crosses by ruling, no work",
+  ruled: "a ruled crossing: a ledger-ruled joint batch or a consumer's split signature, no work",
   distinct: "a judged-distinct look-alike in distinct-lookalikes.ts, no work",
 };
 
@@ -247,17 +247,28 @@ export function rankOfKey(key: string): number {
   return placement === null ? Number.MAX_SAFE_INTEGER : tierRank(placement);
 }
 
-/** A handle pass is ruled when one of its keys (the op member, the type naming it, each alias it is typed by) is in
- *  `ruled-ops.ts`; every other handle pass is a defect to redesign. */
-export function crossDomainKind(foreign: ForeignTypes, rulingKeys: readonly string[]): TargetKind {
+/** Why a cross-domain copy of a split signature is settled: a signature over contracts data and runtime types stays
+ *  with its consumer, and the owner's verb satisfies it at the composition root. */
+export const SPLIT_RULING = "a split signature (contracts data, runtime types from their owners) stays with its consumer";
+
+/** What a joint-batch ruling may know a handle pass by: the op member, the type naming it and each alias it is typed
+ *  by, and the domains the handle crosses between, one of which must be the ruled owner. */
+export interface RulingKeys {
+  readonly names: readonly string[];
+  readonly domains: readonly (string | null)[];
+}
+
+/** A handle pass is ruled when `ruled-ops.ts` names one of its ops as built by one of its domains; every other
+ *  handle pass is a defect to redesign. */
+export function crossDomainKind(foreign: ForeignTypes, ruling: RulingKeys): TargetKind {
   if (passesDbHandle(foreign)) {
-    return jointBatchRulingOf(rulingKeys) === null ? "db-handle-review" : "ruled";
+    return jointBatchRulingOf(ruling.names, ruling.domains) === null ? "db-handle-review" : "ruled";
   }
   return runtimeTypes(foreign).length > 0 ? "split" : "move-to-contracts";
 }
 
-export function crossDomainNote(kind: TargetKind, foreign: ForeignTypes, rulingKeys: readonly string[]): string {
-  const ruled = passesDbHandle(foreign) ? jointBatchRulingOf(rulingKeys) : null;
+export function crossDomainNote(kind: TargetKind, foreign: ForeignTypes, keys: RulingKeys): string {
+  const ruled = passesDbHandle(foreign) ? jointBatchRulingOf(keys.names, keys.domains) : null;
   const unruled = kind === "db-handle-review" ? "ruling: unruled" : "";
   const ruling = ruled === null ? unruled : `ruling: ${ruled}`;
   return [describeForeignTypes(foreign), ruling].filter((part) => part !== "").join("; ");

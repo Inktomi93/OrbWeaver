@@ -174,9 +174,10 @@ function planDerive(context: PlanContext, { port, site, paramsOnly }: Restating,
   return "kind" in through ? through : derived(through.alias, [{ name: through.alias, from: door.specifier }], through.exports);
 }
 
-function planCrossDomain(context: PlanContext, owner: PortMember): Plan {
-  const foreign = foreignTypes(context.checker, owner);
-  const keys = rulingKeysOf(context.checker, owner);
+// `members` are the owner's member then any restating one; `domains` are the domains the shape crosses between.
+function planCrossDomain(context: PlanContext, members: readonly [PortMember, ...PortMember[]], domains: readonly (string | null)[]): Plan {
+  const foreign = foreignTypes(context.checker, members[0]);
+  const keys = { names: members.flatMap((member) => rulingKeysOf(context.checker, member)), domains };
   const kind = crossDomainKind(foreign, keys);
   return plain(kind, crossDomainNote(kind, foreign, keys));
 }
@@ -210,7 +211,7 @@ function planRestating(context: PlanContext, restating: Restating, ownerKey: str
   const siteFile = restating.site.getSourceFile().fileName;
   const [from, to] = [domainOf(siteFile), domainOf(ownerFile)];
   if (from !== null && to !== null && from !== to) {
-    return { ...planCrossDomain(context, owner), ...owned };
+    return { ...planCrossDomain(context, [owner, restating.port], [from, to]), ...owned };
   }
   if (rankOfFile(ownerFile) > rankOfFile(siteFile)) {
     const lower = lowerHome(relative(context.world.root, siteFile), relative(context.world.root, ownerFile));
@@ -271,7 +272,7 @@ export function planMember(context: PlanContext, node: Indexed): PlannedTarget |
     const domains = new Set(chain.map((key) => placementOfKey(key)?.domain ?? null));
     const crossDomain = domains.size > 1 && !domains.has(null);
     const ownerAt = ownerKey.slice(0, ownerKey.lastIndexOf(":"));
-    return crossDomain && !named ? { ...base, ...planCrossDomain(context, member), owner: memberLabel(member), ownerAt } : null;
+    return crossDomain && !named ? { ...base, ...planCrossDomain(context, [member], [...domains]), owner: memberLabel(member), ownerAt } : null;
   }
   if (named) {
     return aliasTarget(context, node, ownerKey);

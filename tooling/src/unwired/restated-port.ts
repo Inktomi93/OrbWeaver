@@ -456,7 +456,8 @@ export function restatementOf(checker: ts.TypeChecker, flow: Flow): Restatement 
     return null;
   }
   const passesHandle = passesDbHandle(foreign) || passesDbHandle(consumer);
-  const ruling = passesHandle ? jointBatchRulingOf([...rulingKeysOf(checker, port), ...rulingKeysOf(checker, owner)]) : null;
+  const domains = [port, owner].map((member) => placementOf(homeFileOf(checker, member))?.domain ?? null);
+  const ruling = passesHandle ? jointBatchRulingOf([...rulingKeysOf(checker, port), ...rulingKeysOf(checker, owner)], domains) : null;
   return { site, restating, owner: home, relation, crossDomain: true, foreign, source: owner, ruling };
 }
 
@@ -617,6 +618,16 @@ export function flowsAt(checker: ts.TypeChecker, node: ts.Node): Flows {
     return { members: each.flatMap((flows) => flows.members), types: each.flatMap((flows) => flows.types) };
   }
   return NO_FLOWS;
+}
+
+/** The member flows a `{ ...ops }` spread at `node` makes: each of the spread value's members into the literal's
+ *  same-named slot. The restatement matcher does not read them yet; the unwired scan does, so a spread-wired verb
+ *  counts as reached. */
+export function spreadFlowsAt(checker: ts.TypeChecker, node: ts.Node): readonly Flow[] {
+  if (!(ts.isSpreadAssignment(node) && ts.isObjectLiteralExpression(node.parent))) {
+    return [];
+  }
+  return objectFlow(checker, node, checker.getContextualType(node.parent), node.expression).members;
 }
 
 /** Every restatement among the member flows of `node`. */

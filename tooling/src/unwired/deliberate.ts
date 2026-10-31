@@ -16,6 +16,12 @@ export const DELIBERATE: readonly DeliberateEntry[] = [
   { file: "packages/client/src/lib/agent-bridge-handles.ts", home: "OrbSeedHandle", member: null, reason: AGENT_BRIDGE },
   { file: "packages/client/src/lib/agent-bridge-handles.ts", home: "OrbCssHandle", member: null, reason: AGENT_BRIDGE },
   { file: "packages/client/src/lib/agent-bridge-handles.ts", home: "OrbAgentHandles", member: null, reason: AGENT_BRIDGE },
+  {
+    file: "packages/server/src/entry/compose/services.ts",
+    home: "ServicesResult",
+    member: "settleBackground",
+    reason: "docs/law/Spine-Testing.md: a suite waits on the composed root's actual settle signal, never a delay",
+  },
 ];
 
 /** The entry that excuses `member` of `home` in `file`, if any. */

@@ -153,7 +153,7 @@ export async function runUnwired(argv: readonly string[]): Promise<number> {
 `);
   }
   log(
-    `scanned=${report.scanned} unwired=${report.unwired.length} deliberate=${report.deliberate.length} disagreements=${report.disagreements.length} written to ${path}`,
+    `scanned=${report.scanned} unwired=${report.unwired.length} deliberate=${report.deliberate.length} disagreements=${report.disagreements.length} reachedByFlow=${report.reachedByFlow.length} written to ${path}`,
   );
   return EXIT.clean;
 }

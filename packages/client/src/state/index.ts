@@ -99,7 +99,7 @@ export { useChromeRegistry } from "./chrome-registry-context.ts";
 export { ChromeRegistryProvider } from "./chrome-registry-provider.tsx";
 export { CommandPaletteSourceRegistryContext } from "./command-palette-source-registry-context.ts";
 export { CommandPaletteSourceRegistryProvider } from "./command-palette-source-registry-provider.tsx";
-export type { ComposerDraftSnapshot } from "./composer-draft-store.ts";
+export type { ComposerDraftSnapshot, ComposerDraftWrite } from "./composer-draft-store.ts";
 export {
   readComposerDraft,
   readComposerDraftSnapshot,
