@@ -68,7 +68,7 @@ The diagrams emphasize bubble, avatar, header and portrait placement from `MESSA
 Current-color ink follows the viewer's palette. Readable labels, descriptions and radio controls remain outside the artwork.
 
 Keep each diagram consistent with its renderer when message anatomy changes.
-The appearance message-style section CT (schematic geometry, palette readability and picker behavior) is tracked in [1434](../work/1434-build-the-theme-emit-surface-drift-check-per.md).
+The appearance message-style section CT (schematic geometry, palette readability and picker behavior) is tracked in [1471](../work/1471-build-the-appearance-message-style-section-ct.md).
 Inspect the rendered picker in light and dark palettes at narrow and wide widths. Keep live UI typography unscaled.
 
 ### 12.2 Rich message content — the HTML story (two tiers; Tier B = sandboxed iframe, NOT Shadow DOM)
