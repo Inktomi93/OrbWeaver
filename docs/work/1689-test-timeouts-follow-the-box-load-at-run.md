@@ -7,20 +7,20 @@ area: tests
 plan: test-foundation
 ---
 
-# Test timeouts follow the box load at run time, not at config load
+# The public Stop canon case runs on the shared cancellation room
 
 ## What
 
-vitest.config.ts computes testTimeout and hookTimeout with budget() once, when the config loads (lines 85, 86, 143), so a run that starts quiet and meets load keeps the quiet 5 s and 10 s budgets. budget() itself re-reads the box on each call (tooling/src/floor/host/load-budget.ts:239). Apply the scaled budgets per file through a setup file (vi.setConfig) so the stretch follows load at run time. Also move canon-input-writers.suite's public Stop case onto registerCancellationRoom() (7.4 s per-case boot today) and check handoff-debt-rows.suite's detached SDK marker case, which failed once under load.
+canon-input-writers.suite's public Stop case booted a cancellation room of its own (4677 ms under load). It now runs on the file's `registerCancellationRoom()`, so the guest-host boot is paid once in a hook. `withCancellationPeer` had no other caller and is deleted. handoff-debt-rows.suite's detached SDK marker case was checked: it is the file's only SDK-engine case, with its own seeded history and marker policy, so no shared room can serve it. It ran 1967 ms at load average 48 and needs no change.
 
 ## Why
 
-Suites that boot real processes pass only with the load-scaled budget, and the budget is frozen at config time, so a loaded run that started quiet times out.
+A per-case process boot inside the default test deadline turns box load into a timeout.
 
 ## Done when
 
-A run started at low load that then meets load stretches its budgets; a planted control proves the per-file reread; the two named suites pass ten runs under load.
+The Stop case reuses the registered room and both suites pass.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Stop case, `tests/server/domain/chat/persistence/canon-input-writers.suite.int.test.ts`: 4677 ms before, 295 ms after (load average 48 both runs). Both suites pass, 25 tests.
