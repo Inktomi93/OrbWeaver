@@ -61,6 +61,24 @@ Each ran with `pnpm e2e:corpus` (project `corpus-desktop-bubble`) or `pnpm test:
 - E9: slugs are pinned by `satisfies` against `SHOWCASE_PLUGIN_SLUGS`; the polished-draft text is produced inside the plugin guest and has no importable function.
 - Walkers: `surface-config.ts` keeps its own disclosure walk. It differs in kind (button identity, visit records), not only in plumbing.
 
+### Second pass
+
+- Helpers built for 1505 and used at every copy: `SHELL_MOUNT_PROCEDURES`, `routeAuthConfig`, `abortProcedure`, `channelName` on the `ct` door, the iso fallback scopes, `E2E_PORT_OFFSET_ENV`, `setRootFontScale`. Their cases and doors are listed in item 1505's Evidence.
+- E12: the five e2e fault closures and their hand-written tRPC patterns use `abortProcedure`.
+- E13: the two `commandMenu` helpers drive different menus; they are renamed `chatRowMenu` and `characterCommandMenu`.
+- E21: `HOME_SECTION_LABEL` and `REFINERY_SECTION_LABEL` are zero-import leaves that the section definitions read.
+- C21: four suites read `SHELL_MOUNT_PROCEDURES`. C20: the auth-config route copies use `routeAuthConfig`, and the planted scale is derived. C23: the fallback scopes have a testkit home. C5: the font-scale lookups and injectors use `channelName` and `setRootFontScale`.
+
+### Rulings
+
+- E10: `usesProgrammaticScroll` is shared; `nativeWheel` records wheel delivery facts and the chat `scrollViewport` does not, so their bodies differ by purpose.
+- E11 and the checkpoint, record and expectSubject helpers: the disclosure and details walkers are one module. The journey bookkeeping differs in shape between the chat, section, character and config walkers (entries named `coverage` against `observations`, `name` against `id`, `detail` against `reason`). Item 1511 splits the walker engine and owns the shared ledger.
+- E16: the surface-walk project name is composed inside `playwright-surface.config.ts` (`desktop-${width}-${name}-${pass}`); a spec cannot import the config without running it.
+- E17: `JOURNEY_OWNER` is `satisfies Record<SectionId, string>`, so a section with no owner fails `tsc`.
+- C4 (list panel): the "Show list panel" and "Hide list panel" names are assembled inside the `@orb/ui` panel-edge primitive from a noun; the product home is in `packages/ui`, which item 1495 owns.
+- C20 (live reads): `_surface-harness.ts` and `platform-admin-reset-names.suite.ct.tsx` re-read the root's config per request on purpose and keep their own route.
+- `session-freshness.ct.tsx` aborts inside a stateful `/api/auth/me` responder, not a procedure refusal, so it keeps its closure.
+
 ### Remaining
 
-The widened sweep of the other files in scope. Rows not touched: E6, E8, E10 (the nativeWheel body), E12, E13, E16 (project name), E17, E21, E22, E23, C2, C3, C4 (regexes), C6 to C8, C14, C17, C18, C20 (auth route), C21 to C24, C28. Helpers owned by item 1505 and not built: the shell-mount read list, `channelName` in a testkit door, `routeAuthConfig`, `abortProcedure`, the project names beside `e2eRunPorts`, a home for `fallback-cases.ts`. Item 1504 owns the remaining production homes (the GPU switch, the routes and the env keys); repoint any copy here when each lands.
+Not started: E6 and E8 (the UI sentences and action names need a production constant each, across about eight components), E22, C2, C3, C6 to C8, C14, C17, C18, C22, C24 and C28, and the shared walker ledger (item 1511). The seed-and-scope table waits on 1495.

@@ -872,7 +872,7 @@ function completedCommand(flow: CharacterFlow, id: (typeof COMMAND_ACTION_IDS)[n
   flow.observations.push({ id, kind: "action", disposition: "visited", reason });
 }
 
-async function commandMenu(flow: CharacterFlow): Promise<Locator> {
+async function characterCommandMenu(flow: CharacterFlow): Promise<Locator> {
   await contextTab(flow, "Overview");
   await flow.page.locator(CONTEXT).getByRole("button", { name: "Character actions", exact: true }).click();
   return flow.page.getByRole("menu");
@@ -906,7 +906,7 @@ async function createCommandCharacter(flow: CharacterFlow, name: string, subject
 }
 
 async function duplicateCommandCharacter(flow: CharacterFlow, parent: SourceCharacter, name: string, subjects: CommandSubjects): Promise<SourceCharacter> {
-  await (await commandMenu(flow)).getByRole("menuitem", { name: CHARACTER_ACTIONS.duplicate.label, exact: true }).click();
+  await (await characterCommandMenu(flow)).getByRole("menuitem", { name: CHARACTER_ACTIONS.duplicate.label, exact: true }).click();
   const confirm = flow.page.getByRole("alertdialog", { name: "Duplicate this character?", exact: true });
   await record(flow, "commands-duplicate-confirm", confirm, [confirm.getByRole("button", { name: CHARACTER_ACTIONS.duplicate.label, exact: true })]);
   await flow.action("characters-commands-duplicate", {
@@ -1012,7 +1012,7 @@ async function exportCommandCharacter(flow: CharacterFlow, card: SourceCharacter
   for (const [index, format] of CHARACTER_ACTIONS.exportCard.formats.entries()) {
     const id = `commands-export-format-${index}`;
     expectSubject(flow, id, "download");
-    const menu = await commandMenu(flow);
+    const menu = await characterCommandMenu(flow);
     const exportItem = menu.getByRole("menuitem", { name: CHARACTER_ACTIONS.exportCard.label, exact: true });
     await exportItem.focus();
     await exportItem.press("ArrowRight");
@@ -1079,7 +1079,7 @@ async function archiveCommandCharacters(flow: CharacterFlow, parent: SourceChara
   await archived.click();
   await list.getByRole("button", { name: "Select multiple", exact: true }).click();
   await openCard(flow, copy.name);
-  const menu = await commandMenu(flow);
+  const menu = await characterCommandMenu(flow);
   const unarchiveLabel = CHARACTER_ACTIONS.archive.toggledLabel;
   if (unarchiveLabel === null) {
     throw new Error("The production archive action has no reverse label");
@@ -1094,7 +1094,7 @@ async function archiveCommandCharacters(flow: CharacterFlow, parent: SourceChara
       await expect.poll(async () => (await flow.client.character.get.query({ characterId: copy.id })).archived).toBe(false);
     },
   });
-  const restoredMenu = await commandMenu(flow);
+  const restoredMenu = await characterCommandMenu(flow);
   await record(flow, "commands-archive-restored", restoredMenu, [restoredMenu.getByRole("menuitem", { name: CHARACTER_ACTIONS.archive.label, exact: true })]);
   await flow.page.keyboard.press("Escape");
   completedCommand(
@@ -1105,7 +1105,7 @@ async function archiveCommandCharacters(flow: CharacterFlow, parent: SourceChara
 }
 
 async function convertCommandCharacter(flow: CharacterFlow, card: SourceCharacter, subjects: CommandSubjects): Promise<void> {
-  const menu = await commandMenu(flow);
+  const menu = await characterCommandMenu(flow);
   await flow.action("characters-commands-convert", {
     action: async (): Promise<void> => {
       await menu.getByRole("menuitem", { name: CHARACTER_ACTIONS.convertToPersona.label, exact: true }).click();
@@ -1155,7 +1155,7 @@ async function convertCommandCharacter(flow: CharacterFlow, card: SourceCharacte
 }
 
 async function deleteCommandCharacters(flow: CharacterFlow, parent: SourceCharacter, copy: SourceCharacter, subjects: CommandSubjects): Promise<void> {
-  await (await commandMenu(flow)).getByRole("menuitem", { name: CHARACTER_ACTIONS.delete.label, exact: true }).click();
+  await (await characterCommandMenu(flow)).getByRole("menuitem", { name: CHARACTER_ACTIONS.delete.label, exact: true }).click();
   const single = flow.page.getByRole("alertdialog", { name: "Delete this character?", exact: true });
   await record(flow, "commands-delete-single-confirm", single, [single.getByRole("button", { name: CHARACTER_ACTIONS.delete.label, exact: true })]);
   await flow.action("characters-commands-delete-single", {

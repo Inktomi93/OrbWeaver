@@ -965,7 +965,7 @@ test.describe("over a wallpaper", () => {
     const layer = page.locator('[data-slot="theme-background-layer"]');
     await expect(page.locator(COMPOSER)).toBeVisible();
     await expect(layer).toBeVisible();
-    await page.locator(".shell-rail").getByRole("button", { name: "Home", exact: true }).click();
+    await page.locator(".shell-rail").getByRole("button", { name: SECTION_LABELS.home, exact: true }).click();
     await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", "home");
     await expect(layer).toHaveCount(0);
     await page.locator(".shell-rail").getByRole("button", { name: SECTION_LABELS.chats, exact: true }).click();

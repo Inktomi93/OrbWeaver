@@ -34,7 +34,7 @@ for (const regime of REGIMES) {
         await mount<typeof SectionShellStory>(STORY, { section: "home" });
         const grid = page.locator(".shell-grid");
         const rail = page.getByRole("navigation", { name: "Primary", exact: true });
-        const home = rail.getByRole("button", { name: "Home", exact: true });
+        const home = rail.getByRole("button", { name: SECTION_LABELS.home, exact: true });
         await expect(grid).toHaveAttribute("data-section", "home");
         await expect
           .poll(async () => await page.evaluate((name) => Number(getComputedStyle(document.documentElement).getPropertyValue(name)), channelName("fontScale")))
@@ -84,12 +84,12 @@ async function portraitPointer(page: Page, rail: Locator): Promise<void> {
   await rail.getByRole("button", { name: "You", exact: true }).click();
   const sheet = page.getByRole("dialog");
   await expect(sheet).toBeVisible();
-  await sheet.getByRole("button", { name: "Refinery", exact: true }).click();
+  await sheet.getByRole("button", { name: SECTION_LABELS.refinery, exact: true }).click();
   await expect(sheet).toBeHidden();
 }
 
 async function columnPointer(page: Page, rail: Locator, home: Locator, info: TestInfo): Promise<void> {
-  const refinery = rail.getByRole("button", { name: "Refinery", exact: true });
+  const refinery = rail.getByRole("button", { name: SECTION_LABELS.refinery, exact: true });
   await refinery.click();
   await withinViewport(refinery);
   const controlSize = await resolvedLength(page, "var(--size-control-lg)");
@@ -116,7 +116,7 @@ async function portraitReturn(rail: Locator): Promise<void> {
 }
 
 async function columnKeyboard(page: Page, rail: Locator, home: Locator, info: TestInfo): Promise<void> {
-  const refinery = rail.getByRole("button", { name: "Refinery", exact: true });
+  const refinery = rail.getByRole("button", { name: SECTION_LABELS.refinery, exact: true });
   await home.focus();
   const stops = await rail.getByRole("button").count();
   for (let index = 0; index < stops && !(await refinery.evaluate((node) => node === document.activeElement)); index += 1) {

@@ -12,6 +12,7 @@ import { streamAttachInputSchema } from "@orb/contracts/stream";
 import type { CharacterId, ChatId, RefinerySessionId, RosterPresetId } from "@orb/kit/ids";
 import type { DisclosureWalkHooks } from "@orb/testkit/browser/spec";
 import { controlledPanel, publishSurfaceInventory, usesProgrammaticScroll, walkDisclosures } from "@orb/testkit/browser/spec";
+import { SECTION_LABELS } from "@orb/testkit/ct";
 import type { SurfaceCoverageDisposition, SurfaceCoverageInventory, SurfaceProviderEvidence } from "@orb/testkit/iso";
 import { parseSurfaceProviderEvidence } from "@orb/testkit/iso";
 import { CORPUS_STRUCTURED_REPLIES } from "@orb/testkit/node/composed";
@@ -26,9 +27,11 @@ import { splitHearth } from "#client/features/chat/lib/home-hearth.ts";
 import { DATABANK_SECTION_LABEL } from "#client/features/databank/lib/databank-section-label.ts";
 import { CORPUS_SEARCH_TARGETS, CORPUS_SEARCH_TOP_N, CORPUS_TARGET_REST_HINTS } from "#client/features/discovery/lib/corpus-search-targets.ts";
 import { CORPUS_SECTION_LABEL } from "#client/features/discovery/lib/corpus-section-label.ts";
+import { HOME_SECTION_LABEL } from "#client/features/home/lib/home-section-label.ts";
 import { homeSectionJumpVisible } from "#client/features/home/lib/section-jump-visibility.ts";
 import { EXTENSIONS_SECTION_LABEL } from "#client/features/plugin/lib/extensions-section-label.ts";
 import { PRESETS_SECTION_LABEL } from "#client/features/preset/lib/presets-section-label.ts";
+import { REFINERY_SECTION_LABEL } from "#client/features/refinery/lib/refinery-section-label.ts";
 import { homeRostersVisible } from "#client/features/roster-preset/lib/home-rosters-visibility.ts";
 import { rosterCountsSuffix } from "#client/features/roster-preset/lib/roster-copy.ts";
 import { ANALYTICS_DEFAULT_SORT, ANALYTICS_SORT_OPTIONS } from "#client/features/stats/lib/analytics-view-model.ts";
@@ -161,8 +164,9 @@ function sectionLabel(section: OwnedSection): string | RegExp {
     case "presets":
       return PRESETS_SECTION_LABEL;
     case "home":
+      return new RegExp(`^${RegExp.escape(HOME_SECTION_LABEL)}$`, "u");
     case "refinery":
-      return new RegExp(`^${RegExp.escape(section)}$`, "iu");
+      return new RegExp(`^${RegExp.escape(REFINERY_SECTION_LABEL)}$`, "u");
   }
 }
 
@@ -888,7 +892,7 @@ interface HomeOperation {
 }
 
 async function returnHome(journey: Journey): Promise<void> {
-  await journey.flow.page.getByRole("navigation", { name: "Primary", exact: true }).getByRole("button", { name: "Home", exact: true }).click();
+  await journey.flow.page.getByRole("navigation", { name: "Primary", exact: true }).getByRole("button", { name: SECTION_LABELS.home, exact: true }).click();
   await expect(journey.flow.page.locator(".shell-grid")).toHaveAttribute("data-section", "home");
   await ready(content(journey));
   await journey.flow.requestPanes();
@@ -2454,7 +2458,7 @@ export async function walkRefineryExecution(flow: SurfaceFlow): Promise<void> {
     if (flow.page.url() === "about:blank") {
       return;
     }
-    await flow.page.getByRole("navigation", { name: "Primary", exact: true }).getByRole("button", { name: "Home", exact: true }).click();
+    await flow.page.getByRole("navigation", { name: "Primary", exact: true }).getByRole("button", { name: SECTION_LABELS.home, exact: true }).click();
     await expect(flow.page.locator(".shell-grid")).toHaveAttribute("data-section", "home");
   });
   try {
