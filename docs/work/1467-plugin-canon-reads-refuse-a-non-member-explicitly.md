@@ -22,4 +22,8 @@ The canon read returns the explicit empty or refusal for a non-member, and the r
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The canon read already refuses a non-member through an explicit check: `listMessages` in `packages/server/src/domain/plugin/substrate/bridge.ts` returns `[]` when chat's `resolveViewerVisibility` answers `null`. The TypeError came from a planted removal that `tsc` refuses, because the verdict type is `ViewerVisibility | null`. No product change was needed.
+
+A removal that compiles must substitute a floor for the missing verdict. With the check removed and `NO_HISTORY_FLOOR` substituted, the kicked installer's guest read the host's opening line.
+
+[Guest room reads](../../tests/server/domain/plugin/substrate/guest-room-reads.suite.int.test.ts) now asserts the canon bytes: a present member reads the opening line, and the kicked installer reads `[]`. Both plants fail the case for their own reason. The raw removal logs `{ ok: false, name: "TypeError" }`, and the compiling bypass returns the opening line. The bridge was restored byte for byte after each plant.
