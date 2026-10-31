@@ -162,7 +162,9 @@ function RulePresetList({ presets, onPick }: RulePresetListProps): ReactElement 
                 shelf of items", and with the summary lifted off the 10.5px floor below (see it) a `label`
                 title would render name and caption at the SAME 13px step — the exact flattening `promoted`
                 was minted to fix. */}
-            <Text voice="promoted">{preset.title}</Text>
+            <Text ink="inherit" voice="promoted">
+              {preset.title}
+            </Text>
             {/* `prose` — the LENGTH modifier, not a taste knob. This sentence is the one thing answering
                 "what will this do to my room", and it rendered at 10.5px (design-audit `undersized-ui-text`,
                 below the 11px functional floor) inside an interactive button. `prose` lifts the gloss voice

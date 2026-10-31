@@ -140,7 +140,7 @@ function AlternateTakes({ chatId }: { readonly chatId: Moment["hit"]["source"]["
           onClick={(): void => openChatMoment(chatId, { kind: "message", messageId: take.messageId })}
         >
           <Stack gap="tight">
-            <Text>{take.snippet}</Text>
+            <Text ink="inherit">{take.snippet}</Text>
             <Text voice="gloss">
               {take.variantCount} takes · message {take.seq}
             </Text>
