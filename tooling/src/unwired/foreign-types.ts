@@ -15,7 +15,7 @@ const FOREIGN_HOMES = [
 ] as const;
 /** `platform`: a global the runtime supplies (`AbortSignal`, `Buffer`) or another library outside contracts' reach.
  *  `kept`: a server type the tool-registry ruling keeps in its domain. */
-export type ForeignKind = (typeof FOREIGN_HOMES)[number]["kind"] | "platform" | "kept";
+type ForeignKind = (typeof FOREIGN_HOMES)[number]["kind"] | "platform" | "kept";
 export type ForeignTypes = Readonly<Record<ForeignKind, readonly string[]>>;
 
 // Server types the tool-registry ruling keeps in their domain, by name, with the plan for a consumer that names one.
@@ -25,14 +25,7 @@ const KEPT_SHAPES: ReadonlyMap<string, string> = new Map([
 ]);
 
 /** The `@orb/db` types that carry a database handle or an unexecuted statement across a boundary. */
-export const DB_HANDLE_TYPES: ReadonlySet<string> = new Set([
-  "DatabaseHandle",
-  "BatchHandle",
-  "StatementToken",
-  "AwaitableStatementToken",
-  "SQL",
-  "DbAssemblyInput",
-]);
+const DB_HANDLE_TYPES: ReadonlySet<string> = new Set(["DatabaseHandle", "BatchHandle", "StatementToken", "AwaitableStatementToken", "SQL", "DbAssemblyInput"]);
 
 // A root ambient declaration (`reset.d.ts`, `platform.d.ts`) sits outside every package and every library.
 const isAmbient = (file: string): boolean => file.endsWith(".d.ts") && !file.includes("/packages/") && !file.includes("/node_modules/");

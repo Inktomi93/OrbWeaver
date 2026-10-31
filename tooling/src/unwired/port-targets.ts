@@ -5,12 +5,12 @@ import ts from "typescript";
 import type { ForeignTypes } from "./foreign-types.ts";
 import { describeForeignTypes, passesDbHandle, runtimeTypes } from "./foreign-types.ts";
 import type { PortMember, Restatement } from "./restated-port.ts";
-import { placementOf, tierRank } from "./restated-port.ts";
+import { placementOf } from "./restated-port.ts";
 import { jointBatchRulingOf } from "./ruled-ops.ts";
 
 /** What a target asks its leg to do. The codemod applies {@link APPLIED_KINDS}; {@link INFORMATIONAL_KINDS} ask nothing;
  *  the others are judgment or hand work. */
-export const TARGET_KINDS = [
+const TARGET_KINDS = [
   "ruled",
   "distinct",
   "derive",
@@ -29,7 +29,7 @@ export const TARGET_KINDS = [
 export type TargetKind = (typeof TARGET_KINDS)[number];
 
 /** The kinds the derive codemod applies; every other kind is a leg's judgment or hand work. */
-export const APPLIED_KINDS: ReadonlySet<TargetKind> = new Set<TargetKind>(["derive", "derive-params", "concept", "add-door-export"]);
+const APPLIED_KINDS: ReadonlySet<TargetKind> = new Set<TargetKind>(["derive", "derive-params", "concept", "add-door-export"]);
 
 /** The kinds that report a settled judgment and ask no work: a ledger-ruled joint batch, a registered distinct look-alike. */
 export const INFORMATIONAL_KINDS: ReadonlySet<TargetKind> = new Set<TargetKind>(["ruled", "distinct"]);
@@ -69,8 +69,8 @@ const LOCAL_KINDS: ReadonlySet<TargetKind> = new Set<TargetKind>([
 export const LEGS = ["B", "C", "D", "E", "F"] as const;
 export type Leg = (typeof LEGS)[number];
 
-export const TARGET_FORMS = ["member", "collapse", "import", "export", "type"] as const;
-export type TargetForm = (typeof TARGET_FORMS)[number];
+const TARGET_FORMS = ["member", "collapse", "import", "export", "type"] as const;
+type TargetForm = (typeof TARGET_FORMS)[number];
 
 export interface TargetImport {
   readonly name: string;
@@ -238,14 +238,9 @@ export const lineOf = (node: ts.Node): number => {
 export const keyOf = (root: string, member: PortMember): string =>
   `${relative(root, member.getSourceFile().fileName)}:${lineOf(member)}:${member.name.getText()}`;
 
-export const fileOfKey = (key: string): string => key.slice(0, key.indexOf(":"));
+const fileOfKey = (key: string): string => key.slice(0, key.indexOf(":"));
 
 export const placementOfKey = (key: string): ReturnType<typeof placementOf> => placementOf(`/${fileOfKey(key)}`);
-
-export function rankOfKey(key: string): number {
-  const placement = placementOfKey(key);
-  return placement === null ? Number.MAX_SAFE_INTEGER : tierRank(placement);
-}
 
 /** Why a cross-domain copy of a split signature is settled: a signature over contracts data and runtime types stays
  *  with its consumer, and the owner's verb satisfies it at the composition root. */

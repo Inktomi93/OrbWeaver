@@ -14,7 +14,7 @@ export const TEST_WORLDS = ["tsconfig.node.json", "tsconfig.tests-dom.json"] as 
 
 /** One world's program. `realpath` keeps a workspace package on its source path rather than its
  *  `node_modules` link, or every cross-package reference is lost. */
-export function loadWorld(root: string, config: string): ts.ParsedCommandLine {
+function loadWorld(root: string, config: string): ts.ParsedCommandLine {
   const parsed = ts.getParsedCommandLineOfConfigFile(
     join(root, config),
     {},
@@ -36,7 +36,7 @@ export function loadWorld(root: string, config: string): ts.ParsedCommandLine {
 const SOURCE_BRIDGE: Readonly<Record<string, string>> = { "@orb/server": "packages/server/src/index.ts" };
 
 /** A world's `paths` with {@link SOURCE_BRIDGE} added, every target absolute. A `paths` target is relative to the config. */
-export function bridgedPaths(root: string, config: string, parsed: ts.ParsedCommandLine): Record<string, string[]> {
+function bridgedPaths(root: string, config: string, parsed: ts.ParsedCommandLine): Record<string, string[]> {
   const base = dirname(join(root, config));
   const own = Object.entries(parsed.options.paths ?? {}).map(([name, targets]) => [name, targets.map((target) => resolve(base, target))] as const);
   const bridge = Object.entries(SOURCE_BRIDGE).map(([name, target]) => [name, [join(root, target)]] as const);
