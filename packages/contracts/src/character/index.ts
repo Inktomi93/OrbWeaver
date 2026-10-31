@@ -1028,6 +1028,18 @@ export const characterListInputSchema = characterCensusInputSchema
   })
   .optional();
 
+/** The most asset ids one by-avatar name read takes. */
+export const CHARACTER_AVATAR_NAMES_MAX_IDS = 200;
+
+/** Name the owner's characters by the avatar asset ids a caller holds (a failed image run names the pictures
+ *  it could not read); an id no owned character wears as its avatar is absent from the answer. */
+export const characterAvatarNamesInputSchema = z.strictObject({
+  assetIds: z.array(typeIdSchema(ID_PREFIX.asset)).max(CHARACTER_AVATAR_NAMES_MAX_IDS).readonly(),
+});
+
+export const characterAvatarNamesResultSchema = z.array(z.strictObject({ assetId: typeIdSchema(ID_PREFIX.asset), name: z.string() })).readonly();
+export type CharacterAvatarNames = z.infer<typeof characterAvatarNamesResultSchema>;
+
 /** A handle to a character identity row: the return of the by-handle, by-import-hash and synthetic-group ops. */
 export interface CharacterRef {
   readonly characterId: CharacterId;

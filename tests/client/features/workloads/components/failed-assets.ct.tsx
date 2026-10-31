@@ -1,5 +1,5 @@
 import { rm } from "node:fs/promises";
-import { createCharacterSchema } from "@orb/contracts/character";
+import { CHARACTER_LIST_MAX_LIMIT, createCharacterSchema } from "@orb/contracts/character";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { AssetId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
@@ -20,7 +20,7 @@ import type { WorkloadActionGroupsStory } from "./_action-groups-stories.tsx";
 const STORY = "tests/client/features/workloads/components/_action-groups-stories/WorkloadActionGroupsStory";
 const WORKLOAD_DEADLINE_MS = 30_000;
 
-test("a finished index run names the avatar whose stored file was gone", async ({ mount, page }) => {
+test("a finished index run names the avatar whose stored file was gone, in a library past one list page", async ({ mount, page }) => {
   const wire = createCorpusProviderExecution({
     modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
@@ -58,6 +58,13 @@ test("a finished index run names the avatar whose stored file was gone", async (
     });
     avatars.push(avatar.assetId);
   }
+  // A library past one list page: the failed avatar's owner sits beyond the page a list lookup could read.
+  for (let n = 0; n < CHARACTER_LIST_MAX_LIMIT; n += 1) {
+    await root.services.character.create({
+      principal,
+      input: createCharacterSchema.parse({ handle: `filler-${String(n)}`, name: `Filler ${String(n)}`, description: "A bystander." }),
+    });
+  }
   await root.settleBackground();
   await seedCorpusConnections(root, principal);
   const [lost] = avatars;
@@ -80,6 +87,7 @@ test("a finished index run names the avatar whose stored file was gone", async (
       "workloads.get",
       "admin.listUsers",
       "character.list",
+      "character.namesByAvatarAssets",
       "connection.listBindings",
       "connection.list",
       "stream.attach",

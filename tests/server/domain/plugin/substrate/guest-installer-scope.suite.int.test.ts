@@ -1,7 +1,7 @@
 // What a real guest can reach is closed over its installer and its own plugin identity: assets, card state, the
-// library ingests and a quiet generation's images resolve only under the installer, card state keys on the
-// calling plugin's own slug, a quiet generation stops when its invocation ends, and a snippet, which has no
-// plugin identity, can neither spend nor egress nor search.
+// library ingests, document search and a quiet generation's images resolve only under the installer, card state
+// keys on the calling plugin's own slug, a quiet generation stops when its invocation ends, and a snippet, which
+// has no plugin identity, can neither spend nor egress nor search.
 // @subject packages/server/src/domain/plugin/substrate/bridge.ts
 
 import { spawn } from "node:child_process";
@@ -13,7 +13,7 @@ import type { AssetId, CharacterId, PluginId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { jsonValueSchema } from "@orb/kit/json";
 import { expect, test } from "@orb/testkit/node";
-import type { ServerTestHarness } from "@orb/testkit/node/composed";
+import type { ServerHarnessOptions, ServerTestHarness } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
@@ -36,8 +36,9 @@ const SCOPE_OPS = {
   ingestDocument: "(h, room, a) => h.databank.ingest(a.doc)",
   ingestCharacter: "(h, room, a) => h.character.ingest(a.card)",
   quiet: "(h, room, a) => h.llm.quiet(a.prompt, a.opts)",
+  searchDocuments: "async (h, room, a) => (await h.search.documents(a.query)).map((hit) => hit.documentId)",
 } as const satisfies GuestOps;
-const SCOPE_CAPABILITIES = ["assets.read", "character.card_state", "databank.ingest", "character.ingest", "llm.quiet"] as const;
+const SCOPE_CAPABILITIES = ["assets.read", "character.card_state", "databank.ingest", "character.ingest", "llm.quiet", "search.query"] as const;
 const QUIET_REPLY = "A quiet answer.";
 
 interface Owners extends AsyncDisposable {
@@ -48,7 +49,7 @@ interface Owners extends AsyncDisposable {
   readonly guest: (who: Principal, slug: string) => Promise<{ readonly pluginId: PluginId; readonly run: GuestRun }>;
 }
 
-async function owners(providerFetch?: typeof fetch): Promise<Owners> {
+async function owners(providerFetch?: typeof fetch, jobs: Pick<ServerHarnessOptions, "startJobs"> = {}): Promise<Owners> {
   const provider = createCorpusProviderExecution({
     modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
@@ -56,7 +57,7 @@ async function owners(providerFetch?: typeof fetch): Promise<Owners> {
     structuredReplies: CORPUS_STRUCTURED_REPLIES,
     images: [],
   });
-  const root = await createServerHarness({ pluginSpawn: spawn, providerFetch: providerFetch ?? provider.execute });
+  const root = await createServerHarness({ pluginSpawn: spawn, providerFetch: providerFetch ?? provider.execute, ...jobs });
   const { owner, secondUserId } = await seedCorpusActors(root);
   const stranger = await root.principalFor(secondUserId);
   const guest = async (who: Principal, slug: string): Promise<{ readonly pluginId: PluginId; readonly run: GuestRun }> => {
@@ -83,6 +84,33 @@ async function ownCharacter(root: ServerTestHarness, who: Principal, handle: str
 }
 
 const reported = (outcome: Awaited<ReturnType<GuestRun>>): unknown => (outcome.ok ? outcome.value : outcome);
+
+type OwnerCaller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
+// The embed space promotes only when cards, memory and documents all report one generation, so all three sweep.
+const LIBRARY_SWEEPS = [
+  { kind: "index", params: { source: "text" } },
+  { kind: "memory-backfill", params: {} },
+  { kind: "databank-reindex", params: { scope: { kind: "owner" }, mode: "chunk-embed" } },
+] as const satisfies Parameters<OwnerCaller["workloads"]["start"]>[0]["input"][];
+
+/** Run `who`'s library sweeps to completion through the admitted-workload door, promoting their embed space. */
+async function indexLibrary(root: ServerTestHarness, who: Principal): Promise<OwnerCaller> {
+  const runAdmittedWorkload = root.runAdmittedWorkload;
+  if (runAdmittedWorkload === undefined) {
+    throw new Error("the root runs its jobs on its own, so no admitted workload can be driven");
+  }
+  const caller = await root.internalCallerFor(who.userId);
+  await caller.settings.updateUserSettingsSection({ section: "memory", patch: { enabled: true } });
+  for (const input of LIBRARY_SWEEPS) {
+    const job = await caller.workloads.start({ input, mode: "singular" });
+    await runAdmittedWorkload(job.id, new AbortController().signal);
+    const settled = await caller.workloads.get({ id: job.id });
+    if (settled.status !== "succeeded") {
+      throw new Error(`the ${settled.kind} sweep ended ${settled.status}`);
+    }
+  }
+  return caller;
+}
 
 test("a guest reads assets only from its installer's own storage", { tags: ["slow"] }, async () => {
   await using o = await owners();
@@ -135,6 +163,23 @@ test("library ingests land in the installer's own library, stamped with the call
   const detail = await o.root.services.character.get({ principal: o.owner, characterId: character.characterId });
   expect(parsePluginImportedFrom(detail.importedFrom)).toEqual({ pluginId });
   await expect(o.root.services.character.get({ principal: o.stranger, characterId: character.characterId })).rejects.toBeInstanceOf(DomainNotFoundError);
+});
+
+test("a guest's document search ranks only its installer's library while both libraries share an active space", { tags: ["slow"] }, async () => {
+  await using o = await owners(undefined, { startJobs: false });
+  const mine = await o.guest(o.owner, "library-search");
+  const theirs = await o.guest(o.stranger, "library-search");
+  const ingest = async (run: GuestRun, text: string): Promise<string> =>
+    z.object({ documentId: typeIdSchema(ID_PREFIX.document) }).parse(reported(await run("ingestDocument", { doc: { name: "Ledger", text } }))).documentId;
+  const ownDocument = await ingest(mine.run, "The owner's ledger lists the copper keys.");
+  const foreignDocument = await ingest(theirs.run, "The stranger's ledger lists the silver keys.");
+  for (const who of [o.owner, o.stranger]) {
+    // Both owners embed on the same encoder, so a widened scope would rank the other library in the same geometry.
+    expect(await (await indexLibrary(o.root, who)).search.spaceStatus()).toMatchObject({ paused: false, embed: false });
+  }
+
+  expect(await mine.run("searchDocuments", { query: "Which keys does the ledger list?" })).toEqual({ ok: true, value: [ownDocument] });
+  expect(await theirs.run("searchDocuments", { query: "Which keys does the ledger list?" })).toEqual({ ok: true, value: [foreignDocument] });
 });
 
 test("a quiet generation attaches only the installer's own images, and a foreign image spends nothing", { tags: ["slow"] }, async () => {

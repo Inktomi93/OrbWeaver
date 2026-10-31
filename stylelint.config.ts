@@ -204,6 +204,12 @@ const config: Config = {
       rules: { "orb/appearance-name-in-manifest": [true, { ...appearance, osGuard: true }] },
     },
     {
+      // A `@utility` is Tailwind's scoping root, so the `&` that guards a declaration block inside its `@supports` is the only
+      // spelling the utility admits; stylelint reads the at-rule as a plain container and calls the `&` redundant and unscoped.
+      files: ["packages/ui/src/styles/primitives.css"],
+      rules: { "block-no-redundant-nested-style-rules": null, "nesting-selector-no-missing-scoping-root": null },
+    },
+    {
       // Generated from the appearance manifest: a preference variant's body is Tailwind's `&` + `@slot` form, and its
       // query is read from `MEDIA_QUERIES`, the conditions' one home.
       files: ["packages/client/src/styles/appearance-channel.gen.css"],

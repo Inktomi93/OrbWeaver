@@ -174,7 +174,7 @@ function LeaderboardBody({
           <ListRow
             data-testid={testId("analyticsLeaderboardRow")}
             clickable={true}
-            selected={selectedId === row.characterId}
+            data-selected={selectedId === row.characterId ? "" : undefined}
             onClick={(): void => selectAnalyticsCharacterFromList(row.characterId)}
             leading={
               <Text voice="datum" ink="muted">

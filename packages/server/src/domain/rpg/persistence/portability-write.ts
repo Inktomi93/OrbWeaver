@@ -31,7 +31,7 @@ import type { BatchStmt } from "@orb/db/query";
 import { batchMany, isConstraintViolation } from "@orb/db/query";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
-import type { RpgSnapshotId } from "@orb/kit/ids";
+import type { RpgGameId, RpgSnapshotId } from "@orb/kit/ids";
 import { asc, eq, inArray } from "drizzle-orm";
 import type { RpgPortabilityContext } from "../contract/portability.ts";
 
@@ -127,6 +127,33 @@ export function createExportRpgGame(input: DbAssemblyInput<Pick<RpgPortabilityCo
   };
 }
 
+type SnapshotArm = Pick<RpgPortableSnapshot, "messageId" | "variantId" | "asOfMessageId" | "committed">;
+
+/** One snapshot INSERT from a portable snapshot's state under the given row identity, so a hand clone of a turn
+ *  row shares the column mapping with the row it copies. */
+function snapshotValues(source: RpgPortableSnapshot, id: RpgSnapshotId, gameId: RpgGameId, arm: SnapshotArm): typeof rpgSnapshots.$inferInsert {
+  return {
+    id,
+    gameId,
+    messageId: arm.messageId,
+    variantId: arm.variantId,
+    asOfMessageId: arm.asOfMessageId,
+    clock: source.state.clock,
+    calendarDate: source.state.calendarDate,
+    location: source.state.location,
+    weather: source.state.weather,
+    presentCharacters: source.state.presentCharacters,
+    recentEvents: source.state.recentEvents,
+    actorState: source.state.actorState,
+    trackerValues: source.state.trackerValues,
+    quests: source.state.quests,
+    plot: source.state.plot,
+    fieldLocks: source.state.fieldLocks,
+    committed: arm.committed ? 1 : 0,
+    createdAt: source.createdAt,
+  };
+}
+
 export function createImportRpgGame(input: DbAssemblyInput<RpgPortabilityContext>): ImportRpgGame {
   const ctx: RpgPortabilityContext = { ...input, db: databaseForOwner(input.db) };
   return async ({ chatId, hostUserId, game }): Promise<RpgImportOutcome> => {
@@ -167,26 +194,7 @@ export function createImportRpgGame(input: DbAssemblyInput<RpgPortabilityContext
         }),
       ),
       ...game.snapshots.map((snapshot, i) =>
-        ctx.db.insert(rpgSnapshots).values({
-          id: snapshotIds[i] ?? ctx.ids.snapshot(),
-          gameId,
-          messageId: snapshot.messageId,
-          variantId: snapshot.variantId,
-          asOfMessageId: snapshot.asOfMessageId,
-          clock: snapshot.state.clock,
-          calendarDate: snapshot.state.calendarDate,
-          location: snapshot.state.location,
-          weather: snapshot.state.weather,
-          presentCharacters: snapshot.state.presentCharacters,
-          recentEvents: snapshot.state.recentEvents,
-          actorState: snapshot.state.actorState,
-          trackerValues: snapshot.state.trackerValues,
-          quests: snapshot.state.quests,
-          plot: snapshot.state.plot,
-          fieldLocks: snapshot.state.fieldLocks,
-          committed: snapshot.committed ? 1 : 0,
-          createdAt: snapshot.createdAt,
-        }),
+        ctx.db.insert(rpgSnapshots).values(snapshotValues(snapshot, snapshotIds[i] ?? ctx.ids.snapshot(), gameId, snapshot)),
       ),
       ...game.journal.map((entry) =>
         ctx.db.insert(rpgJournal).values({
@@ -212,21 +220,36 @@ export function createImportRpgGame(input: DbAssemblyInput<RpgPortabilityContext
         }),
       ),
       ...game.checkpoints.flatMap((checkpoint) => {
+        const target = game.snapshots[checkpoint.snapshotIndex];
         const snapshotId = snapshotIds[checkpoint.snapshotIndex];
         // Pruned by the serde already; belt kept because RESTRICT makes the db failure abort the WHOLE batch,
         // taking the restored campaign with it.
-        return snapshotId === undefined
-          ? []
-          : [
-              ctx.db.insert(rpgCheckpoints).values({
-                id: ctx.ids.checkpoint(),
-                gameId,
-                snapshotId,
-                label: checkpoint.label,
-                trigger: checkpoint.trigger,
-                createdAt: checkpoint.createdAt,
-              }),
-            ];
+        if (target === undefined || snapshotId === undefined) {
+          return [];
+        }
+        // A bookmark pins an immutable hand row, never a turn row: deleting the turn's message cascades its
+        // snapshot, and the checkpoint's RESTRICT refuses that delete. A file whose checkpoint names a turn
+        // row gets a hand clone to pin instead, stamped at the turn the way a live checkpoint detaches.
+        const pinned = target.variantId === null ? snapshotId : ctx.ids.snapshot();
+        const detached =
+          target.variantId === null
+            ? []
+            : [
+                ctx.db
+                  .insert(rpgSnapshots)
+                  .values(snapshotValues(target, pinned, gameId, { messageId: null, variantId: null, asOfMessageId: target.messageId, committed: true })),
+              ];
+        return [
+          ...detached,
+          ctx.db.insert(rpgCheckpoints).values({
+            id: ctx.ids.checkpoint(),
+            gameId,
+            snapshotId: pinned,
+            label: checkpoint.label,
+            trigger: checkpoint.trigger,
+            createdAt: checkpoint.createdAt,
+          }),
+        ];
       }),
     ];
     try {

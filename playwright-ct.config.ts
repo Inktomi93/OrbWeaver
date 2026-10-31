@@ -80,6 +80,8 @@ export default defineConfig<CtCorpusOptions>({
         "**/content/theme-scope/fallback-delivery.ct.tsx",
         "**/primitives/tone-variant-matrix.ct.tsx",
         "**/primitives/button/button-family.ct.tsx",
+        "**/primitives/list-row/selected-ink.ct.tsx",
+        "**/primitives/list-row/state-attributes.ct.tsx",
         "**/primitives/card/card-interactive.ct.tsx",
         "**/primitives/spoiler/spoiler.ct.tsx",
         "**/primitives/badge/badge-family.ct.tsx",

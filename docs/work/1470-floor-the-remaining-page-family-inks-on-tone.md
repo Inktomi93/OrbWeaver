@@ -25,4 +25,4 @@ Each page-family ink on a tone tint is either floored by the kit solve and the t
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Landed with step 4e of item 1421: the selection rail, the selected ListRow title, the active Tabs rail cell and the table cells under a selected row paint the tone's `text-on-tint` and no longer the page ink. `tests/ui/primitives/list-row/selected-ink.ct.tsx` holds the carried mid-grey pair on painted pixels and three seed palettes where `text-on-tint` and the page ink differ, in the Chromium and WebKit CT projects. Still open: the interactive Card hover, `muted-foreground` on a tint and the seed-palette gate.

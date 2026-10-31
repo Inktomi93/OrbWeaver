@@ -37,7 +37,7 @@ export function CorpusThemeSection({
                   <ListRow
                     clickable={true}
                     onClick={(): void => selectCorpusArtifact({ kind: "theme", row })}
-                    selected={selection?.kind === "theme" && selection.row.id === row.id}
+                    data-selected={selection?.kind === "theme" && selection.row.id === row.id ? "" : undefined}
                     title={row.name ?? "Unnamed theme"}
                     subtitle={`${row.size} digests`}
                   />
