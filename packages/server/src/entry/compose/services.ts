@@ -41,6 +41,7 @@
 // before chat composes; the real const into automation after).
 
 import { resolve } from "node:path";
+import type { IsMemoryEnabledOp } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { AuthModeSource, Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
@@ -592,7 +593,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     targetWouldMove: () => Promise.reject(new Error("compose: targetWouldMove invoked before search-discovery wiring")),
   };
   // chat's memory-enabled read for the search-discovery seam, which composes before chat. Bound once chat exists.
-  let isMemoryEnabled: (ownerId: UserId) => Promise<boolean> = () => Promise.reject(new Error("compose: isMemoryEnabled invoked before chat wiring"));
+  const isMemoryEnabledBinding = createBinding<{ readonly isMemoryEnabled: IsMemoryEnabledOp }>("compose: isMemoryEnabled invoked before chat wiring");
   let emptyMemoryScope: ChatComposeResult["emptyMemoryScope"] = () => Promise.reject(new Error("compose: emptyMemoryScope invoked before chat wiring"));
   // The connection pane's embedder-change preview counts the embeddings domain's rows, which compose after it.
   let countOwnedVectors: ConnectionContext["countOwnedVectors"] = () =>
@@ -895,7 +896,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // model) — the SAME verb the client's params panel already reads, so the two can't disagree.
     resolveChatCapability: (args) => connection.resolveChatCacheContext(args),
     getContributions: getWorkloadContributions,
-    isMemoryEnabled: (ownerId) => isMemoryEnabled(ownerId),
+    isMemoryEnabled: (ownerId) => isMemoryEnabledBinding.read().isMemoryEnabled(ownerId),
     emptyMemoryScope: (ownerId) => emptyMemoryScope(ownerId),
   });
   const {
@@ -1148,7 +1149,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   });
   chatLifetime = chatCompose;
   const { service: chat, emitBusEvent: emitChatBusEvent } = chatCompose;
-  isMemoryEnabled = chatCompose.isMemoryEnabled;
+  isMemoryEnabledBinding.bind(chatCompose);
   emptyMemoryScope = chatCompose.emptyMemoryScope;
 
   // The preset-ownership gate (fork-clones-the-game §3.2) — `forkGame` asks whether a source game's `gmPresetId`

@@ -1,4 +1,4 @@
-// domain/chat/reaction-note — the attribution note a reaction writes into the model's prompt. Zero imports, so the
+// domain/chat/substrate/reaction-note — the attribution note a reaction writes into the model's prompt. Zero imports, so the
 // contribution that writes it and the suites that must collide with it read one builder.
 
 /** The reactor name for a seat that has neither a character nor a persona name. */

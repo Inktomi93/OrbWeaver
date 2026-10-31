@@ -67,14 +67,14 @@ IDENT_SRC="transcript"; [ -n "$TRANSCRIPT" ] || IDENT_SRC="env fallback (no tran
 if [ -n "$TRANSCRIPT" ] && [ "${CFG_DIR%/}" != "$ENV_CFG" ]; then
   echo "!!! ACCOUNT MISMATCH: the transcript says ${WHO} (${CFG_DIR}) but CLAUDE_CONFIG_DIR says $(account_for "$ENV_CFG") (${ENV_CFG}). The TRANSCRIPT wins below; this is a config fault to report to the owner, not a signal."
 fi
-echo "!!! IDENTITY: you are ${WHO} (by ${IDENT_SRC}; config dir ${CFG_DIR}). YOUR inbox is ~/.claude/bridge/${INBOX}/ — read it, ack by MOVE into its done/; the bridge plugin watches it; you WRITE notes with \`claude-bridge send\`. claude-b prefixes lanes cb-, never delegates cross-account, and only PRIMARY commits on main's checkout. MESSAGE FORM is ~/.claude/bridge/PROTOCOL.md — read it before writing a note: claude-bridge send numbers it under the lock, at: in ISO 8601 UTC, kind in re: (plain | QUESTION with stated default | BLOCKED | ANSWER to NNN | ACK of NNN); a QUESTION stays unacked until answered."
+echo "!!! IDENTITY: you are ${WHO} (by ${IDENT_SRC}; config dir ${CFG_DIR}). YOUR inbox is ~/.claude/bridge/${INBOX}/ — the bridge mod delivers its notes; use the mod's send, reply, ack and inbox tools (\`claude-bridge\` from Bash for scripts). claude-b prefixes lanes cb-, never delegates cross-account, and only PRIMARY commits on main's checkout. MESSAGE FORM is ~/.claude/bridge/PROTOCOL.md — read it before writing a note: send numbers it under the lock and stamps at:, kind in re: (plain | QUESTION with stated default | BLOCKED | ANSWER to NNN | ACK of NNN); a QUESTION stays unacked until answered."
 
 # FIRST ACTIONS sit directly under identity so a truncated output still delivers them. The hook cannot
 # call tools; these are orders for the session.
 if [ -x "$HOME/.claude/skills/bridge/bin/claude-bridge" ]; then
-  # The bridge plugin's own SessionStart hook prints this account's newest SELF note in full and lists the
-  # other unacked notes, so this hook does not repeat them.
-  echo "!!! FIRST ACTIONS, in order: (1) BRIDGE: the 'bridge:' block from the bridge plugin holds your own note from your last session and your unacked notes. Act on them, then claude-bridge ack N. New notes arrive as 'bridge: new note N' events; do not start an inotifywait Monitor."
+  # The bridge mod adds this account's newest SELF note in full and the unacked list to the first prompt and
+  # after every compaction, so this hook does not repeat them.
+  echo "!!! FIRST ACTIONS, in order: (1) BRIDGE: the '[bridge, not the owner]' block holds your own note from your last session and your unacked notes. Act on them, then ack with the bridge ack tool (reply to answer a QUESTION). New notes arrive as '[bridge, not the owner] new note N' turns; never arm a watcher."
 else
   echo "!!! FIRST ACTIONS, in order: (1) BRIDGE PLUGIN MISSING (~/.claude/skills/bridge): nothing watches the inbox; tell the owner; read the inbox at every merge window."
 fi
