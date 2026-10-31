@@ -190,7 +190,7 @@ export const readPseudoGeometry = (el: HitElement): HitGeometry => {
  * A `fixed` pseudo is refused: its containing block is the viewport, whose extent is not reachable from
  * the element, and no shipped hit area uses one. An element that is not itself positioned is refused for
  * the same class of reason — the pseudo's containing block is then some ancestor this arithmetic cannot
- * name. Every hit-area pseudo on this tree qualifies (`TOUCH_TARGET_PSEUDO`, Button's `glyphBox` and
+ * name. Every hit-area pseudo on this tree qualifies (`TOUCH_TARGET_PSEUDO`, GlyphButton's `glyphBox` and
  * `inline` arms all set `relative`).
  */
 /** Can this pseudo carry a tap target AT ALL, and can this element's geometry be STATED — the two refusal

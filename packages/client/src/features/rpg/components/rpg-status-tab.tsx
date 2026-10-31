@@ -22,9 +22,9 @@ import type { RpgActorOp, RpgActorRef, RpgActorView } from "@orb/contracts/rpg";
 import { resolveTrackerMaxOverride, rpgActorVolatileLockBase, trackerNumber } from "@orb/contracts/rpg";
 import { readOwnKey } from "@orb/kit/objects";
 import { Avatar } from "@orb/ui/avatar";
-import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { ChevronRight, Icon } from "@orb/ui/icons";
+import { InlineAction } from "@orb/ui/inline-action";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -209,7 +209,7 @@ function RpgStatusCard({ actor, subject, edit, onOpen }: RpgStatusCardProps): Re
         <Row gap="block" align="center" justify="between">
           <Row gap="field" align="center" className="min-inline-0">
             <Tip text={`Open ${subject}'s sheet`}>
-              <Button variant="ghost" size="inline" onClick={onOpen} aria-label={`Open ${subject}`} className="px-field min-inline-0">
+              <InlineAction variant="ghost" step="label" onClick={onOpen} aria-label={`Open ${subject}`} className="px-field min-inline-0">
                 <Avatar size="md" alt={actor.name} hueSeed={actor.name} {...(actor.avatar === undefined ? {} : { src: blobUrl(actor.avatar) })}>
                   {actor.name.slice(0, 1).toUpperCase()}
                 </Avatar>
@@ -217,7 +217,7 @@ function RpgStatusCard({ actor, subject, edit, onOpen }: RpgStatusCardProps): Re
                   {actor.name}
                 </Text>
                 <Icon icon={ChevronRight} size="xs" ink="muted" className="shrink-0" />
-              </Button>
+              </InlineAction>
             </Tip>
           </Row>
           {actor.sheet.className === "" ? null : (

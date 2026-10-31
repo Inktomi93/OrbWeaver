@@ -1,4 +1,4 @@
-import { Button } from "@orb/ui/button";
+import { GlyphButton } from "@orb/ui/glyph-button";
 import { Icon, Plus } from "@orb/ui/icons";
 import type { ReactElement } from "react";
 import type { ListPaneHeaderView } from "#lib";
@@ -56,9 +56,9 @@ export function useRefineryListHeader(): ListPaneHeaderView {
                 <StartSessionDoor
                   answersRequests={true}
                   trigger={(busy): ReactElement => (
-                    <Button aria-busy={busy} aria-label={START_SESSION_LABEL} variant="ghost" size="glyph-md">
+                    <GlyphButton aria-busy={busy} aria-label={START_SESSION_LABEL} variant="ghost" glyph="md">
                       <Icon icon={Plus} size="sm" />
-                    </Button>
+                    </GlyphButton>
                   )}
                 />
               ),

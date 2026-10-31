@@ -36,6 +36,7 @@ import type { PromptConfig, TemplateClusterId } from "@orb/contracts/preset";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { ChevronRight, ExternalLink, Icon, Search } from "@orb/ui/icons";
+import { InlineAction } from "@orb/ui/inline-action";
 import { Input } from "@orb/ui/input";
 import { Row, Section, Stack, Surface } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
@@ -379,14 +380,14 @@ function MarkerCrossLink({
     }
   };
   // The ↗ lives INSIDE the pill: the mock draws one chip, and a glyph parked outside the
-  // badge reads as a second, unlabelled control sitting next to it. `size="inline"` keeps the button a
+  // badge reads as a second, unlabelled control sitting next to it. `InlineAction` keeps the button a
   // text-height wrapper so the pill IS the visible box, rather than a pill floating in a control box.
   return (
-    <Button className="self-start" disabled={health === "absent"} variant="ghost" onClick={onClick} size="inline" type="button">
+    <InlineAction className="self-start" disabled={health === "absent"} variant="ghost" onClick={onClick} step="label" type="button">
       <Badge tone={health === "healthy" ? "info" : "warning"} size="sm">
         {MARKER_HEALTH_LABEL[health]}
         <Icon icon={ExternalLink} size="xs" />
       </Badge>
-    </Button>
+    </InlineAction>
   );
 }

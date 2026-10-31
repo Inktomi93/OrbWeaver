@@ -1,6 +1,7 @@
 import { CtIsolation } from "@orb/testkit/browser";
-import { Button } from "@orb/ui/button";
 import { Checkbox } from "@orb/ui/checkbox";
+import { GlyphButton } from "@orb/ui/glyph-button";
+import { InlineAction } from "@orb/ui/inline-action";
 import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 
@@ -9,12 +10,12 @@ export function UtilityFallbackStory(): ReactElement {
   return (
     <CtIsolation subject="Utility fallback" isolates="Utility state over the browser-specific property initialization layer">
       <Stack align="start" gap="section" padding="section">
-        <Button variant="ghost" size="glyph-lg" aria-label="Square control">
+        <GlyphButton variant="ghost" glyph="lg" aria-label="Square control">
           A
-        </Button>
-        <Button variant="ghost" size="inline">
+        </GlyphButton>
+        <InlineAction variant="ghost" step="label">
           Stretched control
-        </Button>
+        </InlineAction>
         <Checkbox aria-label="Selection control" />
       </Stack>
     </CtIsolation>

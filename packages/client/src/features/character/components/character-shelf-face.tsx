@@ -26,9 +26,9 @@ import { blobUrl } from "@orb/contracts/assets";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
-import { Button } from "@orb/ui/button";
 import { Icon, Star } from "@orb/ui/icons";
 import { Layer, Row, Stack } from "@orb/ui/layout";
+import { PictureButton } from "@orb/ui/picture-button";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 
@@ -84,7 +84,7 @@ export function CharacterShelfFace({ id, name, avatarHash, starred, stamp, capti
     // `role="listitem"` rides a layout-primitive WRAPPER, never the Button — an interactive element assigned
     // a non-interactive role is a lie to AT (and eslint's `no-interactive-element-to-noninteractive-role`).
     <Stack role="listitem">
-      <Button
+      <PictureButton
         // STARRED IS PART OF THE NAME, not a silent decoration (the `invisible-is-the-finding` rule): the
         // mark is the only thing on the cell that says it, and on Recently chatted — where the shelf's own
         // eyebrow does not — a sighted reader gets a fact a screen-reader user would not. The VERB leads it
@@ -93,7 +93,6 @@ export function CharacterShelfFace({ id, name, avatarHash, starred, stamp, capti
         className="flex-col items-stretch gap-tight text-start"
         variant="ghost"
         onClick={(): void => (resume === null ? onOpen(id) : resume.onResume(resume.chatId))}
-        size="media"
         {...(caption === null ? {} : { "aria-describedby": captionId })}
       >
         <Layer>
@@ -133,7 +132,7 @@ export function CharacterShelfFace({ id, name, avatarHash, starred, stamp, capti
             {caption}
           </Text>
         )}
-      </Button>
+      </PictureButton>
     </Stack>
   );
 }

@@ -5,6 +5,7 @@ import { RPG_WEATHER_TYPES, TIME_OF_DAY } from "@orb/contracts/rpg";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { Icon, MapPin, X } from "@orb/ui/icons";
+import { InlineAction } from "@orb/ui/inline-action";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
@@ -69,10 +70,10 @@ function AmbientVocabPicker({
     const empty = value === "";
     const restText = empty ? UNSET_DATUM : value;
     return (
-      <Button
+      <InlineAction
         type="button"
         variant="ghost"
-        size="inline"
+        step="label"
         data-slot="tracker-value-rest"
         aria-label={`${fieldLabel} value`}
         onClick={(): void => setOpen(true)}
@@ -82,7 +83,7 @@ function AmbientVocabPicker({
         <Text as="span" ink={empty ? "muted" : undefined} voice="label">
           {restText}
         </Text>
-      </Button>
+      </InlineAction>
     );
   }
   return (

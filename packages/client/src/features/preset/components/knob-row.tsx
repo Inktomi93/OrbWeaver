@@ -1,7 +1,7 @@
 // KnobRow — the params deck's knob grammar. ONE
 // instrument row: label · slider · the EDITABLE mono number twin · reset, with the provenance gloss under
 // the track. A feature-local COMPOSITE (§13) over landed primitives — Slider `tone`, NumberField
-// `size="inline"`, Button, Text voices; zero new primitives.
+// InlineAction, Button, Text voices; zero new primitives.
 //
 // WHY THE TWIN: ST's crunch is that every value is a visible, grabbable NUMBER (`<input type=range>` AND
 // `<input type=number>` side by side). Both controls here bind the SAME form path — two MODALITIES of one

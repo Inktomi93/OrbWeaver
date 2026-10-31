@@ -5,6 +5,7 @@ import type { RpgNpcGuideField, RpgRelationship, RpgRelationshipKind } from "@or
 import { RPG_NPC_GUIDE_FIELDS, RPG_RELATIONSHIP_KINDS } from "@orb/contracts/rpg";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
+import { InlineAction } from "@orb/ui/inline-action";
 import { Row, Stack } from "@orb/ui/layout";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Text } from "@orb/ui/text";
@@ -38,10 +39,10 @@ function NpcRelationship({ name, relationship, onEditRelationshipKind, relations
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger
           render={
-            <Button
+            <InlineAction
               type="button"
               variant="ghost"
-              size="inline"
+              step="label"
               aria-label={`${name} relationship: ${kind}`}
               // The PILL shape + zero padding when a badge shows: the trigger's hover highlight must hug the
               // pill EXACTLY — padding around it reads as a mismatched halo (owner reports ×2, 08-01). The
@@ -57,7 +58,7 @@ function NpcRelationship({ name, relationship, onEditRelationshipKind, relations
                   </Text>
                 </>
               )}
-            </Button>
+            </InlineAction>
           }
         />
         <PopoverPopup>

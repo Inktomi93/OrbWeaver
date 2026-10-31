@@ -49,12 +49,19 @@ test("the purity rule leaves the lib home alone and passes a string with no frag
   expect(await findings(PURITY, 'export const BOX = "relative block-auto";\n', UI_VARIANTS)).toEqual([]);
 });
 
-// Two rows of text-height Buttons in one Stack: each row lends its hit areas to the next unless it floors itself.
-const stack = (rowAttributes: string): string =>
-  `export const T = (\n  <Stack gap="field">\n    <Row ${rowAttributes}><Button size="inline">a</Button></Row>\n    <Row ${rowAttributes}><Button size="inline">b</Button></Row>\n  </Stack>\n);\n`;
+// Two rows of text-height actions in one Stack: each row lends its hit areas to the next unless it floors itself.
+const stack = (rowAttributes: string, control = "InlineAction"): string =>
+  `export const T = (\n  <Stack gap="field">\n    <Row ${rowAttributes}><${control} step="label">a</${control}></Row>\n    <Row ${rowAttributes}><${control} step="label">b</${control}></Row>\n  </Stack>\n);\n`;
 
 test("the floorless rule reports a stack of unfloored rows", async () => {
   expect(await findings(FLOORLESS, stack('gap="field"'), FEATURE)).toHaveLength(1);
+});
+
+// The rule reads the components from the box hit-area map: every glyph and inline box is floorless, a scale step is not.
+test("the floorless rule keys on the glyph and inline components and passes a scale Button", async () => {
+  expect(await findings(FLOORLESS, stack('gap="field"', "GlyphButton"), FEATURE)).toHaveLength(1);
+  expect(await findings(FLOORLESS, stack('gap="field"', "Button"), FEATURE)).toEqual([]);
+  expect(await findings(FLOORLESS, stack('gap="field"', "PictureButton"), FEATURE)).toEqual([]);
 });
 
 test.for([

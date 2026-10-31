@@ -3,7 +3,7 @@
 
 import type { PluginCommandPlacementTarget } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
-import { Button } from "@orb/ui/button";
+import { GlyphButton } from "@orb/ui/glyph-button";
 import { Blocks, Icon, PanelRightOpen } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Menu, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@orb/ui/menu";
@@ -92,9 +92,9 @@ export function PluginComposerActions({ chatId }: { readonly chatId: ChatId }): 
       <Menu>
         <MenuTrigger
           render={
-            <Button aria-label="Plugin actions" loading={isPending} variant="ghost" shape="pill" size="glyph-lg" type="button">
+            <GlyphButton aria-label="Plugin actions" loading={isPending} variant="ghost" shape="pill" glyph="lg" type="button">
               <Icon icon={Blocks} size="sm" />
-            </Button>
+            </GlyphButton>
           }
         />
         <MenuPopup clamp="belowChrome" side="top" className="max-inline-(--available-width)">

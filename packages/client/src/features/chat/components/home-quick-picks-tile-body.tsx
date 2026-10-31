@@ -16,6 +16,7 @@ import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Users } from "@orb/ui/icons";
 import { Grid, Stack } from "@orb/ui/layout";
 import { coarsePointerNow } from "@orb/ui/lib";
+import { PictureButton } from "@orb/ui/picture-button";
 import { Text } from "@orb/ui/text";
 import type { FocusEvent, ReactElement, RefObject } from "react";
 import { useId, useLayoutEffect, useRef, useState } from "react";
@@ -145,7 +146,7 @@ export function HomeQuickPicksTileBody({ gridRef }: { readonly gridRef?: RefObje
             // assigned a non-interactive role is a lie to AT (and eslint's own
             // `no-interactive-element-to-noninteractive-role`). Same shape the recents list uses.
             <Stack className="snap-start" key={character.id} role="listitem">
-              <Button
+              <PictureButton
                 // THE NAME IS THE CHARACTER, THE PITCH IS THE DESCRIPTION (side-eye rail sweep P2-8/P3-19).
                 // The cell's name came from its own text content, so AT read the name and the caption as ONE
                 // run-on string — "Calamity, Doomblade of the Ninth EpochA legendary, apocalypse-forged…" —
@@ -163,7 +164,6 @@ export function HomeQuickPicksTileBody({ gridRef }: { readonly gridRef?: RefObje
                     startChatWith(castId<CharacterId>(character.id));
                   }
                 }}
-                size="media"
                 {...(caption === null ? {} : { "aria-describedby": captionId })}
               >
                 <Avatar
@@ -218,7 +218,7 @@ export function HomeQuickPicksTileBody({ gridRef }: { readonly gridRef?: RefObje
                     {caption}
                   </Text>
                 )}
-              </Button>
+              </PictureButton>
               {character.lastChatId === null ? null : (
                 <Button aria-label={`New chat with ${character.name}`} variant="ghost" onClick={(): void => startChatWith(character.id)} size="sm">
                   New chat
@@ -228,17 +228,12 @@ export function HomeQuickPicksTileBody({ gridRef }: { readonly gridRef?: RefObje
           );
         })}
       </Stack>
-      <Button
-        className="snap-start flex-col items-center justify-center gap-tight"
-        variant="ghost"
-        onClick={(): void => setActiveSection("characters")}
-        size="media"
-      >
+      <PictureButton className="snap-start flex-col items-center justify-center gap-tight" variant="ghost" onClick={(): void => setActiveSection("characters")}>
         <Icon icon={Users} size="lg" />
         <Text as="span" voice="promoted">
           All characters
         </Text>
-      </Button>
+      </PictureButton>
     </Grid>
   );
 }

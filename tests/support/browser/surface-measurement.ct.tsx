@@ -304,7 +304,7 @@ test("production density variants conform to their own tokens and off-token over
 test("cohort geometry compares the same declared variant rather than every button", async ({ mount, page }, info) => {
   await mount<typeof SurfaceDesignStory>("tests/support/browser/surface-design-fixtures/SurfaceDesignStory", { width: 640 });
   const target = page.getByRole("button", { name: "Small control three", exact: true });
-  await expect(target).toHaveAttribute("data-size", "glyph-xs");
+  await expect(target).toHaveAttribute("data-glyph", "xs");
   await expect(page.getByRole("button", { name: "Full control", exact: true })).toHaveAttribute("data-size", "md");
   const healthy = await readSurfaceDesignAudit(page);
   await attachNativeFile(info, info, "production-cohort-healthy", { body: JSON.stringify(healthy, null, 2), contentType: "application/json" });

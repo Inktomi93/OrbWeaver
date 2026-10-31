@@ -368,12 +368,13 @@ function floorlessMappedRow(child: TSESTree.JSXChild, sourceCode: Source): TSEST
   return direct ? callback.body : undefined;
 }
 
-export const floorlessControlRule = (floorlessButtonSizes: ReadonlySet<string>): OrbRule => ({
+/** `floorlessControls` names the button-family components whose every box sits under the touch floor. */
+export const floorlessControlRule = (floorlessControls: ReadonlySet<string>): OrbRule => ({
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
     const sourceCode = context.sourceCode;
     const counts = new Map<TSESTree.Node | undefined, number>();
-    const sizes: { node: TSESTree.JSXAttribute; value: TSESTree.Literal; token: string }[] = [];
+    const controls: { node: TSESTree.JSXOpeningElement; token: string }[] = [];
     const stacks: TSESTree.JSXElement[] = [];
     let bodies: ReturnType<typeof floorlessComponentBodies>;
     const rowIsFloorless = (element: TSESTree.JSXElement): boolean => {
@@ -413,7 +414,8 @@ export const floorlessControlRule = (floorlessButtonSizes: ReadonlySet<string>):
     const report = (start: number, token: string): void =>
       context.report({
         loc: { start: sourceCode.getLocFromIndex(start), end: sourceCode.getLocFromIndex(start + token.length) },
-        message: 'Floorless Button controls repeat at a wrapping or vertical pitch; use a control size, Stack rows="control", or an explicit row floor.',
+        message:
+          'Floorless button controls (a glyph or inline box) repeat at a wrapping or vertical pitch; use a control size, Stack rows="control", or an explicit row floor.',
       });
     const rowWeight = (child: TSESTree.JSXChild): number => {
       const mapped = floorlessMappedRow(child, sourceCode);
@@ -431,10 +433,10 @@ export const floorlessControlRule = (floorlessButtonSizes: ReadonlySet<string>):
         report(stack.openingElement.name.range[0], "Stack");
       }
     };
-    const judgeSize = ({ node, value, token }: (typeof sizes)[number]): void => {
-      const container = wrapContainer(node.parent);
-      if (container !== undefined && (mappedWithin(node.parent, container) || (counts.get(container) ?? 0) >= 2)) {
-        report(value.range[0] + 1, token);
+    const judgeControl = ({ node, token }: (typeof controls)[number]): void => {
+      const container = wrapContainer(node);
+      if (container !== undefined && (mappedWithin(node, container) || (counts.get(container) ?? 0) >= 2)) {
+        report(node.name.range[0], token);
       }
     };
     return {
@@ -446,22 +448,19 @@ export const floorlessControlRule = (floorlessButtonSizes: ReadonlySet<string>):
           stacks.push(node);
         }
       },
-      "JSXAttribute:exit"(node: TSESTree.JSXAttribute): void {
-        if (node.name.name !== "size" || node.value?.type !== "Literal" || sourceCode.getText(node.parent.name) !== "Button") {
+      "JSXOpeningElement:exit"(node: TSESTree.JSXOpeningElement): void {
+        const token = sourceCode.getText(node.name);
+        if (!floorlessControls.has(token)) {
           return;
         }
-        const token = sourceCode.getText(node.value).slice(1, -1);
-        if (!floorlessButtonSizes.has(token)) {
-          return;
-        }
-        sizes.push({ node, value: node.value, token });
-        for (const ancestor of sourceCode.getAncestors(node)) {
+        controls.push({ node, token });
+        for (const ancestor of [node, ...sourceCode.getAncestors(node)]) {
           counts.set(ancestor, (counts.get(ancestor) ?? 0) + 1);
         }
       },
       "Program:exit"(): void {
         stacks.forEach(judgeStack);
-        sizes.forEach(judgeSize);
+        controls.forEach(judgeControl);
       },
     };
   },

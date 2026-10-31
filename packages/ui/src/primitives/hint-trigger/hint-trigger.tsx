@@ -2,6 +2,7 @@ import type { ReactElement, ReactNode } from "react";
 import { cn } from "#lib";
 import { Button } from "#primitives/button";
 import { Icon, Info } from "#primitives/icons";
+import { InlineAction } from "#primitives/inline-action";
 import { Popover, PopoverPopup, PopoverTrigger } from "#primitives/popover";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "#primitives/tooltip";
 import { hintTriggerVariants } from "./variants.ts";
@@ -59,19 +60,34 @@ export function HintTrigger({ hint, subject, className, size = "inline", onClick
     const subjectString: string = subject;
     ariaLabel = `More info about ${subjectString}`;
   }
-  const button = (
-    <Button
-      aria-label={ariaLabel}
-      className={cn(slots.trigger(), className) ?? ""}
-      data-slot="hint-trigger"
-      variant="ghost"
-      {...(onClick === undefined ? {} : { onClick })}
-      {...(size === "md" ? { size, square: true } : { size })}
-      type="button"
-    >
-      <Icon icon={Info} size="xs" />
-    </Button>
-  );
+  const glyph = <Icon icon={Info} size="xs" />;
+  const button =
+    size === "md" ? (
+      <Button
+        aria-label={ariaLabel}
+        className={cn(slots.trigger(), className) ?? ""}
+        data-slot="hint-trigger"
+        variant="ghost"
+        {...(onClick === undefined ? {} : { onClick })}
+        size="md"
+        square={true}
+        type="button"
+      >
+        {glyph}
+      </Button>
+    ) : (
+      <InlineAction
+        aria-label={ariaLabel}
+        className={cn(slots.trigger(), className) ?? ""}
+        data-slot="hint-trigger"
+        variant="ghost"
+        {...(onClick === undefined ? {} : { onClick })}
+        step="label"
+        type="button"
+      >
+        {glyph}
+      </InlineAction>
+    );
   if (onClick !== undefined) {
     return (
       <Tooltip>

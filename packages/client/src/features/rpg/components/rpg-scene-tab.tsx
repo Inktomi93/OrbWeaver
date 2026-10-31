@@ -13,8 +13,8 @@
 
 import type { RpgActorOp, RpgActorRef, RpgSnapshotState, RpgTrackerEntry, RpgTrackerView } from "@orb/contracts/rpg";
 import { clockTimeOfDay, RPG_TRACKER_VALUE_EMPTY, RPG_WEATHER_TYPES, TIME_OF_DAY_HOURS, trackerCeiling, trackerNumber } from "@orb/contracts/rpg";
-import { Button } from "@orb/ui/button";
 import { Icon } from "@orb/ui/icons";
+import { InlineAction } from "@orb/ui/inline-action";
 import { Stack } from "@orb/ui/layout";
 import type { ReactElement, ReactNode } from "react";
 import { Tip } from "#components";
@@ -297,16 +297,16 @@ function SceneGoals({ quests }: { readonly quests: RpgTrackerView["quests"] }): 
         const filled = quest.objectives.filter((o) => o.completed).length;
         return (
           <Tip key={quest.id} text="Open in Quests">
-            <Button
+            <InlineAction
               type="button"
               variant="ghost"
-              size="inline"
+              step="label"
               onClick={(): void => revealContextPanel("rpg.quests")}
               reserveEdge={true}
               className="px-field text-start inline-full"
             >
               <GoalLine text={quest.name} done={quest.status === "completed"} {...(total > 0 ? { clock: { filled, total } } : {})} />
-            </Button>
+            </InlineAction>
           </Tip>
         );
       })}

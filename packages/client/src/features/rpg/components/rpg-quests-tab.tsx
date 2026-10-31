@@ -20,9 +20,9 @@
 // (no client-invented acts, ever).
 
 import type { RpgQuestView } from "@orb/contracts/rpg";
-import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { Checkbox } from "@orb/ui/checkbox";
+import { GlyphButton } from "@orb/ui/glyph-button";
 import { Icon, Plus, Trash2, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { SegmentedClock } from "@orb/ui/meter";
@@ -106,9 +106,9 @@ function QuestObjectives({ quest, dim, edit }: { readonly quest: RpgQuestView; r
           </Text>
           {editable ? (
             <Tip text={`Remove objective: ${o.text}`}>
-              <Button aria-label={`Remove objective: ${o.text}`} variant="ghost" size="glyph-sm" onClick={(): void => edit.onRemoveObjective(quest, o.id)}>
+              <GlyphButton aria-label={`Remove objective: ${o.text}`} variant="ghost" glyph="sm" onClick={(): void => edit.onRemoveObjective(quest, o.id)}>
                 <Icon icon={X} size="xs" />
-              </Button>
+              </GlyphButton>
             </Tip>
           ) : null}
         </Row>
@@ -141,9 +141,9 @@ function DeleteQuestAction({ quest, onDelete }: { readonly quest: RpgQuestView; 
       confirmLabel="Delete"
       onConfirm={(): void => onDelete(quest)}
       trigger={
-        <Button aria-label={`Delete quest: ${quest.name}`} variant="ghost" size="glyph-sm">
+        <GlyphButton aria-label={`Delete quest: ${quest.name}`} variant="ghost" glyph="sm">
           <Icon icon={Trash2} size="xs" />
-        </Button>
+        </GlyphButton>
       }
     />
   );
