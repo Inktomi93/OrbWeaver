@@ -1,23 +1,72 @@
-// The `pnpm unwired` verbs. `ports` writes the restated-port targets the derive codemod reads; the bare verb runs
-// both reference engines over every world and writes the unwired members.
+// The `pnpm unwired` verbs. `ports` writes the restated-port targets the derive codemod reads; the bare verb and the
+// dead-inside-live verbs run both engines over every world and each write one report under reports/unwired/.
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import process from "node:process";
 import { EXIT } from "../floor/cli/exit-contract.ts";
 import { UsageError } from "../floor/cli/run-tool.ts";
 import { DELIBERATE } from "./deliberate.ts";
+import { scanFields } from "./fields.ts";
+import { scanParams } from "./params.ts";
 import { portCensus } from "./port-census.ts";
 import type { ClusterGroup, Leg, PortTarget, TargetKind } from "./port-targets.ts";
 import { CLUSTER_GROUPS, INFORMATIONAL_KINDS, LEGS } from "./port-targets.ts";
+import type { ScanOptions } from "./scan.ts";
 import { scanUnwired } from "./scan.ts";
+import { scanShapes } from "./shapes.ts";
+import { scanUnions } from "./unions.ts";
 import { TEST_WORLDS } from "./worlds.ts";
 
-const USAGE = "usage: pnpm unwired [--root=<dir>] [--out=<file>] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>]";
+export const SCAN_VERBS = ["scan", "fields", "params", "unions", "shapes"] as const;
+/** `scan`, the bare verb, is the member scan. */
+export type ScanVerb = (typeof SCAN_VERBS)[number];
+const VERBS = [...SCAN_VERBS, "ports"] as const;
+type Verb = (typeof VERBS)[number];
+
+const USAGE = `usage: pnpm unwired [${SCAN_VERBS.slice(1).join("|")}] [--root=<dir>] [--out=<file>] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>]`;
 const DEFAULT_PORTS_OUT = "reports/unwired/port-targets.json";
-const DEFAULT_SCAN_OUT = "reports/unwired/unwired.json";
+
+interface Finding {
+  readonly kind: string;
+  readonly file: string;
+  readonly line: number;
+  readonly home: string;
+  readonly member: string;
+}
+
+interface Report {
+  readonly scanned: number;
+  readonly unwired: readonly Finding[];
+  readonly deliberate: readonly Finding[];
+  readonly disagreements: readonly (string | object)[];
+}
+
+/** A scan verb's report path, and its run with the counts its summary line adds to the shared ones. */
+interface Scan {
+  readonly out: string;
+  readonly execute: (options: ScanOptions) => { readonly report: Report; readonly counts: string };
+}
+
+function scan<Found extends Report>(out: string, run: (options: ScanOptions) => Found, counts: (report: Found) => string = () => ""): Scan {
+  return {
+    out,
+    execute: (options): { readonly report: Report; readonly counts: string } => {
+      const report = run(options);
+      return { report, counts: counts(report) };
+    },
+  };
+}
+
+const SCANS: Readonly<Record<ScanVerb, Scan>> = {
+  scan: scan("reports/unwired/unwired.json", scanUnwired, (report) => ` reachedByFlow=${report.reachedByFlow.length}`),
+  fields: scan("reports/unwired/fields.json", scanFields),
+  params: scan("reports/unwired/params.json", scanParams),
+  unions: scan("reports/unwired/unions.json", scanUnions, (report) => ` enumerated=${report.enumerated.length}`),
+  shapes: scan("reports/unwired/shapes.json", scanShapes),
+};
 
 interface Args {
-  readonly verb: "scan" | "ports";
+  readonly verb: Verb;
   readonly root: string;
   readonly out: string | null;
   readonly leg: Leg | null;
@@ -34,9 +83,10 @@ function oneOf<T extends string>(flag: string, value: string | null, allowed: re
 
 function parseArgs(argv: readonly string[]): Args {
   const [first] = argv;
-  const verb = first === "ports" ? "ports" : "scan";
+  const named = VERBS.find((candidate) => candidate !== "scan" && candidate === first);
+  const verb = named ?? "scan";
   const flags = new Map<string, string>();
-  for (const arg of verb === "ports" ? argv.slice(1) : argv) {
+  for (const arg of named === undefined ? argv : argv.slice(1)) {
     const match = /^--(root|out|leg|cluster)=(.+)$/u.exec(arg);
     if (match === null) {
       throw new UsageError(`${arg}: unknown argument\n${USAGE}`);
@@ -120,7 +170,7 @@ const log = (line: string): void => {
   process.stderr.write(`${line}\n`);
 };
 
-export async function runUnwired(argv: readonly string[]): Promise<number> {
+export function runUnwired(argv: readonly string[]): number {
   const args = parseArgs(argv);
   if (args.verb === "ports") {
     const census = portCensus(args.root, log);
@@ -141,19 +191,19 @@ export async function runUnwired(argv: readonly string[]): Promise<number> {
     log(`targets=${open} informational=${targets.length - open} written to ${path}`);
     return EXIT.clean;
   }
-  const report = await scanUnwired({
+  const chosen = SCANS[args.verb];
+  const { report, counts } = chosen.execute({
     root: args.root,
     testWorlds: TEST_WORLDS.filter((config) => existsSync(join(args.root, config))),
     deliberate: DELIBERATE,
     log,
   });
-  const path = write(args.root, args.out ?? DEFAULT_SCAN_OUT, report);
-  for (const member of report.unwired) {
-    process.stdout.write(`${member.kind}	${member.file}:${member.line}	${member.home}.${member.member}
-`);
+  const path = write(args.root, args.out ?? chosen.out, report);
+  for (const finding of report.unwired) {
+    process.stdout.write(`${finding.kind}\t${finding.file}:${finding.line}\t${finding.home}.${finding.member}\n`);
   }
   log(
-    `scanned=${report.scanned} unwired=${report.unwired.length} deliberate=${report.deliberate.length} disagreements=${report.disagreements.length} reachedByFlow=${report.reachedByFlow.length} written to ${path}`,
+    `scanned=${report.scanned} unwired=${report.unwired.length} deliberate=${report.deliberate.length} disagreements=${report.disagreements.length}${counts} written to ${path}`,
   );
   return EXIT.clean;
 }

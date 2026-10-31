@@ -115,11 +115,16 @@ export interface PlantedTsconfigOptions {
   readonly lib?: readonly string[];
   readonly paths?: Readonly<Record<string, readonly string[]>>;
   readonly include?: readonly string[];
+  /** Set for a planted `.tsx` file, whose elements a declared JSX namespace types. */
+  readonly jsx?: "preserve";
 }
 
 /** The `tsconfig.json` body of a planted package: strict bundler resolution, no ambient types, DOM unless `lib` says otherwise. */
-export function plantedTsconfig({ lib = ["ESNext", "DOM"], paths, include = ["src"] }: PlantedTsconfigOptions = {}): string {
-  return JSON.stringify({ compilerOptions: { ...PLANTED_COMPILER_OPTIONS, lib, ...(paths === undefined ? {} : { paths }) }, include });
+export function plantedTsconfig({ lib = ["ESNext", "DOM"], paths, include = ["src"], jsx }: PlantedTsconfigOptions = {}): string {
+  return JSON.stringify({
+    compilerOptions: { ...PLANTED_COMPILER_OPTIONS, lib, ...(paths === undefined ? {} : { paths }), ...(jsx === undefined ? {} : { jsx }) },
+    include,
+  });
 }
 
 /** Canonical roots a fixture handed out (`scratch`); `plantedTree` roots sit below them. A temp directory that
