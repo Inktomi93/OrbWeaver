@@ -142,7 +142,7 @@ export const CAPABILITY_COPY_ROWS = [
     id: "ui.frame",
     label: "Show its own screens in an isolated frame",
     consequence:
-      "runs its own interface code in an isolated frame — it can draw anything inside its box, use anything else this plugin is allowed to read, and send it out through browser channels no policy closes.",
+      "Runs its own interface code in an isolated frame — it can draw anything inside its box, use anything else this plugin is allowed to read, and send it out through browser channels no policy closes.",
     risk: true,
   },
   {
