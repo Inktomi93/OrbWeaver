@@ -33,7 +33,7 @@ import { createApplyImportedAppearance, createImportTheme } from "#domain/settin
 import { createStatsBatchWiring, reconcileStats } from "#domain/stats";
 import type { TagAssemblyContext, TagService } from "#domain/tag";
 import type { WorkloadService } from "#domain/workloads";
-import type { WorldInfoExportContext } from "#domain/world-info";
+import type { WorldInfoExportAssemblyContext } from "#domain/world-info";
 import type { Logger } from "#foundation/observability";
 import { extractZip, stageDirectory, writeImportReportFile } from "#infra/storage";
 import type { LiveBuses } from "#transport/trpc";
@@ -55,7 +55,7 @@ export interface PortabilityRunnerComposeDeps {
   readonly tagCtx: TagAssemblyContext;
   readonly settingsCtx: SettingsAssemblyContext;
   readonly presetCtx: PresetAssemblyContext;
-  readonly worldInfoExportCtx: WorldInfoExportContext;
+  readonly worldInfoExportCtx: WorldInfoExportAssemblyContext;
   readonly importStandaloneLorebook: ImportStandaloneLorebook;
   /** The gallery-extended assets ctx (the two character-handle resolvers the gallery export/import verbs need). */
   readonly galleryCtx: AssetsContext;
