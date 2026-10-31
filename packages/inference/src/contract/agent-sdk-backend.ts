@@ -59,8 +59,6 @@ export interface AgentSdkBackendDeps {
   readonly agentSdk: InferenceDeps["agentSdk"];
   readonly captureWire?: InferenceDeps["captureWire"];
   readonly imageToPng?: InferenceDeps["imageToPng"];
-  /** Opt-in subprocess stderr at debug level. */
-  readonly debug?: boolean | undefined;
   /** The bounded-probe/watchdog timer seam; the root passes its unref'd scheduler. */
   readonly scheduleTimeout: AgentSdkDeps["scheduleTimeout"];
   readonly scheduleIdleTimeout: AgentSdkDeps["scheduleIdleTimeout"];
@@ -142,8 +140,6 @@ export interface AgentSdkDeps {
   readonly scheduleTimeout: ScheduleOp;
   readonly scheduleIdleTimeout: ScheduleOp;
   readonly captureWire?: WireCaptureSink | undefined;
-  /** Opt-in subprocess stderr at debug level. */
-  readonly debug: boolean;
   /** The per-connection spawn env: the connection's token + the funder's runtime dir + the host baseline. */
   readonly childEnv: (connection: SpawnIdentity, overrides?: ClaudeRuntimeOverrides) => Record<string, string | undefined>;
 }

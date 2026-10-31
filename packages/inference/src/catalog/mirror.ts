@@ -19,14 +19,9 @@ const FAILED_WARM_HOLD_MS = 10_000;
 
 const snapshotSchema = z.object({ fetchedAt: z.number(), value: z.unknown() });
 
-export function createMirror<T>(args: {
-  readonly key: string;
-  readonly schema: z.ZodType<T>;
-  readonly ttlMs?: number | undefined;
-  readonly deps: MirrorDeps;
-}): Mirror<T> {
+export function createMirror<T>(args: { readonly key: string; readonly schema: z.ZodType<T>; readonly deps: MirrorDeps }): Mirror<T> {
   const { key, schema, deps } = args;
-  const ttl = args.ttlMs ?? MS_PER_WEEK;
+  const ttl = MS_PER_WEEK;
   let cache: { readonly at: number; readonly value: T } | null = null;
   let inFlight: Promise<MirrorWarm<T>> | null = null;
   let failed: { readonly at: number; readonly warm: MirrorWarm<T> } | null = null;

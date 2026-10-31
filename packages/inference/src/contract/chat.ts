@@ -240,7 +240,6 @@ export type ChatTurnInput = ChatRequestCommon & {
  * chat turn. The format passes through untouched — the backend plans how it rides.
  */
 export interface StructuredChatInput {
-  readonly onObservedResult?: GenerationObservationCallback | undefined;
   readonly connection: Resolved<"chat">;
   /** The wire-capture correlation key; only the backends whose request carries a chat id stamp it. */
   readonly chatId: ChatId;

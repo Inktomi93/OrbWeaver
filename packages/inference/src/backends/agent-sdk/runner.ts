@@ -55,7 +55,7 @@ import { agentSdkVariantMetadata } from "../wire/provider-metadata.ts";
 import type { SessionCache } from "./session/index.ts";
 import { NO_SAVED_TOTALS } from "./session/index.ts";
 import { isTerminalToolCall, terminalToolOptions, toTerminalCall } from "./terminal-tools.ts";
-import { buildSystemPrompt, disciplineOptions, hookContextOf, MCP_NAMESPACE, observabilityOptions, tailSystemOptions, toSdkGeneration } from "./translate.ts";
+import { buildSystemPrompt, disciplineOptions, hookContextOf, MCP_NAMESPACE, tailSystemOptions, toSdkGeneration } from "./translate.ts";
 import { classifyAssistantError, classifyResultSubtype, classifyTerminalReason } from "./verify.ts";
 import { assertSdkMessageRead } from "./wire-read.ts";
 
@@ -196,7 +196,6 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
       prompt: await queryPromptOf(req, deps.normalizeImageBytes),
       options: {
         ...disciplineOptions(deps.childEnv(connection, gen.envOverrides)),
-        ...observabilityOptions(deps.debug, log),
         ...gen.options,
         ...mergeMountedOptions(dynamicHook, chatToolOptions(req, gen.turnId, log), terminal ?? {}),
         ...structured.options,
