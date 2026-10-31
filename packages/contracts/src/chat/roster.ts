@@ -694,7 +694,7 @@ export const signupPreviewRequestSchema = z.strictObject({ token: signupRequestS
 export type SignupPreviewRequest = z.infer<typeof signupPreviewRequestSchema>;
 
 /** The signup route's refusal codes (`{ error: <code> }`). The client maps each to its own copy. */
-export const WEAK_PASSWORD_CODE = "weak_password";
+const WEAK_PASSWORD_CODE = "weak_password";
 export const SIGNUP_ERROR_CODES = ["invalid_request", "already_signed_in", "invite_unavailable", "handle_unavailable", WEAK_PASSWORD_CODE] as const;
 export type SignupErrorCode = (typeof SIGNUP_ERROR_CODES)[number];
 

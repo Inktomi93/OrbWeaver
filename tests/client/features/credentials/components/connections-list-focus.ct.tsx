@@ -1,8 +1,9 @@
 // The Add connection dialog hands focus back to the control that opened it, and the list keeps its focus handoffs.
-import { ADD_CONNECTION_PATH } from "@orb/client/lib";
+
 import { createShellAmbientReads, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { ADD_CONNECTION_NAME } from "#client/features/credentials/lib/connections-copy.ts";
 import type { ConnectionsListStory } from "./_connections-list-stories.tsx";
 
 const STORY = "tests/client/features/credentials/components/_connections-list-stories/ConnectionsListStory";
@@ -32,7 +33,7 @@ test.afterAll(async () => {
 
 test("closing the Add connection dialog returns focus to the Add connection button", async ({ mount, page }) => {
   await mount<typeof ConnectionsListStory>(STORY, {});
-  const add = page.getByRole("button", { name: ADD_CONNECTION_PATH.leaf, exact: true });
+  const add = page.getByRole("button", { name: ADD_CONNECTION_NAME, exact: true });
   await add.click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();

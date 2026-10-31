@@ -5,7 +5,6 @@ import { DomainForbiddenError } from "@orb/kit/errors";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect } from "@orb/testkit/node";
-import { WEAK_PASSWORD_CODE } from "#contracts/chat/roster.ts";
 import { ADMIN_OP_CODES } from "#server/domain/admin/contract/errors.ts";
 import { delegate, NEW_HANDLE, PASSWORD, test } from "./create-user.fixtures.ts";
 
@@ -25,7 +24,7 @@ test("an empty handle is rejected (invalid_handle)", async ({ root }) => {
 test("a short password is rejected (weak_password)", async ({ root }) => {
   const admin = await delegate(root);
   await expect(root.services.admin.createUser({ principal: admin.principal, handle: NEW_HANDLE, password: "short" })).rejects.toMatchObject({
-    code: WEAK_PASSWORD_CODE,
+    code: ADMIN_OP_CODES.weakPassword,
   });
 });
 

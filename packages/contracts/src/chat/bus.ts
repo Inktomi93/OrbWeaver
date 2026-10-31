@@ -190,8 +190,8 @@ export const CHAT_WARNING_CODES = [...PLAIN_CHAT_WARNING_CODES, SETTINGS_ADJUSTE
 export type ChatWarningCode = (typeof CHAT_WARNING_CODES)[number];
 
 /** WHICH provider degradation a `settings_adjusted` warning reports — the chat-side vocabulary for the
- *  resolve/wire drop classes the infra runners raise (`infra/providers/contract/resolve.ts` `WARNING_CODE`).
- *  Spelled IDENTICALLY to that tuple's degradation members so the domain map is a MATCH, never a
+ *  resolve/wire drop classes the infra runners raise (`WARNING_CODE` in `packages/contracts/src/inference/warnings.ts`).
+ *  Spelled IDENTICALLY to that object's degradation members so the domain map is a MATCH, never a
  *  re-spell — the `custom_parameters_ignored` precedent. It is a SEPARATE tuple by necessity and by design:
  *  `contracts` sits below `server`, so it cannot import infra's vocabulary, and chat must stay free to
  *  classify a drop differently from the runner that raised it. One home; the union derives from it. */

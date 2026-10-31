@@ -14,7 +14,7 @@ test("cold inference and chat imports initialize shared warning vocabulary witho
   expect(resolvedWarningSchema.safeParse({ code: "settings_adjusted", message: "not a resolver code" }).success).toBe(false);
   expect(CHAT_WARNING_CODES).toContain("settings_adjusted");
   expect(PROVIDER_ADJUSTMENT_KINDS).toContain("sampling_knob_dropped");
-  expect(Object.values(WARNING_CODE)).not.toBe(PROVIDER_ADJUSTMENT_KINDS);
+  expect(new Set(Object.values(WARNING_CODE))).not.toEqual(new Set(PROVIDER_ADJUSTMENT_KINDS));
   expect(resolvedWarningSchema.safeParse({ code: "sampling_knob_dropped", message: "operator context", knob: "privateKnob" }).success).toBe(false);
   expect(resolvedWarningSchema.safeParse({ code: "reasoning_mandatory_clamp", message: "operator context", appliedEffort: "none" }).success).toBe(false);
   expect(resolvedWarningSchema.safeParse({ code: "cache_control_adjusted", message: "operator context", privateInput: true }).success).toBe(false);
