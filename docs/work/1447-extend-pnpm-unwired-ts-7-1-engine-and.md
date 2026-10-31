@@ -31,4 +31,6 @@ The owner removed wildcard exports because they kept dead code alive. Export-lev
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+- Scan fixes: commit `88fc6cdc25` closes the false-positive classes the first run showed, each with a found case and a control in `tests/tooling/unwired/` run red on the previous source first.
+- The full run on that commit, one scan at a time under a 1-minute load below 24: `pnpm unwired`, `pnpm unwired fields`, `pnpm unwired params`, `pnpm unwired unions` and `pnpm unwired shapes`. The reports are `reports/unwired/unwired.json`, `fields.json`, `params.json`, `unions.json` and `shapes.json`.
+- The findings are boarded under the [unwired-code plan](../plans/unwired-code/design.md#judgement-items), one item per domain per scan, with the class rules in its "Judging a finding" section. The shapes scan's synonyms are listed in [1445](1445-delete-synonym-type-aliases-keep-per-verb-params.md).

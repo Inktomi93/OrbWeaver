@@ -21,7 +21,7 @@ Ports derive from their owners so references follow the composition root. The un
 | 1 | Derive every port from its owner; rule cross-domain handle passing | the spread-flow ports, [1503](../../work/1503-teach-the-port-census-and-the-derived-port.md) |
 | 2 | Judge every member the member scan reports | the unwired-member items the 1439 report boards, [0501](../../work/0501-wire-or-delete-the-unused-prompt-preview-verbs.md), and the possibly dead guards the restoration lanes found |
 | 3 | Build the TS 7.1 engine and the dead-inside-live scans | [1447](../../work/1447-extend-pnpm-unwired-ts-7-1-engine-and.md) |
-| 4 | Judge the first full run of each new scan; delete synonym aliases from the shapes scan | the items 1447 boards, [1445](../../work/1445-delete-synonym-type-aliases-keep-per-verb-params.md) |
+| 4 | Judge the first full run of each new scan; delete synonym aliases from the shapes scan | the [judgement items](#judgement-items), [1445](../../work/1445-delete-synonym-type-aliases-keep-per-verb-params.md) |
 | 5 | Adjudicate unused exports through the package doors | [0989](../../work/0989-adjudicate-unused-production-exports-behind-explicit-package-doors.md) |
 | 6 | Hold the domain template with dependency rules | [1443](../../work/1443-enforce-domain-contract-purity-with-a-dependency-cruiser.md), [1423](../../work/1423-move-i-o-out-of-domain-substrate-folders.md), [1463](../../work/1463-chat-persistence-reads-the-assets-characters-and-personas.md) |
 
@@ -37,314 +37,33 @@ docs/adr/0337-owner-built-statements-join-another-domains-batch.md; docs/law/Cor
 
 Each scan ships fixtures for a found case and a false-positive control. Each deletion keeps the affected suites green; each wiring adds a production-path test.
 
-## First run
+## Judging a finding
 
-The first run of each `pnpm unwired` scan over the whole tree, on the TypeScript 7.1 engine with TypeScript 6 cross-checking. Each finding below has both engines' agreement. A finding is a question for adjudication: wire it, delete it, keep it with a cited reason, or mark it unknown. They are boarded after review, bundled by domain.
+Each item step 4 lists gives every finding of one scan in one domain a class (wire, delete, deliberate with a cited ruling, or unknown) and a decision. A class marked `(read)` was judged from the cited code. The others follow these rules:
 
-### How it ran
+| Scan | Finding | Class | Decision |
+| - | - | - | - |
+| fields | `unreferenced` | delete | delete the field or key |
+| fields | `never-read` | delete | delete the field and its writes |
+| fields | `never-read` on a client `…Vars` type | wire | derive it from the router input |
+| fields | `never-read` on every reported field of a home | unknown | find the slot the value flows into and derive it from this type |
+| fields | `never-written` type member | delete | delete the field and the branch that reads its default |
+| fields | `never-written` schema key | unknown | name the outside writer, or delete the key and its default branch |
+| params | `unsupplied`, `unsupplied-prop` | delete | delete the parameter or prop and its default path |
+| params | `same-literal` | delete | inline the literal and drop the parameter |
+| unions | `unbuilt` | delete | delete the member and the branches, checks and keys that name it |
+| unions | `parsed` | unknown | keep the member only while the parsed source can produce it |
+| shapes | `restated`, both sides a verb's `…Params` or `…Result` | deliberate | `docs/law/Core-0-Architecture-and-Structure.md` §4 |
+| shapes | `restated` | unknown | judge by concept; keep one home only when both name one concept |
+| shapes | `reexport-chain` | delete | export from the home |
+| shapes | `renamed-reexport` | delete | use the home name |
+| shapes | `synonym` | delete; deliberate for a per-verb name | [1445](../../work/1445-delete-synonym-type-aliases-keep-per-verb-params.md) |
 
-| Scan | Command | Report | Scanned | Findings | Deliberate | Disagreements | Wall time | Peak RSS |
-| - | - | - | - | - | - | - | - | - |
-| members | `pnpm unwired` | `reports/unwired/unwired.json` | 4200 members | 111 | 33 | 0 | 5:41 | 8.4 GB |
-| fields | `pnpm unwired fields` | `reports/unwired/fields.json` | 19446 fields | 3384 | 4 | 14 | 19:51 | 9.3 GB |
-| params | `pnpm unwired params` | `reports/unwired/params.json` | 16823 callables | 315 | 0 | 4 | 7:54 | 10.3 GB |
-| unions | `pnpm unwired unions` | `reports/unwired/unions.json` | 671 tuples | 205 | 0 | 0 | 2:07 | 7.9 GB |
-| shapes | `pnpm unwired shapes` | `reports/unwired/shapes.json` | 20450 named types | 667 | 0 | 0 | 0:32 | 3.6 GB |
+A finding in `packages/contracts/src/plugin/` or `packages/plugin-sdk/` sits under each item's Plugin API heading: guests reach that surface from outside the tree, so keep it unless no guest can reach it. A row that looks like a half-built feature sits under Owner calls.
 
-Each run started with a 1-minute load under 24 on a 24-core box. A disagreement is a finding that engine one made and engine two did not reproduce. It is reported apart and is not in the counts below.
+### Judgement items
 
-### Members
-
-`pnpm unwired` reports callable members of named types that production code never calls. `builder-only` members have an implementation and no caller, `test-only` members are called only from tests, and `unreferenced` members are never named. A member that a composition root hands into a used port slot counts as reached; the report lists those 64 under `reachedByFlow`.
-
-| Domain | `builder-only` | `test-only` | `unreferenced` | Total |
-| - | - | - | - | - |
-| `contracts` | 11 | 3 | 3 | 17 |
-| `server/domain/chat` | 6 | 10 | 0 | 16 |
-| `server/entry` | 4 | 4 | 0 | 8 |
-| `inference` | 5 | 2 | 0 | 7 |
-| `kit` | 4 | 3 | 0 | 7 |
-| `server/infra` | 4 | 2 | 1 | 7 |
-| `client/forms` | 3 | 0 | 1 | 4 |
-| `server/domain/connection` | 3 | 1 | 0 | 4 |
-| `server/domain/discovery` | 4 | 0 | 0 | 4 |
-| `client/features/plugin` | 3 | 0 | 0 | 3 |
-| `server/domain/sessions` | 2 | 1 | 0 | 3 |
-| `server/transport` | 3 | 0 | 0 | 3 |
-| `client/data` | 2 | 0 | 0 | 2 |
-| `client/features/chat` | 2 | 0 | 0 | 2 |
-| `server/domain/import` | 2 | 0 | 0 | 2 |
-| `server/domain/plugin` | 2 | 0 | 0 | 2 |
-| `server/domain/rpg` | 1 | 0 | 1 | 2 |
-| `server/domain/share` | 1 | 1 | 0 | 2 |
-| `ui` | 2 | 0 | 0 | 2 |
-| `client/features/credentials` | 1 | 0 | 0 | 1 |
-| `client/features/discovery` | 1 | 0 | 0 | 1 |
-| `client/lib` | 1 | 0 | 0 | 1 |
-| `client/state` | 1 | 0 | 0 | 1 |
-| `server/domain/assets` | 1 | 0 | 0 | 1 |
-| `server/domain/automation` | 1 | 0 | 0 | 1 |
-| `server/domain/character` | 1 | 0 | 0 | 1 |
-| `server/domain/credentials` | 1 | 0 | 0 | 1 |
-| `server/domain/databank` | 0 | 0 | 1 | 1 |
-| `server/domain/embeddings` | 1 | 0 | 0 | 1 |
-| `server/domain/regex` | 0 | 1 | 0 | 1 |
-| `server/domain/tool-use` | 1 | 0 | 0 | 1 |
-| `server/domain/workloads` | 1 | 0 | 0 | 1 |
-| `server/domain/world-info` | 1 | 0 | 0 | 1 |
-| Total | 76 | 28 | 7 | 111 |
-
-Examples:
-
-- `packages/kit/src/content/index.ts:1116` `HiddenSpanStreamScrubber.flush` is `builder-only`. Only a `{@link}` in a doc comment names it.
-- `packages/server/src/domain/import/contract/service.ts:192` `ImportService.importChatBundle` is `builder-only`. A doc comment links it, and no code calls it.
-- `packages/server/src/infra/image/contract.ts:50` `ImageAdapter.probe` is `builder-only`. Only the `{@link}` at line 31 names it.
-- `packages/kit/src/macro/types.ts:496` `MacroRegistry.requirementsOf` is `builder-only`. `SimpleMacroRegistry` implements it, and no code calls it.
-
-### Fields
-
-`pnpm unwired fields` reports data properties of interfaces, object type aliases and `z.object` schemas.
-
-- `never-read`: production writes the field and never reads it.
-- `never-written`: an optional field that production reads and never writes.
-- `unreferenced`: production does neither.
-
-A schema checked against a type with `satisfies z.ZodType<T>` counts as part of `T`'s members. The `origin` column in the report separates type members from schema keys.
-
-| Domain | `never-read` | `never-written` | `unreferenced` | Total |
-| - | - | - | - | - |
-| `contracts` | 565 | 323 | 593 | 1481 |
-| `inference` | 89 | 113 | 152 | 354 |
-| `server/transport` | 96 | 36 | 130 | 262 |
-| `client/lib` | 158 | 16 | 38 | 212 |
-| `client/features/chat` | 130 | 1 | 2 | 133 |
-| `server/foundation` | 48 | 66 | 18 | 132 |
-| `server/domain/chat` | 75 | 7 | 42 | 124 |
-| `ui` | 29 | 27 | 33 | 89 |
-| `server/primitives` | 9 | 19 | 16 | 44 |
-| `kit` | 34 | 4 | 1 | 39 |
-| `server/domain/automation` | 35 | 0 | 3 | 38 |
-| `server/entry` | 28 | 1 | 6 | 35 |
-| `client/forms` | 28 | 0 | 6 | 34 |
-| `plugin-toolchain` | 34 | 0 | 0 | 34 |
-| `server/infra` | 18 | 6 | 10 | 34 |
-| `server/domain/sessions` | 24 | 0 | 2 | 26 |
-| `client/state` | 19 | 2 | 2 | 23 |
-| `server/domain/discovery` | 5 | 0 | 14 | 19 |
-| `server/domain/import` | 16 | 3 | 0 | 19 |
-| `server/domain/rpg` | 13 | 2 | 3 | 18 |
-| `client/features/preset` | 7 | 2 | 7 | 16 |
-| `server/domain/connection` | 5 | 8 | 0 | 13 |
-| `server/domain/search` | 9 | 0 | 4 | 13 |
-| `server/domain/settings` | 12 | 0 | 0 | 12 |
-| `client/features/persona` | 11 | 0 | 0 | 11 |
-| `client/features/workloads` | 11 | 0 | 0 | 11 |
-| `server/domain/imagery` | 9 | 1 | 1 | 11 |
-| `server/domain/stats` | 3 | 0 | 8 | 11 |
-| `client/components` | 8 | 2 | 0 | 10 |
-| `client/features/config` | 7 | 0 | 3 | 10 |
-| `server/domain/assets` | 10 | 0 | 0 | 10 |
-| `client/data` | 2 | 2 | 5 | 9 |
-| `server/domain/embeddings` | 9 | 0 | 0 | 9 |
-| `client/features/app-shell` | 8 | 0 | 0 | 8 |
-| `server/domain/databank` | 7 | 0 | 1 | 8 |
-| `client/features/credentials` | 7 | 0 | 0 | 7 |
-| `server/domain/character` | 3 | 0 | 4 | 7 |
-| `client/routes` | 0 | 1 | 5 | 6 |
-| `client/features/character` | 4 | 0 | 1 | 5 |
-| `client/features/plugin` | 5 | 0 | 0 | 5 |
-| `client/features/refinery` | 3 | 2 | 0 | 5 |
-| `server/domain/plugin` | 5 | 0 | 0 | 5 |
-| `client/features/stats` | 4 | 0 | 0 | 4 |
-| `client/features/world-info` | 4 | 0 | 0 | 4 |
-| `default-content` | 4 | 0 | 0 | 4 |
-| `server/domain/refinery` | 4 | 0 | 0 | 4 |
-| `server/domain/roster-preset` | 0 | 0 | 4 | 4 |
-| `client/features/discovery` | 2 | 1 | 0 | 3 |
-| `server/domain/admin` | 2 | 0 | 0 | 2 |
-| `server/domain/share` | 0 | 2 | 0 | 2 |
-| `client/dev` | 1 | 0 | 0 | 1 |
-| `client/features/automation` | 1 | 0 | 0 | 1 |
-| `client/features/regex` | 1 | 0 | 0 | 1 |
-| `db` | 1 | 0 | 0 | 1 |
-| `server/domain/credentials` | 0 | 0 | 1 | 1 |
-| Total | 1622 | 647 | 1115 | 3384 |
-
-By origin, `type` members give 1308 `never-read`, 163 `never-written` and 408 `unreferenced`. `schema` keys give 314 `never-read`, 484 `never-written` and 707 `unreferenced`.
-
-Examples:
-
-- `packages/kit/src/theme-derivation/index.ts:563` `ShadowIngredients.hairline` is `never-read`. The literal at line 604 writes it.
-- `packages/ui/src/lib/css-merge-contract.ts:10` `CssMergeConflict.axis` is `never-read` in production and is read in tests.
-- `packages/contracts/src/inference/tasks.ts:31` `TaskDefFields.scope` is `unreferenced`.
-- `packages/ui/src/art/web-weave/web-weave.tsx:69` `FrameMotion.plucks` is `unreferenced`.
-
-Known false-positive classes to check first:
-
-- An interface that describes a host object (`ClipboardGlobals`, `KeyboardWindowLike`, `LiveResolverGlobals` in `packages/ui/src/lib/`) gets its value by assignment from `globalThis`. No literal writes it, so its optional fields read as `never-written`.
-- A field that is read only through a spread, `Object.entries` or a library call is invisible to both engines and reads as `never-read`.
-- A `schema` key of an external input (env, a provider response, a file format) gets its value from a parse, so it reads as `never-written` or `unreferenced`.
-
-### Params
-
-`pnpm unwired params` reports three kinds:
-
-- `unsupplied`: an optional parameter that no production call passes.
-- `same-literal`: a parameter that every production call passes as the same literal, over at least two calls.
-- `unsupplied-prop`: an optional property of a parameter's type that no production call or JSX element sets.
-
-A callable whose value production hands on is not judged.
-
-| Domain | `same-literal` | `unsupplied` | `unsupplied-prop` | Total |
-| - | - | - | - | - |
-| `ui` | 2 | 1 | 113 | 116 |
-| `client/features/user-admin` | 0 | 0 | 47 | 47 |
-| `client/dev` | 0 | 0 | 16 | 16 |
-| `inference` | 0 | 2 | 14 | 16 |
-| `server/domain/chat` | 1 | 2 | 6 | 9 |
-| `server/infra` | 0 | 3 | 5 | 8 |
-| `client/lib` | 0 | 6 | 1 | 7 |
-| `server/entry` | 0 | 0 | 7 | 7 |
-| `client/components` | 0 | 0 | 6 | 6 |
-| `client/features/chat` | 0 | 1 | 5 | 6 |
-| `client/features/credentials` | 0 | 0 | 6 | 6 |
-| `client/features/rpg` | 0 | 0 | 6 | 6 |
-| `contracts` | 3 | 3 | 0 | 6 |
-| `server/primitives` | 0 | 2 | 4 | 6 |
-| `kit` | 0 | 1 | 4 | 5 |
-| `server/domain/embeddings` | 2 | 1 | 2 | 5 |
-| `server/domain/rpg` | 1 | 1 | 3 | 5 |
-| `server/domain/search` | 0 | 1 | 3 | 4 |
-| `client/compose` | 0 | 2 | 0 | 2 |
-| `client/data` | 0 | 1 | 1 | 2 |
-| `client/features/app-shell` | 0 | 0 | 2 | 2 |
-| `client/features/auth` | 0 | 2 | 0 | 2 |
-| `client/features/discovery` | 0 | 1 | 1 | 2 |
-| `client/features/plugin` | 0 | 0 | 2 | 2 |
-| `server/domain/character` | 0 | 2 | 0 | 2 |
-| `server/domain/plugin` | 0 | 2 | 0 | 2 |
-| `server/domain/sessions` | 0 | 0 | 2 | 2 |
-| `server/transport` | 0 | 0 | 2 | 2 |
-| `client/features/character` | 0 | 0 | 1 | 1 |
-| `client/features/refinery` | 0 | 0 | 1 | 1 |
-| `client/features/roster-preset` | 1 | 0 | 0 | 1 |
-| `client/features/workloads` | 1 | 0 | 0 | 1 |
-| `client/forms` | 0 | 0 | 1 | 1 |
-| `client/state` | 0 | 1 | 0 | 1 |
-| `server/domain/admin` | 0 | 0 | 1 | 1 |
-| `server/domain/assets` | 0 | 0 | 1 | 1 |
-| `server/domain/automation` | 0 | 0 | 1 | 1 |
-| `server/domain/connection` | 0 | 1 | 0 | 1 |
-| `server/domain/databank` | 0 | 0 | 1 | 1 |
-| `server/domain/discovery` | 0 | 1 | 0 | 1 |
-| `server/domain/import` | 0 | 1 | 0 | 1 |
-| `server/domain/stats` | 0 | 0 | 1 | 1 |
-| Total | 11 | 38 | 266 | 315 |
-
-Examples:
-
-- `packages/server/src/domain/chat/substrate/auth/decide.ts:38` `permits(action)`: all 3 calls pass `"host"`.
-- `packages/ui/src/content/theme-scope/tone-knobs.ts:169` `toneMixOf(tone)`: all 3 calls pass `"primary"`.
-- `packages/client/src/lib/safe-error-ring.ts:110` `recordSafeError(context)`: no call of 3 passes it.
-- `packages/ui/src/primitives/empty-state/empty-state.tsx:34` `EmptyState` `className`: none of 67 elements set it.
-- `packages/ui/src/primitives/toast/toast.tsx:131` `Toaster` `container` and `swipeDirection`: the one element sets neither.
-
-### Unions
-
-`pnpm unwired unions` reports `unbuilt` members of `as const` string tuples. No production literal builds such a member into a slot of its union. Each finding lists the `case` branches, equality checks and `Record` keys that name the member. A tuple that production maps, spreads, indexes or hands on can build any member, so it is listed under `enumerated` and not judged; this run lists 316.
-
-| Domain | `unbuilt` | Total |
-| - | - | - |
-| `contracts` | 142 | 142 |
-| `server/domain/discovery` | 20 | 20 |
-| `server/infra` | 10 | 10 |
-| `ui` | 10 | 10 |
-| `client/lib` | 7 | 7 |
-| `server/domain/sessions` | 6 | 6 |
-| `inference` | 5 | 5 |
-| `plugin-toolchain` | 2 | 2 |
-| `client/features/rpg` | 1 | 1 |
-| `server/domain/connection` | 1 | 1 |
-| `server/entry` | 1 | 1 |
-| Total | 205 | 205 |
-
-Examples:
-
-- `packages/contracts/src/inference/usage.ts:33` `RESPONSE_CACHE_STATUSES` `hit`. Checks in `packages/inference/src/backends/v4/result.ts:206` and other backends test for it.
-- `packages/ui/src/lib/clipboard.ts:6` `CLIPBOARD_OUTCOMES` `insecure`. Keys at `packages/client/src/lib/copy-with-notice.ts:11` and `packages/ui/src/primitives/copy-button/copy-button.tsx:18` name it.
-- `packages/contracts/src/inference/evidence.ts:16` `EVIDENCE_TIERS` `advertised`. No branch, check or key names it.
-
-A known class to check first: vocabularies that a model's structured output fills through `z.enum` are built only by a parse. `TONES` and `GENRES` in `packages/server/src/domain/discovery/verbs/distill.ts` and the `IMAGE_*` tuples in `packages/contracts/src/embeddings/index.ts` are examples. For these, `unbuilt` is accurate, and the question is whether the model can still produce the member.
-
-### Shapes
-
-`pnpm unwired shapes` reports four kinds:
-
-- `restated`: two named object types in different files with the same members, each assignable to the other.
-- `synonym`: an alias that is a bare reference to another type.
-- `reexport-chain`: an export that re-exports a re-export from another file.
-- `renamed-reexport`: an export that gives a symbol a second name.
-
-42 of the 84 synonyms sit in a domain's `contract/params.ts` or `contract/results.ts`. Item [1445](../../work/1445-delete-synonym-type-aliases-keep-per-verb-params.md) keeps these per-verb names. The report marks them `perVerb`.
-
-| Domain | `reexport-chain` | `renamed-reexport` | `restated` | `synonym` | Total |
-| - | - | - | - | - | - |
-| `contracts` | 0 | 0 | 111 | 7 | 118 |
-| `ui` | 7 | 9 | 58 | 3 | 77 |
-| `server/domain/chat` | 16 | 4 | 9 | 29 | 58 |
-| `inference` | 29 | 0 | 2 | 7 | 38 |
-| `server/foundation` | 30 | 0 | 0 | 1 | 31 |
-| `server/entry` | 11 | 0 | 16 | 1 | 28 |
-| `kit` | 0 | 0 | 24 | 0 | 24 |
-| `server/domain/discovery` | 7 | 1 | 15 | 0 | 23 |
-| `client/features/chat` | 0 | 0 | 22 | 0 | 22 |
-| `client/data` | 14 | 0 | 0 | 5 | 19 |
-| `server/domain/workloads` | 6 | 3 | 6 | 1 | 16 |
-| `server/domain/world-info` | 1 | 15 | 0 | 0 | 16 |
-| `client/state` | 7 | 0 | 7 | 0 | 14 |
-| `server/domain/automation` | 1 | 0 | 8 | 4 | 13 |
-| `server/domain/character` | 5 | 0 | 8 | 0 | 13 |
-| `server/domain/settings` | 5 | 2 | 5 | 1 | 13 |
-| `server/domain/plugin` | 11 | 0 | 1 | 0 | 12 |
-| `client/lib` | 3 | 0 | 4 | 4 | 11 |
-| `server/domain/admin` | 0 | 0 | 6 | 4 | 10 |
-| `server/domain/regex` | 0 | 0 | 8 | 1 | 9 |
-| `server/domain/databank` | 0 | 2 | 6 | 0 | 8 |
-| `server/domain/persona` | 1 | 1 | 6 | 0 | 8 |
-| `server/domain/rpg` | 6 | 2 | 0 | 0 | 8 |
-| `client/features/automation` | 0 | 0 | 6 | 0 | 6 |
-| `client/features/discovery` | 0 | 0 | 6 | 0 | 6 |
-| `server/domain/embeddings` | 3 | 1 | 1 | 1 | 6 |
-| `server/domain/refinery` | 0 | 1 | 3 | 2 | 6 |
-| `server/infra` | 4 | 0 | 0 | 2 | 6 |
-| `client/features/credentials` | 0 | 0 | 4 | 0 | 4 |
-| `client/features/user-admin` | 0 | 0 | 4 | 0 | 4 |
-| `server/domain/export` | 2 | 0 | 0 | 2 | 4 |
-| `server/domain/preset` | 0 | 3 | 1 | 0 | 4 |
-| `server/domain/tag` | 0 | 3 | 1 | 0 | 4 |
-| `client/components` | 2 | 0 | 1 | 0 | 3 |
-| `client/features/plugin` | 1 | 0 | 2 | 0 | 3 |
-| `server/domain/imagery` | 1 | 0 | 0 | 2 | 3 |
-| `server/domain/search` | 0 | 0 | 1 | 2 | 3 |
-| `client/features/databank` | 0 | 0 | 2 | 0 | 2 |
-| `server/domain/assets` | 0 | 2 | 0 | 0 | 2 |
-| `server/domain/notifications` | 1 | 0 | 0 | 1 | 2 |
-| `server/domain/roster-preset` | 0 | 1 | 0 | 1 | 2 |
-| `server/domain/tool-use` | 2 | 0 | 0 | 0 | 2 |
-| `client/features/character` | 0 | 0 | 0 | 1 | 1 |
-| `client/features/preset` | 0 | 0 | 1 | 0 | 1 |
-| `client/features/roster-preset` | 0 | 0 | 0 | 1 | 1 |
-| `client/features/rpg` | 0 | 0 | 1 | 0 | 1 |
-| `server/domain/connection` | 0 | 1 | 0 | 0 | 1 |
-| `server/domain/import` | 0 | 0 | 0 | 1 | 1 |
-| Total | 176 | 51 | 356 | 84 | 667 |
-
-Examples:
-
-- `packages/contracts/src/plugin/host-v1.ts:66` `PluginVariableOp` is a `synonym` of `VarOp` in `packages/kit/src/macro/types.ts`.
-- `packages/contracts/src/automation/index.ts:915` `SuggestionCardDetail` is a `synonym` of `RewriteCardDetail`.
-- `packages/ui/src/lib/use-prefers-light-color-scheme.ts:3` `ColorSchemeQuery` restates `ReducedMotionQuery` at `packages/ui/src/lib/use-prefers-reduced-motion.ts:11`.
-- `packages/client/src/state/index.ts:34` `SeedThemeName` reaches `packages/client/src/lib/index.ts` through `packages/client/src/state/appearance-boot-hint.ts`.
-- `packages/ui/src/primitives/icons/index.ts:6` exports the library's `TriangleAlert` as `AlertTriangle`.
-
-Small UI prop shapes (`PopoverTitleProps`, `DialogTitleProps`, `AlertDialogTitleProps`) match by coincidence of their members. Judge each `restated` pair by concept, not by shape alone.
+- fields: [1534](../../work/1534-judge-the-client-components-fields-the-unwired-fields.md), [1535](../../work/1535-judge-the-client-data-fields-the-unwired-fields.md), [1536](../../work/1536-judge-the-client-dev-fields-the-unwired-fields.md), [1537](../../work/1537-judge-the-client-features-app-shell-fields-the.md), [1538](../../work/1538-judge-the-client-features-automation-fields-the-unwired.md), [1539](../../work/1539-judge-the-client-features-character-fields-the-unwired.md), [1540](../../work/1540-judge-the-client-features-chat-fields-the-unwired.md), [1541](../../work/1541-judge-the-client-features-config-fields-the-unwired.md), [1542](../../work/1542-judge-the-client-features-credentials-fields-the-unwired.md), [1543](../../work/1543-judge-the-client-features-persona-fields-the-unwired.md), [1544](../../work/1544-judge-the-client-features-plugin-fields-the-unwired.md), [1545](../../work/1545-judge-the-client-features-preset-fields-the-unwired.md), [1546](../../work/1546-judge-the-client-features-refinery-fields-the-unwired.md), [1547](../../work/1547-judge-the-client-features-regex-fields-the-unwired.md), [1548](../../work/1548-judge-the-client-features-stats-fields-the-unwired.md), [1549](../../work/1549-judge-the-client-features-workloads-fields-the-unwired.md), [1550](../../work/1550-judge-the-client-features-world-info-fields-the.md), [1551](../../work/1551-judge-the-client-forms-fields-the-unwired-fields.md), [1552](../../work/1552-judge-the-client-lib-fields-the-unwired-fields.md), [1553](../../work/1553-judge-the-client-lib-fields-the-unwired-fields.md), [1554](../../work/1554-judge-the-client-routes-fields-the-unwired-fields.md), [1555](../../work/1555-judge-the-client-state-fields-the-unwired-fields.md), [1556](../../work/1556-judge-the-contracts-fields-the-unwired-fields-scan.md), [1557](../../work/1557-judge-the-contracts-fields-the-unwired-fields-scan.md), [1558](../../work/1558-judge-the-contracts-fields-the-unwired-fields-scan.md), [1559](../../work/1559-judge-the-contracts-fields-the-unwired-fields-scan.md), [1560](../../work/1560-judge-the-contracts-fields-the-unwired-fields-scan.md), [1561](../../work/1561-judge-the-contracts-fields-the-unwired-fields-scan.md), [1562](../../work/1562-judge-the-db-fields-the-unwired-fields-scan.md), [1563](../../work/1563-judge-the-default-content-fields-the-unwired-fields.md), [1564](../../work/1564-judge-the-inference-fields-the-unwired-fields-scan.md), [1565](../../work/1565-judge-the-kit-fields-the-unwired-fields-scan.md), [1566](../../work/1566-judge-the-plugin-toolchain-fields-the-unwired-fields.md), [1567](../../work/1567-judge-the-server-domain-admin-fields-the-unwired.md), [1568](../../work/1568-judge-the-server-domain-assets-fields-the-unwired.md), [1569](../../work/1569-judge-the-server-domain-automation-fields-the-unwired.md), [1570](../../work/1570-judge-the-server-domain-character-fields-the-unwired.md), [1571](../../work/1571-judge-the-server-domain-chat-fields-the-unwired.md), [1572](../../work/1572-judge-the-server-domain-connection-fields-the-unwired.md), [1573](../../work/1573-judge-the-server-domain-credentials-fields-the-unwired.md), [1574](../../work/1574-judge-the-server-domain-databank-fields-the-unwired.md), [1575](../../work/1575-judge-the-server-domain-discovery-fields-the-unwired.md), [1576](../../work/1576-judge-the-server-domain-embeddings-fields-the-unwired.md), [1577](../../work/1577-judge-the-server-domain-imagery-fields-the-unwired.md), [1578](../../work/1578-judge-the-server-domain-import-fields-the-unwired.md), [1579](../../work/1579-judge-the-server-domain-plugin-fields-the-unwired.md), [1580](../../work/1580-judge-the-server-domain-roster-preset-fields-the.md), [1581](../../work/1581-judge-the-server-domain-rpg-fields-the-unwired.md), [1582](../../work/1582-judge-the-server-domain-search-fields-the-unwired.md), [1583](../../work/1583-judge-the-server-domain-sessions-fields-the-unwired.md), [1584](../../work/1584-judge-the-server-domain-settings-fields-the-unwired.md), [1585](../../work/1585-judge-the-server-domain-share-fields-the-unwired.md), [1586](../../work/1586-judge-the-server-domain-stats-fields-the-unwired.md), [1587](../../work/1587-judge-the-server-entry-fields-the-unwired-fields.md), [1588](../../work/1588-judge-the-server-foundation-fields-the-unwired-fields.md), [1589](../../work/1589-judge-the-server-infra-fields-the-unwired-fields.md), [1590](../../work/1590-judge-the-server-primitives-fields-the-unwired-fields.md), [1591](../../work/1591-judge-the-server-transport-fields-the-unwired-fields.md), [1592](../../work/1592-judge-the-ui-fields-the-unwired-fields-scan.md)
+- params: [1593](../../work/1593-judge-the-client-components-parameters-the-unwired-params.md), [1594](../../work/1594-judge-the-client-compose-parameters-the-unwired-params.md), [1595](../../work/1595-judge-the-client-data-parameters-the-unwired-params.md), [1596](../../work/1596-judge-the-client-dev-parameters-the-unwired-params.md), [1597](../../work/1597-judge-the-client-features-app-shell-parameters-the.md), [1598](../../work/1598-judge-the-client-features-auth-parameters-the-unwired.md), [1599](../../work/1599-judge-the-client-features-character-parameters-the-unwired.md), [1600](../../work/1600-judge-the-client-features-chat-parameters-the-unwired.md), [1601](../../work/1601-judge-the-client-features-credentials-parameters-the-unwired.md), [1602](../../work/1602-judge-the-client-features-discovery-parameters-the-unwired.md), [1603](../../work/1603-judge-the-client-features-plugin-parameters-the-unwired.md), [1604](../../work/1604-judge-the-client-features-refinery-parameters-the-unwired.md), [1605](../../work/1605-judge-the-client-features-roster-preset-parameters-the.md), [1606](../../work/1606-judge-the-client-features-rpg-parameters-the-unwired.md), [1607](../../work/1607-judge-the-client-features-user-admin-parameters-the.md), [1608](../../work/1608-judge-the-client-features-workloads-parameters-the-unwired.md), [1609](../../work/1609-judge-the-client-forms-parameters-the-unwired-params.md), [1610](../../work/1610-judge-the-client-lib-parameters-the-unwired-params.md), [1611](../../work/1611-judge-the-client-state-parameters-the-unwired-params.md), [1612](../../work/1612-judge-the-contracts-parameters-the-unwired-params-scan.md), [1613](../../work/1613-judge-the-inference-parameters-the-unwired-params-scan.md), [1614](../../work/1614-judge-the-kit-parameters-the-unwired-params-scan.md), [1615](../../work/1615-judge-the-server-domain-admin-parameters-the-unwired.md), [1616](../../work/1616-judge-the-server-domain-assets-parameters-the-unwired.md), [1617](../../work/1617-judge-the-server-domain-automation-parameters-the-unwired.md), [1618](../../work/1618-judge-the-server-domain-character-parameters-the-unwired.md), [1619](../../work/1619-judge-the-server-domain-chat-parameters-the-unwired.md), [1620](../../work/1620-judge-the-server-domain-connection-parameters-the-unwired.md), [1621](../../work/1621-judge-the-server-domain-databank-parameters-the-unwired.md), [1622](../../work/1622-judge-the-server-domain-discovery-parameters-the-unwired.md), [1623](../../work/1623-judge-the-server-domain-embeddings-parameters-the-unwired.md), [1624](../../work/1624-judge-the-server-domain-import-parameters-the-unwired.md), [1625](../../work/1625-judge-the-server-domain-plugin-parameters-the-unwired.md), [1626](../../work/1626-judge-the-server-domain-rpg-parameters-the-unwired.md), [1627](../../work/1627-judge-the-server-domain-search-parameters-the-unwired.md), [1628](../../work/1628-judge-the-server-domain-stats-parameters-the-unwired.md), [1629](../../work/1629-judge-the-server-entry-parameters-the-unwired-params.md), [1630](../../work/1630-judge-the-server-infra-parameters-the-unwired-params.md), [1631](../../work/1631-judge-the-server-primitives-parameters-the-unwired-params.md), [1632](../../work/1632-judge-the-server-transport-parameters-the-unwired-params.md), [1633](../../work/1633-judge-the-ui-parameters-the-unwired-params-scan.md)
+- unions: [1634](../../work/1634-judge-the-client-features-rpg-union-members-the.md), [1635](../../work/1635-judge-the-client-lib-union-members-the-unwired.md), [1636](../../work/1636-judge-the-contracts-union-members-the-unwired-unions.md), [1637](../../work/1637-judge-the-inference-union-members-the-unwired-unions.md), [1638](../../work/1638-judge-the-kit-union-members-the-unwired-unions.md), [1639](../../work/1639-judge-the-plugin-toolchain-union-members-the-unwired.md), [1640](../../work/1640-judge-the-server-domain-connection-union-members-the.md), [1641](../../work/1641-judge-the-server-domain-discovery-union-members-the.md), [1642](../../work/1642-judge-the-server-domain-sessions-union-members-the.md), [1643](../../work/1643-judge-the-server-entry-union-members-the-unwired.md), [1644](../../work/1644-judge-the-server-infra-union-members-the-unwired.md), [1645](../../work/1645-judge-the-ui-union-members-the-unwired-unions.md)
+- shapes: [1646](../../work/1646-judge-the-client-components-shapes-the-unwired-shapes.md), [1647](../../work/1647-judge-the-client-data-shapes-the-unwired-shapes.md), [1648](../../work/1648-judge-the-client-features-chat-shapes-the-unwired.md), [1649](../../work/1649-judge-the-client-features-databank-shapes-the-unwired.md), [1650](../../work/1650-judge-the-client-features-discovery-shapes-the-unwired.md), [1651](../../work/1651-judge-the-client-features-plugin-shapes-the-unwired.md), [1652](../../work/1652-judge-the-client-features-user-admin-shapes-the.md), [1653](../../work/1653-judge-the-client-lib-shapes-the-unwired-shapes.md), [1654](../../work/1654-judge-the-client-state-shapes-the-unwired-shapes.md), [1655](../../work/1655-judge-the-contracts-shapes-the-unwired-shapes-scan.md), [1656](../../work/1656-judge-the-inference-shapes-the-unwired-shapes-scan.md), [1657](../../work/1657-judge-the-kit-shapes-the-unwired-shapes-scan.md), [1658](../../work/1658-judge-the-server-domain-admin-shapes-the-unwired.md), [1659](../../work/1659-judge-the-server-domain-assets-shapes-the-unwired.md), [1660](../../work/1660-judge-the-server-domain-automation-shapes-the-unwired.md), [1661](../../work/1661-judge-the-server-domain-character-shapes-the-unwired.md), [1662](../../work/1662-judge-the-server-domain-chat-shapes-the-unwired.md), [1663](../../work/1663-judge-the-server-domain-connection-shapes-the-unwired.md), [1664](../../work/1664-judge-the-server-domain-databank-shapes-the-unwired.md), [1665](../../work/1665-judge-the-server-domain-discovery-shapes-the-unwired.md), [1666](../../work/1666-judge-the-server-domain-embeddings-shapes-the-unwired.md), [1667](../../work/1667-judge-the-server-domain-export-shapes-the-unwired.md), [1668](../../work/1668-judge-the-server-domain-imagery-shapes-the-unwired.md), [1669](../../work/1669-judge-the-server-domain-notifications-shapes-the-unwired.md), [1670](../../work/1670-judge-the-server-domain-persona-shapes-the-unwired.md), [1671](../../work/1671-judge-the-server-domain-plugin-shapes-the-unwired.md), [1672](../../work/1672-judge-the-server-domain-preset-shapes-the-unwired.md), [1673](../../work/1673-judge-the-server-domain-refinery-shapes-the-unwired.md), [1674](../../work/1674-judge-the-server-domain-regex-shapes-the-unwired.md), [1675](../../work/1675-judge-the-server-domain-roster-preset-shapes-the.md), [1676](../../work/1676-judge-the-server-domain-rpg-shapes-the-unwired.md), [1677](../../work/1677-judge-the-server-domain-search-shapes-the-unwired.md), [1678](../../work/1678-judge-the-server-domain-settings-shapes-the-unwired.md), [1679](../../work/1679-judge-the-server-domain-tag-shapes-the-unwired.md), [1680](../../work/1680-judge-the-server-domain-tool-use-shapes-the.md), [1681](../../work/1681-judge-the-server-domain-workloads-shapes-the-unwired.md), [1682](../../work/1682-judge-the-server-domain-world-info-shapes-the.md), [1683](../../work/1683-judge-the-server-entry-shapes-the-unwired-shapes.md), [1684](../../work/1684-judge-the-server-foundation-shapes-the-unwired-shapes.md), [1685](../../work/1685-judge-the-server-infra-shapes-the-unwired-shapes.md), [1686](../../work/1686-judge-the-ui-shapes-the-unwired-shapes-scan.md)
